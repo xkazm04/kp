@@ -1964,6 +1964,13 @@ export const REFUSAL_ERRORS = {
   /** GET /api/me/capability-holders named no capability, or one the role model does
    *  not know (400). The shell only ever asks for a TAB_CAPABILITY value. */
   CAPABILITY_UNKNOWN: "That permission does not exist.",
+  /** POST /api/interview-prep/scorecard (409): the candidate's prep already holds
+   *  MAX_HUMAN_SCORECARDS records, one per (interviewer, round), and this save would
+   *  open a new one. Refused rather than made room for — evicting an older record is
+   *  exactly the loss the per-interviewer list exists to prevent
+   *  (app/_lib/human-scorecard-set.ts). An interviewer re-saving their own record is
+   *  never refused. */
+  INTERVIEW_PREP_SCORECARDS_FULL: "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

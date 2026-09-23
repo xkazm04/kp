@@ -1987,7 +1987,8 @@
     "ENGINE_TIMEOUT": "The analysis engine took too long on this run and was stopped. Try again.",
     "ENGINE_FAILED": "The analysis engine stopped before this run finished. Try again, and tell your administrator if it keeps happening.",
     "TASK_TIME_LIMIT": "This run went past its time limit and was stopped. Try again.",
-    "CAPABILITY_UNKNOWN": "That permission does not exist."
+    "CAPABILITY_UNKNOWN": "That permission does not exist.",
+    "INTERVIEW_PREP_SCORECARDS_FULL": "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4649,7 +4650,10 @@
       "saved": "Saved",
       "gatedMoved": "Verdict recorded. Moved to the Decisions queue.",
       "saveFailed": "Couldn't save the scorecard.",
-      "saveFailedStatus": "Save failed ({status})."
+      "saveFailedStatus": "Save failed ({status}).",
+      "loadingMine": "Loading your scorecard…",
+      "loadMineFailed": "Couldn't load your scorecard.",
+      "othersScored": "{count, plural, one {# other scorecard is} other {# other scorecards are}} saved for this candidate. They stay hidden here so your ratings are your own."
     },
     "prep": {
       "title": "Interview prep · {name}",
@@ -4882,7 +4886,11 @@
         "audioDeleting": "Deleting…",
         "audioDeleteFailed": "Couldn't delete the recording."
       },
-      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}"
+      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}",
+      "humanScorecardBy": "Scored by {author}",
+      "humanScorecardUnnamed": "Scored without a signed-in interviewer",
+      "humanScorecardLegacy": "Saved before scorecards were kept per interviewer",
+      "humanScorecardRound": "Round: {stage}"
     },
     "relay": {
       "label": "Where the baton is",

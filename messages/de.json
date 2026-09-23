@@ -1987,7 +1987,8 @@
     "ENGINE_TIMEOUT": "Die Analyse-Engine hat für diesen Lauf zu lange gebraucht und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "ENGINE_FAILED": "Die Analyse-Engine wurde beendet, bevor dieser Lauf abgeschlossen war. Bitte versuchen Sie es erneut und wenden Sie sich an Ihre Administration, wenn es wiederholt auftritt.",
     "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut.",
-    "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht."
+    "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht.",
+    "INTERVIEW_PREP_SCORECARDS_FULL": "Für diese Kandidatin bzw. diesen Kandidaten sind bereits so viele Interview-Scorecards gespeichert wie möglich. Ihre Scorecard wurde nicht gespeichert."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4649,7 +4650,10 @@
       "saved": "Gespeichert",
       "gatedMoved": "Urteil erfasst. In die Entscheidungs-Warteschlange verschoben.",
       "saveFailed": "Scorecard konnte nicht gespeichert werden.",
-      "saveFailedStatus": "Speichern fehlgeschlagen ({status})."
+      "saveFailedStatus": "Speichern fehlgeschlagen ({status}).",
+      "loadingMine": "Ihre Scorecard wird geladen…",
+      "loadMineFailed": "Ihre Scorecard konnte nicht geladen werden.",
+      "othersScored": "{count, plural, one {Für diese Person ist # weitere Scorecard gespeichert.} other {Für diese Person sind # weitere Scorecards gespeichert.}} Sie bleiben hier ausgeblendet, damit Ihre Bewertung unabhängig bleibt."
     },
     "prep": {
       "title": "Interview-Vorbereitung · {name}",
@@ -4882,7 +4886,11 @@
         "audioDeleting": "Wird gelöscht…",
         "audioDeleteFailed": "Die Aufnahme konnte nicht gelöscht werden."
       },
-      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}"
+      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}",
+      "humanScorecardBy": "Bewertet von {author}",
+      "humanScorecardUnnamed": "Ohne angemeldete interviewende Person bewertet",
+      "humanScorecardLegacy": "Gespeichert, bevor Scorecards je interviewender Person geführt wurden",
+      "humanScorecardRound": "Runde: {stage}"
     },
     "relay": {
       "label": "Wo der Staffelstab liegt",

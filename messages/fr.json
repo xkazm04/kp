@@ -1987,7 +1987,8 @@
     "ENGINE_TIMEOUT": "Le moteur d’analyse a mis trop de temps pour cette exécution et a été arrêté. Veuillez réessayer.",
     "ENGINE_FAILED": "Le moteur d’analyse s’est arrêté avant la fin de cette exécution. Veuillez réessayer et prévenir votre administrateur si le problème persiste.",
     "TASK_TIME_LIMIT": "Cette exécution a dépassé sa limite de temps et a été arrêtée. Veuillez réessayer.",
-    "CAPABILITY_UNKNOWN": "Cette autorisation n’existe pas."
+    "CAPABILITY_UNKNOWN": "Cette autorisation n’existe pas.",
+    "INTERVIEW_PREP_SCORECARDS_FULL": "Ce candidat a déjà le nombre maximal de scorecards d’entretien pouvant être enregistrées. Votre scorecard n’a pas été enregistrée."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4649,7 +4650,10 @@
       "saved": "Enregistré",
       "gatedMoved": "Verdict enregistré. Déplacé vers la file Décisions.",
       "saveFailed": "Impossible d’enregistrer la scorecard.",
-      "saveFailedStatus": "Échec de l’enregistrement ({status})."
+      "saveFailedStatus": "Échec de l’enregistrement ({status}).",
+      "loadingMine": "Chargement de votre scorecard…",
+      "loadMineFailed": "Impossible de charger votre scorecard.",
+      "othersScored": "{count, plural, one {# autre scorecard est enregistrée pour ce candidat.} other {# autres scorecards sont enregistrées pour ce candidat.}} Elles restent masquées ici afin que votre évaluation reste indépendante."
     },
     "prep": {
       "title": "Préparation d’entretien · {name}",
@@ -4882,7 +4886,11 @@
         "audioDeleting": "Suppression…",
         "audioDeleteFailed": "Nous n’avons pas pu supprimer l’enregistrement."
       },
-      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}",
+      "humanScorecardBy": "Évaluée par {author}",
+      "humanScorecardUnnamed": "Évaluée sans intervieweur connecté",
+      "humanScorecardLegacy": "Enregistrée avant que les scorecards ne soient tenues par intervieweur",
+      "humanScorecardRound": "Tour : {stage}"
     },
     "relay": {
       "label": "Où se trouve le témoin",

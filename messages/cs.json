@@ -1987,7 +1987,8 @@
     "ENGINE_TIMEOUT": "Analytický engine na tomto běhu pracoval příliš dlouho a byl zastaven. Zkuste to prosím znovu.",
     "ENGINE_FAILED": "Analytický engine se zastavil dříve, než tento běh dokončil. Zkuste to prosím znovu, a pokud se to opakuje, obraťte se na správce.",
     "TASK_TIME_LIMIT": "Tento běh překročil svůj časový limit a byl zastaven. Zkuste to prosím znovu.",
-    "CAPABILITY_UNKNOWN": "Toto oprávnění neexistuje."
+    "CAPABILITY_UNKNOWN": "Toto oprávnění neexistuje.",
+    "INTERVIEW_PREP_SCORECARDS_FULL": "Tento kandidát už má uložený nejvyšší možný počet hodnoticích karet z pohovoru. Vaše hodnoticí karta nebyla uložena."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -4649,7 +4650,10 @@
       "saved": "Uloženo",
       "gatedMoved": "Verdikt zaznamenán. Přesunuto do fronty Rozhodnutí.",
       "saveFailed": "Hodnoticí kartu se nepodařilo uložit.",
-      "saveFailedStatus": "Uložení selhalo ({status})."
+      "saveFailedStatus": "Uložení selhalo ({status}).",
+      "loadingMine": "Načítání vaší hodnoticí karty…",
+      "loadMineFailed": "Vaši hodnoticí kartu se nepodařilo načíst.",
+      "othersScored": "{count, plural, one {Pro tohoto kandidáta je uložena # další hodnoticí karta.} few {Pro tohoto kandidáta jsou uloženy # další hodnoticí karty.} other {Pro tohoto kandidáta je uloženo # dalších hodnoticích karet.}} Zde zůstávají skryté, aby vaše hodnocení bylo nezávislé."
     },
     "prep": {
       "title": "Příprava na pohovor · {name}",
@@ -4882,7 +4886,11 @@
         "audioDeleting": "Maže se…",
         "audioDeleteFailed": "Záznam se nepodařilo smazat."
       },
-      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}",
+      "humanScorecardBy": "Hodnotil(a): {author}",
+      "humanScorecardUnnamed": "Hodnoceno bez přihlášeného tazatele",
+      "humanScorecardLegacy": "Uloženo dříve, než se hodnoticí karty vedly pro každého tazatele zvlášť",
+      "humanScorecardRound": "Kolo: {stage}"
     },
     "relay": {
       "label": "Kde je štafeta",
