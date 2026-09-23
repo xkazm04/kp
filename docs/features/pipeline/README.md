@@ -272,6 +272,34 @@ strands nobody, and moving them would rewrite closed history.
    day, and never on the decision that advances the entry out of that stint;
    `fairness_gate_blocked_reject` keeps its per-business-day dedupe
    (`recordDecisionAlerts`, shared by the preview and the commit loop).
+   **The commit applies the pass you previewed.** The preview modal
+   (`PassPreviewModal.tsx`, mounted by the control dock) gives every advance and
+   would-be-reject row a checkbox, ticked by default, and the commit posts
+   `approved: [{ entryId, action, toStage }]`: the rows still ticked, exactly as they
+   were shown. `app/_lib/automation-commit-plan.ts` (pure, client-safe) reconciles the
+   fresh decisions against it per entry: `apply` (same action and target), `declined`
+   (the pass wants to advance or queue a reject the recruiter did not tick) or
+   `drifted` (ticked, but the pass now decides differently). Declined and drifted rows
+   are not applied; they persist in the run log as `outcome: "skipped"` with
+   `reasonCode` `notApproved` / `changedSincePreview`. Holds, alerts and a reject the
+   fairness backstop refuses stay autonomous: an unticked advance still writes its
+   aging alert. **A selection is one team's review:** the pass it runs is scoped to
+   the caller's workspace before it starts (`entriesForPass`), and `applyPassDecisions`
+   drops any other team's decision as a second wall, so another team's rows are
+   neither applied by this click nor held back by it; they wait for their own team's
+   commit or the clock. The old "Apply N changes (all teams)" button is gone. The
+   response adds `drifted` (each held-back row with what was approved and what the
+   pass decided), `declined` and `selectionHonored`; a click that joins a pass already
+   in flight answers `selectionHonored: false`, since that pass was planned without
+   it, and the modal says so instead of reporting it as applied. With drift or a
+   joined pass the modal stays open on the report with a "Preview again" action. A
+   caller that sends no `approved` (the clock, the command bar, an external cron) runs
+   the global sweep exactly as before. A malformed selection (not an array, an action
+   other than advance/reject, a duplicate id, more rows than
+   `AUTOMATION_PASS_ENTRY_CAP`) is refused `400 AUTOMATION_SELECTION_INVALID` before
+   any pass runs. Known gap: a scoped pass reads the same capped global snapshot and
+   then filters it, so on an installation past the cap a team's longest-waiting rows
+   compete with other teams' for the 2,000 slots.
 3. **Screen wave — configurable bulk auto-reject.** `app/_lib/screen-wave.ts`
    auto-rejects the bottom X% of a role's matched cohort that are *also* below
    a configurable match floor — the one Phase-3 capability the original spec
@@ -440,7 +468,7 @@ strands nobody, and moving them would rewrite closed history.
 | `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `draft_rejection` / `draft_offer` additionally take the entry’s stored scorecard and ground themselves in it through `interview_evidence` (candidate-safe projection) + `_match_competency` (the checked `decisiveCompetency`). `POLICY` dict holds the hard-coded defaults. Every task renders its fact base through `context_block`, which puts the candidate-authored half behind an untrusted fence and leaves the job/match half plain (see [Every automation prompt fences the candidate's own words](#every-automation-prompt-fences-the-candidates-own-words)); `screen_candidate` additionally shows the scorer's `unproven_facts`, and `rematch_candidate` takes `lang` + stamps `narrativeLang`. `interview_scorecard` additionally fences its transcript and the candidate's name, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
 | `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). `--lang` reaches every narrative sub-command, `rematch` included since 2026-09-05. `--pipeline-size N` (the `screen` sub-command only) is the role's active-candidate count and sets the screening strictness tier; omitted = unknown, which resolves to the most lenient tier. |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
-| `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. The preview modal surfaces `summary.scoringDeferred` as a warning about job groups left for the next pass when the scoring spawn budget is reached. |
+| `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. The preview modal surfaces `summary.scoringDeferred` as a warning about job groups left for the next pass when the scoring spawn budget is reached. A commit may carry `approved` (the preview's ticked rows); it is validated by `parseApprovedSelection` (`400 AUTOMATION_SELECTION_INVALID`), scoped to the caller's workspace, and answered with `drifted` / `declined` / `selectionHonored` from `commitReport` (see the policy-pass step above). |
 | `app/_lib/scheduler-jobs.ts` | **The scheduler job registry** (WP4a) — the one list of named clock jobs the clock loop, the schedule route and the control panel iterate: `policy_pass` (15 min, off), `reminders` (1 min, on) and `jobseeker_scan` (720 min, off, `requiresVerifiedRun`). Each entry carries its defaults, its fan-out and whether it must be verified by one manual `ok` run before its clock may be armed. Store-free (the browser imports it for labels); `scheduler-store.ts` reads it through `ensureRegisteredSchedule(def)`. `policy_pass` is the one job still named literally — `tickScheduler` owns its run path and the payload keeps its legacy fields. Pinned by `scheduler-jobs.test.ts` (unique names, a label in all four catalogs, `jobseeker_scan` disabled by default). |
 | `app/api/automation/schedule/route.ts` | The automation clock's control surface. `GET` returns the **legacy fields unchanged** — `schedule`/`runs` (the policy pass, decision rows workspace-filtered), `reminders`/`reminderRuns`, `scheduleScope: "global"`, and the clock's **liveness** (`liveness`/`livenessReason`/`lastTickAt`, from `schedulerLiveness()` over the `scheduler_heartbeat` row, the same verdict `/api/health` and `/api/ops` render) — **plus `jobs[]`**: one entry per registry job (`name`, `labelKey`, `schedule`, `runs`, `requiresVerifiedRun`, `verified` = the store holds at least one `ok` run for it). `POST` accepts `{ job?, enabled?, intervalMinutes?, tick? }`; a body with no `job` means the policy pass and `remindersEnabled` means `{ job: "reminders", enabled }`, so every older caller still works. Operator-only. Refusals are existing codes: a malformed interval `SCHEDULE_INTERVAL_INVALID` (400), a name the registry lacks `AUTOMATION_TASK_UNKNOWN` (400), `tick` for any job but the policy pass `AUTOMATION_TASK_NOT_OFFERED` (400), and arming a `requiresVerifiedRun` job before an `ok` run exists `JOBSEEKER_SCAN_UNVERIFIED` (409); the catch answers `safeJsonError(..., "SCHEDULE_UPDATE_FAILED")`. `{"tick": true}` — a full policy pass — is throttled per IP (`schedule-tick:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`); the GET and the cheap config writes are not. The payload's key set and both body shapes are pinned by `route.test.ts` beside it. |
 | `instrumentation-node.ts` (the clock) | `tickScheduler()` runs the policy pass; every OTHER registry job runs through one loop under it — `ensureRegisteredSchedule(job)`, `claimDueRun(job.name)`, then `JOB_HANDLERS[job.name]()` (a typed map, so a job registered without a handler is a compile error). `reminders` is the historical sweep verbatim (a zero-send sweep records no row); `jobseeker_scan` is a placeholder until WP4c that records a claimed run as `skipped` — never `ok`, because an `ok` row is what verifies the job. Each job keeps its own bookkeeping `try/catch`; the autonomy-pause ordering is unchanged. |
