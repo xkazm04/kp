@@ -4,7 +4,8 @@
 //   - one situation per fixture runs end to end on the keyless fake providers;
 //   - the candidate never receives the brief, a [Director] line, a tool line or a result;
 //   - nothing can reach the operator's database;
-//   - the in-memory mirror of director-step.ts and the heartbeat still match production;
+//   (the exchange itself is voice/director-exchange.ts, shared with the live route and
+//   pinned by director-exchange.test.ts — no source-text mirror check lives here);
 //   - a rerun into the same output directory skips what is already dumped.
 //
 // testing/unit-db.ts MUST be the first project import (it sets KP_DB_PATH).
@@ -21,7 +22,6 @@ import { candidateSystem, INTERVIEWER_HARNESS_PREAMBLE, interviewerSystem, runCo
 import { fakeCandidate, fakeInterviewer, recordingLlm } from "./fake.ts";
 import { instrumentLocaleFor, loadSituations, SIM_INVARIANTS } from "./situations.ts";
 import { runSimulations } from "./runner.ts";
-import { DIRECTOR_HEARTBEAT_MS } from "./clock.ts";
 import { SIM_FIXTURES, type SimFixture, type SimLlm, type SimSituation } from "./types.ts";
 
 after(() => cleanupUnitDb());
@@ -134,26 +134,6 @@ test("nothing can reach the operator's database", () => {
   assert.match(String(throwawayDbProblem(e2e, { KP_DB_PATH: e2e })), /data\/ directory/);
   assert.match(String(throwawayDbProblem(UNIT_DB_PATH, { KP_DB_PATH: path.join(tmpdir(), "elsewhere.sqlite") })), /set too late/);
   assert.equal(throwawayDbProblem(UNIT_DB_PATH, { KP_DB_PATH: UNIT_DB_PATH }), null);
-});
-
-test("the in-memory exchange still mirrors director-step.ts's order", () => {
-  const src = readFileSync(new URL("../voice/director-step.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  const at = (needle: string) => {
-    const i = src.indexOf(needle);
-    assert.ok(i >= 0, `director-step.ts no longer contains ${JSON.stringify(needle)} — re-check director-loop.ts`);
-    return i;
-  };
-  assert.ok(at("// 1. Persist what the browser observed") < at("// 2. At most one tool call.") && at("// 2. At most one tool call.") < at("// 3. At most one stage direction"));
-  at("blockId: before.activeBlockId");
-  at("endCall: Boolean(outcome?.endCall) || state.endRequested || overTime");
-  at("state.elapsedMs >= endCeilingMin(agenda, state) * 60_000");
-});
-
-test("the simulated heartbeat is the browser's", () => {
-  const src = readFileSync(new URL("../../_components/voice/useDirector.ts", import.meta.url), "utf8");
-  const m = /DIRECTOR_HEARTBEAT_MS\s*=\s*([\d_]+)/.exec(src);
-  assert.ok(m, "useDirector.ts still declares DIRECTOR_HEARTBEAT_MS");
-  assert.equal(Number(m[1].replace(/_/g, "")), DIRECTOR_HEARTBEAT_MS);
 });
 
 test("a run writes one dump per conversation plus an index, and a rerun skips what is already dumped", async () => {

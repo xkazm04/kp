@@ -38,7 +38,13 @@ import type {
   DirectorTurn,
   ResumeContext,
 } from "@/app/_lib/voice/director-types";
-import { asDirectorClock, endHandshakeDone, extendedHardStopDeadline, hardStopDelayMs } from "./call-observations";
+import {
+  DIRECTOR_HEARTBEAT_MS,
+  asDirectorClock,
+  endHandshakeDone,
+  extendedHardStopDeadline,
+  hardStopDelayMs,
+} from "./call-observations";
 import {
   TOOL_RESULT_FALLBACK,
   createDirectorChannel,
@@ -47,11 +53,6 @@ import {
 } from "./director-channel";
 import type { TimerCancel, TimerRegistry } from "./timer-registry";
 
-/** How often the browser posts with nothing queued. The clock-driven directives
- *  (`close_now`, `end_now`) and `endCall` only reach the browser in a response, so
- *  without a keep-alive a silent stretch of call is an undirected one. 20 s sits
- *  well inside the per-token budget (240/10 min) with room for real traffic. */
-export const DIRECTOR_HEARTBEAT_MS = 20_000;
 /** How often the end handshake samples the speaking flag. The decision itself is
  *  `endHandshakeDone` in call-observations.ts — pure, and pinned by a test. */
 const END_POLL_MS = 200;

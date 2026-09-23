@@ -24,19 +24,10 @@ import {
   listInterviewEvents,
   maxInterviewTurnSeq,
   withInterviewEventsLock,
-  type InterviewEvent,
-  type NewInterviewEvent,
 } from "../db/interview-events";
 import { touchInterviewActivity, type InterviewSession } from "../db/interviews";
-import {
-  applyDirectorTool,
-  decideDirective,
-  deriveDirectorState,
-  directorAgendaState,
-  endCeilingMin,
-  type DirectorToolCallInput,
-  type DirectorToolOutcome,
-} from "./director";
+import type { DirectorToolCallInput } from "./director";
+import { directorExchange, type DirectorEventStore } from "./director-exchange";
 import type { DirectorClientEvent, DirectorResponse, DirectorTurn } from "./director-types";
 
 /** Turns accepted per request; the rest are simply not acknowledged (ackSeq) and the
@@ -49,9 +40,6 @@ export const MAX_DIRECTOR_TURN_SEQ = 100_000;
 /** Once a session holds this many events, new turns/observations are no longer stored
  *  (the director keeps answering). A 45-minute call writes a few hundred. */
 export const MAX_INTERVIEW_EVENTS_PER_SESSION = 4000;
-/** A browser timestamp older than this (or in the server's future) is replaced by the
- *  server's record time. */
-const MAX_CLIENT_LAG_MS = 6 * 60 * 60_000;
 /** Longest accepted tool-call id / name. */
 const MAX_CALL_ID_CHARS = 200;
 const MAX_TOOL_NAME_CHARS = 64;
@@ -123,12 +111,8 @@ export function parseDirectorTool(raw: unknown): DirectorToolCallInput | null {
   return { callId, name: t.name, args: t.args };
 }
 
-/** A browser timestamp, kept when plausible; otherwise the server's record time. */
-export function clampClientAt(at: string, nowMs: number): string {
-  const t = Date.parse(at);
-  if (!Number.isFinite(t) || t > nowMs || t < nowMs - MAX_CLIENT_LAG_MS) return new Date(nowMs).toISOString();
-  return new Date(t).toISOString();
-}
+/** A browser timestamp, kept when plausible — the kernel's rule, re-exported. */
+export { clampClientAt } from "./director-exchange";
 
 // ---- the exchange -------------------------------------------------------------------
 
@@ -142,12 +126,6 @@ export type DirectorStepInput = {
   nowMs: number;
 };
 
-function candidateTurnTexts(events: readonly InterviewEvent[]): string[] {
-  return events
-    .filter((e) => e.kind === "turn" && e.payload.role === "candidate" && typeof e.payload.text === "string")
-    .map((e) => e.payload.text as string);
-}
-
 /** The connect time of the current attempt: /connect stamps updated_at on every
  *  (re)connect (markInterviewStarted), started_at only on the first. */
 function attemptStartedAtMs(session: DirectorStepSession): number | null {
@@ -155,108 +133,41 @@ function attemptStartedAtMs(session: DirectorStepSession): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-/** Run one director exchange for a live session. Synchronous; one IMMEDIATE transaction. */
+/** Run one director exchange for a live session. Synchronous; one IMMEDIATE
+ *  transaction around the shared kernel (director-exchange.ts) over interview_events. */
 export function runDirectorStep(input: DirectorStepInput): DirectorResponse {
   const { session, nowMs } = input;
   const workspaceId = session.workspaceId;
   const attempt = session.attempts;
-  const agenda = session.agenda;
   const nowIso = new Date(nowMs).toISOString();
-  const startedAt = attemptStartedAtMs(session);
-  const stateOf = (events: readonly InterviewEvent[]) =>
-    deriveDirectorState({ agenda, events, currentAttempt: attempt, attemptStartedAtMs: startedAt, nowMs });
 
   return withInterviewEventsLock(() => {
     // Keep the call LIVE for the single-live and reissue guards while its browser is
     // talking to the director (a directed call can outlast the connect-time window).
     touchInterviewActivity(session.id, nowIso);
-    let events = listInterviewEvents(session.id, workspaceId, { limit: MAX_INTERVIEW_EVENTS_PER_SESSION + 100 });
-    const before = stateOf(events);
-    // Past the per-session ceiling nothing more is stored — the director still answers.
-    const canStore = events.length < MAX_INTERVIEW_EVENTS_PER_SESSION;
-
-    // 1. Persist what the browser observed — turns tagged with the block they fell in.
-    if (canStore) {
-      const rows: NewInterviewEvent[] = [];
-      for (const t of input.turns) {
-        rows.push({
-          sessionId: session.id,
-          attempt,
-          seq: t.seq,
-          kind: "turn",
-          blockId: before.activeBlockId,
-          payload: { role: t.role, text: t.text },
-          at: clampClientAt(t.at, nowMs),
-        });
-      }
-      for (const e of input.events) {
-        const { kind, at, ...fields } = e;
-        rows.push({
-          sessionId: session.id,
-          attempt,
-          kind,
-          blockId: before.activeBlockId,
-          payload: fields,
-          at: clampClientAt(at, nowMs),
-        });
-      }
-      events = [...events, ...appendInterviewEvents(rows, workspaceId, nowIso)];
-    }
-
-    // 2. At most one tool call.
-    let outcome: DirectorToolOutcome | null = null;
-    if (input.tool) {
-      outcome = applyDirectorTool({
-        tool: input.tool,
-        agenda,
-        state: stateOf(events),
-        candidateTurnTexts: candidateTurnTexts(events),
-      });
-      if (canStore && outcome.events.length > 0) {
-        const drafts: NewInterviewEvent[] = outcome.events.map((d) => ({
-          sessionId: session.id,
-          attempt,
-          kind: d.kind,
-          blockId: d.blockId,
-          payload: d.payload,
-        }));
-        events = [...events, ...appendInterviewEvents(drafts, workspaceId, nowIso)];
-      }
-    }
-
-    // 3. At most one stage direction, recorded so its dedupe outlives this request.
-    const state = stateOf(events);
-    const directive = decideDirective({ agenda, state, currentAttempt: attempt, nowMs });
-    if (directive && canStore) {
-      appendInterviewEvents(
-        [
-          {
-            sessionId: session.id,
-            attempt,
-            kind: "directive",
-            blockId: directive.blockId,
-            payload: { directiveId: directive.id, kind: directive.kind, text: directive.text },
-          },
-        ],
-        workspaceId,
-        nowIso,
-      );
-    }
-
-    // The SAME ceiling `end_now` fires at (director.ts::endCeilingMin) — hard cap plus
-    // the grace, or 2× the booking once the candidate agreed to the overrun. Two
-    // definitions here would hang up a call the candidate had just bought time for.
-    const overTime = agenda !== null && state.elapsedMs >= endCeilingMin(agenda, state) * 60_000;
-    return {
-      ok: true,
-      ackSeq: maxInterviewTurnSeq(session.id, attempt, workspaceId),
-      toolResult: outcome ? outcome.toolResult : null,
-      directive,
-      agenda: directorAgendaState(state),
-      endCall: Boolean(outcome?.endCall) || state.endRequested || overTime,
-      // Two numbers, no agenda content: how much live time has run and where the end
-      // limit now sits — what the browser's fallback stop re-arms from.
-      clock: agenda !== null ? { elapsedMs: state.elapsedMs, endLimitMs: endCeilingMin(agenda, state) * 60_000 } : null,
+    const listed = listInterviewEvents(session.id, workspaceId, { limit: MAX_INTERVIEW_EVENTS_PER_SESSION + 100 });
+    const store: DirectorEventStore = {
+      events: () => listed,
+      canStore: () => listed.length < MAX_INTERVIEW_EVENTS_PER_SESSION,
+      // Turns are idempotent per (session, attempt, seq) through the ON CONFLICT index:
+      // a replayed turn is absorbed and not returned.
+      append: (rows) =>
+        appendInterviewEvents(
+          rows.map((r) => ({ sessionId: session.id, attempt, seq: r.seq, kind: r.kind, blockId: r.blockId, payload: r.payload, at: r.at })),
+          workspaceId,
+          nowIso,
+        ),
+      maxTurnSeq: () => maxInterviewTurnSeq(session.id, attempt, workspaceId),
     };
+    return directorExchange({
+      agenda: session.agenda,
+      attempt,
+      attemptStartedAtMs: attemptStartedAtMs(session),
+      nowMs,
+      turns: input.turns,
+      clientEvents: input.events,
+      tool: input.tool,
+      store,
+    }).response;
   });
 }

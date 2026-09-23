@@ -1,41 +1,27 @@
 // The director EXCHANGE, in memory (spark interview-uat-tranche, WP-1).
 //
-// A line-for-line mirror of voice/director-step.ts `runDirectorStep` with the
-// interview_events table replaced by an array. The ORDER is the thing being mirrored,
-// because it decides what the director sees:
+// The simulator runs the SAME exchange the live route runs — voice/director-exchange.ts
+// `directorExchange`, the kernel behind voice/director-step.ts `runDirectorStep` — over
+// an array instead of the interview_events table. Only the store differs, and it holds
+// the table's rules in memory:
 //
-//   1. persist the exchange's turns, each TAGGED with the block that was active BEFORE
-//      this exchange's tool (clamped exactly like production: interview-transcript.ts
-//      clampTurn);
-//   2. apply AT MOST ONE tool call — the REAL applyDirectorTool, against the state
-//      derived from the record so far and the candidate's persisted words — and
-//      persist the events it asks for;
-//   3. re-derive the state, decide AT MOST ONE stage direction — the REAL
-//      decideDirective — and persist it, so its dedupe window holds across exchanges;
-//   4. answer the way production answers: the tool result, the directive, and
-//      `endCall = outcome.endCall || state.endRequested || overTime`, with overTime
-//      read against the SAME endCeilingMin the director's `end_now` uses, from the
-//      state as it stood BEFORE the directive was appended (as production does).
+//   - a turn already recorded for its (attempt, seq) is absorbed, not doubled (the
+//     table's ON CONFLICT index), and ackSeq is the highest recorded turn seq;
+//   - rows land in record order with the simulated clock as their record time.
 //
-// director-step.ts is not imported for the exchange itself because it IS the database
-// transaction; the policy it calls is imported unchanged. What the mirror leaves out,
-// on purpose: the per-session event ceiling (MAX_INTERVIEW_EVENTS_PER_SESSION = 4000 —
-// no simulated call comes near it), the activity stamp, and resent-turn idempotency
-// (the simulator never resends). A source test (engine.test.ts) pins director-step's
-// order so this mirror goes red, not stale, if production reorders.
+// Not carried over, because a simulated call cannot reach them: the per-session event
+// ceiling (MAX_INTERVIEW_EVENTS_PER_SESSION = 4000; the store always accepts) and the
+// session's activity stamp (there is no session row). A turn is clamped exactly like
+// production (interview-transcript.ts clampTurn) before it reaches the kernel.
 
 import {
-  applyDirectorTool,
-  decideDirective,
   deriveDirectorState,
-  directorAgendaState,
-  endCeilingMin,
   type DirectorEvent,
-  type DirectorEventDraft,
   type DirectorState,
   type DirectorToolCallInput,
   type DirectorToolOutcome,
 } from "../voice/director";
+import { directorExchange, type DirectorEventRow, type DirectorEventStore } from "../voice/director-exchange";
 import { clampTurn } from "../interview-transcript";
 import type { DirectorResponse, InterviewAgenda } from "../voice/director-types";
 
@@ -55,12 +41,34 @@ export type SimExchangeResult = DirectorResponse & {
  *  hold, in record order, and the exchange that appends to them. */
 export class InMemoryDirector {
   readonly events: DirectorEvent[] = [];
+  private readonly store: DirectorEventStore;
 
   constructor(
     readonly agenda: InterviewAgenda | null,
     /** When the call connected (production: the session's updated_at at /connect). */
     readonly attemptStartedAtMs: number,
-  ) {}
+  ) {
+    const events = this.events;
+    const recorded = (seq: number) => events.some((e) => e.kind === "turn" && e.attempt === SIM_ATTEMPT && e.seq === seq);
+    this.store = {
+      events: () => [...events],
+      canStore: () => true,
+      append(rows: readonly DirectorEventRow[], nowMs: number): DirectorEvent[] {
+        const createdAt = new Date(nowMs).toISOString();
+        const written: DirectorEvent[] = [];
+        for (const r of rows) {
+          const seq = r.kind === "turn" ? (r.seq ?? null) : null;
+          if (r.kind === "turn" && (seq === null || recorded(seq))) continue;
+          const row: DirectorEvent = { kind: r.kind, attempt: SIM_ATTEMPT, seq, blockId: r.blockId, payload: r.payload, createdAt };
+          events.push(row);
+          written.push(row);
+        }
+        return written;
+      },
+      maxTurnSeq: () =>
+        events.reduce((m, e) => (e.kind === "turn" && e.attempt === SIM_ATTEMPT && typeof e.seq === "number" ? Math.max(m, e.seq) : m), -1),
+    };
+  }
 
   /** The state as the director would derive it at `nowMs`. */
   stateAt(nowMs: number): DirectorState {
@@ -73,74 +81,22 @@ export class InMemoryDirector {
     });
   }
 
-  private append(drafts: readonly DirectorEventDraft[], nowMs: number, seq: number | null = null): void {
-    const createdAt = new Date(nowMs).toISOString();
-    for (const d of drafts) {
-      this.events.push({ kind: d.kind, attempt: SIM_ATTEMPT, seq, blockId: d.blockId, payload: d.payload, createdAt });
-    }
-  }
-
-  private candidateTurnTexts(): string[] {
-    return this.events
-      .filter((e) => e.kind === "turn" && e.payload.role === "candidate" && typeof e.payload.text === "string")
-      .map((e) => e.payload.text as string);
-  }
-
-  /** One exchange — see the header for the order. */
+  /** One exchange — the kernel's order (voice/director-exchange.ts). */
   exchange(input: { turns: readonly SimDirectorTurn[]; tool: DirectorToolCallInput | null; nowMs: number }): SimExchangeResult {
-    const { nowMs } = input;
-    const agenda = this.agenda;
-    const before = this.stateAt(nowMs);
-
-    // 1. Persist the turns, tagged with the block that was active before this exchange.
-    for (const t of input.turns) {
+    const turns = input.turns.map((t) => {
       const { turn } = clampTurn({ role: t.role, text: t.text });
-      const createdAt = new Date(nowMs).toISOString();
-      this.events.push({
-        kind: "turn",
-        attempt: SIM_ATTEMPT,
-        seq: t.seq,
-        blockId: before.activeBlockId,
-        payload: { role: turn.role, text: turn.text },
-        createdAt,
-      });
-    }
-
-    // 2. At most one tool call.
-    let outcome: DirectorToolOutcome | null = null;
-    if (input.tool) {
-      outcome = applyDirectorTool({
-        tool: input.tool,
-        agenda,
-        state: this.stateAt(nowMs),
-        candidateTurnTexts: this.candidateTurnTexts(),
-      });
-      this.append(outcome.events, nowMs);
-    }
-
-    // 3. At most one stage direction, recorded so its dedupe outlives this exchange.
-    const state = this.stateAt(nowMs);
-    const directive = decideDirective({ agenda, state, currentAttempt: SIM_ATTEMPT, nowMs });
-    if (directive) {
-      this.append(
-        [{ kind: "directive", blockId: directive.blockId, payload: { directiveId: directive.id, kind: directive.kind, text: directive.text } }],
-        nowMs,
-      );
-    }
-
-    // 4. The answer — the same ceiling end_now fires at.
-    const overTime = agenda !== null && state.elapsedMs >= endCeilingMin(agenda, state) * 60_000;
-    const turnSeqs = this.events.filter((e) => e.kind === "turn" && typeof e.seq === "number").map((e) => e.seq as number);
-    return {
-      ok: true,
-      ackSeq: turnSeqs.length ? Math.max(...turnSeqs) : -1,
-      toolResult: outcome ? outcome.toolResult : null,
-      directive,
-      agenda: directorAgendaState(state),
-      endCall: Boolean(outcome?.endCall) || state.endRequested || overTime,
-      clock: agenda !== null ? { elapsedMs: state.elapsedMs, endLimitMs: endCeilingMin(agenda, state) * 60_000 } : null,
-      outcome,
-      state,
-    };
+      return { seq: t.seq, role: turn.role, text: turn.text, at: "" };
+    });
+    const { response, outcome, state } = directorExchange({
+      agenda: this.agenda,
+      attempt: SIM_ATTEMPT,
+      attemptStartedAtMs: this.attemptStartedAtMs,
+      nowMs: input.nowMs,
+      turns,
+      clientEvents: [],
+      tool: input.tool,
+      store: this.store,
+    });
+    return { ...response, outcome, state };
   }
 }

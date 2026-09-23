@@ -21,21 +21,23 @@
 //     question takes about as long to start. A continuation after a tool result (the
 //     production `function_call_output` + `response.create`) is a new response and pays
 //     it again.
-//   - DIRECTOR_HEARTBEAT_MS = 20 000 — the browser's heartbeat
-//     (app/_components/voice/useDirector.ts DIRECTOR_HEARTBEAT_MS; that module is a
-//     client hook and is not importable here, so the value is mirrored and pinned by a
-//     source test). Clock-driven directives reach a live call only in a director
-//     response, and the heartbeat is what produces one while nobody finishes a turn.
+//   - DIRECTOR_HEARTBEAT_MS — the browser's heartbeat, IMPORTED from
+//     app/_components/voice/call-observations.ts (the pure module the client hook
+//     useDirector.ts reads it from), so the simulated call beats at the browser's own
+//     rate. Clock-driven directives reach a live call only in a director response, and
+//     the heartbeat is what produces one while nobody finishes a turn.
 //
 // A candidate PAUSE (the `<<pause N>>` token of the candidate harness) advances the
 // clock by N seconds without any words — silence before an answer, or instead of one.
+
+import { DIRECTOR_HEARTBEAT_MS } from "../../_components/voice/call-observations";
 
 /** Words per minute a spoken turn is timed at (see the header for the reasoning). */
 export const SPEAKING_WPM = 150;
 /** Fixed gap charged once per model response before its words start. */
 export const TURN_LATENCY_MS = 1500;
-/** The browser's director heartbeat (mirrors useDirector.ts DIRECTOR_HEARTBEAT_MS). */
-export const DIRECTOR_HEARTBEAT_MS = 20_000;
+/** The browser's director heartbeat — one declaration, shared with useDirector.ts. */
+export { DIRECTOR_HEARTBEAT_MS };
 /** The simulated call's wall-clock origin. Fixed, so a conversation is a pure function
  *  of its inputs: the director's directive ids and every event timestamp are
  *  reproducible run to run. */

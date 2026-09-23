@@ -86,12 +86,23 @@ export function assertThrowawayDb(dbPath: string = DB_PATH, env: Readonly<Partia
 
 const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
-/** The director POLICY's identity: a digest of the pure modules that decide every tool
- *  result and stage direction (the policy, the tool vocabulary, the quote matcher),
- *  line endings normalised. The brief's director section is covered by `briefSha`. */
-export function directorVersion(): string {
-  const files = ["../voice/director.ts", "../voice/director-tools.mjs", "../quote-match.ts"];
-  const text = files.map((f) => readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n")).join("\0");
+/** The modules whose text IS the director: the policy, the tool vocabulary, the quote
+ *  matcher, and the exchange kernel that orders them (the one the live route runs). */
+export const DIRECTOR_VERSION_FILES = [
+  "../voice/director.ts",
+  "../voice/director-tools.mjs",
+  "../quote-match.ts",
+  "../voice/director-exchange.ts",
+] as const;
+
+/** The director's identity: a digest of DIRECTOR_VERSION_FILES, line endings
+ *  normalised — two runs on different kernels or policies never merge as one
+ *  instrument. The brief's director section is covered by `briefSha`. `transform` is a
+ *  test seam (it sees each file's normalised text before hashing). */
+export function directorVersion(transform: (file: string, text: string) => string = (_file, text) => text): string {
+  const text = DIRECTOR_VERSION_FILES.map((f) =>
+    transform(f, readFileSync(new URL(f, import.meta.url), "utf8").replace(/\r\n/g, "\n")),
+  ).join("\0");
   return `sha256:${sha256(text).slice(0, 16)}`;
 }
 

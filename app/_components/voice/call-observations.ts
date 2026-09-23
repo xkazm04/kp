@@ -13,6 +13,11 @@
 
 import type { DirectorClientEvent, DirectorClock } from "@/app/_lib/voice/director-types";
 
+/** The browser's keep-alive post to the director: clock-driven directives and endCall
+ *  only arrive in a response. 20 s is well inside the per-token budget (240/10 min).
+ *  Declared here, not in useDirector.ts, so interview-sim/clock.ts imports it. */
+export const DIRECTOR_HEARTBEAT_MS = 20_000;
+
 /** Who held the floor when something was observed — the contract's own vocabulary,
  *  narrowed off the event union so a change there is a type error here. */
 export type SpeakingWho = Extract<DirectorClientEvent, { kind: "focus_lost" }>["during"];
