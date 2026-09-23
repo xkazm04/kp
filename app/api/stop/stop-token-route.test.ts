@@ -211,7 +211,9 @@ test("the GET is an explicit allowlist — no internal id, name, score or stage 
   const body = (await (await view(token, "203.0.113.25")).json()) as Record<string, unknown>;
   assert.deepEqual(
     Object.keys(body).sort(),
-    ["company", "jobTitle", "stopped"],
+    // letterLocale + localeChosen: the letters' language and whether the candidate chose
+    // it (stop-language-route.test.ts pins those two) — still no internal field.
+    ["company", "jobTitle", "letterLocale", "localeChosen", "stopped"],
     "the projection is a fixed field list, never a serialized store row"
   );
   const serialized = JSON.stringify(body);
