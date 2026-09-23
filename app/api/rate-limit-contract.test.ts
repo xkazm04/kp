@@ -1960,7 +1960,7 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "SCORECARD_RATE_LIMIT",
     optsDef: "const SCORECARD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "saveHumanScorecard(entry, scorecard)",
+    expensive: "fileHumanScorecard(entry, scorecard, key)",
     servedBefore: 'jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400)',
   },
   // ------------------------------------------------------------------

@@ -969,6 +969,18 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   those off-rubric rather than dropping them, so the form must post them back —
   and the "N of M rated" counter counts only competencies the current rubric
   actually renders.
+- **One scorecard per interviewer and round.** The panel no longer takes the prep
+  payload's `humanScorecard` (the latest save, whoever made it) as its seed: it asks
+  `GET /api/interview-prep/scorecard` for `mine`, the caller's own record for the
+  candidate's current column, and mounts the form only once that has loaded. A
+  second interviewer therefore opens an empty form, with a line saying how many
+  other scorecards exist, and their save is filed beside the first rather than over
+  it. The transcript modal (`ScheduleInterviewTranscriptModal.tsx` →
+  `HumanScorecardSection`) lists every record, each with who scored it and which
+  round, and marks a record saved before attribution existed. The store, the legacy
+  read and the headline mirror are described in
+  `docs/features/interviews/README.md` ("Human scorecards are kept per interviewer
+  and round").
 
 ## Known gaps
 
@@ -979,8 +991,9 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   fix is a stable per-topic identity (the PUT caps a key at 64 chars), minted and
   counted in one change across both render files and the hook.
 - **The human scorecard is served with no consent gate.** `GET /api/interview-prep`
-  returns the stored `humanScorecard` (recruiter evidence quoting the candidate)
-  verbatim, while `GET /api/interview/by-entry` redacts the AI half through
+  returns the stored `humanScorecard` and `humanScorecards` (recruiter evidence
+  quoting the candidate) verbatim, and so does `GET /api/interview-prep/scorecard`'s
+  `records`, while `GET /api/interview/by-entry` redacts the AI half through
   `consentWithholdsPii`. Neither `HumanScorecardSection` nor the prep modal can
   tell "withheld" from "absent" — the payload carries no flag — so a lapsed-consent
   record renders in full, and the AI half's redaction reads as an empty state.

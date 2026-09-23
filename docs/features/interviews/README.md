@@ -2555,6 +2555,53 @@ the authoritative entry. Pinned by
 `app/api/interview/interview-entry-tenancy.test.ts` (behavioural for the store
 predicate, source-level for the route contract).
 
+## Human scorecards are kept per interviewer and round
+
+The human scorecard used to be ONE key on the prep payload, `humanScorecard`,
+replaced wholesale on every save and used to seed the next person's form. A second
+interviewer, or a second round in a workspace that split its Interview column (the
+scorecard route gates by the column's interview ROLE precisely so it can), erased
+the first record and opened the form pre-filled with the first verdict. That is the
+opposite of independent scoring: every assessor records a score before seeing
+anyone else's, and no save destroys another.
+
+- **Store.** The payload carries `humanScorecards`, a list of records keyed by
+  `(author, stage)` (`app/_lib/human-scorecard-set.ts`, pure, shared by the store and
+  the transcript modal). `author` is the signed-in user id and `authorLabel` their
+  name (or email), resolved once at write time; `stage` is the column the candidate
+  sat in; `savedAt` is the save time. `fileHumanScorecard` upserts inside the existing
+  `.immediate()` transaction: the same key is replaced, a new key is appended, and
+  every other record comes back untouched. At `MAX_HUMAN_SCORECARDS` (24) a NEW key
+  is refused with `INTERVIEW_PREP_SCORECARDS_FULL` (409) rather than made room for;
+  re-saving your own record is never refused.
+- **Headline mirror.** The same UPDATE rewrites `humanScorecard` as the latest save.
+  Every reader that knew only that key keeps answering: `getHumanScorecard` (the
+  compare grid), `candidate-timeline.ts` (the drawer's human scorecard card),
+  `listPreparedEntries.hasHumanScorecard` (the Schedule card) and the
+  `scorecard_review` approval payload (the Decisions queue). A rollback of this code
+  leaves them reading the most recent card.
+- **Legacy rows.** A payload with only the old key reads as ONE unattributed record
+  (`author`, `stage` and `savedAt` null). It is nobody's own: no save claims or
+  replaces it, so it survives beside the new records. When both keys exist only the
+  list counts, so the mirror is never counted twice.
+- **Open mode.** With no operator password (or on an operator-password session)
+  there is no user id, so `author` is null and each round keeps today's single slot.
+- **The form seeds from your own record only.** `GET /api/interview-prep/scorecard`
+  answers `{ mine, records }`: `mine` is the caller's record for the candidate's
+  current round, scoped by the same `getInterviewPrep(entry, ws)` read the POST
+  uses (another team's id answers `INTERVIEW_PREP_NOT_FOUND`).
+  `ScheduleHumanScorecardPanel` seeds only from `mine`, so a second interviewer
+  opens an empty form, and it says how many other records exist without showing
+  them. The transcript modal lists every record, each labelled with who scored and
+  which round.
+- **The sealed decision** keeps the actor `human:recruiter` and records `author` and
+  `stage` in its inputs.
+
+Erasure needs nothing new: the list lives in `interview_preps.payload_json`, which
+anonymisation already blanks. Pinned by `app/_lib/human-scorecard-set.test.ts` and
+`app/api/interview-prep/scorecard/panel-scorecards.test.ts` (the real GET/POST with
+two signed-in interviewers, a foreign team and open mode).
+
 ## Surface
 
 | Path | Role |
@@ -2565,7 +2612,8 @@ predicate, source-level for the route contract).
 | `app/api/interview/simulate/route.ts` + `attach/route.ts` | Recruiter demo/simulation sessions. `attach` reads the session **scoped to the caller's workspace** and keys its `sim_attached` annotation on `simAttachDetail()` (`attach/sim-session.ts`), which folds an opaque per-session ref into the drawer line — so the store's detail-keyed dedup is idempotent per (session, entry): a repeat POST answers the same `attachRef` and writes nothing, while a genuinely different practice run is no longer swallowed as a duplicate |
 | `app/api/interview/revoke/route.ts`, `by-entry/route.ts`, `compare/route.ts` | Session management + cross-interview compare; `by-entry` also answers `?submission=` (the assignment-side reverse read) |
 | `app/_lib/devcase-interview-entry.ts` | Resolves (or promote-then-resolves) the pipeline entry a dev-case submission's screen hangs off |
-| `app/api/interview-prep/route.ts`, `.../scorecard/route.ts` | Prep chronology + scorecard read APIs |
+| `app/api/interview-prep/route.ts`, `.../scorecard/route.ts` | Prep chronology + scorecard APIs; the scorecard route's `GET` answers the caller's own record (`mine`) and the whole panel (`records`), its `POST` files one record per interviewer and round |
+| `app/_lib/human-scorecard-set.ts` | The per-(interviewer, round) human scorecard list: read (legacy single key → one record), upsert, own-record lookup, headline |
 | `app/_lib/voice/index.ts` | Adapter registry, default-provider policy, candidate-safe default brief |
 | `app/_lib/voice/elevenlabs.ts`, `openai.ts` | The two provider adapters |
 | `app/_lib/voice/self-hosted.ts` | Self-hosted ElevenLabs-compatible endpoint detection (see below) |
@@ -3234,6 +3282,11 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
 
 ## Known gaps
 
+- **The drawer and the compare grid show one human scorecard.** They read the
+  `humanScorecard` headline mirror (the latest save), so a panel of interviewers or
+  a multi-round loop shows there as its most recent record; only the transcript
+  modal lists every record. Listing the panel means reading `humanScorecards`
+  through `readHumanScorecards` in `candidate-timeline.ts` and `compare/route.ts`.
 - **The free→paid boundary is now closed on all three seams that once crossed it.**
   This section used to list three open gaps here; all three ship fixed, and the
   code that fixed them is where the reasoning lives:
