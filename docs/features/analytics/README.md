@@ -188,8 +188,8 @@ route passed one. The axis is now wired end to end (challenge r04, analytics-das
   (`null`, `[]`, `0`) that no surface may read as a measurement; the header renders the
   role chip, a **Whole workspace** clear action, and the withheld list grouped by reason
   (registry: small-sample-honesty-in-hiring-analytics, not-measurable-versus-zero). The
-  metric-pack link relabels itself **(whole workspace)** while a role is in scope, because
-  its route reads no role.
+  metric-pack preview trigger (and the download in its footer) relabels itself **(whole
+  workspace)** while a role is in scope, because its route reads no role.
 - **KO column, stated.** In the workspace view a role row's `koDeclined` is `null` (an em
   dash with a tooltip) when more than one req shares its title: the count is title-keyed
   and cannot be split. Under a role scope every row's KO is `null`.
@@ -467,6 +467,27 @@ DB uses an unbounded count, so the numerator cannot be truncated by the jobs
 browse page's 300-row cap. Its basis names the owned tier in all four locales.
 Before this change, a workspace with no authored roles and one recruiter could
 report roughly 100 shared corpus roles per recruiter as a measured team figure.
+
+**The pack opens as a preview, and every blocking row states its accrual horizon.** The
+header's metric-pack control is no longer a blind Markdown download: it opens
+`MetricPackPreview.tsx` (the `Modal` primitive), which reads the route's JSON for the
+header's window and shows blockers (thin / not measurable) before publishable rows, a
+"N of M publishable" summary, and the date by which **every** blocker clears (the latest of
+their dates; one undated blocker makes the pack undated). The Markdown download sits in the
+preview's footer. Each blocking row carries `need` (`app/_lib/accrual-horizon.ts`, registry
+small-sample-honesty-in-hiring-analytics, state-the-accrual-horizon): the shortfall to its
+floor in the row's own unit (hires for time-to-hire and cost-per-hire, actions for hours
+saved, owned open roles for capacity, responses for NPS), the whole weeks to clear at the
+recent pace and the resulting date, or a reason instead of a date: `no-pace` (nothing
+accrued recently, or no pace is measured for that unit: only hires have one today),
+`window-too-narrow` (a sliding window holds at most pace x window, so at this pace it never
+reaches the floor; the preview offers **Use all time**), `not-accruing` (capacity is a
+point-in-time ratio; waiting does not raise it). The pace is `paceFromMomentum`: hires per
+week over the payload's own momentum series, so no second store read. `need.note` is the
+sentence resolved at build time in the reader's language, and the Markdown caveat appends
+the **same** note, so the file and the screen cannot disagree. A not-measurable row whose
+sample already clears its floor carries `need: null` (the missing thing is not
+observations; its basis says what). Dates are UTC and week-granular.
 
 **Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
 `EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
@@ -917,7 +938,7 @@ other workspaces keep their warm curve entries.
 | `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=pipeline\|analysis\|holdout`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only). Holdout bands include only sealed clean-arm entries, matching the holdout curve; the threshold strip reads the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain. |
 | `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
 | `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated by the goal-key registry (`app/_lib/analytics-target-keys.ts`) against the workspace's live axis; refusals are `ANALYTICS_TARGET_UNKNOWN_METRIC` / `ANALYTICS_TARGET_OUT_OF_RANGE` (400). POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
-| `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
+| `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON (read by the in-app preview; blocking rows carry `need`) or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
 | `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
@@ -1026,10 +1047,11 @@ deep fails it; the behavioural half (a save really bumps, a refused save does no
 
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
-`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
+`analytics-cache.ts` (over the generic `ttl-cache.ts`), `automation-roi.ts`, `metric-pack.ts`, `accrual-horizon.ts`, `calibration.ts`,
 `decision-attribution.ts` — each with a colocated `.test.ts`. On the client,
 `calibrationVerdict.ts` and `analyticsFunnelEmptyState.ts` hold the two render decisions that had
-to become executable values. Tables compose `app/_components/table/` (`TablePager`,
+to become executable values (and `metricPackPreviewModel.ts` the pack preview's ordering and
+clearing date). Tables compose `app/_components/table/` (`TablePager`,
 `ColumnFilter`, `ColumnHead` + `useTableSort`, nulls last in both directions).
 
 **Filter menus are comboboxes (2026-09-04).** `ColumnFilter mode="select"` and
