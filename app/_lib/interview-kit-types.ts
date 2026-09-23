@@ -26,11 +26,15 @@ export const KIT_WEIGHTS = [1, 2, 3] as const;
 export type KitWeight = (typeof KIT_WEIGHTS)[number];
 
 /** Caps, enforced at the write boundary. A kit is read aloud inside a booked call: a
- *  kit that cannot fit its own interview is an authoring error, not a runtime one. */
-export const KIT_MAX_COMPETENCIES = 8;
-export const KIT_MAX_QUESTIONS_PER_COMPETENCY = 6;
-export const KIT_MAX_MUST_ASKS = 5;
-export const KIT_MAX_FAQ = 12;
+ *  kit that cannot fit its own interview is an authoring error, not a runtime one.
+ *  The four collection caps are GENERATED from pipeline/jobfit/automation.py (the kit
+ *  generator stops short of them) — see codegen.py CONTRACT_CONSTANTS. */
+export {
+  KIT_MAX_COMPETENCIES,
+  KIT_MAX_QUESTIONS_PER_COMPETENCY,
+  KIT_MAX_MUST_ASKS,
+  KIT_MAX_FAQ,
+} from "./contract-constants.generated.ts";
 export const KIT_MAX_TEXT_CHARS = 600;
 export const KIT_MAX_FAQ_ANSWER_CHARS = 1200;
 

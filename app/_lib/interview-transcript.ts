@@ -1,4 +1,5 @@
 import type { VoiceTurn } from "./db/interviews";
+import { MAX_SCORECARD_NOTES_CHARS } from "./contract-constants.generated.ts";
 
 // ---------------------------------------------------------------------------
 // Transcript truncation policy for interview scoring
@@ -53,8 +54,10 @@ export const MAX_TRANSCRIPT_TURNS = 500;
 export const MAX_TURN_AT_CHARS = 40;
 
 /** Character budget for the notes string handed to the scorecard task. The
- *  joined transcript is kept whole below this; above it, head+tail sampled. */
-export const MAX_SCORECARD_NOTES_CHARS = 6000;
+ *  joined transcript is kept whole below this; above it, head+tail sampled.
+ *  GENERATED from pipeline/jobfit/automation.py's MAX_SCORECARD_NOTES_CHARS (the
+ *  Python scorecard samples to the same budget) — see codegen.py CONTRACT_CONSTANTS. */
+export { MAX_SCORECARD_NOTES_CHARS };
 
 /** Characters reserved within the notes budget for the in-band truncation
  *  marker, so the kept head + tail + marker stays within MAX_SCORECARD_NOTES_CHARS. */

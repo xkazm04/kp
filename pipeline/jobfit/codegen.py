@@ -13,16 +13,27 @@ source of truth instead of a hand-maintained TS copy that silently drifts
 cap on a candidate's unpaid work was enforced in the Python designer and
 re-typed as a different literal in the TS approve route, so the two drifted.
 
-Run via ``python -m pipeline.jobfit.codegen`` (also wired into ``npm run build``);
-``--check`` (``npm run schemas:check``) fails CI if either file is out of date.
+And it generates ``app/_lib/contract-constants.generated.ts`` — the contract
+NUMBERS both languages enforce (scorecard-notes budget, screening-volume tiers,
+calibration floor and bin count, interview-kit caps, letter cap, probe threshold)
+— from ``CONTRACT_CONSTANTS`` below. Each number used to be typed a second time
+as a TS literal and held equal only by a regex over the TS source; the TS home
+modules now re-export the generated value instead.
+
+Run via ``python -m pipeline.jobfit.codegen`` (also wired into ``npm run build``
+and ``npm run typecheck``); ``--check`` (``npm run schemas:check``) exits 1 when a
+generated file is out of date. CI does not run ``schemas:check`` — the contract
+file's freshness is pinned by ``tests/test_codegen_contract_constants.py``, which
+``test:python:gate`` runs.
 """
 
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from .appmaster import AppMasterSpec, PerformanceBackbone, RepoDossier
 from .devcase.models import MAX_TIMEBOX_HOURS, MIN_TIMEBOX_HOURS, RoleSpec
@@ -35,6 +46,7 @@ from .taxonomy import UI_PROVENANCE
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "app" / "_lib" / "schemas.generated.ts"
 TAXONOMY_OUTPUT = ROOT / "app" / "_lib" / "taxonomy.generated.ts"
+CONTRACT_OUTPUT = ROOT / "app" / "_lib" / "contract-constants.generated.ts"
 
 HEADER = """// AUTO-GENERATED — DO NOT EDIT.
 // Source of truth: pipeline/jobfit/models.py
@@ -183,10 +195,88 @@ def render_taxonomy() -> str:
     return f"{TAXONOMY_HEADER}\n" + "\n\n".join(lists) + "\n"
 
 
+class ContractConstant(NamedTuple):
+    """One number both languages enforce: its TS name, the ``app/_lib`` module that
+    re-exports it, and where Python keeps it (a module attribute, or a key of a
+    module-level dict such as ``automation.POLICY``)."""
+
+    ts_name: str
+    ts_home: str
+    py_module: str
+    py_attr: str
+    py_key: str | None = None
+
+    def source(self) -> str:
+        where = f"pipeline/jobfit/{self.py_module.replace('.', '/')}.py {self.py_attr}"
+        return f'{where}["{self.py_key}"]' if self.py_key else where
+
+
+# The hand-mirrored contract numbers. A new cross-language number is one row here
+# plus a re-export in its TS home — never a second literal and a new sync regex.
+# app/_lib/fit-thresholds.ts's two floors are deliberately NOT here: that file sits
+# on the client page graph and stays import-free; test_fit_threshold_sync.py pins it.
+CONTRACT_CONSTANTS: tuple[ContractConstant, ...] = (
+    ContractConstant("MAX_SCORECARD_NOTES_CHARS", "interview-transcript.ts", "automation", "MAX_SCORECARD_NOTES_CHARS"),
+    ContractConstant("SCREEN_VOLUME_SPARSE_MAX", "automation-cache-key.ts", "automation", "POLICY", "screen_volume_sparse_max"),
+    ContractConstant("SCREEN_VOLUME_MODERATE_MAX", "automation-cache-key.ts", "automation", "POLICY", "screen_volume_moderate_max"),
+    ContractConstant("MIN_CALIBRATION_OUTCOMES", "calibration.ts", "calibration_drift", "MIN_CALIBRATION_OUTCOMES"),
+    ContractConstant("CALIBRATION_BIN_COUNT", "calibration.ts", "calibration_drift", "CALIBRATION_BIN_COUNT"),
+    ContractConstant("KIT_MAX_COMPETENCIES", "interview-kit-types.ts", "automation", "KIT_MAX_COMPETENCIES"),
+    ContractConstant("KIT_MAX_QUESTIONS_PER_COMPETENCY", "interview-kit-types.ts", "automation", "KIT_MAX_QUESTIONS_PER_COMPETENCY"),
+    ContractConstant("KIT_MAX_MUST_ASKS", "interview-kit-types.ts", "automation", "KIT_MAX_MUST_ASKS"),
+    ContractConstant("KIT_MAX_FAQ", "interview-kit-types.ts", "automation", "KIT_MAX_FAQ"),
+    ContractConstant("LETTER_MAX_CHARS", "interview-letter-types.ts", "automation", "LETTER_MAX_CHARS"),
+    ContractConstant("MIN_PROBE_DECISION_OPTIONS", "devcase-probe-audit.ts", "devcase.design", "MIN_PROBE_DECISION_OPTIONS"),
+)
+
+CONTRACT_HEADER = """// AUTO-GENERATED — DO NOT EDIT.
+// Source of truth: pipeline/jobfit/codegen.py CONTRACT_CONSTANTS, which names the
+// Python value behind every number (one comment per line below).
+// Regenerate with: python -m pipeline.jobfit.codegen
+//
+// Import-free on purpose: the TS home modules re-export these names, and some of
+// them are imported by client components. Import it WITH the `.ts` extension:
+// hand-rolled test resolve hooks read `.generated` as an extension already present.
+"""
+
+
+def resolve_contract_constant(row: ContractConstant) -> int:
+    """The Python value behind ``row``, read at render time — never a copy."""
+    module = importlib.import_module(f".{row.py_module}", __package__)
+    if not hasattr(module, row.py_attr):
+        raise AttributeError(
+            f"CONTRACT_CONSTANTS row {row.ts_name}: {row.source()} does not exist"
+        )
+    value = getattr(module, row.py_attr)
+    if row.py_key is not None:
+        if not isinstance(value, dict) or row.py_key not in value:
+            raise AssertionError(
+                f"CONTRACT_CONSTANTS row {row.ts_name}: {row.source()} does not exist"
+            )
+        value = value[row.py_key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise AssertionError(
+            f"CONTRACT_CONSTANTS row {row.ts_name}: {row.source()} is {value!r}, not an int"
+        )
+    return value
+
+
+def render_contract_constants() -> str:
+    names = [row.ts_name for row in CONTRACT_CONSTANTS]
+    if len(set(names)) != len(names):
+        raise AssertionError("CONTRACT_CONSTANTS names a TS constant twice")
+    lines = [
+        f"// {row.source()}\nexport const {row.ts_name} = {resolve_contract_constant(row)};"
+        for row in CONTRACT_CONSTANTS
+    ]
+    return f"{CONTRACT_HEADER}\n" + "\n".join(lines) + "\n"
+
+
 # (path, renderer) for every generated TS file — keeps write() and --check in lockstep.
 _GENERATED = (
     (OUTPUT, render),
     (TAXONOMY_OUTPUT, render_taxonomy),
+    (CONTRACT_OUTPUT, render_contract_constants),
 )
 
 

@@ -44,9 +44,11 @@ export type CaseProbeAudit = {
 // approval on it, and pipeline/jobfit/devcase/lifecycle_eval.py validates designed cases
 // against it (MIN_PROBE_DECISION_OPTIONS in devcase/design.py). Until this pass the
 // Python half did not read decisionSpace at ALL, so the health eval passed cases the
-// approve gate would refuse. The two numbers are pinned to each other by
-// pipeline/jobfit/tests/test_devcase_probe_constant_sync.py — move BOTH or neither.
-export const MIN_PROBE_DECISION_OPTIONS = 2;
+// approve gate would refuse. The number is GENERATED from devcase/design.py
+// (pipeline/jobfit/codegen.py CONTRACT_CONSTANTS), so there is one value, not two.
+import { MIN_PROBE_DECISION_OPTIONS } from "./contract-constants.generated.ts";
+
+export { MIN_PROBE_DECISION_OPTIONS };
 
 function distinctOptions(decisionSpace: string[] | undefined): number {
   const seen = new Set<string>();

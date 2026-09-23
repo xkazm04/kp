@@ -12,19 +12,23 @@ cases the product would refuse to publish, and nothing compared the two readings
 Now ``design.MIN_PROBE_DECISION_OPTIONS`` is the Python mirror, ``lifecycle_eval``
 validates against it, and this file is the gate that keeps the two numbers equal.
 
-Same extraction shape as ``test_automation_constant_sync.py``: read the TS source,
-strip comments FIRST (the TS file names the mirrored constant in prose), word-anchor
-the lookup, and prove the extractor cannot be satisfied by a documented value.
+The TS number is no longer typed a second time: ``pipeline/jobfit/codegen.py``
+(``CONTRACT_CONSTANTS``) renders it from ``design.MIN_PROBE_DECISION_OPTIONS`` into
+``app/_lib/contract-constants.generated.ts`` and the audit module re-exports it. This
+file pins that door (the codegen row reads THIS constant, the committed generated file
+declares its value, the TS module re-exports it and declares no literal) and keeps the
+behavioural probes that prove the Python validator actually reads the constant.
 """
 
 from __future__ import annotations
 
-import re
 import unittest
 from pathlib import Path
 
+from pipeline.jobfit import codegen
 from pipeline.jobfit.devcase import lifecycle_eval
 from pipeline.jobfit.devcase.design import MIN_PROBE_DECISION_OPTIONS
+from pipeline.jobfit.tests.test_codegen_contract_constants import home_problems
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROBE_AUDIT_TS = REPO_ROOT / "app" / "_lib" / "devcase-probe-audit.ts"
@@ -33,33 +37,27 @@ PROBE_AUDIT_TS = REPO_ROOT / "app" / "_lib" / "devcase-probe-audit.ts"
 MIRRORED: dict[str, int] = {"MIN_PROBE_DECISION_OPTIONS": MIN_PROBE_DECISION_OPTIONS}
 
 
-def _strip_ts_comments(text: str) -> str:
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
-    return re.sub(r"//[^\n]*", "", text)
-
-
-def _extract_ts_number(text: str, name: str, source: Path) -> int:
-    match = re.search(rf"\bexport const {re.escape(name)}\s*=\s*(\d+)\s*;", _strip_ts_comments(text))
-    if not match:
-        raise AssertionError(f"could not find `export const {name} = <int>;` in {source}")
-    return int(match.group(1))
-
-
 class ProbeThresholdSyncTest(unittest.TestCase):
     def setUp(self) -> None:
         self.assertTrue(PROBE_AUDIT_TS.exists(), f"missing {PROBE_AUDIT_TS}")
         self.source = PROBE_AUDIT_TS.read_text(encoding="utf-8")
 
     def test_the_threshold_matches_across_the_language_boundary(self) -> None:
+        rows = {row.ts_name: row for row in codegen.CONTRACT_CONSTANTS}
+        generated = codegen.CONTRACT_OUTPUT.read_text(encoding="utf-8")
         for name, python_value in MIRRORED.items():
             with self.subTest(constant=name):
+                self.assertIn(name, rows, f"{name} is not a codegen CONTRACT_CONSTANTS row")
+                self.assertEqual(rows[name].ts_home, PROBE_AUDIT_TS.name)
                 self.assertEqual(
-                    _extract_ts_number(self.source, name, PROBE_AUDIT_TS),
+                    codegen.resolve_contract_constant(rows[name]),
                     python_value,
-                    f"{name} disagrees across the language boundary: {PROBE_AUDIT_TS} vs "
+                    f"codegen reads {name} from {rows[name].source()}, not from "
                     "pipeline/jobfit/devcase/design.py. A case the approve gate blocks would "
-                    "pass the design-health eval (or the reverse). Move BOTH or neither.",
+                    "pass the design-health eval (or the reverse).",
                 )
+                self.assertIn(f"\nexport const {name} = {python_value};\n", generated)
+                self.assertEqual(home_problems(self.source, name), [])
 
     def test_the_python_validator_actually_reads_the_constant(self) -> None:
         """Mutation guard: equal numbers are worthless if the Python side ignores them.
@@ -117,13 +115,10 @@ class ProbeThresholdSyncTest(unittest.TestCase):
         self.assertIn("case: no load-bearing probe (decisionSpace forces no choice)", lifecycle_eval._check_case(case, None))
 
     def test_extractor_rejects_a_documented_value(self) -> None:
-        fake = (
-            "// export const MIN_PROBE_DECISION_OPTIONS = 1;\n"
-            "export const MIN_PROBE_DECISION_OPTIONS = 7;\n"
-        )
-        self.assertEqual(_extract_ts_number(fake, "MIN_PROBE_DECISION_OPTIONS", PROBE_AUDIT_TS), 7)
-        with self.assertRaises(AssertionError):
-            _extract_ts_number("/* export const NOPE = 3; */", "NOPE", PROBE_AUDIT_TS)
+        # A literal named only in prose does not count against the home; a real one does.
+        reexport = 'import { MIN_PROBE_DECISION_OPTIONS } from "./contract-constants.generated";\nexport { MIN_PROBE_DECISION_OPTIONS };\n'
+        self.assertEqual(home_problems("// export const MIN_PROBE_DECISION_OPTIONS = 1;\n" + reexport, "MIN_PROBE_DECISION_OPTIONS"), [])
+        self.assertNotEqual(home_problems("export const MIN_PROBE_DECISION_OPTIONS = 7;\n", "MIN_PROBE_DECISION_OPTIONS"), [])
 
 
 if __name__ == "__main__":

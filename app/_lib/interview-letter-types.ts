@@ -72,5 +72,7 @@ export type CandidateLetterView = {
   text: string | null;
 };
 
-/** Caps enforced at every write boundary. A letter is a short note, not a report. */
-export const LETTER_MAX_CHARS = 2400;
+/** Caps enforced at every write boundary. A letter is a short note, not a report.
+ *  GENERATED from pipeline/jobfit/automation.py's LETTER_MAX_CHARS (the generator
+ *  discards a draft over it) — see codegen.py CONTRACT_CONSTANTS. */
+export { LETTER_MAX_CHARS } from "./contract-constants.generated.ts";

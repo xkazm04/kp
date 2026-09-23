@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { SCREEN_VOLUME_MODERATE_MAX, SCREEN_VOLUME_SPARSE_MAX } from "./contract-constants.generated.ts";
 
 // Pure, dependency-free derivation of the automation prompt-cache key. Split out
 // of automation-run.ts (mirroring cache-key.ts) so the keying contract — above
@@ -54,13 +55,12 @@ export const LANG_KEYED_TASKS: ReadonlySet<string> = new Set([...LETTER_LANG_TAS
 // 168h cache would never hit on an active role), and the bucket is exactly what the
 // prompt was written under — two runs in the same bucket saw the same rule.
 //
-// THESE TWO NUMBERS ARE HAND-MIRRORED from automation.POLICY's
-// `screen_volume_sparse_max` / `screen_volume_moderate_max`. The drift guard is
-// pipeline/jobfit/tests/test_automation_constant_sync.py: if TS bucketed on
-// different boundaries than Python tiers on, one bucket would span two rules and a
-// lenient verdict would be served to a strict run.
-export const SCREEN_VOLUME_SPARSE_MAX = 5;
-export const SCREEN_VOLUME_MODERATE_MAX = 30;
+// THESE TWO NUMBERS ARE GENERATED from automation.POLICY's
+// `screen_volume_sparse_max` / `screen_volume_moderate_max` (pipeline/jobfit/codegen.py
+// CONTRACT_CONSTANTS -> contract-constants.generated.ts), never typed here: if TS
+// bucketed on different boundaries than Python tiers on, one bucket would span two
+// rules and a lenient verdict would be served to a strict run.
+export { SCREEN_VOLUME_SPARSE_MAX, SCREEN_VOLUME_MODERATE_MAX };
 
 /** sparse | moderate | dense — the cache bucket AND the tier Python resolves. */
 export type ScreenVolumeTier = "sparse" | "moderate" | "dense";

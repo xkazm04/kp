@@ -20,19 +20,24 @@ gate: move one side alone and the two languages silently disagree.
     "drift" on a window TS itself considers uncalibrated, i.e. an alarm computed
     on noise — the exact honesty failure calibration_drift's docstring forbids.
 
-Same extraction shape as ``test_fit_threshold_sync.py``: read the TS source,
-strip comments first (both files NAME the mirrored constants in prose), and
-word-anchor the lookup.
+The TS side no longer carries these numbers as literals: ``pipeline/jobfit/codegen.py``
+(``CONTRACT_CONSTANTS``) renders them from Python into
+``app/_lib/contract-constants.generated.ts`` and each TS module below re-exports the
+generated name. So this file pins the DOOR, not a regex over TS literals: every
+mirrored name is a codegen row bound to the Python value here, the committed
+generated file declares that value, and the TS module re-exports it and types no
+number of its own. The behavioural probes below keep the Python side honest — each
+number must still be the one the Python code actually reads.
 """
 
 from __future__ import annotations
 
 import inspect
-import re
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit import automation, calibration_drift
+from pipeline.jobfit import automation, calibration_drift, codegen
+from pipeline.jobfit.tests.test_codegen_contract_constants import home_problems
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRANSCRIPT_TS = REPO_ROOT / "app" / "_lib" / "interview-transcript.ts"
@@ -77,26 +82,6 @@ MIRRORED: dict[Path, dict[str, int]] = {
 }
 
 
-def _strip_ts_comments(text: str) -> str:
-    """Drop // line and /* */ block comments.
-
-    Both files document the mirror in prose that names the constant AND its
-    value, so an extractor that did not strip comments could read a documented
-    number instead of the shipped one.
-    """
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
-    return re.sub(r"//[^\n]*", "", text)
-
-
-def _extract_ts_number(text: str, name: str, source: Path) -> int:
-    """The integer literal exported as ``name``, word-anchored so a longer name
-    (``MIN_CALIBRATION_BAND_OUTCOMES``) cannot satisfy a shorter one."""
-    match = re.search(rf"\bexport const {re.escape(name)}\s*=\s*(\d+)\s*;", _strip_ts_comments(text))
-    if not match:
-        raise AssertionError(f"could not find `export const {name} = <int>;` in {source}")
-    return int(match.group(1))
-
-
 class AutomationConstantSyncTest(unittest.TestCase):
     def setUp(self) -> None:
         self.sources: dict[Path, str] = {}
@@ -105,15 +90,24 @@ class AutomationConstantSyncTest(unittest.TestCase):
             self.sources[path] = path.read_text(encoding="utf-8")
 
     def test_every_mirrored_constant_matches_the_python_value(self) -> None:
+        rows = {row.ts_name: row for row in codegen.CONTRACT_CONSTANTS}
+        generated = codegen.CONTRACT_OUTPUT.read_text(encoding="utf-8")
         for path, pairs in MIRRORED.items():
             for name, python_value in pairs.items():
                 with self.subTest(ts=path.name, constant=name):
+                    self.assertIn(name, rows, f"{name} is not a codegen CONTRACT_CONSTANTS row")
+                    self.assertEqual(rows[name].ts_home, path.name, f"{name}'s codegen row names another TS home")
                     self.assertEqual(
-                        _extract_ts_number(self.sources[path], name, path),
+                        codegen.resolve_contract_constant(rows[name]),
                         python_value,
-                        f"{name} disagrees across the language boundary: {path} vs the Python mirror. "
-                        "Move BOTH or neither.",
+                        f"codegen reads {name} from {rows[name].source()}, not from the Python value this map pins",
                     )
+                    self.assertIn(
+                        f"\nexport const {name} = {python_value};\n",
+                        generated,
+                        f"{codegen.CONTRACT_OUTPUT.name} is stale for {name} — run `python -m pipeline.jobfit.codegen`",
+                    )
+                    self.assertEqual(home_problems(self.sources[path], name), [])
 
     def test_the_map_names_live_python_constants(self) -> None:
         # A rename on the Python side must not quietly leave the map checking a
@@ -164,12 +158,12 @@ class AutomationConstantSyncTest(unittest.TestCase):
         )
 
     def test_extractor_rejects_a_documented_value(self) -> None:
-        # The mutation guard for the guard: a value that appears ONLY in a comment
-        # must not be readable, and a real declaration must be.
-        fake = "// export const MAX_SCORECARD_NOTES_CHARS = 1;\nexport const MAX_SCORECARD_NOTES_CHARS = 7;\n"
-        self.assertEqual(_extract_ts_number(fake, "MAX_SCORECARD_NOTES_CHARS", TRANSCRIPT_TS), 7)
-        with self.assertRaises(AssertionError):
-            _extract_ts_number("/* export const NOPE = 3; */", "NOPE", TRANSCRIPT_TS)
+        # The mutation guard for the guard: a literal that appears ONLY in a comment
+        # does not count against a home, and a real hand-typed declaration does.
+        reexport = 'export { MAX_SCORECARD_NOTES_CHARS } from "./contract-constants.generated";\n'
+        documented = "// export const MAX_SCORECARD_NOTES_CHARS = 1;\n" + reexport
+        self.assertEqual(home_problems(documented, "MAX_SCORECARD_NOTES_CHARS"), [])
+        self.assertNotEqual(home_problems("export const MAX_SCORECARD_NOTES_CHARS = 7;\n", "MAX_SCORECARD_NOTES_CHARS"), [])
 
 
 if __name__ == "__main__":
