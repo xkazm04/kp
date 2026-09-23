@@ -3506,7 +3506,9 @@
         "loadFailed": "Der Ergebniseintrag konnte nicht geladen werden.",
         "retry": "Erneut versuchen"
       },
-      "transfer": "Transfer"
+      "transfer": "Transfer",
+      "githubNotSeen": "In öffentlichen Repositorys nicht gesehen:",
+      "githubNotSeenTitle": "Fähigkeiten, die die Prüfung in öffentlichen Repository-Signalen nicht gefunden hat. Öffentliche Arbeit kann eine Fähigkeit belegen, aber nie ausschließen. Das spricht also nicht gegen die Person."
     },
     "candidate": {
       "back": "Zurück",
@@ -9954,7 +9956,9 @@
       "singleSittingTitle": "Die Commits landeten in einem engen Schub. Das ist die Arbeitsweise, kein Urteil.",
       "seedEngagement": "Seed-Auseinandersetzung: {touched}/{total} platzierte Dateien bearbeitet",
       "seedEngagementTitle": "Dateien des gemeinsamen Start-Seeds, die die Einreichung verändert hat. Der Seed legt die Nahtstelle jedes Prüfpunkts an, eine unberührte Datei ist also eine Nahtstelle, die nie angefasst wurde.",
-      "seedUntouched": "unberührt: {paths}"
+      "seedUntouched": "unberührt: {paths}",
+      "decisionsLogUnread": "DECISIONS-Log: nicht lesbar",
+      "decisionsLogUnreadTitle": "Die Verzeichnisstruktur des Repositorys konnte nicht von GitHub gelesen werden, daher ist unbekannt, ob das DECISIONS-Log geführt wurde. Das betrifft den Lesevorgang, nicht die Person."
     },
     "probeKind": {
       "ambiguity": "Mehrdeutigkeit",

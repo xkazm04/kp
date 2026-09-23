@@ -3506,7 +3506,9 @@
         "loadFailed": "Záznam o výsledku se nepodařilo načíst.",
         "retry": "Zkusit znovu"
       },
-      "transfer": "přenos"
+      "transfer": "přenos",
+      "githubNotSeen": "Ve veřejných repozitářích nenalezeno:",
+      "githubNotSeenTitle": "Dovednosti, které revize ve veřejných repozitářích nenašla. Veřejná práce může dovednost potvrdit, nikdy ji však nevyloučí, proto to o kandidátovi nevypovídá nic negativního."
     },
     "candidate": {
       "back": "Zpět",
@@ -9954,7 +9956,9 @@
       "singleSittingTitle": "Commity dorazily v jednom těsném shluku. Jde o způsob práce, ne o hodnocení.",
       "seedEngagement": "Práce se seedem: upraveno {touched} z {total} nastražených souborů",
       "seedEngagementTitle": "Soubory ze sdíleného startovacího seedu, které odevzdání změnilo. Seed nastražuje šev každé sondy, neupravený soubor je tedy šev, kterého se kandidát nedotkl.",
-      "seedUntouched": "nedotčeno: {paths}"
+      "seedUntouched": "nedotčeno: {paths}",
+      "decisionsLogUnread": "Log DECISIONS: nelze načíst",
+      "decisionsLogUnreadTitle": "Strom repozitáře se z GitHubu nepodařilo načíst, proto není známo, zda byl log DECISIONS veden. Jde o výsledek načtení, nikoli o zjištění o kandidátovi."
     },
     "probeKind": {
       "ambiguity": "Nejednoznačnost",

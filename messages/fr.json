@@ -3506,7 +3506,9 @@
         "loadFailed": "Impossible de charger la fiche de résultat.",
         "retry": "Réessayer"
       },
-      "transfer": "transfert"
+      "transfer": "transfert",
+      "githubNotSeen": "Non observé dans les dépôts publics :",
+      "githubNotSeenTitle": "Compétences que la revue n’a pas trouvées dans les signaux des dépôts publics. Un travail public peut confirmer une compétence, jamais l’exclure : cela ne dit rien contre le candidat."
     },
     "candidate": {
       "back": "Retour",
@@ -9954,7 +9956,9 @@
       "singleSittingTitle": "Les commits sont arrivés en une salve serrée. C’est une manière de travailler, pas un jugement.",
       "seedEngagement": "Engagement avec la base : {touched}/{total} fichiers implantés modifiés",
       "seedEngagementTitle": "Fichiers de la base de départ commune que le rendu a modifiés. La base pose la couture de chaque sonde, un fichier intact est donc une couture jamais abordée.",
-      "seedUntouched": "intacts : {paths}"
+      "seedUntouched": "intacts : {paths}",
+      "decisionsLogUnread": "Journal DECISIONS : illisible",
+      "decisionsLogUnreadTitle": "L’arborescence du dépôt n’a pas pu être lue depuis GitHub, on ne sait donc pas si le journal DECISIONS a été tenu. Cela concerne la lecture, pas le candidat."
     },
     "probeKind": {
       "ambiguity": "Ambiguïté",

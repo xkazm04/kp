@@ -3506,7 +3506,9 @@
         "loadFailed": "Couldn’t load the outcome record.",
         "retry": "Try again"
       },
-      "transfer": "transfer"
+      "transfer": "transfer",
+      "githubNotSeen": "Not seen in public repos:",
+      "githubNotSeenTitle": "Skills the review did not find in public repository signals. Public work can confirm a skill but never rule one out, so this says nothing against the candidate."
     },
     "candidate": {
       "back": "Back",
@@ -9954,7 +9956,9 @@
       "singleSittingTitle": "Commits landed in one tight burst. That is how they worked, not a verdict.",
       "seedEngagement": "Seed engagement: {touched}/{total} planted files touched",
       "seedEngagementTitle": "Files from the shared starter seed the submission modified. The seed plants each probe's seam, so an untouched file is a seam they never engaged.",
-      "seedUntouched": "untouched: {paths}"
+      "seedUntouched": "untouched: {paths}",
+      "decisionsLogUnread": "DECISIONS log: could not read",
+      "decisionsLogUnreadTitle": "The repository tree could not be read from GitHub, so whether the DECISIONS log was kept is unknown. This is a fact about the read, not about the candidate."
     },
     "probeKind": {
       "ambiguity": "Ambiguity",
