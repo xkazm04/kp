@@ -1,12 +1,14 @@
 "use client";
 
-import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, ArrowUpCircle, PauseCircle, RotateCcw, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
+import { approvedFromPreview, type ApprovedDecision, type CommitReport } from "@/app/_lib/automation-commit-plan";
 import { usePassReasonText } from "./passReasonText";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 
@@ -38,12 +40,51 @@ type Preview = {
  *  nothing at all when the gate refused; the click simply did nothing. */
 export type PassCommitRefusal = { code?: string | null; capability?: string | null } | null;
 
+/** One advance / would-be-reject row with its opt-out. Ticked by default: the preview
+ *  is still a proposal to apply, and the recruiter unticks what they disagree with. */
+function SelectableRow({
+  name,
+  reason,
+  checked,
+  onToggle,
+  toggleLabel,
+  tone,
+}: {
+  name: string;
+  reason: string;
+  checked: boolean;
+  onToggle: () => void;
+  toggleLabel: string;
+  tone: "coral" | "moss";
+}) {
+  const box = tone === "coral" ? "border-coral/30 bg-coral/5" : "border-moss/30 bg-moss/5";
+  return (
+    <li className={`rounded-md border px-3 py-1.5 text-sm ${checked ? box : "border-stone-200 bg-paper/50 opacity-70"}`}>
+      <label className="flex cursor-pointer items-start gap-2">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          aria-label={toggleLabel}
+          className={`focus-ring mt-0.5 h-4 w-4 shrink-0 ${tone === "coral" ? "accent-coral" : "accent-moss"}`}
+        />
+        <span>
+          <span className={`font-semibold text-ink ${checked ? "" : "line-through"}`}>{name}</span>{" "}
+          <span className="text-steel">— {reason}</span>
+        </span>
+      </label>
+    </li>
+  );
+}
+
 export function PassPreviewModal({
   preview,
   entries,
   committing,
   commitError,
+  report,
   onCommit,
+  onRepreview,
   onClose,
 }: {
   preview: Preview;
@@ -51,7 +92,12 @@ export function PassPreviewModal({
   committing: boolean;
   /** The last commit refusal, resolved to the reader's language here. */
   commitError?: PassCommitRefusal;
-  onCommit: () => void;
+  /** What the commit said about the selection, when there is something to say (a row
+   *  changed since the preview, or the click joined a pass already in flight). */
+  report?: CommitReport | null;
+  /** Commit exactly the rows still ticked (automation-commit-plan.ts). */
+  onCommit: (approved: ApprovedDecision[]) => void;
+  onRepreview?: () => void;
   onClose: () => void;
 }) {
   const t = useTranslations("pipeline.tab");
@@ -60,6 +106,22 @@ export function PassPreviewModal({
   const passReason = usePassReasonText();
   const labelById = new Map(entries.map((e) => [e.id, e.candidateLabel]));
   const label = (id: string) => labelById.get(id) ?? id;
+  // Per-row opt-out. The rows the recruiter UNticked, so a fresh preview starts all-on.
+  const [unticked, setUnticked] = useState<ReadonlySet<string>>(() => new Set());
+  // A re-preview hands a NEW preview to the same mounted modal: start it all-on again,
+  // so an id unticked in the last review cannot silently carry into this one.
+  const [shownPreview, setShownPreview] = useState(preview);
+  if (shownPreview !== preview) {
+    setShownPreview(preview);
+    setUnticked(new Set());
+  }
+  const toggle = (id: string) =>
+    setUnticked((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const rejects = preview.decisions.filter((d) => d.action === "reject");
   const advances = preview.decisions.filter((d) => d.action === "advance");
@@ -70,6 +132,7 @@ export function PassPreviewModal({
   const fairnessBlocked = allHolds.filter((d) => deriveDecisionOutcome(d) === "fairness_blocked");
   const holds = allHolds.filter((d) => deriveDecisionOutcome(d) !== "fairness_blocked");
   const changes = rejects.length + advances.length;
+  const selected = [...rejects, ...advances].filter((d) => !unticked.has(d.entryId)).length;
 
   // TENANCY HONESTY. On a multi-tenant install the header counts describe the WHOLE
   // sweep while the rows below are only this team's, so the modal could show
@@ -83,9 +146,10 @@ export function PassPreviewModal({
   const total = preview.summary.evaluated;
   const partial = preview.workspaceDecisionCount != null && mine !== total;
   // The pass's global change count (advances + would-be rejects), from the summary that
-  // deliberately stays installation-wide. When this team has none but the run does, the
-  // commit is still a real, consequential action — so it is offered and labeled as one,
-  // never silently replaced by "nothing to apply".
+  // deliberately stays installation-wide. When this team has none but the run does, say
+  // so - but offer NO commit: a commit carries this team's selection and is scoped to
+  // this team's rows, so one team's button never applies another team's advances (it
+  // used to, from a "(all teams)" button). Those rows wait for their own team or the clock.
   const globalChanges = preview.summary.advanced + preview.summary.rejected;
   const othersOnly = partial && changes === 0 && globalChanges > 0;
 
@@ -111,21 +175,37 @@ export function PassPreviewModal({
           >
             {t("previewCancel")}
           </button>
-          {/* Only-other-teams-have-changes: name it. The commit affordance stays (a
-              commit was always installation-wide — hiding it was the misleading part),
-              labeled with the global count so the click can't read as "apply my 0". */}
-          {othersOnly ? <span className="mr-auto text-sm text-steel">{t("previewOtherTeamsOnly", { count: globalChanges })}</span> : null}
-          {changes > 0 || othersOnly ? (
+          {report ? (
+            // After a commit that has something to report, the only next move is to
+            // look again: the rows below the report are the live board's, not the preview's.
+            onRepreview ? (
+              <button
+                type="button"
+                onClick={onRepreview}
+                disabled={committing}
+                className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              >
+                <RotateCcw size={14} aria-hidden /> {t("previewRepreview")}
+              </button>
+            ) : null
+          ) : othersOnly ? (
+            /* Only-other-teams-have-changes: named, never applied from here. */
+            <span className="mr-auto text-sm text-steel">{t("previewOtherTeamsOnly", { count: globalChanges })}</span>
+          ) : changes > 0 ? (
             <button
               type="button"
-              onClick={onCommit}
-              disabled={committing}
+              onClick={() => onCommit(approvedFromPreview(preview.decisions, unticked))}
+              disabled={committing || selected === 0}
               className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
               {/* No `rejected` param: a commit produces zero rejections, so the
                   button must not imply any (it used to pass the would-be-reject
                   count into a message that then had to stay silent about it). */}
-              {committing ? t("runningPass") : othersOnly ? t("previewApplyGlobal", { count: globalChanges }) : t("previewApply", { count: changes })}
+              {committing
+                ? t("runningPass")
+                : selected === changes
+                  ? t("previewApply", { count: changes })
+                  : t("previewApplySelected", { count: selected, total: changes })}
             </button>
           ) : (
             <span className="text-sm text-steel">{t("previewNothing")}</span>
@@ -133,6 +213,40 @@ export function PassPreviewModal({
         </div>
       }
     >
+      {report ? (
+        <div className="space-y-4">
+          {/* A click that JOINED a pass already in flight: that pass ran without this
+              selection, so its result is not presented as this click's. */}
+          {report.selectionHonored ? null : (
+            <p role="alert" className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
+              <AlertTriangle size={14} className="mr-1 inline-block align-text-bottom" aria-hidden />
+              {t("previewSelectionNotHonored")}
+            </p>
+          )}
+          {report.drifted.length > 0 ? (
+            <section>
+              <p role="status" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-amber-700">
+                <AlertTriangle size={13} aria-hidden /> {t("previewDriftedTitle", { count: report.drifted.length })}
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {report.drifted.map((r) => (
+                  <li key={r.entryId} className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
+                    <span className="font-semibold text-ink">{label(r.entryId)}</span>{" "}
+                    <span className="text-steel">
+                      —{" "}
+                      {t("previewDriftedRow", {
+                        approved: t("previewDriftAction", { action: r.approvedAction }),
+                        now: t("previewDriftAction", { action: r.action }),
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {report.selectionHonored ? <p className="text-sm text-steel">{t("previewDriftedNote")}</p> : null}
+        </div>
+      ) : (
       <div className="space-y-4">
         {/* The header/subtitle counts are the whole installation's; the rows below are
             this team's. Say the ratio out loud rather than letting the two disagree. */}
@@ -154,10 +268,15 @@ export function PassPreviewModal({
             </p>
             <ul className="mt-1.5 space-y-1">
               {rejects.map((d) => (
-                <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-3 py-1.5 text-sm">
-                  <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
-                  <span className="text-steel">— {passReason(d)}</span>
-                </li>
+                <SelectableRow
+                  key={d.entryId}
+                  tone="coral"
+                  name={label(d.entryId)}
+                  reason={passReason(d)}
+                  checked={!unticked.has(d.entryId)}
+                  onToggle={() => toggle(d.entryId)}
+                  toggleLabel={t("previewRowToggle", { name: label(d.entryId) })}
+                />
               ))}
             </ul>
           </section>
@@ -169,10 +288,15 @@ export function PassPreviewModal({
             </p>
             <ul className="mt-1.5 space-y-1">
               {advances.map((d) => (
-                <li key={d.entryId} className="rounded-md border border-moss/30 bg-moss/5 px-3 py-1.5 text-sm">
-                  <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
-                  <span className="text-steel">— {passReason(d)}</span>
-                </li>
+                <SelectableRow
+                  key={d.entryId}
+                  tone="moss"
+                  name={label(d.entryId)}
+                  reason={passReason(d)}
+                  checked={!unticked.has(d.entryId)}
+                  onToggle={() => toggle(d.entryId)}
+                  toggleLabel={t("previewRowToggle", { name: label(d.entryId) })}
+                />
               ))}
             </ul>
           </section>
@@ -207,8 +331,10 @@ export function PassPreviewModal({
             </ul>
           </details>
         ) : null}
+        {changes > 0 ? <p className="text-sm text-steel">{t("previewSelectionNote")}</p> : null}
         <p className="text-sm text-steel">{t("previewNote")}</p>
       </div>
+      )}
     </Modal>
   );
 }

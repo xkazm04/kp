@@ -3,8 +3,10 @@ import { AutomationPassError, isPassInFlight, runAutomationPass } from "@/app/_l
 import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { commitReport, parseApprovedSelection } from "@/app/_lib/automation-commit-plan";
+import { AUTOMATION_PASS_ENTRY_CAP } from "@/app/_lib/db/pipeline";
 
 
 // Task 7 — deterministic policy pass over all active entries. LLM-free.
@@ -25,8 +27,15 @@ export async function POST(request: Request) {
   // silently mutating the board.
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
-  const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown };
-  const dryRun = body.dryRun === true;
+  const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown; approved?: unknown } | null;
+  const dryRun = body?.dryRun === true;
+  // Commit the pass you previewed: a commit may carry the rows the recruiter kept
+  // ticked in the preview (automation-commit-plan.ts). Validated BEFORE anything runs;
+  // absent = today's behaviour (the clock, the command bar and a cron send none). A dry
+  // run ignores it - there is nothing to hold back from a forecast.
+  const parsed = dryRun ? null : parseApprovedSelection(body?.approved, AUTOMATION_PASS_ENTRY_CAP);
+  if (parsed && !parsed.ok) return jsonRefusal("AUTOMATION_SELECTION_INVALID", 400);
+  const approved = parsed?.ok ? parsed.approved : null;
   // TENANCY (phase 1): the sweep is global by design and the run log keeps the FULL
   // decision list (it is the installation's audit record) — but the RESPONSE only
   // ever hands this caller their own team's rows, so a preview or a committed pass
@@ -35,6 +44,9 @@ export async function POST(request: Request) {
   // labeled as such by `decisionsWorkspace` + `workspaceDecisionCount` beside it.
   // Resolved BEFORE the in-flight check below — see why there.
   const workspace = await currentWorkspace();
+  // TENANCY: a selection is ONE team's review, so the pass it runs is scoped to that
+  // team - its rows are applied or held back, every other team's row is neither.
+  const selection = approved ? { approved, workspace } : undefined;
   // AUTO2 — a committed run from this route (the board's "Run pass" button /
   // an external cron) is durably recorded like the clock's: when this call JOINS an
   // in-flight pass, whoever started it records it — never twice.
@@ -48,15 +60,20 @@ export async function POST(request: Request) {
   const joined = isPassInFlight();
   const startedAt = new Date().toISOString();
   try {
-    const { summary, decisions } = await runAutomationPass({ dryRun });
+    const { summary, decisions } = await runAutomationPass({ dryRun, selection });
     if (!dryRun && !joined) recordRun({ status: "ok", summary, decisions, startedAt, trigger: "manual" });
     const visible = decisionsForWorkspace(decisions, workspace) as typeof decisions;
+    // `selectionHonored: false` = this click JOINED a pass already in flight, planned
+    // without its selection: the result is reported, never presented as this click's.
+    // `drifted` names the ticked rows the pass decided differently at commit time.
+    const report = approved ? commitReport(visible, approved, joined) : null;
     return NextResponse.json({
       summary,
       decisions: visible,
       decisionsWorkspace: workspace,
       workspaceDecisionCount: visible.length,
       dryRun,
+      ...(report ?? {}),
     });
   } catch (error) {
     const status = error instanceof AutomationPassError ? error.status : 500;

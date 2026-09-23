@@ -9,6 +9,7 @@ import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
 import { isAgingAlertKind } from "./aging-policy";
+import { planCommit, type CommitSelection, type CommitVerdict } from "./automation-commit-plan";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -35,7 +36,11 @@ export type PassReasonCode =
   | "wouldBeQueuedForApproval"
   | "fairnessRefused"
   | "fairnessWouldRefuse"
-  | "applyFailed";
+  | "applyFailed"
+  /** The recruiter left this row unticked in the preview (or it was not in it). */
+  | "notApproved"
+  /** The recruiter ticked this row, but the pass now decides something else. */
+  | "changedSincePreview";
 
 // Optimistic-CAS stale handling, shared by the advance and reject apply branches:
 // when actOnPipelineEntry refuses because the snapshot stage no longer holds (a
@@ -48,6 +53,27 @@ function markStaleSkip(d: AutomationDecision): void {
   d.reasonCode = "staleSkip";
   d.reasonParams = { original: d.reason };
   d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
+}
+
+// A commit that carries the recruiter's reviewed selection (automation-commit-plan.ts)
+// holds back the rows the recruiter did not keep, and the rows that changed since the
+// preview. Both become a logged no-op with a CODE, the markStaleSkip shape: the entry is
+// not touched, the run log says why, and `commitVerdict` + `planned*` keep what the pass
+// had decided so the route can name a drifted row back to the recruiter.
+function markHeldBack(d: AutomationDecision, verdict: "declined" | "drifted"): void {
+  d.commitVerdict = verdict;
+  d.plannedAction = d.action;
+  d.plannedToStage = d.toStage;
+  const code: PassReasonCode = verdict === "declined" ? "notApproved" : "changedSincePreview";
+  d.action = "none";
+  d.toStage = null;
+  d.outcome = "skipped";
+  d.reasonCode = code;
+  d.reasonParams = { original: d.reason };
+  d.reason =
+    verdict === "declined"
+      ? `Skipped: not approved in the preview. Original policy decision: ${d.reason}`
+      : `Skipped: changed since the preview. Original policy decision: ${d.reason}`;
 }
 
 // THE single encoding of "a fairness-cleared reject is ROUTED TO THE HUMAN gate,
@@ -117,6 +143,11 @@ export type AutomationDecision = {
    *  labels and rejection reasons. Absent only on rows persisted before the stamp
    *  existed — those are attributed to the default workspace on read. */
   workspaceId?: string;
+  /** Set only on a commit that carried a selection: the plan's verdict for this row
+   *  and, when it was held back, what the pass had decided (automation-commit-plan). */
+  commitVerdict?: CommitVerdict;
+  plannedAction?: AutomationDecision["action"];
+  plannedToStage?: string | null;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
@@ -169,13 +200,22 @@ export function isPassInFlight(): boolean {
   return inFlightPass !== null;
 }
 
-export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<AutomationPassResult> {
+/** `selection` = the reviewed rows of ONE team's preview (automation-commit-plan.ts). A
+ *  pass that carries one is scoped to that team: it evaluates only that team's entries,
+ *  applies only the rows the team kept, and neither applies nor holds back any other
+ *  team's row - those wait for their own team's commit or the clock. A caller with no
+ *  selection (the clock, the command bar, an external cron) runs today's global sweep.
+ *
+ *  A selection that finds a pass already in flight JOINS it like any other caller; the
+ *  route reports that as `selectionHonored: false`, because the joined pass was planned
+ *  without it. */
+export function runAutomationPass(opts?: { dryRun?: boolean; selection?: CommitSelection }): Promise<AutomationPassResult> {
   // AUTO3 — a dry run is read-only (no applies, no dispatches, no score writes),
   // so it neither joins nor blocks the single-flight: previewing must never
   // return an already-APPLIED pass's result as if it were a preview.
   if (opts?.dryRun) return executeAutomationPass(true);
   if (inFlightPass) return inFlightPass;
-  inFlightPass = executeAutomationPass(false).finally(() => {
+  inFlightPass = executeAutomationPass(false, opts?.selection).finally(() => {
     inFlightPass = null;
   });
   return inFlightPass;
@@ -364,8 +404,148 @@ export function recordDecisionAlerts(
   }
 }
 
-async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassResult> {
-  const entries = listActiveEntriesForAutomation();
+/** The commit loop: apply one pass's decisions to the board. Exported so the
+ *  selection contract can be pinned without spawning the policy engine; the pass calls
+ *  it with the SAME entry snapshot Python decided against. Returns the decisions the
+ *  commit answers for - with a selection, only the reviewing team's. */
+export function applyPassDecisions(
+  decisions: AutomationDecision[],
+  entries: AutomationEntry[],
+  summary: AutomationSummary,
+  selection?: CommitSelection
+): AutomationDecision[] {
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  for (const d of decisions) {
+    const ws = byId.get(d.entryId)?.workspaceId;
+    if (ws) d.workspaceId = ws;
+  }
+  // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
+  // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
+  // every fairness-cleared reject is queued for a human on the Decisions gate.
+  // Advances, holds and alerts stay autonomous. This is what makes the candidate
+  // disclosure's ONE absolute — "a rejection is always a person's: no setting can
+  // hand that decision to the machine" (messages/*.json aiDisclosure.body) — true
+  // unconditionally; the former opt-in `auto` reject mode is gone. The disclosure
+  // used to claim more than this, and the surrounding "nothing adverse is decided
+  // automatically" wording was retired with G16 precisely because advance and offer
+  // ARE delegable; do not restore an absolute here that only the reject path earns.
+  //
+  // A selection is one team's review: plan it against the decisions of THAT team's
+  // entries only. A decision whose entry is not in this pass's snapshot, or belongs to
+  // another team, is dropped from the commit outright - neither applied nor recorded as
+  // held back (the pass is already scoped before it runs; this is the second wall).
+  if (selection) {
+    decisions = decisions.filter((d) => {
+      const ws = byId.get(d.entryId)?.workspaceId;
+      return ws !== undefined && ws === selection.workspace;
+    });
+  }
+  const plan = selection ? planCommit(decisions, selection.approved, selection.workspace) : null;
+  for (const d of decisions) {
+    if (!d.entryId) continue;
+    // One decision's apply failing (a comm throw from dispatchRejection, a
+    // transient SQLITE_BUSY past busy_timeout) must NOT abort the whole pass —
+    // that discards the summary of everything already applied AND skips every
+    // later decision, leaving a half-applied board. Isolate each decision.
+    try {
+    // Optimistic CAS (idea-b6310b92): the policy decided against the SNAPSHOT
+    // stage, but the Python hop takes seconds — a recruiter (or a concurrent
+    // pass) may have moved the entry meanwhile. Passing expectedStage makes a
+    // stale verdict a logged no-op instead of an action applied to whatever
+    // stage the entry happens to be in NOW.
+    // Global sweep spans teams, so each write scopes to THIS entry's own workspace.
+    const entrySnap = byId.get(d.entryId);
+    const snapshotStage = entrySnap?.stage;
+    const entryWs = entrySnap?.workspaceId;
+    const verdict = plan?.get(d.entryId);
+    if (verdict) d.commitVerdict = verdict;
+    // Held back by the selection: a drifted row of any action, or a declined advance.
+    // A declined REJECT is decided below, after the fairness backstop - a reject the
+    // backstop refuses is an autonomous hold (and its alert), not a row anyone ticked.
+    if (verdict === "drifted" || (verdict === "declined" && d.action === "advance")) {
+      markHeldBack(d, verdict);
+    } else if (d.action === "advance") {
+      const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
+      if (applied) {
+        summary.advanced += 1;
+        d.outcome = "applied";
+      } else {
+        markStaleSkip(d);
+      }
+    } else if (d.action === "reject") {
+      // Defense in depth: re-assert the fairness invariant before applying a
+      // reject (BAU<40 only — enforced in evaluate_entry). If Python regressed and
+      // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
+      // it — downgrade to a hold + alert rather than silently auto-rejecting.
+      const fairness = assertAutoRejectFair(byId.get(d.entryId));
+      // Refused → the shared helper downgrades to a hold + dedup alert (sets
+      // outcome=fairness_blocked, bumps summary.held, appends the alert recorded
+      // by the loop below), routed to the human Decisions gate rather than
+      // actioned. CLEARED → also not applied: the reject is QUEUED for a human
+      // click, unconditionally. There is no mode that applies or emails a reject
+      // unattended (the opt-in "auto" mode was retired — see the note above the
+      // loop); both branches therefore land on the human Decisions gate and
+      // `summary.rejected` is 0 in every committed run.
+      if (applyFairnessVerdict(d, fairness, summary, false)) {
+        // refused — the helper already downgraded this decision to a hold.
+        if (d.commitVerdict) d.commitVerdict = "autonomous";
+      } else if (verdict === "declined") {
+        // Fairness-cleared, but the recruiter did not keep it: no rejection_review is
+        // queued from this commit. The next pass (or preview) proposes it again.
+        markHeldBack(d, "declined");
+      } else {
+        // Mandatory human-in-the-loop: QUEUE the fairness-cleared reject for a
+        // human click instead of applying it. The payload uses the screening-
+        // review shape AiReviewCard already renders; evaluate_entry freezes
+        // entries with a pending approval, so the queued candidate can't be
+        // re-decided on the next tick. The recruiter's Reject resolves it through
+        // the human route — which sends the rejection email AND seals the
+        // tamper-evident record, so nothing is lost by not applying it here.
+        setApproval(
+          d.entryId,
+          "rejection_review",
+          JSON.stringify({
+            recommendation: "reject",
+            confidence: entrySnap?.matchScore ?? null,
+            rationale: d.reason,
+          }),
+          entryWs
+        );
+        // Routed to the human Decisions gate, not actioned — the SAME encoding
+        // the preview loop uses, so the forecast and the record can't diverge.
+        markQueuedForApproval(d, summary, false);
+      }
+    } else if (d.action === "hold") {
+      summary.held += 1;
+      d.outcome = "applied";
+    }
+    recordDecisionAlerts(d, entrySnap, summary, false);
+    } catch (applyError) {
+      // A decision's DB transition may already be committed (the advance landed,
+      // or the rejection_review was queued) when a later step throws; the failure
+      // is recorded here and the pass continues rather than aborting. The errors
+      // count surfaces the partial in the run summary.
+      summary.errors += 1;
+      const reason = applyError instanceof Error ? applyError.message : String(applyError);
+      d.outcome = "failed";
+      d.reasonCode = "applyFailed";
+      d.reasonParams = { detail: reason, original: d.reason };
+      d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
+      console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
+    }
+  }
+
+  return decisions;
+}
+
+/** The entries one pass evaluates: every team's (the global sweep) or, for a commit
+ *  that carries one team's selection, that team's only. */
+export function entriesForPass(entries: AutomationEntry[], workspace?: string): AutomationEntry[] {
+  return workspace ? entries.filter((e) => e.workspaceId === workspace) : entries;
+}
+
+async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection): Promise<AutomationPassResult> {
+  const entries = entriesForPass(listActiveEntriesForAutomation(), selection?.workspace);
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 
@@ -438,99 +618,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       return { summary, decisions };
     }
 
-    // AUTO1 RETIRED (UAT M6 / GDPR Art. 22): a rejection is the one irreversible,
-    // candidate-visible ADVERSE action, so the pass NEVER applies it unattended —
-    // every fairness-cleared reject is queued for a human on the Decisions gate.
-    // Advances, holds and alerts stay autonomous. This is what makes the candidate
-    // disclosure's ONE absolute — "a rejection is always a person's: no setting can
-    // hand that decision to the machine" (messages/*.json aiDisclosure.body) — true
-    // unconditionally; the former opt-in `auto` reject mode is gone. The disclosure
-    // used to claim more than this, and the surrounding "nothing adverse is decided
-    // automatically" wording was retired with G16 precisely because advance and offer
-    // ARE delegable; do not restore an absolute here that only the reject path earns.
-    for (const d of decisions) {
-      if (!d.entryId) continue;
-      // One decision's apply failing (a comm throw from dispatchRejection, a
-      // transient SQLITE_BUSY past busy_timeout) must NOT abort the whole pass —
-      // that discards the summary of everything already applied AND skips every
-      // later decision, leaving a half-applied board. Isolate each decision.
-      try {
-      // Optimistic CAS (idea-b6310b92): the policy decided against the SNAPSHOT
-      // stage, but the Python hop takes seconds — a recruiter (or a concurrent
-      // pass) may have moved the entry meanwhile. Passing expectedStage makes a
-      // stale verdict a logged no-op instead of an action applied to whatever
-      // stage the entry happens to be in NOW.
-      // Global sweep spans teams, so each write scopes to THIS entry's own workspace.
-      const entrySnap = byId.get(d.entryId);
-      const snapshotStage = entrySnap?.stage;
-      const entryWs = entrySnap?.workspaceId;
-      if (d.action === "advance") {
-        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
-        if (applied) {
-          summary.advanced += 1;
-          d.outcome = "applied";
-        } else {
-          markStaleSkip(d);
-        }
-      } else if (d.action === "reject") {
-        // Defense in depth: re-assert the fairness invariant before applying a
-        // reject (BAU<40 only — enforced in evaluate_entry). If Python regressed and
-        // emitted a reject for a protected/unscored/at-or-above-floor entry, REFUSE
-        // it — downgrade to a hold + alert rather than silently auto-rejecting.
-        const verdict = assertAutoRejectFair(byId.get(d.entryId));
-        // Refused → the shared helper downgrades to a hold + dedup alert (sets
-        // outcome=fairness_blocked, bumps summary.held, appends the alert recorded
-        // by the loop below), routed to the human Decisions gate rather than
-        // actioned. CLEARED → also not applied: the reject is QUEUED for a human
-        // click, unconditionally. There is no mode that applies or emails a reject
-        // unattended (the opt-in "auto" mode was retired — see the note above the
-        // loop); both branches therefore land on the human Decisions gate and
-        // `summary.rejected` is 0 in every committed run.
-        if (applyFairnessVerdict(d, verdict, summary, false)) {
-          // refused — the helper already downgraded this decision to a hold.
-        } else {
-          // Mandatory human-in-the-loop: QUEUE the fairness-cleared reject for a
-          // human click instead of applying it. The payload uses the screening-
-          // review shape AiReviewCard already renders; evaluate_entry freezes
-          // entries with a pending approval, so the queued candidate can't be
-          // re-decided on the next tick. The recruiter's Reject resolves it through
-          // the human route — which sends the rejection email AND seals the
-          // tamper-evident record, so nothing is lost by not applying it here.
-          setApproval(
-            d.entryId,
-            "rejection_review",
-            JSON.stringify({
-              recommendation: "reject",
-              confidence: entrySnap?.matchScore ?? null,
-              rationale: d.reason,
-            }),
-            entryWs
-          );
-          // Routed to the human Decisions gate, not actioned — the SAME encoding
-          // the preview loop uses, so the forecast and the record can't diverge.
-          markQueuedForApproval(d, summary, false);
-        }
-      } else if (d.action === "hold") {
-        summary.held += 1;
-        d.outcome = "applied";
-      }
-      recordDecisionAlerts(d, entrySnap, summary, false);
-      } catch (applyError) {
-        // A decision's DB transition may already be committed (the advance landed,
-        // or the rejection_review was queued) when a later step throws; the failure
-        // is recorded here and the pass continues rather than aborting. The errors
-        // count surfaces the partial in the run summary.
-        summary.errors += 1;
-        const reason = applyError instanceof Error ? applyError.message : String(applyError);
-        d.outcome = "failed";
-        d.reasonCode = "applyFailed";
-        d.reasonParams = { detail: reason, original: d.reason };
-        d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
-        console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
-      }
-    }
-
-    return { summary, decisions };
+    return { summary, decisions: applyPassDecisions(decisions, entries, summary, selection) };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

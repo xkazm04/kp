@@ -9,6 +9,7 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { useSimulation } from "./SimulationProvider";
 import { SIM_DOOR_IDLE, consoleMode, refreshSimDoor, simDoorSnapshot, subscribeSimDoor } from "./simRunControl";
 import type { SimPhaseId } from "./constants";
+import type { ApprovedDecision, CommitReport } from "@/app/_lib/automation-commit-plan";
 
 // Shared brain for the two control-center prototypes (ControlDock + CandiLauncher).
 // Logic only — no JSX — so both directions render the SAME behavior in their own
@@ -96,11 +97,16 @@ export function useAutomationPass(onCommitted?: () => void) {
   // The commit refusal as the route answered it (code + capability), for the modal
   // to resolve in the reader's language - `error` above stays the dock's own line.
   const [commitError, setCommitError] = useState<{ code?: string | null; capability?: string | null } | null>(null);
+  // What the commit said about the recruiter's selection, when it has something to
+  // say: rows that changed since the preview, or a click that joined a pass already in
+  // flight. The modal stays open to show it; a clean commit closes as before.
+  const [report, setReport] = useState<CommitReport | null>(null);
 
   const dryRun = useCallback(async () => {
     setBusy(true);
     setCommitted(null);
     setError(null);
+    setReport(null);
     try {
       // Decisions come from the dry run; candidate labels come from the board.
       const [pass, board] = await Promise.all([
@@ -134,15 +140,29 @@ export function useAutomationPass(onCommitted?: () => void) {
     }
   }, [t]);
 
-  const commit = useCallback(async () => {
+  // `approved` = the rows the recruiter kept ticked in the preview. The route applies
+  // only those, for this team only, and names any row the pass now decides differently.
+  const commit = useCallback(async (approved: ApprovedDecision[]) => {
     setBusy(true);
     setError(null);
     setCommitError(null);
+    setReport(null);
     try {
-      const r = await fetch("/api/automation/run", { method: "POST" });
+      const r = await fetch("/api/automation/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved }),
+      });
       const p = await r.json().catch(() => null);
       if (r.ok && p?.summary) {
-        setPreview(null);
+        const drifted = Array.isArray(p.drifted) ? (p.drifted as CommitReport["drifted"]) : [];
+        const selectionHonored = p.selectionHonored !== false;
+        if (!selectionHonored || drifted.length > 0) {
+          // Keep the modal up with the report in place of the (now stale) preview rows.
+          setReport({ selectionHonored, drifted, declined: typeof p.declined === "number" ? p.declined : 0 });
+        } else {
+          setPreview(null);
+        }
         setCommitted(p.summary as PassSummary);
         notifyDataChanged(); // any open board/queue re-fetches
         onCommitted?.();
@@ -167,9 +187,10 @@ export function useAutomationPass(onCommitted?: () => void) {
     setCommitted(null);
     setError(null);
     setCommitError(null);
+    setReport(null);
   }, []);
 
-  return { busy, preview, entries, committed, error, commitError, dryRun, commit, dismiss };
+  return { busy, preview, entries, committed, error, commitError, report, dryRun, commit, dismiss };
 }
 
 /** Publish the deck's live height to `--sim-bar-h` so the surfaces that have to
