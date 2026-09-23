@@ -1376,6 +1376,41 @@ rule applies again, so a socket blip at goodbye is still a completed interview.
 Undirected calls (the lab, a session with nothing grounded to talk about) keep today's
 rule byte for byte. Pinned in `app/_lib/voice/finalize-status.test.ts`.
 
+### Transcript of record: the director's ledger, not the hang-up POST
+
+On a directed call `/api/interview/complete` does not store the browser's body as the
+transcript. It stores the director's ledger merged with what the ledger had not yet
+received (`app/_lib/voice/transcript-of-record.ts` `transcriptOfRecord`):
+
+- **The ledger is authoritative.** Every `turn` row in `interview_events`, in
+  (attempt, seq) order, is in the record. A resumed call is therefore stored and scored
+  whole, opening included. Before this, a reconnect seeded the browser with only the
+  last `RESUME_PRIOR_TURNS` (40) earlier-attempt turns, so an interview whose first
+  attempt ran past 40 turns lost its opening without any marker.
+- **The body adds only the unacknowledged tail.** The body is anchored on its last
+  occurrence of the ledger's final turn (role plus clamped text). Turns after that
+  point, the ones finalized after the last director exchange, are appended in body
+  order. A ledger the director stopped appending to at
+  `MAX_INTERVIEW_EVENTS_PER_SESSION` anchors on its last stored turn. The body's
+  `system` marker turns are kept.
+- **A hang-up POST cannot rewrite what was received.** A body turn that neither matches
+  the ledger in order nor sits in that tail is dropped. The route logs the count
+  (`unanchored`), never the text.
+- **An anchor miss degrades.** If the body lacks the ledger's final turn, the record is
+  every ledger turn plus the body's `system` turns, and the reply is still `200 ok`. A
+  ledger read failure falls back to storing the body.
+- **Passthrough.** When there are no ledger turns (the lab, `/simulate` demos, an
+  ElevenLabs agent without client tools, the spoken eval harness), or the body is
+  empty, the body is used unchanged. `session_runner.py`'s persisted-turns check still
+  holds.
+
+The same merged, clamped and capped array is persisted, handed to
+`runInterviewScorecard`, and used by both duplicate checks (`discardedTurnCount`). A
+beacon that re-POSTs a resumed call's body is compared as a merged record, so it still
+settles `alreadyCompleted` and is not refused as a second call. Pinned in
+`app/_lib/voice/transcript-of-record.test.ts` and
+`app/api/interview/complete/complete-transcript-of-record.test.ts`.
+
 ### Provider specifics
 
 - **OpenAI Realtime (raw WebRTC).** Tool calls arrive as
