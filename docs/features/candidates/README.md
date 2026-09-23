@@ -187,6 +187,30 @@ same codec (`reportLang` validated with `isLocale`); they restore only when
 still at the mount default, so a configured run survives the workspace tab
 unmount the draft was built for.
 
+**Leaving the tab does not cost the report or the uploads.** The workspace
+unmounts the Analyze tab on every sidebar switch and on every New/History peek,
+so the surface declares four restore layers, each with a key, a lifetime and an
+invalidation (`analyzeSession.ts` holds the table). The *run* layer is the task
+id (`kp.analyzeTaskId`), re-attached on mount. The *result* layer is the landed
+analysis's saved-row slug (`kp.analyzeLastResult`, no PII): `onResult` stores it,
+and a remount with no running task rebuilds the live report from
+`GET /api/analyses/[slug]` through `liveAnalysisFromSavedRow`, which validates the
+payload with `analysisSchema`, rebuilds the `persistence` receipt from the row's
+columns (so Add-to-pipeline stays live instead of falling to "unsaved"), and hands
+the row's persisted GitHub deep-dive to the same `applyGithubDeepDive` a live run
+uses. A running task outranks it (`decideAnalyzeRestore`). A 404 (a deleted row,
+or one from another workspace) or a payload that fails the schema drops the crumb
+and the form starts empty. There is no half-restored panel. A 5xx keeps the crumb
+for the next visit. A reset or a new submit clears it, and an unsaved result never
+sets it. The restored report says so with a one-line note and a Start new action
+that resets. The *draft* layer is the typed text above. The *attachments* layer
+(CV variants, the JD file, the company file) lives in module memory only,
+`analyzeAttachmentStore.ts`: the form writes through on every change and the next
+mount starts from it. It is never serialized and never touches browser storage,
+because CV bytes are candidate PII, so a reload ends it. Reset clears it.
+`analyzeSession.test.ts` and `analyzeAttachmentStore.test.ts` pin both halves,
+including a source guard that keeps storage APIs out of the store.
+
 **The drop highlight is counted, and the zones announce themselves.** A zone is a
 `<label>` wrapping an icon, a title and a hint, and `dragenter`/`dragleave` fire
 for each of them — so `useDropZoneHighlight`'s old boolean flipped off the moment
