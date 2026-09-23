@@ -13,6 +13,8 @@ import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
+import { listInterviewEvents } from "@/app/_lib/db/interview-events";
+import { ledgerTurnsFromEvents, transcriptOfRecord, type LedgerTurn } from "@/app/_lib/voice/transcript-of-record";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
@@ -123,12 +125,45 @@ export async function POST(request: NextRequest) {
     // guards below because those guards now have to answer a question they never
     // asked: is this the same call reporting twice, or a DIFFERENT one whose turns
     // are about to be dropped? (voice/discarded-turns.ts)
-    const submitted: { role?: string; text?: string }[] = Array.isArray(body.transcript)
+    const submitted: { role?: string; text: string }[] = Array.isArray(body.transcript)
       ? (body.transcript as unknown[]).filter(
           (t): t is { role?: string; text: string } =>
             typeof t === "object" && t !== null && typeof (t as { text?: unknown }).text === "string"
         )
       : [];
+
+    // The transcript of RECORD (voice/transcript-of-record.ts): on a directed call the
+    // director's ledger already holds every turn it received, idempotent per (attempt,
+    // seq); the body only adds the unacknowledged tail after the ledger's last turn (a
+    // ledger capped at MAX_INTERVIEW_EVENTS_PER_SESSION anchors on its last STORED
+    // turn). Read here, before BOTH duplicate checks, so the terminal guard and the
+    // lost-race guard compare what would actually be stored. No ledger (lab, demos,
+    // undirected ElevenLabs, the eval harness) -> the body passes through unchanged.
+    // A ledger read failure degrades to that same passthrough, never to a refusal.
+    let ledgerTurns: LedgerTurn[] = [];
+    try {
+      ledgerTurns = ledgerTurnsFromEvents(listInterviewEvents(sessionId, session.workspaceId, { kinds: ["turn"], limit: 20_000 }));
+    } catch (ledgerErr) {
+      console.error(`[interview:complete] director ledger unreadable for session ${sessionId}; storing the submitted transcript.`, ledgerErr);
+    }
+    const record = transcriptOfRecord({ ledgerTurns, submitted });
+
+    // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;
+    // see app/_lib/interview-transcript.ts). Track turns whose tail was actually
+    // discarded so an abnormally long turn is visible rather than silent. Logged
+    // below, after the refusals — a duplicate POST must not re-log its clamp.
+    let clippedTurns = 0;
+    let clippedChars = 0;
+    const clamped: VoiceTurn[] = record.turns.map((t) => {
+      const { turn, clippedChars: clip } = clampTurn(t as { text: string });
+      if (clip > 0) {
+        clippedTurns += 1;
+        clippedChars += clip;
+      }
+      return turn;
+    });
+    // Turn-count cap (head+tail keep, in-band marker — see interview-transcript.ts).
+    const { turns: transcript, droppedTurns } = capTranscriptTurns(clamped);
 
     // Idempotency / terminal-state guard (idea-beb71894): a completed session is
     // done — a duplicate POST (network retry, second tab, provider disconnect
@@ -143,7 +178,7 @@ export async function POST(request: NextRequest) {
       // honest duplicate (the End fetch racing its own unload beacon, a network
       // retry, a replayed stash) still settles green, because its turns ARE the
       // stored ones. See discardedTurnCount for where that line is drawn.
-      const discardedTurns = discardedTurnCount(session.transcript, submitted);
+      const discardedTurns = discardedTurnCount(session.transcript, transcript);
       if (discardedTurns > 0) {
         console.warn(
           `[interview:complete] refused a second completion for session ${sessionId}: ` +
@@ -174,27 +209,20 @@ export async function POST(request: NextRequest) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    // Normalize + clamp each turn to MAX_TURN_TEXT_CHARS (documented sanity cap;
-    // see app/_lib/interview-transcript.ts). Track turns whose tail was actually
-    // discarded so an abnormally long turn is visible rather than silent.
-    let clippedTurns = 0;
-    let clippedChars = 0;
-    const clamped: VoiceTurn[] = submitted.map((t) => {
-      const { turn, clippedChars: clip } = clampTurn(t as { text: string });
-      if (clip > 0) {
-        clippedTurns += 1;
-        clippedChars += clip;
-      }
-      return turn;
-    });
+    // Body turns the ledger contradicts: rewritten or inserted after the server had
+    // received the call. The COUNT only — the text is a candidate's words.
+    if (record.unanchored > 0) {
+      console.warn(
+        `[interview:complete] dropped ${record.unanchored} unanchored turn(s) for session ${sessionId}: ` +
+          `the submitted transcript disagreed with the director's ledger, which stands.`
+      );
+    }
     if (clippedTurns > 0) {
       console.warn(
         `[interview:complete] clamped ${clippedTurns} oversized turn(s) for session ${sessionId} ` +
           `(${clippedChars} chars discarded; per-turn cap).`
       );
     }
-    // Turn-count cap (head+tail keep, in-band marker — see interview-transcript.ts).
-    const { turns: transcript, droppedTurns } = capTranscriptTurns(clamped);
     if (droppedTurns > 0) {
       console.warn(
         `[interview:complete] capped transcript for session ${sessionId}: ` +
