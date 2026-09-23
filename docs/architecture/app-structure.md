@@ -246,9 +246,19 @@ was a 403 rendered as a failed load.
   every seat but the owner (open mode and an operator session fold to owner, so the
   keyless run keeps it). `templates` is still absent — the write half of
   `/api/templates` gates on `requireOperator`. Pinned by `navCapabilities.test.ts`.
-- **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
-  per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
-  so a late mount sees the answer on its first render). A dedicated route rather
+- **The source** is the '/' server render: `app/page.tsx` resolves
+  `currentWorkspace()` + `callerCapabilities()` once and passes them to
+  `<Workspace principal>` as a `ShellPrincipal` (`shell/shellPrincipal.ts`, below).
+  `shell/useCapabilities.ts` reads it through `ShellPrincipalContext` as its SERVER
+  snapshot and through the primed module as its client snapshot - the same array,
+  so the first render on both sides of hydration already shows the locks (no flash
+  of unlocked Billing/Models for a viewer, no mismatch, no GET). Every consumer
+  reads it this way: `Workspace` (passes its own prop - it provides the context),
+  the rail and mobile drawer through it, `WorkspaceCommandPalette`, `AboutTab`,
+  `ModelsQualityOverview`. Unseeded (a surface without the shell, or '/' failed to
+  resolve it) the hook falls back to `GET /api/me/capabilities` once per document,
+  retried after a failure. The setup wizard's seat (`setup/setupSeat.ts`) is a
+  separate read (`GET /api/me/onboarding`) and still fails open. A dedicated route rather
   than `/api/org/members`' `callerCapabilities`, because that payload is the whole
   member roster, it 401/403s for exactly the callers whose shell must still render,
   and open dev mode / an operator-password session hold no membership row at all
@@ -426,9 +436,7 @@ about whose numbers it asked for, so a query-only key let one document re-show
 the previous tenant's counts for the whole 30 s TTL after an in-place team
 switch. An unresolved tenant is not a key — nothing is read and nothing is
 written, so the worst case is a colder pane rather than a wrong one. The tenant
-comes from the same door `shell/recents.ts` uses (`GET /api/workspaces` →
-`current`; the session cookie carrying it is httpOnly), resolved once per
-document, and changing it empties the cache. `previewCache.test.ts` pins the
+comes from the shell principal (below), and changing it empties the cache. `previewCache.test.ts` pins the
 scoping, the TTL boundary and the three response shapes that mean "error".
 The live-refresh bus also clears the memo and re-fetches the highlighted item
 after a mutation, so its count does not remain stale until the TTL expires.
@@ -447,6 +455,30 @@ workspace's own column label server-side, so it arrives ready to draw.
 
 The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
 remains, feeding the palette's resting state and recording opens.
+
+### One door for "who is looking": the shell principal
+
+`shell/shellPrincipal.ts` owns the two facts every tenant-scoped client store
+needs - the workspace this document belongs to and the caller's capabilities.
+`app/page.tsx` resolves both server-side (a failure is `null`, which is the old
+fetch-everything behaviour) and `Workspace` hands them down twice: as
+`ShellPrincipalContext` (read by the server render and the first client render,
+see `useCapabilities`) and into the module via `primeShellPrincipal` from a
+`useState` initializer, so the non-React stores read the tenant synchronously.
+Priming is a no-op without `window`: server module scope is shared across
+requests, and a primed value there would hand one request's tenant to the next.
+
+`recents.ts`, `palette/previewCache.ts` and `hiring/pipeline/usePipelineTenant.ts`
+used to carry three copies of a `GET /api/workspaces` resolver (a route that
+lists every workspace with an N+1 membership scan) to read one string. They now
+ask `shellWorkspaceId()` / `resolveShellWorkspace()` and keep only their own
+semantics: recents drops the legacy `kp.recents` key and flushes its queue, the
+preview memo clears on a different tenant, the board adopts its legacy keys.
+Unseeded - the `/jds/[slug]` and `/history/[slug]` deep-link pages mount the
+palette and record recents without the shell - one shared `GET /api/workspaces`
+answers all three, and a failure resolves `null` and is retried on the next call.
+Pinned by `shell/shellPrincipal.test.ts` (including a source probe that no
+consumer fetches the route itself).
 
 ### The bottom control dock is a two-layer toolbar with a rail
 

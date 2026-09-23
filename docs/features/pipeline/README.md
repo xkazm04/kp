@@ -959,10 +959,10 @@ waiting on Ada") and the stage ids they encode hydrated onto team B's board, and
 view A had marked DEFAULT auto-applied A's filter combination on B's bare visit.
 
 `pipelineBoardStorage.ts` keys both under the workspace (`kp.pipelineViews:<ws>`),
-and `usePipelineTenant` resolves that workspace ONCE per document from
-`GET /api/workspaces` (`current`) - the same door the shell's Recent list uses
-(`app/features/shell/recents.ts`), because the session cookie carrying the workspace
-is httpOnly. Until it resolves, the board hydrates **nothing**: no views, no
+and `usePipelineTenant` takes that workspace from the shell principal
+(`app/features/shell/shellPrincipal.ts`): seeded by the '/' server render, else ONE
+`GET /api/workspaces` shared with the shell's Recent list and palette memo, because
+the session cookie carrying the workspace is httpOnly. Until it resolves, the board hydrates **nothing**: no views, no
 overrides, and no default view auto-applies. The pre-tenancy global keys are adopted
 ONCE into whichever workspace resolves first (a single-workspace install keeps its
 own configuration) and then removed, so a second tenant can never read them. An
