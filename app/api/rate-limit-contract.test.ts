@@ -2225,6 +2225,21 @@ const ROUTES: RouteSpec[] = [
     expensive: "liveScreeningRecommendation(ws, roleFamily)",
     servedBefore: 'jsonRefusal("CALIBRATION_FAMILY_UNKNOWN", 400)',
   },
+  // ------------------------------------------------------------------
+  // ADDED challenge-r09 voice-provider-io/B. The operator's voice readiness probe
+  // mints one short-lived credential per configured provider and opens no
+  // conversation; whether a provider meters an unused mint is not verifiable here, so
+  // the POST is operator-triggered only (the GET never mints) and IP-limited to 6 per
+  // 10 min. The KP_OFFLINE refusal answers before the budget, so a sealed install
+  // spends none of it.
+  {
+    rel: "./voice/readiness/route.ts",
+    key: "`voice-readiness:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await probeVoiceProviders(",
+    servedBefore: 'jsonRefusal("VOICE_READINESS_OFFLINE", 503)',
+  },
 ];
 
 for (const spec of ROUTES) {

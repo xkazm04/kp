@@ -2639,6 +2639,8 @@ two signed-in interviewers, a foreign team and open mode).
 | `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on another provider; alternates are walked in canonical order, and a free preferred provider is only ever rescued onto another free one). Pre-flight names the environment as a code (`VOICE_PREFLIGHT_INSECURE` / `_NO_MEDIA` / `_NO_WEBRTC`), resolved through `useErrorMessage` in the candidate's language — never a hardcoded English sentence |
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
+| `app/_lib/voice/readiness.ts`, `mint-error.ts` | Operator readiness (absent / unchecked / ready / broken, price in force, preference, failovers) and the typed mint failure both adapters throw (see "Operator readiness") |
+| `app/api/voice/readiness/route.ts` | `GET` the readiness report (never mints); `POST` the bounded probe (home-org + `pipeline:write`, 6 per 10 min per IP, refused under `KP_OFFLINE`) |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
 | `app/_lib/interview-run.ts` | `buildGroundedInterview` (interviewer brief + the stored candidate agenda, composed clean via `candidateRunOfShow`), `buildCandidateSafeBrief`, `runInterviewScorecard` |
 | `app/_lib/interview-scorecard.ts`, `interview-telemetry.ts`, `interview-transcript.ts` | Post-call scoring + telemetry |
@@ -3278,6 +3280,56 @@ preferred provider's error surfaces. The browser half of the same contract is
 a `webrtc` provider is the engine whose transport finalizes `immediate`, a
 `websocket` one finalizes on `disconnect`. Adding a realtime provider is one id, one
 trait row, one adapter — and one `CallTransport`.
+
+### Operator readiness
+
+The realtime plane has evidence-based readiness on the operator's **Billing → Spend**
+strip (`SpendVoiceFacts.tsx`), the same three honest states the TTS and STT planes
+already speak plus one, because a set env var is not evidence
+(`app/_lib/voice/readiness.ts`):
+
+| State | Means | The row shows |
+| --- | --- | --- |
+| `absent` | a required env var is unset | the vars to set |
+| `unchecked` | configured, but no probe verdict in force | nothing is claimed |
+| `ready` | a credential mint succeeded | its latency and when |
+| `broken` | a mint failed | the cause and its fix |
+
+A **probe** is a credential mint that opens no conversation: OpenAI's client secret
+(asked to expire in 120 s) is useless without the SDP exchange, and the ElevenLabs
+signed URL is never dialed. Whether a provider meters an unused mint is not verifiable
+here, so the probe is **operator-triggered only, never on page load, and limited to 6
+per 10 min per IP**; the **Check now** button says a check may spend one mint per paid
+provider. `POST /api/voice/readiness` runs it (`probeVoiceProviders`, concurrent under
+`Promise.allSettled`, each bounded by its adapter's 15 s mint timeout); `GET` never
+mints and reports the verdicts the POST remembered for `VOICE_PROBE_TTL_MS` (10 min,
+in process memory, keyed by a hash of the provider's config so a rotated key reads
+`unchecked` at once). Both answer a projection: no minted credential field reaches the
+body. Both are gated by `requireHomeOrgReader` (deployment:read); the POST also asks
+`pipeline:write`, and under `KP_OFFLINE` it is refused (503 `VOICE_READINESS_OFFLINE`)
+while the GET says `offline`, so the strip does not offer the button. A store fault
+answers `VOICE_READINESS_FAILED`.
+
+A failed mint is **typed where it happens**: both adapters throw `VoiceMintError`
+(`app/_lib/voice/mint-error.ts`) with `cause` `auth` / `not_found` / `timeout` /
+`unreachable` / `upstream` / `malformed` and the unchanged message text, so the
+connect route's log lines and `connectWithFailover` behave exactly as before. The fix
+per cause is a table: `auth` names the key var, `not_found` the model (OpenAI) or
+`ELEVENLABS_AGENT_ID` + `ELEVENLABS_BASE_URL`, an unreachable or malformed self-hosted
+answer points at `ELEVENLABS_BASE_URL` ("is the local service running"), and a timeout
+or upstream fault is "try again later".
+
+Each row also carries the per-minute **price in force** and its source (`override` from
+`KP_VOICE_MINUTE_USD_<PROVIDER>`, the built-in `estimate`, or `self-hosted` at 0; a
+malformed override is named, since the ledger falls back to the estimate), and how many
+of this workspace's sessions **fell back from** that provider in the last 7 days
+(`countInterviewFailovers`, a read-only GROUP BY over `interview_sessions.failover_from`).
+When `KP_VOICE_PROVIDER` names a provider that is not configured, a line says so and
+names the provider new links actually use (`pickDefaultProvider` skips it silently).
+
+The candidate-facing availability reads (`GET /api/interview/connect`, the intake
+voice-connect `GET`) stay env-level on purpose: a candidate page must never trigger a
+provider mint.
 
 ## Keyless / degraded behavior
 

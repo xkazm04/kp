@@ -729,6 +729,15 @@ allowance and a cache-hit rate as the same instrument).
 only screen in the app carrying the latter two, so hiding them unconditionally
 would delete an alarm rather than quiet it.
 
+**The realtime voice plane sits under the engine line** (`SpendVoiceFacts.tsx`, its
+own `GET /api/voice/readiness`): one line per provider with an evidence-based state
+(`absent` / `unchecked` / `ready` / `broken`, never green without a successful mint),
+the per-minute price the ledger bills with and where it came from, the fix for a
+failure, and the screens that fell back from it this week. **Check now** runs a bounded
+probe (one credential mint per configured provider, no conversation; offered only to a
+seat that may run it and never under `KP_OFFLINE`). Details:
+[../interviews/README.md](../interviews/README.md) "Operator readiness".
+
 **A counter is a door, not a dead end.** Each one navigates to the surface that
 lists the same failures per item: dead letters to the **Channels** ledger
 (`ChannelsCommsTable`), and both schedule counters to the **Schedule** tab's
