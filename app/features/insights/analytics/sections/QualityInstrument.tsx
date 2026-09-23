@@ -68,7 +68,11 @@ type Payload = {
 // surface" defect this whole drain was about. So the section states the horizon
 // honestly (G1: a stated horizon, never an empty chart) and names where the data
 // comes from; the arm follows when the corpus can say something.
-type HireRatings = { rated: number; hires: number; minOutcomes: number };
+//
+// challenge-r07 pipeline-api/B — the same read now carries the unrated hires, and the
+// line's three states come off one fold (hire-rating-queue.ts queueHeadline), so the
+// reader rates them here instead of hunting for them on the board.
+type HireRatings = { rated: number; hires: number; minOutcomes: number; unrated?: UnratedHire[]; unratedTotal?: number };
 
 // The verdict logic itself lives in `../calibrationVerdict.ts` — a plain module,
 // deliberately React-free, because `npm run test:unit` runs node:test over
@@ -78,6 +82,8 @@ type HireRatings = { rated: number; hires: number; minOutcomes: number };
 // so existing importers of `./QualityInstrument` keep working.
 import { verdictFor, type Verdict } from "../calibrationVerdict";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import { queueHeadline, type UnratedHire } from "@/app/_lib/hire-rating-queue";
+import { QualityHireRatingQueue } from "./QualityHireRatingQueue";
 export { verdictFor, type Verdict };
 
 const TONE = {
@@ -172,20 +178,40 @@ export function QualityInstrument() {
                     NOT TAKEN rather than one still accruing: an on-the-job rating
                     is data a human enters, so this states how much of it exists
                     and how much a curve would need, never a curve. */}
-                {ratings.data ? (
-                  <p className="mt-1 max-w-3xl text-body leading-relaxed text-steel">
-                    {ratings.data.hires === 0
-                      ? t("hireRatingNone")
-                      : ratings.data.rated >= ratings.data.minOutcomes
-                        ? t("hireRatingReady", { rated: ratings.data.rated })
-                        : t("hireRatingPending", {
-                            rated: ratings.data.rated,
-                            hires: ratings.data.hires,
-                            remaining: ratings.data.minOutcomes - ratings.data.rated,
-                          })}{" "}
-                    {ratings.data.hires > 0 ? t("hireRatingWhere") : null}
-                  </p>
-                ) : null}
+                {ratings.data
+                  ? (() => {
+                      const head = queueHeadline(ratings.data);
+                      const unratedTotal = ratings.data.unratedTotal ?? 0;
+                      return (
+                        <>
+                          <p className="mt-1 max-w-3xl text-body leading-relaxed text-steel">
+                            {head.state === "none"
+                              ? t("hireRatingNone")
+                              : head.state === "ready"
+                                ? t("hireRatingReady", { rated: head.rated })
+                                : t("hireRatingPending", {
+                                    rated: head.rated,
+                                    hires: head.hires,
+                                    remaining: head.remaining,
+                                  })}{" "}
+                            {head.state === "none"
+                              ? null
+                              : unratedTotal > 0
+                                ? t("hireRatingWhereQueue")
+                                : t("hireRatingWhere")}
+                          </p>
+                          {head.state === "none" ? null : (
+                            <QualityHireRatingQueue
+                              unrated={ratings.data.unrated ?? []}
+                              unratedTotal={unratedTotal}
+                              open={head.queueOpen}
+                              onRated={ratings.reload}
+                            />
+                          )}
+                        </>
+                      );
+                    })()
+                  : null}
                 {/* The sample is the caveat that governs every other number on
                     this page, so it is stated beside the verdict rather than
                     left for the reader to find in the diagram's footnote. */}
