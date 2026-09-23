@@ -4368,7 +4368,8 @@
       "quickAccept": "Accepter la proposition de l’IA pour {name}",
       "quickReject": "Refuser {name}",
       "proposalOffer": "Offre"
-    }
+    },
+    "decideFailed": "La décision concernant {name} n'a pas été enregistrée. Veuillez réessayer."
   },
   "scheduleTab": {
     "lifecycle": {

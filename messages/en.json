@@ -4368,7 +4368,8 @@
       "quickAccept": "Accept the AI's proposal for {name}",
       "quickReject": "Reject {name}",
       "proposalOffer": "Offer"
-    }
+    },
+    "decideFailed": "The decision for {name} didn't go through. Try again."
   },
   "scheduleTab": {
     "lifecycle": {

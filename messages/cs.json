@@ -4368,7 +4368,8 @@
       "quickAccept": "Přijmout návrh AI pro kandidáta {name}",
       "quickReject": "Zamítnout kandidáta {name}",
       "proposalOffer": "Nabídka"
-    }
+    },
+    "decideFailed": "Rozhodnutí o kandidátovi {name} se nepodařilo uložit. Zkuste to prosím znovu."
   },
   "scheduleTab": {
     "lifecycle": {
