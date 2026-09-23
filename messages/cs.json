@@ -7187,7 +7187,10 @@
       "unknown": "Neznámý"
     },
     "reviewFlags": "{count, plural, one {# kontrola kvality označena k posouzení} few {# kontroly kvality označeny k posouzení} other {# kontrol kvality označeno k posouzení}}",
-    "priorRuns": "{count, plural, one {nahrazuje # dřívější běh stejného CV} few {nahrazuje # dřívější běhy stejného CV} other {nahrazuje # dřívějších běhů stejného CV}}"
+    "priorRuns": "{count, plural, one {nahrazuje # dřívější běh stejného CV} few {nahrazuje # dřívější běhy stejného CV} other {nahrazuje # dřívějších běhů stejného CV}}",
+    "loadMore": "Načíst další",
+    "showingMatched": "{count, plural, one {# odpovídající běh} few {# odpovídající běhy} other {# odpovídajících běhů}}",
+    "showingFirst": "{count, plural, one {Zobrazen # běh} few {Zobrazeny # běhy} other {Zobrazeno # běhů}}, od nejnovějších. Starší načtete tlačítkem Načíst další."
   },
   "results": {
     "quality": {

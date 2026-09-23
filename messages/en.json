@@ -7187,7 +7187,10 @@
       "unknown": "Unknown"
     },
     "reviewFlags": "{count, plural, one {# quality check flagged for review} other {# quality checks flagged for review}}",
-    "priorRuns": "{count, plural, one {supersedes # earlier run of the same CV} other {supersedes # earlier runs of the same CV}}"
+    "priorRuns": "{count, plural, one {supersedes # earlier run of the same CV} other {supersedes # earlier runs of the same CV}}",
+    "loadMore": "Load more",
+    "showingMatched": "{count, plural, one {# matching run} other {# matching runs}}",
+    "showingFirst": "{count, plural, one {# run shown} other {# runs shown}}, newest first. Load more for older ones."
   },
   "results": {
     "quality": {

@@ -7187,7 +7187,10 @@
       "unknown": "Inconnu"
     },
     "reviewFlags": "{count, plural, one {# contrôle qualité à examiner} other {# contrôles qualité à examiner}}",
-    "priorRuns": "{count, plural, one {remplace # exécution précédente du même CV} other {remplace # exécutions précédentes du même CV}}"
+    "priorRuns": "{count, plural, one {remplace # exécution précédente du même CV} other {remplace # exécutions précédentes du même CV}}",
+    "loadMore": "Charger plus",
+    "showingMatched": "{count, plural, one {# exécution correspondante} other {# exécutions correspondantes}}",
+    "showingFirst": "{count, plural, one {# exécution affichée} other {# exécutions affichées}}, les plus récentes d’abord. Chargez-en plus pour voir les plus anciennes."
   },
   "results": {
     "quality": {

@@ -7187,7 +7187,10 @@
       "unknown": "Unbekannt"
     },
     "reviewFlags": "{count, plural, one {# Qualitätsprüfung zur Überprüfung markiert} other {# Qualitätsprüfungen zur Überprüfung markiert}}",
-    "priorRuns": "{count, plural, one {ersetzt # früheren Lauf desselben Lebenslaufs} other {ersetzt # frühere Läufe desselben Lebenslaufs}}"
+    "priorRuns": "{count, plural, one {ersetzt # früheren Lauf desselben Lebenslaufs} other {ersetzt # frühere Läufe desselben Lebenslaufs}}",
+    "loadMore": "Mehr laden",
+    "showingMatched": "{count, plural, one {# passender Lauf} other {# passende Läufe}}",
+    "showingFirst": "{count, plural, one {# Lauf angezeigt} other {# Läufe angezeigt}}, neueste zuerst. Ältere Läufe laden Sie mit „Mehr laden“."
   },
   "results": {
     "quality": {
