@@ -69,7 +69,8 @@ export function resendOutcome(ok: boolean, status: number, payload: ResendRespon
 // --- which recovery DOOR a letter offers: ONE predicate for every resend surface ---
 
 /** Channel literals, declared in this import-free module so client code can read them;
- *  comms-dispatch.ts re-exports both. A simulation row the route refuses
+ *  comms-dispatch.ts declares its own copies (so route graphs do not gain this module),
+ *  pinned equal by comms-dispatch-channels.test.ts. A simulation row the route refuses
  *  (COMM_SIMULATION_ROW); a refused row has recipient "" so the route 422s. */
 export const SIM_COMMS_CHANNEL = "simulation";
 export const REFUSED_COMMS_CHANNEL = "refused";

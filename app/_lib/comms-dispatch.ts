@@ -21,7 +21,6 @@ import { pinLinkLocale } from "./candidate-link-locale";
 import { INTERVIEW_TZ } from "./schedule-slots";
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
 import { dateFormatter } from "./date-format.ts";
-import { REFUSED_COMMS_CHANNEL, SIM_COMMS_CHANNEL } from "./comms-resend-outcome";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -265,8 +264,13 @@ export function renderCandidateFooters(
 // nobody. There is no `skipped` member in OUTBOX_STATUSES — adding one would touch
 // the enum, the db column contract and every UI that styles by it — so the CHANNEL
 // carries the reason and the status stays truthful.
-// Declared (with REFUSED_COMMS_CHANNEL) in the import-free comms-resend-outcome.ts.
-export { SIM_COMMS_CHANNEL, REFUSED_COMMS_CHANNEL };
+// Declared LOCALLY, and repeated in the import-free comms-resend-outcome.ts (which the
+// client-side resend door reads): importing them from there put one more module on
+// every route graph that reaches this dispatcher (perf-budget.json), for two string
+// literals. comms-dispatch-channels.test.ts pins the two definitions equal.
+export const SIM_COMMS_CHANNEL = "simulation";
+/** A refusal (no recipient exists by design) is a `failed` row on this channel. */
+export const REFUSED_COMMS_CHANNEL = "refused";
 
 async function sendCommUnlessSim(msg: OutboundMessage, jobTitle: string | null | undefined): Promise<OutboxEntry> {
   if (!isSimTitle(jobTitle)) return sendComm(msg);
