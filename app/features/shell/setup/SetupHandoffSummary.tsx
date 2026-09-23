@@ -69,7 +69,7 @@ function SeekHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
       <p className={`${EYEBROW} pt-2`}>{t("chooseLabel")}</p>
       <button
         type="button"
-        onClick={ctrl.finish}
+        onClick={() => ctrl.finish()}
         className="focus-ring group flex w-full items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0 sm:w-auto sm:min-w-[50%]"
       >
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
@@ -109,6 +109,9 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
           <p className="font-semibold text-ink">
             {walked.has("company") ? t("readyTitle", { org: orgName.trim() || t("orgFallback") }) : t("join.readyTitle")}
           </p>
+          {/* Staged invites become LINKS the operator shares after finish (kp
+              sends no invite mail; the receipt hands them over), so the meta
+              counts links to share, not teammates invited. */}
           <p className="text-steel">
             {walked.has("team")
               ? t("readyMeta", { language: lang, invites: invites.length })
@@ -141,8 +144,10 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
       {/* The step's TWO exit paths (one, for a seat that may not write the
           pipeline — handoffExits), as equal explicit choices (the footer is
           suppressed here so nothing competes with them):
-            — guided demo: finish (persist + stamp) and start the tour in one
-              motion; sticker treatment marks it as the playful path.
+            — guided demo: finish (persist + stamp), then start the tour once
+              the run has closed — after the writes, and after the receipt's
+              Done when finish stays open on one; sticker treatment marks it as
+              the playful path.
             — explore solo: plain finish, with the pointer to WHERE the tour
               lives (the Candi button in the bottom bar) so it stays findable. */}
       <p className={`${EYEBROW} pt-2`}>{t("chooseLabel")}</p>
@@ -150,10 +155,7 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
         {exits.includes("tour") ? (
           <button
             type="button"
-            onClick={() => {
-              ctrl.finish();
-              sim.start();
-            }}
+            onClick={() => ctrl.finish(() => sim.start())}
             className="focus-ring group flex items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0"
           >
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
@@ -177,7 +179,7 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
         ) : null}
         <button
           type="button"
-          onClick={ctrl.finish}
+          onClick={() => ctrl.finish()}
           className="focus-ring group flex items-center gap-3 rounded-lg border-2 border-stone-300 bg-white p-4 text-left transition-all hover:border-ink hover:shadow-sticker-sm motion-reduce:transition-none"
         >
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-steel/10 text-steel transition-colors group-hover:bg-coral/10 group-hover:text-coral">

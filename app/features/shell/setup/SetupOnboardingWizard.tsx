@@ -10,6 +10,7 @@ import { BTN_GHOST, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
 import { SetupLeaveConfirm } from "./SetupLeaveConfirm";
+import { SetupFinishReceipt } from "./SetupFinishReceipt";
 import { SetupWizardStepPane, stepTitleKey } from "./SetupWizardStepPane";
 import type { OnboardingCtrl } from "./setupSteps";
 
@@ -43,7 +44,9 @@ export function OnboardingWizard({ ctrl, draftRestored }: { ctrl: OnboardingCtrl
   // Escape backs out of the FRONTMOST thing: the leave confirmation while it is up
   // (so the reflex that opened it also cancels it), the wizard otherwise — where in
   // live mode `onClose` now opens that confirmation rather than skipping outright.
-  useDialogA11y(panelRef, ctrl.leaving ? ctrl.cancelLeave : ctrl.onClose);
+  // On the finish receipt, Escape is its Done: the writes already happened, and
+  // Done is the one exit that pane has.
+  useDialogA11y(panelRef, ctrl.leaving ? ctrl.cancelLeave : ctrl.receipt ? ctrl.closeReceipt : ctrl.onClose);
   const isWelcome = step.id === "welcome";
   const isHandoff = step.id === "handoff";
 
@@ -65,8 +68,8 @@ export function OnboardingWizard({ ctrl, draftRestored }: { ctrl: OnboardingCtrl
         ) : null}
         {/* Gone while the leave confirmation is up: the pane below IS the answer to
             this control, and a live close button beside it would offer a third,
-            unconfirmed exit. */}
-        {ctrl.leaving ? null : (
+            unconfirmed exit. Gone on the finish receipt too: its Done is the exit. */}
+        {ctrl.leaving || ctrl.receipt ? null : (
           <button
             type="button"
             onClick={ctrl.onClose}
@@ -78,7 +81,16 @@ export function OnboardingWizard({ ctrl, draftRestored }: { ctrl: OnboardingCtrl
           </button>
         )}
 
-        {ctrl.leaving ? (
+        {ctrl.receipt ? (
+          <SetupFinishReceipt
+            heightClass={CARD_BODY_H}
+            receipt={ctrl.receipt}
+            retrying={ctrl.retrying}
+            startsTour={ctrl.receiptStartsTour}
+            onRetry={ctrl.retryFinish}
+            onDone={ctrl.closeReceipt}
+          />
+        ) : ctrl.leaving ? (
           <SetupLeaveConfirm heightClass={CARD_BODY_H} onConfirm={ctrl.confirmLeave} onCancel={ctrl.cancelLeave} />
         ) : (
         <div className="grid md:grid-cols-[14.5rem_1fr]">

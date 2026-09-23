@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import type { AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
@@ -18,8 +17,14 @@ import {
   type SetupInvite,
   type SetupState,
 } from "./setupSteps";
-import { persistOnboardingSetup } from "./setupOnboardingFinish";
-import { describeSetupFailures, type SetupFinishPart } from "./setupFinishOutcome";
+import { finishRemainder, persistOnboardingSetup } from "./setupOnboardingFinish";
+import {
+  finishNext,
+  finishReceipt,
+  mergeFinishRuns,
+  type SetupFinishReceipt,
+  type SetupFinishRun,
+} from "./setupFinishOutcome";
 import { mergeSetupDraft, restoredStepIndex, type SetupDraft } from "./setupDraft";
 import { useSetupDraft } from "./useSetupDraft";
 import type { SetupSeat } from "./setupSeat";
@@ -53,7 +58,6 @@ import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "live" | "preview"; onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("setup");
-  const resolveError = useErrorMessage();
   const [stepIndex, setStepIndex] = useState(0);
   const [draftRestored, setDraftRestored] = useState(false);
   // Seed the language draft from the locale the app is ACTUALLY running in
@@ -222,52 +226,123 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // without the walkthrough having caused it).
   useSetupCompanionBrain(update);
 
-  // Persist everything the wizard collected, then close.
+  // Close the run for good: the one place the draft is cleared and the principal
+  // stamped "completed". Reached straight from finish() when there is nothing to
+  // act on, and from the receipt's Done otherwise — never from a `finally` that
+  // runs whatever the outcome, which is how a partial finish used to throw away
+  // every answer AND the board's resume door under a transient toast.
+  const afterFinish = useRef<(() => void) | null>(null);
+  // Mirrors "afterFinish holds something" for render (the Done label); refs are
+  // not read during render.
+  const [deferredTour, setDeferredTour] = useState(false);
+  const settle = useCallback(() => {
+    clearDraft();
+    // Tell the open views once the stamp has actually landed — the board's resume
+    // affordance reads it (`useSetupUnfinished`) through its own fetch, so without
+    // this it would keep offering "pick up where you left off".
+    void stamp("completed").then(notifyDataChanged);
+    if (state.intent === "seek") router.push("/me");
+    else router.refresh();
+    onClose();
+    // What the operator chose to do next (the tour tile's sim.start) runs only
+    // now, after the writes and the receipt, never beside them in the same tick.
+    const after = afterFinish.current;
+    afterFinish.current = null;
+    after?.();
+  }, [state.intent, stamp, clearDraft, onClose, router]);
+
+  // The receipt (SetupFinishReceipt.tsx) and the run it was built from — the run is
+  // what a Retry narrows (finishRemainder) and folds back into (mergeFinishRuns).
+  const [receipt, setReceipt] = useState<SetupFinishReceipt | null>(null);
+  const lastRun = useRef<SetupFinishRun | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const retryingRef = useRef(false);
+
+  // Show the receipt this run owes, or close as the wizard always has. The origin
+  // is the runtime one; the link goes through copyInviteUrl, so a configured
+  // public base URL still wins. A run that owes nothing toasts the one claim it can
+  // make truthfully: every write landed.
+  const land = useCallback(
+    (run: SetupFinishRun) => {
+      lastRun.current = run;
+      const next = finishReceipt(run, window.location.origin);
+      if (finishNext(run.outcome, next) === "close" || next === null) {
+        setReceipt(null);
+        toast.success(t("toast.saved"));
+        settle();
+        return;
+      }
+      setReceipt(next);
+    },
+    [settle, t]
+  );
+
+  // Persist everything the wizard collected.
   //
-  // Each write is best-effort (one refused invite must not sink the org name) but
-  // the CLOSING CLAIM is one truthful fold of all of them: the org settings are
-  // refusable (a recruiter without org:manage gets ORG_SETTINGS_FORBIDDEN and
-  // nothing is written), the invite route refuses per address, and the axis write
-  // can 409. Anything that did not land is named — by part and by the server's
-  // machine code, resolved in the reader's language — instead of collapsing into a
-  // green "Your workspace is set up".
+  // Each write is best-effort (one refused invite must not sink the org name) and
+  // each one reports: the org settings are refusable (a recruiter without
+  // org:manage gets ORG_SETTINGS_FORBIDDEN and nothing is written), the invite
+  // route refuses per address and answers a landed invite with its accept link,
+  // and the axis write can 409. When that leaves nothing to act on the wizard
+  // closes on "Your workspace is set up", exactly as before; otherwise it stays
+  // open on a receipt — the links to share, and each part that did not land by
+  // part and machine code in the reader's language — and settles on its Done.
   //
   // A SEEKER's finish writes only the parts of the steps they walked (the language)
   // and lands on /me — their workspace — instead of refreshing the recruiter's.
-  const finish = useCallback(async () => {
-    if (finishing.current) return;
-    finishing.current = true;
-    if (mode !== "live") {
-      // Preview walkthrough: nothing is saved, and no toast pretends otherwise.
-      onClose();
-      return;
-    }
-    try {
-      const outcome = await persistOnboardingSetup(state);
-      if (outcome.ok) toast.success(t("toast.saved"));
-      else {
-        const lines = describeSetupFailures(
-          outcome.failures,
-          (part: SetupFinishPart) => t(`finish.part.${part}`),
-          (code) => resolveError({ code }, t("finish.reasonUnknown")),
-          (p) => t("finish.line", p),
-          (p) => t("finish.lineWithAddresses", p)
-        );
-        toast.error([t("toast.partialLead"), ...lines].join(" "));
+  const finish = useCallback(
+    async (after?: () => void) => {
+      if (finishing.current) return;
+      finishing.current = true;
+      if (mode !== "live") {
+        // Preview walkthrough: nothing is saved, and no toast pretends otherwise.
+        onClose();
+        after?.();
+        return;
       }
+      afterFinish.current = after ?? null;
+      setDeferredTour(after !== undefined);
+      let run: SetupFinishRun;
+      try {
+        run = await persistOnboardingSetup(state);
+      } catch {
+        // A thrown write (a server action whose request never came back) leaves no
+        // per-part record to build a receipt from: say so, and close as before.
+        toast.error(t("toast.partial"));
+        settle();
+        return;
+      }
+      land(run);
+    },
+    [state, mode, onClose, settle, land, t]
+  );
+
+  // The receipt's Retry: ONLY the failed parts a retry can fix, ONLY the refused
+  // addresses among the invites — a landed invite already holds a live link, and
+  // re-posting it would mint a second one for the same person.
+  const retryFinish = useCallback(async () => {
+    const run = lastRun.current;
+    if (!run || retryingRef.current) return;
+    const remainder = finishRemainder(state, run);
+    if (!remainder) return;
+    retryingRef.current = true;
+    setRetrying(true);
+    try {
+      const again = await persistOnboardingSetup(remainder.state, remainder.parts);
+      land(mergeFinishRuns(run, again, remainder.parts));
     } catch {
       toast.error(t("toast.partial"));
     } finally {
-      clearDraft();
-      // Tell the open views once the stamp has actually landed — the board's resume
-      // affordance reads it (`useSetupUnfinished`) through its own fetch, so without
-      // this it would keep offering "pick up where you left off".
-      void stamp("completed").then(notifyDataChanged);
-      if (state.intent === "seek") router.push("/me");
-      else router.refresh();
-      onClose();
+      retryingRef.current = false;
+      setRetrying(false);
     }
-  }, [state, mode, stamp, clearDraft, onClose, router, t, resolveError]);
+  }, [state, land, t]);
+
+  const closeReceipt = useCallback(() => {
+    if (retryingRef.current) return;
+    setReceipt(null);
+    settle();
+  }, [settle]);
 
   // WCAG dialog behavior — focus in on open, Tab trapped inside, Escape dismisses,
   // page scroll locked — from the shared implementation every other modal uses, so
@@ -278,7 +353,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // practice Escape reaches that one (the hook gates on top-of-stack). This handler
   // is kept in step with it anyway — Escape must never bypass the confirmation just
   // because the stack shifted.
-  useDialogA11y(dialogRef, leaving ? cancelLeave : requestClose);
+  useDialogA11y(dialogRef, leaving ? cancelLeave : receipt ? closeReceipt : requestClose);
 
   const ctrl: OnboardingCtrl = {
     mode,
@@ -301,6 +376,11 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     confirmLeave: dismiss,
     cancelLeave,
     finish,
+    receipt,
+    retrying,
+    retryFinish,
+    closeReceipt,
+    receiptStartsTour: deferredTour,
     canAdvance,
     isLast: safeIndex === lastIndex,
   };

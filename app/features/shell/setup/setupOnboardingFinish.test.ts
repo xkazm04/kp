@@ -1,7 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { finishPartsFor, persistCompanionConsent, persistSetupBrand, sendSetupInvites } from "./setupOnboardingFinish";
-import { everyInviteLanded, foldSetupOutcome } from "./setupFinishOutcome";
+import { draftFromStored, renameStage } from "@/app/features/shared/pipelineAxisDraft";
+import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
+import {
+  finishPartsFor,
+  finishRemainder,
+  persistCompanionConsent,
+  persistOnboardingSetup,
+  persistSetupBrand,
+  sendSetupInvites,
+} from "./setupOnboardingFinish";
+import {
+  everyInviteLanded,
+  foldSetupOutcome,
+  inviteBatchResult,
+  type SetupFinishRun,
+  type SetupInviteResult,
+  type SetupPartResult,
+} from "./setupFinishOutcome";
 import { INITIAL_SETUP, type SetupInvite, type SetupState } from "./setupSteps";
 
 // The wizard's closing toast keys off this one boolean, and the trap it guards is
@@ -64,8 +80,8 @@ test("a 400 from the route is NOT a landed invite", async () => {
   // can say which invitee was refused and why — in the reader's language, never
   // from the server's English `error` string.
   assert.deepEqual(results, [
-    { email: "jana@acme.com", ok: false, code: "INVITE_EMAIL_INVALID" },
-    { email: "petr@acme.com", ok: true, code: null },
+    { email: "jana@acme.com", ok: false, code: "INVITE_EMAIL_INVALID", token: null, httpStatus: 400 },
+    { email: "petr@acme.com", ok: true, code: null, token: null, httpStatus: 200 },
   ]);
 });
 
@@ -99,7 +115,7 @@ test("a refusal with an unparseable body still reports the address", async () =>
     () => Promise.resolve(new Response("<html>gateway</html>", { status: 502 })),
     () => sendSetupInvites([INVITES[1]])
   );
-  assert.deepEqual(results, [{ email: "petr@acme.com", ok: false, code: null }]);
+  assert.deepEqual(results, [{ email: "petr@acme.com", ok: false, code: null, token: null, httpStatus: 502 }]);
 });
 
 test("posts the staged email and role verbatim", async () => {
@@ -285,4 +301,111 @@ test("a recruiter's hire finish never fires an org-wide write it would be refuse
     assert.ok(!parts.includes(refused), `${refused} must not be written by a recruiter`);
   }
   assert.deepEqual(parts, ["pipeline", "companion"]);
+});
+
+// ---------------------------------------------------------------------------
+// The receipt (challenge-r07 shell-setup-wizard/B). The route answers a landed
+// invite with the tokenized accept link it minted - kp sends no invite mail, so
+// that link IS the invitation, and the wizard used to throw it away.
+
+test("a landed invite carries the token the route minted", async () => {
+  const results = await withFetch(
+    () => Promise.resolve(new Response(JSON.stringify({ invite: { token: "inv-abc" } }), { status: 200 })),
+    () => sendSetupInvites([INVITES[0]])
+  );
+  assert.equal(results[0].ok, true);
+  assert.equal(results[0].token, "inv-abc");
+});
+
+test("a landed invite with no token in the body is still landed, with a null token", async () => {
+  const results = await withFetch(ok, () => sendSetupInvites([INVITES[0]]));
+  assert.equal(results[0].ok, true);
+  assert.equal(results[0].token, null);
+});
+
+// The retry re-runs ONLY the failed parts and ONLY the refused addresses: jana's
+// invite landed and holds a live token, so re-posting it would mint a second link
+// for the same person; the org name landed, so re-calling setOrgName is a write
+// nobody asked for.
+const BOARD: PipelineStagesRule = {
+  stages: [
+    { id: "applied", label: "Applied", role: "entry" },
+    { id: "interview", label: "Interview", role: "interview" },
+    { id: "hired", label: "Hired", role: "terminal" },
+  ],
+  retired: [],
+} as unknown as PipelineStagesRule;
+
+function hireRunWithFailures(): { state: SetupState; run: SetupFinishRun } {
+  const draft = renameStage(draftFromStored(BOARD), "interview", "Talk");
+  const state: SetupState = {
+    ...INITIAL_SETUP,
+    intent: "hire",
+    orgName: "Acme",
+    invites: INVITES,
+    pipelineLoad: "ready",
+    pipeline: { stored: BOARD, draft, counts: {} },
+  };
+  const invites: SetupInviteResult[] = [
+    { email: "jana@acme.com", ok: true, code: null, token: "inv-abc", httpStatus: 200 },
+    { email: "petr@acme.com", ok: false, code: null, token: null, httpStatus: null },
+  ];
+  const parts: SetupPartResult[] = [
+    { part: "orgName", status: "landed" },
+    { part: "language", status: "landed" },
+    { part: "currency", status: "landed" },
+    { part: "brand", status: "skipped" },
+    inviteBatchResult(invites),
+    { part: "pipeline", status: "refused", code: null },
+    { part: "companion", status: "skipped" },
+  ];
+  return { state, run: { outcome: foldSetupOutcome(parts), parts, invites } };
+}
+
+test("finishRemainder: after a partial finish only the failed parts and the refused addresses remain", () => {
+  const { state, run } = hireRunWithFailures();
+  const rem = finishRemainder(state, run);
+  assert.ok(rem);
+  assert.deepEqual(finishPartsFor(rem.state, rem.parts), ["invites", "pipeline"]);
+  assert.deepEqual(rem.state.invites, [INVITES[1]]);
+});
+
+test("retrying the remainder posts petr's invite and the board, and nothing else", async () => {
+  const { state, run } = hireRunWithFailures();
+  const rem = finishRemainder(state, run);
+  assert.ok(rem);
+  const calls: { url: string; body: unknown }[] = [];
+  const retry = await withFetch((url, init) => {
+    calls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
+    if (url === "/api/org/invites") {
+      return Promise.resolve(new Response(JSON.stringify({ invite: { token: "inv-xyz" } }), { status: 200 }));
+    }
+    return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+  }, () => persistOnboardingSetup(rem.state, rem.parts));
+  assert.deepEqual(
+    calls.map((c) => c.url),
+    ["/api/org/invites", "/api/pipeline/stage-migration"]
+  );
+  assert.deepEqual(calls[0].body, { email: "petr@acme.com", role: "hiring_manager" });
+  assert.deepEqual(retry.outcome, { ok: true });
+  // Nothing org-wide was touched: those parts are reported skipped, not re-run.
+  for (const part of ["orgName", "language", "currency"] as const) {
+    assert.deepEqual(
+      retry.parts.find((p) => p.part === part),
+      { part, status: "skipped" }
+    );
+  }
+});
+
+test("finishRemainder: a permanent refusal is not re-run, and nothing retryable means no remainder", () => {
+  const { state } = hireRunWithFailures();
+  const invites: SetupInviteResult[] = [
+    { email: "jana@acme.com", ok: false, code: "INVITE_ALREADY_MEMBER", token: null, httpStatus: 409 },
+    { email: "petr@acme.com", ok: true, code: null, token: "inv-def", httpStatus: 200 },
+  ];
+  const parts: SetupPartResult[] = [
+    { part: "orgName", status: "refused", code: "ORG_SETTINGS_FORBIDDEN" },
+    inviteBatchResult(invites),
+  ];
+  assert.equal(finishRemainder(state, { outcome: foldSetupOutcome(parts), parts, invites }), null);
 });

@@ -46,6 +46,7 @@ import type { CompanionBrainChoice, CompanionBrainStatus } from "@/app/_lib/comp
 import { axisProblems, type AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import type { Capability } from "@/app/_lib/auth/roles";
 import { seatAllows, type SetupSeat } from "./setupSeat";
+import type { SetupFinishReceipt } from "./setupFinishOutcome";
 
 export type SetupStepId = "welcome" | "company" | "team" | "pipeline" | "companion" | "handoff";
 
@@ -246,8 +247,23 @@ export type OnboardingCtrl = {
   /** Back to the step the operator was on, untouched. */
   cancelLeave: () => void;
   /** Complete — PERSISTS the setup (org name, language, brand, invites, and the
-   *  board columns when they were changed), then closes. */
-  finish: () => void;
+   *  board columns when they were changed), then closes — or, when that left the
+   *  operator something to act on (an invite link to share, a part that did not
+   *  land), stays open on `receipt`. `after` runs once the run has closed (the
+   *  tour tile's sim.start), never while the writes are still in flight. */
+  finish: (after?: () => void) => void;
+  /** Live mode only: the finish receipt the wizard renders INSTEAD of the steps
+   *  (SetupFinishReceipt.tsx). Null while there is none. */
+  receipt: SetupFinishReceipt | null;
+  /** A Retry of the failed parts is in flight. */
+  retrying: boolean;
+  /** Re-run only the failed, retryable parts (finishRemainder). */
+  retryFinish: () => void;
+  /** The receipt's Done: stamp the run completed, clear the draft, close, then run
+   *  whatever finish() deferred. */
+  closeReceipt: () => void;
+  /** Done will also start the guided demo (the tour tile deferred it). */
+  receiptStartsTour: boolean;
   /** True when the active step's required input is satisfied (gates Next). */
   canAdvance: boolean;
   isLast: boolean;
