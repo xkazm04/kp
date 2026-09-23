@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -15,6 +16,7 @@ import { useProfileEditorSubmit } from "./useProfileEditorSubmit";
 import { focusProfileField, validateProfileEditorFields } from "./profileEditorHelpers";
 import { archetypeFieldVisibility } from "./ProfileForm";
 import type { RebuildSeed } from "./profileRebuildMerge";
+import { readiness, type ReadinessForm } from "./profileReadiness";
 
 export type EditorMode = "create" | "edit";
 
@@ -142,10 +144,11 @@ export function ProfileEditor({
   // is saved — no hidden, retained state can leak into the payload (idea-7ac9e45f).
   const fieldVis = archetypeFieldVisibility(choice);
 
-  // persist=false → dry-run preview (always POST, never writes). persist=true →
-  // POST a new row (create/duplicate) or PUT the edited row.
-  const build = (persist: boolean) =>
-    submit(persist, {
+  // The whole form as the save reads it. One object for both readers - the save below
+  // and the live readiness - memoized on its fields, so its identity changes exactly
+  // when something the recruiter can see changed.
+  const fields: ReadinessForm = useMemo(
+    () => ({
       displayName,
       roleFamily,
       educationLevel,
@@ -163,7 +166,27 @@ export function ProfileEditor({
       expectedGraduation,
       wantsDomainChange,
       hasSubstantialExperience,
-    });
+    }),
+    [
+      displayName, roleFamily, educationLevel, educationDetail, languages, location, availability,
+      aspirations, skills, evidence, choice, yearsExperience, seniority, isEnrolled, expectedGraduation,
+      wantsDomainChange, hasSubstantialExperience,
+    ]
+  );
+
+  // Routing + completeness evaluated here, as the recruiter types, from the same
+  // archetypes.json rules profile_cli reads (profileReadiness.ts; the per-archetype
+  // checklists from the LIVE registry prop, so a custom archetype is seen). There is
+  // no "Check (preview)" round trip any more - it was a Python spawn charged to the
+  // save rate limit. The save stays the authority: its result replaces this view
+  // while the form still equals what was saved.
+  const live = useMemo(() => readiness(fields, archetypes), [fields, archetypes]);
+  const [savedFields, setSavedFields] = useState<ReadinessForm | null>(null);
+  const build = () => {
+    setSavedFields(fields);
+    return submit(true, fields);
+  };
+  const showSaved = Boolean(result?.saved?.id) && savedFields === fields;
 
   const { yearsError, gradError, hasFieldErrors } = validateProfileEditorFields(
     t,
@@ -282,19 +305,11 @@ export function ProfileEditor({
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4">
         <button
           type="button"
-          onClick={() => build(false)}
-          disabled={loading || hasFieldErrors}
-          className="focus-ring h-10 rounded-md border border-stone-200 px-4 text-base font-semibold text-ink hover:bg-paper disabled:opacity-40"
-        >
-          {loading ? t("working") : t("checkPreview")}
-        </button>
-        <button
-          type="button"
-          onClick={() => build(true)}
+          onClick={build}
           disabled={loading || hasFieldErrors}
           className="focus-ring h-10 rounded-md bg-ink px-4 text-base font-semibold text-white disabled:opacity-40"
         >
-          {saveLabel}
+          {loading ? t("working") : saveLabel}
         </button>
       </div>
 
@@ -319,13 +334,17 @@ export function ProfileEditor({
         </div>
       ) : null}
       {error ? <p className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p> : null}
-      {result ? (
+      {/* Completeness gates nothing - Save stays enabled - and the figure always travels
+          with its named checklist (the Add next list), live or saved. */}
+      {showSaved && result?.saved?.id ? (
         <ProfileResultPanel
           result={result}
-          onMatchNow={result.saved?.id ? () => goMatch(result.saved!.id) : undefined}
+          onMatchNow={() => goMatch(result.saved!.id)}
           onGoToField={focusProfileField}
         />
-      ) : null}
+      ) : (
+        <ProfileResultPanel result={live} onGoToField={focusProfileField} />
+      )}
     </section>
   );
 }

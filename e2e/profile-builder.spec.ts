@@ -145,9 +145,9 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await fillSkills(page, ["TypeScript", "React", "SQL"]);
     await fillEvidence(page, "job", "Senior Engineer at Acme (2019–2024)");
 
-    // Check (preview): the in-DOM result panel renders the routed archetype + score
-    // and is explicitly flagged not-saved.
-    await page.getByRole("button", { name: "Check (preview)" }).click();
+    // Live readiness: the result panel is evaluated in the editor as the form fills
+    // (profileReadiness.ts - no request, no Check button) and is flagged as a preview
+    // the save confirms.
     await expect(page.locator("span.rounded-full.bg-ink", { hasText: "Experienced" })).toBeVisible();
     // The routing line is LOCALIZED now (39cc0e22): the router's English prose
     // ("self-declared: Experienced (BAU)") was replaced by the reason code
@@ -157,7 +157,7 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await expect(page.getByText("self-declared: Experienced")).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "Profile completeness 100%" })).toBeVisible();
     await expect(page.getByText("Profile looks complete for its archetype.")).toBeVisible();
-    await expect(page.getByText("preview (not saved)")).toBeVisible();
+    await expect(page.getByText("live preview · confirmed on save")).toBeVisible();
 
     // Save: the round-trip persists with the same routing + score and returns an id.
     const saved = await saveAndCapture(page);
@@ -192,7 +192,6 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     // activity is the single remaining gap, landing the score at 8/9 = 89%.
     await fillEvidence(page, "project", "Bachelor thesis: a React recommender app");
 
-    await page.getByRole("button", { name: "Check (preview)" }).click();
     // The pill shows the routed archetype; the routing line below shows the
     // DECLARED one, which is the distinct fact this pair pins. Both now read
     // through enums.archetype ("Student") — the routing line used to carry the
@@ -203,7 +202,7 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     await expect(page.getByText("self-declared: Student")).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "Profile completeness 89%" })).toBeVisible();
     await expect(page.getByText("an internship, activity, or certification")).toBeVisible();
-    await expect(page.getByText("preview (not saved)")).toBeVisible();
+    await expect(page.getByText("live preview · confirmed on save")).toBeVisible();
 
     const saved = await saveAndCapture(page);
     expect(saved.archetype).toBe("student");
