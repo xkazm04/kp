@@ -64,10 +64,17 @@ the repo's unit runner has no component renderer; same idiom as
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
    `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
    comms-failed entry never aborts the batch and the response reports each
-   outcome. `partitionBulkInviteTargets` refuses an unaddressable recipient
-   (`SCHEDULE_BULK_UNADDRESSABLE`) **before** minting, so a sourced name with no
-   `contact` does not get an orphan token plus a failed send. Opt-out is not a
-   reason to skip: schedule mail is transactional. Only the first
+   outcome. `partitionBulkInviteTargets` refuses **before** minting: first a
+   candidate the send gate refuses (consent lapsed but not yet swept, or erased:
+   `COMMS_SUPPRESSED`, no token, not counted in `sent`; the gate is
+   `entryContactability` from `app/_lib/comms-contactability.ts`, which asks
+   `commsSendSuppression`), then an unaddressable recipient or an agent on the
+   slate (`SCHEDULE_BULK_UNADDRESSABLE`), so a sourced name with no `contact` does
+   not get an orphan token plus a failed send. The single route answers the same
+   send-gate refusal with a 409 `COMMS_SUPPRESSED` before `createScheduleInvite`,
+   and still mints for an unaddressable person (the copy panel is their
+   fallback). Opt-out is not a reason to skip: schedule mail is transactional,
+   and the send gate's halt applies to `outreach` only. Only the first
    `BULK_INVITE_CAP` = 100 entries are processed; the
    **overflow is returned as explicit per-entry refusals** (`ok:false`, an
    error naming the cap) plus a `capped` count, so a cohort larger than the cap

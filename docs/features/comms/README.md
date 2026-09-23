@@ -327,6 +327,27 @@ also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earl
 the route's own 422 missing-fields check; expired consent is the case the gate answers.)
 Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
+**The link-minting doors ask it before they mint** (challenge-r09). The gate above runs
+inside `sendComm`, which is *after* an invite door has minted a live capability link. A
+candidate whose consent has lapsed but whom `anonymizeExpiredConsents` has not yet swept
+still has a `contact`, so every such door used to mint first and meet the gate as a
+swallowed `CommsSuppressedError`. `app/_lib/comms-contactability.ts` is the pre-mint
+question: pure `contactVerdict(facts, kind)` orders the reasons by irreversibility
+(agent population ▸ `anonymized`/`consent_expired` ▸ the outreach halt, for
+`kind: "outreach"` only ▸ unaddressable), and `entryContactability(entry, kind)` takes
+the suppression fact **from `commsSendSuppression` itself**, never a second derivation.
+Only a send-gate refusal carries `code: "COMMS_SUPPRESSED"`; an unaddressable person
+carries none. The recipient cascade (contact ▸ label ▸ id ▸ `"candidate"`, `null` for an
+agent) lives once in `comms-recipient.ts` as `resolveCandidateRecipient`. Consumers:
+`POST /api/schedule/invite` (409 before the mint), `POST /api/schedule/invite/bulk`
+(per-entry `COMMS_SUPPRESSED`, no token, not counted in `sent`), the AI-interview
+arrival hook (`failed`/`suppressed`, parked on the `calendar` gate like
+`unaddressable`), and the homework arrival hook (`failed`/`suppressed`, nothing
+published). Verdict-then-mint takes no lock; `sendComm` stays the re-check at the send.
+Locked by `comms-contactability.test.ts`,
+`app/api/schedule/invite/invite-suppression-gate.test.ts` and
+`app/_lib/stage-hooks-suppression.test.ts`.
+
 ## 7b. The candidate's own stop (unsubscribe)
 
 Until this shipped there was **no unsubscribe anywhere**. Every candidate comm carried

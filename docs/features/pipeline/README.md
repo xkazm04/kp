@@ -1332,6 +1332,13 @@ a team that renamed or reordered its board gets the same behaviour:
   full rules in [`docs/features/dev-case/README.md` → The homework column sends the
   assignment](../dev-case/README.md#the-homework-column-sends-the-assignment).
 
+Both ask the send gate before they mint (`entryContactability`,
+`app/_lib/comms-contactability.ts`, which asks `commsSendSuppression`): a candidate
+whose consent lapsed or who was erased answers `failed`/`suppressed` with no session,
+grounding build or apply token spent. The interview hook parks that candidate on the
+`calendar` gate exactly as it parks an `unaddressable` one, so the Schedule docket shows
+them; the homework hook asks before it designs a case and again before it publishes.
+
 Both hold the same three rules (post-commit, best-effort, never claim more than
 happened) and both deliberately introduce **no new pipeline event kind** — the event
 vocabulary is pinned by set equality across `decision-attribution.ts`, the feed's
