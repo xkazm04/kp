@@ -7155,7 +7155,25 @@
         }
       },
       "retryAfterSeconds": "Sie können es in etwa {seconds, plural, one {# Sekunde} other {# Sekunden}} erneut versuchen.",
-      "retryAfterMinutes": "Sie können es in etwa {minutes, plural, one {# Minute} other {# Minuten}} erneut versuchen."
+      "retryAfterMinutes": "Sie können es in etwa {minutes, plural, one {# Minute} other {# Minuten}} erneut versuchen.",
+      "ledger": {
+        "title": "Skill-Nachweise",
+        "intro": "Eine Zeile pro Skill, aus Repo-Labels und Repo-Signal-Review zusammengeführt. Öffentliche Repositories können einen Skill bestätigen, aber nie ausschließen, daher ist „Nicht erfasst“ neutral.",
+        "verdict": {
+          "corroborated": "Bestätigt",
+          "notReached": "Nicht erfasst",
+          "couldNotDetermine": "Nicht feststellbar",
+          "unclaimed": "Nicht genannte Stärke"
+        },
+        "inRepos": "Zu sehen in",
+        "moreRepos": "+{count} weitere",
+        "inLanguageMix": "Zu sehen im Sprachmix",
+        "byReview": "Vom Repo-Signal-Review gesehen",
+        "reviewDisagrees": "Das Repo-Signal-Review hat diesen Skill nicht gesehen",
+        "emptyAnalyzed": "Aus der Stellenbeschreibung und den öffentlichen GitHub-Metadaten ergeben sich keine Skills zum Ausweisen.",
+        "tracked": "Skills aus der Stellenbeschreibung werden mit {count, plural, one {# erfassten Skill} other {# erfassten Skills}} verglichen. Ein Skill außerhalb dieser Liste wird nicht geprüft, was nichts über die Person aussagt.",
+        "incomplete": "Ein Teil der öffentlichen GitHub-Daten war in diesem Lauf nicht abrufbar (vermutlich Rate-Limiting), daher wurden Skills mit „Nicht feststellbar“ nicht geprüft. Für ein vollständiges Bild erneut versuchen."
+      }
     }
   },
   "workspaceAdmin": {

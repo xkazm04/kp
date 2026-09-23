@@ -7155,7 +7155,25 @@
         }
       },
       "retryAfterSeconds": "Zkusit znovu můžete asi za {seconds, plural, one {# sekundu} few {# sekundy} other {# sekund}}.",
-      "retryAfterMinutes": "Zkusit znovu můžete asi za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}."
+      "retryAfterMinutes": "Zkusit znovu můžete asi za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
+      "ledger": {
+        "title": "Doklady dovedností",
+        "intro": "Jeden řádek na dovednost, ze štítků repozitářů i z revize signálů dohromady. Veřejné repozitáře mohou dovednost potvrdit, ale nikdy ji nevyloučí, proto je „Mimo dosah zdroje“ neutrální údaj.",
+        "verdict": {
+          "corroborated": "Doloženo",
+          "notReached": "Mimo dosah zdroje",
+          "couldNotDetermine": "Nelze určit",
+          "unclaimed": "Nezmíněná silná stránka"
+        },
+        "inRepos": "Vidět v",
+        "moreRepos": "+{count, plural, one {# další} few {# další} other {# dalších}}",
+        "inLanguageMix": "Vidět v jazykovém mixu",
+        "byReview": "Zaznamenala revize signálů z repozitářů",
+        "reviewDisagrees": "Revize signálů z repozitářů tuto dovednost neviděla",
+        "emptyAnalyzed": "Z popisu pozice a veřejných metadat GitHubu nevyplývají žádné dovednosti k vykázání.",
+        "tracked": "Dovednosti z popisu pozice se porovnávají s {count, plural, one {# sledovanou dovedností} few {# sledovanými dovednostmi} other {# sledovanými dovednostmi}}. Dovednost mimo tento seznam se nekontroluje, což o kandidátovi nic nevypovídá.",
+        "incomplete": "Část veřejných dat z GitHubu se v tomto běhu nepodařilo načíst (pravděpodobně kvůli omezení počtu požadavků), proto dovednosti označené „Nelze určit“ nebyly zkontrolovány. Pro úplný výsledek to zkuste znovu."
+      }
     }
   },
   "workspaceAdmin": {

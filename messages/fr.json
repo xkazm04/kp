@@ -7155,7 +7155,25 @@
         }
       },
       "retryAfterSeconds": "Vous pouvez réessayer dans environ {seconds, plural, one {# seconde} other {# secondes}}.",
-      "retryAfterMinutes": "Vous pouvez réessayer dans environ {minutes, plural, one {# minute} other {# minutes}}."
+      "retryAfterMinutes": "Vous pouvez réessayer dans environ {minutes, plural, one {# minute} other {# minutes}}.",
+      "ledger": {
+        "title": "Preuves de compétences",
+        "intro": "Une ligne par compétence, en réunissant les étiquettes des dépôts et la revue des signaux des dépôts. Les dépôts publics peuvent confirmer une compétence, jamais l’exclure : « Non atteinte » est donc neutre.",
+        "verdict": {
+          "corroborated": "Corroborée",
+          "notReached": "Non atteinte",
+          "couldNotDetermine": "Impossible à déterminer",
+          "unclaimed": "Force non revendiquée"
+        },
+        "inRepos": "Visible dans",
+        "moreRepos": "+{count, plural, one {# autre} other {# autres}}",
+        "inLanguageMix": "Visible dans la répartition des langages",
+        "byReview": "Relevée par la revue des signaux des dépôts",
+        "reviewDisagrees": "La revue des signaux des dépôts ne l’a pas relevée",
+        "emptyAnalyzed": "Aucune compétence à signaler d’après la fiche de poste et les métadonnées publiques GitHub.",
+        "tracked": "Les compétences de la fiche de poste sont comparées à {count, plural, one {# compétence suivie} other {# compétences suivies}}. Une compétence hors de cette liste n’est pas vérifiée, ce qui ne dit rien du candidat.",
+        "incomplete": "Une partie des données publiques GitHub n’a pas pu être récupérée lors de cette exécution (probablement une limitation de débit), les compétences marquées « Impossible à déterminer » n’ont donc pas été vérifiées. Réessayez pour une lecture complète."
+      }
     }
   },
   "workspaceAdmin": {
