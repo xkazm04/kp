@@ -9166,7 +9166,43 @@
       "empty": "Zatím žádná naměřená kvalita. Toto nasazení nemá zabudovanou srovnávací matici, takže není co řadit.",
       "unmeasuredTitle": "Neměřeno",
       "unmeasuredIntro": "Tyto směrovací úlohy zatím nemají buňku v bench matici, takže scorecard pro ně model nedoporučí.",
-      "unmeasured": "neměřeno"
+      "unmeasured": "neměřeno",
+      "pick": {
+        "title": "Doporučené směrování",
+        "intro": "Pro každý případ užití nejlevnější měřený model, jehož skóre je v mezích šumu od nejlepšího: {narrow} bodu, pokud každé srovnání stojí na {judges} a více hodnocených bězích, jinak {wide}. Náklady jsou mediánem útraty benchmarku na jednu úlohu.",
+        "colUseCase": "Případ užití",
+        "colPin": "Vaše nastavení",
+        "colPick": "Doporučeno",
+        "colAction": "Akce",
+        "pinLoading": "Načítání…",
+        "pinDefault": "Výchozí nastavení",
+        "notMeasured": "neměřeno",
+        "na": "n/a",
+        "unpriced": "bez ceny",
+        "perTask": "{cost}/úloha",
+        "vsBest": "{model} má skóre {score} za {multiple}× vyšší cenu",
+        "vsBestUnpriced": "{model} má skóre {score}; jeho cena nebyla změřena",
+        "listPrice": "Ekvivalent ceníkové ceny: Claude CLI se hradí předplatným.",
+        "reasons": {
+          "cheapest_in_band": "Shodné s nejlepším, levnější",
+          "best_is_cheapest": "Nejlepší a nejlevnější",
+          "only_candidate": "Jediný spolehlivý model",
+          "cost_unmeasured": "Cena nezměřena: zobrazeno nejvyšší skóre",
+          "no_reliable_candidate": "Žádný model nesplnil práh spolehlivosti"
+        },
+        "states": {
+          "pinned": "Nastaveno",
+          "pin_available": "Lze nastavit",
+          "unmeasured_pin": "Váš model nebyl změřen",
+          "pin_forbidden": "Nastavení vyžaduje vlastníka organizace",
+          "provider_unavailable": "Poskytovatele zde nelze směrovat"
+        },
+        "pin": "Nastavit",
+        "pinning": "Nastavuji…",
+        "pinFailed": "Model se nepodařilo nastavit.",
+        "pinnedNote": "Nastaveno: {model}.",
+        "loadFailed": "Aktuální nastavení se nepodařilo načíst."
+      }
     },
     "benchOps": {
       "match_reasoning": "Zdůvodnění shody",

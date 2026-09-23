@@ -9166,7 +9166,43 @@
       "empty": "No measured quality yet. This deployment has no baked benchmark matrix, so there is nothing to rank.",
       "unmeasuredTitle": "Not measured",
       "unmeasuredIntro": "These routing use cases have no bench cell yet, so the scorecard does not recommend a model for them.",
-      "unmeasured": "not measured"
+      "unmeasured": "not measured",
+      "pick": {
+        "title": "Recommended routing",
+        "intro": "Per use case, the cheapest measured model whose score is within noise of the best: {narrow} points when every compared case rests on {judges} or more judged runs, {wide} below that. Costs are the bench's median spend per task.",
+        "colUseCase": "Use case",
+        "colPin": "Your pin",
+        "colPick": "Recommended",
+        "colAction": "Action",
+        "pinLoading": "Loading…",
+        "pinDefault": "Built-in default",
+        "notMeasured": "not measured",
+        "na": "n/a",
+        "unpriced": "unpriced",
+        "perTask": "{cost}/task",
+        "vsBest": "{model} scores {score} at {multiple}× the cost",
+        "vsBestUnpriced": "{model} scores {score}; its cost is not measured",
+        "listPrice": "List-price equivalent: the Claude CLI seat is subscription-billed.",
+        "reasons": {
+          "cheapest_in_band": "Tied with the best, cheaper",
+          "best_is_cheapest": "Best and cheapest",
+          "only_candidate": "Only reliable model",
+          "cost_unmeasured": "Cost not measured: top score shown",
+          "no_reliable_candidate": "No model cleared the reliability bar"
+        },
+        "states": {
+          "pinned": "Pinned",
+          "pin_available": "Pin available",
+          "unmeasured_pin": "Your pin was not benchmarked",
+          "pin_forbidden": "Pinning needs an organization owner",
+          "provider_unavailable": "Provider not routable here"
+        },
+        "pin": "Pin",
+        "pinning": "Pinning…",
+        "pinFailed": "Couldn't pin that model.",
+        "pinnedNote": "Pinned {model}.",
+        "loadFailed": "Couldn't load the current pins."
+      }
     },
     "benchOps": {
       "match_reasoning": "Match reasoning",

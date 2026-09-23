@@ -9166,7 +9166,43 @@
       "empty": "Aucune qualité mesurée pour l’instant. Ce déploiement ne contient pas de matrice de référence, il n’y a donc rien à classer.",
       "unmeasuredTitle": "Non mesuré",
       "unmeasuredIntro": "Ces cas d'usage de routage n'ont pas encore de cellule de bench, donc le tableau de scores ne recommande pas de modèle pour eux.",
-      "unmeasured": "non mesuré"
+      "unmeasured": "non mesuré",
+      "pick": {
+        "title": "Routage recommandé",
+        "intro": "Pour chaque cas d'usage, le modèle mesuré le moins cher dont le score reste dans le bruit du meilleur : {narrow} point lorsque chaque comparaison repose sur au moins {judges} exécutions évaluées, {wide} sinon. Les coûts sont la dépense médiane du banc d'essai par tâche.",
+        "colUseCase": "Cas d'usage",
+        "colPin": "Votre choix",
+        "colPick": "Recommandé",
+        "colAction": "Action",
+        "pinLoading": "Chargement…",
+        "pinDefault": "Valeur par défaut intégrée",
+        "notMeasured": "non mesuré",
+        "na": "n/d",
+        "unpriced": "sans prix",
+        "perTask": "{cost}/tâche",
+        "vsBest": "{model} obtient {score} pour un coût {multiple}× supérieur",
+        "vsBestUnpriced": "{model} obtient {score} ; son coût n'est pas mesuré",
+        "listPrice": "Équivalent prix catalogue : l'accès Claude CLI est facturé par abonnement.",
+        "reasons": {
+          "cheapest_in_band": "À égalité avec le meilleur, moins cher",
+          "best_is_cheapest": "Meilleur et moins cher",
+          "only_candidate": "Seul modèle fiable",
+          "cost_unmeasured": "Coût non mesuré : meilleur score affiché",
+          "no_reliable_candidate": "Aucun modèle n'atteint le seuil de fiabilité"
+        },
+        "states": {
+          "pinned": "Épinglé",
+          "pin_available": "Épinglage possible",
+          "unmeasured_pin": "Votre modèle n'a pas été mesuré",
+          "pin_forbidden": "L'épinglage requiert un propriétaire de l'organisation",
+          "provider_unavailable": "Fournisseur non routable ici"
+        },
+        "pin": "Épingler",
+        "pinning": "Épinglage…",
+        "pinFailed": "Impossible d'épingler ce modèle.",
+        "pinnedNote": "{model} épinglé.",
+        "loadFailed": "Impossible de charger les choix actuels."
+      }
     },
     "benchOps": {
       "match_reasoning": "Raisonnement de matching",

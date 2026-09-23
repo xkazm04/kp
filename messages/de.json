@@ -9166,7 +9166,43 @@
       "empty": "Noch keine Messwerte. Diese Installation enthält keine eingebackene Benchmark-Matrix, also gibt es nichts zu ranken.",
       "unmeasuredTitle": "Nicht gemessen",
       "unmeasuredIntro": "Diese Routing-Anwendungsfälle haben noch keine Bench-Zelle, daher empfiehlt die Scorecard für sie kein Modell.",
-      "unmeasured": "nicht gemessen"
+      "unmeasured": "nicht gemessen",
+      "pick": {
+        "title": "Empfohlenes Routing",
+        "intro": "Je Anwendungsfall das günstigste gemessene Modell, dessen Wert im Rauschen des besten liegt: {narrow} Punkte, wenn jeder Vergleich auf mindestens {judges} bewerteten Läufen beruht, sonst {wide}. Die Kosten sind der Median der Benchmark-Ausgaben pro Aufgabe.",
+        "colUseCase": "Anwendungsfall",
+        "colPin": "Ihre Zuordnung",
+        "colPick": "Empfohlen",
+        "colAction": "Aktion",
+        "pinLoading": "Wird geladen…",
+        "pinDefault": "Integrierte Voreinstellung",
+        "notMeasured": "nicht gemessen",
+        "na": "k. A.",
+        "unpriced": "ohne Preis",
+        "perTask": "{cost}/Aufgabe",
+        "vsBest": "{model} erreicht {score} zu {multiple}-fachen Kosten",
+        "vsBestUnpriced": "{model} erreicht {score}; die Kosten wurden nicht gemessen",
+        "listPrice": "Listenpreis-Äquivalent: Der Claude-CLI-Zugang wird per Abonnement abgerechnet.",
+        "reasons": {
+          "cheapest_in_band": "Gleichauf mit dem besten, günstiger",
+          "best_is_cheapest": "Bestes und günstigstes",
+          "only_candidate": "Einziges zuverlässiges Modell",
+          "cost_unmeasured": "Kosten nicht gemessen: bester Wert angezeigt",
+          "no_reliable_candidate": "Kein Modell erreicht die Zuverlässigkeitsschwelle"
+        },
+        "states": {
+          "pinned": "Zugeordnet",
+          "pin_available": "Zuordnung möglich",
+          "unmeasured_pin": "Ihr Modell wurde nicht gemessen",
+          "pin_forbidden": "Zuordnen erfordert einen Organisationsinhaber",
+          "provider_unavailable": "Anbieter hier nicht routbar"
+        },
+        "pin": "Zuordnen",
+        "pinning": "Wird zugeordnet…",
+        "pinFailed": "Das Modell konnte nicht zugeordnet werden.",
+        "pinnedNote": "{model} zugeordnet.",
+        "loadFailed": "Die aktuellen Zuordnungen konnten nicht geladen werden."
+      }
     },
     "benchOps": {
       "match_reasoning": "Match-Begründung",
