@@ -6,3 +6,24 @@
 {"ctx":"jobs-table-core","role":"scout","tokens":220322,"ms":533486}
 {"ctx":"voice-interview-api","role":"scout","tokens":265213,"ms":615170}
 {"ctx":"pipeline-api","role":"scout","tokens":240871,"ms":659562}
+{"ctx":"*","role":"critic","tokens":271154,"ms":798430}
+{"ctx":"voice-interview-api","role":"builder","slot":"A","tokens":163896,"ms":507878}
+{"ctx":"jd-public-detail-page","role":"builder","slot":"B","tokens":159970,"ms":760532}
+{"ctx":"pipeline-api","role":"builder","slot":"A","tokens":208553,"ms":900769}
+{"ctx":"llm-layer","role":"builder","slot":"A","tokens":220394,"ms":1073065}
+{"ctx":"shell-setup-wizard","role":"builder","slot":"A","tokens":219291,"ms":1075639}
+{"ctx":"jobs-table-core","role":"builder","slot":"A","tokens":259544,"ms":1317067}
+{"ctx":"results-core","role":"builder","slot":"A","tokens":229246,"ms":1568528}
+{"ctx":"devcase-orchestration","role":"builder","slot":"A","tokens":199157,"ms":763152}
+{"ctx":"llm-layer","role":"builder","slot":"B","tokens":225703,"ms":1443066}
+{"ctx":"voice-interview-api","role":"builder","slot":"B","tokens":192463,"ms":1148564}
+{"ctx":"pipeline-api","role":"builder","slot":"B","tokens":221878,"ms":1371688}
+{"ctx":"results-core","role":"builder","slot":"B","tokens":178461,"ms":928673}
+{"ctx":"billing-subscriptions","role":"builder","slot":"A","tokens":225603,"ms":1221682}
+{"ctx":"devcase-orchestration","role":"builder","slot":"B","tokens":256502,"ms":1241065}
+{"ctx":"shell-setup-wizard","role":"builder","slot":"B","tokens":279316,"ms":1279437}
+{"ctx":"billing-subscriptions","role":"builder","slot":"B","tokens":257808,"ms":1298477}
+{"ctx":"shell-setup-wizard","role":"followup","note":"brand editor gating","tokens":100737,"ms":235075}
+{"ctx":"pipeline-api","role":"followup","note":"reconsider queue rule","tokens":127972,"ms":393413}
+{"ctx":"results-core","role":"followup","note":"disposition CAS","tokens":126558,"ms":436961}
+{"ctx":"devcase-orchestration","role":"followup","note":"re-source clears warning","tokens":125924,"ms":471773}

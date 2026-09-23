@@ -1,0 +1,26 @@
+{
+  "card": "followup-resource-warning",
+  "defect": "905420b8d: a successful Re-source (POST /api/devcase/source) did not clear the stored sourcing_failed outcome warning, so the lifecycle row kept claiming a fixed crash",
+  "status": "shipped",
+  "commits": [
+    { "sha": "2e4fd4227", "subject": "fix(devcase-orchestration): a successful re-source clears its sourcing-failed warning" },
+    { "sha": "f091b0532", "subject": "docs(devcase-orchestration): a successful re-source clears its sourcing-failed warning" }
+  ],
+  "test": "app/_lib/db/devcase-resource-outcome.test.ts",
+  "red_first": "BROKEN before the fix (missing withoutOutcomeWarning / rewriteLifecycleOutcomesForCase), 4/4 green after",
+  "cases": [
+    "pure: withoutOutcomeWarning drops sourcing_failed, keeps seed_skeleton_only + baseline_unavailable, null when nothing to clear",
+    "store: successful re-source clears sourcing_failed on the case's lifecycle, other warnings/code/stage/detail preserved; second call writes 0 rows",
+    "store: another workspace's lifecycle with the same case id is untouched; a row with no outcome is not minted one",
+    "route: clear runs after seedPipelineFromMatches and before the catch, so a failed re-source keeps the warning"
+  ],
+  "gates": {
+    "unit_touched_dirs": "1409/1409 pass, exit 0",
+    "tsc": "exit 2, all errors foreign (kpi-sim/ untracked; app/_lib/billing/subscription-reconcile.test.ts in-flight billing builder)",
+    "eslint_touched": "exit 0",
+    "api_check": "exit 0",
+    "docs_check": "exit 0",
+    "test_perf": "measured HEAD vs HEAD+this change in an exported copy: only app/api/devcase/source/route.ts moves (111->113 modules, 1723->1735 KB, group ceiling 230/3108); zero new findings, no ceiling raised. Live-tree findings are from other builders' in-flight billing files and the pre-existing page.tsx overage"
+  },
+  "notes": "Store helper lives in a leaf module (db/devcase-outcome-rewrite.ts) instead of db/devcase.ts: +1.8 KB in db/devcase.ts measurably crossed 13 task-hub route ceilings that sit at zero headroom. Nothing added to devcase-orchestrator.ts's import graph."
+}

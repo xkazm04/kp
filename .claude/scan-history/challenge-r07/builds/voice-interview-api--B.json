@@ -1,0 +1,21 @@
+{
+  "card": "voice-interview-api/B",
+  "title": "Compare grid reads the director: covered, asked, or never reached per axis",
+  "status": "landed",
+  "base": "3d6e41446",
+  "shas": ["2a69f8ac3", "c16a4d95f", "80581c128", "8c247c028"],
+  "tests_added": [
+    "app/_lib/interview-axis-coverage.test.ts",
+    "app/_lib/db/interviews-compare-cohort.test.ts",
+    "app/api/interview/compare/compare-coverage.test.ts",
+    "app/features/library/jobs/jobsCompareCohorts.test.ts (4 cases appended)"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": { "tsc": 0, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": 0, "unit": 0 },
+  "files_changed": 15,
+  "lines_changed": 708,
+  "deviations_from_card": "Critic revision applied: coverage.mustAsksUnasked is number | null (null when no accepted end_requested row, i.e. no end_interview; a refused 'complete' does not count), and mustAsksOwed() renders no chip for null or 0; interviewedForJob's SELECT and InterviewedCandidate now carry sessionId + agenda (agenda_json parsed). cellFlag lives in jobsCompareCohorts.ts (with coverageFor/mustAsksOwed), not in interview-axis-coverage.ts: that module value-imports voice/director.ts, and the client grid (on app/page.tsx's graph via JobsTab) imports only its TYPES, so the director stays off the page graph. The compare route strips sessionId and agenda from its payload (agenda carries question text/block titles). Acceptance 8's human-only coverage:null is pinned by a source check on the route (seeding a human scorecard needs a prep row). Tests spread over 14 node:test cases for the 8 acceptance items.",
+  "notes": "Commits: 2a69f8ac3 catalog keys jobs.compare.coverage.* (4 locales, under the lock, taken and released by me); c16a4d95f tests; 80581c128 feat; 8c247c028 doc (under the lock). tsc exit was 2 on the whole tree but EVERY error sits in the untracked kpi-sim/ copy tree (80 lines) - zero on tracked paths. Full test:unit exit 1 on two foreign files: recipes-literals ratchet (QualityHireRatingQueue.tsx, a sibling's pipeline-api/llm-layer work; passes alone) and python-runner-concurrency (process-tree kill, environment). test:perf: HEAD itself (committed tree, via git archive) already carries 33 group overages (+1 module/+3 KB on ~17 routes) from sibling commits after 3d6e41446; base+my files alone adds NO new finding - compare route 55->58 modules / 1131->1182 KB (ceiling 229/3090), app/page.tsx 1421 modules, 8979->8985 KB (ceiling 8995), other routes +1 KB (interviews.ts comments). No ceiling raised. Rubric axes for not_planned come from INTERVIEW_RUBRICS[scoringModel] (industry-extra axes not included; a kit competency outside the rubric keeps its own key)."
+}
