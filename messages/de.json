@@ -1965,7 +1965,11 @@
     "GLYPH_UNKNOWN": "Diese Illustration existiert nicht.",
     "DEVCASE_CASE_NOT_FOUND": "Diese Aufgabe ist in diesem Arbeitsbereich nicht vorhanden.",
     "ANALYTICS_TARGET_UNKNOWN_METRIC": "Für diese Spalte gibt es auf diesem Board kein Ziel. Ziele gelten für die aktiven Spalten des Boards nach der ersten.",
-    "ANALYTICS_TARGET_OUT_OF_RANGE": "Dieser Wert liegt außerhalb des zulässigen Bereichs. Geben Sie eine Zahl von 0 bis zur Grenze des Feldes ein (bei einem Konversionsziel 100)."
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "Dieser Wert liegt außerhalb des zulässigen Bereichs. Geben Sie eine Zahl von 0 bis zur Grenze des Feldes ein (bei einem Konversionsziel 100).",
+    "BILLING_ALERT_RESOLVE_FAILED": "Der Abrechnungshinweis konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "BILLING_ALERT_NOT_FOUND": "Dieser Abrechnungshinweis existiert in dieser Organisation nicht.",
+    "BILLING_ALERT_NOT_OPEN": "Dieser Abrechnungshinweis ist bereits geschlossen.",
+    "BILLING_ALERT_RESOLUTION_INVALID": "Geben Sie an, ob der Abrechnungshinweis behoben oder verworfen wurde."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8935,7 +8939,21 @@
     "checkoutRecheck": "Erneut prüfen",
     "checkoutRefresh": "Tarifstatus aktualisieren",
     "checkoutSupportLink": "Support kontaktieren, falls das Problem bestehen bleibt",
-    "checkoutSupportSubject": "Zahlungsbestätigung nach dem Checkout verzögert"
+    "checkoutSupportSubject": "Zahlungsbestätigung nach dem Checkout verzögert",
+    "alerts": {
+      "title": "{count, plural, one {# Abrechnungshinweis erfordert Ihre Aufmerksamkeit} other {# Abrechnungshinweise erfordern Ihre Aufmerksamkeit}}",
+      "code": {
+        "unmapped_product": "Wir haben eine Zahlung für ein Produkt erhalten, das diese Installation keinem Tarif zuordnet. Ihr Tarif hat sich daher noch nicht geändert. Bitte zahlen Sie nicht erneut. Wenden Sie sich an den Support und nennen Sie das unten angegebene Datum.",
+        "price_drift": "Der im Tarifkatalog angezeigte Preis weicht von dem Preis ab, den der Zahlungsanbieter berechnet. Gleichen Sie den Produktpreis im Dashboard des Anbieters an.",
+        "unknown": "Ein Abrechnungshinweis, den diese Version noch nicht beschreiben kann. Details finden Sie im Serverprotokoll."
+      },
+      "raised": "Erstellt am {date}",
+      "operatorOnly": "Nur für Betreiber",
+      "fixed": "Als behoben markieren",
+      "dismiss": "Verwerfen",
+      "working": "Wird gespeichert…",
+      "failed": "Der Hinweis konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+    }
   },
   "branding": {
     "eyebrow": "White-Label",

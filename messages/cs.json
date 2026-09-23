@@ -1965,7 +1965,11 @@
     "GLYPH_UNKNOWN": "Tato ilustrace neexistuje.",
     "DEVCASE_CASE_NOT_FOUND": "Toto zadání v tomto pracovním prostoru není.",
     "ANALYTICS_TARGET_UNKNOWN_METRIC": "Pro tento sloupec nelze na této nástěnce nastavit cíl. Cíle lze nastavit pro aktivní sloupce nástěnky kromě prvního.",
-    "ANALYTICS_TARGET_OUT_OF_RANGE": "Tato hodnota je mimo povolený rozsah. Zadejte číslo od 0 do limitu pole (u cíle konverze 100)."
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "Tato hodnota je mimo povolený rozsah. Zadejte číslo od 0 do limitu pole (u cíle konverze 100).",
+    "BILLING_ALERT_RESOLVE_FAILED": "Upozornění k fakturaci se nepodařilo aktualizovat. Zkuste to prosím znovu.",
+    "BILLING_ALERT_NOT_FOUND": "Toto upozornění k fakturaci v této organizaci neexistuje.",
+    "BILLING_ALERT_NOT_OPEN": "Toto upozornění k fakturaci je již uzavřené.",
+    "BILLING_ALERT_RESOLUTION_INVALID": "Uveďte, zda bylo upozornění k fakturaci vyřešeno, nebo zamítnuto."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8935,7 +8939,21 @@
     "checkoutRecheck": "Zkontrolovat znovu",
     "checkoutRefresh": "Obnovit stav tarifu",
     "checkoutSupportLink": "Kontaktujte podporu, pokud problém přetrvává",
-    "checkoutSupportSubject": "Potvrzení platby se opozdilo po dokončení objednávky"
+    "checkoutSupportSubject": "Potvrzení platby se opozdilo po dokončení objednávky",
+    "alerts": {
+      "title": "{count, plural, one {# upozornění k fakturaci vyžaduje pozornost} few {# upozornění k fakturaci vyžadují pozornost} other {# upozornění k fakturaci vyžaduje pozornost}}",
+      "code": {
+        "unmapped_product": "Přijali jsme platbu za produkt, který tato instalace nepřiřazuje k žádnému tarifu, proto se váš tarif zatím nezměnil. Neplaťte prosím znovu. Kontaktujte podporu a uveďte níže uvedené datum.",
+        "price_drift": "Cena v katalogu tarifů se liší od ceny, kterou účtuje platební poskytovatel. Sjednoťte cenu produktu v administraci poskytovatele.",
+        "unknown": "Upozornění k fakturaci, které tato verze zatím neumí popsat. Podrobnosti najdete v logu serveru."
+      },
+      "raised": "Vzniklo {date}",
+      "operatorOnly": "Jen pro provozovatele",
+      "fixed": "Označit jako vyřešené",
+      "dismiss": "Zamítnout",
+      "working": "Ukládání…",
+      "failed": "Upozornění se nepodařilo aktualizovat. Zkuste to prosím znovu."
+    }
   },
   "branding": {
     "eyebrow": "White-label",

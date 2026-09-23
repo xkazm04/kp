@@ -491,6 +491,8 @@ export const STORE_ERRORS = {
    *  next step (retry) is the same whichever table broke, and which one is operator
    *  detail for the log. */
   JOBSEEKER_STORE_FAILED: "Could not save or load your job search right now. Please try again.",
+  /** POST /api/billing/alerts/[id]: the store faulted while closing a billing alert (500). */
+  BILLING_ALERT_RESOLVE_FAILED: "Could not update the billing alert. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1906,6 +1908,14 @@ export const REFUSAL_ERRORS = {
   /** POST /api/analytics/targets (400): the value is not a finite non-negative number,
    *  or is over the key's ceiling in the goal-key registry. */
   ANALYTICS_TARGET_OUT_OF_RANGE: "That value is out of range. Use a number from 0 up to the field's limit (100 for a conversion goal).",
+  /** POST /api/billing/alerts/[id] for an id that is not this org's alert, or no alert
+   *  at all (404, one answer for both: no existence oracle). */
+  BILLING_ALERT_NOT_FOUND: "That billing alert does not exist in this organization.",
+  /** POST /api/billing/alerts/[id] for an alert that is already closed (409). The first
+   *  resolution stands; a second call never re-kinds it. */
+  BILLING_ALERT_NOT_OPEN: "That billing alert is already closed.",
+  /** POST /api/billing/alerts/[id] whose `resolution` is not 'fixed' or 'dismissed' (400). */
+  BILLING_ALERT_RESOLUTION_INVALID: "Say whether the billing alert was fixed or dismissed.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

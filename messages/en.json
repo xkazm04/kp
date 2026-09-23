@@ -1965,7 +1965,11 @@
     "GLYPH_UNKNOWN": "That illustration does not exist.",
     "DEVCASE_CASE_NOT_FOUND": "That assignment is not in this workspace.",
     "ANALYTICS_TARGET_UNKNOWN_METRIC": "That column has no goal slot on this board. Goals apply to the board's live columns after the first one.",
-    "ANALYTICS_TARGET_OUT_OF_RANGE": "That value is out of range. Use a number from 0 up to the field's limit (100 for a conversion goal)."
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "That value is out of range. Use a number from 0 up to the field's limit (100 for a conversion goal).",
+    "BILLING_ALERT_RESOLVE_FAILED": "Could not update the billing alert. Please try again.",
+    "BILLING_ALERT_NOT_FOUND": "That billing alert does not exist in this organization.",
+    "BILLING_ALERT_NOT_OPEN": "That billing alert is already closed.",
+    "BILLING_ALERT_RESOLUTION_INVALID": "Say whether the billing alert was fixed or dismissed."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8935,7 +8939,21 @@
     "checkoutRecheck": "Check again",
     "checkoutRefresh": "Refresh plan status",
     "checkoutSupportLink": "Contact support if this persists",
-    "checkoutSupportSubject": "Billing confirmation delayed after checkout"
+    "checkoutSupportSubject": "Billing confirmation delayed after checkout",
+    "alerts": {
+      "title": "{count, plural, one {# billing alert needs attention} other {# billing alerts need attention}}",
+      "code": {
+        "unmapped_product": "A payment was received for a product this deployment does not map to a plan, so your plan has not changed yet. Do not pay again. Contact support and quote the date below.",
+        "price_drift": "The price shown in the plan catalog differs from the price the payment provider charges. Align the product price in the provider dashboard.",
+        "unknown": "A billing signal this version cannot describe yet. Check the server log for details."
+      },
+      "raised": "Raised {date}",
+      "operatorOnly": "Operator only",
+      "fixed": "Mark fixed",
+      "dismiss": "Dismiss",
+      "working": "Saving…",
+      "failed": "Could not update this alert. Please try again."
+    }
   },
   "branding": {
     "eyebrow": "White-label",

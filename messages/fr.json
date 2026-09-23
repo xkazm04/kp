@@ -1965,7 +1965,11 @@
     "GLYPH_UNKNOWN": "Cette illustration n’existe pas.",
     "DEVCASE_CASE_NOT_FOUND": "Cette mission ne se trouve pas dans cet espace de travail.",
     "ANALYTICS_TARGET_UNKNOWN_METRIC": "Aucun objectif ne peut être défini pour cette colonne sur ce tableau. Les objectifs s'appliquent aux colonnes actives du tableau, après la première.",
-    "ANALYTICS_TARGET_OUT_OF_RANGE": "Cette valeur est hors limites. Saisissez un nombre compris entre 0 et la limite du champ (100 pour un objectif de conversion)."
+    "ANALYTICS_TARGET_OUT_OF_RANGE": "Cette valeur est hors limites. Saisissez un nombre compris entre 0 et la limite du champ (100 pour un objectif de conversion).",
+    "BILLING_ALERT_RESOLVE_FAILED": "Impossible de mettre à jour l’alerte de facturation. Veuillez réessayer.",
+    "BILLING_ALERT_NOT_FOUND": "Cette alerte de facturation n’existe pas dans cette organisation.",
+    "BILLING_ALERT_NOT_OPEN": "Cette alerte de facturation est déjà close.",
+    "BILLING_ALERT_RESOLUTION_INVALID": "Indiquez si l’alerte de facturation a été corrigée ou ignorée."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8935,7 +8939,21 @@
     "checkoutRecheck": "Vérifier à nouveau",
     "checkoutRefresh": "Actualiser le statut du forfait",
     "checkoutSupportLink": "Contacter le support si le problème persiste",
-    "checkoutSupportSubject": "Confirmation de paiement retardée après le paiement"
+    "checkoutSupportSubject": "Confirmation de paiement retardée après le paiement",
+    "alerts": {
+      "title": "{count, plural, one {# alerte de facturation requiert votre attention} other {# alertes de facturation requièrent votre attention}}",
+      "code": {
+        "unmapped_product": "Nous avons reçu un paiement pour un produit que ce déploiement n’associe à aucune offre : votre offre n’a donc pas encore changé. Ne payez pas une seconde fois. Contactez le support en indiquant la date ci-dessous.",
+        "price_drift": "Le prix affiché dans le catalogue des offres diffère du prix facturé par le prestataire de paiement. Alignez le prix du produit dans le tableau de bord du prestataire.",
+        "unknown": "Une alerte de facturation que cette version ne sait pas encore décrire. Consultez le journal du serveur pour plus de détails."
+      },
+      "raised": "Émise le {date}",
+      "operatorOnly": "Opérateur uniquement",
+      "fixed": "Marquer comme corrigée",
+      "dismiss": "Ignorer",
+      "working": "Enregistrement…",
+      "failed": "Impossible de mettre à jour cette alerte. Veuillez réessayer."
+    }
   },
   "branding": {
     "eyebrow": "Marque blanche",
