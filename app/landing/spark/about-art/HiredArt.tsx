@@ -2,22 +2,22 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { reveal } from "../motion-presets";
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
-import { DISPLAY, HAND } from "../tokens";
-import { ENTER } from "./shared";
+import { AMBER, CORAL, DISPLAY, HAND, MOSS, STEEL } from "../tokens";
 import { useStillMotion } from "../useStillMotion";
 
 /* 07 · Hired — a stamped seal + confetti, with the hire's close-out checking off. */
 const CONFETTI = [
-  { c: "#caa54c", left: "-8%", top: "8%" },
-  { c: "#d65a4a", left: "104%", top: "0%" },
-  { c: "#42606f", left: "100%", top: "78%" },
-  { c: "#caa54c", left: "-6%", top: "82%" }
+  { c: AMBER, left: "-8%", top: "8%" },
+  { c: CORAL, left: "104%", top: "0%" },
+  { c: STEEL, left: "100%", top: "78%" },
+  { c: AMBER, left: "-6%", top: "82%" }
 ];
 const TASKS = ["record", "ats", "role"] as const;
 
-export default function HiredArt({ color = "#526b4f" }: { color?: string }) {
+export default function HiredArt({ color = MOSS }: { color?: string }) {
   const t = useTranslations("aboutPage");
   const reduceMotion = useStillMotion();
   const [stampReplay, setStampReplay] = useState(0);
@@ -28,22 +28,26 @@ export default function HiredArt({ color = "#526b4f" }: { color?: string }) {
           <motion.span
             key={i}
             aria-hidden
-            initial={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            animate={reduceMotion ? { opacity: 1, scale: 1 } : undefined}
-            viewport={ENTER}
-            transition={reduceMotion ? { duration: 0 } : { delay: 0.4 + i * 0.1, type: "spring", bounce: 0.6 }}
+            {...reveal(
+              "inView",
+              reduceMotion,
+              { opacity: 1, scale: 1 },
+              { delay: 0.4 + i * 0.1, type: "spring", bounce: 0.6 },
+              { opacity: 0, scale: 0 }
+            )}
             className="absolute h-3 w-3 rounded-full border-2 border-[#17202a]"
             style={{ background: d.c, left: d.left, top: d.top }}
           />
         ))}
         <motion.div
           key={stampReplay}
-          initial={reduceMotion ? { scale: 1, opacity: 1, rotate: -6 } : { scale: 2.2, opacity: 0, rotate: 12 }}
-          whileInView={{ scale: 1, opacity: 1, rotate: -6 }}
-          animate={reduceMotion ? { scale: 1, opacity: 1, rotate: -6 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.5 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { scale: 1, opacity: 1, rotate: -6 },
+            { type: "spring", bounce: 0.5 },
+            { scale: 2.2, opacity: 0, rotate: 12 }
+          )}
           className={`${DISPLAY} grid h-28 w-28 place-items-center rounded-full border-[4px] border-[#17202a] text-2xl font-extrabold uppercase text-white shadow-[5px_5px_0_#17202a]`}
           style={{ background: color }}
         >
@@ -67,11 +71,13 @@ export default function HiredArt({ color = "#526b4f" }: { color?: string }) {
         {TASKS.map((task, i) => (
           <motion.div
             key={task}
-            initial={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -16 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            animate={reduceMotion ? { opacity: 1, x: 0 } : undefined}
-            viewport={ENTER}
-            transition={reduceMotion ? { duration: 0 } : { delay: 0.3 + i * 0.18, type: "spring", bounce: 0.4 }}
+            {...reveal(
+              "inView",
+              reduceMotion,
+              { opacity: 1, x: 0 },
+              { delay: 0.3 + i * 0.18, type: "spring", bounce: 0.4 },
+              { opacity: 0, x: -16 }
+            )}
             className="flex items-center gap-2 text-sm font-bold"
           >
             <span

@@ -1,16 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { reveal } from "../motion-presets";
 import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
 import { Check, FileText, Stamp } from "lucide-react";
-import { DISPLAY, HAND } from "../tokens";
-import { ENTER } from "./shared";
+import { AMBER, DISPLAY, HAND } from "../tokens";
 
 /* 06 · Offer — deterministic figure, auto-drafted, human-approved, accepted. */
 // Illustrative figure, not copy; only its currency label localises.
 const FIGURE = "150k";
-export default function OfferArt({ color = "#caa54c" }: { color?: string }) {
+export default function OfferArt({ color = AMBER }: { color?: string }) {
   const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   return (
@@ -21,11 +21,13 @@ export default function OfferArt({ color = "#caa54c" }: { color?: string }) {
       </div>
       <div className="mt-4 text-center">
         <motion.p
-          initial={{ scale: 0.6, opacity: 0 }}
-          whileInView={{ scale: 1, opacity: 1 }}
-          animate={reduceMotion ? { scale: 1, opacity: 1 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.5 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { scale: 1, opacity: 1 },
+            { type: "spring", bounce: 0.5 },
+            { scale: 0.6, opacity: 0 }
+          )}
           className={`${DISPLAY} text-4xl font-extrabold`}
         >
           {FIGURE} <span className="text-base text-[#42606f]">{t("art.offer.currency")}</span>
@@ -34,22 +36,26 @@ export default function OfferArt({ color = "#caa54c" }: { color?: string }) {
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
         <motion.span
-          initial={{ scale: 2, opacity: 0, rotate: 12 }}
-          whileInView={{ scale: 1, opacity: 1, rotate: -6 }}
-          animate={reduceMotion ? { scale: 1, opacity: 1, rotate: -6 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { delay: 0.3, type: "spring", bounce: 0.5 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { scale: 1, opacity: 1, rotate: -6 },
+            { delay: 0.3, type: "spring", bounce: 0.5 },
+            { scale: 2, opacity: 0, rotate: 12 }
+          )}
           className="inline-flex items-center gap-1.5 rounded-full border-[3px] border-[#17202a] px-3 py-1 text-sm font-extrabold uppercase text-white shadow-[2px_2px_0_#17202a]"
           style={{ background: color }}
         >
           <Stamp className="h-3.5 w-3.5" aria-hidden /> {t("art.offer.humanApproved")}
         </motion.span>
         <motion.span
-          initial={{ opacity: 0, x: 16 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          animate={reduceMotion ? { opacity: 1, x: 0 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { delay: 0.6, type: "spring", bounce: 0.4 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { opacity: 1, x: 0 },
+            { delay: 0.6, type: "spring", bounce: 0.4 },
+            { opacity: 0, x: 16 }
+          )}
           className="inline-flex items-center gap-1.5 rounded-full border-[3px] border-[#17202a] bg-[#526b4f] px-3 py-1 text-sm font-bold text-white shadow-[2px_2px_0_#17202a]"
         >
           <Check className="h-3.5 w-3.5" aria-hidden /> {t("art.offer.accepted")}

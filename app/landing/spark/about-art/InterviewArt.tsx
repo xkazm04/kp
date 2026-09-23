@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { reveal } from "../motion-presets";
+import { CORAL, LIMEWASH, MOSS } from "../tokens";
 import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
 import { Check, Mic } from "lucide-react";
-import { ENTER } from "./shared";
 
 /* 05 · Interview — a voice screen card: live equalizer + transcript bubbles. */
-export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) {
+export default function InterviewArt({ color = CORAL }: { color?: string }) {
   const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   const bubbles = [
@@ -47,27 +48,31 @@ export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) 
         {bubbles.map((b, i) => (
           <motion.p
             key={i}
-            initial={{ opacity: 0, x: b.ai ? -18 : 18, scale: 0.9 }}
-            whileInView={{ opacity: 1, x: 0, scale: 1 }}
-            animate={reduceMotion ? { opacity: 1, x: 0, scale: 1 } : undefined}
-            viewport={ENTER}
-            transition={reduceMotion ? { duration: 0 } : { delay: 0.25 + i * 0.3, type: "spring", bounce: 0.35 }}
+            {...reveal(
+              "inView",
+              reduceMotion,
+              { opacity: 1, x: 0, scale: 1 },
+              { delay: 0.25 + i * 0.3, type: "spring", bounce: 0.35 },
+              { opacity: 0, x: b.ai ? -18 : 18, scale: 0.9 }
+            )}
             className={`max-w-[85%] rounded-2xl border-[3px] border-[#17202a] px-3.5 py-2 text-sm leading-snug ${
               b.ai ? "bg-[#fdf8ee]" : "ml-auto"
             }`}
-            style={b.ai ? undefined : { background: "#dce7d0" }}
+            style={b.ai ? undefined : { background: LIMEWASH }}
           >
             {b.text}
           </motion.p>
         ))}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          animate={reduceMotion ? { opacity: 1, y: 0 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { delay: 1, type: "spring", bounce: 0.4 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { opacity: 1, y: 0 },
+            { delay: 1, type: "spring", bounce: 0.4 },
+            { opacity: 0, y: 8 }
+          )}
           className="mt-1 flex items-center gap-2 rounded-xl border-[3px] border-[#17202a] px-3.5 py-2 text-sm font-bold text-white shadow-[3px_3px_0_#17202a]"
-          style={{ background: "#526b4f" }}
+          style={{ background: MOSS }}
         >
           <Check className="h-4 w-4" aria-hidden />
           {t("art.interview.scorecard")}

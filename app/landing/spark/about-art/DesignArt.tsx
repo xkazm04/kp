@@ -1,16 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { DRAW, reveal } from "../motion-presets";
 import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
-import { DISPLAY, HAND } from "../tokens";
-import { DRAW, ENTER } from "./shared";
+import { DISPLAY, HAND, STEEL } from "../tokens";
 
 /* 01 · Design — a JD assembling itself: title, must-have chips, salary band. */
 // Technology names are DNT: a Czech reader looks for "Java", not a translation.
 const SKILL_CHIPS = ["Java", "Spring", "SQL", "REST"];
 
-export default function DesignArt({ color = "#42606f" }: { color?: string }) {
+export default function DesignArt({ color = STEEL }: { color?: string }) {
   const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   return (
@@ -32,11 +32,13 @@ export default function DesignArt({ color = "#42606f" }: { color?: string }) {
         {SKILL_CHIPS.map((c, i) => (
           <motion.span
             key={c}
-            initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
-            whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-            animate={reduceMotion ? { opacity: 1, scale: 1, rotate: 0 } : undefined}
-            viewport={ENTER}
-            transition={reduceMotion ? { duration: 0 } : { delay: 0.15 + i * 0.1, type: "spring", bounce: 0.5 }}
+            {...reveal(
+              "inView",
+              reduceMotion,
+              { opacity: 1, scale: 1, rotate: 0 },
+              { delay: 0.15 + i * 0.1, type: "spring", bounce: 0.5 },
+              { opacity: 0, scale: 0.6, rotate: -8 }
+            )}
             className="rounded-full border-[3px] border-[#17202a] bg-[#fdf8ee] px-3 py-1 text-sm font-bold shadow-[2px_2px_0_#17202a]"
           >
             {c}
@@ -46,11 +48,13 @@ export default function DesignArt({ color = "#42606f" }: { color?: string }) {
       <p className={`${HAND} mt-4 text-sm text-[#526b4f]`}>{t("art.design.salaryBand")}</p>
       <div className="mt-1 h-4 w-full overflow-hidden rounded-full border-[3px] border-[#17202a] bg-[#dce7d0]">
         <motion.div
-          initial={{ width: 0 }}
-          whileInView={{ width: "72%" }}
-          animate={reduceMotion ? { width: "72%" } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { ...DRAW, delay: 0.4 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { width: "72%" },
+            { ...DRAW, delay: 0.4 },
+            { width: 0 }
+          )}
           className="h-full rounded-full"
           style={{ background: color }}
         />

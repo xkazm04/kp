@@ -8,7 +8,7 @@ import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
 import { ABOUT_STEP_KEYS, StepArt, type AboutStepKey } from "./about-art";
 import { aboutStepId, aboutStepRailLabel } from "./about-art/shared";
-import { ART_TYPE_SCALE } from "./tokens";
+import { AMBER, ART_TYPE_SCALE, CORAL, MOSS, STEEL } from "./tokens";
 import { useStillMotion } from "./useStillMotion";
 import SectionRail, { type RailSection } from "./SectionRail";
 import MobileNav, { type NavDestination } from "./sections/MobileNav";
@@ -32,14 +32,14 @@ const HAND = "font-[family-name:var(--font-spark-hand)]";
 // phase added to the vocabulary is a type error here until it is given a colour
 // instead of silently drawing in whatever the array's shorter half held.
 const STEP_COLOR: Record<AboutStepKey, string> = {
-  design: "#42606f",
-  source: "#caa54c",
-  intake: "#d65a4a",
-  screen: "#526b4f",
-  assignment: "#42606f",
-  interview: "#d65a4a",
-  offer: "#caa54c",
-  hired: "#526b4f"
+  design: STEEL,
+  source: AMBER,
+  intake: CORAL,
+  screen: MOSS,
+  assignment: STEEL,
+  interview: CORAL,
+  offer: AMBER,
+  hired: MOSS
 };
 const STEPS = ABOUT_STEP_KEYS.map((key) => ({ key, color: STEP_COLOR[key] }));
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { DRAW, reveal } from "../motion-presets";
 import { useStillMotion } from "../useStillMotion";
-import { DISPLAY } from "../tokens";
-import { DRAW, ENTER } from "./shared";
+import { AMBER, DISPLAY } from "../tokens";
 
 /* 02 · Source — candidates ranked against the role, bars filling to match %. */
 // Nothing here is translatable copy: the names are fictional sample data and
@@ -14,18 +14,20 @@ const ROWS = [
   { name: "Alex T.", role: "Java", v: 61 }
 ];
 
-export default function SourceArt({ color = "#caa54c" }: { color?: string }) {
+export default function SourceArt({ color = AMBER }: { color?: string }) {
   const reduceMotion = useStillMotion();
   return (
     <div className="mx-auto w-full max-w-lg space-y-2.5">
       {ROWS.map((r, i) => (
         <motion.div
           key={r.name}
-          initial={{ opacity: 0, x: 40 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          animate={reduceMotion ? { opacity: 1, x: 0 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { delay: i * 0.12, type: "spring", bounce: 0.3 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { opacity: 1, x: 0 },
+            { delay: i * 0.12, type: "spring", bounce: 0.3 },
+            { opacity: 0, x: 40 }
+          )}
           className="flex items-center gap-3 rounded-2xl border-[3px] border-[#17202a] bg-white p-3 shadow-[4px_4px_0_#17202a]"
         >
           <span
@@ -40,11 +42,13 @@ export default function SourceArt({ color = "#caa54c" }: { color?: string }) {
             </p>
             <div className="mt-1 h-2.5 w-full rounded-full bg-[#dce7d0]">
               <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: `${r.v}%` }}
-                animate={reduceMotion ? { width: `${r.v}%` } : undefined}
-                viewport={ENTER}
-                transition={reduceMotion ? { duration: 0 } : { ...DRAW, delay: 0.2 + i * 0.12 }}
+                {...reveal(
+                  "inView",
+                  reduceMotion,
+                  { width: `${r.v}%` },
+                  { ...DRAW, delay: 0.2 + i * 0.12 },
+                  { width: 0 }
+                )}
                 className="h-full rounded-full"
                 style={{ background: color }}
               />

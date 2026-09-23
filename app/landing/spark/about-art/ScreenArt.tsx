@@ -1,16 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { DRAW, reveal } from "../motion-presets";
 import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
-import { DISPLAY } from "../tokens";
-import { ENTER } from "./shared";
+import { DISPLAY, MOSS } from "../tokens";
 
 /* 04 · Screen — an evidence-backed fit dial that draws to 87 with factor chips. */
 const FACTORS = ["skills", "seniority", "evidence"] as const;
 
-export default function ScreenArt({ color = "#526b4f" }: { color?: string }) {
+export default function ScreenArt({ color = MOSS }: { color?: string }) {
   const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   const R = 70;
@@ -29,19 +29,23 @@ export default function ScreenArt({ color = "#526b4f" }: { color?: string }) {
             strokeWidth="16"
             strokeLinecap="round"
             strokeDasharray={C}
-            initial={{ strokeDashoffset: C }}
-            whileInView={{ strokeDashoffset: C * (1 - 0.87) }}
-            animate={reduceMotion ? { strokeDashoffset: C * (1 - 0.87) } : undefined}
-            viewport={ENTER}
-            transition={reduceMotion ? { duration: 0 } : { duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+            {...reveal(
+              "inView",
+              reduceMotion,
+              { strokeDashoffset: C * (1 - 0.87) },
+              { ...DRAW, duration: 1.1 },
+              { strokeDashoffset: C }
+            )}
           />
         </svg>
         <motion.div
-          initial={{ scale: 0, rotate: -12 }}
-          whileInView={{ scale: 1, rotate: 0 }}
-          animate={reduceMotion ? { scale: 1, rotate: 0 } : undefined}
-          viewport={ENTER}
-          transition={reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.5, delay: 0.25 }}
+          {...reveal(
+            "inView",
+            reduceMotion,
+            { scale: 1, rotate: 0 },
+            { type: "spring", bounce: 0.5, delay: 0.25 },
+            { scale: 0, rotate: -12 }
+          )}
           className={`${DISPLAY} absolute grid h-24 w-24 place-items-center rounded-full border-[3px] border-[#17202a] text-4xl font-extrabold text-white shadow-[4px_4px_0_#17202a]`}
           style={{ background: color }}
         >
@@ -52,11 +56,13 @@ export default function ScreenArt({ color = "#526b4f" }: { color?: string }) {
         {FACTORS.map((f, i) => (
           <motion.span
             key={f}
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            animate={reduceMotion ? { opacity: 1, y: 0 } : undefined}
-            viewport={ENTER}
-            transition={reduceMotion ? { duration: 0 } : { delay: 0.4 + i * 0.12, type: "spring", bounce: 0.4 }}
+            {...reveal(
+              "inView",
+              reduceMotion,
+              { opacity: 1, y: 0 },
+              { delay: 0.4 + i * 0.12, type: "spring", bounce: 0.4 },
+              { opacity: 0, y: 10 }
+            )}
             className="inline-flex items-center gap-1.5 rounded-full border-[3px] border-[#17202a] bg-white px-3 py-1.5 text-sm font-bold shadow-[3px_3px_0_#17202a]"
           >
             <Check className="h-3.5 w-3.5" style={{ color }} aria-hidden />

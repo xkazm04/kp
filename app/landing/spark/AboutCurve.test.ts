@@ -131,21 +131,62 @@ test("every preview entrance is gated on reduced motion", () => {
   );
 });
 
-test("every About illustration reveals its in-view target without motion", () => {
-  const artDir = path.join(LANDING, "spark", "about-art");
-  const artFiles = readdirSync(artDir).filter((name) => name.endsWith("Art.tsx"));
+/* The About illustrations reveal through ONE builder.
+ *
+ * This used to be a text-shape check: for every `whileInView={{` line it demanded
+ * the next line be exactly `animate={reduceMotion ? <same literal> : undefined}`
+ * and the line after next a `{ duration: 0 }` ternary. That pinned formatting,
+ * not behaviour — a reflowed prop failed it, a differently-shaped element skipped
+ * it. The behaviour now lives in `reveal()` (spark/motion-presets.ts) and is
+ * tested there; what is left to check in source is that no art file goes around
+ * it. */
+const ART_DIR = path.join(LANDING, "spark", "about-art");
+const artFiles = readdirSync(ART_DIR).filter((name) => name.endsWith("Art.tsx"));
+
+test("every About illustration reveals through reveal(), never a hand-copied triplet", () => {
   assert.equal(artFiles.length, 8, "each About phase has an illustration");
   for (const name of artFiles) {
-    const lines = code(path.join(artDir, name)).split(/\r?\n/);
-    assert.ok(lines.some((line) => line.includes("useStillMotion")), `${name} must read the live preference`);
-    for (let i = 0; i < lines.length; i++) {
-      const target = lines[i].trim();
-      if (!target.startsWith("whileInView={{")) continue;
-      const finalState = target.slice("whileInView=".length + 1, -1);
-      assert.equal(lines[i + 1]?.trim(), `animate={reduceMotion ? ${finalState} : undefined}`, `${name} must reveal the same final state`);
-      assert.match(lines[i + 3] ?? "", /transition=\{reduceMotion \? \{ duration: 0 \}/, `${name} must remove motion and delay`);
-    }
+    const src = code(path.join(ART_DIR, name));
+    assert.ok(src.includes("useStillMotion"), `${name} must read the live preference`);
+    assert.ok(/\breveal\(/.test(src), `${name} must reveal through reveal() from spark/motion-presets.ts`);
+    assert.doesNotMatch(src, /whileInView=/, `${name} writes a raw whileInView — spread reveal("inView", …) instead`);
+    assert.doesNotMatch(src, /\{\s*duration:\s*0\s*\}/, `${name} hand-writes the reduced-motion transition — reveal() owns it`);
   }
+});
+
+/* One colour authority. The art defaults and the /about step colours are the
+ * tokens.ts palette; a re-typed hex is a copy that drifts (the art direction stays
+ * literal hexes — app/landing/ keeps its design-token exemption — but there is
+ * one place they are typed). */
+const TOKEN_HEXES = (() => {
+  const tokens = readFileSync(path.join(LANDING, "spark", "tokens.ts"), "utf8");
+  return new Set([...tokens.matchAll(/export const [A-Z]+ = "(#[0-9a-fA-F]{6})"/g)].map((m) => m[1].toLowerCase()));
+})();
+
+test("tokens.ts names the Spark palette", () => {
+  assert.ok(TOKEN_HEXES.size >= 7, `expected INK..STEEL, found ${TOKEN_HEXES.size}`);
+});
+
+test("no About illustration re-types a tokens.ts colour as a quoted hex", () => {
+  const copies = artFiles.flatMap((name) =>
+    [...code(path.join(ART_DIR, name)).matchAll(/["'](#[0-9a-fA-F]{6})["']/g)]
+      .map((m) => m[1].toLowerCase())
+      .filter((hex) => TOKEN_HEXES.has(hex))
+      .map((hex) => `${name} ${hex}`)
+  );
+  assert.deepEqual(copies, [], `import the tokens.ts constant instead: ${copies.join(", ")}`);
+});
+
+test("AboutCurve's step colours are tokens.ts identifiers", () => {
+  const src = code(path.join(LANDING, "spark", "AboutCurve.tsx"));
+  const block = /const STEP_COLOR[^=]*=\s*\{([^}]*)\}/.exec(src);
+  assert.ok(block, "STEP_COLOR literal not found in AboutCurve.tsx");
+  const values = block[1]
+    .split(",")
+    .map((entry) => entry.split(":")[1]?.trim())
+    .filter((v): v is string => Boolean(v));
+  assert.equal(values.length, 8, "one colour per phase");
+  for (const v of values) assert.match(v, /^[A-Z]+$/, `STEP_COLOR value ${v} must be a tokens.ts identifier`);
 });
 
 /* The voice teaser's speakers are a parallel array to a CATALOG array, and
