@@ -619,6 +619,50 @@ allowance beside it, so the unmetered case reads `breakdownScopeSelfHost` — th
 deployment-wide claim without the contrast. Nothing about the chart, the per-use-case
 bars or the estimated-cost figure changes; a metered install renders exactly as before.
 
+### Meters state when they reset, and whether this pace runs out first
+
+A meter used to say "180 of 300 used" and nothing else, and the only date on the tab
+was the plan card's "Current period ends", which is the provider's **paid** period. The
+allowance does not reset then: it is keyed on `currentPeriod(now)`, a UTC **calendar**
+month, and the two coincide only for a subscription anchored on the 1st
+(`period-anchor.test.ts` measures 9 of 10 anchors diverging). An owner deciding
+whether to upgrade or buy a minutes pack was deciding without the date it hinges on.
+
+- **`allowanceWindow(now)`** (`app/_lib/billing/plans.ts`, pure) returns
+  `{ period, start, resetsAt, asOf }`: `period` IS `currentPeriod(now)` and the bounds
+  are that UTC month, half-open (the reset instant belongs to the next window).
+  `billingOverview` carries it as one additive key, `allowanceWindow`, so GET
+  /api/billing states the window every debit lands in. Display only: `meterAllowance`,
+  `recordMeterUsage` and `meterGate` do not read it, and `currentPeriod` is untouched.
+- **The allowance rail** heads its meters with "Resets {date}", shown in **UTC** because
+  the window is UTC (a viewer west of Greenwich would otherwise read "30 Sep").
+- **Each meter row** states a pace verdict from `meterForecast`
+  (`app/features/settings/billing/meterForecast.ts`, pure, node:test-pinned):
+  `unlimited` | `depleted` | `tooEarly` | `onPace` | `runsOutBeforeReset` (with an
+  approximate date and the days left before the reset) | `overageProjected`. Linear
+  pace over elapsed days, capacity = what is spent plus what is left (included remainder
+  and pack credits). **Small-sample floor:** under 3 days into the window, or under 2
+  units used, the row says "too early" and never projects a date. **Hires never block**
+  (`plans.ts`), so they read `overageProjected` ("billed as overage, never blocked"),
+  never "runs out". A pace that runs out before the reset carries the same pack / upgrade
+  link a depleted meter does; `depleted` itself adds no line (the existing badge + CTA
+  carry it). Unmetered installs have no rail, so no forecast chrome.
+- **The plan card names both dates when they differ** (`planDatesView`, same module):
+  "Paid period ends {date}" and "Included allowances reset {date}". When they coincide,
+  or either is missing, it keeps the single "Current period ends" line.
+- The orphaned `billing.usage.intro` said meters reset "with the billing period"; it now
+  states the UTC month and that pack credits carry over.
+
+**Naming hazard, on purpose:** `.ai/tasks/2026-09-07-allowance-period-anchor.md` plans
+the charge-changing re-key onto the subscription anchor as `allowancePeriod(state, now)`.
+When that lands, `allowanceWindow` must take the subscription state too (one function,
+so every date on the tab follows); until then it is exactly the calendar key the ledger
+debits under. The charge-parity GUARD in `app/_lib/billing/allowance-window.test.ts`
+replays the shared three-org money history
+(`app/_lib/billing/__fixtures__/charge-parity-replay.ts`, the same replay and golden the
+alert reader is guarded by) and asserts it still reproduces `charge-parity.json`
+byte-for-byte, with `allowanceWindow` the only key `billingOverview` gained.
+
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage
 panel on the Models tab that never referenced each other. Metered spend belongs
