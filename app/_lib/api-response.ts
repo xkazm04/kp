@@ -1942,6 +1942,10 @@ export const REFUSAL_ERRORS = {
    *  relay dead-lettered it. Said, never covered by the "on its way" sentence; the per-entry
    *  cooldown is released so the candidate can try again. */
   STATUS_RESEND_UNDELIVERED: "We could not send the email just now. Please try again later.",
+  /** PATCH /api/analyses/[slug] moving a disposition TO advance without acknowledging
+   *  every open trust warning on the stored analysis (409, with `pending`: the lines
+   *  still unacknowledged). A note-only edit of a stored advance is never refused. */
+  DISPOSITION_ACK_REQUIRED: "Acknowledge every open flag on this analysis before advancing the candidate.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

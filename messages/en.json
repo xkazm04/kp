@@ -534,7 +534,11 @@
       "benchmarkThin": "thin sample (n={count})",
       "benchmarkNoSample": "no sample recorded (editorial anchor)",
       "benchmarkAnchor": "Anchored to benchmark {source}, updated {date}"
-    }
+    },
+    "decisionOpenFlags": "Open flags: tick each one you have checked before advancing",
+    "decisionAckNeeded": "Acknowledge every open flag to advance.",
+    "decisionMissing": "Missing must-haves: {skills}",
+    "decisionReasonNeeded": "This is a strong read. Say why you are passing, then click Pass again."
   },
   "comms": {
     "team": "The hiring team",
@@ -1977,7 +1981,8 @@
     "OFFER_LETTER_PREVIEW_FAILED": "Could not render the offer letter preview. Please try again.",
     "STATUS_RESEND_FAILED": "Could not send the link again. Please try again.",
     "STATUS_NOTHING_TO_RESEND": "Nothing is waiting on you right now, so there is nothing to send again.",
-    "STATUS_RESEND_UNDELIVERED": "We could not send the email just now. Please try again later."
+    "STATUS_RESEND_UNDELIVERED": "We could not send the email just now. Please try again later.",
+    "DISPOSITION_ACK_REQUIRED": "Acknowledge every open flag on this analysis before advancing the candidate."
   },
   "resilience": {
     "notFoundEyebrow": "404",

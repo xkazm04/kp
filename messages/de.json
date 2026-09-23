@@ -534,7 +534,11 @@
       "benchmarkThin": "kleine Stichprobe (n={count})",
       "benchmarkNoSample": "keine Stichprobe erfasst (redaktioneller Richtwert)",
       "benchmarkAnchor": "Verankert am Benchmark {source}, aktualisiert {date}"
-    }
+    },
+    "decisionOpenFlags": "Offene Hinweise: Haken Sie vor dem Weiterleiten jeden geprüften Hinweis ab",
+    "decisionAckNeeded": "Bestätigen Sie alle offenen Hinweise, um weiterzuleiten.",
+    "decisionMissing": "Fehlende Pflichtanforderungen: {skills}",
+    "decisionReasonNeeded": "Die Bewertung ist stark. Nennen Sie den Grund für die Ablehnung und klicken Sie erneut auf Ablehnen."
   },
   "comms": {
     "team": "Das Recruiting-Team",
@@ -1977,7 +1981,8 @@
     "OFFER_LETTER_PREVIEW_FAILED": "Die Vorschau des Angebotsschreibens konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
     "STATUS_RESEND_FAILED": "Der Link konnte nicht erneut gesendet werden. Bitte versuchen Sie es erneut.",
     "STATUS_NOTHING_TO_RESEND": "Derzeit wartet nichts auf Sie, daher gibt es nichts erneut zu senden.",
-    "STATUS_RESEND_UNDELIVERED": "Die E-Mail konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut."
+    "STATUS_RESEND_UNDELIVERED": "Die E-Mail konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
+    "DISPOSITION_ACK_REQUIRED": "Bestätigen Sie alle offenen Hinweise zu dieser Analyse, bevor Sie den Kandidaten weiterleiten."
   },
   "resilience": {
     "notFoundEyebrow": "404",

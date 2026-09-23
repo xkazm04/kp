@@ -534,7 +534,11 @@
       "benchmarkThin": "malý vzorek (n={count})",
       "benchmarkNoSample": "bez zaznamenaného vzorku (redakční odhad)",
       "benchmarkAnchor": "Ukotveno na benchmark {source}, aktualizováno {date}"
-    }
+    },
+    "decisionOpenFlags": "Otevřená upozornění: před postoupením zaškrtněte každé, které jste ověřili",
+    "decisionAckNeeded": "Pro postoupení potvrďte všechna otevřená upozornění.",
+    "decisionMissing": "Chybějící povinné dovednosti: {skills}",
+    "decisionReasonNeeded": "Hodnocení je silné. Uveďte, proč kandidáta zamítáte, a klikněte znovu na Zamítnout."
   },
   "comms": {
     "team": "Náborový tým",
@@ -1977,7 +1981,8 @@
     "OFFER_LETTER_PREVIEW_FAILED": "Náhled dopisu s nabídkou se nepodařilo připravit. Zkuste to prosím znovu.",
     "STATUS_RESEND_FAILED": "Odkaz se nepodařilo znovu odeslat. Zkuste to prosím znovu.",
     "STATUS_NOTHING_TO_RESEND": "Momentálně na vás nic nečeká, není tedy co znovu posílat.",
-    "STATUS_RESEND_UNDELIVERED": "E-mail se teď nepodařilo odeslat. Zkuste to prosím později."
+    "STATUS_RESEND_UNDELIVERED": "E-mail se teď nepodařilo odeslat. Zkuste to prosím později.",
+    "DISPOSITION_ACK_REQUIRED": "Před postoupením kandidáta potvrďte všechna otevřená upozornění k této analýze."
   },
   "resilience": {
     "notFoundEyebrow": "404",

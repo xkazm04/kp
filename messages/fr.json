@@ -534,7 +534,11 @@
       "benchmarkThin": "échantillon réduit (n={count})",
       "benchmarkNoSample": "aucun échantillon enregistré (repère éditorial)",
       "benchmarkAnchor": "Ancré sur le référentiel {source}, mis à jour le {date}"
-    }
+    },
+    "decisionOpenFlags": "Alertes ouvertes : cochez chacune de celles que vous avez vérifiées avant de faire avancer",
+    "decisionAckNeeded": "Validez chaque alerte ouverte pour faire avancer le candidat.",
+    "decisionMissing": "Compétences requises manquantes : {skills}",
+    "decisionReasonNeeded": "L'évaluation est solide. Indiquez pourquoi vous écartez ce candidat, puis cliquez à nouveau sur Écarter."
   },
   "comms": {
     "team": "L’équipe de recrutement",
@@ -1977,7 +1981,8 @@
     "OFFER_LETTER_PREVIEW_FAILED": "Impossible de générer l’aperçu de la lettre d’offre. Veuillez réessayer.",
     "STATUS_RESEND_FAILED": "Impossible de renvoyer le lien. Veuillez réessayer.",
     "STATUS_NOTHING_TO_RESEND": "Rien ne vous attend pour le moment, il n’y a donc rien à renvoyer.",
-    "STATUS_RESEND_UNDELIVERED": "Impossible d’envoyer l’e-mail pour le moment. Veuillez réessayer plus tard."
+    "STATUS_RESEND_UNDELIVERED": "Impossible d’envoyer l’e-mail pour le moment. Veuillez réessayer plus tard.",
+    "DISPOSITION_ACK_REQUIRED": "Validez chaque alerte ouverte de cette analyse avant de faire avancer le candidat."
   },
   "resilience": {
     "notFoundEyebrow": "404",
