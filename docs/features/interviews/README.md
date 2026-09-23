@@ -40,7 +40,13 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    authoritative billing reservation, revoke-then-create and the truthful invite
    dispatch. That door is shared verbatim with the stage hook, so the recruiter's
    button and the automatic path can never disagree about reissue semantics,
-   spend, or what `delivery` claims. A recruiter demo/simulation goes
+   spend, or what `delivery` claims. Before the kit pin and the grounded build it
+   asks the send gate (`entryContactability(entry, "interview_invite")`,
+   `app/_lib/comms-contactability.ts`): a candidate whose consent has lapsed (not yet
+   swept) or who has been erased gets **409 `COMMS_SUPPRESSED`**, the same answer
+   the scheduling-invite door gives on the same card. Nothing is built, reserved,
+   revoked, minted or mailed, and no event is written. An unaddressable candidate is
+   not refused: the link is still returned for the recruiter to hand over. A recruiter demo/simulation goes
    through `app/api/interview/simulate/route.ts` (`mode: "student" |
    "student-case" | "regular"` picks the brief and run-of-show); both are
    billing-metered the same way (`interview_minutes`).
