@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { AnalysisProgress } from "@/app/_components/AnalysisProgress";
+import { BTN_GHOST, NOTICE } from "@/app/_components/ui/recipes";
 import { AnalyzeForm } from "./AnalyzeForm";
 import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
 import { deriveCollapseDecision } from "./analyzeCollapse";
@@ -91,6 +92,18 @@ export function AnalyzeTab() {
           variantsTotal={result.variantProgress?.total}
           onCancel={handlers.cancel}
         />
+      ) : null}
+
+      {/* A result reloaded from its saved row after a tab switch (analyzeSession.ts)
+          says so — it is the last report, not a run that just happened — and offers
+          the one action that ends it. */}
+      {result.restored && result.analysis && !isAnalyzing ? (
+        <div role="status" className={`${NOTICE("info")} flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm`}>
+          <p>{t("restoredNote")}</p>
+          <button type="button" onClick={handlers.reset} className={`${BTN_GHOST} h-8 px-2 text-sm`}>
+            {t("restoredStartNew")}
+          </button>
+        </div>
       ) : null}
 
       {/* Direction 2 — a comparison that lost a variant still delivers; name the

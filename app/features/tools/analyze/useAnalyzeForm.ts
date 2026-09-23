@@ -29,12 +29,17 @@ import {
   restoreDraftValue,
   serializeAnalyzeDraft,
 } from "./analyzeDraft";
+import { ANALYZE_LAST_RESULT_KEY, decideAnalyzeRestore, settleAnalyzeRestore } from "./analyzeSession";
+import { clearAnalyzeAttachments, putAnalyzeAttachments, takeAnalyzeAttachments } from "./analyzeAttachmentStore";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 
 // Survives a page refresh: the active analyze task id is stashed here so the
 // view can re-attach to the still-running (or finished) server-side task.
 const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
+
+// The landed-result crumb (the saved row's slug) and the per-layer restore table are
+// in analyzeSession.ts; attachments live in module memory (analyzeAttachmentStore.ts).
 
 // The draft's key, codec and restore rule live in analyzeDraft.ts — pure, and so
 // testable against the one input nobody here controls (sessionStorage can hold
@@ -94,9 +99,10 @@ export function useAnalyzeForm() {
   const githubPersistedRef = useRef<string | null>(null);
 
   const { cvFiles, addCvFile, replaceCvFile, removeCvFile, clearCvFiles, syncCvFilesRef } = useAnalyzeCvFiles();
-  const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(null);
+  // Attachments come back from module memory after a tab switch (never from storage).
+  const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(() => takeAnalyzeAttachments().jobDescriptionFile);
   const [jobDescriptionText, setJobDescriptionText] = useState("");
-  const [companyFile, setCompanyFile] = useState<File | null>(null);
+  const [companyFile, setCompanyFile] = useState<File | null>(() => takeAnalyzeAttachments().companyFile);
   const [companyText, setCompanyText] = useState("");
   const [githubProfile, setGithubProfile] = useState("");
   const [reportLang, setReportLang] = useState<string>(isLocale(appLocale) ? appLocale : "en");
@@ -115,6 +121,9 @@ export function useAnalyzeForm() {
   // #5 — the server's REAL per-variant completion for a multi-CV comparison
   // (null until the poll reports it); drives the honest progress bar.
   const [variantProgress, setVariantProgress] = useState<VariantProgress | null>(null);
+  // True while the shown result was RELOADED from its saved row after a tab switch,
+  // rather than produced by a run in this mount — the tab says so and offers Start new.
+  const [restored, setRestored] = useState(false);
 
   const {
     jdLibrary,
@@ -162,6 +171,12 @@ export function useAnalyzeForm() {
     syncCvFilesRef(cvFiles);
   }, [cvFiles, syncCvFilesRef]);
 
+  // Write the attachments through to module memory so they survive the tab unmounting
+  // (analyzeAttachmentStore.ts). Every add/replace/remove/clear lands here post-commit.
+  useEffect(() => {
+    putAnalyzeAttachments({ cvFiles, jobDescriptionFile, companyFile });
+  }, [cvFiles, jobDescriptionFile, companyFile]);
+
   function clearJobDescription() {
     setJobDescriptionFile(null);
     setJobDescriptionText("");
@@ -196,6 +211,10 @@ export function useAnalyzeForm() {
     setError(null);
     setStageState(initialStageState());
     setVariantProgress(null);
+    setRestored(false);
+    // Reset is the end of the attachments' and the landed result's lifetime too.
+    clearAnalyzeAttachments();
+    setLastResultSlug(null);
     // Drop the persisted draft NOW — the debounced writer would flush the removal
     // 300 ms later, and a reset-then-switch inside that window would cancel it,
     // resurrecting the cleared inputs on the next visit.
@@ -206,6 +225,18 @@ export function useAnalyzeForm() {
          blocked, and there is then no persisted draft to remove either. */
     }
   }
+
+  // The landed-result crumb: the saved row's slug, or null to remove it. Best-effort
+  // like every crumb here — without storage the result simply does not come back.
+  const setLastResultSlug = (slug: string | null) => {
+    try {
+      if (slug) sessionStorage.setItem(ANALYZE_LAST_RESULT_KEY, slug);
+      else sessionStorage.removeItem(ANALYZE_LAST_RESULT_KEY);
+    } catch {
+      /* best-effort: a private window or blocked site data makes sessionStorage throw;
+         the report is still on screen, it just will not survive the next tab switch. */
+    }
+  };
 
   const clearStoredTask = () => {
     try {
@@ -303,6 +334,9 @@ export function useAnalyzeForm() {
         setIsLoading(false);
         setIsCompleting(false);
         clearStoredTask();
+        // The run crumb becomes the result crumb. An unsaved result has no row to
+        // reload from, so it leaves none.
+        setLastResultSlug(parsed.persistence?.slug ?? null);
       },
       onError: (error: AnalyzeErrorInfo) => {
         if (!current()) return;
@@ -385,26 +419,60 @@ export function useAnalyzeForm() {
   // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
   // setState in the effect body would cascade a render before the first commit
   // settles. Behavior is unchanged — the resume still starts right away.
+  //
+  // …or, when no task is running, reload the LANDED result the recruiter was reading
+  // before the tab unmounted: GET its saved row and rebuild the live panel from it
+  // (analyzeSession.ts decides which layer comes back and validates the row). A 404
+  // (the row was deleted, or belongs to another workspace) or a corrupt row drops the
+  // crumb and the form stays empty; there is no half-restored panel.
   useEffect(() => {
-    let stored: string | null = null;
+    let storedTaskId: string | null = null;
+    let lastSlug: string | null = null;
     try {
-      stored = sessionStorage.getItem(ANALYZE_TASK_KEY);
+      storedTaskId = sessionStorage.getItem(ANALYZE_TASK_KEY);
+      lastSlug = sessionStorage.getItem(ANALYZE_LAST_RESULT_KEY);
     } catch {
       /* best-effort: no storage means no crumb to resume from, which is the same
-         path as a first visit — `stored` stays null and the effect returns. */
+         path as a first visit — both crumbs stay null and nothing is restored. */
     }
-    if (!stored) return;
-    const resumeStored = stored;
+    const decision = decideAnalyzeRestore({ storedTaskId, lastSlug });
+    if (decision.kind === "none") return;
+    const reloadController = new AbortController();
     const t = window.setTimeout(() => {
-      const controller = new AbortController();
-      abortRef.current = controller;
-      taskIdRef.current = resumeStored;
-      const runId = ++analysisRunIdRef.current;
-      setIsLoading(true);
-      setIsCompleting(false);
-      void resumeAnalysis(resumeStored, buildCallbacks(runId), controller.signal);
+      if (decision.kind === "resume-task") {
+        const controller = new AbortController();
+        abortRef.current = controller;
+        taskIdRef.current = decision.taskId;
+        const runId = ++analysisRunIdRef.current;
+        setIsLoading(true);
+        setIsCompleting(false);
+        void resumeAnalysis(decision.taskId, buildCallbacks(runId), controller.signal);
+        return;
+      }
+      // A submit or reset made while the row loads supersedes the reload (the id moves).
+      const runId = analysisRunIdRef.current;
+      void fetch(`/api/analyses/${encodeURIComponent(decision.slug)}`, { signal: reloadController.signal })
+        .then(async (res) => settleAnalyzeRestore(res.status, await res.json().catch(() => null)))
+        .then((outcome) => {
+          if (runId !== analysisRunIdRef.current) return;
+          if (outcome.kind === "none") {
+            if (outcome.dropCrumb) setLastResultSlug(null);
+            return;
+          }
+          setAnalysis(outcome.analysis);
+          // The same path a live run's deep-dive takes: a persisted one fills the panel.
+          applyGithubDeepDive(outcome.analysis);
+          setRestored(true);
+        })
+        .catch(() => {
+          /* best-effort: an aborted (unmounted) or offline reload keeps the crumb for
+             the next visit; the form is simply empty, as it was before this layer. */
+        });
     }, 0);
-    return () => window.clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      reloadController.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -523,6 +591,9 @@ export function useAnalyzeForm() {
 
     setError(null);
     setAnalysis(null);
+    setRestored(false);
+    // A new run replaces the landed result; its own save receipt re-arms the crumb.
+    setLastResultSlug(null);
     setGithubAnalysis(null);
     setGithubError(null);
     setGithubWarning(null);
@@ -627,6 +698,6 @@ export function useAnalyzeForm() {
     flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
     library: { jdLibrary, jdLibraryState, jdLibraryTruncated, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
-    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress },
+    result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress, restored },
   };
 }

@@ -10,9 +10,11 @@
 // straight into a controlled <textarea> — the white-screen shape this repo has
 // already been bitten by once on the ?jd= deep link.
 //
-// Text plus the two run-config flags (blind, reportLang). File objects cannot
-// be serialized, so attachments must be re-added after a switch and the draft
-// never pretends otherwise.
+// Text plus the two run-config flags (blind, reportLang) — and nothing else. File
+// objects cannot be serialized, and a CV is candidate PII that must never reach
+// browser storage, so attachments are NOT part of this draft: they survive a switch
+// in module memory instead (analyzeAttachmentStore.ts) and end with a reload. The
+// landed result is its own layer (analyzeSession.ts, which declares all four).
 
 import { isLocale } from "@/i18n/locales";
 

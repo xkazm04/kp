@@ -5,9 +5,13 @@
 import { useCallback, useRef, useState } from "react";
 import { MAX_CV_VARIANTS } from "./AnalyzeTypes";
 import { admitCvFile, fitsWithinCap } from "./analyzeCvIntake";
+import { takeAnalyzeAttachments } from "./analyzeAttachmentStore";
 
 export function useAnalyzeCvFiles() {
-  const [cvFiles, setCvFiles] = useState<File[]>([]);
+  // Starts from the in-memory attachment store, so the variants a recruiter attached
+  // survive the tab unmounting on a sidebar switch (analyzeAttachmentStore.ts; empty on
+  // a fresh page, so the first render still matches SSR). useAnalyzeForm writes through.
+  const [cvFiles, setCvFiles] = useState<File[]>(() => [...takeAnalyzeAttachments().cvFiles]);
   // Latest cvFiles + a promise chain — back the serialized, race-free CV intake (addCvFile).
   const cvFilesRef = useRef<File[]>(cvFiles);
   const addCvSeqRef = useRef<Promise<unknown>>(Promise.resolve());
