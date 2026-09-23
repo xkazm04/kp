@@ -1,0 +1,130 @@
+[
+  {
+    "context": "cv-analysis-archetypes",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "base_sha": "36c7beedb",
+    "title": "One live archetype-registry reader: grid cache and fairness gate follow edits",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/archetype-live.ts",
+      "app/_lib/archetype-live.test.ts",
+      "app/_lib/archetypes.ts",
+      "app/_lib/archetype-registry.ts",
+      "app/_lib/matrix-cache.ts",
+      "app/_lib/matrix-cache.test.ts",
+      "app/api/matrix/route.ts",
+      "app/_lib/screen-wave.ts",
+      "app/_lib/automation-fairness.ts",
+      "app/_lib/automation-fairness.test.ts",
+      "docs/features/candidates/README.md",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/archetype-live.ts",
+      "app/_lib/archetype-live.test.ts"
+    ],
+    "shared_surfaces": [
+      "perf-budget.json (only if test:perf shows the task-hub or app/page.tsx graph grew; archetype-live.ts is server-only and lands on the screen-wave/automation-pass graph, not the client shell)"
+    ],
+    "acceptance": [
+      "archetype-live over a temp registry file that adds custom archetype 'ops_lead' (fairnessProtected:false, scoringModel experienced) -> liveIsKnownArchetype('ops_lead') === true, while the bundled isKnownArchetype('ops_lead') from archetypes.ts is still false (documents the gap the reader closes)",
+      "temp registry where custom 'ops_lead' is fairnessProtected:false, then the file is rewritten with fairnessProtected:true (and invalidateLiveRegistry() called, as writeRegistry now does) -> the next isFairnessProtectedLive('ops_lead') returns true with no process restart",
+      "shield is a UNION, never a loosening: for every id, isFairnessProtectedLive(id) >= isFairnessProtected(id) (bundle) — e.g. an id protected in the bundle but unprotected in the live file stays protected; an id unknown to both stays protected",
+      "registry file unreadable or invalid JSON -> isFairnessProtectedLive falls back to the bundled gate (bau -> false, student -> true, 'nope' -> true) and archetypeRegistryDigest() returns the fixed sentinel 'unreadable', never throws",
+      "archetypeRegistryDigest() is stable across two reads of identical bytes and changes when only the 'bau' weights change ({0.5,0.35,0.15} -> {0.6,0.25,0.15})",
+      "matrixCacheKey({workspaceId, profilesJson, jobIds, jobsJson, registryDigest:'a'}) !== matrixCacheKey({... same ..., registryDigest:'b'}) — so GET /api/matrix after a weight edit misses the LRU and re-spawns matrix_cli instead of serving the pre-edit grid",
+      "runScreenWave dry run (unit-db) with an entry whose archetype is registered only in the live file as fairnessProtected:true, score below floor, in the bottom % -> decision action 'keep' (shielded), and a committed run records NO 'fairness_gate_unknown_archetype' event for it (it is known, just not bundled)",
+      "assertAutoRejectFair({archetype:'ops_lead', matchScore:20}) with ops_lead live-protected -> {allowed:false} with the early-career/protected reason, not the 'unknown archetype' reason"
+    ],
+    "premise": [
+      "app/_lib/archetypes.ts:13 imports pipeline/jobfit/archetypes.json STATICALLY; :26-28 ARCHETYPE_LABEL and :45-48 FAIRNESS_PROTECTED are built once from that bundled copy; :74 isKnownArchetype and :93-95 isFairnessProtected answer from it",
+      "app/_lib/archetypes.ts:1-7 claims the TS<->Python desync is 'now structurally impossible', but app/_lib/archetype-registry.ts:114-119 admits the static copy 'refreshes on a dev rebuild' only, while :279-291 writeRegistry rewrites the same file at RUNTIME and :469-514 createArchetype / :401-440 updateArchetype are live operator endpoints (app/api/archetypes/route.ts:31-46, app/api/archetypes/[id]/route.ts:25-56)",
+      "app/_lib/archetype-registry.ts:418-422 refuses only fairnessProtected/scoringModel changes on built-ins — built-in WEIGHTS are editable at runtime (EDITABLE_FIELDS :185-193 includes 'weights')",
+      "pipeline/jobfit/registry.py:23 reads archetypes.json at import (every spawn), pipeline/jobfit/matching.py:61 builds WEIGHTS from it and :829-830 weights_for scores by it; pipeline/jobfit/matrix_cli.py:28/:122 scores the grid through score_job",
+      "app/_lib/matrix-cache.ts:89-104 matrixCacheKey hashes workspace + profiles + job ids + jobs only, and :38-39 says 'a stale entry is unreachable rather than expired' — with no TTL; app/api/matrix/route.ts:116 builds the key without any registry input, so a weight edit keeps serving the pre-edit grid from the LRU (capacity 8, matrix-cache.ts:22)",
+      "app/_lib/screen-wave.ts:7 and :229 gate auto-reject eligibility on the bundled isFairnessProtected; :339-345 records 'fairness_gate_unknown_archetype' for any id the BUNDLE lacks, so an archetype registered after build is audited as 'Unknown' on every committed wave",
+      "app/_lib/automation-fairness.ts:23/:50 re-asserts Python's reject with the same bundled gate, while pipeline/jobfit/automation.py:313 derives _EARLY_CAREER from the live file — the two runtimes read two copies, which the governing technique names as the failure mode"
+    ],
+    "rollback": "Three commits (reader + tests; matrix key axis; gate call sites + docs) revert cleanly: the bundled exports in archetypes.ts keep their signatures and client importers are untouched, the matrix LRU is in-memory (a revert just changes keys, no persisted state), and the live gate is a union with the bundled one, so reverting can only return to the pre-change shield, never a weaker one.",
+    "gate": "policy-tighten",
+    "runner_up": "Fold the registry digest into the analyze cache key (cache-key.ts) so a detection/weights edit stops serving stale v2Profile routing — deferred because the digest must be threaded through analyze-run.ts, which two r07 cards rewrite.",
+    "technique": "one-registry-shared-across-runtimes",
+    "body": "## Summary\nThe archetype taxonomy has one editable file but two physical reads: Python re-reads pipeline/jobfit/archetypes.json on every spawn, while the TS fairness gate and the matrix grid cache answer from a copy frozen at build time. Add one server-only live reader (mtime/size-memoised, content-digested, validated, fail-closed) and make the two server consumers that decide or cache on the registry follow it.\n\n## Description\nToday an operator can change the registry at runtime (create a custom archetype, flip a custom archetype's fairness flag, reweight a built-in). Python honours the change on its next spawn. The TS side does not: (1) GET /api/matrix keeps serving the pre-edit grid, because its content-addressed key hashes profiles and jobs but not the weights the scorer used, and the LRU has no TTL; (2) screen-wave and the automation re-check shield or refuse on the bundled copy, so a custom archetype registered after build is audited as 'Unknown archetype' on every wave, and a custom archetype whose shield is switched ON at runtime is still auto-reject-eligible in TS until the next deploy. The move: `app/_lib/archetype-live.ts` exposes `archetypeRegistryDigest()`, `liveIsKnownArchetype()` and `isFairnessProtectedLive()` (shield = bundled OR live OR unknown — it can only ever add protection), invalidated by `writeRegistry`. The digest becomes an explicit axis of `matrixCacheKey`. archetypes.ts keeps its client-safe exports; the pure gate predicate is factored so both readers share one rule.\n\n## Flow\n1. Write archetype-live.test.ts cases 1-5 and the matrix-cache digest case against a temp registry path (reader takes an injectable path).\n2. Implement archetype-live.ts: statSync mtime+size memo, sha1 digest of bytes, validate through the same validator archetype-registry uses, fall back to the bundle on any failure.\n3. archetype-registry.ts writeRegistry calls invalidateLiveRegistry() after rename.\n4. matrix-cache.ts adds `registryDigest`; api/matrix/route.ts passes archetypeRegistryDigest().\n5. screen-wave.ts and automation-fairness.ts swap to the live gate; the unknown-archetype audit fires only when the id is unknown to BOTH readers.\n6. Update docs/features/candidates/README.md (registry section) and docs/features/pipeline/README.md (fairness gate) — append-only, both docs are also touched by r07 cards.\n\n## Expected impact\nA registry edit takes effect on the TS side in the same process that accepted it: the grid re-scores after a reweight instead of lying until an LRU eviction, the fairness shield can be switched on for a custom population without a redeploy, and the audit trail stops calling a registered archetype 'Unknown'. The one-read invariant the header comment claims becomes true for every server decision.\n\n## Evaluation\nClaim: every server-side registry consumer that decides or caches follows the live file, and the shield can only grow.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate — node:test (archetype-live.test.ts, matrix-cache.test.ts, automation-fairness.test.ts, a screen-wave unit-db case) inside npm run test:unit, plus tsc, lint, test:perf.\nResult: pending build.\nGate: policy-tighten",
+    "evidence": "archetypes.ts:13 `import archetypeRegistry from \"@/pipeline/jobfit/archetypes.json\";`\narchetype-registry.ts:117-119 `The TS app also imports this JSON statically (app/_lib/archetypes.ts) for app-wide labels; that copy refreshes on a dev rebuild`\narchetype-registry.ts:289-290 `await writeFile(tmp, ...); await rename(tmp, target);` (runtime write)\nregistry.py:23 `_DATA ... = json.loads(Path(__file__).with_name(\"archetypes.json\").read_text(...))`\nmatching.py:61 `WEIGHTS ... = registry.weights_map()`; :830 `return WEIGHTS.get(archetype, WEIGHTS[\"bau\"])`\napi/matrix/route.ts:116 `const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson });`\nscreen-wave.ts:229 `... && !isFairnessProtected(e.archetype)` ; :343-344 records fairness_gate_unknown_archetype when !isKnownArchetype\nautomation-fairness.ts:23 `import { isFairnessProtected, isKnownArchetype } from \"./archetypes\";`\nCurrent registry ids (node): bau:false student:true career_switcher:true — all built-in, so any custom id is runtime-only today.\nimporters of archetypes.ts include client files (ArchetypeBanner.tsx, ProfileRosterRow.tsx, matchTypes.ts) — hence a separate server-only reader, not an fs read inside archetypes.ts.\nNot in any r07 write set: archetypes.ts, archetype-registry.ts, matrix-cache.ts, api/matrix/route.ts, screen-wave.ts, automation-fairness.ts."
+  },
+  {
+    "context": "cv-analysis-archetypes",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "base_sha": "36c7beedb",
+    "title": "Before Apply, show who on today's board the floor move pulls into reach",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/calibration-recommendation.ts",
+      "app/_lib/floor-move-preview.ts",
+      "app/_lib/floor-move-preview.test.ts",
+      "app/api/analytics/calibration/apply-threshold/route.ts",
+      "app/api/analytics/calibration/floor-preview/route.ts",
+      "app/api/analytics/calibration/floor-preview/route.test.ts",
+      "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx",
+      "app/features/insights/analytics/floorPreviewView.ts",
+      "app/features/insights/analytics/floorPreviewView.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/api/rate-limit-contract.test.ts",
+      "docs/architecture/api-reference.md",
+      "docs/features/analytics/README.md"
+    ],
+    "new_files": [
+      "app/_lib/calibration-recommendation.ts",
+      "app/_lib/floor-move-preview.ts",
+      "app/_lib/floor-move-preview.test.ts",
+      "app/api/analytics/calibration/floor-preview/route.ts",
+      "app/api/analytics/calibration/floor-preview/route.test.ts",
+      "app/features/insights/analytics/floorPreviewView.ts",
+      "app/features/insights/analytics/floorPreviewView.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/api/rate-limit-contract.test.ts",
+      "docs/architecture/api-reference.md (npm run api:docs)",
+      "perf-budget.json (floorPreviewView.ts joins the app/page.tsx graph via AnalyticsCalibrationPanel -> AnalyticsThresholdSuggestion: +1 module, ~3 KB)"
+    ],
+    "acceptance": [
+      "diffFloorMove(before, after) over two dry-run decision lists: entry e1 'keep' -> 'reject' lands in `entering`, e2 'reject' -> 'keep' in `leaving`, e3 unchanged in neither; each row carries entryId, label, matchScore, jobId",
+      "an entry that is below the proposed floor and in the bottom % but fairness-protected (archetype 'student') is counted in `shielded`, never in `entering`",
+      "previewFloorMove(ws, {suggestedThreshold: 50}) on a unit-db with Screened entries at 42/45/48 (bau, one role, autoReject on, bottom 100%) and a live floor of 40 -> entering = the three ids, leaving = [], and the pipeline rows, automation events and decision records are byte-identical before and after (a preview writes nothing)",
+      "family scope: previewFloorMove(ws, {suggestedThreshold: 50, roleFamily: 'software_engineering'}) moves only entries of that family; an entry of another family at 45 is in neither list",
+      "autoRejectEnabled false in the screening rule -> the preview returns {autoRejectOff: true, entering: [], leaving: []} and floorPreviewView renders the 'no live effect until auto-reject is on' state instead of counts",
+      "GET /api/analytics/calibration/floor-preview with no live recommendation -> 409 CALIBRATION_RECOMMENDATION_ABSENT (an existing code, no new catalog entries); the previewed threshold is ALWAYS the one apply-threshold would write, both derived by calibration-recommendation.ts",
+      "floorPreviewView groups rows per role, caps names at 5 per role with a '+N more' count, and builds each name's link as the board deep link (?tab=pipeline with the entry id)",
+      "viewer seat (no pipeline:write) -> 403 ANALYTICS_POLICY_FORBIDDEN, same as apply-threshold; the route calls rateLimit keyed `floor-preview:${ip}` and the rate-limit contract test pins it"
+    ],
+    "premise": [
+      "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:118-128 shows only the historical band sentence (lo/hi/pct/n) and the basis total; :147-154 the Apply button writes the live auto-reject floor with no view of today's cohort; :139-144 the confirmation reports only previous -> next numbers",
+      "app/api/analytics/calibration/apply-threshold/route.ts:123-131 writes the floor that decides who the screening wave rejects (:39-42) and :160 answers only {previousThreshold, newThreshold, roleFamily} — nobody is named before or after",
+      "app/_lib/screen-wave.ts:117-138 runScreenWave already takes a validated Partial<ScreeningRule> override and a dryRun flag; app/_lib/screen-wave-contract.ts:97-98 states a dry run 'ran the full ranking / fairness / tie-break math' with 'no status flipped, no email queued, no audit event written' — the exact predicate a preview needs, so no second copy of the reject rule is required",
+      "app/_lib/decision-config-schema.ts:810-823 validateScreeningOverride accepts maxMatchToReject and familyFloors, so both the global and the per-family apply can be previewed through the same override",
+      "the recommendation derivation is duplicated: apply-threshold/route.ts:79-95 and app/api/analytics/calibration/route.ts:77-133 each re-derive pairs + holdout + recommendScreeningThreshold; a preview route would be a third copy unless extracted",
+      "app/_lib/calibration.ts:255-320 recommendScreeningThreshold argues from historical bands only; nothing in calibration.ts or its routes projects a suggestion onto the currently active Screened cohort"
+    ],
+    "rollback": "The new route, the preview modules and the view are additive; apply-threshold keeps its wire contract and only swaps an inline derivation for the extracted helper (a revert restores the inline copy). The catalog keys are append-only in one commit under the shared-surface lock, so reverting that commit plus the feature commits returns the tree exactly; nothing persists (the preview is a dry run).",
+    "gate": "contract",
+    "runner_up": "Reweighting preview in the archetype manager — re-score the grid with proposed weights before saving — deferred: it needs a matrix_cli weights-override flag (Python) and pairs better after slot A's live reader lands.",
+    "technique": "deterministic-holdout-clean-arm",
+    "body": "## Summary\nThe calibration panel asks an operator to move the live auto-reject floor on historical evidence, but never shows what the move does to the candidates on the board today. The app already has the exact predicate (screen-wave's dry run). Put a named preview beside the Apply button: per role, who enters auto-reject reach, who leaves it, and who is fairness-shielded from it.\n\n## Description\nToday Apply is a blind policy change: the card states a band's past advance rate and the floor numbers, the click writes the floor, and the confirmation repeats the numbers. The next screening wave then previews a reject set the operator never connected to that click. The leap is to show consequence at the moment of decision. `calibration-recommendation.ts` extracts the live-recommendation derivation so apply and preview can never diverge. `floor-move-preview.ts` enumerates the workspace's roles with active Screened entries and runs `runScreenWave(jobId, override, {dryRun:true}, ws)` under the current rule and under the rule with the suggested floor (global or familyFloors[family]); a pure `diffFloorMove` turns the two decision lists into entering / leaving / shielded rows. `GET /api/analytics/calibration/floor-preview` (operator + pipeline:write, rate-limited like apply-threshold, not admitted by public-routes.ts) serves it; `floorPreviewView.ts` shapes it and ThresholdSuggestion renders it under the sentence, with names deep-linking to the board. It reuses existing refusal codes, so no new error codes are added; new catalog keys are the copy only.\n\n## Flow\n1. Write floor-move-preview.test.ts (unit-db) and floorPreviewView.test.ts cases first.\n2. Extract calibration-recommendation.ts from apply-threshold/route.ts:79-95; point apply-threshold at it (behaviour unchanged, its tests stay green).\n3. Implement floor-move-preview.ts (dry-run pair per role + pure diff).\n4. Add the floor-preview route with requireOperator, can('pipeline:write'), rateLimit; add the rate-limit contract row; run npm run api:docs.\n5. floorPreviewView.ts + ThresholdSuggestion block (tokens and recipes only, both themes); catalog keys in all four locales in one commit.\n6. Update docs/features/analytics/README.md (calibration section; append-only, an r07 card also touches this doc).\n\n## Expected impact\nMoving the floor stops being a number-only decision: the operator sees '3 candidates on Backend Engineer would come into auto-reject reach: Novák 42, ... ; 1 shielded (early-career)' before clicking, and can decline a move whose live effect is wrong. It also closes the recommend -> apply -> surprise gap the next screening wave used to open.\n\n## Evaluation\nClaim: before Apply, the panel names who on today's board the suggested floor moves, per role, using the same predicate the wave will use, and writes nothing.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate — node:test (floor-move-preview.test.ts on unit-db, floorPreviewView.test.ts, route.test.ts, rate-limit-contract.test.ts) in npm run test:unit, plus i18n:check, api:check, design:check, test:perf.\nResult: pending build.\nGate: contract",
+    "evidence": "AnalyticsThresholdSuggestion.tsx:78-82 `fetch(\"/api/analytics/calibration/apply-threshold\", { method: \"POST\", ... body: JSON.stringify({ suggestedThreshold: rec.suggestedThreshold, ...` — the only request the card makes.\napply-threshold/route.ts:160 `return NextResponse.json({ ok: true, previousThreshold: currentThreshold, newThreshold: rec.suggestedThreshold, roleFamily });`\nscreen-wave.ts:127 `opts?: { dryRun?: boolean; approval?: ...; spare?: readonly string[] }`; :140 `const dryRun = opts?.dryRun ?? false;`; :271 writes gated by `if (!dryRun)`; :343 audit marker gated by `!dryRun`.\nscreen-wave-contract.ts:97-98 `True for a PREVIEW (DEC2): the full ranking / fairness / tie-break math ran, but no status flipped, no email queued, no audit event written.`\nscreen-wave-family-floor.test.ts:6-10 shows the unit-db harness (testing/unit-db.ts first import) runScreenWave is already tested under.\nrate-limit-contract.test.ts:1742-1759 pins threshold-history and apply-threshold limiters — the preview does the same scans.\npublic-routes.ts has no /api/analytics entry (grep 'analytics' -> no match), so the new route is gated by default.\nPrior decks/backlogs: no floor/threshold preview title (grep of challenge-*/cards, leftover-develop-2026-09-17.jsonl, backlog-digest.json).\nNot in any r07 write set: AnalyticsThresholdSuggestion.tsx, apply-threshold/route.ts, calibration.ts, screen-wave.ts."
+  }
+]

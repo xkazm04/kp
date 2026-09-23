@@ -1,0 +1,37 @@
+{
+  "card": "llm-inference-runtime/B",
+  "title": "Spawn failures born typed: busy and timeout answered by code, not a regex",
+  "status": "landed",
+  "base": "dbcdecf66",
+  "shas": ["879ae0537", "944202890", "440950dfb", "07fb82065"],
+  "tests_added": [
+    "app/_lib/python-runner-spawn-failure.test.ts",
+    "app/api/match/engine-busy.test.ts"
+  ],
+  "tests_rewritten": [
+    "app/_lib/analyze-run.test.ts",
+    "app/_lib/applicant-profile-timeout.test.ts",
+    "app/api/jobs/[id]/winnability/winnability-spawn-timeout.test.ts",
+    "app/api/profile/profile-spawn-timeout.test.ts",
+    "app/api/extract-text/route.test.ts"
+  ],
+  "cases_red_before": 19,
+  "cases_green_after": 19,
+  "cases_total": 19,
+  "acceptance": "7 of 7 card cases (was 0 of 7); 19 node:test cases red-first across 7 files (spawn-failure 6 incl. the source guard, engine-busy 4, extract-text 3, winnability 2, profile 2, applicant-profile 1, analyze-run 1)",
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": null,
+    "design": null,
+    "docs": 0,
+    "api": 0,
+    "ratchet": 0,
+    "unit": 0,
+    "perf": 1
+  },
+  "files_changed": 21,
+  "lines_changed": 657,
+  "deviations_from_card": "Grew per the critic revision + coordinator: all SIX regex readers converted (card named 4) - added app/_lib/jobseeker-run.ts and app/_lib/analyze-run.ts (r07 is landed, so the card's reason to leave analyze-run untouched is gone); app/api/extract-text/route.test.ts and app/api/jobs/[id]/candidates/route.ts added; source guard added. Route cases (card: in the spawn-failure file) live in a separate app/api/match/engine-busy.test.ts because they need unit-db + next/headers hooks; they drive the REAL admission gate (node as PYTHON_CMD, ceiling 1, 50 ms queue), not a stub. Matrix is pinned at source (needs a seeded pool to reach its spawn). No thin isSpawnTimeout re-export in intake-run.ts (no caller needs it; readers import python-runner directly, which also took intake-run off extract-text's graph: 29->19 modules). PYTHON_CMD is now read per spawn (one-line change) so case 3 can swap the interpreter in-process. Commit order is chore(perf) -> feat -> test -> docs rather than test -> feat, so every commit is green (the rewritten source pins must land with the code they pin).",
+  "notes": "engineRefusal() is a clean export for llm-inference-runtime/A's lane test: engineRefusal(err) -> { code: 'ENGINE_BUSY', status: 503 } | null. SpawnFailure(kind, message) with kind timeout|aborted|output_overflow|spawn_failed; acquireSlot's admission-time aborts are SpawnFailure('aborted') too (A rewrites acquireSlot - keep that). Rollback/behaviour: SpawnFailure extends PipelineError, so (a) /api/jobs/[id]/candidates would have forwarded a timeout as 504 English text - it now EXCLUDES SpawnFailure from its forward branch and keeps 500 JOB_CANDIDATES_FAILED; (b) repo-scan-run.ts classifyRepoScanError (not in the write set) now classifies a non-aborted spawn timeout/overflow/ENOENT as engine_failed instead of unknown - judged more honest, accepted and stated in the feat body; (c) automation-pass.ts logs the argv-free message. analyze-run's generic branch still returns engineMsg verbatim, but a runner message no longer carries argv or temp paths; the task row (tasks.ts:705) likewise now stores an argv-free sentence. loop_open: tasks.ts stores error.message and TasksTableRow renders English engine text (the card's runner-up: a coded task failure) - not closed here; tasks.ts is A's file. perf: base+mine alone (git archive of dbcdecf66 + this card's files, evaluate() from check-budget.mjs) = one overage, app/_lib/job-ingest.ts 416->419 KB (ceiling 417) - raised to 419 under the lock with a why (879ae0537). The remaining test:perf reds on the working tree (app/page.tsx 1428 modules / 9096 KB, hire-from-need 3181 KB) are NOT this card's: base+mine measures page.tsx unchanged and hire-from-need 3160->3162 under its 3169 ceiling. tsc: exit non-zero only from the untracked foreign kpi-sim/ tree (present at base); zero errors on tracked paths. Full npm run test:unit: 10756/10756 pass, exit 0 (the known-flaky python-runner-concurrency tree-kill case passed in the full run; it failed once in isolation before the abort, on 'the child must have forked its grandchildren', unrelated to this change). app/api/matrix/route.ts is also in cv-analysis-archetypes/A's write set - it had no foreign hunks when committed; my hunk is only the catch block + import."
+}

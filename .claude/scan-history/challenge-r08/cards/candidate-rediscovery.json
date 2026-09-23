@@ -1,0 +1,116 @@
+[
+  {
+    "context": "candidate-rediscovery",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "base_sha": "2bc9fb574",
+    "title": "Alerts become a reconciled projection: one eligibility gate at rank, write and read",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/rediscovery-eligibility.ts",
+      "app/_lib/rediscovery-eligibility.test.ts",
+      "app/_lib/rediscover.ts",
+      "app/_lib/rediscovery-alert-store.ts",
+      "app/_lib/rediscovery-alert-reconcile.test.ts",
+      "app/_lib/rediscovery-consent-rank.test.ts",
+      "app/api/rediscovery/alerts/route.ts",
+      "app/api/rediscovery/alerts/sweep-tenancy.test.ts",
+      "docs/features/jobs/README.md"
+    ],
+    "new_files": [
+      "app/_lib/rediscovery-eligibility.ts",
+      "app/_lib/rediscovery-eligibility.test.ts",
+      "app/_lib/rediscovery-alert-reconcile.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "withheldCandidateIds(['c-halted']) where c-halted has an outreach_state row with candidate_halt_at set on ANY of its entries -> Map { 'c-halted' => 'opted_out' }; an anonymized id -> 'anonymized'; a lapsed-consent id -> 'consent_expired'; a recruiter-sourced id with no entries -> absent (contactable).",
+      "recordRediscoveryAlerts(jobY, 'Role Y', [row for c-halted]) -> returns 0 and listRediscoveryAlerts(ws) holds no row for c-halted (today the write wall at rediscovery-alert-store.ts:128 checks consent only, so the opted-out person's name is persisted).",
+      "An alert for c1 is recorded, THEN c1 opts out via outreach_state.candidate_halt_at -> liveRediscoveryAlerts(ws) (the exported read the GET/POST feed uses) omits it (today relevantAlerts in route.ts:29-50 checks only published + has-entry, so the row still renders with an Add button).",
+      "An alert for c2 is recorded, THEN anonymizeEntry(c2's prior entry) runs -> liveRediscoveryAlerts(ws) omits it (today the row stays visible, label masked to 'First L.' by db/pipeline.ts:2482-2483).",
+      "reconcileRediscoveryAlerts(jobY, 'Role Y', qualifying=[], evaluated=['c3'], ws) where c3 has an UNDISMISSED alert for jobY -> the row is deleted and the result reports {retracted:1}; a DISMISSED alert for c3 on jobY is left untouched (dismissal stays sticky).",
+      "reconcileRediscoveryAlerts(jobY, ..., qualifying=[], evaluated=[], ws) (ranking failed, or c3 fell outside a truncated pool) -> c3's undismissed alert is KEPT: absence from an incomplete ranking is not evidence of disqualification.",
+      "reconcileRediscoveryAlerts(jobY, ..., qualifying=[{c4, score 82, prior depth 3}], evaluated=['c4'], ws) where c4 already has an undismissed alert at score 71 -> the row now reads score 82 / depth 3 and the returned `added` count is 0 (an update is not a new alert); a dismissed row for c4 is not rewritten.",
+      "Source guard: rediscover.ts and app/api/rediscovery/alerts/route.ts both import withheldCandidateIds from ./rediscovery-eligibility, and neither calls suppressedCandidateIds/optedOutCandidateIds directly (the refilter runs the SAME predicate as the sweep)."
+    ],
+    "premise": [
+      "app/_lib/rediscover.ts:143-146 - the rank-time gate is composed inline: suppressedCandidateIds(...) + optedOutCandidateIds(...) -> withheld(id).",
+      "app/_lib/rediscovery-alert-store.ts:119-129 - the write wall ('the second wall so no future caller can write an unconsented alert past it') calls ONLY suppressedCandidateIds; opt-out is not part of it.",
+      "app/_lib/rediscovery-alert-store.ts:138-142 - INSERT OR IGNORE: an existing undismissed row's score/prior are never refreshed by a re-raise, and nothing ever retracts a row whose candidate no longer clears the floor; only pruneRediscoveryAlerts (:203-221) deletes, by age (90 days undismissed, :193).",
+      "app/api/rediscovery/alerts/route.ts:29-50 - the feed read refilters on role published + candidate has any entry in the role; no consent, erasure or opt-out re-check at read.",
+      "app/_lib/db/pipeline.ts:2482-2483 - erasure MASKS rediscovery_alerts.candidate_label/prior_label but leaves the row live, so the feed keeps offering 'Add to pipeline' for an erased person.",
+      "app/api/jobs/[id]/candidates/outreach/route.ts:136-151 - consent + opt-out are re-checked only at the send door; the feed's Add goes to /api/pipeline POST, which has no suppression check (app/api/pipeline/route.ts:123-161).",
+      "app/_lib/rediscover.ts:254-255 - raiseRediscoveryAlertsForJob passes only `rediscovered` to recordRediscoveryAlerts; the set of candidates that WERE ranked (ranked.candidates at :156-165) is discarded, so no caller can tell 'ranked and no longer qualifies' from 'never ranked'.",
+      "Registry: .ai/registry-map.json pairs candidate-rediscovery with silver-medalist-rediscovery (state deviation, for the elsewhere branch - NOT this card); technique read-time-relevance-refilter: 'Filter when the list is rendered... anything visible is currently actionable' and 'The refilter runs the same predicate as the sweep.'"
+    ],
+    "rollback": "Three commits (eligibility module + callers; reconcile in the store + raise; feed read refilter) each revert cleanly: no schema change (reconcile is DELETE/UPDATE on existing columns of rediscovery_alerts, already in the tenancy manifest), no wire field added to GET /api/jobs/[id]/rediscover (the route picks fields explicitly at :38-58, so the internal `evaluated` list never ships). Reverting restores the INSERT OR IGNORE snapshot behaviour; rows deleted by a retraction are re-raised by the next sweep if still eligible.",
+    "gate": "policy-tighten",
+    "runner_up": "Event-driven rediscovery: rank a newly saved profile/analysis against every published role on arrival (1 candidate x N roles) instead of the Refresh sweep's N roles x 160-pool fan-out.",
+    "technique": "read-time-relevance-refilter",
+    "body": "## Summary\nRediscovery decides 'may this person be surfaced?' in three places with three different answers: the rank gate checks consent AND opt-out, the alert write wall checks consent only, and the feed read checks neither. Alerts are write-once snapshots that are never refreshed or retracted. Extract ONE person-level predicate (`withheldCandidateIds`) and make the alert table a reconciled projection of the latest complete ranking, refiltered at read by the same predicate.\n\n## Description\n`app/_lib/rediscovery-eligibility.ts` owns `withheldCandidateIds(ids) -> Map<id, 'anonymized'|'consent_expired'|'opted_out'>`, composing `suppressedCandidateIds` (alert store) and `optedOutCandidateIds` (outreach-state-store), fail-closed exactly as both halves already are. It imports the two store slices directly, never the db barrel, and the alert store does NOT import it (no cycle): the store's write wall takes opt-out by importing `optedOutCandidateIds` from `./outreach-state-store` (which imports only ./db/core, ./db/workspaces, ./outreach-halt).\n\n`rediscoverForJob` swaps its inline gate (:143-146) for the module and additionally returns an internal `evaluated: string[]` (ids the ranker returned) plus `withheld: string[]`. The GET rediscover route keeps picking fields explicitly, so neither reaches the wire. The store gains `reconcileRediscoveryAlerts(jobId, jobTitle, qualifying, evaluated, ws)`: INSERT new rows, UPDATE score/prior on undismissed existing rows, DELETE undismissed rows for this job whose candidate was evaluated (or withheld) and no longer qualifies. It never touches dismissed rows and never retracts a candidate absent from `evaluated`. `raiseRediscoveryAlertsForJob` calls it; its RaiseOutcome gains `retracted`. The feed's `relevantAlerts` becomes an exported `liveRediscoveryAlerts(ws)` in rediscover.ts that adds the eligibility refilter over the alert candidate ids (one batched read per call, the pool-sized chunks the gates already use).\n\nNon-goals: the `elsewhere` population deviation already recorded in registry-map (a separate policy call); a background per-tenant sweep; the /api/pipeline add door (pipeline-api context).\n\n## Flow\n1. Publish or Refresh -> rediscoverForJob -> withheldCandidateIds filters the pool -> rank -> {rediscovered, evaluated, withheld}.\n2. raiseRediscoveryAlertsForJob -> reconcileRediscoveryAlerts: insert new, refresh live, retract ranked-but-no-longer-qualifying and withheld (undismissed only). A failed ranking reaches the catch at :256 and reconciles nothing.\n3. GET/POST /api/rediscovery/alerts -> liveRediscoveryAlerts(ws) -> published + not-in-role + withheldCandidateIds refilter -> the feed shows only rows that can currently be acted on.\n\n## Expected impact\nAn opted-out, erased or lapsed person disappears from the shared feed the moment their state changes, instead of staying there for up to 90 days with an Add button. A score change after a JD edit or a new CV is reflected on the next sweep instead of frozen at the first one. The predicate lives in one module, so the next door that reads alerts (a digest, a notification) cannot fork it. Perf: no new module on app/page.tsx (all server-side, in _lib + one API route); the API route graph grows by one module.\n\n## Evaluation\nClaim: one eligibility predicate gates rank, write and read, and alerts reconcile against the latest complete ranking.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test cases in rediscovery-eligibility.test.ts and rediscovery-alert-reconcile.test.ts over the unit DB (testing/unit-db.ts first import), plus the updated source guard in rediscovery-consent-rank.test.ts; npm run test:unit, tsc, lint.\nResult: pending build.\nGate: policy-tighten.",
+    "evidence": "rediscover.ts:143-146\n  const suppression = suppressedCandidateIds(pool.map((p) => p.id));\n  const optedOut = optedOutCandidateIds(pool.map((p) => p.id));\n  const withheld = (id: string) => suppression.has(id) || optedOut.has(id);\nrediscovery-alert-store.ts:128-129 (write wall, consent only)\n  const suppressed = suppressedCandidateIds(rows.map((r) => r.candidateId));\n  const admissible = suppressed.size === 0 ? rows : rows.filter(...)\nrediscovery-alert-store.ts:139 INSERT OR IGNORE INTO rediscovery_alerts\nroute.ts:37-49 filterRelevantAlerts(listRediscoveryAlerts(ws), (jobId)=>statuses[jobId]==='published', (jobId,cid)=>(outcomes.get(cid)??[]).some(o=>o.jobId===jobId))  // no consent/opt-out\ndb/pipeline.ts:2483 UPDATE rediscovery_alerts SET candidate_label = ?, prior_label = ? WHERE candidate_id = ?  // masks, keeps the row live\ngrep optedOut|candidate_halt over app/_lib/rediscover*.test.ts app/_lib/rediscovery*.test.ts app/api/rediscovery/alerts/*.test.ts -> 0 files (the opt-out half of the gate is untested at write and read).\nrediscovery-consent-rank.test.ts:124 source guard looks for 'suppressedCandidateIds(pool.map' - must be updated in the same change (in write set).\nPrior titles checked: leftover-develop (4 open candidate-rediscovery items: pool dedupe, matchedSkills, recency boost, timeline chapters), backlog-digest, every challenge-*/cards title - none overlap."
+  },
+  {
+    "context": "candidate-rediscovery",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "base_sha": "2bc9fb574",
+    "title": "Silver-medalist feed goes person-first: one row per person, roles ranked, reach out",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "app/features/library/jobs/jobsRediscoveryFeedGroups.ts",
+      "app/features/library/jobs/jobsRediscoveryFeedGroups.test.ts",
+      "app/features/library/jobs/jobsRediscoveryFeedLogic.ts",
+      "app/features/library/jobs/jobsRediscoveryFeedTypes.ts",
+      "app/features/library/jobs/JobsRediscoveryFeed.tsx",
+      "app/features/library/jobs/JobsRediscoveryFeedRow.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/jobs/README.md"
+    ],
+    "new_files": [
+      "app/features/library/jobs/jobsRediscoveryFeedGroups.ts",
+      "app/features/library/jobs/jobsRediscoveryFeedGroups.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json"
+    ],
+    "acceptance": [
+      "groupAlertsByPerson([Jana x Y 78 d0, Jana x Z 71 d0, Petr x Y 80 d0]) -> two groups, Petr first then Jana; Jana's roles ordered [Y, Z]; ordering uses byPriorAwareRank from app/_lib/rediscovery-rank.ts on {score, depth}.",
+      "Band: Jana x Y 76 depth 3 vs Petr x Y 78 depth 0 -> Jana's group sorts first (76+3 > 78); Jana x Y 70 depth 5 vs Petr x Y 80 depth 0 -> Petr first (the band is never crossed).",
+      "Pair-keyed outcome: markPair(state, 'jana', 'Y', 'added') -> pairStatus(state, 'jana', 'Y') === 'added' and pairStatus(state, 'jana', 'Z') === 'open' (today `added` is a Set of candidateIds, so Feed.tsx:80 renders 'Added' on Jana x Z too and feedLogic.ts:185 refuses to add her to Z).",
+      "A group with Y added and Z open -> groupView(...).next is Z (the best still-open role), done = [Y]; the row's primary action targets Z, not the role already filed.",
+      "reachOutVerdict('suppressed_anonymized') applied to Jana x Y -> every role in Jana's group becomes 'withheld' (a person-level refusal); reachOutVerdict('already_sent') on Jana x Y -> only the Y pair changes.",
+      "Removing Jana x Y (dismiss) leaves Jana's group with [Z]; removing Z as well drops the group; restoreRow of Y re-inserts it and the group re-sorts to [Y, Z].",
+      "A legacy row (prior.stage null, prior.depth null) groups normally with depth treated as 0 (never NaN in the comparator)."
+    ],
+    "premise": [
+      "app/_lib/rediscovery-alert-store.ts:74-75 - alerts are keyed UNIQUE (workspace_id, job_id, candidate_id): one person who clears N published roles is N rows.",
+      "app/_lib/rediscovery-alert-store.ts:233 - the feed is ordered `created_at DESC, score DESC`, not by the prior-aware rank the panel uses (rediscover.ts:215-217), so a person's best role is not first.",
+      "app/features/library/jobs/JobsRediscoveryFeed.tsx:76-88 - one <li> per alert; `added={added.has(a.candidateId)}`, `pending={pending.has(a.candidateId)}`, `error={rowError.get(a.candidateId)}` - outcome state is keyed by PERSON while rows are PERSON x ROLE.",
+      "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:185 - `if (pending.has(a.candidateId) || added.has(a.candidateId)) return;` blocks adding the same person to a second role; :225-227 the deferred dismiss removes only `a.id`, so the person's other rows keep a false 'Added' badge until reload.",
+      "app/features/library/jobs/JobsRediscoveryFeedRow.tsx:67-91 - the feed row offers only Add to pipeline + Dismiss; the on-demand panel (JobsRediscoverPanel.tsx:182-193) offers Reach out, so contacting a surfaced person from the feed means opening the role's posting modal and re-finding them.",
+      "app/_lib/useReachOut.ts:83 - postReachOut(jobId, c, source) is an exported per-call function (not bound to one job like the hook at :129), so a cross-role feed can reach out per pair; reachOutVerdict at :68 already classifies the verdict.",
+      "app/_lib/rediscovery-rank.ts:14 - the rank module's only import is ./pipeline-stages (which has no imports), so byPriorAwareRank is client-safe to reuse.",
+      "Registry: silver-medalist-rediscovery golden path - 're-approach them as a person who was told no rather than as a row that matched a query'."
+    ],
+    "rollback": "Client-only: the wire shape of /api/rediscovery/alerts is unchanged (grouping is derived in the browser from the same Alert[]), so reverting the commit series restores the flat list with no server or data effect. The locale keys are additive and are removed in the same revert.",
+    "gate": "none",
+    "runner_up": "Age every alert on the feed ('surfaced 12 days ago') and re-rank a row older than a horizon before offering Add, instead of acting on a stale snapshot.",
+    "technique": "band-limited-prior-depth-boost",
+    "body": "## Summary\nThe standing feed lists person x role pairs, so a strong silver medalist who clears four open roles is four rows, in insertion order, and the feed's outcome state is keyed by person: adding her to one role badges every row 'Added' and blocks the others. Re-cut the feed around the person: one row per silver medalist, her qualifying roles ranked by the same prior-aware comparator the panel uses, a per-role choice, and Reach out in place.\n\n## Description\nNew pure module `jobsRediscoveryFeedGroups.ts`: `groupAlertsByPerson(alerts)` -> `{candidateId, label, roles: Alert[] (byPriorAwareRank), best}` sorted by each group's best role; a pair-keyed outcome map (`pairKey(candidateId, jobId)` -> 'open'|'pending'|'added'|'reached'|'withheld'|'error') with `markPair` and a person-level `markPerson` for refusals that are about the person (anonymized/suppressed); and `groupView(group, outcomes) -> {next, done, withheld}`. jobsRediscoveryFeedLogic swaps its three candidate-keyed collections for the pair map, adds a `reachOut(alert)` built on `postReachOut` + `reachOutVerdict`, and derives groups with useMemo from the unchanged flat `alerts` (so extractRow/restoreRow in jobsRediscoveryDismiss.ts keep working). The row renders the person once: the best open role with its why-now line (unchanged whyNow.* keys), a compact 'also clears' list of the other roles with their scores, and per-role Add / Reach out / Dismiss. New copy: `rediscoveryFeed.alsoClears`, `rediscoveryFeed.reachOut`, `rediscoveryFeed.reaching`, `rediscoveryFeed.reached`, `rediscoveryFeed.withheld`, `rediscoveryFeed.roleCount` in all four catalogs (no em dashes; i18n:check), and any refusal rendered through useErrorMessage, never the server string.\n\nPerf: the feed is imported statically by JobsTab.tsx:11, so the new module adds 1 module to the app/page.tsx graph (useReachOut is already in the Jobs graph via JobsRediscoverPanel <- JobsPostingModal); run test:perf and settle perf-budget.json under the shared-surface lock if it moves. No new route, no new error code.\n\n## Flow\n1. Feed loads Alert[] (unchanged GET).\n2. groupAlertsByPerson -> one row per person, best-ranked open role first.\n3. Recruiter picks a role: Add (existing POST /api/pipeline, source rediscovery) or Reach out (existing POST /api/jobs/[id]/candidates/outreach) -> only that pair's outcome changes; a person-level refusal marks the whole person withheld.\n4. The deferred dismiss removes only the acted pair; the person's other roles stay actionable.\n\n## Expected impact\nThe decision the recruiter actually makes ('where does this person fit best, and do I contact her now?') is made once per person with the options side by side, instead of scattered across rows in insertion order. The false 'Added' badge on roles she was never filed to disappears. Discover -> contact collapses from feed -> open role -> Rediscover panel -> find her -> Reach out, to one click on the feed.\n\n## Evaluation\nClaim: the feed groups by person, ranks her roles with the panel's comparator, and tracks outcomes per pair with person-level refusals.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test over jobsRediscoveryFeedGroups.ts (pure, no React) in jobsRediscoveryFeedGroups.test.ts; npm run i18n:check, design:check, test:perf, tsc, lint.\nResult: pending build.\nGate: none.",
+    "evidence": "JobsRediscoveryFeed.tsx:80-82\n  added={added.has(a.candidateId)}\n  pending={pending.has(a.candidateId)}\n  error={rowError.get(a.candidateId)}\njobsRediscoveryFeedLogic.ts:185  if (pending.has(a.candidateId) || added.has(a.candidateId)) return;\njobsRediscoveryFeedLogic.ts:227  void dismiss(a.id, a.candidateId);   // only the acted pair's alert\nrediscovery-alert-store.ts:74-75  CREATE UNIQUE INDEX ... ON rediscovery_alerts(workspace_id, job_id, candidate_id)\nrediscovery-alert-store.ts:233   ORDER BY created_at DESC, score DESC\nJobsRediscoveryFeedRow.tsx: buttons = UserPlus Add + X Dismiss only; JobsRediscoverPanel.tsx:182-193 has the Send Reach out button.\nuseReachOut.ts:83 export async function postReachOut(jobId, c, source)\nmessages/en.json jobs.rediscoveryFeed has no reachOut/alsoClears keys today.\nNot a restatement: leftover jobs-rediscovery items are 'Page GET rediscover past REDISCOVER_LIMIT', 'Dismiss on the on-demand panel and honor standing-feed dismissals', 'Batch-add the visible silver-medalist page' - all panel-side; no challenge card touches the feed. Write set is disjoint from every r07 card (jobs-table-core writes JobsTable/JobsTabResults/useJobsList, not the feed files; docs/features/jobs/README.md is shared, append-only)."
+  }
+]

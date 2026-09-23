@@ -1,0 +1,100 @@
+[
+  {
+    "context": "tests-matching-taxonomy",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "CLI tests read the wire through the bridge's own reader, one harness",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 4,
+    "base_sha": "36c7beedb0a7143bb7fccb67871fe99f6d8bfff8",
+    "write_set": [
+      "pipeline/jobfit/tests/_helpers.py",
+      "pipeline/jobfit/tests/test_bridge_reader.py",
+      "pipeline/jobfit/tests/fixtures/bridge_read_cases.json",
+      "app/_lib/python-runner-bridge-cases.test.ts",
+      "pipeline/jobfit/tests/test_match_cli.py",
+      "pipeline/jobfit/tests/test_matrix_cli.py",
+      "pipeline/jobfit/tests/test_group_compare_cli.py",
+      "pipeline/jobfit/tests/test_winnability.py",
+      "pipeline/jobfit/tests/test_agentfit.py"
+    ],
+    "new_files": [
+      "pipeline/jobfit/tests/test_bridge_reader.py",
+      "pipeline/jobfit/tests/fixtures/bridge_read_cases.json",
+      "app/_lib/python-runner-bridge-cases.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "run_cli(main, argv, files={...}) over a CLI whose stdout is '{\"a\":1}\\nResourceWarning: unclosed file' -> CliRun.payload == {'a': 1} (the bridge's parsePythonJson scans back for the last JSON object; today test_match_cli's json.loads(out.getvalue()) raises JSONDecodeError on the same bytes)",
+      "stdout whose only JSON line is the bare scalar '42' -> read_stdout_payload raises BridgeReadError (parsePythonJson skips scalars and throws); stdout '' -> BridgeReadError, never the silent {} that `out.getvalue() or \"{}\"` yields today",
+      "stderr 'DeprecationWarning: x\\n{\"error\":\"job not found: j\",\"status\":404,\"code\":\"not_found\"}' -> CliRun.envelope == {message:'job not found: j', status:404, code:'not_found'} (last non-empty line, as parseStderrError)",
+      "stderr envelope with status 404 and no code -> code 'not_found'; blank code '  ' -> derived from status; plain-text stderr with exit 2 -> status 400 code 'invalid_input'; plain-text with exit 1 -> status 500 code 'engine_error' (codeForStatus + the exit-2 rule ported)",
+      "every row of pipeline/jobfit/tests/fixtures/bridge_read_cases.json produces the SAME {payload | error} through the Python reader (test_bridge_reader.py) and through the real parsePythonJson/parseStderrError (app/_lib/python-runner-bridge-cases.test.ts) — one case table, two readers, a disagreement fails both suites",
+      "reasoning_cli --job-id job-db-only-cli-test without --jobs-json, run through run_cli -> envelope.code == 'not_found' and status == 404 (today test_match_cli.py:185-186 asserts only exit 1 and the English message, so a regression to an uncoded 500 stays green)",
+      "any CliRun whose envelope carries a code outside _cli.ERROR_CODES fails at read time with the offending code named (the check test_winnability.py:624-635 performs for one CLI becomes the harness's default for all five)",
+      "grep -c 'redirect_stdout\\|redirect_stderr\\|TemporaryDirectory' over the five migrated files drops from 28 lines (match_cli 5, matrix_cli 6, group_compare_cli 2, winnability 9, agentfit 6) to <= 3 (the three remaining are the mock-patched ledger/provider cases in test_agentfit.py and test_group_compare_cli.py that need their own context); the migrated suites keep every existing assertion"
+    ],
+    "premise": [
+      "app/_lib/python-runner.ts:512-531 parsePythonJson: splits stdout, scans lines from the END, returns the first that parses to an object/array, skips bare scalars, throws with stdout+stderr detail otherwise",
+      "app/_lib/python-runner.ts:559-578 parseStderrError: reads the LAST non-empty stderr line; status defaults to 400 when exitCode === 2 else 500; code = emitted non-blank code ?? codeForStatus(status) (codeForStatus at :541-546)",
+      "pipeline/jobfit/tests/test_match_cli.py:64 `json.loads(out.getvalue() or \"{}\")` parses the WHOLE stdout (a trailing line breaks it; an empty stdout reads as {}); :83-84 the same for stdout AND stderr of reasoning_cli; :182-186 asserts `result[\"code\"] == 1` and the message only — the not_found code is never read",
+      "pipeline/jobfit/tests/test_matrix_cli.py:229-248 _run, then two further inline copies of the same tempdir+redirect+whole-stdout parse at :343-362 and :384-402",
+      "pipeline/jobfit/tests/test_group_compare_cli.py:57-71 its own _run + _input_file; the envelope is re-parsed inline at :79, :87 and :96 as `[ln for ln in err.splitlines() if ln.strip()][-1]`",
+      "pipeline/jobfit/tests/test_winnability.py:523-534 reads stdout as `splitlines()[-1]` (strict last line, not the bridge's scan-back); :580-595 a second harness for stderr; :624-635 is the ONLY place in the context that checks `env[\"code\"] in _cli.ERROR_CODES`",
+      "pipeline/jobfit/tests/test_agentfit.py:169-188, :206-222, :227-236 three more tempdir+redirect harnesses, stdout read as `strip().splitlines()[-1]`",
+      "pipeline/jobfit/tests/_helpers.py:1-62 is the suite's shared-factory module (mkjob, env) and carries no CLI runner",
+      "app/_lib/python-runner-stderr.test.ts:13 already imports parseStderrError via `await import(\"./python-runner.ts\")` — the TS half needs no new seam"
+    ],
+    "rollback": "Test-only series: the harness + case table land in one commit, each migrated file in its own; reverting restores the open-coded harnesses verbatim and no production module is touched.",
+    "gate": "none",
+    "runner_up": "Publish the credit ladder (exact 1.0 / specialization 0.9 / generalization 0.55 / sibling 0.4) as one public taxonomy constant: tests reach into tax._PARENTS/_SIBLING_MATCH/_GENERALIZATION_MATCH/matching._MATCH_THRESHOLD and hard-code 0.9/0.55 in test_taxonomy_graph.py:409,413 and test_sibling_credit.py:195-196,307-310.",
+    "technique": "assert-through-the-reader",
+    "body": "## Summary\nEvery CLI test in this context builds its own tempdir + redirect harness and parses the process output its own way — whole-stdout `json.loads`, strict last line, or last non-blank stderr line — and none of them reads it the way `app/_lib/python-runner.ts` does. Replace the eight open-coded harnesses with one `run_cli` in `_helpers.py` whose readers are ports of `parsePythonJson` and `parseStderrError`, pinned to the real TS functions by one shared case table that both languages run.\n\n## Description\nThe CLIs exist to be read by one program: the Next bridge. Its reader scans stdout backwards for the last JSON object (skipping trailing interpreter chatter and bare scalars) and takes the envelope from the last non-empty stderr line, deriving a code from status and exit 2. The Python tests assert on a different reader. `test_match_cli.py:64` parses the whole of stdout and turns an empty stdout into `{}`; `test_winnability.py:534` and `test_agentfit.py:188` take the strict last line; `test_group_compare_cli.py` re-parses the envelope inline three times. The result is stricter than production in one place (a harmless trailing warning goes red) and looser in another (a silent empty stdout reads as `{}`). The envelope contract gets checked unevenly too: only `test_winnability.py:624-635` asserts the emitted code is in `_cli.ERROR_CODES`, and `test_match_cli.py:182-186` pins reasoning_cli's not-found path by exit code and English message alone, so that path could fall back to an uncoded 500 and the tests would stay green.\n\nThe move: `_helpers.run_cli(main, argv, files=...) -> CliRun(code, payload, envelope, stdout, stderr)` writes the input files, captures both streams, and reads them through `read_stdout_payload` / `read_stderr_envelope`, which port the TS readers line for line. `CliRun` also checks the envelope vocabulary by default. A JSON case table, `pipeline/jobfit/tests/fixtures/bridge_read_cases.json`, gives stdout, stderr and exit code with the expected read. `test_bridge_reader.py` runs it through the port, and `app/_lib/python-runner-bridge-cases.test.ts` runs it through the real TS functions, so the port cannot drift from the reader it stands for. The five CLI test files then migrate onto the harness. Each keeps its assertions and drops its scaffolding.\n\n## Flow\n1. Author the case table (≈12 rows: trailing noise, scalar-only, empty, pre-result warning, envelope with/without/blank code, plain-text stderr at exit 1 and 2). 2. TS test: feed each row to `parsePythonJson`/`parseStderrError`, compare to `expect`. 3. Python port + `run_cli` + `test_bridge_reader.py` over the same rows. 4. Migrate test_match_cli (and add the not_found code assertion), test_matrix_cli, test_group_compare_cli, test_winnability, test_agentfit — mock-patched provider/ledger cases keep their own `mock.patch` context around `run_cli`. 5. Gate.\n\n## Expected impact\nAll five CLI suites in the Match / Fit Matrix / group-eval / winnability / agent-fit lane assert what the bridge will actually hand to the route, and every coded envelope has its vocabulary checked without anyone having to remember. About 8 harness copies (roughly 150 lines) collapse into one helper. The next CLI test gets bridge fidelity at no extra cost, and the other ~30 suite files that redirect stdio (grep count) have a shape to migrate to later.\n\n## Evaluation\nClaim: the CLI tests read process output through a port of the bridge's reader, pinned to the TS original by a shared case table.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate — `npm run test:python:gate` (test_bridge_reader + the five migrated files) and `npm run test:unit` (python-runner-bridge-cases.test.ts); the case table rows are the oracle for both.\nResult: pending build.\nGate: none.",
+    "evidence": "python-runner.ts:513-523 `const lines = stdout.split(/\\r?\\n/)...; for (let i = lines.length - 1; i >= 0; i--) { ... if (parsed !== null && typeof parsed === \"object\") return parsed` ; :560-567 `const lastLine = trimmed.split(/\\r?\\n/).filter(Boolean).pop()` ... `exitCode === 2 ? 400 : 500`.\ntest_match_cli.py:64 `return {\"code\": code, \"payload\": json.loads(out.getvalue() or \"{}\")}` ; :185-186 `self.assertEqual(result[\"code\"], 1)` / `self.assertIn(\"job not found\", result[\"error\"][\"error\"])` (reasoning_cli.py:61 raises not_found -> code never asserted).\ntest_winnability.py:534 `json.loads(buf.getvalue().strip().splitlines()[-1])`; test_agentfit.py:188 `json.loads(out.getvalue().strip().splitlines()[-1])`; test_matrix_cli.py:248,362,402 `json.loads(out.getvalue() or \"{}\")`.\n`grep -c 'redirect_stdout\\|redirect_stderr'` per file in pipeline/jobfit/tests: test_winnability 3, test_matrix_cli 3, test_match_cli 3, test_agentfit 3, test_group_compare_cli 1 (plus TemporaryDirectory/_input_file copies); suite-wide 35 files redirect stdio.\n_helpers.py exports only STRONG_SKILL_SCORE, PARTIAL_SKILL_SCORE, MIN_CONFIDENCE_SPREAD, MIN_LINKEDIN_TEXT_LEN, mkjob, env."
+  },
+  {
+    "context": "tests-matching-taxonomy",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Transferable signals derive their feminine forms; the gender scan reads them",
+    "size": "M",
+    "effort": 5,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "36c7beedb0a7143bb7fccb67871fe99f6d8bfff8",
+    "write_set": [
+      "pipeline/jobfit/transferable.py",
+      "pipeline/jobfit/taxonomy_check.py",
+      "pipeline/jobfit/tests/test_transferable_gender.py",
+      "pipeline/jobfit/tests/test_taxonomy_gender.py",
+      "docs/features/matching/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [],
+    "acceptance": [
+      "map_transferable([Evidence(kind='job', title='Právnice', text='Odpovědnost za výsledky týmu.')]) includes 'analytical thinking', 'attention to detail' and 'negotiation' — the same set 'Právník' and 'Právnička' earn (today: only the four generic professional skills)",
+      "negative control: map_transferable([Evidence(kind='job', title='Účetní', text='Účetnictví právnických osob')]) does NOT include 'negotiation' (a derived STEM 'právnic' would substring-hit 'právnických'; the derivation must use the full feminine word forms, not the stems)",
+      "scan over the AUTHORED transferable signals with derive=False reports ('právník' -> 'právnice'); with derive=True it reports []",
+      "a planted signal group (('zámečník',), ('x',)) passed to the scan with derive=False is reported as a transferable-signal gap; derive=True closes it",
+      "English and non-agent signals derive nothing: for every signal in ('teacher','manager','lead','account','controller','audit','pr ','head of') the derived set is empty — the map's English breadth is unchanged (len of each group's derived additions == 0)",
+      "the hand-authored feminine stems 'pedagož', 'právnič', 'vojačk' leave the authored map and every GENDERED_TITLES pair in test_transferable_gender.py (Pedagožka, Právnička, Vojačka) still yields identical meta-skills and domain_distance to its masculine twin; 'poradkyn' stays authored as a declared exception (feminine_probe_forms('poradce') yields nothing)",
+      "`python -m pipeline.jobfit.taxonomy_check` exits 0 on the live data and its gender section counts transferable-signal surfaces alongside terms and adjacent_domain_signals"
+    ],
+    "premise": [
+      "pipeline/jobfit/transferable.py:18-27: the gendered-forms rule for _TRANSFERABLE_MAP is PROSE — 'each such signal needs its feminine stem listed beside it … Any new Czech signal added here must be checked the same way'",
+      "pipeline/jobfit/transferable.py:28-53 _TRANSFERABLE_MAP hand-lists feminine stems ('pedagož', 'analytička', 'poradkyn', 'právnič', 'vojačk'); :73-74 matches by plain `sig in text` over casefolded title+text",
+      "pipeline/jobfit/taxonomy_check.py:455-496 scan_gender_gaps covers exactly two consumers — terms[].match and adjacent_domain_signals (docstring :458-462) — and never reads _TRANSFERABLE_MAP; :783-792 main() reports only that scan",
+      "pipeline/jobfit/taxonomy.py:230 feminine_variants (stems) and :248 feminine_probe_forms (full feminine words) already exist; the taxonomy derives adjacent_domain_signals' feminines at load (test_transferable_gender.py:123-129 docstring), the transferable map does not",
+      "pipeline/jobfit/tests/test_transferable_gender.py:85-98 GENDERED_TITLES carries ('Právník','Právnička') but not the standard feminine 'Právnice'; test_taxonomy_gender.py:370-388 ROLE_TITLES likewise — the hand lists pin the pairs someone thought of",
+      "pipeline/jobfit/transform.py:22 and pipeline/jobfit/soft_signals.py:41 consume map_transferable (switcher skills credited professional, test_transferable.py:41-46; the transferable_strengths signal, test_soft_signals.py:420-426)"
+    ],
+    "rollback": "Two commits (derivation in transferable.py; scan + main() in taxonomy_check.py) plus tests/doc; reverting restores the hand-authored stems byte-for-byte, and no data file, schema or persisted row changes.",
+    "gate": "contract",
+    "runner_up": "Cache tc.load_taxonomy()/tc.seed_corpus() per module (setUpClass) — test_taxonomy_check.py:226-227,265-266 and test_taxonomy_gender.py:505,511 rebuild the corpus/taxonomy per test; a speed win, but not a seam.",
+    "technique": "bilingual-surface-parity-and-coverage-floors",
+    "body": "## Summary\nCzech gender parity has three consumers of hand-authored surfaces. Two are machine-checked: taxonomy terms and adjacent_domain_signals, both derived at load and scanned by `scan_gender_gaps`. The third, `transferable._TRANSFERABLE_MAP`, is held only by a comment and a hand list of pairs. Measured today: a woman whose CV title is the standard feminine 'Právnice' loses three transferable meta-skills ('analytical thinking', 'attention to detail', 'negotiation') that 'Právník' and 'Právnička' both earn. The fix is to derive the map's feminine forms the way the taxonomy derives its own, and to make the scan read the map, so that a masculine-only signal can no longer be written.\n\n## Description\n`transferable.py:18-27` states the rule in prose ('any new Czech signal added here must be checked the same way') and meets it by hand with the stems 'pedagož', 'právnič', 'vojačk' and 'poradkyn'. The hand-picked stem 'právnič' covers 'Právnička' and misses 'Právnice', the dictionary-standard feminine. `taxonomy_check.scan_gender_gaps` (:455-496) would find that gap at once. `feminine_probe_forms('právník')` returns ('právnice', 'právnička') and the authored map reaches only the second. The scan still never sees it, because it covers terms and adjacent_domain_signals and nothing else. The tests in this context pin the pairs someone thought to list (`GENDERED_TITLES`, `ROLE_TITLES`). The class is closed by the scanner, and the hand lists cannot close it.\n\nThe move: split the map into an authored table and a load-time expansion that adds each Czech signal's full feminine word forms from `taxonomy.feminine_probe_forms`. It deliberately uses the full words and not the `feminine_variants` stems. The map is matched by raw substring, and the stem 'právnic' would false-credit every accountant whose CV says 'právnických osob'. Acceptance case 2 is the negative control for that. `scan_gender_gaps` gains the map as a third consumer, which mirrors `map_transferable`'s substring rule the same way it already mirrors `domain_distance`'s. `main()` reports it. The now-derivable hand stems leave the authored table. 'poradkyn' stays, with its reason stated, because the probe vocabulary has no -ce→-kyně rule.\n\n## Flow\n1. Tests first: the Právnice case, the právnických negative control, the planted-signal scan, the English no-op. 2. transferable.py: `_AUTHORED_TRANSFERABLE_MAP` + `_with_feminine_forms()` → `_TRANSFERABLE_MAP`; drop 'pedagož'/'právnič'/'vojačk'. 3. taxonomy_check.py: scan the authored map (derive flag mirrors the existing one), wire into `main()`. 4. Doc: docs/features/matching/README.md gender-parity paragraph names the third consumer. 5. Gate.\n\n## Expected impact\nThe same career now earns the same transferable credit whichever grammatical gender the CV is written in. That credit feeds `build_match_candidate` (skills credited `professional`), `compute_potential` and the `transferable_strengths` soft signal. Later map edits are covered by the gate that already covers the taxonomy's own Czech vocabulary, and no longer depend on a reviewer remembering a comment.\n\n## Evaluation\nClaim: every Czech agent-noun signal in the transferable map reaches its feminine forms by derivation, and the gender scan fails on one that does not.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate — `npm run test:python:gate` (test_transferable_gender, test_taxonomy_gender, test_taxonomy_check incl. `test_cli_exits_clean`, test_transferable, test_soft_signals).\nResult: pending build.\nGate: contract.",
+    "evidence": "Measured at 36c7beed (python, read-only):\nmap_transferable(title='Právník')   -> ['analytical thinking','attention to detail','communication','delivery','negotiation','ownership','teamwork']\nmap_transferable(title='Právnička') -> same 7\nmap_transferable(title='Právnice')  -> ['communication','delivery','ownership','teamwork']   <- 3 lost\nmap_transferable(text='Účetnictví právnických osob') -> no 'negotiation' today (the control the derivation must keep)\nfeminine_probe_forms over the authored map: pedagog->('pedagožka',) analytik->('analytička',) právník->('právnice','právnička') voják->('vojačka',); probes not reached by the authored signals (substring rule): [('právník','právnice')]\nfeminine_variants('právník') == ('právnic','právnič')  (stem 'právnic' would hit 'právnických' -> why full forms)\nfeminine_probe_forms('poradce') == ()  -> 'poradkyn' stays authored.\ntaxonomy_check.py:458-462 docstring: 'Covers both consumers of the file's Czech vocabulary: terms[].match … and adjacent_domain_signals'."
+  }
+]

@@ -1,0 +1,21 @@
+{"ctx":"*","role":"scout","tokens":1650400,"ms":588460,"note":"8 scouts via workflow wf_d3f33dea-b2e; per-scout split not recorded"}
+{"ctx":"*","role":"critic","tokens":253385,"ms":1076023}
+{"ctx":"voice-interview-components","role":"builder","slot":"A","tokens":190005,"ms":829893}
+{"ctx":"candidate-rediscovery","role":"builder","slot":"A","tokens":259438,"ms":1189667}
+{"ctx":"tests-devcase","role":"builder","slot":"B","tokens":160787,"ms":1238238}
+{"ctx":"tests-matching-taxonomy","role":"builder","slot":"A","tokens":161391,"ms":1281173}
+{"ctx":"llm-inference-runtime","role":"builder","slot":"B","tokens":275842,"ms":1515245}
+{"ctx":"pipeline-candidate-drawer","role":"builder","slot":"B","tokens":238197,"ms":2408444}
+{"ctx":"cv-analysis-archetypes","role":"builder","slot":"A","tokens":219433,"ms":732607}
+{"ctx":"tests-matching-taxonomy","role":"builder","slot":"B","tokens":142911,"ms":850060}
+{"ctx":"pipeline-candidate-drawer","role":"builder","slot":"A","tokens":190683,"ms":937635}
+{"ctx":"voice-interview-components","role":"builder","slot":"B","tokens":238749,"ms":1249095}
+{"ctx":"llm-inference-runtime","role":"builder","slot":"A","tokens":259013,"ms":1450345}
+{"ctx":"candidate-rediscovery","role":"builder","slot":"B","tokens":191741,"ms":1435912}
+{"ctx":"workspace-shell-core","role":"builder","slot":"A","tokens":182510,"ms":720467}
+{"ctx":"tests-devcase","role":"builder","slot":"A","tokens":207354,"ms":1122696}
+{"ctx":"cv-analysis-archetypes","role":"builder","slot":"B","tokens":249085,"ms":1424707}
+{"ctx":"workspace-shell-core","role":"builder","slot":"B","tokens":236240,"ms":1161073}
+{"ctx":"candidate-rediscovery","role":"followup","note":"pipeline POST eligibility","tokens":137931,"ms":591179}
+{"ctx":"pipeline-candidate-drawer","role":"followup","note":"refused-channel rows + local constants","tokens":136593,"ms":752090}
+{"ctx":"cv-analysis-archetypes","role":"followup","note":"analyze cache registry digest","tokens":147121,"ms":658129}

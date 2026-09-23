@@ -1,0 +1,31 @@
+{
+  "card": "llm-inference-runtime/A",
+  "title": "Admission lanes: background spawns wait their turn, never refuse themselves",
+  "status": "landed",
+  "base": "8d7bb1ea7",
+  "shas": ["b986a0102", "d35687056", "3ab17ae1e", "5233d1d86", "ef785e232"],
+  "tests_added": [
+    "app/_lib/python-runner-lanes.test.ts",
+    "app/_lib/task-failure-code.test.ts",
+    "app/_lib/llm-request-context.test.ts (one case appended)"
+  ],
+  "cases_red_before": 7,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "acceptance": "8 of 8 (was 1 of 8). Card cases 1-3 and 5-7 in python-runner-lanes.test.ts and case 8 in llm-request-context.test.ts were written first and failed (7 red). Case 4 is a GUARD, per the critic: pinned today by python-runner-concurrency.test.ts ('a spawn that waits out the queue budget is refused with a 503 ENGINE_BUSY PipelineError'), green before and after, not duplicated. Card case 1's mechanism was also reproduced on base with the real runner (6 spawns, ceiling 4, 50 ms bound -> ok,ok,ok,ok,ENGINE_BUSY,ENGINE_BUSY). Extra, not card cases: a lane-authority source guard (only tasks.ts and scheduler.ts call withSpawnLane) and 4 loop-closing cases in task-failure-code.test.ts (3 red first; spawnFailureCode's case was written after the helper).",
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "design": 0,
+    "docs": 0,
+    "api": null,
+    "ratchet": 0,
+    "unit": 0,
+    "perf": 1
+  },
+  "files_changed": 21,
+  "lines_changed": 611,
+  "deviations_from_card": "Premise restated per the critic: the ENGINE_BUSY self-refusal is an unmeasured MECHANISM (hermetic repro only, no observed rate) and the commit body says so; IfUnset callers cited as recruiter-run.ts:46 / profile-draft-run.ts:56 / companion-run.ts:272. Write set GREW for the loop the coordinator assigned (B's open loop: tasks.ts stored English engine text on the task row): python-runner.ts gains spawnFailureCode(err) -> ENGINE_BUSY | ENGINE_TIMEOUT | ENGINE_FAILED | null; tasks.ts stores that code, TASK_TIME_LIMIT for the watchdog AND the reaper (the 'no live handler' detail moved to a console.warn), TASK_KIND_UNKNOWN (existing code) for an unknown kind, and nothing for a Cancel that reached the engine (status says it); three new REFUSAL_ERRORS codes + en/cs/de/fr under the lock (b986a0102); and the five surfaces that DISPLAY task.error now resolve it through errors.<CODE> with the stored text as fallback: app/features/shell/tasks/TasksTableRow.tsx, app/features/insights/activity/ActivityDetailModal.tsx, app/features/tools/profile/ProfileEditorAiDraft.tsx, app/features/jobseeker/ScanNowButton.tsx, app/features/tools/analyze/AnalyzeApi.ts (task.error passed as apiCode). New test file task-failure-code.test.ts pins writer + readers. Docs: also touched docs/architecture/README.md (feature-doc-map couples tasks.ts to it). Commit order is feat -> test -> docs (tests pin the committed code, so every commit is green), plus two lock-alone commits (catalog codes first, perf last).",
+  "notes": "Semantics: interactive lane = today's rule (any free slot, 20 s KP_PYTHON_QUEUE_WAIT_MS); background = admitted only while no interactive waiter, at most max(1, ceiling-1) in flight, KP_PYTHON_BACKGROUND_WAIT_MS (default 600000) then the same ENGINE_BUSY PipelineError; admitWaiters() fills free slots interactive-first after every release; aborts while queued still reject SpawnFailure('aborted') (B's hand-off kept). pythonSpawnLoad() keeps inFlight/queued/ceiling (automation-pass.ts reads ceiling) and adds lanes. Lane assigned ONLY in tasks.ts (around spec.run, inside the request-id scope) and scheduler.ts (clock pass; forced 'Run now' stays interactive), pinned by a source guard. Behaviour note for review: every task kind is background, including analyze/profile-draft runs a recruiter is watching; they now queue behind interactive clicks (and wait up to 10 min instead of being refused at 20 s). loop_open (small, not closed): app/features/hiring/pipeline/usePipelineBulk.ts passes task.error as a tooltip 'diagnostic' under an already-localized line, and its comment and app/features/jobseeker/useScanTask.ts's comment still say the stored error is 'English, no code to resolve' - now it may be a code; the visible text is localized, only those two comments are stale. Catalog commit b986a0102 staged HUNKS only: a sibling had uncommitted journey.cohort keys in all four catalogs outside the lock; they are left in the tree. perf: job-ingest 419 -> 423 KB (python-runner +3.2 KB, llm-request-context +1.0 KB), measured as this card's files alone against b986a0102, raised under the lock in 5233d1d86; app/page.tsx +1 KB measured on committed dd8ef91ed with/without this card's files (9127 vs 9126), raised in ef785e232. test:perf still red on the committed tree for app/page.tsx 1433 modules vs 1432 - identical without this card's files, so not this card's; the working tree adds more (1440 / 9168 KB, hire-from-need 3184) from siblings' uncommitted files. tsc: errors only under the untracked kpi-sim/ tree (as at base). Full npm run test:unit: 10821 pass, 1 fail = app/features/hiring/pipeline/drawerCommsTruth.test.ts (BROKEN) against a sibling's uncommitted comms-dispatch.ts edit, not this card's. python-runner-concurrency.test.ts including the Windows tree-kill case passed on this box during this build."
+}

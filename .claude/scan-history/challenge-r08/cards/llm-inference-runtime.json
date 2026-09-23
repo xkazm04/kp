@@ -1,0 +1,112 @@
+[
+  {
+    "context": "llm-inference-runtime",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Admission lanes: background spawns wait their turn, never refuse themselves",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "base_sha": "2bc9fb574",
+    "write_set": [
+      "app/_lib/python-runner.ts",
+      "app/_lib/llm-request-context.ts",
+      "app/_lib/tasks.ts",
+      "app/_lib/scheduler.ts",
+      "app/_lib/python-runner-concurrency.test.ts",
+      "app/_lib/python-runner-lanes.test.ts",
+      "app/_lib/llm-request-context.test.ts",
+      "docs/architecture/self-hosting.md",
+      "docs/architecture/api-contracts.md"
+    ],
+    "new_files": [
+      "app/_lib/python-runner-lanes.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "KP_PYTHON_MAX_CONCURRENT=4, KP_PYTHON_QUEUE_WAIT_MS=50: six spawns of a 300 ms child issued inside withSpawnLane('background') -> all six resolve exitCode 0, none rejects ENGINE_BUSY (today: two reject after 50 ms, the group-eval shape)",
+      "ceiling 4, three background children running and two background waiters queued: an interactive spawn (no lane scope) is admitted immediately -> pythonSpawnLoad() reports lanes.background.inFlight 3, lanes.interactive.inFlight 1 (background may hold at most ceiling-1 slots)",
+      "ceiling 4, four interactive children running, then a background waiter enqueues BEFORE an interactive waiter: when one child settles, the interactive waiter is admitted first and the background waiter is still queued",
+      "no lane scope at all (a plain route): ceiling 4 full, fifth spawn with KP_PYTHON_QUEUE_WAIT_MS=50 -> rejects PipelineError status 503 code ENGINE_BUSY, exactly as today",
+      "background waiter whose AbortSignal fires while queued -> rejects 'Python process aborted', and pythonSpawnLoad() shows inFlight and queued back at their pre-call values",
+      "background waiter past KP_PYTHON_BACKGROUND_WAIT_MS (set to 80 ms in the test) -> rejects ENGINE_BUSY 503, so the background wait is bounded, not infinite",
+      "KP_PYTHON_MAX_CONCURRENT=1: a lone background spawn on an idle engine is admitted (no reservation when the ceiling is 1, so background is never starved outright)",
+      "withSpawnLane('background', () => withLlmRequestIdIfUnset('x', () => currentSpawnLane())) -> 'background'; currentSpawnLane() outside any scope -> 'interactive'; the lane survives an await inside the scope"
+    ],
+    "premise": [
+      "app/_lib/python-runner.ts:205-207 - ONE waiter list (`slotWaiters: SlotWaiter[]`) and one counter serve every caller; there is no notion of who is waiting",
+      "app/_lib/python-runner.ts:185 + 201-203 + 249-260 - every waiter, interactive or background, is refused with PipelineError 503 ENGINE_BUSY after KP_PYTHON_QUEUE_WAIT_MS (20 s default)",
+      "app/_lib/python-runner.ts:181 - DEFAULT_MAX_CONCURRENT = 4",
+      "app/_lib/group-eval-run.ts:229-231 + 586 - 'six of these run concurrently' via Promise.all over up to GROUP_EVAL_CAP=6 runReasoning calls, each a spawn (reasoning-run.ts:171)",
+      "app/_lib/group-eval-run.ts:601-605 - a reasoning run that throws (ENGINE_BUSY included) is caught and the candidate keeps the deterministic rationale with failed 'failed'; 612-614 then marks the whole cohort's reasoning stage degraded",
+      "Consequence: on a cold cache with the default ceiling, 2 of 6 reasoning spawns wait behind 4 LLM round-trips that routinely exceed 20 s, are refused by the engine's OWN admission gate, and the group eval ships deterministic rationales it had budget and time (GROUP_EVAL_REASONING_TIMEOUT_MS=150_000, group-eval-run.ts:231) to do properly",
+      "app/_lib/tasks.ts:54 - MAX_CONCURRENT = 2 background tasks, so two group evals are 12 spawns contending for 4 slots, and every interactive request (match click, extract-text) queues FIFO behind them (python-runner.ts:215-225 hands the freed slot to the oldest waiter regardless of class)",
+      "app/_lib/tasks.ts:664 - the task runner already opens ONE ambient scope around every handler (withLlmRequestId) - the single place a lane can be assigned by the class of the request",
+      "app/_lib/llm-request-context.ts:54-57 - withLlmRequestIdIfUnset lets sync callers (recruiter-run.ts:244, profile-draft-run.ts:332) open request-id scopes too, so 'has a request id' cannot stand in for 'is background'; the lane must be its own store",
+      "app/_lib/scheduler.ts:40 - the clock's automation pass runs runAutomationPass() with no task scope; automation-pass.ts:244 derives its spawn budget from pythonSpawnLoad().ceiling"
+    ],
+    "rollback": "Revert the commit series: the lane store is additive in llm-request-context.ts, callers outside a lane scope take the unchanged interactive path (acceptance case 4 pins it), and tasks.ts/scheduler.ts each gain only a one-line withSpawnLane wrapper.",
+    "gate": "architecture",
+    "runner_up": "One runJobfitCli envelope (workdir -> write inputs -> spawn -> exit/parse -> cleanup) replacing the hand-rolled dance in ~25 of the 31 spawnPython callers.",
+    "technique": "priority-and-fairness",
+    "body": "## Summary\nGive the process-wide Python admission gate two named lanes. Work started by the background-task runner or the automation clock runs in a `background` lane that queues behind interactive requests, may hold at most `ceiling-1` slots, and waits a long bounded time instead of refusing itself after 20 s. Requests with a human waiting keep today's behaviour and go first.\n\n## Description\n`python-runner.ts` admits every spawn through one FIFO waiter list with one 20 s refusal. That rule suits an HTTP request whose client has its own deadline. It is wrong for a background task that has 15 minutes of budget, and the gate therefore fights the app's heaviest workload. A cold group eval fans out six reasoning spawns (`group-eval-run.ts:586`) against a ceiling of 4. The two waiters sit behind four LLM round-trips, are refused `ENGINE_BUSY` at 20 s, and are caught as 'failed' (`:601-605`). The cohort then ships deterministic rationales and a degraded-stage disclosure for a failure the engine caused itself. In the other direction, a recruiter's match click that arrives during two group evals queues FIFO behind up to eight background waiters.\n\nThe fix follows the registry's priority-and-fairness technique: two named levels, assigned by the class of the request at ONE authority (the task runner's scope at `tasks.ts:664`, plus the clock's automation tick in `scheduler.ts`), never by individual call sites. The lane is a second AsyncLocalStorage store in `llm-request-context.ts`, so the whole change adds no module to any route graph (perf-budget neutral). `spawnPython` reads it synchronously next to `currentLlmRequestId()` (the same before-the-await rule the file already documents at `python-runner.ts:360-363`). Priority orders the wait but does not skip the gate: background still counts against the ceiling, is bounded by its AbortSignal and by `KP_PYTHON_BACKGROUND_WAIT_MS`, and `pythonSpawnLoad()` reports per-lane inFlight/queued (wait telemetry).\n\n## Flow\n1. `llm-request-context.ts`: add `SpawnLane = 'interactive' | 'background'`, `withSpawnLane(lane, fn)` and `currentSpawnLane()` (defaulting to interactive).\n2. `python-runner.ts`: split `slotWaiters` into per-lane queues. `releaseSlot` hands the slot to the oldest interactive waiter first, then to a background waiter only while background in-flight < max(1, ceiling-1). `acquireSlot(signal, lane)` applies the lane's wait bound (20 s interactive, `KP_PYTHON_BACKGROUND_WAIT_MS` default 600 s background). `pythonSpawnLoad()` gains a `lanes` breakdown and keeps its existing three fields, which `automation-pass.ts:244` reads.\n3. `tasks.ts:664`: wrap `spec.run` in `withSpawnLane('background', ...)` inside the existing request-id scope.\n4. `scheduler.ts`: wrap the clock-driven `runAutomationPass()` in the background lane. A forced 'Run now' from the route stays interactive.\n5. Tests: new `python-runner-lanes.test.ts` (node child stand-in, same harness as `python-runner-concurrency.test.ts`) plus a lane-nesting case in `llm-request-context.test.ts`.\n6. Docs: `KP_PYTHON_BACKGROUND_WAIT_MS` row and the lane rule in `self-hosting.md`, and the admission paragraph in `api-contracts.md` (near line 658).\n\n## Expected impact\nA cold group eval with the default ceiling no longer refuses a third of its own reasoning, so its cohort rationales come from the LLM it paid to reach. A recruiter's interactive request always has at least one slot it can take and is never queued behind a background fan-out. The operator knob keeps its meaning, and a strictly serial install (ceiling 1) still makes progress.\n\n## Evaluation\nClaim: background spawns no longer refuse themselves at the interactive 20 s bound, and interactive spawns are admitted ahead of background ones with one slot reserved.\nBefore: 0 of 8 acceptance cases pass (cases 1-3 and 6-8 fail because the lane API does not exist; case 1 reproduces two ENGINE_BUSY rejections).\nAfter: 8 of 8.\nMethod: gate - node:test over python-runner-lanes.test.ts, python-runner-concurrency.test.ts and llm-request-context.test.ts, with node standing in for PYTHON_CMD (hermetic, no Python).\nResult: pending build.\nGate: architecture (the admission rule of a shared runtime changes; one reviewer read of the lane semantics).",
+    "evidence": "python-runner.ts:205-207 `type SlotWaiter = { admit: () => void }; let inFlightSpawns = 0; const slotWaiters: SlotWaiter[] = [];`\npython-runner.ts:185 `const DEFAULT_QUEUE_WAIT_MS = 20_000;`\npython-runner.ts:249-259 setTimeout(... reject(new PipelineError({ ..., status: 503, code: ENGINE_BUSY_CODE })) }, queueWaitMs())\ngroup-eval-run.ts:229 `/** Per-candidate reasoning: six of these run concurrently, each one prompt.`\ngroup-eval-run.ts:586 `const reasonings = await Promise.all(`\ngroup-eval-run.ts:605 `return { reasoning: {}, source: \"deterministic\", promptVersion: null, failed: stage.deadline.aborted ? \"timeout\" : \"failed\" };`\ntasks.ts:54 `const MAX_CONCURRENT = 2;`  tasks.ts:664 `const runPromise = withLlmRequestId(id, () =>`\ntask-maintenance.ts:31 `export const TASK_MAX_RUNTIME_MS = 15 * 60 * 1000;`\ngrep pythonSpawnLoad outside python-runner: automation-pass.ts:244,365 only (+ tests), so there is no ops consumer to break.\nr07 write sets checked: none contains python-runner.ts, llm-request-context.ts, tasks.ts or scheduler.ts (billing's card touches instrumentation-node.ts, which is why the jobseeker clock scan is left out of this card)."
+  },
+  {
+    "context": "llm-inference-runtime",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Spawn failures born typed: busy and timeout answered by code, not a regex",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "2bc9fb574",
+    "write_set": [
+      "app/_lib/python-runner.ts",
+      "app/_lib/intake-run.ts",
+      "app/api/match/route.ts",
+      "app/api/match/reasoning/route.ts",
+      "app/api/matrix/route.ts",
+      "app/api/profile/draft/route.ts",
+      "app/api/jobs/[id]/winnability/route.ts",
+      "app/api/profile/route.ts",
+      "app/api/extract-text/route.ts",
+      "app/_lib/python-runner-spawn-failure.test.ts",
+      "app/api/jobs/[id]/winnability/winnability-spawn-timeout.test.ts",
+      "app/api/profile/profile-spawn-timeout.test.ts",
+      "app/_lib/applicant-profile-timeout.test.ts",
+      "app/_lib/analyze-run.test.ts",
+      "docs/architecture/api-contracts.md"
+    ],
+    "new_files": [
+      "app/_lib/python-runner-spawn-failure.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "spawnPython of a node child that sleeps 2 s with timeoutMs 100 -> rejects a SpawnFailure (instanceof PipelineError) with kind 'timeout', status 504, code 'timeout', and message 'Python process timed out after 0s' (no argv, no temp path in it)",
+      "a child that writes 2 MB with maxBufferBytes 1 MB -> SpawnFailure kind 'output_overflow', status 500, code 'engine_error', and a message that contains neither the argv nor any os.tmpdir() path",
+      "PYTHON_CMD pointing at a non-existent binary -> SpawnFailure kind 'spawn_failed', code 'engine_error'; the raw ENOENT text reaches opsLog, not err.message",
+      "an AbortSignal fired mid-run -> SpawnFailure kind 'aborted'; isSpawnTimeout(err) is false for it and true for the case-1 error; isSpawnTimeoutMessage(err.message) stays true for case 1, so analyze-run.ts is correct without being edited",
+      "engineRefusal(err) -> { code: 'ENGINE_BUSY', status: 503 } for the admission refusal, null for a plain Error and for a CLI PipelineError with code 'invalid_input'",
+      "POST /api/match while the engine ceiling is full and KP_PYTHON_QUEUE_WAIT_MS elapses -> 503 with code ENGINE_BUSY (today: 500 MATCH_RUN_FAILED); the same holds for /api/match/reasoning (today MATCH_REASONING_FAILED) and /api/profile/draft (today PROFILE_DRAFT_FAILED)",
+      "the winnability, profile and extract-text routes read isSpawnTimeout(error) instead of matching the message, and still answer JOB_WINNABILITY_TIMEOUT / PROFILE_BUILD_TIMEOUT / EXTRACT_TEXT_TIMEOUT at 504"
+    ],
+    "premise": [
+      "app/_lib/python-runner.ts:466-469 - the deadline rejects a plain `new Error(`Python process timed out after ${...}s: ${args.join(\" \")}`)`, whose message carries the full argv including the jobfit-* temp paths",
+      "app/_lib/python-runner.ts:456-460 - the output ceiling rejects a plain Error that also embeds `args.join(\" \")`; :470 abort is a plain Error; :476-480 a spawn failure (ENOENT on PYTHON_CMD) rejects the raw child error",
+      "app/_lib/intake-run.ts:39-44 - 'python-runner reports its deadline as a message, not a typed error': isSpawnTimeoutMessage is a regex over that sentence, and 4 sites read it (extract-text/route.ts:118, jobs/[id]/winnability/route.ts:99, profile/route.ts:99, analyze-run.ts:425)",
+      "app/_lib/analyze-run.test.ts:226, winnability-spawn-timeout.test.ts:45, profile-spawn-timeout.test.ts:52, applicant-profile-timeout.test.ts:62 pin the literal source text `fail(new Error(`Python process timed out after` with regexes: the contract is held by string matching on both the reader and the test side",
+      "app/_lib/analyze-run.ts:436-441 - any other thrown spawn error is returned to the client as `error: engineMsg` verbatim, so an output-overflow message with the argv and temp path reaches the recruiter today",
+      "app/_lib/tasks.ts:705 stores `error.message` on the task row and app/features/shell/tasks/TasksTableRow.tsx:107 renders `task.error`, so a timed-out background rank shows 'Python process timed out after 240s: -m pipeline.jobfit.recruiter_cli --input-json <tmp>/jobfit-.../recruiter.json' to the operator",
+      "app/_lib/python-runner.ts:249-259 - admission overload is a PipelineError 503 code ENGINE_BUSY with a catalogued client code (api-response.ts:1743, messages/*.json:1842), but only extract-text/route.ts:49 maps it; match/route.ts:96-100 answers it as 500 MATCH_RUN_FAILED, match/reasoning/route.ts:76 as MATCH_REASONING_FAILED (it is not a ReasoningError), matrix/route.ts:159 as MATRIX_BUILD_FAILED, profile/draft/route.ts:65 as PROFILE_DRAFT_FAILED, which turns a retry-in-a-moment overload into a fault"
+    ],
+    "rollback": "Revert the series: SpawnFailure extends the existing PipelineError, so every `instanceof PipelineError` reader (candidates route, automation-pass, jobseeker/python-cli, repo-scan-run) keeps working, and the timeout message keeps its 'Python process timed out after Ns' prefix, so the un-edited analyze-run.ts predicate stays true either way.",
+    "gate": "contract",
+    "runner_up": "Code the task row's failure: tasks.ts stores a closed failure code beside the message, and TasksTableRow renders it through useErrorMessage instead of printing English engine text.",
+    "technique": "admission-vocabulary",
+    "body": "## Summary\nMake `spawnPython` reject with ONE typed failure, `SpawnFailure extends PipelineError` with `kind: timeout | aborted | output_overflow | spawn_failed`, and move the argv and temp paths out of the message into a server-side log. Export `isSpawnTimeout(err)` and `engineRefusal(err)` so the routes stop parsing a sentence with a regex. They also start answering the admission overload with its existing `ENGINE_BUSY` code.\n\n## Description\nThe runner's own failure modes are the only engine outcomes that carry no code. The CLI's failures have one (`parseStderrError`, `PYTHON_ERROR_CODES`) and the admission refusal has one (`ENGINE_BUSY`), but the deadline, the abort, the output ceiling and a missing interpreter reject a plain `Error` whose message embeds `args.join(' ')`. Readers recover the one fact they need with `isSpawnTimeoutMessage`, a regex in `intake-run.ts:43`, and four tests pin the runner's source text so the regex keeps matching. Every other failure leaks: `analyze-run.ts:439` returns the message verbatim, and the task row (`tasks.ts:705` -> `TasksTableRow.tsx:107`) prints the command line with its temp path. Separately, ENGINE_BUSY already means 'busy, try again in a moment' in four locales, but four of the routes that spawn answer it as a generic 500 fault. The registry's admission-vocabulary technique calls this a verdict that did not survive the boundary.\n\nThe card keeps the message prefix `Python process timed out after Ns`, which the un-edited `analyze-run.ts` (in r07 billing's write set, so not touched here) still matches. The path leak through its generic branch closes anyway, because the message no longer contains the argv. No new error code: `ENGINE_BUSY` and the per-route `*_TIMEOUT` codes already exist in all four catalogs.\n\n## Flow\n1. `python-runner.ts`: add `SpawnFailure` (kind, status, code, message without the argv), and have `fail()`/`child.once('error')` build it. Log `{ cli: args[1], kind }` via `opsLog('warn', 'engine:spawn:failed', ...)`. Export `isSpawnTimeout(err)` and `engineRefusal(err): { code: 'ENGINE_BUSY'; status: 503 } | null`.\n2. `intake-run.ts`: `isSpawnTimeoutMessage` stays for back-compat, documented as legacy, and a thin `isSpawnTimeout` re-export is added for intake callers.\n3. Routes: `match`, `match/reasoning`, `matrix` and `profile/draft` check `engineRefusal(error)` before `safeJsonError` and answer `jsonRefusal('ENGINE_BUSY', 503)`. `winnability`, `profile` and `extract-text` switch to `isSpawnTimeout(error)`.\n4. Tests: new `python-runner-spawn-failure.test.ts` (node child stand-in, cases 1-5). The four source-text pins are rewritten to assert behaviour (a SpawnFailure of kind timeout) instead of the literal `fail(new Error(` text. Route cases 6-7 go in the new test file with the route modules imported directly, the way `extract-text/route.test.ts` already does.\n5. `api-contracts.md`: the admission and spawn-failure paragraph names SpawnFailure, its kinds, and that routes answer ENGINE_BUSY by code.\n\n## Expected impact\nNo spawn failure puts a command line or a temp path into a client response or a task row. An engine overload reads as 'busy, try again' in the reader's language on every matching and profile door instead of an unexplained failure, and a whole class of string-matching contract (one reader regex plus four source-text pins) becomes a type.\n\n## Evaluation\nClaim: spawn failures are typed, their messages carry no argv, and admission overload is answered as ENGINE_BUSY on every route in the write set.\nBefore: 0 of 7 acceptance cases pass (SpawnFailure, isSpawnTimeout and engineRefusal do not exist, and /api/match answers the overload as 500 MATCH_RUN_FAILED).\nAfter: 7 of 7.\nMethod: gate - node:test over python-runner-spawn-failure.test.ts and the four rewritten timeout tests. The integration gate's `test:unit` + `api:check` + `i18n:check` hold the rest (no catalog change is expected).\nResult: pending build.\nGate: contract (the client-visible code for an overload changes on four routes, from *_FAILED 500 to ENGINE_BUSY 503).",
+    "evidence": "python-runner.ts:467 `() => fail(new Error(`Python process timed out after ${Math.round(timeoutMs / 1000)}s: ${args.join(\" \")}`)),`\npython-runner.ts:458 `Python process output exceeded ${...} MB and was terminated: ${args.join(\" \")}`\nintake-run.ts:39-44 `/** python-runner reports its deadline as a message, not a typed error. ... */ export function isSpawnTimeoutMessage(message: string): boolean { return /^Python process timed out after \\d+s/.test(message); }`\ngrep isSpawnTimeoutMessage (non-test): extract-text/route.ts:118, jobs/[id]/winnability/route.ts:99, profile/route.ts:99, analyze-run.ts:425\ngrep 'instanceof PipelineError' (non-test): extract-text/route.ts, jobs/[id]/candidates/route.ts, automation-pass.ts, jobseeker/python-cli.ts, repo-scan-run.ts; match/, match/reasoning/, matrix/ and profile/draft/ routes are absent, so ENGINE_BUSY falls to safeJsonError there\nmatch/route.ts:100 `return safeJsonError(error, \"api:match\", \"MATCH_RUN_FAILED\");`\nmatch/reasoning/route.ts:76 `return safeJsonError(error, \"api:match/reasoning\", \"MATCH_REASONING_FAILED\");`\nprofile/draft/route.ts:65 `return safeJsonError(error, \"api:profile/draft\", \"PROFILE_DRAFT_FAILED\");`\ntasks.ts:705 `error: error instanceof Error ? error.message : String(error),`  TasksTableRow.tsx:107 `{failed && task.error ? <p ...>{task.error}</p> : null}`\nmessages/{cs,de,fr}.json:1842 ENGINE_BUSY present in all four catalogs (en.json:1842).\nr07 write sets: analyze-run.ts is in billing-subscriptions' set, so this card deliberately leaves analyze-run.ts untouched (its test file analyze-run.test.ts is not in any r07 set)."
+  }
+]

@@ -1,0 +1,123 @@
+[
+  {
+    "context": "pipeline-candidate-drawer",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "The candidate bundle learns it is stale: in-modal writes re-pull it, SWR",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "39e918fcb",
+    "write_set": [
+      "app/features/hiring/pipeline/candidate/state/candidateBundle.ts",
+      "app/features/hiring/pipeline/candidate/state/candidateBundle.test.ts",
+      "app/features/hiring/pipeline/candidate/state/useCandidateBundle.ts",
+      "app/features/hiring/pipeline/candidate/state/useCandidateState.ts",
+      "app/features/hiring/pipeline/candidate/state/useCandidateTask.ts",
+      "app/features/hiring/pipeline/candidate/footer/CandidateFooterTray.tsx",
+      "app/features/hiring/pipeline/PipelineSelfSchedulingPanel.tsx",
+      "app/features/hiring/pipeline/candidate/CandidateRecordTab.tsx",
+      "app/features/hiring/pipeline/PipelineConsentPanel.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/pipeline/candidate/state/candidateBundle.ts",
+      "app/features/hiring/pipeline/candidate/state/candidateBundle.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json (only if test:perf reports the +1 module under the dynamically-imported CandidateModal; the budget counts dynamic imports, scripts/perf/check-budget.mjs:186-187)"
+    ],
+    "acceptance": [
+      "parseCandidateBundle(null), parseCandidateBundle('x') and parseCandidateBundle([]) each return null (a non-object body is a failed load, never a thrown cast)",
+      "parseCandidateBundle({ events: [] }) with comms/consent/decisions/items absent returns comms [], consent null, decisions [], items [], rematchLinks {}, notes null, staleSince null - every section defaults, nothing throws, and the sealed `decisions` section the route already ships is carried instead of dropped",
+      "bundleReducer: from { status: 'loading', data: null } a fail(seq 1) yields { status: 'failed', data: null } and a retry() moves it back to 'loading' with a new seq",
+      "bundleReducer: from { status: 'ready', data: D } an invalidate() yields { status: 'refreshing', data: D } - the last-good sections stay painted, the history and consent do not flash to empty",
+      "bundleReducer: from { status: 'refreshing', data: D } a fail(seq 2) yields { status: 'stale', data: D } and consentFailed(state) is false - a transient re-pull failure no longer replaces a good GDPR snapshot with 'could not load' (today useCandidateBundle.ts:67-71 sets bundleFailed and PipelineConsentPanel.tsx:117 then hides the view)",
+      "bundleReducer: a settle for seq 1 dispatched after seq 2 was issued is ignored (the older response can never overwrite the newer one)",
+      "invalidatesBundle({ kind: 'task', applied }) is true for 'scorecard_ready', 'offer_ready', 'held_for_review', 'rematched' and false for 'drafted', 'advisory', 'no_alternative' and 'advanced' (a stage move already re-pulls through the entry.stage dependency - no double fetch)",
+      "invalidatesBundle({ kind: 'link', flow: 'schedule' | 'voice', minted: true }) is true and { minted: false } (the mint was refused) is false"
+    ],
+    "premise": [
+      "app/features/hiring/pipeline/candidate/state/useCandidateBundle.ts:57-97 - the whole candidate story is ONE fetch whose effect depends only on [entry.id, entry.stage, t] (:97); nothing else can re-pull it and the hook returns no reload/invalidate (:109).",
+      "app/_lib/automation-run.ts:593-600 - the modal's own 'Synthesize scorecard' / 'Draft offer' tasks call setApproval (which records an `approval_set` pipeline event, app/_lib/db/pipeline.ts:3019) and recordAutomationEvent('interview_scorecard' | 'offer_drafted') WITHOUT a stage change, so those rows land server-side and the open modal's Activity history never shows them; useCandidateTask.ts:17 lists these as APPLIED and :94-97 only calls onChanged (the board), never the bundle.",
+      "app/api/schedule/invite/route.ts:106 dispatches the invite letter (an outbox row) when the footer tray mints a scheduling link (CandidateFooterTray.tsx:61-62, PipelineSelfSchedulingPanel.tsx:31 `sched.create({ entryId })` with no settle callback), and the bundle's timeline derives 'invite sent' from the invite row (app/_lib/candidate-timeline.ts:292) - neither the letter (Messages) nor the invite item appears until the modal is closed and reopened; the voice panel already exposes onCreated (PipelineVoiceScreenPanel.tsx:58, :86) but the tray never passes it (CandidateFooterTray.tsx:53-60).",
+      "useCandidateBundle.ts:67-71 and :86-90 - any failed load (including an in-place re-pull after a stage move) sets history [] and bundleFailed true, wiping a good history; PipelineConsentPanel.tsx:117 renders loadFailed whenever that flag is true even with a snapshot in hand, and the failure has no retry anywhere (Record tab, CandidateRecordTab.tsx:38).",
+      "useCandidateBundle.ts:74-84 reads the payload through unchecked casts (`d.events as PipelineEvent[]`, `d.comms as CandidateComm[]` ...) and never reads `decisions`, which candidateDrawerBundle computes on every open (app/_lib/candidate-timeline.ts:202, :470, DECISIONS_LIMIT at :238) - a section on the wire with no parser and no reader.",
+      "The standard (software-engineering client-state/invalidation-strategy): write-through from the client's OWN mutations is the first freshness mechanism and 'getting it wrong is inexcusable'; client-fetch-cache golden path: stale-while-revalidate is the honest default for read surfaces."
+    ],
+    "rollback": "Two commits (pure module + tests, then hook/tray/panel wiring + catalog keys + doc) revert cleanly: the module is new, the hook keeps its return shape (the tabs' st.* reads are unchanged), and the only wire contract touched is the client's reading of an existing route.",
+    "gate": "architecture",
+    "technique": "invalidation-strategy",
+    "runner_up": "Collapse the three 'unkeyed English error' drops (useCandidateEdits.ts:79-84 resolveIntake, PipelineTokenLink.tsx:42-45, useCandidateLinks.ts:35-38) into one coded-refusal reader for the modal - real but S-sized and each is a stabilize fix.",
+    "body": "## Summary\nThe candidate modal's whole story (history, letters, interview, consent, note, sealed decisions) is one GET fetched once per [entry id, stage]. Every write the modal itself makes that does not move the stage - synthesizing a scorecard, drafting an offer, minting a scheduling or voice link - lands server-side and stays invisible in the open modal. Give the bundle a pure reducer with a request sequence, a parser, and an invalidation map fed by the modal's own mutations, with stale-while-revalidate so a re-pull never flashes the story empty.\n\n## Description\nNew `candidate/state/candidateBundle.ts` (pure, node:test-able): `parseCandidateBundle(json)` normalizes every section with defaults (carrying `decisions`, which the route already computes); `bundleReducer` over { status: loading|ready|refreshing|stale|failed, data, seq } with `invalidate`, `settle(seq, data)`, `fail(seq)`, `retry`; `invalidatesBundle(effect)` mapping an in-modal effect (task applied outcome, link minted) to whether the story must re-pull. `useCandidateBundle` runs the reducer, keeps its flat return shape and adds `invalidate()` / `retry()`; `useCandidateState` hands `invalidate` to the task hook (on an applied result) and the tray passes `onCreated` to both link panels (the self-scheduling panel gains the prop the voice panel already has). A refresh failure keeps the last-good data (`stale`), so the consent panel keeps its snapshot; only a first-load failure is `failed`, and the consent panel gains a Retry. Perf: +1 module under the dynamically imported CandidateModal (reached from app/page.tsx through next/dynamic, which test:perf counts); imports only type slices, never the app/_lib/db.ts barrel.\n\n## Flow\n1. Recruiter opens a candidate on Interview, runs Synthesize scorecard from the footer.\n2. The task completes with applied = scorecard_ready; invalidatesBundle says yes; the reducer moves to refreshing with the current story still painted.\n3. The re-pull lands; Activity now shows the interview_scorecard and approval_set rows beside the result in the tray.\n4. Recruiter mints a self-scheduling link; onCreated fires; Messages gains the invite letter with its real verdict (failed/queued/sent) without closing the modal.\n5. A transient network blip on a re-pull leaves the story and the consent snapshot in place (stale), not blanked.\n\n## Expected impact\nCloses a class, not a case: every present and future in-modal action gets one declared answer to 'does the story change?' instead of a close-and-reopen. Removes the GDPR panel's false 'could not load' after a good snapshot and gives a failed first load a way out. The parser turns an untyped cast into a checked read, and the sealed decision trail becomes available state for a future render.\n\n## Evaluation\nClaim: in-modal mutations re-pull the candidate story with SWR, ordered and parsed, and a failed load is recoverable.\nBefore: 0 of 8 acceptance cases pass (candidateBundle.ts does not exist).\nAfter: 8 of 8.\nMethod: node:test over app/features/hiring/pipeline/candidate/state/candidateBundle.test.ts, then the integration gate (tsc, lint, i18n:check, test:perf, test:unit).\nResult: pending build.\nGate: architecture",
+    "evidence": "useCandidateBundle.ts:97   }, [entry.id, entry.stage, t]);\nuseCandidateBundle.ts:67-71  if (!d) { setHistory([]); setBundleFailed(true); return; }\nuseCandidateBundle.ts:74   setHistory((d.events as PipelineEvent[]) ?? []);\nuseCandidateBundle.ts:109  return { timelineErr, mergedHistory, rematchLinks, staleSince, consent, bundleFailed, comms, ivOutcome, humanSc, bundleNotes };   (no `decisions`, no reload)\ncandidate-timeline.ts:202  decisions: CandidateDecision[];\ncandidate-timeline.ts:470  decisions: candidateDecisions(entry.id, entry.workspaceId),\nuseCandidateTask.ts:17     const APPLIED = [\"advanced\", \"held_for_review\", \"scorecard_ready\", \"offer_ready\", \"rematched\"];\nuseCandidateTask.ts:94-97  const appliedResult = ...; useEffect(() => { if (appliedResult) onChangedRef.current(); }, [appliedResult]);\nautomation-run.ts:594-596  setApproval(entry.id, \"scorecard_review\", ...); recordAutomationEvent(entry.id, \"interview_scorecard\", ...); applied = \"scorecard_ready\";\ndb/pipeline.ts:3019        kind: \"approval_set\",   (written inside setApproval)\nschedule/invite/route.ts:106  const status = await dispatchScheduleInvite(entry, link, { durationMin: invite.durationMin });\nPipelineSelfSchedulingPanel.tsx:31  onClick={() => sched.create({ entryId })}\nCandidateFooterTray.tsx:53-60  <PipelineVoiceScreenPanel target=... voice=... revokeNote=... onRevoke=... />   (no onCreated)\nPipelineConsentPanel.tsx:117  {failed || loadFailed ? (<p ...>{t(\"loadFailed\")}</p>) : ...\ngrep 'decisions' in app/features/hiring/pipeline/candidate/state -> no reader of the bundle's decisions section"
+  },
+  {
+    "context": "pipeline-candidate-drawer",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A bounced or failed letter is flagged on open and re-sent from the candidate",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "base_sha": "39e918fcb",
+    "write_set": [
+      "app/_lib/comms-resend-outcome.ts",
+      "app/_lib/comms-resend-outcome.test.ts",
+      "app/_lib/comms-dispatch.ts",
+      "app/_lib/candidate-timeline.ts",
+      "app/features/hiring/pipeline/PipelineCommsList.tsx",
+      "app/features/hiring/pipeline/candidate/CandidateActivityTab.tsx",
+      "app/features/hiring/pipeline/candidate/CandidateModalTabs.tsx",
+      "app/features/hiring/pipeline/candidate/CandidateModalBody.tsx",
+      "app/features/hiring/channels/ChannelsCommsMessageModal.tsx",
+      "app/features/tools/devcases/OutboxRows.tsx",
+      "app/features/hiring/pipeline/drawerCommsTruth.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/comms/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "resendDoorOf({ verdict: 'failed', channel: 'email' }) === 'retry'",
+      "resendDoorOf({ verdict: 'bounced', channel: 'email' }) === 'correctAddress' (a bounce resent to the same address bounces again - the resend route takes a corrected recipient, resend/route.ts:55-63)",
+      "resendDoorOf({ verdict: 'recovered' }), ({ verdict: 'sent' }) and ({ verdict: 'queued' }) are all null (a recovered row already has a later delivery; offering the button there drew a 409 that read as a fresh failure, OutboxRows.tsx:167-173)",
+      "resendDoorOf({ verdict: 'failed', channel: SIM_COMMS_CHANNEL }) === null (the route refuses a simulation row with COMM_SIMULATION_ROW, resend/route.ts:73), with SIM_COMMS_CHANNEL now declared in the client-safe comms-resend-outcome.ts and re-exported by comms-dispatch.ts so there is still one literal",
+      "lettersNeedingYou([failed, bounced, recovered, sent, queued, simulation-failed]) === 2 - the count the Activity tab label carries on open",
+      "toCandidateComm(row) carries row.recipient, so the candidate modal's bounced door pre-fills the address exactly as Channels does (ChannelsCommsMessageModal.tsx:78 defaultRecipient={message.recipient})",
+      "source guard (the drawerCommsTruth.test.ts pattern): ChannelsCommsMessageModal.tsx, OutboxRows.tsx and PipelineCommsList.tsx each call resendDoorOf, and none of the three still derives the door locally from `status === \"failed\" && !` / `verdict === \"failed\" ?`"
+    ],
+    "premise": [
+      "app/features/hiring/pipeline/PipelineCommsList.tsx:43-48 and :82-96 - the candidate modal already paints a failed or bounced letter red with its relay reason, and offers nothing to do about it: the recovery doors exist only in the Comms Center (ChannelsCommsMessageModal.tsx:77-81) and the dev-case outbox (OutboxRows.tsx:174, :178), so a recruiter reading the candidate has to leave, find the same message in another tab, and re-send it there.",
+      "The candidate modal opens on Overview (candidateView.ts:43 `tab: opts.tab ?? prev?.tab ?? \"overview\"`) and the tab strip is plain labels (CandidateModalTabs.tsx:61 `{t(`tabs.${id}`)}`); Messages sit inside the Activity tab's collapsed <details> rows (PipelineCommsList.tsx:47), so a bounced offer letter is invisible unless the recruiter goes looking - the app holds the verdict (candidate-timeline.ts:76 `verdict` derived by the same commsVerdict the Comms Center uses) and never raises it.",
+      "The two existing surfaces gate the SAME doors with DIFFERENT predicates: ChannelsCommsMessageModal.tsx:77-80 reads raw `message.bounced` / `message.status === \"failed\" && !message.recovered`, OutboxRows.tsx:174/178 read `m.verdict`; a third surface would be a third copy. The outcome fold is already shared (app/_lib/comms-resend-outcome.ts:53-67, 'used to duplicate the fold verbatim and got it wrong in the same way', :1-4) - the door choice is the half that is not.",
+      "CandidateComm has no recipient (candidate-timeline.ts:66-92) although the row it projects carries one (comms-view.ts:31 `recipient: string | null`, CommsViewRow = OutboxRow & ... at :44), and toCandidateComm (candidate-timeline.ts:97-115) drops it - so the bounced door cannot pre-fill the address. The bundle is operator-gated (app/api/pipeline/[id]/timeline/route.ts:23) and already carries the full letters, so the address adds no new exposure class.",
+      "The door itself needs no new route: POST /api/comms/[id]/resend is operator + pipeline:write gated (resend/route.ts:42-45), rate-limited (:76) and already stamps the resend on the candidate's history (:28-35); app/_lib/auth/public-routes.test.ts:58 pins it NOT public. ResendButton and BouncedResend are reusable components already driven by resendOutcome.",
+      "The standard (recruiting candidate-communication-integrity/dead-letter-escalation-and-orphan-receipts): 'after the last attempt, a human must find out, and a candidate must not be left believing they were contacted' - the human here is the recruiter looking at that candidate."
+    ],
+    "rollback": "Three commits revert independently: the shared door predicate + SIM constant move (the two existing surfaces keep their behaviour, pinned by the source guard), the recipient field on the bundle (additive, no reader breaks without it), and the modal rendering + tab attention label + catalog keys.",
+    "gate": "contract",
+    "technique": "dead-letter-escalation-and-orphan-receipts",
+    "runner_up": "Render the sealed decision trail the bundle already ships (candidate-timeline.ts:202/470, never read by useCandidateBundle.ts:74-84) in Activity as 'why this candidate stands here' - actor, localized reasonCode, keyed vs keyless - the blind 'why was this person rejected' decision the modal has the data for.",
+    "body": "## Summary\nWhen a letter to a candidate bounced or dead-lettered, the candidate modal says so in red - in a collapsed row inside a tab the modal does not open on - and offers no way to fix it. Raise it on open (the Activity tab carries a 'needs you' count) and put the Comms Center's own recovery door on the letter where the recruiter is reading it: one-click retry for a failed send, corrected-address resend for a bounce. One shared door predicate serves all three surfaces.\n\n## Description\nAdd `resendDoorOf(comm): 'retry' | 'correctAddress' | null` and `lettersNeedingYou(comms)` to app/_lib/comms-resend-outcome.ts (pure, beside the outcome fold both buttons already share); move SIM_COMMS_CHANNEL there so the door can refuse a simulation row client-side, re-exported from comms-dispatch.ts. Adopt the predicate in ChannelsCommsMessageModal and OutboxRows (behaviour-preserving) and in PipelineCommsList, which renders the existing ResendButton / BouncedResend components under an adverse letter (auto-opening that row's details). Project `recipient` onto CandidateComm so the bounced door pre-fills like Channels. CandidateModalBody computes the count from `st.comms` and CandidateModalTabs renders it on the Activity label (ICU plural, one key in four catalogs, plus an sr-only phrase). After a resend the component's own outcome line reports sent / queued / recovered / dead-lettered (the shared five-outcome fold). Perf: ResendButton, BouncedResend and comms-resend-outcome are already in the app/page.tsx module union via the Channels tab, so the modal adds edges, not modules; no db barrel import.\n\n## Flow\n1. Recruiter opens a candidate from the board; the tab strip reads 'Activity - 1 needs you'.\n2. They switch to Activity; the bounced offer letter is expanded, red, with the relay's reason and a corrected-address field pre-filled with the address on file.\n3. They fix the address and re-send; the line reads 'Resent' (or, honestly, 'recorded, no relay configured' / 'already being delivered' / 'rejected again: reason').\n4. The resend is stamped on the candidate's history by the route; the Comms Center shows the same message with the same door, because both read resendDoorOf.\n\n## Expected impact\nA dead letter becomes something the recruiter meets on the candidate instead of something they must go and find - the difference between a candidate who never got their offer and one who did. Removes a cross-tab round trip per recovery, and turns two drifting door predicates into one so a third surface cannot become a third behaviour.\n\n## Evaluation\nClaim: the candidate modal raises undelivered letters on open and recovers them in place through the same door the Comms Center uses.\nBefore: 0 of 7 acceptance cases pass (resendDoorOf / lettersNeedingYou do not exist, CandidateComm has no recipient).\nAfter: 7 of 7.\nMethod: node:test over app/_lib/comms-resend-outcome.test.ts and app/features/hiring/pipeline/drawerCommsTruth.test.ts, then the integration gate (tsc, lint, i18n:check, api:check unchanged, test:perf, test:unit).\nResult: pending build.\nGate: contract",
+    "evidence": "PipelineCommsList.tsx:43  const adverse = m.verdict === \"failed\" || m.verdict === \"bounced\";\nPipelineCommsList.tsx:82-96  bounce / failure / recovered lines rendered; no button, no link anywhere in the file\nChannelsCommsMessageModal.tsx:77-81  {message.bounced ? <BouncedResend id=... defaultRecipient={message.recipient} .../> : message.status === \"failed\" && !message.recovered ? <ResendButton .../> : null}\nOutboxRows.tsx:174  {m.verdict === \"failed\" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}\nOutboxRows.tsx:178  <BouncedResend id={m.id} defaultRecipient={m.recipient} ... />   (under m.verdict === \"bounced\")\ncandidateView.ts:43  tab: opts.tab ?? prev?.tab ?? \"overview\",\nCandidateModalTabs.tsx:61  {t(`tabs.${id}`)}\ncandidate-timeline.ts:66-92  export type CandidateComm = { id, kind, status, verdict, channel, subject, body, ... deliverable }   (no recipient)\ncomms-view.ts:31  recipient: string | null;   (OutboxRow; CommsViewRow = OutboxRow & {...} at :44)\ncomms-resend-outcome.ts:53  export function resendOutcome(ok, status, payload): ResendOutcome\nresend/route.ts:42-45  requireOperator(); requireCapabilityCoded(\"pipeline:write\", ...)\nresend/route.ts:73  if (original.channel === SIM_COMMS_CHANNEL) return jsonRefusal(\"COMM_SIMULATION_ROW\", 409);\ncomms-dispatch.ts:267  export const SIM_COMMS_CHANNEL = \"simulation\";\ngrep '/resend' app/features -> only ChannelsCommsBouncedResend.tsx:35 and devcases/ResendButton.tsx:44; none under app/features/hiring/pipeline"
+  }
+]

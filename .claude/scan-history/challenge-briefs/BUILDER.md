@@ -53,6 +53,15 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
    sibling builder's in-flight work: wait ~60s and re-run once; if still red on
    foreign paths only, record it in `notes` and proceed. Two failed attempts to
    turn YOUR red green -> revert your uncommitted work, `status: "demoted"`.
+   **Close the loop your rule opens (added after r07, where 4 of 16 cards needed a
+   follow-up builder for exactly this).** When your change adds a refusal, a gate or a
+   stored status, find every surface that OFFERS the refused action or DISPLAYS the
+   status (nav/visibility tables, queues and lists that feed the action, the writer
+   that should clear the status) and make it agree in the same card — one shared rule,
+   not two. A new read->write you add obeys the lock-or-re-check law even when the card
+   did not mention it. If closing the loop would grow the write set past the allowance,
+   say so in `notes` under `loop_open:` with the exact file and rule; a gap you only
+   mention is scored as not flawless.
 5. **Commit a short series**, each commit green:
    `test(<ctx>): <what the cases pin>` then `feat|refactor(<ctx>): <card title>`.
    Body: the lens, `Challenge: <run-id> <ctx>/<slot>` (run-id = the run directory name), the re-measured
