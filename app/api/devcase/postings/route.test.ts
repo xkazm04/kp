@@ -8,7 +8,7 @@
 import { cleanupUnitDb } from "@/app/_lib/testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPosting, createSubmission, saveSubmissionEvaluation } from "@/app/_lib/db.ts";
+import { createPosting, createSubmission, saveSubmissionEvaluation } from "@/app/_lib/db/devcase.ts";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator.ts";
 import { promoteVerdict, promoteVerdictInputOf } from "@/app/_lib/devcase-promote-verdict.ts";
 import { GET } from "./route.ts";
