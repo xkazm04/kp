@@ -2240,6 +2240,22 @@ const ROUTES: RouteSpec[] = [
     expensive: "await probeVoiceProviders(",
     servedBefore: 'jsonRefusal("VOICE_READINESS_OFFLINE", 503)',
   },
+  // ------------------------------------------------------------------
+  // ADDED challenge-r09 comms-locale-optout/B. The third open write on the stop door:
+  // the candidate's chosen letter language. Same posture as its stop-write sibling —
+  // anonymous, token-authed, keyed per client AND token, limited BEFORE the token
+  // lookup so a flood never reaches the store. 20/min: a person clicks a few times.
+  {
+    rel: "./stop/[token]/language/route.ts",
+    key: "`stop-language:${clientIpFrom(request.headers)}:${token}`",
+    limit: 20,
+    optsSrc: "STOP_LANGUAGE_RATE_LIMIT",
+    optsDef: "const STOP_LANGUAGE_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "findEntryByOptOutToken(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
 ];
 
 for (const spec of ROUTES) {

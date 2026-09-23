@@ -421,6 +421,20 @@ attributed **human**, because a person made this decision.
 
 Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts`.
 
+**The language control on the same page.** A candidate written to in a language they do
+not read used to have only the stop. The page now says which language our letters go out
+in (`GET` adds `letterLocale`, resolved as every dispatch resolves it, and `localeChosen`)
+and offers a correction: the language the reader is reading the page in, in one click,
+until they have chosen (`stopLanguageOffer.ts`), plus the other app languages.
+`POST /api/stop/[token]/language` `{ locale }` stores it through
+`setCandidateChosenLocale` (`app/_lib/db/pipeline-locale.ts`): `locale` +
+`locale_chosen_at` on the token's entry and every entry with the same non-empty
+`candidate_id` in the token row's workspace, never another team's and never an erased
+row, in one UPDATE (last choice wins, nothing to lock). It never writes the outreach halt,
+and the page says so. Limited per IP+token before the lookup (20/min, pinned in
+`rate-limit-contract.test.ts`); an unknown token is the same `STOP_LINK_INVALID` 404;
+a bad locale is `STOP_LANGUAGE_INVALID` 400. Locked by `app/api/stop/stop-language-route.test.ts`.
+
 ## 8. One delivery truth, on every surface
 
 - **Failure reason persisted.** `dev_outbox.failure_detail` (additive,
@@ -567,7 +581,8 @@ was recorded (silence beats an invented rationale; the plain template ships inst
 A candidate is written to in **their** language, never the recruiter's request
 locale. `resolveCommsLocale` (`comms-locale.ts`) is the one authority:
 
-1. the entry's stored `locale` — the explicit choice captured at apply;
+1. the entry's stored `locale` — the explicit choice captured at apply, or later on
+   the stop page's language control (§7b; `locale_chosen_at` marks it);
 2. else **the entry's OWN team** `workspaces.default_locale` (`cs` on the ČS seed);
 3. else `DEFAULT_LOCALE`, only when even the workspace row is unreadable.
 
@@ -577,6 +592,11 @@ twin of Python `_candidate_lang`. Czech wins with English; English wins over a
 third language; a German- or French-only list stores `de` / `fr` rather than
 collapsing to `en`; empty/unmapped stays NULL and resolves through step 2 at
 read time. Locked by `comms-locale.test.ts` against `CandidateLangTest`.
+`inferProfileLocale` asks `chosenLocaleForCandidate` first, so a new entry for someone
+who chose a language on the stop page stores that choice, not the CV guess. Known gap:
+`POST /api/pipeline` and `POST /api/jobs/[id]/candidates/outreach` still call it without
+their workspace, so on a non-default team a new entry from those two doors misses both
+the choice and the inference (stored NULL, team default at dispatch).
 
 Step 2 is per-tenant, so every dispatcher resolves through
 `comms-dispatch.candidateLocale`, which threads `entry.workspaceId` (entry-less
