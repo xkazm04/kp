@@ -1,0 +1,9 @@
+{"ctx":"pipeline-actions-commands","role":"scout","tokens":195377,"ms":385260}
+{"ctx":"billing-plan-and-spend","role":"scout","tokens":218228,"ms":388990}
+{"ctx":"ats-sync-egress","role":"scout","tokens":212256,"ms":423829}
+{"ctx":"tests-pipeline-automation","role":"scout","tokens":169892,"ms":461626}
+{"ctx":"analytics-metrics","role":"scout","tokens":206898,"ms":494397}
+{"ctx":"profile-roster-matrix","role":"scout","tokens":239357,"ms":550298}
+{"ctx":"devcase-core","role":"scout","tokens":311396,"ms":602537}
+{"ctx":"workspace-config-api","role":"scout","tokens":248916,"ms":711983}
+{"ctx":"*","role":"critic","model":"fable","tokens":271616,"ms":759554}

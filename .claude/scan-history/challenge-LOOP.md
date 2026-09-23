@@ -26,9 +26,10 @@ whole loop (irreversible / policy-loosen still never built).
 | challenge-2026-09-22 (r01) | 6 | 0 | done — 12/12 landed (apply-A completed 2026-09-23, f76c8462b) |
 | challenge-r02 | 8 | 11 | done — 16/16 landed + 1 follow-up; flawless 12/16 (10 strict); 3 coordinator fixes |
 | challenge-r03 | 8 | 5 | done — 16/16 landed; flawless 13/16 (11 strict); 5 coordinator fixes; page ceiling lowered 8875->8645 by glyph/A |
-| challenge-r04 | 8 | 3 | carded + critiqued (4.00/4.44/4.25; 10 build / 6 revise; rulings: db-org/B needs an executed rollback drill, decisions/B keepalive commit, ops/A hash keys) — builds after r03 closes |
+| challenge-r04 | 8 | 3 | done — 16/16 landed + 1 follow-up; flawless 13/16 (8 strict); test:perf fully green |
+| challenge-r05 | 8 | 2 | carded + critiqued (3.69/4.50/4.19; 5 build / 11 revise; billing A+B confirmed no charge change; workspace-config/A generalises SERVER_ONLY_KINDS) — builds after r04 closes |
 
-Side fixes outside the card flow: a9bd69f62 companion recall scoped to workspace (r02 llm-api scout); 93f485438 interview-sim /s+/ word count (r03 scout).
+Side fixes outside the card flow: a9bd69f62 companion recall scoped to workspace (r02 llm-api scout); 93f485438 interview-sim /s+/ word count (r03 scout); **9e834cf04 SECURITY: POST /api/tasks analyze with client paths could read any file and rm -rf any directory — refused + confined (r05 workspace-config-api scout)**; e00c802fc keyless devcase fallback graded unknown probes as failures (r05 devcase-core scout).
 Small follow-ups noted by scouts, not yet built: skill-profile public page limiter keyed per token (guessing gets fresh allowance); companion_cli fallbackReason raw provider text (llm-api/B may cover); /api/schedule ?limit >500 truncated:false; about riders: voice ticker double role=status, palette-preview raw stage labels.
 python-runner-concurrency is a genuine timing FLAKE (isolated: 3/3 pass once, 1/2 fail later); unchanged by this work — owner's quarantine call.
 Registry: scan-sweep 3.5.1 (e1c0626b) — riders, --until-covered, --in-flight all committed with tests.
@@ -39,3 +40,7 @@ Known flake (not ours, owner's call): `app/_lib/python-runner-concurrency.test.t
 - Dead catalog key pipeline.tab.previewApplyGlobal (pipeline/B); team-scoped pass filters the shared 2000-row list (documented gap).
 - OWED at loop end: browser pass (both themes) over the new UI surfaces the builders could not open — incl. Analyze drag-and-drop (r03 cv-analyze/A), About transport, schedule pending cards, routing chips, promote verdict, receiver editor, SLA editor, glyph empty states.
 - Subway keyboard move: no screen-reader announcement and focus does not return to the moved bead (pipeline-board-ui/B gap); tablet cannot move a bead.
+- OWED browser check: /?sim=auto live run — SimState.moves shows 'dom' for publish and send-offer (r04 shell-simulation/A).
+- OWED at loop end: keyless e2e subset (profile-builder.spec was edited by r04 profile-editor/B; token-doors-axe by r02 llm-api/A) against a KP_EMPTY=1 prod build.
+- decisions-review-ui/B deferred only REJECTS through the undo window; accepts still commit on click (their handoffs live in useDecisionsQueue.ts). Extending the window to accepts is a follow-up.
+- OWED browser check: sim resume — reload mid-Offer shows 'Resume at Offer', rows kept; a second tab's Resume is refused (SIM_RUN_ACTIVE) while the first walks (r04 shell-simulation/B).

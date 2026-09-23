@@ -1,0 +1,125 @@
+[
+  {
+    "context": "billing-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "billing_alerts gets its reader: org-scoped money alerts with a resolve door",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/billing.ts",
+      "app/_lib/db/core.ts",
+      "app/_lib/billing/alerts.ts",
+      "app/_lib/billing/alerts.test.ts",
+      "app/_lib/db/billing-tenancy.test.ts",
+      "app/_lib/api-response.ts",
+      "app/api/billing/route.ts",
+      "app/api/billing/alerts/[id]/route.ts",
+      "app/api/billing/billing-alerts-route.test.ts",
+      "app/features/settings/billing/billingTypes.ts",
+      "app/features/settings/billing/BillingAlertsPanel.tsx",
+      "app/features/settings/billing/BillingTab.tsx",
+      "docs/features/billing/README.md"
+    ],
+    "new_files": [
+      "app/_lib/billing/alerts.ts",
+      "app/_lib/billing/alerts.test.ts",
+      "app/api/billing/alerts/[id]/route.ts",
+      "app/api/billing/billing-alerts-route.test.ts",
+      "app/features/settings/billing/BillingAlertsPanel.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "Store: open alerts exist for org-default (price_drift, unmapped_product) and org-b (unmapped_product); listBillingAlertsForOrg('org-b') returns exactly org-b's one open row, and resolved rows are excluded unless includeResolved.",
+      "Projection: billingAlertViews([{kind:'unmapped_product', detail:'product prod_123 not in POLAR_PRODUCT_*', ...}], {homeOrgReader:false}) -> one view {code:'unmapped_product', audience:'customer'} with NO `detail` field; the same row with homeOrgReader:true carries `detail`.",
+      "Audience: a price_drift row (deployment-level, recorded under the default org) appears only when homeOrgReader is true; an owner of org-b sees zero price_drift views.",
+      "Closed vocabulary: a row whose kind is 'future_kind' (a writer newer than the reader) projects to {code:'unknown'} and is still returned - never silently dropped; isBillingAlertKind('unmapped_product') true, ('x') false.",
+      "Resolve door: POST /api/billing/alerts/<id> {resolution:'fixed'} as owner -> 200 and the row has resolved_at set and resolution='fixed'; a second call -> 409 BILLING_ALERT_NOT_OPEN; an id belonging to another org -> 404 BILLING_ALERT_NOT_FOUND; a recruiter -> 403 BILLING_ORG_MANAGE_REQUIRED; no session -> 401; {resolution:'bogus'} -> 400 BILLING_ALERT_RESOLUTION_INVALID.",
+      "Wire parity: GET /api/billing on a fresh DB answers `alerts: []`, and every pre-existing key (plan, status, periodEnd, provider, metered, meters, configured, catalog) deepEquals the response captured before the change.",
+      "Charge parity (r02 db-jobs/A replay shape): a three-org fixture (plans starter/growth/free, billing_usage rows, billing_credits grants and debits, billing_events) is snapshotted - all four money tables plus billingOverview() and meterAllowance() for every meter x org; after GET /api/billing and resolving EVERY alert as fixed/dismissed, all snapshots are byte-identical, and resolving an unmapped_product alert leaves entitledPlan() at free.",
+      "Migration: a DB created before the change boots, gains billing_alerts.resolution (nullable), and its pre-existing resolved rows keep resolved_at with resolution NULL (core-migrations test)."
+    ],
+    "premise": [
+      "app/_lib/db/billing.ts:275 listBillingAlerts and app/_lib/db/billing.ts:301 resolveBillingAlert have ZERO non-test callers (git grep over app/, scripts/, instrumentation*.ts) - the table is write-only.",
+      "Two producers write it: app/_lib/billing/sync.ts:152 (unmapped_product, commented at sync.ts:143-144 as 'subscriber NOT entitled') and app/_lib/billing/sync.ts:225 (price_drift), the latter from the daily scheduler pass in instrumentation-node.ts (~380-395).",
+      "app/_lib/billing/sync.ts:146-147 promises 'an admin surface / health check can list paid-but-dark subscriptions' and app/_lib/billing/sync.ts:222-223 'ONE worklist for money is not behaving' - neither surface exists.",
+      "app/api/billing/route.ts:25-29 GET returns overview + configured + catalog only; no alert reaches any client.",
+      "app/_lib/db/billing.ts:229-237 BillingAlert carries only resolvedAt (schema app/_lib/db/core.ts:1004-1012) - no resolution kind, so 'fixed' and 'dismissed as noise' are indistinguishable.",
+      "app/_lib/db/billing.ts:267-270 + app/_lib/tenancy.ts:356-358 declare listBillingAlerts deployment-global by design; the org owner reader therefore needs an org-filtered accessor, not the cross-customer list.",
+      "app/_lib/auth/require-operator.ts:56-80 already exports HOME_ORG_ID / homeOrgReader / requireHomeOrgReader - the audience split for deployment-level price_drift reuses it.",
+      "app/api/billing/authority.ts:60-65 requireBillingAuthority is the org:manage door the new route reuses.",
+      "Adopts two open items from .claude/scan-history/leftover-develop-2026-09-17.jsonl: 'Return open billing alerts on GET /api/billing' (billing-api, M) and 'Surface the billing_alerts worklist on the Billing tab' (billing-plan-and-spend, M) - neither appears in low-risk-drain-2026-09-22*-results.jsonl."
+    ],
+    "rollback": "The commit series reverts cleanly: the migration is an additive nullable column (ALTER TABLE ADD COLUMN resolution TEXT) that the old code never reads, the new route and panel are new files, and GET /api/billing only gains a key. No money table is written by anything the card adds.",
+    "gate": "contract",
+    "runner_up": "Project billing_events into a per-org money statement (plan changes, pack grants, stale/concurrent drops with their sync.ts detail) on a GET /api/billing/history read.",
+    "technique": "alert-lifecycle",
+    "body": "## Summary\nThe billing engine already detects the two money failures that hurt most - a paid subscription whose product is unmapped (the customer paid and is NOT entitled) and catalog-vs-provider price drift - and writes each to `billing_alerts`. Nothing reads that table. This card gives it exactly one reader: an org-scoped, coded projection on GET /api/billing, a resolve door that records HOW an alert ended, and a panel on the Billing tab.\n\n## Description\n`app/_lib/billing/alerts.ts` (new) owns the closed vocabulary (`BILLING_ALERT_KINDS = ['unmapped_product','price_drift'] as const`, derived union, `isBillingAlertKind` guard - the tabs.ts pattern) and a pure `billingAlertViews(rows, {homeOrgReader})` projection. Audience is part of the projection: an org owner sees their own org's `unmapped_product` as a coded customer sentence (their plan has not changed yet, support is on it) with the provider detail WITHHELD; the home-org operator additionally sees deployment-level `price_drift` and the raw `detail`. The store gains `listBillingAlertsForOrg(orgId)` beside the deployment-wide list (tenancy doctrine unchanged, the new accessor pinned in billing-tenancy.test.ts) and a nullable `resolution` column (`fixed` | `dismissed`, per the registry's alert-lifecycle technique: a resolution without a kind cannot tell a real fix from noise). `POST /api/billing/alerts/[id]` resolves through the existing CAS-guarded `resolveBillingAlert` behind `requireBillingAuthority`, with coded refusals. `BillingAlertsPanel` renders above the plan card, coded through the catalog, with Resolve / Dismiss actions.\n\n## Flow\n1. Webhook or daily reconcile writes an alert (unchanged).\n2. GET /api/billing -> `alerts: billingAlertViews(listBillingAlertsForOrg(org) [+ deployment rows if home-org reader])`.\n3. Billing tab renders the panel; owner clicks Resolve (fixed) or Dismiss (noise).\n4. POST /api/billing/alerts/[id] -> resolveBillingAlert(id, org) + resolution kind; 409 if already closed, 404 if not this org's.\n5. Next GET no longer lists it; resolved rows keep their kind for later quality analysis.\n\n## Expected impact\nA paid-but-dark subscription stops being discoverable only through a customer complaint or a server log line; price drift reaches the operator who can fix the dashboard. Two open M backlog items close as one coherent read model. No charge changes: the card writes only `billing_alerts`.\n\n## Evaluation\nClaim: billing_alerts gains an org-scoped, coded, audience-aware reader and a kinded resolve door without moving any money state.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (alerts.test.ts, billing-alerts-route.test.ts, billing-tenancy.test.ts, core-migrations) plus the three-org charge-parity replay, then the integration gate (tsc, lint, i18n:check, api:check, test:unit).\nResult: pending build.\nGate: contract",
+    "evidence": "git grep -n \"listBillingAlerts\\|resolveBillingAlert\" -- app scripts instrumentation*.ts | grep -v .test.ts ->\n  app/_lib/db/billing.ts:275:export function listBillingAlerts(...)\n  app/_lib/db/billing.ts:301:export function resolveBillingAlert(...)\n  app/_lib/tenancy.ts:357: (comment only)\n  => 0 callers.\ngit grep -n \"recordBillingAlert(\" -- app | grep -v .test.ts ->\n  app/_lib/billing/sync.ts:152: recordBillingAlert({ orgId, kind: \"unmapped_product\", ... })\n  app/_lib/billing/sync.ts:225: alerted = recordBillingAlert({ kind: \"price_drift\", ... })  (no orgId -> DEFAULT_ORG_ID)\ninstrumentation-node.ts: ensureSchedule(\"price_reconcile\", { intervalMinutes: 24 * 60 }) -> runPriceReconcile()\napp/api/billing/route.ts:25-29: NextResponse.json({ ...billingOverview(...), configured, catalog }) - no alerts key.\ncore.ts:1004-1012 billing_alerts(id, org_id, kind, detail, provider_ref, created_at, resolved_at) - no resolution column.\nOpen backlog (leftover-develop-2026-09-17.jsonl): 'Return open billing alerts on GET /api/billing' (M, impact 9); 'Surface the billing_alerts worklist on the Billing tab' (M, impact 9); absent from low-risk-drain-2026-09-22*-results.jsonl."
+  },
+  {
+    "context": "billing-plan-and-spend",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Meters state when they reset and whether this pace runs out before then",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "app/_lib/billing/plans.ts",
+      "app/_lib/billing/entitlements.ts",
+      "app/_lib/billing/allowance-window.test.ts",
+      "app/features/settings/billing/meterForecast.ts",
+      "app/features/settings/billing/meterForecast.test.ts",
+      "app/features/settings/billing/BillingUsageMeterRow.tsx",
+      "app/features/settings/billing/spend/BillingSpendPanel.tsx",
+      "app/features/settings/billing/BillingCurrentPlanPanel.tsx",
+      "docs/features/billing/README.md"
+    ],
+    "new_files": [
+      "app/_lib/billing/allowance-window.test.ts",
+      "app/features/settings/billing/meterForecast.ts",
+      "app/features/settings/billing/meterForecast.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "allowanceWindow(new Date('2026-09-23T10:00:00Z')) -> {period:'2026-09', start:'2026-09-01T00:00:00.000Z', resetsAt:'2026-10-01T00:00:00.000Z', asOf:'2026-09-23T10:00:00.000Z'}; Dec 31 23:59Z resets at next Jan 1; for 400 instants sampled across 2026-2027 (incl. leap-Feb 2028 edge) window.period === currentPeriod(now) - the displayed window is the debit key, by construction.",
+      "Pace: meterForecast({meter:'ai_candidates', limit:300, used:180, credits:0, window at day 12 of 30}) -> {kind:'runsOutBeforeReset', runsOutAt ~ day 20 (ISO)}.",
+      "On pace: {limit:10, used:2, day 25 of 30} -> {kind:'onPace'} (projection 2.4 <= 10), no date claimed.",
+      "Small-sample honesty: elapsed < 3 days OR used < 2 -> {kind:'tooEarly'} - never a projected date from one data point.",
+      "Credits extend capacity: {limit:10, used:10, credits:20, day 10 of 30} projects against 30 units, not 10; limit null -> {kind:'unlimited'}; interview_minutes with remaining 0 -> {kind:'depleted'} (the existing pack CTA stays).",
+      "Hires never block (plans.ts:25-30): {meter:'hires', limit:2, used:2, day 10 of 30} -> {kind:'overageProjected'}, never 'runsOutBeforeReset' or 'depleted' wording.",
+      "Two dates, honestly: planDatesView({paidPeriodEnd:'2026-10-14T00:00:00Z', resetsAt:'2026-10-01T00:00:00Z'}) -> {diverge:true} and the plan card states both lines; paidPeriodEnd on the 1st -> {diverge:false}, one line.",
+      "Charge parity: for a three-org fixture, billingOverview(now, ws) deepEquals the pre-change output on every pre-existing key (only `allowanceWindow` is added), and a scripted sequence of meterAllowance/recordMeterUsage calls leaves billing_usage and billing_credits rows byte-identical to the same sequence run on the pre-change module (currentPeriod untouched)."
+    ],
+    "premise": [
+      "app/_lib/billing/plans.ts:163-166 currentPeriod() is a UTC CALENDAR month ('YYYY-MM'); app/_lib/billing/entitlements.ts:213 and :298 key both the displayed usage and the debit on it.",
+      "app/_lib/billing/entitlements.ts:243 exposes periodEnd = state.currentPeriodEnd - the provider's PAID period - and app/features/settings/billing/BillingCurrentPlanPanel.tsx:57-64 renders it as 'Current period ends {date}': the only date on the tab.",
+      "app/_lib/billing/period-anchor.test.ts:10-12 measures that the paid period and the allowance window coincide only for a subscription anchored on the 1st (9 of 10 anchors diverge); .ai/tasks/2026-09-07-allowance-period-anchor.md tracks the re-key as a separate charge-changing task this card does NOT perform.",
+      "messages/en.json billing.usage.intro (line ~8836) says 'Each meter resets with the billing period' - false by the two facts above, and orphaned (0 render sites: grep for usage.intro in app/ returns nothing).",
+      "app/features/settings/billing/BillingUsageMeterRow.tsx:17-76 renders used/limit/remaining/credits only - no reset date and no pace; app/features/settings/billing/billingMeterCta.ts:12-27 warns at a fixed 20% remaining regardless of whether it is day 3 or day 28.",
+      "app/_lib/billing/plans.ts:25-30: hires are DEBITED BUT NEVER GATED - a forecast must not say they 'run out'.",
+      "app/features/settings/billing/spend/BillingSpendPanel.tsx:130-142 is the allowance rail the reset line belongs to; it already collapses on unmetered installs (isUnmeteredInstall, :110), so self-hosted gets no forecast chrome."
+    ],
+    "rollback": "Reverts cleanly: allowanceWindow is a new pure function beside currentPeriod (which is untouched), the overview gains one additive key nothing else reads, and the UI changes are confined to three components plus a new pure module. No money table, gate or debit path is edited.",
+    "gate": "none",
+    "runner_up": "Plan-change preview: before the portal hop, show each meter's allowance under the target plan against this period's usage (fits / over by N).",
+    "technique": "timezone-anchored-period-dates",
+    "body": "## Summary\nAn owner deciding whether to upgrade or buy a minutes pack today decides blind: the meters show 'used of limit' but not when they refill, and the only date on the tab is the PAID period end, which for 9 of 10 subscription anchors is not when the allowance resets. This card makes each meter state its reset date and whether the current pace runs out before it, and makes the plan card say both dates when they differ - without re-keying anything that charges.\n\n## Description\n`allowanceWindow(now)` (plans.ts, pure) returns `{period, start, resetsAt, asOf}` derived from the SAME computation as `currentPeriod`, and `billingOverview` adds it as one key - so what the tab displays is the debit key by construction, and the day `.ai/tasks/2026-09-07-allowance-period-anchor.md` re-keys the allowance, the display follows from one function. `meterForecast.ts` (new, pure, node:test) folds a MeterOverview + window into a closed verdict: `unlimited | depleted | tooEarly | onPace | runsOutBeforeReset(runsOutAt) | overageProjected` - linear pace over elapsed days, capacity = included limit + pack credits, a stated small-sample floor (registry: small-sample honesty) and a hires branch that says 'past the allowance, never blocked' instead of 'runs out'. MeterRow renders the verdict as one line and, for runsOutBeforeReset, routes to the existing pack/upgrade anchors; the allowance rail heading reads 'Resets {date}'; the plan card shows 'Paid period ends X' and 'Allowances reset Y' when they differ. The false orphan string billing.usage.intro is replaced with a true one in all 4 catalogs.\n\n## Flow\n1. GET /api/billing (unchanged route) now carries `allowanceWindow` from billingOverview.\n2. Spend rail header: 'Included allowance - resets 1 Oct'.\n3. Each MeterRow: meterForecast(meter, window) -> e.g. 'At this pace: out on 20 Sep, 11 days before reset -> Upgrade' or 'On pace for this month'.\n4. Plan card: when planDatesView says diverge, two dated lines instead of one ambiguous one.\n\n## Expected impact\nThe upgrade / pack decision is made with the date it hinges on; a 20%-remaining warning on day 28 stops reading as an emergency and 60% used on day 5 starts reading as one. The paid-vs-allowance window divergence becomes visible to the customer instead of living only in a pinned test. Charges, gates and debits are untouched - proved by the parity case.\n\n## Evaluation\nClaim: every metered meter states its reset date and a pace verdict derived from the debit key; the plan card distinguishes the paid period from the allowance window; no charge moves.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (allowance-window.test.ts, meterForecast.test.ts, the billingOverview/recordMeterUsage parity replay), then the integration gate (tsc, lint, i18n:check, design:check, test:unit); both themes checked by eye on the rail.\nResult: pending build.\nGate: none",
+    "evidence": "app/_lib/billing/plans.ts:163-166:\n  /** Monthly usage period key, UTC - 'YYYY-MM'. */\n  export function currentPeriod(now) { return `${now.getUTCFullYear()}-${...month}`; }\napp/_lib/billing/entitlements.ts:213  const used = billingUsageFor(meter, currentPeriod(now), orgId);\napp/_lib/billing/entitlements.ts:243  periodEnd: state?.currentPeriodEnd ?? null,\nBillingCurrentPlanPanel.tsx:57-64  {data.periodEnd ? <p>{t(\"periodEnd\", {date})}</p> : null}  -> en: 'Current period ends {date}'\nperiod-anchor.test.ts header: '9 of 10 representative anchors over-grant' (paid window != allowance window).\nnode -e over messages/en.json billing: only reset-related strings = 'Each meter resets with the billing period; ...' (usage.intro), 'per month'.\ngrep -rn 'usage.intro' app -> 0 hits (orphan).\nBillingUsageMeterRow.tsx: no date, no pace; billingMeterCta.ts:13 meterWarnAt = max(1, floor(limit*0.2)) - time-blind.\nplans.ts:28-30: 'hires is a CANDIDATE action. It is DEBITED BUT NEVER GATED ... Overage is billed, never blocked.'"
+  }
+]

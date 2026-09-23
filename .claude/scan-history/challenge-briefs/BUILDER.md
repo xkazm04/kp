@@ -42,9 +42,11 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
    (`app/_components/ui/recipes-literals.test.ts` counts hand-typed recipe strings
    repo-wide; `devcase-studio-robustness.test.ts` pins route source; `perf-budget.json`
    caps each route's and `app/page.tsx`'s import graph), and three wave-2 breaks
-   were exactly those. `test:perf` is ALREADY red on exactly one line, `job-ingest.ts`
-   402/400 — ignore that line only; any other overage line is yours (if it comes only
-   from a sibling's UNCOMMITTED files, say so in `notes`). Compose recipes from `app/_components/ui/recipes.ts` (PANEL, ICON_TILE,
+   were exactly those. `test:perf` is GREEN on the committed tree (settled 2026-09-23,
+   3993c0adc) — every overage line is yours unless it comes only from a sibling's
+   UNCOMMITTED files (measure base + your files alone, and say so in `notes`). Raise a
+   ceiling only by your own measured share, under the lock, with a `why`; prefer moving
+   an import off a hot graph (see repo-ref.ts, 448816081) to raising. Compose recipes from `app/_components/ui/recipes.ts` (PANEL, ICON_TILE,
    BTN_*, …) rather than re-typing their class strings. A source-guard test that pins
    the OLD expression of code you correctly changed: update it to pin the new AND
    still forbid the old defect, in the same commit. A whole-tree gate (tsc) red on a path you did NOT touch is a
