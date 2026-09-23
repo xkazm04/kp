@@ -2209,6 +2209,22 @@ const ROUTES: RouteSpec[] = [
     keyConst: "dayKey",
     retryAfter: true,
   },
+  // ------------------------------------------------------------------
+  // ADDED challenge-r08 cv-analysis-archetypes/B. The read sibling of apply-threshold:
+  // /floor-preview spends the SAME calibration scans plus two screening-wave dry runs
+  // per role with an active Screened cohort. Seat-gated like the write (operator +
+  // pipeline:write) and the junk-family 400 answers first, so the limiter sits after
+  // those cheap refusals and ahead of the first calibration scan.
+  {
+    rel: "./analytics/calibration/floor-preview/route.ts",
+    key: "`floor-preview:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "FLOOR_PREVIEW_RATE_LIMIT",
+    optsDef: "const FLOOR_PREVIEW_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "liveScreeningRecommendation(ws, roleFamily)",
+    servedBefore: 'jsonRefusal("CALIBRATION_FAMILY_UNKNOWN", 400)',
+  },
 ];
 
 for (const spec of ROUTES) {
