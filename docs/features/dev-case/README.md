@@ -2094,7 +2094,14 @@ section already read by `ref`.
 **Refusals never claim a send.** An unaddressable candidate is refused *before* anything
 is published (minting a live token for a letter with nowhere to go is a side effect
 nobody asked for); an exhausted `case_designs` allowance, a lifecycle that finished with
-no approved case, and any thrown error all log and stop. In every case the stage move
+no approved case, and any thrown error all log and stop. **A stopped intake stays
+stopped** (`intake_stopped`): a case that has postings and every one of them closed — the
+recruiter's stop door or a lifecycle's close-out — is never re-published by an arrival,
+because reopening is the recruiter's Reopen, not a board move. The state is read by
+`intakeOf` (`DevCaseDetail.publish.ts`), the same rule the assignment detail offers Stop /
+Reopen by, and re-checked after the hook's last await so no stop can land between the read
+and `createPosting`. A case that was simply never published is still published on
+arrival. In every case the stage move
 stands and the candidate simply waits in the column, where a recruiter sees them. No
 approval gate is armed, unlike the interview hook's fail-open: the `calendar` approval
 means "waiting for an interview link", which would be a false claim about someone waiting
@@ -2118,7 +2125,8 @@ worse than promoting a stranger.
 
 Pinned in `app/_lib/stage-hooks-homework.test.ts`: one invite with the outbox's own
 claim, no second invite on re-entry, a second candidate reusing the same posting, the
-unaddressable refusal (nothing sent, nothing published, the move stands), the human gate
+unaddressable refusal (nothing sent, nothing published, the move stands), a stopped
+intake refused rather than reopened (no fresh posting, no letter, the move stands), the human gate
 parking at `awaiting_approval`, the auto gate designing-then-sending, and both binding
 cases (invited → their entry; uninvited → the old resolution).
 
@@ -2261,10 +2269,6 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   untranslated, to a candidate reading the page in cs/de/fr.
 - 3rd-party distribution (publish/pull to email/ATS/job-board) is a local-stub
   adapter interface only, per the original plan (`docs/concepts/dev-extension-future-phases.md`).
-- **The homework column does not yet read a stopped intake.**
-  `app/_lib/stage-hooks-homework.ts` finds no OPEN posting on a stopped case and publishes
-  a fresh one, so moving a candidate into that column reopens intake the recruiter
-  stopped. It never hands out a closed link; it is outside the stop/reopen change.
 
 ## Case-generation calibration
 

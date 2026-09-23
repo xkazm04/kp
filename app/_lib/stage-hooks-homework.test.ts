@@ -9,6 +9,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
 import {
   approveLifecycleCase,
+  closeCaseIntake,
   createSubmission,
   getLifecycle,
   getOpenPosting,
@@ -26,6 +27,7 @@ import { setDecisionConfig } from "./decision-config-store.ts";
 import { promoteSubmission } from "./devcase-run.ts";
 import { runStageEnteredHook } from "./stage-hooks.ts";
 import { runHomeworkArrival } from "./stage-hooks-homework.ts";
+import { lifecycleOwnsIntake } from "../features/tools/devcases/DevCaseDetail.publish.ts";
 import type { JobRecord } from "./db/core.ts";
 
 after(() => cleanupUnitDb());
@@ -254,4 +256,26 @@ test("an UNINVITED submission on the same posting is still resolved the old way"
   assert.ok(promoted);
   assert.notEqual(promoted!.entryId, entry.id);
   assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.devSubmissionId ?? null, null);
+});
+
+test("a STOPPED intake is not reopened by a homework arrival: the candidate waits for a human", async () => {
+  const job = jobWithJd(WS_AUTO);
+  const caseId = approvedCaseFor(job.slug, job.title, WS_AUTO);
+  const first = entryAt(WS_AUTO, job.jobId, job.title, "hw-before-stop@example.com");
+  const late = entryAt(WS_AUTO, job.jobId, job.title, "hw-after-stop@example.com");
+
+  // The case went live through the column, then the recruiter stopped its intake by hand
+  // (the same store call POST /api/devcase/[id]/intake makes, with the same shared rule).
+  assert.equal((await runHomeworkArrival(first, "Homework", WS_AUTO)).outcome, "invited");
+  const stop = closeCaseIntake(caseId, WS_AUTO, lifecycleOwnsIntake);
+  assert.deepEqual(stop, { ok: true, closed: 1 });
+
+  const res = await runStageEnteredHook({ entryId: late.id, stage: "Homework", workspaceId: WS_AUTO });
+
+  assert.equal(res.outcome, "failed");
+  assert.equal(res.outcome === "failed" && res.reason, "intake_stopped");
+  assert.equal(getOpenPosting(caseId, "local", WS_AUTO), null, "no fresh posting reopened the stopped intake");
+  assert.equal(invites(late.id, WS_AUTO).length, 0, "nothing claims an assignment went out");
+  // Parked, not skipped: the committed move stands and the candidate waits in the column.
+  assert.equal(getPipelineEntry(late.id, WS_AUTO)?.stage, "Homework");
 });

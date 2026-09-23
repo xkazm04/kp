@@ -34,13 +34,14 @@ import { dispatchCaseInvite } from "./comms-dispatch";
 import { entryContactability } from "./comms-contactability";
 import type { OutboxStatus } from "./comms-status";
 import { planStep } from "./decision-config-schema";
-import { getDevCase, listDevCasesForJob, listOutboxFiltered, createLifecycle, getLifecycle, getOpenPosting, type DevCaseRecord } from "./db/devcase";
+import { getDevCase, listDevCasesForJob, listOutboxFiltered, listPostings, createLifecycle, getLifecycle, getOpenPosting, type DevCaseRecord } from "./db/devcase";
 import { getJob, loadJd } from "./db/jobs";
 import type { PipelineEntry } from "./db/core";
 import { getInterviewPlan } from "./interview-plan";
 import { jdSlugOfJobId } from "./jd-limits";
 import { publicBaseUrl } from "./public-base-url.ts";
 import { effectiveInterviewGate } from "./stage-hooks";
+import { intakeOf } from "../features/tools/devcases/DevCaseDetail.publish";
 
 /** The comms/outbox kind one homework invite writes. Read back as the idempotence
  *  key, so the pair "(entry, posting) → at most one assignment letter" needs no new
@@ -75,7 +76,12 @@ export type HomeworkArrivalOutcome =
    *  claim, forwarded verbatim — never narrowed or upgraded on the way out. */
   | { outcome: "invited"; delivery: OutboxStatus; postingId: string }
   /** Nothing was sent, and the reason is on the server log. The move still stands. */
-  | { outcome: "failed"; reason: "unaddressable" | "suppressed" | "billing" | "no_case" | "error" };
+  | { outcome: "failed"; reason: HomeworkRefusal };
+
+/** Why nothing was sent. `intake_stopped`: the case HAS postings and every one is closed
+ *  (a recruiter's stop, or a lifecycle's close-out) — intake was ended deliberately, and
+ *  an arrival is not the door that reopens it. */
+type HomeworkRefusal = "unaddressable" | "suppressed" | "billing" | "no_case" | "intake_stopped" | "error";
 
 /**
  * Run the homework arrival for an already-COMMITTED stage move.
@@ -167,6 +173,19 @@ async function inviteToCase(
   let posting = getOpenPosting(devCase.id, INVITE_CHANNEL, workspaceId);
   if (!posting) {
     const { getAdapter } = await import("./distribution");
+    // A STOPPED INTAKE STAYS STOPPED. No open posting on this channel means one of two
+    // things: the case was never published (publish it — the step this hook exists for),
+    // or its intake was ENDED — every posting closed, by the recruiter's stop door or a
+    // lifecycle's close-out. The second is a decision, and minting a fresh token here
+    // would silently reverse it; reopening is the recruiter's Reopen, never a board move.
+    // The state is read by `intakeOf`, the same rule the assignment detail renders and
+    // offers Stop / Reopen by. Read AFTER the await and immediately before the adapter:
+    // `publish` reaches createPosting's IMMEDIATE transaction without yielding, so a stop
+    // cannot land between this re-check and the write.
+    const casePostings = listPostings(workspaceId).filter((p) => p.caseId === devCase.id);
+    if (intakeOf(casePostings).state === "closed") {
+      return refuse(entry, "intake_stopped", `case ${devCase.id}'s intake was stopped; a recruiter reopens it in Dev → Cases`);
+    }
     posting = await getAdapter(INVITE_CHANNEL).publish(devCase);
   }
   if (!posting.token) return refuse(entry, "no_case", `posting ${posting.id} carries no apply token`);
@@ -315,7 +334,7 @@ function alreadyInvited(entryId: string, token: string, workspaceId: string): bo
  */
 function refuse(
   entry: { id: string },
-  reason: "unaddressable" | "suppressed" | "billing" | "no_case" | "error",
+  reason: HomeworkRefusal,
   why: string
 ): HomeworkArrivalOutcome {
   console.warn(`[stage-hooks:homework] ${entry.id}: no assignment sent (${reason}) — ${why}.`);
