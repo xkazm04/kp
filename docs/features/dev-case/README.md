@@ -494,8 +494,9 @@ can conclude but never the candidate's score.
 
 - **One transport.** Every dev-case GitHub read (`buildRepoSnapshot` for the need,
   `fetchRepoSignals` for a submission, both in `app/_lib/repo-snapshot.ts`) goes through
-  `githubRead` in `app/_lib/github/client.ts`, the same transport the recruiter deep-dive's
-  `githubFetch` now wraps. That gives it the 20 s timeout, the 4 MB byte cap, the
+  `githubRead`, the one GitHub transport. It lives in that leaf module (so the dev-case
+  routes do not import the analyzer's client) and `app/_lib/github/client.ts` imports it:
+  the recruiter deep-dive's `githubFetch` is a throwing wrapper over it. That gives it the 20 s timeout, the 4 MB byte cap, the
   `KP_OFFLINE` refusal and one credential rule (`GITHUB_TOKEN`, else `GH_TOKEN`). Each
   read answers `read`, `not_found` (a 404, a fact about the repo) or a failure kind
   (`throttled`, `http_error`, `unreachable`, `too_large`, `bad_shape`, `offline`).
@@ -1085,7 +1086,7 @@ with the same `{ kind, params }` shape.
 | `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
-| `app/_lib/repo-snapshot.ts` | The dev-case GitHub reads (need snapshot, submission signals) over the one transport `githubRead` in `app/_lib/github/client.ts`; reports read / not there / unread, never an unread part as empty |
+| `app/_lib/repo-snapshot.ts` | The dev-case GitHub reads (need snapshot, submission signals) over `githubRead`, the one GitHub transport this leaf hosts and `app/_lib/github/client.ts` wraps; reports read / not there / unread, never an unread part as empty |
 | `app/_lib/dev-outcomes.ts` | The outcome/calibration store (`dev_outcomes`), opened on its own connection. Two writers: the control room via `/api/devcase/outcomes`, and the hiring board via `/api/pipeline/outcomes` (`recordHirePerformance` / `hireOutcomeRef` / `countRatedHires`). |
 | `app/_lib/devcase-probe-audit.ts`, `devcase-compare.ts`, `devcase-cohort.ts`, `devcase-interview-kit.ts` | Evaluation support: probe-outcome audit, submission comparison, cohort stats, interview-kit generation |
 | `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `devcase_cli.py` |
