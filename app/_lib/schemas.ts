@@ -300,6 +300,17 @@ export const githubAnalysisSchema = z.object({
     // N tracked skills" and a recruiter doesn't read "no gaps" as exhaustive.
     // Nullish for backward-compat with any response cached before this field existed.
     trackedSkillCount: z.number().nullish(),
+    // Which repositories' labels produced each matched skill (skill -> repo names; an
+    // empty list = matched only through the aggregate language mix). The skill ledger
+    // (app/_lib/github/skill-ledger.ts) names them so a corroboration points at
+    // something the recruiter can open. Nullish on the trackedSkillCount precedent:
+    // an analysis cached or stored before this field existed still parses.
+    skillEvidence: z.record(z.string(), z.array(z.string())).nullish(),
+    // JD skills the run could NOT determine: the evidence did not show them AND
+    // language coverage was partial, so they are neither a gap nor a match. Kept so
+    // the ledger names them "could not determine" instead of dropping them. Nullish
+    // for the same backward-compat reason.
+    undeterminedSkills: z.array(z.string()).nullish(),
     complexityAssessment: githubNoteSchema
   }),
   limitations: z.array(githubNoteSchema),

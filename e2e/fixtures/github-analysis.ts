@@ -48,8 +48,15 @@ export const GITHUB_ANALYSIS_FIXTURE: GithubAnalysis = {
   contributionSignals: ["consistent recent commits", "maintains multiple active repos"],
   jobFitSignals: {
     jobDescriptionProvided: true,
-    matchingSkills: ["Python", "TypeScript", "LLM", "RAG"],
-    potentialGaps: ["Azure"],
+    // Taxonomy bucket ids, as buildJobFitSignals emits them (app/_lib/github/skills.ts):
+    // "LLM" and "RAG" are one bucket (ai), "Azure" is cloud. skillEvidence names the
+    // repo whose labels produced each match; typescript came from the language mix
+    // alone, so it names none. The panel's skill ledger renders from these.
+    matchingSkills: ["python", "typescript", "ai"],
+    potentialGaps: ["cloud"],
+    trackedSkillCount: 28,
+    skillEvidence: { python: ["llm-automation"], typescript: [], ai: ["llm-automation"] },
+    undeterminedSkills: [],
     complexityAssessment: "Handles production-grade automation with real complexity.",
   },
   limitations: ["Public repositories only"],

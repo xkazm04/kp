@@ -4,10 +4,11 @@ import { GitBranch, GitPullRequest, Loader2, Star } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
 import { hasEvidenceIncomplete, type GithubNote } from "@/app/_lib/github-evidence";
+import { buildSkillLedger, type SkillLedgerRow, type SkillLedgerVerdict } from "@/app/_lib/github/skill-ledger";
 import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
-import { NOTICE, PANEL } from "./ui/recipes";
+import { CHIP_QUIET, NOTICE, PANEL } from "./ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 
@@ -165,21 +166,6 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? "—" : format.dateTime(d, { dateStyle: "medium" });
   };
-  // Disambiguate "no JD supplied" from "JD analyzed, zero overlap" (idea-2dd27822): the same
-  // empty matchingSkills list means opposite things to a recruiter, so the empty-state copy
-  // must spell out which one happened instead of always reading as a damning skills gap.
-  const { jobDescriptionProvided } = analysis.jobFitSignals;
-  // FINDING #2: the route drops this finding into `limitations` when some public GitHub
-  // data was throttled away this run. When present, absence of a skill is "could not
-  // determine", not a real gap (the route has already suppressed the unreliable
-  // gaps), so the panel must say so instead of the falsely-reassuring "no gaps".
-  const evidenceIncomplete = hasEvidenceIncomplete(analysis.limitations);
-  const matchesEmpty = jobDescriptionProvided ? t("matchesEmptyAnalyzed") : t("matchesEmptyNoJd");
-  const gapsEmpty = !jobDescriptionProvided
-    ? t("gapsEmptyNoJd")
-    : evidenceIncomplete
-      ? t("gapsEmptyIncomplete")
-      : t("gapsEmptyNone");
   // The headline reads from the finding when the payload carries one; a stored
   // analysis from before findings keeps its own English sentence.
   const summary = analysis.summaryFinding ? findingText(analysis.summaryFinding) : analysis.summary;
@@ -233,18 +219,7 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
 
       <div className="space-y-5">
         <TitledList title={t("contributionSignals")} items={analysis.contributionSignals.map(findingText)} />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <TitledList title={t("jobSkillMatches")} items={analysis.jobFitSignals.matchingSkills} empty={matchesEmpty} />
-          <TitledList title={t("potentialGaps")} items={analysis.jobFitSignals.potentialGaps} empty={gapsEmpty} />
-        </div>
-        {jobDescriptionProvided && analysis.jobFitSignals.trackedSkillCount ? (
-          <p className="text-sm text-steel">
-            {t("trackedNote", { count: analysis.jobFitSignals.trackedSkillCount })}
-            {/* FINDING #2: extend (don't duplicate) the honest-coverage caveat when
-                this run was partially throttled, so gaps are never read as complete. */}
-            {evidenceIncomplete ? ` ${t("trackedIncomplete")}` : null}
-          </p>
-        ) : null}
+        <SkillLedgerBlock analysis={analysis} />
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="font-serif text-h3 text-ink">{t("complexityTitle")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{findingText(analysis.jobFitSignals.complexityAssessment)}</p>
@@ -366,11 +341,11 @@ function CodeReviewBlock({
           </ul>
         </details>
       ) : null}
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        <TitledList title={t("evidencedSkills")} items={review.confirmedSkills} accent="bg-moss/15" empty={t("noneDetected")} />
-        <TitledList title={t("unverifiedClaims")} items={review.unverifiedClaims} accent="bg-coral/10" empty={t("noneDetected")} />
-        <TitledList title={t("hiddenStrengths")} items={review.hiddenStrengths} accent="bg-limewash" empty={t("noneDetected")} />
-      </div>
+      {/* The review's skill lists (evidenced / "unverified" / hidden strengths) are
+          not rendered here any more: SkillLedgerBlock joins them with the label
+          comparison into one row per skill. A separate coral "Unverified claims"
+          column read as an accusation, and absence in public repos is never
+          evidence against a claim (corroborate-a-claim-never-replace-it). */}
     </div>
   );
 }
@@ -384,44 +359,118 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+// Verdict tones. Never coral: nothing in the ledger is a finding against the
+// candidate. "Not reached" is the quiet neutral chip; "could not determine" is the
+// amber caveat tone the panel already uses for a partial read.
+const VERDICT_CHIP = "inline-block rounded-full px-2 py-0.5 text-sm dark:rotate-1";
+const VERDICT_TONE: Record<SkillLedgerVerdict, string> = {
+  corroborated: `${VERDICT_CHIP} bg-moss/15 text-ink`,
+  notReached: CHIP_QUIET,
+  couldNotDetermine: `${VERDICT_CHIP} bg-amber-50 text-amber-800`,
+  unclaimed: `${VERDICT_CHIP} bg-limewash text-ink`,
+};
+// Repo names shown inline per row; the rest collapse to "+N more".
+const LEDGER_REPOS_SHOWN = 3;
+
+// One row per skill, from both engines (app/_lib/github/skill-ledger.ts): the label
+// comparison and the repo-signal review, reconciled in code instead of by the
+// reader. A corroboration names the repositories that carried it, linked when the
+// repo is one of the top repositories the payload holds a URL for.
+function SkillLedgerBlock({ analysis }: { analysis: GithubAnalysis }) {
+  const t = useTranslations("results.github.ledger");
+  const tGithub = useTranslations("results.github");
+  const { jobDescriptionProvided, trackedSkillCount } = analysis.jobFitSignals;
+  const rows = buildSkillLedger(analysis.jobFitSignals, analysis.codeReview, analysis.limitations);
+  const repoUrl = new Map(analysis.topRepositories.filter((r) => r.url).map((r) => [r.name, r.url]));
+  const undetermined =
+    rows.some((r) => r.verdict === "couldNotDetermine") || hasEvidenceIncomplete(analysis.limitations);
+  return (
+    <div className={`${PANEL} p-4`}>
+      <h3 className="font-serif text-h3 text-ink">{t("title")}</h3>
+      <p className="mt-2 text-sm leading-5 text-steel">{t("intro")}</p>
+      {!jobDescriptionProvided ? <p className="mt-3 text-base leading-6 text-ink">{tGithub("matchesEmptyNoJd")}</p> : null}
+      {rows.length ? (
+        <ul className="mt-3 divide-y divide-stone-100">
+          {rows.map((row) => (
+            <li key={row.skill} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+              <span className="font-medium text-ink">{row.label}</span>
+              <span className={VERDICT_TONE[row.verdict]}>{t(`verdict.${row.verdict}`)}</span>
+              <LedgerEvidence row={row} repoUrl={repoUrl} />
+              {row.reviewDisagrees ? <span className="text-sm text-steel">{t("reviewDisagrees")}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : jobDescriptionProvided ? (
+        <p className="mt-3 text-base leading-6 text-ink">{t("emptyAnalyzed")}</p>
+      ) : null}
+      {jobDescriptionProvided && trackedSkillCount ? (
+        <p className="mt-3 text-sm text-steel">{t("tracked", { count: trackedSkillCount })}</p>
+      ) : null}
+      {/* FINDING #2: a partial read names what it could not check instead of
+          reading as complete. */}
+      {undetermined ? <p className="mt-2 text-sm leading-5 text-amber-800">{t("incomplete")}</p> : null}
+    </div>
+  );
+}
+
+function LedgerEvidence({ row, repoUrl }: { row: SkillLedgerRow; repoUrl: Map<string, string> }) {
+  const t = useTranslations("results.github.ledger");
+  if (row.verdict === "notReached" || row.verdict === "couldNotDetermine") return null;
+  const byLabels = row.sources.includes("labels");
+  const byReview = row.sources.includes("review");
+  const shown = row.repos.slice(0, LEDGER_REPOS_SHOWN);
+  const more = row.repos.length - shown.length;
+  return (
+    <span className="text-sm text-steel">
+      {byLabels && shown.length ? (
+        <>
+          {t("inRepos")}{" "}
+          {shown.map((name, i) => {
+            const url = repoUrl.get(name);
+            return (
+              <span key={name}>
+                {i > 0 ? ", " : null}
+                {url ? (
+                  <a href={url} target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-2 hover:text-coral">
+                    {name}
+                  </a>
+                ) : (
+                  <span className="font-medium text-ink">{name}</span>
+                )}
+              </span>
+            );
+          })}
+          {more > 0 ? ` ${t("moreRepos", { count: more })}` : null}
+        </>
+      ) : byLabels ? (
+        t("inLanguageMix")
+      ) : null}
+      {byLabels && byReview ? " · " : null}
+      {byReview ? t("byReview") : null}
+    </span>
+  );
+}
+
 // One titled card with a deduped bullet list and an empty-state fallback — the
-// single source for both the body panels (Contribution / Job / Limitations) and
-// the compact review columns (Evidenced Skills / Unverified Claims / Hidden
-// Strengths). `accent` switches to the compact review look (tinted card,
-// uppercase label, "•" bullets); without it the panel look renders (white
-// bordered card, serif heading). Either way the dedupe call and the
-// key={item-index} strategy live here in exactly one place. Copy arrives resolved
-// (title, empty state, and findings already rendered) so this stays presentational.
-function TitledList({
-  title,
-  items,
-  accent,
-  empty,
-}: {
-  title: string;
-  items: string[];
-  accent?: string;
-  empty?: string;
-}) {
+// single source for the body panels (Contribution Signals / Limitations). Copy
+// arrives resolved (title, empty state, and findings already rendered) so this
+// stays presentational; the key={item-index} strategy lives here in one place.
+function TitledList({ title, items, empty }: { title: string; items: string[]; empty?: string }) {
   const t = useTranslations("results.github");
   const rows = dedupe(items.filter(Boolean));
   return (
-    <div className={accent ? `rounded-md ${accent} p-3` : "rounded-lg border border-stone-200 bg-white p-4"}>
-      {accent ? (
-        <p className="text-sm font-semibold uppercase tracking-wide text-steel">{title}</p>
-      ) : (
-        <h3 className="font-serif text-h3 text-ink">{title}</h3>
-      )}
+    <div className="rounded-lg border border-stone-200 bg-white p-4">
+      <h3 className="font-serif text-h3 text-ink">{title}</h3>
       {rows.length ? (
-        <ul className={accent ? "mt-2 space-y-1" : "mt-3 space-y-2"}>
+        <ul className="mt-3 space-y-2">
           {rows.map((item, i) => (
             <li key={`${item}-${i}`} className="text-base leading-6 text-ink">
-              {accent ? `• ${item}` : item}
+              {item}
             </li>
           ))}
         </ul>
       ) : (
-        <p className={accent ? "mt-2 text-sm text-steel" : "mt-3 text-base leading-6 text-ink"}>{empty ?? t("noItems")}</p>
+        <p className="mt-3 text-base leading-6 text-ink">{empty ?? t("noItems")}</p>
       )}
     </div>
   );

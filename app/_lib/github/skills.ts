@@ -1,82 +1,21 @@
 import type { GithubRepo } from "./client";
 import { complexityAssessment } from "./heuristics";
+// The taxonomy and its whole-token matcher live in skill-ledger.ts, an import-light
+// leaf the client panel can load without pulling heuristics.ts (and its repo-activity
+// dependency) onto the workspace page's graph. canonicalSkill is re-exported so a
+// server-side caller keeps reaching the JD comparison's vocabulary through here.
+import { SKILL_ALIASES, aliasMatches, tokenizeForSkills } from "./skill-ledger";
+export { canonicalSkill } from "./skill-ledger";
 
-// The tracked skill taxonomy for the GitHub↔JD fit comparison. Was 10 buckets, so a
-// JD requiring Go/Rust/Java/K8s/security/data-eng could never appear as a match OR a
-// gap — a recruiter saw "Potential Gaps: none" and read it as "no gaps" when it meant
-// "no gaps among 10 hard-coded skills" (a false-reassurance wrong-hiring signal).
-// aliasMatches is WHOLE-TOKEN (tokenizeForSkills keeps + # .), so short aliases like
-// "go"/"c#"/"c++" can't substring-match ("go" ≠ "google"). The job-fit signals expose
-// trackedSkillCount so the UI can say "compared against N tracked skills", honestly.
-//
-// FINDING #4 (bug-ui-scan-2026-07-09, github-evidence-cv-utilities): the buckets are
-// counted as DISJOINT concepts (one match/gap each), so an alias that lives in several
-// buckets fans one JD keyword into several verdicts — "react" used to sit in
-// typescript + javascript + react, turning a single React gap into THREE gap bullets
-// (and a React-only candidate into three "matches", inflating apparent breadth). The
-// alias sets are now mutually exclusive: "react"/"next.js"/"nextjs" belong only to the
-// `react` bucket, so one underlying skill can produce at most one verdict.
-const SKILL_ALIASES: Record<string, string[]> = {
-  python: ["python", "fastapi", "django", "flask", "pandas", "numpy"],
-  typescript: ["typescript", "ts"],
-  // "node.js" and "nodejs" are listed EXPLICITLY: tokenizeForSkills keeps interior
-  // dots (so "node.js" survives as one token rather than splitting to "node"), which
-  // meant a JD saying "Node.js required" produced neither a match nor a gap — the
-  // silent false-negative shape this taxonomy exists to prevent. Both spellings live
-  // ONLY here, so the disjoint-bucket rule still holds (react owns next.js/nextjs).
-  javascript: ["javascript", "node", "node.js", "nodejs"],
-  react: ["react", "frontend", "ui", "next.js", "nextjs"],
-  // Same silent-false-negative shape as node.js: a JD that names Vue or Svelte
-  // produced neither a match nor a gap, so "Potential Gaps: none" meant "the
-  // taxonomy did not know the skill". Aliases live ONLY here (not also in
-  // javascript), so the disjoint-bucket rule still holds.
-  vue: ["vue", "vue.js", "vuejs", "nuxt", "nuxt.js"],
-  svelte: ["svelte", "sveltekit"],
-  go: ["go", "golang"],
-  rust: ["rust"],
-  java: ["java", "spring", "jvm"],
-  csharp: ["c#", "csharp", ".net", "dotnet"],
-  cpp: ["c++", "cpp"],
-  php: ["php", "laravel", "symfony"],
-  ruby: ["ruby", "rails"],
-  swift: ["swift", "ios"],
-  kotlin: ["kotlin", "android"],
-  mobile: ["mobile", "react native", "flutter"],
-  docker: ["docker", "container"],
-  kubernetes: ["kubernetes", "k8s", "helm"],
-  iac: ["terraform", "ansible", "pulumi", "iac"],
-  sql: ["sql", "postgres", "mysql", "sqlite", "database"],
-  nosql: ["mongodb", "redis", "cassandra", "dynamodb", "nosql"],
-  graphql: ["graphql", "apollo"],
-  data_engineering: ["spark", "kafka", "airflow", "etl", "snowflake", "dbt", "databricks"],
-  ai: ["ai", "llm", "rag", "openai", "gemini", "agent", "automation"],
-  cloud: ["aws", "azure", "gcp", "cloud"],
-  security: ["security", "appsec", "infosec", "owasp", "pentest", "cryptography"],
-  testing: ["test", "testing", "playwright", "pytest", "jest", "vitest"],
-  ci: ["ci", "github actions", "pipeline", "devops"]
-};
-
-// Tokenize text into a set of word tokens for boundary-accurate skill matching.
-// Splits on anything that isn't an alphanumeric or a tech-symbol (+ # .), then
-// strips leading/trailing dots so "node.js" survives but a sentence-final "ai."
-// normalizes to "ai".
-function tokenizeForSkills(text: string): Set<string> {
-  return new Set(
-    text
-      .toLowerCase()
-      .split(/[^a-z0-9+#.]+/)
-      .map((t) => t.replace(/^\.+|\.+$/g, ""))
-      .filter(Boolean)
-  );
+// The labels a repository carries that the comparison reads. One definition, used
+// for both the flattened haystack and the per-repo attribution, so the two can never
+// disagree about what a repo "said".
+function repoLabels(repo: GithubRepo): string[] {
+  return [repo.name, repo.description ?? "", repo.language ?? "", ...(repo.topics ?? [])];
 }
 
-// A skill alias matches only when every word of it is present as a real token,
-// so the 2-letter "ai"/"ts"/"ci" can't phantom-match inside longer words.
-function aliasMatches(alias: string, tokens: Set<string>): boolean {
-  return alias
-    .toLowerCase()
-    .split(/\s+/)
-    .every((word) => tokens.has(word.replace(/^\.+|\.+$/g, "")));
+function dedupeNames(names: string[]): string[] {
+  return [...new Set(names)];
 }
 
 export function buildJobFitSignals(
@@ -99,19 +38,29 @@ export function buildJobFitSignals(
   // punctuation so "AI." still matches "ai".
   const haystackTokens = tokenizeForSkills(
     [
-      ...repos.flatMap((repo) => [repo.name, repo.description ?? "", repo.language ?? "", ...(repo.topics ?? [])]),
+      ...repos.flatMap((repo) => repoLabels(repo)),
       ...languages.map((language) => language.name)
     ].join(" ")
   );
+  // Per-repo token sets, kept beside the flattened haystack: the haystack decides
+  // WHETHER a skill matched (unchanged semantics), these say WHERE. Flattening used
+  // to throw the attribution away, so a "match" was an unattributed claim a
+  // recruiter could not open. A skill matched only through the aggregate language
+  // mix names no repo rather than guessing one.
+  const repoTokens = repos.map((repo) => ({ name: repo.name, tokens: tokenizeForSkills(repoLabels(repo).join(" ")) }));
   const jobTokens = tokenizeForSkills(jobDescription);
   const matchingSkills: string[] = [];
   const potentialGaps: string[] = [];
+  const skillEvidence: Record<string, string[]> = {};
 
   for (const [skill, aliases] of Object.entries(SKILL_ALIASES)) {
     const jobMentions = aliases.some((alias) => aliasMatches(alias, jobTokens));
     const githubMentions = aliases.some((alias) => aliasMatches(alias, haystackTokens));
     if (jobMentions && githubMentions) {
       matchingSkills.push(skill);
+      skillEvidence[skill] = dedupeNames(
+        repoTokens.filter(({ tokens }) => aliases.some((alias) => aliasMatches(alias, tokens))).map(({ name }) => name)
+      );
     } else if (jobMentions && !githubMentions) {
       potentialGaps.push(skill);
     }
@@ -120,15 +69,20 @@ export function buildJobFitSignals(
   // FINDING #2: a gap means "the JD names this AND the public evidence doesn't show
   // it". When some language evidence was throttled away, "doesn't show it" is
   // unreliable — the skill may live in a language map we couldn't fetch — so a gap
-  // must NOT be asserted from missing data. Drop gaps entirely for a partial run and
-  // let the panel + limitations surface "could not determine". Matches stay:
-  // throttling can only REMOVE evidence, so a match that was found is genuinely found.
+  // must NOT be asserted from missing data. Drop gaps entirely for a partial run.
+  // Matches stay: throttling can only REMOVE evidence, so a match that was found is
+  // genuinely found. The dropped skills are NOT lost, though: they travel as
+  // `undeterminedSkills`, so the skill ledger can name each JD skill it could not
+  // determine instead of the panel reading "no gaps" beside a caveat.
   const reliableGaps = languageCoverageComplete ? potentialGaps : [];
+  const undeterminedSkills = languageCoverageComplete ? [] : potentialGaps;
 
   return {
     jobDescriptionProvided,
     matchingSkills,
     potentialGaps: reliableGaps,
+    undeterminedSkills,
+    skillEvidence,
     // Honest coverage: the comparison is over a fixed taxonomy, so "no gaps" means
     // "no gaps among the tracked skills", not "no gaps". The UI can say so.
     trackedSkillCount: Object.keys(SKILL_ALIASES).length,
