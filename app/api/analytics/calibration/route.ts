@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { calibrationPairs } from "@/app/_lib/db/analyses";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
-import { asCalibrationOutcome, computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold, calibrationLeakage, type CalibrationOutcomeAxis, type CalibrationSource } from "@/app/_lib/calibration";
+import { asCalibrationOutcome, computeCalibration, computeCalibrationCohorts, calibrationLeakage, type CalibrationOutcomeAxis, type CalibrationSource } from "@/app/_lib/calibration";
+import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendation";
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -126,11 +127,14 @@ export async function GET(request: Request) {
         // every below-floor pair is a reject the score itself produced, so only
         // "raise" is reachable. Same family scope as the displayed curve; no holdout
         // (disabled, or too few spared outcomes) → no recommendation at all.
-        const allHoldout =
-          outcome === "advance" ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOut(), outcome: "advance" }) : [];
-        const holdoutPairs = family ? allHoldout.filter((p) => p.roleFamily === family) : allHoldout;
+        // Derived through calibration-recommendation.ts — the SAME function the
+        // /apply-threshold write and the /floor-preview read call — handed this
+        // request's already-read advance-axis pairs, clean-arm memo and rule, so the
+        // displayed number is by construction the one Apply writes and the preview names.
         recommendation =
-          outcome === "advance" ? recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold) : null;
+          outcome === "advance"
+            ? liveScreeningRecommendation(ws, family, { allPairs, heldOut, screening }).recommendation
+            : null;
         // Surface which families carry an override so the panel can chip them.
         familyFloors = screening.familyFloors ?? {};
       }

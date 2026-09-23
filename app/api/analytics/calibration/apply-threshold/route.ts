@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { can } from "@/app/_lib/auth/current-user";
-import { recommendScreeningThreshold } from "@/app/_lib/calibration";
+import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendation";
 import { getDecisionConfig, updateDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
-import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
-import { sealDecisionSafe, heldOutEntryIds } from "@/app/_lib/decision-record-store";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
@@ -77,22 +75,14 @@ export async function POST(request: Request) {
     }
 
     const screening = getDecisionConfig<ScreeningRule>("screening", ws);
-    // The floor the recommendation is measured against: the family's effective floor
-    // for a family-scoped apply (its override, else global), or the global floor.
-    const currentThreshold = effectiveFloor(screening, roleFamily);
     // Re-derive from the live, workspace-scoped pairs — never trust the client's
-    // number — filtered to the SAME family scope the panel showed, so the write can
-    // only ever apply a number that family's own pairs defend. No rec → nothing to apply.
-    const allPairs = pipelineCalibrationPairs(ws);
-    const pairs = roleFamily ? allPairs.filter((p) => p.roleFamily === roleFamily) : allPairs;
-    // RATCHET GUARD — derived EXACTLY as the display route derives it (same clean-arm
-    // below-floor band, same family scope), so the applied value can never differ from
-    // the one the panel showed. Without the holdout arm the below-floor band is all
-    // score-caused rejects and "raise" is the only reachable answer; no clean arm here
-    // therefore means no recommendation, not a contaminated one.
-    const allHoldout = pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws), outcome: "advance" });
-    const holdoutPairs = roleFamily ? allHoldout.filter((p) => p.roleFamily === roleFamily) : allHoldout;
-    const rec = recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold);
+    // number — through the ONE derivation the display route and the floor preview also
+    // call (calibration-recommendation.ts): the SAME family scope the panel showed, the
+    // same clean-arm below-floor band (RATCHET GUARD), measured against the scope's
+    // effective floor (its family override, else global). So the applied value can
+    // never differ from the number the panel showed or the one the preview named
+    // people for. No rec → nothing to apply.
+    const { recommendation: rec, currentThreshold } = liveScreeningRecommendation(ws, roleFamily, { screening });
     if (!rec) {
       return jsonRefusal("CALIBRATION_RECOMMENDATION_ABSENT", 409);
     }
