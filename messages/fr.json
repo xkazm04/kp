@@ -1959,7 +1959,8 @@
     "JOB_NOT_FOUND": "Ce poste n'est pas dans votre catalogue.",
     "JOB_AD_TOO_SHORT": "Collez l'annonce complète. Un court extrait ne suffit pas.",
     "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter.",
-    "AUTOMATION_SELECTION_INVALID": "Cette sélection de changements est illisible. Relancez l’aperçu du passage et appliquez à nouveau."
+    "AUTOMATION_SELECTION_INVALID": "Cette sélection de changements est illisible. Relancez l’aperçu du passage et appliquez à nouveau.",
+    "PROFILE_EXISTS": "Un profil enregistré existe déjà pour ce CV. Ouvrez ce profil pour le modifier au lieu d’en créer un second."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6270,7 +6271,8 @@
       "scoreProfileNote": "Les profils enregistrés n’ont pas de score propre.",
       "colArchetype": "Archétype",
       "colFamily": "Famille de postes",
-      "filteredEmpty": "Aucun candidat ne correspond à ces filtres."
+      "filteredEmpty": "Aucun candidat ne correspond à ces filtres.",
+      "analysesOfCv": "{count, plural, one {Analyse de ce CV} other {# analyses de ce CV}}"
     },
     "roster": {
       "eyebrow": "Profils enregistrés",

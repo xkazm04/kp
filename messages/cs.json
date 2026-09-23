@@ -1959,7 +1959,8 @@
     "JOB_NOT_FOUND": "Tato role není ve vašem katalogu.",
     "JOB_AD_TOO_SHORT": "Vložte celý inzerát. Krátký úryvek nestačí.",
     "OUTREACH_CANDIDATE_REQUIRED": "Uveďte kandidáta, kterého chcete oslovit.",
-    "AUTOMATION_SELECTION_INVALID": "Tento výběr změn nelze přečíst. Zobrazte náhled průchodu znovu a změny použijte ještě jednou."
+    "AUTOMATION_SELECTION_INVALID": "Tento výběr změn nelze přečíst. Zobrazte náhled průchodu znovu a změny použijte ještě jednou.",
+    "PROFILE_EXISTS": "K tomuto životopisu již existuje uložený profil. Otevřete jej a upravte ho, místo abyste vytvářeli druhý."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -6270,7 +6271,8 @@
       "scoreProfileNote": "Uložené profily nemají vlastní skóre.",
       "colArchetype": "Archetyp",
       "colFamily": "Rodina rolí",
-      "filteredEmpty": "Těmto filtrům neodpovídá žádný kandidát."
+      "filteredEmpty": "Těmto filtrům neodpovídá žádný kandidát.",
+      "analysesOfCv": "{count, plural, one {Analýza tohoto životopisu} few {# analýzy tohoto životopisu} other {# analýz tohoto životopisu}}"
     },
     "roster": {
       "eyebrow": "Uložené profily",

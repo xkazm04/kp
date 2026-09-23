@@ -1885,6 +1885,11 @@ export const REFUSAL_ERRORS = {
   JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
   /** Body over JD_BODY_MAX_LENGTH (400). */
   JD_BODY_TOO_LONG: "The description must be 20,000 characters or fewer.",
+  /** POST /api/profile (persist) building from an analysis whose CV already has a
+   *  profile in this workspace (409). One profile per CV identity (the content hash
+   *  analyses.cv_hash = profiles.source_cv_hash); `id` names the existing profile so
+   *  the client opens it instead. A decision, not a fault: nothing was written. */
+  PROFILE_EXISTS: "This CV already has a saved profile. Open that profile to edit it instead of creating a second one.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
