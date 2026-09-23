@@ -324,6 +324,25 @@ strands nobody, and moving them would rewrite closed history.
    that carries no screening rule, and the modal then shows "couldn't load the
    live rules" with a retry and a disabled save rather than offering to
    overwrite the workspace's policy with defaults.
+   **The reviewer can spare individuals.** Each would-reject row in the preview has
+   a Spare control (Undo on the kept row), so one disagreement no longer costs a
+   slider move that reshapes everyone else's outcome. The request carries
+   `spare: string[]` (entry ids; normalised by `app/_lib/screen-wave-spare.ts`:
+   trimmed, de-duplicated, sorted, at most `SPARE_MAX`; anything else is a 400
+   `DECISION_CONFIG_INVALID`). `runScreenWave` removes the spared ids from the
+   reject set LAST (after the reinstatement shield and the holdout draw, so only
+   someone who would really be rejected can be spared) and BEFORE signing, so the
+   approval token covers the post-spare set: the exclusions are part of what the
+   human approved. The commit must echo the same list; a commit that drops or
+   changes it re-derives a different set and is refused `mismatch` (409). A spared
+   row is a keep with `reasonCode: "recruiterSpared"`; on commit the person stays
+   active at Screened and gets a `screen_wave_recruiter_spared` event (a HUMAN
+   event in `DECISION_META`, actor `human:<approver>`, detail naming the approver).
+   A non-empty spare adds `/spared<n>` to the sealed `policyVersion`; none leaves
+   it byte-identical. The modal's reducer keeps the `spared` set across every
+   re-preview, each toggle forces a fresh preview, and the commit echoes the list
+   the displayed preview was computed with (`previewSpare`); the committed banner
+   counts spared people apart from ordinary keeps.
 4. **On-demand tasks.** Outreach draft, rejection draft, interview prep pack,
    interview scorecard synthesis, and re-match alternatives are all
    recruiter-triggered, never automatic. One consolidated route dispatches all
