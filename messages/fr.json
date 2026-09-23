@@ -1993,7 +1993,9 @@
     "CAPABILITY_UNKNOWN": "Cette autorisation n’existe pas.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Ce candidat a déjà le nombre maximal de scorecards d’entretien pouvant être enregistrées. Votre scorecard n’a pas été enregistrée.",
     "VOICE_READINESS_FAILED": "Impossible de charger l’état des services vocaux. Veuillez réessayer.",
-    "VOICE_READINESS_OFFLINE": "Ce serveur fonctionne hors ligne, les fournisseurs vocaux ne peuvent donc pas être vérifiés."
+    "VOICE_READINESS_OFFLINE": "Ce serveur fonctionne hors ligne, les fournisseurs vocaux ne peuvent donc pas être vérifiés.",
+    "STOP_LANGUAGE_INVALID": "Nous ne pouvons pas vous écrire dans cette langue.",
+    "STOP_LANGUAGE_FAILED": "Impossible d’enregistrer votre langue pour le moment. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2115,7 +2117,14 @@
     "stopping": "Arrêt en cours",
     "doneTitle": "Nous cesserons de vous contacter",
     "doneBody": "Votre demande est enregistrée et prend effet immédiatement. Nous ne vous enverrons plus de messages au sujet de nos offres. Rien n’a été effacé et aucune candidature n’a été retirée.",
-    "eraseInstead": "Vous préférez que nous supprimions les données personnelles que nous détenons à votre sujet ? C’est une demande distincte, et son lien figure dans le même message, juste à côté."
+    "eraseInstead": "Vous préférez que nous supprimions les données personnelles que nous détenons à votre sujet ? C’est une demande distincte, et son lien figure dans le même message, juste à côté.",
+    "languageTitle": "La langue dans laquelle nous vous écrivons",
+    "languageNow": "Nos messages vous sont actuellement envoyés dans cette langue : {language}.",
+    "languageSuggest": "Écrivez-moi dans cette langue : {language}",
+    "languageOthers": "Ou choisissez une autre langue :",
+    "languageSaved": "Enregistré. Désormais, nous vous écrirons dans cette langue : {language}.",
+    "languageFailed": "Impossible d’enregistrer votre langue pour le moment. Veuillez réessayer.",
+    "languageNotStop": "Changer de langue n’arrête aucun message."
   },
   "data": {
     "eyebrow": "Vos données",

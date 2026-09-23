@@ -1993,7 +1993,9 @@
     "CAPABILITY_UNKNOWN": "Toto oprávnění neexistuje.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Tento kandidát už má uložený nejvyšší možný počet hodnoticích karet z pohovoru. Vaše hodnoticí karta nebyla uložena.",
     "VOICE_READINESS_FAILED": "Připravenost hlasových služeb se nepodařilo načíst. Zkuste to prosím znovu.",
-    "VOICE_READINESS_OFFLINE": "Tento server běží offline, proto nelze poskytovatele hlasu zkontrolovat."
+    "VOICE_READINESS_OFFLINE": "Tento server běží offline, proto nelze poskytovatele hlasu zkontrolovat.",
+    "STOP_LANGUAGE_INVALID": "V tomto jazyce vám psát nemůžeme.",
+    "STOP_LANGUAGE_FAILED": "Jazyk se teď nepodařilo uložit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2115,7 +2117,14 @@
     "stopping": "Zastavujeme",
     "doneTitle": "Přestaneme vás kontaktovat",
     "doneBody": "Vaši žádost jsme zaznamenali a platí okamžitě. Další zprávy o pracovních příležitostech vám posílat nebudeme. Nic jsme nevymazali a žádnou přihlášku jsme nestáhli.",
-    "eraseInstead": "Chcete raději, abychom vymazali osobní údaje, které o vás evidujeme? To je samostatná žádost a odkaz na ni najdete ve stejné zprávě hned vedle tohoto."
+    "eraseInstead": "Chcete raději, abychom vymazali osobní údaje, které o vás evidujeme? To je samostatná žádost a odkaz na ni najdete ve stejné zprávě hned vedle tohoto.",
+    "languageTitle": "Jazyk, ve kterém vám píšeme",
+    "languageNow": "Naše zprávy vám nyní posíláme v jazyce: {language}.",
+    "languageSuggest": "Chci zprávy v jazyce: {language}",
+    "languageOthers": "Nebo zvolte jiný jazyk:",
+    "languageSaved": "Uloženo. Od této chvíle vám budeme psát v jazyce: {language}.",
+    "languageFailed": "Jazyk se teď nepodařilo uložit. Zkuste to prosím znovu.",
+    "languageNotStop": "Změna jazyka žádné zprávy nezastaví."
   },
   "data": {
     "eyebrow": "Vaše údaje",

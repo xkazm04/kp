@@ -1993,7 +1993,9 @@
     "CAPABILITY_UNKNOWN": "That permission does not exist.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved.",
     "VOICE_READINESS_FAILED": "Could not load voice readiness. Please try again.",
-    "VOICE_READINESS_OFFLINE": "This server runs offline, so voice providers cannot be checked."
+    "VOICE_READINESS_OFFLINE": "This server runs offline, so voice providers cannot be checked.",
+    "STOP_LANGUAGE_INVALID": "That language is not one we can write to you in.",
+    "STOP_LANGUAGE_FAILED": "Could not save your language right now. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2115,7 +2117,14 @@
     "stopping": "Stopping",
     "doneTitle": "We will stop contacting you",
     "doneBody": "Your request is recorded and takes effect straight away. We will not send you further messages about openings. Nothing has been erased, and no application has been withdrawn.",
-    "eraseInstead": "Would you rather we removed the personal data we hold about you? That is a separate request, and its link is in the same message, beside this one."
+    "eraseInstead": "Would you rather we removed the personal data we hold about you? That is a separate request, and its link is in the same message, beside this one.",
+    "languageTitle": "The language we write to you in",
+    "languageNow": "Our messages to you are currently written in {language}.",
+    "languageSuggest": "Write to me in {language}",
+    "languageOthers": "Or choose another language:",
+    "languageSaved": "Saved. From now on we will write to you in {language}.",
+    "languageFailed": "Could not save your language right now. Please try again.",
+    "languageNotStop": "Changing the language does not stop any messages."
   },
   "data": {
     "eyebrow": "Your data",

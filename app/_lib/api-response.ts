@@ -506,6 +506,9 @@ export const STORE_ERRORS = {
    *  building the operator's voice-provider readiness (500). A provider's own mint
    *  failure is never this: it is a row verdict ("broken" with a cause). */
   VOICE_READINESS_FAILED: "Could not load voice readiness. Please try again.",
+  /** POST /api/stop/[token]/language: the store faulted while saving the candidate's
+   *  chosen letter language (500). Public token door: never the raw message. */
+  STOP_LANGUAGE_FAILED: "Could not save your language right now. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1979,6 +1982,9 @@ export const REFUSAL_ERRORS = {
    *  which a sealed install must not reach. The GET says `offline` so the strip never
    *  offers the button. */
   VOICE_READINESS_OFFLINE: "This server runs offline, so voice providers cannot be checked.",
+  /** POST /api/stop/[token]/language named no locale, or one the app does not write
+   *  letters in (400). Nothing is stored. */
+  STOP_LANGUAGE_INVALID: "That language is not one we can write to you in.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

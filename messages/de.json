@@ -1993,7 +1993,9 @@
     "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Für diese Kandidatin bzw. diesen Kandidaten sind bereits so viele Interview-Scorecards gespeichert wie möglich. Ihre Scorecard wurde nicht gespeichert.",
     "VOICE_READINESS_FAILED": "Die Bereitschaft der Sprachdienste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "VOICE_READINESS_OFFLINE": "Dieser Server läuft offline, daher können Sprachanbieter nicht geprüft werden."
+    "VOICE_READINESS_OFFLINE": "Dieser Server läuft offline, daher können Sprachanbieter nicht geprüft werden.",
+    "STOP_LANGUAGE_INVALID": "In dieser Sprache können wir Ihnen nicht schreiben.",
+    "STOP_LANGUAGE_FAILED": "Ihre Sprache konnte gerade nicht gespeichert werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2115,7 +2117,14 @@
     "stopping": "Wird gestoppt",
     "doneTitle": "Wir kontaktieren Sie nicht mehr",
     "doneBody": "Ihre Anfrage ist erfasst und gilt ab sofort. Wir senden Ihnen keine weiteren Nachrichten zu Stellenangeboten. Es wurde nichts gelöscht und keine Bewerbung zurückgezogen.",
-    "eraseInstead": "Möchten Sie stattdessen, dass wir Ihre bei uns gespeicherten personenbezogenen Daten löschen? Das ist eine eigene Anfrage, und der Link dazu steht in derselben Nachricht direkt daneben."
+    "eraseInstead": "Möchten Sie stattdessen, dass wir Ihre bei uns gespeicherten personenbezogenen Daten löschen? Das ist eine eigene Anfrage, und der Link dazu steht in derselben Nachricht direkt daneben.",
+    "languageTitle": "Die Sprache, in der wir Ihnen schreiben",
+    "languageNow": "Unsere Nachrichten an Sie sind derzeit in dieser Sprache verfasst: {language}.",
+    "languageSuggest": "Bitte in dieser Sprache schreiben: {language}",
+    "languageOthers": "Oder wählen Sie eine andere Sprache:",
+    "languageSaved": "Gespeichert. Ab sofort schreiben wir Ihnen in dieser Sprache: {language}.",
+    "languageFailed": "Ihre Sprache konnte gerade nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "languageNotStop": "Eine Änderung der Sprache stoppt keine Nachrichten."
   },
   "data": {
     "eyebrow": "Ihre Daten",
