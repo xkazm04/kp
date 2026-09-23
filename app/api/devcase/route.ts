@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listDevCases, saveDevCase } from "@/app/_lib/db/devcase";
+import { saveDevCase } from "@/app/_lib/db/devcase";
+import { listCaseLedger, listCaseLedgerFacets } from "@/app/_lib/db/devcase-ledger";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -37,8 +38,9 @@ function caseLimitFrom(raw: string | null): number {
 
 // GET: approved case scenarios. POST: the human gate — approve a designed role+case.
 export async function GET(request: NextRequest) {
-  // AUTHORITY (/perfect wave 31). This door hands back FULL approved-case records -
+  // AUTHORITY (/perfect wave 31). This door handed back FULL approved-case records -
   // role, case, need and analysis JSON - and asked nothing at all about the caller.
+  // It now answers ledger rows; the full record moved to /api/devcase/[id].
   // Reading the library is a `read` act, so identity presence is the whole gate here;
   // the POST below asks the seat question.
   const denied = await requireOperator();
@@ -47,12 +49,31 @@ export async function GET(request: NextRequest) {
     // Scoped: an unscoped list showed the DEFAULT team's approved cases — full
     // role/case/need JSON — in every other team's Cases table, beside their own
     // postings. The sibling routes (/postings, /lifecycle, /comms) already scope.
-    const limit = caseLimitFrom(new URL(request.url).searchParams.get("limit"));
+    const params = new URL(request.url).searchParams;
+    const limit = caseLimitFrom(params.get("limit"));
+    const ws = await currentWorkspace();
+    // THE LEDGER, not the library (challenge-r03 devcase-workspace/A). Each row is a
+    // projection - identity, job link, stage, submission count, lifecycle timestamps -
+    // joined in the store over the whole workspace, so a case whose lifecycle is past
+    // the lifecycle list's 50-row window still reads its real stage. The filters are a
+    // QUERY answered before the limit: a filtered page is never empty while matching
+    // rows exist past it. The full design JSON is GET /api/devcase/[id]'s, on open.
+    const filters = {
+      q: params.get("q") ?? "",
+      stage: params.get("stage") ?? "",
+      seniority: params.get("seniority") ?? "",
+    };
     // Read one MORE than the page: the extra row is the whole evidence that a page
     // was cut, and it costs one row rather than a second COUNT(*) over the table.
-    const rows = listDevCases(limit + 1, await currentWorkspace());
+    const rows = listCaseLedger(limit + 1, ws, filters);
     const truncated = rows.length > limit;
-    return NextResponse.json({ cases: truncated ? rows.slice(0, limit) : rows, limit, truncated });
+    return NextResponse.json({
+      cases: truncated ? rows.slice(0, limit) : rows,
+      limit,
+      truncated,
+      // The pickers' vocabulary, for the workspace rather than the (filtered) page.
+      facets: listCaseLedgerFacets(ws),
+    });
   } catch (error) {
     // better-sqlite3's SQLITE_* detail and the absolute db path rode this message to
     // the studio verbatim; they stay in the server log and the reader gets the code.

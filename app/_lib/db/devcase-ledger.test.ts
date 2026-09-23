@@ -21,11 +21,11 @@ import {
   createLifecycle,
   createPosting,
   createSubmission,
-  listCaseLedger,
   listLifecycles,
   saveDevCase,
   updateLifecycle,
 } from "./devcase.ts";
+import { listCaseLedger, listCaseLedgerFacets } from "./devcase-ledger.ts";
 
 after(() => cleanupUnitDb());
 
@@ -128,8 +128,7 @@ test("filters apply before the limit: stage, seniority and a folded title", () =
   assert.deepEqual(listCaseLedger(50, ws, { stage: "collecting", seniority: "junior" }), []);
 });
 
-test("the facets answer for the whole workspace, not the page", async () => {
-  const { listCaseLedgerFacets } = await import("./devcase.ts");
+test("the facets answer for the whole workspace, not the page", () => {
   const facets = listCaseLedgerFacets(W);
   assert.ok(facets.stages.includes("collecting"));
   assert.ok(facets.stages.includes("published"));
@@ -139,13 +138,31 @@ test("the facets answer for the whole workspace, not the page", async () => {
 });
 
 test("every ledger statement scopes each dev table it reads to the caller's workspace", () => {
-  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "devcase.ts"), "utf8");
-  const blocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]).filter((s) => /\bdev_lifecycle\s+l\b/.test(s));
-  assert.ok(blocks.length >= 1, "the ledger CTE is in devcase.ts");
-  for (const sql of blocks) {
-    // lifecycles, postings (stage fallback + counts) and the cases themselves.
-    for (const alias of ["l", "p", "c"]) {
-      assert.match(sql, new RegExp(`\\b${alias}\\.workspace_id\\s*=\\s*\\?`), `alias ${alias} is not tenant-filtered:\n${sql}`);
+  // The ledger is its own store slice (devcase-ledger.ts), so devcase-tenancy.test.ts's
+  // scan of devcase.ts does not see it. This is the stricter guard for it: not "names
+  // workspace_id somewhere" but "every dev table alias is filtered on its own tenant".
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "devcase-ledger.ts"), "utf8");
+  const blocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
+  const devBlocks = blocks.filter((s) => /\b(from|join)\s+dev_(cases|lifecycle|postings|submissions)\b/i.test(s));
+  assert.ok(devBlocks.length >= 3, `the ledger, its stage facet and its seniority facet: found ${devBlocks.length}`);
+  let checked = 0;
+  for (const sql of devBlocks) {
+    for (const [, table, alias] of sql.matchAll(/\b(?:from|join)\s+(dev_cases|dev_lifecycle|dev_postings)\s+([a-z]+)\b/gi)) {
+      checked += 1;
+      assert.match(sql, new RegExp(`\\b${alias}\\.workspace_id\\s*=\\s*\\?`), `${table} ${alias} is not tenant-filtered:\n${sql}`);
     }
   }
+  assert.ok(checked >= 6, `expected every aliased dev table to be checked, checked ${checked}`);
+  // dev_submissions is reached only through its posting, whose alias is filtered above.
+  for (const sql of devBlocks.filter((s) => /\bdev_submissions\b/.test(s))) {
+    assert.match(sql, /dev_submissions\s+s\s+ON\s+s\.posting_id\s*=\s*p\.id/i);
+  }
+});
+
+test("NON-VACUITY: the alias guard rejects a ledger join that forgot one tenant", () => {
+  const leaky = "SELECT c.id FROM dev_cases c LEFT JOIN dev_lifecycle l ON l.case_id = c.id WHERE c.workspace_id = ?";
+  const unscoped = [...leaky.matchAll(/\b(?:from|join)\s+(dev_cases|dev_lifecycle|dev_postings)\s+([a-z]+)\b/gi)]
+    .map(([, , alias]) => alias)
+    .filter((alias) => !new RegExp(`\\b${alias}\\.workspace_id\\s*=\\s*\\?`).test(leaky));
+  assert.deepEqual(unscoped, ["l"]);
 });

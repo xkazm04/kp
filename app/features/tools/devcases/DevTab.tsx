@@ -37,6 +37,7 @@ export function DevTab() {
     repoUrls, setRepoUrl, addRepo, removeRepo,
     seniority, setSeniority,
     cases, casesTruncated, casesState, loadCases,
+    caseFacets, caseFilters, setCaseFilters, caseFiltersActive,
     raiseCaseLimit, canLoadMoreCases,
     postings, loadPostings,
     lifecycles, lifecyclesState, loadLifecycles,
@@ -90,7 +91,6 @@ export function DevTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
-  const selectedCase = selectedCaseId ? cases.find((c) => c.id === selectedCaseId) ?? null : null;
   const heading = VIEW_HEADING[view];
   // Tier 1: cases is the tab's primary, always-loaded-first section — its first
   // load gates aria-busy on the whole tab. A later refresh (or switching to
@@ -129,12 +129,16 @@ export function DevTab() {
         <DevTabCasesView
           cases={cases}
           casesTruncated={casesTruncated}
+          caseFacets={caseFacets}
+          caseFilters={caseFilters}
+          caseFiltersActive={caseFiltersActive}
+          onCaseFiltersChange={setCaseFilters}
           onLoadMoreCases={canLoadMoreCases ? raiseCaseLimit : undefined}
           casesState={casesState}
           lifecycles={lifecycles}
           lifecyclesState={lifecyclesState}
           postings={postings}
-          selectedCase={selectedCase}
+          selectedCaseId={selectedCaseId}
           onOpenCase={setSelectedCaseId}
           onBack={() => setSelectedCaseId(null)}
           onDefine={() => setView("define")}

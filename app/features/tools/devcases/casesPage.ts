@@ -1,3 +1,5 @@
+import type { CaseFilters } from "./DevCasesTable.filter";
+
 // Page sizes for GET /api/devcase. The door already pages (`?limit=`, max 500);
 // the studio used to fetch the default 50 and never raise it, so assignments 51+
 // did not exist for the Cases table.
@@ -15,6 +17,15 @@ export function canRaiseCaseLimit(current: number): boolean {
   return nextCaseLimit(current) > current;
 }
 
-export function casesListUrl(limit: number): string {
-  return `/api/devcase?limit=${limit}`;
+/** The ledger address. The filters are answered by the store BEFORE the limit
+ *  (GET /api/devcase), so a filtered page is never empty while matches exist past it.
+ *  Blank filters are omitted; the title is trimmed and folded the way the store folds
+ *  it, so one search is one URL (and one cache entry) however it was typed. */
+export function filterCasesUrl(input: { limit: number } & CaseFilters): string {
+  const params = new URLSearchParams({ limit: String(input.limit) });
+  const q = input.title.trim().toLocaleLowerCase();
+  if (q) params.set("q", q);
+  if (input.stage) params.set("stage", input.stage);
+  if (input.seniority) params.set("seniority", input.seniority);
+  return `/api/devcase?${params.toString()}`;
 }

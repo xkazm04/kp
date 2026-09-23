@@ -1,24 +1,15 @@
-import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
+// The Cases ledger's filters. They used to run HERE, in memory, over whatever page the
+// client held (and against a lifecycle list capped at 50), so a stage filter answered
+// for the loaded page rather than the library. They are now a query: casesPage.ts
+// builds the address and the store filters before the limit (db/devcase.ts
+// listCaseLedger). What stays client-side is the shape and whether anything is set.
 
 export type CaseFilters = { title: string; stage: string; seniority: string };
 
-/** The same stage the row displays when no lifecycle has claimed the case yet. */
-export function caseStage(caseId: string, lifecycles: readonly Lifecycle[], postings: readonly Posting[]): string {
-  return lifecycles.find((item) => item.caseId === caseId)?.stage
-    ?? (postings.some((item) => item.caseId === caseId) ? "published" : "approved");
-}
+export const EMPTY_CASE_FILTERS: CaseFilters = { title: "", stage: "", seniority: "" };
 
-/** Filter only the loaded ledger page; the table keeps its truncation notice. */
-export function filterCases(
-  cases: readonly DevCaseDetail[],
-  lifecycles: readonly Lifecycle[],
-  postings: readonly Posting[],
-  filters: CaseFilters,
-): DevCaseDetail[] {
-  const title = filters.title.trim().toLocaleLowerCase();
-  return cases.filter((item) =>
-    (!title || `${item.title ?? ""} ${item.roleTitle ?? ""}`.toLocaleLowerCase().includes(title))
-    && (!filters.stage || caseStage(item.id, lifecycles, postings) === filters.stage)
-    && (!filters.seniority || item.seniority === filters.seniority)
-  );
+/** True when a filter would narrow the query. An empty ledger under an active filter
+ *  is "no matches", not the first-run empty state. */
+export function caseFiltersActive(filters: CaseFilters): boolean {
+  return Boolean(filters.title.trim() || filters.stage || filters.seniority);
 }

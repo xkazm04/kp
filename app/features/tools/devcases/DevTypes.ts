@@ -86,9 +86,26 @@ export type { RoleSpec };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 export type Design = { role?: RoleSpec; case?: CaseScenario; source?: SourceKind; perStepSources?: PerStepSources };
 export type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
-// The full record GET /api/devcase actually returns per case (listDevCases sends the
-// whole row, JSON parsed) — the Cases tab table uses the summary fields and the detail
-// reader uses role/case/scenario without a second fetch.
+// One Assignments ledger row as GET /api/devcase serves it (db/devcase.ts
+// listCaseLedger): identity, the job link, and the three numbers the table used to
+// derive client-side from the 50-newest lifecycles and every posting - stage,
+// submission count, and the lifecycle timestamps the stall chip ages from. A
+// PROJECTION: the design JSON is the detail reader's, fetched by id on open.
+export type CaseLedgerRow = ApprovedCase & {
+  status: string;
+  jobId: string | null;
+  jobTitle: string | null;
+  jdSlug: string | null;
+  stage: string;
+  submissionCount: number;
+  lifecycleId: string | null;
+  lifecycleCreatedAt: string | null;
+  lifecycleUpdatedAt: string | null;
+};
+// The filter pickers' vocabulary for the whole workspace (GET /api/devcase `facets`).
+export type CaseLedgerFacets = { stages: string[]; seniorities: string[] };
+// The full record GET /api/devcase/[id] returns (getDevCase, JSON parsed) — what the
+// detail reader renders: role/case/scenario, fetched when a ledger row is opened.
 export type DevCaseDetail = ApprovedCase & {
   role?: RoleSpec | null;
   case?: CaseScenario | null;

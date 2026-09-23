@@ -9,10 +9,10 @@ import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmpty } from "./DevCasesEmpty";
-import { caseStage, filterCases } from "./DevCasesTable.filter";
+import type { CaseFilters } from "./DevCasesTable.filter";
 import { stallForCase } from "./DevCasesTable.stall";
 import { useStageLabel } from "./DevLabels";
-import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
+import type { CaseLedgerFacets, CaseLedgerRow } from "./DevTypes";
 
 // ONE THREAD (gap 8) — the local `stageChip` tint table is gone. It knew three
 // states (approval gate = amber, LIVE_STAGES = moss, everything else = paper) and
@@ -21,26 +21,35 @@ import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
 // the shared per-axis table in app/_lib/status-tone.ts, which is exhaustive over
 // all ten orchestrator stages and pinned to that producer by its own test.
 
-/** The Cases tab's first page: every designed assignment as one table row —
- *  stage comes from the case's lifecycle (when one drove it), submission counts
- *  from its postings. Row click opens the readable detail. */
+/** The Cases tab's first page: every designed assignment as one ledger row. Stage,
+ *  submission count and the stall inputs arrive ON the row (GET /api/devcase, joined by
+ *  the store over the whole workspace); they used to be derived here from the 50
+ *  newest lifecycles and every posting, and read the fallback stage past that window.
+ *  The filters are a query the store answers before the limit. Row click opens the
+ *  readable detail. */
 export function CasesTable({
   cases,
   truncated,
-  lifecycles,
-  postings,
+  facets,
+  filters,
+  filtersActive,
+  onFiltersChange,
   state,
   onOpen,
   onDefine,
   onLoadMore,
 }: {
-  cases: DevCaseDetail[];
+  cases: CaseLedgerRow[];
   /** The server cut the page (GET /api/devcase answers `truncated`). Said out loud
    *  below: a list that silently stops at its page size is indistinguishable from a
    *  studio that has exactly that many cases. */
   truncated: boolean;
-  lifecycles: Lifecycle[];
-  postings: Posting[];
+  /** The pickers' vocabulary for the whole workspace, not the (filtered) page. */
+  facets: CaseLedgerFacets;
+  filters: CaseFilters;
+  /** A filter is narrowing the query: an empty answer is "no matches", not first run. */
+  filtersActive: boolean;
+  onFiltersChange: (next: CaseFilters) => void;
   state: LoadState;
   onOpen: (id: string) => void;
   onDefine: () => void;
@@ -54,41 +63,36 @@ export function CasesTable({
   const stageLabel = useStageLabel();
   // Snapshotted once at mount (Date.now() is impure in render) — same contract as LifecycleRow.
   const [nowMs] = useState(() => Date.now());
-  const [titleFilter, setTitleFilter] = useState("");
-  const [stageFilter, setStageFilter] = useState("");
-  const [seniorityFilter, setSeniorityFilter] = useState("");
   // Tier 2 (docs/design/loading-choreography.md): useLoader's `data` starts as `[]`, so
   // an empty list is ambiguous between "still loading" and "genuinely no cases
   // yet" — `state.lastUpdated` disambiguates. Never loaded + healthy: hold the
   // table's height, invisibly, rather than jumping straight to the empty state.
-  if (cases.length === 0 && state.lastUpdated == null && !state.failed) {
+  if (cases.length === 0 && !filtersActive && state.lastUpdated == null && !state.failed) {
     return <div className="reveal-quiet min-h-[16rem]" aria-hidden />;
   }
   // First-run empty list. CasesEmpty renders the sealed-ledger variant directly —
   // the local prototype switcher this comment used to describe is gone, so what
   // DevCasesEmptyLedger says about the controls IS the shipped marketing surface.
-  if (cases.length === 0) {
+  if (cases.length === 0 && !filtersActive) {
     return <CasesEmpty state={state} onDefine={onDefine} />;
   }
-  const filteredCases = filterCases(cases, lifecycles, postings, {
-    title: titleFilter,
-    stage: stageFilter,
-    seniority: seniorityFilter,
-  });
-  const stages = [...new Set(cases.map((item) => caseStage(item.id, lifecycles, postings)))];
-  const seniorities = [...new Set(cases.map((item) => item.seniority).filter((value): value is string => Boolean(value)))];
+  // A chosen value stays in its picker even if the facets have not caught up with it.
+  const stages = facets.stages.includes(filters.stage) || !filters.stage ? facets.stages : [...facets.stages, filters.stage];
+  const seniorities = facets.seniorities.includes(filters.seniority) || !filters.seniority
+    ? facets.seniorities
+    : [...facets.seniorities, filters.seniority];
 
   return (
     <div className={`overflow-hidden ${PANEL}`}>
       <div className="flex flex-wrap gap-2 border-b border-stone-200 bg-paper/40 px-3 py-2">
         <label className="flex min-w-40 flex-1 flex-col gap-1 text-micro font-semibold text-steel">
           {t("filterTitle")}
-          <input type="search" value={titleFilter} onChange={(event) => setTitleFilter(event.target.value)}
+          <input type="search" value={filters.title} onChange={(event) => onFiltersChange({ ...filters, title: event.target.value })}
             className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm font-normal text-ink" />
         </label>
         <label className="flex min-w-36 flex-col gap-1 text-micro font-semibold text-steel">
           {t("colStage")}
-          <select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}
+          <select value={filters.stage} onChange={(event) => onFiltersChange({ ...filters, stage: event.target.value })}
             className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm font-normal text-ink">
             <option value="">{t("allStages")}</option>
             {stages.map((stage) => <option key={stage} value={stage}>{stageLabel(stage)}</option>)}
@@ -96,7 +100,7 @@ export function CasesTable({
         </label>
         <label className="flex min-w-36 flex-col gap-1 text-micro font-semibold text-steel">
           {t("colSeniority")}
-          <select value={seniorityFilter} onChange={(event) => setSeniorityFilter(event.target.value)}
+          <select value={filters.seniority} onChange={(event) => onFiltersChange({ ...filters, seniority: event.target.value })}
             className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm font-normal text-ink">
             <option value="">{t("allSeniorities")}</option>
             {seniorities.map((seniority) => <option key={seniority} value={seniority}>{seniority}</option>)}
@@ -116,16 +120,14 @@ export function CasesTable({
           </tr>
         </thead>
         <tbody>
-          {filteredCases.map((c, i) => {
-            const lc = lifecycles.find((l) => l.caseId === c.id);
-            const casePostings = postings.filter((p) => p.caseId === c.id);
-            const submissions = casePostings.reduce((n, p) => n + (p.submissions?.length ?? p.submissionCount ?? 0), 0);
-            const stage = caseStage(c.id, lifecycles, postings);
+          {cases.map((c, i) => {
+            const stage = c.stage;
+            const submissions = c.submissionCount;
             const stall = stallForCase(
               {
                 stage,
-                updatedAt: lc?.updatedAt,
-                createdAt: lc?.createdAt ?? c.createdAt,
+                updatedAt: c.lifecycleUpdatedAt,
+                createdAt: c.lifecycleCreatedAt ?? c.createdAt,
                 submissionCount: submissions,
               },
               nowMs,
@@ -177,7 +179,7 @@ export function CasesTable({
               </tr>
             );
           })}
-          {filteredCases.length === 0 ? (
+          {cases.length === 0 ? (
             <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-steel">{t("noMatches")}</td></tr>
           ) : null}
         </tbody>
