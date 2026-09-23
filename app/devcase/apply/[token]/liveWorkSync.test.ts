@@ -336,3 +336,43 @@ test("the 403 re-mint happens ONCE: a second keyless 403 blocks sync instead of 
   assert.equal(h.calls.length, before);
   assert.equal(h.count(MINT), 1);
 });
+
+// ── challenge-r06 devcase-session-api/B: a closed intake reaches the candidate mid-case ──
+// The flush answers `intakeClosed` from a live posting read. The client enters a terminal
+// state that stops the doomed seal and keeps the draft on the device.
+test("a flush answering intakeClosed:true sets the snapshot; submit then never POSTs /submit and keeps the draft", async () => {
+  const h = harness([[FLUSH, [{ status: 200, body: { ok: true, intakeClosed: true } }]], [SUBMIT, [{ status: 200, body: { reference: "DC-X" } }]]], {
+    withSession: "s1",
+  });
+  assert.equal(h.sync.getSnapshot().intakeClosed, false, "open until the server says otherwise");
+  h.sync.record("edit", "src/index.ts");
+  assert.equal(await h.sync.flush(), true, "the batch still landed: work is kept");
+  assert.equal(h.sync.getSnapshot().intakeClosed, true);
+
+  await h.sync.submit({ candidate: "Ada", contact: "ada@example.com", locale: "en", activePath: "src/index.ts" });
+  assert.equal(h.count(SUBMIT), 0, "the seal is not attempted on a closed intake");
+  const snap = h.sync.getSnapshot();
+  assert.notEqual(snap.status, "submitted");
+  assert.equal(snap.status, "error");
+  assert.equal(snap.errorKind, "closed");
+  assert.equal(h.cleared(), 0, "the draft survives on the device");
+});
+
+test("a flush answering intakeClosed:false (or no flag) leaves the intake open", async () => {
+  const h = harness([[FLUSH, [{ status: 200, body: { ok: true, intakeClosed: false } }, { status: 200, body: { ok: true } }]]], {
+    withSession: "s1",
+  });
+  h.sync.record("edit", "src/index.ts");
+  await h.sync.flush();
+  assert.equal(h.sync.getSnapshot().intakeClosed, false);
+  h.sync.record("edit", "src/index.ts");
+  await h.sync.flush();
+  assert.equal(h.sync.getSnapshot().intakeClosed, false, "an absent flag (an older server) is not a close");
+});
+
+test("a 410 on chat marks the intake closed", async () => {
+  const h = harness([[CHAT, [{ status: 410, body: { code: "POSTING_CLOSED" } }]]], { withSession: "s1" });
+  const r = await h.sync.chat({ channel: "assistant", message: "hi", currentFile: null });
+  assert.equal(r?.status, 410, "the raw answer still reaches the page, which folds the code");
+  assert.equal(h.sync.getSnapshot().intakeClosed, true);
+});
