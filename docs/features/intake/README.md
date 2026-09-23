@@ -583,7 +583,11 @@ provider session is a pure **speech transport in relay mode** — it transcribes
 utterances and speaks the lines we inject, never answers on its own
 (`relay: true` ⇒ `create_response: false`; the session instruction is a
 persona-free relay directive, the intake persona never leaves our
-infrastructure). Conversation direction is OURS, in two LLM threads:
+infrastructure). The relay provider is derived, not named: `/voice-connect` mints
+the first configured provider whose trait row declares `relay`
+(`relayProvider`, `app/_lib/voice/provider-traits.ts`; today OpenAI Realtime), and
+its `INTAKE_VOICE_NOT_CONFIGURED` 503 names the first relay-capable provider and
+that provider's missing env. Conversation direction is OURS, in two LLM threads:
 
 - **Fast thread** — each transcribed utterance POSTs to
   `/api/intake/[id]/voice-turn` → `intake_cli --voice-turn` →

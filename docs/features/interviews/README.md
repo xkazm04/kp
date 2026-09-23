@@ -2569,7 +2569,8 @@ predicate, source-level for the route contract).
 | `app/_lib/voice/index.ts` | Adapter registry, default-provider policy, candidate-safe default brief |
 | `app/_lib/voice/elevenlabs.ts`, `openai.ts` | The two provider adapters |
 | `app/_lib/voice/self-hosted.ts` | Self-hosted ElevenLabs-compatible endpoint detection (see below) |
-| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider). Pre-flight names the environment as a code (`VOICE_PREFLIGHT_INSECURE` / `_NO_MEDIA` / `_NO_WEBRTC`), resolved through `useErrorMessage` in the candidate's language — never a hardcoded English sentence |
+| `app/_lib/voice/provider-traits.ts` | What each realtime provider **is**, declared once beside `VOICE_PROVIDER_ORDER` (see "Provider traits" below). Browser-safe: pure data |
+| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on another provider; alternates are walked in canonical order, and a free preferred provider is only ever rescued onto another free one). Pre-flight names the environment as a code (`VOICE_PREFLIGHT_INSECURE` / `_NO_MEDIA` / `_NO_WEBRTC`), resolved through `useErrorMessage` in the candidate's language — never a hardcoded English sentence |
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
@@ -3185,6 +3186,32 @@ direction the conservative contract says must never happen.
 IPv6 literals in `fc00::/7` also count as private; adjacent public IPv6 ranges
 and hostnames remain metered.
 
+### Provider traits
+
+The server side of the voice plane asks what a provider **can do**, never which one
+it is. `VOICE_PROVIDER_TRAITS` (`app/_lib/voice/provider-traits.ts`) holds one row per
+id in `VOICE_PROVIDER_ORDER`; the id union, `coerceProviderId` and
+`voiceAvailability()` are all derived from the one literal list in `types.ts`.
+
+| Trait | `openai` | `elevenlabs` | Read by |
+| --- | --- | --- | --- |
+| `transport` | `webrtc` | `websocket` | `voicePreflightCode` (only a WebRTC provider needs `RTCPeerConnection`) |
+| `prompt` | `server` | `client-override` | `/connect`'s `resolveAgentPrompt` (a server-grounded provider gets no client prompt) |
+| `asrKeywords` | `false` | `true` | `/connect`'s per-job recognizer bias |
+| `relay` | `true` | `false` | `/api/intake/[id]/voice-connect` (`relayProvider`; its 503 names the first relay-capable provider and its missing env) |
+| `selfHostable` | `false` | `true` | `isSelfHostedProvider` (and so every money decision above) |
+| `modelIdentity` | `realtime-model` | `agent-id` | `voiceSessionModel` (ledger attribution) |
+
+`connectWithFailover` walks `failoverOrder(preferred, availability, isFree)`: every
+available alternate in canonical order, and — when the preferred provider is free
+(`isFree` defaults to `isSelfHostedProvider`) — only free ones. That money rule lives
+in the helper that fails over, not in its caller. If every provider throws, the
+preferred provider's error surfaces. The browser half of the same contract is
+`CallTransport`'s capabilities (`app/_components/voice/transport/call-transport.ts`):
+a `webrtc` provider is the engine whose transport finalizes `immediate`, a
+`websocket` one finalizes on `disconnect`. Adding a realtime provider is one id, one
+trait row, one adapter — and one `CallTransport`.
+
 ## Keyless / degraded behavior
 
 - With no provider keys configured, `voiceAvailability()` reports both
@@ -3213,17 +3240,18 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
   - `/api/interview/connect` sizes its per-token throttle from
     `isSelfHostedProvider(provider)` — the SESSION fact — decided *after* provider
     resolution, so an OpenAI session on an install that also runs a local voice
-    service gets the paid budget of 6/10 min, not the free 120. It also passes
-    `availability: { ...voiceAvailability(), openai: false }` when the preferred
-    provider is the self-hosted one, so a failover can no longer rescue a
-    gate-skipped session onto a paid provider.
+    service gets the paid budget of 6/10 min, not the free 120. And
+    `connectWithFailover` itself offers a free preferred provider only free
+    alternates (`failoverOrder`, see "Provider traits"), so a failover can no
+    longer rescue a gate-skipped session onto a paid provider — whoever calls it.
   - `/api/interview/complete` guards its `recordMeterUsage("interview_minutes", …)`
     with the symmetric `isSelfHostedProvider(session.provider)`, so a self-hosted
     install no longer burns prepaid minutes on calls that cost nothing. The
     `llm_usage` row stays unconditional on purpose: `voiceMinuteCostUsd` prices
     those at 0, and a $0 ledger row is the truthful record that a call happened.
-  - `app/api/intake/[id]/voice-connect/route.ts` mints `getVoiceAdapter("openai")`
-    and nothing else, so its limit is simply `6` — the raise was never earned there.
+  - `app/api/intake/[id]/voice-connect/route.ts` mints only a relay-capable
+    provider (`relayProvider`; today OpenAI alone, and the self-hostable path
+    declares no relay), so its limit is simply `6` — the raise was never earned there.
 
   All three limits are pinned in `app/api/rate-limit-contract.test.ts`.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
