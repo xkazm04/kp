@@ -1,13 +1,14 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getJob } from "./db/jobs";
-import { actOnPipelineEntry, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
+import { actOnPipelineEntry, hasEventSinceStageChange, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, pythonSpawnLoad, spawnPython } from "./python-runner";
 import { positiveNumericEnv } from "./env";
 import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
+import { isAgingAlertKind } from "./aging-policy";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -327,6 +328,42 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
   return deferred;
 }
 
+/** Write (or, on a dry run, count) one decision's alerts — the SINGLE encoding the
+ *  preview loop and the commit loop share, so the forecast and the feed agree.
+ *
+ *  Two dedupe windows, by kind:
+ *  - the aging alerts (`stale_alert` = past the stage SLA, `aging_alert` = stalled at
+ *    STALLED_MULTIPLE x the SLA; aging-policy.ts) are written ONCE per stage stint per
+ *    tier, keyed on the snapshot's `stageChangedAt`. A per-business-day key re-wrote the
+ *    same "still waiting" line into the feed every day until someone moved the card.
+ *  - every other alert (the fairness backstop's `fairness_gate_blocked_reject`) keeps
+ *    its per-business-day dedupe: each refusal is a fresh event worth surfacing daily.
+ *
+ *  An aging alert on an ADVANCE decision (or on a staleSkip, where the entry moved
+ *  mid-pass) is dropped: the move ends the stint the alert describes, and a row
+ *  written after the move would sit inside the NEW stint and suppress that stint's
+ *  own first alert. */
+export function recordDecisionAlerts(
+  d: AutomationDecision,
+  entrySnap: AutomationEntry | undefined,
+  summary: AutomationSummary,
+  dryRun: boolean
+): void {
+  if (!d.entryId) return;
+  const ws = entrySnap?.workspaceId;
+  for (const alert of d.alerts ?? []) {
+    const aging = isAgingAlertKind(alert);
+    // The stint is over (or already moved under us, a staleSkip): not this stint's alert.
+    if (aging && (d.action === "advance" || d.reasonCode === "staleSkip")) continue;
+    const already = aging
+      ? hasEventSinceStageChange(d.entryId, alert, entrySnap?.stageChangedAt ?? null, ws)
+      : hasEventToday(d.entryId, alert, ws);
+    if (already) continue;
+    if (!dryRun) recordAutomationEvent(d.entryId, alert, d.reason, ws);
+    summary.alerts += 1;
+  }
+}
+
 async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassResult> {
   const entries = listActiveEntriesForAutomation();
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
@@ -392,13 +429,11 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         } else if (d.action === "hold") {
           summary.held += 1;
         }
-        // Alerts are deduped per entry+kind+day on commit (hasEventToday below), so
-        // an undeduped preview count over-forecast the alerts a commit would write.
-        // Apply the SAME gate — hasEventToday is a pure read, so the dry run stays
-        // read-only: it writes no event, it only declines to count one it wouldn't write.
-        for (const alert of d.alerts ?? []) {
-          if (!hasEventToday(d.entryId, alert, entrySnap?.workspaceId)) summary.alerts += 1;
-        }
+        // Alerts are deduped on commit, so an undeduped preview count over-forecast
+        // the alerts a commit would write. Apply the SAME gate through the SAME helper
+        // — its dedupe reads are pure, so the dry run stays read-only: it writes no
+        // event, it only declines to count one it wouldn't write.
+        recordDecisionAlerts(d, entrySnap, summary, true);
       }
       return { summary, decisions };
     }
@@ -479,12 +514,7 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         summary.held += 1;
         d.outcome = "applied";
       }
-      for (const alert of d.alerts ?? []) {
-        if (!hasEventToday(d.entryId, alert, entryWs)) {
-          recordAutomationEvent(d.entryId, alert, d.reason, entryWs);
-          summary.alerts += 1;
-        }
-      }
+      recordDecisionAlerts(d, entrySnap, summary, false);
       } catch (applyError) {
         // A decision's DB transition may already be committed (the advance landed,
         // or the rejection_review was queued) when a later step throws; the failure

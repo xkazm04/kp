@@ -17,8 +17,8 @@
 // unambiguous (no separator a label could contain) and keeps the file plain text.
 
 import type { Entry, PipelineEvent } from "@/app/features/shared/pipelineTypes";
-import { slaForStage } from "@/app/features/shared/pipelineTypes";
-import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
+import { agingTierAt } from "@/app/_lib/aging-policy";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 
 const DAY_MS = 86_400_000;
@@ -41,11 +41,10 @@ export function agingBucket(
   now: number,
   axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
 ): 0 | 1 {
-  if (stageHasRole(e.stage, "terminal", axis)) return 0;
-  const changed = e.stageChangedAt ? Date.parse(e.stageChangedAt) : NaN;
-  if (!Number.isFinite(changed)) return 0;
-  const days = Math.floor((now - changed) / DAY_MS);
-  return days >= slaForStage(e.stage, overrides, axis) ? 1 : 0;
+  // One aging clock: the tier comes from aging-policy.ts, the same function the
+  // sidebar badge and the automation pass's feed alerts read (terminal never ages, a
+  // non-positive SLA never ages, an unparseable timestamp reads fresh).
+  return agingTierAt(e.stage, e.stageChangedAt, now, axis, overrides) === "none" ? 0 : 1;
 }
 
 /** Day-bucketed relative-time class for an ISO instant at `now` — EXACTLY the cut

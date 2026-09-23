@@ -1,7 +1,7 @@
 import { Briefcase, GraduationCap, Repeat, type LucideIcon } from "lucide-react";
 import type { GithubEvidenceSummary } from "@/app/_lib/github-summary";
 import type { MatchScoreProvenance } from "@/app/_lib/match-score";
-import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, roleOf, STAGE_ROLE, type StageDef, type StageRole } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
 
 export type { StageDef } from "@/app/_lib/pipeline-stages";
 
@@ -103,60 +103,12 @@ export const STAGES: readonly string[] = PIPELINE_STAGES;
  *  exactly what it always did rather than an empty board. */
 export const DEFAULT_BOARD_AXIS: readonly StageDef[] = DEFAULT_STAGE_AXIS;
 
-export const STALE_DAYS = 10; // legacy flat default — fallback for unknown stages
-
-// Per-ROLE aging SLAs in days (PIPE4). A candidate sitting 10 days at an offer is
-// a stall worth chasing; 10 days freshly arrived is normal. Stage-appropriate
-// thresholds flag the right cards instead of one blunt global cut. Keyed by what a
-// column MEANS, not what it is called: the axis is workspace-editable (Settings →
-// Hiring), and a threshold keyed to the name "Interview" stops firing the moment a
-// team renames the column to "First round" and adds a "Tech round" beside it — the
-// badge goes quiet with nothing on screen admitting it. `scoring` waits like an
-// interview (a candidate genuinely sits there until a human ratifies the number);
-// `terminal` never ages; `custom` maps to no product semantics, so it gets the
-// flat legacy cut. Recruiters can override these per board (localStorage, keyed by
-// column id), so these are defaults, not hard limits.
-export const ROLE_SLA_DEFAULTS: Record<StageRole, number> = {
-  entry: 14,
-  screening: 7,
-  // A case takes real evenings to do. Chasing at day 5 reads as pressure on unpaid
-  // work; a week is the point at which silence is genuinely worth a nudge.
-  homework: 7,
-  interview: 5,
-  scoring: 5,
-  offer: 3,
-  terminal: 0,
-  custom: STALE_DAYS,
-};
-
-/** The shipped five, by name — DERIVED from the role table so the two can never
- *  disagree. Kept for callers that only know a canonical name (and as the fallback
- *  for a retired id that is no longer on any axis but still has rows standing on
- *  it: a candidate stranded on the old "Offer" column still ages like an offer). */
-export const STAGE_SLA_DEFAULTS: Record<string, number> = Object.fromEntries(
-  PIPELINE_STAGES.map((id) => [id, ROLE_SLA_DEFAULTS[STAGE_ROLE[id]]])
-);
-
-/** Days a candidate may sit in `stage` before the board flags it as aging, given
- *  optional per-board overrides and the axis the board is rendering. Resolution
- *  order: the recruiter's override for this column id → the default for the ROLE
- *  the column plays on `axis` → the shipped default for a canonical name that is
- *  off the axis (retired) → the flat STALE_DAYS for a stage nothing knows. A
- *  non-positive value (terminal = 0) means the stage never ages — callers already
- *  exclude terminal roles, but this keeps it explicit. Byte-identical to the old
- *  name-keyed table on the shipped axis. */
-export function slaForStage(
-  stage: string,
-  overrides?: Record<string, number> | null,
-  axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
-): number {
-  const o = overrides?.[stage];
-  if (typeof o === "number" && o > 0) return o;
-  const role = roleOf(stage, axis);
-  if (role) return ROLE_SLA_DEFAULTS[role];
-  const d = STAGE_SLA_DEFAULTS[stage];
-  return typeof d === "number" ? d : STALE_DAYS;
-}
+// The aging SLA table and its resolver live in app/_lib/aging-policy.ts — the ONE aging
+// clock the board, the sidebar badge and the automation pass's feed alerts all read —
+// and are re-exported here so every existing importer keeps its path. They moved (not
+// copied) so the server-side store that stamps each automation entry's tier does not
+// pull this client module (and lucide-react) into every route's graph.
+export { ROLE_SLA_DEFAULTS, STAGE_SLA_DEFAULTS, STALE_DAYS, slaForStage } from "@/app/_lib/aging-policy";
 
 export function daysSince(iso: string | null): number | null {
   if (!iso) return null;

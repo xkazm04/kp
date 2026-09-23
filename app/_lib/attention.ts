@@ -19,9 +19,10 @@ import { countOpenProposals } from "./db/companion";
 import { countFutureConfirmedInvites } from "./schedule-store";
 import { listJobStatuses } from "./job-ingest";
 import { needsHumanDecision } from "./approval-kinds";
-import { daysSince, slaForStage } from "@/app/features/shared/pipelineTypes";
+import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { getPipelineAxis } from "./pipeline-axis-server";
-import { stageHasRole } from "./pipeline-stages";
+import { stageHasRole, type StageDef } from "./pipeline-stages";
+import { agingTierAt } from "./aging-policy";
 
 export type AttentionCounts = {
   // Entries waiting on a recognized human approval gate → Decisions.
@@ -72,27 +73,32 @@ export function attentionCounts(workspaceId?: string): AttentionCounts {
   // would be counted as aging forever, and the Channels badge would read zero.
   const axis = getPipelineAxis(workspaceId).stages;
   const decisions = entries.filter((e) => e.status === "active" && needsHumanDecision(e.approvalKind)).length;
-  const stale = entries.filter((e) => {
-    if (e.status !== "active" || stageHasRole(e.stage, "terminal", axis)) return false;
-    // slaForStage's documented contract: a NON-POSITIVE threshold means the stage
-    // never ages. `days >= sla` inverts that — with sla 0 every entry is instantly
-    // stale — and the role check above was the only thing hiding it, because on the
-    // shipped axis the one 0-day stage IS the terminal one. It stops hiding it the
-    // moment a workspace migrates its board: rename the terminal column (say to
-    // "Placed") and RETIRE the id "Hired", and every already-hired entry (stage
-    // 'Hired', status 'active' — see pipeline-status.ts) resolves to no live role,
-    // escapes the exclusion, and is counted as aging from day 0 forever, with no
-    // board move that can clear it. Honor the contract instead of relying on the
-    // coincidence. Byte-identical on the shipped axis.
-    // The threshold, too, is a ROLE question on this workspace's axis: a composed
-    // column ("Tech round", role interview) ages at the interview default, not on
-    // the flat legacy cut a name lookup fell through to.
-    const sla = slaForStage(e.stage, undefined, axis);
-    return sla > 0 && (daysSince(e.stageChangedAt) ?? 0) >= sla;
-  }).length;
+  const now = Date.now();
+  const stale = entries.filter((e) => attentionStale(e, axis, now)).length;
   const schedule = countFutureConfirmedInvites(workspaceId);
   const jobs = Object.values(listJobStatuses(workspaceId)).filter((s) => s === "draft").length;
   const channels = entries.filter((e) => e.status === "active" && stageHasRole(e.stage, "entry", axis)).length;
   const companion = countOpenProposals(workspaceId);
   return { decisions, pipeline: stale, schedule, jobs, channels, companion };
+}
+
+/** The badge's "past its stage SLA" predicate — ONE aging clock (aging-policy.ts), the
+ *  same tier the board's amber dot and the automation pass's feed alerts read, resolved
+ *  on this workspace's own axis. Server-side it deliberately uses the role DEFAULTS: a
+ *  recruiter's per-board localStorage overrides are a client concern the badge
+ *  approximates.
+ *
+ *  What the tier encodes (and what this predicate used to hand-roll): a terminal-ROLE
+ *  stage never ages, and a NON-POSITIVE SLA never ages either — so a workspace that
+ *  renamed its terminal column and RETIRED the id "Hired" does not count every
+ *  already-hired entry (stage 'Hired', status 'active', see pipeline-status.ts) as
+ *  aging from day 0 forever. A composed column ("Tech round", role interview) ages at
+ *  its role's SLA, not on the flat legacy cut a name lookup fell through to. */
+export function attentionStale(
+  e: Pick<Entry, "status" | "stage" | "stageChangedAt">,
+  axis: readonly StageDef[],
+  now: number
+): boolean {
+  if (e.status !== "active") return false;
+  return agingTierAt(e.stage, e.stageChangedAt, now, axis) !== "none";
 }

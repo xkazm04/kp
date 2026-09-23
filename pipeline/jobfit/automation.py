@@ -162,6 +162,38 @@ POLICY: dict[str, int] = {
     "screen_volume_moderate_max": 30,
 }
 
+# One aging clock (challenge-r02 pipeline-actions-events/A). The AGING TIER is resolved
+# in TypeScript (app/_lib/aging-policy.ts) from the board's stage-role SLA on the entry's
+# own workspace axis and handed in per entry as `agingTier`; this module only maps it to
+# the feed's alert kinds. The three constants below cross the boundary as code, so
+# tests/test_automation.py AgingTierSyncTest reads the TS literals and fails on drift.
+#   aging   = past the stage SLA                    -> stale_alert (the soft tier)
+#   stalled = past STALLED_MULTIPLE x the stage SLA -> aging_alert (the hard tier)
+# POLICY["stale_days"] / POLICY["aging_days"] remain ONLY as the fallback for a caller
+# that sends no tier (the bare CLI, back-compat); they are stage-blind by nature.
+AGING_TIERS: tuple[str, ...] = ("none", "aging", "stalled")
+AGING_TIER_ALERTS: dict[str, str] = {"aging": "stale_alert", "stalled": "aging_alert"}
+# The fallback has no axis, so it guards the SHIPPED terminal column by name (the stage
+# STAGE_ROLE marks terminal in app/_lib/pipeline-stages.ts). A hire is not "waiting".
+TERMINAL_STAGES: tuple[str, ...] = ("Hired",)
+
+
+def aging_alerts(entry: dict[str, Any], days: int) -> list[str]:
+    """The aging alerts for one entry: the TS-resolved tier when present, else the
+    flat POLICY cut — and never for a terminal stage on either path."""
+    tier = entry.get("agingTier")
+    if tier in AGING_TIERS:
+        kind = AGING_TIER_ALERTS.get(tier)
+        return [kind] if kind else []
+    if entry.get("stage") in TERMINAL_STAGES:
+        return []
+    if days >= POLICY["aging_days"]:
+        return ["aging_alert"]
+    if days >= POLICY["stale_days"]:
+        return ["stale_alert"]
+    return []
+
+
 # The strictness tiers, ordered least → most strict. The verdict payload carries the
 # resolved tier as `screeningVolume`, so the decision audit can explain WHY a
 # below-threshold candidate was held rather than rejected.
@@ -920,7 +952,8 @@ def github_evidence_block(github: Any | None) -> str:
 def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Decide one entry's automated move. Pure; operates on the entry snapshot.
 
-    entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening.
+    entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening,
+    agingTier (optional; see aging_alerts).
     Returns {action: advance|reject|hold|none, toStage, alerts:[...], reason}.
 
     An absent/null matchScore (matching not yet run, or a data gap) is treated as
@@ -940,11 +973,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     recent_screening = bool(entry.get("recentScreening"))
     early = archetype in _EARLY_CAREER
 
-    alerts: list[str] = []
-    if days >= POLICY["aging_days"]:
-        alerts.append("aging_alert")
-    elif days >= POLICY["stale_days"]:
-        alerts.append("stale_alert")
+    alerts: list[str] = aging_alerts(entry, days)
 
     def out(action: str, to_stage: str | None, reason: str) -> dict[str, Any]:
         return {"action": action, "toStage": to_stage, "alerts": alerts, "reason": reason}

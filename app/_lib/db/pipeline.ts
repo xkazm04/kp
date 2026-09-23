@@ -23,6 +23,7 @@ import { ensureDb, recordEvent, type PipelineEntry } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { knownStageIds } from "../pipeline-axis";
+import { agingTier, type AgingTier } from "../aging-policy";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
 // The opt-in interview AUDIO's deletion, called AFTER anonymizeEntry's transaction
@@ -2627,7 +2628,10 @@ export const AUTOMATION_PASS_ENTRY_CAP = 2000;
 // `workspaceId` used to be widened in here because PipelineEntry didn't carry it —
 // that local workaround is what proved the base type should. It now comes from
 // PipelineEntry itself; this type only adds the two automation-pass derivations.
-export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean };
+/** `agingTier` is resolved in TS from the board's stage-role SLA on the entry's OWN
+ *  workspace axis (aging-policy.ts) — the policy pass writes its feed alerts from it
+ *  instead of re-deriving a flat, stage-blind cut in Python. */
+export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean; agingTier: AgingTier };
 
 export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();
@@ -2777,11 +2781,24 @@ export function listActiveEntriesForAutomation(limit: number = AUTOMATION_PASS_E
         .all(cutoff) as { entry_id: string }[]
     ).map((r) => r.entry_id)
   );
+  // One aging clock: each entry's tier is resolved on ITS OWN workspace's axis (the
+  // sweep is cross-tenant, so a composed "Tech round" column in one team must age at
+  // the interview SLA there and nowhere else). One axis read per workspace per pass.
+  const axisByWorkspace = new Map<string, readonly StageDef[]>();
+  const axisFor = (ws: string): readonly StageDef[] => {
+    let axis = axisByWorkspace.get(ws);
+    if (!axis) {
+      axis = getPipelineAxis(ws).stages;
+      axisByWorkspace.set(ws, axis);
+    }
+    return axis;
+  };
   return rows.map((r) => {
     const days = r.stage_changed_at ? Math.floor((Date.now() - Date.parse(r.stage_changed_at)) / 86_400_000) : 0;
     // workspaceId comes from rowToEntry now — it used to be re-read here because
     // PipelineEntry didn't carry it.
-    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id) };
+    const tier = agingTier(r.stage, r.stage_changed_at ? days : null, axisFor(r.workspace_id));
+    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id), agingTier: tier };
   });
 }
 
@@ -3009,6 +3026,24 @@ export function hasEventToday(entryId: string, kind: string, workspaceId: string
     .prepare(`SELECT created_at FROM pipeline_events WHERE entry_id=? AND kind=? AND workspace_id=? ORDER BY created_at DESC LIMIT 1`)
     .get(entryId, kind, workspaceId) as { created_at: string } | undefined;
   return !!row && businessDay(row.created_at) === businessDay(new Date().toISOString());
+}
+
+/** True if an event of this kind was logged for the entry during its CURRENT stage
+ *  stint — at or after `stageChangedAt`. The aging-alert dedupe (once per stint per
+ *  tier): a stalled candidate used to get a fresh alert row every business day under
+ *  hasEventToday, burying the feed. An entry with no recorded stage change is one
+ *  stint for its whole life. ISO-8601 UTC strings compare in time order as text, and
+ *  every writer here stamps with `toISOString()`. */
+export function hasEventSinceStageChange(
+  entryId: string,
+  kind: string,
+  stageChangedAt: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const row = ensureDb()
+    .prepare(`SELECT 1 FROM pipeline_events WHERE entry_id=? AND kind=? AND workspace_id=? AND created_at >= ? LIMIT 1`)
+    .get(entryId, kind, workspaceId, stageChangedAt ?? "");
+  return !!row;
 }
 
 export type PipelineAction = "accept" | "reject" | "approve_event";
