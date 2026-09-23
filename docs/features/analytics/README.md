@@ -151,6 +151,51 @@ after those checks and the two cheap 400s, ahead of the first scan: 20/10 min pe
   `AnalyticsOrgBenchmarkPanel` now gates both team rates on `team.totalEntries > 0` and renders
   the same em-dash the median already used, with no verdict chip.
 
+## One role — `?job=` scopes the whole tab, and names what it cannot scope
+
+The question a hiring manager actually brings here is about ONE requisition. The store has
+taken an optional `jobId` since `90a95824d`, but only its cohort SELECT honoured it and no
+route passed one. The axis is now wired end to end (challenge r04, analytics-dashboard/B):
+
+- **Entry.** Each role-table row carries **Analyse this role** (`AnalyticsByRoleTable.tsx`),
+  a `Link` that writes `?job=<jobId>` beside `?win=`. `byJob` is keyed by **job id**, not
+  title, so two reqs that share a title are two rows (they used to merge into one that named
+  neither); a legacy entry with no job id keys by its title. `?job=` is tab-scoped
+  (`TAB_SCOPED_PARAM_KEYS` in `app/features/shell/tabs.ts`), so a bare tab switch drops it.
+- **One parse, three readers.** `analyticsJobScope.ts` (pure) owns `parseJobParam` (trimmed;
+  blank, over 128 chars or control characters = workspace-wide), `analyticsFetchUrl(days, job)`,
+  and the withheld vocabulary. The route, `AnalyticsTab` and `analyticsViewUrl` all read it,
+  so the minted view link (`…&win=30&job=<id>`) round-trips through the reader's own parse.
+- **What scopes.** `GET /api/analytics?job=` passes the role to BOTH reads and to the memo:
+  the cohort, the sim-exclusion count, the event-time hire count, and every entry-bearing
+  event read — momentum, the `kindCounts` behind automation / offers / automation ROI, and
+  the hold pair — joined through `entry_id IN (SELECT id FROM pipeline_entries WHERE job_id
+  = ? AND workspace_id = ?)`. `pipelineAnalyticsPrior` takes the same `jobId`, so a role's
+  deltas compare the role with itself, never with the workspace. `analyticsCacheKey(ws,
+  window, jobId)` keeps the workspace view's historical key and appends the role through
+  `optionalKeyField`, so a scoped payload is never served to another scope. A job id of
+  another workspace yields an empty cohort, because every read is workspace-predicated.
+- **What is withheld, by name.** `payload.jobScope = { jobId, jobTitle, withheld }` lists
+  each figure the entry join cannot honestly reach, with its reason:
+  `bySource` and the per-channel decision-time median (computed for the workspace only);
+  per-channel spend / cost-per-applicant / cost-per-hire and the blended `costPerHireCzk`
+  (spend is entered per channel for the whole workspace, so dividing it by one role's hires
+  publishes an inflated per-role cost); `computeCost.costPerHireUsd` (the LLM ledger is
+  account-wide); and `koDeclined` (a `ko_declined` event is written before any entry
+  exists, carrying a title and nothing else). A withheld field carries a placeholder
+  (`null`, `[]`, `0`) that no surface may read as a measurement; the header renders the
+  role chip, a **Whole workspace** clear action, and the withheld list grouped by reason
+  (registry: small-sample-honesty-in-hiring-analytics, not-measurable-versus-zero). The
+  metric-pack link relabels itself **(whole workspace)** while a role is in scope, because
+  its route reads no role.
+- **KO column, stated.** In the workspace view a role row's `koDeclined` is `null` (an em
+  dash with a tooltip) when more than one req shares its title: the count is title-keyed
+  and cannot be split. Under a role scope every row's KO is `null`.
+- Pinned by `app/_lib/db/analytics-job-cohort.test.ts` (event joins, the exact withheld
+  list, same-title rows, the prior slice), `app/api/analytics/analytics-job-scope-route.test.ts`
+  (the real handler: scope, cross-workspace, blank, memo isolation), `analytics-cache.test.ts`,
+  `analyticsJobScope.test.ts` and `analyticsViewLink.test.ts`.
+
 ## Performance — a brief that refuses claims it cannot make
 
 `sections/PerformanceBriefing.tsx`. Each band opens with a claim computed from the data; the
@@ -809,7 +854,7 @@ collided stem in any locale and that the self-report label names the model in al
 
 | Route | Serves |
 | --- | --- |
-| `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time |
+| `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time; `?job=<jobId>` scopes every figure to one role and names the rest in `jobScope.withheld` (see *One role* above) |
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
 | `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
