@@ -36,10 +36,10 @@ cards that drive it sit inside `FeatureGrid`).
 | `spark/trust-art/` | The four Responsible-AI demonstrations the `#trust` band switches between, plus `shared.tsx` (the fixed stage and the `cycle()` loop helper) and `index.ts` (the key→accent+body registry) |
 | `spark/useStillMotion.ts` | `prefers-reduced-motion` as an external store — the SSR-safe replacement for framer's hook |
 | `spark/motion-presets.ts` | The one Spark motion vocabulary: `reveal(trigger, reduce, final, transition, initial)` (`"inView"` for the `/about` arts, `"mount"` for the previews), `pop`/`stamp`/`entrance`, and `ENTER`/`DRAW`. Plain `.ts`, so `motion-presets.test.ts` tests the reduced-motion gate directly |
-| `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the recurring card/chip/bar shapes; it re-exports `pop`/`stamp`/`entrance` from `motion-presets.ts`) and `index.ts` (the key→icon+body registry) |
+| `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the recurring card/chip/bar shapes; it re-exports `pop`/`stamp`/`entrance` from `motion-presets.ts`), `order.ts` (`PREVIEW_KEYS`, the grid order the `PreviewKey` union is derived from, plus the spotlight walk and its `#spotlight-<key>` address; pure, pinned by `order.test.ts`) and `index.ts` (the key→icon+body registry) |
 | `spark/about-art/` | One illustration per `/about` pipeline phase (each reveal spreads `reveal("inView", …)`; colours are `tokens.ts` constants), plus `shared.ts` — which owns `ABOUT_STEP_KEYS`, the phase list `AboutCurve` derives its rows AND its spine from, and re-exports `ENTER`/`DRAW` |
 | `spark/Wordmark.tsx` | The brand lockup, used by all three pages |
-| `spark/FeatureSpotlight.tsx` | The modal chrome that frames a preview |
+| `spark/FeatureSpotlight.tsx` | The modal chrome that frames a preview; when pinned, also its prev/next walk and `{n} of {total}` line |
 
 This replaced three files of 615, 640 and 416 lines. The split was not
 cosmetic: it is what made the i18n migration tractable, because each preview's
@@ -200,6 +200,21 @@ The three pages share one rule set, so a visitor learns the chrome once.
     page under five back-presses. The `href="#id"` stays as the no-JS fallback.
 - **The Voice Teaser opens its spotlight.** Its button pins the same voice
   preview opened by the feature card.
+- **A pinned spotlight is a walk and an address.** Prev/next buttons (after the
+  body, so close stays the first focus target) and ArrowLeft/ArrowRight step
+  through all nine previews in `PREVIEW_KEYS` order, wrapping, with a polite
+  `{n} of {total}` line (`landing.previews.prev|next|position`). Arrows act only
+  while pinned, never with a modifier (Alt+Left is Back) or in a text field.
+  The pinned preview lives in the URL as `/#spotlight-<key>`: `SparkLanding`
+  pins from the hash on load and on `hashchange`, every pin or step goes through
+  `pinOpen`, which `replaceState`s the hash (a scrubber, not history), and close
+  puts back the hash that was there before (`hashAfterClose`), never a dead
+  `#spotlight-*`. Path and query are kept verbatim, so `/`'s canonical URL and
+  hreflang alternates are untouched. The address is deliberately NOT the cards'
+  internal `feature-<key>-title` ids; an unknown or prototype key opens nothing.
+  Hover peeks are never addressed. Focus: stepping swaps content inside the
+  mounted dialog, so Escape still returns focus to the card that opened it (a
+  hash-opened dialog has no card to return to).
 - **Phone navigation is one disclosure, with per-page destinations.**
   `spark/sections/MobileNav.tsx` takes a `destinations` prop (`NavDestination`:
   a `#band` of this page, or another page). The landing passes its five bands
@@ -513,7 +528,7 @@ test rather than silently exempting it.
 
 **End to end**, two keyless specs in the CI subset cover these pages:
 `e2e/landing.spec.ts` audits `/` band by band (axe, the spotlight's focus
-contract, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
+contract, the `/#spotlight-<key>` address and arrow-key walk, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
 indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and
 `/market` against a per-page, per-rule `A11Y_HOLDOUTS` map, plus `/about`'s
 legal row and phone disclosure. Each holdout is asserted to STILL fail, so a
