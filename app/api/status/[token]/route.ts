@@ -8,6 +8,7 @@ import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { entryHasRecording } from "@/app/_lib/interview-recording";
 import { candidateLetterViewFor } from "@/app/_lib/interview-letter";
+import { nextActionForEntry } from "@/app/_lib/candidate-next-action-server";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -68,6 +69,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       // reviewer, no ids, no delivery detail; consent withheld blanks it entirely
       // (interview-letter-policy.ts). Pinned by status-letter.test.ts.
       letter: candidateLetterViewFor(entry, workspaceId),
+      // challenge-r06 application-status-page/B — what is waiting on the candidate (an
+      // open offer, a booking invite, an untaken AI interview) as THREE keys: kind,
+      // sentAt, expiresAt; null when nothing is. Never the capability itself: this link
+      // is forwardable, and an offer token here would let whoever holds it answer the
+      // offer. The link is re-sent to the inbox instead (POST ./resend).
+      nextAction: nextActionForEntry(entry),
     });
   } catch (error) {
     // Raw err.message would surface SQLite internals on a public token route.

@@ -13,6 +13,8 @@ import {
 } from "@/app/_lib/interview-recording-paths";
 import { StatusNpsCard } from "./StatusNpsCard";
 import { StatusLetterCard } from "./StatusLetterCard";
+import { StatusNextActionCard } from "./StatusNextActionCard";
+import type { CandidateNextAction } from "@/app/_lib/candidate-next-action";
 import { rubricLabel } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
@@ -42,6 +44,9 @@ type StatusView = {
   // Spark interview-feedback-letter — the candidate's own feedback-letter request: may
   // they ask, and where does their one request stand. The contract's projection only.
   letter?: CandidateLetterView;
+  // challenge-r06 application-status-page/B — what is waiting on the candidate (kind,
+  // sentAt, expiresAt) or null. Never the capability: the link is re-sent to the inbox.
+  nextAction?: CandidateNextAction | null;
 };
 
 // Public, token-gated candidate application-status page (idea-e76a6fb2). Shows
@@ -290,6 +295,8 @@ export function StatusClient({
               </ol>
             </>
           )}
+
+          {token ? <StatusNextActionCard token={token} nextAction={view.nextAction} relayConfigured={view.relayConfigured} /> : null}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
             {view.updatedAt ? (

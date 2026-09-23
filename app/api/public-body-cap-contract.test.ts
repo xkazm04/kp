@@ -36,6 +36,9 @@ const EXEMPT: Record<string, string> = {
     "reads no body — the opt-out token in the path is the whole request. It ACCEPTS the RFC 8058 " +
     "one-click form body (`List-Unsubscribe=One-Click`) that a mail provider POSTs, but never parses " +
     "it: nothing in that body is trusted or needed, so there is no buffer to bound",
+  "/api/status/[token]/resend":
+    "reads no body — the status token in the path is the whole request; what is re-sent is re-derived from the stores, " +
+    "never taken from the caller, and it goes only to the address on file",
   "/api/extract-text":
     "multipart/form-data, not JSON: the upload is bounded by the route's own file-size gate and the extractor's " +
     "child-process timeout, neither of which readTextWithLimit can express",
