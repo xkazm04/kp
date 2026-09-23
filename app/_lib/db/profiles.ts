@@ -188,6 +188,18 @@ export function getProfileRecord(id: string, workspaceId: string = DEFAULT_WORKS
   return { row: rest, payload };
 }
 
+// The analysis slug a profile was built FROM — the baseline a rebuild merges against
+// (profileRebuildMerge.ts), so the client can tell a hand edit from what the CV said.
+// NULL for a hand-built profile. Kept off getProfileRecord's `row`, which the GET
+// serializes verbatim.
+export function profileSourceAnalysisSlug(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  const db = ensureDb();
+  const row = db
+    .prepare(`SELECT source_analysis_slug FROM profiles WHERE id = ? AND workspace_id = ?`)
+    .get(id, workspaceId) as { source_analysis_slug: string | null } | undefined;
+  return row?.source_analysis_slug ?? null;
+}
+
 // Overwrite an existing profile in place (created_at is preserved so the roster
 // keeps its order; the payload is the freshly re-routed/re-scored profile from
 // profile_cli). Returns false when no row matched the id.

@@ -3,7 +3,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analysisLineageSource } from "@/app/_lib/db/analyses";
-import { cachedProfileRecords, deleteProfile, findProfileIdBySourceCvHash, getProfileRecord, profileDivergence, profileStaleness, saveProfileForCv, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
+import { cachedProfileRecords, deleteProfile, findProfileIdBySourceCvHash, getProfileRecord, profileDivergence, profileSourceAnalysisSlug, profileStaleness, saveProfileForCv, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -158,10 +158,15 @@ export async function GET(request: NextRequest) {
       // of overwriting someone else's. It is the same column `divergence.editedAt`
       // reports, read once here rather than twice.
       const divergence = profileDivergence(id, ws);
+      // `lineage` names the analysis this profile was built FROM — the baseline the
+      // rebuild merge (profileRebuildMerge.ts) compares against to tell the recruiter's
+      // edits from what the CV said. null for a hand-built profile.
+      const sourceAnalysisSlug = profileSourceAnalysisSlug(id, ws);
       return NextResponse.json({
         profile: { ...rec.row, payload: rec.payload },
         divergence,
         updatedAt: divergence?.editedAt ?? null,
+        lineage: sourceAnalysisSlug ? { sourceAnalysisSlug } : null,
       });
     }
     // The list carries a `stale` map (profile id → newer analysis) alongside the

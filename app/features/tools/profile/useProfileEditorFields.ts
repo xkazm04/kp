@@ -17,6 +17,7 @@ import { hydrate, SKILL_FALLBACK, EVIDENCE_FALLBACK } from "./ProfileForm";
 import type { ProfileDraft } from "./ProfileEditorAiDraft";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { mergeDraft, type ProfileFormField, type ProfileFormState } from "./profileDraftMerge";
+import type { EditorPending, RebuildSeed } from "./profileRebuildMerge";
 
 // sessionStorage (not localStorage) on purpose: an abandoned intake should not
 // outlive the tab, and a second tab editing a DIFFERENT profile must not inherit
@@ -54,8 +55,9 @@ export function applyBackup(state: ProfileFormState, raw: string | null | undefi
 // hydrate() maps a stored payload (edit/duplicate) — or null (blank create) — into form
 // state honestly: it never pre-fills education/languages/seniority the candidate didn't
 // declare, so a blank intake's completeness reflects real input rather than unchosen
-// defaults (idea-fa7d5360). Create and edit are identical.
-function formStateFrom(payload: ProfilePayload | null, archetype?: string): ProfileFormState {
+// defaults (idea-fa7d5360). Create and edit are identical. Exported for the rebuild
+// merge (profileRebuildMerge.ts), which must map its three payloads the same way.
+export function formStateFrom(payload: ProfilePayload | null, archetype?: string): ProfileFormState {
   const h = hydrate(payload);
   return {
     choice: archetype || h.choice,
@@ -91,18 +93,25 @@ function draftFormState(draft: ProfileDraft): ProfileFormState {
   };
 }
 
-export function useProfileEditorFields(initialPayload: ProfilePayload | null, editingId: string | null) {
+export function useProfileEditorFields(
+  initialPayload: ProfilePayload | null,
+  editingId: string | null,
+  // A rebuild from a newer CV opens ON its merge (profileRebuildMerge.rebuildEditorState)
+  // with the rebuild already pending, so the banner offers the per-field override and
+  // Undo. Omitted: the editor loads `initialPayload` exactly as before.
+  seed: RebuildSeed | null = null
+) {
   // The values this editing session LOADED with. mergeDraft compares against them to
   // tell "the recruiter typed this" from "this is just what the profile already said".
   // Held in state (not a ref) so the lazy initializer runs exactly once — hydrate()
   // mints fresh row `_id`s on every call and a per-render baseline would report every
   // row list as hand-edited.
-  const [baseline] = useState<ProfileFormState>(() => formStateFrom(initialPayload));
+  const [baseline] = useState<ProfileFormState>(() => seed?.state ?? formStateFrom(initialPayload));
   const [state, setState] = useState<ProfileFormState>(baseline);
 
   // The form as it stood immediately BEFORE the last applied draft, and the fields that
   // draft was refused. Together they are the undo + the "use the draft anyway" offer.
-  const [pending, setPending] = useState<{ before: ProfileFormState; draft: ProfileFormState; kept: ProfileFormField[] } | null>(null);
+  const [pending, setPending] = useState<EditorPending | null>(seed?.pending ?? null);
 
   const backupKey = profileEditorBackupKey(editingId);
   // Writing must not begin until the restore attempt has run, or the empty first render
@@ -210,7 +219,7 @@ export function useProfileEditorFields(initialPayload: ProfilePayload | null, ed
       const { merged, kept } = mergeDraft(current, baseline, next);
       stateRef.current = merged;
       setState(merged);
-      setPending({ before: current, draft: next, kept });
+      setPending({ before: current, draft: next, kept, origin: "draft" });
     },
     [baseline]
   );
@@ -242,6 +251,8 @@ export function useProfileEditorFields(initialPayload: ProfilePayload | null, ed
     draftApplied: pending !== null,
     /** Fields whose hand-edited value the last draft was NOT allowed to overwrite. */
     draftConflicts: pending?.kept ?? [],
+    /** What the pending change came from — the banner words a rebuild differently. */
+    draftOrigin: pending?.origin ?? "draft",
     clearBackup,
   };
 }

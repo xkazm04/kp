@@ -224,3 +224,35 @@ test("a dry-run preview (persist:false) is never refused, even when the CV alrea
   assert.equal(body.saved, null, "a preview saves nothing");
   assert.equal(s.profiles.listProfiles(1000, s.ws).length, before);
 });
+
+// ---- Rebuild baseline (challenge-r03 candidate-profile/B) ----------------------------
+//
+// A rebuild merges three states: the profile as edited, the analysis it was BUILT from
+// (the baseline), and the newer analysis. The baseline slug was stored at build time but
+// never served, so the client could not tell a hand edit from what the CV said.
+
+// GET reads `request.nextUrl`, which the plain Request the shim hands in does not carry.
+function getReq(id: string): Request {
+  const url = `http://localhost/api/profile?id=${encodeURIComponent(id)}`;
+  return Object.assign(new Request(url, { method: "GET" }), { nextUrl: new URL(url) });
+}
+
+test("GET ?id serves the lineage slug a profile was built from, and null for a hand-built one", async () => {
+  const h = await handlers();
+  const s = await stores();
+  const source = seedAnalysis(s, "cv-hash-lineage", s.ws);
+  const built = s.profiles.saveProfile(PROFILE_INPUT, s.ws, {
+    sourceAnalysisSlug: source,
+    sourceCvHash: "cv-hash-lineage",
+    sourceAnalyzedAt: new Date().toISOString(),
+  });
+  const res = await h.GET(getReq(built.id) as never);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { lineage?: { sourceAnalysisSlug?: string } | null };
+  assert.equal(body.lineage?.sourceAnalysisSlug, source);
+
+  const hand = s.profiles.saveProfile(PROFILE_INPUT, s.ws);
+  const res2 = await h.GET(getReq(hand.id) as never);
+  const body2 = (await res2.json()) as { lineage?: unknown };
+  assert.equal(body2.lineage, null);
+});
