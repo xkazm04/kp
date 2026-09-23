@@ -11,6 +11,7 @@ import { prefetchTabChunk, warmLikelyTabChunks } from "./tabChunks";
 import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
 import { useCapabilities } from "./useCapabilities";
+import { primeShellPrincipal, ShellPrincipalContext, type ShellPrincipal } from "./shellPrincipal";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
 import { CompanionDockProvider } from "./companion/CompanionDockProvider";
@@ -32,7 +33,21 @@ import {
 
 export type { WorkspaceTabId } from "./tabs";
 
-export function Workspace({ firstRunOnboarding = false, hasSession = false }: { firstRunOnboarding?: boolean; hasSession?: boolean }) {
+export function Workspace({
+  firstRunOnboarding = false,
+  hasSession = false,
+  principal = null,
+}: {
+  firstRunOnboarding?: boolean;
+  hasSession?: boolean;
+  /** Who is looking — the tenant + capabilities '/' resolved server-side
+   *  (shellPrincipal.ts). null = unknown: every consumer falls back to its fetch. */
+  principal?: ShellPrincipal | null;
+}) {
+  // Seed the shell principal into the client module BEFORE any child renders, so
+  // the non-React stores (recents, palette preview, board storage) read the tenant
+  // synchronously. A no-op on the server (shared module scope — see shellPrincipal).
+  useState(() => primeShellPrincipal(principal));
   // Same-document URL patching, not router.push: a `?tab=` switch changes nothing
   // the SERVER render of '/' depends on, so making it a server navigation only
   // bought a ~358 KB RSC round-trip per click. See nav/shallow-nav.ts.
@@ -55,11 +70,13 @@ export function Workspace({ firstRunOnboarding = false, hasSession = false }: { 
   const search = params.toString();
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
-  // What this caller may actually do here. Resolved ONCE per document
-  // (useCapabilities.ts) and handed to the nav so the rail stops offering doors
-  // wave 18a's server gates already refuse — `null` while unknown, which locks
-  // nothing. See navCapabilities.ts for the table and why it fails open.
-  const capabilities = useCapabilities();
+  // What this caller may actually do here. Seeded from '/' (useCapabilities.ts) and
+  // handed to the nav so the rail stops offering doors wave 18a's server gates
+  // already refuse — on the FIRST render, server and client alike. `null` only when
+  // unseeded and unknown, which locks nothing. See navCapabilities.ts for the table
+  // and why it fails open. Passed explicitly: this component provides the context
+  // below and cannot read its own provider.
+  const capabilities = useCapabilities(principal);
   // Below `md` the sidebar is an off-canvas drawer (a permanent rail at md+). Without
   // this, the full ~16-item nav stacked above content and pushed every page below the
   // fold on a phone — the studio was close to unusable on a handset.
@@ -187,6 +204,7 @@ export function Workspace({ firstRunOnboarding = false, hasSession = false }: { 
   // shared useDialogA11y).
 
   return (
+    <ShellPrincipalContext.Provider value={principal}>
     <TasksProvider>
     <WorkspaceDocumentTitle active={navActive} />
     <SimulationProvider>
@@ -250,5 +268,6 @@ export function Workspace({ firstRunOnboarding = false, hasSession = false }: { 
     </CompanionDockProvider>
     </SimulationProvider>
     </TasksProvider>
+    </ShellPrincipalContext.Provider>
   );
 }

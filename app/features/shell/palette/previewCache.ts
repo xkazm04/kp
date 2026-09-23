@@ -17,12 +17,13 @@
  * not a key: nothing is read from the cache and nothing is written to it, so the
  * worst case is a colder pane, never a wrong one.
  *
- * The tenant comes from the same door recents.ts uses — GET /api/workspaces,
- * whose `current` field is the only place the browser can learn it (the session
- * cookie carrying it is httpOnly). Resolved once per document and shared.
+ * The tenant comes from the shell's one door (shellPrincipal.ts): seeded from '/'
+ * in the workspace shell, so the first preview is already scoped; one shared GET
+ * /api/workspaces on the deep-link pages that mount the palette without it.
  */
 
 import type { PalettePreview } from "@/app/_lib/palette-preview/types";
+import { resolveShellWorkspace, shellWorkspaceId } from "@/app/features/shell/shellPrincipal";
 
 /** A cached count is a headline figure, not a source of truth: short enough that
  *  a stale number cannot survive a real edit, long enough to make an arrow-key
@@ -65,48 +66,37 @@ export function clearPreviewCache(): void {
 // ── The tenant this document belongs to ────────────────────────────────────
 
 let scope: string | null = null;
-let resolving: Promise<string | null> | null = null;
 
 /** The tenant if it is already known, else null — the synchronous read the
- *  render path uses so a cache hit costs no await. */
+ *  render path uses so a cache hit costs no await. A seeded shell answers here on
+ *  the very first preview. */
 export function currentPreviewScope(): string | null {
+  if (!scope) primePreviewScope(shellWorkspaceId());
   return scope;
 }
 
-/** Seed the tenant when a caller already knows it (a shell that resolved
- *  `currentWorkspace()` server-side). Changing tenants empties the cache, which
- *  is the whole point: no entry outlives the workspace it was read from. */
+/** Adopt a tenant for the memo. Changing tenants empties the cache, which is the
+ *  whole point: no entry outlives the workspace it was read from. */
 export function primePreviewScope(id: string | null): void {
   if (!id || scope === id) return;
   if (scope !== null) clearPreviewCache();
   scope = id;
-  resolving = Promise.resolve(id);
 }
 
-/** Resolve the tenant once per document. A failure resolves to null (no cache)
- *  and clears `resolving`, so the next preview retries rather than disabling the
- *  memo for the whole session. */
+/** Resolve the tenant through the shell principal. A failure resolves to null (no
+ *  cache) and the shared resolver retries on the next call, so one blip does not
+ *  disable the memo for the whole session. */
 export function resolvePreviewScope(): Promise<string | null> {
-  if (scope) return Promise.resolve(scope);
-  resolving ??= fetch("/api/workspaces")
-    .then((r) => (r.ok ? (r.json() as Promise<{ current?: unknown }>) : null))
-    .then((body) => {
-      const current = body && typeof body.current === "string" ? body.current : "";
-      if (!current) throw new Error("no current workspace in /api/workspaces");
-      primePreviewScope(current);
-      return current;
-    })
-    .catch(() => {
-      resolving = null;
-      return null;
-    });
-  return resolving;
+  if (currentPreviewScope()) return Promise.resolve(scope);
+  return resolveShellWorkspace().then((id) => {
+    primePreviewScope(id);
+    return scope;
+  });
 }
 
 /** Test hook: forget the resolved tenant AND the cache. */
 export function resetPreviewScopeForTests(): void {
   scope = null;
-  resolving = null;
   clearPreviewCache();
 }
 

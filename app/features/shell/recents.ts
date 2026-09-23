@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { resolveShellWorkspace, shellWorkspaceId } from "@/app/features/shell/shellPrincipal";
 
 // SHELL3 — "remember where I was". Deep links exist for every entity but
 // nothing recorded them, and the shell's param-clearing contract erases the
@@ -50,53 +51,52 @@ export function recentsStorageKey(workspaceId: string): string {
 }
 
 // The tenant this document belongs to, once known; `null` = not resolved yet.
-// This is client code: there is no currentWorkspace() here, and the session
-// cookie that carries the workspace is httpOnly, so the one door the browser has
-// is GET /api/workspaces, whose payload exposes `current` (the same field the
-// Workspaces console reads through useWorkspaceAdmin). Resolved ONCE per
-// document and shared by every consumer — and it cannot go stale mid-session,
-// because switching teams does a full reload (WorkspaceTab.switchTo).
+// This store does not resolve it: shellPrincipal.ts is the one door (seeded from
+// '/' in the workspace shell; one shared GET /api/workspaces on the deep-link pages
+// that record recents without it). It cannot go stale mid-session, because
+// switching teams does a full reload (WorkspaceTab.switchTo).
 let workspaceId: string | null = null;
-let resolving: Promise<void> | null = null;
+let resolving = false;
 // Records made before the tenant was known. A server-rendered detail page
 // records on MOUNT (the RecordRecent island on /jds/<slug>, /history/<slug>) —
 // the same tick the resolve starts — so without this queue, opening a JD by deep
 // link would never be remembered on any deployment.
 let pending: RecentItem[] = [];
 
-/** Seed the tenant synchronously when the caller already knows it (a shell that
- *  resolved `currentWorkspace()` server-side can hand it down): skips the fetch,
- *  and makes even the first record of the document correctly scoped. */
-export function primeRecentsWorkspace(id: string): void {
-  if (!id || workspaceId === id) return;
+/** Adopt the tenant, however it arrived (the seed, synchronously, or the fetch). */
+function adoptWorkspace(id: string): void {
+  if (workspaceId === id) return;
   workspaceId = id;
-  resolving = Promise.resolve();
+  try {
+    localStorage.removeItem(LEGACY_KEY); // one-time cleanup — see LEGACY_KEY
+  } catch {
+    /* storage unavailable — nothing to clean up either */
+  }
   onWorkspaceResolved();
 }
 
 function ensureWorkspace(): void {
-  if (workspaceId || resolving) return;
-  resolving = fetch("/api/workspaces")
-    .then((r) => (r.ok ? (r.json() as Promise<{ current?: unknown }>) : null))
-    .then((body) => {
-      const current = body && typeof body.current === "string" ? body.current : "";
-      if (!current) throw new Error("no current workspace in /api/workspaces");
-      workspaceId = current;
-      try {
-        localStorage.removeItem(LEGACY_KEY); // one-time cleanup — see LEGACY_KEY
-      } catch {
-        /* storage unavailable — nothing to clean up either */
-      }
-      onWorkspaceResolved();
-    })
-    .catch(() => {
-      // Tenant unknown (offline blip, or a caller without `read`) = NO recents,
-      // rather than a browser-wide list that survives a team switch. Clearing
-      // `resolving` lets the next mount or record retry, so one failed request
-      // doesn't disable the feature for the whole session.
-      pending = [];
-      resolving = null;
-    });
+  if (workspaceId) return;
+  // Seeded by the shell: known now, so even the first read renders this team's list.
+  const seeded = shellWorkspaceId();
+  if (seeded) {
+    adoptWorkspace(seeded);
+    return;
+  }
+  if (resolving) return;
+  resolving = true;
+  void resolveShellWorkspace().then((id) => {
+    resolving = false;
+    if (id) {
+      adoptWorkspace(id);
+      return;
+    }
+    // Tenant unknown (offline blip, or a caller without `read`) = NO recents,
+    // rather than a browser-wide list that survives a team switch. The shared
+    // resolver clears its slot on failure, so the next mount or record retries —
+    // one failed request doesn't disable the feature for the whole session.
+    pending = [];
+  });
 }
 
 function onWorkspaceResolved(): void {
@@ -105,8 +105,6 @@ function onWorkspaceResolved(): void {
   for (const entry of queued) write(entry); // oldest first — write() unshifts
   // Consumers that mounted before the tenant was known are holding an empty
   // list; the same signal a record uses tells them to re-read.
-  // (`prime` may be called from a client component's SSR pass, where there is no
-  // window — the guard keeps that from throwing on the server.)
   if (typeof window !== "undefined") window.dispatchEvent(new Event(EVENT));
 }
 
