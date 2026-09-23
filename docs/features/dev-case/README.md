@@ -195,6 +195,30 @@ palette. The full mapping table and the five reading states are in
    the candidate authored it never writes observed evidence onto a profile that
    outlives this posting. Re-promoting mints normally once a human has cleared the
    band. Pinned in `app/_lib/devcase-promote.test.ts`.
+
+   **The verdict is visible before the click.** The advance/hold rule is one pure
+   function, `promoteVerdict` in `app/_lib/devcase-promote-verdict.ts`, with a closed
+   reason vocabulary (`PROMOTE_REASON_CODES`: `authenticity_suspect`,
+   `low_confidence`, `not_scored`, `score_below_floor`, `score_clears_floor`).
+   Blockers sit above the score ladder: suspect authenticity or an evaluation
+   evidence-confidence at or below 0.4 holds however high the score. A submission
+   nothing scored is its own `not_scored` tier and holds; it is never read as a
+   transfer score of 0 (the old `?? 0` wrote "transfer score 0" on the trail and a 0
+   onto the screening card, which now carries `null`). Three callers share it:
+   `promoteSubmission` (computes it above its IMMEDIATE transaction; `PromoteResult`
+   and the promote route carry `reasonCodes` beside the English `reasons`, and the
+   automation trail keeps its locale-invariant English sentence via
+   `promoteAuditReasons`), `GET /api/devcase/postings` (every evaluated submission
+   carries `promotePreview` at `activePromoteFloor()`; an unevaluated one carries no
+   key), and the Dev studio's EvalPanel, which shows "Will advance" or "Will be held
+   for review" with the coded reasons (`devcase.evalPanel.promoteVerdict.*`, four
+   locales) beside the Promote button. A hold is a human gate: the panel explains it
+   and never offers a way around it. After the click, `foldPromoteResponse` reads the
+   verdict the promotion actually landed with ("In pipeline, held for review" vs
+   "advancing"); a failed promote shows its coded error via `useErrorMessage` instead
+   of silently re-enabling the button. Pinned in
+   `app/_lib/devcase-promote-verdict.test.ts`, `app/_lib/devcase-promote.test.ts`
+   (DB parity) and `app/api/devcase/postings/route.test.ts`.
 7. **Outcome loop.** `app/_lib/dev-outcomes.ts` is the isolated store that pairs a
    predicted score with what actually happened (`hired` / `rejected` / `withdrawn` /
    `pending`, plus an optional 1..5 `performance` rating); `calibrate()` turns those
