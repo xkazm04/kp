@@ -4,6 +4,7 @@ import type { OutboxStatus } from "@/app/_lib/comms-status";
 import type { RoleBrief, RoleSpec } from "@/app/_lib/rolespec";
 import type { JudgeIndependence } from "@/app/_lib/devcase-judge-independence";
 import type { PromoteVerdict } from "@/app/_lib/devcase-promote-verdict";
+import type { StageOutcome } from "@/app/_lib/devcase-stage-outcome";
 
 // Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
 // mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
@@ -175,6 +176,11 @@ export type Lifecycle = {
   stage: string;
   auto: boolean;
   detail: string | null;
+  /** The runner's last step, coded (app/_lib/devcase-stage-outcome.ts). Read it through
+   *  lifecycleDetailView, which parses tolerantly and falls back to `detail` for a
+   *  pre-migration row, a human door's prose, or an outcome the row's stage has left.
+   *  Absent from an older server. */
+  outcome?: StageOutcome | null;
   caseId: string | null;
   postingId: string | null;
   createdAt: string;

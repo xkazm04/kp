@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
+import { AlarmClock, Archive, ArrowRight, Eye, Play, RefreshCw } from "lucide-react";
+import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { Modal } from "@/app/_components/Modal";
+import { lifecycleDetailView, outcomeActions, type OutcomeWarningCode } from "@/app/_lib/devcase-stage-outcome";
 import { StatusChip } from "@/app/_components/StatusChip";
 import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -14,6 +17,21 @@ import { LIFECYCLE_STEPS, LIVE_STAGES } from "./DevTypes";
 import type { Lifecycle, PostingInFlight } from "./DevTypes";
 import { closeWarning } from "./devcaseInFlight";
 import { BTN_AFFIRM, NOTICE } from "@/app/_components/ui/recipes";
+
+// How each run-outcome warning reads. Exhaustive over the vocabulary, so a warning the
+// runner learns cannot render without a decided tone: `caution` asks for a person
+// (held, a failure), `neutral` explains a fallback nobody can click away.
+const WARNING_TONE: Record<OutcomeWarningCode, BadgeTone> = {
+  held: "caution",
+  eval_failed: "caution",
+  sourcing_failed: "caution",
+  candidates_skipped: "neutral",
+  scenario_template_only: "neutral",
+  seed_skeleton_only: "neutral",
+  baseline_unavailable: "neutral",
+};
+const ACTION_BTN =
+  "focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50";
 
 export function LifecycleRow({
   lc,
@@ -108,6 +126,39 @@ export function LifecycleRow({
       setSourcing(false);
     }
   };
+  // The coded run outcome (challenge-r07 devcase-orchestration/B): the runner's last step
+  // in the reader's language, each warning with the door that fixes it. A row with no
+  // outcome (pre-migration, a human door's prose, a stage the outcome no longer
+  // describes) keeps rendering `detail` exactly as before.
+  const detailView = lifecycleDetailView({ stage: lc.stage, outcome: lc.outcome ?? null, detail: lc.detail });
+  const actions = detailView.kind === "coded" ? outcomeActions({ code: detailView.code, warnings: detailView.warnings }, { caseId: lc.caseId }) : [];
+  const actionFor = (code: OutcomeWarningCode) => actions.find((a) => "warning" in a && a.warning === code);
+  const canResume = actions.some((a) => a.action === "resume");
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  // Resume is the control room's reconcile, scoped to this team: it re-enqueues every
+  // non-terminal lifecycle with no runner, this one included. The kill switch itself
+  // stays in the control room (org authority); while it is still thrown the run halts
+  // again and says so.
+  const resume = async () => {
+    if (resuming) return;
+    setResuming(true);
+    setResumeError(null);
+    try {
+      const r = await fetch("/api/devcase/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reconcile" }),
+      });
+      const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
+      if (!r.ok) throw new Error(errMsg(payload, t("lifecycle.outcomeAction.resumeFailed")));
+      onChanged?.();
+    } catch (caught) {
+      setResumeError(caught instanceof Error ? caught.message : t("lifecycle.outcomeAction.resumeFailed"));
+    } finally {
+      setResuming(false);
+    }
+  };
   const closeCase = async () => {
     if (closing) return;
     setClosing(true);
@@ -198,9 +249,9 @@ export function LifecycleRow({
           </button>
         ) : null}
       </div>
-      {closeError || sourceError ? (
+      {closeError || sourceError || resumeError ? (
         <p role="alert" className="mt-1 text-micro text-red-700">
-          {closeError ?? sourceError}
+          {closeError ?? sourceError ?? resumeError}
         </p>
       ) : null}
       {awaiting && reviewOpen ? (
@@ -220,7 +271,42 @@ export function LifecycleRow({
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-micro text-steel">{lc.detail}</p>
+      {detailView.kind === "coded" ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {/* The English prose stays one hover away: it is the audit wording. */}
+          <p className="text-micro text-steel" title={lc.detail ?? undefined}>
+            {t(`lifecycle.outcome.${detailView.code}` as Parameters<typeof t>[0], detailView.values)}
+          </p>
+          {detailView.warnings.map((w) => {
+            const act = actionFor(w.code);
+            return (
+              <span key={w.code} className="inline-flex items-center gap-1">
+                <Badge
+                  tone={WARNING_TONE[w.code]}
+                  label={t(`lifecycle.outcome.${w.code}` as Parameters<typeof t>[0], { count: w.count })}
+                />
+                {act?.action === "open_decisions" ? (
+                  <Link href={act.href} className={ACTION_BTN}>
+                    {t("lifecycle.outcomeAction.open_decisions")} <ArrowRight size={11} aria-hidden />
+                  </Link>
+                ) : act?.action === "re_source" ? (
+                  // Live the moment sourcing crashed, not after the 7-day stall rule.
+                  <button type="button" onClick={reSource} disabled={sourcing} className={ACTION_BTN}>
+                    <RefreshCw size={11} aria-hidden /> {sourcing ? t("lifecycle.reSourcing") : t("lifecycle.outcomeAction.re_source")}
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
+          {canResume ? (
+            <button type="button" onClick={resume} disabled={resuming} className={ACTION_BTN}>
+              <Play size={11} aria-hidden /> {resuming ? t("lifecycle.outcomeAction.resuming") : t("lifecycle.outcomeAction.resume")}
+            </button>
+          ) : null}
+        </div>
+      ) : detailView.kind === "prose" ? (
+        <p className="mt-1.5 text-micro text-steel">{detailView.text}</p>
+      ) : null}
       {confirmingClose ? (
         <Modal
           title={t("lifecycle.closeModalTitle")}

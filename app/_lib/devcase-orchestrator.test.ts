@@ -46,7 +46,7 @@ import {
 import { ensureDb } from "./db/core.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { listAudit, setAutonomy } from "./dev-control.ts";
-import { runLifecycle } from "./devcase-orchestrator.ts";
+import { activePromoteFloor, runLifecycle } from "./devcase-orchestrator.ts";
 
 after(() => cleanupUnitDb());
 beforeEach(() => setAutonomy("on"));
@@ -341,4 +341,88 @@ test("a close while publishing mints no live posting and sources nobody", async 
   assert.equal(open.length, 0, "no open apply token is left behind a closed lifecycle");
   assert.equal(getLifecycle(lc.id)?.postingId ?? null, null, "no posting is linked");
   assert.equal(entriesForCase(kase.id), 0, "nobody was sourced onto the board");
+});
+
+// --- The coded run outcome (devcase-stage-outcome.ts, challenge-r07 devcase-orchestration/B). ---
+// Beside every English `detail` the runner writes a closed code, integer facts and coded
+// warnings, so the row can render the run in the reader's language and offer each fix.
+
+function evaluatedWithConfidence(postingId: string, candidateRef: string, score: number, confidence: number) {
+  const { submission } = createSubmission({ postingId, candidateRef, repoRef: `https://example.test/${candidateRef}` });
+  saveSubmissionEvaluation(
+    submission.id,
+    { evaluation: { summary: "Thin evidence.", strengths: [], concerns: [], confidence } },
+    score
+  );
+  return submission;
+}
+
+test("outcome: the ranked stage stores promoted N of topN at the active floor, with the held count as a warning", async () => {
+  const { lifecycleId, postingId } = collecting();
+  evaluatedWithConfidence(postingId, "Quido", 90, 0.2);
+
+  await runLifecycle(lifecycleId);
+
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome, {
+    code: "promoted",
+    facts: { promoted: 1, topN: 3, floor: activePromoteFloor() },
+    warnings: [{ code: "held", count: 1 }],
+  });
+});
+
+test("outcome: a drain whose evaluations throw stores eval_failed with the count, and zero evaluated", async () => {
+  const { lifecycleId, postingId } = collecting();
+  unevaluated(postingId, "Radek");
+  unevaluated(postingId, "Sona");
+
+  // The drain's write is read at the next step's tick, before ranking replaces it.
+  let atRanked: unknown = undefined;
+  await runLifecycle(lifecycleId, (_d, _t, msg) => {
+    if (msg === "ranked") atRanked = getLifecycle(lifecycleId)?.outcome;
+  });
+
+  const o = atRanked as { code: string; facts: Record<string, number>; warnings: unknown[] };
+  assert.equal(o.code, "evaluated");
+  assert.equal(o.facts.evaluated, 0);
+  assert.deepEqual(o.warnings, [{ code: "eval_failed", count: 2 }]);
+  // The failures stay visible on the terminal row: ranking carries them forward.
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome?.warnings, [{ code: "eval_failed", count: 2 }]);
+});
+
+test("outcome: a pause mid-drain stores halted with what was done; a cancel stores canceled", async () => {
+  const paused = collecting();
+  unevaluated(paused.postingId, "Tomas");
+  unevaluated(paused.postingId, "Ursula");
+  let finished = 0;
+  await runLifecycle(paused.lifecycleId, onEvaluated(() => {
+    finished += 1;
+    if (finished === 1) setAutonomy("paused");
+  }));
+  assert.deepEqual(getLifecycle(paused.lifecycleId)?.outcome, {
+    code: "halted",
+    facts: { evaluated: 0 },
+    warnings: [{ code: "eval_failed", count: 1 }],
+  });
+
+  setAutonomy("on");
+  const canceled = collecting();
+  unevaluated(canceled.postingId, "Vera");
+  unevaluated(canceled.postingId, "Waldemar");
+  const controller = new AbortController();
+  await runLifecycle(canceled.lifecycleId, onEvaluated(() => controller.abort()), controller.signal);
+  assert.equal(getLifecycle(canceled.lifecycleId)?.outcome?.code, "canceled");
+});
+
+test("outcome: the store round-trips it, and a patch without one leaves it alone", () => {
+  const { lifecycleId } = collecting();
+  const outcome = {
+    code: "collecting_open" as const,
+    facts: { sourced: 0, skipped: 2 },
+    warnings: [{ code: "sourcing_failed" as const, count: 1 }, { code: "seed_skeleton_only" as const, count: 1 }],
+  };
+  updateLifecycle(lifecycleId, { outcome, detail: "published; sourcing failed" });
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome, outcome);
+  updateLifecycle(lifecycleId, { detail: "something else" });
+  assert.deepEqual(getLifecycle(lifecycleId)?.outcome, outcome, "untouched by a detail-only patch");
+  assert.equal(getLifecycle(lifecycleId)?.detail, "something else");
 });

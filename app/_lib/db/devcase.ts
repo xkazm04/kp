@@ -6,6 +6,7 @@ import type { DevNeed } from "../devcase-run";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { canTransition, IllegalLifecycleTransition } from "../devcase-transitions";
+import type { StageOutcome } from "../devcase-stage-outcome";
 
 // ---- Dev extension — approved case scenarios (Phase D3) -------------------
 
@@ -258,6 +259,8 @@ export type LifecycleRecord = {
   caseId: string | null;
   postingId: string | null;
   detail: string | null;
+  // The coded twin of `detail` (devcase-stage-outcome.ts); null on a pre-migration row.
+  outcome: StageOutcome | null;
   // DEVP5 — candidate-facing artifact language (en|cs), captured at intake.
   lang: string | null;
   createdAt: string;
@@ -283,6 +286,7 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
     caseId: (r.case_id as string) ?? null,
     postingId: (r.posting_id as string) ?? null,
     detail: (r.detail as string) ?? null,
+    outcome: safeRowParse<StageOutcome>(r.outcome_json as string | null | undefined, "lifecycle.outcome", r.id as string),
     lang: (r.lang as string) ?? null,
     createdAt: r.created_at as string,
     updatedAt: (r.updated_at as string) ?? null,
@@ -348,7 +352,7 @@ export function lifecycleByPosting(postingId: string): LifecycleRecord | null {
  *  the historical unconditional write by simply not declaring one. */
 export function updateLifecycle(
   id: string,
-  patch: { stage?: string; analysis?: unknown; role?: unknown; case?: unknown; caseId?: string; postingId?: string; detail?: string },
+  patch: { stage?: string; analysis?: unknown; role?: unknown; case?: unknown; caseId?: string; postingId?: string; detail?: string; outcome?: StageOutcome },
   opts?: { expectedStage?: string }
 ): boolean {
   const db = ensureDb();
@@ -368,6 +372,7 @@ export function updateLifecycle(
   if (patch.caseId !== undefined) set("case_id", patch.caseId);
   if (patch.postingId !== undefined) set("posting_id", patch.postingId);
   if (patch.detail !== undefined) set("detail", patch.detail);
+  if (patch.outcome !== undefined) set("outcome_json", JSON.stringify(patch.outcome));
   vals.push(id);
   const guarded = opts?.expectedStage !== undefined;
   if (guarded) vals.push(opts!.expectedStage);
