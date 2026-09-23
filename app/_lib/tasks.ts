@@ -4,7 +4,8 @@ import { getPipelineAxis } from "./pipeline-axis-server";
 import { screeningStageIds } from "./pipeline-stages";
 import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskEntries, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
-import { withLlmRequestId } from "./llm-request-context";
+import { withLlmRequestId, withSpawnLane } from "./llm-request-context";
+import { SpawnFailure, spawnFailureCode } from "./python-runner";
 import {
   TASK_MAX_RUNTIME_MS,
   TASK_RETENTION_DAYS,
@@ -461,7 +462,10 @@ export function runMaintenance(nowMs: number = Date.now()): void {
   try {
     for (const id of tasksToReap(listRunningTaskTimes(), nowMs)) {
       if (controllers.has(id)) continue; // an in-process watchdog owns this one
-      finishTask(id, "interrupted", { error: "reaped: running past the wall-clock budget with no live handler" });
+      // The row stores a code the reader's catalog resolves; the "no live handler"
+      // detail is the operator's, so it goes to the log.
+      console.warn(`[tasks] reaped ${id}: running past the wall-clock budget with no live handler`);
+      finishTask(id, "interrupted", { error: TASK_TIME_LIMIT });
     }
   } catch (e) {
     console.error("[tasks] stale-task reaper failed:", e);
@@ -624,12 +628,28 @@ function pump(): void {
   }
 }
 
+// What a failed row's `error` holds. The row is read later, in the reader's language, by
+// surfaces that resolve it through the `errors` catalog (TasksTableRow, the Activity
+// detail, the profile draft, the job-seeker scan, the analyze form), so a failure the
+// RUNTIME authored is stored as its code and never as English runtime text: the task
+// runner's own outcomes below, and the engine's typed failures via spawnFailureCode
+// (ENGINE_BUSY / ENGINE_TIMEOUT / ENGINE_FAILED). A handler's own error keeps its text,
+// which the surfaces show as the fallback, as before.
+const TASK_TIME_LIMIT = "TASK_TIME_LIMIT";
+
+function storedFailure(error: unknown, canceled: boolean): string | undefined {
+  // The operator's Cancel reached the engine: the row's status already says so.
+  if (canceled && error instanceof SpawnFailure && error.kind === "aborted") return undefined;
+  return spawnFailureCode(error) ?? (error instanceof Error ? error.message : String(error));
+}
+
 async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
   const task = getTask(id);
   if (!task) return;
   const spec = specFor(task.kind);
   if (!spec) {
-    finishTask(id, "failed", { error: `unknown kind ${task.kind}` });
+    console.warn(`[tasks] ${id} has an unknown kind: ${task.kind}`);
+    finishTask(id, "failed", { error: "TASK_KIND_UNKNOWN" });
     return;
   }
   // Construct the controller before the try (its constructor cannot throw) so it
@@ -661,14 +681,21 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     // task id (see llm-request-context.ts). That's the join key the Insights →
     // Activity row-click detail uses to fetch the run whose output the row
     // produced — without it, `request_id` stays the null it has always been.
+    // The same scope puts every spawn the handler makes in the BACKGROUND admission
+    // lane (python-runner.ts, "Admission lanes"): it queues behind a recruiter's click,
+    // holds at most ceiling-1 engine slots, and waits its long bound instead of being
+    // refused at the 20 s one written for an HTTP caller. This is the one place a
+    // task's class is known, so no handler assigns a lane itself.
     const runPromise = withLlmRequestId(id, () =>
-      spec.run({
-        taskId: id,
-        workspaceId: task.workspaceId,
-        params: (task.params as Record<string, unknown>) ?? {},
-        progress: (d, t, m) => setTaskProgress(id, d, t, m),
-        signal: controller.signal,
-      })
+      withSpawnLane("background", () =>
+        spec.run({
+          taskId: id,
+          workspaceId: task.workspaceId,
+          params: (task.params as Record<string, unknown>) ?? {},
+          progress: (d, t, m) => setTaskProgress(id, d, t, m),
+          signal: controller.signal,
+        })
+      )
     );
     // A hung handler that loses this race is orphaned (a JS promise can't be
     // force-killed); swallow any late rejection so it can't surface as an
@@ -690,7 +717,7 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     });
     const outcome = await Promise.race([runPromise, timeout]);
     if (outcome === TIMED_OUT) {
-      finishTask(id, "interrupted", { error: `exceeded the ${TASK_MAX_RUNTIME_MS}ms wall-clock budget` });
+      finishTask(id, "interrupted", { error: TASK_TIME_LIMIT });
     } else {
       finishTask(id, controller.signal.aborted ? "canceled" : "succeeded", { result: outcome });
     }
@@ -701,9 +728,8 @@ async function runOne(id: string, queuedWorkspaceId: string): Promise<void> {
     // 'running'/'queued'. On failure we log and let interruptStaleTasks reclaim the
     // row on the next start; the finally still restores the in-memory slot.
     try {
-      finishTask(id, controller.signal.aborted ? "canceled" : "failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const canceled = controller.signal.aborted;
+      finishTask(id, canceled ? "canceled" : "failed", { error: storedFailure(error, canceled) });
     } catch (finishErr) {
       console.error(
         `[tasks] could not mark task ${id} failed after a run error:`,

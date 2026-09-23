@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
-import { currentLlmRequestId } from "./llm-request-context";
+import { currentLlmRequestId, currentSpawnLane, type SpawnLane } from "./llm-request-context";
 import { opsLog } from "./ops-telemetry";
 
 // Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
@@ -83,6 +83,15 @@ export function isSpawnTimeout(err: unknown): boolean {
 /** The admission overload as the route answers it, or null for anything else. */
 export function engineRefusal(err: unknown): { code: typeof ENGINE_BUSY_CODE; status: 503 } | null {
   return err instanceof PipelineError && err.code === ENGINE_BUSY_CODE ? { code: ENGINE_BUSY_CODE, status: 503 } : null;
+}
+
+/** The client code for a failure the RUNNER produced (null for a CLI's envelope or a
+ *  handler's own error), for surfaces that store a failure and show it later: the task row
+ *  (tasks.ts) keeps the code and the client resolves `errors.<CODE>`. */
+export function spawnFailureCode(err: unknown): "ENGINE_BUSY" | "ENGINE_TIMEOUT" | "ENGINE_FAILED" | null {
+  if (engineRefusal(err)) return ENGINE_BUSY_CODE;
+  if (!(err instanceof SpawnFailure)) return null;
+  return err.kind === "timeout" ? "ENGINE_TIMEOUT" : "ENGINE_FAILED";
 }
 
 export async function createWorkdir(): Promise<string> {
@@ -229,39 +238,84 @@ function queueWaitMs(): number {
   return positiveNumericEnv("KP_PYTHON_QUEUE_WAIT_MS", DEFAULT_QUEUE_WAIT_MS);
 }
 
+// ---- Admission lanes (priority-and-fairness) -------------------------------------
+// The 20 s refusal is written for a caller with a human waiting. Task-runner and clock
+// work has a fifteen-minute budget, and under one FIFO list it was refused by this gate's
+// OWN bound (a group eval's six reasoning spawns against a ceiling of 4) while a
+// recruiter's click queued behind it. The lane comes from `currentSpawnLane()`, set only
+// by the task runner and the clock tick, so an unaware route is interactive and unchanged:
+//  - interactive: any free slot, admitted FIRST, refused after KP_PYTHON_QUEUE_WAIT_MS.
+//  - background: at most ceiling-1 slots (min 1, so a serial install still progresses),
+//    admitted only while no interactive caller waits, refused after
+//    KP_PYTHON_BACKGROUND_WAIT_MS (10 min: bounded, not infinite).
+// Both lanes count against the one ceiling and honour the caller's AbortSignal.
+const DEFAULT_BACKGROUND_WAIT_MS = 600_000;
+function backgroundWaitMs(): number {
+  return positiveNumericEnv("KP_PYTHON_BACKGROUND_WAIT_MS", DEFAULT_BACKGROUND_WAIT_MS);
+}
+/** The most slots background work may hold: all but one, and never fewer than one. */
+function backgroundCeiling(): number {
+  return Math.max(1, maxConcurrentSpawns() - 1);
+}
+
 type SlotWaiter = { admit: () => void };
-let inFlightSpawns = 0;
-const slotWaiters: SlotWaiter[] = [];
+const inFlight: Record<SpawnLane, number> = { interactive: 0, background: 0 };
+const waiters: Record<SpawnLane, SlotWaiter[]> = { interactive: [], background: [] };
+const totalInFlight = (): number => inFlight.interactive + inFlight.background;
 
-/** Live admission state — for tests, and for an ops surface that wants to say whether
- *  the engine is saturated rather than merely slow. */
-export function pythonSpawnLoad(): { inFlight: number; queued: number; ceiling: number } {
-  return { inFlight: inFlightSpawns, queued: slotWaiters.length, ceiling: maxConcurrentSpawns() };
+/** Live admission state (totals + per lane): for tests, the automation pass's budget
+ *  (reads `ceiling`), and an ops surface asking whether, and by whom, the engine is full. */
+export function pythonSpawnLoad(): {
+  inFlight: number;
+  queued: number;
+  ceiling: number;
+  lanes: Record<SpawnLane, { inFlight: number; queued: number }>;
+} {
+  return {
+    inFlight: totalInFlight(),
+    queued: waiters.interactive.length + waiters.background.length,
+    ceiling: maxConcurrentSpawns(),
+    lanes: {
+      interactive: { inFlight: inFlight.interactive, queued: waiters.interactive.length },
+      background: { inFlight: inFlight.background, queued: waiters.background.length },
+    },
+  };
 }
 
-/** Hand the freed slot straight to the longest-waiting caller (FIFO), so a burst is
- *  served in arrival order instead of letting a late caller barge in. `inFlightSpawns`
- *  is unchanged on a hand-over — the slot never becomes free, it changes owner. */
-function releaseSlot(): void {
-  const next = slotWaiters.shift();
-  if (next) {
-    next.admit();
-    return;
+/** Whether a caller in `lane` may take a slot right now without jumping a queue. */
+function canAdmit(lane: SpawnLane): boolean {
+  if (totalInFlight() >= maxConcurrentSpawns() || waiters.interactive.length > 0) return false;
+  return lane === "interactive" || (waiters.background.length === 0 && inFlight.background < backgroundCeiling());
+}
+
+/** Fill free slots: oldest interactive waiter first, then the oldest background waiter
+ *  while background is under its share. FIFO within a lane, so nobody barges in. */
+function admitWaiters(): void {
+  while (totalInFlight() < maxConcurrentSpawns()) {
+    const next =
+      waiters.interactive[0] ?? (inFlight.background < backgroundCeiling() ? waiters.background[0] : undefined);
+    if (!next) return;
+    next.admit(); // leaves its queue and counts itself in its lane
   }
-  inFlightSpawns = Math.max(0, inFlightSpawns - 1);
 }
 
-function acquireSlot(signal?: AbortSignal): Promise<void> {
+function releaseSlot(lane: SpawnLane): void {
+  inFlight[lane] = Math.max(0, inFlight[lane] - 1);
+  admitWaiters();
+}
+
+function acquireSlot(lane: SpawnLane, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) return Promise.reject(new SpawnFailure("aborted", "Python process aborted"));
-  if (inFlightSpawns < maxConcurrentSpawns()) {
-    inFlightSpawns += 1;
+  if (canAdmit(lane)) {
+    inFlight[lane] += 1;
     return Promise.resolve();
   }
+  const queue = waiters[lane];
   return new Promise<void>((resolve, reject) => {
     let done = false;
     const drop = (): void => {
-      const i = slotWaiters.indexOf(waiter);
-      if (i >= 0) slotWaiters.splice(i, 1);
+      const i = queue.indexOf(waiter);
+      if (i >= 0) queue.splice(i, 1);
       clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
     };
@@ -270,28 +324,32 @@ function acquireSlot(signal?: AbortSignal): Promise<void> {
         if (done) return;
         done = true;
         drop();
+        inFlight[lane] += 1;
         resolve();
       },
     };
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      drop();
-      reject(
-        new PipelineError({
-          message: "The analysis engine is busy right now. Try again in a moment.",
-          status: 503,
-          code: ENGINE_BUSY_CODE,
-        }),
-      );
-    }, queueWaitMs());
+    const timer = setTimeout(
+      () => {
+        if (done) return;
+        done = true;
+        drop();
+        reject(
+          new PipelineError({
+            message: "The analysis engine is busy right now. Try again in a moment.",
+            status: 503,
+            code: ENGINE_BUSY_CODE,
+          }),
+        );
+      },
+      lane === "background" ? backgroundWaitMs() : queueWaitMs(),
+    );
     const onAbort = (): void => {
       if (done) return;
       done = true;
       drop();
       reject(new SpawnFailure("aborted", "Python process aborted"));
     };
-    slotWaiters.push(waiter);
+    queue.push(waiter);
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
@@ -388,15 +446,17 @@ export function spawnPython(
   // AsyncLocalStorage scope the CALLER owns, and a queued spawn resumes on a
   // microtask that may no longer be inside it.
   const llmRequestId = currentLlmRequestId();
+  // The admission lane, read at the same synchronous moment for the same reason.
+  const lane = currentSpawnLane();
   // Admission first, fork second (see the semaphore header): the interpreter is not
   // started until a slot is held, which is the whole point — counting spawns after
   // starting them would bound nothing.
   const result = (async (): Promise<SpawnResult> => {
-    await acquireSlot(opts.signal);
+    await acquireSlot(lane, opts.signal);
     try {
       return await runPythonChild(args, opts, usageLogPath, llmRequestId);
     } finally {
-      releaseSlot();
+      releaseSlot(lane);
     }
   })();
   // Ingest the usage sidecar once the child has settled (close, error, timeout,

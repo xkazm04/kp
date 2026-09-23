@@ -32,6 +32,7 @@ import { Modal } from "@/app/_components/Modal";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { StructuredReadout } from "@/app/_components/ui/StructuredReadout";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { parseCompanionRequestId } from "@/app/_lib/companion-turn";
 import { useOptionalCompanionDock } from "@/app/features/shell/companion/CompanionDockProvider";
@@ -67,6 +68,8 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 function LinkedRun({ requestId }: { requestId: string }) {
   const t = useTranslations("activity");
   const tTasks = useTranslations("tasks");
+  // The run's stored failure is a code when the runtime authored it (tasks.ts).
+  const resolveError = useErrorMessage();
   const format = useFormatter();
   // The error TEXT is deliberately ignored: GET /api/tasks/[id] answers a missing
   // row with an English `{ error }` body, and this is a 4-locale surface. A failed
@@ -92,7 +95,7 @@ function LinkedRun({ requestId }: { requestId: string }) {
 
       {/* A failed run's error is the output — show it instead of an empty readout. */}
       {task.error ? (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{task.error}</p>
+        <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{resolveError({ code: task.error }, task.error)}</p>
       ) : (
         <StructuredReadout value={task.result} emptyLabel={t("runNoOutput")} />
       )}

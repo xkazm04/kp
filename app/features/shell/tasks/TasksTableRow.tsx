@@ -13,6 +13,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { progressDisplay } from "@/app/_lib/task-view";
 import { renderTaskLabel } from "@/app/_lib/task-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTasks, type Task } from "./TasksProvider";
 import { ACTIVE, STATUS, duration, relTime } from "./tasksTabHelpers";
 import { TaskOutcome } from "./TasksOutcome";
@@ -36,6 +37,9 @@ export function TasksTableRow({
 }) {
   const locale = useLocale();
   const t = useTranslations("tasks");
+  // A failed row stores a code for the runtime's own failures (tasks.ts storedFailure);
+  // a handler's own text, or a row older than that, falls back to itself.
+  const resolveError = useErrorMessage();
   const { fetchTask } = useTasks();
   const reduced = useReducedMotion();
   // DATA5 — the outcome drawer: the row expands to the task's full record
@@ -104,7 +108,7 @@ export function TasksTableRow({
               </span>
             </button>
           )}
-          {failed && task.error ? <p className="mt-0.5 break-words text-sm text-coral">{task.error}</p> : null}
+          {failed && task.error ? <p className="mt-0.5 break-words text-sm text-coral">{resolveError({ code: task.error }, task.error)}</p> : null}
           {active ? (
             <>
               {/* Finding 5: a determinate bar ONLY when there's a real total. A

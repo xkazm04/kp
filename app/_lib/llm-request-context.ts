@@ -55,3 +55,24 @@ export function withLlmRequestIdIfUnset<T>(requestId: string, fn: () => T): T {
   const open = storage.getStore();
   return open ? fn() : storage.run(requestId, fn);
 }
+
+// ---- The admission lane (python-runner.ts, "Admission lanes") ---------------------
+// A SECOND store: withLlmRequestIdIfUnset lets code a human waits on open request-id
+// scopes (recruiter-run.ts:46, profile-draft-run.ts:56, companion-run.ts:272), so "has a
+// request id" cannot mean "is background". Only the task runner (tasks.ts) and the clock
+// (scheduler.ts) assign a lane.
+
+/** `interactive`: a human is waiting (the default). `background`: a task or the clock. */
+export type SpawnLane = "interactive" | "background";
+
+const laneStorage = new AsyncLocalStorage<SpawnLane>();
+
+/** Run `fn` with every spawnPython call it makes, at any async depth, admitted in `lane`. */
+export function withSpawnLane<T>(lane: SpawnLane, fn: () => T): T {
+  return laneStorage.run(lane, fn);
+}
+
+/** The ambient admission lane; `interactive` outside any scope. */
+export function currentSpawnLane(): SpawnLane {
+  return laneStorage.getStore() ?? "interactive";
+}

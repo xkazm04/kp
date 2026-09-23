@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { Textarea } from "./ProfileFields";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useTaskResult } from "@/app/features/shell/tasks/useTaskResult";
 import { TaskFlightNote } from "@/app/features/shell/tasks/TaskFlightNote";
@@ -27,6 +28,7 @@ export type ProfileDraft = {
 export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: ProfileDraft) => void }) {
   const t = useTranslations("profile.editor");
   const enumLabel = useEnumLabel();
+  const resolveError = useErrorMessage();
   const { startTask } = useTasks();
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -66,15 +68,15 @@ export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: Profile
         const label = enumLabel("archetype", payload.archetype);
         setAiNote(t("draftedAs", { label, pct: Math.round((payload.confidence ?? 0) * 100) }));
       } else {
-        // The task runner's own stored diagnostic, passed through unchanged (no
-        // machine code to resolve) — ternary, not ||, per use-error-message.ts.
-        setAiError(watch.error ? watch.error : t("aiDraftFailed"));
+        // The row's stored failure: a code for the runtime's own failures (resolved in
+        // the reader's language), else the handler's own text. Ternary, not ||.
+        setAiError(watch.error ? resolveError({ code: watch.error }, watch.error) : t("aiDraftFailed"));
       }
     }, 0);
     return () => window.clearTimeout(timer);
     // onApplied/enumLabel are stable enough per render for this outcome hook; the
     // guard on taskId + terminal status makes re-entry impossible.
-  }, [taskId, watch.status, watch.full, watch.error, onApplied, enumLabel, t]);
+  }, [taskId, watch.status, watch.full, watch.error, onApplied, enumLabel, resolveError, t]);
 
   return (
     <div className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">

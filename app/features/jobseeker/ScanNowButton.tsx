@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Loader2, Radar } from "lucide-react";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { FailureNotice } from "./FailureNotice";
 import type { ScanTaskState } from "./useScanTask";
 
@@ -19,6 +20,8 @@ import type { ScanTaskState } from "./useScanTask";
 // stays a plain button until rows exist.
 export function ScanNowButton({ scan, variant = "primary", quiet = false }: { scan: ScanTaskState & { start(): Promise<void> }; variant?: "primary" | "secondary"; quiet?: boolean }) {
   const t = useTranslations("me.jobs.scan");
+  // The run's stored failure is a code when the runtime authored it (tasks.ts).
+  const resolveError = useErrorMessage();
   const busy = scan.starting || scan.active;
   const recipe = variant === "primary" ? BTN_PRIMARY : BTN_SECONDARY;
   const progress =
@@ -49,7 +52,7 @@ export function ScanNowButton({ scan, variant = "primary", quiet = false }: { sc
       {scan.status === "failed" || scan.status === "interrupted" || scan.status === "canceled" ? (
         // The task's own stored diagnostic (no code to resolve); the button above IS
         // the retry, so this notice carries none of its own.
-        <FailureNotice fallback={scan.error ? t("failedMsg", { msg: scan.error }) : t("failed")} />
+        <FailureNotice fallback={scan.error ? t("failedMsg", { msg: resolveError({ code: scan.error }, scan.error) }) : t("failed")} />
       ) : null}
       {scan.startError ? <FailureNotice failure={scan.startError} fallback={t("startError")} onRetry={() => void scan.start()} retrying={busy} /> : null}
         </>

@@ -363,10 +363,11 @@ export async function watchAnalysis(
       throw new AnalyzeClientError("errBadPayload");
     }
     if (task.status === "failed" || task.status === "canceled" || task.status === "interrupted") {
-      // task.error is engine/server text (Python stderr, or empty when the server
-      // only had a generic coded fallback). Prefer it verbatim when present;
-      // otherwise the localized "did not complete" message shows.
-      throw new AnalyzeClientError("errIncomplete", task.error);
+      // task.error is a code when the runtime authored the failure (tasks.ts: ENGINE_*,
+      // TASK_TIME_LIMIT), so it rides as apiCode and resolves in the reader's language;
+      // otherwise it is engine/server text, preferred verbatim, and with neither the
+      // localized "did not complete" message shows.
+      throw new AnalyzeClientError("errIncomplete", task.error, task.error);
     }
   }
 }
