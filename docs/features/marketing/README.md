@@ -35,8 +35,9 @@ cards that drive it sit inside `FeatureGrid`).
 | `spark/sections/FeatureCardArt.tsx` | The nine feature cards' watermarks — one traced from each preview |
 | `spark/trust-art/` | The four Responsible-AI demonstrations the `#trust` band switches between, plus `shared.tsx` (the fixed stage and the `cycle()` loop helper) and `index.ts` (the key→accent+body registry) |
 | `spark/useStillMotion.ts` | `prefers-reduced-motion` as an external store — the SSR-safe replacement for framer's hook |
-| `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the two entrance choreographies and the recurring card/chip/bar shapes) and `index.ts` (the key→icon+body registry) |
-| `spark/about-art/` | One illustration per `/about` pipeline phase, plus `shared.ts` — which owns `ABOUT_STEP_KEYS`, the phase list `AboutCurve` derives its rows AND its spine from |
+| `spark/motion-presets.ts` | The one Spark motion vocabulary: `reveal(trigger, reduce, final, transition, initial)` (`"inView"` for the `/about` arts, `"mount"` for the previews), `pop`/`stamp`/`entrance`, and `ENTER`/`DRAW`. Plain `.ts`, so `motion-presets.test.ts` tests the reduced-motion gate directly |
+| `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the recurring card/chip/bar shapes; it re-exports `pop`/`stamp`/`entrance` from `motion-presets.ts`) and `index.ts` (the key→icon+body registry) |
+| `spark/about-art/` | One illustration per `/about` pipeline phase (each reveal spreads `reveal("inView", …)`; colours are `tokens.ts` constants), plus `shared.ts` — which owns `ABOUT_STEP_KEYS`, the phase list `AboutCurve` derives its rows AND its spine from, and re-exports `ENTER`/`DRAW` |
 | `spark/Wordmark.tsx` | The brand lockup, used by all three pages |
 | `spark/FeatureSpotlight.tsx` | The modal chrome that frames a preview |
 
@@ -145,8 +146,8 @@ Conventions worth keeping:
   gate for months, so the nine feature previews slammed a `scale: 2.2` stamp
   onto the page and rotated cards in from ±10° for a reader who had asked for
   less. Every module under `spark/previews/` now threads the flag through
-  `pop(delay, reduce)` / `stamp(delay, reduce)` / `entrance(reduce, …)` in
-  `previews/shared.tsx`, which swaps the TRANSITION for `{ duration: 0 }` —
+  `pop(delay, reduce)` / `stamp(delay, reduce)` / `entrance(reduce, …)` from
+  `spark/motion-presets.ts`, which swaps the TRANSITION for `{ duration: 0 }` —
   never the `initial` prop and never the markup, so a still reader lands on the
   end state with no hydration hazard. A third `AboutCurve.test.ts` check pins
   it, with an (empty) `KNOWN_UNGATED_ENTRANCES` holdout list.
@@ -155,7 +156,16 @@ Conventions worth keeping:
   their final state immediately, and the replay button gives a text confirmation.
   All eight `about-art/` illustrations now drive their in-view targets to the
   final state with zero-duration transitions when reduced motion is requested,
-  including a mid-session preference change.
+  including a mid-session preference change. They do it through one builder,
+  `reveal("inView", reduceMotion, final, transition, initial)` in
+  `spark/motion-presets.ts`, which returns `whileInView` + an `animate` of the
+  SAME end state for a still reader + the gated transition, and never branches
+  `initial`. `motion-presets.test.ts` tests that behaviour; `AboutCurve.test.ts`
+  only checks that no art goes around it (no raw `whileInView=`, no hand-written
+  `{ duration: 0 }`, no re-typed `tokens.ts` hex). The earlier guard compared
+  adjacent source lines, so a reflowed prop failed it while a differently-shaped
+  element slipped past. The rendered reveal on `/about` is not pinned by a
+  browser test yet (see Known gaps).
 
 ## Navigation conventions
 
@@ -542,6 +552,15 @@ one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
   `parts.tsx` branches only `layoutId` inside a client-only subtree; `CzMap` branches
   `initial={reduce ? false : { opacity: 0 }}` on a server-rendered node, which is
   the inline-style hydration mismatch the rule exists to prevent.
+- **The `/about` reveals are pinned by unit tests, not by a browser.**
+  `motion-presets.test.ts` tests the props `reveal()` builds, and `AboutCurve.test.ts`
+  checks that every art spreads them. Nothing yet loads `/about` under
+  `reducedMotion: "reduce"` and asserts each step art paints its end state (full
+  opacity, no transform) with no in-view scroll. That check belongs beside the
+  a11y-per-band cases in `e2e/landing.spec.ts`. `IntakeArt`'s stem and "47" badge
+  also still hand-roll what `previews/shared.tsx`'s `Stem`/`stamp` draw (delay
+  0.6 vs 0.75), so the About and spotlight versions of that scene keep separate
+  timings.
 - `data/market_pulse.json` region vacancy counts sum to ~35 200 against a
   national total of ~38 600: postings with no `kraj` are unattributed. The hero
   states the true national figure; the map cannot be reconciled to it.
