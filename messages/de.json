@@ -8354,7 +8354,7 @@
     "windowScopeBlind": "Qualität & Audit umfasst immer den gesamten Zeitraum. Das Zeitfenster gilt hier nicht.",
     "briefBandDwell": "Wo die Zeit bleibt",
     "briefDwellClaim": "{count, plural, one {Gerade wartet # Kandidat in einer Phase.} other {Gerade warten # Kandidaten in den Phasen.}}",
-    "briefDwellContext": "Durchschnittliche Wartetage seit dem Eintritt in die Phase, gerechnet über die Personen, die dort gerade sitzen.",
+    "briefDwellContext": "Median und längste Wartezeit aller Personen, die gerade in jeder Phase sitzen, unabhängig vom gewählten Zeitraum. Die Anzahl über dem Takt öffnet genau diese Kandidaten auf dem Board.",
     "briefDwellNoneClaim": "In keiner Phase wartet bisher jemand.",
     "copyViewLink": "Link zu dieser Ansicht kopieren",
     "viewLinkCopied": "Link kopiert",
@@ -8391,7 +8391,17 @@
       "accountLedger": "Das KI-Nutzungsprotokoll umfasst das gesamte Konto",
       "noEntry": "Wird vor dem Entstehen einer Bewerbung erfasst, mit Stellentitel, aber ohne Bezug zu einer Stelle"
     },
-    "metricPackDownloadWorkspace": "Kennzahlenpaket herunterladen (gesamter Arbeitsbereich)"
+    "metricPackDownloadWorkspace": "Kennzahlenpaket herunterladen (gesamter Arbeitsbereich)",
+    "stageDwellPair": "Median {median} T · längste {oldest} T · {count} warten",
+    "stageDwellThin": "{count} warten · längste {oldest} T · zu wenige für einen Median",
+    "stageDwellPastTeam": "{count} über dem Team-Takt von {days} T",
+    "stageDwellPastDefault": "{count} über dem Standard von {days} T",
+    "stageDwellWithinTeam": "alle innerhalb des Team-Takts von {days} T",
+    "stageCadenceLabel": "Team-Takt für {stage}, in Tagen",
+    "stageCadenceUnitTeam": "Tage, Team-Takt",
+    "stageCadenceUnitDefault": "Tage (Standard {days})",
+    "stageCadenceInvalid": "Ein Takt ist eine ganze Zahl von Tagen, von 1 bis 365.",
+    "stageCadenceFailed": "Der Takt konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",

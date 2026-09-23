@@ -8354,7 +8354,7 @@
     "windowScopeBlind": "Quality & audit always covers all time. The window does not apply here.",
     "briefBandDwell": "Where the time goes",
     "briefDwellClaim": "{count, plural, one {# candidate is waiting in a stage right now.} other {# candidates are waiting in a stage right now.}}",
-    "briefDwellContext": "Average days waited since arriving, for the people sitting in each stage right now.",
+    "briefDwellContext": "Median and longest wait for everyone sitting in each stage right now, whatever period you view. A count past cadence opens exactly those candidates on the board.",
     "briefDwellNoneClaim": "Nobody is waiting in a stage yet.",
     "copyViewLink": "Copy link to this view",
     "viewLinkCopied": "Link copied",
@@ -8391,7 +8391,17 @@
       "accountLedger": "The AI usage ledger covers the whole account",
       "noEntry": "Recorded before an application exists, with a job title but no link to a role"
     },
-    "metricPackDownloadWorkspace": "Download metric pack (whole workspace)"
+    "metricPackDownloadWorkspace": "Download metric pack (whole workspace)",
+    "stageDwellPair": "median {median}d · oldest {oldest}d · {count} waiting",
+    "stageDwellThin": "{count} waiting · oldest {oldest}d · too few for a median",
+    "stageDwellPastTeam": "{count} past the team's {days}d cadence",
+    "stageDwellPastDefault": "{count} past the default {days}d",
+    "stageDwellWithinTeam": "all within the team's {days}d cadence",
+    "stageCadenceLabel": "Team cadence for {stage}, in days",
+    "stageCadenceUnitTeam": "days, team cadence",
+    "stageCadenceUnitDefault": "days (default {days})",
+    "stageCadenceInvalid": "A cadence is a whole number of days, from 1 to 365.",
+    "stageCadenceFailed": "Couldn't save this cadence. Please try again."
   },
   "matrix": {
     "loadFailed": "Load failed.",

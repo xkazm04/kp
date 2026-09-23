@@ -8354,7 +8354,7 @@
     "windowScopeBlind": "Qualité et audit porte toujours sur l’ensemble de l’historique. La période ne s’applique pas ici.",
     "briefBandDwell": "Où passe le temps",
     "briefDwellClaim": "{count, plural, one {# candidat attend actuellement dans une étape.} other {# candidats attendent actuellement dans les étapes.}}",
-    "briefDwellContext": "Nombre moyen de jours écoulés depuis l’arrivée dans l’étape, pour les personnes qui y attendent en ce moment.",
+    "briefDwellContext": "Attente médiane et la plus longue de toutes les personnes présentes dans chaque étape en ce moment, quelle que soit la période affichée. Le nombre au-delà du délai ouvre exactement ces candidats sur le tableau.",
     "briefDwellNoneClaim": "Personne n’attend encore dans une étape.",
     "copyViewLink": "Copier le lien de cette vue",
     "viewLinkCopied": "Lien copié",
@@ -8391,7 +8391,17 @@
       "accountLedger": "Le registre d’utilisation de l’IA couvre l’ensemble du compte",
       "noEntry": "Enregistré avant toute candidature, avec un intitulé de poste mais sans lien vers un poste"
     },
-    "metricPackDownloadWorkspace": "Télécharger le pack de métriques (tout l’espace de travail)"
+    "metricPackDownloadWorkspace": "Télécharger le pack de métriques (tout l’espace de travail)",
+    "stageDwellPair": "médiane {median} j · plus ancien {oldest} j · {count} en attente",
+    "stageDwellThin": "{count} en attente · plus ancien {oldest} j · trop peu pour une médiane",
+    "stageDwellPastTeam": "{count} au-delà du délai d’équipe de {days} j",
+    "stageDwellPastDefault": "{count} au-delà du délai par défaut de {days} j",
+    "stageDwellWithinTeam": "tous dans le délai d’équipe de {days} j",
+    "stageCadenceLabel": "Délai d’équipe pour {stage}, en jours",
+    "stageCadenceUnitTeam": "jours, délai d’équipe",
+    "stageCadenceUnitDefault": "jours (par défaut {days})",
+    "stageCadenceInvalid": "Un délai est un nombre entier de jours, de 1 à 365.",
+    "stageCadenceFailed": "Impossible d’enregistrer ce délai. Veuillez réessayer."
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",

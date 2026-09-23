@@ -8354,7 +8354,7 @@
     "windowScopeBlind": "Kvalita a audit se vždy počítá za celou dobu. Okno se zde neuplatní.",
     "briefBandDwell": "Kde se ztrácí čas",
     "briefDwellClaim": "{count, plural, one {Právě teď čeká v některé fázi # kandidát.} few {Právě teď čekají v jednotlivých fázích # kandidáti.} other {Právě teď čeká v jednotlivých fázích # kandidátů.}}",
-    "briefDwellContext": "Průměrný počet dní od příchodu do fáze, počítáno za kandidáty, kteří v ní právě teď čekají.",
+    "briefDwellContext": "Medián a nejdelší čekání všech, kdo v jednotlivých fázích právě teď sedí, bez ohledu na zvolené období. Počet za lhůtou otevře přesně tyto kandidáty na nástěnce.",
     "briefDwellNoneClaim": "V žádné fázi zatím nikdo nečeká.",
     "copyViewLink": "Zkopírovat odkaz na tento pohled",
     "viewLinkCopied": "Odkaz zkopírován",
@@ -8391,7 +8391,17 @@
       "accountLedger": "Evidence využití AI pokrývá celý účet",
       "noEntry": "Zaznamenává se před vznikem přihlášky, s názvem pozice, ale bez vazby na konkrétní pozici"
     },
-    "metricPackDownloadWorkspace": "Stáhnout sadu metrik (celý pracovní prostor)"
+    "metricPackDownloadWorkspace": "Stáhnout sadu metrik (celý pracovní prostor)",
+    "stageDwellPair": "medián {median} d · nejdéle {oldest} d · {count, plural, one {# čeká} few {# čekají} other {# čeká}}",
+    "stageDwellThin": "{count, plural, one {# čeká} few {# čekají} other {# čeká}} · nejdéle {oldest} d · na medián jich je málo",
+    "stageDwellPastTeam": "{count, plural, one {# je} few {# jsou} other {# je}} za týmovou lhůtou {days} d",
+    "stageDwellPastDefault": "{count, plural, one {# je} few {# jsou} other {# je}} za výchozí lhůtou {days} d",
+    "stageDwellWithinTeam": "všichni v týmové lhůtě {days} d",
+    "stageCadenceLabel": "Týmová lhůta pro fázi {stage}, ve dnech",
+    "stageCadenceUnitTeam": "dní, týmová lhůta",
+    "stageCadenceUnitDefault": "dní (výchozí {days})",
+    "stageCadenceInvalid": "Lhůta je celý počet dní od 1 do 365.",
+    "stageCadenceFailed": "Lhůtu se nepodařilo uložit. Zkuste to prosím znovu."
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
