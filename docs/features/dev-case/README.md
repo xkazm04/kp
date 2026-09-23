@@ -519,9 +519,13 @@ can conclude but never the candidate's score.
 
 Pinned by `app/_lib/github/client.test.ts`, `app/_lib/repo-snapshot.test.ts`,
 `app/_lib/devcase-authenticity.test.ts` and `app/_lib/devcase-run-unreadable.test.ts`.
-Still open: the process-trace chip in `DevEvalPanelProcessTrace.tsx` renders a `null`
-`decisionsLogPresent` as "missing" (the authenticity tooltip says "unread"), and the
-Python side still receives an empty `topLevel` for an unread tree.
+The process-trace chip in `DevEvalPanelProcessTrace.tsx` is tri-state to match
+(`decisionsLogChip`, `DevEvalPanelProcessTrace.chip.ts`): `true` is "kept" (moss),
+`false` is "missing" (coral, a read tree without the log), and `null` or an absent
+field is a neutral "could not read" chip (`bg-paper text-steel`) with a tooltip,
+`devcase.processTrace.decisionsLogUnread(+Title)`. Pinned by
+`DevEvalPanelProcessTrace.chip.test.ts`. Still open: the Python side receives an
+empty `topLevel` for an unread tree.
 
 ## Localization of the studio (phase 1)
 

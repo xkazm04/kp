@@ -3383,7 +3383,6 @@
       "humanScorecardNote": "Enregistré par un recruteur à partir de la grille de préparation d’entretien.",
       "githubEvidence": "Preuves GitHub",
       "githubEvidenced": "Étayé :",
-      "githubUnverified": "Affirmations non vérifiées :",
       "githubHidden": "Forces cachées :",
       "githubEvidenceNote": "Issu de l’analyse GitHub approfondie jointe lors de l’ajout de ce candidat : signaux des dépôts publics, code non inspecté.",
       "githubRunHelp": "Ce candidat a partagé un profil GitHub en postulant. Lancez l’analyse approfondie pour comparer les signaux de ses dépôts publics à ses affirmations.",

@@ -3383,7 +3383,6 @@
       "humanScorecardNote": "Von einem Recruiter anhand des Bewertungsrasters für die Interview-Vorbereitung erfasst.",
       "githubEvidence": "GitHub-Nachweise",
       "githubEvidenced": "Belegt:",
-      "githubUnverified": "Unbestätigte Angaben:",
       "githubHidden": "Verborgene Stärken:",
       "githubEvidenceNote": "Aus der GitHub-Tiefenanalyse, die beim Hinzufügen dieser Person angehängt wurde: Signale aus öffentlichen Repos, kein geprüfter Quellcode.",
       "githubRunHelp": "Diese/r Kandidat/in hat bei der Bewerbung ein GitHub-Profil angegeben. Führen Sie die Tiefenanalyse aus, um die Signale aus öffentlichen Repos mit den Angaben zu vergleichen.",

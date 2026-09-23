@@ -3383,7 +3383,6 @@
       "humanScorecardNote": "Zaznamenáno náborářem podle rubriky přípravy na pohovor.",
       "githubEvidence": "Důkazy z GitHubu",
       "githubEvidenced": "Doloženo:",
-      "githubUnverified": "Neověřená tvrzení:",
       "githubHidden": "Skryté silné stránky:",
       "githubEvidenceNote": "Z hloubkové analýzy GitHubu připojené při přidání kandidáta: signály z veřejných repozitářů, ne kontrola zdrojového kódu.",
       "githubRunHelp": "Kandidát/ka při přihlášce uvedl/a profil na GitHubu. Spusťte hloubkovou analýzu a porovnejte signály z veřejných repozitářů s tím, co uvádí.",

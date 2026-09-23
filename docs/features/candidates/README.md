@@ -1243,10 +1243,17 @@ existed still parses, and its rows build from `matchingSkills` / `potentialGaps`
 with no repo names. Copy: `results.github.ledger.*`. Pinned by
 `app/_lib/github/skill-ledger.test.ts` and `skills.test.ts`.
 
-**Not yet on the ledger:** the pipeline candidate modal's frozen evidence card
+**The pipeline card holds the same rule without the ledger.** The pipeline
+candidate modal's frozen evidence card
 (`app/features/hiring/pipeline/PipelineGithubEvidenceCard.tsx`, over
-`github-summary.ts`) still prints the review's `unverifiedClaims` under its own
-"unverified" label.
+`github-summary.ts`, which carries no JD join) prints the review's
+`unverifiedClaims` as "Not seen in public repos:" in a neutral `text-steel` label,
+with a tooltip that public work can confirm a skill but never rule one out, and
+drops any skill the same review evidenced (`notSeenInPublicRepos` in
+`app/features/hiring/pipeline/pipelineGithubEvidence.ts`). It used to sit under an
+amber "Unverified claims:". Copy: `pipeline.drawer.githubNotSeen(+Title)`; pinned by
+`pipelineGithubEvidence.test.ts`, which also bans "unverified"/"claim" wording in
+all four locales.
 
 ### Who may open this door
 

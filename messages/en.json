@@ -3383,7 +3383,6 @@
       "humanScorecardNote": "Recorded by a recruiter from the interview prep rubric.",
       "githubEvidence": "GitHub evidence",
       "githubEvidenced": "Evidenced:",
-      "githubUnverified": "Unverified claims:",
       "githubHidden": "Hidden strengths:",
       "githubEvidenceNote": "From the GitHub deep-dive attached when this candidate was added: public repo signals, not inspected source.",
       "githubRunHelp": "This candidate shared a GitHub profile when applying. Run the deep-dive to compare their public repo signals against their claims.",
