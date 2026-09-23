@@ -12,7 +12,7 @@
 // counts by.
 import { ClipboardList } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
 import { ApplyTokenPill } from "./DevApplyTokenPill";
 import { SubmissionForm } from "./DevSubmissionForm";
 import { isPostingOpen } from "./DevCaseDetail.publish";
@@ -41,7 +41,7 @@ export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: 
               </span>
               <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{p.caseTitle || p.roleTitle || t("posting")}</span>
               {open ? null : (
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-micro font-semibold uppercase text-steel">{t("closed")}</span>
+                <span className={CHIP_QUIET}>{t("closed")}</span>
               )}
               <span className="text-micro text-steel">{t("received", { count: p.submissions?.length ?? p.submissionCount ?? 0 })}</span>
             </div>

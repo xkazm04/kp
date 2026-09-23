@@ -5,6 +5,7 @@
 // each intake change — split out of DevCaseDetail.tsx.
 import { ArrowLeft, CircleStop, FileWarning, MicVocal, RotateCcw, Send, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { DevCaseJobLink } from "./DevCaseJobLink";
 import { DevPublishConfirm } from "./DevPublishConfirm";
@@ -137,7 +138,7 @@ export function DevCaseDetailHeader({
             {t("intakeLive", { count: intake.open })}
           </span>
         ) : intake.state === "closed" ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-micro font-semibold uppercase text-steel">
+          <span className={CHIP_QUIET}>
             {t("intakeClosed")}
           </span>
         ) : null}
