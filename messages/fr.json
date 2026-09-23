@@ -9726,7 +9726,7 @@
     "handoff": {
       "readyTitle": "{org} peut démarrer",
       "orgFallback": "Votre espace de travail",
-      "readyMeta": "Langue : {language} · {invites, plural, =0 {aucune invitation pour l’instant} one {# collègue invité} other {# collègues invités}}",
+      "readyMeta": "Langue : {language} · {invites, plural, =0 {aucune invitation pour l’instant} one {# lien d’invitation à partager après la configuration} other {# liens d’invitation à partager après la configuration}}",
       "tourTitle": "Lancer la démo guidée",
       "tourBody": "Toute l’histoire du recrutement sur des données d’exemple. Environ 3 minutes.",
       "chooseLabel": "Comment voulez-vous commencer ?",
@@ -9791,6 +9791,26 @@
         "label": "Je cherche un emploi",
         "blurb": "Apportez votre CV, précisez ce que vous cherchez et laissez la recherche travailler pour vous."
       }
+    },
+    "receipt": {
+      "titleSaved": "Votre espace de travail est configuré",
+      "titlePartial": "Votre espace de travail est configuré, mais certaines réponses n’ont pas été enregistrées",
+      "linksTitle": "{count, plural, one {Partagez ce lien d’invitation} other {Partagez ces # liens d’invitation}}",
+      "linksBody": "Aucun e-mail d’invitation n’est envoyé. Envoyez à chaque collègue son propre lien : il l’ajoute à cet espace de travail et expire au bout de 14 jours. Toute personne qui détient le lien peut l’utiliser, ne le partagez donc qu’avec la personne concernée.",
+      "copy": "Copier le lien",
+      "copyFor": "Copier le lien d’invitation pour {email}",
+      "copyAll": "Copier tous les liens",
+      "copied": "Lien copié",
+      "copiedAll": "Tous les liens ont été copiés",
+      "copyFailed": "La copie a échoué. Sélectionnez le lien et copiez-le manuellement.",
+      "unshareable": "{count, plural, one {# invitation a été créée, mais son lien ne peut pas être affiché ici. Copiez-le depuis Paramètres → Espaces de travail.} other {# invitations ont été créées, mais leurs liens ne peuvent pas être affichés ici. Copiez-les depuis Paramètres → Espaces de travail.}}",
+      "failuresTitle": "Non enregistré",
+      "retryable": "Une nouvelle tentative peut régler cela",
+      "permanent": "Terminez cela dans les Paramètres",
+      "retry": "Réessayer ce qui a échoué",
+      "retrying": "Nouvelle tentative…",
+      "done": "Terminé",
+      "doneTour": "Terminé, lancer la démo"
     }
   },
   "devcase": {

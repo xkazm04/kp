@@ -9726,7 +9726,7 @@
     "handoff": {
       "readyTitle": "{org} ist startklar",
       "orgFallback": "Ihr Arbeitsbereich",
-      "readyMeta": "Sprache: {language} · {invites, plural, =0 {noch keine Einladungen} one {# Person eingeladen} other {# Personen eingeladen}}",
+      "readyMeta": "Sprache: {language} · {invites, plural, =0 {noch keine Einladungen} one {# Einladungslink zum Teilen nach der Einrichtung} other {# Einladungslinks zum Teilen nach der Einrichtung}}",
       "tourTitle": "Geführte Demo starten",
       "tourBody": "Die ganze Geschichte einer Einstellung, mit Beispieldaten durchgespielt. Etwa 3 Minuten.",
       "chooseLabel": "Wie möchten Sie beginnen?",
@@ -9791,6 +9791,26 @@
         "label": "Ich suche einen Job",
         "blurb": "Bringen Sie Ihren Lebenslauf mit, legen Sie fest, was Sie suchen, und lassen Sie die Suche für sich laufen."
       }
+    },
+    "receipt": {
+      "titleSaved": "Ihr Arbeitsbereich ist eingerichtet",
+      "titlePartial": "Ihr Arbeitsbereich ist eingerichtet, aber einige Angaben wurden nicht gespeichert",
+      "linksTitle": "{count, plural, one {Teilen Sie diesen Einladungslink} other {Teilen Sie diese # Einladungslinks}}",
+      "linksBody": "Es wird keine Einladungs-E-Mail versendet. Senden Sie jeder Person ihren eigenen Link: Er nimmt sie in diesen Arbeitsbereich auf und läuft nach 14 Tagen ab. Wer den Link hat, kann ihn nutzen, teilen Sie ihn daher nur mit dieser Person.",
+      "copy": "Link kopieren",
+      "copyFor": "Einladungslink für {email} kopieren",
+      "copyAll": "Alle Links kopieren",
+      "copied": "Link kopiert",
+      "copiedAll": "Alle Links kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen. Markieren Sie den Link und kopieren Sie ihn manuell.",
+      "unshareable": "{count, plural, one {# Einladung wurde erstellt, ihr Link kann hier aber nicht angezeigt werden. Kopieren Sie ihn unter Einstellungen → Workspaces.} other {# Einladungen wurden erstellt, ihre Links können hier aber nicht angezeigt werden. Kopieren Sie sie unter Einstellungen → Workspaces.}}",
+      "failuresTitle": "Nicht gespeichert",
+      "retryable": "Ein erneuter Versuch kann das beheben",
+      "permanent": "Schließen Sie das in den Einstellungen ab",
+      "retry": "Fehlgeschlagenes erneut versuchen",
+      "retrying": "Wird erneut versucht…",
+      "done": "Fertig",
+      "doneTour": "Fertig, Demo starten"
     }
   },
   "devcase": {

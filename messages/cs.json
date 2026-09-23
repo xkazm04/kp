@@ -9726,7 +9726,7 @@
     "handoff": {
       "readyTitle": "{org} může začít",
       "orgFallback": "Váš pracovní prostor",
-      "readyMeta": "Jazyk: {language} · {invites, plural, =0 {zatím žádné pozvánky} one {# pozvaný kolega} few {# pozvaní kolegové} other {# pozvaných kolegů}}",
+      "readyMeta": "Jazyk: {language} · {invites, plural, =0 {zatím žádné pozvánky} one {# odkaz s pozvánkou ke sdílení po nastavení} few {# odkazy s pozvánkou ke sdílení po nastavení} other {# odkazů s pozvánkou ke sdílení po nastavení}}",
       "tourTitle": "Spustit řízenou ukázku",
       "tourBody": "Celý příběh náboru na ukázkových datech. Zhruba 3 minuty.",
       "chooseLabel": "Jak chcete začít?",
@@ -9791,6 +9791,26 @@
         "label": "Hledám práci",
         "blurb": "Přineste své CV, nastavte, co hledáte, a nechte hledání pracovat za vás."
       }
+    },
+    "receipt": {
+      "titleSaved": "Váš pracovní prostor je nastavený",
+      "titlePartial": "Váš pracovní prostor je nastavený, ale některé odpovědi se neuložily",
+      "linksTitle": "{count, plural, one {Sdílejte tento odkaz s pozvánkou} few {Sdílejte tyto # odkazy s pozvánkou} other {Sdílejte těchto # odkazů s pozvánkou}}",
+      "linksBody": "Žádný e-mail s pozvánkou se neodesílá. Pošlete každému kolegovi jeho vlastní odkaz: přidá ho do tohoto pracovního prostoru a platí 14 dní. Odkaz může použít kdokoli, kdo ho má, proto ho sdílejte jen s danou osobou.",
+      "copy": "Kopírovat odkaz",
+      "copyFor": "Kopírovat odkaz s pozvánkou pro {email}",
+      "copyAll": "Kopírovat všechny odkazy",
+      "copied": "Odkaz zkopírován",
+      "copiedAll": "Všechny odkazy zkopírovány",
+      "copyFailed": "Kopírování se nezdařilo. Označte odkaz a zkopírujte ho ručně.",
+      "unshareable": "{count, plural, one {# pozvánka byla vytvořena, ale její odkaz zde nelze zobrazit. Zkopírujte ho v Nastavení → Pracovní prostory.} few {# pozvánky byly vytvořeny, ale jejich odkazy zde nelze zobrazit. Zkopírujte je v Nastavení → Pracovní prostory.} other {# pozvánek bylo vytvořeno, ale jejich odkazy zde nelze zobrazit. Zkopírujte je v Nastavení → Pracovní prostory.}}",
+      "failuresTitle": "Neuloženo",
+      "retryable": "Opakování to může vyřešit",
+      "permanent": "Dokončete to v Nastavení",
+      "retry": "Zopakovat, co selhalo",
+      "retrying": "Opakuji…",
+      "done": "Hotovo",
+      "doneTour": "Hotovo, spustit ukázku"
     }
   },
   "devcase": {

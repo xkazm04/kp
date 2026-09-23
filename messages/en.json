@@ -9726,7 +9726,7 @@
     "handoff": {
       "readyTitle": "{org} is ready to go",
       "orgFallback": "Your workspace",
-      "readyMeta": "Language: {language} · {invites, plural, =0 {no invites yet} one {# teammate invited} other {# teammates invited}}",
+      "readyMeta": "Language: {language} · {invites, plural, =0 {no invites yet} one {# invitation link to share after setup} other {# invitation links to share after setup}}",
       "tourTitle": "Start the guided demo",
       "tourBody": "The whole hiring story, played on sample data. About 3 minutes.",
       "chooseLabel": "How do you want to begin?",
@@ -9791,6 +9791,26 @@
         "label": "I'm looking for a job",
         "blurb": "Bring your CV, set what you are looking for, and let the search run for you."
       }
+    },
+    "receipt": {
+      "titleSaved": "Your workspace is set up",
+      "titlePartial": "Your workspace is set up, but some answers were not saved",
+      "linksTitle": "{count, plural, one {Share this invitation link} other {Share these # invitation links}}",
+      "linksBody": "No invitation email is sent. Send each teammate their own link: it seats them in this workspace and expires in 14 days. Anyone holding a link can use it, so share it only with that person.",
+      "copy": "Copy link",
+      "copyFor": "Copy the invitation link for {email}",
+      "copyAll": "Copy all links",
+      "copied": "Link copied",
+      "copiedAll": "All links copied",
+      "copyFailed": "Couldn’t copy. Select the link and copy it by hand.",
+      "unshareable": "{count, plural, one {# invitation was created, but its link can’t be shown here. Copy it from Settings → Workspaces.} other {# invitations were created, but their links can’t be shown here. Copy them from Settings → Workspaces.}}",
+      "failuresTitle": "Not saved",
+      "retryable": "A retry can fix this",
+      "permanent": "Finish this in Settings",
+      "retry": "Retry what failed",
+      "retrying": "Retrying…",
+      "done": "Done",
+      "doneTour": "Done, start the demo"
     }
   },
   "devcase": {
