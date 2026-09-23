@@ -8890,7 +8890,7 @@
     },
     "usage": {
       "title": "Čerpání v tomto období",
-      "intro": "Každý ukazatel se obnovuje s fakturačním obdobím; kredity z balíčků se přičítají nad rámec tarifu.",
+      "intro": "Zahrnuté limity se obnovují vždy 1. den v měsíci (UTC); kredity z balíčků se převádějí dál a přičítají se nad rámec tarifu.",
       "used": "Čerpáno {used} z {limit}",
       "usedUnlimited": "Čerpáno {used}",
       "unlimited": "Bez limitu",
@@ -8900,7 +8900,13 @@
       "upgradeCta": "Navýšit tarif →",
       "remaining": "Zbývá {remaining}",
       "credits": "{credits, plural, one {+# kredit z balíčku} few {+# kredity z balíčku} many {+# kreditu z balíčku} other {+# kreditů z balíčku}}",
-      "empty": "Zatím žádné ukazatele čerpání."
+      "empty": "Zatím žádné ukazatele čerpání.",
+      "forecast": {
+        "tooEarly": "Na odhad tempa je v tomto měsíci ještě brzy",
+        "onPace": "Při tomto tempu vystačíte se zahrnutým limitem až do jeho obnovení",
+        "runsOut": "Při tomto tempu se vyčerpá kolem {date}, {days, plural, =0 {těsně před obnovením} one {# den před obnovením} few {# dny před obnovením} many {# dne před obnovením} other {# dní před obnovením}}",
+        "overage": "Při tomto tempu překročíte zahrnuté nábory ještě před obnovením. Další nábory se účtují jako přečerpání, nikdy se neblokují"
+      }
     },
     "spend": {
       "title": "Spotřeba a náklady",
@@ -8912,7 +8918,8 @@
       "engineTitle": "Engine",
       "noSpend": "V tomto období zatím nejsou žádná měřená volání AI.",
       "breakdownScope": "Napříč všemi pracovními prostory této instalace, na rozdíl od limitu vedle.",
-      "breakdownScopeSelfHost": "Napříč všemi pracovními prostory této instalace."
+      "breakdownScopeSelfHost": "Napříč všemi pracovními prostory této instalace.",
+      "allowanceResets": "Obnoví se {date}"
     },
     "plans": {
       "title": "Tarify",
@@ -8953,7 +8960,9 @@
       "dismiss": "Zamítnout",
       "working": "Ukládání…",
       "failed": "Upozornění se nepodařilo aktualizovat. Zkuste to prosím znovu."
-    }
+    },
+    "paidPeriodEnd": "Zaplacené období končí {date}",
+    "allowancesReset": "Zahrnuté limity se obnoví {date}"
   },
   "branding": {
     "eyebrow": "White-label",

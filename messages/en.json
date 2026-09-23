@@ -8890,7 +8890,7 @@
     },
     "usage": {
       "title": "Usage this period",
-      "intro": "Each meter resets with the billing period; pack credits top it up beyond the plan's allowance.",
+      "intro": "Included allowances reset on the 1st of each month (UTC); pack credits carry over and top up beyond the plan's allowance.",
       "used": "{used} of {limit} used",
       "usedUnlimited": "{used} used",
       "unlimited": "Unlimited",
@@ -8900,7 +8900,13 @@
       "upgradeCta": "Upgrade →",
       "remaining": "{remaining} remaining",
       "credits": "{credits, plural, one {+# pack credit} other {+# pack credits}}",
-      "empty": "No usage meters yet."
+      "empty": "No usage meters yet.",
+      "forecast": {
+        "tooEarly": "Too early in the month to forecast the pace",
+        "onPace": "On pace to stay within the allowance until it resets",
+        "runsOut": "At this pace, runs out around {date}, {days, plural, =0 {just before the reset} one {# day before the reset} other {# days before the reset}}",
+        "overage": "At this pace, past the included hires before the reset. Extra hires are billed as overage, never blocked"
+      }
     },
     "spend": {
       "title": "Usage & cost",
@@ -8912,7 +8918,8 @@
       "engineTitle": "Engine",
       "noSpend": "No metered AI calls in this window yet.",
       "breakdownScope": "Across every workspace on this deployment, unlike the allowance beside it.",
-      "breakdownScopeSelfHost": "Across every workspace on this deployment."
+      "breakdownScopeSelfHost": "Across every workspace on this deployment.",
+      "allowanceResets": "Resets {date}"
     },
     "plans": {
       "title": "Plans",
@@ -8953,7 +8960,9 @@
       "dismiss": "Dismiss",
       "working": "Saving…",
       "failed": "Could not update this alert. Please try again."
-    }
+    },
+    "paidPeriodEnd": "Paid period ends {date}",
+    "allowancesReset": "Included allowances reset {date}"
   },
   "branding": {
     "eyebrow": "White-label",

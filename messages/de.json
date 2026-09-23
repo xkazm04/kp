@@ -8890,7 +8890,7 @@
     },
     "usage": {
       "title": "Nutzung in diesem Zeitraum",
-      "intro": "Jeder Zähler wird mit dem Abrechnungszeitraum zurückgesetzt; Paket-Credits stocken ihn über das Kontingent des Tarifs hinaus auf.",
+      "intro": "Enthaltene Kontingente werden am 1. jedes Monats (UTC) zurückgesetzt; Paket-Credits bleiben erhalten und stocken über das Kontingent des Tarifs hinaus auf.",
       "used": "{used} von {limit} genutzt",
       "usedUnlimited": "{used} genutzt",
       "unlimited": "Unbegrenzt",
@@ -8900,7 +8900,13 @@
       "upgradeCta": "Upgrade →",
       "remaining": "{remaining} verbleibend",
       "credits": "{credits, plural, one {+# Paket-Credit} other {+# Paket-Credits}}",
-      "empty": "Noch keine Nutzungszähler."
+      "empty": "Noch keine Nutzungszähler.",
+      "forecast": {
+        "tooEarly": "Für eine Prognose des Tempos ist es in diesem Monat noch zu früh",
+        "onPace": "Bei diesem Tempo reicht das Kontingent bis zur Zurücksetzung",
+        "runsOut": "Bei diesem Tempo aufgebraucht um den {date}, {days, plural, =0 {kurz vor der Zurücksetzung} one {# Tag vor der Zurücksetzung} other {# Tage vor der Zurücksetzung}}",
+        "overage": "Bei diesem Tempo werden die enthaltenen Einstellungen vor der Zurücksetzung überschritten. Weitere Einstellungen werden als Mehrverbrauch abgerechnet, nie blockiert"
+      }
     },
     "spend": {
       "title": "Nutzung & Kosten",
@@ -8912,7 +8918,8 @@
       "engineTitle": "Engine",
       "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe.",
       "breakdownScope": "Über alle Arbeitsbereiche dieser Installation hinweg, anders als das Kontingent daneben.",
-      "breakdownScopeSelfHost": "Über alle Arbeitsbereiche dieser Installation hinweg."
+      "breakdownScopeSelfHost": "Über alle Arbeitsbereiche dieser Installation hinweg.",
+      "allowanceResets": "Zurücksetzung am {date}"
     },
     "plans": {
       "title": "Tarife",
@@ -8953,7 +8960,9 @@
       "dismiss": "Verwerfen",
       "working": "Wird gespeichert…",
       "failed": "Der Hinweis konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
-    }
+    },
+    "paidPeriodEnd": "Bezahlter Zeitraum endet am {date}",
+    "allowancesReset": "Enthaltene Kontingente werden am {date} zurückgesetzt"
   },
   "branding": {
     "eyebrow": "White-Label",

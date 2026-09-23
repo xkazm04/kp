@@ -8890,7 +8890,7 @@
     },
     "usage": {
       "title": "Utilisation cette période",
-      "intro": "Chaque compteur se réinitialise avec la période de facturation. Les crédits de pack le complètent au-delà de l’allocation du forfait.",
+      "intro": "Les quotas inclus se réinitialisent le 1er de chaque mois (UTC) ; les crédits de pack sont conservés et complètent l’allocation du forfait.",
       "used": "{used} sur {limit} utilisés",
       "usedUnlimited": "{used} utilisés",
       "unlimited": "Illimité",
@@ -8900,7 +8900,13 @@
       "upgradeCta": "Passer au tarif supérieur →",
       "remaining": "{remaining} restants",
       "credits": "{credits, plural, one {+# crédit de pack} other {+# crédits de pack}}",
-      "empty": "Aucun compteur d’utilisation pour l’instant."
+      "empty": "Aucun compteur d’utilisation pour l’instant.",
+      "forecast": {
+        "tooEarly": "Trop tôt dans le mois pour estimer le rythme",
+        "onPace": "À ce rythme, le quota suffit jusqu’à sa réinitialisation",
+        "runsOut": "À ce rythme, épuisé vers le {date}, {days, plural, =0 {juste avant la réinitialisation} one {# jour avant la réinitialisation} other {# jours avant la réinitialisation}}",
+        "overage": "À ce rythme, les recrutements inclus seront dépassés avant la réinitialisation. Les recrutements supplémentaires sont facturés en dépassement, jamais bloqués"
+      }
     },
     "spend": {
       "title": "Utilisation et coûts",
@@ -8912,7 +8918,8 @@
       "engineTitle": "Moteur",
       "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant.",
       "breakdownScope": "Sur tous les espaces de travail de ce déploiement, contrairement au quota à côté.",
-      "breakdownScopeSelfHost": "Sur tous les espaces de travail de ce déploiement."
+      "breakdownScopeSelfHost": "Sur tous les espaces de travail de ce déploiement.",
+      "allowanceResets": "Réinitialisation le {date}"
     },
     "plans": {
       "title": "Forfaits",
@@ -8953,7 +8960,9 @@
       "dismiss": "Ignorer",
       "working": "Enregistrement…",
       "failed": "Impossible de mettre à jour cette alerte. Veuillez réessayer."
-    }
+    },
+    "paidPeriodEnd": "La période payée se termine le {date}",
+    "allowancesReset": "Les quotas inclus se réinitialisent le {date}"
   },
   "branding": {
     "eyebrow": "Marque blanche",
