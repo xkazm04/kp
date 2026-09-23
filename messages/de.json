@@ -8478,7 +8478,9 @@
     "jdLibraryLoading": "Bibliothek der Stellenbeschreibungen wird geladen…",
     "jdLibraryFailed": "Die Bibliothek der Stellenbeschreibungen konnte nicht geladen werden.",
     "jdLibraryRetry": "Erneut versuchen",
-    "jdLibraryTruncated": "Angezeigt werden die neuesten {count, plural, one {# gespeicherte Stellenbeschreibung} other {# gespeicherten Stellenbeschreibungen}}. Ältere finden Sie in der Bibliothek."
+    "jdLibraryTruncated": "Angezeigt werden die neuesten {count, plural, one {# gespeicherte Stellenbeschreibung} other {# gespeicherten Stellenbeschreibungen}}. Ältere finden Sie in der Bibliothek.",
+    "restoredNote": "Ihre letzte Analyse wurde wiederhergestellt.",
+    "restoredStartNew": "Neu beginnen"
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden. Die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",

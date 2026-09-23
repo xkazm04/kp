@@ -8478,7 +8478,9 @@
     "jdLibraryLoading": "Načítá se knihovna popisů pozic…",
     "jdLibraryFailed": "Knihovnu popisů pozic se nepodařilo načíst.",
     "jdLibraryRetry": "Zkusit znovu",
-    "jdLibraryTruncated": "Zobrazujeme {count, plural, one {# nejnovější uložený popis pozice} few {# nejnovější uložené popisy pozic} many {# nejnovějšího uloženého popisu pozic} other {# nejnovějších uložených popisů pozic}}. Starší najdete v Knihovně."
+    "jdLibraryTruncated": "Zobrazujeme {count, plural, one {# nejnovější uložený popis pozice} few {# nejnovější uložené popisy pozic} many {# nejnovějšího uloženého popisu pozic} other {# nejnovějších uložených popisů pozic}}. Starší najdete v Knihovně.",
+    "restoredNote": "Obnovili jsme vaši poslední analýzu.",
+    "restoredStartNew": "Začít novou"
   },
   "integrations": {
     "configLoadFailed": "Nepodařilo se načíst uložené nastavení webhooku. Zobrazené hodnoty nemusí odpovídat tomu, co je uloženo.",

@@ -8478,7 +8478,9 @@
     "jdLibraryLoading": "Loading your JD library…",
     "jdLibraryFailed": "Couldn’t load your JD library.",
     "jdLibraryRetry": "Retry",
-    "jdLibraryTruncated": "Showing the newest {count, plural, one {# saved JD} other {# saved JDs}}. Older ones live in the Library."
+    "jdLibraryTruncated": "Showing the newest {count, plural, one {# saved JD} other {# saved JDs}}. Older ones live in the Library.",
+    "restoredNote": "Restored your last analysis.",
+    "restoredStartNew": "Start new"
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",

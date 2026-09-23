@@ -8478,7 +8478,9 @@
     "jdLibraryLoading": "Chargement de votre bibliothèque de fiches de poste…",
     "jdLibraryFailed": "Impossible de charger votre bibliothèque de fiches de poste.",
     "jdLibraryRetry": "Réessayer",
-    "jdLibraryTruncated": "Affichage des {count, plural, one {# fiche de poste enregistrée la plus récente} other {# fiches de poste enregistrées les plus récentes}}. Les plus anciennes sont dans la Bibliothèque."
+    "jdLibraryTruncated": "Affichage des {count, plural, one {# fiche de poste enregistrée la plus récente} other {# fiches de poste enregistrées les plus récentes}}. Les plus anciennes sont dans la Bibliothèque.",
+    "restoredNote": "Votre dernière analyse a été restaurée.",
+    "restoredStartNew": "Nouvelle analyse"
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés. Les valeurs affichées peuvent différer de celles stockées.",
