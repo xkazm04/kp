@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
+import { issueSession } from "@/app/_lib/auth/session-issuer";
 import { registerAccount } from "@/app/_lib/signup-service";
 import { signupEnabled } from "@/app/_lib/workspace-lock";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
@@ -23,8 +23,6 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // itself, not credential guessing. 10 registrations / 15 min / IP is generous
 // for humans and cheap to raise.
 const REGISTER_THROTTLE: ThrottleOpts = { limit: 10, windowMs: 15 * 60_000 };
-
-const COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
 
 /** Hard cap on this public door's request body: an email, a password, a display name and an org name, on an unauthenticated signup door.
  *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
@@ -74,21 +72,11 @@ export async function POST(request: Request) {
   // the '/' landing→dashboard gate. Best-effort (invite-accept precedent): if
   // KP_SECRET is unset (open dev) the account is STILL created and the caller
   // lands on /login to sign in once a secret exists.
+  // The issuer (auth/session-issuer.ts) derives org and role from the rows
+  // registerAccount just wrote, so the claims are the new owner's by construction.
   const res = NextResponse.json({ ok: true });
   try {
-    const token = signSession(result.workspaceId, Date.now(), {
-      sub: result.user.id,
-      org: result.orgId,
-      role: result.role,
-    });
-    res.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: COOKIE_MAX_AGE,
-    });
-    res.cookies.set(ENTERED_COOKIE, "1", { httpOnly: false, secure: true, sameSite: "lax", path: "/", maxAge: COOKIE_MAX_AGE });
+    issueSession(res, { kind: "user", userId: result.user.id, workspaceId: result.workspaceId });
   } catch {
     /* KP_SECRET unavailable — account created, sign-in happens manually */
   }

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
+import { issueSession } from "@/app/_lib/auth/session-issuer";
 import { getRedeemableInvite } from "@/app/_lib/db/invites";
 import { getOrganization } from "@/app/_lib/db/organizations";
 import { getUserByEmail } from "@/app/_lib/db/users";
@@ -99,27 +99,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // bug-ui-scan-2026-07-09 (organizations-members-invites #3): sign the session
     // for the team/role the invite just granted (result.workspaceId/role), not the
     // oldest membership from listMembershipsForUser(...)[0] — a re-invited member was
-    // landing on their previous team with their previous role.
-    const session = signSession(result.workspaceId, Date.now(), {
-      sub: result.user.id,
-      org: result.user.orgId,
-      role: result.role,
-    });
-    const maxAge = Math.floor(SESSION_TTL_MS / 1000);
-    res.cookies.set(SESSION_COOKIE, session, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge,
-    });
-    // …and the readable "entered the workspace" marker, exactly as login and
-    // register set it (auth/login/route.ts, auth/register/route.ts). Without it a
-    // redeemed member was signed in and then bounced: AcceptForm redirects to '/',
-    // and in OPEN mode (no KP_OPERATOR_PASSWORD) the '/' gate reads ONLY this
-    // marker (home-gate-server.ts), so it rendered the public landing to somebody
-    // who had just joined the team. Not a credential — the session is.
-    res.cookies.set(ENTERED_COOKIE, "1", { httpOnly: false, secure: true, sameSite: "lax", path: "/", maxAge });
+    // landing on their previous team with their previous role. The issuer reads the
+    // role from the membership acceptInvite just wrote, i.e. the invite's.
+    //
+    // The issuer also sets the readable "entered the workspace" marker, exactly as
+    // for login and register. Without it a redeemed member was signed in and then
+    // bounced: AcceptForm redirects to '/', and in OPEN mode (no KP_OPERATOR_PASSWORD)
+    // the '/' gate reads ONLY this marker (home-gate-server.ts), so it rendered the
+    // public landing to somebody who had just joined the team.
+    issueSession(res, { kind: "user", userId: result.user.id, workspaceId: result.workspaceId });
   } catch {
     /* KP_SECRET unavailable — skip auto-login; the account is created either way */
   }

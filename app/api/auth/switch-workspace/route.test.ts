@@ -107,3 +107,45 @@ test("a caller with no session at all is still 401, not 403", async () => {
   cookieValue = null;
   assert.equal((await switchRoute(req({ workspaceId: DEFAULT_WORKSPACE }))).status, 401);
 });
+
+// ---- challenge-r04 auth-session-rbac/A: the renewal re-checks the principal ----------
+//
+// Switching is a RENEWAL: it re-mints a fresh 7-day token from a cookie the caller
+// already holds. setMemberStatus('disabled') flips users.status but leaves the
+// membership rows in place, so a door that checks only membership renewed an
+// offboarded user's session forever, one POST a week.
+
+test("a user disabled AFTER sign-in cannot renew through the switch: 401 and the cookie is cleared", async () => {
+  const { setMemberStatus } = await import("../../../_lib/org-service.ts");
+  const u = createUser({ orgId: ORG, email: "switch.disabled@csas.cz", name: "Switch Disabled", status: "active", password: "member-pw-12" });
+  upsertMembership(u.id, DEFAULT_WORKSPACE, "recruiter");
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: u.id, org: ORG, role: "recruiter" });
+  assert.equal(setMemberStatus(u.id, "disabled").ok, true, "precondition: the account is disabled, memberships untouched");
+
+  const r = await switchRoute(req({ workspaceId: DEFAULT_WORKSPACE }));
+  assert.equal(r.status, 401, "a disabled account may not renew its session");
+  const lines = r.headers.getSetCookie();
+  const session = lines.find((c) => c.startsWith(`${SESSION_COOKIE}=`));
+  assert.ok(session, "the refusal answers a Set-Cookie for the session");
+  assert.match(session, /^__Host-kp_session=;/, "…with an empty value");
+  assert.match(session, /Max-Age=0/, "…that expires it now");
+  cookieValue = null;
+});
+
+test("a successful switch sets the session with the one attribute set and no entered marker", async () => {
+  const u = createUser({ orgId: ORG, email: "switch.attrs@csas.cz", name: "Switch Attrs", status: "active", password: "member-pw-12" });
+  upsertMembership(u.id, DEFAULT_WORKSPACE, "viewer");
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: u.id, org: ORG });
+  const r = await switchRoute(req({ workspaceId: DEFAULT_WORKSPACE }));
+  assert.equal(r.status, 200);
+  const lines = r.headers.getSetCookie();
+  assert.equal(lines.length, 1, "a renewal sets the session only, as it always did");
+  const attrs = lines[0].split(";").slice(1).map((a) => a.trim().toLowerCase()).sort();
+  assert.deepEqual(attrs, ["httponly", "max-age=604800", "path=/", "samesite=lax", "secure"]);
+  const { verifySession } = await import("../../../_lib/auth/session.ts");
+  const payload = verifySession(lines[0].split(";")[0].slice(SESSION_COOKIE.length + 1));
+  assert.equal(payload?.sub, u.id);
+  assert.equal(payload?.org, ORG, "org read from users.org_id");
+  assert.equal(payload?.role, "viewer", "role read from the target membership");
+  cookieValue = null;
+});

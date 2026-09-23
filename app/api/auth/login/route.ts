@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
-import { ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, signSession } from "@/app/_lib/auth/session";
+import { issueSession, landingWorkspaceFor, markEntered } from "@/app/_lib/auth/session-issuer";
 import { verifyCredentials, normalizeEmail } from "@/app/_lib/db/users";
-import { listMembershipsForUser } from "@/app/_lib/db/memberships";
-import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { clientIpFrom, SHARED_CLIENT_KEY } from "@/app/_lib/rate-limit";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { withRetryAfter } from "@/app/_lib/throttle-response";
@@ -40,8 +38,6 @@ function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
-const COOKIE_MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
-
 /** 429 + Retry-After delta-seconds from the persisted window. `otherKey` is the
  *  IP bucket on the per-user path: remaining is the longer of the tripped
  *  windows, capped at this caller's window. The clamp itself (round up, never 0,
@@ -55,26 +51,9 @@ function throttledRefusal(key: string, opts: ThrottleOpts, otherKey?: string | n
   return withRetryAfter(res, remainingMs, opts.windowMs);
 }
 
-// The readable "entered the workspace" marker (see session.ts) — set on every
-// successful sign-in so the '/' gate + theme script can distinguish an entered
-// operator from an anonymous landing visitor. Not a credential; the session is.
-function setEntered(res: NextResponse): NextResponse {
-  res.cookies.set(ENTERED_COOKIE, "1", { httpOnly: false, secure: true, sameSite: "lax", path: "/", maxAge: COOKIE_MAX_AGE });
-  return res;
-}
-
-function withSessionCookie(res: NextResponse, token: string): NextResponse {
-  // __Host- requires Secure + Path=/ + no Domain. Secure is accepted on
-  // http://localhost (a trustworthy origin), so this works in dev too.
-  res.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: COOKIE_MAX_AGE,
-  });
-  return setEntered(res);
-}
+// Every mint below goes through auth/session-issuer.ts, which owns the cookie pair
+// (the session + the readable "entered the workspace" marker, one attribute set) and
+// re-checks the principal against the database. This door only decides WHO signed in.
 
 // Auth foundation. Two login paths on one endpoint:
 //   • Per-user (P0): { email, password } → an identity-carrying session scoped to
@@ -120,15 +99,17 @@ export async function POST(request: Request) {
     // own earlier typos (and a good login is evidence the IP has real users on it).
     clearFailures(acctKey);
     clearFailures(ipKey);
-    // Land the user on their first team (by created_at) with that role. A user with
-    // no team yet falls back to the default workspace with no role (read-gated).
-    const primary = listMembershipsForUser(user.id)[0];
-    const token = signSession(primary?.workspaceId ?? DEFAULT_WORKSPACE_ID, Date.now(), {
-      sub: user.id,
-      org: user.orgId,
-      role: primary?.role,
-    });
-    return withSessionCookie(NextResponse.json({ ok: true }), token);
+    // Land the user on their first team (by created_at) inside their OWN org, with that
+    // role. A user with no team yet lands on their own org's first team with no role
+    // (read-gated); it used to be the install's home workspace whatever the user's org.
+    // An org with no team at all has nowhere to land: the same uniform 401 as a disabled
+    // account (verifyCredentials' posture: the door never says which non-candidate).
+    const landing = landingWorkspaceFor(user.id);
+    const res = NextResponse.json({ ok: true });
+    if (!landing || !issueSession(res, { kind: "user", userId: user.id, workspaceId: landing }).ok) {
+      return jsonRefusal("LOGIN_CREDENTIALS_INVALID", 401);
+    }
+    return res;
   }
 
   const expected = process.env.KP_OPERATOR_PASSWORD;
@@ -141,9 +122,10 @@ export async function POST(request: Request) {
     // throws) still enters on the marker alone.
     const res = NextResponse.json({ ok: true, open: true });
     try {
-      return withSessionCookie(res, signSession());
+      issueSession(res, { kind: "open" });
+      return res;
     } catch {
-      return setEntered(res);
+      return markEntered(res);
     }
   }
   // Operator path has one shared secret, so a simpler per-IP throttle (no account
@@ -169,5 +151,7 @@ export async function POST(request: Request) {
   // `op: true` marks the operator session EXPLICITLY. resolveCaller() used to infer
   // "operator" from a missing `sub`, which meant any claim-less cookie carried owner
   // capabilities. This is the only place that privilege is granted.
-  return withSessionCookie(NextResponse.json({ ok: true }), signSession(undefined, Date.now(), { op: true }));
+  const res = NextResponse.json({ ok: true });
+  issueSession(res, { kind: "operator" });
+  return res;
 }
