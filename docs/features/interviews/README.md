@@ -135,6 +135,27 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
      `DOMException.name` and is unaffected, on both transports and on the JD
      intake voice surface that shares the classifier. Pinned by
      `app/_components/voice/micErrorText.test.ts`.
+   - Once a session is open, the shell drives the live call through one
+     contract, `CallTransport` in `app/_components/voice/transport/call-transport.ts`,
+     and asks what the transport can do rather than which one it is. Each
+     transport declares its **capabilities**: `finalizeOn: "disconnect"` with
+     `closeGraceMs` for ElevenLabs (End asks the SDK to close and its
+     `onDisconnect` drives finalize, with a 3 s fallback timer), or
+     `finalizeOn: "immediate"` with `pendingTurnGraceMs` for OpenAI (finalize
+     runs at once, stopping the mic and holding up to 3 s for a closing answer
+     still being transcribed). Each also declares `levels: "pushed" | "sampled"`.
+     The pure `planEnd()` turns those capabilities into the end handshake. Mic
+     mute, output mute, directive injection, stopping capture and teardown
+     (`end()`, idempotent) are methods on the transport. The one line in
+     `VoiceInterview.tsx` that still names a provider is the `start()` dispatch
+     that picks the transport, because opening a session takes engine-specific
+     inputs. The ElevenLabs adapter samples the SDK's
+     `getInputVolume`/`getOutputVolume` into the presence orb's level box on an
+     animation frame while the call is up. Before this, nothing wrote that box on
+     an ElevenLabs call, so the orb stayed flat. Pinned by
+     `transport/call-transport.test.ts`: one contract suite runs over both
+     adapters and a provider-free fake, and a source check allows exactly one
+     provider-name comparison in the shell.
    - `useTranscriptPersistence.ts` stashes each transcript POST body in
      `sessionStorage` under `kp.iv.<sessionId>` *before* sending it, and
      **replays any stash left over on mount**. A 2xx or a terminal 4xx (already
