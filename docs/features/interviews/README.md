@@ -1758,6 +1758,47 @@ a confident mid-band score on every other surface. It is now consulted on all of
   caveat cannot travel with the number, so the number must not travel either. A genuine
   observed 3 still does.
 
+#### The compare grid reads the director's record, not only the sentinel
+
+The sentinel is the model's own report of what it reached. For a DIRECTED call the server
+keeps a better one: each agenda block names the rubric competency it gathers evidence for,
+and the ledger records which blocks were begun and which were covered on a quote verified
+against the candidate's own turns. `app/_lib/interview-axis-coverage.ts` `axisCoverage`
+reads that record through `deriveDirectorState` (session-wide, every attempt) into one
+state per rubric axis:
+
+| State | Meaning |
+| --- | --- |
+| `covered` | a block for the axis was covered on verified evidence |
+| `asked` | a block was begun but never marked covered |
+| `not_reached` | the axis had a scored block and no attempt ever began it |
+| `not_planned` | a rubric axis the agenda carried no scored block for |
+
+plus `mustAsksUnasked`: the kit must-asks the call ended owing. It is `null` when the
+record holds no accepted `end_interview`, because the `must_ask_unasked` rows are written
+only there; a dropped call concluded nothing, so unknown is not 0. The whole coverage is
+`null` for an undirected session (the lab, an undirected provider, a human-only row),
+never an all-`not_reached` map.
+
+- `/api/interview/compare` attaches `coverage { byAxis, mustAsksUnasked }` per voice
+  candidate (best-effort: a read failure is `null`, like telemetry). It carries states and
+  a count only. `interviewedForJob` hands the route the session id and stored agenda, and
+  the route strips both before responding, so no quote, question text, block title or
+  session id reaches this payload. It is an operator surface; nothing here goes on a
+  candidate wire.
+- `JobsCompareInterviewsCohortTable.tsx` puts a shape-distinct glyph in each AI cell
+  (filled covered, half asked, hollow never reached), a legend under the table, and a
+  flag where the rating and the record disagree (`jobsCompareCohorts.ts` `cellFlag`):
+  **rated, never asked** (a real rating on a `not_reached` axis) and **covered, not
+  rated** (the sentinel on a `covered` axis). The candidate header shows an
+  "n must-asks owed" chip for a positive count only.
+- `compareCsvRows` blanks an AI rating whose axis is `not_reached`, exactly as it blanks
+  the sentinel. A `covered` axis keeps its number.
+- `interviewedForJob` counts **candidates** only (`s.mode = 'candidate'`, the rule
+  `listRecentInterviewSessions` already follows). A recruiter's kit rehearsal is minted as
+  mode `test` with the job id set, and it used to enter the cohort as an unlabelled
+  "candidate" with blank ratings and its own voice cost.
+
 ### Keyless behaviour
 
 Nothing on this surface calls a model or a paid provider. The evidence door is a SQLite
