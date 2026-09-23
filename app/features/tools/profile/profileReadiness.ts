@@ -1,28 +1,13 @@
-// Live readiness for the profile editor: where this candidate will route, and what is
-// still missing, computed from the form in memory while the recruiter types.
+// Live readiness for the profile editor: where this candidate will route and what is
+// still missing, computed from the form in memory - no request. A port of
+// registry.py (detect_detailed, _eval, _params, checklist_specs), profile.py (CHECKS,
+// completeness, completeness_gaps) and profile_cli.py's request handling, held to
+// them by pipeline/jobfit/tests/profile_readiness_cases.json, which both suites
+// assert. The server stays the authority; this is the preview a save confirms.
 //
-// Before this, the routing line, the completeness meter and the clickable "Add next"
-// gaps appeared only after a POST to /api/profile - a Python spawn (profile_cli)
-// charged to the save rate limit even for a dry-run preview. Both halves are DATA
-// rather than code: detection is a small condition evaluator over
-// archetypes.json `detection`, completeness a weighted checklist over ten one-line
-// predicates. So this module is a line-for-line port of
-//   pipeline/jobfit/registry.py   detect_detailed / _eval / _params / checklist_specs
-//   pipeline/jobfit/profile.py    CHECKS / completeness / completeness_gaps
-//   pipeline/jobfit/profile_cli.py how the request body feeds the two
-// and it is held to them by ONE shared case file
-// (pipeline/jobfit/tests/profile_readiness_cases.json) that both test suites assert.
-//
-// THE SERVER STAYS THE AUTHORITY. This is a preview of what a save will say; the save
-// still routes and scores in profile_cli, and the panel shows that result once saved.
-//
-// Where the rules come from (the critic's revision, and why it matters): a custom
-// archetype is created at RUNTIME (createArchetype rewrites archetypes.json, and the
-// Python spawn re-reads the file per request), but a client `import` of that file is
-// frozen at build. So the archetype ids and each archetype's checklist are read from
-// the LIVE `archetypes` prop (ProfileTab's /api/archetypes fetch); only `detection`
-// and `commonChecklist` - neither of which is UI-editable - come from the static
-// import. Before that fetch lands (an empty prop) the built-in list stands in.
+// Archetype ids and per-archetype checklists come from the LIVE `archetypes` prop:
+// createArchetype rewrites archetypes.json at runtime, and a client import is frozen
+// at build. Only `detection` and `commonChecklist` (not UI-editable) are static.
 import registry from "@/pipeline/jobfit/archetypes.json";
 import type { ArchetypeDef } from "@/app/features/shared/profileTypes";
 import { buildProfilePayload } from "./profileEditorPayload";
