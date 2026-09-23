@@ -295,7 +295,7 @@ def assess_tooling(reflection: dict, commits: list[dict], cover_probes: list[dic
         return {
             "fluency": 0.5,
             "probeOutcomes": [
-                {"probeId": p["id"], "kind": str(p.get("kind") or ""), "where": str(p.get("where") or ""), "detected": False, "handledWell": False, "note": "insufficient signal (deterministic)"}
+                {"probeId": p["id"], "kind": str(p.get("kind") or ""), "where": str(p.get("where") or ""), "detected": False, "handledWell": None, "note": "insufficient signal (deterministic)"}
                 for p in probes
             ],
             "overRelianceFlags": [],
