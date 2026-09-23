@@ -361,6 +361,10 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "billing_credits",
   "billing_usage",
   "billing_alerts",
+  // One row per meter debit, beside the billing_usage counter it explains (same
+  // transaction, same org_id). Org data under the same doctrine as its siblings, and
+  // billing-tenancy.test.ts pins that every statement on it binds org_id.
+  "billing_usage_journal",
   // Org/deployment-level CONFIG + METERING — set once per org/deployment and shared
   // across the org's teams, so isolated by org (like billing), NOT per-team-workspace.
   // None holds per-team-private candidate data. Per-team overrides (if ever wanted) are
@@ -595,6 +599,7 @@ export const ORG_EXPORT_OVERRIDES: ReadonlyMap<string, OrgExportClass> = new Map
   ["billing_credits", "org"],
   ["billing_usage", "org"],
   ["billing_alerts", "org"],
+  ["billing_usage_journal", "org"],
   // …except the webhook dedup ledger: its PK is the PROVIDER's globally-unique
   // event id (org_id is attribution only), so it is not org data and its keys
   // collide by construction.
