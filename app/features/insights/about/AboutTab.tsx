@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Pause, Play } from "lucide-react";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { useCapabilities } from "@/app/features/shell/useCapabilities";
@@ -12,6 +12,9 @@ import { commandAllowed } from "@/app/features/shell/navCapabilities";
 import { CHAPTERS, type ChapterDef } from "./chapters";
 import { ChapterJumpList, ChapterRail } from "./ChapterRail";
 import { Scene } from "./stage/Scene";
+import { SceneTransportContext } from "./stage/useSceneClock";
+import { DECK_STOP_KEY, createDeckTransport, loadDeckStop, type DeckTransport } from "./stage/transport";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 
 /*
  * About — how the six mechanisms actually work.
@@ -77,12 +80,63 @@ const SCENES: Record<string, React.ComponentType> = {
  * to its `initial` (opacity 0) mid-flight, so labels flickered and most of the
  * diagram never became visible. One clock per scene, owned by the art.
  */
-function Chapter({ chapter, children }: { chapter: ChapterDef; children: React.ReactNode }) {
+function Chapter({
+  chapter,
+  deck,
+  children,
+}: {
+  chapter: ChapterDef;
+  deck: DeckTransport;
+  children: React.ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  // The chapter's transport store: stable per id, so providing it re-renders
+  // nothing. The scene's clock and the controls beside it both read it; this
+  // frame never subscribes, so it still never re-renders per tick.
+  const transport = deck.chapter(chapter.id);
   return (
     <Scene chapter={chapter} sceneRef={ref}>
-      {children}
+      <SceneTransportContext value={transport}>{children}</SceneTransportContext>
     </Scene>
+  );
+}
+
+/** The header's text actions (architecture link, tour, stop-all). */
+const HEADER_ACTION = "focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline";
+
+/**
+ * Per-viewer memory of the deck-wide stop. Every storage touch is guarded: a
+ * private window or blocked site data makes the accessor THROW, and losing a
+ * convenience must never cost the page (the deck then simply plays).
+ */
+function writeDeckStop(value: string | null): void {
+  if (typeof window === "undefined") return;
+  if (value === null) window.localStorage.removeItem(DECK_STOP_KEY);
+  else window.localStorage.setItem(DECK_STOP_KEY, value);
+}
+
+function readDeckStop(): string | null {
+  return typeof window === "undefined" ? null : window.localStorage.getItem(DECK_STOP_KEY);
+}
+
+/**
+ * Stop every chapter / play them again. One-directional acts with their own
+ * labels, never a key toggle. Hidden under OS reduced motion: nothing moves for
+ * those readers in any state, so the control would do nothing.
+ */
+function DeckToggle({ deck }: { deck: DeckTransport }) {
+  const t = useTranslations("about");
+  const reduced = useReducedMotion();
+  const anyPlaying = useSyncExternalStore(deck.subscribe, deck.anyPlaying, () => true);
+  if (reduced) return null;
+  return anyPlaying ? (
+    <button type="button" onClick={() => deck.stopAll()} className={HEADER_ACTION}>
+      <Pause size={15} aria-hidden /> {t("transport.stopAll")}
+    </button>
+  ) : (
+    <button type="button" onClick={() => deck.playAll()} className={HEADER_ACTION}>
+      <Play size={15} aria-hidden /> {t("transport.playAll")}
+    </button>
   );
 }
 
@@ -98,6 +152,14 @@ export function AboutTab() {
   const caps = useCapabilities();
   const canSeeArchitecture = commandAllowed("read", caps);
 
+  // One transport per deck: the header's stop-all and each chapter's controls
+  // share it. The remembered stop is applied after hydration (the server has no
+  // storage), and applying it is not a new choice, so it is not written back.
+  const [deck] = useState(() => createDeckTransport({ write: writeDeckStop }));
+  useEffect(() => {
+    if (loadDeckStop(readDeckStop)) deck.stopAll({ remember: false });
+  }, [deck]);
+
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
       <header className="max-w-3xl border-b border-stone-200 pb-6">
@@ -108,7 +170,7 @@ export function AboutTab() {
           {canSeeArchitecture ? (
             <Link
               href="/diagrams"
-              className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
+              className={HEADER_ACTION}
             >
               {t("archLink")} <ArrowRight size={15} aria-hidden />
             </Link>
@@ -118,11 +180,12 @@ export function AboutTab() {
               type="button"
               onClick={sim.start}
               title={t("tourTitle")}
-              className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
+              className={HEADER_ACTION}
             >
               <Play size={15} aria-hidden /> {t("tourLink")}
             </button>
           ) : null}
+          <DeckToggle deck={deck} />
         </div>
       </header>
 
@@ -137,7 +200,7 @@ export function AboutTab() {
           {CHAPTERS.map((chapter) => {
             const Art = SCENES[chapter.id];
             return (
-              <Chapter key={chapter.id} chapter={chapter}>
+              <Chapter key={chapter.id} chapter={chapter} deck={deck}>
                 <Art />
               </Chapter>
             );
