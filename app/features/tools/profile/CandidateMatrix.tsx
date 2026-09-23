@@ -16,6 +16,7 @@ import {
   type CandidateFilters,
 } from "./candidateMatrixView";
 import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTypes";
+import { matrixChipAction } from "@/app/_lib/candidate-population";
 
 // The Matrix projection of the Archetypes tab: the candidate population as a BOARD
 // of archetype lanes. Owns the fetch, the population filters, the detail modal and
@@ -119,13 +120,14 @@ export function CandidateMatrix({
   // surfaces as staleness on the profile. Direct callback: a same-tab `fromAnalysis`
   // URL push never remounts this panel.
   // The chip's single action icon: edit a saved profile, or save an analysis as one.
+  // Read through matrixChipAction: a row that carries a profile id is ALWAYS edited —
+  // the population is keyed on CV identity, so a CV that already has a profile never
+  // offers "build" (the server would refuse a second one with PROFILE_EXISTS).
   const onSave = useCallback(
     (cand: CandidateRow) => {
-      if (cand.source === "profile") {
-        if (cand.id) onEditProfile(cand.id);
-      } else if (cand.slug) {
-        onBuildFromAnalysis(cand.slug);
-      }
+      const action = matrixChipAction(cand);
+      if (action?.kind === "edit") onEditProfile(action.id);
+      else if (action?.kind === "build") onBuildFromAnalysis(action.slug);
     },
     [onEditProfile, onBuildFromAnalysis]
   );

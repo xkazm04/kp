@@ -81,6 +81,38 @@ export function saveProfile(
   return { id, createdAt };
 }
 
+// The oldest profile built from this CV in this workspace (never across tenants).
+export function findProfileIdBySourceCvHash(cvHash: string | null | undefined, workspaceId: string = DEFAULT_WORKSPACE_ID): string | null {
+  if (!cvHash) return null;
+  const db = ensureDb();
+  const row = db
+    .prepare(
+      `SELECT id FROM profiles WHERE workspace_id = ? AND source_cv_hash = ?
+       ORDER BY created_at ASC, id ASC LIMIT 1`
+    )
+    .get(workspaceId, cvHash) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
+// saveProfile, unless this workspace already holds a profile for the same CV (one per
+// CV identity). Check + INSERT share one IMMEDIATE transaction, so two builds racing
+// across the route's profile_cli spawn cannot both land. No hash ⇒ plain saveProfile.
+export function saveProfileForCv(
+  input: SaveProfileInput,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  lineage?: ProfileLineage
+): { saved: { id: string; createdAt: string } } | { existingId: string } {
+  const hash = lineage?.sourceCvHash;
+  if (!hash) return { saved: saveProfile(input, workspaceId, lineage) };
+  const db = ensureDb();
+  return db
+    .transaction(() => {
+      const existingId = findProfileIdBySourceCvHash(hash, workspaceId);
+      return existingId ? { existingId } : { saved: saveProfile(input, workspaceId, lineage) };
+    })
+    .immediate();
+}
+
 export function listProfiles(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRow[] {
   const db = ensureDb();
   return db
@@ -91,22 +123,26 @@ export function listProfiles(limit = 100, workspaceId: string = DEFAULT_WORKSPAC
     .all(workspaceId, limit) as ProfileRow[];
 }
 
+// `sourceCvHash` rides OFF `row`: the roster serializes `.row` verbatim.
+export type ProfileRecord = { row: ProfileRow; payload: unknown; sourceCvHash: string | null };
+
 // Like listProfiles but folds payload_json into the one query, so callers that
 // need every payload (e.g. the candidate pool) don't fire an N+1 of getProfileRecord.
-export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown }[] {
+// Carries the source CV hash the matrix population joins on (candidate-population.ts).
+export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRecord[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT id, label, archetype, role_family, completeness, payload_json, created_at
+      `SELECT id, label, archetype, role_family, completeness, payload_json, created_at, source_cv_hash
        FROM profiles WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
-    .all(workspaceId, limit) as (ProfileRow & { payload_json: string })[];
-  const out: { row: ProfileRow; payload: unknown }[] = [];
+    .all(workspaceId, limit) as (ProfileRow & { payload_json: string; source_cv_hash: string | null })[];
+  const out: ProfileRecord[] = [];
   for (const r of rows) {
-    const { payload_json, ...rest } = r;
+    const { payload_json, source_cv_hash, ...rest } = r;
     const payload = safeRowParse(payload_json, "listProfileRecords", rest.id);
     if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
-    out.push({ row: rest, payload });
+    out.push({ row: rest, payload, sourceCvHash: source_cv_hash ?? null });
   }
   return out;
 }
@@ -122,12 +158,12 @@ export function listProfileRecords(limit = 100, workspaceId: string = DEFAULT_WO
 // must reflect on the very next read (the roster's optimistic prune + the matrix's
 // forced refetch would otherwise show a just-deleted row for up to the TTL). Every
 // profiles write below clears it — cheap, since writes are rare next to these reads.
-const profileRecordsCache = createTtlCache<{ row: ProfileRow; payload: unknown }[]>();
+const profileRecordsCache = createTtlCache<ProfileRecord[]>();
 
 /** The workspace's profile records, memoized for a short TTL. Both Profile-tab
  *  routes call this so the second read on a tab load is free. Byte-identical to
  *  listProfileRecords(PROFILE_LIST_LIMIT, ws) — the roster projects `.row` off it. */
-export function cachedProfileRecords(workspaceId: string = DEFAULT_WORKSPACE_ID): { row: ProfileRow; payload: unknown }[] {
+export function cachedProfileRecords(workspaceId: string = DEFAULT_WORKSPACE_ID): ProfileRecord[] {
   return profileRecordsCache.get(workspaceId, () => listProfileRecords(PROFILE_LIST_LIMIT, workspaceId));
 }
 

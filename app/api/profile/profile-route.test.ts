@@ -134,3 +134,93 @@ test("the CLI deadline is imported from applicant-profile, not hand-copied", () 
   assert.ok(src.includes('import { PROFILE_BUILD_TIMEOUT_MS } from "@/app/_lib/applicant-profile"'));
   assert.ok(src.includes("const PROFILE_ROUTE_TIMEOUT_MS = PROFILE_BUILD_TIMEOUT_MS;"));
 });
+
+// ---- One profile per CV (challenge-r03 candidate-profile/A) --------------------------
+//
+// A profile built FROM an analysis carries the CV's content hash (source_cv_hash). A
+// second build from any analysis of the SAME CV used to INSERT a second profile row
+// unconditionally — the matrix kept offering "build profile" on the analysis chip, and
+// every click filed another. The server now refuses it by name, with the existing
+// profile's id as data so the client can open it instead. The identity join is
+// workspace-scoped, and a dry-run preview is never refused.
+
+type Stores = {
+  analyses: typeof import("../../_lib/db/analyses.ts");
+  profiles: typeof import("../../_lib/db/profiles.ts");
+  ws: string;
+};
+async function stores(): Promise<Stores> {
+  const analyses = await import("../../_lib/db/analyses.ts");
+  const profiles = await import("../../_lib/db/profiles.ts");
+  const { DEFAULT_WORKSPACE_ID } = await import("../../_lib/db/workspaces.ts");
+  return { analyses, profiles, ws: DEFAULT_WORKSPACE_ID };
+}
+
+function seedAnalysis(s: Stores, cvHash: string, workspaceId: string): string {
+  return s.analyses.saveAnalysis(
+    { candidateLabel: "Jana Novak", jdSlug: null, score: 80, roleFamily: null, seniority: null, payload: {}, cvHash },
+    workspaceId
+  ).slug;
+}
+
+const PROFILE_INPUT = { label: "Jana Novak", archetype: "bau", roleFamily: null, completeness: 50, payload: {} };
+
+test("POST refuses a second profile for a CV this workspace already profiled: 409 PROFILE_EXISTS + the existing id", async () => {
+  const h = await handlers();
+  const s = await stores();
+  const first = seedAnalysis(s, "cv-hash-dup", s.ws);
+  const existing = s.profiles.saveProfile(PROFILE_INPUT, s.ws, {
+    sourceAnalysisSlug: first,
+    sourceCvHash: "cv-hash-dup",
+    sourceAnalyzedAt: new Date().toISOString(),
+  });
+  // A NEWER analysis of the same CV (e.g. against another JD) — the build target.
+  const newer = seedAnalysis(s, "cv-hash-dup", s.ws);
+  const before = s.profiles.listProfiles(1000, s.ws).length;
+
+  const res = await h.POST(req("POST", { persist: true, sourceAnalysisSlug: newer, profile: { displayName: "Jana" } }, addr()) as never);
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code?: string; id?: string };
+  assert.equal(body.code, "PROFILE_EXISTS");
+  assert.equal(body.id, existing.id, "the refusal names the profile to open instead");
+  assert.equal(s.profiles.listProfiles(1000, s.ws).length, before, "no row was inserted");
+});
+
+test("the identity join never crosses tenants: a same-CV profile in ANOTHER workspace does not refuse", async () => {
+  const h = await handlers();
+  const s = await stores();
+  const other = "ws-profile-exists-other";
+  const foreign = seedAnalysis(s, "cv-hash-cross", other);
+  s.profiles.saveProfile(PROFILE_INPUT, other, {
+    sourceAnalysisSlug: foreign,
+    sourceCvHash: "cv-hash-cross",
+    sourceAnalyzedAt: new Date().toISOString(),
+  });
+  const mine = seedAnalysis(s, "cv-hash-cross", s.ws);
+  const before = s.profiles.listProfiles(1000, s.ws).length;
+
+  const res = await h.POST(req("POST", { persist: true, sourceAnalysisSlug: mine, profile: { displayName: "Jana" } }, addr()) as never);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { saved?: { id?: string } | null };
+  assert.ok(body.saved?.id, "a new profile was saved in this workspace");
+  assert.equal(s.profiles.listProfiles(1000, s.ws).length, before + 1);
+});
+
+test("a dry-run preview (persist:false) is never refused, even when the CV already has a profile", async () => {
+  const h = await handlers();
+  const s = await stores();
+  const first = seedAnalysis(s, "cv-hash-preview", s.ws);
+  s.profiles.saveProfile(PROFILE_INPUT, s.ws, {
+    sourceAnalysisSlug: first,
+    sourceCvHash: "cv-hash-preview",
+    sourceAnalyzedAt: new Date().toISOString(),
+  });
+  const newer = seedAnalysis(s, "cv-hash-preview", s.ws);
+  const before = s.profiles.listProfiles(1000, s.ws).length;
+
+  const res = await h.POST(req("POST", { persist: false, sourceAnalysisSlug: newer, profile: { displayName: "Jana" } }, addr()) as never);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { saved?: unknown };
+  assert.equal(body.saved, null, "a preview saves nothing");
+  assert.equal(s.profiles.listProfiles(1000, s.ws).length, before);
+});

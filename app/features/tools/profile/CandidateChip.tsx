@@ -19,6 +19,7 @@ import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { CandidateRow } from "@/app/features/shared/profileTypes";
+import { matrixChipAction } from "@/app/_lib/candidate-population";
 
 // Seniority as a LADDER of glyphs: a sprout that grows into a trend, an award, a
 // crown. The shape carries the level pre-attentively — you read "who is senior
@@ -68,11 +69,12 @@ export function CandidateChip({
   onSave: (cand: CandidateRow) => void;
 }) {
   const t = useTranslations("profile.matrix");
-  const isProfile = cand.source === "profile";
   // Saved profile → edit it. Analysed CV → promote it into a saved, matchable
   // profile (stamped with source lineage, so a later re-analysis shows as stale).
-  const SaveIcon = isProfile ? Pencil : UserPlus;
-  const saveLabel = isProfile
+  // The same rule the click runs (matrixChipAction): a row with a profile id edits.
+  const isEdit = matrixChipAction(cand)?.kind === "edit";
+  const SaveIcon = isEdit ? Pencil : UserPlus;
+  const saveLabel = isEdit
     ? t("openProfileTitle", { name: cand.name })
     : t("buildFromAnalysisTitle", { name: cand.name });
 
@@ -89,9 +91,9 @@ export function CandidateChip({
       >
         {cand.name}
       </button>
-      {/* A saved profile has no score of its own; an analysis row's number is the
-          CV-analysis total. The source distinction that used to need a text pill is
-          carried by which action icon the card offers. */}
+      {/* The number is the CV-analysis total of the newest analysis of this CV; a
+          profile with no analysis of its CV in view has none. The source distinction
+          that used to need a text pill is carried by which action icon the card offers. */}
       <ScoreBadge score={cand.score} />
       <button
         type="button"

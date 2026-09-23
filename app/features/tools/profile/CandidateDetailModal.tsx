@@ -8,16 +8,22 @@
 // then says more than the card did, not the same seven fields in a bigger box. So
 // it also carries the provenance sentence (an analysis total is not a match score)
 // and both routes onward.
+//
+// The row is one CANDIDATE, keyed on CV identity (app/_lib/candidate-population.ts):
+// a saved profile arrives with every analysis of the CV it was built from folded in,
+// so the modal lists them — the profile's route back to its evidence, and the
+// candidate's footprint across the roles that CV was analysed against.
 
 import Link from "next/link";
 import { ExternalLink, Pencil, UserPlus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { CandidateRow } from "@/app/features/shared/profileTypes";
+import { matrixChipAction } from "@/app/_lib/candidate-population";
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -42,7 +48,9 @@ export function CandidateDetailModal({
   const t = useTranslations("profile.matrix");
   const tp = useTranslations("scoreProvenance");
   const enumLabel = useEnumLabel();
+  const format = useFormatter();
   const isProfile = cand.source === "profile";
+  const action = matrixChipAction(cand);
   const dash = "—";
 
   return (
@@ -52,11 +60,11 @@ export function CandidateDetailModal({
       onClose={onClose}
       size="lg"
       footer={
-        isProfile ? (
+        action?.kind === "edit" ? (
           <button
             type="button"
             onClick={() => {
-              if (cand.id) onEditProfile(cand.id);
+              onEditProfile(action.id);
               onClose();
             }}
             className={`${BTN_PRIMARY} h-10 px-4`}
@@ -96,10 +104,32 @@ export function CandidateDetailModal({
                 score against a job — a bare badge reads as a fit score, so the
                 distinction is stated in the app's canonical vocabulary. A saved
                 profile has no score of its own at all. */}
-            <span className="text-sm text-steel">{isProfile ? t("scoreProfileNote") : tp("analysisShort")}</span>
+            <span className="text-sm text-steel">{cand.score == null && isProfile ? t("scoreProfileNote") : tp("analysisShort")}</span>
           </span>
         </div>
       </div>
+      {/* Every analysis of this CV, newest first. Shown for a profile whenever its CV
+          has one, and for an analysis-only candidate once the CV was analysed more than
+          once (a single analysis is already the footer's "Open analysis"). */}
+      {cand.analyses.length > 0 && (isProfile || cand.analyses.length > 1) ? (
+        <div className="mt-5 flex flex-col gap-2">
+          <span className={META_LABEL}>{t("analysesOfCv", { count: cand.analyses.length })}</span>
+          <ul className="flex flex-col gap-1.5">
+            {cand.analyses.map((a) => (
+              <li key={a.slug}>
+                <Link
+                  href={`/history/${a.slug}`}
+                  className="focus-ring flex items-center gap-2 rounded-md px-2 py-1 text-sm text-ink hover:bg-stone-100 hover:text-coral"
+                >
+                  <ScoreBadge score={a.score} />
+                  <span className="min-w-0 flex-1 truncate">{format.dateTime(new Date(a.createdAt), { dateStyle: "medium" })}</span>
+                  <ExternalLink size={13} aria-hidden className="shrink-0 text-steel" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </Modal>
   );
 }

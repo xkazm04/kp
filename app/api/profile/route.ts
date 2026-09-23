@@ -3,7 +3,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { analysisLineageSource } from "@/app/_lib/db/analyses";
-import { cachedProfileRecords, deleteProfile, getProfileRecord, profileDivergence, profileStaleness, saveProfile, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
+import { cachedProfileRecords, deleteProfile, findProfileIdBySourceCvHash, getProfileRecord, profileDivergence, profileStaleness, saveProfileForCv, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -201,6 +201,19 @@ export async function POST(request: NextRequest) {
     const invalid = validateProfileBody(body);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
+    // ONE PROFILE PER CV. A build FROM an analysis resolves the CV's content hash
+    // (resolveLineage, server-side); if this workspace already holds a profile built
+    // from the same CV, a second one is refused by name — with the existing id as data,
+    // so the client can open that profile instead. Checked here, BEFORE the spawn, so a
+    // refused build costs no child process; saveProfileForCv re-checks inside its
+    // IMMEDIATE transaction, which is what holds if two builds race across the spawn.
+    // A dry-run preview (persist:false) writes nothing and is never refused.
+    const persist = body.persist !== false;
+    const ws = await currentWorkspace();
+    const lineage = persist ? resolveLineage(body.sourceAnalysisSlug, ws) : undefined;
+    const existingId = lineage ? findProfileIdBySourceCvHash(lineage.sourceCvHash, ws) : null;
+    if (existingId) return jsonRefusal("PROFILE_EXISTS", 409, { id: existingId });
+
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
@@ -209,12 +222,12 @@ export async function POST(request: NextRequest) {
     const { data } = outcome;
 
     // Persist by default; the form can request a dry-run preview with persist:false.
-    if (body.persist === false) {
+    if (!persist) {
       return NextResponse.json({ ...data, saved: null });
     }
-    const ws = await currentWorkspace();
-    const saved = saveProfile(persistFieldsFrom(data), ws, resolveLineage(body.sourceAnalysisSlug, ws));
-    return NextResponse.json({ ...data, saved });
+    const result = saveProfileForCv(persistFieldsFrom(data), ws, lineage);
+    if ("existingId" in result) return jsonRefusal("PROFILE_EXISTS", 409, { id: result.existingId });
+    return NextResponse.json({ ...data, saved: result.saved });
   } catch (error) {
     // A spawn/store fault carries the temp workdir path, PYTHON_CMD and SQLITE_* text.
     return safeJsonError(error, "api:profile:create", "PROFILE_BUILD_FAILED");

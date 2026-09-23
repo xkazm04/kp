@@ -432,11 +432,12 @@ export function countAnalysesByJd(workspaceId: string = DEFAULT_WORKSPACE_ID): R
 
 // Like listAnalyses but folds payload_json into the one query, so callers that
 // need every payload (e.g. the candidate pool) don't fire an N+1 of loadAnalysis.
+// cv_hash: the matrix population's identity key (candidate-population.ts).
 export function listAnalysisRecords(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): { row: AnalysisRow; payload: unknown }[] {
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, cv_hash
        FROM analyses WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
     .all(workspaceId, limit) as AnalysisRow[];

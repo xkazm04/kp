@@ -43,12 +43,24 @@ test("both matrix call sites invoke onBuildFromAnalysis with the slug", () => {
     (s) => s.replace("onBuildFromAnalysis: (slug: string) => void", "onEditProfile: (id: string) => void"),
     "CandidateMatrix takes onBuildFromAnalysis as a required callback"
   );
+  // The chip action reads matrixChipAction (app/_lib/candidate-population.ts): the
+  // population is keyed on CV identity, so a row that carries a profile id is EDITED
+  // and only an analysis-only row builds. It still opens the editor via the callback.
   pins(
     matrix,
-    /onBuildFromAnalysis\(cand\.slug\)/,
-    (s) => s.replace("onBuildFromAnalysis(cand.slug)", "onEditProfile(cand.slug)"),
+    /else if \(action\?\.kind === "build"\) onBuildFromAnalysis\(action\.slug\)/,
+    (s) => s.replace("onBuildFromAnalysis(action.slug)", "onEditProfile(action.slug)"),
     "the chip action (onSave) opens the editor via the callback"
   );
+  pins(
+    matrix,
+    /const action = matrixChipAction\(cand\);/,
+    (s) => s.replace("const action = matrixChipAction(cand);", "const action = { kind: \"build\", slug: cand.slug };"),
+    "the chip action is decided by matrixChipAction, which never builds when a profile id is present"
+  );
+  // The defect this replaced: branching on `source` sent a merged row's slug to the
+  // build door, filing a second profile for a CV that already had one.
+  assert.doesNotMatch(matrix, /onBuildFromAnalysis\(cand\.slug\)/, "the chip must not build straight off the row's slug");
   pins(
     matrix,
     /onBuildFromAnalysis=\{onBuildFromAnalysis\}/,
