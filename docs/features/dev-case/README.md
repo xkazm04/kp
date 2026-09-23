@@ -1445,6 +1445,21 @@ on prose, pinned by `devcase-orchestrator.test.ts` and `devcase-transitions.test
   `runEvaluateSubmission` so a cancel reaches its Python child. Both were previously read
   once per outer step, so pausing during a drain stopped the *next* batch, not this one; a
   mid-drain pause records a `halted` row saying where it stopped.
+- **A close fences the runner.** `app/_lib/devcase-lifecycle-fence.ts` (pure) holds the one
+  per-item stop decision, `stopVerdict` (canceled, then the stage moved, then paused), and
+  the runner consults it as the last statement before each irreversible effect: every
+  evaluation in the drain, every promotion, every advance letter, the posting mint and the
+  sourcing step. A human Close that lands mid-run therefore stops the runner before its
+  next board write, letter or live token. The run writes a `stage_moved` audit row naming
+  where it stopped and returns the stage the lifecycle is actually at. The `postingId`
+  write after the mint is a compare-and-set on `approved`. When it loses (a close landed
+  inside the publish await, too early to see the new posting), the posting is closed again
+  and audited `posting_withdrawn`. The same module's `wrapUpRecipients` is the close
+  route's rule for who gets a wrap-up note: nobody with a pipeline entry linked by
+  `dev_submission_id`, once per address. The promote loop reports a `promoting N` progress
+  tick per candidate and the approved stage a `publishing` tick before the mint.
+  Pinned by `devcase-lifecycle-fence.test.ts`, `devcase-orchestrator.test.ts` (a close from
+  the drain, promote and publishing ticks) and `lifecycle/[id]/close/route.test.ts`.
 - **The advance letter speaks the candidate's language and is filed under its team.** The
   promote stage's "we'd like to take it forward" note composes from `comms.devcaseAdvance.*`
   in the locale `resolveCommsLocale(lc.lang, lc.workspaceId)` returns — the same comms
