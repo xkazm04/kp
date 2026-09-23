@@ -44,10 +44,11 @@ directly gets only the Python half. So they are stated separately:
       path (its ``isFairnessProtected`` treats an unknown archetype as
       protected) and downgrades a refused reject to hold + an alert.
 
-Two constants here are hand-mirrored across the language boundary
-(``MAX_SCORECARD_NOTES_CHARS``, and calibration_drift's
-``MIN_CALIBRATION_OUTCOMES`` / ``CALIBRATION_BIN_COUNT``); the drift guard is
-tests/test_automation_constant_sync.py.
+Constants that cross the language boundary (``MAX_SCORECARD_NOTES_CHARS``,
+and calibration_drift's ``MIN_CALIBRATION_OUTCOMES`` / ``CALIBRATION_BIN_COUNT``)
+are no longer hand-mirrored: codegen.py writes them into
+app/_lib/contract-constants.generated.ts, which the TS modules re-export, and
+tests/test_codegen_contract_constants.py fails when that file is stale.
 
 See docs/features/pipeline/README.md for the full design.
 """
