@@ -310,7 +310,8 @@
         "app/api/auth/switch-workspace/**",
         "app/invite/**",
         "app/features/settings/organization/**",
-        "app/features/settings/workspace/**"
+        "app/features/settings/workspace/**",
+        "app/_lib/auth/session-issuer.ts"
       ]
     },
     {

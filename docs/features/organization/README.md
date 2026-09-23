@@ -392,6 +392,28 @@ An org admin can seat people on a team they don't belong to, but cannot park a
 session on it — without a membership their capabilities inside it resolve empty,
 so the session would 403 on everything anyway.
 
+**One session issuer.** Every door that hands out a session mints through
+`app/_lib/auth/session-issuer.ts`: login (user, operator-password, open mode),
+register, invite accept and the switch renewal; logout clears through its
+`clearSession`. The caller names a principal (`operator`, `open`, or
+`user{userId, workspaceId}`) and never the claims. For a user the issuer reads
+`users` (the account must exist and not be `disabled`), the workspace's org (it
+must be the user's own org) and the membership (for `role`), so `org` and `role`
+on the token are what the database says at mint time. A refusal sets no cookie.
+The cookie attributes (`__Host-kp_session`: HttpOnly, Secure, SameSite=Lax,
+Path=/, Max-Age 7 days; `kp_entered`: the same without HttpOnly) are set in that
+one module; the switch renewal sets the session only, as it always did.
+
+The switch is a **renewal** (a fresh 7-day token), so it goes through the same
+checks: a user disabled after signing in gets 401 and a cleared cookie instead of
+a new week (`setMemberStatus('disabled')` leaves the membership rows in place, so
+a membership check alone renewed an offboarded account indefinitely). A user with
+no team signs in on their own org's first team (the install's home workspace for
+home-org users, as before), never another org's; an org with no team at all
+answers the uniform login 401. A source ratchet in `session-issuer.test.ts` fails
+when any other non-test file under `app/` calls `signSession(` or sets the
+session cookie by hand.
+
 A **demo session cannot switch at all** (403). `/api/demo` is public and mints a
 validly-signed cookie with no `sub` and no `op`, so the membership check above is
 skipped for it entirely — and the workspace id `demo` is the only thing that marks
@@ -408,7 +430,8 @@ routes below. The switch route now refuses on the workspace the session came fro
 |---|---|
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
 | Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role — delegation-capped, and last-owner-guarded when it demotes an existing owner; DELETE unseat) |
-| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403) |
+| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403); a disabled account is refused the renewal (401, cookie cleared) |
+| Session issuer | `app/_lib/auth/session-issuer.ts` — `issueSession` / `clearSession` / `landingWorkspaceFor`; the only mint site (source ratchet in its test) |
 | Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
