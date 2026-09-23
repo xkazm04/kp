@@ -4,7 +4,7 @@ import path from "node:path";
 import { getJobsByIds } from "@/app/_lib/db/jobs";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
@@ -154,6 +154,10 @@ export async function GET(request: NextRequest) {
     matrixCache.set(key, matrix);
     return respond(matrix, false);
   } catch (error) {
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     // better-sqlite3, fs and the spawn itself all throw with internal detail in
     // `.message` (the db path, the temp workdir) — logged, never forwarded.
     return safeJsonError(error, "api:matrix", "MATRIX_BUILD_FAILED");

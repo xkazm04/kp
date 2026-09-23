@@ -7,12 +7,12 @@ import { cachedProfileRecords, deleteProfile, findProfileIdBySourceCvHash, getPr
 import {
   cleanupWorkdir,
   createWorkdir,
+  isSpawnTimeout,
   parsePythonJson,
   parseStderrError,
   spawnPython,
 } from "@/app/_lib/python-runner";
 import type { ProfileCliOutput } from "@/app/features/shared/profileTypes";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -92,11 +92,10 @@ async function routeAndScore(
     try {
       spawned = await result;
     } catch (err) {
-      // python-runner delivers its deadline as a REJECTION carrying a message, not a
-      // typed error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place
-      // that reading lives. Anything else — an ENOENT on PYTHON_CMD, a killed child —
+      // python-runner delivers its deadline as a typed SpawnFailure rejection;
+      // isSpawnTimeout (python-runner.ts) reads its kind, never its sentence. Anything else — an ENOENT on PYTHON_CMD, a killed child —
       // is a real fault and still escapes to the caller's catch.
-      if (err instanceof Error && isSpawnTimeoutMessage(err.message)) return { timeout: true };
+      if (isSpawnTimeout(err)) return { timeout: true };
       throw err;
     }
     const { stdout, stderr, exitCode } = spawned;

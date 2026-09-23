@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ReasoningError, runReasoning, type ReasoningInput } from "@/app/_lib/reasoning-run";
+import { engineRefusal } from "@/app/_lib/python-runner";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
@@ -73,6 +74,10 @@ export async function POST(request: NextRequest) {
         ? jsonRefusal(answer.code, error.status)
         : safeJsonError(error, "api:match/reasoning", answer.code, error.status);
     }
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     return safeJsonError(error, "api:match/reasoning", "MATCH_REASONING_FAILED");
   }
 }

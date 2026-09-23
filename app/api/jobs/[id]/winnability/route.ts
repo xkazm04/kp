@@ -5,11 +5,11 @@ import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import {
   cleanupWorkdir,
   createWorkdir,
+  isSpawnTimeout,
   parsePythonJson,
   parseStderrError,
   spawnPython,
@@ -91,12 +91,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // would make for a reason that isn't true.
     return NextResponse.json({ ...payload, poolTruncated: truncated });
   } catch (error) {
-    // python-runner delivers its deadline as a REJECTION carrying a message, not a typed
-    // error; isSpawnTimeoutMessage (app/_lib/intake-run.ts) is the ONE place that reading
-    // lives. A deadline WE set is a decision, not a store fault — so it is named, and the
+    // python-runner delivers its deadline as a typed SpawnFailure rejection; isSpawnTimeout
+    // (python-runner.ts) reads its kind, never its sentence. A deadline WE set is a decision, not a store fault — so it is named, and the
     // panel's existing retry affordance is the honest next step. Everything else is still
     // a logged fault behind the generic code.
-    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+    if (isSpawnTimeout(error)) {
       return jsonRefusal("JOB_WINNABILITY_TIMEOUT", 504);
     }
     return safeJsonError(error, "api:jobs/winnability", "JOB_WINNABILITY_FAILED");

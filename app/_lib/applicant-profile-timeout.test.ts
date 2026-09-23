@@ -57,9 +57,11 @@ test("the profile spawn is bounded by an explicit 60s-class timeout, not the 600
 });
 
 test("a timeout reaches the caller as a REJECTION (the path the degrade test exercises)", () => {
+  // …as a typed SpawnFailure (python-runner-spawn-failure.test.ts drives it for real),
+  // through the same `fail()` a spawn error, an abort and an overflow reject through.
   assert.match(
     runnerSrc,
-    /fail\(new Error\(`Python process timed out after \$\{Math\.round\(timeoutMs \/ 1000\)\}s/,
+    /fail\(new SpawnFailure\("timeout"/,
     "python-runner must deliver a timeout by rejecting `result`, like any other spawn failure"
   );
 });

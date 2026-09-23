@@ -6,11 +6,11 @@ import {
   parseStderrError,
   persistFile,
   ENGINE_BUSY_CODE,
+  isSpawnTimeout,
   PipelineError,
   spawnPython,
 } from "@/app/_lib/python-runner";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { jsonRefusal, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
@@ -113,9 +113,9 @@ export async function POST(request: Request) {
     }>(stdout, stderr);
     return NextResponse.json({ text, charCount, pageCount });
   } catch (error) {
-    // The deadline is delivered as a REJECTION carrying a sentence, not a typed
-    // error, so it is matched through the one shared predicate.
-    if (error instanceof Error && isSpawnTimeoutMessage(error.message)) {
+    // The deadline is delivered as a typed SpawnFailure rejection — read by its kind,
+    // never by the sentence it happens to carry.
+    if (isSpawnTimeout(error)) {
       return jsonRefusal("EXTRACT_TEXT_TIMEOUT", 504);
     }
     if (error instanceof PipelineError) {

@@ -9,10 +9,9 @@ import { trustWarnCount, trustedScoreTotal } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
-import { assertConfinedToWorkdir, cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { assertConfinedToWorkdir, cleanupWorkdir, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
-import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
 import { externalRunner } from "@/app/_lib/task-external-runners";
 import type { GithubStageInput, GithubStageResult } from "@/app/_lib/analyze-github-stage";
 import type { Locale } from "@/i18n/locales";
@@ -410,18 +409,17 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           return { label, ok: true, analysis: parsed.data, cached: false };
         } catch (caught) {
           // A thrown variant (readFile IO error, spawn failure, an aborted child's
-          // "Python process aborted" reject) is CAPTURED here rather than rejecting
+          // SpawnFailure "aborted" reject) is CAPTURED here rather than rejecting
           // the whole Promise.all — otherwise one bad variant discards its good
           // siblings. A real cancellation is still honored below (signal.aborted).
           onProgress?.(Math.min(done + 1, total), total, ANALYZE_PHASE.analyzing);
           const engineMsg = caught instanceof Error ? caught.message : null;
-          // The deadline arrives here as a plain spawn rejection (python-runner reports it
-          // as a MESSAGE, not a typed error), read through the one shared predicate rather
-          // than a regex re-typed at this call site. It is a DECISION — we stopped waiting —
-          // so it is NAMED, not folded into the generic engine-fault branch, whose verbatim
-          // text ("Python process timed out after 300s: -m pipeline.jobfit.cli …") is an
-          // internal command line no recruiter should ever be shown.
-          if (engineMsg && isSpawnTimeoutMessage(engineMsg)) {
+          // The deadline arrives here as a typed SpawnFailure (kind "timeout"), read by
+          // its kind rather than a regex over its sentence. It is a DECISION — we stopped
+          // waiting — so it is NAMED, not folded into the generic engine-fault branch,
+          // which returns the message verbatim (a runner message carries no argv, but the
+          // recruiter is owed the code, not the engine's English).
+          if (isSpawnTimeout(caught)) {
             return {
               label,
               ok: false,

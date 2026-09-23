@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { ProfileDraftError, runProfileDraft } from "@/app/_lib/profile-draft-run";
+import { engineRefusal } from "@/app/_lib/python-runner";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { getServerLocale } from "@/i18n/server";
 
@@ -62,6 +63,10 @@ export async function POST(request: NextRequest) {
       // kept, so a 504 still reads as a timeout to anything counting statuses.
       return safeJsonError(error, "api:profile/draft", "PROFILE_DRAFT_FAILED", error.status);
     }
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     return safeJsonError(error, "api:profile/draft", "PROFILE_DRAFT_FAILED");
   }
 }

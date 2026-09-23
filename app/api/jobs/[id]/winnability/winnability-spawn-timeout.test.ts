@@ -40,14 +40,13 @@ test("the AbortSignal is kept beside the bound, not replaced by it", () => {
 });
 
 test("an overrun is answered by name, and a real fault still is not", () => {
-  assert.match(
-    runnerSrc,
-    /fail\(new Error\(`Python process timed out after \$\{Math\.round\(timeoutMs \/ 1000\)\}s/,
-    "python-runner must deliver a timeout by rejecting `result`"
-  );
+  // The delivery itself (a SpawnFailure of kind "timeout" rejecting `result`) is driven
+  // for real in app/_lib/python-runner-spawn-failure.test.ts; here, that the route reads
+  // the TYPE rather than the sentence the runner happens to phrase it in.
+  assert.match(runnerSrc, /fail\(new SpawnFailure\("timeout"/, "python-runner must deliver a timeout as a typed rejection");
   assert.match(
     src,
-    /isSpawnTimeoutMessage\(error\.message\)[\s\S]{0,120}?jsonRefusal\("JOB_WINNABILITY_TIMEOUT", 504\)/,
+    /isSpawnTimeout\(error\)[\s\S]{0,120}?jsonRefusal\("JOB_WINNABILITY_TIMEOUT", 504\)/,
     "a deadline WE set is a decision the reader can act on (retry), so it gets its own code"
   );
   assert.match(
@@ -56,17 +55,18 @@ test("an overrun is answered by name, and a real fault still is not", () => {
     "everything else is still a LOGGED fault behind the generic code — the raw message never ships"
   );
   assert.ok(
-    src.indexOf("isSpawnTimeoutMessage") < src.indexOf("JOB_WINNABILITY_FAILED"),
+    src.indexOf("isSpawnTimeout(error)") < src.indexOf("JOB_WINNABILITY_FAILED"),
     "the named answer must be reached before the catch-all"
   );
 });
 
-test("the timeout predicate has exactly one home", () => {
+test("the timeout predicate has exactly one home, and it reads a type", () => {
   assert.match(
     src,
-    /import \{ isSpawnTimeoutMessage \} from "@\/app\/_lib\/intake-run"/,
-    "read the shared predicate; never re-type its regex at a call site"
+    /import \{[^}]*\bisSpawnTimeout\b[^}]*\} from "@\/app\/_lib\/python-runner"/,
+    "read the runner's own predicate; never re-type a regex at a call site"
   );
+  assert.doesNotMatch(src, /isSpawnTimeoutMessage/, "the message predicate is legacy — a sentence is not a type");
 });
 
 test("JOB_WINNABILITY_TIMEOUT is a declared refusal, not an invented code", () => {

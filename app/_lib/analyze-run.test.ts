@@ -53,12 +53,25 @@ registerHooks({
         format: "module",
         shortCircuit: true,
         source: [
+          // The runner's typed failure, mirrored: analyze-run reads isSpawnTimeout(err), and
+          // the REAL predicate is held to the real runner in the last source test below.
+          "export class PipelineError extends Error {",
+          "  constructor(e) { super(e.message); this.name = 'PipelineError'; this.status = e.status; this.code = e.code; }",
+          "}",
+          "export class SpawnFailure extends PipelineError {",
+          "  constructor(kind, message) {",
+          "    super({ message, status: kind === 'timeout' ? 504 : 500, code: kind === 'timeout' ? 'timeout' : 'engine_error' });",
+          "    this.name = 'SpawnFailure'; this.kind = kind;",
+          "  }",
+          "}",
+          "export function isSpawnTimeout(err) { return err instanceof SpawnFailure && err.kind === 'timeout'; }",
+          "export function engineRefusal() { return null; }",
           "export function spawnPython(args, opts = {}) {",
           "  globalThis.__kpAnalyzeRecord({ args, timeoutMs: opts.timeoutMs });",
           "  const script = globalThis.__kpAnalyzeSpawn();",
           "  if (script.kind === 'timeout') {",
-          "    return { result: Promise.reject(new Error(",
-          "      'Python process timed out after ' + Math.round((opts.timeoutMs ?? 0) / 1000) + 's: ' + args.join(' ')",
+          "    return { result: Promise.reject(new SpawnFailure(",
+          "      'timeout', 'Python process timed out after ' + Math.round((opts.timeoutMs ?? 0) / 1000) + 's'",
           "    )) };",
           "  }",
           "  if (script.kind === 'fault') return { result: Promise.reject(new Error(script.message)) };",
@@ -86,7 +99,6 @@ registerHooks({
 
 const { runAnalyze, AnalyzeError, ANALYZE_TIMEOUT_CODE, ANALYZE_TIMEOUT_MESSAGE, ANALYZE_TIMEOUT_MS, settleVariants } =
   await import("./analyze-run.ts");
-const { isSpawnTimeoutMessage } = await import("./intake-run.ts");
 const { listAnalyses, loadAnalysis } = await import("./db/analyses.ts");
 const { billingUsageFor } = await import("./db/billing.ts");
 const { currentPeriod } = await import("./billing/plans.ts");
@@ -216,16 +228,18 @@ test("ANALYZE_TIMEOUT is a declared refusal whose sentence matches the copy held
   assert.equal(declared[1], ANALYZE_TIMEOUT_MESSAGE, "the literal here and REFUSAL_ERRORS must stay equal");
 });
 
-test("the deadline is read through the ONE shared predicate, not a regex re-typed here", () => {
+test("the deadline is read through the runner's TYPED predicate, not a regex over its message", async () => {
   const src = readFileSync(path.join(HERE, "analyze-run.ts"), "utf8").replace(/\r\n/g, "\n");
-  assert.match(src, /import \{ isSpawnTimeoutMessage \} from "@\/app\/_lib\/intake-run"/);
-  assert.match(src, /isSpawnTimeoutMessage\(engineMsg\)/);
-  // …and the predicate really does describe what python-runner rejects with, so the fake
-  // above is not the only thing this contract rests on.
-  const runnerSrc = readFileSync(path.join(HERE, "python-runner.ts"), "utf8");
-  assert.match(runnerSrc, /Python process timed out after \$\{Math\.round\(timeoutMs \/ 1000\)\}s/);
-  assert.ok(isSpawnTimeoutMessage("Python process timed out after 300s: -m pipeline.jobfit.cli /tmp/cv.pdf"));
-  assert.ok(!isSpawnTimeoutMessage("spawn python3 ENOENT"));
+  assert.match(src, /import \{[^}]*\bisSpawnTimeout\b[^}]*\} from "@\/app\/_lib\/python-runner"/);
+  assert.match(src, /isSpawnTimeout\(caught\)/);
+  assert.doesNotMatch(src, /isSpawnTimeoutMessage/, "a sentence is not a type");
+  // …and the REAL predicate agrees with the fake above: the query string steps past the
+  // resolve hook, so this is python-runner.ts itself.
+  const realSpecifier = "./python-runner.ts?real";
+  const real = (await import(realSpecifier)) as typeof import("./python-runner.ts");
+  assert.equal(real.isSpawnTimeout(new real.SpawnFailure("timeout", "Python process timed out after 300s")), true);
+  assert.equal(real.isSpawnTimeout(new real.SpawnFailure("aborted", "Python process aborted")), false);
+  assert.equal(real.isSpawnTimeout(new Error("Python process timed out after 300s")), false);
 });
 
 // ---- 2. the debit -----------------------------------------------------------

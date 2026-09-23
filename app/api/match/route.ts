@@ -11,6 +11,7 @@ import { resolveMatchLimit, sanitizeMatchWeights } from "./match-request";
 import {
   cleanupWorkdir,
   createWorkdir,
+  engineRefusal,
   parsePythonJson,
   parseStderrError,
   spawnPython,
@@ -94,6 +95,10 @@ export async function POST(request: NextRequest) {
     // because the interpreter logged a teardown notice.
     return NextResponse.json(parsePythonJson<Record<string, unknown>>(stdout, stderr));
   } catch (error) {
+    // Refused at the engine's admission door (the spawn semaphore): the child never ran,
+    // so this is "busy, try again in a moment" in the reader's language, not a fault.
+    const busy = engineRefusal(error);
+    if (busy) return jsonRefusal(busy.code, busy.status);
     // The JSON body parse, better-sqlite3, fs and the spawn itself all throw with
     // internal detail in `.message` (the db path, the temp workdir) — logged, never
     // forwarded.

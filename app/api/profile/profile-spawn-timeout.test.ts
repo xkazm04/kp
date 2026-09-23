@@ -46,22 +46,20 @@ test("the profile_cli spawn is bounded by an explicit 60s-class timeout, not the
   assert.match(runnerSrc, /const DEFAULT_TIMEOUT_MS = 600_000/);
 });
 
-test("a deadline is delivered as a spawn REJECTION, and the route reads it in the one shared place", () => {
+test("a deadline is delivered as a typed spawn REJECTION, and the route reads the type", () => {
+  // Driven for real in app/_lib/python-runner-spawn-failure.test.ts.
   assert.match(
     runnerSrc,
-    /fail\(new Error\(`Python process timed out after \$\{Math\.round\(timeoutMs \/ 1000\)\}s/,
-    "python-runner must deliver a timeout by rejecting `result`, like any other spawn failure"
+    /fail\(new SpawnFailure\("timeout"/,
+    "python-runner must deliver a timeout by rejecting `result` with a typed failure"
   );
+  assert.match(src, /isSpawnTimeout\(err\)/, "the route reads the runner's predicate, never a regex over the message");
   assert.match(
     src,
-    /isSpawnTimeoutMessage\(err\.message\)/,
-    "the message is read through the shared predicate, never a regex re-typed at this call site"
-  );
-  assert.match(
-    src,
-    /import \{ isSpawnTimeoutMessage \} from "@\/app\/_lib\/intake-run"/,
+    /import \{[^}]*\bisSpawnTimeout\b[^}]*\} from "@\/app\/_lib\/python-runner"/,
     "…and that predicate has exactly one home"
   );
+  assert.doesNotMatch(src, /isSpawnTimeoutMessage/, "the message predicate is legacy — a sentence is not a type");
 });
 
 test("a non-timeout rejection still escapes to the caller's catch", () => {
@@ -69,7 +67,7 @@ test("a non-timeout rejection still escapes to the caller's catch", () => {
   // decisions, and must not be relabelled as "we stopped waiting".
   assert.match(
     src,
-    /if \(err instanceof Error && isSpawnTimeoutMessage\(err\.message\)\) return \{ timeout: true \};\s*\n\s*throw err;/,
+    /if \(isSpawnTimeout\(err\)\) return \{ timeout: true \};\s*\n\s*throw err;/,
     "only a timeout becomes the named outcome; everything else rethrows"
   );
 });

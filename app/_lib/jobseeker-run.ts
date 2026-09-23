@@ -1,8 +1,7 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
-import { isSpawnTimeoutMessage } from "./intake-run";
 import { coerceIntakeChoiceSet } from "./intake-choices";
 import { parsePreferencesPatch } from "./jobseeker/profile";
 import {
@@ -173,7 +172,7 @@ async function runSpawn(
     try {
       ({ stdout, stderr, exitCode } = await result);
     } catch (err) {
-      if (err instanceof Error && isSpawnTimeoutMessage(err.message)) throw new JobseekerTimeoutError(opts.timeoutMs);
+      if (isSpawnTimeout(err)) throw new JobseekerTimeoutError(opts.timeoutMs);
       throw err;
     }
     if (exitCode !== 0) {

@@ -21,7 +21,10 @@ async function ingestUsageLog(logPath: string): Promise<void> {
   }
 }
 
-const PYTHON_CMD = process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
+// Read per spawn, so a test's stand-in applies without re-importing the runner.
+function pythonCmd(): string {
+  return process.env.PYTHON_CMD ?? (process.platform === "win32" ? "python" : "python3");
+}
 
 // LLM-usage metering is ON BY DEFAULT: every spawn gets a per-call sidecar path so
 // the flagship CV-analysis (and every other CLI's) spend lands in the llm_usage
@@ -56,6 +59,30 @@ export class PipelineError extends Error {
     this.status = err.status;
     this.code = err.code;
   }
+}
+
+export type SpawnFailureKind = "timeout" | "aborted" | "output_overflow" | "spawn_failed";
+
+/** The RUNNER's own failure (no CLI envelope to parse), typed: readers branch on `kind`,
+ *  and the message carries no argv — that goes to the ops log (logSpawnFailure). A
+ *  PipelineError, so status/code readers keep working: timeout 504, else 500. */
+export class SpawnFailure extends PipelineError {
+  readonly kind: SpawnFailureKind;
+  constructor(kind: SpawnFailureKind, message: string) {
+    super({ message, status: kind === "timeout" ? 504 : 500, code: kind === "timeout" ? "timeout" : "engine_error" });
+    this.name = "SpawnFailure";
+    this.kind = kind;
+  }
+}
+
+/** True only for the runner's deadline. Read this, never the message. */
+export function isSpawnTimeout(err: unknown): boolean {
+  return err instanceof SpawnFailure && err.kind === "timeout";
+}
+
+/** The admission overload as the route answers it, or null for anything else. */
+export function engineRefusal(err: unknown): { code: typeof ENGINE_BUSY_CODE; status: 503 } | null {
+  return err instanceof PipelineError && err.code === ENGINE_BUSY_CODE ? { code: ENGINE_BUSY_CODE, status: 503 } : null;
 }
 
 export async function createWorkdir(): Promise<string> {
@@ -127,8 +154,8 @@ export type SpawnOptions = {
   // Lets a caller (e.g. a cancelled request/task) abort the child early.
   signal?: AbortSignal;
   // Hard ceiling on the combined stdout+stderr bytes we buffer in the Node
-  // heap. Crossing it SIGKILLs the child and rejects with an
-  // 'output exceeded N MB' error naming the CLI, instead of letting a runaway
+  // heap. Crossing it SIGKILLs the child and rejects with a
+  // SpawnFailure "output_overflow" (the CLI is named in the ops log), instead of letting a runaway
   // child grow the buffer unbounded and OOM the whole process.
   maxBufferBytes?: number;
   // Per-spawn env additions merged over process.env — e.g. KP_LLM_CONFIG from
@@ -225,7 +252,7 @@ function releaseSlot(): void {
 }
 
 function acquireSlot(signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.reject(new Error("Python process aborted"));
+  if (signal?.aborted) return Promise.reject(new SpawnFailure("aborted", "Python process aborted"));
   if (inFlightSpawns < maxConcurrentSpawns()) {
     inFlightSpawns += 1;
     return Promise.resolve();
@@ -262,7 +289,7 @@ function acquireSlot(signal?: AbortSignal): Promise<void> {
       if (done) return;
       done = true;
       drop();
-      reject(new Error("Python process aborted"));
+      reject(new SpawnFailure("aborted", "Python process aborted"));
     };
     slotWaiters.push(waiter);
     signal?.addEventListener("abort", onAbort, { once: true });
@@ -383,6 +410,18 @@ export function spawnPython(
   return { result };
 }
 
+/** The argv a SpawnFailure does not carry, for the operator. An abort is the caller's own
+ *  cancel, not a fault, so it is not logged. */
+function logSpawnFailure(kind: SpawnFailureKind, args: string[], detail?: unknown): void {
+  if (kind === "aborted") return;
+  opsLog("warn", "engine:spawn:failed", {
+    kind,
+    cli: args[0] === "-m" ? args[1] : args[0],
+    argv: args.join(" "),
+    ...(detail === undefined ? {} : { detail: String(detail) }),
+  });
+}
+
 /** The actual fork + settle. Split out of {@link spawnPython} so the semaphore can wrap
  *  it: everything here runs only once a slot is held. */
 function runPythonChild(
@@ -391,7 +430,7 @@ function runPythonChild(
   usageLogPath: string,
   llmRequestId: string | null,
 ): Promise<SpawnResult> {
-  const child = spawn(PYTHON_CMD, args, {
+  const child = spawn(pythonCmd(), args, {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
     // redundant and made Turbopack's file tracer over-include the project root.
@@ -435,27 +474,29 @@ function runPythonChild(
       clearTimeout(timer);
       opts.signal?.removeEventListener("abort", onAbort);
     };
-    const fail = (err: Error) => {
+    const fail = (err: SpawnFailure) => {
       if (settled) return;
       settled = true;
       cleanup();
       // The child's own descendants die with it — see killProcessTree.
       killProcessTree(child);
+      logSpawnFailure(err.kind, args);
       reject(err);
     };
 
     // Accumulate output while tracking a running byte total. A runaway child
     // would otherwise buffer its entire output until close (up to timeoutMs)
     // and OOM the process; once stdout+stderr crosses the ceiling we SIGKILL
-    // (via fail) and reject with an attributable error naming the CLI.
+    // (via fail) and reject; the ops log line names the CLI.
     const onChunk = (chunks: Buffer[], chunk: Buffer) => {
       if (settled) return;
       chunks.push(chunk);
       bufferedBytes += chunk.length;
       if (bufferedBytes > maxBufferBytes) {
         fail(
-          new Error(
-            `Python process output exceeded ${Math.round(maxBufferBytes / (1024 * 1024))} MB and was terminated: ${args.join(" ")}`,
+          new SpawnFailure(
+            "output_overflow",
+            `Python process output exceeded ${Math.round(maxBufferBytes / (1024 * 1024))} MB and was terminated`,
           ),
         );
       }
@@ -464,20 +505,23 @@ function runPythonChild(
     child.stderr.on("data", (chunk: Buffer) => onChunk(stderrChunks, chunk));
 
     const timer = setTimeout(
-      () => fail(new Error(`Python process timed out after ${Math.round(timeoutMs / 1000)}s: ${args.join(" ")}`)),
+      () => fail(new SpawnFailure("timeout", `Python process timed out after ${Math.round(timeoutMs / 1000)}s`)),
       timeoutMs,
     );
-    const onAbort = () => fail(new Error("Python process aborted"));
+    const onAbort = () => fail(new SpawnFailure("aborted", "Python process aborted"));
     if (opts.signal) {
       if (opts.signal.aborted) onAbort();
       else opts.signal.addEventListener("abort", onAbort, { once: true });
     }
 
+    // The child never started (ENOENT on PYTHON_CMD, EACCES): the raw error names the
+    // server's own configuration, so it is logged and the caller gets the kind.
     child.once("error", (err) => {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(err);
+      logSpawnFailure("spawn_failed", args, err);
+      reject(new SpawnFailure("spawn_failed", "Python process could not be started"));
     });
     child.once("close", (code) => {
       if (settled) return;

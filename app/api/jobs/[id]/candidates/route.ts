@@ -4,7 +4,7 @@ import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
-import { PipelineError } from "@/app/_lib/python-runner";
+import { PipelineError, SpawnFailure } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -96,7 +96,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // A recruiter_cli failure surfaces as a PipelineError carrying the CLI's
     // status/code (e.g. a 400 invalid_input), so a user-fixable failure stays a
     // 400 instead of collapsing to 500 — preserving the prior inline behavior.
-    if (error instanceof PipelineError) {
+    // A SpawnFailure is a PipelineError too, but it is the RUNNER's failure (a
+    // deadline, an abort, no interpreter), not the CLI's answer: it stays on the
+    // logged catch-all it has always reached, never forwarded as English text.
+    if (error instanceof PipelineError && !(error instanceof SpawnFailure)) {
       return NextResponse.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, { status: error.status });
     }
     return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");

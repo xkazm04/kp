@@ -54,6 +54,7 @@ type Stub = {
   calls: { args: string[]; opts: { timeoutMs?: number; signal?: AbortSignal } }[];
   __setExtractor: (fn: Extractor) => void;
   PipelineError: new (e: { message: string; status: number; code: string }) => Error;
+  SpawnFailure: new (kind: "timeout" | "aborted" | "output_overflow" | "spawn_failed", message: string) => Error;
 };
 type Route = { POST: (request: Request) => Promise<Response>; maxDuration: number };
 
@@ -186,13 +187,33 @@ test("non-JSON stdout is a coded 500 — parsePythonJson embeds stdout+stderr in
 });
 
 test("overrunning EXTRACT_TIMEOUT_MS is answered by name at 504", async () => {
-  // python-runner reports its deadline by REJECTING `result` with this exact
-  // sentence (isSpawnTimeoutMessage is the one place that shape is matched).
+  // python-runner reports its deadline by REJECTING `result` with a typed
+  // SpawnFailure of kind "timeout" — read through isSpawnTimeout, never the sentence.
+  assert.ok(stub.SpawnFailure, "python-runner must export SpawnFailure");
   const { status, body } = await post(async () => {
-    throw new Error("Python process timed out after 55s");
+    throw new stub.SpawnFailure("timeout", "Python process timed out after 55s");
   });
   assert.equal(status, 504);
   assert.equal(body.code, "EXTRACT_TEXT_TIMEOUT");
+});
+
+test("a plain Error that merely SAYS it timed out is a fault, not the deadline", async () => {
+  // The sentence used to be the contract, so anything that happened to phrase itself
+  // that way was answered as our deadline. The kind is the contract now.
+  const { status, body } = await post(async () => {
+    throw new Error("Python process timed out after 55s");
+  });
+  assert.equal(status, 500);
+  assert.equal(body.code, "EXTRACT_TEXT_FAILED");
+});
+
+test("any other spawn failure is a coded fault whose message carries no command line", async () => {
+  assert.ok(stub.SpawnFailure, "python-runner must export SpawnFailure");
+  const { status, body } = await post(async () => {
+    throw new stub.SpawnFailure("output_overflow", "Python process output exceeded 64 MB and was terminated");
+  });
+  assert.equal(status, 500);
+  assert.equal(body.code, "EXTRACT_TEXT_FAILED");
 });
 
 test("a spawn refused at the admission door stays ENGINE_BUSY at 503", async () => {

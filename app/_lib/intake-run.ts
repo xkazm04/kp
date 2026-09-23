@@ -1,6 +1,6 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import type { RoleBrief } from "./rolespec";
 import { coerceIntakeChoiceSet, type IntakeChoiceSet } from "./intake-choices";
@@ -36,9 +36,10 @@ export class IntakeTimeoutError extends Error {
   }
 }
 
-/** python-runner reports its deadline as a message, not a typed error. Matching
- *  it here (ONE place) is what lets every intake thread turn "the child was
- *  killed at the deadline" into the one fact the reader is owed. */
+/** @deprecated LEGACY — python-runner now rejects its deadline as a typed SpawnFailure;
+ *  read `isSpawnTimeout(err)` from python-runner. Kept only because the runner still
+ *  phrases the deadline this way, and python-runner-spawn-failure.test.ts holds every
+ *  non-test caller of this sentence match at zero. */
 export function isSpawnTimeoutMessage(message: string): boolean {
   return /^Python process timed out after \d+s/.test(message);
 }
@@ -71,7 +72,7 @@ async function runIntakeSpawn(
   try {
     ({ stdout, stderr, exitCode } = await result);
   } catch (err) {
-    if (err instanceof Error && isSpawnTimeoutMessage(err.message)) throw new IntakeTimeoutError(opts.timeoutMs);
+    if (isSpawnTimeout(err)) throw new IntakeTimeoutError(opts.timeoutMs);
     throw err;
   }
   if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
