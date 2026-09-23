@@ -79,7 +79,9 @@ function comparable(value: unknown): string {
   return JSON.stringify(value ?? null);
 }
 
-function same(a: unknown, b: unknown): boolean {
+/** Id-blind equality (see `comparable`) — shared with the backup restore planner
+ *  (profileEditorBackup.ts), which must agree with the merge on what counts as an edit. */
+export function same(a: unknown, b: unknown): boolean {
   return comparable(a) === comparable(b);
 }
 
