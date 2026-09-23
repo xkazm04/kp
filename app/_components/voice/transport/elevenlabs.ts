@@ -27,7 +27,8 @@ const EL_VAD_SILENT = 0.25;
 export type ElevenLabsTransportCtx = {
   /** finalizedRef.current — read-only. */
   isFinalized: () => boolean;
-  /** Whether ElevenLabs is the provider that actually served this call. */
+  /** Whether this SDK session is the transport serving the current call (the shell
+   *  compares the serving CallTransport's handle, never the provider name). */
   isActiveProvider: () => boolean;
   /** The call is up: clear the connect timer, latch reachedLive, phase → live. */
   onConnected: () => void;
@@ -213,21 +214,6 @@ export function startElevenLabsSession(args: {
   }
 }
 
-/** Inject ONE stage direction into a live ElevenLabs session. `sendContextualUpdate`
- *  is the SDK's channel for exactly this: text the agent READS as context for its
- *  next turn rather than as something the candidate said, and it does not force a
- *  reply (the parity with OpenAI's system message + no `response.create`).
- *
- *  `text` already carries the server's `[Director] ` prefix and is sent VERBATIM. */
-export function sendElevenLabsDirective(conversation: ElevenLabsConversation, text: string): boolean {
-  if (!text.trim()) return false;
-  try {
-    conversation.sendContextualUpdate(text);
-    return true;
-  } catch (err) {
-    // A direction that cannot be delivered is a call that keeps running undirected,
-    // which is the documented degrade — but an operator should see why.
-    console.error("[voice] ElevenLabs contextual update failed:", err);
-    return false;
-  }
-}
+// Stage directions, mute, volume, levels and the end request for a LIVE ElevenLabs
+// call go through the call-transport contract (transport/call-transport.ts:
+// elevenLabsCallTransport), which takes this hook's conversation structurally.

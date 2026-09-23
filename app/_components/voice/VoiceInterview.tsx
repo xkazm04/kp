@@ -32,14 +32,24 @@ import { collectVoicePreflightEnv, voicePreflightCode } from "@/app/_lib/voice/p
 // the drop debounce, the agent overrides — moved with them; what stays here is the
 // shell they share: phase, consent, the transcript, and finalize().
 import {
-  sendDirective,
   sendToolResult,
   startOpenAiCall,
   teardownOpenAi as teardownOaiTransport,
   type OaiRefs,
   type VoiceLevels,
 } from "./transport/openai";
-import { sendElevenLabsDirective, startElevenLabsSession, useElevenLabsTransport } from "./transport/elevenlabs";
+import { startElevenLabsSession, useElevenLabsTransport } from "./transport/elevenlabs";
+// …and the ONE contract the live call runs through once a session is open. The shell
+// asks the transport what it can do (its capabilities), never which engine it is: the
+// start() dispatch that picks the transport is the only provider-keyed line left here.
+import {
+  OAI_FINAL_TURN_GRACE_MS,
+  elevenLabsCallTransport,
+  openAiCallTransport,
+  planEnd,
+  sessionFromRef,
+  type CallTransport,
+} from "./transport/call-transport";
 import { isVoiceTransportError } from "./transport/transport-error";
 import { useMicTest } from "./useMicTest";
 import { useSpeakerTest } from "./useSpeakerTest";
@@ -105,22 +115,9 @@ export type VoiceInterviewProps = {
   onAgenda?: (agenda: CandidateAgendaView | null) => void;
 };
 
-// How long finalize() waits for a candidate utterance whose transcription is
-// still in flight when the call ends (idea-b70b8bd7). Whisper turnaround for a
-// short closing answer is well under this; past it we fall back to whatever
-// streamed into the delta buffer rather than hanging the "Ending…" state. Held
-// at 3s — the same bound as EL_DISCONNECT_GRACE_MS — so both provider paths give
-// the candidate's closing answer the same headroom to land before finalize
-// snapshots the transcript that feeds the scorecard (the rescue is still
-// single-finalize: finalizedRef latches before the wait).
-const OAI_FINAL_TURN_GRACE_MS = 3000;
-
-// How long end() waits for ElevenLabs onDisconnect to drive finalize() before
-// finalizing itself. The SDK delivers the candidate's final utterance via
-// onMessage a few hundred ms AFTER endSession(), then closes (onDisconnect), so
-// deferring to onDisconnect captures that closing turn; the timer is the fallback
-// if onDisconnect never lands.
-const EL_DISCONNECT_GRACE_MS = 3000;
+// The two end-of-call graces (the closing-answer transcription grace and the
+// disconnect grace) are declared by each transport as a CAPABILITY — see
+// transport/call-transport.ts — and planEnd() reads them from there.
 
 // How long "Connecting…" may last before we call it a failure. Covers a slow
 // mic-permission prompt plus a cold provider handshake; past it the candidate is
@@ -224,8 +221,10 @@ function VoiceInterviewInner({
   // Two-click confirm before the (irreversible, terminal) End: a mis-click on the coral
   // End button previously ended the interview for good and locked the candidate out.
   const [confirmingEnd, setConfirmingEnd] = useState(false);
-  // H3: whether the assistant audio is currently active (OpenAI path — see the AnalyserNode).
-  const [oaiSpeaking, setOaiSpeaking] = useState(false);
+  // H3: whether the interviewer's audio is currently playing. BOTH transports push it
+  // through setSpeaking below (OpenAI from its AnalyserNode, ElevenLabs from the SDK's
+  // mode), so the render reads one flag rather than asking which engine is serving.
+  const [interviewerSpeaking, setInterviewerSpeaking] = useState(false);
   // M3: seconds elapsed while live (orientation for a nervous candidate). M4: mic mute state.
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMuted] = useState(false);
@@ -274,7 +273,10 @@ function VoiceInterviewInner({
   // (idea-5248c3e9). The portal/sim pages pass it as a prop; a lab session
   // receives it from /connect when the session is created.
   const sessionTokenRef = useRef<string | null>(null);
-  const providerRef = useRef<VoiceProviderId>(provider);
+  // The live call's transport, set by start()'s dispatch once /connect has said which
+  // engine actually serves (connect.provider carries the failover authority), and
+  // cleared at the start of every attempt. Every live-call decision goes through it.
+  const transportRef = useRef<CallTransport | null>(null);
   const turnsRef = useRef<VoiceTurn[]>([]);
   const finalizedRef = useRef(false);
   // End-of-call signals that decide completed-vs-failed (see finalize-status.ts):
@@ -339,11 +341,6 @@ function VoiceInterviewInner({
   const endBtnRef = useRef<HTMLButtonElement | null>(null);
   const endedCardRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep a ref of the active provider for use inside SDK callbacks/teardown.
-  useEffect(() => {
-    providerRef.current = provider;
-  }, [provider]);
-
   // The ONE timer "clear the connect timer" may touch. It used to call
   // timersRef.current.clearAll() — the unmount teardown, which leaves the registry
   // inert for good — at the start of every call and again when it went live, so the
@@ -359,7 +356,7 @@ function VoiceInterviewInner({
   // below, which run outside render) and to state (for the pill and the orb).
   const setSpeaking = useCallback((v: boolean) => {
     speakingRef.current = v;
-    setOaiSpeaking(v);
+    setInterviewerSpeaking(v);
     // Audio is playing: whatever the model was doing, it is no longer thinking.
     if (v) setThinking(false);
   }, []);
@@ -414,15 +411,15 @@ function VoiceInterviewInner({
   // (its hook needs pushTurn, which needs the director). A ref breaks that knot
   // without making any of the three callbacks unstable.
   const conversationRef = useRef<ReturnType<typeof useElevenLabsTransport> | null>(null);
+  // A STABLE session over that ref: the ElevenLabs transport is built on it, and its
+  // identity is how the SDK's callbacks know they belong to the call being served.
+  const [elSession] = useState(() => sessionFromRef(conversationRef));
 
-  /** Inject ONE stage direction into whichever provider is serving. `text` already
+  /** Inject ONE stage direction into whichever transport is serving. `text` already
    *  carries the server's `[Director] ` prefix and goes in VERBATIM. */
   const injectDirective = useCallback(
     (text: string) => {
-      const sent =
-        providerRef.current === "elevenlabs"
-          ? conversationRef.current !== null && sendElevenLabsDirective(conversationRef.current, text)
-          : sendDirective(oaiRefs(), text);
+      const sent = transportRef.current?.injectDirective(text) ?? false;
       if (!sent) {
         // An undelivered direction is a call that keeps running undirected — the
         // documented degrade — but it is also the only symptom an operator would
@@ -430,7 +427,7 @@ function VoiceInterviewInner({
         console.warn("[voice] a director stage direction could not be delivered to the provider.");
       }
     },
-    [oaiRefs],
+    [],
   );
 
   // The SAME teardown the End button runs — one end path, so a call is finalized,
@@ -509,18 +506,22 @@ function VoiceInterviewInner({
       // utterance only becomes a turn when its async transcription .completed
       // event arrives. A candidate who finishes speaking and immediately clicks
       // End would have that final — often most decision-relevant — answer
-      // silently dropped from the transcript that feeds the scorecard. When an
-      // utterance is pending at hang-up, stop capture (so server VAD sees
-      // end-of-speech and transcribes what it heard) but keep the data channel
-      // open briefly to receive it.
-      if (
-        status === "completed" &&
-        providerRef.current === "openai" &&
-        pendingCandidateRef.current &&
-        dcRef.current?.readyState === "open"
-      ) {
-        micRef.current?.getTracks().forEach((tr) => tr.stop());
-        await waitUntil(() => !pendingCandidateRef.current, OAI_FINAL_TURN_GRACE_MS, (ms) => timersRef.current.sleep(ms));
+      // silently dropped from the transcript that feeds the scorecard. When the
+      // transport finalizes immediately and an utterance is pending at hang-up,
+      // planEnd says: stop capture (so server VAD sees end-of-speech and
+      // transcribes what it heard) but keep the channel open briefly to receive it.
+      // (A disconnect-finalizing transport already had its grace before its close
+      // drove this call, so its plan has nothing for finalize to do.)
+      if (status === "completed") {
+        const transport = transportRef.current;
+        const plan = planEnd(transport?.capabilities, {
+          pendingCandidate: pendingCandidateRef.current,
+          channelOpen: dcRef.current?.readyState === "open",
+        });
+        if (transport && plan.stopCaptureThenWaitMs) {
+          transport.stopCapture();
+          await waitUntil(() => !pendingCandidateRef.current, plan.stopCaptureThenWaitMs, (ms) => timersRef.current.sleep(ms));
+        }
       }
       // Flush any AI turn still buffered from output_audio_transcript.delta
       // events. Teardown can fire before the matching .done arrives (the
@@ -604,37 +605,43 @@ function VoiceInterviewInner({
     else if (phase === "ended") endedCardRef.current?.focus();
   }, [phase]);
 
+  // The presence orb's levels, for a transport that does not push them itself
+  // (capabilities.levels === "sampled"): poll it on an animation frame while the call
+  // is up. Before this, nothing wrote levelsRef on an ElevenLabs call and the orb sat
+  // flat for the whole interview. The loop dies with the live phase however the call
+  // ended — an End, a dropped socket, an error — and leaves a still ring behind it.
+  const callUp = phase === "live" || phase === "ending";
+  useEffect(() => {
+    if (!callUp) return;
+    const transport = transportRef.current;
+    if (!transport || transport.capabilities.levels !== "sampled") return;
+    const levels = levelsRef;
+    let raf = requestAnimationFrame(function tick() {
+      transport.sampleLevels(levels);
+      raf = requestAnimationFrame(tick);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      levels.current = { input: 0, output: 0 };
+    };
+  }, [callUp]);
+
   // M4: mute/unmute the candidate's microphone for a "give me a moment" without ending the call.
   function toggleMute() {
     const next = !muted;
     setMuted(next);
-    if (providerRef.current === "elevenlabs") {
-      try {
-        conversation.setMuted(next);
-      } catch {
-        /* SDK not ready — state still reflects intent */
-      }
-    } else {
-      micRef.current?.getAudioTracks().forEach((tr) => (tr.enabled = !next));
-    }
+    // A transport that is not ready answers false; the state still reflects intent.
+    transportRef.current?.setMicMuted(next);
   }
 
   // bug-ui-scan-2026-07-09 (voice-interview #4): mute/unmute the AI's OUTPUT voice —
   // the load-bearing channel of a voice interview — which previously had no control
-  // at all (only the candidate mic was muteable). OpenAI plays through the hidden
-  // <audio> element; ElevenLabs renders internally, so route through the SDK volume.
+  // at all (only the candidate mic was muteable). HOW the voice is muted (the hidden
+  // <audio> element, or the SDK volume) is the transport's business.
   function toggleAudioMuted() {
     const next = !audioMuted;
     setAudioMuted(next);
-    if (providerRef.current === "elevenlabs") {
-      try {
-        conversation.setVolume({ volume: next ? 0 : 1 });
-      } catch {
-        /* SDK not ready — state still reflects intent */
-      }
-    } else if (audioRef.current) {
-      audioRef.current.muted = next;
-    }
+    transportRef.current?.setOutputMuted(next);
   }
 
   // bug-ui-scan-2026-07-09 (voice-interview #4): recover from a blocked autoplay by
@@ -702,7 +709,10 @@ function VoiceInterviewInner({
 
   const conversation = useElevenLabsTransport({
     isFinalized: () => finalizedRef.current,
-    isActiveProvider: () => providerRef.current === "elevenlabs",
+    // The SDK's callbacks belong to this call only while the serving transport drives
+    // THIS SDK session — a late event from an earlier attempt, or one arriving while a
+    // new attempt has no transport yet, is not this call's.
+    isActiveProvider: () => transportRef.current?.handle === elSession,
     onConnected: () => {
       clearConnectTimer();
       reachedLiveRef.current = true;
@@ -798,11 +808,8 @@ function VoiceInterviewInner({
     const timers = timersRef.current;
     return () => {
       timers.clearAll();
-      try {
-        if (providerRef.current === "elevenlabs") conversation.endSession();
-      } catch {
-        /* noop */
-      }
+      // Close whatever channel is serving (idempotent, never throws).
+      transportRef.current?.end();
       // Flush a partial transcript on unmount (tab close / back-navigation) so a
       // real in-progress interview isn't lost silently. Only when the call went
       // live and wasn't already finalized; sendBeacon survives unload where a
@@ -924,18 +931,16 @@ function VoiceInterviewInner({
     // previous (already-completed) session.
     sessionIdRef.current = null;
     sessionTokenRef.current = null;
+    // No transport until /connect says which engine serves this attempt.
+    transportRef.current = null;
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
     clearConnectTimer();
     connectTimerCancelRef.current = timersRef.current.set(() => {
       connectTimerCancelRef.current = null;
       finalizedRef.current = true; // don't POST a transcript for a failed connect
+      transportRef.current?.end();
       teardownOpenAi();
-      try {
-        conversation.endSession();
-      } catch {
-        /* noop */
-      }
       setError(t("errConnectTimeout"));
       setPhase("error");
     }, CONNECT_TIMEOUT_MS);
@@ -974,12 +979,9 @@ function VoiceInterviewInner({
       const c = data.connect;
       // The server may have FAILED OVER to the other provider (the preferred one's
       // connect threw and the alternate was available). connect.provider is
-      // authoritative: pin our path + teardown/finalize branching (providerRef) to
-      // what actually served, not what we requested, before starting the session.
-      if (c?.provider && c.provider !== providerRef.current) {
-        providerRef.current = c.provider;
-        setProvider(c.provider);
-      }
+      // authoritative: the transport dispatch below is keyed on what actually
+      // served, not what we requested, and the picker follows it.
+      if (c?.provider && c.provider !== provider) setProvider(c.provider);
 
       // ── arm the director for this attempt (spark ai-interview-parity) ────────
       const agenda: CandidateAgendaView | null =
@@ -1006,7 +1008,18 @@ function VoiceInterviewInner({
         director.begin({ token: sessionToken, sessionId: data.sessionId, attempt, agenda, resume });
       }
 
+      // THE one provider-keyed line in this shell: opening a session takes
+      // engine-specific inputs (an SDP exchange with a client secret vs an SDK signed
+      // URL with overrides), so this dispatch CHOOSES the transport. Everything after
+      // it — mute, directives, levels, the end handshake, teardown — asks the transport.
       if (c.provider === "openai") {
+        transportRef.current = openAiCallTransport(oaiRefs(), {
+          setSpeaking,
+          setUnstable,
+          setAudioBlocked,
+          setMicStream,
+          levels: levelsRef,
+        });
         await startOpenAiCall(c, {
           refs: oaiRefs(),
           finalizedRef,
@@ -1042,6 +1055,7 @@ function VoiceInterviewInner({
           },
         });
       } else {
+        transportRef.current = elevenLabsCallTransport(elSession);
         startElevenLabsSession({
           conversation,
           signedUrl: c.signedUrl,
@@ -1091,29 +1105,32 @@ function VoiceInterviewInner({
     // unmount that races ahead of ElevenLabs onDisconnect beacons the REAL verdict
     // (completed for a substantive call) instead of a hardcoded "failed".
     endInFlightRef.current = true;
-    if (providerRef.current === "elevenlabs") {
-      // Defer finalize to onDisconnect so the candidate's final answer — delivered
-      // by the SDK via onMessage a few hundred ms AFTER endSession() — is captured
-      // before turnsRef is snapshotted. Synchronously finalizing here latched
-      // finalizedRef first and dropped that closing turn. The timer is a fallback
-      // for a missing onDisconnect.
-      try {
-        conversation.endSession();
-      } catch {
-        /* noop */
-      }
+    const transport = transportRef.current;
+    const plan = planEnd(transport?.capabilities, {
+      pendingCandidate: pendingCandidateRef.current,
+      channelOpen: dcRef.current?.readyState === "open",
+    });
+    if (transport && plan.endSessionThenWaitMs) {
+      // A disconnect-finalizing transport: defer finalize to its close so the
+      // candidate's final answer — which the engine delivers a few hundred ms AFTER
+      // the end request — is captured before turnsRef is snapshotted. Synchronously
+      // finalizing here latched finalizedRef first and dropped that closing turn. The
+      // timer is a fallback for a close that never lands.
+      transport.end();
       timersRef.current.set(() => {
         if (!finalizedRef.current) {
           void finalize(currentFinalStatus());
         }
-      }, EL_DISCONNECT_GRACE_MS);
+      }, plan.endSessionThenWaitMs);
       return;
     }
-    // OpenAI branch: mirror ElevenLabs — derive completed-vs-failed from the same signals
-    // instead of hardcoding "completed". A zero-turn hang-up (silent mic, transcription
-    // failure, mistaken early End) previously locked the session terminal-completed, so the
-    // candidate was permanently shut out of their own link; interviewFinalStatus returns
-    // "failed" for turnCount 0, keeping it reconnectable just like the EL path.
+    // Finalize now (finalize itself holds for a closing answer still in flight).
+    // Derive completed-vs-failed from the same signals as every other end path
+    // instead of hardcoding "completed": a zero-turn hang-up (silent mic,
+    // transcription failure, mistaken early End) previously locked the session
+    // terminal-completed, so the candidate was permanently shut out of their own
+    // link; interviewFinalStatus returns "failed" for turnCount 0, keeping it
+    // reconnectable.
     await finalize(currentFinalStatus());
   }
 
@@ -1128,7 +1145,7 @@ function VoiceInterviewInner({
   // ONE derivation for the orb, the pill and the live region (presence-state.ts):
   // three surfaces re-deriving "is the interviewer talking" could disagree inside
   // the same frame, and did.
-  const interviewerSpeaking = liveProvider === "elevenlabs" ? conversation.isSpeaking : oaiSpeaking;
+  // `interviewerSpeaking` is the one flag both transports push (setSpeaking).
   const presence = presenceState({ phase, interviewerSpeaking, thinking });
 
   // Audio recording: this shell mounts it with the call's own microphone stream and
