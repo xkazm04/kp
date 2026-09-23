@@ -20,7 +20,10 @@
 // Source-guard style mirrors ../batch/authz-parity.test.ts: route modules import via
 // the "@/…" alias and pull in next/server, so the properties are asserted against the
 // route SOURCE, which is exactly where they are stated.
-import { test } from "node:test";
+// unit-db FIRST (it points KP_DB_PATH at a throwaway file before any store opens):
+// the roster read and the GET/POST round trip below run the real handlers on it.
+import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -62,12 +65,20 @@ test("every store call is scoped to the caller's workspace", () => {
   for (const call of [
     /getPipelineEntry\([^)]*,\s*ws\)/,
     /latestOutcomeByRefs\(\[ref\],\s*ws\)/,
-    /countRatedHires\(ws\)/,
-    /listPipeline\(ws\)/,
+    // challenge-r07 pipeline-api/B: the counter reads the hire roster and joins its
+    // refs, instead of countRatedHires(ws) over every rated row and listPipeline(ws)
+    // over the whole board. Both new calls are handed ws.
+    /listWorkspaceHires\(ws,/,
+    /latestOutcomeByRefs\(roster\.map\(\(h\)\s*=>\s*h\.ref\),\s*ws\)/,
     /recordHirePerformance\(entry,\s*parsed\.data\.performance,\s*ws\)/,
   ]) {
     assert.match(ROUTE, call, `tenant-scoped call missing: ${call}`);
   }
+  // …and the old defect stays out: a numerator counted over every rated row in the
+  // store (dev-case lane and ex-hires included) against a denominator counted over
+  // the hydrated board. Matched as calls, so the comment naming them does not trip it.
+  assert.doesNotMatch(ROUTE, /countRatedHires\s*\(/, "rated must be folded over the hire roster, not counted store-wide");
+  assert.doesNotMatch(ROUTE, /listPipeline\s*\(/, "hires must be read as a roster, not by hydrating the capped board");
 });
 
 test("the write refuses a candidate who was never hired, against the LIVE stage", () => {
@@ -132,4 +143,149 @@ test("no publicly-reachable route can read the on-the-job rating store", () => {
     }
   }
   assert.deepEqual(offenders, [], "an unauthenticated route imports the outcome store");
+});
+
+// ---- challenge-r07 pipeline-api/B: the hire roster and the in-place rating ----------
+//
+// Behavioural, on the throwaway unit DB: the roster read the counter now stands on, and
+// the round trip the Quality queue makes (GET the unrated hires, POST one rating through
+// the one gated write door, GET again).
+
+after(() => cleanupUnitDb());
+
+const { GET, POST } = await import("./route.ts");
+const { listWorkspaceHires } = await import("./hire-roster.ts");
+const { createPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
+const { ensureDb } = await import("../../../_lib/db/core.ts");
+const { recordOutcome } = await import("../../../_lib/dev-outcomes.ts");
+const { setDecisionConfig } = await import("../../../_lib/decision-config-store.ts");
+const { PIPELINE_BOARD_CAP } = await import("../../../_lib/db/pipeline.ts");
+const { NextRequest } = await import("next/server");
+
+let seq = 0;
+function hireFixture(workspaceId: string | undefined, stage: string, hiredAt?: string) {
+  seq += 1;
+  const { entry } = createPipelineEntry({
+    candidateId: `hr-c${seq}`,
+    candidateLabel: `Hire ${seq}`,
+    jobId: `hr-job-${seq}`,
+    jobTitle: "Roster Role",
+    stage,
+    ...(workspaceId ? { workspaceId } : {}),
+  });
+  if (hiredAt) ensureDb().prepare(`UPDATE pipeline_entries SET stage_changed_at = ? WHERE id = ?`).run(hiredAt, entry.id);
+  return entry;
+}
+const setStatus = (id: string, status: string) =>
+  ensureDb().prepare(`UPDATE pipeline_entries SET status = ? WHERE id = ?`).run(status, id);
+
+test("listWorkspaceHires: the workspace's own terminal column, its own tenant, active rows only, uncapped", () => {
+  const WS = "ws-joined";
+  setDecisionConfig(
+    "pipelineStages",
+    {
+      stages: [
+        { id: "Accepted", label: "Accepted", role: "entry" },
+        { id: "Screened", label: "Screened", role: "screening" },
+        { id: "Interview", label: "Interview", role: "interview" },
+        { id: "Offer", label: "Offer", role: "offer" },
+        { id: "Joined", label: "Joined", role: "terminal" },
+      ],
+      retired: [],
+    },
+    WS,
+    "team"
+  );
+  const joined = hireFixture(WS, "Joined");
+  // A row literally on "Hired" in a workspace whose terminal column is Joined is not a hire.
+  hireFixture(WS, "Hired");
+  const declined = hireFixture(WS, "Joined");
+  setStatus(declined.id, "declined");
+  const rejected = hireFixture(WS, "Joined");
+  setStatus(rejected.id, "rejected");
+  // Another tenant's hire on the shipped column.
+  const elsewhere = hireFixture(undefined, "Hired");
+
+  const roster = listWorkspaceHires(WS, ["Joined"]);
+  assert.deepEqual(roster.map((h) => h.entryId), [joined.id]);
+  assert.ok(!listWorkspaceHires(WS, ["Hired"]).some((h) => h.entryId === elsewhere.id), "another workspace's hire never appears");
+  // The roster row carries what the ref join needs, plus the label, role and hire stamp.
+  assert.equal(roster[0].ref, `pe:${joined.id}`, "an ordinary board hire is keyed by the namespaced entry ref (hireOutcomeRef)");
+  assert.equal(roster[0].candidateLabel, joined.candidateLabel);
+  assert.equal(roster[0].jobTitle, "Roster Role");
+
+  // Not truncated by the board cap: the counter used to hydrate the board to count it.
+  const BULK = "ws-bulk";
+  const insert = ensureDb().prepare(
+    `INSERT INTO pipeline_entries (id, candidate_label, job_title, stage, status, workspace_id, stage_changed_at) VALUES (?, ?, 'Bulk', 'Hired', 'active', ?, '2026-01-01T00:00:00.000Z')`
+  );
+  ensureDb().transaction(() => {
+    for (let i = 0; i <= PIPELINE_BOARD_CAP; i += 1) insert.run(`bulk-${i}`, `Bulk ${i}`, BULK);
+  })();
+  assert.equal(listWorkspaceHires(BULK, ["Hired"]).length, PIPELINE_BOARD_CAP + 1);
+  assert.deepEqual(listWorkspaceHires(BULK, []), [], "an axis with no terminal column has no hires");
+});
+
+type CounterBody = {
+  rated: number;
+  hires: number;
+  minOutcomes: number;
+  unrated: Array<{ entryId: string; candidateLabel: string; jobTitle: string | null; hiredAt: string | null }>;
+  unratedTotal: number;
+};
+const getCounter = async (): Promise<CounterBody> => {
+  const res = await GET(new NextRequest("http://localhost/api/pipeline/outcomes"));
+  assert.equal(res.status, 200);
+  return (await res.json()) as CounterBody;
+};
+const rate = (entryId: string, performance: number) =>
+  POST(
+    new NextRequest("http://localhost/api/pipeline/outcomes", {
+      method: "POST",
+      body: JSON.stringify({ entryId, performance }),
+      headers: { "content-type": "application/json" },
+    })
+  );
+
+test("GET with no ?entry answers the counter AND the queue; ?entry keeps its single-hire shape", async () => {
+  const body = await getCounter();
+  assert.deepEqual(Object.keys(body).sort(), ["hires", "minOutcomes", "rated", "unrated", "unratedTotal"]);
+  assert.ok(body.rated <= body.hires);
+  assert.equal(body.rated + body.unratedTotal, body.hires);
+
+  const one = hireFixture(undefined, "Hired");
+  const res = await GET(new NextRequest(`http://localhost/api/pipeline/outcomes?entry=${encodeURIComponent(one.id)}`));
+  assert.equal(res.status, 200);
+  assert.deepEqual(Object.keys(await res.json()).sort(), ["entryId", "hired", "max", "min", "performance", "recordedAt"]);
+});
+
+test("rate from the queue: the rated hire leaves it and the counter moves by one; a re-rating does not move it", async () => {
+  // Stamped long ago so both lead the oldest-first queue whatever else this DB holds.
+  const a = hireFixture(undefined, "Hired", "2000-01-01T00:00:00.000Z");
+  const b = hireFixture(undefined, "Hired", "2000-01-02T00:00:00.000Z");
+  assert.equal((await rate(a.id, 4)).status, 200);
+  // A dev-case-lane rating on a ref no current hire carries: must not move `rated`.
+  recordOutcome({ ref: "devcase-lane-only", outcome: "hired", performance: 5 });
+
+  const before = await getCounter();
+  assert.ok(before.unrated.some((r) => r.entryId === b.id), "B is queued");
+  assert.ok(!before.unrated.some((r) => r.entryId === a.id), "A is rated, so not queued");
+
+  assert.equal((await rate(b.id, 3)).status, 200);
+  const after1 = await getCounter();
+  assert.ok(!after1.unrated.some((r) => r.entryId === b.id), "B has left the queue");
+  assert.equal(after1.rated, before.rated + 1);
+  assert.equal(after1.hires, before.hires);
+
+  assert.equal((await rate(a.id, 2)).status, 200);
+  assert.equal((await getCounter()).rated, after1.rated, "re-rating a hire corrects it; it is not a second rating");
+});
+
+test("the queue's client-side scale is the store's scale", async () => {
+  const { PERFORMANCE_MIN, PERFORMANCE_MAX } = await import("../../../_lib/dev-outcomes.ts");
+  const { HIRE_RATING_LEVELS } = await import("../../../_lib/hire-rating-queue.ts");
+  assert.deepEqual(
+    [...HIRE_RATING_LEVELS],
+    Array.from({ length: PERFORMANCE_MAX - PERFORMANCE_MIN + 1 }, (_, i) => PERFORMANCE_MIN + i)
+  );
 });
