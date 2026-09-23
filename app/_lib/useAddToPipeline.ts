@@ -141,7 +141,7 @@ export function postPipelineAction(id: string, body: PipelineActionBody): Promis
 // reports a per-id outcome. Returns a discriminated result: `ok:false` is a
 // WHOLE-REQUEST failure (the call was refused or fell over — the caller treats
 // every item as retryable), `ok:true` carries the per-id `results` (each ok, or
-// failed + the server's verbatim reason). Never throws.
+// failed + the server's refusal CODE, which the caller localizes). Never throws.
 //
 // A whole-request refusal (batch-authz-parity: the operator gate returns 401/403
 // with no per-id `results`) is NOT a per-id outcome, so it carries `status` back
@@ -153,8 +153,11 @@ export type PipelineBatchItem =
   | { id: string; action: "accept" | "reject"; expectedStage: string };
 /** `code` is the machine refusal the UI renders (errors.<CODE>, in the reader's
  *  language); `reason` is the canonical English beside it, kept for the log and
- *  as a last-resort fallback. The bar must never paint `reason`. */
-export type PipelineBatchOutcome = { id: string; ok: boolean; code?: string; reason?: string };
+ *  as a last-resort fallback. The bar must never paint `reason`.
+ *  `routedToHumanRound` rides a successful AI-scorecard accept the plan sent back
+ *  to the human round (the same field the single route answers), so the batch
+ *  narrates the Schedule handoff exactly like the one-by-one accept. */
+export type PipelineBatchOutcome = { id: string; ok: boolean; code?: string; reason?: string; routedToHumanRound?: boolean };
 /** A whole-request refusal: `code` is the machine reason (the capability gate's
  *  FORBIDDEN_CAPABILITY, wave 18a) and `capability` the permission it wanted, so the
  *  bar can say WHICH permission is missing instead of a flat "not permitted". Both

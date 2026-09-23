@@ -29,7 +29,9 @@ const BATCH_ACTIONS = new Set(["set_stage", "accept", "reject"]);
 type BatchItem = { id: string; action: string; expectedStage?: string; toStage?: string };
 // `code` is what the client renders (errors.<CODE>, in the reader's language);
 // `reason` is the canonical English beside it, for the log and API consumers.
-type BatchOutcome = { id: string; ok: boolean; code?: string; reason?: string };
+// `routedToHumanRound` (additive) is the single route's hybrid-handoff flag, carried
+// per id so a batch-accepted AI scorecard narrates the Schedule handoff too.
+type BatchOutcome = { id: string; ok: boolean; code?: string; reason?: string; routedToHumanRound?: boolean };
 
 // Coerce one raw item, or null if it's malformed (missing id / unknown action).
 function coerceItem(raw: unknown): BatchItem | null {
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
           workspaceId: ws,
         });
         if (r.status === 200) {
-          results.push({ id: item.id, ok: true });
+          results.push({ id: item.id, ok: true, ...(r.body.routedToHumanRound === true ? { routedToHumanRound: true } : {}) });
         } else {
           // Carry the server's OWN refusal (the 409 concurrency-loss vs the 422
           // forbidden-transition guidance) — as a CODE first, with the canonical

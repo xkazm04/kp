@@ -23,6 +23,7 @@ import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
 import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
+import { foldBatchDecide, foldDecideResponse, type DecideAction, type DecideOutcome } from "./decisionsDecideOutcome";
 import {
   applyReinstateOutcome,
   foldReinstateResponse,
@@ -134,7 +135,7 @@ export function useDecisionsQueue() {
   };
 
   // Direction 1 — batch accept/reject for AI review cards. POST /api/pipeline/batch
-  // already offers per-id CAS + verbatim per-id failure reasons; this reuses the
+  // already offers per-id CAS + per-id refusal codes; this reuses the
   // board's PipelineTab.bulkDecide grammar (successes clear, failures stay selected
   // for retry, reject is confirm-gated because it emails candidates). offer_review
   // is EXCLUDED from multi-select (see selectableReviews below): the batch response
@@ -431,6 +432,42 @@ export function useDecisionsQueue() {
     setBulkResult(null);
   };
 
+  // The forward handoff after a confirmed accept — the ONE applier act() and the
+  // batch bar both call with what handoffFor() (decisionsDecideOutcome.ts) decided:
+  // background interview_prep for these entries, the queued-on-Schedule banner for
+  // these labels.
+  const applyHandoffs = (prepFor: readonly Entry[], queued: readonly string[]) => {
+    for (const e of prepFor) {
+      void startTask("interview_prep", { entryId: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle, lang: locale });
+    }
+    if (queued.length > 0) setQueuedLabels((prev) => [...prev, ...queued]);
+  };
+
+  // POST one decision and fold the answer. Never throws: a request that never landed
+  // is a code-less failure, a refusal carries its code / capability / status.
+  const postDecide = async (e: Entry, action: DecideAction, detail?: string, ttlDays?: number): Promise<DecideOutcome> => {
+    const note = detail?.trim();
+    try {
+      const r = await fetch(`/api/pipeline/${e.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // expectedStage pins the decision to the snapshot this card/modal was
+        // rendered from (idea-84392364): the queue live-refreshes while the
+        // analysis modal can stay open across a state change, so a stale
+        // Advance/Reject gets a coded 409 instead of blindly overriding what
+        // another actor did. An optional reason (DEC4) rides as `detail` →
+        // recorded on the advanced/rejected event → shown in the Decision Log.
+        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}), ...(ttlDays ? { ttlDays } : {}) }),
+      });
+      // A non-JSON body (a proxy's HTML 502) is not a reason to lose the status.
+      const body = await r.json().catch(() => null);
+      return foldDecideResponse(e, action, { ok: r.ok, status: r.status }, body);
+    } catch {
+      // Folded, not thrown: offline / aborted / DNS is a failure the door names.
+      return foldDecideResponse(e, action, null, null);
+    }
+  };
+
   // ONE batch POST per action, each item carrying its OWN expectedStage CAS snapshot
   // (the stage the card rendered from) — a concurrent move is a per-id 409 that STAYS
   // selected for retry while successes clear. Mirrors PipelineTab.bulkDecide exactly;
@@ -442,63 +479,46 @@ export function useDecisionsQueue() {
     setBulkBusy(true);
     setBulkResult(null);
     setConfirmingBulkReject(false);
-    let ok = 0;
-    const failed = new Set<string>();
-    const reasons = new Set<string>();
-    let requestReason: string | null = null;
     const items: PipelineBatchItem[] = targets.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
-    const res = await postPipelineBatch(items);
-    if (res.ok) {
-      const okIds = new Set(res.results.filter((r) => r.ok).map((r) => r.id));
-      for (const r of res.results) {
-        if (r.ok) ok += 1;
-        else {
-          failed.add(r.id);
-          if (r.reason) reasons.add(r.reason);
-        }
-      }
-      // Preserve the one-by-one accept's forward handoff: each accepted screening
-      // review flows to Schedule, so backfill its interview-prep artifact and name
-      // it in the queued banner — parity with act()'s screening_review branch.
-      if (action === "accept") {
-        const acceptedScreenings = targets.filter((e) => okIds.has(e.id) && e.approvalKind === "screening_review");
-        for (const e of acceptedScreenings) {
-          void startTask("interview_prep", { entryId: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle, lang: locale });
-        }
-        if (acceptedScreenings.length > 0) setQueuedLabels((prev) => [...prev, ...acceptedScreenings.map((e) => e.candidateLabel)]);
-      }
-      // Same contract as act(): a row leaves only once the server confirmed it — and
-      // then it leaves right away. The reconcile load() below is no longer what
-      // REMOVES these cards, so an unrelated read finishing between the batch and
-      // that load can't leave the decided cards on screen with live buttons.
-      if (okIds.size > 0) {
-        loadTicket.current += 1;
-        setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
-      }
-    } else {
-      // WHOLE-REQUEST failure — every attempted decision stays selected for retry.
-      // It used to end there: the band said "0 accepted · N couldn't be decided" and
-      // nothing else, even when the door had refused the seat with a code and named
-      // the permission it wanted. A whole-request refusal is not a per-id verdict —
-      // none was ever reached — so it OVERRIDES the per-id reasons below.
-      for (const e of targets) failed.add(e.id);
-      requestReason = capabilityAwareReason(
-        errMsg,
-        { code: res.code, capability: res.capability },
-        t("batch.requestFailed")
-      );
+    // decisions-review-ui/A — the response goes through the SAME fold as act()
+    // (decisionsDecideOutcome.ts): per-id outcomes become ids + refusal CODES (the
+    // server's English per-id `reason` never reaches the band), and the forward
+    // handoff is the one rule both paths share — so a batch-accepted AI scorecard the
+    // plan routed to the human round is queued-for-Schedule here too.
+    const folded = foldBatchDecide(targets, action, await postPipelineBatch(items));
+    applyHandoffs(
+      targets.filter((e) => folded.prepIds.includes(e.id)),
+      folded.queuedLabels
+    );
+    // Same contract as act(): a row leaves only once the server confirmed it — and
+    // then it leaves right away. The reconcile load() below is no longer what
+    // REMOVES these cards, so an unrelated read finishing between the batch and
+    // that load can't leave the decided cards on screen with live buttons.
+    if (folded.okIds.length > 0) {
+      const okIds = new Set(folded.okIds);
+      loadTicket.current += 1;
+      setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
     }
     // Successes clear; failures + any selected non-selectable strays stay selected.
     const untouched = [...selectedReviewIds].filter((id) => !targets.some((e) => e.id === id));
-    setSelectedReviewIds(new Set([...failed, ...untouched]));
+    setSelectedReviewIds(new Set([...folded.failedIds, ...untouched]));
     // The cohort just changed under us — a stale select-all snapshot would read as
     // permanent drift, so reset it (the recruiter re-selects if they want the rest).
     setSelectAllSnapshot(null);
+    // A WHOLE-REQUEST refusal is not a per-id verdict — none was ever reached — so it
+    // OVERRIDES the per-id codes and names the permission a gated door wanted.
+    // Otherwise each distinct per-id code resolves in the reader's language. An unknown
+    // code adds nothing (the "N couldn't be decided" count already stands).
+    const reason = folded.requestFailure
+      ? capabilityAwareReason(errMsg, folded.requestFailure, t("batch.requestFailed"))
+      : folded.codes.length
+        ? [...new Set(folded.codes.map((code) => errMsg({ code }, "")).filter(Boolean))].join(" · ") || null
+        : null;
     setBulkResult({
-      ok,
-      failed: failed.size,
+      ok: folded.okIds.length,
+      failed: folded.failedIds.length,
       verb: action === "accept" ? "accepted" : "rejected",
-      reason: requestReason ?? (reasons.size ? [...reasons].join(" · ") : null),
+      reason,
     });
     setBulkBusy(false);
     await load();
@@ -551,75 +571,47 @@ export function useDecisionsQueue() {
   // the candidate was NOT rejected, no rationale was sealed and no notice was queued,
   // so a green toast over a permanently-sealed button is a success the server never
   // gave. The boolean is the half this hook owns; the awaiting is the caller's.
-  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number): Promise<boolean> => {
-    // Direction 2a — the row leaves ONLY when the server confirms. The old path
-    // scheduled a 260ms timer that dropped the row BEFORE the fetch resolved, so a
-    // slow network showed a vanish-then-reappear on an irreversible reject. Now the
-    // in-flight card shows a subtle pending state (leavingWrapClass) and is removed
-    // on the 200, or cleanly restored on failure — no optimistic disappearance.
+  //
+  // decisions-review-ui/A — a failure is no longer silent. The refusal body used to
+  // be thrown away (`if (!r.ok) throw`), so a lost race on the ledger's quick reject
+  // just made the row blink back. It is now folded (decisionsDecideOutcome.ts) and
+  // toasted from its CODE in the reader's language. Kept as post → fold → apply so a
+  // later door (an undo window) can wrap this same act without re-implementing it.
+  const act = async (e: Entry, action: DecideAction, detail?: string, ttlDays?: number): Promise<boolean> => {
+    // Direction 2a — the row leaves ONLY when the server confirms. The in-flight card
+    // shows a subtle pending state (leavingWrapClass) and is removed on the 200, or
+    // cleanly restored on failure — no optimistic disappearance.
     setResolving((s) => ({ ...s, [e.id]: action }));
-    try {
-      const note = detail?.trim();
-      const r = await fetch(`/api/pipeline/${e.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // expectedStage pins the decision to the snapshot this card/modal was
-        // rendered from (idea-84392364): the queue live-refreshes while the
-        // analysis modal can stay open across a state change, so a stale
-        // Advance/Reject now gets a 409 (and the catch below reloads the fresh
-        // queue) instead of blindly overriding what another actor did.
-        // An optional reason (DEC4) rides as `detail` → recorded on the
-        // advanced/rejected event → shown in the Decision Log.
-        body: JSON.stringify({ action, expectedStage: e.stage, ...(note ? { detail: note } : {}), ...(ttlDays ? { ttlDays } : {}) }),
-      });
-      if (!r.ok) throw new Error();
-      // Surface the offer-extension result instead of discarding it (OO-L1-02):
-      // the response carries the candidate's secure accept/decline link — confirm
-      // the send with a toast and keep the link copyable in the banner below.
-      const p = (await r.json().catch(() => null)) as { offerExtended?: boolean; link?: unknown; routedToHumanRound?: boolean } | null;
-      // HYBRID HANDOFF (interviewPlan): the accepted AI scorecard routed the
-      // candidate to the human round's calendar gate — narrate the Schedule
-      // handoff exactly like an accepted screening does.
-      if (action === "accept" && e.approvalKind === "scorecard_review" && p?.routedToHumanRound) {
-        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
-      }
-      if (action === "accept" && e.approvalKind === "offer_review" && p?.offerExtended && typeof p.link === "string") {
-        const link = p.link;
-        if (relayConfigured === false) toast.info(t("offerSent.toastQueued", { name: e.candidateLabel }));
-        else toast.success(t("offerSent.toast", { name: e.candidateLabel }));
-        setSentOffers((prev) => [...prev.filter((o) => o.id !== e.id), { id: e.id, label: e.candidateLabel, link }]);
-      }
-      // Accepting an AI screening flows the candidate to interview scheduling —
-      // generate their interview-prep artifact in the background so it's ready
-      // when the interviewer opens it from the Schedule tab.
-      if (action === "accept" && e.approvalKind === "screening_review") {
-        void startTask("interview_prep", {
-          entryId: e.id,
-          candidateLabel: e.candidateLabel,
-          jobTitle: e.jobTitle,
-          lang: locale,
-        });
-        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
-      }
-      // Server confirmed — NOW the row leaves. Before this point it was only
-      // dimmed (pending), never removed, so nothing can vanish-then-reappear.
-      // Invalidate any read that started before this decision: its snapshot still
-      // holds this row and would put the card straight back (see loadTicket).
-      loadTicket.current += 1;
-      setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
-      return true;
-    } catch {
-      // Roll back cleanly: clear the pending state so the card returns to normal.
-      // A stale-stage 409 carried the fresh entry, so reload to reconcile the queue
-      // to reality — the row never disappeared first, so this isn't a reappear.
+    const outcome = await postDecide(e, action, detail, ttlDays);
+    if (!outcome.ok) {
+      // Roll back cleanly: clear the pending state so the card returns to normal,
+      // say WHY, and reload — a stale-stage 409 means the queue moved under us, and
+      // the row never disappeared first, so this isn't a reappear.
       setResolving((s) => {
         const n = { ...s };
         delete n[e.id];
         return n;
       });
+      toast.error(capabilityAwareReason(errMsg, outcome.failure, t("decideFailed", { name: e.candidateLabel })));
       load();
       return false;
     }
+    const { handoff } = outcome;
+    // Surface the offer-extension result instead of discarding it (OO-L1-02): the
+    // secure accept/decline link is confirmed with a toast and kept copyable.
+    if (handoff.offerLink) {
+      const link = handoff.offerLink;
+      if (relayConfigured === false) toast.info(t("offerSent.toastQueued", { name: e.candidateLabel }));
+      else toast.success(t("offerSent.toast", { name: e.candidateLabel }));
+      setSentOffers((prev) => [...prev.filter((o) => o.id !== e.id), { id: e.id, label: e.candidateLabel, link }]);
+    }
+    applyHandoffs(handoff.prepTask ? [e] : [], handoff.queueForSchedule ? [e.candidateLabel] : []);
+    // Server confirmed — NOW the row leaves. Invalidate any read that started before
+    // this decision: its snapshot still holds this row and would put the card
+    // straight back (see loadTicket).
+    loadTicket.current += 1;
+    setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
+    return true;
   };
 
   const decide = (e: Entry, action: "accept" | "reject", detail?: string) => {

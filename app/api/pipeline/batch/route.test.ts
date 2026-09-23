@@ -11,6 +11,8 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
 import { createPipelineEntry, getPipelineEntry, setApproval } from "../../../_lib/db/pipeline.ts";
+import { setDecisionConfig } from "../../../_lib/decision-config-store.ts";
+import { migrateLegacyInterviewPlan } from "../../../_lib/decision-config-schema.ts";
 
 after(() => cleanupUnitDb());
 
@@ -136,4 +138,38 @@ test("malformed and unknown-action items fail without aborting the valid ones", 
 test("an empty or non-array items payload is a 400", async () => {
   assert.equal((await post({})).status, 400);
   assert.equal((await post({ items: [] })).status, 400);
+});
+
+// decisions-review-ui/A — the batch dropped `routedToHumanRound`, so a batch-accepted
+// AI scorecard landed on the human round with no queued-for-Schedule narration while
+// the one-by-one accept narrated it. The per-id ok outcome now carries the field
+// (additive: a plain 200 stays { id, ok: true }).
+test("an AI scorecard accept that routes to the human round says so per-id; a plain accept stays bare", async () => {
+  // A hybrid plan: a HUMAN round follows the AI round, so an AI scorecard accept routes back.
+  setDecisionConfig(
+    "interviewPlan",
+    migrateLegacyInterviewPlan({
+      screeningGate: "human",
+      rounds: [
+        { kind: "ai", gate: "human", topN: null },
+        { kind: "human", gate: "human", topN: null },
+      ],
+      offerGate: "human",
+    }) as unknown as Record<string, unknown>
+  );
+  const routed = entryFixture({ stage: "Interview" });
+  setApproval(routed.id, "scorecard_review", JSON.stringify({ recommendation: "advance" }));
+  const plain = entryFixture({ stage: "Screened" });
+
+  const res = await post({
+    items: [
+      { id: routed.id, action: "accept", expectedStage: "Interview" },
+      { id: plain.id, action: "accept", expectedStage: "Screened" },
+    ],
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(outcome(body.results, routed.id), { id: routed.id, ok: true, routedToHumanRound: true });
+  assert.deepEqual(outcome(body.results, plain.id), { id: plain.id, ok: true });
+  assert.equal(getPipelineEntry(routed.id)!.approvalKind, "calendar", "the handoff really happened server-side");
 });
