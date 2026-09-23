@@ -2032,3 +2032,37 @@ Tests: `app/_lib/rediscovery-eligibility.test.ts` (reasons, precedence, the four
 source guard), `app/_lib/rediscovery-alert-reconcile.test.ts` (write wall, read refilter
 after an opt-out and after an erasure, retract / keep / refresh / insert, tenancy),
 `rediscovery-consent-rank.test.ts` (the rank gate precedes the spawn).
+
+## The silver-medalist feed is one row per person
+
+Until challenge-r08 (`candidate-rediscovery/B`) the standing feed
+(`JobsRediscoveryFeed`) rendered one row per alert, i.e. per person x role
+(`rediscovery_alerts` is unique on workspace, job, candidate), in `created_at` order,
+while its `added` / `pending` / `rowError` state was keyed by person. Adding a silver
+medalist to role Y painted *Added* on her row for role Z and refused to file her there
+until a reload.
+
+The wire is unchanged: `GET`/`POST /api/rediscovery/alerts` still return the flat
+`Alert[]`, and the reversible dismiss (`jobsRediscoveryDismiss.ts`) still works per row.
+The feed derives the person view in the browser from
+`app/features/library/jobs/jobsRediscoveryFeedGroups.ts` (pure, no React):
+
+| Function | Does |
+|---|---|
+| `groupAlertsByPerson(alerts)` | One group per `candidateId`. Her roles and the groups are ordered by `byPriorAwareRank` (`app/_lib/rediscovery-rank.ts`, the panel's comparator) on `{ score, boost: prior.depth }`; a legacy row with a null depth ranks as 0 |
+| `markPair` / `pairStatus` | Outcomes keyed by the (person, role) pair: `open`, `pending`, `added`, `reached`, `withheld`, `error` |
+| `markPerson` | Withholds every role of one person. Used only for person facts: a reach-out answered `suppressed_anonymized`, and an Add refused `PIPELINE_ADD_CANDIDATE_WITHHELD` (the eligibility gate is person-level). A reach-out `suppressed` verdict can be a stopped sequence on one entry, so it stays on its pair |
+| `groupView(group, outcomes)` | `next` (the best role still offered), `rest`, `done`, `withheld` |
+
+The row (`JobsRediscoveryFeedRow`) leads with her best still-open role and its why-now
+line (the same `jobs.rediscover.whyNow.*` keys), lists the other roles she clears
+under *Also clears* with their scores, and offers **Reach out / Add / Dismiss per role**.
+Reach out calls `postReachOut` (the same door and verdict classifier as the Rediscover
+panel, source `rediscovery`); refusals render from `pipeline.reachOut.*` and error codes
+through `useErrorMessage`, never the server string. A done pair keeps its badge for
+`ADDED_BADGE_MS`, then only that pair's alert is dismissed; her other roles stay on the
+row. The header count is people, not alerts. A withheld role shows *Can't be contacted*
+and offers nothing.
+
+Tests: `jobsRediscoveryFeedGroups.test.ts` (grouping, the band, pair keying, next role,
+person-level refusals, dismiss / restore regrouping, legacy depth).
