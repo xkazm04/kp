@@ -15,6 +15,7 @@ import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
 import type { BulkConfirmIntent } from "./pipelineBulkConfirm";
 import type { BulkResult as BulkSelectionResult } from "./pipelineBulkSelection";
+import { movePreviewParts } from "./pipelineBulkMovePreview";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 
@@ -82,6 +83,8 @@ export function PipelineBulkActionBar({
   // Per-id refusal codes are resolved HERE, at the render, so the recruiter reads
   // them in their own language (api-contracts.md 1.1) instead of the server's English.
   const errMsg = useErrorMessage();
+  // The armed move's preview (verb "previewed" reaches here only while armed).
+  const movePreview = bulkResult?.verb === "previewed" ? (bulkResult.preview ?? null) : null;
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-coral/30 bg-coral/5 px-3 py-2">
       <span className="text-sm font-semibold text-ink" aria-live="polite">
@@ -137,14 +140,31 @@ export function PipelineBulkActionBar({
           ]}
         />
       </label>
+      {/* blast-radius-computation — the first click previews what the move sets off; a
+          consequential preview arms this confirm (the hook shows `previewed` only while
+          the confirm is armed), and the sentence itself is on the status line below. */}
       <button
         type="button"
         onClick={onBulkMove}
         disabled={bulkBusy || !bulkStage || selectedIds.size === 0}
         className="focus-ring rounded-md bg-coral px-3 py-1 text-sm font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
       >
-        {bulkBusy ? t("bulkMoving") : t("bulkApply", { count: selectedIds.size })}
+        {bulkBusy
+          ? t("bulkMoving")
+          : movePreview
+            ? t("bulkMoveConfirm", { count: movePreview.moving })
+            : t("bulkApply", { count: selectedIds.size })}
       </button>
+      {movePreview ? (
+        <button
+          type="button"
+          onClick={() => dispatchBulkConfirm({ type: "cancel" })}
+          disabled={bulkBusy}
+          className="focus-ring rounded-md px-2 py-1 text-sm font-semibold text-steel hover:text-ink disabled:opacity-50"
+        >
+          {t("bulkRejectCancel")}
+        </button>
+      ) : null}
       {/* P2-2 — send self-scheduling links to the selected active cohort. */}
       {selectedActive.length > 0 ? (
         <button
@@ -168,7 +188,14 @@ export function PipelineBulkActionBar({
       />
       {bulkResult ? (
         <span role="status" className="text-sm">
-          {bulkResult.verb !== "departed" ? (
+          {movePreview ? (
+            <span className="font-semibold text-ink">
+              {movePreviewParts(movePreview)
+                .map((p) => t(p.key, { count: p.count }))
+                .join(" · ")}
+            </span>
+          ) : null}
+          {bulkResult.verb !== "departed" && bulkResult.verb !== "previewed" ? (
             <span className="font-semibold text-moss">
               {t(
                 bulkResult.verb === "moved"
@@ -195,6 +222,14 @@ export function PipelineBulkActionBar({
             <span className="font-semibold text-steel">
               {bulkResult.verb !== "departed" ? " · " : null}
               {t("selectionDeparted", { count: bulkResult.departed })}
+            </span>
+          ) : null}
+          {/* A drafted offer lives only in its pending approval; the move would have
+              erased it, so those rows were kept back and stay selected. */}
+          {bulkResult.heldBack ? (
+            <span className="font-semibold text-coral">
+              {" · "}
+              {t("bulkMoveOfferHeld", { count: bulkResult.heldBack })}
             </span>
           ) : null}
           {bulkResult.failed > 0 ? (

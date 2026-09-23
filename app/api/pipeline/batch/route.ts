@@ -5,6 +5,11 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { getInterviewPlan } from "@/app/_lib/interview-plan";
+import { interviewPlanSaved } from "@/app/_lib/stage-hooks";
+import { planArrival, type ArrivalPlan } from "@/app/_lib/pipeline-arrival-plan";
 
 
 // Batch move/decide a COHORT in one recruiter action (the board's bulk move + bulk
@@ -32,6 +37,41 @@ type BatchItem = { id: string; action: string; expectedStage?: string; toStage?:
 // `routedToHumanRound` (additive) is the single route's hybrid-handoff flag, carried
 // per id so a batch-accepted AI scorecard narrates the Schedule handoff too.
 type BatchOutcome = { id: string; ok: boolean; code?: string; reason?: string; routedToHumanRound?: boolean };
+
+// blast-radius-computation (challenge-r06 pipeline-move-bulk-operations/B). A DRY RUN
+// answers, per id, what the move WOULD set off: an AI interview invite now or held for
+// a human, a work-sample assignment, the pending approval it would erase, and whether a
+// drafted offer holds the row back. It walks set_stage's own gates in set_stage's own
+// order (unknown stage 400 → terminal 422 → missing 404 → CAS / closed 409) and reads
+// the arrival through `planArrival`, the planner the stage-entered hook executes — and
+// it WRITES NOTHING: no row, no event, no hook. `preview.stage` is the stage it read,
+// which the commit then carries as its expectedStage.
+type PreviewOutcome = BatchOutcome & { preview?: ArrivalPlan & { stage: string } };
+
+type ArrivalContext = { axis: ReturnType<typeof getPipelineAxis>["stages"]; plan: ReturnType<typeof getInterviewPlan>; saved: boolean };
+
+function previewItem(item: BatchItem, ctx: ArrivalContext, workspaceId: string): PreviewOutcome {
+  const refuse = (code: keyof typeof REFUSAL_ERRORS, preview?: PreviewOutcome["preview"]): PreviewOutcome => ({
+    id: item.id,
+    ok: false,
+    code,
+    reason: REFUSAL_ERRORS[code],
+    ...(preview ? { preview } : {}),
+  });
+  // Only a move has an arrival to preview.
+  if (item.action !== "set_stage") return refuse("PIPELINE_BATCH_ITEM_MALFORMED");
+  const to = item.toStage ?? "";
+  if (!ctx.axis.some((s) => s.id === to)) return refuse("PIPELINE_STAGE_UNKNOWN");
+  const entry = getPipelineEntry(item.id, workspaceId);
+  if (!entry) return refuse("PIPELINE_ENTRY_NOT_FOUND");
+  const plan = planArrival(entry, to, ctx.axis, ctx.plan, ctx.saved);
+  const preview = { ...plan, stage: entry.stage };
+  if (plan.effect === "refused_terminal") return refuse("PIPELINE_TERMINAL_NOT_MANUAL", preview);
+  // The same CAS the commit will run: a row that moved since the board drew it is stale.
+  if (item.expectedStage !== undefined && entry.stage !== item.expectedStage) return refuse("PIPELINE_MOVE_CONFLICT");
+  if (plan.effect === "closed") return refuse("PIPELINE_MOVE_CONFLICT", preview);
+  return { id: item.id, ok: true, preview };
+}
 
 // Coerce one raw item, or null if it's malformed (missing id / unknown action).
 function coerceItem(raw: unknown): BatchItem | null {
@@ -81,12 +121,28 @@ export async function POST(request: NextRequest) {
     if (!rateLimit(`pipeline-batch:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const body = (await request.json().catch(() => ({}))) as { items?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { items?: unknown; dryRun?: unknown };
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400);
     }
     if (body.items.length > BATCH_CAP) {
       return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400, { max: BATCH_CAP });
+    }
+
+    if (body.dryRun === true) {
+      // Read once per batch: every item previews against the same axis and plan.
+      const ctx: ArrivalContext = {
+        axis: getPipelineAxis(ws).stages,
+        plan: getInterviewPlan(ws),
+        saved: interviewPlanSaved(ws),
+      };
+      const previews: PreviewOutcome[] = body.items.map((raw) => {
+        const item = coerceItem(raw);
+        if (item) return previewItem(item, ctx, ws);
+        const id = raw && typeof raw === "object" && typeof (raw as { id?: unknown }).id === "string" ? (raw as { id: string }).id : "";
+        return { id, ok: false, code: "PIPELINE_BATCH_ITEM_MALFORMED", reason: REFUSAL_ERRORS.PIPELINE_BATCH_ITEM_MALFORMED };
+      });
+      return NextResponse.json({ ok: true, dryRun: true, total: previews.length, results: previews });
     }
 
     const origin = new URL(request.url).origin;

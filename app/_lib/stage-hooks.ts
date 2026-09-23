@@ -44,7 +44,6 @@ import { afterResponse } from "./after-response";
 import { meterGate } from "./billing/enforce";
 import { candidateRecipient } from "./comms-dispatch";
 import { isDeliverableAddress } from "./comms-recipient";
-import { planStep } from "./decision-config-schema";
 import { getDecisionConfigVersion } from "./decision-config-store";
 import { getPipelineEntry, setApproval } from "./db/pipeline";
 import { latestInterviewByEntry } from "./db/interviews";
@@ -53,7 +52,7 @@ import { getInterviewPlan } from "./interview-plan";
 import { GROUNDED_DEFAULT_MIN } from "./interview-duration.mjs";
 import { stageHookInvite } from "./stage-hooks-invite";
 import { getPipelineAxis } from "./pipeline-axis-server";
-import { stageHasRole } from "./pipeline-stages";
+import { arrivalBranch, resolveInterviewGate } from "./pipeline-arrival-plan";
 import { runHomeworkArrival, type HomeworkArrivalOutcome } from "./stage-hooks-homework";
 import { scheduleRoleFillHook } from "./stage-hooks-role-fill";
 import { isTerminalEntryStatus } from "./pipeline-status";
@@ -176,8 +175,12 @@ export function effectiveInterviewGate(
   step: { gate: "auto" | "human" },
   workspaceId: string
 ): "auto" | "human" {
-  const saved = getDecisionConfigVersion("interviewPlan", workspaceId) !== null;
-  return saved ? step.gate : "auto";
+  return resolveInterviewGate(step, interviewPlanSaved(workspaceId));
+}
+
+/** Whether this workspace has EVER saved a hiring plan — the discriminator above. */
+export function interviewPlanSaved(workspaceId: string): boolean {
+  return getDecisionConfigVersion("interviewPlan", workspaceId) !== null;
 }
 
 /**
@@ -213,17 +216,25 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
     // same behaviour. A `homework` column gets the candidate their assignment — see
     // stage-hooks-homework.ts, which holds the same three rules this module states and
     // likewise introduces no pipeline event kind of its own.
-    if (stageHasRole(stage, "homework", axis)) {
+    //
+    // blast-radius-computation (challenge-r06): the branch is DECIDED by
+    // `arrivalBranch` (pipeline-arrival-plan.ts), the same planner the board's bulk
+    // move previews with, so the preview can never describe a hook this is not.
+    const branch = arrivalBranch(stage, axis, getInterviewPlan(workspaceId), interviewPlanSaved(workspaceId));
+    if (branch === "homework") {
       return runHomeworkArrival(entry, stage, workspaceId, { origin: input.origin ?? null });
     }
 
-    if (!stageHasRole(stage, "interview", axis)) return { outcome: "skipped", reason: "not_interview_role" };
+    // A terminal column is not an interview column either (a hire arrives there through
+    // the offer door; the role-fill hook, scheduled beside this one, owns that arrival).
+    if (branch === "not_interview_role" || branch === "refused_terminal") {
+      return { outcome: "skipped", reason: "not_interview_role" };
+    }
 
     // …and is the round HERE run by the AI? A column with no step, or whose first
     // round is a human conversation, is somebody else's job: a person books it on
     // the Schedule tab's calendar and no link is minted.
-    const step = planStep(getInterviewPlan(workspaceId), stage);
-    if (!step || step.rounds[0]?.kind !== "ai") return { outcome: "skipped", reason: "no_ai_round" };
+    if (branch === "no_ai_round") return { outcome: "skipped", reason: "no_ai_round" };
 
     // IDEMPOTENCE, before any spend — both halves, because they catch different
     // races. The EVENT half catches an invite that already went out while the
@@ -249,7 +260,7 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
       return failOpenToTheHumanQueue(entry, workspaceId, "unaddressable", "no deliverable contact address is on file");
     }
 
-    if (effectiveInterviewGate(step, workspaceId) === "human") {
+    if (branch === "ai_invite_held") {
       // HELD. No link, no mail, no spend — the candidate is parked on the existing
       // `calendar` gate, which IS the Schedule tab's AI-round docket: they appear
       // under "Awaiting link", beside the button that calls this very mint door.

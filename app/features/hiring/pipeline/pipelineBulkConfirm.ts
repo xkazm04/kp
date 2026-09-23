@@ -4,6 +4,11 @@
 //   • outreach — WHEN a relay is configured, dispatchOutreach relays each drafted
 //                letter immediately, so "draft N" IS "send N"
 // Both arm a confirm rather than fire on the first click.
+//   • move     — (challenge-r06 blast-radius-computation) when its dry-run preview
+//                says the move sets something off: AI interview invites, work-sample
+//                assignments, erased pending decisions, drafted offers kept back
+//                (pipelineBulkMovePreview.ts). Its cohort signature also signs the
+//                target column, so re-pointing "Move to" re-previews.
 //
 // This module exists to close a round-5 defect: the two confirms were two separate
 // boolean flags, and every selection mutation reset ONLY the reject flag. So a
@@ -48,7 +53,7 @@
 /** An armed confirm, together with the visible-board scope signature it was armed
  *  under (see `visibleScopeSignature` in pipelineSelectionScope.ts) and the signature
  *  of the cohort it names (`cohortSignature`, pipelineBulkSelection.ts). null = none. */
-export type BulkConfirm = { which: "reject" | "outreach"; scope: string; cohort: string } | null;
+export type BulkConfirm = { which: "reject" | "outreach" | "move"; scope: string; cohort: string } | null;
 
 /** What a CHILD component dispatches. It knows which confirm it wants armed; it does
  *  NOT know (and must not have to know) the board's current visible scope — the hook
@@ -56,7 +61,7 @@ export type BulkConfirm = { which: "reject" | "outreach"; scope: string; cohort:
  *  bulk control from accidentally arming an unscoped confirm. */
 export type BulkConfirmIntent =
   /** Arm a specific confirm (disarms the other). */
-  | { type: "arm"; which: "reject" | "outreach" }
+  | { type: "arm"; which: "reject" | "outreach" | "move" }
   /** The user explicitly backed out of the armed confirm. */
   | { type: "cancel" }
   /** ANY change to the selection (toggle, select-all, clear, a bulk action that
@@ -69,7 +74,7 @@ export type BulkConfirmIntent =
 /** The reducer's event union: a child `BulkConfirmIntent` with the board's current
  *  visible scope AND the signature of the cohort on screen stamped onto `arm`. */
 export type BulkConfirmEvent =
-  | { type: "arm"; which: "reject" | "outreach"; scope: string; cohort: string }
+  | { type: "arm"; which: "reject" | "outreach" | "move"; scope: string; cohort: string }
   | Exclude<BulkConfirmIntent, { type: "arm" }>;
 
 /** Pure transition for the board's bulk-confirm state. Total over the event union;
@@ -105,6 +110,6 @@ export function armedConfirm(
   state: BulkConfirm,
   currentScope: string,
   currentCohort: string
-): "reject" | "outreach" | null {
+): "reject" | "outreach" | "move" | null {
   return state && state.scope === currentScope && state.cohort === currentCohort ? state.which : null;
 }

@@ -22,10 +22,18 @@ import {
   cohortSignature,
   foldBatchSettle,
   reconcileSelection,
+  type BatchResponse,
   type BatchSettle,
   type BulkResult,
 } from "./pipelineBulkSelection";
 import { selectionOutsideVisible } from "./pipelineSelectionScope";
+import {
+  commitItemsFromPreview,
+  needsConfirm,
+  summarizeMovePreview,
+  type MovePreviewPlan,
+  type MovePreviewRow,
+} from "./pipelineBulkMovePreview";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import type { PipelineTabTranslator } from "./pipelineTranslator";
@@ -83,17 +91,21 @@ export function usePipelineBulk({
   const dispatchBulkConfirm = useCallback(
     (intent: BulkConfirmIntent) => {
       if (intent.type === "arm") {
-        dispatch({ ...intent, scope: visibleScope, cohort: cohortSignature(selectedIds, entries, intent.which) });
+        dispatch({ ...intent, scope: visibleScope, cohort: cohortSignature(selectedIds, entries, intent.which, bulkStage) });
       } else {
         // cancel (or a child's selectionChanged / fired): disarm, selection untouched.
         dispatch({ type: "cancel" });
       }
     },
-    [visibleScope, selectedIds, entries]
+    [visibleScope, selectedIds, entries, bulkStage]
   );
-  const armedBulk = armedBulkConfirm({ selected: selectedIds, confirm: bulk.confirm }, visibleScope, entries);
+  const armedBulk = armedBulkConfirm({ selected: selectedIds, confirm: bulk.confirm }, visibleScope, entries, bulkStage);
   const confirmingBulkReject = armedBulk === "reject";
   const confirmingBulkOutreach = armedBulk === "outreach";
+  const confirmingBulkMove = armedBulk === "move";
+  // A move preview is the status line only while its confirm stands: a drift, a new
+  // target or a cancel de-arms it by derivation, and the sentence goes with it.
+  const bulkResult = bulk.result?.verb === "previewed" && !confirmingBulkMove ? null : bulk.result;
 
   const { startTask } = useTasks();
   // Watch the in-flight bulk-outreach draft run: cheap status/progress from the poll,
@@ -149,7 +161,7 @@ export function usePipelineBulk({
   // ONE settle for every synchronous batch door: the fold's client-sentence key is
   // localized here (a whole-request refusal with no code, or an uncoded per-item
   // refusal); the codes resolve through errors.<CODE> where the bar renders them.
-  const settle = (fold: BatchSettle, verb: BulkResult["verb"]) => {
+  const settle = (fold: BatchSettle, verb: BulkResult["verb"], extra: { heldBack?: number } = {}) => {
     dispatch({
       type: "settled",
       keep: fold.keep,
@@ -160,33 +172,71 @@ export function usePipelineBulk({
         reason: fold.reasonKey ? t(fold.reasonKey) : null,
         reasonCodes: fold.reasonCodes,
         refusalCapability: fold.refusalCapability,
+        ...(extra.heldBack ? { heldBack: extra.heldBack } : {}),
       },
     });
   };
 
-  // PIPE1 — bulk move. ONE batch POST, each item carrying its OWN expectedStage
-  // (the stage the board showed for THAT card) — a per-id 409 means a concurrent
-  // actor moved that candidate, and the MatrixTab W11 grammar applies: the failure
-  // STAYS SELECTED for retry while successes deselect.
+  // Commit a preview: EXACTLY the previewed rows, each pinned to the stage the preview
+  // read (a row that moved since is a per-id 409 that stays selected). A row the move
+  // would strip of a drafted offer is never sent; it stays selected with the reason.
+  const commitMove = async (preview: MovePreviewPlan, selection: ReadonlySet<string>) => {
+    const plan = commitItemsFromPreview(preview, selection);
+    const response = plan.items.length > 0 ? await postPipelineBatch(plan.items) : ({ ok: true, results: [] } as const);
+    const merged: BatchResponse = response.ok ? { ok: true, results: [...response.results, ...plan.refused] } : response;
+    const attempted = [...plan.items.map((it) => it.id), ...plan.refused.map((r) => r.id)];
+    settle(
+      foldBatchSettle({ attempted, untouched: plan.heldBack, response: merged, alreadyDone: plan.alreadyThere.length }),
+      "moved",
+      { heldBack: plan.heldBack.length }
+    );
+    await load();
+  };
+
+  // PIPE1 — bulk move, previewed first (blast-radius-computation, challenge-r06). The
+  // first click asks the batch door for a DRY RUN: what each row's arrival sets off,
+  // read by the planner the stage-entered hook executes. A move that sets nothing off
+  // commits right away (one click, as before); one that mails invites or assignments,
+  // parks candidates, erases pending decisions or would destroy a drafted offer arms
+  // the move confirm, and the bar states the preview. The confirm signs the cohort AND
+  // the target, so a poll that re-stages anyone, or a new "Move to" column, re-previews.
+  // Per-id failures STAY SELECTED for retry while successes deselect (MatrixTab W11).
   const bulkMove = async () => {
     if (!bulkStage || selectedIds.size === 0 || bulk.busy) return;
-    dispatch({ type: "fired", busy: true });
-    // Build the batch: skip vanished entries; count an already-at-target card as
-    // moved without a round trip (the server would no-op it anyway).
-    let alreadyDone = 0;
-    const items: PipelineBatchItem[] = [];
-    for (const id of selectedIds) {
-      const entry = (entries ?? []).find((x) => x.id === id);
-      if (!entry) continue; // vanished since selection — nothing left to move
-      if (entry.stage === bulkStage) {
-        alreadyDone += 1; // already at the target — done, deselect
-        continue;
-      }
-      items.push({ id, action: "set_stage", toStage: bulkStage, expectedStage: entry.stage });
+    const selection = selectedIds;
+    if (
+      bulk.movePreview &&
+      bulk.movePreview.toStage === bulkStage &&
+      armedBulkConfirm({ selected: selection, confirm: bulk.confirm }, visibleScope, entries, bulkStage) === "move"
+    ) {
+      const preview = bulk.movePreview;
+      dispatch({ type: "fired", busy: true });
+      await commitMove(preview, selection);
+      return;
     }
-    const response = items.length > 0 ? await postPipelineBatch(items) : ({ ok: true, results: [] } as const);
-    settle(foldBatchSettle({ attempted: items.map((it) => it.id), untouched: [], response, alreadyDone }), "moved");
-    await load();
+    // Signed at the CLICK, over the rows the preview is asked about: a poll that lands
+    // while the preview is in flight leaves the confirm un-armed, and the next click
+    // previews again.
+    const scope = visibleScope;
+    const cohort = cohortSignature(selection, entries, "move", bulkStage);
+    const rows = actionableRows(selection, entries, "move");
+    dispatch({ type: "fired", busy: true });
+    const items: PipelineBatchItem[] = rows.map((e) => ({ id: e.id, action: "set_stage", toStage: bulkStage, expectedStage: e.stage }));
+    if (items.length === 0) {
+      settle(foldBatchSettle({ attempted: [], untouched: [], response: { ok: true, results: [] } }), "moved");
+      return;
+    }
+    const answer = await previewPipelineMove(items);
+    if (!answer.ok) {
+      settle(foldBatchSettle({ attempted: items.map((it) => it.id), untouched: [], response: answer }), "moved");
+      return;
+    }
+    const preview: MovePreviewPlan = { toStage: bulkStage, rows: answer.rows };
+    if (needsConfirm(summarizeMovePreview(preview.rows))) {
+      dispatch({ type: "previewed", preview, arm: { scope, cohort } });
+      return;
+    }
+    await commitMove(preview, selection);
   };
 
   // bdc7fc01 — bulk accept/reject the AWAITING cohort in the selection. Acts only
@@ -315,9 +365,10 @@ export function usePipelineBulk({
     bulkStage,
     setBulkStage,
     bulkBusy: bulk.busy,
-    bulkResult: bulk.result,
+    bulkResult,
     confirmingBulkReject,
     confirmingBulkOutreach,
+    confirmingBulkMove,
     dispatchBulkConfirm,
     selectedAwaiting,
     awaitingKinds,
@@ -331,3 +382,24 @@ export function usePipelineBulk({
 }
 
 export type PipelineBulkState = ReturnType<typeof usePipelineBulk>;
+
+/** The batch door's DRY RUN for a bulk move: per-id previews, or the whole-request
+ *  refusal read exactly the way the commit reads it (its code and the capability it
+ *  named), so the fold can report either. Nothing is written server-side. */
+async function previewPipelineMove(
+  items: PipelineBatchItem[]
+): Promise<{ ok: true; rows: MovePreviewRow[] } | Extract<BatchResponse, { ok: false }>> {
+  try {
+    const r = await fetch("/api/pipeline/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dryRun: true, items }),
+    });
+    const d = (await r.json().catch(() => null)) as { results?: MovePreviewRow[]; code?: string; capability?: string } | null;
+    if (r.ok && Array.isArray(d?.results)) return { ok: true, rows: d.results };
+    return { ok: false, status: r.status, code: d?.code ?? null, capability: d?.capability ?? null };
+  } catch {
+    // A transport blip: no verdict to read; the cohort stays selected.
+    return { ok: false };
+  }
+}
