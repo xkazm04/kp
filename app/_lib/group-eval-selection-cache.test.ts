@@ -123,14 +123,19 @@ test("governance stickiness survives a selection-only role (the stored mode is s
 });
 
 test("the modal's cached read is keyed on the SAME helper the server persists with", () => {
-  const src = readFileSync(
-    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "features", "hiring", "decisions",
-      // the cached-read path moved into the queue hook when DecisionsTab was split
-      "useDecisionsQueue.ts"),
-    "utf8"
-  );
+  // The cached-read path moved into the queue hook when DecisionsTab was split, then
+  // (challenge-r03 group-eval-comparison/A) into the group-eval open machine: the key is
+  // planned in groupEvalOpenMachine.ts and probed by useGroupEvalOpen.ts.
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "features", "hiring", "decisions");
+  const read = (...p: string[]) => readFileSync(path.join(dir, ...p), "utf8");
+  const plan = read("groupEval", "groupEvalOpenMachine.ts");
+  const probe = read("groupEval", "useGroupEvalOpen.ts");
+  const queue = read("useDecisionsQueue.ts");
   // The old bug in one line: `hasSelection` unconditionally skipped the cached read.
-  assert.doesNotMatch(src, /!rerun && !hasSelection/, "a selection open must no longer bypass the cache outright");
-  assert.match(src, /selectionCacheKey\(g\.roleKey, candidates\.map\(\(c\) => c\.entryId\)\)/, "the client must derive the key from the same ids the server hashes");
-  assert.match(src, /role=\$\{encodeURIComponent\(cacheKey\)\}/, "the cached read must go to the run's cache key, not always the role key");
+  for (const src of [plan, probe, queue]) {
+    assert.doesNotMatch(src, /!rerun && !hasSelection/, "a selection open must no longer bypass the cache outright");
+  }
+  assert.match(plan, /selectionCacheKey\(g\.roleKey, candidates\.map\(\(c\) => c\.entryId\)\)/, "the client must derive the key from the same ids the server hashes");
+  assert.match(plan, /tryCache: !opts\.rerun && \(selectedSet \? true : opts\.roleEvaluated\)/, "a selection open always probes its own key");
+  assert.match(probe, /role=\$\{encodeURIComponent\(fx\.cacheKey\)\}/, "the cached read must go to the run's cache key, not always the role key");
 });
