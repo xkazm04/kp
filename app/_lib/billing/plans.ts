@@ -164,3 +164,28 @@ export function isPackId(value: unknown): value is PackId {
 export function currentPeriod(now: Date = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+
+/** The allowance window a debit made at `now` lands in, stated as dates: `period` is
+ *  the ledger key (`currentPeriod(now)`, by construction), `start` / `resetsAt` its UTC
+ *  bounds (half-open — the reset instant belongs to the next window), `asOf` the
+ *  instant it was read. DISPLAY ONLY: nothing that gates or debits reads it, so it can
+ *  never move a charge (allowance-window.test.ts pins both halves).
+ *
+ *  This is the ALLOWANCE window, not the PAID period: the provider bills on the
+ *  subscription's own anniversary, and the two coincide only for a subscription
+ *  anchored on the 1st (period-anchor.test.ts). When the allowance is re-keyed onto the
+ *  anchor (.ai/tasks/2026-09-07-allowance-period-anchor.md), this function takes the
+ *  subscription state as well — and every date the Billing tab shows follows. */
+export type AllowanceWindow = { period: string; start: string; resetsAt: string; asOf: string };
+
+export function allowanceWindow(now: Date = new Date()): AllowanceWindow {
+  const period = currentPeriod(now);
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  return {
+    period,
+    start: new Date(Date.UTC(year, month, 1)).toISOString(),
+    resetsAt: new Date(Date.UTC(year, month + 1, 1)).toISOString(),
+    asOf: now.toISOString(),
+  };
+}

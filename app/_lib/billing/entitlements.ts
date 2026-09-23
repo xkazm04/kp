@@ -17,7 +17,7 @@ import { listProviderKeys } from "../db/llm";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import { getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import { billingProviderConfigured } from "./mode";
-import { currentPeriod, PLANS, type Meter, type PlanDef, type PlanId } from "./plans";
+import { allowanceWindow, currentPeriod, PLANS, type AllowanceWindow, type Meter, type PlanDef, type PlanId } from "./plans";
 
 /** The billing scope a workspace's spend belongs to: its ORG (org-plan Phase 3 —
  *  a subscription is per customer company, shared across its teams). The seams
@@ -115,6 +115,11 @@ export type BillingOverview = {
    *  renders the self-hosted panel instead of plans and usage bars. */
   metered: boolean;
   meters: MeterOverview[];
+  /** The window every meter above is counted and debited in, as dates: when it
+   *  started and when it resets. Display only (plans.ts allowanceWindow); it is NOT
+   *  `periodEnd`, which is the provider's PAID period and differs for any
+   *  subscription not anchored on the 1st. */
+  allowanceWindow: AllowanceWindow;
 };
 
 /** THE single encoding of the "included monthly allowance first, then prepaid
@@ -244,6 +249,7 @@ export function billingOverview(now: Date = new Date(), workspace?: string): Bil
     provider: state?.provider ?? null,
     metered: meteringActive(orgId),
     meters: (Object.keys(plan.limits) as Meter[]).map((meter) => meterOverview(meter, plan, now, orgId)),
+    allowanceWindow: allowanceWindow(now),
   };
 }
 
