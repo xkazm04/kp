@@ -1179,7 +1179,7 @@ with the same `{ kind, params }` shape.
 
 | Path | Role |
 |---|---|
-| `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../[id]/channels`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
+| `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../[id]/channels`, `.../[id]/intake`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions (`[id]/intake` stops a case's intake by hand) |
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
 | `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
 | `app/_lib/devcase-session-auth.ts` | The one door guard (`openSessionDoor`) of every mutating session sub-route: mints/hashes the per-attempt session key and checks it (or the apply token on a legacy row) |
@@ -1709,6 +1709,61 @@ joined `TAB_SCOPED_PARAM_KEYS` so a bare tab switch clears them. Notice copy liv
 `assignmentsDeepLink.test.ts`, the job case in `app/_lib/db/devcase-ledger.test.ts`
 and the exact-set pin in `app/features/shell/tabs.test.ts`.
 
+### Closed intake reads closed: stop, reopen, and no dead links handed out
+
+challenge-r09 devcase-lifecycle/B. The store has held open/closed postings since W5-3 and
+the publish door already treated a publish after a close-out as a genuine new posting, but
+the assignment detail never read the status: `published` was `casePostings.length > 0`. A
+case whose every posting was closed (the lifecycle's Close, the r07 fence withdrawing a
+just-minted token) still showed a disabled **Published** button, each channel card still
+copied an apply URL that answers 410 and offered a manual-intake form the submit route
+refuses, and a closed case with no applicants said it was waiting for them. A case
+published by hand from the detail (no lifecycle) had no way to stop intake at all.
+
+- **One rule for the state and the action.** `intakeOf(postings)` (in
+  `app/features/tools/devcases/DevCaseDetail.publish.ts`) reads `unpublished` / `live`
+  (at least one open posting) / `closed` from the postings' status, and
+  `intakeAction(intake, lifecycleStage)` answers `publish` / `stop` / `reopen`, or `null`
+  while a running lifecycle owns intake. `lifecycleOwnsIntake` (any newest lifecycle that
+  is not `closed`) is the same predicate the stop door refuses on. It lives beside the
+  publish gate rather than in a module of its own because `app/page.tsx` reaches the
+  detail through `next/dynamic` and sits at its module ceiling in `perf-budget.json`.
+  `getDevCase` now carries `lifecycleStage` (the case's newest lifecycle, in its own
+  workspace) so `GET /api/devcase/[id]` hands the header what the rule needs.
+- **The stop door.** `POST /api/devcase/[id]/intake {action: "stop"}` asks
+  `requireOperator()` then `pipeline:write`, answers a foreign or unknown case the same
+  `DEVCASE_CASE_NOT_FOUND` 404, and calls `closeCaseIntake`: an IMMEDIATE transaction that
+  re-reads the case's newest lifecycle and refuses (409 `DEVCASE_INTAKE_LIFECYCLE_OWNS`,
+  the stage as data) while a running one owns intake, then closes every OPEN posting of the
+  case in its workspace with an UPDATE that re-asserts `status = 'open'`. The write lock
+  keeps an orchestrator step from linking or minting between the read and the write; the
+  re-assert makes a repeat a zero-change no-op (`{closed: 0}`, no second audit row). One
+  `intake_stopped` audit row (actor `human`, ref = case id) per stop that closed something.
+  It sends **no** candidate comms: stopping intake is not a rejection, and a running
+  lifecycle's Close stays the door that wraps submitters up. The candidate-side refusals
+  are the existing closed-intake contract, unchanged: the apply page, the inbound webhook
+  and the session submit answer `POSTING_CLOSED` (410), and a live attempt learns it on its
+  next flush (`intakeClosed`).
+- **Reopen is a publish, and asks the same seat.** `POST /api/devcase/publish` now asks
+  `requireOperator()` then `pipeline:write` (it asked nothing, and it is the reopen half);
+  its line is gone from `route-capability-coverage.test.ts`'s ALLOWED list. A reopen mints a
+  FRESH token: a closed posting is outside the dedup, so the stopped link stays 410.
+- **Every surface that shows the state or offers the action agrees.** The header's one
+  intake button reads Publish / Stop intake / Reopen intake (disabled, with the reason
+  written under it, while a lifecycle owns intake) beside a Live · N open or Intake closed
+  chip; `DevPublishConfirm` has `publish`, `reopen` (names that the old link stays closed)
+  and `stop` variants; a closed channel card shows a Closed chip and "link closed" with no
+  URL, no copy pill and no `SubmissionForm`; the waiting panel says intake is closed and how
+  to reopen. The Assignments ledger's no-lifecycle fallback is status-aware too: an open
+  posting reads `published`, only closed postings read `closed` (so `devcase-sla`'s stall
+  chip, which counts `published` as open, stops chasing a stopped case), and the stage
+  facet offers `closed`.
+
+Pinned by `app/features/tools/devcases/devcaseIntakeState.test.ts`,
+`app/api/devcase/[id]/intake/route.test.ts` (real handlers with seat fixtures: stop, repeat,
+lifecycle-owns 409, foreign 404, viewer 403 on stop and publish, reopen mints a fresh
+token) and `app/_lib/db/devcase-ledger.test.ts`.
+
 ### The control room asks authority, and reports its writes
 
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
@@ -2202,6 +2257,13 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   untranslated, to a candidate reading the page in cs/de/fr.
 - 3rd-party distribution (publish/pull to email/ATS/job-board) is a local-stub
   adapter interface only, per the original plan (`docs/concepts/dev-extension-future-phases.md`).
+- **Two apply-link doors outside the studio do not yet read a stopped intake.** The Comms
+  Center's Resend (`app/api/comms/[id]/resend/route.ts`) re-dispatches a stored
+  `case_invite` body verbatim, so resending an invite whose posting was closed mails a link
+  that answers 410. And the homework column (`app/_lib/stage-hooks-homework.ts`) finds no
+  OPEN posting on a stopped case and publishes a fresh one, so moving a candidate into that
+  column reopens intake the recruiter stopped. Neither hands out a closed link through the
+  studio; both are outside the stop/reopen change.
 
 ## Case-generation calibration
 
