@@ -42,6 +42,19 @@ career-switcher) that other features key off. Downstream ranking is
     as a profile, or edit a saved one). Role, role family and source live in
     `CandidateMatrixFilterBar.tsx` (population filters) and
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
+    The population is keyed on **CV identity**, not on store rows:
+    `GET /api/profile/candidates` folds both stores through the pure
+    `collapsePopulation` (`app/_lib/candidate-population.ts`), so every row sharing
+    a non-null CV content hash (`analyses.cv_hash` = `profiles.source_cv_hash`) is
+    ONE candidate. A saved profile wins the archetype; the newest analysis of the CV
+    supplies the score and the slug; every analysis is listed newest-first on the
+    row (`CandidateRow.analyses`) and linked from the detail modal. A NULL hash
+    (hand-built profile, or an analysis saved before `cv_hash` existed) never merges,
+    and a candidate label is never compared: labels are filename-derived and two
+    people share them. The source filter therefore reads "has a profile" /
+    "analysis only", and lane counts count people, not rows. The chip's one action
+    and the modal footer both read `matrixChipAction`: a row with a profile id is
+    edited, never offered "build profile".
 - **Saved analysis report** — `app/history/[slug]/page.tsx`. Its subtitle resolves
   role family and seniority through the shared enum catalog in the reader's
   language, falling back to a stored value it does not recognize. The cross-job
@@ -795,6 +808,19 @@ successful PUT returns the row's new `updatedAt` so the stay-open save loop keep
 working; `ProfileTab` keys the editor on `mode:id:nonce` so re-opening the SAME
 profile after a refusal genuinely remounts on the fresh payload.
 
+**One profile per CV.** A `POST /api/profile` that persists a build FROM an
+analysis (`sourceAnalysisSlug`) resolves that analysis's CV hash server-side; when
+the workspace already holds a profile with the same `source_cv_hash`, the route
+answers `jsonRefusal("PROFILE_EXISTS", 409, { id })` with the existing profile's id
+and writes nothing. The check runs before the `profile_cli` spawn (a refused build
+costs no child), and `saveProfileForCv` repeats it inside an IMMEDIATE transaction
+with the INSERT, so two builds of the same CV racing across the spawn cannot both
+land. The join is workspace-scoped (`findProfileIdBySourceCvHash(hash, ws)`), a
+dry-run preview (`persist:false`) is never refused, and a build with no resolvable
+hash (a hand-built profile, a pre-`cv_hash` analysis) behaves exactly as before.
+The editor and the analysis report's "save as profile" banner both render the
+refusal in the reader's language through `useErrorMessage`.
+
 **An abandoned intake survives Back and refresh.** The editor backs its form up to
 `sessionStorage` per profile id (`kp.profileEditor.<id|new>`), restores it after
 mount, and drops it on save or cancel. Every access is wrapped — a private window
@@ -1281,6 +1307,12 @@ absence has to survive the CV.
   over that newest slice: searching a candidate analysed 250 runs ago returns
   "No runs match your search or filter". The row is still reachable at
   `/history/[slug]`. A server pager (or a query param) is the remaining half.
+- **A same-CV refusal names the profile but does not open it.** `PROFILE_EXISTS`
+  carries the existing id, and the matrix no longer offers the build, but the
+  other build doors (a `fromAnalysis` deep link, the analysis report's "save as
+  profile") show the localized refusal without an "open that profile" button.
+  Profiles duplicated before the refusal existed stay two rows on the matrix (the
+  CV's analyses attach to the newer one); nothing merges them.
 - **The saved-profile roster claims a silently capped population.**
   `GET /api/profile` serves `cachedProfileRecords` = `listProfileRecords(200, ws)`
   with no total and no `truncated` flag, and `ProfileRoster` renders
