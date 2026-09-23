@@ -6563,7 +6563,8 @@
       "archiveConfirmNote": "Vyřazení jej pouze skryje z výběrů. Profily, které sem již směřují, se dál hodnotí podle jeho vah a kdykoli jej můžete obnovit.",
       "dimSkills": "Dovednosti",
       "dimCareer": "Kariéra",
-      "dimPersonal": "Osobní"
+      "dimPersonal": "Osobní",
+      "archiveConfirmAnalyses": "{count, plural, one {K tomuto archetypu směřuje také # analyzovaný kandidát bez uloženého profilu.} few {K tomuto archetypu směřují také # analyzovaní kandidáti bez uloženého profilu.} other {K tomuto archetypu směřuje také # analyzovaných kandidátů bez uloženého profilu.}}"
     },
     "empty": {
       "specimenLabel": "Každý uložený profil obsahuje",

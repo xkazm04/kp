@@ -6563,7 +6563,8 @@
       "archiveConfirmNote": "Das Stilllegen blendet ihn nur aus den Auswahllisten aus. Bereits zugeordnete Profile werden weiterhin mit seinen Gewichten bewertet, und Sie können ihn jederzeit wiederherstellen.",
       "dimSkills": "Fähigkeiten",
       "dimCareer": "Werdegang",
-      "dimPersonal": "Persönlich"
+      "dimPersonal": "Persönlich",
+      "archiveConfirmAnalyses": "{count, plural, one {Außerdem ist # analysierte Person ohne gespeichertes Profil diesem Archetyp zugeordnet.} other {Außerdem sind # analysierte Personen ohne gespeichertes Profil diesem Archetyp zugeordnet.}}"
     },
     "empty": {
       "specimenLabel": "Jedes gespeicherte Profil enthält",

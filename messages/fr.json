@@ -6563,7 +6563,8 @@
       "archiveConfirmNote": "Le retrait le masque seulement dans les listes de choix. Les profils déjà orientés ici continuent d'être notés selon ses pondérations, et vous pouvez le restaurer à tout moment.",
       "dimSkills": "Compétences",
       "dimCareer": "Parcours",
-      "dimPersonal": "Personnel"
+      "dimPersonal": "Personnel",
+      "archiveConfirmAnalyses": "{count, plural, one {# candidat analysé sans profil enregistré est également orienté vers cet archétype.} other {# candidats analysés sans profil enregistré sont également orientés vers cet archétype.}}"
     },
     "empty": {
       "specimenLabel": "Chaque profil enregistré contient",

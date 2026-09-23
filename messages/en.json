@@ -6563,7 +6563,8 @@
       "archiveConfirmNote": "Retiring only hides it from the pickers. Profiles already routed here keep scoring against its weights, and you can restore it at any time.",
       "dimSkills": "Skills",
       "dimCareer": "Career",
-      "dimPersonal": "Personal"
+      "dimPersonal": "Personal",
+      "archiveConfirmAnalyses": "{count, plural, one {# analyzed candidate without a saved profile also routes here.} other {# analyzed candidates without a saved profile also route here.}}"
     },
     "empty": {
       "specimenLabel": "Every saved profile carries",
