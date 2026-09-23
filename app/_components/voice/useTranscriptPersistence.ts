@@ -10,6 +10,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 import { createTimerRegistry } from "./timer-registry";
+import { isPermanentRefusal, saveStateOf, type SaveState } from "./reconnect-plan";
+
+// Re-exported so the tri-state reads as this hook's own vocabulary at call sites.
+export { saveStateOf, type SaveState };
 
 /** sessionStorage key prefix for a transcript body the server has not accepted
  *  yet. Shared by the writer (persistTranscript) and the replay pass below. */
@@ -49,17 +53,47 @@ export function useTranscriptPersistence({
     return () => timers.clearAll();
   }, []);
 
-  // M6: the transcript POST failed after retries — surface a manual Retry (the body is stashed in
-  // sessionStorage) instead of asking the candidate to babysit a tab with no action to take.
-  const [saveFailed, setSaveFailed] = useState(false);
+  // The last save's answer and whether one is in flight. ONE record, read through
+  // saveStateOf (reconnect-plan.ts) by every surface that cares: the Retry banner
+  // (M6: a manual Retry instead of "keep this tab open"), the reconnect plan (a
+  // redial never goes out while the session can still be in_progress server-side)
+  // and Start's precondition. It used to be two booleans the shell set by hand, and
+  // start() cleared the failure flag before dialling — which disarmed the
+  // online/visibility re-drive below and walked the candidate into /connect's
+  // INTERVIEW_ALREADY_LIVE for their own unsaved session.
+  //
+  // `discardedTurns` is how many turns the SERVER said it discarded (409
+  // INTERVIEW_ALREADY_COMPLETED): another window's call for this link finished
+  // first. `refusedStatus` is the HTTP status of any 4xx answer — every permanent
+  // one (400 / 403 / 404 / 409 / 413) is a refusal a retry can never turn around,
+  // with or without discardedTurns, so it gets an explanation, not a Retry button.
+  const [lastSave, setLastSave] = useState<{
+    saved: boolean;
+    discardedTurns: number;
+    refusedStatus: number | null;
+  } | null>(null);
+  const [inFlight, setInFlight] = useState(false);
+  // The same fact for callbacks: a re-drive (online, visibilitychange, the reconnect
+  // plan, Start's precondition) while a POST is already out must not send a second.
+  const inFlightRef = useRef(false);
+  const saveState: SaveState | null =
+    inFlight || lastSave
+      ? saveStateOf({
+          saved: lastSave?.saved ?? false,
+          discardedTurns: lastSave?.discardedTurns ?? 0,
+          inFlight,
+          refusedStatus: lastSave?.refusedStatus ?? null,
+        })
+      : null;
+  const discardedTurns = lastSave?.discardedTurns ?? 0;
 
-  // How many turns the SERVER told us it discarded (409 INTERVIEW_ALREADY_COMPLETED
-  // with `discardedTurns`). A different outcome from saveFailed and it must not be
-  // dressed as one: the save did not fail transiently, it was REFUSED because
-  // another window's call for this same link finished first. Retrying can never
-  // help, so the candidate gets an explanation instead of a Retry button — and,
-  // crucially, is no longer told their interview was saved when it was not.
-  const [discardedTurns, setDiscardedTurns] = useState(0);
+  /** Forget the previous attempt's save. start() calls it only once the
+   *  precondition has settled that save, never before. */
+  const resetSave = useCallback(() => {
+    inFlightRef.current = false;
+    setLastSave(null);
+    setInFlight(false);
+  }, []);
 
   // Durable persist of the transcript — the ONLY record of the interview. Stash it
   // locally first (so a total POST failure doesn't vanish it), then POST with a
@@ -72,6 +106,14 @@ export function useTranscriptPersistence({
       transcript: VoiceTurn[],
       status: "completed" | "failed"
     ): Promise<{ saved: boolean; discardedTurns: number }> => {
+      inFlightRef.current = true;
+      setInFlight(true);
+      const settle = (saved: boolean, discarded: number, refusedStatus: number | null) => {
+        inFlightRef.current = false;
+        setLastSave({ saved, discardedTurns: discarded, refusedStatus });
+        setInFlight(false);
+        return { saved, discardedTurns: discarded };
+      };
       const body = JSON.stringify({ token: tok, sessionId: sid, transcript, status });
       const stashKey = `${STASH_PREFIX}${sid}`;
       try {
@@ -93,12 +135,12 @@ export function useTranscriptPersistence({
             } catch {
               /* ignore */
             }
-            return { saved: true, discardedTurns: 0 };
+            return settle(true, 0, null);
           }
           // 429 is the ONE 4xx that WILL improve on retry (/complete's per-token+IP
           // throttle): treat it as transient so the backoff below still runs and the
           // stash survives, unlike consent/token/already-completed which never will.
-          if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          if (isPermanentRefusal(res.status)) {
             // A 409 may carry `discardedTurns`: this body lost to another window's
             // call for the same link and its turns are NOT in the saved record.
             // Read it so the shell can say that, rather than showing a Retry that
@@ -111,7 +153,7 @@ export function useTranscriptPersistence({
                   discarded = body.discardedTurns;
                 }
               } catch {
-                /* a refusal we cannot read is still a refusal — fall through to saveFailed */
+                /* a refusal we cannot read is still a refusal (refusedStatus says so) */
               }
             }
             // The stash exists so a transient failure can be replayed. This one can
@@ -122,8 +164,7 @@ export function useTranscriptPersistence({
             } catch {
               /* ignore */
             }
-            setDiscardedTurns(discarded);
-            return { saved: false, discardedTurns: discarded };
+            return settle(false, discarded, res.status);
           }
         } catch {
           /* network error — retry */
@@ -141,19 +182,20 @@ export function useTranscriptPersistence({
         // mount, so stopping here loses nothing.
         if (timersRef.current.cleared) break;
       }
-      return { saved: false, discardedTurns: 0 };
+      return settle(false, 0, null);
     },
     []
   );
 
   // M6: re-POST the (still in-memory + sessionStorage-stashed) transcript on demand or when the
   // tab regains connectivity/visibility, so a transient network failure doesn't lose the record.
-  const retrySave = useCallback(async () => {
+  // Answers whether the record is now saved, so Start's precondition can await it.
+  const retrySave = useCallback(async (): Promise<boolean> => {
     const sid = sessionIdRef.current;
     const tok = sessionTokenRef.current ?? token ?? null;
-    if (!sid || !tok) return;
+    if (!sid || !tok || inFlightRef.current) return false;
     const { saved } = await persistTranscript(tok, sid, turnsRef.current, endedAs ?? "failed");
-    if (saved) setSaveFailed(false);
+    return saved;
   }, [persistTranscript, token, endedAs, sessionIdRef, sessionTokenRef, turnsRef]);
 
   // The stash was WRITE-ONLY: nothing in the app ever read `kp.iv.*` back, so the
@@ -218,6 +260,7 @@ export function useTranscriptPersistence({
     };
   }, []);
 
+  const saveFailed = saveState === "failed";
   useEffect(() => {
     if (!saveFailed) return;
     const onRetry = () => {
@@ -231,5 +274,5 @@ export function useTranscriptPersistence({
     };
   }, [saveFailed, retrySave]);
 
-  return { saveFailed, setSaveFailed, discardedTurns, setDiscardedTurns, persistTranscript, retrySave };
+  return { saveState, discardedTurns, resetSave, persistTranscript, retrySave };
 }

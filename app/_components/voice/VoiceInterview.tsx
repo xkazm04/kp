@@ -54,6 +54,15 @@ import { isVoiceTransportError } from "./transport/transport-error";
 import { useMicTest } from "./useMicTest";
 import { useSpeakerTest } from "./useSpeakerTest";
 import { useTranscriptPersistence } from "./useTranscriptPersistence";
+// What a dropped call does next (save the record first, then a cancellable redial),
+// as a pure decision the shell only executes.
+import {
+  REDIAL_COUNTDOWN_SECONDS,
+  reconnectPlan,
+  startPrecondition,
+  type ReconnectPlan,
+} from "./reconnect-plan";
+import { ReconnectNotice } from "./ReconnectNotice";
 import { micErrorText } from "./micErrorText";
 import { connectStartFailureMessage } from "./connect-start-failure";
 import { PROVIDER_LABEL, portalLanguageHint, type LangHint, type Phase } from "./ui-types";
@@ -259,6 +268,33 @@ function VoiceInterviewInner({
   // handed to the recording hook so it captures the stream the call is using rather
   // than opening a second one.
   const [micStream, setMicStream] = useState<MediaStream | null>(null);
+  // ── the dropped-call recovery (challenge-r08 voice-interview-components/B) ──
+  // What the LAST finalize decided, recorded by finalize itself — the one path the
+  // OpenAI drop, the ElevenLabs onDisconnect, the End button and the director all
+  // end through — so the reconnect plan covers every transport's drop. `sessionId`
+  // is the prior attempt's id, held only in this tab's memory for the Start
+  // precondition; it never leaves the page.
+  const [outcome, setOutcome] = useState<{
+    seq: number;
+    directed: boolean;
+    ending: InterviewEnding;
+    finalStatus: "completed" | "failed";
+    reachedLive: boolean;
+    sessionId: string | null;
+  } | null>(null);
+  const outcomeSeqRef = useRef(0);
+  // The outcome a scheduled redial belongs to. start() clears it, so a countdown
+  // that fires a moment after the candidate's own click cannot dial twice.
+  const activeOutcomeSeqRef = useRef<number | null>(null);
+  // Automatic redials spent on this page (reset by a completed ending), the outcome
+  // whose countdown the candidate cancelled, and the countdown's visible value.
+  const [autoUsed, setAutoUsed] = useState(0);
+  const [cancelledSeq, setCancelledSeq] = useState<number | null>(null);
+  const [countdownLeft, setCountdownLeft] = useState<{ seq: number; left: number } | null>(null);
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+  // The save_first plan re-drives the prior session's save once per outcome; after
+  // that the persistence hook's online/visibility listener carries it.
+  const redrivenSeqRef = useRef<number | null>(null);
 
   // H5 follow-up: the pre-call mic test lives in its own hook — it shares nothing with
   // the call but the device, hence the two touchpoints (resetForCall / stopMicTest).
@@ -440,6 +476,11 @@ function VoiceInterviewInner({
     endFnRef.current = (kind: InterviewEnding) => void end(kind);
   });
   const requestDirectorEnd = useCallback(() => endFnRef.current("director_end"), []);
+  // The redial countdown calls start() the same way: through the latest render's.
+  const startFnRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    startFnRef.current = () => void start();
+  });
 
   const director = useDirector({
     injectDirective,
@@ -487,7 +528,7 @@ function VoiceInterviewInner({
     [director, observations, showInterviewerPartial],
   );
 
-  const { saveFailed, setSaveFailed, discardedTurns, setDiscardedTurns, persistTranscript, retrySave } =
+  const { saveState, discardedTurns, resetSave, persistTranscript, retrySave } =
     useTranscriptPersistence({
       token,
       sessionIdRef,
@@ -569,17 +610,30 @@ function VoiceInterviewInner({
       if (status === "completed") setError(null);
       const sid = sessionIdRef.current;
       const tok = sessionTokenRef.current ?? token ?? null;
+      // Record the outcome BEFORE the save starts: the reconnect plan reads the save
+      // state live, so it waits (save_first) while the POST is in flight and moves
+      // on when it lands — a redial never goes out over an in_progress session.
+      const seq = (outcomeSeqRef.current += 1);
+      activeOutcomeSeqRef.current = seq;
+      setOutcome({
+        seq,
+        directed: agendaRef.current !== null,
+        ending: endingKindRef.current ?? "drop",
+        finalStatus: status,
+        reachedLive: reachedLiveRef.current,
+        sessionId: sid && tok ? sid : null,
+      });
+      if (status === "completed") setAutoUsed(0);
       if (sid && tok) {
-        const { saved, discardedTurns: discarded } = await persistTranscript(tok, sid, turnsRef.current, status);
         // Two different endings, and only one of them is a retryable failure. A
-        // REFUSED save (another window's call for this link finished first) used to
-        // land here as `!saved` and got the Retry banner — a button that could only
-        // ever be refused again — while the closing card above still said the
-        // interview was complete. It now says what actually happened to the turns.
-        if (!saved && discarded === 0) setSaveFailed(true);
+        // REFUSED save (any permanent 4xx, e.g. another window's call for this
+        // link finished first) is not shown the Retry banner, a button that could
+        // only ever be refused again: the hook's saveState says `refused`, and the
+        // banners below read that one state.
+        await persistTranscript(tok, sid, turnsRef.current, status);
       }
     },
-    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, setSaveFailed, token, t, director]
+    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, token, t, director]
   );
 
   // M3: tick the elapsed timer while live so a nervous candidate can orient (am I 3 or 18 min in?).
@@ -877,9 +931,17 @@ function VoiceInterviewInner({
   }
 
   async function start() {
+    // Never dial over this page's own unsaved session (reconnect-plan.ts): /connect
+    // refuses an in_progress row touched in the last 30 minutes, and a session whose
+    // /complete never landed IS still in_progress — the candidate's only tab was told
+    // it was "already running in another window". The refs below still name the
+    // prior session here, so the retry re-POSTs exactly that record.
+    const pre = startPrecondition({
+      prior: outcome?.sessionId ? { sessionId: outcome.sessionId, save: saveState ?? "pending" } : null,
+    });
+    if (pre.kind === "wait_save") return;
+    if (pre.kind === "retry_save" && !(await retrySave())) return;
     setConfirmingEnd(false);
-    setSaveFailed(false);
-    setDiscardedTurns(0);
     setMuted(false);
     setElapsed(0);
     resetMicTestForCall(); // release the test mic before the real call claims the device
@@ -896,6 +958,11 @@ function VoiceInterviewInner({
     }
     setError(null);
     setEndedAs(null);
+    // The prior attempt's save is settled (the precondition above), so its state and
+    // the outcome that planned this redial can go.
+    resetSave();
+    setOutcome(null);
+    activeOutcomeSeqRef.current = null;
     setTurns([]);
     turnsRef.current = [];
     asstBuf.current = "";
@@ -1134,6 +1201,82 @@ function VoiceInterviewInner({
     await finalize(currentFinalStatus());
   }
 
+  // ── the dropped-call plan ────────────────────────────────────────────────────
+  // Only an ENDED call has one. A call with no session to save has nothing to wait
+  // for; a session whose save has not reported yet is still pending.
+  const plan: ReconnectPlan =
+    outcome && phase === "ended"
+      ? reconnectPlan({
+          directed: outcome.directed,
+          ending: outcome.ending,
+          finalStatus: outcome.finalStatus,
+          save: outcome.sessionId ? (saveState ?? "pending") : "saved",
+          autoUsed,
+          online,
+          cancelled: cancelledSeq === outcome.seq,
+          reachedLive: outcome.reachedLive,
+        })
+      : { kind: "none" };
+  const planKind = plan.kind;
+  // A save still in flight disables Start rather than letting a click queue a dial.
+  const startWaitsForSave =
+    startPrecondition({
+      prior: outcome?.sessionId ? { sessionId: outcome.sessionId, save: saveState ?? "pending" } : null,
+    }).kind === "wait_save";
+
+  useEffect(() => {
+    const sync = () => setOnline(navigator.onLine);
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+
+  // save_first: re-drive the PRIOR session's save once, immediately (finalize's own
+  // three attempts already failed). Past that, the persistence hook re-drives it on
+  // `online` / `visibilitychange`, and the Retry banner stays offered.
+  useEffect(() => {
+    if (!outcome || planKind !== "save_first" || saveState !== "failed") return;
+    if (redrivenSeqRef.current === outcome.seq) return;
+    redrivenSeqRef.current = outcome.seq;
+    void retrySave();
+  }, [outcome, planKind, saveState, retrySave]);
+
+  // countdown: tick once a second through the call's timer registry (unmount empties
+  // it), then redial. Leaving the countdown (a cancel, going offline, the
+  // candidate's own Start) cancels every pending tick in the cleanup.
+  const countdownSeq = planKind === "countdown" && outcome ? outcome.seq : null;
+  useEffect(() => {
+    if (countdownSeq === null) return;
+    const timers = timersRef.current;
+    const cancels: TimerCancel[] = [
+      timers.set(() => setCountdownLeft({ seq: countdownSeq, left: REDIAL_COUNTDOWN_SECONDS }), 0),
+    ];
+    for (let s = 1; s <= REDIAL_COUNTDOWN_SECONDS; s += 1) {
+      cancels.push(
+        timers.set(() => {
+          const left = REDIAL_COUNTDOWN_SECONDS - s;
+          if (left > 0) {
+            setCountdownLeft({ seq: countdownSeq, left });
+            return;
+          }
+          if (activeOutcomeSeqRef.current !== countdownSeq) return;
+          setAutoUsed((n) => n + 1);
+          startFnRef.current();
+        }, s * 1000),
+      );
+    }
+    return () => cancels.forEach((cancel) => cancel());
+  }, [countdownSeq]);
+  const secondsLeft =
+    plan.kind === "countdown"
+      ? countdownLeft && countdownLeft.seq === countdownSeq
+        ? countdownLeft.left
+        : plan.seconds
+      : 0;
+
   const isBusy = phase === "connecting" || phase === "live" || phase === "ending";
   const liveProvider = provider;
   // Three-state (availability-gate.ts): "unknown" is a failed probe and is NOT
@@ -1310,7 +1453,7 @@ function VoiceInterviewInner({
               <button
                 type="button"
                 onClick={start}
-                disabled={!consent || phase === "connecting" || !providerAvailable}
+                disabled={!consent || phase === "connecting" || !providerAvailable || startWaitsForSave}
                 className={`${BTN_PRIMARY_LG} gap-2 disabled:cursor-not-allowed`}
               >
                 <Mic size={18} />
@@ -1416,10 +1559,29 @@ function VoiceInterviewInner({
         </p>
       ) : null}
 
+      {/* A dropped call says what happens next: saving first, the cancellable
+          countdown, waiting for the network, or Start is the candidate's again. */}
+      <ReconnectNotice
+        plan={plan}
+        secondsLeft={secondsLeft}
+        onCancel={() => {
+          if (outcome) setCancelledSeq(outcome.seq);
+        }}
+        onReconnectNow={() => void start()}
+      />
+
       {/* The completion was REFUSED, not dropped: another window's call on this same
           link finished first and this transcript is not in the record. No Retry —
           it would be refused identically — just the truth, which the old
           `{ok:true, alreadyCompleted:true}` reply made impossible to tell. */}
+      {/* Any OTHER permanent refusal of the save (bad link, consent, too large): no
+          Retry either, since it would be refused identically. */}
+      {saveState === "refused" && discardedTurns === 0 ? (
+        <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">
+          {t("reconnect.saveRefused")}
+        </p>
+      ) : null}
+
       {discardedTurns > 0 ? (
         <p
           role="alert"
@@ -1430,7 +1592,7 @@ function VoiceInterviewInner({
       ) : null}
 
       {/* M6: save-failure recovery — a real action (Retry saving), not just "keep this tab open". */}
-      {saveFailed && discardedTurns === 0 ? (
+      {saveState === "failed" ? (
         <div
           role="alert"
           className="flex flex-wrap items-center gap-3 rounded-md border border-coral/30 bg-coral/5 px-3 py-2.5 text-base text-coral"
