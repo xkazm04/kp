@@ -1981,3 +1981,48 @@ Tests: `app/_lib/db/jobs-browse.test.ts` (320-role fixture, the status matrix wi
 per-team overlay, a renamed terminal stage, ordering), `app/api/jobs/jobs-list-window.test.ts`
 (params, fallbacks, echo), `useJobsList.test.ts`, `jobsTabDeepLink.test.ts` and
 `jobsIngestLatch.test.ts` (wire mapping, the latch's point-fetch).
+
+## Silver-medalist alerts are a reconciled projection behind one eligibility gate
+
+Until challenge-r08 (`candidate-rediscovery/A`) "may this person be surfaced for a role
+they never applied to?" had three answers. The rank gate in `rediscoverForJob` composed
+consent + opt-out inline, the alert write wall in `recordRediscoveryAlerts` checked
+consent only (an opted-out person's name was persisted), and the feed read in
+`/api/rediscovery/alerts` checked neither, so a person who opted out or was erased
+AFTER their alert was written kept a row with an *Add to pipeline* button (erasure only
+masks the label) until the 90-day prune. Alert rows were also write-once: `INSERT OR
+IGNORE` froze the first sweep's score, and nothing retracted a row whose candidate
+stopped qualifying.
+
+**One gate.** `withheldCandidateIds(ids)` (canonical import site
+`app/_lib/rediscovery-eligibility.ts`, defined beside its consent half in
+`rediscovery-alert-store.ts` so the store and the gate do not import each other) returns
+`Map<id, "anonymized" | "opted_out" | "consent_expired">`, in that precedence. Both halves
+stay workspace-global and fail closed. Every door reads it:
+
+| Door | Where |
+|---|---|
+| Rank | `rediscoverForJob` filters the pool before `recruiter_cli` (the panel's `GET /api/jobs/[id]/rediscover` and every raise) |
+| Write | `recordRediscoveryAlerts` and `reconcileRediscoveryAlerts` (the second wall) |
+| Read | `liveRediscoveryAlerts(ws)` (`rediscover.ts`): relevance (role published, candidate has no entry in it) plus the gate. It is the only read behind `GET`/`POST /api/rediscovery/alerts`, so the feed rows and their `count` agree |
+| Act | `POST /api/jobs/[id]/candidates/outreach` (Reach out) refuses `COMMS_SUPPRESSED` 409 before minting an entry; an opt-out still answers `suppressed: "candidate"` |
+
+**Reconcile.** `raiseRediscoveryAlertsForJob` (publish + Refresh sweep) calls
+`reconcileRediscoveryAlerts(jobId, title, qualifying, evaluated, ws)` in one IMMEDIATE
+transaction with the gate read before it: new qualifiers are inserted (`raised` counts
+only these), a live row's score/prior/label are refreshed, and an undismissed row is
+deleted when its candidate was `evaluated` and no longer qualifies, or is now withheld.
+`evaluated` is internal to `RediscoverResult` (never on a wire) and excludes everyone the
+ranker gave no verdict on: unscored rows, the ranker's own `skipped`, and qualifiers past
+`REDISCOVER_LIMIT`. A failed ranking reconciles nothing. Dismissed rows are never
+touched, so dismissal stays sticky. `RaiseOutcome.retracted` reports the deletions.
+Every statement is workspace-scoped (`rediscovery-tenancy.test.ts` counts 8).
+
+Not covered: the feed's *Add* goes to `POST /api/pipeline`, which has no eligibility
+check of its own (pipeline-api context). The feed no longer offers *Add* for a withheld
+person, but a direct caller can still file one.
+
+Tests: `app/_lib/rediscovery-eligibility.test.ts` (reasons, precedence, the four-door
+source guard), `app/_lib/rediscovery-alert-reconcile.test.ts` (write wall, read refilter
+after an opt-out and after an erasure, retract / keep / refresh / insert, tenancy),
+`rediscovery-consent-rank.test.ts` (the rank gate precedes the spawn).
