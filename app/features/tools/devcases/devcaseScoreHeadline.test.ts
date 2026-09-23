@@ -86,3 +86,12 @@ test("a malformed overallScore is not promoted to a headline", () => {
     assert.equal(headlineFor({ ...COMPOSITE, overallScore: bad }, undefined).kind, "legacy", String(bad));
   }
 });
+
+test("a headline that drifted from its own rows is pinned to their sum", () => {
+  const drifted = headlineFor({ ...COMPOSITE, overallScore: 82 }, undefined);
+  assert.equal(drifted.kind, "composite");
+  assert.equal(drifted.value, 65);
+  assert.equal(drifted.kind === "composite" && drifted.recomputed, true);
+  const exact = headlineFor(COMPOSITE, undefined);
+  assert.equal(exact.kind === "composite" && exact.recomputed, false);
+});

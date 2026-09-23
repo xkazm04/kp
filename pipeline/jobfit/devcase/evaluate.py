@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from ..i18n import language_directive, normalize_lang
-from .models import RUBRIC_DIMENSIONS
+from .models import RUBRIC_DIMENSIONS, rubric_composite
 from .provenance import fenced_untrusted, generate_with_fallback, str_list as _str_list
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v2"  # v2: the evaluation context is character-budgeted (the prompt text can change — bump so any version-keyed cache regenerates)
@@ -32,12 +32,13 @@ _SYSTEM = (
 # rather than hardcoded here, so order/labels/weights stay in lockstep with the rubric.
 _DIMS = tuple(d["name"] for d in RUBRIC_DIMENSIONS)
 
-# Policy for a dimension ABSENT from a dimensionScores dict — which is NOT the same as a dimension
-# scored zero. A missing dimension carries no signal, so it is treated as ONE neutral midpoint
-# everywhere: it pulls the transfer average toward the middle and, being neither high nor low,
-# counts as neither a strength nor a gap. (Previously the same absent dimension silently read as
-# 50 in the average, 0 for the strong-list, 100 for the gap-list and 0 in the ordered breakdown —
-# so "not scored" was conflated with "scored zero" and a gap was both not-a-strength and not-a-gap.)
+# A dimension ABSENT from a dimensionScores dict is NOT the same as a dimension scored zero. It
+# carries no signal, so it is EXCLUDED from every number: models.rubric_composite leaves it out of
+# the case score (renormalising over the weight actually scored, naming it in missingDimensions and
+# scaling the propagated confidence by that share), and it counts as neither a strength nor a gap.
+# MISSING_DIMENSION_SCORE survives only as the DISPLAY seed of an unscored breakdown row (a row's
+# `score` is an int); its `contribution` is None, so the 50 never enters the composite. (Before
+# challenge-r05 devcase-core/B the 50 was averaged into the keyless transfer score.)
 MISSING_DIMENSION_SCORE = 50
 
 # Canary verdicts in the keyless evaluator: which statuses are graded, which count as
@@ -158,10 +159,10 @@ _DET: dict[str, dict[str, str]] = {
         "fr": "Point faible : {dimension}",
     },
     "transfer_rationale": {
-        "en": "Average of the five capability scores ({score}); transfer weighted equally in the deterministic fallback.",
-        "cs": "Průměr pěti skóre schopností ({score}); v deterministické záloze má přenositelnost stejnou váhu.",
-        "de": "Durchschnitt der fünf Fähigkeitswerte ({score}); im deterministischen Fallback wird Übertragbarkeit gleich gewichtet.",
-        "fr": "Moyenne des cinq scores de compétences ({score}) ; dans le repli déterministe, la transférabilité pèse autant.",
+        "en": "The assignment score ({score}): the five capability scores weighted by the assignment's rubric; the deterministic fallback reads transfer from it.",
+        "cs": "Skóre zadání ({score}): pět skóre schopností vážených podle hodnoticí škály zadání; deterministická záloha z něj odvozuje přenositelnost.",
+        "de": "Der Aufgabenwert ({score}): die fünf Fähigkeitswerte, gewichtet nach dem Bewertungsraster der Aufgabe; der deterministische Fallback leitet die Übertragbarkeit daraus ab.",
+        "fr": "Le score de l'exercice ({score}) : les cinq scores de compétences pondérés selon la grille de l'exercice ; le repli déterministe en déduit la transférabilité.",
     },
     "followup_handled": {
         "en": "In {where} you made a call on {kind} and it held up — what would have to change about the situation for you to choose differently?",
@@ -314,7 +315,7 @@ def _propagated_confidence(*artifacts: Any) -> float:
     return round(min(vals), 4) if vals else 0.0
 
 
-def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
+def _ordered_dimensions(scores: dict, rubric: list, contributions: dict | None = None) -> list[dict]:
     """Echo the canonical rubric — ordered, with name/label/weight/description — annotated with
     each achieved score, so the UI can draw the breakdown without hardcoding order, human labels
     or weights. label/weight/description prefer the case's own rubric (so a case that overrides
@@ -324,7 +325,11 @@ def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
     source of truth for the numbers (see the canonical-score contract on models.CaseEvaluation).
     This makes `dimensions` a pure projection of `dimension_scores`; the model re-asserts the
     same invariant in `_mirror_dimension_scores` so the two can never drift. A capability absent
-    from `scores` carries no signal and reads MISSING_DIMENSION_SCORE (the neutral midpoint)."""
+    from `scores` carries no signal: its row's display score is MISSING_DIMENSION_SCORE and its
+    `contribution` is None — it is excluded from the case score, never counted as a 50.
+
+    `contributions` (models.rubric_composite) annotates each scored row with its share of the
+    case score, so the rows sum to the headline the UI shows above them."""
     by_name = {d.get("name"): d for d in rubric if isinstance(d, dict) and d.get("name")}
     out = []
     for meta in RUBRIC_DIMENSIONS:
@@ -338,6 +343,7 @@ def _ordered_dimensions(scores: dict, rubric: list) -> list[dict]:
                 "weight": float(weight) if isinstance(weight, (int, float)) else meta["weight"],
                 "score": _score_int(scores.get(name), MISSING_DIMENSION_SCORE),
                 "description": str(rd.get("description") or meta["description"]),
+                "contribution": (contributions or {}).get(name),
             }
         )
     return out
@@ -508,11 +514,20 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_EVAL_KEYS)
-    result["dimensions"] = _ordered_dimensions(result.get("dimensionScores") or {}, rubric)
+    # THE case score, on both paths: the rubric-weighted composite whose per-row contributions
+    # sum to it (models.rubric_composite; the case's own weights first). The headline the panel
+    # shows, the keyless transfer score and the fairness gate's margins all read this one number.
+    composite = rubric_composite(result.get("dimensionScores") or {}, rubric)
+    result["dimensions"] = _ordered_dimensions(result.get("dimensionScores") or {}, rubric, composite["contributions"])
+    result["overallScore"] = composite["overall"]
+    result["scoredWeight"] = composite["scoredWeight"]
+    result["missingDimensions"] = composite["missing"]
+    result["weightsNormalised"] = composite["normalised"]
     # Propagate decision-confidence from the evidence: the evaluation is fused ENTIRELY from the
     # reflection + tooling signals, so it inherits the MIN of their confidences — an evaluation
-    # resting on a confidence-0.2 deterministic-fallback signal must not look authoritative.
-    result["confidence"] = _propagated_confidence(reflection, tooling)
+    # resting on a confidence-0.2 deterministic-fallback signal must not look authoritative. An
+    # unscored dimension lowers it by the share of the rubric it held (scoredWeight).
+    result["confidence"] = round(_propagated_confidence(reflection, tooling) * composite["scoredWeight"], 4)
     result["promptVersion"] = CASE_EVAL_PROMPT_VERSION
     # Which language the narrative fields (strengths / concerns / summary) are actually
     # IN — stamped, not assumed. The feedback letter is rendered in the candidate's locale
@@ -556,12 +571,22 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None,
         + language_directive(lang)
     )
 
+    # The keyless transfer score IS the case score (component-sum-is-authoritative): the stamped
+    # evaluation.overallScore, or — for a bundle scored before the stamp — the same composite
+    # recomputed from its dimensions' weights. An unscored dimension is excluded and lowers the
+    # confidence by its rubric share; nothing scored at all has no composite, so the score falls
+    # back to the midpoint with confidence 0 (no evidence, stated, never a confident 50).
+    composite = rubric_composite(evaluation.get("dimensionScores") or {}, evaluation.get("dimensions") or RUBRIC_DIMENSIONS)
+    stamped = evaluation.get("overallScore")
+    stamped_ok = isinstance(stamped, int) and not isinstance(stamped, bool)
+    case_score = stamped if stamped_ok else composite["overall"]
+
     def deterministic() -> dict:
         dims = evaluation.get("dimensionScores") or {}
-        vals = [dims.get(d, MISSING_DIMENSION_SCORE) for d in _DIMS]
-        score = int(round(sum(vals) / len(vals))) if vals else MISSING_DIMENSION_SCORE
-        strong = [d for d in _DIMS if dims.get(d, MISSING_DIMENSION_SCORE) >= 65]
-        gaps = [d for d in _DIMS if dims.get(d, MISSING_DIMENSION_SCORE) < 45]
+        score = case_score if case_score is not None else MISSING_DIMENSION_SCORE
+        scored = [d for d in _DIMS if isinstance(dims.get(d), (int, float))]
+        strong = [d for d in scored if dims[d] >= 65]
+        gaps = [d for d in scored if dims[d] < 45]
         # No '—' sentinel — empty transfers stay empty; `hasTransfers` signals the empty state.
         transfers = [_t("transfer_strong", lang, dimension=d) for d in strong]
         return {
@@ -587,8 +612,15 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None,
 
     result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_TRANSFER_KEYS)
     # Transfer is derived purely from the evaluation, so it INHERITS the evaluation's propagated
-    # confidence — the transfer score is exactly as trustworthy as the evaluation it weights.
-    result["confidence"] = _propagated_confidence(evaluation)
+    # confidence — the transfer score is exactly as trustworthy as the evaluation it weights. A
+    # bundle without the stamp had its confidence set before any exclusion, so it is scaled here by
+    # the scored share (a stamped evaluation already carries the scaling).
+    conf = _propagated_confidence(evaluation)
+    if case_score is None:
+        conf = 0.0
+    elif not stamped_ok:
+        conf = round(conf * composite["scoredWeight"], 4)
+    result["confidence"] = conf
     result["promptVersion"] = TRANSFER_PROMPT_VERSION
     result["narrativeLang"] = lang
     return result, source

@@ -49,7 +49,7 @@ from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
 from .evaluation_pipeline import EvaluationInputs, run_evaluation
 from .llm_judge import judge_independence, resolve_judge_provider, run_judge
-from .models import RUBRIC_DIMENSIONS
+from .models import RUBRIC_DIMENSIONS, rubric_composite
 from .provenance import SOURCE_DETERMINISTIC, combine_source
 from .submission_scenarios import SubScenario, generate_submissions
 
@@ -69,8 +69,9 @@ _PATTERNS = {"exploratory", "linear", "big-bang", "test-driven", "unclear"}
 # only what it measured) but lets not_evaluable pass — no data is not a violation.
 #
 # Margins are in points on the 0-100 score scale (judgment dimension for fairness,
-# the 5-dim overall for discrimination). The deterministic landscape clears them
-# comfortably (verify lead ~18.8, strong-vs-weak ~8.9, strong-vs-gamer ~7.5),
+# the rubric-weighted case score for discrimination). The deterministic landscape clears them
+# comfortably (commit path, --count 48, 2026-09-23: verify lead 37.5, strong-vs-weak 13.5,
+# strong-vs-gamer 12.0 on the weighted case score — 12.7 / 11.3 on the old unweighted mean),
 # leaving headroom for the noisier --judge/LLM path while still rejecting a tie.
 MIN_GROUP_N = 3                  # each compared group needs >= this many rows, else inconclusive
 MIN_VERIFY_MARGIN = 5.0          # verifiers must out-score non-verifiers by >= this many judgment pts
@@ -205,9 +206,14 @@ class Row:
 
     @property
     def overall(self) -> float:
-        dims = self.evaluation.get("dimensionScores") or {}
-        vals = [v for v in dims.values() if isinstance(v, (int, float))]
-        return round(sum(vals) / len(vals), 1) if vals else 0.0
+        # The discrimination margin is measured on the SAME number the reviewer reads: the
+        # rubric-weighted case score evaluate stamps (models.rubric_composite). A row without the
+        # stamp (a hand-built fixture) gets the same composite recomputed — never a plain mean.
+        stamped = self.evaluation.get("overallScore")
+        if isinstance(stamped, (int, float)) and not isinstance(stamped, bool):
+            return float(stamped)
+        overall = rubric_composite(self.evaluation.get("dimensionScores") or {}, self.evaluation.get("dimensions") or RUBRIC_DIMENSIONS)["overall"]
+        return float(overall) if overall is not None else 0.0
 
 
 def run_one(scn: SubScenario, provider: Any | None) -> Row:
@@ -346,7 +352,7 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
 
 def discrimination(rows: list[Row]) -> dict[str, Any]:
     """Does the evaluator separate strong submissions from weak ones, and catch the
-    'productive-looking but never verifies' AI-no-verify gamer? (overall = mean of the 5 dims)."""
+    'productive-looking but never verifies' AI-no-verify gamer? (overall = the rubric-weighted case score, Row.overall)."""
     done = [r for r in rows if r.source != "error" and r.evaluation]
     strong = [r for r in done if r.planted.get("expected") == "strong"]
     weak = [r for r in done if r.planted.get("expected") == "weak"]

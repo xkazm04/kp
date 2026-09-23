@@ -245,7 +245,9 @@ export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: Pr
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
 // canonical order + human label + weight, so the UI never hardcodes dimension metadata. `score`
 // is a MIRROR of `dimensionScores[name]` — never an independent number (see CaseEval below).
-export type DimensionScore = { name: string; label: string; weight: number /* FRACTION 0..1 */; score: number /* SCORE 0..100 */; description: string };
+// `contribution` is this row's share of CaseEval.overallScore (models.rubric_composite) — the rows
+// sum to the headline; null = not scored (excluded, never imputed), absent = a pre-composite bundle.
+export type DimensionScore = { name: string; label: string; weight: number /* FRACTION 0..1 */; score: number /* SCORE 0..100 */; description: string; contribution?: number | null /* SCORE points */ };
 // Canonical-score contract (mirrors models.CaseEvaluation): `dimensionScores` (name -> 0..100) is
 // the single source of truth for the capability numbers; `dimensions` is its derived, ordered,
 // weight-annotated projection for the UI (each row.score === dimensionScores[row.name], enforced
@@ -254,7 +256,7 @@ export type DimensionScore = { name: string; label: string; weight: number /* FR
 // `confidence` is PROPAGATED, not self-rated: the min of the upstream reflection/tooling
 // confidences (see models.py "Confidence scale"), so a decision built on a deterministic-fallback
 // signal carries that signal's low confidence and never reads as authoritative.
-export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string; confidence?: number /* FRACTION 0..1 — propagated from upstream evidence */ };
+export type CaseEval = { dimensionScores?: Record<string, number> /* name -> SCORE 0..100 */; dimensions?: DimensionScore[]; strengths?: string[]; concerns?: string[]; hasFindings?: boolean; summary?: string; confidence?: number /* FRACTION 0..1 — propagated from upstream evidence */; overallScore?: number | null /* SCORE 0..100 — the rubric-weighted case score, sum of the rows' contributions; absent on pre-composite bundles */; scoredWeight?: number /* FRACTION 0..1 — share of the rubric actually scored */; missingDimensions?: string[]; weightsNormalised?: boolean };
 // `confidence` is inherited from the evaluation it scores (transfer is derived purely from it).
 export type Transfer = { transferScore?: number /* SCORE 0..100 */; transfers?: string[]; gaps?: string[]; hasTransfers?: boolean; roleFitRationale?: string; confidence?: number /* FRACTION 0..1 — inherited from the evaluation */ };
 // One candidate-specific interview question minted from the evaluated submission
