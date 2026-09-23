@@ -931,6 +931,9 @@ export const REFUSAL_ERRORS = {
   PIPELINE_ADD_STAGE_UNKNOWN: "That pipeline stage is not available in this workspace.",
   /** Only the decision gate may be requested when adding a candidate (400). */
   PIPELINE_ADD_APPROVAL_KIND_UNKNOWN: "That approval kind cannot be requested when adding a candidate.",
+  /** A rediscovery/sourcing re-surface naming a person who opted out, whose consent
+   *  lapsed, or who was erased (409). The reason rides alongside in `withheld`. */
+  PIPELINE_ADD_CANDIDATE_WITHHELD: "This person can't be re-surfaced for a new role: they opted out, their consent lapsed, or their data was erased.",
   /** `notes` arrived as something other than text (400). */
   PIPELINE_NOTES_INVALID: "A candidate note must be text.",
   /** …or past the column's ceiling (400). The cap rides alongside in `max`. */

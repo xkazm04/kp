@@ -1543,6 +1543,7 @@
     "PIPELINE_ADD_IDS_REQUIRED": "Před přidáním na nástěnku vyberte kandidáta a pozici.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Tato fáze náboru není v tomto pracovním prostoru dostupná.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Tento typ schválení nelze při přidávání kandidáta požadovat.",
+    "PIPELINE_ADD_CANDIDATE_WITHHELD": "Tohoto člověka nelze znovu nabídnout pro novou pozici: odhlásil se, vypršel jeho souhlas nebo byla jeho data vymazána.",
     "PIPELINE_NOTES_INVALID": "Poznámka ke kandidátovi musí být text.",
     "PIPELINE_NOTES_TOO_LONG": "Tato poznámka je příliš dlouhá na uložení.",
     "PIPELINE_NOT_REINSTATABLE": "Není tu žádné automatické zamítnutí, které by šlo zvrátit. Kandidát už byl vrácen do hry, nebo byl uzavřen jinak.",

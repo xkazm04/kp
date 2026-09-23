@@ -1543,6 +1543,7 @@
     "PIPELINE_ADD_IDS_REQUIRED": "Choose a candidate and role before adding to the board.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "That pipeline stage is not available in this workspace.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "That approval kind cannot be requested when adding a candidate.",
+    "PIPELINE_ADD_CANDIDATE_WITHHELD": "This person can't be re-surfaced for a new role: they opted out, their consent lapsed, or their data was erased.",
     "PIPELINE_NOTES_INVALID": "A candidate note must be text.",
     "PIPELINE_NOTES_TOO_LONG": "That note is too long to save.",
     "PIPELINE_NOT_REINSTATABLE": "There is no auto-rejection to reverse here. This candidate was already reinstated, or was closed a different way.",

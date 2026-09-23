@@ -1543,6 +1543,7 @@
     "PIPELINE_ADD_IDS_REQUIRED": "Choisissez une candidature et un poste avant de les ajouter au suivi.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Cette étape du recrutement n’est pas disponible dans cet espace de travail.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Ce type d’approbation ne peut pas être demandé lors de l’ajout d’une candidature.",
+    "PIPELINE_ADD_CANDIDATE_WITHHELD": "Cette personne ne peut pas être reproposée pour un nouveau poste : elle s’est désinscrite, son consentement a expiré ou ses données ont été effacées.",
     "PIPELINE_NOTES_INVALID": "Une note sur un candidat doit être du texte.",
     "PIPELINE_NOTES_TOO_LONG": "Cette note est trop longue pour être enregistrée.",
     "PIPELINE_NOT_REINSTATABLE": "Il n’y a pas de rejet automatique à annuler ici. Ce candidat a déjà été réintégré, ou son dossier a été clos autrement.",

@@ -1543,6 +1543,7 @@
     "PIPELINE_ADD_IDS_REQUIRED": "Wählen Sie eine Person und eine Stelle, bevor Sie sie zur Pipeline hinzufügen.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Diese Pipeline-Phase ist in diesem Arbeitsbereich nicht verfügbar.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Diese Freigabeart kann beim Hinzufügen einer Person nicht angefordert werden.",
+    "PIPELINE_ADD_CANDIDATE_WITHHELD": "Diese Person kann nicht für eine neue Stelle vorgeschlagen werden: Sie hat widersprochen, ihre Einwilligung ist abgelaufen oder ihre Daten wurden gelöscht.",
     "PIPELINE_NOTES_INVALID": "Eine Notiz muss Text sein.",
     "PIPELINE_NOTES_TOO_LONG": "Diese Notiz ist zu lang zum Speichern.",
     "PIPELINE_NOT_REINSTATABLE": "Hier gibt es keine automatische Absage, die sich zurücknehmen ließe. Die Person wurde bereits wieder aufgenommen oder anders abgeschlossen.",
