@@ -6,16 +6,16 @@
 // against a fake fetch and a manual clock, with exact request counts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLiveWorkSync, MINT_REFUSAL_BACKOFF_MS, type SyncFetch } from "./liveWorkSync.ts";
+import { createLiveWorkSync, MINT_REFUSAL_BACKOFF_MS, SESSION_KEY_HEADER, type SyncFetch } from "./liveWorkSync.ts";
 
-type Call = { url: string; body: Record<string, unknown> };
+type Call = { url: string; body: Record<string, unknown>; headers: Record<string, string> };
 type Reply = { status: number; body?: unknown } | "throw" | Promise<{ status: number; body?: unknown }>;
 
 /** A scripted fetch: each URL pattern answers from its own queue (last reply repeats). */
 function fakeFetch(routes: Array<[RegExp, Reply[]]>) {
   const calls: Call[] = [];
   const fetch: SyncFetch = async (url, init) => {
-    calls.push({ url, body: JSON.parse(init.body) as Record<string, unknown> });
+    calls.push({ url, body: JSON.parse(init.body) as Record<string, unknown>, headers: init.headers });
     const route = routes.find(([re]) => re.test(url));
     if (!route) throw new Error(`unscripted ${url}`);
     const queue = route[1];
@@ -87,7 +87,7 @@ test("403 on flush: the batch and anything recorded meanwhile are re-buffered in
   let release!: (v: { status: number; body?: unknown }) => void;
   const gate = new Promise<{ status: number; body?: unknown }>((r) => (release = r));
   const h = harness([[FLUSH, [gate]]], { withSession: "s1" });
-  h.sync.hydrate({ sessionId: "s1", files: [], pending: [ev("open", "a.ts", 1)] });
+  h.sync.hydrate({ sessionId: "s1", sessionKey: "dsk-held-key", files: [], pending: [ev("open", "a.ts", 1)] });
   const flushing = h.sync.flush();
   await Promise.resolve();
   h.sync.record("edit", "b.ts");
@@ -233,4 +233,106 @@ test("submit outcomes fold: a reference on 200, a terminal closed refusal on 410
   assert.equal(snap.errorKind, "closed");
   assert.equal(snap.refusal?.code, "POSTING_CLOSED");
   assert.equal(closed.cleared(), 0);
+});
+
+// ── challenge-r06 devcase-session-api/A: the per-attempt session key ─────────────
+// The mint hands this device a key; every mutating call proves the attempt with it, in a
+// HEADER (never the URL, which is the leak channel the key exists to survive).
+const CHAT = /\/api\/devcase\/session\/[^/]+\/chat$/;
+const KEY = "dsk-0123456789abcdefghijklmnopqrstuv";
+
+test("a minted sessionKey rides the next flush, chat and submit as a header, never in the URL", async () => {
+  const h = harness([
+    [MINT, [{ status: 200, body: { sessionId: "s1", sessionKey: KEY, watermark: "wm-0123456789" } }]],
+    [CHAT, [{ status: 200, body: { reply: "hi", source: "deterministic" } }]],
+    [SUBMIT, [{ status: 200, body: { reference: "DC-1" } }]],
+    [FLUSH, [{ status: 200, body: {} }]],
+  ]);
+  h.sync.record("open", "a.ts");
+  assert.equal(await h.sync.flush(), true);
+  assert.equal(h.sync.getSnapshot().sessionKey, KEY);
+  const chat = await h.sync.chat({ channel: "assistant", message: "hello", currentFile: null });
+  assert.equal(chat?.status, 200);
+  await h.sync.submit({ candidate: "Ada", contact: "ada@example.com", locale: "en", activePath: "a.ts" });
+  assert.equal(h.sync.getSnapshot().status, "submitted");
+  const doors = h.calls.filter((c) => !MINT.test(c.url));
+  assert.deepEqual(
+    doors.map((c) => (SUBMIT.test(c.url) ? "submit" : CHAT.test(c.url) ? "chat" : "flush")),
+    ["flush", "chat", "flush", "submit"]
+  );
+  for (const c of doors) {
+    assert.equal(c.headers[SESSION_KEY_HEADER], KEY, `${c.url} carries the key`);
+    assert.ok(!c.url.includes(KEY), "the key never rides the URL");
+    assert.equal(c.body.token, "tok-1", "the apply token still rides the body");
+  }
+  assert.deepEqual(h.calls.find((c) => CHAT.test(c.url))!.body, { token: "tok-1", channel: "assistant", message: "hello", currentFile: null });
+});
+
+for (const status of [404, 409]) {
+  test(`a ${status} flush answer drops sessionKey together with sessionId`, async () => {
+    const h = harness([
+      [MINT, [{ status: 200, body: { sessionId: "s1", sessionKey: KEY } }, { status: 200, body: { sessionId: "s2", sessionKey: "dsk-second" } }]],
+      [FLUSH, [{ status: 200, body: {} }, { status }, { status: 200, body: {} }]],
+    ]);
+    h.sync.record("open", "a.ts");
+    assert.equal(await h.sync.flush(), true);
+    h.sync.record("edit", "a.ts");
+    assert.equal(await h.sync.flush(), false);
+    assert.equal(h.sync.getSnapshot().sessionId, null);
+    assert.equal(h.sync.getSnapshot().sessionKey, null);
+    assert.equal(await h.sync.flush(), true, "the next flush re-mints and re-keys");
+    assert.equal(h.calls[h.calls.length - 1].headers[SESSION_KEY_HEADER], "dsk-second");
+  });
+}
+
+test("a restored draft with a sessionId but NO key flushes KEYLESS instead of re-minting (a legacy row accepts it)", async () => {
+  const h = harness([
+    [MINT, [{ status: 200, body: { sessionId: "fresh", sessionKey: KEY } }]],
+    [FLUSH, [{ status: 200, body: { elapsedMinutes: 41 } }]],
+  ]);
+  h.sync.hydrate({ sessionId: "s-legacy", sessionKey: null, files: [], pending: [ev("edit", "a.ts", 1)] });
+  assert.equal(await h.sync.flush(), true);
+  assert.equal(h.count(MINT), 0, "re-minting would abandon the server-side attempt and its elapsed clock");
+  const flushed = h.calls[0];
+  assert.match(flushed.url, /\/session\/s-legacy$/);
+  assert.equal(flushed.headers[SESSION_KEY_HEADER], undefined, "no key header on a keyless flush");
+  assert.equal(flushed.body.token, "tok-1");
+  assert.equal(h.sync.getSnapshot().elapsedMinutes, 41);
+});
+
+test("a 403 on a KEYLESS flush (the row is keyed, this device lost the key) re-mints once and keeps the local files", async () => {
+  const h = harness([
+    [MINT, [{ status: 200, body: { sessionId: "s2", sessionKey: KEY } }]],
+    [FLUSH, [{ status: 403, body: { code: "SESSION_TOKEN_REQUIRED" } }, { status: 200, body: {} }]],
+  ]);
+  const files = [{ path: "src/index.ts", contents: "export const mine = 42;\n" }];
+  h.sync.hydrate({ sessionId: "s1", sessionKey: null, files, pending: [ev("edit", "src/index.ts", 1)] });
+  assert.equal(await h.sync.flush(), false);
+  let snap = h.sync.getSnapshot();
+  assert.equal(snap.sessionId, null, "the keyed id this device cannot prove is dropped");
+  assert.equal(snap.syncBlocked, false, "not blocked: the next flush re-mints");
+  assert.equal(snap.pending.length, 1, "the batch is re-buffered");
+  assert.equal(await h.sync.flush(), true);
+  assert.equal(h.count(MINT), 1, "exactly one re-mint");
+  const last = h.calls[h.calls.length - 1];
+  assert.match(last.url, /\/session\/s2$/);
+  assert.equal(last.headers[SESSION_KEY_HEADER], KEY);
+  snap = h.sync.getSnapshot();
+  assert.ok(snap.files.some((f) => f.contents === "export const mine = 42;\n"), "the local tree survives the re-mint");
+  assert.deepEqual((last.body.files as Array<{ path: string; contents: string }>).find((f) => f.path === "src/index.ts")?.contents, "export const mine = 42;\n");
+});
+
+test("the 403 re-mint happens ONCE: a second keyless 403 blocks sync instead of spinning the session quota", async () => {
+  const h = harness([
+    [MINT, [{ status: 200, body: { sessionId: "s2" } }]], // a server that hands out no key
+    [FLUSH, [{ status: 403 }]],
+  ]);
+  h.sync.hydrate({ sessionId: "s1", sessionKey: null, files: [], pending: [ev("edit", "a.ts", 1)] });
+  assert.equal(await h.sync.flush(), false);
+  assert.equal(await h.sync.flush(), false);
+  assert.equal(h.sync.getSnapshot().syncBlocked, true);
+  const before = h.calls.length;
+  assert.equal(await h.sync.flush(), false);
+  assert.equal(h.calls.length, before);
+  assert.equal(h.count(MINT), 1);
 });
