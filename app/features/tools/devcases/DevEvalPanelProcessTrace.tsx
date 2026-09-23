@@ -12,6 +12,7 @@
 // where the other path's metric does not exist for it.
 import { useTranslations } from "next-intl";
 import type { EvalBundle } from "./DevTypes";
+import { decisionsLogChip } from "./DevEvalPanelProcessTrace.chip";
 
 export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
   const t = useTranslations("devcase.processTrace");
@@ -20,21 +21,23 @@ export function DevEvalPanelProcessTrace({ ev }: { ev: EvalBundle }) {
   // thing perStepSources.tooling === "observed" reports, read straight off the data
   // the strip needs anyway.
   const sig = ev.tooling?.signals ?? null;
+  // Tri-state: kept / missing / could not read. Only a READ tree without the log is
+  // coral; an unreadable tree is neutral (DevEvalPanelProcessTrace.chip.ts).
+  const logChip = decisionsLogChip(ev.processTrace?.decisionsLogPresent);
 
   return (
     <>
       {/* process trace (DEVP6) — persisted "so the decisions-log contract is checkable
           later instead of taken on faith"; this strip is where it finally is. Keeping
-          the DECISIONS log is a mandated task of the case (coral when skipped); cadence
+          the DECISIONS log is a mandated task of the case (coral when skipped, neutral when the tree could not be read); cadence
           is a how-they-worked signal, deliberately framed neutrally, not as a verdict. */}
       {ev.processTrace ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-micro">
           <span
-            className={`rounded px-1.5 py-0.5 font-semibold uppercase ${
-              ev.processTrace.decisionsLogPresent ? "bg-moss/10 text-moss" : "bg-coral/15 text-coral"
-            }`}
+            className={`rounded px-1.5 py-0.5 font-semibold uppercase ${logChip.className}`}
+            title={logChip.titleKey ? t(logChip.titleKey) : undefined}
           >
-            {ev.processTrace.decisionsLogPresent ? t("decisionsLogKept") : t("decisionsLogMissing")}
+            {t(logChip.key)}
           </span>
           {ev.processTrace.cadence?.spanHours != null ? (
             <span className="text-steel">

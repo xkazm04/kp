@@ -269,7 +269,8 @@ export type Followups = { questions?: FollowupQuestion[] };
 export type ProcessTrace = {
   commitCount?: number;
   cadence?: { count?: number; spanHours?: number | null; bursty?: boolean | null } | null;
-  decisionsLogPresent?: boolean;
+  // null = the repository tree could not be read: unknown, not a missing log.
+  decisionsLogPresent?: boolean | null;
 };
 // ce28da40 — process-authenticity verdict derived from the trace + reflection
 // (app/_lib/devcase-authenticity.ts): is this genuine incremental work or a likely
