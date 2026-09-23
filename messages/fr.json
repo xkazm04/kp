@@ -9988,7 +9988,30 @@
       "closeModalTitle": "Clôturer l’exercice",
       "closeIrreversible": "Les messages de clôture ne peuvent pas être annulés.",
       "reSourceFailed": "Échec de la relance du sourcing.",
-      "closeInFlight": "{count, plural, one {# candidat travaille} other {# candidats travaillent}} actuellement sur ce cas (le plus long depuis {minutes} min). La clôture les empêchera de soumettre leur travail, et ils le verront lors de leur prochain enregistrement."
+      "closeInFlight": "{count, plural, one {# candidat travaille} other {# candidats travaillent}} actuellement sur ce cas (le plus long depuis {minutes} min). La clôture les empêchera de soumettre leur travail, et ils le verront lors de leur prochain enregistrement.",
+      "outcome": {
+        "collecting_open": "Publié, {sourced} ajoutés au pipeline. En attente de soumissions.",
+        "awaiting_submissions": "Publié. En attente de soumissions.",
+        "evaluated": "{evaluated} évalués. Le classement suit.",
+        "promoted": "{promoted} sur {topN} retenus (seuil {floor}).",
+        "halted": "Mis en pause par l’opérateur ({evaluated} évalués, {promoted} retenus).",
+        "canceled": "Exécution annulée ({evaluated} évalués, {promoted} retenus).",
+        "routed_to_human": "En attente de votre validation avant publication.",
+        "held": "{count} en attente d’examen",
+        "eval_failed": "{count, plural, one {# évaluation échouée} other {# évaluations échouées}}",
+        "sourcing_failed": "Échec de la recherche de candidats",
+        "candidates_skipped": "{count, plural, one {# candidat ignoré (illisible)} other {# candidats ignorés (illisibles)}}",
+        "scenario_template_only": "L’entretien utilise des questions modèles",
+        "seed_skeleton_only": "Le code de départ n’est qu’un squelette",
+        "baseline_unavailable": "Aucune solution IA de référence"
+      },
+      "outcomeAction": {
+        "open_decisions": "Ouvrir Décisions",
+        "re_source": "Relancer la recherche",
+        "resume": "Reprendre",
+        "resuming": "Reprise…",
+        "resumeFailed": "Échec de la reprise."
+      }
     },
     "stage": {
       "intake": "réception",

@@ -9988,7 +9988,30 @@
       "closeModalTitle": "Uzavřít zadání",
       "closeIrreversible": "Závěrečné zprávy už nejde vzít zpět.",
       "reSourceFailed": "Nový sourcing se nepodařil.",
-      "closeInFlight": "{count, plural, one {Na tomto zadání právě pracuje # kandidát} few {Na tomto zadání právě pracují # kandidáti} other {Na tomto zadání právě pracuje # kandidátů}} (nejdéle {minutes} min). Uzavřením jim znemožníte odeslat řešení a dozvědí se to při dalším uložení."
+      "closeInFlight": "{count, plural, one {Na tomto zadání právě pracuje # kandidát} few {Na tomto zadání právě pracují # kandidáti} other {Na tomto zadání právě pracuje # kandidátů}} (nejdéle {minutes} min). Uzavřením jim znemožníte odeslat řešení a dozvědí se to při dalším uložení.",
+      "outcome": {
+        "collecting_open": "Zveřejněno, do pipeline přidáno kandidátů: {sourced}. Čeká se na odevzdání.",
+        "awaiting_submissions": "Zveřejněno. Čeká se na odevzdání.",
+        "evaluated": "Vyhodnoceno: {evaluated}. Následuje sestavení pořadí.",
+        "promoted": "Postoupilo {promoted} z {topN} (práh {floor}).",
+        "halted": "Pozastaveno operátorem (vyhodnoceno {evaluated}, postoupilo {promoted}).",
+        "canceled": "Běh zrušen (vyhodnoceno {evaluated}, postoupilo {promoted}).",
+        "routed_to_human": "Před zveřejněním čeká na Vaši kontrolu.",
+        "held": "Odloženo k posouzení: {count}",
+        "eval_failed": "{count, plural, one {# vyhodnocení selhalo} few {# vyhodnocení selhala} other {# vyhodnocení selhalo}}",
+        "sourcing_failed": "Vyhledání kandidátů selhalo",
+        "candidates_skipped": "{count, plural, one {# kandidát přeskočen (nečitelný)} few {# kandidáti přeskočeni (nečitelní)} other {# kandidátů přeskočeno (nečitelných)}}",
+        "scenario_template_only": "Pohovor používá šablonové otázky",
+        "seed_skeleton_only": "Výchozí kód je jen kostra",
+        "baseline_unavailable": "Chybí srovnávací řešení AI"
+      },
+      "outcomeAction": {
+        "open_decisions": "Otevřít Rozhodnutí",
+        "re_source": "Vyhledat znovu",
+        "resume": "Pokračovat",
+        "resuming": "Pokračuje se…",
+        "resumeFailed": "Pokračování se nezdařilo."
+      }
     },
     "stage": {
       "intake": "příjem",

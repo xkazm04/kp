@@ -9988,7 +9988,30 @@
       "closeModalTitle": "Close assignment",
       "closeIrreversible": "The wrap-up comms can't be unsent.",
       "reSourceFailed": "Re-source failed.",
-      "closeInFlight": "{count, plural, one {# candidate is} other {# candidates are}} working on this assignment right now (the longest for {minutes} min). Closing refuses their submission, and they will see that on their next save."
+      "closeInFlight": "{count, plural, one {# candidate is} other {# candidates are}} working on this assignment right now (the longest for {minutes} min). Closing refuses their submission, and they will see that on their next save.",
+      "outcome": {
+        "collecting_open": "Published, {sourced} sourced into the pipeline. Awaiting submissions.",
+        "awaiting_submissions": "Published. Awaiting submissions.",
+        "evaluated": "{evaluated} evaluated. Ranking is next.",
+        "promoted": "Promoted {promoted} of {topN} (floor {floor}).",
+        "halted": "Paused by the operator ({evaluated} evaluated, {promoted} promoted).",
+        "canceled": "Run canceled ({evaluated} evaluated, {promoted} promoted).",
+        "routed_to_human": "Waiting for your review before publishing.",
+        "held": "{count} held for review",
+        "eval_failed": "{count, plural, one {# evaluation failed} other {# evaluations failed}}",
+        "sourcing_failed": "Sourcing failed",
+        "candidates_skipped": "{count, plural, one {# candidate skipped (unreadable)} other {# candidates skipped (unreadable)}}",
+        "scenario_template_only": "Interview uses template probes",
+        "seed_skeleton_only": "Starter code is a skeleton only",
+        "baseline_unavailable": "No AI baseline to compare against"
+      },
+      "outcomeAction": {
+        "open_decisions": "Open Decisions",
+        "re_source": "Re-source now",
+        "resume": "Resume",
+        "resuming": "Resuming…",
+        "resumeFailed": "Resume failed."
+      }
     },
     "stage": {
       "intake": "intake",

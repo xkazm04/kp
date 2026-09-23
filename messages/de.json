@@ -9988,7 +9988,30 @@
       "closeModalTitle": "Aufgabe schließen",
       "closeIrreversible": "Die Abschlussnachrichten lassen sich nicht zurücknehmen.",
       "reSourceFailed": "Neues Sourcing fehlgeschlagen.",
-      "closeInFlight": "{count, plural, one {# Person arbeitet} other {# Personen arbeiten}} gerade an dieser Aufgabe (am längsten seit {minutes} Min.). Nach dem Schließen können sie ihre Lösung nicht mehr einreichen und erfahren das beim nächsten Speichern."
+      "closeInFlight": "{count, plural, one {# Person arbeitet} other {# Personen arbeiten}} gerade an dieser Aufgabe (am längsten seit {minutes} Min.). Nach dem Schließen können sie ihre Lösung nicht mehr einreichen und erfahren das beim nächsten Speichern.",
+      "outcome": {
+        "collecting_open": "Veröffentlicht, {sourced} in die Pipeline übernommen. Warten auf Einreichungen.",
+        "awaiting_submissions": "Veröffentlicht. Warten auf Einreichungen.",
+        "evaluated": "{evaluated} bewertet. Als Nächstes folgt die Rangfolge.",
+        "promoted": "{promoted} von {topN} weitergeleitet (Schwelle {floor}).",
+        "halted": "Vom Operator pausiert ({evaluated} bewertet, {promoted} weitergeleitet).",
+        "canceled": "Lauf abgebrochen ({evaluated} bewertet, {promoted} weitergeleitet).",
+        "routed_to_human": "Wartet vor der Veröffentlichung auf Ihre Prüfung.",
+        "held": "{count} zur Prüfung zurückgehalten",
+        "eval_failed": "{count, plural, one {# Bewertung fehlgeschlagen} other {# Bewertungen fehlgeschlagen}}",
+        "sourcing_failed": "Kandidatensuche fehlgeschlagen",
+        "candidates_skipped": "{count, plural, one {# Person übersprungen (nicht lesbar)} other {# Personen übersprungen (nicht lesbar)}}",
+        "scenario_template_only": "Interview nutzt Vorlagenfragen",
+        "seed_skeleton_only": "Startcode ist nur ein Gerüst",
+        "baseline_unavailable": "Keine KI-Vergleichslösung vorhanden"
+      },
+      "outcomeAction": {
+        "open_decisions": "Entscheidungen öffnen",
+        "re_source": "Jetzt neu suchen",
+        "resume": "Fortsetzen",
+        "resuming": "Wird fortgesetzt…",
+        "resumeFailed": "Fortsetzen fehlgeschlagen."
+      }
     },
     "stage": {
       "intake": "Eingang",
