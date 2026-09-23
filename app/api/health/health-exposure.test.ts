@@ -245,3 +245,27 @@ test("an empty catalog with healthy seeds moves no verdict, and stays operator-o
   const anon = await probe();
   assert.equal(anon.catalog, undefined, "zero jobs is business volume, gated like `tables`");
 });
+
+// Challenge r03 platform-auth-api/A — the detail splits in TWO tiers now. `engines`
+// is the signed-in shell's own business (useEngineAvailability) and stays on
+// isOperator(); the deployment-wide counts, queue, catalog state and the reasons that
+// name workspace ids and host paths move to the HOME-ORG tier, because a member of
+// another org on the same box is a different tenant.
+test("an OWNER of another org gets the verdict and engines, and no deployment-wide detail", async () => {
+  cookieValue = signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
+  const r = await GET();
+  const body = (await r.json()) as HealthBody;
+  assert.ok(r.status === 200 || r.status === 503, "the verdict still answers");
+  assert.equal(body.db, "ok");
+  assert.ok(body.seeds && body.config && body.clock && typeof body.ok === "boolean", "the public verdict is intact");
+  assert.ok(body.engines, "engines stays on the signed-in tier");
+  for (const key of ["tables", "queue", "catalog", "degradedReasons", "configIssues"] as const) {
+    assert.equal(key in body, false, `${key} must not reach another org`);
+  }
+});
+
+test("a home-org member keeps the full detail", async () => {
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: "usr_h", org: "org-default", role: "viewer" });
+  const body = await probe();
+  assert.ok(body.tables && body.queue && body.degradedReasons && body.engines);
+});

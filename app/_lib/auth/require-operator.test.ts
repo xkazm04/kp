@@ -127,3 +127,58 @@ test("a demo session is still refused when it carries identity claims", async ()
   withCookie(signSession(DEMO_WORKSPACE, Date.now(), { sub: "usr_x", org: "org-default", op: true }));
   assert.equal(await isOperator(), false, "the WORKSPACE decides this, not the claims");
 });
+
+// ── The HOME-ORG tier (challenge-r03 platform-auth-api/A) ───────────────────────
+// isOperator() answers "signed in and not demo", which every member of EVERY org
+// satisfies. The deployment-wide reads (/api/ops, the /api/health detail, the
+// llm_usage ledger, /diagrams) count every tenant's rows, so their caller must belong
+// to the install's HOME org. Single-org installs are unchanged: with signup off every
+// session carries org in {absent, "org-default"}.
+
+const { homeOrgReader, isHomeOrgReader, requireHomeOrgReader, HOME_ORG_ID } = await import("./require-operator.ts");
+const { DEFAULT_ORG_ID } = await import("../db/organizations.ts");
+const { verifySession } = await import("./session.ts");
+
+const PASSWORD_ENV = { KP_OPERATOR_PASSWORD: "set" } as unknown as NodeJS.ProcessEnv;
+const session = (claims: Parameters<typeof signSession>[2], ws: string = TEAM) => verifySession(signSession(ws, Date.now(), claims));
+
+test("HOME_ORG_ID is the seeded home org, not a second spelling of it", () => {
+  assert.equal(HOME_ORG_ID, DEFAULT_ORG_ID);
+});
+
+test("homeOrgReader: the pure predicate, clause by clause", () => {
+  assert.equal(homeOrgReader(null, {} as NodeJS.ProcessEnv), true, "open mode trusts every caller");
+  assert.equal(homeOrgReader(null, PASSWORD_ENV), false, "no session");
+  assert.equal(homeOrgReader(session({ op: true }), PASSWORD_ENV), true, "the password operator");
+  assert.equal(homeOrgReader(session({}), PASSWORD_ENV), true, "claim-less legacy operator cookie, unchanged");
+  assert.equal(homeOrgReader(session({ sub: "usr_b", org: "org-b", role: "owner" }), PASSWORD_ENV), false, "an owner of ANOTHER org");
+  assert.equal(homeOrgReader(session({ sub: "usr_n", role: "recruiter" }), PASSWORD_ENV), true, "sub with no org claim");
+  assert.equal(homeOrgReader(session({ sub: "usr_h", org: "org-default", role: "viewer" }), PASSWORD_ENV), true, "any seat of the home org");
+  assert.equal(homeOrgReader(session({ op: true }, DEMO_WORKSPACE), PASSWORD_ENV), false, "demo is never a reader");
+  assert.equal(homeOrgReader(session({}, DEMO_WORKSPACE), PASSWORD_ENV), false);
+});
+
+test("requireHomeOrgReader: 401 without a session, a CODED 403 for another org, null for home", async () => {
+  passwordMode(true);
+  withCookie(null);
+  assert.equal((await requireHomeOrgReader())?.status, 401);
+  withCookie(signSession(DEMO_WORKSPACE, Date.now(), {}));
+  assert.equal((await requireHomeOrgReader())?.status, 401, "demo stays the 401 it is today");
+  withCookie(signSession(TEAM, Date.now(), { sub: "usr_b", org: "org-b", role: "owner" }));
+  assert.equal(await isOperator(), true, "still signed in — that part is unchanged");
+  assert.equal(await isHomeOrgReader(), false);
+  const denied = await requireHomeOrgReader();
+  assert.equal(denied?.status, 403);
+  const body = (await denied?.json()) as { error?: string; code?: string; capability?: string };
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  // Spelled inline (api-response.ts stays out of this module's graph), so pin it to
+  // the registry: the shape must be exactly what jsonRefusal would have answered.
+  const { REFUSAL_ERRORS } = await import("../api-response.ts");
+  assert.equal(body.error, REFUSAL_ERRORS.FORBIDDEN_CAPABILITY);
+  assert.equal(body.capability, "deployment:read");
+  withCookie(signSession(TEAM, Date.now(), { sub: "usr_h", org: "org-default", role: "recruiter" }));
+  assert.equal(await requireHomeOrgReader(), null);
+  passwordMode(false);
+  withCookie(signSession(TEAM, Date.now(), { sub: "usr_b", org: "org-b", role: "owner" }));
+  assert.equal(await requireHomeOrgReader(), null, "open mode has no gate to fail");
+});

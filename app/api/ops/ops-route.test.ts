@@ -267,3 +267,42 @@ test("the limiter's refusals reach the operator per door family, with no key mat
   const wire = JSON.stringify(body.rateLimitRefusals);
   assert.ok(!wire.includes(secret) && !wire.includes("203.0.113.9"), "no token or client address on the operator read");
 });
+
+// Challenge r03 platform-auth-api/A — the HOME-ORG tier. Every "operator" case above
+// signs a claim-less DEFAULT_WORKSPACE cookie; none drove a USER session from another
+// org, and that is the caller a signup-enabled deployment mints for every stranger
+// (signup-service.ts creates an org per registrant and seats them owner). The counts
+// here are every tenant's, so membership of some org is not enough: the caller must
+// belong to the install's home org.
+test("an OWNER of another org is refused with a code, and sees no deployment-wide field", async () => {
+  cookieValue = signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
+  const r = await GET();
+  assert.equal(r.status, 403);
+  const body = await bodyOf(r);
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  for (const key of ["tables", "queue", "degradedReasons"] as const) {
+    assert.equal(key in body, false, `${key} must not reach another org`);
+  }
+});
+
+test("a home-org RECRUITER still reads the strip — single-org installs are unchanged", async () => {
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: "usr_h", org: "org-default", role: "recruiter" });
+  const r = await GET();
+  assert.equal(r.status, 200);
+  assert.ok((await bodyOf(r)).tables);
+});
+
+test("the password operator and open mode keep the full payload", async () => {
+  cookieValue = signSession("ws_org_b", Date.now(), { op: true });
+  assert.equal((await GET()).status, 200, "op:true is the host operator, whatever its workspace");
+  const password = process.env.KP_OPERATOR_PASSWORD;
+  delete process.env.KP_OPERATOR_PASSWORD;
+  try {
+    cookieValue = null;
+    const r = await GET();
+    assert.equal(r.status, 200, "open dev has no gate to fail");
+    assert.ok((await bodyOf(r)).tables);
+  } finally {
+    process.env.KP_OPERATOR_PASSWORD = password;
+  }
+});
