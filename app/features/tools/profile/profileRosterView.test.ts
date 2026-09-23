@@ -3,8 +3,14 @@
 // new ledger table adds, tested on the pure view model rather than through a render.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pruneStale, rosterFacets, rosterRows, rosterStatus } from "./profileRosterView.ts";
+import { pruneStale, rosterFacets, rosterFromPopulation, rosterRows, rosterStatus } from "./profileRosterView.ts";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes.ts";
+import {
+  collapsePopulation,
+  profileFromRecord,
+  type PopulationAnalysis,
+  type PopulationProfile,
+} from "../../../_lib/candidate-population.ts";
 
 const P = (id: string, label: string, archetype: string | null, family: string | null, c: number | null): RosterProfile => ({
   id,
@@ -144,4 +150,55 @@ test("a pruned id cannot resurrect a stale badge on a later profile", () => {
   const stale = pruneStale({ "1": { newerSlug: "a", newerAnalyzedAt: "2026-01-01" } }, "1");
   const reused: RosterProfile = { id: "1", label: "Someone Else", archetype: "bau", role_family: null, completeness: 0.5 };
   assert.equal(rosterStatus(reused, stale, new Set()), "current");
+});
+
+// ── The roster is a projection of the ONE population (challenge-r05 profile-roster-matrix/A) ──
+
+const popProfile = (id: string, over: Partial<PopulationProfile> = {}): PopulationProfile => ({
+  id,
+  name: `Name ${id}`,
+  role: null,
+  seniority: null,
+  archetype: "bau",
+  sourceCvHash: null,
+  createdAt: "2026-09-01T00:00:00.000Z",
+  completeness: 0.5,
+  ...over,
+});
+const popAnalysis = (slug: string, cvHash: string | null): PopulationAnalysis => ({
+  slug,
+  name: `CV ${slug}`,
+  role: "design",
+  seniority: null,
+  archetype: "unknown",
+  score: 50,
+  cvHash,
+  createdAt: "2026-09-01T00:00:00.000Z",
+});
+
+test("rosterFromPopulation keeps exactly the profile rows, shaped for the table, with the one stale entry", () => {
+  const rows = collapsePopulation(
+    [popProfile("p1", { completeness: 0.9 }), popProfile("p2", { completeness: null, archetype: "student" }), popProfile("p3")],
+    [popAnalysis("a1", "H1"), popAnalysis("a2", null)],
+    { p2: { newerSlug: "a7", newerAnalyzedAt: "2026-09-02" } }
+  );
+  assert.equal(rows.length, 5);
+  const { profiles, stale } = rosterFromPopulation(rows);
+  assert.deepEqual(profiles, [
+    { id: "p1", label: "Name p1", archetype: "bau", role_family: null, completeness: 0.9 },
+    { id: "p2", label: "Name p2", archetype: "student", role_family: null, completeness: null },
+    { id: "p3", label: "Name p3", archetype: "bau", role_family: null, completeness: 0.5 },
+  ]);
+  assert.deepEqual(stale, { p2: { newerSlug: "a7", newerAnalyzedAt: "2026-09-02" } });
+});
+
+test("family parity: the roster's Family answer is the population's, not the raw column", () => {
+  const p = profileFromRecord({
+    row: { id: "p1", label: "Jana", archetype: "bau", role_family: null, completeness: 0.4, created_at: "2026-09-01" },
+    payload: { roleFamily: "engineering" },
+    sourceCvHash: null,
+  });
+  const rows = collapsePopulation([p], []);
+  assert.equal(rows[0].role, "engineering", "the matrix projection");
+  assert.equal(rosterFromPopulation(rows).profiles[0].role_family, "engineering", "the roster projection says the same");
 });

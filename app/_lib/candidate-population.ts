@@ -26,11 +26,21 @@
 //   - two profiles with one hash (created before the server refused a second one) stay
 //     two rows — neither id can be dropped — and the analyses attach to the newest.
 //
+// ONE population for the whole tab (challenge-r05 profile-roster-matrix/A). The roster,
+// the matrix and the archetype retire dialog used to read three different things — the
+// roster GET /api/profile (saved profiles only), the matrix this fold, the dialog the
+// roster list again — so they disagreed on the family, on staleness and on how many
+// candidates a retired lane holds. A profile row now also carries its completeness and
+// its staleness, so every projection derives from these rows: the roster via
+// rosterFromPopulation (profileRosterView.ts), the retire dialog via routedCount, and
+// a delete prunes them all at once via withoutProfile.
+//
 // Pure and React-free: the route calls it, and the chip's single action reads
 // `matrixChipAction` from here too, so "never offer build when a profile exists" is
 // one rule with one test.
 
-import type { CandidateAnalysisRef, CandidateRow } from "@/app/features/shared/profileTypes";
+import { normalizeArchetype } from "@/app/_lib/archetypes";
+import type { CandidateAnalysisRef, CandidateRow, ProfilePayload } from "@/app/features/shared/profileTypes";
 
 export type PopulationProfile = {
   id: string;
@@ -41,6 +51,19 @@ export type PopulationProfile = {
   /** The CV content hash this profile was built from; NULL for a hand-built profile. */
   sourceCvHash: string | null;
   createdAt: string;
+  /** Intake completeness 0..1 (the roster's Completeness column); null when unknown. */
+  completeness?: number | null;
+};
+
+/** A profile whose CV has a NEWER analysis than the one it was built from (the same
+ *  shape profileStaleness returns — the rebuild target and its analyzed-at). */
+export type PopulationStaleness = { newerSlug: string; newerAnalyzedAt: string };
+
+/** One candidate as every projection of the Profile tab sees it. `completeness` and
+ *  `stale` are a saved profile's; an analysis-only row carries null for both. */
+export type PopulationRow = CandidateRow & {
+  completeness: number | null;
+  stale: PopulationStaleness | null;
 };
 
 export type PopulationAnalysis = {
@@ -71,8 +94,10 @@ function ref(a: PopulationAnalysis): CandidateAnalysisRef {
  *  appears in the input. */
 export function collapsePopulation(
   profiles: readonly PopulationProfile[],
-  analyses: readonly PopulationAnalysis[]
-): CandidateRow[] {
+  analyses: readonly PopulationAnalysis[],
+  /** profile id → its staleness (profileStaleness); an absent id is current. */
+  stale: Readonly<Record<string, PopulationStaleness>> = {}
+): PopulationRow[] {
   // Analyses per hash, newest first. Null-hash analyses are kept aside, one row each.
   const byHash = new Map<string, PopulationAnalysis[]>();
   const loose: PopulationAnalysis[] = [];
@@ -95,7 +120,7 @@ export function collapsePopulation(
     if (!cur || p.createdAt > cur.createdAt) owner.set(p.sourceCvHash, p);
   }
 
-  const rows: CandidateRow[] = [];
+  const rows: PopulationRow[] = [];
   for (const p of profiles) {
     const hash = p.sourceCvHash;
     const own = hash && owner.get(hash) === p ? (byHash.get(hash) ?? []) : [];
@@ -112,6 +137,10 @@ export function collapsePopulation(
       score: newest?.score ?? null,
       archetype: p.archetype,
       analyses: own.map(ref),
+      completeness: p.completeness ?? null,
+      // Own-key read: the map is keyed by content-free ids, and a prototype name must
+      // never read as a staleness entry.
+      stale: Object.hasOwn(stale, p.id) ? stale[p.id] : null,
     });
   }
 
@@ -128,7 +157,7 @@ export function collapsePopulation(
   return rows;
 }
 
-function analysisRow(group: readonly PopulationAnalysis[]): CandidateRow {
+function analysisRow(group: readonly PopulationAnalysis[]): PopulationRow {
   const newest = group[0];
   return {
     key: `analysis:${newest.slug}`,
@@ -141,7 +170,107 @@ function analysisRow(group: readonly PopulationAnalysis[]): CandidateRow {
     score: newest.score,
     archetype: newest.archetype,
     analyses: group.map(ref),
+    completeness: null,
+    stale: null,
   };
+}
+
+/** A saved profile's store record, as the population reads it. The FAMILY is resolved
+ *  here, once — the denormalized column, else the payload's roleFamily — so the roster
+ *  and the matrix can no longer give two answers for one person. */
+export function profileFromRecord(rec: {
+  row: {
+    id: string;
+    label: string;
+    archetype: string | null;
+    role_family: string | null;
+    completeness: number | null;
+    created_at: string;
+  };
+  payload: unknown;
+  sourceCvHash: string | null;
+}): PopulationProfile {
+  const p = (rec.payload as ProfilePayload | null) ?? {};
+  return {
+    id: rec.row.id,
+    name: rec.row.label,
+    role: rec.row.role_family ?? p.roleFamily ?? null,
+    seniority: p.seniority ?? null,
+    // Honest fail-closed sentinel (NOT "bau") for an unrouted profile.
+    archetype: rec.row.archetype ?? "unknown",
+    sourceCvHash: rec.sourceCvHash,
+    createdAt: rec.row.created_at,
+    completeness: rec.row.completeness,
+  };
+}
+
+/** A saved CV analysis's store record, as the population reads it. */
+export function analysisFromRecord(rec: {
+  row: {
+    slug: string;
+    candidate_label: string;
+    role_family: string | null;
+    seniority: string | null;
+    score: number | null;
+    cv_hash?: string | null;
+    created_at: string;
+  };
+  payload: unknown;
+}): PopulationAnalysis {
+  const v2 = (rec.payload as { v2Profile?: { archetype?: string } } | null)?.v2Profile;
+  return {
+    slug: rec.row.slug,
+    name: rec.row.candidate_label,
+    role: rec.row.role_family,
+    seniority: rec.row.seniority,
+    score: rec.row.score,
+    // Honest fail-closed sentinel (NOT "bau"): collapsing an unrouted candidate to "bau"
+    // mislabels a fairness-protected class. The matrix renders "unknown" as the
+    // "Unrouted" column via archetypeDisplayKey.
+    archetype: v2?.archetype ?? "unknown",
+    cvHash: rec.row.cv_hash ?? null,
+    createdAt: rec.row.created_at,
+  };
+}
+
+/** Values that mean "not routed" — never an archetype anyone can retire. */
+const UNROUTED = new Set(["", "unknown", "unrouted"]);
+
+/**
+ * How many candidates route to one archetype, per store — the retire dialog's blast
+ * radius. It counts BOTH stores because the matrix lane being retired shows both: a
+ * count of saved profiles alone said "No profile routes here" over a lane full of
+ * analysed candidates.
+ *
+ * Matched on the normalized archetype id, not on archetypeDisplayKey: only a
+ * workspace's OWN archetypes can be retired, and the display key folds any id the
+ * bundled registry does not know (a custom archetype created at runtime) into
+ * "unrouted" — which would count zero for exactly the archetypes this dialog serves.
+ * The unrouted sentinels never count toward anything.
+ */
+export function routedCount(
+  rows: readonly Pick<PopulationRow, "source" | "archetype">[],
+  archetypeId: string
+): { profiles: number; analyses: number } {
+  const target = normalizeArchetype(archetypeId);
+  const out = { profiles: 0, analyses: 0 };
+  if (UNROUTED.has(target)) return out;
+  for (const row of rows) {
+    if (normalizeArchetype(row.archetype) !== target) continue;
+    if (row.source === "profile") out.profiles += 1;
+    else out.analyses += 1;
+  }
+  return out;
+}
+
+/**
+ * The population after a profile delete — the optimistic prune every projection sees
+ * at once. Returns the SAME array when no row carries that id, so a delete of an
+ * unknown id re-renders nothing.
+ */
+export function withoutProfile<R extends Pick<PopulationRow, "id">>(rows: readonly R[], id: string): readonly R[] {
+  if (!rows.some((r) => r.id === id)) return rows;
+  return rows.filter((r) => r.id !== id);
 }
 
 export type MatrixChipAction = { kind: "edit"; id: string } | { kind: "build"; slug: string } | null;
