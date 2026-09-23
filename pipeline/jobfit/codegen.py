@@ -7,7 +7,8 @@ aliases) and transpiles it into Zod definitions written to
 
 It also generates ``app/_lib/taxonomy.generated.ts`` — the evidence/skill/
 provenance dropdown lists — from the Python taxonomy (``profile.EVIDENCE_KINDS``,
-``profile.SKILL_LEVELS`` and ``taxonomy.UI_PROVENANCE``) so those enums have ONE
+``profile.SKILL_LEVELS``, ``taxonomy.UI_PROVENANCE`` and the candidate education
+ladder ``education.CANDIDATE_LEVELS``) so those enums have ONE
 source of truth instead of a hand-maintained TS copy that silently drifts
 (idea-ba28f11b). The devcase timebox bounds ride along for the same reason: the
 cap on a candidate's unpaid work was enforced in the Python designer and
@@ -37,6 +38,7 @@ from typing import Any, NamedTuple
 
 from .appmaster import AppMasterSpec, PerformanceBackbone, RepoDossier
 from .devcase.models import MAX_TIMEBOX_HOURS, MIN_TIMEBOX_HOURS, RoleSpec
+from .education import CANDIDATE_LEVELS
 from .models import AnalysisResult
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .rolebrief import RoleBrief
@@ -57,7 +59,8 @@ import { z } from "zod";
 
 TAXONOMY_HEADER = """// AUTO-GENERATED — DO NOT EDIT.
 // Source of truth: pipeline/jobfit/profile.py (EVIDENCE_KINDS, SKILL_LEVELS),
-// pipeline/jobfit/taxonomy.py (UI_PROVENANCE) and
+// pipeline/jobfit/taxonomy.py (UI_PROVENANCE),
+// pipeline/jobfit/education.py (CANDIDATE_LEVELS) and
 // pipeline/jobfit/devcase/models.py (the devcase timebox bounds).
 // Regenerate with: python -m pipeline.jobfit.codegen
 """
@@ -184,6 +187,9 @@ def render_taxonomy() -> str:
         _emit_string_list("EVIDENCE_KINDS", tuple(EVIDENCE_KINDS)),
         _emit_string_list("SKILL_LEVELS", tuple(SKILL_LEVELS)),
         _emit_string_list("PROVENANCE", tuple(UI_PROVENANCE)),
+        # The candidate education ladder the profile editor offers ("university" =
+        # a school named with no degree title; see pipeline/jobfit/education.py).
+        _emit_string_list("CANDIDATE_EDUCATION_LEVELS", CANDIDATE_LEVELS),
         # Policy numbers, not a taxonomy — but the same drift problem, so they take the
         # same door: the TS side must clamp a reviewer-edited timebox to the number the
         # Python designer enforces, not to a hand-copied one.

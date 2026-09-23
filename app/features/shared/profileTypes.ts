@@ -127,7 +127,6 @@ export const ARCHETYPE_CHOICES = [
 // Labels are overridden by enums.family at the render site (ProfileEditor); the
 // label here is the non-i18n fallback. Slugs come from the canonical module.
 export const ROLE_FAMILIES = ROLE_FAMILY_SLUGS.map((v) => ({ v, label: ROLE_FAMILY_LABELS[v] }));
-export const EDU_LEVELS = ["unknown", "university", "bachelor", "master", "phd"];
 export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // EVIDENCE_KINDS / SKILL_LEVELS / PROVENANCE are GENERATED from the Python
 // taxonomy (the single source of truth): EVIDENCE_KINDS + SKILL_LEVELS from
@@ -136,6 +135,10 @@ export const SENIORITIES = ["junior", "medior", "senior", "lead"];
 // edit the Python lists and run `python -m pipeline.jobfit.codegen`; the build
 // and `npm run schemas:check` gate fail if this file drifts from Python.
 export { EVIDENCE_KINDS, SKILL_LEVELS, PROVENANCE } from "@/app/_lib/taxonomy.generated";
+// The candidate education ladder is generated the same way, from
+// pipeline/jobfit/education.py CANDIDATE_LEVELS ("university" there means the CV
+// names a school but no degree title, so a degree floor reads it as uncertain).
+export { CANDIDATE_EDUCATION_LEVELS as EDU_LEVELS } from "@/app/_lib/taxonomy.generated";
 // No archetype-label re-export: the labels are catalog copy, resolved with
 // useEnumLabel("archetypeLong" | "archetype", archetypeDisplayKey(id)). The raw
 // ARCHETYPE_LABEL map stays internal to app/_lib/archetypes (it is the id vocabulary
