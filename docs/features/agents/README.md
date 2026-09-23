@@ -69,7 +69,9 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    declared", where substituting the ceiling would invent a spend authorization nobody
    gave. A `hired_agents` row is minted (idempotent — one live agent per
    job) and, **once Personas has accepted the request**, the agent enters the pipeline at
-   Offer (`candidateId agent-<id>`, `sourceChannel agent-bridge`). The board write is
+   the workspace's **offer-role** column (`placeAgentOnBoard(agent, "offer")`, falling back
+   to the entry role; never the literal `Offer`, which a renamed board does not render;
+   `candidateId agent-<id>`, `sourceChannel agent-bridge`). The board write is
    deliberately last: a failed dispatch mints a fresh agent id on every retry, so filing
    the card up front left one phantom Offer-stage candidate per attempt — and an
    **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
@@ -145,6 +147,36 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    *Refresh* button is the pull fallback (`POST /api/agents/[id]/refresh`). Activation
    auto-moves the pipeline entry to the board's **terminal** column.
 
+   **One transition door.** Every status write — push report, pull refresh, dispatch —
+   goes through `transitionHiredAgent` (`app/_lib/db/agents.ts`), which checks the
+   closed table `AGENT_TRANSITIONS` and writes `UPDATE … WHERE status = <from>` in one
+   IMMEDIATE transaction (`changes === 0` → refused). Both Personas vocabularies (push
+   event, poll status) map through `lifecycleTarget` and the board move is
+   `placeAgentOnBoard` (`app/_lib/agent-hire/lifecycle.ts`), so all three doors behave
+   the same way, and the poll now records the same `agent_activated` marker as the push.
+
+   | From | Legal moves |
+   | --- | --- |
+   | `dispatched` | `pending_approval`, `onboarding`, `active`, `rejected`, `failed`, `retired` |
+   | `pending_approval` | itself, `onboarding`, `active`, `rejected`, `failed`, `retired` |
+   | `onboarding` | itself (probation `extended`, a re-sent report), `active`, `failed`, `retired` |
+   | `active` | itself, `retired` |
+   | `rejected` / `failed` / `retired` | none (terminal) |
+
+   Every call writes ONE `lifecycle` row to `agent_activity`. An applied move stores its
+   event with `raw.transition = {from, to}`: that row's `ts` is when the hire **entered**
+   `to` (the dispatch's `dispatched → pending_approval` row is where an approval clock
+   starts; `updated_at` moves on every write, so it is not). A refused move stores
+   `refused:<event>: <why>`. The push route answers a refused lifecycle report with
+   **200 `{result: "transition_refused"}`**, so Personas does not retry it; the refresh
+   route answers `refreshed:false` (`result: "transition_refused"`). The refresh route
+   reads the row **before** its network call and uses that status as the CAS
+   precondition **after** it, so a push that landed in between is not overwritten. A
+   rejected or failed hire's token still resolves (only a retired token 404s), but none of
+   its lifecycle reports can revive the hire or put a second live agent on a
+   re-dispatched job. Pinned by `app/_lib/agent-hire/lifecycle.test.ts`,
+   `agents-bridge.test.ts` and `agent-hire-board-move.test.ts`.
+
    **Both stages are resolved by ROLE, off the workspace's own axis** — `stageForRole`
    (`app/_lib/pipeline-axis-server.ts`), never the literals `"Offer"`/`"Hired"`. A team
    that renamed its final column to *Signed* has no stage called `Hired`, and the store
@@ -197,9 +229,9 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | `POST /api/agents/hire-from-need` | **One call from a need to a persona** — the machine door. `{need, project:{name, rootPath, mainBranch?}, population:"agent", workspace?, lang?, budgetUsd?, dryRun?, simulation?, originPersonaId?}` → scan the repo, open an intake seeded with the need, land the dossier, compose the App master, dispatch. Intake language is `body.lang` when it is a shipped locale, otherwise the workspace default (not silently English). Returns `{intakeId, agentId, personaRequestId, status, jobDescription:{title,summary}, dryRun}`. Auth is EITHER the operator session + `pipeline:write` OR the `x-kp-automation-token` header (below). `workspace` is honoured only for the token caller (it has no session); a human caller is held to the session's own workspace and naming another answers 403 `FORBIDDEN_CAPABILITY` (`resolveHireWorkspace`, automation-auth.ts). See "Hiring from a need, with nobody in the loop" |
 | `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path. `pipeline:write` (the poll can move a board entry) |
 | `POST /api/agents/report/[token]` | PUBLIC inbound report route — the CSPRNG token is the capability |
-| `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
+| `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload`, `lifecycle` (the transition door: `lifecycleTarget`, `placeAgentOnBoard`) |
 | `app/_lib/app-master/backbone.ts` | The performance backbone scored in TS — a pinned port of `pipeline/jobfit/appmaster.py::backbone_score` (parity fixtures in `__fixtures__/`, generated by the Python function itself) |
-| `app/_lib/db/agents.ts` | Records, statuses, activity ledger, aggregates |
+| `app/_lib/db/agents.ts` | Records, statuses, the transition table + `transitionHiredAgent` (the only production status writer), activity ledger, aggregates |
 | `pipeline/jobfit/agentfit.py` + `agentfit_cli.py` | The job → AgentFitSpec transform (LLM + deterministic fallback) |
 | `pipeline/jobfit/agentfit.py::assess_population_fit` | A SECOND question in the same module, for the App master role: given a `RepoDossier` and the outcomes a requestor chose, who should hold the role — `human \| agent \| hybrid \| unassessed`. Reuses this module's `COVERAGE_CLASSES` and `coverage_ratio` (code-owned on both paths); the verdict is derived from the ratio in code, and the keyless path never returns `automatable`. Consumed by the intake shape `app_master` — see [docs/features/app-master/README.md](../app-master/README.md) |
 
