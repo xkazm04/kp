@@ -162,8 +162,11 @@ const ALLOWED = new Map<string, string>([
   ["match/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["me/onboarding/route.ts", "self-service — the caller's own onboarding state, nobody else's"],
   ["offer/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["pipeline/[id]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["pipeline/outcomes/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // pipeline/[id]/route.ts and pipeline/outcomes/route.ts were judged and CLOSED
+  // (challenge-r07 pipeline-api/A): the per-card door asks the seat each action
+  // declares in app/api/pipeline/[id]/entry-actions.ts (pipeline:write for all eight),
+  // and the hire-rating write asks pipeline:write; write-capability-gate.test.ts drives
+  // both for the viewer 403.
   ["pipeline/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["profile/draft/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["profile/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],

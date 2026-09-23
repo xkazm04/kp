@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearIntakeDegraded, getPipelineEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
+import { clearIntakeDegraded, getPipelineEntry, listPipelineEventsForEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
+import { ENTRY_ACTIONS, engineClaimOf, entryActionOf, reversibleAutoRejection } from "./entry-actions";
 
 
 // AUTH (single-entry-authz-parity): the per-card single-entry surface is gated in
@@ -59,13 +61,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown; actor?: unknown };
 
+    // The door's DECLARED actions (entry-actions.ts). An action the table does not name
+    // is refused here, before any branch runs, and the seat each action requires is read
+    // from its row — so every action this door dispatches asks the seat, not only the
+    // board moves. The bulk doors (batch, command, reverse, stage-migration, stage-sla)
+    // have asked pipeline:write since they landed; this per-card door, written to be in
+    // lock-step with them, asked only requireOperator (identity, not authority), so a
+    // viewer seat could reject, advance, extend an offer or reverse a rejection one card
+    // at a time (challenge-r07 pipeline-api/A).
+    const action = entryActionOf(body.action);
+    if (!action) {
+      return jsonRefusal("PIPELINE_ACTION_UNKNOWN", 400, typeof body.action === "string" ? { action: body.action } : undefined);
+    }
+    const under = await requireCapabilityCoded(ENTRY_ACTIONS[action].capability, requireCapability);
+    if (under) return under;
+
     // Attach a GitHub deep-dive summary to this entry — the drawer's on-demand
     // run for an inbound applicant who shared a handle at apply. Validated by
     // the shared coercer at the boundary (same contract as the add-to-pipeline
     // POST: the only producer is our own client, so a shape mismatch is drift,
     // not input) and FILL-ONLY in the db layer, so evidence already attached is
     // never silently overwritten.
-    if (body.action === "set_github") {
+    if (action === "set_github") {
       const summary = coerceGithubEvidenceSummary(body.github);
       if (!summary) {
         return jsonRefusal("PIPELINE_GITHUB_EVIDENCE_INVALID", 400);
@@ -80,7 +97,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // text, trimmed, capped at MAX_NOTES_LENGTH, stored as NULL when emptied so
     // a cleared note reads as "no note" everywhere. Last write wins (a note is
     // recruiter-owned prose, not AI-attached evidence — no fill-only guard).
-    if (body.action === "set_notes") {
+    if (action === "set_notes") {
       if (typeof body.notes !== "string") {
         return jsonRefusal("PIPELINE_NOTES_INVALID", 400);
       }
@@ -98,7 +115,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Reinstate an auto-rejected candidate for re-review (idea-e43fa801): put them
     // back to active at Screened, audited. Guarded server-side to a still-rejected
     // entry, so a double-click / stale "Reconsider" view 409s instead of churning.
-    if (body.action === "reinstate") {
+    if (action === "reinstate") {
+      // What this door may reverse is DECLARED (ENTRY_ACTIONS.reinstate.reverses): an
+      // auto-rejection, and only while it is the entry's newest decision. The store's
+      // guard reads status alone, which a recruiter's hand reject satisfies too — and
+      // the record sealed below says "Auto-rejection reversed", so writing it over a
+      // human decision would put a false sentence into the tamper-evident chain. A
+      // hand reject is reopened through the human re-add door (POST /api/pipeline),
+      // which records it as that. The oldest-first read is taken wide so the newest
+      // event is never cut off by the limit.
+      if (!reversibleAutoRejection(listPipelineEventsForEntry(id, 5000, ws))) {
+        return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
+      }
       // UAT LUC-ANA-4 — a reversal is the most accountability-bearing act on this
       // surface (a person overruling the machine), so it must name that person in
       // BOTH halves of the record. Resolved ONCE, from the SESSION (never the body),
@@ -125,14 +153,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         candidateRef: id,
         rationale: "Auto-rejection reversed for re-review.",
         reasonCode: "reinstate",
-        inputs: { previousStatus: "rejected", restoredStage: "Screened" },
+        // The stage the store ACTUALLY landed the candidate on (this workspace's
+        // screened column), not the shipped literal — a renamed board used to get a
+        // sealed record naming a stage the candidate never stood on.
+        inputs: { previousStatus: "rejected", restoredStage: restored.stage },
       });
       return NextResponse.json({ entry: restored });
     }
 
     // Resolving a degraded-intake stub: the recruiter has manually captured the
     // candidate's profile, so clear the flag (not a stage move) and keep the entry.
-    if (body.action === "resolve_intake") {
+    if (action === "resolve_intake") {
       const cleared = clearIntakeDegraded(id, ws);
       if (!cleared) {
         return jsonRefusal("PIPELINE_INTAKE_NOT_DEGRADED", 404);
@@ -146,12 +177,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Hired-is-outcome-bearing 422, the offer_review → EXTEND branch, or the seal.
     const result = await runPipelineEntryAction({
       id,
-      action: typeof body.action === "string" ? body.action : "",
+      action,
       toStage: body.toStage,
       expectedStage: typeof body.expectedStage === "string" ? body.expectedStage : undefined,
       detail: typeof body.detail === "string" ? body.detail : undefined,
       ttlDays: body.ttlDays,
-      actor: body.actor,
+      // The engine claim survives only where the action declares one (accept — the
+      // guided sim's only use). Forwarded on every action, a body `actor: "sim"` let
+      // any operator file a human reject as a machine auto-rejection.
+      actor: engineClaimOf(action, body.actor),
       origin: new URL(request.url).origin,
       workspaceId: ws,
     });

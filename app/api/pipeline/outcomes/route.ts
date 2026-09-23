@@ -15,7 +15,8 @@ import {
 } from "@/app/_lib/dev-outcomes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 
 
 // UAT KAT-L1-002 (blocker, recurrence 2) — the on-the-job outcome of a HIRE,
@@ -90,6 +91,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
+  // The SEAT, not just the session (challenge-r07 pipeline-api/A): a rating is a
+  // recruiter act on a named hire, so it asks pipeline:write like every other pipeline
+  // write door. A viewer may still READ the rating and the Quality counter (the GET
+  // stays operator-gated, not capability-gated).
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json().catch(() => ({}))) as unknown;
     const parsed = hirePerformanceSchema.safeParse(body);

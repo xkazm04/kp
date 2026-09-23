@@ -94,6 +94,8 @@ const { POST: agentsDispatch } = await import("./agents/dispatch/route.ts");
 const { POST: agentsRefresh } = await import("./agents/[id]/refresh/route.ts");
 const { POST: commsResend } = await import("./comms/[id]/resend/route.ts");
 const { DELETE: interviewRecordingDelete } = await import("./interview/sessions/[id]/recording/route.ts");
+const { POST: pipelineEntryPost } = await import("./pipeline/[id]/route.ts");
+const { POST: hireOutcomePost, GET: hireOutcomeGet } = await import("./pipeline/outcomes/route.ts");
 
 const { createWorkspace } = await import("../_lib/db/workspaces.ts");
 const { createUser } = await import("../_lib/db/users.ts");
@@ -200,6 +202,11 @@ const DOORS: Door[] = [
     capability: "pipeline:write",
     call: () => interviewRecordingDelete(req(), params({ id: "iv-1" })),
   },
+  // challenge-r07 pipeline-api/A — the per-card door the bulk doors were written to be
+  // in lock-step with, and the hire-rating write. Each action's seat is read from the
+  // declared table (app/api/pipeline/[id]/entry-actions.ts), so every action is covered.
+  { name: "POST /api/pipeline/[id]", capability: "pipeline:write", call: () => pipelineEntryPost(req({ action: "reject" }), params({ id: "x" })) },
+  { name: "POST /api/pipeline/outcomes", capability: "pipeline:write", call: () => hireOutcomePost(req({ entryId: "x", performance: 4 })) },
 ];
 
 // ---- a viewer is refused, with a CODE that names the capability ----------------
@@ -338,4 +345,62 @@ test("retry of a SERVER kind is not the dock rule: an owner's analyze replay rea
   const r = await taskRetry(taskReq(), params({ id: "t-cap-analyze" }));
   assert.equal(r.status, 409);
   assert.equal(((await r.json()) as { code?: string }).code, "TASK_REPLAY_INPUTS_GONE");
+});
+
+// ---- the single-entry door and the hire-rating door (challenge-r07 pipeline-api/A) --
+//
+// The DOORS rows above prove the refusal on a made-up id. These drive a REAL entry in
+// the caller's own team, so "refused" also means "nothing happened": the entry keeps
+// its status and gains no event, and no rating is recorded.
+const pipelineStore = await import("../_lib/db/pipeline.ts");
+const { NextRequest: ShimNextRequest } = await import("next/server");
+
+const entryIn = (label: string, stage: string) =>
+  pipelineStore.createPipelineEntry({
+    candidateId: `caps-${label}`,
+    candidateLabel: `Caps ${label}`,
+    jobId: `caps-job-${label}`,
+    jobTitle: "Caps Role",
+    stage,
+    workspaceId: team.id,
+  }).entry;
+
+test("POST /api/pipeline/[id] refuses a viewer's reject on a real entry and changes nothing; an owner's goes through", async () => {
+  const entry = entryIn("reject", "Screened");
+  const eventsBefore = pipelineStore.listPipelineEventsForEntry(entry.id, 500, team.id).length;
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await pipelineEntryPost(req({ action: "reject" }), params({ id: entry.id })), "reject");
+  assert.equal(pipelineStore.getPipelineEntry(entry.id, team.id)?.status, "active", "a refused reject must not reject");
+  assert.equal(pipelineStore.listPipelineEventsForEntry(entry.id, 500, team.id).length, eventsBefore, "a refused reject writes no event");
+
+  signedInAs(null);
+  assert.equal((await pipelineEntryPost(req({ action: "reject" }), params({ id: entry.id }))).status, 401);
+
+  // Non-vacuity: an owner is not refused at the seat.
+  signedInAs(owner);
+  const r = await pipelineEntryPost(req({ action: "reject" }), params({ id: entry.id }));
+  assert.equal(r.status, 200);
+  assert.equal(pipelineStore.getPipelineEntry(entry.id, team.id)?.status, "rejected");
+});
+
+test("POST /api/pipeline/[id] reads the seat from the declared table: set_notes and reinstate are refused too", async () => {
+  const noted = entryIn("notes", "Screened");
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await pipelineEntryPost(req({ action: "set_notes", notes: "x" }), params({ id: noted.id })), "set_notes");
+  assert.equal(pipelineStore.getPipelineEntry(noted.id, team.id)?.notes ?? null, null, "a refused note is not written");
+
+  const rejected = entryIn("reinstate", "Screened");
+  pipelineStore.actOnPipelineEntry(rejected.id, "reject", undefined, { actor: "system", actorRef: "auto:screen-wave" }, team.id);
+  await assertCapabilityRefusal(await pipelineEntryPost(req({ action: "reinstate" }), params({ id: rejected.id })), "reinstate");
+  assert.equal(pipelineStore.getPipelineEntry(rejected.id, team.id)?.status, "rejected", "a refused reinstate reverses nothing");
+});
+
+test("POST /api/pipeline/outcomes refuses a viewer and records no rating; the GET stays an operator read", async () => {
+  const hire = entryIn("hire", "Hired");
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await hireOutcomePost(req({ entryId: hire.id, performance: 4 })), "hire rating");
+  // A viewer may READ (the Quality page's counter and the drawer's card are reads).
+  const read = await hireOutcomeGet(new ShimNextRequest(`http://localhost/api/pipeline/outcomes?entry=${hire.id}`) as unknown as NextRequest);
+  assert.equal(read.status, 200, "the outcomes GET is operator-gated, not capability-gated");
+  assert.equal(((await read.json()) as { performance?: number | null }).performance, null, "no rating was recorded");
 });
