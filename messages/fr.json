@@ -5911,7 +5911,22 @@
       "telemetryHintIntegrated": "indice intégré",
       "telemetryHintAcknowledged": "indice évoqué",
       "telemetryHintMissed": "indice non repris",
-      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}",
+      "coverage": {
+        "covered": "couvert",
+        "coveredTitle": "L’intervieweur a couvert cet axe, sur une citation vérifiée par rapport aux propres mots du candidat.",
+        "asked": "abordé",
+        "askedTitle": "L’intervieweur a ouvert ce thème mais ne l’a jamais marqué comme couvert.",
+        "notReached": "jamais atteint",
+        "notReachedTitle": "Le plan d’entretien prévoyait un thème pour cet axe, et aucune tentative ne l’a ouvert.",
+        "ratedNotReached": "noté, jamais demandé",
+        "ratedNotReachedTitle": "L’IA a noté cet axe, mais le relevé de l’entretien montre que son thème n’a jamais été ouvert. Considérez la note comme non observée ; l’export CSV la laisse vide.",
+        "sentinelCovered": "couvert, non noté",
+        "sentinelCoveredTitle": "Le relevé de l’entretien montre que cet axe a été couvert sur des éléments vérifiés, mais la synthèse de l’IA l’a marqué comme non évalué. Lisez la transcription avant de vous fier à la case vide.",
+        "mustAsksOwed": "{count, plural, one {# question obligatoire non posée} other {# questions obligatoires non posées}}",
+        "mustAsksOwedTitle": "Questions obligatoires du guide que l’appel a terminé sans poser. Prévoyez-les pour le prochain tour.",
+        "legend": "Relevé de l’entretien :"
+      }
     },
     "candidates": {
       "failedStatus": "Échec ({status}).",

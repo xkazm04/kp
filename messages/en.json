@@ -5911,7 +5911,22 @@
       "telemetryHintIntegrated": "hint integrated",
       "telemetryHintAcknowledged": "hint acknowledged",
       "telemetryHintMissed": "hint not taken up",
-      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}"
+      "duration": "{m, plural, =0 {{s}s} other {{s, plural, =0 {{m}m} other {{m}m {s}s}}}}",
+      "coverage": {
+        "covered": "covered",
+        "coveredTitle": "The interviewer covered this axis, on a quote verified against the candidate's own words.",
+        "asked": "asked",
+        "askedTitle": "The interviewer began this topic but never marked it covered.",
+        "notReached": "never reached",
+        "notReachedTitle": "The interview plan had a topic for this axis, and no attempt ever began it.",
+        "ratedNotReached": "rated, never asked",
+        "ratedNotReachedTitle": "The AI rated this axis, but the interview record shows its topic was never begun. Treat the number as unobserved; the CSV export leaves it blank.",
+        "sentinelCovered": "covered, not rated",
+        "sentinelCoveredTitle": "The interview record shows this axis was covered on verified evidence, but the AI synthesis marked it not assessed. Read the transcript before relying on the blank.",
+        "mustAsksOwed": "{count, plural, one {# must-ask owed} other {# must-asks owed}}",
+        "mustAsksOwedTitle": "Required kit questions the call ended without asking. Plan them for the next round.",
+        "legend": "Interview record:"
+      }
     },
     "candidates": {
       "failedStatus": "Failed ({status}).",

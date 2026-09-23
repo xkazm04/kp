@@ -5911,7 +5911,22 @@
       "telemetryHintIntegrated": "Hinweis eingebaut",
       "telemetryHintAcknowledged": "Hinweis aufgegriffen",
       "telemetryHintMissed": "Hinweis nicht aufgegriffen",
-      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}"
+      "duration": "{m, plural, =0 {{s} Sek.} other {{s, plural, =0 {{m} Min.} other {{m} Min. {s} Sek.}}}}",
+      "coverage": {
+        "covered": "behandelt",
+        "coveredTitle": "Die interviewende Person hat diese Achse behandelt, belegt durch ein Zitat, das gegen die eigenen Worte der Kandidatin oder des Kandidaten geprüft wurde.",
+        "asked": "angesprochen",
+        "askedTitle": "Die interviewende Person hat dieses Thema begonnen, aber nie als behandelt markiert.",
+        "notReached": "nie erreicht",
+        "notReachedTitle": "Der Interviewplan sah ein Thema für diese Achse vor, und kein Versuch hat es begonnen.",
+        "ratedNotReached": "bewertet, nie gefragt",
+        "ratedNotReachedTitle": "Die KI hat diese Achse bewertet, aber laut Interviewprotokoll wurde ihr Thema nie begonnen. Betrachten Sie die Zahl als nicht beobachtet; der CSV-Export lässt sie leer.",
+        "sentinelCovered": "behandelt, nicht bewertet",
+        "sentinelCoveredTitle": "Laut Interviewprotokoll wurde diese Achse mit geprüften Belegen behandelt, die KI-Synthese hat sie jedoch als nicht beurteilt markiert. Lesen Sie das Transkript, bevor Sie sich auf das leere Feld verlassen.",
+        "mustAsksOwed": "{count, plural, one {# Pflichtfrage offen} other {# Pflichtfragen offen}}",
+        "mustAsksOwedTitle": "Pflichtfragen aus dem Leitfaden, die bis zum Ende des Gesprächs nicht gestellt wurden. Planen Sie sie für die nächste Runde ein.",
+        "legend": "Interviewprotokoll:"
+      }
     },
     "candidates": {
       "failedStatus": "Fehlgeschlagen ({status}).",

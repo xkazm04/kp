@@ -5911,7 +5911,22 @@
       "telemetryHintIntegrated": "nápověda zapracována",
       "telemetryHintAcknowledged": "nápověda zmíněna",
       "telemetryHintMissed": "nápověda nevyužita",
-      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}"
+      "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}",
+      "coverage": {
+        "covered": "probráno",
+        "coveredTitle": "Tazatel tuto oblast probral, a to na citaci ověřené proti vlastním slovům kandidáta.",
+        "asked": "otázáno",
+        "askedTitle": "Tazatel toto téma otevřel, ale nikdy ho neoznačil jako probrané.",
+        "notReached": "nedosaženo",
+        "notReachedTitle": "Plán pohovoru měl pro tuto oblast téma, ale žádný pokus ho nezahájil.",
+        "ratedNotReached": "hodnoceno, nikdy neotázáno",
+        "ratedNotReachedTitle": "AI tuto oblast ohodnotila, ale záznam pohovoru ukazuje, že její téma nebylo nikdy zahájeno. Berte číslo jako nepozorované; export CSV ho ponechá prázdné.",
+        "sentinelCovered": "probráno, nehodnoceno",
+        "sentinelCoveredTitle": "Záznam pohovoru ukazuje, že tato oblast byla probrána na ověřených důkazech, ale syntéza AI ji označila jako neposouzenou. Než se na prázdné pole spolehnete, přečtěte si přepis.",
+        "mustAsksOwed": "{count, plural, one {# povinná otázka nepoložena} few {# povinné otázky nepoloženy} many {# povinné otázky nepoloženo} other {# povinných otázek nepoloženo}}",
+        "mustAsksOwedTitle": "Povinné otázky ze sady, které hovor skončil bez položení. Naplánujte je do dalšího kola.",
+        "legend": "Záznam pohovoru:"
+      }
     },
     "candidates": {
       "failedStatus": "Selhalo ({status}).",
