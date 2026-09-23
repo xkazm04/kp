@@ -648,6 +648,24 @@ it: should this score be allowed to decide at all.
   on a fresh install is `n:0`, and a fifth empty arm would be the same "correct mechanism that
   reaches no surface" defect this round removed elsewhere. The capture path exists first; the
   arm follows when the corpus can say something.
+- **The unrated hires are listed, and rated, where the count is** (challenge-r07
+  pipeline-api/B). The counter used to count its two halves over different populations:
+  `hires` was today's terminal-column board entries, `rated` every rated `dev_outcomes` row
+  (dev-case-lane ratings and ex-hires included), so "X of Y" could overstate progress or
+  exceed Y. Both now come off one pure fold, `foldHireRatingQueue`
+  (`app/_lib/hire-rating-queue.ts`), over the roster `listWorkspaceHires`
+  (`app/api/pipeline/outcomes/hire-roster.ts`) reads: active entries on the workspace's own
+  terminal-role column(s), an uncapped projected SELECT instead of hydrating the capped board.
+  A hire is rated only when its own ref (`hireOutcomeRef`) carries a `hired` row with a
+  performance, so `rated <= hires` and `rated + unratedTotal === hires` by construction.
+  The GET also returns `unrated` (oldest hire first, `QUEUE_CAP = 25`, each row
+  `{ entryId, candidateLabel, jobTitle, hiredAt }` and never a score or rating) and
+  `unratedTotal`. `sections/QualityHireRatingQueue.tsx` lists them under the line with the
+  drawer's 1..5 control and labels; a pick POSTs the same `pipeline:write`-gated door the
+  drawer uses (it re-checks the live terminal stage), then re-reads the counter. The line's
+  three states come from `queueHeadline`: `none` (no hires, no queue), `pending` (queue
+  open), `ready` (queue still offered, collapsed). Counts only, never a rate: the one
+  threshold quoted is `MIN_CALIBRATION_OUTCOMES`, so no second small-sample floor exists.
 - **The history strip reads the policy REF, not the tail of the chain.**
   `GET /api/analytics/calibration/threshold-history` asks `listDecisionRecords` for
   `candidateRef = policy:screening:<ws>` (`…:<family>` under a family filter) — the deterministic
@@ -941,7 +959,7 @@ other workspaces keep their warm curve entries.
 | `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON (read by the in-app preview; blocking rows carry `need`) or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
-| `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
+| `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter and the unrated-hire queue `{ rated, hires, minOutcomes, unrated, unratedTotal }` (`requireOperator()`; the rating POST asks `pipeline:write`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
 **No stage name is spelled on this page.** Two English literals outlived the role layer that
 closed the rest: the offer panel's "who is sitting on an offer" link filtered the board on
