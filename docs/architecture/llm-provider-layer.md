@@ -13,7 +13,9 @@ Backend shipped and in production use:
 
 - `pipeline/jobfit/llm/` — base contract (`base.py`), registry (`registry.py`),
   capability matrix (`capabilities.py`), adapters for all providers below, plus
-  `claude_cli.py` as the local/dev default.
+  the Claude CLI as the local/dev default (`adapters/claude_cli.py` over
+  `pipeline/jobfit/claude_cli.py` — a `TextProvider` like the rest, see
+  "The default engine runs the shared layer" below).
 - `llm_config` / `provider_keys` / `llm_usage` tables (`app/_lib/db/llm.ts`,
   `app/_lib/db/core.ts`) and `buildLlmConfigEnv()` → the `KP_LLM_CONFIG` JSON env
   var wired into every Python spawn path.
@@ -55,7 +57,7 @@ org-level (per-tenant) `llm_usage` attribution (tracked in
 | OpenAI (+ compatible) | `openai_api.py` | Also serves any **OpenAI-compatible** endpoint via `base_url` (vLLM / Ollama / LiteLLM / in-VPC proxy) — runs **keyless** against them, the enterprise self-host path (see `docs/architecture/self-hosting.md` §5). |
 | Azure OpenAI | `azure_openai.py` | Own `endpoint`/`deployment`/`api_version` (from `provider_keys.meta_json`), unaffected by `OPENAI_BASE_URL`. |
 | Gemini | `gemini_api.py` | Multimodal (PDF/image) + Google Search grounding; the CV-analysis workhorse. |
-| Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only — and now enforced, not asserted**: it refuses to serve a production deployment unless `KP_ALLOW_CLI_ENGINE=1`. See "The CLI engine is refused in production" below. |
+| Claude CLI | `claude_cli.py` (adapter) over `pipeline/jobfit/claude_cli.py` | Subprocess provider on the shared `TextProvider` layer (one spawn per attempt), **local/dev only — and now enforced, not asserted**: it refuses to serve a production deployment unless `KP_ALLOW_CLI_ENGINE=1`. See "The CLI engine is refused in production" below. |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
 | Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. **Keyless but configurable from Settings → Models** (see "Local model servers" below); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
 | LightTrack gateway | `gateway.py` | `lt-gateway` on loopback (`http://127.0.0.1:8792/v1`, `LIGHTTRACK_GATEWAY_URL`): one route per use case in front of the **seat-metered CLIs** (`claude -p`, `codex exec`) with usage-limit failover between them, chosen per use case by a difficulty-graded benchmark (`docs/LLM_ROUTES.md`). Keyless; Settings saves a gateway row with no key and no Server URL (the field is hidden because gateway is not a `BASE_URL_PROVIDERS` member). The `model` is the use-case key; `response_format: json_schema` from `USE_CASE_SCHEMAS`. Does **not** emit its own LightTrack event (the gateway records every attempt) and writes the ledger **unpriced** with `model` = the seat that answered. The hop is local, the seats are not: sealed under `KP_OFFLINE`, and refused in production like `claude_cli` unless `KP_ALLOW_CLI_ENGINE=1`. Contract: <https://github.com/xkazm04/lighttrack/blob/main/docs/GATEWAY.md>. |
@@ -274,6 +276,10 @@ signal that it *is* one. Each adapter raises a typed `LLMError` instead:
 | Gemini response with no text (safety/recitation block, or a stop with no parts — `.text` raises or is `None`) | `gemini_api._call` | `empty_response` |
 | A JSON answer cut off at the token cap | `base.complete_json` | `truncated` |
 | Parseable-JSON failure surviving the one repair re-prompt | `base.complete_json` | `unparseable_json` |
+| Claude CLI spawn timed out | `adapters/claude_cli._translate` | `deadline_exceeded` (one spawn, no retry) |
+| Claude CLI usage/plan-limit envelope | same | `usage_limit` |
+| Claude CLI refused on the consumer lane in production | same | `consumer_terms_policy` |
+| Claude CLI binary missing at spawn | same | `not_installed` |
 
 Where the tokens were already billed (a Gemini block bills the prompt; a paid
 completion that came back as unusable JSON), the adapter emits the usage line
@@ -417,6 +423,37 @@ retrying earlier is a guaranteed second 429. Rules, in `geminiRetryDelayMs`:
   caller than an honest failure now, and `maxDuration` does not save a self-hosted
   deploy (`next start` never kills a long handler).
 
+### The default engine runs the shared layer
+
+The Claude CLI is the engine every local install and every keyless-dev run
+actually uses, and it used to be the one provider outside this path: the
+registry handed out `MonitoredClaudeCli`, a `ClaudeCliProvider` subclass with
+its own copy of the metering, so a formatting slip dropped straight to the
+deterministic template, an overloaded envelope was never retried, and a timeout
+carried no subtype and reached `llm_usage` as `provider_error`.
+
+`registry.resolve_provider` (no config row, or a `claude_cli` row) and
+`probe_provider("claude_cli")` now return `adapters/claude_cli.ClaudeCliAdapter`,
+a `TextProvider` whose `_call` is exactly one spawn of the unchanged
+`ClaudeCliProvider`. **Every engine, the CLI included, runs the one
+retry / deadline / repair / metering path above.** What stays CLI-specific is the
+inbound error translation:
+
+| The spawn | Becomes |
+| --- | --- |
+| timed out | `LLMError(subtype="deadline_exceeded")` — permanent, one spawn: the attempt already had the whole remaining budget, so a retry could only outrun the TS spawn kill. Ledger reason `provider_timeout` |
+| overloaded / 5xx / rate-limit envelope | a retryable error — the base loop retries inside the deadline |
+| usage/plan limit, consumer-terms refusal, missing binary | permanent `LLMError` with `usage_limit` / `consumer_terms_policy` / `not_installed` |
+
+`availability`, `probe`, `billing_lane`, `consumer_terms_blocked`,
+`with_repo_access` and a settable `extra_args` (repo_scan's secret-file deny list)
+delegate to the wrapped CLI, so the production veto and its descent reasons are
+unchanged. Ledger rows keep their shape: provider `claude_cli`, model
+`claude-cli-default` when the CLI runs on its own default (`monitor._ledger_model`),
+the envelope's `total_cost_usd` as `cost_usd`. The eval and seed lanes still
+construct a bare `ClaudeCliProvider` on purpose. Fixtures:
+`pipeline/jobfit/tests/test_llm_claude_cli_adapter.py`.
+
 ## Prompt artifacts are PII, and their retention is explicit
 
 `KP_LOG_PROMPTS=1` captures the full prompt and response for each analysis to
@@ -461,7 +498,8 @@ so the model treats them as opaque instead of being told a falsehood. Pinned by
 
 LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted):
 
-- Every `TextProvider.complete()` and the registry's `MonitoredClaudeCli` emit one
+- Every `TextProvider.complete()` — the Claude CLI's included, since the fold
+  retired `MonitoredClaudeCli` into a deprecated alias of `ClaudeCliAdapter` — emits one
   event per call: provider, model, tokens (incl. cached), latency, errors, and
   computed `cost_usd` as metadata (LightTrack prices server-side from its own
   price book — the two travel side by side as a cross-check).
