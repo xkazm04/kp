@@ -881,6 +881,40 @@ roster only ever renders inside the tab that owns the deep-link effect, and that
 effect is mount-only, so pushing those params navigated the tab to itself and the
 button did nothing.
 
+**A rebuild is a field-level merge that keeps the recruiter's edits.** The rebuild
+used to be a timestamp check (`profileDivergence`: `updated_at > lineage_stamped_at`)
+feeding a two-button dialog: keep the edits and lose the newer CV, or take the newer
+CV and lose every edit. `openRebuild` (`useProfileTabDeepLinks.ts`) now:
+
+1. reads the profile (`GET /api/profile?id=` also serves
+   `lineage: { sourceAnalysisSlug } | null`, the analysis it was built from, via
+   `profileSourceAnalysisSlug` in `app/_lib/db/profiles.ts`);
+2. if it was never edited since the build, hydrates from the newer analysis exactly as
+   before (no plan, no dialog);
+3. otherwise fetches the newer and the source analyses and plans with
+   `planRebuildFromPayloads` (`profileRebuildMerge.ts`, pure, pinned by
+   `profileRebuildMerge.test.ts`). Per field, through the editor's one payload→form
+   mapping (`formStateFrom`): untouched since the build → the newer CV; edited and
+   not changed by the newer CV → kept silently; edited **and** changed differently
+   → kept and **contested**. Re-minted row `_id`s never count as an edit (the
+   comparison is `mergeDraft`'s own).
+4. Nothing contested → the editor opens straight on the merge. Contested fields →
+   `ProfileTabRebuildWarnModal` renders `rebuildDialogModel(plan)`: the contested
+   fields by their editor labels, and **merge** (default), **keep my version** (a
+   plain edit; the newer CV is not applied and the profile stays stale) or **use
+   the newer CV for everything** (the old wholesale rebuild).
+
+The merged editor opens with the rebuild pending (`rebuildEditorState`), so the
+banner that serves the AI draft offers "use the newer CV anyway" for exactly the
+contested fields and an Undo back to the pre-rebuild form, in rebuild wording. The
+save is the same PUT as any rebuild: version-guarded and re-stamping lineage on the
+same row, so one profile per CV still holds. If the source analysis was deleted the
+plan cannot attribute anything (`mode: "unknown-baseline"`): it keeps every current
+value and contests every field that differs from the newer CV. Known gap: a profile
+edited only through fields `profile_cli` normalizes (the routed archetype) can show
+those fields as "edited"; they are preserved, never contested, unless the newer CV
+changes them too.
+
 The matrix's "build from analysis" action is the same shape: `CandidateMatrix`
 takes `onBuildFromAnalysis` and `ProfileTab` feeds it `openFromAnalysis(slug, null)`.
 A same-tab `?tab=archetypes&fromAnalysis=` push left both the chip action and the
