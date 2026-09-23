@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import { reachOutVerdict } from "../../../_lib/useReachOut.ts";
 import { extractRow, restoreRow } from "./jobsRediscoveryDismiss.ts";
 import {
+  applyAddOutcome,
   applyReachOut,
   emptyOutcomes,
   groupAlertsByPerson,
@@ -112,4 +113,15 @@ test("a legacy row (no stage, no depth) groups with depth treated as 0, never Na
   const groups = groupAlertsByPerson([alert("jana", "Y", 70, null, null), alert("jana", "Z", 72, null, null), alert("petr", "Y", 71, 0)]);
   assert.deepEqual(groups.map((g) => g.candidateId), ["jana", "petr"]);
   assert.deepEqual(ids(groups[0].roles), ["Z", "Y"]);
+});
+
+test("the add door's eligibility refusal withholds the person; any other failure stays a retryable pair error", () => {
+  const [jana] = groupAlertsByPerson([alert("jana", "Y", 78, 0), alert("jana", "Z", 71, 0)]);
+  const refused = applyAddOutcome(emptyOutcomes(), "jana", "Y", { ok: false, code: "PIPELINE_ADD_CANDIDATE_WITHHELD" });
+  assert.equal(groupView(jana, refused).next, null, "no Add or Reach out is offered on any of her roles");
+  assert.deepEqual(ids(groupView(jana, refused).withheld), ["Y", "Z"]);
+  const failed = applyAddOutcome(emptyOutcomes(), "jana", "Y", { ok: false, code: "FORBIDDEN_CAPABILITY" });
+  assert.equal(pairStatus(failed, "jana", "Y"), "error");
+  assert.equal(pairStatus(failed, "jana", "Z"), "open");
+  assert.equal(pairStatus(applyAddOutcome(emptyOutcomes(), "jana", "Y", { ok: true }), "jana", "Y"), "added");
 });

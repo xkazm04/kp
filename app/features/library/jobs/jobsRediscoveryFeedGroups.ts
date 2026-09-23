@@ -65,9 +65,10 @@ export function markPair(s: Outcomes, candidateId: string, jobId: string, status
   return { pairs, people: s.people };
 }
 
-/** Withhold every role of one person. Scoped to anonymization: an erased person
- *  is erased for every role, while a lapsed consent or a stopped sequence is
- *  answered per entry and stays on its pair. */
+/** Withhold every role of one person. Only for refusals that are PERSON facts: an
+ *  anonymization (reach-out), or the add door's eligibility gate, which is
+ *  person-level by construction (withheldCandidateIds). A reach-out "suppressed"
+ *  verdict can be a stopped sequence on one entry, so it stays on its pair. */
 export function markPerson(s: Outcomes, candidateId: string): Outcomes {
   return { pairs: s.pairs, people: new Set(s.people).add(candidateId) };
 }
@@ -87,6 +88,23 @@ export function applyReachOut(s: Outcomes, candidateId: string, jobId: string, r
   if (result.ok) return markPair(s, candidateId, jobId, "reached");
   if (result.suppression === "anonymized") return markPerson(s, candidateId);
   if (result.suppression) return markPair(s, candidateId, jobId, "withheld");
+  return markPair(s, candidateId, jobId, "error");
+}
+
+/** The add door's refusal for a person the eligibility gate withholds (opted out,
+ *  consent lapsed, erased). Every role on her row would be refused the same way. */
+export const ADD_WITHHELD_CODE = "PIPELINE_ADD_CANDIDATE_WITHHELD";
+
+/** Fold an Add answer into the outcomes: filed, withheld as a person, or a
+ *  retryable error on this pair only. */
+export function applyAddOutcome(
+  s: Outcomes,
+  candidateId: string,
+  jobId: string,
+  res: { ok: true } | { ok: false; code: string | null }
+): Outcomes {
+  if (res.ok) return markPair(s, candidateId, jobId, "added");
+  if (res.code === ADD_WITHHELD_CODE) return markPerson(s, candidateId);
   return markPair(s, candidateId, jobId, "error");
 }
 

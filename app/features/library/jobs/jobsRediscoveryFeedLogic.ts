@@ -17,7 +17,7 @@ import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-mes
 import { applyAddResult, ADDED_BADGE_MS } from "./jobsRediscoveryAdd";
 // The reversible-dismiss transitions, pure + pinned by jobsRediscoveryDismiss.test.ts.
 import { extractRow, restoreRow, type RemovedRow } from "./jobsRediscoveryDismiss";
-import { applyReachOut, emptyOutcomes, isActionable, markPair, pairKey, pairStatus } from "./jobsRediscoveryFeedGroups";
+import { applyAddOutcome, applyReachOut, emptyOutcomes, isActionable, markPair, pairKey, pairStatus } from "./jobsRediscoveryFeedGroups";
 // What the sweep should SAY it did — pure, so "0 new matches" and "every ranking
 // broke" can never render as the same reassuring green line.
 import { sweepNote } from "./jobsRediscoverySweepNote";
@@ -230,7 +230,9 @@ export function useRediscoveryFeedLogic() {
     const outcome = res.ok
       ? res
       : { ok: false as const, message: addReason };
-    setOutcomes((s) => markPair(s, a.candidateId, a.jobId, res.ok ? "added" : "error"));
+    // The add door's eligibility refusal is about the PERSON (opted out, consent
+    // lapsed, erased), so every role on her row stops offering Add / Reach out.
+    setOutcomes((s) => applyAddOutcome(s, a.candidateId, a.jobId, res));
     setRowError((m) => applyAddResult({ added: new Set(), rowError: m }, key, outcome).rowError);
     const { dismiss: timing } = applyAddResult({ added: new Set(), rowError: new Map() }, key, outcome);
     if (timing === "deferred") deferDismiss(a);
