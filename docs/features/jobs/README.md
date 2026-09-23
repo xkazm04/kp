@@ -813,6 +813,25 @@ toggle and the audit panel (the same honest "not assessed" stance
 `assessRobustness` takes for the group eval), and the CSV writes an empty delta
 cell rather than a number derived from a missing side.
 
+Identity in that matrix is the **candidate id**, never the display label. Two
+candidates can share a name (a common Czech name, or every unnamed profile's
+`Candidate` fallback from `transform.build_match_candidate`), and
+`fairness_check` used to exclude KO-failed candidates from `ranking` by label, so
+an eligible senior whose junior namesake failed the must-haves vanished from the
+robust order too. The group eval's alignment guard then counted `ranking` +
+`koFailed` short of the field and sealed the evaluation as "robustness could not
+be assessed". Now `matching.fairness_matrix` also returns `order` (pool indices),
+`fairness_check` excludes by index and emits `rankingIds` (the robust order as
+candidate ids, `ranking` staying its index-aligned label twin), and the group-eval
+payload carries `recommendedIds` beside `recommendedOrder`. `isFairnessAligned`
+validates `rankingIds` as identity when present (known, unique, not KO-failed,
+label twin in lockstep), `robustOrderVerdict` compares ids when both sides carry
+them (a swapped namesake order now reads as diverging), and the robust-order pills
+and this audit table key their rows on the id. Blobs sealed before these fields
+existed have no ids and keep the label rule. Pinned by `NamesakePoolTest` in
+`test_fairness.py`, `NamesakeFairnessCheckTest` in `test_recruiter.py`,
+`fairness-guard.test.ts` and `groupEvalRobustness.test.ts`.
+
 ## Rediscovery shows a page, and says when it is one
 
 `rediscoverForJob` slices its ranked silver medalists at `REDISCOVER_LIMIT` (20)
@@ -1570,7 +1589,7 @@ include `workspace_id`).
 - **The Fair Rank audit table still ranks one number across cohorts it is not
   comparable within.** The producer now labels the split: `recruiter.fairness_check`
   carries index-aligned `tracks` (`experienced` / `early_career`) and a `koFailed`
-  id list, and drops KO-failed labels from `ranking` (pinned by
+  id list, and drops KO-failed ids from `rankingIds` / `ranking` (pinned by
   `pipeline/jobfit/tests/test_recruiter.py`). `own` / `mean` stay the full
   validated pool so the CLI lockstep does not shrink. `FairnessAuditPanel` still
   renders a single list sorted by `mean` descending with no track and no
