@@ -1960,7 +1960,8 @@
     "JOB_AD_TOO_SHORT": "Fügen Sie die vollständige Stellenanzeige ein. Ein kurzer Ausschnitt reicht nicht.",
     "OUTREACH_CANDIDATE_REQUIRED": "Nennen Sie den Kandidaten, den Sie kontaktieren möchten.",
     "AUTOMATION_SELECTION_INVALID": "Diese Auswahl an Änderungen konnte nicht gelesen werden. Rufen Sie die Vorschau erneut auf und wenden Sie die Änderungen noch einmal an.",
-    "PROFILE_EXISTS": "Für diesen Lebenslauf gibt es bereits ein gespeichertes Profil. Öffnen Sie dieses Profil zum Bearbeiten, statt ein zweites anzulegen."
+    "PROFILE_EXISTS": "Für diesen Lebenslauf gibt es bereits ein gespeichertes Profil. Öffnen Sie dieses Profil zum Bearbeiten, statt ein zweites anzulegen.",
+    "GLYPH_UNKNOWN": "Diese Illustration existiert nicht."
   },
   "resilience": {
     "notFoundEyebrow": "404",

@@ -1885,6 +1885,9 @@ export const REFUSAL_ERRORS = {
   JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
   /** Body over JD_BODY_MAX_LENGTH (400). */
   JD_BODY_TOO_LONG: "The description must be 20,000 characters or fewer.",
+  /** GET /api/glyphs/[id] with an id that is not a traced glyph (404). The art is
+   *  decorative and the loader never renders this, but the answer is still a code. */
+  GLYPH_UNKNOWN: "That illustration does not exist.",
   /** POST /api/profile (persist) building from an analysis whose CV already has a
    *  profile in this workspace (409). One profile per CV identity (the content hash
    *  analyses.cv_hash = profiles.source_cv_hash); `id` names the existing profile so
