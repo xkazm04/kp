@@ -6,7 +6,8 @@
 // now the single predicate, and every door reads it: the rank-time pool filter
 // (rediscoverForJob), the alert write + reconcile wall (rediscovery-alert-store), the
 // feed read (liveRediscoveryAlerts, behind GET/POST /api/rediscovery/alerts and its
-// `count`), and the Reach-out send door (/api/jobs/[id]/candidates/outreach).
+// `count`), the Reach-out send door (/api/jobs/[id]/candidates/outreach), and the
+// board-add door on a rediscovery/sourcing re-surface (/api/pipeline).
 //
 // Runner: node:test with type stripping — `npm run test:unit`.
 import { test, after } from "node:test";
@@ -86,6 +87,12 @@ test("source guard: rank, write, read and send all run the SAME predicate", () =
   // The Reach-out send door reads the same gate, not the two halves.
   assert.match(outreach, /import \{[^}]*\bwithheldCandidateIds\b[^}]*\} from "@\/app\/_lib\/rediscovery-eligibility"/);
   assert.doesNotMatch(outreach, /\bcandidateOutreachSuppression\(|\boptedOutCandidateIds\(/);
+
+  // The board-add door gates a re-surface add (source rediscovery/sourcing) on the same
+  // gate; its behaviour is pinned in app/api/pipeline/add-eligibility.test.ts.
+  const boardAdd = read("../api/pipeline/route.ts");
+  assert.match(boardAdd, /import \{[^}]*\bwithheldCandidateIds\b[^}]*\} from "@\/app\/_lib\/rediscovery-eligibility"/);
+  assert.doesNotMatch(boardAdd, /\bsuppressedCandidateIds\(|\boptedOutCandidateIds\(/);
 
   // The store's write wall + reconcile read the same definition (no consent-only wall).
   assert.match(store, /export function withheldCandidateIds/);

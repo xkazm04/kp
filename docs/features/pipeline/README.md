@@ -1626,6 +1626,15 @@ the insert and its `added` event) run in one `.immediate()` transaction, so each
 commits whole. Pinned by `app/_lib/db/pipeline-readd-transition.test.ts`, including a
 source check that no other caller passes `reopen`.
 
+Before any of that, `POST /api/pipeline` refuses a **re-surface** add (`source`
+`rediscovery` or `sourcing`) for a person the rediscovery eligibility gate withholds
+(opted out, consent lapsed, erased): `409 PIPELINE_ADD_CANDIDATE_WITHHELD` with
+`withheld: <reason>`, and nothing is written. A human add without that marker is still
+filed, because an opt-out stops outreach rather than withdrawing a person, and the send
+gate still refuses to contact them. The rule and its reasoning:
+[the jobs doc](../jobs/README.md#silver-medalist-alerts-are-a-reconciled-projection-behind-one-eligibility-gate).
+Pinned by `app/api/pipeline/add-eligibility.test.ts`.
+
 ### The single-entry door declares each action
 
 `POST /api/pipeline/[id]` dispatches eight actions (`set_github`, `set_notes`,

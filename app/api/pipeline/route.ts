@@ -9,6 +9,7 @@ import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
 import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
+import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 
@@ -53,6 +54,11 @@ export async function GET() {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }
 }
+
+/** The provenance markers that mean "re-surfaced from the pool for a role this person
+ *  never applied to" — the rediscovery feed ("rediscovery") and the recruiter/rediscover
+ *  panels ("sourcing"). Read twice below: the eligibility gate and the prior link. */
+const RESURFACE_SOURCES: ReadonlySet<string> = new Set(["rediscovery", "sourcing"]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -119,6 +125,20 @@ export async function POST(request: NextRequest) {
       }
       approvalKind = "decision";
     }
+    // THE rediscovery eligibility gate on a RE-SURFACE add (withheldCandidateIds — the
+    // predicate the rank, the alert write wall, the feed read and the Reach-out door
+    // ask). A person who opted out, whose pool consent lapsed, or who was erased is never
+    // ranked, so a re-surface add naming them is a stale row or a direct call, and filing
+    // them would re-engage someone on a basis that is gone. Refused BEFORE the write.
+    // Scoped to the re-surface markers on purpose: a human's deliberate add (a manual
+    // board add, a re-application) stays allowed — an opt-out stops OUTREACH, it does not
+    // withdraw a person from a process — and contact is still refused at the channel
+    // (commsSendSuppression), which resolves the opt-out/consent at the person, not the
+    // fresh entry. Erasure is also refused for every caller inside createPipelineEntry.
+    if (source !== null && RESURFACE_SOURCES.has(source)) {
+      const withheld = withheldCandidateIds([body.candidateId]).get(body.candidateId.trim());
+      if (withheld) return jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409, { withheld });
+    }
     const ws = await currentWorkspace();
     const result = createPipelineEntry({
       candidateId: body.candidateId,
@@ -151,7 +171,7 @@ export async function POST(request: NextRequest) {
     // path stamps. Gated on `created` (idempotent re-adds never re-link) and on
     // the sourcing channels only — a board/manual add is not a re-engagement.
     // Best-effort: a linking hiccup must never fail the add itself.
-    if (result.created && (source === "sourcing" || source === "rediscovery")) {
+    if (result.created && source !== null && RESURFACE_SOURCES.has(source)) {
       try {
         linkTerminalPriorsToTarget(body.candidateId, result.entry.id, body.jobId, ws);
       } catch (linkErr) {

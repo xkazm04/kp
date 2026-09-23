@@ -375,6 +375,7 @@ which stay fail-open because they are workflow state rather than a legal obligat
 | `dispatchOutreach` (`comms-dispatch.ts`) | still gates first via `outreachHaltFor`, so it can report the reason and record `outreach_suppressed` |
 | `rediscoverForJob` (`rediscover.ts`) | `optedOutCandidateIds` filters the pool at **rank time**, beside the consent gate — so an opted-out person is never ranked, never persisted as an alert carrying their name, and never gets a "Reach out" button the channel is guaranteed to refuse |
 | `POST /api/jobs/[id]/candidates/outreach` | pre-mint 409 (`suppressed: "candidate"`), so no entry is created and no paid draft is spawned |
+| `POST /api/pipeline` | a `rediscovery`/`sourcing` re-surface add is refused 409 `PIPELINE_ADD_CANDIDATE_WITHHELD` (`withheld: "opted_out"`); a human add without that marker is filed, and the send gate above still refuses to contact it |
 
 **The surfaces.** `/stop/[token]` (public page, `StopClient.tsx`) over
 `/api/stop/[token]`: `GET` returns an explicit field allowlist (`jobTitle`, `company`,

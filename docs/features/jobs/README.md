@@ -2006,6 +2006,7 @@ stay workspace-global and fail closed. Every door reads it:
 | Write | `recordRediscoveryAlerts` and `reconcileRediscoveryAlerts` (the second wall) |
 | Read | `liveRediscoveryAlerts(ws)` (`rediscover.ts`): relevance (role published, candidate has no entry in it) plus the gate. It is the only read behind `GET`/`POST /api/rediscovery/alerts`, so the feed rows and their `count` agree |
 | Act | `POST /api/jobs/[id]/candidates/outreach` (Reach out) refuses `COMMS_SUPPRESSED` 409 before minting an entry; an opt-out still answers `suppressed: "candidate"` |
+| Add | `POST /api/pipeline` with `source: "rediscovery"` (the feed's *Add*) or `"sourcing"` (the Rediscover and recruiter panels) refuses `PIPELINE_ADD_CANDIDATE_WITHHELD` 409 + `withheld: <reason>` before the write |
 
 **Reconcile.** `raiseRediscoveryAlertsForJob` (publish + Refresh sweep) calls
 `reconcileRediscoveryAlerts(jobId, title, qualifying, evaluated, ws)` in one IMMEDIATE
@@ -2018,9 +2019,14 @@ ranker gave no verdict on: unscored rows, the ranker's own `skipped`, and qualif
 touched, so dismissal stays sticky. `RaiseOutcome.retracted` reports the deletions.
 Every statement is workspace-scoped (`rediscovery-tenancy.test.ts` counts 8).
 
-Not covered: the feed's *Add* goes to `POST /api/pipeline`, which has no eligibility
-check of its own (pipeline-api context). The feed no longer offers *Add* for a withheld
-person, but a direct caller can still file one.
+**The board add gates only a re-surface.** `POST /api/pipeline` reads the gate when the
+add carries a re-surface marker (`rediscovery` / `sourcing`, the same set that stamps the
+prior link). A human add with no marker (a manual board add, a Match add, a person who
+re-applied) is not refused: an opt-out stops outreach and does not withdraw a person from
+a process (see the opt-out section of [the comms doc](../comms/README.md)), and the
+channel gate (`commsSendSuppression`) still refuses to contact the fresh entry because it
+resolves opt-out and consent at the person. Erasure is refused for every caller inside
+`createPipelineEntry`. Pinned by `app/api/pipeline/add-eligibility.test.ts`.
 
 Tests: `app/_lib/rediscovery-eligibility.test.ts` (reasons, precedence, the four-door
 source guard), `app/_lib/rediscovery-alert-reconcile.test.ts` (write wall, read refilter
