@@ -26,7 +26,9 @@ registerHooks({
     else if ((spec.startsWith("./") || spec.startsWith("../")) && context.parentURL) {
       spec = new URL(spec, context.parentURL).href; // relative -> file: so we can test for .ts
     }
-    if (spec.startsWith("file:") && !/\.[a-z0-9]+$/i.test(spec) && existsSync(fileURLToPath(spec + ".ts"))) {
+    // "No extension" is judged by the file, not a regex: the live registry reader's graph
+    // reaches `@/app/_lib/taxonomy.generated`, whose dotted stem looks like an extension.
+    if (spec.startsWith("file:") && !/\.(ts|tsx|js|mjs|cjs|json)$/i.test(spec) && existsSync(fileURLToPath(spec + ".ts"))) {
       spec += ".ts"; // extensionless import, e.g. "./archetypes"
     }
     return nextResolve(spec, context);
@@ -95,4 +97,46 @@ test("BAU_REJECT_SCORE mirrors the Python POLICY floor (must stay >= it)", () =>
   // Pins the cross-language mirror — see automation-fairness.ts. The Python half is
   // pinned by pipeline/jobfit/tests/test_automation.py (test_bau_low_rejects @ 35).
   assert.equal(BAU_REJECT_SCORE, 40);
+});
+
+// --- the LIVE registry ---------------------------------------------------------
+// Python's automation.py derives its early-career set from archetypes.json on every
+// spawn; this backstop used to answer from the copy bundled at build time, so a custom
+// archetype registered (or re-shielded) at runtime was re-checked against a registry
+// that had never heard of it. The re-check now reads the same live file.
+test("a custom archetype shielded in the LIVE registry is refused as protected, not as 'unknown'", async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { setLiveRegistryPathForTest } = await import("./archetype-live.ts");
+  const bundled = JSON.parse(readFileSync(fileURLToPath(new URL("../../pipeline/jobfit/archetypes.json", import.meta.url)), "utf8"));
+  bundled.archetypes.push({
+    id: "ops_lead",
+    label: "Operations lead",
+    badge: "Ops lead",
+    fairnessProtected: true,
+    scoringModel: "experienced",
+    weights: { skills: 0.5, career: 0.35, personal: 0.15 },
+    dimensionLabels: { skills: "Skills", career: "Career", personal: "Personal" },
+    checklist: [],
+  });
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-fairness-live-"));
+  const file = path.join(dir, "archetypes.json");
+  writeFileSync(file, JSON.stringify(bundled), "utf8");
+  setLiveRegistryPathForTest(file);
+  try {
+    const v = assertAutoRejectFair({ archetype: "ops_lead", matchScore: 20 });
+    assert.equal(v.allowed, false);
+    if (!v.allowed) {
+      assert.match(v.reason, /shielded from automated rejection/);
+      assert.doesNotMatch(v.reason, /unknown archetype/, "it is registered - just not in the build-time copy");
+    }
+    // The same live file, shield off: now a legitimate BAU-path reject.
+    bundled.archetypes[bundled.archetypes.length - 1].fairnessProtected = false;
+    writeFileSync(file, JSON.stringify(bundled, null, 1), "utf8");
+    assert.deepEqual(assertAutoRejectFair({ archetype: "ops_lead", matchScore: 20 }), { allowed: true });
+  } finally {
+    setLiveRegistryPathForTest(null);
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
