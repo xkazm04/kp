@@ -8917,6 +8917,39 @@
         "other": "Autres",
         "companion": "Compagnon",
         "jobseeker": "Recherche d'emploi"
+      },
+      "health": {
+        "label": {
+          "serving": "Opérationnel",
+          "falling_back": "Mode de repli",
+          "failing": "En échec",
+          "drift": "Écart",
+          "unproven": "Non vérifié",
+          "idle": "Inactif"
+        },
+        "hintServing": "Dernière réponse de {provider}, {date}.",
+        "hintDrift": "Épinglé sur {pinned}, mais {served} a répondu en dernier, {date}.",
+        "hintFallingBack": "Les modèles de texte ont répondu à la place, {date} : {reason}.",
+        "hintFailing": "Le dernier appel a échoué, {date} : {reason}.",
+        "hintUnproven": "Aucun appel depuis cet épinglage. Lancez Test pour le vérifier.",
+        "hintIdle": "Aucun appel au cours des {days} derniers jours.",
+        "openKeys": "Ouvrir Clés",
+        "reasons": {
+          "missing_key": "aucune clé API n'est configurée",
+          "missing_endpoint": "aucun point de terminaison n'est configuré",
+          "invalid_base_url": "le point de terminaison configuré n'est pas une URL valide",
+          "sdk_missing": "le SDK du fournisseur n'est pas installé",
+          "not_installed": "la CLI Claude n'est pas installée",
+          "offline_policy": "la politique hors ligne bloque ce fournisseur",
+          "consumer_terms_policy": "un accès CLI grand public n'est pas autorisé en production",
+          "disabled": "l'IA était désactivée pour cette exécution",
+          "unavailable": "aucun fournisseur n'était disponible",
+          "provider_timeout": "le fournisseur a dépassé le délai",
+          "provider_error": "le fournisseur a renvoyé une erreur",
+          "unparseable_output": "la réponse n'a pas pu être analysée",
+          "unusable_output": "la réponse n'était pas exploitable",
+          "unknown": "aucun motif n'a été enregistré"
+        }
       }
     },
     "usage": {

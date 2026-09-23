@@ -8917,6 +8917,39 @@
         "other": "Ostatní",
         "companion": "Společník",
         "jobseeker": "Hledání práce"
+      },
+      "health": {
+        "label": {
+          "serving": "Funguje",
+          "falling_back": "Záložní režim",
+          "failing": "Selhává",
+          "drift": "Odchylka",
+          "unproven": "Neověřeno",
+          "idle": "Nečinné"
+        },
+        "hintServing": "Naposledy odpověděl {provider}, {date}.",
+        "hintDrift": "Připnuto na {pinned}, ale naposledy odpověděl {served}, {date}.",
+        "hintFallingBack": "Místo modelu odpověděly šablony, {date}: {reason}.",
+        "hintFailing": "Poslední volání selhalo, {date}: {reason}.",
+        "hintUnproven": "Od nastavení tohoto připnutí neproběhlo žádné volání. Ověřte ho tlačítkem Test.",
+        "hintIdle": "Za posledních {days} dní žádná volání.",
+        "openKeys": "Otevřít Klíče",
+        "reasons": {
+          "missing_key": "není nastaven klíč API",
+          "missing_endpoint": "není nastaven koncový bod",
+          "invalid_base_url": "nastavený koncový bod není platná adresa URL",
+          "sdk_missing": "SDK poskytovatele není nainstalováno",
+          "not_installed": "Claude CLI není nainstalováno",
+          "offline_policy": "zásada offline tohoto poskytovatele blokuje",
+          "consumer_terms_policy": "spotřebitelská licence CLI není v produkci povolena",
+          "disabled": "AI bylo pro dané spuštění vypnuto",
+          "unavailable": "žádný poskytovatel nebyl dostupný",
+          "provider_timeout": "vypršel časový limit poskytovatele",
+          "provider_error": "poskytovatel vrátil chybu",
+          "unparseable_output": "odpověď nešlo zpracovat",
+          "unusable_output": "odpověď nebyla použitelná",
+          "unknown": "důvod nebyl zaznamenán"
+        }
       }
     },
     "usage": {

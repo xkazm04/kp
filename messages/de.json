@@ -8917,6 +8917,39 @@
         "other": "Sonstiges",
         "companion": "Begleiter",
         "jobseeker": "Jobsuche"
+      },
+      "health": {
+        "label": {
+          "serving": "Aktiv",
+          "falling_back": "Fallback",
+          "failing": "Fehlerhaft",
+          "drift": "Abweichung",
+          "unproven": "Ungeprüft",
+          "idle": "Inaktiv"
+        },
+        "hintServing": "Zuletzt hat {provider} geantwortet, {date}.",
+        "hintDrift": "Angeheftet an {pinned}, aber zuletzt hat {served} geantwortet, {date}.",
+        "hintFallingBack": "Stattdessen haben Vorlagen geantwortet, {date}: {reason}.",
+        "hintFailing": "Der letzte Aufruf ist fehlgeschlagen, {date}: {reason}.",
+        "hintUnproven": "Seit dieser Anheftung gab es keine Aufrufe. Prüfen Sie sie mit Test.",
+        "hintIdle": "Keine Aufrufe in den letzten {days} Tagen.",
+        "openKeys": "Schlüssel öffnen",
+        "reasons": {
+          "missing_key": "kein API-Schlüssel konfiguriert",
+          "missing_endpoint": "kein Endpunkt konfiguriert",
+          "invalid_base_url": "der konfigurierte Endpunkt ist keine gültige URL",
+          "sdk_missing": "das SDK des Anbieters ist nicht installiert",
+          "not_installed": "die Claude CLI ist nicht installiert",
+          "offline_policy": "die Offline-Richtlinie sperrt diesen Anbieter",
+          "consumer_terms_policy": "ein CLI-Verbraucherzugang ist in der Produktion nicht erlaubt",
+          "disabled": "KI war für diesen Lauf ausgeschaltet",
+          "unavailable": "kein Anbieter war verfügbar",
+          "provider_timeout": "Zeitüberschreitung beim Anbieter",
+          "provider_error": "der Anbieter hat einen Fehler gemeldet",
+          "unparseable_output": "die Antwort konnte nicht verarbeitet werden",
+          "unusable_output": "die Antwort war nicht verwendbar",
+          "unknown": "kein Grund erfasst"
+        }
       }
     },
     "usage": {

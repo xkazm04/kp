@@ -8917,6 +8917,39 @@
         "other": "Other",
         "companion": "Companion",
         "jobseeker": "Job search"
+      },
+      "health": {
+        "label": {
+          "serving": "Serving",
+          "falling_back": "Falling back",
+          "failing": "Failing",
+          "drift": "Drift",
+          "unproven": "Unproven",
+          "idle": "Idle"
+        },
+        "hintServing": "{provider} answered last, {date}.",
+        "hintDrift": "Pinned to {pinned}, but {served} answered last, {date}.",
+        "hintFallingBack": "Templates answered instead, {date}: {reason}.",
+        "hintFailing": "The last call failed, {date}: {reason}.",
+        "hintUnproven": "No calls since this pin was set. Run Test to prove it.",
+        "hintIdle": "No calls in the last {days} days.",
+        "openKeys": "Open Keys",
+        "reasons": {
+          "missing_key": "no API key is configured",
+          "missing_endpoint": "no endpoint is configured",
+          "invalid_base_url": "the configured endpoint is not a valid URL",
+          "sdk_missing": "the provider SDK is not installed",
+          "not_installed": "the Claude CLI is not installed",
+          "offline_policy": "the offline policy blocks this provider",
+          "consumer_terms_policy": "a consumer CLI seat is not allowed in production",
+          "disabled": "AI was switched off for that run",
+          "unavailable": "no provider was available",
+          "provider_timeout": "the provider timed out",
+          "provider_error": "the provider returned an error",
+          "unparseable_output": "the answer could not be parsed",
+          "unusable_output": "the answer was not usable",
+          "unknown": "no reason was recorded"
+        }
       }
     },
     "usage": {
