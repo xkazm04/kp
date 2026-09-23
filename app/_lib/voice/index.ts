@@ -7,7 +7,15 @@ import type { VoiceAdapter, VoiceAvailability, VoiceProviderId } from "./types.t
 
 export type { VoiceConnect, VoiceProviderId, VoiceAvailability, VoiceTurn, VoiceAdapter } from "./types.ts";
 export { coerceLanguage, coerceProviderId, missingVoiceEnv } from "./types.ts";
-export { connectWithFailover, otherProvider, type FailoverResult } from "./connect-failover.ts";
+export { connectWithFailover, type FailoverResult } from "./connect-failover.ts";
+export {
+  VOICE_PROVIDER_TRAITS,
+  failoverOrder,
+  providerTraits,
+  relayFallbackProvider,
+  relayProvider,
+  type VoiceProviderTraits,
+} from "./provider-traits.ts";
 export { elevenLabsBaseUrl, isSelfHostedProvider, isSelfHostedVoice } from "./self-hosted.ts";
 
 const adapters: Record<VoiceProviderId, VoiceAdapter> = {
@@ -20,7 +28,8 @@ export function getVoiceAdapter(id: VoiceProviderId): VoiceAdapter {
 }
 
 export function voiceAvailability(): VoiceAvailability {
-  return { openai: adapters.openai.available(), elevenlabs: adapters.elevenlabs.available() };
+  // Derived from the canonical order, so the map can never miss a provider.
+  return Object.fromEntries(VOICE_PROVIDER_ORDER.map((id) => [id, adapters[id].available()])) as VoiceAvailability;
 }
 
 /** The house default-provider policy: honor an explicitly requested provider,

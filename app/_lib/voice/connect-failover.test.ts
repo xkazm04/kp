@@ -5,7 +5,7 @@
 // failover happened, and which brief path runs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { connectWithFailover, otherProvider, type ConnectableAdapter } from "./connect-failover.ts";
+import { connectWithFailover, type ConnectableAdapter } from "./connect-failover.ts";
 import type { VoiceAvailability, VoiceConnect, VoiceProviderId } from "./types.ts";
 
 const OAI_CONNECT: VoiceConnect = { provider: "openai", model: "gpt-realtime", clientSecret: "sec", callsUrl: "https://calls" };
@@ -36,11 +36,6 @@ const bothAvailable: VoiceAvailability = { openai: true, elevenlabs: true };
 const onlyEl: VoiceAvailability = { openai: false, elevenlabs: true };
 
 const noPrompt = () => null;
-
-test("otherProvider is the two-provider complement", () => {
-  assert.equal(otherProvider("openai"), "elevenlabs");
-  assert.equal(otherProvider("elevenlabs"), "openai");
-});
 
 test("preferred provider succeeds: no failover, no second attempt", async () => {
   const { getAdapter, calls } = adapters({ openai: stubAdapter(OAI_CONNECT), elevenlabs: stubAdapter(EL_CONNECT) });
@@ -189,4 +184,77 @@ test("the director's tools reach whichever provider dials — a failover keeps t
   });
   assert.deepEqual(seen.map((s) => s.id), ["elevenlabs", "openai"]);
   assert.ok(seen.every((s) => s.tools === tools));
+});
+
+// ── challenge-r09 voice-provider-io/A: the helper holds the money rule and walks an
+// ordered list of alternates ─────────────────────────────────────────────────────
+
+// The free-to-paid rule used to live in ONE route as `{ ...voiceAvailability(),
+// openai: false }`; any other caller of the helper silently lost it. A session a free
+// (self-hosted) provider was chosen for skipped /simulate's minute gate, so rescuing it
+// onto a paid provider prices and debits a call against a reservation never taken.
+test("a free preferred provider is never rescued onto a paid one — the helper holds the rule", async () => {
+  const { getAdapter, calls } = adapters({
+    elevenlabs: stubAdapter(new Error("local voice service down")),
+    openai: stubAdapter(OAI_CONNECT),
+  });
+  await assert.rejects(
+    connectWithFailover({
+      preferred: "elevenlabs",
+      instructions: "brief",
+      language: "en",
+      getAdapter,
+      availability: bothAvailable,
+      isFree: (id) => id === "elevenlabs",
+      resolveAgentPrompt: noPrompt,
+    }),
+    /local voice service down/
+  );
+  assert.deepEqual(calls, ["elevenlabs"], "the paid provider must not be dialled");
+});
+
+test("more than two providers: alternates are walked in order; all failing rethrows the preferred error", async () => {
+  const LOCAL = "local" as VoiceProviderId;
+  const order = ["openai", "elevenlabs", LOCAL] as readonly VoiceProviderId[];
+  const availability = { openai: true, elevenlabs: true, local: true } as VoiceAvailability;
+  const LOCAL_CONNECT = { provider: LOCAL, signedUrl: "ws://127.0.0.1/local" } as unknown as VoiceConnect;
+
+  const served = adapters({
+    openai: stubAdapter(new Error("OAI primary boom")),
+    elevenlabs: stubAdapter(new Error("EL alternate boom")),
+    [LOCAL]: stubAdapter(LOCAL_CONNECT),
+  });
+  const res = await connectWithFailover({
+    preferred: "openai",
+    instructions: "brief",
+    language: "en",
+    getAdapter: served.getAdapter,
+    availability,
+    order,
+    isFree: () => false,
+    resolveAgentPrompt: noPrompt,
+  });
+  assert.equal(res.provider, LOCAL);
+  assert.equal(res.failedOver, true);
+  assert.deepEqual(served.calls, ["openai", "elevenlabs", LOCAL]);
+
+  const dead = adapters({
+    openai: stubAdapter(new Error("OAI primary boom")),
+    elevenlabs: stubAdapter(new Error("EL alternate boom")),
+    [LOCAL]: stubAdapter(new Error("local alternate boom")),
+  });
+  await assert.rejects(
+    connectWithFailover({
+      preferred: "openai",
+      instructions: "brief",
+      language: "en",
+      getAdapter: dead.getAdapter,
+      availability,
+      order,
+      isFree: () => false,
+      resolveAgentPrompt: noPrompt,
+    }),
+    /OAI primary boom/
+  );
+  assert.deepEqual(dead.calls, ["openai", "elevenlabs", LOCAL]);
 });

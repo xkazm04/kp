@@ -1,3 +1,4 @@
+import { VOICE_PROVIDER_TRAITS } from "./provider-traits.ts";
 import type { VoiceProviderId } from "./types.ts";
 
 // Pre-flight capability check for the voice call (idea-b0fc8018).
@@ -62,12 +63,12 @@ export function collectVoicePreflightEnv(): VoicePreflightEnv {
 /** The actionable failure code for this environment, or null when the call can
  *  proceed. Ordered by root cause: an insecure context HIDES mediaDevices, so
  *  it must be diagnosed first or every HTTP link would read as a webview
- *  problem. ElevenLabs runs over WebSocket, so RTCPeerConnection is only
- *  required for the OpenAI path. */
+ *  problem. RTCPeerConnection is required only by a provider whose declared
+ *  transport is WebRTC (VOICE_PROVIDER_TRAITS); a WebSocket provider needs none. */
 export function voicePreflightCode(env: VoicePreflightEnv, provider: VoiceProviderId): VoicePreflightCode | null {
   if (!env.isSecureContext) return "VOICE_PREFLIGHT_INSECURE";
   if (!env.hasMediaDevices || !env.hasGetUserMedia) return "VOICE_PREFLIGHT_NO_MEDIA";
-  if (provider === "openai" && !env.hasRTCPeerConnection) return "VOICE_PREFLIGHT_NO_WEBRTC";
+  if (VOICE_PROVIDER_TRAITS[provider].transport === "webrtc" && !env.hasRTCPeerConnection) return "VOICE_PREFLIGHT_NO_WEBRTC";
   return null;
 }
 

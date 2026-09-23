@@ -90,11 +90,14 @@ test("the attachments route names WHICH refusal happened, and carries the cap as
 
 // The env vars an operator must set are DATA beside the code, not an English
 // sentence with the variable names baked into it.
+// The provider is the DERIVED relay provider (voice/provider-traits.ts), whose value
+// for today's table is pinned to "openai" in provider-traits.test.ts.
 test("voice-connect answers an unconfigured provider with a code plus the env it needs", () => {
   assert.match(
     SRC.voiceConnect,
-    /jsonRefusal\("INTAKE_VOICE_NOT_CONFIGURED", 503, \{ provider: "openai", need: missingVoiceEnv\(adapter\) \}\)/
+    /jsonRefusal\("INTAKE_VOICE_NOT_CONFIGURED", 503, \{ provider: relayId, need: missingVoiceEnv\(adapter\) \}\)/
   );
+  assert.doesNotMatch(SRC.voiceConnect, /INTAKE_VOICE_NOT_CONFIGURED", 503\)/, "the refusal must carry its need as data");
 });
 
 test("the writes behind a spawn carry the version they were computed from", () => {

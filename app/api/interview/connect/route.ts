@@ -23,6 +23,7 @@ import {
   getVoiceAdapter,
   isSelfHostedProvider,
   missingVoiceEnv,
+  providerTraits,
   voiceAvailability,
   type VoiceProviderId,
 } from "@/app/_lib/voice";
@@ -403,7 +404,8 @@ export async function POST(request: NextRequest) {
     // addendum is candidate-safe (block ids/titles and the words said aloud only).
     const resumeNote = (text: string) => (resume ? `${text} ${resumeAddendum(resume, kit?.agenda ?? null)}` : text);
     const resolveAgentPrompt = (served: VoiceProviderId): string | null => {
-      if (served !== "elevenlabs") return null;
+      // A `prompt: "server"` provider is grounded server-side at mint: no client prompt.
+      if (providerTraits(served).prompt !== "client-override") return null;
       // A rehearsal sends its candidate-safe brief exactly as a candidate's ElevenLabs
       // session would. Every other test session (the lab) keeps the dashboard agent's
       // own prompt — null, as it always has.
@@ -422,8 +424,8 @@ export async function POST(request: NextRequest) {
 
     // Provider failover (Direction 3): the session is already in_progress
     // (markInterviewStarted above, a single CAS — no double-start on failover). If
-    // the preferred provider's connect throws and the OTHER provider is available,
-    // retry with it in THIS request, building its brief via its own path above.
+    // the preferred provider's connect throws and an alternate is available,
+    // retry with it in THIS request (alternates in canonical order), building its brief via its own path above.
     // Single-provider deployments (or only the preferred configured) re-throw the
     // original error unchanged, so today's INTERVIEW_CONNECT_FAILED is preserved.
     const {
@@ -440,9 +442,11 @@ export async function POST(request: NextRequest) {
       // A session that skipped /simulate's meterGate because the local provider is
       // free must never be rescued onto a PAID one — /complete would then price and
       // debit a call against a reservation that was never taken. connectWithFailover
-      // re-throws the original error when the alternate is unavailable, so this
-      // preserves today's INTERVIEW_CONNECT_FAILED semantics exactly.
-      availability: isSelfHostedProvider(provider) ? { ...voiceAvailability(), openai: false } : voiceAvailability(),
+      // HOLDS that rule itself (its isFree seam defaults to isSelfHostedProvider, and
+      // failoverOrder offers a free preferred provider only free alternates), so the
+      // availability passed here is the plain one; with no eligible alternate it
+      // re-throws the original error, preserving INTERVIEW_CONNECT_FAILED exactly.
+      availability: voiceAvailability(),
       // Binds the minted credential to THIS session. Only a HASH of it is ever sent
       // to a provider (voice/openai.ts) — the token itself opens the whole interview
       // and never leaves this server.
@@ -501,12 +505,15 @@ export async function POST(request: NextRequest) {
     // this job actually talks about are pushed in front of the agent's
     // account-wide list. Client-sent (overrides.asr.keywords) because that is the
     // only place the ElevenLabs SDK accepts them — hence PUBLIC JOB FACTS ONLY,
-    // enforced at the source in interviewAsrKeywords. OpenAI sessions get null:
-    // their transcription is configured server-side and takes no keyword bias.
-    // A rehearsal has no entry to find the job through, so it reads the job it was
-    // minted for — the same public terms a candidate on that job gets.
-    const asrKeywords =
-      served === "elevenlabs" ? (rehearsal ? jobAsrKeywords(session.jobId) : interviewAsrKeywords(session.entryId)) : null;
+    // enforced at the source in interviewAsrKeywords. A provider whose trait row
+    // declares no `asrKeywords` (OpenAI: transcription configured server-side) gets
+    // null. A rehearsal has no entry to find the job through, so it reads the job it
+    // was minted for — the same public terms a candidate on that job gets.
+    const asrKeywords = providerTraits(served).asrKeywords
+      ? rehearsal
+        ? jobAsrKeywords(session.jobId)
+        : interviewAsrKeywords(session.entryId)
+      : null;
 
     // THE LAST GATE before credentials leave (scan-sweep challenge r02). Everything
     // above ran seconds of awaits after the start — kit builds, the grounded brief,

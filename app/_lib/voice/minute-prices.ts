@@ -1,5 +1,6 @@
 import type { LlmUsageInput } from "../llm-usage-ledger";
 import { openAiRealtimeModel } from "./openai.ts";
+import { VOICE_PROVIDER_TRAITS } from "./provider-traits.ts";
 import { isSelfHostedProvider } from "./self-hosted.ts";
 import type { VoiceProviderId } from "./types.ts";
 
@@ -77,7 +78,7 @@ export function voiceMinuteCostUsd(provider: VoiceProviderId, minutes: number): 
  *  stable identity (mirroring how Azure's customer-named deployments are
  *  attributed in MTOK_PRICES), null when unset. */
 export function voiceSessionModel(provider: VoiceProviderId): string | null {
-  if (provider === "openai") return openAiRealtimeModel();
+  if (VOICE_PROVIDER_TRAITS[provider].modelIdentity === "realtime-model") return openAiRealtimeModel();
   return process.env.ELEVENLABS_AGENT_ID ?? null;
 }
 

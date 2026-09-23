@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getIntake } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { getVoiceAdapter, missingVoiceEnv, voiceAvailability } from "@/app/_lib/voice";
+import {
+  getVoiceAdapter,
+  missingVoiceEnv,
+  relayFallbackProvider,
+  relayProvider,
+  voiceAvailability,
+} from "@/app/_lib/voice";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -58,9 +64,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     //
     // NOT raised on self-hosted voice, unlike /api/interview/connect (scan-sweep
     // 2026-08-22). That raise reads ELEVENLABS_BASE_URL — an ENV fact about
-    // whether a free local service is configured — but this route mints
-    // getVoiceAdapter("openai") credentials and ONLY those: it is a transport-only
-    // OpenAI Realtime relay and ElevenLabs is never reachable from it. So the
+    // whether a free local service is configured — but this route mints only a
+    // RELAY-capable provider's credentials (the `relay` trait in
+    // voice/provider-traits.ts: today OpenAI Realtime alone), and the self-hostable
+    // ElevenLabs path declares no relay, so it is never reachable from here. So the
     // "nothing billable is minted" premise is false here in principle, not just
     // in some sessions, and the raise let one open intake id mint 120 PAID
     // ephemeral credentials per 10 minutes on an install that merely has a local
@@ -70,12 +77,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const adapter = getVoiceAdapter("openai");
+    // The relay provider is DERIVED, not named: the first configured provider whose
+    // trait row declares `relay` (voice/provider-traits.ts). When none is configured,
+    // the refusal names the first relay-capable provider and ITS missing env, so the
+    // wire stays { provider: "openai", need: ["OPENAI_API_KEY"] } for today's table.
+    const relayId = relayProvider(voiceAvailability()) ?? relayFallbackProvider();
+    const adapter = getVoiceAdapter(relayId);
     if (!adapter.available()) {
       // The env vars an operator must set ride alongside as DATA (`need`), not
       // baked into an English sentence: the note is for the person running the
       // install, and they read it in their own language like everything else.
-      return jsonRefusal("INTAKE_VOICE_NOT_CONFIGURED", 503, { provider: "openai", need: missingVoiceEnv(adapter) });
+      return jsonRefusal("INTAKE_VOICE_NOT_CONFIGURED", 503, { provider: relayId, need: missingVoiceEnv(adapter) });
     }
 
     const lang = intakeLang(intake.lang);
