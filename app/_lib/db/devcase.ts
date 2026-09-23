@@ -41,6 +41,12 @@ export type DevCaseRecord = {
   jdSlug: string | null;
   /** The owning tenant — same rationale as DevSubmission.workspaceId. */
   workspaceId: string;
+  /** The stage of the case's NEWEST lifecycle in its own workspace, or null when no
+   *  lifecycle ever ran for it (a case approved and published by hand). Read by getDevCase
+   *  only - the assignment detail decides from it whether a running lifecycle owns intake
+   *  (lifecycleOwnsIntake, DevCaseDetail.publish.ts), the same rule closeCaseIntake refuses
+   *  on. Absent (undefined) from the enumeration reads, which do not join it. */
+  lifecycleStage?: string | null;
 };
 
 type DevCaseRow = {
@@ -62,6 +68,8 @@ type DevCaseRow = {
   // Present on every row (reads are SELECT *); mapped so a caller holding a case
   // never has to be told its tenant.
   workspace_id?: string | null;
+  // Not a column: the newest-lifecycle subquery only getDevCase selects.
+  lifecycle_stage?: string | null;
 };
 
 // Every dev-case read maps through rowToDevCase, so `jobId` and its joined title can
@@ -94,6 +102,7 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
     jobTitle: r.job_title ?? null,
     jdSlug: typeof need?.jdSlug === "string" && need.jdSlug.trim() ? need.jdSlug.trim() : null,
     workspaceId: (r.workspace_id ?? null) || DEFAULT_WORKSPACE_ID,
+    ...(r.lifecycle_stage !== undefined ? { lifecycleStage: r.lifecycle_stage ?? null } : {}),
   };
 }
 
@@ -210,7 +219,12 @@ export function listDevCases(limit = 50, workspaceId: string = DEFAULT_WORKSPACE
 export function getDevCase(id: string): DevCaseRecord | null {
   const db = ensureDb();
   const r = db
-    .prepare(`SELECT c.*, j.title AS job_title FROM dev_cases c LEFT JOIN jobs j ON j.id = c.job_id WHERE c.id = ?`)
+    .prepare(
+      `SELECT c.*, j.title AS job_title,
+              (SELECT l.stage FROM dev_lifecycle l WHERE l.case_id = c.id AND l.workspace_id = c.workspace_id
+               ORDER BY l.created_at DESC, l.id DESC LIMIT 1) AS lifecycle_stage
+       FROM dev_cases c LEFT JOIN jobs j ON j.id = c.job_id WHERE c.id = ?`
+    )
     .get(id) as DevCaseRow | undefined;
   return r ? rowToDevCase(r) : null;
 }
@@ -1294,6 +1308,47 @@ export function submitDevSession(
 export function setPostingStatus(id: string, status: string): boolean {
   const db = ensureDb();
   return db.prepare(`UPDATE dev_postings SET status = ? WHERE id = ?`).run(status, id).changes > 0;
+}
+
+/** The outcome of a hand stop of a case's intake (closeCaseIntake). */
+export type CaseIntakeStop = { ok: true; closed: number } | { ok: false; reason: "lifecycle_owns"; stage: string };
+
+/**
+ * Stop a case's intake by hand (challenge-r09 devcase-lifecycle/B): every OPEN posting of
+ * the case, in its own workspace, flips to closed - the same write the lifecycle close
+ * makes per posting, so the apply page, the inbound webhook and the live-session flush
+ * all refuse from here on (POSTING_CLOSED). No candidate is notified: stopping intake is
+ * not a rejection, and the lifecycle's Close stays the door that wraps submitters up.
+ *
+ * LOCK AND RE-CHECK. An IMMEDIATE transaction takes the write lock at BEGIN, so an
+ * orchestrator step cannot link a lifecycle to this case or mint its posting between the
+ * lifecycle read and the UPDATE; the UPDATE re-asserts status = 'open', so a repeat (or a
+ * racing second stop) changes nothing and reports 0. Nothing in here awaits.
+ *
+ * ownsIntake is the shared rule (lifecycleOwnsIntake in DevCaseDetail.publish.ts), passed
+ * in rather than imported: this module sits on every studio route's import graph, and the
+ * rule must be the one the detail header offers the action by.
+ */
+export function closeCaseIntake(
+  caseId: string,
+  workspaceId: string,
+  ownsIntake: (lifecycleStage: string | null) => boolean
+): CaseIntakeStop {
+  const db = ensureDb();
+  const tx = db.transaction((): CaseIntakeStop => {
+    const lc = db
+      .prepare(
+        `SELECT stage FROM dev_lifecycle WHERE workspace_id = ? AND case_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
+      )
+      .get(workspaceId, caseId) as { stage?: string } | undefined;
+    const stage = lc?.stage ?? null;
+    if (stage != null && ownsIntake(stage)) return { ok: false, reason: "lifecycle_owns", stage };
+    const info = db
+      .prepare(`UPDATE dev_postings SET status = 'closed' WHERE workspace_id = ? AND case_id = ? AND status = 'open'`)
+      .run(workspaceId, caseId);
+    return { ok: true, closed: Number(info.changes) };
+  });
+  return tx.immediate();
 }
 
 export function getPosting(id: string): Posting | null {

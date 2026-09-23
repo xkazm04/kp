@@ -41,7 +41,17 @@ test("the publish confirm is a real dialog: focus wiring mounts and unmounts WIT
     /disabled=\{published \|\| publishing \|\| confirmingPublish\}/,
     "the Publish trigger must stay enabled while the confirm is open, or focus cannot return to it"
   );
-  assert.match(header, /aria-expanded=\{confirmingPublish\}/, "the trigger states the panel's open-ness instead");
+  // challenge-r09 devcase-lifecycle/B: the one trigger now opens either the publish/reopen
+  // confirm or the stop confirm, so it states whichever of the two it opens - and its
+  // `disabled` names neither open flag, for the same focus-return reason as above.
+  assert.match(
+    header,
+    /aria-expanded=\{stopOffered \? confirmingStop : confirmingPublish\}/,
+    "the trigger states the panel's open-ness instead"
+  );
+  const disabled = header.match(/disabled=\{action === null \|\| busy\}/);
+  assert.ok(disabled, "the intake trigger is disabled only when nothing is on offer or a request is in flight");
+  assert.doesNotMatch(header, /disabled=\{[^}]*confirming(Publish|Stop)[^}]*\}/, "an open confirm must never disable its own trigger");
 });
 
 test("a blocked clipboard leaves the apply link reachable, not swallowed", () => {

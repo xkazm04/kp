@@ -4,11 +4,22 @@ import { ownedDevCase } from "../devcase-owned-lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getOpenPosting } from "@/app/_lib/db/devcase";
 import { getAdapter } from "@/app/_lib/distribution";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 
 
 // OUT: publish an approved role+case through a distribution channel (local stub by default).
 export async function POST(request: NextRequest) {
+  // AUTHORITY (challenge-r09 devcase-lifecycle/B). Publishing mints a live
+  // candidate-facing apply token and, after a stop, REOPENS intake - and it asked no seat
+  // at all, while its sibling POST /api/devcase (approve) and the stop door
+  // (POST /api/devcase/[id]/intake) ask `pipeline:write`. Same two gates, same order:
+  // identity presence first (a no-op in open mode), then the seat question.
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as { caseId?: string; channel?: string };
     if (!body.caseId) return NextResponse.json({ error: "caseId is required." }, { status: 400 });

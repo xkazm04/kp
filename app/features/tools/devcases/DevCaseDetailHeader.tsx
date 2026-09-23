@@ -1,19 +1,21 @@
 "use client";
 
-// The case-detail header: back button, provenance badges, Publish/Source DB
-// actions, and the confirm-before-publish dialog — split out of DevCaseDetail.tsx.
-import { ArrowLeft, FileWarning, MicVocal, Send, Users } from "lucide-react";
+// The case-detail header: back button, provenance badges, the intake action
+// (Publish / Stop intake / Reopen intake) and Source DB, and the confirm dialog for
+// each intake change — split out of DevCaseDetail.tsx.
+import { ArrowLeft, CircleStop, FileWarning, MicVocal, RotateCcw, Send, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { DevCaseJobLink } from "./DevCaseJobLink";
 import { DevPublishConfirm } from "./DevPublishConfirm";
-import type { DegradedReason } from "./DevCaseDetail.publish";
+import type { DegradedReason, IntakeAction, IntakeState } from "./DevCaseDetail.publish";
 import type { DevCaseDetail } from "./DevTypes";
 
 export function DevCaseDetailHeader({
   kase,
   onBack,
-  published,
+  intake,
+  action,
   publishing,
   source,
   sourcing,
@@ -30,10 +32,20 @@ export function DevCaseDetailHeader({
   canPublishNow,
   confirmPublish,
   cancelPublish,
+  confirmingStop,
+  setConfirmingStop,
+  stopping,
+  stopError,
+  confirmStop,
+  cancelStop,
 }: {
   kase: DevCaseDetail;
   onBack: () => void;
-  published: boolean;
+  /** Intake read from the postings' status (intakeOf) - never "has any posting". */
+  intake: IntakeState;
+  /** The one intake change on offer (intakeAction); null while a running lifecycle owns
+   *  intake, whose own Close ends it. */
+  action: IntakeAction | null;
   publishing?: boolean;
   source: (caseId: string) => void;
   sourcing: string | null;
@@ -50,9 +62,30 @@ export function DevCaseDetailHeader({
   canPublishNow: boolean;
   confirmPublish: () => void;
   cancelPublish: () => void;
+  confirmingStop: boolean;
+  setConfirmingStop: (v: boolean) => void;
+  stopping: boolean;
+  stopError: string | null;
+  confirmStop: () => void;
+  cancelStop: () => void;
 }) {
   const rel = useRelativeTime();
   const t = useTranslations("devcase.studio.detail");
+  // LIVE intake: at least one open posting. The publish/reopen confirm below is offered
+  // only when intake is NOT live; the stop confirm only when it is.
+  const published = intake.state === "live";
+  const lifecycleOwned = action === null && intake.state !== "unpublished";
+  const stopOffered = action === "stop";
+  const busy = action === "stop" ? stopping : !!publishing;
+  const intakeLabel =
+    action === "stop"
+      ? t(busy ? "stopping" : "stopIntake")
+      : action === "reopen"
+        ? t(busy ? "publishing" : "reopen")
+        : action === "publish"
+          ? t(busy ? "publishing" : "publish")
+          : t(published ? "published" : "intakeClosed");
+  const IntakeIcon = action === "stop" ? CircleStop : action === "reopen" ? RotateCcw : Send;
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -96,22 +129,37 @@ export function DevCaseDetailHeader({
             <FileWarning size={11} /> {t("seedSkeleton")}
           </span>
         ) : null}
+        {/* Intake state, from the postings' status (challenge-r09 devcase-lifecycle/B):
+            live, with how many channels are open, or closed. Unpublished says nothing
+            here - its Publish button does. */}
+        {intake.state === "live" ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-moss/15 px-2 py-0.5 text-micro font-semibold uppercase text-moss">
+            {t("intakeLive", { count: intake.open })}
+          </span>
+        ) : intake.state === "closed" ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-micro font-semibold uppercase text-steel">
+            {t("intakeClosed")}
+          </span>
+        ) : null}
         <div className="ml-auto flex gap-1.5">
           <button
             type="button"
-            // #3 — open the confirm step instead of publishing on this single click.
-            onClick={() => setConfirmingPublish(true)}
+            // #3 — open the confirm step instead of acting on this single click. Stop has
+            // its own confirm; publish and reopen share the publish confirm.
+            onClick={() => (stopOffered ? setConfirmingStop(true) : setConfirmingPublish(true))}
             // NOT disabled while the confirm panel is open: useDialogA11y restores
             // focus to whatever had it when the panel mounted, and `.focus()` on a
             // disabled button is a silent no-op — so closing with Escape used to drop
             // a keyboard user onto <body>. `aria-expanded` states the panel is open,
-            // and re-opening what is already open is harmless.
-            disabled={published || publishing}
+            // and re-opening what is already open is harmless. Disabled only when no
+            // intake change is on offer (a running lifecycle owns it) or one is in flight.
+            disabled={action === null || busy}
             aria-haspopup="dialog"
-            aria-expanded={confirmingPublish}
+            aria-expanded={stopOffered ? confirmingStop : confirmingPublish}
+            aria-describedby={lifecycleOwned ? "devcase-intake-owner" : undefined}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
           >
-            <Send size={12} /> {published ? t("published") : publishing ? t("publishing") : t("publish")}
+            <IntakeIcon size={12} /> {intakeLabel}
           </button>
           <button
             type="button"
@@ -130,11 +178,21 @@ export function DevCaseDetailHeader({
         </div>
       </div>
 
-      {/* #3 — confirm-before-publish. Publishing is effectively irreversible from here,
-          so it takes an explicit confirm; a degraded assignment takes a "publish anyway"
-          ack. Its own component so the focus/Escape wiring mounts and unmounts WITH it. */}
+      {/* A running lifecycle owns this intake: say so in words, rather than leave a
+          disabled button to explain itself on hover. */}
+      {lifecycleOwned ? (
+        <p id="devcase-intake-owner" className="text-micro text-steel">
+          {t("lifecycleOwnsIntake")}
+        </p>
+      ) : null}
+
+      {/* #3 — confirm-before-publish. Publishing mints a live link and sources real
+          candidates, so it takes an explicit confirm; a degraded assignment takes a
+          "publish anyway" ack. A reopen is the same publish, worded as one. Its own
+          component so the focus/Escape wiring mounts and unmounts WITH it. */}
       {confirmingPublish && !published ? (
         <DevPublishConfirm
+          variant={intake.state === "closed" ? "reopen" : "publish"}
           publishing={publishing}
           degraded={degraded}
           publishReasons={publishReasons}
@@ -143,6 +201,20 @@ export function DevCaseDetailHeader({
           canPublishNow={canPublishNow}
           confirmPublish={confirmPublish}
           cancelPublish={cancelPublish}
+        />
+      ) : null}
+      {confirmingStop && published ? (
+        <DevPublishConfirm
+          variant="stop"
+          publishing={stopping}
+          degraded={false}
+          publishReasons={[]}
+          ackDegraded={false}
+          setAckDegraded={() => {}}
+          canPublishNow
+          confirmPublish={confirmStop}
+          cancelPublish={cancelStop}
+          error={stopError}
         />
       ) : null}
     </>

@@ -43,8 +43,10 @@ export type CaseLedgerRow = {
   jobId: string | null;
   jobTitle: string | null;
   jdSlug: string | null;
-  /** The newest lifecycle's stage, else 'published' when a posting exists, else
-   *  'approved' - the fallback the table always showed, now decided in SQL. */
+  /** The newest lifecycle's stage; with no lifecycle, 'published' while any posting is
+   *  OPEN, 'closed' once every posting is closed (challenge-r09 devcase-lifecycle/B - the
+   *  fallback used to read 'published' on any posting, so a stopped case read live and
+   *  kept its stall chip), else 'approved'. Decided in SQL. */
   stage: string;
   /** Submissions across every posting of the case. */
   submissionCount: number;
@@ -135,7 +137,8 @@ export function listCaseLedger(
          FROM dev_lifecycle l WHERE l.workspace_id = ? AND l.case_id IS NOT NULL
        ),
        posted AS (
-         SELECT p.case_id, COUNT(s.id) AS submission_count
+         SELECT p.case_id, COUNT(s.id) AS submission_count,
+                COUNT(DISTINCT CASE WHEN p.status = 'open' THEN p.id END) AS open_count
          FROM dev_postings p LEFT JOIN dev_submissions s ON s.posting_id = p.id
          WHERE p.workspace_id = ? AND p.case_id IS NOT NULL GROUP BY p.case_id
        ),
@@ -143,7 +146,8 @@ export function listCaseLedger(
          SELECT c.id, c.title, c.role_title, c.seniority, c.status, c.created_at, c.job_id, c.need_json,
                 j.title AS job_title, lc.lifecycle_id, lc.created_at AS lifecycle_created_at,
                 lc.updated_at AS lifecycle_updated_at,
-                COALESCE(lc.stage, CASE WHEN pc.case_id IS NOT NULL THEN 'published' ELSE 'approved' END) AS stage,
+                COALESCE(lc.stage, CASE WHEN pc.case_id IS NULL THEN 'approved'
+                                        WHEN pc.open_count > 0 THEN 'published' ELSE 'closed' END) AS stage,
                 COALESCE(pc.submission_count, 0) AS submission_count
          FROM dev_cases c
          LEFT JOIN jobs j ON j.id = c.job_id
@@ -174,13 +178,16 @@ export function listCaseLedgerFacets(workspaceId: string = DEFAULT_WORKSPACE_ID)
                 ROW_NUMBER() OVER (PARTITION BY l.case_id ORDER BY l.created_at DESC, l.id DESC) AS rn
          FROM dev_lifecycle l WHERE l.workspace_id = ? AND l.case_id IS NOT NULL
        )
-       SELECT DISTINCT COALESCE(lc.stage, CASE WHEN EXISTS (
-                SELECT 1 FROM dev_postings p WHERE p.workspace_id = ? AND p.case_id = c.id
-              ) THEN 'published' ELSE 'approved' END) AS stage
+       SELECT DISTINCT COALESCE(lc.stage, CASE
+                WHEN EXISTS (SELECT 1 FROM dev_postings p WHERE p.workspace_id = ? AND p.case_id = c.id AND p.status = 'open')
+                  THEN 'published'
+                WHEN EXISTS (SELECT 1 FROM dev_postings q WHERE q.workspace_id = ? AND q.case_id = c.id)
+                  THEN 'closed'
+                ELSE 'approved' END) AS stage
        FROM dev_cases c LEFT JOIN latest lc ON lc.case_id = c.id AND lc.rn = 1
        WHERE c.workspace_id = ? ORDER BY stage`
     )
-    .all(workspaceId, workspaceId, workspaceId) as Array<{ stage: string }>;
+    .all(workspaceId, workspaceId, workspaceId, workspaceId) as Array<{ stage: string }>;
   const seniorities = db
     .prepare(
       `SELECT DISTINCT c.seniority FROM dev_cases c

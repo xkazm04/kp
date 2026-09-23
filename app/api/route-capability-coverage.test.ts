@@ -112,7 +112,10 @@ const ALLOWED = new Map<string, string>([
   ["devcase/lifecycle/[id]/redesign/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["devcase/lifecycle/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["devcase/promote/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/publish/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // devcase/publish/route.ts was judged and CLOSED (challenge-r09 devcase-lifecycle/B):
+  // minting a live apply token - and reopening a stopped case's intake - asks
+  // pipeline:write, like the stop door beside it; app/api/devcase/[id]/intake/route.test.ts
+  // drives the viewer 403 on both.
   ["devcase/session/[id]/chat/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["devcase/session/[id]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
   ["devcase/session/[id]/submit/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],

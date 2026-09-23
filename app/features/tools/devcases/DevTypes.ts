@@ -125,6 +125,12 @@ export type DevCaseDetail = ApprovedCase & {
   jobId?: string | null;
   jobTitle?: string | null;
   jdSlug?: string | null;
+  /** The stage of the case's newest lifecycle, or null when none ever ran (a case approved
+   *  and published by hand). Read by GET /api/devcase/[id] (getDevCase); the header asks
+   *  intakeAction (DevCaseDetail.publish.ts) whether a running lifecycle owns intake - the
+   *  same rule POST /api/devcase/[id]/intake refuses on. Absent from an older server, which
+   *  reads as "no lifecycle". */
+  lifecycleStage?: string | null;
 };
 export type Submission = {
   id: string;

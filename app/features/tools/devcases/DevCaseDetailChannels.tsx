@@ -3,11 +3,19 @@
 // Distribution + intake for a case — each posting is an apply channel; the
 // candidates they collect are ranked together in the shortlist above. Split out
 // of DevCaseDetail.tsx.
+//
+// A CLOSED channel hands nothing out (challenge-r09 devcase-lifecycle/B). Every card used
+// to render the copy-link pill and the manual-intake form, so after a close the recruiter
+// could still copy an apply URL that answers 410 (POSTING_CLOSED) and type a submission
+// the submit route refuses. A closed card now carries a Closed chip and says the link is
+// closed, with no URL and no form; the open/closed rule is isPostingOpen, the one intakeOf
+// counts by.
 import { ClipboardList } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { ApplyTokenPill } from "./DevApplyTokenPill";
 import { SubmissionForm } from "./DevSubmissionForm";
+import { isPostingOpen } from "./DevCaseDetail.publish";
 import type { Posting } from "./DevTypes";
 
 export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: Posting[]; onDone: () => void }) {
@@ -21,7 +29,9 @@ export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: 
         <span className="text-coral">· {casePostings.length}</span>
       </h3>
       <div className="mt-2 grid gap-3 lg:grid-cols-2">
-        {casePostings.map((p) => (
+        {casePostings.map((p) => {
+          const open = isPostingOpen(p);
+          return (
           <div key={p.id} className={`${PANEL} p-3`}>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-paper px-2 py-0.5 text-micro font-semibold uppercase text-steel">
@@ -30,15 +40,25 @@ export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: 
                   : p.channel}
               </span>
               <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{p.caseTitle || p.roleTitle || t("posting")}</span>
+              {open ? null : (
+                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-micro font-semibold uppercase text-steel">{t("closed")}</span>
+              )}
               <span className="text-micro text-steel">{t("received", { count: p.submissions?.length ?? p.submissionCount ?? 0 })}</span>
             </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <span className="shrink-0 text-micro uppercase tracking-wide text-steel">{t("applyLink")}</span>
-              <ApplyTokenPill token={p.token} />
-            </div>
-            <SubmissionForm postingId={p.id} onDone={onDone} />
+            {open ? (
+              <>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="shrink-0 text-micro uppercase tracking-wide text-steel">{t("applyLink")}</span>
+                  <ApplyTokenPill token={p.token} />
+                </div>
+                <SubmissionForm postingId={p.id} onDone={onDone} />
+              </>
+            ) : (
+              <p className="mt-1 text-micro text-steel">{t("linkClosed")}</p>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

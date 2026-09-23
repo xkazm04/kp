@@ -17,13 +17,22 @@
 // built on, and the same one the side drawers use for exactly this reason. Passing
 // `lockScroll: false` keeps the page scrollable; `trap: true` is kept because the
 // choice really is modal: the panel that publishes must not be tabbed past.
+//
+// THREE VARIANTS, one dialog (challenge-r09 devcase-lifecycle/B): publish, reopen (the
+// same publish on a case whose intake is closed - it mints a FRESH link and the old one
+// stays closed, which is exactly what the recruiter must be told before sharing), and
+// stop (closes every open apply link; nobody is emailed). The a11y wiring above is the
+// reason they share one component rather than three copies of it.
 import { useRef } from "react";
-import { AlertTriangle, Send } from "lucide-react";
+import { AlertTriangle, CircleStop, RotateCcw, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import type { DegradedReason } from "./DevCaseDetail.publish";
 
+export type IntakeConfirmVariant = "publish" | "reopen" | "stop";
+
 export function DevPublishConfirm({
+  variant = "publish",
   publishing,
   degraded,
   publishReasons,
@@ -32,7 +41,10 @@ export function DevPublishConfirm({
   canPublishNow,
   confirmPublish,
   cancelPublish,
+  error = null,
 }: {
+  variant?: IntakeConfirmVariant;
+  /** true while this variant's request is in flight (publish/reopen or stop). */
   publishing?: boolean;
   degraded: boolean;
   publishReasons: DegradedReason[];
@@ -41,6 +53,8 @@ export function DevPublishConfirm({
   canPublishNow: boolean;
   confirmPublish: () => void;
   cancelPublish: () => void;
+  /** The last attempt's failure, already in the reader's language (stop only). */
+  error?: string | null;
 }) {
   const t = useTranslations("devcase.studio.detail");
   const tReason = useTranslations("devcase.studio.degradedReason");
@@ -51,20 +65,25 @@ export function DevPublishConfirm({
   // silent no-op on a disabled button, which is how the keyboard user used to be
   // dropped back onto <body>.
   useDialogA11y(ref, cancelPublish, { trap: true, lockScroll: false });
+  const Icon = variant === "stop" ? CircleStop : variant === "reopen" ? RotateCcw : Send;
+  const title = variant === "stop" ? t("stopTitle") : variant === "reopen" ? t("reopenTitle") : t("confirmTitle");
+  const body = variant === "stop" ? t("stopBody") : variant === "reopen" ? t("reopenBody") : t("confirmBody");
+  const cta = variant === "stop" ? t("stopCta") : variant === "reopen" ? t("reopenCta") : t("confirmCta");
+  const busy = variant === "stop" ? t("stopping") : t("publishing");
   return (
     <div
       ref={ref}
       role="alertdialog"
       aria-modal="true"
-      aria-label={t("confirmLabel")}
+      aria-label={variant === "publish" ? t("confirmLabel") : title}
       tabIndex={-1}
       className="rounded-lg border border-coral/30 bg-coral/5 p-4"
     >
       <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral">
-        <Send size={12} /> {t("confirmTitle")}
+        <Icon size={12} /> {title}
       </h3>
-      <p className="mt-2 max-w-prose text-sm text-steel">{t("confirmBody")}</p>
-      {degraded ? (
+      <p className="mt-2 max-w-prose text-sm text-steel">{body}</p>
+      {degraded && variant !== "stop" ? (
         <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3">
           <p className="flex items-center gap-1.5 text-meta font-semibold text-amber-700">
             <AlertTriangle size={13} /> {t("degradedTitle")}
@@ -97,7 +116,7 @@ export function DevPublishConfirm({
           disabled={!canPublishNow || publishing}
           className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-micro font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
         >
-          <Send size={12} /> {publishing ? t("publishing") : t("confirmCta")}
+          <Icon size={12} /> {publishing ? busy : cta}
         </button>
         <button
           type="button"
@@ -107,6 +126,11 @@ export function DevPublishConfirm({
           {t("cancel")}
         </button>
       </div>
+      {error ? (
+        <p role="alert" className="mt-2 text-micro text-coral">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -15,7 +15,8 @@ import { DevCaseDetailShortlist } from "./DevCaseDetailShortlist";
 import { DevCaseDetailChannels } from "./DevCaseDetailChannels";
 // #3 + #5 (bug-ui-scan-2026-07-09) — publish-gate + seed-preview logic extracted to
 // pure siblings so they are unit-testable (node --test can't load this .tsx).
-import { canConfirmPublish, degradedReasons, isDegradedPublish } from "./DevCaseDetail.publish";
+import { canConfirmPublish, degradedReasons, intakeAction, intakeOf, isDegradedPublish } from "./DevCaseDetail.publish";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { seedPreview } from "./DevCaseDetail.seed";
 import type { DevCaseDetail, Posting, SeedFile } from "./DevTypes";
 
@@ -51,6 +52,8 @@ export function CaseDetail({
 }) {
   const t = useTranslations("devcase.studio.detail");
   const tWaiting = useTranslations("devcase.studio.waiting");
+  const tErrors = useTranslations("errors");
+  const errorMessage = useErrorMessage();
   const c = kase.case ?? {};
   const role = kase.role ?? null;
   // GH4 — the role spec flattened to JD-ish text, so an author's-GitHub
@@ -67,7 +70,13 @@ export function CaseDetail({
         .filter(Boolean)
         .join("\n")
     : "";
-  const published = casePostings.length > 0;
+  // challenge-r09 devcase-lifecycle/B - intake is read from the postings' STATUS. This
+  // used to be `casePostings.length > 0`, so a case whose every posting was closed still
+  // read live: a disabled "Published" button with no way to reopen, and a waiting panel
+  // for applicants who could no longer apply. The action rule is the one the stop door
+  // refuses on (lifecycleOwnsIntake), fed the case's newest lifecycle stage.
+  const intake = intakeOf(casePostings);
+  const action = intakeAction(intake, kase.lifecycleStage ?? null);
   // fec3e23a — every submission across this case's postings, for the cohort
   // probe-miss roll-up in the internal section.
   const caseSubmissions = casePostings.flatMap((p) => p.submissions ?? []);
@@ -91,14 +100,13 @@ export function CaseDetail({
   const scenarioDegraded = hasScenario && kase.scenario?.source != null && kase.scenario.source !== "llm";
   const seedDegraded = kase.seed?.source != null && kase.seed.source !== "llm";
 
-  // #3 — Publish is effectively IRREVERSIBLE here (mints a live apply token + sources
-  // real candidates) and used to fire on a single unguarded click, degraded or not. Gate
-  // it behind an explicit confirm step; a degraded case additionally needs the "publish
-  // anyway" acknowledgement (canConfirmPublish). NOTE: the fix sketch's third leg — an
-  // in-surface "Close posting" control — is intentionally SKIPPED here: there is no
-  // per-posting close endpoint (only /api/devcase/lifecycle/[id]/close, which dispatches
-  // candidate rejections and is owned by the lifecycle context), so adding a live button
-  // with no safe backing endpoint would be worse than deferring it.
+  // #3 — Publish mints a live apply token and sources real candidates, and used to fire
+  // on a single unguarded click, degraded or not. Gate it behind an explicit confirm
+  // step; a degraded case additionally needs the "publish anyway" acknowledgement
+  // (canConfirmPublish). A reopen is the same publish (a fresh link) behind the same
+  // confirm. The in-surface close the fix sketch once deferred for lack of a door is the
+  // stop below: POST /api/devcase/[id]/intake closes the case's open postings and
+  // notifies nobody (a running lifecycle keeps its own Close, which wraps submitters up).
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [ackDegraded, setAckDegraded] = useState(false);
   const degraded = isDegradedPublish({ scenarioDegraded, seedDegraded });
@@ -113,6 +121,43 @@ export function CaseDetail({
   const cancelPublish = () => {
     setConfirmingPublish(false);
     setAckDegraded(false);
+  };
+
+  // Stop intake. The fetch lives here, beside its confirm (the LifecycleRow close
+  // precedent); the answer is re-read through reloadDetail so the header, the channel
+  // cards and the waiting panel all repaint from the store's statuses.
+  const [confirmingStop, setConfirmingStop] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
+  const confirmStop = async () => {
+    if (stopping) return;
+    setStopping(true);
+    setStopError(null);
+    try {
+      const r = await fetch(`/api/devcase/${encodeURIComponent(kase.id)}/intake`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop" }),
+      });
+      const body = (await r.json().catch(() => null)) as { code?: string | null } | null;
+      if (!r.ok) {
+        setStopError(errorMessage(body, tErrors("DEVCASE_INTAKE_STOP_FAILED")));
+        // A 409 means a lifecycle took intake over since this detail was read: re-read it
+        // so the header stops offering the stop.
+        if (r.status === 409) reloadDetail();
+        return;
+      }
+      setConfirmingStop(false);
+      reloadDetail();
+    } catch {
+      setStopError(tErrors("DEVCASE_INTAKE_STOP_FAILED"));
+    } finally {
+      setStopping(false);
+    }
+  };
+  const cancelStop = () => {
+    setConfirmingStop(false);
+    setStopError(null);
   };
 
   // #5 — the materialized seed the candidate is actually handed (the apply page ships
@@ -133,7 +178,8 @@ export function CaseDetail({
       <DevCaseDetailHeader
         kase={kase}
         onBack={onBack}
-        published={published}
+        intake={intake}
+        action={action}
         publishing={publishing}
         source={source}
         sourcing={sourcing}
@@ -150,6 +196,12 @@ export function CaseDetail({
         canPublishNow={canPublishNow}
         confirmPublish={confirmPublish}
         cancelPublish={cancelPublish}
+        confirmingStop={confirmingStop}
+        setConfirmingStop={setConfirmingStop}
+        stopping={stopping}
+        stopError={stopError}
+        confirmStop={confirmStop}
+        cancelStop={cancelStop}
       />
 
       {/* the assignment, as the candidate would read it */}
@@ -189,11 +241,16 @@ export function CaseDetail({
           one, and the interview kit needs minted follow-ups — so the page just stopped after
           the internal panels with no word about what it was waiting for. Say it once,
           in place of all three, and only when the assignment is actually live (an
-          unpublished one has nothing to wait for and its Publish button says so). */}
-      {published && caseSubmissions.length === 0 ? (
+          unpublished one has nothing to wait for and its Publish button says so). A CLOSED
+          one is not waiting either: it says intake has ended and how to reopen it. */}
+      {intake.state !== "unpublished" && caseSubmissions.length === 0 ? (
         <section className={`${PANEL_SUNKEN} p-4`}>
-          <p className="text-base font-semibold text-ink">{tWaiting("title")}</p>
-          <p className="mt-1 max-w-prose text-sm text-steel">{tWaiting("body")}</p>
+          <p className="text-base font-semibold text-ink">
+            {intake.state === "live" ? tWaiting("title") : tWaiting("closedTitle")}
+          </p>
+          <p className="mt-1 max-w-prose text-sm text-steel">
+            {intake.state === "live" ? tWaiting("body") : tWaiting("closedBody")}
+          </p>
         </section>
       ) : (
         <>
