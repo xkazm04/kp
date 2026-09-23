@@ -27,9 +27,8 @@ import { agingTierAt } from "./aging-policy";
 export type AttentionCounts = {
   // Entries waiting on a recognized human approval gate → Decisions.
   decisions: number;
-  // Active entries past their stage's default aging SLA → Pipeline. Server-side
-  // counts use STAGE_SLA_DEFAULTS — a recruiter's per-board localStorage
-  // overrides are a client concern the badge deliberately approximates.
+  // Active entries past their stage's aging SLA → Pipeline: the team's own cadence
+  // (`slaDays` on the stage axis) where set, else the stage role's default.
   pipeline: number;
   // Upcoming calendar events: confirmed interviews whose slot lies in the
   // future → Schedule. (Was the due-reminder count; repointed 2026-08-10 so the
@@ -84,9 +83,8 @@ export function attentionCounts(workspaceId?: string): AttentionCounts {
 
 /** The badge's "past its stage SLA" predicate — ONE aging clock (aging-policy.ts), the
  *  same tier the board's amber dot and the automation pass's feed alerts read, resolved
- *  on this workspace's own axis. Server-side it deliberately uses the role DEFAULTS: a
- *  recruiter's per-board localStorage overrides are a client concern the badge
- *  approximates.
+ *  on this workspace's own axis, which carries the team's per-stage `slaDays` (set on
+ *  the board, challenge-r03 pipeline-board-ui/A) and falls back to the role default.
  *
  *  What the tier encodes (and what this predicate used to hand-roll): a terminal-ROLE
  *  stage never ages, and a NON-POSITIVE SLA never ages either — so a workspace that
