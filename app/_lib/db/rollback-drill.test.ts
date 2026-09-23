@@ -41,7 +41,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import Database from "better-sqlite3";
-import { ensureDb } from "./core.ts";
+import { ensureDb, narrowCampaignPacksKey, widenCampaignPacksKey } from "./core.ts";
 import { ORG_CONFIG_NOT_PORTABLE } from "../tenancy.ts";
 import { CREDENTIAL_TABLES, ORG_CONFIG_TABLES, redactionPlan } from "../../../scripts/db-dump.mjs";
 
@@ -112,6 +112,9 @@ const V0_1_X_SHAPE: Record<string, Record<string, string>> = {
   channel_spend: { channel: "TEXT", amount_czk: "REAL", updated_at: "TEXT" },
   analytics_targets: { metric: "TEXT", target_value: "REAL", updated_at: "TEXT" },
   billing_usage: { meter: "TEXT", period: "TEXT", qty: "INTEGER" },
+  // The fourth widening (job_id, lang) -> (job_id, lang, workspace_id). Its way back is
+  // not just "the columns are still there": see the executed downgrade drill below.
+  campaign_packs: { job_id: "TEXT", lang: "TEXT", payload_json: "TEXT", source: "TEXT", created_at: "TEXT" },
   billing_state: {
     id: "TEXT",
     plan: "TEXT",
@@ -135,6 +138,7 @@ const V0_1_X_WRITES: string[] = [
   `INSERT INTO channel_spend (channel, amount_czk, updated_at) VALUES ('rollback-drill-channel', 1234.5, '2024-01-01T00:00:00.000Z')`,
   `INSERT INTO analytics_targets (metric, target_value, updated_at) VALUES ('rollback-drill-metric', 21, '2024-01-01T00:00:00.000Z')`,
   `INSERT INTO billing_usage (meter, period, qty) VALUES ('rollback_drill_meter', '2024-01', 7)`,
+  `INSERT INTO campaign_packs (job_id, lang, payload_json, source, created_at) VALUES ('rollback-drill-job', 'en', '{}', 'llm', '2024-01-01T00:00:00.000Z')`,
 ];
 
 test("an image rolled BACK to v0.1.x still finds every column it selects", () => {
@@ -187,6 +191,78 @@ test("an image rolled BACK to v0.1.x can still WRITE: every column added since i
   // The rollback is part of the assertion: this suite's DB must be untouched.
   const leaked = db.prepare(`SELECT COUNT(*) AS n FROM analyses WHERE slug = 'rollback-drill-a'`).get() as { n: number };
   assert.equal(leaked.n, 0, "the drill's transaction did not roll back");
+});
+
+test("the campaign_packs key widening has an EXECUTED way back: narrow, then the older image's own upsert writes", () => {
+  // Plain v0.1.x INSERTs (above) still succeed against the widened key — but the image
+  // just before the widening upserts with `ON CONFLICT(job_id, lang)`, and SQLite
+  // refuses that against a PRIMARY KEY (job_id, lang, workspace_id): "ON CONFLICT
+  // clause does not match any PRIMARY KEY or UNIQUE constraint". releases.md classes
+  // "an older image cannot write back" as MAJOR, so the widening ships its reverse
+  // rebuild as a function, and this drill RUNS it. Packs are regenerable LLM output,
+  // not records: the narrow keeps one row per (job_id, lang) — the default
+  // workspace's, which is the only team an older single-tenant image reads — and
+  // reports what it dropped.
+  const OLD_IMAGE_UPSERT = `INSERT INTO campaign_packs (job_id, lang, payload_json, source, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(job_id, lang) DO UPDATE SET
+       payload_json = excluded.payload_json,
+       source = excluded.source,
+       created_at = excluded.created_at
+     WHERE campaign_packs.workspace_id = excluded.workspace_id`;
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-rollback-campaign-"));
+  const db = new Database(path.join(dir, "kp.sqlite"));
+  try {
+    // The table as the pre-widening image left it.
+    db.exec(`
+      CREATE TABLE campaign_packs (
+        job_id TEXT NOT NULL, lang TEXT NOT NULL, payload_json TEXT NOT NULL, source TEXT NOT NULL,
+        created_at TEXT NOT NULL, workspace_id TEXT NOT NULL DEFAULT 'workspace', PRIMARY KEY (job_id, lang)
+      );
+      INSERT INTO campaign_packs VALUES ('job-1', 'en', '{"v":"default"}', 'llm', '2024-01-01T00:00:00.000Z', 'workspace');
+      INSERT INTO campaign_packs VALUES ('job-2', 'cs', '{"v":"team-b-only"}', 'llm', '2024-01-01T00:00:00.000Z', 'ws-b');
+    `);
+    const key = () =>
+      (db.prepare(`PRAGMA table_info(campaign_packs)`).all() as { name: string; pk: number }[])
+        .filter((c) => c.pk > 0)
+        .sort((a, b) => a.pk - b.pk)
+        .map((c) => c.name);
+
+    // Forward, as ensureDb runs it — once.
+    assert.equal(widenCampaignPacksKey(db), true);
+    assert.equal(widenCampaignPacksKey(db), false, "the widening is guarded by the key's shape");
+    assert.deepEqual(key(), ["job_id", "lang", "workspace_id"]);
+    // A second team now holds its own pack for job-1 — the row the narrow cannot keep.
+    db.prepare(`INSERT INTO campaign_packs VALUES ('job-1', 'en', '{"v":"team-b"}', 'llm', '2024-02-01T00:00:00.000Z', 'ws-b')`).run();
+    assert.throws(
+      () => db.prepare(OLD_IMAGE_UPSERT).run("job-1", "en", "{}", "llm", "2024-03-01T00:00:00.000Z", "workspace"),
+      /ON CONFLICT clause does not match/,
+      "without the narrow, the older image's upsert cannot write — this is what the way back is for"
+    );
+
+    // Back.
+    assert.deepEqual(narrowCampaignPacksKey(db), { kept: 2, dropped: 1 });
+    assert.deepEqual(key(), ["job_id", "lang"]);
+    const rows = db.prepare(`SELECT job_id, lang, payload_json, workspace_id FROM campaign_packs ORDER BY job_id`).all();
+    assert.deepEqual(rows, [
+      { job_id: "job-1", lang: "en", payload_json: '{"v":"default"}', workspace_id: "workspace" },
+      { job_id: "job-2", lang: "cs", payload_json: '{"v":"team-b-only"}', workspace_id: "ws-b" },
+    ]);
+    const indexes = (db.prepare(`PRAGMA index_list(campaign_packs)`).all() as { name: string }[]).map((i) => i.name);
+    assert.ok(indexes.includes("idx_campaign_packs_workspace"), "the narrow dropped the per-team scan index");
+
+    // And the older image writes again: a regenerate and a first pack both land.
+    assert.equal(db.prepare(OLD_IMAGE_UPSERT).run("job-1", "en", '{"v":"regen"}', "llm", "2024-03-01T00:00:00.000Z", "workspace").changes, 1);
+    assert.equal(db.prepare(OLD_IMAGE_UPSERT).run("job-3", "de", '{"v":"new"}', "llm", "2024-03-01T00:00:00.000Z", "workspace").changes, 1);
+    assert.equal((db.prepare(`SELECT payload_json AS p FROM campaign_packs WHERE job_id = 'job-1'`).get() as { p: string }).p, '{"v":"regen"}');
+
+    // Roll forward again after the fix: the same guard widens it back, rows kept.
+    assert.equal(widenCampaignPacksKey(db), true);
+    assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM campaign_packs`).get() as { n: number }).n, 3);
+  } finally {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ---------------------------------------------------------------------------
