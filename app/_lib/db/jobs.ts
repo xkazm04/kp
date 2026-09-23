@@ -4,6 +4,7 @@ import { ensureDb, insertWithUniqueSlug, jobLifecycleInOverlay, safeRowParse, ty
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { stagesWithRole } from "../pipeline-stages";
+import { registerKpFold } from "../text-fold";
 import type { RoleStatus } from "../status-tone";
 
 // Backgrounded AI generation state on a JD (see the core.ts migration). NULL/absent
@@ -621,15 +622,10 @@ const SORT_KEYS: Record<JobBrowseSort, string> = {
   status: `CASE ${ROLE_STATUS_SQL} WHEN 'open' THEN 0 WHEN 'draft' THEN 1 WHEN 'filled' THEN 2 ELSE 3 END`,
 };
 
-const folding = new WeakSet<object>();
+// kp_fold is the ONE shared definition (text-fold.ts): another store registers it on
+// this same connection, and a local variant would silently replace or be replaced.
 function withFold(db: ReturnType<typeof ensureDb>): ReturnType<typeof ensureDb> {
-  if (!folding.has(db)) {
-    db.function("kp_fold", { deterministic: true }, (v: unknown) =>
-      typeof v === "string" ? v.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase() : v
-    );
-    folding.add(db);
-  }
-  return db;
+  return registerKpFold(db);
 }
 
 // The browse read's page bounds. A caller that omits `limit` still gets a PAGE, not

@@ -9,6 +9,7 @@
 // filtered on its own workspace_id.
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { foldText, registerKpFold } from "../text-fold";
 
 // Why the join lives here.
 //
@@ -57,9 +58,10 @@ export type CaseLedgerFacets = { stages: string[]; seniorities: string[] };
 /** ensureDb() plus the two things the ledger needs on the connection, applied once per
  *  db INSTANCE (the submissionStore shape, so a reset test connection re-applies them):
  *  an index on the join key nothing indexed (dev_lifecycle.case_id, scoped by tenant
- *  first), and a Unicode case fold. SQLite's lower() folds ASCII only, so a Czech
- *  title ("Šablona") would never match its own lowercase search; the client's old
- *  in-memory filter used toLocaleLowerCase, and the query must not answer less. */
+ *  first), and the shared case-and-diacritic fold. SQLite's lower() folds ASCII only,
+ *  so a Czech title ("Šablona") would never match its own lowercase search. The fold
+ *  is text-fold.ts's `kp_fold`, never a local one: this connection is shared with the
+ *  jobs browse, and a second definition replaced the first for the whole process. */
 function ledgerStore() {
   const db = ensureDb();
   const marked = db as unknown as { __kpDevCaseLedger?: boolean };
@@ -69,10 +71,9 @@ function ledgerStore() {
     } catch {
       /* best-effort: a read-only connection cannot build the index, and the ledger read is still correct without it */
     }
-    db.function("kp_fold", { deterministic: true }, (value: unknown) => String(value ?? "").toLocaleLowerCase());
     marked.__kpDevCaseLedger = true;
   }
-  return db;
+  return registerKpFold(db);
 }
 
 type CaseLedgerDbRow = {
@@ -122,7 +123,7 @@ export function listCaseLedger(
   filters: CaseLedgerFilters = {}
 ): CaseLedgerRow[] {
   const db = ledgerStore();
-  const q = (filters.q ?? "").trim().toLocaleLowerCase();
+  const q = foldText((filters.q ?? "").trim());
   const stage = (filters.stage ?? "").trim();
   const seniority = (filters.seniority ?? "").trim();
   const job = (filters.job ?? "").trim();
