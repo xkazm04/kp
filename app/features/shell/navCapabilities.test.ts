@@ -21,7 +21,7 @@ test("a viewer is locked out of exactly the settings doors their role cannot ope
   const locked = lockedTabsFor(capsOf("viewer"));
   assert.deepEqual(
     [...locked].sort(),
-    ["billing", "hiring", "integrations", "models", "organization", "workspace"]
+    ["billing", "branding", "hiring", "integrations", "models", "organization", "workspace"]
   );
 });
 
@@ -82,7 +82,23 @@ test("visibleNavFor annotates without removing — a locked door is never silent
   const billing = settings.items.find((it) => it.def.id === "billing");
   assert.equal(billing?.locked, "org:manage");
   const branding = settings.items.find((it) => it.def.id === "branding");
-  assert.equal(branding?.locked, null, "branding's door is requireOperator, not a capability");
+  assert.equal(branding?.locked, "org:manage", "branding renders locked, not missing, for a seat that cannot save it");
+});
+
+// PUT /api/brand asks org:manage (challenge-r07 shell-setup-wizard/A). Before this
+// row the rail still offered the editor to an admin, who could edit every field and
+// then meet a 403 on save — the shell inviting them through a door it knew was locked.
+test("branding is offered only to a seat that can save it", () => {
+  assert.equal(capabilityForTab("branding"), "org:manage");
+  assert.equal(lockedCapability("branding", capsOf("admin")), "org:manage", "an admin lacks org:manage");
+  assert.equal(lockedTabsFor(capsOf("admin")).has("branding"), true);
+  assert.equal(lockedTabsFor(capsOf("recruiter")).has("branding"), true);
+  assert.equal(lockedCapability("branding", capsOf("owner")), null, "an owner saves the brand");
+  // Open/dev mode and an operator session fold to OWNER_CAPS server-side
+  // (current-user.ts), so the keyless first run keeps its branding editor.
+  assert.equal(lockedTabsFor(capsOf("owner")).has("branding"), false);
+  // Unknown caps still lock nothing.
+  assert.equal(lockedCapability("branding", null), null);
 });
 
 test("capabilityForTab is null for the read surfaces the whole team shares", () => {

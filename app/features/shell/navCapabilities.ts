@@ -16,8 +16,10 @@
 //   integrations  org:manage      app/api/ats/config, ats/connections
 //   workspace     team:manage     app/api/workspaces (POST)
 //   hiring        pipeline:write  app/api/decisions/config
-// Branding is deliberately ABSENT: its door (PUT /api/brand) gates on
-// `requireOperator`, not on a capability, so no entry here would be truthful.
+//   branding      org:manage      app/api/brand (PUT)
+// Branding was once absent because PUT /api/brand gated on `requireOperator` alone;
+// since challenge-r07 it asks org:manage (the brand paints every member's workspace
+// and every candidate page), so an admin offered the editor could only meet a 403.
 //
 // The gate is advisory UI, never enforcement: the server refuses regardless, and an
 // UNKNOWN capability set (the fetch has not landed, or failed) locks NOTHING — a
@@ -34,6 +36,7 @@ export const TAB_CAPABILITY: Readonly<Partial<Record<WorkspaceTabId, Capability>
   integrations: "org:manage",
   workspace: "team:manage",
   hiring: "pipeline:write",
+  branding: "org:manage",
 };
 
 /** The guided tour STARTS A RUN that moves candidates through the board — a write,

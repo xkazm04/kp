@@ -239,9 +239,12 @@ was a 403 rendered as a failed load.
   the tab's own primary route already enforces — `organization` → `members:manage`
   (`/api/org/invites`), `billing` / `models` / `integrations` → `org:manage`,
   `workspace` → `team:manage` (`POST /api/workspaces`), `hiring` → `pipeline:write`
-  (`/api/decisions/config`), and the tour → `pipeline:write`. `branding` is
-  deliberately absent: its door is `requireOperator`, not a capability, so no entry
-  would be truthful. `templates` is absent for the same reason — the write half of
+  (`/api/decisions/config`), `branding` → `org:manage` (`PUT /api/brand`), and the
+  tour → `pipeline:write`. Branding was once absent because its door asked only
+  `requireOperator`; since `PUT /api/brand` asks `org:manage`, an admin offered the
+  editor could edit every field and meet a 403 on save, so it now renders locked for
+  every seat but the owner (open mode and an operator session fold to owner, so the
+  keyless run keeps it). `templates` is still absent — the write half of
   `/api/templates` gates on `requireOperator`. Pinned by `navCapabilities.test.ts`.
 - **The source** is `GET /api/me/capabilities` (`callerCapabilities()`), read once
   per document by `shell/useCapabilities.ts` (a `useSyncExternalStore` module store,
