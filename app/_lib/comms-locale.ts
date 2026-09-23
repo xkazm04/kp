@@ -3,8 +3,8 @@
 //
 //   1. the entry's stored `locale` — the candidate's EXPLICIT choice, captured at
 //      apply (conversational / quick-apply / webhook) or inherited on rematch;
-//   2. else the WORKSPACE default (workspaces.default_locale, 'cs' for the ČS
-//      seed) — the read-time fallback that stops the 60/65 NULL-locale entries
+//   2. else the WORKSPACE default (getWorkspaceDefaultLocale: the team's explicit
+//      override, else its org's language; 'cs' for the ČS seed) — the read-time fallback that stops the 60/65 NULL-locale entries
 //      from receiving English letters under the bank's brand, with NO data
 //      migration (legacy rows stay NULL and resolve here on every dispatch);
 //   3. else DEFAULT_LOCALE — only when even the workspace row is unreadable.
@@ -26,11 +26,13 @@ import { getProfileRecord } from "./db/profiles";
  *
  *  `workspaceId` is the team the entry was filed into (webhook.workspaceId, which
  *  intakeLead/ingestCvApplication already carry). Pass it so a NULL-locale
- *  candidate falls back to THEIR team's default_locale, not a fixed tenant's.
- *  Omitting it reads DEFAULT_WORKSPACE_ID, which is the wrong tenant the moment a
- *  second workspace sets its own default_locale (Settings → Organization writes it
- *  via setWorkspaceDefaultLocale) and a NULL-locale candidate is filed into it:
- *  that candidate would be written to in the DEFAULT team's language.
+ *  candidate falls back to THEIR team's language, not a fixed tenant's. A team's
+ *  language resolves through getWorkspaceDefaultLocale: its explicit override
+ *  (setWorkspaceDefaultLocale), else its ORG's language (organizations.default_locale,
+ *  which Settings → Organization writes via setOrganizationLocale). Omitting the id
+ *  reads DEFAULT_WORKSPACE_ID, which is the wrong tenant the moment a second team
+ *  sits in another org or carries its own override and a NULL-locale candidate is
+ *  filed into it: that candidate would be written to in the DEFAULT team's language.
  *
  *  Every candidate-facing dispatcher now passes the id (comms-dispatch.candidateLocale
  *  threads `entry.workspaceId` — surfaced on PipelineEntry since db/core.ts stopped

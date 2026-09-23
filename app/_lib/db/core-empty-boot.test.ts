@@ -86,7 +86,16 @@ test("KP_EMPTY=1 boots a blank tenant: schema and the default workspace, no fixt
     for (const table of ["jds", "jobs", "analyses", "profiles", "pipeline_entries", "pipeline_events", "users"]) {
       assert.equal(count(db, `SELECT COUNT(*) AS n FROM ${table}`), 0, `${table} must be empty under KP_EMPTY=1`);
     }
-    assert.equal(count(db, `SELECT COUNT(*) AS n FROM seed_marks`), 0, "no seeder recorded a run");
+    // The one STRUCTURAL mark is the org-language migration (core.ts
+    // backfillOrgLocaleAuthority): it records that a schema step ran, not that content
+    // was seeded, and a blank install needs it as much as a populated one — unmarked,
+    // the next boot would re-derive the org's language from its oldest team.
+    assert.equal(
+      count(db, `SELECT COUNT(*) AS n FROM seed_marks WHERE name <> 'org-locale-authority'`),
+      0,
+      "no fixture seeder recorded a run"
+    );
+    assert.equal(count(db, `SELECT COUNT(*) AS n FROM seed_marks`), 1, "only the structural migration mark is present");
 
     // The point of the whole flag: the first-run wizard must fire.
     const state = db.prepare(`SELECT onboarding_state AS v FROM workspaces WHERE id = 'workspace'`).get() as {

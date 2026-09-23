@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { inferLocaleFromLanguages, inferProfileLocale, resolveCommsLocale } from "./comms-locale.ts";
 import { ensureDb } from "./db/core.ts";
-import { getWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
+import { clearWorkspaceLocaleOverride, getWorkspaceDefaultLocale, setWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { saveProfile } from "./db/profiles.ts";
 
 after(() => cleanupUnitDb());
@@ -26,17 +26,19 @@ test("a NULL/absent/garbage locale resolves to the workspace default (cs for the
   assert.equal(resolveCommsLocale("xx-KLINGON"), "cs");
 });
 
-test("the workspace default is a per-tenant lever: flipping the column flips the NULL fallback", () => {
+test("the workspace default is a per-tenant lever: a team's language flips the NULL fallback", () => {
+  // The team's language is its explicit override, else its org's (db/workspaces.ts);
+  // the legacy default_locale column is only a mirror, so the lever is the override.
   const db = ensureDb();
-  db.prepare(`UPDATE workspaces SET default_locale = 'en' WHERE id = ?`).run(DEFAULT_WORKSPACE_ID);
+  setWorkspaceDefaultLocale("en", DEFAULT_WORKSPACE_ID);
   try {
     assert.equal(resolveCommsLocale(null), "en", "NULL now falls back to the tenant's en");
     assert.equal(resolveCommsLocale("cs"), "cs", "an explicit choice still wins over the tenant default");
-    // A corrupt column value degrades to the ČS fallback, never an unknown catalog.
-    db.prepare(`UPDATE workspaces SET default_locale = 'zz' WHERE id = ?`).run(DEFAULT_WORKSPACE_ID);
+    // A corrupt stored value degrades to the ČS fallback, never an unknown catalog.
+    db.prepare(`UPDATE workspaces SET locale_override = 'zz' WHERE id = ?`).run(DEFAULT_WORKSPACE_ID);
     assert.equal(getWorkspaceDefaultLocale(), "cs");
   } finally {
-    db.prepare(`UPDATE workspaces SET default_locale = 'cs' WHERE id = ?`).run(DEFAULT_WORKSPACE_ID);
+    clearWorkspaceLocaleOverride(DEFAULT_WORKSPACE_ID);
   }
 });
 

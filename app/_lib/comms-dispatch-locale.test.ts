@@ -25,8 +25,7 @@ import {
   dispatchRejection,
 } from "./comms-dispatch.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
-import { ensureDb } from "./db/core.ts";
-import { createWorkspace } from "./db/workspaces.ts";
+import { createWorkspace, setWorkspaceDefaultLocale } from "./db/workspaces.ts";
 
 after(() => cleanupUnitDb());
 
@@ -170,7 +169,7 @@ test("a NULL-locale ack still renders in the candidate's resolved language (cs),
 
 test("a NULL-locale entry falls back to ITS OWN team's default language, not the default team's", async () => {
   const team = createWorkspace("Deutsches Team");
-  ensureDb().prepare(`UPDATE workspaces SET default_locale = 'de' WHERE id = ?`).run(team.id);
+  setWorkspaceDefaultLocale("de", team.id);
 
   const entry = entryFixture(null, team.id);
   assert.equal(entry.workspaceId, team.id, "the fixture must be filed into the second team");

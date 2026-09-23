@@ -1729,6 +1729,9 @@ export function ensureDb(): Database.Database {
     // on every pre-migration row = "no reason recorded".
     "ALTER TABLE llm_usage ADD COLUMN outcome TEXT NOT NULL DEFAULT 'ok'",
     "ALTER TABLE llm_usage ADD COLUMN reason TEXT",
+    // A team's EXPLICIT language; NULL = follow organizations.default_locale (see
+    // db/workspaces.ts). default_locale stays as the legacy mirror.
+    "ALTER TABLE workspaces ADD COLUMN locale_override TEXT",
   ]) {
     migrateExec(sql);
   }
@@ -2557,6 +2560,7 @@ export function ensureDb(): Database.Database {
   // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
   // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
   db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
+  backfillOrgLocaleAuthority(db); // after the org_id link and every seeder
   // Self-defending tenancy guard: if KP_MULTI_WORKSPACE is enabled, REFUSE to boot
   // with any unscoped per-tenant table (machine-checked against the canonical
   // manifest in tenancy.ts) rather than silently serving cross-tenant data. The
@@ -3400,4 +3404,44 @@ function seedPipeline(db: Database.Database): void {
   });
   tx(entries);
   markSeedRan(db, "pipeline");
+}
+
+/** The seed mark the org-language backfill records itself under (db/seed-marks.ts). */
+export const ORG_LOCALE_AUTHORITY_MARK = "org-locale-authority";
+
+/**
+ * Make organizations.default_locale the language authority WITHOUT changing any team's
+ * language: each org row is seeded from its OLDEST team's stored value, and every other
+ * team whose stored value differs gets it as an explicit locale_override. Values are
+ * copied VERBATIM, never interpreted — getWorkspaceDefaultLocale validates the same
+ * string the old reader validated, so every team resolves exactly as before (and this
+ * boot path needs no locale vocabulary). A team with no org row is skipped: it keeps
+ * reading its legacy column. One-shot via seed_marks (re-deriving later would undo the
+ * owner's choice); one IMMEDIATE transaction, no await.
+ */
+export function backfillOrgLocaleAuthority(db: Database.Database): void {
+  if (seedAlreadyRan(db, ORG_LOCALE_AUTHORITY_MARK)) return;
+  db.transaction(() => {
+    const teams = db
+      .prepare(
+        `SELECT w.id, w.org_id, w.default_locale, w.locale_override
+           FROM workspaces w JOIN organizations o ON o.id = w.org_id
+          ORDER BY w.org_id, w.created_at ASC, w.id ASC`
+      )
+      .all() as { id: string; org_id: string; default_locale: string | null; locale_override: string | null }[];
+    const setOrg = db.prepare(`UPDATE organizations SET default_locale = ? WHERE id = ?`);
+    const stamp = db.prepare(`UPDATE workspaces SET locale_override = ? WHERE id = ? AND locale_override IS NULL`);
+    const orgLocale = new Map<string, string>();
+    for (const t of teams) {
+      const locale = t.locale_override ?? t.default_locale ?? "cs";
+      const org = orgLocale.get(t.org_id);
+      if (org === undefined) {
+        orgLocale.set(t.org_id, locale);
+        setOrg.run(locale, t.org_id);
+      } else if (locale !== org) {
+        stamp.run(locale, t.id);
+      }
+    }
+    markSeedRan(db, ORG_LOCALE_AUTHORITY_MARK);
+  }).immediate();
 }
