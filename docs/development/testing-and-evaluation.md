@@ -395,6 +395,44 @@ take to measure it (`salary_coverage` predates the coverage/overlap split;
 `QUALITY_THRESHOLD` needs a judged run). "Nobody measured this" and "measured and
 fine" never look the same in the table.
 
+**The measurement is recorded, not typed.** The slack check is only as good as the
+figure it reads, and until 2026-09-23 that figure was a literal typed into
+`thresholds.py` that nothing re-derived. Engine work that lifted relevance@5 to 0.95
+would have left the record at 0.857, and the slack check would have kept reading
+that stale number. The measurements now live in
+[`pipeline/jobfit/eval/measurements.json`](../../pipeline/jobfit/eval/measurements.json),
+one line per bar: `measured`, `n` (the scenarios, task-runs, drill rows or checks it
+was taken over), `measured_at`, `source` and `corpus`. A bar declared
+`deterministic` in `thresholds.py` has no model in the loop, so its live figure must
+**equal** its record. Every eval `test:eval:ci` runs certifies that on its canonical
+run (`thresholds.certify_live`). A different figure or a different `n` fails
+`--strict` and prints the re-record command:
+
+| bar | eval (canonical run) | n today |
+| --- | --- | --- |
+| `MATCHING_THRESHOLDS.*` | `matching_eval` | 7 scenarios (4 for `entry_precision`) |
+| `RELIABILITY_THRESHOLD` | `automation_eval --no-llm` | 42 task-runs |
+| `FAULT_THRESHOLD` | `fault_eval` (no `--mode`) | 240 drill rows |
+| `INTAKE_THRESHOLD` | `intake_eval --no-llm` (curated bank) | 98 dialog checks |
+
+`INTAKE_THRESHOLD` (1.0, not tunable, like `FAULT_THRESHOLD`) is new. `intake_eval`
+was the one gated eval whose pass/fail lived outside this module. It gates on the
+check pass rate and records the check count, so a scenario that loses a key and
+silently drops an assertion moves `n`. The keyed extraction bars are never
+certified, because run-to-run variance is what their slack is for.
+
+```bash
+python -m pipeline.jobfit.eval.matching_eval --record          # likewise automation_eval --no-llm,
+python -m pipeline.jobfit.eval.fault_eval --record             # intake_eval --no-llm
+```
+
+`--record` is an operator act: it rewrites only that eval's lines (a run that
+matches the record changes no byte), refuses to run in CI (`CI` or
+`GITHUB_ACTIONS` set) and refuses a non-canonical run (a `--mode` subset, a live
+automation run, an intake subset). The committed `measurements.json` diff is the
+review. If the new figure falls below a bar's slack floor, `thresholds --tighten`
+and `test_thresholds.py` say so as before.
+
 `salary_overlap` is containment-aware — a Gemini range fully inside the expected band
 scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixture
 breakdown print as a markdown table; `--json` swaps in machine-readable output for
