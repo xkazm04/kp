@@ -25,7 +25,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // recruiter_cli child fed the role's title, body and stated band. 404, not 403,
     // so the endpoint can't confirm another team's id exists; seeded corpus rows
     // stay visible to everyone.
-    const job = getJob(id);
+    const job = getJob(id, workspaceId);
     if (!job || !jobVisibleToWorkspace(id, workspaceId)) {
       return jsonRefusal("JOB_NOT_FOUND", 404);
     }

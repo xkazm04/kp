@@ -205,9 +205,11 @@ export async function ingestInboundLeadByToken(input: {
   // A pulled/drained delivery proves that just as well as a live POST does.
   recordChannelWebhookReceipt(input.token);
 
-  const job = getJob(webhook.jobId);
+  // The FILING team of this door is the webhook's: its leads land in that team's
+  // pipeline, so that team's lifecycle of a shared corpus role decides open/closed.
+  const job = getJob(webhook.jobId, webhook.workspaceId);
   if (!job) return { status: 404, body: { error: "The webhook's role no longer exists." } };
-  if (!isJobOpenForApplications(getJobStatus(job.id))) {
+  if (!isJobOpenForApplications(getJobStatus(job.id, webhook.workspaceId))) {
     return { status: 410, body: { error: "This role is closed to applications.", code: "role_closed" } };
   }
 

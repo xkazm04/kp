@@ -38,7 +38,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     // 404 rather than 403, like every other jobs door: the endpoint must not confirm
     // that another tenant's role id exists.
     if (!jobVisibleToWorkspace(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-    const config = getRoleOpenConfig(id);
+    const config = getRoleOpenConfig(id, ws);
     return NextResponse.json({
       // The languages the ROLE was opened in — the chips the modal draws, including
       // the ones that have no body yet. Without it the tab could only offer what
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const body = (await request.json().catch(() => null)) as { lang?: unknown } | null;
     const lang = String(body?.lang ?? "");
-    const sourceLang = postingSourceLang(getRoleOpenConfig(id).postingLangs);
+    const sourceLang = postingSourceLang(getRoleOpenConfig(id, ws).postingLangs);
     // A refusal, not a fault: an unknown locale and the posting's OWN language are
     // both "there is nothing to translate", and neither should reach a model.
     if (!isLocale(lang) || lang === sourceLang) return jsonRefusal("JOB_TRANSLATION_LANG_INVALID", 400);

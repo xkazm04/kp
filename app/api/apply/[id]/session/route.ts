@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (!getJob(id)) return jsonRefusal("APPLY_ROLE_NOT_FOUND", 404);
     // Don't count starts against a role that cannot be applied to — the submit
     // routes refuse those, so counting them would create guaranteed abandonment.
-    if (!isJobOpenForApplications(getJobStatus(id))) {
+    if (!isJobOpenForApplications(getJobStatus(id, getJobWorkspace(id)))) {
       return jsonRefusal("APPLY_ROLE_CLOSED", 410);
     }
     startApplySession({

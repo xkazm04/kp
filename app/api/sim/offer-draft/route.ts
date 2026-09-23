@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
-    const band = (entry.jobId ? getJob(entry.jobId)?.salaryBand : null) ?? [];
+    const band = (entry.jobId ? getJob(entry.jobId, workspaceId)?.salaryBand : null) ?? [];
     // Sanitize the stored band through the shared helper: it swaps a backwards
     // range and rejects a partial/non-finite/non-positive band, so we fall back to
     // the demo defaults instead of advertising garbage. The fallback is single-sourced

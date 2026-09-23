@@ -100,7 +100,7 @@ test("a first publish bills the job_posts meter exactly once", () => {
   const out = publishOnce(id);
   assert.equal(out.refused, false, "a growth plan's role publishes");
   assert.equal(out.billed, true, "a role that has never been to market is billable");
-  assert.equal(getJobStatus(id), "published");
+  assert.equal(getJobStatus(id, WS), "published");
   assert.equal(meter() - before, 1, "the go-live debited one job post");
 });
 
@@ -124,7 +124,7 @@ test("REOPENING a closed role skips the gate and the debit", () => {
   const afterFirst = meter();
 
   setJobStatus(id, "closed");
-  assert.equal(getJobStatus(id), "closed");
+  assert.equal(getJobStatus(id, WS), "closed");
   assert.equal(
     classifyPublish(id).billable,
     false,
@@ -135,7 +135,7 @@ test("REOPENING a closed role skips the gate and the debit", () => {
   assert.equal(out.already, false, "a closed role is not 'already live' — the reopen does real work");
   assert.equal(out.wasClosed, true, "…and is flagged as a reopen, so the withdrawn entries are restored");
   assert.equal(out.billed, false, "the reopen must NOT debit the meter");
-  assert.equal(getJobStatus(id), "published", "the role is live again");
+  assert.equal(getJobStatus(id, WS), "published", "the role is live again");
   assert.equal(meter() - afterFirst, 0, "one opening, one charge — a reopen is free");
 
   // …and it stays free however many times the role cycles.
@@ -163,5 +163,5 @@ test("a reopen is admitted even when the meter is exhausted", () => {
   const out = publishOnce(id);
   assert.equal(out.refused, false, "the reopen is admitted — it never asks the gate");
   assert.equal(out.billed, false, "and never debits");
-  assert.equal(getJobStatus(id), "published");
+  assert.equal(getJobStatus(id, WS), "published");
 });

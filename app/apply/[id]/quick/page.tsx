@@ -42,7 +42,7 @@ export default async function QuickApplyPage({
   // Same W8-1 lifecycle gate as the conversational page: a closed role renders
   // an honest card, a never-published draft isn't publicly live at all. The
   // POST API enforces the same gate.
-  const status = getJobStatus(id);
+  const status = getJobStatus(id, getJobWorkspace(id));
   if (!isJobOpenForApplications(status)) {
     if (status === "draft") notFound();
     return (

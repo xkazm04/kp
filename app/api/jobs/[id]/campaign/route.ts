@@ -24,7 +24,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // used to probe which ids exist. Seeded corpus rows (workspace_id NULL) stay visible
 // to every tenant, exactly as the browse list shows them.
 function visibleJob(id: string, ws: string) {
-  const job = getJob(id);
+  const job = getJob(id, ws);
   return job && jobVisibleToWorkspace(id, ws) ? job : null;
 }
 

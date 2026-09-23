@@ -49,7 +49,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const ws = await currentWorkspace();
     // Ownership before anything else: the same gate /publish and /close use. 404, not
     // 403, so the door can't be used to probe another team's job ids.
-    if (!getJob(id) || !canWriteJobLifecycle(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
+    if (!getJob(id, ws) || !canWriteJobLifecycle(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
 
     const body = await readJsonWithLimit<{ kitId?: unknown }>(request, MAX_PUBLISH_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_PUBLISH_BODY_BYTES });

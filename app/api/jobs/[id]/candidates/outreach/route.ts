@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // straight off the row — and draft a paid first-touch mail naming it. 404 (not
     // 403) so the id's existence isn't confirmed; seeded corpus rows (workspace_id
     // NULL) stay reachable by every team.
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return jsonRefusal("JOB_NOT_FOUND", 404);
     }

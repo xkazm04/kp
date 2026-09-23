@@ -169,7 +169,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // W8-1 (JOB1) — a closed/draft role refuses the SUBMISSION too (the page
     // gate alone is the documented anti-pattern: the API used to accept
     // applications for any existing job forever, drafts included).
-    if (!isJobOpenForApplications(getJobStatus(id))) {
+    if (!isJobOpenForApplications(getJobStatus(id, workspaceId))) {
       // Coded like every other refusal on this door. It used to answer the `apply`
       // catalog's own `roleClosed` sentence, localized SERVER-side from the request
       // — which reads correct and was not: the client resolves what it renders from

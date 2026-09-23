@@ -36,7 +36,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     if (!jd) return jsonRefusal("JD_NOT_FOUND", 404);
 
     const jobId = jdJobId(slug);
-    if (getJob(jobId)) {
+    if (getJob(jobId, ws)) {
       return NextResponse.json({ ok: true, jobId, already: true });
     }
     // The budget is spent HERE: after the 404 AND after the already-ingested

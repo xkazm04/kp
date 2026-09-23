@@ -219,10 +219,10 @@ function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | n
 // the pipeline beside the JD prose, so scoring stops re-deriving a flattened
 // requirement list by regex. Best-effort: no ingested job (market-only JD,
 // failed ingest) or no requirements ⇒ prose-only, exactly as before.
-function resolveJobStructure(jdSlug: string | null | undefined): string | null {
+function resolveJobStructure(jdSlug: string | null | undefined, workspaceId?: string): string | null {
   if (!jdSlug?.trim()) return null;
   try {
-    const job = getJob(jdJobId(jdSlug.trim()));
+    const job = getJob(jdJobId(jdSlug.trim()), workspaceId);
     if (!job || !Array.isArray(job.requirements) || job.requirements.length === 0) return null;
     return JSON.stringify(job);
   } catch {
@@ -310,7 +310,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const coFileBytes = p.companyPath ? await readFile(p.companyPath) : null;
     // Structured job context resolved ONCE per run and written beside the other
     // inputs in baseDir (cleaned up in the finally below); all variants share it.
-    const jobStructureJson = resolveJobStructure(p.jdSlug);
+    const jobStructureJson = resolveJobStructure(p.jdSlug, p.workspace);
     let jobStructurePath: string | null = null;
     if (jobStructureJson) {
       jobStructurePath = path.join(p.baseDir, "job-structure.json");

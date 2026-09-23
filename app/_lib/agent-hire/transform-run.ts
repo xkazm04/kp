@@ -82,7 +82,7 @@ export async function runAgentFit(
   // stops producing English specs for a Czech tenant.
   lang: Locale = getWorkspaceDefaultLocale(workspaceId)
 ): Promise<AgentFitResult> {
-  const job = getJob(jobId);
+  const job = getJob(jobId, workspaceId);
   if (!job) throw new Error(`job not found: ${jobId}`);
   // The catalog degrades to the built-in list when Personas is unpaired/down —
   // the transform itself must never depend on the bridge being alive.

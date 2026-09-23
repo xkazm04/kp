@@ -641,8 +641,9 @@ function lifecycleTeam(workspaceId: string | undefined): string {
   return workspaceId ?? DEFAULT_WORKSPACE_ID;
 }
 
-/** As the team sees the role: overlay over the shared row (jobLifecycleInOverlay). */
-export function getRoleOpenConfig(id: string, workspaceId?: string): RoleOpenConfig {
+/** As the team sees the role: overlay over the shared row (jobLifecycleInOverlay).
+ *  The team is required, so no read inherits the filing team's by omission. */
+export function getRoleOpenConfig(id: string, workspaceId: string): RoleOpenConfig {
   const row = ensureDb()
     .prepare(
       `SELECT COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
@@ -866,6 +867,8 @@ export function countOpenRoles(workspaceId: string = DEFAULT_WORKSPACE_ID): Open
   return { own: row.own, corpus: row.corpus, visible: row.own + row.corpus };
 }
 
+/** Omitted team = the FILING team's lifecycle: public doors only. Recruiter callers pass
+ *  theirs (app/api/job-lifecycle-team.test.ts). */
 export function getJob(id: string, workspaceId?: string): JobRecord | null {
   const db = ensureDb();
   const row = db

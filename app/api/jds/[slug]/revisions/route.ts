@@ -58,7 +58,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     // requirements parsed from the text the operator just discarded.
     let jobResynced = false;
     const jobId = jdJobId(slug);
-    if (getJob(jobId)) {
+    if (getJob(jobId, ws)) {
       try {
         const { job } = await ingestJobAd(restored.body, jobId);
         insertJob({ ...job, id: jobId }, undefined, "draft", ws);

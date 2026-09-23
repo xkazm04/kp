@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
     const ws = await currentWorkspace();
     const jobId = String(body.jobId ?? "").trim();
-    const job = jobId ? getJob(jobId) : null;
+    const job = jobId ? getJob(jobId, ws) : null;
     // getJob is an unscoped by-id point read (jobs-tenancy.test.ts exempts it), so the
     // ROUTE owes the ownership check — same gate and same 404 as GET /api/jobs/[id]. The
     // Add-receiver modal only offers what /api/jobs listed (the shared corpus + this

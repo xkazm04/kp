@@ -60,7 +60,7 @@ export function getAtsRecordResult(
 ): AtsRecordResult {
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return { record: null, refusal: null };
-  const job = entry.jobId ? getJob(entry.jobId) : null;
+  const job = entry.jobId ? getJob(entry.jobId, entry.workspaceId) : null;
   const latest = listDecisionRecords({ candidateRef: entryId, limit: 1, workspaceId: entry.workspaceId })[0] ?? null;
   // Which offer's comp the record carries: the offer that actually caused the
   // hire, not the oldest on file. getOpenOfferForEntry only matches status

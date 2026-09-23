@@ -23,7 +23,7 @@ import { getRolePriorities, setRolePriorities } from "@/app/_lib/role-priorities
 
 async function resolve(id: string): Promise<{ ws: string } | null> {
   const ws = await currentWorkspace();
-  const job = getJob(id);
+  const job = getJob(id, ws);
   if (!job || !jobVisibleToWorkspace(id, ws)) return null;
   return { ws };
 }

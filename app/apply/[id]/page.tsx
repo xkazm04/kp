@@ -38,7 +38,7 @@ export default async function ApplyPage({
   // (filled/retired) role renders an honest card instead of collecting
   // applications nobody will process; a never-published draft isn't publicly
   // live at all. The POST API enforces the same gate.
-  const status = getJobStatus(id);
+  const status = getJobStatus(id, getJobWorkspace(id));
   if (!isJobOpenForApplications(status)) {
     if (status === "draft") notFound();
     return (

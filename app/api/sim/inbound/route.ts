@@ -28,11 +28,14 @@ export async function POST(request: NextRequest) {
   try {
     const { jobId } = (await request.json()) as { jobId?: string };
     if (!jobId) return jsonRefusal("SIM_JOB_REQUIRED", 400);
-    const job = getJob(jobId);
+    // The caller's team, resolved once: the role is read as that team sees it and the
+    // sim writes into it.
+    const ws = await currentWorkspace();
+    const job = getJob(jobId, ws);
     if (!job) return jsonRefusal("SIM_JOB_NOT_FOUND", 404);
 
     // The sim write target — the caller's own team + the `(SIM)`-marked title.
-    const target = simCvIntakeTarget(job, await currentWorkspace());
+    const target = simCvIntakeTarget(job, ws);
 
     // Pick someone not already in this job's pipeline as the "applicant". Read the pool
     // AND the dedupe set from the SAME workspace we're about to write into: an unscoped

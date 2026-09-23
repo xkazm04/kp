@@ -128,7 +128,7 @@ export async function runInterviewKit(
   // does not get an English kit read aloud to Czech candidates.
   lang: Locale = getWorkspaceDefaultLocale(workspaceId)
 ): Promise<InterviewKitRunResult> {
-  const job = getJob(jobId);
+  const job = getJob(jobId, workspaceId);
   // OWNERSHIP, asserted here and not only at the route. This runner is also reachable
   // through POST /api/tasks, which starts any known kind with CLIENT-SUPPLIED params — so
   // the route's own gate is not the only door, and `getJob` is an unscoped by-id read.

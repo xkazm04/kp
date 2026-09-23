@@ -145,7 +145,7 @@ export async function runInterviewLetter(letterId: string, signal: AbortSignal |
   const spec = {
     outcome,
     jobTitle: entry.jobTitle ?? "",
-    company: entry.jobId ? (getJob(entry.jobId)?.company ?? "") : "",
+    company: entry.jobId ? (getJob(entry.jobId, workspaceId)?.company ?? "") : "",
     kitTopics: pinnedKitTitles(session?.kitId ?? null, workspaceId),
   };
 

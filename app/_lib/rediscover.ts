@@ -239,7 +239,7 @@ export async function raiseRediscoveryAlertsForJob(
   jobId: string,
   opts: { signal?: AbortSignal; workspaceId?: string } = {}
 ): Promise<RaiseOutcome> {
-  const job = getJob(jobId);
+  const job = getJob(jobId, opts.workspaceId);
   // Not a failure: the role is gone (deleted/never existed), so there is nothing to
   // rank. Nothing to tell the recruiter beyond "no silver medalists".
   if (!job) return { raised: 0, failed: false };

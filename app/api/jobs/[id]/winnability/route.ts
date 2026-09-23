@@ -38,7 +38,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // hands another team's private must-haves back as coaching. 404, not 403, so the
     // endpoint can't confirm an id exists; seeded corpus rows stay visible to everyone.
     const ws = await currentWorkspace();
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
     }

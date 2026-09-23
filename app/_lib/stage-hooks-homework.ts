@@ -216,7 +216,7 @@ async function designThenInvite(
     return refuse(entry, "billing", "the case-design allowance is exhausted");
   }
 
-  const job = getJob(jobId);
+  const job = getJob(jobId, workspaceId);
   const need = {
     title: jd.title || job?.title || "Work-sample assignment",
     jdSlug: jd.slug,

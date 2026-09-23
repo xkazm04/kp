@@ -243,9 +243,9 @@ export function isJobOpenForApplications(status: string | null): boolean {
   return status === null || status === "published";
 }
 
-/** The team's view of the status. The apply doors name no team, so they follow the
- *  filing team that receives their applicants. */
-export function getJobStatus(jobId: string, workspaceId?: string): string | null {
+/** The team's view of the status. Required: recruiters pass their team, the public
+ *  apply doors the FILING team (getJobWorkspace). */
+export function getJobStatus(jobId: string, workspaceId: string): string | null {
   const r = db()
     .prepare(
       `SELECT COALESCE(s.status, jobs.status) AS status FROM jobs

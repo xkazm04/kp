@@ -91,9 +91,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // counters answer different questions and never merge.
     recordChannelWebhookReceipt(token);
 
-    const job = getJob(webhook.jobId);
+    // The FILING team of this door is the webhook's: its leads land in that team's
+    // pipeline, so that team's lifecycle of a shared corpus role decides open/closed.
+    const job = getJob(webhook.jobId, webhook.workspaceId);
     if (!job) return NextResponse.json({ error: "The webhook's role no longer exists." }, { status: 404 });
-    if (!isJobOpenForApplications(getJobStatus(job.id))) {
+    if (!isJobOpenForApplications(getJobStatus(job.id, webhook.workspaceId))) {
       return NextResponse.json({ error: "This role is closed to applications.", code: "role_closed" }, { status: 410 });
     }
 

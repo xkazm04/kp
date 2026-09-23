@@ -243,7 +243,7 @@ export { debriefDurationMin, plannedInterviewMinutes, submissionFollowups, type 
  *  buildCandidateSafeBrief until wave 37, which is how the two agendas were free
  *  to disagree about the role line they name. */
 function entryBriefContext(entry: PipelineEntry) {
-  const job = entry.jobId ? getJob(entry.jobId) : null;
+  const job = entry.jobId ? getJob(entry.jobId, entry.workspaceId) : null;
   return jobBriefContext(job, entry.jobTitle || job?.title || "the role", entry.locale);
 }
 

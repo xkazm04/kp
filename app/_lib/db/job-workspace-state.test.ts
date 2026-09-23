@@ -67,9 +67,9 @@ test("case 1: one team closing a corpus role closes it for that team only; the s
   assert.equal(baseRow("ov-close").status, null, "the shared row's own status is still NULL");
   // The public apply door resolves the DEFAULT team (getJobWorkspace folds a NULL owner
   // to it), so A's close does not shut it — only the default team's own close would.
-  assert.equal(getJobStatus("ov-close"), null, "the apply door still reads the role as live");
+  assert.equal(getJobStatus("ov-close", DEFAULT_WORKSPACE_ID), null, "the apply door still reads the role as live");
   assert.equal(closeRoleIfOpen("ov-close", DEFAULT_WORKSPACE_ID), true);
-  assert.equal(getJobStatus("ov-close"), "closed", "the default team's close is what shuts the public door");
+  assert.equal(getJobStatus("ov-close", DEFAULT_WORKSPACE_ID), "closed", "the default team's close is what shuts the public door");
   assert.equal(inCorpus("ov-close", B), true, "and B is still unaffected");
 });
 
@@ -142,7 +142,7 @@ test("case 7: a legacy corpus row closed before the overlay reads closed for eve
     assert.equal(inCorpus("ov-legacy-closed", ws), false, `${ws} reads the base 'closed'`);
     assert.equal(classifyPublish("ov-legacy-closed", ws).wasClosed, true);
   }
-  assert.equal(getJobStatus("ov-legacy-closed"), "closed");
+  assert.equal(getJobStatus("ov-legacy-closed", DEFAULT_WORKSPACE_ID), "closed");
   assert.equal(overlayRows("ov-legacy-closed"), 0, "the base value is kept, never guessed into one team's overlay");
 });
 

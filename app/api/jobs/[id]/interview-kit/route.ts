@@ -52,7 +52,7 @@ const MAX_KIT_BODY_BYTES = 64 * 1024;
 /** The job this request is allowed to act on, or null. One resolver for all three verbs
  *  so the existence check and the visibility predicate can never come apart. */
 function visibleJob(id: string, ws: string) {
-  const job = getJob(id);
+  const job = getJob(id, ws);
   return job && jobVisibleToWorkspace(id, ws) ? job : null;
 }
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Ownership, not just visibility: authoring a role's kit is a lifecycle write, and
     // this is the same gate /publish and /close use (canWriteJobLifecycle — which also
     // encodes the decision that a shared corpus role is adoptable by every tenant).
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !canWriteJobLifecycle(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
     // AFTER the cheap refusals, BEFORE the task is accepted: a refused call must cost
     // nothing, so it must neither consume the budget nor be masked by it.
@@ -123,7 +123,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   try {
     const { id } = await context.params;
     const ws = await currentWorkspace();
-    if (!canWriteJobLifecycle(id, ws) || !getJob(id)) return jsonRefusal("JOB_NOT_FOUND", 404);
+    if (!canWriteJobLifecycle(id, ws) || !getJob(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
 
     const body = await readJsonWithLimit<{ kit?: unknown }>(request, MAX_KIT_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_KIT_BODY_BYTES });

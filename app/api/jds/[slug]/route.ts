@@ -132,7 +132,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // winnability coach's "+N eligible") answered the OLD text.
     let jobResynced = false;
     const jobId = jdJobId(slug);
-    if (getJob(jobId)) {
+    if (getJob(jobId, ws)) {
       try {
         const { job } = await ingestJobAd(fields.body, jobId);
         // The re-parse reads the pay figure out of the edited WORDING, and
@@ -196,7 +196,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
     // client-side categorizer reads a status-less row as merely "analysis-only". The
     // authority on "can a candidate apply to this right now" is one function, and
     // this door asks it rather than re-deriving the answer.
-    const job = getJob(jdJobId(slug));
+    const job = getJob(jdJobId(slug), ws);
     if (job && isJobOpenForApplications(job.status ?? null)) {
       return jsonRefusal("JD_LIVE_CANNOT_DELETE", 409);
     }

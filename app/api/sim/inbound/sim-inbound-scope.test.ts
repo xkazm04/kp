@@ -44,11 +44,13 @@ test("the sim inbound route derives its write target from simCvIntakeTarget", ()
   // pinned internally to the default workspace, which stranded every other team's demo
   // on a board they could not see; requiring the second argument here is what stops
   // that from being reintroduced.
+  assert.match(src, /const ws = await currentWorkspace\(\);/, "the caller's team is read from the session");
   assert.match(
     src,
-    /simCvIntakeTarget\(job, await currentWorkspace\(\)\)/,
+    /simCvIntakeTarget\(job, (?:await currentWorkspace\(\)|ws)\)/,
     "the target is derived from the real job AND the caller's own workspace"
   );
+  assert.doesNotMatch(src, /simCvIntakeTarget\(job\)/, "never the single-argument, default-pinned form");
 });
 
 test("the applicant is filed at the board's ENTRY column, resolved by role", () => {

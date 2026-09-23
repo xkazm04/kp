@@ -39,9 +39,13 @@ export async function POST(request: NextRequest) {
     const jobId = String(form.get("jobId") ?? "");
     if (!jobId) return jsonRefusal("SIM_JOB_REQUIRED", 400);
 
-    const job = getJob(jobId);
+    // The CALLER's team: the sim files into it (below), so it is also whose lifecycle
+    // decides whether the role still takes applicants - a corpus role one team closed
+    // is closed for that team only (job_workspace_state).
+    const ws = await currentWorkspace();
+    const job = getJob(jobId, ws);
     if (!job) return jsonRefusal("SIM_JOB_NOT_FOUND", 404);
-    if (!isJobOpenForApplications(getJobStatus(job.id))) return jsonRefusal("SIM_ROLE_CLOSED", 410);
+    if (!isJobOpenForApplications(getJobStatus(job.id, ws))) return jsonRefusal("SIM_ROLE_CLOSED", 410);
 
     // Parse the CV with the same extractor the CV pipeline uses (PDF/DOCX/TXT/MD).
     const extracted = await extractUploadedText(file, request.signal);
@@ -69,7 +73,7 @@ export async function POST(request: NextRequest) {
     // way to purge the one they did create. The marker keeps the demo CV purgeable by
     // resetSim and excluded from the real analytics funnel/hire-rate; the match is
     // still built against the real job.
-    const target = simCvIntakeTarget(job, await currentWorkspace());
+    const target = simCvIntakeTarget(job, ws);
     const result = await ingestCvApplication({
       job,
       name: name || deriveNameFromFile(file.name),

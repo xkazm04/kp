@@ -90,7 +90,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const ws = await currentWorkspace();
     // Ownership, the gate /publish and PUT use: a team rehearses exactly the roles it
     // may author for.
-    const job = getJob(id);
+    const job = getJob(id, ws);
     if (!job || !canWriteJobLifecycle(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
 
     const body = await readJsonWithLimit<{ kitId?: unknown }>(request, MAX_REHEARSE_BODY_BYTES, {});

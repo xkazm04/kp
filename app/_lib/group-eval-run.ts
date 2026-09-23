@@ -517,7 +517,7 @@ export async function runGroupEval(
   const comparable = hasComparableCohort(input.length);
 
   // Full deterministic breakdown per candidate (best-effort; needs the role's job).
-  const job = jobId ? getJob(jobId) : null;
+  const job = jobId ? getJob(jobId, workspaceId) : null;
   // Which AI stages did not produce their result (see DegradedStage). Collected as
   // the run goes and persisted on the payload, so "the deterministic fallback" is a
   // stated fact rather than something the reader has to infer from missing prose.

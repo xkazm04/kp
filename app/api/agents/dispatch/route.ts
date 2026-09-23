@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- The shipped job path ----------------------------------------------
-    const job = getJob(jobId);
+    const job = getJob(jobId, ws);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     // Dispatch idempotency: one live agent per job — a double-click or a retried

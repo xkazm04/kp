@@ -146,7 +146,7 @@ export default async function JdDetailPage({
   // retired. Do not wait on a job-status write; archived_at is the page's own fact.
   const applyOpen = isPublicJdApplyOpen({
     hasLinkedJob: linkedJob !== null,
-    jobOpenForApplications: isJobOpenForApplications(getJobStatus(jobId)),
+    jobOpenForApplications: isJobOpenForApplications(getJobStatus(jobId, getJobWorkspace(jobId))),
     archivedAt: jd.archived_at,
   });
 
