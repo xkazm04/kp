@@ -131,12 +131,17 @@ Activity, and is counted as `failedCalls`; every money-shaped read names
 | `listLlmActivity` (Activity tab) | **unfiltered** — this is the surface that has to show the failure |
 
 `reason` is a closed-vocabulary **code**, never a provider message (a message can echo
-the prompt, and this is a durable column): `monitor.FAILURE_REASONS`
-(`provider_timeout` / `unparseable_output` / `provider_error`),
-`automation.DEGRADATION_REASONS`, or the availability-gate words below. Python reduces
-a `describe_fallback` prose line to `provider_error` before writing
-(`monitor._reason_code`) and `parseLedgerLine` re-asserts the token shape at the trust
-boundary. A line whose `outcome` is neither literal is dropped whole rather than
+the prompt, and this is a durable column): `FAILURE_REASONS`
+(`provider_timeout` / `unparseable_output` / `provider_error`), `DEGRADATION_REASONS`
+(those three plus `unusable_output`), or the availability-gate words below. Both
+vocabularies and their classifiers live once, in `pipeline/jobfit/llm/degradation.py`
+(`FAILURE_REASONS` is a checked strict subset of `DEGRADATION_REASONS`;
+`monitor.FAILURE_REASONS` and `automation.DEGRADATION_REASONS` are aliases). Python
+reduces a reason before writing (`degradation.reason_code`, aliased as
+`monitor._reason_code`): a `"<code>: <prose>"` line whose leading word is a declared
+degradation code keeps the code, and any other prose line (a `describe_fallback`
+`"<Type>: <message>"`) collapses to `provider_error`. `parseLedgerLine` re-asserts
+the token shape at the trust boundary. A line whose `outcome` is neither literal is dropped whole rather than
 guessed into a money column; an absent `outcome` key reads `'ok'`, which is what every
 pre-2026-09-05 line meant.
 
@@ -650,9 +655,12 @@ in the `llm_usage.reason` column (see "A failed attempt is visible without being
 billable" above), so an operator can ask why a call degraded *later* and not only in
 the request that degraded. The Python CLI seats (`reasoning`, `automation`,
 `campaign`, `agentfit`, `group_compare`, `devcase`, `repo_scan`) all thread it, and
-`automation_cli` / `campaign_cli` additionally thread the MID-CALL descent their
-engine classified (`provider_timeout`, `unparseable_output`, `unusable_output`,
-`provider_error`) — the descents that happen after the availability gate said yes.
+`automation_cli`, `campaign_cli`, `devcase_cli` and `agentfit_cli` additionally thread
+the MID-CALL descent their engine classified (`provider_timeout`,
+`unparseable_output`, `unusable_output`, `provider_error`) — the descents that happen
+after the availability gate said yes. For devcase and agentfit that code is the
+`fallbackCode` `provenance.generate_with_fallback` stamps beside its prose
+`fallbackReason`, one per step, popped off the artifact with it.
 
 Clicking a row opens `ActivityDetailModal.tsx` — the ledger facts (including
 cached tokens, which the table has no room for), then the linked run's output
@@ -961,14 +969,10 @@ locales.
   `app/_lib/voice/minute-prices.ts`; its OpenAI key does not use
   `resolveProviderKey`.
 - Per-tenant `llm_usage` attribution not built (global ledger today).
-- `devcase_cli` records the availability-gate reason on its deterministic ledger
-  lines but **not** the per-STEP mid-call reason: those are free-form
-  `describe_fallback` strings kept for the envelope's `fallbackReason` block, and
-  `monitor._reason_code` collapses any prose to `provider_error` rather than storing
-  a provider message in a durable column. A devcase step that timed out is therefore
-  ledger-visible as `provider_error`, not as `provider_timeout`. Classifying per step
-  needs `provenance.generate_with_fallback` to carry a subtype alongside its prose,
-  which is a change to that module's contract, not to the ledger.
+- Of the `generate_with_fallback` callers, only `devcase_cli` and `agentfit_cli`
+  put the per-step mid-call code on their ledger lines. `repo_scan_cli` passes only
+  the availability descent, and the intake / jobseeker CLIs write no deterministic
+  line at all.
 - Neither `outcome` nor `reason` is RENDERED yet. The Activity tab and the Models
   usage panel read them (`LlmActivityRow.outcome`/`.reason`,
   `UseCaseTotals.failedCalls`) but show no column for either; surfacing them is new

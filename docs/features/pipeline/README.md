@@ -359,8 +359,10 @@ strands nobody, and moving them would rewrite closed history.
    coercion discarded the model's payload now reports `source=deterministic`
    (`_generate`'s truthful-source rule), and — since `source` alone cannot say
    *why* the template served — `_generate` also records the descent reason
-   (`automation.DEGRADATION_REASONS`: `provider_timeout`, `unparseable_output`,
-   `unusable_output`, `provider_error`). `automation_cli` passes
+   (`automation.DEGRADATION_REASONS`, an alias of the one vocabulary in
+   `pipeline/jobfit/llm/degradation.py`: `provider_timeout`, `unparseable_output`,
+   `unusable_output`, `provider_error`; `rematch` names a coerced-away rationale
+   `unusable_output` too). `automation_cli` passes
    `descent or automation.take_degradation_reason()` to `emit_deterministic`, so
    an operator reading the usage ledger can tell a keyless install from a
    provider that answered badly — two zero-cost lines that used to look

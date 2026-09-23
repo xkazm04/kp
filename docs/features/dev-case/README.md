@@ -355,6 +355,20 @@ template builder that raises leaves the comparison unprovable, which keeps the `
 rather than inventing a degradation. Pinned by `TestTemplateForTemplateIsNotLlm` in
 `pipeline/jobfit/tests/test_devcase_provenance.py`.
 
+**Every descent of that runner carries a ledger code.** Beside the prose `fallbackReason`
+the runner stamps `fallbackCode`, one word of `DEGRADATION_REASONS`
+(`pipeline/jobfit/llm/degradation.py`): `provider_timeout` / `unparseable_output` /
+`provider_error` for a call that raised (read off `LLMError.subtype`), `unusable_output`
+when the answer arrived and coercion kept nothing — including a coercer that RAISES on it,
+which used to share one `try` with the call and be filed like a transport failure.
+`collect_fallback_reasons(pop=True)` pops both stamps (the codes ride on its `.codes`), so the
+code never reaches a frozen seat or the envelope; `devcase_cli._emit` hands each step's code to
+`emit_deterministic` when the availability gate had no descent to report. Before this a step
+that degraded after the gate said yes wrote a deterministic ledger line with no reason at all.
+The runner is drilled by `fault_eval`'s fallback-runner seam family
+(`docs/development/fault-injection.md`); pinned by `TestCodedDescent` in
+`test_devcase_provenance.py`.
+
 `provenance.py` also owns the *other* half of that contract, used outside this module:
 **`defuse_fence_markers`**. `fenced_untrusted` neutralizes its payload by JSON-encoding it
 (`json.dumps` turns the newlines a standalone marker needs into `\n` escapes), which is
