@@ -701,7 +701,7 @@ State. `candidate/state/useCandidateState.ts` composes five single-concern hooks
 
 | Hook | Owns |
 | --- | --- |
-| `useCandidateBundle` | the one-call `GET /api/pipeline/[id]/timeline` bundle (re-pulled on an in-place stage change), `bundleFailed`, the merged history |
+| `useCandidateBundle` | the one-call `GET /api/pipeline/[id]/timeline` bundle run through `candidateBundle.ts` (parser, sequenced SWR reducer, `invalidate()` / `retry()`), `bundleFailed`, the merged history |
 | `useCandidateNote` | the note: board seed → server-truth hydration → 600ms debounced `set_notes` → keepalive flush / single board refresh on close (`pipelineDrawerNote.ts` decides) |
 | `useCandidateTask` | the AI task through the background-task system, its render-phase completion, the result-lost toast, the reload an applied outcome owes |
 | `useCandidateLinks` | the voice-screen and self-scheduling token links, revoke, and their gate |
@@ -1478,6 +1478,26 @@ fetch used to leave the panel claiming it was working forever. The candidate mod
 sets `bundleFailed` on **both** give-up paths (a network throw and a non-OK response) and
 passes it as `loadFailed`; the panel's existing failed branch renders
 `pipeline.drawer.consent.loadFailed`. No second fetch was added.
+
+**The bundle knows it is stale.** `candidate/state/candidateBundle.ts` (pure, pinned by
+`candidateBundle.test.ts`) owns the bundle's state: `parseCandidateBundle` turns a
+non-object body into a failed load and defaults every section (including the sealed
+`decisions` trail, now carried as `st.decisions`); `bundleReducer` moves
+`loading → ready`, re-pulls as `refreshing` with the last-good story still painted, and
+settles a failed re-pull as `stale` (the story and the consent snapshot stay). Every pull
+carries a sequence number, so an older response never overwrites a newer one. Only a
+**first-load** failure is `failed` — that alone sets `bundleFailed`, and the consent panel
+then offers **Try again** (`common.retry`), which re-pulls the bundle through `retry()`
+(standalone, it re-fires the panel's own single fetch via a `reloadTick`).
+
+The modal's own writes re-pull the story through one declared map,
+`invalidatesBundle`: an applied AI-task outcome that wrote a row (scorecard, offer,
+held-for-review, rematch, a drafted rejection or prep, an outreach sent or suppressed), a
+successfully minted self-scheduling or voice link (its invite letter and timeline row),
+and a letter resent from the Activity tab (`PipelineCommsList` `onResent`). Outcomes that
+wrote nothing (`advisory`, `no_alternative`, `already_rematched`, `already_sent`) and those
+that moved the stage (`advanced`, `auto_ratified` — the stage change already re-pulls) do
+not; an undeclared outcome re-pulls, so a new one fails toward fresh.
 
 Pinned by `drawerCommsTruth.test.ts` (the predicate's rules incl. the no-relay and
 unknown-capability cases, an over-correction guard that a queued-but-addressable message
