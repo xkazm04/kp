@@ -12,10 +12,11 @@
 // The order below is the order the effects used to register in (bundle first, so
 // the note can reconcile with it). The flat return keeps the tabs' `st.*` reads.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { Entry as BoardEntry } from "@/app/features/shared/pipelineTypes";
 import type { Entry } from "../../PipelineCandidateDrawerTypes";
+import { invalidatesBundle } from "./candidateBundle";
 import { useCandidateBundle } from "./useCandidateBundle";
 import { useCandidateEdits } from "./useCandidateEdits";
 import { useCandidateLinks } from "./useCandidateLinks";
@@ -42,6 +43,29 @@ export function useCandidateState({
   const task = useCandidateTask({ entry, onChanged });
   const links = useCandidateLinks({ entry, axis });
   const edits = useCandidateEdits({ entry, onChanged, onClose, onOpenEntry });
+
+  // The modal's OWN writes re-pull the story (candidateBundle.ts `invalidatesBundle`
+  // is the one declared answer per write). Each is keyed on a fresh object per
+  // completion - a task result, a minted link's payload - so one write, one re-pull.
+  const { invalidate } = bundle;
+  const { result: taskResult } = task;
+  useEffect(() => {
+    if (taskResult && invalidatesBundle({ kind: "task", applied: taskResult.applied })) invalidate();
+  }, [taskResult, invalidate]);
+  // useTokenLink sets `data` only on a successful mint (and clears it when a new one
+  // starts), so non-null data IS "minted": the invite letter and the timeline row exist.
+  const schedMinted = links.sched.data;
+  useEffect(() => {
+    if (invalidatesBundle({ kind: "link", flow: "schedule", minted: schedMinted !== null })) invalidate();
+  }, [schedMinted, invalidate]);
+  const voiceMinted = links.voice.data;
+  useEffect(() => {
+    if (invalidatesBundle({ kind: "link", flow: "voice", minted: voiceMinted !== null })) invalidate();
+  }, [voiceMinted, invalidate]);
+  // A resend from the Activity tab's letter door (PipelineCommsList onResent).
+  const onLetterResent = () => {
+    if (invalidatesBundle({ kind: "resend" })) invalidate();
+  };
   // Opened from the interview outcome card; stacked over the modal.
   const [showTranscript, setShowTranscript] = useState(false);
 
@@ -57,6 +81,7 @@ export function useCandidateState({
     ...task,
     ...links,
     ...edits,
+    onLetterResent,
     showTranscript,
     setShowTranscript,
     cohortIndex,

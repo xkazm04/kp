@@ -32,7 +32,7 @@ export function CandidateActivityTab({
         ) : null}
         {st.humanSc ? <PipelineHumanScorecardCard humanSc={st.humanSc} /> : null}
         {/* W6-2 — what this candidate actually received, failed sends visible. */}
-        {hasComms && st.comms ? <PipelineCommsList comms={st.comms} consentStatus={st.consent?.consent.status ?? null} /> : null}
+        {hasComms && st.comms ? <PipelineCommsList comms={st.comms} consentStatus={st.consent?.consent.status ?? null} onResent={st.onLetterResent} /> : null}
         {nothingYet ? <p className="text-sm text-steel">{t("activityEmpty")}</p> : null}
       </div>
       <div className="min-w-0 space-y-3">

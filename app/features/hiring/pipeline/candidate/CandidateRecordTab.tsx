@@ -33,9 +33,10 @@ export function CandidateRecordTab({ entry, st }: { entry: Entry; st: CandidateS
       </div>
       <div className="min-w-0 space-y-4">
         {/* The consent snapshot rides the one-call bundle (view=), so the panel fires
-            no fetch of its own; loadFailed is the bundle's give-up signal, without
-            which a failed load left this GDPR panel "loading…" for ever. */}
-        <ConsentPanel key={entry.id} entryId={entry.id} view={st.consent} loadFailed={bundleFailed} />
+            no fetch of its own; loadFailed is the bundle's FIRST-load give-up (a failed
+            re-pull keeps the snapshot), without which a failed load left this GDPR
+            panel "loading…" for ever; onRetry re-pulls the bundle. */}
+        <ConsentPanel key={entry.id} entryId={entry.id} view={st.consent} loadFailed={bundleFailed} onRetry={st.retry} />
         <PipelineDrawerFooterLinks candidateId={entry.candidateId} />
       </div>
     </div>

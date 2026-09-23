@@ -129,15 +129,36 @@ test("a failed bundle load puts the consent panel into its real failed state", (
   const hook = readFileSync("app/features/hiring/pipeline/candidate/state/useCandidateBundle.ts", "utf8");
   const panel = readFileSync("app/features/hiring/pipeline/PipelineConsentPanel.tsx", "utf8");
   const record = readFileSync("app/features/hiring/pipeline/candidate/CandidateRecordTab.tsx", "utf8");
-  // The catch that used to reset ONLY history now also records the give-up.
-  assert.match(hook, /setBundleFailed\(true\)/);
-  assert.match(hook, /bundleFailed/);
-  // …the candidate modal's Record tab hands it to the panel…
+  // The give-up is the reducer's (candidateBundle.ts): a failed pull dispatches `fail`,
+  // and only a FIRST-load failure (no snapshot at all) reads as the panel's failure.
+  assert.match(hook, /dispatch\(\{ type: "fail", seq \}\)/);
+  assert.match(hook, /bundleFailed: consentFailed\(state\)/);
+  // …never the old wipe, which blanked a good history AND a good GDPR snapshot on a
+  // transient re-pull failure.
+  assert.doesNotMatch(hook, /setHistory\(\[\]\)/);
+  assert.doesNotMatch(hook, /setBundleFailed\(true\)/);
+  // …the candidate modal's Record tab hands it to the panel, with the bundle's retry…
   assert.match(record, /loadFailed=\{bundleFailed\}/);
+  assert.match(record, /onRetry=\{st\.retry\}/);
   // …and the panel's failed branch honours it, ahead of the loading branch.
   assert.match(panel, /failed \|\| loadFailed \?/);
   // And the one-call bundle stays one call: the panel must not gain a second fetch.
   assert.equal((panel.match(/fetch\(/g) ?? []).length, 1, "ConsentPanel must keep exactly its standalone fallback fetch");
+});
+
+test("the consent panel's give-up has a way out that re-fires the load that failed", () => {
+  const panel = readFileSync("app/features/hiring/pipeline/PipelineConsentPanel.tsx", "utf8");
+  assert.match(panel, /tCommon\("retry"\)/, "a give-up with no way out is a dead end");
+  // In the modal the bundle owns the load, so the Retry re-pulls the bundle…
+  assert.match(panel, /if \(onRetry\) \{\s*onRetry\(\);/);
+  // …standalone, it re-fires the panel's own (single) read.
+  assert.match(panel, /setReloadTick\(\(n\) => n \+ 1\)/);
+  assert.match(panel, /\[entryId, bundled, reloadTick\]/, "…and the effect depends on it, or the button does nothing");
+});
+
+test("an in-modal resend re-pulls the candidate's story", () => {
+  const activity = readFileSync("app/features/hiring/pipeline/candidate/CandidateActivityTab.tsx", "utf8");
+  assert.match(activity, /<PipelineCommsList[^>]*onResent=\{st\.onLetterResent\}/);
 });
 
 // --- the quality-of-hire card must not VANISH on a failed read ---------------------

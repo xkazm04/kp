@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import type { ConsentStatus } from "@/app/_lib/consent";
 
@@ -38,18 +39,25 @@ export function ConsentPanel({
   entryId,
   view: bundled,
   loadFailed,
+  onRetry,
 }: {
   entryId: string;
   view?: ConsentView | null;
   loadFailed?: boolean;
+  /** Re-pulls whatever owns the load (the modal passes the bundle's retry). Absent in
+   *  standalone use, where the Retry re-fires this panel's own read instead. */
+  onRetry?: () => void;
 }) {
   const t = useTranslations("pipeline.drawer.consent");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   // REC-10 — "Expiry reminder sent" is only claimed when a relay can deliver
   // one; without it the reminder is a terminal local-outbox row.
   const relayConfigured = useDeliveryCapability();
   const [fetched, setFetched] = useState<ConsentView | null>(null);
   const [failed, setFailed] = useState(false);
+  // A give-up with no way out is a dead end: the Retry bumps this, the read re-fires.
+  const [reloadTick, setReloadTick] = useState(0);
   // Prefer the bundled snapshot; only the fallback path populates `fetched`.
   const view = bundled ?? fetched;
 
@@ -65,12 +73,13 @@ export function ConsentPanel({
         if (!live) return;
         if (p.error) throw new Error(p.error);
         setFetched(p as ConsentView);
+        setFailed(false);
       })
       .catch(() => live && setFailed(true));
     return () => {
       live = false;
     };
-  }, [entryId, bundled]);
+  }, [entryId, bundled, reloadTick]);
 
   const fmt = (iso: string | null) =>
     iso ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(iso)) : "—";
@@ -115,7 +124,23 @@ export function ConsentPanel({
         <ShieldCheck size={13} /> {t("title")}
       </p>
       {failed || loadFailed ? (
-        <p className="mt-2 text-sm text-steel">{t("loadFailed")}</p>
+        <>
+          <p className="mt-2 text-sm text-steel">{t("loadFailed")}</p>
+          <button
+            type="button"
+            onClick={() => {
+              if (onRetry) {
+                onRetry();
+                return;
+              }
+              setFailed(false);
+              setReloadTick((n) => n + 1);
+            }}
+            className={`${BTN_SECONDARY} mt-2 h-8 px-2.5 text-sm`}
+          >
+            {tCommon("retry")}
+          </button>
+        </>
       ) : !view ? (
         <p className="mt-2 text-sm text-steel">{t("loading")}</p>
       ) : (
