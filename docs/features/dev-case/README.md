@@ -520,7 +520,7 @@ can conclude but never the candidate's score.
 Pinned by `app/_lib/github/client.test.ts`, `app/_lib/repo-snapshot.test.ts`,
 `app/_lib/devcase-authenticity.test.ts` and `app/_lib/devcase-run-unreadable.test.ts`.
 The process-trace chip in `DevEvalPanelProcessTrace.tsx` is tri-state to match
-(`decisionsLogChip`, `DevEvalPanelProcessTrace.chip.ts`): `true` is "kept" (moss),
+(`decisionsLogChip` in `DevHelpers.ts`): `true` is "kept" (moss),
 `false` is "missing" (coral, a read tree without the log), and `null` or an absent
 field is a neutral "could not read" chip (`bg-paper text-steel`) with a tooltip,
 `devcase.processTrace.decisionsLogUnread(+Title)`. Pinned by

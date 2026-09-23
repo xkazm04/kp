@@ -1250,7 +1250,7 @@ candidate modal's frozen evidence card
 `unverifiedClaims` as "Not seen in public repos:" in a neutral `text-steel` label,
 with a tooltip that public work can confirm a skill but never rule one out, and
 drops any skill the same review evidenced (`notSeenInPublicRepos` in
-`app/features/hiring/pipeline/pipelineGithubEvidence.ts`). It used to sit under an
+`app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts`). It used to sit under an
 amber "Unverified claims:". Copy: `pipeline.drawer.githubNotSeen(+Title)`; pinned by
 `pipelineGithubEvidence.test.ts`, which also bans "unverified"/"claim" wording in
 all four locales.
