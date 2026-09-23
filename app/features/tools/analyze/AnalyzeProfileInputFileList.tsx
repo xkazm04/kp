@@ -2,9 +2,9 @@
 
 // The populated (files.length > 0) CV variant list — row per file with
 // replace/remove, plus the "add another variant" affordance — split out of
-// AnalyzeProfileInput.tsx. The empty-state drop zone stays in the parent (it
-// carries the ownedDropZoneProps/dropCarveout markers some tests read as text).
-import type { ReactNode } from "react";
+// AnalyzeProfileInput.tsx. It renders no overlay and no error row of its own: the
+// drop-anywhere overlay, its live region and every refusal belong to the form that
+// hosts the intake router (challenge-r03 cv-analyze-intake/A).
 import { FileText, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ACCEPT_EXTENSIONS } from "@/app/_lib/upload-constraints";
@@ -14,9 +14,6 @@ export function AnalyzeProfileInputFileList({
   files,
   maxVariants,
   isWindowDragging,
-  dragOverlay,
-  dragAnnouncement,
-  errorRow,
   onAddFiles,
   onReplaceFile,
   onRemove,
@@ -24,14 +21,8 @@ export function AnalyzeProfileInputFileList({
   files: File[];
   maxVariants: number;
   isWindowDragging: boolean;
-  dragOverlay: ReactNode;
-  /** The polite live region announcing that the page is a drop target. Always in
-   *  the tree (empty when idle) — a region mounted with its content is not
-   *  reliably announced — so it is passed in rather than rendered conditionally. */
-  dragAnnouncement: ReactNode;
-  errorRow: ReactNode;
   /** Batch intake — the "add another variant" picker accepts a multi-selection,
-   *  so the parent's single cap/gate path decides how many of them fit. */
+   *  and the form's router decides how many of them fit and names the rest. */
   onAddFiles: (files: File[]) => void;
   onReplaceFile: (index: number, file: File) => void;
   onRemove: (index: number) => void;
@@ -41,8 +32,6 @@ export function AnalyzeProfileInputFileList({
 
   return (
     <div className="space-y-2">
-      {dragOverlay}
-      {dragAnnouncement}
       {files.map((file, index) => (
         <div
           key={`${file.name}-${index}`}
@@ -106,8 +95,8 @@ export function AnalyzeProfileInputFileList({
           </label>
           {/* `multiple`: with room for more than one variant left, picking two
               files at once used to keep the first and drop the rest silently —
-              while this very label reads "Add variant (1/3)". The parent applies
-              the cap and surfaces the inline message for any overflow. */}
+              while this very label reads "Add variant (1/3)". The router applies
+              the cap and names any file past it. */}
           <input
             id={`profile-file-${files.length}`}
             type="file"
@@ -123,7 +112,6 @@ export function AnalyzeProfileInputFileList({
       ) : (
         <p className="text-sm text-steel">{t("variantLimitReached")}</p>
       )}
-      {errorRow}
     </div>
   );
 }

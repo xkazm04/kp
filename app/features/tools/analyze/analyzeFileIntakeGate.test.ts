@@ -1,14 +1,16 @@
-// Guards the "every File goes through one gate" contract (idea-c9abc53f).
+// Guards the "every File goes through one gate" contract (idea-c9abc53f), now held
+// by the intake router (challenge-r03 cv-analyze-intake/A).
 //
-// The Analyze workspace has several File entry points — the empty drop zone, the
-// Replace input, the Add-variant input, and the drop-anywhere overlay. They used
-// to validate inconsistently: one path called the state mutator directly, so a
-// 20 MB PNG used to Replace a CV slipped in and only failed server-side. They now
-// all route through `useFileAccept`'s `accept(file, commit)`, which runs the
-// single `acceptUpload` gate. There is no render/DOM test layer in this repo, so
-// this is a source-level guard: it asserts the raw File->state mutators
-// (onFileChange / onAdd / onReplace) are never *invoked* outside an accept()
-// continuation. If someone reintroduces a direct call, this fails immediately.
+// The Analyze workspace has several File entry points — a drop anywhere, a drop on
+// a labeled zone, the empty CV picker, Add-variant, Replace, the sample CV, a
+// pasted CV. They used to validate inconsistently (a 20 MB PNG used to Replace a
+// CV slipped in and only failed server-side), then all went through a per-component
+// `useFileAccept` gate — which still let the drop and the click diverge, because
+// each component decided for itself. The decision now lives in ONE pure plan
+// (`planDrop` / `planSingleSlot` in analyzeDropRouting.ts, which runs
+// `acceptUpload` per file), and ONE window listener hosted by the form feeds it.
+//
+// There is no render/DOM test layer in this repo, so these are source-level guards.
 //
 // Runner: Node's built-in test runner with type stripping (no extra deps).
 //   npm run test:unit
@@ -21,88 +23,71 @@ function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 }
 
-test("AnalyzeFileDropZone routes every File through the accept() gate", () => {
-  const src = read("./AnalyzeFileDropZone.tsx");
-  assert.match(src, /useFileAccept/, "must intake via the shared useFileAccept gate");
-  assert.doesNotMatch(src, /validateUpload/, "must not reach for the old per-component validator");
-  // onFileChange is this component's only File->state mutator. Once gated it is
-  // passed to accept() by reference (`accept(next, onFileChange)`), so a bare
-  // `onFileChange(...)` call means a path skipped acceptUpload — the exact
-  // Replace-input bypass this requirement removed.
-  assert.equal(
-    src.match(/onFileChange\s*\(/g),
-    null,
-    "onFileChange is called directly somewhere — that intake path bypasses acceptUpload",
-  );
-});
-
-test("AnalyzeProfileInput routes every File through the accept() gate", () => {
-  const src = read("./AnalyzeProfileInput.tsx");
-  assert.match(src, /useFileAccept/, "must intake via the shared useFileAccept gate");
-  assert.doesNotMatch(src, /validateUpload/, "must not reach for the old per-component validator");
-  // onAdd covers the empty drop, click-select, Add-variant, sample-CV and
-  // drop-anywhere paths; onReplace covers the per-row swap. Either may be passed
-  // to accept() BY REFERENCE or called INSIDE its continuation — batch intake
-  // needs the continuation form, because it sets a `committed` flag to tell a
-  // gate rejection apart from a success and stop the loop right there.
-  //
-  // So this is no longer "onAdd is never called directly". That phrasing encoded
-  // a pass-by-reference assumption, and it went stale the moment batch intake
-  // landed: it failed on a call that WAS correctly gated. The invariant it was
-  // always reaching for is that no mutator call survives OUTSIDE an accept()
-  // continuation — so strip every accept(...) call expression and assert nothing
-  // is left. A genuinely ungated call still fails immediately.
-  const outsideGate = stripAcceptCalls(src);
-  for (const mutator of ["onAdd", "onReplace"]) {
-    assert.equal(
-      outsideGate.match(new RegExp(String.raw`\b${mutator}\s*\(`, "g")),
-      null,
-      `${mutator} is called outside an accept() continuation — that intake path bypasses acceptUpload`,
-    );
-  }
-});
-
-// Remove every `accept( … )` call expression, matching parens so a nested call or
-// an arrow body is consumed whole. What remains is the code that runs WITHOUT the
-// gate, which is exactly what the assertion above must be blind to.
-function stripAcceptCalls(src: string): string {
-  const CALL = "accept(";
-  let out = "";
-  let i = 0;
-  for (;;) {
-    const at = src.indexOf(CALL, i);
-    if (at === -1) return out + src.slice(i);
-    // `useFileAccept(`, `onAccept(` and friends also end in "accept(" — require a
-    // non-identifier char before it so only the bare call is stripped.
-    if (at > 0 && /[A-Za-z0-9_$]/.test(src[at - 1])) {
-      out += src.slice(i, at + CALL.length);
-      i = at + CALL.length;
-      continue;
-    }
-    out += src.slice(i, at);
-    let depth = 0;
-    let j = at + CALL.length - 1;
-    for (; j < src.length; j += 1) {
-      if (src[j] === "(") depth += 1;
-      else if (src[j] === ")" && --depth === 0) {
-        j += 1;
-        break;
-      }
-    }
-    assert.equal(depth, 0, "unbalanced accept( … ) — the stripper cannot vouch for this file");
-    i = j;
-  }
+/** Source with comments removed, so prose ABOUT an old shape cannot satisfy or
+ *  trip an assertion about code. */
+function code(rel: string): string {
+  return read(rel).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 }
+
+const ANALYZE_SURFACES = [
+  "./AnalyzeForm.tsx",
+  "./AnalyzeProfileInput.tsx",
+  "./AnalyzeProfileInputFileList.tsx",
+  "./AnalyzeFileDropZone.tsx",
+  "./AnalyzeFormOptionalColumns.tsx",
+];
+
+// ── Case 8: exactly one window-level drop listener, counted by the shared arithmetic
+test("exactly ONE window-level drop listener serves the Analyze form, hosted by AnalyzeForm", () => {
+  const callers = ANALYZE_SURFACES.filter((rel) => /\buseGlobalFileDrag\s*\(/.test(code(rel)));
+  assert.deepEqual(callers, ["./AnalyzeForm.tsx"], "useGlobalFileDrag must be called from AnalyzeForm.tsx only");
+  assert.equal((code("./AnalyzeForm.tsx").match(/\buseGlobalFileDrag\s*\(/g) ?? []).length, 1);
+
+  const hook = code("./useAnalyzeGlobalFileDrag.ts");
+  assert.match(hook, /nextDragDepth\(/, "the window hook derives its depth from the shared reducer");
+  assert.doesNotMatch(hook, /\bdragCounter\b/, "no inline counter beside the shared arithmetic");
+  assert.doesNotMatch(hook, /\+=\s*1|-=\s*1|\+\+|--/, "no hand-rolled increment/decrement");
+  assert.match(hook, /resolveDropZone\(/, "the window drop resolves a zone id, not an owned/unowned bit");
+  assert.equal((hook.match(/addEventListener\("drop"/g) ?? []).length, 1);
+});
+
+test("no zone component commits a dropped file itself — zones keep only the counted highlight", () => {
+  const highlight = code("./useAnalyzeDropZoneHighlight.ts");
+  assert.doesNotMatch(highlight, /dataTransfer\.files\?\.\[0\]/, "the zone hook no longer commits files[0]");
+  const profile = code("./AnalyzeProfileInput.tsx");
+  assert.doesNotMatch(profile, /onDrop=\{/, "the empty CV zone no longer overrides the hook's onDrop by spread order");
+  assert.doesNotMatch(profile, /dataTransfer/, "the CV column reads no drop payload");
+});
+
+test("every Analyze File entry point plans through the router, never through a per-component gate", () => {
+  for (const rel of ANALYZE_SURFACES) {
+    const src = code(rel);
+    assert.doesNotMatch(src, /useFileAccept|acceptUpload|validateUpload/, `${rel} must not keep its own gate`);
+  }
+  // The form applies the plan it is handed; the router module owns the gate.
+  assert.match(code("./useAnalyzeFileAccept.ts"), /planDrop\(/, "the form's intake applies planDrop");
+  assert.match(code("./analyzeDropRouting.ts"), /acceptUpload\(/, "the plan runs acceptUpload per file");
+  // The raw CV mutators are reached only through the intake, never from a column.
+  for (const rel of ["./AnalyzeProfileInput.tsx", "./AnalyzeProfileInputFileList.tsx"]) {
+    assert.doesNotMatch(code(rel), /\bonAdd\s*\(|addCvFile\s*\(/, `${rel} adds a CV outside the router`);
+  }
+  // The attached JD/company card's picker and drop go the same way.
+  const zone = code("./AnalyzeFileDropZone.tsx");
+  assert.match(zone, /planSingleSlot\(/, "a standalone zone (the /me import) still plans its own single slot");
+});
+
+test("replacing the JD by any path detaches the saved-JD slug", () => {
+  const intake = code("./useAnalyzeFileAccept.ts");
+  const jdCommit = intake.slice(intake.indexOf("plan.jd"), intake.indexOf("plan.company"));
+  assert.match(jdCommit, /setJobDescriptionFile\(/);
+  assert.match(jdCommit, /setSelectedJdSlug\(null\)/, "the router's JD commit keeps the picker's slug rule");
+});
 
 test("upload-constraints exports the paired client + server gates, no divergent duplicate", () => {
   const src = read("../../../_lib/upload-constraints.ts");
   assert.match(src, /export function acceptUpload/, "acceptUpload must be the exported client gate");
   // The server twin (idea-5b61d729): one shared MIME+size gate both upload
-  // routes call, instead of each route re-implementing it inline. Its presence
-  // is what lets the two endpoints stay paired here rather than drift.
+  // routes call, instead of each route re-implementing it inline.
   assert.match(src, /export function validateUploadServer/, "validateUploadServer must be the exported server gate");
-  // No second *client* validator (the old per-component `validateUpload`) to
-  // drift from acceptUpload. The trailing `(` keeps this from matching the
-  // legitimate server gate validateUploadServer.
   assert.doesNotMatch(src, /export function validateUpload\(/, "validateUpload must not be a second client gate");
 });

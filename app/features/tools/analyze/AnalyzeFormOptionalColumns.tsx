@@ -10,9 +10,17 @@ import { AnalyzeFileDropZone } from "./AnalyzeFileDropZone";
 import { AnalyzePasteRow } from "./AnalyzePasteRow";
 import { AnalyzeSavedJdPicker } from "./AnalyzeSavedJdPicker";
 import { shouldNoteBlindGithubSuppressed } from "./analyzeGithubRunPolicy";
+import type { DropZone } from "./analyzeDropRouting";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
 
-export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState }) {
+export function AnalyzeFormOptionalColumns({
+  state,
+  onIntake,
+}: {
+  state: AnalyzeFormState;
+  /** The form's intake router: a picker selection is planned exactly like a drop. */
+  onIntake: (zone: DropZone, files: File[]) => void;
+}) {
   const t = useTranslations("analyze");
   const { refs, inputs, setters, handlers, flags, statuses, library } = state;
   const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
@@ -30,10 +38,10 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
           inputId="job-description-file"
           inputRef={refs.jobInputRef}
           file={inputs.jobDescriptionFile}
-          onFileChange={(file) => {
-            setJobDescriptionFile(file);
-            setSelectedJdSlug(null);
-          }}
+          // A drop here (empty OR attached) and a pick both go through the form's
+          // router, whose JD commit also detaches the saved-JD slug.
+          zone="jd"
+          onIntake={(files) => onIntake("jd", files)}
           onRemove={() => setJobDescriptionFile(null)}
         />
         <AnalyzeSavedJdPicker
@@ -76,7 +84,8 @@ export function AnalyzeFormOptionalColumns({ state }: { state: AnalyzeFormState 
           inputId="company-overview-file"
           inputRef={refs.companyInputRef}
           file={inputs.companyFile}
-          onFileChange={setCompanyFile}
+          zone="company"
+          onIntake={(files) => onIntake("company", files)}
           onRemove={() => setCompanyFile(null)}
         />
         <div className="mt-auto">
