@@ -2206,6 +2206,8 @@ export function ensureDb(): Database.Database {
     // every row written before the column existed and on rows a human door last wrote;
     // the row then renders `detail` exactly as before.
     "ALTER TABLE dev_lifecycle ADD COLUMN outcome_json TEXT",
+    // When the candidate CHOSE `locale` (db/pipeline-locale.ts); NULL = inferred/apply-time.
+    "ALTER TABLE pipeline_entries ADD COLUMN locale_chosen_at TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { BellOff, Check, MailX } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { BellOff, Check, Languages, MailX } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_PRIMARY, BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import type { Locale } from "@/i18n/locales";
+import { otherLetterLocales, stopLanguageOffer } from "./stopLanguageOffer";
 
 type StopView = {
   jobTitle: string | null;
@@ -15,6 +17,10 @@ type StopView = {
   /** Already opted out — resolved server-side at the durable candidate identity, so a
    *  link from an OLDER letter about a DIFFERENT role still reports the truth. */
   stopped: boolean;
+  /** The language our letters go out in (resolved as every dispatch resolves it), and
+   *  whether the candidate chose it here (POST /api/stop/[token]/language). */
+  letterLocale: string;
+  localeChosen: boolean;
 };
 
 /** A load failure is one of two things, and the page must not confuse them: the LINK is
@@ -42,12 +48,17 @@ export function StopClient() {
   const token = params?.token;
   const t = useTranslations("stop");
   const tCommon = useTranslations("common");
+  const tLang = useTranslations("language");
+  const pageLocale = useLocale();
   const errMsg = useErrorMessage();
   const [view, setView] = useState<StopView | null>(null);
   const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
   const [stopError, setStopError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [stopped, setStopped] = useState(false);
+  const [langBusy, setLangBusy] = useState(false);
+  const [langSaved, setLangSaved] = useState<Locale | null>(null);
+  const [langError, setLangError] = useState<string | null>(null);
 
   // `loadFailed` is DEAD-LINK copy, which is the truth for a 404 and a lie for a 5xx —
   // and a lie that closes the door on a legal affordance. The store's own coded message
@@ -116,7 +127,36 @@ export function StopClient() {
     }
   };
 
+  // THE LANGUAGE CHOICE. The switcher above flips only this PAGE; this writes the
+  // language every future letter to this person goes out in. Deliberately not the stop:
+  // someone who cannot read our letters usually wants them readable, not gone.
+  const chooseLanguage = async (locale: Locale) => {
+    if (!token) return;
+    setLangBusy(true);
+    setLangError(null);
+    try {
+      const res = await fetch(`/api/stop/${token}/language`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ locale }),
+      });
+      const p = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+      if (!res.ok || p.error) {
+        setLangError(errMsg(p, t("languageFailed")));
+        return;
+      }
+      setLangSaved(locale);
+      setView((v) => (v ? { ...v, letterLocale: locale, localeChosen: true } : v));
+    } catch {
+      setLangError(t("languageFailed"));
+    } finally {
+      setLangBusy(false);
+    }
+  };
+
   const done = stopped || view?.stopped === true;
+  const langOffer = view ? stopLanguageOffer(view, pageLocale) : null;
+  const langOthers = view ? otherLetterLocales(view.letterLocale, langOffer?.suggest ?? null) : [];
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
@@ -136,6 +176,54 @@ export function StopClient() {
       <h1 className="mt-1 font-serif text-display text-ink">
         {view?.jobTitle ? t("title", { role: view.jobTitle }) : t("titleGeneric")}
       </h1>
+
+      {view && !loadFailure ? (
+        <section className="mt-6 rounded-lg border border-stone-200 bg-paper p-5" aria-labelledby="stop-language-title">
+          <p id="stop-language-title" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
+            <Languages size={14} aria-hidden /> {t("languageTitle")}
+          </p>
+          {langSaved ? (
+            <p role="status" className="mt-2 flex items-center gap-2 text-body text-ink">
+              <Check size={16} className="text-moss" aria-hidden /> {t("languageSaved", { language: tLang(langSaved) })}
+            </p>
+          ) : (
+            <p className="mt-2 text-body text-ink">
+              {t("languageNow", { language: tLang(view.letterLocale as Locale) })}
+            </p>
+          )}
+          {langOffer ? (
+            <button
+              type="button"
+              onClick={() => void chooseLanguage(langOffer.suggest)}
+              disabled={langBusy}
+              className={`${BTN_SECONDARY} mt-3 h-11 px-4`}
+            >
+              {t("languageSuggest", { language: tLang(langOffer.suggest) })}
+            </button>
+          ) : null}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-meta text-steel">{t("languageOthers")}</span>
+            {langOthers.map((l) => (
+              <button
+                key={l}
+                type="button"
+                lang={l}
+                onClick={() => void chooseLanguage(l)}
+                disabled={langBusy}
+                className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
+              >
+                {tLang(l)}
+              </button>
+            ))}
+          </div>
+          {langError ? (
+            <p role="alert" className="mt-3 text-body text-red-700">
+              {langError}
+            </p>
+          ) : null}
+          <p className="mt-3 text-meta text-steel">{t("languageNotStop")}</p>
+        </section>
+      ) : null}
 
       {loadFailure ? (
         <div role="alert" className="mt-4 rounded-lg border border-stone-200 bg-paper p-4">

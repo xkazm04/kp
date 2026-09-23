@@ -2,7 +2,9 @@
 // authority for "which language does this candidate hear from us in":
 //
 //   1. the entry's stored `locale` — the candidate's EXPLICIT choice, captured at
-//      apply (conversational / quick-apply / webhook) or inherited on rematch;
+//      apply (conversational / quick-apply / webhook), on the stop page's language
+//      control (locale_chosen_at stamped, every same-person entry in the team), or
+//      inherited on rematch;
 //   2. else the WORKSPACE default (getWorkspaceDefaultLocale: the team's explicit
 //      override, else its org's language; 'cs' for the ČS seed) — the read-time fallback that stops the 60/65 NULL-locale entries
 //      from receiving English letters under the bank's brand, with NO data
@@ -18,6 +20,8 @@
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { getProfileRecord } from "./db/profiles";
+import { ensureDb } from "./db/core";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 
 /** The locale every candidate-facing comm for this entry renders in: the
  *  entry's own (valid) locale, else the entry's WORKSPACE default. Never throws —
@@ -85,14 +89,33 @@ export function inferLocaleFromLanguages(languages: readonly unknown[] | null | 
   return declared[0] ?? null;
 }
 
+/** The newest language this person CHOSE for our letters in `workspaceId` (the stop
+ *  page's control, db/pipeline-locale.ts stamps locale_chosen_at), else null. Here, not
+ *  in the leaf, so the many route graphs that reach this module gain no module. */
+export function chosenLocaleForCandidate(candidateId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): Locale | null {
+  if (!candidateId.trim()) return null;
+  const row = ensureDb()
+    .prepare(
+      `SELECT locale FROM pipeline_entries WHERE workspace_id = ? AND candidate_id = ? AND locale_chosen_at IS NOT NULL ORDER BY locale_chosen_at DESC LIMIT 1`
+    )
+    .get(workspaceId, candidateId) as { locale: string | null } | undefined;
+  const locale = row?.locale;
+  return isLocale(locale) ? locale : null;
+}
+
 /** Convenience for the write paths that file a candidate FROM a saved profile
  *  (add-to-pipeline, sourcing reach-out, sim inbound, dev-case sourcing): look
  *  the profile up and infer from its `languages`. Null when the profile is
  *  missing/unreadable or carries no language signal — the entry stores NULL and
- *  the workspace default applies at dispatch. Never throws. */
+ *  the workspace default applies at dispatch. A language the candidate CHOSE for this
+ *  workspace (chosenLocaleForCandidate) wins over the inference. Never throws. */
 export function inferProfileLocale(candidateId: string | null | undefined, workspaceId?: string): Locale | null {
   if (!candidateId) return null;
   try {
+    // The person's own statement (the stop page's language control) outranks any
+    // inference: a new entry must not overwrite "write to me in English" with a guess.
+    const chosen = chosenLocaleForCandidate(candidateId, workspaceId);
+    if (chosen) return chosen;
     // Scoped: an unscoped read resolved against the default team, so on any other
     // workspace this missed and every entry it stamped got `locale: null` —
     // degrading all downstream candidate comms to the workspace default language.
