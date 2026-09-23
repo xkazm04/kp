@@ -13,12 +13,6 @@
 // tree-shakes the import away — without this the bundler chases better-sqlite3 →
 // bindings → `fs`, which doesn't exist off-Node).
 
-// The fields the redaction hooks below read and rewrite, typed locally: the committed lockfile
-// hoists @sentry/core 10.69 under @sentry/* 10.71, which leaves Sentry.init's options untyped
-// (every callback parameter an implicit any). These shapes hold whichever version resolves.
-type SentryEventLike = { request?: { url?: string }; transaction?: string };
-type SentryBreadcrumbLike = { message?: string; data?: Record<string, unknown> };
-
 // Server-side Sentry is DSN-gated on the repo's LightTrack precedent
 // (pipeline/jobfit/llm/monitor.py activates only when LIGHTTRACK_URL is set):
 // no SENTRY_DSN, no init, no SDK load, no egress. KP_OFFLINE=1 skips Sentry
@@ -59,12 +53,12 @@ export async function register(): Promise<void> {
       dsn: process.env.SENTRY_DSN,
       // Error reporting only — no performance tracing, no extra egress.
       tracesSampleRate: 0,
-      beforeSend(event: SentryEventLike) {
+      beforeSend(event) {
         if (event.request?.url) event.request.url = redactTokens(event.request.url);
         if (event.transaction) event.transaction = redactTokens(event.transaction);
         return event;
       },
-      beforeBreadcrumb(breadcrumb: SentryBreadcrumbLike) {
+      beforeBreadcrumb(breadcrumb) {
         if (breadcrumb.message) breadcrumb.message = redactTokens(breadcrumb.message);
         const data = breadcrumb.data;
         if (data) {
