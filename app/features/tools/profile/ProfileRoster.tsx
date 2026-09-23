@@ -10,6 +10,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
 import { ProfileRosterTable } from "./ProfileRosterTable";
+import { ProfileRosterRefreshBar } from "./ProfileRosterRefreshBar";
 import {
   rosterFacets,
   rosterFromPopulation,
@@ -49,6 +50,7 @@ export function ProfileRoster({
   onEdit,
   onRebuild,
   onDeleted,
+  onRefreshed,
   archivedArchetypeIds,
   archetypes,
   onNewProfile,
@@ -68,6 +70,10 @@ export function ProfileRoster({
   /** Fired after a successful delete: the parent prunes the shared population (and
    *  re-reads it — the deleted profile's analyses become analysis-only candidates). */
   onDeleted: (id: string) => void;
+  /** Fired after a batch refresh wrote at least one profile: the parent re-reads the
+   *  shared population, so the roster, the matrix and the retire count all see the
+   *  refreshed rows (and their cleared "Newer CV") at once. */
+  onRefreshed: () => void;
   /** Ids of retired archetypes — a profile routed to one still works but is flagged. */
   archivedArchetypeIds?: readonly string[];
   /** The live archetype registry — read only by the first-run empty state. */
@@ -170,6 +176,14 @@ export function ProfileRoster({
           <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">
             {error ?? t("loadFailed")}
           </p>
+        ) : null}
+
+        {/* The counted batch refresh (profileBulkRefresh): it counts the stale rows
+            IN VIEW — the filtered set, every page — into unedited and edited, refreshes
+            only the unedited ones, and hands the edited ones back for review through
+            the same rebuild the row's button opens. Silent when nothing in view is stale. */}
+        {!loading ? (
+          <ProfileRosterRefreshBar rowsInView={filtered} stale={stale} onReview={onRebuild} onRefreshed={onRefreshed} />
         ) : null}
 
         {/* The count reads off the FILTERED set with the total beside it, so a

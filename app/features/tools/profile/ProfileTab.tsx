@@ -149,6 +149,7 @@ export function ProfileTab() {
                   population.prune(id);
                   population.reload();
                 }}
+                onRefreshed={population.reload}
                 archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 archetypes={archetypes}
                 onNewProfile={() => setEditor({ mode: "create", editingId: null, initialPayload: null })}
