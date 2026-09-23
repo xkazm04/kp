@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
     // offer-ready entry whose transcript modal showed nothing: a phantom gate
     // approval with no evidence behind it. Now the durable artifact lands
     // before any scoring side effect can exist.
-    const { session: persisted, applied } = completeInterviewSession(sessionId, { transcript, status });
+    const { session: persisted, applied, status: storedStatus } = completeInterviewSession(sessionId, { transcript, status });
     if (!applied) {
       // A concurrent completion won the row-level guard — its transcript stands.
       // Same question as the terminal guard above: if OUR turns are not in the
@@ -270,6 +270,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // What the row HOLDS now, not what this request decided from its pre-read. The
+    // write keeps a revoke that landed after the read (another process, between the
+    // read above and the UPDATE), so `status` may say "completed" while the row says
+    // "revoked" — and every "this interview counts" effect below keys on the row.
+    const finalStatus = storedStatus ?? status;
+
     // Billing debit (docs/features/billing/README.md): interview minutes are metered on the
     // completion whose write APPLIED (the row-level guard above also makes the
     // debit idempotent across duplicate POSTs) and only for real "completed"
@@ -286,7 +292,7 @@ export async function POST(request: NextRequest) {
     // the CANDIDATE half below (scorecard, approval, decision) — and neither of these two
     // writes names a candidate: the meter row is a per-org quantity, and the ledger row's
     // only link back is the session id (interview-rehearsal.ts states the decision).
-    if (status === "completed") {
+    if (finalStatus === "completed") {
       const bookedMin = session.durationMin ?? 8;
       // Bill THIS attempt, not the whole life of the link. markInterviewStarted
       // COALESCEs started_at, so it keeps the FIRST connect — deliberate, that is
@@ -392,7 +398,7 @@ export async function POST(request: NextRequest) {
     // of what follows.
     let scorecard: Record<string, unknown> | null = null;
     let updated = persisted;
-    if (isCandidateInterview(session) && status === "completed" && transcript.length > 0) {
+    if (isCandidateInterview(session) && finalStatus === "completed" && transcript.length > 0) {
       // Token-driven flow (no session workspace): derive the entry's team so the scorecard
       // + its Interview→Offer approval scope to the right tenant.
       const ws = getEntryWorkspace(session.entryId);
@@ -414,9 +420,20 @@ export async function POST(request: NextRequest) {
           scoringErr
         );
       }
-      if (scorecard) {
+      // The attach lands AFTER the scoring await, so it is conditional: a GDPR erasure
+      // during scoring (the scrub blanks the transcript and the scorecard) or a revoke
+      // leaves the row refusing, and a refused attach seals no decision either — the
+      // verdict would quote a candidate who is no longer on record.
+      const attached = scorecard ? attachInterviewScorecard(sessionId, scorecard) : null;
+      if (attached && !attached.applied) {
+        console.warn(
+          `[interview:complete] scorecard for session ${sessionId} not attached: the row left 'completed' ` +
+            `or its transcript was erased during scoring; no decision is sealed.`
+        );
+      }
+      if (scorecard && attached?.applied) {
         // Candidate-only (the guard above): a test session's row never carries a scorecard.
-        updated = attachInterviewScorecard(sessionId, scorecard) ?? updated;
+        updated = attached.session ?? updated;
         // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
         // its model/prompt version as the actor. Best-effort — never blocks complete.
         // Candidate-only (the guard above): no decision is ever sealed from a test session.

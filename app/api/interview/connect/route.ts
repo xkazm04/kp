@@ -6,6 +6,7 @@ import {
   getInterviewSessionByToken,
   isInterviewLinkExpired,
   isInterviewSessionLive,
+  isInterviewSessionStillLive,
   markInterviewRecordingConsent,
   markInterviewStarted,
   revokeInterviewSession,
@@ -59,6 +60,18 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 // canonical strings now live in REFUSAL_ERRORS beside every other refusal in the
 // product, and the reader resolves `errors.<CODE>` in their own language.
 
+
+/** The session left `in_progress` while this request was working on it (the
+ *  transition table, interview-session-status.ts: only a connect moves a row INTO
+ *  live, so leaving it means a recruiter revoke or a finalize from another tab).
+ *  Whatever this request minted stays on the server. The code names what happened:
+ *  a finished screen is the single-use refusal, anything else is an inactive link. */
+function refuseLeftLive(sessionId: string) {
+  const stored = getInterviewSessionById(sessionId)?.status;
+  return stored === "completed"
+    ? jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409)
+    : jsonRefusal("INTERVIEW_LINK_INACTIVE", 409);
+}
 
 // GET → which providers are configured (used by the UI to enable/disable the switcher).
 export async function GET() {
@@ -231,11 +244,12 @@ export async function POST(request: NextRequest) {
       return jsonRefusal("INTERVIEW_CONSENT_REQUIRED", 403);
     }
 
-    // Atomic backstop for the check above: if a /complete landed between the
-    // status read and here, the guarded UPDATE refuses to reopen the session —
-    // and we must not mint credentials for it.
+    // Atomic backstop for the checks above: if a /complete OR a revoke landed
+    // between the status read and here, the guarded UPDATE (its from-set comes from
+    // the transition table) refuses to reopen the session — and we must not mint
+    // credentials for it.
     if (!markInterviewStarted(session.id, body.consent === true)) {
-      return jsonRefusal("INTERVIEW_ALREADY_COMPLETED", 409);
+      return refuseLeftLive(session.id);
     }
 
     // The row AFTER the start: markInterviewStarted counted this connect, so its
@@ -292,7 +306,9 @@ export async function POST(request: NextRequest) {
           kitId: session.kitId,
         });
         kit = reconcileKitWithStoredAgenda(fresh, started.agenda, resume !== null);
-        if (kit) setInterviewAgenda(session.id, kit.agenda);
+        // A post-await write: the row may have left live during the kit build. The
+        // write is conditional, and a refusal ends the connect before any credential.
+        if (kit && !setInterviewAgenda(session.id, kit.agenda)) return refuseLeftLive(session.id);
       } catch (agendaErr) {
         kit = null;
         console.error(`[interview:connect] agenda build failed for session ${session.id}:`, agendaErr);
@@ -335,7 +351,7 @@ export async function POST(request: NextRequest) {
           kit = reconciled;
           directedInstructions = briefs.instructions;
           groundedCandidateBrief = briefs.candidateBrief;
-          setInterviewAgenda(session.id, kit.agenda);
+          if (!setInterviewAgenda(session.id, kit.agenda)) return refuseLeftLive(session.id);
         } else {
           console.error(
             `[interview:connect] rehearsal ${session.id} has no directable kit (kit ${session.kitId}, job ${session.jobId}); ` +
@@ -444,7 +460,9 @@ export async function POST(request: NextRequest) {
       // call priced on the other vendor with no way to learn that theirs was down.
       // failover_from is written once (COALESCE in the store) and stays NULL on the
       // overwhelming majority of calls, where nothing fell back.
-      setInterviewSessionProvider(session.id, served, provider);
+      // Conditional like every post-connect write: a revoke during the provider connect
+      // leaves the row refusing, and the credentials just minted never leave here.
+      if (!setInterviewSessionProvider(session.id, served, provider)) return refuseLeftLive(session.id);
       // An entry-backed session also leaves the fact on the candidate's timeline —
       // the same trail every other unattended action writes, so "why did this screen
       // run on ElevenLabs?" is answerable months later from the activity log rather
@@ -489,6 +507,13 @@ export async function POST(request: NextRequest) {
     // minted for — the same public terms a candidate on that job gets.
     const asrKeywords =
       served === "elevenlabs" ? (rehearsal ? jobAsrKeywords(session.jobId) : interviewAsrKeywords(session.entryId)) : null;
+
+    // THE LAST GATE before credentials leave (scan-sweep challenge r02). Everything
+    // above ran seconds of awaits after the start — kit builds, the grounded brief,
+    // the provider connect — and a recruiter's revoke in that window used to end with
+    // fresh provider credentials in the browser anyway. Nothing awaits between this
+    // check and the return, so it is the compare step of the handoff.
+    if (!isInterviewSessionStillLive(session.id)) return refuseLeftLive(session.id);
 
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is

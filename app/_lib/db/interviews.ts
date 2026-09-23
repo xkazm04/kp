@@ -4,6 +4,13 @@ import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "../voice
 import type { InterviewAgenda, RecordingDeleteReason, RecordingMeta } from "../voice/director-types";
 import { randomId, randomToken } from "../random-id";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
+import {
+  finalizeFromGuard,
+  isInterviewSessionStatus,
+  LIVE_INTERVIEW_STATUS,
+  statusFromGuard,
+  type InterviewSessionStatus,
+} from "../interview-session-status";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
@@ -502,7 +509,7 @@ export function touchInterviewActivity(id: string, atIso: string): boolean {
 export function revokeInterviewSession(id: string): boolean {
   const db = ensureDb();
   const res = db
-    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE id = ? AND status IN ('created','in_progress','failed')`)
+    .prepare(`UPDATE interview_sessions SET status='revoked' WHERE id = ? AND ${statusFromGuard("revoked")}`)
     .run(id);
   return res.changes > 0;
 }
@@ -521,7 +528,7 @@ export function revokeOpenInterviewSessions(entryId: string, workspaceId: string
   const db = ensureDb();
   const res = db
     .prepare(
-      `UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND workspace_id = ? AND status IN ('created','in_progress','failed')`
+      `UPDATE interview_sessions SET status='revoked' WHERE entry_id = ? AND workspace_id = ? AND ${statusFromGuard("revoked")}`
     )
     .run(entryId, workspaceId);
   return res.changes;
@@ -642,7 +649,12 @@ export function getInterviewSessionByToken(token: string, workspaceId?: string):
  *  with a finished session's token reset it and minted fresh provider
  *  credentials — the portal page only blocked the RENDER. The guard lives in
  *  the WHERE clause so a /complete racing this call can't lose; returns whether
- *  the session actually went live so the route can refuse to mint credentials. */
+ *  the session actually went live so the route can refuse to mint credentials.
+ *
+ *  The guard is the transition table's from-set for `in_progress`
+ *  (interview-session-status.ts), so a REVOKED link cannot be reopened either: it
+ *  used to exclude `completed` alone, and a connect on a revoked row flipped it
+ *  back to live, undoing the recruiter's one control over the credential. */
 export function markInterviewStarted(id: string, consent: boolean): boolean {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -658,7 +670,7 @@ export function markInterviewStarted(id: string, consent: boolean): boolean {
           // cannot inflate the count.
           `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), consent_at=COALESCE(consent_at, ?), updated_at=?,
                   attempts = attempts + (CASE WHEN started_at IS NULL THEN 0 ELSE 1 END)
-             WHERE id=? AND status != 'completed'`
+             WHERE id=? AND ${statusFromGuard("in_progress")}`
         )
         .run(now, now, now, id).changes > 0
     );
@@ -668,7 +680,7 @@ export function markInterviewStarted(id: string, consent: boolean): boolean {
       .prepare(
         `UPDATE interview_sessions SET status='in_progress', started_at=COALESCE(started_at, ?), updated_at=?,
                 attempts = attempts + (CASE WHEN started_at IS NULL THEN 0 ELSE 1 END)
-           WHERE id=? AND status != 'completed'`
+           WHERE id=? AND ${statusFromGuard("in_progress")}`
       )
       .run(now, now, id).changes > 0
   );
@@ -682,34 +694,48 @@ export function markInterviewStarted(id: string, consent: boolean): boolean {
  *  guard lives in the WHERE clause (not a read-then-write in the route) so two
  *  concurrent completions can't both pass a status check; `applied` tells the
  *  caller whether THIS call performed the write. A 'failed' session stays
- *  writable: a successful retry after a dropped call may upgrade it. */
+ *  writable: a successful retry after a dropped call may upgrade it.
+ *
+ *  A REVOKED row takes the transcript (what was said is evidence) but KEEPS its
+ *  status, decided by the SQL off the row as it is at the write — not by the
+ *  caller's pre-read, which a revoke landing in between made stale. `status` is
+ *  what the row holds after this call (from RETURNING, so it is the write's own
+ *  answer, not a second read), and the route bills and scores from it. */
 export function completeInterviewSession(
   id: string,
-  input: { transcript: VoiceTurn[]; scorecard?: unknown; status?: string }
-): { session: InterviewSession | null; applied: boolean } {
+  input: { transcript: VoiceTurn[]; scorecard?: unknown; status?: InterviewSessionStatus }
+): { session: InterviewSession | null; applied: boolean; status: string | null } {
+  const target = input.status ?? "completed";
+  if (!isInterviewSessionStatus(target)) throw new Error(`unknown interview session status '${String(target)}'`);
   const db = ensureDb();
   const now = new Date().toISOString();
-  const res = db
+  const written = db
     .prepare(
-      `UPDATE interview_sessions SET status=?, ended_at=?, transcript_json=?, scorecard_json=COALESCE(?, scorecard_json), updated_at=? WHERE id=? AND status != 'completed'`
+      `UPDATE interview_sessions SET status = CASE WHEN status = 'revoked' THEN 'revoked' ELSE ? END,
+              ended_at=?, transcript_json=?, scorecard_json=COALESCE(?, scorecard_json), updated_at=?
+        WHERE id=? AND ${finalizeFromGuard(target)}
+        RETURNING status`
     )
-    .run(
-      input.status ?? "completed",
+    .get(
+      target,
       now,
       JSON.stringify(input.transcript ?? []),
       input.scorecard !== undefined ? JSON.stringify(input.scorecard) : null,
       now,
       id
-    );
-  return { session: getInterviewSessionById(id), applied: res.changes > 0 };
+    ) as { status: string } | undefined;
+  const session = getInterviewSessionById(id);
+  return { session, applied: written !== undefined, status: written?.status ?? session?.status ?? null };
 }
 
 /** Persist the provider that ACTUALLY served a session — written by /connect when
  *  it fails over to the alternate provider (the preferred one's connect threw). The
  *  ledger row (voiceUsageRow) and the completion path both read session.provider, so
  *  updating it here keeps cost attribution + telemetry pointed at what served, not at
- *  what was requested. Guarded to a live (non-completed) row so a raced /complete
- *  can't be perturbed. */
+ *  what was requested. Guarded to a LIVE row (`in_progress`): /connect writes it after
+ *  the provider connect, and a row that left live meanwhile — revoked, or finalized by
+ *  a raced /complete — must take nothing. Returns whether the row took it, and the
+ *  route refuses to hand out the credentials it just minted when it did not. */
 export function setInterviewSessionProvider(
   id: string,
   provider: VoiceProviderId,
@@ -719,35 +745,54 @@ export function setInterviewSessionProvider(
    *  rewrite it into an intermediate. Omitted for a plain provider write, which then
    *  leaves the column alone rather than inventing "fell back from itself". */
   failoverFrom?: VoiceProviderId | null
-): void {
+): boolean {
   const db = ensureDb();
-  db.prepare(
-    `UPDATE interview_sessions SET provider=?, failover_from=COALESCE(failover_from, ?), updated_at=? WHERE id=? AND status != 'completed'`
-  ).run(provider, failoverFrom ?? null, new Date().toISOString(), id);
+  const res = db
+    .prepare(
+      `UPDATE interview_sessions SET provider=?, failover_from=COALESCE(failover_from, ?), updated_at=? WHERE id=? AND status='${LIVE_INTERVIEW_STATUS}'`
+    )
+    .run(provider, failoverFrom ?? null, new Date().toISOString(), id);
+  return res.changes > 0;
 }
 
 /** Persist the director's agenda built at connect (spark ai-interview-parity). The
  *  director validates tool calls against it and the recruiter's evidence view reads
  *  its competencies, so it is written on every connect that built one — the stored
- *  copy always matches the brief the provider was just given. Guarded like every
- *  other live-row write: a raced /complete is never perturbed. Returns whether the
- *  row took it. */
+ *  copy always matches the brief the provider was just given. Guarded to a LIVE row
+ *  like every other post-connect write: a raced /complete is never perturbed and a
+ *  revoke during the kit build is never written past. Returns whether the row took
+ *  it; /connect refuses the call when it did not. */
 export function setInterviewAgenda(id: string, agenda: InterviewAgenda): boolean {
   const res = ensureDb()
-    .prepare(`UPDATE interview_sessions SET agenda_json=? WHERE id=? AND status != 'completed'`)
+    .prepare(`UPDATE interview_sessions SET agenda_json=? WHERE id=? AND status='${LIVE_INTERVIEW_STATUS}'`)
     .run(JSON.stringify(agenda), id);
   return res.changes > 0;
+}
+
+/** Whether a session is still LIVE (`in_progress`) — the last gate before /connect
+ *  hands the credentials it minted to the browser. The effect it guards is the HTTP
+ *  response, not a store write, and the route returns synchronously after asking, so
+ *  a point read here is the compare step of that compare-and-act: a revoke (or a raced
+ *  /complete) that landed during the kit build or the provider connect is seen, and
+ *  the minted credentials are dropped rather than handed out. */
+export function isInterviewSessionStillLive(id: string): boolean {
+  const r = ensureDb()
+    .prepare(`SELECT 1 AS live FROM interview_sessions WHERE id=? AND status='${LIVE_INTERVIEW_STATUS}'`)
+    .get(id) as { live: number } | undefined;
+  return r !== undefined;
 }
 
 /** Stamp the candidate's AUDIO-recording consent — separate from `consent_at` (the
  *  transcribed conversation). COALESCE keeps the FIRST agreement: a reconnect that
  *  repeats it must not move the record of when consent was given. The caller gates
- *  this on the workspace actually offering recording (interview-recording.ts). */
+ *  this on the workspace actually offering recording (interview-recording.ts). Written
+ *  by /connect right after the start, so it is guarded to the LIVE row like the other
+ *  post-connect writes. */
 export function markInterviewRecordingConsent(id: string): boolean {
   const now = new Date().toISOString();
   const res = ensureDb()
     .prepare(
-      `UPDATE interview_sessions SET recording_consent_at=COALESCE(recording_consent_at, ?) WHERE id=? AND status != 'completed'`
+      `UPDATE interview_sessions SET recording_consent_at=COALESCE(recording_consent_at, ?) WHERE id=? AND status='${LIVE_INTERVIEW_STATUS}'`
     )
     .run(now, id);
   return res.changes > 0;
@@ -1045,14 +1090,25 @@ export function listInterviewRecordingsForEntry(entryId: string, workspaceId: st
  *  from completeInterviewSession so the transcript write can happen FIRST and
  *  scoring strictly after it (idea-55fd89f9) — a scoring step that sets the
  *  Interview→Offer approval must never run ahead of the durable transcript it
- *  scores. */
-export function attachInterviewScorecard(id: string, scorecard: unknown): InterviewSession | null {
+ *  scores.
+ *
+ *  It lands AFTER an awaited LLM synthesis, so it is a conditional write: only a
+ *  `completed` row that still holds a transcript takes it. A GDPR erasure during
+ *  the scoring await (scrubEntryLinkedPii sets transcript_json='[]' and
+ *  scorecard_json=NULL, because the scorecard quotes the candidate) and a revoke
+ *  both leave the row refusing, and `applied: false` tells the route to skip the
+ *  decision seal as well. It used to be an unguarded write by id. */
+export function attachInterviewScorecard(
+  id: string,
+  scorecard: unknown
+): { session: InterviewSession | null; applied: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
-  db.prepare(`UPDATE interview_sessions SET scorecard_json=?, updated_at=? WHERE id=?`).run(
-    JSON.stringify(scorecard),
-    now,
-    id
-  );
-  return getInterviewSessionById(id);
+  const res = db
+    .prepare(
+      `UPDATE interview_sessions SET scorecard_json=?, updated_at=?
+        WHERE id=? AND status='completed' AND transcript_json IS NOT NULL AND transcript_json != '[]'`
+    )
+    .run(JSON.stringify(scorecard), now, id);
+  return { session: getInterviewSessionById(id), applied: res.changes > 0 };
 }

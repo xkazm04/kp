@@ -25,7 +25,13 @@ const { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, recordAutomat
   await import("./db/pipeline.ts");
 const { createWorkspace, setWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } = await import("./db/workspaces.ts");
 const { setDecisionConfig } = await import("./decision-config-store.ts");
-const { createInterviewSession, attachInterviewScorecard } = await import("./db/interviews.ts");
+const { createInterviewSession, attachInterviewScorecard, completeInterviewSession } = await import("./db/interviews.ts");
+// A scorecard attaches only to a COMPLETED session that holds a transcript (the attach
+// is a conditional write after the scoring await), so fixtures reach that state first.
+const INTERVIEW_TRANSCRIPT = [
+  { role: "interviewer" as const, text: "Walk me through a test harness you built." },
+  { role: "candidate" as const, text: "I have not used it in anger." },
+];
 const { getPipelineAxis } = await import("./pipeline-axis-server.ts");
 const { stagesWithRole } = await import("./pipeline-stages.ts");
 const { meterAllows } = await import("./billing/enforce.ts");
@@ -291,7 +297,8 @@ test("a HOLD scorecard parks a priced offer draft even with the gate on 'auto'",
     ratings: [{ competency: "Technical depth", rating: 2, evidence: "I have not used it in anger." }],
   };
   const session = createInterviewSession({ provider: "openai", entryId: f.entry.id, jobId: f.jobId });
-  attachInterviewScorecard(session.id, scorecard);
+  completeInterviewSession(session.id, { transcript: INTERVIEW_TRANSCRIPT });
+  assert.ok(attachInterviewScorecard(session.id, scorecard).applied);
   setGate(f.ws, "offer", "auto");
   seedVerdict(f, "offer", { recommended: 90000, currency: "CZK" }, "llm", undefined, JSON.stringify(scorecard));
 
@@ -310,7 +317,8 @@ test("the scorecard is a cache-key axis, so a later synthesis cannot serve the u
   const f = fixture();
   seedVerdict(f, "rejection", { subject: "s", body: "drafted before the interview existed" }, "llm");
   const session = createInterviewSession({ provider: "openai", entryId: f.entry.id, jobId: f.jobId });
-  attachInterviewScorecard(session.id, { recommendation: "reject", ratings: [] });
+  completeInterviewSession(session.id, { transcript: INTERVIEW_TRANSCRIPT });
+  assert.ok(attachInterviewScorecard(session.id, { recommendation: "reject", ratings: [] }).applied);
   await assert.rejects(
     () => runAutomationTask(f.entry.id, "rejection", "", undefined, undefined),
     "a stale, ungrounded letter must not be served — the key moved with the evidence"
