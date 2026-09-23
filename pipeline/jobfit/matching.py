@@ -299,13 +299,32 @@ class MatchResult(_Base):
     eligibility: list[EligibilityFlag] = Field(default_factory=list)
 
 
+KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
+
+
+class BlockedMatch(_Base):
+    """A job the KO filter removed, returned ONLY when ``match(include_blocked=True)``.
+
+    ``ko_keys``/``ko_details`` are ko_filter's own verdict (one entry per failed gate,
+    in ko_filter's order); ``result`` is the MatchResult scored AS IF the gate were
+    lifted — score_job is gate-independent, and its eligibility flags now show the
+    KO-mirrored axis as ``flag``. The as-if total is information for the seeker, never
+    a rank: a blocked job is not in ``matches`` and never counts toward ``returned``.
+    """
+
+    job_id: str
+    ko_keys: list[KoReasonKey] = Field(default_factory=list)
+    ko_details: list[str] = Field(default_factory=list)
+    result: MatchResult
+
+
 class MatchResponse(_Base):
     candidate: dict[str, Any] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
     matches: list[MatchResult] = Field(default_factory=list)
-
-
-KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
+    # None unless the caller asked (include_blocked): the dump is exclude_none, so the
+    # recruiter /api/match payload stays byte-identical without the flag.
+    blocked: list[BlockedMatch] | None = None
 
 
 class KoReason(_Base):
@@ -1263,6 +1282,7 @@ def match(
     *,
     limit: int = 50,
     weights: dict[str, float] | None = None,
+    include_blocked: bool = False,
 ) -> MatchResponse:
     """Run the full KO -> score -> rank pipeline over a job corpus.
 
@@ -1271,15 +1291,22 @@ def match(
     the whole ranking re-weights consistently. Omitted -> the archetype baseline
     (scoring identical to before). The resolved vector + the archetype's allowed
     bounds ride back on the candidate block so the UI can render bounded sliders
-    seeded at the values actually used."""
+    seeded at the values actually used.
+
+    ``include_blocked`` (the seeker scan) additionally returns every KO'd job as a
+    :class:`BlockedMatch` — its gate and its as-if score — in input order and NOT
+    capped by ``limit`` (the caller stores a verdict per job). Off by default, and then
+    nothing is scored beyond the survivors and ``blocked`` is absent from the dump."""
     survivors: list[Job] = []
     ko_reason_lists: list[list[KoReason]] = []
+    ko_jobs: list[tuple[Job, list[KoReason]]] = []
     for job in jobs:
         passed, reasons = ko_filter(candidate, job)
         if passed:
             survivors.append(job)
         else:
             ko_reason_lists.append(reasons)
+            ko_jobs.append((job, reasons))
 
     # Resolve once (clamp to the archetype's bounds + renormalize to sum 1) so the
     # whole pool is ranked under one comparable yardstick, not a per-job vector.
@@ -1290,6 +1317,19 @@ def match(
         reverse=True,
     )
     top = scored[:limit]
+    blocked = (
+        [
+            BlockedMatch(
+                job_id=job.id,
+                ko_keys=[r.key for r in reasons],
+                ko_details=[r.detail for r in reasons],
+                result=score_job(candidate, job, weights=resolved),
+            )
+            for job, reasons in ko_jobs
+        ]
+        if include_blocked
+        else None
+    )
     return MatchResponse(
         candidate={
             "label": candidate.label,
@@ -1322,6 +1362,7 @@ def match(
             "koReasons": aggregate_ko_reasons(ko_reason_lists),
         },
         matches=top,
+        blocked=blocked,
     )
 
 

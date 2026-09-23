@@ -35,7 +35,16 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         help="Seeker JobseekerPreferences JSON (salaryFloor, locations, countries, workModes, seniority) — "
-        "overlaid on the candidate; drives MatchResult.eligibility flags, never the score or the KO filter.",
+        "overlaid on the candidate. salaryFloor/locations/countries drive only the MatchResult.eligibility "
+        "flags; workModes and seniority are matching inputs (transform.apply_preferences): both reach the "
+        "KO filter and seniority the career score, so they can remove a job — pair with --include-blocked "
+        "to see which and what it would score.",
+    )
+    parser.add_argument(
+        "--include-blocked",
+        action="store_true",
+        help="Also return every job the KO filter removed as `blocked` [{jobId, koKeys, koDetails, result}], "
+        "result scored as if the gate were lifted. Off by default (the recruiter /api/match payload is unchanged).",
     )
     parser.add_argument("--jobs", type=Path, default=None, help="Override corpus path.")
     parser.add_argument(
@@ -73,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
             parsed = json.loads(args.weights)
             if isinstance(parsed, dict):
                 weights = parsed
-        response = match(candidate, jobs, limit=args.limit, weights=weights)
+        response = match(candidate, jobs, limit=args.limit, weights=weights, include_blocked=args.include_blocked)
     except Exception as exc:  # surface as JSON on stderr, mirroring cli.py
         return emit_error(exc)
 
