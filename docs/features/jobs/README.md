@@ -75,7 +75,7 @@ ledger:
   instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
 - `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now. It opens on the All-but-live filter so live roles (the Roles tab's business) do not clutter the shelf.
 - `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
-- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract. The sitemap lists only non-archived JDs with a linked open opening; saved drafts and closed roles stay out of the public index.
+- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for exactly the languages the page serves: the posting's source language plus every language the owning team holds a fresh posting translation for, plus `x-default` (see "The public JD page serves the stored translations" below). Each served `?lang=` variant is self-canonical; the bare path and an unserved `?lang=` canonicalise to the original. Archived pages set an explicit empty `languages` so the root layout's four `./?lang=` alternates are not inherited. The sitemap lists only non-archived JDs with a linked open opening; saved drafts and closed roles stay out of the public index.
 - Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
 - `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
 - `POST /api/jds/generate` returns `JD_BUILD_TITLE_TOO_SHORT` or `JD_BUILD_NEED_TOO_SHORT` for its minimum-input refusals, so the client can explain the 2-character title and 11-character need thresholds in the reader's language.
@@ -1923,6 +1923,25 @@ the previous text is not a translation of this one. The posting tab shows the em
 state again and regrows each language on demand. Pinned by
 `app/_lib/db/job-translations-tenancy.test.ts` (one team's drop never touches the
 other team's rows).
+
+**The public JD page serves the stored translations.** `/jds/<slug>?lang=<l>` is the
+link a recruiter shares on a board in that language, and it now serves the posting
+translation for `<l>` WHOLE (its title and body) when the owning team holds one made
+after the JD's last edit (`jdLastEditedAt`, so a JD edit whose best-effort re-ingest
+failed and left the old renderings in place stops serving them). Every other request
+(no `?lang=`, the source language, a language never rendered, an archived JD) serves
+the whole original, byte-identical to before. Translations are read with the OWNER
+team `loadPublicJd` resolved, never the viewer's, and the page only ever sees the
+projection `{lang, sourceLang, title, bodyMd}`. A translated variant renders a
+machine-translation note naming the source language (`Intl.DisplayNames`, in the
+reader's locale) with a link to the original, the copy-as-Markdown button copies the
+body actually served, and the operator's Edit/Archive/History tools mount only on the
+original. Keyless installs never store a translation, so they serve and advertise the
+source language only. Resolver and alternates: `app/jds/[slug]/jdPublicVariant.ts` and
+`publicJdAlternates` in `jdPublicHeader.ts`, pinned by `jdPublicVariant.test.ts`. The
+translation is of the rendered POSTING (`renderPostingMarkdown`), not of the JD's own
+markdown, so its structure can differ from the original's; the note says it is a
+translation and links the authoritative original.
 
 Known gaps: there is no bulk "translate every open role" action, and the auto-close hook does not notify
 anyone that a role retired itself (it writes no event kind of its own by design; the
