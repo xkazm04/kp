@@ -4724,7 +4724,29 @@
     },
     "liveStale": "Live interview status is out of date.",
     "liveRetry": "Retry",
-    "invitesTruncated": "Showing the most recent interviews only. Older invites are not on this list."
+    "invitesTruncated": "Showing the most recent interviews only. Older invites are not on this list.",
+    "sendLink": {
+      "action": "Send scheduling link",
+      "sent": "Scheduling link sent to {name}.",
+      "queued": "Scheduling link for {name} is queued in the Outbox (not delivered yet).",
+      "failed": "Link created, but the email to {name} could not be delivered. Copy the link from the card and send it yourself.",
+      "refused": "The scheduling link could not be created. Try again."
+    },
+    "cardState": {
+      "noLink": "No scheduling link sent yet.",
+      "awaiting": "Link sent {when}, no time picked yet.",
+      "expired": "The scheduling link expired unanswered.",
+      "declined": "The candidate declined the last invite.",
+      "noShow": "Marked as a no-show on the last booking.",
+      "proposals": "{count, plural, one {The candidate proposed # time. Accept it to book.} other {The candidate proposed # times. Accept one to book.}}",
+      "stuck": "The candidate found no open time. See the attention list above.",
+      "copyLink": "Copy scheduling link",
+      "linkCopied": "Scheduling link copied.",
+      "copyFailed": "Couldn't copy the link. Your browser blocked the clipboard.",
+      "reinvite": "Send a new link",
+      "bookSuggested": "Book suggested time",
+      "bookSuggestedTitle": "Books {slot} directly. The candidate is not asked, and this action sends them no message."
+    }
   },
   "library": {
     "tab": {

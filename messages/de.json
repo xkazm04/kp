@@ -4724,7 +4724,29 @@
     },
     "liveStale": "Der Live-Status der Interviews ist veraltet.",
     "liveRetry": "Erneut versuchen",
-    "invitesTruncated": "Es werden nur die neuesten Gespräche angezeigt. Ältere Einladungen fehlen in dieser Liste."
+    "invitesTruncated": "Es werden nur die neuesten Gespräche angezeigt. Ältere Einladungen fehlen in dieser Liste.",
+    "sendLink": {
+      "action": "Terminplanungslink senden",
+      "sent": "Terminplanungslink an {name} gesendet.",
+      "queued": "Terminplanungslink für {name} liegt im Postausgang (noch nicht zugestellt).",
+      "failed": "Link erstellt, aber die E-Mail an {name} konnte nicht zugestellt werden. Kopieren Sie den Link von der Karte und senden Sie ihn selbst.",
+      "refused": "Der Terminplanungslink konnte nicht erstellt werden. Versuchen Sie es erneut."
+    },
+    "cardState": {
+      "noLink": "Noch kein Terminplanungslink gesendet.",
+      "awaiting": "Link {when} gesendet, noch kein Termin gewählt.",
+      "expired": "Der Terminplanungslink ist unbeantwortet abgelaufen.",
+      "declined": "Die letzte Einladung wurde abgelehnt.",
+      "noShow": "Beim letzten Termin als nicht erschienen markiert.",
+      "proposals": "{count, plural, one {# Terminvorschlag der Kandidatin/des Kandidaten. Nehmen Sie ihn an, um zu buchen.} other {# Terminvorschläge der Kandidatin/des Kandidaten. Nehmen Sie einen an, um zu buchen.}}",
+      "stuck": "Kein freier Termin gefunden. Siehe die Liste mit Handlungsbedarf oben.",
+      "copyLink": "Terminplanungslink kopieren",
+      "linkCopied": "Terminplanungslink kopiert.",
+      "copyFailed": "Der Link konnte nicht kopiert werden. Ihr Browser hat die Zwischenablage blockiert.",
+      "reinvite": "Neuen Link senden",
+      "bookSuggested": "Vorgeschlagenen Termin buchen",
+      "bookSuggestedTitle": "Bucht {slot} direkt. Die Kandidatin/der Kandidat wird nicht gefragt und erhält durch diese Aktion keine Nachricht."
+    }
   },
   "library": {
     "tab": {

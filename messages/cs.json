@@ -4724,7 +4724,29 @@
     },
     "liveStale": "Živý stav pohovorů je zastaralý.",
     "liveRetry": "Zkusit znovu",
-    "invitesTruncated": "Zobrazujeme jen nejnovější pohovory. Starší pozvánky v tomto seznamu nejsou."
+    "invitesTruncated": "Zobrazujeme jen nejnovější pohovory. Starší pozvánky v tomto seznamu nejsou.",
+    "sendLink": {
+      "action": "Odeslat odkaz pro naplánování",
+      "sent": "{name}: odkaz pro naplánování byl odeslán.",
+      "queued": "{name}: odkaz pro naplánování je ve frontě v Outboxu (zatím nedoručeno).",
+      "failed": "{name}: odkaz byl vytvořen, ale e-mail se nepodařilo doručit. Zkopírujte odkaz z karty a pošlete ho sami.",
+      "refused": "Odkaz pro naplánování se nepodařilo vytvořit. Zkuste to znovu."
+    },
+    "cardState": {
+      "noLink": "Odkaz pro naplánování zatím nebyl odeslán.",
+      "awaiting": "Odkaz odeslán {when}, termín zatím nevybrán.",
+      "expired": "Platnost odkazu pro naplánování vypršela bez odpovědi.",
+      "declined": "Poslední pozvánka byla odmítnuta.",
+      "noShow": "U posledního termínu označeno jako nedostavení se.",
+      "proposals": "{count, plural, one {Kandidát navrhl # termín. Přijetím ho zarezervujete.} few {Kandidát navrhl # termíny. Přijetím jednoho z nich ho zarezervujete.} other {Kandidát navrhl # termínů. Přijetím jednoho z nich ho zarezervujete.}}",
+      "stuck": "Kandidát nenašel žádný volný termín. Podívejte se do seznamu vyžadujícího pozornost výše.",
+      "copyLink": "Kopírovat odkaz pro naplánování",
+      "linkCopied": "Odkaz pro naplánování byl zkopírován.",
+      "copyFailed": "Odkaz se nepodařilo zkopírovat. Prohlížeč zablokoval schránku.",
+      "reinvite": "Poslat nový odkaz",
+      "bookSuggested": "Rezervovat navržený termín",
+      "bookSuggestedTitle": "Termín {slot} se zarezervuje přímo. Kandidát nebude dotázán a tato akce mu nepošle žádnou zprávu."
+    }
   },
   "library": {
     "tab": {

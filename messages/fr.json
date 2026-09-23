@@ -4724,7 +4724,29 @@
     },
     "liveStale": "Le statut des entretiens en direct n'est plus à jour.",
     "liveRetry": "Réessayer",
-    "invitesTruncated": "Seuls les entretiens les plus récents sont affichés. Les invitations plus anciennes ne figurent pas dans cette liste."
+    "invitesTruncated": "Seuls les entretiens les plus récents sont affichés. Les invitations plus anciennes ne figurent pas dans cette liste.",
+    "sendLink": {
+      "action": "Envoyer le lien de planification",
+      "sent": "Lien de planification envoyé à {name}.",
+      "queued": "Le lien de planification pour {name} est en file dans la boîte d’envoi (pas encore remis).",
+      "failed": "Lien créé, mais l’e-mail à {name} n’a pas pu être remis. Copiez le lien depuis la carte et envoyez-le vous-même.",
+      "refused": "Le lien de planification n’a pas pu être créé. Veuillez réessayer."
+    },
+    "cardState": {
+      "noLink": "Aucun lien de planification envoyé pour l’instant.",
+      "awaiting": "Lien envoyé {when}, aucun créneau choisi pour l’instant.",
+      "expired": "Le lien de planification a expiré sans réponse.",
+      "declined": "La dernière invitation a été déclinée.",
+      "noShow": "Marqué absent lors du dernier rendez-vous.",
+      "proposals": "{count, plural, one {Le candidat a proposé # créneau. Acceptez-le pour réserver.} other {Le candidat a proposé # créneaux. Acceptez-en un pour réserver.}}",
+      "stuck": "Le candidat n’a trouvé aucun créneau libre. Consultez la liste à traiter ci-dessus.",
+      "copyLink": "Copier le lien de planification",
+      "linkCopied": "Lien de planification copié.",
+      "copyFailed": "Impossible de copier le lien. Votre navigateur a bloqué le presse-papiers.",
+      "reinvite": "Envoyer un nouveau lien",
+      "bookSuggested": "Réserver le créneau suggéré",
+      "bookSuggestedTitle": "Réserve {slot} directement. Le candidat n’est pas consulté et cette action ne lui envoie aucun message."
+    }
   },
   "library": {
     "tab": {
