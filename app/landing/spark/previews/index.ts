@@ -25,17 +25,12 @@ import GatesPreview from "./GatesPreview";
 // The grid is the app's shop window, so it has to keep pace with the app.
 // `cases`, `offer` and `rediscover` were shipped features with no card — and
 // `cases` in particular is the one capability no competitor has. Nine keys also
-// squares the lg:grid-cols-3 layout.
-export type PreviewKey =
-  | "score"
-  | "voice"
-  | "cases"
-  | "schedule"
-  | "inbox"
-  | "salary"
-  | "rediscover"
-  | "offer"
-  | "gates";
+// squares the lg:grid-cols-3 layout. The keys, their order and the union live
+// in ./order.ts (pure, so node:test can pin the walk and the #spotlight-<key>
+// address); the Record below stays exhaustive over the derived union.
+import type { PreviewKey } from "./order";
+export type { PreviewKey };
+export { PREVIEW_KEYS } from "./order";
 
 export type PreviewDef = {
   icon: ComponentType<{ className?: string; style?: React.CSSProperties }>;

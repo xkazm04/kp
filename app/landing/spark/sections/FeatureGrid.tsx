@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { DISPLAY, HAND, STICKER } from "../tokens";
-import type { PreviewKey } from "../previews";
+import { PREVIEW_KEYS, type PreviewKey } from "../previews/order";
 import FeatureCardArt from "./FeatureCardArt";
 
 /*
@@ -24,17 +24,11 @@ import FeatureCardArt from "./FeatureCardArt";
  * The spotlight's open/pinned state lives in the page (SparkLanding) because
  * the modal renders at the page root, so this section takes it as props.
  */
-const FEATURES = [
-  { rotate: -1.5, preview: "score" },
-  { rotate: 1, preview: "voice" },
-  { rotate: -1, preview: "cases" },
-  { rotate: 1.5, preview: "schedule" },
-  { rotate: -1.5, preview: "inbox" },
-  { rotate: 1, preview: "salary" },
-  { rotate: -1, preview: "rediscover" },
-  { rotate: 1.5, preview: "offer" },
-  { rotate: -1.5, preview: "gates" }
-] as const satisfies ReadonlyArray<{ rotate: number; preview: PreviewKey }>;
+// The card order is PREVIEW_KEYS (../previews/order.ts) - the same array the
+// pinned spotlight walks with prev/next - so the grid no longer re-lists the
+// keys. Only the sticker tilt is the grid's own, cycling every four cards.
+const TILT = [-1.5, 1, -1, 1.5] as const;
+const FEATURES = PREVIEW_KEYS.map((preview, i) => ({ preview, rotate: TILT[i % TILT.length] }));
 
 export default function FeatureGrid({
   preview,

@@ -118,6 +118,36 @@ test("the spotlight opens on click, traps focus, and Escape restores it to the c
   await expect(card).toBeFocused();
 });
 
+// A pinned spotlight is an address (/#spotlight-<key>) and a walk (prev/next,
+// ArrowLeft/ArrowRight) over the nine previews in grid order. The pure half -
+// the order, the wrap, the hash grammar, what closing restores - is pinned in
+// app/landing/spark/previews/order.test.ts; this is the browser half.
+test("a spotlight is addressable as /#spotlight-<key> and walkable with the arrow keys", async ({ page }) => {
+  await page.goto("/#spotlight-cases");
+  const cases = page.getByRole("dialog", { name: "Verified work samples" });
+  await expect(cases).toBeVisible();
+  await expect(cases).toContainText("3 of 9");
+  await expect
+    .poll(async () => cases.evaluate((el) => el.contains(document.activeElement)))
+    .toBe(true);
+
+  await page.keyboard.press("ArrowRight");
+  const schedule = page.getByRole("dialog", { name: "Self-scheduling" });
+  await expect(schedule).toBeVisible();
+  await expect.poll(() => page.evaluate(() => location.hash)).toBe("#spotlight-schedule");
+
+  await schedule.getByRole("button", { name: "Previous feature" }).click();
+  await expect(page.getByRole("dialog", { name: "Verified work samples" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => location.hash)).toBe("#spotlight-cases");
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const hash = await page.evaluate(() => location.hash);
+  expect(hash.startsWith("#spotlight-")).toBe(false);
+  // The address never touched the path: canonical `/` stays `/`.
+  expect(new URL(page.url()).pathname).toBe("/");
+});
+
 test("the phone-width menu navigates the page and is keyboard-dismissible", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
