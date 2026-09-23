@@ -431,6 +431,28 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
   It now renders as a calm "already being delivered" line, never in the failure
   tone, and the button settles instead of inviting a third click. Five outcomes
   pinned by `app/_lib/comms-resend-outcome.test.ts`.
+- **One door predicate, three surfaces** — which recovery control a letter offers is
+  decided once, by `resendDoorOf(comm, consentStatus?)` in the same module:
+  `retry` (one-click `ResendButton`) for a `failed` verdict, `correctAddress`
+  (`BouncedResend`, pre-filled with the address on file) for `bounced`, and `null`
+  for everything else: `recovered` (a later delivery exists, a button there drew a
+  409 that read as a fresh failure), `sent`, `queued`, `orphaned`, any row on the
+  `simulation` channel (the route refuses it, `COMM_SIMULATION_ROW`), any row on the
+  `refused` channel (a decision, not a dead letter: its recipient is empty, so the
+  route 422s before a corrected address is read), and, when the caller knows the
+  candidate, an `anonymized` or `expired` consent (the send gate would answer
+  `COMMS_SUPPRESSED`). Both channel literals now live in this import-free module and
+  `comms-dispatch.ts` re-exports them, so there is still one literal each. The Comms
+  Center detail modal, the dev-case outbox and the **candidate modal** all read it
+  (source guard in `app/features/hiring/pipeline/drawerCommsTruth.test.ts`). The
+  candidate modal is the new one: a bounced or dead-lettered letter used to be
+  painted red there with nothing to press. Its Messages row now carries the door and
+  opens expanded, the bundle's `CandidateComm` carries `recipient` for the
+  pre-fill, and the Activity tab label shows how many letters need the recruiter
+  (`lettersNeedingYou`, the same predicate and the same consent argument, so the
+  count and the controls cannot disagree; `pipeline.candidate.needsYou`). The
+  modal passes the bundle's consent status; the Comms Center and the outbox do not
+  know the candidate and leave the route's send gate as the authority.
 - **Resend is operator-gated, throttled and de-duplicated** — `POST /api/comms/[id]/resend`
   is the one door in the outbox loop that spends real email. It asks `requireOperator`
   then `pipeline:write` before the in-flight Set (a demo cookie is 401; a viewer is
@@ -915,7 +937,7 @@ air-gapped.
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
 | `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables (row status from `receiverHealth.ts`, the pull editor `ChannelsReceiverPullCard.tsx` + `receiverPullForm.ts` — §11) and the shared clipboard state. Each receiver row shows `acceptedCount` (filed candidates) beside `receivedCount` (connectivity), with a quiet relative `firstAcceptedAt` when a lead has landed — an em dash when it has not — so a live-but-zero-leads Zapier mapping is visible on the row that owns the setup guide. Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
-| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons. |
+| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Comms Center modal, the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
 | `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
 ## Who may administer a receiver
