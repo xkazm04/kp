@@ -466,6 +466,35 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
     the slate, with no mailbox by design) is neither a nudge nor a send.
   Nothing sends more than before: only claims and events are gated. Pinned by
   `app/_lib/comms-dispatch-verdict.test.ts`.
+- **The offer letter is shown before it is sent, with its delivery forecast.**
+  The offer approval card (`DecisionsAiReviewCardBody.tsx`, mounted in the
+  candidate modal's `CandidateDecisionBar.tsx`) carries a collapsed "Preview the
+  letter" pane (`DecisionsOfferLetterPreview.tsx` + `useOfferLetterPreview.ts`).
+  Opening it calls `GET /api/pipeline/[id]/offer-letter?ttlDays=N`
+  (`requireOperator`, workspace-scoped, `409 OFFER_LETTER_NOT_PENDING` when the
+  entry is not at `offer_review`, `404 PIPELINE_ENTRY_NOT_FOUND`); the pane
+  re-renders, debounced, as the deadline lever changes. `ttlDays` goes through
+  `resolveOfferTtlDays`, so an out-of-range value previews the deployment
+  default rather than failing. The route renders `previewOfferLetter`
+  (`app/_lib/comms-letter-preview.ts`) through the **same composer the send
+  uses**: `composeOfferLetter` (subject or localized fallback subject, the
+  model's body, the deadline for `offerExpiresAtMs(now, ttlDays)`, the start
+  date, the response footer) plus `renderCandidateFooters` (the data and stop
+  footers), both in `comms-dispatch.ts`, in the candidate's resolved language
+  (the pane shows which). `dispatchOffer` calls the same `composeOfferLetter`,
+  so the approved letter and the sent letter cannot drift. The preview **writes
+  nothing**: every link carries the placeholder token `preview` (no erasure,
+  opt-out or offer token is minted, no offer row is created, no event is
+  recorded). The forecast follows the send path's own order and predicates:
+  `refused` (no recipient: an agent on the slate), `simulation` (a `(SIM)`
+  role), `suppressed` with the send gate's reason (`commsSendSuppression`, for
+  example `consent_expired`), `relay` (a relay is configured; reason
+  `no_contact` when no address was captured and the relay must resolve the
+  name), else `local` (keyless: recorded in the outbox, nobody receives it).
+  `comms-letter-preview.ts` is imported only by that route, so the send gate's
+  store reads stay off the letter-sending routes' import graphs. Pinned by
+  `app/_lib/comms-letter-preview.test.ts` and
+  `app/api/pipeline/[id]/offer-letter/route.test.ts`.
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
@@ -870,7 +899,8 @@ air-gapped.
 |---|---|
 | `app/_lib/comms.ts` | Channel selection (`getCommsChannel`), `OutboxChannel`, `WebhookChannel` (retry + dead-letter + HMAC). |
 | `app/_lib/comms-relay.ts` / `comms-relay-store.ts` | Relay resolution (env → stored config) and the encrypted stored-config persistence. |
-| `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`. |
+| `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`, the one offer-letter composer `composeOfferLetter()` and the token-free footer text `renderCandidateFooters()`. |
+| `app/_lib/comms-letter-preview.ts` | `previewOfferLetter` — the side-effect-free offer letter + delivery forecast behind `GET /api/pipeline/[id]/offer-letter` (§8). |
 | `app/_lib/rejection-feedback.ts` | `buildRejectionFeedback` / `renderRejectionFeedback` — recorded-only rejection reasons behind the protected-attribute filter (§9). |
 | `app/_lib/interview-letter-delivery.ts` | `dispatchInterviewLetter` (comm kind `interview_letter`) — sends a recruiter-APPROVED interview feedback letter in the letter's language with the candidate's status link, and records the truthful delivery on the letter (`queued` with no relay; `failed` when the consent gate refuses, never a phantom `queued`). The letter itself: `docs/features/compliance/README.md` §"Interview feedback letters". |
 | `app/_lib/comms-status.ts` | `OUTBOX_STATUSES`, `coerceOutboxStatus`, retry classification. |
