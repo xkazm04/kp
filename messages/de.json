@@ -4371,7 +4371,15 @@
       "quickReject": "{name} ablehnen",
       "proposalOffer": "Angebot"
     },
-    "decideFailed": "Die Entscheidung zu {name} wurde nicht übernommen. Bitte versuchen Sie es erneut."
+    "decideFailed": "Die Entscheidung zu {name} wurde nicht übernommen. Bitte versuchen Sie es erneut.",
+    "undo": {
+      "pending": "{name} wird in {seconds} s abgelehnt. Bisher wurde nichts gesendet.",
+      "committing": "Die Ablehnung von {name} wird gesendet…",
+      "undo": "Rückgängig",
+      "undoLabel": "Ablehnung von {name} rückgängig machen",
+      "failed": "Die Ablehnung von {name} wurde nicht ausgeführt.",
+      "dismiss": "Schließen"
+    }
   },
   "scheduleTab": {
     "lifecycle": {

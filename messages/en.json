@@ -4371,7 +4371,15 @@
       "quickReject": "Reject {name}",
       "proposalOffer": "Offer"
     },
-    "decideFailed": "The decision for {name} didn't go through. Try again."
+    "decideFailed": "The decision for {name} didn't go through. Try again.",
+    "undo": {
+      "pending": "Rejecting {name} in {seconds} s. Nothing has been sent yet.",
+      "committing": "Sending the rejection of {name}…",
+      "undo": "Undo",
+      "undoLabel": "Undo the rejection of {name}",
+      "failed": "The rejection of {name} did not go through.",
+      "dismiss": "Dismiss"
+    }
   },
   "scheduleTab": {
     "lifecycle": {

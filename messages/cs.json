@@ -4371,7 +4371,15 @@
       "quickReject": "Zamítnout kandidáta {name}",
       "proposalOffer": "Nabídka"
     },
-    "decideFailed": "Rozhodnutí o kandidátovi {name} se nepodařilo uložit. Zkuste to prosím znovu."
+    "decideFailed": "Rozhodnutí o kandidátovi {name} se nepodařilo uložit. Zkuste to prosím znovu.",
+    "undo": {
+      "pending": "Zamítnutí kandidáta {name} proběhne za {seconds} s. Zatím nebylo nic odesláno.",
+      "committing": "Odesílá se zamítnutí kandidáta {name}…",
+      "undo": "Vrátit zpět",
+      "undoLabel": "Vrátit zpět zamítnutí kandidáta {name}",
+      "failed": "Zamítnutí kandidáta {name} se neprovedlo.",
+      "dismiss": "Zavřít"
+    }
   },
   "scheduleTab": {
     "lifecycle": {

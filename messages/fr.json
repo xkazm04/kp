@@ -4371,7 +4371,15 @@
       "quickReject": "Refuser {name}",
       "proposalOffer": "Offre"
     },
-    "decideFailed": "La décision concernant {name} n'a pas été enregistrée. Veuillez réessayer."
+    "decideFailed": "La décision concernant {name} n'a pas été enregistrée. Veuillez réessayer.",
+    "undo": {
+      "pending": "Refus de {name} dans {seconds} s. Rien n’a encore été envoyé.",
+      "committing": "Envoi du refus de {name}…",
+      "undo": "Annuler",
+      "undoLabel": "Annuler le refus de {name}",
+      "failed": "Le refus de {name} n’a pas abouti.",
+      "dismiss": "Fermer"
+    }
   },
   "scheduleTab": {
     "lifecycle": {
