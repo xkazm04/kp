@@ -1,0 +1,17 @@
+[
+  {
+    "rider": "about-page",
+    "files_read": 1,
+    "checked": "Read app/about/page.tsx in full (100 lines): generateMetadata extends the parent's openGraph/twitter instead of replacing them, localized title/description/keywords, JSON-LD built from ABOUT_STEP_KEYS with the layout's x-nonce, instant=false. Hypotheses traced: (1) hardcoded English metadata - no, all via getTranslations('aboutPage.meta'); (2) shallow-merge og loss - already fixed and pinned by e2e/public-pages.spec.ts; (3) un-nonced inline script - nonce is threaded. The only soft spot is the hand-bumped ABOUT_PAGE_MODIFIED stamp (line 11), an S at most, and both JSON-LD backlog items for this rider (AboutPage/SoftwareApplication, BreadcrumbList) are already implemented here. No card: a thin marketing route shell with no seam that makes anything else hard and no candidate decision on it."
+  },
+  {
+    "rider": "application-status-page",
+    "files_read": 5,
+    "checked": "Read app/status/[token]/page.tsx, StatusClient.tsx (463 lines), loading.tsx, StatusNpsCard.tsx in full, plus the route app/api/status/[token]/route.ts one hop out. Hypotheses traced: (1) the payload leaks an internal id - no, the route projects seven candidate-safe fields and the page resolves only the workspace server-side; (2) a poll error wipes a rendered status - no, the takeover is gated on !view; (3) dates via toLocaleString - no, Intl.DateTimeFormat(locale); (4) the page tells the candidate to 'watch your email' at interview/offer (StatusClient.tsx:172-173) while the server holds the pending invite/offer/interview and its deadline - CARD B went here, adopting the open 'Surface next-action links' backlog item but reshaped so no capability token rides the forwardable page (resend to the address on file instead). Withdraw-from-status was left alone: it is backlogged with gate 'irreversible', never built in this mode."
+  },
+  {
+    "rider": "apply-surface-tests",
+    "files_read": 3,
+    "checked": "Read app/apply/[id]/apply-draft-fingerprint.test.ts, candidate-door-conversion.test.ts and quick/quick-apply-status-link.test.ts in full. They are source-contract pins (regex over component/route source) for the draft fingerprint round-trip, tonally neutral KO buttons, decline recoverability, the always-live quick submit, the honeypot on both doors, LanguageSwitcher on every painted main, and ?lang=-pinned status links through the filing core. Hypothesis traced: vacuous pins - most carry an explicit non-vacuity mutation, and the fingerprint/status-link pins track the current filing-core seam (safeStatusToken, statusLinkFor). None pins the entry-id derivation or the status payload's key set, so neither card breaks them; card A's surrogate-id change touches no pinned string here. No card: a test-only rider whose pins are current; moving these to behavioural tests would need a component harness kp does not have."
+  }
+]

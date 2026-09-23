@@ -1,0 +1,20 @@
+{
+  "card": "profile-roster-matrix/A",
+  "title": "Serve one candidate population to the roster, the matrix and the retire dialog",
+  "status": "landed",
+  "base": "1171b99ca",
+  "shas": ["e9061a505", "6b30f1aa4", "5159d3319", "6dbe236e5", "f2df0e9d1"],
+  "tests_added": [
+    "app/_lib/candidate-population.test.ts (+7 cases)",
+    "app/features/tools/profile/profileRosterView.test.ts (+2 cases)",
+    "app/features/tools/profile/candidateMatrixContracts.test.ts (+4 cases, mutation-proved incl. the tenancy pin)"
+  ],
+  "cases_red_before": 13,
+  "cases_green_after": 13,
+  "cases_total": 13,
+  "gates": {"tsc": 2, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": null, "ts_ratchet": 0, "unit": 1, "perf": 1},
+  "files_changed": 18,
+  "lines_changed": 837,
+  "deviations_from_card": "(1) routedCount matches the NORMALIZED archetype id, not archetypeDisplayKey as the card's case 4 says. Only non-built-in archetypes can be retired (canArchive = !BUILT_IN), the bundled archetypes.json holds only bau/student/career_switcher, and archetypeDisplayKey folds every id the bundle does not know into 'unrouted', so a display-key match would count 0 for every archetype the dialog serves. The case's intent is kept: the unrouted sentinels ('', 'unknown', 'unrouted') never count, which is pinned. (2) The store-record -> population mappers (profileFromRecord / analysisFromRecord) moved from the route into candidate-population.ts so the family-parity case tests the real server mapping rather than a copy. (3) The tenancy pin is a mutation-proved source guard in candidateMatrixContracts.test.ts (currentWorkspace() + listAnalysisRecords(200, ws) + cachedProfileRecords(ws) + profileStaleness(ws)); no new route test file. (4) The hook takes {active}: ProfileTab stays mounted under the editor, so the one read pauses while the editor is open and re-reads when it closes (before, the projections remounted and refetched). (5) perf-budget.json (shared surface, under lock) raised by this card's measured share only. 13 test cases for the card's 6 acceptance lines (all 6 covered).",
+  "notes": "Committed in five commits: catalog key (archiveConfirmAnalyses, 4 locales), doc, perf budget, test+pure fold, then the component refactor. Each alone under the lock where it was a shared surface. GET /api/profile is unchanged (useMatchTabRun.ts still reads it). pruneStale in profileRosterView.ts is now unused by production code (still exported + tested); slot B may drop or reuse it. ProfileRoster now takes population/loadFailed/onDeleted props (onChanged removed) - slot B mounts its bar in this shape. unit=1: the full test:unit had exactly two failures, both foreign: route-capability-coverage.test.ts on a sibling's uncommitted app/api/billing/alerts/[id]/route.ts [POST], and a FLAKE in python-runner-concurrency.test.ts. perf=1: app/page.tsx measures 1407 modules against the new 1406 ceiling. This card adds exactly +1 module (useCandidatePopulation.ts, the only NEW file on the graph) and 9139 bytes (LF both sides against HEAD), and that is what was raised (1405/8855 -> 1406/8864). HEAD alone already measures 1406 modules against the prior 1405 ceiling, so one module of overage predates this card (the analytics-metrics/A raise to 1405 was measured against 205a0938f). The remaining ~10 KB page overage and the ~10 KB overages on twelve app/api routes are not on graphs this card touches (the routes include none of its files); in this checkout the working tree carries CRLF on many graph files that git show HEAD reports smaller, which inflates local KB. The integration gate should settle the one pre-existing module. tsc: whole-tree exit 2 only on a sibling's uncommitted app/api/billing/alerts/[id]/route.ts and the untracked kpi-sim/ tree; zero errors on this card's paths."
+}

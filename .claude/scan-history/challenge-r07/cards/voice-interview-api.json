@@ -1,0 +1,112 @@
+[
+  {
+    "context": "voice-interview-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "The director's ledger is the transcript of record, not the hang-up POST",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/voice/transcript-of-record.ts",
+      "app/_lib/voice/transcript-of-record.test.ts",
+      "app/api/interview/complete/route.ts",
+      "app/api/interview/complete/complete-transcript-of-record.test.ts",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/_lib/voice/transcript-of-record.ts",
+      "app/_lib/voice/transcript-of-record.test.ts",
+      "app/api/interview/complete/complete-transcript-of-record.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Undirected passthrough (pure): transcriptOfRecord({ ledgerTurns: [], submitted: S }) returns turns deep-equal to S and unanchored === 0 - the lab, /simulate demos, an ElevenLabs agent not yet redeployed with client tools and the spoken eval harness (which never posts /director) keep today's stored transcript byte for byte, so session_runner.py:206's 'persisted N turns but sent M' gate still holds.",
+      "Resumed call keeps its opening (pure + route): ledger holds attempt 1 seq 0..54 (55 turns) and attempt 2 seq 0..9; the body is attempt-1 turns 15..54 (the 40 resume.ts seeded) + attempt 2's 10 + 2 turns finalized after the last acknowledged director exchange -> the persisted transcript has 67 turns and turn[0].text is attempt 1 seq 0's text (today: 52 turns, the first 15 of the interview are gone).",
+      "A hang-up POST cannot rewrite a received turn: the body changes the text of a candidate turn the ledger holds at the same position -> the persisted transcript carries the LEDGER text and no persisted turn contains the edited text.",
+      "A fabricated mid-call turn is not stored: the body inserts a candidate turn between two ledger-matched turns -> it is absent from the persisted transcript, the result reports unanchored === 1, and the route logs a console.warn naming the count (never the text).",
+      "The unacknowledged tail survives: body turns after the last ledger-matched turn, e.g. [candidate 'and that was the rollout', system lost-closing-answer marker] -> both are appended after the ledger turns, in body order.",
+      "Anchor miss degrades, never refuses: the body does not contain the ledger's last turn at all -> persisted = every ledger turn (attempt, seq order) + the body's role:'system' turns only; the route still answers 200 { ok: true }.",
+      "The honest duplicate still settles green: a resumed session already completed through the merge; the unload beacon re-POSTs the same 52-turn body -> 200 { ok: true, alreadyCompleted: true } with NO 409 INTERVIEW_ALREADY_COMPLETED (discardedTurnCount must compare the MERGED body against the stored record - a raw-body prefix check against a 67-turn record would now report 52 discarded turns).",
+      "One array feeds both writes: in the route, the transcript handed to completeInterviewSession and the one handed to runInterviewScorecard are the same transcriptOfRecord result, after clampTurn + capTranscriptTurns (asserted on an entry-less directed session through the stored row, and by a source-level check that runInterviewScorecard receives the merged variable)."
+    ],
+    "premise": [
+      "app/api/interview/complete/route.ts:126-131 - the transcript is built from `body.transcript`, a client-authored array; :252 persists exactly that (completeInterviewSession(sessionId, { transcript, status })) and :408 scores exactly that (runInterviewScorecard(session.entryId, transcript, ws)). The route never reads interview_events.",
+      "app/_lib/voice/director-step.ts:152-159 - every finalized turn of a directed call is already persisted server-side during the call, idempotent per (session, attempt, seq) (app/_lib/db/interview-events.ts:117 ON CONFLICT ... WHERE kind = 'turn' DO NOTHING); the browser resends unacknowledged turns on the next exchange (director-step.ts:33-35, ackSeq backpressure).",
+      "app/_lib/voice/resume.ts:22 RESUME_PRIOR_TURNS = 40 and :38 priorTurnEvents.slice(-RESUME_PRIOR_TURNS) - a reconnect hands the browser only the LAST 40 earlier-attempt turns.",
+      "app/_components/voice/VoiceInterview.tsx:992-1001 - the browser seeds turnsRef with exactly those priorTurns 'into the transcript /complete finally stores, so the record is the whole interview' - but it is the whole interview only when the earlier attempts held <= 40 turns; past that the opening is front-sliced away, silently, with no in-band marker, before persistence and before scoring.",
+      "app/_lib/voice/director.ts:726 (and :706) - the director verifies mark_topic_covered / guardrail quotes against the LEDGER's candidate turns (candidateTurnTexts), while the scorecard is synthesized from the body. The two records of one interview can disagree: a covered block's verified quote can be missing from the transcript the verdict is made of.",
+      "app/_lib/voice/discarded-turns.ts:42-53 - the duplicate test is 'stored contains incoming as a PREFIX from turn 0'; any change to what is stored must route the duplicate check through the same merge or the honest beacon becomes a 409.",
+      "pipeline/jobfit/eval/voice/session_runner.py:206 and app_client.py complete() - the spoken eval harness posts /complete without ever posting /director, so its sessions have no ledger turns: the passthrough rule is what keeps its persist-fidelity gate green."
+    ],
+    "rollback": "Three new files plus one call-site change in complete/route.ts (swap the merged array back for the clamped body) and one doc section; reverting the commit series restores the body-as-record path exactly, and no schema, table or stored field changes shape, so already-persisted transcripts stay readable either way.",
+    "gate": "contract",
+    "runner_up": "Stamp `attempt` on the /complete body like /director already requires (director/route.ts:66), so a superseded attempt's stale tab cannot finalize the row while a newer attempt is live.",
+    "technique": "transcript-sampling-that-keeps-the-conclusion",
+    "body": "## Summary\nA directed voice interview has two records of what was said: the director's append-only ledger (interview_events `turn` rows, received live, idempotent per attempt+seq) and the array the browser POSTs at hang-up. /complete persists and scores only the second. Make the ledger the transcript of record: one pure module merges ledger + body under explicit rules, and /complete persists, scores and duplicate-checks that one array.\n\n## Description\nToday the verdict about a named person is synthesized from a client-authored array (complete/route.ts:126, :252, :408) while the director verifies coverage quotes against the ledger (director.ts:726). The two drift in a way that is already reachable with an honest client: a reconnect seeds the browser with only the last 40 earlier-attempt turns (resume.ts:22,38; VoiceInterview.tsx:998), so any resumed interview whose first attempt ran past 40 turns loses its OPENING - role framing, the candidate's own account of their background - from both the stored transcript and the scorecard, with no elision marker. That is precisely the front slice the registry's transcript-sampling-that-keeps-the-conclusion technique forbids ('the opening is not disposable'). It also means the hang-up POST can rewrite or insert candidate turns the server already holds.\n\n`transcriptOfRecord({ ledgerTurns, submitted })` (new, pure): no ledger turns -> the body unchanged (lab, demos, undirected ElevenLabs, the eval harness). Otherwise: every ledger turn in (attempt, seq) order is authoritative; the body is anchored on its LAST occurrence of the ledger's final turn (role + clamped text, the same clampTurn both doors already apply) and contributes only what follows it (turns finalized after the last acknowledged exchange) plus its `system` marker turns; body turns that neither match nor sit in that tail are dropped and COUNTED (unanchored). Anchor miss -> ledger + system markers, never a refusal. The route reads the ledger synchronously (listInterviewEvents, kinds ['turn']) right before completeInterviewSession, clamps + caps the merged array, and uses it for the persist, the scorecard and discardedTurnCount.\n\n## Flow\n1. Write the 8 acceptance cases as tests against the not-yet-existing module and an entry-less directed session in a route test (unit-db isolated, like complete-reconnect-billing.test.ts). All fail.\n2. Implement transcript-of-record.ts (pure; imports only clampTurn's types).\n3. complete/route.ts: after the consent + rate-limit refusals, read the session's ledger turns (workspace-scoped), merge, then clamp/cap as today; pass the merged array to the terminal-state duplicate check, completeInterviewSession and runInterviewScorecard; warn with the unanchored COUNT only.\n4. docs/features/interviews/README.md: a 'Transcript of record' subsection naming the rule and the passthrough.\n\n## Expected impact\nEvery resumed directed interview is stored and scored whole - the opening included - instead of from the last 40 turns; the scorecard, the evidence view and the director's covered-with-quote record finally describe the same conversation; the candidate-held hang-up POST can no longer rewrite what the server already received, closing a tamper path into the Interview->Offer gate. Undirected sessions, and the eval harness's persist gate, are unchanged by construction.\n\n## Evaluation\nClaim: /complete persists and scores the director's ledger merged with the unacknowledged tail, so a resumed interview keeps its opening and a hang-up POST cannot rewrite received turns.\nBefore: 0 of 8 acceptance cases pass (the module does not exist; the route persists the raw body).\nAfter: 8 of 8.\nMethod: gate - node:test over transcript-of-record.test.ts and complete-transcript-of-record.test.ts, plus the existing complete-*.test.ts suites unchanged.\nResult: pending build.\nGate: contract",
+    "evidence": "complete/route.ts:126  const submitted = Array.isArray(body.transcript) ? (body.transcript as unknown[]).filter(...)\ncomplete/route.ts:252  completeInterviewSession(sessionId, { transcript, status })\ncomplete/route.ts:408  scorecard = await runInterviewScorecard(session.entryId, transcript, ws);\nresume.ts:22  export const RESUME_PRIOR_TURNS = 40;\nresume.ts:38  const priorTurns = priorTurnEvents.slice(-RESUME_PRIOR_TURNS).map(...)\nVoiceInterview.tsx:992-999  // A RESUMED attempt inherits the earlier attempts' turns ... into the transcript /complete finally stores ... turnsRef.current = resume.priorTurns.map(...)\ninterview-events.ts:117  ON CONFLICT (session_id, attempt, seq) WHERE kind = 'turn' DO NOTHING\ndirector.ts:726  const verified = quote.length > 0 && matchQuoteToTurn(quote, candidateTurnTexts, EVIDENCE_QUOTE_MATCH) >= 0;\ndiscarded-turns.ts:48-52  if (incoming.length > have.length) return incoming.length; for (...) if (!sameTurn(incoming[i], have[i])) return incoming.length;\nsession_runner.py:206  if run.stored_turns is not None and run.stored_turns != len(run.turns):\ngrep 'listInterviewEvents\\|interview-events' app/api/interview/complete/route.ts -> 0 hits (the completion door never reads the ledger)."
+  },
+  {
+    "context": "voice-interview-api",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Compare grid reads the director: covered, asked, or never reached per axis",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/interview-axis-coverage.ts",
+      "app/_lib/interview-axis-coverage.test.ts",
+      "app/_lib/db/interviews.ts",
+      "app/_lib/db/interviews-compare-cohort.test.ts",
+      "app/api/interview/compare/route.ts",
+      "app/api/interview/compare/compare-coverage.test.ts",
+      "app/features/library/jobs/jobsCompareInterviewsTypes.ts",
+      "app/features/library/jobs/jobsCompareCohorts.ts",
+      "app/features/library/jobs/jobsCompareCohorts.test.ts",
+      "app/features/library/jobs/JobsCompareInterviewsCohortTable.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/_lib/interview-axis-coverage.ts",
+      "app/_lib/interview-axis-coverage.test.ts",
+      "app/_lib/db/interviews-compare-cohort.test.ts",
+      "app/api/interview/compare/compare-coverage.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "Pure coverage per axis: agenda blocks b1 {competency:'ownership', scored:true}, b2 {competency:'system_design', scored:true}, b3 {competency:null, scored:false}; events topic_begun b1, topic_covered b1, topic_begun b2 -> axisCoverage(...) = { ownership: 'covered', system_design: 'asked' }; a rubric axis with no block ('communication') -> 'not_planned'; b3 (unscored) contributes no axis.",
+      "Never reached: a scored block with no topic_begun and no topic_covered event across ANY attempt -> 'not_reached'; the same block begun in attempt 1 and covered in attempt 2 -> 'covered' (derived through deriveDirectorState, not a second reading of the events).",
+      "Undirected is honest null: a session with agenda null (lab-style, undirected ElevenLabs, human-only row) -> coverage null, never an all-'not_reached' map.",
+      "The disagreement the recruiter cannot see today: AI rating 4 with real evidence on 'system_design' whose block is 'not_reached' -> cellFlag = 'rated_not_reached'; a 'Not assessed' sentinel 3 on an axis the director recorded 'covered' -> cellFlag = 'sentinel_but_covered'; agreeing pairs -> null.",
+      "Must-asks owed: two must_ask_unasked events on the session -> coverage.mustAsksUnasked === 2, surfaced as a count only (no question text, no candidate words on this door).",
+      "CSV does not launder: compareCsvRows blanks an AI rating whose axis coverage is 'not_reached' exactly as it already blanks the not-assessed sentinel (jobsCompareCohorts.ts:105-108); a 'covered' axis keeps its number.",
+      "Rehearsals are not candidates: a completed mode:'test' kit-rehearsal session with job_id = J (what jobs/[id]/interview-kit/rehearse mints) is absent from interviewedForJob(J, ws); a completed candidate-mode session on J is present (today both are returned - the SQL filters job, status and workspace, never mode).",
+      "Wire shape: GET /api/interview/compare?job=J returns each voice candidate with coverage { byAxis, mustAsksUnasked } or null and NO quote, question text or block title (asserted by key allow-list), human-only rows keep coverage: null."
+    ],
+    "premise": [
+      "app/_lib/interview-scorecard.ts:62-67 - an axis the interview never reached is stored by the LLM as a real 3 carrying 'Not assessed...' evidence; the compare grid's only defence is that sentinel (JobsCompareInterviewsCohortTable.tsx:159 isNotAssessedRating, jobsCompareCohorts.ts:105-108). Whether an axis was reached is the MODEL's self-report, never checked.",
+      "The server already records the answer: app/_lib/voice/director-types.ts:56-59 - every agenda block carries the rubric `competency` it gathers evidence for (server-side); director-types.ts:265-267,285 - topic_begun / topic_covered / topic_cover_rejected / must_ask_unasked are persisted events; app/_lib/voice/director.ts:139-141,182 deriveDirectorState derives coveredBlockIds and begunBlockIds from them (and topic_covered is accepted only with a quote verified against the candidate's turns, director.ts:698-711).",
+      "app/api/interview/compare/route.ts:47-51 - the compare payload attaches scorecard ratings, the human scorecard and telemetry per candidate, but nothing from interview_events or the stored agenda: the one surface built to rank candidates against each other cannot tell 'asked and weak' from 'never asked'.",
+      "app/_lib/db/interviews.ts:67 - interviewedForJob selects WHERE s.job_id = ? AND s.status = 'completed' AND s.workspace_id = ? with no mode filter, while its sibling listRecentInterviewSessions filters s.mode = 'candidate' (:319); app/api/jobs/[id]/interview-kit/rehearse/route.ts:146-154 mints the recruiter's kit rehearsal as mode 'test' with jobId set - so every completed rehearsal enters the compare grid as a null-labelled 'candidate' with blank ratings and its own voice cost.",
+      "docs/features/interviews/README.md:1709-1723 ('Not assessed, everywhere a rating is rendered') documents the sentinel-only approach this card upgrades to the director's record."
+    ],
+    "rollback": "Additive: a pure module, an optional `coverage` field on the compare payload and the Candidate type, one extra cell glyph in the table, one CSV blanking rule, and a mode = 'candidate' clause on interviewedForJob. Reverting the series drops the field (the grid already renders without it) and restores the unfiltered cohort; no table, column or stored value changes.",
+    "gate": "none",
+    "runner_up": "Portal: a directed call whose 20 s director heartbeat (call-observations.ts:19) has been silent past ~2 min offers 'Resume where you left off' instead of the 30-minute INTERVIEW_ALREADY_LIVE dead end (portal-state.ts / interviews.ts:472) - held back because relaxing the single-live window reads as a policy-loosen.",
+    "technique": "unassessed-competency-handling",
+    "body": "## Summary\nThe interview compare grid is where a hire decision is weighed, and it cannot tell a candidate who was asked about an axis and answered weakly from one who was never asked - it trusts the LLM's own 'Not assessed' sentinel. The director already records, per agenda block and per rubric competency, whether a topic was begun, covered with a verified quote, or never reached. Put that record on every compare cell, flag where the model's rating and the record disagree, stop the CSV from laundering an unreached rating, and stop kit rehearsals from appearing as candidates.\n\n## Description\nNew pure `app/_lib/interview-axis-coverage.ts`: from a session's stored agenda (block -> competency, scored) and its topic/must-ask events (through deriveDirectorState, the director's one derivation), produce `{ byAxis: Record<competency, 'covered'|'asked'|'not_reached'|'not_planned'>, mustAsksUnasked: number }`, or null for an undirected session; and `cellFlag(rating, evidence, state)` -> 'rated_not_reached' | 'sentinel_but_covered' | null. The compare route reads each voice candidate's completed session (id + agenda now ride interviewedForJob's existing SELECT) and its coverage events (listInterviewEvents, workspace-scoped, kinds filter), attaching `coverage` - counts and states only, no quotes or question text, so this door adds no verbatim candidate words and needs no new consent redaction. The grid renders a small state glyph in each AI cell (tokens only, both themes), a coral-toned 'rated, never asked' flag on disagreement, and a 'n must-asks owed' chip in the candidate header. interviewedForJob gains `AND s.mode = 'candidate'` (the rule listRecentInterviewSessions already follows).\n\n## Flow\n1. Tests first: axis-coverage cases (pure), the cohort mode filter (unit-db), the CSV blanking case, the route wire allow-list. All fail.\n2. interview-axis-coverage.ts; interviews.ts: mode filter + sessionId/agenda on InterviewedCandidate.\n3. compare/route.ts attaches coverage (best-effort per candidate: a read failure yields null, like telemetry).\n4. Types, CSV rule, CohortTable glyph + flag + legend; 4-locale keys under jobs.compare.coverage.*.\n5. Doc: extend the 'Not assessed' subsection with the director-record reading.\n\n## Expected impact\nA recruiter ranking a shortlist sees, per axis, whether the interview actually reached it - the registry's 'coverage flag travels with the number everywhere it goes' - and is warned exactly where an AI rating rests on a topic the record shows was never asked (the absence-of-evidence failure). Outstanding must-asks become visible while another round is still schedulable. Rehearsal rows stop polluting the cohort and its cost column.\n\n## Evaluation\nClaim: every AI compare cell carries the director's coverage state, disagreements are flagged, unreached ratings do not export, and rehearsals are excluded.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over interview-axis-coverage.test.ts, interviews-compare-cohort.test.ts, jobsCompareCohorts.test.ts and a compare-route wire test; i18n:check and design:check for the surface.\nResult: pending build.\nGate: none",
+    "evidence": "interviews.ts:67  WHERE s.job_id = ? AND s.status = 'completed' AND s.workspace_id = ?   (no mode)\ninterviews.ts:319 WHERE s.mode = 'candidate' AND s.workspace_id = ?   (the sibling that does filter)\nrehearse/route.ts:146-154  createInterviewSession({ workspaceId: ws, provider, mode: \"test\", entryId: null, candidateLabel: null, jobId: id, ... })\ncompare/route.ts:47-51  interviewedForJob(jobId, workspace).map((c) => ({ ...c, humanScorecard: ..., telemetry: telemetryForEntry(c.entryId, workspace) }))  (no agenda, no events)\ndirector-types.ts:59  competency: string | null;\ndirector-types.ts:265-267  \"topic_begun\", \"topic_covered\", \"topic_cover_rejected\"; :285 \"must_ask_unasked\"\ndirector.ts:139-141  coveredBlockIds: string[]; ... begunBlockIds: string[];\nJobsCompareInterviewsCohortTable.tsx:159  const notAssessed = r ? isNotAssessedRating(r.rating, r.evidence) : false;   (the only coverage signal the grid has)\ninterview-scorecard.ts:62-67  'if the transcript does not cover a competency ... rate it 3 (not assessed)' ... NOT-ASSESSED IS ON THE SCALE\ngrep -rn 'interview_events\\|listInterviewEvents\\|agenda' app/api/interview/compare app/features/library/jobs -> 0 hits."
+  }
+]

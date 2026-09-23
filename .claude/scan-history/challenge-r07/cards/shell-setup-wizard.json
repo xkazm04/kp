@@ -1,0 +1,124 @@
+[
+  {
+    "context": "shell-setup-wizard",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Steps declare the authority they write: the run derives from intent x seat",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/shell/setup/setupSteps.ts",
+      "app/features/shell/setup/setupOnboardingFinish.ts",
+      "app/features/shell/setup/OnboardingExperience.tsx",
+      "app/features/shell/setup/useSetupDraft.ts",
+      "app/features/shell/setup/SetupHandoffSummary.tsx",
+      "app/api/me/onboarding/route.ts",
+      "app/features/shell/setup/setupSteps.test.ts",
+      "app/features/shell/setup/setupOnboardingFinish.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/app-structure.md"
+    ],
+    "new_files": [
+      "app/features/shell/setup/setupSeat.ts",
+      "app/features/shell/setup/setupSeat.test.ts",
+      "app/api/me/onboarding/route.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "relevantSteps({ ...INITIAL_SETUP, intent: 'hire', seat: OWNER_SEAT }) -> ids welcome, company, team, pipeline, companion, handoff (the owner/open-mode run is byte-for-byte today's; setupSteps.test.ts:35 keeps passing)",
+      "relevantSteps({ ...INITIAL_SETUP, intent: 'hire', seat: null }) (seat read in flight or failed) -> the same six ids: an unknown seat fails OPEN to today's run, never to a smaller one",
+      "relevantSteps(hire, seat = ['pipeline:write','read'] (recruiter)) -> welcome, pipeline, companion, handoff: no Company step asking an invitee to type their employer's name as a required field, no Team step behind a members:manage door they do not hold",
+      "relevantSteps(hire, seat = ['members:manage','team:manage','pipeline:write','read'] (admin)) -> welcome, team, pipeline, companion, handoff (no company: org:manage is owner-only, roles.ts:25)",
+      "finishPartsFor(recruiter hire run) excludes 'language', 'orgName', 'currency', 'brand' and 'invites' and keeps 'pipeline' and 'companion' -> persistOnboardingSetup never calls setOrgLanguage for a seat without org:manage (the rail's setLocale already set the personal cookie)",
+      "handoffExits(seat = ['read'] (viewer)) -> ['solo'] ; handoffExits(recruiter) -> ['tour','solo'] ; handoffExits(null) -> ['tour','solo'] (the tour tile follows TOUR_CAPABILITY like the shell's palette does)",
+      "parseSetupSeat({ seat: { capabilities: ['org:manage','bogus', 7] } }) -> ['org:manage'] ; parseSetupSeat({}) -> null ; parseSetupSeat(null) -> null",
+      "GET /api/me/onboarding in open mode (KP_OPERATOR_PASSWORD unset) -> 200 with seat.capabilities containing 'org:manage' and 'members:manage' (the owner fold both callerOrgCapabilities and callerCapabilities take), and `scope` unchanged"
+    ],
+    "premise": [
+      "app/_lib/auth/onboarding-gate.ts:26-29 - the '/' gate fires PER USER: any user row with onboarding_completed_at and onboarding_skipped_at both null gets the wizard; app/invite/[token]/invite-result.ts:100-101 lands a freshly redeemed invitee on '/', so every invited teammate's first sign-in opens the owner's setup wizard",
+      "app/features/shell/setup/setupSteps.ts:55-64 - the only relevance predicate is `hiringOnly` (intent !== 'seek'); nothing in the step model knows who is answering",
+      "app/_lib/auth/roles.ts:25 and :32-36 - org:manage is owner-only ('billing, org profile/settings, delete org - owner only'); admin, recruiter, hiring_manager and viewer do not hold it",
+      "app/_lib/org-actions.ts:54-55, :69-71, :98-103 - setOrgName, setOrgCurrency and setOrgLanguage all refuse with ORG_SETTINGS_FORBIDDEN unless requireOrgCapability('org:manage') passes",
+      "app/features/shell/setup/setupOnboardingFinish.ts:34 and :58 - 'language' is in every run's parts and setOrgLanguage(state.language) is called unconditionally, so every non-owner finish (admin included) ends in a refused language write",
+      "app/features/shell/setup/setupSteps.ts:118 - the Company step REQUIRES an org name; app/features/shell/setup/SetupCompanyStep.tsx:64-71 seeds it only from the per-browser kp_org_name cookie, so an invitee on their own browser meets a blank required field and must invent a name the server will then refuse",
+      "app/api/org/invites/route.ts:31-33 - POST requires members:manage, so a recruiter's staged Team-step invites are refused 403 at finish",
+      "app/api/brand/route.ts:51-53 - PUT /api/brand gates only on requireOperator, so an invitee who picks an accent on the Company step re-skins the whole app for everyone (navCapabilities.ts header: 'Branding is deliberately ABSENT ... gates on requireOperator, not on a capability')",
+      "app/features/shell/setup/SetupHandoffSummary.tsx:137-139 - the Recommended tour tile calls ctrl.finish(); sim.start() for every seat, while app/features/shell/navCapabilities.ts:39-41 declares the tour a write gated on TOUR_CAPABILITY = 'pipeline:write'",
+      "app/features/shell/useCapabilities.ts:28-42 and app/api/me/capabilities/route.ts:53-56 - the shell already resolves the caller's capabilities; the wizard (app/features/shell/setup/*) imports neither"
+    ],
+    "rollback": "The series reverts cleanly: `seat` is an additive field on SetupState and on the GET /api/me/onboarding body, the predicates treat a null seat as today's full run, and no server write, table or route method changes - reverting restores the intent-only predicates with nothing persisted to migrate.",
+    "gate": "architecture",
+    "runner_up": "One server finish door (POST /api/me/onboarding/finish): the wizard posts its answers once, the server resolves authority once, runs every write and the stamp in one request, and answers the folded outcome - replacing 3 server actions + 5 route doors fired from the client.",
+    "technique": "branching-and-skipping",
+    "body": "## Summary\nGive every setup step a declared write requirement (the capability its answers need) and make the caller's seat part of the wizard's state, so `relevantSteps()`, the rail, the counter, `finishPartsFor()` and the hand-off's exits all derive from intent x seat. An invited recruiter stops being walked through an owner's setup whose every answer the server refuses.\n\n## Description\nThe '/' gate is per user (onboarding-gate.ts:26-29) and a redeemed invite lands on '/' (invite-result.ts:100-101), so the wizard's most frequent audience after the owner is the owner's teammates. The step model knows only the intent (setupSteps.ts:55-64). A recruiter or admin is asked to type the company name (required, blank on their browser - SetupCompanyStep.tsx:64-71), pick a currency and brand, stage invites, and finishes into ORG_SETTINGS_FORBIDDEN on name, currency and language (org-actions.ts:54-103; language is written on every run, setupOnboardingFinish.ts:34,58) and a 403 on every invite (org/invites/route.ts:32). Two answers do land and should not: the brand PUT is operator-gated only (brand/route.ts:51-53), so an invitee's accent pick re-skins the app for the whole org, and the Recommended tour tile starts a pipeline-writing run for a viewer (SetupHandoffSummary.tsx:137-139 vs navCapabilities.ts:39-41).\n\nThe move: steps declare `requires?: Capability` beside `relevant` (company -> org:manage, team -> members:manage, pipeline -> pipeline:write); `SetupState.seat: Capability[] | null` is read once from GET /api/me/onboarding (which already serves `scope` and is ungated for the same reason /api/me/capabilities is), computed as callerOrgCapabilities() union callerCapabilities() - exactly the two resolvers the finish doors gate on. `relevantSteps` filters on both predicates; `finishPartsFor` already derives from walked steps and additionally drops the org-wide language write without org:manage; `handoffExits(seat)` drops the tour without pipeline:write. A null seat is today's run (fail-open, like navCapabilities), so the server stays the enforcement and the keyless e2e journey (open mode = owner fold) is unchanged.\n\n## Flow\n1. `setupSeat.ts` (pure): SetupSeat type, parseSetupSeat(body), seatAllows(seat, cap) with null = allow, handoffExits(seat).\n2. setupSteps.ts: `requires` on the three steps; relevantSteps checks `relevant` AND seatAllows; INITIAL_SETUP.seat = null.\n3. GET /api/me/onboarding adds `seat: { capabilities }`; useSetupDraft.ts already fetches this route for `scope` - it hands the seat to the host via update({ seat }) from the same response (one fetch, not two).\n4. setupOnboardingFinish.ts: finishPartsFor pushes 'language' only when seatAllows(seat, 'org:manage').\n5. SetupHandoffSummary.tsx renders the exits handoffExits returns; a join-run title key (no Company step walked) in 4 catalogs.\n6. Tests first (the 8 cases), then the implementation; app-structure.md's shell/setup section gains the seat axis.\n\n## Expected impact\nEvery invited teammate's first five minutes: 6 steps with a required field they cannot answer and a red 3-to-5-part refusal toast become a 3-to-5-step run whose every answer lands. Two live mis-writes close (an invitee's accent re-skinning the org; a viewer starting a data-writing tour). Owner and open-mode runs are unchanged by construction.\n\n## Evaluation\nClaim: the wizard's step sequence, finish parts and hand-off exits are derived from intent x seat, and an unknown seat reproduces today's run.\nBefore: 0 of 8 acceptance cases pass (no seat field, no requires, no handoffExits, GET /api/me/onboarding answers scope only).\nAfter: 8 of 8.\nMethod: gate - node:test over setupSeat.test.ts, setupSteps.test.ts, setupOnboardingFinish.test.ts and app/api/me/onboarding/route.test.ts, plus the existing journey-role-to-schedule e2e unchanged (open mode folds to owner).\nResult: pending build.\nGate: npm run test:unit, tsc, lint, i18n:check.",
+    "evidence": "onboarding-gate.ts:26-29: `const userId = currentUserId(session); if (userId) { const user = getUserById(userId); return user !== null && user.onboardingCompletedAt === null && user.onboardingSkippedAt === null; }`\ninvite-result.ts:100-101: `export function inviteSuccessPath(cookies: string): \"/\" | \"/login\" { return /(?:^|;\\s*)kp_entered=1(?:;|$)/.test(cookies) ? \"/\" : \"/login\"; }`\nsetupSteps.ts:55 `const hiringOnly = (state: SetupState): boolean => state.intent !== \"seek\";` ; :59-62 company/team/pipeline/companion all `relevant: hiringOnly` - the only predicate.\nroles.ts:25 `| \"org:manage\" // billing, org profile/settings, delete org — owner only`; :33 `admin: new Set<Capability>([\"members:manage\", \"team:manage\", \"pipeline:write\", \"read\"])`; :34 `recruiter: new Set<Capability>([\"pipeline:write\", \"read\"])`.\norg-actions.ts:55 `if (await orgManageDenied()) return { ok: false, code: \"ORG_SETTINGS_FORBIDDEN\" };` (also :71, :103).\nsetupOnboardingFinish.ts:34 `const parts: SetupFinishPart[] = [\"language\"];` ; :58 `const lang = await setOrgLanguage(state.language);` (no parts check).\nsetupSteps.ts:118 `if (id === \"company\") return state.orgName.trim().length > 0;`\nSetupCompanyStep.tsx:69-71 `const stored = readClientOrgName(); if (stored === DEFAULT_ORG_NAME) return; update({ orgName: stored });`\norg/invites/route.ts:32 `const denied = await requireCapability(\"members:manage\");`\nbrand/route.ts:51-53 `export async function PUT(request: NextRequest) { const denied = await requireOperator(); if (denied) return denied;` - no capability.\nSetupHandoffSummary.tsx:137-139 `onClick={() => { ctrl.finish(); sim.start(); }}` ; navCapabilities.ts:41 `export const TOUR_CAPABILITY: Capability = \"pipeline:write\";`\ngrep -rn \"useCapabilities\\|callerCapabilities\\|TOUR_CAPABILITY\" app/features/shell/setup -> 0 hits.\nPrior decks / backlogs: no shell-setup-wizard card in challenge-2026-09-22..r06; open leftover titles for this context are 'Preview the company-step logo URL', 'Tell seekers how to become a hiring workspace later', 'Accept pasted multi-email lists in InviteEditor' (already built in SetupInviteEditor.tsx:268-284) - none on seat/authority."
+  },
+  {
+    "context": "shell-setup-wizard",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Finish ends on a receipt: share each invite link, retry only what failed",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/features/shell/setup/setupFinishOutcome.ts",
+      "app/features/shell/setup/setupOnboardingFinish.ts",
+      "app/features/shell/setup/OnboardingExperience.tsx",
+      "app/features/shell/setup/setupSteps.ts",
+      "app/features/shell/setup/SetupOnboardingWizard.tsx",
+      "app/features/shell/setup/SetupHandoffSummary.tsx",
+      "app/features/shell/setup/setupFinishOutcome.test.ts",
+      "app/features/shell/setup/setupOnboardingFinish.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/app-structure.md"
+    ],
+    "new_files": [
+      "app/features/shell/setup/SetupFinishReceipt.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "sendSetupInvites with a 200 body { invite: { token: 'inv-abc' } } -> the landed result carries token 'inv-abc'; with the existing test stub body { invite: {} } -> ok true, token null (setupOnboardingFinish.test.ts:29-38 keeps passing)",
+      "finishReceipt(results, 'https://kp.example') with two landed invites -> links [{ email, url: 'https://kp.example/invite/inv-abc' }, ...] in staged order, built by the same publicBaseUrl rule copyInviteUrl uses; a landed invite with a null token yields no link and is counted in `unshareable`",
+      "finishReceipt with no landed invites and an ok outcome -> null, so finish() closes exactly as today (the journey-role-to-schedule e2e, which stages no invites, is unchanged)",
+      "isRetryable(failure): code null, 'TOO_MANY_REQUESTS' or any '*_FAILED' store code -> true; 'ORG_SETTINGS_FORBIDDEN', 'INVITE_ALREADY_MEMBER', 'INVITE_ROLE_ABOVE_PRIVILEGE', 'BRAND_ACCENT_ILLEGIBLE_LIGHT' -> false (a permanent refusal is named, never offered a Retry that cannot work)",
+      "finishRemainder(state, results) after orgName landed, invites jana landed + petr refused (code null), pipeline refused 409 -> a state whose finishPartsFor-run touches ONLY invites [petr] and pipeline; retrying it posts one invite (petr) and never re-mints jana's token or re-calls setOrgName",
+      "finishNext(outcome, receipt): receipt null -> 'close'; receipt non-null -> 'receipt'; the '/api/me/onboarding' completed stamp and clearDraft run on the receipt's Done, not in finish()'s finally, and the tour tile's sim.start() waits for that Done",
+      "hand-off meta with 2 staged invites reads as links to share after setup ('2 invitation links to share'), not '2 teammates invited', in all 4 catalogs (i18n:check)"
+    ],
+    "premise": [
+      "app/api/org/invites/route.ts:29-30 - 'Returns the tokenized accept link so the UI can copy/share it (no email relay is configured in this app)'; app/_lib/db/invites.ts:50-72 createInvite only INSERTs a pending row - nothing is sent",
+      "app/features/shell/setup/setupOnboardingFinish.ts:158 - on a 200 the invite body (and its token) is discarded: `if (r.value.ok) return { email, ok: true, code: null };`; app/features/shell/setup/setupFinishOutcome.ts:77 SetupInviteResult has no token field",
+      "messages/en.json:9556 - the hand-off tells the operator '# teammate(s) invited'; the Organization console's own create answers 'Invitation created. Copy the link to share it.' (messages/en.json:7338) and copies via copyInviteUrl (app/features/settings/workspace/workspaceAdminHelpers.ts:14-16, WorkspaceTab.tsx:244-245)",
+      "app/features/shell/setup/OnboardingExperience.tsx:240-248 - clearDraft(), stamp('completed') and onClose() run in `finally` whatever the outcome, so a partial finish drops every answer, closes the wizard and (via useSetupUnfinished, which reads the completed stamp) removes the board's resume door - the only record of what failed is the transient toast at :236",
+      "app/features/shell/setup/setupFinishOutcome.ts:46-48 already carries a per-part refused code and the refused invite addresses - the data a targeted retry needs exists and is thrown away",
+      "app/features/shell/setup/SetupHandoffSummary.tsx:137-139 - the tour tile fires ctrl.finish() and sim.start() in the same tick, so the tour starts while the finish writes are still in flight",
+      "Registry wizard-flows/commit-boundary: 'Make the retry safe. Re-confirming after a partial failure re-runs only the failed and unattempted parts' and 'Terminal ... the surface shows what was created and where to live with it now'"
+    ],
+    "rollback": "Reverts cleanly: the token field is additive on SetupInviteResult, the receipt is a new pane rendered in place of the step grid (the same slot SetupLeaveConfirm uses), and restoring the old finally block restores today's close-on-finish; no server route, table or stored shape changes.",
+    "gate": "none",
+    "runner_up": "Make the leave confirmation's 'Nothing is lost' true: dismiss() keeps the draft (OnboardingExperience.tsx:171 clears it) so the board's resume door reopens the wizard with the answers instead of a blank form (likely S alone).",
+    "technique": "commit-boundary",
+    "body": "## Summary\nWhen finish() has something the operator must act on, the wizard stays open on a receipt instead of closing under a toast: one copyable accept link per invite it minted (plus Copy all), and each part that did not land, with Retry offered only where a retry can work and running only the failed parts. With nothing to act on it closes exactly as today.\n\n## Description\nkp sends no invite mail - the route mints a tokenized link for the UI to share (org/invites/route.ts:29-30, invites.ts:50-72). The Organization console knows this ('Copy the link to share it', en.json:7338). The wizard does not: it discards the token on success (setupOnboardingFinish.ts:158), tells the operator '2 teammates invited' (en.json:9556) and closes. The invitees never hear of it; the operator learns only by finding Settings -> Organization -> pending invites. Separately, a partial finish is unrecoverable: clearDraft, the completed stamp and onClose run in `finally` regardless of the fold (OnboardingExperience.tsx:240-248), so a network blip on the axis write or one refused invite throws away the answers and the resume door, leaving a toast as the only record - while the fold already knows exactly which parts and addresses failed (setupFinishOutcome.ts:46-48).\n\nThe leap: finish() computes a receipt (pure, setupFinishOutcome.ts): links for landed invites, failures split into retryable (null code, rate limit, store *_FAILED) and permanent (forbidden, already-member, illegible accent). If the receipt is empty the flow is today's. Otherwise SetupFinishReceipt replaces the step grid (the SetupLeaveConfirm slot, same fixed card height): the links with copy buttons, the permanent refusals named via useErrorMessage, and Retry that re-runs finishRemainder(state, results) - only the failed parts, only the refused addresses, never re-minting a landed token. The stamp and the draft clear move to the receipt's Done, and the tour tile's sim.start() waits for it.\n\n## Flow\n1. setupFinishOutcome.ts: SetupInviteResult.token; finishReceipt(results, origin); isRetryable(failure); finishRemainder(state, results); finishNext(outcome, receipt).\n2. setupOnboardingFinish.ts: sendSetupInvites reads body.invite.token; persistOnboardingSetup returns the raw part results beside the fold.\n3. OnboardingExperience.tsx: finish -> receipt state; retryFinish(); closeReceipt() stamps 'completed', clears the draft, runs any deferred sim.start, closes.\n4. setupSteps.ts OnboardingCtrl gains receipt / retryFinish / closeReceipt; SetupOnboardingWizard.tsx renders the receipt pane in place of the grid.\n5. SetupHandoffSummary.tsx: honest meta copy ('links to share'); tour tile defers the start.\n6. 4 catalogs; app-structure.md shell/setup section.\n\n## Expected impact\nEvery invite staged in the wizard becomes a link the operator actually has in hand at the moment they are thinking about their team, instead of a pending row nobody is told about. A partial finish stops costing the operator their answers: the failed parts are retried in place, the refused ones are named with their reason, and the first-run resume door is not closed on an unfinished setup.\n\n## Evaluation\nClaim: finish surfaces every minted invite as a shareable link and re-runs only failed, retryable parts; with nothing to act on it closes as today.\nBefore: 0 of 7 acceptance cases pass (token discarded, no receipt, no remainder, stamp in finally).\nAfter: 7 of 7.\nMethod: gate - node:test over setupFinishOutcome.test.ts and setupOnboardingFinish.test.ts (fetch stubbed as the file already does), i18n:check for the copy case; journey-role-to-schedule e2e unchanged (it stages no invites, so receipt is null).\nResult: pending build.\nGate: npm run test:unit, tsc, lint, i18n:check.",
+    "evidence": "org/invites/route.ts:29-30 `// Invite a member (P0). members:manage. Returns the tokenized accept link so the // UI can copy/share it (no email relay is configured in this app).`\ninvites.ts:52-59 `const token = randomToken(\"inv\"); ... INSERT INTO invites (token, ...) VALUES (?, ..., 'pending', ...)` - no comms/outbox call.\nsetupOnboardingFinish.ts:158 `if (r.value.ok) return { email, ok: true, code: null };`\nsetupFinishOutcome.ts:77 `export type SetupInviteResult = { email: string; ok: boolean; code: string | null };`\nmessages/en.json:9556 `\"readyMeta\": \"Language: {language} · {invites, plural, =0 {no invites yet} one {# teammate invited} other {# teammates invited}}\"`\nmessages/en.json:7338 `\"inviteCreated\": \"Invitation created. Copy the link to share it.\"`\nworkspaceAdminHelpers.ts:14-16 `export function copyInviteUrl(origin: string, token: string): string { return `${publicBaseUrl(origin)}/invite/${token}`; }`\nOnboardingExperience.tsx:240-248 `} finally { clearDraft(); ... void stamp(\"completed\").then(notifyDataChanged); if (state.intent === \"seek\") router.push(\"/me\"); else router.refresh(); onClose(); }`\nuseSetupUnfinished.ts reads GettingStarted.setupFinished (the completed stamp) - after the finally, the board's resume door is gone.\nSetupHandoffSummary.tsx:137-139 `ctrl.finish(); sim.start();` (finish not awaited).\nNo prior card or open backlog title covers invite links or finish retry for this context (checked challenge-2026-09-22..r06 decks, leftover-develop-2026-09-17.jsonl, low-risk-drain-2026-09-22*-results.jsonl, .personas/backlog-digest.json)."
+  }
+]

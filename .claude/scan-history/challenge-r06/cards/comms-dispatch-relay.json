@@ -1,0 +1,109 @@
+[
+  {
+    "context": "comms-dispatch-relay",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Dispatchers return their delivery verdict; a dead-lettered offer is not out",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/comms-dispatch.ts",
+      "app/_lib/pipeline-entry-action.ts",
+      "app/_lib/screen-wave.ts",
+      "app/_lib/pipeline-entry-action.test.ts",
+      "app/_lib/comms-dispatch-population.test.ts",
+      "docs/features/comms/README.md"
+    ],
+    "new_files": [
+      "app/_lib/comms-dispatch-verdict.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Relay configured (COMMS_WEBHOOK_URL + stubbed fetch answering 400): dispatchRejection(entry) resolves { claim: 'failed' } (today: undefined), and the entry's events contain NO 'rejection_sent'.",
+      "Relay answering 400: runPipelineEntryAction({ action: 'reject' }) answers 200 with body.commsFailed === true and records exactly one 'rejection_comms_failed' event; the reject itself is still applied (the committed decision is never undone).",
+      "Relay answering 400: extendDraftedOffer(offer_review entry) answers 502 code OFFER_NOT_DISPATCHED with offerExtended === false; the entry's approvalKind is still 'offer_review'; one 'offer_comms_failed' event; NO 'offer_sent' event (today: 200, offerExtended true, approval cleared, offer_sent recorded).",
+      "After case 3, relay now answering 200: a second extendDraftedOffer answers 200 offerExtended true, the letter's link carries the SAME offer token as the dead-lettered row, and the offers table holds one open offer for the entry (no second token minted).",
+      "No relay configured (keyless): extendDraftedOffer answers 200 offerExtended true, the outbox row is 'queued', and 'offer_sent' is recorded - keyless behaviour unchanged.",
+      "Agent-population entry, relay configured: dispatchRejection resolves { claim: 'refused' }; runPipelineEntryAction reject answers 200 WITHOUT commsFailed and records neither 'rejection_comms_failed' (a refusal by design is not a nudge) nor 'rejection_sent'.",
+      "Relay answering 400: a committed screen wave returns commsFailures === rejected and every action:'reject' decision row carries commsFailed: true (today: commsFailures 0)."
+    ],
+    "premise": [
+      "app/_lib/comms.ts:166-183 - WebhookChannel.send turns a dead letter into a recorded `failed` row and RETURNS it; it never throws for a relay failure (only the send gate throws, comms.ts:327-330).",
+      "app/_lib/comms-dispatch.ts:278-321 - sendCandidateComm returns the row's OutboxStatus, and its refusal branch (286-302) returns `failed` on the `refused` channel for an agent-population entry.",
+      "app/_lib/comms-dispatch.ts:487 - dispatchRejection is Promise<void>; :503 awaits sendCandidateComm and DISCARDS the status; :504-518 records 'rejection_sent' unconditionally.",
+      "app/_lib/comms-dispatch.ts:602-626 - dispatchOffer is Promise<void>; :624 discards the status; :625 records 'offer_sent' unconditionally. Same shape for dispatchApplicationReceived :348-366 ('acknowledgement_sent' at :365).",
+      "app/_lib/pipeline-entry-action.ts:265-291 - extendDraftedOffer's compensation (approval kept, 502 OFFER_NOT_DISPATCHED, 'offer_comms_failed') fires only in `catch (dispatchError)`; a resolved dead letter falls through to :294 setApproval(null) and :306 ok({ offerExtended: true }).",
+      "app/_lib/automation-run.ts:638-657 - the unattended offer path keys off extended.status !== 200 and, on 200, stamps 'offer_auto_extended' and applied = 'offer_sent' - so a dead-lettered auto-offer is reported sent.",
+      "app/_lib/pipeline-entry-action.ts:531-545 (working tree, r05 one-core) and app/_lib/screen-wave.ts:597-606 - commsFailed is set only in a catch; a dead-lettered rejection counts as notified.",
+      "app/_lib/db/analytics.ts:617 - `extended: kindCounts[\"offer_sent\"]` - every dead-lettered offer inflates the analytics 'offers extended' figure.",
+      "app/_lib/comms-dispatch.ts:459-472 - dispatchOutreach already does it right (keys off status === 'failed', records outreach_sent only after a non-failed handoff) - the shape the other dispatchers lack."
+    ],
+    "rollback": "Three commits (dispatcher return type + event gating; extendDraftedOffer/reject site consumption; screen-wave consumption), each reverting cleanly: the return type widens void -> DispatchOutcome, so reverting restores void and every caller that ignored it compiles again; no schema, no catalog, no wire-vocabulary change (the 502 code and both *_comms_failed event kinds already exist).",
+    "gate": "policy-tighten",
+    "runner_up": "Persist the envelope messageId on the outbox row and echo it in the callback so a bounce binds to its exact send (retires pickBounceTarget's newest-send heuristic, comms-view.ts:135-167) and a resend reuses the id (adopts the open M 'Persist envelope messageId on the outbox row for resend idempotency').",
+    "technique": "terminal-delivery-status-vocabulary",
+    "body": "## Summary\nThe channel has TWO failure signals - a throw (the send gate refused) and a returned `failed` row (the relay dead-lettered, or the recipient was refused) - and six of the candidate dispatchers return `void`, so every caller hears only the first. A dead-lettered offer clears the recruiter's approval and answers `offerExtended: true`; a dead-lettered rejection is stamped `rejection_sent`. Make every candidate dispatcher return one `DispatchOutcome` (`sent | queued | failed | refused`, plus the outbox id and detail), record `*_sent` only on sent/queued, and have the offer and reject sites consume it.\n\n## Description\n`dispatchOutreach` (comms-dispatch.ts:459-472) already learned this lesson (REC-10): it keys its claim off the row, not off 'the call resolved'. `dispatchOffer`, `dispatchRejection` and `dispatchApplicationReceived` never did - they discard `sendCandidateComm`'s status and write their `*_sent` event unconditionally. The consequences are concentrated at the two highest-stakes moments: `extendDraftedOffer` treats a resolved dead letter as delivered (clears the approval gate, so nothing is left on the card to notice, and the automation-run auto-extend reports `offer_sent`), and every reject door (single, batch, command bar via the one-core, screen wave) counts a dead-lettered rejection as notified. The candidate's process stalls silently - exactly what the compensation branch at pipeline-entry-action.ts:269-290 was written to prevent, but it only listens for a throw.\n\nThe structural move: one outcome type produced in ONE place (`sendCandidateComm` maps status + channel -> claim; the `refused` channel becomes `refused`, not `failed`, per the technique's refusal-is-not-a-failure rule), returned by every candidate dispatcher, and consumed by the three sites that make claims. `refused` (an agent on the slate) is neither a nudge nor a send. No new status enum member, no catalog key, no wire change: OFFER_NOT_DISPATCHED and both `*_comms_failed` kinds already exist.\n\n## Flow\n1. comms-dispatch.ts: `type DispatchOutcome = { claim: DeliveryClaim | 'refused'; outboxId: string; detail: string | null }`; `sendCandidateComm` returns it; dispatchRejection / dispatchOffer / dispatchApplicationReceived return it and write `*_sent` only when claim is sent|queued.\n2. pipeline-entry-action.ts: extendDraftedOffer routes `claim === 'failed' | 'refused'` into the existing compensation branch (approval kept, `offer_comms_failed`, 502) before setApproval; the reject site sets commsFailed on `failed` (not `refused`).\n3. screen-wave.ts: same mapping for the wave's per-row commsFailed.\n4. Stub types in the two touched tests follow the widened return type; docs/features/comms/README.md states the outcome contract.\n\n## Expected impact\nA recruiter is never told an offer went out that did not: the approval stays on the card with its retry, the analytics 'extended' count stops counting dead letters, and bulk-reject summaries name who was not told. Closes the dual-signal class for every future dispatcher (the type makes discarding the verdict a visible choice).\n\n## Evaluation\nClaim: every candidate dispatcher's caller learns the row's real delivery verdict, and a dead letter never becomes a 'sent' claim or event.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate - node:test cases in app/_lib/comms-dispatch-verdict.test.ts driving the REAL WebhookChannel with a stubbed fetch (the comms-relay-delivery.test.ts / comms-dispatch-population.test.ts pattern), then npm run test:unit + tsc.\nResult: pending\nGate: policy-tighten",
+    "evidence": "comms.ts:166-167: `const { status, attempts, detail } = await this.deliver(envelope); if (status === \"failed\") await this.alertDeadLetter(...)` then :173 `return recordOutbox({... status ...})` - no throw.\ncomms-dispatch.ts:503: `await sendCandidateComm(entry, t, { subject, body, kind: \"rejection\" }, locale);` (result discarded) then :504-506 `recordAutomationEvent(entry.id, \"rejection_sent\", ...)`.\ncomms-dispatch.ts:624-625: `await sendCandidateComm(entry, t, { subject, body, kind: \"offer\" }, locale); recordAutomationEvent(entry.id, \"offer_sent\", ...)`.\ncomms-dispatch.ts:464-466 (the right shape): `if (status === \"failed\") { return { sent: false, reason: \"delivery_failed\", status: \"failed\" }; }`.\npipeline-entry-action.ts:264-269: `try { await dispatchOffer(entry, draft, link, {...}); } catch (dispatchError) {` ... :294 `const cleared = setApproval(entry.id, null, \"\", ...)` ... :306 `return ok({ ..., offerExtended: true, link });`.\nautomation-run.ts:638 `if (extended.status !== 200) {` ... :656-657 `offer_auto_extended` / `applied = \"offer_sent\"`.\nscreen-wave.ts:598-602: `try { await dispatchRejection(updated, { automated: true }); } catch (commsError) { commsFailed = true; commsFailures += 1;`.\nanalytics.ts:617: `extended: kindCounts[\"offer_sent\"] ?? 0,`.\ncomms-dispatch-population.test.ts:55-69 pins the agent refusal as a `failed` row on channel `refused` - the case the outcome must NOT treat as a nudge.\nVoid dispatchers counted: dispatchApplicationReceived, dispatchRejection, dispatchKnockoutDecline, dispatchOffer, dispatchOfferReminder, dispatchConsentExpiryReminder (6); claim-making call sites among their callers: pipeline-entry-action (offer + reject), screen-wave, automation-run (via extendDraftedOffer)."
+  },
+  {
+    "context": "comms-dispatch-relay",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Show the exact offer letter and its delivery forecast at the approval gate",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/comms-dispatch.ts",
+      "app/features/hiring/decisions/DecisionsAiReviewCardBody.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "docs/features/comms/README.md"
+    ],
+    "new_files": [
+      "app/_lib/comms-letter-preview.ts",
+      "app/_lib/comms-letter-preview.test.ts",
+      "app/api/pipeline/[id]/offer-letter/route.ts",
+      "app/api/pipeline/[id]/offer-letter/route.test.ts",
+      "app/features/hiring/decisions/DecisionsOfferLetterPreview.tsx",
+      "app/features/hiring/decisions/useOfferLetterPreview.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "offer_review entry with locale 'cs', a draft {subject, body}, ttlDays 10 and a fixed now: previewOfferLetter returns locale 'cs', subject === draft.subject, and a body that starts with draft.body and contains the cs 'offer.deadlineLine' formatted for offerExpiresAtMs(now, 10) plus the cs 'offer.responseFooter'.",
+      "Single composer: for the same entry, draft, expiresAt and startDate, the body dispatchOffer writes to the outbox equals previewOfferLetter's body once link/token values are normalised to placeholders - both go through one exported composeOfferLetter.",
+      "Preview is side-effect free: dev_outbox row count, the offers table, the entry's erasure and opt-out token columns and its events are byte-identical before and after previewOfferLetter (no token minted, no offer row created).",
+      "Draft with no subject: preview subject is the candidate-locale 'offer.subjectFallback' with the role interpolated (not the recruiter's UI language).",
+      "Forecast uses the send path's own predicates: no relay -> 'local'; COMMS_WEBHOOK_URL set and a deliverable contact -> 'relay'; entry whose consent expired -> 'suppressed' with reason 'consent_expired' (commsSendSuppression); population 'agent' -> 'refused'; a (SIM)-titled role -> 'simulation'.",
+      "GET /api/pipeline/<id>/offer-letter?ttlDays=10 on an entry whose approvalKind is not 'offer_review' -> 409 with a coded refusal; unknown id -> 404 PIPELINE_ENTRY_NOT_FOUND; out-of-range ttlDays is clamped through resolveOfferTtlDays, never 400.",
+      "The route declares an auth posture (requireOperator first) and has an api-reference.md row, so npm run api:check passes."
+    ],
+    "premise": [
+      "app/features/hiring/decisions/DecisionsAiReviewCardBody.tsx:33-101 - the offer approval card renders the salary band meter, pricing basis and the ttlDays deadline input, and NOTHING of the letter: the recruiter approves an offer letter they are never shown. Mounted at the board's decision point too (app/features/hiring/pipeline/candidate/decision/CandidateDecisionBar.tsx:94).",
+      "app/_lib/comms-dispatch.ts:612-623 - the sent letter is draft.body PLUS terms injected at DISPATCH (deadline from the approval-time ttlDays, start date) PLUS the localized response footer; :610 swaps in a localized fallback subject - so even the raw draft shown in the automation result view (app/features/hiring/pipeline/PipelineCandidateResultView.tsx:174-175) is not what the candidate receives.",
+      "app/_lib/comms-dispatch.ts:608 + :90-92 - the letter's language is the CANDIDATE's resolved locale (entry.locale, else their team default), which the recruiter cannot see from the card.",
+      "app/_lib/comms-dispatch.ts:304-318 - sendCandidateComm appends the GDPR data + opt-out footers; :185-194 candidateFooters MINTS tokens (ensureErasureToken / ensureOptOutToken), so a preview must render them without calling it.",
+      "Every forecast input already exists as a pure-enough predicate: candidateRecipient / recipientRefusal (comms-dispatch.ts:63-71), commsSendSuppression (comms.ts:290-311), isRelayConfigured (comms-relay.ts:82), isSimTitle (comms-dispatch.ts:257-258).",
+      "app/_lib/offer-policy.ts:36 resolveOfferTtlDays and :74 offerExpiresAtMs compute the same deadline extendDraftedOffer will stamp, so the preview can state it before an offer row exists.",
+      "app/api/pipeline/[id]/timeline/route.ts:22-35 - the entry-keyed recruiter read pattern (requireOperator, currentWorkspace, jsonRefusal 404, safeJsonError) the new route copies."
+    ],
+    "rollback": "Additive: a new read-only route, a new lib module, a new card panel and four catalog blocks. dispatchOffer's body is refactored onto the exported composeOfferLetter in its own commit guarded by the parity case; reverting the UI commit leaves the route unused, reverting the composer commit restores the inline body. Nothing is persisted, so no data outlives a revert.",
+    "gate": "contract",
+    "runner_up": "Per-candidate letter forecast in the screen-wave review before commit (who will be refused, suppressed, queued locally or relayed), so a bulk reject shows who will actually hear from you before the wave is signed.",
+    "technique": "capability-honesty-never-promise-a-channel",
+    "body": "## Summary\nThe offer approval gate asks a recruiter to approve a letter they never see. Build a side-effect-free preview from the SAME composer dispatchOffer uses: the exact subject and body in the candidate's language, the deadline the chosen ttlDays will produce, the start date, the response and legal footers, the recipient - and a delivery forecast (relayed / recorded locally only / refused / suppressed / simulation) from the send path's own predicates. Render it on the offer card, live as the deadline changes.\n\n## Description\nToday the card (DecisionsAiReviewCardBody.tsx) shows band, basis and the deadline input. The letter is assembled only at dispatch (comms-dispatch.ts:602-626): the model's body, then deterministic terms, then the response footer, then the GDPR footers, in a locale resolved from the candidate record or their team. A recruiter working in English approves a Czech letter they have not read, with a deadline line they cannot see, to an address they cannot check - and learns only afterwards, from the Comms Center, that it was queued locally (no relay) or refused (consent expired, agent on the slate). The app holds every one of those facts before the click.\n\nThe leap is a missing mode - preview - at the decision that matters most. It is not polish: it turns a blind approval into an informed one and front-loads the delivery truth the Comms Center reports after the fact. The architectural part is the single composer: `composeOfferLetter` is extracted from dispatchOffer and both the send and the preview call it, so the preview cannot drift from what ships (the parity case pins it). The preview never mints: footers and the offer link render with placeholder tokens, and no offer row is created.\n\n## Flow\n1. comms-dispatch.ts: extract `composeOfferLetter(entry, draft, { link, expiresAt, startDate, locale, t })` -> { subject, body }; dispatchOffer calls it.\n2. comms-letter-preview.ts (server): `previewOfferLetter(entry, { ttlDays, now })` -> { locale, subject, body, footers (placeholder links), recipient, forecast, forecastReason }.\n3. GET /api/pipeline/[id]/offer-letter?ttlDays= (requireOperator, workspace-scoped, 409 when not at offer_review); api-reference.md regenerated.\n4. useOfferLetterPreview.ts (debounced on ttlDays) + DecisionsOfferLetterPreview.tsx mounted in AiReviewCardBody: a collapsible letter pane with a language chip and a forecast line in the deliveryClaim vocabulary; tokens only, both themes.\n5. 4-locale catalog block `decisions.aiReview.letter*`; docs/features/comms/README.md gains the preview contract.\n\n## Expected impact\nEvery offer is approved with the letter in view; a recruiter sees a wrong-language letter, a missing start date or a 'will only be recorded locally - no relay configured' before the candidate does. Removes the most expensive blind decision in the offer flow and makes delivery honesty proactive instead of forensic.\n\n## Evaluation\nClaim: the recruiter can see, before approving, the exact letter an offer will send and whether it will reach anyone, without the preview writing anything.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate - node:test over comms-letter-preview.ts and the route (unit-db fixtures, stubbed relay as in comms-dispatch-population.test.ts), plus npm run api:check and i18n:check.\nResult: pending\nGate: contract",
+    "evidence": "DecisionsAiReviewCardBody.tsx:33-101: children are the band meter (hasBand), the pricingBasis/rationale <p>, and the ttlDays <label><input type=number> - no subject, no body, no recipient.\ncomms-dispatch.ts:610: `const subject = String(draft.subject ?? t(\"offer.subjectFallback\", { role: ... })).trim();`\ncomms-dispatch.ts:612-617: terms array built from formatOfferDeadline(opts?.expiresAt ...) and opts?.startDate.\ncomms-dispatch.ts:622-623: `const link = pinLinkLocale(responseLink, locale); const body = `${letter}\\n\\n` + termsBlock + t(\"offer.responseFooter\", { link });`\ncomms-dispatch.ts:192-193: `const erasureToken = ensureErasureToken(entry.id, workspaceId); const optOutToken = ensureOptOutToken(entry.id, workspaceId);` - minting, so the preview must not reuse candidateFooters.\nPipelineCandidateResultView.tsx:174-175: renders `String(d.subject ?? \"\")` / `String(d.body ?? \"\")` - the raw draft, pre-terms, pre-footer.\nCandidateDecisionBar.tsx:94: `<AiReviewCardBody parsed={parsed} hasBand={hasBand} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />`.\nNo prior card or open backlog title proposes a letter preview (grep of leftover-develop-2026-09-17.jsonl, .personas/backlog-digest.json and challenge-*/cards for 'preview'/'letter': only 'Preview brand on candidate offer, apply, and schedule chrome' (organization-and-branding, branding chrome, not the letter) and r02's pass preview)."
+  }
+]

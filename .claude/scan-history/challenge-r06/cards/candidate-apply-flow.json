@@ -1,0 +1,130 @@
+[
+  {
+    "context": "candidate-apply-flow",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Entry ids stop embedding the applicant's email; erasure frees the identity",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/applicant-key.ts",
+      "app/_lib/applicant-key.test.ts",
+      "app/_lib/apply-intake.ts",
+      "app/_lib/apply.ts",
+      "app/_lib/apply-intake.test.ts",
+      "app/_lib/application-filing.ts",
+      "app/_lib/application-filing.test.ts",
+      "app/_lib/application-filing-erasure.test.ts",
+      "app/_lib/db/pipeline.ts",
+      "app/_lib/db/core.ts",
+      "docs/features/candidates/README.md",
+      "docs/features/compliance/README.md"
+    ],
+    "new_files": [
+      "app/_lib/applicant-key.ts",
+      "app/_lib/applicant-key.test.ts",
+      "app/_lib/application-filing-erasure.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "applicantKey('Jane Doe', 'Jane@Example.com') === applicantKey('jane  doe', ' jane@example.com ') and the key matches /^[a-f0-9]{32,64}$/ (contains neither 'jane' nor 'example')",
+      "applicantKey('', null) === '' (an anonymous, address-less applicant never dedupes), and applicantKey('Jane Doe', null) !== applicantKey('Jane Doe', 'jane@x.invalid') (email and name keys are domain-separated)",
+      "fileApplication with an injected builder for name 'Jana Novakova', email 'jana@example.invalid' -> outcome.kind 'created' and outcome.entry.id contains none of 'jana', 'example', 'invalid'",
+      "createPipelineEntry called twice with the same applicantKey + jobId + workspace (the lookup-miss race) -> the second returns created:false with the FIRST entry's id, and exactly one pipeline_entries row carries that (workspace_id, job_id, applicant_key)",
+      "anonymizeEntry(entryId, 'erasure', W) -> the row's applicant_key IS NULL (alongside the contact = NULL it already writes)",
+      "file jana@example.invalid, reject the entry, anonymizeEntry it, then file the same name + email to the same job -> outcome.kind 'created' with a NEW entry id; the erased row keeps contact NULL and status 'rejected' (not flipped to 'active'), gains no re_applied event, and no acknowledgement is dispatched for it",
+      "a legacy row (id 'm-appl-tomas-example-invalid-job-1', contact 'tomas@example.invalid', applicant_key NULL) + a new filing with that email -> outcome.kind 'duplicate' onto the legacy id (identity lookup unchanged; no second row)"
+    ],
+    "premise": [
+      "app/_lib/apply-intake.ts:117-128 - applyDedupeKey builds the key from the NORMALIZED EMAIL in clear text: line 125 `appl-${e.replace(/[^a-z0-9]+/g, \"-\")...}`, so jane@example.com -> appl-jane-example-com",
+      "app/_lib/application-filing.ts:293 - every door's first filing passes `dedupeKey: applyDedupeKey(providedName, email)` to createPipelineEntry",
+      "app/_lib/db/pipeline.ts:1445,1452 - `keySource = input.dedupeKey || input.candidateId` and `id = m-${idPrefix}${keySource}-${jobId}`: the pipeline entry PRIMARY KEY is m-appl-jane-example-com-<job>",
+      "app/_lib/db/pipeline.ts:2388,2420 - anonymizeEntry nulls contact/label/handles but KEEPS the row id, events and the decision_records chain (retained for adverse-action defense) - all keyed by that email-bearing id",
+      "app/_lib/ats-record.ts:98,195 - the id leaves the system: `ref: entry.id` is the ATS subject reference (\"same as decision candidateRef\")",
+      "app/_lib/db/pipeline.ts:2513 - the erasure path itself logs `interview audio not deleted for erased entry ${entryId}` - the email reaches the server log after the candidate asked to be erased",
+      "app/_lib/db/pipeline.ts:1715 - findApplicationByApplicant matches on contact, which erasure set NULL, so an erased applicant re-applying MISSES the lookup (app/_lib/application-filing.ts:261) and a fresh profile is built (line 271)",
+      "app/_lib/db/pipeline.ts:1452-1508 - createPipelineEntry then regenerates the SAME email-derived id, finds the erased row, flips a terminal status back to 'active' (1500-1506) and returns created:false",
+      "app/_lib/application-filing.ts:304,210,217,243,247 - `if (!created) return repeat(entry, true)`; raced 'none' becomes 'channel'; the email is backfilled onto the anonymized row, a re-ack is sent to it, and consent is re-recorded; the profile built at line 271 is orphaned",
+      "app/_lib/db/tasks.ts:168 - house precedent for the replacement backstop: a UNIQUE dedupe column plus a SQLITE_CONSTRAINT_UNIQUE catch that returns the winner",
+      "registry recruiting/governance/candidate-consent-and-retention/techniques/anonymise-but-retain-the-aggregate-signal.md:36 (a STABLE SURROGATE identifier stays) and :103-107 (anonymised means unreachable: excluded from every path that would treat it as a person, outreach included)"
+    ],
+    "rollback": "Reverting the commit series restores applyDedupeKey and the m-<key>-<job> derivation. Nothing written in between breaks: entries minted with surrogate ids stay valid rows (identity is found by contact in findApplicationByApplicant, which the change does not touch), and the added applicant_key column + partial unique index are simply unread by the old code (SQLite keeps the column; no down-migration needed). No existing row id is rewritten, so the decision_records chain is untouched in both directions.",
+    "gate": "architecture",
+    "runner_up": "Status links become lifecycle-governed capabilities: application_status_links rows are revocable and rotatable (today a token never expires, and erasure leaves it resolving - app/_lib/application-status-store.ts:44-71, db/pipeline.ts:2188).",
+    "technique": "anonymise-but-retain-the-aggregate-signal",
+    "body": "## Summary\nEvery inbound application is filed under a pipeline-entry PRIMARY KEY built from the applicant's email in clear text (`m-appl-jane-example-com-<job>`). That id is the ATS subject reference, the decision-chain candidateRef, the key on every event, and it survives erasure by design. Replace the derived id with an opaque surrogate and move the dedupe identity into an erasable, hashed `applicant_key` column with a partial unique index; erasure nulls it. As a direct consequence, the live bug where an erased applicant who re-applies RESURRECTS the anonymized row (re-activated, email backfilled, re-acknowledged) closes.\n\n## Description\n`applyDedupeKey` (apply-intake.ts:117) turns the normalized email into `appl-<email-with-hyphens>` and `createPipelineEntry` (db/pipeline.ts:1445-1452) makes it the row id. Identity resolution does not actually need that: `fileApplication` resolves a known applicant BEFORE building via `findApplicationByApplicant` (contact-based, application-filing.ts:261); the derived id only backstops two concurrent first filings. So the PII-bearing primary key buys one race guard and costs: the email in the ATS export (`ref: entry.id`), in the retained decision chain, in every server log line that names an entry (including the erasure path's own log at db/pipeline.ts:2513), and, worst, an erasure that can be undone. After anonymizeEntry nulls `contact`, a re-application misses the lookup, builds a fresh profile, regenerates the same id, lands on the erased row, flips a rejected status to active (1500-1506) and then, as a raced repeat promoted to 'channel' proof, backfills the email, re-sends an acknowledgement and renews consent on a record the candidate asked us to forget. The registry's retention standard says the opposite: a surrogate id stays, and an anonymised record is unreachable by every path that treats it as a person.\n\nThe move: a server-only `applicant-key.ts` computes a domain-separated sha256 of the normalized email (else normalized name; '' for anonymous). `createPipelineEntry` takes `applicantKey` instead of `dedupeKey`: it looks up an existing row by (workspace_id, job_id, applicant_key), else inserts with a random surrogate id (`m-<ws->rand-<job>`), and treats a UNIQUE violation on the partial index as the cross-connection race (re-select the winner, created:false - the db/tasks.ts:168 shape). `anonymizeEntry` adds `applicant_key = NULL` to its claim UPDATE, which is what makes an erased identity unmatchable. Recruiter/Match adds (candidateId-keyed ids) are untouched. Existing rows are NOT rewritten - their ids are referenced by the sealed decision chain - so legacy PII-bearing ids remain a named gap in the compliance doc; the change stops minting new ones and stops the resurrection for legacy rows too, because new filings no longer regenerate their ids.\n\nHot files: db/pipeline.ts and db/core.ts are shared with other contexts (pipeline-move-bulk-operations is in this cohort); the edits are confined to createPipelineEntry, the anonymizeEntry claim UPDATE, and one migration block.\n\n## Flow\n1. Write applicant-key.test.ts and application-filing-erasure.test.ts from the acceptance cases; run them red.\n2. Add `applicant-key.ts` (node:crypto; server-only - apply-intake.ts stays client-importable) and delete applyDedupeKey + its re-export and its apply-intake.test.ts cases.\n3. db/core.ts: `ALTER TABLE pipeline_entries ADD COLUMN applicant_key TEXT` + `CREATE UNIQUE INDEX IF NOT EXISTS idx_pipeline_applicant_key ON pipeline_entries (workspace_id, job_id, applicant_key) WHERE applicant_key IS NOT NULL` (all legacy rows NULL, so the index builds on any existing DB).\n4. db/pipeline.ts: createPipelineEntry keyed lookup + surrogate id + UNIQUE catch; anonymizeEntry nulls applicant_key in the same guarded UPDATE.\n5. application-filing.ts passes `applicantKey`; update application-filing.test.ts fixtures that pass `dedupeKey` literals.\n6. Docs: candidates README (filing identity) and compliance README (erasure scope + the legacy-id gap).\n7. Run the integration gate.\n\n## Expected impact\nNew applications stop writing the applicant's email into a primary key that is exported to ATSs, sealed into the decision chain and printed in logs. Erasure becomes final for the re-application path: an erased candidate who applies again is a new applicant, never a re-contacted ghost of the old row, and no orphan profile is left behind. The race guard is preserved with a constraint instead of a naming trick.\n\n## Evaluation\nClaim: the entry id carries no applicant PII for new filings, the dedupe identity is erasable, and an erased entry cannot be re-opened, re-contacted or re-consented by a re-application.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate - node:test cases above (applicant-key.test.ts, application-filing-erasure.test.ts, application-filing.test.ts) under npm run test:unit, plus the integration gate\nResult: pending build\nGate: architecture",
+    "evidence": "app/_lib/apply-intake.ts:125  if (e) return `appl-${e.replace(/[^a-z0-9]+/g, \"-\").replace(/^-+|-+$/g, \"\")}`;\napp/_lib/application-filing.ts:293  dedupeKey: applyDedupeKey(providedName, email),\napp/_lib/db/pipeline.ts:1445  const keySource = input.dedupeKey || input.candidateId;\napp/_lib/db/pipeline.ts:1452  const id = `m-${idPrefix}${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, \"\").slice(0, 90);\napp/_lib/db/pipeline.ts:1500  if (isTerminalEntryStatus(existing.status)) { UPDATE pipeline_entries SET status='active' ... }\napp/_lib/db/pipeline.ts:2420  SET candidate_label = ?, contact = NULL, github_handle = NULL, github_json = NULL, notes = NULL, erasure_token = NULL, optout_token = NULL, anonymized_at = ?  (id untouched)\napp/_lib/db/pipeline.ts:2513  console.error(`[consent] interview audio not deleted for erased entry ${entryId}`, recErr);\napp/_lib/db/pipeline.ts:1715  ? rows.find((r) => normalizeContact(r.contact) === emailKey) ??   (contact is NULL after erasure -> miss)\napp/_lib/application-filing.ts:304  if (!created) return repeat(entry, true);\napp/_lib/application-filing.ts:210  const proof: FilingProof = raced && input.proof === \"none\" ? \"channel\" : input.proof;\napp/_lib/application-filing.ts:217  if (email && !existing.contact) { updates.contact = email; ... }   -> 243 sendAck(merged, \"reack\"); 247 recordConsentSafely(...)\napp/_lib/ats-record.ts:195  ref: entry.id,\ngrep 'dedupeKey' app --include=*.ts (non-test): only application-filing.ts:293 feeds createPipelineEntry's dedupeKey -> one caller to move.\ngrep -rln 'anonymiz' app/_lib/application-filing.test.ts app/api/apply/ app/_lib/apply-intake.test.ts -> no hits: no test covers re-application after erasure.\nregistry anonymise-but-retain-the-aggregate-signal.md:36 '**Stays.** A stable surrogate identifier so linked rows remain joinable.'; :103 '## Anonymised means unreachable'"
+  },
+  {
+    "context": "application-status-page",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Status page names what is waiting on you and re-sends it to your inbox",
+    "size": "L",
+    "effort": 7,
+    "impact": 9,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/candidate-next-action.ts",
+      "app/_lib/candidate-next-action.test.ts",
+      "app/_lib/candidate-next-action-server.ts",
+      "app/api/status/[token]/route.ts",
+      "app/api/status/[token]/resend/route.ts",
+      "app/status/[token]/StatusNextActionCard.tsx",
+      "app/status/[token]/StatusClient.tsx",
+      "app/api/status/status-letter.test.ts",
+      "app/api/status/status-recording.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "app/api/rate-limit-contract.test.ts",
+      "docs/features/compliance/README.md"
+    ],
+    "new_files": [
+      "app/_lib/candidate-next-action.ts",
+      "app/_lib/candidate-next-action.test.ts",
+      "app/_lib/candidate-next-action-server.ts",
+      "app/api/status/[token]/resend/route.ts",
+      "app/status/[token]/StatusNextActionCard.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "app/api/rate-limit-contract.test.ts"
+    ],
+    "acceptance": [
+      "candidateNextAction({ entryStatus: 'active', invites: [{ status: 'pending', createdAt: T-1d }], openOffer: null, interview: null, nowMs: T }) -> { kind: 'book_interview', sentAt: T-1d, expiresAt: T-1d+7d } (INVITE_LINK_TTL_DAYS)",
+      "the same pending invite created at T-8d (past the 7-day TTL, isScheduleInviteExpired) -> null: the page never points at a dead capability",
+      "an open offer { status: 'extended', createdAt: T-1d, expiresAt: T+3d } together with a pending invite -> { kind: 'answer_offer', sentAt: T-1d, expiresAt: T+3d } (an offer outranks booking)",
+      "an offer whose expiresAt is T-1h is not answer_offer (falls through to the next pending item, else null)",
+      "a candidate-mode interview session { status: 'created', createdAt: T-1d } with nothing else pending -> { kind: 'take_interview', ... }; the same session with status 'completed' or 'revoked' -> null",
+      "entryStatus 'rejected' (or 'declined') with a pending invite -> null; and for every input the result's keys are a subset of { kind, sentAt, expiresAt } - JSON.stringify(result) contains no 'token', 'id' or 'http'",
+      "decideActionResend: { contact: null } -> { send: false, reason: 'no_contact' }; { anonymized: true } -> 'anonymized'; { throttled: true } -> 'cooldown'; a pending action with contact on file -> { send: true }; resendMessageKey(relayConfigured) takes ONLY the relay flag, so the answer cannot probe whether an address is on file",
+      "GET /api/status/[token] body keys (sorted) are the current seven plus 'nextAction', and nextAction is null or the three-key projection (status-letter.test.ts:133 and status-recording.test.ts:97 key lists updated)"
+    ],
+    "premise": [
+      "app/api/status/[token]/route.ts:51-71 - the public projection is status, jobTitle, company, updatedAt, relayConfigured, hasInterviewRecording, letter: no field says what the candidate is expected to do next",
+      "app/status/[token]/StatusClient.tsx:172-173 + messages/en.json status.now.interview/offer - at the two stages where the candidate holds the next move the page only says 'Watch your email for scheduling' / 'Check your email for the details': it delegates to an inbox the candidate may have lost, while the server knows exactly what is pending",
+      "app/_lib/schedule-store.ts:384 listScheduleInvitesForEntry + app/_lib/schedule-slots.ts:45,67 (INVITE_LINK_TTL_DAYS = 7, isScheduleInviteExpired) - pending booking invites per entry and their expiry are already readable",
+      "app/_lib/offers-store.ts:309 getOpenOfferForEntry (status 'extended') and OfferRow.expiresAt at :110 - the open offer and its deadline are already readable",
+      "app/_lib/db/interviews.ts:411 (new sessions start status 'created'), :456 isInterviewLinkExpired, :586 latestInterviewByEntry - an untaken AI interview invite is already readable",
+      "app/_lib/comms-dispatch.ts:753 dispatchScheduleInvite, :832 dispatchInterviewInvite, :994 dispatchOfferReminder - a re-send of each capability link already has a letter; no new comm kind is needed",
+      "app/_lib/apply-link-recovery.ts:30,95 - the house doctrine for re-sending a capability (landed in r01 candidate-apply-api/B): send ONLY to entry.contact, one per entry per 24h via login-throttle, copy chosen without reading whether an address exists",
+      "registry recruiting candidate-status-transparency.md:69 lists 'What, if anything, is expected of them next' as PERMITTED content; techniques/candidate-safe-status-projection.md:47 'Assume the payload is public' - so the page must name the action but never carry the booking/offer token itself (a forwarded status link must not be able to accept an offer)",
+      "adopts open backlog item 'Surface next-action links for interview and offer on the status page' (.claude/scan-history/leftover-develop-2026-09-17.jsonl, application-status-page, M; absent from both low-risk-drain results files) - deliberately re-shaped: the LINKS are not put on the forwardable page, they are re-sent to the address on file"
+    ],
+    "rollback": "Additive: one new optional field on the status projection, one new public POST route, one new card, one pure module. Reverting the series removes them; StatusClient already renders without the field (it is optional in StatusView), no table or column is added (the cooldown reuses the existing login-throttle store, as apply-link-recovery does), and no existing token or comm changes shape.",
+    "gate": "contract",
+    "runner_up": "Show the recorded rejection-feedback bullets on the not-selected card, through buildRejectionFeedback's protected-attribute filter (open backlog, application-status-page, M) - smaller leap: it explains a closed door, this one opens a stuck one.",
+    "technique": "candidate-safe-status-projection",
+    "body": "## Summary\nAt interview and offer stage the status page tells the candidate to go look in their email. When the email is lost, they are stuck - and the server knows precisely what is waiting: a pending booking invite, an open offer with a deadline, an untaken AI interview. Project that as a three-field `nextAction` (kind, sentAt, expiresAt) on the status payload, render it as a 'Waiting on you' card with the deadline, and give the card one action: 'Send it to my email again', which re-dispatches the existing capability link to the address on file only.\n\n## Description\nThe status route (api/status/[token]/route.ts:51-71) projects where the application stands but not what is expected of the candidate, which the registry's status-transparency golden path lists as permitted content. The data exists in three stores: schedule invites with a 7-day TTL (schedule-store.ts:384, schedule-slots.ts:45/67), open offers with `expiresAt` (offers-store.ts:309/110), and interview sessions created in status 'created' (db/interviews.ts:411/456/586).\n\nThe open backlog item proposes putting the interview/offer LINKS on the page. That is the wrong shape: the status link is forwardable, and the projection technique says its payload must be safe for a stranger. A forwarded status link that carries the offer token lets whoever holds it accept or decline the offer. So this card keeps the capability where it was issued - the inbox - and makes the page actionable anyway, the same doctrine r01 landed for link recovery (apply-link-recovery.ts): the resend goes only to `entry.contact`, at most once per entry per 24 hours (login-throttle), with copy chosen from the relay state alone so the response cannot probe for an address.\n\nPieces: a pure `candidate-next-action.ts` (precedence offer > booking > interview; expired or terminal -> null; `decideActionResend`; `resendMessageKey`), a server `candidate-next-action-server.ts` that reads the three stores for an entry and performs the resend by building the kind's link (publicBaseUrl + pinLinkLocale to the entry's comms locale) and calling the existing dispatcher, the status GET adding `nextAction`, a new `POST /api/status/[token]/resend` (per-IP+token rateLimit before any store read, coded refusals, `safeJsonError` on failure, auth posture public like its siblings), and a `StatusNextActionCard` in both themes from recipes (PANEL/BTN_*), dates via useFormatter. With no relay configured the card states the action and the deadline and says the team will reach out, with no resend button - never a promise the deployment cannot keep.\n\n## Flow\n1. Write candidate-next-action.test.ts from cases 1-7 and update the two key-list pins (case 8); run red.\n2. Implement the pure module, then the server module over the three stores and the three existing dispatchers.\n3. Add `nextAction` to the status GET; add the resend route with its limiter; add the limiter to app/api/rate-limit-contract.test.ts; `npm run api:docs` for the reference row.\n4. StatusNextActionCard + a two-line mount in StatusClient (between the timeline and the decisions section); catalog keys in en/cs/de/fr in one locked commit (no em dashes).\n5. Compliance README: what the status payload now carries and why the token never does.\n6. Integration gate; check both themes.\n\n## Expected impact\nThe two stages with the highest candidate stakes stop being dead ends. A candidate who lost the invitation sees 'Book your interview - invitation sent 3 Sep, open until 10 Sep' and gets it back in one click; an offer shows its deadline on the page the candidate already bookmarks. This removes the 'any update? I can't find the email' chase the golden path names as the real operating cost, without widening what a forwarded status link can do.\n\n## Evaluation\nClaim: the status payload states the pending candidate action with its deadline and never a capability; the resend door re-delivers only to the address on file, once per entry per day, without revealing whether one exists.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: gate - node:test (candidate-next-action.test.ts, status-letter.test.ts, status-recording.test.ts, rate-limit-contract.test.ts) under npm run test:unit, plus i18n:check, api:check and the integration gate\nResult: pending build\nGate: contract",
+    "evidence": "app/api/status/[token]/route.ts:51-71  return jsonOk({ status, jobTitle, company, updatedAt, relayConfigured, hasInterviewRecording, letter })  -- no next action\napp/status/[token]/StatusClient.tsx:172  interview: emailPromised ? t(\"now.interview\") : t(\"now.interviewNoEmail\"),\napp/status/[token]/StatusClient.tsx:173  offer: emailPromised ? t(\"now.offer\") : t(\"now.offerNoEmail\"),\nmessages/en.json status.now.interview = \"You're at the interview stage. Watch your email for scheduling.\"; status.now.offer = \"An offer is on the table. Check your email for the details.\"\napp/api/status/status-letter.test.ts:133-134 and status-recording.test.ts:97-98 pin the payload keys [company, hasInterviewRecording, jobTitle, letter, relayConfigured, status, updatedAt]\napp/_lib/schedule-slots.ts:45  export const INVITE_LINK_TTL_DAYS = 7;   :67 export function isScheduleInviteExpired(\napp/_lib/offers-store.ts:309  export function getOpenOfferForEntry(entryId: string): OfferRow | null { ... status = 'extended' ... }\napp/_lib/db/interviews.ts:411  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ...)\napp/_lib/comms-dispatch.ts:753 dispatchScheduleInvite / :832 dispatchInterviewInvite / :994 dispatchOfferReminder(entry, link, deadlineIso)\napp/_lib/apply-link-recovery.ts:30  export const LINK_RECOVERY_THROTTLE: ThrottleOpts = { limit: 1, windowMs: 24 * 60 * 60_000 };\ndocs/architecture/api-reference.md:580-584 list the five /api/status/[token] routes, all public - no resend door exists\nleftover-develop-2026-09-17.jsonl: {\"title\":\"Surface next-action links for interview and offer on the status page\",\"context\":\"application-status-page\",\"size\":\"M\",\"risk\":2,\"impact\":9,...}; not present in low-risk-drain-2026-09-22*-results.jsonl"
+  }
+]

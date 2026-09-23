@@ -1,0 +1,7 @@
+[
+  {
+    "rider": "jd-public-detail-page",
+    "files_read": 8,
+    "checked": "Read in full: app/jds/[slug]/page.tsx, JdBody.tsx, JdActions.tsx, jdPublicHeader.ts, jdPublicHeader.test.ts, loading.tsx, error.tsx (the map lists 5; jdPublicHeader.ts + its test were missing from it), plus one hop out: proxy.ts ?lang handling (:165-180), app/_lib/db/job-translations.ts, app/_lib/job-translate-run.ts, GET /api/jobs/[id]/translations, and the jds PATCH re-ingest (app/api/jds/[slug]/route.ts:127-153). Hypotheses traced: (1) internal ids on the public wire - none beyond the slug-derived jd-<slug> apply link; the analyzed-candidates aside is already gone. (2) r02 per-team lifecycle overlay - page.tsx:149 reads getJobStatus(jobId, getJobWorkspace(jobId)), i.e. the FILING team's lifecycle, consistent with isPublicJdApplyOpen; no card. (3) operator tools leaking to anonymous visitors - already gated by publicJdHeaderActions + canManage (drain descoped it as implemented). (4) language honesty - publicJdAlternates advertises all four LOCALES with one shared canonical while the body never changes and the role's stored, owner-scoped posting translations are read by nothing public: this became card B ('Public JD speaks the role's posting languages; hreflang offers only what ships'), with the stale-translation guard via jdLastEditedAt because a failed re-ingest on a JD edit leaves old translations in place. JSON-LD JobPosting is an open leftover (M, risk 2, below this mode's risk floor) - named as B's runner-up, not re-proposed."
+  }
+]

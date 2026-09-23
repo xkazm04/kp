@@ -72,7 +72,8 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
 - **Shared surfaces lock** (messages/*.json, docs/architecture/api-reference.md,
   ts-debt.json, test-quarantine.json, perf-budget.json,
   scripts/docs/feature-doc-map.json, app/api/*-contract.test.ts,
-  app/_lib/tenancy.ts, app/features/shell/tabs.ts, AND — for this run — every
+  app/_lib/tenancy.ts, app/features/shell/tabs.ts, `app/_lib/api-response.ts` (error-code
+  registry: append a code at the END of its section, commit with its catalog keys), AND — for this run — every
   file under `docs/`, because several cards share a feature doc):
   take the lock with `mkdir .git/scan-sweep-challenge.lock` (retry every 5s until
   it succeeds; if it is older than 10 minutes, report and take it), make the edit,
@@ -88,6 +89,11 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
   (`<scratchpad>/<ctx>--<slot>/`), never at the scratchpad root: builders share it, and
   one overwrote another's `catalogs.mjs` mid-build (2026-09-23).
 - If `git commit` fails on `index.lock`, wait a few seconds and retry.
+- Never junction or symlink the checkout's `node_modules` into a scratch worktree. Removing
+  that worktree (`git worktree remove`) follows the junction and DELETES packages from the
+  shared `node_modules` (it happened 2026-09-23: `.bin` and every `@`-scoped package before
+  `@sentry`). To measure base + your files, use `git stash`-free `git archive` into scratch and
+  run the budget script there with `--root`, or measure the committed tree after you commit.
 - Never run `npm run build`, `npm run dev`, or anything that touches `.next` —
   the operator's dev servers are running.
 - Use the Write/Edit tools for any file content containing backslashes (regex,

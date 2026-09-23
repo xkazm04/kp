@@ -1,0 +1,117 @@
+[
+  {
+    "context": "llm-layer",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Fold the Claude CLI under TextProvider: the default engine runs the shared layer",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "pipeline/jobfit/llm/adapters/claude_cli.py",
+      "pipeline/jobfit/llm/registry.py",
+      "pipeline/jobfit/llm/monitor.py",
+      "pipeline/jobfit/llm/test_cli.py",
+      "pipeline/jobfit/llm/bench/runner.py",
+      "pipeline/jobfit/llm/bench/judge.py",
+      "pipeline/jobfit/devcase/llm_judge.py",
+      "pipeline/jobfit/eval/judging.py",
+      "pipeline/jobfit/tests/test_llm_claude_cli_adapter.py",
+      "pipeline/jobfit/tests/test_llm_monitor.py",
+      "docs/architecture/llm-provider-layer.md"
+    ],
+    "new_files": [
+      "pipeline/jobfit/llm/adapters/claude_cli.py",
+      "pipeline/jobfit/tests/test_llm_claude_cli_adapter.py"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "No KP_LLM_CONFIG, dev box: resolve_provider('match_reasoning') returns an object that isinstance(TextProvider) with name == 'claude_cli'; the same holds for a {'provider':'claude_cli'} config row and for probe_provider('claude_cli').",
+      "A stubbed CLI spawn that answers prose on the first call and {\"ok\": true} on the second: complete_json(prompt) returns {'ok': True} after exactly 2 spawns (the repair re-prompt now reaches the default engine; today ClaudeCliProvider.complete_json raises after 1).",
+      "A stubbed spawn that raises subprocess.TimeoutExpired: complete() raises LLMError with subtype 'deadline_exceeded', degradation.classify(err) == 'provider_timeout', and with KP_LLM_USAGE_LOG set exactly one ledger line has outcome 'failed' and reason 'provider_timeout' (today: 'provider_error').",
+      "A stubbed spawn returning an is_error envelope whose result says 'Overloaded' twice then a success envelope: complete() returns the success after 3 spawns inside the deadline; an envelope saying 'usage limit reached' is NOT retried (1 spawn) and raises LLMError.",
+      "One successful call with model=None emits exactly one ledger line with provider 'claude_cli' and model 'claude-cli-default' and the envelope's total_cost_usd as cost_usd (byte-parity with MonitoredClaudeCli's line).",
+      "Production box, no Anthropic key, KP_ALLOW_CLI_ENGINE unset: availability() == (False, 'consumer_terms_policy'); under KP_OFFLINE: (False, 'offline_policy') - descent reasons unchanged.",
+      "repo_scan.bind_provider_to_repo(adapter, root) returns an adapter whose inner CLI is repo-bound and whose extra_args accepts the appended --settings deny list (the with_repo_access door survives the fold).",
+      "run_judge over provider.map results containing an LLMError skips that item without calling res.json() (llm_judge.py and eval/judging.py test for the base error types, not ClaudeCliError alone)."
+    ],
+    "premise": [
+      "pipeline/jobfit/llm/registry.py:218-252 - with no config row, and with a claude_cli row, resolve_provider returns MonitoredClaudeCli: the product's local DEFAULT engine is the one provider not built on TextProvider.",
+      "pipeline/jobfit/claude_cli.py:832-857 - ClaudeCliProvider.complete_json has no repair re-prompt and raises ClaudeCliError with no subtype on unparseable output; pipeline/jobfit/llm/base.py:640-646 gives every TextProvider one corrective re-prompt.",
+      "pipeline/jobfit/llm/base.py:499-543 - bounded retry on transient errors inside a TOTAL wall-clock deadline; ClaudeCliProvider.complete (pipeline/jobfit/claude_cli.py:730-788) makes exactly one spawn and never retries an overloaded/5xx envelope.",
+      "pipeline/jobfit/claude_cli.py:774-777 - a subprocess timeout becomes ClaudeCliError('Claude CLI timed out after Ns') with no subtype.",
+      "pipeline/jobfit/llm/degradation.py:63-76 - classify reads ONLY the subtype, so that timeout classifies as provider_error; pipeline/jobfit/llm/monitor.py:381-388 feeds it to emit_error, and monitor.py:345 writes reason=_failure_reason(error) into the durable llm_usage row.",
+      "pipeline/jobfit/llm/monitor.py:365-398 - MonitoredClaudeCli re-implements success/error emission that TextProvider.complete already owns (base.py:492-523), a second copy of the metering path.",
+      "pipeline/jobfit/claude_cli.py:383-395 - ClaudeResult carries no provider/model/finish_reason, so LLMResult.truncated (base.py:223-233) and the served-model stamp do not exist for the default engine.",
+      "pipeline/jobfit/llm/test_cli.py:72 - the canary special-cases type(provider).__name__ in ('ClaudeCliProvider','MonitoredClaudeCli') to name the provider, because the CLI has no .name.",
+      "pipeline/jobfit/devcase/llm_judge.py:103 and pipeline/jobfit/eval/judging.py:137 - map results are filtered with isinstance(res, ClaudeCliError); an adapter's LLMError only gets skipped because res.json() then raises AttributeError into a bare except."
+    ],
+    "rollback": "The fold is additive: the new adapter composes (does not modify) ClaudeCliProvider, and registry.py switches which class it returns in two branches. Reverting the registry hunk restores MonitoredClaudeCli everywhere; the adapter module and its tests can then be removed in the same revert with no schema, config or catalog change.",
+    "gate": "architecture",
+    "runner_up": "Native structured output from one per-use-case JSON Schema table (gateway USE_CASE_SCHEMAS + OpenAI json_schema + Gemini response_schema) - would adopt the open leftover 'Expand gateway USE_CASE_SCHEMAS past match_reasoning', but automation's five task shapes share one use case, so it needs a per-call schema threaded through ~12 call sites: past one wave.",
+    "technique": "adapter-direction-asymmetry",
+    "body": "## Summary\nThe Claude CLI is the engine every local install and every keyless-dev run actually uses, and it is the one provider that does not run the shared LLM layer. Wrap it in a `ClaudeCliAdapter(TextProvider)` whose `_call` is one CLI spawn, so retries, the total deadline, the JSON repair re-prompt, truncation, the served-model stamp and ledger emission come from `base.py` like every metered adapter, and a CLI timeout lands in `llm_usage` as `provider_timeout` instead of `provider_error`.\n\n## Description\n`llm/base.py` has been hardened call by call: a total wall-clock deadline across retries, one corrective re-prompt for a formatting slip, a truncation branch that names the setting to raise, typed subtypes that `degradation.classify` turns into coded ledger reasons. None of it reaches the default engine. `registry.resolve_provider` hands out `MonitoredClaudeCli`, a `ClaudeCliProvider` subclass bolted onto `monitor.py` for telemetry, and its `complete_json` gives up after one unparseable answer, its `complete` never retries an overloaded envelope, and its timeout carries no subtype, so the ledger files it under the catch-all. Two error types (`ClaudeCliError`, `LLMError`) mean every consumer of `provider.map` has to know both. The fold keeps `ClaudeCliProvider` untouched (the eval and seed lanes use it directly) and adds an inbound translation layer: the adapter maps a spawn timeout to a retryable `TimeoutError` (the base deadline then yields `deadline_exceeded`), an overloaded/5xx envelope to a retryable error, a usage-limit or consumer-terms refusal to a permanent `LLMError` with a subtype, and delegates `availability`, `consumer_terms_blocked`, `billing_lane`, `probe` and `with_repo_access` to the wrapped CLI. `MonitoredClaudeCli` stays as a deprecated alias for one release so no external caller breaks.\n\n## Flow\n1. Write the eight acceptance cases as `test_llm_claude_cli_adapter.py` against a stubbed spawn (patch `ClaudeCliProvider.complete`); all fail.\n2. Add `llm/adapters/claude_cli.py`: `ClaudeCliAdapter(TextProvider)` with `name = 'claude_cli'`, `_call` = one inner `complete()`, the error translation table, `model or 'claude-cli-default'` as the ledger label, envelope `total_cost_usd` as `cost_usd`, `_allowed_offline` False.\n3. Delegate the CLI-only doors (`availability`, `with_repo_access` returning a wrapped bound CLI, a settable `extra_args` proxy for repo_scan's deny list).\n4. `registry.py`: both CLI branches and `probe_provider('claude_cli')` return the adapter; `test_cli.py` drops the type-name special case.\n5. `bench/runner.py`, `bench/judge.py`: build the adapter; `devcase/llm_judge.py`, `eval/judging.py`: skip `(ClaudeCliError, LLMError)` results explicitly.\n6. `monitor.py`: `MonitoredClaudeCli` becomes a documented alias; `test_llm_monitor.py` keeps its three cases green against it.\n7. Doc: `docs/architecture/llm-provider-layer.md` states that every engine, the CLI included, runs the one retry/deadline/repair/metering path.\n\n## Expected impact\nA local install (no config, the documented default) gets the repair re-prompt that already rescues a formatting slip on API adapters, instead of dropping straight to the deterministic template; transient CLI overloads retry inside the caller's deadline; and the Insights > Activity and routing-health surfaces stop reporting CLI timeouts as generic provider errors, so an operator can tell a slow engine from a broken one. The next hardening to `base.py` lands on the default engine automatically instead of needing a CLI twin.\n\n## Evaluation\nClaim: the default engine runs the same retry, deadline, repair and coded-descent path as every metered adapter.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test is not involved; `npm run test:python:gate` over the new `test_llm_claude_cli_adapter.py` plus the existing `test_llm_monitor.py`, `test_llm_registry*`, `test_devcase_judge_independence.py`, `test_repo_scan*` staying green.\nResult: pending build.\nGate: architecture.",
+    "evidence": "registry.py:247-252  `return MonitoredClaudeCli(model=cli_model, timeout=cli_timeout, use_case=use_case, strip_api_key=_cli_strip_api_key())` (the config-less default branch, entry is None or entry.provider == 'claude_cli').\nclaude_cli.py:853-857  `except ValueError as exc: raise ClaudeCliError(f\"Claude did not return parseable JSON: {result.text[:300]!r}\") from exc` - no repair, no subtype.\nbase.py:640-646  `repair = (\"Your previous response could not be parsed as JSON. ...\")` ... `repaired = self.complete(repair, system=system, timeout=max(_MIN_ATTEMPT_S, int(remaining)))`.\nclaude_cli.py:774-777  `except subprocess.TimeoutExpired as exc: raise ClaudeCliError(f\"Claude CLI timed out after {timeout or self.timeout}s\") from exc`.\ndegradation.py:71-76  `subtype = getattr(exc, \"subtype\", None)` / `if subtype == \"deadline_exceeded\": return PROVIDER_TIMEOUT` / `if subtype == \"unparseable_json\": return UNPARSEABLE_OUTPUT` / `return PROVIDER_ERROR`.\nmonitor.py:345  `reason=_failure_reason(error),` with `_failure_reason = _degradation.classify` (monitor.py:156).\ntest_cli.py:72  `if type(provider).__name__ in (\"ClaudeCliProvider\", \"MonitoredClaudeCli\"):`.\nllm_judge.py:103  `if isinstance(res, ClaudeCliError): continue`.\nCaller surface: `grep -rn 'resolve_provider(' pipeline/jobfit --include=*.py` outside llm/ and tests = 32 call sites, all of which receive the CLI on a default install. No production caller reads ClaudeResult.raw/.session_id/.num_turns (grep empty), so an LLMResult is a drop-in."
+  },
+  {
+    "context": "llm-layer",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Quality board prices each pick and pins the cheapest model within noise",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "pipeline/jobfit/llm/bench/bake_quality.py",
+      "pipeline/jobfit/tests/test_llm_bake_quality.py",
+      "app/_lib/llm-quality.ts",
+      "app/_lib/llm-quality.test.ts",
+      "app/_lib/llm-quality-scores.ts",
+      "app/features/settings/models/modelsQualityPick.ts",
+      "app/features/settings/models/modelsQualityPick.test.ts",
+      "app/features/settings/models/ModelsQualityOverview.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/llm-model-matrix.md"
+    ],
+    "new_files": [
+      "app/features/settings/models/modelsQualityPick.ts",
+      "app/features/settings/models/modelsQualityPick.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "bake_quality._cell over LLM rows with cost_usd [0.002, 0.004, 0.006] returns costPerTaskUsd == 0.004 (median of served rows); rows with source 'deterministic' or an error never feed it; a cell whose served rows carry no cost_usd returns costPerTaskUsd null, never 0.",
+      "bake() over records from providers gemini/qwen/claude_cli emits a `targets` map {\"gemini-3.6-flash\": {\"provider\": \"gemini\", \"model\": \"gemini-3.6-flash\"}, \"deepseek-v4-flash\": {\"provider\": \"qwen\", ...}, \"claude-opus-5\": {\"provider\": \"claude_cli\", ...}} - the exact bench target a pin needs.",
+      "Re-baking tmp/bench/round-20260811/{n4-api-keep,n4-api2-keep,n4-api3,n4-cli} with --measured-at 2026-08-12T00:49:23.000Z reproduces every existing relevance/correctness/adherence/score/valid/judges/llmRate/p50Ms value in llm-quality-scores.ts unchanged (only costPerTaskUsd and targets are added), so the 'opus top on 12 of 15' test stays green.",
+      "recommendForUseCase(shipped, 'match_reasoning') picks gemini-3.6-flash (9.0, ~$0.004/task) over claude-opus-5 (9.1, ~$0.25/task) because opus's lead is inside the noise band at judges=4, and reports best = claude-opus-5 with costMultiple >= 50.",
+      "recommendForUseCase(shipped, 'jd_ingest') picks deepseek-v4-flash with reason 'best_is_cheapest'; recommendForUseCase(shipped, 'weight_proposal') picks claude-opus-5 (8.8) because deepseek (8.1) is outside the band and claude-sonnet-5 is excluded for llmRate 0.75 < 0.9.",
+      "recommendForUseCase on a score set with no cost in any cell returns reason 'cost_unmeasured' and the top composite, never a 'cheapest' claim; on a use case with no bench op (e.g. 'repo_scan') it returns null.",
+      "pickRowState(useCase, recommendation, pinnedRow, providers) returns 'pinned' when the effective pin's provider+model equal the pick's target, 'pin_available' when they differ and the pick's provider is in the configured provider list, 'unmeasured_pin' when the current pin's model is not in scores.models, and the pin action payload is {useCase, provider: target.provider, model: target.model, params: pinnedRow.params, expectedUpdatedAt: pinnedRow.updatedAt ?? null} (params pass through, the stale-write guard is kept)."
+    ],
+    "premise": [
+      "app/_lib/llm-quality.ts:24-37 - QualityCell has quality dims, valid, judges, llmRate, p50Ms and NO cost field, so nothing on the Models tab can say what a model costs per task.",
+      "pipeline/jobfit/llm/bench/bake_quality.py:55-88 - _cell aggregates judge dims, validity, llmRate and p50 and drops cost_usd, although every bench record carries it (pipeline/jobfit/llm/bench/runner.py:59, 289-292) and runner.summarize already computes costPerTaskUsd (runner.py:359).",
+      "pipeline/jobfit/llm/bench/bake_quality.py:99 - records are grouped by (use_case, model); the record's provider is dropped, so the baked file cannot say which provider/model pair a pin would need.",
+      "app/features/settings/models/ModelsQualityOverview.tsx:142-179 - the per-case board names the highest composite as 'Best' with no margin, no cost and no action; its own header comment (lines 18-20) promises an operator can 'pin the top model per use case, or the fastest that clears their bar' - neither is possible from the surface.",
+      "app/_lib/llm-quality.ts:202-218 bestModelForUseCase and :298-303 matrixSlug exist for a per-routing-use-case pick but no component calls them (grep: only llm-capabilities-lockstep.test.ts mentions either).",
+      "docs/architecture/llm-model-matrix.md:103-110 - the per-op routing recommendation ('cost rules a background op', 'route on cost') is hand-written in a doc because the app cannot compute it.",
+      "tmp/bench/round-20260811/n4-{api-keep,api2-keep,api3,cli}/records.jsonl (git-ignored, present locally) are the four sources of the committed bake (llm-model-matrix.md:117-118) and carry cost_usd on 60/60 API rows and 119/120 CLI rows - the re-bake spends nothing.",
+      "app/features/settings/models/modelsRoutingActions.ts:24-61 saveRoutingPin already PUTs {useCase, provider, model, params, expectedUpdatedAt} with the MODEL_ROUTING_STALE guard; the pin button reuses it rather than adding a route."
+    ],
+    "rollback": "Every change is additive: two optional fields in the baked data (costPerTaskUsd, targets), one pure function, one new logic module and one board section plus a button that calls the existing PUT. Reverting the series restores the previous scorecard; the re-baked scores file reverts to its prior generated form and no DB, route or config shape changes.",
+    "gate": "contract",
+    "runner_up": "Routing rows flag a pinned model the bench scored badly on that use case (measured-quality chip beside r02's health chip) - smaller, and it would collide with ModelsRoutingRow.tsx, which r02 llm-api B rewrote.",
+    "technique": "resolution-precondition",
+    "body": "## Summary\nThe Models > Quality board tells an operator which model scored highest per case, with no price, no noise margin and no way to act. On the committed bake, match_reasoning's 'Best' is claude-opus-5 at 9.1, about 65 times the cost of gemini-3.6-flash at 9.0, measured on 4 scenarios. Bake cost per task and the exact bench target into the scorecard, recommend per routing use case the cheapest model whose score sits inside the noise band of the best, show it next to the current pin, and pin it with one click through the existing routing PUT.\n\n## Description\nThe bench records cost, the runner summarizes it, and the bake throws it away, so the only place the product states its real routing advice is a hand-written table in `llm-model-matrix.md`. The board then ranks by composite alone, and at judges=4 a 0.1 lead is inside the ruler's swing, so the surface steers operators to the most expensive frontier model on ops where a flash-tier model is statistically tied. The card adds `costPerTaskUsd` (median over served rows, null when unpriced, never 0) and a `targets` map (slug to the bench provider/model) to the bake; a pure `recommendForUseCase` in `llm-quality.ts` that averages ops per routing use case (automation's five ops together), drops cells under the reliability floor, applies a noise band derived from the judged count, and picks the cheapest in-band model with a coded reason (`cheapest_in_band`, `best_is_cheapest`, `only_candidate`, `cost_unmeasured`); and a `modelsQualityPick.ts` join against the current pins (`GET /api/llm/config`, already served) that yields a row state and the exact pin payload. The board gains a 'Recommended routing' section: use case, your pin with its measured score and cost, the pick with score, $/task, p50 and its multiple versus the best, and a Pin button for `pin_available` rows. CLI-lane costs are labelled as list-price equivalents, because the seat is subscription-billed.\n\n## Flow\n1. Write the seven cases: three in `test_llm_bake_quality.py`, three in `llm-quality.test.ts`, one in `modelsQualityPick.test.ts`; all fail.\n2. `bake_quality.py`: `costPerTaskUsd` in `_cell`, `targets` from the record provider, a `--measured-at` flag so a re-bake is reproducible.\n3. Re-bake the four n4 dirs into `llm-quality-scores.ts` and confirm the existing cells are byte-identical apart from the two new fields.\n4. `llm-quality.ts`: optional fields on the types, `recommendForUseCase` and its reason vocabulary, noise band constant documented beside `QUALITY_WEIGHTS`.\n5. `modelsQualityPick.ts`: `pickRowState` + `pinPayload`, pure and testable.\n6. `ModelsQualityOverview.tsx`: fetch pins once when the section opens, render the recommended-routing section from recipes (PANEL, CHIP, BTN_SECONDARY), Pin calls `saveRoutingPin`, stale 409 reloads the rows; both themes, tokens only.\n7. Catalog keys in en/cs/de/fr under `models.quality.pick.*`; `llm-model-matrix.md` replaces the hand table with a pointer to the computed board and states the band.\n\n## Expected impact\nAn operator deciding what to route where sees the price of each choice and whether a lead is real before paying for it; on the committed data that is the difference between ~$0.25 and ~$0.004 per match rationale for a 0.1-point composite gap at n=4. The decision moves from 'read the scorecard, switch sections, retype a model slug' to one click on the row that already names the target, with the stale-write guard intact. The doc stops being the only place the routing advice exists.\n\n## Evaluation\nClaim: the Quality board recommends and pins, per routing use case, the cheapest model whose score is within noise of the best, and says when cost is unknown.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - `npm run test:unit` (llm-quality.test.ts, modelsQualityPick.test.ts) and `npm run test:python:gate` (test_llm_bake_quality.py), plus `npm run i18n:check` and `npm run design:check` for the surface.\nResult: pending build.\nGate: contract.",
+    "evidence": "Committed composites (weights 0.40/0.35/0.25, llm-quality.ts:145-149) recomputed from llm-quality-scores.ts: match_reasoning gemini-3.6-flash 9.0, deepseek-v4-flash 8.6, claude-sonnet-5 9.0, claude-opus-5 9.1; jd_ingest gemini 7.7, deepseek 8.6, sonnet 8.2, opus 8.0; weight_proposal gemini 5.7, deepseek 8.1, sonnet 8.2 (llmRate 0.75), opus 8.8. 4 scenarios per cell (\"limit\": 4, llm-quality-scores.ts:11).\nMedian cost_usd per served row from tmp/bench/round-20260811/n4-*/records.jsonl: match_reasoning gemini 0.0038, deepseek 0.0005, sonnet 0.1807, opus 0.2457; group_compare gemini 0.0043, opus 0.2330; jd_ingest deepseek 0.0009, opus 0.2559.\nCost coverage in those records: n4-api-keep 32/32, n4-api2-keep 12/12, n4-api3 16/16 (gemini + qwen), n4-cli 119/120 (claude_cli sonnet/opus).\nbake_quality.py:80-88 returns `{**dims, \"score\", \"valid\", \"judges\", \"llmRate\", \"p50Ms\"}` - no cost key. runner.py:359 `\"costPerTaskUsd\": round(sum(costs) / len(ok), 4) if costs and ok else None`.\n`grep -rn \"matrixSlug\\|bestModelForUseCase\" app --include=*.ts --include=*.tsx` outside llm-quality.ts: only app/_lib/llm-capabilities-lockstep.test.ts comments (lines 25, 250).\nModelsQualityOverview.tsx:18-20: \"so a BYOM operator can balance a package - pin the top model per use case, or the fastest that clears their bar\"."
+  }
+]

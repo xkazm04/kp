@@ -1,0 +1,115 @@
+[
+  {
+    "context": "devcase-session-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Per-attempt session key: the candidate doors stop trusting a shared link",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/core.ts",
+      "app/_lib/db/devcase.ts",
+      "app/_lib/devcase-session-auth.ts",
+      "app/_lib/devcase-session-auth.test.ts",
+      "app/api/devcase/session/route.ts",
+      "app/api/devcase/session/[id]/route.ts",
+      "app/api/devcase/session/[id]/chat/route.ts",
+      "app/api/devcase/session/[id]/submit/route.ts",
+      "app/devcase/apply/[token]/liveWorkSync.ts",
+      "app/devcase/apply/[token]/liveWorkSync.test.ts",
+      "app/devcase/apply/[token]/liveWorkDraft.ts",
+      "app/devcase/apply/[token]/liveWorkDraft.test.ts",
+      "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/api/devcase/session/session-key.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "POST /api/devcase/session on an open posting -> 200 whose body carries `sessionKey` (a CSPRNG string, >= 32 chars) beside sessionId and watermark; the dev_sessions row stores only sha256(sessionKey) in `key_hash`, and no column of the row equals the raw key.",
+      "Flush POST /api/devcase/session/[id] on a keyed session presenting the CORRECT apply token but NO key -> 403 code SESSION_TOKEN_REQUIRED; zero dev_session_events rows appended and files_json byte-identical to before.",
+      "Flush on a keyed session presenting the correct key -> 200 {ok:true, seq>0}; the events land and the file tree is saved.",
+      "Chat POST /api/devcase/session/[id]/chat on a keyed session with the right apply token and a WRONG key -> 403; no dev_session_chat row, and the per-session limiter `devcase-chat:<id>` still has its full 30-call budget afterwards (the refusal ran before the throttle).",
+      "Finalize POST /api/devcase/session/[id]/submit on a keyed session with the apply token but no key -> 403; the session stays status 'active' and no dev_submissions row with repo_ref 'session:<id>' exists.",
+      "Legacy session (key_hash NULL - what startDevSession fixtures and pre-change product rows carry) with the matching apply token -> flush 200 (an attempt in flight at deploy time is not cut off); with no token -> 403, exactly as today.",
+      "liveWorkSync: a mint answer {sessionId, sessionKey, watermark} makes the next flush, chat and submit request bodies each carry `key: sessionKey`; a 404/409 flush answer drops sessionKey together with sessionId.",
+      "liveWorkDraft: encodeDraft/decodeDraft round-trips `sessionKey`; a draft whose sessionKey is not a string decodes with sessionKey null (and a reload with no key re-mints rather than flushing keyless into a keyed session)."
+    ],
+    "premise": [
+      "app/_lib/random-id.ts:10-11 and :16-22 - randomId() (Math.random, Date.now() prefix, 6 base36 chars) is declared 'INTERNAL primary keys. Never a security boundary'; app/_lib/db/devcase.ts:938 mints every dev session id with randomId(\"dsess\").",
+      "app/api/devcase/session/[id]/chat/route.ts:32-33 - 'a dev-case token is per-POSTING and shared by every applicant'; app/_lib/devcase-session-auth.ts:14-17 - presenting the apply link 'proves only \"I came through the front door of this posting\"'.",
+      "The three mutating doors authorize on exactly that pair: flush app/api/devcase/session/[id]/route.ts:140, chat app/api/devcase/session/[id]/chat/route.ts:73, finalize app/api/devcase/session/[id]/submit/route.ts:57 - sessionTokenMatches(session.token, body.token) and nothing else.",
+      "The flush OVERWRITES the attempt's file tree (app/api/devcase/session/[id]/route.ts:179-185 -> saveDevSessionFiles, app/_lib/db/devcase.ts:1005-1013) and the finalize seals it (submit/route.ts:109, submitDevSession) - so any applicant of the same posting who learns another's session id can destroy or end that attempt.",
+      "The session id travels in the URL path of every call (app/devcase/apply/[token]/liveWorkSync.ts:230 and :278, LiveWorkSurface.tsx:260) - the leak channels devcase-session-auth.ts:7-8 itself names (devtools copy, shared screen, proxied network log).",
+      "Each door re-implements the same preamble (lookup -> 404 -> status 409 -> body read -> token 403): route.ts:101-142, chat/route.ts:50-75, submit/route.ts:37-59 - three copies of the one authorization decision, with different lookups (getDevSessionMeta vs getDevSession).",
+      "Open leftover 'Token-authenticated candidate GET of own session projection' (leftover-develop-2026-09-17.jsonl, devcase-session-api, M) cannot be built safely on this authority: a GET keyed on the shared apply token would hand one applicant another's transcript and files."
+    ],
+    "rollback": "Additive column (key_hash, nullable) + one new store function; the routes accept the legacy token-only proof whenever key_hash is NULL. Reverting the commit series restores token-only checks on every row; rows minted meanwhile keep an unused key_hash column, which nothing else reads.",
+    "gate": "contract",
+    "runner_up": "Resolve each door's session+posting+case once into a DoorContext (one lookup, one posting-status read) so flush/chat/submit stop walking token->posting->case three different ways, the flush's MFU memo included.",
+    "technique": "dispatch-chokepoint-gating",
+    "body": "## Summary\nMint a per-attempt secret at session start and make it - not the posting-wide apply link - the authority on the three mutating candidate doors, enforced by ONE door guard in devcase-session-auth.ts instead of three hand-copied preambles.\n\n## Description\nThe live-work session doors (flush, chat, finalize) authorize a caller on two values: the session id and the apply token. Neither is a secret held by one candidate. The session id is `randomId(\"dsess\")`, which random-id.ts declares never a security boundary, and it rides the URL path of every call. The apply token is per posting and shared by every applicant (chat/route.ts:32-33; devcase-session-auth.ts:14-17). So another applicant of the same posting who obtains a session id - from a shared screen, a proxy log, a copied request - can overwrite that attempt's file tree, spend its model budget, or seal it early. The comment in devcase-session-auth.ts says the token check 'proves only I came through the front door'. That is the whole authority today.\n\nThe move: `POST /api/devcase/session` also mints `sessionKey = randomToken(\"dsk\")`. The key goes back to the minting device once. The store keeps only `key_hash` (sha256) on dev_sessions. A new `openSessionDoor(id, body, { need: \"active\" | \"any\" })` in devcase-session-auth.ts is the one chokepoint: it looks up the session, answers 404/409, and then checks the proof. A keyed row needs the key, compared by constant-time hash. A legacy row (key_hash NULL) keeps today's apply-token rule. A tokenless row is refused. The three routes call it and keep their own budgets and bodies. Throttle keys stay on `session.token`, so rate-limit-contract.test.ts is untouched. The client stores the key in its local draft and sends it on every mutating call.\n\nThis is also the seam that caps the open leftover 'Token-authenticated candidate GET of own session projection'. Cross-device resume needs a credential that belongs to one attempt, and this card mints it.\n\n## Flow\n1. Mint: posting open + quota OK -> startDevSession -> issueDevSessionKey(id) writes key_hash, returns key -> response {sessionId, sessionKey, watermark}.\n2. Client: liveWorkSync keeps sessionKey in state and in the draft (liveWorkDraft), and sends `key` on flush / chat / submit (LiveWorkSurface chat call included).\n3. Door: openSessionDoor -> 404 unknown / 409 sealed -> proof check (keyed: key; legacy: token) -> 403 SESSION_TOKEN_REQUIRED on mismatch, before any limiter or write.\n4. A 404/409 drops sessionId AND sessionKey, so the next action re-mints and re-keys.\n\n## Expected impact\nA session id stops being authority over another candidate's work. The three duplicated authorization preambles become one guard, so a fourth door (the resume GET) cannot forget a check. Attempts already in flight at deploy time continue on the legacy rule. No catalog, rate-limit contract or tenancy change is needed.\n\n## Evaluation\nClaim: the three candidate doors refuse a caller that holds the apply link and the session id but not the attempt's key, and legacy sessions keep working.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test cases in session-key.test.ts, devcase-session-auth.test.ts, liveWorkSync.test.ts, liveWorkDraft.test.ts, then the overlay integration gate (tsc, lint, api:check, test:unit).\nResult: pending build.\nGate: contract - the public wire contract of /api/devcase/session* changes (a new `key` field); both halves are in this tree and ship in one series.",
+    "evidence": "random-id.ts:21-22 `return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;` (doc :10-11 'INTERNAL primary keys. Never a security boundary'). devcase.ts:938 `const id = randomId(\"dsess\");`. chat/route.ts:32-33 'a dev-case token is per-POSTING and shared by every applicant'. The only proof on each door: [id]/route.ts:140 `if (!session.token || !sessionTokenMatches(session.token, body.token))`, chat/route.ts:73 (same), submit/route.ts:57 `if (!sessionTokenMatches(session.token, body.token))`. Destructive effects behind that check: [id]/route.ts:184 `saveDevSessionFiles(id, files)` (UPDATE ... SET files_json = ? at devcase.ts:1010), submit/route.ts:109 `submitDevSession(...)`. `grep -rn key_hash app` -> no hits (no per-attempt secret exists). Session id in URL paths: liveWorkSync.ts:230, :278; LiveWorkSurface.tsx:260. Doc of record docs/features/dev-case/README.md:1105-1108 states the token re-check as the authorization rule."
+  },
+  {
+    "context": "devcase-session-api",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Close sees who is mid-case, and mid-case candidates learn intake closed",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/api/devcase/postings/route.ts",
+      "app/api/devcase/postings/route.test.ts",
+      "app/api/devcase/session/[id]/route.ts",
+      "app/api/devcase/session/[id]/chat/route.ts",
+      "app/devcase/apply/[token]/liveWorkSync.ts",
+      "app/devcase/apply/[token]/liveWorkSync.test.ts",
+      "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "app/features/tools/devcases/DevLifecycleSection.tsx",
+      "app/features/tools/devcases/DevLifecycleRow.tsx",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/_lib/db/devcase-inflight.ts",
+      "app/_lib/db/devcase-inflight.test.ts",
+      "app/features/tools/devcases/devcaseInFlight.ts",
+      "app/features/tools/devcases/devcaseInFlight.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "inFlightAttemptsByPosting(ws, now): posting P has session A (active, updated 5 min ago), B (active, updated 3 h ago), C (submitted) -> P maps to {live:1, idle:1, oldestLiveStartedAt: A.createdAt}; an active session on another workspace's posting is not counted in ws.",
+      "GET /api/devcase/postings -> every posting carries `inFlight` {live, idle, oldestLiveStartedAt}; a posting with no sessions carries {live:0, idle:0, oldestLiveStartedAt:null}; the payload contains no dev_sessions id and no candidate_ref from a session row (counts only).",
+      "Flush POST /api/devcase/session/[id] on an active session whose posting is CLOSED -> 200 with `intakeClosed: true`, and the events in the body are still stored (work is kept); the same flush on an open posting -> `intakeClosed: false`.",
+      "Chat POST /api/devcase/session/[id]/chat on a session whose posting is closed -> 410 code POSTING_CLOSED; no dev_session_chat row, no model call, and the `devcase-chat:<id>` limiter budget is unchanged.",
+      "liveWorkSync: a flush answer carrying intakeClosed:true sets snapshot.intakeClosed = true; a later submit() does not POST /submit, leaves status out of 'submitted', and never calls clearDraft (the draft survives on the device).",
+      "devcaseInFlight.closeWarning(aggregate, now): {live:2, oldestLiveStartedAt: now-52min} -> {key:'lifecycle.closeInFlight', values:{count:2, minutes:52}}; {live:0, idle:3} -> null (abandoned attempts do not alarm).",
+      "devcaseInFlight.inFlightByCase(postings): two postings of case K with live 1 and 2 -> K = {live:3, oldestLiveStartedAt: the earlier of the two}; a posting with caseId null contributes nothing."
+    ],
+    "premise": [
+      "app/api/devcase/lifecycle/[id]/close/route.ts:65 and :103 - close enumerates listSubmissions (sealed work only) for its wrap-up note, then setPostingStatus(posting.id, 'closed'). Nothing reads dev_sessions, so a candidate mid-attempt gets no note and is never counted.",
+      "app/features/tools/devcases/DevLifecycleRow.tsx:213-241 - the close confirm modal says only lifecycle.closeConfirm + lifecycle.closeIrreversible (messages/en.json devcase.lifecycle.closeConfirm and closeIrreversible - line numbers drift while builders append; 9757/9761 at scout time). The recruiter is not told that anyone is mid-case.",
+      "app/api/devcase/session/[id]/route.ts:101-105 - the flush checks only the SESSION's status and never the posting's. The only posting read on that path is the per-token MFU memo (:18-35), which caches forever and could not see a close.",
+      "app/api/devcase/session/[id]/chat/route.ts:95-99 - chat resolves the posting but checks only that a case exists, not posting.status. It keeps spending a real LLM call per message (chat/route.ts:20-21 rationale) on an intake that can no longer take the work.",
+      "app/api/devcase/session/[id]/submit/route.ts:67-72 - the candidate learns of the close only at the seal, as 410 POSTING_CLOSED, after every hour of work since the close.",
+      "app/_lib/db/devcase.ts:1010 is the only `status = 'active'` predicate over dev_sessions in the store, and no function lists or counts active sessions per posting (grep over app/_lib/db/devcase*.ts, app/api/devcase, app/features/tools/devcases). The recruiter has no view of in-flight attempts at all.",
+      "app/features/tools/devcases/DevLifecycleSection.tsx:30-45 already folds postings per case for the row (submissionsByCase), so an in-flight fold slots in beside it."
+    ],
+    "rollback": "Read-only additions (one store query, one field on GET /postings, one flag on the flush answer) plus one earlier refusal on chat. Reverting the series removes the field, the flag and the refusal. The client ignores an absent `intakeClosed` and `inFlight`, and no data is written or migrated.",
+    "gate": "policy-tighten",
+    "runner_up": "Cross-device resume: a key-authenticated GET of the candidate's own session projection (files, chat, elapsed) - the open leftover, which becomes safe only once card A's per-attempt key exists.",
+    "technique": "honest-failure-classification",
+    "body": "## Summary\nMake an assignment close stop being blind in both directions. The recruiter's close confirm names how many candidates are mid-attempt right now. A candidate whose intake closes is told on their next save, not hours later at the seal. Chat stops spending model calls on work that can no longer be submitted.\n\n## Description\nToday the close door (lifecycle/[id]/close) wraps up everyone who has SUBMITTED and flips the posting closed. Nothing in the studio knows who is mid-attempt: no store function counts active sessions, GET /api/devcase/postings inlines submissions only, and the confirm modal says only 'non-promoted submitters get a wrap-up note'. So a recruiter closes over three people who are 40 minutes into a two-hour case without knowing it.\n\nThose candidates are then ghosted twice. The flush keeps answering 200 because it checks only the session's status. Chat keeps answering and spending an LLM call per message because it checks only that a case exists. The first signal they get is a 410 at the seal, after all the work. That is the failure the candidate-status-transparency standard names: a terminal state rendered at the worst possible moment.\n\nThe leap has three parts:\n- (1) `inFlightAttemptsByPosting(ws)` in a new store module is the per-posting in-flight projection. It joins dev_sessions.token to dev_postings.token. `live` means active with activity in the last 30 minutes (updated_at moves only on real events or a dirty tree). `idle` means active and older. The projection returns counts and the oldest live start, never ids.\n- (2) GET /postings carries it. DevLifecycleSection folds it per case the way it already folds submissions. The close modal adds 'N candidates are working on this case right now (longest M min). Closing refuses their submission; they will see that on their next save.'\n- (3) The flush answers `intakeClosed` from a live posting read, not the memo. Chat refuses POSTING_CLOSED/410 before any spend. liveWorkSync enters an intakeClosed state that stops the doomed seal and keeps the draft. LiveWorkSurface shows a terminal banner that makes no claim about merit.\n\n## Flow\n1. Recruiter opens Assignments -> postings load with inFlight -> the row's close confirm shows the live count and the longest elapsed time (or the old copy when live is 0).\n2. The recruiter closes -> the posting flips to closed (unchanged route).\n3. A candidate's next 8s flush -> `intakeClosed: true` (events still stored) -> the surface shows 'This role stopped taking submissions while you were working. Your draft stays on this device.' -> the submit button is disabled, not left to 410.\n4. A chat message after the close -> 410 POSTING_CLOSED, resolved in the reader's language through the existing errors.POSTING_CLOSED code. No model call is made.\n\n## Expected impact\nThe recruiter decides on the close knowing who it affects. A candidate loses at most one save interval to a closed intake instead of the rest of their attempt. Model spend on unsubmittable attempts stops. The existing POSTING_CLOSED code is reused, so the only new catalog keys are the modal line and the banner.\n\n## Evaluation\nClaim: in-flight attempts are counted and shown at the close decision, and a closed intake reaches the candidate on the next flush and stops chat spend.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test in devcase-inflight.test.ts, postings/route.test.ts, liveWorkSync.test.ts, devcaseInFlight.test.ts, plus the flush/chat route cases, then i18n:check, design:check and test:unit.\nResult: pending build.\nGate: policy-tighten - chat gains an earlier refusal on a closed posting; everything else is additive. Sequencing: shares [id]/route.ts, chat/route.ts, liveWorkSync.ts(+test), LiveWorkSurface.tsx and the dev-case doc with card A, so it builds in the wave AFTER A.",
+    "evidence": "close/route.ts:65 `for (const submission of listSubmissions(posting.id, lc.workspaceId))` and :103 `setPostingStatus(posting.id, \"closed\");` - no dev_sessions read in the file. DevLifecycleRow.tsx:241 `{t(\"lifecycle.closeConfirm\")} {t(\"lifecycle.closeIrreversible\")}`; en.json devcase.lifecycle.closeConfirm (line 9757 at scout time) 'Close this assignment? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.' [id]/route.ts:101-105: `const session = getDevSessionMeta(id); ... if (session.status !== \"active\") return jsonRefusal(...409)` - no posting status check; MFU_CACHE (:18-35) caches `midFlightUpdate` per token with no invalidation. chat/route.ts:95-99: `const posting = ... getPostingByToken(session.token)`, `if (!devCase?.case) return jsonRefusal(\"DEVCASE_SESSION_UNAVAILABLE\", 404);` - posting.status is never read, and runSessionChat follows at :122. submit/route.ts:67 `if (posting.status === \"closed\")` -> jsonRefusal(\"POSTING_CLOSED\", 410). `grep -rn \"status = 'active'\" app/_lib/db/devcase*.ts` -> only devcase.ts:1010 (saveDevSessionFiles). DevTypes.ts:156-165 Posting has submissionCount/submissions and no in-flight field."
+  }
+]

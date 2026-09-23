@@ -1,0 +1,8 @@
+{"ctx":"billing-subscriptions","role":"scout","tokens":202350,"ms":346584}
+{"ctx":"results-core","role":"scout","tokens":195824,"ms":425717}
+{"ctx":"devcase-orchestration","role":"scout","tokens":211411,"ms":477853}
+{"ctx":"shell-setup-wizard","role":"scout","tokens":220194,"ms":493587}
+{"ctx":"llm-layer","role":"scout","tokens":268466,"ms":518397}
+{"ctx":"jobs-table-core","role":"scout","tokens":220322,"ms":533486}
+{"ctx":"voice-interview-api","role":"scout","tokens":265213,"ms":615170}
+{"ctx":"pipeline-api","role":"scout","tokens":240871,"ms":659562}

@@ -1,0 +1,9 @@
+{"ctx":"agents-api","role":"scout","tokens":187331,"ms":389378}
+{"ctx":"devcase-session-api","role":"scout","tokens":205921,"ms":496395}
+{"ctx":"pipeline-move-bulk-operations","role":"scout","tokens":216233,"ms":577366}
+{"ctx":"analytics-computation","role":"scout","tokens":206282,"ms":581509}
+{"ctx":"comms-dispatch-relay","role":"scout","tokens":207100,"ms":612099}
+{"ctx":"tests-scoring-fairness","role":"scout","tokens":224933,"ms":757243}
+{"ctx":"candidate-apply-flow","role":"scout","tokens":256746,"ms":781484}
+{"ctx":"db-pipeline-store","role":"scout","tokens":294318,"ms":1001771}
+{"ctx":"*","role":"critic","model":"fable","tokens":248156,"ms":1183328}

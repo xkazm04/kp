@@ -1,0 +1,75 @@
+{
+  "cohort": [
+    {
+      "name": "tests-scoring-fairness",
+      "group": "Candidate Intelligence",
+      "files": 26,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "devcase-session-api",
+      "group": "Developer Assessment",
+      "files": 25,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "agents-api",
+      "group": "AI & LLM Infrastructure",
+      "files": 24,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "pipeline-move-bulk-operations",
+      "group": "Hiring Pipeline",
+      "files": 24,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "analytics-computation",
+      "group": "Analytics & Reporting",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "candidate-apply-flow",
+      "group": "Candidate Engagement",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": [
+        {
+          "name": "about-page",
+          "files": 1
+        },
+        {
+          "name": "application-status-page",
+          "files": 3
+        },
+        {
+          "name": "apply-surface-tests",
+          "files": 3
+        }
+      ]
+    },
+    {
+      "name": "comms-dispatch-relay",
+      "group": "Communications & Scheduling",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "db-pipeline-store",
+      "group": "Data Access Layer",
+      "files": 23,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 149
+}
