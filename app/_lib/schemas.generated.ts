@@ -54,6 +54,13 @@ export const analysisResultSchema = z.object({
   recommendations: z.array(z.string()),
   explanation: z.string(),
   sanityChecks: z.array(z.string()),
+  trustFindings: z.array(z.object({
+    code: z.string(),
+    severity: z.enum(["ok", "warn", "blocker"]),
+    scope: z.enum(["score", "salary", "identity", "archetype", "authenticity", "credential", "input", "insight", "skills"]),
+    text: z.string(),
+    value: z.string().nullish()
+  })).nullish(),
   jobFit: z.object({
     score: z.number(),
     summary: z.string(),

@@ -5,8 +5,7 @@ import { getJob } from "@/app/_lib/db/jobs";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
 import { buildComparison } from "@/app/_lib/comparison";
-import { reconcileScoreTotal } from "@/app/_lib/format";
-import { countSanityWarns } from "@/app/_lib/sanity-checks";
+import { trustWarnCount, trustedScoreTotal } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
@@ -580,12 +579,16 @@ function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis
       // "Overall" render via reconcileScoreTotal — so the History list + detail header (which
       // read this denormalized column) can't disagree with the dial when the pipeline's raw
       // total drifts from the sum of its parts. The raw total stays in `payload` for anyone
-      // who needs it.
-      score: analysis.score ? reconcileScoreTotal(analysis.score) : null,
+      // who needs it. Null — not 0 — when the engine flagged the score as not computed
+      // (a `score`-scope blocker: the section was missing and the components defaulted),
+      // so History never lists a number nobody measured (trustedScoreTotal).
+      score: trustedScoreTotal(analysis),
       roleFamily: analysis.candidate?.roleFamily ?? null,
       seniority: analysis.candidate?.currentSeniority ?? null,
       payload: analysis,
-      reviewFlags: countSanityWarns(analysis.sanityChecks ?? []),
+      // Counted from the engine's coded severities (the legacy regex only for a
+      // payload that predates them) — the same split QualityStrip renders.
+      reviewFlags: trustWarnCount(analysis),
     }, workspaceId);
     return { ...receipt, candidateLabel, jdSlug };
   } catch (error) {

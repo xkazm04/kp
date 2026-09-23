@@ -24,7 +24,12 @@ import type { Locale } from "@/i18n/locales";
 // (localized) narrative per locale, so an en result must NOT be served for a cs
 // request and vice-versa. Mixing them would show English narrative under a Czech
 // UI (or stale-cache the wrong language). Bumping invalidates every pre-i18n hash.
-export const PROMPT_VERSION = "v6-2026-09-04-engine-kind";
+//
+// v7 adds `trustFindings` (challenge-r07 results-core/A): the trust ledger is now
+// coded at birth. A cached pre-v7 payload lacks it and would be read by the legacy
+// regex, which files a blind-screening redaction miss as a clean pass - so a cache
+// hit must not outlive the fix.
+export const PROMPT_VERSION = "v7-2026-09-23-trust-findings";
 
 export type CacheKeyInput = {
   cvBytes: Buffer;

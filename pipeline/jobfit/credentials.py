@@ -28,6 +28,8 @@ import re
 from datetime import date
 from typing import Any
 
+from .trust import Finding
+
 CREDENTIAL_PREFIX = "Credential"
 
 # Regulated hard-gate licences. Each spec: (JD cue, human label, candidate-name cues
@@ -118,16 +120,28 @@ def credential_checks(
         if jd and jd_re.search(jd):
             if not any(any(nr.search(n) for nr in name_res) for n in held_names):
                 flags.append(
-                    f"Credential: the role appears to require a {label}, not found in the "
-                    f"candidate's credentials — verify before advancing (manual review)."
+                    Finding(
+                        f"Credential: the role appears to require a {label}, not found in the "
+                        f"candidate's credentials — verify before advancing (manual review).",
+                        code="credential_missing",
+                        severity="warn",
+                        scope="credential",
+                        value=label,
+                    )
                 )
         # Expiry: a held regulated credential carries a date already in the past.
         for c in creds:
             nm = _name(c)
             if nm and any(nr.search(nm) for nr in name_res) and _parse_past(_expiry(c), today):
                 flags.append(
-                    f"Credential: '{nm}' carries a date ({_expiry(c).strip()}) that appears to "
-                    f"be in the past — confirm the licence is current (manual review)."
+                    Finding(
+                        f"Credential: '{nm}' carries a date ({_expiry(c).strip()}) that appears to "
+                        f"be in the past — confirm the licence is current (manual review).",
+                        code="credential_expired",
+                        severity="warn",
+                        scope="credential",
+                        value=nm,
+                    )
                 )
 
     # De-duplicate while preserving order (a licence can match two name cues).

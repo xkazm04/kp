@@ -20,6 +20,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 
+from .trust import Finding
+
 # Generic, low-information résumé phrases. A few are expected; a pile of them with
 # little concrete detail is the signature of templated / AI-generated padding.
 _BUZZWORDS = (
@@ -32,12 +34,25 @@ _BUZZWORDS = (
     "bohaté zkušenosti", "výborné komunikační schopnosti",
 )
 
-# Phrasing for each flag (warn-shaped — the "(manual review)" suffix makes the
-# sanity-check classifier treat it as a warning, and the band low/medium).
-_BUZZWORD_FLAG = "Authenticity: heavy generic/buzzword phrasing — verify concrete specifics in interview (manual review)."
-_SKILL_STUFF_FLAG = "Authenticity: skill list is large relative to the CV's detail — confirm real depth (manual review)."
-_IMPLAUSIBLE_YEARS_FLAG = "Authenticity: stated experience exceeds a plausible career span — re-check the dates (manual review)."
-_FEW_SPECIFICS_FLAG = "Authenticity: very few concrete dates or metrics — claims are hard to verify (manual review)."
+# Phrasing for each flag. Each is a coded warn on the ``authenticity`` scope
+# (trust.py) — the band below counts those by severity; the "(manual review)"
+# suffix is kept so payloads read by the legacy TS regex classify the same way.
+_BUZZWORD_FLAG = Finding(
+    "Authenticity: heavy generic/buzzword phrasing — verify concrete specifics in interview (manual review).",
+    code="authenticity_buzzwords", severity="warn", scope="authenticity",
+)
+_SKILL_STUFF_FLAG = Finding(
+    "Authenticity: skill list is large relative to the CV's detail — confirm real depth (manual review).",
+    code="authenticity_skill_stuffing", severity="warn", scope="authenticity",
+)
+_IMPLAUSIBLE_YEARS_FLAG = Finding(
+    "Authenticity: stated experience exceeds a plausible career span — re-check the dates (manual review).",
+    code="authenticity_implausible_years", severity="warn", scope="authenticity",
+)
+_FEW_SPECIFICS_FLAG = Finding(
+    "Authenticity: very few concrete dates or metrics — claims are hard to verify (manual review).",
+    code="authenticity_few_specifics", severity="warn", scope="authenticity",
+)
 # Buzzword flag thresholds. The floor keeps the old absolute behaviour for short
 # CVs (four generic phrases in a page is genuinely dense padding); the rate keeps
 # a ten-page senior CV from tripping on that same absolute count — it must carry
@@ -45,7 +60,10 @@ _FEW_SPECIFICS_FLAG = "Authenticity: very few concrete dates or metrics — clai
 _BUZZWORD_MIN_HITS = 4
 _BUZZWORD_PER_1K = 1.5
 
-_CLEAN = "Authenticity checks passed — language reads specific and concrete."
+_CLEAN = Finding(
+    "Authenticity checks passed — language reads specific and concrete.",
+    code="authenticity_clean", severity="ok", scope="authenticity",
+)
 
 
 def authenticity_checks(raw_text: str, *, skills_count: int = 0, years_experience: int | None = None) -> list[str]:
@@ -131,19 +149,24 @@ _INVISIBLE_CHARS = re.compile(
     "[\u200b\u200c\u200d\u2060\ufeff\u200e\u200f\u202a-\u202e\u2066-\u2069\u00ad]"
 )
 
-_INJECTION_IMPERATIVE_FLAG = (
+# Scope ``input`` (the document itself is suspect), NOT ``authenticity``: the
+# authenticity band must not move on an injection attempt (two ledgers on purpose).
+_INJECTION_IMPERATIVE_FLAG = Finding(
     "Prompt-injection screen: the CV text contains instructions aimed at the analyzer "
     "(e.g. 'ignore previous instructions' / 'score 100' / 'no gaps') — the AI score and "
-    "narrative may be manipulated; verify against the source document (manual review)."
+    "narrative may be manipulated; verify against the source document (manual review).",
+    code="injection_instructions", severity="warn", scope="input",
 )
-_INJECTION_INVISIBLE_FLAG = (
+_INJECTION_INVISIBLE_FLAG = Finding(
     "Prompt-injection screen: the CV contains hidden/zero-width characters that can "
     "smuggle instructions past a human reader — inspect the source document before "
-    "trusting the AI narrative (manual review)."
+    "trusting the AI narrative (manual review).",
+    code="injection_invisible_chars", severity="warn", scope="input",
 )
-_INJECTION_REPETITION_FLAG = (
+_INJECTION_REPETITION_FLAG = Finding(
     "Prompt-injection screen: a word or phrase is repeated an implausible number of "
-    "times (a model-gaming / stuffing pattern) — verify the CV is genuine (manual review)."
+    "times (a model-gaming / stuffing pattern) — verify the CV is genuine (manual review).",
+    code="injection_repetition", severity="warn", scope="input",
 )
 
 # Marker the UI keys on to find these among the other sanity checks.
@@ -200,9 +223,18 @@ AUTHENTICITY_PREFIX = "Authenticity"
 
 def authenticity_band(checks: list[str]) -> str:
     """Derive a trust band from the authenticity findings: how many WARNED. 0 → high,
-    1 → medium, 2+ → low. Mirrors the warn-marker rule on the TS side; kept here so a
-    Python caller can read the band too. (The clean line is not a warn.)"""
-    warns = sum(1 for c in checks if c.startswith(AUTHENTICITY_PREFIX) and "manual review" in c)
+    1 → medium, 2+ → low. A coded :class:`~.trust.Finding` is counted by its scope and
+    severity (the producer said so); only a plain legacy string falls back to the
+    prefix + "manual review" substring. Mirrors ``authenticityBand`` on the TS side."""
+    warns = sum(
+        1
+        for c in checks
+        if (
+            c.scope == "authenticity" and c.severity != "ok"
+            if isinstance(c, Finding)
+            else c.startswith(AUTHENTICITY_PREFIX) and "manual review" in c
+        )
+    )
     if warns == 0:
         return "high"
     return "medium" if warns == 1 else "low"

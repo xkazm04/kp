@@ -1,6 +1,7 @@
 import type { Analysis } from "@/app/_lib/schemas";
 import { hasRenderableComparison, resolveWinnerIndex } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
+import { trustedScoreTotal } from "@/app/_lib/sanity-checks";
 
 // Direction 1 (verdict-above-the-fold) — the ONE resolution behind the leading
 // verdict banner. The banner headlines the reconciled OVERALL score + its band
@@ -40,9 +41,10 @@ export function resolveVerdict(analysis: Analysis): Verdict {
       winnerLabel: winner.label,
     };
   }
-  const overall = reconcileScoreTotal(analysis.score);
+  // Null when the engine flagged the score as not computed (a score-scope blocker):
+  // a defaulted 0 renders unscored, not as a Weak verdict.
   return {
-    overall: Number.isFinite(overall) ? overall : null,
+    overall: trustedScoreTotal(analysis),
     jobFit: analysis.jobFit?.score ?? null,
     winnerLabel: null,
   };

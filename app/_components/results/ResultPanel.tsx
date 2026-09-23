@@ -279,7 +279,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
         </div>
       ) : null}
       {analysis.v2Profile ? <ArchetypeBanner v2Profile={analysis.v2Profile} sourceAnalysisSlug={analysisSlug} /> : null}
-      <QualityStrip checks={analysis.sanityChecks ?? []} />
+      <QualityStrip checks={analysis.sanityChecks ?? []} findings={analysis.trustFindings} />
       <RunCostLine runCost={analysis.metadata?.runCost} cached={runCached} />
 
       <div className={`${PANEL} p-2`}>
