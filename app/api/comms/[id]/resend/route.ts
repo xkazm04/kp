@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOutboxEntry, listOutboxFiltered } from "@/app/_lib/db/devcase";
+import { getOutboxEntry, getPostingByToken, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -24,6 +24,22 @@ const resendInFlight = new Set<string>();
 // far above a recruiter working a dead-letter list by hand (one click per message,
 // each one read first) and pins a scripted loop at 6/min.
 const RESEND_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
+
+/** The comms kind dispatchCaseInvite writes (stage-hooks-homework.ts reads it back). */
+const CASE_INVITE_KIND = "case_invite";
+/** The apply link dispatchCaseInvite interpolates: `${base}/devcase/apply/<token>`. */
+const APPLY_LINK_TOKEN = /\/devcase\/apply\/([A-Za-z0-9_-]+)/g;
+
+/** True when an assignment letter's apply link no longer collects work: a token no
+ *  posting of THIS team answers to, or one whose posting is not open. A letter with no
+ *  apply link at all is not judged here (nothing to go dead). */
+function caseInviteLinkIsDead(body: string, workspaceId: string): boolean {
+  const tokens = [...body.matchAll(APPLY_LINK_TOKEN)].map((m) => m[1]);
+  return tokens.some((token) => {
+    const posting = getPostingByToken(token);
+    return !posting || posting.workspaceId !== workspaceId || posting.status !== "open";
+  });
+}
 
 // W6-1 (SIM2/DEVO5/DEVS4) — re-deliver a dead-lettered (or stuck-queued) comm.
 // The system DELIBERATELY never auto-resends: business sends are gated on
@@ -71,6 +87,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // A (SIM) row was recorded on the simulation channel precisely so it never reaches
     // the relay (wave 16); resending it would. Refuse with a code the outbox renders.
     if (original.channel === SIM_COMMS_CHANNEL) return jsonRefusal("COMM_SIMULATION_ROW", 409);
+    // No dead links handed out (challenge-r09 devcase-lifecycle/B). An assignment letter
+    // carries its posting's apply link in the stored body, and this door re-sends that
+    // body verbatim — so once the posting's intake was stopped (or its token no longer
+    // resolves) the resend would mail a link that answers 410. Refused with the code the
+    // apply door itself answers. The outbox row carries no posting status, so no client
+    // can withhold the button for this; the refusal is the guard and the button renders
+    // the coded reason.
+    if (original.kind === CASE_INVITE_KIND && caseInviteLinkIsDead(original.body, ws)) {
+      return jsonRefusal("POSTING_CLOSED", 410);
+    }
     // Per-IP, AFTER the cheap refusals (in-flight, unknown id, missing fields) so a
     // rejected click costs no budget, and BEFORE the dedup read and the relay call.
     if (!rateLimit(`comms-resend:${clientIpFrom(request.headers)}`, RESEND_RATE_LIMIT)) {

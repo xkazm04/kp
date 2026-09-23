@@ -1743,7 +1743,11 @@ published by hand from the detail (no lifecycle) had no way to stop intake at al
   lifecycle's Close stays the door that wraps submitters up. The candidate-side refusals
   are the existing closed-intake contract, unchanged: the apply page, the inbound webhook
   and the session submit answer `POSTING_CLOSED` (410), and a live attempt learns it on its
-  next flush (`intakeClosed`).
+  next flush (`intakeClosed`). The Comms Center's Resend (`POST /api/comms/[id]/resend`)
+  reads it too: a `case_invite` whose body's apply token resolves to no open posting of
+  the team is refused `410 POSTING_CLOSED` before the limiter and the relay, and nothing
+  is sent or queued (`resend-closed-invite.test.ts`). The outbox row carries no posting
+  status, so the button is still offered and renders the coded refusal.
 - **Reopen is a publish, and asks the same seat.** `POST /api/devcase/publish` now asks
   `requireOperator()` then `pipeline:write` (it asked nothing, and it is the reopen half);
   its line is gone from `route-capability-coverage.test.ts`'s ALLOWED list. A reopen mints a
@@ -2257,13 +2261,10 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   untranslated, to a candidate reading the page in cs/de/fr.
 - 3rd-party distribution (publish/pull to email/ATS/job-board) is a local-stub
   adapter interface only, per the original plan (`docs/concepts/dev-extension-future-phases.md`).
-- **Two apply-link doors outside the studio do not yet read a stopped intake.** The Comms
-  Center's Resend (`app/api/comms/[id]/resend/route.ts`) re-dispatches a stored
-  `case_invite` body verbatim, so resending an invite whose posting was closed mails a link
-  that answers 410. And the homework column (`app/_lib/stage-hooks-homework.ts`) finds no
-  OPEN posting on a stopped case and publishes a fresh one, so moving a candidate into that
-  column reopens intake the recruiter stopped. Neither hands out a closed link through the
-  studio; both are outside the stop/reopen change.
+- **The homework column does not yet read a stopped intake.**
+  `app/_lib/stage-hooks-homework.ts` finds no OPEN posting on a stopped case and publishes
+  a fresh one, so moving a candidate into that column reopens intake the recruiter
+  stopped. It never hands out a closed link; it is outside the stop/reopen change.
 
 ## Case-generation calibration
 

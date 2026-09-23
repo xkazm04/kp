@@ -497,7 +497,10 @@ a bad locale is `STOP_LANGUAGE_INVALID` 400. Locked by `app/api/stop/stop-langua
   relay. It also carries a per-IP `rateLimit()` (60 per 10 minutes, after the cheap
   refusals) and answers `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
   entry-less KO-decline case) correlates on its own outbox id, so the refless
-  shape can no longer be resent without bound (`resend-dedup.test.ts`).
+  shape can no longer be resent without bound (`resend-dedup.test.ts`). A
+  `case_invite` whose apply link names a closed (or vanished) posting is refused
+  `410 POSTING_CLOSED` before the limiter, so a stopped intake's dead link is never
+  re-mailed (`resend-closed-invite.test.ts`).
 - **Every candidate dispatcher returns its verdict** (`DispatchOutcome` in
   `app/_lib/comms-dispatch.ts`). The channel has two failure signals: a *throw*
   (the send gate refused) and a *returned* `failed` row (the relay dead-lettered,
