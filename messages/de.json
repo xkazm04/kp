@@ -3116,7 +3116,8 @@
       "onboarding_started": "startete das Onboarding (eingestelltes Modul)",
       "onboarding_intake_submitted": "reichte den Onboarding-Fragebogen ein (eingestelltes Modul)",
       "screen_wave_holdout_unsealed": "wurde von der Screening-Welle verschont, aber der Kalibrierungs-Kontrollgruppen-Eintrag konnte nicht versiegelt werden",
-      "approval_set": "Für diesen Kandidaten wurde eine Freigabe gesetzt"
+      "approval_set": "Für diesen Kandidaten wurde eine Freigabe gesetzt",
+      "screen_wave_recruiter_spared": "wurde von der prüfenden Person aus der Screening-Welle genommen"
     },
     "relTime": {
       "today": "heute",
@@ -4013,8 +4014,14 @@
         "autoRatifiedScreening": "Screening-Empfehlung „weiter“ gemäß Einstellungsplan automatisch bestätigt (Screening-Gate: automatisch).",
         "sealFailed": "beibehalten: Der manipulationssichere Entscheidungssatz konnte nicht versiegelt werden, die automatische Absage wurde daher nicht ausgeführt",
         "reinstated": "beibehalten: Eine frühere automatische Absage wurde von einer Recruiterin aufgehoben, die Automatik wiederholt sie nicht",
-        "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm"
-      }
+        "holdoutSealFailed": "beibehalten, aber der Kalibrierungs-Holdout konnte nicht versiegelt werden, diese Person ist daher nicht im sauberen Arm",
+        "recruiterSpared": "beibehalten: Sie haben diese Person in dieser Vorschau aus der Welle genommen, die Welle lehnt sie daher nicht ab (Match {score}, Schwelle {threshold})"
+      },
+      "spare": "Verschonen",
+      "unspare": "Rückgängig",
+      "spareTitle": "{name} aus dieser Welle nehmen. Die Freigabe gilt dann für die Auswahl ohne diese Person.",
+      "unspareTitle": "{name} wieder in diese Welle aufnehmen",
+      "sparedCount": "{count, plural, one {# von Ihnen verschont.} other {# von Ihnen verschont.}}"
     },
     "summary": {
       "reject": "Ablehnen",
@@ -8103,7 +8110,8 @@
         "onboarding_started": "Onboarding gestartet (eingestelltes Modul)",
         "onboarding_intake_submitted": "Onboarding-Fragebogen eingereicht (eingestelltes Modul)",
         "screen_wave_holdout_unsealed": "Von der Welle verschont, Kontrollgruppen-Eintrag unversiegelt",
-        "approval_set": "Freigabe gesetzt"
+        "approval_set": "Freigabe gesetzt",
+        "screen_wave_recruiter_spared": "Von der prüfenden Person aus der Welle genommen"
       },
       "kindsQueued": {
         "outreach_sent": "Ansprache im Postausgang eingereiht (nicht zugestellt)",

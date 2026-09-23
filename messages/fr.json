@@ -3116,7 +3116,8 @@
       "onboarding_started": "a démarré l’intégration (module retiré)",
       "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)",
       "screen_wave_holdout_unsealed": "a été épargné par la vague de présélection, mais son enregistrement de témoin de calibrage n'a pas pu être scellé",
-      "approval_set": "Une approbation a été définie pour ce candidat"
+      "approval_set": "Une approbation a été définie pour ce candidat",
+      "screen_wave_recruiter_spared": "a été retiré·e de la vague de présélection par la personne qui l’a examinée"
     },
     "relTime": {
       "today": "aujourd’hui",
@@ -4013,8 +4014,14 @@
         "autoRatifiedScreening": "Avis de présélection « avancer » validé automatiquement selon le plan de recrutement (porte présélection : automatique).",
         "sealFailed": "conservé·e : l'enregistrement de décision infalsifiable n'a pas pu être scellé, le refus automatique n'a donc pas été appliqué",
         "reinstated": "conservé·e : un refus automatique précédent a été annulé par un recruteur, la machine ne le répète pas",
-        "holdoutSealFailed": "conservé·e, mais l'enregistrement du témoin d'étalonnage n'a pas pu être scellé : cette personne n'est pas dans le bras propre"
-      }
+        "holdoutSealFailed": "conservé·e, mais l'enregistrement du témoin d'étalonnage n'a pas pu être scellé : cette personne n'est pas dans le bras propre",
+        "recruiterSpared": "conservé·e : vous l’avez retiré·e de la vague dans cet aperçu, la vague ne le ou la rejettera donc pas (correspondance {score}, seuil {threshold})"
+      },
+      "spare": "Épargner",
+      "unspare": "Annuler",
+      "spareTitle": "Retirer {name} de cette vague. L’approbation porte alors sur la sélection sans cette personne.",
+      "unspareTitle": "Remettre {name} dans cette vague",
+      "sparedCount": "{count, plural, one {# épargné·e par vous.} other {# épargné·e·s par vous.}}"
     },
     "summary": {
       "reject": "Rejeter",
@@ -8103,7 +8110,8 @@
         "onboarding_started": "Intégration démarrée (module retiré)",
         "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)",
         "screen_wave_holdout_unsealed": "Épargné par la vague, enregistrement témoin non scellé",
-        "approval_set": "Approbation définie"
+        "approval_set": "Approbation définie",
+        "screen_wave_recruiter_spared": "Retiré·e de la vague par l’examinateur"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d’attente dans la boîte d’envoi (non remise)",

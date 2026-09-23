@@ -3116,7 +3116,8 @@
       "onboarding_started": "zahájil/a onboarding (zrušený modul)",
       "onboarding_intake_submitted": "odeslal/a onboardingový dotazník (zrušený modul)",
       "screen_wave_holdout_unsealed": "byl/a vlnou screeningu ušetřen/a, ale záznam kalibračního vzorku se nepodařilo zapečetit",
-      "approval_set": "U tohoto kandidáta bylo nastaveno schválení"
+      "approval_set": "U tohoto kandidáta bylo nastaveno schválení",
+      "screen_wave_recruiter_spared": "byl/a ušetřen/a z vlny screeningu posuzovatelem"
     },
     "relTime": {
       "today": "dnes",
@@ -4013,8 +4014,14 @@
         "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická).",
         "sealFailed": "ponechán(a): záznam rozhodnutí odolný proti manipulaci se nepodařilo zapečetit, automatické zamítnutí se proto neprovedlo",
         "reinstated": "ponechán(a): personálista dřívější automatické zamítnutí zrušil, stroj ho tedy nezopakuje",
-        "holdoutSealFailed": "ponechán(a), ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi"
-      }
+        "holdoutSealFailed": "ponechán(a), ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi",
+        "recruiterSpared": "ponecháno: v tomto náhledu jste kandidáta vyřadili z vlny, vlna ho tedy nezamítne (shoda {score}, práh {threshold})"
+      },
+      "spare": "Ušetřit",
+      "unspare": "Vrátit",
+      "spareTitle": "Vyřadit kandidáta {name} z této vlny. Schválení se pak vztahuje na výběr bez něj.",
+      "unspareTitle": "Vrátit kandidáta {name} do této vlny",
+      "sparedCount": "{count, plural, one {# ušetřen(a) vámi.} few {# ušetřeni vámi.} other {# ušetřeno vámi.}}"
     },
     "summary": {
       "reject": "Zamítnout",
@@ -8103,7 +8110,8 @@
         "onboarding_started": "Onboarding zahájen (zrušený modul)",
         "onboarding_intake_submitted": "Onboardingový dotazník odeslán (zrušený modul)",
         "screen_wave_holdout_unsealed": "Ušetřeno vlnou, záznam vzorku nezapečetěn",
-        "approval_set": "Nastaveno schválení"
+        "approval_set": "Nastaveno schválení",
+        "screen_wave_recruiter_spared": "Ušetřeno z vlny posuzovatelem"
       },
       "kindsQueued": {
         "outreach_sent": "Oslovení ve frontě v Outboxu (nedoručeno)",
