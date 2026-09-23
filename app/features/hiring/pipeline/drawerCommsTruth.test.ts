@@ -272,11 +272,15 @@ test("the Activity tab carries the needs-you count from the shared counter, gate
   assert.match(tabs, /needsYou/, "the tab strip renders the count");
 });
 
-test("the simulation and refused channel literals live in ONE module, re-exported by comms-dispatch", () => {
-  const dispatch = readFileSync("app/_lib/comms-dispatch.ts", "utf8");
-  assert.doesNotMatch(dispatch, /=\s*"simulation"/, "comms-dispatch must not re-declare the simulation channel");
-  assert.doesNotMatch(dispatch, /=\s*"refused";/, "comms-dispatch must not re-declare the refused channel");
-  assert.match(dispatch, /from "\.\/comms-resend-outcome(\.ts)?"/);
+test("the resend door owns the channel literals; the dispatcher's local copies are pinned equal elsewhere", () => {
+  // comms-dispatch.ts keeps its own copies (cbc5c0c1f: re-exporting them put one more
+  // module on every route graph). app/_lib/comms-dispatch-channels.test.ts pins that the
+  // two copies agree; here the door module must still declare them, so the client-side
+  // rule never depends on the server dispatcher.
+  const door = readFileSync("app/_lib/comms-resend-outcome.ts", "utf8");
+  assert.match(door, /export const SIM_COMMS_CHANNEL = "simulation";/);
+  assert.match(door, /export const REFUSED_COMMS_CHANNEL = "refused";/);
+  assert.doesNotMatch(door, /from\s+["']\.\/comms-dispatch(\.ts)?["']/, "the door stays import-free of the dispatcher");
 });
 
 test("the drawer bundle carries each letter's recipient, so the bounced door can pre-fill it", async () => {
