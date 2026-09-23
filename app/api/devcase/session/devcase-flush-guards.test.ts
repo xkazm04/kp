@@ -43,13 +43,16 @@ const MUTATING = ["./[id]/route.ts", "./[id]/chat/route.ts", "./[id]/submit/rout
 for (const rel of MUTATING) {
   test(`${rel} refuses a session that carries no apply token`, () => {
     const src = read(rel);
-    // The whole guard, not just the call: `session.token && !sessionTokenMatches(...)`
-    // reads almost identically and is exactly the hole this closes.
-    assert.match(
-      src,
-      /!sessionTokenMatches\(session\.token, body\.token\)/,
-      "the apply-token re-check must be present",
-    );
+    // challenge-r06 devcase-session-api/A: the proof moved into ONE door guard
+    // (devcase-session-auth.ts openSessionDoor), which refuses a tokenless row before it
+    // opens and demands the session key on a keyed one. Each door must open through it
+    // and run its proof…
+    assert.match(src, /const door = openSessionDoor\(id, \{ need: "(active|any)" \}\);/, "the door must open through the guard");
+    assert.match(src, /if \(!door\.ok\) return door\.response;/, "a refused open answers the guard's code");
+    assert.match(src, /const denied = door\.authorize\(request\.headers, body\.token\);\s*if \(denied\) return denied;/);
+    // …and never hand-copy the decision again. The `session.token && …` carve-out read
+    // almost identically to the real check and was exactly the hole this file closed.
+    assert.doesNotMatch(src, /sessionTokenMatches\(/, "no door re-implements the proof");
     assert.doesNotMatch(
       src,
       /if \(session\.token && !sessionTokenMatches\(/,

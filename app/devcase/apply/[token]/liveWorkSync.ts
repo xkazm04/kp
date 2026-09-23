@@ -15,6 +15,15 @@
 //
 // Public candidate surface: the only ids this client ever sends are the apply token
 // from the URL and the session id the mint returned for it. Nothing else crosses.
+//
+// THE SESSION KEY (challenge-r06 devcase-session-api/A). The mint also hands THIS device a
+// per-attempt secret; it lives beside the session id (in state and in the local draft) and
+// rides every mutating call (flush, chat, submit) as the SESSION_KEY_HEADER header, never
+// in the URL, which is the channel a session id already leaks through. A restored draft
+// with an id but no key (written before the key existed) flushes KEYLESS: the legacy row
+// it names still accepts the apply token, and re-minting would abandon the candidate's
+// server-side attempt and its elapsed clock. Only a 403 on such a keyless call (the row IS
+// keyed and this device lost the key) re-mints, and only once.
 import type { ProcessEvent, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { foldMintRefusal, type MintRefusal } from "./liveWorkMint";
 
@@ -22,6 +31,10 @@ export const DECISIONS_FILE = "DECISIONS.md";
 /** First backoff after a coded mint refusal; doubles per repeat refusal, capped. */
 export const MINT_REFUSAL_BACKOFF_MS = 60_000;
 export const MINT_REFUSAL_BACKOFF_MAX_MS = 15 * 60_000;
+/** The header the per-attempt key travels in. Mirrors SESSION_KEY_HEADER in
+ *  app/_lib/devcase-session-auth.ts (a node:crypto module this client cannot import);
+ *  devcase-session-auth.test.ts pins that the two literals agree. */
+export const SESSION_KEY_HEADER = "x-devcase-session-key";
 
 /** The slice of `Response` this client reads — a fake in tests, `window.fetch` in the page. */
 export type SyncResponse = { ok: boolean; status: number; json(): Promise<unknown> };
@@ -32,6 +45,8 @@ export type SyncFetch = (
 
 export type LiveWorkSyncState = {
   sessionId: string | null;
+  /** The per-attempt key the mint gave this device (null: a pre-key draft, or not minted). */
+  sessionKey: string | null;
   files: SeedFile[];
   pending: ProcessEvent[];
   /** Something changed since the server last acknowledged the tree. */
@@ -62,6 +77,11 @@ export type LiveWorkSyncOptions = {
 };
 
 export type SubmitInput = { candidate: string; contact: string; locale: string; activePath: string };
+export type ChatInput = {
+  channel: "assistant" | "stakeholder";
+  message: string;
+  currentFile: { path: string; contents: string } | null;
+};
 
 export type LiveWorkSync = ReturnType<typeof createLiveWorkSync>;
 
@@ -91,6 +111,7 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
   let persist = opts.persist;
   let state: LiveWorkSyncState = {
     sessionId: null,
+    sessionKey: null,
     files: opts.seedFiles.map((f) => ({ ...f })),
     pending: [],
     filesDirty: false,
@@ -109,11 +130,19 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
   let minting: Promise<string | null> | null = null;
   let submitting = false;
   let refusalStreak = 0;
+  // A keyless 403 re-mints ONCE per client: past that it is a real refusal, and a loop of
+  // mints would spin the per-token/day session quota.
+  let remintedAfterRefusal = false;
   const listeners = new Set<() => void>();
 
   function set(patch: Partial<LiveWorkSyncState>) {
     state = { ...state, ...patch };
     for (const l of listeners) l();
+  }
+
+  /** The headers of a mutating call: the key when this device holds one. */
+  function doorHeaders(): Record<string, string> {
+    return state.sessionKey ? { ...JSON_HEADERS, [SESSION_KEY_HEADER]: state.sessionKey } : JSON_HEADERS;
   }
 
   function rebuffer(batch: ProcessEvent[]) {
@@ -142,11 +171,12 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
         }
         return null;
       }
-      const data = (await r.json().catch(() => null)) as { sessionId?: string; watermark?: string } | null;
+      const data = (await r.json().catch(() => null)) as { sessionId?: string; sessionKey?: unknown; watermark?: string } | null;
       const sessionId = data?.sessionId ?? null;
       refusalStreak = 0;
       set({
         sessionId,
+        sessionKey: typeof data?.sessionKey === "string" && data.sessionKey ? data.sessionKey : null,
         refusal: null,
         mintBlockedUntil: null,
         // Session watermark (LLM-era controls #4): the stamped tree must reach the server.
@@ -193,11 +223,13 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
     persist();
   }
 
-  /** Resume from a local draft. A restored tree may be newer than the server's copy. */
-  function hydrate(draft: { sessionId: string | null; files: SeedFile[]; pending: ProcessEvent[] }) {
+  /** Resume from a local draft. A restored tree may be newer than the server's copy. A key
+   *  is only ever restored WITH the id it belongs to; an id with no key (a pre-key draft)
+   *  is kept and flushed keyless, never re-minted on sight. */
+  function hydrate(draft: { sessionId: string | null; sessionKey?: string | null; files: SeedFile[]; pending: ProcessEvent[] }) {
     set({
       ...(draft.files.length > 0 ? { files: draft.files, filesDirty: true } : {}),
-      ...(draft.sessionId ? { sessionId: draft.sessionId } : {}),
+      ...(draft.sessionId ? { sessionId: draft.sessionId, sessionKey: draft.sessionKey ?? null } : {}),
       pending: draft.pending,
     });
   }
@@ -224,23 +256,33 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
     const sendFiles = state.filesDirty || !!flushOpts.submit;
     const sentFiles = state.files;
     try {
-      // The apply token rides every mutating call: a session id alone is not authority.
+      // The session key (a header) and the apply token (the body) ride every mutating
+      // call: a session id alone is not authority.
       // NO `keepalive` — it caps the body at 64KB, and this request must carry the
       // complete final tree (50 files x 256KB).
+      const keyless = !state.sessionKey;
       const r = await fetch(`/api/devcase/session/${sid}`, {
         method: "POST",
-        headers: JSON_HEADERS,
+        headers: doorHeaders(),
         body: JSON.stringify({ token, events: batch, ...(sendFiles ? { files: sentFiles } : {}) }),
       });
       if (r.status === 403) {
         rebuffer(batch);
+        if (keyless && !remintedAfterRefusal) {
+          // The row is keyed and this device never had (or lost) its key, so it cannot
+          // prove this attempt again. Drop the id like a 404/409 and re-mint ONCE; the
+          // local tree and the buffered batch stay, so the work moves to the new attempt.
+          remintedAfterRefusal = true;
+          set({ sessionId: null, sessionKey: null });
+          return false;
+        }
         set({ syncBlocked: true });
         return false;
       }
       if (r.status === 404 || r.status === 409) {
-        // This session id is dead (gone, or another tab sealed it). Drop it so the next
-        // flush mints a fresh one — which also re-stamps the watermark.
-        set({ sessionId: null });
+        // This session id is dead (gone, or another tab sealed it). Drop it, and its key
+        // with it, so the next flush mints a fresh one, which also re-stamps the watermark.
+        set({ sessionId: null, sessionKey: null });
         rebuffer(batch);
         return false;
       }
@@ -277,7 +319,7 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
       }
       const r = await fetch(`/api/devcase/session/${sid}/submit`, {
         method: "POST",
-        headers: JSON_HEADERS,
+        headers: doorHeaders(),
         body: JSON.stringify({ token, candidate: input.candidate, contact: input.contact, locale: input.locale }),
       }).catch(() => null);
       if (r && r.ok) {
@@ -299,6 +341,19 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
     }
   }
 
+  /** Send one chat turn on this attempt, minting it first if needed (a chat message is the
+   *  candidate's own click, so it may cross a mint-refusal backoff once). Null when no
+   *  session could be minted; otherwise the raw answer, which the page folds (429, codes). */
+  async function chat(input: ChatInput): Promise<SyncResponse | null> {
+    const sid = await ensureSession({ explicit: true });
+    if (!sid) return null;
+    return fetch(`/api/devcase/session/${sid}/chat`, {
+      method: "POST",
+      headers: doorHeaders(),
+      body: JSON.stringify({ token, channel: input.channel, message: input.message, currentFile: input.currentFile }),
+    });
+  }
+
   return {
     getSnapshot: (): LiveWorkSyncState => state,
     subscribe(listener: () => void): () => void {
@@ -316,5 +371,6 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
     tickClock,
     flush,
     submit,
+    chat,
   };
 }

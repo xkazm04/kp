@@ -35,6 +35,9 @@ export type LiveWorkChatMessage = {
 
 export type LiveWorkDraft = {
   sessionId: string | null;
+  /** The per-attempt key the mint gave this device, stored WITH the id it proves. Null on
+   *  a draft written before the key existed: that id is flushed keyless. */
+  sessionKey: string | null;
   files: SeedFile[];
   pending: ProcessEvent[];
   chat: LiveWorkChatMessage[];
@@ -66,6 +69,9 @@ export function decodeDraft(raw: string | null | undefined): LiveWorkDraft | nul
   const p = parsed as Record<string, unknown>;
 
   const sessionId = typeof p.sessionId === "string" && p.sessionId ? p.sessionId : null;
+  // Only a non-empty string, and only beside an id: a key alone proves nothing.
+  const sessionKey =
+    sessionId && typeof p.sessionKey === "string" && p.sessionKey ? p.sessionKey.slice(0, MAX_IDENTITY_CHARS) : null;
 
   const files: SeedFile[] = Array.isArray(p.files)
     ? p.files
@@ -112,5 +118,5 @@ export function decodeDraft(raw: string | null | undefined): LiveWorkDraft | nul
   const contact = typeof p.contact === "string" ? p.contact.slice(0, MAX_IDENTITY_CHARS) : "";
 
   if (files.length === 0 && pending.length === 0 && !sessionId && chat.length === 0 && !name && !contact) return null;
-  return { sessionId, files, pending, chat, name, contact, savedAt };
+  return { sessionId, sessionKey, files, pending, chat, name, contact, savedAt };
 }

@@ -932,7 +932,9 @@ function rowToSession(r: Record<string, unknown>): DevSession {
   };
 }
 
-export function startDevSession(input: { token?: string | null; candidateRef?: string | null }): DevSession {
+/** `keyHash`: sha256 of the session key (devcase-session-auth.ts), in the same insert.
+ *  Omitted (fixtures) it stays NULL and the doors keep the apply-token rule. */
+export function startDevSession(input: { token?: string | null; candidateRef?: string | null; keyHash?: string | null }): DevSession {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("dsess");
@@ -944,9 +946,9 @@ export function startDevSession(input: { token?: string | null; candidateRef?: s
     : undefined;
   const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
   db.prepare(
-    `INSERT INTO dev_sessions (id, token, candidate_ref, files_json, status, created_at, updated_at, workspace_id)
-     VALUES (?, ?, ?, '[]', 'active', ?, ?, ?)`
-  ).run(id, input.token ?? null, input.candidateRef ?? null, now, now, workspaceId);
+    `INSERT INTO dev_sessions (id, token, candidate_ref, files_json, status, created_at, updated_at, workspace_id, key_hash)
+     VALUES (?, ?, ?, '[]', 'active', ?, ?, ?, ?)`
+  ).run(id, input.token ?? null, input.candidateRef ?? null, now, now, workspaceId, input.keyHash ?? null);
   return getDevSession(id)!;
 }
 
@@ -960,14 +962,15 @@ export function getDevSession(id: string): DevSession | null {
 // only branch on status/token/createdAt, but getDevSession parses the FULL
 // files_json blob (up to 50×256KB) on every ~8s flush per active candidate just
 // to check a status column. Status-only projection, no JSON parse.
-export type DevSessionMeta = { id: string; token: string | null; status: string; createdAt: string };
+// `keyHash` feeds the door guard (devcase-session-auth.ts) only; DevSession never carries it.
+export type DevSessionMeta = { id: string; token: string | null; status: string; createdAt: string; keyHash: string | null };
 
 export function getDevSessionMeta(id: string): DevSessionMeta | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT id, token, status, created_at FROM dev_sessions WHERE id = ?`).get(id) as
-    | { id: string; token: string | null; status: string; created_at: string }
+  const r = db.prepare(`SELECT id, token, status, created_at, key_hash FROM dev_sessions WHERE id = ?`).get(id) as
+    | { id: string; token: string | null; status: string; created_at: string; key_hash: string | null }
     | undefined;
-  return r ? { id: r.id, token: r.token ?? null, status: r.status, createdAt: r.created_at } : null;
+  return r ? { id: r.id, token: r.token ?? null, status: r.status, createdAt: r.created_at, keyHash: r.key_hash ?? null } : null;
 }
 
 // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token session

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { appendDevSessionChat, appendDevSessionEvents, getDevCase, getDevSessionChat, getDevSessionMeta, getPostingByToken, lifecycleByPosting } from "@/app/_lib/db/devcase";
+import { appendDevSessionChat, appendDevSessionEvents, getDevCase, getDevSessionChat, getPostingByToken, lifecycleByPosting } from "@/app/_lib/db/devcase";
 import { runSessionChat } from "@/app/_lib/devcase-run";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
-import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
+import { openSessionDoor } from "@/app/_lib/devcase-session-auth";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // LLM-era controls #2/#5 — the captured prompt channel. The candidate's assistant
@@ -46,12 +46,12 @@ const MAX_DEVCASE_CHAT_BODY_BYTES = 128 * 1024;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    // Status-only read (case-sim round 3): this route branches on status/token only.
-    const session = getDevSessionMeta(id);
-    // Codes, not English: this door is read by an applicant with no account on a page
-    // the app renders in four languages (devcase-candidate-refusals.test.ts).
-    if (!session) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
-    if (session.status !== "active") return jsonRefusal("DEVCASE_SESSION_ALREADY_SUBMITTED", 409);
+    // The ONE candidate-door guard (devcase-session-auth.ts): a status-only read, then
+    // 404/409/403-tokenless as codes — this door is read by an applicant with no account
+    // on a page the app renders in four languages (devcase-candidate-refusals.test.ts).
+    const door = openSessionDoor(id, { need: "active" });
+    if (!door.ok) return door.response;
+    const session = door.session;
 
     const body = await readJsonWithLimit<{
       channel?: unknown;
@@ -62,17 +62,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (body === BODY_TOO_LARGE) {
       return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_CHAT_BODY_BYTES });
     }
-    // A session id alone is not authority to spend this session's model budget —
-    // the caller must present the apply token that minted it (devcase-session-auth.ts).
-    //
-    // A TOKENLESS session (fixtures/dev seeds; the public mint always carries one) used to
-    // take a `session.token && …` carve-out here and walk past BOTH this gate and the
-    // per-token daily budget below — an unauthenticated caller holding such an id had an
-    // unmetered LLM door. The submit sibling already refused those outright; chat and the
-    // flush now agree, so one rule covers all three mutating doors.
-    if (!session.token || !sessionTokenMatches(session.token, body.token)) {
-      return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
-    }
+    // A session id alone is not authority to spend this session's model budget — the
+    // caller proves the ATTEMPT: its session key on a keyed row, the apply token on a
+    // legacy one (devcase-session-auth.ts). Before either limiter below, so a refused
+    // caller cannot drain the owner's per-session window either.
+    const denied = door.authorize(request.headers, body.token);
+    if (denied) return denied;
     const channel = body.channel === "stakeholder" ? "stakeholder" : "assistant";
     const message = typeof body.message === "string" ? body.message.trim().slice(0, MAX_MESSAGE_CHARS) : "";
     if (!message) return jsonRefusal("DEVCASE_CHAT_MESSAGE_REQUIRED", 400);

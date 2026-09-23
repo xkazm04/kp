@@ -4,7 +4,7 @@ import { intakeSubmission } from "@/app/_lib/distribution";
 import { answerFailure, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
-import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
+import { openSessionDoor } from "@/app/_lib/devcase-session-auth";
 import { submissionReference } from "@/app/_lib/devcase-reference";
 import { timeboxHoursForDisplay } from "@/app/_lib/devcase-timebox";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -34,11 +34,10 @@ const MAX_DEVCASE_SUBMIT_BODY_BYTES = 32 * 1024;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = getDevSession(id);
-    // A dead or structurally-broken session (no owning token) is one refusal: both mean
-    // "this attempt cannot be sealed, open your apply link again", and separating them
-    // would confirm which session ids exist. It was two different bare English sentences.
-    if (!session || !session.token) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
+    // The ONE candidate-door guard (devcase-session-auth.ts). `need: "any"`: a sealed
+    // session still opens, because a repeated finalize is the idempotent retry.
+    const door = openSessionDoor(id, { need: "any" });
+    if (!door.ok) return door.response;
     // UAT M9 — the live-work surface is now the SOLE submit path for workspace
     // cases, so it carries the candidate's identity (name + contact) the repo form
     // used to, keeping a winning evaluation reachable.
@@ -52,11 +51,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_DEVCASE_SUBMIT_BODY_BYTES });
     }
     // A session id alone is not authority to FINALIZE someone's session: sealing it
-    // early would end another candidate's attempt mid-work. Same apply-token re-check
-    // as the flush and chat routes (devcase-session-auth.ts).
-    if (!sessionTokenMatches(session.token, body.token)) {
-      return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
-    }
+    // early would end another candidate's attempt mid-work. The same proof as the flush
+    // and chat doors — the attempt's session key, or the apply token on a legacy row.
+    const denied = door.authorize(request.headers, body.token);
+    if (denied) return denied;
+    // The full row (identity, submission link) only for an authorized caller. A row that
+    // vanished between the two reads is the same code the guard answers for an unknown id.
+    const session = getDevSession(id);
+    if (!session || !session.token) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
     const posting = getPostingByToken(session.token);
     if (!posting) return jsonRefusal("DEVCASE_SESSION_UNAVAILABLE", 404);
     // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): the live-session

@@ -45,13 +45,15 @@ function useDurationLabel() {
  *  apply-token so a shared device never bleeds one candidate's draft into another's. */
 function writeDraft(
   token: string,
-  sync: Pick<LiveWorkSyncState, "sessionId" | "files" | "pending">,
+  sync: Pick<LiveWorkSyncState, "sessionId" | "sessionKey" | "files" | "pending">,
   extra: { chat: LiveWorkChatMessage[]; name: string; contact: string }
 ) {
   if (typeof window === "undefined") return;
   try {
     const draft: LiveWorkDraft = {
       sessionId: sync.sessionId,
+      // The per-attempt key rides WITH its id, so a reload on this device still proves it.
+      sessionKey: sync.sessionKey,
       files: sync.files,
       pending: sync.pending,
       chat: extra.chat,
@@ -152,7 +154,7 @@ export function LiveWorkSurface({
     if (typeof window === "undefined") return;
     const draft = decodeDraft(window.localStorage.getItem(draftStorageKey(token)));
     if (!draft) return;
-    sync.hydrate({ sessionId: draft.sessionId, files: draft.files, pending: draft.pending });
+    sync.hydrate({ sessionId: draft.sessionId, sessionKey: draft.sessionKey, files: draft.files, pending: draft.pending });
     /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage (SSR-safe), the kp ConversationalApply convention */
     if (draft.chat.length > 0) {
       chatMessagesRef.current = draft.chat;
@@ -254,19 +256,14 @@ export function LiveWorkSurface({
     setChatMessages((prev) => [...prev, { channel: chatChannel, role: "user", text: message }]);
     setChatInput("");
     try {
-      // A chat message is the candidate's own click: it may cross a mint-refusal backoff once.
-      const sid = await sync.ensureSession({ explicit: true });
-      if (!sid) throw new Error("no session");
-      const r = await fetch(`/api/devcase/session/${sid}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          channel: chatChannel,
-          message,
-          currentFile: chatChannel === "assistant" && active ? { path: active.path, contents: active.contents } : null,
-        }),
+      // The sync client mints if needed (a chat message is the candidate's own click, so it
+      // may cross a mint-refusal backoff once) and proves the attempt with its session key.
+      const r = await sync.chat({
+        channel: chatChannel,
+        message,
+        currentFile: chatChannel === "assistant" && active ? { path: active.path, contents: active.contents } : null,
       });
+      if (!r) throw new Error("no session");
       // 429 = the chat budget for this session or this link is spent. Tell the
       // candidate exactly that (and that their work is untouched) rather than the
       // generic "couldn't send", which reads like a fault they should fight.

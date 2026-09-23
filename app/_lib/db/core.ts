@@ -2193,6 +2193,9 @@ export function ensureDb(): Database.Database {
     // A resolution with no kind cannot tell a real fix from noise. Nullable, no default:
     // open rows and rows closed before this column existed read NULL ("not recorded").
     "ALTER TABLE billing_alerts ADD COLUMN resolution TEXT",
+    // sha256 of the per-attempt dev-case session key (devcase-session-auth.ts). NULL on
+    // pre-key rows, which keep the apply-token rule. Never the raw key.
+    "ALTER TABLE dev_sessions ADD COLUMN key_hash TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

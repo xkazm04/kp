@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionMeta, getPostingByToken, saveDevSessionFiles } from "@/app/_lib/db/devcase";
+import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, getDevSessionEvents, getPostingByToken, saveDevSessionFiles } from "@/app/_lib/db/devcase";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
+import { openSessionDoor } from "@/app/_lib/devcase-session-auth";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { rateLimit } from "@/app/_lib/rate-limit";
@@ -96,13 +96,13 @@ const MAX_FLUSH_BODY_BYTES = 16 * 1024 * 1024;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    // Status-only read (case-sim round 3): this hot path never needs the files
-    // blob getDevSession would parse on every flush.
-    const session = getDevSessionMeta(id);
-    // Codes, not English: the flush is a candidate door, and the surface reads the
-    // 404/409 as "this session id is dead, mint a fresh one" either way.
-    if (!session) return jsonRefusal("DEVCASE_SESSION_NOT_FOUND", 404);
-    if (session.status !== "active") return jsonRefusal("DEVCASE_SESSION_ALREADY_SUBMITTED", 409);
+    // The ONE candidate-door guard (devcase-session-auth.ts): a status-only read (this hot
+    // path never needs the files blob getDevSession would parse on every flush), then
+    // 404 unknown / 409 sealed as codes — the surface reads either as "this session id is
+    // dead, mint a fresh one" — BEFORE a byte of the body is read.
+    const door = openSessionDoor(id, { need: "active" });
+    if (!door.ok) return door.response;
+    const session = door.session;
 
     // Read the body as TEXT first: its byte length is what the per-token daily budget
     // charges, and JSON.parse of the same string costs nothing extra.
@@ -128,18 +128,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = (parsed ?? {}) as { events?: unknown; files?: unknown; token?: unknown };
     // A session id alone is not authority to append to this session's observed process log
     // or to OVERWRITE its file tree — that second one destroys another candidate's work.
-    // The caller must present the apply token that minted the session
-    // (devcase-session-auth.ts). 403, deliberately not 404/409: those tell the client the
-    // session is dead and to re-mint, which would spin the per-token/day session quota.
-    //
-    // A TOKENLESS session (fixtures/dev seeds; the public mint always carries one) used to
-    // take a `session.token && …` carve-out and walk STRAIGHT PAST this gate and past both
-    // budgets below — a session id was full authority over it. The submit sibling already
-    // refused those outright; the flush now agrees, so there is one rule on all three
-    // mutating doors and no row shape that is exempt from the throttle.
-    if (!session.token || !sessionTokenMatches(session.token, body.token)) {
-      return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
-    }
+    // The caller proves the ATTEMPT: its session key on a keyed row, the apply token on a
+    // legacy one; a tokenless row is proven by nothing (devcase-session-auth.ts). 403,
+    // deliberately not 404/409: those tell the client the session is dead and to re-mint.
+    // (A tokenless row never opened the door, so no row shape is exempt from the budgets.)
+    const denied = door.authorize(request.headers, body.token);
+    if (denied) return denied;
 
     // THROTTLE (rate-limit-contract.test.ts) — the same two-window shape the chat sibling
     // carries, and for the same reason: this is a PUBLIC route that appends rows and
@@ -198,7 +192,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const elapsedMinutes = Number.isFinite(startedAt) ? Math.max(0, Math.round((Date.now() - startedAt) / 60_000)) : null;
 
     let perturbation: string | null = null;
-    const mfu = session.token ? midFlightUpdateForToken(session.token) : null;
+    const mfu = midFlightUpdateForToken(session.token);
     if (mfu) {
       const fired = getDevSessionEvents(id).some((e) => e.kind === "perturbation");
       const due = Date.now() - Date.parse(session.createdAt) >= mfu.afterMinutes * 60_000;
