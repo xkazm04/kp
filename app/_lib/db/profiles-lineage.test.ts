@@ -24,6 +24,7 @@ import {
   profileStaleness,
   type ProfileLineage,
 } from "./profiles.ts";
+import { ensureDb } from "./core.ts";
 
 after(() => cleanupUnitDb());
 
@@ -131,4 +132,47 @@ test("staleness is workspace-scoped", () => {
   // A newer analysis of the same hash but in ANOTHER workspace must NOT make it stale.
   saveAnalysis({ ...analysisBase, cvHash: "hash-tenant", payload: { v: 2 } }, "other-ws");
   assert.equal(profileStaleness(WS)[prof.id], undefined, "a newer analysis in another tenant doesn't leak staleness");
+});
+
+// Count-before-run (challenge-r05 profile-roster-matrix/B): a bulk refresh must know,
+// BEFORE anything runs, which stale profiles carry a recruiter's edits. Each staleness
+// entry therefore carries `edited` (the profileDivergence rule — updated_at strictly
+// newer than lineage_stamped_at) and `updatedAt` (the version a refresh PUT re-asserts).
+test("a stale entry says whether the profile was hand-edited since its build, and which version it is", () => {
+  const db = ensureDb();
+  const src = saveAnalysis({ ...analysisBase, cvHash: "hash-edited" }, WS);
+  db.prepare(`UPDATE analyses SET created_at = ? WHERE slug = ?`).run("2026-01-01T00:00:00.000Z", src.slug);
+  const prof = saveProfile({ ...profileInput, label: "Edited" }, WS, {
+    sourceAnalysisSlug: src.slug,
+    sourceCvHash: "hash-edited",
+    sourceAnalyzedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const mid = saveAnalysis({ ...analysisBase, cvHash: "hash-edited", payload: { v: 2 } }, WS);
+  db.prepare(`UPDATE analyses SET created_at = ? WHERE slug = ?`).run("2026-02-01T00:00:00.000Z", mid.slug);
+  const newest = saveAnalysis({ ...analysisBase, cvHash: "hash-edited", payload: { v: 3 } }, WS);
+  db.prepare(`UPDATE analyses SET created_at = ? WHERE slug = ?`).run("2026-03-01T00:00:00.000Z", newest.slug);
+
+  // Built on 01-05, hand-edited on 01-09: updated_at > lineage_stamped_at.
+  db.prepare(`UPDATE profiles SET updated_at = ?, lineage_stamped_at = ? WHERE id = ?`).run(
+    "2026-01-09T00:00:00.000Z",
+    "2026-01-05T00:00:00.000Z",
+    prof.id
+  );
+  const edited = profileStaleness(WS)[prof.id];
+  assert.ok(edited, "precondition: the profile is stale");
+  assert.equal(edited.edited, true, "an edit after the build is reported before any rebuild runs");
+  assert.equal(edited.updatedAt, "2026-01-09T00:00:00.000Z", "the entry names the version a refresh must re-assert");
+
+  // Re-point it at the MIDDLE analysis: the newest still makes it stale, but the
+  // re-stamp re-anchored it, so the earlier edit no longer counts.
+  setProfileLineage(
+    prof.id,
+    { sourceAnalysisSlug: mid.slug, sourceCvHash: "hash-edited", sourceAnalyzedAt: "2026-02-01T00:00:00.000Z" },
+    WS
+  );
+  const clean = profileStaleness(WS)[prof.id];
+  assert.ok(clean, "still stale: a newer analysis than the re-pointed one exists");
+  assert.equal(clean.newerSlug, newest.slug);
+  assert.equal(clean.edited, false, "right after setProfileLineage the profile carries no edits");
+  assert.equal(clean.updatedAt, "2026-01-09T00:00:00.000Z");
 });

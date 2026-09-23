@@ -36,7 +36,19 @@ export type ProfileLineage = { sourceAnalysisSlug: string; sourceCvHash: string;
 // One profile flagged stale: a NEWER analysis of the SAME CV content exists in the
 // workspace than the one this profile was built from. Carries the newer analysis's
 // slug (the rebuild target) and its analyzed-at date (the badge's title).
-export type ProfileStaleness = { newerSlug: string; newerAnalyzedAt: string };
+//
+// It also answers, before anything runs, whether a rebuild would overwrite a human:
+// `edited` is profileDivergence's rule (updated_at strictly newer than
+// lineage_stamped_at) read in the same join, and `updatedAt` is the version a rebuild's
+// PUT re-asserts as expectedUpdatedAt. The roster's batch refresh counts clean vs
+// edited from these two columns and never writes an edited profile — the registry's
+// "a bulk rebuild never runs over a population it has not first counted".
+export type ProfileStaleness = {
+  newerSlug: string;
+  newerAnalyzedAt: string;
+  edited: boolean;
+  updatedAt: string | null;
+};
 
 // Tenant scope (P2): `workspaceId` defaults to the single workspace (behavior-
 // preserving; existing/candidate/task callers stay correct). INSERT stamps it;
@@ -309,10 +321,12 @@ export function profileStaleness(workspaceId: string = DEFAULT_WORKSPACE_ID): Re
   // (the old LIMIT-1 tiebreak was arbitrary; ties don't occur with distinct saves).
   const rows = db
     .prepare(
-      `SELECT id, newerSlug, newerAnalyzedAt FROM (
+      `SELECT id, newerSlug, newerAnalyzedAt, updatedAt, lineageStampedAt FROM (
          SELECT p.id AS id,
                 a.slug AS newerSlug,
                 a.created_at AS newerAnalyzedAt,
+                p.updated_at AS updatedAt,
+                p.lineage_stamped_at AS lineageStampedAt,
                 ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY a.created_at DESC, a.slug DESC) AS rn
          FROM profiles p
          JOIN analyses a
@@ -325,9 +339,23 @@ export function profileStaleness(workspaceId: string = DEFAULT_WORKSPACE_ID): Re
            AND p.source_analyzed_at IS NOT NULL
        ) WHERE rn = 1`
     )
-    .all(workspaceId) as { id: string; newerSlug: string; newerAnalyzedAt: string }[];
+    .all(workspaceId) as {
+    id: string;
+    newerSlug: string;
+    newerAnalyzedAt: string;
+    updatedAt: string | null;
+    lineageStampedAt: string | null;
+  }[];
   const out: Record<string, ProfileStaleness> = {};
-  for (const r of rows) out[r.id] = { newerSlug: r.newerSlug, newerAnalyzedAt: r.newerAnalyzedAt };
+  for (const r of rows) {
+    out[r.id] = {
+      newerSlug: r.newerSlug,
+      newerAnalyzedAt: r.newerAnalyzedAt,
+      // Exactly profileDivergence's `diverged` (held to it by the equivalence oracle).
+      edited: r.updatedAt != null && r.lineageStampedAt != null && r.updatedAt > r.lineageStampedAt,
+      updatedAt: r.updatedAt,
+    };
+  }
   return out;
 }
 
