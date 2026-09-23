@@ -40,6 +40,7 @@ import { MeterRow } from "../BillingUsageMeterRow";
 import { isUnmeteredInstall, type BillingPayload } from "../billingTypes";
 import { foldByUseCase, sumTotals, type UseCaseTotals } from "./spendUsageFold";
 import { SpendEngineFacts } from "./SpendEngineFacts";
+import { SpendVoiceFacts } from "./SpendVoiceFacts";
 import type { SpendData } from "./useSpendData";
 
 /** Use-case display name with the app-wide has() fallback — a use case added on
@@ -226,6 +227,8 @@ export function BillingSpendPanel({
           <p className={META_LABEL}>{t("engineTitle")}</p>
           <div className="mt-2">
             <SpendEngineFacts ops={ops} />
+            {/* The realtime voice plane: its own read, never a mint on load. */}
+            <SpendVoiceFacts />
           </div>
           {usage ? (
             <p className="mt-2 text-sm text-steel">

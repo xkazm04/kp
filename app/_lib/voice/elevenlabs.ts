@@ -1,3 +1,4 @@
+import { mintCauseFromStatus, mintFetch, VoiceMintError } from "./mint-error.ts";
 import { elevenLabsBaseUrl } from "./self-hosted.ts";
 import { missingVoiceEnv, type ElevenLabsConnect, type VoiceAdapter } from "./types.ts";
 
@@ -37,19 +38,30 @@ export class ElevenLabsVoiceAdapter implements VoiceAdapter {
     if (!key || !agentId) throw new Error("ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID must be set");
 
     const endpoint = signedUrlEndpoint();
-    const res = await fetch(`${endpoint}?agent_id=${encodeURIComponent(agentId)}`, {
-      headers: { "xi-api-key": key },
-      signal: AbortSignal.timeout(ELEVENLABS_MINT_TIMEOUT_MS),
-    });
+    // Typed at birth (mint-error.ts), messages unchanged: a dead local service is
+    // "unreachable", a wedged one "timeout", a wrong agent id "not_found".
+    const res = await mintFetch("elevenlabs", () =>
+      fetch(`${endpoint}?agent_id=${encodeURIComponent(agentId)}`, {
+        headers: { "xi-api-key": key },
+        signal: AbortSignal.timeout(ELEVENLABS_MINT_TIMEOUT_MS),
+      })
+    );
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       // Name the host: with ELEVENLABS_BASE_URL in play, "get-signed-url 404"
       // is otherwise indistinguishable between a dead local service and a real
       // ElevenLabs error.
-      throw new Error(`${endpoint} responded ${res.status}: ${detail.slice(0, 300)}`);
+      throw new VoiceMintError({
+        provider: "elevenlabs",
+        cause: mintCauseFromStatus(res.status),
+        status: res.status,
+        message: `${endpoint} responded ${res.status}: ${detail.slice(0, 300)}`,
+      });
     }
     const data = (await res.json()) as { signed_url?: string };
-    if (!data.signed_url) throw new Error("ElevenLabs did not return a signed_url");
+    if (!data.signed_url) {
+      throw new VoiceMintError({ provider: "elevenlabs", cause: "malformed", message: "ElevenLabs did not return a signed_url" });
+    }
 
     return { provider: "elevenlabs", signedUrl: data.signed_url };
   }

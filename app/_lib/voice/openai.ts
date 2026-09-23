@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { mintCauseFromStatus, mintFetch, VoiceMintError } from "./mint-error.ts";
 import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter, type VoiceToolDef } from "./types.ts";
 
 // OpenAI Realtime (gpt-realtime, GA). Browser uses WebRTC; the server mints an
@@ -267,8 +268,11 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
     if (!key) throw new Error("OPENAI_API_KEY is not set");
     const model = openAiRealtimeModel();
 
+    // A rejected fetch (timeout, refused connection, a KP_OFFLINE block) is typed at
+    // the call; an HTTP failure is typed below. Either way the message is unchanged
+    // (mint-error.ts), so the route's log lines read exactly as before.
     const mint = (withMetadata: boolean) =>
-      fetch(SECRETS_URL, {
+      mintFetch("openai", () => fetch(SECRETS_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         // Pin transcription language to the candidate's locale when known — a
@@ -295,6 +299,13 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
         // is waiting on. AbortError surfaces as a plain fetch rejection, which
         // the route already answers as INTERVIEW_CONNECT_FAILED.
         signal: AbortSignal.timeout(OPENAI_MINT_TIMEOUT_MS),
+      }));
+    const refused = (status: number, detail: string) =>
+      new VoiceMintError({
+        provider: "openai",
+        cause: mintCauseFromStatus(status),
+        status,
+        message: `OpenAI client_secrets ${status}: ${detail.slice(0, 300)}`,
       });
 
     let res = await mint(!!sessionToken);
@@ -312,18 +323,20 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
         );
         res = await mint(false);
       } else {
-        throw new Error(`OpenAI client_secrets ${res.status}: ${detail.slice(0, 300)}`);
+        throw refused(res.status, detail);
       }
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`OpenAI client_secrets ${res.status}: ${detail.slice(0, 300)}`);
+      throw refused(res.status, detail);
     }
 
     const data = (await res.json()) as SecretResponse;
     const clientSecret =
       data.value ?? (typeof data.client_secret === "string" ? data.client_secret : data.client_secret?.value);
-    if (!clientSecret) throw new Error("OpenAI did not return a client secret");
+    if (!clientSecret) {
+      throw new VoiceMintError({ provider: "openai", cause: "malformed", message: "OpenAI did not return a client secret" });
+    }
     // `expires_at` was parsed into SecretResponse and read by nobody: we asked for
     // no lifetime and enforced none, so a credential the provider had already
     // expired (clock skew, a retried mint, a cached proxy response) was handed to
@@ -332,9 +345,11 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
     const expiresAt =
       data.expires_at ?? (typeof data.client_secret === "object" ? data.client_secret?.expires_at : undefined);
     if (!isMintedSecretUsable(expiresAt)) {
-      throw new Error(
-        `OpenAI returned a client secret with no usable expiry (expires_at=${String(expiresAt)}); refusing to hand it to the browser`
-      );
+      throw new VoiceMintError({
+        provider: "openai",
+        cause: "malformed",
+        message: `OpenAI returned a client secret with no usable expiry (expires_at=${String(expiresAt)}); refusing to hand it to the browser`,
+      });
     }
 
     return { provider: "openai", model, clientSecret, callsUrl: CALLS_URL };

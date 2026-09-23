@@ -305,6 +305,33 @@ export type InterviewSessionSummary = {
   attempts: number;
 };
 
+/** How many of THIS workspace's sessions fell back from one provider to another since
+ *  `sinceIso`, grouped by (from, to) — the failover_from facts /connect records, read
+ *  for the operator's Spend strip (challenge-r09 voice-provider-io/B). Read-only and
+ *  workspace-scoped on the existing interview_sessions scope. A stored id the provider
+ *  vocabulary no longer knows is dropped rather than coerced onto a live provider. */
+export function countInterviewFailovers(
+  workspaceId: string,
+  sinceIso: string,
+): { from: VoiceProviderId; to: VoiceProviderId; count: number }[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT failover_from AS from_id, provider AS to_id, COUNT(*) AS n
+         FROM interview_sessions
+        WHERE workspace_id = ? AND failover_from IS NOT NULL AND COALESCE(started_at, created_at) >= ?
+        GROUP BY failover_from, provider
+        ORDER BY n DESC, failover_from, provider`
+    )
+    .all(workspaceId, sinceIso) as { from_id: string; to_id: string; n: number }[];
+  const out: { from: VoiceProviderId; to: VoiceProviderId; count: number }[] = [];
+  for (const r of rows) {
+    const from = coerceProviderId(r.from_id);
+    const to = coerceProviderId(r.to_id);
+    if (from && to) out.push({ from, to, count: r.n });
+  }
+  return out;
+}
+
 export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 100): InterviewSessionSummary[] {
   const rows = ensureDb()
     .prepare(
