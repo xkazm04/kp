@@ -1154,7 +1154,7 @@ with the same `{ kind, params }` shape.
 | `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
 | `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
-| `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
+| `app/_lib/devcase-session-auth.ts` | The one door guard (`openSessionDoor`) of every mutating session sub-route: mints/hashes the per-attempt session key and checks it (or the apply token on a legacy row) |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
 | `app/_lib/repo-snapshot.ts` | The dev-case GitHub reads (need snapshot, submission signals) over `githubRead`, the one GitHub transport this leaf hosts and `app/_lib/github/client.ts` wraps; reports read / not there / unread, never an unread part as empty |
@@ -1169,17 +1169,31 @@ Work Surface (`/api/devcase/session*`) and the application webhook
 (`/api/devcase/inbound`). The candidate has no account — the apply link **is** the
 credential. These rules keep that honest, all sized so a real candidate never meets them:
 
-- **Authorization.** A session id is not a bearer capability. Every mutating sub-route
-  (`[id]` flush = event append + file overwrite, `[id]/chat`, `[id]/submit`) re-checks the
-  apply token that minted the session, via `sessionTokenMatches` in
-  `app/_lib/devcase-session-auth.ts`; the client sends `token` in each body. A mismatch is
-  **403** — deliberately not 404/409, which tell `LiveWorkSurface` the session is dead and
-  to re-mint, spinning the per-token/day session quota. A session with `token: null`
-  (fixtures/dev seeds, never reachable from the product — the public mint always carries a
-  token) is **refused on all three doors**: the flush and chat used to carve it out with
-  `session.token && …`, which also carried it past the per-token daily budgets keyed on
-  that same column, so a `Math.random` session id was full authority over such a row.
-  There is no tokenless-lab carve-out here.
+- **Authorization: the per-attempt session key.** A session id is not a bearer
+  capability: it is a `Math.random` id that rides the URL of every call. The apply token is
+  not one either, because it is per posting and shared by every applicant. So
+  `POST /api/devcase/session` also mints a **session key** (`dsk-` + 192 CSPRNG bits) and
+  returns it once, to the minting device, beside `sessionId` and `watermark`.
+  `dev_sessions.key_hash` stores only its sha256, written in the same insert. Every
+  mutating sub-route (`[id]` flush = event append + file overwrite, `[id]/chat`,
+  `[id]/submit`) opens through ONE guard, `openSessionDoor` in
+  `app/_lib/devcase-session-auth.ts`. It answers 404 unknown / 409 sealed (flush and chat
+  only; a repeat finalize is the idempotent retry) / 403 tokenless before the body is read.
+  Then `authorize()` checks the proof before any limiter or write. A **keyed** row accepts
+  only its key, sent in the `x-devcase-session-key` header (never the URL) and compared in
+  constant time over the digests. The apply link alone is refused. A **legacy** row
+  (`key_hash` NULL: every attempt minted before the key existed, and `startDevSession`
+  fixtures) keeps the apply-token rule, so no candidate mid-attempt at deploy is locked
+  out. A failed proof is **403 `SESSION_TOKEN_REQUIRED`**, deliberately not 404/409, which
+  tell `LiveWorkSurface` the session is dead and to re-mint. A session with `token: null`
+  (fixtures/dev seeds) is refused on all three doors, and no row shape is exempt from the
+  per-token budgets. The client (`liveWorkSync.ts`) keeps the key beside the session id,
+  in state and in the local draft, and sends it on flush, chat and submit. It drops the key
+  with the id on 404/409. A restored draft with an id but no key flushes **keyless** rather
+  than re-minting, because re-minting would abandon the server-side attempt and its elapsed
+  clock. Only a 403 on such a keyless flush (the row is keyed and the device lost the key)
+  re-mints, once, keeping the local tree. A second one blocks sync. Cases:
+  `app/api/devcase/session/session-key.test.ts`.
 - **Throttling.** `[id]/chat` makes a real LLM call per message, so it is limited by the
   shared limiter (`app/_lib/rate-limit.ts`) on two windows — **30 per 10 min per session**
   (one candidate's burst) and **3,000 per 24 h per apply token** (the collective aggregate;
