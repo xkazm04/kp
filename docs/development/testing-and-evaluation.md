@@ -195,9 +195,16 @@ lower `KP_SKIP_BASELINE` in `ci.yml` by one); an `env-conditional` entry that ra
 is a note. Checked before the suite starts: a dead id, a `why` under 20
 characters, a duplicate id, a length that differs from `KP_SKIP_BASELINE`, and an
 env-conditional count that differs from `ENV_CONDITIONAL_SKIPS`. The old count
-band (ceiling `KP_SKIP_BASELINE`, floor one slot below) stays as a second lock, so
-growing the register still takes the baseline raise that `review:constitution`
-blocks. Cases: `pipeline/jobfit/tests/test_run_gated.py`.
+band (ceiling `KP_SKIP_BASELINE`, floor `ENV_CONDITIONAL_SKIPS` slots below) stays
+as a second lock, so growing the register still takes the baseline raise that
+`review:constitution` blocks. Today the register holds four `always` entries and
+no env-conditional one (`ENV_CONDITIONAL_SKIPS = 0`, `KP_SKIP_BASELINE` 4), so the
+band is exactly 4. The one env-conditional skip there was — the interview eval's
+grounded DB-fixture bridge, which needed `node_modules` the python-gate job does
+not install — went away when that eval started reading the committed brief
+snapshot (`pipeline/jobfit/eval/interview_briefs.json`, see
+`voice-interview-testing.md` §4.5) instead of spawning node. Cases:
+`pipeline/jobfit/tests/test_run_gated.py`.
 
 **What this does not cover.** The Python suite has no flake classification; the
 Playwright job is a single deterministic keyless subset against a production

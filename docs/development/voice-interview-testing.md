@@ -209,17 +209,27 @@ auto-optimizer:
   brain.
 - **ElevenLabs**: Backend B tests the candidate-safe override brief; Backend A additionally
   tests EL's real agent + orchestration.
-- **Brief drift risk (resolved for default/student/case).** Phase 0 re-renders the brief in
-  Python from the shared `interview-script.json` + persona constants ported from
-  `student-interview.ts`, pinned by a drift-guard test. Phase 2 added the faithful path:
-  `scripts/interview-brief.ts` (`--briefs ts`) emits the exact production `default`/`student`/
-  `case` briefs from the live TS source, and a CI test asserts `bridge == port` — so the port
-  is provably faithful and the bridge is available when you want the source of truth. The
-  grounded prep-chronology `composeBrief` — which reads a pipeline entry + `interview_prep` from
-  the DB — is covered by a **DB-fixture bridge** (`scripts/interview-brief-grounded.ts`): it
-  seeds a throwaway entry + prep into a temp `KP_DB_PATH` and runs the real
-  `buildGroundedInterview`, so `brief: "grounded"` scenarios test the production brief verbatim.
-  Every production brief is now headless-testable.
+- **Brief faithfulness: a committed, generated snapshot.** The eval never re-renders a brief
+  and never spawns node. `scripts/interview-briefs-snapshot.ts` (`npm run interview:briefs`)
+  renders all four kinds through the production builders — `defaultInterviewerInstructions`,
+  `studentInterviewerInstructions`, `caseGroundedInterviewerInstructions` over
+  `DEMO_CASE_SCENARIO`, and the grounded prep-chronology `composeBrief` through the real
+  `buildGroundedInterview` over a fixture entry + `interview_prep` seeded into a throwaway
+  `KP_DB_PATH` — with a `{{ROLE}}` sentinel where the role (or, for grounded, the job title)
+  goes, and writes `pipeline/jobfit/eval/interview_briefs.json`. Each kind also records its
+  `fallbackRole`: the builders fall back when the role is empty (`role || "<fallback>"`), which
+  a literal replace cannot reproduce, so the generator renders once with `''` and solves for
+  the string that stood where the sentinel was. `interview_eval.py` validates the file at
+  import (schema, all four kinds, sentinel present) and `render_brief` substitutes the role, or
+  the fallback when a scenario has none. A kind the snapshot does not carry **raises**, naming
+  it — a row labelled `grounded` is never scored against the default agent.
+  `app/_lib/voice/interview-brief-snapshot.test.ts` (in `npm run test:unit`) holds the file to
+  the builders: it re-renders and compares, proves the substitution and each fallback by
+  rendering real roles directly, and checks the grounded render is byte-stable across two
+  throwaway DBs. **After any interviewer-brief copy change, run `npm run interview:briefs` and
+  commit the JSON** — that test fails, naming the kind and the command, until you do. This
+  replaced a Python port of the prompt text (drift-guarded only by a substring test, so every
+  copy change was written twice) and two node bridges that fell back silently.
 
 ---
 
@@ -246,18 +256,14 @@ python -m pipeline.jobfit.eval.interview_eval --sample 20 --seed 3   # + 20 rota
 python -m pipeline.jobfit.eval.interview_eval --baseline runs/base.json --update-baseline  # record a baseline
 python -m pipeline.jobfit.eval.interview_eval --baseline runs/base.json --strict --json     # gate on regressions
 python -m pipeline.jobfit.eval.interview_eval --scorecard                     # + downstream scorecard sanity
-python -m pipeline.jobfit.eval.interview_eval --briefs ts                     # test the EXACT production briefs (TS bridge)
 python -m pipeline.jobfit.eval.interview_eval --backend elevenlabs            # drive the real ElevenLabs agent (needs EL env)
 python -m pipeline.jobfit.eval.interview_eval --scenario adversarial_injection   # one scenario, debug
 ```
 
-`--briefs ts` renders the `default`/`student`/`case` briefs from the live TS source via
-`scripts/interview-brief.ts` (falls back to the drift-guarded Python port if node is
-unavailable). Scenarios with `brief: "grounded"` always render the **real** grounded
-prep-chronology brief via `scripts/interview-brief-grounded.ts` — a DB-fixture bridge that seeds
-a throwaway entry + `interview_prep` into a temp DB (`KP_DB_PATH`) and runs the production
-`buildGroundedInterview` → `composeBrief` (falls back to the default brief, exactly as
-`composeBrief` itself does on an empty chronology). `--backend elevenlabs`
+Every mode scores the production briefs from the committed snapshot (§4.5); `--briefs` is a
+deprecated no-op kept for one release. To read one brief as the agent receives it, run
+`scripts/interview-brief.ts --brief default|student|case|grounded --role "<role>"` (the same
+render the snapshot is generated from). `--backend elevenlabs`
 runs each persona through the real ElevenLabs agent's simulate-conversation API and normalizes
 the result through the **same** validators; the text backend (default) covers OpenAI Realtime.
 `--scorecard` additionally routes every transcript through the real `interview_scorecard()` and
@@ -323,17 +329,14 @@ satisfy both.
   persona heatmap (behaviour/seniority) + regression-vs-baseline diff in the report and the
   `--strict` gate. *Still to do here:* route transcripts through the real `interview_scorecard()`
   for downstream-sanity.
-- **Phase 2 (mostly done).** TS brief-bridge (`scripts/interview-brief.ts` + `--briefs ts`):
-  emits the exact `default`/`student`/`case` production briefs; `bridge == port` is verified in
-  CI, so the Python port is provably faithful. Backend A (`elevenlabs_backend.py` + `--backend
-  elevenlabs`): persona → `simulated_user_config`, invariants → `extra_evaluation_criteria`,
-  response normalized through the same validators (mapping/normalization unit-tested; live run
-  needs `ELEVENLABS_API_KEY`+`ELEVENLABS_AGENT_ID`). **All four production briefs are now
-  testable:** `default`/`student`/`case` via the pure TS bridge, and the grounded
-  prep-chronology `composeBrief` via `scripts/interview-brief-grounded.ts` — a DB-fixture bridge
-  that seeds a throwaway entry + `interview_prep` into a temp DB and runs the real
-  `buildGroundedInterview` (`brief: "grounded"` scenarios; live-verified end-to-end). *Still to
-  do:* the **nightly 3–5 real-voice smoke** (STT/TTS/barge-in/latency) is a manual op — it needs
+- **Phase 2 (mostly done).** The Python port is gone: every brief comes from the generated
+  snapshot `pipeline/jobfit/eval/interview_briefs.json` (§4.5), which covers all four
+  production briefs — `default`/`student`/`case` and the grounded prep-chronology
+  `composeBrief` — and is held to the TS builders by a node:test. Backend A
+  (`elevenlabs_backend.py` + `--backend elevenlabs`): persona → `simulated_user_config`,
+  invariants → `extra_evaluation_criteria`, response normalized through the same validators
+  (mapping/normalization unit-tested; live run needs `ELEVENLABS_API_KEY`+`ELEVENLABS_AGENT_ID`).
+  *Still to do:* the **nightly 3–5 real-voice smoke** (STT/TTS/barge-in/latency) is a manual op — it needs
   live audio + keys; EL's post-call analysis grades those real calls for free.
 - **Phase 3 (done).** `interview_optimize.py` — eval-gated hill-climb: propose additive
   guardrail rules → re-evaluate → accept only on a strict score gain with zero new reliability
