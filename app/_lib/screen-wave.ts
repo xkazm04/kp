@@ -4,7 +4,7 @@ import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
 import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
-import { isFairnessProtected, isKnownArchetype } from "./archetypes";
+import { readLiveArchetypes } from "./archetype-live";
 import { consumeScreenWaveApprovalToken, screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
 import { effectiveSpare, normalizeSpareList, spareSuffix } from "./screen-wave-spare";
@@ -157,6 +157,10 @@ export async function runScreenWave(
   // policyVersion attested to a floor the team never set.
   const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening", workspaceId), ...checked.override };
   const cohort = listPipeline(workspaceId).filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
+  // ONE read of the LIVE archetype registry for the whole wave (archetype-live.ts): the
+  // shield follows runtime registry edits the way Python does, and the eligibility pass
+  // and the decision loop below judge every row by the same file.
+  const archetypes = readLiveArchetypes();
   // Direction 2 (queue-staleness) — derive, ONCE per wave, whether each candidate's
   // score predates the JD's last content edit, using the exact isScoreStale rule the
   // library roster + prep chips use. jdEditedAt is per-role (a JD-backed job's last
@@ -226,7 +230,7 @@ export async function runScreenWave(
     // measurement — an unscored candidate can never be auto-reject-eligible. The
     // floor is the candidate's EFFECTIVE floor (family override or global).
     const belowThreshold = e.matchScore < effectiveFloor(cfg, e.roleFamily);
-    if (cfg.autoRejectEnabled && inBottom && belowThreshold && !isFairnessProtected(e.archetype)) {
+    if (cfg.autoRejectEnabled && inBottom && belowThreshold && !archetypes.isFairnessProtected(e.archetype)) {
       wouldReject.add(e.id);
     }
   }
@@ -336,8 +340,10 @@ export async function runScreenWave(
     // are shielded from auto-rejection. An unrecognized archetype is data drift —
     // record it so the desync is visible instead of silently auto-rejecting a
     // candidate the fairness rule was meant to protect.
-    const protectedFromAutoReject = isFairnessProtected(e.archetype);
-    const knownArchetype = isKnownArchetype(e.archetype);
+    const protectedFromAutoReject = archetypes.isFairnessProtected(e.archetype);
+    // Known to EITHER registry: a custom archetype registered after the build is not
+    // data drift, so it is not audited as "Unknown archetype".
+    const knownArchetype = archetypes.isKnown(e.archetype);
     // A preview writes nothing — the unknown-archetype audit marker only fires on a
     // committed run, so a recruiter re-previewing doesn't spam the audit trail.
     if (!knownArchetype && !dryRun) {

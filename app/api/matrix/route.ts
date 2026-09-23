@@ -8,6 +8,7 @@ import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStd
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATRIX_GRID_SURFACE } from "./matrix-error-code";
 import { createBoundedCache, matrixCacheKey } from "@/app/_lib/matrix-cache";
+import { archetypeRegistryDigest } from "@/app/_lib/archetype-live";
 
 
 // Wire contract the grid consumes. Extra CLI keys currently survive parsePythonJson
@@ -113,7 +114,10 @@ export async function GET(request: NextRequest) {
     // The workspace is an explicit key axis: two tenants can hold identical corpus
     // JSON (a seeded demo corpus cloned per workspace), and "one tenant's grid is
     // never served as another's" belongs in the key, not in a comment.
-    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson });
+    // The archetype registry is the scorer's other input (its weights score every
+    // cell) and is editable at runtime, so its content digest is a key axis too.
+    const registryDigest = archetypeRegistryDigest();
+    const key = matrixCacheKey({ workspaceId: ws, profilesJson, jobIds, jobsJson, registryDigest });
     const hit = matrixCache.get(key);
     if (hit) return respond(hit, true);
 
@@ -151,7 +155,9 @@ export async function GET(request: NextRequest) {
     }
 
     const matrix = parsePythonJson<MatrixOut>(stdout, stderr);
-    matrixCache.set(key, matrix);
+    // Re-check before caching: a registry save that landed while matrix_cli ran may
+    // have been scored under the NEW weights, and must not be filed under the old key.
+    if (archetypeRegistryDigest() === registryDigest) matrixCache.set(key, matrix);
     return respond(matrix, false);
   } catch (error) {
     // Refused at the engine's admission door (the spawn semaphore): the child never ran,

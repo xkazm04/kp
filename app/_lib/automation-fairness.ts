@@ -16,11 +16,12 @@
 // is downgraded to `hold` + an alert (never silently applied) — `hold` routes the
 // candidate to the human Decisions gate, which is where a contested reject belongs.
 //
-// The archetype half reuses the shared fail-closed gate in ./archetypes
-// (isFairnessProtected → true for early-career AND any unknown/renamed archetype),
-// the same helper screen-wave.ts guards its auto-reject with.
+// The archetype half reuses the shared fail-closed gate, read LIVE (./archetype-live:
+// true for early-career AND any unknown/renamed archetype, the bundled shield unioned
+// with the registry file Python's automation.py derives its early-career set from on
+// every spawn), the same snapshot screen-wave.ts guards its auto-reject with.
 
-import { isFairnessProtected, isKnownArchetype } from "./archetypes";
+import { readLiveArchetypes } from "./archetype-live";
 
 // Mirror of Python `POLICY["bau_reject_score"]` (pipeline/jobfit/automation.py):
 // the only score below which a BAU candidate is auto-rejected. This is a backstop
@@ -47,8 +48,9 @@ export function assertAutoRejectFair(entry: RejectCheckEntry | null | undefined)
   if (!entry) {
     return { allowed: false, reason: "entry not found for fairness re-check — auto-reject refused (fail closed)" };
   }
-  if (isFairnessProtected(entry.archetype)) {
-    const why = isKnownArchetype(entry.archetype)
+  const live = readLiveArchetypes();
+  if (live.isFairnessProtected(entry.archetype)) {
+    const why = live.isKnown(entry.archetype)
       ? `early-career archetype "${entry.archetype}" is shielded from automated rejection`
       : `unknown archetype "${entry.archetype ?? "(null)"}" is shielded from automated rejection (fail closed)`;
     return { allowed: false, reason: why };

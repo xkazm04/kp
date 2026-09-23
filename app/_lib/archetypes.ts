@@ -6,6 +6,14 @@
 // group-eval-run / comms-dispatch) is now structurally impossible: a rename or a
 // new archetype lands in one place and both languages see it.
 //
+// ONE CAVEAT, and the reason app/_lib/archetype-live.ts exists: this module reads the
+// file through a STATIC import, so what it answers is the registry as it stood at
+// BUILD time. The file is edited at runtime (archetype-registry.ts writeRegistry:
+// custom archetypes, shield flips, weight edits) and Python re-reads it on every spawn.
+// Labels and display grouping here may lag until a rebuild; a server DECISION that
+// keys on the registry (the auto-reject shield, a cache of scored output) goes through
+// archetype-live.ts, which reads the live file and unions its shield with this one.
+//
 // The compliance-critical part is the FAIRNESS gate: which archetypes are
 // shielded from AUTOMATED rejection. That flag (`fairnessProtected`) lives in the
 // registry; the gate below still fails closed for anything it cannot classify.
@@ -45,7 +53,19 @@ export const ARCHETYPE_LABEL: Record<string, string> = Object.fromEntries(
 export const FAIRNESS_PROTECTED_ARCHETYPES: readonly string[] = ARCHETYPES.filter(
   (a) => a.fairnessProtected
 ).map((a) => a.id);
-const FAIRNESS_PROTECTED = new Set<string>(FAIRNESS_PROTECTED_ARCHETYPES);
+
+/** THE shield rule for one registry entry, shared by the bundled gate below and the
+ *  live reader (archetype-live.ts) so the two can never disagree on what a flag means.
+ *  An archetype is shielded from automated rejection when it is flagged
+ *  `fairnessProtected` OR scored on the early-career model: Python's policy pass
+ *  (automation.py `_EARLY_CAREER` = registry.early_career_archetypes()) keys its
+ *  never-auto-reject lever on `scoringModel`, so a TS gate that read the flag alone
+ *  would be looser than the engine it backstops for an entry carrying one without the
+ *  other. Pure, so the client-safe bundle and the server-only live read both use it. */
+export function shieldsFromAutoReject(def: { fairnessProtected?: unknown; scoringModel?: unknown }): boolean {
+  return def.fairnessProtected === true || def.scoringModel === "early_career";
+}
+const FAIRNESS_PROTECTED = new Set<string>(ARCHETYPES.filter(shieldsFromAutoReject).map((a) => a.id));
 
 // Archetypes scored on the potential/readiness model (vs years-of-experience).
 const EARLY_CAREER = new Set<string>(
