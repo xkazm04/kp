@@ -268,6 +268,22 @@ call a stage weak.
   resolves the route's code through `useErrorMessage` and announces the failure
   (`announceFailure`), exactly like the spend input; the fold both share is
   `localizedSaveFailure()` (`analyticsSaveFailure.ts`).
+- **Every column the board draws is goal-able, and only those.** The goal key space is one
+  pure registry, `app/_lib/analytics-target-keys.ts`, derived from **this workspace's live
+  stage axis** plus the reserved keys (`RESERVED_TARGET_SPECS`: `time_to_hire` days ≤ 3650,
+  `recruiter_hourly_czk` ≤ 1 000 000, `manual_hours_per_hire` ≤ 1000; a conversion goal is
+  ≤ 100 %). `POST /api/analytics/targets` validated against the shipped five stage names while
+  the funnel and the goals editor drew the workspace's own columns, so an added column
+  ("Tech round") showed a goal field whose every save was a raw English "Invalid metric." with
+  no code. Now `validateTargetWrite(body, axis)` answers `ANALYTICS_TARGET_UNKNOWN_METRIC`
+  (unknown, retired, or the entry column, which has no inbound conversion) or
+  `ANALYTICS_TARGET_OUT_OF_RANGE` (not a finite non-negative number, or over the key's
+  ceiling), both localized through the editor's save-failure fold. The read side filters
+  through the same registry (`liveConversionTargets`): a goal for a **retired** column stays in
+  `analytics_targets` but is withheld from `targets.conversion`, and un-retiring the column
+  brings it back unchanged. `AnalyticsTypes.ts` re-exports the reserved keys from the registry
+  instead of hand-mirroring them. Pinned by `analytics-target-keys.test.ts` and
+  `app/api/analytics/targets/targets-axis.test.ts` (a real handler on a custom axis).
 - **The zero-transition guard is on the render path** — `hasNoStageTransitions()` and
   `AnalyticsFunnelEmptyGuide` were correct, translated and reachable from nowhere. The review
   hatch `?funnelEmpty=1`, threaded through three files and destructured by no one, is
@@ -866,7 +882,7 @@ workspace. The panel's immediate reload recomputes its recommendation while
 other workspaces keep their warm curve entries.
 | `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=pipeline\|analysis\|holdout`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only). Holdout bands include only sealed clean-arm entries, matching the holdout curve; the threshold strip reads the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain. |
 | `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
-| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
+| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated by the goal-key registry (`app/_lib/analytics-target-keys.ts`) against the workspace's live axis; refusals are `ANALYTICS_TARGET_UNKNOWN_METRIC` / `ANALYTICS_TARGET_OUT_OF_RANGE` (400). POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
 | `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
@@ -1001,7 +1017,7 @@ Read-only over the operational tables, plus three the tab writes:
 | --- | --- |
 | `pipeline_entries`, `pipeline_events` | Funnel, dwell, momentum, decision log. `pipeline_events.actor` is nullable and never backfilled |
 | `decision_records` | The per-tenant hash chain: `seq`, `prev_hash`, `content_hash`, `kind`, `actor`, `policy_version`, `candidate_ref`, `rationale`, `reason_code`, `payload_json`, `created_at`, `key_id` |
-| `analytics_targets` | Recruiter-set goals: per-stage conversion %, plus reserved `time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire` |
+| `analytics_targets` | Recruiter-set goals: per-stage conversion %, plus reserved `time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`. A goal for a retired column is kept but withheld from the payload |
 | `channel_spend` | Per-channel spend with `updated_at`, read via `listChannelSpendDetail()` in `app/_lib/db/channels.ts` (`listChannelSpend()` survives for amount-only callers) |
 | `llm_usage` | The compute-cost ledger (account-wide — see Known gaps) |
 
