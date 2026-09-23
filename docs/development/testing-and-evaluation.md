@@ -364,6 +364,36 @@ So the budget is a reading, not an assertion:
 - The suite's other two tripwires — the skip ceiling/floor and the hermeticity check —
   are described in `run_gated.py`'s own docstring and are unaffected by `--timings`.
 
+## Name-neutrality registry
+
+`pipeline/jobfit/eval/neutrality.py` is the one place the name-perturbation set
+lives (`PERTURBATIONS`: 7 name axes, 4 same-person gender pairs, 2 gendered-prose
+pairs, the `"Candidate"` fallback). `test_fairness.py`, `test_name_neutrality.py`
+and `matching_eval._probe_gender` read it rather than re-typing names.
+
+`pipeline/jobfit/tests/test_neutrality_registry.py` (in `test:python:gate`) holds
+the proof obligation:
+
+- **Completeness.** `discover_candidate_scorers()` walks `pipeline/jobfit/` with
+  `ast` (skipping `tests/`, `eval/`, `llm/bench/`, `*_cli.py`, `seed_*.py`) and
+  returns every public function with a `MatchCandidate` / `CandidateProfileV2` /
+  `CandidateProfile` parameter. It must equal `SCORERS | EXEMPT`, so **a new
+  function that takes a candidate fails the gate by name** until you register it.
+- **Registering.** Add a `Scorer(run, scored_key, carriers)` to `_scorers()`:
+  `run(profile)` calls the function keylessly (`provider=None`), `scored_key` is
+  a key the output must carry, and `carriers` are the dotted paths (`*` = any
+  item) allowed to echo the name, such as a display `label`. The name is removed from
+  those paths only. The payload must then be byte-identical across every
+  perturbation, and a sentinel name found anywhere else fails, naming the path.
+- **Exempting.** Only when the output cannot carry a score (today, the three
+  letter drafters that address the candidate by name). The reason must be at
+  least 20 characters, and a `covered by <module.func>` citation must name a
+  registered scorer.
+
+The whole registry runs in about two seconds. A planted `-ová` penalty on the
+`score_job` that recruiter ranking calls is a pinned case: it fails here, and
+(measured 2026-09-23) it left the three older suites green.
+
 ## Eval harness
 
 `pipeline/jobfit/eval/` ships a 14-fixture golden set of synthetic CVs covering the

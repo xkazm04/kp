@@ -196,7 +196,7 @@ Struck-through items closed since 2026-07-27.
 |---|---|---|---|---|---|
 | G1 | Risk-management document: hazard list (wrongful rejection, disparate impact, hallucinated evidence, automation complacency), mitigations (map to §2 mechanisms), residual risks, review cadence. Fold the DPIA into it. | 9 | Provider | M | **Open** — `docs/RISK_MANAGEMENT.md` not created |
 | G2 | Annex IV technical documentation + deployer instructions-for-use (oversight duties, `KP_OPERATOR_NAME`, log retention ≥ 6 months, worker-info duties, Art. 27 FRIA note). §4 below is the skeleton. | 11, 13, 26 | Provider | M | **Open** — `docs/INSTRUCTIONS_FOR_USE.md` not created; still the highest-priority remaining doc gap, now on the merits rather than on a date (see §6). The deployer-role half of it is partly discharged already: `docs/architecture/self-hosting.md` §1a now states the provider/deployer split and kp's foreseen-configuration envelope |
-| ~~G3~~ | ~~Name/gender-proxy neutrality test on the scorer.~~ | 10, 15 | Provider | S-M | **Closed** — `pipeline/jobfit/tests/test_name_neutrality.py` asserts byte-identity of the deterministic scorer's output across Czech male/female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated name perturbations |
+| ~~G3~~ | ~~Name/gender-proxy neutrality test on the scorer.~~ | 10, 15 | Provider | S-M | **Closed** — `pipeline/jobfit/tests/test_name_neutrality.py` asserts byte-identity of the deterministic scorer's output across Czech male/female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated name perturbations; `pipeline/jobfit/tests/test_neutrality_registry.py` extends the same set to every candidate-typed deterministic function (38 proven, 3 name-addressing letter drafters exempt with a reason) |
 | G4 | `audit_events` table (auth, role/config changes, PII reads, exports). | 12 | Provider | M | **Open** — no `audit_events` table anywhere in `app/` or `pipeline/` |
 | G5 | Real reviewer identity on sealed records. | 14, 12 | Provider | S | **Mostly closed.** Three layers now: (1) the E0 identity layer is threaded — `resolveApprover()` / `humanActor()` name the signed-in person (`app/_lib/auth/operator-approver.ts`); (2) **the bulk-rejection wave now REFUSES to commit rather than seal an approval nobody owns** — `isNamedApprover()` + `NAMED_APPROVER_REQUIRED` (same file) gate the seal path at `app/_lib/screen-wave.ts` (commit only; a dry run still previews), so the state that produced the 08-17 host's 66 unattributed records is no longer reachable for the highest-stakes decision, and the refusal names both doors (sign in, or set `KP_OPERATOR_NAME`); (3) sealed records are never rewritten, so the audit table MARKS the historical ones instead — the actor column runs `parseEventActor` and badges a role-only actor (`app/features/insights/analytics/sections/DecisionRecordsTable.tsx`, `analytics.decisionRecords.actorRoleOnly`). Residual: single-candidate seals still fall back to `human:recruiter` by design (refusing them would remove the one-at-a-time human review), and two role-only call sites remain (`app/api/analytics/calibration/apply-threshold/route.ts`; the reinstate/scorecard/schedule seals under `app/api/pipeline/[id]` and `app/api/schedule`). Guards: `app/_lib/screen-wave-guards.test.ts` §5, `app/_lib/trust-posture.test.ts` |
 | G6 | Log-retention window: chain is never pruned (fine) but retention is neither configured nor documented; Act minimum 6 months. Document "retained for the life of the workspace" + erasure carve-out (`pipeline.ts` scrub function explicitly excludes `decision_records`, citing Art. 17(3)(b)/(e)). | 12, 19, 26 | Both | S | **Open** — fold into G2 doc |
@@ -262,7 +262,16 @@ way to survive a rule about sensitive data is not to have any.
 deterministic scorer's output across Czech male, Czech female (`-ová`), Vietnamese,
 Ukrainian, Arabic and Roma-associated name variants of the same candidate. That is a
 direct test of the proxy that actually leaks — the name — and it needs no protected
-attribute to run. `test_tech_bilingual_parity.py` does the same for language.
+attribute to run. The same perturbation set (one list, `PERTURBATIONS` in
+`pipeline/jobfit/eval/neutrality.py`) is run by `pipeline/jobfit/tests/test_neutrality_registry.py`
+through every public function in `pipeline/jobfit/` that takes a candidate — found by
+an AST walk of the tree, so a new one fails the gate until it is registered. 38 of
+the 41 found today are proven invariant (ranking, Fair Rank, screening, rematch,
+winnability, weight proposals, soft signals and more); the other 3 are the
+outreach, rejection and offer letter drafters, which address the candidate by name
+by design and are exempt with a written reason. Scope: the keyless, deterministic
+Python half only. What an LLM does with a name is not covered by this test.
+`test_tech_bilingual_parity.py` does the same for language.
 `app/_lib/archetypes.ts` adds a fail-closed shield: early-career and unknown
 archetypes are never auto-rejected, and `app/_lib/automation-fairness.ts` re-derives
 the sole legitimate reject path as a defence in depth.
