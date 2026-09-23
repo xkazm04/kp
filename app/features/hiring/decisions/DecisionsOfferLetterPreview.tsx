@@ -1,12 +1,7 @@
 "use client";
 
-// The offer letter at the approval gate (challenge-r06 comms-dispatch-relay/B): the
-// exact subject and body the candidate receives, in THEIR language, with the deadline
-// the chosen ttlDays produces, the recipient, and a delivery forecast read off the
-// send path's own predicates. Collapsed by default; opening it loads the letter, and
-// changing the deadline re-renders it (useOfferLetterPreview below debounces). The server
-// renders it through the same composer dispatchOffer sends with, so what is shown is
-// what ships; links are placeholders because a preview never mints a token.
+// The exact offer letter at the approval gate, in the candidate's language, with its
+// delivery forecast (comms-letter-preview.ts; docs/features/comms/README.md §8).
 import { useEffect, useState } from "react";
 import { ChevronDown, Mail } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -14,12 +9,8 @@ import { CHIP_QUIET, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { OfferLetterForecast, OfferLetterPreview as OfferLetterPreviewData } from "@/app/_lib/comms-letter-preview";
 
-// Loads the offer letter an approval would send, live as the recruiter changes the
-// deadline lever. Debounced so typing "14" does not render the letter for "1" first,
-// and each superseded request is aborted so a slow answer for an old ttlDays can never
-// overwrite the letter for the current one. Loads only while `enabled` (the pane is
-// open): a closed pane costs nothing. Lives in this file rather than its own module
-// because app/page.tsx's import graph sits at its perf-budget ceiling.
+// Debounced (typing "14" never renders "1"), stale requests aborted, idle while closed.
+// Inlined here: app/page.tsx's module count sits at its perf-budget ceiling.
 const DEBOUNCE_MS = 300;
 
 type OfferLetterPreviewState = {
