@@ -1974,7 +1974,10 @@
     "ATS_IMPORT_JOB_NOT_FOUND": "That role is not available to your team. Pick one of your team's roles to import into.",
     "ATS_IMPORT_RECORDS_INVALID": "Send the applications as a list, at most 100 per import.",
     "OFFER_LETTER_NOT_PENDING": "There is no offer awaiting approval for this candidate, so there is no letter to preview.",
-    "OFFER_LETTER_PREVIEW_FAILED": "Could not render the offer letter preview. Please try again."
+    "OFFER_LETTER_PREVIEW_FAILED": "Could not render the offer letter preview. Please try again.",
+    "STATUS_RESEND_FAILED": "Could not send the link again. Please try again.",
+    "STATUS_NOTHING_TO_RESEND": "Nothing is waiting on you right now, so there is nothing to send again.",
+    "STATUS_RESEND_UNDELIVERED": "We could not send the email just now. Please try again later."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2224,6 +2227,23 @@
       "waiting": "Waiting on a person",
       "done": "Done",
       "stopped": "Stopped"
+    },
+    "nextAction": {
+      "title": "Waiting on you",
+      "kind": {
+        "answer_offer": "Answer your offer",
+        "book_interview": "Book your interview",
+        "take_interview": "Take your AI interview"
+      },
+      "sentOn": "Sent to you on {date}",
+      "openUntil": "Open until {date}",
+      "where": "The link is in the email we sent you. For your safety it is never shown on this page.",
+      "resend": "Send it to my email again",
+      "resending": "Sending…",
+      "resent": "If we have an email address for you, the link is on its way to it again. You can ask once a day.",
+      "resentNoRelay": "Your request is noted. The hiring team will get in touch with you directly.",
+      "noRelay": "The hiring team will get in touch with you about this directly.",
+      "failed": "We could not send it just now. Please try again."
     }
   },
   "apply": {

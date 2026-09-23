@@ -1974,7 +1974,10 @@
     "ATS_IMPORT_JOB_NOT_FOUND": "Diese Stelle ist für Ihr Team nicht verfügbar. Wählen Sie eine Stelle Ihres Teams für den Import aus.",
     "ATS_IMPORT_RECORDS_INVALID": "Senden Sie die Bewerbungen als Liste, höchstens 100 pro Import.",
     "OFFER_LETTER_NOT_PENDING": "Für diese Person wartet kein Angebot auf Freigabe, daher gibt es kein Schreiben zur Vorschau.",
-    "OFFER_LETTER_PREVIEW_FAILED": "Die Vorschau des Angebotsschreibens konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+    "OFFER_LETTER_PREVIEW_FAILED": "Die Vorschau des Angebotsschreibens konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "STATUS_RESEND_FAILED": "Der Link konnte nicht erneut gesendet werden. Bitte versuchen Sie es erneut.",
+    "STATUS_NOTHING_TO_RESEND": "Derzeit wartet nichts auf Sie, daher gibt es nichts erneut zu senden.",
+    "STATUS_RESEND_UNDELIVERED": "Die E-Mail konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2224,6 +2227,23 @@
       "waiting": "Wartet auf eine Person",
       "done": "Erledigt",
       "stopped": "Gestoppt"
+    },
+    "nextAction": {
+      "title": "Wartet auf Sie",
+      "kind": {
+        "answer_offer": "Auf Ihr Angebot antworten",
+        "book_interview": "Ihr Gespräch buchen",
+        "take_interview": "Ihr KI-Interview führen"
+      },
+      "sentOn": "Gesendet am {date}",
+      "openUntil": "Gültig bis {date}",
+      "where": "Den Link finden Sie in der E-Mail, die wir Ihnen geschickt haben. Zu Ihrer Sicherheit zeigen wir ihn auf dieser Seite nie an.",
+      "resend": "Erneut an meine E-Mail senden",
+      "resending": "Wird gesendet…",
+      "resent": "Falls uns Ihre E-Mail-Adresse vorliegt, ist der Link erneut unterwegs. Sie können dies einmal pro Tag anfordern.",
+      "resentNoRelay": "Ihre Anfrage ist vermerkt. Das Recruiting-Team meldet sich direkt bei Ihnen.",
+      "noRelay": "Das Recruiting-Team meldet sich dazu direkt bei Ihnen.",
+      "failed": "Der Link konnte gerade nicht gesendet werden. Bitte versuchen Sie es erneut."
     }
   },
   "apply": {

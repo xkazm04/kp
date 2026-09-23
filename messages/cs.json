@@ -1974,7 +1974,10 @@
     "ATS_IMPORT_JOB_NOT_FOUND": "Tato pozice není pro váš tým dostupná. Vyberte pozici svého týmu, do které chcete importovat.",
     "ATS_IMPORT_RECORDS_INVALID": "Pošlete přihlášky jako seznam, nejvýše 100 v jednom importu.",
     "OFFER_LETTER_NOT_PENDING": "U tohoto kandidáta nečeká žádná nabídka na schválení, není tedy co zobrazit.",
-    "OFFER_LETTER_PREVIEW_FAILED": "Náhled dopisu s nabídkou se nepodařilo připravit. Zkuste to prosím znovu."
+    "OFFER_LETTER_PREVIEW_FAILED": "Náhled dopisu s nabídkou se nepodařilo připravit. Zkuste to prosím znovu.",
+    "STATUS_RESEND_FAILED": "Odkaz se nepodařilo znovu odeslat. Zkuste to prosím znovu.",
+    "STATUS_NOTHING_TO_RESEND": "Momentálně na vás nic nečeká, není tedy co znovu posílat.",
+    "STATUS_RESEND_UNDELIVERED": "E-mail se teď nepodařilo odeslat. Zkuste to prosím později."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2224,6 +2227,23 @@
       "waiting": "Čeká na člověka",
       "done": "Hotovo",
       "stopped": "Zastaveno"
+    },
+    "nextAction": {
+      "title": "Čeká na vás",
+      "kind": {
+        "answer_offer": "Odpovězte na nabídku",
+        "book_interview": "Zarezervujte si pohovor",
+        "take_interview": "Absolvujte pohovor s AI"
+      },
+      "sentOn": "Odesláno {date}",
+      "openUntil": "Platí do {date}",
+      "where": "Odkaz najdete v e-mailu, který jsme vám poslali. Z bezpečnostních důvodů ho na této stránce nikdy nezobrazujeme.",
+      "resend": "Poslat mi ho znovu e-mailem",
+      "resending": "Odesíláme…",
+      "resent": "Pokud máme vaši e-mailovou adresu, odkaz je na cestě znovu. Požádat můžete jednou denně.",
+      "resentNoRelay": "Vaši žádost jsme zaznamenali. Náborový tým se vám ozve přímo.",
+      "noRelay": "Náborový tým se vám v této věci ozve přímo.",
+      "failed": "Odkaz se teď nepodařilo odeslat. Zkuste to prosím znovu."
     }
   },
   "apply": {

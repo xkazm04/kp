@@ -499,6 +499,9 @@ export const STORE_ERRORS = {
   /** GET /api/pipeline/[id]/offer-letter: the store or the letter composer faulted while
    *  rendering the read-only offer letter preview (500). */
   OFFER_LETTER_PREVIEW_FAILED: "Could not render the offer letter preview. Please try again.",
+  /** POST /api/status/[token]/resend: the store or the comms dispatcher faulted while
+   *  re-sending the candidate's pending link (500). Public token door: never the raw message. */
+  STATUS_RESEND_FAILED: "Could not send the link again. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1931,6 +1934,14 @@ export const REFUSAL_ERRORS = {
   /** GET /api/pipeline/[id]/offer-letter on an entry whose approval is not an offer
    *  awaiting review (409): there is no drafted letter to preview. */
   OFFER_LETTER_NOT_PENDING: "There is no offer awaiting approval for this candidate, so there is no letter to preview.",
+  /** POST /api/status/[token]/resend when nothing is waiting on the candidate (409): no
+   *  open offer, no live booking invite, no untaken AI interview. The GET already says so
+   *  (`nextAction: null`), so this reveals nothing new. */
+  STATUS_NOTHING_TO_RESEND: "Nothing is waiting on you right now, so there is nothing to send again.",
+  /** POST /api/status/[token]/resend whose re-send was attempted and did not go (502): the
+   *  relay dead-lettered it. Said, never covered by the "on its way" sentence; the per-entry
+   *  cooldown is released so the candidate can try again. */
+  STATUS_RESEND_UNDELIVERED: "We could not send the email just now. Please try again later.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
