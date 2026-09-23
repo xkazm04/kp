@@ -117,7 +117,8 @@ dock, in `dock` an action that toggles the left companion window. See
 | `SimControlDockOrb.tsx` / `SimControlDockRail.tsx` | The rest state, and the two elements outside the panel's borders |
 | `simControlCenterKit.ts` | `useControlMode()`, `useAutomationPass()`, `usePublishBarHeight()` |
 | `SimulationProvider.tsx` + `useSimulationEngine.ts` + `useSimulationWalk.ts` | The run: state, the per-phase engine, the tab walk |
-| `simWalkSteps.ts` | The PURE chapter sequencing lifted out of the walk: `SIM_CHAPTERS` (id, tab, spotlight target, timings), `simChapter`, the halt conditions (`matchHalt` / `offerHalt`) and `clickRoute`. Unit-tested beside it, including the invariant that the chapters ARE `SIM_PHASES` |
+| `simWalkSteps.ts` | The PURE chapter sequencing lifted out of the walk: `SIM_CHAPTERS` (id, tab, spotlight target, timings), `simChapter`, and the halt conditions (`matchHalt` / `offerHalt`). Unit-tested beside it, including the invariant that the chapters ARE `SIM_PHASES` |
+| `simMove.ts` | The PURE scripted MOVES: `SIM_MOVES` (per move, the anchors clicked in order and the product file that must render each), `moveSelector`, `moveOutcome` (dom / api, the fallback reason, the halt), `simSubject` (the fallback's (SIM) gate) and `hiredEffect`. The engine's `move()` runs them. Unit-tested beside it, including source scans that every declared anchor exists and that the walk makes no unchecked POST |
 | `simRunControl.ts` | The PURE run-control ordering: `runControlFlags` (start/pause/resume/stop) and `performReset` (stop -> settle -> purge, reporting whether the purge succeeded). Unit-tested beside it |
 | `simDrafts.ts` | The two DETERMINISTIC drafts (screening recommendation, offer letter), composed from the `simulation.draft.*` catalog keys. Unit-tested per locale beside it |
 | `constants.ts` (`SIM_PHASES`) | The seven-phase chronology — design · source · match · screen · interview · offer · hired — each pinned to the tab it walks to |
@@ -282,12 +283,25 @@ an explicit guard rather than a special-case fake:
 - `--sim-bar-h` is published by whichever deck state is mounted, but nothing
   asserts that the two never both publish; the invariant rests on the single
   `usePublishBarHeight` call in `SimControlDock.tsx`.
-- **The API fallback is now labelled, not silent.** Every scripted "click" is a real
-  DOM click; when the control is not on screen within the wait, the walk calls the API
-  the button would have called and the run log SAYS so (`log.clickedViaApi`), so a
-  viewer can tell a working surface from one the engine papered over. The
-  self-scheduling path says the same when it falls back to the recruiter's manual
-  confirm (`log.selfScheduleUnavailable`).
+- **A scripted click is proven by its board effect** (`simMove.ts`, `move()` in
+  `useSimulationEngine.ts`). Every write the walk makes is a MOVE (publish through
+  the go-live terms dialog, the recruiter's slot confirm, Send offer through the
+  ledger's decide door and the candidate modal, the candidate's own Accept) or an
+  `okJson()` call. A move clicks its declared anchors, then waits for the board to
+  show the change; a control that never appeared (`notVisible`) or a click that
+  changed nothing (`noEffect`, `log.moveNoEffect`) falls back to the API call the
+  button would have made, and the log says which. A fallback writes only a (SIM)
+  subject, the answer the server-side sim gate gives (`SIM_ENTRY_NOT_FOUND`); a
+  refused fallback halts with the server's code, and one the board still does not
+  show halts with `error.moveNoEffect`. The run is Hired only when the followed entry
+  sits on the axis's terminal-role column (`hiredEffect`). Each move's route is kept
+  in `SimState.moves`. The fallbacks for publish, the slot confirm, Send offer and the
+  offer accept still use the product routes (`/api/jobs/<id>/publish`,
+  `/api/pipeline/<id>`, `/api/offer/<token>`): no `/api/sim/*` door exists for them,
+  so the (SIM) check runs client-side before the call. Works keyless: every move is
+  deterministic. The candidate's self-schedule confirm is checked too: a refusal
+  drops to the recruiter's manual confirm and says so (`log.selfScheduleUnavailable`)
+  instead of counting as scheduled.
 - **The guided walk only runs on an OPEN deploy.** A gated deploy refuses at the
   door (above) rather than pretending. Closing this needs the owner decision on demo
   capabilities plus a seeded demo tenant; until then the demo is a self-host/dev

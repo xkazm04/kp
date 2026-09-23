@@ -74,6 +74,9 @@ export function JobsPublishDialog({
             // stated language is the behaviour every publish had before this dialog,
             // and refusing it would break the one-click go-live for no gain.
             disabled={!targetValid}
+            // The guided demo clicks this confirm (simMove.ts SIM_MOVES.publish): the
+            // walk must go through the same terms dialog a recruiter does.
+            data-sim-click="publish-confirm"
             onClick={() => onConfirm({ targetHires: parsed, langs })}
             className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
           >

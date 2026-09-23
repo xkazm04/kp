@@ -1,4 +1,5 @@
-// The walk's chapter sequencing, halt conditions and click route — the three pure
+// The walk's chapter sequencing and halt conditions (the click route moved to
+// simMove.ts, pinned by simMove.test.ts) — the pure
 // decisions inside a 464-line hook that had no test at all.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -7,7 +8,6 @@ import {
   SIM_CHAPTERS,
   SIM_HALT_REASONS,
   chaptersMatchPhases,
-  clickRoute,
   matchHalt,
   offerHalt,
   simChapter,
@@ -35,11 +35,6 @@ test("simChapter throws on an unknown id rather than silently skipping a phase",
   // A cast, not a suppression: the id is a runtime value in the walk's own
   // navigation, so the guard has to hold for a string TypeScript never saw.
   assert.throws(() => simChapter("nope" as SimPhaseId), /unknown sim chapter/);
-});
-
-test("clickRoute names the fallback instead of hiding it", () => {
-  assert.equal(clickRoute(true), "dom", "a real click on a rendered control");
-  assert.equal(clickRoute(false), "api", "the button was not on screen — the run log must SAY the API ran it");
 });
 
 test("the halt conditions are the broken preconditions, not cosmetic failures", () => {

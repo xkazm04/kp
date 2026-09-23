@@ -9,7 +9,7 @@
 //
 // What deliberately stays in the hook: the copy (it needs a translator), the fetches
 // and the beats. This module is structure — ids, tabs, selectors, timings, halt
-// reasons and the click route.
+// reasons. The click moves are simMove.ts.
 import { SIM_PHASES, type SimPhaseId } from "./constants";
 
 /** One chapter of the scripted run: where it navigates, what it spotlights, and how
@@ -50,20 +50,12 @@ export function simChapter(id: SimPhaseId): SimChapter {
   return found;
 }
 
-/** How a scripted interaction actually reached the app.
- *
- *  Every "click" in the walk is a real DOM click on a rendered control — that is the
- *  demo's whole claim, and it is what makes the tour a product test rather than a
- *  video. When the control is not on screen within the wait, the walk falls back to
- *  the API call the button would have made. That fallback is legitimate, but it was
- *  INVISIBLE: the run log said only "the draft wasn't visible" and then narrated the
- *  outcome exactly as if a person had clicked. A viewer could not tell a working
- *  surface from a broken one that the engine papered over. */
-export type SimClickRoute = "dom" | "api";
-
-export function clickRoute(clicked: boolean): SimClickRoute {
-  return clicked ? "dom" : "api";
-}
+// How a scripted interaction reaches the app lives in simMove.ts now. Every "click"
+// in the walk is a real DOM click on a rendered control; that is the demo's whole
+// claim, and it is what makes the tour a product test rather than a video. The old
+// route model here was one bit, `clickRoute(clicked)`, and it could not say "clicked,
+// nothing happened": a click on a button whose meaning had changed counted as a DOM
+// success. A move is judged by its effect on the board instead (moveOutcome).
 
 /** The reasons a chapter may end the whole run. Each is a broken PRECONDITION for
  *  the next chapter, never a cosmetic failure: continuing past one of these is how

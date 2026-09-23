@@ -119,6 +119,8 @@ export function DecisionCell({
       )}
       <button
         type="button"
+        // The guided demo opens an offer through this door (simMove.ts SIM_MOVES.offerSend).
+        data-sim-click="decide"
         onClick={onDecide}
         aria-label={t("decideAria", { name })}
         title={t("decideAria", { name })}

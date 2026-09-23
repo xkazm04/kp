@@ -4,6 +4,7 @@ import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEval
 import { STAGES as PIPELINE_STAGES } from "@/app/features/shared/pipelineTypes";
 import type { ScreenDecisionRead } from "@/app/_lib/screen-wave-contract";
 import type { SimPhaseId } from "./constants";
+import type { SimMoveLog } from "./simMove";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
 // can't be produced in time, so the reused modal shows an honest message instead
@@ -63,6 +64,9 @@ export type SimState = {
   targetLabel: string | null;
   error: string | null;
   done: boolean;
+  /** How each scripted move of this run reached the app (a real click, or the
+   *  checked API fallback) and why it fell back. See simMove.ts. */
+  moves: SimMoveLog;
 };
 
 export type SimCtx = SimState & {
@@ -129,6 +133,7 @@ export const IDLE_STATE: SimState = {
   targetLabel: null,
   error: null,
   done: false,
+  moves: {},
 };
 
 // The transient run surface, cleared together whenever a run ends (done/stop/fail)

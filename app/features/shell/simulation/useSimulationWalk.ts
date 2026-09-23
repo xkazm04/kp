@@ -18,9 +18,10 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { readWaveResult, type ScreenWaveRead } from "@/app/_lib/screen-wave-contract";
 import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
 import { applyCompanyTemplate } from "./simCompanyTemplate";
-import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type SimState, type StepOpts } from "./simulationProviderTypes";
+import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, type SimState, type StepOpts } from "./simulationProviderTypes";
 import { leaseFromClaim, releaseInit, renewInit, type SimRunLease } from "./simRunLease";
-import { clickRoute, matchHalt, offerHalt, simChapter } from "./simWalkSteps";
+import { matchHalt, offerHalt, simChapter } from "./simWalkSteps";
+import { hiredEffect, type SimMoveId, type SimMoveLog, type SimMoveOutcome } from "./simMove";
 import type { useSimulationEngine } from "./useSimulationEngine";
 
 /** The audit actor recorded on the demo's screening approval. NOT localized on
@@ -34,7 +35,6 @@ import type { useSimulationEngine } from "./useSimulationEngine";
 const DEMO_APPROVER = "Guided demo (auto-approved)";
 
 export function useSimulationWalk({
-  ctrl,
   patch,
   log,
   nav,
@@ -42,6 +42,8 @@ export function useSimulationWalk({
   gate,
   engine,
 }: {
+  /** The provider's run control. The walk no longer polls it itself: every wait it
+   *  makes goes through an engine primitive that honours Stop. */
   ctrl: MutableRefObject<{ stop: boolean; paused: boolean; wake: (() => void) | null }>;
   patch: (p: Partial<SimState>) => void;
   log: (text: string) => void;
@@ -50,7 +52,7 @@ export function useSimulationWalk({
   gate: () => Promise<void>;
   engine: ReturnType<typeof useSimulationEngine>;
 }) {
-  const { getBoard, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval } = engine;
+  const { getBoard, getEntries, okJson, entriesFor, topScreened, waitDom, waitEntry, move, advance, advanceTo, runGroupEval } = engine;
   const t = useTranslations("simulation");
   // The demo JD prints a salary band; its digit grouping follows the active
   // locale like every other figure in the app (app/_lib/format.ts).
@@ -66,19 +68,6 @@ export function useSimulationWalk({
       return tEnums.has(key) ? tEnums(key) : stage;
     },
     [tEnums]
-  );
-
-  // A real DOM click is the demo's whole claim; the API fallback is legitimate but
-  // was INVISIBLE — the log said "the draft wasn't visible" and then narrated the
-  // outcome as if a person had clicked, so a viewer could not tell a working surface
-  // from one the engine papered over. Say which route ran the step, every time.
-  const logClickRoute = useCallback(
-    (clicked: boolean, notVisibleKey: Parameters<typeof t>[0]) => {
-      if (clickRoute(clicked) === "dom") return;
-      log(t(notVisibleKey));
-      log(t("log.clickedViaApi"));
-    },
-    [log, t]
   );
 
   // The RUN LOCK this walk claimed, or null when it never got one (a refused start).
@@ -152,6 +141,15 @@ export function useSimulationWalk({
     let targetId = "";
     let targetLabel = "";
     let offerToken = "";
+    // How each scripted move of THIS run reached the app (simMove.ts), mirrored into
+    // state so the route and its reason are readable beside the log.
+    const moves: SimMoveLog = {};
+    const recordMove = (id: SimMoveId, out: SimMoveOutcome) => {
+      moves[id] = { route: out.route, reason: out.reason };
+      patch({ moves: { ...moves } });
+    };
+    // The subject a fallback writes, re-read from the board: the move's (SIM) gate.
+    const entryTitle = async (id: string) => (await getEntries()).find((e) => e.id === id)?.jobTitle;
     // The one prose field of the demo RoleSpec (constants.ts keeps the matcher
     // input — enum codes, languages, skill tokens — locale-invariant), plus the
     // branded JD body built from the same copy.
@@ -267,31 +265,30 @@ export function useSimulationWalk({
           notifyDataChanged(); // the Jobs tab picks up the new draft
           await beat(900);
 
-          // Source into Pipeline — a real click on the draft's button (sources the pool).
-          const clicked = await clickEl(`[data-sim-entry="${jobId}"] [data-sim-click="publish"]`, {
-            title: t("step.source.clickTitle"),
-            caption: t("step.source.clickCaption"),
-          });
-          logClickRoute(clicked, "log.draftNotVisible");
-          if (!clicked) {
-            // The API fallback for the real click. It is a fallback, not a
-            // best-effort: if sourcing is refused there is no pool, so let the code
-            // halt the run here rather than in the 12-second poll below with
-            // "sourced 0".
-            await okJson(await fetch(`/api/jobs/${jobId}/publish`, { method: "POST" }));
-          }
-
-          // Wait for the sourced entries to land.
-          let sourced = 0;
-          const deadline = Date.now() + 12_000;
-          while (Date.now() < deadline) {
-            if (ctrl.current.stop) throw new SimStop();
-            sourced = (await entriesFor(jobId, entryStage)).length;
-            if (sourced > 0) break;
-            await sleep(400);
-          }
+          // Source into Pipeline — a real click on the draft's Publish, then on the
+          // go-live terms dialog's confirm (the publish itself). PROVEN by the pool
+          // landing on the board: since the dialog arrived, the first click alone
+          // "succeeded" and sourced nobody, and the walk logged "sourced 0" and
+          // walked on. A publish that the board does not show halts here, with the
+          // route's code if it was refused, instead of in a cryptic later step.
+          const sourcedNow = async () => (await entriesFor(jobId, entryStage)).length;
+          recordMove(
+            "publish",
+            await move("publish", {
+              subject: jobId,
+              title: t("step.source.clickTitle"),
+              caption: t("step.source.clickCaption"),
+              effect: async () => (await sourcedNow()) > 0,
+              effectMs: 12_000,
+              // The draft this run saved a moment ago, under the (SIM) title.
+              subjectTitle: async () => SIM_TITLE,
+              api: () => fetch(`/api/jobs/${jobId}/publish`, { method: "POST", headers: JSON_HEADERS, body: "{}" }),
+              notVisible: t("log.draftNotVisible"),
+              label: t("wait.sourced"),
+            })
+          );
           // A RAW number into the plural, never a pre-formatted string.
-          log(t("log.sourced", { count: sourced }));
+          log(t("log.sourced", { count: await sourcedNow() }));
           notifyDataChanged();
         },
       });
@@ -456,11 +453,17 @@ export function useSimulationWalk({
             if (inv?.token) {
               patch({ frame: { url: `/schedule/${inv.token}`, title: t("step.interview.frameTitle") } });
               await beat(2400); // let the viewer watch the candidate's slot picker
-              const slots = await fetch(`/api/schedule/${inv.token}`).then((r) => r.json()).then((p) => p.slots ?? []);
+              const { slots = [] } = await okJson<{ slots?: { label: string; value: string }[] }>(await fetch(`/api/schedule/${inv.token}`));
               const slot = slots[0];
               if (slot) {
                 // Confirming fires approve_event on the entry + sends a confirmation.
-                await fetch(`/api/schedule/${inv.token}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ slot: slot.label, slotAt: slot.value }) });
+                // CHECKED: an unchecked confirm set `scheduled` whatever the answer, so
+                // a refusal skipped the manual fallback below and surfaced 9 s later as
+                // the `wait.slotConfirmed` timeout. A refusal now throws into the catch
+                // and the recruiter's Confirm runs.
+                await okJson(
+                  await fetch(`/api/schedule/${inv.token}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ slot: slot.label, slotAt: slot.value }) })
+                );
                 log(t("log.selfScheduled", { candidate: targetLabel, slot: slot.label }));
                 scheduled = true;
                 notifyDataChanged();
@@ -468,7 +471,9 @@ export function useSimulationWalk({
               await beat(800);
               patch({ frame: null });
             }
-          } catch {
+          } catch (e) {
+            // A Stop pressed mid-frame is the presenter's, not a refused automate path.
+            if (e instanceof SimStop) throw e;
             // The automate path (mint a link, read its slots, confirm one) is refused
             // on any deploy where /api/schedule/invite needs an operator. Falling
             // through to the manual Confirm is the right behaviour — silently is not:
@@ -479,15 +484,20 @@ export function useSimulationWalk({
           }
           if (!scheduled) {
             // MANUAL fallback: the recruiter confirms a slot on the shared calendar.
-            const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="confirm"]`, {
-              title: t("step.interview.confirmTitle"),
-              caption: t("step.interview.confirmCaption", { candidate: targetLabel }),
-            });
-            logClickRoute(clicked, "log.scheduleNotVisible");
-            if (!clicked) {
-              await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) });
-              notifyDataChanged();
-            }
+            recordMove(
+              "confirmSlot",
+              await move("confirmSlot", {
+                subject: targetId,
+                title: t("step.interview.confirmTitle"),
+                caption: t("step.interview.confirmCaption", { candidate: targetLabel }),
+                effect: async () => (await getEntries()).some((e) => e.id === targetId && e.approvalKind !== "calendar"),
+                subjectTitle: () => entryTitle(targetId),
+                api: () =>
+                  fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) }),
+                notVisible: t("log.scheduleNotVisible"),
+                label: t("wait.slotConfirmed"),
+              })
+            );
           }
           await waitEntry(targetId, (e) => e.approvalKind !== "calendar", t("wait.slotConfirmed"));
           const st = await advanceTo(targetId, offerStage);
@@ -511,17 +521,26 @@ export function useSimulationWalk({
           await okJson(await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
           nav({ tab: "decisions" });
           await beat(600);
-          const clicked = await clickEl(`[data-sim-entry="${targetId}"] [data-sim-click="accept"]`, {
-            title: t("step.offer.clickTitle"),
-            caption: t("step.offer.clickCaption", { candidate: targetLabel }),
-          });
-          logClickRoute(clicked, "log.offerNotVisible");
-          if (!clicked) {
-            // actor:"sim" — the engine (not a recruiter) extends here, so the
-            // offer_terms seal reads "auto:sim" (gsim-l2-103).
-            await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) });
-          }
-          await waitEntry(targetId, (e) => e.approvalKind !== "offer_review", t("wait.offerExtended"));
+          // An offer row has no quick-accept: the deadline is chosen in the candidate
+          // modal. So the walk opens the ledger's third door and clicks the modal's
+          // Send offer, the flow a recruiter really takes (with its deadline lever),
+          // proven by the offer_review card leaving the entry.
+          recordMove(
+            "offerSend",
+            await move("offerSend", {
+              subject: targetId,
+              title: t("step.offer.clickTitle"),
+              caption: t("step.offer.clickCaption", { candidate: targetLabel }),
+              effect: async () => (await getEntries()).some((e) => e.id === targetId && e.approvalKind !== "offer_review"),
+              subjectTitle: () => entryTitle(targetId),
+              // actor:"sim" — the engine (not a recruiter) extends here, so the
+              // offer_terms seal reads "auto:sim" (gsim-l2-103).
+              api: () =>
+                fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) }),
+              notVisible: t("log.offerNotVisible"),
+              label: t("wait.offerExtended"),
+            })
+          );
           const { token } = await okJson<{ token?: string }>(await fetch(`/api/sim/offer-link?entryId=${targetId}`));
           if (offerHalt(token) || !token) throw new Error(t("error.offerTokenMissing"));
           offerToken = token;
@@ -542,17 +561,23 @@ export function useSimulationWalk({
             const d = ifr?.contentDocument ?? null;
             return d && d.querySelector('[data-sim-click="offer-accept"]') ? d : null;
           });
-          const clicked = doc
-            ? await clickEl('[data-sim-click="offer-accept"]', {
-                title: t("step.hired.acceptTitle"),
-                caption: t("step.hired.acceptCaption"),
-                doc,
-              })
-            : false;
-          logClickRoute(clicked, "log.offerPageUnreachable");
-          if (!clicked) {
-            await fetch(`/api/offer/${offerToken}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ response: "accept" }) });
-          }
+          // Proven by the STAGE: the run is Hired only when the followed entry sits on
+          // this board's terminal-role column. It used to log "accepted" and set
+          // done:true over an unchecked POST without reading the entry at all.
+          recordMove(
+            "offerAccept",
+            await move("offerAccept", {
+              subject: targetId,
+              title: t("step.hired.acceptTitle"),
+              caption: t("step.hired.acceptCaption"),
+              doc,
+              effect: async () => hiredEffect((await getEntries()).find((e) => e.id === targetId), axis),
+              subjectTitle: () => entryTitle(targetId),
+              api: () => fetch(`/api/offer/${offerToken}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ response: "accept" }) }),
+              notVisible: t("log.offerPageUnreachable"),
+              label: t("wait.hired"),
+            })
+          );
           await beat(1600); // show the ‘accepted’ confirmation
           patch({ frame: null });
           log(t("log.accepted"));
@@ -581,7 +606,7 @@ export function useSimulationWalk({
       leaseRef.current = null;
       if (release) await fetch("/api/sim/reset", release).catch(() => null);
     }
-  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, getBoard, okJson, topScreened, locale, log, logClickRoute, nav, patch, runGroupEval, stageLabel, step, t, tErrors, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, entriesFor, getBoard, getEntries, locale, log, move, nav, okJson, patch, runGroupEval, stageLabel, step, t, tErrors, topScreened, waitDom, waitEntry]);
 
   return { run, releaseLease };
 }
