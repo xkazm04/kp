@@ -273,7 +273,9 @@
         "app/_lib/ats/field-map.ts",
         "app/api/calendar/**",
         "app/api/ats/connections/**",
-        "app/features/settings/integrations/**"
+        "app/features/settings/integrations/**",
+        "app/_lib/ats/ingest.ts",
+        "app/api/ats/import/**"
       ]
     },
     {

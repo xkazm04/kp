@@ -183,6 +183,44 @@ base URL, an API token and a field map.
   longer exists (`deleteAtsLinksForProviderEverywhere`).
 - **Enabled** parks a connection without deleting its credentials or its links.
 
+### Importing applications — `POST /api/ats/import`
+
+The inbound writer. `ingestAtsApplications` (`app/_lib/ats/ingest.ts`) is the one place a
+vendor application becomes a pipeline entry; the operator door (or the operator's iPaaS)
+posts `{ provider, jobId, records: [<vendor application JSON>, …] }` and gets back
+`{ results: [{ externalId, outcome, entryId? }], counts }`.
+
+- **Gates.** `requireOperator`, then `pipeline:write` in the caller's team
+  (`FORBIDDEN_CAPABILITY`, 403). Bodies are capped at 2 MB on the bytes read (413
+  `PAYLOAD_TOO_LARGE`) and at 100 records per call (`ATS_IMPORT_RECORDS_INVALID`, 400,
+  with `maxRecords`). No rate-limit bucket: nothing spends money or spawns a process.
+- **The connection decides the provider.** It must exist and be enabled, else the whole
+  call refuses with `ATS_CONNECTION_NOT_FOUND` (404); its stored field map reads every
+  record. The job is the operator's choice and must be visible to their team, else
+  `ATS_IMPORT_JOB_NOT_FOUND` (404) — the vendor's own job id is not used.
+- **The vendor id is the sync identity, per team.** A record whose `(provider, external
+  id, workspace)` already has a link never reaches the filing path again: a live entry
+  answers `unchanged` and only the link's `last_seen_stage` / `last_synced_at` move. A
+  vendor stage change is recorded on the link and **never applied to the board** — kp owns
+  its funnel. The same vendor id imported by another team is another entry.
+- **First imports go through the application-filing core** (`app/_lib/application-filing.ts`),
+  proof `channel`, as a profile-less stub (intake reason `atsImported`, rendered through
+  `pipeline.intakeReasons`) and with **no acknowledgement email** (the vendor already sent
+  one). Name hygiene, consent and the entry id are the core's. A record the core
+  recognises as an applicant already on that opening (same email) is bound to that entry
+  and answers `linked` instead of creating a second one.
+- **Stage.** The vendor stage is mapped against the importing team's own axis
+  (`mapStage(..., allowed)`); a stage that maps to the **terminal** column, or to nothing,
+  lands on the entry column. The vendor's own stage word is kept on the link.
+- **Erasure is never undone by a re-sync.** A link whose entry is anonymized (or gone)
+  answers `erased` and writes nothing — `ats_links` outlives the scrub for exactly this.
+  If the link was dropped and the filing core's dedupe key lands on the scrubbed row, the
+  filing is stopped before it writes (the `onEntry` seam) and the answer is `erased`, with
+  no link.
+- **Per-record isolation.** A record the map cannot give an external id is `invalid` and
+  nothing is written for it; the rest of the batch still lands. Records of one call run
+  in order, and overlapping imports of the same vendor id are serialized in-process.
+
 The field map (`app/_lib/ats/field-map.ts`) is *not* editable from this tab yet — see
 Known gaps.
 
@@ -489,6 +527,8 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 | `app/_lib/ats/connections-store.ts` | Per-provider credentials + `ATS_PROVIDERS` |
 | `app/api/calendar/google/{start,callback}/route.ts`, `app/api/calendar/google/route.ts` | OAuth start, callback, status + revoke-first DELETE |
 | `app/api/ats/connections/route.ts` | GET / POST / DELETE inbound connections |
+| `app/api/ats/import/route.ts` | POST mapped vendor applications onto the board (operator + `pipeline:write`) |
+| `app/_lib/ats/ingest.ts` | `ingestAtsApplications` — the inbound writer (link-first, filing core, never terminal, never refills an erased entry) |
 | `app/api/ats/candidate/[id]/route.ts` | The per-candidate pull door: operator gate → workspace scope → consent gate → audit |
 | `app/api/ats/candidate/ats-candidate-audit.ts` | Its pure helpers: the `ats_export` audit descriptor + the consent redaction |
 
@@ -544,9 +584,16 @@ it omits the live count while the tab is hidden and resumes when it is visible.
   no personal data (provider, external id, stage) and the scrub in `app/_lib/db/pipeline.ts`
   lists it as a table that must OUTLIVE erasure: without it the next sync would re-import the
   same person as a NEW candidate, which is the worse outcome. The export side cannot
-  re-identify through it (the record builder refuses an anonymized entry), and no inbound
-  write path updates an existing entry from a vendor record today (`ats/inbound.ts` is a
-  pure mapper). `deleteAtsLinksForEntry` (`app/_lib/ats/links-store.ts`, tested) exists for
-  the day an inbound writer appears and needs to drop the join deliberately.
+  re-identify through it (the record builder refuses an anonymized entry), and the inbound
+  writer (`ats/ingest.ts`) answers `erased` for a linked, scrubbed entry instead of
+  refilling it. `deleteAtsLinksForEntry` (`app/_lib/ats/links-store.ts`, tested) drops the
+  join deliberately; nothing calls it on erasure.
+- **No connector pulls yet.** `POST /api/ats/import` files what it is sent; nothing fetches
+  from a vendor on a schedule with the stored token, and there is no import UI. Imported
+  entries are profile-less stubs: a record's `cvText` is not built into a profile.
+- **A raced filing onto a scrubbed row can still re-open it.** When the dedupe key lands on
+  an anonymized entry, `createPipelineEntry` flips a terminal status back to `active` before
+  the import's guard stops the filing (no personal data is written). That re-add rule is
+  `createPipelineEntry`'s, shared by every door.
 - `account_email` is never populated by the callback (no userinfo call), so a connected
   calendar shows *Unknown account* until it is set another way.
