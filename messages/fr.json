@@ -1215,7 +1215,10 @@
         "approve": "Valider",
         "override": "Passer outre",
         "signed": "présélection validée à {time}, signé {name} ✓"
-      }
+      },
+      "prev": "Fonctionnalité précédente",
+      "next": "Fonctionnalité suivante",
+      "position": "{n} sur {total}"
     },
     "demoNotice": {
       "title": "La démo en direct n’est pas disponible pour le moment.",

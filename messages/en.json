@@ -1215,7 +1215,10 @@
         "approve": "Approve",
         "override": "Override",
         "signed": "shortlist approved at {time}, signed {name} ✓"
-      }
+      },
+      "prev": "Previous feature",
+      "next": "Next feature",
+      "position": "{n} of {total}"
     },
     "demoNotice": {
       "title": "The live demo is unavailable right now.",

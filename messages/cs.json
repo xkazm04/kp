@@ -1215,7 +1215,10 @@
         "approve": "Schválit",
         "override": "Rozhodnout jinak",
         "signed": "užší výběr schválen v {time}, podepsala {name} ✓"
-      }
+      },
+      "prev": "Předchozí funkce",
+      "next": "Další funkce",
+      "position": "{n} z {total}"
     },
     "demoNotice": {
       "title": "Živá ukázka teď není dostupná.",

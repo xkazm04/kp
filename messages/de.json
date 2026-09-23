@@ -1215,7 +1215,10 @@
         "approve": "Freigeben",
         "override": "Überstimmen",
         "signed": "Shortlist um {time} freigegeben, gezeichnet {name} ✓"
-      }
+      },
+      "prev": "Vorherige Funktion",
+      "next": "Nächste Funktion",
+      "position": "{n} von {total}"
     },
     "demoNotice": {
       "title": "Die Live-Demo ist gerade nicht verfügbar.",
