@@ -9108,7 +9108,8 @@
       "code": {
         "unmapped_product": "A payment was received for a product this deployment does not map to a plan, so your plan has not changed yet. Do not pay again. Contact support and quote the date below.",
         "price_drift": "The price shown in the plan catalog differs from the price the payment provider charges. Align the product price in the provider dashboard.",
-        "unknown": "A billing signal this version cannot describe yet. Check the server log for details."
+        "unknown": "A billing signal this version cannot describe yet. Check the server log for details.",
+        "subscription_drift": "The payment provider and this deployment disagree about a customer's subscription: a webhook was probably lost. Compare the subscription in the provider dashboard with the stored plan and replay the missed event."
       },
       "raised": "Raised {date}",
       "operatorOnly": "Operator only",

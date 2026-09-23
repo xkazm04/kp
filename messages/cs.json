@@ -9108,7 +9108,8 @@
       "code": {
         "unmapped_product": "Přijali jsme platbu za produkt, který tato instalace nepřiřazuje k žádnému tarifu, proto se váš tarif zatím nezměnil. Neplaťte prosím znovu. Kontaktujte podporu a uveďte níže uvedené datum.",
         "price_drift": "Cena v katalogu tarifů se liší od ceny, kterou účtuje platební poskytovatel. Sjednoťte cenu produktu v administraci poskytovatele.",
-        "unknown": "Upozornění k fakturaci, které tato verze zatím neumí popsat. Podrobnosti najdete v logu serveru."
+        "unknown": "Upozornění k fakturaci, které tato verze zatím neumí popsat. Podrobnosti najdete v logu serveru.",
+        "subscription_drift": "Platební poskytovatel a toto nasazení se neshodují na předplatném zákazníka, pravděpodobně se ztratil webhook. Porovnejte předplatné v administraci poskytovatele s uloženým tarifem a zopakujte zmeškanou událost."
       },
       "raised": "Vzniklo {date}",
       "operatorOnly": "Jen pro provozovatele",

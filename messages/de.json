@@ -9108,7 +9108,8 @@
       "code": {
         "unmapped_product": "Wir haben eine Zahlung für ein Produkt erhalten, das diese Installation keinem Tarif zuordnet. Ihr Tarif hat sich daher noch nicht geändert. Bitte zahlen Sie nicht erneut. Wenden Sie sich an den Support und nennen Sie das unten angegebene Datum.",
         "price_drift": "Der im Tarifkatalog angezeigte Preis weicht von dem Preis ab, den der Zahlungsanbieter berechnet. Gleichen Sie den Produktpreis im Dashboard des Anbieters an.",
-        "unknown": "Ein Abrechnungshinweis, den diese Version noch nicht beschreiben kann. Details finden Sie im Serverprotokoll."
+        "unknown": "Ein Abrechnungshinweis, den diese Version noch nicht beschreiben kann. Details finden Sie im Serverprotokoll.",
+        "subscription_drift": "Der Zahlungsanbieter und diese Installation stimmen beim Abonnement eines Kunden nicht überein, vermutlich ist ein Webhook verloren gegangen. Vergleichen Sie das Abonnement im Dashboard des Anbieters mit dem gespeicherten Tarif und senden Sie das verpasste Ereignis erneut."
       },
       "raised": "Erstellt am {date}",
       "operatorOnly": "Nur für Betreiber",

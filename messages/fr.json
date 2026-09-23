@@ -9108,7 +9108,8 @@
       "code": {
         "unmapped_product": "Nous avons reçu un paiement pour un produit que ce déploiement n’associe à aucune offre : votre offre n’a donc pas encore changé. Ne payez pas une seconde fois. Contactez le support en indiquant la date ci-dessous.",
         "price_drift": "Le prix affiché dans le catalogue des offres diffère du prix facturé par le prestataire de paiement. Alignez le prix du produit dans le tableau de bord du prestataire.",
-        "unknown": "Une alerte de facturation que cette version ne sait pas encore décrire. Consultez le journal du serveur pour plus de détails."
+        "unknown": "Une alerte de facturation que cette version ne sait pas encore décrire. Consultez le journal du serveur pour plus de détails.",
+        "subscription_drift": "Le prestataire de paiement et ce déploiement ne concordent pas sur l'abonnement d'un client : un webhook a probablement été perdu. Comparez l'abonnement dans le tableau de bord du prestataire avec l'offre enregistrée et rejouez l'événement manqué."
       },
       "raised": "Émise le {date}",
       "operatorOnly": "Opérateur uniquement",
