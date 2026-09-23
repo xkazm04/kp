@@ -37,7 +37,7 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
    touched `app/api/**/route.ts` — fix with `npm run api:docs`),
    `npm run docs:check`, `npm run lint:ts-ratchet`, and the unit tests of every
    test file in your touched directories — THEN, before your last commit, the FULL
-   `npm run test:unit` (~80s) and `npm run test:perf`. Added after waves 1-2: kp
+   `npm run test:unit` (~80s), `npm run test:perf` and `npm run review:constitution -- --base <your base sha> --head HEAD` (added after r08: a new route gated by requireCapability/requireOrgCapability trips its route-auth-posture rule — name the guard in `notes` so the coordinator can waive it on the record; never reshape auth to satisfy the lens). Added after waves 1-2: kp
    keeps source-guard and ratchet tests OUTSIDE the folder they guard
    (`app/_components/ui/recipes-literals.test.ts` counts hand-typed recipe strings
    repo-wide; `devcase-studio-robustness.test.ts` pins route source; `perf-budget.json`

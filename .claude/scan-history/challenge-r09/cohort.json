@@ -1,0 +1,62 @@
+{
+  "cohort": [
+    {
+      "name": "cv-analyze-workspace",
+      "group": "CV Analysis & Scoring",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "voice-provider-io",
+      "group": "Voice Interview",
+      "files": 22,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "spark-about-illustrations",
+      "group": "Workspace Shell & Onboarding",
+      "files": 21,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "candidate-matching",
+      "group": "Candidate Matching & Ranking",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "devcase-lifecycle",
+      "group": "Developer Assessment",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "eval-harness",
+      "group": "AI & LLM Infrastructure",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "schedule-interview-prep",
+      "group": "Interview Scheduling",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "comms-locale-optout",
+      "group": "Communications & Scheduling",
+      "files": 19,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 118
+}

@@ -1,0 +1,115 @@
+[
+  {
+    "context": "spark-about-illustrations",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "base_sha": "dbcdecf66",
+    "title": "One Spark motion-preset module: about-art reveals built, not hand-copied 22x",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/landing/spark/about-art/DesignArt.tsx",
+      "app/landing/spark/about-art/SourceArt.tsx",
+      "app/landing/spark/about-art/IntakeArt.tsx",
+      "app/landing/spark/about-art/ScreenArt.tsx",
+      "app/landing/spark/about-art/AssignmentArt.tsx",
+      "app/landing/spark/about-art/InterviewArt.tsx",
+      "app/landing/spark/about-art/OfferArt.tsx",
+      "app/landing/spark/about-art/HiredArt.tsx",
+      "app/landing/spark/about-art/shared.ts",
+      "app/landing/spark/previews/shared.tsx",
+      "app/landing/spark/AboutCurve.tsx",
+      "app/landing/spark/AboutCurve.test.ts",
+      "docs/features/marketing/README.md"
+    ],
+    "new_files": [
+      "app/landing/spark/motion-presets.ts",
+      "app/landing/spark/motion-presets.test.ts"
+    ],
+    "shared_surfaces": [
+      "perf-budget.json (only if test:perf trips: +1 module on the app/page.tsx graph via previews/shared.tsx, and on /about via about-art)"
+    ],
+    "acceptance": [
+      "reveal('inView', false, {opacity:1,x:0}, {delay:0.2}, {opacity:0,x:-12}) -> deep-equals {initial:{opacity:0,x:-12}, whileInView:{opacity:1,x:0}, animate:undefined, viewport:{once:false,amount:0.5}, transition:{delay:0.2}}",
+      "reveal('inView', true, final, tr, init) -> animate is the SAME object as whileInView (strictEqual), transition deep-equals {duration:0}, and initial is unchanged from the reduce=false call (the transition is gated, never the initial)",
+      "reveal('mount', false, final, tr, init) -> {initial:init, animate:final, transition:tr} and has NO whileInView / viewport keys; reveal('mount', true, ...) -> transition {duration:0}",
+      "pop(0.3, true).transition and stamp(0.2, true).transition deep-equal {duration:0}; stamp(0.2, false).animate deep-equals {opacity:1, scale:1, rotate:-6} (behaviour of previews/shared.tsx:46-57 preserved, now importable by node:test)",
+      "source guard over app/landing/spark/about-art/*Art.tsx (comments stripped): zero `whileInView=` literals and zero `{ duration: 0 }` literals, and every file calls reveal( - today 22 whileInView sites across the 8 files",
+      "source guard: no about-art/*Art.tsx contains a quoted hex string literal that equals a tokens.ts colour constant (17 today), and AboutCurve.tsx STEP_COLOR values are token identifiers",
+      "about-art/shared.ts still exports ENTER deep-equal to {once:false, amount:0.5} and DRAW (re-exported from motion-presets) so existing importers compile unchanged; `npm run typecheck` and the rewritten AboutCurve.test.ts pass"
+    ],
+    "premise": [
+      "app/landing/spark/AboutCurve.test.ts:134-149 enforces the about-art reduced-motion contract by TEXT SHAPE: for each line starting `whileInView={{` it demands the next line equal exactly `animate={reduceMotion ? <same literal> : undefined}` (:145) and line i+3 match `transition={reduceMotion ? { duration: 0 }` (:146) - a prettier reflow or a reordered prop fails the gate with no behaviour change",
+      "grep -c 'whileInView={{' over about-art/*.tsx = 3+2+3+4+2+3+3+2 = 22 sites, each writing its final state twice (whileInView + animate) plus a hand-written reduce ternary on transition, e.g. app/landing/spark/about-art/SourceArt.tsx:24-28 and :43-47",
+      "the previews already have ONE gate: app/landing/spark/previews/shared.tsx:39-57 (INSTANT, entrance, pop, stamp) - but it lives in a 'use client' .tsx, so node:test cannot import it (AboutCurve.test.ts:156-157 states the runner has no JSX transform) and its behaviour is only regex-checked (AboutCurve.test.ts:114-132)",
+      "the two vocabularies already diverge on the rule the shared gate states: previews/shared.tsx:28-33 says 'The gate is the TRANSITION, never the initial prop', while HiredArt.tsx:31, :42 and :70 branch `initial` on reduceMotion",
+      "the same scene is drawn twice with drifted constants: IntakeArt.tsx:33-41 hand-rolls the stem (delay 0.6, bg-[#17202a]) that previews/shared.tsx:129-141 Stem provides (delay 0.75, INK); the 47 badge IntakeArt.tsx:53-63 vs InboxPreview.tsx:51-57 uses a raw stamp literal vs stamp()",
+      "app/landing/spark/about-art/shared.ts:9-10 defines ENTER/DRAW as the about-art half; tokens.ts:34-40 defines INK..STEEL, yet about-art/*Art.tsx carry 17 quoted hex literals equal to those tokens (e.g. IntakeArt.tsx:13 '#d65a4a', :49 '#dce7d0') and AboutCurve.tsx:34-43 STEP_COLOR repeats them"
+    ],
+    "rollback": "Pure refactor with no data, route or catalog change: the commit series (preset module + tests, then the 8 art files, then the guard swap) reverts cleanly with git revert because every about-art importer keeps the ENTER/DRAW re-export and no public API moves.",
+    "gate": "architecture",
+    "runner_up": "Reveal-without-loss for /about: the 22 art entrances start at opacity 0 in the served HTML, so print/capture/no-JS readers get blank cards - add a print/no-JS fallback class through the same preset (deferred: needs the preset module first).",
+    "technique": "preset-vocabulary",
+    "body": "## Summary\nCollapse the two Spark motion vocabularies (about-art's ENTER/DRAW + 22 hand-copied reveal triplets, and previews/shared.tsx's entrance/pop/stamp) into one pure `app/landing/spark/motion-presets.ts` whose `reveal(trigger, reduce, final, transition, initial)` builds the framer props, so the reduced-motion contract is a tested function instead of a line-layout regex.\n\n## Description\nToday the /about illustrations obey reduced motion only because every one of 22 motion elements repeats its end state twice and a ternary on its transition, and AboutCurve.test.ts:134-149 checks that by comparing adjacent source lines. That guard pins formatting, not behaviour: reorder a prop and CI goes red; drop the `animate` fallback in a differently-shaped element and it passes. Meanwhile the previews got a real gate (previews/shared.tsx:39-57) that nothing can import in node:test because it sits in a 'use client' .tsx, and the two halves already disagree about whether `initial` may branch (shared.tsx:28-33 vs HiredArt.tsx:31/42/70). The move: one `.ts` module (type-only framer import, no JSX) owning ENTER, DRAW, INSTANT, `reveal()` with an `inView` and a `mount` trigger, and `pop`/`stamp`/`entrance`. about-art/*Art.tsx spread `{...reveal('inView', reduceMotion, final, transition, initial)}`; previews/shared.tsx re-exports the moved helpers so its nine callers do not change. Art colours come from tokens.ts constants instead of 17 re-typed hexes (still literal hexes - app/landing/ keeps its exemption; this is one authority, not theming). The text-shape test is replaced by behaviour tests on the builder plus a simple 'no raw whileInView in about-art' source guard.\n\n## Flow\n1. Write motion-presets.test.ts cases 1-4 against the new module (red).\n2. Create motion-presets.ts; move INSTANT/entrance/pop/stamp from previews/shared.tsx and ENTER/DRAW from about-art/shared.ts, re-exporting both from their old homes.\n3. Rewrite the 22 reveal sites in the 8 art files through reveal(); HiredArt stops branching `initial`.\n4. Replace hex literals with token constants in the art defaults and AboutCurve STEP_COLOR.\n5. Swap AboutCurve.test.ts:134-149 for the source guards (cases 5-6); run test:unit, typecheck, lint, test:perf.\n6. Update docs/features/marketing/README.md rows for previews/ and about-art/ to name motion-presets.ts.\n\n## Expected impact\nThe reduced-motion rule for all 17 Spark illustration modules becomes one function with direct tests; adding a phase art or a preview can no longer silently skip the gate, and a formatter can no longer break CI. ~22 duplicated end-state literals and 17 hex copies disappear; the /about and spotlight versions of the same scene share timing constants. Perf exposure: +1 first-party module on the app/page.tsx graph (via previews/shared.tsx) and on /about, both named; app/page.tsx sits at its ceiling, so the builder records the measured delta and settles perf-budget.json only if test:perf trips.\n\n## Evaluation\nClaim: the Spark reveal contract is enforced by a tested builder, not by source-line adjacency.\nBefore: 0 of 7 acceptance cases pass (motion-presets.ts does not exist; 22 raw whileInView sites; 17 token-equal hex literals).\nAfter: 7 of 7.\nMethod: node:test (motion-presets.test.ts + rewritten AboutCurve.test.ts) under npm run test:unit, plus npm run typecheck.\nResult: pending build.\nGate: architecture",
+    "evidence": "git log -3: dbcdecf66 (base). grep -c 'whileInView={{' app/landing/spark/about-art/*.tsx -> Assignment 3, Design 2, Hired 3, Intake 4, Interview 2, Offer 3, Screen 3, Source 2 = 22. grep -on '\"#[0-9a-f]{6}\"' about-art/*.tsx -> 17 hits (AssignmentArt.tsx:22,58; DesignArt.tsx:13; HiredArt.tsx:13,14,15,16,20; IntakeArt.tsx:13,49; InterviewArt.tsx:10,58,70; OfferArt.tsx:13; ScreenArt.tsx:13,22; SourceArt.tsx:17). AboutCurve.test.ts:145 `assert.equal(lines[i + 1]?.trim(), `animate={reduceMotion ? ${finalState} : undefined}`...)`, :146 `assert.match(lines[i + 3] ?? \"\", /transition=\\{reduceMotion \\? \\{ duration: 0 \\}/`. previews/shared.tsx:42 `export const entrance = (reduce: boolean, transition: Transition): Transition => (reduce ? INSTANT : transition);`. HiredArt.tsx:42 `initial={reduceMotion ? { scale: 1, opacity: 1, rotate: -6 } : { scale: 2.2, opacity: 0, rotate: 12 }}`. No r08 card write set touches app/landing/**; no prior challenge card or open leftover title restates this (leftover 'Gate about-art whileInView entrances on useStillMotion' was built 13cf8332a - this card replaces the shape it left, not the gate itself)."
+  },
+  {
+    "context": "spark-about-illustrations",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "base_sha": "dbcdecf66",
+    "title": "Walk all nine spotlights in one dialog, addressable as /#spotlight-<key>",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 4,
+    "write_set": [
+      "app/landing/spark/previews/index.ts",
+      "app/landing/spark/FeatureSpotlight.tsx",
+      "app/landing/spark/SparkLanding.tsx",
+      "app/landing/spark/sections/FeatureGrid.tsx",
+      "e2e/landing.spec.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/marketing/README.md"
+    ],
+    "new_files": [
+      "app/landing/spark/previews/order.ts",
+      "app/landing/spark/previews/order.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json (only if test:perf trips: previews/order.ts is +1 module on the app/page.tsx graph, which sits at its ceiling)"
+    ],
+    "acceptance": [
+      "PREVIEW_KEYS deep-equals ['score','voice','cases','schedule','inbox','salary','rediscover','offer','gates'] (the grid order of FeatureGrid.tsx:27-37) and PreviewKey is derived from it; FeatureGrid.tsx no longer lists the preview keys itself (source guard: FEATURES maps over PREVIEW_KEYS)",
+      "stepPreview('gates', 1) -> 'score'; stepPreview('score', -1) -> 'gates'; stepPreview('voice', 1) -> 'cases'",
+      "previewPosition('cases') -> {n:3, total:9}; previewPosition('gates') -> {n:9, total:9}",
+      "spotlightHash('offer') -> '#spotlight-offer'; parseSpotlightHash('#spotlight-offer') -> 'offer'; parseSpotlightHash('#spotlight-toString'), '#spotlight-OFFER', '#features', '#feature-offer-title' and '' -> null",
+      "hashAfterClose('#features') -> '#features' and hashAfterClose(null) -> '' (closing restores the hash that was there before the dialog opened; it never leaves a dead #spotlight-* behind)",
+      "landing.previews.prev, landing.previews.next and landing.previews.position ('{n} of {total}') exist in all four catalogs (npm run i18n:check green)",
+      "Playwright (e2e/landing.spec.ts, keyless subset): goto '/#spotlight-cases' -> a dialog named by the cases feature title is visible; ArrowRight -> dialog named by the schedule title and location.hash === '#spotlight-schedule'; Escape -> no dialog and the hash is no longer #spotlight-*"
+    ],
+    "premise": [
+      "the spotlight has exactly one control once pinned: FeatureSpotlight.tsx:77-86 renders only the close button when `dialog` is true, and the body is keyed per preview (:89-91) - to see the next of nine features a visitor must close, re-find the next card in the grid and click it",
+      "open state is memory-only: SparkLanding.tsx:37-38 holds `preview`/`pinned` in useState and pinOpen (:58-61) sets them without touching the URL; `grep -rn 'location.hash\\|hashchange' app/landing` finds no reader, so a pinned spotlight cannot be linked, shared or reloaded",
+      "the sibling page already treats its illustrations as addresses: AboutCurve.tsx:141-142 builds `/about?lang=${locale}#${stepId}` for a copy-link on every step art, and SectionRail.tsx:395 / MobileNav.tsx:65 write band hashes with replaceState - the landing's nine previews are the only illustrated units with no address",
+      "the preview vocabulary breaks the repo's literal-array + derived-union idiom (about-art/shared.ts:13-20 names it): previews/index.ts:29-38 hand-types the PreviewKey union, FeatureGrid.tsx:27-37 re-lists the nine keys to get an order, and FeatureCardArt.tsx:35 keys a third Record - there is no array to step through",
+      "the catalog has no copy for navigation: messages/en.json:1091 `landing.previews` holds only `close` plus the nine per-preview objects",
+      "two surfaces open a pinned spotlight and both go through pinOpen: FeatureGrid.tsx:108 (`onPin`) and SparkLanding.tsx:87 (VoiceTeaser `pinOpen('voice')`) - writing the hash inside pinOpen covers both; hover peeks (FeatureGrid.tsx:72, :109) stay unaddressed and arrow-less because the peek is aria-hidden chrome (FeatureSpotlight.tsx:112-121)"
+    ],
+    "rollback": "Client-only and additive: no route, no server state, no new public path (`/` is already public and a hash never reaches the server). Reverting the series removes the arrows, the hash sync and three catalog keys per locale; PREVIEW_KEYS can stay or go without affecting the record lookups.",
+    "gate": "contract",
+    "runner_up": "Link each spotlight to its /about phase (score->screen, voice->interview, cases->assignment, inbox->intake, offer->offer) via aboutStepId, so a landing visitor can see where a feature sits in the pipeline - cheaper, but a link out, not a mode.",
+    "technique": "external-anchor-vs-internal-id",
+    "body": "## Summary\nTurn the pinned feature spotlight from a one-shot peek into a walkable, linkable mode: previous/next controls and Left/Right keys cycle the nine previews in grid order with a '3 of 9' position, and the open spotlight lives in the URL as `/#spotlight-<key>` so it can be shared, reloaded and linked from outside.\n\n## Description\nThe nine previews are the landing's product demo, but the dialog that shows one (FeatureSpotlight.tsx:77-91) offers only 'close'; seeing the next feature is close, scroll, find, click, nine times. And the spotlight exists only in React state (SparkLanding.tsx:37-61), so the one thing a visitor would send a colleague ('look at the work-sample check') has no URL - while /about already gives every step art a copy-able `#step-NN` address (AboutCurve.tsx:141-142). The pure logic lands in a new `previews/order.ts`: PREVIEW_KEYS as a literal array with PreviewKey derived from it (the idiom about-art/shared.ts:13-20 documents; FeatureGrid then maps over it instead of re-listing keys), `stepPreview`, `previewPosition`, `spotlightHash`/`parseSpotlightHash` with a prototype-safe key guard, and `hashAfterClose`. The hash namespace is `#spotlight-<key>`, deliberately distinct from the internal `feature-<key>-title` element ids (FeatureGrid.tsx:88) - the external address is not an internal id (technique external-anchor-vs-internal-id). SparkLanding reads the hash once on mount and pins that preview; pinOpen and the step handler `replaceState` the hash (no history trail, matching SectionRail.tsx:384-395's reasoning); close restores the prior hash. FeatureSpotlight grows prev/next buttons and the position line on the DIALOG surface only - the hover peek stays aria-hidden and control-free. Arrow keys are handled only while pinned and only when focus is not in a text field. Every surface that opens a pinned spotlight (FeatureGrid card click, VoiceTeaser CTA) routes through pinOpen, so both gain the address with no per-surface code. Three new catalog keys land in all four locales in one commit.\n\n## Flow\n1. order.test.ts cases 1-5 (red); create previews/order.ts; derive PreviewKey in previews/index.ts from it.\n2. FeatureGrid.tsx: build FEATURES from PREVIEW_KEYS + a rotate table.\n3. SparkLanding.tsx: mount-time parseSpotlightHash -> pinOpen; pinOpen/step write spotlightHash; closePreview writes hashAfterClose; pass onStep to FeatureSpotlight.\n4. FeatureSpotlight.tsx: prev/next buttons + '{n} of {total}' in SpotlightPanel when dialog; ArrowLeft/ArrowRight while pinned.\n5. landing.previews.{prev,next,position} in en/cs/de/fr under the shared-surface lock; i18n:check.\n6. e2e/landing.spec.ts journey (case 7); docs/features/marketing/README.md gains the spotlight-address rule.\n\n## Expected impact\nA visitor sees all nine product mockups in one sitting with two keys instead of nine close-scroll-click round trips, and any spotlight becomes a shareable link (sales mail, docs, the Proof/VoiceTeaser bands). The PreviewKey vocabulary gets its array, removing the second hand-list in FeatureGrid. Perf: +1 first-party module (previews/order.ts) on the app/page.tsx graph, which is at its ceiling - the builder measures and records it. No new route; `/` is already admitted by app/_lib/auth/public-routes.ts as the public landing and hashes never reach the server.\n\n## Evaluation\nClaim: the pinned spotlight is navigable across all nine previews and addressable by URL hash.\nBefore: 0 of 7 acceptance cases pass (no order.ts, no nav keys in any catalog, '/#spotlight-cases' opens nothing).\nAfter: 7 of 7.\nMethod: node:test (previews/order.test.ts) under npm run test:unit, npm run i18n:check, and the Playwright landing journey in the keyless subset.\nResult: pending build.\nGate: contract",
+    "evidence": "Base dbcdecf66. FeatureSpotlight.tsx:77 `{dialog && (` -> :78-85 the single close <button>; :89 `<div className=\"pt-5\" key={preview}>`. SparkLanding.tsx:37 `const [preview, setPreview] = useState<PreviewKey | null>(null);` :58-61 pinOpen; :87 `<VoiceTeaser onPreview={() => pinOpen(\"voice\")} />`. `grep -rn \"location.hash\\|replaceState\\|hashchange\" app/landing` -> only DemoUnavailableNotice.tsx:68, market/MarketPulseAtlas.tsx:59, SectionRail.tsx:395, sections/MobileNav.tsx:65 - none reads a spotlight hash. previews/index.ts:29-38 `export type PreviewKey = | \"score\" | ... | \"gates\";` (no array). FeatureGrid.tsx:27-37 FEATURES re-lists the nine keys; :88 `id={`feature-${f.preview}-title`}`. node -e over messages/en.json -> Object.keys(landing.previews) = [close, score, voice, cases, schedule, inbox, salary, rediscover, offer, gates]. Open leftovers checked and NOT restated: 'Pin the matching feature spotlight from each Proof card' (spark-feature-showcase, a Proof-band CTA), 'Add a shared Open-in-product footer to preview chrome' and 'Add an Open-in-product CTA on CasesPreview' (links into the app) - none adds navigation between spotlights or an address. No r08 write set touches app/landing/** or e2e/landing.spec.ts."
+  }
+]

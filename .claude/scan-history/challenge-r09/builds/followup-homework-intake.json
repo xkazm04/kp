@@ -1,0 +1,26 @@
+{
+  "card": "devcase-lifecycle/B follow-up (loop_open)",
+  "title": "A homework arrival never reopens intake a recruiter stopped",
+  "status": "landed",
+  "base": "16ad0e337",
+  "shas": ["02236bb1b"],
+  "behaviour": "In inviteToCase, when no open 'local' posting exists, the case's postings are read (listPostings(ws) filtered to the case) and classified by intakeOf (DevCaseDetail.publish.ts, the rule devcase-lifecycle/B introduced). state 'closed' (has postings, all closed: stop door or lifecycle close-out) -> refuse(entry, 'intake_stopped'): nothing published, nothing sent, logged, candidate stays in the Homework column for a human (the hook's existing refuse path). 'unpublished' (never published) and 'live' on another channel keep today's behaviour (publish/mint).",
+  "lock_strategy": "re-check: the intake read runs after the hook's last await (the dynamic import of ./distribution) and immediately before adapter.publish, which reaches createPosting's IMMEDIATE transaction without yielding - no stop can interleave in-process. No db.transaction touched.",
+  "tests_added": ["app/_lib/stage-hooks-homework.test.ts: 'a STOPPED intake is not reopened by a homework arrival: the candidate waits for a human'"],
+  "cases_red_before": 1,
+  "cases_green_after": 1,
+  "red_evidence": "expected 'failed', actual 'invited' (node scripts/run-unit-tests.mjs app/_lib/stage-hooks-homework.test.ts, exit 1)",
+  "gates": {
+    "unit_touched_dirs": 0,
+    "unit_detail": "stage-hooks-homework 8/8, stage-hooks + devcaseIntakeState + [id]/intake route 28/28, stage-hooks-suppression + devcase-case-postings + devcase-ledger 18/18",
+    "tsc": "1 (all errors under untracked kpi-sim/ - foreign; 0 outside it)",
+    "eslint": 0,
+    "test_perf": 0,
+    "perf_budget_note": "+1 module (DevCaseDetail.publish.ts, no imports) on the hook graph; no ceiling moved and none raised - check-budget top measurements identical before/after",
+    "docs_check": 0,
+    "review_constitution": 0
+  },
+  "docs": "docs/features/dev-case/README.md: Known-gap bullet removed; homework section states the intake_stopped refusal and its pin (edited under .git/scan-sweep-challenge.lock)",
+  "files_changed": 3,
+  "reason_name": "intake_stopped (new member of the hook's HomeworkRefusal union; the outcome type is only consumed by stage-hooks.ts as a pass-through)"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "followup-resend-closed-invite",
+  "origin": "loop_open recorded by r09 devcase-lifecycle/B",
+  "commit": "ce9dd85d0",
+  "base": "16ad0e337",
+  "verdict": "shipped",
+  "defect": "POST /api/comms/[id]/resend re-sent a stored case_invite body verbatim; after the posting's intake was stopped it mailed an apply link answering 410.",
+  "mapping": "A case_invite outbox row's ref is the pipeline entry id; the posting is identified only by the apply token in the body (/devcase/apply/<token>), the same join devcase-invite-binding.ts and stage-hooks-homework.ts use. Closed = dev_postings.status != 'open' (the apply page / submit routes answer POSTING_CLOSED 410).",
+  "fix": "route.ts: caseInviteLinkIsDead(body, ws) - every apply token in a case_invite body must resolve via getPostingByToken to an OPEN posting of the same workspace; otherwise jsonRefusal('POSTING_CLOSED', 410), placed after the SIM refusal and before the rate limiter, dedup read and sendComm.",
+  "code": "POSTING_CLOSED reused (existing code, documented 410); no new code, no catalog change",
+  "client_door": "resendDoorOf not changed: outbox rows carry no posting status, so no client can withhold the button; the server refusal is the guard and resendOutcome maps it to 'refused' with the code, rendered via useErrorMessage.",
+  "untouched": ["app/_lib/comms-dispatch.ts channel constants", "app/_lib/comms-resend-outcome.ts"],
+  "tests": {
+    "file": "app/api/comms/[id]/resend/resend-closed-invite.test.ts",
+    "red_before_fix": ["closed posting -> 410 POSTING_CLOSED, no recovery row", "vanished posting token -> 410 POSTING_CLOSED"],
+    "green_control": ["open posting invite re-sends 200 queued", "rejection naming a closed posting's link re-sends 200"]
+  },
+  "gates": {
+    "unit_resend_dir_plus_drawerCommsTruth_plus_comms_lib_plus_contracts": "520/520 pass, exit 0",
+    "tsc": "clean (excluding foreign kpi-sim/)",
+    "eslint_touched": "exit 0",
+    "i18n_check": "not run - no code or catalog added",
+    "api_check": "exit 0",
+    "test_perf": "exit 0; share = 0 new modules (getPostingByToken comes from db/devcase, already on the route graph)",
+    "docs_check": "exit 0",
+    "docs_check_diff": "ok",
+    "review_constitution": "exit 0, no finding"
+  },
+  "docs": ["docs/features/dev-case/README.md: Known-gap narrowed to the homework-column half; closed-intake section names the resend refusal", "docs/features/comms/README.md: resend bullet names the POSTING_CLOSED refusal"],
+  "remaining_open": "stage-hooks-homework.ts still publishes a fresh posting on a stopped case (reopens intake) - separate gap, left in dev-case Known gaps."
+}
