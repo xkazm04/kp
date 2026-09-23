@@ -3251,7 +3251,7 @@
       "agingSlas": "SLA de stagnation",
       "agingSlasTitle": "Définir combien de temps un candidat peut rester dans chaque étape avant d’être signalé comme en stagnation",
       "slaEditorTitle": "Jours avant stagnation, par étape",
-      "slaEditorNote": "Vide = valeur par défaut. Enregistré pour ce navigateur.",
+      "slaEditorNote": "Vide = valeur par défaut du rôle. S'applique à toute l'équipe.",
       "views": "Vues",
       "applyView": "Appliquer cette vue",
       "deleteView": "Supprimer la vue {name}",
@@ -3309,7 +3309,12 @@
       "previewDriftedRow": "Vous aviez approuvé : {approved}. Le passage décide désormais : {now}.",
       "previewDriftAction": "{action, select, advance {faire avancer} reject {soumettre à la revue du rejet} hold {mettre en attente} other {aucun changement}}",
       "previewDriftedNote": "Tout ce que vous avez laissé coché a été appliqué. Relancez l’aperçu pour revoir les lignes retenues au regard du tableau en direct.",
-      "previewRepreview": "Relancer l’aperçu"
+      "previewRepreview": "Relancer l’aperçu",
+      "slaSaveFailed": "Impossible d'enregistrer ce délai.",
+      "slaLocalOffer": "Ce navigateur conserve encore {count, plural, one {# délai} other {# délais}} datant d'avant leur partage avec l'équipe : {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# jour} other {# jours}}",
+      "slaLocalAdopt": "Appliquer à l'équipe",
+      "slaLocalDiscard": "Ignorer"
     },
     "emptyState": {
       "optional": "Facultatif",

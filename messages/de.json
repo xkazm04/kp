@@ -3251,7 +3251,7 @@
       "agingSlas": "Alterungs-SLAs",
       "agingSlasTitle": "Legen Sie fest, wie lange eine/r Kandidat/in in jeder Phase bleiben darf, bevor eine Alterungswarnung ausgelöst wird",
       "slaEditorTitle": "Tage bis zur Alterung, pro Phase",
-      "slaEditorNote": "Leer = Standard. Für diesen Browser gespeichert.",
+      "slaEditorNote": "Leer = Standard der Rolle. Gilt für alle in diesem Team.",
       "views": "Ansichten",
       "applyView": "Diese Ansicht anwenden",
       "deleteView": "Ansicht {name} löschen",
@@ -3309,7 +3309,12 @@
       "previewDriftedRow": "Von Ihnen freigegeben: {approved}. Der Durchlauf entscheidet jetzt: {now}.",
       "previewDriftAction": "{action, select, advance {weiterleiten} reject {zur Prüfung der Ablehnung vormerken} hold {zurückstellen} other {keine Änderung}}",
       "previewDriftedNote": "Alles andere, was Sie markiert gelassen haben, wurde angewendet. Rufen Sie die Vorschau erneut auf, um die zurückgehaltenen Zeilen mit dem Live-Board abzugleichen.",
-      "previewRepreview": "Vorschau erneut anzeigen"
+      "previewRepreview": "Vorschau erneut anzeigen",
+      "slaSaveFailed": "Dieser Zeitraum konnte nicht gespeichert werden.",
+      "slaLocalOffer": "Dieser Browser enthält noch {count, plural, one {# Zeitraum} other {# Zeiträume}} aus der Zeit, bevor sie mit dem Team geteilt wurden: {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# Tag} other {# Tage}}",
+      "slaLocalAdopt": "Für das Team übernehmen",
+      "slaLocalDiscard": "Verwerfen"
     },
     "emptyState": {
       "optional": "Optional",

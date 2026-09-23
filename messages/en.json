@@ -3251,7 +3251,7 @@
       "agingSlas": "Aging SLAs",
       "agingSlasTitle": "Set how long a candidate may sit in each stage before it flags as aging",
       "slaEditorTitle": "Days before aging, per stage",
-      "slaEditorNote": "Blank = default. Saved for this browser.",
+      "slaEditorNote": "Blank = role default. Applies to everyone on this team.",
       "views": "Views",
       "applyView": "Apply this view",
       "deleteView": "Delete view {name}",
@@ -3309,7 +3309,12 @@
       "previewDriftedRow": "You approved: {approved}. The pass now decides: {now}.",
       "previewDriftAction": "{action, select, advance {advance} reject {queue for rejection review} hold {hold} other {no change}}",
       "previewDriftedNote": "Everything else you kept ticked was applied. Preview again to review the held-back rows against the live board.",
-      "previewRepreview": "Preview again"
+      "previewRepreview": "Preview again",
+      "slaSaveFailed": "Could not save that cadence.",
+      "slaLocalOffer": "This browser still holds {count, plural, one {# cadence} other {# cadences}} from before cadences were shared with the team: {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# day} other {# days}}",
+      "slaLocalAdopt": "Apply to the team",
+      "slaLocalDiscard": "Discard"
     },
     "emptyState": {
       "optional": "Optional",

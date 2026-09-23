@@ -3251,7 +3251,7 @@
       "agingSlas": "SLA stárnutí",
       "agingSlasTitle": "Nastavte, jak dlouho může kandidát zůstat v každé fázi, než se označí jako stárnoucí",
       "slaEditorTitle": "Dny do stárnutí, podle fáze",
-      "slaEditorNote": "Prázdné = výchozí. Uloženo pro tento prohlížeč.",
+      "slaEditorNote": "Prázdné = výchozí hodnota role. Platí pro všechny v tomto týmu.",
       "views": "Pohledy",
       "applyView": "Použít tento pohled",
       "deleteView": "Smazat pohled {name}",
@@ -3309,7 +3309,12 @@
       "previewDriftedRow": "Schválili jste: {approved}. Průchod nyní rozhoduje: {now}.",
       "previewDriftAction": "{action, select, advance {posunout dál} reject {zařadit ke kontrole zamítnutí} hold {podržet} other {beze změny}}",
       "previewDriftedNote": "Vše ostatní, co jste nechali zaškrtnuté, bylo použito. Zobrazte náhled znovu a zkontrolujte zadržené řádky proti aktuální nástěnce.",
-      "previewRepreview": "Zobrazit náhled znovu"
+      "previewRepreview": "Zobrazit náhled znovu",
+      "slaSaveFailed": "Tuto lhůtu se nepodařilo uložit.",
+      "slaLocalOffer": "Tento prohlížeč stále uchovává {count, plural, one {# lhůtu} few {# lhůty} other {# lhůt}} z doby, kdy se lhůty s týmem nesdílely: {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# den} few {# dny} other {# dní}}",
+      "slaLocalAdopt": "Použít pro tým",
+      "slaLocalDiscard": "Zahodit"
     },
     "emptyState": {
       "optional": "Volitelné",
