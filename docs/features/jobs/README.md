@@ -695,20 +695,28 @@ Every CTA in a pack links the quick-apply form; the pack ships a markdown
 copy-all export. Rendering the video scripts into actual video/avatar assets
 is out of scope (kp generates scripts only).
 
-**One pack per (job, language) is a GLOBAL constraint, not a per-team one.**
-`campaign_packs`' primary key is `(job_id, lang)`; `workspace_id` was added by a
-later migration and is *not* part of it. `saveCampaignPack` upserts with
-`ON CONFLICT(job_id, lang) DO UPDATE … WHERE campaign_packs.workspace_id =
-excluded.workspace_id`, which correctly stops team B overwriting team A's pack —
-but the same foreign row also blocks B's own INSERT, and SQLite reports that as
-*zero changes, no error*. Reachable on any shared corpus job (`workspace_id`
-NULL — the seeded reference roles every tenant can open the Campaign tab on).
-The store therefore **throws** on a zero-change write rather than returning a
-record for a pack that was never stored (`changes === 0` can only mean a foreign
-row holds the slot: a fresh insert and a same-team regenerate both report 1).
-Behavioral coverage: `app/_lib/db/campaign-tenancy.test.ts`. The real fix is a
-`(job_id, lang, workspace_id)` key — a `campaign_packs` rebuild in `core.ts`,
-listed under Known gaps.
+**One pack per (job, language, team).** `campaign_packs`' primary key is
+`(job_id, lang, workspace_id)`, so two teams generating for the same shared corpus
+role (`workspace_id` NULL — the seeded reference roles every tenant can open the
+Campaign tab on) each keep their own pack, and a same-team Regenerate overwrites
+only that team's row. `saveCampaignPack` upserts with a **target-less**
+`ON CONFLICT DO UPDATE … WHERE campaign_packs.workspace_id = excluded.workspace_id`,
+which is valid against both key shapes; it still throws on a zero-change write,
+which can now only happen while a table carries the legacy key.
+
+A database created before the widening carries `(job_id, lang)`.
+`widenCampaignPacksKey` (`app/_lib/db/core.ts`) rebuilds it at boot, guarded by the
+primary key's SHAPE read from `PRAGMA table_info` — not by a missing column, since
+`workspace_id` was added long before — so it also re-widens an old-key table a
+restored dump brings back, and is a no-op on every later boot. **Rolling the image
+back past this change** needs `narrowCampaignPacksKey(db)` first: an older image
+upserts with `ON CONFLICT(job_id, lang)`, which SQLite refuses against the widened
+key. It restores `(job_id, lang)`, keeping the default workspace's pack per slot
+(else the newest) and returning how many packs it dropped — packs are regenerable
+output. `app/_lib/db/rollback-drill.test.ts` executes that way back, and
+`app/_lib/db/tenant-keys.test.ts` fails any team-scoped table whose primary key or
+unique index omits `workspace_id` without a named identity-key reason. Behavioral
+coverage: `app/_lib/db/campaign-tenancy.test.ts`.
 
 **The read is validated; the write is not, on purpose.** `getCampaignPack` decoded
 its JSON column with `safeRowParse<unknown>(…)` and no validator, while `intakes.ts`
@@ -963,7 +971,7 @@ role (`terminalPriorEntriesForCandidate`'s `job_id != ?`).
 `dismissRediscoveryAlert` (`app/_lib/rediscovery-alert-store.ts`) wrote
 `WHERE id = ? AND dismissed_at IS NULL` with no tenant predicate. An alert id is not
 a capability token — `listRediscoveryAlerts` hands it to every recruiter in that
-team's feed — and dismissal is sticky (the `UNIQUE (job_id, candidate_id)` index
+team's feed — and dismissal is sticky (the `UNIQUE (workspace_id, job_id, candidate_id)` index
 makes every later sweep an `INSERT OR IGNORE` no-op), so any holder could
 permanently suppress another team's silver-medalist alert. The write now filters
 `workspace_id` too; `changes > 0` answers "already dismissed", "never existed", and
@@ -1002,12 +1010,19 @@ exception is a missing `pipeline_entries` table, which is a logical identity —
 table means no entries means no consent record can suppress anyone — not a loophole.
 
 **Retention.** `rediscovery_alerts` had no `DELETE` anywhere in the tree: dismissed
-rows are kept deliberately (the `UNIQUE (job_id, candidate_id)` index is what makes
+rows are kept deliberately (the `UNIQUE (workspace_id, job_id, candidate_id)` index is what makes
 dismissal sticky) and un-acted-on ones simply accrued, each holding a candidate's
 name for a re-contact that never happened. `pruneRediscoveryAlerts` now drops
 dismissed rows past `ALERT_DISMISSED_RETENTION_DAYS` (30) and undismissed ones past
 `ALERT_STALE_RETENTION_DAYS` (90), from the clock in `instrumentation-node.ts`
 beside the apply-session retention sweep and under the same autonomy pause.
+
+**The dedup key is per team.** It used to be `ux_rediscovery_alert ON (job_id,
+candidate_id)`; the store's first open now drops it and creates `ux_rediscovery_alert_team` led by `workspace_id`
+(the same-name `CREATE … IF NOT EXISTS` would have been a no-op). A cross-team
+collision on the old key is not reachable through `buildCandidatePool` — candidate ids
+are globally-unique PKs owned by one team — but the key, not the caller, decides what
+a second team's write does.
 
 ## A failed ranking is reported, not folded into a zero
 
@@ -1514,11 +1529,6 @@ include `workspace_id`).
   every next-intl / `toLocale*` format falls back to the environment default —
   the server's zone during SSR, the browser's after hydration. Picking a zone
   (workspace setting? UTC? the JD's own?) is a product decision, not a patch.
-- `campaign_packs` is keyed `(job_id, lang)` without `workspace_id`, so only ONE
-  team can hold a pack for a given shared-corpus role + language. The second
-  team's save is refused with an error instead of being silently lost; making it
-  actually work needs a table rebuild onto `(job_id, lang, workspace_id)` in
-  `app/_lib/db/core.ts`.
 - `GET /api/jobs` now forwards `truncated` / `matching` / `limit` (see the table
   above), but **no client reads them yet**: `useJobsList` still stores only
   `jobs` + `stats`, so `JobsTabResults`' "Showing N of M" line keeps comparing a
