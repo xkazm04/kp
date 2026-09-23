@@ -680,11 +680,27 @@ to hide behind a generic 500. Live examples: `INTAKE_TURN_TIMEOUT`,
 `npm run schemas:gen` (`python -m pipeline.jobfit.codegen`, also run by
 `npm run typecheck` and `npm run build`) renders
 `app/_lib/schemas.generated.ts` and `app/_lib/taxonomy.generated.ts` from the
-Python models. `npm run schemas:check` fails when they are out of date.
+Python models, and `app/_lib/contract-constants.generated.ts` from the
+`CONTRACT_CONSTANTS` table in `codegen.py`. `npm run schemas:check` fails when
+any of them is out of date — but CI does not run it, so the contract file's
+freshness is pinned inside `test:python:gate` by
+`pipeline/jobfit/tests/test_codegen_contract_constants.py`.
 
 So the payload types on both sides of this boundary already have one source.
 **Do not hand-write a TypeScript mirror of a pipeline model** — add it to the
 Python model and regenerate.
+
+The same holds for the contract NUMBERS both languages enforce (scorecard-notes
+budget, screening-volume tiers, calibration floor and bin count, interview-kit
+caps, feedback-letter cap, probe threshold). Each is one `CONTRACT_CONSTANTS` row
+naming the Python value; its TS home module (`interview-transcript.ts`,
+`automation-cache-key.ts`, `calibration.ts`, `interview-kit-types.ts`,
+`interview-letter-types.ts`, `devcase-probe-audit.ts`) re-exports the generated
+name from `./contract-constants.generated.ts` (explicit `.ts`: hand-rolled test
+resolve hooks read `.generated` as an extension) and types no literal of its
+own. A new shared number is a new row, not a second literal and a sync regex.
+The one exception is `app/_lib/fit-thresholds.ts`: it stays import-free on the
+client page graph, and `test_fit_threshold_sync.py` pins its two floors.
 
 ### 2.4 The CLIs
 
