@@ -411,13 +411,13 @@ jobs:
           # length to EQUAL this number - so tolerating a new skip takes a
           # register entry AND raising this value, which review:constitution
           # blocks (skip-baseline-raised). The count band is kept as a second
-          # lock: skips > 5 fail, and skips < 4 fail (one env-conditional slot:
-          # the interview-eval grounded bridge skips here, where no node_modules
-          # is installed, and runs in a full checkout).
+          # lock: skips > 4 fail, and so do skips < 4 (no env-conditional slot is
+          # left: the interview eval reads a committed brief snapshot now, so its
+          # grounded test runs here without node_modules).
           #
           # Lower this number in the same commit that deletes a register entry;
           # run_gated.py's message names the number to record.
-          KP_SKIP_BASELINE: "5"
+          KP_SKIP_BASELINE: "4"
           # Print the ten slowest MODULES after the run (run_gated.py --timings by
           # another name — set here rather than on the `run:` line so the gate
           # command CI executes stays byte-identical to the one AGENTS.md documents

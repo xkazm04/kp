@@ -27,6 +27,7 @@
     "lint:ts-ratchet": "node scripts/lint/ts-ratchet.mjs",
     "schemas:gen": "node scripts/schemas-gen.mjs",
     "schemas:check": "node scripts/schemas-gen.mjs --check",
+    "interview:briefs": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/interview-briefs-snapshot.ts",
     "taxonomy:check": "python -m pipeline.jobfit.taxonomy_check --check-report",
     "taxonomy:report": "python -m pipeline.jobfit.taxonomy_check --write-report",
     "typecheck": "npm run schemas:gen && npm run clean:tsbuildinfo && tsc --noEmit",

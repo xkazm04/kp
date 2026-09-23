@@ -234,7 +234,7 @@ def propose_patches(
 
 def optimize(
     scenarios: list[ie.Scenario], provider: ClaudeCliProvider, *, rounds: int = 3,
-    judge: bool = False, brief_mode: str = "port", ablate: str | None = None,
+    judge: bool = False, ablate: str | None = None,
 ) -> dict[str, Any]:
     """Eval-gated hill-climb with a held-out validation fold (finding #2).
 
@@ -245,12 +245,12 @@ def optimize(
     train, val = split_scenarios(scenarios)
 
     def _eval(scen: list[ie.Scenario], patches: list[str]) -> list[ie.Row]:
-        rows = ie.run_scenarios(scen, provider, brief_mode=brief_mode, brief_transform=make_transform(patches, ablate))
+        rows = ie.run_scenarios(scen, provider, brief_transform=make_transform(patches, ablate))
         if judge:
             ie.judge_rows(rows, provider)
         return rows
 
-    base_brief = make_transform([], ablate)(ie.render_brief(scenarios[0], brief_mode))
+    base_brief = make_transform([], ablate)(ie.render_brief(scenarios[0]))
     patches: list[str] = []
 
     # Can't hold out a validation fold (need both folds non-empty) → refuse to accept anything.
@@ -421,7 +421,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-scenarios", type=int, default=DEFAULT_MAX_SCENARIOS,
                         help="Cap the working set (the loop re-runs it every round).")
     parser.add_argument("--judge", action="store_true", help="Include LLM-judge quality in the score.")
-    parser.add_argument("--briefs", choices=["port", "ts"], default="port")
+    parser.add_argument("--briefs", choices=["port", "ts"], default=None,
+                        help="DEPRECATED no-op, kept one release: the loop reads the committed "
+                             "production-brief snapshot (eval/interview_briefs.json).")
     parser.add_argument("--ablate", choices=list(_ABLATIONS), help="Strip a guardrail first (self-test).")
     parser.add_argument("--max-calls", type=int, default=0,
                         help="Stop the climb after this many provider calls (0 = no cap). The "
@@ -435,6 +437,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     use_color = should_color(args)
+    if args.briefs is not None:
+        sys.stderr.write(
+            f"interview_optimize: --briefs {args.briefs} is a no-op — the loop reads the production "
+            f"brief snapshot ({ie.BRIEF_SNAPSHOT_PATH.name}; regenerate with `{ie.REGENERATE_COMMAND}`)\n"
+        )
 
     scenarios = ie.select_scenarios(bank=args.bank, n=args.n, sample=args.sample, seed=args.seed, scenario=args.scenario)
     if not scenarios:
@@ -452,7 +459,7 @@ def main(argv: list[str] | None = None) -> int:
     # Meter every run, cap it when asked: 0/0 counts without limiting.
     metered = BudgetedProvider(provider, max_calls=args.max_calls, max_minutes=args.max_minutes)
     result = optimize(
-        scenarios, metered, rounds=args.rounds, judge=args.judge, brief_mode=args.briefs, ablate=args.ablate
+        scenarios, metered, rounds=args.rounds, judge=args.judge, ablate=args.ablate
     )
 
     if args.json:

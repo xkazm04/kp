@@ -26,12 +26,6 @@
   ],
   "skips": [
     {
-      "id": "pipeline.jobfit.tests.test_interview_eval.TestGroundedBridge.test_grounded_brief_renders_the_real_run_of_show",
-      "when": "env-conditional",
-      "condition": "self.skipTest when the grounded DB-fixture bridge is unavailable: it spawns node + better-sqlite3, and the Python-only CI job installs no node_modules",
-      "why": "The bridge needs the Node dependency tree the python-gate job deliberately does not install; it RUNS in a full checkout, which is what makes it the one env-conditional entry."
-    },
-    {
       "id": "pipeline.jobfit.tests.test_claude_cli.LiveSmokeTest.test_real_cli_pong",
       "when": "always",
       "condition": "skipUnless KP_CLAUDE_CLI_LIVE=1, which CI never sets (its inner `claude CLI not on PATH` skip is unreachable behind it)",

@@ -51,27 +51,27 @@ from pathlib import Path
 # this number. So adding a tolerated skip costs two edits — a register entry and a
 # raised KP_SKIP_BASELINE in .github/workflows/ci.yml — and the second one is what
 # the review:constitution lens blocks (`skip-baseline-raised`). Deliberately.
-SKIP_BASELINE = int(os.getenv("KP_SKIP_BASELINE", "5"))
+SKIP_BASELINE = int(os.getenv("KP_SKIP_BASELINE", "4"))
 
-# THE FLOOR, and why it is not simply the ceiling. Exactly one tolerated skip is
-# ENVIRONMENT-conditional rather than unconditional: test_interview_eval's
-# grounded DB-fixture bridge skips where node_modules is absent (CI's Python-only
-# job) and RUNS in a full developer checkout. The other four skip everywhere — an
-# env var CI never sets, and three fixtures deliberately not in the repo. So the
-# count is legitimately SKIP_BASELINE in CI and SKIP_BASELINE - 1 locally, and a
-# floor set at the ceiling would fail every developer's run.
+# THE FLOOR, and why it can sit below the ceiling. A tolerated skip may be
+# ENVIRONMENT-conditional rather than unconditional: it skips in CI's Python-only
+# job and RUNS in a full developer checkout, so the count is legitimately
+# SKIP_BASELINE in CI and SKIP_BASELINE - ENV_CONDITIONAL_SKIPS locally. Today there
+# is none: the one there was (test_interview_eval's grounded DB-fixture bridge,
+# which needed node_modules) went away when the interview eval started reading a
+# committed brief snapshot instead of spawning node, so floor == ceiling and every
+# run must skip exactly the four `always` entries.
 #
-# Below the floor is the failure this half exists for, and it had gone unnoticed
-# since the baseline was first written: a tolerated skip started running again (a
-# fixture landed, a key appeared) and nobody lowered the number, so the ceiling
-# now carries spare room a NEW silent skip can take without tripping anything. The
-# message names the number to record.
+# Below the floor is the failure this half exists for: a tolerated skip started
+# running again (a fixture landed, a key appeared) and nobody lowered the number,
+# so the ceiling carries spare room a NEW silent skip can take without tripping
+# anything. The message names the number to record.
 #
 # The register must mark EXACTLY this many entries `env-conditional`. Without that
-# rule, flipping a second entry from `always` to `env-conditional` is a one-word
-# JSON edit that lets a run with two tolerated skips missing pass — a run the floor
-# below refuses. The number lives HERE, in gate-policy code, not in the register.
-ENV_CONDITIONAL_SKIPS = 1
+# rule, flipping an entry from `always` to `env-conditional` is a one-word JSON
+# edit that lets a run with a tolerated skip missing pass — a run the floor below
+# refuses. The number lives HERE, in gate-policy code, not in the register.
+ENV_CONDITIONAL_SKIPS = 0
 
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parents[2]
