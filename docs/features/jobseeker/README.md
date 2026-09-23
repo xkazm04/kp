@@ -364,7 +364,7 @@ adapters and a scripted runner with no network, no interpreter and no DB
 | --- | --- | --- |
 | Acquire | `reconcileSource` per enabled, unpaused source, creation order; a `blocked`/`collapsed` source is paused by reconcile and the scan moves on | `SCAN_LIMITS { maxRefs: 300, maxDetailFetches: 60 }` per source; 8-min wall budget (`SCAN_WALL_BUDGET_MS`) joined with the caller's signal — stops BETWEEN sources, and a source not reached is recorded `skipped` / `wall_budget`, never omitted |
 | Structure | `listPostingsNeedingStructure` (job_json NULL) → `posting_structure_cli` → `setPostingStructure(id, job, "deterministic")` | one spawn per 200 |
-| Match | `listPostingsForMatching(ws, {upToDateVersion, profileUpdatedAt})` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n` → `setPostingMatch` with `match_version = "jobseeker-match-v1"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
+| Match | `listPostingsForMatching(ws, {upToDateVersion, profileUpdatedAt})` → `match_cli --profile-json --preferences-json --jobs <empty corpus> --jobs-json <postings> --limit n --include-blocked` → `setPostingMatch` for survivors, `setPostingBlocked` for the KO'd tail, both with `match_version = "jobseeker-match-v2"` | one spawn per 500; the seed corpus is replaced by an empty one so only the seeker's postings rank |
 | Deep-dive | `listDeepDiveCandidates({threshold, limit: maxPerScan})` (match_total ≥ `preferences.deepDive.threshold`, live, `reasoning_json IS NULL`, best first) → `deepDivePosting` | `deepDive.maxPerScan`; stops at the FIRST keyless answer |
 
 **Matching is incremental.** The match phase asks the store only for the rows that still
@@ -382,9 +382,26 @@ spawns `match_cli` zero times instead of re-scoring the whole dataset. The deep-
 shortlist is unaffected: it selects on `match_total` and `reasoning_json`, not on
 freshness.
 
-KO'd postings are NOT scored 0: the matcher returns only survivors (`meta.koFiltered`,
-aggregated `meta.koReasons`), so a posting that failed the hard filter stays unmatched
-(`match_total NULL`, sorted last) and the count goes to the server log.
+**A filtered posting names its gate and is stamped, never scored 0.** The seeker's own
+preferences are KO inputs — `workModes` becomes `preferred_work_modes` and `seniority`
+overrides the profile's (`transform.apply_preferences`) — beside the profile's languages
+and education. `matchChunk` passes `--include-blocked`, so `match()` also returns every
+posting the KO filter removed as `blocked: [{jobId, koKeys, koDetails, result}]`, `result`
+being the MatchResult scored AS IF the gate were lifted (its KO-mirrored eligibility flag
+reads `flag` — the only way those three chips can ever light up on `/me`). `readBlocked`
+drops an id outside the chunk and filters `koKeys` to `KO_REASON_KEYS` (`types.ts`); an
+entry left with no known key stays unstamped and is re-matched next scan.
+`setPostingBlocked` stores `match_json = {blocked: {koKeys, koDetails}, asIf: <MatchResult>}`
+with `match_total` and `fit_tier` NULL — the sort column, the `minTotal` filter and the
+deep-dive shortlist all read `match_total`, so an as-if score never ranks — and stamps
+`match_version`/`matched_at`, so the next unchanged scan counts the row in
+`skippedUpToDate` instead of re-sending it (it used to be re-sent every scan). **Re-check,
+not lock:** the UPDATE carries `AND job_json IS NOT NULL`; a content change after the
+list (`upsertPosting` NULLs `job_json`) makes it `changes === 0`, and a stale verdict is
+never stamped over new content. The KO count still goes to the server log
+(`ko_filtered`). `MATCH_VERSION` moved to `jobseeker-match-v2` so every row stored under
+v1 is re-matched once and gains its verdict. The recruiter `/api/match` never passes the
+flag, and without it `MatchResponse.blocked` is absent from the dump (byte-identical).
 
 `deepdive.ts` — `deepDivePosting(posting, profile, {lang, signal, workspaceId, deps})`,
 three spawns per posting: `jobs_cli ingest --job-id <postingId>` (use case `jd_ingest`;
@@ -469,7 +486,11 @@ applied, or why they dropped it), and `IconAction` glyphs for shortlist / "I app
 `DismissPicker.tsx` (a reason from `DISMISS_REASONS`, required, plus an optional note)
 has two surfaces from one dialog: `POPOVER` hung off the row's action cell in the feed —
 a ledger row must not grow a panel underneath it — and a `PANEL_SUNKEN` well inline on
-the posting page. An unscored posting says "Not scored", never 0.
+the posting page. A posting with no score is never 0, and the two no-score states are
+told apart: a FILTERED row (`JobseekerPostingSummary.blockedBy`, projected from the stored
+verdict by `projectMatch`) shows one amber `me.jobs.card.filtered.<key>` badge per gate
+in the fit column, and a not-yet-matched row says `card.unscored`. A filtered row's own
+`eligibility`/`confidence` read empty — the as-if flags describe a score it does not have.
 
 Rows ARRIVE rather than appear. `useRowArrival` diffs by posting id and mirrors
 `ArrivalList`'s contract (`IntakeArrivalMotion.tsx`: the same spring, 40 ms stagger
@@ -627,6 +648,16 @@ sentence rather than to `me.common.unreachable`; the two hops this page owns cla
 fully. The write notice keeps its dismiss (`usePostingActions.clearError`) through
 `FailureNotice`'s optional `onDismiss`.
 
+**A filtered posting's match panel.** `postingDetailView` adds `blocked`
+(`blockedView(match, total)` in `postingView.ts`: the known gates, the as-if total and
+tier, the as-if MISMATCH flags; null whenever the row has a total or no known gate).
+`match` stays null for it, so the dial never draws an as-if score. The panel shows the
+gate badges, `me.posting.match.blocked`, `blockedAsIf` with the as-if score and tier, the
+engine's flag sentences, and a link to `/me` where the profile and preferences that set
+the gate live (`blockedLink`); no deep-dive door, like the shortlist. A never-matched
+posting says `match.notScored`, whose copy no longer conflates the two states. `FitSheet`
+shows the same gate badges plus the as-if mismatch chips in its header.
+
 **The fit verdict lives on the posting, not only in the overlay.** The page reads the
 latest CLOSED fit dialog for the row — `latestFitDialogForPosting(postingId, workspaceId)`
 in `app/_lib/db/jobseeker-dialogs.ts` (workspace-bound, `kind = 'fit'`, `status =
@@ -736,6 +767,11 @@ change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
   tuple; only the line's position is the approximation.
 - `/me/jobs/[id]` reads the store directly; a `GET /api/jobseeker/postings/[id]` would let
   the page become a client reader like the other three, but nothing needs it yet.
+- `fitTurnContext` (`app/_lib/jobseeker-fit-context.ts`) passes the stored `match_json`
+  verbatim, so for a filtered posting the fit coach receives `{blocked, asIf}` and reads
+  no `eligibility`/`missingSkills` from it — the same empty context it had when a KO'd row
+  carried no match at all. Passing `asIf` (plus the gate) would let the coach name the
+  blocking gate; not done in the change that stored the verdict.
 - `ScanSummary` has no `koFiltered` / `structured` counts and `RECONCILE_REASONS` has no
   `wall_budget`: the scan logs the KO count and records an unreached source with
   `reason: "wall_budget"` (a string the type allows) — both are counter-proposals for
