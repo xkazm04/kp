@@ -8346,7 +8346,32 @@
     "daysAvgOver": "Tage Ø aus {count, plural, one {# Einstellung} other {# Einstellungen}}",
     "closedInWindowSub": "{count} im Zeitraum beendet",
     "bucketTzNote": "Der Zeitraum und die wöchentlichen Trendabschnitte richten sich nach {tz}-Tagen.",
-    "cohortTruncatedNote": "Es wurden nur die neuesten {count, plural, one {# Eintrag} other {# Einträge}} in diesem Zeitraum gezählt. Die Kohorte ist größer, als ein Lesevorgang abdeckt, daher ist jede Kennzahl unten eine begrenzte Stichprobe. Verkürzen Sie den Zeitraum, um sie vollständig zu sehen."
+    "cohortTruncatedNote": "Es wurden nur die neuesten {count, plural, one {# Eintrag} other {# Einträge}} in diesem Zeitraum gezählt. Die Kohorte ist größer, als ein Lesevorgang abdeckt, daher ist jede Kennzahl unten eine begrenzte Stichprobe. Verkürzen Sie den Zeitraum, um sie vollständig zu sehen.",
+    "colScope": "Umfang",
+    "koUnattributedTitle": "Abweisungen am Eignungs-Gate werden nach Stellentitel erfasst, bevor eine Bewerbung existiert. Sie lassen sich daher weder auf Stellen mit gleichem Titel aufteilen noch für eine einzelne Stelle ausweisen.",
+    "analyseRole": "Diese Stelle analysieren",
+    "analyseRoleTitle": "Den gesamten Analytics-Tab auf diese Stelle eingrenzen",
+    "jobScopeChip": "Stelle: {title}",
+    "jobScopeUnknownTitle": "in diesem Arbeitsbereich nicht gefunden",
+    "jobScopeLoadingTitle": "wird geladen…",
+    "jobScopeClear": "Gesamter Arbeitsbereich",
+    "jobScopeWithheldIntro": "Alle Werte unten betreffen nur diese Stelle. Die folgenden Werte lassen sich nicht nach Stelle aufteilen und werden hier deshalb zurückgehalten, statt Zahlen des gesamten Arbeitsbereichs zu zeigen:",
+    "jobScopeWithheldLine": "{reason}: {figures}",
+    "jobScopeFigure": {
+      "bySource": "Herkunft der Kandidaten",
+      "channelDecisionTime": "Zeit bis zur ersten Entscheidung je Kanal",
+      "channelSpend": "Kanalausgaben sowie Kosten pro Bewerber oder Einstellung",
+      "costPerHire": "Gesamtkosten pro Einstellung",
+      "computeCostPerHire": "KI-Rechenkosten pro Einstellung",
+      "koDeclined": "Abweisungen am Eignungs-Gate"
+    },
+    "jobScopeReason": {
+      "workspaceOnly": "Wird nur für den gesamten Arbeitsbereich berechnet",
+      "workspaceSpend": "Ausgaben werden je Kanal für den gesamten Arbeitsbereich erfasst, nicht je Stelle",
+      "accountLedger": "Das KI-Nutzungsprotokoll umfasst das gesamte Konto",
+      "noEntry": "Wird vor dem Entstehen einer Bewerbung erfasst, mit Stellentitel, aber ohne Bezug zu einer Stelle"
+    },
+    "metricPackDownloadWorkspace": "Kennzahlenpaket herunterladen (gesamter Arbeitsbereich)"
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",

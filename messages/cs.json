@@ -8346,7 +8346,32 @@
     "daysAvgOver": "dní v průměru z {count, plural, one {# přijatého} few {# přijatých} other {# přijatých}}",
     "closedInWindowSub": "{count} uzavřeno v období",
     "bucketTzNote": "Období i týdenní intervaly trendu se počítají podle dnů v {tz}.",
-    "cohortTruncatedNote": "Započítáno bylo jen {count, plural, one {# nejnovější záznam} few {# nejnovější záznamy} other {# nejnovějších záznamů}} v tomto období. Kohorta je větší, než jedno čtení pokryje, takže každé číslo níže je omezený vzorek. Zúžením období ji uvidíte celou."
+    "cohortTruncatedNote": "Započítáno bylo jen {count, plural, one {# nejnovější záznam} few {# nejnovější záznamy} other {# nejnovějších záznamů}} v tomto období. Kohorta je větší, než jedno čtení pokryje, takže každé číslo níže je omezený vzorek. Zúžením období ji uvidíte celou.",
+    "colScope": "Rozsah",
+    "koUnattributedTitle": "Vyřazení na vstupních podmínkách se zaznamenávají podle názvu pozice ještě před vznikem přihlášky, proto je nelze rozdělit mezi pozice se stejným názvem ani zobrazit pro jednu pozici.",
+    "analyseRole": "Analyzovat tuto pozici",
+    "analyseRoleTitle": "Omezit celou kartu Analytika na tuto pozici",
+    "jobScopeChip": "Pozice: {title}",
+    "jobScopeUnknownTitle": "v tomto pracovním prostoru nenalezena",
+    "jobScopeLoadingTitle": "načítání…",
+    "jobScopeClear": "Celý pracovní prostor",
+    "jobScopeWithheldIntro": "Všechny údaje níže se týkají pouze této pozice. Následující údaje nelze rozdělit podle pozice, proto je zde nezobrazujeme, místo abychom ukazovali čísla za celý pracovní prostor:",
+    "jobScopeWithheldLine": "{reason}: {figures}",
+    "jobScopeFigure": {
+      "bySource": "původ kandidátů",
+      "channelDecisionTime": "doba do prvního rozhodnutí podle kanálu",
+      "channelSpend": "výdaje na kanály a náklady na uchazeče či nástup",
+      "costPerHire": "souhrnné náklady na nástup",
+      "computeCostPerHire": "náklady na výpočty AI na jeden nástup",
+      "koDeclined": "vyřazení na vstupních podmínkách"
+    },
+    "jobScopeReason": {
+      "workspaceOnly": "Počítá se pouze za celý pracovní prostor",
+      "workspaceSpend": "Výdaje se zadávají po kanálech za celý pracovní prostor, nikoli po pozicích",
+      "accountLedger": "Evidence využití AI pokrývá celý účet",
+      "noEntry": "Zaznamenává se před vznikem přihlášky, s názvem pozice, ale bez vazby na konkrétní pozici"
+    },
+    "metricPackDownloadWorkspace": "Stáhnout sadu metrik (celý pracovní prostor)"
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",

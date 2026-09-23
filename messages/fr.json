@@ -8346,7 +8346,32 @@
     "daysAvgOver": "jours en moy. sur {count, plural, one {# recrutement} other {# recrutements}}",
     "closedInWindowSub": "{count} clôturés sur la période",
     "bucketTzNote": "La période et les tranches hebdomadaires de tendance sont découpées sur des journées {tz}.",
-    "cohortTruncatedNote": "Seules les {count, plural, one {# entrée la plus récente a été comptée} other {# entrées les plus récentes ont été comptées}} sur cette période. La cohorte dépasse ce qu'une lecture couvre, donc chaque chiffre ci-dessous est un échantillon borné. Réduisez la période pour la voir en entier."
+    "cohortTruncatedNote": "Seules les {count, plural, one {# entrée la plus récente a été comptée} other {# entrées les plus récentes ont été comptées}} sur cette période. La cohorte dépasse ce qu'une lecture couvre, donc chaque chiffre ci-dessous est un échantillon borné. Réduisez la période pour la voir en entier.",
+    "colScope": "Périmètre",
+    "koUnattributedTitle": "Les candidats écartés au filtre d’éligibilité sont enregistrés par intitulé de poste avant toute candidature. Ils ne peuvent donc être ni répartis entre des postes de même intitulé, ni affichés pour un seul poste.",
+    "analyseRole": "Analyser ce poste",
+    "analyseRoleTitle": "Limiter tout l’onglet Analytique à ce poste",
+    "jobScopeChip": "Poste : {title}",
+    "jobScopeUnknownTitle": "introuvable dans cet espace de travail",
+    "jobScopeLoadingTitle": "chargement…",
+    "jobScopeClear": "Tout l’espace de travail",
+    "jobScopeWithheldIntro": "Tous les chiffres ci-dessous concernent uniquement ce poste. Les éléments suivants ne peuvent pas être ventilés par poste ; ils sont donc retenus ici plutôt qu’affichés avec les chiffres de tout l’espace de travail :",
+    "jobScopeWithheldLine": "{reason} : {figures}",
+    "jobScopeFigure": {
+      "bySource": "origine des candidats",
+      "channelDecisionTime": "délai jusqu’à la première décision par canal",
+      "channelSpend": "dépenses par canal et coût par candidat ou par recrutement",
+      "costPerHire": "coût global par recrutement",
+      "computeCostPerHire": "coût de calcul IA par recrutement",
+      "koDeclined": "candidats écartés au filtre d’éligibilité"
+    },
+    "jobScopeReason": {
+      "workspaceOnly": "Calculé uniquement pour l’ensemble de l’espace de travail",
+      "workspaceSpend": "Les dépenses sont saisies par canal pour tout l’espace de travail, pas par poste",
+      "accountLedger": "Le registre d’utilisation de l’IA couvre l’ensemble du compte",
+      "noEntry": "Enregistré avant toute candidature, avec un intitulé de poste mais sans lien vers un poste"
+    },
+    "metricPackDownloadWorkspace": "Télécharger le pack de métriques (tout l’espace de travail)"
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",

@@ -8346,7 +8346,32 @@
     "daysAvgOver": "days avg over {count, plural, one {# hire} other {# hires}}",
     "closedInWindowSub": "{count} closed in window",
     "bucketTzNote": "The window and the weekly trend buckets are cut on {tz} days.",
-    "cohortTruncatedNote": "Only the newest {count, plural, one {# entry} other {# entries}} in this window were counted. The cohort is larger than one read covers, so every figure below is a bounded sample. Narrow the window to see it whole."
+    "cohortTruncatedNote": "Only the newest {count, plural, one {# entry} other {# entries}} in this window were counted. The cohort is larger than one read covers, so every figure below is a bounded sample. Narrow the window to see it whole.",
+    "colScope": "Scope",
+    "koUnattributedTitle": "Knockout declines are recorded by job title before an application exists, so they cannot be split between roles that share a title, or shown for a single role.",
+    "analyseRole": "Analyse this role",
+    "analyseRoleTitle": "Scope the whole Analytics tab to this role",
+    "jobScopeChip": "Role: {title}",
+    "jobScopeUnknownTitle": "not found in this workspace",
+    "jobScopeLoadingTitle": "loading…",
+    "jobScopeClear": "Whole workspace",
+    "jobScopeWithheldIntro": "Every figure below covers this role only. These cannot be split by role, so they are withheld here instead of being shown as workspace numbers:",
+    "jobScopeWithheldLine": "{reason}: {figures}",
+    "jobScopeFigure": {
+      "bySource": "candidate origin",
+      "channelDecisionTime": "time to first decision per channel",
+      "channelSpend": "channel spend and cost per applicant or hire",
+      "costPerHire": "blended cost per hire",
+      "computeCostPerHire": "AI compute cost per hire",
+      "koDeclined": "knockout declines"
+    },
+    "jobScopeReason": {
+      "workspaceOnly": "Computed for the whole workspace only",
+      "workspaceSpend": "Spend is recorded per channel for the whole workspace, not per role",
+      "accountLedger": "The AI usage ledger covers the whole account",
+      "noEntry": "Recorded before an application exists, with a job title but no link to a role"
+    },
+    "metricPackDownloadWorkspace": "Download metric pack (whole workspace)"
   },
   "matrix": {
     "loadFailed": "Load failed.",
