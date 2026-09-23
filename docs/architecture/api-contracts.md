@@ -291,6 +291,48 @@ COMPUTED for an untrusted caller — the seven unscoped `COUNT(*)`s collapse to 
 jobs seed makes the question meaningful, so the ordinary untrusted hit costs no
 catalog read at all. Pinned by `app/api/health/health-exposure.test.ts`.
 
+**Deployment-wide reads need the HOME ORG, not a session** (challenge r03,
+2026-09-23). `isOperator()` says yes to a signed-in member of *any* org, and with
+`KP_SIGNUP_ENABLED` every registrant becomes the owner of a fresh org
+(`app/_lib/signup-service.ts`). A read whose result is every tenant's by
+construction (the unscoped `COUNT(*)`s, the queue, the shared log tails, the
+process-wide limiter stats, the `llm_usage` ledger, which has no org column) now
+asks `requireHomeOrgReader()` / `isHomeOrgReader()` from `require-operator.ts`,
+built on the pure `homeOrgReader(session, env)`: open mode, the password operator
+(`op`), a session with no `org` claim, or one whose `org` is the home org
+(`org-default`) passes; another org's member does not. The refusal is a 401 exactly
+where `requireOperator()` answers one (no session, demo) and otherwise the coded 403
+`FORBIDDEN_CAPABILITY` with `capability: "deployment:read"`, so no new catalog key.
+Where it applies:
+
+- `GET /api/ops`, `GET /api/llm/usage`, `GET /api/llm/activity`: the whole route.
+- `GET /api/health`: two tiers now. The public verdict is unchanged, `engines`
+  stays on `isOperator()` (the signed-in shell's own hint), and `tables`, `queue`,
+  `catalog`, `degradedReasons`, `configIssues` and the raw DB error need the home org.
+- `GET /api/llm/config`: the pins stay on the session gate; the ledger-derived
+  `health` block is **omitted** for another org (the routing panel already treats an
+  absent row as "no health to show").
+- `/diagrams`: another org's seat gets the same `notFound()` a demo cookie does.
+
+**Single-org installs are unchanged.** `org` is minted only at login, invite
+accept, switch-workspace and register, and register is the only door that creates a
+non-home org, behind `KP_SIGNUP_ENABLED` (default off). With signup off every
+session carries `org` absent or `org-default`, so the gate answers exactly what
+`isOperator()` did. **Visible consequence on a multi-org box:** a non-home-org
+owner's Models → Usage & cost (Spend) strip goes to its **failed** state, because
+`/api/ops` and `/api/llm/usage` now refuse them. That is correct (the ledger is every
+tenant's) and it is what `useSpendData` renders for a dead telemetry read.
+
+`app/api/deployment-read-gate.test.ts` is the ratchet: any `app/api/**/route.ts`
+that calls `coreTableCounts`, `countActiveTasks`, `aggregateLlmUsage`,
+`listLlmActivity`, `tailJsonl`, `rateLimitRefusalStats` or `routingHealth` must call
+the home-org gate, with no allowlist. **Known gap, stated rather than counted as
+covered:** the scan sees direct calls only. `GET /api/palette/preview` reaches
+`aggregateLlmUsage` and `countActiveTasks` through `app/_lib/palette-preview`
+(`resolveActivity`'s 30-day calls, cost and queue; the Models preview's 30-day
+cost), gated no higher than `isOperator()`, so another org's member can still read
+those deployment-wide totals there.
+
 **A verdict answers "is something broken", not "is anything here yet."** The same
 probe used to answer **503** whenever the jobs table had no rows, so a brand-new
 install paged its own operator for being brand new. Two conditions were sharing one
