@@ -8027,7 +8027,19 @@
       "floorNotEnforced": "Die automatische Vorauswahl ist aus, diese Schwellen sind also festgehaltene Regeln und kein aktives Tor: es wird niemand danach abgelehnt.",
       "familyFloorsNoneOff": "Keine Rollenfamilie hat eine eigene Schwelle, erfasst ist damit nur die globale {global}.",
       "thresholdLegendOff": "Auto-Ablehnungsschwelle ({threshold}), erfasst, aber nicht aktiv",
-      "srThresholdOff": "Die Auto-Ablehnungsschwelle {threshold} ist erfasst, aber nicht aktiv und deshalb nicht im Diagramm markiert."
+      "srThresholdOff": "Die Auto-Ablehnungsschwelle {threshold} ist erfasst, aber nicht aktiv und deshalb nicht im Diagramm markiert.",
+      "previewShow": "Anzeigen, wen diese Änderung heute auf dem Board betrifft",
+      "previewLoading": "Das heutige Board wird gelesen…",
+      "previewError": "Die Vorschau dieser Änderung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "previewAutoRejectOff": "Die automatische Ablehnung ist ausgeschaltet, daher betrifft diese Schwelle niemanden auf dem heutigen Board, bis Sie sie einschalten.",
+      "previewNone": "Diese Änderung ändert keine Screening-Entscheidung auf dem heutigen Board.",
+      "previewEntering": "{count, plural, one {# Person käme} other {# Personen kämen}} in Reichweite der automatischen Ablehnung:",
+      "previewLeaving": "{count, plural, one {# Person verließe} other {# Personen verließen}} die Reichweite der automatischen Ablehnung:",
+      "previewShielded": "{count, plural, one {# weitere Person liegt} other {# weitere Personen liegen}} unter der neuen Schwelle, sind aber geschützt (Berufseinstieg oder unbekanntes Profil).",
+      "previewSpared": "{count, plural, one {# weitere Person liegt} other {# weitere Personen liegen}} unter der neuen Schwelle, bleiben aber durch die Kalibrierungs-Kontrollgruppe oder eine Wiederaufnahme erhalten.",
+      "previewName": "{label} ({score})",
+      "previewMore": "+{count} weitere",
+      "previewNote": "Ermittelt aus einem Probelauf der Screening-Welle für Kandidaten in Screened. Bis Sie übernehmen, ändert sich nichts."
     },
     "decisionRecords": {
       "title": "Entscheidungsprotokolle (versiegelt)",

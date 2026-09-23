@@ -8027,7 +8027,19 @@
       "floorNotEnforced": "Automatické předvýběry jsou vypnuté, takže tyto prahy jsou jen zaznamenaná pravidla, ne živá branka: žádný kandidát podle nich není odmítán.",
       "familyFloorsNoneOff": "Žádná rodina rolí nemá vlastní práh, takže jediný zaznamenaný je globální {global}.",
       "thresholdLegendOff": "Práh automatického odmítnutí ({threshold}), zaznamenaný, ale nevynucovaný",
-      "srThresholdOff": "Práh automatického odmítnutí {threshold} je zaznamenaný, ale nevynucovaný, proto není v grafu vyznačen."
+      "srThresholdOff": "Práh automatického odmítnutí {threshold} je zaznamenaný, ale nevynucovaný, proto není v grafu vyznačen.",
+      "previewShow": "Zobrazit, koho tato změna dnes na tabuli zasáhne",
+      "previewLoading": "Načítáme dnešní tabuli…",
+      "previewError": "Náhled této změny se nepodařilo načíst. Zkuste to prosím znovu.",
+      "previewAutoRejectOff": "Automatické odmítání je vypnuté, proto tento práh nikoho na dnešní tabuli nezasáhne, dokud je nezapnete.",
+      "previewNone": "Tato změna nemění na dnešní tabuli žádné rozhodnutí o screeningu.",
+      "previewEntering": "{count, plural, one {# kandidát by se dostal} few {# kandidáti by se dostali} other {# kandidátů by se dostalo}} do dosahu automatického odmítnutí:",
+      "previewLeaving": "{count, plural, one {# kandidát by opustil} few {# kandidáti by opustili} other {# kandidátů by opustilo}} dosah automatického odmítnutí:",
+      "previewShielded": "{count, plural, one {Další # kandidát je pod novým prahem, ale je chráněn} few {Další # kandidáti jsou pod novým prahem, ale jsou chráněni} other {Dalších # kandidátů je pod novým prahem, ale jsou chráněni}} (začínající nebo nerozpoznaný profil).",
+      "previewSpared": "{count, plural, one {Další # kandidát je pod novým prahem, ale zůstává} few {Další # kandidáti jsou pod novým prahem, ale zůstávají} other {Dalších # kandidátů je pod novým prahem, ale zůstávají}} díky kalibrační kontrolní skupině nebo obnovení.",
+      "previewName": "{label} ({score})",
+      "previewMore": "a {count} další",
+      "previewNote": "Spočteno nanečisto podle screeningové vlny u kandidátů ve fázi Screened. Dokud změnu nepoužijete, nic se nezmění."
     },
     "decisionRecords": {
       "title": "Záznamy rozhodnutí (zapečetěné)",

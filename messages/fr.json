@@ -8027,7 +8027,19 @@
       "floorNotEnforced": "La présélection automatique est désactivée : ces seuils sont une règle enregistrée, pas un filtre actif, et aucune candidature n’est rejetée sur cette base.",
       "familyFloorsNoneOff": "Aucune famille de postes n’a son propre seuil ; seul le seuil global {global} est enregistré.",
       "thresholdLegendOff": "Seuil de rejet automatique ({threshold}), enregistré mais non appliqué",
-      "srThresholdOff": "Le seuil de rejet automatique {threshold} est enregistré mais non appliqué : il n’est donc pas tracé sur le graphique."
+      "srThresholdOff": "Le seuil de rejet automatique {threshold} est enregistré mais non appliqué : il n’est donc pas tracé sur le graphique.",
+      "previewShow": "Voir qui ce changement touche aujourd’hui sur le tableau",
+      "previewLoading": "Lecture du tableau du jour…",
+      "previewError": "Impossible d’afficher l’aperçu de ce changement. Veuillez réessayer.",
+      "previewAutoRejectOff": "Le rejet automatique est désactivé : ce seuil ne touchera personne sur le tableau du jour tant que vous ne l’activez pas.",
+      "previewNone": "Ce changement ne modifie aucune décision de présélection sur le tableau du jour.",
+      "previewEntering": "{count, plural, one {# personne entrerait} other {# personnes entreraient}} dans le champ du rejet automatique :",
+      "previewLeaving": "{count, plural, one {# personne sortirait} other {# personnes sortiraient}} du champ du rejet automatique :",
+      "previewShielded": "{count, plural, one {# autre personne est sous le nouveau seuil mais protégée} other {# autres personnes sont sous le nouveau seuil mais protégées}} (début de carrière ou profil non reconnu).",
+      "previewSpared": "{count, plural, one {# autre personne est sous le nouveau seuil mais conservée} other {# autres personnes sont sous le nouveau seuil mais conservées}} par le groupe témoin de calibrage ou une réintégration.",
+      "previewName": "{label} ({score})",
+      "previewMore": "+{count} de plus",
+      "previewNote": "Calculé à partir d’une simulation de la vague de présélection sur les candidats en Screened. Rien ne change tant que vous n’appliquez pas."
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",

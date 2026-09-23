@@ -8027,7 +8027,19 @@
       "floorNotEnforced": "Automatic screening is off, so these floors are recorded policy rather than a live gate: no candidate is rejected by them.",
       "familyFloorsNoneOff": "No role family carries its own floor, so the global {global} is the only one on record.",
       "thresholdLegendOff": "Auto-reject floor ({threshold}), recorded but not enforced",
-      "srThresholdOff": "Auto-reject floor {threshold} is recorded but not enforced, so it is not marked on the plot."
+      "srThresholdOff": "Auto-reject floor {threshold} is recorded but not enforced, so it is not marked on the plot.",
+      "previewShow": "See who this moves on today's board",
+      "previewLoading": "Reading today's board…",
+      "previewError": "Could not preview this move. Please try again.",
+      "previewAutoRejectOff": "Auto-reject is off, so this floor would move no one on today's board until it is switched on.",
+      "previewNone": "This move changes no screening decision on today's board.",
+      "previewEntering": "{count, plural, one {# person would come} other {# people would come}} into auto-reject reach:",
+      "previewLeaving": "{count, plural, one {# person would leave} other {# people would leave}} auto-reject reach:",
+      "previewShielded": "{count, plural, one {# more is} other {# more are}} below the new floor but shielded (early-career or unrecognised profile).",
+      "previewSpared": "{count, plural, one {# more is} other {# more are}} below the new floor but kept by the calibration holdout or a reinstatement.",
+      "previewName": "{label} ({score})",
+      "previewMore": "+{count} more",
+      "previewNote": "Counted from a dry run of the screening wave on candidates in Screened. Nothing changes until you apply."
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",
