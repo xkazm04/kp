@@ -773,6 +773,23 @@ const ROUTES: RouteSpec[] = [
     windowMs: 60_000,
     windowSrc: "60_000",
   },
+  {
+    // ADDED with the route (challenge-r06 application-status-page/B). The candidate's
+    // "send it to my email again" door, on the PUBLIC status token: an anonymous,
+    // token-authed door that ends in a candidate EMAIL. The limiter runs BEFORE the token
+    // lookup, so a flood never reaches the store or the dispatcher. Keyed per client AND
+    // token, like every status sibling. 10/min is the letter door's cap; the real bound
+    // on mail is the per-entry once-a-day cooldown behind it (candidate-next-action-server.ts).
+    rel: "./status/[token]/resend/route.ts",
+    key: "`status-resend:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "RESEND_RATE_LIMIT",
+    optsDef: "const RESEND_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getEntryIdByStatusToken(token)",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it
