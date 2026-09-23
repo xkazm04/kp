@@ -1,5 +1,6 @@
 import type { PipelineEntry } from "@/app/_lib/db/core";
 import { runPipelineEntryAction, type EntryActionResult } from "@/app/_lib/pipeline-entry-action";
+import { commandRejectDetail } from "@/app/_lib/pipeline-command";
 
 // The command bar's EXECUTE loop, lifted out of route.ts so its counting is
 // testable without a NextRequest, a session or a live board.
@@ -88,7 +89,8 @@ export async function executeCommandTargets(
           id: e.id,
           action: "reject",
           expectedStage: e.stage,
-          detail: `Command bar: below ${threshold}%`,
+          // The ONE literal the undo (./reverse.ts → planWaveReversal) matches against.
+          detail: commandRejectDetail(threshold),
           via: "command_bar",
           threshold,
           origin,

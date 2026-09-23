@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeCommand, isMutating, parseCommand, resolveRejectTargets } from "./pipeline-command.ts";
+import {
+  commandRejectDetail,
+  describeCommand,
+  isMutating,
+  parseCommand,
+  planWaveReversal,
+  resolveRejectTargets,
+} from "./pipeline-command.ts";
 
 test("parses reject-below with and without a job scope, clamps the threshold", () => {
   assert.deepEqual(parseCommand("reject everyone below 60%"), {
@@ -86,4 +93,61 @@ test("every previewed id that no longer matches is reported as dropped out", () 
   const { act, droppedOut } = resolveRejectTargets(["a", "b"], []);
   assert.deepEqual(act, []);
   assert.deepEqual(droppedOut, ["a", "b"]);
+});
+
+// ---- challenge-r05 pipeline-actions-commands/B: undo a command-bar reject wave ----
+//
+// planWaveReversal decides, from an entry's status and its events newest-first, whether
+// THIS wave (the typed threshold) is what closed the candidate out, and whether the
+// rejection letter had already gone. The store re-runs it inside its write lock.
+
+test("commandRejectDetail is the one literal the wave writes and the undo matches", () => {
+  assert.equal(commandRejectDetail(40), "Command bar: below 40%");
+});
+
+test("planWaveReversal: this wave's reject, no letter yet -> restorable, not notified", () => {
+  assert.deepEqual(
+    planWaveReversal({ status: "rejected", eventsNewestFirst: [{ kind: "rejected", detail: "Command bar: below 40%" }] }, 40),
+    { restorable: true, notified: false }
+  );
+});
+
+test("planWaveReversal: a rejection letter after the reject does not block the undo, it is reported", () => {
+  assert.deepEqual(
+    planWaveReversal(
+      {
+        status: "rejected",
+        eventsNewestFirst: [{ kind: "rejection_sent" }, { kind: "rejected", detail: "Command bar: below 40%" }],
+      },
+      40
+    ),
+    { restorable: true, notified: true }
+  );
+});
+
+test("planWaveReversal: a hand reject or another wave is never undone by this door", () => {
+  assert.deepEqual(
+    planWaveReversal({ status: "rejected", eventsNewestFirst: [{ kind: "rejected", detail: "Recruiter note" }] }, 40),
+    { restorable: false, reason: "not_this_wave" }
+  );
+  // Another threshold is another wave.
+  assert.deepEqual(
+    planWaveReversal({ status: "rejected", eventsNewestFirst: [{ kind: "rejected", detail: "Command bar: below 60%" }] }, 40),
+    { restorable: false, reason: "not_this_wave" }
+  );
+  // A machine rejection carrying the same text is still not a command-bar decision.
+  assert.deepEqual(
+    planWaveReversal({ status: "rejected", eventsNewestFirst: [{ kind: "auto_rejected", detail: "Command bar: below 40%" }] }, 40),
+    { restorable: false, reason: "not_this_wave" }
+  );
+});
+
+test("planWaveReversal: an entry already back in play is not rejected, so there is nothing to undo", () => {
+  assert.deepEqual(
+    planWaveReversal(
+      { status: "active", eventsNewestFirst: [{ kind: "reinstated" }, { kind: "rejected", detail: "Command bar: below 40%" }] },
+      40
+    ),
+    { restorable: false, reason: "not_rejected" }
+  );
 });

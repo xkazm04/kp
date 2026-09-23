@@ -562,6 +562,8 @@ export const PIPELINE_REASON_CODES = [
   // createPipelineEntry — the plain, non-degraded add. The degraded branch beside it
   // keeps its free-text reason: that one is a real diagnostic, not a fixed sentence.
   "addedToPipeline",
+  // restoreCommandRejection (api/pipeline/command/reverse.ts) — a command-bar wave undone.
+  "commandWaveReversed",
 ] as const;
 export type PipelineReasonCode = (typeof PIPELINE_REASON_CODES)[number];
 

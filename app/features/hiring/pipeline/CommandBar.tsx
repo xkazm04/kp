@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CornerDownLeft, Terminal, X } from "lucide-react";
+import { Check, CornerDownLeft, Terminal, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
 type CommandResult =
@@ -27,8 +28,19 @@ type CommandResult =
       // between preview and confirm (advanced/rejected/no longer below the line),
       // so were skipped rather than acted on (bug-ui pipeline #3).
       droppedOut?: number;
+      // advance_top accepts the hiring plan routed back to the human interview round:
+      // ratified, but the candidate did not move a column (challenge-r05 A).
+      routedToHumanRound?: number;
       summary?: { advanced: number; rejected: number; held: number };
+      // reject_below only: the reviewed id set and the typed command, KEPT past the
+      // confirm so the wave can be undone from here (challenge-r05 B). The server
+      // restores only ids this wave still owns, so sending the whole reviewed set is safe.
+      undo?: { ids: string[]; text: string };
     };
+
+// The undo's truthful outcome: who came back, who had already been told (a sent
+// letter cannot be recalled), and who was left alone because they moved since.
+type UndoOutcome = { restored: number; notified: number; skipped: number } | { error: string };
 
 // Natural-language pipeline command bar (#7). The recruiter types a command; it's
 // parsed server-side and PREVIEWED (nothing runs) until they confirm. Every action
@@ -43,6 +55,7 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<CommandResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [undone, setUndone] = useState<UndoOutcome | null>(null);
 
   const post = async (confirm: boolean) => {
     setBusy(true);
@@ -74,8 +87,11 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
           commsFailed: p.commsFailed,
           heldAtOffer: p.heldAtOffer,
           droppedOut: p.droppedOut,
+          routedToHumanRound: p.routedToHumanRound,
           summary: p.summary,
+          ...(confirmIds && (p.count ?? 0) > 0 ? { undo: { ids: confirmIds, text } } : {}),
         });
+        setUndone(null);
         onExecuted();
       } else if (p.kind === "help" || p.kind === "unknown") {
         setResult({ phase: "info", description: p.description });
@@ -96,7 +112,33 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
 
   const reset = () => {
     setResult(null);
+    setUndone(null);
     setText("");
+  };
+
+  // Undo the reject wave just confirmed: restore each still-unchanged member to the
+  // stage they stood on. Each restore is a new decision sealed to this session.
+  const undoWave = async (undo: { ids: string[]; text: string }) => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/pipeline/command/reverse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: undo.ids, text: undo.text }),
+      });
+      const p = await r.json();
+      if (p.error) {
+        setUndone({ error: errorMessage(p, t("undoFailed")) });
+      } else {
+        setUndone({ restored: p.restored ?? 0, notified: p.notified ?? 0, skipped: p.skipped ?? 0 });
+        onExecuted();
+      }
+    } catch {
+      // Nothing reached us — the undo may or may not have applied, so say that.
+      setUndone({ error: t("undoFailed") });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -200,6 +242,29 @@ export function CommandBar({ onExecuted }: { onExecuted: () => void }) {
           {/* reject_below bound to the preview: name anyone shown who dropped out of
               the matching set before confirm, so a smaller count isn't a mystery. */}
           {result.droppedOut ? <p className="mt-1 text-meta text-steel">{t("doneDroppedOut", { count: result.droppedOut })}</p> : null}
+          {result.routedToHumanRound ? (
+            <p className="mt-1 text-meta text-steel">{t("doneRoutedToHumanRound", { count: result.routedToHumanRound })}</p>
+          ) : null}
+          {/* A reject wave is undoable while the recruiter is still looking at it. */}
+          {result.undo && !undone ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void undoWave(result.undo!)}
+              aria-label={t("undoWaveLabel", { count: result.count ?? 0 })}
+              className={`${BTN_SECONDARY} mt-2 h-8 px-3 text-sm`}
+            >
+              <Undo2 size={13} /> {busy ? t("undoRunning") : t("undoWave")}
+            </button>
+          ) : null}
+          {undone && "error" in undone ? <p className="mt-1 text-meta text-coral">{undone.error}</p> : null}
+          {undone && !("error" in undone) ? (
+            <div className="mt-2 border-t border-stone-100 pt-2">
+              <p className="text-meta text-ink">{t("undoneRestored", { count: undone.restored })}</p>
+              {undone.notified ? <p className="mt-1 text-meta text-coral">{t("undoneNotified", { count: undone.notified })}</p> : null}
+              {undone.skipped ? <p className="mt-1 text-meta text-steel">{t("undoneSkipped", { count: undone.skipped })}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

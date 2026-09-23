@@ -156,3 +156,55 @@ export function resolveRejectTargets(
   }
   return { act, droppedOut };
 }
+
+// ---- Undo a command-bar reject wave (challenge-r05 pipeline-actions-commands/B) ----
+//
+// A typed `reject below 40%` closes out (and emails) a whole cohort in one confirm.
+// The undo restores the wave's still-untouched members to the stage they stood on.
+// "Still untouched" is read off the record, not guessed: the candidate is still
+// rejected AND the newest decision on their timeline is THIS wave's reject. The only
+// events allowed to sit on top of it are the rejection letter's own trail — the
+// letter going out (or failing to) is a consequence of the wave, not a later decision.
+
+/** The detail every command-bar reject writes to its `rejected` event. ONE literal,
+ *  shared by the writer (execute.ts) and the matcher (planWaveReversal), so the undo
+ *  can never drift from what the wave recorded. */
+export function commandRejectDetail(threshold: number | undefined): string {
+  return `Command bar: below ${threshold}%`;
+}
+
+/** Events a rejection writes AFTER itself without a new decision being taken. */
+const REJECTION_TRAIL_KINDS: ReadonlySet<string> = new Set(["rejection_sent", "rejection_comms_failed"]);
+
+export type WaveReversalEvent = { kind: string; detail?: string | null; toStage?: string | null };
+export type WaveReversalSnapshot = { status: string; eventsNewestFirst: readonly WaveReversalEvent[] };
+export type WaveReversalPlan =
+  | { restorable: true; notified: boolean }
+  | { restorable: false; reason: "not_rejected" | "not_this_wave" };
+
+/** The newest event on the timeline that is a DECISION rather than the rejection
+ *  letter's trail — the one an undo must find to be this wave's reject. */
+export function newestDecisionEvent(eventsNewestFirst: readonly WaveReversalEvent[]): WaveReversalEvent | null {
+  return eventsNewestFirst.find((e) => !REJECTION_TRAIL_KINDS.has(e.kind)) ?? null;
+}
+
+/** Whether ONE entry can be restored by undoing the wave rejected at `threshold`.
+ *  PURE. The store re-runs it inside its write lock over a fresh read.
+ *  - status must still be `rejected` (someone who reinstated, advanced or erased the
+ *    candidate since has already made the call) -> otherwise `not_rejected`;
+ *  - the newest decision must be a HUMAN `rejected` carrying this wave's exact
+ *    detail — a hand reject, another threshold's wave or a machine rejection is never
+ *    undone by this door -> otherwise `not_this_wave`;
+ *  - `notified` = a `rejection_sent` sits after that reject: the letter went out, and
+ *    no outbox state can recall it, so the undo reports it instead of implying it
+ *    was never sent. */
+export function planWaveReversal(snapshot: WaveReversalSnapshot, threshold: number): WaveReversalPlan {
+  if (snapshot.status !== "rejected") return { restorable: false, reason: "not_rejected" };
+  const decision = newestDecisionEvent(snapshot.eventsNewestFirst);
+  if (!decision || decision.kind !== "rejected" || decision.detail !== commandRejectDetail(threshold)) {
+    return { restorable: false, reason: "not_this_wave" };
+  }
+  const i = snapshot.eventsNewestFirst.indexOf(decision);
+  const notified = snapshot.eventsNewestFirst.slice(0, i).some((e) => e.kind === "rejection_sent");
+  return { restorable: true, notified };
+}
