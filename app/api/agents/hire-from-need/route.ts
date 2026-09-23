@@ -53,7 +53,7 @@ import type { RepoDossier } from "@/app/_lib/schemas.generated";
 import { briefToAppMasterSpec } from "@/app/_lib/intake-brief";
 import { appMasterSpecSchema } from "@/app/_lib/schemas.generated";
 import { mintAndDispatch, specFromAppMaster } from "../dispatch/mint";
-import { AUTOMATION_TOKEN_HEADER, checkAutomationToken } from "./automation-auth";
+import { AUTOMATION_TOKEN_HEADER, checkAutomationToken, resolveHireWorkspace } from "./automation-auth";
 
 // THROTTLE (rate-limit-contract.test.ts). Placed at the very top of the work,
 // AFTER auth and the cheap body refusals but BEFORE the scan: unlike the
@@ -192,10 +192,16 @@ export async function POST(request: NextRequest) {
       typeof body?.budgetUsd === "number" && Number.isFinite(body.budgetUsd) && body.budgetUsd > 0
         ? body.budgetUsd
         : null;
-    // A workspace named in the body wins; otherwise the session's. A machine
-    // caller has no session, so `currentWorkspace()` gives it the default —
-    // which is correct for a single-workspace install and explicit for the rest.
-    const ws = str(body?.workspace) || (await currentWorkspace());
+    // The tenant: a MACHINE caller may name it (it has no session; `currentWorkspace()`
+    // gives it the default otherwise). A human is held to the session's own workspace —
+    // the one its capability was just checked in — and naming another is refused.
+    const tenant = resolveHireWorkspace({
+      machine: machine.outcome === "accepted",
+      bodyWorkspace: str(body?.workspace),
+      sessionWorkspace: await currentWorkspace(),
+    });
+    if (!tenant.ok) return jsonRefusal("FORBIDDEN_CAPABILITY", 403);
+    const ws = tenant.workspace;
 
     if (!rateLimit(`agent-hire-from-need:${clientIpFrom(request.headers)}`, HIRE_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
