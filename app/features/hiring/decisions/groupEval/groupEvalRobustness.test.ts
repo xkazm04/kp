@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness } from "@/app/features/shared/groupEvalTypes";
-import { robustOrderVerdict } from "./groupEvalHelpers.ts";
+import { robustOrderEntries, robustOrderVerdict } from "./groupEvalHelpers.ts";
 
 // bug-ui-scan-2026-07-09 (group-evaluation-fairness #2): the weighting-robustness
 // "gate" could not fail — it asserted "robust" from a NO-OP (uniform weights) and
@@ -127,4 +127,37 @@ test("the uniform-weights panel copy no longer AFFIRMS the ranking is robust", (
   const copy = en.decisions.groupEval.fairnessUniform;
   assert.ok(!/robust/i.test(copy), `fairnessUniform must not affirm "robust" for a no-op; got: ${copy}`);
   assert.ok(/not tested|no-op|does not establish/i.test(copy), `fairnessUniform should state it was not tested; got: ${copy}`);
+});
+
+// ---- The order verdict compares IDENTITY when both sides carry ids ----------
+// (challenge-r06 tests-scoring-fairness/B) Two candidates named 'Jan Novák' in the
+// opposite order read as "agrees" on labels — a swapped namesake order was invisible.
+test("a swapped namesake order diverges when ids are present", () => {
+  const labels = ["Jan Novák", "Jan Novák"];
+  assert.equal(robustOrderVerdict(labels, labels), "agrees", "the label-only fallback cannot see the swap");
+  assert.equal(robustOrderVerdict(labels, labels, { rankingIds: ["b", "a"], headlineIds: ["a", "b"] }), "diverges");
+  assert.equal(robustOrderVerdict(labels, labels, { rankingIds: ["a", "b"], headlineIds: ["a", "b"] }), "agrees");
+});
+
+test("the id verdict projects the headline onto the matrix field like the label one", () => {
+  assert.equal(robustOrderVerdict(["X", "Y"], [], { rankingIds: ["b", "a"], headlineIds: ["a", "c", "b"] }), "diverges");
+  assert.equal(robustOrderVerdict(["X", "Y"], [], { rankingIds: ["a", "b"], headlineIds: ["a", "c", "b"] }), "agrees");
+  assert.equal(robustOrderVerdict(["X", "Y"], [], { rankingIds: ["a", "b"], headlineIds: ["a", "c"] }), null);
+});
+
+test("a legacy payload without ids on either side falls back to the label comparison", () => {
+  assert.equal(robustOrderVerdict(["Bo", "Ada"], ["Ada", "Bo"], { rankingIds: ["b", "a"] }), "diverges");
+  assert.equal(robustOrderVerdict(["Ada", "Bo"], ["Ada", "Bo"], { headlineIds: ["b", "a"] }), "agrees");
+});
+
+test("robustOrderEntries resolves labels by id (namesakes stay distinct) and falls back for legacy blobs", () => {
+  const entries = robustOrderEntries({ labels: ["Jan Novák", "Jan Novák", "Ada"], candidateIds: ["a", "b", "c"], ranking: ["Jan Novák", "Jan Novák"], rankingIds: ["b", "a"] });
+  assert.deepEqual(entries, [
+    { key: "b", label: "Jan Novák" },
+    { key: "a", label: "Jan Novák" },
+  ]);
+  assert.deepEqual(robustOrderEntries({ labels: ["Ada", "Bo"], candidateIds: ["a", "b"], ranking: ["Bo", "Ada"] }), [
+    { key: "rank-0", label: "Bo" },
+    { key: "rank-1", label: "Ada" },
+  ]);
 });

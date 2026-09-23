@@ -28,6 +28,7 @@ from pipeline.jobfit.matching import (
 )
 from pipeline.jobfit.tests._helpers import mkjob
 from pipeline.jobfit.profile import Evidence
+from pipeline.jobfit.recruiter import fairness_check
 from pipeline.jobfit.transform import build_match_candidate
 
 
@@ -208,6 +209,55 @@ class GenderNeutralityTest(unittest.TestCase):
         res_f = fairness_matrix(pairs_f, job)
         self.assertEqual(res_m["matrix"], res_f["matrix"], "the group-compare matrix is gender-sensitive")
         self.assertEqual(res_m["own"], res_f["own"])
+
+
+class NamesakePoolTest(unittest.TestCase):
+    """Name neutrality at the POOL level, where it once broke.
+
+    Per candidate the name moves nothing; across a pool it used to decide who was in
+    the robust order at all. ``recruiter.fairness_check`` excluded KO-failed
+    candidates by display LABEL, so two people called 'Jan Novák' — one knocked out —
+    both left the ranking. The pool's outcome must be a function of identity (the
+    candidate id) and evidence, never of whether two people share a name."""
+
+    @staticmethod
+    def _cand(label: str, *, senior: bool) -> MatchCandidate:
+        return MatchCandidate(
+            skills=["Python", "Django"] if senior else ["HTML"],
+            seniority="senior" if senior else "junior",
+            role_family="software_engineering",
+            languages=["English"],
+            archetype="bau",
+            label=label,
+        )
+
+    def test_a_shared_name_moves_no_pool_outcome(self) -> None:
+        job = mkjob(seniority="senior")
+        distinct = fairness_check(
+            [("a", self._cand("Jan Novák", senior=True)), ("b", self._cand("Petr Svoboda", senior=False))], job
+        )
+        namesake = fairness_check(
+            [("a", self._cand("Jan Novák", senior=True)), ("b", self._cand("Jan Novák", senior=False))], job
+        )
+        self.assertEqual(distinct["koFailed"], ["b"], "the fixture must knock one candidate out")
+        for key in ("rankingIds", "koFailed", "matrix", "mean", "order"):
+            with self.subTest(key=key):
+                self.assertEqual(distinct[key], namesake[key])
+        self.assertEqual(namesake["rankingIds"], ["a"], "the eligible namesake stays in the robust order")
+
+    def test_fairness_matrix_emits_the_order_as_indices(self) -> None:
+        job = mkjob(seniority="senior")
+        pairs = [
+            (self._cand("Candidate", senior=False), None),
+            (self._cand("Candidate", senior=True), None),
+            (self._cand("Ada", senior=True), None),
+        ]
+        fm = fairness_matrix(pairs, job)
+        self.assertEqual(sorted(fm["order"]), [0, 1, 2], "order is a permutation of range(n)")
+        means = [fm["mean"][i] for i in fm["order"]]
+        self.assertEqual(means, sorted(means, reverse=True))
+        # Back-compat: ranking is still the labels, in that order.
+        self.assertEqual(fm["ranking"], [fm["labels"][i] for i in fm["order"]])
 
 
 class MotivationAspirationTermTest(unittest.TestCase):
