@@ -4,7 +4,7 @@ import { countOpenRoles } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
 import { candidateNpsSummary } from "@/app/_lib/candidate-nps-store";
-import { buildMetricPack, renderMetricPack, type MetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
+import { buildMetricPack, paceFromMomentum, renderMetricPack, type MetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
 import { metricPackStrings } from "@/app/_lib/metric-pack-strings";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
@@ -19,6 +19,9 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 //   GET /api/analytics/metric-pack            -> JSON
 //   GET /api/analytics/metric-pack?format=md  -> the one-page Markdown
 //   GET /api/analytics/metric-pack?days=90    -> windowed (default: all time)
+//
+// The JSON form is what the in-app preview reads (MetricPackPreview.tsx); each
+// blocking row carries its accrual `need`, whose note the Markdown caveat repeats.
 
 // THROTTLE (2026-09-03). One hit assembles the whole analytics aggregate, walks the
 // entire open-role corpus, reads every membership on the team and summarises the NPS
@@ -107,6 +110,10 @@ export async function GET(request: Request) {
         return { score: s.rawScore, responses: s.responses };
       })(),
       windowDays,
+      // The thin rows' accrual horizon: hires per week over the payload's own momentum
+      // series (sized to the window), so the date needs no second store read. No hires
+      // in the series is pace 0, and every hire-accrued shortfall then says no-pace.
+      pace: { hiresPerWeek: paceFromMomentum(analytics.momentum) },
     };
 
     // The pack is read by whoever asked for it on this very request — a UI user, not

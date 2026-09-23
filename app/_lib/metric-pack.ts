@@ -29,6 +29,7 @@
 // catalog loader is metric-pack-strings.ts.
 
 import { NPS_MIN_SAMPLE } from "./candidate-nps";
+import { accrualHorizon, type AccrualReason } from "./accrual-horizon";
 
 /** Below this many samples a metric is real but not certifiable. Eight hires is roughly
  *  a quarter of hiring for a mid-size team — enough to stop a single outlier hire from
@@ -52,6 +53,29 @@ export type Metric = {
   /** Plain-language statement of what was counted. Never omitted: a metric whose basis
    *  cannot be stated cannot be defended in a procurement conversation. */
   basis: string;
+  /** For a row that blocks publication: how far it is from its floor and, at the
+   *  recent pace, roughly when it clears (accrual-horizon.ts). null on a measured
+   *  row, and on a not-measurable row whose sample already clears the floor (the
+   *  missing thing is not observations, and `basis` says what it is). Optional
+   *  only so a Metric built elsewhere keeps compiling; buildMetricPack always sets it. */
+  need?: MetricNeed | null;
+};
+
+/** The sampling unit a row's floor is counted in. */
+export type NeedUnit = "hires" | "actions" | "roles" | "responses";
+
+export type MetricNeed = {
+  more: number;
+  /** The floor itself (MIN_SAMPLE, MIN_SAMPLE * 5 actions, MIN_OPEN_ROLES, NPS_MIN_SAMPLE). */
+  floor: number;
+  unit: NeedUnit;
+  etaWeeks: number | null;
+  /** Epoch ms; null with a reason. */
+  etaDate: number | null;
+  reason: AccrualReason | null;
+  /** The sentence, resolved at build time in the reader's language — the SAME text
+   *  the Markdown caveat carries, so the preview and the file cannot disagree. */
+  note: string;
 };
 
 export type MetricPack = {
@@ -88,7 +112,21 @@ export type MetricPackInput = {
    *  means "no data" and never "we chose not to say". */
   candidateNps?: { score: number | null; responses: number } | null;
   windowDays: number | null;
+  /** The workspace's recent accrual pace, for the thin rows' horizon. Hires per week
+   *  comes from the analytics momentum series (paceFromMomentum). Absent, every
+   *  hire-accrued shortfall reports `no-pace` rather than inventing a date. Actions
+   *  and NPS responses carry no measured pace today, so they always do. */
+  pace?: { hiresPerWeek: number | null } | null;
 };
+
+/** Hires per week over the analytics momentum series (the weekly buckets the payload
+ *  already computes, sized to the window). An empty or hire-less series is 0 — no pace,
+ *  which the horizon turns into "no date" rather than a guess. */
+export function paceFromMomentum(weeks: readonly { hired: number }[]): number {
+  if (weeks.length === 0) return 0;
+  const hired = weeks.reduce((sum, w) => sum + Math.max(0, w.hired || 0), 0);
+  return hired / weeks.length;
+}
 
 /** Minimal translator shape the loader satisfies — the same contract
  *  `PostingLookup` states for the job posting (catalog-translator.ts's
@@ -128,6 +166,8 @@ export type MetricPackStrings = {
   basisNps: (responses: number) => string;
   caveatNotMeasurable: (metric: string, basis: string) => string;
   caveatThin: (metric: string, sample: number) => string;
+  /** The accrual-horizon sentence for a blocking row (need.* keys). */
+  needNote: (need: Omit<MetricNeed, "note">, windowDays: number | null) => string;
   certifiableNote: string;
   notPublishable: string;
   disclaimer: string;
@@ -136,8 +176,11 @@ export type MetricPackStrings = {
 /** Resolve the pack's copy from a translator pinned to the reader's language.
  *  Numbers go in RAW so ICU does the plural agreement Czech needs (a pre-formatted
  *  string renders the literal word NaN). */
-export function buildMetricPackStrings(t: MetricPackLookup): MetricPackStrings {
+export function buildMetricPackStrings(t: MetricPackLookup, locale = "en"): MetricPackStrings {
   const fallbackName = (key: string) => key.replace(/_/g, " ");
+  // UTC, like every cutoff in db/analytics.ts: a week-granular estimate has no
+  // business moving a day with the reader's offset.
+  const day = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" });
   return {
     title: t("title"),
     windowAll: t("windowAll"),
@@ -163,6 +206,13 @@ export function buildMetricPackStrings(t: MetricPackLookup): MetricPackStrings {
     basisNps: (responses) => t("basis.nps", { responses }),
     caveatNotMeasurable: (metric, basis) => t("caveatNotMeasurable", { metric, basis }),
     caveatThin: (metric, sample) => t("caveatThin", { metric, sample }),
+    needNote: (need, windowDays) => {
+      const base = { shortfall: t(`need.shortfall.${need.unit}`, { count: need.more }), floor: need.floor };
+      if (need.reason === "not-accruing") return t("need.notAccruing", base);
+      if (need.reason === "no-pace") return t("need.noPace", base);
+      if (need.reason === "window-too-narrow") return t("need.windowTooNarrow", { ...base, days: windowDays ?? 0 });
+      return t("need.eta", { ...base, weeks: need.etaWeeks ?? 0, date: need.etaDate == null ? "" : day.format(need.etaDate) });
+    },
     certifiableNote: t("certifiableNote"),
     notPublishable: t("notPublishable"),
     disclaimer: t("disclaimer"),
@@ -254,12 +304,47 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string, s: 
     );
   }
 
+  // THE ACCRUAL HORIZON per blocking row, in the row's own sampling unit. Hires are
+  // the only unit with a measured pace (the momentum series); actions and NPS
+  // responses have none today, so they say `no-pace` rather than borrow one. Capacity
+  // is a point-in-time ratio: waiting does not raise it, so it is `not-accruing`.
+  const nowMs = Date.parse(generatedAt);
+  const hiresPerWeek = input.pace?.hiresPerWeek ?? null;
+  const accrual: Record<string, { floor: number; unit: NeedUnit; perWeek: number | null; accrues: boolean }> = {
+    time_to_hire: { floor: MIN_SAMPLE, unit: "hires", perWeek: hiresPerWeek, accrues: true },
+    cost_per_hire: { floor: MIN_SAMPLE, unit: "hires", perWeek: hiresPerWeek, accrues: true },
+    recruiter_hours_saved: { floor: MIN_SAMPLE * 5, unit: "actions", perWeek: null, accrues: true },
+    recruiter_capacity: { floor: MIN_OPEN_ROLES, unit: "roles", perWeek: null, accrues: false },
+    candidate_nps: { floor: NPS_MIN_SAMPLE, unit: "responses", perWeek: null, accrues: true },
+  };
+  for (const m of metrics) {
+    m.need = null;
+    const a = accrual[m.key];
+    if (m.status === "measured" || !a || m.sample >= a.floor) continue;
+    const h = accrualHorizon({
+      have: m.sample,
+      need: a.floor,
+      perWeek: a.perWeek,
+      // Capacity is a snapshot, not a windowed count — the window cannot bound it.
+      windowDays: m.key === "recruiter_capacity" ? null : input.windowDays,
+      nowMs: Number.isFinite(nowMs) ? nowMs : 0,
+      accrues: a.accrues,
+    });
+    // An unparseable generatedAt cannot anchor a date; say no-pace rather than 1970.
+    const dated = Number.isFinite(nowMs) ? h : h.reason ? h : { ...h, etaWeeks: null, etaDate: null, reason: "no-pace" as const };
+    const bare = { more: dated.more, floor: a.floor, unit: a.unit, etaWeeks: dated.etaWeeks, etaDate: dated.etaDate, reason: dated.reason };
+    m.need = { ...bare, note: s.needNote(bare, input.windowDays) };
+  }
+
   const caveats: string[] = [];
   for (const m of metrics) {
     // The metric NAME in a caveat is the reader-facing label, but the machine key
     // stays on the metric row itself — a caveat is prose, `Metric.key` is the id.
-    if (m.status === "not_measurable") caveats.push(s.caveatNotMeasurable(s.metricLabel(m.key), m.basis));
-    else if (m.status === "thin") caveats.push(s.caveatThin(s.metricLabel(m.key), m.sample));
+    // The need sentence is appended VERBATIM from the row, so the Markdown caveat and
+    // the JSON row (which the in-app preview renders) say the same thing.
+    const needNote = m.need ? ` ${m.need.note}` : "";
+    if (m.status === "not_measurable") caveats.push(s.caveatNotMeasurable(s.metricLabel(m.key), m.basis) + needNote);
+    else if (m.status === "thin") caveats.push(s.caveatThin(s.metricLabel(m.key), m.sample) + needNote);
   }
 
   // Capacity is open roles NOW and membership NOW. Under a "Window: last N days"

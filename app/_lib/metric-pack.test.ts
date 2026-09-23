@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildMetricPack, buildMetricPackStrings, renderMetricPack, MIN_SAMPLE, MIN_OPEN_ROLES } from "./metric-pack.ts";
+import { buildMetricPack, buildMetricPackStrings, renderMetricPack, paceFromMomentum, MIN_SAMPLE, MIN_OPEN_ROLES } from "./metric-pack.ts";
 import type { MetricPackInput } from "./metric-pack.ts";
 import { namespaceTranslator } from "./catalog-translator.ts";
 
@@ -11,7 +11,7 @@ const AT = "2026-07-30T10:00:00.000Z";
 // key: a missing message fails here rather than printing a raw key path onto a
 // document a buyer reads.
 const EN = buildMetricPackStrings(await namespaceTranslator("en", "analytics.metricPack"));
-const CS = buildMetricPackStrings(await namespaceTranslator("cs", "analytics.metricPack"));
+const CS = buildMetricPackStrings(await namespaceTranslator("cs", "analytics.metricPack"), "cs");
 
 const input = (over: Partial<MetricPackInput> = {}): MetricPackInput => ({
   hired: 12,
@@ -203,4 +203,90 @@ test("a windowed pack whose only measured row is the capacity snapshot is not ce
   );
   assert.equal(byKey(pack, "recruiter_capacity").status, "measured");
   assert.equal(pack.certifiable, false);
+});
+
+// ---------------------------------------------------------------------------
+// The accrual horizon (registry state-the-accrual-horizon, step 5): a thin row
+// states how many more observations it needs and, at the workspace's recent
+// pace, roughly when — or the reason there is no date. The same `need` object
+// feeds the JSON row and the Markdown caveat, so the file and the screen agree.
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 86_400_000;
+const NOW_MS = Date.parse(AT);
+
+test("a thin time_to_hire row carries its shortfall and a paced date; a measured row carries none", () => {
+  const pack = buildMetricPack(
+    input({ hired: 9, timeToHireSamples: 5, capacity: { openRoles: 2, recruiters: 1 }, pace: { hiresPerWeek: 1.5 } }),
+    AT,
+    EN
+  );
+  const tth = byKey(pack, "time_to_hire");
+  assert.equal(tth.need?.more, 3);
+  assert.equal(tth.need?.unit, "hires");
+  assert.equal(tth.need?.floor, MIN_SAMPLE);
+  assert.equal(tth.need?.etaWeeks, 2);
+  assert.equal(tth.need?.etaDate, NOW_MS + 14 * DAY_MS);
+  assert.equal(tth.need?.reason, null);
+
+  assert.equal(byKey(pack, "cost_per_hire").need, null, "a measured row carries need: null");
+
+  const cap = byKey(pack, "recruiter_capacity");
+  assert.equal(cap.status, "thin");
+  assert.equal(cap.need?.more, 1);
+  assert.equal(cap.need?.unit, "roles");
+  assert.equal(cap.need?.etaWeeks, null);
+  assert.equal(cap.need?.reason, "not-accruing");
+});
+
+test("the Markdown caveat states the shortfall and the date from the same need the JSON carries", () => {
+  const pack = buildMetricPack(input({ hired: 9, timeToHireSamples: 5, pace: { hiresPerWeek: 1.5 } }), AT, EN);
+  const tth = byKey(pack, "time_to_hire");
+  assert.ok(tth.need && tth.need.note.length > 0);
+  const md = renderMetricPack(pack, EN);
+  const line = md.split("\n").find((l) => l.startsWith("- ") && l.includes("Time to hire"));
+  assert.ok(line, "a caveat line for the thin row");
+  assert.ok(line!.includes(tth.need!.note), "the caveat carries the row's own need note verbatim");
+  assert.match(line!, /3 more hires/);
+  assert.match(line!, /\b8\b/, "the floor is named");
+  assert.match(line!, /2 weeks/);
+  assert.match(line!, /Aug 13, 2026/, "the date, at the recent pace (UTC, medium)");
+});
+
+test("no pace: the caveat states the shortfall and the no-date reason instead of a date", () => {
+  const pack = buildMetricPack(input({ hired: 9, timeToHireSamples: 5, pace: { hiresPerWeek: 0 } }), AT, EN);
+  const tth = byKey(pack, "time_to_hire");
+  assert.equal(tth.need?.reason, "no-pace");
+  assert.equal(tth.need?.etaDate, null);
+  const caveat = pack.caveats.find((c) => c.includes("Time to hire"))!;
+  assert.match(caveat, /3 more hires/);
+  assert.doesNotMatch(caveat, /2026/);
+});
+
+test("a windowed pack too narrow to ever clear says so rather than promising a date", () => {
+  const pack = buildMetricPack(input({ hired: 4, timeToHireSamples: 4, windowDays: 30, pace: { hiresPerWeek: 1 } }), AT, EN);
+  assert.equal(byKey(pack, "time_to_hire").need?.reason, "window-too-narrow");
+  assert.equal(byKey(pack, "cost_per_hire").need?.reason, "window-too-narrow");
+});
+
+test("the need sentence localizes (Czech plural agreement on the shortfall)", () => {
+  const pack = buildMetricPack(input({ hired: 9, timeToHireSamples: 5, pace: { hiresPerWeek: 1.5 } }), AT, CS);
+  const note = byKey(pack, "time_to_hire").need!.note;
+  assert.doesNotMatch(note, /more hires/);
+  assert.match(note, /chybí ještě 3 přijetí/);
+});
+
+test("paceFromMomentum: hires per week over the momentum series; none -> 0 and every hire need is no-pace", () => {
+  const weeks = [
+    { weekStart: "2026-08-03", added: 4, advanced: 2, rejected: 1, hired: 1 },
+    { weekStart: "2026-08-10", added: 4, advanced: 2, rejected: 1, hired: 2 },
+    { weekStart: "2026-08-17", added: 4, advanced: 2, rejected: 1, hired: 0 },
+    { weekStart: "2026-08-24", added: 4, advanced: 2, rejected: 1, hired: 3 },
+  ];
+  assert.equal(paceFromMomentum(weeks), 1.5);
+  assert.equal(paceFromMomentum([]), 0);
+  const idle = weeks.map((w) => ({ ...w, hired: 0 }));
+  assert.equal(paceFromMomentum(idle), 0);
+  const pack = buildMetricPack(input({ hired: 2, costPerHireCzk: 1000, pace: { hiresPerWeek: paceFromMomentum(idle) } }), AT, EN);
+  for (const key of ["time_to_hire", "cost_per_hire"]) assert.equal(byKey(pack, key).need?.reason, "no-pace", key);
 });

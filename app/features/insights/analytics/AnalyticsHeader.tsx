@@ -1,11 +1,12 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { BTN_GHOST, CHIP } from "@/app/_components/ui/recipes";
 import { AnalyticsStatCluster } from "./AnalyticsStatCluster";
 import { AnalyticsCopyViewLink } from "./AnalyticsCopyViewLink";
+import { MetricPackPreview } from "./MetricPackPreview";
 import type { AnalyticsSectionId } from "./sections/analyticsSections";
 import { WINDOW_CHOICES, type Analytics } from "./AnalyticsTypes";
 import { JOB_SCOPE_FIGURE_KEY, JOB_SCOPE_REASON_KEY, withheldByReason } from "./analyticsJobScope";
@@ -55,6 +56,7 @@ export function AnalyticsHeader({
   const withheld = withheldByReason(jobScope);
   const listFormat = new Intl.ListFormat(locale, { type: "conjunction" });
   const scopeNoteId = useId();
+  const [packOpen, setPackOpen] = useState(false);
   const windowApplies = section == null || !WINDOW_BLIND_SECTIONS.includes(section);
   // One line, three truths — the note is the switcher's accessible description
   // (aria-describedby), so the scope in force is announced WITH the control and
@@ -170,16 +172,28 @@ export function AnalyticsHeader({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* W0.4 — the metric pack. The four numbers a buyer asks for (time-to-hire,
               cost-per-hire, recruiter hours saved, roles per recruiter) as one page, each
-              carrying its sample and whether it is publishable. A plain link, not a fetch:
-              the route streams the Markdown as a download. */}
-          <a
-            href={`/api/analytics/metric-pack?format=md${days ? `&days=${days}` : ""}`}
+              carrying its sample and whether it is publishable. It opens as a PREVIEW
+              rather than a blind download: whether it can be sent, and for each blocking
+              row how many more observations it needs and roughly when, are answered on
+              the page (the Markdown download sits in the preview's footer). The pack is
+              a workspace artifact (its route reads no role), so while a role is in scope
+              the trigger says so rather than implying a role pack. */}
+          <button
+            type="button"
+            onClick={() => setPackOpen(true)}
+            aria-haspopup="dialog"
             className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3 py-1 text-sm font-semibold text-steel transition-colors hover:border-coral/40 hover:text-coral"
           >
-            {/* The pack is a workspace artifact (its route reads no role), so while a
-                role is in scope the link says so rather than implying a role pack. */}
-            {job ? t("metricPackDownloadWorkspace") : t("metricPackDownload")}
-          </a>
+            {job ? t("metricPack.preview.openWorkspace") : t("metricPack.preview.open")}
+          </button>
+          {packOpen ? (
+            <MetricPackPreview
+              days={days}
+              workspaceScoped={job != null}
+              onClose={() => setPackOpen(false)}
+              onUseAllTime={() => setDays(null)}
+            />
+          ) : null}
           {/* UAT TOM-ANA-8 — a view link needs a view to name. `section` is optional on
               this header (a caller may render it without one), and minting a link to the
               DEFAULT section instead would hand the reader a URL that lands somewhere
