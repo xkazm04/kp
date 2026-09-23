@@ -1197,6 +1197,28 @@ client-safe by construction. `app/_lib/archetype-registry-lockstep.test.ts` read
 rather than shared — the `1e-6` tolerance and the `experienced` / `early_career`
 vocabulary — so a drift on either side is a red test rather than a broken deployment.
 
+**Server decisions read the LIVE file, not the bundled copy.** `app/_lib/archetypes.ts`
+imports `archetypes.json` statically, so it answers from the registry as it stood at
+build time, while the manager rewrites the file at runtime and Python re-reads it on
+every spawn. Every server reader that *decides* or *caches* on the registry goes through
+`app/_lib/archetype-live.ts` instead: the screening wave (`screen-wave.ts`, one snapshot
+per wave), the TS re-check of Python's rejects (`automation-fairness.ts`), and the
+scored-grid cache key of `GET /api/matrix` (`archetypeRegistryDigest()`, so a reweight
+re-scores the grid instead of serving the pre-edit one from the LRU; the digest is
+re-checked before a fresh grid is cached). The reader is memoised on the file's
+mtime + size + a write generation `writeRegistry` bumps, validates through the same
+`parseRegistryDocument` the manager uses, and never throws: an unreadable or invalid file
+falls back to the bundled gate with the digest `unreadable`. Its shield is a **union**:
+an id is shielded when the bundle shields it, when its live entry does, or when neither
+registry knows it (fail closed). One rule, `shieldsFromAutoReject`, decides what an entry
+means for both readers: `fairnessProtected` **or** `scoringModel: early_career`, the key
+Python's `automation.py` uses for its never-auto-reject lever. A custom archetype
+registered after the build is therefore *known* to the wave (no
+`fairness_gate_unknown_archetype` audit event) and shielded exactly as its entry says.
+Labels, badges and display grouping still come from the bundle and may lag until a
+rebuild. Pinned by `app/_lib/archetype-live.test.ts`,
+`app/_lib/screen-wave-live-archetype.test.ts` and `app/_lib/automation-fairness.test.ts`.
+
 Errors come back as `{ error (English), code, params }`; the client localizes by
 `code` through the `errors.validation.*` catalog. **Known gap:** `weight_out_of_range`
 and `id_reserved` have no catalog entry yet, so the manager UI falls back to its

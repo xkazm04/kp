@@ -977,7 +977,10 @@ per workspace from that workspace's profiles and open positions, so two tenants 
 tab open evicted each other on every poll and the hit rate fell to zero — every visit
 paying a Python spawn for a deterministic O(N×M) computation the cache existed to avoid.
 It is now a small LRU (`app/_lib/matrix-cache.ts`, capacity 8) keyed by a hash of the
-workspace plus the exact JSON handed to the scorer. Bounded rather than a plain map
+workspace plus the exact JSON handed to the scorer, plus the content digest of the
+archetype registry (`archetypeRegistryDigest()` in `app/_lib/archetype-live.ts`): the
+registry's weights score every cell and are editable at runtime, so a reweight misses the
+grid it made stale instead of being served it until eviction. Bounded rather than a plain map
 because the value is a whole grid and the key is a content hash: unbounded, it would hold
 one grid per distinct corpus state forever. Pinned by `app/_lib/matrix-cache.test.ts`
 (eviction order, read-promotes, capacity refused below 1, the key's axes and separator).

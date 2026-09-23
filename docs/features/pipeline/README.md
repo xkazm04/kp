@@ -1979,6 +1979,15 @@ the same server-side instant.
   the TS apply boundary independent of the Python gate; a violation is
   downgraded to `hold` and logged as `fairness_gate_blocked_reject` — audit
   that event kind for any refused (bug-caught) or, worse, missed case.
+- Both TS gates (the screen wave and `assertAutoRejectFair`) read the archetype
+  registry **live** through `app/_lib/archetype-live.ts`, the same file Python's
+  `automation.py` derives its early-career set from on every spawn, not the copy
+  bundled at build time. The shield is the bundled one unioned with the live
+  file's (`fairnessProtected` or `scoringModel: early_career`), and an id neither
+  registry knows stays shielded; so switching a custom archetype's shield on takes
+  effect on the next wave, and a custom archetype registered after the build is no
+  longer audited as `fairness_gate_unknown_archetype`. See
+  [the candidates doc](../candidates/README.md) (registry edits).
 
 ### Which half of the guarantee is Python's, and which is TypeScript's
 
