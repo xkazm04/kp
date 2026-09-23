@@ -4256,7 +4256,12 @@
       "batonEyebrow": "Staffelstab übergeben",
       "reconsiderLine": "{count, plural, one {# automatisch abgelehnte/r Kandidat/in kann unten weiterhin erneut geprüft werden.} other {# automatisch abgelehnte Kandidat/innen können unten weiterhin erneut geprüft werden.}}",
       "hintSchedule": "Angenommene Screenings, die auf einen bestätigten Termin warten.",
-      "hintPipeline": "Das Live-Board: alle Kandidat/innen und die Phase, in der sie stehen."
+      "hintPipeline": "Das Live-Board: alle Kandidat/innen und die Phase, in der sie stehen.",
+      "arrivingEyebrow": "Screening läuft",
+      "arrivingTitle": "Entscheidungen sind unterwegs.",
+      "arrivingBody": "{count, plural, one {# KI-Lauf prüft gerade Kandidat/innen.} other {# KI-Läufe prüfen gerade Kandidat/innen.}} Jede Entscheidung erscheint hier, sobald sie getroffen ist.",
+      "arrivingProgress": "{done} von {total} geprüft",
+      "arrivingWatch": "Verlauf ansehen"
     },
     "pass": {
       "reasons": {

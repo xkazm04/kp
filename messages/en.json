@@ -4256,7 +4256,12 @@
       "batonEyebrow": "Baton passed",
       "reconsiderLine": "{count, plural, one {# auto-rejected candidate is still reconsiderable below.} other {# auto-rejected candidates are still reconsiderable below.}}",
       "hintSchedule": "Accepted screenings waiting on a confirmed slot.",
-      "hintPipeline": "The live board: every candidate and the stage they sit in."
+      "hintPipeline": "The live board: every candidate and the stage they sit in.",
+      "arrivingEyebrow": "Screening in progress",
+      "arrivingTitle": "Decisions are on their way.",
+      "arrivingBody": "{count, plural, one {# AI run is screening candidates now.} other {# AI runs are screening candidates now.}} Each decision appears here as soon as it is made.",
+      "arrivingProgress": "{done} of {total} screened",
+      "arrivingWatch": "Watch it run"
     },
     "pass": {
       "reasons": {

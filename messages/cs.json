@@ -4256,7 +4256,12 @@
       "batonEyebrow": "Štafeta předána",
       "reconsiderLine": "{count, plural, one {# automaticky zamítnutého kandidáta lze níže ještě znovu posoudit.} few {# automaticky zamítnuté kandidáty lze níže ještě znovu posoudit.} other {# automaticky zamítnutých kandidátů lze níže ještě znovu posoudit.}}",
       "hintSchedule": "Přijaté screeningy, které čekají na potvrzený termín.",
-      "hintPipeline": "Živá nástěnka: každý kandidát a fáze, ve které je."
+      "hintPipeline": "Živá nástěnka: každý kandidát a fáze, ve které je.",
+      "arrivingEyebrow": "Probíhá screening",
+      "arrivingTitle": "Rozhodnutí jsou na cestě.",
+      "arrivingBody": "{count, plural, one {# běh AI právě prověřuje kandidáty.} few {# běhy AI právě prověřují kandidáty.} other {# běhů AI právě prověřuje kandidáty.}} Každé rozhodnutí se tu objeví, jakmile padne.",
+      "arrivingProgress": "Prověřeno {done} z {total}",
+      "arrivingWatch": "Sledovat průběh"
     },
     "pass": {
       "reasons": {

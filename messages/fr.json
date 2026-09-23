@@ -4256,7 +4256,12 @@
       "batonEyebrow": "Témoin passé",
       "reconsiderLine": "{count, plural, one {# candidat rejeté automatiquement peut encore être réexaminé ci-dessous.} other {# candidats rejetés automatiquement peuvent encore être réexaminés ci-dessous.}}",
       "hintSchedule": "Présélections acceptées en attente d’un créneau confirmé.",
-      "hintPipeline": "Le tableau en direct : chaque candidat et l’étape où il se trouve."
+      "hintPipeline": "Le tableau en direct : chaque candidat et l’étape où il se trouve.",
+      "arrivingEyebrow": "Présélection en cours",
+      "arrivingTitle": "Des décisions sont en route.",
+      "arrivingBody": "{count, plural, one {# exécution IA évalue actuellement des candidats.} other {# exécutions IA évaluent actuellement des candidats.}} Chaque décision s’affiche ici dès qu’elle est prise.",
+      "arrivingProgress": "{done} sur {total} évalués",
+      "arrivingWatch": "Suivre l’exécution"
     },
     "pass": {
       "reasons": {
