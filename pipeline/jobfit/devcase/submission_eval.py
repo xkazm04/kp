@@ -1,7 +1,11 @@
 """Submission scenario eval — the EVALUATION half of the Dev pipeline (Phase D7).
 
-Runs trace -> reflect_commits -> assess_tooling -> evaluate_submission -> score_transfer
-over a landscape of synthetic candidate behaviours (submission_scenarios.py) and gates:
+Runs each synthetic candidate behaviour (submission_scenarios.py) through the SAME
+evaluate-submission chain production runs (evaluation_pipeline.run_evaluation — reflect ->
+tooling -> evaluate -> transfer -> followups, with the observed evidence assembled exactly as
+devcase_cli assembles it) and gates. ``--path commit`` (default) certifies repo-link
+submissions, ``--path observed`` Live Work Surface sessions (events, chat, submitted tree,
+seed canaries, baseline), ``--path both`` the two landscapes together:
 
   RELIABILITY — every output well-formed (scores in range, one outcome per probe, transfer in
                 range, reflection hedged).
@@ -28,6 +32,7 @@ over a landscape of synthetic candidate behaviours (submission_scenarios.py) and
 Complements lifecycle_eval.py (the design half).
 
     python -m pipeline.jobfit.devcase.submission_eval --count 48 --no-llm
+    python -m pipeline.jobfit.devcase.submission_eval --path observed --count 48 --no-llm --strict
     python -m pipeline.jobfit.devcase.submission_eval --count 24 --judge --workers 6 --json
 """
 
@@ -42,11 +47,10 @@ from typing import Any
 
 from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
-from .evaluate import evaluate_submission, score_transfer
+from .evaluation_pipeline import EvaluationInputs, run_evaluation
 from .llm_judge import judge_independence, resolve_judge_provider, run_judge
 from .models import RUBRIC_DIMENSIONS
-from .provenance import SOURCE_DETERMINISTIC, collect_fallback_reasons, combine_source
-from .reflect import assess_tooling, reflect_commits
+from .provenance import SOURCE_DETERMINISTIC, combine_source
 from .submission_scenarios import SubScenario, generate_submissions
 
 # Derived from the canonical rubric (models.RUBRIC_DIMENSIONS) — mirroring evaluate._DIMS —
@@ -187,6 +191,9 @@ class Row:
     # these ONLY when a call RAISED (empty for a clean LLM run or an intentional
     # --no-llm run). A non-empty map = the LLM path was degraded for this row.
     fallback_reasons: dict = field(default_factory=dict)
+    # The mechanical observed checks (canary verdicts, prompt signals, baseline distance)
+    # the evaluation was fed — empty on the commit path.
+    observed_checks: dict = field(default_factory=dict)
 
     @property
     def reliable(self) -> bool:
@@ -204,26 +211,33 @@ class Row:
 
 
 def run_one(scn: SubScenario, provider: Any | None) -> Row:
+    # The production chain, not a re-statement of it: a scenario's observed evidence
+    # (events / seed / files / chat / baseline) is assembled exactly as devcase_cli does
+    # for a Live Work Surface submission; the commit path simply carries none.
+    inputs = EvaluationInputs(
+        commits=scn.commits, case=scn.case, role=scn.role, probes=scn.case["coverProbes"],
+        events=scn.events, seed=scn.seed, files=scn.files, chat=scn.chat, baseline=scn.baseline,
+    )
     try:
-        refl, s1 = reflect_commits(scn.commits, provider=provider)
-        tool, s2 = assess_tooling(refl, scn.commits, scn.case["coverProbes"], provider=provider)
-        ev, s3 = evaluate_submission(refl, tool, scn.case, scn.role, provider=provider)
-        tr, s4 = score_transfer(ev, scn.role, provider=provider)
+        ran = run_evaluation(inputs, provider=provider)
     except Exception as exc:  # pragma: no cover
         return Row(id=scn.id, label=scn.label, planted=scn.planted, source="error", issues=[f"raised: {type(exc).__name__}: {exc}"])
+    res = ran.result
     # One shared tri-state collapse (provenance.combine_source): a mixed run reads as
-    # "partial", so llm_rows + the --strict gate count only fully-LLM runs as LLM.
-    src = combine_source(s1, s2, s3, s4)
-    # Capture WHY any step fell back: provenance stashes FALLBACK_REASON_KEY on the
-    # artifact ONLY when the LLM RAISED (a --no-llm / provider-unavailable run never
-    # carries it). Without this the harness can't tell an intentional deterministic
-    # run from one where the provider was down/garbage — so an all-error-fallback run
-    # reads as a healthy 100%-reliable green (the deterministic templates pass _check).
-    fallback_reasons = collect_fallback_reasons(
-        (("reflect", refl), ("tooling", tool), ("evaluate", ev), ("transfer", tr))
+    # "partial", so llm_rows + the --strict gate count only fully-LLM runs as LLM. The
+    # followups step is the interview hand-off, not a score — kept out of the verdict.
+    src = combine_source(*(v for k, v in ran.per_step.items() if k != "followups"))
+    # WHY any step fell back: provenance stamps a reason ONLY when the LLM RAISED (a
+    # --no-llm / provider-unavailable run never carries one). Without this the harness
+    # can't tell an intentional deterministic run from one where the provider was
+    # down/garbage — an all-error-fallback run would read as a healthy 100% green.
+    fallback_reasons = dict(ran.fallback_reasons)
+    issues = _check(res["reflection"], res["tooling"], res["evaluation"], res["transfer"], scn)
+    return Row(
+        id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues,
+        reflection=res["reflection"], tooling=res["tooling"], evaluation=res["evaluation"], transfer=res["transfer"],
+        fallback_reasons=fallback_reasons, observed_checks=res.get("observedChecks") or {},
     )
-    issues = _check(refl, tool, ev, tr, scn)
-    return Row(id=scn.id, label=scn.label, planted=scn.planted, source=src, issues=issues, reflection=refl, tooling=tool, evaluation=ev, transfer=tr, fallback_reasons=fallback_reasons)
 
 
 def run(scenarios: list[SubScenario], provider: Any | None, workers: int = 4) -> list[Row]:
@@ -491,6 +505,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Submission evaluation eval (Dev pipeline, eval half).")
     p.add_argument("--count", type=int, default=48)
     p.add_argument("--domain", default="it", help="it | marketing | finance | sales | design | mixed")
+    p.add_argument("--path", default="commit", choices=["commit", "observed", "both"], help="commit = repo-link submissions (default); observed = Live Work Surface sessions; both = the two landscapes, --count each")
     p.add_argument("--no-llm", action="store_true")
     p.add_argument("--judge", action="store_true")
     p.add_argument("--strict", action="store_true", help="exit non-zero if reliability < 100%%, a gate is fail/inconclusive (a measured violation, or a thin-but-present sample the gate may not certify), OR any row error-fell-back from the LLM path (a degraded provider masquerading as a clean deterministic run). A not_evaluable gate (an empty cohort / no surviving rows — e.g. a tiny --count, or every scenario errored) does NOT exit non-zero: absence of data is not a violation.")
@@ -505,7 +520,9 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write("submission_eval: Claude CLI unavailable -> deterministic mode\n")
             provider = None
 
-    rows = run(generate_submissions(args.count, args.domain), provider, workers=args.workers)
+    paths = ["commit", "observed"] if args.path == "both" else [args.path]
+    scenarios = [s for path in paths for s in generate_submissions(args.count, args.domain, path=path)]
+    rows = run(scenarios, provider, workers=args.workers)
     sig = signals(rows)
     qual = None
     independence = None

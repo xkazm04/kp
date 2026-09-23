@@ -490,5 +490,63 @@ class _LangPromptCapture:
         raise RuntimeError("captured")
 
 
+class TestKeylessCanaryTerm(unittest.TestCase):
+    """The planted-flaw verdicts are the one observed check with KNOWN ground truth, and
+    the keyless evaluator ignored them: a candidate who fixed every planted flaw and one
+    who shipped every flaw scored identically (judgment 0, transfer 49 — probe
+    2026-09-23). They now feed observed verification, by MAX, so they can only lift."""
+
+    def setUp(self):
+        # Identical observed tooling + reflection for every case below: read-first, no
+        # test edit, one decision-log entry — the probe's shape (judgment 0 today).
+        self.reflection = {"readBeforeWrite": 0.4, "verificationHabits": [], "narrative": "x"}
+        self.tooling = {
+            "fluency": 0.7,
+            "probeOutcomes": [{"probeId": "p1", "detected": True, "handledWell": None}],
+            "signals": {"readBeforeWrite": 1.0, "editedTest": False, "decisionLogEntries": 1},
+        }
+        self.case = {"rubricDimensions": [{"name": d, "weight": 0.2} for d in _DIMS]}
+        self.role = {"title": "Backend", "seniority": "medior"}
+
+    def _eval(self, statuses, lang="en"):
+        extras = {"canaryOutcomes": [{"id": f"c{i}", "status": s} for i, s in enumerate(statuses)]} if statuses is not None else None
+        ev, _ = evaluate_submission(self.reflection, self.tooling, self.case, self.role, extras=extras, provider=None, lang=lang)
+        return ev
+
+    def test_addressed_beats_propagated_by_the_verify_margin(self):
+        caught = self._eval(["addressed", "addressed"])["dimensionScores"]["judgment"]
+        missed = self._eval(["propagated", "propagated"])["dimensionScores"]["judgment"]
+        self.assertGreaterEqual(caught - missed, 5)
+        t_caught, _ = score_transfer(self._eval(["addressed", "addressed"]), self.role, provider=None)
+        t_missed, _ = score_transfer(self._eval(["propagated", "propagated"]), self.role, provider=None)
+        self.assertGreater(t_caught["transferScore"], t_missed["transferScore"])
+
+    def test_flagged_counts_exactly_like_addressed(self):
+        self.assertEqual(self._eval(["flagged", "flagged"])["dimensionScores"], self._eval(["addressed", "addressed"])["dimensionScores"])
+        self.assertEqual(self._eval(["flagged", "propagated"])["dimensionScores"], self._eval(["addressed", "propagated"])["dimensionScores"])
+
+    def test_unverifiable_is_no_signal_never_a_penalty(self):
+        none = self._eval(None)
+        unver = self._eval(["unverifiable", "unverifiable"])
+        self.assertEqual(unver["dimensionScores"], none["dimensionScores"])
+        self.assertEqual(unver["strengths"], none["strengths"])
+        self.assertEqual(unver["concerns"], none["concerns"])
+        # Unverifiable entries are excluded from the ratio, not counted as misses.
+        self.assertEqual(self._eval(["addressed", "unverifiable"])["dimensionScores"], self._eval(["addressed"])["dimensionScores"])
+
+    def test_propagated_never_scores_below_no_canaries(self):
+        # MAX, never instead of: a shipped flaw is a concern line, not a lower score than
+        # a run that carried no canaries at all.
+        self.assertEqual(self._eval(["propagated"])["dimensionScores"], self._eval(None)["dimensionScores"])
+
+    def test_findings_name_the_canaries_in_every_language(self):
+        for lang in ("en", "cs", "de", "fr"):
+            caught = self._eval(["addressed", "propagated"], lang=lang)
+            base = self._eval(None, lang=lang)
+            self.assertEqual(len(caught["strengths"]), len(base["strengths"]) + 1, lang)
+            self.assertEqual(len(caught["concerns"]), len(base["concerns"]) + 1, lang)
+            self.assertTrue(any("1" in s and "2" in s for s in caught["strengths"]), (lang, caught["strengths"]))
+
+
 if __name__ == "__main__":
     unittest.main()

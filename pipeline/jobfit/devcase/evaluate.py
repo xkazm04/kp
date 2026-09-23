@@ -40,6 +40,13 @@ _DIMS = tuple(d["name"] for d in RUBRIC_DIMENSIONS)
 # so "not scored" was conflated with "scored zero" and a gap was both not-a-strength and not-a-gap.)
 MISSING_DIMENSION_SCORE = 50
 
+# Canary verdicts in the keyless evaluator: which statuses are graded, which count as
+# caught, and the most verification they can stand in for (the weight of one watched
+# habit — an edited test — not the whole term; see deterministic()).
+_CANARY_GRADED = frozenset({"addressed", "flagged", "propagated"})
+_CANARY_CAUGHT = frozenset({"addressed", "flagged"})
+CANARY_VERIFY_WEIGHT = 0.5
+
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
@@ -119,6 +126,18 @@ _DET: dict[str, dict[str, str]] = {
         "cs": "Ze stopy práce není jasné, jak si se záludnostmi poradil(a)",
         "de": "Aus dem Verlauf geht nicht hervor, wie die Stolperstellen behandelt wurden",
         "fr": "La trace ne permet pas de dire comment les pièges ont été traités",
+    },
+    "canaries_caught": {
+        "en": "Fixed or flagged {caught} of {total} known defects in the starter code",
+        "cs": "Opravil(a) nebo označil(a) {caught} z {total} známých chyb ve výchozím kódu",
+        "de": "Hat {caught} von {total} bekannten Fehlern im Ausgangscode behoben oder benannt",
+        "fr": "A corrigé ou signalé {caught} des {total} défauts connus du code de départ",
+    },
+    "canaries_missed": {
+        "en": "{missed} of {total} known defects in the starter code shipped unexamined",
+        "cs": "{missed} z {total} známých chyb ve výchozím kódu zůstalo v odevzdané práci bez povšimnutí",
+        "de": "{missed} von {total} bekannten Fehlern im Ausgangscode wurden ungeprüft übernommen",
+        "fr": "{missed} des {total} défauts connus du code de départ ont été livrés sans examen",
     },
     "eval_summary": {
         "en": "Deterministic estimate from the trace: tooling {tooling}, judgment {judgment}, framing {framing}.",
@@ -408,6 +427,18 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
             # framing input (the reflection's commit-derived rbw is a default here).
             rbw = _num(sig.get("readBeforeWrite"), rbw)
             verif = max(verif, min(1.0, obs_verif))
+        # Planted-flaw verdicts (artifact_checks.canary_outcomes) — the one observed check
+        # with KNOWN ground truth, which this keyless path used to ignore: a candidate who
+        # fixed every planted flaw and one who shipped every flaw scored identically.
+        # addressed/flagged = caught, propagated = missed, unverifiable = no signal (left
+        # out of the ratio, so an ungradable seed can never cost a point). MAX with the
+        # verification above, never instead of it, and capped at CANARY_VERIFY_WEIGHT:
+        # case-sim round 3 showed canaries are not durable against a candidate who asks a
+        # model to sweep for traps, so they lift like one watched habit, never decide alone.
+        graded = [c for c in ((extras or {}).get("canaryOutcomes") or []) if isinstance(c, dict) and c.get("status") in _CANARY_GRADED]
+        caught = sum(1 for c in graded if c.get("status") in _CANARY_CAUGHT)
+        if graded:
+            verif = max(verif, CANARY_VERIFY_WEIGHT * caught / len(graded))
         # Filter to dict outcomes (a stored / hand-built ToolingSignal may carry
         # strings or None) so `.get` can't raise — mirrors mint_followups and
         # assess_tooling, the sibling consumers that already guard.
@@ -446,6 +477,10 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # not flagged as a negative.
         if not outcomes or (assessed and handled <= 0.5):
             concerns.append(_t("probe_handling_unclear", lang))
+        if caught:
+            strengths.append(_t("canaries_caught", lang, caught=caught, total=len(graded)))
+        if len(graded) > caught:
+            concerns.append(_t("canaries_missed", lang, missed=len(graded) - caught, total=len(graded)))
         # Empty findings stay empty (no '—' sentinel) — `hasFindings` lets the UI render a
         # deliberate empty state instead of a bare em-dash bullet that reads as a render bug.
         return {
