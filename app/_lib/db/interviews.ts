@@ -45,6 +45,12 @@ export type InterviewedCandidate = {
    *  what each screen cost belongs on that table, and it was the one number the cohort
    *  read could not answer. */
   costUsd: number | null;
+  /** The session this row is (challenge-r07 voice-interview-api/B) and the director's
+   *  agenda stored on it (null for an undirected call) — the compare route's inputs for
+   *  per-axis coverage. OPERATOR-side only: the compare route consumes both and strips
+   *  them from its payload (the agenda carries question text and block titles). */
+  sessionId: string;
+  agenda: InterviewAgenda | null;
 };
 
 export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewedCandidate[] {
@@ -59,12 +65,17 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       // disagree about what a call cost. `outcome = 'ok'` for the same reason it is
       // named in every other money read (tiger X2): a failed attempt is a row here
       // now, and it must not be able to reach a cost the UI presents as spent.
-      `SELECT s.id, s.entry_id, s.candidate_label, s.scorecard_json, s.ended_at,
+      //
+      // CANDIDATES only (`s.mode = 'candidate'`, the rule listRecentInterviewSessions
+      // already follows): a recruiter's kit rehearsal is minted as mode 'test' WITH the
+      // job id (jobs/[id]/interview-kit/rehearse), and it used to enter this cohort as
+      // a null-labelled "candidate" with blank ratings and its own voice cost.
+      `SELECT s.id, s.entry_id, s.candidate_label, s.scorecard_json, s.ended_at, s.agenda_json,
               (SELECT SUM(u.cost_usd) FROM llm_usage u
                 WHERE u.request_id = s.id AND u.use_case = 'interview_realtime'
                   AND u.outcome = 'ok') AS cost_usd
          FROM interview_sessions s
-        WHERE s.job_id = ? AND s.status = 'completed' AND s.workspace_id = ?
+        WHERE s.job_id = ? AND s.status = 'completed' AND s.mode = 'candidate' AND s.workspace_id = ?
         ORDER BY s.ended_at DESC`
     )
     .all(jobId, workspaceId) as {
@@ -73,6 +84,7 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
     candidate_label: string | null;
     scorecard_json: string | null;
     ended_at: string | null;
+    agenda_json: string | null;
     cost_usd: number | null;
   }[];
 
@@ -107,6 +119,8 @@ export function interviewedForJob(jobId: string, workspaceId: string = DEFAULT_W
       // Number.isFinite, not `?? null`: SQLite answers NULL both for "no ledger row"
       // and for "a row priced NULL", and both mean unknown. A real 0 survives.
       costUsd: Number.isFinite(r.cost_usd) ? (r.cost_usd as number) : null,
+      sessionId: r.id,
+      agenda: safeRowParse<InterviewAgenda>(r.agenda_json ?? null, "interviewedCandidates.agenda", r.id),
     });
   }
   return out;

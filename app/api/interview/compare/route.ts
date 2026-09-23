@@ -7,6 +7,9 @@ import { getHumanScorecard } from "@/app/_lib/interview-prep";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import { listInterviewEvents } from "@/app/_lib/db/interview-events";
+import { axisCoverage, type AxisCoverage } from "@/app/_lib/interview-axis-coverage";
+import type { InterviewAgenda } from "@/app/_lib/voice/director-types";
 
 // The engine attaches deterministic call telemetry (talk ratio, response gaps,
 // hint uptake) to the AI scorecard object, but interviewedForJob projects only
@@ -21,6 +24,30 @@ function telemetryForEntry(entryId: string | null, workspaceId: string): Intervi
   return sc?.telemetry ?? null;
 }
 
+// What the interview DIRECTOR recorded per rubric axis for one session: covered on a
+// verified quote, only asked, never reached, or never planned, plus the kit must-asks
+// the call ended owing (challenge-r07 voice-interview-api/B). The model's own
+// "Not assessed" sentinel was the grid's only signal; this is the server's record.
+// Counts and states only — no quote, question or block title reaches this payload.
+// Best-effort like telemetry: an undirected session (no agenda) or a read failure is
+// null, never an error.
+const COVERAGE_EVENT_KINDS = ["topic_begun", "topic_covered", "end_requested", "must_ask_unasked"] as const;
+function coverageForSession(
+  sessionId: string,
+  agenda: InterviewAgenda | null,
+  scoringModel: string,
+  workspaceId: string
+): AxisCoverage | null {
+  if (!agenda) return null;
+  try {
+    const events = listInterviewEvents(sessionId, workspaceId, { kinds: COVERAGE_EVENT_KINDS });
+    const rubricAxes = (INTERVIEW_RUBRICS[scoringModel] ?? INTERVIEW_RUBRICS.experienced ?? []).map((c) => c.competency);
+    return axisCoverage({ agenda, events, rubricAxes });
+  } catch (error) {
+    console.warn("[api:interview:compare] coverage read failed; the cell renders without it", error);
+    return null;
+  }
+}
 
 // Side-by-side interview comparison for one job. Returns the rubrics keyed by
 // scoringModel + each interviewed candidate's scorecard (which carries its own
@@ -44,10 +71,14 @@ export async function GET(request: NextRequest) {
     // from the prep rubric — so the compare grid shows the human verdict + ratings
     // alongside the AI screen, not just the voice-synthesized one. Null for the
     // common case of no human round.
-    const voice = interviewedForJob(jobId, workspace).map((c) => ({
+    // The session id and stored agenda are the coverage read's INPUTS and stop here:
+    // the agenda carries question text and block titles, and the grid has no use for
+    // a session id.
+    const voice = interviewedForJob(jobId, workspace).map(({ sessionId, agenda, ...c }) => ({
       ...c,
       humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
       telemetry: telemetryForEntry(c.entryId, workspace),
+      coverage: coverageForSession(sessionId, agenda, c.scoringModel, workspace),
     }));
 
     // PREP1 (the W10/W14 deferral) — union in candidates whose round was
@@ -77,6 +108,8 @@ export async function GET(request: NextRequest) {
         // A human-led round has no voice session, so no call telemetry — keep the
         // field present (null) so both branches share one candidate shape.
         telemetry: null as InterviewTelemetry | null,
+        // No director ran, so no record of what was reached.
+        coverage: null as AxisCoverage | null,
       }));
 
     return NextResponse.json({

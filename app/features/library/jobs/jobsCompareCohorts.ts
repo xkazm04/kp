@@ -10,6 +10,9 @@
 //        rows, instead of letting the exact-name join silently blank them to "—".
 // See bug-ui-scan-2026-07-09 (interview-simulation-comparison #1, #2).
 import { isNotAssessedRating, type ScorecardRating } from "@/app/_lib/interview-scorecard";
+// TYPE-only: the coverage derivation is server-side (it value-imports the director);
+// the grid receives its result on the compare payload.
+import type { AxisCoverage, AxisCoverageState } from "@/app/_lib/interview-axis-coverage";
 
 export type RubricComp = { competency: string; description: string; anchors?: Record<string, string> };
 
@@ -93,6 +96,7 @@ export type CompareCsvCandidate = {
   recommendation?: string | null;
   ratings: CsvRating[];
   humanScorecard?: { ratings?: CsvRating[]; recommendation?: string | null } | null;
+  coverage?: AxisCoverage | null;
 };
 
 /** One cell: a real rating number, or blank when that side was never scored.
@@ -102,9 +106,13 @@ export type CompareCsvCandidate = {
  *  one: the AI synthesis stores a competency the interview never reached as a real 3
  *  carrying "Not assessed…" evidence, and exporting that 3 hands a spreadsheet — where
  *  the caveat cannot follow it — a middling score nobody observed. */
-function csvRating(ratings: CsvRating[] | undefined, competency: string): number | "" {
+function csvRating(ratings: CsvRating[] | undefined, competency: string, state?: AxisCoverageState): number | "" {
   const hit = ratings?.find((r) => r.competency.toLowerCase() === competency.toLowerCase());
   if (typeof hit?.rating !== "number") return "";
+  // The director's record outranks the model's self-report: an AI number on an axis
+  // no attempt ever began is blanked exactly like the sentinel (the grid flags it;
+  // a spreadsheet cannot carry the flag, so it must not carry the number).
+  if (state === "not_reached") return "";
   return isNotAssessedRating(hit.rating, hit.evidence) ? "" : hit.rating;
 }
 
@@ -116,11 +124,47 @@ export function compareCsvRows(rubric: RubricComp[], candidates: CompareCsvCandi
     const cells: (string | number)[] = [axis.competency];
     for (const c of candidates) {
       cells.push(
-        csvRating(c.ratings, axis.competency),
+        csvRating(c.ratings, axis.competency, coverageFor(c.coverage, axis.competency)),
         csvRating(c.humanScorecard?.ratings, axis.competency),
         c.recommendation ?? c.humanScorecard?.recommendation ?? ""
       );
     }
     return cells;
   });
+}
+
+// ---- the director's record on the grid (challenge-r07 voice-interview-api/B) -------
+
+/** The director's state for one axis (case-insensitive, the grid's own join), or
+ *  undefined when the session was undirected or the axis carries no record. */
+export function coverageFor(coverage: AxisCoverage | null | undefined, competency: string): AxisCoverageState | undefined {
+  if (!coverage) return undefined;
+  const lower = competency.toLowerCase();
+  for (const [axis, state] of Object.entries(coverage.byAxis)) if (axis.toLowerCase() === lower) return state;
+  return undefined;
+}
+
+/** Where the AI rating and the director's record DISAGREE — the case the recruiter
+ *  could not see: a real rating on an axis no attempt ever began (absence of
+ *  evidence dressed as a score), or the not-assessed sentinel on an axis the director
+ *  accepted as covered on a verified quote. Agreeing pairs, and cells with no record
+ *  or no rating, carry no flag. */
+export type CoverageCellFlag = "rated_not_reached" | "sentinel_but_covered";
+export function cellFlag(
+  rating: number | null | undefined,
+  evidence: string | null | undefined,
+  state: AxisCoverageState | undefined,
+): CoverageCellFlag | null {
+  if (typeof rating !== "number" || !state) return null;
+  const sentinel = isNotAssessedRating(rating, evidence);
+  if (state === "not_reached" && !sentinel) return "rated_not_reached";
+  if (state === "covered" && sentinel) return "sentinel_but_covered";
+  return null;
+}
+
+/** The "n must-asks owed" chip count: a positive count only. 0 owes nothing and the
+ *  unknown `null` (no end_interview on record) is not a 0, so neither renders a chip. */
+export function mustAsksOwed(coverage: AxisCoverage | null | undefined): number | null {
+  const n = coverage?.mustAsksUnasked;
+  return typeof n === "number" && n > 0 ? n : null;
 }

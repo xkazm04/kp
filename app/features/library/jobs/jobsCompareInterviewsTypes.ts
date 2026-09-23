@@ -3,6 +3,7 @@
 import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
+import type { AxisCoverage } from "@/app/_lib/interview-axis-coverage";
 
 export type Candidate = {
   entryId: string | null;
@@ -26,6 +27,10 @@ export type Candidate = {
   // to the AI scorecard — DESCRIPTIVE conversational-dynamics signals, rendered
   // neutrally below the verdict badges. Null for a human-led / legacy round.
   telemetry?: InterviewTelemetry | null;
+  // What the interview DIRECTOR recorded per rubric axis (covered / asked / never
+  // reached / not planned) and the kit must-asks the call ended owing (null = no
+  // end_interview on record, so unknown). Null for an undirected or human-led round.
+  coverage?: AxisCoverage | null;
 };
 
 // Keyed by the InterviewRecommendation union so every canonical verdict is
