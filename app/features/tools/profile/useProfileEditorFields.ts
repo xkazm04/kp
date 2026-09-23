@@ -18,18 +18,38 @@ import type { ProfileDraft } from "./ProfileEditorAiDraft";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { mergeDraft, type ProfileFormField, type ProfileFormState } from "./profileDraftMerge";
 import type { EditorPending, RebuildSeed } from "./profileRebuildMerge";
+import { backupSlot, makeEnvelope, planRestore } from "./profileEditorBackup";
+
+/** The pending change the banner offers to keep / override / undo. A restored backup
+ *  rides the same machinery as an AI draft and a rebuild, tagged so the banner can word
+ *  it ("your unsaved edits from …") and so the backup writer knows an undecided restore
+ *  must not be overwritten. */
+export type FieldsPending = Omit<EditorPending, "origin"> & {
+  origin?: EditorPending["origin"] | "restore";
+  /** A restore: when the backup was written (ISO), null for a pre-envelope backup. */
+  restoredFrom?: string | null;
+  /** A restore: the backup carried no version, so it was only OFFERED, not applied. */
+  offered?: boolean;
+};
+
+/** Who is being edited, and against which stored version — the backup's identity. */
+export type EditorIdentity = {
+  editingId: string | null;
+  sourceAnalysisSlug?: string | null;
+  /** The row's updated_at as this editor loaded it (null for a create). */
+  initialUpdatedAt?: string | null;
+};
 
 // sessionStorage (not localStorage) on purpose: an abandoned intake should not
 // outlive the tab, and a second tab editing a DIFFERENT profile must not inherit
-// this one's draft. Keyed per profile id so an edit of A never restores into B;
-// a create shares the "new" slot, which is the same slot the recruiter left.
-const BACKUP_PREFIX = "kp.profileEditor.";
-export function profileEditorBackupKey(editingId: string | null): string {
-  return `${BACKUP_PREFIX}${editingId ?? "new"}`;
-}
+// this one's draft. The slot is one per editing IDENTITY (profileEditorBackup.backupSlot:
+// row id + the analysis it was opened from) and holds a versioned envelope, restored
+// three-way by planRestore — never spread blind over what the editor just loaded.
 
 /**
- * Merge a persisted backup over the form state it should restore INTO.
+ * Merge a pre-envelope (bare-form) backup over the form state it should restore INTO.
+ * Since the versioned envelope this is only ever OFFERED, never applied on mount —
+ * planRestore's `offer` is exactly this spread (profileEditorBackup.test.ts case 6).
  *
  * Spread, never replace: a backup written by an older build can be missing fields
  * this one has, and a partial restore must not blank them. Anything unusable — no
@@ -95,7 +115,7 @@ function draftFormState(draft: ProfileDraft): ProfileFormState {
 
 export function useProfileEditorFields(
   initialPayload: ProfilePayload | null,
-  editingId: string | null,
+  { editingId, sourceAnalysisSlug = null, initialUpdatedAt = null }: EditorIdentity,
   // A rebuild from a newer CV opens ON its merge (profileRebuildMerge.rebuildEditorState)
   // with the rebuild already pending, so the banner offers the per-field override and
   // Undo. Omitted: the editor loads `initialPayload` exactly as before.
@@ -111,9 +131,9 @@ export function useProfileEditorFields(
 
   // The form as it stood immediately BEFORE the last applied draft, and the fields that
   // draft was refused. Together they are the undo + the "use the draft anyway" offer.
-  const [pending, setPending] = useState<EditorPending | null>(seed?.pending ?? null);
+  const [pending, setPending] = useState<FieldsPending | null>(seed?.pending ?? null);
 
-  const backupKey = profileEditorBackupKey(editingId);
+  const backupKey = backupSlot({ editingId, sourceAnalysisSlug });
   // Writing must not begin until the restore attempt has run, or the empty first render
   // would overwrite the very backup it is about to read.
   const restored = useRef(false);
@@ -125,14 +145,34 @@ export function useProfileEditorFields(
     let alive = true;
     const timer = window.setTimeout(() => {
       if (!alive) return;
+      let raw: string | null = null;
       try {
-        const raw = window.sessionStorage.getItem(backupKey);
-        // applyBackup owns the parse + the partial merge and returns the same state
-        // for anything unusable, so React bails out of a no-op restore by identity.
-        if (raw) setState((s) => applyBackup(s, raw));
+        raw = window.sessionStorage.getItem(backupKey);
       } catch {
         /* best-effort: a private window, a full quota or a disabled store must never
            stop the editor from opening — the recruiter simply starts from the payload. */
+      }
+      // planRestore decides what the slot may do to the form this session LOADED; it
+      // never touches the live state, so the plan is computed outside the updater.
+      const plan = planRestore(raw, { baseVersion: initialUpdatedAt, loaded: baseline });
+      if (plan.kind === "silent") {
+        // Nothing moved since the backup was written: exactly the old behaviour.
+        setState(plan.state);
+      } else if (plan.kind === "moved") {
+        // The row changed since: open on the merge, the banner names what was held back,
+        // "use mine anyway" takes the recruiter's contested values, Undo drops the restore.
+        setState(plan.merged);
+        setPending({ before: baseline, draft: plan.mine, kept: plan.contested, origin: "restore", restoredFrom: plan.savedAt || null });
+      } else if (plan.kind === "offer") {
+        // No version on the backup: offer it, never apply it.
+        setPending({ before: baseline, draft: plan.state, kept: plan.fields, origin: "restore", restoredFrom: null, offered: true });
+      } else if (plan.remove) {
+        try {
+          window.sessionStorage.removeItem(backupKey);
+        } catch {
+          /* best-effort: an unreadable slot left behind is overwritten by the next edit
+             and dies with the tab. */
+        }
       }
       restored.current = true;
     }, 0);
@@ -140,18 +180,29 @@ export function useProfileEditorFields(
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [backupKey]);
+    // baseline/initialUpdatedAt are fixed for the editor's life (the editor remounts per
+    // profile), so the restore runs once per slot.
+  }, [backupKey, baseline, initialUpdatedAt]);
 
-  // Back it up on every change once the restore has settled.
+  // An undecided restore still holds values that exist ONLY in the old backup (the
+  // contested fields, or an offered legacy form). Writing a fresh envelope now would
+  // silently delete them, so the slot is left alone until the recruiter chooses.
+  const holdBackup = pending?.origin === "restore" && pending.kept.length > 0;
+
+  // Back it up on every change once the restore has settled: a versioned envelope, so
+  // the next open can tell an unchanged row (silent restore) from a moved one (ask).
   useEffect(() => {
-    if (!restored.current) return;
+    if (!restored.current || holdBackup) return;
     try {
-      window.sessionStorage.setItem(backupKey, JSON.stringify(state));
+      window.sessionStorage.setItem(
+        backupKey,
+        JSON.stringify(makeEnvelope({ baseVersion: initialUpdatedAt, baseline, draft: state, savedAt: new Date().toISOString() }))
+      );
     } catch {
       /* best-effort: quota/private-mode failures cost the recruiter the safety net,
          never the edit in front of them. */
     }
-  }, [backupKey, state]);
+  }, [backupKey, state, baseline, initialUpdatedAt, holdBackup]);
 
   /** Drop this editor's backup — called when the intake is saved or abandoned, so a
    *  finished draft never springs back into the next session. */
@@ -253,6 +304,9 @@ export function useProfileEditorFields(
     draftConflicts: pending?.kept ?? [],
     /** What the pending change came from — the banner words a rebuild differently. */
     draftOrigin: pending?.origin ?? "draft",
+    /** A restored backup: when it was written (ISO), and whether it was only offered. */
+    restoredFrom: pending?.origin === "restore" ? (pending.restoredFrom ?? null) : null,
+    restoreOffered: pending?.origin === "restore" && pending.offered === true,
     clearBackup,
   };
 }

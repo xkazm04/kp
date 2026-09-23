@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { ProfilePayload, ArchetypeDef } from "@/app/features/shared/profileTypes";
 import { ProfileEvidenceColumn } from "./ProfileEvidenceColumn";
@@ -83,11 +83,43 @@ export function ProfileEditor({
     draftApplied,
     draftConflicts,
     draftOrigin,
+    restoredFrom,
+    restoreOffered,
     clearBackup,
-  } = useProfileEditorFields(initialPayload, editingId, rebuildSeed);
-  // A rebuild rides the same banner as an AI draft (merge, "use anyway", undo) — only
-  // the words differ, so the recruiter reads "the newer CV", not "the draft".
+  } = useProfileEditorFields(initialPayload, { editingId, sourceAnalysisSlug, initialUpdatedAt }, rebuildSeed);
+  const format = useFormatter();
+  // A rebuild and a restored backup ride the same banner as an AI draft (merge, "use
+  // anyway", undo) — only the words differ, so the recruiter reads "the newer CV" or
+  // "your unsaved edits", not "the draft".
   const rebuilt = draftOrigin === "rebuild";
+  const restoring = draftOrigin === "restore";
+  // The envelope's own timestamp; a hand-edited slot with a bad one just loses the date.
+  const restoredDate = restoredFrom ? new Date(restoredFrom) : null;
+  const restoredWhen =
+    restoredDate && !Number.isNaN(restoredDate.getTime())
+      ? format.dateTime(restoredDate, { dateStyle: "medium", timeStyle: "short" })
+      : "";
+  const bannerText = restoring
+    ? draftConflicts.length
+      ? restoreOffered
+        ? t("restoreOffer", { count: draftConflicts.length })
+        : t("restoreContested", { count: draftConflicts.length, when: restoredWhen })
+      : t("restoreAppliedNote")
+    : rebuilt
+      ? draftConflicts.length
+        ? t("rebuildKeptEdits", { count: draftConflicts.length })
+        : t("rebuildAppliedNote")
+      : draftConflicts.length
+        ? t("draftKeptEdits", { count: draftConflicts.length })
+        : t("draftAppliedNote");
+  const useAnywayLabel = restoring
+    ? restoreOffered
+      ? t("restoreApply")
+      : t("restoreUseMine")
+    : rebuilt
+      ? t("rebuildUseAnyway")
+      : t("draftUseAnyway");
+  const undoLabel = restoring ? t("restoreDiscard") : rebuilt ? t("rebuildUndo") : t("draftUndo");
 
   const { result, loading, error, stale, build: submit } = useProfileEditorSubmit({
     t,
@@ -173,15 +205,7 @@ export function ProfileEditor({
           same idiom inside the editor, plus a one-click undo. */}
       {draftApplied ? (
         <div role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm text-amber-800">
-            {rebuilt
-              ? draftConflicts.length
-                ? t("rebuildKeptEdits", { count: draftConflicts.length })
-                : t("rebuildAppliedNote")
-              : draftConflicts.length
-                ? t("draftKeptEdits", { count: draftConflicts.length })
-                : t("draftAppliedNote")}
-          </p>
+          <p className="text-sm text-amber-800">{bannerText}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {draftConflicts.length ? (
               <button
@@ -189,7 +213,7 @@ export function ProfileEditor({
                 onClick={acceptDraftFully}
                 className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
               >
-                {rebuilt ? t("rebuildUseAnyway") : t("draftUseAnyway")}
+                {useAnywayLabel}
               </button>
             ) : null}
             <button
@@ -197,15 +221,18 @@ export function ProfileEditor({
               onClick={undoDraft}
               className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-ink hover:bg-paper"
             >
-              {rebuilt ? t("rebuildUndo") : t("draftUndo")}
+              {undoLabel}
             </button>
-            <button
-              type="button"
-              onClick={dismissDraftNotice}
-              className="focus-ring h-8 rounded-md px-3 text-sm font-semibold text-steel hover:text-ink"
-            >
-              {t("draftKeep")}
-            </button>
+            {/* An offered backup was never applied, so "keep this" would only repeat Discard. */}
+            {restoring && restoreOffered && draftConflicts.length ? null : (
+              <button
+                type="button"
+                onClick={dismissDraftNotice}
+                className="focus-ring h-8 rounded-md px-3 text-sm font-semibold text-steel hover:text-ink"
+              >
+                {t("draftKeep")}
+              </button>
+            )}
           </div>
         </div>
       ) : null}

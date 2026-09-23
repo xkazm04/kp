@@ -9,7 +9,8 @@
 // Runner: Node's built-in test runner with type stripping. npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyBackup, profileEditorBackupKey } from "./useProfileEditorFields.ts";
+import { applyBackup } from "./useProfileEditorFields.ts";
+import { backupSlot } from "./profileEditorBackup.ts";
 import type { ProfileFormState } from "./profileDraftMerge.ts";
 
 const STATE: ProfileFormState = {
@@ -53,15 +54,19 @@ test("the input state is never mutated", () => {
   assert.equal(STATE.displayName, "Loaded Name");
 });
 
-test("the backup key is per profile, and a create shares the 'new' slot", () => {
-  assert.equal(profileEditorBackupKey("p1"), "kp.profileEditor.p1");
-  assert.notEqual(profileEditorBackupKey("p1"), profileEditorBackupKey("p2"));
-  assert.equal(profileEditorBackupKey(null), "kp.profileEditor.new");
+test("the backup slot is per editing identity; plain edit and blank create keep the legacy keys", () => {
+  // Kept so a backup the pre-envelope build left in this tab is still FOUND (and offered).
+  assert.equal(backupSlot({ editingId: "p1" }), "kp.profileEditor.p1");
+  assert.equal(backupSlot({ editingId: null }), "kp.profileEditor.new");
+  assert.notEqual(backupSlot({ editingId: "p1" }), backupSlot({ editingId: "p2" }));
+  // The old defect: build-from-analysis shared the blank slot, a rebuild the edit slot.
+  assert.notEqual(backupSlot({ editingId: null, sourceAnalysisSlug: "a1" }), backupSlot({ editingId: null }));
+  assert.notEqual(backupSlot({ editingId: "p1", sourceAnalysisSlug: "a1" }), backupSlot({ editingId: "p1" }));
 });
 
 test("a second tab editing another profile cannot restore into this one", () => {
-  // The keying IS the isolation: same slot only for the same id.
+  // The keying IS the isolation: same slot only for the same identity.
   const a = applyBackup(STATE, JSON.stringify({ displayName: "A" }));
   assert.equal(a.displayName, "A");
-  assert.notEqual(profileEditorBackupKey("a"), profileEditorBackupKey("b"));
+  assert.notEqual(backupSlot({ editingId: "a" }), backupSlot({ editingId: "b" }));
 });
