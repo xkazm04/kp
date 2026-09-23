@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getBrand, saveBrand } from "@/app/_lib/brand-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { resolveAccent, sanitizeLogoUrl, type AccentRejection } from "@/app/_lib/brand-config";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -10,7 +11,10 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 //   GET  — the effective brand (name/accent/logo + the derived dark accent).
 //          Public-readable: the nav and the candidate-facing surfaces render it and
 //          it carries no secrets.
-//   PUT  — operator-only; validates (app/_lib/brand-config.ts) then persists.
+//   PUT  — org:manage (owner-only, roles.ts: "org profile/settings"); validates
+//          (app/_lib/brand-config.ts) then persists. It used to gate on
+//          requireOperator alone, which every signed-in member passes — so an
+//          invited recruiter's accent pick re-skinned the app for the whole org.
 
 // Per-IP budget on the WRITE. This door re-skins the ENTIRE app — every button,
 // focus ring and active-nav bar, on the workspace AND on the candidate-facing
@@ -51,7 +55,13 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   const denied = await requireOperator();
   if (denied) return denied;
-  // AFTER the operator gate, so a rejected caller never spends the budget, and
+  // The brand is an ORG setting: it paints every member's workspace and every
+  // candidate-facing page. A signed-in member without org:manage is refused with the
+  // coded FORBIDDEN_CAPABILITY 403 (the capability rides along as data). Open mode
+  // and an operator session fold to owner, so neither path changes.
+  const forbidden = await requireOrgCapability("org:manage");
+  if (forbidden) return forbidden;
+  // AFTER both gates, so a rejected caller never spends the budget, and
   // before any body read or store work.
   if (!rateLimit(`brand:${clientIpFrom(request.headers)}`, BRAND_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);

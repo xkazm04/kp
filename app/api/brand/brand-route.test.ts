@@ -12,11 +12,42 @@
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { test, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { register } from "node:module";
+import { register, registerHooks } from "node:module";
 
 // Point next/server at the shared test shim BEFORE the route loads (hooks only
 // affect later resolutions — hence the dynamic import inside the loader below).
 register(new URL("../../_lib/testing/next-server-hooks.mjs", import.meta.url));
+
+// A cookie jar the password-mode case below can fill. Open mode never reads it
+// (requireOperator and callerOrgCapabilities both short-circuit), so every other
+// test here runs exactly as before.
+const VIRTUAL_HEADERS = "kp-test:next-headers-brand";
+const SESSION_COOKIE = "__Host-kp_session";
+let cookieValue: string | null = null;
+(globalThis as { __kpBrandCookie?: () => string | null }).__kpBrandCookie = () => cookieValue;
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "next/headers") return { url: VIRTUAL_HEADERS, shortCircuit: true };
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    if (url === VIRTUAL_HEADERS) {
+      return {
+        format: "module",
+        shortCircuit: true,
+        source: `
+          export async function cookies() {
+            const value = globalThis.__kpBrandCookie();
+            return { get: (name) => (name === ${JSON.stringify(SESSION_COOKIE)} && value ? { name, value } : undefined) };
+          }
+          export async function headers() { return new Headers(); }
+          export async function draftMode() { return { isEnabled: false }; }
+        `,
+      };
+    }
+    return nextLoad(url, context);
+  },
+});
 
 after(() => {
   delete process.env.KP_TRUSTED_PROXY;
@@ -153,5 +184,46 @@ test("the route answers CODES — no handler forwards a raw sentence any more", 
   // caller). Order in the source is the contract; rate-limit-contract.test.ts pins
   // the key and the limit.
   assert.ok(src.indexOf("requireOperator()") < src.indexOf("rateLimit(`brand:"));
+  // The org:manage gate sits beside the operator gate, before the limiter: the
+  // brand is an org-wide setting (roles.ts: org profile/settings, owner only).
+  assert.ok(src.includes('requireOrgCapability("org:manage")'), "PUT must gate on org:manage, not on requireOperator alone");
+  assert.ok(src.indexOf("requireOperator()") < src.indexOf('requireOrgCapability("org:manage")'));
+  assert.ok(src.indexOf('requireOrgCapability("org:manage")') < src.indexOf("rateLimit(`brand:"));
   assert.ok(src.indexOf("rateLimit(`brand:") < src.indexOf("await readJsonWithLimit"));
+});
+
+// ---------------------------------------------------------------------------
+// Who may re-skin the org. The brand paints every surface for every member and
+// every candidate-facing page, so it is an ORG setting — roles.ts declares org
+// profile/settings owner-only (org:manage). The door used to gate on
+// requireOperator alone, which any signed-in member passes: an invited recruiter's
+// accent pick in the setup wizard re-skinned the whole app for everyone.
+
+test("PUT refuses a member without org:manage with a CODED 403, and stores nothing", async () => {
+  const { PUT } = await handlers();
+  const { signSession, DEFAULT_WORKSPACE } = await import("../../_lib/auth/session.ts");
+  const { createUser } = await import("../../_lib/db/users.ts");
+  const { upsertMembership } = await import("../../_lib/db/memberships.ts");
+  process.env.KP_SECRET = "brand-route-test-secret";
+  process.env.KP_OPERATOR_PASSWORD = "brand-route-test-password";
+  try {
+    const rec = createUser({ orgId: "org-default", email: "rec-brand@example.com", name: "Rec", status: "active", password: "correct horse battery" });
+    upsertMembership(rec.id, DEFAULT_WORKSPACE, "recruiter");
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: rec.id, org: "org-default", role: "recruiter" });
+    const refused = await PUT(put({ accentColor: "#0057b8" }) as never);
+    assert.equal(refused.status, 403);
+    const body = (await refused.json()) as { code?: string; capability?: string };
+    assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+    assert.equal(body.capability, "org:manage");
+
+    // The owner path is untouched: an owner session still stores.
+    const own = createUser({ orgId: "org-default", email: "own-brand@example.com", name: "Own", status: "active", password: "another secret pass" });
+    upsertMembership(own.id, DEFAULT_WORKSPACE, "owner");
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: own.id, org: "org-default", role: "owner" });
+    const stored = await PUT(put({ accentColor: "#0057b8" }) as never);
+    assert.equal(stored.status, 200);
+  } finally {
+    delete process.env.KP_OPERATOR_PASSWORD;
+    cookieValue = null;
+  }
 });

@@ -95,7 +95,9 @@ const ALLOWED = new Map<string, string>([
   ["billing/checkout/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["billing/portal/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["billing/webhook/route.ts", "webhook — Polar posts here with a signed body; there is no seat behind the call"],
-  ["brand/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // brand/route.ts was judged and CLOSED (challenge-r07 shell-setup-wizard/A): PUT asks
+  // org:manage (roles.ts: org profile/settings, owner-only); brand-route.test.ts drives
+  // the recruiter 403 and the owner 200.
   ["calendar/google/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["channels/inbound/[token]/route.ts", "webhook — inbound ad/email intake, authed by the channel token in the URL"],
   ["comms/callback/route.ts", "webhook — the relay's delivery receipt, authed by COMMS_CALLBACK_SECRET + timestamp + nonce"],
