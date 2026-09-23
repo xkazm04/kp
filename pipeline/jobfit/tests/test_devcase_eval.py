@@ -342,5 +342,23 @@ class TestStrictExitCodes(unittest.TestCase):
         self.assertEqual(code, 1, out)
 
 
+class TestOverallIsTheCaseScore(unittest.TestCase):
+    """challenge-r05 devcase-core/B — the discrimination margin is measured on the SAME number
+    the reviewer sees: evaluation.overallScore (the rubric-weighted composite)."""
+
+    def test_row_overall_reads_the_stamped_case_score(self):
+        r = Row(id="r", label="r", planted={}, evaluation={
+            "dimensionScores": {"framing": 40, "tooling": 90, "judgment": 90, "architecture": 40, "transfer": 40},
+            "overallScore": 65,
+        })
+        self.assertEqual(r.overall, 65.0)  # the unweighted mean would read 60
+
+    def test_every_gated_row_carries_the_case_score(self):
+        for path in ("commit", "observed"):
+            for r in run(generate_submissions(12, path=path), provider=None):
+                self.assertIsInstance(r.evaluation.get("overallScore"), int, (path, r.id))
+                self.assertEqual(r.overall, float(r.evaluation["overallScore"]))
+
+
 if __name__ == "__main__":
     unittest.main()
