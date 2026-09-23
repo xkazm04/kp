@@ -166,3 +166,18 @@ test("NON-VACUITY: the alias guard rejects a ledger join that forgot one tenant"
     .filter((alias) => !new RegExp(`\\b${alias}\\.workspace_id\\s*=\\s*\\?`).test(leaky));
   assert.deepEqual(unscoped, ["l"]);
 });
+
+// challenge-r03 devcase-workspace/B: the job page's "N assignments" chip lands on the
+// ledger filtered to that role (?job=). The filter is part of the query, answered
+// before the limit like the others, so the role's assignments are never "not on this
+// page" while they exist.
+test("a job filter keeps only that role's cases, before the limit", () => {
+  const ws = createWorkspace("Ledger job team", "org-ledger-job").id;
+  const mine = approveCase("Role one assignment", ws);
+  for (let i = 0; i < 6; i += 1) approveCase(`Other role ${i}`, ws);
+  ensureDb().prepare(`UPDATE dev_cases SET job_id = ?, created_at = ? WHERE id = ?`).run("j_ledger_1", "2020-01-01T00:00:00.000Z", mine);
+  assert.ok(!listCaseLedger(3, ws).some((r) => r.id === mine), "unfiltered, the role's case sits past the page");
+  assert.deepEqual(listCaseLedger(3, ws, { job: "j_ledger_1" }).map((r) => r.id), [mine]);
+  assert.deepEqual(listCaseLedger(3, ws, { job: "j_nobody" }), []);
+  assert.equal(listCaseLedger(50, ws, { job: "" }).length, 7, "a blank job filter narrows nothing");
+});
