@@ -268,10 +268,29 @@ was a 403 rendered as a failed load.
 - **It fails open.** An unresolved set is `null`, and `null` locks nothing. A shell
   that hid an owner's Billing tab because one GET blipped would be a worse failure
   than the one this closes; the server gates remain the enforcement.
-- **Rail vs palette differ on purpose.** A locked rail row STAYS, disabled, with the
-  capability named in its tooltip (`nav.lockedTab` + `nav.capabilities.*`), because
-  a landmark that vanishes for the person who holds the key reads as a broken build.
-  The palette simply omits them: it is a search over things you can act on.
+- **Rail vs palette differ on purpose.** A locked rail row STAYS, as a LOCK DOOR —
+  focusable and activatable, the capability named in its tooltip (`nav.lockedTab` +
+  `nav.capabilities.*`), never `aria-disabled` — because a landmark that vanishes
+  for the person who holds the key reads as a broken build, and a disabled one teaches
+  the reader the product is broken. The palette simply omits them: it is a search
+  over things you can act on.
+- **Every door converges at the destination.** The rule: a seat whose KNOWN caps lack
+  `TAB_CAPABILITY[id]` is locked on arrival at `id`, whatever door it came through — a
+  rail click, a g-chord, a `?tab=` arrival (the billing checkout return, the calendar
+  callback, a shared link; the inbox deliberately ADOPTS a capability-locked id, unlike
+  the flag-gated Agents tab), programmatic `selectTab`. `WorkspaceTabPanel` renders
+  through `panelFor(TAB_PANELS, navActive, caps)` (`navCapabilities.ts`, with
+  `tabArrival`), so a locked arrival lands on `shell/LockedTabPanel.tsx` instead of the
+  tab and its 403. Branding is gated like the rest: a read-only seat on
+  `?tab=branding` meets the lock, not the editor. The panel names the tab, the
+  capability and that the seat's role lacks it, then lists who in this workspace holds
+  it (`GET /api/me/capability-holders?cap=` — gated on `read`, at most 5
+  `{name, email, role}` rows of this team and org, owner first: a strict subset of
+  `/api/org/members`), each with a mailto Ask link carrying the exact deep link.
+  No holders and a failed read are stated states (`shell/lockedDoor.ts`). Unknown caps
+  still open every door, and the panel swaps to the lock the moment caps resolve
+  without the capability. `selectTab` and the rail's section warm-up skip the chunk
+  prefetch for a locked tab — its code never renders for that seat.
 
 ### The tab error boundary speaks the reader's language
 
@@ -674,7 +693,9 @@ the dependency runs one way.
 ## Adding a tab is five declarations, and the chord is the one that bites
 
 `WORKSPACE_TAB_IDS` (the id universe + the runtime guard), a `NAV_GROUPS` entry
-(sidebar placement + label), a `TAB_CHUNKS` loader, a `WorkspaceTabChunks` branch,
+(sidebar placement + label), a `TAB_CHUNKS` loader, a `TAB_PANELS` entry in
+`WorkspaceTabChunks.tsx` (an exhaustive `Record<WorkspaceTabId, …>`: a missing entry is
+a tsc error, not a blank panel; idea-47b71431),
 and a `nav.tabs.<id>` label in all four catalogs. The **Job intake** tab
 (`?tab=intake`, Library group) is the worked example.
 
