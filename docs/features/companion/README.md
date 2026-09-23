@@ -218,6 +218,13 @@ the exchange are appended as episodes — the operator's message *before* the mo
 timeout can never cost them their own words. Keyless or unreachable, the reply
 says so in the operator's language rather than inventing an answer.
 
+- **An unavailable provider is on the usage ledger.** When `provider_availability`
+  refuses the `assistant` provider (or none resolves), `_complete` writes one
+  `emit_deterministic("assistant", reason=<availability code>)` line, as
+  `repo_scan_cli` does, so the Models > Routing row for the companion reads
+  "falling back: no API key" instead of idle. `fallbackReason` stays the phrase
+  `no provider available`, which `companionFallbackClass` matches.
+
 - **A deterministic reply is answered, not remembered.** When `source` is
   `deterministic` (`_worth_remembering` in `companion_cli.py`), `run_turn`
   writes the operator's episode and **no assistant episode** — the person said

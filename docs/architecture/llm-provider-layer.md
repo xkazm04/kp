@@ -728,6 +728,39 @@ clear `modelSec` with the other tab-scoped view parameters.
   render nothing, which reads as a broken tab once it is a whole section).
 - **API keys / BYOM** (`ModelsKeysPanel.tsx`) — the write-only key store.
 
+### A routing row says what served it, not only what is pinned
+
+`GET /api/llm/config` carries `health` beside `rows`/`providers`/`useCases`:
+per catalogued use case (never `*`, never a ledger-only id such as the keys
+canary), the `llm_usage` rows since **max(30-day window, the effective pin's
+`updatedAt`)** — its own pin, else the `*` catch-all, the fallback
+`config.for_use_case` resolves. The cut is the point: a re-pinned use case is
+never credited with the traffic of the provider it replaced. The read
+(`routingHealth` in `app/_lib/db/llm-routing-health.ts`, its own module so
+`db/llm.ts` does not grow in every route's import graph) returns counts split
+into provider serves / template serves / failed attempts, the newest row and
+the newest provider serve; a use case with nothing since its cut is absent.
+
+`classifyRoutingHealth` (`app/features/settings/models/modelsRoutingHealth.ts`,
+pure) turns that into one state from the NEWEST row, because the row answers
+"what serves this now":
+
+| State | When | Repair |
+| --- | --- | --- |
+| serving | a provider answered (an unpinned row names what Default resolved to) | none |
+| drift | a pin names a routing provider, and a different one answered | Test |
+| falling_back | the template floor answered; the hint names the ledger reason code | Open Keys for `missing_key` / `missing_endpoint` / `invalid_base_url`; none for a policy seal (`offline_policy`, `consumer_terms_policy`, `disabled`); else Test |
+| failing | the newest attempt raised | Test |
+| unproven | pinned, and nothing since the pin (or the read predates a re-pin made in place) | Test |
+| idle | not pinned, nothing in the window | none |
+
+Open Keys is the `?modelSec=keys` address, not a new route. Reasons render from
+`models.routing.health.reasons.<code>` with an "unknown" line for a code the
+catalog has not caught up with, never the raw id. Same `requireOperator` gate as
+the Activity and usage routes, over the same deployment-wide, tenancy-exempt
+ledger they already list row by row. A served provider outside the routing
+catalogue (a TS-direct voice or TTS writer) is never called drift.
+
 ### Proving a key: `POST /api/llm/keys/test`
 
 Saving a key used to end at "Saved". The first evidence that a pasted credential
