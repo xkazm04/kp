@@ -1,8 +1,10 @@
 """Use case → provider resolution.
 
 ``resolve_provider("match_reasoning")`` reads KP_LLM_CONFIG and returns a
-configured adapter; with no config (local dev) it returns ClaudeCliProvider,
-preserving today's behavior exactly. Callers keep their existing dance::
+configured adapter; with no config (local dev) it returns the Claude CLI engine —
+``adapters.claude_cli.ClaudeCliAdapter``, a ``TextProvider`` like every other
+adapter, so the default engine runs the same retry / deadline / JSON-repair /
+metering path as the metered ones. Callers keep their existing dance::
 
     provider = None if args.no_llm else resolve_provider("match_reasoning", timeout=120)
     if provider is not None and not provider.available():
@@ -30,10 +32,10 @@ from typing import Any
 
 from ..claude_cli import is_production_deployment
 from .adapters import ADAPTERS
+from .adapters.claude_cli import ClaudeCliAdapter
 from .base import DEFAULT_TIMEOUT_S, LLMError
 from .capabilities import PROVIDER_CAPABILITIES, default_max_tokens, default_model, unsupported_caps
 from .config import LLMConfig, load_config
-from .monitor import MonitoredClaudeCli
 
 
 def _gemini_adapter(use_case: str, cfg: LLMConfig | None, timeout: int | None) -> Any:
@@ -144,7 +146,7 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
     timeout_s = timeout or DEFAULT_TIMEOUT_S
 
     if provider_name == "claude_cli":
-        return MonitoredClaudeCli(
+        return ClaudeCliAdapter(
             model=model,
             timeout=timeout_s,
             use_case=KEY_PROBE_USE_CASE,
@@ -238,13 +240,14 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
         # every other seat: DEFAULT_MODELS["claude_cli"] is None, so an unoverridden
         # use case still resolves to None — the CLI's own configured default, unchanged.
         cli_model = (entry.model if entry else None) or default_model(use_case, "claude_cli")
-        # MonitoredClaudeCli IS-A ClaudeCliProvider — identical behavior plus
-        # LightTrack emission when observability is configured (monitor.py).
+        # A TextProvider over the unchanged ClaudeCliProvider: one spawn per attempt,
+        # with retries, the total deadline, the repair re-prompt and ledger emission
+        # from base.py (adapters/claude_cli.py carries the error translation).
         # strip_api_key is passed rather than inherited: see _cli_strip_api_key.
         # On a production box with no Anthropic key this provider is returned and
         # then reports itself unavailable (consumer_terms_policy) — the refusal is
         # a degrade, not a raise, so the call site's deterministic fallback serves.
-        return MonitoredClaudeCli(
+        return ClaudeCliAdapter(
             model=cli_model,
             timeout=cli_timeout,
             use_case=use_case,

@@ -19,7 +19,7 @@ from ...claude_cli import ClaudeCliProvider
 from ..adapters import ADAPTERS
 from ..base import price_usd
 from ..capabilities import default_max_tokens, default_model
-from ..monitor import MonitoredClaudeCli
+from ..adapters.claude_cli import ClaudeCliAdapter
 from .scenarios import REGISTRY_USE_CASE, Scenario, scenarios_for
 
 
@@ -184,7 +184,7 @@ def build_provider(target: BenchTarget, use_case: str) -> Any:
     use_case is stamped for LightTrack so bench traffic is attributable."""
     registry_use_case = REGISTRY_USE_CASE.get(use_case, use_case)
     if target.provider == "claude_cli":
-        return MonitoredClaudeCli(model=target.model, timeout=180, use_case=registry_use_case)
+        return ClaudeCliAdapter(model=target.model, timeout=180, use_case=registry_use_case)
     if target.provider not in ADAPTERS:
         raise ValueError(f"unknown bench provider {target.provider!r} (known: {sorted(ADAPTERS)} + claude_cli)")
     model = target.model or default_model(registry_use_case, target.provider)

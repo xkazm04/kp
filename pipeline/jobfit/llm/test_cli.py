@@ -67,10 +67,10 @@ def main(argv: list[str] | None = None) -> int:
             provider = probe_provider(args.provider, model=args.model, timeout=60)
         else:
             provider = resolve_provider(args.use_case, timeout=60)
+        # Every provider the registry hands out is a TextProvider with a name —
+        # the Claude CLI included (adapters/claude_cli.py), so no type-name special case.
         provider_name = getattr(provider, "name", type(provider).__name__)
         model = getattr(provider, "model", None)
-        if type(provider).__name__ in ("ClaudeCliProvider", "MonitoredClaudeCli"):
-            provider_name = "claude_cli"
         usable, reason = provider_availability(provider)
         if not usable:
             hint = _REASON_HINT.get(reason or "", "missing key or SDK/CLI")

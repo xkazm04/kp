@@ -20,10 +20,8 @@ from __future__ import annotations
 import json
 import os
 import threading
-import time
 from typing import Any
 
-from ..claude_cli import ClaudeCliProvider, ClaudeResult
 from . import degradation as _degradation
 
 _UNSET = object()
@@ -37,6 +35,19 @@ _ledger_lock = threading.Lock()
 # gemini→google). The Claude CLI engine reports as anthropic — the spend is
 # Anthropic spend — with an engine tag keeping the billing path distinguishable.
 _TRACK_PROVIDER = {"claude_cli": "anthropic"}
+
+# The model label for a Claude CLI call on the CLI's OWN configured default
+# (model=None). Spelled here, beside the one place both emitters read it, rather
+# than at each call site: base.complete emits errors with the adapter's configured
+# model, which is None on a default install, and the ledger has always carried this
+# label for that case (adapters/claude_cli.CLI_DEFAULT_MODEL_LABEL is the same value).
+_CLI_DEFAULT_MODEL = "claude-cli-default"
+
+
+def _ledger_model(provider: str, model: str | None) -> str | None:
+    if provider == "claude_cli" and not model:
+        return _CLI_DEFAULT_MODEL
+    return model
 
 # Explicit opt-OUT tokens for KP_LLM_USAGE_LOG. Metering is ON BY DEFAULT (the
 # spawnPython seam sets the env to a per-call sidecar path for every child), so the
@@ -263,6 +274,7 @@ def emit_result(
     """Record one SUCCESSFUL provider envelope. ``reason`` is normally None — a call
     that answered usably has nothing to explain — and is here for the caller that knows
     the answer was paid for but degraded downstream anyway."""
+    model = _ledger_model(provider, model)
     u = usage or {}
     cached = u.get("cached_tokens")
     if cached is None:
@@ -332,6 +344,7 @@ def emit_error(
     after complete() emitted a real, paid envelope, and a second row there would make
     one logical call look like two events. That descent is recorded where it belongs —
     on the CLI's deterministic line, reason "unparseable_output"."""
+    model = _ledger_model(provider, model)
     if ledger:
         _append_ledger(
             provider=provider,
@@ -362,37 +375,18 @@ def emit_error(
         pass  # telemetry must never break the host call — the ledger line above is the durable half
 
 
-class MonitoredClaudeCli(ClaudeCliProvider):
-    """ClaudeCliProvider + LightTrack emission.
+def __getattr__(name: str) -> Any:
+    """``MonitoredClaudeCli`` — DEPRECATED alias of ``adapters.claude_cli.ClaudeCliAdapter``.
 
-    The registry hands this out so the local-dev default engine shows up in
-    observability alongside the metered adapters. ``complete_json``/``map``
-    route through ``complete()``, so one logical call emits exactly one event.
-    """
+    It was a ``ClaudeCliProvider`` subclass carrying a second copy of the metering
+    path (emit on success, emit on raise) for the one engine that did not run
+    ``TextProvider.complete``. The CLI now runs the shared layer — retries inside
+    the deadline, the JSON repair re-prompt, coded failure subtypes — and meters
+    through it, so the name resolves to the adapter (same constructor kwargs) and
+    is kept for one release so no external caller breaks. Resolved lazily (PEP
+    562): ``base`` imports this module, and the adapter imports ``base``."""
+    if name == "MonitoredClaudeCli":
+        from .adapters.claude_cli import ClaudeCliAdapter
 
-    def __init__(self, *args: Any, use_case: str | None = None, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.use_case = use_case
-
-    def complete(self, prompt: str, *, system: str | None = None, timeout: int | None = None) -> ClaudeResult:
-        started = time.monotonic()
-        try:
-            result = super().complete(prompt, system=system, timeout=timeout)
-        except Exception as exc:
-            emit_error(
-                provider="claude_cli",
-                model=self.model or "claude-cli-default",
-                use_case=self.use_case,
-                error=exc,
-                duration_ms=int((time.monotonic() - started) * 1000),
-            )
-            raise
-        emit_result(
-            provider="claude_cli",
-            model=self.model or "claude-cli-default",
-            use_case=self.use_case,
-            usage=result.usage,
-            cost_usd=result.cost_usd or None,
-            duration_ms=result.duration_ms or int((time.monotonic() - started) * 1000),
-        )
-        return result
+        return ClaudeCliAdapter
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
