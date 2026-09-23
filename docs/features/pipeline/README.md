@@ -1045,6 +1045,36 @@ calls, which keeps the WCAG 2.1.1 keyboard equivalent the old `Move to…` `<Sel
 provided. In select mode the row is a checkbox and the menu is suppressed with the
 rest of its actions, matching the existing select-mode grammar.
 
+### The Subway as a working board — select, drag, Move to
+
+The map board carries that grammar onto beads and stations. Every rule lives in one
+pure module, `map/subway/subwayInteraction.ts` (pinned by its colocated test), and
+the components only wire it:
+
+- **Select mode** (the header's *Select* toggle, which also opens the bulk bar). A
+  bead is a `role="checkbox"` with a coral ring and a check mark when picked
+  (`beadIntent` / `beadA11y`); the names in a "+N" roster toggle the same way. A
+  station toggles its whole cell (`toggleCellSelection`: a partly selected cell
+  selects the rest, a full one clears, ids outside the cell are never touched) and
+  reports `aria-checked` true / `mixed` / false. Cell selection goes through
+  `usePipelineBulk.updateSelection`, so it clears the result line and disarms an
+  armed bulk reject/outreach confirm exactly as a single toggle does. Nothing opens
+  and nothing moves in this mode.
+- **Drag** (outside select mode). A bead's wrapping span is the drag source (Firefox
+  does not start a drag from a `<button>`). While it is in flight, the stations of
+  its own line say whether they take it: a legal one is tinted moss, a refusing one
+  goes neutral and names the rule in its tooltip (`board.dropRefused`). Legal =
+  `canDropOn`: a `moveTargetStages` column on the bead's OWN line, so never its
+  current column, never the terminal role (a renamed "Placed" refuses like
+  "Hired"), never another position.
+- **Move to** — the keyboard twin (registry: keyboard-alternatives). Right-click,
+  Shift+F10 or the Menu key on a bead (or a roster name) opens
+  `PipelineCandidateMenu` with *Open profile* and the `moveMenuItems` list — the
+  same targets in axis order, workspace labels winning. Each item carries the
+  `DropTarget` a drag would hit, and both inputs end in `commitDrop`, which calls the
+  board's `moveEntry` exactly once: the optimistic paint, the `expectedStage` CAS,
+  the rollback and the bounced-bead reason are the existing move machine's.
+
 ## The board's select-mode bulk bar
 
 `PipelineBulkActionBar.tsx` (state in `usePipelineBulk.ts`) batches move,
@@ -1705,15 +1735,13 @@ the same server-side instant.
 
 ## Known gaps
 
-- **The map board does not yet render select mode or drag-and-drop between stages.**
-  `PipelineBoard` still accepts `selectMode` /
-  `selectedIds` / `onToggleSelect` / `onMove` / `bouncedEntryId` so the tab's
-  wiring is untouched, but the Subway board ignores those interactions: bulk moves still work
-  from the bulk bar's stage select (it acts on the filtered cohort, not on a
-  click), and a single candidate moves through the candidate modal. A refused move
-  marks the affected bead and puts the localized reason in its hover text and
-  accessible name, alongside the page banner. Porting selection and drag to
-  beads/stations is the next board round.
+- **Touch has no way to move a bead from the board.** HTML5 drag never fires from a
+  touch sequence and the Subway's Move-to menu opens on `contextmenu` only (a long
+  press on some browsers), with no always-visible trigger like the retired card row
+  had. On a tablet a single move still goes through the candidate modal.
+- **A bead can move only along its own line, and not in the Orchard.** The overlay's
+  tickets are not drag sources, and a drop onto another position's station is
+  refused by design (a stage move never changes the job).
 - **The org currency reaches only the map board.** Every other money surface
   (offers, the salary gauge, match cards' `formatBandCompact`, group eval) still
   labels figures with `APP_CURRENCY`, and the setting is a per-browser cookie, so
