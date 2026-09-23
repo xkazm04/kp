@@ -7751,7 +7751,16 @@
       "hireRatingNone": "Kvalita náboru je třetí otázka a v tomto pracovním prostoru zatím není zaznamenán žádný přijatý kandidát, takže není co hodnotit.",
       "hireRatingPending": "Zda se nábor nakonec osvědčil, je třetí otázka a potřebuje hodnocení, které zadá člověk: zatím ohodnoceno {rated} z {hires} přijatých kandidátů, než půjde tuto křivku posoudit, chybí ještě {remaining}.",
       "hireRatingReady": "Zda se nábor nakonec osvědčil, je třetí otázka: hodnocení v praxi má už {rated} přijatých kandidátů, což na posouzení křivky stačí. Samotná křivka zatím sestavená není.",
-      "hireRatingWhere": "Hodnocení se zaznamenává u přijatého kandidáta v panelu kandidáta na náborové tabuli."
+      "hireRatingWhere": "Hodnocení se zaznamenává u přijatého kandidáta v panelu kandidáta na náborové tabuli.",
+      "hireRatingWhereQueue": "Ohodnoťte je níže, nebo v panelu kandidáta na náborové tabuli.",
+      "hireQueueSummary": "{count, plural, one {# přijatý kandidát čeká na hodnocení} few {# přijatí kandidáti čekají na hodnocení} other {# přijatých kandidátů čeká na hodnocení}}",
+      "hireQueueTitle": "Přijatí kandidáti čekající na hodnocení",
+      "hireQueueIntro": "Nejdříve ti, kdo u vás pracují nejdéle: čím déle člověk ve firmě je, tím více hodnocení vypoví.",
+      "hireQueueRowMeta": "{role}, přijetí {date}",
+      "hireQueueRowHired": "Přijetí {date}",
+      "hireQueueRowGroup": "Hodnocení kandidáta {name}",
+      "hireQueueRateAria": "Ohodnotit kandidáta {name} známkou {n} z {max}",
+      "hireQueueMore": "{count, plural, one {Další přijatý kandidát zde není uveden; objeví se, jakmile tyto ohodnotíte.} few {Další # přijatí kandidáti zde nejsou uvedeni; objeví se, jakmile tyto ohodnotíte.} other {Dalších # přijatých kandidátů zde není uvedeno; objeví se, jakmile tyto ohodnotíte.}}"
     },
     "econ": {
       "colPerHire": "Na nábor",

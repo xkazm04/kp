@@ -7751,7 +7751,16 @@
       "hireRatingNone": "La qualité des recrutements est une troisième question, et cet espace de travail n’enregistre encore aucun recrutement, il n’y a donc rien à évaluer.",
       "hireRatingPending": "Savoir si un recrutement a ensuite fonctionné est une troisième question, et elle demande une évaluation saisie par une personne : {rated} recrutements évalués sur {hires} à ce jour, il en manque encore {remaining} avant de pouvoir juger cette courbe.",
       "hireRatingReady": "Savoir si un recrutement a ensuite fonctionné est une troisième question : {rated} recrutements portent désormais une évaluation sur le poste, assez pour juger une courbe. La courbe elle-même n’est pas encore construite.",
-      "hireRatingWhere": "Les évaluations se saisissent sur un candidat recruté, dans le panneau du candidat du tableau de recrutement."
+      "hireRatingWhere": "Les évaluations se saisissent sur un candidat recruté, dans le panneau du candidat du tableau de recrutement.",
+      "hireRatingWhereQueue": "Évaluez-les ci-dessous, ou depuis le panneau du candidat du tableau de recrutement.",
+      "hireQueueSummary": "{count, plural, one {# recrutement attend une évaluation} other {# recrutements attendent une évaluation}}",
+      "hireQueueTitle": "Recrutements en attente d’évaluation",
+      "hireQueueIntro": "Le recrutement le plus ancien d’abord : plus une personne travaille chez vous depuis longtemps, plus une évaluation est parlante.",
+      "hireQueueRowMeta": "{role}, recruté le {date}",
+      "hireQueueRowHired": "Recruté le {date}",
+      "hireQueueRowGroup": "Évaluation de {name}",
+      "hireQueueRateAria": "Attribuer à {name} la note de {n} sur {max}",
+      "hireQueueMore": "{count, plural, one {Un autre recrutement n’est pas listé ici ; il apparaîtra une fois ceux-ci évalués.} other {# autres recrutements ne sont pas listés ici ; ils apparaîtront une fois ceux-ci évalués.}}"
     },
     "econ": {
       "colPerHire": "Par recrutement",

@@ -7751,7 +7751,16 @@
       "hireRatingNone": "Quality of hire is a third question, and this workspace has no hires recorded yet, so there is nothing to rate.",
       "hireRatingPending": "Whether a hire then worked out is a third question, and it needs a rating a person enters: {rated} of {hires} hires rated so far, {remaining, plural, one {# more rating} other {# more ratings}} needed before that curve could be judged.",
       "hireRatingReady": "Whether a hire then worked out is a third question: {rated} hires now carry an on-the-job rating, enough for a curve to be judged. The curve itself is not built yet.",
-      "hireRatingWhere": "Ratings are recorded on a hired candidate, in the candidate panel on the hiring board."
+      "hireRatingWhere": "Ratings are recorded on a hired candidate, in the candidate panel on the hiring board.",
+      "hireRatingWhereQueue": "Rate them below, or from the candidate panel on the hiring board.",
+      "hireQueueSummary": "{count, plural, one {# hire awaits a rating} other {# hires await a rating}}",
+      "hireQueueTitle": "Hires awaiting a rating",
+      "hireQueueIntro": "Oldest hire first: the longer someone has worked here, the more a rating can say.",
+      "hireQueueRowMeta": "{role}, hired {date}",
+      "hireQueueRowHired": "Hired {date}",
+      "hireQueueRowGroup": "Rating for {name}",
+      "hireQueueRateAria": "Rate {name} {n} out of {max}",
+      "hireQueueMore": "{count, plural, one {One more hire is not listed here; it appears once these are rated.} other {# more hires are not listed here; they appear once these are rated.}}"
     },
     "econ": {
       "colPerHire": "Per hire",

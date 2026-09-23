@@ -7751,7 +7751,16 @@
       "hireRatingNone": "Die Einstellungsqualität ist eine dritte Frage, und in diesem Workspace sind noch keine Einstellungen erfasst, also gibt es nichts zu bewerten.",
       "hireRatingPending": "Ob sich eine Einstellung dann bewährt hat, ist eine dritte Frage und braucht eine Bewertung, die ein Mensch einträgt: bisher {rated} von {hires} Einstellungen bewertet, {remaining, plural, one {es fehlt noch #} other {es fehlen noch #}}, bevor sich diese Kurve beurteilen lässt.",
       "hireRatingReady": "Ob sich eine Einstellung dann bewährt hat, ist eine dritte Frage: {rated} Einstellungen tragen inzwischen eine Bewertung aus dem Job, genug, um eine Kurve zu beurteilen. Die Kurve selbst ist noch nicht gebaut.",
-      "hireRatingWhere": "Bewertungen werden bei einer eingestellten Person im Kandidatenpanel des Boards erfasst."
+      "hireRatingWhere": "Bewertungen werden bei einer eingestellten Person im Kandidatenpanel des Boards erfasst.",
+      "hireRatingWhereQueue": "Bewerten Sie sie unten oder im Kandidatenpanel des Boards.",
+      "hireQueueSummary": "{count, plural, one {# Einstellung wartet auf eine Bewertung} other {# Einstellungen warten auf eine Bewertung}}",
+      "hireQueueTitle": "Einstellungen ohne Bewertung",
+      "hireQueueIntro": "Die älteste Einstellung zuerst: Je länger jemand bei Ihnen arbeitet, desto mehr sagt eine Bewertung aus.",
+      "hireQueueRowMeta": "{role}, eingestellt am {date}",
+      "hireQueueRowHired": "Eingestellt am {date}",
+      "hireQueueRowGroup": "Bewertung für {name}",
+      "hireQueueRateAria": "{name} mit {n} von {max} bewerten",
+      "hireQueueMore": "{count, plural, one {Eine weitere Einstellung ist hier nicht aufgeführt; sie erscheint, sobald diese bewertet sind.} other {# weitere Einstellungen sind hier nicht aufgeführt; sie erscheinen, sobald diese bewertet sind.}}"
     },
     "econ": {
       "colPerHire": "Pro Einstellung",
