@@ -220,7 +220,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 
 | Path | Role |
 | --- | --- |
-| `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server). App-master rows also carry `backbonePeriod` and `backboneFreshness` (`current \| stale \| unknown`) from the latest rollup, or null when none has reported |
+| `GET /api/agents` (`app/api/agents/route.ts`) | Roster + per-agent aggregates (report token never leaves the server). Every row carries `lastDecision` (`{event, at}` of the newest applied lifecycle row, or null) and `pendingApprovalSince` (when the hire entered `pending_approval`, or null) for the roster's next move. App-master rows also carry `backbonePeriod` and `backboneFreshness` (`current \| stale \| unknown`) from the latest rollup, or null when none has reported |
 | `GET/DELETE /api/agents/bridge` | Connection status (key presence only) / disconnect (clears the stored key; 409 for env-driven config). DELETE is `org:manage` |
 | `POST /api/agents/pair` | Two-phase pairing: `{phase:"start", baseUrl?}` → `{nonce}`; `{phase:"claim", nonce}` → pending/paired. `org:manage` |
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
@@ -455,6 +455,39 @@ happened, and it never moves for an unknown or retired token, so a hire whose to
 rotated stays at "never heard from" exactly like one that was never contacted. The roster
 renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
 
+### The roster's next move
+
+Every roster row answers "what does this hire need from me" with ONE derived move, and
+puts that move's one control on the summary row (no expanding). `nextAction(agent,
+bridge, now)` in `app/features/agents-workforce/agentsWorkforceLogic.ts` computes it
+client-side from the row; `needsYou(agents, bridge, now)` counts the moves per kind for
+the **"Needs you"** strip above the table, whose chips filter the table to one kind.
+The vocabulary is closed (`NEXT_ACTION_KINDS`), tried in declared priority:
+
+| Move | When | Control on the row |
+| --- | --- | --- |
+| `repair_bridge` | the bridge reports `paired:false`, on any non-retired row (nothing else can succeed without it). A bridge status still loading is not evidence of a dead one | link to Settings → Integrations |
+| `approval_lapsed` | `pending_approval` entered ≥ 24h ago: Personas' consent window, which its poll reports as `expired` → `failed` | Refresh (the poll records the failure) |
+| `approve_in_personas` | `pending_approval` inside the window; `hoursLeft` counts down to the 24h mark | Refresh |
+| `review_probation` | `onboarding` App master whose probation window has closed and whose `lastDecision` is not a `probation_review:*` dated on or after the due day (an `extended` review answers it) | Refresh |
+| `check_reporter` | `active`, and either `silent` (no `last_report_at` in 7 days) or `reports_rejected` (Personas is calling, `last_report_at` is recent, but no report was accepted: aggregates' `lastActivityAt` is null) | explanation only |
+| `redispatch` | `failed` / `rejected`: a NEW hire through `POST /api/agents/dispatch` with the row's `{jobId}` or, for an App master, `{intakeId}`, so the route's idempotency and refusals apply | Re-dispatch |
+| `none` | `retired` (a decision, not a fault), `dispatched`, a quiet `active` or `onboarding` row | none |
+
+**The approval clock is the entry stamp, never `updated_at`.** `pendingApprovalSince` is
+the `ts` of the newest `agent_activity` lifecycle row whose `raw.transition` moved INTO
+`pending_approval` from another status (`getAgentLifecycleMarks`, `app/_lib/db/agents.ts`);
+dispatch's `dispatched → pending_approval` row writes it. A poll re-reading "pending" is
+an applied self-move and does not restart the clock. A hire that entered the state before
+the transition door wrote that row has no stamp, and the row says "Waiting for approval
+in Personas" with **no countdown** rather than one invented from `updated_at`.
+`lastDecision` is the newest applied lifecycle row's event name only (the `: <reason>`
+text and `raw_json` are not roster data); a `refused:` row is the door saying no, not a
+decision, and is skipped. Each move that implies a row transition names it
+(`NEXT_ACTION_TRANSITION`), and the unit tests pin every one against `AGENT_TRANSITIONS`;
+re-dispatch implies none, because a dead hire has no exits. Pinned by
+`agentsWorkforceLogic.test.ts` and `app/api/agents/roster-next-move.test.ts`.
+
 ## Gating & keyless behavior
 
 - **Nav gating**: the Agents tab is visible ONLY when `NEXT_PUBLIC_KP_AGENT_HIRING`
@@ -522,5 +555,9 @@ renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
 - **Two implementations of one scorer**: `backbone_score` exists in Python (the authority)
   and TypeScript (the read path). They are pinned by generated fixtures
   (`app/_lib/app-master/backbone.test.ts`), but a change still has to be made twice.
-- **Roster lifecycle history**: `GET /api/agents` serves aggregates, not the per-agent
-  `agent_activity` rows — the row detail shows metrics vs actuals, not the event log.
+- **Roster lifecycle history**: `GET /api/agents` serves aggregates plus the newest
+  lifecycle decision and the approval entry stamp, not the per-agent `agent_activity`
+  rows. The row detail shows metrics vs actuals, not the event log.
+- **An extended probation has no second clock**: once a `probation_review:extended` lands
+  after the due day, the row stops asking for a review; the extension's length is not
+  reported, so no next due date is shown.
