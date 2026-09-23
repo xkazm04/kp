@@ -97,6 +97,25 @@ test("every SQL on billing_state / billing_credits / billing_usage BINDS org_id"
   }
 });
 
+test("every SQL on billing_usage_journal BINDS org_id — the journal is org data like the counter it explains", () => {
+  // `\bbilling_usage\b` above cannot see this table (the `_` after `usage` is a word
+  // character), so it gets its own pass. journalIntegrity joins the counter too: BOTH
+  // sides of that join must bind the org, or one org's counter is compared with
+  // another's journal.
+  const journal = sqlByOwner(src).filter(({ sql }) => /\bbilling_usage_journal\b/i.test(sql) && /^\s*(select|insert|update|delete)\b/i.test(sql));
+  assert.deepEqual(
+    [...new Set(journal.map((s) => s.owner))].sort(),
+    ["appendUsageJournal", "duplicateUsageSources", "journalIntegrity", "listUsageJournalForOrg"],
+    "a new statement on the usage journal needs its own look here"
+  );
+  for (const { owner, sql } of journal) {
+    assert.ok(orgBound(sql), `${owner}: org_id is not bound:\n${sql.trim().slice(0, 220)}`);
+    if (owner === "journalIntegrity") {
+      assert.equal((sql.match(/\borg_id\s*=\s*\?/gi) ?? []).length, 2, "journalIntegrity binds the org on the journal AND on the counter");
+    }
+  }
+});
+
 test("the guard itself rejects a statement that only MENTIONS org_id", () => {
   // Pin the detector, not just today's source: these are the shapes the old substring
   // test waved through — cross-org reads with org_id in the projection or a comment.
