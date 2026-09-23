@@ -10564,12 +10564,15 @@
       "error": "Error: {message}",
       "groupEvalTimedOut": "⚠︎ Group evaluation timed out. Showing an unavailable notice.",
       "clickedViaApi": "The control wasn't on screen, so this step ran through the API instead of a real click.",
-      "selfScheduleUnavailable": "Self-scheduling wasn't available, so the recruiter confirms the slot instead."
+      "selfScheduleUnavailable": "Self-scheduling wasn't available, so the recruiter confirms the slot instead.",
+      "moveNoEffect": "The click landed but the board did not change, so this step ran through the API instead."
     },
     "wait": {
       "screeningGate": "screening to open the interview / calendar gate",
       "slotConfirmed": "the interview slot to be confirmed",
-      "offerExtended": "the offer to be extended"
+      "offerExtended": "the offer to be extended",
+      "sourced": "the sourced candidates to land on the board",
+      "hired": "the candidate to reach the hired stage"
     },
     "error": {
       "noScreened": "No screened candidate to follow. Intake returned none.",
@@ -10579,7 +10582,8 @@
       "unknownStage": "unknown",
       "offerTokenMissing": "The secure offer link wasn’t generated after the offer was extended.",
       "groupEvalTimeout": "The group evaluation didn’t finish within {seconds}. The candidates are still in the pipeline. The comparison just couldn’t be generated in time.",
-      "groupEvalFailed": "The group evaluation couldn’t be generated."
+      "groupEvalFailed": "The group evaluation couldn’t be generated.",
+      "moveNoEffect": "The board never showed {label}, so the demo stopped here instead of narrating it."
     },
     "explainer": {
       "label": "Simulation explainer",

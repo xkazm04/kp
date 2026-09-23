@@ -10564,12 +10564,15 @@
       "error": "Chyba: {message}",
       "groupEvalTimedOut": "⚠︎ Skupinovému vyhodnocení vypršel čas. Zobrazujeme informaci o nedostupnosti.",
       "clickedViaApi": "Ovládací prvek nebyl na obrazovce, takže tento krok proběhl přes API místo skutečného kliknutí.",
-      "selfScheduleUnavailable": "Samoobslužné plánování nebylo dostupné, termín proto potvrzuje recruiter."
+      "selfScheduleUnavailable": "Samoobslužné plánování nebylo dostupné, termín proto potvrzuje recruiter.",
+      "moveNoEffect": "Kliknutí proběhlo, ale tabule se nezměnila, takže tento krok proběhl přes API."
     },
     "wait": {
       "screeningGate": "otevření pohovoru nebo kalendářní brány po screeningu",
       "slotConfirmed": "potvrzení termínu pohovoru",
-      "offerExtended": "odeslání nabídky"
+      "offerExtended": "odeslání nabídky",
+      "sourced": "získané kandidáty ve sloupci příjmu",
+      "hired": "přesun kandidáta do fáze přijetí"
     },
     "error": {
       "noScreened": "Není koho sledovat. Z příjmu nevzešel žádný prověřený kandidát.",
@@ -10579,7 +10582,8 @@
       "unknownStage": "neznámá",
       "offerTokenMissing": "Po odeslání nabídky se nevygeneroval zabezpečený odkaz.",
       "groupEvalTimeout": "Skupinové vyhodnocení se nestihlo dokončit do {seconds}. Kandidáti zůstávají v pipeline. Jen se nepodařilo včas vytvořit porovnání.",
-      "groupEvalFailed": "Skupinové vyhodnocení se nepodařilo vytvořit."
+      "groupEvalFailed": "Skupinové vyhodnocení se nepodařilo vytvořit.",
+      "moveNoEffect": "Tabule nezobrazila {label}, proto se ukázka zde zastavila, místo aby výsledek jen popsala."
     },
     "explainer": {
       "label": "Vysvětlivky k simulaci",

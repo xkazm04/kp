@@ -10564,12 +10564,15 @@
       "error": "Fehler: {message}",
       "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt.",
       "clickedViaApi": "Das Bedienelement war nicht sichtbar, daher lief dieser Schritt über die API statt über einen echten Klick.",
-      "selfScheduleUnavailable": "Die Selbstbuchung war nicht verfügbar, daher bestätigt der Recruiter den Termin."
+      "selfScheduleUnavailable": "Die Selbstbuchung war nicht verfügbar, daher bestätigt der Recruiter den Termin.",
+      "moveNoEffect": "Der Klick kam an, aber das Board hat sich nicht verändert, daher lief dieser Schritt über die API."
     },
     "wait": {
       "screeningGate": "die Interview- bzw. Kalenderfreigabe nach dem Screening",
       "slotConfirmed": "die Bestätigung des Interviewtermins",
-      "offerExtended": "das Senden des Angebots"
+      "offerExtended": "das Senden des Angebots",
+      "sourced": "die beschafften Kandidaten auf dem Board",
+      "hired": "den Wechsel des Kandidaten in die Einstellungsphase"
     },
     "error": {
       "noScreened": "Kein geprüfter Kandidat zum Verfolgen. Der Eingang lieferte keinen.",
@@ -10579,7 +10582,8 @@
       "unknownStage": "unbekannt",
       "offerTokenMissing": "Nach dem Senden des Angebots wurde kein sicherer Link erzeugt.",
       "groupEvalTimeout": "Die Gruppenbewertung wurde nicht innerhalb von {seconds} abgeschlossen. Die Kandidaten sind weiterhin in der Pipeline. Nur der Vergleich konnte nicht rechtzeitig erstellt werden.",
-      "groupEvalFailed": "Die Gruppenbewertung konnte nicht erstellt werden."
+      "groupEvalFailed": "Die Gruppenbewertung konnte nicht erstellt werden.",
+      "moveNoEffect": "Das Board hat {label} nie angezeigt, daher wurde die Demo hier angehalten, statt das Ergebnis nur zu erzählen."
     },
     "explainer": {
       "label": "Simulationserklärung",

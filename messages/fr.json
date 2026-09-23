@@ -10564,12 +10564,15 @@
       "error": "Erreur : {message}",
       "groupEvalTimedOut": "⚠︎ Délai dépassé pour l’évaluation groupée. Affichage d’un message d’indisponibilité.",
       "clickedViaApi": "La commande n’était pas à l’écran : cette étape est passée par l’API au lieu d’un vrai clic.",
-      "selfScheduleUnavailable": "La prise de rendez-vous autonome n’était pas disponible : le recruteur confirme le créneau."
+      "selfScheduleUnavailable": "La prise de rendez-vous autonome n’était pas disponible : le recruteur confirme le créneau.",
+      "moveNoEffect": "Le clic a abouti mais le tableau n’a pas changé : cette étape est passée par l’API."
     },
     "wait": {
       "screeningGate": "l’ouverture de l’entretien ou du créneau de calendrier après la présélection",
       "slotConfirmed": "la confirmation du créneau d’entretien",
-      "offerExtended": "l’envoi de l’offre"
+      "offerExtended": "l’envoi de l’offre",
+      "sourced": "l’arrivée des candidats sourcés sur le tableau",
+      "hired": "le passage du candidat à l’étape d’embauche"
     },
     "error": {
       "noScreened": "Aucun candidat présélectionné à suivre. La réception n’en a produit aucun.",
@@ -10579,7 +10582,8 @@
       "unknownStage": "inconnue",
       "offerTokenMissing": "Le lien sécurisé n’a pas été généré après l’envoi de l’offre.",
       "groupEvalTimeout": "L’évaluation groupée ne s’est pas terminée en {seconds}. Les candidats restent dans le pipeline. Seule la comparaison n’a pas pu être générée à temps.",
-      "groupEvalFailed": "L’évaluation groupée n’a pas pu être générée."
+      "groupEvalFailed": "L’évaluation groupée n’a pas pu être générée.",
+      "moveNoEffect": "Le tableau n’a jamais affiché {label} : la démo s’arrête ici au lieu de le raconter."
     },
     "explainer": {
       "label": "Explications de la simulation",
