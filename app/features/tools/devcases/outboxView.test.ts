@@ -157,8 +157,13 @@ test("a dead-letter row with failureDetail renders that detail under the verdict
 
 test("failed rows expose one-click resend; bounced rows expose the corrected-address form", () => {
   assert.match(rowsSrc, /from "@\/app\/features\/hiring\/channels\/ChannelsCommsBouncedResend"/);
-  assert.match(rowsSrc, /\{m\.verdict === "failed" \? <ResendButton id=\{m\.id\} onResent=\{onResent\} compact \/> : null\}/);
-  assert.match(rowsSrc, /\{m\.verdict === "bounced" \? \(/);
+  // The door is chosen by the shared predicate (comms-resend-outcome.ts resendDoorOf,
+  // challenge-r08 pipeline-candidate-drawer/B): `retry` for a failed verdict,
+  // `correctAddress` for a bounce, nothing for recovered/simulation/refused rows.
+  assert.match(rowsSrc, /\{resendDoorOf\(m\) === "retry" \? <ResendButton id=\{m\.id\} onResent=\{onResent\} compact \/> : null\}/);
+  assert.match(rowsSrc, /\{resendDoorOf\(m\) === "correctAddress" \? \(/);
   assert.match(rowsSrc, /<BouncedResend id=\{m\.id\} defaultRecipient=\{m\.recipient\}/);
-  assert.doesNotMatch(rowsSrc, /verdict === "bounced"[\s\S]{0,120}<ResendButton/);
+  // Still forbidden: a one-click retry on a bounce, and a door derived locally.
+  assert.doesNotMatch(rowsSrc, /(verdict === "bounced"|"correctAddress")[\s\S]{0,120}<ResendButton/);
+  assert.doesNotMatch(rowsSrc, /verdict === "failed" \? <ResendButton/);
 });

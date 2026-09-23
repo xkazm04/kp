@@ -207,6 +207,87 @@ test("the two non-chip verdict surfaces share ONE class table", () => {
   }
 });
 
+// --- one recovery door, three surfaces (pipeline-candidate-drawer/B) ---------------
+//
+// A bounced or dead-lettered letter used to be painted red in the candidate modal with
+// nothing to press, while the Comms Center and the dev-case outbox each chose the door
+// with their OWN predicate (raw `bounced`/`status === "failed" && !recovered` in one,
+// `verdict` in the other). resendDoorOf (comms-resend-outcome.ts) is now the one rule.
+
+const CHANNELS_MODAL = "app/features/hiring/channels/ChannelsCommsMessageModal.tsx";
+const OUTBOX_ROWS = "app/features/tools/devcases/OutboxRows.tsx";
+
+test("every surface that offers a resend asks resendDoorOf, and none re-derives the door", () => {
+  for (const file of [CHANNELS_MODAL, OUTBOX_ROWS, DRAWER_LIST]) {
+    const src = readFileSync(file, "utf8");
+    assert.match(src, /resendDoorOf\(/, `${file} must ask the shared door predicate`);
+    // The OLD door predicates, verbatim: raw status bits in the Comms Center modal,
+    // a local verdict test in the outbox. (A failure-REASON line may still read the
+    // verdict — it is the door that must not.)
+    assert.doesNotMatch(src, /status === "failed" && !/, `${file} re-derives the retry door from raw status bits`);
+    assert.doesNotMatch(src, /verdict === "failed" \? <ResendButton/, `${file} re-derives the retry door from the verdict`);
+    assert.doesNotMatch(src, /(\.bounced|verdict === "bounced") \?\s*\(?\s*(<div[^>]*>\s*)?<BouncedResend/, `${file} re-derives the bounced door`);
+    // Every door control is rendered under the shared door, and only there.
+    const controls = (src.match(/<(ResendButton|BouncedResend)\b/g) ?? []).length;
+    const gated = (
+      src.match(/(door|resendDoorOf\([^)]*\)) === "(retry|correctAddress)" \?\s*\(?\s*(<div[^>]*>\s*)?<(ResendButton|BouncedResend)\b/g) ?? []
+    ).length;
+    assert.ok(controls > 0, `${file} must offer a door`);
+    assert.equal(gated, controls, `${file}: every resend control must sit under resendDoorOf's answer`);
+  }
+});
+
+test("the candidate modal renders the Comms Center's own door components, pre-filled with the address on file", () => {
+  const src = readFileSync(DRAWER_LIST, "utf8");
+  assert.match(src, /<ResendButton\b/);
+  assert.match(src, /<BouncedResend\b/);
+  assert.match(src, /defaultRecipient=\{m\.recipient\}/, "the bounced door must pre-fill like Channels does");
+});
+
+test("the Activity tab carries the needs-you count from the shared counter, gated on consent", () => {
+  const body = readFileSync("app/features/hiring/pipeline/candidate/CandidateModalBody.tsx", "utf8");
+  assert.match(body, /lettersNeedingYou\(/, "the count comes from the one predicate, not a local filter");
+  const tabs = readFileSync("app/features/hiring/pipeline/candidate/CandidateModalTabs.tsx", "utf8");
+  assert.match(tabs, /needsYou/, "the tab strip renders the count");
+});
+
+test("the simulation and refused channel literals live in ONE module, re-exported by comms-dispatch", () => {
+  const dispatch = readFileSync("app/_lib/comms-dispatch.ts", "utf8");
+  assert.doesNotMatch(dispatch, /=\s*"simulation"/, "comms-dispatch must not re-declare the simulation channel");
+  assert.doesNotMatch(dispatch, /=\s*"refused";/, "comms-dispatch must not re-declare the refused channel");
+  assert.match(dispatch, /from "\.\/comms-resend-outcome(\.ts)?"/);
+});
+
+test("the drawer bundle carries each letter's recipient, so the bounced door can pre-fill it", async () => {
+  // unit-db FIRST: candidate-timeline reaches the stores, which read KP_DB_PATH at load.
+  const { cleanupUnitDb } = await import("@/app/_lib/testing/unit-db");
+  const { toCandidateComm } = await import("@/app/_lib/candidate-timeline");
+  try {
+    const comm = toCandidateComm({
+      id: "o1",
+      recipient: "ada@example.com",
+      subject: "Offer",
+      body: "…",
+      kind: "offer",
+      channel: "email",
+      status: "sent",
+      ref: "e1",
+      createdAt: "2026-09-01T00:00:00.000Z",
+      failureDetail: null,
+      deliverable: true,
+      recovered: false,
+      recoveredAt: null,
+      bounced: true,
+      bouncedAt: "2026-09-02T00:00:00.000Z",
+      bounceDetail: "550",
+      orphaned: false,
+    });
+    assert.equal((comm as { recipient?: unknown }).recipient, "ada@example.com");
+  } finally {
+    cleanupUnitDb();
+  }
+});
+
 // --- the retired facet-row file is actually gone ----------------------------------
 
 test("PipelineFacetRow is deleted, not kept as a load-bearing-sounding tombstone", () => {

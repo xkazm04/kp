@@ -13,7 +13,18 @@ export function tabIds(id: CandidateTab): { tab: string; panel: string } {
   return { tab: `candidate-tab-${id}`, panel: `candidate-panel-${id}` };
 }
 
-export function CandidateModalTabs({ tab, onTab }: { tab: CandidateTab; onTab: (tab: CandidateTab) => void }) {
+export function CandidateModalTabs({
+  tab,
+  onTab,
+  activityNeedsYou = 0,
+}: {
+  tab: CandidateTab;
+  onTab: (tab: CandidateTab) => void;
+  /** Letters on the Activity tab that bounced or dead-lettered and offer a resend
+   *  door (comms-resend-outcome.ts lettersNeedingYou) — raised on the label so an
+   *  undelivered offer is met on open, not found by going looking. */
+  activityNeedsYou?: number;
+}) {
   const t = useTranslations("pipeline.candidate");
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -59,6 +70,14 @@ export function CandidateModalTabs({ tab, onTab }: { tab: CandidateTab; onTab: (
             }`}
           >
             {t(`tabs.${id}`)}
+            {id === "activity" && activityNeedsYou > 0 ? (
+              <>
+                <span aria-hidden className="ml-1.5 rounded-full bg-red-50 px-1.5 py-0.5 text-micro font-semibold text-red-700">
+                  {t("needsYou", { count: activityNeedsYou })}
+                </span>
+                <span className="sr-only">{t("needsYouAria", { count: activityNeedsYou })}</span>
+              </>
+            ) : null}
           </button>
         );
       })}

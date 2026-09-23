@@ -13,6 +13,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { lettersNeedingYou } from "@/app/_lib/comms-resend-outcome";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { InterviewTranscriptModal } from "@/app/features/hiring/schedule/ScheduleInterviewTranscriptModal";
 import { roleBandOf } from "../map/mapSalary";
@@ -45,6 +46,13 @@ export function CandidateModalBody({
   const { entry, tab } = view;
   const cohort = view.cohort ?? boardCohort;
   const st = useCandidateState({ entry, axis, onClose, onChanged, onOpenEntry, cohort });
+
+  // A bounced or dead-lettered letter is raised ON OPEN (the modal opens on Overview,
+  // and the letters sit in Activity): the tab label carries how many need the
+  // recruiter. Same predicate and same consent argument the letter's own door reads
+  // (PipelineCommsList), so the count and the controls cannot disagree.
+  const consentStatus = st.consent?.consent.status ?? null;
+  const needsYou = useMemo(() => (st.comms ? lettersNeedingYou(st.comms, consentStatus) : 0), [st.comms, consentStatus]);
 
   const { matchByCandidate, matchLoading, matchError } = useCellMatchData(entry.jobId);
   const match = entry.candidateId ? matchByCandidate.get(entry.candidateId) : undefined;
@@ -85,7 +93,7 @@ export function CandidateModalBody({
         }
         onBack={onClose}
       />
-      <CandidateModalTabs tab={tab} onTab={onTab} />
+      <CandidateModalTabs tab={tab} onTab={onTab} activityNeedsYou={needsYou} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div {...panel("overview")}>
           <CandidateOverviewTab

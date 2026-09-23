@@ -10,6 +10,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { Modal } from "@/app/_components/Modal";
 import { labelize } from "@/app/_lib/format";
+import { commsVerdict } from "@/app/_lib/comms-view";
+import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 import { ResendButton } from "@/app/features/tools/devcases/ResendButton";
 import { displayRecipient, displaySubject, formatRecordedAt, statusTone, type Message, type ReceiptLabels, type StatusLabels } from "./channelsCommsHelpers";
 import { BouncedResend } from "./ChannelsCommsBouncedResend";
@@ -34,6 +36,13 @@ export function ChannelsCommsMessageModal({
 }) {
   const t = useTranslations("channels.comms");
   const locale = useLocale();
+  // ONE verdict (comms-view.ts) for the failure line and the door alike. The door is
+  // chosen by the ONE predicate every resend surface reads (the dev-case outbox and the
+  // candidate modal too); it used to be re-derived here from the raw bounced /
+  // failed-and-not-recovered bits, which also offered a retry on a simulation or
+  // refused row the route can only refuse.
+  const verdict = commsVerdict(message);
+  const door = resendDoorOf({ verdict, channel: message.channel });
   return (
     <Modal title={name} subtitle={roleLabel ?? displayRecipient(message, receiptLabels) ?? undefined} onClose={onClose} size="lg">
       <div className="space-y-3">
@@ -58,7 +67,7 @@ export function ChannelsCommsMessageModal({
             {t("bouncedAt", { time: message.bouncedAt ? formatRecordedAt(message.bouncedAt, locale) : "—", detail: message.bounceDetail ?? "—" })}
           </p>
         ) : null}
-        {message.status === "failed" && !message.recovered && !message.bounced ? (
+        {verdict === "failed" ? (
           <p className="flex items-start gap-1.5 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
             <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
             {message.failureDetail ? t("failureDetail", { detail: message.failureDetail }) : t("failureDetailUnknown")}
@@ -74,9 +83,9 @@ export function ChannelsCommsMessageModal({
         ) : (
           <p className="text-sm italic text-steel">{t("empty")}</p>
         )}
-        {message.bounced ? (
+        {door === "correctAddress" ? (
           <BouncedResend id={message.id} defaultRecipient={message.recipient} onResent={onResent} />
-        ) : message.status === "failed" && !message.recovered ? (
+        ) : door === "retry" ? (
           <ResendButton id={message.id} onResent={onResent} />
         ) : null}
       </div>

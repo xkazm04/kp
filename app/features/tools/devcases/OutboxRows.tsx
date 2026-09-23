@@ -10,6 +10,7 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { CommsVerdict } from "@/app/_lib/comms-view";
+import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 // Cross-feature, deliberately: the receipt labels are ONE wording, and the Comms
 // Center's copy is the one that already exists in four locales (precedent:
 // DevVoiceScreenPanel reaching into features/hiring/pipeline).
@@ -170,10 +171,12 @@ export function OutboxRows({
                       (Channels' BouncedResend), not a one-click retry. And a
                       `recovered` one already has a later delivery: offering the button
                       there produced a 409 "already re-sent" that reads like a fresh
-                      failure. Both still sort and highlight by their own verdict. */}
-                  {m.verdict === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
+                      failure. Both still sort and highlight by their own verdict. The
+                      door is chosen by the shared resendDoorOf, which also withholds it
+                      from a simulation or refused row the route can only refuse. */}
+                  {resendDoorOf(m) === "retry" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
                 </span>
-                {m.verdict === "bounced" ? (
+                {resendDoorOf(m) === "correctAddress" ? (
                   <div className="mt-1.5 font-normal normal-case">
                     <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
                   </div>
