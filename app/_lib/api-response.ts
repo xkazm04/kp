@@ -1961,6 +1961,9 @@ export const REFUSAL_ERRORS = {
   /** The task runner stopped a run at its wall-clock budget (TASK_MAX_RUNTIME_MS), or
    *  reaped one left running with no live handler. */
   TASK_TIME_LIMIT: "This run went past its time limit and was stopped. Try again.",
+  /** GET /api/me/capability-holders named no capability, or one the role model does
+   *  not know (400). The shell only ever asks for a TAB_CAPABILITY value. */
+  CAPABILITY_UNKNOWN: "That permission does not exist.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

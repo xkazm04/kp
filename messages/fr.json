@@ -1986,7 +1986,8 @@
     "DISPOSITION_ACK_REQUIRED": "Validez chaque alerte ouverte de cette analyse avant de faire avancer le candidat.",
     "ENGINE_TIMEOUT": "Le moteur d’analyse a mis trop de temps pour cette exécution et a été arrêté. Veuillez réessayer.",
     "ENGINE_FAILED": "Le moteur d’analyse s’est arrêté avant la fin de cette exécution. Veuillez réessayer et prévenir votre administrateur si le problème persiste.",
-    "TASK_TIME_LIMIT": "Cette exécution a dépassé sa limite de temps et a été arrêtée. Veuillez réessayer."
+    "TASK_TIME_LIMIT": "Cette exécution a dépassé sa limite de temps et a été arrêtée. Veuillez réessayer.",
+    "CAPABILITY_UNKNOWN": "Cette autorisation n’existe pas."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2882,6 +2883,18 @@
     },
     "actions": {
       "newIntake": "Nouvel entretien de cadrage"
+    },
+    "lockedDoor": {
+      "eyebrow": "Verrouillé pour votre rôle",
+      "title": "{tab} nécessite « {capability} »",
+      "body": "Votre rôle dans cet espace de travail n’inclut pas « {capability} ». Une personne qui dispose de cette autorisation peut vous ouvrir {tab} ou modifier votre rôle.",
+      "holdersHeading": "Qui peut l’accorder ici",
+      "loading": "Recherche des personnes qui peuvent l’accorder…",
+      "noHolders": "Personne dans cet espace de travail ne dispose encore de « {capability} ». Demandez au propriétaire de l’espace de travail de vous l’ouvrir.",
+      "holdersUnknown": "Impossible de savoir pour l’instant qui dispose de « {capability} ». Demandez au propriétaire de l’espace de travail de vous l’ouvrir.",
+      "ask": "Demander",
+      "askLabel": "Demander l’accès à {name} par e-mail",
+      "askSubject": "Accès à {tab}"
     }
   },
   "enums": {

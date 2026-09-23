@@ -1986,7 +1986,8 @@
     "DISPOSITION_ACK_REQUIRED": "Bestätigen Sie alle offenen Hinweise zu dieser Analyse, bevor Sie den Kandidaten weiterleiten.",
     "ENGINE_TIMEOUT": "Die Analyse-Engine hat für diesen Lauf zu lange gebraucht und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "ENGINE_FAILED": "Die Analyse-Engine wurde beendet, bevor dieser Lauf abgeschlossen war. Bitte versuchen Sie es erneut und wenden Sie sich an Ihre Administration, wenn es wiederholt auftritt.",
-    "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut."
+    "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut.",
+    "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2882,6 +2883,18 @@
     },
     "actions": {
       "newIntake": "Neues Intake"
+    },
+    "lockedDoor": {
+      "eyebrow": "Für Ihre Rolle gesperrt",
+      "title": "{tab} erfordert „{capability}“",
+      "body": "Ihre Rolle in diesem Workspace umfasst „{capability}“ nicht. Eine Person mit dieser Berechtigung kann {tab} für Sie freigeben oder Ihre Rolle ändern.",
+      "holdersHeading": "Wer sie hier erteilen kann",
+      "loading": "Wir ermitteln, wer sie erteilen kann…",
+      "noHolders": "In diesem Workspace hat noch niemand „{capability}“. Bitten Sie den Inhaber des Workspace, den Bereich für Sie freizugeben.",
+      "holdersUnknown": "Wir konnten gerade nicht ermitteln, wer „{capability}“ hat. Bitten Sie den Inhaber des Workspace, den Bereich für Sie freizugeben.",
+      "ask": "Anfragen",
+      "askLabel": "{name} per E-Mail um Zugriff bitten",
+      "askSubject": "Zugriff auf {tab}"
     }
   },
   "enums": {

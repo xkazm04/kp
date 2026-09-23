@@ -1986,7 +1986,8 @@
     "DISPOSITION_ACK_REQUIRED": "Před postoupením kandidáta potvrďte všechna otevřená upozornění k této analýze.",
     "ENGINE_TIMEOUT": "Analytický engine na tomto běhu pracoval příliš dlouho a byl zastaven. Zkuste to prosím znovu.",
     "ENGINE_FAILED": "Analytický engine se zastavil dříve, než tento běh dokončil. Zkuste to prosím znovu, a pokud se to opakuje, obraťte se na správce.",
-    "TASK_TIME_LIMIT": "Tento běh překročil svůj časový limit a byl zastaven. Zkuste to prosím znovu."
+    "TASK_TIME_LIMIT": "Tento běh překročil svůj časový limit a byl zastaven. Zkuste to prosím znovu.",
+    "CAPABILITY_UNKNOWN": "Toto oprávnění neexistuje."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2882,6 +2883,18 @@
     },
     "actions": {
       "newIntake": "Nové zadání"
+    },
+    "lockedDoor": {
+      "eyebrow": "Uzamčeno pro vaši roli",
+      "title": "{tab} vyžaduje oprávnění „{capability}“",
+      "body": "Vaše role v tomto pracovním prostoru nezahrnuje oprávnění „{capability}“. Kdo ho má, vám může sekci {tab} zpřístupnit nebo změnit vaši roli.",
+      "holdersHeading": "Kdo vám ho zde může udělit",
+      "loading": "Zjišťujeme, kdo vám ho může udělit…",
+      "noHolders": "Oprávnění „{capability}“ zatím v tomto pracovním prostoru nikdo nemá. Požádejte vlastníka pracovního prostoru o zpřístupnění.",
+      "holdersUnknown": "Nepodařilo se zjistit, kdo má oprávnění „{capability}“. Požádejte vlastníka pracovního prostoru o zpřístupnění.",
+      "ask": "Požádat",
+      "askLabel": "Požádat uživatele {name} o přístup e-mailem",
+      "askSubject": "Přístup k sekci {tab}"
     }
   },
   "enums": {
