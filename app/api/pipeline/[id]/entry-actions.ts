@@ -17,7 +17,9 @@
 //     Reconsider queue.
 //   • reverses — what the action may undo. Only reinstate, and only an auto-rejection:
 //     its sealed record says "Auto-rejection reversed", so it must never be written over
-//     a recruiter's hand reject.
+//     a recruiter's hand reject. The rule itself (newest decision is auto_rejected) is
+//     newestDecisionIsAutoRejection in app/_lib/db/pipeline.ts, shared with the
+//     Reconsider queue so the queue never lists what the door refuses.
 //
 // Pure and import-free at runtime (the Capability import is type-only), so node:test
 // reads the table directly and the route's import graph gains ~nothing.
@@ -56,19 +58,4 @@ export function entryActionOf(raw: unknown): EntryActionName | null {
  *  an engine claim, dropped (undefined ⇒ the session's human) everywhere else. */
 export function engineClaimOf(action: EntryActionName, actor: unknown): unknown {
   return ENTRY_ACTIONS[action].engineClaim ? actor : undefined;
-}
-
-// The events that decide whether a candidate is out or back in. `reinstated` is here
-// EXPLICITLY: both the reversal door and the human re-add reopen (createPipelineEntry's
-// `reopen`, r06 db-pipeline-store/A) write it, and once an auto-rejection has been
-// reversed it is spent — a later reinstate needs a later auto-rejection.
-const DECISION_KINDS: ReadonlySet<string> = new Set(["auto_rejected", "rejected", "reinstated"]);
-
-/** Does the entry's newest decision event name the machine's auto-rejection?
- *  `events` is OLDEST-first (listPipelineEventsForEntry's order). */
-export function reversibleAutoRejection(events: ReadonlyArray<{ kind: string }>): boolean {
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    if (DECISION_KINDS.has(events[i].kind)) return events[i].kind === "auto_rejected";
-  }
-  return false;
 }

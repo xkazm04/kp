@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearIntakeDegraded, getPipelineEntry, listPipelineEventsForEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
+import { clearIntakeDegraded, getPipelineEntry, newestDecisionIsAutoRejection, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -9,7 +9,7 @@ import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
-import { ENTRY_ACTIONS, engineClaimOf, entryActionOf, reversibleAutoRejection } from "./entry-actions";
+import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 
 
 // AUTH (single-entry-authz-parity): the per-card single-entry surface is gated in
@@ -122,9 +122,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // the record sealed below says "Auto-rejection reversed", so writing it over a
       // human decision would put a false sentence into the tamper-evident chain. A
       // hand reject is reopened through the human re-add door (POST /api/pipeline),
-      // which records it as that. The oldest-first read is taken wide so the newest
-      // event is never cut off by the limit.
-      if (!reversibleAutoRejection(listPipelineEventsForEntry(id, 5000, ws))) {
+      // which records it as that. The rule lives in the store beside
+      // listReconsiderQueue, which lists by the same SQL, so Reconsider never offers
+      // a reinstate this door refuses.
+      if (!newestDecisionIsAutoRejection(id, ws)) {
         return jsonRefusal("PIPELINE_NOT_REINSTATABLE", 409);
       }
       // UAT LUC-ANA-4 — a reversal is the most accountability-bearing act on this

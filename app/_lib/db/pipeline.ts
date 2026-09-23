@@ -1296,42 +1296,54 @@ export function listRejectedForLane(lane: string, workspaceId: string = DEFAULT_
 
 export type ReconsiderItem = { entry: PipelineEntry; rejectedAt: string | null };
 
-/** The auto-rejected cohort still in a rejected state, newest rejection first.
- *  Only entries carrying an `auto_rejected` event surface here — a manual human
- *  reject is a deliberate decision, not a queue item. GROUP BY e.id dedups an
- *  entry that was auto-rejected more than once; MAX(created_at) is its latest. */
+// The ONE rule for "is this auto-rejection still reversible": the entry's NEWEST decision
+// event (auto_rejected / rejected / reinstated — reinstated explicitly, so a reversed
+// auto-rejection is spent) is the machine's auto_rejected. The reinstate door refuses
+// on it and the Reconsider queue lists by it, so the queue never offers what the door
+// refuses. Correlated on `e.id`, tenant bound as @ws; newest = created_at DESC, id DESC.
+const NEWEST_DECISION_IS_AUTO_REJECTED = `(SELECT kind FROM pipeline_events
+   WHERE entry_id = e.id AND workspace_id = @ws AND kind IN ('auto_rejected', 'rejected', 'reinstated')
+   ORDER BY created_at DESC, id DESC LIMIT 1) = 'auto_rejected'`;
+
+/** Is the entry's newest decision the machine's auto-rejection (the reinstate door's rule)? */
+export function newestDecisionIsAutoRejection(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  return !!ensureDb()
+    .prepare(`SELECT 1 FROM pipeline_entries e WHERE e.id = @id AND e.workspace_id = @ws AND ${NEWEST_DECISION_IS_AUTO_REJECTED}`)
+    .get({ id, ws: workspaceId });
+}
+
+/** Rejected entries whose newest decision is an auto-rejection, newest rejection first:
+ *  exactly the set the reinstate door accepts. A human reject — including one after a
+ *  reinstate — is a deliberate decision, not a queue item. */
 export function listReconsiderQueue(
   limit = 50,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { items: ReconsiderItem[]; total: number } {
   const db = ensureDb();
   const cap = Math.min(Math.max(limit, 1), 200);
-  // COUNT of the same grouped set the page is cut from — LIMIT 50 must not
-  // pretend the auto-reject wave ended there.
+  // COUNT of the same set the page is cut from — LIMIT 50 must not pretend the
+  // auto-reject wave ended there.
   const total = (
     db
       .prepare(
-        `SELECT COUNT(DISTINCT e.id) AS n
-           FROM pipeline_entries e
-           JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
-          WHERE e.status = 'rejected' AND e.workspace_id = ?`
+        `SELECT COUNT(*) AS n FROM pipeline_entries e
+          WHERE e.status = 'rejected' AND e.workspace_id = @ws AND ${NEWEST_DECISION_IS_AUTO_REJECTED}`
       )
-      .get(workspaceId) as { n: number }
+      .get({ ws: workspaceId }) as { n: number }
   ).n;
   const rows = db
     .prepare(
       `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
               e.stage, e.match_score, e.status, e.approval_kind, e.approval_detail, e.created_at, e.stage_changed_at,
               e.intake_degraded, e.intake_degraded_reason, e.workspace_id,
-              MAX(ev.created_at) AS rejected_at
+              (SELECT MAX(created_at) FROM pipeline_events
+                WHERE entry_id = e.id AND workspace_id = @ws AND kind = 'auto_rejected') AS rejected_at
          FROM pipeline_entries e
-         JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
-        WHERE e.status = 'rejected' AND e.workspace_id = ?
-        GROUP BY e.id
+        WHERE e.status = 'rejected' AND e.workspace_id = @ws AND ${NEWEST_DECISION_IS_AUTO_REJECTED}
         ORDER BY rejected_at DESC
-        LIMIT ?`
+        LIMIT @cap`
     )
-    .all(workspaceId, cap) as (PipelineRow & { rejected_at: string | null })[];
+    .all({ ws: workspaceId, cap }) as (PipelineRow & { rejected_at: string | null })[];
   return { items: rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null })), total };
 }
 

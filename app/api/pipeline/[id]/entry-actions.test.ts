@@ -14,7 +14,6 @@ import {
   ENTRY_ACTION_NAMES,
   engineClaimOf,
   entryActionOf,
-  reversibleAutoRejection,
 } from "./entry-actions.ts";
 
 test("the table is keyed by exactly the eight actions the door dispatches", () => {
@@ -51,25 +50,4 @@ test("only reinstate declares a reversal, and it reverses an auto-rejection", ()
   const reversers = ENTRY_ACTION_NAMES.filter((n) => ENTRY_ACTIONS[n].reverses !== null);
   assert.deepEqual(reversers, ["reinstate"]);
   assert.equal(ENTRY_ACTIONS.reinstate.reverses, "auto_rejected");
-});
-
-// Events arrive OLDEST-first, the order listPipelineEventsForEntry returns them in.
-const ev = (...kinds: string[]) => kinds.map((kind) => ({ kind }));
-
-test("a reinstate reverses only when the newest decision event is the machine's auto-rejection", () => {
-  assert.equal(reversibleAutoRejection(ev("applied", "screened", "auto_rejected")), true);
-  // Non-decision events after the rejection (a note, an approval) do not hide it.
-  assert.equal(reversibleAutoRejection(ev("auto_rejected", "approval_set", "github_evidence_attached")), true);
-  // A recruiter's hand reject is a decision, not a queue item.
-  assert.equal(reversibleAutoRejection(ev("applied", "rejected")), false);
-  // Auto-rejected, reinstated, then rejected by hand: the newest decision is human.
-  assert.equal(reversibleAutoRejection(ev("auto_rejected", "reinstated", "rejected")), false);
-  // A reinstate (the reversal door, or r06's human re-add reopen) is classified
-  // EXPLICITLY: once reversed, the auto-rejection is spent.
-  assert.equal(reversibleAutoRejection(ev("auto_rejected", "reinstated")), false);
-  // Auto-rejected again after a reinstate: reversible again.
-  assert.equal(reversibleAutoRejection(ev("auto_rejected", "reinstated", "auto_rejected")), true);
-  // No decision at all.
-  assert.equal(reversibleAutoRejection([]), false);
-  assert.equal(reversibleAutoRejection(ev("applied", "moved")), false);
 });
