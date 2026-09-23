@@ -363,7 +363,7 @@ separate, named and tested:
 
 | Function | Used by | Rule | Why |
 | --- | --- | --- | --- |
-| `select_last_matching` | `claude_cli` / `llm.base` (`extract_json`) | last value; last value carrying an `expected_keys` field when given | few-shot prompts make the model echo the example schema **before** the answer |
+| `select_last_matching` | `claude_cli` / `llm.base` (`extract_json`) | last value; when `expected_keys` is given, the value covering the MOST of them, last on a tie | few-shot prompts make the model echo the example schema **before** the answer; a trailing object carrying a subset of the keys (an injection in candidate-authored input) must not displace the fuller answer |
 | `select_best_scoring` | `gemini._parse_json` | rank by schema-key overlap, then size, document order only as final tiebreak | a grounded answer trails citation blobs and stray objects **after** the payload |
 
 `candidate_values()` is the shared "fenced blocks first, whole text otherwise" scan.
