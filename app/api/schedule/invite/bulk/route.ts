@@ -14,6 +14,7 @@ import { resolveCommsLocale } from "@/app/_lib/comms-locale";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BULK_INVITE_CAP, coerceBulkEntryIds, partitionBulkInviteTargets } from "@/app/_lib/bulk-invite";
+import { entryContactability } from "@/app/_lib/comms-contactability";
 
 
 // P2-2 — mint + deliver self-scheduling links to a COHORT in one recruiter action
@@ -99,14 +100,22 @@ export async function POST(request: NextRequest) {
     // One chunked IN-query for the whole batch (getPipelineEntriesByIds) instead of a
     // point SELECT per id — the cap is 100, exactly the shape N+1 turns pathological.
     const entriesById = getPipelineEntriesByIds(ids, ws);
-    // Addressability BEFORE mint: a sourced cohort with no `contact` used to get a
-    // token each and then 40 `delivery: failed` rows. The planner is pure; opt-out
-    // is not a reason to skip — schedule mail is transactional and still owed.
-    const unaddressableIds = new Set(
-      partitionBulkInviteTargets(
-        ids.map((id) => entriesById.get(id)).filter((e): e is NonNullable<typeof e> => !!e && e.status === "active")
-      ).unaddressable.map((e) => e.id)
+    // The SEND GATE and addressability BEFORE mint. A sourced cohort with no `contact`
+    // used to get a token each and then 40 `delivery: failed` rows; a candidate whose
+    // consent had lapsed (not yet swept) still HAD a contact, so they got a live link
+    // too, the dispatch threw CommsSuppressedError into the catch below, and the row
+    // came back `{ ok: true, token }`, counted in `sent`. The planner is pure; the gate
+    // it is handed is THE send gate (entryContactability asks commsSendSuppression the
+    // way sendComm will), which answers COMMS_SUPPRESSED for consent/erasure. Opt-out
+    // is not a reason to skip — schedule mail is transactional and still owed, and the
+    // send gate agrees (its halt applies to `outreach` only).
+    const plan = partitionBulkInviteTargets(
+      ids.map((id) => entriesById.get(id)).filter((e): e is NonNullable<typeof e> => !!e && e.status === "active"),
+      BULK_INVITE_CAP,
+      (e) => entryContactability(e, "schedule_invite")
     );
+    const suppressedIds = new Set(plan.suppressed.map((e) => e.id));
+    const unaddressableIds = new Set(plan.unaddressable.map((e) => e.id));
     for (const entryId of ids) {
       const entry = entriesById.get(entryId);
       if (!entry) {
@@ -117,6 +126,10 @@ export async function POST(request: NextRequest) {
       // stale-token doctrine the single flows enforce.
       if (entry.status !== "active") {
         results.push({ entryId, ok: false, code: "SCHEDULE_BULK_ENTRY_INACTIVE" });
+        continue;
+      }
+      if (suppressedIds.has(entryId)) {
+        results.push({ entryId, ok: false, code: "COMMS_SUPPRESSED" });
         continue;
       }
       if (unaddressableIds.has(entryId)) {

@@ -11,6 +11,7 @@ import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { pinLinkLocale } from "@/app/_lib/candidate-link-locale";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
+import { entryContactability } from "@/app/_lib/comms-contactability";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -65,6 +66,17 @@ export async function POST(request: NextRequest) {
     if (entry.status !== "active") {
       return jsonRefusal("SCHEDULE_INVITE_ENTRY_INACTIVE", 409);
     }
+    // THE SEND GATE, BEFORE THE MINT. A candidate whose consent has lapsed (but whom the
+    // sweep has not yet anonymized) still carries a contact, so this route used to mint a
+    // live link, hand the letter to sendComm, meet CommsSuppressedError in the swallowed
+    // catch below and answer 200 with the token — a working /schedule/<token> on the
+    // recruiter's copy panel for a person we may no longer write to. entryContactability
+    // asks commsSendSuppression the way sendComm will, so the refusal names the same
+    // reason the channel would. Only a CODED refusal stops the mint: an unaddressable
+    // person is not suppressed, and the copy panel is still their legitimate fallback.
+    // Verdict-then-mint holds no lock by design — sendComm re-checks at the send.
+    const contactable = entryContactability(entry, "schedule_invite");
+    if (!contactable.ok && contactable.code) return jsonRefusal(contactable.code, 409);
 
     const invite = createScheduleInvite({
       entryId: entry.id,
