@@ -4,6 +4,7 @@ import { setCandidateChosenLocale } from "@/app/_lib/db/pipeline-locale";
 import { isLocale } from "@/i18n/locales";
 import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
 // THE CANDIDATE'S LANGUAGE CHOICE, on the unsubscribe door every letter already links.
 //
@@ -24,6 +25,8 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The same bound as the stop write: a human clicks at most a few times, a script is refused.
 const STOP_LANGUAGE_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
+// `{"locale":"en"}` is 15 bytes; a public door never buffers an unbounded body.
+const MAX_STOP_LANGUAGE_BODY_BYTES = 256;
 
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
@@ -31,10 +34,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!rateLimit(`stop-language:${clientIpFrom(request.headers)}:${token}`, STOP_LANGUAGE_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const body = (await request.json().catch(() => null)) as { locale?: unknown } | null;
-    const locale = body?.locale;
     const entry = findEntryByOptOutToken(token);
     if (!entry) return jsonRefusal("STOP_LINK_INVALID", 404);
+    const body = await readJsonWithLimit<{ locale?: unknown }>(request, MAX_STOP_LANGUAGE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_STOP_LANGUAGE_BODY_BYTES });
+    const locale = body.locale;
     if (!isLocale(locale)) return jsonRefusal("STOP_LANGUAGE_INVALID", 400);
     if (setCandidateChosenLocale(entry.id, locale, entry.workspaceId ?? undefined) === 0) {
       // The row went away between the lookup and the write (an erasure): the same
