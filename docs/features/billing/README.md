@@ -396,7 +396,7 @@ false and does not move the stamp. Pinned by `app/_lib/db/billing-store.test.ts`
 `billing_alerts` used to be write-only. It now has exactly one reader, and the
 audience is part of the projection (`app/_lib/billing/alerts.ts`, pure):
 
-- **Closed vocabulary.** `BILLING_ALERT_KINDS = ["unmapped_product", "price_drift"]`
+- **Closed vocabulary.** `BILLING_ALERT_KINDS = ["unmapped_product", "price_drift", "subscription_drift"]`
   with `isBillingAlertKind`. A kind written by a newer writer than the reader is shown
   as `code: "unknown"`, never dropped.
 - **Audience.** `unmapped_product` is the paying org's (`customer`): its owner reads a
@@ -478,6 +478,51 @@ provider egress on a timer):
 `claimDueRun` gates the pass to one run per cadence across restarts, and a non-skipped
 run is recorded in `scheduler_runs`. The job has no UI toggle yet — `/api/automation/
 schedule` surfaces only the policy and reminder jobs.
+
+### A lost webhook is flagged daily, never corrected (default OFF)
+
+The webhook is the only write path for money state, and it can lose a delivery with no
+signal: a deployment unreachable past the provider's retry window loses it outright,
+and a set or revoke dropped by the `billing_state` compare-and-swap answers 2xx, so the
+provider never re-sends it. Either way a customer can sit on Free after paying, keep a
+plan after a revoke, or carry a stale `currentPeriodEnd` that the past_due grace will
+later cut them from.
+
+`app/_lib/billing/subscription-reconcile.ts` is the standing check, in the same shape as
+the price reconcile:
+
+- **The read.** `PolarGateway.fetchSubscription(id)` is `GET /v1/subscriptions/{id}`,
+  sharing one private helper with `fetchProduct`: the same headers (`Polar-Version`
+  only when pinned), the same `POLAR_REQUEST_TIMEOUT_MS`, never retried, `null` on any
+  failure, and refused before any network call under `KP_OFFLINE`.
+- **The decision is the webhook's own.** `reconcileSubscriptionState` runs
+  `reduceBillingEvent` over the provider's current object: "what would the webhook
+  have stored, had this delivery arrived". A disagreement with the stored row is one of
+  `missed_activation` (provider active/trialing, stored free: error),
+  `missed_revocation` (provider ended, stored entitled: error), `plan_mismatch`
+  (error), `status_mismatch` or `missed_renewal` (the provider's period end is more
+  than an hour past the stored one). **No verdict** on an unreadable read, an
+  unmapped product (the `unmapped_product` alert owns that), a status the webhook
+  ignores, a stored-free row against a past_due/unpaid/canceled provider, or a row a
+  webhook moved while the fetch was in flight.
+- **The write is an alert, never a correction.** `runSubscriptionReconcile` records ONE
+  `subscription_drift` alert per subscription under the home org (`providerRef`
+  `sub-drift:<id>`, deduped while open), read by the home-org operator only. It never
+  writes `billing_state`, `billing_credits` or `billing_usage`: correcting state from a
+  pull would move an entitlement on a read nobody has validated yet. The charge-parity
+  golden is the GUARD case (`subscription-reconcile.test.ts`).
+- **Bounded.** `listProviderSubscriptionsForReconcile` (the one named, read-only,
+  deployment-wide enumeration of `billing_state`, pinned in `billing-tenancy.test.ts`)
+  returns at most `SUBSCRIPTION_RECONCILE_MAX_PER_RUN` (100) rows per run, stalest
+  `updated_at` first.
+- **Default OFF.** The clock registers the daily `subscription_reconcile` job only when
+  `KP_BILLING_SUBSCRIPTION_RECONCILE=1` (the flag guards the registration itself:
+  `ensureSchedule` is create-once, so a row registered disabled could never be enabled
+  later), and the runner re-checks the flag. With it unset nothing runs, no scheduler
+  row appears and no provider call is made. **Do not set it in production before the
+  sandbox pass in step 7 of the checklist below.**
+- It cannot see a brand-new subscription whose every delivery was lost: it reads back
+  only ids we stored. That needs a list-by-customer read, which is not built.
 
 ### Settled money we cannot map is an ALERT, never a silent ignore
 
@@ -874,6 +919,17 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
    (`product_id`/`product.id`, `customer_id`/`customer.id`, period fields).
    Confirm against the sandbox deliveries in `billing_events.payload_json` and
    tighten if Polar's shapes differ.
+7. Subscription reconcile (owed before `KP_BILLING_SUBSCRIPTION_RECONCILE=1` is set in
+   production; never exercised against a live provider yet). Against the sandbox, with
+   the flag set on a dev server: (a) with every sandbox subscription in step and
+   matching, a run records NO `subscription_drift` alert — any alert here is a parsing
+   defect, not drift; (b) confirm `GET /v1/subscriptions/{id}` returns `status`,
+   `product_id` (or `product.id`) and `current_period_end` where
+   `readProviderSubscription` reads them, under the `Polar-Version` you pin (if any);
+   (c) revoke one sandbox subscription in the dashboard with the webhook endpoint
+   disabled, run the pass, and see exactly one `missed_revocation` alert for it;
+   (d) re-enable the endpoint, let the revoke land, resolve the alert, and see the next
+   run stay silent. Only then set the flag in production.
 
 ## Tests
 
@@ -920,7 +976,14 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   the six production sites' source kinds, cross-org isolation, and the charge-parity
   GUARD.
 - `app/_lib/billing/alerts.test.ts` — the alert reader: org-filtered store, the
-  projection (detail withheld, price_drift operator-only, unknown kinds kept).
+  projection (detail withheld, price_drift and subscription_drift operator-only,
+  unknown kinds kept).
+- `app/_lib/billing/subscription-reconcile.test.ts` — the lost-webhook check: each
+  drift kind and each no-verdict case, skipped with zero fetches when the flag is unset,
+  under `KP_OFFLINE` or with no provider, the per-run bound, the flag-guarded clock
+  registration, one deduped operator alert per subscription, and the charge-parity
+  GUARD with every stored subscription reported drifted. `polar-gateway.test.ts` pins
+  the GET's wire shape with a stubbed fetch (no live Polar call anywhere).
 - `app/api/billing/billing-alerts-route.test.ts` — GET `alerts` + wire parity against
   the golden, the resolve door's coded refusals, and the charge-parity GUARD replay.
 - `app/_lib/db/billing-alerts-migration.test.ts` — a pre-change DB gains the nullable
