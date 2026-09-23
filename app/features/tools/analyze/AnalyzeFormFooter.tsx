@@ -10,6 +10,9 @@ import { Select } from "@/app/_components/Select";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { LOCALES } from "@/i18n/locales";
 import type { AnalyzeFormState } from "./useAnalyzeForm";
+import { preflightVerdict } from "./analyzeCvReadability";
+import { AnalyzeReadabilityStrip, PREFLIGHT_BLOCK_ID } from "./AnalyzeReadabilityStrip";
+import { useAnalyzeReadability } from "./useAnalyzeReadability";
 
 const REPORT_LANGS = LOCALES;
 
@@ -28,6 +31,14 @@ export function AnalyzeFormFooter({
   const t = useTranslations("analyze");
   const { inputs, setters, handlers, flags, result } = state;
   const { setReportLang, setBlind } = setters;
+  // Preflight: what the engine can read of each attached file. Only blind + a CV
+  // with no text to redact blocks (with remedies); an unknown never does, and the
+  // engine's own fail-closed refusal stays behind this as the enforcement.
+  const readability = useAnalyzeReadability(inputs.cvFiles, inputs.jobDescriptionFile);
+  const blind = inputs.blind ?? false;
+  const jdTextTyped = inputs.jobDescriptionText.trim().length > 0;
+  const preflight = preflightVerdict({ blind, cvs: readability.cvs, jd: readability.jd, jdTextTyped });
+  const preflightHolds = preflight.blockRun || preflight.waiting;
 
   return (
     <>
@@ -71,6 +82,17 @@ export function AnalyzeFormFooter({
         />
       </div>
 
+      <AnalyzeReadabilityStrip
+        cvFiles={inputs.cvFiles}
+        jdFile={inputs.jobDescriptionFile}
+        readability={readability}
+        verdict={preflight}
+        blind={blind}
+        jdTextTyped={jdTextTyped}
+        onDisableBlind={() => setBlind(false)}
+        onRemoveCv={handlers.removeCvFile}
+      />
+
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div aria-live="polite" className="sm:flex-1">
           {result.error ? (
@@ -92,7 +114,10 @@ export function AnalyzeFormFooter({
           onClick={handlers.submit}
           // GH3 — a filled GitHub profile alone enables the run (a lighter,
           // deep-dive-only analysis); only the fully empty form stays disabled.
-          disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || (inputs.cvFiles.length === 0 && !flags.hasGithub)}
+          // Preflight — blind + an unmaskable CV holds the run until a remedy is
+          // taken; the reason is the strip's alert, named for assistive tech here.
+          disabled={flags.isLoading || flags.isCompleting || flags.githubLoading || flags.jdLoading || (inputs.cvFiles.length === 0 && !flags.hasGithub) || preflightHolds}
+          aria-describedby={preflightHolds ? PREFLIGHT_BLOCK_ID : undefined}
           className={`${BTN_PRIMARY} h-11 justify-center gap-2 bg-ink px-5 text-base text-white hover:bg-steel disabled:cursor-not-allowed sm:w-auto`}
         >
           {flags.isLoading ? (
