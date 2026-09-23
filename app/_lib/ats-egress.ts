@@ -6,10 +6,11 @@ import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord } from "
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
 import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
 import {
-  claimAtsDelivery,
   finalizeAtsDelivery,
+  leaseAtsDelivery,
   listDueAtsDeliveries,
-  recordAtsDeliveryStart,
+  openAtsDelivery,
+  reclaimExpiredAtsLeases,
 } from "./ats-delivery-store.ts";
 import {
   type AtsEventType,
@@ -259,6 +260,7 @@ function consentStillPermits(
  *  Never throws. Call as `void dispatchAtsEvent(...)`. */
 export async function dispatchAtsEvent(event: AtsEventType, entryId: string, workspaceId?: string): Promise<void> {
   let deliveryId: number | null = null;
+  let lease = "";
   try {
     const cfg = getAtsConfig();
     if (!cfg.webhookUrl || !cfg.events.includes(event)) return;
@@ -272,10 +274,13 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
     // with no session workspace uses).
     const tenant = workspaceId ?? getEntryWorkspace(entryId);
     // Open the ledger row BEFORE anything that can fail to produce a delivery, so no
-    // path can exit silently. Every branch below finalizes it (the catch included), so a
-    // row can never be stranded `pending`.
+    // path can exit silently. Every branch below finalizes it while this process lives; a
+    // crash mid-deliver is healed by the LEASE (the sweep reclaims, and a late finalize
+    // here holds a dead token and loses).
     const openedAt = new Date();
-    deliveryId = recordAtsDeliveryStart(event, entryId, openedAt);
+    const opened = openAtsDelivery(event, entryId, openedAt);
+    deliveryId = opened.id;
+    lease = opened.token;
     const { record, refusal } = getAtsRecordResult(entryId, tenant, openedAt.toISOString());
     if (!record) {
       // A hire that cannot be MIRRORED must never be INVISIBLE. Fail the row instead of
@@ -285,7 +290,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       const reason = refusal
         ? refusal.message
         : `pipeline entry ${entryId} not found in workspace "${tenant}" — nothing to mirror`;
-      finalizeAtsDelivery(deliveryId, { delivered: false, reason, terminal: !!refusal });
+      finalizeAtsDelivery(deliveryId, { delivered: false, reason, terminal: !!refusal }, lease);
       console.error(
         `[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId}${refusal ? ", terminal" : " for retry"}): ${reason}`
       );
@@ -297,7 +302,10 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       { id: deliveryId, createdAt: openedAt.toISOString() },
       consentStillPermits(record, entryId, tenant, openedAt.toISOString())
     );
-    finalizeAtsDelivery(deliveryId, toOutcome(result));
+    if (!finalizeAtsDelivery(deliveryId, toOutcome(result), lease)) {
+      console.error(`[ats] ${event} #${deliveryId}: outcome dropped, lease reclaimed`);
+      return;
+    }
     if (!result.delivered) {
       console.error(`[ats] ${event} webhook not delivered for ${entryId} (recorded #${deliveryId} for retry): ${result.reason}`);
     }
@@ -305,7 +313,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
     const reason = e instanceof Error ? e.message : "dispatch failed";
     console.error(`[ats] dispatch ${event} failed for ${entryId}:`, reason);
     try {
-      if (deliveryId !== null) finalizeAtsDelivery(deliveryId, { delivered: false, reason });
+      if (deliveryId !== null) finalizeAtsDelivery(deliveryId, { delivered: false, reason }, lease);
     } catch {
       // The ledger itself is unavailable — the log line above is the record. Swallowing
       // keeps the "never throws" contract this is called as `void dispatchAtsEvent(...)` on.
@@ -324,16 +332,20 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
  *  read the same due list. Each row is therefore CLAIMED before it is delivered — a
  *  compare-and-swap on (status, attempts) that exactly one caller wins — so a concurrent
  *  sweep skips it instead of POSTing the same hire a second time. `skipped` counts those.
+ *  It first reclaims expired leases, so a stranded row is redelivered in this same sweep
+ *  under the lost attempt's Idempotency-Key.
  */
 export async function retryDueAtsDeliveries(
   now: Date = new Date()
-): Promise<{ due: number; delivered: number; failed: number; skipped: number }> {
+): Promise<{ due: number; delivered: number; failed: number; skipped: number; reclaimed: number }> {
+  const reclaimed = reclaimExpiredAtsLeases(now);
   const due = listDueAtsDeliveries(now.toISOString());
   let delivered = 0;
   let failed = 0;
   let skipped = 0;
   for (const row of due) {
-    if (!claimAtsDelivery(row.id, row.attempts)) {
+    const lease = leaseAtsDelivery(row.id, row.attempts, now);
+    if (!lease) {
       // Another sweep owns this attempt. Not an error and not a failure — nothing to
       // record beyond not doing the work twice.
       skipped++;
@@ -353,7 +365,7 @@ export async function retryDueAtsDeliveries(
           delivered: false,
           reason: refusal ? refusal.message : "pipeline entry no longer exists",
           terminal: !!refusal,
-        });
+        }, lease);
         failed++;
         continue;
       }
@@ -365,13 +377,13 @@ export async function retryDueAtsDeliveries(
         { id: row.id, createdAt: row.createdAt },
         consentStillPermits(record, row.entryId, tenant, row.createdAt)
       );
-      finalizeAtsDelivery(row.id, toOutcome(result));
+      finalizeAtsDelivery(row.id, toOutcome(result), lease);
       if (result.delivered) delivered++;
       else failed++;
     } catch (e) {
-      finalizeAtsDelivery(row.id, { delivered: false, reason: e instanceof Error ? e.message : "retry failed" });
+      finalizeAtsDelivery(row.id, { delivered: false, reason: e instanceof Error ? e.message : "retry failed" }, lease);
       failed++;
     }
   }
-  return { due: due.length, delivered, failed, skipped };
+  return { due: due.length, delivered, failed, skipped, reclaimed };
 }

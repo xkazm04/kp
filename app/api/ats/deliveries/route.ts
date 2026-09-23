@@ -4,6 +4,7 @@ import { jsonRefusal } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import {
   countDeadAtsDeliveries,
+  countStrandedAtsDeliveries,
   listAtsDeliveries,
   listDueAtsDeliveries,
   requeueAtsDelivery,
@@ -12,7 +13,9 @@ import { retryDueAtsDeliveries } from "@/app/_lib/ats-egress";
 
 // P1-5 (reliability) — operator visibility + replay for the outbound-webhook
 // delivery ledger. GET lists recent deliveries, the count currently due for retry,
-// and the dead-letter count (failed + no next attempt). POST with an omitted body
+// the dead-letter count (failed + no next attempt), and the stranded count (pending past
+// its claim lease: the attempt's process ended without an outcome; the next sweep reclaims
+// it as a due retry). POST with an omitted body
 // flushes every due retry now; POST { replayId } force-requeues one terminal row
 // then runs the same sweep, so a hire that exhausted the ladder is recoverable
 // without editing SQLite. Both OPERATOR-only (same gate as the rest of the ATS
@@ -27,6 +30,7 @@ export async function GET() {
     deliveries: listAtsDeliveries(),
     due: listDueAtsDeliveries().length,
     dead: countDeadAtsDeliveries(),
+    stranded: countStrandedAtsDeliveries(),
   });
 }
 
