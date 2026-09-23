@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
-import { robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { robustOrderEntries, robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { isFairnessAligned } from "@/app/features/shared/groupEvalTypes";
@@ -24,10 +24,14 @@ const fmtScheme = (s: FairnessScheme, i: SchemeInitials): string =>
 export function FairnessPanel({
   fairness,
   headlineOrder,
+  headlineIds,
   robustness,
 }: {
   fairness: Fairness | null;
   headlineOrder: string[];
+  // payload.recommendedIds — the headline order as ranker identities. With the
+  // matrix's rankingIds it makes the order verdict compare people, not names.
+  headlineIds?: string[];
   robustness?: RobustnessStatus;
 }) {
   const t = useTranslations("decisions.groupEval");
@@ -90,7 +94,7 @@ export function FairnessPanel({
   // the comparison runs on the matrix's OWN field — a bare length check fell through to
   // the "agrees" copy and reported agreement with a headline that was never compared.
   // null = unanswerable: state nothing rather than reassure (see robustOrderVerdict).
-  const orderVerdict = robustOrderVerdict(ranking, headlineOrder);
+  const orderVerdict = robustOrderVerdict(ranking, headlineOrder, { rankingIds: fairness.rankingIds, headlineIds });
 
   return (
     <section>
@@ -154,10 +158,12 @@ export function FairnessPanel({
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <span className={META_LABEL}>{t("robustOrder")}</span>
-        {ranking.map((l, i) => (
-          <span key={i} className="inline-flex items-center gap-1.5">
+        {/* Keyed and labelled by candidate id (robustOrderEntries): two namesakes are
+            two pills, and a KO'd namesake no longer removes the eligible one. */}
+        {robustOrderEntries(fairness).map((entry, i) => (
+          <span key={entry.key} className="inline-flex items-center gap-1.5">
             {i > 0 ? <ArrowRight size={12} className="text-steel" aria-hidden /> : null}
-            <Pill tone={i === 0 ? "moss" : "neutral"}>{l}</Pill>
+            <Pill tone={i === 0 ? "moss" : "neutral"}>{entry.label}</Pill>
           </span>
         ))}
       </div>

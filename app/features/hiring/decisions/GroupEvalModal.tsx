@@ -174,6 +174,7 @@ export function GroupEvalModal({
               <FairnessPanel
                 fairness={evaluation.fairness ?? null}
                 headlineOrder={evaluation.recommendedOrder ?? []}
+                headlineIds={evaluation.recommendedIds}
                 robustness={evaluation.robustness}
               />
               <PerCandidateTabs
@@ -192,6 +193,7 @@ export function GroupEvalModal({
               <FairnessPanel
                 fairness={evaluation.fairness ?? null}
                 headlineOrder={evaluation.recommendedOrder ?? []}
+                headlineIds={evaluation.recommendedIds}
                 robustness={evaluation.robustness}
               />
             </>

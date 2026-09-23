@@ -621,6 +621,8 @@ export async function runGroupEval(
 
   const sources: string[] = [];
   const candidates: PerCandidate[] = [];
+  // entryId -> the id the ranker keyed this candidate on (fairness.candidateIds).
+  const rankerIdByEntry = new Map(input.map((c) => [c.entryId, c.candidateId || c.entryId] as const));
   for (const [idx, c] of input.entries()) {
     const rec = c.candidateId ? resolved.get(c.candidateId)?.profile ?? null : null;
     const payload = rec?.payload as { seniority?: string; archetype?: string } | null;
@@ -980,6 +982,8 @@ export async function runGroupEval(
     // record now do (UAT L1-TOM-GEF-01). "unknown" = not assessable, not "fine".
     leadSeparation: separation,
     recommendedOrder: candidates.map((c) => c.label),
+    // The same order as ranker ids, so the robust-order verdict compares people, not names.
+    recommendedIds: candidates.map((c) => rankerIdByEntry.get(c.entryId) ?? c.entryId),
     candidates,
     differentiators,
     risks,

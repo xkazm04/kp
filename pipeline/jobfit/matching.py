@@ -1163,6 +1163,11 @@ def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]],
         "matrix": matrix,
         "own": own,
         "mean": mean,
+        # The robust order as INDICES into the pool — identity, not display name.
+        # Two candidates can share a label (namesakes, or every unnamed profile's
+        # 'Candidate' fallback), so a consumer that excludes or compares by label
+        # conflates them; fairness_check maps this to candidate ids (rankingIds).
+        "order": order,
         "ranking": [labels[i] for i in order],
     }
 

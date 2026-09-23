@@ -19,6 +19,10 @@ export type Fairness = {
   own: number[];
   mean: number[];
   ranking: string[];
+  // Robust order as candidate ids (KO excluded); `ranking` is its label twin. Labels
+  // are not unique. Absent on legacy blobs (readers fall back to labels).
+  rankingIds?: string[];
+  koFailed?: string[];
   weightNotes: Record<string, string[]>;
   // "llm" when the weights were proposed by the AI (within bounds), else "deterministic".
   weightSource?: string;
@@ -56,7 +60,7 @@ export type RobustnessStatus = "assessed" | "not_varied" | "unavailable" | "not_
  *  `own` is lockstep with labels (the matrix diagonal). `ranking` is the robust
  *  order over that same field; a truncated ranking used to pass this guard and
  *  then report agreement with a headline that was never fully compared. The
- *  ranker may drop KO-failed labels from ranking (`recruiter.fairness_check`);
+ *  ranker drops KO-failed candidates from ranking (`recruiter.fairness_check`);
  *  those rows stay in the matrix and are counted via optional `koFailed`. */
 export function isFairnessAligned(fairness: Fairness | null | undefined): fairness is Fairness {
   if (!fairness) return false;
@@ -71,11 +75,25 @@ export function isFairnessAligned(fairness: Fairness | null | undefined): fairne
   // The scheme cells the header formats, and the two collections the notes list walks.
   if (!schemes.every((s) => s != null && typeof s.skills === "number" && typeof s.career === "number" && typeof s.personal === "number")) return false;
   if (!Array.isArray(ranking)) return false;
-  const koFailed = (fairness as Fairness & { koFailed?: unknown }).koFailed;
+  const koFailed: unknown = fairness.koFailed;
   const koCount = Array.isArray(koFailed) ? koFailed.length : 0;
   if (ranking.length + koCount !== n) return false;
   const labelSet = new Set(labels);
   if (!ranking.every((l) => typeof l === "string" && labelSet.has(l))) return false;
+  // rankingIds (when present) is checked as identity: known, unique, not KO'd, and
+  // `ranking` its label twin. Legacy blobs get the label rule above alone.
+  const rankingIds: unknown = fairness.rankingIds;
+  if (rankingIds !== undefined) {
+    if (!Array.isArray(rankingIds) || rankingIds.length !== ranking.length) return false;
+    const indexOf = new Map(candidateIds.map((id, i) => [id, i] as const));
+    const koSet = new Set(Array.isArray(koFailed) ? koFailed : []);
+    const seen = new Set<string>();
+    for (const [i, id] of rankingIds.entries()) {
+      if (typeof id !== "string" || !indexOf.has(id) || seen.has(id) || koSet.has(id)) return false;
+      if (labels[indexOf.get(id)!] !== ranking[i]) return false;
+      seen.add(id);
+    }
+  }
   if (weightNotes != null && typeof weightNotes !== "object") return false;
   return true;
 }
@@ -219,6 +237,9 @@ export type GroupEvalPayload = {
   // discarded by AiVerdict whenever an LLM comparison exists.
   leadSeparation?: "separated" | "overlapping" | "unknown";
   recommendedOrder?: string[];
+  // recommendedOrder as ranker ids (candidateId, else entryId), compared against
+  // fairness.rankingIds. Absent on legacy payloads.
+  recommendedIds?: string[];
   candidates?: EvalCandidate[];
   differentiators?: string[];
   // Pool-level watch-outs. Evals produced after eval-speaks-your-language carry
