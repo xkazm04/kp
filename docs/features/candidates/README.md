@@ -25,14 +25,27 @@ career-switcher) that other features key off. Downstream ranking is
 - **Archetypes tab** (`?tab=archetypes`; renamed from `?tab=profile`, which still
   resolves via `LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) —
   `app/features/tools/profile/ProfileTab.tsx`. It carries the archetype registry
-  plus one candidate population under a List | Matrix projection toggle:
+  plus one candidate population under a List | Matrix projection toggle. The
+  population is ONE read, owned by the tab: `useCandidatePopulation.ts` issues a
+  single cancellable `GET /api/profile/candidates` and hands the same rows to the
+  roster, the matrix and the archetype retire dialog. None of the three fetches on
+  its own any more (they used to read three things — the roster `GET /api/profile`,
+  the matrix the CV-identity fold, the retire dialog the roster list again — so they
+  disagreed on staleness, family and the retire count, and a `dataRev` → `reloadKey`
+  counter existed only to re-sync them after a delete). The read pauses while the
+  editor replaces the projections and re-reads when it closes; a roster delete
+  prunes the shared rows (`withoutProfile`) and re-reads once, since the deleted
+  profile's analyses become analysis-only candidates. Switching List | Matrix reads
+  nothing. `GET /api/profile` keeps its `{ profiles, stale }` shape for its other
+  readers (the Matrix tab's candidate focus).
   - **Archetype manager** (admin view of the registry) — `ArchetypeManager.tsx`.
-  - **List** — `ProfileRoster.tsx` (fetch + filter state + pager) over
+  - **List** — `ProfileRoster.tsx` (filter state + pager, rows projected from the
+    population by `rosterFromPopulation`) over
     `ProfileRosterTable.tsx` / `ProfileRosterRow.tsx`, with the filter/sort rules in
     the pure `profileRosterView.ts`. A paginated ledger: in-header column filters
     (candidate / archetype / role family / status), sortable name + completeness,
     20 rows a page via the shared `app/_components/table/TablePager.tsx`.
-  - **Matrix** — `CandidateMatrix.tsx` (fetch + population filters + detail modal)
+  - **Matrix** — `CandidateMatrix.tsx` (population filters + detail modal)
     over `CandidateMatrixBoard.tsx`: the population as a **board of archetype
     lanes**, every lane on screen at once (lanes wrap rather than scrolling
     sideways), each with a score-distribution bar summarizing its cohort shape.
@@ -54,7 +67,14 @@ career-switcher) that other features key off. Downstream ranking is
     people share them. The source filter therefore reads "has a profile" /
     "analysis only", and lane counts count people, not rows. The chip's one action
     and the modal footer both read `matrixChipAction`: a row with a profile id is
-    edited, never offered "build profile".
+    edited, never offered "build profile". A profile row also carries its
+    `completeness` and its `stale` entry (`profileStaleness(ws)`), and the family is
+    resolved once in `profileFromRecord` (the column, else the payload's
+    `roleFamily`), so the roster and the matrix give one answer for one person —
+    the roster used to print the raw column (an em-dash where the matrix said
+    "engineering"), and the matrix never knew a profile was stale. Every store read
+    in the route takes the caller's workspace (pinned by
+    `candidateMatrixContracts.test.ts`).
 - **Saved analysis report** — `app/history/[slug]/page.tsx`. Its subtitle resolves
   role family and seniority through the shared enum catalog in the reader's
   language, falling back to a stored value it does not recognize. The cross-job
@@ -913,11 +933,12 @@ type `Č` on their keyboard still finds `Čapek`. `candidateMatrixView.ts` uses 
 same fold for the matrix's name filter; the two projections search one population,
 so a name findable in one and invisible in the other would be the bug.
 
-The roster's own load is cancelled, not just ignored: `GET /api/profile` carries an
-`AbortController` signal aborted on unmount and before a refetch, and an abort is
-never reported as a load failure. A delete prunes BOTH client maps — the rows and
-the `stale` sidecar keyed by profile id (`pruneStale`) — so a deleted profile's
-"Newer CV" state cannot outlive its row.
+The population load is cancelled, not just ignored: `useCandidatePopulation`'s one
+`GET /api/profile/candidates` carries an `AbortController` signal aborted on unmount,
+on pause (the editor opened) and before a refetch, and an abort is never reported as
+a load failure; each projection shows its own localized load failure. Staleness
+rides on the population row, so a delete that prunes the row takes its "Newer CV"
+state with it — no sidecar map can outlive it.
 
 Rebuild-from-latest (the roster's amber "Newer CV" action) is a CALLBACK into
 `ProfileTab`'s `openRebuild`, not a `?fromAnalysis=…&rebuild=…` URL push. The
@@ -1017,9 +1038,16 @@ opaque reference), not the store id the recruiter cannot act on. The panel is
 
 **Retiring an archetype asks first.** `Retire` used to pull the archetype out of
 every picker on one click with no question and no blast radius. It now opens
-`ArchetypeArchiveConfirmModal`, which names how many profiles currently route
-there (counted from `GET /api/profile`, shown as pending until the read lands —
-never a guessed zero) and states that retiring only hides it from the pickers.
+`ArchetypeArchiveConfirmModal`, which names how many candidates currently route
+there and states that retiring only hides it from the pickers. The count is
+`routedCount` over the tab's population — BOTH stores, the saved profiles and the
+analyzed candidates without one (`archiveConfirmAnalyses`), because the matrix lane
+being retired shows both; it used to count saved profiles only and could say "No
+profile routes here" over a lane full of people. It is known before the dialog opens
+(pending only while the tab's first read is in flight — never a guessed zero). It
+matches the normalized archetype id, not the display key: only a workspace's own
+archetypes can be retired, and the display key folds an id the bundled registry does
+not know into "unrouted"; the unrouted sentinels never count.
 
 **Registry edits (the write boundary).** The Archetype admin UI writes
 `archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
