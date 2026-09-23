@@ -12343,7 +12343,14 @@
         "seen": "Viděno {when}",
         "confidence": "Spolehlivost {level} ({low} až {high})",
         "dismissed": "Odloženo: {reason}",
-        "applied": "Přihlášeno {when}"
+        "applied": "Přihlášeno {when}",
+        "filtered": {
+          "seniority": "Vyřazeno: seniorita",
+          "early_career": "Vyřazeno: úroveň praxe",
+          "education": "Vyřazeno: vzdělání",
+          "language": "Vyřazeno: jazyk",
+          "work_mode": "Vyřazeno: způsob práce"
+        }
       },
       "confidenceLevel": {
         "tight": "vysoká",
@@ -12452,7 +12459,7 @@
       },
       "match": {
         "title": "Vaše shoda",
-        "notScored": "Bez hodnocení: nabídka neprošla tvrdými filtry, nebo ji sken ještě neporovnal.",
+        "notScored": "Zatím bez hodnocení: sken tuto nabídku ještě neporovnal.",
         "matched": "Odpovídající dovednosti",
         "missing": "Chybějící dovednosti",
         "unproven": "Uvedené, nedoložené",
@@ -12460,7 +12467,10 @@
         "jobSource": {
           "deterministic": "Zpracováno bez AI",
           "llm": "Zpracováno s AI"
-        }
+        },
+        "blocked": "Vyřazeno: nabídka neprošla jedním z vašich tvrdých filtrů, proto se ve vašem přehledu neřadí.",
+        "blockedAsIf": "Bez tohoto filtru by získala hodnocení {score}.",
+        "blockedLink": "Zkontrolovat profil a preference"
       },
       "reasoning": {
         "title": "Zdůvodnění",

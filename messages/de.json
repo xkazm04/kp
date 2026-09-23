@@ -12343,7 +12343,14 @@
         "seen": "Gesehen {when}",
         "confidence": "Konfidenz {level} ({low} bis {high})",
         "dismissed": "Verworfen: {reason}",
-        "applied": "Beworben {when}"
+        "applied": "Beworben {when}",
+        "filtered": {
+          "seniority": "Gefiltert: Seniorität",
+          "early_career": "Gefiltert: Berufserfahrung",
+          "education": "Gefiltert: Ausbildung",
+          "language": "Gefiltert: Sprache",
+          "work_mode": "Gefiltert: Arbeitsmodell"
+        }
       },
       "confidenceLevel": {
         "tight": "eng",
@@ -12452,7 +12459,7 @@
       },
       "match": {
         "title": "Ihre Passung",
-        "notScored": "Nicht bewertet: die Stelle hat die harten Filter nicht bestanden, oder der Scan hat sie noch nicht abgeglichen.",
+        "notScored": "Noch nicht bewertet: der Scan hat diese Stelle noch nicht abgeglichen.",
         "matched": "Passende Kenntnisse",
         "missing": "Fehlende Kenntnisse",
         "unproven": "Genannt, unbelegt",
@@ -12460,7 +12467,10 @@
         "jobSource": {
           "deterministic": "Ohne KI ausgelesen",
           "llm": "Mit KI ausgelesen"
-        }
+        },
+        "blocked": "Herausgefiltert: Diese Stelle hat einen Ihrer harten Filter nicht bestanden und wird daher in Ihrem Feed nicht eingereiht.",
+        "blockedAsIf": "Ohne diesen Filter käme sie auf {score}.",
+        "blockedLink": "Profil und Präferenzen prüfen"
       },
       "reasoning": {
         "title": "Begründung",

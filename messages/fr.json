@@ -12343,7 +12343,14 @@
         "seen": "Vue {when}",
         "confidence": "Confiance {level} ({low} à {high})",
         "dismissed": "Écartée : {reason}",
-        "applied": "Candidature envoyée {when}"
+        "applied": "Candidature envoyée {when}",
+        "filtered": {
+          "seniority": "Filtrée : séniorité",
+          "early_career": "Filtrée : niveau d'expérience",
+          "education": "Filtrée : formation",
+          "language": "Filtrée : langue",
+          "work_mode": "Filtrée : mode de travail"
+        }
       },
       "confidenceLevel": {
         "tight": "élevée",
@@ -12452,7 +12459,7 @@
       },
       "match": {
         "title": "Votre adéquation",
-        "notScored": "Non notée : l'offre n'a pas passé les filtres stricts, ou l'analyse ne l'a pas encore comparée.",
+        "notScored": "Pas encore notée : l'analyse n'a pas encore comparé cette offre.",
         "matched": "Compétences correspondantes",
         "missing": "Compétences manquantes",
         "unproven": "Déclarées, non prouvées",
@@ -12460,7 +12467,10 @@
         "jobSource": {
           "deterministic": "Lue sans IA",
           "llm": "Lue avec l'IA"
-        }
+        },
+        "blocked": "Filtrée : cette offre n'a pas passé l'un de vos filtres stricts, elle n'est donc pas classée dans votre flux.",
+        "blockedAsIf": "Sans ce filtre, elle obtiendrait {score}.",
+        "blockedLink": "Vérifier votre profil et vos préférences"
       },
       "reasoning": {
         "title": "Raisonnement",

@@ -12343,7 +12343,14 @@
         "seen": "Seen {when}",
         "confidence": "Confidence {level} ({low} to {high})",
         "dismissed": "Dismissed: {reason}",
-        "applied": "Applied {when}"
+        "applied": "Applied {when}",
+        "filtered": {
+          "seniority": "Filtered: seniority",
+          "early_career": "Filtered: experience level",
+          "education": "Filtered: education",
+          "language": "Filtered: language",
+          "work_mode": "Filtered: work mode"
+        }
       },
       "confidenceLevel": {
         "tight": "tight",
@@ -12452,7 +12459,7 @@
       },
       "match": {
         "title": "Your match",
-        "notScored": "Not scored: the posting did not pass the hard filters, or the scan has not matched it yet.",
+        "notScored": "Not scored yet: the scan has not matched this posting.",
         "matched": "Matched skills",
         "missing": "Missing skills",
         "unproven": "Claimed, unproven",
@@ -12460,7 +12467,10 @@
         "jobSource": {
           "deterministic": "Parsed without AI",
           "llm": "Parsed with AI"
-        }
+        },
+        "blocked": "Filtered out: this posting did not pass one of your hard filters, so it is not ranked in your feed.",
+        "blockedAsIf": "With that filter lifted it would score {score}.",
+        "blockedLink": "Review your profile and preferences"
       },
       "reasoning": {
         "title": "Reasoning",
