@@ -10130,7 +10130,15 @@
           "score_below_floor": "Score de transfert {score} sous le seuil de {floor}",
           "score_clears_floor": "Score de transfert {score} atteint le seuil de {floor}"
         }
-      }
+      },
+      "caseScore": "score du cas",
+      "caseScoreTitle": "Les cinq scores de capacité pondérés selon la grille de ce cas. Les points affichés à côté des barres s’additionnent pour donner ce score.",
+      "caseScorePartialTitle": "Non évalué : {dimensions}. Le score du cas est pondéré sur les {pct} % de la grille qui ont été évalués, et la confiance de l’évaluation est abaissée d’autant.",
+      "caseScoreLegacyTitle": "Cette évaluation date d’avant les scores de cas pondérés : les poids de la grille ne lui ont pas été appliqués.",
+      "contributionTitle": "Contribution de {label} au score du cas : {points} points",
+      "notScored": "non évalué",
+      "notScoredTitle": "La capacité {label} n’a pas été évaluée : elle est exclue du score du cas au lieu d’être comptée comme une valeur médiane.",
+      "weightsNotApplied": "Enregistré avant les scores de cas pondérés : les pourcentages indiquent la grille, mais les scores de cette évaluation n’ont pas été combinés avec eux."
     },
     "jobLink": {
       "linked": "Poste : {title}",

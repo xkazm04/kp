@@ -10130,7 +10130,15 @@
           "score_below_floor": "Transfer score {score} is below the floor of {floor}",
           "score_clears_floor": "Transfer score {score} clears the floor of {floor}"
         }
-      }
+      },
+      "caseScore": "case score",
+      "caseScoreTitle": "The five capability scores weighted by this case's rubric. The points beside each bar add up to it.",
+      "caseScorePartialTitle": "Not scored: {dimensions}. The case score is weighted over the {pct}% of the rubric that was scored, and the evaluation's confidence is lowered accordingly.",
+      "caseScoreLegacyTitle": "This run was scored before weighted case scores existed, so the rubric weights were not applied to it.",
+      "contributionTitle": "{label} contributes {points} points to the case score",
+      "notScored": "not scored",
+      "notScoredTitle": "{label} was not scored, so it is left out of the case score instead of being counted as a midpoint.",
+      "weightsNotApplied": "Saved before weighted case scores: the percentages show the rubric, but this run's scores were not combined with them."
     },
     "jobLink": {
       "linked": "Role: {title}",
