@@ -6,7 +6,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useTranslations } from "next-intl";
 import { useLoader } from "@/app/_lib/useLoader";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
-import type { CaseLedgerFacets, CaseLedgerRow, JdSummary, Lifecycle, OutboxItem, Posting, SelectedJd } from "./DevTypes";
+import type { CaseLedgerFacets, CaseLedgerRow, JdSummary, Lifecycle, OutboxItem, SelectedJd } from "./DevTypes";
 import { buildNeed } from "./buildNeed";
 import { shouldReloadOnReturn } from "./outboxRefresh";
 import { canRaiseCaseLimit, filterCasesUrl, nextCaseLimit } from "./casesPage";
@@ -78,11 +78,16 @@ export function useDevTabData() {
     setCaseLimit((n) => nextCaseLimit(n));
   }, []);
   const canLoadMoreCases = casesPage.truncated && canRaiseCaseLimit(caseLimit);
-  const { data: postings, reload: loadPostings } = useLoader<Posting[]>(
-    "/api/devcase/postings",
-    (p) => (p.postings as Posting[]) ?? [],
-    [],
-  );
+  // THE OPEN DETAIL'S VERSION (challenge-r09 devcase-lifecycle/A). The studio used to load
+  // the workspace's whole postings fold here - every posting, every submission, every
+  // outcome join and promote verdict - on mount and after every evaluation, and the two
+  // consumers filtered it to one case (the detail) or folded it to two counts per case
+  // (the lifecycle section). The detail now reads its own case's channels by id and the
+  // lifecycle rows carry their counts, so all that is left here is a counter: bumping it
+  // re-reads the ONE open case (record + channels) and nothing else. No detail open, no
+  // request at all.
+  const [detailVersion, setDetailVersion] = useState(0);
+  const reloadDetail = useCallback(() => setDetailVersion((n) => n + 1), []);
   const { data: lifecycles, state: lifecyclesState, reload: loadLifecycles } = useLoader<Lifecycle[]>(
     "/api/devcase/lifecycle",
     (p) => (p.lifecycles as Lifecycle[]) ?? [],
@@ -104,10 +109,9 @@ export function useDevTabData() {
 
   useEffect(() => {
     loadCases();
-    loadPostings();
     loadLifecycles();
     reloadOutbox();
-  }, [loadCases, loadPostings, loadLifecycles, reloadOutbox]);
+  }, [loadCases, loadLifecycles, reloadOutbox]);
 
   // Refresh the outbox when the reader COMES BACK to the tab. Dead letters and bounce
   // receipts are produced by the relay long after the click that queued the message,
@@ -217,7 +221,7 @@ export function useDevTabData() {
     cases, casesTruncated: casesPage.truncated, casesState, loadCases,
     caseFacets: casesPage.facets, caseFilters, setCaseFilters, caseFiltersActive: caseFiltersActive(caseFilters),
     raiseCaseLimit, canLoadMoreCases,
-    postings, loadPostings,
+    detailVersion, reloadDetail,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox: reloadOutbox,
     buildNeed: build,

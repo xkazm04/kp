@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { createLifecycle, listLifecycles } from "@/app/_lib/db/devcase";
+import { caseIntakeCounts } from "@/app/_lib/db/devcase-case-postings";
 import { startTask } from "@/app/_lib/tasks";
 import { enforceTaskBudget } from "@/app/_lib/task-budget";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
@@ -13,9 +14,27 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // Direction A: start an automated lifecycle from a need, or list active ones.
 // TENANT SCOPE (D5): both the list and the create carry the caller's workspace, so a
 // team sees (and accretes into) its own lifecycles instead of the default tenant's.
+//
+// INTAKE COUNTS ON THE ROW (challenge-r09 devcase-lifecycle/A): each lifecycle carries
+// `submissionCount` (summed across its case's postings - the stall check's "empty?") and
+// `inFlight` (attempts mid-case, counts only - what the close confirm names). The section
+// used to borrow the workspace's whole postings fold to derive these two numbers. A row
+// with no case yet carries zeros, never an absent key.
 export async function GET() {
   try {
-    return NextResponse.json({ lifecycles: listLifecycles(50, await currentWorkspace()) });
+    const ws = await currentWorkspace();
+    const lifecycles = listLifecycles(50, ws);
+    const counts = caseIntakeCounts(lifecycles.flatMap((lc) => (lc.caseId ? [lc.caseId] : [])), ws);
+    return NextResponse.json({
+      lifecycles: lifecycles.map((lc) => {
+        const c = lc.caseId ? counts.get(lc.caseId) : undefined;
+        return {
+          ...lc,
+          submissionCount: c?.submissionCount ?? 0,
+          inFlight: c?.inFlight ?? { live: 0, idle: 0, oldestLiveStartedAt: null },
+        };
+      }),
+    });
   } catch (error) {
     return safeJsonError(error, "api:devcase/lifecycle", "DEVCASE_LIFECYCLE_LIST_FAILED");
   }

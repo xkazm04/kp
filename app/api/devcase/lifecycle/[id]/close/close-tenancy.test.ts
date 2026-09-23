@@ -156,7 +156,11 @@ test("the close route enumerates postings in the LIFECYCLE's workspace, never th
 test("the session-derived dev-studio routes resolve currentWorkspace() and thread it into every scoped call", () => {
   const lifecycle = code("lifecycle/route.ts");
   assert.match(lifecycle, /currentWorkspace\(\)/);
-  assert.match(lifecycle, /listLifecycles\([^)]*currentWorkspace\(\)[^)]*\)/, "lifecycle GET must scope listLifecycles");
+  // The GET resolves the tenant once into `ws` (challenge-r09 devcase-lifecycle/A): the
+  // same tenant scopes the per-case intake counts the rows now carry.
+  assert.match(lifecycle, /const ws = await currentWorkspace\(\)/, "the GET resolves the tenant once");
+  assert.match(lifecycle, /listLifecycles\([^)]*(currentWorkspace\(\)|\bws\b)[^)]*\)/, "lifecycle GET must scope listLifecycles");
+  assert.match(lifecycle, /caseIntakeCounts\([\s\S]*?,\s*ws\s*\)/, "the row counts are read in the same tenant");
   // The POST resolves the tenant ONCE into `workspace` and passes that to the
   // metering gate, createLifecycle and the runner task alike. Accept either the
   // inline call or that variable: pinning the inline form would have forced a
@@ -183,10 +187,20 @@ test("the session-derived dev-studio routes resolve currentWorkspace() and threa
 
   const postings = code("postings/route.ts");
   assert.match(postings, /listPostings\(\s*ws\s*\)/);
-  assert.match(postings, /listSubmissions\([^)]*\bws\b[^)]*\)/);
-  // (the refs argument is itself a nested call, so match the trailing workspace argument)
-  assert.match(postings, /latestOutcomeByRefs\([\s\S]*?,\s*ws\s*\)/);
   assert.doesNotMatch(postings, /listPostings\(\)/, "no bare listPostings() may remain");
+  // The enrichment moved to app/_lib/devcase-postings-view.ts (challenge-r09
+  // devcase-lifecycle/A), shared with GET /api/devcase/[id]/channels: both routes hand it
+  // their tenant, and every read inside it takes that tenant.
+  assert.match(postings, /postingsView\([\s\S]*?,\s*ws\s*\)/, "the postings route hands the view its tenant");
+  const channels = code("[id]/channels/route.ts");
+  assert.match(channels, /listCasePostings\(\s*id,\s*ws\s*\)/, "the channels route scopes its postings");
+  assert.match(channels, /postingsView\([\s\S]*?,\s*ws\s*\)/, "the channels route hands the view its tenant");
+  const view = readFileSync(path.join(apiDir, "..", "..", "_lib", "devcase-postings-view.ts"), "utf8").replace(/\/\/[^\n]*/g, "");
+  assert.match(view, /listSubmissions\([^)]*\bworkspaceId\b[^)]*\)/);
+  // (the refs argument is itself a nested call, so match the trailing workspace argument)
+  assert.match(view, /latestOutcomeByRefs\([\s\S]*?,\s*workspaceId\s*\)/);
+  assert.match(view, /inFlightAttemptsByPosting\(\s*workspaceId\s*\)/);
+  assert.doesNotMatch(view, /listSubmissions\([^,)]*\)/, "no single-argument listSubmissions() may remain");
 
   const outcomes = code("outcomes/route.ts");
   assert.match(outcomes, /listOutcomes\([^)]*\bws\b[^)]*\)/);

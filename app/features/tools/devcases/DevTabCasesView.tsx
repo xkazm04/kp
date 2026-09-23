@@ -32,40 +32,53 @@ const CaseDetail = dynamic(() => import("./DevCaseDetail").then((m) => ({ defaul
   loading: chunkGap("min-h-[24rem]"),
 });
 
-/** The detail reader's record, read by id when a ledger row is opened (GET
- *  /api/devcase/[id]). The ledger rows are a projection - the design JSON the reader
- *  renders is no longer on the list - so this is the one fetch that brings it. A
- *  foreign or deleted id answers a coded 404, shown in the reader's language with the
- *  way back, rather than an empty reader. */
+/** The detail reader's record AND its channels, read by id when a ledger row is opened:
+ *  GET /api/devcase/[id] (the design JSON the ledger projection no longer carries) and
+ *  GET /api/devcase/[id]/channels (this case's postings, SQL-scoped, submissions inlined
+ *  and enriched - challenge-r09 devcase-lifecycle/A), in parallel, under ONE version key.
+ *  The detail used to filter the workspace's whole postings fold down to its own case in
+ *  the browser. A foreign or deleted id answers a coded 404 from either door, shown in the
+ *  reader's language with the way back, rather than an empty reader. */
 function CaseDetailById({ caseId, version, onBack, children }: {
   caseId: string;
   /** Re-read when the ledger reloads (a finished lifecycle step can materialize the
-   *  seed or scenario this reader shows); the last good record stays up meanwhile. */
-  version: number | null;
+   *  seed or scenario this reader shows) or the studio bumps the detail (an evaluation
+   *  finished, a publish landed); the last good record stays up meanwhile. */
+  version: string;
   onBack: () => void;
-  children: (kase: DevCaseDetail) => ReactNode;
+  children: (kase: DevCaseDetail, casePostings: Posting[]) => ReactNode;
 }) {
   const tDetail = useTranslations("devcase.studio.detail");
   const tErrors = useTranslations("errors");
   const errorMessage = useErrorMessage();
-  const [loaded, setLoaded] = useState<{ id: string; kase: DevCaseDetail | null; error: string | null } | null>(null);
+  const [loaded, setLoaded] = useState<{ id: string; kase: DevCaseDetail | null; postings: Posting[]; error: string | null } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
       try {
-        const r = await fetch(`/api/devcase/${encodeURIComponent(caseId)}`, { signal: controller.signal });
+        const [r, rc] = await Promise.all([
+          fetch(`/api/devcase/${encodeURIComponent(caseId)}`, { signal: controller.signal }),
+          fetch(`/api/devcase/${encodeURIComponent(caseId)}/channels`, { signal: controller.signal }),
+        ]);
         const body = (await r.json().catch(() => null)) as { case?: DevCaseDetail; code?: string | null } | null;
+        const channels = (await rc.json().catch(() => null)) as { postings?: Posting[]; code?: string | null } | null;
         if (controller.signal.aborted) return;
         if (!r.ok || !body?.case) {
-          setLoaded({ id: caseId, kase: null, error: errorMessage(body, tErrors("DEVCASE_CASE_LIST_FAILED")) });
+          setLoaded({ id: caseId, kase: null, postings: [], error: errorMessage(body, tErrors("DEVCASE_CASE_LIST_FAILED")) });
           return;
         }
-        setLoaded({ id: caseId, kase: body.case, error: null });
+        if (!rc.ok || !Array.isArray(channels?.postings)) {
+          // Not an empty channel list: "no postings" would tell the recruiter the case was
+          // never published. The failure is named instead.
+          setLoaded({ id: caseId, kase: null, postings: [], error: errorMessage(channels, tErrors("DEVCASE_POSTINGS_FAILED")) });
+          return;
+        }
+        setLoaded({ id: caseId, kase: body.case, postings: channels.postings, error: null });
       } catch {
         // An abort is the reader leaving (or opening another row), not a failure;
         // anything else is named, with the way back.
         if (!controller.signal.aborted) {
-          setLoaded({ id: caseId, kase: null, error: tErrors("DEVCASE_CASE_LIST_FAILED") });
+          setLoaded({ id: caseId, kase: null, postings: [], error: tErrors("DEVCASE_CASE_LIST_FAILED") });
         }
       }
     })();
@@ -73,7 +86,7 @@ function CaseDetailById({ caseId, version, onBack, children }: {
   }, [caseId, version, errorMessage, tErrors]);
 
   const current = loaded?.id === caseId ? loaded : null;
-  if (current?.kase) return <>{children(current.kase)}</>;
+  if (current?.kase) return <>{children(current.kase, current.postings)}</>;
   if (current?.error) {
     return (
       <div className="space-y-3">
@@ -106,7 +119,7 @@ export function DevTabCasesView({
   casesState,
   lifecycles,
   lifecyclesState,
-  postings,
+  detailVersion,
   selectedCaseId,
   onOpenCase,
   onBack,
@@ -116,7 +129,7 @@ export function DevTabCasesView({
   source,
   sourcing,
   sourcedCounts,
-  loadPostings,
+  reloadDetail,
   approveLifecycle,
   loadLifecycles,
   lifecycleFocus = null,
@@ -131,7 +144,9 @@ export function DevTabCasesView({
   casesState: LoadState;
   lifecycles: Lifecycle[];
   lifecyclesState: LoadState;
-  postings: Posting[];
+  /** Bumped by the studio when the open case's channels changed (an evaluation finished,
+   *  a publish landed, a lifecycle step ran): the detail re-reads its one case. */
+  detailVersion: number;
   selectedCaseId: string | null;
   onOpenCase: (id: string) => void;
   onBack: () => void;
@@ -141,7 +156,7 @@ export function DevTabCasesView({
   source: (caseId: string) => void;
   sourcing: string | null;
   sourcedCounts: Record<string, number>;
-  loadPostings: () => void;
+  reloadDetail: () => void;
   approveLifecycle: (id: string) => void;
   loadLifecycles: () => void;
   /** The lifecycle a ?lifecycle= address pointed at (assignmentsDeepLink.ts). */
@@ -149,18 +164,18 @@ export function DevTabCasesView({
 }) {
   if (selectedCaseId) {
     return (
-      <CaseDetailById caseId={selectedCaseId} version={casesState.lastUpdated} onBack={onBack}>
-        {(kase) => (
+      <CaseDetailById caseId={selectedCaseId} version={`${casesState.lastUpdated ?? ""}:${detailVersion}`} onBack={onBack}>
+        {(kase, casePostings) => (
           <CaseDetail
             kase={kase}
-            postings={postings}
+            casePostings={casePostings}
             onBack={onBack}
             publish={publish}
             publishing={publishingCase === kase.id}
             source={source}
             sourcing={sourcing}
             sourcedCounts={sourcedCounts}
-            loadPostings={loadPostings}
+            reloadDetail={reloadDetail}
           />
         )}
       </CaseDetailById>
@@ -185,7 +200,6 @@ export function DevTabCasesView({
       <Defer strategy="next-frame" placeholder={<div className="reveal-quiet min-h-[10rem]" aria-hidden />}>
         <LifecycleSection
           lifecycles={lifecycles}
-          postings={postings ?? []}
           approveLifecycle={approveLifecycle}
           state={lifecyclesState}
           onChanged={loadLifecycles}

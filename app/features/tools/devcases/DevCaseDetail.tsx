@@ -25,24 +25,29 @@ import type { DevCaseDetail, Posting, SeedFile } from "./DevTypes";
  *  spec) and this case's postings/submissions with their evaluations. */
 export function CaseDetail({
   kase,
-  postings,
+  casePostings,
   onBack,
   publish,
   publishing,
   source,
   sourcing,
   sourcedCounts,
-  loadPostings,
+  reloadDetail,
 }: {
   kase: DevCaseDetail;
-  postings: Posting[];
+  /** THIS case's postings, read by id (GET /api/devcase/[id]/channels, challenge-r09
+   *  devcase-lifecycle/A) - scoped in SQL to the case and the workspace, each with its
+   *  status. This reader used to receive the workspace's whole postings fold and filter
+   *  it down to its own case here. */
+  casePostings: Posting[];
   onBack: () => void;
   publish: (caseId: string) => void;
   publishing?: boolean;
   source: (caseId: string) => void;
   sourcing: string | null;
   sourcedCounts: Record<string, number>;
-  loadPostings: () => void;
+  /** Re-read this case (record + channels) after a change made from inside the reader. */
+  reloadDetail: () => void;
 }) {
   const t = useTranslations("devcase.studio.detail");
   const tWaiting = useTranslations("devcase.studio.waiting");
@@ -62,7 +67,6 @@ export function CaseDetail({
         .filter(Boolean)
         .join("\n")
     : "";
-  const casePostings = postings.filter((p) => p.caseId === kase.id);
   const published = casePostings.length > 0;
   // fec3e23a — every submission across this case's postings, for the cohort
   // probe-miss roll-up in the internal section.
@@ -203,13 +207,13 @@ export function CaseDetail({
           ) : null}
 
           {/* 99288c0e — the case-wide shortlist: all candidates, every channel, one ranking. */}
-          <DevCaseDetailShortlist shortlist={shortlist} roleJdText={roleJdText} onChanged={loadPostings} />
+          <DevCaseDetailShortlist shortlist={shortlist} roleJdText={roleJdText} onChanged={reloadDetail} />
         </>
       )}
 
       {/* distribution + intake for THIS case — postings are the apply channels;
           the candidates they collect are ranked together in the shortlist above. */}
-      <DevCaseDetailChannels casePostings={casePostings} onDone={loadPostings} />
+      <DevCaseDetailChannels casePostings={casePostings} onDone={reloadDetail} />
     </div>
   );
 }

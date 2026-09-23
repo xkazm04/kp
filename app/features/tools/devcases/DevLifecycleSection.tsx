@@ -5,20 +5,20 @@ import { useTranslations } from "next-intl";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { DevSection } from "./DevShared";
 import { LifecycleRow } from "./DevLifecycleRow";
-import type { Lifecycle, Posting } from "./DevTypes";
-import { inFlightByCase } from "./devcaseInFlight";
+import type { Lifecycle } from "./DevTypes";
 
+// Each row carries its own intake counts (GET /api/devcase/lifecycle, challenge-r09
+// devcase-lifecycle/A): submissions for the d8a0c4cf stall flag, in-flight attempts for the
+// close confirm. The section used to take the workspace's whole postings fold only to fold
+// it back down to those two numbers per case.
 export function LifecycleSection({
   lifecycles,
-  postings,
   approveLifecycle,
   state,
   onChanged,
   focus = null,
 }: {
   lifecycles: Lifecycle[];
-  // d8a0c4cf — to count submissions per lifecycle (by caseId) for the stall flag.
-  postings: Posting[];
   approveLifecycle: (id: string) => void;
   state: LoadState;
   /** W5-3 — refresh after a close-out flips a lifecycle to its terminal stage. */
@@ -28,15 +28,6 @@ export function LifecycleSection({
   focus?: { id: string; openReview: boolean; nonce: number } | null;
 }) {
   const t = useTranslations("devcase.lifecycle");
-  // Submissions per case, summed across its postings — the stall check's "empty?".
-  const submissionsByCase = new Map<string, number>();
-  for (const p of postings) {
-    if (!p.caseId) continue;
-    const n = p.submissions?.length ?? p.submissionCount ?? 0;
-    submissionsByCase.set(p.caseId, (submissionsByCase.get(p.caseId) ?? 0) + n);
-  }
-  // Attempts mid-case per case, the same fold: what the close confirm has to name.
-  const inFlight = inFlightByCase(postings);
   return (
     <DevSection icon={<Sparkles size={13} className="text-coral" />} title={t("sectionTitle")} count={lifecycles.length} state={state} label="lifecycles">
       <p className="mt-1 text-micro text-steel">{t("intro")}</p>
@@ -45,8 +36,8 @@ export function LifecycleSection({
           <LifecycleRow
             key={lc.id}
             lc={lc}
-            submissionCount={lc.caseId ? submissionsByCase.get(lc.caseId) ?? 0 : 0}
-            inFlight={lc.caseId ? inFlight.get(lc.caseId) ?? null : null}
+            submissionCount={lc.submissionCount ?? 0}
+            inFlight={lc.inFlight ?? null}
             onApprove={() => approveLifecycle(lc.id)}
             onChanged={onChanged}
             focus={focus?.id === lc.id ? focus : null}

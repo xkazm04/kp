@@ -144,7 +144,7 @@ export type Submission = {
    *  re-offered the buttons, double-counting re-records in calibration. */
   outcome?: { outcome: "hired" | "rejected" | "withdrawn" | "pending"; performance: number | null; recordedAt: string } | null;
   /** The advance/hold verdict a promotion would land with NOW, at the server's calibrated
-   *  floor (GET /api/devcase/postings, devcase-promote-verdict.ts - the same rule
+   *  floor (app/_lib/devcase-postings-view.ts, devcase-promote-verdict.ts - the same rule
    *  promoteSubmission writes). Present only on evaluated submissions. */
   promotePreview?: PromoteVerdict;
   /** Minutes past the case timebox, measured server-side at finalize (/perfect wave
@@ -161,13 +161,19 @@ export type Posting = {
   token: string | null;
   roleTitle: string | null;
   caseTitle: string | null;
+  /** Intake state, as the store holds it (dev_postings.status): an OPEN posting's apply
+   *  link and intake form are live; a CLOSED one answers 410 and refuses submissions.
+   *  Always on the wire (GET /api/devcase/[id]/channels, app/_lib/devcase-postings-view.ts);
+   *  the client type used to drop it, so nothing could render live vs closed honestly. */
+  status: PostingStatus;
   submissionCount?: number;
   submissions?: Submission[];
-  /** Attempts mid-case on this posting right now, as COUNTS (GET /api/devcase/postings,
-   *  app/_lib/db/devcase-inflight.ts). Never a session id or ref. Absent from an older
-   *  server; the close confirm reads an absent aggregate as "nobody". */
+  /** Attempts mid-case on this posting right now, as COUNTS (app/_lib/db/devcase-inflight.ts).
+   *  Never a session id or ref. Absent from an older server; the close confirm reads an
+   *  absent aggregate as "nobody". */
   inFlight?: PostingInFlight;
 };
+export type PostingStatus = "open" | "closed";
 /** `live`: active within the last 30 minutes; `idle`: active but quiet past that. */
 export type PostingInFlight = { live: number; idle: number; oldestLiveStartedAt: string | null };
 export type Lifecycle = {
@@ -185,6 +191,13 @@ export type Lifecycle = {
   postingId: string | null;
   createdAt: string;
   updatedAt?: string | null;
+  /** Submissions across every posting of this lifecycle's case - the stall check's
+   *  "empty?". Carried on the row by GET /api/devcase/lifecycle (challenge-r09
+   *  devcase-lifecycle/A); 0 for a row with no case yet. Absent from an older server. */
+  submissionCount?: number;
+  /** Attempts mid-case across the case's postings right now (counts only), for the close
+   *  confirm. Zeros for a row with no case. Absent from an older server. */
+  inFlight?: PostingInFlight;
   // W5-4 — the designed artifacts the GET has always served but this type
   // dropped, leaving the human gate blind: the reality-reflection that flagged
   // the design, and the role/case under review.

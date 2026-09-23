@@ -52,12 +52,13 @@ export function DevTab() {
     cases, casesTruncated, casesState, loadCases,
     caseFacets, caseFilters, setCaseFilters, caseFiltersActive,
     raiseCaseLimit, canLoadMoreCases,
-    postings, loadPostings,
+    detailVersion, reloadDetail,
     lifecycles, lifecyclesState, loadLifecycles,
     outbox, outboxState, loadOutbox,
     buildNeed,
   } = useDevTabData();
 
+  // A publish changes the open case's channels: `loadPostings` re-reads that one case.
   const {
     runAction,
     runLifecycle, runningLifecycle,
@@ -65,7 +66,7 @@ export function DevTab() {
     publish, publishingCase,
     source, sourcing, sourcedCounts,
     actionError, setActionError,
-  } = useDevTabActions({ buildNeed, loadLifecycles, loadPostings });
+  } = useDevTabActions({ buildNeed, loadLifecycles, loadPostings: reloadDetail });
 
   const {
     selectNeed,
@@ -155,13 +156,16 @@ export function DevTab() {
     if (done.length === 0) return;
     const kinds = new Set(done.map((t) => t.kind));
     done.forEach((t) => reloadedTasks.current.add(t.id));
-    // evaluate persists the score onto its submission → only the postings list.
-    if (kinds.has("evaluate_submission")) loadPostings();
-    // a lifecycle step can analyze/design/approve/publish/comm → its own lists.
+    // evaluate persists the score onto its submission → only the open detail, which
+    // re-reads its ONE case (challenge-r09 devcase-lifecycle/A; the workspace postings
+    // fold this used to reload is no longer loaded by the studio at all).
+    if (kinds.has("evaluate_submission")) reloadDetail();
+    // a lifecycle step can analyze/design/approve/publish/comm → its own lists. The
+    // lifecycle rows carry their own intake counts, so reloading them refreshes those.
     if (kinds.has("lifecycle")) {
       loadLifecycles();
       loadCases();
-      loadPostings();
+      reloadDetail();
       loadOutbox();
     }
     // need-analysis updates the lifecycle it belongs to.
@@ -230,7 +234,7 @@ export function DevTab() {
           casesState={casesState}
           lifecycles={lifecycles}
           lifecyclesState={lifecyclesState}
-          postings={postings}
+          detailVersion={detailVersion}
           selectedCaseId={selectedCaseId}
           onOpenCase={setSelectedCaseId}
           onBack={() => setSelectedCaseId(null)}
@@ -240,7 +244,7 @@ export function DevTab() {
           source={source}
           sourcing={sourcing}
           sourcedCounts={sourcedCounts}
-          loadPostings={loadPostings}
+          reloadDetail={reloadDetail}
           approveLifecycle={approveLifecycle}
           loadLifecycles={loadLifecycles}
           lifecycleFocus={lifecycleFocus}
