@@ -2201,6 +2201,11 @@ export function ensureDb(): Database.Database {
     // {score, openWarns, acknowledged, decidedAt}. NULL on hold/clear and on every
     // decision recorded before the column existed (unknown, never fabricated).
     "ALTER TABLE analyses ADD COLUMN decision_basis TEXT",
+    // The lifecycle runner's last step as a closed code + integer facts + coded warnings
+    // (devcase-stage-outcome.ts), beside the English `detail` it keeps writing. NULL on
+    // every row written before the column existed and on rows a human door last wrote;
+    // the row then renders `detail` exactly as before.
+    "ALTER TABLE dev_lifecycle ADD COLUMN outcome_json TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
