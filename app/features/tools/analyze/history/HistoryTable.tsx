@@ -10,7 +10,16 @@ import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { analysisProducer, DISPOSITION_STYLE, PRODUCER_STYLE, type AnalysisRow } from "./HistoryTypes";
 
-export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLabel: (d: string) => string }) {
+export function HistoryTable({
+  rows,
+  dispLabel,
+  onDecide,
+}: {
+  rows: AnalysisRow[];
+  dispLabel: (d: string) => string;
+  /** Open the triage drawer on this row (challenge-r09 cv-analyze-workspace/B). */
+  onDecide: (slug: string) => void;
+}) {
   const t = useTranslations("history");
   const enumLabel = useEnumLabel();
   const locale = useLocale();
@@ -42,6 +51,16 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
                 >
                   {row.slug}
                 </Link>
+                {/* Decide in place: the slug stays the link to the full report; this
+                    opens the triage drawer on the same PATCH door. */}
+                <button
+                  type="button"
+                  onClick={() => onDecide(row.slug)}
+                  aria-label={t("decideOn", { candidate: row.candidate_label })}
+                  className="focus-ring ml-2 rounded-md border border-stone-200 bg-white px-2 py-0.5 text-sm font-semibold text-ink hover:bg-paper"
+                >
+                  {t("decide")}
+                </button>
               </Td>
               <Td>
                 {row.candidate_label}

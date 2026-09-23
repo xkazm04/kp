@@ -20,6 +20,11 @@ const OPTIONS = [
   { value: "pass", labelKey: "dispPass", on: "bg-coral text-white", off: "text-coral hover:bg-coral/10" },
 ] as const;
 
+/** Every settled save, reported to an optional host (History's triage drawer). `ok` is a
+ *  2xx; `code` is the refusal's code (DISPOSITION_ACK_REQUIRED, FORBIDDEN_CAPABILITY),
+ *  null for a network failure. `disposition`/`note` are what the request carried. */
+export type DispositionOutcome = { ok: boolean; code: string | null; disposition: string; note: string };
+
 // Human decision record on a saved analysis (RES5). The report was read-only —
 // AiDisclosure promises a human makes every call, but that call was never captured
 // against the analysis. This pins a disposition (advance/hold/pass) + an optional
@@ -35,12 +40,16 @@ export function DispositionEditor({
   initialDisposition,
   initialNote,
   analysis,
+  onSettled,
 }: {
   slug: string;
   initialDisposition: string | null;
   initialNote: string | null;
   /** The analysis being decided on; its open flags and gaps form the brief. */
   analysis?: unknown;
+  /** Told about every settled save (success and refusal), including the unmount flush.
+   *  The host decides what to repaint; the editor's own state is unchanged by it. */
+  onSettled?: (outcome: DispositionOutcome) => void;
 }) {
   const t = useTranslations("report");
   const errorMessage = useErrorMessage();
@@ -62,6 +71,11 @@ export function DispositionEditor({
   // The note value last persisted to the server — gates the autosave + blur so we
   // don't re-PATCH an unchanged reason, and lets the debounce know there's nothing new.
   const lastSavedNote = useRef(initialNote ?? "");
+  // The host callback as of the latest render, read by the unmount flush too.
+  const onSettledRef = useRef(onSettled);
+  useEffect(() => {
+    onSettledRef.current = onSettled;
+  }, [onSettled]);
 
   const save = useCallback(
     async (nextDisposition: string, nextNote: string) => {
@@ -79,14 +93,17 @@ export function DispositionEditor({
           setDisposition(settleDisposition({ attempted: nextDisposition, stored: stored.current, ok: false, code: payload?.code }));
           if (payload?.code === DISPOSITION_ACK_REQUIRED) setBlocked("ack");
           setError(errorMessage(payload, t("saveFailed")));
+          onSettledRef.current?.({ ok: false, code: payload?.code ?? null, disposition: nextDisposition, note: nextNote });
           return;
         }
         stored.current = nextDisposition;
         lastSavedNote.current = nextNote;
         setSaved(true);
         window.setTimeout(() => setSaved(false), 2000);
+        onSettledRef.current?.({ ok: true, code: null, disposition: nextDisposition, note: nextNote });
       } catch {
         setError(t("saveFailed"));
+        onSettledRef.current?.({ ok: false, code: null, disposition: nextDisposition, note: nextNote });
       } finally {
         setSaving(false);
       }
@@ -150,9 +167,16 @@ export function DispositionEditor({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(dispositionPatchBody(d, n, a)),
           keepalive: true,
-        }).catch((err: unknown) => {
-          console.warn(`[disposition] unmount flush failed for "${slug}"`, err);
-        });
+        })
+          // The editor is gone, but its host (History's list) may still be on screen:
+          // tell it what the flush settled so a note typed before moving on repaints.
+          .then(async (r) => {
+            const payload = r.ok ? null : ((await r.json().catch(() => null)) as { code?: string } | null);
+            onSettledRef.current?.({ ok: r.ok, code: payload?.code ?? null, disposition: d, note: n });
+          })
+          .catch((err: unknown) => {
+            console.warn(`[disposition] unmount flush failed for "${slug}"`, err);
+          });
       }
     };
   }, [slug]);

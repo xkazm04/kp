@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, CARD_PAD, DIVIDER, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { HistoryTable } from "./HistoryTable";
+import { HistoryTriageDrawer } from "./HistoryTriageDrawer";
+import { applyDecision, pruneToFilter, type TriageDecision, type TriageMode } from "./historyTriage";
 import type { AnalysisRow } from "./HistoryTypes";
 import {
   isHistoryFiltering,
@@ -52,6 +54,20 @@ export function HistoryTab() {
   const [seniority, setSeniority] = useState("");
   const [disposition, setDisposition] = useState("");
   const applied: HistoryQuery = { q: appliedQ, family: roleFamily, seniority, disposition };
+  // Triage (challenge-r09 cv-analyze-workspace/B): the row the drawer is deciding on,
+  // and whether its walk skips runs that already carry a decision.
+  const [triageSlug, setTriageSlug] = useState<string | null>(null);
+  const [triageMode, setTriageMode] = useState<TriageMode>("undecided");
+  // A decision the server holds: repaint that row in place (pill, note, counts).
+  const onDecided = useCallback((slug: string, decision: TriageDecision) => {
+    setRows((prev) => (prev ? applyDecision(prev, slug, decision) : prev));
+  }, []);
+  // Closing hands the list back to its own filter: a run decided under 'undecided'
+  // drops out, as the next refetch would drop it server-side.
+  const closeTriage = () => {
+    setTriageSlug(null);
+    setRows((prev) => (prev ? pruneToFilter(prev, disposition) : prev));
+  };
 
   // One generation per page-1 load: only the latest query's answer is applied, so a
   // fast typist, a retry or a locale switch mid-load can never paint a stale list, and
@@ -200,7 +216,7 @@ export function HistoryTab() {
                 </button>
               </p>
             ) : (
-              <HistoryTable rows={rows} dispLabel={dispLabel} />
+              <HistoryTable rows={rows} dispLabel={dispLabel} onDecide={setTriageSlug} />
             )}
             {nextCursor ? (
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -217,6 +233,18 @@ export function HistoryTab() {
           </>
         )}
       </div>
+      {triageSlug && rows ? (
+        <HistoryTriageDrawer
+          rows={rows}
+          slug={triageSlug}
+          mode={triageMode}
+          onModeChange={setTriageMode}
+          truncated={truncated}
+          onNavigate={setTriageSlug}
+          onDecided={onDecided}
+          onClose={closeTriage}
+        />
+      ) : null}
     </section>
   );
 }
