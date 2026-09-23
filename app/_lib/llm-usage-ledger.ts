@@ -146,3 +146,6 @@ export function parseLedgerLine(line: string): LlmUsageInput | null {
     requestId: strOrNull(parsed.request_id),
   };
 }
+
+/** Models > Routing health window (db/llm-routing-health.ts); client-importable. */
+export const ROUTING_HEALTH_WINDOW_DAYS = 30;

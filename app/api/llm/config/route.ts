@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db/llm";
+import { routingHealth } from "@/app/_lib/db/llm-routing-health";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
@@ -39,6 +40,10 @@ export async function GET() {
     rows: listLlmConfig(),
     providers: LLM_PROVIDERS,
     useCases: LLM_USE_CASES,
+    // What SERVED each use case since its pin was set (db/llm-routing-health.ts):
+    // the routing table's health chip. Same gate and the same deployment-wide,
+    // tenancy-exempt ledger the Activity and usage routes already list row by row.
+    health: routingHealth(LLM_USE_CASES),
   });
 }
 

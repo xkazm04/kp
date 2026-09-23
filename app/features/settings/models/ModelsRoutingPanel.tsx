@@ -5,7 +5,9 @@ import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, EYEBROW, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import type { LlmConfigRow } from "@/app/_lib/db/llm";
+import type { RoutingHealthRow } from "@/app/_lib/db/llm-routing-health";
 import { ModelsRoutingRow } from "./ModelsRoutingRow";
+import { classifyRoutingHealth, effectivePin } from "./modelsRoutingHealth";
 import { sectionizeUseCases } from "./modelsRoutingSections";
 
 // The Routing section: pin a provider/model per use case. Rows in
@@ -18,7 +20,14 @@ import { sectionizeUseCases } from "./modelsRoutingSections";
 // Models no longer pays for the key store and the bench matrix before the
 // routing table it actually landed on can paint.
 
-type ConfigPayload = { rows: LlmConfigRow[]; providers: string[]; useCases: string[] };
+// `health` is what SERVED each use case since its effective pin was set (the usage
+// ledger, cut per pin); optional so an older server's payload still renders.
+type ConfigPayload = {
+  rows: LlmConfigRow[];
+  providers: string[];
+  useCases: string[];
+  health?: Record<string, RoutingHealthRow>;
+};
 
 export function ModelsRoutingPanel() {
   const t = useTranslations("models");
@@ -129,6 +138,13 @@ export function ModelsRoutingPanel() {
                       description={useCase === "*" ? t("routing.defaultRowHint") : descFor(useCase)}
                       inert={useCase === "devcase_role_design"}
                       row={row}
+                      // The "*" row is a pin, never a ledger use case: no health.
+                      health={
+                        useCase === "*"
+                          ? null
+                          : classifyRoutingHealth(effectivePin(useCase, config.rows), config.health?.[useCase], config.providers)
+                      }
+                      pinnedProvider={effectivePin(useCase, config.rows)?.provider ?? null}
                       providers={config.providers}
                       onRows={(rows) => setConfig((c) => (c ? { ...c, rows } : c))}
                     />

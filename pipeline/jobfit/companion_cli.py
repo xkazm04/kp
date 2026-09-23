@@ -118,7 +118,8 @@ from .companion_brain import (
     workspace_of,
 )
 from .i18n import language_directive, normalize_lang
-from .llm.registry import resolve_provider
+from .llm.monitor import emit_deterministic
+from .llm.registry import provider_availability, resolve_provider
 
 MAX_MESSAGE_CHARS = 4000
 # Two prose ceilings, not one. A reply that carries a table or a chart has
@@ -359,7 +360,13 @@ def _complete(
     characters would routinely cut a fence in half and turn a valid table into a
     dropped one plus a paragraph of raw JSON."""
     provider = resolve_provider("assistant", timeout=LLM_TIMEOUT_S)
-    if provider is None or not provider.available():
+    ok, descent = provider_availability(provider) if provider is not None else (False, "unavailable")
+    if not ok:
+        # The template serve is recorded in the usage ledger with the availability
+        # CODE, as repo_scan_cli does - without it the Models > Routing row for
+        # `assistant` read idle while every turn fell back. The per-request
+        # fallbackReason below keeps its phrase: companionFallbackClass matches it.
+        emit_deterministic("assistant", reason=descent)
         return UNREACHABLE_REPLY[locale], "deterministic", "no provider available"
     try:
         completion = provider.complete(prompt, system=_system_prompt(locale, actions, digest, memory))

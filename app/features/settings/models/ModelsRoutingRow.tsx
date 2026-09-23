@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { Badge } from "@/app/_components/Badge";
+import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 import type { LlmConfigRow } from "@/app/_lib/db/llm";
@@ -11,6 +11,19 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ModelsRoutingRowActions } from "./ModelsRoutingRowActions";
 import { useProviderName } from "./modelsProviderNames";
 import { useTestReason, type ModelsTestVerdict } from "./modelsTestReason";
+import { withModelSection, type RoutingHealth, type RoutingHealthState } from "./modelsRoutingHealth";
+import { ROUTING_HEALTH_WINDOW_DAYS } from "@/app/_lib/llm-usage-ledger";
+
+// The health chip's tone per state. Serving is the only green; a template floor or
+// a provider the pin did not name is caution; a failing newest call is critical.
+const HEALTH_TONE: Record<RoutingHealthState, BadgeTone> = {
+  serving: "positive",
+  falling_back: "caution",
+  failing: "critical",
+  drift: "caution",
+  unproven: "info",
+  idle: "neutral",
+};
 
 // One routing row: the pin editor for a single use case. Local draft state
 // (provider/model) initializes from the pinned row; the parent re-keys this
@@ -25,6 +38,8 @@ export function ModelsRoutingRow({
   label,
   description,
   row,
+  health,
+  pinnedProvider,
   providers,
   onRows,
 }: {
@@ -35,6 +50,11 @@ export function ModelsRoutingRow({
   /** One short sentence: where in the hiring process this LLM call applies. */
   description: string | null;
   row: LlmConfigRow | null;
+  /** What served this use case since its effective pin (modelsRoutingHealth.ts);
+   *  null for the "*" row, which is a pin and never a ledger use case. */
+  health: RoutingHealth | null;
+  /** The effective pin's provider (own row, else "*"), named by a drift hint. */
+  pinnedProvider: string | null;
   providers: string[];
   onRows: (rows: LlmConfigRow[]) => void;
 }) {
@@ -54,6 +74,40 @@ export function ModelsRoutingRow({
   const [model, setModel] = useState(row?.model ?? "");
   const [busy, setBusy] = useState<"save" | "reset" | "test" | null>(null);
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+  const th = useTranslations("models.routing.health");
+
+  // One sentence per state, from the ledger - never the provider's own text: the
+  // reason is a closed-vocabulary code, and an unknown one reads as "unknown".
+  const reasonText = (code: string | null): string => {
+    const key = `reasons.${code ?? "unknown"}` as Parameters<typeof th>[0];
+    return code && th.has(key) ? th(key) : th("reasons.unknown");
+  };
+  const when = (at: string | null) => (at ? format.dateTime(new Date(at), { dateStyle: "medium", timeStyle: "short" }) : "");
+  const healthHint = (h: RoutingHealth): string => {
+    switch (h.state) {
+      case "serving":
+        return th("hintServing", { provider: providerName(h.served?.provider ?? ""), date: when(h.lastAt) });
+      case "drift":
+        return th("hintDrift", {
+          pinned: providerName(pinnedProvider ?? ""),
+          served: providerName(h.served?.provider ?? ""),
+          date: when(h.lastAt),
+        });
+      case "falling_back":
+        return th("hintFallingBack", { date: when(h.lastAt), reason: reasonText(h.reason) });
+      case "failing":
+        return th("hintFailing", { date: when(h.lastAt), reason: reasonText(h.reason) });
+      case "unproven":
+        return th("hintUnproven");
+      case "idle":
+        return th("hintIdle", { days: ROUTING_HEALTH_WINDOW_DAYS });
+    }
+  };
+  const openKeys = () => {
+    // The Keys section is an address (?modelSec=keys, read by ModelsTab), so the
+    // repair is the same URL move the section switcher makes.
+    window.history.replaceState(null, "", withModelSection(window.location.href, "keys"));
+  };
 
   const dirty = provider !== (row?.provider ?? "") || model.trim() !== (row?.model ?? "");
 
@@ -176,6 +230,17 @@ export function ModelsRoutingRow({
           ) : (
             <Badge tone="neutral" label={t("stateDefault")} muted className="mt-1.5" />
           )}
+          {health ? (
+            <div className="mt-1.5 max-w-[15rem]">
+              <Badge tone={HEALTH_TONE[health.state]} label={th(`label.${health.state}`)} muted={health.state === "idle"} />
+              <p className="mt-1 text-sm text-steel">{healthHint(health)}</p>
+              {health.repair === "keys" ? (
+                <button type="button" onClick={openKeys} className="mt-1 text-sm font-medium text-coral underline underline-offset-2">
+                  {th("openKeys")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </td>
         <td className="py-2.5">
           <ModelsRoutingRowActions

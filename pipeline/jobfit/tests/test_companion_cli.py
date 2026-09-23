@@ -390,6 +390,43 @@ class CompanionCliTestCase(unittest.TestCase):
         emitted = json.loads(printed.call_args.args[0])
         self.assertEqual(emitted["reply"], "Four candidates are waiting on you.")
 
+    def test_an_unavailable_provider_records_its_descent_in_the_usage_ledger(self):
+        """The Models > Routing row for ``assistant`` reads the ledger to say what
+        served it. Without this line a keyless or offline install's companion traffic
+        was invisible there, so the row read "idle" while every turn fell back. The
+        reason is the availability CODE (``provider_availability``), the same shape
+        repo_scan_cli records; the per-request fallbackReason stays the phrase the
+        dock's ``companionFallbackClass`` matches."""
+
+        class _Sealed(_Provider):
+            def availability(self):
+                return False, "offline_policy"
+
+            def available(self) -> bool:
+                return False
+
+        ledger = Path(self._tmp.name) / "usage.ndjson"
+        with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}):
+            with mock.patch.object(companion_cli, "resolve_provider", return_value=_Sealed()):
+                raw, source, reason = companion_cli._complete("prompt", "en")
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(reason, "no provider available")
+        self.assertEqual(raw, companion_cli.UNREACHABLE_REPLY["en"])
+        lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertEqual(len(lines), 1)
+        self.assertEqual(lines[0]["use_case"], "assistant")
+        self.assertEqual(lines[0]["source"], "deterministic")
+        self.assertEqual(lines[0]["reason"], "offline_policy")
+
+    def test_no_provider_at_all_records_an_unavailable_descent(self):
+        ledger = Path(self._tmp.name) / "usage.ndjson"
+        with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}):
+            with mock.patch.object(companion_cli, "resolve_provider", return_value=None):
+                _, source, reason = companion_cli._complete("prompt", "en")
+        self.assertEqual((source, reason), ("deterministic", "no provider available"))
+        lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertEqual([(line["use_case"], line["source"], line["reason"]) for line in lines], [("assistant", "deterministic", "unavailable")])
+
 
 if __name__ == "__main__":
     unittest.main()
