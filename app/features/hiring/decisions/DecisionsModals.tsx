@@ -13,6 +13,8 @@ import { DecisionRulesModal } from "./DecisionsRulesModal";
 import { DecisionsGroupEvalRejectModal } from "./DecisionsGroupEvalRejectModal";
 import { GroupEvalModal } from "./GroupEvalModal";
 import type { GroupEvalOpen } from "./groupEval/useGroupEvalOpen";
+import { poolChange } from "./groupEval/groupEvalDelta";
+import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 
 const AnalysisSummaryModal = dynamic(
@@ -54,8 +56,18 @@ export function DecisionsModals({
   // button is no longer a dead click once the entry has left the live pool.
   const [reasonPending, setReasonPending] = useState<{ entry: Entry; identity: string; action: "accept" | "reject" } | null>(null);
   const [sealedOutcomes, setSealedOutcomes] = useState<Readonly<Record<string, "accept" | "reject">>>({});
+  // The comparison a Re-run replaces, held so the fresh one can say what moved
+  // (groupEval/groupEvalDelta.ts). Keyed by role so it can never diff two roles, and
+  // dropped on close: the next open is a first look, not a re-run.
+  const [previousEval, setPreviousEval] = useState<{ roleKey: string; payload: GroupEvalPayload } | null>(null);
   const evalRole = groupEval.role;
   const evalGroup = groupEval.group;
+  const evalPoolChange = evalGroup
+    ? poolChange(
+        groupEval.evaluation,
+        evalGroup.entries.map((e) => ({ id: e.id, label: e.candidateLabel }))
+      )
+    : null;
   return (
     <>
       {summaryEntry ? (
@@ -84,10 +96,13 @@ export function DecisionsModals({
           error={groupEval.error}
           createdAt={groupEval.createdAt}
           poolDrift={groupEval.drift}
+          poolChange={evalPoolChange}
+          previousEvaluation={previousEval && previousEval.roleKey === evalRole.roleKey ? previousEval.payload : null}
           governanceMismatch={groupEval.governanceMismatch}
           onClose={() => {
             // One close: the machine invalidates every in-flight probe and start.
             groupEval.close();
+            setPreviousEval(null);
             // Never leave a confirm dialog (or a session's sealed-outcome memory)
             // orphaned behind a closed comparison.
             setReasonPending(null);
@@ -99,7 +114,13 @@ export function DecisionsModals({
           // cohort, so members who left are dropped; the server re-validates membership +
           // cap and compares the survivors (falling back to top-N when fewer than a
           // comparable pair survive). A default top-N eval simply re-runs as top-N.
-          onRerun={groupEval.rerun}
+          // Capture the comparison on screen BEFORE re-running, since the open machine
+          // drops it the moment the run starts. A Re-run from a failed run keeps the
+          // last comparison that did land, so the strip still diffs against it.
+          onRerun={() => {
+            if (groupEval.evaluation) setPreviousEval({ roleKey: evalRole.roleKey, payload: groupEval.evaluation });
+            groupEval.rerun();
+          }}
           onDecide={(identity, action) => {
             // Resolve the eval candidate back to the live pipeline entry by stable id
             // (candIdentity = entry id, label fallback), then reuse act() — same

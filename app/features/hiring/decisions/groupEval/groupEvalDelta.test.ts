@@ -5,7 +5,7 @@
 // not a change of lead).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { poolChange, rerunDelta } from "./groupEvalDelta";
+import { capNames, poolChange, rerunDelta } from "./groupEvalDelta";
 import { poolDrift } from "./groupEvalOpenMachine";
 import type { EvalCandidate, GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
 
@@ -154,5 +154,12 @@ describe("rerunDelta", () => {
   it("returns null when there is no previous run to compare against", () => {
     assert.equal(rerunDelta(null, run(["A"], "A")), null);
     assert.equal(rerunDelta(run(["A"], "A"), null), null);
+  });
+});
+
+describe("capNames", () => {
+  it("keeps a sentence short and counts the rest", () => {
+    assert.deepEqual(capNames(["A", "B"], 5), { shown: ["A", "B"], more: 0 });
+    assert.deepEqual(capNames(["A", "B", "C", "D"], 2), { shown: ["A", "B"], more: 2 });
   });
 });

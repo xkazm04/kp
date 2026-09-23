@@ -139,3 +139,8 @@ export function rerunDelta(prev: GroupEvalPayload | null | undefined, next: Grou
     unchanged: !fieldChanged && lead === null && moves.length === 0 && !modeChanged,
   };
 }
+
+/** A name list capped for one sentence: the first `max` names and how many more. */
+export function capNames(names: readonly string[], max = 5): { shown: string[]; more: number } {
+  return { shown: names.slice(0, max), more: Math.max(0, names.length - max) };
+}

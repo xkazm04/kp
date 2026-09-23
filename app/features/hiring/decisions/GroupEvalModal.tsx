@@ -12,6 +12,8 @@ import { sourceLabelKey } from "@/app/features/hiring/decisions/groupEval/groupE
 import { governanceText, summaryText, type Translate } from "./groupEval/localize";
 import { LegacyView } from "@/app/features/hiring/decisions/groupEval/GroupEvalLegacyView";
 import { Notices } from "@/app/features/hiring/decisions/groupEval/GroupEvalNotices";
+import { RerunDelta } from "@/app/features/hiring/decisions/groupEval/GroupEvalRerunDelta";
+import type { PoolChange } from "@/app/features/hiring/decisions/groupEval/groupEvalDelta";
 import type { GovernanceCacheMismatch } from "@/app/features/hiring/decisions/groupEval/governanceCacheSync";
 import { PerCandidateTabs } from "@/app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs";
 import { Risks } from "@/app/features/hiring/decisions/groupEval/GroupEvalRisks";
@@ -31,6 +33,8 @@ export function GroupEvalModal({
   error,
   createdAt,
   poolDrift,
+  poolChange,
+  previousEvaluation,
   governanceMismatch,
   onClose,
   onRerun,
@@ -50,6 +54,12 @@ export function GroupEvalModal({
   /** How many candidates were added/removed from the role's pool since this
    *  evaluation ran. > 0 means the comparison may be stale. */
   poolDrift?: number;
+  /** Who joined and left the pool since this evaluation ran, by name. Optional: the
+   *  simulation has no live pool, and the drift notice keeps its count sentence. */
+  poolChange?: PoolChange | null;
+  /** The comparison this one replaced via Re-run, held for the "what this re-run
+   *  changed" strip. Absent on a first run or a cache open (no strip). */
+  previousEvaluation?: GroupEvalPayload | null;
   /** Set when this SAVED evaluation ran under a different governance mode than the
    *  control now shows (see groupEval/governanceCacheSync.ts). The modal discloses it
    *  rather than letting a comparison answer a question it was not asked. */
@@ -115,10 +125,19 @@ export function GroupEvalModal({
         <p className="text-base text-steel">{t("noEval")}</p>
       ) : (
         <div className="space-y-5">
-          <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} governanceMismatch={governanceMismatch} />
+          <Notices
+            drift={drift}
+            poolChange={poolChange}
+            ranAt={ranAt}
+            evaluation={evaluation}
+            governanceMismatch={governanceMismatch}
+          />
           {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
               a banner makes clear it didn't pick or seal a hire. */}
           {governanceText(tt, evaluation) ? <Notice icon={Scale}>{governanceText(tt, evaluation)}</Notice> : null}
+          {previousEvaluation && previousEvaluation !== evaluation ? (
+            <RerunDelta previous={previousEvaluation} current={evaluation} />
+          ) : null}
           <AiVerdict
             comparison={evaluation.comparison}
             fallback={summaryText(tt, evaluation)}
