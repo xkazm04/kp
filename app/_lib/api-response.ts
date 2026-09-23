@@ -543,6 +543,10 @@ export const REFUSAL_ERRORS = {
   /** A recruiter asked for an AI action the candidate's column does not offer (409) —
    *  the workspace's per-step list in Settings → Hiring, or the product default. */
   AUTOMATION_TASK_NOT_OFFERED: "That AI action isn't available at this candidate's step.",
+  /** POST /api/automation/run carried an `approved` selection that is not a list of
+   *  reviewed advance/reject rows within the pass's entry cap (400). The preview modal
+   *  only ever sends a well-formed one, so reaching this means a hand-rolled call. */
+  AUTOMATION_SELECTION_INVALID: "That selection of changes could not be read. Preview the pass again and re-apply.",
   /** A non-numeric automation interval (400). The dock's own field clamps to
    *  [1, 1440], so reaching this means a hand-rolled call or a broken client —
    *  and the operator still deserves the reason in their own language. */

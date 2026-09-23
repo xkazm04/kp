@@ -1958,7 +1958,8 @@
     "JOB_TRANSLATION_UNAVAILABLE": "Es ist kein KI-Modell konfiguriert, daher wurde dieses Inserat nicht übersetzt.",
     "JOB_NOT_FOUND": "Diese Rolle ist nicht in Ihrem Katalog.",
     "JOB_AD_TOO_SHORT": "Fügen Sie die vollständige Stellenanzeige ein. Ein kurzer Ausschnitt reicht nicht.",
-    "OUTREACH_CANDIDATE_REQUIRED": "Nennen Sie den Kandidaten, den Sie kontaktieren möchten."
+    "OUTREACH_CANDIDATE_REQUIRED": "Nennen Sie den Kandidaten, den Sie kontaktieren möchten.",
+    "AUTOMATION_SELECTION_INVALID": "Diese Auswahl an Änderungen konnte nicht gelesen werden. Rufen Sie die Vorschau erneut auf und wenden Sie die Änderungen noch einmal an."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3298,7 +3299,16 @@
       "boardFullPageAria": "Positions-Board, ganze Seite",
       "activityWindow": "Letzte 7 Tage",
       "activityKindLabel": "Ereignistyp",
-      "activityAllKinds": "Alle Ereignisse"
+      "activityAllKinds": "Alle Ereignisse",
+      "previewApplySelected": "{count, plural, one {# von {total} Änderungen anwenden} other {# von {total} Änderungen anwenden}}",
+      "previewRowToggle": "{name} in diese Übernahme einbeziehen",
+      "previewSelectionNote": "Entfernen Sie das Häkchen, um eine Zeile zurückzuhalten. Nur die markierten Änderungen werden angewendet, und nur auf dem Board Ihres Teams.",
+      "previewSelectionNotHonored": "Beim Anwenden lief bereits ein Durchlauf, der daher ohne Ihre Auswahl ausgeführt wurde. Rufen Sie die Vorschau erneut auf, um den aktuellen Stand zu sehen.",
+      "previewDriftedTitle": "{count, plural, one {# Änderung wurde zurückgehalten, weil der Durchlauf jetzt anders entscheidet} other {# Änderungen wurden zurückgehalten, weil der Durchlauf jetzt anders entscheidet}}",
+      "previewDriftedRow": "Von Ihnen freigegeben: {approved}. Der Durchlauf entscheidet jetzt: {now}.",
+      "previewDriftAction": "{action, select, advance {weiterleiten} reject {zur Prüfung der Ablehnung vormerken} hold {zurückstellen} other {keine Änderung}}",
+      "previewDriftedNote": "Alles andere, was Sie markiert gelassen haben, wurde angewendet. Rufen Sie die Vorschau erneut auf, um die zurückgehaltenen Zeilen mit dem Live-Board abzugleichen.",
+      "previewRepreview": "Vorschau erneut anzeigen"
     },
     "emptyState": {
       "optional": "Optional",
@@ -4247,7 +4257,9 @@
         "wouldBeQueuedForApproval": "Würde zur Freigabe eingereiht: {original}",
         "fairnessRefused": "Auto-Ablehnung von der Fairness-Sicherung verweigert: {verdict}. Ursprüngliche Regelentscheidung: {original}",
         "fairnessWouldRefuse": "Auto-Ablehnung würde von der Fairness-Sicherung verweigert: {verdict}. Ursprüngliche Regelentscheidung: {original}",
-        "applyFailed": "Ausführung fehlgeschlagen: {detail}. Ursprüngliche Regelentscheidung: {original}"
+        "applyFailed": "Ausführung fehlgeschlagen: {detail}. Ursprüngliche Regelentscheidung: {original}",
+        "notApproved": "Übersprungen: in der Vorschau nicht freigegeben. Ursprüngliche Regelentscheidung: {original}",
+        "changedSincePreview": "Übersprungen: seit der Vorschau geändert. Ursprüngliche Regelentscheidung: {original}"
       }
     },
     "reinstateFailed": "Diese Kandidatin bzw. dieser Kandidat konnte nicht zurückgeholt werden. Bitte erneut versuchen.",

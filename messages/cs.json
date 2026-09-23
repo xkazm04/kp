@@ -1958,7 +1958,8 @@
     "JOB_TRANSLATION_UNAVAILABLE": "Není nastavený žádný model AI, inzerát se proto nepřeložil.",
     "JOB_NOT_FOUND": "Tato role není ve vašem katalogu.",
     "JOB_AD_TOO_SHORT": "Vložte celý inzerát. Krátký úryvek nestačí.",
-    "OUTREACH_CANDIDATE_REQUIRED": "Uveďte kandidáta, kterého chcete oslovit."
+    "OUTREACH_CANDIDATE_REQUIRED": "Uveďte kandidáta, kterého chcete oslovit.",
+    "AUTOMATION_SELECTION_INVALID": "Tento výběr změn nelze přečíst. Zobrazte náhled průchodu znovu a změny použijte ještě jednou."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3298,7 +3299,16 @@
       "boardFullPageAria": "Nástěnka pozic na celou stránku",
       "activityWindow": "Posledních 7 dní",
       "activityKindLabel": "Typ události",
-      "activityAllKinds": "Všechny události"
+      "activityAllKinds": "Všechny události",
+      "previewApplySelected": "{count, plural, one {Použít # z {total} změn} few {Použít # z {total} změn} other {Použít # z {total} změn}}",
+      "previewRowToggle": "Zahrnout {name} do tohoto potvrzení",
+      "previewSelectionNote": "Zrušením zaškrtnutí řádek zadržíte. Použijí se jen zaškrtnuté změny, a to jen na nástěnce vašeho týmu.",
+      "previewSelectionNotHonored": "Když jste změny použili, už běžel jiný průchod, a proběhl proto bez vašeho výběru. Zobrazte náhled znovu a podívejte se na aktuální stav.",
+      "previewDriftedTitle": "{count, plural, one {# změna byla zadržena, protože průchod nyní rozhoduje jinak} few {# změny byly zadrženy, protože průchod nyní rozhoduje jinak} other {# změn bylo zadrženo, protože průchod nyní rozhoduje jinak}}",
+      "previewDriftedRow": "Schválili jste: {approved}. Průchod nyní rozhoduje: {now}.",
+      "previewDriftAction": "{action, select, advance {posunout dál} reject {zařadit ke kontrole zamítnutí} hold {podržet} other {beze změny}}",
+      "previewDriftedNote": "Vše ostatní, co jste nechali zaškrtnuté, bylo použito. Zobrazte náhled znovu a zkontrolujte zadržené řádky proti aktuální nástěnce.",
+      "previewRepreview": "Zobrazit náhled znovu"
     },
     "emptyState": {
       "optional": "Volitelné",
@@ -4247,7 +4257,9 @@
         "wouldBeQueuedForApproval": "Bylo by zařazeno ke schválení: {original}",
         "fairnessRefused": "Automatické zamítnutí odmítla pojistka spravedlnosti: {verdict}. Původní rozhodnutí pravidel: {original}",
         "fairnessWouldRefuse": "Automatické zamítnutí by pojistka spravedlnosti odmítla: {verdict}. Původní rozhodnutí pravidel: {original}",
-        "applyFailed": "Provedení selhalo: {detail}. Původní rozhodnutí pravidel: {original}"
+        "applyFailed": "Provedení selhalo: {detail}. Původní rozhodnutí pravidel: {original}",
+        "notApproved": "Přeskočeno: v náhledu neschváleno. Původní rozhodnutí pravidel: {original}",
+        "changedSincePreview": "Přeskočeno: od náhledu se změnilo. Původní rozhodnutí pravidel: {original}"
       }
     },
     "reinstateFailed": "Kandidáta se nepodařilo vrátit zpět. Zkuste to znovu.",

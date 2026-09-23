@@ -1958,7 +1958,8 @@
     "JOB_TRANSLATION_UNAVAILABLE": "Aucun modèle d'IA n'est configuré ; cette annonce n'a donc pas été traduite.",
     "JOB_NOT_FOUND": "Ce poste n'est pas dans votre catalogue.",
     "JOB_AD_TOO_SHORT": "Collez l'annonce complète. Un court extrait ne suffit pas.",
-    "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter."
+    "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter.",
+    "AUTOMATION_SELECTION_INVALID": "Cette sélection de changements est illisible. Relancez l’aperçu du passage et appliquez à nouveau."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3298,7 +3299,16 @@
       "boardFullPageAria": "Tableau des postes, pleine page",
       "activityWindow": "7 derniers jours",
       "activityKindLabel": "Type d’événement",
-      "activityAllKinds": "Tous les événements"
+      "activityAllKinds": "Tous les événements",
+      "previewApplySelected": "{count, plural, one {Appliquer # changement sur {total}} other {Appliquer # changements sur {total}}}",
+      "previewRowToggle": "Inclure {name} dans cette validation",
+      "previewSelectionNote": "Décochez une ligne pour la retenir. Seuls les changements cochés sont appliqués, et uniquement sur le tableau de votre équipe.",
+      "previewSelectionNotHonored": "Un passage était déjà en cours lorsque vous avez appliqué les changements : il s’est donc exécuté sans votre sélection. Relancez l’aperçu pour voir où en sont les choses.",
+      "previewDriftedTitle": "{count, plural, one {# changement a été retenu, car le passage décide désormais autrement} other {# changements ont été retenus, car le passage décide désormais autrement}}",
+      "previewDriftedRow": "Vous aviez approuvé : {approved}. Le passage décide désormais : {now}.",
+      "previewDriftAction": "{action, select, advance {faire avancer} reject {soumettre à la revue du rejet} hold {mettre en attente} other {aucun changement}}",
+      "previewDriftedNote": "Tout ce que vous avez laissé coché a été appliqué. Relancez l’aperçu pour revoir les lignes retenues au regard du tableau en direct.",
+      "previewRepreview": "Relancer l’aperçu"
     },
     "emptyState": {
       "optional": "Facultatif",
@@ -4247,7 +4257,9 @@
         "wouldBeQueuedForApproval": "Serait mis en file pour validation : {original}",
         "fairnessRefused": "Rejet automatique refusé par le garde-fou d’équité : {verdict}. Décision initiale des règles : {original}",
         "fairnessWouldRefuse": "Le rejet automatique serait refusé par le garde-fou d’équité : {verdict}. Décision initiale des règles : {original}",
-        "applyFailed": "Échec de l’exécution : {detail}. Décision initiale des règles : {original}"
+        "applyFailed": "Échec de l’exécution : {detail}. Décision initiale des règles : {original}",
+        "notApproved": "Ignoré : non approuvé dans l’aperçu. Décision initiale des règles : {original}",
+        "changedSincePreview": "Ignoré : modifié depuis l’aperçu. Décision initiale des règles : {original}"
       }
     },
     "reinstateFailed": "Impossible de réintégrer cette candidature. Réessayez.",

@@ -1958,7 +1958,8 @@
     "JOB_TRANSLATION_UNAVAILABLE": "No AI model is configured, so this posting was not translated.",
     "JOB_NOT_FOUND": "That role isn't in your catalog.",
     "JOB_AD_TOO_SHORT": "Paste the full job ad. A short snippet is not enough.",
-    "OUTREACH_CANDIDATE_REQUIRED": "Name the candidate to reach out to."
+    "OUTREACH_CANDIDATE_REQUIRED": "Name the candidate to reach out to.",
+    "AUTOMATION_SELECTION_INVALID": "That selection of changes could not be read. Preview the pass again and re-apply."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3298,7 +3299,16 @@
       "boardFullPageAria": "Positions board, full page",
       "activityWindow": "Last 7 days",
       "activityKindLabel": "Event kind",
-      "activityAllKinds": "All events"
+      "activityAllKinds": "All events",
+      "previewApplySelected": "{count, plural, one {Apply # of {total} changes} other {Apply # of {total} changes}}",
+      "previewRowToggle": "Include {name} in this commit",
+      "previewSelectionNote": "Untick a row to hold it back. Only the ticked changes are applied, and only on your team's board.",
+      "previewSelectionNotHonored": "A pass was already running when you applied, so it ran without your selection. Preview again to see where things stand.",
+      "previewDriftedTitle": "{count, plural, one {# change was held back because the pass now decides differently} other {# changes were held back because the pass now decides differently}}",
+      "previewDriftedRow": "You approved: {approved}. The pass now decides: {now}.",
+      "previewDriftAction": "{action, select, advance {advance} reject {queue for rejection review} hold {hold} other {no change}}",
+      "previewDriftedNote": "Everything else you kept ticked was applied. Preview again to review the held-back rows against the live board.",
+      "previewRepreview": "Preview again"
     },
     "emptyState": {
       "optional": "Optional",
@@ -4247,7 +4257,9 @@
         "wouldBeQueuedForApproval": "Would be queued for approval: {original}",
         "fairnessRefused": "Auto-reject refused by fairness backstop: {verdict}. Original policy decision: {original}",
         "fairnessWouldRefuse": "Auto-reject would be refused by fairness backstop: {verdict}. Original policy decision: {original}",
-        "applyFailed": "Apply failed: {detail}. Original policy decision: {original}"
+        "applyFailed": "Apply failed: {detail}. Original policy decision: {original}",
+        "notApproved": "Skipped: not approved in the preview. Original policy decision: {original}",
+        "changedSincePreview": "Skipped: changed since the preview. Original policy decision: {original}"
       }
     },
     "reinstateFailed": "Couldn't put this candidate back. Try again.",
