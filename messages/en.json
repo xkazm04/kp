@@ -5876,7 +5876,10 @@
       "retry": "Retry",
       "dismissFailed": "Couldn't dismiss that match. It's back in the list.",
       "addFailed": "Couldn't add to the pipeline.",
-      "sweptIncomplete": "{count, plural, one {# role couldn't be ranked, so this list is incomplete.} other {# roles couldn't be ranked, so this list is incomplete.}}"
+      "sweptIncomplete": "{count, plural, one {# role couldn't be ranked, so this list is incomplete.} other {# roles couldn't be ranked, so this list is incomplete.}}",
+      "alsoClears": "Also clears",
+      "roleCount": "{count, plural, one {# open role} other {# open roles}}",
+      "withheld": "Can't be contacted"
     },
     "compare": {
       "loadFailed": "Couldn't load interviews.",

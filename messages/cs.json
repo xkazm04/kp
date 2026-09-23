@@ -5876,7 +5876,10 @@
       "retry": "Zkusit znovu",
       "dismissFailed": "Shodu se nepodařilo odstranit. Vrátila se zpět do seznamu.",
       "addFailed": "Kandidáta se nepodařilo přidat do pipeline.",
-      "sweptIncomplete": "{count, plural, one {# pozici se nepodařilo vyhodnotit, seznam proto není úplný.} few {# pozice se nepodařilo vyhodnotit, seznam proto není úplný.} other {# pozic se nepodařilo vyhodnotit, seznam proto není úplný.}}"
+      "sweptIncomplete": "{count, plural, one {# pozici se nepodařilo vyhodnotit, seznam proto není úplný.} few {# pozice se nepodařilo vyhodnotit, seznam proto není úplný.} other {# pozic se nepodařilo vyhodnotit, seznam proto není úplný.}}",
+      "alsoClears": "Splňuje také",
+      "roleCount": "{count, plural, one {# otevřená pozice} few {# otevřené pozice} other {# otevřených pozic}}",
+      "withheld": "Nelze kontaktovat"
     },
     "compare": {
       "loadFailed": "Pohovory se nepodařilo načíst.",

@@ -5876,7 +5876,10 @@
       "retry": "Erneut versuchen",
       "dismissFailed": "Der Treffer konnte nicht entfernt werden. Er steht wieder in der Liste.",
       "addFailed": "Konnte nicht zur Pipeline hinzugefügt werden.",
-      "sweptIncomplete": "{count, plural, one {# Stelle konnte nicht bewertet werden, diese Liste ist daher unvollständig.} other {# Stellen konnten nicht bewertet werden, diese Liste ist daher unvollständig.}}"
+      "sweptIncomplete": "{count, plural, one {# Stelle konnte nicht bewertet werden, diese Liste ist daher unvollständig.} other {# Stellen konnten nicht bewertet werden, diese Liste ist daher unvollständig.}}",
+      "alsoClears": "Passt außerdem zu",
+      "roleCount": "{count, plural, one {# offene Stelle} other {# offene Stellen}}",
+      "withheld": "Nicht kontaktierbar"
     },
     "compare": {
       "loadFailed": "Interviews konnten nicht geladen werden.",

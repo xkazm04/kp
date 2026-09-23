@@ -5876,7 +5876,10 @@
       "retry": "Réessayer",
       "dismissFailed": "Impossible d'écarter cette correspondance. Elle est de retour dans la liste.",
       "addFailed": "Impossible d'ajouter au pipeline.",
-      "sweptIncomplete": "{count, plural, one {# poste n’a pas pu être évalué, cette liste est donc incomplète.} other {# postes n’ont pas pu être évalués, cette liste est donc incomplète.}}"
+      "sweptIncomplete": "{count, plural, one {# poste n’a pas pu être évalué, cette liste est donc incomplète.} other {# postes n’ont pas pu être évalués, cette liste est donc incomplète.}}",
+      "alsoClears": "Correspond aussi à",
+      "roleCount": "{count, plural, one {# poste ouvert} other {# postes ouverts}}",
+      "withheld": "Contact impossible"
     },
     "compare": {
       "loadFailed": "Impossible de charger les entretiens.",
