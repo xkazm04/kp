@@ -84,7 +84,7 @@ function seedVictim(name: string, contact: string | null = null, sourceChannel =
     jobId: JOB_ID,
     jobTitle: "Backend Engineer",
     stage: "Accepted",
-    dedupeKey: `apply-${name.toLowerCase()}`,
+    applicantKey: `fixture-key-${name.toLowerCase()}`,
     contact,
     sourceChannel,
     workspaceId: DEFAULT_WORKSPACE_ID,

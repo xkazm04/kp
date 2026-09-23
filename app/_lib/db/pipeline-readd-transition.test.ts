@@ -211,8 +211,13 @@ test("ATS re-import landing on an erased, rejected row through the filing core's
   deleteAtsLinksForEntry(entryId, W);
 
   const again = await ingestAtsApplications({ provider: "recruitee", jobId: J, workspaceId: W, records: [record] });
-  assert.equal(again.results[0].outcome, "erased");
+  // Erasure NULLs the applicant_key and the entry id no longer derives from the address
+  // (challenge r06 candidate-apply-flow/A), so with the link gone the filing core cannot
+  // land on the scrubbed row at all: the vendor record files as a separate entry. What
+  // this case forbids is unchanged: the erased row is never reopened or written.
+  assert.notEqual(again.results[0].entryId, entryId, "the re-import never lands on the erased row");
   assert.equal(statusOf(entryId, W), "rejected", "the scrubbed row is not flipped back to active");
+  assert.equal(getPipelineEntry(entryId, W)?.contact ?? null, null, "the scrubbed row takes no contact backfill");
 });
 
 // ---- 5. atomicity: the flip and its audit row commit together ----------------------

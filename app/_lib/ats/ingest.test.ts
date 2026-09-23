@@ -162,11 +162,15 @@ test("a link whose entry was anonymized answers 'erased' and writes nothing", as
   assert.deepEqual(findAtsLink("recruitee", "910", W), linkBefore, "the link outlives the scrub, untouched");
 });
 
-test("an erased person is never re-created through the filing core's dedupe either", async () => {
+test("an erased person's scrubbed row is never refilled through the filing core", async () => {
   // The link is gone (a disconnect with forgetLinks), so the vendor id resolves nothing
-  // and the record goes to the filing core — whose email-keyed dedupe lands on the
-  // SCRUBBED row. That row must not get the person's contact back, and no link may
-  // bind the vendor id to it.
+  // and the record goes to the filing core. Erasure NULLed the row's applicant_key and
+  // the entry id no longer derives from the address (challenge r06
+  // candidate-apply-flow/A), so the core cannot land on the SCRUBBED row: the vendor
+  // record files as a NEW entry, exactly as the ats_links erasure-exemption note says a
+  // forgotten link does. That row must not get the person's contact back, and no link
+  // may bind the vendor id to it. (Suppressing the re-import by the old email-bearing id
+  // was an accident of keeping the address in a primary key after erasure.)
   const J = ownJob("ats-ingest-erased-dedupe", W);
   const first = await ingestAtsApplications({ provider: "recruitee", jobId: J, workspaceId: W, records: [recruitee(914)] });
   const entryId = first.results[0].entryId!;
@@ -174,10 +178,11 @@ test("an erased person is never re-created through the filing core's dedupe eith
   deleteAtsLinksForEntry(entryId, W);
 
   const again = await ingestAtsApplications({ provider: "recruitee", jobId: J, workspaceId: W, records: [recruitee(914)] });
-  assert.equal(again.results[0].outcome, "erased");
+  assert.equal(again.results[0].outcome, "created");
+  assert.notEqual(again.results[0].entryId, entryId, "a separate entry, never the scrubbed row");
   assert.equal(getPipelineEntry(entryId, W)?.contact, null, "the scrubbed row keeps no contact");
-  assert.equal(findAtsLink("recruitee", "914", W), null, "no link re-binds the vendor id to the erased row");
-  assert.equal(listEntriesForJob(J, W).length, 1);
+  assert.notEqual(findAtsLink("recruitee", "914", W)?.entryId, entryId, "no link re-binds the vendor id to the erased row");
+  assert.equal(listEntriesForJob(J, W).length, 2);
 });
 
 test("a vendor stage mapped to the terminal column (or unmapped) lands on the intake column", async () => {

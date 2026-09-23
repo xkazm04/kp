@@ -30,6 +30,7 @@ import { getProfileRecord, saveProfile } from "./db/profiles.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { ensureDb } from "./db/core.ts";
+import { applicantKey } from "./applicant-key.ts";
 
 after(() => cleanupUnitDb());
 
@@ -109,7 +110,7 @@ test("CV door: a repeat by email resolves to the existing entry BEFORE any profi
     jobId: job.id,
     jobTitle: job.title,
     stage: "Accepted",
-    dedupeKey: "appl-tomas-example-invalid",
+    applicantKey: applicantKey("Tomas Stub", "tomas@example.invalid"),
     contact: "tomas@example.invalid",
     intakeDegraded: true,
     sourceChannel: "quick-apply",
@@ -121,7 +122,7 @@ test("CV door: a repeat by email resolves to the existing entry BEFORE any profi
     jobId: job.id,
     jobTitle: job.title,
     stage: "Accepted",
-    dedupeKey: "appl-other-example-invalid",
+    applicantKey: applicantKey("Tomas Stub", "other@example.invalid"),
     contact: "other@example.invalid",
     sourceChannel: "quick-apply",
     workspaceId: W,
@@ -275,7 +276,7 @@ test("proof 'none': a name+email match moves nothing on the matched entry", asyn
     jobId: job.id,
     jobTitle: job.title,
     stage: "Accepted",
-    dedupeKey: "apply-dana-known",
+    applicantKey: applicantKey("Dana Known", null),
     contact: null,
     sourceChannel: "apply",
     workspaceId: W,
@@ -322,7 +323,7 @@ test("proof 'token': the proven merge backfills, REBUILDS the profile over the s
     jobId: job.id,
     jobTitle: job.title,
     stage: "Accepted",
-    dedupeKey: "appl-ema-lead",
+    applicantKey: applicantKey("Ema Lead", null),
     contact: null,
     intakeDegraded: true,
     intakeDegradedReason: "lead pending",
@@ -378,7 +379,7 @@ test("proof 'channel': a repeat backfills a missing contact but never builds", a
     jobId: job.id,
     jobTitle: job.title,
     stage: "Accepted",
-    dedupeKey: "appl-ota-kanal",
+    applicantKey: applicantKey("Ota Kanal", null),
     contact: null,
     sourceChannel: "email",
     workspaceId: W,
@@ -408,7 +409,7 @@ test("the dedupe backstop race is the same applicant: it refreshes consent and r
   const W = "team-race";
   const job = openJob("af-race-job", W);
   const calls: BuildCall[] = [];
-  // The concurrent first filing: same dedupe key the core derives, but invisible to
+  // The concurrent first filing: same applicant key the core derives, but invisible to
   // findApplicationByApplicant (a different stored label + no contact).
   const { entry: first } = createPipelineEntry({
     candidateId: "profile-race",
@@ -416,7 +417,7 @@ test("the dedupe backstop race is the same applicant: it refreshes consent and r
     jobId: job.id,
     jobTitle: job.title,
     stage: "Accepted",
-    dedupeKey: "appl-rita-race-example-invalid",
+    applicantKey: applicantKey("Rita Race", "rita.race@example.invalid"),
     contact: "other@example.invalid",
     sourceChannel: "apply",
     workspaceId: W,
@@ -539,6 +540,46 @@ test("source guard: the core hands the builder the tenant and the locale on BOTH
   assert.match(core, /await build\(job, answers, null, workspaceId, locale\)/, "the first build carries tenant + locale");
   assert.match(core, /await build\(job, answers, existing\.candidateId, workspaceId, locale\)/, "the proven rebuild carries them too");
   assert.doesNotMatch(core, /build\(job, [^)]*\)(?<!workspaceId, locale\))/, "no tenant-less build shape");
-  assert.match(core, /dedupeKey: applyDedupeKey\(providedName, email\)/, "keyed on the PROVIDED name");
-  assert.doesNotMatch(core, /applyDedupeKey\(label/, "the anonymous label is never a key");
+  assert.match(core, /applicantKey: applicantKey\(providedName, email\)/, "keyed on the PROVIDED name");
+  assert.doesNotMatch(core, /applicantKey\(label/, "the anonymous label is never a key");
+  assert.doesNotMatch(core, /dedupeKey|applyDedupeKey/, "the email-bearing id key is gone");
+});
+
+// ---------------------------------------------------------------------------
+// Legacy identity (challenge r06 candidate-apply-flow/A): rows filed before the
+// surrogate id carry an email-bearing id and NO applicant_key. The contact lookup
+// still finds them, so a live legacy applicant is still one person.
+// ---------------------------------------------------------------------------
+
+test("a legacy row (email-bearing id, no applicant_key) is still the applicant's entry: a new filing is a duplicate onto it", async () => {
+  const job = openJob("job-1", DEFAULT_WORKSPACE_ID);
+  const { entry: legacy } = createPipelineEntry({
+    candidateId: "appl-tomas-example-invalid",
+    candidateLabel: "Tomas Example",
+    jobId: job.id,
+    jobTitle: job.title,
+    stage: "Accepted",
+    contact: "tomas@example.invalid",
+    sourceChannel: "apply",
+    workspaceId: DEFAULT_WORKSPACE_ID,
+  });
+  assert.equal(legacy.id, "m-appl-tomas-example-invalid-job-1", "fixture: the legacy id shape");
+  const calls: BuildCall[] = [];
+  const out = await fileApplication({
+    job,
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    name: "Tomas Example",
+    email: "tomas@example.invalid",
+    locale: "en",
+    sourceChannel: "apply",
+    channelLabel: "conversational apply",
+    proof: "none",
+    answers: { skills: "", cvText: "" },
+    buildProfile: recordingBuilder(calls),
+    sendAck: false,
+  });
+  assert.equal(out.kind, "duplicate");
+  assert.equal(out.entry.id, legacy.id, "identity lookup unchanged");
+  assert.equal(calls.length, 0, "resolved before any build");
+  assert.equal(listEntriesForJob(job.id, DEFAULT_WORKSPACE_ID).length, 1, "no second row");
 });
