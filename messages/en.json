@@ -6471,7 +6471,13 @@
       "rebuildAppliedNote": "Rebuilt from the newer CV analysis, with your edits carried over. Nothing is saved until you click Save.",
       "rebuildKeptEdits": "{count, plural, one {# field you edited was kept over the newer CV} other {# fields you edited were kept over the newer CV}}. The newer CV filled in the rest.",
       "rebuildUseAnyway": "Use the newer CV anyway",
-      "rebuildUndo": "Undo the rebuild"
+      "rebuildUndo": "Undo the rebuild",
+      "restoreOffer": "{count, plural, one {# unsaved field from an earlier session was found} other {# unsaved fields from an earlier session were found}}. Nothing was applied, because the profile may have changed since.",
+      "restoreContested": "Your unsaved edits from {when} were restored. The profile was saved again since, so {count, plural, one {# field you both changed keeps} other {# fields you both changed keep}} the saved value.",
+      "restoreAppliedNote": "Your unsaved edits were restored onto the latest saved version. Nothing is saved until you click Save.",
+      "restoreUseMine": "Use my edits anyway",
+      "restoreApply": "Restore my edits",
+      "restoreDiscard": "Discard my unsaved edits"
     },
     "archetypes": {
       "eyebrow": "Workspace",

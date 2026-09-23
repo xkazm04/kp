@@ -6471,7 +6471,13 @@
       "rebuildAppliedNote": "Profil jsme znovu sestavili z novější analýzy životopisu a vaše úpravy jsme zachovali. Nic se neuloží, dokud nekliknete na Uložit.",
       "rebuildKeptEdits": "{count, plural, one {Zachovali jsme # vámi upravené pole místo novějšího životopisu} few {Zachovali jsme # vámi upravená pole místo novějšího životopisu} other {Zachovali jsme # vámi upravených polí místo novějšího životopisu}}. Zbytek doplnil novější životopis.",
       "rebuildUseAnyway": "Přesto použít novější životopis",
-      "rebuildUndo": "Vrátit přestavbu zpět"
+      "rebuildUndo": "Vrátit přestavbu zpět",
+      "restoreOffer": "{count, plural, one {Bylo nalezeno # neuložené pole z dřívější relace} few {Byla nalezena # neuložená pole z dřívější relace} other {Bylo nalezeno # neuložených polí z dřívější relace}}. Úpravy nebyly použity, protože se profil od té doby mohl změnit.",
+      "restoreContested": "Vaše neuložené úpravy z {when} byly obnoveny. Profil byl mezitím znovu uložen, proto {count, plural, one {# pole, které jste změnili oba, ponechává} few {# pole, která jste změnili oba, ponechávají} other {# polí, která jste změnili oba, ponechává}} uloženou hodnotu.",
+      "restoreAppliedNote": "Vaše neuložené úpravy byly obnoveny do poslední uložené verze. Nic se neuloží, dokud nekliknete na Uložit.",
+      "restoreUseMine": "Přesto použít mé úpravy",
+      "restoreApply": "Obnovit mé úpravy",
+      "restoreDiscard": "Zahodit mé neuložené úpravy"
     },
     "archetypes": {
       "eyebrow": "Pracovní prostor",

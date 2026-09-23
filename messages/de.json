@@ -6471,7 +6471,13 @@
       "rebuildAppliedNote": "Aus der neueren Lebenslauf-Analyse neu erstellt, Ihre Änderungen wurden übernommen. Gespeichert wird erst, wenn Sie auf Speichern klicken.",
       "rebuildKeptEdits": "{count, plural, one {# von Ihnen bearbeitetes Feld wurde statt des neueren Lebenslaufs beibehalten} other {# von Ihnen bearbeitete Felder wurden statt des neueren Lebenslaufs beibehalten}}. Den Rest hat der neuere Lebenslauf ausgefüllt.",
       "rebuildUseAnyway": "Trotzdem den neueren Lebenslauf verwenden",
-      "rebuildUndo": "Neuerstellung rückgängig machen"
+      "rebuildUndo": "Neuerstellung rückgängig machen",
+      "restoreOffer": "{count, plural, one {# ungespeichertes Feld aus einer früheren Sitzung wurde gefunden} other {# ungespeicherte Felder aus einer früheren Sitzung wurden gefunden}}. Nichts wurde übernommen, da sich das Profil seitdem geändert haben kann.",
+      "restoreContested": "Ihre ungespeicherten Änderungen vom {when} wurden wiederhergestellt. Das Profil wurde seitdem erneut gespeichert, daher {count, plural, one {behält # Feld, das Sie beide geändert haben,} other {behalten # Felder, die Sie beide geändert haben,}} den gespeicherten Wert.",
+      "restoreAppliedNote": "Ihre ungespeicherten Änderungen wurden auf die zuletzt gespeicherte Version übertragen. Nichts wird gespeichert, bevor Sie auf Speichern klicken.",
+      "restoreUseMine": "Trotzdem meine Änderungen verwenden",
+      "restoreApply": "Meine Änderungen wiederherstellen",
+      "restoreDiscard": "Meine ungespeicherten Änderungen verwerfen"
     },
     "archetypes": {
       "eyebrow": "Arbeitsbereich",

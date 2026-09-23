@@ -6471,7 +6471,13 @@
       "rebuildAppliedNote": "Reconstruit à partir de l’analyse du CV plus récente, en conservant vos modifications. Rien n’est enregistré tant que vous n’avez pas cliqué sur Enregistrer.",
       "rebuildKeptEdits": "{count, plural, one {# champ que vous aviez modifié a été conservé plutôt que le CV plus récent} other {# champs que vous aviez modifiés ont été conservés plutôt que le CV plus récent}}. Le CV plus récent a rempli le reste.",
       "rebuildUseAnyway": "Utiliser quand même le CV plus récent",
-      "rebuildUndo": "Annuler la reconstruction"
+      "rebuildUndo": "Annuler la reconstruction",
+      "restoreOffer": "{count, plural, one {# champ non enregistré d’une session précédente a été trouvé} other {# champs non enregistrés d’une session précédente ont été trouvés}}. Rien n’a été appliqué, car le profil a pu changer depuis.",
+      "restoreContested": "Vos modifications non enregistrées du {when} ont été restaurées. Le profil a été enregistré de nouveau depuis, donc {count, plural, one {# champ que vous avez tous deux modifié conserve} other {# champs que vous avez tous deux modifiés conservent}} la valeur enregistrée.",
+      "restoreAppliedNote": "Vos modifications non enregistrées ont été restaurées sur la dernière version enregistrée. Rien n’est enregistré tant que vous ne cliquez pas sur Enregistrer.",
+      "restoreUseMine": "Utiliser quand même mes modifications",
+      "restoreApply": "Restaurer mes modifications",
+      "restoreDiscard": "Abandonner mes modifications non enregistrées"
     },
     "archetypes": {
       "eyebrow": "Espace de travail",
