@@ -143,6 +143,14 @@ claiming UPDATE re-asserts `anonymized_at IS NULL`, returning the row unchanged 
 `changes === 0`. The candidate-facing guarantee is unchanged — an erasure was
 always meant to be idempotent; the implementation now matches it, and
 `pipeline-erasure-once.test.ts` pins the single consent event.
+
+**An erased entry never comes back through a re-add.** `createPipelineEntry` is
+idempotent, so an ATS re-import, a raced application or a sourcing loop can land on an
+anonymized row. That re-add used to flip a terminal status back to `active`. It now
+refuses (`reopenRefused: "anonymized"`) for every caller, including the two human doors,
+and it writes none of the fill-only backfills (GitHub evidence, handle) onto the
+scrubbed row. Pinned by `app/_lib/db/pipeline-readd-transition.test.ts`; the full
+re-add rule is in [the pipeline doc](../pipeline/README.md#a-re-add-is-a-transition-only-a-named-human-door-reopens-a-closed-entry).
 `decision_records` is **deliberately excluded** from the scrub — the code
 comment at `pipeline.ts:1332-1335` states the GDPR Art. 17(3)(b)/(e)
 legal-claims/compliance basis for retaining the sealed chain post-erasure.

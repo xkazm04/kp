@@ -591,9 +591,5 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 - **No connector pulls yet.** `POST /api/ats/import` files what it is sent; nothing fetches
   from a vendor on a schedule with the stored token, and there is no import UI. Imported
   entries are profile-less stubs: a record's `cvText` is not built into a profile.
-- **A raced filing onto a scrubbed row can still re-open it.** When the dedupe key lands on
-  an anonymized entry, `createPipelineEntry` flips a terminal status back to `active` before
-  the import's guard stops the filing (no personal data is written). That re-add rule is
-  `createPipelineEntry`'s, shared by every door.
 - `account_email` is never populated by the callback (no userinfo call), so a connected
   calendar shows *Unknown account* until it is set another way.

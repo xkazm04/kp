@@ -1541,6 +1541,36 @@ pre-milestone entries are real hiring history and no one can recover which profi
 material. Full rationale in [the dev-case doc](../dev-case/README.md); pinned by
 `app/_lib/db/pipeline-devcase-link.test.ts`.
 
+### A re-add is a transition: only a named human door reopens a closed entry
+
+`createPipelineEntry` is idempotent per (candidate, job), and fourteen callers reach it:
+the recruiter add, the Reach out click, the publish-time sourcing loop, the automation
+rematch, the apply and ATS filing core, the devcase, agent and sim doors. A re-add that
+lands on a **closed** entry used to flip any terminal status back to `active` with a bare
+UPDATE (no event, no actor, no re-assert). That let a re-publish undo the merit rejects
+`reopenEntriesByJobId` deliberately leaves closed, let an automated rematch revive a
+rejected target (and then skip closing the source, so one person was live in two
+funnels), and let an erased entry come back.
+
+The rule now (`readdReopenDecision` in `app/_lib/db/pipeline.ts`):
+
+| The closed entry is… | A re-add with `reopen: { actorRef }` | A re-add without it |
+| --- | --- | --- |
+| `rejected` or `declined` | reopened: `active`, stage unchanged, one `reinstated` event with the actor and `reason:readdedByRecruiter` | stays closed, `reopenRefused: "not_requested"` |
+| `role_closed` or `rematched` | stays closed, `reopenRefused: "terminal_status"` | same |
+| anonymized (any status) | stays closed, `reopenRefused: "anonymized"`, and no fill-only backfill is written | same |
+
+Only two doors pass `reopen`, each with `humanActor()`: `POST /api/pipeline` (the
+reconsider door; the response carries `reopened` / `reopenRefused`) and
+`POST /api/jobs/[id]/candidates/outreach`, which answers
+`applied: "suppressed_closed"` and drafts and sends nothing when the entry on that role
+stays closed. Every machine door passes nothing, so it can never reverse a human
+decision. A `role_closed` entry reopens through `reopenEntriesByJobId`; a rematched
+source only through a new funnel. The read, the backfills, the reopen and its event (or
+the insert and its `added` event) run in one `.immediate()` transaction, so each outcome
+commits whole. Pinned by `app/_lib/db/pipeline-readd-transition.test.ts`, including a
+source check that no other caller passes `reopen`.
+
 ### One score legend: match vs transfer vs interview
 
 Four different 0–100 numbers and one 1..5 rubric were rendered on this board in the
