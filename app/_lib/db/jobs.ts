@@ -2,6 +2,9 @@ import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { jdJobId } from "../jd-limits";
 import { ensureDb, insertWithUniqueSlug, jobLifecycleInOverlay, safeRowParse, type JobRecord } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { getPipelineAxis } from "../pipeline-axis-server";
+import { stagesWithRole } from "../pipeline-stages";
+import type { RoleStatus } from "../status-tone";
 
 // Backgrounded AI generation state on a JD (see the core.ts migration). NULL/absent
 // analysis_status = a legacy or manually-saved draft, treated as ready.
@@ -565,7 +568,69 @@ export type JobFilter = {
   openOnly?: boolean;
   q?: string;
   limit?: number;
+  // ---- the Roles desk's window (all optional; absent = today's contract) ----
+  // A column from JOB_BROWSE_SORTS, ordered over EVERY matching row before the
+  // page is cut. Absent = the entry-eligible ranking the JD library, analytics and
+  // benchmark callers depend on.
+  sort?: JobBrowseSort;
+  dir?: "asc" | "desc";
+  // Rows to skip before the page (the pager's pageIndex * 20).
+  offset?: number;
+  // The DERIVED role status (open/draft/filled/closed), same rule as roleStatusOf.
+  roleStatus?: RoleStatus;
+  // Decorate each row with `hired`, the pipeline's terminal-ROLE count.
+  withHired?: boolean;
 };
+
+/** The columns the browse read can ORDER BY. A closed list: the route validates
+ *  against it, and only these keys ever reach the ORDER BY map below. */
+export const JOB_BROWSE_SORTS = ["title", "location", "mode", "seniority", "family", "salary", "status"] as const;
+export type JobBrowseSort = (typeof JOB_BROWSE_SORTS)[number];
+export const isJobBrowseSort = (v: unknown): v is JobBrowseSort => (JOB_BROWSE_SORTS as readonly unknown[]).includes(v);
+// status-tone's ROLE_STATUSES restated (a value import would put it on ~40 route
+// graphs); jobs-browse.test.ts pins the two lists equal.
+export const JOB_ROLE_STATUSES: readonly RoleStatus[] = ["open", "draft", "filled", "closed"];
+export const isRoleStatus = (v: unknown): v is RoleStatus => (JOB_ROLE_STATUSES as readonly unknown[]).includes(v);
+
+/** A windowed read with no stated `limit` is one pager page. */
+export const JOBS_WINDOW_LIMIT = 20;
+
+// Text keys are compared through kp_fold: NFD, combining marks stripped, lower-cased.
+// SQLite has no ICU collation, so this is the deterministic stand-in for the client's
+// Intl.Collator (sensitivity "base"). Known deviation: Czech collates "ch" after "h"
+// and "č/ř/š/ž" as their own letters; kp_fold sorts them as c/r/s/z.
+const TEXT_KEY = (col: string) => `kp_fold(NULLIF(jobs.${col}, ''))`;
+// The derived status, the SQL twin of roleStatusOf (jobsRoleStatus.ts): a draft is
+// a draft; otherwise hired >= target (NULL/<1 target folds to 1) is filled; a
+// closed role short of it is closed; everything else (NULL, 'published') is open.
+const ROLE_STATUS_SQL = `CASE WHEN COALESCE(s.status, jobs.status) = 'draft' THEN 'draft'
+  WHEN COALESCE(h.n, 0) >= COALESCE(CASE WHEN COALESCE(s.target_hires, jobs.target_hires) >= 1
+    THEN CAST(COALESCE(s.target_hires, jobs.target_hires) AS INTEGER) END, 1) THEN 'filled'
+  WHEN COALESCE(s.status, jobs.status) = 'closed' THEN 'closed' ELSE 'open' END`;
+const SORT_KEYS: Record<JobBrowseSort, string> = {
+  title: TEXT_KEY("title"),
+  location: TEXT_KEY("location"),
+  mode: TEXT_KEY("work_mode"),
+  seniority: TEXT_KEY("seniority"),
+  family: TEXT_KEY("role_family"),
+  // The salary_min COLUMN (ingest writes salaryBand[0] there). The client sorted by
+  // the payload's band floor; on a corpus row whose column and payload disagree the
+  // column now wins - declared, not silent.
+  salary: "jobs.salary_min",
+  // The desk's reading order: open, draft, filled, closed.
+  status: `CASE ${ROLE_STATUS_SQL} WHEN 'open' THEN 0 WHEN 'draft' THEN 1 WHEN 'filled' THEN 2 ELSE 3 END`,
+};
+
+const folding = new WeakSet<object>();
+function withFold(db: ReturnType<typeof ensureDb>): ReturnType<typeof ensureDb> {
+  if (!folding.has(db)) {
+    db.function("kp_fold", { deterministic: true }, (v: unknown) =>
+      typeof v === "string" ? v.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase() : v
+    );
+    folding.add(db);
+  }
+  return db;
+}
 
 // The browse read's page bounds. A caller that omits `limit` still gets a PAGE, not
 // the corpus — see listJobsPage's `truncated` flag and countJobs.
@@ -577,9 +642,21 @@ export const JOBS_PAGE_MAX_LIMIT = 500;
  *  TENANT predicate deliberately stays inlined in each SQL template (not factored in
  *  here): jobs-tenancy.test.ts is a source guard that greps the literal template for
  *  `workspace_id`, and hiding it behind an interpolation would blind that guard. */
-function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; params: Record<string, unknown> } {
+function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; params: Record<string, unknown>; join: string } {
   const where: string[] = [];
   const params: Record<string, unknown> = { workspaceId };
+  // The hired rollup joins only when an axis needs it, so a default read runs today's SQL.
+  let join = "";
+  if (filter.withHired || filter.roleStatus !== undefined || filter.sort === "status") {
+    // THIS workspace's terminal-ROLE stage ids, bound (listJobPipelineStats' rule).
+    const terminal = stagesWithRole("terminal", getPipelineAxis(workspaceId).stages);
+    terminal.forEach((id, i) => (params[`term${i}`] = id));
+    join = hiredJoinSql(terminal.length ? terminal.map((_, i) => `@term${i}`).join(", ") : "NULL");
+  }
+  if (filter.roleStatus !== undefined) {
+    where.push(`(${ROLE_STATUS_SQL}) = @roleStatus`);
+    params.roleStatus = filter.roleStatus;
+  }
   if (filter.roleFamily) {
     where.push("role_family = @roleFamily");
     params.roleFamily = filter.roleFamily;
@@ -605,7 +682,13 @@ function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; 
     where.push("(title LIKE @q OR company LIKE @q)");
     params.q = `%${filter.q}%`;
   }
-  return { extra: where.length ? `AND ${where.join(" AND ")}` : "", params };
+  return { extra: where.length ? `AND ${where.join(" AND ")}` : "", params, join };
+}
+
+/** Per-job hired count in this workspace, as `h.n`. */
+function hiredJoinSql(inList: string): string {
+  return `LEFT JOIN (SELECT job_id, COUNT(*) AS n FROM pipeline_entries
+    WHERE workspace_id = @workspaceId AND job_id IS NOT NULL AND stage IN (${inList}) GROUP BY job_id) h ON h.job_id = jobs.id`;
 }
 
 // ---- the role's open/close review config ------------------------------------
@@ -763,11 +846,17 @@ function withLifecycle(
  *  buildCandidatePool's `{ entries, truncated }`. `truncated` is true when the corpus
  *  held at least one more matching row than `limit` returned, so a caller can say
  *  "first 300 of more" instead of presenting a cut slice as the whole set. */
-export type JobsPage = { jobs: JobRecord[]; truncated: boolean; limit: number };
+export type JobsPage = { jobs: (JobRecord & { hired?: number })[]; truncated: boolean; limit: number };
 
 export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): JobsPage {
-  const db = ensureDb();
-  const { extra, params } = jobFilterSql(filter, workspaceId);
+  const db = withFold(ensureDb());
+  const { extra, params, join } = jobFilterSql(filter, workspaceId);
+  const offset = Number.isInteger(filter.offset) && (filter.offset as number) > 0 ? (filter.offset as number) : 0;
+  // Missing values last in BOTH directions, then jobs.id so every page is stable.
+  const key = filter.sort && isJobBrowseSort(filter.sort) ? SORT_KEYS[filter.sort] : null;
+  const orderBy = key
+    ? `(${key}) IS NULL, (${key}) ${filter.dir === "desc" ? "DESC" : "ASC"}, jobs.id`
+    : "is_entry_eligible DESC, graduate_friendliness DESC, jobs.id";
   // Defensive clamp: never bind a NaN/negative/huge LIMIT even if a caller
   // skips validation. SQLite treats LIMIT -1 as unbounded, so guard the floor.
   const limit =
@@ -780,16 +869,17 @@ export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAU
     .prepare(
       `SELECT payload_json, COALESCE(s.status, jobs.status) AS status,
               COALESCE(s.target_hires, jobs.target_hires) AS target_hires,
-              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs
-       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id
+              COALESCE(s.posting_langs, jobs.posting_langs) AS posting_langs${join ? ", COALESCE(h.n, 0) AS hired" : ""}
+       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
        WHERE (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ${extra}
-       ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, jobs.id LIMIT @limit`
+       ORDER BY ${orderBy} LIMIT @limit OFFSET @offset`
     )
-    .all({ ...params, limit: limit + 1 }) as {
+    .all({ ...params, limit: limit + 1, offset }) as {
     payload_json: string;
     status: JobRecord["status"];
     target_hires: number | null;
     posting_langs: string | null;
+    hired?: number;
   }[];
   const truncated = rows.length > limit;
   // Decorate each parsed payload with the lifecycle COLUMNS — payload_json predates
@@ -799,7 +889,9 @@ export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAU
   const jobs = (truncated ? rows.slice(0, limit) : rows)
     .map((r): JobRecord | null => {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "listJobs");
-      return parsed ? withLifecycle(parsed, r) : null;
+      if (!parsed) return null;
+      const job = withLifecycle(parsed, r);
+      return filter.withHired ? { ...job, hired: r.hired ?? 0 } : job;
     })
     .filter((j): j is JobRecord => j !== null);
   return { jobs, truncated, limit };
@@ -820,11 +912,11 @@ export function listJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_W
  *  listJobsPage, over the identical predicate (`limit` is ignored: a count is not a
  *  page). This is the primitive any "how many roles" caller should reach for. */
 export function countJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
-  const { extra, params } = jobFilterSql(filter, workspaceId);
+  const { extra, params, join } = jobFilterSql(filter, workspaceId);
   const row = ensureDb()
     .prepare(
       `SELECT COUNT(*) AS n FROM jobs
-       LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id
+       LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
        WHERE (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId) ${extra}`
     )
     .get(params) as { n: number };
