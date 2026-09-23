@@ -6251,7 +6251,8 @@
       "fewSkills": "Fewer than 3 skills listed",
       "eduUnknown": "Education level unknown",
       "noLanguages": "No languages listed",
-      "missesMusts": "Misses {count, plural, one {# must-have skill} other {# must-have skills}}"
+      "missesMusts": "Misses {count, plural, one {# must-have skill} other {# must-have skills}}",
+      "eduDegreeUnstated": "Degree not stated: a school is named, but no degree title"
     },
     "assumptions": {
       "eduUnknown": "Education level unknown. Not penalized (absence of evidence, not a fail).",
@@ -6259,7 +6260,8 @@
       "earlyCareer": "Early-career: potential replaces years of experience; only entry-eligible roles are considered.",
       "selfDeclared": "Some skills are self-declared, so they're discounted. Validate them in interview.",
       "observed": "Some skills were directly observed (live case / interview), so they are verified evidence, not the candidate's own claim.",
-      "thinProfile": "Thin skill profile. The score range around each score is wide."
+      "thinProfile": "Thin skill profile. The score range around each score is wide.",
+      "eduDegreeUnstated": "Degree not stated. The CV names a school but no degree title, so a degree requirement is treated as unverified, not failed."
     },
     "koClause": {
       "language": "required a language not in the profile",

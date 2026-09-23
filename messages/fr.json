@@ -6251,7 +6251,8 @@
       "fewSkills": "Moins de 3 compétences indiquées",
       "eduUnknown": "Niveau d’études inconnu",
       "noLanguages": "Aucune langue indiquée",
-      "missesMusts": "Il manque {count, plural, one {# compétence indispensable} other {# compétences indispensables}}"
+      "missesMusts": "Il manque {count, plural, one {# compétence indispensable} other {# compétences indispensables}}",
+      "eduDegreeUnstated": "Diplôme non précisé (établissement cité, sans diplôme)"
     },
     "assumptions": {
       "eduUnknown": "Niveau d’études inconnu. Non pénalisé (absence de preuve, pas un échec).",
@@ -6259,7 +6260,8 @@
       "earlyCareer": "Débutant : le potentiel remplace les années d’expérience. Seuls les postes accessibles aux débutants sont considérés.",
       "selfDeclared": "Certaines compétences sont auto-déclarées et donc décotées. Validez-les en entretien.",
       "observed": "Certaines compétences ont été observées directement (cas pratique / entretien) : ce sont des preuves vérifiées, pas une déclaration du candidat.",
-      "thinProfile": "Profil de compétences mince. La plage autour de chaque score est large."
+      "thinProfile": "Profil de compétences mince. La plage autour de chaque score est large.",
+      "eduDegreeUnstated": "Diplôme non précisé. Le CV cite un établissement mais aucun diplôme, donc une exigence de diplôme est considérée comme non vérifiée, et non comme non remplie."
     },
     "koClause": {
       "language": "exigeaient une langue absente du profil",

@@ -6251,7 +6251,8 @@
       "fewSkills": "Uvedeny méně než 3 dovednosti",
       "eduUnknown": "Neznámá úroveň vzdělání",
       "noLanguages": "Neuvedeny žádné jazyky",
-      "missesMusts": "Chybí {count, plural, one {# povinná dovednost} few {# povinné dovednosti} other {# povinných dovedností}}"
+      "missesMusts": "Chybí {count, plural, one {# povinná dovednost} few {# povinné dovednosti} other {# povinných dovedností}}",
+      "eduDegreeUnstated": "Titul neuveden: škola je uvedena, titul ne"
     },
     "assumptions": {
       "eduUnknown": "Úroveň vzdělání není známá. Bez postihu (chybějící důkaz, ne selhání).",
@@ -6259,7 +6260,8 @@
       "earlyCareer": "Junior: potenciál nahrazuje roky praxe; zvažují se jen pozice vhodné pro juniory.",
       "selfDeclared": "Některé dovednosti jsou vlastním prohlášením, proto jsou zohledněné se srážkou. Ověřte je při pohovoru.",
       "observed": "Některé dovednosti byly přímo pozorované (živá případovka / pohovor), takže jde o ověřený důkaz, ne o vlastní tvrzení kandidáta.",
-      "thinProfile": "Tenký profil dovedností. Pásmo skóre kolem každého skóre je široké."
+      "thinProfile": "Tenký profil dovedností. Pásmo skóre kolem každého skóre je široké.",
+      "eduDegreeUnstated": "Titul není uveden. Životopis uvádí školu, ale žádný titul, proto se požadavek na titul považuje za neověřený, nikoli za nesplněný."
     },
     "koClause": {
       "language": "vyžadovaly jazyk, který v profilu není",

@@ -6251,7 +6251,8 @@
       "fewSkills": "Weniger als 3 Skills angegeben",
       "eduUnknown": "Bildungsniveau unbekannt",
       "noLanguages": "Keine Sprachen angegeben",
-      "missesMusts": "{count, plural, one {Es fehlt # Muss-Skill} other {Es fehlen # Muss-Skills}}"
+      "missesMusts": "{count, plural, one {Es fehlt # Muss-Skill} other {Es fehlen # Muss-Skills}}",
+      "eduDegreeUnstated": "Abschluss nicht angegeben: Hochschule genannt, aber kein Abschluss"
     },
     "assumptions": {
       "eduUnknown": "Bildungsniveau unbekannt. Nicht bestraft (fehlender Nachweis, kein Durchfallen).",
@@ -6259,7 +6260,8 @@
       "earlyCareer": "Berufseinsteiger: Potenzial ersetzt Berufsjahre; nur einstiegsgeeignete Stellen werden berücksichtigt.",
       "selfDeclared": "Einige Skills sind selbst angegeben und daher abgewertet. Überprüfen Sie sie im Interview.",
       "observed": "Einige Skills wurden direkt beobachtet (Live-Case / Interview), sind also belegt und keine eigene Angabe der Kandidatin oder des Kandidaten.",
-      "thinProfile": "Dünnes Skill-Profil. Das Score-Band um jeden Score ist breit."
+      "thinProfile": "Dünnes Skill-Profil. Das Score-Band um jeden Score ist breit.",
+      "eduDegreeUnstated": "Abschluss nicht angegeben. Der Lebenslauf nennt eine Hochschule, aber keinen Abschluss, daher gilt eine Abschlussanforderung als nicht überprüft, nicht als verfehlt."
     },
     "koClause": {
       "language": "eine Sprache verlangten, die nicht im Profil steht",
