@@ -73,3 +73,23 @@ test("multi-variant: crowns the max-primaryScore winner (job-fit wins over total
   assert.equal(v.jobFit, 88);
   assert.equal(v.overall, 50); // winner B's component sum
 });
+
+// challenge-r07 results-core/A — a score the engine DEFAULTED (score section missing)
+// is a blocker on the score scope; the banner must degrade to the unscored tier
+// rather than paint a Weak verdict on a 0 nobody computed.
+test("single analysis: a score-scope blocker resolves to the unscored tier", () => {
+  const text = "Score section missing — defaulted to 0 (manual review)";
+  const v = resolveVerdict(
+    analysis({
+      score: { total: 0, experience: 0, skills: 0, roleSeniority: 0, education: 0, traits: 0 },
+      sanityChecks: [text],
+      trustFindings: [{ code: "score_section_missing", severity: "blocker", scope: "score", text, value: null }],
+    } as unknown as Partial<Analysis>)
+  );
+  assert.equal(v.overall, null);
+});
+
+test("single analysis: a measured 0 with no blocker stays scored", () => {
+  const v = resolveVerdict(analysis({ sanityChecks: [], trustFindings: [] } as unknown as Partial<Analysis>));
+  assert.equal(v.overall, 0);
+});
