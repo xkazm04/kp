@@ -6234,11 +6234,6 @@
   "profile": {
     "tab": {
       "deepLinkError": "Profil tohoto kandidáta se nepodařilo otevřít. Možná zatím není uložený jako profil.",
-      "rebuildWarnTitle": "Přestavba přepíše vaše úpravy",
-      "rebuildWarnBody": "Tento profil vznikl z analýzy životopisu a {date} jste ho ručně upravili. Přestavba nahradí formulář nejnovější analýzou, takže se tyto úpravy přepíšou. Před uložením si vše ještě zkontrolujete.",
-      "rebuildWarnBodyNoDate": "Tento profil vznikl z analýzy životopisu a pak jste ho ručně upravili. Přestavba nahradí formulář nejnovější analýzou, takže se tyto úpravy přepíšou. Před uložením si vše ještě zkontrolujete.",
-      "rebuildWarnProceed": "Přestavět z analýzy",
-      "rebuildWarnKeep": "Ponechat mé úpravy",
       "projectionLabel": "Zobrazení kandidátů",
       "projectionList": "Seznam",
       "projectionMatrix": "Matice",
