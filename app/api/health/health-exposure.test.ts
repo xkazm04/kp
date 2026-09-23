@@ -269,3 +269,49 @@ test("a home-org member keeps the full detail", async () => {
   const body = await probe();
   assert.ok(body.tables && body.queue && body.degradedReasons && body.engines);
 });
+
+// Challenge r03 platform-auth-api/B — readiness reasons arrive as CODED findings too
+// (app/_lib/readiness.ts). A finding carries the same workspace ids and host paths as
+// the reason it codes, so it rides the home-org tier beside `degradedReasons`, and the
+// origin fallback that only /api/ops used to check reaches this route's detail as a
+// WARN: it is not a reason here, so the status code a monitor gates on does not move.
+test("coded findings ride the home-org detail, never the anonymous or other-org half", async () => {
+  const ws = "ws-health-findings";
+  const app = process.env.APP_BASE_URL;
+  const mirror = process.env.NEXT_PUBLIC_APP_BASE_URL;
+  delete process.env.APP_BASE_URL;
+  delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+  recordOneConfigIssue(ws);
+  try {
+    type Finding = { code: string; severity: string; params: Record<string, unknown>; remedy: { kind: string; tab?: string } };
+    cookieValue = null;
+    const anonRes = await GET();
+    const anon = (await anonRes.json()) as HealthBody & { findings?: Finding[] };
+    assert.equal("findings" in anon, false, "a finding names a workspace id: not a public readiness fact");
+
+    cookieValue = signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
+    const other = (await (await GET()).json()) as HealthBody & { findings?: Finding[] };
+    assert.equal("findings" in other, false, "another org's member is a different tenant");
+
+    cookieValue = signSession(DEFAULT_WORKSPACE, Date.now());
+    const opRes = await GET();
+    const op = (await opRes.json()) as HealthBody & { findings?: Finding[] };
+    assert.equal(opRes.status, anonRes.status, "the caller's tier never moves the status code");
+    const config = op.findings?.find((f) => f.code === "DECISION_CONFIG_UNREADABLE");
+    assert.deepEqual(config?.params, { phase: "screening", scope: "team", workspaceId: ws });
+    assert.deepEqual(config?.remedy, { kind: "door", tab: "decisions" });
+    const origin = op.findings?.find((f) => f.code === "PUBLIC_ORIGIN_FALLBACK");
+    assert.equal(origin?.severity, "warn", "the missing origin reaches /api/health as a warning");
+    assert.equal(
+      op.degradedReasons?.some((r) => r.startsWith("public-origin:")),
+      false,
+      "…and not as a reason, so onboarding's GET /api/health -> 200 contract holds on a keyless box"
+    );
+  } finally {
+    __resetDecisionConfigHealth();
+    if (app === undefined) delete process.env.APP_BASE_URL;
+    else process.env.APP_BASE_URL = app;
+    if (mirror === undefined) delete process.env.NEXT_PUBLIC_APP_BASE_URL;
+    else process.env.NEXT_PUBLIC_APP_BASE_URL = mirror;
+  }
+});
