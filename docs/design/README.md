@@ -820,21 +820,51 @@ and both `ProfileEmptyStates`) moved to `xl`, matching `MatrixEmptyState` — ev
 centred hero is now the same size. `glyphSizes.test.ts` reads the call sites, not
 just the record, so a fifteenth site cannot quietly invent a sixth size.
 
-### Tab id → traced glyph (`glyphForTab`)
+### Traced glyphs load by id, off the page graph (`glyphForTab`, 2026-09-23)
 
 Empty-state consumers used to each import a concrete `*Glyph.ts` module, so a
 new Jobs empty state could drop a lucide icon beside a traced neighbour with
-nothing to say the jobs glyph already existed.
-[`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) maps the tabs
-that already have art (`jobs`, `library`, `analytics`, `decisions`, `channels`,
-`schedule`, `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns
-the glyph or `undefined` — it does not throw. `ChainEmptyState` takes optional
-`tab` and resolves through that map; an explicit `glyph` still wins. Channel
-pane extras (ads / careers / email) stay in `channelsEmptySpecs`; the archetypes
-matrix projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
-`glyphRegistry.test.ts` pins the lookup and that every traced module except
-the channel extras is keyed. `glyphsHaveConsumers.test.ts` still requires a
-render site outside the glyphs folder.
+nothing to say the jobs glyph already existed — and every one of those imports put
+8-36 KB of emitted path data on the workspace page's import graph (13 modules,
+~274 KB, all of it on `app/page.tsx`).
+
+A render site now names its glyph by **id** and never imports art:
+`<MotionizedGlyph glyph="jobs" className={GLYPH_SIZE.lg} />`.
+
+- [`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) is the closed
+  vocabulary — `GLYPH_IDS` (one per generated module, `jobsGlyph.ts` → `"jobs"`),
+  the `GlyphId` union and the `isGlyphId` guard — plus the tab map
+  (`jobs`, `library`, `analytics`, `decisions`, `channels`, `schedule`,
+  `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns an id or
+  `undefined`; it does not throw. `ChainEmptyState` takes an optional `tab` and
+  resolves through that map; an explicit `glyph` id still wins. Channel pane extras
+  (ads / careers / email) are ids in `channelsEmptySpecs`; the archetypes matrix
+  projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
+- [`glyphCatalog.ts`](../../app/_components/glyph/glyphCatalog.ts) is **server-only**:
+  the one module that value-imports the generated art, served by
+  `GET /api/glyphs/[id]` (gated like the pages that render it, a demo session
+  included; private, day-long cache; an unknown id is a 404 with `GLYPH_UNKNOWN`).
+  The generated modules are untouched — /motionize still emits them as before.
+- [`glyphLoader.ts`](../../app/_components/glyph/glyphLoader.ts) fetches an id at
+  most once per page (concurrent mounts share the request; an arrived glyph paints
+  synchronously on the next mount). Any failure resolves `null` and is retried on
+  the next mount, never cached.
+
+**Loading state.** Until the art arrives the renderer draws the same `<svg>` with
+no paths: its box comes from the `GLYPH_SIZE` class, so arrival shifts nothing and a
+failed fetch leaves a blank square, never a broken image — the heading and copy
+beside it carry the meaning, which is why every glyph is `aria-hidden` by default.
+Mounting the paths is what starts their CSS entrance, so the reveal still plays (on
+arrival rather than on mount), ambient loops still wait for it, and reduced motion
+is the same stylesheet as before.
+
+Pinned by `glyphRegistry.test.ts` (vocabulary = the module files, the registry
+imports no art), `glyphCatalog.test.ts` (each id serves the exact exported
+object), `glyphLoader.test.ts` (walks `app/page.tsx` with the perf-budget walker
+and requires zero traced modules and no catalog on it; one request per id;
+failures are null and retried) and `glyphsHaveConsumers.test.ts` (every glyph id
+is named by a render site outside `app/_components/glyph/`, and nothing outside it
+imports a traced module).
 
 ### A glyph is decoration until it is named, and `reduced` is now read (2026-09-04)
 
