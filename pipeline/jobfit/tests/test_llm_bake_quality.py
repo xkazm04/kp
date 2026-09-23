@@ -78,5 +78,90 @@ class CellDimensionResilienceTest(unittest.TestCase):
         self.assertIsNone(_cell(recs))
 
 
+def _priced(cost: float | None, *, source: str = "llm", error: str | None = None) -> dict:
+    row = _judged(8.0, {"relevance": 8, "correctness": 8, "adherence": 8})
+    row["source"] = source
+    row["cost_usd"] = cost
+    row["error"] = error
+    if source != "llm" or error:
+        row["judge_score"] = None
+    return row
+
+
+class CellCostTest(unittest.TestCase):
+    """Challenge r07 llm-layer/B acceptance 1: the bake keeps what a task COSTS."""
+
+    def test_cost_is_the_median_of_served_llm_rows(self) -> None:
+        cell = _cell([_priced(0.002), _priced(0.004), _priced(0.006)])
+        assert cell is not None
+        self.assertEqual(cell["costPerTaskUsd"], 0.004)
+
+    def test_fallback_and_errored_rows_never_feed_the_cost(self) -> None:
+        # A deterministic fallback costs nothing and an error may carry a partial
+        # spend; neither is the price of the model's answer.
+        cell = _cell(
+            [
+                _priced(0.004),
+                _priced(0.0, source="deterministic"),
+                _priced(9.99, error="boom"),
+            ]
+        )
+        assert cell is not None
+        self.assertEqual(cell["costPerTaskUsd"], 0.004)
+
+    def test_unpriced_cell_is_null_never_free(self) -> None:
+        # The CLI adapter reports cost_usd=None when the envelope had no cost:
+        # unpriced, never 0.
+        cell = _cell([_priced(None), _priced(None)])
+        assert cell is not None
+        self.assertIn("costPerTaskUsd", cell)
+        self.assertIsNone(cell["costPerTaskUsd"])
+
+
+class BakeTargetsTest(unittest.TestCase):
+    """Challenge r07 llm-layer/B acceptance 2 + reproducibility: the bake names the
+    exact bench (provider, model) a pin needs, and --measured-at pins the stamp."""
+
+    def _bake(self) -> dict:
+        import json
+        import tempfile
+        from pathlib import Path
+
+        from pipeline.jobfit.llm.bench.bake_quality import bake
+
+        rows = []
+        for provider, model in (
+            ("gemini", "gemini-3.6-flash"),
+            ("qwen", "deepseek-v4-flash"),
+            ("claude_cli", "claude-opus-5"),
+        ):
+            r = _priced(0.001)
+            r.update({"use_case": "match_reasoning", "provider": provider, "model": model})
+            rows.append(r)
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "records.jsonl").write_text(
+                "\n".join(json.dumps(r) for r in rows), encoding="utf-8"
+            )
+            ts = bake([tmp], judge="fable-5", measured_at="2026-08-12T00:49:23.000Z")
+        body = ts.split("export const QUALITY_SCORES: QualityScores = ", 1)[1].split(";\n", 1)[0]
+        return json.loads(body)
+
+    def test_targets_map_each_slug_to_its_bench_provider(self) -> None:
+        payload = self._bake()
+        self.assertEqual(
+            payload["targets"],
+            {
+                "gemini-3.6-flash": {"provider": "gemini", "model": "gemini-3.6-flash"},
+                "deepseek-v4-flash": {"provider": "qwen", "model": "deepseek-v4-flash"},
+                "claude-opus-5": {"provider": "claude_cli", "model": "claude-opus-5"},
+            },
+        )
+
+    def test_measured_at_and_judge_are_what_the_caller_passed(self) -> None:
+        payload = self._bake()
+        self.assertEqual(payload["measuredAt"], "2026-08-12T00:49:23.000Z")
+        self.assertEqual(payload["judge"], "fable-5")
+
+
 if __name__ == "__main__":
     unittest.main()
