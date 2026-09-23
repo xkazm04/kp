@@ -2197,6 +2197,10 @@ export function ensureDb(): Database.Database {
     // pre-key rows, which keep the apply-token rule. Never the raw key.
     "ALTER TABLE dev_sessions ADD COLUMN key_hash TEXT",
     "ALTER TABLE pipeline_entries ADD COLUMN applicant_key TEXT",
+    // What a recruiter's advance/pass was decided AGAINST (decisionBrief.ts): JSON
+    // {score, openWarns, acknowledged, decidedAt}. NULL on hold/clear and on every
+    // decision recorded before the column existed (unknown, never fabricated).
+    "ALTER TABLE analyses ADD COLUMN decision_basis TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
