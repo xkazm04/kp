@@ -265,11 +265,7 @@ export function renderCandidateFooters(
 // nobody. There is no `skipped` member in OUTBOX_STATUSES — adding one would touch
 // the enum, the db column contract and every UI that styles by it — so the CHANNEL
 // carries the reason and the status stays truthful.
-//
-// Both channel literals (this one, and REFUSED_COMMS_CHANNEL — the channel a REFUSED
-// candidate comm is recorded on: it never reached a real one) are declared in the
-// import-free comms-resend-outcome.ts, so the client's resend door can refuse those
-// rows without reaching this server module. Re-exported here: still one literal.
+// Declared (with REFUSED_COMMS_CHANNEL) in the import-free comms-resend-outcome.ts.
 export { SIM_COMMS_CHANNEL, REFUSED_COMMS_CHANNEL };
 
 async function sendCommUnlessSim(msg: OutboundMessage, jobTitle: string | null | undefined): Promise<OutboxEntry> {

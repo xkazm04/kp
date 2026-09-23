@@ -75,10 +75,7 @@ export type CandidateComm = {
    *  Center renders (comms-view.ts). The two surfaces cannot disagree by construction. */
   verdict: CommsVerdict;
   channel: string | null;
-  /** Who the letter was addressed to — the SAME field the Comms Center shows, so the
-   *  candidate modal's bounced-letter door pre-fills the address on file exactly as
-   *  Channels does. The bundle is operator-gated and already carries the full letters,
-   *  so the address adds no new exposure class. */
+  /** Pre-fills the bounced-letter door, as Channels does (operator-gated bundle). */
   recipient: string | null;
   subject: string | null;
   body: string | null;

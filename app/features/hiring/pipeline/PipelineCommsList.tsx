@@ -10,8 +10,7 @@ import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { labelize } from "@/app/_lib/format";
 import { isUnaddressable } from "@/app/_lib/comms-view";
 import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
-// The Comms Center's OWN recovery doors — cross-feature on purpose, the precedent
-// OutboxRows set: one control per door, whichever surface the recruiter is on.
+// The Comms Center's own doors (cross-feature, as OutboxRows does).
 import { BouncedResend } from "@/app/features/hiring/channels/ChannelsCommsBouncedResend";
 import { ResendButton } from "@/app/features/tools/devcases/ResendButton";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
@@ -30,15 +29,8 @@ import type { CandidateComm } from "@/app/_lib/candidate-timeline";
 // BORROWED from the Comms Center rather than re-invented; a genuinely queued message
 // with a real address is untouched and still reads neutral.
 //
-// pipeline-candidate-drawer/B: a red letter used to end at its reason, with nothing
-// to press — the recovery doors lived only in the Comms Center and the dev-case
-// outbox. The letter now carries the SAME door those surfaces offer, chosen by the
-// SAME predicate (resendDoorOf): a one-click retry for a dead letter, a
-// corrected-address resend for a bounce (pre-filled with the address on file). A
-// letter with a door is expanded on render, so the reason and the control are the
-// first thing on the tab. `consentStatus` closes the door on a candidate the send gate
-// would refuse (anonymized / consent expired), and the same argument feeds the tab's
-// count (CandidateModalBody → lettersNeedingYou), so the two cannot disagree.
+// An adverse letter carries the Comms Center's own door (resendDoorOf), opens
+// expanded, and shares `consentStatus` with the tab's count (lettersNeedingYou).
 export function PipelineCommsList({
   comms,
   consentStatus,
@@ -46,7 +38,6 @@ export function PipelineCommsList({
 }: {
   comms: CandidateComm[];
   consentStatus?: string | null;
-  /** Called after a resend landed a new row (the component's own outcome line says how). */
   onResent?: () => void;
 }) {
   const t = useTranslations("pipeline.drawer");

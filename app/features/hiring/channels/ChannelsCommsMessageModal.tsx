@@ -36,11 +36,7 @@ export function ChannelsCommsMessageModal({
 }) {
   const t = useTranslations("channels.comms");
   const locale = useLocale();
-  // ONE verdict (comms-view.ts) for the failure line and the door alike. The door is
-  // chosen by the ONE predicate every resend surface reads (the dev-case outbox and the
-  // candidate modal too); it used to be re-derived here from the raw bounced /
-  // failed-and-not-recovered bits, which also offered a retry on a simulation or
-  // refused row the route can only refuse.
+  // One verdict for the failure line; the door from the shared resendDoorOf.
   const verdict = commsVerdict(message);
   const door = resendDoorOf({ verdict, channel: message.channel });
   return (

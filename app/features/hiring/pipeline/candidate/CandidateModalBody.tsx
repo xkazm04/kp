@@ -47,10 +47,7 @@ export function CandidateModalBody({
   const cohort = view.cohort ?? boardCohort;
   const st = useCandidateState({ entry, axis, onClose, onChanged, onOpenEntry, cohort });
 
-  // A bounced or dead-lettered letter is raised ON OPEN (the modal opens on Overview,
-  // and the letters sit in Activity): the tab label carries how many need the
-  // recruiter. Same predicate and same consent argument the letter's own door reads
-  // (PipelineCommsList), so the count and the controls cannot disagree.
+  // Undelivered letters are raised on open: same predicate + consent as their doors.
   const consentStatus = st.consent?.consent.status ?? null;
   const needsYou = useMemo(() => (st.comms ? lettersNeedingYou(st.comms, consentStatus) : 0), [st.comms, consentStatus]);
 

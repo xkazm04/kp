@@ -172,8 +172,7 @@ export function OutboxRows({
                       `recovered` one already has a later delivery: offering the button
                       there produced a 409 "already re-sent" that reads like a fresh
                       failure. Both still sort and highlight by their own verdict. The
-                      door is chosen by the shared resendDoorOf, which also withholds it
-                      from a simulation or refused row the route can only refuse. */}
+                      door comes from the shared resendDoorOf. */}
                   {resendDoorOf(m) === "retry" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
                 </span>
                 {resendDoorOf(m) === "correctAddress" ? (

@@ -66,38 +66,23 @@ export function resendOutcome(ok: boolean, status: number, payload: ResendRespon
   return { kind: "sent" };
 }
 
-// --- which recovery DOOR a letter offers ------------------------------------------
-//
-// The other half of a resend: before the click, which control does this letter get?
-// It used to be decided three ways — the Comms Center's detail modal read the raw
-// `bounced` / `status === "failed" && !recovered` bits, the dev-case outbox read the
-// derived verdict, and the candidate modal painted the letter red with no control at
-// all. One predicate now serves every surface, so a fourth cannot become a fourth rule.
+// --- which recovery DOOR a letter offers: ONE predicate for every resend surface ---
 
-/** The channel a simulated candidate's letter is recorded on (comms-dispatch.ts writes
- *  it, the resend route refuses it with COMM_SIMULATION_ROW). Declared HERE, in the
- *  import-free half, so client code can refuse the row without reaching the server
- *  module; comms-dispatch.ts re-exports it, so there is still one literal. */
+/** Channel literals, declared in this import-free module so client code can read them;
+ *  comms-dispatch.ts re-exports both. A simulation row the route refuses
+ *  (COMM_SIMULATION_ROW); a refused row has recipient "" so the route 422s. */
 export const SIM_COMMS_CHANNEL = "simulation";
-/** The channel a REFUSED candidate comm is recorded on (no inbox, agent population):
- *  it never reached a real one, and its recipient is "" — so the resend route answers
- *  422 before any corrected address is read. A decision, not a dead letter. */
 export const REFUSED_COMMS_CHANNEL = "refused";
 
-/** retry — the one-click re-dispatch of a dead letter; correctAddress — a bounce, which
- *  re-sent to the same address bounces again, so it asks for a corrected recipient. */
+/** retry = one-click re-dispatch; correctAddress = a bounce (same address bounces again). */
 export type ResendDoor = "retry" | "correctAddress";
 
-/** Consent states under which the send gate (comms.ts `commsSendSuppression`) refuses
- *  every letter to this person — offering a door there only earns a COMMS_SUPPRESSED. */
+/** The send gate (comms.ts commsSendSuppression) refuses every letter in these states. */
 const UNCONTACTABLE_CONSENT: ReadonlySet<string> = new Set(["anonymized", "expired"]);
 
-/** The door this letter offers, or null when there is nothing the recruiter can do.
- *  `verdict` is the derived delivery verdict (comms-view.ts `commsVerdict`), never the
- *  raw status: a recovered dead letter already has a later delivery (a button there drew
- *  a 409 that read as a fresh failure), and a bounce is stored `sent`. `consentStatus`
- *  is passed by a surface that knows the candidate (the candidate modal); the others
- *  leave it out and the route's own gate stays the authority. */
+/** The door a letter offers, or null. `verdict` is commsVerdict's, never the raw status
+ *  (a recovered row already has a later delivery). `consentStatus` only from a surface
+ *  that knows the candidate; otherwise the route's gate stays the authority. */
 export function resendDoorOf(
   m: { verdict: string; channel?: string | null },
   consentStatus?: string | null
@@ -109,8 +94,7 @@ export function resendDoorOf(
   return null;
 }
 
-/** How many of these letters need the recruiter — exactly the ones that offer a door,
- *  so the count and the controls cannot disagree. */
+/** The letters that need the recruiter: exactly those with a door. */
 export function lettersNeedingYou(
   comms: ReadonlyArray<{ verdict: string; channel?: string | null }>,
   consentStatus?: string | null

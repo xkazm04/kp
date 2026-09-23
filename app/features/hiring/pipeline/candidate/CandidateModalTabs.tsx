@@ -20,9 +20,7 @@ export function CandidateModalTabs({
 }: {
   tab: CandidateTab;
   onTab: (tab: CandidateTab) => void;
-  /** Letters on the Activity tab that bounced or dead-lettered and offer a resend
-   *  door (comms-resend-outcome.ts lettersNeedingYou) — raised on the label so an
-   *  undelivered offer is met on open, not found by going looking. */
+  /** lettersNeedingYou over the Activity tab's letters. */
   activityNeedsYou?: number;
 }) {
   const t = useTranslations("pipeline.candidate");
