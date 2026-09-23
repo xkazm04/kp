@@ -1460,6 +1460,28 @@ on prose, pinned by `devcase-orchestrator.test.ts` and `devcase-transitions.test
   tick per candidate and the approved stage a `publishing` tick before the mint.
   Pinned by `devcase-lifecycle-fence.test.ts`, `devcase-orchestrator.test.ts` (a close from
   the drain, promote and publishing ticks) and `lifecycle/[id]/close/route.test.ts`.
+- **The lifecycle row reads a coded run outcome, and each warning offers its fix.** Beside
+  every English `detail` it writes, the runner writes `dev_lifecycle.outcome_json`: a closed
+  code (`collecting_open`, `awaiting_submissions`, `evaluated`, `promoted`, `halted`,
+  `canceled`, `routed_to_human`), the integer facts it already held (sourced, skipped,
+  evaluated, failed, promoted, topN, floor) and counted warnings (`held`, `eval_failed`,
+  `sourcing_failed`, `candidates_skipped`, `scenario_template_only`, `seed_skeleton_only`,
+  `baseline_unavailable`). The vocabulary, its tolerant reader, the warning-to-action map and
+  the row's view live in `app/_lib/devcase-stage-outcome.ts` (pure; the orchestrator imports
+  it for types only). `DevLifecycleRow` renders the outcome from
+  `devcase.lifecycle.outcome.*` in the reader's language, with the English detail as the
+  hover title. Held candidates open Decisions. A sourcing crash offers Re-source at once,
+  not after the 7-day stall rule. A halt or cancel offers Resume, which posts the control
+  room's `reconcile` (while the kill switch is still thrown the run halts again and says so).
+  The material warnings are read from the case as frozen, so a resume that skipped the
+  freeze still reports them. They and `eval_failed` carry forward to later steps, while
+  the two sourcing warnings stay with the publish step. A row with no outcome
+  (pre-migration, or last written by a human door) and a row whose stage the outcome no
+  longer describes (closed, approved, redesigned) keep rendering `detail`. The control
+  room still serves `detail` only.
+  Pinned by `devcase-stage-outcome.test.ts` (vocabulary, reader, actions, catalog parity in
+  all four locales, legacy fallback, the row's wiring) and `devcase-orchestrator.test.ts`
+  (outcomes written by the ranked, drain, halt and cancel paths; the store round-trip).
 - **The advance letter speaks the candidate's language and is filed under its team.** The
   promote stage's "we'd like to take it forward" note composes from `comms.devcaseAdvance.*`
   in the locale `resolveCommsLocale(lc.lang, lc.workspaceId)` returns — the same comms
