@@ -82,13 +82,24 @@ test("the command route threads the caller's workspace into preview AND every mu
   // the route must give the loop THIS workspace, and every store call inside the
   // loop must carry it. A bare call still falls back to DEFAULT.
   assert.match(src, /executeCommandTargets\([\s\S]{0,300}?workspaceId: ws/, "the execute loop must be given the caller's workspace");
+  //
+  // UPDATED DELIBERATELY (challenge-r05 pipeline-actions-commands/A, not relaxed): the
+  // loop no longer calls the store directly (`deps.actOn(…, ws)`); every mutation goes
+  // through the ONE entry-action core, which seals, names the actor and egresses. The
+  // tenancy half is pinned on the new door — every runAction call must carry
+  // `workspaceId: ws` — and the old defect (a direct store write that bypasses the
+  // core) is forbidden outright.
   const exec = readFileSync(path.join(dir, "execute.ts"), "utf8");
-  const actCalls = exec.match(/deps\.actOn\([^\n]*\)/g) ?? [];
-  assert.ok(actCalls.length >= 2, "both reject + advance mutations are present");
-  for (const call of actCalls) {
-    assert.match(call, /,\s*ws\s*\)/, `the store action must be workspace-scoped: ${call.slice(0, 60)}…`);
+  assert.doesNotMatch(exec, /deps\.actOn\(|\bactOnPipelineEntry\b/, "no direct store write may come back beside the core");
+  const runCalls = exec.match(/deps\.runAction\(\{[\s\S]*?\}\)/g) ?? [];
+  assert.ok(runCalls.length >= 2, "both reject + advance mutations go through the core");
+  for (const call of runCalls) {
+    assert.match(call, /workspaceId: ws\b/, `the core call must be workspace-scoped: ${call.slice(0, 60)}…`);
   }
-  assert.match(exec, /deps\.recordEvent\([\s\S]{0,200}?\bws\b/, "the comms-failure marker is workspace-scoped too");
+  // The comms-failure marker moved into the core with the comm itself; it is scoped
+  // to the caller's workspace there.
+  const core = readFileSync(path.join(dir, "..", "..", "..", "_lib", "pipeline-entry-action.ts"), "utf8");
+  assert.match(core, /recordAutomationEvent\([\s\S]{0,300}?"rejection_comms_failed"[\s\S]{0,300}?\bworkspaceId\b/, "the comms-failure marker is workspace-scoped too");
   // ...and re-verifies the operator session (defense in depth).
   assert.match(src, /requireOperator\(\)/, "the route must re-verify the operator session");
 });

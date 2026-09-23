@@ -36,8 +36,8 @@ const toRow = (e: PipelineEntry): PreviewRow => ({
 
 // Recruiter-facing NL command surface (#7). POST {text} previews; POST
 // {text, confirm:true} executes. Every mutating intent maps to the SAME guarded
-// actions the board/automation already use (actOnPipelineEntry actor:"human",
-// runAutomationPass) — the command bar is a parse + preview convenience, not a new
+// actions the board/automation already use (runPipelineEntryAction, the core the
+// per-entry and batch routes share; runAutomationPass) — the command bar is a parse + preview convenience, not a new
 // privilege.
 //
 // AUTH (perfect-board): operator-gated like /api/decisions/* and screen-wave.
@@ -162,11 +162,17 @@ export async function POST(request: NextRequest) {
       droppedOut = dropped.length;
     }
     // Per-target outcome counting lives in ./execute.ts: every target lands in
-    // exactly one of count / failed / heldAtOffer, so the bar can never claim a
-    // reject it lost to a CAS race or to a throw.
-    const { count, failed, commsFailed, heldAtOffer } = await executeCommandTargets(
-      { kind: cmd.kind, threshold: cmd.kind === "reject_below" ? cmd.threshold : undefined, targets, axis, workspaceId: ws }
-    );
+    // exactly one of count / failed / heldAtOffer / routedToHumanRound, so the bar can
+    // never claim a reject it lost to a CAS race or to a throw. Every write goes
+    // through runPipelineEntryAction (the per-entry and batch routes' core), so a
+    // command-bar decision is sealed, attributed and egressed like any other.
+    const { count, failed, commsFailed, heldAtOffer, routedToHumanRound } = await executeCommandTargets({
+      kind: cmd.kind,
+      threshold: cmd.kind === "reject_below" ? cmd.threshold : undefined,
+      targets,
+      workspaceId: ws,
+      origin: new URL(request.url).origin,
+    });
     return NextResponse.json({
       kind: cmd.kind,
       executed: true,
@@ -177,6 +183,7 @@ export async function POST(request: NextRequest) {
       failed,
       commsFailed,
       ...(heldAtOffer ? { heldAtOffer } : {}),
+      ...(routedToHumanRound ? { routedToHumanRound } : {}),
       ...(droppedOut ? { droppedOut } : {}),
     });
   } catch (error) {
