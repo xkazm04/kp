@@ -259,7 +259,8 @@ strands nobody, and moving them would rewrite closed history.
    **Aging alerts follow the board's clock.** The pass does not age entries on its
    own: `listActiveEntriesForAutomation` stamps each entry's `agingTier`
    (`none` / `aging` / `stalled`) from `app/_lib/aging-policy.ts` — the same
-   stage-role SLA the board's amber dot and the sidebar badge read, resolved on the
+   stage SLA the board's amber dot and the sidebar badge read (the team's own
+   `slaDays` for the column when it set one, else the role default), resolved on the
    entry's OWN workspace axis — and `evaluate_entry` maps it: `aging` (past the
    stage SLA) → `stale_alert`, `stalled` (past `STALLED_MULTIPLE` = 2 x the SLA) →
    `aging_alert`. A terminal-role stage never alerts. The flat `POLICY`
@@ -514,8 +515,8 @@ The header's Active and Interview counts act as quick-filter toggles. Their
 predicates use the same live, non-simulation population and workspace stage roles
 as the counts, so clicking either count filters the board to the cohort it names.
 | `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the candidate modal cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
-| `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4, workspace-keyed) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
-| `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace, and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
+| `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | The team's per-stage aging cadence writes (`PATCH /api/pipeline/stage-sla`), their optimistic value until the board reloads, and the one-time offer of a browser's leftover cadences · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
+| `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace (saved views; the SLA half is read-and-clear only now), and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
 | `pipelineBoardMove.ts` / `pipelineDrawerNote.ts` | The two densest state machines, extracted pure: the drag move's apply / reconcile / roll-back decision plus its field-selective merge, and the candidate modal note's dirty / flush / hydrate bookkeeping. Pinned by their own `*.test.ts`. |
 | `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2) · opening the candidate modal, profile, job, ranking and Decisions. |
 
@@ -901,26 +902,54 @@ four people. `approvals` and `degradedCount` deliberately keep their own predica
 an approval is real work waiting on the Decisions gate whoever created it, and a
 degraded stub is a recoverability signal rather than a funnel count.
 
-### Aging SLA overrides
+### Stage aging SLAs are team data
 
-`PipelineSlaEditor` declared `[1, 365]` on its number input and did not enforce it —
-a native input's `min`/`max` are advisory, so a pasted 5000 persisted to
-`localStorage` and silenced that column's amber dot for fourteen years.
-`pipelineSla.ts` states the range once (`clampSlaDays`, unit-pinned by
-`pipelineSla.test.ts`): empty / 0 / negative / unparseable CLEARS back to the stage
-role's default, anything else rounds to whole days and clamps into range. Applied at
-the field, again in `usePipelineSla`'s store (so a second caller cannot bypass it),
-and once more on hydration, so a value written by an older build is repaired on read.
-The range is stated inline beside the inputs (`tab.slaEditorRange`).
+A column's aging cadence is an optional `slaDays` (a whole number of days, 1 to 365)
+on the stage in the workspace's `pipelineStages` axis (`StageDef.slaDays`,
+`validateStage` in `app/_lib/decision-config-schema.ts`; refused on the terminal
+stage, since a hire has no clock). `slaForStage` in `app/_lib/aging-policy.ts`
+resolves an explicit override, then the axis `slaDays`, then the role default, so the
+board's amber dot and Aging chip, the sidebar Pipeline badge (`attentionCounts`) and
+the automation pass's `agingTier` all age on the same team number. Before this the
+cadence was per-browser `localStorage` (`kp.pipelineStageSla:<ws>`): two recruiters on
+one team aged the same board differently, and the badge and the pass (server-side,
+no browser) used role defaults and contradicted the board as soon as anyone tuned a
+column.
 
-Team-shared SLAs remain an **owner decision, not a gap**: these overrides are
-per-browser `localStorage` with no schema and no server surface — but they are
-per-browser **per workspace**, see below.
+The board's `PipelineSlaEditor` writes one column at a time through
+`PATCH /api/pipeline/stage-sla` `{stage, days | null}` (`null` clears back to the
+role default). The route runs `applyStageSla` (`app/_lib/stage-sla.ts`) inside
+`updateDecisionConfig(..., "team")`, which re-reads the effective axis in an
+IMMEDIATE transaction, so the write changes only the value it names and cannot
+clobber a concurrent Settings → Hiring save; the version bump makes an open composer
+refuse its stale axis (`PIPELINE_AXIS_STALE`) rather than erase the cadence. The
+composer's own save carries `slaDays` through `draftToStored`, and turning a column
+into the terminal stage drops it. Refusals (off-axis or retired stage, terminal stage,
+out-of-range or non-integer days) answer `DECISION_CONFIG_INVALID`.
+
+**Capability: a tighten.** The write asks for `pipeline:write` like every other axis
+write. A seat without it (a viewer) could tune its own browser before; it now sees the
+team's cadences and gets `FORBIDDEN_CAPABILITY` on a save.
+
+The editor commits on blur or Enter (each commit is a team policy write), shows the
+save failure by code, and says the value applies to everyone on the team. A browser
+that still holds cadences from the per-browser era is offered them ONCE, per column
+that differs from the team value and is still on the board
+(`pendingLocalAdoption`): *Apply to the team* writes them and clears the local copy
+only when every write landed; *Discard* clears it without touching team data. They
+are never imported silently. Pinned by `app/_lib/stage-sla.test.ts` and
+`app/api/pipeline/stage-sla/route.test.ts`.
+
+The input range is held by `pipelineSla.ts` (`clampSlaDays`, unit-pinned by
+`pipelineSla.test.ts`): empty / 0 / negative / unparseable clears back to the role
+default, anything else rounds to whole days and clamps into range; the server holds
+the same bounds. The range is stated inline beside the inputs (`tab.slaEditorRange`).
 
 ### Board storage is keyed by tenant
 
 The board's two `localStorage` memories — saved views (`kp.pipelineViews`) and the
-per-stage SLA overrides (`kp.pipelineStageSla`) — were browser-wide, and
+per-stage SLA overrides (`kp.pipelineStageSla`, now only a read-and-clear leftover:
+see "Stage aging SLAs are team data" above) — were browser-wide, and
 `localStorage` is scoped to the ORIGIN, not to the session. So after switching teams
 in Settings -> Workspaces, team A's recruiter-authored view NAMES ("Berlin seniors -
 waiting on Ada") and the stage ids they encode hydrated onto team B's board, and a
