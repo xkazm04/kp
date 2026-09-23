@@ -1155,6 +1155,7 @@ with the same `{ kind, params }` shape.
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
 | `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
 | `app/_lib/devcase-session-auth.ts` | The one door guard (`openSessionDoor`) of every mutating session sub-route: mints/hashes the per-attempt session key and checks it (or the apply token on a legacy row) |
+| `app/_lib/db/devcase-inflight.ts` | Per-posting in-flight attempts (live / idle counts, oldest live start) for the close confirm; counts only |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
 | `app/_lib/repo-snapshot.ts` | The dev-case GitHub reads (need snapshot, submission signals) over `githubRead`, the one GitHub transport this leaf hosts and `app/_lib/github/client.ts` wraps; reports read / not there / unread, never an unread part as empty |
@@ -1383,6 +1384,31 @@ unchanged; it is an operator-wide switch, not a by-id door.
 Close-out sends a wrap-up only to a valid contact email, or to an email-shaped
 `candidateRef` when contact is absent. Opaque candidate handles remain on the
 closed submission record but are not passed to the comms outbox as recipients.
+
+**Close sees who is mid-case (challenge-r06 devcase-session-api/B).** The wrap-up reaches
+submitters only, so the close confirm also names the attempts still in flight.
+`inFlightAttemptsByPosting(ws)` (`app/_lib/db/devcase-inflight.ts`) joins active
+`dev_sessions` to their posting by apply token, with both sides pinned to the workspace.
+It returns counts only: `live` (active, activity in the last 30 minutes; `updated_at`
+moves only when a flush lands events or a dirty tree), `idle` (active and quieter), and
+`oldestLiveStartedAt`. `GET /api/devcase/postings` carries it as `inFlight` on every
+posting, as zeros when there are none, and never with a session id or ref.
+`DevLifecycleSection` folds it per case beside submissions (`devcaseInFlight.ts`). The
+close modal adds `devcase.lifecycle.closeInFlight` ("N candidates are working on this
+assignment right now (the longest for M min)…") only when `live > 0`, because idle
+attempts are abandoned tabs.
+
+The candidate side hears of the close on the **next save**, not at the seal. The flush
+answers `intakeClosed` from a live posting read (never the per-token mid-flight memo,
+which caches frozen case data) and still stores the batch. Chat refuses
+**410 `POSTING_CLOSED`** after the door guard's `authorize` and before either limiter, so
+a closed intake spends no budget and makes no model call. `liveWorkSync.ts` enters
+`intakeClosed` on either signal. Its `submit()` then lands the final tree but never POSTs
+`/submit` and never clears the local draft. `LiveWorkSurface` shows the neutral
+`devApply.workSurface.intakeClosed` banner and disables Submit. Cases:
+`app/_lib/db/devcase-inflight.test.ts`, `app/api/devcase/postings/route.test.ts`,
+`app/api/devcase/session/intake-closed.test.ts`, `liveWorkSync.test.ts`,
+`app/features/tools/devcases/devcaseInFlight.test.ts`.
 
 One consequence for tests: a handler driven directly has no cookie jar, so
 `currentWorkspace()` falls back to the default workspace. `close-tenancy.test.ts`
