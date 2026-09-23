@@ -18,6 +18,7 @@ import {
   type SetupInviteResult,
   type SetupPartResult,
 } from "./setupFinishOutcome";
+import { seatAllows } from "./setupSeat";
 import { relevantSteps, type SetupInvite, type SetupState, type SetupStepId } from "./setupSteps";
 
 /**
@@ -27,11 +28,18 @@ import { relevantSteps, type SetupInvite, type SetupState, type SetupStepId } fr
  * company (org name, currency, brand), team, pipeline and companion writers must not
  * run — not "skip because empty" but "never asked", and a writer that never asked
  * must never fire. The language is the one answer every run gives (it lives on the
- * rail), so it is always written. Pure, so setupOnboardingFinish.test.ts pins it.
+ * rail), so it is written on every run — by a seat that may write it.
+ *
+ * The seat (setupSeat.ts): the language is an ORG-wide setting (setOrgLanguage
+ * takes org:manage, owner-only), so a seat without it — an invited recruiter, an
+ * admin — does not fire a write the server refuses; the rail's language switch has
+ * already set their personal cookie. The other org writes need no extra check: the
+ * steps that collect them are not walked by such a seat (relevantSteps). An
+ * unknown seat writes everything, as before. Pure, so the test pins it.
  */
 export function finishPartsFor(state: SetupState): SetupFinishPart[] {
   const walked = new Set<SetupStepId>(relevantSteps(state).map((s) => s.id));
-  const parts: SetupFinishPart[] = ["language"];
+  const parts: SetupFinishPart[] = seatAllows(state.seat, "org:manage") ? ["language"] : [];
   if (walked.has("company")) parts.push("orgName", "currency", "brand");
   if (walked.has("team")) parts.push("invites");
   if (walked.has("pipeline")) parts.push("pipeline");
@@ -55,8 +63,10 @@ export async function persistOnboardingSetup(state: SetupState): Promise<SetupFi
     const res = await setOrgName(name);
     results.push(res.ok ? { part: "orgName", status: "landed" } : { part: "orgName", status: "refused", code: res.code });
   }
-  const lang = await setOrgLanguage(state.language);
-  results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
+  if (parts.has("language")) {
+    const lang = await setOrgLanguage(state.language);
+    results.push(lang.ok ? { part: "language", status: "landed" } : { part: "language", status: "refused", code: lang.code });
+  } else results.push({ part: "language", status: "skipped" });
   // Same refusable org setting as the two above; always written on a hiring run,
   // because the wizard seeds it from the cookie and a default pick is still an answer.
   if (parts.has("currency")) {

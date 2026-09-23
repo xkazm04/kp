@@ -22,6 +22,7 @@ import { persistOnboardingSetup } from "./setupOnboardingFinish";
 import { describeSetupFailures, type SetupFinishPart } from "./setupFinishOutcome";
 import { mergeSetupDraft, restoredStepIndex, type SetupDraft } from "./setupDraft";
 import { useSetupDraft } from "./useSetupDraft";
+import type { SetupSeat } from "./setupSeat";
 import { useSetupPipelineAxis } from "./useSetupPipelineAxis";
 import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 
@@ -122,20 +123,39 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // null until the read lands, and setPipelineDraft is a deliberate no-op before
   // then (the dirty check has nothing to compare against yet).
   const pendingAxis = useRef<AxisDraft | null>(null);
+  // WHO is answering (setupSeat.ts). It lands on the same response as the draft's
+  // scope and just BEFORE the restore, so the ref lets the restore clamp to the run
+  // this seat walks without waiting a render for `state.seat`.
+  const seatRef = useRef<SetupSeat>(null);
+  const onSeat = useCallback(
+    (seat: SetupSeat) => {
+      seatRef.current = seat;
+      update({ seat });
+    },
+    [update]
+  );
   const restore = useCallback(
     (draft: SetupDraft) => {
       setState((s) => mergeSetupDraft(s, draft, initial));
       setDraftRestored(true);
-      // The restored position is a position in the sequence the restored INTENT
-      // implies — a seeker's draft claiming step 4 clamps to its two-step run.
-      const at = restoredStepIndex(draft, relevantSteps({ ...initial, intent: draft.intent }).length);
+      // The restored position is a position in the sequence the restored INTENT and
+      // this SEAT imply — a seeker's draft claiming step 4 clamps to its two-step run.
+      const at = restoredStepIndex(draft, relevantSteps({ ...initial, intent: draft.intent, seat: seatRef.current }).length);
       setStepIndex((s) => (s === 0 ? at.stepIndex : s));
       setMaxVisited((m) => Math.max(m, at.maxVisited));
       pendingAxis.current = draft.axisDraft;
     },
     [initial]
   );
-  const { clear: clearDraft } = useSetupDraft({ enabled: mode === "live", state, base: initial, stepIndex: safeIndex, maxVisited, restore });
+  const { clear: clearDraft } = useSetupDraft({
+    enabled: mode === "live",
+    state,
+    base: initial,
+    stepIndex: safeIndex,
+    maxVisited,
+    restore,
+    onSeat,
+  });
   useEffect(() => {
     if (!pendingAxis.current || !state.pipeline) return;
     const draft = pendingAxis.current;

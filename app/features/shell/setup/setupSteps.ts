@@ -21,6 +21,14 @@
 // authority the rail, the counter, the gates, the ceiling and the finish fold all
 // derive from — indices are positions in the relevant sequence, identity is the id.
 // The hire path is byte-for-byte what it was (setupSteps.test.ts pins the sequence).
+//
+// THE SEAT (2026-09-23). The '/' gate fires per user and a redeemed invite lands on
+// '/', so an invited teammate meets this wizard too. A step whose answers need a
+// capability declares it (`requires`), and `relevantSteps()` asks the seat as well as
+// the intent: an invited recruiter walks Welcome → Pipeline → Candi → Hand-off,
+// because the org name/currency/brand (org:manage, owner-only) and the invites
+// (members:manage) are writes the server would refuse them. An UNKNOWN seat (null —
+// the read is in flight or failed) is today's full run: setupSeat.ts fails open.
 
 // bug-ui-scan-2026-07-09 (organizations-members-invites #4): source the role +
 // language vocabularies from the REAL identity model (auth/roles) and the shared
@@ -36,6 +44,8 @@ import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 // split-by-audience the dock's proposal card keeps.
 import type { CompanionBrainChoice, CompanionBrainStatus } from "@/app/_lib/companion-brain-probe";
 import { axisProblems, type AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
+import type { Capability } from "@/app/_lib/auth/roles";
+import { seatAllows, type SetupSeat } from "./setupSeat";
 
 export type SetupStepId = "welcome" | "company" | "team" | "pipeline" | "companion" | "handoff";
 
@@ -50,24 +60,32 @@ export type SetupStep = {
   id: SetupStepId;
   /** Whether the step belongs in THIS run. Absent = always. */
   relevant?: (state: SetupState) => boolean;
+  /** The capability this step's answers are WRITTEN with — the one its finish
+   *  door gates on. A seat without it is not asked (see setupSeat.ts). Absent =
+   *  the step writes nothing an org-level gate refuses. */
+  requires?: Capability;
 };
 
 const hiringOnly = (state: SetupState): boolean => state.intent !== "seek";
 
 export const SETUP_STEPS: SetupStep[] = [
   { id: "welcome" },
-  { id: "company", relevant: hiringOnly },
-  { id: "team", relevant: hiringOnly },
-  { id: "pipeline", relevant: hiringOnly },
+  // org name / currency / brand: setOrgName, setOrgCurrency, PUT /api/brand.
+  { id: "company", relevant: hiringOnly, requires: "org:manage" },
+  // POST /api/org/invites.
+  { id: "team", relevant: hiringOnly, requires: "members:manage" },
+  // POST /api/pipeline/stage-migration.
+  { id: "pipeline", relevant: hiringOnly, requires: "pipeline:write" },
   { id: "companion", relevant: hiringOnly },
   { id: "handoff" },
 ];
 
 /** The steps this run walks, in order — THE authority every index in the wizard is
- *  a position in. A hire (or undecided) run is the full journey; a seek run is
- *  Welcome → Hand-off. */
+ *  a position in. Derived from intent x seat: a hire (or undecided) run is the full
+ *  journey for an owner or an unknown seat, minus every step whose `requires` the
+ *  seat does not hold; a seek run is Welcome → Hand-off. */
 export function relevantSteps(state: SetupState): SetupStep[] {
-  return SETUP_STEPS.filter((s) => !s.relevant || s.relevant(state));
+  return SETUP_STEPS.filter((s) => (!s.relevant || s.relevant(state)) && (!s.requires || seatAllows(state.seat, s.requires)));
 }
 
 export type SetupInvite = { email: string; role: MemberRole };
@@ -166,6 +184,11 @@ export type SetupState = {
    *  in this wizard — which is also what keeps the Settings walkthrough honest,
    *  since preview mode's finish() persists nothing at all. */
   companionChoice: CompanionBrainChoice;
+  /** WHO is answering — the caller's capabilities, read once from GET
+   *  /api/me/onboarding. Null until it lands (or when it fails): an unknown seat is
+   *  the owner's full run, never a smaller one. Server truth, so it is not part of
+   *  the saved draft. */
+  seat: SetupSeat;
 };
 
 export const INITIAL_SETUP: SetupState = {
@@ -181,6 +204,7 @@ export const INITIAL_SETUP: SetupState = {
   brain: null,
   brainLoad: "loading",
   companionChoice: null,
+  seat: null,
 };
 
 // Shared controller — the onboarding host owns this and hands the SAME object to

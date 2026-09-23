@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { INITIAL_SETUP, reachedCeiling, relevantSteps, SETUP_STEPS, stepSatisfied, type SetupState } from "./setupSteps";
 import { draftFromStored } from "@/app/features/shared/pipelineAxisDraft";
 import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
+import type { Capability } from "@/app/_lib/auth/roles";
 
 // The two gates the whole wizard hangs off — one decides whether Continue is
 // live, the other decides which steps a click may open — and neither was pinned.
@@ -102,4 +103,37 @@ test("going BACK is never capped — nobody is stranded", () => {
 
 test("every step id in the journey has a satisfaction rule", () => {
   for (const s of SETUP_STEPS) assert.equal(typeof stepSatisfied(s.id, INITIAL_SETUP), "boolean", s.id);
+});
+
+/* ── the seat: who is answering ───────────────────────────────────────────── */
+// The '/' gate fires per user and a redeemed invite lands on '/', so an invited
+// teammate meets this wizard too. A step whose answers need a capability the seat
+// does not hold is not asked — and an UNKNOWN seat (the read in flight, or failed)
+// is the owner's run, never a smaller one: the server stays the enforcement.
+
+const OWNER_SEAT: Capability[] = ["org:manage", "members:manage", "team:manage", "pipeline:write", "read"];
+const ADMIN_SEAT: Capability[] = ["members:manage", "team:manage", "pipeline:write", "read"];
+const RECRUITER_SEAT: Capability[] = ["pipeline:write", "read"];
+const FULL_RUN = ["welcome", "company", "team", "pipeline", "companion", "handoff"];
+
+test("the owner's hire run is byte-for-byte today's", () => {
+  assert.deepEqual(relevantSteps({ ...INITIAL_SETUP, intent: "hire", seat: OWNER_SEAT }).map((s) => s.id), FULL_RUN);
+});
+
+test("an unknown seat fails OPEN to today's run", () => {
+  assert.deepEqual(relevantSteps({ ...INITIAL_SETUP, intent: "hire", seat: null }).map((s) => s.id), FULL_RUN);
+});
+
+test("a recruiter is not asked for the company (org:manage) or the team (members:manage)", () => {
+  assert.deepEqual(
+    relevantSteps({ ...INITIAL_SETUP, intent: "hire", seat: RECRUITER_SEAT }).map((s) => s.id),
+    ["welcome", "pipeline", "companion", "handoff"]
+  );
+});
+
+test("an admin keeps the team step but not the company: org:manage is owner-only", () => {
+  assert.deepEqual(
+    relevantSteps({ ...INITIAL_SETUP, intent: "hire", seat: ADMIN_SEAT }).map((s) => s.id),
+    ["welcome", "team", "pipeline", "companion", "handoff"]
+  );
 });

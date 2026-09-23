@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentSession } from "@/app/_lib/auth/current-user";
+import { callerCapabilities, callerOrgCapabilities, currentSession } from "@/app/_lib/auth/current-user";
 import { currentUserId, currentWorkspaceId, DEFAULT_WORKSPACE, DEMO_WORKSPACE } from "@/app/_lib/auth/session";
 import { markUserOnboarding } from "@/app/_lib/db/users";
 import { setWorkspaceOnboardingState } from "@/app/_lib/db/workspaces";
@@ -22,12 +22,23 @@ import { setWorkspaceOnboardingState } from "@/app/_lib/db/workspaces";
  * when the session has one, else the workspace (open dev mode / operator
  * password). The value is an opaque scope string the caller already has the right
  * to know — its own — and nothing is created by asking.
+ *
+ * `seat` — WHO is answering, so the wizard asks only what this caller's answers can
+ * actually write (app/features/shell/setup/setupSeat.ts). It is the union of the two
+ * resolvers the wizard's finish doors gate on: callerOrgCapabilities() for the org
+ * settings (org:manage) and callerCapabilities() for invites, the board and Candi.
+ * Both fold to owner in open mode and for an operator session, so the keyless first
+ * run is unchanged. Ungated for the same reason /api/me/capabilities is: the set is
+ * derived from the caller's own session, and the wizard's mirror of it is advisory —
+ * every door still refuses on its own.
  */
 export async function GET() {
   const session = await currentSession();
   const userId = currentUserId(session);
   const scope = userId ? `u:${userId}` : `w:${session ? currentWorkspaceId(session) : DEFAULT_WORKSPACE}`;
-  return NextResponse.json({ scope });
+  const [org, here] = await Promise.all([callerOrgCapabilities(), callerCapabilities()]);
+  const capabilities = [...new Set([...org, ...here])];
+  return NextResponse.json({ scope, seat: { capabilities } });
 }
 
 export async function POST(req: Request) {

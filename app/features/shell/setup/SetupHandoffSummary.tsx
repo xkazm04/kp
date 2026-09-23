@@ -18,6 +18,13 @@
 // org, no board and no guided hiring demo to offer them. Their hand-off says the
 // one true thing — the search starts with the CV — and has ONE exit: finish(),
 // which persists the language, stamps the run and lands on /me.
+//
+// THE SEAT (2026-09-23). An invited teammate walks a shorter hire run (setupSeat.ts):
+// without the Company step there is no org name of theirs to announce, and without
+// the Team step no invite count to report, so the summary says they are ready to
+// start instead. The guided tour starts a run that WRITES the pipeline, so its tile
+// is offered only to a seat that may (handoffExits, the palette's own rule); an
+// unknown seat keeps both exits.
 import { ArrowRight, Check, Columns3, FileText, Play, Rocket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
@@ -28,6 +35,7 @@ import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { Badge } from "@/app/_components/Badge";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { SetupPipelineChain } from "./SetupPipelineChain";
+import { handoffExits } from "./setupSeat";
 import type { OnboardingCtrl } from "./setupSteps";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
@@ -81,8 +89,10 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
   const sim = useSimulation();
   const displayLabel = useStageDisplayLabel();
-  const { orgName, language, invites, pipeline } = ctrl.state;
+  const { orgName, language, invites, pipeline, seat } = ctrl.state;
   const lang = languageNative(language);
+  const walked = new Set(ctrl.steps.map((s) => s.id));
+  const exits = handoffExits(seat);
   // The board as this wizard is about to leave it, and whether that differs from
   // what the workspace already had — the summary claims a change only when
   // finish() will actually write one (setupOnboardingFinish.ts).
@@ -96,9 +106,13 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
           <Check size={20} aria-hidden />
         </span>
         <div className="text-sm">
-          <p className="font-semibold text-ink">{t("readyTitle", { org: orgName.trim() || t("orgFallback") })}</p>
+          <p className="font-semibold text-ink">
+            {walked.has("company") ? t("readyTitle", { org: orgName.trim() || t("orgFallback") }) : t("join.readyTitle")}
+          </p>
           <p className="text-steel">
-            {t("readyMeta", { language: lang, invites: invites.length })}
+            {walked.has("team")
+              ? t("readyMeta", { language: lang, invites: invites.length })
+              : t("join.readyMeta", { language: lang })}
           </p>
         </div>
       </div>
@@ -124,40 +138,43 @@ function HireHandoff({ ctrl }: { ctrl: OnboardingCtrl }) {
         </div>
       ) : null}
 
-      {/* The step's TWO exit paths, as equal explicit choices (the footer is
+      {/* The step's TWO exit paths (one, for a seat that may not write the
+          pipeline — handoffExits), as equal explicit choices (the footer is
           suppressed here so nothing competes with them):
             — guided demo: finish (persist + stamp) and start the tour in one
               motion; sticker treatment marks it as the playful path.
             — explore solo: plain finish, with the pointer to WHERE the tour
               lives (the Candi button in the bottom bar) so it stays findable. */}
       <p className={`${EYEBROW} pt-2`}>{t("chooseLabel")}</p>
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => {
-            ctrl.finish();
-            sim.start();
-          }}
-          className="focus-ring group flex items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0"
-        >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
-            <Play size={18} aria-hidden className="translate-x-px" />
-          </span>
-          <span className="min-w-0 flex-1 text-sm">
-            {/* The two exits are still both real choices, but they are not
-                equally good for someone who has just made a workspace and has
-                no data in it yet — and weighting them neutrally left that
-                judgement to a first-time operator who has no way to make it.
-                The shared Badge carries the mark (both themes, mapped shades)
-                rather than a hand-rolled span with colors of its own. */}
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="font-semibold text-ink">{t("tourTitle")}</span>
-              <Badge tone="info" label={t("recommended")} />
+      <div className={`grid gap-2.5 ${exits.length > 1 ? "sm:grid-cols-2" : ""}`}>
+        {exits.includes("tour") ? (
+          <button
+            type="button"
+            onClick={() => {
+              ctrl.finish();
+              sim.start();
+            }}
+            className="focus-ring group flex items-center gap-3 rounded-lg border-2 border-ink bg-paper p-4 text-left shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs">
+              <Play size={18} aria-hidden className="translate-x-px" />
             </span>
-            <span className="text-steel">{t("tourBody")}</span>
-          </span>
-          <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
-        </button>
+            <span className="min-w-0 flex-1 text-sm">
+              {/* The two exits are still both real choices, but they are not
+                  equally good for someone who has just made a workspace and has
+                  no data in it yet — and weighting them neutrally left that
+                  judgement to a first-time operator who has no way to make it.
+                  The shared Badge carries the mark (both themes, mapped shades)
+                  rather than a hand-rolled span with colors of its own. */}
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold text-ink">{t("tourTitle")}</span>
+                <Badge tone="info" label={t("recommended")} />
+              </span>
+              <span className="text-steel">{t("tourBody")}</span>
+            </span>
+            <ArrowRight size={16} aria-hidden className="shrink-0 text-coral transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={ctrl.finish}

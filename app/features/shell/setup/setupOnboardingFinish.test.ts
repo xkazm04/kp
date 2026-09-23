@@ -272,3 +272,17 @@ test("a hiring finish keeps every writer, in the order the toast names them", ()
   // An unanswered fork is a hiring run: nothing is hidden before Welcome is answered.
   assert.deepEqual(finishPartsFor(INITIAL_SETUP), finishPartsFor({ ...INITIAL_SETUP, intent: "hire" }));
 });
+
+// ---------------------------------------------------------------------------
+// The seat. A recruiter walked Welcome → Pipeline → Candi → Hand-off: no company,
+// no team — and the language is an ORG-wide setting (setOrgLanguage takes
+// org:manage), so a seat without it must not fire a write the server refuses. The
+// rail's language switch already set the personal cookie.
+
+test("a recruiter's hire finish never fires an org-wide write it would be refused", () => {
+  const parts = finishPartsFor({ ...INITIAL_SETUP, intent: "hire", seat: ["pipeline:write", "read"] });
+  for (const refused of ["language", "orgName", "currency", "brand", "invites"] as const) {
+    assert.ok(!parts.includes(refused), `${refused} must not be written by a recruiter`);
+  }
+  assert.deepEqual(parts, ["pipeline", "companion"]);
+});
