@@ -559,7 +559,8 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
  *  — the same tenant the gate (meterGate({ workspace })) read. */
 function debitDeliveredAnalysis(persisted: unknown, allCached: boolean, workspace?: string): void {
   if (persisted == null || allCached) return;
-  recordMeterUsage("ai_candidates", 1, new Date(), workspace);
+  const slug = (persisted as { slug?: unknown }).slug;
+  recordMeterUsage("ai_candidates", 1, new Date(), workspace, { kind: "analysis", ref: typeof slug === "string" ? slug : null });
 }
 
 function persistAnalysis(candidateLabel: string, jdSlug: string | null, analysis: Analysis, workspaceId?: string, cvHash?: string) {

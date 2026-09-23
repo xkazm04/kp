@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
     if (overBudget) return jsonRefusal("TASK_BUDGET_EXHAUSTED", 429, overBudget);
     const quota = meterGate("case_designs", { workspace });
     if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
-    recordMeterUsage("case_designs", 1, new Date(), workspace);
+    // Journal source: debited at START, before the lifecycle row (and its id) exists, so
+    // the cause is named by kind only — moving the debit after createLifecycle would
+    // change which failures are charged.
+    recordMeterUsage("case_designs", 1, new Date(), workspace, { kind: "devcase_lifecycle" });
     // DEVP5 — the candidate-facing artifact language. Prefer an explicit body
     // choice (validated), else the recruiter's active locale; persisted on the
     // lifecycle and threaded to the dev-case CLIs by the orchestrator.

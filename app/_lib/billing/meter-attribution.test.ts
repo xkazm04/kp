@@ -101,7 +101,11 @@ test("a simulation gates and debits the SAME tenant, for the SAME amount", () =>
   assert.match(simulate, /createInterviewSession\(\{\s*\n\s*workspaceId: workspace,/);
   // The debit follows the session row, not a re-derivation that defaults when the
   // session has no entry (which every simulation is).
-  assert.match(complete, /recordMeterUsage\("interview_minutes", billedMin, new Date\(\), session\.workspaceId\)/);
+  // …and names its cause for the usage journal: the session it billed.
+  assert.match(
+    complete,
+    /recordMeterUsage\("interview_minutes", billedMin, new Date\(\), session\.workspaceId, \{ kind: "interview_session", ref: session\.id \}\)/
+  );
   assert.doesNotMatch(complete, /recordMeterUsage\("interview_minutes"[^)]*getEntryWorkspace/);
 });
 

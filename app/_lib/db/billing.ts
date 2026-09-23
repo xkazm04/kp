@@ -381,3 +381,73 @@ export function billingUsageFor(meter: string, period: string, orgId: string = D
     | undefined;
   return row?.qty ?? 0;
 }
+
+// ---- Usage journal (docs/features/billing/README.md) --------------------------------------
+// One row per meter debit beside the billing_usage counter, written by recordMeterUsage in
+// the counter's transaction. Write-only evidence: no gate or charge reads it.
+
+export type UsageJournalRow = {
+  id: number;
+  orgId: string;
+  meter: string;
+  period: string;
+  qty: number;
+  fromIncluded: number;
+  fromCredits: number;
+  sourceKind: string;
+  sourceRef: string | null;
+  occurredAt: string;
+};
+
+export function appendUsageJournal(r: Omit<UsageJournalRow, "id">): void {
+  ensureDb()
+    .prepare(
+      `INSERT INTO billing_usage_journal (org_id, meter, period, qty, from_included, from_credits, source_kind, source_ref, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(r.orgId, r.meter, r.period, r.qty, r.fromIncluded, r.fromCredits, r.sourceKind, r.sourceRef, r.occurredAt);
+}
+
+/** One org's debits in a period, newest first (at most 1000). */
+export function listUsageJournalForOrg(orgId: string, period: string): UsageJournalRow[] {
+  const rows = ensureDb()
+    .prepare(`SELECT * FROM billing_usage_journal WHERE org_id = ? AND period = ? ORDER BY id DESC LIMIT 1000`)
+    .all(orgId, period) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: r.id as number,
+    orgId: r.org_id as string,
+    meter: r.meter as string,
+    period: r.period as string,
+    qty: r.qty as number,
+    fromIncluded: r.from_included as number,
+    fromCredits: r.from_credits as number,
+    sourceKind: r.source_kind as string,
+    sourceRef: (r.source_ref as string | null) ?? null,
+    occurredAt: r.occurred_at as string,
+  }));
+}
+
+/** The (meter, period) pairs where the counter and SUM(journal.qty) disagree; [] when the
+ *  invariant holds. A pre-journal counter reports here — evidence, never a correction. */
+export function journalIntegrity(orgId: string): Array<{ meter: string; period: string; counter: number; journaled: number }> {
+  return ensureDb()
+    .prepare(
+      `SELECT u.meter AS meter, u.period AS period, u.qty AS counter, COALESCE(j.n, 0) AS journaled
+       FROM billing_usage u
+       LEFT JOIN (SELECT meter, period, SUM(qty) AS n FROM billing_usage_journal WHERE org_id = ? GROUP BY meter, period) j
+         ON j.meter = u.meter AND j.period = u.period
+       WHERE u.org_id = ? AND u.qty != COALESCE(j.n, 0) ORDER BY u.meter, u.period`
+    )
+    .all(orgId, orgId) as Array<{ meter: string; period: string; counter: number; journaled: number }>;
+}
+
+/** Sources debited more than once in a period. DETECTION only: both debits stand. */
+export function duplicateUsageSources(orgId: string, period: string): Array<{ meter: string; source_kind: string; source_ref: string; count: number }> {
+  return ensureDb()
+    .prepare(
+      `SELECT meter, source_kind, source_ref, COUNT(*) AS count FROM billing_usage_journal
+       WHERE org_id = ? AND period = ? AND source_ref IS NOT NULL
+       GROUP BY meter, source_kind, source_ref HAVING COUNT(*) > 1 ORDER BY meter, source_kind, source_ref`
+    )
+    .all(orgId, period) as Array<{ meter: string; source_kind: string; source_ref: string; count: number }>;
+}

@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // one the ownership guard above already proved owns this lifecycle.
     const quota = meterGate("case_designs", { workspace });
     if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
-    recordMeterUsage("case_designs", 1, new Date(), workspace);
+    recordMeterUsage("case_designs", 1, new Date(), workspace, { kind: "devcase_redesign", ref: lc.id });
 
     // DEVP5 — a redesign keeps the lifecycle's candidate-facing language.
     const designed = await runDesignArtifacts(lc.need as DevNeed, lc.analysis, undefined, feedback, lc.lang);

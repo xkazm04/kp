@@ -380,7 +380,7 @@ export async function POST(request: NextRequest) {
       // The llm_usage row below stays UNCONDITIONAL — voiceMinuteCostUsd already prices
       // these at 0, and a $0 ledger row is the truthful record that a call happened.
       if (!isSelfHostedProvider(session.provider)) {
-        recordMeterUsage("interview_minutes", billedMin, new Date(), session.workspaceId);
+        recordMeterUsage("interview_minutes", billedMin, new Date(), session.workspaceId, { kind: "interview_session", ref: session.id });
       }
       // Cost attribution (tiger F1): the meter above is a quantity-only quota
       // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ

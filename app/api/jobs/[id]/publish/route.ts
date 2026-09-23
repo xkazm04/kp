@@ -148,7 +148,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         // yet, which is the window in which a filled role would keep chasing
         // candidates. Synchronous and by-id, so it adds no await to the block.
         setRoleOpenConfig(id, { targetHires: parsed.targetHires, postingLangs: parsed.langs }, ws);
-        if (transition.billable) recordMeterUsage("job_posts", 1, new Date(), ws);
+        if (transition.billable) recordMeterUsage("job_posts", 1, new Date(), ws, { kind: "job_post", ref: id });
       }
       // A reopen is a closed→published transition; remember it so the entries this
       // role's close withdrew are restored explicitly below (not left to sourcing).

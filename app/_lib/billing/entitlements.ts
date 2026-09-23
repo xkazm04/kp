@@ -11,7 +11,7 @@
 // monthly allowance is exhausted (a negative ledger row per unit), so the
 // balance survives month boundaries without double counting.
 
-import { billingUsageFor, creditBalance, getBillingState, grantBillingCredits, incrementBillingUsage, type BillingStateRow } from "../db/billing";
+import { appendUsageJournal, billingUsageFor, creditBalance, getBillingState, grantBillingCredits, incrementBillingUsage, type BillingStateRow } from "../db/billing";
 import { ensureDb } from "../db/core";
 import { listProviderKeys } from "../db/llm";
 import { DEFAULT_ORG_ID } from "../db/organizations";
@@ -272,6 +272,16 @@ export function meterAllowance(meter: Meter, now: Date = new Date(), workspace?:
   return { allowed: false, remaining: 0, reason: "limit_reached" };
 }
 
+/** A debit's cause (billing_usage_journal.source_kind): one per production debit site,
+ *  plus `unattributed` for no/unknown source. Refs per kind: docs/features/billing. */
+export const USAGE_SOURCE_KINDS = ["analysis", "devcase_lifecycle", "devcase_redesign", "interview_session", "job_post", "hire", "unattributed"] as const;
+export type UsageSourceKind = (typeof USAGE_SOURCE_KINDS)[number];
+export function isUsageSourceKind(v: unknown): v is UsageSourceKind {
+  return typeof v === "string" && (USAGE_SOURCE_KINDS as readonly string[]).includes(v);
+}
+/** `ref` is an OPAQUE record id — never a name, email or free text. */
+export type UsageSource = { kind: UsageSourceKind; ref?: string | null };
+
 /** Debit `qty` units: the month's included allowance first, then prepaid
  *  credits (one negative ledger row per overflow unit, so the balance is live
  *  and survives month boundaries). Records usage even past empty — the
@@ -283,6 +293,9 @@ export function meterAllowance(meter: Meter, now: Date = new Date(), workspace?:
  *  credits than exist (the ledger never over-draws below zero) and a failure can't
  *  leave a half-applied debit (credits decremented but usage not incremented).
  *
+ *  Each debit also appends ONE billing_usage_journal row (split + `source`) in the
+ *  same transaction; no gate or charge reads it.
+ *
  *  RESIDUAL (not closed here): the gate→debit window. A route calls meterAllowance()
  *  early and recordMeterUsage() later, with awaits between; two requests can both
  *  pass the gate at the last included unit and each do full (non-degraded) work —
@@ -290,7 +303,7 @@ export function meterAllowance(meter: Meter, now: Date = new Date(), workspace?:
  *  a reserve-then-confirm gate across the 4 call sites (analyze / interview-complete
  *  / the two devcase routes) + the failed-run refund (billing-engine #4); tracked
  *  as a follow-up. better-sqlite3 is synchronous, so the ledger itself is safe. */
-export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new Date(), workspace?: string): void {
+export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new Date(), workspace?: string, source?: UsageSource): void {
   if (qty <= 0) return;
   // Same seam contract as meterAllowance: the debit lands on the asking
   // tenant's ORG. Omitted → the default org, the exact rows it always debited.
@@ -303,18 +316,26 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
   const limit = resolvedLimit(plan, meter, orgId);
   const period = currentPeriod(now);
   const db = ensureDb();
+  const sourceKind: UsageSourceKind = isUsageSourceKind(source?.kind) ? source.kind : "unattributed";
+  const sourceRef = sourceKind === "unattributed" ? null : (source?.ref ?? null);
   db.transaction(() => {
+    // Unlimited meter: all included, no credits.
+    let fromIncluded = qty;
+    let debit = 0;
     if (limit !== null) {
       const used = billingUsageFor(meter, period, orgId);
       const balance = creditBalance(meter, orgId);
-      const { fromCredits } = splitSpend(limit, used, balance, qty);
+      const split = splitSpend(limit, used, balance, qty);
+      fromIncluded = split.fromIncluded;
       // CAS: never debit more credits than exist at write time.
-      const debit = Math.min(fromCredits, Math.max(0, balance));
+      debit = Math.min(split.fromCredits, Math.max(0, balance));
       if (debit > 0) {
         grantBillingCredits({ meter, delta: -debit, reason: "consumed", orgId });
       }
     }
     incrementBillingUsage(meter, period, qty, orgId);
+    // Same tx, same numbers as the counter + credit ledger it explains.
+    appendUsageJournal({ orgId, meter, period, qty, fromIncluded, fromCredits: debit, sourceKind, sourceRef, occurredAt: now.toISOString() });
   })();
 }
 

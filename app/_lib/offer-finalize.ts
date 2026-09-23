@@ -129,7 +129,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
         // the whole product exists to produce. Best-effort for the same reason — a
         // metering fault must not turn a successful acceptance into an error.
         try {
-          recordMeterUsage("hires", 1, new Date(), offer.workspaceId);
+          recordMeterUsage("hires", 1, new Date(), offer.workspaceId, { kind: "hire", ref: offer.id });
         } catch (meterErr) {
           console.error(
             `[offer] hired ${offer.entryId} but the hire meter did not record:`,
