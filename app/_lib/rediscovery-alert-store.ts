@@ -12,10 +12,10 @@ import { resolveCandidateConsent } from "./rediscovery-relevance";
 // Role X clears the bar for new Role Y" hit so it surfaces in a dismissable feed
 // the moment it becomes true — on publish, or on a manual pool-change sweep.
 //
-// A row is keyed UNIQUE on (job_id, candidate_id) so re-running the ranking for
-// the same role never accretes duplicates AND never resurrects an alert the
-// recruiter already dismissed (INSERT OR IGNORE preserves the existing row,
-// dismissed_at and all).
+// A row is keyed UNIQUE on (workspace_id, job_id, candidate_id) so re-running the
+// ranking for the same role never accretes duplicates AND never resurrects an alert
+// the team already dismissed (INSERT OR IGNORE preserves the existing row,
+// dismissed_at and all) — per team, because the key is the team's (tenant-keys.test.ts).
 
 let _db: Database.Database | null = null;
 function db(): Database.Database {
@@ -41,8 +41,6 @@ function db(): Database.Database {
       dismissed_at TEXT,
       workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS ux_rediscovery_alert
-      ON rediscovery_alerts(job_id, candidate_id);
   `);
   // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store
   // → migrate here, tolerating the already-present column).
@@ -65,6 +63,17 @@ function db(): Database.Database {
       /* column already exists — idempotent */
     }
   }
+  // The dedup key, per TEAM. It used to be ux_rediscovery_alert ON (job_id,
+  // candidate_id) — a key on a team-scoped table without workspace_id. DROP first:
+  // `CREATE UNIQUE INDEX IF NOT EXISTS` under the old name would be a silent no-op on
+  // every existing DB. After the ALTER above, so a legacy table has the column. Both
+  // statements are idempotent, so this runs every open at no cost. No existing row can
+  // collide on the wider key (it is a superset of the old one).
+  d.exec(`
+    DROP INDEX IF EXISTS ux_rediscovery_alert;
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_rediscovery_alert_team
+      ON rediscovery_alerts(workspace_id, job_id, candidate_id);
+  `);
   _db = d;
   return d;
 }
@@ -96,8 +105,8 @@ export type RediscoveryAlert = {
 };
 
 /** Persist a role's rediscovered candidates as standing alerts. INSERT OR IGNORE
- *  on the (job_id, candidate_id) unique index: a candidate already alerted for
- *  this role (active or dismissed) is left untouched, so the feed neither
+ *  on the (workspace_id, job_id, candidate_id) unique index: a candidate this team
+ *  already alerted for this role (active or dismissed) is left untouched, so the feed neither
  *  duplicates nor un-dismisses. Returns the count of genuinely-new alerts (so the
  *  publish/sweep caller can report "3 silver medalists surfaced"). */
 export function recordRediscoveryAlerts(
@@ -159,7 +168,7 @@ export function recordRediscoveryAlerts(
 // ---- Retention (rediscovery-excludes-the-unconsented) -----------------------
 //
 // `rediscovery_alerts` had no delete anywhere in the tree. A dismissed row is kept
-// on purpose — the UNIQUE (job_id, candidate_id) index is what makes dismissal
+// on purpose — the UNIQUE (workspace_id, job_id, candidate_id) index is what makes dismissal
 // STICKY, so deleting it the moment it is dismissed would let the very next sweep
 // re-raise the alert the recruiter just waved away. But "sticky" only has to
 // outlive the reason it was dismissed for, and an alert row is not archival
@@ -248,7 +257,7 @@ export function listRediscoveryAlerts(workspaceId: string = DEFAULT_WORKSPACE_ID
  *
  *  The by-id predicate alone is NOT sufficient authorization here. An alert id is not
  *  a capability token — listRediscoveryAlerts hands it to every recruiter in that
- *  team's feed — and dismissal is STICKY: the UNIQUE (job_id, candidate_id) index
+ *  team's feed — and dismissal is STICKY: the UNIQUE (workspace_id, job_id, candidate_id) index
  *  makes every later sweep an INSERT OR IGNORE no-op, so a dismissed row never comes
  *  back. Without the workspace predicate, anyone holding an id could permanently
  *  suppress ANOTHER team's silver-medalist alert.

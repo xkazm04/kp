@@ -495,13 +495,15 @@ export function ensureDb(): Database.Database {
     -- Durable recruiter artifacts, deliberately NOT the prompt cache: a pack
     -- must survive restarts and TTLs, and "Regenerate" must produce a fresh
     -- pack rather than replay a cached one. POST /api/jobs/[id]/campaign upserts.
+    -- Keyed per team; an older DB's (job_id, lang) is widened by widenCampaignPacksKey.
     CREATE TABLE IF NOT EXISTS campaign_packs (
       job_id TEXT NOT NULL,
       lang TEXT NOT NULL,
       payload_json TEXT NOT NULL,
       source TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      PRIMARY KEY (job_id, lang)
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      PRIMARY KEY (job_id, lang, workspace_id)
     );
 
     CREATE TABLE IF NOT EXISTS jobs (
@@ -2554,6 +2556,9 @@ export function ensureDb(): Database.Database {
        ALTER TABLE billing_usage_new RENAME TO billing_usage;`
     );
   }
+  // campaign_packs -> (job_id, lang, workspace_id), guarded by the PK SHAPE (workspace_id
+  // already exists, so a column guard never fires); narrowCampaignPacksKey is the way back.
+  widenCampaignPacksKey(db);
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
   // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
   // so a "cleared" detail read back as "" on some rows and NULL on others. Now that
@@ -3444,4 +3449,61 @@ export function backfillOrgLocaleAuthority(db: Database.Database): void {
     }
     markSeedRan(db, ORG_LOCALE_AUTHORITY_MARK);
   }).immediate();
+}
+
+// ---- campaign_packs key: forward and back (rollback-drill.test.ts runs both) ----------
+
+const CP_COLS = "job_id, lang, payload_json, source, created_at, workspace_id";
+const CP_WIDE = "job_id,lang,workspace_id";
+
+function campaignPacksKey(db: Database.Database): string {
+  return (db.prepare(`PRAGMA table_info(campaign_packs)`).all() as { name: string; pk: number }[])
+    .filter((c) => c.pk > 0)
+    .sort((a, b) => a.pk - b.pk)
+    .map((c) => c.name)
+    .join(",");
+}
+
+/** Rebuild campaign_packs under `key` from `select` (one transaction, orphan scratch
+ *  dropped first, the per-team scan index restored — rebuildTable's shape; no await). */
+function rebuildCampaignPacks(db: Database.Database, key: string, select: string): void {
+  db.transaction(() => {
+    db.exec(`DROP TABLE IF EXISTS campaign_packs_new;
+      CREATE TABLE campaign_packs_new (job_id TEXT NOT NULL, lang TEXT NOT NULL, payload_json TEXT NOT NULL,
+        source TEXT NOT NULL, created_at TEXT NOT NULL, workspace_id TEXT NOT NULL DEFAULT 'workspace',
+        PRIMARY KEY (${key}));
+      INSERT INTO campaign_packs_new (${CP_COLS}) ${select};
+      DROP TABLE campaign_packs;
+      ALTER TABLE campaign_packs_new RENAME TO campaign_packs;
+      CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id);`);
+  })();
+}
+
+/** Widen campaign_packs to PRIMARY KEY (job_id, lang, workspace_id) when its key has any
+ *  other shape — a legacy DB, or an old-key table a restored dump brought back. Keeps
+ *  every row (a narrower key cannot collide on a wider one). Returns whether it rebuilt. */
+export function widenCampaignPacksKey(db: Database.Database): boolean {
+  const key = campaignPacksKey(db);
+  if (key === "" || key === CP_WIDE) return false;
+  const ws = key.includes("workspace_id") || (db.prepare(`PRAGMA table_info(campaign_packs)`).all() as { name: string }[]).some((c) => c.name === "workspace_id");
+  rebuildCampaignPacks(db, CP_WIDE, `SELECT job_id, lang, payload_json, source, created_at, ${ws ? "COALESCE(workspace_id, 'workspace')" : "'workspace'"} FROM campaign_packs`);
+  return true;
+}
+
+/** THE WAY BACK: run before starting an image older than the widening, whose
+ *  `ON CONFLICT(job_id, lang)` upsert SQLite refuses against the widened key. Keeps ONE
+ *  row per (job_id, lang) — the default workspace's (all an older single-tenant image
+ *  reads), else the newest; packs are regenerable output, so the rest are dropped and
+ *  counted. A later boot of a current image widens the table again. */
+export function narrowCampaignPacksKey(db: Database.Database): { kept: number; dropped: number } {
+  const count = () => (db.prepare(`SELECT COUNT(*) AS n FROM campaign_packs`).get() as { n: number }).n;
+  const key = campaignPacksKey(db);
+  if (key === "") return { kept: 0, dropped: 0 };
+  const before = count();
+  if (key !== "job_id,lang") {
+    rebuildCampaignPacks(db, "job_id, lang", `SELECT ${CP_COLS} FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY job_id, lang
+      ORDER BY (workspace_id = 'workspace') DESC, created_at DESC, workspace_id) AS r FROM campaign_packs) WHERE r = 1`);
+  }
+  const kept = count();
+  return { kept, dropped: before - kept };
 }
