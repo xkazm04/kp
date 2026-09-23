@@ -70,6 +70,49 @@ _USE_CASE_BY_COMMAND = {
     "baseline-solve": "devcase_seed",
 }
 
+# The doors that never had an LLM to fall back from: pure deterministic gates that
+# return before a provider is resolved, and so stay unmetered.
+PURE_COMMANDS: frozenset[str] = frozenset({"source", "observed-interview", "observed-skills"})
+
+# THE command vocabulary. The parser's choices ARE this tuple, and every entry is
+# either routed (a ``_USE_CASE_BY_COMMAND`` row, which decides the provider seat and
+# the ledger attribution) or declared pure. A twelfth door therefore needs a map row
+# or a pure declaration, or this module refuses to import; and it needs a fixture row
+# in test_devcase_cli_matrix.py, whose sweep is derived from this table. The map stays
+# a module-level dict literal under its own name: test_byom_coverage harvests it from
+# the AST as the call-site inventory.
+COMMANDS: tuple[str, ...] = (
+    "analyze-need",
+    "design-artifacts",
+    "reflect-commits",
+    "evaluate-submission",
+    "source",
+    "interview-scenario",
+    "observed-interview",
+    "observed-skills",
+    "materialize-seed",
+    "session-chat",
+    "baseline-solve",
+)
+
+if set(COMMANDS) != set(_USE_CASE_BY_COMMAND) | PURE_COMMANDS or set(_USE_CASE_BY_COMMAND) & PURE_COMMANDS:
+    # Not an ``assert``: ``python -O`` strips those, and this is the closure the
+    # routing below relies on.
+    raise RuntimeError(
+        "devcase_cli command table drifted: COMMANDS must equal the routed map plus PURE_COMMANDS, disjointly"
+    )
+
+
+def _use_case_for(command: str) -> str:
+    """The use case a provider-backed door routes and meters under. Fail CLOSED: a
+    door with no map row used to be routed (and model-pinned, and ledger-attributed)
+    as ``devcase_case_design`` without a trace. Now it is an engine fault the caller
+    sees, before any provider is built."""
+    try:
+        return _USE_CASE_BY_COMMAND[command]
+    except KeyError:
+        raise CliError(f"devcase command {command!r} has no use-case route (_USE_CASE_BY_COMMAND)") from None
+
 # The failure vocabulary is NOT redeclared here. It lives once in .._cli
 # (ERROR_CODES + CliError + the not_found/invalid_input raise-site helpers), which is
 # also what python-runner.ts mirrors. This module used to hand-roll the same two
@@ -205,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     configure_stdio()
 
     parser = argparse.ArgumentParser(description="Dev-extension tasks (Claude CLI only).")
-    parser.add_argument("command", choices=["analyze-need", "design-artifacts", "reflect-commits", "evaluate-submission", "source", "interview-scenario", "observed-interview", "observed-skills", "materialize-seed", "session-chat", "baseline-solve"])
+    parser.add_argument("command", choices=list(COMMANDS))
     parser.add_argument("--need-json", type=Path)
     parser.add_argument("--snapshot-json", type=Path)
     # Multi-repo grounding: a JSON ARRAY of RepoSnapshot objects (the role can span up
@@ -330,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
         # Per-command use case so the Models config can route (and the usage
         # ledger attribute) each dev-case step independently. Commands that
         # return before this line never construct a provider.
-        use_case = _USE_CASE_BY_COMMAND.get(args.command, "devcase_case_design")
+        use_case = _use_case_for(args.command)
         provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
         descent = "disabled" if args.no_llm else None
         if provider is not None:
