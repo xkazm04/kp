@@ -155,16 +155,28 @@ per-skill provenance**, and archetype signals (`is_enrolled`,
 and `app/_lib/analyze-phases.ts`; results persist to the `analyses` table and
 render in `HistoryTab.tsx` / `app/history/[slug]/page.tsx`.
 
-**CV intake takes a batch, and says what it refused.** The CV column advertises
-up to `MAX_CV_VARIANTS` ("Add variant (1/3)", the best-of-N comparison), so its
-pickers carry `multiple` and its empty drop zone reads the whole
-`dataTransfer.files` list — `AnalyzeProfileInput.addFiles` is the one cap/gate
-choke point they all pass through (`useAnalyzeFileAccept`), it stops at the first
-rejection so the gate's inline message survives, and a batch past the cap ends on
-the same `variantLimitReject` row a single over-cap drop shows. The window-level
-"drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`) now routes the full
-`dataTransfer.files` batch through that same choke point. JD/company zones hold
-one file by design. The saved-JD picker distinguishes an empty library from a failed load —
+**One intake router, and every refused file is named.** Where a file goes is
+decided by a pure plan, not by which DOM node caught the event. Each zone declares
+an id from `DROP_ZONES` (`cv` | `jd` | `company`) on `data-file-dropzone`
+(`dropZoneProps`); `AnalyzeForm` hosts the ONE window drop listener
+(`useAnalyzeGlobalFileDrag`, whose depth comes from `analyzeDragCounter`), which
+calls `resolveDropZone(event.target)` (bare page space → `page`, filed as CV) and
+`planDrop(zone, files, snapshot)` in `analyzeDropRouting.ts`. The plan runs
+`acceptUpload` per file (a rejection no longer stops the batch), fills the CV
+column up to `MAX_CV_VARIANTS`, treats JD and company as single slots — a drop on
+an attached card replaces it, a second file is refused as `single-slot` — and
+returns `{cv, jd, company, refused[]}`. `useAnalyzeIntake`
+(`useAnalyzeFileAccept.ts`) applies it through the form's setters (a JD file still
+detaches the saved-JD slug; everything writes through to the attachment store), and
+every picker, the sample CV, a pasted CV and the per-row Replace plan through the
+same seam, so a click and a drop cannot diverge. Refusals render once, below the
+columns, as `analyze.dropRefused` ("{name} was not added. {reason}"), the reason
+resolved from a code (`errors.UPLOAD_*`, `variantLimitReject`, `dropSingleSlot`).
+Zones keep only the counted highlight. The CV hook still owns the content dedupe
+and the race-safe cap re-check after its hash await. `AnalyzeFileDropZone` has a
+standalone mode (`onFileChange`, planned by `planSingleSlot`) for the `/me` profile
+import, where no router listens. Pinned by `analyzeDropRouting.test.ts` and
+`analyzeFileIntakeGate.test.ts`. The saved-JD picker distinguishes an empty library from a failed load —
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
@@ -230,12 +242,13 @@ for each of them — so `useDropZoneHighlight`'s old boolean flipped off the mom
 the cursor crossed onto the zone's own icon, strobing "will not accept" at a user
 still squarely inside the target. It now keeps a depth through
 `analyzeDragCounter.ts` (`enter` +1, `leave` −1 clamped at zero, `drop`/`dragend`
-terminal resets — `dragover` deliberately not counted), matching what
-`useAnalyzeGlobalFileDrag` already did window-wide. For assistive tech both zones
+terminal resets — `dragover` deliberately not counted), the same arithmetic
+the window listener in `useAnalyzeGlobalFileDrag` now uses. For assistive tech both zones
 carry `role="button"` plus `aria-describedby` on the localized `uploadHint`, with
 the file input named explicitly (an element with an explicit role stops labelling
 its input); the full-window drop-anywhere scrim stays `aria-hidden` and the fact
-it conveys is announced through an always-mounted polite live region instead.
+it conveys is announced through an always-mounted polite live region instead,
+both rendered once by `AnalyzeForm`.
 
 **The poll is cheap when nothing is happening, and honest when it fails.**
 `watchAnalysis` (`AnalyzeApi.ts`) polls `/api/tasks/{id}` at 1500 ms while the
