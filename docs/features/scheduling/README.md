@@ -17,7 +17,8 @@ cannot pick an hour the interviewer is already busy for.
 - Recruiter: the Schedule tab's invite lifecycle panel —
   `app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx`,
   `ScheduleInviteAgendaRow.tsx`, `ScheduleInviteRecruiterControls.tsx`,
-  `useScheduleInviteLifecycle.ts`.
+  `useScheduleInviteLifecycle.ts`; the one agenda both it and the week grid render
+  from is owned by `useScheduleTab.ts` over the pure `scheduleAgenda.ts`.
 - Calendar connection (operator): `app/api/calendar/google/**` +
   `app/_lib/calendar/token-store.ts`.
 
@@ -476,9 +477,9 @@ were disabled-only, so a slow round-trip read as a dead button.
 
 ## The agenda read is bounded, throttled, and says so
 
-`GET /api/schedule` is the ONE list two live surfaces hydrate from — the Schedule
-tab’s week grid (`useScheduleTab.load`) and the invite lifecycle panel
-(`useScheduleInviteLifecycle`) — and both reload it after every mutation. It served
+`GET /api/schedule` is the ONE list two live surfaces render from — the Schedule
+tab’s week grid and the invite lifecycle panel — read once by the tab’s owner hook
+(`useScheduleTab.load`, see *One agenda, one owner* below). It served
 a hard-coded `listScheduleInvites(200, ws)`: no cursor, no way to ask for more and,
 worse, no signal that there was more. A team past 200 live invites silently lost the
 oldest of them from the agenda, from the lifecycle buckets **and from the grid’s
@@ -501,6 +502,45 @@ route with no budget while both write verbs carried one. The `?slots=1` branch f
 out to the interviewer’s connected Google calendar per hit, exactly like the
 candidate door. Its spec lives with every other limited door’s in
 `app/api/rate-limit-contract.test.ts`.
+
+### One agenda, one owner
+
+The tab used to hold the agenda twice: `useScheduleTab` kept the invite list for the
+grid and `useScheduleInviteLifecycle` kept a second copy, from its own GET, for the
+panel the tab renders as a child. Neither copy saw the other's writes. A grid Confirm
+booked the slot on the server and dropped the card without adopting the invite the
+route answered, so the grid drew the booked hour as free and the panel's Upcoming
+list never showed it. Going the other way, accepting a candidate's proposed time in
+the panel advanced the entry on the server while the grid kept its pending card. That
+card's Confirm would then **reschedule the accepted time onto the card's guessed
+cell**, because `book` moves a confirmed invite with recruiter authority and no cap.
+
+Now `useScheduleTab` owns one `AgendaState` (pending entries + invites). The panel
+gets it as props (`agendaForPanel`: the list, `loadedAt`, `truncated`, `failed` and
+the owner's writers), so a tab mount makes exactly one `GET /api/schedule`. The panel
+no longer depends on `sharedGet`'s in-flight coalescing for that. Every recruiter
+write goes through the pure module `scheduleAgenda.ts`:
+
+- **Write-through.** `applyMutation` adopts the row the route answered, keyed by
+  token, with order and every other row's identity kept. `book`, `reject` and
+  `accept_proposal` also drop the entry's pending card. A write response has no
+  pipeline join, so the agenda read's `entryStatus`/`entryStage` are kept, because
+  the Closed-row re-invite gates on them.
+- **Declared effects.** `effectsFor(kind)` is a table that must cover every verb (tsc
+  refuses a missing one). `book` and `accept_proposal` re-read `/api/pipeline`
+  because they advance the entry server-side. Every verb except `meeting_url` calls
+  `notifyDataChanged()`, so the Pipeline board and Decisions reload.
+  `reinvite` answers a token rather than a row, so the owner re-reads the agenda.
+- **Live refresh.** The owner subscribes `useLiveRefresh`, so a change made
+  elsewhere (a drawer move, another window, the simulation driver) reloads both lists
+  once, coalesced. Before, both lists were mount-only. The owner's own notify comes
+  back through the same window event. It is skipped for `OWN_ECHO_WINDOW_MS` because
+  that write is already applied. A read that was in flight when a write landed is
+  dropped, since it predates the write, and then issued again.
+
+Pinned by `app/features/hiring/schedule/scheduleAgenda.test.ts`: the pure cases, plus
+source contracts that the panel does no agenda read of its own and that the owner
+subscribes and announces.
 
 ## What the recruiter is told when a booking is refused
 
@@ -566,9 +606,10 @@ which drives the real handler for thirteen branches, asserts the four-catalog en
 for every code the route emits, and fails if any branch reverts to a bare
 `NextResponse.json({ error: … })`.
 
-The only consumers of these two handlers are `useScheduleInviteLifecycle.runAction`
-(POST) and `ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third,
-on the `book` action. All three already resolve by code.
+The only consumers of these two handlers are the owner's `runInviteAction` in
+`useScheduleTab.ts` (POST, driven by `useScheduleInviteLifecycle.runAction`) and
+`ScheduleMeetingLinkCell` (PATCH); the tab's grid Confirm is the third, on the `book`
+action. All three already resolve by code.
 
 ### The BULK invite door
 
