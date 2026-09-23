@@ -472,6 +472,42 @@ materialized seed says engagement could not be measured. `perturbationShown: fal
 renders nothing at all — the reveal never fired, which is no signal rather than a
 failure to adapt.
 
+### An unreadable repo is not missing evidence
+
+A GitHub read that fails is kp's condition (the anonymous 60/h limit, a 5xx, a
+timeout, `KP_OFFLINE`), not the candidate's behaviour, so it may lower what a reviewer
+can conclude but never the candidate's score.
+
+- **One transport.** Every dev-case GitHub read (`buildRepoSnapshot` for the need,
+  `fetchRepoSignals` for a submission, both in `app/_lib/repo-snapshot.ts`) goes through
+  `githubRead` in `app/_lib/github/client.ts`, the same transport the recruiter deep-dive's
+  `githubFetch` now wraps. That gives it the 20 s timeout, the 4 MB byte cap, the
+  `KP_OFFLINE` refusal and one credential rule (`GITHUB_TOKEN`, else `GH_TOKEN`). Each
+  read answers `read`, `not_found` (a 404, a fact about the repo) or a failure kind
+  (`throttled`, `http_error`, `unreachable`, `too_large`, `bad_shape`, `offline`).
+- **An unreadable commit list refuses the evaluation.** `fetchRepoSignals` returns
+  `{ ok: false, unreadable, retryAfterSec? }` instead of `null`, and
+  `runEvaluateSubmission` throws `RepoUnreadableError` (`code: "REPO_UNREADABLE"`,
+  `retryable: true`) before the Python evaluation is spawned. Nothing is saved, so the
+  next run reads the repo instead of keeping a zero-commit verdict. A list that answers
+  404 (or 409, GitHub's empty-repository answer) keeps the old `null` path. The task hub
+  records the message; there is no task-level retry class.
+- **An unread tree is not a missing DECISIONS log.** A `/contents` failure other than 404
+  sets `topLevelReadable: false`, `processTrace.decisionsLogPresent` becomes `null`, and
+  `scoreAuthenticity` skips the -25 `noDecisionsLog` penalty and emits
+  `decisionsLogUnread` instead (`devcase.evalPanel.authenticityReason.decisionsLogUnread`
+  in four catalogs). A partial commit-detail fan-out is `statsReadable: "partial"`, and
+  `changedPaths` come from the commits that answered.
+- **The need snapshot names what it could not read.** `RepoSnapshot.unreadable` lists
+  the parts (`languages`, `commits`, `contents`, `readme`) that were not read, so an empty
+  languages map is not handed to the reflect step as if it were the repo's truth.
+
+Pinned by `app/_lib/github/client.test.ts`, `app/_lib/repo-snapshot.test.ts`,
+`app/_lib/devcase-authenticity.test.ts` and `app/_lib/devcase-run-unreadable.test.ts`.
+Still open: the process-trace chip in `DevEvalPanelProcessTrace.tsx` renders a `null`
+`decisionsLogPresent` as "missing" (the authenticity tooltip says "unread"), and the
+Python side still receives an empty `topLevel` for an unread tree.
+
 ## Localization of the studio (phase 1)
 
 The candidate-facing surface has always been fully localized (42 `devApply` strings
@@ -1035,6 +1071,7 @@ with the same `{ kind, params }` shape.
 | `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
+| `app/_lib/repo-snapshot.ts` | The dev-case GitHub reads (need snapshot, submission signals) over the one transport `githubRead` in `app/_lib/github/client.ts`; reports read / not there / unread, never an unread part as empty |
 | `app/_lib/dev-outcomes.ts` | The outcome/calibration store (`dev_outcomes`), opened on its own connection. Two writers: the control room via `/api/devcase/outcomes`, and the hiring board via `/api/pipeline/outcomes` (`recordHirePerformance` / `hireOutcomeRef` / `countRatedHires`). |
 | `app/_lib/devcase-probe-audit.ts`, `devcase-compare.ts`, `devcase-cohort.ts`, `devcase-interview-kit.ts` | Evaluation support: probe-outcome audit, submission comparison, cohort stats, interview-kit generation |
 | `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `devcase_cli.py` |

@@ -197,7 +197,8 @@
         "app/api/devcase/**",
         "app/features/tools/devcases/**",
         "app/devcase/**",
-        "pipeline/jobfit/devcase/**"
+        "pipeline/jobfit/devcase/**",
+        "app/_lib/repo-snapshot.ts"
       ]
     },
     {

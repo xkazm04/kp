@@ -10014,7 +10014,8 @@
         "bursty": "The work landed in a single burst rather than incrementally.",
         "bigBang": "Big-bang iteration pattern, with no visible build-up.",
         "unreadableIteration": "The iteration pattern could not be read from the trace.",
-        "lowReadBeforeWrite": "Little evidence of reading the existing code before writing."
+        "lowReadBeforeWrite": "Little evidence of reading the existing code before writing.",
+        "decisionsLogUnread": "The repository tree could not be read from GitHub, so whether the DECISIONS log was kept is unknown. No points were deducted."
       },
       "promoteVerdict": {
         "previewTitle": "The verdict a promotion lands with now, at the calibrated floor",

@@ -10014,7 +10014,8 @@
         "bursty": "Práce vznikla v jediném nárazu, ne postupně.",
         "bigBang": "Vzorec „všechno najednou“, bez viditelného postupného budování.",
         "unreadableIteration": "Způsob iterace nešlo ze stopy vyčíst.",
-        "lowReadBeforeWrite": "Málo dokladů o čtení stávajícího kódu před psaním."
+        "lowReadBeforeWrite": "Málo dokladů o čtení stávajícího kódu před psaním.",
+        "decisionsLogUnread": "Strom repozitáře se z GitHubu nepodařilo načíst, proto není známo, zda byl záznam DECISIONS veden. Body nebyly strženy."
       },
       "promoteVerdict": {
         "previewTitle": "Verdikt, se kterým by postup do pipeline nyní proběhl, podle kalibrované laťky",

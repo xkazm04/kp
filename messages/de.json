@@ -10014,7 +10014,8 @@
         "bursty": "Die Arbeit entstand in einem einzigen Schub statt schrittweise.",
         "bigBang": "Big-Bang-Muster, ohne sichtbaren Aufbau.",
         "unreadableIteration": "Das Iterationsmuster war aus der Spur nicht lesbar.",
-        "lowReadBeforeWrite": "Wenig Hinweise darauf, dass der bestehende Code vor dem Schreiben gelesen wurde."
+        "lowReadBeforeWrite": "Wenig Hinweise darauf, dass der bestehende Code vor dem Schreiben gelesen wurde.",
+        "decisionsLogUnread": "Die Verzeichnisstruktur des Repositorys konnte nicht von GitHub gelesen werden, daher ist unbekannt, ob das DECISIONS-Protokoll geführt wurde. Es wurden keine Punkte abgezogen."
       },
       "promoteVerdict": {
         "previewTitle": "Das Urteil, mit dem eine Weiterleitung jetzt landet, an der kalibrierten Schwelle",
