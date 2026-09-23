@@ -36,6 +36,7 @@ from ..profile import CandidateProfileV2, Evidence, SkillClaim
 from ..taxonomy import resolve_term, skill_match_score
 from ..transform import build_match_candidate
 from ._style import _make_styler, should_color
+from .neutrality import PERTURBATIONS, gender_pairs
 from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import MATCHING_THRESHOLDS as THRESHOLDS
 from .thresholds import record_refusal, settle_live
@@ -308,11 +309,10 @@ def _probe_gender(jobs: list[Any]) -> Probe:
         p.display_name = name
         return [(m.job_id, m.total) for m in match(build_match_candidate(p), jobs, limit=50).matches]
 
-    pairs = [
-        ("Jan Novák", "Jana Nováková"),      # the shipped Czech marking
-        ("Jan Novak", "Jana Novakova"),      # accent-stripped: a lossy extract
-        ("John Smith", "Jane Smith"),        # English control
-    ]
+    # The shipped Czech marking, its accent-stripped form (a lossy extract), a
+    # titled form and an English control — read from the ONE perturbation set the
+    # test suites and the neutrality registry share, never re-typed here.
+    pairs = gender_pairs(PERTURBATIONS)
     diffs: list[str] = []
     for masc, fem in pairs:
         a, b = ranked(masc), ranked(fem)
@@ -323,7 +323,7 @@ def _probe_gender(jobs: list[Any]) -> Probe:
 
     # Non-vacuity: if naming a candidate at all changed nothing measurable, the probe
     # could pass on a scorer that ignores every input. A ranking must exist to compare.
-    measured = bool(ranked("Jan Novák"))
+    measured = bool(ranked(pairs[0][0]))
     passed = measured and not diffs
     detail = (
         f"ranking identical across {len(pairs)} gender-marked name pairs (full top-50, exact)"

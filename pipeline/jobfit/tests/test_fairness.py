@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import unittest
 
+from pipeline.jobfit.eval.neutrality import PERTURBATIONS, gender_pairs, gendered_prose
 from pipeline.jobfit.eval.matching_eval import (
     SCENARIOS,
     THRESHOLDS,
@@ -109,17 +110,13 @@ class MatchingEvalTest(unittest.TestCase):
 # (-ová), the gendered honorific (pan / paní), the gendered pronoun, and the
 # gender-inflected Czech job title. Each pair is (masculine, feminine); the
 # accent-stripped pair is what a lossy PDF extract actually produces, and the English
-# pair pins that the axis is not Czech-only.
-_GENDER_PAIRS = (
-    ("Jan Novák", "Jana Nováková"),
-    ("Jan Novak", "Jana Novakova"),          # accent-stripped (lossy extract)
-    ("Ing. Jan Novák", "Ing. Jana Nováková"),
-    ("John Smith", "Jane Smith"),
-)
-_GENDERED_PROSE = (
-    ("pan Jan Novák; on byl vedoucí vývojář týmu", "paní Jana Nováková; ona byla vedoucí vývojářka týmu"),
-    ("Mr Smith led the team; his work shipped", "Ms Smith led the team; her work shipped"),
-)
+# pair pins that the axis is not Czech-only. The names live ONCE, in
+# eval/neutrality.PERTURBATIONS (the union of the three sets that used to be typed
+# out here, in test_name_neutrality.py and in matching_eval._probe_gender); this
+# file reads the pairs from it. The registry in test_neutrality_registry.py runs the
+# same set through every candidate-typed scorer, not only the two engines below.
+_GENDER_PAIRS = gender_pairs(PERTURBATIONS)
+_GENDERED_PROSE = gendered_prose(PERTURBATIONS)
 
 
 class GenderNeutralityTest(unittest.TestCase):

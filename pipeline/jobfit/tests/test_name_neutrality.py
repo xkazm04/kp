@@ -40,27 +40,21 @@ from unittest import mock
 import pipeline.jobfit.pipeline as P
 from pipeline.jobfit.matching import MatchCandidate, load_corpus, match
 from pipeline.jobfit.profile import CandidateProfileV2, Evidence, SkillClaim
+from pipeline.jobfit.eval.neutrality import BASELINE_NAME, PERTURBATIONS, name_axes
 from pipeline.jobfit.transform import build_match_candidate
 
-# The baseline uses a name-shaped placeholder (not None) so the comparison is
-# name-vs-name, not name-vs-missing-field: a hypothetical "any label present"
-# branch would fire identically on both sides and only a name-VALUE dependence
-# can produce a diff.
-BASELINE_NAME = "Alex Smith"
+# The baseline (BASELINE_NAME, imported above) is a name-shaped placeholder (not
+# None) so the comparison is name-vs-name, not name-vs-missing-field: a
+# hypothetical "any label present" branch would fire identically on both sides and
+# only a name-VALUE dependence can produce a diff.
 
 # Perturbation set — one axis per entry, per the Czech-market discrimination
 # evidence the harness finding cites. Given names are the gender proxy; the
 # -ová surname is an explicit grammatical gender marker; Horváth/Lakatošová and
-# the given names Gejza/Květoslava are strongly Roma-associated in CZ/SK.
-NAME_VARIANTS: dict[str, str] = {
-    "czech_male": "Jiří Novák",
-    "czech_female_ova": "Jana Nováková",
-    "vietnamese": "Nguyễn Thị Thu Hà",
-    "ukrainian": "Oleksandra Shevchenko",
-    "arabic": "Ahmed Al-Farsi",
-    "roma_associated": "Gejza Horváth",
-    "roma_associated_female": "Květoslava Lakatošová",
-}
+# the given names Gejza/Květoslava are strongly Roma-associated in CZ/SK. The
+# names live ONCE, in eval/neutrality.PERTURBATIONS; test_neutrality_registry.py
+# runs the same set through every candidate-typed scorer on the tree.
+NAME_VARIANTS: dict[str, str] = name_axes(PERTURBATIONS)
 
 # MatchCandidate fields that are ALLOWED to carry the name because they are
 # display/reasoning context, never a deterministic score input:
@@ -155,7 +149,7 @@ class NameNeutralityTest(unittest.TestCase):
 
     def test_gendered_surname_pair_scores_identically(self) -> None:
         # The single most sensitive pair spelled out on its own: the -ová
-        # surname is a deterministic gender marker, so Novák vs Nováková is the
+        # surname is a deterministic gender marker, so the -ová pair is the
         # purest gender-proxy perturbation available in Czech.
         male, _ = _score_payload(_profile(NAME_VARIANTS["czech_male"]), self.jobs)
         female, _ = _score_payload(_profile(NAME_VARIANTS["czech_female_ova"]), self.jobs)
