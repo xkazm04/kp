@@ -24,6 +24,7 @@ import {
   type InterviewSession,
 } from "@/app/_lib/db/interviews";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { entryContactability } from "@/app/_lib/comms-contactability";
 import { latestPublishedKit } from "@/app/_lib/interview-kit";
 import type { StoredInterviewKit } from "@/app/_lib/interview-kit-types";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
@@ -46,6 +47,9 @@ export type MeterRefusal = NonNullable<ReturnType<typeof meterGate>>;
 export type VoiceScreenMintResult =
   | { ok: false; refusal: "BILLING_QUOTA_EXCEEDED"; quota: MeterRefusal }
   | { ok: false; refusal: "INTERVIEW_CALL_IN_PROGRESS" }
+  /** The SEND GATE refuses this candidate (consent lapsed but not yet swept, or
+   *  erased): nothing was built, reserved, revoked, minted or mailed. */
+  | { ok: false; refusal: "COMMS_SUPPRESSED" }
   | {
       ok: true;
       session: InterviewSession;
@@ -82,6 +86,8 @@ export type VoiceScreenMintInput = {
  * Order is load-bearing — the route's original order, with the kit pin moved ahead of
  * the build because the kit now sets the booked length:
  *   1. live-call guard — a reissue must not torpedo a call in progress;
+ *   1b. the send gate (`entryContactability`) — a candidate we may no longer write to
+ *      gets no model-backed build, no reservation and no link;
  *   2. the job-kit pin, then the grounded build, so the booked duration is known
  *      (a pinned kit sets it) and so a build failure can never kill the candidate's
  *      existing live link;
@@ -118,7 +124,23 @@ export async function mintAndInviteVoiceScreen(input: VoiceScreenMintInput): Pro
   // reads, and states it in the saved fallback brief).
   // Best-effort — a job with no kit, or a kit that cannot be read, mints the link the
   // way it always did rather than failing the invite.
-  const jobId = getPipelineEntry(entryId, workspaceId)?.jobId ?? null;
+  const entry = getPipelineEntry(entryId, workspaceId);
+
+  // ASK THE SEND GATE FIRST (challenge-r09 follow-up to comms-locale-optout/A). Every
+  // other candidate-link door asks `entryContactability` before it mints; this one used
+  // to meet the gate only inside the best-effort dispatch below, AFTER a model-backed
+  // build and a live session — so "Start interview" minted a working /interview/<token>
+  // for an opted-out / consent-lapsed / erased candidate while "Send link" on the same
+  // card was refused 409. Only a CODED refusal stops the mint: an unaddressable person
+  // (the recruiter hands the link over by hand) and an agent slate keep their existing
+  // paths. No entry → fall through, so the build's not-found stays the one answer.
+  // Verdict-then-mint holds no lock by design; sendComm re-checks at the send.
+  if (entry) {
+    const contactable = entryContactability(entry, "interview_invite");
+    if (!contactable.ok && contactable.code) return { ok: false, refusal: contactable.code };
+  }
+
+  const jobId = entry?.jobId ?? null;
   let pinned: StoredInterviewKit | null = null;
   if (jobId) {
     try {

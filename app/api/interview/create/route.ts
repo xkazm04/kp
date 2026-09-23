@@ -103,6 +103,10 @@ export async function POST(request: NextRequest) {
       force: body.force === true,
     });
     if (!minted.ok) {
+      // COMMS_SUPPRESSED: the send gate refuses this candidate (consent lapsed, or
+      // erased) — the same 409 the single scheduling-invite door answers on the same
+      // card, and nothing was built, reserved or minted.
+      if (minted.refusal === "COMMS_SUPPRESSED") return jsonRefusal("COMMS_SUPPRESSED", 409);
       return minted.refusal === "INTERVIEW_CALL_IN_PROGRESS"
         ? jsonRefusal("INTERVIEW_CALL_IN_PROGRESS", 409)
         : jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: minted.quota.meter, plan: minted.quota.plan });
