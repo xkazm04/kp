@@ -519,6 +519,41 @@ class TestDevcaseCliFallbackReason(unittest.TestCase):
         for art in payload["result"].values():
             self.assertNotIn("fallbackReason", art)
 
+    def _ledger_run(self, provider, argv_tail: list[str]) -> tuple[dict, list[dict]]:
+        with tempfile.TemporaryDirectory() as d:
+            need = self._need(d)
+            ledger = Path(d) / "usage.ndjson"
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False):
+                with mock.patch.object(devcase_cli, "resolve_provider", return_value=provider):
+                    with self.assertLogs("pipeline.jobfit.devcase", level="WARNING"):
+                        code, out, _err = _run(["analyze-need", "--need-json", need, *argv_tail])
+            self.assertEqual(code, 0)
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
+        return _last_json(out), rows
+
+    def test_a_mid_call_descent_reaches_the_ledger_coded(self):
+        """challenge-r04 tests-llm-eval/A — the provider was AVAILABLE, so the availability
+        gate left `descent` at None; the step then degraded mid-call. The deterministic
+        ledger line must name that step's CODE, not the gate's None."""
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        payload, rows = self._ledger_run(FaultProvider("malformed"), [])
+        det = [r for r in rows if r["source"] == "deterministic"]
+        self.assertEqual(len(det), 1)
+        self.assertEqual(det[0].get("reason"), "unparseable_output")
+        # The code is ledger-only: neither the envelope's artifact nor its prose block carries it.
+        self.assertNotIn("fallbackCode", payload["result"])
+        self.assertNotIn("fallbackCode", payload)
+        self.assertTrue(payload["fallbackReason"]["analyze"].startswith("LLMError:"))
+
+    def test_the_emit_hands_each_step_its_own_code(self):
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        with mock.patch.object(devcase_cli, "emit_deterministic") as emit:
+            self._ledger_run(FaultProvider("wrong_shape"), [])
+        emit.assert_called_once()
+        self.assertEqual(emit.call_args.kwargs.get("reason"), "unusable_output")
+
 
 
 class TestDevcaseCliSharedErrorVocabulary(unittest.TestCase):

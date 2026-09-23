@@ -52,7 +52,7 @@ from . import design as _design
 from . import evaluate as _evaluate
 from . import reflect as _reflect
 from .models import LOW_CONFIDENCE, DevNeed, NeedAnalysis, RepoSnapshot
-from .provenance import collect_fallback_reasons, combine_source
+from .provenance import FallbackReasons, collect_fallback_reasons, combine_source
 
 # devcase_cli command → LLM-registry use case (capabilities.py catalog), so the
 # Models config can pin a provider/model per step. design-artifacts covers both
@@ -128,7 +128,7 @@ def _confidences(**named: object) -> dict[str, float]:
     return out
 
 
-def _fallback_reasons(**named: object) -> dict[str, str]:
+def _fallback_reasons(**named: object) -> FallbackReasons:
     """Map step -> the reason its LLM call fell back to its deterministic template.
 
     The reason is stashed on each artifact by ``provenance.generate_with_fallback`` when the
@@ -137,6 +137,9 @@ def _fallback_reasons(**named: object) -> dict[str, str]:
     steps whose LLM call actually raised carry one — a clean LLM run or a ``--no-llm`` /
     provider-unavailable run records none — so the map (and the envelope key) is empty/omitted
     in the common case. ``named`` keys MUST match the ``per_step`` keys so the two line up.
+
+    The step's CODE (``fallbackCode``) is popped with it and rides on the returned map's
+    ``.codes`` — never in the envelope — for :func:`_emit` to hand to the ledger.
     """
     # pop=True: lift the reason OFF the artifact so it rides in the envelope, not
     # the model round-trip (shared with both eval harnesses via provenance).
@@ -183,10 +186,17 @@ def _emit(
     # ``use_case`` is passed only by the provider-backed commands; the
     # pure-deterministic ones (source, observed-*) never had an LLM to fall back
     # from, so they stay unmetered. No-op without KP_LLM_USAGE_LOG.
+    #
+    # WHICH reason each line carries: the availability gate's descent when there was
+    # no provider (``descent_reason``), otherwise the step's own MID-CALL code. The
+    # gate's descent is None whenever the provider was available, and a step that then
+    # timed out or answered with prose used to reach the ledger as that None — the
+    # anonymity fault_eval exists to refuse (challenge-r04 tests-llm-eval/A).
     if use_case:
-        for step_source in per_step.values():
+        codes = getattr(fallback_reasons, "codes", None) or {}
+        for step, step_source in per_step.items():
             if step_source == "deterministic":
-                emit_deterministic(use_case, reason=descent_reason)
+                emit_deterministic(use_case, reason=descent_reason or codes.get(step))
     envelope: dict[str, object] = {
         "result": result,
         "source": combine_source(*per_step.values()),

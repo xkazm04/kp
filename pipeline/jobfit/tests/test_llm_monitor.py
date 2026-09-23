@@ -476,5 +476,67 @@ class FailedAttemptLedgerTest(unittest.TestCase):
         self.assertEqual(kept[0]["reason"], "unusable_output")
 
 
+class ReasonCodeTest(unittest.TestCase):
+    """challenge-r04 tests-llm-eval/A — the reduction reads a LEADING code.
+
+    ``provenance.UNUSABLE_OUTPUT_REASON`` is ``"unusable_output: <prose>"``: a code the
+    engine chose, followed by a sentence for the human. The reduction used to see only
+    "a line with spaces" and file it as ``provider_error`` — telling the operator the
+    CALL died when the call succeeded and was paid for.
+    """
+
+    def test_a_leading_vocabulary_code_is_kept(self) -> None:
+        self.assertEqual(
+            monitor._reason_code("unusable_output: the provider answered but coercion kept none of it"),
+            "unusable_output",
+        )
+        self.assertEqual(monitor._reason_code("provider_timeout: waited 30s"), "provider_timeout")
+
+    def test_a_leading_word_outside_the_vocabulary_is_still_prose(self) -> None:
+        # Only a word the vocabulary declares may lead: a provider message that happens
+        # to start with a lowercase token ("timeout: …", "error: …") is still prose, and
+        # must never mint a new code in a durable column.
+        self.assertEqual(monitor._reason_code("timeout: the upstream said so"), "provider_error")
+        self.assertEqual(monitor._reason_code("LLMError: gemini call failed"), "provider_error")
+        self.assertEqual(monitor._reason_code("TimeoutError: slow"), "provider_timeout")
+
+    def test_a_bare_code_and_nothing_still_behave(self) -> None:
+        self.assertEqual(monitor._reason_code("offline_policy"), "offline_policy")
+        self.assertIsNone(monitor._reason_code(None))
+        self.assertIsNone(monitor._reason_code("  "))
+
+
+class OneVocabularyTest(unittest.TestCase):
+    """The four classifiers of one taxonomy now live in ``llm/degradation.py``; the old
+    names stay as aliases so no caller or pin moved."""
+
+    def test_every_old_name_is_the_shared_definition(self) -> None:
+        from pipeline.jobfit import automation
+        from pipeline.jobfit.llm import degradation
+
+        self.assertIs(automation.DEGRADATION_REASONS, degradation.DEGRADATION_REASONS)
+        self.assertIs(automation._call_failure_reason, degradation.classify)
+        self.assertIs(automation._classify_fallback_text, degradation.classify_fallback_text)
+        self.assertIs(monitor._failure_reason, degradation.classify)
+        self.assertIs(monitor._reason_code, degradation.reason_code)
+        self.assertIs(monitor.FAILURE_REASONS, degradation.FAILURE_REASONS)
+
+    def test_a_failed_call_is_a_subset_of_why_the_template_served(self) -> None:
+        # The split monitor used to keep by maintaining two literals: why the CALL died
+        # is a strict subset of why the TEMPLATE served (the extra word is unusable_output,
+        # which is never a failed call). Now it is a checked relation, not two copies.
+        from pipeline.jobfit.llm import degradation
+
+        self.assertLess(set(degradation.FAILURE_REASONS), set(degradation.DEGRADATION_REASONS))
+        self.assertNotIn("unusable_output", degradation.FAILURE_REASONS)
+
+    def test_classify_reads_the_subtype(self) -> None:
+        from pipeline.jobfit.llm import degradation
+
+        self.assertEqual(degradation.classify(LLMError("x", subtype="deadline_exceeded")), "provider_timeout")
+        self.assertEqual(degradation.classify(LLMError("x", subtype="unparseable_json")), "unparseable_output")
+        self.assertEqual(degradation.classify(RuntimeError("deadline exhausted parseable JSON")), "provider_error")
+
+
 if __name__ == "__main__":
     unittest.main()

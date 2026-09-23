@@ -195,6 +195,34 @@ class AgentFitCliTest(unittest.TestCase):
             # camelCase salaryBand (the TS JobRecord shape) validated into the band rule.
             self.assertEqual(result["budget"]["suggestedMonthlyUsd"], round(1000 / agentfit.CZK_PER_USD, 2))
 
+    def test_a_mid_call_descent_reaches_the_ledger_coded(self):
+        """challenge-r04 tests-llm-eval/A — an AVAILABLE provider leaves the gate's descent at
+        None; a mid-call degradation must still reach the ledger with its code."""
+        import os
+        from unittest import mock
+
+        from pipeline.jobfit.llm.fault import FaultProvider
+
+        with tempfile.TemporaryDirectory() as td:
+            job_path = Path(td) / "job.json"
+            catalog_path = Path(td) / "catalog.json"
+            ledger = Path(td) / "usage.ndjson"
+            job_path.write_text(json.dumps({"id": "job-1", "title": "Reporting Analyst"}), encoding="utf-8")
+            catalog_path.write_text(json.dumps(CATALOG), encoding="utf-8")
+            out = io.StringIO()
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False), \
+                    mock.patch.object(agentfit_cli, "resolve_provider", return_value=FaultProvider("malformed")), \
+                    self.assertLogs("pipeline.jobfit.agentfit", level="WARNING"), \
+                    contextlib.redirect_stdout(out):
+                code = agentfit_cli.main(["--job-json", str(job_path), "--catalog-json", str(catalog_path)])
+            self.assertEqual(code, 0)
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
+        det = [r for r in rows if r["source"] == "deterministic"]
+        self.assertEqual([r.get("reason") for r in det], ["unparseable_output"])
+        envelope = json.loads(out.getvalue().strip().splitlines()[-1])
+        self.assertNotIn("fallbackCode", envelope["result"])
+        self.assertIn("agentFit", envelope["fallbackReason"])
+
     def test_invalid_input_is_a_400(self):
         with tempfile.TemporaryDirectory() as td:
             job_path = Path(td) / "job.json"

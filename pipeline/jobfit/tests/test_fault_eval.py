@@ -186,6 +186,84 @@ class CallFloorTest(unittest.TestCase):
         self.assertTrue(_call_was_owed("screen", {}))
 
 
+class FallbackSeamFamilyTest(unittest.TestCase):
+    """challenge-r04 tests-llm-eval/A — the drill's SECOND seam family.
+
+    ``provenance.generate_with_fallback`` is the runner fifteen call sites share, and the
+    drill used to import automation's TASKS and nothing else, so none of them was ever
+    handed a lying provider. Three representative seams (devcase, agentfit, intake) now
+    run every mode under the same EXPECTATIONS, reading the reason from the code the
+    runner stamps.
+    """
+
+    SEAMS = {"analyze_need", "analyze_agent_fit", "run_intake_turn"}
+
+    def test_the_family_is_declared(self):
+        self.assertEqual(set(fault_eval.FALLBACK_SEAMS), self.SEAMS)
+
+    def test_every_mode_runs_every_seam(self):
+        from pipeline.jobfit.llm.fault import MODES
+
+        items = fault_eval._drill_items(list(MODES))
+        seam_items = {(mode, name) for kind, mode, name, _s in items if kind == "seam"}
+        self.assertEqual(seam_items, {(m, s) for m in MODES for s in self.SEAMS})
+
+    def test_the_cheap_modes_hold_on_the_real_seams(self):
+        rows = [r for r in fault_eval.run_drill(["unavailable", "malformed", "wrong_shape", "protected_language"])
+                if r.task in self.SEAMS]
+        self.assertEqual(len(rows), 4 * len(self.SEAMS))
+        for r in rows:
+            with self.subTest(mode=r.mode, seam=r.task):
+                self.assertEqual(r.failures, [])
+        coded = {(r.mode, r.task): r.reason for r in rows}
+        for seam in self.SEAMS:
+            self.assertIsNone(coded[("unavailable", seam)])
+            self.assertEqual(coded[("malformed", seam)], "unparseable_output")
+            self.assertEqual(coded[("wrong_shape", seam)], "unusable_output")
+
+    @staticmethod
+    def _fake_seam(artifact: dict):
+        def run(provider):
+            if provider is not None:
+                provider.complete("ping", timeout=1)
+            return dict(artifact), "deterministic"
+
+        return {"fake": {"run": run, "check": lambda _a: []}}
+
+    def test_a_seam_that_degrades_anonymously_fails_the_drill(self):
+        with mock.patch.dict(fault_eval.FALLBACK_SEAMS, self._fake_seam({"x": 1}), clear=True):
+            row = fault_eval._run_seam("malformed", "fake")
+            self.assertTrue(any("degraded anonymously" in f for f in row.failures), row.failures)
+            agg = _aggregate(fault_eval.run_drill(["malformed"]))
+        self.assertFalse(_passes(agg))
+
+    def test_a_code_outside_the_vocabulary_fails(self):
+        with mock.patch.dict(
+            fault_eval.FALLBACK_SEAMS, self._fake_seam({"fallbackCode": "network_gremlin"}), clear=True
+        ):
+            row = fault_eval._run_seam("malformed", "fake")
+        self.assertTrue(any("not in" in f and "DEGRADATION_REASONS" in f for f in row.failures), row.failures)
+
+
+class RematchReasonTest(unittest.TestCase):
+    def test_rematch_is_reason_checked(self):
+        # automation.rematch_candidate records its descent through on_fallback now, so
+        # the exemption that said it "degrades anonymously" was stale.
+        self.assertIn("rematch", fault_eval.REASONED_TASKS)
+
+    def test_rematch_names_a_coerced_away_answer_where_a_call_was_owed(self):
+        scenario = next(s for s in fault_eval.SCENARIOS_UNDER_FAULT if s.name == "bau_weak")
+        row = _run_one("wrong_shape", "rematch", scenario)
+        self.assertEqual(row.failures, [])
+        self.assertEqual(row.reason, "unusable_output")
+
+    def test_a_rematch_that_owed_no_call_is_not_held_to_a_reason(self):
+        scenario = next(s for s in fault_eval.SCENARIOS_UNDER_FAULT if s.name == "student_weak_fairness")
+        row = _run_one("malformed", "rematch", scenario)
+        self.assertEqual(row.calls, 0)
+        self.assertEqual(row.failures, [])
+
+
 class DocTableTest(unittest.TestCase):
     def test_every_mode_has_a_row_with_its_recorded_cost(self):
         lines = _doc_table().splitlines()

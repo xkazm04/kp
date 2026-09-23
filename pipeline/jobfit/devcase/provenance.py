@@ -30,6 +30,8 @@ import logging
 import re
 from typing import Any, Callable, Iterable, Sequence
 
+from ..llm import degradation as _vocabulary
+
 
 # Every maximal run of 3+ angle brackets — the SIGIL every `<<<FENCE>>>` marker
 # in this codebase is built from. Maximal-run matching is the load-bearing part:
@@ -112,6 +114,19 @@ SOURCE_DETERMINISTIC = "deterministic"
 # actually raised — a ``provider is None`` / clean-LLM run never carries it.
 FALLBACK_REASON_KEY = "fallbackReason"
 
+# The CODE beside that prose: one word of ``llm.degradation.DEGRADATION_REASONS``.
+# ``fallbackReason`` is for a human reading one envelope; it cannot reach the durable
+# ``llm_usage.reason`` column (the message half is provider-authored and can echo the
+# prompt), so until this key existed every mid-call descent of this runner reached the
+# ledger as nothing — the CLIs passed the availability gate's descent, which is None
+# whenever the provider WAS available. Stamped and popped together with the reason
+# (:func:`collect_fallback_reasons`), so it never reaches a frozen devcase seat or the
+# TS wire; the CLIs hand it to ``emit_deterministic`` instead.
+FALLBACK_CODE_KEY = "fallbackCode"
+
+# Our two stamps. Neither is the step's content.
+_STAMP_KEYS = (FALLBACK_REASON_KEY, FALLBACK_CODE_KEY)
+
 # Cap the captured message so a verbose provider error body (e.g. an echoed prompt or a
 # 300-char unparsed-JSON snippet) can't bloat the envelope or a log line.
 _MAX_REASON_CHARS = 300
@@ -121,7 +136,7 @@ _MAX_REASON_CHARS = 300
 # own vocabulary instead of a :func:`describe_fallback` "<Type>: <message>" line, and it
 # reuses the word ``automation._generate`` already files this descent under
 # ("unusable_output") so the two ledgers name the same failure the same way.
-UNUSABLE_OUTPUT_REASON = "unusable_output: the provider answered but coercion kept none of it"
+UNUSABLE_OUTPUT_REASON = f"{_vocabulary.UNUSABLE_OUTPUT}: the provider answered but coercion kept none of it"
 
 
 def str_list(value: Any) -> list[str]:
@@ -136,26 +151,45 @@ def str_list(value: Any) -> list[str]:
     return [str(x).strip() for x in value if str(x).strip()]
 
 
+class FallbackReasons(dict):
+    """``step -> prose reason`` (the envelope's ``fallbackReason`` block), carrying
+    ``.codes``: ``step -> DEGRADATION_REASONS code`` for the usage ledger.
+
+    A dict, so every existing caller — the envelope, ``json.dumps``, the harnesses'
+    equality checks — reads it exactly as before; the codes ride as an attribute and
+    never serialize. That is the point: the code is ledger-only.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.codes: dict[str, str] = {}
+
+
 def collect_fallback_reasons(
     pairs: Iterable[tuple[str, Any]], *, pop: bool = False
-) -> dict[str, str]:
-    """Lift per-step fallback reasons off a list of ``(step, artifact)`` pairs.
+) -> FallbackReasons:
+    """Lift per-step fallback reasons (and their codes) off ``(step, artifact)`` pairs.
 
-    One definition of the fallback-reason contract — the key name, the dict-guard,
+    One definition of the fallback-reason contract — the key names, the dict-guard,
     and the skip-when-empty rule — shared by ``devcase_cli`` and both eval harnesses
     so a change to how a degraded step is recorded can't drift between them. Pass
-    ``pop=True`` (the CLI) to REMOVE the key from the artifact so it rides in the
-    envelope instead of the model round-trip; the default reads it non-destructively
-    (the harnesses, which keep the artifacts intact). Steps whose LLM call never
-    raised carry no reason and are omitted.
+    ``pop=True`` (the CLI) to REMOVE both stamps from the artifact so the prose rides
+    in the envelope and the code in the ledger, never in the model round-trip or a
+    persisted artifact; the default reads them non-destructively (the harnesses,
+    which keep the artifacts intact). Steps whose LLM call never degraded carry
+    neither and are omitted. The codes are on ``.codes``.
     """
-    out: dict[str, str] = {}
+    out = FallbackReasons()
     for step, art in pairs:
         if not isinstance(art, dict):
             continue
-        reason = art.pop(FALLBACK_REASON_KEY, None) if pop else art.get(FALLBACK_REASON_KEY)
+        read = art.pop if pop else art.get
+        reason = read(FALLBACK_REASON_KEY, None)
+        code = read(FALLBACK_CODE_KEY, None)
         if reason:
             out[step] = str(reason)
+        if code:
+            out.codes[step] = str(code)
     return out
 
 
@@ -216,9 +250,9 @@ def _complete_json(provider: Any, prompt: str, system: str, expected_keys: Seque
 
 
 def _without_reason(d: dict) -> dict:
-    """The artifact minus the one key THIS module writes into it.
+    """The artifact minus the keys THIS module writes into it.
 
-    :data:`FALLBACK_REASON_KEY` is our own stamp, not the step's content, so it must
+    :data:`FALLBACK_REASON_KEY` (and its :data:`FALLBACK_CODE_KEY`) is our own stamp, not the step's content, so it must
     never take part in a template comparison — in either direction. Both directions
     really occur: the coerced result carries it if a coercer echoes a previously
     degraded artifact back (and this function stamps it onto its own return value one
@@ -228,7 +262,7 @@ def _without_reason(d: dict) -> dict:
     the check reads "the model contributed something", and the mislabel survives exactly
     in the degraded case it was written to catch.
     """
-    return {k: v for k, v in d.items() if k != FALLBACK_REASON_KEY}
+    return {k: v for k, v in d.items() if k not in _STAMP_KEYS}
 
 
 def _kept_nothing(result: Any, deterministic: Callable[[], dict], logger: logging.Logger) -> bool:
@@ -306,29 +340,51 @@ def generate_with_fallback(
       module's ``logger`` so operators see WHICH step degraded) and stash a one-line
       :func:`describe_fallback` reason on the returned artifact under
       :data:`FALLBACK_REASON_KEY`, which ``devcase_cli`` lifts into the provenance envelope.
+    * the call SUCCEEDS but ``coerce`` RAISES on the payload (JSON of the wrong type, an
+      intake reply with no ``reply``) — same prose reason, but it is filed as
+      ``unusable_output``, not beside a transport failure: the answer arrived and was
+      paid for. This is ``automation._generate``'s split, which this runner lacked while
+      one ``try`` wrapped both the call and the coercion.
 
-    Returns the usual ``(artifact, source)`` tuple — the reason rides inside ``artifact``
-    so the four ``_generate`` signatures (and every call site) stay unchanged.
+    Every degraded outcome also carries a CODE under :data:`FALLBACK_CODE_KEY` — one word
+    of ``llm.degradation.DEGRADATION_REASONS``, classified from the exception's
+    ``.subtype`` for a failed call — which the CLIs hand to ``emit_deterministic`` so the
+    usage ledger can tell a timeout from prose from an unusable answer.
+
+    Returns the usual ``(artifact, source)`` tuple — the reason and code ride inside
+    ``artifact`` so the ``_generate`` signatures (and every call site) stay unchanged.
     """
     if provider is None:
         return deterministic(), SOURCE_DETERMINISTIC
     try:
         payload = _complete_json(provider, prompt, system, expected_keys)
+    except Exception as exc:
+        return _fell_back(deterministic, logger, describe_fallback(exc), _vocabulary.classify(exc)), SOURCE_DETERMINISTIC
+    try:
         result = coerce(payload)
     except Exception as exc:
-        reason = describe_fallback(exc)
-        logger.warning("LLM step fell back to deterministic: %s", reason)
-        # Copy before stamping: a builder that hands back a cached/shared dict would
-        # otherwise be polluted by our own reason key for the rest of the process, and
-        # every later template comparison in this module would compare against it.
-        result = dict(deterministic())
-        result[FALLBACK_REASON_KEY] = reason
-        return result, SOURCE_DETERMINISTIC
+        # Separated from the call above on purpose: the provider answered, and the
+        # coercer is what tripped. Blaming the provider would file it beside a
+        # transport failure in the ledger.
+        return _fell_back(deterministic, logger, describe_fallback(exc), _vocabulary.UNUSABLE_OUTPUT), SOURCE_DETERMINISTIC
     if _kept_nothing(result, deterministic, logger):
         logger.warning("LLM step answered but coercion kept none of it: %s", UNUSABLE_OUTPUT_REASON)
         # Copy for the same reason as the raise path: this artifact IS the template, and a
         # coercer that returns a cached one would carry our stamp into every later run.
         result = dict(result)
         result[FALLBACK_REASON_KEY] = UNUSABLE_OUTPUT_REASON
+        result[FALLBACK_CODE_KEY] = _vocabulary.UNUSABLE_OUTPUT
         return result, SOURCE_DETERMINISTIC
     return result, SOURCE_LLM
+
+
+def _fell_back(deterministic: Callable[[], dict], logger: logging.Logger, reason: str, code: str) -> dict:
+    """The template, stamped with why it served (prose) and the code for the ledger."""
+    logger.warning("LLM step fell back to deterministic: %s", reason)
+    # Copy before stamping: a builder that hands back a cached/shared dict would
+    # otherwise be polluted by our own stamps for the rest of the process, and every
+    # later template comparison in this module would compare against them.
+    result = dict(deterministic())
+    result[FALLBACK_REASON_KEY] = reason
+    result[FALLBACK_CODE_KEY] = code
+    return result

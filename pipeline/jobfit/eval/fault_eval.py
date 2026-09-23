@@ -11,8 +11,12 @@ returns a fluent rejection letter that names the candidate's age as the reason.
 This module runs the SAME tasks and the SAME reliability checks as
 ``automation_eval`` — imported from it, never restated — against
 ``llm.fault.FaultProvider``, one declared failure at a time, and records what
-each one degrades to. It is a gate, not a report: with ``--strict`` every
-expectation below must hold or the run exits non-zero.
+each one degrades to. A SECOND seam family rides the same expectations: the
+shared fallback runner ``devcase.provenance.generate_with_fallback`` (fifteen
+call sites across devcase, agentfit, intake, jobseeker and repo_scan), drilled
+through three representative callers — see ``FALLBACK_SEAMS``. It is a gate,
+not a report: with ``--strict`` every expectation below must hold or the run
+exits non-zero.
 
     python -m pipeline.jobfit.eval.fault_eval --strict        # the CI gate
     python -m pipeline.jobfit.eval.fault_eval --mode hang     # one fault
@@ -51,10 +55,12 @@ WHAT IS ASSERTED, per fault × task × scenario:
              answered with prose" used to look identical in the usage record —
              the two degradations most worth telling apart, because the first is
              a configuration choice and the second is an outage being paid for.
-             ``automation._generate`` now names every mid-call descent
-             (``automation.DEGRADATION_REASONS``) and ``automation_cli`` passes it
-             to ``emit_deterministic`` in place of the ``None`` the availability
-             gate leaves behind. Each fault below declares which reasons it may
+             ``automation._generate`` names every mid-call descent
+             (``llm.degradation.DEGRADATION_REASONS``) and ``automation_cli``
+             passes it to ``emit_deterministic`` in place of the ``None`` the
+             availability gate leaves behind; ``generate_with_fallback`` stamps
+             the same code as ``fallbackCode`` and the devcase / agentfit CLIs
+             pass THAT. Each fault below declares which reasons it may
              legitimately produce; a fault that degrades ANONYMOUSLY fails here
              even when the answer on the wire is correct.
 
@@ -64,12 +70,12 @@ there is the invariant, not the source label. Everything those two modes prove i
 in the SHAPE column — and because either may legitimately end up on the wire as
 the model's own answer, neither declares a required reason.
 
-STILL NOT COVERED, stated rather than hidden: the same seam exists in
-``devcase/{analyze,design,evaluate,reflect}.py`` and in ``match_reasoning`` (the
-path ``rematch`` takes), each with its own private ``_generate``. Those still
-degrade anonymously. This drill runs the ``automation`` tasks, so it can only
-hold that one seam to the contract; unifying the four copies is the follow-up.
-See docs/development/fault-injection.md.
+STILL NOT COVERED, stated rather than hidden: the fallback-runner family is
+drilled through three of its fifteen callers, not all of them — the runner is
+one function, so its contract holds for every caller, but a caller's OWN
+coercer or post-processing is only exercised where it is drilled. The
+extraction path (``gemini.complete_document`` / cv_analysis) is a different seam
+with no fault drill yet. See docs/development/fault-injection.md.
 """
 
 from __future__ import annotations
@@ -84,7 +90,9 @@ from typing import Any
 
 from .. import automation
 from .._cli import configure_stdio
+from ..devcase.provenance import FALLBACK_CODE_KEY, FALLBACK_REASON_KEY
 from ..llm import provider_availability
+from ..llm.degradation import DEGRADATION_REASONS
 from ..llm.fault import MODES, NO_PAYLOAD_MODES, FaultProvider
 from ._style import _make_styler, should_color
 from .automation_eval import SCENARIOS, TASKS
@@ -95,14 +103,13 @@ from .thresholds import FAULT_THRESHOLD
 # person outside the company, which is why they carry an extra assertion.
 LETTER_TASKS: tuple[str, ...] = ("outreach", "rejection", "offer")
 
-# The tasks whose LLM call goes through ``automation._generate``, and which
-# therefore record a descent reason. ``rematch`` is the exception and is listed
-# by its absence on purpose: it ranks with ``match_reasoning.generate``, a second
-# copy of the same helper that has not adopted the vocabulary, so it still
-# degrades anonymously. Asserting a reason there would fail on a gap this drill
-# did not create; pretending the task is covered would hide it. It runs, and every
-# other column still holds it — see the STILL NOT COVERED note in the header.
-REASONED_TASKS: tuple[str, ...] = ("screen", "outreach", "rejection", "prep", "scorecard", "offer")
+# The tasks that record a descent reason — now every one of them. ``rematch``
+# used to be listed by its absence ("match_reasoning has not adopted the
+# vocabulary"), but ``automation.rematch_candidate`` records its descent through
+# ``on_fallback`` and names the coerced-away answer itself, so the exemption was
+# stale. Its call is conditional, so the reason is asserted only where
+# ``_call_was_owed`` says a call was due.
+REASONED_TASKS: tuple[str, ...] = ("screen", "outreach", "rejection", "prep", "scorecard", "offer", "rematch")
 
 # A task renamed or added without deciding which side of that line it is on would
 # silently stop being reason-checked, which is the failure this whole column is
@@ -140,6 +147,99 @@ def _call_was_owed(task_name: str, out: dict) -> bool:
     if task_name == "rematch":
         return out.get("found") is not False
     return True
+
+
+# ---------------------------------------------------------------------------
+# The SECOND seam family: the shared fallback runner
+# ---------------------------------------------------------------------------
+#
+# ``provenance.generate_with_fallback`` is one function behind fifteen call sites.
+# Three are drilled — one per product that leans on it, each with a coercer of a
+# different temperament: devcase ``analyze_need`` (field-by-field backfill, so a
+# junk answer comes out as the template), agentfit ``analyze_agent_fit`` (a
+# post-processed result: coverage ratio and budget are code-owned on BOTH paths)
+# and intake ``run_intake_turn`` (a coercer that RAISES on a reply-less payload —
+# the case the runner used to file beside a transport failure). The runner stamps
+# ``fallbackCode``; THE REASON column reads it from there. Imports are deferred to
+# the run so the drill's import cost stays automation's.
+
+_SEAM_JOB = {
+    "id": "fault-drill-job",
+    "title": "Reporting Analyst",
+    "company": "Acme",
+    "location": "Praha",
+    "description": "Build SQL reports and email weekly summaries to stakeholders.",
+    "requirements": [{"skill": "SQL", "kind": "must_have", "hardness": "prerequisite"}],
+    "salary_band": [40000, 60000],
+}
+_SEAM_CATALOG = [{"name": "postgres", "description": "Run SQL against a PostgreSQL database"}]
+
+
+def _run_analyze_need(provider: Any) -> tuple[dict, str]:
+    from ..devcase.analyze import analyze_need
+    from ..devcase.models import DevNeed
+
+    return analyze_need(DevNeed(title="Backend Engineer", stack=["Python"]), None, provider=provider)
+
+
+def _check_analyze_need(out: dict) -> list[str]:
+    from ..devcase.analyze import _ANALYZE_KEYS
+
+    failures = [f"missing {k!r}" for k in _ANALYZE_KEYS if k not in out]
+    conf = out.get("confidence")
+    if not isinstance(conf, (int, float)) or not 0.0 <= conf <= 1.0:
+        failures.append(f"confidence {conf!r} outside 0..1")
+    return failures
+
+
+def _run_agent_fit(provider: Any) -> tuple[dict, str]:
+    from ..agentfit import analyze_agent_fit
+    from ..jobs import Job
+
+    return analyze_agent_fit(Job.model_validate(_SEAM_JOB), list(_SEAM_CATALOG), provider=provider)
+
+
+def _check_agent_fit(out: dict) -> list[str]:
+    from ..agentfit import FIT_VERDICTS
+
+    fit = out.get("fit") if isinstance(out.get("fit"), dict) else {}
+    failures = []
+    if fit.get("verdict") not in FIT_VERDICTS:
+        failures.append(f"verdict {fit.get('verdict')!r} outside {FIT_VERDICTS}")
+    ratio = fit.get("coverageRatio")
+    if not isinstance(ratio, (int, float)) or not 0.0 <= ratio <= 1.0:
+        failures.append(f"coverageRatio {ratio!r} outside 0..1")
+    if not isinstance(out.get("budget"), dict):
+        failures.append("no code-owned budget")
+    return failures
+
+
+def _run_intake_turn(provider: Any) -> tuple[dict, str]:
+    from ..intake import run_intake_turn
+
+    artifact = run_intake_turn(provider, [], {}, "We need a backend engineer for our payments team.", "en")
+    return artifact, str(artifact.get("source"))
+
+
+def _check_intake_turn(out: dict) -> list[str]:
+    failures = []
+    if not str(out.get("reply") or "").strip():
+        failures.append("no reply for the requestor")
+    if not isinstance(out.get("brief"), dict):
+        failures.append("no brief")
+    if not isinstance(out.get("done"), bool):
+        failures.append(f"done {out.get('done')!r} is not a bool")
+    return failures
+
+
+FALLBACK_SEAMS: dict[str, dict[str, Any]] = {
+    "analyze_need": {"run": _run_analyze_need, "check": _check_analyze_need},
+    "analyze_agent_fit": {"run": _run_agent_fit, "check": _check_agent_fit},
+    "run_intake_turn": {"run": _run_intake_turn, "check": _check_intake_turn},
+}
+
+# The seams have no scenario axis; their rows say so in the scenario column.
+_SEAM_SCENARIO = "fixture"
 
 
 @dataclass(frozen=True)
@@ -288,8 +388,9 @@ class Row:
     source: str
     calls: int
     seconds: float
-    # The mid-call descent reason automation._generate recorded, or None when the
-    # run did not degrade after the availability gate.
+    # The mid-call descent reason automation._generate recorded (or, for a
+    # fallback-runner seam, the fallbackCode it stamped), or None when the run did
+    # not degrade after the availability gate.
     reason: str | None = None
     failures: list[str] = field(default_factory=list)
 
@@ -330,20 +431,8 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
 
     # SHAPE — the same reliability check the keyless gate uses.
     failures = list(TASKS[task_name]["check"](out, scenario))
-
-    # THE BOUND — a ceiling AND a floor. See Expectation.min_calls for why the
-    # ceiling alone was one-sided.
-    if provider.calls > exp.max_calls:
-        failures.append(f"spent {provider.calls} completions, ceiling {exp.max_calls}")
-    elif exp.min_calls and _call_was_owed(task_name, out) and provider.calls < exp.min_calls:
-        failures.append(
-            f"spent {provider.calls} completions, floor {exp.min_calls}: the provider was handed over "
-            f"and never called, so this fault was never actually exercised"
-        )
-
-    # THE WIRE — only for faults that produce nothing usable.
-    if mode in NO_PAYLOAD_MODES and source != "deterministic":
-        failures.append(f"unusable output reached the wire as source={source!r}")
+    owed = _call_was_owed(task_name, out)
+    failures += _judge(exp, provider.calls, source, seconds, reason, owed=owed, reasoned=task_name in REASONED_TASKS)
 
     # THE LETTERS — a protected-characteristic term must never survive into a
     # message a candidate reads, and the discarded draft must say so.
@@ -353,23 +442,6 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
             failures.append(f"FAIRNESS: protected term {hit!r} in a candidate letter")
         if mode == "protected_language" and source != "deterministic":
             failures.append(f"a letter naming a protected characteristic was labelled source={source!r}")
-
-    # THE CLOCK.
-    if exp.max_seconds is not None and seconds > exp.max_seconds:
-        failures.append(f"took {seconds:.1f}s, deadline budget {exp.max_seconds:.1f}s")
-
-    # THE REASON — what the operator can read back out of the usage ledger.
-    if exp.reasons and task_name in REASONED_TASKS:
-        if reason is None:
-            failures.append(
-                f"degraded anonymously: expected one of {sorted(exp.reasons)}, the ledger would say nothing"
-            )
-        elif reason not in exp.reasons:
-            failures.append(f"recorded reason {reason!r}, expected one of {sorted(exp.reasons)}")
-    if reason is not None and reason not in automation.DEGRADATION_REASONS:
-        # A reason outside the declared vocabulary is a reason the TS side and the
-        # operator docs do not know how to read.
-        failures.append(f"reason {reason!r} is not in automation.DEGRADATION_REASONS")
 
     return Row(
         mode=mode,
@@ -383,17 +455,127 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
     )
 
 
-def run_drill(modes: list[str] | None = None, max_workers: int = 4) -> list[Row]:
-    selected = modes or list(MODES)
-    items = [
-        (mode, task_name, scenario)
-        for mode in selected
+def _judge(
+    exp: Expectation,
+    calls: int,
+    source: str,
+    seconds: float,
+    reason: str | None,
+    *,
+    owed: bool,
+    reasoned: bool,
+) -> list[str]:
+    """THE BOUND, THE WIRE, THE CLOCK and THE REASON — the columns both seam families
+    are held to, stated once so the second family cannot be graded more kindly."""
+    failures: list[str] = []
+
+    # THE BOUND — a ceiling AND a floor. See Expectation.min_calls for why the
+    # ceiling alone was one-sided.
+    if calls > exp.max_calls:
+        failures.append(f"spent {calls} completions, ceiling {exp.max_calls}")
+    elif exp.min_calls and owed and calls < exp.min_calls:
+        failures.append(
+            f"spent {calls} completions, floor {exp.min_calls}: the provider was handed over "
+            f"and never called, so this fault was never actually exercised"
+        )
+
+    # THE WIRE — only for faults that produce nothing usable.
+    if exp.mode in NO_PAYLOAD_MODES and source != "deterministic":
+        failures.append(f"unusable output reached the wire as source={source!r}")
+
+    # THE CLOCK.
+    if exp.max_seconds is not None and seconds > exp.max_seconds:
+        failures.append(f"took {seconds:.1f}s, deadline budget {exp.max_seconds:.1f}s")
+
+    # THE REASON — what the operator can read back out of the usage ledger. Only
+    # where a call was owed: a task that legitimately never reached its LLM call
+    # has no mid-call descent to name.
+    if exp.reasons and reasoned and owed:
+        if reason is None:
+            failures.append(
+                f"degraded anonymously: expected one of {sorted(exp.reasons)}, the ledger would say nothing"
+            )
+        elif reason not in exp.reasons:
+            failures.append(f"recorded reason {reason!r}, expected one of {sorted(exp.reasons)}")
+    if reason is not None and reason not in DEGRADATION_REASONS:
+        # A reason outside the declared vocabulary is a reason the TS side and the
+        # operator docs do not know how to read.
+        failures.append(f"reason {reason!r} is not in DEGRADATION_REASONS")
+    return failures
+
+
+def _run_seam(mode: str, seam_name: str) -> Row:
+    """One fault against one caller of ``generate_with_fallback``.
+
+    Same call-site contract as :func:`_run_one` (availability first, ``None`` when the
+    provider cannot serve) and the same columns via :func:`_judge`; THE REASON is the
+    ``fallbackCode`` the runner stamped on the artifact — exactly what devcase_cli and
+    agentfit_cli hand to ``emit_deterministic``."""
+    exp = _BY_MODE[mode]
+    seam = FALLBACK_SEAMS[seam_name]
+    provider = FaultProvider(mode, timeout=exp.timeout_s)
+    ok, _descent = provider_availability(provider)
+    handed = provider if ok else None
+
+    started = time.monotonic()
+    try:
+        out, source = seam["run"](handed)
+    except Exception as exc:  # noqa: BLE001 — an escaping exception IS the finding
+        return Row(
+            mode=mode,
+            task=seam_name,
+            scenario=_SEAM_SCENARIO,
+            source="raised",
+            calls=provider.calls,
+            seconds=time.monotonic() - started,
+            failures=[f"escaped as {type(exc).__name__}: {exc}"],
+        )
+    seconds = time.monotonic() - started
+    code = out.get(FALLBACK_CODE_KEY)
+    reason = str(code) if code else None
+
+    failures = list(seam["check"](out))
+    failures += _judge(exp, provider.calls, source, seconds, reason, owed=True, reasoned=True)
+    # The prose and the code are one stamp: a reason the envelope shows with no code
+    # behind it is exactly the anonymous ledger line this column refuses.
+    if out.get(FALLBACK_REASON_KEY) and reason is None:
+        failures.append("fallbackReason stamped with no fallbackCode beside it")
+
+    return Row(
+        mode=mode,
+        task=seam_name,
+        scenario=_SEAM_SCENARIO,
+        source=source,
+        calls=provider.calls,
+        seconds=seconds,
+        reason=reason,
+        failures=failures,
+    )
+
+
+def _drill_items(modes: list[str]) -> list[tuple[str, str, str, Any]]:
+    """Every (kind, mode, name, scenario) the drill runs: the automation tasks across
+    the scenarios under fault, then the fallback-runner seams on their fixture."""
+    items: list[tuple[str, str, str, Any]] = [
+        ("task", mode, task_name, scenario)
+        for mode in modes
         for task_name in TASKS
         for scenario in SCENARIOS_UNDER_FAULT
     ]
+    items += [("seam", mode, seam_name, None) for mode in modes for seam_name in FALLBACK_SEAMS]
+    return items
+
+
+def _run_item(item: tuple[str, str, str, Any]) -> Row:
+    kind, mode, name, scenario = item
+    return _run_one(mode, name, scenario) if kind == "task" else _run_seam(mode, name)
+
+
+def run_drill(modes: list[str] | None = None, max_workers: int = 4) -> list[Row]:
+    items = _drill_items(modes or list(MODES))
     workers = max(1, min(max_workers, len(items)))
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(pool.map(lambda item: _run_one(*item), items))
+        return list(pool.map(_run_item, items))
 
 
 def _aggregate(rows: list[Row]) -> dict[str, Any]:
@@ -446,6 +628,7 @@ def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False) -> 
         banner + "\n",
         f"Tasks: {len(TASKS)} · scenarios: {len(SCENARIOS_UNDER_FAULT)} "
         f"({', '.join(s.name for s in SCENARIOS_UNDER_FAULT)}) · "
+        f"fallback-runner seams: {len(FALLBACK_SEAMS)} ({', '.join(FALLBACK_SEAMS)}) · "
         f"threshold: every expectation holds ({FAULT_THRESHOLD:.0%})\n",
         "## Per fault\n",
         "| fault | runs | held | max calls (ceiling) | slowest | ledger reason | degrades to |",

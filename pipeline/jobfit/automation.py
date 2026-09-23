@@ -61,6 +61,7 @@ from pathlib import Path
 from typing import Any
 
 from . import registry
+from .llm import degradation as _vocabulary
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig, gross_period_phrase
 from .matching import MatchCandidate, ko_filter, score_job
@@ -418,55 +419,16 @@ def _letter_is_safe(payload: dict) -> bool:
 # global there would let one fault's reason be read as another's.
 _degradation = threading.local()
 
-# The reasons a MID-CALL descent can have. Deliberately disjoint from the
-# availability-gate vocabulary in registry.provider_availability ("offline_policy"
-# / "not_installed" / "unavailable") and the caller's "disabled": the whole point
-# is that an operator reading the ledger can tell "there was no provider" from
-# "the provider answered and we threw the answer away".
-DEGRADATION_REASONS: tuple[str, ...] = (
-    # The call never came back inside its TOTAL wall-clock budget.
-    "provider_timeout",
-    # It returned text, and not even the corrective re-prompt made it JSON.
-    "unparseable_output",
-    # It returned parseable JSON, and coercion kept none of it — the wrong type,
-    # every value out of range, or a letter _letter_is_safe discarded whole.
-    "unusable_output",
-    # Anything else the call raised: transport, a 5xx that outlived its retries,
-    # a refusal, a missing capability.
-    "provider_error",
-)
-
-
-def _call_failure_reason(exc: BaseException) -> str:
-    """Classify a failed ``complete_json`` into one of DEGRADATION_REASONS.
-
-    Reads ``LLMError.subtype`` rather than the message, because the subtype is
-    the part base.py maintains as a contract (``deadline_exceeded`` is raised in
-    exactly one place, ``unparseable_json`` in exactly one other)."""
-    subtype = getattr(exc, "subtype", None)
-    if subtype == "deadline_exceeded":
-        return "provider_timeout"
-    if subtype == "unparseable_json":
-        return "unparseable_output"
-    return "provider_error"
-
-
-# The message-text mirror of `_call_failure_reason`, for the one caller
-# (rematch_candidate) that only ever sees `describe_fallback`'s formatted
-# "<Type>: <message>" line, never the exception `.subtype` is read off. The
-# phrases matched are base.py's own, not a test's: "exhausted its …s deadline"
-# is raised in exactly the one place subtype="deadline_exceeded" is (llm/base.py
-# retry loop), and "parseable JSON" only appears on the two subtype=
-# "unparseable_json" raises (truncated finish_reason has its own subtype and its
-# own wording, "is incomplete", so it correctly falls through to provider_error
-# here exactly as _call_failure_reason falls through for any subtype it does not
-# name). Re-derive both if base.py's wording changes.
-def _classify_fallback_text(text: str) -> str:
-    if "deadline" in text and "exhausted" in text:
-        return "provider_timeout"
-    if "parseable JSON" in text:
-        return "unparseable_output"
-    return "provider_error"
+# The reasons a MID-CALL descent can have, and the two classifiers that name one
+# (from the exception's `.subtype`, and from a `describe_fallback` line for the one
+# task that only sees the text). All three moved to llm/degradation.py so the
+# devcase/agentfit/intake runner (`provenance.generate_with_fallback`) and the
+# usage ledger read the SAME vocabulary this module first wrote down; the old names
+# stay here as aliases so no caller or pin moved. Still deliberately disjoint from
+# the availability-gate vocabulary — see degradation.py.
+DEGRADATION_REASONS = _vocabulary.DEGRADATION_REASONS
+_call_failure_reason = _vocabulary.classify
+_classify_fallback_text = _vocabulary.classify_fallback_text
 
 
 def _note_degradation(reason: str | None) -> None:
@@ -2657,6 +2619,14 @@ def rematch_candidate(
         candidate, job, result, lang=lang, provider=provider,
         on_fallback=lambda text: _note_degradation(_classify_fallback_text(text)),
     )
+    if provider is not None and source == "deterministic" and getattr(_degradation, "reason", None) is None:
+        # The one descent `on_fallback` never hears about. `match_reasoning.generate`
+        # returns "deterministic" with a provider in hand and WITHOUT raising in exactly
+        # one case: the call answered and `_coerce` backfilled the core from the template
+        # (its `degraded` flag). That is `_generate`'s "coercion kept none of it", and it
+        # gets the same word — found by fault_eval once rematch joined REASONED_TASKS
+        # (wrong_shape degraded here anonymously while every other task named it).
+        _note_degradation("unusable_output")
     return {
         "found": True,
         "jobId": job.id,

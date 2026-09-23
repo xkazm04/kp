@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import threading
 import time
 from typing import Any
 
 from ..claude_cli import ClaudeCliProvider, ClaudeResult
+from . import degradation as _degradation
 
 _UNSET = object()
 _client_cache: Any = _UNSET
@@ -134,67 +134,27 @@ def _tags(provider: str, use_case: str | None = None) -> list[str]:
 OUTCOME_OK = "ok"
 OUTCOME_FAILED = "failed"
 
-# Why a FAILED attempt failed. Same three-word register as automation.DEGRADATION_REASONS
-# and spelled identically where they overlap, so one ledger query counts both halves of
-# the same descent — the CLI's deterministic line and the failed attempt underneath it.
-# Not imported from automation: that module imports this package, and the vocabularies
-# are maintained apart on purpose (that one names why the TEMPLATE served, this one why
-# the CALL died).
-FAILURE_REASONS: tuple[str, ...] = ("provider_timeout", "unparseable_output", "provider_error")
-
-
-def _failure_reason(error: Any) -> str:
-    """Classify a raised call into FAILURE_REASONS.
-
-    Reads ``LLMError.subtype`` and never the message: the subtype is the part
-    base.py maintains as a contract, and the message is provider-authored text that
-    has no business in a durable column (it can echo the prompt). Same reading
-    ``automation._call_failure_reason`` does, for the same reason."""
-    subtype = getattr(error, "subtype", None)
-    if subtype == "deadline_exceeded":
-        return "provider_timeout"
-    if subtype == "unparseable_json":
-        return "unparseable_output"
-    return "provider_error"
-
-
-_REASON_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
-
-# The exception TYPE names worth keeping when a prose reason collapses to a code.
-# `describe_fallback` writes "<ExceptionType>: <message>"; the type half is ours (a
-# Python class name), the message half is the provider's. Mapping the few types that
-# name a distinct descent keeps a timeout reading as a timeout instead of flattening
-# into the catch-all, without ever storing the message.
-_PROSE_TYPE_REASON = {
-    "TimeoutError": "provider_timeout",
-    "ReadTimeout": "provider_timeout",
-    "ConnectTimeout": "provider_timeout",
-    "ReadTimeoutError": "provider_timeout",
-}
-
-
-def _reason_code(reason: str | None) -> str | None:
-    """Reduce a caller's reason to a CODE before it reaches a durable column.
-
-    Three call sites (campaign, match_reasoning, group_compare) hand their CLI a
-    ``provenance.describe_fallback`` line — ``"<ExceptionType>: <message>"`` — and the
-    CLI passes it straight to ``emit_deterministic``. That is the right shape for the
-    per-request envelope, where a human is reading one failure, and the wrong shape
-    for `llm_usage.reason`: the message half is provider-authored text that can echo
-    the prompt, and this repo answers a failure with a code, never with the thrown
-    message. A prose line collapses to ``provider_error`` — which is not a guess but
-    the exact word DEGRADATION_REASONS reserves for "anything else the call raised".
-    The finer subtypes still arrive: automation_cli sends its classified
-    ``take_degradation_reason``, and ``emit_error`` writes the failed attempt
-    underneath with its own ``_failure_reason``."""
-    if reason is None:
-        return None
-    token = reason.strip()
-    if not token:
-        return None
-    if _REASON_CODE.match(token):
-        return token
-    return _PROSE_TYPE_REASON.get(token.split(":", 1)[0].strip(), "provider_error")
+# Why a FAILED attempt failed, how a raised call is classified into it, and how a
+# caller's reason is reduced to a code before it reaches `llm_usage.reason` — all
+# three now live in llm/degradation.py beside automation's DEGRADATION_REASONS.
+#
+# This module used to keep its own copy, "not imported from automation: that module
+# imports this package, and the vocabularies are maintained apart on purpose (that
+# one names why the TEMPLATE served, this one why the CALL died)". The import
+# problem is solved by putting the vocabulary BELOW both (degradation.py imports
+# nothing from either). The distinction is kept, as a checked relation rather than
+# two literals: FAILURE_REASONS is still its own name, and degradation.py raises at
+# import unless it is a strict subset of DEGRADATION_REASONS. What the two copies
+# had cost was the third runner — devcase.provenance.generate_with_fallback, behind
+# fifteen call sites — which had no classifier to borrow, so its mid-call descents
+# reached this ledger as nothing (challenge-r04 tests-llm-eval/A).
+#
+# `_reason_code` also learned one shape: "<code>: <prose>" whose leading token is a
+# DECLARED degradation word keeps the code (provenance.UNUSABLE_OUTPUT_REASON used to
+# land as provider_error — "the call died" for a call that succeeded and was paid for).
+FAILURE_REASONS = _degradation.FAILURE_REASONS
+_failure_reason = _degradation.classify
+_reason_code = _degradation.reason_code
 
 
 def _append_ledger(
@@ -269,11 +229,13 @@ def emit_deterministic(use_case: str | None, *, reason: str | None = None) -> No
     without the spawnPython sidecar writes nothing. Ledger-only by design:
     LightTrack tracks real provider calls, not template serves.
 
-    ``reason`` names WHY the floor served when the descent happened at the
-    availability gate (registry.provider_availability: "offline_policy" /
-    "not_installed" / "unavailable", or the caller's "disabled" for --no-llm).
-    None when unknown — e.g. an LLM call that failed mid-flight — and unknown
-    stays unrecorded rather than guessed."""
+    ``reason`` names WHY the floor served: the availability gate's descent
+    (registry.provider_availability: "offline_policy" / "not_installed" /
+    "unavailable", or the caller's "disabled" for --no-llm), or — when the gate
+    said yes and the call then degraded — the runner's MID-CALL code from
+    degradation.DEGRADATION_REASONS (automation_cli's take_degradation_reason,
+    devcase_cli / agentfit_cli's per-step ``fallbackCode``). None when neither
+    knows, and unknown stays unrecorded rather than guessed."""
     _append_ledger(
         provider="deterministic",
         model=None,
