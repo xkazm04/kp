@@ -3,7 +3,8 @@ import { isEarlyCareer } from "@/app/_lib/archetypes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
-import { getHumanScorecard } from "@/app/_lib/interview-prep";
+import { getHumanScorecards } from "@/app/_lib/interview-prep";
+import { humanScorecardViews, type HumanScorecardView } from "@/app/_lib/human-scorecard-set";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
@@ -67,16 +68,21 @@ export async function GET(request: NextRequest) {
     // the authority; and pipeline_entries / interview_sessions always carry a real
     // workspace_id (never the corpus NULL), so strict equality is right here.
     const workspace = await currentWorkspace();
-    // Attach each candidate's human scorecard (PREP1), if a recruiter filled one
-    // from the prep rubric — so the compare grid shows the human verdict + ratings
-    // alongside the AI screen, not just the voice-synthesized one. Null for the
-    // common case of no human round.
+    // Attach EVERY human scorecard on the candidate (PREP1) — one per (interviewer,
+    // round), read through readHumanScorecards, workspace-scoped. The grid used to
+    // read the `humanScorecard` headline mirror, the latest save overall, so a second
+    // interviewer's card hid the first one's at the surface where the hire decision is
+    // weighed (r09 follow-up). Views, not records: the author's label + the round + a
+    // legacy mark ride the wire; the signed-in user id that keys a record does not.
+    // Empty for the common case of no human round.
+    const humanCards = (entryId: string | null): HumanScorecardView[] =>
+      entryId ? humanScorecardViews(getHumanScorecards(entryId, workspace)) : [];
     // The session id and stored agenda are the coverage read's INPUTS and stop here:
     // the agenda carries question text and block titles, and the grid has no use for
     // a session id.
     const voice = interviewedForJob(jobId, workspace).map(({ sessionId, agenda, ...c }) => ({
       ...c,
-      humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
+      humanScorecards: humanCards(c.entryId),
       telemetry: telemetryForEntry(c.entryId, workspace),
       coverage: coverageForSession(sessionId, agenda, c.scoringModel, workspace),
     }));
@@ -92,9 +98,9 @@ export async function GET(request: NextRequest) {
     const voiceEntryIds = new Set(voice.map((c) => c.entryId).filter(Boolean));
     const humanOnly = listEntriesForJob(jobId, workspace)
       .filter((e) => !voiceEntryIds.has(e.id))
-      .map((e) => ({ entry: e, sc: getHumanScorecard(e.id) }))
-      .filter((pair) => pair.sc != null)
-      .map(({ entry, sc }) => ({
+      .map((e) => ({ entry: e, cards: humanCards(e.id) }))
+      .filter((pair) => pair.cards.length > 0)
+      .map(({ entry, cards }) => ({
         entryId: entry.id,
         candidateLabel: entry.candidateLabel,
         recommendation: null,
@@ -103,7 +109,7 @@ export async function GET(request: NextRequest) {
         confidence: null,
         ratings: [],
         observedSkills: [],
-        humanScorecard: sc,
+        humanScorecards: cards,
         humanOnly: true,
         // A human-led round has no voice session, so no call telemetry — keep the
         // field present (null) so both branches share one candidate shape.

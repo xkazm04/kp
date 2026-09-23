@@ -49,6 +49,14 @@ test("absent sections default, and the sealed decisions ride along instead of be
   assert.deepEqual(odd.rematchLinks, {});
 });
 
+test("every human scorecard rides the parse; an empty artifact and a wrong-typed list are dropped", () => {
+  const card = { summary: "round one", ratings: [], authorLabel: "Alena", stage: "interview", savedAt: "2026-09-23", legacy: false };
+  const d = parseCandidateBundle({ humanScorecards: [card, { ratings: [], summary: "" }, "junk", { ...card, summary: "round two" }] });
+  assert.deepEqual(d?.humanScorecards.map((c) => c.summary), ["round one", "round two"]);
+  assert.deepEqual(parseCandidateBundle({ humanScorecards: {} })?.humanScorecards, []);
+  assert.deepEqual(parseCandidateBundle({})?.humanScorecards, []);
+});
+
 // --- the reducer ------------------------------------------------------------------
 
 test("a first-load failure is 'failed', and retry goes back to loading on a new seq", () => {

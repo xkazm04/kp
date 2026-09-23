@@ -95,7 +95,8 @@ export type CompareCsvCandidate = {
   candidateLabel?: string | null;
   recommendation?: string | null;
   ratings: CsvRating[];
-  humanScorecard?: { ratings?: CsvRating[]; recommendation?: string | null } | null;
+  /** Every interviewer's record, newest first (the grid's own order). */
+  humanScorecards?: { ratings?: CsvRating[]; recommendation?: string | null }[];
   coverage?: AxisCoverage | null;
 };
 
@@ -116,6 +117,20 @@ function csvRating(ratings: CsvRating[] | undefined, competency: string, state?:
   return isNotAssessedRating(hit.rating, hit.evidence) ? "" : hit.rating;
 }
 
+/** The human cell for one axis across a PANEL of scorecards: one rating stays a
+ *  number; several join in record order ("2 / 5"). Never averaged — combining
+ *  independent assessors is a decision, not an export — and never reduced to whoever
+ *  saved last, which is the defect the per-interviewer list exists to end. */
+function csvHumanRating(cards: CompareCsvCandidate["humanScorecards"], competency: string): number | string {
+  const vals = (cards ?? []).map((c) => csvRating(c.ratings, competency)).filter((v): v is number => v !== "");
+  return vals.length === 0 ? "" : vals.length === 1 ? vals[0] : vals.join(" / ");
+}
+
+/** The human verdicts across the panel, in record order, blank when none carries one. */
+function csvHumanRecommendation(cards: CompareCsvCandidate["humanScorecards"]): string {
+  return (cards ?? []).map((c) => c.recommendation).filter((r): r is string => Boolean(r)).join(" / ");
+}
+
 /** Data rows of the compare grid: competency × (AI, human, recommendation) per
  *  candidate. Header is the caller's (localized). Missing ratings stay blank. */
 export function compareCsvRows(rubric: RubricComp[], candidates: CompareCsvCandidate[]): (string | number)[][] {
@@ -125,8 +140,8 @@ export function compareCsvRows(rubric: RubricComp[], candidates: CompareCsvCandi
     for (const c of candidates) {
       cells.push(
         csvRating(c.ratings, axis.competency, coverageFor(c.coverage, axis.competency)),
-        csvRating(c.humanScorecard?.ratings, axis.competency),
-        c.recommendation ?? c.humanScorecard?.recommendation ?? ""
+        csvHumanRating(c.humanScorecards, axis.competency),
+        c.recommendation ?? csvHumanRecommendation(c.humanScorecards)
       );
     }
     return cells;

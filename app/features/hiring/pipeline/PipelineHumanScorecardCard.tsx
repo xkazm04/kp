@@ -3,15 +3,19 @@
 // PREP1 — the recruiter's own human-led scorecard for this candidate, surfaced
 // so a human-led round isn't invisible the way the AI voice-screen scorecard
 // used to be. Split out of PipelineCandidateDrawer.tsx.
+//
+// One card per record: an entry holds one human scorecard per (interviewer, round)
+// (app/_lib/human-scorecard-set.ts), so each card says whose it is and which round.
 
 import { ClipboardList } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { RATING_MAX } from "@/app/_lib/format";
-import type { Scorecard } from "@/app/_lib/interview-scorecard";
+import type { HumanScorecardView } from "@/app/_lib/human-scorecard-set";
+import { HumanScorecardByline } from "./HumanScorecardByline";
 
-export function PipelineHumanScorecardCard({ humanSc }: { humanSc: Scorecard }) {
+export function PipelineHumanScorecardCard({ humanSc }: { humanSc: HumanScorecardView }) {
   const t = useTranslations("pipeline.drawer");
   const enumLabel = useEnumLabel();
   return (
@@ -27,6 +31,7 @@ export function PipelineHumanScorecardCard({ humanSc }: { humanSc: Scorecard }) 
           <Badge {...interviewRecommendationToken(humanSc.recommendation)} label={enumLabel("recommendation", humanSc.recommendation)} />
         ) : null}
       </div>
+      <HumanScorecardByline view={humanSc} className="mt-1 text-meta text-steel" />
       {humanSc.summary ? <p className="mt-1 text-sm text-ink">{humanSc.summary}</p> : null}
       {humanSc.ratings?.length ? (
         <ul className="mt-1.5 space-y-0.5">

@@ -96,7 +96,7 @@ export function useCandidateBundle(entry: { id: string; stage: string }) {
     // null until the bundle lands, so "nothing yet" is said only once it has.
     comms: data ? data.comms : null,
     ivOutcome: data?.interview ?? null,
-    humanSc: data?.humanScorecard ?? null,
+    humanScs: data?.humanScorecards ?? [],
     decisions: data?.decisions ?? null,
     // drawer-note-fresh-hydration - the note as it stands ON THE SERVER; the board
     // prop that seeds the field can be stale. null until the bundle lands.

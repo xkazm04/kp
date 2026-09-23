@@ -107,3 +107,36 @@ export function headlineScorecard(list: HumanScorecardRecord[]): HumanScorecardR
   }
   return best;
 }
+
+// ── the read side: what a display surface may carry ─────────────────────────────
+
+/** One record as a DISPLAY surface carries it (the candidate drawer, the compare
+ *  grid): every field of the record except `author`, the signed-in user id, which is
+ *  the store's key and no reader's business — `authorLabel` is what a person reads.
+ *  `legacy` names a card lifted from the pre-list single key (author and round were
+ *  never recorded), so a surface can say so instead of implying an anonymous save. */
+export type HumanScorecardView = Omit<HumanScorecardRecord, "author"> & { legacy: boolean };
+
+/** Every record worth showing, newest first (a legacy record, having no time, last).
+ *  An empty artifact — no ratings and no summary — is dropped: it is noise, the same
+ *  rule the drawer's parser applied to the single card. */
+export function humanScorecardViews(list: HumanScorecardRecord[]): HumanScorecardView[] {
+  return list
+    .filter((r) => (r.ratings?.length ?? 0) > 0 || Boolean(r.summary))
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => (b.r.savedAt ?? "").localeCompare(a.r.savedAt ?? "") || b.i - a.i)
+    .map(({ r }) => {
+      const view: Omit<HumanScorecardRecord, "author"> & { author?: unknown } = { ...r };
+      delete view.author;
+      return { ...view, legacy: r.savedAt === null };
+    });
+}
+
+/** Whose card this is, as three distinct claims: saved before attribution existed,
+ *  saved by a named interviewer, or saved with nobody signed in (open mode). */
+export type HumanScorecardByline = { kind: "legacy" | "by" | "unnamed"; author: string | null; stage: string | null };
+
+export function humanScorecardByline(v: HumanScorecardView): HumanScorecardByline {
+  if (v.legacy) return { kind: "legacy", author: null, stage: null };
+  return v.authorLabel ? { kind: "by", author: v.authorLabel, stage: v.stage } : { kind: "unnamed", author: null, stage: v.stage };
+}

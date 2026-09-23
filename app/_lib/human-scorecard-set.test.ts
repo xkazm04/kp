@@ -7,6 +7,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   headlineScorecard,
+  humanScorecardByline,
+  humanScorecardViews,
   MAX_HUMAN_SCORECARDS,
   ownScorecard,
   readHumanScorecards,
@@ -110,4 +112,37 @@ test("the headline is the latest save; a full panel refuses a new key and never 
   const replaced = upsertHumanScorecard(full, rec("u0", "interview", "2026-09-24T00:00:00.000Z", 5));
   assert.ok(replaced, "an existing key can always re-save at the cap");
   assert.equal(replaced.length, MAX_HUMAN_SCORECARDS);
+});
+
+// ---- the read-side projection (r09 follow-up: the drawer + compare grid show EVERY
+// record, not the headline mirror) ---------------------------------------------------
+
+test("views: every record, newest first, legacy last and marked, no author id, empties dropped", () => {
+  const list: HumanScorecardRecord[] = [
+    { ...readHumanScorecards({ humanScorecard: { ratings: [{ competency: "Ownership", rating: 2 }] } })[0] },
+    rec("u1", "interview", "2026-09-23T10:00:00.000Z", 4),
+    rec("u2", "interview-2", "2026-09-24T10:00:00.000Z", 2),
+    { ...rec("u3", "interview", "2026-09-25T10:00:00.000Z"), ratings: [], summary: "" },
+  ];
+  const views = humanScorecardViews(list);
+  assert.deepEqual(
+    views.map((v) => [v.authorLabel, v.stage, v.legacy]),
+    [
+      ["Label u2", "interview-2", false],
+      ["Label u1", "interview", false],
+      [null, null, true],
+    ],
+  );
+  for (const v of views) assert.ok(!("author" in v), "the signed-in user id never rides a view");
+  assert.equal(views[0].ratings?.[0].rating, 2, "the record's own ratings, not the headline's");
+  assert.deepEqual(humanScorecardViews([]), []);
+});
+
+test("byline: legacy, a named author, and an unnamed (open-mode) author are three distinct claims", () => {
+  const [legacy] = humanScorecardViews(readHumanScorecards({ humanScorecard: { summary: "old" } }));
+  assert.deepEqual(humanScorecardByline(legacy), { kind: "legacy", author: null, stage: null });
+  const [named] = humanScorecardViews([rec("u1", "interview", "2026-09-23T10:00:00.000Z")]);
+  assert.deepEqual(humanScorecardByline(named), { kind: "by", author: "Label u1", stage: "interview" });
+  const [open] = humanScorecardViews([rec(null, "interview", "2026-09-23T10:00:00.000Z")]);
+  assert.deepEqual(humanScorecardByline(open), { kind: "unnamed", author: null, stage: "interview" });
 });

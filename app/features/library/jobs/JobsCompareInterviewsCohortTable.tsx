@@ -159,18 +159,22 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
                       {t("observedLabel", { skills: c.observedSkills.join(", ") })}
                     </span>
                   ) : null}
-                  {c.humanScorecard?.recommendation ? (
-                    // The verdict from a recruiter's human round, distinct from the
-                    // AI badge above (icon + "human" so the two never read as one).
-                    <span
-                      className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${
-                        REC_STYLE[c.humanScorecard.recommendation] ?? "bg-stone-100 text-steel"
-                      }`}
-                      title={t("humanVerdictTitle")}
-                    >
-                      <ClipboardCheck size={11} /> {t("humanVerdict", { rec: enumLabel("recommendation", c.humanScorecard.recommendation) })}
-                    </span>
-                  ) : null}
+                  {(c.humanScorecards ?? []).map((h, j) =>
+                    h.recommendation ? (
+                      // One verdict per interviewer + round from the human panel,
+                      // distinct from the AI badge above (icon + "human" so the two
+                      // never read as one). The title names whose verdict it is.
+                      <span
+                        key={`h-${j}`}
+                        className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-meta font-semibold uppercase ${
+                          REC_STYLE[h.recommendation] ?? "bg-stone-100 text-steel"
+                        }`}
+                        title={[t("humanVerdictTitle"), h.authorLabel, h.stage].filter(Boolean).join(" · ")}
+                      >
+                        <ClipboardCheck size={11} /> {t("humanVerdict", { rec: enumLabel("recommendation", h.recommendation) })}
+                      </span>
+                    ) : null
+                  )}
                   {mustAsksOwed(c.coverage) !== null ? (
                     // A count only: the question texts are the recruiter's kit, not
                     // this door's to repeat. Null (no end_interview) renders nothing.

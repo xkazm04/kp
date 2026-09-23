@@ -22,7 +22,7 @@ export function CandidateActivityTab({
   const t = useTranslations("pipeline.candidate");
   const hasComms = st.comms !== null && st.comms.length > 0;
   // `comms` is null until the bundle lands, so "nothing yet" is said only once it has.
-  const nothingYet = st.comms !== null && !st.ivOutcome && !st.humanSc && !hasComms;
+  const nothingYet = st.comms !== null && !st.ivOutcome && st.humanScs.length === 0 && !hasComms;
 
   return (
     <div className="grid gap-6 p-4 sm:p-6 md:grid-cols-2">
@@ -30,7 +30,10 @@ export function CandidateActivityTab({
         {st.ivOutcome ? (
           <PipelineInterviewOutcomeCard ivOutcome={st.ivOutcome} onShowTranscript={() => st.setShowTranscript(true)} />
         ) : null}
-        {st.humanSc ? <PipelineHumanScorecardCard humanSc={st.humanSc} /> : null}
+        {/* One card per interviewer + round — never only the latest save. */}
+        {st.humanScs.map((sc, i) => (
+          <PipelineHumanScorecardCard key={`${sc.stage ?? ""}-${sc.savedAt ?? "legacy"}-${i}`} humanSc={sc} />
+        ))}
         {/* W6-2 — what this candidate actually received, failed sends visible. */}
         {hasComms && st.comms ? <PipelineCommsList comms={st.comms} consentStatus={st.consent?.consent.status ?? null} onResent={st.onLetterResent} /> : null}
         {nothingYet ? <p className="text-sm text-steel">{t("activityEmpty")}</p> : null}

@@ -31,7 +31,7 @@ const CANDIDATE_KEYS = new Set([
   "ratings",
   "observedSkills",
   "costUsd",
-  "humanScorecard",
+  "humanScorecards",
   "telemetry",
   "coverage",
 ]);

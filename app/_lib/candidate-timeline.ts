@@ -12,6 +12,7 @@ import { withCanonicalScores } from "./match-score-resolve";
 import { commsVerdict, deriveCommsView, type CommsVerdict, type CommsViewRow } from "./comms-view";
 import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type ConsentStatus } from "./consent";
 import { getInterviewPrep } from "./interview-prep";
+import { humanScorecardViews, readHumanScorecards, type HumanScorecardView } from "./human-scorecard-set";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
@@ -205,7 +206,9 @@ export type CandidateDrawerBundle = {
   decisions: CandidateDecision[];
   comms: CandidateComm[];
   interview: InterviewOutcome | null;
-  humanScorecard: Scorecard | null;
+  /** Every interviewer's scorecard, one per (interviewer, round), newest first. Empty
+   *  when none is saved OR when consent withholds the candidate's PII. */
+  humanScorecards: HumanScorecardView[];
   consent: CandidateConsentView;
   // Keyed by pipeline_event id → the navigable counterpart of a rematch event.
   rematchLinks: Record<number, RematchLink>;
@@ -406,27 +409,29 @@ function candidateConsent(
   };
 }
 
-// The human scorecard saved against this entry's prep artifact (PREP1), if any —
-// consent-gated exactly like the AI outcome above.
+// Every human scorecard saved against this entry's prep artifact (PREP1) — one per
+// (interviewer, round), read through readHumanScorecards rather than the
+// `humanScorecard` headline mirror, which is only the latest save overall and hid every
+// other interviewer's card (r09 follow-up). Projected as views: the signed-in user id
+// that keys a record stays in the store; the author's label, the round and a legacy
+// mark ride the drawer. Consent-gated exactly like the AI outcome above.
 //
-// It lives inside interview_preps.payload_json, "the free-text prep payload that quotes
+// They live inside interview_preps.payload_json, "the free-text prep payload that quotes
 // the CV" that erasure scrubs to '{}' (db/pipeline.ts::scrubEntryLinkedPii) — the same
 // PII class as the voice scorecard. But the read-time gate covered only the AI half, so
 // an entry whose consent had EXPIRED (and whose expiry sweep had not run yet — "the
 // sweep is an optimization, THIS is the control", consent.ts) rendered the drawer's
 // interview panel with the AI synthesis withheld and the human interviewer's verbatim
-// summary + ratings, on the same candidate, shown in full right beside it.
-function candidateHumanScorecard(
-  entry: NonNullable<ReturnType<typeof getPipelineEntry>>
-): Scorecard | null {
+// summary + ratings, on the same candidate, shown in full right beside it. The gate
+// withholds EVERY record — a panel is no less PII than one card.
+function candidateHumanScorecards(entry: NonNullable<ReturnType<typeof getPipelineEntry>>): HumanScorecardView[] {
   if (
     consentWithholdsPii({ givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt })
   ) {
-    return null;
+    return [];
   }
   const prep = getInterviewPrep(entry.id, entry.workspaceId);
-  const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard ?? null;
-  return sc;
+  return prep ? humanScorecardViews(readHumanScorecards(prep.payload)) : [];
 }
 
 /** The sealed decisions about ONE candidate, projected for the drawer.
@@ -470,7 +475,7 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
     decisions: candidateDecisions(entry.id, entry.workspaceId),
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
-    humanScorecard: candidateHumanScorecard(entry),
+    humanScorecards: candidateHumanScorecards(entry),
     consent: candidateConsent(entry, workspaceId),
     rematchLinks: resolveRematchLinks(events, workspaceId),
     staleSince: deriveStaleSince(entry, workspaceId),

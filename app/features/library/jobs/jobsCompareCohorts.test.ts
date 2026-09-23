@@ -78,13 +78,13 @@ test("compareCsvRows: two candidates produce aligned columns; a missing human ra
         { competency: "Technical depth", rating: 4 },
         { competency: "Communication", rating: 3 },
       ],
-      humanScorecard: { ratings: [{ competency: "Technical depth", rating: 5 }], recommendation: "advance" },
+      humanScorecards: [{ ratings: [{ competency: "Technical depth", rating: 5 }], recommendation: "advance" }],
     },
     {
       candidateLabel: "Grace",
       recommendation: "hold",
       ratings: [{ competency: "Technical depth", rating: 2 }],
-      humanScorecard: null,
+      humanScorecards: [],
     },
   ];
   const rows = compareCsvRows(rubric, candidates);
@@ -107,11 +107,31 @@ test("compareCsvRows: a NOT-ASSESSED axis exports blank, not the synthesis's mid
         { competency: "Technical depth", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
         { competency: "Communication", rating: 3, evidence: "She walked through the rollback herself." },
       ],
-      humanScorecard: null,
+      humanScorecards: [],
     },
   ]);
   assert.deepEqual(rows[0], ["Technical depth", "", "", "hold"]);
   assert.deepEqual(rows[1], ["Communication", 3, "", "hold"], "an observed 3 is still a 3");
+});
+
+test("compareCsvRows: a PANEL exports every interviewer's rating in one cell, never just the latest save", () => {
+  // Human scorecards are keyed by (interviewer, round). A spreadsheet cell holds one
+  // value, so several records join in the grid's own order (newest first) — never
+  // averaged (that would be a decision) and never reduced to whoever saved last.
+  const rubric = [R("Technical depth"), R("Communication")];
+  const rows = compareCsvRows(rubric, [
+    {
+      candidateLabel: "Ada",
+      recommendation: null,
+      ratings: [],
+      humanScorecards: [
+        { ratings: [{ competency: "Technical depth", rating: 2 }], recommendation: "hold" },
+        { ratings: [{ competency: "Technical depth", rating: 5 }, { competency: "Communication", rating: 4 }], recommendation: "advance" },
+      ],
+    },
+  ]);
+  assert.deepEqual(rows[0], ["Technical depth", "", "2 / 5", "hold / advance"]);
+  assert.deepEqual(rows[1], ["Communication", "", 4, "hold / advance"], "one rating stays a number");
 });
 
 // ---- the director's record on the grid (challenge-r07 voice-interview-api/B) -------
@@ -152,7 +172,7 @@ test("compareCsvRows: an AI rating on a NOT-REACHED axis exports blank; a covere
         { competency: "system_design", rating: 4, evidence: "Sounded confident." },
         { competency: "ownership", rating: 5, evidence: "Owned the migration." },
       ],
-      humanScorecard: { ratings: [{ competency: "system_design", rating: 3 }], recommendation: "hold" },
+      humanScorecards: [{ ratings: [{ competency: "system_design", rating: 3 }], recommendation: "hold" }],
       coverage: { byAxis: { system_design: "not_reached", ownership: "covered" }, mustAsksUnasked: null },
     },
   ]);

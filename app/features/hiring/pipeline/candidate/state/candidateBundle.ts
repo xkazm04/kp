@@ -11,7 +11,8 @@ import type {
   RematchLink,
 } from "@/app/_lib/candidate-timeline";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
-import type { Scorecard, ScorecardEntities, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { ScorecardEntities, ScorecardRating } from "@/app/_lib/interview-scorecard";
+import type { HumanScorecardView } from "@/app/_lib/human-scorecard-set";
 import type { ScorecardCoverage } from "@/app/_lib/interview-transcript";
 import type { PipelineEvent } from "@/app/features/shared/pipelineTypes";
 
@@ -35,8 +36,9 @@ export type CandidateBundleData = {
   decisions: CandidateDecision[];
   comms: CandidateComm[];
   interview: InterviewOutcome | null;
-  /** Null for an empty artifact: a scorecard with no ratings and no summary is noise. */
-  humanScorecard: Scorecard | null;
+  /** Every interviewer's scorecard (one per interviewer + round, newest first). An
+   *  empty artifact — no ratings and no summary — is dropped as noise. */
+  humanScorecards: HumanScorecardView[];
   consent: CandidateConsentView | null;
   rematchLinks: Record<number, RematchLink>;
   notes: string | null;
@@ -50,7 +52,6 @@ const stringOr = (v: unknown): string | null => (typeof v === "string" ? v : nul
 /** A non-object body is a failed load (null); inside an object every section defaults. */
 export function parseCandidateBundle(json: unknown): CandidateBundleData | null {
   if (!isObject(json)) return null;
-  const sc = isObject(json.humanScorecard) ? (json.humanScorecard as Scorecard) : null;
   const consent =
     isObject(json.consent) && isObject(json.consent.consent) && Array.isArray(json.consent.events)
       ? (json.consent as CandidateConsentView)
@@ -61,7 +62,10 @@ export function parseCandidateBundle(json: unknown): CandidateBundleData | null 
     decisions: arrayOf<CandidateDecision>(json.decisions),
     comms: arrayOf<CandidateComm>(json.comms),
     interview: isObject(json.interview) ? (json.interview as InterviewOutcome) : null,
-    humanScorecard: sc && (sc.ratings?.length || sc.summary) ? sc : null,
+    humanScorecards: arrayOf<unknown>(json.humanScorecards)
+      .filter(isObject)
+      .map((v) => v as HumanScorecardView)
+      .filter((v) => (Array.isArray(v.ratings) && v.ratings.length > 0) || Boolean(v.summary)),
     consent,
     rematchLinks: isObject(json.rematchLinks) ? (json.rematchLinks as Record<number, RematchLink>) : {},
     notes: stringOr(json.notes),

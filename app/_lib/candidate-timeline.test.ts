@@ -106,7 +106,7 @@ test("an expired consent withholds the HUMAN scorecard too, not just the AI one"
   assert.equal(saveHumanScorecard(live.entry.id, { ...HUMAN }), true, "the scorecard attaches to the prep artifact");
   recordEntryConsent(live.entry.id, "apply"); // default TTL ⇒ active
   assert.equal(
-    candidateDrawerBundle(live.entry.id)!.humanScorecard?.summary,
+    candidateDrawerBundle(live.entry.id)!.humanScorecards[0]?.summary,
     HUMAN.summary,
     "an active consent still serves the human scorecard (the gate must not over-withhold)"
   );
@@ -120,7 +120,28 @@ test("an expired consent withholds the HUMAN scorecard too, not just the AI one"
   const bundle = candidateDrawerBundle(lapsed.entry.id)!;
   assert.equal(bundle.consent.consent.status, "expired");
   assert.equal(bundle.interview!.summary, undefined, "the AI synthesis is withheld (unchanged)");
-  assert.equal(bundle.humanScorecard, null, "and so is the human interviewer's verbatim assessment");
+  assert.deepEqual(bundle.humanScorecards, [], "and so is the human interviewer's verbatim assessment");
+});
+
+// r09 follow-up: human scorecards are a PANEL keyed by (interviewer, round), and the
+// drawer used to read only the `humanScorecard` headline mirror — the latest save
+// overall — so a second interviewer's card silently hid the first one's.
+test("the drawer carries EVERY interviewer's scorecard, attributed, and withholds all of them on lapsed consent", () => {
+  const e = createPipelineEntry({ candidateId: "cand-panel", candidateLabel: "Pavla Panel", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  saveInterviewPrep(e.entry.id, "Pavla Panel", "Frontend Engineer", { scenario: "pair" });
+  saveHumanScorecard(e.entry.id, { summary: "first interviewer", ratings: [{ competency: "problem_solving", rating: 4 }] }, { author: "user-aaa", authorLabel: "Alena", stage: "interview" });
+  saveHumanScorecard(e.entry.id, { summary: "second interviewer", ratings: [{ competency: "problem_solving", rating: 2 }] }, { author: "user-bbb", authorLabel: "Boris", stage: "interview" });
+  recordEntryConsent(e.entry.id, "apply");
+
+  const cards = candidateDrawerBundle(e.entry.id)!.humanScorecards;
+  assert.equal(cards.length, 2, "both interviewers' records, not the latest save only");
+  assert.deepEqual(cards.map((c) => c.authorLabel).sort(), ["Alena", "Boris"]);
+  assert.ok(cards.every((c) => c.stage === "interview" && c.legacy === false));
+  const wire = JSON.stringify(cards);
+  assert.ok(!wire.includes("user-aaa") && !wire.includes("user-bbb"), "the signed-in user ids stay off the drawer wire");
+
+  recordEntryConsent(e.entry.id, "apply", -1);
+  assert.deepEqual(candidateDrawerBundle(e.entry.id)!.humanScorecards, [], "lapsed consent withholds every record");
 });
 
 test("the consent snapshot + audit trail ride the bundle (no separate drawer fetch)", () => {
@@ -292,7 +313,7 @@ test("the bundle carries every drawer section in one payload", () => {
   // createPipelineEntry logs an "added" event — proving events ride the same bundle.
   assert.ok(bundle!.events.some((ev) => ev.kind === "added"), "pipeline events ride the bundle");
   assert.equal(bundle!.interview, null, "no interview yet");
-  assert.equal(bundle!.humanScorecard, null, "no human scorecard yet");
+  assert.deepEqual(bundle!.humanScorecards, [], "no human scorecard yet");
   assert.equal(bundle!.consent.consent.status, "none", "consent rides the bundle (none until granted)");
   assert.equal(candidateDrawerBundle("does-not-exist"), null, "an unknown entry is null (route → 404)");
 });
