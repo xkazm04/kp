@@ -2449,7 +2449,7 @@
       "errMicDenied": "L’accès au microphone est bloqué. Cliquez sur l’icône de microphone dans la barre d’adresse de votre navigateur, choisissez Autoriser, puis appuyez de nouveau sur Démarrer.",
       "errMicNotFound": "Aucun microphone détecté. Connectez un microphone (ou vérifiez votre casque) et appuyez de nouveau sur Démarrer.",
       "errMicBusy": "Votre microphone est utilisé par une autre application. Fermez-la, puis appuyez de nouveau sur Démarrer.",
-      "errConnectionLost": "La connexion a été interrompue. Appuyez sur Démarrer pour vous reconnecter et reprendre là où vous en étiez.",
+      "errConnectionLost": "La connexion a été interrompue.",
       "noAudioTitle": "Nous n’avons rien entendu",
       "noAudioBody": "Il semble qu’aucun son ne soit parvenu de votre microphone. Vérifiez qu’il n’est pas coupé ni utilisé par une autre application, puis appuyez sur Démarrer pour réessayer.",
       "retrySave": "Réessayer l’enregistrement",
@@ -2543,6 +2543,17 @@
       "resume": {
         "continuing": "Nous reprenons là où vous en étiez. Vos réponses précédentes sont enregistrées, et l’intervieweur sait ce que vous avez déjà abordé.",
         "transcriptSeam": "De votre connexion précédente"
+      },
+      "reconnect": {
+        "countdown": "Connexion perdue. Nouvelle tentative dans {seconds, plural, one {# seconde} other {# secondes}}. Vos réponses précédentes sont enregistrées.",
+        "cancel": "Annuler",
+        "now": "Se reconnecter maintenant",
+        "savingFirst": "Connexion perdue. Nous enregistrons vos réponses avant de vous reconnecter.",
+        "waitOnline": "Vous êtes hors ligne. L’entretien reprendra dès que votre connexion sera rétablie.",
+        "budget": "La reconnexion automatique n’a pas fonctionné. Appuyez sur Recommencer pour reprendre là où vous en étiez.",
+        "cancelled": "Reconnexion annulée. Appuyez sur Recommencer lorsque vous êtes prêt à reprendre là où vous en étiez.",
+        "manual": "Appuyez sur Recommencer pour réessayer l’appel.",
+        "saveRefused": "Cette tentative n’a pas pu être enregistrée, car le lien de l’entretien ne l’accepte plus."
       }
     },
     "brief": {

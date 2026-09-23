@@ -2449,7 +2449,7 @@
       "errMicDenied": "Microphone access is blocked. Click the microphone icon in your browser's address bar, choose Allow, then press Start again.",
       "errMicNotFound": "No microphone was found. Connect a microphone (or check your headset) and press Start again.",
       "errMicBusy": "Your microphone is in use by another app. Close the other app, then press Start again.",
-      "errConnectionLost": "The connection dropped. Press Start to reconnect and carry on from where you left off.",
+      "errConnectionLost": "The connection dropped.",
       "noAudioTitle": "We didn't hear anything",
       "noAudioBody": "It looks like no audio came through from your microphone. Check that it isn't muted or in use by another app, then press Start to try again.",
       "retrySave": "Retry saving",
@@ -2543,6 +2543,17 @@
       "resume": {
         "continuing": "Picking up where you left off. Your earlier answers are saved, and the interviewer knows what you have already covered.",
         "transcriptSeam": "From your earlier connection"
+      },
+      "reconnect": {
+        "countdown": "Connection lost. Reconnecting in {seconds, plural, one {# second} other {# seconds}}. Your earlier answers are saved.",
+        "cancel": "Cancel",
+        "now": "Reconnect now",
+        "savingFirst": "Connection lost. Saving your answers before reconnecting.",
+        "waitOnline": "You are offline. The interview reconnects when your connection returns.",
+        "budget": "Reconnecting automatically did not work. Press Start again to carry on from where you left off.",
+        "cancelled": "Reconnect cancelled. Press Start again when you are ready to carry on from where you left off.",
+        "manual": "Press Start again to try the call again.",
+        "saveRefused": "This attempt could not be saved because the interview link no longer accepts it."
       }
     },
     "brief": {

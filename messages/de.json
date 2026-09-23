@@ -2449,7 +2449,7 @@
       "errMicDenied": "Der Mikrofonzugriff ist blockiert. Klicken Sie auf das Mikrofonsymbol in der Adressleiste Ihres Browsers, wählen Sie „Zulassen“ und drücken Sie erneut auf Start.",
       "errMicNotFound": "Es wurde kein Mikrofon gefunden. Schließen Sie ein Mikrofon an (oder prüfen Sie Ihr Headset) und drücken Sie erneut auf Start.",
       "errMicBusy": "Ihr Mikrofon wird von einer anderen App verwendet. Schließen Sie die andere App und drücken Sie dann erneut auf Start.",
-      "errConnectionLost": "Die Verbindung wurde unterbrochen. Drücken Sie auf Start, um sich erneut zu verbinden und dort weiterzumachen, wo Sie aufgehört haben.",
+      "errConnectionLost": "Die Verbindung wurde unterbrochen.",
       "noAudioTitle": "Wir haben nichts gehört",
       "noAudioBody": "Von Ihrem Mikrofon kam offenbar kein Ton an. Prüfen Sie, ob es stummgeschaltet ist oder von einer anderen App verwendet wird, und drücken Sie dann auf Start, um es erneut zu versuchen.",
       "retrySave": "Speichern erneut versuchen",
@@ -2543,6 +2543,17 @@
       "resume": {
         "continuing": "Wir machen dort weiter, wo Sie aufgehört haben. Ihre bisherigen Antworten sind gespeichert, und der Interviewer weiß, was Sie bereits besprochen haben.",
         "transcriptSeam": "Aus Ihrer früheren Verbindung"
+      },
+      "reconnect": {
+        "countdown": "Verbindung unterbrochen. Neuer Verbindungsversuch in {seconds, plural, one {# Sekunde} other {# Sekunden}}. Ihre bisherigen Antworten sind gespeichert.",
+        "cancel": "Abbrechen",
+        "now": "Jetzt verbinden",
+        "savingFirst": "Verbindung unterbrochen. Ihre Antworten werden gespeichert, bevor die Verbindung neu aufgebaut wird.",
+        "waitOnline": "Sie sind offline. Das Interview wird fortgesetzt, sobald Ihre Verbindung wieder besteht.",
+        "budget": "Die automatische Wiederverbindung hat nicht funktioniert. Klicken Sie auf Erneut starten, um dort weiterzumachen, wo Sie aufgehört haben.",
+        "cancelled": "Wiederverbindung abgebrochen. Klicken Sie auf Erneut starten, sobald Sie bereit sind, dort weiterzumachen, wo Sie aufgehört haben.",
+        "manual": "Klicken Sie auf Erneut starten, um das Gespräch noch einmal zu versuchen.",
+        "saveRefused": "Dieser Versuch konnte nicht gespeichert werden, weil der Interview-Link ihn nicht mehr annimmt."
       }
     },
     "brief": {

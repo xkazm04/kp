@@ -2449,7 +2449,7 @@
       "errMicDenied": "Přístup k mikrofonu je zablokován. Klikněte na ikonu mikrofonu v adresním řádku prohlížeče, zvolte Povolit a potom znovu stiskněte Spustit.",
       "errMicNotFound": "Nebyl nalezen žádný mikrofon. Připojte mikrofon (nebo zkontrolujte náhlavní soupravu) a znovu stiskněte Spustit.",
       "errMicBusy": "Váš mikrofon používá jiná aplikace. Zavřete druhou aplikaci a potom znovu stiskněte Spustit.",
-      "errConnectionLost": "Spojení se přerušilo. Stiskněte Spustit a pokračujte tam, kde jste skončili.",
+      "errConnectionLost": "Spojení se přerušilo.",
       "noAudioTitle": "Nic jsme neslyšeli",
       "noAudioBody": "Vypadá to, že z vašeho mikrofonu nepřišel žádný zvuk. Zkontrolujte, že není ztlumený ani používaný jinou aplikací, a potom stiskněte Spustit a zkuste to znovu.",
       "retrySave": "Zkusit uložit znovu",
@@ -2543,6 +2543,17 @@
       "resume": {
         "continuing": "Navazujeme tam, kde jste skončili. Vaše dřívější odpovědi jsou uložené a tazatel ví, co už jste probrali.",
         "transcriptSeam": "Z dřívějšího spojení"
+      },
+      "reconnect": {
+        "countdown": "Spojení se přerušilo. Znovu se připojíme za {seconds, plural, one {# sekundu} few {# sekundy} other {# sekund}}. Vaše dosavadní odpovědi jsou uložené.",
+        "cancel": "Zrušit",
+        "now": "Připojit hned",
+        "savingFirst": "Spojení se přerušilo. Před opětovným připojením ukládáme vaše odpovědi.",
+        "waitOnline": "Jste offline. Pohovor se znovu připojí, jakmile bude připojení obnoveno.",
+        "budget": "Automatické připojení se nezdařilo. Stiskněte Začít znovu a pokračujte tam, kde jste skončili.",
+        "cancelled": "Opětovné připojení bylo zrušeno. Až budete připraveni, stiskněte Začít znovu a pokračujte tam, kde jste skončili.",
+        "manual": "Hovor můžete zkusit znovu tlačítkem Začít znovu.",
+        "saveRefused": "Tento pokus se nepodařilo uložit, protože odkaz na pohovor jej už nepřijímá."
       }
     },
     "brief": {
