@@ -11,6 +11,7 @@ import type { Entry } from "@/app/features/shared/decisionsTypes";
 import { nextCandidateView, type CandidateTab, type CandidateView } from "../pipeline/candidate/candidateView";
 import type { CandidateDecision } from "../pipeline/candidate/decision/candidateDecision";
 import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
+import { armDecision } from "./useDecisionCommitWindow";
 
 // A decisions Entry is a Pick<> of the board entry and both come off the SAME
 // GET /api/pipeline row, so at runtime the value already carries every field the
@@ -52,6 +53,17 @@ export function useDecisionsCandidate({
   const current = view ? (visibleAiReviews.find((e) => e.id === view.entry.id) ?? null) : null;
   const decide = useCallback(
     async (e: Entry, action: "accept" | "reject", ttlDays?: number) => {
+      // decisions-review-ui/B — a reject is not written on the click: it arms the
+      // shared commit window (the ledger's undo strip counts it down and offers Undo)
+      // and the modal closes, exactly as a landed verdict closes it. An accept keeps
+      // the immediate write: its handoff (Schedule, interview prep, an offer's secure
+      // link) is act()'s to apply, and a forward move is not the emailed, sealed,
+      // terminal act the window exists for.
+      if (action === "reject") {
+        armDecision({ entryId: e.id, action, label: e.candidateLabel, expectedStage: e.stage });
+        setView(null);
+        return;
+      }
       setBusy(true);
       try {
         const ok = await act(e, action, undefined, ttlDays);

@@ -4,8 +4,26 @@
 // (Direction 1) plus the decisions LEDGER — one row per recommendation
 // (ledger/DecisionsLedger.tsx: grouped by role, quick accept/reject and the modal
 // door on every row), in place of the card grid.
+//
+// decisions-review-ui/B — the ledger's quick reject ✕ no longer writes on the click.
+// It ARMS the shared commit window (useDecisionCommitWindow.ts): the row leaves at
+// once, DecisionsUndoStrip names who and counts the stated seconds, and the reject
+// is committed only when the window closes (or the page goes away). Undo writes
+// nothing. The rows the window holds are an OVERLAY subtracted here, so the live
+// refresh keeps running for every other row; the header count still includes a
+// pending row, which is true - it is still pending, and the strip says so.
+import { useEffect, useMemo } from "react";
 import { ListChecks, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { DecisionsUndoStrip } from "./DecisionsUndoStrip";
+import { hiddenIds } from "./decisionsCommitWindow";
+import {
+  armDecision,
+  dismissDecisionFailure,
+  pruneLandedDecisions,
+  undoDecision,
+  useDecisionCommitWindow,
+} from "./useDecisionCommitWindow";
 import { DecisionsLedger } from "./ledger/DecisionsLedger";
 import { DecisionsBatchBar, type DecisionsBatchBarProps } from "./DecisionsBatchBar";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
@@ -37,6 +55,15 @@ export function DecisionsAiReviewsSection({
   staleSinceOf: (e: Entry) => string | null;
 }) {
   const t = useTranslations("decisions");
+  const commitWindow = useDecisionCommitWindow();
+  const hidden = useMemo(() => hiddenIds(commitWindow), [commitWindow]);
+  const shownReviews = useMemo(() => visibleAiReviews.filter((e) => !hidden.has(e.id)), [visibleAiReviews, hidden]);
+  // A landed reject's overlay is dropped once the queue's read no longer lists it
+  // (the commit's notifyDataChanged() triggers that read).
+  const presentKey = visibleAiReviews.map((e) => e.id).join(",");
+  useEffect(() => {
+    pruneLandedDecisions(new Set(presentKey ? presentKey.split(",") : []));
+  }, [presentKey]);
   if (visibleAiReviews.length === 0) return null;
 
   return (
@@ -62,17 +89,25 @@ export function DecisionsAiReviewsSection({
         ) : null}
       </div>
 
+      <div className="mt-3">
+        <DecisionsUndoStrip state={commitWindow} onUndo={undoDecision} onDismissFailure={dismissDecisionFailure} />
+      </div>
+
       {selectMode ? <DecisionsBatchBar selectableReviews={selectableReviews} {...batch} /> : null}
 
       <DecisionsLedger
-        entries={visibleAiReviews}
+        entries={shownReviews}
         staleSinceOf={staleSinceOf}
         selectMode={selectMode}
         selectedIds={selectedReviewIds}
         onToggleSelect={toggleReviewSelect}
         leavingWrapClass={leavingWrapClass}
         onDecide={onDecide}
-        act={(e, action) => act(e, action)}
+        act={(e, action) =>
+          action === "reject"
+            ? armDecision({ entryId: e.id, action, label: e.candidateLabel, expectedStage: e.stage })
+            : act(e, action)
+        }
       />
     </section>
   );
