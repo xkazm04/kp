@@ -658,19 +658,34 @@ can enumerate them.
 `KP_PYTHON_MAX_CONCURRENT`, default 4 — because an unbounded fork-per-request is a
 denial of service against the Node server the other 200 routes share. A caller
 waits up to `KP_PYTHON_QUEUE_WAIT_MS` (default 20 s) for a slot and is then refused
-with a `PipelineError` carrying **503 / `ENGINE_BUSY`**, which the routes forward
-like any other engine refusal. It is a decision, not a fault: the engine is
-healthy, it is saturated, and `errors.ENGINE_BUSY` says so in the reader's
-language. Sizing guidance: [self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
+with a `PipelineError` carrying **503 / `ENGINE_BUSY`**. It is a decision, not a
+fault: the engine is healthy, it is saturated, and `errors.ENGINE_BUSY` says so in
+the reader's language. A route reads it with `engineRefusal(err)` (python-runner)
+BEFORE its catch-all and answers `jsonRefusal(busy.code, busy.status)` —
+`/api/match`, `/api/match/reasoning`, `/api/matrix` and `/api/profile/draft` used
+to fold it into their generic `*_FAILED` 500. Sizing guidance:
+[self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
+
+**The runner's own failures are typed.** A deadline, an abort, the output ceiling
+and an interpreter that would not start reject a `SpawnFailure` (extends
+`PipelineError`) with `kind` = `timeout` (504, code `timeout`) | `aborted` |
+`output_overflow` | `spawn_failed` (500, `engine_error`). Its message carries no
+argv — the command line, its `jobfit-*` temp paths and a raw `ENOENT` go to
+`ops-warn.log` as `engine:spawn:failed` (aborts are not logged). Branch on the
+kind, never the sentence: `app/_lib/python-runner-spawn-failure.test.ts` fails
+when any other file spells a spawn-failure sentence in code or calls the
+`@deprecated` `isSpawnTimeoutMessage`. A route that forwards a CLI
+`PipelineError`'s message (`/api/jobs/[id]/candidates`) excludes `SpawnFailure`
+from that branch, so a runner failure stays on its logged catch-all.
 
 **A route that spawns states its own budget.** Ten minutes is the right bound for
 a repo scan and the wrong one for a Save button: a wedged sub-second CLI
 inheriting the default holds the operator on a spinner for nine minutes past the
 point the answer was useful. Name the value (`const PROFILE_ROUTE_TIMEOUT_MS =
 60_000`), pass it as `timeoutMs`, and answer the overrun **by name** — the runner
-delivers a deadline as a rejected `result` whose message
-[`isSpawnTimeoutMessage`](../../app/_lib/intake-run.ts) is the one place that
-reads, and the route turns it into its own `jsonRefusal("<AREA>_TIMEOUT", 504)`.
+delivers a deadline as a rejected `result` carrying a `SpawnFailure` of kind
+`timeout`, which [`isSpawnTimeout(err)`](../../app/_lib/python-runner.ts) reads,
+and the route turns it into its own `jsonRefusal("<AREA>_TIMEOUT", 504)`.
 A deadline WE set is a DECISION the reader can act on (retry), not a store fault
 to hide behind a generic 500. Live examples: `INTAKE_TURN_TIMEOUT`,
 `PROFILE_BUILD_TIMEOUT`, `JOB_WINNABILITY_TIMEOUT`.
