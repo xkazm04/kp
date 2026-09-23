@@ -313,7 +313,7 @@ surfaces let a user pick one; they do not all write the same authorities:
 | --- | --- | --- |
 | Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` | UI cookie (`setLocale`) |
 | Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` | UI cookie (`setLocale`) |
-| First-run wizard strip | `app/features/shell/setup/SetupLanguageSwitch.tsx` | UI cookie now (`setLocale`); workspace default on `finish()` |
+| First-run wizard strip | `app/features/shell/setup/SetupLanguageSwitch.tsx` | UI cookie now (`setLocale`); org language on `finish()` |
 | Organization settings | `app/features/settings/organization/OrganizationGeneralPanel.tsx` | both, through `setOrgLanguage` |
 
 The public switcher, the studio rail and the wizard strip write only the UI
@@ -326,8 +326,14 @@ org's language has to reach code that runs with no request cookie:
 
 1. the **`NEXT_LOCALE` cookie** — the UI and request-scoped generation (CV
    analysis, JD build, match reasoning);
-2. the **workspace default locale** (`setWorkspaceDefaultLocale`) — background
-   automation passes and candidate-comms fallback.
+2. the **org's language** (`organizations.default_locale`, written by
+   `setOrganizationLocale`) — background automation passes and candidate-comms
+   fallback. A team resolves it through `getWorkspaceDefaultLocale`: its explicit
+   override (`workspaces.locale_override`), else its org's row, so a team created
+   later follows the org instead of the column default. The Organization tab's
+   write clears every team override in the org; the legacy
+   `workspaces.default_locale` column is mirrored for older images. Details:
+   [`docs/features/organization/README.md`](../features/organization/README.md).
 
 Either way the caller follows with `router.refresh()` so the server re-renders
 under the new locale.
@@ -386,7 +392,7 @@ actually ships** — a picker that silently could not reach half the product.
 
 **In the first-run wizard, language lives in the left rail**
 (`SetupLanguageSwitch.tsx`), visible on every step, and it switches the UI
-immediately (`setLocale` + `router.refresh()`). The workspace default waits for
+immediately (`setLocale` + `router.refresh()`). The org language waits for
 `finish()` (`persistOnboardingSetup` → `setOrgLanguage`). Two earlier positions
 were both wrong: step 2 as a draft value that only reached the server at
 `finish()` (a reader who could not read English picked their language and then

@@ -365,7 +365,7 @@ that target no single workspace, i.e. creating one.
 **The two org SETTINGS writes take `org:manage`, like every route beside them.**
 `setOrgName` / `setOrgLanguage` (`app/_lib/org-actions.ts`) are server actions,
 which are reachable by any signed-in member with a POST — and `setOrgLanguage`
-writes `workspaces.default_locale`, the shared row that decides the language of
+writes `organizations.default_locale`, the shared row that decides the language of
 background automation passes and of every candidate email sent without a request
 cookie, so a recruiter could re-language the company's outbound comms. Both now
 call `requireOrgCapability("org:manage")` (the same helper the export route uses:
@@ -375,16 +375,44 @@ nothing — the console renders the code, and a refused save never ticks over to
 "Saved". Pinned by `app/_lib/org-actions.test.ts`. The org NAME's storage stays a
 per-browser cookie; the gate is about who may write it, not where it lives.
 
-`setOrgLanguage` writes `workspaces.default_locale` for **every team in the caller's
-org**, not only the one their session sits on. The setting is org-wide on every
-other axis — the Organization tab, the label "App language", an `org:manage`
-capability resolved across the org — so writing a single row left a sibling team's
-automation passes and candidate emails in the previous language while the console
-reported "Saved". The org is resolved from the current workspace
+**One language authority per org.** The org's language is ONE row,
+`organizations.default_locale`, and every team follows it by the **absence** of an
+override (the `settings/inherited-default-override` shape):
+
+| State | Stored in | Written by |
+| --- | --- | --- |
+| The org's language (the source) | `organizations.default_locale` | `setOrganizationLocale` (`app/_lib/db/organizations.ts`) |
+| A team's explicit language | `workspaces.locale_override` (NULL = follow the org) | `setWorkspaceDefaultLocale` / cleared by `clearWorkspaceLocaleOverride` (`app/_lib/db/workspaces.ts`) |
+| Legacy mirror of the resolved value | `workspaces.default_locale` | every write above, and `createWorkspace` |
+
+`getWorkspaceDefaultLocale` is the one resolution door every no-cookie path reads
+(candidate-comms fallback, automation passes, group eval, interview kit, agent
+hire): the override, else the org row, else the legacy column of a row whose org
+row does not exist, validated at each step (an unsupported value degrades to
+`WORKSPACE_LOCALE_FALLBACK`, `cs`). A team created later is born following its
+org — before this, `createWorkspace` took the column default `cs` whatever the org
+had chosen, so a team added to a German org wrote Czech to its candidates.
+
+`setOrgLanguage` reaches **every team in the caller's org**: it calls
+`setOrganizationLocale(locale, orgId, { clearOverrides: true })`, which writes the
+org row, drops every team override in that org and mirrors the legacy column, in
+one IMMEDIATE transaction. The setting is org-wide on every axis — the
+Organization tab, the label "App language", an `org:manage` capability resolved
+across the org. The org is resolved from the current workspace
 (`getWorkspaceOrgId`), so an operator-password / open-dev caller with no identity
 claims still writes the whole org, and an unlinked legacy workspace (`org_id` NULL)
-keeps the single-row behaviour. A single-team deployment — the seeded shape — is
-unaffected, since its org holds exactly one row.
+keeps the single-row behaviour. There is no per-team language control in the UI
+yet; the override exists as a store state (and is what the per-team test fixtures
+set).
+
+The legacy `workspaces.default_locale` column is kept and mirrored on every write
+(expand phase), so an older image that reads only it hears the same language. The
+one-shot boot backfill `backfillOrgLocaleAuthority` (`app/_lib/db/core.ts`, recorded
+in `seed_marks` as `org-locale-authority`) seeded each org row from its OLDEST
+team's stored value and gave every team that differed that value as an explicit
+override, copied verbatim — so no existing team changed language at the migration.
+Pinned by `app/_lib/db/workspace-locale-authority.test.ts` and
+`app/_lib/org-actions.test.ts`.
 
 **Entering** a team is separate from administering it:
 `POST /api/auth/switch-workspace` requires a real membership (plus an org match).
@@ -781,7 +809,10 @@ cannot enter a client bundle. It is used only to bucket legacy invites, whose
 
 `organizations`, `users`, `memberships` (user × team/workspace × role),
 `invites` (token, email, role, status, expiry). "Team" = the existing
-`workspaces` table.
+`workspaces` table. The org's language is `organizations.default_locale`; a team's
+explicit language is `workspaces.locale_override` (NULL = follow the org), and
+`workspaces.default_locale` is its legacy mirror (see **One language authority
+per org** above).
 
 Cross-company reference reads (curated shared library + aggregated benchmarks,
 never raw PII) are designed but not the current focus of this doc — see the
@@ -840,6 +871,13 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - **Per-team `llm_usage` attribution** — the usage ledger is global; it's
   written from the Python sidecar off the request path, so propagating org/team
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).
+- **Team language overrides have no UI, and a round-trip through an older image
+  loses its language writes.** `workspaces.locale_override` is settable only through
+  the store; the Organization tab writes the org row. An image from before the org
+  language authority writes only the legacy `workspaces.default_locale` (its
+  fan-out), so a language changed while rolled back is not seen after re-upgrading:
+  the org row and the overrides still hold the values from before the rollback.
+  Re-save the language on the Organization tab after such a round-trip.
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
   needed before enterprise SSO / audit tracks can close out. Account-level
   disable no longer waits on it: team-data caps (`capabilitiesForUserInWorkspace`)
