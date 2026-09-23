@@ -12,6 +12,7 @@ import { RunOfShow } from "./ScheduleInterviewPrepRunOfShow";
 import { SignalsToConfirm, ImportedQuestionsSection } from "./ScheduleInterviewPrepQuestions";
 import { InterviewerAndNotes } from "./ScheduleInterviewPrepNotes";
 import { PrepKitOverlay } from "./ScheduleInterviewPrepOverlay";
+import { PrepPlanDiff } from "./ScheduleInterviewPrepPlanDiff";
 
 export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const {
@@ -44,6 +45,10 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
     setBlock,
     totalItems,
     doneItems,
+    planDiff,
+    decidePlan,
+    deciding,
+    decideFailed,
   } = useScheduleInterviewPrep(entry);
 
   return (
@@ -91,6 +96,11 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             doneItems={doneItems}
             t={t}
           />
+
+          {/* A staged Regenerate (r09 schedule-interview-prep/B): the new plan waits
+              here as a diff; the run-of-show below stays the committed one, usable,
+              until the interviewer replaces it or keeps it. */}
+          {planDiff ? <PrepPlanDiff diff={planDiff} decide={decidePlan} deciding={deciding} failed={decideFailed} t={t} /> : null}
 
           <RunOfShow
             prep={prep}

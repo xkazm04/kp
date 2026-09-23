@@ -3,6 +3,7 @@ import {
   getInterviewPrep,
   listPreparedEntries,
   prepJdEditedAt,
+  resolvePendingPlan,
   saveInterviewPrep,
   saveInterviewPrepKitOverlay,
   saveInterviewPrepProgress,
@@ -194,6 +195,14 @@ export async function POST(request: NextRequest) {
 // fields beside it are ignored. Refusals: INTERVIEW_PREP_OVERLAY_INVALID (400, with
 // `reason` as data) for a malformed or over-cap overlay; the same gate, throttle,
 // tenancy read and 404 as the weave.
+//
+// PATCH ?entry=<id> { plan: "accept" | "discard" } → decide a STAGED regeneration (r09
+// schedule-interview-prep/B): a Regenerate started from the prep modal parks its plan
+// under `payload.pendingPlan` and the modal shows the diff. Accept swaps it in and moves
+// created_at (accepting IS the regeneration); discard drops it. Idempotent rather than
+// coded: with no pending plan (a second click, another tab already decided) it answers
+// 200 `{ applied: false }` and writes nothing. Same gate, throttle and tenancy read as
+// the weave; `plan` with any other value is not a plan decision and falls through to it.
 export async function PATCH(request: NextRequest) {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
@@ -208,12 +217,31 @@ export async function PATCH(request: NextRequest) {
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
-    const body = await readJsonWithLimit<{ question?: unknown; blockRef?: unknown; kitOverlay?: unknown }>(
+    const body = await readJsonWithLimit<{ question?: unknown; blockRef?: unknown; kitOverlay?: unknown; plan?: unknown }>(
       request,
       MAX_PATCH_BODY_BYTES,
       {}
     );
     if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_PATCH_BODY_BYTES });
+
+    if (body.plan === "accept" || body.plan === "discard") {
+      if (!rateLimit(`interview-prep:${clientIpFrom(request.headers)}`, PREP_WRITE_RATE_LIMIT)) {
+        return jsonRefusal("TOO_MANY_REQUESTS", 429);
+      }
+      // TENANCY — the read that authorizes every sibling verb authorizes this one: a
+      // foreign entry id is the "no pack" 404, never a plan swapped on another team.
+      if (!getInterviewPrep(entry, await currentWorkspace())) {
+        return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+      }
+      const outcome = resolvePendingPlan(entry, body.plan);
+      if (!outcome.applied) return NextResponse.json({ ok: true, applied: false });
+      // Accept answers the swapped-in pack so the modal re-seeds from the server's copy.
+      return NextResponse.json({
+        ok: true,
+        applied: true,
+        ...(body.plan === "accept" ? { prep: { payload: outcome.payload, createdAt: outcome.createdAt } } : {}),
+      });
+    }
 
     if (Object.prototype.hasOwnProperty.call(body, "kitOverlay")) {
       // The ONE trust boundary for an overlay write (interview-prep-kit.ts): stricter than

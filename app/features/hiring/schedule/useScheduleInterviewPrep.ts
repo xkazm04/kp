@@ -14,7 +14,8 @@ import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvide
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { PrepKitView } from "@/app/_lib/interview-prep-kit";
-import { normImported, type ImportedEntry, type ImportedQuestion, type Prep } from "./scheduleInterviewPrepTypes";
+import { normImported, type ImportedEntry, type ImportedQuestion, type PendingPlan, type Prep } from "./scheduleInterviewPrepTypes";
+import { computePlanDiff } from "./schedulePrepPlanDiff";
 // The hydration + progress arithmetic, extracted and unit-tested (schedule-ui-2).
 import { hydratePrepState, prepProgress, splitImported, wovenKeyOf as wovenKeyIn } from "./scheduleInterviewPrepProgress";
 
@@ -48,6 +49,12 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   // "add to plan" block-picker is currently open (single-open).
   const [importedOverride, setImportedOverride] = useState<ImportedEntry[] | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  // A STAGED regeneration (r09 schedule-interview-prep/B). `undefined` = trust the loaded
+  // payload's `pendingPlan` (a reopen restores the preview); a value = what this session
+  // knows since (a staged completion, or null after Replace / Keep).
+  const [pendingOverride, setPendingOverride] = useState<PendingPlan | null | undefined>(undefined);
+  const [deciding, setDeciding] = useState(false);
+  const [decideFailed, setDecideFailed] = useState(false);
   // PREP2: hydrate the interviewer's saved checklist + notes once the artifact
   // loads, then debounce-persist edits. The `hydrated` flag stops the saved state from
   // being written straight back; `dirtyRef` gates the save to genuine user edits.
@@ -144,9 +151,19 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   // same pass, so this runs once per task) — the guarded render-phase pattern
   // instead of an effect round-trip.
   const { status: genStatus, full: genFull } = useTaskResult(taskId);
-  if (taskId && genStatus === "succeeded" && genFull) {
+  if (taskId && genStatus === "succeeded" && genFull && (genFull.result as Prep | null)?.pendingPlan) {
+    // STAGED (the pack already had a plan): the committed plan did not change, so there
+    // is nothing to re-seed and the interviewer's live ticks and notes stay put. Show the
+    // candidate as a diff instead of swapping it in.
+    setPendingOverride((genFull.result as Prep).pendingPlan ?? null);
+    setDecideFailed(false);
+    setTaskId(null);
+  } else if (taskId && genStatus === "succeeded" && genFull) {
     const result = (genFull.result as Prep) ?? null;
     setGenerated(result);
+    // A direct commit (first generation, or a task deduped onto an unstaged run)
+    // supersedes any staged candidate.
+    setPendingOverride(null);
     setTaskId(null);
     // The task carries userProgress/interviewer forward across a regeneration
     // (interview-prep-run.ts), so seed the editable state from the result — it IS
@@ -178,7 +195,10 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
     // can't write over it mid-generation.
     dirtyRef.current = false;
     setHydrated(true);
-    const started = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle, lang: locale });
+    // `stage: true` — every Regenerate offered here (footer, fallback banner, stale-JD
+    // banner, first-generation empty state) asks to be staged; the server commits
+    // directly when there is no plan yet, so the one flag is right for all four.
+    const started = await startTask("interview_prep", { entryId: entry.id, candidateLabel: entry.candidateLabel, jobTitle: entry.jobTitle, lang: locale, stage: true });
     if (started) setTaskId(started.id);
   };
   const generating = taskId !== null;
@@ -200,6 +220,49 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   const split = useMemo(() => splitImported(importedEntries, blockTopics), [importedEntries, blockTopics]);
   const wovenList = split.woven;
   const unassigned = split.unassigned;
+  // The staged plan and what swapping it in would change, computed with the SAME
+  // split/tick rules the render above uses (schedulePrepPlanDiff.ts).
+  const pendingPlan: PendingPlan | null = pendingOverride !== undefined ? pendingOverride : (prep?.pendingPlan ?? null);
+  const planDiff = useMemo(
+    () => (prep && pendingPlan ? computePlanDiff(prep, pendingPlan, checked, importedEntries) : null),
+    [prep, pendingPlan, checked, importedEntries]
+  );
+
+  // Replace (accept) or Keep (discard) the staged plan. Idempotent on the server: an
+  // `applied: false` means another tab already decided, so re-read the truth.
+  const decidePlan = async (plan: "accept" | "discard") => {
+    setDeciding(true);
+    setDecideFailed(false);
+    try {
+      const res = await fetch(`/api/interview-prep?entry=${encodeURIComponent(entry.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const d = (await res.json().catch(() => ({}))) as { applied?: boolean; prep?: { payload?: Prep } };
+      if (!res.ok) {
+        setDecideFailed(true);
+        return;
+      }
+      setPendingOverride(null);
+      if (d.applied === false) {
+        reload();
+        return;
+      }
+      if (plan === "accept" && d.prep?.payload) {
+        // The accepted pack is the server's copy; accepting touched no human key, so the
+        // live ticks, notes and interviewer stay as they are (no re-seed, no echo-save).
+        setGenerated(d.prep.payload);
+        setImportedOverride(null);
+        setPickerFor(null);
+      }
+    } catch {
+      setDecideFailed(true);
+    } finally {
+      setDeciding(false);
+    }
+  };
+
   const wovenForBlock = (topic: string) => wovenList.filter((e) => e.blockRef === topic);
   const wovenKeyOf = (question: string) => wovenKeyIn(wovenList, question);
 
@@ -298,5 +361,10 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
     setBlock,
     totalItems,
     doneItems,
+    pendingPlan,
+    planDiff,
+    decidePlan,
+    deciding,
+    decideFailed,
   };
 }

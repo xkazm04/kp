@@ -75,3 +75,15 @@ test("mergeRegeneratedPrep: the recruiter's per-candidate kit OVERLAY survives a
   assert.deepEqual(merged.chronology, [], "while the plan it rides on is replaced");
   assert.equal("kitOverlay" in generated, false, "the generator owns no kitOverlay key to overwrite it with");
 });
+
+test("mergeRegeneratedPrep: an unstaged regeneration never carries a stale pendingPlan forward", () => {
+  // r09 schedule-interview-prep/B: a modal Regenerate stages its plan under `pendingPlan`.
+  // A later UNSTAGED regeneration (the Decisions-queue accept) commits a newer plan, so the
+  // staged candidate describes a plan that is no longer the alternative to anything.
+  const humanScorecards = [{ ratings: [], source: "human", author: "u1", authorLabel: "Amy", stage: "interview", savedAt: "2026-09-20T10:00:00.000Z" }];
+  const prev = { scenario: "old", pendingPlan: { scenario: "staged" }, humanScorecards, userProgress: { notes: "n" } };
+  const merged = mergeRegeneratedPrep(prev, generated);
+  assert.equal("pendingPlan" in merged, false, "the staged candidate is dropped");
+  assert.deepEqual(merged.humanScorecards, humanScorecards, "every human key still rides through");
+  assert.deepEqual(merged.userProgress, { notes: "n" });
+});

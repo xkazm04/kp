@@ -2,7 +2,7 @@ import { getPipelineEntry } from "./db/pipeline";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
-import { getInterviewPrep, saveInterviewPrep } from "./interview-prep";
+import { getInterviewPrep, hasCommittedPlan, mergeRegeneratedPrep, saveInterviewPrep, stageInterviewPrepPlan } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
 import { studentPrepRunOfShow } from "./student-interview";
 import { buildRunOfShow, type PrepQuestion, type RunOfShow } from "./run-of-show";
@@ -73,10 +73,31 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
     // Never a guessed family; see rubricCoverage.
     rubricCoverage: rubricCoverage(entry?.roleFamily),
   };
+  // `stage`: the prep modal's Regenerate is staged for review (r09 /B); the
+  // Decisions-queue accept and voice first-generation commit directly.
+  return commitGeneratedPrep(entryId, candidateLabel, jobTitle, generated, workspaceId, { stage: params.stage === true });
+}
+
+/** The write half of runInterviewPrep (testable without Python). Staged on a pack with
+ *  a committed plan: parked under `pendingPlan`, nothing else moves. Otherwise committed
+ *  as before. Returns the stored payload (the task result). */
+export function commitGeneratedPrep(
+  entryId: string,
+  candidateLabel: string | null,
+  jobTitle: string | null,
+  generated: Record<string, unknown>,
+  workspaceId: string,
+  opts: { stage?: boolean } = {}
+): Record<string, unknown> {
   // The task's own tenant. Unscoped, a regeneration on any other team read no prior
   // pack, so mergeRegeneratedPrep had nothing to carry forward and the interviewer's
   // checklist, notes, imported questions and human scorecard were dropped.
   const prev = getInterviewPrep(entryId, workspaceId);
+  if (opts.stage && prev && hasCommittedPlan(prev.payload)) {
+    // null only if the pack vanished meanwhile: then committing is truthful.
+    const staged = stageInterviewPrepPlan(entryId, generated);
+    if (staged) return staged;
+  }
   const payload = mergeRegeneratedPrep(prev?.payload, generated);
   // `regenerated: true` — this is the ONE write that rebuilt the plan, so it is the
   // one allowed to move the artifact's created_at (the "generated NN ago" stamp and
@@ -86,18 +107,5 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   return payload;
 }
 
-/** Merge a freshly generated prep plan onto the entry's PREVIOUS payload with an
- *  INVERTED merge: preserve EVERY previous key by default, overwrite ONLY the keys
- *  the generator produced (`generated`). This is the integrity fix for the old
- *  hardcoded 3-key allowlist ("humanScorecard", "userProgress", "interviewer"),
- *  which silently destroyed any human-authored payload key not on the list — a
- *  future recruiter-notes field, a re-scoring annotation, anything new. Now the
- *  default is preservation and the generator's ownership is the explicit exception,
- *  so an unknown human key survives a Regenerate structurally. Pure + dependency-free
- *  so the invariant is unit-testable (interview-prep-run.test.ts). */
-export function mergeRegeneratedPrep(
-  prevPayload: Record<string, unknown> | null | undefined,
-  generated: Record<string, unknown>
-): Record<string, unknown> {
-  return { ...(prevPayload ?? {}), ...generated };
-}
+// Defined beside the staged-plan writes (interview-prep.ts); re-exported for importers.
+export { mergeRegeneratedPrep } from "./interview-prep";

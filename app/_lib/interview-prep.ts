@@ -176,6 +176,74 @@ export function fileHumanScorecard(entryId: string, scorecard: Scorecard, key: H
   }).immediate();
 }
 
+// ── Staged regeneration (r09 schedule-interview-prep/B) ──────────────────────
+// A modal Regenerate parks its generator keys under `payload.pendingPlan` until the
+// interviewer accepts or discards the diff. Inert for every other reader; an UNSTAGED
+// regeneration drops it (mergeRegeneratedPrep).
+
+/** The INVERTED regeneration merge: keep every previous key, overwrite only the
+ *  generator's (the old 3-key allowlist silently destroyed any other human key).
+ *  `pendingPlan` is the one key NOT carried: a committed plan supersedes a staged one.
+ *  Lives here (re-exported by interview-prep-run.ts) so accept applies the same rule. */
+export function mergeRegeneratedPrep(
+  prevPayload: Record<string, unknown> | null | undefined,
+  generated: Record<string, unknown>
+): Record<string, unknown> {
+  const carried: Record<string, unknown> = { ...(prevPayload ?? {}) };
+  delete carried.pendingPlan;
+  return { ...carried, ...generated };
+}
+
+/** A pack with a committed run-of-show; an erased (`{}`) pack has none. */
+export function hasCommittedPlan(payload: Record<string, unknown> | null | undefined): boolean {
+  const c = payload?.chronology;
+  return Array.isArray(c) && c.length > 0;
+}
+
+/** Stage `pending` on a pack with a committed plan; plan and created_at untouched.
+ *  Lock-first (`.immediate()`, no await). null = nothing to stage against. */
+export function stageInterviewPrepPlan(entryId: string, pending: Record<string, unknown>): Record<string, unknown> | null {
+  return db().transaction((): Record<string, unknown> | null => {
+    const existing = readPrepRow(entryId);
+    if (!existing || !hasCommittedPlan(existing.payload)) return null;
+    const payload = { ...existing.payload, pendingPlan: pending };
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), entryId);
+    return res.changes > 0 ? payload : null;
+  }).immediate();
+}
+
+export type PendingPlanDecision = "accept" | "discard";
+export type PendingPlanOutcome = { applied: false } | { applied: true; payload: Record<string, unknown>; createdAt: string };
+
+/** Accept or discard the staged plan. Idempotent: no pending plan -> `{ applied: false }`,
+ *  nothing written. Accept merges it in and moves created_at in the SAME UPDATE
+ *  (accepting IS the regeneration); discard leaves created_at. The re-read inside the
+ *  IMMEDIATE lock makes two racing decisions apply once. */
+export function resolvePendingPlan(entryId: string, decision: PendingPlanDecision): PendingPlanOutcome {
+  return db().transaction((): PendingPlanOutcome => {
+    const existing = readPrepRow(entryId);
+    const pending = existing?.payload.pendingPlan;
+    if (!existing || pending === undefined) return { applied: false };
+    let payload: Record<string, unknown>;
+    let createdAt = existing.createdAt;
+    if (decision === "accept") {
+      // A malformed candidate is never swapped in.
+      if (!pending || typeof pending !== "object" || !hasCommittedPlan(pending as Record<string, unknown>)) return { applied: false };
+      payload = mergeRegeneratedPrep(existing.payload, pending as Record<string, unknown>);
+      createdAt = new Date().toISOString();
+    } else {
+      payload = { ...existing.payload };
+      delete payload.pendingPlan;
+    }
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ?, created_at = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), createdAt, entryId);
+    return res.changes > 0 ? { applied: true, payload, createdAt } : { applied: false };
+  }).immediate();
+}
+
 /** The pre-list signature, kept for its callers (the drawer's consent test among
  *  them): files the card under `key` — by default the identity-less slot of an
  *  unknown round, which is what open mode writes — and answers whether it was stored. */
