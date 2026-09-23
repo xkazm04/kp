@@ -8563,7 +8563,9 @@
     "preflightBlockBlind": "Anonymní screening nedokáže anonymizovat dokument bez textu. Spusťte analýzu bez anonymního screeningu, nebo tento soubor odeberte.",
     "preflightWaiting": "Před anonymní analýzou čekáme na ověření textu",
     "preflightRunWithoutBlind": "Spustit bez anonymního screeningu",
-    "preflightRemove": "Odebrat {name}"
+    "preflightRemove": "Odebrat {name}",
+    "dropRefused": "Soubor {name} nebyl přidán. {reason}",
+    "dropSingleSlot": "Toto pole pojme jen jeden soubor, proto byl ponechán pouze první."
   },
   "integrations": {
     "configLoadFailed": "Nepodařilo se načíst uložené nastavení webhooku. Zobrazené hodnoty nemusí odpovídat tomu, co je uloženo.",

@@ -8563,7 +8563,9 @@
     "preflightBlockBlind": "Das anonyme Screening kann ein Dokument ohne Text nicht schwärzen. Starten Sie die Analyse ohne anonymes Screening oder entfernen Sie diese Datei.",
     "preflightWaiting": "Vor einer anonymen Analyse warten wir auf die Textprüfung",
     "preflightRunWithoutBlind": "Ohne anonymes Screening ausführen",
-    "preflightRemove": "{name} entfernen"
+    "preflightRemove": "{name} entfernen",
+    "dropRefused": "{name} wurde nicht hinzugefügt. {reason}",
+    "dropSingleSlot": "Dieses Feld nimmt nur eine Datei auf, daher wurde nur die erste übernommen."
   },
   "integrations": {
     "configLoadFailed": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden. Die angezeigten Werte stimmen möglicherweise nicht mit den gespeicherten überein.",

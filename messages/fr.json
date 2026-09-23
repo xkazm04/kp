@@ -8563,7 +8563,9 @@
     "preflightBlockBlind": "La présélection à l’aveugle ne peut pas anonymiser un document sans texte. Lancez l’analyse sans présélection à l’aveugle ou retirez ce fichier.",
     "preflightWaiting": "Avant une analyse à l’aveugle, nous attendons la vérification du texte",
     "preflightRunWithoutBlind": "Lancer sans présélection à l’aveugle",
-    "preflightRemove": "Retirer {name}"
+    "preflightRemove": "Retirer {name}",
+    "dropRefused": "{name} n’a pas été ajouté. {reason}",
+    "dropSingleSlot": "Cette zone n’accepte qu’un seul fichier, seul le premier a été conservé."
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés. Les valeurs affichées peuvent différer de celles stockées.",

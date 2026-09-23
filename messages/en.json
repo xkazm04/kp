@@ -8563,7 +8563,9 @@
     "preflightBlockBlind": "Blind screening cannot redact a document with no text. Run without blind screening or remove that file.",
     "preflightWaiting": "Waiting for the text check before a blind run",
     "preflightRunWithoutBlind": "Run without blind screening",
-    "preflightRemove": "Remove {name}"
+    "preflightRemove": "Remove {name}",
+    "dropRefused": "{name} was not added. {reason}",
+    "dropSingleSlot": "This zone holds one file, so only the first one was kept."
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",
