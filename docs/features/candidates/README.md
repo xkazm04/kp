@@ -105,7 +105,25 @@ career-switcher) that other features key off. Downstream ranking is
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
   advance/hold/pass is recorded on the same surface as the verdict; an unsaved
-  run omits it. A persisted live result also shows `ReportActions`; Copy link
+  run omits it. The editor is handed the `analysis` and renders its decision
+  brief inline (`app/_components/results/decisionBrief.ts`): the open trust
+  warnings (`trustLedger`: severity when coded, the legacy regex otherwise) as one
+  checkbox each, and the job-fit missing must-haves. **Advance** saves only once
+  every open warning is ticked; **Pass** on a strong read (trusted total at or
+  above `SCORE_STRONG_MIN`) asks for a reason first; Hold and clearing are never
+  gated. The door enforces the advance half: `PATCH /api/analyses/[slug]`
+  re-derives the warnings from the STORED payload and answers a transition to
+  advance that does not acknowledge each one with a coded 409
+  `DISPOSITION_ACK_REQUIRED` (`pending` lists them; the row is untouched, and the
+  editor rolls its optimistic pick back to the stored value). Re-saving the
+  stored disposition (a note edit, the keepalive unmount flush) is never gated,
+  so a decision recorded before the gate is never locked; every PATCH body the
+  editor sends carries `acknowledged`. An advance or pass stores
+  `analyses.decision_basis` (JSON `{score, openWarns, acknowledged, decidedAt}`,
+  NULL on hold/clear and on older decisions), and the `disposition_set` pipeline
+  event reads `advance — 2 flags acknowledged — <note>`. Keyless runs behave the
+  same: the brief is read from the saved payload, not a model.
+  A persisted live result also shows `ReportActions`; Copy link
   points to its stable `/history/<slug>` URL rather than the Analyze workspace
   URL. The saved report keeps those actions in its own header. The panel also
   keeps its active tab in the URL fragment: selecting a tab rewrites
