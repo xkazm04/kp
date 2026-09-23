@@ -96,6 +96,7 @@ const { POST: commsResend } = await import("./comms/[id]/resend/route.ts");
 const { DELETE: interviewRecordingDelete } = await import("./interview/sessions/[id]/recording/route.ts");
 const { POST: pipelineEntryPost } = await import("./pipeline/[id]/route.ts");
 const { POST: hireOutcomePost, GET: hireOutcomeGet } = await import("./pipeline/outcomes/route.ts");
+const { PUT: brandPut } = await import("./brand/route.ts");
 
 const { createWorkspace } = await import("../_lib/db/workspaces.ts");
 const { createUser } = await import("../_lib/db/users.ts");
@@ -106,7 +107,7 @@ after(() => cleanupUnitDb());
 
 const ORG = "org-caps";
 const team = createWorkspace("Caps team", ORG);
-const mk = (slug: string, role: "owner" | "recruiter" | "viewer") => {
+const mk = (slug: string, role: "owner" | "admin" | "recruiter" | "viewer") => {
   const u = createUser({ orgId: ORG, email: `caps.${slug}@caps.test`, name: `Caps ${slug}`, status: "active", password: `caps-pw-${slug}-1` });
   upsertMembership(u.id, team.id, role);
   return u;
@@ -114,6 +115,7 @@ const mk = (slug: string, role: "owner" | "recruiter" | "viewer") => {
 const owner = mk("owner", "owner");
 const recruiter = mk("recruiter", "recruiter");
 const viewer = mk("viewer", "viewer");
+const admin = mk("admin", "admin");
 
 function signedInAs(user: { id: string; orgId: string } | null): void {
   cookieValue = user === null ? null : signSession(team.id, Date.now(), { sub: user.id, org: user.orgId });
@@ -207,6 +209,9 @@ const DOORS: Door[] = [
   // declared table (app/api/pipeline/[id]/entry-actions.ts), so every action is covered.
   { name: "POST /api/pipeline/[id]", capability: "pipeline:write", call: () => pipelineEntryPost(req({ action: "reject" }), params({ id: "x" })) },
   { name: "POST /api/pipeline/outcomes", capability: "pipeline:write", call: () => hireOutcomePost(req({ entryId: "x", performance: 4 })) },
+  // challenge-r07 shell-setup-wizard/A: the brand paints every member's workspace and
+  // every candidate-facing page — org settings, owner-only in roles.ts.
+  { name: "PUT /api/brand", capability: "org:manage", call: () => brandPut(req({ displayName: "Not yours", accentColor: "#0057B8" })) },
 ];
 
 // ---- a viewer is refused, with a CODE that names the capability ----------------
@@ -403,4 +408,24 @@ test("POST /api/pipeline/outcomes refuses a viewer and records no rating; the GE
   const read = await hireOutcomeGet(new ShimNextRequest(`http://localhost/api/pipeline/outcomes?entry=${hire.id}`) as unknown as NextRequest);
   assert.equal(read.status, 200, "the outcomes GET is operator-gated, not capability-gated");
   assert.equal(((await read.json()) as { performance?: number | null }).performance, null, "no rating was recorded");
+});
+
+// ---- PUT /api/brand refuses an ADMIN, not just a recruiter ------------------------
+//
+// admin holds members:manage and team:manage but not org:manage, and it was the admin
+// the shell kept offering the branding editor to (navCapabilities.ts) — edit, save,
+// 403. The DOORS row above covers viewer/recruiter/401; this is the seat the defect
+// was actually about, plus the owner that must still get through.
+test("PUT /api/brand refuses an admin with FORBIDDEN_CAPABILITY (org:manage); an owner is not refused", async () => {
+  signedInAs(admin);
+  const r = await brandPut(req({ displayName: "Admin brand", accentColor: "#0057B8" }));
+  assert.equal(r.status, 403, "an admin lacks org:manage and must not re-skin the org");
+  const body = (await r.json()) as { code?: string; capability?: string };
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(body.capability, "org:manage");
+
+  signedInAs(owner);
+  const ok = await brandPut(req({ displayName: "Owner brand", accentColor: "#0057B8" }));
+  assert.notEqual(ok.status, 403, "an owner holds org:manage");
+  assert.notEqual(ok.status, 401);
 });
