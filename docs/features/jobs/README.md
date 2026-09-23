@@ -1106,7 +1106,9 @@ whole internal design (rubric, covert probes). Unlike the two fetches above it f
 SERVER-side; the segment renders only when there is at least one assignment, since a
 role without a work sample is the normal case and not a gap to nag about. The count
 stays `null` until the fetch lands and after a failure, so an unknown count is an absent
-segment rather than a confident "0".
+segment rather than a confident "0". The segment deep-links `?tab=assignments&job=<id>`,
+so it lands on the Assignments ledger narrowed to this role (a clearable chip above the
+table) rather than on the whole library; see [the dev-case doc](../dev-case/README.md).
 
 ## The posting modal's tab strip is a real tablist
 

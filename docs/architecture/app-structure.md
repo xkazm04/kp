@@ -106,8 +106,8 @@ per switch, so Back no longer steps through tabs — it leaves the workspace.
 Restoring that means carrying the tab in history *state* rather than the query.
 
 `selectTab` still writes the URL in exactly one case: when a tab-scoped
-deep-link param (`?profile=`, `?job=`, `?edit=`, `?jd*` — the `clearedTabScopedParams`
-allowlist) is actually present, so the destination cannot inherit the previous
+deep-link param (`?profile=`, `?job=`, `?edit=`, `?jd*`, Assignments' `?case=` /
+`?lifecycle=` — the `clearedTabScopedParams` allowlist) is actually present, so the destination cannot inherit the previous
 tab's selection. The ordinary click touches nothing.
 
 Pinned by `e2e/shell-tab-state.spec.ts` and `e2e/analytics-sections.spec.ts`.

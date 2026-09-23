@@ -1411,6 +1411,31 @@ longer takes the lifecycle or posting lists. An in-store index
 `app/api/devcase/[id]/route.test.ts`, `casesPage.test.ts` and
 `DevCasesTable.filter.test.ts`.
 
+**Assignments is an address** (challenge-r03 devcase-workspace/B). Three params land
+on the tab: `?lifecycle=<id>` (the Control Room's Art. 22 gate **Review** link,
+`app/control/GatesPanel.tsx`), `?case=<id>` and `?job=<jobId>` (the job modal's
+**N assignments** chip, `JobsLifecycleStrip.tsx`, which now passes `{ job: jobId }`
+like its decisions segment). The rules are pure in
+`app/features/tools/devcases/assignmentsDeepLink.ts`: one intent per address
+(precedence `case` > `lifecycle` > `job`, blank values are no intent), resolved
+against what is loaded. A lifecycle awaiting approval is scrolled into view, focused
+and has its `DevLifecycleReviewPanel` opened; a gate decided since the link was minted
+is focused with a notice naming its current stage and no review; an id absent from the
+lifecycle list says it is missing (removed, or another team's) or, when the list is a
+full 50-row window, that it is older than the listed runs, and changes no selection.
+A failed lifecycle load keeps the intent pending instead of claiming "not found".
+`?case=` opens the reader by id (`GET /api/devcase/[id]`, so a case past the loaded
+page opens all the same and a foreign id answers the reader's coded 404). `?job=` is a
+ledger filter (`listCaseLedger(..., { job })` on `dev_cases.job_id`, applied before the
+limit, `filterCasesUrl` and `GET /api/devcase?job=`), shown above the table as a
+clearable "Showing assignments for <job>" chip. `DevTab` adopts an arrival during
+render and strips the three params with `history.replaceState` (the `?arm=` one-shot
+shape), re-checking after the shell's own `?tab=` cleanup; `case` and `lifecycle`
+joined `TAB_SCOPED_PARAM_KEYS` so a bare tab switch clears them. Notice copy lives in
+`devcase.casesTable.link*` / `jobFilter*` in all four catalogs. Pinned by
+`assignmentsDeepLink.test.ts`, the job case in `app/_lib/db/devcase-ledger.test.ts`
+and the exact-set pin in `app/features/shell/tabs.test.ts`.
+
 ### The control room asks authority, and reports its writes
 
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
