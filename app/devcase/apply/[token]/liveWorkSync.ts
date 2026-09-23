@@ -63,6 +63,10 @@ export type LiveWorkSyncState = {
   errorKind: "closed" | "generic";
   /** The opaque, quotable handle the server derives for a submission — never the internal id. */
   reference: string | null;
+  /** The recruiter closed this role's intake mid-attempt (a flush's `intakeClosed`, or a chat
+   *  410). Terminal for the SEAL only: flushes still land, the draft stays on the device, and
+   *  submit() never walks into the 410 (challenge-r06 devcase-session-api/B). */
+  intakeClosed: boolean;
 };
 
 export type LiveWorkSyncOptions = {
@@ -123,6 +127,7 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
     status: "idle",
     errorKind: "generic",
     reference: null,
+    intakeClosed: false,
   };
   // The IN-FLIGHT mint, not a boolean: a bare "already starting" flag answered `null`
   // to everyone who asked while the first POST was on the wire, and `null` reads as
@@ -290,10 +295,16 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
       // Clean only if nothing was edited while the request was on the wire.
       if (sendFiles && state.files === sentFiles) set({ filesDirty: false });
       persist();
-      const data = (await r.json().catch(() => null)) as { perturbation?: string | null; elapsedMinutes?: number | null } | null;
+      const data = (await r.json().catch(() => null)) as {
+        perturbation?: string | null;
+        elapsedMinutes?: number | null;
+        intakeClosed?: unknown;
+      } | null;
       set({
         ...(data?.perturbation ? { perturbation: data.perturbation } : {}),
         ...(typeof data?.elapsedMinutes === "number" ? { elapsedMinutes: data.elapsedMinutes } : {}),
+        // Only an explicit `true` closes; an absent flag (an older server) is not a close.
+        ...(data?.intakeClosed === true ? { intakeClosed: true } : {}),
       });
       return true;
     } catch {
@@ -313,6 +324,12 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
     try {
       const landed = await flush({ submit: true });
       const sid = state.sessionId;
+      // The intake closed while the candidate worked: the final tree has just landed (the
+      // work is kept), but the seal would only answer 410. Say so now, keep the draft.
+      if (landed && state.intakeClosed) {
+        set({ status: "error", errorKind: "closed", refusal: { code: "POSTING_CLOSED", error: null } });
+        return;
+      }
       if (!landed || !sid) {
         set({ status: "error", errorKind: "generic" });
         return;
@@ -347,11 +364,14 @@ export function createLiveWorkSync(opts: LiveWorkSyncOptions) {
   async function chat(input: ChatInput): Promise<SyncResponse | null> {
     const sid = await ensureSession({ explicit: true });
     if (!sid) return null;
-    return fetch(`/api/devcase/session/${sid}/chat`, {
+    const r = await fetch(`/api/devcase/session/${sid}/chat`, {
       method: "POST",
       headers: doorHeaders(),
       body: JSON.stringify({ token, channel: input.channel, message: input.message, currentFile: input.currentFile }),
     });
+    // 410 = POSTING_CLOSED: the intake closed mid-attempt. The page still folds the code.
+    if (r.status === 410) set({ intakeClosed: true });
+    return r;
   }
 
   return {

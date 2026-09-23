@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { listPostings, listSubmissions } from "@/app/_lib/db/devcase";
+import { inFlightAttemptsByPosting, NO_IN_FLIGHT } from "@/app/_lib/db/devcase-inflight";
 import { latestOutcomeByRefs } from "@/app/_lib/dev-outcomes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
@@ -24,8 +25,13 @@ export async function GET() {
     // calibrated floor - the same pure rule promoteSubmission writes - so the panel shows
     // advance-or-hold (and why) BEFORE the click. Unevaluated rows carry no key at all.
     const floor = activePromoteFloor();
+    // Who is mid-case on each posting right now (challenge-r06 devcase-session-api/B):
+    // COUNTS and the oldest live start, never a session id or ref, so the close confirm
+    // can say how many attempts it would cut off. Zeros, not an absent key, when none.
+    const inFlight = inFlightAttemptsByPosting(ws);
     const merged = postings.map((p) => ({
       ...p,
+      inFlight: inFlight.get(p.id) ?? NO_IN_FLIGHT,
       submissions: p.submissions.map((s) => {
         const outcome = outcomes.get(s.id);
         const withOutcome = outcome ? { ...s, outcome } : s;

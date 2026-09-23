@@ -77,6 +77,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         ? { path: cf.path, contents: cf.contents.slice(0, 64_000) }
         : null;
 
+    // A CLOSED intake is refused here, before the throttle and before any spend
+    // (challenge-r06 devcase-session-api/B): the work can no longer be submitted, so a
+    // model call per message is money spent on an attempt that cannot land. The same
+    // code the finalize door answers, so the page reads it in the candidate's language.
+    const posting = session.token ? getPostingByToken(session.token) : null;
+    if (posting?.status === "closed") return jsonRefusal("POSTING_CLOSED", 410);
+
     // Throttle AFTER the lifecycle/authorization/validation refusals (so a rejected call
     // never consumes budget) and BEFORE any DB write or the model call, so a refused
     // request also can't eat into the 400-message session ceiling.
@@ -87,7 +94,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const posting = session.token ? getPostingByToken(session.token) : null;
     const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
     // The apply link no longer resolves to a case anyone can be handed: the same
     // refusal the mint and the finalize door give, for the same reason.

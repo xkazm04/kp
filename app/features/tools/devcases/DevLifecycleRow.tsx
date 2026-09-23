@@ -11,12 +11,14 @@ import { DevLifecycleReviewPanel } from "./DevLifecycleReviewPanel";
 import { lifecycleStall } from "@/app/_lib/devcase-sla";
 import { useStageLabel } from "./DevLabels";
 import { LIFECYCLE_STEPS, LIVE_STAGES } from "./DevTypes";
-import type { Lifecycle } from "./DevTypes";
-import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
+import type { Lifecycle, PostingInFlight } from "./DevTypes";
+import { closeWarning } from "./devcaseInFlight";
+import { BTN_AFFIRM, NOTICE } from "@/app/_components/ui/recipes";
 
 export function LifecycleRow({
   lc,
   submissionCount = 0,
+  inFlight = null,
   onApprove,
   onChanged,
   focus = null,
@@ -24,6 +26,9 @@ export function LifecycleRow({
   lc: Lifecycle;
   // d8a0c4cf — submissions across this lifecycle's postings, for the stall check.
   submissionCount?: number;
+  /** Attempts mid-case across this lifecycle's postings right now (counts only), so the
+   *  close confirm can name who the close cuts off (challenge-r06 devcase-session-api/B). */
+  inFlight?: PostingInFlight | null;
   onApprove: () => void;
   onChanged?: () => void;
   /** An address pointed at this row (?lifecycle=, challenge-r03 devcase-workspace/B):
@@ -52,6 +57,9 @@ export function LifecycleRow({
   // Themed confirm (shared stacked Modal, not window.confirm — see JobPostingModal):
   // closing fires unrecoverable wrap-up comms to every non-promoted submitter.
   const [confirmingClose, setConfirmingClose] = useState(false);
+  // The moment the confirm opened: the "longest N min" is measured then, not at mount.
+  const [closeOpenedAt, setCloseOpenedAt] = useState(0);
+  const inFlightWarning = confirmingClose ? closeWarning(inFlight, closeOpenedAt) : null;
   const [reviewOpen, setReviewOpen] = useState(false);
   // Adopt a focus ARRIVAL during render (the useUrlInboxState pattern): opening the
   // panel in an effect would paint the closed row first and flash it open a frame later.
@@ -178,7 +186,10 @@ export function LifecycleRow({
         {closable ? (
           <button
             type="button"
-            onClick={() => setConfirmingClose(true)}
+            onClick={() => {
+              setCloseOpenedAt(Date.now());
+              setConfirmingClose(true);
+            }}
             disabled={closing}
             title={t("lifecycle.closeTitle")}
             className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-steel hover:border-coral/40 hover:text-ink disabled:opacity-50"
@@ -240,6 +251,11 @@ export function LifecycleRow({
           <p className="text-base text-steel">
             {t("lifecycle.closeConfirm")} {t("lifecycle.closeIrreversible")}
           </p>
+          {inFlightWarning ? (
+            <p className={`mt-3 ${NOTICE()} px-3 py-2 text-sm`} role="status">
+              {t(inFlightWarning.key, inFlightWarning.values)}
+            </p>
+          ) : null}
         </Modal>
       ) : null}
     </div>

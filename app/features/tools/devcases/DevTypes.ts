@@ -162,7 +162,13 @@ export type Posting = {
   caseTitle: string | null;
   submissionCount?: number;
   submissions?: Submission[];
+  /** Attempts mid-case on this posting right now, as COUNTS (GET /api/devcase/postings,
+   *  app/_lib/db/devcase-inflight.ts). Never a session id or ref. Absent from an older
+   *  server; the close confirm reads an absent aggregate as "nobody". */
+  inFlight?: PostingInFlight;
 };
+/** `live`: active within the last 30 minutes; `idle`: active but quiet past that. */
+export type PostingInFlight = { live: number; idle: number; oldestLiveStartedAt: string | null };
 export type Lifecycle = {
   id: string;
   title: string | null;

@@ -6,6 +6,7 @@ import type { LoadState } from "@/app/_lib/useLoader";
 import { DevSection } from "./DevShared";
 import { LifecycleRow } from "./DevLifecycleRow";
 import type { Lifecycle, Posting } from "./DevTypes";
+import { inFlightByCase } from "./devcaseInFlight";
 
 export function LifecycleSection({
   lifecycles,
@@ -34,6 +35,8 @@ export function LifecycleSection({
     const n = p.submissions?.length ?? p.submissionCount ?? 0;
     submissionsByCase.set(p.caseId, (submissionsByCase.get(p.caseId) ?? 0) + n);
   }
+  // Attempts mid-case per case, the same fold: what the close confirm has to name.
+  const inFlight = inFlightByCase(postings);
   return (
     <DevSection icon={<Sparkles size={13} className="text-coral" />} title={t("sectionTitle")} count={lifecycles.length} state={state} label="lifecycles">
       <p className="mt-1 text-micro text-steel">{t("intro")}</p>
@@ -43,6 +46,7 @@ export function LifecycleSection({
             key={lc.id}
             lc={lc}
             submissionCount={lc.caseId ? submissionsByCase.get(lc.caseId) ?? 0 : 0}
+            inFlight={lc.caseId ? inFlight.get(lc.caseId) ?? null : null}
             onApprove={() => approveLifecycle(lc.id)}
             onChanged={onChanged}
             focus={focus?.id === lc.id ? focus : null}

@@ -202,7 +202,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    return NextResponse.json({ ok: true, seq, perturbation, elapsedMinutes });
+    // A closed intake reaches the candidate on the NEXT SAVE (challenge-r06
+    // devcase-session-api/B), not hours later as the seal's 410. A LIVE posting read, never
+    // the per-token memo above: that one caches frozen case data and could not see a close.
+    // The batch above is still stored (the work is the candidate's); the flag only tells
+    // the surface that the seal can no longer succeed, so it stops offering one.
+    const intakeClosed = getPostingByToken(session.token)?.status === "closed";
+
+    return NextResponse.json({ ok: true, seq, perturbation, elapsedMinutes, intakeClosed });
   } catch (error) {
     // A PUBLIC candidate door: never the store's own message. The surface keeps the
     // batch buffered and the draft on the device, so this reads as "not saved yet".

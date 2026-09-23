@@ -127,12 +127,14 @@ export function LiveWorkSurface({
   // candidate is told their work is held on this device and how to reconnect); a 410 on
   // submit is TERMINAL (`errorKind: "closed"`); `submissionRef` is the OPAQUE handle the
   // server derives from the submission id, so the internal id stays off the page.
-  const { files, status, errorKind, perturbation, elapsedMinutes, syncBlocked } = snap;
+  // `intakeClosed`: the recruiter closed this role mid-attempt (learned on the next save,
+  // challenge-r06 devcase-session-api/B). Terminal for the seal, never for the work.
+  const { files, status, errorKind, perturbation, elapsedMinutes, syncBlocked, intakeClosed } = snap;
   const refusal: ApiErrorPayload | null = snap.refusal;
   const submissionRef = snap.reference;
 
   const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
-  const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
+  const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting" && !intakeClosed;
   const timeboxMinutes = Math.round(timeboxHours * 60);
   const duration = useDurationLabel();
 
@@ -331,6 +333,13 @@ export function LiveWorkSurface({
           {t("syncBlocked")}
         </p>
       ) : null}
+      {intakeClosed ? (
+        // Terminal and neutral: it says what happened to the ROLE and where the work is,
+        // and makes no claim about the candidate's work or merit.
+        <p className={`mt-2 ${NOTICE()} px-3 py-1.5 text-micro`} role="status">
+          {t("intakeClosed")}
+        </p>
+      ) : null}
       {refusal && status !== "error" ? (
         <p className={`mt-2 ${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
           {errMsg(refusal, t("error"))}
@@ -501,7 +510,7 @@ export function LiveWorkSurface({
         >
           {status === "submitting" ? t("submitting") : t("submit")}
         </button>
-        {status === "error" ? (
+        {status === "error" && !intakeClosed ? (
           <span className={`${NOTICE("critical")} px-3 py-1.5 text-micro`} role="alert">
             {errMsg(refusal, t(errorKind === "closed" ? "errorClosed" : "error"))}
           </span>
