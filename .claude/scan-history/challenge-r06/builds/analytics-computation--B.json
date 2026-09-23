@@ -1,0 +1,20 @@
+{
+  "card": "analytics-computation/B",
+  "title": "Metric pack preview: every thin row says how many more and roughly when",
+  "status": "landed",
+  "base": "0fcc591fa",
+  "shas": ["0ad43cc7d", "febceaf90", "2024c3627", "e890edb15"],
+  "tests_added": [
+    "app/_lib/accrual-horizon.test.ts",
+    "app/_lib/metric-pack.test.ts",
+    "app/features/insights/analytics/metricPackPreviewModel.test.ts"
+  ],
+  "cases_red_before": 18,
+  "cases_green_after": 18,
+  "cases_total": 18,
+  "gates": { "tsc": 0, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": 0, "unit": 1, "ts_ratchet": 0, "perf": 0 },
+  "files_changed": 16,
+  "lines_changed": 897,
+  "deviations_from_card": "(1) metricPackPreview.ts + its test are named metricPackPreviewModel.ts / metricPackPreviewModel.test.ts: the card's metricPackPreview.ts and MetricPackPreview.tsx differ only in case, which tsc rejects (TS1149) on this case-insensitive checkout. Same content and role. (2) Series is catalogs -> docs -> perf -> feat (tests ship in the feat commit): the new cases import new modules and new catalog keys, so a test-only commit could not be green; the 18 cases (6 horizon, 6 pack, 6 view model; covering all 8 acceptance lines) were written first and run red. (3) The need sentence is resolved at build time into need.note (like basis) and the Markdown caveat appends it verbatim; the preview renders the same note, so the JSON, the file and the screen share one string. (4) Only hires have a measured pace (momentum); actions and NPS responses report no-pace; capacity reports not-accruing. A not-measurable row whose sample already clears its floor carries need:null. (5) buildMetricPackStrings gained an optional locale param (date formatting); metric-pack-strings.ts passes it. (6) The window hint offers 'Use all time' (calls the header's setDays(null)). The slot-A DeltaChip 'why withheld' gap was not in this write set and is left open.",
+  "notes": "Acceptance 8 of 8. Full test:unit red ONLY on sibling in-flight files (app/api/public-body-cap-contract.test.ts and route-capability-coverage.test.ts both name status/[token]/resend, plus a python-runner-concurrency FLAKE); my one break (recipes-literals rawDate in MetricPackPreview.tsx) was fixed by composing useDateFormat(). All 246 analytics-area + metric-pack tests green. test:perf: measured git archive of febceaf90 alone 1419 modules / 8965 KB vs. plus my files 1421 / 8975 KB for app/page.tsx; raised maxModules 1419 -> 1421 under the lock (2024c3627), KB ceiling untouched (3 KB slack left). Committed HEAD (e890edb15) archive passes check-budget with 0 findings; the api route overages seen in the working tree are siblings' uncommitted files and are identical with/without mine. tsc whole-tree red only under untracked kpi-sim/ (foreign). Catalogs (0ad43cc7d) and README (febceaf90) committed alone under the lock; api:check 0 (no method/auth change, JSON shape only gains need)."
+}

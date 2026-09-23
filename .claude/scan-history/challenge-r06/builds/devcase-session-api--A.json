@@ -1,0 +1,21 @@
+{
+  "card": "devcase-session-api/A",
+  "title": "Per-attempt session key: the candidate doors stop trusting a shared link",
+  "status": "landed",
+  "base": "159cdbae3",
+  "shas": ["c30486a5b", "16a2e862c", "479f3fa3e", "2980e5a65"],
+  "tests_added": [
+    "app/api/devcase/session/session-key.test.ts",
+    "app/_lib/devcase-session-auth.test.ts",
+    "app/devcase/apply/[token]/liveWorkSync.test.ts",
+    "app/devcase/apply/[token]/liveWorkDraft.test.ts"
+  ],
+  "cases_red_before": 6,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {"tsc": 0, "eslint": 0, "i18n": null, "design": null, "docs": 0, "api": 0, "ratchet": 0, "unit": 1, "perf": 1},
+  "files_changed": 18,
+  "lines_changed": 844,
+  "deviations_from_card": "(1) Per the coordinator, the key travels in the `x-devcase-session-key` HEADER, not in a body `key` field as acceptance 7 said. The apply token still rides the body. The server and client each hold the header literal; devcase-session-auth.test.ts pins that the two agree. (2) No separate issueDevSessionKey: startDevSession takes `keyHash` and writes it in the SAME INSERT, so a product row is never unkeyed for an instant. The route mints the key with mintSessionKey() (randomToken 'dsk', 36 chars). (3) Critic revision on acceptance 8 is built. A draft with a sessionId and no sessionKey flushes KEYLESS. Only a 403 on a keyless flush re-mints, once, keeping the local files. A second 403 sets syncBlocked. (4) Chat moved from a raw fetch in LiveWorkSurface.tsx into sync.chat() so the key header is testable. (5) The guard has two phases: openSessionDoor(id, {need}) answers 404/409/403-tokenless BEFORE the body is read, and door.authorize(headers, body.token) runs after the body read and before every limiter. Submit uses need 'any'. Its tokenless answer changed from 404 to 403 (one rule on all three doors), and it still re-reads the full row after authorize. (6) Outside the write set: three source-guard tests pinned the old hand-copied check. rate-limit-contract.test.ts is a shared surface, committed alone under the lock as c30486a5b. devcase-flush-guards.test.ts and devcase-candidate-refusals.test.ts went in the feat commit. Each now pins the guard and still forbids a route calling sessionTokenMatches. (7) Throttle keys are unchanged. The chat route keeps its now-redundant `session.token &&` limiter prefix because rate-limit-contract pins that literal.",
+  "notes": "Full test:unit: exit 1 on ONE file, app/_lib/python-runner-concurrency.test.ts ('an aborted spawn kills the whole process tree'). It timed out at 10s waiting for grandchildren to fork. It fails again in isolation on the committed tree. It is not in or near this card's graph (the spawn tree under six concurrent builders); every other test is green, and 387/387 pass across the touched dirs plus the contract tests. test:perf: exit 1 on current HEAD, but NOT from this card. The original base 159cdbae3 plus this card's files alone (git archive into scratch, check-budget.mjs run there) is GREEN: submit route 3057 KB vs its 3061 KB ceiling. HEAD at c30486a5b before my feat commit was already over on 11 routes by 1-5 KB. That growth came from sibling commits landed after the base (agents-api, comms-dispatch, analytics, pipeline). My measured share on the current tree is about +4 KB on app/api/devcase/session/[id]/submit/route.ts (3062 to 3066) and 0-1 KB elsewhere. I raised no ceiling. The coordinator's perf settle should cover the wave. Commit c30486a5b (the contract pins) landed a few minutes before feat 479f3fa3e, so the test:unit rate-limit contract is red only between those two commits. The test commit 16a2e862c is red by design (6 of 8). The core.ts migration line is appended at the END of the ALTER list (`ALTER TABLE dev_sessions ADD COLUMN key_hash TEXT`); candidate-apply-flow/A also appends there. For slot B (wave 2): every door now opens with `const door = openSessionDoor(id, { need })` and then `door.authorize(request.headers, body.token)`. Add posting-status checks AFTER authorize. The sync client has `sessionKey` state, `doorHeaders()`, `chat()`, and a one-shot `remintedAfterRefusal`."
+}

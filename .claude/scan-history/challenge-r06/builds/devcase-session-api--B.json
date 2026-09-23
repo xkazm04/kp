@@ -1,0 +1,22 @@
+{
+  "card": "devcase-session-api/B",
+  "title": "Close sees who is mid-case, and mid-case candidates learn intake closed",
+  "status": "landed",
+  "base": "9989ad4c7",
+  "shas": ["7cac2ed04", "ba3279cfe", "e67d8c422", "5fdd7d46c", "51e7b0414"],
+  "tests_added": [
+    "app/_lib/db/devcase-inflight.test.ts",
+    "app/features/tools/devcases/devcaseInFlight.test.ts",
+    "app/api/devcase/session/intake-closed.test.ts",
+    "app/api/devcase/postings/route.test.ts",
+    "app/devcase/apply/[token]/liveWorkSync.test.ts"
+  ],
+  "cases_red_before": 7,
+  "cases_green_after": 7,
+  "cases_total": 7,
+  "gates": {"tsc": 2, "eslint": 0, "i18n": 0, "design": 0, "docs": 0, "api": 0, "ratchet": 0, "unit": 1, "perf": 0},
+  "files_changed": 20,
+  "lines_changed": 550,
+  "deviations_from_card": "(1) Flush/chat route cases live in a NEW test file app/api/devcase/session/intake-closed.test.ts (the card named 'the flush/chat route cases' without a file). 16 node:test cases across 5 files cover the 7 acceptance cases; all 16 were red before the build. (2) The chat POSTING_CLOSED refusal sits AFTER door.authorize and BEFORE both limiters: the posting read moved up from below the limiters, so the rate-limit-contract ordering pin (proof before first limiter) still holds untouched. (3) liveWorkSync also enters intakeClosed on a chat 410 (not only on the flush flag), and submit() on a closed intake sets errorKind 'closed' with refusal code POSTING_CLOSED after the final flush lands. (4) DevLifecycleRow measures the 'longest N min' at the moment the confirm opens (Date.now() in the click handler), not at mount. (5) Out of write_set, under the lock: perf-budget.json app/page.tsx maxModules 1417 -> 1418 (my measured share: devcaseInFlight.ts, +1 module / +4 KB; KB ceiling untouched).",
+  "notes": "tsc exit 2 on the working tree, all on foreign paths (pipeline bulk-move in-flight work: pipelineBulkMovePreview.test.ts, pipelineBulkSelection.ts, usePipelineBulk.ts, pipeline-arrival-plan.test.ts, AgentsWorkforceRoster.tsx, plus the untracked kpi-sim/ tree); zero errors in any file this card touched. Full test:unit exit 1: BROKEN app/_lib/offer-link-locale.test.ts (comms-dispatch-relay's offer-letter work, not this card's graph) and FLAKE python-runner-concurrency.test.ts (the known spawn-tree timeout slot A also saw); 52 test files across every touched dir plus rate-limit-contract, error-response-contract, recipes-literals and lint-selector-coverage are green. test:perf: measured base HEAD + my files via git archive; only app/page.tsx +1 module was mine. A sibling (72dd81720, offer letter preview) raised page.tsx 1416 -> 1417 for ITS module while its feat was not yet committed, so my feat consumed that headroom first; I raised 1417 -> 1418 for my own share (5fdd7d46c) and the committed HEAD archive measured within budget. getPostingByToken on the flush is one extra SELECT per 8s flush; dev_postings.token has no index (small table) - worth an index if postings grow. docs:check:diff over ba3279cfe~1..HEAD is green."
+}

@@ -1,0 +1,20 @@
+{
+  "card": "analytics-computation/A",
+  "title": "Fold both delta windows through one cohort function, tiled and age-matched",
+  "status": "landed",
+  "base": "159cdbae3",
+  "shas": ["42a473332", "6851a6ae8"],
+  "tests_added": [
+    "app/_lib/analytics-cohort.test.ts",
+    "app/_lib/db/analytics-prior-slice.test.ts",
+    "app/_lib/analytics-deltas.test.ts"
+  ],
+  "cases_red_before": 14,
+  "cases_green_after": 14,
+  "cases_total": 14,
+  "gates": { "tsc": 0, "eslint": 0, "i18n": null, "design": null, "docs": 0, "api": null, "unit": 1, "ts_ratchet": 0, "perf": 1, "analytics_suites": 0 },
+  "files_changed": 9,
+  "lines_changed": 1001,
+  "deviations_from_card": "(1) Series is refactor+docs, not test-then-feat: the test cases import the new module, so a test-only commit could not be green; the cases were written first and run red (14 of 14 new/changed cases: 5 cohort, 6 prior-slice, 3 delta gates) before any code. (2) The live read folds as of +Infinity, not as of `now`: as-of-now with a half-open `< asOfMs` dropped a hire stamped in the read's own millisecond (analytics-custom-axis.test.ts caught it); +Infinity keeps the live payload byte-identical (acceptance 1). (3) Per the coordinator's registry note, a gated delta carries `n: {current, prior}` and `withheld: {reason: thinCurrent|thinPrior|thinBoth, minN}` on Delta (additive, optional fields); source/channel rows got the same record. (4) The full battery with `endMs` now also bounds its source read and age-matches its compared scalars, so the prior-slice identity test still compares like with like; byJob/byArchetype/byVariant under an endMs read stay as-they-stand (recorded as a Known gap). (5) computeCostWindow's own Date.now() fallback was left alone (not a delta boundary); its cutoff uses windowStart.",
+  "notes": "Wire change: PriorWindowSlice gains funnel[].reached + timeToHireSamples; Delta gains optional n/withheld; pipelineAnalytics opts gains nowMs. No UI file touched: DeltaChip already renders nothing for delta:null, so a withheld movement is not shown, but the reason is not yet rendered (Known gap in the analytics README; a natural follow-up for slot B's runner-up 'judged deltas'). Full test:unit red ONLY on sibling in-flight files (devcase-candidate-refusals, devcase-flush-guards, rate-limit-contract devcase rows, usePipelineBulk, python-runner-concurrency); all 378 analytics-area tests green. test:perf red on ~44 route overages from siblings' UNCOMMITTED files: measured via git archive of 159cdbae3 alone = 0 findings, 159cdbae3 + my 4 source files = 0 findings (my share: app/api/analytics/route.ts 46->47 modules, 660->670 KB, ceiling 229/3067). tsc whole-tree red only on app/api/agents/report/[token]/route.ts and app/devcase/apply/[token]/* (siblings). feature-doc-map.json + the README were edited and committed under the lock (6851a6ae8)."
+}
