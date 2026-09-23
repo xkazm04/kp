@@ -23,5 +23,7 @@ test("the Refresh sweep and the returned feed both use the caller's workspace", 
   );
   // The sweep's workspace and the feed read must be the SAME resolved value.
   assert.match(src, /const ws = await currentWorkspace\(\)/, "resolve the workspace once");
-  assert.match(src, /relevantAlerts\(ws\)/, "the returned feed must use the same ws the sweep ran on");
+  // The returned feed is the GATED projection (liveRediscoveryAlerts: relevance + the
+  // one eligibility refilter), read for the same ws the sweep ran on.
+  assert.match(src, /liveRediscoveryAlerts\(ws\)/, "the returned feed must use the same ws the sweep ran on");
 });

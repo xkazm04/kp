@@ -4,8 +4,7 @@ import { createPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
-import { candidateOutreachSuppression } from "@/app/_lib/rediscovery-alert-store";
-import { optedOutCandidateIds } from "@/app/_lib/outreach-state-store";
+import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -64,27 +63,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const sourceChannel =
       typeof body.source === "string" && /^[a-z0-9_-]{1,40}$/.test(body.source) ? body.source : null;
 
-    // GDPR gate BEFORE we mint anything (bug-ui-scan #1): consult the candidate's
-    // EXISTING consent across all their entries. A rediscovery re-contact for a
-    // NEW role would otherwise INSERT a fresh entry with blank consent that reads
-    // as contactable — re-contacting a person who was anonymized/erased or whose
-    // consent lapsed. Suppress here so no entry is minted and no send fires;
-    // dispatchOutreach re-checks (defense in depth). Fail-closed inside the gate.
-    const suppressed = candidateOutreachSuppression(body.candidateId);
-    if (suppressed) {
-      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed });
-    }
-
-    // …and the same pre-mint check for the candidate's OWN opt-out (ePrivacy Art. 13(4);
-    // Czech § 7(4)(c) of zák. č. 480/2004 Sb.). The channel would refuse the send anyway
-    // — commsSendSuppression asks the same predicate — but refusing here means no fresh
-    // pipeline entry is minted and no paid automation_cli draft is spawned for a person
-    // we may not write to. Resolved at the durable candidate identity, exactly as the
-    // consent gate above it is and for exactly the same reason: this door's whole job is
-    // to mint a NEW per-role entry, so an entry-scoped read would report "contactable"
-    // for someone who has already told us to stop.
-    if (optedOutCandidateIds([body.candidateId]).has(body.candidateId.trim())) {
-      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed: "candidate" });
+    // GDPR + ePrivacy gate BEFORE we mint anything (bug-ui-scan #1): the ONE rediscovery
+    // eligibility predicate (withheldCandidateIds, rediscovery-eligibility.ts), the same
+    // one the rank, the alert write wall and the feed read ask, resolved at the durable
+    // candidate identity across ALL their entries. This door's whole job is to mint a NEW
+    // per-role entry, whose blank consent and empty outreach_state would otherwise read
+    // as contactable for a person who was erased, whose consent lapsed, or who told us to
+    // stop (ePrivacy Art. 13(4); Czech § 7(4)(c) of zák. č. 480/2004 Sb.). Refusing here
+    // means no entry is minted and no paid automation_cli draft is spawned;
+    // dispatchOutreach / commsSendSuppression re-check (defense in depth). Fail-closed
+    // inside the gate. The wire keeps its vocabulary: an opt-out answers
+    // `suppressed: "candidate"` (the halt reason), consent answers its own reason.
+    const withheld = withheldCandidateIds([body.candidateId]).get(body.candidateId.trim());
+    if (withheld) {
+      return jsonRefusal("COMMS_SUPPRESSED", 409, { suppressed: withheld === "opted_out" ? "candidate" : withheld });
     }
 
     // Per-IP, AFTER every cheap refusal (the 404, the missing-candidateId 400 and the

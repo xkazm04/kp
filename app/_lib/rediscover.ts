@@ -4,13 +4,14 @@ import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";
 import { rankPoolForJob } from "./recruiter-run";
-import { recordRediscoveryAlerts, suppressedCandidateIds } from "./rediscovery-alert-store";
-import { optedOutCandidateIds } from "./outreach-state-store";
+import { listRediscoveryAlerts, reconcileRediscoveryAlerts, type RediscoveryAlert } from "./rediscovery-alert-store";
+import { withheldCandidateIds } from "./rediscovery-eligibility";
 import { priorDepthBoost, byPriorAwareRank } from "./rediscovery-rank";
+import { filterRelevantAlerts } from "./rediscovery-relevance";
 
 // The pure relevance filter lives in an import-free sibling so it's testable under
 // bare node --test; re-exported here as the canonical import site.
-export { filterRelevantAlerts } from "./rediscovery-relevance";
+export { filterRelevantAlerts };
 
 // Talent rediscovery, factored out of the on-demand /api/jobs/[id]/rediscover
 // route so the SAME ranking can power both the panel and the standing alert
@@ -63,6 +64,16 @@ export type RediscoverResult = {
    *  A boolean, never a list of dropped identities (same rule as `suppressed`).
    *  The ranked subset is still returned — the flag says it is not the whole corpus. */
   poolTruncated: boolean;
+  /** INTERNAL — never on a wire (GET /api/jobs/[id]/rediscover picks its fields
+   *  explicitly). The candidate ids the ranker returned a real VERDICT on: scored and
+   *  judged (below the floor, KO-failed, already in this role, no other-role prior, or
+   *  qualifying within the display cut). Excludes the unscored, the ranker's own
+   *  `skipped`, and qualifiers past REDISCOVER_LIMIT — absence of a verdict is never
+   *  evidence of disqualification. The alert reconcile retracts only from this set. */
+  evaluated: string[];
+  /** INTERNAL — never on a wire (same rule as `suppressed`, which is its count). The
+   *  pool members the eligibility gate withheld before ranking. */
+  withheld: string[];
 };
 
 /** Choose the ONE prior outcome that justifies resurfacing this candidate against
@@ -120,7 +131,7 @@ export async function rediscoverForJob(
   // currentWorkspace(); the background sweep leaves it at the default tenant
   // (its current behavior — a per-tenant sweep is a separate feature).
   const { entries: pool, truncated } = buildCandidatePool(opts.workspaceId);
-  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0, poolTruncated: truncated };
+  if (pool.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed: 0, poolTruncated: truncated, evaluated: [], withheld: [] };
 
   // CONSENT AT RANK TIME, not only at the send door. `candidateOutreachSuppression`
   // lived in this very module and was called from ONE place — /candidates/outreach —
@@ -140,10 +151,12 @@ export async function rediscoverForJob(
   // put a "Reach out" button in front of a recruiter that the channel is guaranteed to
   // refuse. Resolved at the durable candidate identity, like its consent sibling, so a
   // freshly minted per-role entry cannot hide the objection.
-  const suppression = suppressedCandidateIds(pool.map((p) => p.id));
-  const optedOut = optedOutCandidateIds(pool.map((p) => p.id));
-  const withheld = (id: string) => suppression.has(id) || optedOut.has(id);
-  const eligible = suppression.size === 0 && optedOut.size === 0 ? pool : pool.filter((p) => !withheld(p.id));
+  //
+  // Both halves are ONE predicate now (withheldCandidateIds, rediscovery-eligibility.ts),
+  // the same one the alert write wall, the feed read and the Reach-out door ask.
+  const gate = withheldCandidateIds(pool.map((p) => p.id));
+  const eligible = gate.size === 0 ? pool : pool.filter((p) => !gate.has(p.id));
+  const withheld = gate.size === 0 ? [] : pool.filter((p) => gate.has(p.id)).map((p) => p.id);
   const suppressed = pool.length - eligible.length;
   if (suppressed > 0) {
     // Count only — the ids/labels are exactly what must not travel further.
@@ -151,7 +164,7 @@ export async function rediscoverForJob(
       `[rediscovery] job "${job.id}": ${suppressed} of ${pool.length} pool members withheld (consent gate + candidate opt-outs).`
     );
   }
-  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed, poolTruncated: truncated };
+  if (eligible.length === 0) return { rediscovered: [], skipped: [], more: 0, suppressed, poolTruncated: truncated, evaluated: [], withheld };
 
   const ranked = await rankPoolForJob<{
     candidates: {
@@ -217,20 +230,29 @@ export async function rediscoverForJob(
     );
 
   const shown = rediscovered.slice(0, REDISCOVER_LIMIT);
+  // The ids with a real verdict (see RediscoverResult.evaluated): every ranked row
+  // except the unscored and the qualifiers cut by the display limit — those were not
+  // judged "no longer a silver medalist", so the reconcile must not retract them.
+  const noVerdict = new Set([...unscored.map((u) => u.id), ...rediscovered.slice(REDISCOVER_LIMIT).map((r) => r.candidateId)]);
+  const evaluated = ranked.candidates.map((row) => row.candidateId).filter((id) => !noVerdict.has(id));
   return {
     rediscovered: shown,
     skipped: [...(ranked.skipped ?? []), ...unscored],
     more: Math.max(0, rediscovered.length - shown.length),
     suppressed,
     poolTruncated: truncated,
+    evaluated,
+    withheld,
   };
 }
 
 /** The outcome of one role's alert raise. `failed` distinguishes "ranked fine and
  *  nobody qualified" from "the ranking broke" — the two used to be the same `0`, so
  *  a publish whose recruiter_cli died reported "found nobody" to the recruiter and
- *  logged nothing at all. */
-export type RaiseOutcome = { raised: number; failed: boolean };
+ *  logged nothing at all. `retracted` counts standing alerts the reconcile removed
+ *  (ranked and no longer qualifying, or since withheld); optional so a stubbed raise
+ *  (the sweep's injected deps) need not invent one. */
+export type RaiseOutcome = { raised: number; failed: boolean; retracted?: number };
 
 /** Rank a job and persist its silver medalists as standing alerts. Best-effort: a
  *  ranking failure never breaks the publish or sweep that calls it — but it is
@@ -251,8 +273,19 @@ export async function raiseRediscoveryAlertsForJob(
   // owner). A fully per-tenant background sweep is a separate feature (NON-GOAL).
   const workspaceId = opts.workspaceId ?? getJobWorkspace(jobId);
   try {
-    const { rediscovered } = await rediscoverForJob(job, { ...opts, workspaceId });
-    return { raised: recordRediscoveryAlerts(job.id, job.title, rediscovered, workspaceId), failed: false };
+    // The alerts become a PROJECTION of this complete ranking: new qualifiers inserted,
+    // live rows refreshed, and rows for people ranked-and-no-longer-qualifying or since
+    // withheld retracted (never a dismissed row, never someone the ranking did not
+    // judge). A failed ranking throws into the catch below and reconciles nothing.
+    const { rediscovered, evaluated, withheld } = await rediscoverForJob(job, { ...opts, workspaceId });
+    const { added, retracted } = reconcileRediscoveryAlerts(
+      job.id,
+      job.title,
+      rediscovered,
+      [...evaluated, ...withheld],
+      workspaceId
+    );
+    return { raised: added, failed: false, retracted };
   } catch (err) {
     // Best-effort by design (a broken ranker must not fail a go-live), but a silent
     // `return 0` made a dead pipeline look exactly like an empty one — to the
@@ -267,6 +300,34 @@ export async function raiseRediscoveryAlertsForJob(
     }
     return { raised: 0, failed: true };
   }
+}
+
+/** The standing silver-medalist feed as a recruiter may see it RIGHT NOW — the one read
+ *  behind GET/POST /api/rediscovery/alerts (the rows AND their `count`).
+ *
+ *  Refiltered at read against LIVE state, because a row persists between sweeps:
+ *  - relevance: the role is still published in this workspace, and the candidate has no
+ *    entry in it yet (ANY entry means a recruiter already acted — testing `active` let
+ *    an add-then-reject resurface the alert for the role they were just rejected from);
+ *  - eligibility: the SAME predicate the rank gate and the write wall ask
+ *    (withheldCandidateIds). It used to be absent here, so a person who opted out or was
+ *    erased AFTER their alert was written kept a row with an Add button (erasure only
+ *    masks the label) until the 90-day prune. Anything visible is currently actionable.
+ *
+ *  Every read is scoped to `workspaceId` except the eligibility gate, which is a
+ *  property of the person (workspace-global by design) and only ever REMOVES rows. One
+ *  batched gate read per call. */
+export function liveRediscoveryAlerts(workspaceId: string): RediscoveryAlert[] {
+  const statuses = listJobStatuses(workspaceId);
+  const outcomes = candidateOutcomes(workspaceId);
+  const relevant = filterRelevantAlerts(
+    listRediscoveryAlerts(workspaceId),
+    (jobId) => statuses[jobId] === "published",
+    (jobId, candidateId) => (outcomes.get(candidateId) ?? []).some((o) => o.jobId === jobId)
+  );
+  if (relevant.length === 0) return relevant;
+  const gate = withheldCandidateIds(relevant.map((a) => a.candidateId));
+  return gate.size === 0 ? relevant : relevant.filter((a) => !gate.has((a.candidateId ?? "").trim()));
 }
 
 // ---- Sweep bounds (bug-ui-scan #2) ------------------------------------------
@@ -378,8 +439,9 @@ function defaultSweepDeps(workspaceId?: string): SweepDeps {
 //
 // Per-process, per-workspace, and deliberately NOT persisted: it needs no schema or
 // migration, and losing it on restart only restarts the rotation — sweeping a role
-// again is idempotent (recordRediscoveryAlerts is INSERT OR IGNORE, so a re-sweep
-// neither duplicates nor un-dismisses) and costs no more than today's every-click
+// again is idempotent (reconcileRediscoveryAlerts inserts on the unique key and only
+// refreshes/retracts UNDISMISSED rows, so a re-sweep neither duplicates nor
+// un-dismisses) and costs no more than today's every-click
 // re-sweep of the same prefix. The ceiling, the pool, and the per-role timeout are
 // untouched: this changes WHICH roles a sweep covers, never HOW MANY.
 const sweepCursor = new Map<string, number>();

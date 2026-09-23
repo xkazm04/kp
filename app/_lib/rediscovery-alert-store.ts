@@ -4,6 +4,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId } from "./random-id";
 import { outreachSuppressionReason, type ConsentSnapshot } from "./consent";
 import { resolveCandidateConsent } from "./rediscovery-relevance";
+import { optedOutCandidateIds } from "./outreach-state-store";
 
 // Standing silver-medalist alerts (idea-fdb45cd0). Isolated-connection store
 // (same pattern as application-status-store.ts / offers-store.ts): owns the
@@ -104,11 +105,59 @@ export type RediscoveryAlert = {
   createdAt: string;
 };
 
+/** THE WRITE WALL. An alert row carries the person's LABEL (their name) and is shown
+ *  to every recruiter in the feed, so persisting one for a person who may not be
+ *  surfaced re-materializes exactly the identifiable data the gate exists to keep off a
+ *  shared screen. rediscoverForJob already filters the pool; this is the second wall so
+ *  no future caller can write a withheld person's alert past it. It reads the SAME
+ *  predicate as the rank gate and the feed read (withheldCandidateIds: erasure, lapsed
+ *  consent AND opt-out) — it used to check consent only, so an opted-out person's name
+ *  was persisted. Resolved BEFORE any transaction: it is a read on other tables, and
+ *  keeping it out of the write keeps the transaction the pure write loop it claims to be. */
+function admissibleRows(
+  jobId: string,
+  rows: RediscoveryAlertInput[],
+  withheld: Map<string, WithheldReason>
+): RediscoveryAlertInput[] {
+  const admissible = withheld.size === 0 ? rows : rows.filter((r) => !withheld.has((r.candidateId ?? "").trim()));
+  if (admissible.length < rows.length) {
+    console.warn(
+      `[rediscovery] ${rows.length - admissible.length} of ${rows.length} silver medalists for job "${jobId}" were NOT persisted — withheld (anonymized, lapsed consent or opted out).`
+    );
+  }
+  return admissible;
+}
+
+const INSERT_ALERT_SQL = `
+    INSERT OR IGNORE INTO rediscovery_alerts
+      (id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, prior_stage, prior_depth, created_at, workspace_id)
+    VALUES (@id, @jobId, @jobTitle, @candidateId, @label, @archetype, @score, @priorKind, @priorLabel, @priorStage, @priorDepth, @createdAt, @workspaceId)
+  `;
+
+function alertParams(jobId: string, jobTitle: string, r: RediscoveryAlertInput, now: string, workspaceId: string) {
+  return {
+    id: randomId("ra"),
+    jobId,
+    jobTitle,
+    candidateId: r.candidateId,
+    label: r.label,
+    archetype: r.archetype,
+    score: r.score,
+    priorKind: r.prior.kind,
+    priorLabel: r.prior.label,
+    priorStage: r.prior.stage,
+    priorDepth: r.prior.depth,
+    createdAt: now,
+    workspaceId,
+  };
+}
+
 /** Persist a role's rediscovered candidates as standing alerts. INSERT OR IGNORE
  *  on the (workspace_id, job_id, candidate_id) unique index: a candidate this team
  *  already alerted for this role (active or dismissed) is left untouched, so the feed neither
- *  duplicates nor un-dismisses. Returns the count of genuinely-new alerts (so the
- *  publish/sweep caller can report "3 silver medalists surfaced"). */
+ *  duplicates nor un-dismisses. Returns the count of genuinely-new alerts. This is the
+ *  insert-only form; the publish/sweep raise uses reconcileRediscoveryAlerts below, which
+ *  also refreshes and retracts. */
 export function recordRediscoveryAlerts(
   jobId: string,
   jobTitle: string,
@@ -116,53 +165,94 @@ export function recordRediscoveryAlerts(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): number {
   if (rows.length === 0) return 0;
-  // CONSENT IS A WRITE GATE HERE, not only a send gate. An alert row carries the
-  // person's LABEL (their name) and is shown to every recruiter in the feed, so
-  // persisting one for a candidate who was anonymized/erased or whose consent
-  // lapsed re-materializes exactly the identifiable data the erasure removed —
-  // rediscoverForJob already filters the pool, and this is the second wall so no
-  // future caller can write an unconsented alert past it. Suppression is resolved
-  // BEFORE the transaction (it is a read on another table; better-sqlite3 is
-  // synchronous so there is no await either way, but keeping the read out of the
-  // write keeps the transaction the pure INSERT loop it claims to be).
-  const suppressed = suppressedCandidateIds(rows.map((r) => r.candidateId));
-  const admissible = suppressed.size === 0 ? rows : rows.filter((r) => !suppressed.has((r.candidateId ?? "").trim()));
-  if (admissible.length < rows.length) {
-    console.warn(
-      `[rediscovery] ${rows.length - admissible.length} of ${rows.length} silver medalists for job "${jobId}" were NOT persisted — consent suppressed (anonymized or lapsed).`
-    );
-  }
+  const admissible = admissibleRows(jobId, rows, withheldCandidateIds(rows.map((r) => r.candidateId)));
   if (admissible.length === 0) return 0;
   const d = db();
   const now = new Date().toISOString();
-  const insert = d.prepare(`
-    INSERT OR IGNORE INTO rediscovery_alerts
-      (id, job_id, job_title, candidate_id, candidate_label, archetype, score, prior_kind, prior_label, prior_stage, prior_depth, created_at, workspace_id)
-    VALUES (@id, @jobId, @jobTitle, @candidateId, @label, @archetype, @score, @priorKind, @priorLabel, @priorStage, @priorDepth, @createdAt, @workspaceId)
-  `);
+  const insert = d.prepare(INSERT_ALERT_SQL);
   const tx = d.transaction((items: RediscoveryAlertInput[]): number => {
     let added = 0;
     for (const r of items) {
-      const res = insert.run({
-        id: randomId("ra"),
-        jobId,
-        jobTitle,
-        candidateId: r.candidateId,
-        label: r.label,
-        archetype: r.archetype,
-        score: r.score,
-        priorKind: r.prior.kind,
-        priorLabel: r.prior.label,
-        priorStage: r.prior.stage,
-        priorDepth: r.prior.depth,
-        createdAt: now,
-        workspaceId,
-      });
-      if (res.changes > 0) added += 1;
+      if (insert.run(alertParams(jobId, jobTitle, r, now, workspaceId)).changes > 0) added += 1;
     }
     return added;
   });
   return tx(admissible);
+}
+
+export type ReconcileOutcome = { added: number; updated: number; retracted: number };
+
+/** Make one role's alerts a PROJECTION of its latest complete ranking, not a pile of
+ *  first-sweep snapshots.
+ *
+ *  - `qualifying` (the ranking's silver medalists) that pass the write wall are
+ *    INSERTED when new, and an existing UNDISMISSED row is REFRESHED (score, prior,
+ *    label) — a JD edit or a new CV used to leave the first sweep's score frozen.
+ *    A refresh is not counted as new (`added` stays the "N surfaced" number).
+ *  - An UNDISMISSED row is RETRACTED (deleted) when its candidate was `evaluated` (the
+ *    ranker returned a real verdict on them) and no longer qualifies, OR when the person
+ *    is now withheld by the eligibility gate (erased, lapsed, opted out). Withheld-ness is
+ *    positive evidence independent of the ranking, so it is read over this role's live
+ *    rows too, and a withheld person's name leaves the table, not only the screen.
+ *  - A candidate ABSENT from `evaluated` (ranking failed, pool truncated, over the
+ *    display cut, unscored) is never retracted: absence from an incomplete ranking is
+ *    not evidence of disqualification. A failed ranking never reaches this function.
+ *  - A DISMISSED row is never touched: the dismissal stays sticky.
+ *
+ *  Read -> write safety: the gate read runs BEFORE the transaction (other stores'
+ *  tables, no await anywhere); every write re-asserts `workspace_id`, `job_id` and
+ *  `dismissed_at IS NULL` in its WHERE and counts `changes`, inside one IMMEDIATE
+ *  transaction, so a row dismissed in between is left alone. Workspace-scoped: another
+ *  team's rows for the same job + candidate are never read or written. */
+export function reconcileRediscoveryAlerts(
+  jobId: string,
+  jobTitle: string,
+  qualifying: RediscoveryAlertInput[],
+  evaluated: readonly string[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): ReconcileOutcome {
+  const d = db();
+  const liveIds = (
+    d
+      .prepare(`SELECT candidate_id FROM rediscovery_alerts WHERE workspace_id = ? AND job_id = ? AND dismissed_at IS NULL`)
+      .all(workspaceId, jobId) as { candidate_id: string }[]
+  ).map((r) => r.candidate_id);
+  // ONE gate read over everyone this call could write or keep: the candidates to
+  // insert/refresh, and the role's live rows (so a since-withheld person is retracted).
+  const withheld = withheldCandidateIds([...qualifying.map((r) => r.candidateId), ...liveIds]);
+  const admissible = admissibleRows(jobId, qualifying, withheld);
+  const keep = new Set(admissible.map((r) => (r.candidateId ?? "").trim()));
+  const retract = new Set<string>();
+  for (const id of evaluated) {
+    const key = (id ?? "").trim();
+    if (key && !keep.has(key)) retract.add(key);
+  }
+  for (const id of liveIds) if (withheld.has(id.trim())) retract.add(id);
+
+  const now = new Date().toISOString();
+  const insert = d.prepare(INSERT_ALERT_SQL);
+  const refresh = d.prepare(`
+    UPDATE rediscovery_alerts
+       SET job_title = @jobTitle, candidate_label = @label, archetype = @archetype, score = @score,
+           prior_kind = @priorKind, prior_label = @priorLabel, prior_stage = @priorStage, prior_depth = @priorDepth
+     WHERE workspace_id = @workspaceId AND job_id = @jobId AND candidate_id = @candidateId AND dismissed_at IS NULL
+  `);
+  const remove = d.prepare(
+    `DELETE FROM rediscovery_alerts WHERE workspace_id = ? AND job_id = ? AND candidate_id = ? AND dismissed_at IS NULL`
+  );
+  const tx = d.transaction((): ReconcileOutcome => {
+    let added = 0;
+    let updated = 0;
+    let retracted = 0;
+    for (const r of admissible) {
+      const params = alertParams(jobId, jobTitle, r, now, workspaceId);
+      if (insert.run(params).changes > 0) added += 1;
+      else updated += refresh.run(params).changes;
+    }
+    for (const id of retract) retracted += remove.run(workspaceId, jobId, id).changes;
+    return { added, updated, retracted };
+  });
+  return tx.immediate();
 }
 
 // ---- Retention (rediscovery-excludes-the-unconsented) -----------------------
@@ -381,6 +471,36 @@ export function suppressedCandidateIds(
     for (const id of ids) out.set(id, "consent_expired");
     return out;
   }
+}
+
+/** Why a person may not be surfaced by rediscovery. */
+export type WithheldReason = "anonymized" | "consent_expired" | "opted_out";
+
+/** THE ONE eligibility predicate for rediscovery ("may this person be surfaced for a
+ *  role they never applied to?"), composing the consent/erasure half
+ *  (suppressedCandidateIds, above) and the person's own opt-out (optedOutCandidateIds,
+ *  outreach-state-store) in ONE place. Callers import it from `./rediscovery-eligibility`,
+ *  the canonical site. It is DEFINED here only because this store's write wall needs it
+ *  and that module re-exports from this one; defining it there would make the store and
+ *  the gate import each other.
+ *
+ *  Precedence, most restrictive first: an erasure is terminal (`anonymized`), then the
+ *  person's own objection (`opted_out`), then a lapsed grant (`consent_expired`). Both
+ *  halves FAIL CLOSED (a read error withholds every id) and are workspace-GLOBAL (a
+ *  property of the person, not the team); an id with no entry anywhere is absent
+ *  (contactable). One batched, chunked read per half, never one per candidate. */
+export function withheldCandidateIds(
+  candidateIds: readonly (string | null | undefined)[],
+  nowMs: number = Date.now()
+): Map<string, WithheldReason> {
+  const consent = suppressedCandidateIds(candidateIds, nowMs);
+  const optedOut = optedOutCandidateIds(candidateIds);
+  const out = new Map<string, WithheldReason>();
+  for (const id of optedOut) out.set(id, "opted_out");
+  for (const [id, reason] of consent) {
+    if (reason === "anonymized" || !out.has(id)) out.set(id, reason);
+  }
+  return out;
 }
 
 /** THE candidate-level outreach compliance gate (GDPR / e-privacy). Resolves the

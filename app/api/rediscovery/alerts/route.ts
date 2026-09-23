@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import { candidateOutcomes } from "@/app/_lib/db/pipeline";
-import { listJobStatuses } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { filterRelevantAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
-import {
-  dismissRediscoveryAlert,
-  listRediscoveryAlerts,
-} from "@/app/_lib/rediscovery-alert-store";
-
+import { liveRediscoveryAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
+import { dismissRediscoveryAlert } from "@/app/_lib/rediscovery-alert-store";
 
 // Standing silver-medalist feed (idea-fdb45cd0). GET = the active, still-relevant
 // alerts; PATCH {id} dismisses one; POST runs a pool-change sweep over published
@@ -23,35 +17,16 @@ import {
 // timeout mid-run (bug-ui-scan #2).
 export const maxDuration = 180;
 
-// Relevance is filtered at read time against LIVE state — an alert for a role
-// since unpublished, or a candidate since pipelined into it, is no longer a
-// silver medalist even though its row persists (dismissed state is sticky).
-function relevantAlerts(workspaceId: string) {
-  const statuses = listJobStatuses(workspaceId);
-  // Scope BOTH reads to the session workspace: an unscoped candidateOutcomes/
-  // listRediscoveryAlerts defaults to the single tenant, so in any other team the
-  // feed would read the default tenant's alerts + pipeline history regardless of who
-  // is signed in. The alert store persists per-workspace (recordRediscoveryAlerts),
-  // so listRediscoveryAlerts(workspaceId) returns only this team's standing alerts.
-  const outcomes = candidateOutcomes(workspaceId);
-  return filterRelevantAlerts(
-    listRediscoveryAlerts(workspaceId),
-    (jobId) => statuses[jobId] === "published",
-    (jobId, candidateId) =>
-      // ANY entry in that role means a recruiter already acted on this alert. Testing
-      // `status === "active"` instead meant that adding the candidate and THEN rejecting
-      // them flipped the predicate back to false, so the alert RESURFACED — recommending
-      // the person for the role they had just been rejected from, still carrying its
-      // original "Rejected · <other role>" chip so it read as a fresh suggestion. No
-      // over-filtering results: pickPrior now only ever raises an alert for a candidate
-      // with no entry in that role, so a later entry can only mean it was acted on.
-      (outcomes.get(candidateId) ?? []).some((o) => o.jobId === jobId)
-  );
-}
+// The feed is read through ONE function, liveRediscoveryAlerts (rediscover.ts): relevance
+// against LIVE job/pipeline state (a row persists between sweeps; dismissal is sticky)
+// AND the same eligibility gate the rank and the write ask (withheldCandidateIds), so an
+// erased, lapsed or opted-out person leaves the feed, and its `count`, the moment their
+// state changes. Scoped to the session workspace; the POST returns the feed for the SAME
+// resolved workspace its sweep ran on.
 
 export async function GET() {
   try {
-    const alerts = relevantAlerts(await currentWorkspace());
+    const alerts = liveRediscoveryAlerts(await currentWorkspace());
     return NextResponse.json({ alerts, count: alerts.length });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
@@ -102,7 +77,7 @@ export async function POST(request: Request) {
       signal: request.signal,
       workspaceId: ws,
     });
-    const alerts = relevantAlerts(ws);
+    const alerts = liveRediscoveryAlerts(ws);
     // `failedJobs` is the honest half of `newAlerts`: a sweep whose rankings all died
     // used to return the same `newAlerts: 0` as a sweep that ran perfectly and found
     // nobody, so the Refresh reported a clean "nothing new" over a broken pipeline.
