@@ -1081,11 +1081,51 @@ larger decision — it needs an operator zone to exist first.
 Also single-sourced this round: `originOf`, the earliest-event → origin bucket map
 `bySource` reports, was typed out byte-identically inside `pipelineAnalytics` and
 `pipelineAnalyticsPrior`, whose entire contract is that they bucket the same rows
-the same way. One module-level function now.
+the same way. One function now, in the pure cohort module (below).
 
 Payload additions this round: `truncated` (above), `bucketTz`, `ChannelEconomics.spendUpdatedAt`, `costPerHireAsOf`,
 `hiresClosedInWindow`, `computeCost.windowDays` / `.hires`, and the `leakage` descriptor on both
 calibration payload types.
+
+### Both sides of a period delta fold through one cohort function (challenge-r06)
+
+The `deltas` on a windowed load compare the live window with the one before it. The two
+sides used to come from two hand-kept copies of the same fold inside `db/analytics.ts`,
+held equal by a test that also pinned a leak as the contract. Both now go through the
+pure **`app/_lib/analytics-cohort.ts`**:
+
+- **One clock, tiled windows.** `GET /api/analytics` reads `Date.now()` once;
+  `deltaWindows(now, days)` returns the current window `[now − days, now)` and the prior
+  `[now − 2·days, now − days)`, whose end **is** the current start (the same number). The
+  live read takes the clock as `opts.nowMs` (it pins, it does not bound); every cutoff in
+  the store derives from `windowStart(end, days)`. An entry created exactly on the
+  boundary belongs to the window it starts.
+- **Every prior read is half-open.** The first-event origin read behind `bySource` was
+  lower-bound only, so the prior window's per-source volume counted every candidate of the
+  current window. It now carries `created_at < end` like the cohort SELECT.
+- **The prior cohort is judged as of its own end** (`foldCohort(rows, axis, { asOfMs })`).
+  A terminal row counts as hired, and joins the time-to-hire sample, only when its terminal
+  transition (`stage_changed_at`) landed before `asOfMs`. Without this a 30-day view
+  compared a cohort with at most 30 days to hire against one with up to 60, so the
+  hire-rate chip read as a decline and the time-to-hire chip as an improvement with no
+  change in behaviour. The live read folds as of `+Infinity`, so its payload is unchanged.
+  **Stated limit:** only the terminal leg is age-matched; earlier funnel columns keep their
+  current-stage basis (a stage-as-of read needs the event ledger), and a not-yet-hired
+  terminal row is folded one column short of its terminal one. A row with no or an
+  unparseable stamp stays a hire and stays out of the sample, as before.
+- **Every rate delta names both sides' n and is gated on it.** `PriorWindowSlice` carries
+  funnel `reached` and `timeToHireSamples`. `periodDeltas` gates `hireRatePct` (cohort
+  total), each funnel `conversionPct` (the upstream stage's reach) and `avgTimeToHireDays`
+  (the sample) at `MIN_RATE_DELTA_N = 5` on **both** sides, the gate source and channel rows
+  already had. A thin movement is withheld with its reason: `delta: null`, `n: { current,
+  prior }`, `withheld: { reason: "thinCurrent" | "thinPrior" | "thinBoth", minN }`. The
+  figures themselves stay on the record; only the movement is not claimed. Plain counts
+  (`total`, `hired`, volumes) are never gated.
+
+Pinned by `analytics-cohort.test.ts` (windows, the as-of rule, the one-clock route),
+`db/analytics-prior-slice.test.ts` (the live payload equals the fold; the bounded prior
+source read; the boundary instant; the age-matched prior; the prior slice's n) and
+`analytics-deltas.test.ts` (the three new gates).
 
 ## Honesty rules this surface keeps
 
@@ -1275,6 +1315,11 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   quality-of-hire ships (`POST /api/pipeline/outcomes`); there is no `?source=performance` arm,
   so nothing yet measures the score against how a hire actually worked out. Deliberate — the
   corpus accrues first — and the accrual counter on Quality is the horizon.
+- **A withheld delta's reason is on the wire, not yet on screen.** `DeltaChip` renders nothing
+  for a null `delta`, so a thin movement is (correctly) not shown, but the chip does not yet
+  say why; `Delta.withheld` carries the reason for when it does. Under a bounded (`endMs`)
+  full-battery read, only the compared scalars are age-matched: `byJob`, `byArchetype` and
+  `byVariant` still count terminal rows as they stand today.
 - **Nested payload fields are outside the render-map guard's grain.** It checks top-level
   `Analytics` fields, so `deltas.bySource` / `deltas.byChannel` and the `ChannelEconomics` columns
   the board does not carry (`costPerApplicantCzk`, `medianHoursToDecision`) are still computed on
