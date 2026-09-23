@@ -35,7 +35,7 @@ test("the commit hook keeps the machine half and hands it to the modal", () => {
   assert.match(kit, /setCommitError\(\{/, "the refusal body is read, not dropped");
   assert.match(kit, /code: typeof p\?\.code === "string" \? p\.code : null/);
   assert.match(kit, /capability: typeof p\?\.capability === "string" \? p\.capability : null/);
-  assert.match(kit, /return \{ busy, preview, entries, committed, error, commitError, dryRun, commit, dismiss \};/);
+  assert.match(kit, /return \{ busy, preview, entries, committed, error, commitError, report, dryRun, commit, dismiss \};/);
   assert.match(dock, /commitError=\{pass\.commitError\}/, "the dock threads it into the modal");
 });
 
@@ -50,4 +50,28 @@ test("the pass-committed fallback exists in all four catalogs", () => {
       `messages/${locale}.json pipeline.tab.previewCommitFailed is missing`
     );
   }
+});
+
+// --- commit the pass you previewed (challenge-r02 pipeline-actions-events/B) -------
+
+test("each advance / would-be-reject row can be unticked, and the commit posts the selection", () => {
+  assert.match(modal, /type="checkbox"/, "per-row opt-out");
+  assert.match(modal, /approvedFromPreview\(preview\.decisions, unticked\)/, "the selection is built from what was SHOWN");
+  assert.match(kit, /JSON\.stringify\(\{ approved \}\)/, "the commit body carries it");
+});
+
+test("case 6: a selection that joined an in-flight pass says so instead of reporting it as applied", () => {
+  assert.match(kit, /selectionHonored/);
+  assert.match(modal, /report\.selectionHonored \? null : /);
+  assert.match(modal, /t\("previewSelectionNotHonored"\)/);
+});
+
+test("drifted rows are listed after the commit with a re-preview action", () => {
+  assert.match(modal, /report\.drifted\.map\(/);
+  assert.match(modal, /t\("previewRepreview"\)/);
+  assert.match(dock, /onRepreview=\{/, "the dock wires the re-preview");
+});
+
+test("TENANCY: the modal no longer offers to apply other teams' changes", () => {
+  assert.doesNotMatch(modal, /previewApplyGlobal/, "one team's button never applies another team's advances");
 });

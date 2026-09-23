@@ -124,12 +124,11 @@ test("the automation UI consumes the tenancy labels the routes ship", () => {
   assert.match(modal, /mine !== total/, "the scope line must render ONLY when the tenant's count differs from the run's");
   assert.match(modal, /t\("previewScope"/, "…and say the ratio in localized copy");
   assert.match(modal, /othersOnly/, "the preview must name the only-other-teams-have-changes case");
-  assert.match(
-    modal,
-    /changes > 0 \|\| othersOnly \?/,
-    "the commit affordance must survive that case (a commit is installation-wide) instead of being hidden"
-  );
-  assert.match(modal, /t\("previewApplyGlobal"/, "…relabeled with the global change count so the click can't read as 'apply my 0'");
+  assert.match(modal, /t\("previewOtherTeamsOnly", \{ count: globalChanges \}\)/, "…with the global count, so it can't read as 'nothing happened'");
+  // challenge-r02 pipeline-actions-events/B: a commit now carries this team's reviewed
+  // selection and is scoped to this team's rows, so the old "(all teams)" commit button -
+  // one team applying another team's advances from its own click - must stay gone.
+  assert.doesNotMatch(modal, /previewApplyGlobal/, "one team's button never applies another team's advances");
 
   const kit = read("../features/shell/simulation/simControlCenterKit.ts");
   assert.match(kit, /workspaceDecisionCount/, "the dry-run fetch must forward the label, not drop it");
@@ -151,7 +150,7 @@ test("every catalog carries the tenancy-honesty copy", () => {
     const messages = JSON.parse(readFileSync(path.join(root, "messages", `${locale}.json`), "utf8")) as {
       pipeline: { tab: Record<string, string>; scheduler: Record<string, string> };
     };
-    for (const key of ["previewScope", "previewOtherTeamsOnly", "previewApplyGlobal"]) {
+    for (const key of ["previewScope", "previewOtherTeamsOnly"]) {
       assert.ok((messages.pipeline.tab[key]?.length ?? 0) > 0, `${locale}: pipeline.tab.${key} must exist`);
     }
     for (const key of ["runScope", "scopeGlobal", "scopeGlobalTitle"]) {

@@ -16,7 +16,7 @@
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { markQueuedForApproval, recordDecisionAlerts } from "./automation-pass.ts";
+import { applyPassDecisions, entriesForPass, markQueuedForApproval, recordDecisionAlerts } from "./automation-pass.ts";
 import { createPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline.ts";
 import { ensureDb } from "./db/core.ts";
 import type { AutomationDecision, AutomationSummary } from "./automation-pass.ts";
@@ -172,4 +172,123 @@ test("fairness_gate_blocked_reject keeps its per-business-day dedupe", () => {
   backdateEvents(id, kind, 1);
   recordDecisionAlerts(alertDecision(id, kind), snap(id), s, false);
   assert.equal(rows(id, kind), 2, "a new business day writes again");
+});
+
+// --- commit the pass you previewed (challenge-r02 pipeline-actions-events/B) -------
+// The executed half of automation-commit-plan: what the commit loop writes when the
+// recruiter's reviewed selection rides along, and that it is one TEAM's selection.
+
+const stageOf = (id: string) =>
+  (ensureDb().prepare(`SELECT stage FROM pipeline_entries WHERE id = ?`).get(id) as { stage: string }).stage;
+
+function seedIn(ws: string, stage = "Screened"): string {
+  const { entry } = createPipelineEntry({
+    candidateId: `c-sel-${Math.random()}`,
+    candidateLabel: "Selection Test",
+    jobId: `job-sel-${ws}`,
+    jobTitle: "Selection Role",
+    stage,
+    workspaceId: ws,
+  });
+  return entry.id;
+}
+const advanceOf = (id: string, alerts: string[] = []): AutomationDecision => ({
+  entryId: id,
+  action: "advance",
+  toStage: "Interview",
+  alerts,
+  reason: "score 88 clears the advance bar",
+});
+const snapsOf = (...ids: string[]) => listActiveEntriesForAutomation().filter((e) => ids.includes(e.id));
+
+test("case 2 (executed): an unticked advance is skipped as notApproved and the entry does not move", () => {
+  const id = seedIn("ws-sel-a");
+  const s = emptySummary();
+  const [d] = applyPassDecisions([advanceOf(id)], snapsOf(id), s, { approved: [], workspace: "ws-sel-a" });
+  assert.equal(d.outcome, "skipped");
+  assert.equal(d.reasonCode, "notApproved");
+  assert.equal(d.action, "none");
+  assert.equal(stageOf(id), "Screened", "pipeline_entries is untouched");
+  assert.equal(s.advanced, 0);
+});
+
+test("case 1 (executed): a ticked advance lands", () => {
+  const id = seedIn("ws-sel-a");
+  const s = emptySummary();
+  const [d] = applyPassDecisions([advanceOf(id)], snapsOf(id), s, {
+    approved: [{ entryId: id, action: "advance", toStage: "Interview" }],
+    workspace: "ws-sel-a",
+  });
+  assert.equal(d.outcome, "applied");
+  assert.notEqual(stageOf(id), "Screened");
+  assert.equal(s.advanced, 1);
+});
+
+test("case 3 (executed): a drifted row is not applied and carries changedSincePreview", () => {
+  const id = seedIn("ws-sel-a");
+  const s = emptySummary();
+  const hold: AutomationDecision = { entryId: id, action: "hold", toStage: null, alerts: [], reason: "awaiting score" };
+  const [d] = applyPassDecisions([hold], snapsOf(id), s, {
+    approved: [{ entryId: id, action: "advance", toStage: "Interview" }],
+    workspace: "ws-sel-a",
+  });
+  assert.equal(d.outcome, "skipped");
+  assert.equal(d.reasonCode, "changedSincePreview");
+  assert.equal(stageOf(id), "Screened");
+});
+
+test("case 4 + TENANCY: team A's selection neither applies nor holds back team B's rows", () => {
+  const mine = seedIn("ws-sel-a");
+  const theirs = seedIn("ws-sel-b");
+  // The pass a selection runs is scoped to the reviewing team BEFORE it runs.
+  const scoped = entriesForPass(listActiveEntriesForAutomation(), "ws-sel-a");
+  assert.ok(scoped.some((e) => e.id === mine));
+  assert.ok(!scoped.some((e) => e.id === theirs), "another team's entry is not in a scoped pass");
+
+  // Defence in depth: even handed team B's decision, with B's id in A's selection, the
+  // commit drops it - not applied, not recorded as a skip, not in the result.
+  const s = emptySummary();
+  const out = applyPassDecisions([advanceOf(mine), advanceOf(theirs)], snapsOf(mine, theirs), s, {
+    approved: [
+      { entryId: mine, action: "advance", toStage: "Interview" },
+      { entryId: theirs, action: "advance", toStage: "Interview" },
+    ],
+    workspace: "ws-sel-a",
+  });
+  assert.deepEqual(out.map((d) => d.entryId), [mine], "the foreign row never appears in the response");
+  assert.equal(stageOf(theirs), "Screened", "not applied by this caller");
+
+  // …and not HELD BACK either: team B's own (unselected) commit still advances it.
+  const later = applyPassDecisions([advanceOf(theirs)], snapsOf(theirs), emptySummary());
+  assert.equal(later[0].outcome, "applied");
+  assert.notEqual(stageOf(theirs), "Screened");
+});
+
+test("case 5 guard: without a selection the commit applies exactly what the pass decided", () => {
+  const id = seedIn("ws-sel-c");
+  const s = emptySummary();
+  const [d] = applyPassDecisions([advanceOf(id)], snapsOf(id), s);
+  assert.equal(d.outcome, "applied");
+  assert.equal(s.advanced, 1);
+});
+
+test("case 7: an unticked advance still writes its alert (alerts stay autonomous)", () => {
+  const id = seedIn("ws-sel-a", "Offer");
+  ensureDb().prepare(`UPDATE pipeline_entries SET stage_changed_at = ? WHERE id = ?`).run(daysAgo(8), id);
+  const s = emptySummary();
+  applyPassDecisions([advanceOf(id, ["aging_alert"])], snapsOf(id), s, { approved: [], workspace: "ws-sel-a" });
+  assert.equal(rows(id, "aging_alert"), 1, "the entry stays in its stint, so the stint's alert is written");
+  assert.equal(stageOf(id), "Offer");
+});
+
+test("an unticked would-be reject is not queued for approval", () => {
+  const id = seedIn("ws-sel-a");
+  ensureDb().prepare(`UPDATE pipeline_entries SET match_score = 20 WHERE id = ?`).run(id);
+  const reject: AutomationDecision = { entryId: id, action: "reject", toStage: null, alerts: [], reason: "BAU 20 below the floor" };
+  const [d] = applyPassDecisions([reject], snapsOf(id), emptySummary(), { approved: [], workspace: "ws-sel-a" });
+  // Either the fairness backstop holds it (autonomous) or the selection declines it -
+  // in neither case does a rejection_review land without the recruiter's tick.
+  const approval = ensureDb().prepare(`SELECT approval_kind FROM pipeline_entries WHERE id = ?`).get(id) as { approval_kind: string | null };
+  assert.notEqual(approval.approval_kind, "rejection_review");
+  assert.notEqual(d.outcome, "queued");
 });
