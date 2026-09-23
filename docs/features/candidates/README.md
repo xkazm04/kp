@@ -130,6 +130,25 @@ career-switcher) that other features key off. Downstream ranking is
   degraded run is not paraphrased. Each list is now headed by a localized
   `results.quality.engineNote` label (4 locales) that says which half is machine
   text; before it, a Czech reader had no way to tell.
+- **Trust findings, coded at birth** — every entry in the engine's trust ledger is
+  a `Finding` (`pipeline/jobfit/trust.py`): the sentence, plus a stable `code`
+  (`blind_redaction_partial`, `job_context_unreadable`, `score_section_missing`,
+  `insight_skipped`, `credential_missing`, …), a `severity` (`ok` / `warn` /
+  `blocker`) and a `scope` (`score`, `salary`, `identity`, `archetype`,
+  `authenticity`, `credential`, `input`, `insight`, `skills`) set by the producer
+  that knows them. A `Finding` is a `str`, so `sanityChecks` is byte-identical to
+  before; the structured half rides `trustFindings` on the analysis (nullish in
+  `schemas.generated.ts`). The TS readers in `app/_lib/sanity-checks.ts`
+  (`trustLedger`, `trustWarnCount`, `authenticityBand`, `scoreBlocked`,
+  `trustedScoreTotal`) go by severity/scope and use the old prose regex ONLY for
+  payloads saved before the field — so the quality strip, `review_flags`
+  (`analyze-run.ts`) and the provenance dossier now count a blind-screening
+  redaction miss and an unreadable structured job as warnings (the regex read
+  both as passes). A `score`-scope blocker (the score section was missing and the
+  components defaulted to 0) renders the verdict banner unscored and stores
+  `analyses.score` as NULL, never as a measured 0. Prompt-injection flags are
+  scoped `input`, so they never move the authenticity band. The cache
+  `PROMPT_VERSION` moved to v7 so a pre-coding cached payload is not served.
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out
