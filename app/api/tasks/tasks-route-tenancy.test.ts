@@ -82,13 +82,18 @@ test("every task route resolves the session workspace and threads it", () => {
 test("retry refuses a replay whose uploaded inputs were already cleaned up", () => {
   const src = read("[id]", "retry", "route.ts");
   assert.match(src, /existsSync/, "the guard must actually stat the paths, not trust the row");
-  const guard = src.indexOf("replayInputsMissing(task.kind, params)");
+  // The check lives in app/_lib/task-replay.ts now (replayBlock — the list routes stamp
+  // each row's verdict from the same function); the route must still CALL it with a
+  // real stat, before the enqueue.
+  const guard = src.indexOf("replayBlock(task.kind, params, existsSync)");
   const start = src.indexOf("startTask(task.kind");
   assert.ok(guard > 0, "expected the missing-input guard");
   assert.ok(start > 0 && guard < start, "the guard must precede startTask — no phantom run, no spawn");
+  assert.doesNotMatch(src, /function replayInputsMissing/, "no private copy of the check may return");
   // It must stay a per-run existence check, never a blanket ban: a crash-interrupted
   // row whose workdir survived is still genuinely replayable.
-  assert.match(src, /paths\.length > 0 && paths\.some/, "unknown/absent paths must not refuse");
+  const shared = readFileSync(path.join(HERE, "..", "..", "_lib", "task-replay.ts"), "utf8");
+  assert.match(shared, /paths\.length > 0 && paths\.some/, "unknown/absent paths must not refuse");
 });
 
 test("DELETE proves ownership before aborting, not after", () => {

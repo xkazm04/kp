@@ -1,9 +1,11 @@
+import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { listRecentTasks } from "@/app/_lib/db/tasks";
+import { listRecentTasks, listTaskParams } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { callerCapabilities, requireCapability } from "@/app/_lib/auth/current-user";
 import { dockMayStart, taskKindCapability } from "@/app/_lib/task-admission";
+import { attachReplayVerdicts } from "@/app/_lib/task-replay";
 import { ensureRecovered, isKnownKind, knownTaskKinds, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -33,7 +35,17 @@ export async function GET() {
   try {
     ensureRecovered(); // self-heal orphaned 'running'/'queued' rows on the first read after a restart/crash
     const ws = await currentWorkspace();
-    return NextResponse.json({ tasks: listRecentTasks(recentTaskCutoffIso(), undefined, ws), kinds: knownTaskKinds() });
+    const tasks = listRecentTasks(recentTaskCutoffIso(), undefined, ws);
+    // Each dead row carries its REPLAY VERDICT (app/_lib/task-replay.ts) — the same
+    // decision POST /api/tasks/[id]/retry refuses by — so the table offers Retry only
+    // where it would run. One bounded params read for the page, never per row.
+    const caps = new Set(await callerCapabilities());
+    const withReplay = attachReplayVerdicts(tasks, {
+      loadParams: (ids) => listTaskParams(ids, ws),
+      exists: existsSync,
+      hasCapability: (cap) => caps.has(cap),
+    });
+    return NextResponse.json({ tasks: withReplay, kinds: knownTaskKinds() });
   } catch (error) {
     // better-sqlite3 behind this read: the thrown message carries the absolute db
     // path and SQLite detail, and the dock renders what it is handed.

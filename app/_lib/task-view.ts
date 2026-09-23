@@ -26,7 +26,17 @@ export type TaskSignatureRow = {
   /** Read/unread ack — in the signature so a mark-seen actually clears the
    *  indicator badge on the next poll (an unchanged-signature poll is a no-op). */
   seenAt: string | null;
+  /** The server's replay verdict (app/_lib/task-replay.ts) — rendered as Retry or as
+   *  a reason, so a verdict change must repaint the row. Optional: an older server
+   *  sends none. */
+  replay?: { replayable: boolean; reason?: string } | null;
 };
+
+/** `r` replayable, `b:<reason>` blocked, empty when no verdict was sent. */
+function replayToken(replay: TaskSignatureRow["replay"]): string {
+  if (!replay) return "";
+  return replay.replayable ? "r" : `b:${replay.reason ?? ""}`;
+}
 
 /** A cheap order-sensitive fingerprint of the rendered task state. Equal strings
  *  ⇒ the UI would paint identically ⇒ skip the commit. Length changes (added /
@@ -35,7 +45,7 @@ export function tasksSignature(tasks: readonly TaskSignatureRow[]): string {
   return tasks
     .map(
       (t) =>
-        `${t.id}${t.status}${t.progressDone}${t.progressTotal}${t.progressMsg ?? ""}${t.label ?? ""}${t.error ?? ""}${t.startedAt ?? ""}${t.finishedAt ?? ""}${t.seenAt ?? ""}`
+        `${t.id}${t.status}${t.progressDone}${t.progressTotal}${t.progressMsg ?? ""}${t.label ?? ""}${t.error ?? ""}${t.startedAt ?? ""}${t.finishedAt ?? ""}${t.seenAt ?? ""}${replayToken(t.replay)}`
     )
     .join("");
 }

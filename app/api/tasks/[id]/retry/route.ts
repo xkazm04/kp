@@ -9,6 +9,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
 import { retryDecision } from "@/app/_lib/task-fanout";
+import { replayBlock } from "@/app/_lib/task-replay";
 
 // Every accepted retry re-spends — a real LLM call and/or a Python spawn — so this
 // door carries the SAME per-class budget as POST /api/tasks (app/_lib/task-budget.ts)
@@ -32,33 +33,13 @@ const TASKS_RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // pure `retryDecision` (app/_lib/task-fanout.ts, where it is tested); this handler
 // is its thin caller, and every refusal it makes precedes the limiter below.
 
-// The ONE kind whose params are not self-contained. /api/analyze persists the
-// uploaded CVs (and any JD/company file) into a temp workdir BEFORE enqueuing, and
-// passes their paths — `baseDir` + `variants[].cvPath` — in the params; runAnalyze
-// then `rm -rf`s that workdir in a `finally`, i.e. on EVERY exit, failure and cancel
-// included. So a dead analyze row's params reference files that are already gone,
-// and replaying it queued a run that could only fail again: a second red row, a
-// wasted Python spawn, and an engine ENOENT shown to the recruiter instead of "the
-// upload is gone, add it again". (An earlier revision of this comment asserted the
-// opposite — that analyze spills to its workdir at RUN time — which is what let the
-// dead button ship.)
-//
-// This is an existence CHECK, not a ban on the kind: when the process died before
-// the cleanup ran (a crash leaves the row 'interrupted'), the workdir IS still on
-// disk and the replay is genuinely valid, so it still goes through.
-function replayInputsMissing(kind: string, params: Record<string, unknown>): boolean {
-  if (kind !== "analyze") return false;
-  const paths: string[] = [];
-  if (typeof params.baseDir === "string" && params.baseDir) paths.push(params.baseDir);
-  const variants = Array.isArray(params.variants) ? params.variants : [];
-  for (const variant of variants) {
-    const cvPath = (variant as { cvPath?: unknown } | null)?.cvPath;
-    if (typeof cvPath === "string" && cvPath) paths.push(cvPath);
-  }
-  // Unrecognizable params (an old or hand-written row) carry no claim either way —
-  // let the replay proceed rather than refusing on a guess.
-  return paths.length > 0 && paths.some((p) => !existsSync(p));
-}
+// The ONE kind whose params are not self-contained is analyze: its params name the
+// upload workdir /api/analyze made, and runAnalyze `rm -rf`s it on EVERY exit, so a
+// dead analyze row usually points at files that are already gone. Whether a replay
+// can run is decided by `replayBlock` (app/_lib/task-replay.ts) — the SAME function
+// the list routes use to stamp each row's `replay` verdict, so the Retry the table
+// offers and the answer this door gives can never disagree. It is an existence check,
+// not a ban: a crash-interrupted row whose workdir survived is still replayable.
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -91,9 +72,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: task.kind });
     }
     const params = decision.ok;
-    // Refuse a replay whose inputs no longer exist (see replayInputsMissing) —
-    // BEFORE startTask, so it costs no queue slot and no subprocess.
-    if (replayInputsMissing(task.kind, params)) {
+    // Refuse a replay whose inputs no longer exist — BEFORE startTask, so it costs no
+    // queue slot and no subprocess. The kind is known here, so the only block left is
+    // inputs-gone.
+    if (replayBlock(task.kind, params, existsSync)) {
       return jsonRefusal("TASK_REPLAY_INPUTS_GONE", 409);
     }
     // THROTTLE (rate-limit-contract.test.ts): every accepted retry re-spends — a real

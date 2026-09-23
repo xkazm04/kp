@@ -1,7 +1,10 @@
+import { existsSync } from "node:fs";
 import { NextResponse } from "next/server";
-import { countTaskHistory, listTaskHistory } from "@/app/_lib/db/tasks";
+import { countTaskHistory, listTaskHistory, listTaskParams } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { callerCapabilities } from "@/app/_lib/auth/current-user";
 import { recentTaskCutoffIso } from "@/app/_lib/tasks";
+import { attachReplayVerdicts } from "@/app/_lib/task-replay";
 
 
 const DEFAULT_LIMIT = 20;
@@ -43,7 +46,15 @@ export async function GET(request: Request) {
     // unscoped history paged another team's roster into this one.
     const ws = await currentWorkspace();
     const total = countTaskHistory(before, filter, ws);
-    const tasks = listTaskHistory(before, limit, offset, filter, ws);
+    const page = listTaskHistory(before, limit, offset, filter, ws);
+    // The same replay verdict the live poll stamps (app/_lib/task-replay.ts), from one
+    // bounded params read for this page's dead path-bearing rows.
+    const caps = new Set(await callerCapabilities());
+    const tasks = attachReplayVerdicts(page, {
+      loadParams: (ids) => listTaskParams(ids, ws),
+      exists: existsSync,
+      hasCapability: (cap) => caps.has(cap),
+    });
     const nextOffset = offset + tasks.length;
     return NextResponse.json({ tasks, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {

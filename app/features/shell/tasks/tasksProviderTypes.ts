@@ -2,6 +2,7 @@
 // provider stays under the 200-line file cap. Verbatim — same shapes.
 import type { TaskKind } from "@/app/_lib/task-kinds";
 import type { RetryScope } from "@/app/_lib/task-fanout";
+import type { ReplayVerdict } from "@/app/_lib/task-replay";
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "interrupted";
 
@@ -30,6 +31,11 @@ export type Task = {
   /** Read/unread ack for finished outcomes — null = unread (drives the
    *  TasksIndicator unread badge; stamped via POST /api/tasks/seen). */
   seenAt: string | null;
+  /** The whole-run replay verdict the SERVER stamped from the stored params
+   *  (app/_lib/task-replay.ts) — the same decision POST /api/tasks/[id]/retry refuses
+   *  by. null on a success or a live run; ABSENT from an older server, which the row
+   *  reads as today's always-offer Retry (tasksTabHelpers.rowRetryAction). */
+  replay?: ReplayVerdict | null;
 };
 
 export type TasksCtx = {
