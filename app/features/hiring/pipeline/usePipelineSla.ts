@@ -1,50 +1,120 @@
 "use client";
 
-// Per-stage aging SLA overrides (PIPE4) — the recruiter's per-board tuning of the
-// STAGE_SLA_DEFAULTS, plus the editor's open/closed flag. Split out of
-// usePipelineTabState so the tab hook is composition, not six concerns in one body.
+// Per-stage aging cadences (PIPE4), now TEAM data (challenge-r03 pipeline-board-ui/A).
 //
-// board-storage-is-keyed-by-tenant — the overrides are stored PER WORKSPACE
-// (pipelineBoardStorage.ts). They used to sit under one bare `kp.pipelineStageSla`
-// for the whole browser, so after a team switch team A's stage ids and cadences
-// governed team B's aging chips — on a board whose columns may not even carry those
-// stage ids. Nothing hydrates until the tenant resolves.
+// The cadence a column ages against lives on the workspace's board axis (`slaDays`,
+// read by the board, the sidebar badge and the automation pass through the one aging
+// clock in aging-policy.ts). This hook no longer owns the value; it owns:
+//
+//   - the WRITE: PATCH /api/pipeline/stage-sla for one column, then the caller's board
+//     reload, which brings the new axis back as the truth;
+//   - an OPTIMISTIC map (`slaOverrides`) holding a just-saved number between the save
+//     and that reload, so the chip does not flicker back; dropped once the reload lands
+//     or the save fails;
+//   - the ONE-TIME MIGRATION of a browser's leftover per-browser cadences (written by
+//     builds before this one under `kp.pipelineStageSla:<ws>`). They are read once per
+//     tenant and OFFERED to the team; never imported silently, because one browser's
+//     taste is not team policy until someone with `pipeline:write` says so. Cleared
+//     after a successful adoption or an explicit discard.
+//
+// A seat without `pipeline:write` is refused by the route (FORBIDDEN_CAPABILITY) and the
+// editor says so; before, anyone could tune their own browser.
 
 import { useState } from "react";
-import { clampSlaDays } from "./pipelineSla";
-import { readStoredSla, writeStoredSla } from "./pipelineBoardStorage";
+import type { ApiErrorPayload } from "@/app/_lib/use-error-message";
+import type { LocalSlaOffer } from "@/app/_lib/stage-sla";
+import { clearStoredSla, readStoredSla } from "./pipelineBoardStorage";
 import { usePipelineTenant } from "./usePipelineTenant";
+
+/** One column's write. Resolves to null on success, else the failure payload (the
+ *  editor resolves its CODE, never the server's English). */
+async function patchStageSla(stage: string, days: number | null): Promise<ApiErrorPayload | null> {
+  try {
+    const res = await fetch("/api/pipeline/stage-sla", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ stage, days }),
+    });
+    if (res.ok) return null;
+    return ((await res.json().catch(() => null)) as ApiErrorPayload | null) ?? {};
+  } catch {
+    return {}; // offline / aborted: no code, the editor shows its own localized fallback
+  }
+}
 
 export function usePipelineSla() {
   const workspaceId = usePipelineTenant();
   const [slaOverrides, setSlaOverrides] = useState<Record<string, number>>({});
   const [editingSla, setEditingSla] = useState(false);
-  // Hydration is keyed on the TENANT, not on mount: while `workspaceId` is null there is
-  // nothing to read. Done at render time in the 'adjust state when a prop changes' shape
-  // (React docs) rather than in an effect - the tenant only ever resolves on the client
-  // (usePipelineTenant reads it in an effect), so the server's render never touches
-  // localStorage and the SSR HTML stays empty. Values are clamped on the way IN by
-  // readStoredSla: one stored by an older build (which accepted anything positive) must
-  // not keep silencing a column's aging chip.
+  const [slaSaveError, setSlaSaveError] = useState<ApiErrorPayload | null>(null);
+  const [localSla, setLocalSla] = useState<Record<string, number>>({});
+  // The leftover per-browser map is read once per TENANT, in the 'adjust state when a
+  // prop changes' shape (React docs): the tenant only resolves on the client, so the
+  // server render never touches localStorage. readStoredSla clamps on the way in.
   const [hydratedFor, setHydratedFor] = useState<string | null>(null);
   if (workspaceId && hydratedFor !== workspaceId) {
     setHydratedFor(workspaceId);
-    setSlaOverrides(readStoredSla(localStorage, workspaceId));
+    setLocalSla(readStoredSla(localStorage, workspaceId));
   }
-  const setStageSla = (stage: string, days: number | null) => {
-    const next = { ...slaOverrides };
-    // Re-clamped at the STORE, not only at the field: this is what persists, and a
-    // second caller (or a hydrated value from an older build that stored 5000) must
-    // not be able to write a cadence the aging chip will never fire on.
-    const clamped = days == null ? null : clampSlaDays(String(days));
-    if (clamped) next[stage] = clamped;
-    else delete next[stage]; // cleared → back to the default
-    setSlaOverrides(next);
-    // An unresolved tenant writes NOTHING (the override still applies in memory this
-    // session) — a cadence we cannot attribute to a team must not be persisted.
-    writeStoredSla(localStorage, workspaceId, next);
+
+  const dropOptimistic = (stage: string) =>
+    setSlaOverrides((cur) => {
+      if (!(stage in cur)) return cur;
+      const next = { ...cur };
+      delete next[stage];
+      return next;
+    });
+
+  /** Save one column's cadence for the TEAM (`null` = back to the role default), then
+   *  run `reload` so the board reads the new axis. */
+  const saveStageSla = async (stage: string, days: number | null, reload: () => Promise<unknown>): Promise<boolean> => {
+    setSlaSaveError(null);
+    if (days != null) setSlaOverrides((cur) => ({ ...cur, [stage]: days }));
+    else dropOptimistic(stage);
+    const failure = await patchStageSla(stage, days);
+    if (failure) {
+      dropOptimistic(stage);
+      setSlaSaveError(failure);
+      return false;
+    }
+    await reload();
+    dropOptimistic(stage);
+    return true;
   };
-  return { slaOverrides, setStageSla, editingSla, setEditingSla };
+
+  /** Apply the offered leftovers to the team, one column at a time; the local copy is
+   *  cleared only when every one of them landed (a partial failure keeps the offer). */
+  const adoptLocalSla = async (offers: readonly LocalSlaOffer[], reload: () => Promise<unknown>): Promise<void> => {
+    setSlaSaveError(null);
+    for (const { stage, days } of offers) {
+      const failure = await patchStageSla(stage, days);
+      if (failure) {
+        setSlaSaveError(failure);
+        await reload();
+        return;
+      }
+    }
+    clearStoredSla(localStorage, workspaceId);
+    setLocalSla({});
+    await reload();
+  };
+
+  /** Throw the leftovers away without touching the team's cadences. */
+  const discardLocalSla = () => {
+    clearStoredSla(localStorage, workspaceId);
+    setLocalSla({});
+  };
+
+  return {
+    slaOverrides,
+    saveStageSla,
+    editingSla,
+    setEditingSla,
+    slaSaveError,
+    localSla,
+    adoptLocalSla,
+    discardLocalSla,
+  };
 }
 
 export type PipelineSlaState = ReturnType<typeof usePipelineSla>;

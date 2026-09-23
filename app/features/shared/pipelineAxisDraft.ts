@@ -87,6 +87,10 @@ export function draftToStored(draft: AxisDraft, savedStages: readonly StageDef[]
     label: s.label,
     role: s.role as PipelineStageRoleWire,
     ...(s.actions ? { actions: [...s.actions] } : {}),
+    // The team's aging cadence (set from the board, PATCH /api/pipeline/stage-sla).
+    // This composer does not edit it, but it SAVES the whole axis, so a wire() that
+    // copied only the keys it edits erased every team cadence on the next save.
+    ...(s.slaDays !== undefined ? { slaDays: s.slaDays } : {}),
   });
   return { stages: draft.stages.map(wire), retired: retained.map(wire) };
 }
@@ -140,7 +144,18 @@ export function renameStage(draft: AxisDraft, id: string, label: string): AxisDr
 }
 
 export function setStageRole(draft: AxisDraft, id: string, role: PipelineStageRoleWire): AxisDraft {
-  return { ...draft, stages: draft.stages.map((s) => (s.id === id ? { ...s, role: role as StageDef["role"] } : s)) };
+  return {
+    ...draft,
+    stages: draft.stages.map((s) => {
+      if (s.id !== id) return s;
+      const next: DraftStage = { ...s, role: role as StageDef["role"] };
+      // A terminal column has no clock and the server refuses a cadence on one, so a
+      // column turned into the terminal stage sheds its team cadence here rather than
+      // failing the whole save.
+      if (role === "terminal") delete next.slaDays;
+      return next;
+    }),
+  };
 }
 
 /** Move a stage one position up (-1) or down (+1). A move that would run off

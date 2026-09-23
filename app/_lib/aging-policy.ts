@@ -39,8 +39,9 @@ export const STALE_DAYS = 10; // legacy flat default — fallback for unknown st
 // badge goes quiet with nothing on screen admitting it. `scoring` waits like an
 // interview (a candidate genuinely sits there until a human ratifies the number);
 // `terminal` never ages; `custom` maps to no product semantics, so it gets the
-// flat legacy cut. Recruiters can override these per board (localStorage, keyed by
-// column id), so these are defaults, not hard limits.
+// flat legacy cut. A team can set its own cadence per column (`slaDays` on the
+// workspace axis, challenge-r03 pipeline-board-ui/A), so these are defaults, not
+// hard limits.
 export const ROLE_SLA_DEFAULTS: Record<StageRole, number> = {
   entry: 14,
   screening: 7,
@@ -63,13 +64,15 @@ export const STAGE_SLA_DEFAULTS: Record<string, number> = Object.fromEntries(
 );
 
 /** Days a candidate may sit in `stage` before the board flags it as aging, given
- *  optional per-board overrides and the axis the board is rendering. Resolution
- *  order: the recruiter's override for this column id → the default for the ROLE
- *  the column plays on `axis` → the shipped default for a canonical name that is
- *  off the axis (retired) → the flat STALE_DAYS for a stage nothing knows. A
- *  non-positive value (terminal = 0) means the stage never ages — callers already
- *  exclude terminal roles, but this keeps it explicit. Byte-identical to the old
- *  name-keyed table on the shipped axis. */
+ *  optional overrides and the axis being rendered. Resolution order: an explicit
+ *  override for this column id (the board's optimistic value between a save and the
+ *  next load) → the TEAM's cadence on the axis (`slaDays`, team data every surface
+ *  reads, so the board, the sidebar badge and the automation pass agree) → the
+ *  default for the ROLE the column plays on `axis` → the shipped default for a
+ *  canonical name that is off the axis (retired) → the flat STALE_DAYS for a stage
+ *  nothing knows. A non-positive value (terminal = 0) means the stage never ages;
+ *  the terminal role never carries `slaDays` (the schema refuses it, and it is
+ *  ignored here too). Byte-identical to the old name-keyed table on the shipped axis. */
 export function slaForStage(
   stage: string,
   overrides?: Record<string, number> | null,
@@ -77,6 +80,8 @@ export function slaForStage(
 ): number {
   const o = overrides?.[stage];
   if (typeof o === "number" && o > 0) return o;
+  const def = axis.find((s) => s.id === stage);
+  if (def && def.role !== "terminal" && typeof def.slaDays === "number" && def.slaDays > 0) return def.slaDays;
   const role = roleOf(stage, axis);
   if (role) return ROLE_SLA_DEFAULTS[role];
   const d = STAGE_SLA_DEFAULTS[stage];
@@ -120,8 +125,8 @@ const DAY_MS = 86_400_000;
  *    terminal id still standing on a migrated board reads `none`, not instantly stale.
  *  - An unknown dwell (null / non-finite) reads fresh.
  *
- *  `overrides` are the board's per-column SLA overrides (a browser concern); server
- *  callers pass none and get the role defaults. */
+ *  `overrides` are the board's optimistic per-column values (a browser concern);
+ *  server callers pass none and get the TEAM cadence on `axis`, else the role default. */
 export function agingTier(
   stage: string,
   daysInStage: number | null | undefined,

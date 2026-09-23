@@ -318,6 +318,8 @@ export type PipelineStageWire = {
   role: PipelineStageRoleWire;
   /** Stored only when the workspace customised the column's AI actions. */
   actions?: StageAiAction[];
+  /** Stored only when the team set the column's aging cadence (whole days). */
+  slaDays?: number;
 };
 export type PipelineStagesRule = {
   stages: PipelineStageWire[];
@@ -359,7 +361,18 @@ const LEGACY_INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as c
 const INTERVIEW_PLAN_STEP_KEYS = ["stageId", "gate", "rounds"] as const;
 const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
 const PIPELINE_STAGES_KEYS = ["stages", "retired"] as const;
-const STAGE_KEYS = ["id", "label", "role", "actions"] as const;
+const STAGE_KEYS = ["id", "label", "role", "actions", "slaDays"] as const;
+/** The bounds of a column's aging cadence: the same [1, 365] the board's editor
+ *  declares (pipelineSla.ts). Below 1 is "never ages", which only the terminal role
+ *  may mean; above a year silences the column for good. */
+export const STAGE_SLA_MIN_DAYS = 1;
+export const STAGE_SLA_MAX_DAYS = 365;
+
+/** Is `v` a storable cadence? A whole number of days inside the bounds, with no
+ *  coercion: "7" or 2.5 is a client bug worth a 400, not a value to guess at. */
+export function isStageSlaDays(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v >= STAGE_SLA_MIN_DAYS && v <= STAGE_SLA_MAX_DAYS;
+}
 
 export type DecisionConfigResult =
   | { ok: true; phase: "screening"; config: ScreeningRule }
@@ -447,7 +460,26 @@ function validateStage(raw: unknown, path: string): { ok: true; stage: PipelineS
     }
     actions = STAGE_AI_ACTIONS.filter((id) => list.includes(id));
   }
-  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role, ...(actions ? { actions } : {}) } };
+  // The column's aging cadence (team data, read by the board, the sidebar badge and
+  // the automation pass alike). Absent = the role default. A terminal column cannot
+  // carry one: a hired candidate is not waiting, and a stored number there would be a
+  // policy nothing honours.
+  if (rec.slaDays !== undefined) {
+    if (!isStageSlaDays(rec.slaDays)) {
+      return { ok: false, error: `${path}.slaDays must be a whole number of days from ${STAGE_SLA_MIN_DAYS} to ${STAGE_SLA_MAX_DAYS}.` };
+    }
+    if (rec.role === "terminal") return { ok: false, error: `${path}.slaDays cannot be set on the terminal stage.` };
+  }
+  return {
+    ok: true,
+    stage: {
+      id: rec.id,
+      label: rec.label.trim(),
+      role: rec.role,
+      ...(actions ? { actions } : {}),
+      ...(rec.slaDays !== undefined ? { slaDays: rec.slaDays as number } : {}),
+    },
+  };
 }
 
 function validateStageList(

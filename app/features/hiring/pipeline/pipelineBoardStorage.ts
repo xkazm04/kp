@@ -1,5 +1,11 @@
 // board-storage-is-keyed-by-tenant — the board's two localStorage-backed memories
-// (saved views, per-stage SLA overrides), keyed PER WORKSPACE.
+// (saved views, and the LEFTOVER per-stage SLA overrides), keyed PER WORKSPACE.
+//
+// The SLA half is now read-and-clear only. A stage's aging cadence is TEAM data on the
+// workspace axis (`slaDays`, PATCH /api/pipeline/stage-sla), so nothing writes a
+// per-browser cadence any more; what an older build left here is read ONCE so the
+// board can offer it to the team, and cleared after a successful adoption or an
+// explicit discard (usePipelineSla.ts). Never imported silently.
 //
 // THE LEAK. Both lived under one bare, browser-wide key (`kp.pipelineViews`,
 // `kp.pipelineStageSla`) and localStorage is scoped to the ORIGIN, not to the
@@ -87,8 +93,9 @@ export function writeStoredViews(store: KeyValueStore, workspaceId: string | nul
   }
 }
 
-/** Read one workspace's SLA overrides, clamped on the way IN (a value stored by an
- *  older build that accepted anything positive must not silence a column forever). */
+/** Read one workspace's LEFTOVER per-browser SLA overrides (written by builds before
+ *  cadences became team data), clamped on the way IN (a value stored by an older build
+ *  that accepted anything positive must not be offered as a cadence that never fires). */
 export function readStoredSla(store: KeyValueStore, workspaceId: string | null): Record<string, number> {
   if (!workspaceId) return {};
   try {
@@ -106,12 +113,13 @@ export function readStoredSla(store: KeyValueStore, workspaceId: string | null):
   }
 }
 
-/** Persist one workspace's SLA overrides. `null` tenant ⇒ no write. */
-export function writeStoredSla(store: KeyValueStore, workspaceId: string | null, overrides: Record<string, number>): void {
+/** Drop one workspace's leftover per-browser SLA overrides, once they were adopted
+ *  into the team axis or explicitly discarded. `null` tenant ⇒ nothing touched. */
+export function clearStoredSla(store: KeyValueStore, workspaceId: string | null): void {
   if (!workspaceId) return;
   try {
-    store.setItem(pipelineSlaKey(workspaceId), JSON.stringify(overrides));
+    store.removeItem(pipelineSlaKey(workspaceId));
   } catch {
-    /* storage unavailable — in-memory override still applies this session */
+    /* storage unavailable: the leftover is offered again next visit, which is harmless */
   }
 }

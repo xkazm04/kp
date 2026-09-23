@@ -35,6 +35,7 @@ import { stageHasRole, stagesWithRole } from "@/app/_lib/pipeline-stages";
 import { daysSince, slaForStage, type Entry } from "@/app/features/shared/pipelineTypes";
 import { boardPopulation } from "./pipelineBoardPopulation";
 import { usePipelineSla } from "./usePipelineSla";
+import { pendingLocalAdoption } from "@/app/_lib/stage-sla";
 import { usePipelineBoardData } from "./usePipelineBoardData";
 import { usePipelineFilters, emptyFacets } from "./usePipelineFilters";
 import { usePipelineSavedViews } from "./usePipelineSavedViews";
@@ -74,7 +75,8 @@ export function usePipelineTabState() {
     []
   );
 
-  const { slaOverrides, setStageSla, editingSla, setEditingSla } = usePipelineSla();
+  const sla = usePipelineSla();
+  const { slaOverrides, editingSla, setEditingSla } = sla;
   const { tasks } = useTasks();
   // 5d2e0998 — the empty board offers the guided tour (simulation start).
   const sim = useSimulation();
@@ -88,6 +90,11 @@ export function usePipelineTabState() {
     drawerOpen: candidate != null,
   });
   const { entries, events, error, eventsError, load, moveError, moveErrorEntryId, dismissMoveError, moveEntry } = board;
+  // A stage cadence is TEAM data on the axis (PATCH /api/pipeline/stage-sla): each save
+  // and each adoption of a browser's leftover cadences ends in a board reload, which
+  // brings the new axis back as the truth the chip, the dot and the filters age on.
+  const setStageSla = (stage: string, days: number | null) => void sla.saveStageSla(stage, days, load);
+  const adoptLocalSla = () => void sla.adoptLocalSla(pendingLocalAdoption(sla.localSla, board.axis), load);
   // The compound filters + their two-way URL sync, and the visible-scope signature
   // the bulk confirms are stamped with.
   const filters = usePipelineFilters();
@@ -121,8 +128,10 @@ export function usePipelineTabState() {
   const population = boardPopulation(entries);
   const activeCount = population.active.filter((e) => !isTerminal(e)).length;
   const interviewCount = population.active.filter((e) => interviewStages.includes(e.stage)).length;
-  // The threshold resolves by ROLE on the same axis (pipelineTypes.slaForStage): a
-  // workspace's own "Tech round" ages like an interview, not on the flat legacy cut.
+  // The threshold resolves on the same axis (pipelineTypes.slaForStage): the team's own
+  // cadence for the column when it set one, else its ROLE's default, so a workspace's
+  // "Tech round" ages like an interview, not on the flat legacy cut. `slaOverrides` is
+  // only the optimistic value between a save and the reload that returns it.
   const isStale = (e: Entry) =>
     !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides, board.axis);
   const staleCount = population.active.filter(isStale).length;
@@ -228,6 +237,9 @@ export function usePipelineTabState() {
     toggleDefaultView: savedViews.toggleDefaultView, applyView: savedViews.applyView, deleteView: savedViews.deleteView,
     activeViewId: savedViews.activeViewId, copyViewLink: savedViews.copyViewLink, copiedViewId: savedViews.copiedViewId,
     slaOverrides, setStageSla, editingSla, setEditingSla,
+    slaSaveError: sla.slaSaveError,
+    localSlaOffers: pendingLocalAdoption(sla.localSla, board.axis),
+    adoptLocalSla, discardLocalSla: sla.discardLocalSla,
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
     axis: board.axis, retiredStages: board.retiredStages, plan: board.plan, rejectedByLane: board.rejectedByLane,

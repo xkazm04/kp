@@ -83,6 +83,11 @@ export type StageDef = {
   /** The AI actions this column offers, when the workspace customised them. Absent =
    *  the product default for the role; an empty list is a real answer (nothing runs). */
   actions?: readonly StageAiAction[];
+  /** The team's aging cadence for this column, in whole days (1..365), when the
+   *  workspace set one. Absent = the default for the ROLE (aging-policy.ts). Team data
+   *  on the axis, so the board, the sidebar badge and the automation pass all age on
+   *  the same number; never present on the terminal column (a hire has no clock). */
+  slaDays?: number;
 };
 
 /** The role each canonical stage plays. Exhaustive over PipelineStage, so adding a

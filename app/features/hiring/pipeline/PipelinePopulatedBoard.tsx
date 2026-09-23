@@ -79,6 +79,10 @@ export function PipelinePopulatedBoard({
             axis={s.axis}
             slaOverrides={s.slaOverrides}
             onChangeStageSla={s.setStageSla}
+            saveError={s.slaSaveError}
+            localOffers={s.localSlaOffers}
+            onAdoptLocal={s.adoptLocalSla}
+            onDiscardLocal={s.discardLocalSla}
           />
         </div>
       </Collapse>

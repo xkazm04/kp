@@ -14,7 +14,7 @@ import {
   pipelineViewsKey,
   readStoredSla,
   readStoredViews,
-  writeStoredSla,
+  clearStoredSla,
   writeStoredViews,
   type KeyValueStore,
 } from "./pipelineBoardStorage.ts";
@@ -56,10 +56,24 @@ test("a workspace switch never hydrates the other tenant's saved views — the l
 });
 
 test("a workspace switch never hydrates the other tenant's SLA overrides", () => {
-  const store = fakeStore();
-  writeStoredSla(store, "ws-a", { Interview: 3 });
+  const store = fakeStore({ [pipelineSlaKey("ws-a")]: JSON.stringify({ Interview: 3 }) });
   assert.deepEqual(readStoredSla(store, "ws-b"), {});
   assert.deepEqual(readStoredSla(store, "ws-a"), { Interview: 3 });
+});
+
+// Cadences are team data now (challenge-r03 pipeline-board-ui/A): the per-browser map
+// is only read (to OFFER it to the team) and cleared, per tenant, once adopted or
+// discarded. Clearing one team's leftovers must not touch another's.
+test("clearing a tenant's leftover SLA overrides touches only that tenant", () => {
+  const store = fakeStore({
+    [pipelineSlaKey("ws-a")]: JSON.stringify({ Interview: 3 }),
+    [pipelineSlaKey("ws-b")]: JSON.stringify({ Screened: 4 }),
+  });
+  clearStoredSla(store, "ws-a");
+  assert.deepEqual(readStoredSla(store, "ws-a"), {});
+  assert.deepEqual(readStoredSla(store, "ws-b"), { Screened: 4 });
+  clearStoredSla(store, null);
+  assert.deepEqual(readStoredSla(store, "ws-b"), { Screened: 4 }, "an unresolved tenant clears nothing");
 });
 
 test("nothing is read or written until the workspace resolves", () => {
@@ -67,7 +81,6 @@ test("nothing is read or written until the workspace resolves", () => {
   assert.deepEqual(readStoredViews(store, null), [], "an unresolved tenant hydrates nothing");
   assert.deepEqual(readStoredSla(store, null), {});
   writeStoredViews(store, null, [viewA]);
-  writeStoredSla(store, null, { Interview: 3 });
   assert.equal(store.map.size, 1, "an unresolved tenant writes nothing anywhere");
 });
 
@@ -110,7 +123,7 @@ test("a corrupt or absent store degrades to empty, never throws", () => {
   assert.deepEqual(readStoredViews(broken, "ws-a"), []);
   assert.deepEqual(readStoredSla(broken, "ws-a"), {});
   assert.doesNotThrow(() => writeStoredViews(broken, "ws-a", [viewA]));
-  assert.doesNotThrow(() => writeStoredSla(broken, "ws-a", { Interview: 3 }));
+  assert.doesNotThrow(() => clearStoredSla({ ...broken, removeItem: () => { throw new Error("SecurityError"); } }, "ws-a"));
   assert.equal(migrateLegacyKey(broken, LEGACY_VIEWS_KEY, pipelineViewsKey("ws-a")), false);
   assert.deepEqual(readStoredViews(fakeStore({ [pipelineViewsKey("ws-a")]: "{not json" }), "ws-a"), []);
 });
