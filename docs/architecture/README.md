@@ -119,6 +119,26 @@ an older build: POST `/api/tasks` refuses an unknown kind with `TASK_KIND_UNKNOW
 Runners registered only on the late-bound seam, such as `intake_round`, are not
 kinds.
 
+**Door and seat per kind.** `TASK_KIND_ADMISSION` in `app/_lib/task-admission.ts` is
+another `Record<TaskKind, …>` table. For each kind it records a door and a
+capability. The door is `dock` when the client may start the kind through POST
+`/api/tasks` with its own params. It is `server` when only a dedicated route builds
+the params and enqueues the task. Nine kinds are server kinds: `analyze`,
+`lifecycle`, `jd_build`, `repo_scan`, `agent_fit`, `interview_kit`,
+`interview_letter`, `companion_digest` and `jobseeker_scan`. The dock refuses them
+with 403 `TASK_KIND_SERVER_ONLY`, after the overall IP bucket and before the
+per-class budget. `analyze` is the reason the rule exists: its params are paths into
+the workdir that `/api/analyze` built. `runAnalyze` and `cleanupWorkdir` still refuse
+any path outside a jobfit workdir on their own, whatever the door does. The
+capability is what a start, retry or cancel of the kind asks of the caller's seat.
+Today every kind asks `pipeline:write`, so a viewer can watch the dock but cannot
+start, replay or cancel a run. Retry and cancel ask the capability of the stored
+row's kind, after the tenant read. Retry does not apply the door rule, because it
+replays params that a server route wrote. POST `/api/tasks/seen` asks `read`.
+`task-admission.test.ts` reads the tree and fails when a kind that a client starts
+is not a dock kind, or when a kind that only server modules enqueue is not a server
+kind.
+
 **Fan-out outcomes and scoped retry.** The two kinds that run one automation per
 entry of a cohort, `batch_screen` and `batch_outreach`, store a per-candidate ledger
 in their result: `results: [{ id, ok, applied?, code? }]`. It holds ids and machine
