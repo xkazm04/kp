@@ -189,7 +189,7 @@
       "doc": "docs/features/dev-case/README.md",
       "sourceGlobs": [
         "app/_lib/devcase-*.ts",
-        "app/_lib/db/devcase.ts",
+        "app/_lib/db/devcase*.ts",
         "app/_lib/dev-control.ts",
         "app/_lib/dev-outcomes*.ts",
         "app/_lib/code-review-status.ts",
