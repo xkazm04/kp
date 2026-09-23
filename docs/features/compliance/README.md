@@ -1057,3 +1057,46 @@ runway, not a reprieve**, and plan for full applicability on 2 December 2027.
 The full work list — Art. 5/50 exposure, the GDPR gaps, provider posture, the
 national layer, and the documentation chain this runway is for — is
 [`regulatory-backlog.md`](./regulatory-backlog.md) in this folder.
+
+## The status page's "Waiting on you" card — what it carries, and why the token never does
+
+At interview and offer stage `/status/<token>` used to tell the candidate to watch their
+email, while the server knew exactly what was pending. `GET /api/status/[token]` now also
+carries **`nextAction`**: `null`, or exactly three keys — `kind` (`answer_offer` |
+`book_interview` | `take_interview`), `sentAt` and `expiresAt` (ISO; `null` only for a
+legacy offer with no deadline). Precedence is offer > booking invite > untaken
+candidate-mode AI interview; an expired invite, a lapsed offer, a completed or revoked
+interview, a closed application (`status ≠ active`) and an anonymized entry all project
+`null`. Pure derivation in `app/_lib/candidate-next-action.ts`; the store reads in
+`app/_lib/candidate-next-action-server.ts`; rendered by
+`app/status/[token]/StatusNextActionCard.tsx`.
+
+**The capability never rides the page.** The status link is forwardable (registry:
+candidate-safe-status-projection, "assume the payload is public"), and an offer or
+booking token on it would let whoever holds it answer the offer or take the slot. So the
+card offers one move instead: **`POST /api/status/[token]/resend`** re-sends the EXISTING
+link through its existing letter (`dispatchOfferReminder`, `dispatchScheduleInvite`,
+`dispatchInterviewInvite`) — link recovery's doctrine (`app/_lib/apply-link-recovery.ts`):
+
+- only to `entry.contact`; the door reads no body, and what is re-sent is re-derived from
+  the stores, never taken from the caller;
+- never to an anonymized (erased) entry, and never to an entry with no address;
+- one resend per entry per 24 h (`login-throttle`, key `status-resend:<entry>`), after a
+  per-client+token 10/min limiter that runs before the token lookup;
+- the answer (`{ ok: true, message: "resent" | "resentNoRelay" }`) is chosen from the
+  relay flag alone, so a send, a cooldown and a contactless entry read the same;
+- the dispatcher's verdict is honoured: a send that was attempted and did not go answers
+  `STATUS_RESEND_UNDELIVERED` (502) and releases the cooldown, never "on its way". That is
+  the one answer that implies an address exists, and it is kept because the alternative
+  is a green lie;
+- nothing pending answers `STATUS_NOTHING_TO_RESEND` (409) — the GET already says so.
+
+With no relay configured the card states the action and its deadline, says the team will
+reach out, and shows no button. Pinned by `app/_lib/candidate-next-action.test.ts`,
+`app/api/status/status-resend.test.ts`, and the payload key sets in
+`status-letter.test.ts` / `status-recording.test.ts`.
+
+Known gaps: a resent schedule or interview invite records its `*_invite_sent` event again
+(the dispatchers write it); the take-interview read uses `latestInterviewByEntry`, which
+prefers a transcript-bearing session, so a re-invite behind an older completed interview
+is not shown.
