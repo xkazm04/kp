@@ -620,6 +620,26 @@ strip says it as a neutral line beside the queue. Pinned by
 genuinely unreadable seed in a throwaway cwd) plus the empty-but-healthy cases in
 `ops-route.test.ts` and `health-exposure.test.ts`.
 
+**A degraded reason is a finding with a fix, in the reader's language.** The
+amber list under the dots used to print `/api/ops`'s `degradedReasons` verbatim,
+English server sentences with no next step. Readiness is now computed once in
+`app/_lib/readiness.ts`, which both `/api/ops` and `/api/health` call (the two
+inline copies had drifted: only `/api/ops` checked the public origin), and each
+reason also travels as a coded finding: `code`, `severity` (`fault` / `warn`),
+`params` and a `remedy`. `readinessFindings.ts` turns them into rows, faults
+first (`role="alert"`, the `critical` notice) then warnings (`role="status"`,
+`amber`), each with its catalog title and fix and one action: a door into the
+tab that repairs it (an unreadable decision config opens **Decisions**), the env
+vars to set (`APP_BASE_URL` for the site-url fallback origin), or none when the
+fix is on the host (a broken seed file, a stalled clock) and the fix text says
+so. A code this bundle does not know, or a reason no finding covers, still
+renders its English sentence. Severity is presentation only: `ok` and
+`/api/health`'s status code gate on exactly the reasons they gated on before, so
+the fallback origin reaches `/api/health`'s home-org detail as a warn finding and
+never turns the probe 503 (onboarding pins `GET /api/health -> 200`, and a keyless
+dev box has no `APP_BASE_URL`). Findings name workspace ids and seed paths, so
+they ride the same home-org tier as `degradedReasons`.
+
 **Every dot's state is in its label, not only in its colour.** The dot is
 `aria-hidden` and always was, so a screen reader used to hear a list of nouns with
 the green-or-red meaning parked in a `title` — invisible to touch as well. Each

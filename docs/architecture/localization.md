@@ -539,9 +539,22 @@ that own them — the health readout into Models → Usage & cost
 (`workspaceAdmin.org.backup`), the ATS write-back webhook into Settings →
 Integrations (`integrations.webhook`) — and each moved WITH its catalog subtree,
 so the namespace still names the surface. What stays English is machine payload:
-`/api/ops`'s `degradedReasons` (canonical server diagnostics, no `code` to
-resolve), engine and table names, stage keys, task-kind slugs, and the env-var /
-PATH preflight tooltips.
+engine and table names, stage keys, task-kind slugs, and the env-var / PATH
+preflight tooltips.
+
+`/api/ops`'s `degradedReasons` used to be on that list ("canonical server
+diagnostics, no `code` to resolve"), and it was the one entry that was not machine
+payload: it was the sentence an operator read when the deployment was degraded,
+printed raw in every locale. Since challenge r03 (platform-auth-api/B) readiness
+is computed once in `app/_lib/readiness.ts` and each reason travels as a coded
+finding beside it (`findings`: code from the closed `READINESS_CODES`, severity,
+params, remedy). The strip resolves `models.system.findings.<CODE>.{title,fix}`
+in the reader's language through `readinessFindings.ts`. The English
+`degradedReasons` strings stay on the wire, byte-identical, as the fallback for a
+code the bundle's catalog does not carry and for monitors that already parse
+them. Readiness codes are not error codes: they never reach `errors.<CODE>`, and
+`readinessFindings.test.ts` pins the code set to the catalog key set in all four
+locales.
 
 ### A third case: a string written with no reader at all
 
