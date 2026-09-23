@@ -91,6 +91,11 @@
           "maxModules": 228,
           "maxKb": 3039,
           "why": "Sat exactly at the 225 group ceiling through distribution.ts; the 2026-09-22 challenge card shared-api-utilities/A added app/_lib/refusal.ts, an import-free ~2 KB leaf that PostingClosedError now extends, and the route measures 226. Named instead of lifting the group module ceiling. Plus ~7 KB on 2026-09-23 (challenge db-jobs-devcase-interviews/A): the job_workspace_state overlay DDL and routing rule in db/core.ts and its folds in db/jobs.ts and job-ingest.ts, comments already cut to their load-bearing clause; no module added. Plus 1 module and ~12 KB on 2026-09-23 (challenge-r02 pipeline-actions-events/A): app/_lib/aging-policy.ts, the one aging clock db/pipeline.ts now reads to stamp each automation entry's tier; the SLA table MOVED into it from pipelineTypes.ts so the store does not pull that client module (and lucide-react) onto every route. Plus 1 module and ~9 KB on 2026-09-23 (challenge-r02 devcase-eval/B): app/_lib/devcase-promote-verdict.ts, the import-free advance/hold rule with coded reasons that promoteSubmission (devcase-run.ts) now computes and the postings preview shares. Plus ~2 KB on 2026-09-23 (challenge-r03 candidate-profile/A): db/profiles.ts gains the one-profile-per-CV check (findProfileIdBySourceCvHash + saveProfileForCv, one IMMEDIATE transaction), the profile and analysis list reads select the CV hash, and api-response.ts registers PROFILE_EXISTS; no module added, comments cut to their load-bearing clause.. KB +4 on 2026-09-23 at challenge-r03 wave-1 integration: 1-2 KB over after the wave's store additions (candidate-population, devcase ledger codes, profile guard, stage SLA) reached this graph; no module added"
+        },
+        "app/api/jds/generate/route.ts": {
+          "maxModules": 227,
+          "maxKb": 3028,
+          "why": "Named on 2026-09-23 at challenge-r03 wave-2 integration instead of lifting the whole route group: 3024 KB against the group's 3023 after the profile rebuild-merge (candidate-profile/B) grew app/_lib/db/profiles.ts on this graph; no module added"
         }
       }
     }
