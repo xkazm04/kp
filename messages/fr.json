@@ -1988,7 +1988,9 @@
     "ENGINE_FAILED": "Le moteur d’analyse s’est arrêté avant la fin de cette exécution. Veuillez réessayer et prévenir votre administrateur si le problème persiste.",
     "TASK_TIME_LIMIT": "Cette exécution a dépassé sa limite de temps et a été arrêtée. Veuillez réessayer.",
     "CAPABILITY_UNKNOWN": "Cette autorisation n’existe pas.",
-    "INTERVIEW_PREP_SCORECARDS_FULL": "Ce candidat a déjà le nombre maximal de scorecards d’entretien pouvant être enregistrées. Votre scorecard n’a pas été enregistrée."
+    "INTERVIEW_PREP_SCORECARDS_FULL": "Ce candidat a déjà le nombre maximal de scorecards d’entretien pouvant être enregistrées. Votre scorecard n’a pas été enregistrée.",
+    "VOICE_READINESS_FAILED": "Impossible de charger l’état des services vocaux. Veuillez réessayer.",
+    "VOICE_READINESS_OFFLINE": "Ce serveur fonctionne hors ligne, les fournisseurs vocaux ne peuvent donc pas être vérifiés."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9483,6 +9485,38 @@
           "title": "Le planificateur s’est arrêté",
           "fix": "{lastTickAt, select, never {L’horloge d’automatisation n’a jamais enregistré de battement.} other {Aucun battement depuis {lastTickAt}.}} Les rappels d’entretien, l’expiration des offres et la revue des consentements ne tournent pas. Redémarrez le processus serveur."
         }
+      },
+      "voice": {
+        "title": "Entretiens vocaux",
+        "checkNow": "Vérifier maintenant",
+        "checking": "Vérification…",
+        "checkHint": "Une vérification peut consommer une émission d’identifiant par fournisseur payant. Elle n’ouvre aucun appel.",
+        "checkFailed": "La vérification n’a pas pu s’exécuter.",
+        "checkedAt": "vérifié {time}",
+        "offline": "Mode hors ligne : les fournisseurs vocaux ne sont pas vérifiés.",
+        "latency": "{ms} ms",
+        "state": {
+          "absent": "non configuré",
+          "unchecked": "pas encore vérifié",
+          "ready": "prêt",
+          "broken": "en échec"
+        },
+        "cause": {
+          "auth": "la clé a été refusée",
+          "not_found": "modèle ou agent introuvable",
+          "timeout": "aucune réponse dans le délai",
+          "unreachable": "le service est injoignable",
+          "upstream": "le fournisseur a renvoyé une erreur",
+          "malformed": "aucun identifiant utilisable n’a été renvoyé"
+        },
+        "priceEstimate": "{price}/min, estimation",
+        "priceOverride": "{price}/min, votre tarif",
+        "priceSelfHosted": "gratuit, auto-hébergé",
+        "malformedOverride": "{name} n’est pas un nombre, l’estimation s’applique donc",
+        "remedyService": "Démarrez le service vocal local ou vérifiez {vars}",
+        "remedyRetry": "Réessayez plus tard",
+        "failedOver": "{count, plural, one {# entretien a basculé vers {to} en 7 jours} other {# entretiens ont basculé vers {to} en 7 jours}}",
+        "preference": "KP_VOICE_PROVIDER demande {requested}, qui n’est pas configuré ; les nouveaux liens d’entretien utilisent donc {used}."
       }
     },
     "useCases": {

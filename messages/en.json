@@ -1988,7 +1988,9 @@
     "ENGINE_FAILED": "The analysis engine stopped before this run finished. Try again, and tell your administrator if it keeps happening.",
     "TASK_TIME_LIMIT": "This run went past its time limit and was stopped. Try again.",
     "CAPABILITY_UNKNOWN": "That permission does not exist.",
-    "INTERVIEW_PREP_SCORECARDS_FULL": "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved."
+    "INTERVIEW_PREP_SCORECARDS_FULL": "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved.",
+    "VOICE_READINESS_FAILED": "Could not load voice readiness. Please try again.",
+    "VOICE_READINESS_OFFLINE": "This server runs offline, so voice providers cannot be checked."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9483,6 +9485,38 @@
           "title": "The scheduler has stopped",
           "fix": "{lastTickAt, select, never {The automation clock never recorded a heartbeat.} other {No heartbeat since {lastTickAt}.}} Interview reminders, offer expiry and the consent sweep are not running. Restart the server process."
         }
+      },
+      "voice": {
+        "title": "Voice interviews",
+        "checkNow": "Check now",
+        "checking": "Checking…",
+        "checkHint": "A check may spend one credential mint per paid provider. It opens no call.",
+        "checkFailed": "The check could not run.",
+        "checkedAt": "checked {time}",
+        "offline": "Offline mode: voice providers are not checked.",
+        "latency": "{ms} ms",
+        "state": {
+          "absent": "not set up",
+          "unchecked": "not checked yet",
+          "ready": "ready",
+          "broken": "failing"
+        },
+        "cause": {
+          "auth": "the key was refused",
+          "not_found": "the model or agent was not found",
+          "timeout": "no answer in time",
+          "unreachable": "the service could not be reached",
+          "upstream": "the provider returned an error",
+          "malformed": "no usable credential came back"
+        },
+        "priceEstimate": "{price}/min, estimate",
+        "priceOverride": "{price}/min, your rate",
+        "priceSelfHosted": "free, self-hosted",
+        "malformedOverride": "{name} is not a number, so the estimate applies",
+        "remedyService": "Start the local voice service, or check {vars}",
+        "remedyRetry": "Try again later",
+        "failedOver": "{count, plural, one {# screen fell back to {to} in 7 days} other {# screens fell back to {to} in 7 days}}",
+        "preference": "KP_VOICE_PROVIDER asks for {requested}, which is not configured, so new interview links use {used}."
       }
     },
     "useCases": {

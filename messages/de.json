@@ -1988,7 +1988,9 @@
     "ENGINE_FAILED": "Die Analyse-Engine wurde beendet, bevor dieser Lauf abgeschlossen war. Bitte versuchen Sie es erneut und wenden Sie sich an Ihre Administration, wenn es wiederholt auftritt.",
     "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht.",
-    "INTERVIEW_PREP_SCORECARDS_FULL": "Für diese Kandidatin bzw. diesen Kandidaten sind bereits so viele Interview-Scorecards gespeichert wie möglich. Ihre Scorecard wurde nicht gespeichert."
+    "INTERVIEW_PREP_SCORECARDS_FULL": "Für diese Kandidatin bzw. diesen Kandidaten sind bereits so viele Interview-Scorecards gespeichert wie möglich. Ihre Scorecard wurde nicht gespeichert.",
+    "VOICE_READINESS_FAILED": "Die Bereitschaft der Sprachdienste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "VOICE_READINESS_OFFLINE": "Dieser Server läuft offline, daher können Sprachanbieter nicht geprüft werden."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9483,6 +9485,38 @@
           "title": "Der Scheduler steht still",
           "fix": "{lastTickAt, select, never {Die Automatisierungsuhr hat nie einen Herzschlag aufgezeichnet.} other {Kein Herzschlag seit {lastTickAt}.}} Interview-Erinnerungen, das Verfallen von Angeboten und der Einwilligungslauf finden nicht statt. Starten Sie den Serverprozess neu."
         }
+      },
+      "voice": {
+        "title": "Sprachinterviews",
+        "checkNow": "Jetzt prüfen",
+        "checking": "Wird geprüft…",
+        "checkHint": "Eine Prüfung kann pro kostenpflichtigem Anbieter eine Ausgabe von Zugangsdaten verbrauchen. Sie öffnet kein Gespräch.",
+        "checkFailed": "Die Prüfung konnte nicht ausgeführt werden.",
+        "checkedAt": "geprüft {time}",
+        "offline": "Offline-Modus: Sprachanbieter werden nicht geprüft.",
+        "latency": "{ms} ms",
+        "state": {
+          "absent": "nicht eingerichtet",
+          "unchecked": "noch nicht geprüft",
+          "ready": "bereit",
+          "broken": "fehlerhaft"
+        },
+        "cause": {
+          "auth": "der Schlüssel wurde abgelehnt",
+          "not_found": "Modell oder Agent nicht gefunden",
+          "timeout": "keine Antwort innerhalb der Frist",
+          "unreachable": "der Dienst war nicht erreichbar",
+          "upstream": "der Anbieter meldete einen Fehler",
+          "malformed": "keine verwendbaren Zugangsdaten erhalten"
+        },
+        "priceEstimate": "{price}/Min., Schätzung",
+        "priceOverride": "{price}/Min., Ihr Tarif",
+        "priceSelfHosted": "kostenlos, selbst gehostet",
+        "malformedOverride": "{name} ist keine Zahl, daher gilt die Schätzung",
+        "remedyService": "Starten Sie den lokalen Sprachdienst oder prüfen Sie {vars}",
+        "remedyRetry": "Versuchen Sie es später erneut",
+        "failedOver": "{count, plural, one {# Interview wich in 7 Tagen auf {to} aus} other {# Interviews wichen in 7 Tagen auf {to} aus}}",
+        "preference": "KP_VOICE_PROVIDER verlangt {requested}, das nicht eingerichtet ist, daher verwenden neue Interview-Links {used}."
       }
     },
     "useCases": {

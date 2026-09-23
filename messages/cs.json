@@ -1988,7 +1988,9 @@
     "ENGINE_FAILED": "Analytický engine se zastavil dříve, než tento běh dokončil. Zkuste to prosím znovu, a pokud se to opakuje, obraťte se na správce.",
     "TASK_TIME_LIMIT": "Tento běh překročil svůj časový limit a byl zastaven. Zkuste to prosím znovu.",
     "CAPABILITY_UNKNOWN": "Toto oprávnění neexistuje.",
-    "INTERVIEW_PREP_SCORECARDS_FULL": "Tento kandidát už má uložený nejvyšší možný počet hodnoticích karet z pohovoru. Vaše hodnoticí karta nebyla uložena."
+    "INTERVIEW_PREP_SCORECARDS_FULL": "Tento kandidát už má uložený nejvyšší možný počet hodnoticích karet z pohovoru. Vaše hodnoticí karta nebyla uložena.",
+    "VOICE_READINESS_FAILED": "Připravenost hlasových služeb se nepodařilo načíst. Zkuste to prosím znovu.",
+    "VOICE_READINESS_OFFLINE": "Tento server běží offline, proto nelze poskytovatele hlasu zkontrolovat."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9483,6 +9485,38 @@
           "title": "Plánovač se zastavil",
           "fix": "{lastTickAt, select, never {Automatizační hodiny nezaznamenaly žádný tep.} other {Od {lastTickAt} nepřišel žádný tep.}} Připomínky pohovorů, vypršení nabídek ani kontrola souhlasů neprobíhají. Restartujte serverový proces."
         }
+      },
+      "voice": {
+        "title": "Hlasové pohovory",
+        "checkNow": "Zkontrolovat",
+        "checking": "Probíhá kontrola…",
+        "checkHint": "Kontrola může u každého placeného poskytovatele spotřebovat jedno vydání přístupového údaje. Žádný hovor neotevře.",
+        "checkFailed": "Kontrolu se nepodařilo provést.",
+        "checkedAt": "zkontrolováno {time}",
+        "offline": "Režim offline: poskytovatelé hlasu se nekontrolují.",
+        "latency": "{ms} ms",
+        "state": {
+          "absent": "nenastaveno",
+          "unchecked": "zatím nezkontrolováno",
+          "ready": "připraveno",
+          "broken": "selhává"
+        },
+        "cause": {
+          "auth": "klíč byl odmítnut",
+          "not_found": "model nebo agent nebyl nalezen",
+          "timeout": "odpověď nepřišla včas",
+          "unreachable": "službu se nepodařilo zastihnout",
+          "upstream": "poskytovatel vrátil chybu",
+          "malformed": "nevrátil se použitelný přístupový údaj"
+        },
+        "priceEstimate": "{price}/min, odhad",
+        "priceOverride": "{price}/min, vaše sazba",
+        "priceSelfHosted": "zdarma, vlastní provoz",
+        "malformedOverride": "{name} není číslo, proto platí odhad",
+        "remedyService": "Spusťte místní hlasovou službu nebo zkontrolujte {vars}",
+        "remedyRetry": "Zkuste to později",
+        "failedOver": "{count, plural, one {# pohovor přešel na {to} za 7 dní} few {# pohovory přešly na {to} za 7 dní} other {# pohovorů přešlo na {to} za 7 dní}}",
+        "preference": "KP_VOICE_PROVIDER požaduje {requested}, který není nastaven, proto nové odkazy na pohovor používají {used}."
       }
     },
     "useCases": {

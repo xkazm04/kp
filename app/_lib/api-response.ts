@@ -502,6 +502,10 @@ export const STORE_ERRORS = {
   /** POST /api/status/[token]/resend: the store or the comms dispatcher faulted while
    *  re-sending the candidate's pending link (500). Public token door: never the raw message. */
   STATUS_RESEND_FAILED: "Could not send the link again. Please try again.",
+  /** GET/POST /api/voice/readiness: the store or the probe bookkeeping faulted while
+   *  building the operator's voice-provider readiness (500). A provider's own mint
+   *  failure is never this: it is a row verdict ("broken" with a cause). */
+  VOICE_READINESS_FAILED: "Could not load voice readiness. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1971,6 +1975,10 @@ export const REFUSAL_ERRORS = {
    *  (app/_lib/human-scorecard-set.ts). An interviewer re-saving their own record is
    *  never refused. */
   INTERVIEW_PREP_SCORECARDS_FULL: "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved.",
+  /** POST /api/voice/readiness under KP_OFFLINE (503): a probe mints at the providers,
+   *  which a sealed install must not reach. The GET says `offline` so the strip never
+   *  offers the button. */
+  VOICE_READINESS_OFFLINE: "This server runs offline, so voice providers cannot be checked.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
