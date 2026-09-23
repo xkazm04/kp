@@ -29,6 +29,7 @@ import {
   RECEIPT_SUBJECT_CODE,
 } from "@/app/_lib/comms-view";
 import { OUTBOX_STATUSES } from "@/app/_lib/comms-status";
+import { REFUSED_COMMS_CHANNEL, SIM_COMMS_CHANNEL } from "@/app/_lib/comms-resend-outcome";
 
 // A translator that answers the KEY, so an assertion names the catalog entry the
 // surface resolves rather than one locale's wording.
@@ -85,6 +86,16 @@ test("isActionable is the dead-letter/bounce/orphan set, and a recovered row is 
   assert.equal(isActionable(msg({ orphaned: true })), true);
   assert.equal(isActionable(msg({ status: "sent" })), false);
   assert.equal(isActionable(msg({ status: "queued" })), false);
+});
+
+test("a failed row on the REFUSED channel is not actionable — the resend door offers it nothing", () => {
+  // comms-dispatch records a refusal (no inbox by design) as a `failed` row on this
+  // channel. resendDoorOf gives it no door, so the red row tint and the "needs you"
+  // count must not tell the recruiter to act on it either.
+  assert.equal(isActionable(msg({ status: "failed", channel: REFUSED_COMMS_CHANNEL, recipient: "" })), false);
+  assert.equal(isActionable(msg({ status: "failed", channel: SIM_COMMS_CHANNEL })), false);
+  // An orphaned receipt still is — it is the integrator's to chase, not a resend.
+  assert.equal(isActionable(msg({ orphaned: true, channel: "email" })), true);
 });
 
 test("receipt rows show the localized label for BOTH the code and the legacy literal", () => {

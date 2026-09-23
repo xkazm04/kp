@@ -180,7 +180,8 @@ export function OutboxRows({
                     <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent ?? (() => {})} />
                   </div>
                 ) : null}
-                {isDeadLetter(m) && m.failureDetail ? (
+                {/* Every `failed` row states why, a refused one (no inbox, no door) included. */}
+                {(m.verdict === "failed" || isDeadLetter(m)) && m.failureDetail ? (
                   <p className="mt-1 max-w-[16rem] truncate font-normal normal-case text-steel" title={m.failureDetail}>
                     {m.failureDetail}
                   </p>

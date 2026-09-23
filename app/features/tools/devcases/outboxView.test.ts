@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { isDeadLetter, outboxRows, outboxVerdicts } from "./outboxView.ts";
 import type { OutboxItem } from "./DevTypes.ts";
+import { REFUSED_COMMS_CHANNEL } from "@/app/_lib/comms-resend-outcome.ts";
 
 const rowsSrc = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "OutboxRows.tsx"), "utf8");
 
@@ -106,6 +107,17 @@ test("`queued` is not a failure — it is the terminal local state", () => {
   assert.equal(view().failedCount, 2, "the unrecovered dead letter + the bounced offer");
 });
 
+test("a failed row on the REFUSED channel is not a dead letter — it offers no door and needs no human", () => {
+  // A refusal (no inbox by design) is recorded as `failed` on this channel with recipient
+  // "". resendDoorOf gives it no door, so neither the red row nor the chip may count it.
+  const refused: OutboxItem = { ...M("refused", "failed", "2026-01-01T00:00:00Z", "rejection", ""), channel: REFUSED_COMMS_CHANNEL };
+  const [row] = outboxVerdicts([refused]);
+  assert.equal(row.verdict, "failed", "the verdict stays truthful — it did not go");
+  assert.equal(isDeadLetter(row), false);
+  assert.equal(outboxRows([refused], opts).failedCount, 0);
+  assert.deepEqual(outboxRows([refused], { ...opts, failedOnly: true }).rows, []);
+});
+
 test("the dead-letter chip narrows to exactly the rows needing a human", () => {
   const ids = view({ failedOnly: true }).rows.map((m) => m.id);
   assert.deepEqual(ids, ["old-offer", "old-failed"]);
@@ -150,7 +162,9 @@ test("outboxRows never mutates the input array", () => {
 });
 
 test("a dead-letter row with failureDetail renders that detail under the verdict", () => {
-  assert.match(rowsSrc, /isDeadLetter\(m\) && m\.failureDetail/);
+  // …and so does a REFUSED row: it is no longer a dead letter (no door), but the reason
+  // it did not go is still the only thing the row can tell the recruiter.
+  assert.match(rowsSrc, /\(m\.verdict === "failed" \|\| isDeadLetter\(m\)\) && m\.failureDetail/);
   assert.match(rowsSrc, /title=\{m\.failureDetail\}/);
   assert.match(rowsSrc, /\{m\.failureDetail\}/);
 });
