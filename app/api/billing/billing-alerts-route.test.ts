@@ -22,9 +22,7 @@
 // unit-db.ts must stay the first project import (isolated throwaway DB).
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
+import { writeFileSync } from "node:fs";
 import { register, registerHooks } from "node:module";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 
@@ -63,26 +61,21 @@ process.env.KP_OPERATOR_PASSWORD = "billing-alerts-test-password";
 process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
 
 const { GET: overviewRoute } = await import("./route.ts");
-const { createWorkspace } = await import("../../_lib/db/workspaces.ts");
-const { createOrganization } = await import("../../_lib/db/organizations.ts");
 const { createUser } = await import("../../_lib/db/users.ts");
 const { upsertMembership } = await import("../../_lib/db/memberships.ts");
 const { signSession } = await import("../../_lib/auth/session.ts");
-const { ensureDb } = await import("../../_lib/db/core.ts");
 const billingStore = await import("../../_lib/db/billing.ts");
-const { billingOverview, meterAllowance, entitledPlan, meterGate, METERS } = await import("../../_lib/billing/index.ts");
+const { entitledPlan } = await import("../../_lib/billing/index.ts");
+// The replay, the snapshot and the golden live beside charge-parity.json, shared with
+// every other card that has to prove it moved no charge (allowance-window.test.ts).
+const parity = await import("../../_lib/billing/__fixtures__/charge-parity-replay.ts");
 
 after(() => cleanupUnitDb());
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const GOLDEN = path.join(HERE, "../../_lib/billing/__fixtures__/charge-parity.json");
-
-const ORG_A = "org-default";
-const orgB = createOrganization("Alerts Org B");
-const orgC = createOrganization("Alerts Org C");
-const teamA = createWorkspace("Alerts team A", ORG_A);
-const teamB = createWorkspace("Alerts team B", orgB.id);
-const teamC = createWorkspace("Alerts team C", orgC.id);
+const fx = parity.chargeParityFixture();
+const ORG_A = fx.orgA;
+const orgB = { id: fx.orgB };
+const { teamA, teamB } = fx;
 
 const ownerA = createUser({ orgId: ORG_A, email: "alerts.owner.a@csas.cz", name: "Owner A", status: "active", password: "owner-a-pw-1234" });
 const recruiterA = createUser({ orgId: ORG_A, email: "alerts.rec.a@csas.cz", name: "Rec A", status: "active", password: "rec-a-pw-12345" });
@@ -118,14 +111,7 @@ function preExisting(body: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(PRE_EXISTING_KEYS.map((k) => [k, body[k]]));
 }
 
-function readGolden(): { freshGet: Record<string, unknown>; replay: unknown } | null {
-  try {
-    return JSON.parse(readFileSync(GOLDEN, "utf8"));
-  } catch {
-    return null; // no golden yet: only KP_WRITE_CHARGE_PARITY=1 may create it
-  }
-}
-const golden = readGolden();
+const golden = parity.readChargeParityGolden();
 const writing = process.env.KP_WRITE_CHARGE_PARITY === "1";
 const written: { freshGet?: Record<string, unknown>; replay?: unknown } = {};
 
@@ -146,107 +132,16 @@ test("wire parity: a fresh DB answers alerts: [] and every pre-existing key unch
 
 // ---- 2. charge parity (GUARD case) --------------------------------------------------
 
-const NOW = new Date("2026-08-15T12:00:00.000Z");
-const LABEL = new Map<string, string>([
-  [ORG_A, "org-A"],
-  [orgB.id, "org-B"],
-  [orgC.id, "org-C"],
-]);
-const WORKSPACE = new Map<string, string>([
-  ["org-A", teamA.id],
-  ["org-B", teamB.id],
-  ["org-C", teamC.id],
-]);
-const label = (org: unknown): string => LABEL.get(String(org)) ?? String(org);
-
-/** The scripted money history: org A on starter, org B on free with a PAID-BUT-DARK
- *  subscription (unmapped product), org C on growth. Usage, pack grants and their
- *  debits, provider events — every money table carries rows. */
-function replay(): void {
-  billingStore.upsertBillingState({
-    orgId: ORG_A,
-    plan: "starter",
-    status: "active",
-    provider: "polar",
-    providerCustomerId: "cus_A",
-    providerSubscriptionId: "sub_A",
-    currentPeriodStart: "2026-08-01T00:00:00.000Z",
-    currentPeriodEnd: "2026-09-01T00:00:00.000Z",
-  });
-  billingStore.upsertBillingState({
-    orgId: orgC.id,
-    plan: "growth",
-    status: "active",
-    provider: "polar",
-    providerCustomerId: "cus_C",
-    providerSubscriptionId: "sub_C",
-    currentPeriodStart: "2026-08-10T00:00:00.000Z",
-    currentPeriodEnd: "2026-09-10T00:00:00.000Z",
-  });
-  billingStore.insertBillingEvent("evt_A_1", "subscription.active", '{"id":"evt_A_1"}', ORG_A);
-  billingStore.insertBillingEvent("evt_B_1", "subscription.active", '{"id":"evt_B_1","product":"prod_unmapped"}', orgB.id);
-  billingStore.insertBillingEvent("evt_C_1", "subscription.active", '{"id":"evt_C_1"}', orgC.id);
-  billingStore.insertBillingEvent("evt_A_2", "order.paid", '{"id":"evt_A_2"}', ORG_A);
-  billingStore.grantBillingCredits({ orgId: ORG_A, meter: "interview_minutes", delta: 100, reason: "pack minutes_100", providerRef: "order_A_1" });
-  billingStore.grantBillingCredits({ orgId: orgB.id, meter: "interview_minutes", delta: 20, reason: "pack minutes_100", providerRef: "order_B_1" });
-  // Debits: A burns its 30 included minutes then 5 credits; B has 0 included so its
-  // 25 minutes draw the 20 credits dry (clamped) and overrun; C spends hires/posts.
-  const ws = (l: string) => WORKSPACE.get(l);
-  recordMeterUsageSeq([
-    ["ai_candidates", 7, ws("org-A")],
-    ["interview_minutes", 35, ws("org-A")],
-    ["ai_candidates", 30, ws("org-B")],
-    ["interview_minutes", 25, ws("org-B")],
-    ["hires", 1, ws("org-C")],
-    ["job_posts", 2, ws("org-C")],
-    ["case_designs", 1, ws("org-C")],
-  ]);
-  // The alerts the reader will surface and resolve: deployment-level drift (stored
-  // under the default org), a dark subscription in A, and B's paid-but-dark one.
-  billingStore.recordBillingAlert({ kind: "price_drift", detail: "starter: catalog 490 CZK, provider 520 CZK", providerRef: "prod_starter" });
-  billingStore.recordBillingAlert({ orgId: ORG_A, kind: "unmapped_product", detail: "product prod_legacy not in POLAR_PRODUCT_*", providerRef: "sub_A_old" });
-  billingStore.recordBillingAlert({ orgId: orgB.id, kind: "unmapped_product", detail: "product prod_unmapped not in POLAR_PRODUCT_*", providerRef: "sub_B_dark" });
-}
-
-const { recordMeterUsage } = await import("../../_lib/billing/entitlements.ts");
-function recordMeterUsageSeq(steps: Array<[string, number, string | undefined]>): void {
-  for (const [meter, qty, workspace] of steps) recordMeterUsage(meter as never, qty, NOW, workspace);
-}
-
-/** Everything that decides what a tenant is charged, with wall-clock stamps and random
- *  org ids normalized away so the result is byte-comparable across runs. */
-function moneySnapshot(): unknown {
-  const db = ensureDb();
-  const rows = (sql: string) => db.prepare(sql).all() as Array<Record<string, unknown>>;
-  const byLabel = <T extends { org: string }>(xs: T[]) => xs.sort((a, b) => (a.org < b.org ? -1 : a.org > b.org ? 1 : 0));
-  const state = byLabel(
-    rows(
-      `SELECT id, org_id, plan, status, provider, provider_customer_id, provider_subscription_id, current_period_start, current_period_end FROM billing_state`
-    ).map(({ id, org_id, ...rest }) => ({ org: label(org_id), id: id === "workspace" ? "workspace" : label(id), ...rest }))
-  );
-  const events = rows(`SELECT id, org_id, type, payload_json FROM billing_events ORDER BY id`).map(({ org_id, ...rest }) => ({ org: label(org_id), ...rest }));
-  const credits = rows(`SELECT org_id, meter, delta, reason, provider_ref FROM billing_credits ORDER BY id`).map(({ org_id, ...rest }) => ({ org: label(org_id), ...rest }));
-  const usage = byLabel(
-    rows(`SELECT org_id, meter, period, qty FROM billing_usage ORDER BY meter, period`).map(({ org_id, ...rest }) => ({ org: label(org_id), ...rest }))
-  );
-  const orgs = [...WORKSPACE.entries()].map(([org, ws]) => {
-    const o = billingOverview(NOW, ws) as unknown as Record<string, unknown>;
-    return {
-      org,
-      overview: Object.fromEntries(["plan", "status", "periodEnd", "provider", "metered", "meters"].map((k) => [k, o[k]])),
-      allowance: Object.fromEntries(METERS.map((m) => [m, meterAllowance(m, NOW, ws)])),
-      gate: meterGate("interview_minutes", { now: NOW, workspace: ws }),
-    };
-  });
-  return { billing_state: state, billing_events: events, billing_credits: credits, billing_usage: usage, orgs };
-}
+const NOW = parity.CHARGE_PARITY_NOW;
+const replay = (): void => parity.replayChargeParity(fx, NOW);
+const moneySnapshot = (): unknown => parity.chargeParitySnapshot(fx, NOW);
 
 test("charge parity (GUARD): reading and resolving every alert moves no money state", async () => {
   replay();
   const before = JSON.stringify(moneySnapshot(), null, 2);
   if (writing) {
     written.replay = JSON.parse(before);
-    writeFileSync(GOLDEN, `${JSON.stringify(written, null, 2)}\n`);
+    writeFileSync(parity.CHARGE_PARITY_GOLDEN, `${JSON.stringify(written, null, 2)}\n`);
   } else {
     assert.ok(golden, "the committed golden is missing");
     assert.equal(before, JSON.stringify(golden.replay, null, 2), "the scripted money history no longer reproduces the golden");
