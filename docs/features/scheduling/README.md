@@ -542,6 +542,53 @@ Pinned by `app/features/hiring/schedule/scheduleAgenda.test.ts`: the pure cases,
 source contracts that the panel does no agenda read of its own and that the owner
 subscribes and announces.
 
+### What a pending card offers first
+
+Every pending card used to carry one booking action, Confirm, and it booked whatever
+cell was seeded, including the flat `Tue 14:00` guess for a candidate nobody had
+asked. The `book` route mails the candidate nothing. Whether a link had gone out, how
+long it had waited, whether the candidate had proposed times or stalled on a fully
+booked horizon: all of that lived only in the lifecycle panel, keyed by invite rather
+than by the candidate on the card.
+
+Now each card resolves its candidate's **live invite** and puts the next real step
+first (`schedulePendingCardState.ts`, read by `useScheduleTab.cardStates` and rendered
+by `ScheduleTabPendingList.tsx`):
+
+| State | When | The card's first action |
+| --- | --- | --- |
+| `no_link` | no invite for the entry | **Send scheduling link** (`POST /api/schedule/invite`) |
+| `awaiting` | a pending link, not expired | "Link sent 2 days ago" + copy the link |
+| `expired` | the pending link aged out | send a new link |
+| `closed` | the last invite was declined or a no-show | send a new link |
+| `proposals` | the candidate proposed times | one **Accept** per proposed time (`accept_proposal`) |
+| `stuck_no_slots` | `needsMoreSlots` | a pointer to the attention list above; no primary button |
+| `booked` | a confirmed invite backs the cell | **Confirm** |
+
+- **Which invite speaks for the entry.** The agenda can hold several per entry (a
+  re-invite history). `liveInviteFor` picks a confirmed booking, else a live pending
+  link, else the most recent closed one, newest first within each. The grid seed uses
+  the same pick. It used to be a `Map` over the list, which kept whichever row sorted
+  last in the read's `ORDER BY`.
+- **Booking the suggested time stays, one step down.** The card keeps ONE book
+  control in every state. Only on a `booked` card is it the primary Confirm. On every
+  other card it reads **Book suggested time**, carries a tooltip saying the candidate
+  is not asked, and is styled as secondary. It keeps `data-sim-click="confirm"`, so
+  the guided simulation's manual fallback still resolves.
+- **Truthful delivery.** The send-link toast repeats the route's `delivery` claim:
+  `sent` (success), `queued` in the Outbox (info) or `failed` (error: the link exists,
+  copy it from the card). A missing claim is read as `failed`, never as sent. Mapped by
+  `sendLinkNotice`. Copy lives under `scheduleTab.sendLink.*` and
+  `scheduleTab.cardState.*`.
+- **Through the one agenda.** `send_link` is an agenda verb with its own effects row
+  (re-read the agenda, notify the board), like `reinvite`, since the route answers a
+  token rather than a row. A card's proposal accept goes through the owner's
+  `runInviteAction`, so the card leaves the pending list and the booking lands in
+  Upcoming and on the grid in the same render. A refused send or accept renders under
+  that card, like a refused book.
+
+Pinned by `app/features/hiring/schedule/schedulePendingCardState.test.ts`.
+
 ## What the recruiter is told when a booking is refused
 
 `POST /api/schedule {action:"book"}` — the week grid's Confirm — answers every
