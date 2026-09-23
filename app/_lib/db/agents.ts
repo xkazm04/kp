@@ -730,6 +730,50 @@ export function listAgentActivity(
   return rows.map(rowToActivity);
 }
 
+/** The two lifecycle facts the roster derives each hire's next move from, read
+ *  off the ledger the transition door writes:
+ *
+ *  * `lastDecision` — the newest APPLIED lifecycle row, as its event name and
+ *    time. The event only: the `: <reason>` suffix is Personas' free text and
+ *    `raw_json` is the payload, neither is roster data. A `refused:` row is the
+ *    door saying no, not a decision, so it is skipped.
+ *  * `pendingApprovalSince` — when the hire ENTERED pending_approval: the newest
+ *    row whose `raw.transition` moved INTO it from another status. A poll that
+ *    re-reads "pending" is an applied self-move and does not restart the 24h
+ *    consent clock; neither does anything else that bumps `updated_at`. Null for
+ *    a hire that never entered the state through the door (dispatched before the
+ *    door wrote the row): the roster then shows no clock rather than invent one. */
+export function getAgentLifecycleMarks(
+  hiredAgentId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { lastDecision: { event: string; at: string } | null; pendingApprovalSince: string | null } {
+  const db = agentsDb();
+  const last = db
+    .prepare(
+      `SELECT ts, status FROM agent_activity
+        WHERE hired_agent_id = ? AND workspace_id = ? AND kind = 'lifecycle'
+          AND status IS NOT NULL AND status NOT LIKE 'refused:%'
+        ORDER BY ts DESC, rowid DESC LIMIT 1`
+    )
+    .get(hiredAgentId, workspaceId) as { ts: string; status: string } | undefined;
+  // json_valid guards each CASE: SQLite does not promise AND short-circuits, and
+  // json_extract on a malformed legacy row would throw instead of skipping it.
+  const entered = db
+    .prepare(
+      `SELECT ts FROM agent_activity
+        WHERE hired_agent_id = ? AND workspace_id = ? AND kind = 'lifecycle'
+          AND (CASE WHEN json_valid(raw_json) THEN json_extract(raw_json, '$.transition.to') END) = 'pending_approval'
+          AND (CASE WHEN json_valid(raw_json) THEN COALESCE(json_extract(raw_json, '$.transition.from'), '') END) != 'pending_approval'
+        ORDER BY ts DESC, rowid DESC LIMIT 1`
+    )
+    .get(hiredAgentId, workspaceId) as { ts: string } | undefined;
+  const sep = last ? last.status.indexOf(": ") : -1;
+  return {
+    lastDecision: last ? { event: sep >= 0 ? last.status.slice(0, sep) : last.status, at: last.ts } : null,
+    pendingApprovalSince: entered?.ts ?? null,
+  };
+}
+
 // ---- Aggregates -------------------------------------------------------------
 
 export type AgentAggregates = {

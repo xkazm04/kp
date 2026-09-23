@@ -12,7 +12,8 @@ import { AgentsWorkforceRoster } from "./AgentsWorkforceRoster";
 
 // Agent-candidate bridge — the workforce module: every AI agent hired through a
 // role, with live aggregates (runs, success, spend vs budget, connector use) and
-// a client-computed "expectations met" verdict. Empty states are chain-aware:
+// a client-computed "expectations met" verdict, and each hire's next move with
+// its one action on the row (the "needs you" strip). Empty states are chain-aware:
 // unconnected points at Settings → Integrations, connected-but-empty points at a
 // job's Agent fit tab.
 
@@ -21,6 +22,9 @@ export function AgentsWorkforceTab() {
   const { data, error, reload } = useJsonFetch<{ agents: AgentRosterEntry[] }>("/api/agents", t("loadFailed"));
   const { data: bridgeData } = useJsonFetch<{ bridge: BridgeConfigPublic }>("/api/agents/bridge", t("loadFailed"));
   const paired = bridgeData?.bridge.paired === true;
+  // The roster's next moves read the bridge too (a dead bridge outranks every
+  // other move) — but only once it is KNOWN: null while loading or unreadable.
+  const bridgeKnown = bridgeData ? paired : null;
 
   return (
     <section className={`stagger-children ${SECTION}`}>
@@ -68,7 +72,7 @@ export function AgentsWorkforceTab() {
         )
       ) : null}
 
-      {data && data.agents.length > 0 ? <AgentsWorkforceRoster agents={data.agents} onChanged={reload} /> : null}
+      {data && data.agents.length > 0 ? <AgentsWorkforceRoster agents={data.agents} paired={bridgeKnown} onChanged={reload} /> : null}
     </section>
   );
 }

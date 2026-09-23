@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAgentAggregates, getLatestAgentRollupRaw, listHiredAgents } from "@/app/_lib/db/agents";
+import { getAgentAggregates, getAgentLifecycleMarks, getLatestAgentRollupRaw, listHiredAgents } from "@/app/_lib/db/agents";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -24,6 +24,12 @@ import { AUTOPILOT_MODES, type AutopilotMode } from "@/app/_lib/agent-hire/repor
 //   `backbonePeriod` / `backboneFreshness` — which month that verdict belongs
 //                 to, and whether that month is still the review window. Null
 //                 together with `backbone` when nothing has reported.
+//
+// Every row also carries the two lifecycle facts the roster derives its NEXT
+// MOVE from (agentsWorkforceLogic.ts `nextAction`): `lastDecision` (the newest
+// applied lifecycle event name + time, never its reason or raw payload) and
+// `pendingApprovalSince` (when the hire ENTERED pending_approval, per the
+// transition door's ledger row, never updated_at). See getAgentLifecycleMarks.
 
 /** Memory tier counts the rollup last reported (M3) — pass-through of the
  *  trust-boundary-validated shape; null when never reported. */
@@ -50,8 +56,9 @@ export async function GET() {
   try {
     const ws = await currentWorkspace();
     const agents = listHiredAgents(ws).map((agent) => {
-      const { reportToken, ...safe } = agent;
+      const { reportToken, ...rest } = agent;
       void reportToken; // stripped: the token is the report route's auth capability
+      const safe = { ...rest, ...getAgentLifecycleMarks(agent.id, ws) };
 
       const spec = agent.appMaster as
         | {

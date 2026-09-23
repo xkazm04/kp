@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Link2, RefreshCw, Send } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { BTN_SECONDARY, CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
@@ -22,11 +22,21 @@ import {
   STATUS_BADGE,
   topConnectors,
   memoryChip,
+  NEXT_ACTION_CONTROL,
   type AgentRosterEntry,
+  type NextAction,
 } from "./agentsWorkforceLogic";
 
 // One roster row: the summary <tr> plus, when expanded, the detail <tr> with the
 // full metrics-vs-actuals list and the pull-fallback status refresh.
+//
+// The summary row also carries the hire's NEXT MOVE (nextAction, derived by the
+// roster from status + the lifecycle ledger + the liveness receipt): one
+// sentence saying what it needs, and its one control, without expanding the
+// row — Refresh for an approval or a due review, Re-dispatch for a dead hire
+// (a NEW hire through POST /api/agents/dispatch, with that route's own
+// idempotency and refusals), a link to Settings -> Integrations for a dead
+// bridge, and text only for a reporter to check.
 //
 // An APP MASTER row (docs/features/app-master/README.md) carries a second,
 // harder story on the same six columns: its mandate rung and autopilot mode ride
@@ -43,11 +53,13 @@ const RUNG_KEY = ["appMaster.rung.0", "appMaster.rung.1", "appMaster.rung.2"] as
 
 export function AgentsWorkforceRow({
   agent,
+  move,
   expanded,
   onToggle,
   onChanged,
 }: {
   agent: AgentRosterEntry;
+  move: NextAction;
   expanded: boolean;
   onToggle: () => void;
   onChanged: () => void;
@@ -59,6 +71,7 @@ export function AgentsWorkforceRow({
   const errorMessage = useErrorMessage();
   const relativeTime = useRelativeTime();
   const [refreshing, setRefreshing] = useState(false);
+  const [redispatching, setRedispatching] = useState(false);
   const [outcome, setOutcome] = useState<{ tone: "ok" | "quiet" | "bad"; text: string } | null>(null);
 
   const badge = STATUS_BADGE[agent.status];
@@ -72,6 +85,55 @@ export function AgentsWorkforceRow({
   const chips = reported.top.length > 0 ? reported : topConnectors(Object.fromEntries(specConnectors(agent.spec).map((c) => [c, 0])));
   const spendFraction = budgetFraction(agent.aggregates.monthCostUsd, agent.budgetUsd);
   const successPct = agent.aggregates.successRate != null ? Math.round(agent.aggregates.successRate * 100) : null;
+
+  // Re-dispatch mints a NEW hire from the dead one's origin (its job, or its
+  // App-master intake). The dispatch route owns idempotency (a live hire for the
+  // same job/intake comes back `existing`) and every refusal, answered by CODE.
+  const redispatch = async () => {
+    if (redispatching || move.kind !== "redispatch") return;
+    setRedispatching(true);
+    setOutcome(null);
+    try {
+      const r = await fetch("/api/agents/dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(move.target),
+      });
+      const body = (await r.json().catch(() => null)) as { existing?: boolean; error?: string; code?: string } | null;
+      if (!r.ok) {
+        setOutcome({ tone: "bad", text: errorMessage(body, t("nextAction.redispatchFailed")) });
+        return;
+      }
+      setOutcome(
+        body?.existing
+          ? { tone: "quiet", text: t("nextAction.redispatchExisting") }
+          : { tone: "ok", text: t("nextAction.redispatchDone") }
+      );
+      onChanged();
+    } catch {
+      setOutcome({ tone: "bad", text: t("nextAction.redispatchFailed") });
+    } finally {
+      setRedispatching(false);
+    }
+  };
+
+  const control = NEXT_ACTION_CONTROL[move.kind];
+  const moveText =
+    move.kind === "none"
+      ? null
+      : move.kind === "approve_in_personas"
+        ? move.hoursLeft == null
+          ? t("nextAction.move.approve_no_clock")
+          : t("nextAction.move.approve_in_personas", { hours: move.hoursLeft })
+        : move.kind === "check_reporter"
+          ? move.reason === "silent"
+            ? t("nextAction.move.check_reporter_silent")
+            : t("nextAction.move.check_reporter_rejected")
+          : t(`nextAction.move.${move.kind}` as Parameters<typeof t>[0]);
+  // Coral for the moves about a hire that is already stuck: nothing moves
+  // without the bridge, a lapsed approval is already a failed hire in Personas,
+  // and a dead hire is filling no role. The rest are waits, in ink.
+  const urgent = move.kind === "repair_bridge" || move.kind === "approval_lapsed" || move.kind === "redispatch";
 
   // The refresh route answers with a TYPED non-continuation, never a bare 200:
   // `refreshed:false` plus either a `reason` (nothing to poll; or a bridge
@@ -150,6 +212,43 @@ export function AgentsWorkforceRow({
               </span>
             ) : null}
           </div>
+          {moveText ? (
+            <div className="mt-2 flex max-w-sm flex-wrap items-center gap-2">
+              <p className={`text-sm ${urgent ? "text-coral" : "text-ink"} nums`}>{moveText}</p>
+              {control === "refresh" ? (
+                <button type="button" onClick={() => void refresh()} disabled={refreshing} className={`${BTN_SECONDARY} h-7 px-2.5 text-sm`}>
+                  <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} aria-hidden />
+                  {refreshing ? t("detail.refreshing") : t("detail.refresh")}
+                </button>
+              ) : control === "redispatch" ? (
+                <button type="button" onClick={() => void redispatch()} disabled={redispatching} className={`${BTN_SECONDARY} h-7 px-2.5 text-sm`}>
+                  <Send size={12} aria-hidden />
+                  {redispatching ? t("nextAction.control.redispatching") : t("nextAction.control.redispatch")}
+                </button>
+              ) : control === "integrations" ? (
+                <button
+                  type="button"
+                  onClick={() => router.push(buildUrl({ tab: "integrations" }, search.toString()))}
+                  className={`${BTN_SECONDARY} h-7 px-2.5 text-sm`}
+                >
+                  <Link2 size={12} aria-hidden />
+                  {t("nextAction.control.integrations")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {/* One live region per row, beside the control that caused it — the
+              row's move and the detail's Refresh both report here, so an
+              outcome is readable without expanding the row. role="status" alone
+              (its implicit live region is already polite). */}
+          {outcome ? (
+            <p
+              role="status"
+              className={`mt-1 max-w-sm text-sm ${outcome.tone === "bad" ? "text-coral" : outcome.tone === "ok" ? "text-moss" : "text-steel"}`}
+            >
+              {outcome.text}
+            </p>
+          ) : null}
         </td>
         <td className="px-4 py-3">
           {/* An App master hired from an intake owns an APPLICATION — there is
@@ -351,17 +450,6 @@ export function AgentsWorkforceRow({
                 <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} aria-hidden />
                 {refreshing ? t("detail.refreshing") : t("detail.refresh")}
               </button>
-              {/* role="status" alone — its implicit live region is already
-                  polite, and pairing it with an explicit aria-live is the
-                  contradiction the decisions module was fixed for. */}
-              {outcome ? (
-                <p
-                  role="status"
-                  className={`max-w-lg text-sm ${outcome.tone === "bad" ? "text-coral" : outcome.tone === "ok" ? "text-moss" : "text-steel"}`}
-                >
-                  {outcome.text}
-                </p>
-              ) : null}
             </div>
           </td>
         </tr>

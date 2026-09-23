@@ -38,6 +38,11 @@ export type AgentRosterEntry = Omit<HiredAgentRecord, "reportToken"> & {
   backbone: BackboneScore | null;
   /** The per-objective readings behind that verdict. */
   kpiDeltas: ReportedKpiDelta[] | null;
+  /** The newest APPLIED lifecycle event (name + time) — null when none landed. */
+  lastDecision: { event: string; at: string } | null;
+  /** When the hire ENTERED pending_approval (the transition door's ledger row);
+   *  null when no such row exists — then the approval carries no clock. */
+  pendingApprovalSince: string | null;
 };
 
 /** True for a row the App-master surfaces apply to. */
@@ -225,7 +230,8 @@ export type ProbationCountdown = {
    *  `extended` deliberately leaves the agent in `onboarding` ("more time is not
    *  a promotion", report-payload.ts), so the countdown stays at 0 and this stays
    *  true for a review a human already performed. Telling those two apart needs
-   *  the last decision on the roster row, which GET /api/agents does not project. */
+   *  the last decision on the roster row: GET /api/agents projects it as
+   *  `lastDecision`, and `nextAction` below is where the two are told apart. */
   due: boolean;
 };
 
@@ -277,4 +283,163 @@ export function fmtUsd(value: number, locale: string): string {
 export function budgetFraction(monthCostUsd: number, budgetUsd: number | null): number | null {
   if (budgetUsd == null || !(budgetUsd > 0)) return null;
   return Math.min(1, monthCostUsd / budgetUsd);
+}
+
+// ---- Next move ---------------------------------------------------------------
+// Every roster row answers ONE question: what does this hire need from me, and
+// what is the one thing to click. A closed vocabulary (literal array + derived
+// union, the house pattern), derived from facts the server already holds —
+// status, the lifecycle ledger's two marks, the liveness receipt and the
+// accepted-activity stamp — so the rule unit-tests here and the view only maps
+// kinds to copy and a control.
+
+/** Declared priority: the order the "needs you" strip reads, and the order the
+ *  rules below are tried in. A dead bridge outranks everything because no other
+ *  move can succeed without it. */
+export const NEXT_ACTION_PRIORITY = [
+  "repair_bridge",
+  "approval_lapsed",
+  "approve_in_personas",
+  "review_probation",
+  "check_reporter",
+  "redispatch",
+] as const;
+
+export const NEXT_ACTION_KINDS = [...NEXT_ACTION_PRIORITY, "none"] as const;
+export type NextActionKind = (typeof NEXT_ACTION_KINDS)[number];
+
+export function isNextActionKind(value: unknown): value is NextActionKind {
+  return typeof value === "string" && (NEXT_ACTION_KINDS as readonly string[]).includes(value);
+}
+
+export type NextAction =
+  | { kind: "repair_bridge" }
+  | { kind: "approval_lapsed" }
+  /** hoursLeft is null when the hire has no "entered pending_approval" stamp:
+   *  no clock is shown rather than one invented from updated_at. */
+  | { kind: "approve_in_personas"; hoursLeft: number | null }
+  | { kind: "review_probation" }
+  /** silent = Personas has not called in 7 days (or ever); reports_rejected =
+   *  it IS calling, and no report has been accepted — the receipt and the
+   *  activity stamp disagree, and the disagreement is the diagnosis. */
+  | { kind: "check_reporter"; reason: "silent" | "reports_rejected" }
+  | { kind: "redispatch"; target: { jobId: string } | { intakeId: string } }
+  | { kind: "none" };
+
+/** The one control each move puts on the row. `refresh` polls Personas (the
+ *  pull fallback); `redispatch` POSTs /api/agents/dispatch for a NEW hire;
+ *  `integrations` links Settings → Integrations; `explain` is text only. */
+export const NEXT_ACTION_CONTROL = {
+  repair_bridge: "integrations",
+  approval_lapsed: "refresh",
+  approve_in_personas: "refresh",
+  review_probation: "refresh",
+  check_reporter: "explain",
+  redispatch: "redispatch",
+  none: null,
+} as const satisfies Record<NextActionKind, "refresh" | "redispatch" | "integrations" | "explain" | null>;
+
+/** The row transition each move's control can produce, when it produces one.
+ *  Pinned against AGENT_TRANSITIONS by the tests, so a move can never promise a
+ *  step the transition door refuses. Re-dispatch is null on purpose: a dead
+ *  hire has no exits, so its answer is a NEW row, not a move of this one. */
+export const NEXT_ACTION_TRANSITION = {
+  repair_bridge: null,
+  approval_lapsed: { from: "pending_approval", to: "failed" },
+  approve_in_personas: { from: "pending_approval", to: "onboarding" },
+  review_probation: { from: "onboarding", to: "active" },
+  check_reporter: null,
+  redispatch: null,
+  none: null,
+} as const satisfies Record<NextActionKind, { from: AgentStatus; to: AgentStatus } | null>;
+
+const HOUR_MS = 60 * 60 * 1000;
+/** Personas' consent window: an approval older than this is `expired` there,
+ *  which the poll maps to `failed` (agent-hire/lifecycle.ts POLL_TARGET). */
+export const APPROVAL_WINDOW_HOURS = 24;
+/** A live agent unheard-from for this long is silent. */
+const REPORTER_SILENT_MS = 7 * 24 * HOUR_MS;
+
+/** The one move this hire needs. `bridge` null = not known yet (still loading):
+ *  absence of evidence is not a dead bridge. */
+export function nextAction(
+  agent: AgentRosterEntry,
+  bridge: { paired: boolean } | null,
+  now: Date = new Date()
+): NextAction {
+  // Retirement is a decision, not a fault: nothing to do, whatever the bridge.
+  if (agent.status === "retired") return { kind: "none" };
+  // Every other move — a poll, a re-dispatch, an approval in Personas — needs
+  // the bridge, so a dead one is the move for every non-retired row.
+  if (bridge && !bridge.paired) return { kind: "repair_bridge" };
+
+  if (agent.status === "rejected" || agent.status === "failed") {
+    if (agent.jobId) return { kind: "redispatch", target: { jobId: agent.jobId } };
+    if (agent.intakeId) return { kind: "redispatch", target: { intakeId: agent.intakeId } };
+    return { kind: "none" };
+  }
+
+  if (agent.status === "pending_approval") {
+    const since = agent.pendingApprovalSince ? Date.parse(agent.pendingApprovalSince) : NaN;
+    if (!Number.isFinite(since)) return { kind: "approve_in_personas", hoursLeft: null };
+    const elapsedH = Math.max(0, (now.getTime() - since) / HOUR_MS);
+    if (elapsedH >= APPROVAL_WINDOW_HOURS) return { kind: "approval_lapsed" };
+    return { kind: "approve_in_personas", hoursLeft: Math.ceil(APPROVAL_WINDOW_HOURS - elapsedH) };
+  }
+
+  if (agent.status === "onboarding") {
+    const probation = probationCountdown(agent, now);
+    if (probation?.due) {
+      const dueAt = Date.parse(agent.createdAt) + probation.totalDays * 24 * HOUR_MS;
+      const decided = agent.lastDecision;
+      const answered =
+        !!decided && decided.event.startsWith("probation_review:") && Date.parse(decided.at) >= dueAt;
+      if (!answered) return { kind: "review_probation" };
+    }
+    return { kind: "none" };
+  }
+
+  if (agent.status === "active") {
+    const heard = agent.lastReportAt ? Date.parse(agent.lastReportAt) : NaN;
+    if (!Number.isFinite(heard) || now.getTime() - heard > REPORTER_SILENT_MS) {
+      return { kind: "check_reporter", reason: "silent" };
+    }
+    if (agent.aggregates.lastActivityAt == null) return { kind: "check_reporter", reason: "reports_rejected" };
+    return { kind: "none" };
+  }
+
+  // `dispatched`: the mint is mid-flight; nothing for a human to do yet.
+  return { kind: "none" };
+}
+
+export type NeedsYouEntry = {
+  kind: Exclude<NextActionKind, "none">;
+  count: number;
+  /** For approve_in_personas: the nearest lapse among the clocked approvals. */
+  soonestHoursLeft: number | null;
+};
+
+/** The "needs you" strip: per-kind counts in NEXT_ACTION_PRIORITY order, `none`
+ *  excluded. An empty or all-quiet roster answers [] — the strip renders nothing. */
+export function needsYou(
+  agents: readonly AgentRosterEntry[],
+  bridge: { paired: boolean } | null,
+  now: Date = new Date()
+): NeedsYouEntry[] {
+  const counts = new Map<NextActionKind, { count: number; soonest: number | null }>();
+  for (const agent of agents) {
+    const move = nextAction(agent, bridge, now);
+    if (move.kind === "none") continue;
+    const slot = counts.get(move.kind) ?? { count: 0, soonest: null };
+    slot.count += 1;
+    if (move.kind === "approve_in_personas" && move.hoursLeft != null) {
+      slot.soonest = slot.soonest == null ? move.hoursLeft : Math.min(slot.soonest, move.hoursLeft);
+    }
+    counts.set(move.kind, slot);
+  }
+  return NEXT_ACTION_PRIORITY.filter((kind) => counts.has(kind)).map((kind) => ({
+    kind,
+    count: counts.get(kind)!.count,
+    soonestHoursLeft: counts.get(kind)!.soonest,
+  }));
 }
