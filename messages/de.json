@@ -1983,7 +1983,10 @@
     "STATUS_RESEND_FAILED": "Der Link konnte nicht erneut gesendet werden. Bitte versuchen Sie es erneut.",
     "STATUS_NOTHING_TO_RESEND": "Derzeit wartet nichts auf Sie, daher gibt es nichts erneut zu senden.",
     "STATUS_RESEND_UNDELIVERED": "Die E-Mail konnte gerade nicht gesendet werden. Bitte versuchen Sie es später erneut.",
-    "DISPOSITION_ACK_REQUIRED": "Bestätigen Sie alle offenen Hinweise zu dieser Analyse, bevor Sie den Kandidaten weiterleiten."
+    "DISPOSITION_ACK_REQUIRED": "Bestätigen Sie alle offenen Hinweise zu dieser Analyse, bevor Sie den Kandidaten weiterleiten.",
+    "ENGINE_TIMEOUT": "Die Analyse-Engine hat für diesen Lauf zu lange gebraucht und wurde abgebrochen. Bitte versuchen Sie es erneut.",
+    "ENGINE_FAILED": "Die Analyse-Engine wurde beendet, bevor dieser Lauf abgeschlossen war. Bitte versuchen Sie es erneut und wenden Sie sich an Ihre Administration, wenn es wiederholt auftritt.",
+    "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",

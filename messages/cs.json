@@ -1983,7 +1983,10 @@
     "STATUS_RESEND_FAILED": "Odkaz se nepodařilo znovu odeslat. Zkuste to prosím znovu.",
     "STATUS_NOTHING_TO_RESEND": "Momentálně na vás nic nečeká, není tedy co znovu posílat.",
     "STATUS_RESEND_UNDELIVERED": "E-mail se teď nepodařilo odeslat. Zkuste to prosím později.",
-    "DISPOSITION_ACK_REQUIRED": "Před postoupením kandidáta potvrďte všechna otevřená upozornění k této analýze."
+    "DISPOSITION_ACK_REQUIRED": "Před postoupením kandidáta potvrďte všechna otevřená upozornění k této analýze.",
+    "ENGINE_TIMEOUT": "Analytický engine na tomto běhu pracoval příliš dlouho a byl zastaven. Zkuste to prosím znovu.",
+    "ENGINE_FAILED": "Analytický engine se zastavil dříve, než tento běh dokončil. Zkuste to prosím znovu, a pokud se to opakuje, obraťte se na správce.",
+    "TASK_TIME_LIMIT": "Tento běh překročil svůj časový limit a byl zastaven. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",

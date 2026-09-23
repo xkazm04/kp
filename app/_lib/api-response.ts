@@ -1949,6 +1949,18 @@ export const REFUSAL_ERRORS = {
    *  every open trust warning on the stored analysis (409, with `pending`: the lines
    *  still unacknowledged). A note-only edit of a stored advance is never refused. */
   DISPOSITION_ACK_REQUIRED: "Acknowledge every open flag on this analysis before advancing the candidate.",
+  // ---- Runtime failures stored on a task row (app/_lib/tasks.ts storedFailure). The
+  // row is read later, in the reader's language, so the runner's own failures are kept
+  // as codes (python-runner.ts spawnFailureCode) rather than English engine text.
+  /** The engine's deadline killed the run's Python process (SpawnFailure kind timeout). */
+  ENGINE_TIMEOUT: "The analysis engine took too long on this run and was stopped. Try again.",
+  /** The run's Python process could not start, overflowed its output ceiling, or was
+   *  stopped before it finished (SpawnFailure spawn_failed / output_overflow / aborted).
+   *  The argv and the raw cause are in the server log, never here. */
+  ENGINE_FAILED: "The analysis engine stopped before this run finished. Try again, and tell your administrator if it keeps happening.",
+  /** The task runner stopped a run at its wall-clock budget (TASK_MAX_RUNTIME_MS), or
+   *  reaped one left running with no live handler. */
+  TASK_TIME_LIMIT: "This run went past its time limit and was stopped. Try again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

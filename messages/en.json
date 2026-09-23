@@ -1983,7 +1983,10 @@
     "STATUS_RESEND_FAILED": "Could not send the link again. Please try again.",
     "STATUS_NOTHING_TO_RESEND": "Nothing is waiting on you right now, so there is nothing to send again.",
     "STATUS_RESEND_UNDELIVERED": "We could not send the email just now. Please try again later.",
-    "DISPOSITION_ACK_REQUIRED": "Acknowledge every open flag on this analysis before advancing the candidate."
+    "DISPOSITION_ACK_REQUIRED": "Acknowledge every open flag on this analysis before advancing the candidate.",
+    "ENGINE_TIMEOUT": "The analysis engine took too long on this run and was stopped. Try again.",
+    "ENGINE_FAILED": "The analysis engine stopped before this run finished. Try again, and tell your administrator if it keeps happening.",
+    "TASK_TIME_LIMIT": "This run went past its time limit and was stopped. Try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",

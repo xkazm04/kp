@@ -1983,7 +1983,10 @@
     "STATUS_RESEND_FAILED": "Impossible de renvoyer le lien. Veuillez réessayer.",
     "STATUS_NOTHING_TO_RESEND": "Rien ne vous attend pour le moment, il n’y a donc rien à renvoyer.",
     "STATUS_RESEND_UNDELIVERED": "Impossible d’envoyer l’e-mail pour le moment. Veuillez réessayer plus tard.",
-    "DISPOSITION_ACK_REQUIRED": "Validez chaque alerte ouverte de cette analyse avant de faire avancer le candidat."
+    "DISPOSITION_ACK_REQUIRED": "Validez chaque alerte ouverte de cette analyse avant de faire avancer le candidat.",
+    "ENGINE_TIMEOUT": "Le moteur d’analyse a mis trop de temps pour cette exécution et a été arrêté. Veuillez réessayer.",
+    "ENGINE_FAILED": "Le moteur d’analyse s’est arrêté avant la fin de cette exécution. Veuillez réessayer et prévenir votre administrateur si le problème persiste.",
+    "TASK_TIME_LIMIT": "Cette exécution a dépassé sa limite de temps et a été arrêtée. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
