@@ -1961,7 +1961,8 @@
     "OUTREACH_CANDIDATE_REQUIRED": "Name the candidate to reach out to.",
     "AUTOMATION_SELECTION_INVALID": "That selection of changes could not be read. Preview the pass again and re-apply.",
     "PROFILE_EXISTS": "This CV already has a saved profile. Open that profile to edit it instead of creating a second one.",
-    "GLYPH_UNKNOWN": "That illustration does not exist."
+    "GLYPH_UNKNOWN": "That illustration does not exist.",
+    "DEVCASE_CASE_NOT_FOUND": "That assignment is not in this workspace."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9864,7 +9865,7 @@
       "filterTitle": "Search assignment or role",
       "allStages": "All stages",
       "allSeniorities": "All seniority levels",
-      "noMatches": "No loaded assignments match these filters.",
+      "noMatches": "No assignments match these filters.",
       "colAssignment": "Assignment",
       "colRole": "Role",
       "colSeniority": "Seniority",

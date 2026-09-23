@@ -1961,7 +1961,8 @@
     "OUTREACH_CANDIDATE_REQUIRED": "Nennen Sie den Kandidaten, den Sie kontaktieren möchten.",
     "AUTOMATION_SELECTION_INVALID": "Diese Auswahl an Änderungen konnte nicht gelesen werden. Rufen Sie die Vorschau erneut auf und wenden Sie die Änderungen noch einmal an.",
     "PROFILE_EXISTS": "Für diesen Lebenslauf gibt es bereits ein gespeichertes Profil. Öffnen Sie dieses Profil zum Bearbeiten, statt ein zweites anzulegen.",
-    "GLYPH_UNKNOWN": "Diese Illustration existiert nicht."
+    "GLYPH_UNKNOWN": "Diese Illustration existiert nicht.",
+    "DEVCASE_CASE_NOT_FOUND": "Diese Aufgabe ist in diesem Arbeitsbereich nicht vorhanden."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9864,7 +9865,7 @@
       "filterTitle": "Aufgabe oder Stelle suchen",
       "allStages": "Alle Phasen",
       "allSeniorities": "Alle Erfahrungsstufen",
-      "noMatches": "Keine geladenen Aufgaben entsprechen diesen Filtern.",
+      "noMatches": "Keine Aufgaben entsprechen diesen Filtern.",
       "colAssignment": "Aufgabe",
       "colRole": "Position",
       "colSeniority": "Seniorität",

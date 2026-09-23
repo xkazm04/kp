@@ -1961,7 +1961,8 @@
     "OUTREACH_CANDIDATE_REQUIRED": "Indiquez le candidat à contacter.",
     "AUTOMATION_SELECTION_INVALID": "Cette sélection de changements est illisible. Relancez l’aperçu du passage et appliquez à nouveau.",
     "PROFILE_EXISTS": "Un profil enregistré existe déjà pour ce CV. Ouvrez ce profil pour le modifier au lieu d’en créer un second.",
-    "GLYPH_UNKNOWN": "Cette illustration n’existe pas."
+    "GLYPH_UNKNOWN": "Cette illustration n’existe pas.",
+    "DEVCASE_CASE_NOT_FOUND": "Cette mission ne se trouve pas dans cet espace de travail."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9864,7 +9865,7 @@
       "filterTitle": "Rechercher une mission ou un poste",
       "allStages": "Toutes les étapes",
       "allSeniorities": "Tous les niveaux d’expérience",
-      "noMatches": "Aucune mission chargée ne correspond à ces filtres.",
+      "noMatches": "Aucune mission ne correspond à ces filtres.",
       "colAssignment": "Épreuve",
       "colRole": "Poste",
       "colSeniority": "Séniorité",

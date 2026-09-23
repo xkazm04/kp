@@ -1893,6 +1893,9 @@ export const REFUSAL_ERRORS = {
    *  analyses.cv_hash = profiles.source_cv_hash); `id` names the existing profile so
    *  the client opens it instead. A decision, not a fault: nothing was written. */
   PROFILE_EXISTS: "This CV already has a saved profile. Open that profile to edit it instead of creating a second one.",
+  /** GET /api/devcase/[id] for a case that is not in the caller's workspace, or does not
+   *  exist at all (404, the same answer for both: no existence oracle). */
+  DEVCASE_CASE_NOT_FOUND: "That assignment is not in this workspace.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

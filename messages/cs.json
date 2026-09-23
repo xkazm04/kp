@@ -1961,7 +1961,8 @@
     "OUTREACH_CANDIDATE_REQUIRED": "Uveďte kandidáta, kterého chcete oslovit.",
     "AUTOMATION_SELECTION_INVALID": "Tento výběr změn nelze přečíst. Zobrazte náhled průchodu znovu a změny použijte ještě jednou.",
     "PROFILE_EXISTS": "K tomuto životopisu již existuje uložený profil. Otevřete jej a upravte ho, místo abyste vytvářeli druhý.",
-    "GLYPH_UNKNOWN": "Tato ilustrace neexistuje."
+    "GLYPH_UNKNOWN": "Tato ilustrace neexistuje.",
+    "DEVCASE_CASE_NOT_FOUND": "Toto zadání v tomto pracovním prostoru není."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -9864,7 +9865,7 @@
       "filterTitle": "Hledat zadání nebo pozici",
       "allStages": "Všechny fáze",
       "allSeniorities": "Všechny úrovně seniority",
-      "noMatches": "Žádné načtené zadání těmto filtrům neodpovídá.",
+      "noMatches": "Těmto filtrům neodpovídá žádné zadání.",
       "colAssignment": "Zadání",
       "colRole": "Pozice",
       "colSeniority": "Seniorita",
