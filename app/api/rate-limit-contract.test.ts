@@ -1183,8 +1183,10 @@ const ROUTES: RouteSpec[] = [
     expensive: 'runAutomationTask(entry.id, "outreach"',
     // The GDPR suppression 409 (and the 404/400 above it) run first, so a reach-out that
     // was never going to send costs no budget — and the limiter precedes the first WRITE
-    // (createPipelineEntry) as well as the draft.
-    servedBefore: "candidateOutreachSuppression(body.candidateId)",
+    // (createPipelineEntry) as well as the draft. Anchored on the refusal itself, not on
+    // the predicate's name: the gate is the one rediscovery eligibility predicate
+    // (withheldCandidateIds, pinned by rediscovery-eligibility.test.ts).
+    servedBefore: 'jsonRefusal("COMMS_SUPPRESSED", 409',
   },
   {
     // ADDED /perfect 2026-09-03 (jobs-workspace-2), with the limiter itself. The
