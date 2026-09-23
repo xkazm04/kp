@@ -1179,7 +1179,7 @@ with the same `{ kind, params }` shape.
 
 | Path | Role |
 |---|---|
-| `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
+| `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../[id]/channels`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
 | `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
 | `app/_lib/devcase-session-auth.ts` | The one door guard (`openSessionDoor`) of every mutating session sub-route: mints/hashes the per-attempt session key and checks it (or the apply token on a legacy row) |
@@ -1419,9 +1419,12 @@ submitters only, so the close confirm also names the attempts still in flight.
 `dev_sessions` to their posting by apply token, with both sides pinned to the workspace.
 It returns counts only: `live` (active, activity in the last 30 minutes; `updated_at`
 moves only when a flush lands events or a dirty tree), `idle` (active and quieter), and
-`oldestLiveStartedAt`. `GET /api/devcase/postings` carries it as `inFlight` on every
-posting, as zeros when there are none, and never with a session id or ref.
-`DevLifecycleSection` folds it per case beside submissions (`devcaseInFlight.ts`). The
+`oldestLiveStartedAt`. The postings view (`app/_lib/devcase-postings-view.ts`, behind both
+`GET /api/devcase/postings` and `GET /api/devcase/[id]/channels`) carries it as `inFlight`
+on every posting, as zeros when there are none, and never with a session id or ref.
+`GET /api/devcase/lifecycle` folds it per case onto each row beside the submission count
+(`caseIntakeCounts`, see "The detail reads its own case" below), and
+`DevLifecycleSection` reads both off the row. The
 close modal adds `devcase.lifecycle.closeInFlight` ("N candidates are working on this
 assignment right now (the longest for M min)…") only when `live > 0`, because idle
 attempts are abandoned tabs.
@@ -1640,6 +1643,41 @@ longer takes the lifecycle or posting lists. An in-store index
 `app/_lib/db/devcase-ledger.test.ts`, `app/api/devcase/route.test.ts`,
 `app/api/devcase/[id]/route.test.ts`, `casesPage.test.ts` and
 `DevCasesTable.filter.test.ts`.
+
+**The detail reads its own case; the studio loads no posting fold** (challenge-r09
+devcase-lifecycle/A). r03 moved the case record to a by-id read but left the other half
+of the reader on `GET /api/devcase/postings`: every posting of the workspace with every
+submission inlined, outcome-joined and promote-previewed, loaded on mount and again
+after every `evaluate_submission` and lifecycle step, only for `CaseDetail` to filter it
+to one case and `DevLifecycleSection` to fold it to two counts per case. Now:
+
+- `app/_lib/devcase-postings-view.ts` `postingsView(postings, ws)` is the one enrichment
+  (submissions inlined, latest outcome, `promotePreview` on evaluated rows, `inFlight`
+  on every posting). `GET /api/devcase/postings` delegates to it with its shape
+  unchanged; it stays for the e2e journeys that read submissions inlined
+  (`journey-one-thread`, `token-doors-axe`), and the studio no longer calls it.
+- `app/_lib/db/devcase-case-postings.ts` (a store slice, like the ledger):
+  `listCasePostings(caseId, ws)` answers one case's postings with `status`, scoped in
+  SQL to the case and the workspace; `caseIntakeCounts(caseIds, ws)` answers
+  submissions per case (one `GROUP BY`) and the in-flight aggregate folded per case.
+  Read-only; every dev table alias in it is tenant-filtered (pinned by its test).
+- `GET /api/devcase/[id]/channels` (`requireOperator`, the same owner check as
+  `GET /api/devcase/[id]`: a foreign or unknown id answers the byte-identical
+  `DEVCASE_CASE_NOT_FOUND` 404) returns `{ postings }` through the same view.
+- `GET /api/devcase/lifecycle` rows carry `submissionCount` and `inFlight` (zeros for a
+  row with no case yet).
+- Client: `CaseDetailById` (`DevTabCasesView.tsx`) fetches the record and the channels
+  in parallel under one version key; a failed channels read is named
+  (`errors.DEVCASE_POSTINGS_FAILED`), never shown as "not published". `useDevTabData`
+  keeps only a `detailVersion` counter, which `DevTab` bumps when an evaluation or a
+  lifecycle step finishes and after a publish, so a completion re-reads the ONE open
+  case. The client `Posting` type now carries `status` (`open` | `closed`).
+
+Pinned by `app/_lib/db/devcase-case-postings.test.ts`,
+`app/_lib/devcase-postings-view.test.ts`, `app/api/devcase/[id]/channels/route.test.ts`,
+`app/api/devcase/lifecycle/route.test.ts`, the unchanged
+`app/api/devcase/postings/route.test.ts`, and the source guard
+`app/features/tools/devcases/devcase-case-reads.test.ts`.
 
 **Assignments is an address** (challenge-r03 devcase-workspace/B). Three params land
 on the tab: `?lifecycle=<id>` (the Control Room's Art. 22 gate **Review** link,
