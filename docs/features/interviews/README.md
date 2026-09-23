@@ -2576,11 +2576,22 @@ anyone else's, and no save destroys another.
   is refused with `INTERVIEW_PREP_SCORECARDS_FULL` (409) rather than made room for;
   re-saving your own record is never refused.
 - **Headline mirror.** The same UPDATE rewrites `humanScorecard` as the latest save.
-  Every reader that knew only that key keeps answering: `getHumanScorecard` (the
-  compare grid), `candidate-timeline.ts` (the drawer's human scorecard card),
+  The readers that need only one card keep answering from it:
   `listPreparedEntries.hasHumanScorecard` (the Schedule card) and the
   `scorecard_review` approval payload (the Decisions queue). A rollback of this code
   leaves them reading the most recent card.
+- **The drawer and the compare grid show every record.** Both read the list through
+  `readHumanScorecards` and project it with `humanScorecardViews`: newest first, a
+  legacy record last and marked `legacy`, an empty artifact dropped, and the
+  signed-in user id (`author`) removed — `authorLabel` and `stage` are what ride the
+  wire. The drawer (`candidate-timeline.ts`, bundle field `humanScorecards`) renders
+  one `PipelineHumanScorecardCard` per record and withholds ALL of them when consent
+  withholds PII. `GET /api/interview/compare` carries `humanScorecards` per candidate
+  (workspace-scoped through `getHumanScorecards`); the grid shows one human verdict
+  chip per record and one evidence section per record, each with its byline
+  (`HumanScorecardByline`, the transcript modal's own wording). The CSV keeps one
+  human column per candidate: one rating stays a number, several join in record
+  order (`2 / 5`) — never averaged, never reduced to the latest save.
 - **Legacy rows.** A payload with only the old key reads as ONE unattributed record
   (`author`, `stage` and `savedAt` null). It is nobody's own: no save claims or
   replaces it, so it survives beside the new records. When both keys exist only the
@@ -3284,11 +3295,6 @@ output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voi
 
 ## Known gaps
 
-- **The drawer and the compare grid show one human scorecard.** They read the
-  `humanScorecard` headline mirror (the latest save), so a panel of interviewers or
-  a multi-round loop shows there as its most recent record; only the transcript
-  modal lists every record. Listing the panel means reading `humanScorecards`
-  through `readHumanScorecards` in `candidate-timeline.ts` and `compare/route.ts`.
 - **The free→paid boundary is now closed on all three seams that once crossed it.**
   This section used to list three open gaps here; all three ship fixed, and the
   code that fixed them is where the reasoning lives:
