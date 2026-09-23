@@ -184,8 +184,22 @@ those two rot on. The rules themselves are fixture-covered by `npm run test:flak
 ([`scripts/test/__tests__/flake-policy.test.mjs`](../../scripts/test/__tests__/flake-policy.test.mjs)),
 whose last case runs the policy over the committed register and the real tree.
 
-**What this does not cover.** The Python suite (`test:python:gate`) has its own
-pawl — the `KP_SKIP_BASELINE` skip count — and no flake classification; the
+**The Python suite's register.** `test:python:gate` holds skips, not flakes, and
+it keys them the same way: by identity.
+[`pipeline/jobfit/tests/skip-register.json`](../../pipeline/jobfit/tests/skip-register.json)
+names every tolerated skip by unittest id, with its `why`, its `when` (`always` or
+`env-conditional`) and the condition that makes it skip. `run_gated.py` refuses a
+skip the register does not name, by name, even when the count is unchanged; an
+`always` entry that ran is stale, and the message names the edit (delete it and
+lower `KP_SKIP_BASELINE` in `ci.yml` by one); an `env-conditional` entry that ran
+is a note. Checked before the suite starts: a dead id, a `why` under 20
+characters, a duplicate id, a length that differs from `KP_SKIP_BASELINE`, and an
+env-conditional count that differs from `ENV_CONDITIONAL_SKIPS`. The old count
+band (ceiling `KP_SKIP_BASELINE`, floor one slot below) stays as a second lock, so
+growing the register still takes the baseline raise that `review:constitution`
+blocks. Cases: `pipeline/jobfit/tests/test_run_gated.py`.
+
+**What this does not cover.** The Python suite has no flake classification; the
 Playwright job is a single deterministic keyless subset against a production
 build, where a re-run is a whole build. Both are honest gaps rather than
 oversights: this covers the suite that is large enough for a flake to hide in.
