@@ -9866,6 +9866,22 @@
         "bigBang": "Big-bang iteration pattern, with no visible build-up.",
         "unreadableIteration": "The iteration pattern could not be read from the trace.",
         "lowReadBeforeWrite": "Little evidence of reading the existing code before writing."
+      },
+      "promoteVerdict": {
+        "previewTitle": "The verdict a promotion lands with now, at the calibrated floor",
+        "advance": "Will advance",
+        "hold": "Will be held for review",
+        "holdNote": "A hold parks the candidate on a Decisions card until a person reviews it. Promoting does not skip that review.",
+        "landedAdvance": "In pipeline, advancing",
+        "landedHold": "In pipeline, held for review",
+        "failed": "Could not promote this submission.",
+        "reasons": {
+          "authenticity_suspect": "{known, select, yes {Process authenticity is suspect ({score}/100)} other {Process authenticity is suspect}}",
+          "low_confidence": "The evaluation rests on thin evidence (confidence {confidence})",
+          "not_scored": "No transfer score yet, so it cannot clear the floor",
+          "score_below_floor": "Transfer score {score} is below the floor of {floor}",
+          "score_clears_floor": "Transfer score {score} clears the floor of {floor}"
+        }
       }
     },
     "jobLink": {

@@ -9866,6 +9866,22 @@
         "bigBang": "Vzorec „všechno najednou“, bez viditelného postupného budování.",
         "unreadableIteration": "Způsob iterace nešlo ze stopy vyčíst.",
         "lowReadBeforeWrite": "Málo dokladů o čtení stávajícího kódu před psaním."
+      },
+      "promoteVerdict": {
+        "previewTitle": "Verdikt, se kterým by postup do pipeline nyní proběhl, podle kalibrované laťky",
+        "advance": "Postoupí dál",
+        "hold": "Bude pozdrženo k posouzení",
+        "holdNote": "Pozdržení znamená kartu v Rozhodnutích, kterou musí posoudit člověk. Postup do pipeline toto posouzení nepřeskočí.",
+        "landedAdvance": "V pipeline, postupuje dál",
+        "landedHold": "V pipeline, pozdrženo k posouzení",
+        "failed": "Řešení se nepodařilo posunout do pipeline.",
+        "reasons": {
+          "authenticity_suspect": "{known, select, yes {Autenticita postupu práce je podezřelá ({score}/100)} other {Autenticita postupu práce je podezřelá}}",
+          "low_confidence": "Hodnocení stojí na slabých podkladech (spolehlivost {confidence})",
+          "not_scored": "Zatím chybí skóre přenosu, laťku proto nelze splnit",
+          "score_below_floor": "Skóre přenosu {score} je pod laťkou {floor}",
+          "score_clears_floor": "Skóre přenosu {score} splňuje laťku {floor}"
+        }
       }
     },
     "jobLink": {

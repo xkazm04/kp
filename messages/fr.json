@@ -9866,6 +9866,22 @@
         "bigBang": "Schéma « big bang », sans construction visible.",
         "unreadableIteration": "Le schéma d’itération n’a pas pu être lu dans la trace.",
         "lowReadBeforeWrite": "Peu d’indices d’une lecture du code existant avant d’écrire."
+      },
+      "promoteVerdict": {
+        "previewTitle": "Le verdict avec lequel une promotion aboutirait maintenant, au seuil calibré",
+        "advance": "Passera à l'étape suivante",
+        "hold": "Sera mis en attente d'examen",
+        "holdNote": "Une mise en attente crée une carte dans Décisions qu'une personne doit examiner. La promotion ne contourne pas cet examen.",
+        "landedAdvance": "Dans le pipeline, en progression",
+        "landedHold": "Dans le pipeline, en attente d'examen",
+        "failed": "Impossible de promouvoir cette soumission.",
+        "reasons": {
+          "authenticity_suspect": "{known, select, yes {L'authenticité du processus est suspecte ({score}/100)} other {L'authenticité du processus est suspecte}}",
+          "low_confidence": "L'évaluation repose sur des éléments minces (confiance {confidence})",
+          "not_scored": "Pas encore de score de transfert, le seuil ne peut donc pas être atteint",
+          "score_below_floor": "Score de transfert {score} sous le seuil de {floor}",
+          "score_clears_floor": "Score de transfert {score} atteint le seuil de {floor}"
+        }
       }
     },
     "jobLink": {

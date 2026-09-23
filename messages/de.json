@@ -9866,6 +9866,22 @@
         "bigBang": "Big-Bang-Muster, ohne sichtbaren Aufbau.",
         "unreadableIteration": "Das Iterationsmuster war aus der Spur nicht lesbar.",
         "lowReadBeforeWrite": "Wenig Hinweise darauf, dass der bestehende Code vor dem Schreiben gelesen wurde."
+      },
+      "promoteVerdict": {
+        "previewTitle": "Das Urteil, mit dem eine Weiterleitung jetzt landet, an der kalibrierten Schwelle",
+        "advance": "Rückt vor",
+        "hold": "Wird zur Prüfung angehalten",
+        "holdNote": "Angehalten heißt: eine Karte in Entscheidungen, die ein Mensch prüfen muss. Die Weiterleitung überspringt diese Prüfung nicht.",
+        "landedAdvance": "In der Pipeline, rückt vor",
+        "landedHold": "In der Pipeline, zur Prüfung angehalten",
+        "failed": "Diese Einreichung konnte nicht weitergeleitet werden.",
+        "reasons": {
+          "authenticity_suspect": "{known, select, yes {Die Prozess-Authentizität ist verdächtig ({score}/100)} other {Die Prozess-Authentizität ist verdächtig}}",
+          "low_confidence": "Die Bewertung beruht auf dünner Evidenz (Konfidenz {confidence})",
+          "not_scored": "Noch kein Transfer-Score, daher kann die Schwelle nicht erreicht werden",
+          "score_below_floor": "Transfer-Score {score} liegt unter der Schwelle von {floor}",
+          "score_clears_floor": "Transfer-Score {score} erreicht die Schwelle von {floor}"
+        }
       }
     },
     "jobLink": {
