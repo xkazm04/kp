@@ -305,28 +305,61 @@ class CertifiedDrillSizeTest(unittest.TestCase):
     """The drill's record carries its row count. A seam or task that silently
     leaves the matrix keeps the pass rate at 1.0, so only ``n`` can notice."""
 
-    def _run(self, argv, *, total):
-        agg = {"pass_rate": 1.0, "total": total, "passed": total, "by_mode": {}}
+    @staticmethod
+    def _recorded_rows() -> list[Row]:
+        # Rows rebuilt from the committed unit ids, so the full drill is
+        # certified here without running its 240 rows.
+        from pipeline.jobfit.eval import thresholds
+
+        rows = []
+        for uid in thresholds.load_units()["FAULT_THRESHOLD"]:
+            mode, task, scenario = uid.split("/", 2)
+            rows.append(_row(mode, task, scenario=scenario))
+        return rows
+
+    def _run(self, argv, *, rows):
         err = io.StringIO()
-        with mock.patch.object(fault_eval, "run_drill", lambda modes=None: []), \
-                mock.patch.object(fault_eval, "_aggregate", lambda rows: agg), \
+        with mock.patch.object(fault_eval, "run_drill", lambda modes=None: rows), \
                 mock.patch.object(fault_eval, "_format_md", lambda *a, **k: ""), \
                 redirect_stdout(io.StringIO()), mock.patch("sys.stderr", err):
             return fault_eval.main(argv), err.getvalue()
 
     def test_a_full_strict_drill_with_one_row_fewer_fails_on_the_stale_count(self):
-        from pipeline.jobfit.eval import thresholds
-
-        n = thresholds.all_bars()["FAULT_THRESHOLD"].n
-        self.assertEqual(self._run(["--strict"], total=n)[0], 0)
-        code, err = self._run(["--strict"], total=n - 1)
+        rows = self._recorded_rows()
+        self.assertEqual(self._run(["--strict"], rows=rows)[0], 0)
+        dropped = rows[-1]
+        code, err = self._run(["--strict"], rows=rows[:-1])
         self.assertEqual(code, 1)
         self.assertIn("corpus size moved", err)
+        self.assertIn(f"left: {dropped.mode}/{dropped.task}/{dropped.scenario}", err)
         self.assertIn("fault_eval --record", err)
 
+    def test_a_swapped_drill_row_keeps_n_and_still_fails_naming_both_rows(self):
+        # The count-only record certified this: a row left, another joined, n held.
+        rows = self._recorded_rows()
+        gone = rows[0]
+        swapped = [_row(gone.mode, gone.task, scenario="a_new_scenario")] + rows[1:]
+        code, err = self._run(["--strict"], rows=swapped)
+        self.assertEqual(code, 1)
+        self.assertIn(f"left: {gone.mode}/{gone.task}/{gone.scenario}", err)
+        self.assertIn(f"joined: {gone.mode}/{gone.task}/a_new_scenario", err)
+
+    def test_live_units_are_one_per_drill_row_and_match_their_n(self):
+        rows = [_row("hang"), _row("hang", "outreach"), _row("garbage", ok=False)]
+        self.assertEqual(
+            fault_eval.live_units(rows),
+            {"FAULT_THRESHOLD": {"hang/screen/bau_weak": 1.0, "hang/outreach/bau_weak": 1.0,
+                                 "garbage/screen/bau_weak": 0.0}},
+        )
+        self.assertEqual(fault_eval.live_measurements(_aggregate(rows))["FAULT_THRESHOLD"][1], 3)
+        with self.assertRaises(ValueError) as ctx:
+            fault_eval.live_units([_row("hang"), _row("hang")])
+        self.assertIn("hang/screen/bau_weak", str(ctx.exception))
+
     def test_a_mode_subset_is_not_certified_and_cannot_be_recorded(self):
-        self.assertEqual(self._run(["--strict", "--mode", "hang"], total=3)[0], 0)
-        self.assertEqual(self._run(["--record", "--mode", "hang"], total=3)[0], 2)
+        rows = [r for r in self._recorded_rows() if r.mode == "hang"]
+        self.assertEqual(self._run(["--strict", "--mode", "hang"], rows=rows)[0], 0)
+        self.assertEqual(self._run(["--record", "--mode", "hang"], rows=rows)[0], 2)
 
 
 if __name__ == "__main__":

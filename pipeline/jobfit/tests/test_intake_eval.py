@@ -202,7 +202,49 @@ class IntakeBarTest(unittest.TestCase):
         self.assertTrue(ok)
         live = intake_eval.live_measurements(tally)
         self.assertEqual(live[self._NAME], (1.0, tally["checks"]))
-        self.assertEqual(thresholds.certify_live(live), [])
+        self.assertEqual(thresholds.certify_live(live, intake_eval.live_units(tally)), [])
+
+    def test_live_units_are_one_per_persona_check_and_match_their_n(self):
+        from pipeline.jobfit.eval import intake_eval
+
+        scenarios = load_scenarios()
+        tally: dict = {}
+        run_eval(scenarios, no_llm=True, cap=30, color=False, tally=tally)
+        units = intake_eval.live_units(tally)[self._NAME]
+        self.assertEqual(len(units), intake_eval.live_measurements(tally)[self._NAME][1])
+        personas = {s["name"] for s in scenarios}
+        for uid in units:
+            persona, _, check = uid.partition("/")
+            self.assertIn(persona, personas, uid)
+            self.assertTrue(check, uid)
+
+    def test_a_lost_check_offset_by_a_gained_one_keeps_n_and_still_fails_naming_both(self):
+        # The count-only record certified this: one persona's check gone (the
+        # docstring's "silently lost a key"), another persona gaining one, the
+        # check total unchanged at n and every remaining check still holding.
+        from pipeline.jobfit.eval import intake_eval
+
+        scenarios = load_scenarios()
+        first, second = scenarios[0]["name"], scenarios[1]["name"]
+        real = intake_eval.check_dialog
+
+        def reshaped(scenario, *a, **k):
+            checks = real(scenario, *a, **k)
+            if scenario["name"] == first:
+                checks.pop("turn_budget")
+            elif scenario["name"] == second:
+                checks["turn_budget_renamed"] = True
+            return checks
+
+        with unittest.mock.patch.object(intake_eval, "check_dialog", reshaped):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+                code = intake_eval.main(["--no-llm", "--strict"])
+        self.assertEqual(code, 1)
+        text = err.getvalue()
+        self.assertNotIn("corpus size moved", text)
+        self.assertNotIn("the measurement moved", text)
+        self.assertIn(f"left: {first}/turn_budget", text)
+        self.assertIn(f"joined: {second}/turn_budget_renamed", text)
 
     def test_a_dropped_assertion_is_a_stale_record_under_strict(self):
         # The failure the module docstring warns about: a scenario losing a key

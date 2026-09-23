@@ -193,14 +193,25 @@ class CertifiedRecordTest(unittest.TestCase):
         agg = _aggregate(run_tasks(None))
         live = automation_eval.live_measurements(agg)
         self.assertEqual(live[self._NAME], (1.0, len(TASKS) * len(SCENARIOS)))
-        self.assertEqual(thresholds.certify_live(live), [])
+        self.assertEqual(thresholds.certify_live(live, automation_eval.live_units(run_tasks(None))), [])
+
+    def test_live_units_are_one_per_task_run_and_match_their_n(self):
+        rows = run_tasks(None)
+        units = automation_eval.live_units(rows)
+        self.assertEqual(list(units), [self._NAME])
+        ids = sorted(units[self._NAME])
+        self.assertEqual(ids, sorted(f"{t}/{s.name}" for t in TASKS for s in SCENARIOS))
+        self.assertEqual(len(ids), automation_eval.live_measurements(_aggregate(rows))[self._NAME][1])
 
     def test_the_same_rate_over_a_moved_corpus_is_a_finding(self):
         bar = thresholds.all_bars()[self._NAME]
-        findings = thresholds.certify_live({self._NAME: (1.0, bar.n + 1)})
+        units = dict(thresholds.load_units()[self._NAME])
+        units["screen/a_new_scenario"] = 1.0
+        findings = thresholds.certify_live({self._NAME: (1.0, bar.n + 1)}, {self._NAME: units})
         self.assertEqual(len(findings), 1)
         self.assertIn("corpus size moved", findings[0])
         self.assertIn(f"n={bar.n + 1}", findings[0])
+        self.assertIn("joined: screen/a_new_scenario", findings[0])
         self.assertIn("--no-llm --record", findings[0])
 
     def test_a_strict_no_llm_run_fails_on_a_stale_count(self):
@@ -209,6 +220,21 @@ class CertifiedRecordTest(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
                 self.assertEqual(automation_eval.main(["--no-llm", "--strict"]), 1)
         self.assertIn("corpus size moved", err.getvalue())
+        self.assertIn("left: ", err.getvalue())
+
+    def test_a_task_run_that_turns_unreliable_is_named_by_id(self):
+        real = automation_eval.run_tasks
+
+        def one_broken(p):
+            rows = real(p)
+            rows[0].issues.append("forced")
+            return rows
+
+        with mock.patch.object(automation_eval, "run_tasks", one_broken):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(automation_eval.main(["--no-llm", "--strict"]), 1)
+        first = real(None)[0]
+        self.assertIn(f"{first.task}/{first.scenario} 1.0 -> 0.0", err.getvalue())
 
     def test_record_needs_the_deterministic_run(self):
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):

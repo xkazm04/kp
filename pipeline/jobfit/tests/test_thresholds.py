@@ -238,11 +238,13 @@ class CertifiedMeasurementTest(unittest.TestCase):
     def test_the_live_figure_equal_to_the_record_is_certified(self):
         bar = thresholds.all_bars()[_RELEVANCE]
         self.assertEqual(bar.measured, 0.857)
-        self.assertEqual(thresholds.certify_live({_RELEVANCE: (0.857, bar.n)}), [])
+        recorded = {_RELEVANCE: thresholds.load_units()[_RELEVANCE]}
+        self.assertEqual(thresholds.certify_live({_RELEVANCE: (0.857, bar.n)}, recorded), [])
 
     def test_a_moved_live_figure_is_one_finding_naming_both_figures_and_the_record_command(self):
         bar = thresholds.all_bars()[_RELEVANCE]
-        findings = thresholds.certify_live({_RELEVANCE: (0.95, bar.n)})
+        recorded = {_RELEVANCE: thresholds.load_units()[_RELEVANCE]}
+        findings = thresholds.certify_live({_RELEVANCE: (0.95, bar.n)}, recorded)
         self.assertEqual(len(findings), 1)
         text = findings[0]
         self.assertIn(_RELEVANCE, text)
@@ -275,7 +277,7 @@ class CertifiedMeasurementTest(unittest.TestCase):
     def test_a_non_deterministic_bar_is_never_live_certified(self):
         bar = thresholds.all_bars()["PASS_THRESHOLDS.role_family"]
         self.assertFalse(bar.deterministic)
-        self.assertEqual(thresholds.certify_live({"PASS_THRESHOLDS.role_family": (0.70, 3)}), [])
+        self.assertEqual(thresholds.certify_live({"PASS_THRESHOLDS.role_family": (0.70, 3)}, {}), [])
 
     def test_a_deterministic_bar_without_a_record_is_refused(self):
         records = thresholds.load_measurements()
@@ -310,6 +312,7 @@ class RecordFlagTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         self.path = Path(tmp) / "measurements.json"
         shutil.copyfile(thresholds.MEASUREMENTS_PATH, self.path)
+        shutil.copyfile(thresholds.UNITS_PATH, self.path.with_name(thresholds.UNITS_PATH.name))
         self.before = self.path.read_text(encoding="utf-8")
 
     def _run_matching(self, argv, env):
@@ -354,12 +357,168 @@ class RecordFlagTest(unittest.TestCase):
                 self.assertEqual(code, 2)
                 self.assertIn("CI", err)
                 self.assertEqual(self.path.read_text(encoding="utf-8"), self.before)
+                self.assertEqual(
+                    self.path.with_name(thresholds.UNITS_PATH.name).read_bytes(), thresholds.UNITS_PATH.read_bytes()
+                )
 
     def test_record_refuses_a_non_deterministic_bar(self):
         with mock.patch.object(thresholds, "MEASUREMENTS_PATH", self.path):
             with self.assertRaises(ValueError):
-                thresholds.record_measurements({"PASS_THRESHOLDS.role_family": (0.9, 50)}, source="x")
+                thresholds.record_measurements({"PASS_THRESHOLDS.role_family": (0.9, 50)}, {}, source="x")
         self.assertEqual(self.path.read_text(encoding="utf-8"), self.before)
+
+
+_RELIABILITY = "RELIABILITY_THRESHOLD"
+
+
+def _bars_with(name: str, **changes) -> dict[str, "thresholds.Bar"]:
+    bars = dict(thresholds.all_bars())
+    bars[name] = replace(bars[name], **changes)
+    return bars
+
+
+class UnitIdentityTest(unittest.TestCase):
+    """A (rate, n) pair cannot tell 'lost one unit, gained another' from
+    'nothing changed', and a mean cannot tell one scenario falling from
+    another rising by the same amount. Each deterministic bar's units are
+    now recorded by identity, and a stale-record finding names the units
+    that left, joined or flipped, so the operator reads ids rather than
+    re-running four evals to find out what moved."""
+
+    def test_a_swapped_unit_with_the_same_rate_and_n_is_one_finding_naming_both(self):
+        bars = _bars_with(_RELIABILITY, measured=1.0, n=3)
+        recorded = {_RELIABILITY: {"a": 1.0, "b": 1.0, "c": 1.0}}
+        live_units = {_RELIABILITY: {"a": 1.0, "b": 1.0, "d": 1.0}}
+        findings = thresholds.certify_live(
+            {_RELIABILITY: (1.0, 3)}, live_units, bars=bars, recorded=recorded
+        )
+        self.assertEqual(len(findings), 1)
+        self.assertIn("left: c", findings[0])
+        self.assertIn("joined: d", findings[0])
+
+    def test_compensating_relevance_moves_with_the_same_mean_name_both_scenarios(self):
+        bars = _bars_with(_RELEVANCE, measured=0.8, n=2)
+        recorded = {_RELEVANCE: {"s1": 1.0, "s2": 0.6}}
+        live_units = {_RELEVANCE: {"s1": 0.8, "s2": 0.8}}
+        findings = thresholds.certify_live({_RELEVANCE: (0.8, 2)}, live_units, bars=bars, recorded=recorded)
+        self.assertEqual(len(findings), 1)
+        self.assertIn("s1 1.0 -> 0.8", findings[0])
+        self.assertIn("s2 0.6 -> 0.8", findings[0])
+
+    def test_identical_units_certify_and_a_long_diff_is_capped_and_ends_with_the_recorder(self):
+        bars = _bars_with(_RELIABILITY, measured=1.0, n=14)
+        same = {f"u{i:02d}": 1.0 for i in range(14)}
+        self.assertEqual(
+            thresholds.certify_live({_RELIABILITY: (1.0, 14)}, {_RELIABILITY: dict(same)},
+                                    bars=bars, recorded={_RELIABILITY: same}),
+            [],
+        )
+        moved = {f"v{i:02d}": 1.0 for i in range(14)}  # 14 left + 14 joined = 28 changes
+        findings = thresholds.certify_live({_RELIABILITY: (1.0, 14)}, {_RELIABILITY: moved},
+                                           bars=bars, recorded={_RELIABILITY: same})
+        self.assertEqual(len(findings), 1)
+        text = findings[0]
+        self.assertIn("+18 more", text)
+        named = re.findall(r"\b[uv]\d\d\b", text)
+        self.assertEqual(len(named), 10)
+        self.assertTrue(text.endswith(f"`{bars[_RELIABILITY].recorder}`"), text)
+
+    def test_the_committed_units_certify_every_deterministic_bar(self):
+        recorded = thresholds.load_units()
+        for name, bar in thresholds.all_bars().items():
+            if bar.deterministic:
+                with self.subTest(bar=name):
+                    self.assertEqual(len(recorded[name]), bar.n)
+
+    def test_a_duplicate_live_unit_id_is_refused_by_name(self):
+        with self.assertRaises(ValueError) as ctx:
+            thresholds.unit_map([("screen/bau_weak", 1.0), ("screen/bau_weak", 0.0)])
+        self.assertIn("screen/bau_weak", str(ctx.exception))
+
+    def test_a_duplicate_id_in_the_units_file_is_refused_by_name(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        path = tmp / "measurements.units.json"
+        path.write_text(
+            '{"schema": 1, "units": {"RELIABILITY_THRESHOLD": {"x": 1.0, "x": 1.0}}}', encoding="utf-8"
+        )
+        with self.assertRaises(ValueError) as ctx:
+            thresholds.load_units(path)
+        self.assertIn("x", str(ctx.exception))
+
+    def test_a_deterministic_bar_with_a_record_but_no_units_is_refused_naming_its_recorder(self):
+        units = thresholds.load_units()
+        del units[_RELIABILITY]
+        with self.assertRaises(ValueError) as ctx:
+            thresholds.bind_units(units)
+        self.assertIn(_RELIABILITY, str(ctx.exception))
+        self.assertIn(thresholds.all_bars()[_RELIABILITY].recorder, str(ctx.exception))
+
+    def test_units_whose_count_disagrees_with_the_record_are_refused(self):
+        units = thresholds.load_units()
+        units[_RELIABILITY] = dict(list(units[_RELIABILITY].items())[:-1])
+        with self.assertRaises(ValueError) as ctx:
+            thresholds.bind_units(units)
+        self.assertIn(_RELIABILITY, str(ctx.exception))
+
+    def test_the_committed_units_file_is_in_its_canonical_form(self):
+        text = thresholds.UNITS_PATH.read_text(encoding="utf-8")
+        self.assertEqual(thresholds.render_units(thresholds.load_units()), text)
+        body = [line for line in text.splitlines() if line.startswith("      ")]
+        self.assertEqual(len(body), sum(len(u) for u in thresholds.load_units().values()))
+
+    def test_matching_live_units_are_one_per_scenario_and_match_their_n(self):
+        from pipeline.jobfit.eval import matching_eval
+
+        report = matching_eval.run()
+        live = matching_eval.live_measurements(report)
+        units = matching_eval.live_units(report)
+        self.assertEqual(set(units), set(live))
+        names = [s.name for s in report.scenarios]
+        self.assertEqual(sorted(units["MATCHING_THRESHOLDS.archetype_accuracy"]), sorted(names))
+        self.assertEqual(sorted(units[_RELEVANCE]), sorted(names))
+        early = [s.name for s in report.scenarios if s.entry_precision is not None]
+        self.assertEqual(sorted(units["MATCHING_THRESHOLDS.entry_precision"]), sorted(early))
+        for name, (_, n) in live.items():
+            self.assertEqual(len(units[name]), n, name)
+        self.assertEqual(thresholds.certify_live(live, units), [])
+
+
+class UnitRecordTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        self.path = Path(tmp) / "measurements.json"
+        self.units_path = Path(tmp) / thresholds.UNITS_PATH.name
+        shutil.copyfile(thresholds.MEASUREMENTS_PATH, self.path)
+        shutil.copyfile(thresholds.UNITS_PATH, self.units_path)
+
+    def test_record_writes_one_sorted_unit_per_line_and_a_second_record_changes_no_byte(self):
+        n = thresholds.all_bars()[_RELIABILITY].n
+        units = {_RELIABILITY: {f"task{i % 3}/scenario{i:02d}": 1.0 for i in reversed(range(n))}}
+        live = {_RELIABILITY: (1.0, n)}
+        source = thresholds.all_bars()[_RELIABILITY].recorder
+        thresholds.record_measurements(live, units, source=source, today="2026-09-24", path=self.path)
+        first = (self.path.read_bytes(), self.units_path.read_bytes())
+        text = first[1].decode("utf-8")
+        self.assertNotIn("\r\n", text)
+        mine = [line.strip() for line in text.splitlines() if line.strip().startswith('"task')]
+        self.assertEqual(len(mine), n)
+        ids = [json.loads("{" + line.rstrip(",") + "}").popitem()[0] for line in mine]
+        self.assertEqual(ids, sorted(ids))
+        bars = list(json.loads(text)["units"])
+        self.assertEqual(bars, sorted(bars))
+        changed = thresholds.record_measurements(live, units, source=source, today="2026-09-25", path=self.path)
+        self.assertEqual(changed, [])
+        self.assertEqual((self.path.read_bytes(), self.units_path.read_bytes()), first)
+
+    def test_record_refuses_units_that_disagree_with_their_count(self):
+        before = self.units_path.read_bytes()
+        with self.assertRaises(ValueError):
+            thresholds.record_measurements(
+                {_RELIABILITY: (1.0, 3)}, {_RELIABILITY: {"a": 1.0, "b": 1.0}}, source="x", path=self.path
+            )
+        self.assertEqual(self.units_path.read_bytes(), before)
 
 
 class EveryGatedEvalOwnsABarTest(unittest.TestCase):
