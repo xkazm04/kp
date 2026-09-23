@@ -15,7 +15,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { register } from "node:module";
-import { saveDevCase, createPosting, startDevSession, getDevSession, getDevSessionEvents } from "../../../_lib/db.ts";
+import { saveDevCase, createPosting, startDevSession, getDevSession, getDevSessionEvents } from "../../../_lib/db/devcase.ts";
 import { ensureDb } from "../../../_lib/db/core.ts";
 import { rateLimit } from "../../../_lib/rate-limit.ts";
 
