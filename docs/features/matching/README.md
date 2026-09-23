@@ -79,6 +79,48 @@ A required language with no bucket falls back to a literal substring match on it
 bare English name — deliberate and documented, not an oversight; modelling a new
 language means adding a bucket (config), not changing the fallback.
 
+#### Education knock-out: one ladder, three-valued gate
+Education is the one KO whose candidate-side input is an *inference* from a
+surface match, not a stated fact, so `pipeline/jobfit/education.py` owns both
+ladders and the gate that compares them. The job side (`JOB_MIN_LEVELS`:
+`phd … university, high_school, none`) is what a posting demands, and
+`university` there means "any university degree". The candidate side
+(`CANDIDATE_LEVELS`: `unknown, university, bachelor, master, phd`) is what the CV
+lets us read, and `university` there means **"the CV names a school but no degree
+title"**: `taxonomy.classify_education` falls through to it exactly when no
+phd/master/bachelor term matched. The two slugs share a spelling (stored profiles
+keep it), not a meaning.
+
+`education_gate(candidate_level, job_min)` returns one of four values, and only
+one of them knocks out:
+
+| Gate | When | Effect |
+| --- | --- | --- |
+| `not_required` | the posting states no minimum (`null`, `""`, `none`) | none |
+| `meets` | the read level provably clears the minimum (`university` meets `university`/`high_school`) | none |
+| `below` | a **measured** level under the minimum (`high_school` vs `bachelor`, `bachelor` vs `master`) | `KoReason(key="education")` in `ko_filter` |
+| `uncertain` | `unknown`, an unmodelled level, or `university` under a bachelor/master/phd floor | no KO. The band widens by 4 with driver `eduDegreeUnstated` (or `eduUnknown`), and the candidate block names the assumption |
+
+Before the gate, `matching._EDU_RANK` ranked the candidate `university` **below**
+`bachelor` and knocked it out, while `unknown` was skipped as "absence of evidence".
+Naming your school cost roles; naming nothing cost none. An English CV writing
+"Charles University, 2012-2017" was hard-KO'd from every bachelor+ role while the
+same CV in Czech ("Univerzita Karlova", classified `unknown`) passed. Measured on
+the 120-role seed corpus: a `university` read is now knocked out of **0/120** roles
+(was 46/120), a `bachelor` still of 12/120, a `high_school` of 108/120.
+`winnability`, the recruiter rows, the fit matrix and the match meta all read
+`ko_filter`, so the false KO and the phantom "drop the education floor" delta
+went with it. The `eduDegreeUnstated` driver is job-aware: a role whose floor is
+"any degree" (or none) measures the read fully and gets no wider band.
+
+The vocabulary has one source: `jobs.EDU_LEVELS`, `taxonomy._EDUCATION_PRIORITY`,
+`transform.EDU_FOUNDATION`, `profile_draft_cli._EDU_LEVELS` and `pipeline.py`'s
+LLM-payload choice set import from `education.py`, and codegen emits
+`CANDIDATE_EDUCATION_LEVELS` into `app/_lib/taxonomy.generated.ts`, which
+`app/features/shared/profileTypes.ts` re-exports as the editor's `EDU_LEVELS`.
+Pinned by `pipeline/jobfit/tests/test_education_ladder.py` (including an identity
+test by import and a byte-identical fixture over every other KO path).
+
 #### Description overlap counts whole words — in every alphabet
 The `personal` dimension's overlap term (`matching.score_personal`) credits a
 candidate token only when it appears as a **standalone word** in the ad, never as
@@ -1274,17 +1316,16 @@ side either; it was removed, and a test asserts it does not come back.
   does not reach `obchodní zástupkyně`, `office manager` does not reach
   `office managerka`) — the compact fallback relaxes its end condition only for
   single plain tokens, so a multi-word surface needs its feminine written out.
-- `edu_university` conflates two levels and `ko_filter` KOs on the conflation.
-  It matches both `vysoká škola` (degree-granting) and `vyšší odborná` (VOŠ,
-  genuinely sub-bachelor), and `_EDU_RANK` ranks the merged `university` bucket
-  **below** `bachelor`. Measured against the seed corpus: a CV reading *"Vysoká
-  škola ekonomická v Praze, obor Finance"* (no degree letters written — very
-  common in Czech CVs) is hard-KO'd from **46/120** roles, the same CV with
-  `Bc.` from 12/120, and a CV mentioning **no education at all** from 0/120. So
-  naming your university costs 46 roles while staying silent costs none — the
-  uncertainty guard fails open for a blank field and closed for a partly-stated
-  one. Fixing it is a data split of the term plus a knockout-policy decision on
-  where an unstated degree level ranks; both are product calls, not a code fix.
+- `edu_university` still conflates two schools: it matches both `vysoká škola`
+  (degree-granting) and `vyšší odborná` (VOŠ, genuinely sub-bachelor), while
+  `edu_dis` (`DiS.`, the VOŠ diploma) mints `bachelor`. The KO no longer fires on
+  the merged read (see "Education knock-out" above: an unstated degree is
+  `uncertain`, 46/120 roles to 0/120), but a VOŠ graduate still reads as meeting
+  an "any university degree" floor, and a `DiS.` still reads as a bachelor. Splitting
+  the term is a data change plus a new candidate level in `education.py`.
+- The UI renders both `university` slugs with the same label
+  (`enums.education.university`), so the profile editor, the profile summary and a
+  job's markdown do not yet say "degree not stated" for the candidate side.
 - Student/switcher end-to-end mechanics (observed-evidence minting from a
   live case or case-grounded interview, the dev-case module itself) are only
   summarized here; the devcase/interview build is owned by other feature docs
