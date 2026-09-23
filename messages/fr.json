@@ -3733,7 +3733,10 @@
       "errorPreview": "Impossible de prévisualiser la passe.",
       "errorNetwork": "Serveur injoignable.",
       "errorRun": "Échec de l’exécution de la passe.",
-      "resetting": "Réinitialisation…"
+      "resetting": "Réinitialisation…",
+      "resumeAt": "Reprendre à l’étape {phase}",
+      "resumeAtTitle": "Reprendre la démo à l’étape {phase} sans vider le tableau",
+      "resumeAtTitleCandidate": "Reprendre la démo à l’étape {phase} avec {candidate}, sans vider le tableau"
     },
     "offAxis": {
       "title": "Hors du tableau",
@@ -10513,7 +10516,8 @@
       "genericError": "La simulation s’est arrêtée de façon inattendue.",
       "resetFailed": "Échec du nettoyage. Réessayez.",
       "resetCleared": "Réinitialisé. {count} lignes de démo effacées.",
-      "resetNothing": "Réinitialisé. Il ne restait rien à effacer."
+      "resetNothing": "Réinitialisé. Il ne restait rien à effacer.",
+      "resuming": "Reprise…"
     },
     "phase": {
       "design": "Fiche de poste",
@@ -10588,7 +10592,8 @@
       "groupEvalTimedOut": "⚠︎ Délai dépassé pour l’évaluation groupée. Affichage d’un message d’indisponibilité.",
       "clickedViaApi": "La commande n’était pas à l’écran : cette étape est passée par l’API au lieu d’un vrai clic.",
       "selfScheduleUnavailable": "La prise de rendez-vous autonome n’était pas disponible : le recruteur confirme le créneau.",
-      "moveNoEffect": "Le clic a abouti mais le tableau n’a pas changé : cette étape est passée par l’API."
+      "moveNoEffect": "Le clic a abouti mais le tableau n’a pas changé : cette étape est passée par l’API.",
+      "resuming": "La démo reprend à l’étape {phase}. Le tableau affiche déjà tous les chapitres précédents."
     },
     "wait": {
       "screeningGate": "l’ouverture de l’entretien ou du créneau de calendrier après la présélection",

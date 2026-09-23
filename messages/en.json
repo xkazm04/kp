@@ -3733,7 +3733,10 @@
       "errorPreview": "Couldn't preview the pass.",
       "errorNetwork": "Couldn't reach the server.",
       "errorRun": "The pass failed to run.",
-      "resetting": "Resetting…"
+      "resetting": "Resetting…",
+      "resumeAt": "Resume at {phase}",
+      "resumeAtTitle": "Continue the walk from {phase} without clearing the board",
+      "resumeAtTitleCandidate": "Continue the walk from {phase}, following {candidate}, without clearing the board"
     },
     "offAxis": {
       "title": "Off the board",
@@ -10513,7 +10516,8 @@
       "genericError": "The simulation stopped unexpectedly.",
       "resetFailed": "Cleanup failed. Try again.",
       "resetCleared": "Reset. {count} demo rows cleared.",
-      "resetNothing": "Reset. There was nothing left to clear."
+      "resetNothing": "Reset. There was nothing left to clear.",
+      "resuming": "Resuming…"
     },
     "phase": {
       "design": "Design JD",
@@ -10588,7 +10592,8 @@
       "groupEvalTimedOut": "⚠︎ Group evaluation timed out. Showing an unavailable notice.",
       "clickedViaApi": "The control wasn't on screen, so this step ran through the API instead of a real click.",
       "selfScheduleUnavailable": "Self-scheduling wasn't available, so the recruiter confirms the slot instead.",
-      "moveNoEffect": "The click landed but the board did not change, so this step ran through the API instead."
+      "moveNoEffect": "The click landed but the board did not change, so this step ran through the API instead.",
+      "resuming": "Resuming the walk at {phase}. The board already shows every chapter before it."
     },
     "wait": {
       "screeningGate": "screening to open the interview / calendar gate",

@@ -3733,7 +3733,10 @@
       "errorPreview": "Vorschau des Durchlaufs nicht möglich.",
       "errorNetwork": "Server nicht erreichbar.",
       "errorRun": "Der Durchlauf konnte nicht ausgeführt werden.",
-      "resetting": "Wird zurückgesetzt…"
+      "resetting": "Wird zurückgesetzt…",
+      "resumeAt": "Bei {phase} fortsetzen",
+      "resumeAtTitle": "Den Durchlauf bei {phase} fortsetzen, ohne das Board zu leeren",
+      "resumeAtTitleCandidate": "Den Durchlauf bei {phase} mit {candidate} fortsetzen, ohne das Board zu leeren"
     },
     "offAxis": {
       "title": "Außerhalb des Boards",
@@ -10513,7 +10516,8 @@
       "genericError": "Die Simulation wurde unerwartet beendet.",
       "resetFailed": "Bereinigung fehlgeschlagen. Erneut versuchen.",
       "resetCleared": "Zurückgesetzt. {count} Demo-Zeilen gelöscht.",
-      "resetNothing": "Zurückgesetzt. Es war nichts mehr zu löschen."
+      "resetNothing": "Zurückgesetzt. Es war nichts mehr zu löschen.",
+      "resuming": "Wird fortgesetzt…"
     },
     "phase": {
       "design": "Ausschreibung",
@@ -10588,7 +10592,8 @@
       "groupEvalTimedOut": "⚠︎ Zeitüberschreitung bei der Gruppenbewertung. Es wird ein Hinweis auf die Nichtverfügbarkeit angezeigt.",
       "clickedViaApi": "Das Bedienelement war nicht sichtbar, daher lief dieser Schritt über die API statt über einen echten Klick.",
       "selfScheduleUnavailable": "Die Selbstbuchung war nicht verfügbar, daher bestätigt der Recruiter den Termin.",
-      "moveNoEffect": "Der Klick kam an, aber das Board hat sich nicht verändert, daher lief dieser Schritt über die API."
+      "moveNoEffect": "Der Klick kam an, aber das Board hat sich nicht verändert, daher lief dieser Schritt über die API.",
+      "resuming": "Der Durchlauf wird bei {phase} fortgesetzt. Das Board zeigt bereits alle vorherigen Kapitel."
     },
     "wait": {
       "screeningGate": "die Interview- bzw. Kalenderfreigabe nach dem Screening",

@@ -3733,7 +3733,10 @@
       "errorPreview": "Náhled průchodu se nepodařilo zobrazit.",
       "errorNetwork": "Nepodařilo se spojit se serverem.",
       "errorRun": "Průchod se nepodařilo spustit.",
-      "resetting": "Nuluji…"
+      "resetting": "Nuluji…",
+      "resumeAt": "Pokračovat od fáze {phase}",
+      "resumeAtTitle": "Pokračovat v ukázce od fáze {phase} bez vymazání tabule",
+      "resumeAtTitleCandidate": "Pokračovat v ukázce od fáze {phase} s kandidátem {candidate} bez vymazání tabule"
     },
     "offAxis": {
       "title": "Mimo nástěnku",
@@ -10513,7 +10516,8 @@
       "genericError": "Simulace se neočekávaně zastavila.",
       "resetFailed": "Vyčištění selhalo. Zkuste to znovu.",
       "resetCleared": "Vynulováno. Smazáno {count} ukázkových řádků.",
-      "resetNothing": "Vynulováno. Nezbylo nic ke smazání."
+      "resetNothing": "Vynulováno. Nezbylo nic ke smazání.",
+      "resuming": "Pokračování…"
     },
     "phase": {
       "design": "Popis pozice",
@@ -10588,7 +10592,8 @@
       "groupEvalTimedOut": "⚠︎ Skupinovému vyhodnocení vypršel čas. Zobrazujeme informaci o nedostupnosti.",
       "clickedViaApi": "Ovládací prvek nebyl na obrazovce, takže tento krok proběhl přes API místo skutečného kliknutí.",
       "selfScheduleUnavailable": "Samoobslužné plánování nebylo dostupné, termín proto potvrzuje recruiter.",
-      "moveNoEffect": "Kliknutí proběhlo, ale tabule se nezměnila, takže tento krok proběhl přes API."
+      "moveNoEffect": "Kliknutí proběhlo, ale tabule se nezměnila, takže tento krok proběhl přes API.",
+      "resuming": "Ukázka pokračuje od fáze {phase}. Tabule už ukazuje všechny předchozí kapitoly."
     },
     "wait": {
       "screeningGate": "otevření pohovoru nebo kalendářní brány po screeningu",
