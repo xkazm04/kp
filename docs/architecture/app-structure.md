@@ -817,6 +817,32 @@ operator session fold to owner, so the keyless first run is unchanged.
 `PUT /api/brand` now asks `org:manage` too (a coded `FORBIDDEN_CAPABILITY` 403), so an
 accent can no longer re-skin the org from a non-owner seat.
 
+**Finish ends on a receipt (2026-09-23).** kp sends no invite mail: `POST
+/api/org/invites` mints a tokenized accept link and nothing else, so an invite staged
+on the Team step reaches nobody until the operator shares its link. `sendSetupInvites`
+keeps each landed invite's token and every answer's HTTP status, and
+`persistOnboardingSetup` returns the whole run (the fold, the per-part results, the
+per-invite results). `finishReceipt(run, origin)` (`setupFinishOutcome.ts`) turns it
+into what the operator must act on: one `copyInviteUrl` link per landed invite (a
+landed invite whose token did not come back is counted, pointing at Settings ->
+Workspaces), and each part that did not land, split by `isRetryable` - no code, 429 or
+a store `*_FAILED` can be retried; any other code is a decision; a code-less non-2xx
+from the invite route (its no-team 409, its cross-org 404) is permanent unless it is
+429/5xx. When there is nothing to act on, `finishNext` says close and the wizard
+closes exactly as before (the keyless e2e stages no invites). Otherwise
+`SetupFinishReceipt.tsx` replaces the step grid in the `SetupLeaveConfirm` slot:
+copyable links (a copy failure is toasted, never logged - the link is a capability),
+the failures by part and code in the reader's language, and **Retry** only when a
+failure is retryable. Retry runs `finishRemainder(state, run)` - only the failed
+retryable parts and only the refused retryable addresses, so a landed invite is never
+re-minted and a landed org name never re-written - and `mergeFinishRuns` folds it
+back. The draft clear and the `completed` stamp moved out of `finish()`'s `finally`
+into one `settle()` that a receipt-less finish or the receipt's **Done** reaches, so a
+partial finish keeps its answers and the board's resume door until the operator has
+seen what failed. The tour tile passes `sim.start` as `finish(after)`, so the demo
+starts once the run has closed, never beside the writes. The hand-off meta counts
+"invitation links to share after setup", not "teammates invited".
+
 **`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route with its own
 rail (`app/features/jobseeker/MeNav.tsx` — brand mark, four links, the shared
 appearance/language preferences, `print:hidden`), gated by `isOperator()` else 404
@@ -831,7 +857,7 @@ page and no Companion dock. It reuses the root layout's providers and nothing fr
 | Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` (reported, see below) |
 | Team | invites (optional) | `POST /api/org/invites` per row |
 | Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
-| Hand-off | how to begin (tour / solo — the tour carries a `Recommended for a new workspace` Badge) | stamps `POST /api/me/onboarding` |
+| Hand-off | how to begin (tour / solo — the tour carries a `Recommended for a new workspace` Badge) | stamps `POST /api/me/onboarding` when the run closes (straight away, or at the finish receipt's Done) |
 
 The Company step previews a valid logo URL beside its field before finish;
 failed image loads hide the preview, and editing the URL retries it.
