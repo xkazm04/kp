@@ -95,3 +95,16 @@ test("the window value the link mints is one the tab actually parses", () => {
     );
   }
 });
+
+test("a role-scoped view link carries ?job= and the tab reads it back through the shared parse", async () => {
+  const { parseJobParam } = await import("./analyticsJobScope.ts");
+  const url = parse(analyticsViewUrl({ origin: ORIGIN, section: "performance", days: 30, job: "job-a" }));
+  assert.equal(url.searchParams.get("job"), "job-a");
+  assert.equal(parseJobParam(url.searchParams.get("job")), "job-a", "the minted id round-trips through the reader's parse");
+  assert.deepEqual([...url.searchParams.keys()], ["tab", "sec", "win", "job"]);
+  // No role → no param: an absent ?job= IS the workspace view.
+  const wide = parse(analyticsViewUrl({ origin: ORIGIN, section: "performance", days: 30, job: null }));
+  assert.equal(wide.searchParams.has("job"), false);
+  const tab = readFileSync(fileURLToPath(new URL("./AnalyticsTab.tsx", import.meta.url)), "utf8");
+  assert.match(tab, /parseJobParam\(search\.get\("job"\)\)/, "AnalyticsTab must read ?job= through parseJobParam");
+});

@@ -232,3 +232,19 @@ test("threshold write retires only that workspace's calibration curves", () => {
   assert.equal(cache.get(key("cal-a", "holdout:advance"), compute), "after");
   assert.equal(cache.get(key("cal-b", "pipeline:advance"), compute), "before");
 });
+
+test("analyticsCacheKey gains the role axis: a job-scoped payload never serves another scope", () => {
+  // The workspace view keeps its historical key, so no deployed memo shape moves.
+  assert.equal(analyticsCacheKey("ws-a", 30, null), analyticsCacheKey("ws-a", 30));
+  assert.notEqual(analyticsCacheKey("ws-a", 30, "A"), analyticsCacheKey("ws-a", 30, null));
+  assert.notEqual(analyticsCacheKey("ws-a", 30, "A"), analyticsCacheKey("ws-a", 30, "B"));
+  assert.notEqual(analyticsCacheKey("ws-a", null, "A"), analyticsCacheKey("ws-a", 30, "A"));
+  assert.equal(analyticsCacheKey("ws-a", 30, "A"), analyticsCacheKey("ws-a", 30, "A"));
+
+  const cache = createAnalyticsCache<string>({ now: () => 0 });
+  assert.equal(cache.get("ws-a", 30, () => "wide"), "wide");
+  assert.equal(cache.get("ws-a", 30, () => "role A", "A"), "role A", "a job-scoped get must miss the workspace entry");
+  assert.equal(cache.get("ws-a", 30, () => "role B", "B"), "role B", "…and another role's entry");
+  assert.equal(cache.get("ws-a", 30, () => "recomputed"), "wide", "the workspace entry is still its own hit");
+  assert.equal(cache.get("ws-a", 30, () => "recomputed", "A"), "role A");
+});
