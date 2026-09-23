@@ -794,6 +794,26 @@ the intent and restores it FIRST, since the step count a restored position clamp
 depends on it (`setupDraft.ts`). The hire path is byte-for-byte what it was;
 `setupSteps.test.ts` pins both sequences.
 
+**The seat (2026-09-23).** The `/` gate fires per user and a redeemed invite lands on
+`/`, so an invited teammate meets this wizard too. Each step whose answers need a
+capability declares it (`requires` on `SETUP_STEPS`: company -> `org:manage`, team ->
+`members:manage`, pipeline -> `pipeline:write`), and `SetupState.seat` holds who is
+answering: the caller's capabilities, read once from `GET /api/me/onboarding` (the
+same response as the draft scope; `seat.capabilities` is `callerOrgCapabilities()` ∪
+`callerCapabilities()`, the two resolvers the finish doors gate on).
+`relevantSteps(state)` filters on the intent AND the seat, so an invited recruiter
+walks Welcome -> Pipeline -> Candi -> Hand-off and an admin keeps Team but not
+Company (`org:manage` is owner-only, `roles.ts`). `finishPartsFor` writes the
+org-wide language only for a seat holding `org:manage` (the rail's switch already set
+the personal cookie), the hand-off reads "You're ready to start" when no Company step
+was walked (`setup.handoff.join.*`), and `handoffExits(seat)` drops the guided-tour
+tile for a seat without `TOUR_CAPABILITY` (`setupSeat.ts`). A null seat (the read is
+in flight or failed, and always in preview) is the owner's full run: the mirror fails
+open like `navCapabilities.ts`, and the server stays the enforcement. Open mode and an
+operator session fold to owner, so the keyless first run is unchanged.
+`PUT /api/brand` now asks `org:manage` too (a coded `FORBIDDEN_CAPABILITY` 403), so an
+accent can no longer re-skin the org from a non-owner seat.
+
 **`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route with its own
 rail (`app/features/jobseeker/MeNav.tsx` — brand mark, four links, the shared
 appearance/language preferences, `print:hidden`), gated by `isOperator()` else 404
