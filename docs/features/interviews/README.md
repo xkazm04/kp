@@ -1767,7 +1767,7 @@ it writes; "Verdicts" covers what a run proves.
 | --- | --- |
 | `scripts/interview-sim.ts` | The CLI (`node --import ./scripts/test-alias-loader.mjs --experimental-transform-types scripts/interview-sim.ts …`). Flags: `--situation` (ids or substrings), `--fixture`, `--lang`, `--workers N`, `--max-calls N` (model calls per conversation, both sides, default 120), `--max-turns N` (candidate turns, default 50), `--out <dir>`, `--fake`, `--seed N`, `--model` / `--interviewer-model` / `--candidate-model`, `--timeout <s>`, `--db <path>`, `--keep-db`, `--list`. Prints one line per conversation. Exit 0, 1 when a conversation errored, 2 on a refusal. |
 | `app/_lib/interview-sim/types.ts` | The contract: `SimSituation`, `SimTurn`, `SimConversation`, `SimLlm`, `SIM_FIXTURES`, `SIM_TOOL_LINE`, the four verdict states. |
-| `app/_lib/interview-sim/situations.json` + `situations.ts` | The tracked situation bank, its loader/validator, `SIM_INVARIANTS` (the ids a situation may `provoke`) and `instrumentLocaleFor`. |
+| `app/_lib/interview-sim/situations.json` + `situations.ts` | The tracked situation bank, its loader/validator, `SIM_INVARIANTS` (the ids a situation may `provoke`), `instrumentLocaleFor` and `situationSha` (the cast digest every dump records). |
 | `app/_lib/interview-sim/instrument.ts` | `buildSimInstrument(fixture, locale)`: seeds a fixture into the throwaway DB and composes it through the real builders; `assertThrowawayDb`, `throwawayDbProblem`, `directorVersion`, `briefSha`. |
 | `app/_lib/interview-sim/engine.ts` | `runConversation`: the turn loop, the director exchanges, the simulated clock, the end handshake; the harness preambles. |
 | `app/_lib/interview-sim/director-loop.ts` | `InMemoryDirector`: runs `voice/director-exchange.ts`, the live route's own exchange, over an array store that absorbs a resent turn like the table does. |
@@ -1776,6 +1776,7 @@ it writes; "Verdicts" covers what a run proves.
 | `app/_lib/interview-sim/providers.ts` | `claudeCliLlm`: the Claude CLI as a `SimLlm`. |
 | `app/_lib/interview-sim/fake.ts` | `fakeInterviewer`, `fakeCandidate`, `recordingLlm`: keyless scripted stand-ins. |
 | `app/_lib/interview-sim/runner.ts` | `runSimulations`: instruments, resume, the worker pool, the dumps and the index. |
+| `app/_lib/interview-sim/baseline-diff.ts` | `diffVerdicts`, `renderDiff`, `loadBaseline`: the keyless brief-change diff behind `--baseline` (see "Comparing against a baseline"). |
 
 No app route imports any of these (the engine sits under `app/_lib/` only so its tests run
 in `npm run test:unit`).
@@ -1812,7 +1813,9 @@ exercised. Every other situation is built as if the applicant had chosen its lan
 The stand-in interviewer receives the **private** brief (the one minted for OpenAI, with the
 director protocol, private notes, must-asks and weights). The candidate-safe brief is recorded
 beside it for leak checks and is never sent anywhere. `instrument = { briefSha, agendaBlockIds,
-directorVersion }` is recorded on every conversation. `briefSha` is the SHA-256 of the private
+directorVersion }` is recorded on every conversation, and so is `situationSha`: the SHA-256 of
+the situation's persona, first line, `provokes`, `firstMessageProvokes`, `handles`, fixture and
+language (not its title or behaviour label), so the cast is part of a dump's identity. `briefSha` is the SHA-256 of the private
 brief alone. `directorVersion` is the SHA-256 of `voice/director.ts`, `voice/director-tools.mjs`,
 `quote-match.ts` and the exchange kernel `voice/director-exchange.ts` (line endings normalised),
 so runs on different kernels never merge as one instrument.
@@ -1911,8 +1914,9 @@ The `trace` carries:
 - the providers, the clock constants and the limits.
 
 **Resumable.** A rerun into the same directory skips a situation whose dump exists, did not
-end in `error`, and was produced by the same `briefSha` and `directorVersion`. An errored or
-stale dump runs again.
+end in `error`, was produced by the same `briefSha` and `directorVersion`, and ran the same
+`situationSha`. An errored or stale dump runs again, and so does one whose situation was
+edited in `situations.json` since (or that predates `situationSha`).
 
 #### The situation bank
 
@@ -1966,7 +1970,7 @@ says what they prove. The engine is `app/_lib/interview-sim/verdict-run.ts`.
 node --import ./scripts/test-alias-loader.mjs --experimental-transform-types \
   scripts/interview-sim-verdict.ts --runs <dir>[,<dir>] \
   [--out <dir>] [--judge-model <m> | --no-judge | --fake-judge] \
-  [--characters <paths>] [--timeout <s>] [--workers <n>]
+  [--characters <paths>] [--timeout <s>] [--workers <n>]   [--baseline <earlier verdict dir> [--targets <invariant or situation ids>]]
 ```
 
 - `--no-judge` is the default. It runs the rules only, needs no key, and reports every
@@ -1977,8 +1981,12 @@ node --import ./scripts/test-alias-loader.mjs --experimental-transform-types \
   default, the report carries a warning, because the run cannot prove the two differ.
 - `--fake-judge` runs the scripted keyless judge (`fakeJudge` in `fake.ts`). It answers
   every fact `null` and is for testing the plumbing only.
-- Exit 0 when the verdict ran. A failing interviewer is a result, not a CLI error. Exit 2
-  on a usage error or a refusal.
+- `--baseline <dir>` compares this run against an earlier verdict run and writes
+  `diff.json` and `diff.md` (see "Comparing against a baseline"). `--targets` names what the
+  change aimed at; it is a usage error without `--baseline` or with an id that is neither
+  an invariant nor a situation.
+- Exit 0 when the verdict ran. A failing interviewer is a result, not a CLI error, and so
+  is a blocking diff. Exit 2 on a usage error or a refusal.
 
 #### Four states
 
@@ -2032,6 +2040,7 @@ Written to `--out` (default `<first run dir>/verdict/`):
 | `findings.json` | /uat findings with `cert_level: "LC"`: one per failing invariant, plus strength rows for invariants that held in 3 or more evaluable conversations. `severity` is derived from `impact`. `verdict` is always `uncertain`. |
 | `report.md` | Instrument identity, the reliability gate ("N reliability fails across M conversations", with each breach's turn), the margins, findings by impact, the quality rates, the cross-block measurement and what passed. |
 | `voices/<character>.md` | Only with `--characters`. See below. |
+| `diff.json`, `diff.md` | Only with `--baseline`. See "Comparing against a baseline". |
 
 Each run directory also gets `verdicts/<situationId>.json`. It is the per-conversation
 verdict file and the judge cache, keyed by the dump's sha256, the judge id and the rubric
@@ -2039,7 +2048,38 @@ version. A rules-only run never overwrites a judged file.
 
 Several `--runs` directories are treated as repeated samples of the same bank, so each
 situation's cell becomes a rate. Dumps of the same situation made by different instruments
-(`briefSha` or `directorVersion`) are refused, and the error names them.
+(`briefSha` or `directorVersion`) or of an edited situation (two different `situationSha`)
+are refused, and the error names them. A dump whose situation was edited in the bank after
+it ran is still graded against the current entry, and the report carries a warning naming
+it.
+
+#### Comparing against a baseline
+
+Merging refuses two instruments; comparing them is `--baseline`. It reads the earlier run's
+`verdicts.json` (the verdict output directory, or the run directory holding `verdict/`) and
+classifies every situation × invariant cell (engine: `baseline-diff.ts`). Each side of a
+cell is a rate, `k fail / n evaluable`, over that side's samples:
+
+| Class | Means |
+| --- | --- |
+| `nonlocal_regression` | Worse in a cell `--targets` did not name. Blocking on the reliability axis. |
+| `targeted_regression` | Worse in a targeted cell: the change made its own target worse. Also blocking on reliability. |
+| `intended_improvement` | Better in a targeted cell. |
+| `nonlocal_improvement` | Better where nothing was aimed. Reported with suspicion: an instrument that turned more conservative shows up here first. |
+| `noise` | Consistent with run-to-run spread: the baseline cell flipped across its own samples and the candidate result is not improbable at that rate (one-sided binomial tail at least `NOISE_ALPHA` = 0.05), or both sides ran the same instrument. |
+| `unchanged` | The same rate on both sides. |
+| `not_comparable` | The cast changed or is unknown (`situationSha` differs, or a side predates it), a side never evaluated the cell (`not_provoked` / `not_evaluable`), the judge rubric changed, or the situation ran on one side only. Counted in neither the regression nor the improvement totals. |
+
+A cell is targeted when `--targets` names its invariant or its situation. Without
+`--targets` every improvement is non-local. When both sides ran the same instruments the
+headline says "no instrument change: this is a spread measurement" and every flip is noise.
+A baseline with one sample per situation has no measured spread, and the headline says so.
+
+`diff.md` leads with the headline (instrument change, BLOCKING or not, changed or unknown
+casts, the totals), then non-local regressions, targeted regressions, intended and
+non-local improvements, noise and not comparable, each row with both sides' transcript
+refs. `diff.json` holds every cell. The diff reads two files and calls no model, so it is
+keyless. Without `--baseline` nothing new is written.
 
 #### Character voices
 
@@ -2074,8 +2114,10 @@ until a person reads its transcript (the /uat adversarial pass). Simulated candi
 that the policy holds against behaviours someone imagined, not against real candidates.
 
 Tests: `lexicon.test.ts`, `detectors.test.ts`, `judge.test.ts`, `verdict-run.test.ts`
-(pure, on `dump-builder.ts` dumps) and `verdict-e2e.test.ts` (the WP-1 engine on the
-fakes, then the verdict run with the fake judge).
+(pure, on `dump-builder.ts` dumps), `baseline-diff.test.ts` (the classes, the cast and
+spread rules, the artifacts and the CLI flags), `runner.test.ts` (resume re-runs an edited
+situation) and `verdict-e2e.test.ts` (the WP-1 engine on the fakes, then the verdict run
+with the fake judge).
 
 ## After the decision: the candidate's feedback letter
 
