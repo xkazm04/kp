@@ -824,7 +824,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "runSessionChat(",
     // The 404/409 lifecycle refusals and the 403 token check keep their semantics
     // ahead of the throttle, so a rejected call never consumes budget.
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     rel: "./intake/[id]/message/route.ts",
@@ -986,7 +986,7 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "24 * 60 * 60_000",
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "runSessionChat(",
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // ADDED /perfect 2026-09-02 (api-devcase-1), with the limiter itself. The FLUSH is
@@ -1004,7 +1004,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "appendDevSessionEvents(id, events)",
     // The 404/409 lifecycle refusals and the 403 token check keep their semantics ahead
     // of the throttle, so a rejected flush never consumes budget.
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // The flush's per-apply-TOKEN daily aggregate — same collective budget shape as the
@@ -1024,7 +1024,7 @@ const ROUTES: RouteSpec[] = [
     windowSrc: "24 * 60 * 60_000",
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "appendDevSessionEvents(id, events)",
-    servedBefore: 'session.status !== "active"',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // ADDED /perfect wave 23 (devcase-candidate-and-devcase), with the limiter itself.
@@ -1048,7 +1048,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "await intakeSubmission({",
     // The 403 token check and the 404/410 lifecycle refusals keep their semantics ahead
     // of the throttle, so a rejected finalize never consumes a real candidate's slot.
-    servedBefore: 'jsonRefusal("SESSION_TOKEN_REQUIRED", 403)',
+    servedBefore: "door.authorize(request.headers, body.token)",
   },
   {
     // ADDED /explorer 2026-09-01, with the limiter itself. The heaviest compute
@@ -2390,19 +2390,18 @@ for (const rel of [
   test(`${rel} re-checks the owning apply token — a session id alone is not authority`, () => {
     const src = read(rel);
     assert.match(src, /from "@\/app\/_lib\/devcase-session-auth"/, "must reuse the shared token check");
-    const at = src.indexOf("sessionTokenMatches(session.token, body.token)");
-    assert.ok(at >= 0, "expected the apply-token re-check against the session's own token");
-    const refusal = src.slice(at, at + 240);
-    // One call now pins both facts: the shared refusal code (which the candidate
-    // page localizes) and the status.
-    assert.match(
-      refusal,
-      /jsonRefusal\("SESSION_TOKEN_REQUIRED",\s*403\)/,
-      "the refusal must use the shared code at 403"
-    );
-    // 403, never 404/409: those two tell LiveWorkSurface the session is dead and to
-    // re-mint, which would spin the per-token/day session quota on an unauthorized call.
-
+    // challenge-r06 devcase-session-api/A: the proof is ONE door guard (openSessionDoor),
+    // not a hand-copied check per route. A keyed row demands its per-attempt session key,
+    // a legacy row the apply token; the guard answers SESSION_TOKEN_REQUIRED at 403
+    // (devcase-session-auth.ts), never 404/409, which tell LiveWorkSurface the session is
+    // dead and to re-mint. Behaviour: api/devcase/session/session-key.test.ts.
+    const at = src.indexOf("door.authorize(request.headers, body.token)");
+    assert.ok(at >= 0, "expected the door guard's proof check");
+    assert.match(src.slice(at, at + 120), /if \(denied\) return denied;/, "a failed proof answers the guard's refusal");
+    // …before the first limiter, so a refused caller never spends the owner's budget.
+    const limiterAt = src.indexOf("rateLimit(`devcase-");
+    assert.ok(limiterAt > at, "the proof must run before any limiter");
+    assert.doesNotMatch(src, /sessionTokenMatches\(/, "no route re-implements the proof");
   });
 }
 
