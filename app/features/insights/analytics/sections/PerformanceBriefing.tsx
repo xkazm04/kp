@@ -378,6 +378,7 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         offerStage={data.offerStage ?? null}
         enumLabel={enumLabel}
         boardHref={boardHref}
+        onCadenceSaved={reload}
       />
 
       {/* ---- Band 2: what's coming ------------------------------------------ */}

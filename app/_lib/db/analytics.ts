@@ -10,6 +10,7 @@ import { ensureDb } from "./core";
 import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpendDetail } from "./channels";
+import { stageDwellNow, type StageDwellNowRow } from "./analytics-stage-dwell";
 
 // Figures a role-scoped read cannot honestly scope, WITHHELD BY NAME with a reason
 // (analyticsJobScope.ts renders them; kept here so the route graph stays small).
@@ -143,11 +144,14 @@ export type PipelineAnalytics = {
   } | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
-  // Per-stage average dwell time across ALL active stages (Sloneek "time spent in
-  // each hiring stage"), ordered Accepted-first. `bottleneck` surfaces only the
-  // single worst stage; this is the full breakdown the same perStageDays feeds.
-  // Excludes terminal Hired (no dwell) and stages with no active entries.
-  stageDwell: { stage: string; avgDays: number; count: number }[];
+  // Per-stage dwell for everyone waiting RIGHT NOW (Sloneek "time spent in each
+  // hiring stage"), in axis order — an as-of-now read, NOT the window's cohort, so a
+  // long waiter created before the window still counts (analytics-stage-dwell.ts).
+  // `bottleneck` surfaces only the single worst stage; this is the full breakdown
+  // the same occupants feed: median + oldest (the pair, not a mean), how many are
+  // past the stage's cadence on the one aging clock, and where that cadence came from.
+  // Excludes the terminal column (no dwell) and stages with nobody waiting.
+  stageDwell: StageDwellNowRow[];
   // Keyed by job id (id-less entries by title). koDeclined is title-keyed, so null where
   // several reqs share the title, and on every row of a role-scoped read.
   byJob: { jobId: string | null; jobTitle: string; total: number; reachedInterview: number; hired: number; hireRatePct: number; koDeclined: number | null }[];
@@ -456,23 +460,20 @@ export function pipelineAnalytics(
     .filter((d): d is number => d != null);
   const avgAgeDays = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : null;
 
-  const perStageDays: Record<string, number[]> = {};
-  for (const r of rows) {
-    if (r.status !== "active" || isTerminal(r.stage)) continue;
-    const d = daysSince(r.stage_changed_at ?? r.created_at);
-    if (d != null) (perStageDays[r.stage] ??= []).push(d);
-  }
+  // Who is waiting, AS OF NOW — not the window's creation cohort (challenge-r05
+  // analytics-metrics/B). Folding these from `rows` dropped every active candidate
+  // created before the window, i.e. the longest waiters, from the dwell band and from
+  // the bottleneck behind the funnel band's "stalled" claim. The separate read honours
+  // the same workspace / role / sim predicates and ages on the one aging clock, so the
+  // band, the rows under it and the board's ?quick=aging filter count the same people.
+  const dwellNow = stageDwellNow(workspaceId, axis, now, { jobId });
   // Small-sample guard: a stage needs >= BOTTLENECK_MIN_SAMPLE active entries
-  // before its average wait counts as a systemic bottleneck, so a lone stale
+  // before its wait counts as a systemic bottleneck, so a lone stale
   // entry can't masquerade as a trend in the amber banner (idea-bdaf9b2c).
-  const bottleneck = pickBottleneck(perStageDays);
-  // Full per-stage dwell breakdown (the table beside the single-worst bottleneck
-  // banner), ordered canonically and skipping stages with no active entries.
-  const stageDwell = stageIds.flatMap((stage) => {
-    const arr = perStageDays[stage];
-    if (!arr || arr.length === 0) return [];
-    return [{ stage, avgDays: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length), count: arr.length }];
-  });
+  const bottleneck = pickBottleneck(dwellNow.perStageDays);
+  // Full per-stage dwell breakdown (the rows under the single-worst bottleneck
+  // claim), in axis order, skipping stages with nobody waiting.
+  const stageDwell = dwellNow.rows;
 
   // One row per requisition: grouping by title merged two reqs sharing one.
   type JobAgg = { jobId: string | null; jobTitle: string; total: number; reachedInterview: number; hired: number };

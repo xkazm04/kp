@@ -104,7 +104,7 @@ export function AnalyticsTab() {
   // `buildUrl` deleted `tab` whenever it equalled DEFAULT_TAB, so the link shipped
   // the cohort filter with no destination and the click moved nothing. The tab is
   // named here on purpose, and buildUrl now keeps a tab the caller asked for.
-  const boardHref = (filter: { q?: string; stage?: string }) =>
+  const boardHref = (filter: { q?: string; stage?: string; quick?: string }) =>
     buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", ...filter }, search.toString());
 
   // ce8e3c9e — index the per-stage conversion deltas by stage for the funnel render.

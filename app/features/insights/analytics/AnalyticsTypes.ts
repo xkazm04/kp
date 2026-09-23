@@ -9,6 +9,7 @@ import type { AutomationRoi } from "@/app/_lib/automation-roi";
 import type { ChannelEconomics } from "@/app/_lib/db/analytics";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
 import type { JobScope } from "./analyticsJobScope";
+import type { StageDwell } from "./stageDwellGate";
 
 export type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
 
@@ -59,7 +60,9 @@ export type Analytics = {
   } | null;
   avgAgeDays: number | null;
   bottleneck: { stage: string; avgDaysInStage: number; entryCount: number } | null;
-  stageDwell: { stage: string; avgDays: number; count: number }[];
+  /** Everyone waiting in a stage NOW (not the window cohort): the pair (median +
+   *  oldest), the past-cadence count on the one aging clock, and the cadence source. */
+  stageDwell: StageDwell[];
   /** One row per requisition (keyed by job id; a legacy id-less entry keys by title).
    *  `koDeclined` is null where it cannot be attributed: a title more than one req
    *  shares, and every row of a role-scoped read. */

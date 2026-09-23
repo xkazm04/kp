@@ -6,7 +6,8 @@ import type { OfferConversion } from "@/app/_lib/analytics-offer";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { OfferLegPanel } from "./AnalyticsOfferLegPanel";
-import { dwellBandHasContent, dwellBarPct, dwellMaxDays, dwellWaiting } from "./stageDwellGate";
+import { dwellBandHasContent, dwellBarDays, dwellBarPct, dwellMaxDays, dwellRowModel, dwellWaiting, type DwellTone } from "./stageDwellGate";
+import { StageCadenceInput } from "./AnalyticsStageCadenceInput";
 import type { Analytics } from "./AnalyticsTypes";
 
 // UAT KAT-ANA-3 / TOM-ANA-2 — the home for three payload fields the server computed
@@ -27,6 +28,13 @@ import type { Analytics } from "./AnalyticsTypes";
 // then the evidence) rather than a card, so it reads as part of the brief and the
 // section only has to place it — the `Band` helper is local to PerformanceBriefing,
 // so the three lines of its markup are mirrored here deliberately.
+/** The bar's colour per row tone. Neutral unless the team set this column's cadence. */
+const DWELL_BAR_TONE: Record<DwellTone, string> = {
+  neutral: "bg-steel/60",
+  over: "bg-coral",
+  within: "bg-moss/70",
+};
+
 export function StageDwellPanel({
   stageDwell,
   koDeclined,
@@ -34,6 +42,7 @@ export function StageDwellPanel({
   offerStage,
   enumLabel,
   boardHref,
+  onCadenceSaved,
 }: {
   stageDwell: Analytics["stageDwell"];
   /** Applicants the eligibility gate turned away BEFORE the funnel's first stage. */
@@ -42,7 +51,9 @@ export function StageDwellPanel({
   /** The workspace’s own offer column, forwarded to the offer panel’s board link. */
   offerStage: string | null;
   enumLabel: (kind: string, value: string) => string;
-  boardHref: (filter: { q?: string; stage?: string }) => string;
+  boardHref: (filter: { q?: string; stage?: string; quick?: string }) => string;
+  /** Re-fetch the payload after a cadence save, so the row re-judges on the new value. */
+  onCadenceSaved: () => void;
 }) {
   const t = useTranslations("analytics");
 
@@ -69,33 +80,75 @@ export function StageDwellPanel({
       ) : null}
 
       {stageDwell.length > 0 ? (
-        <ul className="mt-5 max-w-3xl space-y-2">
-          {stageDwell.map((s) => (
-            <li key={s.stage}>
-              <Link
-                href={boardHref({ stage: s.stage })}
-                title={t("viewInBoard")}
-                className="focus-ring -mx-1.5 flex items-center gap-4 rounded-md px-1.5 py-1 hover:bg-paper/70"
-              >
-                <span className="w-28 shrink-0 text-base font-medium text-ink">{enumLabel("stage", s.stage)}</span>
-                {/* UAT TOM-ANA-9 binds this bar: it is scaled against the LONGEST wait
-                    on screen, not against a target, because no org goal exists for
-                    per-stage dwell. One neutral colour down the whole column, so the
-                    reader can see where the time concentrates without the page
-                    pronouncing a verdict nobody set the benchmark for. */}
-                <span className="relative h-px flex-1 self-center bg-stone-200">
-                  <span
-                    className="absolute inset-y-0 -top-[2px] left-0 h-[5px] rounded-full bg-steel/60"
-                    style={{ width: `${dwellBarPct(s.avgDays, maxDays)}%` }}
-                    aria-hidden
-                  />
-                </span>
-                <span className="w-40 shrink-0 text-right text-base text-steel nums">
-                  {t("stageDwellRow", { days: s.avgDays, count: s.count })}
-                </span>
-              </Link>
-            </li>
-          ))}
+        <ul className="mt-5 max-w-4xl space-y-2">
+          {stageDwell.map((s) => {
+            // What the row may claim is pure (stageDwellGate.ts dwellRowModel): no
+            // median below the sample floor, a verdict colour only against a cadence
+            // the TEAM set, and a board link only when someone is past it.
+            const m = dwellRowModel(s);
+            const figures =
+              m.medianDays != null && m.oldestDays != null
+                ? t("stageDwellPair", { median: m.medianDays, oldest: m.oldestDays, count: m.count })
+                : m.oldestDays != null
+                  ? t("stageDwellThin", { oldest: m.oldestDays, count: m.count })
+                  : t("stageDwellRow", { days: s.avgDays, count: s.count });
+            const pastLabel =
+              m.cadenceDays == null
+                ? null
+                : m.pastCadence > 0
+                  ? t(m.cadenceSource === "team" ? "stageDwellPastTeam" : "stageDwellPastDefault", { count: m.pastCadence, days: m.cadenceDays })
+                  : m.cadenceSource === "team"
+                    ? t("stageDwellWithinTeam", { days: m.cadenceDays })
+                    : null;
+            return (
+              <li key={s.stage} className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <Link
+                  href={boardHref({ stage: s.stage })}
+                  title={t("viewInBoard")}
+                  className="focus-ring -mx-1.5 flex min-w-0 flex-1 basis-80 items-center gap-4 rounded-md px-1.5 py-1 hover:bg-paper/70"
+                >
+                  <span className="w-28 shrink-0 text-base font-medium text-ink">{enumLabel("stage", s.stage)}</span>
+                  {/* UAT TOM-ANA-9 still binds the SCALE: bars are relative to the
+                      oldest wait on screen, not to a target. The COLOUR is a verdict
+                      only where a goal exists that someone set — the team's cadence
+                      for this column (coral: someone is past it; moss: nobody is).
+                      Against the shipped role default the bar stays neutral. */}
+                  <span className="relative h-px flex-1 self-center bg-stone-200">
+                    <span
+                      className={`absolute inset-y-0 -top-[2px] left-0 h-[5px] rounded-full ${DWELL_BAR_TONE[m.tone]}`}
+                      style={{ width: `${dwellBarPct(dwellBarDays(s), maxDays)}%` }}
+                      aria-hidden
+                    />
+                  </span>
+                  <span className="shrink-0 text-right text-base text-steel nums">{figures}</span>
+                </Link>
+                {pastLabel || (s.cadenceEditable && m.cadenceDays != null) ? (
+                  <span className="flex flex-wrap items-center gap-3">
+                    {pastLabel && m.link ? (
+                      <Link
+                        href={boardHref(m.link)}
+                        title={t("viewInBoard")}
+                        className={`focus-ring rounded-md text-sm font-medium underline-offset-2 hover:underline nums ${m.tone === "over" ? "text-coral" : "text-ink"}`}
+                      >
+                        {pastLabel}
+                      </Link>
+                    ) : pastLabel ? (
+                      <span className="text-sm text-steel nums">{pastLabel}</span>
+                    ) : null}
+                    {s.cadenceEditable && m.cadenceDays != null ? (
+                      <StageCadenceInput
+                        stage={s.stage}
+                        stageLabel={enumLabel("stage", s.stage)}
+                        teamDays={m.cadenceSource === "team" ? m.cadenceDays : null}
+                        defaultDays={m.cadenceDays}
+                        onSaved={onCadenceSaved}
+                      />
+                    ) : null}
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
