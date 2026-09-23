@@ -2056,3 +2056,39 @@ one `groupEval` object instead of fourteen props.
 Pinned by `groupEval/groupEvalOpenMachine.test.ts`; the selection-cache source
 guard (`app/_lib/group-eval-selection-cache.test.ts`) follows the probe key into
 the machine.
+
+### Re-run shows what moved: the drift names people, the strip diffs the lead
+
+Built challenge-r03 (`group-eval-comparison/B`). Two moments a recruiter
+re-evaluates a shortlist now answer with names instead of a count, from the pure
+module `groupEval/groupEvalDelta.ts`:
+
+- **The drift notice names who changed.** `poolChange(payload, entries)` returns
+  `{ joined, left }` as display labels, keyed by entry id when the payload saved
+  `evaluatedIds` with a parallel `evaluatedLabels`, by label for a legacy payload,
+  and `null` when it cannot name the people (the count sentence then stands alone;
+  no name is invented). It counts exactly what `poolDrift` counts. `DecisionsModals`
+  computes it from the open's payload and live group; `GroupEvalNotices` appends
+  "Joined since: …" / "Left since (decided elsewhere or withdrawn): …" (five names,
+  then "and N more") to the existing drift sentence.
+- **A Re-run states what it changed.** `DecisionsModals` captures the comparison on
+  screen before calling `groupEval.rerun()` (keyed by role, dropped on close; a
+  Re-run from a failed run keeps the last comparison that landed), and
+  `GroupEvalRerunDelta` renders `rerunDelta(previous, current)` above the AI verdict
+  once the fresh comparison lands: the candidates now / no longer compared, a
+  governance-mode change, the lead, and rank moves. No strip on a first run or a
+  cache open.
+- **Claims stay inside the two records** (registry
+  `recruiting/comparative-shortlist-evaluation`): rank moves are computed only
+  over the candidates compared both times, by their order among themselves, so a
+  newcomer slotting in above someone is not reported as that someone falling;
+  when the field changed the strip says "Among the N candidates compared both
+  times". A lead swap where either run's `leadSeparation` is `overlapping` reads
+  as a tie inside the confidence band, not a change of lead. A run that crowns no
+  lead (committee mode, a sub-floor cohort) reads "this run names no lead, so
+  nobody lost it". Identity is `candIdentity`, so two candidates with the same
+  label are tracked apart.
+
+Keyless: both are pure reads of payloads the modal already holds; no server or
+API change. The simulation (`SimGroupEval`) passes neither prop and renders as
+before. Pinned by `groupEval/groupEvalDelta.test.ts`.
