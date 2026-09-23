@@ -54,7 +54,7 @@ function BriefEmpty({ spec, connected, action }: { spec: ChannelEmptySpec; conne
         </div>
 
         <div className="shrink-0 self-center rounded-xl border border-stone-200 bg-paper/60 p-3 md:self-start">
-          <MotionizedGlyph data={spec.glyph.data} viewBox={spec.glyph.viewBox} className={GLYPH_SIZE.lg} />
+          <MotionizedGlyph glyph={spec.glyph} className={GLYPH_SIZE.lg} />
         </div>
       </div>
     </div>

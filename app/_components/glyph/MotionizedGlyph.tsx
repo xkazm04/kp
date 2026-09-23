@@ -42,6 +42,8 @@ import { entranceDelayS, glyphMotionCss } from "./glyphMotionCss";
 import { shouldReplayEntrance } from "./glyphEntrancePolicy";
 import { GLYPH_SIZE } from "./glyphSizes";
 import { snapToToken } from "./glyphTokens";
+import { loadGlyph, peekGlyph } from "./glyphLoader";
+import type { GlyphId } from "./glyphRegistry";
 
 export interface GlyphElement {
   d: string;
@@ -55,8 +57,15 @@ export interface TracedGlyph {
 }
 
 interface Props {
-  data: GlyphElement[];
-  viewBox: string;
+  /**
+   * Which traced glyph to draw, by id (`./glyphRegistry.ts`). The art is not
+   * imported — it is fetched once per page from GET /api/glyphs/[id] through
+   * `./glyphLoader.ts`, so ~274 KB of path data stays off the workspace graph.
+   * Until it arrives (or if it never does) the svg renders EMPTY at its full size:
+   * the box is set by `className`, so arrival costs no layout shift, and a failed
+   * fetch leaves a blank square rather than a broken image.
+   */
+  glyph: GlyphId;
   /** Sizing + layout classes. Defaults to `GLYPH_SIZE.lg`; pass another step
    *  from `./glyphSizes` rather than a hand-typed `h-N w-N` pair. */
   className?: string;
@@ -84,9 +93,12 @@ interface Props {
   playOnce?: boolean;
 }
 
+/** The emitted viewBox of most traced glyphs; the placeholder's box is set by the
+ *  className, so this only has to be a valid, non-empty viewBox. */
+const PLACEHOLDER_VIEWBOX = "0 0 1024 1024";
+
 export function MotionizedGlyph({
-  data,
-  viewBox,
+  glyph,
   // The scale, not a fifth size: `glyphSizes.ts` is the vocabulary every call
   // site draws from, and a hand-typed default is the one size nobody chose.
   className = GLYPH_SIZE.lg,
@@ -104,6 +116,24 @@ export function MotionizedGlyph({
   // prefers-reduced-motion skipped arming the observer entirely.
   const [runKey, setRunKey] = useState(1);
   const seen = useRef<boolean | null>(null);
+  // The art, read from the page-wide cache. A glyph that already arrived (any
+  // earlier mount of the same id) paints on the first render; otherwise the effect
+  // below fetches it and bumps `arrived` to re-read the cache. Mounting the paths is
+  // what starts their CSS entrance, so the reveal plays on arrival exactly as it
+  // used to play on mount.
+  const [, setArrived] = useState(0);
+  const art = peekGlyph(glyph);
+
+  useEffect(() => {
+    if (peekGlyph(glyph)) return;
+    let live = true;
+    void loadGlyph(glyph).then((loaded) => {
+      if (live && loaded) setArrived((n) => n + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, [glyph]);
 
   useEffect(() => {
     const el = svgRef.current;
@@ -130,7 +160,8 @@ export function MotionizedGlyph({
   }, [playOnce, reduced]);
 
   const cls = `mz-${gid}`;
-  const painted = useMemo(() => data.map((p) => ({ ...p, ...snapToToken(p.fill) })), [data]);
+  const data = art?.data;
+  const painted = useMemo(() => (data ?? []).map((p) => ({ ...p, ...snapToToken(p.fill) })), [data]);
 
   const enter = ENTRANCE_PRESETS[entrance];
   const amb = ambient ? AMBIENT_PRESETS[ambient] : null;
@@ -143,7 +174,7 @@ export function MotionizedGlyph({
   return (
     <svg
       ref={svgRef}
-      viewBox={viewBox}
+      viewBox={art?.viewBox ?? PLACEHOLDER_VIEWBOX}
       className={className}
       // A glyph is decorative by default: every render site so far pairs it with a
       // heading and a body sentence that already say what it depicts, so naming it

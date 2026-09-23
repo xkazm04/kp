@@ -3,8 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { PANEL_SUNKEN } from "./ui/recipes";
-import { MotionizedGlyph, type TracedGlyph } from "./glyph/MotionizedGlyph";
-import { glyphForTab } from "./glyph/glyphRegistry";
+import { MotionizedGlyph } from "./glyph/MotionizedGlyph";
+import { glyphForTab, type GlyphId } from "./glyph/glyphRegistry";
 import { GLYPH_SIZE } from "./glyph/glyphSizes";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
@@ -26,11 +26,11 @@ export function ChainEmptyState({
   extraAction,
 }: {
   icon?: LucideIcon;
-  // A /motionize traced glyph (app/_components/glyph/glyphs/), rendered instead of
+  // A /motionize traced glyph id (app/_components/glyph/glyphRegistry.ts), rendered instead of
   // the lucide `icon`. Reserved for the first-run "nothing here yet" case — a
   // self-drawing illustration on a filtered-to-zero list is noise, so those call
   // sites keep the flat icon. Explicit `glyph` wins over `tab`.
-  glyph?: TracedGlyph;
+  glyph?: GlyphId;
   // Resolve the traced hero through glyphForTab. Unmapped tabs render no glyph
   // (and fall through to `icon` if supplied).
   tab?: WorkspaceTabId;
@@ -47,7 +47,7 @@ export function ChainEmptyState({
   return (
     <div className={`${PANEL_SUNKEN} p-6 text-center`}>
       {resolved ? (
-        <MotionizedGlyph data={resolved.data} viewBox={resolved.viewBox} className={`mx-auto ${GLYPH_SIZE.lg}`} />
+        <MotionizedGlyph glyph={resolved} className={`mx-auto ${GLYPH_SIZE.lg}`} />
       ) : Icon ? (
         <Icon className="mx-auto text-moss" size={28} aria-hidden />
       ) : null}

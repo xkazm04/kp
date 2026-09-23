@@ -10,7 +10,7 @@
  * (candidates) and columns (open roles), each showing the real count that would
  * fill it.
  *
- * The glyph is the /motionize traced MATRIX_GLYPH (candidates x roles, cells
+ * The glyph is the /motionize traced "matrix" glyph (candidates x roles, cells
  * filling with signal). Every fill resolves through the brand-token snap in
  * MotionizedGlyph — no hex reaches this file.
  */
@@ -20,7 +20,6 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Columns3, Rows3 } from "lucide-react";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { MATRIX_GLYPH } from "@/app/_components/glyph/glyphs/matrixGlyph";
 import { PANEL, PANEL_SUNKEN, EYEBROW, TITLE_DISPLAY, INTRO, CARD_PAD } from "@/app/_components/ui/recipes";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
@@ -120,8 +119,7 @@ export function MatrixEmptyState(props: MatrixEmptyStateProps) {
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
-        data={MATRIX_GLYPH.data}
-        viewBox={MATRIX_GLYPH.viewBox}
+        glyph="matrix"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
         ambient="float"

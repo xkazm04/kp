@@ -18,7 +18,6 @@ import { useTranslations } from "next-intl";
 import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE, GLYPH_SIZE_SM } from "@/app/_components/glyph/glyphSizes";
-import { JOBS_GLYPH } from "@/app/_components/glyph/glyphs/jobsGlyph";
 import { BTN_PRIMARY, CHIP, EYEBROW, PANEL, PANEL_SUNKEN, TITLE_DISPLAY, META_LABEL } from "@/app/_components/ui/recipes";
 
 // One route to a first role. A real navigation (`tab`) renders a link; an
@@ -82,8 +81,7 @@ export function JobsEmptyLaunchpad({ onImport }: { onImport?: () => void } = {})
     <div className={`${PANEL_SUNKEN} p-6`}>
       <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:text-left">
         <MotionizedGlyph
-          data={JOBS_GLYPH.data}
-          viewBox={JOBS_GLYPH.viewBox}
+          glyph="jobs"
           className={`${GLYPH_SIZE.md} shrink-0 ${GLYPH_SIZE_SM.lg}`}
         />
         <div>

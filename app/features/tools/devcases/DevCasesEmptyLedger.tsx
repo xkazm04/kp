@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { DEV_CASES_GLYPH } from "@/app/_components/glyph/glyphs/devCasesGlyph";
 import { BTN_PRIMARY, CARD_PAD, EYEBROW, META_LABEL, PANEL, STAT, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 // The six control IDs, in reading order. The WORDS live in
 // `devcase.emptyLedger.control.<id>.{name,proves}` — recruiter-facing marketing copy
@@ -49,8 +48,7 @@ export function CasesEmptyLedger({ onDefine }: { onDefine: () => void }) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         <div className="shrink-0 text-center lg:w-64 lg:text-left">
           <MotionizedGlyph
-            data={DEV_CASES_GLYPH.data}
-            viewBox={DEV_CASES_GLYPH.viewBox}
+            glyph="devCases"
             className={`mx-auto ${GLYPH_SIZE.lg} lg:mx-0`}
           />
           <p className={`mt-2 ${EYEBROW}`}>{t("eyebrow")}</p>

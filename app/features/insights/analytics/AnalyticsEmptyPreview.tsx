@@ -4,7 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { PANEL_SUNKEN, STAT_LABEL, STAT_VALUE } from "@/app/_components/ui/recipes";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { UpstreamLinks, type AnalyticsEmptyProps } from "./AnalyticsEmptyShared";
@@ -60,8 +59,7 @@ export function AnalyticsEmptyPreview({ title, body, links }: AnalyticsEmptyProp
             dozen paths is visual noise rather than a reveal — the glyph should
             land as one object. (motionPresets.ts says exactly this.) */}
         <MotionizedGlyph
-          data={ANALYTICS_GLYPH.data}
-          viewBox={ANALYTICS_GLYPH.viewBox}
+          glyph="analytics"
           entrance="fade-pop"
           className={`hidden ${GLYPH_SIZE.sm} shrink-0 sm:block`}
         />

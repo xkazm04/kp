@@ -18,7 +18,6 @@ import { ArrowRight, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { DECISIONS_GLYPH } from "@/app/_components/glyph/glyphs/decisionsGlyph";
 import { CARD_PAD, EYEBROW, ICON_STICKER, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { DESTINATION_ICON, hintFor, useChainNav, type ChainLink } from "./DecisionsEmptyShared";
 import type { DecisionsEmptyProps } from "./DecisionsEmptyShared";
@@ -64,8 +63,7 @@ export function DecisionsEmptyHandoff({
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       {/* Hero: the decision fork at rest — advance on one branch, hold on the other. */}
       <MotionizedGlyph
-        data={DECISIONS_GLYPH.data}
-        viewBox={DECISIONS_GLYPH.viewBox}
+        glyph="decisions"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
       />
       <p className={`mt-3 ${EYEBROW}`}>{t("batonEyebrow")}</p>

@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { JOBS_GLYPH } from "@/app/_components/glyph/glyphs/jobsGlyph";
 
 // The feed's chain-aware empty state, in the house empty-state register.
 //
@@ -27,7 +26,7 @@ import { JOBS_GLYPH } from "@/app/_components/glyph/glyphs/jobsGlyph";
 export function FeedEmptyState({ state, title, body, cta }: { state: string; title: string; body: string; cta?: ReactNode }) {
   return (
     <section className={`${PANEL_SUNKEN} p-6 text-center`} data-empty-state={state}>
-      <MotionizedGlyph data={JOBS_GLYPH.data} viewBox={JOBS_GLYPH.viewBox} className={`mx-auto ${GLYPH_SIZE.lg}`} />
+      <MotionizedGlyph glyph="jobs" className={`mx-auto ${GLYPH_SIZE.lg}`} />
       <h2 className="mt-2 text-base font-semibold text-ink">{title}</h2>
       <p className="mx-auto mt-1 max-w-prose text-sm text-steel">{body}</p>
       {cta ? <div className="mt-4 flex flex-col items-center gap-2">{cta}</div> : null}

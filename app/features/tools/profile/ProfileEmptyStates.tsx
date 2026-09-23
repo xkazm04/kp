@@ -34,8 +34,6 @@ import { ArrowRight, Plus } from "lucide-react";
 import { Meter } from "@/app/_components/Meter";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { PROFILE_ROSTER_GLYPH } from "@/app/_components/glyph/glyphs/profileRosterGlyph";
-import { PROFILE_MATRIX_GLYPH } from "@/app/_components/glyph/glyphs/profileMatrixGlyph";
 import {
   BTN_PRIMARY,
   CARD_PAD,
@@ -117,8 +115,7 @@ function DossierList({ onNewProfile }: ProfileEmptyProps) {
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
-        data={PROFILE_ROSTER_GLYPH.data}
-        viewBox={PROFILE_ROSTER_GLYPH.viewBox}
+        glyph="profileRoster"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
       />
@@ -155,8 +152,7 @@ function DossierMatrix({ archetypes, onNewProfile }: ProfileEmptyProps) {
   return (
     <div className={`${PANEL_SUNKEN} p-8 text-center`}>
       <MotionizedGlyph
-        data={PROFILE_MATRIX_GLYPH.data}
-        viewBox={PROFILE_MATRIX_GLYPH.viewBox}
+        glyph="profileMatrix"
         className={`mx-auto ${GLYPH_SIZE.xl}`}
         entrance="staggered-draw"
       />

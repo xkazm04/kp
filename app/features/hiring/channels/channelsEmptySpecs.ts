@@ -1,8 +1,4 @@
-import type { TracedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
-import { CHANNEL_COMMS_GLYPH } from "@/app/_components/glyph/glyphs/channelCommsGlyph";
-import { CHANNEL_CAREERS_GLYPH } from "@/app/_components/glyph/glyphs/channelCareersGlyph";
-import { CHANNEL_EMAIL_GLYPH } from "@/app/_components/glyph/glyphs/channelEmailGlyph";
-import { CHANNEL_ADS_GLYPH } from "@/app/_components/glyph/glyphs/channelAdsGlyph";
+import type { GlyphId } from "@/app/_components/glyph/glyphRegistry";
 import type { ChannelSectionId } from "./channelsSections";
 
 // The initial-state model behind the Intake brief empty state.
@@ -31,8 +27,9 @@ export type ChannelEmptyField = "promise" | "proof" | "actionHint" | "step1" | "
 export type ChannelEmptyKey = `${ChannelSectionId}.${ChannelEmptyField}`;
 
 export type ChannelEmptySpec = {
-  /** Traced /motionize glyph — the channel's identity. Not localizable. */
-  glyph: TracedGlyph;
+  /** Traced /motionize glyph id — the channel's identity. Not localizable. The art
+   *  is fetched by MotionizedGlyph, never imported, so it stays off the page graph. */
+  glyph: GlyphId;
   /** Serif headline: the promise this channel keeps once it is wired. */
   promise: ChannelEmptyKey;
   /** What the operator will actually see after connecting it. */
@@ -49,7 +46,7 @@ export type ChannelEmptySpec = {
 
 export const CHANNEL_EMPTY_SPECS: Record<ChannelSectionId, ChannelEmptySpec> = {
   comms: {
-    glyph: CHANNEL_COMMS_GLYPH,
+    glyph: "channelComms",
     promise: "comms.promise",
     proof: "comms.proof",
     actionHint: "comms.actionHint",
@@ -58,7 +55,7 @@ export const CHANNEL_EMPTY_SPECS: Record<ChannelSectionId, ChannelEmptySpec> = {
     waiting: "comms.waiting",
   },
   careers: {
-    glyph: CHANNEL_CAREERS_GLYPH,
+    glyph: "channelCareers",
     promise: "careers.promise",
     proof: "careers.proof",
     actionHint: "careers.actionHint",
@@ -67,7 +64,7 @@ export const CHANNEL_EMPTY_SPECS: Record<ChannelSectionId, ChannelEmptySpec> = {
     waiting: "careers.waiting",
   },
   email: {
-    glyph: CHANNEL_EMAIL_GLYPH,
+    glyph: "channelEmail",
     promise: "email.promise",
     proof: "email.proof",
     actionHint: "email.actionHint",
@@ -76,7 +73,7 @@ export const CHANNEL_EMPTY_SPECS: Record<ChannelSectionId, ChannelEmptySpec> = {
     waiting: "email.waiting",
   },
   ads: {
-    glyph: CHANNEL_ADS_GLYPH,
+    glyph: "channelAds",
     promise: "ads.promise",
     proof: "ads.proof",
     actionHint: "ads.actionHint",

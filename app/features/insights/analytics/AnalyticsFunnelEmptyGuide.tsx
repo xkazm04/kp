@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { GLYPH_SIZE } from "@/app/_components/glyph/glyphSizes";
-import { ANALYTICS_GLYPH } from "@/app/_components/glyph/glyphs/analyticsGlyph";
 import { META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { UpstreamLinks, type AnalyticsEmptyLink } from "./AnalyticsEmptyShared";
 import { stageQuestionKey, type FunnelRow } from "./analyticsFunnelEmptyState";
@@ -44,8 +43,7 @@ export function FunnelEmptyGuide({ funnel, stageLabel, links }: Props) {
     <div className={`${PANEL_SUNKEN} mt-4 p-5`}>
       <div className="flex items-start gap-4">
         <MotionizedGlyph
-          data={ANALYTICS_GLYPH.data}
-          viewBox={ANALYTICS_GLYPH.viewBox}
+          glyph="analytics"
           className={`hidden ${GLYPH_SIZE.md} shrink-0 sm:block`}
         />
         <div className="min-w-0">
