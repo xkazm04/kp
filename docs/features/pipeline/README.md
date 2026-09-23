@@ -1957,7 +1957,7 @@ breakdown existed, the simulation's loading payload. They had drifted apart:
   contender. Both now call `koFailed()` (`groupEval/groupEvalHelpers.ts`), which
   is explicit-`false` only: an absent flag means "never assessed", not "failed".
 - **A failed cache probe is disclosed before it costs anything.**
-  `openGroupEval` probes `GET /api/decisions/group-eval?role=<key>` before
+  The group-eval open (`groupEval/useGroupEvalOpen.ts`) probes `GET /api/decisions/group-eval?role=<key>` before
   spending. A probe that FAILED (offline, a 500, an unparseable body) used to be
   indistinguishable from a miss and fell straight through to a fresh paid run —
   the full ≤8-process pipeline. It now surfaces
@@ -1989,3 +1989,41 @@ advisory is one `Notice` primitive instead of four hand-rolled blocks; the quiet
 pill is `CHIP_QUIET`, the section titles `META_LABEL`, the AI verdict
 `PANEL_SUNKEN`), and the "not measured" dash moved off `text-stone-300`, which
 was all but invisible in Spark Dark.
+
+### One group-eval open: latest wins, and a failure is never an empty state
+
+Built challenge-r03 (`group-eval-comparison/A`). Opening a role's comparison is
+the pure machine `groupEval/groupEvalOpenMachine.ts` — `idle → probing →
+starting → running → ready | failed{code}` — owned by
+`groupEval/useGroupEvalOpen.ts`, which performs the effects the reducer returns
+(the cache probe, `startTask`, the governance control, the role's "evaluated"
+chip). It is named apart from `useGroupEval` / `groupEvalSession.ts`, which own
+what the modal does *with* an evaluation. `DecisionsTab` hands `DecisionsModals`
+one `groupEval` object instead of fourteen props.
+
+- **Latest wins.** Every open takes a monotonic ticket and `close()` invalidates
+  it, so a probe or start that resolves after the recruiter closed the modal or
+  opened another role writes nothing: role A's comparison can no longer appear
+  under role B's title, and A's payload can no longer re-sync the governance
+  control. The cache-hit mismatch disclosure belongs to the served payload's
+  own state and dies with it.
+- **Every failure has a sentence.** `probe_failed` → `decisions.evalCacheProbeFailed`,
+  `load_failed` (a role marked evaluated whose saved payload is gone) →
+  `evalLoadFailed`, `start_failed` (`startTask` refused or unreachable, so no
+  AI run began) → `evalStartFailed`, `run_failed` (the task ended failed,
+  canceled or interrupted) → `evalRunFailed`, `result_unavailable` (the task
+  succeeded but `useTaskResult` gave up fetching its result, or it carried
+  none) → `evalResultUnavailable`. The modal shows them through its existing
+  `error` prop under "Evaluation unavailable."; before, the three run-side
+  failures fell to "No evaluation yet" or a spinner that never ended.
+- **Loading always ends.** The modal's `loading` is `view === "loading"`
+  (probing, starting or running); every terminal task reading leaves `running`.
+  The role row's busy spinner is `groupEval.isBusy(roleKey)`.
+- **Pool drift is testable.** `poolDrift(payload, group)` counts joins and
+  leaves by entry id, by label for a legacy payload, and 0 when the payload
+  carries neither. Re-run replays the saved selection (`rerunSelection`), and a
+  FAILED selection run replays its own ids instead of degrading to top-N.
+
+Pinned by `groupEval/groupEvalOpenMachine.test.ts`; the selection-cache source
+guard (`app/_lib/group-eval-selection-cache.test.ts`) follows the probe key into
+the machine.
