@@ -75,3 +75,27 @@ test("withLlmRequestIdIfUnset stamps its own id when nothing is open", async () 
   assert.equal(got, "companion:cthread-1:cturn-1");
   assert.equal(currentLlmRequestId(), null, "the scope must close behind it");
 });
+
+// ---- The admission lane (python-runner-lanes.test.ts holds the gate's half) --------
+// A SECOND store, not a flag on the request id: withLlmRequestIdIfUnset lets sync
+// callers (recruiter-run.ts, profile-draft-run.ts, companion-run.ts) open request-id
+// scopes too, so "has a request id" cannot stand in for "is background work".
+test("the spawn lane is its own store: a request-id scope inside it neither hides nor resets it", async () => {
+  const lanes = (await import("./llm-request-context.ts")) as unknown as {
+    withSpawnLane?: <T>(lane: "interactive" | "background", fn: () => T) => T;
+    currentSpawnLane?: () => "interactive" | "background";
+  };
+  assert.equal(typeof lanes.withSpawnLane, "function", "withSpawnLane exists");
+  const { withSpawnLane, currentSpawnLane } = lanes as Required<typeof lanes>;
+  assert.equal(currentSpawnLane(), "interactive", "outside any scope the caller is interactive");
+  assert.equal(
+    withSpawnLane("background", () => withLlmRequestIdIfUnset("x", () => currentSpawnLane())),
+    "background",
+  );
+  const acrossAwait = await withSpawnLane("background", async () => {
+    await new Promise((r) => setTimeout(r, 1));
+    return currentSpawnLane();
+  });
+  assert.equal(acrossAwait, "background", "the lane survives an await inside the scope");
+  assert.equal(currentSpawnLane(), "interactive", "and closes behind it");
+});
