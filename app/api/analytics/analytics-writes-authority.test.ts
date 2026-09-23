@@ -223,6 +223,57 @@ test("a recruiter still writes spend and targets", async () => {
   assert.equal((await setTarget(post("/api/analytics/targets", { metric: "time_to_hire", value: 30 }))).status, 200);
 });
 
+// ---- (c) the floor-move preview (challenge-r08 cv-analysis-archetypes/B) -------
+//
+// A read, but it names candidates and runs the wave's dry run per role, so it sits
+// behind the SAME seat as the write it previews, and it previews ONLY the number that
+// write would apply: all three calibration routes derive the recommendation through
+// calibration-recommendation.ts, never an inline copy.
+
+const get = (url: string): NextRequest => new Request(`http://localhost${url}`) as unknown as NextRequest;
+const { GET: floorPreview } = await import("./calibration/floor-preview/route.ts");
+
+test("a viewer cannot preview who a floor move reaches", async () => {
+  signedInAs(viewer);
+  const res = await floorPreview(get(`/api/analytics/calibration/floor-preview?roleFamily=${FAMILY}`));
+  assert.equal(res.status, 403);
+  assert.equal((await json(res)).code, "ANALYTICS_POLICY_FORBIDDEN");
+});
+
+test("floor-preview with no live recommendation answers the existing ABSENT code", async () => {
+  signedInAs(recruiter);
+  const res = await floorPreview(get("/api/analytics/calibration/floor-preview?roleFamily=legal_compliance"));
+  assert.equal(res.status, 409);
+  assert.equal((await json(res)).code, "CALIBRATION_RECOMMENDATION_ABSENT");
+  const junk = await floorPreview(get("/api/analytics/calibration/floor-preview?roleFamily=not_a_family"));
+  assert.equal(junk.status, 400);
+  assert.equal((await json(junk)).code, "CALIBRATION_FAMILY_UNKNOWN");
+});
+
+test("floor-preview previews exactly the threshold apply-threshold would write, and writes nothing", async () => {
+  signedInAs(recruiter);
+  const probe = await json(
+    await applyThreshold(post("/api/analytics/calibration/apply-threshold", { roleFamily: FAMILY, suggestedThreshold: 99 })),
+  );
+  const res = await floorPreview(get(`/api/analytics/calibration/floor-preview?roleFamily=${FAMILY}`));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { suggestedThreshold: number; currentThreshold: number; autoRejectOff: boolean; roleFamily: string | null };
+  assert.equal(body.suggestedThreshold, probe.recommendation!.suggestedThreshold);
+  assert.equal(body.currentThreshold, 45);
+  assert.equal(body.roleFamily, FAMILY);
+  assert.equal(body.autoRejectOff, true, "the shipped default rule has auto-reject off, and the preview says so");
+  assert.equal(effectiveFloor(getDecisionConfig("screening", DEFAULT_WORKSPACE), FAMILY), 45, "a preview never moves the floor");
+});
+
+test("every calibration route derives the recommendation through the one helper", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const rel of ["./calibration/route.ts", "./calibration/apply-threshold/route.ts", "./calibration/floor-preview/route.ts"]) {
+    const src = readFileSync(new URL(rel, import.meta.url), "utf8");
+    assert.ok(src.includes("liveScreeningRecommendation("), `${rel} derives through calibration-recommendation.ts`);
+    assert.ok(!src.includes("recommendScreeningThreshold("), `${rel} carries no inline copy of the derivation`);
+  }
+});
+
 // Last: this one MOVES the family floor, which changes every recommendation above it.
 test("a recruiter applying the live suggestion moves the family floor", async () => {
   signedInAs(recruiter);
