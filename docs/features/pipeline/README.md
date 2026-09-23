@@ -504,7 +504,7 @@ strands nobody, and moving them would rewrite closed history.
 | Decisions rules family-floor chips | Each override links to Analytics → Quality with that family selected in calibration, where its recommendation and sealed floor history can be reviewed before applying a change. |
 | `app/_lib/interview-recommendation.ts` | Single-sourced `recommendation`/`route` vocabulary + coercion (TS side). |
 | `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
-| `app/api/pipeline/outcomes/route.ts` | The on-the-job outcome of a hire (UAT `KAT-L1-002`). `GET ?entry=<id>` returns that hire's 1..5 rating (`performance: null` = unrated) plus whether the entry stands on the terminal-role stage; `GET` with no params returns the workspace accrual counter `{ rated, hires, minOutcomes }`. `POST {entryId, performance}` records or corrects the rating. Both handlers `requireOperator()` first and scope every store call to `currentWorkspace()`. |
+| `app/api/pipeline/outcomes/route.ts` | The on-the-job outcome of a hire (UAT `KAT-L1-002`). `GET ?entry=<id>` returns that hire's 1..5 rating (`performance: null` = unrated) plus whether the entry stands on the terminal-role stage; `GET` with no params returns the workspace accrual counter `{ rated, hires, minOutcomes }`. `POST {entryId, performance}` records or corrects the rating. Both handlers `requireOperator()` first and scope every store call to `currentWorkspace()`; the POST then asks `pipeline:write` (a viewer is refused 403 `FORBIDDEN_CAPABILITY`), the GET does not. |
 | Board refusals: `[id]/route.ts`, `pipeline-entry-action.ts`, `batch/route.ts`, `stage-migration/route.ts` | Every refusal on these four answers a `REFUSAL_ERRORS` **code**, never English prose (`docs/architecture/api-contracts.md` §1.1). The shared helper's chokepoint `err(status, code, extra)` takes a code, the batch route copies that code onto each per-id row beside the canonical English, and data a localized sentence needs rides alongside as fields (`stages`, `max`, `unmapped`, `detail`) instead of being interpolated into a sentence. `usePipelineBulk` keeps the codes (`reasonCodes`) and `PipelineBulkActionBar` resolves them through `useErrorMessage`, so a Czech, German or French board no longer reads its hottest refusals in English. Pinned by `app/api/pipeline/pipeline-refusals-coded.test.ts`. |
 | `app/_lib/pipeline-entry-action.ts` | The shared move/decide action behind `/api/pipeline/[id]`, `/api/pipeline/batch` and the command bar (`command/execute.ts`). Both approval writes that land AFTER an await are compare-and-swapped on `setApproval(..., { expectedApprovalKind })` read from the pre-write snapshot: the offer clear (after `dispatchOffer`) answers 409 when the gate moved while the offer went out, and the hybrid handoff's calendar arm answers the same stale 409. A `dispatchOffer` that THROWS is caught and compensated by LEAVING the approval open: the offer row is idempotent, so approving again re-sends the SAME link, the un-sent token is pending rather than orphaned, and the attempt is recorded as an `offer_comms_failed` event (the route answers 502). A human `reject` also fires the `candidate.rejected` ATS webhook (`dispatchAtsEvent`, fire-and-forget beside the rejection comm) — that event was subscribable in the integrations panel and emitted from nowhere until this pass; see [../integrations/README.md](../integrations/README.md#ats--hris-write-back-outbound). The rejection comm is awaited AFTER the reject committed, so its failure is guarded: a throwing `dispatchRejection` records a `rejection_comms_failed` marker (actor named), the result is a 200 with `commsFailed: true`, and the ATS event and group-eval expiry still run (it used to skip both and answer 500 for a reject that had happened). Optional `via: "command_bar"` + `threshold` make the seal carry `policyVersion: "command-bar"` and the typed threshold as a decisive input; without them the manual seal is unchanged. The post-commit mirrors are injectable (`EntryActionDeps`) for tests only. |
 | `app/api/pipeline/[id]/consent/route.ts` | The candidate modal's GDPR consent snapshot + append-only audit trail. `requireOperator()` first, like every other pipeline PII surface, and pinned in `app/api/pipeline/batch/authz-parity.test.ts`. |
@@ -1625,6 +1625,32 @@ source only through a new funnel. The read, the backfills, the reopen and its ev
 the insert and its `added` event) run in one `.immediate()` transaction, so each outcome
 commits whole. Pinned by `app/_lib/db/pipeline-readd-transition.test.ts`, including a
 source check that no other caller passes `reopen`.
+
+### The single-entry door declares each action
+
+`POST /api/pipeline/[id]` dispatches eight actions (`set_github`, `set_notes`,
+`reinstate`, `resolve_intake`, `set_stage`, `accept`, `reject`, `approve_event`). What
+each one requires is data in `app/api/pipeline/[id]/entry-actions.ts` (`ENTRY_ACTIONS`),
+not a property of whichever branch remembered it. The route runs `requireOperator()`,
+reads the body, narrows `body.action` through `entryActionOf` (anything else is 400
+`PIPELINE_ACTION_UNKNOWN` before any branch runs), then asks
+`requireCapabilityCoded(ENTRY_ACTIONS[action].capability)`. Each row declares three facts:
+
+| Fact | Rows | What the door does with it |
+| --- | --- | --- |
+| `capability` | every row: `pipeline:write` | a viewer seat is refused 403 `FORBIDDEN_CAPABILITY` (the capability rides as data), as on the batch, command, reverse, stage-migration and stage-sla doors. Open mode is unchanged: no password means every caller folds to owner. |
+| `engineClaim` | `accept` only | `body.actor` (`"sim"`) is forwarded to `runPipelineEntryAction` only where declared. The guided sim sends it on accept and nowhere else (`useSimulationEngine.ts`, `useSimulationWalk.ts`). On a reject it used to file the recruiter's decision as `auto_rejected` sealed `auto:sim` and route it into the Reconsider queue; it is now dropped and the reject stays human. |
+| `reverses` | `reinstate`: `auto_rejected` | a reinstate is refused 409 `PIPELINE_NOT_REINSTATABLE` unless the entry's newest decision event is the machine's `auto_rejected`. The decision events are `auto_rejected`, `rejected` and `reinstated`, and `reinstated` counts explicitly, so an auto-rejection already reversed (by this door or by the human re-add above) is spent. A recruiter's hand reject is reopened through the re-add door, never recorded as "Auto-rejection reversed". The sealed `reinstated` record's `inputs.restoredStage` is the stage the store actually landed the candidate on (this board's screened column), not the literal `Screened`. |
+
+`POST /api/pipeline/outcomes` (the hire rating) asks `pipeline:write` the same way; its
+GET stays an operator read, so a viewer still sees the Quality counter and a hire's
+rating. Pinned by `app/api/pipeline/[id]/entry-actions.test.ts` (the table), `app/api/pipeline/entry-route.test.ts`
+(the engine claim and the two reinstate rules on a real unit DB),
+`app/api/write-capability-gate.test.ts` (the viewer 403 on a real entry: status and event
+count unchanged, and no rating recorded), and `app/api/pipeline/batch/authz-parity.test.ts`,
+which walks `app/api/pipeline/**/route.ts` and fails for any handler that neither takes
+the operator gate (plus the seat on a write) nor appears in its reasoned allowlist: the
+public events feed, and `POST`/`GET /api/pipeline`, which still ask no seat.
 
 ### One score legend: match vs transfer vs interview
 
