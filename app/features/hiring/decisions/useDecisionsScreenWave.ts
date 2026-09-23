@@ -28,7 +28,7 @@ export function useDecisionsScreenWave(
   const [bottomPercent, setBottomPercent] = useState(SCREENING_DEFAULT.rejectBottomPercent);
   const [maxMatch, setMaxMatch] = useState(SCREENING_DEFAULT.maxMatchToReject);
   const [machine, dispatch] = useReducer(waveReduce, INITIAL_WAVE_STATE);
-  const { preview, committed, loading, committing, error, confirmOpen, refreshNonce, commitBlocked, blockedMessage } = machine;
+  const { preview, committed, loading, committing, error, confirmOpen, refreshNonce, commitBlocked, blockedMessage, spared, previewSpare } = machine;
 
   const override = () => ({ autoRejectEnabled: enabled, rejectBottomPercent: bottomPercent, maxMatchToReject: maxMatch });
 
@@ -40,11 +40,14 @@ export function useDecisionsScreenWave(
     // Loading state is part of THIS data-fetching effect's lifecycle (started here,
     // settled below) — the legitimate fetch-in-effect pattern.
     dispatch({ type: "previewStarted" });
+    // The exclusions THIS preview is computed with; the result carries them so the
+    // commit echoes exactly the list its token was signed over.
+    const spare = [...spared];
     const h = window.setTimeout(() => {
       fetch("/api/decisions/screen-wave", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, override: override(), dryRun: true }),
+        body: JSON.stringify({ jobId, override: override(), dryRun: true, spare }),
       })
         .then(async (r) => {
           // Typed only as far as errMsg needs; the contract readers below take it as unknown.
@@ -57,7 +60,7 @@ export function useDecisionsScreenWave(
           return read.result;
         })
         .then((result) => {
-          if (alive) dispatch({ type: "previewSucceeded", result });
+          if (alive) dispatch({ type: "previewSucceeded", result, spare });
         })
         .catch((e) => {
           if (alive) dispatch({ type: "previewFailed", message: e instanceof Error ? e.message : previewFailedFallback });
@@ -81,7 +84,8 @@ export function useDecisionsScreenWave(
         headers: { "Content-Type": "application/json" },
         // Echo the approval token from the previewed set the recruiter is looking at —
         // the server commits only if it still matches the live set (the Art. 22 gate).
-        body: JSON.stringify({ jobId, override: override(), dryRun: false, approvalToken: preview?.approvalToken }),
+        // The spare list rides beside it: the token signs the set AFTER those exclusions.
+        body: JSON.stringify({ jobId, override: override(), dryRun: false, approvalToken: preview?.approvalToken, spare: previewSpare }),
       });
       // Typed only as far as errMsg needs; the contract readers below take it as unknown.
           const d = (await r.json()) as ApiErrorPayload | null;
@@ -129,6 +133,8 @@ export function useDecisionsScreenWave(
     preview, loading, error, committing, committed,
     commitBlocked, blockedMessage,
     confirmOpen,
+    spared,
+    toggleSpare: (entryId: string) => dispatch({ type: "spareToggled", entryId }),
     setConfirmOpen: (open: boolean) => dispatch({ type: open ? "confirmOpened" : "confirmClosed" }),
     commit,
   };

@@ -43,12 +43,15 @@ export function ScreenWaveModal({
     preview, loading, error, committing, committed,
     commitBlocked, blockedMessage,
     confirmOpen, setConfirmOpen,
+    spared, toggleSpare,
     commit,
   } = useDecisionsScreenWave(jobId, onCommitted, t("previewFailed"), t("setChangedRepreview"), t("waveFailed"));
 
   const view = committed ?? preview;
   const rejects = view?.decisions.filter((d) => d.action === "reject") ?? [];
   const keeps = view?.decisions.filter((d) => d.action === "keep") ?? [];
+  // The committed banner counts the reviewer's exclusions apart from ordinary keeps.
+  const sparedCount = keeps.filter((d) => d.reasonCode === "recruiterSpared").length;
 
   // Why the commit button is disabled — surfaced in an aria-live line beside the
   // button (finding SD-5), not just a `title` invisible to screen readers / touch.
@@ -69,7 +72,7 @@ export function ScreenWaveModal({
   // summary) for the whole debounce+fetch window of every drag. Null = withhold.
   const displayedFloor = loading && !committed ? null : maxMatch;
   const lists = view ? (
-    <DecisionsScreenWaveLists rejects={rejects} keeps={keeps} committed={Boolean(committed)} dryRun={view.dryRun} globalFloor={displayedFloor} t={t} />
+    <DecisionsScreenWaveLists rejects={rejects} keeps={keeps} committed={Boolean(committed)} dryRun={view.dryRun} globalFloor={displayedFloor} spared={spared} onToggleSpare={committed ? undefined : toggleSpare} t={t} />
   ) : null;
 
   return (
@@ -133,6 +136,7 @@ export function ScreenWaveModal({
               cohort: committed.cohort,
               b: (chunks) => <span className="font-semibold">{chunks}</span>,
             })}
+            {sparedCount > 0 ? <span className="text-steel"> {t("sparedCount", { count: sparedCount })}</span> : null}
             {committed.commsFailures > 0 ? (
               <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
             ) : null}

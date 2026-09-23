@@ -4,9 +4,10 @@
 // BOTH the preview and committed states (the commit can legitimately differ
 // from the approved preview: CAS skips, per-candidate comms failures). Split
 // out of DecisionsScreenWaveModal so that component stays under 200 lines.
-import { AlertTriangle, History } from "lucide-react";
+import { AlertTriangle, History, Undo2, UserCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
+import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { familyOverrideRejectCount, rowEffectiveFloor } from "./decisionsFloorDisclosure";
 import type { WaveDecision } from "./decisionsScreenWaveTypes";
 
@@ -16,6 +17,8 @@ export function DecisionsScreenWaveLists({
   committed,
   dryRun,
   globalFloor,
+  spared,
+  onToggleSpare,
   t,
 }: {
   rejects: WaveDecision[];
@@ -27,6 +30,10 @@ export function DecisionsScreenWaveLists({
   // re-preview is in flight: the slider has already moved but these rows are still
   // the previous run's, so the two are not comparable and no override is claimed.
   globalFloor: number | null;
+  // The reviewer's exclusions (screen-wave-spare.ts). `onToggleSpare` is absent on the
+  // committed view, which is frozen: no per-row control is rendered there.
+  spared?: readonly string[];
+  onToggleSpare?: (entryId: string) => void;
   t: ReturnType<typeof useTranslations<"decisions.wave">>;
 }) {
   // The app's one date idiom (useDateFormat), not a re-typed Intl option bag: same
@@ -81,6 +88,25 @@ export function DecisionsScreenWaveLists({
   // floors-tell-the-truth — how many rejects were decided against a family floor
   // that differs from the run's global floor (drives the summary line below the
   // count). Zero while that floor is unknown, so the summary can't outlive its rows.
+  // Spare / Undo on one row: the reviewer takes ONE person out of the wave without
+  // moving the sliders that reshape everyone else. A toggle re-previews for a fresh
+  // approval token, which signs the set after the exclusion.
+  const spareButton = (d: WaveDecision) => {
+    if (!onToggleSpare) return null;
+    const isSpared = spared?.includes(d.entryId) ?? false;
+    return (
+      <button
+        type="button"
+        onClick={() => onToggleSpare(d.entryId)}
+        aria-pressed={isSpared}
+        title={isSpared ? t("unspareTitle", { name: d.label }) : t("spareTitle", { name: d.label })}
+        className={`${BTN_GHOST} ml-2 shrink-0 px-1.5 py-0.5 text-meta`}
+      >
+        {isSpared ? <Undo2 size={12} aria-hidden /> : <UserCheck size={12} aria-hidden />}
+        {isSpared ? t("unspare") : t("spare")}
+      </button>
+    );
+  };
   const overrideRejects = globalFloor == null ? 0 : familyOverrideRejectCount(rejects, globalFloor);
 
   return (
@@ -107,6 +133,7 @@ export function DecisionsScreenWaveLists({
                 ) : null}
                 {staleChip(d)}
                 {floorChip(d)}
+                {spareButton(d)}
                 <span className="mt-0.5 block text-meta text-steel">{reasonText(d)}</span>
               </li>
             ))}
@@ -126,7 +153,10 @@ export function DecisionsScreenWaveLists({
                   {d.label} <span className="nums text-steel">· {d.matchScore ?? "—"}</span>
                   {staleChip(d)}
                 </span>
-                <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
+                <span className="shrink-0 text-meta text-steel">
+                  {reasonText(d)}
+                  {d.reasonCode === "recruiterSpared" ? spareButton(d) : null}
+                </span>
               </li>
             ))}
           </ul>

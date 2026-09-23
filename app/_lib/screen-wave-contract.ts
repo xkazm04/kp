@@ -41,6 +41,10 @@ export const SCREEN_REASON_CODES = [
   // Spared like a holdout, but the clean-arm SEAL failed, so the candidate is NOT in
   // the calibration arm and the row must not claim to be.
   "holdoutSealFailed",
+  // The reviewer spared this person from the wave in the preview (screen-wave-spare.ts):
+  // taken out of the reject set before the approval was signed, so the exclusion is part
+  // of what the human approved.
+  "recruiterSpared",
 ] as const;
 export type ScreenReasonCode = (typeof SCREEN_REASON_CODES)[number];
 export function isScreenReasonCode(value: unknown): value is ScreenReasonCode {

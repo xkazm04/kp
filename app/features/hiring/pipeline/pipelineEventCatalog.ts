@@ -118,6 +118,9 @@ export const EVENT_KINDS = [
   // screen-wave.ts — spared, but the holdout record could not be sealed: the event
   // names the failure, never the arm membership that does not exist (lot D2).
   "screen_wave_holdout_unsealed",
+  // screen-wave.ts — the REVIEWER spared this person from the wave in its preview; the
+  // approval signed the set without them. A person's act, written on commit.
+  "screen_wave_recruiter_spared",
   // pipeline-entry-action.ts — the AI round passed and the hiring plan handed the
   // candidate to a human round. The human-oversight hand-off itself.
   "human_round_queued",
@@ -229,6 +232,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   screening_hold: { Icon: PauseCircle, tone: "text-amber-600" },
   screen_wave_holdout: { Icon: Scale, tone: "text-steel" },
   screen_wave_holdout_unsealed: { Icon: Scale, tone: "text-amber-600" },
+  screen_wave_recruiter_spared: { Icon: UserCheck, tone: "text-moss" },
   human_round_queued: { Icon: UserCheck, tone: "text-moss" },
   interview_scorecard: { Icon: ClipboardList, tone: "text-steel" },
   interview_prep_generated: { Icon: ClipboardList, tone: "text-steel" },

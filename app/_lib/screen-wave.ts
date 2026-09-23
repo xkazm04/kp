@@ -7,6 +7,7 @@ import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { consumeScreenWaveApprovalToken, screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
+import { effectiveSpare, normalizeSpareList, spareSuffix } from "./screen-wave-spare";
 import { isNamedApprover, NAMED_APPROVER_REQUIRED, operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
 import { withCanonicalScores } from "./match-score-resolve";
@@ -120,7 +121,10 @@ export async function runScreenWave(
   // approved from the preview, plus who approved it. A commit without it — or with
   // a token that no longer matches the live set — is refused (no solely-automated
   // adverse decision; EU AI Act / GDPR Art. 22). A dry run needs no approval.
-  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string } },
+  // `spare` = the reviewer's per-person exclusions (screen-wave-spare.ts): entry ids
+  // taken out of the reject set before the token is signed. A commit must echo the
+  // list its preview was computed with, or the re-derived set differs -> "mismatch".
+  opts?: { dryRun?: boolean; approval?: { approvedBy: string; token: string }; spare?: readonly string[] },
   // Tenant (P1): the team whose Screened cohort this wave ranks, rejects, and seals.
   // Threaded from the route's currentWorkspace(); an unscoped default here would run
   // the whole wave (preview, approval token, commits, seals) on the default team's
@@ -142,6 +146,10 @@ export async function runScreenWave(
   // DecisionConfigError, which the route maps to a 400.
   const checked = validateScreeningOverride(override);
   if (!checked.ok) throw new DecisionConfigError(checked.error);
+  // Same backstop for the exclusions: the route normalises first (-> 400), and any
+  // other caller still cannot hand the wave a malformed list.
+  const spareRead = normalizeSpareList(opts?.spare === undefined ? undefined : [...opts.spare]);
+  if (!spareRead.ok) throw new DecisionConfigError(spareRead.error);
   // Read the screening rule for THIS team (tenancy): every other read in this
   // wave threads workspaceId, but this first config read omitted it and fell to
   // DEFAULT_WORKSPACE_ID — so a non-default team's saved familyFloors (never part
@@ -209,7 +217,7 @@ export async function runScreenWave(
   // stale rubber-stamp (same contract as the family floors). Omitted when 0, so a
   // holdout-disabled wave signs a byte-identical token to the pre-holdout build.
   const holdoutPct = effectiveHoldoutPercent(cfg);
-  const policyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}${holdoutPct ? `/holdout${holdoutPct}` : ""}`;
+  const basePolicyVersion = `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${cfg.maxMatchToReject}${familyFloorSuffix(cfg)}${holdoutPct ? `/holdout${holdoutPct}` : ""}`;
   const wouldReject = new Set<string>();
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
@@ -244,6 +252,16 @@ export async function runScreenWave(
   for (const id of reinstatedSpared) wouldReject.delete(id);
   const heldOut = new Set(selectHoldout(jobId, [...wouldReject], holdoutPct).spared);
   for (const id of heldOut) wouldReject.delete(id);
+  // REVIEWER EXCLUSIONS — applied LAST, so only a person who would really be rejected
+  // can be spared (a spare of a shielded, held-out, reinstated or above-cutoff person is
+  // a no-op), and BEFORE signing, so the token covers the post-spare set: the exclusions
+  // are part of what the reviewer approved. A commit re-derives this from the echoed
+  // list; a list that differs from the previewed one re-derives a different set and is
+  // refused "mismatch" below. `/spared<n>` rides the policyVersion so the sealed records
+  // say this wave had human exclusions; none -> no suffix, byte-identical to before.
+  const recruiterSpared = new Set(effectiveSpare(wouldReject, spareRead.ids));
+  for (const id of recruiterSpared) wouldReject.delete(id);
+  const policyVersion = `${basePolicyVersion}${spareSuffix([...recruiterSpared])}`;
   // Art. 22 staleness (approval-token issued-at): a preview mints a token stamped
   // NOW; a commit re-derives the signature using the token's OWN stamp, so it can
   // neither cover a different set nor be back-dated, and is refused once it is older
@@ -393,6 +411,31 @@ export async function runScreenWave(
         rationale: holdoutRationale,
         reasonCode: "holdout",
         reasonParams: { score, threshold: effectiveFloor(cfg, e.roleFamily), pct: holdoutPct },
+        ...staleFields(e.id),
+      });
+      continue;
+    }
+
+    // Spared by the reviewer in the preview: kept, and on commit the exclusion is
+    // recorded on the person as a HUMAN act naming the approver of this wave (the
+    // approval above already bound the exclusion into the signed set). No seal: the
+    // sealed chain records adverse decisions and their calibration arm, and nothing
+    // adverse happened to this person.
+    if (recruiterSpared.has(e.id)) {
+      const floor = effectiveFloor(cfg, e.roleFamily);
+      const sparedRationale = `Kept — spared by the reviewer: removed from this wave before approval (match ${score} was below the ${floor} threshold).`;
+      if (!dryRun) {
+        recordAutomationEvent(e.id, "screen_wave_recruiter_spared", `${sparedRationale} · spared by ${approvedBy}`, workspaceId, `human:${approvedBy}`);
+      }
+      decisions.push({
+        entryId: e.id,
+        label: e.candidateLabel,
+        archetype: e.archetype,
+        matchScore: score,
+        action: "keep",
+        rationale: dryRun ? sparedRationale : `${sparedRationale} · spared by ${approvedBy}`,
+        reasonCode: "recruiterSpared",
+        reasonParams: { score, threshold: floor },
         ...staleFields(e.id),
       });
       continue;

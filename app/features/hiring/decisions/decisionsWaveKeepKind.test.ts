@@ -21,6 +21,7 @@ const ALL: ScreenReasonCode[] = [
   "sealFailed",
   "holdout",
   "holdoutSealFailed",
+  "recruiterSpared",
 ];
 
 test("holdout and holdoutSealFailed map to holdout kinds, not other", () => {

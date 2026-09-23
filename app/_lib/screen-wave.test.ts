@@ -21,7 +21,8 @@ import http from "node:http";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry } from "./db/pipeline.ts";
 import { openStore } from "./db-path.ts";
-import { runScreenWave, UNSCORED_KEEP_RATIONALE } from "./screen-wave.ts";
+import { runScreenWave, ScreenWaveApprovalError, UNSCORED_KEEP_RATIONALE } from "./screen-wave.ts";
+import { FAIRNESS_PROTECTED_ARCHETYPES } from "./archetypes.ts";
 import { listDecisionRecords } from "./decision-record-store.ts";
 import { setRelayHostLookupForTests } from "./comms.ts";
 
@@ -370,4 +371,105 @@ test("one failing dispatch leaves the rest of the cohort correctly notified (com
     listPipelineEventsForEntry(fine.id).some((e) => e.kind === "rejection_sent"),
     "and the candidate whose letter DID queue is recorded as notified"
   );
+});
+
+// ---- reviewer exclusions (challenge-r02 decisions-screen-wave-logic/B) -------------
+//
+// The reviewer can spare individuals from a wave. A spare is applied LAST, after the
+// reinstatement shield and the holdout draw, and before the approval token is signed,
+// so the token covers the post-spare set and a commit re-derives it from the echoed
+// `spare` list: a commit whose list differs from the previewed one is a mismatch.
+// Date.now is pinned inside each case so a token comparison measures the set and the
+// policy, never the clock.
+async function withFixedClock<T>(fn: () => Promise<T>): Promise<T> {
+  const real = Date.now;
+  const at = real();
+  Date.now = () => at;
+  try {
+    return await fn();
+  } finally {
+    Date.now = real;
+  }
+}
+
+const SPARE_RULE = { autoRejectEnabled: true, rejectBottomPercent: 50, maxMatchToReject: 50, holdoutPercent: 0 };
+// Bottom 100% below 50: the low scorer is the only would-reject; the shielded, the high
+// scorer (above the floor) and the unscored are keeps for three different reasons.
+const NOOP_RULE = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 };
+
+test("a spared would-reject comes back as a recruiterSpared keep, and the token signs the narrowed set", async () => {
+  const jobId = "sw-job-spare-preview";
+  const a = seed(jobId, "Spare A", 10);
+  const x = seed(jobId, "Spare X", 12);
+  seed(jobId, "Spare High 1", 80);
+  seed(jobId, "Spare High 2", 90);
+  await withFixedClock(async () => {
+    const plain = await runScreenWave(jobId, SPARE_RULE, { dryRun: true });
+    assert.deepEqual(plain.decisions.filter((d) => d.action === "reject").map((d) => d.entryId).sort(), [a.id, x.id].sort());
+    const spared = await runScreenWave(jobId, SPARE_RULE, { dryRun: true, spare: [x.id] });
+    const row = spared.decisions.find((d) => d.entryId === x.id)!;
+    assert.equal(row.action, "keep");
+    assert.equal(row.reasonCode, "recruiterSpared");
+    assert.equal(spared.rejected, plain.rejected - 1);
+    assert.notEqual(spared.approvalToken, plain.approvalToken, "the exclusion is part of what the reviewer signs");
+  });
+});
+
+test("a spare of someone the wave would keep anyway is a no-op: same decisions, same token", async () => {
+  const jobId = "sw-job-spare-noop";
+  seed(jobId, "Noop Low", 10);
+  const shielded = seed(jobId, "Noop Shielded", 11, FAIRNESS_PROTECTED_ARCHETYPES[0]);
+  const high = seed(jobId, "Noop High", 90);
+  const unscored = seed(jobId, "Noop Unscored", null);
+  await withFixedClock(async () => {
+    const plain = await runScreenWave(jobId, NOOP_RULE, { dryRun: true });
+    assert.ok(plain.decisions.some((d) => d.entryId === shielded.id && d.action === "keep"), "precondition: the shield keeps them");
+    const noop = await runScreenWave(jobId, NOOP_RULE, {
+      dryRun: true,
+      spare: [shielded.id, high.id, unscored.id, "not-in-this-cohort"],
+    });
+    assert.deepEqual(noop.decisions, plain.decisions, "a spare can only narrow the reject set, never re-label a keep");
+    assert.equal(noop.approvalToken, plain.approvalToken, "an empty effective spare leaves the signed policy unchanged");
+  });
+});
+
+test("committing with the spared preview's token rejects the rest, leaves the spared person active, and records who spared them", async () => {
+  const jobId = "sw-job-spare-commit";
+  const a = seed(jobId, "Commit Spare A", 10);
+  const x = seed(jobId, "Commit Spare X", 12);
+  seed(jobId, "Commit Spare High 1", 80);
+  seed(jobId, "Commit Spare High 2", 90);
+  const preview = await runScreenWave(jobId, SPARE_RULE, { dryRun: true, spare: [x.id] });
+  const committed = await runScreenWave(jobId, SPARE_RULE, {
+    dryRun: false,
+    spare: [x.id],
+    approval: { approvedBy: "Spare Approver", token: preview.approvalToken },
+  });
+  assert.equal(committed.rejected, 1);
+  assert.equal(getPipelineEntry(a.id)!.status, "rejected");
+  const kept = getPipelineEntry(x.id)!;
+  assert.equal(kept.status, "active");
+  assert.equal(kept.stage, "Screened");
+  const events = listPipelineEventsForEntry(x.id).filter((e) => e.kind === "screen_wave_recruiter_spared");
+  assert.equal(events.length, 1, "one attributed exclusion event");
+  assert.match(events[0].detail ?? "", /Spare Approver/, "the event names the resolved approver");
+  assert.equal(listDecisionRecords({ candidateRef: x.id }).length, 0, "nothing adverse is sealed for a spared person");
+});
+
+test("a commit that drops the spare list cannot ride the spared preview's token (mismatch)", async () => {
+  const jobId = "sw-job-spare-mismatch";
+  seed(jobId, "Mismatch A", 10);
+  const x = seed(jobId, "Mismatch X", 12);
+  seed(jobId, "Mismatch High 1", 80);
+  seed(jobId, "Mismatch High 2", 90);
+  const preview = await runScreenWave(jobId, SPARE_RULE, { dryRun: true, spare: [x.id] });
+  await assert.rejects(
+    runScreenWave(jobId, SPARE_RULE, {
+      dryRun: false,
+      spare: [],
+      approval: { approvedBy: "Spare Approver", token: preview.approvalToken },
+    }),
+    (err: unknown) => err instanceof ScreenWaveApprovalError && err.reason === "mismatch"
+  );
+  assert.equal(getPipelineEntry(x.id)!.status, "active", "nothing committed");
 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import type { ScreenWaveRefusalReason } from "@/app/_lib/screen-wave-contract";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
+import { normalizeSpareList } from "@/app/_lib/screen-wave-spare";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
       dryRun?: unknown;
       approvalToken?: unknown;
       approvedBy?: unknown;
+      spare?: unknown;
     };
     if (!body.jobId) return jsonRefusal("SCREEN_WAVE_JOB_REQUIRED", 400);
     // Validate the optional per-run override at the trust boundary: auto-reject is
@@ -67,6 +69,13 @@ export async function POST(request: NextRequest) {
     // body, is what reaches runScreenWave's bottom-% math (idea-1852b219).
     const checked = validateScreeningOverride(body.override);
     if (!checked.ok) return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: checked.error });
+    // The reviewer's per-person exclusions (screen-wave-spare.ts). Normalised here, at
+    // the trust boundary, like the override: a malformed list is a 400, never a 500 and
+    // never a silently shortened list. The preview and the commit must carry the SAME
+    // list: the approval token signs the set AFTER these are taken out, so a commit that
+    // drops or changes them re-derives a different set and is refused "mismatch".
+    const spare = normalizeSpareList(body.spare);
+    if (!spare.ok) return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: spare.error });
     // dryRun (DEC2): preview the cohort the wave WOULD reject — full math, zero
     // mutation/comms. Default false (commit), so an old client without the flag
     // behaves exactly as before; only an explicit `true` previews.
@@ -107,7 +116,7 @@ export async function POST(request: NextRequest) {
             token: approvalToken,
             approvedBy: await resolveApprover(),
           };
-    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval }, ws);
+    const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval, spare: spare.ids }, ws);
     return NextResponse.json(result);
   } catch (error) {
     // No usable human approval → 409 with its reason, so the client can re-preview a

@@ -76,6 +76,10 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // so the event names the failure, not the arm (screen-wave.ts). Still a machine
   // decision about that candidate; amber because an operator should retry the seal.
   screen_wave_holdout_unsealed: { auto: true, tone: "text-amber-600" },
+  // The REVIEWER took this person out of a screening wave in its preview, before
+  // approving it (screen-wave-spare.ts). auto:false: the wave did not decide to keep
+  // them, a named person did, and the event names who.
+  screen_wave_recruiter_spared: { auto: false, tone: "text-moss" },
   // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
   // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
   ko_declined: { auto: true, tone: "text-coral" },

@@ -172,3 +172,51 @@ test("the live region is not inside the committed branch, so it exists to be upd
   assert.ok(bannerAt > 0 && branchAt > 0, "both landmarks found");
   assert.ok(bannerAt < branchAt, "the region is rendered BEFORE the committed/preview fork, so it is mounted either way");
 });
+
+// ---- reviewer exclusions (challenge-r02 decisions-screen-wave-logic/B) -------------
+
+test("spareToggled adds then removes one person, and each toggle forces a fresh preview", () => {
+  const loaded = run([{ type: "previewStarted" }, { type: "previewSucceeded", result: result(3) }, { type: "previewSettled" }]);
+  const on = waveReduce(loaded, { type: "spareToggled", entryId: "x" });
+  assert.deepEqual(on.spared, ["x"]);
+  assert.equal(on.refreshNonce, loaded.refreshNonce + 1, "a new exclusion needs a new preview and a new token");
+  const off = waveReduce(on, { type: "spareToggled", entryId: "x" });
+  assert.deepEqual(off.spared, []);
+  assert.equal(off.refreshNonce, loaded.refreshNonce + 2);
+  const two = run([{ type: "spareToggled", entryId: "b" }, { type: "spareToggled", entryId: "a" }], loaded);
+  assert.deepEqual(two.spared, ["a", "b"], "kept sorted, the shape the server normalises to");
+});
+
+test("the spared set survives a refusal's re-preview", () => {
+  const s = run([
+    { type: "previewStarted" },
+    { type: "previewSucceeded", result: result(3) },
+    { type: "previewSettled" },
+    { type: "spareToggled", entryId: "x" },
+    { type: "commitStarted" },
+    { type: "commitRefused", reason: "mismatch", message: "set changed" },
+    { type: "commitSettled" },
+    { type: "previewStarted" },
+    { type: "previewSucceeded", result: result(3), spare: ["x"] },
+    { type: "previewSettled" },
+  ]);
+  assert.deepEqual(s.spared, ["x"]);
+  assert.deepEqual(s.previewSpare, ["x"], "the commit echoes the list the displayed preview was signed with");
+});
+
+test("a preview records the spare list it was computed with; absent means none", () => {
+  const s = run([{ type: "previewSucceeded", result: result(1) }]);
+  assert.deepEqual(s.previewSpare, []);
+  const t = run([{ type: "previewSucceeded", result: result(1), spare: ["a", "b"] }]);
+  assert.deepEqual(t.previewSpare, ["a", "b"]);
+});
+
+test("after a commit the view is frozen: spareToggled changes nothing", () => {
+  const committed = run([
+    { type: "previewSucceeded", result: result(2) },
+    { type: "commitStarted" },
+    { type: "commitSucceeded", result: result(2) },
+    { type: "commitSettled" },
+  ]);
+  assert.equal(waveReduce(committed, { type: "spareToggled", entryId: "x" }), committed);
+});

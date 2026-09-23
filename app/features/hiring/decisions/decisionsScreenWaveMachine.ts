@@ -56,6 +56,13 @@ export interface WaveMachineState {
   /** Armed by a refusal whose wave DID land (`spent`; the hook reloads the queue on
    *  that same refusal), consumed by the next preview settle. */
   landedElsewhere: boolean;
+  /** The reviewer's exclusions (screen-wave-spare.ts), sorted: the entry ids the NEXT
+   *  preview asks the server to take out of the wave. Survives every re-preview. */
+  spared: readonly string[];
+  /** The exclusions the DISPLAYED preview was computed with, so its token and the list
+   *  a commit echoes always belong together (the server re-derives the signed set from
+   *  the echoed list; a differing one is a "mismatch"). */
+  previewSpare: readonly string[];
 }
 
 export const INITIAL_WAVE_STATE: WaveMachineState = {
@@ -70,11 +77,13 @@ export const INITIAL_WAVE_STATE: WaveMachineState = {
   commitBlocked: null,
   blockedMessage: null,
   landedElsewhere: false,
+  spared: [],
+  previewSpare: [],
 };
 
 export type WaveEvent =
   | { type: "previewStarted" }
-  | { type: "previewSucceeded"; result: WaveResult }
+  | { type: "previewSucceeded"; result: WaveResult; spare?: readonly string[] }
   | { type: "previewFailed"; message: string }
   | { type: "previewSettled" }
   | { type: "confirmOpened" }
@@ -83,7 +92,8 @@ export type WaveEvent =
   | { type: "commitSucceeded"; result: WaveResult }
   | { type: "commitRefused"; reason: ScreenWaveRefusalReason; message: string }
   | { type: "commitFailed"; message: string }
-  | { type: "commitSettled" };
+  | { type: "commitSettled" }
+  | { type: "spareToggled"; entryId: string };
 
 export function waveReduce(state: WaveMachineState, event: WaveEvent): WaveMachineState {
   switch (event.type) {
@@ -91,7 +101,7 @@ export function waveReduce(state: WaveMachineState, event: WaveEvent): WaveMachi
       return { ...state, loading: true };
     case "previewSucceeded":
       // Never clear a pending commit-level notice here — see keepCommitNotice.
-      return { ...state, preview: event.result, error: state.keepCommitNotice ? state.error : null };
+      return { ...state, preview: event.result, previewSpare: event.spare ?? [], error: state.keepCommitNotice ? state.error : null };
     case "previewFailed":
       // The failure replaces the notice: it is the newer, more urgent fact, and the
       // last good preview stays on screen behind it.
@@ -129,6 +139,16 @@ export function waveReduce(state: WaveMachineState, event: WaveEvent): WaveMachi
       // Close the confirm step whatever happened; the result or the error shows in
       // the main modal.
       return { ...state, committing: false, confirmOpen: false };
+    case "spareToggled": {
+      // The committed view is frozen: sparing after the fact is the reconsider queue's
+      // job, not this modal's.
+      if (state.committed) return state;
+      const next = state.spared.includes(event.entryId)
+        ? state.spared.filter((id) => id !== event.entryId)
+        : [...state.spared, event.entryId].sort();
+      // A new exclusion is a new set to approve: re-preview for a fresh token.
+      return { ...state, spared: next, refreshNonce: state.refreshNonce + 1 };
+    }
     default: {
       // Exhaustiveness: a new event with no transition is a type error, not a
       // silently-ignored state change.
