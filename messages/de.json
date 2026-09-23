@@ -8394,7 +8394,35 @@
       "caveatThin": "{metric}: nur {sample, plural, one {# Beobachtung} other {# Beobachtungen}}. Real, aber zu dünn für eine Veröffentlichung.",
       "certifiableNote": "Alle Kennzahlen oben sind über eine ausreichende Stichprobe gemessen.",
       "notPublishable": "**Nicht veröffentlichungsreif.** Die folgenden Kennzahlen lassen sich noch nicht belegen:",
-      "disclaimer": "_Die Zahlen beschreiben die eigene erfasste Aktivität dieses Arbeitsbereichs. Kandi berechnet keine prozentuale Verbesserung gegenüber einer Ausgangsbasis vor Kandi. Dieser Vergleich gehört demjenigen, der die früheren Zahlen hat._"
+      "disclaimer": "_Die Zahlen beschreiben die eigene erfasste Aktivität dieses Arbeitsbereichs. Kandi berechnet keine prozentuale Verbesserung gegenüber einer Ausgangsbasis vor Kandi. Dieser Vergleich gehört demjenigen, der die früheren Zahlen hat._",
+      "need": {
+        "shortfall": {
+          "hires": "{count, plural, one {# weitere Einstellung} other {# weitere Einstellungen}}",
+          "actions": "{count, plural, one {# weitere automatisierte Aktion} other {# weitere automatisierte Aktionen}}",
+          "roles": "{count, plural, one {# weitere eigene offene Stelle} other {# weitere eigene offene Stellen}}",
+          "responses": "{count, plural, one {# weitere Kandidatenantwort} other {# weitere Kandidatenantworten}}"
+        },
+        "eta": "Bis zur Schwelle von {floor}: noch {shortfall}. Beim jüngsten Tempo sind das etwa {weeks, plural, one {# Woche} other {# Wochen}}, also um den {date}.",
+        "noPace": "Bis zur Schwelle von {floor}: noch {shortfall}. Für diesen Wert ist kein jüngstes Tempo gemessen, daher wird kein Datum genannt.",
+        "windowTooNarrow": "Bis zur Schwelle von {floor}: noch {shortfall}. Beim jüngsten Tempo erreicht ein Fenster von {days} Tagen diese Zahl nie; erweitern Sie das Fenster oder wählen Sie den gesamten Zeitraum.",
+        "notAccruing": "Bis zur Schwelle von {floor}: noch {shortfall}. Dieser Wert wächst nicht mit der Zeit, daher gilt kein Datum."
+      },
+      "preview": {
+        "open": "Kennzahlenpaket ansehen",
+        "openWorkspace": "Kennzahlenpaket ansehen (gesamter Arbeitsbereich)",
+        "title": "Vorschau des Kennzahlenpakets",
+        "loading": "Paket wird zusammengestellt…",
+        "loadFailed": "Das Kennzahlenpaket konnte nicht zusammengestellt werden.",
+        "summary": "{publishable} von {total} Kennzahlen veröffentlichungsreif",
+        "ready": "Versandbereit: Jede Kennzahl erreicht ihre Schwelle.",
+        "notReady": "Noch nicht versandbereit.",
+        "clearsAround": "Beim jüngsten Tempo erreichen alle blockierenden Kennzahlen ihre Schwelle um den {date}.",
+        "noClearDate": "Mindestens eine blockierende Kennzahl hat kein Datum; ihre Zeile nennt den Grund.",
+        "blockersHeading": "Verhindert die Veröffentlichung",
+        "measuredHeading": "Veröffentlichungsreif",
+        "windowHint": "Dieses Fenster ist zu schmal, als dass mindestens eine Kennzahl beim jüngsten Tempo je ihre Schwelle erreicht.",
+        "useAllTime": "Gesamten Zeitraum verwenden"
+      }
     },
     "spendAsOf": "Ausgaben eingetragen am {date}",
     "spendAsOfOldest": "Älteste Ausgabenangabe am {date}",

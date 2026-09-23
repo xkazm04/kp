@@ -8394,7 +8394,35 @@
       "caveatThin": "{metric}: only {sample, plural, one {# observation} other {# observations}}. Real, but too thin to publish.",
       "certifiableNote": "Every metric above is measured over a sufficient sample.",
       "notPublishable": "**Not publication-ready.** The following metrics cannot yet be defended:",
-      "disclaimer": "_Figures describe this workspace's own recorded activity. Kandi does not compute an improvement percentage against a pre-Kandi baseline. That comparison belongs to whoever holds the prior numbers._"
+      "disclaimer": "_Figures describe this workspace's own recorded activity. Kandi does not compute an improvement percentage against a pre-Kandi baseline. That comparison belongs to whoever holds the prior numbers._",
+      "need": {
+        "shortfall": {
+          "hires": "{count, plural, one {# more hire} other {# more hires}}",
+          "actions": "{count, plural, one {# more automated action} other {# more automated actions}}",
+          "roles": "{count, plural, one {# more owned open role} other {# more owned open roles}}",
+          "responses": "{count, plural, one {# more candidate response} other {# more candidate responses}}"
+        },
+        "eta": "Needs {shortfall} to reach its floor of {floor}. At the recent pace that is about {weeks, plural, one {# week} other {# weeks}} away, around {date}.",
+        "noPace": "Needs {shortfall} to reach its floor of {floor}. No recent pace is measured for it, so no date is given.",
+        "windowTooNarrow": "Needs {shortfall} to reach its floor of {floor}. At the recent pace a {days}-day window never holds that many, so widen the window or use all time.",
+        "notAccruing": "Needs {shortfall} to reach its floor of {floor}. This figure does not grow with time, so no date applies."
+      },
+      "preview": {
+        "open": "Preview metric pack",
+        "openWorkspace": "Preview metric pack (whole workspace)",
+        "title": "Metric pack preview",
+        "loading": "Assembling the pack…",
+        "loadFailed": "The metric pack could not be assembled.",
+        "summary": "{publishable} of {total} figures publishable",
+        "ready": "Ready to send: every figure clears its floor.",
+        "notReady": "Not ready to send yet.",
+        "clearsAround": "At the recent pace, every blocking figure clears around {date}.",
+        "noClearDate": "At least one blocking figure has no date; its line says why.",
+        "blockersHeading": "Blocking publication",
+        "measuredHeading": "Publishable",
+        "windowHint": "This window is too narrow for at least one figure to ever clear at the recent pace.",
+        "useAllTime": "Use all time"
+      }
     },
     "spendAsOf": "Spend entered {date}",
     "spendAsOfOldest": "Oldest spend entry {date}",

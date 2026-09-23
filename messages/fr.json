@@ -8394,7 +8394,35 @@
       "caveatThin": "{metric} : seulement {sample, plural, one {# observation} other {# observations}}. Réel, mais trop peu pour être publié.",
       "certifiableNote": "Toutes les métriques ci-dessus sont mesurées sur un échantillon suffisant.",
       "notPublishable": "**Non publiable en l’état.** Les métriques suivantes ne peuvent pas encore être défendues :",
-      "disclaimer": "_Les chiffres décrivent l’activité enregistrée de cet espace de travail. Kandi ne calcule pas de pourcentage d’amélioration par rapport à une référence antérieure à Kandi. Cette comparaison revient à qui détient les chiffres précédents._"
+      "disclaimer": "_Les chiffres décrivent l’activité enregistrée de cet espace de travail. Kandi ne calcule pas de pourcentage d’amélioration par rapport à une référence antérieure à Kandi. Cette comparaison revient à qui détient les chiffres précédents._",
+      "need": {
+        "shortfall": {
+          "hires": "{count, plural, one {# embauche} other {# embauches}}",
+          "actions": "{count, plural, one {# action automatisée} other {# actions automatisées}}",
+          "roles": "{count, plural, one {# poste ouvert détenu} other {# postes ouverts détenus}}",
+          "responses": "{count, plural, one {# réponse de candidat} other {# réponses de candidats}}"
+        },
+        "eta": "Il manque {shortfall} pour atteindre le seuil de {floor}. Au rythme récent, cela représente environ {weeks, plural, one {# semaine} other {# semaines}}, soit vers le {date}.",
+        "noPace": "Il manque {shortfall} pour atteindre le seuil de {floor}. Aucun rythme récent n’est mesuré pour cette valeur, donc aucune date n’est indiquée.",
+        "windowTooNarrow": "Il manque {shortfall} pour atteindre le seuil de {floor}. Au rythme récent, une fenêtre de {days} jours n’en contient jamais autant : élargissez la fenêtre ou choisissez toute la période.",
+        "notAccruing": "Il manque {shortfall} pour atteindre le seuil de {floor}. Cette valeur n’augmente pas avec le temps, aucune date ne s’applique donc."
+      },
+      "preview": {
+        "open": "Aperçu du pack de métriques",
+        "openWorkspace": "Aperçu du pack de métriques (tout l’espace de travail)",
+        "title": "Aperçu du pack de métriques",
+        "loading": "Assemblage du pack…",
+        "loadFailed": "Le pack de métriques n’a pas pu être assemblé.",
+        "summary": "{publishable} sur {total} indicateurs publiables",
+        "ready": "Prêt à envoyer : chaque indicateur atteint son seuil.",
+        "notReady": "Pas encore prêt à envoyer.",
+        "clearsAround": "Au rythme récent, tous les indicateurs bloquants atteignent leur seuil vers le {date}.",
+        "noClearDate": "Au moins un indicateur bloquant n’a pas de date ; sa ligne indique pourquoi.",
+        "blockersHeading": "Bloque la publication",
+        "measuredHeading": "Publiable",
+        "windowHint": "Cette fenêtre est trop étroite pour qu’au moins un indicateur atteigne un jour son seuil au rythme récent.",
+        "useAllTime": "Utiliser toute la période"
+      }
     },
     "spendAsOf": "Dépense saisie le {date}",
     "spendAsOfOldest": "Dépense la plus ancienne saisie le {date}",

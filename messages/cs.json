@@ -8394,7 +8394,35 @@
       "caveatThin": "{metric}: jen {sample, plural, one {# pozorování} few {# pozorování} other {# pozorování}}. Reálné, ale příliš málo na publikování.",
       "certifiableNote": "Všechny metriky výše jsou změřené na dostatečném vzorku.",
       "notPublishable": "**Není připraveno k publikování.** Následující metriky zatím nejde obhájit:",
-      "disclaimer": "_Údaje popisují vlastní zaznamenanou činnost tohoto pracovního prostoru. Kandi nepočítá procentní zlepšení oproti stavu před nasazením Kandi. Takové srovnání patří tomu, kdo má k dispozici předchozí čísla._"
+      "disclaimer": "_Údaje popisují vlastní zaznamenanou činnost tohoto pracovního prostoru. Kandi nepočítá procentní zlepšení oproti stavu před nasazením Kandi. Takové srovnání patří tomu, kdo má k dispozici předchozí čísla._",
+      "need": {
+        "shortfall": {
+          "hires": "{count, plural, one {# přijetí} few {# přijetí} other {# přijetí}}",
+          "actions": "{count, plural, one {# automatizovaná akce} few {# automatizované akce} other {# automatizovaných akcí}}",
+          "roles": "{count, plural, one {# vlastní otevřená pozice} few {# vlastní otevřené pozice} other {# vlastních otevřených pozic}}",
+          "responses": "{count, plural, one {# odpověď kandidáta} few {# odpovědi kandidátů} other {# odpovědí kandidátů}}"
+        },
+        "eta": "Do prahu {floor} chybí ještě {shortfall}. Při nedávném tempu je to zhruba {weeks, plural, one {# týden} few {# týdny} other {# týdnů}}, tedy kolem {date}.",
+        "noPace": "Do prahu {floor} chybí ještě {shortfall}. Nedávné tempo pro tento údaj není změřeno, proto datum neuvádíme.",
+        "windowTooNarrow": "Do prahu {floor} chybí ještě {shortfall}. Při nedávném tempu tolik {days}denní okno nikdy nepojme, rozšiřte proto okno nebo zvolte celé období.",
+        "notAccruing": "Do prahu {floor} chybí ještě {shortfall}. Tento údaj s časem neroste, proto datum nelze uvést."
+      },
+      "preview": {
+        "open": "Náhled sady metrik",
+        "openWorkspace": "Náhled sady metrik (celý pracovní prostor)",
+        "title": "Náhled sady metrik",
+        "loading": "Sestavujeme sadu…",
+        "loadFailed": "Sadu metrik se nepodařilo sestavit.",
+        "summary": "{publishable} z {total} ukazatelů lze publikovat",
+        "ready": "Připraveno k odeslání: každý ukazatel dosahuje svého prahu.",
+        "notReady": "Zatím není připraveno k odeslání.",
+        "clearsAround": "Při nedávném tempu dosáhnou všechny blokující ukazatele svého prahu kolem {date}.",
+        "noClearDate": "Nejméně jeden blokující ukazatel nemá datum; jeho řádek uvádí proč.",
+        "blockersHeading": "Brání publikování",
+        "measuredHeading": "Lze publikovat",
+        "windowHint": "Toto okno je příliš úzké na to, aby alespoň jeden ukazatel při nedávném tempu někdy dosáhl svého prahu.",
+        "useAllTime": "Použít celé období"
+      }
     },
     "spendAsOf": "Útrata zadána {date}",
     "spendAsOfOldest": "Nejstarší zadaná útrata {date}",
