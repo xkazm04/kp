@@ -100,15 +100,40 @@ Bold = op winner. n=4/cell (~±0.3–0.5 noise); ties within 0.3 are noise.
    residual is role-family classification granularity and entry-profile
    heuristics — taxonomy/deterministic-code work, not prompts.
 
-## Per-op routing recommendation
+## Per-use-case routing recommendation (computed, not hand-written)
 
-| op | pin | note |
-|---|---|---|
-| match_reasoning, group_compare, interview_prep, screen, offer | gemini-3.6-flash | 8.6–9.0 at the panel's best latency/cost |
-| campaign_pack, jd_ingest | deepseek-v4-flash | jd_ingest winner; campaign tied — cost rules a background op |
-| interview_scorecard, devcase_analyze | claude-sonnet-5 (deepseek close behind) | |
-| weight_proposal, outreach, devcase case/scenario design | claude-opus-5 | the ops where the frontier margin is real |
-| rejection, role_design | any column ≥8.6 | flattest ops — route on cost |
+The routing advice is no longer a hand table here: **Settings → Models → Quality →
+Recommended routing** computes it from the baked data (`recommendForUseCase` in
+`app/_lib/llm-quality.ts`) and pins it in one click. The rule, per ROUTING use case
+(automation's five ops averaged together):
+
+- **Candidates** have a cell on every op of the use case and a worst-op `llmRate`
+  ≥ `RELIABILITY_FLOOR` (0.9).
+- **Best** = the highest mean composite among candidates.
+- **Noise band** (`NOISE_BAND`, fixed before the rule was built, never tuned to a
+  result): **0.15** composite points when both compared aggregates rest on ≥ 4
+  judged scenarios in every op, **0.30** below that.
+- **Pick** = the cheapest *priced* candidate within the band of the best. An
+  unpriced model is never claimed cheapest; an unpriced best yields
+  `cost_unmeasured` and the top score. Reasons: `cheapest_in_band`,
+  `best_is_cheapest`, `only_candidate`, `cost_unmeasured`, `no_reliable_candidate`.
+
+On the 2026-08-12 bake: match_reasoning → gemini-3.6-flash (9.0, ~$0.004/task;
+opus 9.1 is inside the band at ~68× the cost), campaign_pack → deepseek-v4-flash,
+jd_ingest → deepseek-v4-flash, weight_proposal → claude-opus-5 (deepseek 8.1 is out
+of band, sonnet is under the reliability floor), and automation → claude-opus-5 as
+the only candidate (every other column has an op under 0.9 reliability).
+Claude CLI costs are **list-price equivalents** — the CLI seat itself is
+subscription-billed; the board says so beside the price.
+
+The row joins the pick against the current pins (`modelsQualityPick.ts`):
+`pinned` (the effective pin already names the pick's bench provider AND model),
+`pin_available`, `unmeasured_pin` (your pin's model was never benchmarked),
+`provider_unavailable`, and `pin_forbidden` for a reader known not to hold
+`org:manage` — the PUT's `requireModelAdmin` would answer `MODEL_ADMIN_FORBIDDEN`.
+The Pin button sends `{useCase, provider, model, params, expectedUpdatedAt}` through
+the existing `saveRoutingPin`, so the pin keeps its params and the
+`MODEL_ROUTING_STALE` guard (a 409 reloads the rows).
 
 ## In-app scorecard (Models tab)
 
@@ -116,6 +141,14 @@ Pipeline: bench matrix → `bake_quality.py` → `app/_lib/llm-quality-scores.ts
 (generated, **do not hand-edit**) → `app/_lib/llm-quality.ts` → **Settings →
 Models** (`ModelsQualityOverview.tsx`). Baked from
 `n4-api-keep + n4-api2-keep + n4-api3 + n4-cli`, judge label `fable-5`.
+
+Each cell carries `costPerTaskUsd` — the median `cost_usd` of the model's served
+LLM rows (fallback and errored rows never feed it; a cell with no priced row is
+`null`, never 0) — and the file a `targets` map (slug → the bench provider/model a
+pin must name). Re-baking the four n4 dirs with
+`--judge fable-5 --measured-at 2026-08-12T00:49:23.000Z` reproduces every existing
+value byte-for-byte and only adds those two fields; the records already carry the
+judge scores, so a re-bake spends nothing.
 
 **The Wins column credits every model in a dead heat** (`topModelsForOp` in
 `llm-quality.ts`), so per-model counts can sum above the op count. It used to ask
@@ -133,7 +166,7 @@ LIGHTTRACK_QUIET=1 python -m pipeline.jobfit.llm.bench.bench_cli \
   --targets gemini:gemini-3.6-flash,qwen:deepseek-v4-flash,claude_cli:claude-sonnet-5,claude_cli:claude-opus-5 \
   --limit 4 --max-usd 5 --judge --judge-model fable --out tmp/bench/<round>
 
-python -m pipeline.jobfit.llm.bench.bake_quality tmp/bench/<round>/... --judge fable-5
+python -m pipeline.jobfit.llm.bench.bake_quality tmp/bench/<round>/... --judge fable-5 [--measured-at <run ISO stamp>]
 ```
 
 **The matrix does not run without a spend ceiling.** `--max-usd` (or
