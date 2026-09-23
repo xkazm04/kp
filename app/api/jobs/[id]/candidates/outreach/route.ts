@@ -9,6 +9,7 @@ import { optedOutCandidateIds } from "@/app/_lib/outreach-state-store";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
 // its provider timeout so a slow-but-valid draft isn't killed at 60s (matches the
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // jobTitle / roleFamily come from the authoritative server-side record (the
     // path's job id), not the client body — same trust posture as the rest of the
     // pipeline writes.
-    const { entry, created } = createPipelineEntry({
+    const { entry, created, reopened, reopenRefused } = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
       archetype: body.archetype ?? null,
@@ -120,7 +121,19 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // comm) speaks their language; NULL falls to the workspace default.
       locale: inferProfileLocale(body.candidateId),
       workspaceId: ws,
+      // A recruiter clicking "Reach out" on someone already closed on THIS role is a
+      // human decision to reconsider them: reopen on the record, named. The store still
+      // refuses an erased, role-closed or rematched entry.
+      reopen: { actorRef: await humanActor() },
     });
+
+    // The entry on THIS role is closed and stays closed (erased, role closed, or moved
+    // to another funnel): no first-touch goes to a person the board does not hold as
+    // live here. A truthful "nothing was sent" rather than drafting a paid message onto
+    // a closed row — the client reads any `suppressed*` token as exactly that.
+    if (reopenRefused) {
+      return NextResponse.json({ entryId: entry.id, created, reopened, reopenRefused, applied: "suppressed_closed" });
+    }
 
     // Close-the-prior (direction 3): a reach-out re-engages a silver medalist under a
     // NEW role — link their terminal priors (rejected/role_closed/declined elsewhere)
@@ -138,7 +151,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
 
     const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
-    return NextResponse.json({ entryId: entry.id, created, applied: result.applied });
+    return NextResponse.json({ entryId: entry.id, created, reopened, applied: result.applied });
   } catch (error) {
     // AutomationError carries a client-safe business message + status (e.g. the
     // candidate has no saved profile to draft from → 400); everything else goes

@@ -10,6 +10,7 @@ import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 
 export async function GET() {
@@ -137,6 +138,12 @@ export async function POST(request: NextRequest) {
       // default at dispatch (backlog #34 / pa-l2-null-locale).
       locale: inferProfileLocale(body.candidateId),
       workspaceId: ws,
+      // THE RECONSIDER DOOR. A recruiter re-adding a candidate they (or the machine)
+      // rejected, or who declined, means "let us look again": this is one of the two
+      // human doors that may reopen a closed entry, and it names who did it, so the
+      // reversal lands in the decision log as a `reinstated` event with an actor.
+      // Erased, role-closed and rematched entries still refuse (body.reopenRefused).
+      reopen: { actorRef: await humanActor() },
     });
     // Close-the-prior for SOURCING adds (mirrors the reach-out route): a
     // rediscovery/sourcing add re-engages a silver medalist under a new role, so

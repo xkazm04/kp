@@ -564,6 +564,9 @@ export const PIPELINE_REASON_CODES = [
   "addedToPipeline",
   // restoreCommandRejection (api/pipeline/command/reverse.ts) — a command-bar wave undone.
   "commandWaveReversed",
+  // createPipelineEntry — a named human door re-added a rejected/declined candidate
+  // and so reopened them (the `reopen` option; machine doors cannot).
+  "readdedByRecruiter",
 ] as const;
 export type PipelineReasonCode = (typeof PIPELINE_REASON_CODES)[number];
 
@@ -1432,7 +1435,34 @@ export type CreatePipelineInput = {
   // analysis→board chip + disposition echo scope on it. Recruiter/Match/inbound adds
   // omit it today (single-tenant); a multi-tenant enable threads currentWorkspace() here.
   workspaceId?: string;
+  // A re-add reopens a CLOSED entry only when a human door names itself (humanActor());
+  // every machine door omits this, so no machine can undo a human's reject.
+  reopen?: { actorRef: string } | null;
 };
+
+/** Why a re-add left a closed entry closed: no human asked; a role_closed/rematched
+ *  entry (each has its own reversal door); or the person was erased (never reopens). */
+export type ReaddReopenRefusal = "not_requested" | "terminal_status" | "anonymized";
+
+export type CreatePipelineResult = {
+  entry: PipelineEntry;
+  created: boolean;
+  reopened: boolean;
+  reopenRefused?: ReaddReopenRefusal;
+};
+
+/** A reject or a decline is about this person, so a recruiter may reconsider it. */
+const REOPENABLE_ON_READD: ReadonlySet<string> = new Set(["rejected", "declined"]);
+
+function readdReopenDecision(
+  row: Pick<PipelineRow, "status" | "anonymized_at">,
+  reopen: CreatePipelineInput["reopen"]
+): ReaddReopenRefusal | null {
+  if (row.anonymized_at) return "anonymized";
+  if (!REOPENABLE_ON_READD.has(row.status)) return "terminal_status";
+  if (!reopen?.actorRef) return "not_requested";
+  return null;
+}
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
 // or the recruiter view returns the existing row rather than duplicating it. When
@@ -1440,7 +1470,9 @@ export type CreatePipelineInput = {
 // per-submission profile id there), the id keys on that stable value instead, so
 // repeat applications dedup rather than piling up. Returns created:false when an
 // entry already existed, letting the caller surface the repeat.
-export function createPipelineEntry(input: CreatePipelineInput): { entry: PipelineEntry; created: boolean } {
+// One IMMEDIATE transaction (read → decide → write), so each outcome commits whole;
+// nests as a savepoint under devcase-run.ts's own transaction.
+export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineResult {
   const db = ensureDb();
   // Tenant scope (P1): stamp + scope every by-id lookup to the owning team.
   const workspaceId = input.workspaceId ?? DEFAULT_WORKSPACE_ID;
@@ -1452,116 +1484,144 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
   // behavior-identical under the single-tenant lock — every id uses the default scheme.
   const idPrefix = workspaceId === DEFAULT_WORKSPACE_ID ? "" : `${workspaceId}-`;
   const id = `m-${idPrefix}${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
-  const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
-  if (existing) {
-    // A re-add carrying GitHub evidence backfills an entry that has none —
-    // additive only, never an overwrite of evidence already attached.
-    if (input.githubJson && !existing.github_json) {
-      db.prepare(`UPDATE pipeline_entries SET github_json=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
-        input.githubJson,
-        new Date().toISOString(),
-        id,
-        workspaceId
-      );
-    }
-    // Same additive discipline for the self-reported handle: a repeat that
-    // brings one fills an entry that has none, never overwrites one on file.
-    if (input.githubHandle && !existing.github_handle) {
-      db.prepare(`UPDATE pipeline_entries SET github_handle=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
-        input.githubHandle,
-        new Date().toISOString(),
-        id,
-        workspaceId
-      );
-    }
-    // ONE THREAD: same FILL-ONLY rule for the two assignment links. A promote whose
-    // (candidate, job) pair already has an entry — the JD's own opening created it
-    // when the same person applied there — attaches its case/submission to THAT row
-    // rather than minting a parallel one. Never an overwrite: an entry already tied
-    // to an assignment keeps the first one, so a second promote cannot silently
-    // re-point the interview brief at different material.
-    if (input.devCaseId && !existing.dev_case_id) {
-      db.prepare(`UPDATE pipeline_entries SET dev_case_id=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
-        input.devCaseId,
-        new Date().toISOString(),
-        id,
-        workspaceId
-      );
-    }
-    if (input.devSubmissionId && !existing.dev_submission_id) {
-      db.prepare(`UPDATE pipeline_entries SET dev_submission_id=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
-        input.devSubmissionId,
-        new Date().toISOString(),
-        id,
-        workspaceId
-      );
-    }
-    // re-surface a previously-closed candidate if a recruiter re-adds them —
-    // either a company reject OR a candidate decline (both terminal; a re-add
-    // means "let's reconsider them", which applies equally to a past decline).
-    if (isTerminalEntryStatus(existing.status)) {
-      db.prepare(`UPDATE pipeline_entries SET status='active', updated_at=? WHERE id=? AND workspace_id=?`).run(
-        new Date().toISOString(),
-        id,
-        workspaceId
-      );
-    }
-    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
-    return { entry: rowToEntry(row), created: false };
-  }
-  const now = new Date().toISOString();
   // A caller that names no stage is filing an already-assessed candidate (a
   // match fan-out, a recruiter add): they land where that means on THIS
   // workspace's axis, not on a column that happens to be called "Screened".
+  // Resolved before the transaction (the axis reads another store).
   const stage = input.stage ?? screenedLandingStage(getPipelineAxis(workspaceId).stages);
-  const intakeDegraded = input.intakeDegraded ? 1 : 0;
-  const intakeDegradedReason = input.intakeDegraded ? input.intakeDegradedReason ?? "intake normalization failed" : null;
-  db.prepare(
-    `INSERT INTO pipeline_entries
-       (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-        stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
-        intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-        source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id)
-     VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-        @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
-        @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-        @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id)`
-  ).run({
-    id,
-    candidate_id: input.candidateId,
-    candidate_label: input.candidateLabel,
-    archetype: input.archetype ?? null,
-    role_family: input.roleFamily ?? null,
-    job_id: input.jobId,
-    job_title: input.jobTitle,
-    stage,
-    match_score: input.matchScore ?? null,
-    approval_kind: input.approvalKind ?? null,
-    now,
-    intake_degraded: intakeDegraded,
-    intake_degraded_reason: intakeDegradedReason,
-    contact: input.contact ?? null,
-    locale: input.locale ?? null,
-    github_json: input.githubJson ?? null,
-    github_handle: input.githubHandle ?? null,
-    source_channel: input.sourceChannel ?? null,
-    source_campaign: input.sourceCampaign ?? null,
-    source_variant: input.sourceVariant ?? null,
-    dev_case_id: input.devCaseId ?? null,
-    dev_submission_id: input.devSubmissionId ?? null,
-    workspace_id: workspaceId,
+  const tx = db.transaction((): CreatePipelineResult => {
+    const existing = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
+    if (existing) {
+      // An ERASED entry takes no backfill: that would re-attach scrubbed personal data.
+      if (!existing.anonymized_at) {
+        // A re-add carrying GitHub evidence backfills an entry that has none —
+        // additive only, never an overwrite of evidence already attached.
+        if (input.githubJson && !existing.github_json) {
+          db.prepare(`UPDATE pipeline_entries SET github_json=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
+            input.githubJson,
+            new Date().toISOString(),
+            id,
+            workspaceId
+          );
+        }
+        // Same additive discipline for the self-reported handle: a repeat that
+        // brings one fills an entry that has none, never overwrites one on file.
+        if (input.githubHandle && !existing.github_handle) {
+          db.prepare(`UPDATE pipeline_entries SET github_handle=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
+            input.githubHandle,
+            new Date().toISOString(),
+            id,
+            workspaceId
+          );
+        }
+        // ONE THREAD: same FILL-ONLY rule for the two assignment links. A promote whose
+        // (candidate, job) pair already has an entry — the JD's own opening created it
+        // when the same person applied there — attaches its case/submission to THAT row
+        // rather than minting a parallel one. Never an overwrite: an entry already tied
+        // to an assignment keeps the first one, so a second promote cannot silently
+        // re-point the interview brief at different material.
+        if (input.devCaseId && !existing.dev_case_id) {
+          db.prepare(`UPDATE pipeline_entries SET dev_case_id=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
+            input.devCaseId,
+            new Date().toISOString(),
+            id,
+            workspaceId
+          );
+        }
+        if (input.devSubmissionId && !existing.dev_submission_id) {
+          db.prepare(`UPDATE pipeline_entries SET dev_submission_id=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
+            input.devSubmissionId,
+            new Date().toISOString(),
+            id,
+            workspaceId
+          );
+        }
+      }
+      // RE-ADD IS A TRANSITION (was a silent flip of ANY terminal): one rule decides,
+      // a CAS on the read status performs it, a `reinstated` event names the human.
+      let reopened = false;
+      let reopenRefused: ReaddReopenRefusal | undefined;
+      if (isTerminalEntryStatus(existing.status)) {
+        const refusal = readdReopenDecision(existing, input.reopen);
+        if (refusal) {
+          reopenRefused = refusal;
+        } else {
+          const res = db
+            .prepare(
+              `UPDATE pipeline_entries SET status='active', updated_at=?
+                WHERE id=? AND workspace_id=? AND status=? AND anonymized_at IS NULL`
+            )
+            .run(new Date().toISOString(), id, workspaceId, existing.status);
+          if (res.changes > 0) {
+            recordEvent(db, {
+              entryId: id,
+              candidateLabel: existing.candidate_label,
+              jobTitle: existing.job_title,
+              archetype: existing.archetype,
+              kind: "reinstated",
+              fromStage: existing.stage,
+              toStage: existing.stage,
+              detail: pipelineReasonDetail("readdedByRecruiter"),
+              actor: input.reopen?.actorRef ?? null,
+            });
+            reopened = true;
+          }
+        }
+      }
+      const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
+      return { entry: rowToEntry(row), created: false, reopened, ...(reopenRefused ? { reopenRefused } : {}) };
+    }
+    const now = new Date().toISOString();
+    const intakeDegraded = input.intakeDegraded ? 1 : 0;
+    const intakeDegradedReason = input.intakeDegraded ? input.intakeDegradedReason ?? "intake normalization failed" : null;
+    db.prepare(
+      `INSERT INTO pipeline_entries
+         (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
+          stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
+          intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
+          source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id)
+       VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
+          @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
+          @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
+          @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id)`
+    ).run({
+      id,
+      candidate_id: input.candidateId,
+      candidate_label: input.candidateLabel,
+      archetype: input.archetype ?? null,
+      role_family: input.roleFamily ?? null,
+      job_id: input.jobId,
+      job_title: input.jobTitle,
+      stage,
+      match_score: input.matchScore ?? null,
+      approval_kind: input.approvalKind ?? null,
+      now,
+      intake_degraded: intakeDegraded,
+      intake_degraded_reason: intakeDegradedReason,
+      contact: input.contact ?? null,
+      locale: input.locale ?? null,
+      github_json: input.githubJson ?? null,
+      github_handle: input.githubHandle ?? null,
+      source_channel: input.sourceChannel ?? null,
+      source_campaign: input.sourceCampaign ?? null,
+      source_variant: input.sourceVariant ?? null,
+      dev_case_id: input.devCaseId ?? null,
+      dev_submission_id: input.devSubmissionId ?? null,
+      workspace_id: workspaceId,
+    });
+    recordEvent(db, {
+      entryId: id,
+      candidateLabel: input.candidateLabel,
+      jobTitle: input.jobTitle,
+      archetype: input.archetype,
+      kind: intakeDegraded ? "intake_degraded" : "added",
+      toStage: stage,
+      detail: intakeDegraded ? intakeDegradedReason : pipelineReasonDetail("addedToPipeline"),
+    });
+    const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
+    return { entry: rowToEntry(row), created: true, reopened: false };
   });
-  recordEvent(db, {
-    entryId: id,
-    candidateLabel: input.candidateLabel,
-    jobTitle: input.jobTitle,
-    archetype: input.archetype,
-    kind: intakeDegraded ? "intake_degraded" : "added",
-    toStage: stage,
-    detail: intakeDegraded ? intakeDegradedReason : pipelineReasonDetail("addedToPipeline"),
-  });
-  const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
-  return { entry: rowToEntry(row), created: true };
+  return tx.immediate();
 }
 
 // d95fed6d — the label join between the analysis store and the board. Analyses
