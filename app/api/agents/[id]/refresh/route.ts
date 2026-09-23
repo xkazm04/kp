@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
-import { createPipelineEntry, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
+import { getHiredAgent, transitionHiredAgent, type HiredAgentRecord } from "@/app/_lib/db/agents";
+import { lifecycleEventName, lifecycleTarget, placeAgentOnBoard } from "@/app/_lib/agent-hire/lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 
 // Agent-candidate bridge — POST polls Personas for the request's state (the PULL
@@ -30,11 +29,6 @@ import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 // ceiling would refuse the honest wait it exists for.
 const REFRESH_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 
-// The actor the activation board move is attributed to — the decision-chain
-// "auto:*" | "human:*" vocabulary. The poll is machine-initiated; naming the
-// operator who clicked Refresh would credit them with a hire they did not make.
-const AGENT_BRIDGE_ACTOR = "auto:agent-bridge";
-
 /** The wire projection of a hired agent — everything except the report token. */
 function safeAgent(agent: HiredAgentRecord | null): Omit<HiredAgentRecord, "reportToken"> | null {
   if (!agent) return null;
@@ -43,23 +37,9 @@ function safeAgent(agent: HiredAgentRecord | null): Omit<HiredAgentRecord, "repo
   return safe;
 }
 
-const STATUS_MAP: Record<string, AgentStatus> = {
-  pending: "pending_approval",
-  pending_approval: "pending_approval",
-  approved: "onboarding",
-  onboarding: "onboarding",
-  building: "onboarding",
-  active: "active",
-  activated: "active",
-  rejected: "rejected",
-  retired: "retired",
-  // Personas-side terminal states beyond the original enum: expired = the
-  // approval sat past the 24h consent window; failed = the human approved but
-  // the executor couldn't create the persona. Both terminal, both free the job
-  // for a re-dispatch (the dispatch route's one-live-agent rule).
-  expired: "failed",
-  failed: "failed",
-};
+// Personas' poll words map onto AgentStatus through lifecycleTarget() — the SAME
+// function the push report uses (agent-hire/lifecycle.ts); this route keeps no
+// private copy of the vocabulary.
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const denied = await requireOperator();
@@ -109,38 +89,42 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         ...(polled.code ? { code: polled.code } : {}),
       });
     }
-    const mapped = STATUS_MAP[polled.status.toLowerCase()];
+    const signal = { kind: "poll" as const, status: polled.status };
+    const mapped = lifecycleTarget(signal);
     if (!mapped || mapped === agent.status) {
       return NextResponse.json({ agent: safeAgent(agent), refreshed: false, personasStatus: polled.status });
     }
-    const updated = updateHiredAgentStatus(id, mapped, { personaId: polled.personaId, personaName: polled.personaName }, ws);
-    recordAgentLifecycle(id, { event: `poll:${polled.status}` }, ws);
-    // `agent.jobId` guard: an App-master hire dispatched from an intake owns an
-    // application, not a job posting, so it has no board column — filing one
-    // would invent a candidate for a job nobody is hiring for.
-    if (mapped === "active" && agent.jobId) {
-      // Same activation move the push report performs (idempotent entry
-      // resolution via the m-<candidate>-<job> id scheme), and the same two
-      // corrections: both stages are resolved BY ROLE off THIS workspace's axis
-      // rather than written as the literals "Offer"/"Hired" (a renamed board
-      // otherwise gets a row on a column it does not render, which the store now
-      // refuses outright), and the move carries the `expectedStage` CAS so a
-      // recruiter move that landed between the entry read and this write is not
-      // silently overwritten by a poll.
-      const offerStage = stageForRole("offer", ws) ?? stageForRole("entry", ws);
-      const terminalStage = stageForRole("terminal", ws);
-      const { entry } = createPipelineEntry({
-        candidateId: `agent-${agent.id}`,
-        candidateLabel: updated?.personaName ?? agent.jobTitle,
-        jobId: agent.jobId,
-        jobTitle: agent.jobTitle,
-        ...(offerStage ? { stage: offerStage } : {}),
-        sourceChannel: "agent-bridge",
-        workspaceId: ws,
+    // The row was read BEFORE the network call above; the push report may have
+    // moved it while the poll was on the wire. transitionHiredAgent re-asserts
+    // the status this decision was computed from (`from: agent.status`) inside
+    // one IMMEDIATE transaction — a CAS, so a stale poll is dropped (and ledgered
+    // as refused) instead of overwriting the newer state. No await sits inside it.
+    const transition = transitionHiredAgent(
+      id,
+      {
+        from: agent.status,
+        to: mapped,
+        event: lifecycleEventName(signal),
+        personaId: polled.personaId,
+        personaName: polled.personaName,
+      },
+      ws
+    );
+    if (!transition.applied) {
+      return NextResponse.json({
+        agent: safeAgent(transition.agent),
+        refreshed: false,
+        result: "transition_refused",
+        personasStatus: polled.status,
       });
-      if (terminalStage && terminalStage !== entry.stage) {
-        setPipelineEntryStage(entry.id, terminalStage, { expectedStage: entry.stage, actorRef: AGENT_BRIDGE_ACTOR }, ws);
-      }
+    }
+    const updated = transition.agent;
+    // The SAME activation board move the push report performs: role-resolved
+    // stages, the expectedStage CAS, and the `agent_activated` marker (which
+    // this path used to skip). An App-master hire from an intake has no jobId,
+    // so placeAgentOnBoard files nothing for it.
+    if (mapped === "active" && updated) {
+      placeAgentOnBoard(updated, "hired", ws, { label: updated.personaName, personaId: polled.personaId });
     }
     return NextResponse.json({ agent: safeAgent(updated), refreshed: true, personasStatus: polled.status });
   } catch (error) {

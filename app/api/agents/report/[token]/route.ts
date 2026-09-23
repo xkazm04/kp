@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, recordAgentReportReceipt, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
-import { createPipelineEntry, recordAutomationEvent, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
+import { getHiredAgentByReportToken, recordAgentExecution, recordAgentReportReceipt, transitionHiredAgent, upsertAgentRollup, type HiredAgentRecord } from "@/app/_lib/db/agents";
+import { lifecycleEventName, lifecycleTarget, placeAgentOnBoard } from "@/app/_lib/agent-hire/lifecycle";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
-import { parseAgentReport, type AgentReport, type LifecycleReport } from "@/app/_lib/agent-hire/report-payload";
+import { parseAgentReport, type AgentReport } from "@/app/_lib/agent-hire/report-payload";
 import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-limit";
 import { jsonThrottled } from "@/app/_lib/throttle-response";
-import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 
@@ -13,7 +12,7 @@ import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempo
 // agent POSTs execution events, period rollups and lifecycle transitions here;
 // the CSPRNG report token (minted at dispatch, hired_agents.report_token) is the
 // ONLY auth, exactly the channel inbound webhook's model:
-//   200 {result: accepted|duplicate_ignored} · 400 not JSON / bad shape ·
+//   200 {result: accepted|duplicate_ignored|transition_refused} · 400 not JSON / bad shape ·
 //   404 unknown or retired token · 413 too large · 429 rate-limited
 //
 // The route is listed in public-routes.ts (/api/agents/report/) so the proxy's
@@ -26,43 +25,16 @@ const MAX_REPORT_BODY_BYTES = 64 * 1024;
 // event per run stays far under it, a flood is shed before the DB is touched.
 const RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 
-// Lifecycle event → hired_agents.status. `approved` lands in onboarding (the
-// human approved the request; Personas builds/configures next); `activated`
-// flips the agent live AND auto-moves its pipeline row to Hired.
-//
-// `probation_review` is the one event whose status is NOT a constant: the day-N
-// review's DECISION is the transition (concept §2.3). `extended` deliberately
-// maps back to `onboarding` — more probation is not a promotion, and showing it
-// as one would put a green "Active" on an agent a human just declined to
-// activate.
-const LIFECYCLE_STATUS: Record<Exclude<LifecycleReport["event"], "probation_review">, AgentStatus> = {
-  approved: "onboarding",
-  onboarding: "onboarding",
-  activated: "active",
-  rejected: "rejected",
-  retired: "retired",
-};
-
-// Who the board event names for an activation move. The decision-chain actor
-// vocabulary is "auto:*" | "human:*"; no human clicked this — Personas did, over
-// the report token — so attributing it to a recruiter would be a lie in the one
-// column an audit reads.
-const AGENT_BRIDGE_ACTOR = "auto:agent-bridge";
-
-const PROBATION_STATUS = {
-  activated: "active",
-  extended: "onboarding",
-  retired: "retired",
-} as const satisfies Record<"activated" | "extended" | "retired", AgentStatus>;
-
-function statusFor(report: LifecycleReport): AgentStatus {
-  if (report.event === "probation_review") {
-    // parseAgentReport refuses a probation_review with no decision, so this
-    // fallback is unreachable — it exists so the union stays total.
-    return report.decision ? PROBATION_STATUS[report.decision] : "onboarding";
-  }
-  return LIFECYCLE_STATUS[report.event];
-}
+// Lifecycle reports go through the ONE transition door (agent-hire/lifecycle.ts):
+// lifecycleTarget() maps the push event (a probation review by its DECISION —
+// `extended` is onboarding → onboarding, more probation is not a promotion),
+// transitionHiredAgent() refuses an illegal or stale move with a status CAS and
+// writes the ledger row, and placeAgentOnBoard() is the activation board move the
+// pull refresh shares. A refused move is answered 200 `transition_refused`: the
+// report was understood, and a retry would be refused the same way, so Personas
+// must not be told to retry it. That is how a REJECTED or FAILED hire's token
+// stops moving anything — it still resolves (only a retired token 404s) so its
+// late signals are recorded, but none of them revive the hire.
 
 function applyReport(agent: HiredAgentRecord, report: AgentReport): { result: string; duplicate?: boolean } {
   const ws = agent.workspaceId;
@@ -107,56 +79,32 @@ function applyReport(agent: HiredAgentRecord, report: AgentReport): { result: st
     return { result: "accepted" };
   }
   // lifecycle
-  const status = statusFor(report);
-  recordAgentLifecycle(
+  const signal = { kind: "push" as const, event: report.event, decision: report.decision };
+  const target = lifecycleTarget(signal);
+  // parseAgentReport refuses a probation_review with no decision, so a null
+  // target is unreachable here; answered as a refusal so the union stays total.
+  if (!target) return { result: "transition_refused" };
+  const transition = transitionHiredAgent(
     agent.id,
     {
-      event: report.event === "probation_review" ? `probation_review:${report.decision}` : report.event,
+      from: agent.status,
+      to: target,
+      event: lifecycleEventName(signal),
       reason: report.note ?? report.reason,
       raw: report,
+      personaId: report.personaId,
+      personaName: report.personaName,
     },
     ws
   );
-  updateHiredAgentStatus(agent.id, status, { personaId: report.personaId, personaName: report.personaName }, ws);
-  // A probation review that ACTIVATES lands the agent live for the first time,
-  // so it takes the same board move as a plain `activated` event.
-  if ((report.event === "activated" || (report.event === "probation_review" && report.decision === "activated")) && agent.jobId) {
-    // The agent's pipeline row was created at dispatch with the same identity, so
-    // this idempotent re-create resolves the SAME entry (the m-<candidate>-<job>
-    // id scheme) whether or not it still exists, then moves it to the terminal
-    // column. Both stages are resolved BY ROLE off this workspace's own axis:
-    // writing the literals "Offer"/"Hired" put the agent onto a column a team
-    // that renamed its board does not render (an off-axis row the board then has
-    // to surface as stranded), and the store refuses an unknown stage outright.
-    const offerStage = stageForRole("offer", ws) ?? stageForRole("entry", ws);
-    const terminalStage = stageForRole("terminal", ws);
-    const { entry } = createPipelineEntry({
-      candidateId: `agent-${agent.id}`,
-      candidateLabel: agent.personaName ?? report.personaName ?? agent.jobTitle,
-      jobId: agent.jobId,
-      jobTitle: agent.jobTitle,
-      ...(offerStage ? { stage: offerStage } : {}),
-      sourceChannel: "agent-bridge",
-      workspaceId: ws,
+  if (!transition.applied) return { result: "transition_refused" };
+  // An activation (a plain `activated`, or a probation review that ACTIVATES)
+  // lands the agent live for the first time, so it takes the board move.
+  if (target === "active") {
+    placeAgentOnBoard(transition.agent ?? agent, "hired", ws, {
+      label: agent.personaName ?? report.personaName,
+      personaId: report.personaId,
     });
-    // expectedStage: the CAS this move never had. The entry may have existed
-    // already and a recruiter may have moved it between the read above and this
-    // write; without the precondition an activation report silently overwrote
-    // that move. A dropped move is reported as such rather than as a hire.
-    const moved =
-      terminalStage && terminalStage !== entry.stage
-        ? setPipelineEntryStage(entry.id, terminalStage, { expectedStage: entry.stage, actorRef: AGENT_BRIDGE_ACTOR }, ws)
-        : terminalStage
-          ? entry
-          : null;
-    recordAutomationEvent(
-      entry.id,
-      "agent_activated",
-      moved
-        ? `Personas persona ${report.personaId ?? agent.personaId ?? ""} went live`
-        : `Personas persona ${report.personaId ?? agent.personaId ?? ""} went live; board move skipped (the entry moved first or this board has no terminal column)`,
-      ws
-    );
   }
   return { result: "accepted" };
 }

@@ -27,6 +27,9 @@ import {
   getHiredAgent,
   getLatestAgentRollupRaw,
   getPipelineEntry,
+  listAgentActivity,
+  listHiredAgents,
+  listPipeline,
   saveAgentFitSpec,
   setHiredAgentRequest,
   updateHiredAgentStatus,
@@ -629,4 +632,63 @@ test("GET /api/agents: a 2026-08 rollup round-trips its period and freshness", a
   const quietRow = ((await quietRes.json()) as { agents: typeof body.agents }).agents.find((a) => a.id === quiet.id);
   assert.equal(quietRow?.backbonePeriod, null, "no rollup ⇒ no period");
   assert.equal(quietRow?.backboneFreshness, null, "no rollup ⇒ no freshness");
+});
+
+// ---- The transition door (challenge-r06 agents-api/A) ----------------------
+// A late or stale Personas signal must not move a hire backwards or revive a
+// dead one. The token of a rejected hire still RESOLVES (only a retired token
+// 404s), so the refusal happens at the transition table: the report is answered
+// 200 `transition_refused` — Personas stops retrying — and the ledger says so.
+
+test("report route: 'activated' on a REJECTED hire is refused — no revival, no board card, one refused ledger row", async () => {
+  const ws = "ws-door-dead";
+  const agent = createHiredAgent({ jobId: "job-door-dead", jobTitle: "Role", spec: SPEC }, ws);
+  updateHiredAgentStatus(agent.id, "rejected", {}, ws);
+
+  const res = await report(agent.reportToken, { kind: "lifecycle", event: "activated", personaId: "p-zombie" });
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { result: string }).result, "transition_refused");
+
+  assert.equal(getHiredAgent(agent.id, ws)?.status, "rejected", "a dead hire stays dead");
+  assert.equal(getHiredAgent(agent.id, ws)?.personaId, null, "a refused report does not backfill the persona");
+  assert.equal(
+    listPipeline(ws).some((e) => e.candidateId === `agent-${agent.id}`),
+    false,
+    "no board card was filed for a hire that never went live"
+  );
+  const lifecycle = listAgentActivity(agent.id, 10, ws).filter((r) => r.kind === "lifecycle");
+  assert.equal(lifecycle.length, 1);
+  assert.ok(lifecycle[0]!.status?.startsWith("refused:activated"), `got ${lifecycle[0]!.status}`);
+});
+
+test("report route: a stale token cannot put a SECOND live agent on a re-dispatched job", async () => {
+  const ws = "ws-door-redispatch";
+  const stale = createHiredAgent({ jobId: "job-door-rd", jobTitle: "Role", spec: SPEC }, ws);
+  updateHiredAgentStatus(stale.id, "rejected", {}, ws);
+  const fresh = createHiredAgent({ jobId: "job-door-rd", jobTitle: "Role", spec: SPEC }, ws);
+  setHiredAgentRequest(fresh.id, "req-fresh", ws);
+
+  const res = await report(stale.reportToken, { kind: "lifecycle", event: "activated" });
+  assert.equal(res.status, 200);
+
+  assert.equal(getActiveHiredAgentForJob("job-door-rd", ws)?.id, fresh.id);
+  assert.equal(getHiredAgent(stale.id, ws)?.status, "rejected");
+  const live = listHiredAgents(ws).filter((a) => a.jobId === "job-door-rd" && a.status !== "rejected" && a.status !== "failed" && a.status !== "retired");
+  assert.equal(live.length, 1, "one live agent per job");
+});
+
+test("report route: probation 'extended' is a legal onboarding → onboarding move and writes its {from, to} ledger row", async () => {
+  const ws = "ws-door-extend";
+  const agent = createHiredAgent({ jobTitle: "App master", intakeId: "intake-door-ext", appMaster: APP_MASTER_SPEC, spec: SPEC }, ws);
+  updateHiredAgentStatus(agent.id, "onboarding", {}, ws);
+
+  const res = await report(agent.reportToken, { kind: "lifecycle", event: "probation_review", decision: "extended", note: "two more weeks" });
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { result: string }).result, "accepted");
+  assert.equal(getHiredAgent(agent.id, ws)?.status, "onboarding");
+
+  const rows = listAgentActivity(agent.id, 10, ws).filter((r) => r.kind === "lifecycle");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.status, "probation_review:extended: two more weeks");
+  assert.deepEqual((rows[0]!.raw as { transition?: unknown }).transition, { from: "onboarding", to: "onboarding" });
 });

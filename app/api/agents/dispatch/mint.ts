@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHiredAgent, recordAgentLifecycle, setHiredAgentRequest, updateHiredAgentStatus } from "@/app/_lib/db/agents";
-import { createPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
+import { createHiredAgent, transitionHiredAgent } from "@/app/_lib/db/agents";
+import { placeAgentOnBoard } from "@/app/_lib/agent-hire/lifecycle";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -112,8 +112,7 @@ export async function mintAndDispatch(
     input.passthrough
   );
   if (!dispatched.ok) {
-    updateHiredAgentStatus(agent.id, "failed", {}, ws);
-    recordAgentLifecycle(agent.id, { event: "dispatch_failed", reason: dispatched.error }, ws);
+    transitionHiredAgent(agent.id, { from: "dispatched", to: "failed", event: "dispatch_failed", reason: dispatched.error }, ws);
     // The status stays 502 (the house convention for "the bridge did not carry
     // this"), but a DEAD PAIRING KEY gets its own code: an expired headless
     // auto-pair key (they live 24h) is an operator action — re-pair — not an
@@ -127,8 +126,20 @@ export async function mintAndDispatch(
       { status: 502 }
     );
   }
-  setHiredAgentRequest(agent.id, dispatched.requestId, ws);
-  recordAgentLifecycle(agent.id, { event: "dispatched", reason: `Personas request ${dispatched.requestId}` }, ws);
+  // CAS'd (a push that landed while the POST was on the wire is not reversed);
+  // its ledger row is when this hire ENTERED pending_approval — the approval
+  // clock's start, which updated_at is not.
+  const pending = transitionHiredAgent(
+    agent.id,
+    {
+      from: "dispatched",
+      to: "pending_approval",
+      event: "dispatched",
+      reason: `Personas request ${dispatched.requestId}`,
+      requestId: dispatched.requestId,
+    },
+    ws
+  );
 
   // The agent enters the pipeline at Offer alongside human candidates for this
   // job. Idempotent per (candidate, job) via the m-<candidate>-<job> id scheme.
@@ -141,17 +152,7 @@ export async function mintAndDispatch(
   // no pipeline the card would belong to. The write is skipped, not faked with a
   // synthetic job: a card in a column for a role nobody is hiring for is a lie
   // the board would then carry forever. The roster is that hire's home.
-  if (input.jobId) {
-    const { entry } = createPipelineEntry({
-      candidateId: `agent-${agent.id}`,
-      candidateLabel: input.spec.name,
-      jobId: input.jobId,
-      jobTitle: input.jobTitle,
-      stage: "Offer",
-      sourceChannel: "agent-bridge",
-      workspaceId: ws,
-    });
-    recordAutomationEvent(entry.id, "agent_dispatched", `Persona request ${dispatched.requestId} awaiting approval in Personas`, ws);
-  }
+  // Filed at the workspace's offer ROLE, never the literal "Offer".
+  placeAgentOnBoard(pending.agent ?? agent, "offer", ws, { label: input.spec.name, requestId: dispatched.requestId });
   return NextResponse.json({ hiredAgentId: agent.id, requestId: dispatched.requestId, status: "pending_approval" });
 }
