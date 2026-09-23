@@ -107,6 +107,7 @@ export function DecisionsTab() {
           recordCount={entries.length}
           reconsiderCount={reconsider.length}
           onRevealReconsider={revealReconsider}
+          onArrivalLanded={load}
         />
       ) : (
         <div className="space-y-6">
