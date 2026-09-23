@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from .education import CLASSIFY_PRIORITY
 from .market_config import ACTIVE_MARKET, MarketConfig
 
 _LOG = logging.getLogger(__name__)
@@ -974,7 +975,7 @@ def company_modifiers(text: str) -> list[str]:
     return scan_category(text, "company_modifier", "company_modifier")
 
 
-_EDUCATION_PRIORITY = ["phd", "master", "bachelor", "university"]
+_EDUCATION_PRIORITY = CLASSIFY_PRIORITY  # the ladder lives in education.py
 
 
 def classify_education(text: str) -> str:

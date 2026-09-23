@@ -26,6 +26,7 @@ from typing import Any, Protocol, Sequence
 
 from pydantic import Field
 
+from .education import JOB_MIN_LEVELS
 from .market_config import ACTIVE_MARKET, gross_period_phrase
 from .models import _Base
 from .salary_band import normalize_band
@@ -44,7 +45,8 @@ KINDS = ("must_have", "nice_to_have")
 HARDNESS = ("prerequisite", "learnable")
 # high_school added 2026-08-11: postings demanding a HS diploma had no legal value,
 # so extraction was forced into the "none"-vs-diploma self-contradiction the bench flagged.
-EDU_LEVELS = ("phd", "master", "bachelor", "university", "high_school", "none")
+# The job-side ladder lives in education.py with the candidate side it is compared to.
+EDU_LEVELS = JOB_MIN_LEVELS
 # The pay periods a posting may STATE (Job.salary_currency / Job.salary_period).
 # "hour" is in the vocabulary although no band is ever built from it: an hourly ad
 # stated pay, and a reader told "posting states no pay" would be told a falsehood.

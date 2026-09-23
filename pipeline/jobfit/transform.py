@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import registry
+from .education import FOUNDATION_WEIGHTS
 from .matching import MatchCandidate, SalaryExpectation
 from .profile import CandidateProfileV2
 from .taxonomy import FAMILY_DEGREE_TERMS, provenance_rank
@@ -24,6 +25,8 @@ from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_
 # Sourced from the shared registry (archetypes.json) so "which archetypes get the
 # potential/readiness path instead of years-of-experience" has one definition.
 _EARLY_CAREER = registry.early_career_archetypes()
+# Foundation-quality weight per candidate education level (education.py owns it).
+EDU_FOUNDATION = FOUNDATION_WEIGHTS
 
 # Surface tokens hinting a degree is relevant to the target field now live in
 # data/taxonomy.json (taxonomy.FAMILY_DEGREE_TERMS), covering all 16 role families
@@ -54,9 +57,7 @@ def compute_potential(profile: CandidateProfileV2) -> tuple[float, list[str]]:
         signals.append(f"self-taught breadth: {n_skills} distinct skills")
 
     # 3. foundation quality — relevant, completed (or in-progress) degree.
-    foundation = {"phd": 1.0, "master": 0.85, "bachelor": 0.7, "university": 0.5}.get(
-        profile.education_level, 0.0
-    )
+    foundation = EDU_FOUNDATION.get(profile.education_level, 0.0)
     detail = profile.education_detail.casefold()
     if any(term in detail for term in FAMILY_DEGREE_TERMS.get(profile.role_family, ())):
         foundation = min(1.0, foundation + 0.1)

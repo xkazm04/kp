@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from .ats import evaluate_keyword_coverage, verify_gaps_against_cv, verify_skills_in_cv
 from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
+from .education import CANDIDATE_LEVELS
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
 from .i18n import normalize_lang
@@ -72,6 +73,9 @@ if TYPE_CHECKING:
 
 
 ProgressCallback = Callable[[str, str], None]
+
+# The candidate education levels an LLM payload may name (education.py owns the ladder).
+_CANDIDATE_EDU_CHOICES = frozenset(CANDIDATE_LEVELS)
 
 _T = TypeVar("_T")
 
@@ -662,7 +666,7 @@ def _profile_from_payload(payload: dict[str, Any], raw_text: str) -> CandidatePr
     role_family_value = _choice_or_none(payload.get("role_family"), ROLE_FAMILY_SET)
     education_value = _choice_or_none(
         payload.get("education_level"),
-        {"phd", "master", "bachelor", "university", "unknown"},
+        _CANDIDATE_EDU_CHOICES,
     )
 
     needs_fallback = (
