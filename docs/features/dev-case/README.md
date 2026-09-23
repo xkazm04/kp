@@ -1337,7 +1337,8 @@ all four ask `pipeline:write` after `requireOperator()`:
 | `POST /api/devcase/submit` | no gate at all | files a submission on the board and mails an acknowledgement from the team's outbox |
 | `POST /api/devcase/skill-profile` | `requireOperator` only | minting a credential re-mints and REVOKES a live one; identity presence says yes to a viewer as loudly as to an owner |
 
-`GET /api/devcase` hands back FULL approved-case records (role/case/need/analysis JSON)
+`GET /api/devcase` handed back FULL approved-case records (role/case/need/analysis JSON;
+it now answers ledger rows, and the full record is `GET /api/devcase/[id]`'s)
 and asked nothing either; reading the library is a `read` act, so it gains identity
 presence only. Refusals are coded (`FORBIDDEN_CAPABILITY` with the `capability` as
 data) and every studio consumer already resolves the code in the reader's language —
@@ -1377,10 +1378,38 @@ looks different from a studio that has exactly that many cases. When the page is
 and the door can still raise `?limit=` (50 → 150 → 500), a **Load older assignments**
 control refetches through `useDevTabData` with the next step so assignments past the
 first fifty are reachable.
-The Cases table filters its loaded rows by assignment or role title, effective
-stage (including the published/approved fallback), and seniority. Filtering keeps
-the truncation notice and Load older control visible, so a match outside the
-loaded window is not silently represented as absent from the studio.
+
+**The ledger is one server row per case, filtered before the limit** (challenge-r03
+devcase-workspace/A). The table used to derive each row's stage, submission count and
+stall by joining three separately-bounded client lists: the case page (up to 500), the
+lifecycles (`GET /api/devcase/lifecycle` answers the 50 newest) and every posting with
+every submission and its parsed evaluation inlined. Past fifty lifecycles an older live
+assignment silently read the published/approved fallback and lost its stall chip, and
+the filters only ever saw the loaded page. `listCaseLedger(limit, ws, { q, stage,
+seniority })` (`app/_lib/db/devcase.ts`) now does the join in one statement: the newest
+lifecycle per case (window function; every dev table in it carries its own
+`workspace_id = ?`, so another team's lifecycle pointed at this team's case id cannot
+paint its stage), the published/approved fallback in SQL, and a submission count across
+every posting of the case. `GET /api/devcase` answers these rows (identity,
+`jobId`/`jobTitle`/`jdSlug`, `stage`, `submissionCount`, `lifecycleId`,
+`lifecycleCreatedAt`/`lifecycleUpdatedAt` for `stallForCase`) plus `truncated` and
+`facets` (the stage and seniority vocabulary for the whole workspace, so a picker does
+not collapse to the value already chosen). `?q=` / `?stage=` / `?seniority=` are applied
+in `WHERE`, before `LIMIT`, so a filtered page is never empty while matches exist past
+it; the title match is case-folded with `toLocaleLowerCase` on both sides (a
+connection-registered `kp_fold`, because SQLite's `lower()` leaves `Š` alone). The rows
+are a **projection**: need/analysis/role/case JSON (cover probes included) no longer
+ride the list. The detail reader fetches the full record on open from
+`GET /api/devcase/[id]` (`requireOperator`; a case from another workspace answers the
+same coded `DEVCASE_CASE_NOT_FOUND` 404 as an unknown id). Client side, `casesPage.ts`
+`filterCasesUrl` builds the address (blank filters omitted, title trimmed and folded),
+`useDevTabData` owns the filter state (title debounced 250 ms, a new filter resets the
+page to 50), and `CasesTable` reads stage, count and stall inputs from the row: it no
+longer takes the lifecycle or posting lists. An in-store index
+`idx_dev_lifecycle_case (workspace_id, case_id)` covers the join key. Pinned by
+`app/_lib/db/devcase-ledger.test.ts`, `app/api/devcase/route.test.ts`,
+`app/api/devcase/[id]/route.test.ts`, `casesPage.test.ts` and
+`DevCasesTable.filter.test.ts`.
 
 ### The control room asks authority, and reports its writes
 
