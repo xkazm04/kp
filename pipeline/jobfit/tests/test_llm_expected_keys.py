@@ -9,8 +9,12 @@ everywhere — except, until this test existed, at four production call sites
 descent is silent: the coercer sees a well-formed dict with none of the fields it
 reads and quietly ships the deterministic template as if the model had answered.
 
-Nothing in the type system can catch that (the kwarg is optional by design, for
-the test fakes that predate it), so the guard is a scan of the real source. AST,
+Nothing in the type system can catch that (the kwarg is optional by design), so
+the guard is a scan of the real source. The one waiver it used to carry — the
+devcase forwarding shim's compat branch, which called a provider WITHOUT the pin
+when its signature lacked the kwarg — is gone with that branch (challenge-r08
+tests-devcase/A): ``_complete_json`` now always forwards it, and the test fakes
+are held to the same signature by ``test_devcase_shape_pinning``. AST,
 not grep: it sees multi-line calls, ignores docstrings and the ``def`` sites, and
 cannot be fooled by a mention in prose.
 """
@@ -26,12 +30,7 @@ _PIPELINE = Path(__file__).resolve().parents[1]
 # (module path relative to pipeline/jobfit, enclosing function) → why this ONE call
 # legitimately omits the pin. Keep this table tiny and reasoned; the default answer
 # to a scan failure is to pass expected_keys, not to add a row here.
-_WAIVED: dict[tuple[str, str], str] = {
-    ("devcase/provenance.py", "_complete_json"): (
-        "the compat branch of the forwarding shim itself — it calls without the kwarg "
-        "only for a provider whose signature does not accept it (a canned test fake)"
-    ),
-}
+_WAIVED: dict[tuple[str, str], str] = {}
 
 
 def _production_modules() -> list[Path]:

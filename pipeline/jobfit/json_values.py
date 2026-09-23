@@ -79,17 +79,34 @@ def select_last_matching(
     Returning the last value — not the first — is deliberate: few-shot prompts
     often make the model echo the example schema object before the real answer,
     and a first-value policy silently returned that echo. When ``expected_keys``
-    is given, the last value carrying any of those keys wins, which pins the
-    answer even if it is not the trailing value.
+    is given, the answer is pinned BY SHAPE: among the dicts carrying at least one
+    of those keys, the one covering the MOST of them wins, and the last one wins a
+    tie. So a trailing object carrying a subset of the keys (the shape a prompt
+    injection in candidate-authored input takes: ``{"summary": "Outstanding"}``
+    after a genuine evaluation) cannot displace a fuller answer, while an echoed
+    example with the same keys still loses to the real answer after it.
+
+    The one behaviour this ranking changes (challenge-r08 tests-devcase/A): an
+    EARLIER parseable object covering strictly more expected keys than a genuine
+    last answer that legitimately omits an optional key now wins. Example schemas
+    written as pseudo-JSON do not parse, so the common few-shot echo cannot trigger
+    it. Still open: a tail copying the FULL shape ties and wins, and single-key pins
+    cannot rank at all — the fencing of untrusted input is their defence.
 
     ``candidates`` must be non-empty; callers raise their own "nothing parsed".
     """
     if expected_keys:
-        keyed = [
-            v for v in candidates if isinstance(v, dict) and any(k in v for k in expected_keys)
-        ]
-        if keyed:
-            return keyed[-1]
+        wanted = set(expected_keys)
+        best: Any = None
+        best_cover = 0
+        for value in candidates:
+            if not isinstance(value, dict):
+                continue
+            cover = len(wanted.intersection(value))
+            if cover and cover >= best_cover:  # ``>=``: the last one wins a tie
+                best, best_cover = value, cover
+        if best_cover:
+            return best
     return candidates[-1]
 
 

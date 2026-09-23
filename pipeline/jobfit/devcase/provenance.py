@@ -24,7 +24,6 @@ label permanently.
 
 from __future__ import annotations
 
-import inspect
 import json
 import logging
 import re
@@ -227,26 +226,19 @@ def describe_fallback(exc: BaseException) -> str:
 
 
 def _complete_json(provider: Any, prompt: str, system: str, expected_keys: Sequence[str] | None) -> Any:
-    """Call ``provider.complete_json``, forwarding ``expected_keys`` only when the provider
-    accepts it.
+    """Call ``provider.complete_json``, ALWAYS forwarding ``expected_keys``.
 
     ``expected_keys`` pins the answer object BY SHAPE so an adversary-authored submission
     (commits, DECISIONS.md — all candidate-controlled) cannot smuggle a trailing injected
-    JSON object past the ``_extract_json`` selector, which otherwise returns the LAST
-    top-level value (bug-hunter #3). Every production provider (:class:`ClaudeCliProvider`,
-    the metered adapters) accepts the kwarg; a minimal test fake that predates it is called
-    without it (its answer is a canned dict, so it carries no injection risk), keeping the
-    change non-breaking for existing callers/mocks."""
-    if expected_keys:
-        try:
-            params = inspect.signature(provider.complete_json).parameters
-            if "expected_keys" in params or any(
-                p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()
-            ):
-                return provider.complete_json(prompt, system=system, expected_keys=expected_keys)
-        except (TypeError, ValueError):  # unintrospectable callable — fall through to the plain call
-            pass
-    return provider.complete_json(prompt, system=system)
+    JSON object past the extractor's selector (bug-hunter #3; ranked by key coverage since
+    challenge-r08 tests-devcase/A). Every production provider accepts the kwarg. This used
+    to sniff the signature and call a provider that lacked it WITHOUT the pin — a shim kept
+    only for canned-dict test fakes, which silently dropped the trust-boundary control for
+    any provider shaped like them. A provider that cannot take the pin now raises
+    ``TypeError`` here, and :func:`generate_with_fallback` records a coded fallback instead
+    of an unpinned ``"llm"`` answer. The test fakes answer through the real extractor
+    (``tests/devcase_fakes.py``) and a scan holds them to the same signature."""
+    return provider.complete_json(prompt, system=system, expected_keys=expected_keys)
 
 
 def _without_reason(d: dict) -> dict:
