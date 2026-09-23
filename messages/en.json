@@ -6242,7 +6242,16 @@
       "projectionLabel": "Candidate view",
       "projectionList": "List",
       "projectionMatrix": "Matrix",
-      "newProfile": "Build candidate profile"
+      "newProfile": "Build candidate profile",
+      "rebuildMergeTitle": "The newer CV changes fields you edited",
+      "rebuildContestedIntro": "{count, plural, one {You edited this field by hand, and the newer CV analysis changes it too:} other {You edited these # fields by hand, and the newer CV analysis changes them too:}}",
+      "rebuildUnknownBaseline": "{count, plural, one {The analysis this profile was built from is no longer available, so we cannot tell what you edited. This field differs from the newer CV:} other {The analysis this profile was built from is no longer available, so we cannot tell what you edited. These # fields differ from the newer CV:}}",
+      "rebuildContestedListLabel": "Fields in question",
+      "rebuildMergeHint": "Your last edit was on {date}. Merging keeps your version of these fields and takes the newer CV everywhere else. You review everything before saving.",
+      "rebuildMergeHintNoDate": "Merging keeps your version of these fields and takes the newer CV everywhere else. You review everything before saving.",
+      "rebuildActionMerge": "Merge and keep my edits",
+      "rebuildActionKeep": "Keep my version",
+      "rebuildActionReplace": "Use the newer CV for everything"
     },
     "matrix": {
       "eyebrow": "Candidates",
@@ -6439,7 +6448,11 @@
       "draftUndo": "Undo the draft",
       "draftKeep": "Keep this",
       "staleSave": "This profile was saved by someone else after you opened it, so your save was not applied. Nothing here has been lost. Reload to see their version.",
-      "staleReload": "Reload the profile"
+      "staleReload": "Reload the profile",
+      "rebuildAppliedNote": "Rebuilt from the newer CV analysis, with your edits carried over. Nothing is saved until you click Save.",
+      "rebuildKeptEdits": "{count, plural, one {# field you edited was kept over the newer CV} other {# fields you edited were kept over the newer CV}}. The newer CV filled in the rest.",
+      "rebuildUseAnyway": "Use the newer CV anyway",
+      "rebuildUndo": "Undo the rebuild"
     },
     "archetypes": {
       "eyebrow": "Workspace",

@@ -6242,7 +6242,16 @@
       "projectionLabel": "Zobrazení kandidátů",
       "projectionList": "Seznam",
       "projectionMatrix": "Matice",
-      "newProfile": "Vytvořit profil kandidáta"
+      "newProfile": "Vytvořit profil kandidáta",
+      "rebuildMergeTitle": "Novější životopis mění pole, která jste upravili",
+      "rebuildContestedIntro": "{count, plural, one {Toto pole jste upravili ručně a novější analýza životopisu ho také mění:} few {Tato # pole jste upravili ručně a novější analýza životopisu je také mění:} other {Těchto # polí jste upravili ručně a novější analýza životopisu je také mění:}}",
+      "rebuildUnknownBaseline": "{count, plural, one {Analýza, ze které profil vznikl, už není k dispozici, takže nelze určit, co jste upravili. Toto pole se liší od novějšího životopisu:} few {Analýza, ze které profil vznikl, už není k dispozici, takže nelze určit, co jste upravili. Tato # pole se liší od novějšího životopisu:} other {Analýza, ze které profil vznikl, už není k dispozici, takže nelze určit, co jste upravili. Těchto # polí se liší od novějšího životopisu:}}",
+      "rebuildContestedListLabel": "Dotčená pole",
+      "rebuildMergeHint": "Naposledy jste profil upravili {date}. Sloučení ponechá vaši verzi těchto polí a všude jinde převezme novější životopis. Před uložením si vše ještě zkontrolujete.",
+      "rebuildMergeHintNoDate": "Sloučení ponechá vaši verzi těchto polí a všude jinde převezme novější životopis. Před uložením si vše ještě zkontrolujete.",
+      "rebuildActionMerge": "Sloučit a ponechat mé úpravy",
+      "rebuildActionKeep": "Ponechat mou verzi",
+      "rebuildActionReplace": "Převzít vše z novějšího životopisu"
     },
     "matrix": {
       "eyebrow": "Kandidáti",
@@ -6439,7 +6448,11 @@
       "draftUndo": "Vrátit návrh zpět",
       "draftKeep": "Ponechat",
       "staleSave": "Tento profil někdo uložil poté, co jste jej otevřeli, takže vaše uložení neproběhlo. Nic zde se neztratilo. Načtěte znovu a uvidíte jeho verzi.",
-      "staleReload": "Načíst profil znovu"
+      "staleReload": "Načíst profil znovu",
+      "rebuildAppliedNote": "Profil jsme znovu sestavili z novější analýzy životopisu a vaše úpravy jsme zachovali. Nic se neuloží, dokud nekliknete na Uložit.",
+      "rebuildKeptEdits": "{count, plural, one {Zachovali jsme # vámi upravené pole místo novějšího životopisu} few {Zachovali jsme # vámi upravená pole místo novějšího životopisu} other {Zachovali jsme # vámi upravených polí místo novějšího životopisu}}. Zbytek doplnil novější životopis.",
+      "rebuildUseAnyway": "Přesto použít novější životopis",
+      "rebuildUndo": "Vrátit přestavbu zpět"
     },
     "archetypes": {
       "eyebrow": "Pracovní prostor",

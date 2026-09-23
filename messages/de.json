@@ -6242,7 +6242,16 @@
       "projectionLabel": "Kandidatenansicht",
       "projectionList": "Liste",
       "projectionMatrix": "Matrix",
-      "newProfile": "Kandidatenprofil erstellen"
+      "newProfile": "Kandidatenprofil erstellen",
+      "rebuildMergeTitle": "Der neuere Lebenslauf ändert Felder, die Sie bearbeitet haben",
+      "rebuildContestedIntro": "{count, plural, one {Sie haben dieses Feld manuell bearbeitet, und die neuere Lebenslauf-Analyse ändert es ebenfalls:} other {Sie haben diese # Felder manuell bearbeitet, und die neuere Lebenslauf-Analyse ändert sie ebenfalls:}}",
+      "rebuildUnknownBaseline": "{count, plural, one {Die Analyse, aus der dieses Profil erstellt wurde, ist nicht mehr verfügbar, daher lässt sich nicht feststellen, was Sie bearbeitet haben. Dieses Feld weicht vom neueren Lebenslauf ab:} other {Die Analyse, aus der dieses Profil erstellt wurde, ist nicht mehr verfügbar, daher lässt sich nicht feststellen, was Sie bearbeitet haben. Diese # Felder weichen vom neueren Lebenslauf ab:}}",
+      "rebuildContestedListLabel": "Betroffene Felder",
+      "rebuildMergeHint": "Ihre letzte Bearbeitung war am {date}. Beim Zusammenführen bleibt Ihre Version dieser Felder erhalten, alles andere wird aus dem neueren Lebenslauf übernommen. Vor dem Speichern können Sie alles prüfen.",
+      "rebuildMergeHintNoDate": "Beim Zusammenführen bleibt Ihre Version dieser Felder erhalten, alles andere wird aus dem neueren Lebenslauf übernommen. Vor dem Speichern können Sie alles prüfen.",
+      "rebuildActionMerge": "Zusammenführen und meine Änderungen behalten",
+      "rebuildActionKeep": "Meine Version behalten",
+      "rebuildActionReplace": "Alles aus dem neueren Lebenslauf übernehmen"
     },
     "matrix": {
       "eyebrow": "Kandidaten",
@@ -6439,7 +6448,11 @@
       "draftUndo": "Entwurf rückgängig machen",
       "draftKeep": "So belassen",
       "staleSave": "Dieses Profil wurde nach dem Öffnen von jemand anderem gespeichert, deshalb wurde Ihre Speicherung nicht übernommen. Hier ist nichts verloren. Laden Sie neu, um die andere Version zu sehen.",
-      "staleReload": "Profil neu laden"
+      "staleReload": "Profil neu laden",
+      "rebuildAppliedNote": "Aus der neueren Lebenslauf-Analyse neu erstellt, Ihre Änderungen wurden übernommen. Gespeichert wird erst, wenn Sie auf Speichern klicken.",
+      "rebuildKeptEdits": "{count, plural, one {# von Ihnen bearbeitetes Feld wurde statt des neueren Lebenslaufs beibehalten} other {# von Ihnen bearbeitete Felder wurden statt des neueren Lebenslaufs beibehalten}}. Den Rest hat der neuere Lebenslauf ausgefüllt.",
+      "rebuildUseAnyway": "Trotzdem den neueren Lebenslauf verwenden",
+      "rebuildUndo": "Neuerstellung rückgängig machen"
     },
     "archetypes": {
       "eyebrow": "Arbeitsbereich",

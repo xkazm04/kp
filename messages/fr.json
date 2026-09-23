@@ -6242,7 +6242,16 @@
       "projectionLabel": "Vue des candidats",
       "projectionList": "Liste",
       "projectionMatrix": "Matrice",
-      "newProfile": "Créer un profil candidat"
+      "newProfile": "Créer un profil candidat",
+      "rebuildMergeTitle": "Le CV plus récent modifie des champs que vous avez modifiés",
+      "rebuildContestedIntro": "{count, plural, one {Vous avez modifié ce champ à la main, et l’analyse du CV plus récente le modifie aussi :} other {Vous avez modifié ces # champs à la main, et l’analyse du CV plus récente les modifie aussi :}}",
+      "rebuildUnknownBaseline": "{count, plural, one {L’analyse à partir de laquelle ce profil a été créé n’est plus disponible : impossible de savoir ce que vous avez modifié. Ce champ diffère du CV plus récent :} other {L’analyse à partir de laquelle ce profil a été créé n’est plus disponible : impossible de savoir ce que vous avez modifié. Ces # champs diffèrent du CV plus récent :}}",
+      "rebuildContestedListLabel": "Champs concernés",
+      "rebuildMergeHint": "Votre dernière modification date du {date}. La fusion conserve votre version de ces champs et reprend le CV plus récent partout ailleurs. Vous pourrez tout revoir avant d’enregistrer.",
+      "rebuildMergeHintNoDate": "La fusion conserve votre version de ces champs et reprend le CV plus récent partout ailleurs. Vous pourrez tout revoir avant d’enregistrer.",
+      "rebuildActionMerge": "Fusionner et garder mes modifications",
+      "rebuildActionKeep": "Garder ma version",
+      "rebuildActionReplace": "Tout reprendre du CV plus récent"
     },
     "matrix": {
       "eyebrow": "Candidats",
@@ -6439,7 +6448,11 @@
       "draftUndo": "Annuler le brouillon",
       "draftKeep": "Conserver",
       "staleSave": "Ce profil a été enregistré par quelqu'un d'autre après votre ouverture : votre enregistrement n'a donc pas été appliqué. Rien n'est perdu ici. Rechargez pour voir sa version.",
-      "staleReload": "Recharger le profil"
+      "staleReload": "Recharger le profil",
+      "rebuildAppliedNote": "Reconstruit à partir de l’analyse du CV plus récente, en conservant vos modifications. Rien n’est enregistré tant que vous n’avez pas cliqué sur Enregistrer.",
+      "rebuildKeptEdits": "{count, plural, one {# champ que vous aviez modifié a été conservé plutôt que le CV plus récent} other {# champs que vous aviez modifiés ont été conservés plutôt que le CV plus récent}}. Le CV plus récent a rempli le reste.",
+      "rebuildUseAnyway": "Utiliser quand même le CV plus récent",
+      "rebuildUndo": "Annuler la reconstruction"
     },
     "archetypes": {
       "eyebrow": "Espace de travail",
