@@ -1768,12 +1768,16 @@ export function recordAnalysisDispositionEvents(
   candidateLabel: string,
   disposition: string,
   workspaceId: string,
-  note?: string | null
+  note?: string | null,
+  acknowledgedFlags = 0
 ): number {
   const db = ensureDb();
   const entries = findActiveEntriesByCandidateLabel(candidateLabel, workspaceId);
   const trimmedNote = note?.trim();
-  const detail = trimmedNote ? `${disposition} — ${trimmedNote}` : disposition;
+  // The flags the recruiter acknowledged to decide (decisionBrief.ts) ride the event,
+  // so a flagged advance reads differently from a clean one in the drawer history.
+  const acks = acknowledgedFlags > 0 ? `${acknowledgedFlags} flag${acknowledgedFlags === 1 ? "" : "s"} acknowledged` : "";
+  const detail = [disposition, acks, trimmedNote].filter(Boolean).join(" — ");
   for (const e of entries) {
     recordEvent(db, {
       entryId: e.id,

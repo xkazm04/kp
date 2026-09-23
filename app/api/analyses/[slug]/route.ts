@@ -5,6 +5,7 @@ import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { decisionBasis, decisionBrief, decisionGate } from "@/app/_components/results/decisionBrief";
 
 
 // Defensive ceiling for an attached GitHub payload. A real GithubAnalysis is
@@ -76,6 +77,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     const body = (await request.json().catch(() => ({}))) as {
       disposition?: unknown;
       note?: unknown;
+      acknowledged?: unknown;
       githubAnalysis?: unknown;
     };
 
@@ -95,7 +97,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
 
     const disposition = typeof body.disposition === "string" ? body.disposition : "";
     const note = typeof body.note === "string" ? body.note.slice(0, 2000) : "";
-    const ok = setAnalysisDisposition(slug, disposition, note, ws);
+    const acknowledged = Array.isArray(body.acknowledged)
+      ? body.acknowledged.filter((a): a is string => typeof a === "string").slice(0, 100)
+      : [];
+    // The decision gate (decisionBrief.ts), re-derived from the STORED payload so the
+    // editor's checkboxes are a convenience, not the enforcement: a TRANSITION to
+    // advance must acknowledge every open trust warning. Re-saving the stored
+    // disposition (a note edit, the keepalive unmount flush) is never gated, so a
+    // decision recorded before the gate existed is never locked.
+    const found = loadAnalysis(slug, ws);
+    const stored = found?.row.disposition ?? "";
+    const brief = decisionBrief(found?.payload);
+    const gate = decisionGate(brief, disposition, { acknowledged, note, stored });
+    if (!gate.canSave && gate.needs === "ack") {
+      return jsonRefusal("DISPOSITION_ACK_REQUIRED", 409, { pending: gate.pending });
+    }
+    // advance/pass records what it was decided against; a note-only edit keeps the
+    // basis it annotates (undefined); hold/clear carry none.
+    const decided = (disposition === "advance" || disposition === "pass") && found ? disposition !== stored : false;
+    const basis = decided ? decisionBasis(brief, acknowledged) : undefined;
+    const ok = setAnalysisDisposition(slug, disposition, note, ws, basis ? JSON.stringify(basis) : disposition === stored ? undefined : null);
     if (!ok) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
     // d95fed6d — echo the decision onto the candidate's pipeline record(s) so
     // it shows in the drawer history instead of living only on the history
@@ -103,8 +124,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // decision worth narrating, and a failed echo must not fail the save.
     if (disposition) {
       try {
-        const saved = loadAnalysis(slug, ws);
-        if (saved) recordAnalysisDispositionEvents(saved.row.candidate_label, disposition, ws, note);
+        const ackCount = basis?.acknowledged.length ?? storedAckCount(found?.row.decision_basis);
+        if (found) recordAnalysisDispositionEvents(found.row.candidate_label, disposition, ws, note, ackCount);
       } catch (error) {
         console.error(`[api:analyses] disposition echo failed for "${slug}"`, error);
       }
@@ -112,5 +133,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     return jsonOk({ ok: true });
   } catch (error) {
     return safeJsonError(error, `api:analyses/${slug}`, "ANALYSIS_SAVE_FAILED");
+  }
+}
+
+// The acknowledged count of the basis a note-only edit annotates (0 when none/corrupt).
+function storedAckCount(json: string | null | undefined): number {
+  if (!json) return 0;
+  try {
+    const parsed = JSON.parse(json) as { acknowledged?: unknown };
+    return Array.isArray(parsed.acknowledged) ? parsed.acknowledged.length : 0;
+  } catch {
+    return 0; // a corrupt basis narrates as unacknowledged, never fails the save
   }
 }

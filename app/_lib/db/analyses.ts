@@ -21,6 +21,8 @@ export type AnalysisRow = {
   // optional because the narrower pool/JD SELECTs don't read them.
   disposition?: string | null;
   decision_note?: string | null;
+  // decisionBrief.ts — JSON basis of an advance/pass (loadAnalysis only).
+  decision_basis?: string | null;
   // SCOR2 — warn-shaped sanity-check count, same optionality rationale.
   review_flags?: number | null;
   // GH1 — attached GitHub deep-dive JSON, fetched only by loadAnalysis.
@@ -272,13 +274,28 @@ export function hasLabelCollision(
  *  An empty/whitespace disposition clears both fields back to NULL. Returns false
  *  for an unknown slug. The display/storage is the analysis row itself — no event
  *  log, since an analysis isn't a pipeline entry. */
-export function setAnalysisDisposition(slug: string, disposition: string, note: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+export function setAnalysisDisposition(
+  slug: string,
+  disposition: string,
+  note: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // The JSON decision basis (decisionBrief.ts). `undefined` leaves the column as it is
+  // (a note-only edit keeps the basis of the decision it annotates); a clear always
+  // drops it.
+  basis?: string | null
+): boolean {
   const db = ensureDb();
   const clean = (ANALYSIS_DISPOSITIONS as readonly string[]).includes(disposition) ? disposition : null;
   const noteVal = clean && note.trim() ? note.trim() : null;
-  const res = db
-    .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ? AND workspace_id = ?`)
-    .run(clean, clean ? noteVal : null, slug, workspaceId);
+  const basisVal = clean ? basis : null;
+  const res =
+    basisVal === undefined
+      ? db
+          .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ? AND workspace_id = ?`)
+          .run(clean, noteVal, slug, workspaceId)
+      : db
+          .prepare(`UPDATE analyses SET disposition = ?, decision_note = ?, decision_basis = ? WHERE slug = ? AND workspace_id = ?`)
+          .run(clean, noteVal, basisVal, slug, workspaceId);
   return res.changes > 0;
 }
 
@@ -479,7 +496,7 @@ export function loadAnalysis(slug: string, workspaceId: string = DEFAULT_WORKSPA
   const db = ensureDb();
   const row = db
     .prepare(
-      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, github_json, cv_hash, engine, engine_provider
+      `SELECT slug, candidate_label, jd_slug, score, role_family, seniority, payload_json, created_at, disposition, decision_note, decision_basis, github_json, cv_hash, engine, engine_provider
        FROM analyses WHERE slug = ? AND workspace_id = ?`
     )
     .get(slug, workspaceId) as AnalysisRow | undefined;

@@ -262,6 +262,7 @@ export function ResultPanel({ analysis, github, onGithubRetry, pipelineRef, runC
                 slug={analysisSlug}
                 initialDisposition={initialDisposition ?? null}
                 initialNote={initialNote ?? null}
+                analysis={analysis}
               />
             </div>
           ) : null}

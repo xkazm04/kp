@@ -203,3 +203,85 @@ test("the list takes a clamped limit and reports when it bit", async () => {
     assert.equal(body.limit, expected, `limit "${qs}" should clamp to ${expected}`);
   }
 });
+
+// ---- the decision gate (challenge-r07 results-core/B) ---------------------------
+// An advance on a flagged analysis must name every open flag, at the DOOR as well as
+// in the editor: the PATCH re-derives the open warnings from the STORED payload.
+
+const { createPipelineEntry, listPipelineEventsForEntry } = await import("../../_lib/db/pipeline.ts");
+const { ensureDb } = await import("../../_lib/db/core.ts");
+
+const WARN_1 = "Credential: the role appears to require a CISSP, not found in the candidate's credentials - verify before advancing (manual review).";
+const WARN_2 = "Score check: the skills component disagrees with the evidence - verify the score before trusting it (manual review).";
+
+function seedFlagged(label: string) {
+  return saveAnalysis({
+    candidateLabel: label,
+    jdSlug: null,
+    score: 71,
+    roleFamily: "backend",
+    seniority: "senior",
+    payload: {
+      ...PAYLOAD,
+      sanityChecks: ["Salary band is inside the expected range.", WARN_1, WARN_2],
+      score: { total: 71, experience: 20, skills: 20, roleSeniority: 15, education: 8, traits: 8 },
+    },
+  }).slug;
+}
+
+const patch = (slug: string, body: Record<string, unknown>) =>
+  patchRoute(new Request("http://localhost/x", { method: "PATCH", body: JSON.stringify(body) }), slugCtx(slug));
+const basisOf = (slug: string) =>
+  (ensureDb().prepare(`SELECT disposition, decision_basis FROM analyses WHERE slug = ?`).get(slug) as {
+    disposition: string | null;
+    decision_basis: string | null;
+  });
+
+test("an un-acknowledged advance on a flagged analysis is a CODED 409 and the row is unchanged", async () => {
+  seat(recruiter);
+  const slug = seedFlagged("Flagged One");
+  assert.equal((await patch(slug, { disposition: "hold", note: "wait" })).status, 200);
+  const refused = await patch(slug, { disposition: "advance", note: "go", acknowledged: [] });
+  assert.equal(refused.status, 409);
+  const body = (await refused.json()) as { code?: string; pending?: string[] };
+  assert.equal(body.code, "DISPOSITION_ACK_REQUIRED");
+  assert.deepEqual(body.pending, [WARN_1, WARN_2]);
+  assert.equal(basisOf(slug).disposition, "hold", "a refused advance must not move the row");
+  // One acknowledgement is not both.
+  assert.equal((await patch(slug, { disposition: "advance", acknowledged: [WARN_1] })).status, 409);
+  const ok = await patch(slug, { disposition: "advance", note: "go", acknowledged: [WARN_1, WARN_2] });
+  assert.equal(ok.status, 200);
+  assert.equal(basisOf(slug).disposition, "advance");
+});
+
+test("a note-only edit of a stored advance (the keepalive flush) is never gated", async () => {
+  seat(recruiter);
+  const slug = seedFlagged("Flagged Legacy");
+  // A decision recorded before the gate existed: written straight to the row.
+  ensureDb().prepare(`UPDATE analyses SET disposition = 'advance' WHERE slug = ?`).run(slug);
+  const res = await patch(slug, { disposition: "advance", note: "typed later" });
+  assert.equal(res.status, 200, "a legacy advance must never be locked behind acknowledgements it never saw");
+});
+
+test("an advance stores its basis and the pipeline event names the acknowledged flags", async () => {
+  seat(recruiter);
+  const label = "Flagged Echo";
+  const slug = seedFlagged(label);
+  const { entry } = createPipelineEntry({ candidateId: "flagged-echo", candidateLabel: label, jobId: "gate-job", jobTitle: "Gate", workspaceId: DEFAULT_WORKSPACE });
+  assert.equal((await patch(slug, { disposition: "advance", note: "strong systems", acknowledged: [WARN_1, WARN_2] })).status, 200);
+  const basis = JSON.parse(basisOf(slug).decision_basis ?? "null") as { score: number; openWarns: string[]; acknowledged: string[]; decidedAt: string };
+  assert.equal(basis.score, 71);
+  assert.deepEqual(basis.openWarns, [WARN_1, WARN_2]);
+  assert.deepEqual(basis.acknowledged, [WARN_1, WARN_2]);
+  assert.ok(!Number.isNaN(Date.parse(basis.decidedAt)));
+  const events = listPipelineEventsForEntry(entry.id, 50, DEFAULT_WORKSPACE).filter((e) => e.kind === "disposition_set");
+  assert.equal(events[0]?.detail, "advance — 2 flags acknowledged — strong systems");
+
+  // Hold carries no basis: nothing was accepted or overridden.
+  assert.equal((await patch(slug, { disposition: "hold" })).status, 200);
+  assert.equal(basisOf(slug).decision_basis, null);
+  // Pass stores one too (with nothing acknowledged).
+  assert.equal((await patch(slug, { disposition: "pass", note: "salary" })).status, 200);
+  const passBasis = JSON.parse(basisOf(slug).decision_basis ?? "null") as { acknowledged: string[] };
+  assert.deepEqual(passBasis.acknowledged, []);
+});
