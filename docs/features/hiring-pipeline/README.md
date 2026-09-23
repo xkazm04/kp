@@ -293,8 +293,14 @@ candidate modal in [`../pipeline/README.md`](../pipeline/README.md#the-candidate
 ### Aging thresholds follow the role, not the name
 
 The board's amber "aging" dot, the `?quick=aging` filter, the header's Aging
-chip and the sidebar's Pipeline badge all read one threshold function,
-`slaForStage(stage, overrides, axis)` (`app/features/shared/pipelineTypes.ts`).
+chip, the sidebar's Pipeline badge and the automation pass's feed alerts all read
+one aging clock, `agingTier(stage, daysInStage, axis, overrides)`
+(`app/_lib/aging-policy.ts`: `none` / `aging` past the SLA / `stalled` past twice
+it), over one threshold function, `slaForStage(stage, overrides, axis)`
+(`app/features/shared/pipelineTypes.ts`). The pass receives the tier per entry,
+resolved on that entry's own workspace axis, so a composed column alerts in the
+activity feed at the same moment it turns amber on the board (see
+[`../pipeline/README.md`](../pipeline/README.md), policy pass).
 The default is keyed by the **role** a column plays on this workspace's axis
 (`ROLE_SLA_DEFAULTS`: entry 14 d, screening 7 d, homework 7 d, interview 5 d, scoring 5 d,
 offer 3 d, terminal never, `custom` the flat legacy 10 d), so a composed

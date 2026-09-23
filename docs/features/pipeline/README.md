@@ -253,9 +253,25 @@ strands nobody, and moving them would rewrite closed history.
 2. **Policy pass (deterministic, no LLM).** `evaluate_entry()` in
    `automation.py` batch-evaluates active entries ("Run automation pass" button
    or `/api/automation/run`) against a `POLICY` dict (advance/hold/reject
-   thresholds, aging windows). An unscored entry (no match score yet) always
+   thresholds). An unscored entry (no match score yet) always
    holds — it is never coerced into a fabricated zero. Applied server-side by
    `app/_lib/automation-pass.ts` / `app/_lib/automation-run.ts`.
+   **Aging alerts follow the board's clock.** The pass does not age entries on its
+   own: `listActiveEntriesForAutomation` stamps each entry's `agingTier`
+   (`none` / `aging` / `stalled`) from `app/_lib/aging-policy.ts` — the same
+   stage-role SLA the board's amber dot and the sidebar badge read, resolved on the
+   entry's OWN workspace axis — and `evaluate_entry` maps it: `aging` (past the
+   stage SLA) → `stale_alert`, `stalled` (past `STALLED_MULTIPLE` = 2 x the SLA) →
+   `aging_alert`. A terminal-role stage never alerts. The flat `POLICY`
+   `stale_days` 21 / `aging_days` 30 cut survives only as the fallback for a caller
+   that sends no tier (the bare CLI), and even there `Hired` never alerts. The
+   vocabulary, the tier → kind map and that fallback's terminal name are bound
+   across the language boundary by `test_automation.py::AgingTierSyncTest`.
+   An aging alert is written **once per stage stint per tier**
+   (`hasEventSinceStageChange`, keyed on `stage_changed_at`), not once per business
+   day, and never on the decision that advances the entry out of that stint;
+   `fairness_gate_blocked_reject` keeps its per-business-day dedupe
+   (`recordDecisionAlerts`, shared by the preview and the commit loop).
 3. **Screen wave — configurable bulk auto-reject.** `app/_lib/screen-wave.ts`
    auto-rejects the bottom X% of a role's matched cohort that are *also* below
    a configurable match floor — the one Phase-3 capability the original spec
