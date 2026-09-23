@@ -162,7 +162,9 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
      completed / bad token / consent) clears the stash; a network failure — or a
      429 from `/complete`'s throttle, which is explicitly temporary — keeps
      it for the next mount, so a reload after the "we couldn't save your
-     interview" banner recovers the record instead of dropping it.
+     interview" banner recovers the record instead of dropping it. The hook reports
+     one `saveState` (see "A dropped call resumes itself" below) instead of a
+     failure flag the shell set and cleared by hand.
 4. **Completion.** `app/api/interview/complete/route.ts` persists the
    transcript, computes `interviewFinalStatus`
    (`app/_lib/voice/finalize-status.ts`), attributes usage/cost
@@ -1396,6 +1398,42 @@ minute 12 of 30 and score half a conversation. Once the closing block has begun 
 rule applies again, so a socket blip at goodbye is still a completed interview.
 Undirected calls (the lab, a session with nothing grounded to talk about) keep today's
 rule byte for byte. Pinned in `app/_lib/voice/finalize-status.test.ts`.
+
+### A dropped call resumes itself: save first, then a cancellable redial
+
+A directed drop used to leave recovery to the candidate: find Start again, and if the
+same network blip had also taken down the `/complete` save, get `INTERVIEW_ALREADY_LIVE`
+("already running in another window") in their only tab for up to 30 minutes. The
+session whose save never landed was still `in_progress`, and `start()` cleared the
+failed-save flag and the previous session ids before dialling, which also disarmed the
+online/visibility re-drive.
+
+`app/_components/voice/reconnect-plan.ts` now decides what happens after every ending,
+purely:
+
+- **`saveStateOf`** gives the persistence hook one save state, `pending` / `saved` /
+  `failed` / `refused`. `refused` is ANY permanent 4xx from `/complete` (400, 403, 404,
+  409, 413), with or without `discardedTurns`; 429 and network errors stay `failed`.
+  `useTranscriptPersistence.ts` exposes it as `saveState`, and the Retry banner, the
+  refusal lines, the plan and Start all read it.
+- **`reconnectPlan`** runs on the outcome `finalize()` records, so the OpenAI drop and
+  the ElevenLabs `onDisconnect` are covered alike. Completed, decided
+  (`candidate_end` / `director_end`), never-live and refused endings get nothing. An
+  undirected drop is the candidate's click (`manual`). A directed drop waits for its
+  save (`save_first`, which re-drives the prior session's save once), then for the
+  network (`wait_online`), then counts down 5 seconds and redials. The countdown can be
+  cancelled or skipped ("Reconnect now"). At most 2 automatic redials per page
+  (`AUTO_REDIAL_BUDGET`), reset by a completed ending, which leaves room inside
+  `/connect`'s 6-per-10-minutes token budget for the candidate's own clicks.
+- **`startPrecondition`** runs at the top of every `start()`, automatic or clicked: a
+  prior session whose save `failed` is retried first and nothing is dialled unless it
+  lands; a save still in flight disables Start.
+
+`ReconnectNotice.tsx` renders the plan (countdown with Cancel and Reconnect now, saving
+first, offline, and the lines handing recovery back to Start). `errConnectionLost` no
+longer promises a button. The redial is an ordinary `/connect`, so the resume above does
+the rest, and a completed interview is never redialled. No route or stored shape
+changed. Pinned by `app/_components/voice/reconnect-plan.test.ts`.
 
 ### Transcript of record: the director's ledger, not the hang-up POST
 
