@@ -1471,7 +1471,9 @@ on prose, pinned by `devcase-orchestrator.test.ts` and `devcase-transitions.test
   it for types only). `DevLifecycleRow` renders the outcome from
   `devcase.lifecycle.outcome.*` in the reader's language, with the English detail as the
   hover title. Held candidates open Decisions. A sourcing crash offers Re-source at once,
-  not after the 7-day stall rule. A halt or cancel offers Resume, which posts the control
+  not after the 7-day stall rule; a Re-source that succeeds clears `sourcing_failed` from the
+  stored outcome (other warnings kept, `app/_lib/db/devcase-outcome-rewrite.ts`, pinned by
+  `devcase-resource-outcome.test.ts`), while a failed one leaves the warning standing. A halt or cancel offers Resume, which posts the control
   room's `reconcile` (while the kill switch is still thrown the run halts again and says so).
   The material warnings are read from the case as frozen, so a resume that skipped the
   freeze still reports them. They and `eval_failed` carry forward to later steps, while
