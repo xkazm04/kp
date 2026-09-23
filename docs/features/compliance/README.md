@@ -151,6 +151,20 @@ refuses (`reopenRefused: "anonymized"`) for every caller, including the two huma
 and it writes none of the fill-only backfills (GitHub evidence, handle) onto the
 scrubbed row. Pinned by `app/_lib/db/pipeline-readd-transition.test.ts`; the full
 re-add rule is in [the pipeline doc](../pipeline/README.md#a-re-add-is-a-transition-only-a-named-human-door-reopens-a-closed-entry).
+
+**Erasure frees the applicant's identity.** A filed application's dedupe identity is
+the hashed `pipeline_entries.applicant_key` (`app/_lib/applicant-key.ts`), and its
+entry id is an opaque surrogate; `anonymizeEntry` NULLs the key in its claiming
+UPDATE and `findApplicationByApplicant` skips anonymized rows. So a re-application
+after erasure files as a new applicant and never reaches the scrubbed row: no
+contact backfill, no re-acknowledgement, no renewed consent, no `re_applied` event.
+Before, the entry id was built from the email in clear, so the re-application
+regenerated it and the filing core re-contacted the erased row. The key is
+pseudonymous (an address can be hashed and compared), which is why erasure removes
+it rather than keeping it. Pinned by `app/_lib/application-filing-erasure.test.ts`.
+An ATS record whose link was forgotten (a disconnect with `forgetLinks`) re-imports
+as a new entry for the same reason; while the link exists the sync still answers
+`erased`.
 `decision_records` is **deliberately excluded** from the scrub — the code
 comment at `pipeline.ts:1332-1335` states the GDPR Art. 17(3)(b)/(e)
 legal-claims/compliance basis for retaining the sealed chain post-erasure.
@@ -997,6 +1011,7 @@ as of this doc:
 - **G4** — no `audit_events` table for auth/config/PII-read/export events (Art. 12).
 - **G5** — **closed** (`docs/BACKLOG.md` carries the row). `resolveApprover()` / `humanActor()` (`app/_lib/auth/operator-approver.ts`) seal the signed-in person's name, `pipeline_events.actor` records who acted, and the sealed adverse rationale renders „Approved by {who}" — or „Approver not identified" where a deployment genuinely has no named user. `operatorApprover()` survives as the honest fallback for open/keyless single-operator deploys, and legacy rows are deliberately not backfilled. Residual: two seal call sites are still role-only (`app/api/analytics/calibration/apply-threshold/route.ts` and the reinstate/scorecard/schedule seals under `app/api/pipeline/[id]` and `app/api/schedule`).
 - **G6** — log-retention window is undocumented (never pruned, but no stated policy).
+- **Legacy entry ids still carry the applicant's email.** Applications filed before the surrogate id (`m-appl-<email-with-hyphens>-<job>`) keep that id after erasure: it is referenced by the sealed decision chain, pipeline events and exported ATS refs, and rewriting a primary key under a sealed chain is the irreversible act. New filings mint no such id, and an erased legacy row is no longer reachable by a re-application.
 - **The decision chain ships keyless by default** (UAT `LUC-ANA-1`). `KP_DECISION_HMAC_KEY` is unset in the reference deploy, so every sealed record carries `key_id = ''`: integrity-evident, not tamper-resistant against someone with write access to the database. The surface and this doc now say so (the badge is conditioned on the census, each row shows its `key_id`, and `.env.example` documents the var and its ceiling), which makes the CLAIM honest — it does not make the deployment keyed. Turning the key on is an operator action, and it cannot retro-seal existing records.
 - **Chain truncation is undetectable** (see the decision-sealing section above). `verifyDecisionChain` has no head/length commitment, so deleting the newest rows of a workspace's chain still verifies `ok: true` / `keyed: true`. Needs a MAC'd per-tenant head anchor stored outside the row set.
 - **G7** — no signed/SIEM audit export; only the org backup exists.

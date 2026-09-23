@@ -655,7 +655,26 @@ states a `proof`:
 | `channel` | lead core (quick form, lead webhooks), CV intake | backfill a missing contact, refresh consent, record `re_applied`; never rebuild or re-point the profile |
 | `none` | conversational apply without a token | nothing — the door answers tokenless and link recovery re-sends to the address on file |
 
-The dedupe-key backstop catching a concurrent first filing is the same
+**The entry id carries nothing about the applicant.** A filing's identity is
+`applicantKey(name, email)` (`app/_lib/applicant-key.ts`, server-only): a
+domain-separated sha256 of the normalized email, else of the provided name, and
+`""` for an anonymous, address-less applicant (who never dedupes). It is stored in
+`pipeline_entries.applicant_key` behind a partial UNIQUE index on
+`(workspace_id, job_id, applicant_key)`, and the entry itself gets an opaque
+surrogate id (`m-appl-<random>-<job>`). Before, the email was written in clear into
+the primary key (`m-appl-jane-example-com-<job>`), which is the ATS subject
+reference, the decision chain's `candidateRef` and the name in every log line.
+`createPipelineEntry` looks the key up inside its IMMEDIATE transaction and treats a
+UNIQUE violation as the winner of a race (the `db/tasks.ts` shape). Erasure NULLs
+the key, and `findApplicationByApplicant` skips anonymized rows, so **an erased
+applicant who applies again is a new applicant**: the scrubbed row is never
+re-activated, backfilled, re-acknowledged or re-consented (it used to be, because the
+re-application regenerated the same email-derived id). Recruiter/Match adds keep
+their `m-<candidateId>-<job>` ids. Legacy rows keep their ids (the sealed chain
+references them) and are still found by contact. Pinned by
+`app/_lib/applicant-key.test.ts` and `app/_lib/application-filing-erasure.test.ts`.
+
+The applicant-key backstop catching a concurrent first filing is the same
 applicant by construction, so a raced `none` writes like `channel` (and the
 conversational door keeps returning its status token there). The lead core
 files a profile-less `stub` (intake-degraded, its coded `leadPending*` reason)
@@ -687,7 +706,7 @@ person's name and email prefilled, and authorize `POST
 /api/apply/[id]/followup`) — so anyone who knew a real applicant's name could
 harvest their capability links. The tokens now ride only when the caller
 *proved* ownership: a valid `?lead=` token resolving to this entry (the emailed
-enrichment walk — unchanged), or the `dedupeKey` race where this very request
+enrichment walk — unchanged), or the `applicantKey` race where this very request
 created the row. The `duplicate` flag itself stays; a returning candidate is
 still told honestly that they already applied, and their links reach them
 through the address on file. `leadToken` on the quick-apply duplicate branch was
