@@ -11009,7 +11009,13 @@
     },
     "unreadDone": "{count, plural, one {# tâche terminée non lue} other {# tâches terminées non lues}}",
     "unreadRow": "Nouveau, terminé pendant que vous étiez ailleurs",
-    "queueUnreachable": "File des tâches injoignable. Vous voyez le dernier instantané ; les nouveaux traitements n'apparaîtront qu'à son retour."
+    "queueUnreachable": "File des tâches injoignable. Vous voyez le dernier instantané ; les nouveaux traitements n'apparaîtront qu'à son retour.",
+    "replay": {
+      "inputsGone": "Les fichiers importés ne sont plus disponibles, ce traitement ne peut donc pas être relancé.",
+      "kindRetired": "Ce type de tâche n’existe plus dans cette version.",
+      "noSeat": "Votre rôle ne permet pas de relancer cette tâche.",
+      "openAnalyze": "Réimporter dans Analyse"
+    }
   },
   "control": {
     "eyebrow": "Supervision",

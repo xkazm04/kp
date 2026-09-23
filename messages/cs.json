@@ -11009,7 +11009,13 @@
     },
     "unreadDone": "{count, plural, one {# nepřečtená dokončená úloha} few {# nepřečtené dokončené úlohy} other {# nepřečtených dokončených úloh}}",
     "unreadRow": "Nové, dokončeno, zatímco jste byli jinde",
-    "queueUnreachable": "Frontu úloh se nedaří načíst. Vidíte poslední snímek; nové běhy se objeví, až bude znovu dostupná."
+    "queueUnreachable": "Frontu úloh se nedaří načíst. Vidíte poslední snímek; nové běhy se objeví, až bude znovu dostupná.",
+    "replay": {
+      "inputsGone": "Nahrané soubory již nejsou k dispozici, běh proto nelze zopakovat.",
+      "kindRetired": "Tento typ úlohy v této verzi již neexistuje.",
+      "noSeat": "Vaše role nemůže tuto úlohu spustit znovu.",
+      "openAnalyze": "Nahrát znovu v Analýze"
+    }
   },
   "legal": {
     "updated": "Poslední aktualizace: {date}",

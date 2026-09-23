@@ -11009,7 +11009,13 @@
     },
     "unreadDone": "{count, plural, one {# ungelesene abgeschlossene Aufgabe} other {# ungelesene abgeschlossene Aufgaben}}",
     "unreadRow": "Neu, abgeschlossen, während Sie anderswo waren",
-    "queueUnreachable": "Die Aufgaben-Warteschlange ist nicht erreichbar. Sie sehen den letzten Stand; neue Läufe erscheinen erst wieder, wenn sie antwortet."
+    "queueUnreachable": "Die Aufgaben-Warteschlange ist nicht erreichbar. Sie sehen den letzten Stand; neue Läufe erscheinen erst wieder, wenn sie antwortet.",
+    "replay": {
+      "inputsGone": "Die hochgeladenen Dateien sind nicht mehr vorhanden, daher lässt sich dieser Lauf nicht wiederholen.",
+      "kindRetired": "Diesen Aufgabentyp gibt es in dieser Version nicht mehr.",
+      "noSeat": "Ihre Rolle darf diese Aufgabe nicht erneut ausführen.",
+      "openAnalyze": "In Analyse erneut hochladen"
+    }
   },
   "legal": {
     "updated": "Zuletzt aktualisiert: {date}",

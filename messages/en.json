@@ -11009,7 +11009,13 @@
     },
     "unreadDone": "{count, plural, one {# finished task unread} other {# finished tasks unread}}",
     "unreadRow": "New, finished while you were elsewhere",
-    "queueUnreachable": "Can't reach the task queue. What you see is the last snapshot, and new runs won't appear until it's back."
+    "queueUnreachable": "Can't reach the task queue. What you see is the last snapshot, and new runs won't appear until it's back.",
+    "replay": {
+      "inputsGone": "The uploaded files are gone, so this run cannot repeat.",
+      "kindRetired": "This task type no longer exists in this version.",
+      "noSeat": "Your role cannot re-run this task.",
+      "openAnalyze": "Upload again in Analyze"
+    }
   },
   "legal": {
     "updated": "Last updated: {date}",
