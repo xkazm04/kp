@@ -39,6 +39,13 @@ export const BUILT_IN_ARCHETYPE_IDS = ["bau", "student", "career_switcher"] as c
 // or a saved v2 intake profile (id → the ?edit= editor deep link). `score` is the
 // analysis total for an analysis and null for a profile (no match score — honest,
 // never fabricated).
+// One analysis of a candidate's CV, as the matrix row lists it (newest first).
+export type CandidateAnalysisRef = { slug: string; score: number | null; createdAt: string };
+
+// One CANDIDATE on the matrix — keyed on CV identity (app/_lib/candidate-population.ts),
+// not on a store row. `source` is "profile" when a saved profile exists for the person
+// (with or without analyses of the same CV folded in) and "analysis" when only analyses
+// do. `slug` is the newest analysis; `analyses` lists every analysis of the same CV.
 export type CandidateRow = {
   key: string;
   source: "profile" | "analysis";
@@ -49,6 +56,7 @@ export type CandidateRow = {
   seniority: string | null;
   score: number | null;
   archetype: string;
+  analyses: CandidateAnalysisRef[];
 };
 export type EvidenceRow = { kind: string; title: string; text: string; skills: string; link: string; _id?: string };
 
