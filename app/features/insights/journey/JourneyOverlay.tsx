@@ -13,18 +13,27 @@
 //
 // Closing returns to the tab the reader came from — Workspace owns that memory
 // and hands it down as `onClose`, so the reader never lands on an empty frame.
+//
+// Two LEVELS, one overlay. It opens on the cohort layer - every journey in the
+// workspace on one derived path, coverage and failures per stage - and the reader
+// descends into the board for one role (or all of them) from there. The header
+// always says which level is showing and how to go back up.
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { BTN_GHOST, EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { JourneyBoardView } from "./JourneyBoardView";
+import { JourneyCohortView } from "./cohort/JourneyCohortView";
+
+type Level = { kind: "cohort" } | { kind: "board"; role: string | null };
 
 export function JourneyOverlay({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const t = useTranslations("journey");
+  const [level, setLevel] = useState<Level>({ kind: "cohort" });
   useDialogA11y(ref, onClose, { trap: true, lockScroll: true });
 
   // PORTALED TO document.body, and it has to be. The tab panel that renders this
@@ -49,10 +58,21 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-stone-200 px-5 py-3">
           <div className="min-w-0">
-            <p className={EYEBROW}>{t("phases.screening")}</p>
+            <p className={EYEBROW}>{level.kind === "cohort" ? t("cohort.eyebrow") : t("phases.screening")}</p>
             <h1 className={TITLE_DISPLAY}>{t("title")}</h1>
-            <p className="mt-0.5 text-sm text-stone-500">{t("lede")}</p>
+            <p className="mt-0.5 text-sm text-stone-500">{level.kind === "cohort" ? t("cohort.lede") : t("lede")}</p>
           </div>
+          {level.kind === "board" && (
+            <button
+              type="button"
+              onClick={() => setLevel({ kind: "cohort" })}
+              className={`${BTN_GHOST} ml-auto px-3 py-2 text-sm`}
+              data-testid="journey-back-to-cohort"
+            >
+              <ArrowLeft size={16} aria-hidden />
+              {t("cohort.back")}
+            </button>
+          )}
           <button type="button" onClick={onClose} className={`${BTN_GHOST} p-2`} aria-label={t("closeBoard")}>
             <X size={18} aria-hidden />
           </button>
@@ -60,9 +80,15 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
 
         {/* The board owns its own scrolling in both axes — the overlay is the
             viewport, so nothing here may introduce a second page-level scroll. */}
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <JourneyBoardView />
-        </div>
+        {level.kind === "cohort" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <JourneyCohortView onOpenBoard={(role) => setLevel({ kind: "board", role })} />
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <JourneyBoardView initialRole={level.role ?? undefined} />
+          </div>
+        )}
       </div>
     </>,
     document.body

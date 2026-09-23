@@ -242,3 +242,40 @@ export type JourneyEventDetail = {
    */
   source?: { labelKey: string; excerpt: string; reply?: string };
 };
+
+// ── The cohort layer ─────────────────────────────────────────────────────────
+//
+// The strategic layer ABOVE the board: every journey in the workspace at once,
+// reduced to what a path needs - ordered step kinds, when, and whether a person or
+// the machine took them. No candidate label, no facts, no evidence: the board is
+// where a person meets candidates; the cohort is where they meet the process.
+
+/** How a journey ended, as the cohort reads it. `stalled` = still active but
+ *  nothing has happened for `JOURNEY_STALL_DAYS`. */
+export type JourneyCohortOutcome = "hired" | "rejected" | "withdrawn" | "rematched" | "stalled" | "open";
+
+export type JourneyCohortStep = {
+  kind: string;
+  /** When it happened (the event's own time, not when it was recorded). */
+  at: string;
+  actor: "human" | "machine" | null;
+};
+
+export type JourneyCohortInstance = {
+  /** The pipeline entry id - the key the board opens a column by. */
+  id: string;
+  jobId: string;
+  outcome: JourneyCohortOutcome;
+  steps: JourneyCohortStep[];
+};
+
+export type JourneyCohortRole = { jobId: string; title: string; roleArea: string | null; n: number };
+
+export type JourneyCohort = {
+  roles: JourneyCohortRole[];
+  instances: JourneyCohortInstance[];
+  /** Entries read before the scan cap; `capped` says the cohort is a bounded slice. */
+  scanned: number;
+  capped: boolean;
+  asOf: string;
+};

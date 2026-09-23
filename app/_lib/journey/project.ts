@@ -50,6 +50,11 @@ import {
   JOURNEY_PHASE_IDS,
   isJourneyTopicCode,
   type JourneyBoard,
+  type JourneyCohort,
+  type JourneyCohortInstance,
+  type JourneyCohortOutcome,
+  type JourneyCohortRole,
+  type JourneyCohortStep,
   type JourneyColumn,
   type JourneyEvent,
   type JourneyEventDetail,
@@ -1002,6 +1007,59 @@ export function journeyBoard(opts: {
     clusters,
     query: { ...(opts.role ? { role: opts.role } : {}), activeOnly, limit, offset },
     totals,
+  };
+}
+
+/** A journey still active with nothing recorded for this long has stalled. The board's
+ *  own silence marker fires at 7 days between two rows; a whole journey going quiet
+ *  for three weeks is the stronger claim the cohort makes. */
+export const JOURNEY_STALL_DAYS = 21;
+
+function cohortOutcome(entry: EntryRow, steps: readonly JourneyCohortStep[], now: number): JourneyCohortOutcome {
+  if (entry.stage === "Hired") return "hired";
+  if (entry.status === "rematched") return "rematched";
+  if (entry.status === "rejected") return "rejected";
+  if (isTerminalEntryStatus(entry.status)) return "withdrawn";
+  const lastKind = steps[steps.length - 1]?.kind;
+  if (lastKind === "withdrawn" || lastKind === "offer_expired") return "withdrawn";
+  const last = Date.parse(steps[steps.length - 1]?.at ?? entry.created_at ?? "");
+  if (Number.isFinite(last) && now - last > JOURNEY_STALL_DAYS * 86_400_000) return "stalled";
+  return "open";
+}
+
+/**
+ * The cohort layer's read: EVERY journey in the workspace (bounded by the scan cap),
+ * each reduced to its ordered step kinds, times and actor class. The standard path,
+ * coverage and failures are derived on the client from these, over the whole
+ * workspace - never over a page, which is the defect the board's paging carries.
+ */
+export function journeyCohort(opts: { workspaceId: string; now?: number }): JourneyCohort {
+  const workspaceId = opts.workspaceId || DEFAULT_WORKSPACE_ID;
+  const now = opts.now ?? Date.now();
+  const scanned = readEntries(workspaceId, {});
+  const entries = scanned.length > JOURNEY_SCAN_CAP ? scanned.slice(0, JOURNEY_SCAN_CAP) : scanned;
+  const analysesByLabel = readAnalysesByLabel(workspaceId);
+  const sources = readSources(entries, workspaceId, analysesByLabel);
+  const chain = chainStatus(workspaceId);
+
+  const roles = new Map<string, JourneyCohortRole>();
+  const instances: JourneyCohortInstance[] = entries.map((entry) => {
+    const jobId = entry.job_id ?? "";
+    const role = roles.get(jobId);
+    if (role) role.n++;
+    else roles.set(jobId, { jobId, title: entry.job_title ?? jobId, roleArea: clusterRoleArea(jobId, workspaceId), n: 1 });
+    const steps: JourneyCohortStep[] = projectEvents(entry, sources.get(entry.id) ?? EMPTY_SOURCES, chain)
+      .map((e): JourneyCohortStep => ({ kind: e.kind, at: e.occurredAt, actor: e.actor ? (journeyActorIsMachine(e.actor) ? "machine" : "human") : null }))
+      .sort((a, b) => a.at.localeCompare(b.at));
+    return { id: entry.id, jobId, outcome: cohortOutcome(entry, steps, now), steps };
+  });
+
+  return {
+    roles: [...roles.values()].sort((a, b) => b.n - a.n),
+    instances,
+    scanned: scanned.length,
+    capped: scanned.length > JOURNEY_SCAN_CAP,
+    asOf: new Date(now).toISOString(),
   };
 }
 

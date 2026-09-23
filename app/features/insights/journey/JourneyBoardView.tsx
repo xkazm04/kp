@@ -52,7 +52,7 @@ import { JourneyFactCard } from "./JourneyFactCard";
 import { JourneyMinimap } from "./JourneyMinimap";
 import { JourneyRail, type LitRow } from "./JourneyRail";
 import { JourneyToolbar } from "./JourneyToolbar";
-import { EMPTY_JOURNEY_FILTERS, filterBoard, type JourneyFilterState } from "./journeyFilters";
+import { EMPTY_JOURNEY_FILTERS, filterBoard, withSelectedRole, type JourneyFilterState } from "./journeyFilters";
 import {
   JOURNEY_SILENCE_PX,
   globalBandHeights,
@@ -75,11 +75,15 @@ type SelectedRow = {
  *  memoisation of every cluster below it. */
 const NO_BANDS: Map<JourneyPhaseId, number> = new Map();
 
-export function JourneyBoardView() {
+/** `initialRole` opens the board already narrowed to one role - the cohort layer above
+ *  hands down the role the reader descended into. The reader can widen it again. */
+export function JourneyBoardView({ initialRole }: { initialRole?: string } = {}) {
   const t = useTranslations("journey");
   const common = useTranslations("common");
   const { board, loading, error, reload } = useJourneyBoard();
-  const [filters, setFilters] = useState<JourneyFilterState>(EMPTY_JOURNEY_FILTERS);
+  const [filters, setFilters] = useState<JourneyFilterState>(() =>
+    initialRole ? withSelectedRole(EMPTY_JOURNEY_FILTERS, initialRole) : EMPTY_JOURNEY_FILTERS
+  );
   const [lit, setLit] = useState<LitRow>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sourceOpened, setSourceOpened] = useState(false);

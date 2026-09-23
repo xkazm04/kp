@@ -29,7 +29,16 @@ highlight all work; closing the overlay returns the reader to the tab they came 
 
 ## User flow
 
-1. Open **Insights → Journeys**. The board loads the workspace's roles as clusters.
+0. Open **Insights → Journeys**. The overlay opens on the **cohort layer** ("The whole process"):
+   every journey in the workspace on one derived path of five stages - Source, Screen, Interview,
+   Offer, Onboard. Each stage shows its name alone on the left, a river whose width is the share still
+   on the path, and on the right **coverage** (`n of N`, skipped) and **failures** (withdrew or went
+   quiet here; holds, chases and lapses here). The three worst stages are ranked. A role dropdown
+   narrows the path to one role and draws the all-roles share as a tick on every coverage bar.
+   **Open the journey board** descends to the board below, already filtered to the chosen role;
+   **Back to the whole process** climbs back up. A rejection is a decision, not a failure; a journey
+   with nothing new for `JOURNEY_STALL_DAYS` (21) reads as gone quiet.
+1. The board loads the workspace's roles as clusters.
 2. Each cluster shows the **shared job-definition band** once, above all its columns — the
    conversation that defined the role happened once, before anyone was a candidate. The band says so,
    and says when the intake record is not actually linked to that role.
@@ -49,6 +58,9 @@ highlight all work; closing the overlay returns the reader to the tab they came 
 | Symbol | File | What |
 | --- | --- | --- |
 | `GET /api/journeys` | `app/api/journeys/route.ts` | The board. `?role=` (a `job_id`), `?active=1`, `?limit=`/`?offset=` paged **by column** (default 20, max 50). Tenancy via `currentWorkspace()`; no `requireOperator()`, matching `/api/analytics`. Per-IP rate limit 120/10min |
+| `GET /api/journeys/cohort` | `app/api/journeys/cohort/route.ts` | The cohort layer: every entry (bounded by `JOURNEY_SCAN_CAP`, never paged) as ordered step kinds, times and actor class; no candidate label. Per-IP rate limit 30/10min |
+| `journeyCohort` / `JOURNEY_STALL_DAYS` | `app/_lib/journey/project.ts` | The cohort read and the stall window |
+| `buildSpine` / `hiringInstances` | `app/features/insights/journey/cohort/` | The derived path, coverage and failures per stage (the same engine drives the Personas Curator Process page) |
 | `GET /api/journeys/[entryId]` | `app/api/journeys/[entryId]/route.ts` | One column; with `?event=` one `JourneyEventDetail` |
 | `journeyBoard` / `journeyColumn` / `journeyEventDetail` | `app/_lib/journey/project.ts` | The projection |
 | `journeyRail` / `railCellState` | `app/_lib/journey/project.ts` | The canonical rail and its cell states |
@@ -113,6 +125,12 @@ returns a code or none and never throws; an unclassified round is a legitimate r
 through its kind.
 
 ## Known gaps
+
+- **The cohort's real sample is thin.** 128 journeys, most with one to three events, so the derived
+  path on real data is short; the layer was designed on a labelled projected cohort of 1,000
+  (contest `process-strategic`, 2026-09-23) and reads correctly at that scale.
+- **The board still pages at 50.** The cohort layer reads the whole workspace, but the board below it
+  keeps its 120-requested / 50-served mismatch (`useJourneyBoard.ts` vs `JOURNEY_MAX_LIMIT`).
 
 - **Backfilled intake rounds are unclassified.** The backfill lives in `core.ts` and importing the
   classifier there would add modules to ~207 routes while the perf budget is already red, so
