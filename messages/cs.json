@@ -6354,7 +6354,7 @@
     "result": {
       "confidence": "shoda signálů {pct} %",
       "saved": "uloženo · {name}",
-      "preview": "náhled (neuloženo)",
+      "preview": "živý náhled · potvrdí se uložením",
       "routing": "Směrování: {reasons}",
       "completeness": "Úplnost",
       "completenessAria": "Úplnost profilu {pct} %",
@@ -6462,7 +6462,6 @@
       "aspirations": "Ambice / cílové pozice",
       "aspirationsPlaceholder": "Juniorní frontend vývojář, ML inženýr",
       "working": "Zpracování…",
-      "checkPreview": "Zkontrolovat (náhled)",
       "draftAppliedNote": "Návrh byl použit. Nic se neuloží, dokud nekliknete na Uložit.",
       "draftKeptEdits": "{count, plural, one {Zachovali jsme # vámi upravené pole} few {Zachovali jsme # vámi upravená pole} other {Zachovali jsme # vámi upravených polí}}. Zbytek doplnil návrh.",
       "draftUseAnyway": "Přesto použít návrh",

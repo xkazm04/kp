@@ -6354,7 +6354,7 @@
     "result": {
       "confidence": "Signalübereinstimmung {pct} %",
       "saved": "gespeichert · {name}",
-      "preview": "Vorschau (nicht gespeichert)",
+      "preview": "Live-Vorschau · wird beim Speichern bestätigt",
       "routing": "Zuordnung: {reasons}",
       "completeness": "Vollständigkeit",
       "completenessAria": "Profilvollständigkeit {pct} %",
@@ -6462,7 +6462,6 @@
       "aspirations": "Ziele / angestrebte Positionen",
       "aspirationsPlaceholder": "Junior-Frontend-Entwickler, ML-Engineer",
       "working": "Wird bearbeitet…",
-      "checkPreview": "Prüfen (Vorschau)",
       "draftAppliedNote": "Entwurf übernommen. Nichts wird gespeichert, bis Sie auf Speichern klicken.",
       "draftKeptEdits": "{count, plural, one {# von Ihnen bearbeitetes Feld wurde beibehalten} other {# von Ihnen bearbeitete Felder wurden beibehalten}}. Den Rest hat der Entwurf ausgefüllt.",
       "draftUseAnyway": "Entwurf trotzdem übernehmen",

@@ -6354,7 +6354,7 @@
     "result": {
       "confidence": "signals agree {pct}%",
       "saved": "saved · {name}",
-      "preview": "preview (not saved)",
+      "preview": "live preview · confirmed on save",
       "routing": "Routing: {reasons}",
       "completeness": "Completeness",
       "completenessAria": "Profile completeness {pct}%",
@@ -6462,7 +6462,6 @@
       "aspirations": "Aspirations / target roles",
       "aspirationsPlaceholder": "Junior frontend developer, ML engineer",
       "working": "Working…",
-      "checkPreview": "Check (preview)",
       "draftAppliedNote": "Draft applied. Nothing is saved until you click Save.",
       "draftKeptEdits": "{count, plural, one {# field you had edited was kept} other {# fields you had edited were kept}}. The draft filled in the rest.",
       "draftUseAnyway": "Use the draft anyway",

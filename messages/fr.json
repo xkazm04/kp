@@ -6354,7 +6354,7 @@
     "result": {
       "confidence": "concordance des signaux {pct} %",
       "saved": "enregistré · {name}",
-      "preview": "aperçu (non enregistré)",
+      "preview": "aperçu en direct · confirmé à l'enregistrement",
       "routing": "Orientation : {reasons}",
       "completeness": "Complétude",
       "completenessAria": "Complétude du profil {pct} %",
@@ -6462,7 +6462,6 @@
       "aspirations": "Aspirations / postes visés",
       "aspirationsPlaceholder": "développeur frontend junior, ingénieur ML",
       "working": "Traitement…",
-      "checkPreview": "Vérifier (aperçu)",
       "draftAppliedNote": "Brouillon appliqué. Rien n'est enregistré tant que vous ne cliquez pas sur Enregistrer.",
       "draftKeptEdits": "{count, plural, one {# champ que vous aviez modifié a été conservé} other {# champs que vous aviez modifiés ont été conservés}}. Le brouillon a rempli le reste.",
       "draftUseAnyway": "Utiliser quand même le brouillon",
