@@ -436,6 +436,18 @@ The runner is drilled by `fault_eval`'s fallback-runner seam family
 (`docs/development/fault-injection.md`); pinned by `TestCodedDescent` in
 `test_devcase_provenance.py`.
 
+**Every CLI door is proven, not one.** `devcase_cli.COMMANDS` is the closed command table:
+the parser's choices, and each entry is either a `_USE_CASE_BY_COMMAND` row (its provider
+seat and ledger attribution) or one of `PURE_COMMANDS` (`source`, `observed-interview`,
+`observed-skills`, never metered). The module refuses to import if the three drift, and a
+provider-backed command with no map row is an `engine_error` rather than being routed and
+metered as `devcase_case_design` as before. `test_devcase_cli_matrix.py` derives its sweep
+from that table: all 8 provider-backed doors write one coded deterministic ledger line per step
+under `FaultProvider` `malformed` / `wrong_shape` (`unparseable_output` / `unusable_output`)
+and `disabled` under `--no-llm`, with no stamp left in the emitted artifact. The sweep caught
+`baseline-solve` writing reason None: `solve_baseline` lifted the prose stamp and dropped the
+code. It now lifts both (`test_devcase_baseline.py`).
+
 `provenance.py` also owns the *other* half of that contract, used outside this module:
 **`defuse_fence_markers`**. `fenced_untrusted` neutralizes its payload by JSON-encoding it
 (`json.dumps` turns the newlines a standalone marker needs into `\n` escapes), which is
