@@ -7590,7 +7590,8 @@
       "clockHm": "{h} h {m} min",
       "clockM": "{m} min",
       "clockElapsed": "Čas na tomto zadání: {elapsed} z {timebox}",
-      "clockOver": "Jste {over} po uplynutí časového rámce {timebox}. Odevzdat můžete i tak; váš čas se zaznamená spolu s prací."
+      "clockOver": "Jste {over} po uplynutí časového rámce {timebox}. Odevzdat můžete i tak; váš čas se zaznamená spolu s prací.",
+      "intakeClosed": "Tato pozice během vaší práce přestala přijímat řešení. Váš rozpracovaný návrh zůstává uložen v tomto zařízení."
     },
     "eyebrow": "Domácí zadání",
     "fallbackTitle": "Vývojářské zadání",
@@ -9855,7 +9856,8 @@
       "cancel": "Zrušit",
       "closeModalTitle": "Uzavřít zadání",
       "closeIrreversible": "Závěrečné zprávy už nejde vzít zpět.",
-      "reSourceFailed": "Nový sourcing se nepodařil."
+      "reSourceFailed": "Nový sourcing se nepodařil.",
+      "closeInFlight": "{count, plural, one {Na tomto zadání právě pracuje # kandidát} few {Na tomto zadání právě pracují # kandidáti} other {Na tomto zadání právě pracuje # kandidátů}} (nejdéle {minutes} min). Uzavřením jim znemožníte odeslat řešení a dozvědí se to při dalším uložení."
     },
     "stage": {
       "intake": "příjem",

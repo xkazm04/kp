@@ -7590,7 +7590,8 @@
       "clockHm": "{h} h {m} min",
       "clockM": "{m} min",
       "clockElapsed": "Temps passé sur cet exercice : {elapsed} sur {timebox}",
-      "clockOver": "Vous dépassez de {over} le temps imparti de {timebox}. Vous pouvez toujours soumettre ; le temps passé est enregistré avec votre travail."
+      "clockOver": "Vous dépassez de {over} le temps imparti de {timebox}. Vous pouvez toujours soumettre ; le temps passé est enregistré avec votre travail.",
+      "intakeClosed": "Ce poste a cessé d'accepter des soumissions pendant que vous travailliez. Votre brouillon reste enregistré sur cet appareil."
     },
     "eyebrow": "Exercice à domicile",
     "fallbackTitle": "Exercice pour développeur",
@@ -9855,7 +9856,8 @@
       "cancel": "Annuler",
       "closeModalTitle": "Clôturer l’exercice",
       "closeIrreversible": "Les messages de clôture ne peuvent pas être annulés.",
-      "reSourceFailed": "Échec de la relance du sourcing."
+      "reSourceFailed": "Échec de la relance du sourcing.",
+      "closeInFlight": "{count, plural, one {# candidat travaille} other {# candidats travaillent}} actuellement sur ce cas (le plus long depuis {minutes} min). La clôture les empêchera de soumettre leur travail, et ils le verront lors de leur prochain enregistrement."
     },
     "stage": {
       "intake": "réception",

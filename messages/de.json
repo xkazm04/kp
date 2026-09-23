@@ -7590,7 +7590,8 @@
       "clockHm": "{h} Std. {m} Min.",
       "clockM": "{m} Min.",
       "clockElapsed": "Zeit für diese Aufgabe: {elapsed} von {timebox}",
-      "clockOver": "Sie sind {over} über dem Zeitrahmen von {timebox}. Sie können weiterhin einreichen; die benötigte Zeit wird mit Ihrer Arbeit erfasst."
+      "clockOver": "Sie sind {over} über dem Zeitrahmen von {timebox}. Sie können weiterhin einreichen; die benötigte Zeit wird mit Ihrer Arbeit erfasst.",
+      "intakeClosed": "Diese Stelle hat während Ihrer Arbeit aufgehört, Einreichungen anzunehmen. Ihr Entwurf bleibt auf diesem Gerät gespeichert."
     },
     "eyebrow": "Take-Home-Aufgabe",
     "fallbackTitle": "Entwickleraufgabe",
@@ -9855,7 +9856,8 @@
       "cancel": "Abbrechen",
       "closeModalTitle": "Aufgabe schließen",
       "closeIrreversible": "Die Abschlussnachrichten lassen sich nicht zurücknehmen.",
-      "reSourceFailed": "Neues Sourcing fehlgeschlagen."
+      "reSourceFailed": "Neues Sourcing fehlgeschlagen.",
+      "closeInFlight": "{count, plural, one {# Person arbeitet} other {# Personen arbeiten}} gerade an dieser Aufgabe (am längsten seit {minutes} Min.). Nach dem Schließen können sie ihre Lösung nicht mehr einreichen und erfahren das beim nächsten Speichern."
     },
     "stage": {
       "intake": "Eingang",

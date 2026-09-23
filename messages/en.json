@@ -7590,7 +7590,8 @@
       "clockHm": "{h}h {m}m",
       "clockM": "{m}m",
       "clockElapsed": "Time on this assignment: {elapsed} of {timebox}",
-      "clockOver": "You are {over} past the {timebox} timebox. You can still submit; the time you took is recorded with your work."
+      "clockOver": "You are {over} past the {timebox} timebox. You can still submit; the time you took is recorded with your work.",
+      "intakeClosed": "This role stopped taking submissions while you were working. Your draft stays on this device."
     },
     "eyebrow": "Take-home assignment",
     "fallbackTitle": "Developer assignment",
@@ -9855,7 +9856,8 @@
       "cancel": "Cancel",
       "closeModalTitle": "Close assignment",
       "closeIrreversible": "The wrap-up comms can't be unsent.",
-      "reSourceFailed": "Re-source failed."
+      "reSourceFailed": "Re-source failed.",
+      "closeInFlight": "{count, plural, one {# candidate is} other {# candidates are}} working on this assignment right now (the longest for {minutes} min). Closing refuses their submission, and they will see that on their next save."
     },
     "stage": {
       "intake": "intake",
