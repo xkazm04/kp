@@ -723,6 +723,32 @@ it: should this score be allowed to decide at all.
 - `AnalyticsReliabilityDiagram.tsx` can draw the live auto-reject `threshold` and the
   `baseRate` as reference lines, with screen-reader equivalents — so a curve stepping from
   0.00 to 1.00 exactly at the floor reads as the score-caused signature it is.
+- **Before Apply, the card names who on today's board the move reaches** (challenge-r08).
+  The suggestion argued from historical bands only; the click then moved the floor the next
+  screening wave rejects by, and nobody was named until that wave's preview. A **See who this
+  moves on today's board** button beside Apply calls `GET /api/analytics/calibration/floor-preview`,
+  which runs `previewFloorMove` (`app/_lib/floor-move-preview.ts`): for every role with an
+  active Screened cohort (in a family view, every role holding someone of that family), the
+  screening wave's own **dry run** under the saved rule and under the rule with the suggested
+  floor, diffed by the pure `diffFloorMove` into per-role **entering / leaving** reach (5 names
+  each, `+N more`, every name a `?tab=pipeline&q=` board link), plus counts of the people the
+  new floor reaches but the fairness shield (**shielded** — the live archetype registry's
+  `shieldsFromAutoReject`) or the calibration holdout / a reinstatement (**spared**) keeps. No
+  second copy of the reject rule, and nothing written: no status, event, seal, approval spend
+  or email. A family preview passes the **merged** `familyFloors` map, because the wave's
+  validated override replaces the map wholesale — unmerged, every other family's saved floor
+  would vanish from the "after" rule. Auto-reject off answers `autoRejectOff` and the card says
+  no one moves until it is switched on. Counts and names only, never a rate. The answer is
+  remembered with the scope and number it previewed (the same mounted-across-a-family-switch
+  hazard as the Apply confirmation), and a preview whose re-derived number differs from the
+  card's is shown as `CALIBRATION_RECOMMENDATION_CHANGED`, never painted under the old number.
+- **One derivation behind the displayed, applied and previewed number.**
+  `liveScreeningRecommendation` (`app/_lib/calibration-recommendation.ts`) derives the live
+  recommendation — family-scoped pairs, the clean-arm below-floor band, the scope's effective
+  floor — for the display route, `/apply-threshold` and `/floor-preview`; the display route
+  hands in the pairs, clean-arm memo and rule it already read. Pinned by
+  `calibration-holdout-arm.test.ts` and `analytics-writes-authority.test.ts`, which forbid an
+  inline `recommendScreeningThreshold(` in any of the three routes.
 
 ## Quality — the audit trail
 
@@ -949,6 +975,7 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
 | `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
+| `GET /api/analytics/calibration/floor-preview` | Who on today's board the live suggestion would move, per role (`?roleFamily=` optional). The Apply seat: `requireOperator()` + `pipeline:write` (403 `ANALYTICS_POLICY_FORBIDDEN`); 400 `CALIBRATION_FAMILY_UNKNOWN`; 409 `CALIBRATION_RECOMMENDATION_ABSENT`; `rateLimit` `floor-preview:<ip>` 30/10 min. Dry runs only — writes nothing |
 
 A successful threshold apply bumps the calibration memo version for that
 workspace. The panel's immediate reload recomputes its recommendation while
