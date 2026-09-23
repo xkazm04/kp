@@ -76,6 +76,7 @@ from ..intake import opening_turn, run_intake_turn
 from ..rolebrief import BRIEF_PROVENANCE, coerce_role_brief
 from ._style import _make_styler, should_color
 from .runner import glyph, verdict_banner, write_text_lf
+from .thresholds import INTAKE_THRESHOLD, record_refusal, settle_live
 
 SCENARIOS_PATH = Path(__file__).with_name("intake_scenarios.json")
 END_TOKEN = "<<END>>"
@@ -240,7 +241,11 @@ def check_dialog(
 # --- report ----------------------------------------------------------------
 
 
-def run_eval(scenarios: list[dict], *, no_llm: bool, cap: int, color: bool) -> tuple[str, bool]:
+def run_eval(
+    scenarios: list[dict], *, no_llm: bool, cap: int, color: bool, tally: dict[str, int] | None = None
+) -> tuple[str, bool]:
+    """Run the dialog bank and gate it on INTAKE_THRESHOLD (the share of checks
+    that hold). ``tally``, when given, receives the counts the record certifies."""
     st = _make_styler(color)
     agent_provider = None
     persona_provider = None
@@ -260,7 +265,12 @@ def run_eval(scenarios: list[dict], *, no_llm: bool, cap: int, color: bool) -> t
 
     total = sum(len(c) for _, c, _ in rows)
     passed = sum(1 for _, c, _ in rows if all(c.values()))
-    ok = passed == len(rows)
+    checks_held = sum(sum(1 for v in c.values() if v) for _, c, _ in rows)
+    # The bar lives in thresholds.py like every other gated eval's. At 1.0 it is
+    # the same verdict as "every persona passed"; an empty run is never a pass.
+    ok = bool(total) and checks_held / total >= INTAKE_THRESHOLD
+    if tally is not None:
+        tally.update(personas=len(rows), passed=passed, checks=total, checks_held=checks_held)
     mode = "offline (deterministic agent + golden requestors)" if no_llm or agent_provider is None else "live"
     lines = ["# Role-intake dialog eval", ""]
     lines.append(
@@ -277,6 +287,15 @@ def run_eval(scenarios: list[dict], *, no_llm: bool, cap: int, color: bool) -> t
         cells = " | ".join(glyph(checks.get(k), st) if k in checks else glyph(None) for k in keys)
         lines.append(f"| {name} | {agent_turn_count} | {cells} |")
     return "\n".join(lines) + "\n", ok
+
+
+def live_measurements(tally: dict[str, int]) -> dict[str, tuple[float, int]]:
+    """The offline curated-bank figure for thresholds.certify_live: the check
+    pass rate over the CHECK count, so a scenario that silently lost a key (and
+    with it an assertion) moves ``n`` while still reporting PASS."""
+    checks = tally["checks"]
+    rate = round(tally["checks_held"] / checks, 3) if checks else 0.0
+    return {"INTAKE_THRESHOLD": (rate, checks)}
 
 
 # --- JD-grounded corpus mode ------------------------------------------------
@@ -692,7 +711,24 @@ def main(argv: list[str] | None = None) -> int:
         help="Exit non-zero if a gate fails. Without it the report still prints FAIL and exits 0 "
              "(the suite-wide contract in eval/__main__.py).",
     )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Operator act: re-record INTAKE_THRESHOLD in measurements.json from an offline "
+             "(--no-llm) run of the curated bank. Refuses to run in CI.",
+    )
     args = parser.parse_args(argv)
+    # Only the offline curated bank is deterministic and certified; a subset, the
+    # generated bank, a JD corpus or a live run is a different measurement.
+    canonical = args.no_llm and not (args.scenarios or args.generated or args.jd_corpus)
+    if args.record:
+        refusal = record_refusal() or (
+            None if canonical else "--record needs --no-llm over the curated bank (no --scenarios, "
+            "--generated or --jd-corpus)"
+        )
+        if refusal:
+            print(f"intake_eval: {refusal}", file=sys.stderr)
+            return 2
 
     if args.jd_corpus:
         try:
@@ -737,8 +773,11 @@ def main(argv: list[str] | None = None) -> int:
         # Nothing to run: the eval could not be performed, so 2 rather than a verdict.
         print("no scenarios matched", file=sys.stderr)
         return 2
-    report, ok = run_eval(scenarios, no_llm=args.no_llm, cap=args.cap, color=should_color())
+    tally: dict[str, int] = {}
+    report, ok = run_eval(scenarios, no_llm=args.no_llm, cap=args.cap, color=should_color(), tally=tally)
     print(report)
+    if canonical:
+        ok = settle_live(live_measurements(tally), record=args.record, prog="intake_eval") and ok
     # Exit-code contract (eval/__main__.py): --strict is what asks for a verdict.
     return 1 if (args.strict and not ok) else 0
 

@@ -6,7 +6,7 @@ import unittest
 from unittest import mock
 
 from pipeline.jobfit.claude_cli import ClaudeCliError
-from pipeline.jobfit.eval import automation_eval, interview_eval, judging
+from pipeline.jobfit.eval import automation_eval, interview_eval, judging, thresholds
 from pipeline.jobfit.eval.automation_eval import (
     _EARLY,
     SCENARIOS,
@@ -181,6 +181,38 @@ class ExitCodeContractTest(unittest.TestCase):
         with mock.patch.object(automation_eval, "resolve_judge_provider", _refuse):
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(automation_eval.main(["--no-llm", "--judge"]), 2)
+
+
+class CertifiedRecordTest(unittest.TestCase):
+    """RELIABILITY_THRESHOLD's corpus used to say "42 task-runs" in prose. The
+    count is now the record's ``n`` and a strict --no-llm run certifies it."""
+
+    _NAME = "RELIABILITY_THRESHOLD"
+
+    def test_the_live_run_matches_the_record(self):
+        agg = _aggregate(run_tasks(None))
+        live = automation_eval.live_measurements(agg)
+        self.assertEqual(live[self._NAME], (1.0, len(TASKS) * len(SCENARIOS)))
+        self.assertEqual(thresholds.certify_live(live), [])
+
+    def test_the_same_rate_over_a_moved_corpus_is_a_finding(self):
+        bar = thresholds.all_bars()[self._NAME]
+        findings = thresholds.certify_live({self._NAME: (1.0, bar.n + 1)})
+        self.assertEqual(len(findings), 1)
+        self.assertIn("corpus size moved", findings[0])
+        self.assertIn(f"n={bar.n + 1}", findings[0])
+        self.assertIn("--no-llm --record", findings[0])
+
+    def test_a_strict_no_llm_run_fails_on_a_stale_count(self):
+        real = automation_eval.run_tasks
+        with mock.patch.object(automation_eval, "run_tasks", lambda p: real(p)[:-1]):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(automation_eval.main(["--no-llm", "--strict"]), 1)
+        self.assertIn("corpus size moved", err.getvalue())
+
+    def test_record_needs_the_deterministic_run(self):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(automation_eval.main(["--record"]), 2)
 
 
 class _FakeProvider:

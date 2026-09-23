@@ -38,6 +38,7 @@ from ..transform import build_match_candidate
 from ._style import _make_styler, should_color
 from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import MATCHING_THRESHOLDS as THRESHOLDS
+from .thresholds import record_refusal, settle_live
 
 
 # -- scenario builders ------------------------------------------------------
@@ -443,6 +444,21 @@ class Report:
         return metrics_ok and all(p.passed for p in self.probes)
 
 
+def live_measurements(report: Report) -> dict[str, tuple[float, int]]:
+    """This run's figures in the shape thresholds.certify_live reads: each bar's
+    rate and the count of scenarios it was taken over."""
+    agg = report.aggregate()
+    n = len(report.scenarios)
+    live = {
+        "MATCHING_THRESHOLDS.archetype_accuracy": (agg["archetype_accuracy"], n),
+        "MATCHING_THRESHOLDS.role_relevance_at5": (agg["role_relevance_at5"], n),
+    }
+    if "entry_precision" in agg:
+        entry_n = sum(1 for s in report.scenarios if s.entry_precision is not None)
+        live["MATCHING_THRESHOLDS.entry_precision"] = (agg["entry_precision"], entry_n)
+    return live
+
+
 def run(jobs: list[Any] | None = None) -> Report:
     if jobs is None:
         jobs = load_corpus()
@@ -557,9 +573,23 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic v2 matching + fairness eval.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
-    parser.add_argument("--strict", action="store_true", help="Exit non-zero if a metric or probe fails.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if a metric or probe fails, or the live figures no longer match "
+             "measurements.json (a stale record).",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Operator act: re-record this eval's bars in measurements.json from this run. "
+             "Refuses to run in CI.",
+    )
     args = parser.parse_args(argv)
     use_color = should_color(args)
+    if args.record and (refusal := record_refusal()):
+        sys.stderr.write(f"matching_eval: {refusal}\n")
+        return 2
 
     # Load the corpus first: with zero jobs, every scenario scores 0 matches and
     # the report is a confusing all-FAIL with no cause. Say the corpus is empty
@@ -592,7 +622,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(_format_markdown(report, color=use_color))
 
-    if args.strict and not report.passes():
+    certified = settle_live(live_measurements(report), record=args.record, prog="matching_eval")
+    if args.strict and not (report.passes() and certified):
         return 1
     return 0
 

@@ -19,8 +19,14 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
+import os
+import re
+import shutil
+import tempfile
 import unittest
 from dataclasses import replace
+from pathlib import Path
 from unittest import mock
 
 from pipeline.jobfit.eval import thresholds
@@ -206,6 +212,183 @@ class TightenCliTest(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(thresholds.main([]), 0)
                 self.assertEqual(thresholds.main(["--json"]), 0)
+
+
+_REPO = Path(__file__).resolve().parents[3]
+_RELEVANCE = "MATCHING_THRESHOLDS.role_relevance_at5"
+_MATCHING_NAMES = (
+    "MATCHING_THRESHOLDS.archetype_accuracy",
+    "MATCHING_THRESHOLDS.entry_precision",
+    "MATCHING_THRESHOLDS.role_relevance_at5",
+)
+
+
+def _no_ci_env() -> dict[str, str]:
+    return {k: v for k, v in os.environ.items() if k not in thresholds.CI_ENV_VARS}
+
+
+class CertifiedMeasurementTest(unittest.TestCase):
+    """The bar is judged against a RECORDED measurement. Until 2026-09-23 that
+    record was a hand-typed literal nothing re-derived, so an engine change
+    that lifted relevance@5 to 0.95 would leave the record at 0.857 and the
+    slack check reading a stale number: the 0.60-vs-0.857 blindness one layer
+    up. For the evals with no model in the loop the live figure is exactly
+    checkable, so a strict run now certifies the record against it."""
+
+    def test_the_live_figure_equal_to_the_record_is_certified(self):
+        bar = thresholds.all_bars()[_RELEVANCE]
+        self.assertEqual(bar.measured, 0.857)
+        self.assertEqual(thresholds.certify_live({_RELEVANCE: (0.857, bar.n)}), [])
+
+    def test_a_moved_live_figure_is_one_finding_naming_both_figures_and_the_record_command(self):
+        bar = thresholds.all_bars()[_RELEVANCE]
+        findings = thresholds.certify_live({_RELEVANCE: (0.95, bar.n)})
+        self.assertEqual(len(findings), 1)
+        text = findings[0]
+        self.assertIn(_RELEVANCE, text)
+        self.assertIn("0.95", text)
+        self.assertIn("0.857", text)
+        self.assertIn("--record", text)
+        self.assertIn("matching_eval", text)
+
+    def test_matching_eval_strict_exits_one_on_a_stale_record(self):
+        from pipeline.jobfit.eval import matching_eval
+
+        real = matching_eval.Report.aggregate
+
+        def lifted(self):
+            return {**real(self), "role_relevance_at5": 0.95}
+
+        with mock.patch.object(matching_eval.Report, "aggregate", lifted):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+                code = matching_eval.main(["--strict", "--no-color"])
+        # 0.95 clears the 0.84 bar, so the ONLY thing failing this run is the stale record.
+        self.assertEqual(code, 1)
+        self.assertIn("--record", err.getvalue())
+
+    def test_matching_eval_strict_is_green_on_the_committed_record(self):
+        from pipeline.jobfit.eval import matching_eval
+
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(matching_eval.main(["--strict", "--no-color"]), 0)
+
+    def test_a_non_deterministic_bar_is_never_live_certified(self):
+        bar = thresholds.all_bars()["PASS_THRESHOLDS.role_family"]
+        self.assertFalse(bar.deterministic)
+        self.assertEqual(thresholds.certify_live({"PASS_THRESHOLDS.role_family": (0.70, 3)}), [])
+
+    def test_a_deterministic_bar_without_a_record_is_refused(self):
+        records = thresholds.load_measurements()
+        del records[_RELEVANCE]
+        with self.assertRaises(ValueError) as ctx:
+            thresholds.bind_measurements(records)
+        self.assertIn(_RELEVANCE, str(ctx.exception))
+        self.assertIn("measurements.json", str(ctx.exception))
+
+    def test_a_record_for_a_bar_that_does_not_exist_is_refused(self):
+        records = {**thresholds.load_measurements(), "MATCHING_THRESHOLDS.retired": {
+            "measured": 1.0, "n": 1, "measured_at": "2026-01-01", "source": "x", "corpus": "y"}}
+        with self.assertRaises(ValueError):
+            thresholds.bind_measurements(records)
+
+    def test_a_deterministic_record_must_carry_its_count(self):
+        records = thresholds.load_measurements()
+        records[_RELEVANCE] = {**records[_RELEVANCE], "n": None}
+        with self.assertRaises(ValueError):
+            thresholds.bind_measurements(records)
+
+    def test_the_committed_file_is_in_its_canonical_form(self):
+        # --record rewrites through one renderer; a hand-formatted file would make
+        # its first --record diff touch every line and hide the real change.
+        text = thresholds.MEASUREMENTS_PATH.read_text(encoding="utf-8")
+        self.assertEqual(thresholds.render_measurements(json.loads(text)["bars"]), text)
+
+
+class RecordFlagTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        self.path = Path(tmp) / "measurements.json"
+        shutil.copyfile(thresholds.MEASUREMENTS_PATH, self.path)
+        self.before = self.path.read_text(encoding="utf-8")
+
+    def _run_matching(self, argv, env):
+        from pipeline.jobfit.eval import matching_eval
+
+        real = matching_eval.Report.aggregate
+
+        def lifted(report):
+            return {**real(report), "role_relevance_at5": 0.95}
+
+        with mock.patch.object(thresholds, "MEASUREMENTS_PATH", self.path), \
+                mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(matching_eval.Report, "aggregate", lifted), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            code = matching_eval.main(argv)
+        return code, err.getvalue()
+
+    def test_record_rewrites_only_its_own_bars_and_leaves_every_other_line_byte_identical(self):
+        code, _ = self._run_matching(["--record", "--no-color"], _no_ci_env())
+        self.assertEqual(code, 0)
+        after = self.path.read_text(encoding="utf-8")
+        old_lines, new_lines = self.before.splitlines(), after.splitlines()
+        self.assertEqual(len(old_lines), len(new_lines))
+        changed = [(o, n) for o, n in zip(old_lines, new_lines) if o != n]
+        self.assertTrue(changed, "the lifted figure was not recorded")
+        for old, new in changed:
+            self.assertTrue(any(f'"{name}"' in old for name in _MATCHING_NAMES), old)
+            self.assertTrue(any(f'"{name}"' in new for name in _MATCHING_NAMES), new)
+        records = json.loads(after)["bars"]
+        self.assertEqual(records[_RELEVANCE]["measured"], 0.95)
+        self.assertRegex(records[_RELEVANCE]["measured_at"], r"^\d{4}-\d{2}-\d{2}$")
+        for name, rec in json.loads(self.before)["bars"].items():
+            if name not in _MATCHING_NAMES:
+                self.assertEqual(records[name], rec, name)
+
+    def test_record_refuses_to_run_in_ci(self):
+        # --record rewrites the certified figure; a CI job doing it would certify
+        # whatever the push measured, which is the gate grading itself.
+        for var in thresholds.CI_ENV_VARS:
+            with self.subTest(var=var):
+                code, err = self._run_matching(["--record"], {**_no_ci_env(), var: "true"})
+                self.assertEqual(code, 2)
+                self.assertIn("CI", err)
+                self.assertEqual(self.path.read_text(encoding="utf-8"), self.before)
+
+    def test_record_refuses_a_non_deterministic_bar(self):
+        with mock.patch.object(thresholds, "MEASUREMENTS_PATH", self.path):
+            with self.assertRaises(ValueError):
+                thresholds.record_measurements({"PASS_THRESHOLDS.role_family": (0.9, 50)}, source="x")
+        self.assertEqual(self.path.read_text(encoding="utf-8"), self.before)
+
+
+class EveryGatedEvalOwnsABarTest(unittest.TestCase):
+    """``thresholds.py`` claims to be the single source of every eval bar. Until
+    this pin, one of the four evals `test:eval:ci` runs (intake) imported nothing
+    from it."""
+
+    def _gated_modules(self) -> list[str]:
+        scripts = json.loads((_REPO / "package.json").read_text(encoding="utf-8"))["scripts"]
+        modules = []
+        for step in re.findall(r"npm run (\S+)", scripts["test:eval:ci"]):
+            match = re.search(r"pipeline\.jobfit\.eval\.(\w+)", scripts[step])
+            self.assertIsNotNone(match, f"{step} does not run an eval module")
+            modules.append(match.group(1))
+        return modules
+
+    def test_the_ci_eval_gate_runs_the_four_keyless_evals(self):
+        self.assertEqual(
+            sorted(self._gated_modules()), ["automation_eval", "fault_eval", "intake_eval", "matching_eval"]
+        )
+
+    def test_every_gated_module_owns_a_deterministic_certified_bar(self):
+        owners = {bar.recorder_module for bar in thresholds.all_bars().values() if bar.deterministic}
+        for module in self._gated_modules():
+            with self.subTest(module=module):
+                self.assertIn(module, owners)
+                source = (_REPO / "pipeline" / "jobfit" / "eval" / f"{module}.py").read_text(encoding="utf-8")
+                self.assertIn("from .thresholds import", source)
+                self.assertIn("settle_live(", source, f"{module} never certifies its record")
 
 
 if __name__ == "__main__":

@@ -7,7 +7,10 @@ golden mode is gated."""
 
 from __future__ import annotations
 
+import contextlib
+import io
 import unittest
+import unittest.mock
 
 from pipeline.jobfit.eval.intake_eval import check_dialog, load_scenarios, run_eval, simulate
 
@@ -174,6 +177,62 @@ class IntakeEvalOfflineTest(unittest.TestCase):
             for r in brief["requirements"]
         ]
         self.assertTrue(check_dialog(scenario, turns, narrowed, shape, done)["requirements_captured"])
+
+
+class IntakeBarTest(unittest.TestCase):
+    """intake_eval is the fourth eval `test:eval:ci` runs and, until 2026-09-23,
+    the only one whose pass/fail lived outside thresholds.py: `ok` was an
+    inline `passed == len(rows)` no table named and no record certified."""
+
+    _NAME = "INTAKE_THRESHOLD"
+
+    def test_the_gate_reads_its_bar_from_thresholds(self):
+        from pipeline.jobfit.eval import intake_eval, thresholds
+
+        self.assertIs(intake_eval.INTAKE_THRESHOLD, thresholds.INTAKE_THRESHOLD)
+        bar = thresholds.all_bars()[self._NAME]
+        self.assertTrue(bar.deterministic)
+        self.assertEqual(bar.value, 1.0)
+
+    def test_the_offline_bank_matches_its_record(self):
+        from pipeline.jobfit.eval import intake_eval, thresholds
+
+        tally: dict = {}
+        _, ok = run_eval(load_scenarios(), no_llm=True, cap=30, color=False, tally=tally)
+        self.assertTrue(ok)
+        live = intake_eval.live_measurements(tally)
+        self.assertEqual(live[self._NAME], (1.0, tally["checks"]))
+        self.assertEqual(thresholds.certify_live(live), [])
+
+    def test_a_dropped_assertion_is_a_stale_record_under_strict(self):
+        # The failure the module docstring warns about: a scenario losing a key
+        # silently drops a check and still reports PASS. The count now moves.
+        from pipeline.jobfit.eval import intake_eval
+
+        real = intake_eval.check_dialog
+
+        def one_fewer(*a, **k):
+            checks = real(*a, **k)
+            checks.pop("shape", None)
+            return checks
+
+        with unittest.mock.patch.object(intake_eval, "check_dialog", one_fewer):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+                code = intake_eval.main(["--no-llm", "--strict"])
+        self.assertEqual(code, 1)
+        self.assertIn("corpus size moved", err.getvalue())
+
+    def test_a_strict_offline_run_is_green_on_the_committed_record(self):
+        from pipeline.jobfit.eval import intake_eval
+
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(intake_eval.main(["--no-llm", "--strict"]), 0)
+
+    def test_record_refuses_a_subset_run(self):
+        from pipeline.jobfit.eval import intake_eval
+
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(intake_eval.main(["--no-llm", "--record", "--generated", "5"]), 2)
 
 
 class _FakeIntakeServer:

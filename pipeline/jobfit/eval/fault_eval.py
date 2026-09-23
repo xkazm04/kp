@@ -97,7 +97,7 @@ from ..llm.fault import MODES, NO_PAYLOAD_MODES, FaultProvider
 from ._style import _make_styler, should_color
 from .automation_eval import SCENARIOS, TASKS
 from .runner import glyph, verdict_banner
-from .thresholds import FAULT_THRESHOLD
+from .thresholds import FAULT_THRESHOLD, record_refusal, settle_live
 
 # The candidate-facing letters. A fault that reaches the wire here reaches a
 # person outside the company, which is why they carry an extra assertion.
@@ -603,6 +603,13 @@ def _aggregate(rows: list[Row]) -> dict[str, Any]:
     }
 
 
+def live_measurements(agg: dict[str, Any]) -> dict[str, tuple[float, int]]:
+    """The full drill's figure for thresholds.certify_live: the pass rate over
+    the drill-row count, so a seam or task that silently left the matrix moves
+    ``n`` even though every remaining row still passes."""
+    return {"FAULT_THRESHOLD": (agg["pass_rate"], agg["total"])}
+
+
 def _passes(agg: dict[str, Any]) -> bool:
     # A drill with nothing in it is not a pass: an empty --mode filter must not
     # read as "every fault degraded correctly".
@@ -690,7 +697,18 @@ def main(argv: list[str] | None = None) -> int:
         choices=list(MODES),
         help="Run only this fault (repeatable). Default: every declared fault.",
     )
-    parser.add_argument("--strict", action="store_true", help="Exit non-zero if an expectation fails.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if an expectation fails, or (full drill only) the drill's pass rate or "
+             "row count no longer matches measurements.json.",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Operator act, full drill only: re-record FAULT_THRESHOLD in measurements.json from "
+             "this run. Refuses to run in CI.",
+    )
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument(
@@ -703,6 +721,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.doc_table:
         print(_doc_table())
         return 0
+    if args.record:
+        refusal = record_refusal() or ("--record needs the full drill, not a --mode subset" if args.mode else None)
+        if refusal:
+            sys.stderr.write(f"fault_eval: {refusal}\n")
+            return 2
 
     rows = run_drill(args.mode)
     agg = _aggregate(rows)
@@ -747,7 +770,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if not _passes(agg):
         sys.stderr.write("fault_eval: at least one degradation expectation did not hold\n")
-    return 1 if (args.strict and not _passes(agg)) else 0
+    certified = True
+    if not args.mode:
+        # A --mode subset is a different n by construction; only the full drill is certified.
+        certified = settle_live(live_measurements(agg), record=args.record, prog="fault_eval")
+    return 1 if (args.strict and not (_passes(agg) and certified)) else 0
 
 
 if __name__ == "__main__":

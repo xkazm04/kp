@@ -46,6 +46,7 @@ from ._style import _make_styler, should_color
 from .judging import DEFAULT_JUDGE_MODEL, JSON_CONTRACT, SameJudgeRefused, quality_passes, quality_state, render_output, resolve_judge_provider, run_judge
 from .runner import GLYPH_NA, verdict_banner
 from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD  # noqa: F401  (re-exported)
+from .thresholds import record_refusal, settle_live
 
 # Single-sourced from automation.py — the SAME vocabulary the production letter
 # guard (automation._letter_is_safe) discards a draft on. Keeping a second copy
@@ -318,6 +319,13 @@ def _aggregate(rows: list[Row]) -> dict[str, Any]:
     }
 
 
+def live_measurements(agg: dict[str, Any]) -> dict[str, tuple[float, int]]:
+    """The --no-llm figure thresholds.certify_live reads: reliability over the
+    task-run count (TASKS x SCENARIOS), so a corpus that grew or shrank is a
+    finding rather than prose in a corpus string."""
+    return {"RELIABILITY_THRESHOLD": (agg["reliability"], agg["total"])}
+
+
 def _passes(agg: dict[str, Any], judge_requested: bool = False) -> bool:
     if agg["reliability"] < RELIABILITY_THRESHOLD:
         return False
@@ -415,11 +423,30 @@ def main(argv: list[str] | None = None) -> int:
         help="Permit judging with the engine's own model. The run then prints that its scores "
              "are self-assessment, not an independent check.",
     )
-    parser.add_argument("--strict", action="store_true", help="Exit non-zero if a threshold fails.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if a threshold fails, or (with --no-llm) the live reliability or "
+             "task-run count no longer matches measurements.json.",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Operator act, --no-llm only: re-record RELIABILITY_THRESHOLD in measurements.json "
+             "from this run. Refuses to run in CI.",
+    )
     parser.add_argument("--no-color", action="store_true", help="Disable ANSI color in the pretty report.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     use_color = should_color(args)
+    if args.record:
+        # Only the keyless run is deterministic; a live or judged run is a sample.
+        refusal = record_refusal() or (
+            None if args.no_llm and not args.judge else "--record needs --no-llm and no --judge"
+        )
+        if refusal:
+            sys.stderr.write(f"automation_eval: {refusal}\n")
+            return 2
 
     provider = None
     if not args.no_llm:
@@ -470,7 +497,11 @@ def main(argv: list[str] | None = None) -> int:
     # bug-ui-scan-2026-07-09 (hiring-automation-scheduler #5): a strict --judge run
     # whose judge produced zero scores now exits non-zero instead of passing on
     # reliability alone.
-    return 1 if (args.strict and not _passes(agg, args.judge)) else 0
+    certified = True
+    if args.no_llm:
+        # Certified only on the keyless run: with a provider the figure is a sample.
+        certified = settle_live(live_measurements(agg), record=args.record, prog="automation_eval")
+    return 1 if (args.strict and not (_passes(agg, args.judge) and certified)) else 0
 
 
 if __name__ == "__main__":

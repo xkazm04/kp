@@ -301,5 +301,33 @@ class DocTableTest(unittest.TestCase):
         self.assertEqual(buf.getvalue().strip(), _doc_table())
 
 
+class CertifiedDrillSizeTest(unittest.TestCase):
+    """The drill's record carries its row count. A seam or task that silently
+    leaves the matrix keeps the pass rate at 1.0, so only ``n`` can notice."""
+
+    def _run(self, argv, *, total):
+        agg = {"pass_rate": 1.0, "total": total, "passed": total, "by_mode": {}}
+        err = io.StringIO()
+        with mock.patch.object(fault_eval, "run_drill", lambda modes=None: []), \
+                mock.patch.object(fault_eval, "_aggregate", lambda rows: agg), \
+                mock.patch.object(fault_eval, "_format_md", lambda *a, **k: ""), \
+                redirect_stdout(io.StringIO()), mock.patch("sys.stderr", err):
+            return fault_eval.main(argv), err.getvalue()
+
+    def test_a_full_strict_drill_with_one_row_fewer_fails_on_the_stale_count(self):
+        from pipeline.jobfit.eval import thresholds
+
+        n = thresholds.all_bars()["FAULT_THRESHOLD"].n
+        self.assertEqual(self._run(["--strict"], total=n)[0], 0)
+        code, err = self._run(["--strict"], total=n - 1)
+        self.assertEqual(code, 1)
+        self.assertIn("corpus size moved", err)
+        self.assertIn("fault_eval --record", err)
+
+    def test_a_mode_subset_is_not_certified_and_cannot_be_recorded(self):
+        self.assertEqual(self._run(["--strict", "--mode", "hang"], total=3)[0], 0)
+        self.assertEqual(self._run(["--record", "--mode", "hang"], total=3)[0], 2)
+
+
 if __name__ == "__main__":
     unittest.main()
