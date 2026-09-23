@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import type { Capability } from "@/app/_lib/auth/roles";
-import { capabilityLabelKey } from "@/app/features/shell/navCapabilities";
+import { capabilityLabelKey, navItemMode } from "@/app/features/shell/navCapabilities";
 import { navItemClass, tabHref, type WorkspaceTabDef, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { TAB_ICON } from "./navMeta";
 
@@ -51,8 +51,8 @@ export function NavPanelItem({
    *  needs it (see shell/tabChunks.ts). Idempotent, so hover/focus can both fire. */
   onPrefetch?: (id: WorkspaceTabId) => void;
   /** The capability this viewer LACKS for this tab (navCapabilities.ts), or null
-   *  when the tab is theirs to open. A locked row stays visible and disabled with
-   *  the capability named in its tooltip — never removed. A door that vanishes for
+   *  when the tab is theirs to open. A locked row stays visible as a lock door
+   *  (opening the locked-door panel) with the capability named — never removed. A door that vanishes for
    *  the person who holds the key (an admin whose capability read has not landed)
    *  is indistinguishable from a broken build, and a viewer who simply loses half
    *  the rail learns nothing about why. */
@@ -87,24 +87,47 @@ export function NavPanelItem({
       ) : null}
     </>
   );
-  // A locked tab is a dead row: no link, no onSelect, no chunk prefetch (warming a
-  // chunk this viewer can never render is pure waste), and no badge gutter.
-  if (locked) {
+  // A locked tab is a LOCK DOOR, not a dead row (navItemMode): focusable and
+  // activatable, it opens the locked-door panel — what the tab needs and who in this
+  // workspace can grant it — through the same onSelect every other door uses, so the
+  // lock is decided once, at the destination (panelFor). A disabled row taught the
+  // reader the product was broken and named no way in. Still no chunk prefetch
+  // (the tab's code never renders for this seat) and no badge gutter.
+  const mode = navItemMode(locked, isLink);
+  if (mode === "lockedDoor" && locked) {
+    const lockedInner = (
+      <>
+        {isActive ? <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-coral" aria-hidden /> : null}
+        {Icon ? (
+          <Icon size={17} aria-hidden className="shrink-0 text-steel/60 group-hover:text-steel" />
+        ) : (
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" aria-hidden />
+        )}
+        <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
+        <Lock size={13} aria-hidden className="shrink-0 text-steel/60" />
+      </>
+    );
+    const lockedClass = `group focus-ring relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${
+      isActive ? navItemClass(true) : "text-steel/70 hover:bg-stone-50 hover:text-steel"
+    }`;
+    const title = lockedLabel ? lockedLabel(locked) : capabilityLabelKey(locked);
     return (
       <div className="contents">
-        <span
-          aria-disabled="true"
-          title={lockedLabel ? lockedLabel(locked) : capabilityLabelKey(locked)}
-          className="group focus-ring relative flex w-full cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium text-steel/50"
-        >
-          {Icon ? (
-            <Icon size={17} aria-hidden className="shrink-0 text-steel/50" />
-          ) : (
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" aria-hidden />
-          )}
-          <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
-          <Lock size={13} aria-hidden className="shrink-0 text-steel/50" />
-        </span>
+        {isLink ? (
+          <Link href={tabHref(item.id)} title={title} aria-current={isActive ? "page" : undefined} className={lockedClass}>
+            {lockedInner}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            title={title}
+            aria-current={isActive ? "page" : undefined}
+            onClick={() => onSelect?.(item.id)}
+            className={lockedClass}
+          >
+            {lockedInner}
+          </button>
+        )}
       </div>
     );
   }

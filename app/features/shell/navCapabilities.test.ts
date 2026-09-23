@@ -1,11 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   capabilityForTab,
   capabilityLabelKey,
   commandAllowed,
   lockedCapability,
   lockedTabsFor,
+  navItemMode,
+  panelFor,
+  tabArrival,
   TAB_CAPABILITY,
   TOUR_CAPABILITY,
   visibleNavFor,
@@ -114,4 +118,89 @@ test("capabilityLabelKey maps every capability onto a dot-safe catalog key", () 
   for (const cap of Object.values(TAB_CAPABILITY)) {
     if (cap) assert.equal(capabilityLabelKey(cap).includes(":"), false);
   }
+});
+
+// ---- Every door converges on one authority (challenge-r08 workspace-shell-core/B) ----
+//
+// The rail and the palette read the lock; a g-chord, a ?tab= arrival (a checkout
+// return, a calendar callback, a shared link) and programmatic selectTab did not, and
+// opened the tab into a 403 rendered as a failed load. The lock is now decided at the
+// DESTINATION: WorkspaceTabPanel renders through panelFor over the exhaustive
+// TAB_PANELS registry (idea-47b71431), so every entrance lands on the same answer.
+test("tabArrival: one authority for every entrance", () => {
+  assert.deepEqual(tabArrival("billing", ["read"]), { kind: "locked", needs: "org:manage" });
+  assert.deepEqual(tabArrival("billing", null), { kind: "open" }, "unknown caps fail open");
+  // PUT /api/brand asks org:manage (9c226bc38) and TAB_CAPABILITY carries branding
+  // (36bb74cd3): a read-only seat arriving on ?tab=branding is LOCKED, not opened
+  // onto an editor whose every save would 403.
+  assert.deepEqual(tabArrival("branding", ["read"]), { kind: "locked", needs: "org:manage" });
+  assert.deepEqual(tabArrival("hiring", ["read", "pipeline:write"]), { kind: "open" });
+  assert.deepEqual(tabArrival("pipeline", ["read"]), { kind: "open" });
+});
+
+const REGISTRY = Object.fromEntries(WORKSPACE_TAB_IDS.map((id) => [id, `panel:${id}`])) as Record<WorkspaceTabId, string>;
+
+test("panelFor: a gated tab renders the lock for a seat without its capability", () => {
+  assert.deepEqual(panelFor(REGISTRY, "models", ["read"]), { kind: "locked", needs: "org:manage" });
+  assert.deepEqual(panelFor(REGISTRY, "organization", capsOf("recruiter")), { kind: "locked", needs: "members:manage" });
+  assert.deepEqual(panelFor(REGISTRY, "pipeline", ["read"]), { kind: "open", panel: "panel:pipeline" });
+});
+
+test("panelFor: fail open while unknown, then swap to the lock when caps resolve", () => {
+  assert.deepEqual(panelFor(REGISTRY, "billing", null), { kind: "open", panel: "panel:billing" });
+  assert.deepEqual(panelFor(REGISTRY, "billing", ["read"]), { kind: "locked", needs: "org:manage" });
+  assert.deepEqual(panelFor(REGISTRY, "billing", capsOf("owner")), { kind: "open", panel: "panel:billing" });
+});
+
+// The registry is exhaustive BY TYPE: a registry missing one id is not assignable to
+// panelFor's parameter, so adding a tab id to tabs.ts without a panel fails tsc
+// instead of rendering a silently blank main panel. Checked by tsc (this file is in
+// the project), with no suppression comment.
+type PanelRegistryParam = Parameters<typeof panelFor<string>>[0];
+type AcceptsPartial = Omit<Record<WorkspaceTabId, string>, "templates"> extends PanelRegistryParam ? true : false;
+type AcceptsFull = Record<WorkspaceTabId, string> extends PanelRegistryParam ? true : false;
+const partialAccepted: AcceptsPartial = false;
+const fullAccepted: AcceptsFull = true;
+
+test("the panel registry type refuses a registry missing a tab id", () => {
+  assert.equal(partialAccepted, false);
+  assert.equal(fullAccepted, true);
+});
+
+const CHUNKS_SRC = readFileSync(new URL("./WorkspaceTabChunks.tsx", import.meta.url), "utf8");
+
+// Shape fixture: the probe must fire on the pre-registry text it replaces.
+const OLD_CHAIN = `{navActive === "billing" ? <BillingTab /> : null}`;
+
+test("WorkspaceTabChunks mounts every tab through panelFor over one exhaustive registry", () => {
+  const chain = /navActive === "[a-z]+" \?/g;
+  assert.equal(chain.test(OLD_CHAIN), true, "shape fixture: the probe recognises the old ternary chain");
+  chain.lastIndex = 0;
+  assert.equal(CHUNKS_SRC.match(chain)?.length ?? 0, 0, "no navActive === ternary survives");
+  assert.match(CHUNKS_SRC, /const TAB_PANELS: Record<WorkspaceTabId, /, "the registry is typed exhaustive");
+  assert.match(CHUNKS_SRC, /panelFor\(TAB_PANELS, navActive, capabilities\)/, "the panel renders through panelFor");
+  assert.equal((CHUNKS_SRC.match(/TAB_PANELS\[/g) ?? []).length, 0, "no direct registry lookup bypasses the lock");
+  // Every id owns an entry in the literal (belt and braces over the type).
+  const body = CHUNKS_SRC.slice(CHUNKS_SRC.indexOf("const TAB_PANELS"));
+  for (const id of WORKSPACE_TAB_IDS) {
+    assert.match(body, new RegExp(`\\n  ${id}: `), `TAB_PANELS has an entry for ${id}`);
+  }
+  // A gated tab's component is named only inside the registry.
+  for (const id of Object.keys(TAB_CAPABILITY)) {
+    const entry = body.match(new RegExp(`\\n  ${id}: \\(\\) => <([A-Za-z]+)`));
+    assert.ok(entry, `${id} has a component entry`);
+    const uses = CHUNKS_SRC.match(new RegExp(`<${entry[1]}[ />]`, "g")) ?? [];
+    assert.equal(uses.length, 1, `<${entry[1]}> is mounted only from its registry entry`);
+  }
+});
+
+test("a locked rail row is a lock door, not a disabled row", () => {
+  assert.equal(navItemMode("org:manage", false), "lockedDoor");
+  assert.equal(navItemMode("org:manage", true), "lockedDoor");
+  assert.equal(navItemMode(null, true), "link");
+  assert.equal(navItemMode(null, false), "button");
+  const item = readFileSync(new URL("./nav/NavPanelItem.tsx", import.meta.url), "utf8");
+  assert.equal(item.includes('aria-disabled="true"'), false, "no aria-disabled dead row");
+  assert.equal(item.includes("cursor-not-allowed"), false);
+  assert.match(item, /navItemMode\(locked, isLink\)/);
 });

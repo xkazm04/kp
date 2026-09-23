@@ -11,6 +11,7 @@ import { prefetchTabChunk, warmLikelyTabChunks } from "./tabChunks";
 import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
 import { useCapabilities } from "./useCapabilities";
+import { lockedCapability } from "./navCapabilities";
 import { primeShellPrincipal, ShellPrincipalContext, type ShellPrincipal } from "./shellPrincipal";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
@@ -108,7 +109,10 @@ export function Workspace({
   // and a gated tab (Agents, experimental via AGENTS_TAB_IN_NAV) is REJECTED
   // here rather than adopted-then-corrected. Returning null leaves the current
   // tab alone, so a link to a gated view is inert instead of bouncing the
-  // reader to the default.
+  // reader to the default. A CAPABILITY-locked arrival (a viewer following the
+  // checkout return to ?tab=billing) is different and deliberately adopted: the
+  // tab exists for this seat, it is just locked, so the arrival lands on the
+  // locked-door panel (WorkspaceTabPanel -> panelFor) naming who can grant it.
   const [active, setActive] = useUrlInboxState<WorkspaceTabId>(
     "tab",
     (raw) => {
@@ -141,8 +145,10 @@ export function Workspace({
     (id: WorkspaceTabId): void => {
       setMobileNavOpen(false); // a tab pick on mobile closes the drawer
       // Start the destination's code-split chunk before the swap, so the fetch
-      // overlaps it instead of following it. A no-op once warm.
-      prefetchTabChunk(id);
+      // overlaps it instead of following it. A no-op once warm. Not for a tab this
+      // seat cannot open: every door (this one, a g-chord, a ?tab= arrival) lands
+      // on the locked-door panel instead (panelFor), and that chunk never renders.
+      if (!lockedCapability(id, capabilities)) prefetchTabChunk(id);
       setActive(id);
       // The switch itself writes nothing to the URL. The ONE thing that still
       // must: tab-scoped deep-link params (?profile=, ?job=, ?edit=, ?jd*) are
@@ -155,7 +161,7 @@ export function Workspace({
     },
     // setMobileNavOpen is identity-stable, but React Compiler's memoization
     // check requires the declared deps to match what the body references.
-    [nav, params, search, setActive, setMobileNavOpen]
+    [capabilities, nav, params, search, setActive, setMobileNavOpen]
   );
 
   // a11y — on a tab switch, move focus to the <main> landmark (reusing the
@@ -256,7 +262,7 @@ export function Workspace({
             survive) and clears itself when resetKey/navActive changes on a tab
             switch. The inner key replays the fade-in entrance on each switch. */}
         <div className="mx-auto max-w-[108rem] px-4 py-8 pb-24 sm:px-6 lg:px-8">
-          <WorkspaceTabPanel navActive={navActive} active={active} onCloseOverlay={closeOverlayTab} />
+          <WorkspaceTabPanel navActive={navActive} active={active} capabilities={capabilities} onCloseOverlay={closeOverlayTab} />
         </div>
       </main>
       <SimSurfaces />

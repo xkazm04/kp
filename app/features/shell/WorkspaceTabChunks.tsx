@@ -10,7 +10,11 @@
 // the hover/idle prefetch (so a click no longer starts the download it then waits on).
 // Going through the shared map is what makes the two provably request the same chunk.
 import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
+import type { Capability } from "@/app/_lib/auth/roles";
 import { TranslatedErrorBoundary } from "@/app/_components/ErrorBoundary";
+import { LockedTabPanel } from "./LockedTabPanel";
+import { panelFor } from "./navCapabilities";
 import { TAB_CHUNKS } from "./tabChunks";
 import type { WorkspaceTabId } from "./tabs";
 
@@ -55,52 +59,75 @@ const BrandingTab = dynamic(() => TAB_CHUNKS.branding().then((m) => ({ default: 
 const HiringTab = dynamic(() => TAB_CHUNKS.hiring().then((m) => ({ default: m.HiringTab })), { loading });
 const TemplatesTab = dynamic(() => TAB_CHUNKS.templates().then((m) => ({ default: m.TemplatesTab })), { loading });
 
+// Every tab's panel, keyed EXHAUSTIVELY by WorkspaceTabId (idea-47b71431). It used
+// to be a hand-synced chain of `navActive === "<id>" ? <Tab /> : null` ternaries:
+// a tab id added to tabs.ts with no branch compiled cleanly and rendered a blank
+// main panel. The Record type makes that omission a tsc error, and panelFor
+// (navCapabilities.ts) is the ONLY lookup — so a gated tab mounts only through its
+// "open" branch, whichever door the reader came through (rail, g-chord, ?tab=
+// arrival, programmatic selectTab). navCapabilities.test.ts pins both properties.
+type PanelContext = { active: WorkspaceTabId; onCloseOverlay: () => void };
+
+const TAB_PANELS: Record<WorkspaceTabId, (ctx: PanelContext) => ReactNode> = {
+  pipeline: () => <PipelineTab />,
+  channels: () => <ChannelsTab />,
+  decisions: () => <DecisionsTab />,
+  schedule: () => <ScheduleTab />,
+  agents: () => <AgentsWorkforceTab />,
+  interview: () => <InterviewSimTab />,
+  archetypes: () => <ProfileTab />,
+  analyze: ({ active }) => <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />,
+  // Never the switch key in practice (Workspace collapses history onto analyze),
+  // but a valid id, so it owns the same panel rather than a hole.
+  history: ({ active }) => <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />,
+  jobs: () => <JobsTab />,
+  library: () => <JdsTab />,
+  intake: () => <JdsIntakeTab />,
+  matrix: () => <MatrixTab />,
+  analytics: () => <AnalyticsTab />,
+  journeys: ({ onCloseOverlay }) => <JourneyOverlay onClose={onCloseOverlay} />,
+  activity: () => <ActivityTab />,
+  assignments: () => <DevTab />,
+  about: () => <AboutTab />,
+  tasks: () => <TasksTab />,
+  billing: () => <BillingTab />,
+  models: () => <ModelsTab />,
+  workspace: () => <WorkspaceTab />,
+  organization: () => <OrganizationTab />,
+  branding: () => <BrandingTab />,
+  integrations: () => <IntegrationsTab />,
+  hiring: () => <HiringTab />,
+  templates: () => <TemplatesTab />,
+};
+
 // The tab-switch tree + its error boundary, extracted verbatim from Workspace's
 // <main> body. `active`/`navActive` keep their Workspace meanings (navActive is the
 // history→analyze-collapsed id used for the actual switch; active decides history
-// mode inside Analyze).
+// mode inside Analyze). `capabilities` is the seat's set (null = unknown, which
+// opens every door — navCapabilities.ts): a locked tab renders the locked-door
+// panel instead, and swaps to it the moment the set resolves without the capability.
 export function WorkspaceTabPanel({
   navActive,
   active,
+  capabilities,
   onCloseOverlay,
 }: {
   navActive: WorkspaceTabId;
   active: WorkspaceTabId;
+  capabilities: readonly Capability[] | null;
   /** Leave an overlay-surfaced tab (currently only `journeys`) and go back to
    *  the tab the reader came from. Threaded from Workspace, which owns tab state. */
   onCloseOverlay: () => void;
 }) {
+  const choice = panelFor(TAB_PANELS, navActive, capabilities);
   return (
     <TranslatedErrorBoundary resetKey={navActive} label="tab">
       <div key={navActive} className="animate-tab-in">
-        {navActive === "pipeline" ? <PipelineTab /> : null}
-        {navActive === "channels" ? <ChannelsTab /> : null}
-        {navActive === "decisions" ? <DecisionsTab /> : null}
-        {navActive === "schedule" ? <ScheduleTab /> : null}
-        {navActive === "agents" ? <AgentsWorkforceTab /> : null}
-        {navActive === "archetypes" ? <ProfileTab /> : null}
-        {navActive === "interview" ? <InterviewSimTab /> : null}
-        {navActive === "analyze" ? (
-          <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />
-        ) : null}
-        {navActive === "jobs" ? <JobsTab /> : null}
-        {navActive === "library" ? <JdsTab /> : null}
-        {navActive === "intake" ? <JdsIntakeTab /> : null}
-        {navActive === "matrix" ? <MatrixTab /> : null}
-        {navActive === "analytics" ? <AnalyticsTab /> : null}
-        {navActive === "activity" ? <ActivityTab /> : null}
-        {navActive === "journeys" ? <JourneyOverlay onClose={onCloseOverlay} /> : null}
-        {navActive === "assignments" ? <DevTab /> : null}
-        {navActive === "about" ? <AboutTab /> : null}
-        {navActive === "tasks" ? <TasksTab /> : null}
-        {navActive === "billing" ? <BillingTab /> : null}
-        {navActive === "models" ? <ModelsTab /> : null}
-        {navActive === "workspace" ? <WorkspaceTab /> : null}
-        {navActive === "organization" ? <OrganizationTab /> : null}
-        {navActive === "branding" ? <BrandingTab /> : null}
-        {navActive === "integrations" ? <IntegrationsTab /> : null}
-        {navActive === "hiring" ? <HiringTab /> : null}
-        {navActive === "templates" ? <TemplatesTab /> : null}
+        {choice.kind === "open" ? (
+          choice.panel({ active, onCloseOverlay })
+        ) : (
+          <LockedTabPanel tab={navActive} needs={choice.needs} />
+        )}
       </div>
     </TranslatedErrorBoundary>
   );

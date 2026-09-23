@@ -148,9 +148,10 @@ export function NavSectionRail({
       .join("; ") || attentionLabel(0)
     : "";
 
-  // Which second-level rows this viewer cannot open, and why. The rows STAY —
-  // disabled, with the capability named — because a door that disappears for the
-  // person who holds the key reads as a broken build (navCapabilities.ts).
+  // Which second-level rows this viewer cannot open, and why. The rows STAY — as
+  // lock doors that open the locked-door panel, the capability named — because a
+  // door that disappears for the person who holds the key reads as a broken build
+  // (navCapabilities.ts).
   const lockedTabs = lockedTabsFor(capabilities);
   const lockedLabel = (cap: Capability) =>
     t("lockedTab", { capability: navText(capabilityLabelKey(cap), cap) });
@@ -166,7 +167,9 @@ export function NavSectionRail({
   // document, so this is at most one extra download per group per session.
   const prefetchSection = (group: NavGroup) => {
     if (!onPrefetchTab) return;
-    for (const item of group.items) onPrefetchTab(item.id);
+    // A locked row opens the locked-door panel, never its tab: warming that chunk
+    // would download code this seat can never render.
+    for (const item of group.items) if (!lockedTabs.has(item.id)) onPrefetchTab(item.id);
   };
 
   const railButton = (group: NavGroup) => {

@@ -107,3 +107,49 @@ const CAPABILITY_KEY: Record<Capability, string> = {
 export function capabilityLabelKey(cap: Capability): string {
   return `capabilities.${CAPABILITY_KEY[cap]}`;
 }
+
+// ---- Every entrance, one answer --------------------------------------------
+//
+// The rail and the palette read the table above; a g-chord, a ?tab= arrival (the
+// billing checkout return, the calendar callback, a pasted link) and programmatic
+// selectTab did not, and opened a gated tab straight into its 403. The rule now:
+// a tab's lock is decided at the DESTINATION. Whatever door a seat came through,
+// WorkspaceTabPanel renders through panelFor, and a locked arrival lands on the
+// locked-door panel (who can grant it, and a way to ask) rather than the tab.
+// Same fail-open posture as everything above: unknown caps open every door, and
+// the panel swaps to the lock the moment caps resolve without the capability.
+
+export type TabArrival = { kind: "open" } | { kind: "locked"; needs: Capability };
+
+/** What a seat holding `caps` meets on arriving at `id`, from any door. */
+export function tabArrival(id: WorkspaceTabId, caps: readonly Capability[] | null | undefined): TabArrival {
+  const needs = lockedCapability(id, caps);
+  return needs ? { kind: "locked", needs } : { kind: "open" };
+}
+
+export type PanelChoice<P> = { kind: "open"; panel: P } | { kind: "locked"; needs: Capability };
+
+/**
+ * The tab panel for `id`, looked up in an EXHAUSTIVE registry — or the lock.
+ *
+ * The registry parameter is `Record<WorkspaceTabId, P>`, not a partial map: a tab
+ * id added to tabs.ts with no panel fails tsc at the one call site
+ * (WorkspaceTabChunks.tsx) instead of rendering a silently blank main panel — the
+ * failure a hand-synced ternary chain allowed (idea-47b71431).
+ */
+export function panelFor<P>(
+  registry: Readonly<Record<WorkspaceTabId, P>>,
+  id: WorkspaceTabId,
+  caps: readonly Capability[] | null | undefined
+): PanelChoice<P> {
+  const arrival = tabArrival(id, caps);
+  return arrival.kind === "locked" ? arrival : { kind: "open", panel: registry[id] };
+}
+
+/** How a rail row renders. A locked row is a LOCK DOOR — focusable, activatable,
+ *  opening the explanation — never a disabled row: a disabled entry teaches the
+ *  reader the product is broken, and says nothing about the way in. */
+export function navItemMode(locked: Capability | null | undefined, isLink: boolean): "lockedDoor" | "link" | "button" {
+  if (locked) return "lockedDoor";
+  return isLink ? "link" : "button";
+}

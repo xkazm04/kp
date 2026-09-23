@@ -10,7 +10,7 @@ import { WORKSPACE_TAB_IDS } from "./tabs.ts";
 // app/_components/ErrorBoundary.test.ts already proves the boundary behaves —
 // it renders the catalog fallback, it announces itself, a changed resetKey
 // clears the caught error. What nothing proved is that the workspace still
-// USES it. Coverage for all 24 tabs rests on exactly one wrapper in
+// USES it. Coverage for every tab rests on exactly one wrapper in
 // WorkspaceTabChunks.tsx, and a tab rendered outside it (or a boundary lost to
 // a refactor) fails the way a missing boundary always fails: silently, until a
 // null-deref on a shape-drifted payload blanks the whole workspace — sidebar,
@@ -35,9 +35,25 @@ function boundarySpan(): { from: number; to: number; openTag: string } {
   return { from: openEnd + 1, to: close, openTag: src.slice(open, openEnd + 1) };
 }
 
-/** Every `navActive === "<id>"` render arm, with where it sits in the file. */
-function renderArms(): { id: string; at: number }[] {
-  return [...src.matchAll(/navActive === "([a-z]+)"/g)].map((m) => ({ id: m[1], at: m.index }));
+// The render arms are the entries of the exhaustive TAB_PANELS registry (idea-47b71431,
+// challenge-r08 workspace-shell-core/B) — no longer a `navActive === "<id>"` ternary
+// chain. The registry is a DECLARATION; what renders is its one lookup, panelFor, whose
+// result (or the locked-door panel) must sit inside the boundary.
+const REGISTRY_OPEN = "const TAB_PANELS: Record<WorkspaceTabId, ";
+
+/** The TAB_PANELS object literal's source span. */
+function registrySpan(): { from: number; to: number } {
+  const from = src.indexOf(REGISTRY_OPEN);
+  assert.notEqual(from, -1, "the tab panels are not declared as one exhaustive TAB_PANELS registry");
+  const to = src.indexOf("\n};", from);
+  assert.notEqual(to, -1, "the TAB_PANELS literal is never closed");
+  return { from, to };
+}
+
+/** Every registry entry id. */
+function registryIds(): string[] {
+  const { from, to } = registrySpan();
+  return [...src.slice(from, to).matchAll(/^ {2}([a-z]+): /gm)].map((m) => m[1]);
 }
 
 test("ONE boundary wraps the tab panel — not zero, not one nested inside another", () => {
@@ -45,31 +61,42 @@ test("ONE boundary wraps the tab panel — not zero, not one nested inside anoth
   assert.equal(src.split(CLOSE).length - 1, 1);
 });
 
-// The whole point of the wrapper: no tab renders outside it. A new tab appended
-// after the closing tag would render fine and crash the shell.
-test("every tab render arm sits INSIDE the boundary", () => {
+// The whole point of the wrapper: no tab renders outside it. Every mount — an open
+// registry panel or the locked-door panel — happens inside the boundary, and the old
+// ternary arms (which could be appended after the closing tag) are gone.
+test("every tab render sits INSIDE the boundary", () => {
   const { from, to } = boundarySpan();
-  const outside = renderArms().filter((arm) => arm.at < from || arm.at > to);
-  assert.deepEqual(outside, [], "these tabs render outside the error boundary");
+  const inside = src.slice(from, to);
+  assert.match(inside, /choice\.panel\(/, "the open registry panel renders inside the boundary");
+  assert.match(inside, /<LockedTabPanel\b/, "the locked-door panel renders inside the boundary");
+  assert.equal((src.match(/choice\.panel\(/g) ?? []).length, 1, "the registry panel renders at exactly one site");
+  assert.equal((src.match(/<LockedTabPanel\b/g) ?? []).length, 1);
+  // Shape fixture: the old defect still reads as a defect to this probe.
+  const arm = /navActive === "[a-z]+"/;
+  assert.equal(arm.test(`{navActive === "billing" ? <BillingTab /> : null}`), true);
+  assert.equal(arm.test(src), false, "a navActive ternary arm is back — render through TAB_PANELS/panelFor");
 });
 
-// Coverage is only meaningful if the arms are the whole tab universe. `history`
-// is the one id the panel never sees: Workspace collapses it onto `analyze`
-// (which reads `active` for its history mode), so navActive is never "history".
-test("the boundary covers the whole tab universe — every id but the collapsed `history`", () => {
-  const rendered = new Set(renderArms().map((arm) => arm.id));
-  const expected = WORKSPACE_TAB_IDS.filter((id) => id !== "history");
-  assert.deepEqual([...rendered].sort(), [...expected].sort());
-  assert.equal(rendered.has("history"), false);
+// Coverage is only meaningful if the arms are the whole tab universe. The Record
+// type already makes a missing id a tsc error; this pins it at runtime too.
+// `history` owns an entry (the analyze panel) though Workspace collapses it onto
+// `analyze` before the switch, so the registry has no holes at all.
+test("the registry covers the whole tab universe — every id, history included", () => {
+  assert.deepEqual([...registryIds()].sort(), [...WORKSPACE_TAB_IDS].sort());
 });
 
-// Every code-split tab must be reachable through the switch. A `dynamic(...)`
-// import with no arm is a chunk nobody can open; the pairing is what makes the
-// arm count above equal to the tab count.
-test("every dynamically imported tab has a render arm", () => {
+// Every code-split tab must be reachable through the registry. A `dynamic(...)`
+// import with no entry is a chunk nobody can open — and one mounted outside the
+// registry would bypass panelFor's lock.
+test("every dynamically imported tab has a registry entry, and only there", () => {
   const imported = [...src.matchAll(/^const (\w+) = dynamic\(/gm)].map((m) => m[1]);
-  const armless = imported.filter((name) => !new RegExp(`<${name}\\b`).test(src.slice(boundarySpan().from)));
-  assert.deepEqual(armless, [], "these tab chunks are imported but never rendered inside the boundary");
+  const { from, to } = registrySpan();
+  const registry = src.slice(from, to);
+  const armless = imported.filter((name) => !new RegExp(`<${name}\\b`).test(registry));
+  assert.deepEqual(armless, [], "these tab chunks are imported but have no TAB_PANELS entry");
+  const rest = src.slice(0, from) + src.slice(to);
+  const outside = imported.filter((name) => new RegExp(`<${name}\\b`).test(rest));
+  assert.deepEqual(outside, [], "these tab chunks are mounted outside their one registry entry");
 });
 
 // Without this, a recruiter who crashes Pipeline then switches to Decisions
