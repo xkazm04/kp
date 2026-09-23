@@ -116,10 +116,21 @@ is `jobLifecycleInOverlay` in `app/_lib/db/core.ts`.
 - **One team's hire does not close the role for everyone.** The role-fill hook counts
   the team's hires against the team's target, then runs its compare-and-swap in the
   team's overlay. Each team's withdrawal sweep still runs at most once.
-- **The public apply door follows the default team.** `getJobWorkspace` files a
-  corpus role's public applicants into the default workspace. The apply routes call
-  `getJobStatus(id)`, which defaults to that team, so the door closes only when the
-  default team closes the role.
+- **Recruiter doors read the caller's lifecycle.** `getJobStatus` and
+  `getRoleOpenConfig` require a team. `getJob` keeps it optional because most callers
+  read only the payload, and an omitted team means the filing team's view. Every
+  gated route passes its session team, and so does every recruiter-only library module
+  (the entry's or the task's team). A team that closed a corpus role sees it closed
+  on the job page, in the palette preview and through the sim intake, and the
+  translations tab offers that team's posting languages. `app/api/job-lifecycle-team.test.ts`
+  checks every route the proxy gates, taking the public list from `public-routes.ts`.
+  It has no exemption list.
+- **The public apply door follows the filing team.** `getJobWorkspace` files a
+  corpus role's public applicants into the default workspace. The apply routes, the
+  apply pages and the public JD page call `getJobStatus(id, getJobWorkspace(id))`, so
+  the door closes only when that team closes the role, whoever is signed in. A channel
+  webhook's inbound door files into the webhook's team, so it reads that team's
+  lifecycle. The team that minted a channel can shut it by closing the role.
 - **Billing is unchanged.** `published_at` stays on the shared row and `billable`
   still reads it. A second team adopting a corpus role that another team already took
   live classifies as `{ already: false, billable: false }`: it sources into its own
