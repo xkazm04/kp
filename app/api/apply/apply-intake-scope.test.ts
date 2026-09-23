@@ -78,9 +78,12 @@ test("both profile builds are filed into the SAME workspace the entry is stamped
 test("a fresh application lands on the workspace axis's ENTRY column, not a hardcoded name", () => {
   // The rule lives ONCE, in the filing core every door files through; no door keeps a
   // copy (the card counted three before: this route, lead-intake.ts, cv-intake.ts).
-  const rule = /stage: stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/g;
+  const rule = /stage: (?:input\.stage \?\? )?stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/g;
   const core = read("../../_lib/application-filing.ts");
   assert.equal((core.match(rule) ?? []).length, 1, "the core resolves the landing column from the axis");
+  // A door may name the column a fresh filing starts on (the ATS import maps the
+  // vendor's stage, app/_lib/ats/ingest.ts); absent that, the axis's entry column.
+  assert.match(core, /stage: input\.stage \?\? stageWithRole\("entry", getPipelineAxis\(workspaceId\)\.stages\) \?\? "Accepted"/);
   assert.match(route, /await fileApplication\(\{/, "the conversational apply files through the core that owns the rule");
   for (const rel of ["[id]/route.ts", "../../_lib/lead-intake.ts", "../../_lib/cv-intake.ts", "../../_lib/application-filing.ts"]) {
     // The old defect, forbidden on every door and in the core: a hardcoded landing

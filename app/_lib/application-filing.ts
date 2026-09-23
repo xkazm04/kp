@@ -39,8 +39,9 @@
 //
 // Doors: the conversational apply (app/api/apply/[id]/route.ts, "token" | "none"),
 // the lead core behind the quick form and the lead webhooks (lead-intake.ts,
-// "channel", a profile-less stub), and the headless CV intake (cv-intake.ts,
-// "channel"). See docs/features/candidates/README.md.
+// "channel", a profile-less stub), the headless CV intake (cv-intake.ts,
+// "channel"), and the operator's ATS import (ats/ingest.ts, "channel", a stub at
+// the vendor's mapped stage, no acknowledgement). See docs/features/candidates/README.md.
 
 import type { getJob } from "./db/jobs";
 import { getJobWorkspace } from "./db/jobs";
@@ -99,6 +100,11 @@ export type ApplicationFilingInput = ProofInput & {
   githubHandle?: string | null;
   /** Stored job title override (the sim's `(SIM)` marker); defaults to the job's own. */
   jobTitle?: string;
+  /** The column a FRESH filing lands on; defaults to the workspace axis's entry column.
+   *  A door that names one owns the check that it is a live, non-terminal column of
+   *  that axis (the ATS import maps the vendor's stage — app/_lib/ats/ingest.ts). A
+   *  repeat never moves: this is where a new entry starts, not a stage change. */
+  stage?: string;
   /** The door's intake answers, minus the name the core sanitizes itself. */
   answers?: Omit<ApplyAnswers, "name">;
   /** File a profile-less, intake-degraded STUB instead of building (the lead form: a
@@ -286,7 +292,7 @@ export async function fileApplication(input: ApplicationFilingInput): Promise<Ap
     // A fresh application arrives at the board's ENTRY column, whatever this
     // workspace calls it — not at a stage that happens to be named "Accepted" (the
     // axis is editable; a hardcoded name strands applicants off-axis).
-    stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
+    stage: input.stage ?? stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
     // Keyed on the PROVIDED name (and the email first): "" yields no key, so the
     // entry id falls back to the fresh candidate id and anonymous applicants stay
     // apart. Backstops two concurrent first filings that both missed the lookup.
