@@ -115,7 +115,11 @@ career-switcher) that other features key off. Downstream ranking is
   re-derives the warnings from the STORED payload and answers a transition to
   advance that does not acknowledge each one with a coded 409
   `DISPOSITION_ACK_REQUIRED` (`pending` lists them; the row is untouched, and the
-  editor rolls its optimistic pick back to the stored value). Re-saving the
+  editor rolls its optimistic pick back to the stored value). The gate's read and
+  the write are a compare-and-swap (`setAnalysisDispositionGuarded`): the UPDATE
+  re-asserts the disposition and payload the gate was derived from, and a row
+  another save moved in between is re-read and re-decided rather than overwritten,
+  so an un-acknowledged advance cannot land over a hold that arrived since. Re-saving the
   stored disposition (a note edit, the keepalive unmount flush) is never gated,
   so a decision recorded before the gate is never locked; every PATCH body the
   editor sends carries `acknowledged`. An advance or pass stores
