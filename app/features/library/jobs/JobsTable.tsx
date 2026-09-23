@@ -22,10 +22,8 @@ import type { useJobsList } from "./useJobsList";
 // JobsTabResults — the shared 20-row `TablePager` instead of an endless scroll
 // pane that mounted all 105 rows at once.
 //
-// Filtering stays SERVER-side: each menu writes the same `useJobsList` state the
-// toolbar wrote, so a change still re-queries `/api/jobs` after its debounce.
-// Sorting is client-side over the fetched page, matching the kit's contract (a
-// result set that does not fit in memory needs an ORDER BY, not this).
+// Filters AND sort are server-side: each menu or header click writes `useJobsList`
+// state, which re-queries `/api/jobs` for one 20-row window of the whole set.
 export function JobsTableFrame({
   children,
   list,
@@ -87,11 +85,8 @@ export function JobsTableFrame({
                 — entry-eligibility is a fairness fact about the requirements, still
                 carried by the stat chip above the table and by the posting modal,
                 but it is not what a recruiter opens this desk to read.
-
-                The filter is client-side (see useJobsList.roleStatus): "filled"
-                compares the role's target against the pipeline's hired count, which
-                the jobs query cannot express. The menu's order is the desk's reading
-                order, not the alphabet. */}
+                The filter is a server predicate over every row; the menu's order
+                is the desk's reading order, not the alphabet. */}
             <ColumnHead title={t("colStatus")} sortCol="status" sort={sort} onSort={onSort} className="px-4 py-2">
               <ColumnFilter
                 title={t("colStatus")}

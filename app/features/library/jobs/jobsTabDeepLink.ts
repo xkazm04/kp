@@ -19,13 +19,17 @@ export function useJobsTabDeepLink(jobs: Job[] | null) {
   // clears itself (a miss), instead of staying armed forever when the ingested draft
   // is hidden (e.g. by the "open only" filter) and later auto-opening out of nowhere.
   const [pendingOpen, setPendingOpen] = useState<IngestLatch | null>(null);
+  // The by-id lookup both auto-open sources fall back to (declared before either uses it).
+  const [lookupId, setLookupId] = useState<string | null>(null);
+  const [lookupMissed, setLookupMissed] = useState(false);
   {
     const resolved = resolveIngestLatch(jobs, pendingOpen);
     if (resolved.kind === "open") {
       setPendingOpen(null);
       setOpenJob(resolved.job);
-    } else if (resolved.kind === "clear") {
+    } else if (resolved.kind === "fetch") {
       setPendingOpen(null);
+      setLookupId(resolved.id);
     }
   }
 
@@ -36,12 +40,10 @@ export function useJobsTabDeepLink(jobs: Job[] | null) {
   const search = useSearchParams();
   const jobParam = search.get("job");
   const [appliedJobParam, setAppliedJobParam] = useState<string | null>(null);
-  // The list is a ranked LIMIT-300 slice (and the active filters narrow it further),
+  // The list is one 20-row server window (and the active filters narrow it further),
   // so a perfectly real role can be absent from `jobs` — the guard above then stamped
   // the param and did NOTHING, silently. Miss → point-fetch it by id; only a 404 from
   // that is a genuine "no such role", which gets a dismissible notice.
-  const [lookupId, setLookupId] = useState<string | null>(null);
-  const [lookupMissed, setLookupMissed] = useState(false);
   if (jobs && jobParam !== appliedJobParam) {
     setAppliedJobParam(jobParam);
     setLookupMissed(false);

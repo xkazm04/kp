@@ -18,14 +18,16 @@ export type IngestLatch = { id: string; sawJobs: Job[] | null };
 
 export type LatchResolution =
   | { kind: "open"; job: Job } // the refreshed list contains the ingested job — open it
-  | { kind: "clear" } // the refreshed list arrived without it — drop the latch (bounded)
+  | { kind: "fetch"; id: string } // the refreshed PAGE arrived without it — drop the latch, point-fetch the id
   | { kind: "wait" }; // no latch, corpus not loaded, or the refresh hasn't landed yet
 
 // Pure: decide what to do with an armed ingest latch given the current corpus.
 // `jobs === latch.sawJobs` means the list is still the pre-ingest array (the
 // debounced refetch hasn't returned) — WAIT, so we don't prematurely clear before
 // the just-ingested draft has a chance to appear. Once a new array lands we resolve
-// exactly once: open on a hit, clear on a miss.
+// exactly once: open on a hit, point-fetch on a miss. The list is a 20-row server
+// window (challenge-r07), so a real draft is routinely off it; the miss used to be a
+// silent clear and the modal never opened.
 export function resolveIngestLatch(
   jobs: Job[] | null,
   latch: IngestLatch | null
@@ -33,7 +35,7 @@ export function resolveIngestLatch(
   if (!latch || !jobs) return { kind: "wait" };
   if (jobs === latch.sawJobs) return { kind: "wait" };
   const match = jobs.find((j) => j.id === latch.id);
-  return match ? { kind: "open", job: match } : { kind: "clear" };
+  return match ? { kind: "open", job: match } : { kind: "fetch", id: latch.id };
 }
 
 // Whether an ingest should clear the "open only" filter so the just-ingested draft
