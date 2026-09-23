@@ -521,7 +521,7 @@ as the counts, so clicking either count filters the board to the cohort it names
 | `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | The team's per-stage aging cadence writes (`PATCH /api/pipeline/stage-sla`), their optimistic value until the board reloads, and the one-time offer of a browser's leftover cadences · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
 | `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace (saved views; the SLA half is read-and-clear only now), and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
 | `pipelineBoardMove.ts` / `pipelineDrawerNote.ts` | The two densest state machines, extracted pure: the drag move's apply / reconcile / roll-back decision plus its field-selective merge, and the candidate modal note's dirty / flush / hydrate bookkeeping. Pinned by their own `*.test.ts`. |
-| `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2) · opening the candidate modal, profile, job, ranking and Decisions. |
+| `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2), the network around the pure `pipelineBulkSelection.ts` reducer · opening the candidate modal, profile, job, ranking and Decisions. |
 
 ## Board layout — one panel, one context menu
 
@@ -1102,6 +1102,30 @@ rules keep it honest about **which** rows it is about to touch:
   derivation, not a disarm dispatched from each of the ~9 filter mutators — the
   per-call-site version is what leaked twice already. `bulkDecide("reject")` and
   `bulkOutreach` re-check the same predicate at the fire site.
+- **A confirm only ever applies to the people it named** (cohort-drift-forces-a-fresh-review).
+  The scope stamp alone let the 30s poll, which keeps running in select mode, change the
+  cohort under an armed confirm: a reject armed over 2 awaiting candidates fired on however
+  many were awaiting at the click, and a named candidate whose stage or pending decision
+  moved was rejected under a confirm that described another situation. Arming now also
+  stamps `cohortSignature` (the sorted id + stage + decision kind of exactly the rows the
+  action would touch, prefixed with the action), and `armedBulkConfirm` reports the confirm
+  armed only while the scope holds AND the cohort signs identically. Any membership or
+  status drift makes the next click re-arm, naming the new count.
+
+Since challenge-r06 the selection, the confirm slot, the status line, the busy flag and the
+outreach run are one pure reducer, `pipelineBulkSelection.ts` (`bulkSelectionReducer`);
+`usePipelineBulk` only turns clicks and board loads into events. Every selection change is
+an event that disarms in the same transition (bulkMove used to reset the selection with no
+disarm at all), and an action changes the selection only through its `settled` event, fed by
+ONE fold, `foldBatchSettle`: successes deselect, per-id failures and untouched rows stay
+selected, and a whole-request refusal keeps every attempted row and overrides the per-id
+codes (its code and capability when the door named one, else the client's gate or transport
+sentence). A failed outreach task reports the cohort it was started with, not the selection
+at completion. An id whose entry left the board (closed elsewhere; the list excludes terminal
+rows) is pruned on the next load and stated once on the status line
+(`pipeline.tab.selectionDeparted`) rather than counted as hidden by the filter forever;
+`reconcileSelection` checks against the whole board, never the filtered view, so a row the
+filter hides is still kept and disclosed.
 
 A third rule keeps it honest about **which stages** it can move rows to:
 
@@ -1117,7 +1141,9 @@ A third rule keeps it honest about **which stages** it can move rows to:
   treats an already-at-target card as moved with no round trip).
 
 Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject → apply a
-saved view → confirm), `pipelineBulkConfirm.test.ts`, and `pipelineMoveTargets.test.ts`
+saved view → confirm), `pipelineBulkConfirm.test.ts`, `pipelineBulkSelection.test.ts` (cohort
+drift, ghost pruning, the settle fold), `usePipelineBulk.test.ts` (no `setSelectedIds` call
+site remains) and `pipelineMoveTargets.test.ts`
 (which also pins that the candidate modal's "open full match" link is gated on `candidateId`
 like its "edit profile" sibling, instead of rendering and silently no-opping).
 
