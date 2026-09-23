@@ -110,9 +110,12 @@ export type Analytics = {
 // ANA2 — the selectable windows. null = all time (the server default).
 export const WINDOW_CHOICES = [null, 30, 90] as const;
 
-// 82c2b8e8 / b39992b1 — mirror the server's reserved analytics_targets keys.
-// Declared locally so the client doesn't import the db barrel (better-sqlite3)
-// for three strings.
-export const TIME_TO_HIRE_KEY = "time_to_hire";
-export const RECRUITER_HOURLY_KEY = "recruiter_hourly_czk";
-export const MANUAL_HOURS_KEY = "manual_hours_per_hire";
+// 82c2b8e8 / b39992b1 — the server's reserved analytics_targets keys, RE-EXPORTED
+// from the pure goal-key registry the save route validates against (no DB import,
+// so the client does not pull better-sqlite3). They used to be hand-mirrored
+// literals here — a third copy of one key space that could drift from the route.
+export {
+  MANUAL_HOURS_TARGET_KEY as MANUAL_HOURS_KEY,
+  RECRUITER_HOURLY_TARGET_KEY as RECRUITER_HOURLY_KEY,
+  TIME_TO_HIRE_TARGET_KEY as TIME_TO_HIRE_KEY,
+} from "@/app/_lib/analytics-target-keys";

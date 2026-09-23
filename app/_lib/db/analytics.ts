@@ -3,7 +3,7 @@ import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek
 import { summarizeAutomationImpact, type AutomationImpact } from "../decision-attribution";
 import { offerConversion, type OfferConversion } from "../analytics-offer";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
-import { hasAdvancedPastScreening, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole } from "../pipeline-stages";
+import { hasAdvancedPastScreening, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 import { ensureDb } from "./core";
@@ -44,6 +44,12 @@ import {
   type VariantStat,
 } from "../source-analytics";
 import { median } from "../stats";
+import {
+  liveConversionTargets,
+  MANUAL_HOURS_TARGET_KEY,
+  RECRUITER_HOURLY_TARGET_KEY,
+  TIME_TO_HIRE_TARGET_KEY,
+} from "../analytics-target-keys";
 
 // ---- Pipeline analytics (Insights tab) ------------------------------------
 // Snapshot-based so it stays correct even when the event history is sparse: an
@@ -259,33 +265,18 @@ function cohortCap(override?: number): number {
     : ANALYTICS_COHORT_CAP;
 }
 
-// 82c2b8e8 — the reserved analytics_targets row whose value is a time-to-hire
-// goal in DAYS (every other row is a funnel stage name → conversion %% target).
-export const TIME_TO_HIRE_TARGET_KEY = "time_to_hire";
-
-// b39992b1 — the reserved analytics_targets row holding the org's recruiter hourly
-// cost (CZK) for the automation ROI figure. Not a "goal" — but it rides the same
-// key/value table + save route, so it lives alongside the goal keys and is
-// filtered out of the conversion-goal map.
-export const RECRUITER_HOURLY_TARGET_KEY = "recruiter_hourly_czk";
-
-// UAT KAT-L1-005 — the reserved row holding the org's OWN manual hours-per-hire
-// baseline. `MANUAL_HOURS_PER_HIRE = 42` is a defensible research mid-point, but it
-// shipped as automationRoi's fourth parameter with no call site passing it, so the
-// percentage the ROI panel prints ("x% of the manual effort offset") was measured
-// against a constant no customer could contest. An org whose real anchor is 23 h
-// screening + 13 h sourcing can now re-ground the claim in its own number.
-export const MANUAL_HOURS_TARGET_KEY = "manual_hours_per_hire";
-
-// Every analytics_targets key that is NOT a funnel-stage conversion goal. DERIVED,
-// not hand-listed (drift-guard rule M3): the conversion-map filter below and the save
-// route's validator both read this set, so adding a reserved key in one place cannot
-// leave it leaking into the funnel goals in another.
-export const RESERVED_TARGET_KEYS: ReadonlySet<string> = new Set([
-  TIME_TO_HIRE_TARGET_KEY,
-  RECRUITER_HOURLY_TARGET_KEY,
+// The reserved analytics_targets keys (time-to-hire goal in days, the ROI's recruiter
+// hourly CZK and manual hours-per-hire baseline) and the derived RESERVED_TARGET_KEYS
+// set are OWNED by the pure goal-key registry (../analytics-target-keys.ts), which
+// also derives the conversion-goal keys from the workspace's live axis. Re-exported
+// here so existing server imports keep one spelling; the route, this store's read
+// split and the client all read the same table (drift-guard rule M3).
+export {
   MANUAL_HOURS_TARGET_KEY,
-]);
+  RECRUITER_HOURLY_TARGET_KEY,
+  RESERVED_TARGET_KEYS,
+  TIME_TO_HIRE_TARGET_KEY,
+} from "../analytics-target-keys";
 
 export type ChannelEconomics = {
   channel: string;
@@ -934,7 +925,7 @@ export function pipelineAnalytics(
     byVariant,
     byVariantTotal: variantStats.length,
     variantRecommendations,
-    targets: analyticsTargets(targetValues),
+    targets: analyticsTargets(targetValues, axis),
     excludedSim: excludedSim.n,
     truncated,
     bucketTz: BUCKET_TZ,
@@ -1201,18 +1192,18 @@ export function listAnalyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID)
 
 /** Split the flat goal map into the funnel-conversion targets and the lone
  *  time-to-hire target the analytics payload exposes. Takes the already-read map so
- *  one request reads analytics_targets once. */
-function analyticsTargets(all: Map<string, number>): { conversion: Record<string, number>; timeToHireDays: number | null } {
-  const timeToHireDays = all.get(TIME_TO_HIRE_TARGET_KEY) ?? null;
-  const conversion: Record<string, number> = {};
-  for (const [metric, value] of all) {
-    // Only funnel-stage rows are conversion goals. The exclusion reads the DERIVED
-    // reserved-key set rather than a hand-written chain of !== comparisons: the
-    // manual-hours key was the third reserved row, and a chain like that is exactly
-    // what leaks the fourth one into the funnel goals as a phantom stage (rule M3).
-    if (!RESERVED_TARGET_KEYS.has(metric)) conversion[metric] = value;
-  }
-  return { conversion, timeToHireDays };
+ *  one request reads analytics_targets once.
+ *
+ *  Conversion goals are filtered through the goal-key registry against THIS
+ *  workspace's live axis — the same vocabulary the save route validates with. A
+ *  reserved row is never a stage, and a goal for a column the team retired stays in
+ *  the table (un-retiring brings it back unchanged) but is withheld from the payload
+ *  instead of riding it as a phantom stage. */
+function analyticsTargets(
+  all: Map<string, number>,
+  axis: readonly StageDef[]
+): { conversion: Record<string, number>; timeToHireDays: number | null } {
+  return { conversion: liveConversionTargets(all, axis), timeToHireDays: all.get(TIME_TO_HIRE_TARGET_KEY) ?? null };
 }
 
 // ---- Cross-entity search (SHELL1, the command palette) ---------------------

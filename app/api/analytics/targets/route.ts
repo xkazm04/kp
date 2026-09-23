@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  MANUAL_HOURS_TARGET_KEY,
-  RECRUITER_HOURLY_TARGET_KEY,
-  RESERVED_TARGET_KEYS,
-  setAnalyticsTarget,
-  TIME_TO_HIRE_TARGET_KEY,
-} from "@/app/_lib/db/analytics";
+import { setAnalyticsTarget } from "@/app/_lib/db/analytics";
+import { validateTargetWrite } from "@/app/_lib/analytics-target-keys";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { can } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -15,9 +10,9 @@ import { invalidateAnalyticsWorkspace } from "@/app/_lib/analytics-cache";
 
 
 // 82c2b8e8 / b39992b1 — recruiter-set analytics settings (mirrors
-// /api/analytics/spend). A metric is a funnel stage name (conversion % goal,
-// 0–100), the reserved time_to_hire key (goal in days), or the reserved
-// recruiter_hourly_czk key (ROI rate).
+// /api/analytics/spend). A metric is a conversion % goal for a column on THIS
+// workspace's live board (0–100), the reserved time_to_hire key (goal in days), or
+// one of the two ROI inputs (recruiter_hourly_czk, manual_hours_per_hire).
 //
 // CLEARING: a null/empty value clears the goal — AND SO DOES `0`. This route accepts 0
 // (it only refuses negatives) and hands it to setAnalyticsTarget, which DELETEs the row
@@ -27,17 +22,17 @@ import { invalidateAnalyticsWorkspace } from "@/app/_lib/analytics-cache";
 // as "no goal": a 40 % conversion target overwritten with 0 comes back as an absent goal
 // line, not a zero one. The inline editor normalizes 0 → null before posting for the same
 // reason (AnalyticsInlineNumberSave) — this states the rule the store actually enforces.
-// UAT KAT-L1-005 — DERIVED from RESERVED_TARGET_KEYS, not hand-listed. The
-// hand-written list is why `manual_hours_per_hire` was readable but unsettable:
-// db/analytics.ts threaded the key into automationRoi's fourth parameter, and this
-// validator (which never heard of it) rejected every attempt to save one, so the ROI
-// claim stayed pinned to the shipped 42-hour constant that no org could re-ground in
-// its own baseline. Adding a reserved key in one place can no longer leave it
-// unsettable in another.
-const VALID_METRICS = new Set<string>([...FUNNEL_STAGES, ...RESERVED_TARGET_KEYS]);
-const MAX_DAYS = 3650; // sanity ceiling, not a business rule
-const MAX_HOURLY_CZK = 1_000_000; // sanity ceiling, not a business rule
-const MAX_MANUAL_HOURS = 1000; // sanity ceiling, not a business rule
+//
+// THE KEY SPACE is app/_lib/analytics-target-keys.ts, derived from the workspace's
+// own stage axis plus the reserved keys — the same registry db/analytics.ts filters
+// the payload through. This route used to validate against the SHIPPED five stage
+// names (FUNNEL_STAGES) while the funnel and the goals editor drew the workspace's
+// own columns, so a team that added a column was shown a goal field whose every save
+// answered a raw English "Invalid metric." with no code. Refusals are now codes:
+// ANALYTICS_TARGET_UNKNOWN_METRIC (unknown, retired, or the entry column) and
+// ANALYTICS_TARGET_OUT_OF_RANGE (not a finite non-negative number, or over the key's
+// ceiling). UAT KAT-L1-005's rule still holds: the reserved keys are DERIVED, so
+// adding one in the registry cannot leave it readable-but-unsettable here.
 
 // AUTHORITY (2026-09-03) — same story as /api/analytics/spend, which this route
 // mirrors: no gate at all, so any seat could move the goal lines every board is
@@ -49,32 +44,10 @@ export async function POST(request: NextRequest) {
   if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
   try {
     const body = (await request.json().catch(() => ({}))) as { metric?: unknown; value?: unknown };
-    const metric = String(body.metric ?? "").trim();
-    if (!VALID_METRICS.has(metric)) {
-      return NextResponse.json({ error: "Invalid metric." }, { status: 400 });
-    }
-    const raw = body.value;
-    const value = raw == null || raw === "" ? null : Number(raw);
-    if (value !== null) {
-      if (!Number.isFinite(value) || value < 0) {
-        return NextResponse.json({ error: "Invalid value." }, { status: 400 });
-      }
-      // Conversion goals are a percentage; time-to-hire is days; the rate is CZK;
-      // the manual baseline is hours per hire.
-      const ceiling =
-        metric === TIME_TO_HIRE_TARGET_KEY
-          ? MAX_DAYS
-          : metric === RECRUITER_HOURLY_TARGET_KEY
-            ? MAX_HOURLY_CZK
-            : metric === MANUAL_HOURS_TARGET_KEY
-              ? MAX_MANUAL_HOURS
-              : 100;
-      if (value > ceiling) {
-        return NextResponse.json({ error: "Value out of range." }, { status: 400 });
-      }
-    }
     const ws = await currentWorkspace();
-    setAnalyticsTarget(metric, value, ws);
+    const verdict = validateTargetWrite(body, getPipelineAxis(ws).stages);
+    if (!verdict.ok) return jsonRefusal(verdict.code, 400);
+    setAnalyticsTarget(verdict.metric, verdict.value, ws);
     // The goal line is IN the /api/analytics payload (`targets`), and the inline
     // editor reloads that payload the instant this returns — inside the read memo's
     // TTL. Without this the recruiter watches the panel refresh and reads back the
