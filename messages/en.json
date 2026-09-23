@@ -1969,7 +1969,10 @@
     "BILLING_ALERT_RESOLVE_FAILED": "Could not update the billing alert. Please try again.",
     "BILLING_ALERT_NOT_FOUND": "That billing alert does not exist in this organization.",
     "BILLING_ALERT_NOT_OPEN": "That billing alert is already closed.",
-    "BILLING_ALERT_RESOLUTION_INVALID": "Say whether the billing alert was fixed or dismissed."
+    "BILLING_ALERT_RESOLUTION_INVALID": "Say whether the billing alert was fixed or dismissed.",
+    "ATS_IMPORT_FAILED": "Could not import the ATS applications. Please try again.",
+    "ATS_IMPORT_JOB_NOT_FOUND": "That role is not available to your team. Pick one of your team's roles to import into.",
+    "ATS_IMPORT_RECORDS_INVALID": "Send the applications as a list, at most 100 per import."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3784,7 +3787,8 @@
     },
     "intakeReasons": {
       "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",
-      "leadPendingUngated": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement. Eligibility not verified by the source form: {ungated}"
+      "leadPendingUngated": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement. Eligibility not verified by the source form: {ungated}",
+      "atsImported": "Imported from {channel}: no CV profile yet. Build one from the candidate's CV to score them."
     }
   },
   "decisions": {

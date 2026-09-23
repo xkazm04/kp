@@ -1969,7 +1969,10 @@
     "BILLING_ALERT_RESOLVE_FAILED": "Upozornění k fakturaci se nepodařilo aktualizovat. Zkuste to prosím znovu.",
     "BILLING_ALERT_NOT_FOUND": "Toto upozornění k fakturaci v této organizaci neexistuje.",
     "BILLING_ALERT_NOT_OPEN": "Toto upozornění k fakturaci je již uzavřené.",
-    "BILLING_ALERT_RESOLUTION_INVALID": "Uveďte, zda bylo upozornění k fakturaci vyřešeno, nebo zamítnuto."
+    "BILLING_ALERT_RESOLUTION_INVALID": "Uveďte, zda bylo upozornění k fakturaci vyřešeno, nebo zamítnuto.",
+    "ATS_IMPORT_FAILED": "Přihlášky z ATS se nepodařilo importovat. Zkuste to prosím znovu.",
+    "ATS_IMPORT_JOB_NOT_FOUND": "Tato pozice není pro váš tým dostupná. Vyberte pozici svého týmu, do které chcete importovat.",
+    "ATS_IMPORT_RECORDS_INVALID": "Pošlete přihlášky jako seznam, nejvýše 100 v jednom importu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3784,7 +3787,8 @@
     },
     "intakeReasons": {
       "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",
-      "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}"
+      "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}",
+      "atsImported": "Importováno ze systému {channel}: zatím bez profilu z životopisu. Pro hodnocení vytvořte profil z životopisu kandidáta."
     }
   },
   "decisions": {

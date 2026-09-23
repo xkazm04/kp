@@ -493,6 +493,9 @@ export const STORE_ERRORS = {
   JOBSEEKER_STORE_FAILED: "Could not save or load your job search right now. Please try again.",
   /** POST /api/billing/alerts/[id]: the store faulted while closing a billing alert (500). */
   BILLING_ALERT_RESOLVE_FAILED: "Could not update the billing alert. Please try again.",
+  /** POST /api/ats/import: the store faulted while filing or linking a vendor record
+   *  (500). The refusals the import can make are coded in REFUSAL_ERRORS. */
+  ATS_IMPORT_FAILED: "Could not import the ATS applications. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1916,6 +1919,12 @@ export const REFUSAL_ERRORS = {
   BILLING_ALERT_NOT_OPEN: "That billing alert is already closed.",
   /** POST /api/billing/alerts/[id] whose `resolution` is not 'fixed' or 'dismissed' (400). */
   BILLING_ALERT_RESOLUTION_INVALID: "Say whether the billing alert was fixed or dismissed.",
+  /** POST /api/ats/import named no job, or one the caller's team cannot see (404, one
+   *  answer for both: no existence oracle across teams). */
+  ATS_IMPORT_JOB_NOT_FOUND: "That role is not available to your team. Pick one of your team's roles to import into.",
+  /** POST /api/ats/import whose `records` is not a list, is empty, or is longer than the
+   *  per-call cap (400, with `maxRecords`). A connector pages; one call is never an account. */
+  ATS_IMPORT_RECORDS_INVALID: "Send the applications as a list, at most 100 per import.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

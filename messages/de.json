@@ -1969,7 +1969,10 @@
     "BILLING_ALERT_RESOLVE_FAILED": "Der Abrechnungshinweis konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
     "BILLING_ALERT_NOT_FOUND": "Dieser Abrechnungshinweis existiert in dieser Organisation nicht.",
     "BILLING_ALERT_NOT_OPEN": "Dieser Abrechnungshinweis ist bereits geschlossen.",
-    "BILLING_ALERT_RESOLUTION_INVALID": "Geben Sie an, ob der Abrechnungshinweis behoben oder verworfen wurde."
+    "BILLING_ALERT_RESOLUTION_INVALID": "Geben Sie an, ob der Abrechnungshinweis behoben oder verworfen wurde.",
+    "ATS_IMPORT_FAILED": "Die Bewerbungen aus dem ATS konnten nicht importiert werden. Bitte versuchen Sie es erneut.",
+    "ATS_IMPORT_JOB_NOT_FOUND": "Diese Stelle ist für Ihr Team nicht verfügbar. Wählen Sie eine Stelle Ihres Teams für den Import aus.",
+    "ATS_IMPORT_RECORDS_INVALID": "Senden Sie die Bewerbungen als Liste, höchstens 100 pro Import."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3784,7 +3787,8 @@
     },
     "intakeReasons": {
       "leadPending": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt.",
-      "leadPendingUngated": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt. Eignung vom Quellformular nicht geprüft: {ungated}"
+      "leadPendingUngated": "Lead über {channel}: Profil wartet auf Anreicherung. Der Link zur vollständigen Bewerbung wurde mit der Bestätigung verschickt. Eignung vom Quellformular nicht geprüft: {ungated}",
+      "atsImported": "Aus {channel} importiert: noch kein Lebenslaufprofil. Erstellen Sie eines aus dem Lebenslauf, um die Person zu bewerten."
     }
   },
   "decisions": {
