@@ -53,3 +53,64 @@ test("queued — recorded, but no relay will deliver it; sent — the only outco
   // route only answers 200 after a real dispatch.
   assert.deepEqual(resendOutcome(true, 200, null), { kind: "sent" });
 });
+
+// --- which recovery DOOR a letter offers (pipeline-candidate-drawer/B) --------------
+//
+// The door choice used to be derived three times: the Comms Center's detail modal read
+// the raw `bounced` / `status === "failed" && !recovered` bits, the dev-case outbox read
+// `verdict`, and the candidate modal offered no door at all. One predicate now answers
+// it for every surface, beside the outcome fold both buttons already share.
+import * as door from "./comms-resend-outcome.ts";
+
+test("a dead-lettered send offers the one-click retry", () => {
+  assert.equal(door.resendDoorOf({ verdict: "failed", channel: "email" }), "retry");
+});
+
+test("a bounce offers the corrected-address door — the same address would bounce again", () => {
+  assert.equal(door.resendDoorOf({ verdict: "bounced", channel: "email" }), "correctAddress");
+});
+
+test("recovered, sent and queued letters offer no door (a recovered row drew a 409 that read as a fresh failure)", () => {
+  for (const verdict of ["recovered", "sent", "queued", "orphaned"]) {
+    assert.equal(door.resendDoorOf({ verdict, channel: "email" }), null, verdict);
+  }
+});
+
+test("a simulation row never offers a door — the route refuses it with COMM_SIMULATION_ROW", () => {
+  assert.equal(door.SIM_COMMS_CHANNEL, "simulation");
+  assert.equal(door.resendDoorOf({ verdict: "failed", channel: door.SIM_COMMS_CHANNEL }), null);
+  // The row the simulation actually writes: `queued` on the simulation channel.
+  assert.equal(door.resendDoorOf({ verdict: "queued", channel: door.SIM_COMMS_CHANNEL }), null);
+});
+
+test("a REFUSED row never offers a door — it has no recipient, so the route 422s before any correction", () => {
+  // comms-dispatch.ts records a refusal (no inbox, agent population) as a `failed` row
+  // on this channel with recipient "". It is a decision, not a dead letter: a retry
+  // could only be refused again, and it does not need the recruiter.
+  assert.equal(door.REFUSED_COMMS_CHANNEL, "refused");
+  assert.equal(door.resendDoorOf({ verdict: "failed", channel: door.REFUSED_COMMS_CHANNEL }), null);
+});
+
+test("an anonymized or consent-expired candidate is offered no door — the send gate would refuse it", () => {
+  assert.equal(door.resendDoorOf({ verdict: "failed", channel: "email" }, "anonymized"), null);
+  assert.equal(door.resendDoorOf({ verdict: "bounced", channel: "email" }, "expired"), null);
+  // Every contactable state keeps the door.
+  for (const status of ["active", "expiring", "none", null, undefined]) {
+    assert.equal(door.resendDoorOf({ verdict: "failed", channel: "email" }, status), "retry", String(status));
+  }
+});
+
+test("lettersNeedingYou counts exactly the letters that offer a door", () => {
+  const rows = [
+    { verdict: "failed", channel: "email" },
+    { verdict: "bounced", channel: "email" },
+    { verdict: "recovered", channel: "email" },
+    { verdict: "sent", channel: "email" },
+    { verdict: "queued", channel: "email" },
+    { verdict: "failed", channel: "simulation" },
+    { verdict: "failed", channel: "refused" },
+  ];
+  assert.equal(door.lettersNeedingYou(rows), 2);
+  assert.equal(door.lettersNeedingYou(rows, "anonymized"), 0, "an erased candidate needs no letter chased");
+  assert.equal(door.lettersNeedingYou([]), 0);
+});
