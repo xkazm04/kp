@@ -79,6 +79,24 @@ Explain while the run navigates tabs, spotlights elements and opens the offer
 frame. The run is interruptible at every beat (`SimStop`), and `reset()` waits
 for the in-flight mutation before deleting the SIM rows.
 
+**Resuming a walk after a reload.** A reload, a crashed tab or a presenter who
+navigated away mid-demo leaves the walk's rows on the board. When the console has
+residue to explain and no OTHER tab holds a live lease, `SimulationProvider` reads
+the board once and `resumePointOf(board)` (`simWalkResume.ts`) derives where the
+walk stands: the (SIM) job (only rows whose job title carries the marker; a real
+candidate is never a resume target), the candidate it was following (the furthest
+along, best match first) and the first chapter whose postcondition the board does
+not show yet, every stage resolved by ROLE from the live axis. The console's primary
+action becomes **Resume at <phase>** (the followed candidate in its title), beside
+Reset. `run(from)` claims with `POST /api/sim/reset { hold: true, keep: true }`,
+which takes the lease and purges nothing, seeds the job and candidate, logs
+`log.resuming`, and walks `chaptersFrom(phase)`. Entering at Hired first asks
+`/api/sim/offer-link` for the offer token; no open offer means the offer was never
+sent (the board cannot tell those apart), so the walk enters at Offer instead.
+Entering at Interview after the slot was already confirmed skips the scheduling. A
+finished walk (the target on the terminal column) offers Reset, not Resume; an
+empty board offers Start. Keyless like the rest of the walk.
+
 **What the walk writes to the address bar: a tab, and nothing else.** Each
 chapter navigates with `nav({ tab, ...clearedTabScopedParams() })` — a bare tab
 switch, exactly like a sidebar click, so the URL through a whole run reads
@@ -117,6 +135,7 @@ dock, in `dock` an action that toggles the left companion window. See
 | `SimControlDockOrb.tsx` / `SimControlDockRail.tsx` | The rest state, and the two elements outside the panel's borders |
 | `simControlCenterKit.ts` | `useControlMode()`, `useAutomationPass()`, `usePublishBarHeight()` |
 | `SimulationProvider.tsx` + `useSimulationEngine.ts` + `useSimulationWalk.ts` | The run: state, the per-phase engine, the tab walk |
+| `simWalkResume.ts` | The PURE resume derivation: `readResume` / `resumePointOf` (board entries + axis -> the chapter to enter at, the job and the followed candidate, or why there is none: `empty` / `complete`) and `chaptersFrom`. Unit-tested beside it |
 | `simWalkSteps.ts` | The PURE chapter sequencing lifted out of the walk: `SIM_CHAPTERS` (id, tab, spotlight target, timings), `simChapter`, and the halt conditions (`matchHalt` / `offerHalt`). Unit-tested beside it, including the invariant that the chapters ARE `SIM_PHASES` |
 | `simMove.ts` | The PURE scripted MOVES: `SIM_MOVES` (per move, the anchors clicked in order and the product file that must render each), `moveSelector`, `moveOutcome` (dom / api, the fallback reason, the halt), `simSubject` (the fallback's (SIM) gate) and `hiredEffect`. The engine's `move()` runs them. Unit-tested beside it, including source scans that every declared anchor exists and that the walk makes no unchecked POST |
 | `simRunControl.ts` | The PURE run-control ordering: `runControlFlags` (start/pause/resume/stop) and `performReset` (stop -> settle -> purge, reporting whether the purge succeeded). Unit-tested beside it |
@@ -168,7 +187,12 @@ None. Nothing in this directory owns a table.
   and the walk's own `finally` sends nothing at all when its start was refused
   (`releaseInit(null)` is `null`). Until that pair landed the release was
   unconditional on both sides: a second tab refused with `SIM_RUN_ACTIVE` freed the
-  first tab's lease anyway, and the next press wiped a live run. The walk also
+  first tab's lease anyway, and the next press wiped a live run. A RESUME claims with
+  `{ hold: true, keep: true }`: the same lease, and no purge. It stays unstealable:
+  the caller's OWN live lease is re-taken only by presenting its token (kept per tab in
+  session storage, `storedLease` / `storeLease` in `simRunLease.ts`, so a reload whose
+  `pagehide` release was lost can take it back), and a live lease under any other
+  token refuses the resume with `SIM_RUN_ACTIVE` exactly as it refuses a Start. The walk also
   **renews** at every phase gate: `POST /api/sim/reset { renew: true }` with the same
   token pushes the expiry out a full TTL, claiming nothing and purging nothing (a
   non-owner gets `SIM_RUN_NOT_OWNER`). Step mode is the walk's default, so a run
@@ -306,5 +330,11 @@ an explicit guard rather than a special-case fake:
   door (above) rather than pretending. Closing this needs the owner decision on demo
   capabilities plus a seeded demo tenant; until then the demo is a self-host/dev
   surface, not a public-SaaS one.
-- The seven `SIM_PHASES` are a fixed script. There is no way to run a subset, and
-  no way to replay one phase without a full reset.
+- The seven `SIM_PHASES` are a fixed script. A walk can be RESUMED at the chapter
+  its board shows (`simWalkResume.ts`), but there is no way to run a chosen subset,
+  or to replay a chapter the board has already passed, without a full reset.
+  `chaptersFrom` is the entry point a "start from one phase" control would reuse.
+- That a resumed walk really skips the chapters before its entry point is pinned by
+  the pure `chaptersFrom` and the route's keep claim; the walk itself (the chapter
+  table in `useSimulationWalk.ts`) has been verified by reading, not by a browser
+  run.
