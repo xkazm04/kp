@@ -4,7 +4,7 @@
 // This bounds + sanitizes the entry-id set so a bulk request can't be unbounded
 // or carry duplicates that would mint two links for the same candidate.
 
-import { isDeliverableAddress } from "./comms-recipient";
+import { isDeliverableAddress, resolveCandidateRecipient } from "./comms-recipient";
 
 /** Hard ceiling on one bulk invite — generous for a real cohort, a backstop
  *  against an accidental "invite everyone in a 10k pool" request. */
@@ -28,34 +28,45 @@ export function coerceBulkEntryIds(raw: unknown, cap: number = BULK_INVITE_CAP):
   return out;
 }
 
-/** The fields `candidateRecipient` consults. Kept structural so this planner
- *  never imports the dispatcher (or any DB module). */
+/** The fields the recipient cascade consults — resolved through THE cascade in
+ *  comms-recipient.ts (the one comms-dispatch's `candidateRecipient` applies), never a
+ *  private copy of it. Structural, so this planner stays pure and DB-free. */
 export type BulkInviteTarget = {
   contact?: string | null;
   candidateLabel?: string | null;
   candidateId?: string | null;
+  population?: string | null;
 };
 
-function bulkInviteRecipient(entry: BulkInviteTarget): string {
-  return (entry.contact ?? "").trim() || (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
-}
+/** A send-gate verdict for one target, as the caller asks it (comms-contactability.ts's
+ *  `entryContactability`). Only a CODED refusal matters here — consent lapsed, erased —
+ *  because addressability is decided below through the same cascade; `null` = no gate. */
+export type BulkInviteSendGate<T> = (entry: T) => { ok: boolean; code?: string } | null;
 
-/** Split a cohort into people a relay can mail, people it would dead-letter, and
- *  inviteable overflow past `cap`. Addressability uses the same cascade + check
- *  as outbound comms; it does NOT refuse an opted-out candidate — schedule mail
- *  is transactional and still owed. Pure, no DB. */
+/** Split a cohort into people a relay can mail, people the SEND GATE refuses
+ *  (`suppressed` — consent lapsed or erased; asked FIRST, because it is the
+ *  irreversible reason), people it would dead-letter, and inviteable overflow past
+ *  `cap`. Addressability uses the same cascade + check as outbound comms; it does NOT
+ *  refuse an opted-out candidate — schedule mail is transactional and still owed, and
+ *  the send gate agrees (its halt applies to `outreach` only). Pure, no DB: the gate is
+ *  handed in by the route. */
 export function partitionBulkInviteTargets<T extends BulkInviteTarget>(
   entries: readonly T[],
-  cap: number = BULK_INVITE_CAP
-): { inviteable: T[]; unaddressable: T[]; overflow: T[] } {
+  cap: number = BULK_INVITE_CAP,
+  sendGate: BulkInviteSendGate<T> = () => null
+): { inviteable: T[]; suppressed: T[]; unaddressable: T[]; overflow: T[] } {
   const inviteable: T[] = [];
+  const suppressed: T[] = [];
   const unaddressable: T[] = [];
   for (const entry of entries) {
-    if (isDeliverableAddress(bulkInviteRecipient(entry))) inviteable.push(entry);
+    const gate = sendGate(entry);
+    if (gate && !gate.ok && gate.code) suppressed.push(entry);
+    else if (isDeliverableAddress(resolveCandidateRecipient(entry))) inviteable.push(entry);
     else unaddressable.push(entry);
   }
   return {
     inviteable: inviteable.slice(0, cap),
+    suppressed,
     unaddressable,
     overflow: inviteable.slice(cap),
   };

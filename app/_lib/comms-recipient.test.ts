@@ -50,3 +50,12 @@ test("recipientRefusal names the agent population and nothing else", () => {
   assert.equal(recipientRefusal({ population: null }), null);
   assert.equal(recipientRefusal({}), null, "an entry from before the column is a person");
 });
+
+test("resolveCandidateRecipient: contact ▸ label ▸ id ▸ the literal, and null for an agent", async () => {
+  const { resolveCandidateRecipient } = await import("./comms-recipient.ts");
+  assert.equal(resolveCandidateRecipient({ contact: " jane@firma.cz ", candidateLabel: "Jane" }), "jane@firma.cz");
+  assert.equal(resolveCandidateRecipient({ contact: "", candidateLabel: " Jan ", candidateId: "c2" }), "Jan");
+  assert.equal(resolveCandidateRecipient({ candidateLabel: "  ", candidateId: "c3" }), "c3");
+  assert.equal(resolveCandidateRecipient({}), "candidate");
+  assert.equal(resolveCandidateRecipient({ contact: "x@y.cz", population: "agent" }), null);
+});

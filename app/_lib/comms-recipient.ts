@@ -80,3 +80,24 @@ export function recipientRefusal(entry: { population?: string | null }): string 
   }
   return null;
 }
+
+// ---- THE recipient cascade --------------------------------------------------
+// Every candidate message resolves its `to` in this priority order: captured contact
+// ▸ display name ▸ candidate id ▸ the literal "candidate" — and an agent-population
+// entry resolves to NOTHING (refused above). `candidateRecipient` (comms-dispatch.ts)
+// is the dispatcher's name for it; the bulk invite planner used to keep a private,
+// byte-for-byte copy "so it never imports the dispatcher". It lives here instead —
+// import-free, like the rest of this file — so a pre-send check and the send itself
+// cannot resolve two different addresses for one candidate.
+
+/** The recipient a candidate message would be addressed to, or null when the entry is
+ *  refused outright (an AI agent on the slate). */
+export function resolveCandidateRecipient(entry: {
+  candidateLabel?: string | null;
+  candidateId?: string | null;
+  contact?: string | null;
+  population?: string | null;
+}): string | null {
+  if (recipientRefusal(entry)) return null;
+  return (entry.contact ?? "").trim() || (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || UNADDRESSABLE_LITERAL;
+}
