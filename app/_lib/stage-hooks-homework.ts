@@ -30,8 +30,8 @@
 // every refusal. That outbox row is also this hook's idempotence key.
 
 import { meterGate } from "./billing/enforce";
-import { candidateRecipient, dispatchCaseInvite } from "./comms-dispatch";
-import { isDeliverableAddress } from "./comms-recipient";
+import { dispatchCaseInvite } from "./comms-dispatch";
+import { entryContactability } from "./comms-contactability";
 import type { OutboxStatus } from "./comms-status";
 import { planStep } from "./decision-config-schema";
 import { getDevCase, listDevCasesForJob, listOutboxFiltered, createLifecycle, getLifecycle, getOpenPosting, type DevCaseRecord } from "./db/devcase";
@@ -75,7 +75,7 @@ export type HomeworkArrivalOutcome =
    *  claim, forwarded verbatim — never narrowed or upgraded on the way out. */
   | { outcome: "invited"; delivery: OutboxStatus; postingId: string }
   /** Nothing was sent, and the reason is on the server log. The move still stands. */
-  | { outcome: "failed"; reason: "unaddressable" | "billing" | "no_case" | "error" };
+  | { outcome: "failed"; reason: "unaddressable" | "suppressed" | "billing" | "no_case" | "error" };
 
 /**
  * Run the homework arrival for an already-COMMITTED stage move.
@@ -110,6 +110,16 @@ export async function runHomeworkArrival(
   if (!jobId) return { outcome: "skipped", reason: "no_job" };
 
   try {
+    // THE SEND GATE FIRST — before a case is designed or a token published. A candidate
+    // whose consent has lapsed (not yet swept) or who was erased still carries a contact,
+    // so the addressability check further down let them through: the hook published a
+    // live apply token (or ran the whole design chain first) and only the dispatch threw.
+    // entryContactability asks commsSendSuppression the way sendComm will.
+    const gate = entryContactability(entry, CASE_INVITE_KIND);
+    if (!gate.ok && gate.code) {
+      return refuse(entry, "suppressed", `the send gate refuses this candidate (${gate.reason})`);
+    }
+
     // The job's newest SENDABLE assignment. Newest-first is `listDevCasesForJob`'s own
     // order, and it is workspace-scoped there — a job id is not an authority to read
     // another team's cases.
@@ -136,12 +146,17 @@ async function inviteToCase(
   workspaceId: string,
   origin: string | null
 ): Promise<HomeworkArrivalOutcome> {
-  // Unaddressable candidates are refused BEFORE anything is published — same predicate
-  // the comms layer itself uses, so "unaddressable" means here exactly what it means in
-  // the Outbox. Asked first because publishing mints a live apply token, and minting one
-  // for a letter that has nowhere to go is a real side effect nobody asked for.
-  if (!isDeliverableAddress(candidateRecipient(entry))) {
-    return refuse(entry, "unaddressable", "no deliverable contact address is on file");
+  // Uncontactable candidates are refused BEFORE anything is published — the same verdict
+  // (and the same send gate) the comms layer itself applies, so "unaddressable" and
+  // "suppressed" mean here exactly what they mean in the Outbox. Asked again here, after
+  // a design round that may have taken minutes, because publishing mints a live apply
+  // token and minting one for a letter that cannot go is a real side effect nobody asked
+  // for. The dispatch's own gate stays the final re-check.
+  const contactable = entryContactability(entry, CASE_INVITE_KIND);
+  if (!contactable.ok) {
+    return contactable.code
+      ? refuse(entry, "suppressed", `the send gate refuses this candidate (${contactable.reason})`)
+      : refuse(entry, "unaddressable", "no deliverable contact address is on file");
   }
 
   // An OPEN posting is reused verbatim — a case must hand every candidate the identical
@@ -300,7 +315,7 @@ function alreadyInvited(entryId: string, token: string, workspaceId: string): bo
  */
 function refuse(
   entry: { id: string },
-  reason: "unaddressable" | "billing" | "no_case" | "error",
+  reason: "unaddressable" | "suppressed" | "billing" | "no_case" | "error",
   why: string
 ): HomeworkArrivalOutcome {
   console.warn(`[stage-hooks:homework] ${entry.id}: no assignment sent (${reason}) — ${why}.`);

@@ -42,8 +42,7 @@
 
 import { afterResponse } from "./after-response";
 import { meterGate } from "./billing/enforce";
-import { candidateRecipient } from "./comms-dispatch";
-import { isDeliverableAddress } from "./comms-recipient";
+import { entryContactability } from "./comms-contactability";
 import { getDecisionConfigVersion } from "./decision-config-store";
 import { getPipelineEntry, setApproval } from "./db/pipeline";
 import { latestInterviewByEntry } from "./db/interviews";
@@ -113,7 +112,7 @@ export type StageEnteredOutcome =
   /** Minted and dispatched; `delivery` is the outbox's real claim. */
   | { outcome: "invited"; delivery: "sent" | "queued" | "failed"; token: string }
   /** Nothing was minted; the candidate was parked for a human and the reason logged. */
-  | { outcome: "failed"; reason: "unaddressable" | "billing" | "call_in_progress" | "error" };
+  | { outcome: "failed"; reason: "unaddressable" | "suppressed" | "billing" | "call_in_progress" | "error" };
 
 export type StageEnteredInput = {
   entryId: string;
@@ -252,12 +251,19 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
       return { outcome: "already_invited" };
     }
 
-    // Unaddressable candidates are skipped BEFORE the mint, not after: minting
+    // Uncontactable candidates are skipped BEFORE the mint, not after: minting
     // burns an LLM grounding build and reserves voice minutes for a link that has
-    // no way of reaching anybody. Same predicate the comms layer itself uses, so
-    // "unaddressable" means here exactly what it means in the Outbox.
-    if (!isDeliverableAddress(candidateRecipient(entry))) {
-      return failOpenToTheHumanQueue(entry, workspaceId, "unaddressable", "no deliverable contact address is on file");
+    // no way of reaching anybody — or that we may no longer send. The verdict asks
+    // THE send gate (commsSendSuppression) the way sendComm will, so "suppressed"
+    // (consent lapsed but not yet swept, or erased) and "unaddressable" mean here
+    // exactly what they mean in the Outbox. Both are PARKED, never silently skipped:
+    // the Schedule docket shows the candidate, and a human who then tries the single
+    // scheduling-invite door is refused with the same COMMS_SUPPRESSED code.
+    const contactable = entryContactability(entry, "interview_invite");
+    if (!contactable.ok) {
+      return contactable.code
+        ? failOpenToTheHumanQueue(entry, workspaceId, "suppressed", `the send gate refuses this candidate (${contactable.reason})`)
+        : failOpenToTheHumanQueue(entry, workspaceId, "unaddressable", "no deliverable contact address is on file");
     }
 
     if (branch === "ai_invite_held") {
@@ -336,7 +342,7 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
 function failOpenToTheHumanQueue(
   entry: { id: string; approvalKind: string | null },
   workspaceId: string,
-  reason: "unaddressable" | "billing" | "call_in_progress" | "error",
+  reason: "unaddressable" | "suppressed" | "billing" | "call_in_progress" | "error",
   why: string
 ): StageEnteredOutcome {
   console.warn(`[stage-hooks] ${entry.id}: AI interview link not minted (${reason}) — ${why}. Parked for a human.`);
