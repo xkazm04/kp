@@ -1,4 +1,4 @@
-import { listAnalyses } from "@/app/_lib/db/analyses";
+import { listAnalysesPage, listAnalysisFacets } from "@/app/_lib/db/analyses";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -35,16 +35,36 @@ export async function GET(request: Request) {
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   try {
-    const limit = clampLimit(new URL(request.url).searchParams.get("limit"));
-    const rows = listAnalyses(limit, await currentWorkspace());
+    const params = new URL(request.url).searchParams;
+    const limit = clampLimit(params.get("limit"));
+    const workspaceId = await currentWorkspace();
+    // History's query (challenge-r09 cv-analyze-workspace/A): the filters run in the
+    // store, after the newest-per-(cv_hash, jd_slug) collapse and BEFORE the window, so
+    // a search or a filter answers over the whole workspace rather than the newest 200.
+    // Every param is optional and a blank or unknown value narrows nothing: a bare GET is
+    // the same newest-200 answer it always was.
+    const page = listAnalysesPage(
+      {
+        q: params.get("q") ?? "",
+        family: params.get("family") ?? "",
+        seniority: params.get("seniority") ?? "",
+        disposition: params.get("disposition") ?? "",
+        cursor: params.get("cursor"),
+        limit,
+      },
+      workspaceId
+    );
     return jsonOk({
-      analyses: rows,
+      analyses: page.rows,
       limit,
-      // A full page is indistinguishable from "exactly this many exist" without asking for
-      // one more row, and this list collapses re-runs by (cv_hash, jd_slug) so a COUNT(*)
-      // would answer a different question. Reporting the boundary honestly is what the
-      // client needs: it can ask for more, and it can stop claiming the list is complete.
-      truncated: rows.length >= limit,
+      // The store's cap+1 read, not `rows.length >= limit`: that re-derivation called an
+      // exact fit "cut". This list collapses re-runs by (cv_hash, jd_slug), so a COUNT(*)
+      // would answer a different question; one extra group is the honest boundary.
+      truncated: page.truncated,
+      // Where the next page of THIS query starts (keyset, stable under concurrent saves).
+      nextCursor: page.nextCursor,
+      // The dropdown vocabulary for the whole workspace, never the loaded page.
+      facets: listAnalysisFacets(workspaceId),
     });
   } catch (error) {
     // The thrown message carries SQLITE_* text and the absolute db path; the client gets

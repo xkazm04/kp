@@ -1,5 +1,6 @@
 import { ensureDb, insertWithUniqueSlug, prunePromptCache, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
+import { foldText, registerKpFold } from "../text-fold";
 import { githubAnalysisSchema, type GithubAnalysis } from "../schemas";
 // EXPLICIT `.ts`, matching app/_lib/schemas.ts:2 — the repo's existing value import of
 // this file. Extensionless works for the type-only imports elsewhere because those are
@@ -145,14 +146,63 @@ export function saveAnalysis(input: SaveAnalysisInput, workspaceId: string = DEF
 
 /** One page of History plus an HONEST truncation flag — same contract as
  *  listJobsPage. `truncated` is true when at least one more (cv_hash, jd_slug)
- *  group than `limit` exists, so a caller can say "latest 100 of more" instead of
- *  presenting a cut slice as the whole corpus. */
-export type AnalysesPage = { rows: AnalysisListRow[]; truncated: boolean; limit: number };
+ *  group than `limit` matched, so a caller can say "newest 100 of more" instead of
+ *  presenting a cut slice as the whole corpus. `nextCursor` is where the next page
+ *  of the SAME query starts (null when nothing more matched). */
+export type AnalysesPage = { rows: AnalysisListRow[]; truncated: boolean; limit: number; nextCursor: string | null };
 
-export function listAnalysesPage(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysesPage {
-  const db = ensureDb();
+/** History's query (challenge-r09 cv-analyze-workspace/A). History used to fetch the
+ *  newest 200 groups and search/filter that slice on the client, so every answer past
+ *  200 groups was wrong. The filters now run here, AFTER the newest-per-group collapse
+ *  and BEFORE the window. Every field is optional; a blank or unrecognised value
+ *  narrows nothing (the clampLimit posture: a read, never refused over a typo). */
+export type AnalysesQuery = {
+  /** Folded (text-fold.ts) and matched against "<candidate_label> <slug>". */
+  q?: string;
+  family?: string;
+  seniority?: string;
+  /** advance | hold | pass, or 'undecided' for a group with no recorded decision. */
+  disposition?: string;
+  /** An opaque nextCursor from the previous page of the same query. */
+  cursor?: string | null;
+  limit?: number;
+};
+
+export const ANALYSES_QUERY_DISPOSITIONS = [...ANALYSIS_DISPOSITIONS, "undecided"] as const;
+
+/** The keyset cursor: the last row's (created_at, slug). slug is unique, so the pair is
+ *  a total order, and a row saved between two page loads (always newer than the cursor)
+ *  never shifts, repeats or skips a row of a later page, which an OFFSET would. */
+function encodeAnalysesCursor(row: { created_at: string; slug: string }): string {
+  return Buffer.from(JSON.stringify([row.created_at, row.slug]), "utf8").toString("base64url");
+}
+
+function decodeAnalysesCursor(raw: string | null | undefined): { createdAt: string; slug: string } | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(raw.trim(), "base64url").toString("utf8"));
+    if (Array.isArray(parsed) && parsed.length === 2 && typeof parsed[0] === "string" && typeof parsed[1] === "string") {
+      return { createdAt: parsed[0], slug: parsed[1] };
+    }
+  } catch {
+    /* a malformed cursor reads as "from the top": the client merges pages by slug, so nothing doubles */
+  }
+  return null;
+}
+
+export function listAnalysesPage(query: number | AnalysesQuery = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysesPage {
+  const db = registerKpFold(ensureDb());
+  const opts: AnalysesQuery = typeof query === "number" ? { limit: query } : (query ?? {});
   // Defensive clamp: SQLite treats LIMIT -1 as unbounded.
-  const cap = Number.isInteger(limit) && limit > 0 ? limit : 100;
+  const cap = Number.isInteger(opts.limit) && (opts.limit as number) > 0 ? (opts.limit as number) : 100;
+  const needle = foldText(typeof opts.q === "string" ? opts.q.trim() : "");
+  const family = typeof opts.family === "string" ? opts.family.trim() : "";
+  const seniority = typeof opts.seniority === "string" ? opts.seniority.trim() : "";
+  const disposition =
+    typeof opts.disposition === "string" && (ANALYSES_QUERY_DISPOSITIONS as readonly string[]).includes(opts.disposition)
+      ? opts.disposition
+      : "";
+  const cursor = decodeAnalysesCursor(opts.cursor);
   // Content-addressed grouping: a re-run of the same CV (same cv_hash) against the
   // same JD used to add a fresh History row every time — duplicates piled up even
   // when the compute was a pure cache hit. We now return the NEWEST row per
@@ -166,6 +216,9 @@ export function listAnalysesPage(limit = 100, workspaceId: string = DEFAULT_WORK
   //     always kept with prior_runs = 0 — behavior-identical to before for old data.
   //   - jd_slug is compared with `IS` (null-safe): two JD-less runs of the same CV
   //     group together; a CV run against different JDs does NOT.
+  //   - The query's filters test the KEPT row only, so they run after the collapse: a
+  //     superseded run's 'pass' can never resurface its group under a 'pass' filter.
+  //   - The page is keyset-cut on (created_at DESC, slug DESC); see encodeAnalysesCursor.
   // Every subquery carries workspace_id (tenancy source guard) and matches a.workspace_id.
   // LIMIT cap+1 is the listJobsPage shape: the extra group is how truncated is known
   // without a COUNT round-trip over a different question (ungrouped rows).
@@ -189,12 +242,69 @@ export function listAnalysesPage(limit = 100, workspaceId: string = DEFAULT_WORK
                AND n.jd_slug IS a.jd_slug
                AND (n.created_at > a.created_at
                     OR (n.created_at = a.created_at AND n.rowid > a.rowid)))
-       ORDER BY a.created_at DESC
+         AND (? = '' OR instr(kp_fold(COALESCE(a.candidate_label, '') || ' ' || a.slug), ?) > 0)
+         AND (? = '' OR a.role_family = ?)
+         AND (? = '' OR a.seniority = ?)
+         AND (? = ''
+              OR (? = 'undecided' AND (a.disposition IS NULL OR a.disposition = ''))
+              OR a.disposition = ?)
+         AND (? IS NULL OR a.created_at < ? OR (a.created_at = ? AND a.slug < ?))
+       ORDER BY a.created_at DESC, a.slug DESC
        LIMIT ?`
     )
-    .all(workspaceId, cap + 1) as AnalysisListRow[];
+    .all(
+      workspaceId,
+      needle,
+      needle,
+      family,
+      family,
+      seniority,
+      seniority,
+      disposition,
+      disposition,
+      disposition,
+      cursor?.createdAt ?? null,
+      cursor?.createdAt ?? null,
+      cursor?.createdAt ?? null,
+      cursor?.slug ?? null,
+      cap + 1
+    ) as AnalysisListRow[];
   const truncated = rows.length > cap;
-  return { rows: truncated ? rows.slice(0, cap) : rows, truncated, limit: cap };
+  const page = truncated ? rows.slice(0, cap) : rows;
+  const last = page.at(-1);
+  return { rows: page, truncated, limit: cap, nextCursor: truncated && last ? encodeAnalysesCursor(last) : null };
+}
+
+/** History's dropdown vocabulary for the WHOLE workspace. It used to be derived from
+ *  the loaded page, so a family only older runs carry could not be picked at all, and
+ *  once the page IS the filtered answer that would collapse each picker to the value
+ *  already chosen (the lesson listCaseLedgerFacets documents). Read over the KEPT
+ *  (newest-per-group) rows, the set the filters test, so no offered value can only
+ *  ever answer "no match". */
+export type AnalysisFacets = { families: string[]; seniorities: string[] };
+
+export function listAnalysisFacets(workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisFacets {
+  const db = ensureDb();
+  const pairs = db
+    .prepare(
+      `SELECT DISTINCT a.role_family, a.seniority
+       FROM analyses a
+       WHERE a.workspace_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM analyses n
+             WHERE n.workspace_id = a.workspace_id
+               AND a.cv_hash IS NOT NULL AND n.cv_hash = a.cv_hash
+               AND n.jd_slug IS a.jd_slug
+               AND (n.created_at > a.created_at
+                    OR (n.created_at = a.created_at AND n.rowid > a.rowid)))`
+    )
+    .all(workspaceId) as Array<{ role_family: string | null; seniority: string | null }>;
+  const vocabulary = (values: Array<string | null>) =>
+    [...new Set(values.filter((v): v is string => typeof v === "string" && v.trim() !== ""))].sort();
+  return {
+    families: vocabulary(pairs.map((p) => p.role_family)),
+    seniorities: vocabulary(pairs.map((p) => p.seniority)),
+  };
 }
 
 /** History as a bare array (unchanged contract for existing callers).
@@ -203,7 +313,7 @@ export function listAnalysesPage(limit = 100, workspaceId: string = DEFAULT_WORK
  *  `.length` on the result is the size of the slice, NOT a count. Use
  *  listAnalysesPage when you need to know the slice was cut. */
 export function listAnalyses(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID): AnalysisListRow[] {
-  return listAnalysesPage(limit, workspaceId).rows;
+  return listAnalysesPage({ limit }, workspaceId).rows;
 }
 
 // Cross-job linkage (content-addressed identity): every OTHER analysis of the
