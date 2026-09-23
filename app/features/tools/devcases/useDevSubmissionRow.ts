@@ -7,7 +7,7 @@ import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvide
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { assertScore } from "@/app/_lib/format";
-import { parseRepoRef } from "@/app/_lib/repo-snapshot";
+import { parseRepoRef } from "@/app/_lib/repo-ref";
 import { githubAnalysisSchema, type GithubAnalysis } from "@/app/_lib/schemas";
 import { foldPromoteResponse, type PromoteRecommendation } from "@/app/_lib/devcase-promote-verdict";
 import { evalTaskView } from "./devEvalTaskState";
