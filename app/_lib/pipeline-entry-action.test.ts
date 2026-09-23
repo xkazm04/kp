@@ -23,7 +23,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { createPipelineEntry, getPipelineEntry, setApproval } from "./db/pipeline.ts";
+import { createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval } from "./db/pipeline.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { runPipelineEntryAction } from "./pipeline-entry-action.ts";
 
@@ -213,4 +213,40 @@ test("shipped axis: offer_review at Offer still extends (the legitimate path is 
   assert.equal(res.status, 200);
   assert.equal(res.body.offerExtended, true);
   assert.equal(getPipelineEntry(entry.id, WS_SHIPPED)!.stage, "Offer");
+});
+
+// ---- a rejection comm that throws AFTER the committed write -----------------
+// challenge-r05 pipeline-actions-commands/A. The reject is committed before the comm
+// is queued, so a comms throw used to escape the core: the ATS `candidate.rejected`
+// event and the group-eval expiry below it were skipped, and the single route
+// answered 500 for a reject that had in fact happened. Now the throw is recorded as
+// a `rejection_comms_failed` marker, the caller hears `commsFailed: true` on a 200,
+// and both mirrors still run.
+test("reject: a throwing dispatchRejection still answers 200, marks the entry, and runs the ATS + cache mirrors", async () => {
+  const entry = entryFixture(WS_SHIPPED, "Screened");
+  const ats: string[] = [];
+  const expired: string[] = [];
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SHIPPED },
+    {
+      dispatchRejection: async () => {
+        throw new Error("relay down");
+      },
+      dispatchAtsEvent: async (event, entryId) => {
+        ats.push(`${event}:${entryId}`);
+      },
+      invalidateGroupEvalSelection: (roleKey) => {
+        expired.push(roleKey);
+        return 0;
+      },
+    }
+  );
+  assert.equal(res.status, 200);
+  assert.equal(res.body.commsFailed, true);
+  const fresh = getPipelineEntry(entry.id, WS_SHIPPED)!;
+  assert.equal(fresh.status, "rejected", "the committed reject stands");
+  const kinds = listPipelineEventsForEntry(entry.id, 50, WS_SHIPPED).map((e) => e.kind);
+  assert.ok(kinds.includes("rejection_comms_failed"), `a nudge marker is recorded (got ${kinds.join(",")})`);
+  assert.deepEqual(ats, [`candidate.rejected:${entry.id}`], "the ATS mirror still fires");
+  assert.deepEqual(expired, [entry.jobId], "the group-eval cache is still expired");
 });

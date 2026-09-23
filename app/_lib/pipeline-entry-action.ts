@@ -30,6 +30,11 @@ import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_l
 // maps it to its own transport shape — a NextResponse for the single route, a
 // per-id { ok, reason } row for the batch route.
 //
+// The command bar (/api/pipeline/command → command/execute.ts) is the third bulk
+// door and writes through here too (challenge-r05): it declares `via: "command_bar"`
+// so its seals say which rule decided, and it maps each { status, body } to one of
+// its count / failed / held buckets.
+//
 // Scope: the three board actions — `set_stage` (manual override), `accept`,
 // `reject`. The route keeps owning the non-move actions (set_github, set_notes,
 // reinstate, resolve_intake) since those never appear in a batch.
@@ -82,7 +87,25 @@ export type EntryActionInput = {
   // offer_review accept. Every route already has it (new URL(request.url).origin).
   origin: string;
   workspaceId: string;
+  // Which bulk door raised this decision. The command bar (the third door, beside the
+  // single and batch routes) declares itself so its seal carries policyVersion
+  // "command-bar" rather than "manual": a typed `reject below 40%` is a rule the
+  // recruiter wrote, and the chain must say which rule decided. Absent = "manual".
+  via?: "command_bar";
+  // The command bar's typed percentage (reject_below), sealed as a decisive input.
+  threshold?: number;
 };
+
+// The post-commit mirrors, injectable so a test can force the one failure a real
+// board cannot produce on demand: a rejection comm that throws AFTER the write
+// committed. Defaults are the real functions; every production caller passes none.
+export type EntryActionDeps = {
+  dispatchRejection: typeof dispatchRejection;
+  dispatchAtsEvent: typeof dispatchAtsEvent;
+  invalidateGroupEvalSelection: typeof invalidateGroupEvalSelection;
+};
+
+const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchAtsEvent, invalidateGroupEvalSelection };
 
 // A plain, transport-agnostic result: status + JSON body. ok is the 200 case.
 export type EntryActionResult = { status: number; body: Record<string, unknown> };
@@ -133,10 +156,14 @@ const ok = (body: Record<string, unknown>): EntryActionResult => ({ status: 200,
  * a failed request. A miss costs one stale modal open (which the pool-drift banner
  * still discloses); a throw here would cost the recruiter their decision.
  */
-function expireCachedGroupEvals(entry: PipelineEntry | null | undefined, workspaceId: string): void {
+function expireCachedGroupEvals(
+  entry: PipelineEntry | null | undefined,
+  workspaceId: string,
+  invalidate: typeof invalidateGroupEvalSelection = invalidateGroupEvalSelection
+): void {
   if (!entry) return;
   try {
-    invalidateGroupEvalSelection(entry.jobId ?? entry.jobTitle ?? "unassigned", workspaceId);
+    invalidate(entry.jobId ?? entry.jobTitle ?? "unassigned", workspaceId);
   } catch (error) {
     console.warn("[pipeline-entry-action] group-eval cache expiry failed:", error instanceof Error ? error.message : error);
   }
@@ -279,7 +306,10 @@ export async function extendDraftedOffer(
   return ok({ entry: getPipelineEntry(entry.id, workspaceId), offerExtended: true, link });
 }
 
-export async function runPipelineEntryAction(input: EntryActionInput): Promise<EntryActionResult> {
+export async function runPipelineEntryAction(
+  input: EntryActionInput,
+  deps: EntryActionDeps = REAL_DEPS
+): Promise<EntryActionResult> {
   const { id, action, toStage, expectedStage, origin, workspaceId } = input;
   // See SIM_ACTOR: an unrecognized/absent value stays "human" (real clicks).
   const simActor = input.actor === SIM_ACTOR;
@@ -317,7 +347,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       // The CAS lost in the gap or the entry is closed out — the caller's view is stale.
       return err(409, "PIPELINE_MOVE_CONFLICT", { entry: fresh });
     }
-    expireCachedGroupEvals(moved, workspaceId);
+    expireCachedGroupEvals(moved, workspaceId, deps.invalidateGroupEvalSelection);
     return ok({ entry: moved });
   }
 
@@ -437,7 +467,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
           handoff: "human_round",
         },
       });
-      expireCachedGroupEvals(current, workspaceId);
+      expireCachedGroupEvals(current, workspaceId, deps.invalidateGroupEvalSelection);
       return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });
     }
   }
@@ -465,10 +495,11 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
     // Read from `current` (the pre-write snapshot), never `updated` — the write
     // above already cleared the approval columns.
     const { aiRecommendation, aiConfidence } = aiVerdict(current);
+    const viaCommandBar = input.via === "command_bar";
     sealDecisionSafe({
       kind: action === "reject" ? (simActor ? "auto_rejected" : "rejected") : simActor ? "auto_advanced" : "advanced",
       actor: sealActor,
-      policyVersion: "manual",
+      policyVersion: viaCommandBar ? "command-bar" : "manual",
       candidateRef: id,
       rationale: trimmedDetail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${current.stage}.`,
       reasonCode: action,
@@ -481,17 +512,45 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
         aiRecommendation,
         aiConfidence,
         approvalKind: current.approvalKind ?? null,
+        // The rule the recruiter typed is a decisive input: "below 40%" and "below
+        // 60%" reject different people, and only the seal can say which was run.
+        // Added only for the command bar, so the manual seal's shape is unchanged.
+        ...(viaCommandBar && typeof input.threshold === "number" ? { threshold: input.threshold } : {}),
       },
     });
   }
   // A human reject is the gate; the candidate hears about it (queued by default).
-  if (action === "reject") await dispatchRejection(updated);
+  //
+  // GUARDED, because the reject above is already COMMITTED: an unguarded throw here
+  // skipped the ATS event and the cache expiry below and answered 500 for a decision
+  // that had happened, so a caller retried a reject that could no longer apply. The
+  // failure is stated instead: a nudge marker on the timeline (the raw cause stays in
+  // the server log, since a pipeline event's detail reaches the Activity feed) and
+  // `commsFailed: true` on the 200. Both mirrors below still run.
+  let commsFailed = false;
+  if (action === "reject") {
+    try {
+      await deps.dispatchRejection(updated);
+    } catch (commsError) {
+      commsFailed = true;
+      console.warn(`[pipeline-entry-action] rejection comms failed for ${updated.id}:`, commsError);
+      recordAutomationEvent(
+        updated.id,
+        "rejection_comms_failed",
+        input.via === "command_bar"
+          ? "Rejected via command bar, but the notification failed to queue — nudge manually."
+          : "Rejected, but the notification failed to queue — nudge manually.",
+        workspaceId,
+        sealActor
+      );
+    }
+  }
   // …and so does the customer's system of record, if it subscribed. `candidate.rejected`
   // was offered in the integrations panel and emitted from nowhere: only the hire ever
   // fired, so a connector built on the vocabulary we publish saw half the funnel and
   // silently kept rejected candidates open. Fire-and-forget beside the comm, for the same
   // reason it is: the decision is committed and neither mirror may undo it.
-  if (action === "reject") void dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
-  expireCachedGroupEvals(updated, workspaceId);
-  return ok({ entry: updated });
+  if (action === "reject") void deps.dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
+  expireCachedGroupEvals(updated, workspaceId, deps.invalidateGroupEvalSelection);
+  return ok({ entry: updated, ...(commsFailed ? { commsFailed: true } : {}) });
 }
