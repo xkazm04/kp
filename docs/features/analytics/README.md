@@ -215,7 +215,9 @@ chart beneath is the evidence. Which claim the funnel band may make is one pure 
 
 The bottleneck stage is selected by median wait among stages with at least three
 active entries, so one exceptionally old case does not redirect the claim. The
-displayed days remain that selected stage's rounded average.
+displayed days remain that selected stage's rounded average. The waits it ranks are
+the **as-of-now occupants** (see the dwell panel below), not the window's creation
+cohort, so the "stalled" claim and the dwell rows under it count the same people.
 
 Precedence is the argument: movement licenses a conversion number at all, so it is checked
 first; dwell keeps precedence over conversion; a goal is the last gate before the band may
@@ -291,9 +293,28 @@ call a stage weak.
 - **`AnalyticsStageDwellPanel`** carries the three edges the consolidated funnel dropped:
   KO-gate discards before the first stage (`koDeclined`), `stageDwell` inside them (each row
   linking to that stage on the board), and the offer leg after the last
-  (`AnalyticsOfferLegPanel`, honesty-gated below its min-offers floor). Dwell bars are one
-  neutral tone scaled to the longest wait on screen: no org goal exists for per-stage dwell,
-  so a colour would be a verdict nobody set.
+  (`AnalyticsOfferLegPanel`, honesty-gated below its min-offers floor).
+- **`stageDwell` is everyone waiting NOW, on the one aging clock** (challenge-r05
+  analytics-metrics/B). `app/_lib/db/analytics-stage-dwell.ts` `stageDwellNow` reads every
+  active, non-demo entry of the workspace (and role, under `?job=`) regardless of the
+  window: the band's claim says "waiting right now", and the old fold over the window's
+  creation cohort dropped every long waiter created before it. Per stage it reports
+  `count`, `medianDays` + `oldestDays` (the pair, not a mean; `avgDays` is kept for older
+  readers), `pastCadence` (tier `aging` or `stalled` via `aging-policy.ts` `agingTier`,
+  whole days — exactly the board's `?quick=aging` set), `stalled`, `cadenceDays` and
+  `cadenceSource` (`team` when the column carries `slaDays`, else `default` for its role).
+  It is as-of-now, so it is never diffed against the prior window. The pure row model
+  (`stageDwellGate.ts` `dwellRowModel`) decides what a row may claim: below
+  `BOTTLENECK_MIN_SAMPLE` (3) occupants no median is printed, only the count and the oldest;
+  the bar and the past-cadence count are coloured over (coral) / within (moss) **only against
+  a cadence the team set** — against the shipped default they stay neutral; a past-cadence
+  count links to `?tab=pipeline&stage=X&quick=aging` (`dwellBoardFilter`). Bars are scaled
+  to the oldest wait on screen. Every live non-terminal column (`cadenceEditable`) carries a
+  cadence field (`AnalyticsStageCadenceInput.tsx`) that writes through the r03 route
+  `PATCH /api/pipeline/stage-sla`; a `DECISION_CONFIG_INVALID` refusal reads as the band's
+  own bounds sentence and every other code through the errors catalog
+  (`stageCadenceSavePlan.ts`). Tests: `app/_lib/db/analytics-stage-dwell.test.ts`,
+  `stageDwellGate.test.ts`, `stageCadenceSavePlan.test.ts`.
 - **The by-role table** (`AnalyticsByRoleTable.tsx`) puts a `ColumnFilter mode="search"` in
   the Role header, filters client-side, makes the CSV follow the filter, reports
   `{shown} of {total}` while searching and the server cap otherwise, and prints a cap note
