@@ -167,6 +167,10 @@ export const GATE_PATHS = [
   /^scripts\/security\//,
   /^scripts\/i18n-check\.mjs$/,
   /^pipeline\/jobfit\/tests\/run_gated\.py$/,
+  // The Python skip register: WHICH tests may skip. Its length is pinned to
+  // KP_SKIP_BASELINE (whose raise blocks), but swapping one id for another, or
+  // flipping `always` to `env-conditional`, is a JSON edit a reviewer must see.
+  /^pipeline\/jobfit\/tests\/skip-register\.json$/,
   /^app\/api\/rate-limit-contract\.test\.ts$/,
   /^app\/_lib\/tenancy\.ts$/,
 ];

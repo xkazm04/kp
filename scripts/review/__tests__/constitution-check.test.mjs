@@ -517,6 +517,17 @@ check('editing gate machinery is always surfaced, never blocking', () => {
   assert.equal(sev(f, 'gate-configuration'), 'warn');
 });
 
+check('editing the Python skip register is surfaced as gate machinery', () => {
+  const f = rules(
+    diff({
+      path: 'pipeline/jobfit/tests/skip-register.json',
+      removed: ['      "when": "always",'],
+      added: ['      "when": "env-conditional",'],
+    }),
+  );
+  assert.equal(sev(f, 'gate-configuration'), 'warn');
+});
+
 check('ordinary source does not trip the gate-machinery rule', () => {
   const f = rules(diff({ path: 'app/_lib/a.ts', added: ['const x = 1;'] }));
   assert.ok(!has(f, 'gate-configuration'));

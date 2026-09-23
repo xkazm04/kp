@@ -1,0 +1,59 @@
+{
+  "$comment": [
+    "The Python tests the gated suite (npm run test:python:gate) is ALLOWED to skip,",
+    "keyed by unittest test id. Read by pipeline/jobfit/tests/run_gated.py, which",
+    "ci.yml runs in the python-gate job. The rules live in that module's",
+    "evaluate_skips / register_problems; the short version:",
+    "",
+    "A SKIP NOT NAMED HERE fails the run BY NAME, even when the skip count is",
+    "unchanged. An `always` entry that RAN fails the run as stale, with the edit",
+    "that retires it. An `env-conditional` entry that ran is a note: it skips only",
+    "where its `condition` holds (CI) and runs in a full checkout.",
+    "",
+    "THE LENGTH OF THIS LIST MUST EQUAL KP_SKIP_BASELINE in .github/workflows/ci.yml,",
+    "and exactly ENV_CONDITIONAL_SKIPS (run_gated.py) entries are env-conditional.",
+    "So tolerating a new skip takes an entry here AND a raised baseline, which the",
+    "review:constitution lens blocks (skip-baseline-raised). That is deliberate:",
+    "fix the cause instead. Checked BEFORE the suite runs: an id no discovered test",
+    "has (dead), a `why` under 20 characters (unexplained), a duplicate id, a",
+    "`when` outside always | env-conditional.",
+    "",
+    "AN ENTRY IS:",
+    "  id         the unittest id: pipeline.jobfit.tests.<module>.<Class>.<method>",
+    "  when       always | env-conditional",
+    "  condition  what makes it skip, as the skip site states it",
+    "  why        why skipping it is tolerated rather than fixed"
+  ],
+  "skips": [
+    {
+      "id": "pipeline.jobfit.tests.test_interview_eval.TestGroundedBridge.test_grounded_brief_renders_the_real_run_of_show",
+      "when": "env-conditional",
+      "condition": "self.skipTest when the grounded DB-fixture bridge is unavailable: it spawns node + better-sqlite3, and the Python-only CI job installs no node_modules",
+      "why": "The bridge needs the Node dependency tree the python-gate job deliberately does not install; it RUNS in a full checkout, which is what makes it the one env-conditional entry."
+    },
+    {
+      "id": "pipeline.jobfit.tests.test_claude_cli.LiveSmokeTest.test_real_cli_pong",
+      "when": "always",
+      "condition": "skipUnless KP_CLAUDE_CLI_LIVE=1, which CI never sets (its inner `claude CLI not on PATH` skip is unreachable behind it)",
+      "why": "A live call to the real Claude CLI: it spends a subscription and needs a logged-in CLI, so it is opt-in by design and never part of a keyless run."
+    },
+    {
+      "id": "pipeline.jobfit.tests.test_pdf_parsing_quality.PdfParsingQualityTest.test_pypdf_extracts_linkedin_export_well",
+      "when": "always",
+      "condition": "skipUnless the personal CV fixture linkedin-profile.pdf exists",
+      "why": "The fixture is a real person's CV and is intentionally not committed; the synthetic letter-spaced fixture covers the extraction path in every run."
+    },
+    {
+      "id": "pipeline.jobfit.tests.test_pdf_parsing_quality.PdfParsingQualityTest.test_pypdf_collapses_letter_spaced_text_real_cv",
+      "when": "always",
+      "condition": "skipUnless the personal CV fixture technical-cv.pdf exists",
+      "why": "The fixture is a real person's CV and is intentionally not committed; test_pypdf_collapses_letter_spaced_text pins the same collapse on a synthetic fixture."
+    },
+    {
+      "id": "pipeline.jobfit.tests.test_pdf_parsing_quality.PdfParsingQualityTest.test_gemini_pdf_extraction_returns_structured_skills",
+      "when": "always",
+      "condition": "skipUnless technical-cv.pdf exists AND GEMINI_API_KEY or GOOGLE_API_KEY is set",
+      "why": "Needs the uncommitted personal CV fixture and a paid Gemini key; CI has neither, and a keyless run must not spend money."
+    }
+  ]
+}
