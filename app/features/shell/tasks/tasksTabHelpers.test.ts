@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ALL_STATUSES, sortTasks, taskTime, unseenIdsOf } from "./tasksTabHelpers";
+import { ALL_STATUSES, REPLAY_REASON_KEY, rowRetryAction, sortTasks, taskTime, unseenIdsOf } from "./tasksTabHelpers";
 import type { Task, TaskStatus } from "./tasksProviderTypes";
 
 function task(id: string, status: TaskStatus, stamps: Partial<Pick<Task, "createdAt" | "startedAt" | "finishedAt">> = {}): Task {
@@ -113,4 +113,50 @@ test("the dwell-ack is wired to the PAGED rows, not to the polled window", () =>
   assert.match(panel, /unseenIdsOf\(shown\)/, "the panel must derive the ack set from its page slice");
   assert.match(panel, /onSeen\(ids\)/, "…and hand exactly those ids to the ack");
   assert.doesNotMatch(read("TasksTab.tsx"), /markSeen\(/, "the tab must not ack the unpaginated window");
+});
+
+// ── challenge-r05 workspace-config-api/B: the row reads the server's replay verdict ──
+
+test("rowRetryAction: a dead analyze whose inputs are gone names the reason and the Analyze door", () => {
+  const row = { ...task("a", "failed"), kind: "analyze", replay: { replayable: false as const, reason: "inputs-gone" as const } };
+  assert.deepEqual(rowRetryAction(row), { kind: "blocked", reason: "inputs-gone", door: { tab: "analyze" } });
+});
+
+test("rowRetryAction: a replayable dead row offers Retry", () => {
+  assert.deepEqual(rowRetryAction({ ...task("b", "failed"), replay: { replayable: true as const } }), { kind: "retry" });
+});
+
+test("rowRetryAction: an older server that sends no verdict degrades to today's Retry", () => {
+  for (const status of ["failed", "interrupted", "canceled"] as const) {
+    assert.deepEqual(rowRetryAction(task("c", status)), { kind: "retry" }, status);
+  }
+});
+
+test("rowRetryAction: a succeeded or active row offers nothing", () => {
+  for (const status of ["succeeded", "running", "queued"] as const) {
+    assert.deepEqual(rowRetryAction(task("d", status)), { kind: "none" }, status);
+    assert.deepEqual(rowRetryAction({ ...task("d", status), replay: null }), { kind: "none" }, status);
+  }
+});
+
+test("rowRetryAction: seat and retired-kind blocks carry no door (no tab can run them for this caller)", () => {
+  assert.deepEqual(rowRetryAction({ ...task("e", "failed"), kind: "batch_screen", replay: { replayable: false as const, reason: "no-seat" as const } }), {
+    kind: "blocked",
+    reason: "no-seat",
+    door: null,
+  });
+  assert.deepEqual(rowRetryAction({ ...task("f", "failed"), kind: "old", replay: { replayable: false as const, reason: "kind-retired" as const } }), {
+    kind: "blocked",
+    reason: "kind-retired",
+    door: null,
+  });
+});
+
+test("every blocked reason resolves to a catalog key, never server English", () => {
+  const en = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "../../../../messages/en.json"), "utf8"));
+  for (const reason of ["inputs-gone", "kind-retired", "no-seat"] as const) {
+    const key = REPLAY_REASON_KEY[reason];
+    assert.equal(typeof en.tasks.replay[key], "string", `tasks.replay.${key}`);
+  }
+  assert.equal(typeof en.tasks.replay.openAnalyze, "string");
 });
