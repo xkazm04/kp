@@ -440,6 +440,32 @@ Locked by `app/api/stop/stop-token-route.test.ts` and `comms-optout-gate.test.ts
   refusals) and answers `409 COMM_ALREADY_RESENT` on a repeat. A dead letter with no `ref` (the
   entry-less KO-decline case) correlates on its own outbox id, so the refless
   shape can no longer be resent without bound (`resend-dedup.test.ts`).
+- **Every candidate dispatcher returns its verdict** (`DispatchOutcome` in
+  `app/_lib/comms-dispatch.ts`). The channel has two failure signals: a *throw*
+  (the send gate refused) and a *returned* `failed` row (the relay dead-lettered,
+  or the recipient was refused). `sendCandidateComm` maps the recorded row once,
+  in `dispatchOutcome()`, to `sent | queued | failed | refused` (a row on the
+  `refused` channel is `refused`, not `failed`) plus the row's `status`, id and
+  failure detail. `dispatchApplicationReceived`, `dispatchRejection`,
+  `dispatchOffer`, `dispatchOfferReminder`, `dispatchConsentExpiryReminder` and
+  `dispatchKnockoutDecline` return it. Every `*_sent` pipeline event
+  (`acknowledgement_sent`, `rejection_sent`, `offer_sent`, `offer_reminder_sent`,
+  `interview_reminder_sent`) is written only when `delivered(outcome)` is true
+  (`sent` or keyless `queued`). The consumers that make claims read the verdict,
+  not just a catch:
+  - `extendDraftedOffer` (`app/_lib/pipeline-entry-action.ts`): a `failed` or
+    `refused` verdict takes the same compensation branch as a throw. The
+    approval stays on the card, `offer_comms_failed` is recorded, the answer is
+    `502 OFFER_NOT_DISPATCHED` with `offerExtended: false`, and the retry re-sends
+    the same offer token. The unattended auto-extend (`automation-run.ts`) keys
+    off that status, so it no longer reports `offer_sent` for a dead letter, and
+    the analytics "offers extended" count (`offer_sent`) stops counting one.
+  - The reject core (single, batch, command bar) and the screen wave
+    (`app/_lib/screen-wave.ts`) count a resolved dead letter as `commsFailed`
+    with one `rejection_comms_failed` marker. A `refused` verdict (an agent on
+    the slate, with no mailbox by design) is neither a nudge nor a send.
+  Nothing sends more than before: only claims and events are gated. Pinned by
+  `app/_lib/comms-dispatch-verdict.test.ts`.
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
