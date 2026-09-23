@@ -273,6 +273,29 @@ before the Analyze button in DOM order, and what blind mode redacts is the
 checkbox's visible hint rather than a `title` attribute. Pinned by
 `analyzeDesignSurface.test.ts`.
 
+**The footer preflights what the engine can read.** A scanned CV (an image-only
+PDF) extracts to empty text without raising, and in blind mode the engine then
+refuses (`pipeline.py` halts, `gemini.py` raises `blind_unavailable`) — a refusal
+the recruiter used to meet only after the upload, and which in a multi-CV compare
+dropped the variant after the other engine calls had spent. Each attached CV and
+JD file is now measured once when it is attached: `.txt`/`.md` locally, PDF/DOCX
+through `/api/extract-text` (whose `charCount`/`pageCount` this is the first
+reader of), cached per session by `cvVariantHash`. `AnalyzeReadabilityStrip`
+shows one row per file — pages and characters, **thin** under the engine's own
+120-character bar, **no text layer**, unreadable, or not checked. The rules live
+in `analyzeCvReadability.ts` (`preflightVerdict`) and follow fail-closed on an
+unmaskable document: **blind + a CV with no text (or one the extractor refuses)
+disables Analyze** with the reason and two remedies (*Run without blind
+screening*, *Remove* that CV); while a check is still pending a blind run waits
+for it. Without blind a scan is an amber note (the model reads the raw file
+itself); a rate-limited, timed-out or offline check (`unchecked`) never blocks —
+the engine's server-side refusal stays behind the preflight as the enforcement.
+An empty JD **file** is named too, louder when pasted JD text is also present,
+because `analyze-run.ts` passes the file in preference to the text. Cost: one
+extractor spawn per distinct PDF/DOCX (the door's 20/10 min per-IP limit
+answering 429 reads as `unchecked`), and the pipeline extracts again at run time.
+Pinned by `analyzeCvReadability.test.ts`.
+
 **A refused upload answers a CODE, in the reader's language.** The document gate
 (`app/_lib/upload-constraints.ts`) returns `UPLOAD_UNSUPPORTED_TYPE` /
 `UPLOAD_TOO_LARGE` — the document twins of the audio gate's `AUDIO_*` pair — on
@@ -1050,6 +1073,7 @@ expiry instant, and the card switches from hours to minutes in the final hour.
 |---|---|
 | CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
 | Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
+| Analyze preflight (readability + blind guard) | `app/features/tools/analyze/analyzeCvReadability.ts`, `useAnalyzeReadability.ts`, `AnalyzeReadabilityStrip.tsx`, mounted by `AnalyzeFormFooter.tsx` |
 | Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
 | Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
 | Offer response | `app/offer/[token]/OfferClient.tsx`, `offer-deadline.ts`, `app/_lib/offer-finalize.ts` |
