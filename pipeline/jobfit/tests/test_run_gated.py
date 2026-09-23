@@ -25,8 +25,16 @@ def entry(test_id: str, when: str = "always", why: str = WHY) -> dict:
     return {"id": test_id, "when": when, "why": why, "condition": "a condition"}
 
 
+# The env-conditional MECHANISM stays policy code even though the committed register no
+# longer uses it (the interview-eval grounded bridge became a committed snapshot, so its
+# skip went away and ENV_CONDITIONAL_SKIPS is 0). The fixtures below model a register WITH
+# one env-conditional slot, so they pass that count explicitly rather than inheriting the
+# committed default.
+ENV = 1
+
+
 def ci_register() -> list[dict]:
-    """The shape of the real register: one environment-conditional entry, four always."""
+    """A register with one environment-conditional entry and four always."""
     return [entry(A, "env-conditional"), entry(B), entry(C), entry(D), entry(E)]
 
 
@@ -51,7 +59,7 @@ class EvaluateSkipsTest(unittest.TestCase):
     def test_2_substitution_inside_the_count_band_is_named(self) -> None:
         # B (always) stopped skipping and a brand-new Y took its slot: the count is
         # still 5, inside today's 4-5 band, so the count gate alone said nothing.
-        verdict = run_gated.evaluate_skips(skipped(A, C, D, E, Y), ci_register(), 5)
+        verdict = run_gated.evaluate_skips(skipped(A, C, D, E, Y), ci_register(), 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
         out = text(verdict)
         self.assertIn(Y, out)
@@ -61,13 +69,13 @@ class EvaluateSkipsTest(unittest.TestCase):
     def test_3_local_hole_env_conditional_ran_and_a_new_skip_took_the_slot(self) -> None:
         # A full checkout: the env-conditional A runs (count 4) and a new Y skips
         # (count 5 <= ceiling). Today's band exits 0 on exactly this run.
-        verdict = run_gated.evaluate_skips(skipped(B, C, D, E, Y), ci_register(), 5)
+        verdict = run_gated.evaluate_skips(skipped(B, C, D, E, Y), ci_register(), 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
         self.assertIn(Y, text(verdict))
         self.assertIn("not in pipeline/jobfit/tests/skip-register.json", text(verdict))
 
     def test_4_stale_always_entry_names_the_exact_edit(self) -> None:
-        verdict = run_gated.evaluate_skips(skipped(A, C, D, E), ci_register(), 5)
+        verdict = run_gated.evaluate_skips(skipped(A, C, D, E), ci_register(), 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
         self.assertIn(
             f"stale register entry {B} ran - delete it and set KP_SKIP_BASELINE to 4 "
@@ -76,33 +84,33 @@ class EvaluateSkipsTest(unittest.TestCase):
         )
 
     def test_5_env_conditional_entry_that_ran_is_a_note_not_a_failure(self) -> None:
-        verdict = run_gated.evaluate_skips(skipped(B, C, D, E), ci_register(), 5)
+        verdict = run_gated.evaluate_skips(skipped(B, C, D, E), ci_register(), 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 0, text(verdict))
         self.assertIn(A, text(verdict))
         self.assertIn("ran", text(verdict))
 
     def test_6_register_length_must_equal_the_baseline(self) -> None:
-        problems = run_gated.register_problems(ci_register(), 6)
+        problems = run_gated.register_problems(ci_register(), 6, env_conditional=ENV)
         self.assertTrue(problems)
         self.assertTrue(any("5" in p and "6" in p for p in problems), problems)
-        verdict = run_gated.evaluate_skips(skipped(A, B, C, D, E), ci_register(), 6)
+        verdict = run_gated.evaluate_skips(skipped(A, B, C, D, E), ci_register(), 6, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
 
     def test_7_dead_or_unexplained_entries_are_refused(self) -> None:
         discovered = {A, B, C, D, E}
         dead = ci_register()[:4] + [entry(P + "Gone")]
-        problems = run_gated.register_problems(dead, 5, discovered)
+        problems = run_gated.register_problems(dead, 5, discovered, env_conditional=ENV)
         self.assertTrue(any("dead" in p and P + "Gone" in p for p in problems), problems)
 
         short = ci_register()[:4] + [entry(E, why="too short")]
-        problems = run_gated.register_problems(short, 5, discovered)
+        problems = run_gated.register_problems(short, 5, discovered, env_conditional=ENV)
         self.assertTrue(any("unexplained" in p and E in p for p in problems), problems)
 
-        self.assertEqual(run_gated.register_problems(ci_register(), 5, discovered), [])
+        self.assertEqual(run_gated.register_problems(ci_register(), 5, discovered, env_conditional=ENV), [])
 
     def test_8_allow_skip_overrides_the_verdict(self) -> None:
         verdict = run_gated.evaluate_skips(
-            skipped(Y), ci_register(), 5, allow_skip=True
+            skipped(Y), ci_register(), 5, allow_skip=True, env_conditional=ENV
         )
         self.assertEqual(verdict.code, 0)
 
@@ -119,22 +127,22 @@ class EvaluateSkipsTest(unittest.TestCase):
         # Today's floor (baseline - 1) refuses that run; the register must too.
         register = [entry(A, "env-conditional"), entry(B, "env-conditional"),
                     entry(C), entry(D), entry(E)]
-        problems = run_gated.register_problems(register, 5)
+        problems = run_gated.register_problems(register, 5, env_conditional=ENV)
         self.assertTrue(any("env-conditional" in p for p in problems), problems)
-        verdict = run_gated.evaluate_skips(skipped(C, D, E), register, 5)
+        verdict = run_gated.evaluate_skips(skipped(C, D, E), register, 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
         self.assertIn("< floor 4", text(verdict))
 
     def test_9_duplicate_ids_are_refused(self) -> None:
         # Five rows, four distinct tests: the length check alone would pass.
         register = [entry(A, "env-conditional"), entry(B), entry(B), entry(C), entry(D)]
-        problems = run_gated.register_problems(register, 5)
+        problems = run_gated.register_problems(register, 5, env_conditional=ENV)
         self.assertTrue(any("duplicate" in p and B in p for p in problems), problems)
-        verdict = run_gated.evaluate_skips(skipped(A, B, C, D), register, 5)
+        verdict = run_gated.evaluate_skips(skipped(A, B, C, D), register, 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
 
     def test_9_the_ceiling_still_holds(self) -> None:
-        verdict = run_gated.evaluate_skips(skipped(A, B, C, D, E, Y), ci_register(), 5)
+        verdict = run_gated.evaluate_skips(skipped(A, B, C, D, E, Y), ci_register(), 5, env_conditional=ENV)
         self.assertEqual(verdict.code, 1)
         self.assertIn("> ceiling 5", text(verdict))
 
@@ -162,6 +170,18 @@ class CommittedRegisterTest(unittest.TestCase):
     def test_committed_register_matches_ci_baseline(self) -> None:
         ci = (run_gated.REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn(f'KP_SKIP_BASELINE: "{len(run_gated.load_register())}"', ci)
+
+    def test_committed_register_has_no_env_conditional_entry(self) -> None:
+        # The one env-conditional skip (the interview-eval grounded DB-fixture bridge) is
+        # gone: the eval reads a committed brief snapshot, so the test runs everywhere and
+        # the tolerated band is exactly KP_SKIP_BASELINE, with no floor below it.
+        register = run_gated.load_register()
+        self.assertEqual(run_gated.ENV_CONDITIONAL_SKIPS, 0)
+        self.assertEqual([r["id"] for r in register if r.get("when") == "env-conditional"], [])
+        self.assertEqual(len(register), 4)
+        self.assertNotIn("TestGroundedBridge", json.dumps(register))
+        ci = (run_gated.REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn('KP_SKIP_BASELINE: "4"', ci)
 
     def test_committed_register_is_json_with_a_skips_list(self) -> None:
         data = json.loads(run_gated.REGISTER_PATH.read_text(encoding="utf-8"))
