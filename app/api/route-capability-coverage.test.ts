@@ -212,6 +212,10 @@ const ALLOWED = new Map<string, string>([
     "public token door — the candidate's ePrivacy Art. 13(4) opt-out, authed by the capability link in the URL, never a seat. " +
       "It is also the RFC 8058 one-click target a mail provider POSTs unattended, so a seat check would make the header inert",
   ],
+  [
+    "stop/[token]/language/route.ts",
+    "public token door — the candidate choosing the language of our letters, authed by the opt-out link in the URL, never a seat (public-routes.ts)",
+  ],
   ["stt/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["templates/[id]/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["templates/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
