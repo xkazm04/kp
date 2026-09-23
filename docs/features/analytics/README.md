@@ -529,6 +529,19 @@ it: should this score be allowed to decide at all.
   `pipelineCalibrationBandCandidates` labels candidates on that axis only. The hire axis needs
   only stage data and is **not** a hire-quality measure — the curve does not separate a hire
   from an interview, which the copy states rather than leaves to be inferred.
+- **The advance label is the furthest stage reached, not the current one.** A candidate the
+  score advanced to interview who was then moved back to screening (a no-show, through
+  `setPipelineEntryStage`) and rejected there counts `1`, as does one moved back and still
+  active: the screening decision was "advance". The reached set is one bounded
+  `SELECT DISTINCT entry_id, to_stage FROM pipeline_events` per call (`reachedPositiveStages`),
+  and it **ignores `stage_migrated`** events: a Settings → Hiring board edit that moved people
+  onto a later column is not evidence the score advanced anyone. The curve and the band drill
+  apply the one pure rule, `calibrationOutcome()` (`app/_lib/db/pipeline.ts`), so they cannot
+  disagree. The **hire axis keeps the current-position rule**: a hire that was undone (moved
+  back out of the terminal column, still active) is not counted as a hire. This is what feeds
+  `recommendScreeningThreshold` and the apply-threshold write, so an advance-then-no-show no
+  longer reads as a screen-gate reject pushing the recommended floor up. Tests:
+  `app/_lib/db/pipeline-calibration-furthest.test.ts`.
 - **Leakage is per ARM (source × axis), not per source.** `calibrationLeakage(source, outcome)`.
   `pipeline` × `hired` carries its own descriptor, `code: "score-caused-rejects"`, at
   **`level: "high"`**. It is genuinely *better* than the advance arm — reaching a hire takes
