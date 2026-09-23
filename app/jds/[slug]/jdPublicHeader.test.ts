@@ -5,15 +5,21 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { isPublicJdApplyOpen, publicJdAlternates, publicJdHeaderActions } from "./jdPublicHeader.ts";
 
-test("live JD metadata includes four hreflang alternates", () => {
-  const alt = publicJdAlternates("backend-eng", false);
-  assert.ok(alt);
+test("live JD metadata advertises only the languages it serves, never all four by default", () => {
+  const alt = publicJdAlternates("backend-eng", { archived: false, sourceLang: "en", servedLangs: ["cs"], requested: null });
   assert.equal(alt.canonical, "/jds/backend-eng");
-  for (const loc of ["en", "cs", "de", "fr"] as const) {
-    assert.equal(alt.languages[loc], `/jds/backend-eng?lang=${loc}`);
-  }
-  assert.equal(alt.languages["x-default"], "/jds/backend-eng");
-  assert.equal(publicJdAlternates("backend-eng", true), undefined);
+  assert.deepEqual(alt.languages, {
+    en: "/jds/backend-eng?lang=en",
+    cs: "/jds/backend-eng?lang=cs",
+    "x-default": "/jds/backend-eng",
+  });
+  // The old aspirational claim — de/fr alternates with no German or French content.
+  assert.equal("de" in alt.languages, false);
+  assert.equal("fr" in alt.languages, false);
+  assert.deepEqual(publicJdAlternates("backend-eng", { archived: true, sourceLang: "en", servedLangs: ["cs"], requested: null }), {
+    canonical: "/jds/backend-eng",
+    languages: {},
+  });
   const src = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
   assert.match(src, /publicJdAlternates\(slug,/);
 });

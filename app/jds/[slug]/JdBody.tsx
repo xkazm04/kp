@@ -11,7 +11,10 @@ import { Markdown } from "@/app/_components/Markdown";
 // (the server component threads the jdPublic namespace); this client card now
 // does too, so its copy button + empty-state stop being hardcoded English while
 // the rest of the page speaks the candidate's language.
-export function JdBody({ markdown }: { markdown: string }) {
+// `markdown` is the body the page SERVES (the original, or a stored posting
+// translation), so copy-as-Markdown copies what the reader sees; `lang` marks a
+// translated body's language for assistive tech when it differs from the chrome.
+export function JdBody({ markdown, lang }: { markdown: string; lang?: string }) {
   const t = useTranslations("jdPublic");
   const [copied, setCopied] = useState(false);
   // An empty/whitespace JD rendered a blank white card on the flagship shareable page
@@ -36,7 +39,7 @@ export function JdBody({ markdown }: { markdown: string }) {
     }
   };
   return (
-    <article className="relative rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
+    <article lang={lang} className="relative rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
       {hasContent ? (
         <button
           type="button"

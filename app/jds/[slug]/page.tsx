@@ -5,15 +5,46 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Send, UserPlus } from "lucide-react";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { RecordRecent } from "@/app/features/shell/RecordRecent";
-import { getJob, getJobWorkspace, loadJd, type JdRow } from "@/app/_lib/db/jobs";
+import { getJob, getJobWorkspace, getRoleOpenConfig, jdLastEditedAt, loadJd, type JdRow } from "@/app/_lib/db/jobs";
+import { listJobTranslations } from "@/app/_lib/db/job-translations";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { postingSourceLang } from "@/app/_lib/job-translate-run";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { isOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jdMarketResearchAvailable } from "@/app/features/library/jds/jdsLibrary";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 import { isPublicJdApplyOpen, publicJdAlternates, publicJdHeaderActions } from "./jdPublicHeader";
+import {
+  loadPublicJdLanguages,
+  publicJdRequestedLang,
+  publicJdServedView,
+  publicJdVariantFor,
+  type PublicJdLanguageReads,
+} from "./jdPublicVariant";
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+// The owner team's stored posting renderings (jdPublicVariant.ts). Every read is
+// bound to the workspace loadPublicJd resolved, never the viewer's: a translation is
+// one team's paid rendering, and job_translations has no shared tier.
+const PUBLIC_JD_READS: PublicJdLanguageReads = {
+  translations: listJobTranslations,
+  lastEditedAt: jdLastEditedAt,
+  sourceLang: (jobId, workspaceId) => postingSourceLang(getRoleOpenConfig(jobId, workspaceId).postingLangs),
+};
+
+// The source language named in the reader's own locale (the MT disclosure).
+function languageName(lang: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: "language" }).of(lang) ?? lang;
+  } catch {
+    /* an engine without DisplayNames data still shows the code */
+    return lang;
+  }
+}
 
 
 // First ~155 chars of the JD body, markdown stripped, for the share/search snippet.
@@ -70,25 +101,44 @@ async function loadPublicJd(slug: string): Promise<{ jd: JdRow; owner: string } 
 // app-default title and was invisible to search. Archived roles return noindex so a
 // filled role stops drawing candidate traffic (JDL #4). Pure read; not-found is handled
 // by the page's own notFound() below.
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: SearchParams;
+}): Promise<Metadata> {
   const { slug } = await params;
-  let jd: JdRow | null = null;
+  const { lang } = await searchParams;
+  let found: { jd: JdRow; owner: string } | null = null;
   try {
-    jd = (await loadPublicJd(slug))?.jd ?? null;
+    found = await loadPublicJd(slug);
   } catch {
-    jd = null;
+    found = null;
   }
-  if (!jd) return {};
-  const description = metaDescription(jd.body);
-  const alternates = publicJdAlternates(slug, Boolean(jd.archived_at));
+  if (!found) return {};
+  const { jd, owner } = found;
+  const archived = Boolean(jd.archived_at);
+  // The variant this request serves: the metadata describes THAT document (a Czech
+  // share link unfurls with the Czech title), and the alternates name only what ships.
+  const langs = loadPublicJdLanguages({ slug, owner, archived }, PUBLIC_JD_READS);
+  const view = publicJdServedView({ slug, jd, canManage: false, variant: publicJdVariantFor(langs, lang, archived) });
+  const description = metaDescription(view.body);
   return {
-    title: jd.title,
+    title: view.title,
     description,
-    openGraph: { title: jd.title, description, type: "website" },
-    twitter: { card: "summary", title: jd.title, description },
+    openGraph: { title: view.title, description, type: "website" },
+    twitter: { card: "summary", title: view.title, description },
     // A retired role shouldn't keep ranking / drawing applicants; keep links followable.
-    ...(jd.archived_at ? { robots: { index: false, follow: true } } : {}),
-    ...(alternates ? { alternates } : {}),
+    ...(archived ? { robots: { index: false, follow: true } } : {}),
+    // Always set: metadata merges shallowly, so omitting it would inherit the root
+    // layout's four ./?lang= alternates (an archived role sets an empty list).
+    alternates: publicJdAlternates(slug, {
+      archived,
+      sourceLang: langs.sourceLang,
+      servedLangs: langs.translations.map((t) => t.lang),
+      requested: publicJdRequestedLang(lang),
+    }),
   };
 }
 
@@ -98,14 +148,18 @@ export const instant = false;
 
 export default async function JdDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: SearchParams;
 }) {
   const { slug } = await params;
+  const { lang } = await searchParams;
   // Page chrome renders in the VISITOR's locale (getTranslations = the server-side
   // next-intl pattern the other public pages — schedule/[token], interview/[token]
   // — use; locale resolves from the cookie/Accept-Language via getServerLocale).
-  // The JD BODY stays in its authored language (JdBody below is not translated).
+  // The JD BODY is the authored original unless an explicit ?lang= names a language
+  // the owner team holds a fresh posting translation for (jdPublicVariant.ts).
   const t = await getTranslations("jdPublic");
   const locale = await getLocale();
 
@@ -163,6 +217,13 @@ export default async function JdDetailPage({
   // rail already has Analyze). A candidate on the share link must not see them.
   const headerActions = publicJdHeaderActions({ canManage, applyOpen });
 
+  // Which variant this request serves — read with the OWNER team loadPublicJd
+  // resolved. A translated variant is served whole (its title + body), disclosed,
+  // and carries no operator tools: JdActions edit the original, not the rendering.
+  const archived = Boolean(jd.archived_at);
+  const langs = loadPublicJdLanguages({ slug, owner, archived }, PUBLIC_JD_READS);
+  const view = publicJdServedView({ slug, jd, canManage, variant: publicJdVariantFor(langs, lang, archived) });
+
   // The lint's salary-suppression seam (JdActions' editor now runs the same live
   // lint as the ledger). This page loads the JD's stored build artifacts
   // (analysis_json), so the input is HONEST — a grounded market band or a ticked
@@ -185,7 +246,7 @@ export default async function JdDetailPage({
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-meta uppercase text-coral">{t("eyebrow")} · {slug}</p>
-          <h1 className="mt-1 font-serif text-display text-ink">{jd.title}</h1>
+          <h1 className="mt-1 font-serif text-display text-ink" lang={view.bodyLang}>{view.title}</h1>
           {/* Bare toLocaleString() runs in NODE here (server component), so it formatted
               the stamp in the SERVER's locale — a cs/de/fr visitor on the share link read
               an en-US date under otherwise fully translated chrome. Pass the resolved
@@ -249,12 +310,21 @@ export default async function JdDetailPage({
         </p>
       ) : null}
 
-      {canManage ? (
+      {view.disclosure ? (
+        <p role="note" aria-label={t("translatedRegion")} className={`${NOTICE("info")} mt-4 px-4 py-2 text-sm`}>
+          {t("translatedNotice", { language: languageName(view.disclosure.fromLang, locale) })} {t("translatedDetail")}{" "}
+          <Link href={view.disclosure.originalHref} hrefLang={view.disclosure.fromLang} className="focus-ring font-semibold underline underline-offset-2">
+            {t("readOriginal")}
+          </Link>
+        </p>
+      ) : null}
+
+      {view.showActions ? (
         <JdActions slug={slug} title={jd.title} body={jd.body} archived={Boolean(jd.archived_at)} marketResearch={marketResearch} />
       ) : null}
 
       <div className="mt-6">
-        <JdBody markdown={jd.body} />
+        <JdBody markdown={view.body} lang={view.bodyLang} />
       </div>
     </WorkspaceShell>
   );
