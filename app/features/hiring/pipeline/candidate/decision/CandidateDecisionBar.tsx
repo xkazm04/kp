@@ -91,7 +91,7 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
       </div>
       {/* The offer's band, pricing basis and deadline — decision-critical, so it stays with the buttons. */}
       {isOffer && parsed ? (
-        <AiReviewCardBody parsed={parsed} hasBand={hasBand} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />
+        <AiReviewCardBody entryId={entry.id} parsed={parsed} hasBand={hasBand} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />
       ) : null}
     </section>
   );
