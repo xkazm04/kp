@@ -184,7 +184,7 @@ friction at zero users.
 | Pure reducer | `app/_lib/billing/reduce.ts` | Payload normalization + the state-transition decision table. |
 | Apply / entitlements | `app/_lib/billing/sync.ts`, `app/_lib/billing/entitlements.ts` | Applies reduced events to `billing_state`/`billing_credits`; computes entitled plan + meter allowance. |
 | Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`BILLING_QUOTA_EXCEEDED`) at metered-work creation points. |
-| DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
+| DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_usage_journal`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
 | UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
 | UI — usage & cost | `app/features/settings/billing/spend/**` | Consolidated spend section (see below); moved here from the Models tab. |
@@ -743,6 +743,50 @@ timings** that the old Models panel + System card showed are not on this layout.
 They are still in `GET /api/llm/usage` and `GET /api/ops`; folding the useful
 ones into the footer is a small additive change if they turn out to be missed.
 
+### Every meter debit names its cause: the usage journal
+
+`billing_usage` is a per-month **counter** — `qty = qty + ?` under
+`(org_id, meter, period)` — and it stays the only thing any gate, allowance or charge
+reads. Beside it, `billing_usage_journal` keeps **one row per debit**:
+`qty`, `from_included` (units drawn from the month's allowance; all of `qty` on an
+unlimited meter), `from_credits` (prepaid credits consumed — the magnitude of the
+`consumed` `billing_credits` delta the same debit wrote, clamped exactly as that delta
+is), `source_kind`, `source_ref` and `occurred_at`. Whatever was neither included nor
+credit-covered (an overrun past an empty balance) is `qty − from_included − from_credits`.
+
+- **Same transaction, same numbers.** `recordMeterUsage(meter, qty, now, workspace,
+  source?)` appends the row inside the transaction that increments the counter, from the
+  split it just computed, so the counter and its explanation commit or roll back
+  together. Invariant: for every `(org, meter, period)` the journal has existed in,
+  `SUM(journal.qty) = billing_usage.qty` — `journalIntegrity(orgId)` returns the pairs
+  where it does not hold (a counter from before the journal shipped shows up there with
+  its journaled share; the report is evidence, never a correction). One consequence to
+  know: a journal INSERT that throws now rolls the debit back with it — the amount is
+  never different, but five sites propagate that error and `offer-finalize.ts` logs it.
+- **The cause** (`USAGE_SOURCE_KINDS`, entitlements.ts): `analysis` (ref: the saved
+  analysis slug), `devcase_lifecycle` (ref null — the start route debits before the
+  lifecycle row exists, and moving the debit would change which failures are charged),
+  `devcase_redesign` (the lifecycle id), `interview_session` (the session id),
+  `job_post` (the job id), `hire` (the offer id), and `unattributed` for a caller that
+  passes no source, which journals rather than fails. The six production sites are
+  pinned to pass their kind by `app/_lib/billing/usage-journal.test.ts`.
+- **Duplicates are detected, never refused.** `duplicateUsageSources(orgId, period)`
+  lists a `(meter, kind, ref)` debited more than once (a retried completion, a
+  re-run publish); both debits still count. Refusing one would move money, which is a
+  separate, deliberate change — so is reserve-then-confirm (the gate→debit window in
+  entitlements.ts), for which this per-debit identity is the prerequisite.
+- **No reader yet, and no charge change.** Nothing in the UI or the API reads the
+  journal today (`listUsageJournalForOrg(orgId, period)` is the store read, capped at
+  1000 rows); `billingOverview` gains no key. The r05 charge-parity golden
+  (`__fixtures__/charge-parity.json`) reproduces byte-for-byte.
+- **Tenancy / export / erasure.** Org-keyed like its siblings: in the billing block of
+  the tenancy manifest's exempt list, exported with the org (`'org'`), and every
+  statement binds `org_id` (billing-tenancy.test.ts). **No personal data:** a row holds
+  a meter, quantities, a kind and an opaque record id (a random analysis slug, a session,
+  job, lifecycle or offer id) — never a name, email or free text. The record a ref
+  points at is erased by its own path; the journal row stays as the accounting record
+  of a charge, the same standing `billing_usage` has.
+
 ## Entitlement semantics (`entitlements.ts`)
 
 - Entitled plan: `active`/`trialing` → plan; `past_due` → plan (the MoR runs
@@ -867,6 +911,14 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   It also requires the alert reader's statements (`listBillingAlertsForOrg`,
   `getBillingAlert`, `resolveBillingAlert`) to bind `org_id`, and names the only two
   unscoped alert reads: the operator worklist and the dedupe probe.
+  It pins `billing_usage_journal` separately (its name slips past the `billing_usage`
+  word match): all four journal statements bind `org_id`, `journalIntegrity` on both
+  sides of its join.
+- `app/_lib/billing/usage-journal.test.ts` — the usage journal: one row per debit with
+  its split and cause, SUM(journal) = counter after the parity replay, `from_credits`
+  = the consumed credit delta, duplicates reported not refused, qty ≤ 0 writes nothing,
+  the six production sites' source kinds, cross-org isolation, and the charge-parity
+  GUARD.
 - `app/_lib/billing/alerts.test.ts` — the alert reader: org-filtered store, the
   projection (detail withheld, price_drift operator-only, unknown kinds kept).
 - `app/api/billing/billing-alerts-route.test.ts` — GET `alerts` + wire parity against
