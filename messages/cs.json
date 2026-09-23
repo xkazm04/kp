@@ -9675,6 +9675,10 @@
         "chooseLabel": "Připraveni?",
         "goTitle": "Přejít na moje hledání práce",
         "goBody": "Váš vlastní pracovní prostor: profil a CV, odpovídající nabídky a zdroje, ze kterých přicházejí."
+      },
+      "join": {
+        "readyTitle": "Můžete začít",
+        "readyMeta": "Jazyk: {language}"
       }
     },
     "footer": {

@@ -9675,6 +9675,10 @@
         "chooseLabel": "Prêt ?",
         "goTitle": "Aller à ma recherche d'emploi",
         "goBody": "Votre propre espace : profil et CV, offres correspondantes, et les sources dont elles proviennent."
+      },
+      "join": {
+        "readyTitle": "Vous pouvez commencer",
+        "readyMeta": "Langue : {language}"
       }
     },
     "footer": {

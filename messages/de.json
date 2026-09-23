@@ -9675,6 +9675,10 @@
         "chooseLabel": "Bereit?",
         "goTitle": "Zu meiner Jobsuche",
         "goBody": "Ihr eigener Arbeitsbereich: Profil und Lebenslauf, passende Stellen, die Quellen, aus denen sie stammen."
+      },
+      "join": {
+        "readyTitle": "Sie können loslegen",
+        "readyMeta": "Sprache: {language}"
       }
     },
     "footer": {

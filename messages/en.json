@@ -9675,6 +9675,10 @@
         "chooseLabel": "Ready?",
         "goTitle": "Go to my job search",
         "goBody": "Your own workspace: profile and CV, matching jobs, the sources they come from."
+      },
+      "join": {
+        "readyTitle": "You're ready to start",
+        "readyMeta": "Language: {language}"
       }
     },
     "footer": {
