@@ -9489,7 +9489,11 @@
     "linkedNote": "Edits update the linked role too (its live/draft status is preserved).",
     "editGateReason": "Editing is available to operators only.",
     "editConflict": "This description changed since you opened it. Reload to get the latest, then re-apply your edit.",
-    "editReload": "Reload latest"
+    "editReload": "Reload latest",
+    "translatedNotice": "Machine-translated from {language}.",
+    "translatedDetail": "The original is the authoritative version of this posting.",
+    "readOriginal": "Read the original",
+    "translatedRegion": "About this translation"
   },
   "setup": {
     "aria": {

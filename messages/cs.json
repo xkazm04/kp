@@ -9489,7 +9489,11 @@
     "linkedNote": "Úpravy aktualizují i propojenou pozici (její stav aktivní/koncept se zachová).",
     "editGateReason": "Úpravy jsou dostupné jen operátorům.",
     "editConflict": "Tento popis se od okamžiku, kdy jste ho otevřeli, změnil. Načtěte nejnovější verzi a potom svou úpravu proveďte znovu.",
-    "editReload": "Načíst nejnovější"
+    "editReload": "Načíst nejnovější",
+    "translatedNotice": "Strojově přeloženo, původní jazyk: {language}.",
+    "translatedDetail": "Závazná je původní verze tohoto inzerátu.",
+    "readOriginal": "Zobrazit originál",
+    "translatedRegion": "O tomto překladu"
   },
   "setup": {
     "aria": {

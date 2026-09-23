@@ -9489,7 +9489,11 @@
     "linkedNote": "Les modifications mettent aussi à jour le poste lié (son statut actif/brouillon est préservé).",
     "editGateReason": "La modification est réservée aux opérateurs.",
     "editConflict": "Cette description a changé depuis que vous l’avez ouverte. Rechargez la dernière version, puis réappliquez votre modification.",
-    "editReload": "Recharger la dernière version"
+    "editReload": "Recharger la dernière version",
+    "translatedNotice": "Traduction automatique, langue d’origine : {language}.",
+    "translatedDetail": "Seule la version originale de cette offre fait foi.",
+    "readOriginal": "Lire l’original",
+    "translatedRegion": "À propos de cette traduction"
   },
   "setup": {
     "aria": {
