@@ -47,7 +47,8 @@ export type BriefSnapshot = {
 };
 
 // The grounded fixture: the shape interview-prep-run produces (topic / min window / goal /
-// questions / optional follow-up). Same content as scripts/interview-brief-grounded.ts.
+// questions / optional follow-up). `renderGrounded` below is the one grounded render; the
+// operator view of it is `scripts/interview-brief.ts --brief grounded`.
 export const GROUNDED_FIXTURE_CHRONOLOGY = [
   {
     fromMin: 0, toMin: 5, topic: "Recent backend ownership",

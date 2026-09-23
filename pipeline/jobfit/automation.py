@@ -2417,7 +2417,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
         # scorecard-v7 — the SAME fairness clause the interviewer brief carries
-        # (eval/interview_eval.py::NON_NEGOTIABLES). The brief told the agent not to
+        # (NON_NEGOTIABLES in app/_lib/student-interview.ts). The brief told the agent not to
         # penalise nerves; nothing told the SCORER, which is the half that produces
         # the number a hiring decision is made on. Delivery is not a competency here
         # unless a rubric axis names one.

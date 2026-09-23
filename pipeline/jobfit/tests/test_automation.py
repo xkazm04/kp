@@ -662,7 +662,7 @@ class ScorecardTranscriptTrustTest(unittest.TestCase):
 
     # -- the fairness clause ----------------------------------------------
     def test_the_scoring_prompt_carries_the_briefs_no_penalty_clause(self):
-        # The interviewer brief (eval/interview_eval.NON_NEGOTIABLES) promised never to
+        # The interviewer brief (NON_NEGOTIABLES in app/_lib/student-interview.ts) promised never to
         # penalise nerves or imperfect English - to the agent RUNNING the call. Nothing
         # said it to the model producing the RATING, which is the half a hiring decision
         # reads. Same promise, now on both sides of the interview.

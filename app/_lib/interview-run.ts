@@ -340,7 +340,8 @@ function composeDebriefBrief(
  *  mismatch)" — the shapes TP-L2-VOICE-01 found in the wild. The stored field is
  *  read by the candidate portal's agenda sidebar (app/interview/[token]/page.tsx),
  *  by /api/interview/simulate → InterviewSimTab, and by
- *  scripts/interview-brief-grounded.ts; /api/interview/complete's public
+ *  scripts/interview-briefs-snapshot.ts::renderGrounded (the eval's grounded render,
+ *  also behind scripts/interview-brief.ts --brief grounded); /api/interview/complete's public
  *  projection strips it for exactly this reason, and /api/interview/connect's
  *  contract test forbids the annotations outright. Composing it clean here closes
  *  every one of those readers at once instead of one render site at a time.

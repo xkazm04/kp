@@ -84,7 +84,8 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    `app/_lib/interview-run.ts`, called by `buildGroundedInterview`), so every
    reader of that field is clean at once — the portal's agenda sidebar
    (`app/interview/[token]/page.tsx`), `/api/interview/simulate` →
-   `InterviewSimTab`, and `scripts/interview-brief-grounded.ts`. The
+   `InterviewSimTab`, and the eval's grounded render (`renderGrounded` in
+   `scripts/interview-briefs-snapshot.ts`, behind `scripts/interview-brief.ts --brief grounded`). The
    **interviewer** brief (`composeBrief`) deliberately keeps the raw topic: it
    is server-side and interviewer-internal, which is why
    `/api/interview/complete`'s public projection strips it. Pinned by
@@ -2858,7 +2859,8 @@ sibling narrative. The scorecard now stamps `narrativeLang`
 note exactly as `MatchReasoningPanel` does for the match rationale.
 
 Additionally, the scoring instructions now carry the **same fairness clause the
-interviewer brief carries** (`pipeline/jobfit/eval/interview_eval.py::NON_NEGOTIABLES`):
+interviewer brief carries** (`NON_NEGOTIABLES` in `app/_lib/student-interview.ts`, which
+the eval reads through the generated snapshot `pipeline/jobfit/eval/interview_briefs.json`):
 never lower a rating for nerves, hesitation, filler, silence or imperfect
 grammar/accent, and an honest "I don't know" is not a negative signal. The brief said
 it to the agent *running* the call; nothing said it to the model producing the
