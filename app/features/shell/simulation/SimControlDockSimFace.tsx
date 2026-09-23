@@ -31,11 +31,12 @@ const PHASE_STATE_KEY: Record<PhaseStepState, "phaseCompleted" | "phaseCurrent" 
   upcoming: "phaseUpcoming",
 };
 
-// The one control whose label depends on where the run is: start / run again /
-// next / resume / pause — and, on the public `?sim=auto` demo that has finished,
-// the peak-intent conversion into the app instead of a replay.
+// The one control whose label depends on where the run is: start / resume at a
+// chapter / run again / next / resume / pause — and, on the public `?sim=auto` demo
+// that has finished, the peak-intent conversion into the app instead of a replay.
 function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimulation>; isPublicDemo: boolean }) {
   const t = useTranslations("pipeline.controlCenter");
+  const tSim = useTranslations("simulation");
   if (sim.running) {
     if (sim.awaitingNext) {
       return (
@@ -54,6 +55,22 @@ function PrimaryAction({ sim, isPublicDemo }: { sim: ReturnType<typeof useSimula
     return (
       <button type="button" onClick={sim.pause} className={ctrlGhost}>
         <Pause size={14} /> {t("pause")}
+      </button>
+    );
+  }
+  // A walk the board still shows is RESUMED, not restarted: Start purges it, and the
+  // Reset beside this button stays the way to begin clean on purpose.
+  if (!sim.done && sim.resumable) {
+    const phase = tSim(`phase.${sim.resumable.phase}`);
+    const candidate = sim.resumable.targetLabel;
+    return (
+      <button
+        type="button"
+        onClick={sim.resumeAt}
+        title={candidate ? t("resumeAtTitleCandidate", { phase, candidate }) : t("resumeAtTitle", { phase })}
+        className={`${ctrlBase} bg-ink text-white shadow-sticker-xs hover:opacity-90`}
+      >
+        <Play size={14} /> {t("resumeAt", { phase })}
       </button>
     );
   }

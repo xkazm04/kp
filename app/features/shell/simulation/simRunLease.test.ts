@@ -35,3 +35,29 @@ test("the renew is the same door with no purge: a token, and `renew`", () => {
   assert.equal((init?.headers as Record<string, string>)[SIM_RUN_TOKEN_HEADER], "lease-1");
   assert.deepEqual(JSON.parse(String(init?.body)), { renew: true }, "no `hold`, so the route claims and purges nothing");
 });
+
+test("a Start claims and purges exactly as before; a resume claims with keep and its own token", async () => {
+  const { claimInit } = await import("./simRunLease.ts");
+  const start = claimInit({ token: "lease-9" }, { keep: false });
+  assert.equal(start.body, JSON.stringify({ hold: true }), "the Start shape is unchanged");
+  assert.equal((start.headers as Record<string, string>)[SIM_RUN_TOKEN_HEADER], undefined, "a Start presents nothing");
+
+  const resume = claimInit({ token: "lease-9" }, { keep: true });
+  assert.equal(resume.body, JSON.stringify({ hold: true, keep: true }));
+  assert.equal((resume.headers as Record<string, string>)[SIM_RUN_TOKEN_HEADER], "lease-9", "only the tab's own lease can be re-taken");
+  assert.equal((claimInit(null, { keep: true }).headers as Record<string, string>)[SIM_RUN_TOKEN_HEADER], undefined);
+});
+
+test("the tab's lease survives a reload in session storage, and broken storage is no lease", async () => {
+  const { storeLease, storedLease } = await import("./simRunLease.ts");
+  const mem = new Map<string, string>();
+  const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
+  storeLease(storage, { token: "lease-3" });
+  assert.deepEqual(storedLease(storage), { token: "lease-3" });
+  storeLease(storage, null);
+  assert.equal(storedLease(storage), null);
+  const throwing = { getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); }, removeItem: () => { throw new Error("blocked"); } };
+  assert.equal(storedLease(throwing), null);
+  assert.doesNotThrow(() => storeLease(throwing, { token: "x" }));
+  assert.equal(storedLease(null), null);
+});

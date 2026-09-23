@@ -66,6 +66,11 @@ export async function GET(request: NextRequest) {
 //                         answer the lease TOKEN. Refused with SIM_RUN_ACTIVE (409)
 //                         when another run holds it, so the second visitor is told
 //                         rather than served a wipe of someone else's tour.
+//   POST { hold: true, keep: true }
+//                         a reloaded walk RESUMES: claim the lock (or re-take this
+//                         caller's own live lease by its token), purge NOTHING, and
+//                         answer the token. Refused with SIM_RUN_ACTIVE while another
+//                         token holds the workspace, like a Start.
 //   POST { renew: true }  the holder is still walking (step mode, a presenter
 //                         talking): re-assert the token, push the expiry out a full
 //                         TTL. No claim, no purge, no counts.
@@ -89,7 +94,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const ws = await currentWorkspace();
-    const body = (await request.json().catch(() => null)) as { hold?: boolean; renew?: boolean } | null;
+    const body = (await request.json().catch(() => null)) as { hold?: boolean; renew?: boolean; keep?: boolean } | null;
 
     // Renew first: it neither claims nor purges, so it must not fall through to the
     // claim (which would refuse the holder's own walk with SIM_RUN_ACTIVE). Step mode
@@ -101,6 +106,24 @@ export async function POST(request: NextRequest) {
         return jsonRefusal("SIM_RUN_NOT_OWNER", 409, { retryAfterSeconds: Math.ceil(renewed.retryAfterMs / 1000) });
       }
       return NextResponse.json({ ok: true, renewed: true, expiresInSeconds: Math.round(renewed.expiresInMs / 1000) });
+    }
+
+    // RESUME (`{ hold: true, keep: true }`): a reloaded walk re-enters at the chapter
+    // its board shows, so its claim must not purge the rows it is resuming. `keep`
+    // implies a held claim; it never reaches the purge below.
+    //
+    // The lock stays unstealable. The caller's OWN live lease (the token its tab kept
+    // across the reload, when the pagehide release was lost) is re-taken by renewing
+    // it; otherwise this is an ordinary claim, which a live walk under ANY other token
+    // refuses with SIM_RUN_ACTIVE exactly as it refuses a Start.
+    if (body?.keep) {
+      const token = leaseToken(request);
+      if (token && renewSimRun(ws, token).ok) return NextResponse.json({ ok: true, kept: true, token });
+      const resumed = beginSimRun(ws);
+      if (!resumed.ok) {
+        return jsonRefusal("SIM_RUN_ACTIVE", 409, { retryAfterSeconds: Math.ceil(resumed.retryAfterMs / 1000) });
+      }
+      return NextResponse.json({ ok: true, kept: true, token: resumed.token });
     }
 
     const claim = beginSimRun(ws);

@@ -5,6 +5,7 @@ import { STAGES as PIPELINE_STAGES } from "@/app/features/shared/pipelineTypes";
 import type { ScreenDecisionRead } from "@/app/_lib/screen-wave-contract";
 import type { SimPhaseId } from "./constants";
 import type { SimMoveLog } from "./simMove";
+import type { SimResumePoint } from "./simWalkResume";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
 // can't be produced in time, so the reused modal shows an honest message instead
@@ -70,6 +71,11 @@ export type SimState = {
 };
 
 export type SimCtx = SimState & {
+  /** Where a walk left on the board can be re-entered (simWalkResume.ts), or null:
+   *  nothing to resume, a run is live here, it finished, or another tab holds it. */
+  resumable: SimResumePoint | null;
+  /** Re-enter the walk at `resumable` without purging it. No-op when null. */
+  resumeAt: () => void;
   start: () => void;
   pause: () => void;
   resume: () => void;

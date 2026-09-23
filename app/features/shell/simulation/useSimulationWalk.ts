@@ -16,10 +16,11 @@ import { jdJobId } from "@/app/_lib/jd-limits";
 import { screenedLandingStage, stageWithRole } from "@/app/_lib/pipeline-stages";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { readWaveResult, type ScreenWaveRead } from "@/app/_lib/screen-wave-contract";
-import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
+import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type SimPhaseId } from "./constants";
 import { applyCompanyTemplate } from "./simCompanyTemplate";
 import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, type SimState, type StepOpts } from "./simulationProviderTypes";
-import { leaseFromClaim, releaseInit, renewInit, type SimRunLease } from "./simRunLease";
+import { claimInit, leaseFromClaim, releaseInit, renewInit, storeLease, storedLease, tabStorage, type SimRunLease } from "./simRunLease";
+import { chaptersFrom, type SimResumePoint } from "./simWalkResume";
 import { matchHalt, offerHalt, simChapter } from "./simWalkSteps";
 import { hiredEffect, type SimMoveId, type SimMoveLog, type SimMoveOutcome } from "./simMove";
 import type { useSimulationEngine } from "./useSimulationEngine";
@@ -136,11 +137,15 @@ export function useSimulationWalk({
     [beat, gate, log, nav, patch, renewLease]
   );
 
-  const run = useCallback(async () => {
-    let jobId = "";
-    let targetId = "";
-    let targetLabel = "";
+  // `from` is a RESUME: the chapter the board proves the walk reached, and the job and
+  // candidate it was following (simWalkResume.ts). Absent, the walk starts at chapter
+  // one with a purge, exactly as before.
+  const run = useCallback(async (from: SimResumePoint | null = null) => {
+    let jobId = from?.jobId ?? "";
+    let targetId = from?.targetId ?? "";
+    let targetLabel = from?.targetLabel ?? "";
     let offerToken = "";
+    let startAt: SimPhaseId = from?.phase ?? "design";
     // How each scripted move of THIS run reached the app (simMove.ts), mirrored into
     // state so the route and its reason are readable beside the log.
     const moves: SimMoveLog = {};
@@ -182,7 +187,7 @@ export function useSimulationWalk({
       },
     });
     try {
-      log(t("log.resetting"));
+      log(from ? t("log.resuming", { phase: t(`phase.${from.phase}`) }) : t("log.resetting"));
       // Through okJson like every other step: the reset is the run's FIRST call and
       // its refusals are the ones a prospect actually meets — a 401 on a gated
       // deploy, a 500 from the purge transaction. Fired and forgotten, the walk
@@ -199,10 +204,17 @@ export function useSimulationWalk({
       // is the fix for the wave-44 bug: a REFUSED claim throws out of okJson before
       // the ref is set, so the `finally` below has no lease to release and cannot
       // free the winner's lock.
+      //
+      // A RESUME claims with `keep`: the lease, and no purge, because the rows are the
+      // walk it is re-entering. It presents the lease this tab held before the reload,
+      // the only way to re-take one that is still live; any other live walk refuses
+      // it with SIM_RUN_ACTIVE, so a resume never steals a lock.
       const claim = await okJson<{ token?: string }>(
-        await fetch("/api/sim/reset", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ hold: true }) })
+        await fetch("/api/sim/reset", claimInit(from ? storedLease(tabStorage()) : null, { keep: from !== null }))
       );
       leaseRef.current = leaseFromClaim(claim);
+      // Kept per tab across a reload (simRunLease.storedLease), forgotten in `finally`.
+      storeLease(tabStorage(), leaseRef.current);
 
       // The columns THIS workspace's board actually has. The axis is per-workspace
       // data (Settings → Hiring composes it: free-form stage ids, extra rounds, an
@@ -218,371 +230,398 @@ export function useSimulationWalk({
       const screenedStage = screenedLandingStage(axis) || "Screened";
       const offerStage = stageWithRole("offer", axis) ?? "Offer";
 
-      await step({
-        ...simChapter("design"),
-        title: t("step.design.title"),
-        caption: t("step.design.caption", { title: SIM_TITLE }),
-        // The simulated role reaches the builder through the provider's own state,
-        // not through five query params (see JdBuilderHandoff). The `?jd*` deep
-        // link still exists for a human linking in from outside — the tour simply
-        // is not that reader, and a 252-character address bar was the price of
-        // pretending it was.
-        jdHandoff: {
-          title: SIM_TITLE,
-          company: SIM_COMPANY,
-          seniority: SIM_ROLE.seniority,
-          roleFamily: SIM_ROLE.roleFamily,
-          need: responsibilities.join(". ") + ".",
-        },
-      });
+      if (from) {
+        if (targetLabel) patch({ targetLabel });
+        // The hired chapter opens the candidate's offer page by its token. The board
+        // cannot tell "offer sent" from "offer not drafted yet" (both are the offer
+        // column with no approval), so the link decides: no open offer means the offer
+        // chapter has not really happened, and the walk enters there instead.
+        if (startAt === "hired") {
+          const r = await fetch(`/api/sim/offer-link?entryId=${encodeURIComponent(targetId)}`);
+          const link = r.ok ? ((await r.json().catch(() => ({}))) as { token?: string }) : {};
+          if (link.token) offerToken = link.token;
+          else startAt = "offer";
+        }
+      }
 
-      await step({
-        ...simChapter("source"),
-        title: t("step.source.title"),
-        caption: t("step.source.caption"),
-        // No navExtra here any more: leaving the builder used to mean clearing the
-        // five jd* params this chapter's predecessor had written, and the walk no
-        // longer writes any. step() clears the tab-scoped allowlist on every
-        // chapter, and the handoff itself expires with the chapter that declared it.
-        action: async () => {
-          // Save as a DRAFT (no sourcing yet).
-          // The walk's FIRST WRITE, and the one that decides whether the rest of the
-          // tour is real: /api/jds/save is requireOperator + `jd:write`, so an
-          // anonymous or capability-less session answers 401 here. `.then(r =>
-          // r.json())` read that error body as a save, `save.jobId` came back
-          // undefined, `jdJobId(undefined)` produced a jobId that matches nothing, and
-          // the demo narrated "saved as draft" over a role that was never created —
-          // surfacing eleven seconds later as "intake returned none".
-          const save = await okJson<{ jobId?: string; slug?: string }>(
-            await fetch("/api/jds/save", {
-              method: "POST",
-              headers: JSON_HEADERS,
-              body: JSON.stringify({ title: SIM_TITLE, body: jdMarkdown, role, salary: SIM_SALARY, company: SIM_COMPANY }),
-            })
-          );
-          jobId = save.jobId ?? jdJobId(save.slug ?? "");
-          log(t("log.savedDraft", { jobId }));
-          notifyDataChanged(); // the Jobs tab picks up the new draft
-          await beat(900);
+      // The chapters as a table rather than seven straight-line awaits, so a resumed
+      // walk can enter at any of them (chaptersFrom). Each is a THUNK: its title and
+      // caption read targetLabel when the chapter starts, not when the table is built.
+      const chapters: Record<SimPhaseId, () => StepOpts> = {
+        design: () => ({
+          ...simChapter("design"),
+          title: t("step.design.title"),
+          caption: t("step.design.caption", { title: SIM_TITLE }),
+          // The simulated role reaches the builder through the provider's own state,
+          // not through five query params (see JdBuilderHandoff). The `?jd*` deep
+          // link still exists for a human linking in from outside — the tour simply
+          // is not that reader, and a 252-character address bar was the price of
+          // pretending it was.
+          jdHandoff: {
+            title: SIM_TITLE,
+            company: SIM_COMPANY,
+            seniority: SIM_ROLE.seniority,
+            roleFamily: SIM_ROLE.roleFamily,
+            need: responsibilities.join(". ") + ".",
+          },
+        }),
 
-          // Source into Pipeline — a real click on the draft's Publish, then on the
-          // go-live terms dialog's confirm (the publish itself). PROVEN by the pool
-          // landing on the board: since the dialog arrived, the first click alone
-          // "succeeded" and sourced nobody, and the walk logged "sourced 0" and
-          // walked on. A publish that the board does not show halts here, with the
-          // route's code if it was refused, instead of in a cryptic later step.
-          const sourcedNow = async () => (await entriesFor(jobId, entryStage)).length;
-          recordMove(
-            "publish",
-            await move("publish", {
-              subject: jobId,
-              title: t("step.source.clickTitle"),
-              caption: t("step.source.clickCaption"),
-              effect: async () => (await sourcedNow()) > 0,
-              effectMs: 12_000,
-              // The draft this run saved a moment ago, under the (SIM) title.
-              subjectTitle: async () => SIM_TITLE,
-              api: () => fetch(`/api/jobs/${jobId}/publish`, { method: "POST", headers: JSON_HEADERS, body: "{}" }),
-              notVisible: t("log.draftNotVisible"),
-              label: t("wait.sourced"),
-            })
-          );
-          // A RAW number into the plural, never a pre-formatted string.
-          log(t("log.sourced", { count: await sourcedNow() }));
-          notifyDataChanged();
-        },
-      });
+        source: () => ({
+          ...simChapter("source"),
+          title: t("step.source.title"),
+          caption: t("step.source.caption"),
+          // No navExtra here any more: leaving the builder used to mean clearing the
+          // five jd* params this chapter's predecessor had written, and the walk no
+          // longer writes any. step() clears the tab-scoped allowlist on every
+          // chapter, and the handoff itself expires with the chapter that declared it.
+          action: async () => {
+            // Save as a DRAFT (no sourcing yet).
+            // The walk's FIRST WRITE, and the one that decides whether the rest of the
+            // tour is real: /api/jds/save is requireOperator + `jd:write`, so an
+            // anonymous or capability-less session answers 401 here. `.then(r =>
+            // r.json())` read that error body as a save, `save.jobId` came back
+            // undefined, `jdJobId(undefined)` produced a jobId that matches nothing, and
+            // the demo narrated "saved as draft" over a role that was never created —
+            // surfacing eleven seconds later as "intake returned none".
+            const save = await okJson<{ jobId?: string; slug?: string }>(
+              await fetch("/api/jds/save", {
+                method: "POST",
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ title: SIM_TITLE, body: jdMarkdown, role, salary: SIM_SALARY, company: SIM_COMPANY }),
+              })
+            );
+            jobId = save.jobId ?? jdJobId(save.slug ?? "");
+            log(t("log.savedDraft", { jobId }));
+            notifyDataChanged(); // the Jobs tab picks up the new draft
+            await beat(900);
 
-      await step({
-        ...simChapter("match"),
-        title: t("step.match.title"),
-        caption: t("step.match.caption"),
-        action: async () => {
-          // An inbound application arrives via the careers-page channel → Accepted.
-          await beat(700);
-          // SIM_NO_APPLICANT (the demo tenant has no candidate corpus to draw from)
-          // and SIM_JOB_NOT_FOUND are both reachable here; `inbound?.label` simply
-          // skipped the log line and walked on, so the run died two beats later on
-          // "no candidate reached screening" — a symptom, never the cause.
-          const inbound = await okJson<{ label?: string }>(
-            await fetch("/api/sim/inbound", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ jobId }) })
-          );
-          if (inbound.label) log(t("log.inbound", { candidate: inbound.label }));
-          notifyDataChanged();
-          await beat(1400);
+            // Source into Pipeline — a real click on the draft's Publish, then on the
+            // go-live terms dialog's confirm (the publish itself). PROVEN by the pool
+            // landing on the board: since the dialog arrived, the first click alone
+            // "succeeded" and sourced nobody, and the walk logged "sourced 0" and
+            // walked on. A publish that the board does not show halts here, with the
+            // route's code if it was refused, instead of in a cryptic later step.
+            const sourcedNow = async () => (await entriesFor(jobId, entryStage)).length;
+            recordMove(
+              "publish",
+              await move("publish", {
+                subject: jobId,
+                title: t("step.source.clickTitle"),
+                caption: t("step.source.clickCaption"),
+                effect: async () => (await sourcedNow()) > 0,
+                effectMs: 12_000,
+                // The draft this run saved a moment ago, under the (SIM) title.
+                subjectTitle: async () => SIM_TITLE,
+                api: () => fetch(`/api/jobs/${jobId}/publish`, { method: "POST", headers: JSON_HEADERS, body: "{}" }),
+                notVisible: t("log.draftNotVisible"),
+                label: t("wait.sourced"),
+              })
+            );
+            // A RAW number into the plural, never a pre-formatted string.
+            log(t("log.sourced", { count: await sourcedNow() }));
+            notifyDataChanged();
+          },
+        }),
 
-          // Match all intake (the entry column) → the screened column (first-wave
-          // evaluation: match + AI screen), both resolved from this board's axis.
-          const intake = await entriesFor(jobId, entryStage);
-          // Best-effort cohort advance: this is the ONE site that deliberately opts
-          // out of advanceTo's throw-on-failure policy — a stray un-advanceable stub
-          // shouldn't abort the whole demo. Log each straggler and continue; the
-          // `if (!top)` guard below still HALTS if the cohort produced nobody Screened.
-          // Count what ACTUALLY reached the screened column, not how many were in
-          // intake: the loop tolerates stragglers, so `intake.length` narrated
-          // "5 candidates matched → Screened" directly above the two "stuck,
-          // skipping" lines that contradicted it.
-          let matched = 0;
-          for (const e of intake) {
-            try {
-              await advanceTo(e.id, screenedStage);
-              matched++;
-            } catch (err) {
-              if (err instanceof SimStop) throw err;
-              log(
-                t("log.stuck", {
-                  candidate: e.candidateLabel,
-                  reason: err instanceof Error ? err.message : t("log.advanceFailed"),
+        match: () => ({
+          ...simChapter("match"),
+          title: t("step.match.title"),
+          caption: t("step.match.caption"),
+          action: async () => {
+            // An inbound application arrives via the careers-page channel → Accepted.
+            await beat(700);
+            // SIM_NO_APPLICANT (the demo tenant has no candidate corpus to draw from)
+            // and SIM_JOB_NOT_FOUND are both reachable here; `inbound?.label` simply
+            // skipped the log line and walked on, so the run died two beats later on
+            // "no candidate reached screening" — a symptom, never the cause.
+            const inbound = await okJson<{ label?: string }>(
+              await fetch("/api/sim/inbound", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ jobId }) })
+            );
+            if (inbound.label) log(t("log.inbound", { candidate: inbound.label }));
+            notifyDataChanged();
+            await beat(1400);
+
+            // Match all intake (the entry column) → the screened column (first-wave
+            // evaluation: match + AI screen), both resolved from this board's axis.
+            const intake = await entriesFor(jobId, entryStage);
+            // Best-effort cohort advance: this is the ONE site that deliberately opts
+            // out of advanceTo's throw-on-failure policy — a stray un-advanceable stub
+            // shouldn't abort the whole demo. Log each straggler and continue; the
+            // `if (!top)` guard below still HALTS if the cohort produced nobody Screened.
+            // Count what ACTUALLY reached the screened column, not how many were in
+            // intake: the loop tolerates stragglers, so `intake.length` narrated
+            // "5 candidates matched → Screened" directly above the two "stuck,
+            // skipping" lines that contradicted it.
+            let matched = 0;
+            for (const e of intake) {
+              try {
+                await advanceTo(e.id, screenedStage);
+                matched++;
+              } catch (err) {
+                if (err instanceof SimStop) throw err;
+                log(
+                  t("log.stuck", {
+                    candidate: e.candidateLabel,
+                    reason: err instanceof Error ? err.message : t("log.advanceFailed"),
+                  })
+                );
+              }
+            }
+            const top = await topScreened(jobId, screenedStage);
+            // The halt conditions are pure and pinned (simWalkSteps.ts): the run
+            // follows ONE candidate, so an empty screened column has nothing to follow
+            // and continuing only defers the failure to a cryptic later timeout.
+            if (matchHalt(top) || !top) throw new Error(t("error.noScreened"));
+            targetId = top.id;
+            targetLabel = top.candidateLabel;
+            patch({ targetLabel });
+            log(
+              t("log.matched", {
+                count: matched,
+                candidate: targetLabel,
+                score: top.matchScore ?? t("log.noScore"),
+              })
+            );
+          },
+        }),
+
+        // SCREEN — the first AUTOMATED decision wave: rank the matched cohort,
+        // auto-reject the weakest below threshold (audited, with rationale),
+        // early-career never rejected; the survivor proceeds toward interview.
+        screen: () => ({
+          ...simChapter("screen"),
+          title: t("step.screen.title"),
+          caption: t("step.screen.caption"),
+          action: async () => {
+            // Preview first to get the approval token, then commit the reviewed set
+            // (the Art. 22 human-approval gate) — the demo mirrors the recruiter's
+            // review→approve flow rather than a solely-automated commit.
+            // Override thresholds are single-sourced in SIM_SCREEN_POLICY
+            // (constants.ts), coupled to its inboundScoreFloor by an invariant (the
+            // scripted applicant must outscore the reject ceiling, or it gets
+            // auto-rejected mid-demo). constants.test.ts pins that invariant.
+            //
+            // BOTH calls go through okJson: a non-OK screen-wave response is an error
+            // object, and `wave.decisions ?? []` / `?? 0` used to coerce it into the
+            // zero shape — so the modal announced "0 matched · 0 auto-rejected · 0
+            // advanced" over a cohort the previous step had just logged as matched,
+            // and the walk carried on to log "passed screening" for an automated
+            // decision wave that never ran. This route is reachably non-OK: it is
+            // requireOperator-gated and explicitly rejects the anonymous demo-workspace
+            // session (401), refuses a commit whose approval token is missing or no
+            // longer matches the reviewed set (409), and 400s a rejected override. A
+            // labelled throw halts the run with "Failed: …" instead of a green lie —
+            // the same failure policy waitEntry / advanceTo / getBoard already use.
+            const screenWaveBody = { jobId, override: SIM_SCREEN_POLICY.screenWaveOverride };
+            // okJson checks the status; readWaveResult (the route's one wire contract)
+            // checks the SHAPE, so a 200 that is not a wave halts the run too.
+            const readWave = (body: unknown): ScreenWaveRead => {
+              const read = readWaveResult(body);
+              if (!read.ok) throw new Error(tErrors("SCREEN_WAVE_FAILED"));
+              return read.result;
+            };
+            const wavePreview = readWave(await okJson<unknown>(
+              await fetch("/api/decisions/screen-wave", {
+                method: "POST",
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ ...screenWaveBody, dryRun: true }),
+              })
+            ));
+            // A missing token is not silently committed as "no approval": the route's
+            // Art. 22 gate refuses a token-less commit (409), which okJson surfaces.
+            const wave = readWave(await okJson<unknown>(
+              await fetch("/api/decisions/screen-wave", {
+                method: "POST",
+                headers: JSON_HEADERS,
+                body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
+              })
+            ));
+            patch({ screenWave: { decisions: wave.decisions, rejected: wave.rejected, kept: wave.kept, cohort: wave.cohort } });
+            notifyDataChanged();
+            await beat(3400); // let the viewer read the audit
+            patch({ screenWave: null });
+            log(t("log.screenWave", { rejected: wave.rejected, kept: wave.kept }));
+
+            // The survivor proceeds toward the interview: attach the deterministic
+            // screening recommendation, then accept it. Accepting a screening_review
+            // IS the advance — pipeline.ts moves the entry exactly one stage
+            // (Screened → Interview) AND sets the calendar gate in the same step.
+            // (gsim-l2-101: a bare advance() before the draft used to double-advance
+            // the survivor to Offer, so the interview step's advanceTo("Offer")
+            // bare-accepted an Offer-stage entry into a phantom Hired and the walk
+            // crashed at the Interview→Offer seam. One accept, one stage.)
+            // The advance() below ACCEPTS this recommendation, so a refused draft makes
+            // the accept advance a bare entry and the calendar gate never appears —
+            // which surfaced as the 9-second `wait.screeningGate` timeout instead of
+            // the server's actual answer.
+            await okJson(await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
+            // accept the screening review: one stage forward + the calendar gate.
+            // WAIT on the stage the accept ACTUALLY produced, not on the literal
+            // "Interview": which column lies one step past screening is workspace data,
+            // so on a board that inserts a round (or renames the column) both halves of
+            // the old predicate stayed false for the full 9s and the tour died.
+            const landed = await advance(targetId);
+            await waitEntry(targetId, (e) => e.stage === landed || e.approvalKind === "calendar", t("wait.screeningGate"));
+            notifyDataChanged();
+            log(t("log.passedScreening", { candidate: targetLabel }));
+          },
+        }),
+
+        // INTERVIEW — automate the round (candidate self-schedules), or assign a slot
+        // manually. The driver takes the automate path; manual Confirm is the fallback.
+        interview: () => ({
+          ...simChapter("interview"),
+          title: t("step.interview.title"),
+          caption: t("step.interview.caption", { candidate: targetLabel }),
+          action: async () => {
+            // A resumed walk may enter after the slot was already confirmed (the board
+            // shows the interview column with the calendar gate cleared); scheduling
+            // again would ask for a slot nobody is waiting on.
+            const slotPending = startAt !== "interview" || (await getEntries()).some((e) => e.id === targetId && e.approvalKind === "calendar");
+            let scheduled = !slotPending;
+            if (slotPending) {
+              try {
+                // AUTOMATE: mint a self-scheduling link; the candidate picks a slot.
+                const inv = await okJson<{ token?: string }>(
+                  await fetch("/api/schedule/invite", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) })
+                );
+                if (inv?.token) {
+                  patch({ frame: { url: `/schedule/${inv.token}`, title: t("step.interview.frameTitle") } });
+                  await beat(2400); // let the viewer watch the candidate's slot picker
+                  const { slots = [] } = await okJson<{ slots?: { label: string; value: string }[] }>(await fetch(`/api/schedule/${inv.token}`));
+                  const slot = slots[0];
+                  if (slot) {
+                    // Confirming fires approve_event on the entry + sends a confirmation.
+                    // CHECKED: an unchecked confirm set `scheduled` whatever the answer, so
+                    // a refusal skipped the manual fallback below and surfaced 9 s later as
+                    // the `wait.slotConfirmed` timeout. A refusal now throws into the catch
+                    // and the recruiter's Confirm runs.
+                    await okJson(
+                      await fetch(`/api/schedule/${inv.token}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ slot: slot.label, slotAt: slot.value }) })
+                    );
+                    log(t("log.selfScheduled", { candidate: targetLabel, slot: slot.label }));
+                    scheduled = true;
+                    notifyDataChanged();
+                  }
+                  await beat(800);
+                  patch({ frame: null });
+                }
+              } catch (e) {
+                // A Stop pressed mid-frame is the presenter's, not a refused automate path.
+                if (e instanceof SimStop) throw e;
+                // The automate path (mint a link, read its slots, confirm one) is refused
+                // on any deploy where /api/schedule/invite needs an operator. Falling
+                // through to the manual Confirm is the right behaviour — silently is not:
+                // the demo claimed "the candidate self-scheduled" was simply skipped and
+                // the viewer saw the recruiter path with no explanation of why.
+                patch({ frame: null });
+                log(t("log.selfScheduleUnavailable"));
+              }
+            }
+            if (!scheduled) {
+              // MANUAL fallback: the recruiter confirms a slot on the shared calendar.
+              recordMove(
+                "confirmSlot",
+                await move("confirmSlot", {
+                  subject: targetId,
+                  title: t("step.interview.confirmTitle"),
+                  caption: t("step.interview.confirmCaption", { candidate: targetLabel }),
+                  effect: async () => (await getEntries()).some((e) => e.id === targetId && e.approvalKind !== "calendar"),
+                  subjectTitle: () => entryTitle(targetId),
+                  api: () =>
+                    fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) }),
+                  notVisible: t("log.scheduleNotVisible"),
+                  label: t("wait.slotConfirmed"),
                 })
               );
             }
-          }
-          const top = await topScreened(jobId, screenedStage);
-          // The halt conditions are pure and pinned (simWalkSteps.ts): the run
-          // follows ONE candidate, so an empty screened column has nothing to follow
-          // and continuing only defers the failure to a cryptic later timeout.
-          if (matchHalt(top) || !top) throw new Error(t("error.noScreened"));
-          targetId = top.id;
-          targetLabel = top.candidateLabel;
-          patch({ targetLabel });
-          log(
-            t("log.matched", {
-              count: matched,
-              candidate: targetLabel,
-              score: top.matchScore ?? t("log.noScore"),
-            })
-          );
-        },
-      });
+            await waitEntry(targetId, (e) => e.approvalKind !== "calendar", t("wait.slotConfirmed"));
+            const st = await advanceTo(targetId, offerStage);
+            log(t("log.stage", { stage: stageLabel(st) }));
+          },
+        }),
 
-      // SCREEN — the first AUTOMATED decision wave: rank the matched cohort,
-      // auto-reject the weakest below threshold (audited, with rationale),
-      // early-career never rejected; the survivor proceeds toward interview.
-      await step({
-        ...simChapter("screen"),
-        title: t("step.screen.title"),
-        caption: t("step.screen.caption"),
-        action: async () => {
-          // Preview first to get the approval token, then commit the reviewed set
-          // (the Art. 22 human-approval gate) — the demo mirrors the recruiter's
-          // review→approve flow rather than a solely-automated commit.
-          // Override thresholds are single-sourced in SIM_SCREEN_POLICY
-          // (constants.ts), coupled to its inboundScoreFloor by an invariant (the
-          // scripted applicant must outscore the reject ceiling, or it gets
-          // auto-rejected mid-demo). constants.test.ts pins that invariant.
-          //
-          // BOTH calls go through okJson: a non-OK screen-wave response is an error
-          // object, and `wave.decisions ?? []` / `?? 0` used to coerce it into the
-          // zero shape — so the modal announced "0 matched · 0 auto-rejected · 0
-          // advanced" over a cohort the previous step had just logged as matched,
-          // and the walk carried on to log "passed screening" for an automated
-          // decision wave that never ran. This route is reachably non-OK: it is
-          // requireOperator-gated and explicitly rejects the anonymous demo-workspace
-          // session (401), refuses a commit whose approval token is missing or no
-          // longer matches the reviewed set (409), and 400s a rejected override. A
-          // labelled throw halts the run with "Failed: …" instead of a green lie —
-          // the same failure policy waitEntry / advanceTo / getBoard already use.
-          const screenWaveBody = { jobId, override: SIM_SCREEN_POLICY.screenWaveOverride };
-          // okJson checks the status; readWaveResult (the route's one wire contract)
-          // checks the SHAPE, so a 200 that is not a wave halts the run too.
-          const readWave = (body: unknown): ScreenWaveRead => {
-            const read = readWaveResult(body);
-            if (!read.ok) throw new Error(tErrors("SCREEN_WAVE_FAILED"));
-            return read.result;
-          };
-          const wavePreview = readWave(await okJson<unknown>(
-            await fetch("/api/decisions/screen-wave", {
-              method: "POST",
-              headers: JSON_HEADERS,
-              body: JSON.stringify({ ...screenWaveBody, dryRun: true }),
-            })
-          ));
-          // A missing token is not silently committed as "no approval": the route's
-          // Art. 22 gate refuses a token-less commit (409), which okJson surfaces.
-          const wave = readWave(await okJson<unknown>(
-            await fetch("/api/decisions/screen-wave", {
-              method: "POST",
-              headers: JSON_HEADERS,
-              body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
-            })
-          ));
-          patch({ screenWave: { decisions: wave.decisions, rejected: wave.rejected, kept: wave.kept, cohort: wave.cohort } });
-          notifyDataChanged();
-          await beat(3400); // let the viewer read the audit
-          patch({ screenWave: null });
-          log(t("log.screenWave", { rejected: wave.rejected, kept: wave.kept }));
+        // OFFER — group-evaluate the role's field, then a real click on ‘Send offer’.
+        offer: () => ({
+          ...simChapter("offer"),
+          title: t("step.offer.title"),
+          caption: t("step.offer.caption", { candidate: targetLabel }),
+          action: async () => {
+            // Group evaluation: compare the field for the role before committing.
+            await runGroupEval(jobId, SIM_TITLE);
+            await beat(2600); // let the viewer read the comparison
+            patch({ groupEval: null, screenWave: null });
 
-          // The survivor proceeds toward the interview: attach the deterministic
-          // screening recommendation, then accept it. Accepting a screening_review
-          // IS the advance — pipeline.ts moves the entry exactly one stage
-          // (Screened → Interview) AND sets the calendar gate in the same step.
-          // (gsim-l2-101: a bare advance() before the draft used to double-advance
-          // the survivor to Offer, so the interview step's advanceTo("Offer")
-          // bare-accepted an Offer-stage entry into a phantom Hired and the walk
-          // crashed at the Interview→Offer seam. One accept, one stage.)
-          // The advance() below ACCEPTS this recommendation, so a refused draft makes
-          // the accept advance a bare entry and the calendar gate never appears —
-          // which surfaced as the 9-second `wait.screeningGate` timeout instead of
-          // the server's actual answer.
-          await okJson(await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
-          // accept the screening review: one stage forward + the calendar gate.
-          // WAIT on the stage the accept ACTUALLY produced, not on the literal
-          // "Interview": which column lies one step past screening is workspace data,
-          // so on a board that inserts a round (or renames the column) both halves of
-          // the old predicate stayed false for the full 9s and the tour died.
-          const landed = await advance(targetId);
-          await waitEntry(targetId, (e) => e.stage === landed || e.approvalKind === "calendar", t("wait.screeningGate"));
-          notifyDataChanged();
-          log(t("log.passedScreening", { candidate: targetLabel }));
-        },
-      });
-
-      // INTERVIEW — automate the round (candidate self-schedules), or assign a slot
-      // manually. The driver takes the automate path; manual Confirm is the fallback.
-      await step({
-        ...simChapter("interview"),
-        title: t("step.interview.title"),
-        caption: t("step.interview.caption", { candidate: targetLabel }),
-        action: async () => {
-          let scheduled = false;
-          try {
-            // AUTOMATE: mint a self-scheduling link; the candidate picks a slot.
-            const inv = await okJson<{ token?: string }>(
-              await fetch("/api/schedule/invite", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) })
-            );
-            if (inv?.token) {
-              patch({ frame: { url: `/schedule/${inv.token}`, title: t("step.interview.frameTitle") } });
-              await beat(2400); // let the viewer watch the candidate's slot picker
-              const { slots = [] } = await okJson<{ slots?: { label: string; value: string }[] }>(await fetch(`/api/schedule/${inv.token}`));
-              const slot = slots[0];
-              if (slot) {
-                // Confirming fires approve_event on the entry + sends a confirmation.
-                // CHECKED: an unchecked confirm set `scheduled` whatever the answer, so
-                // a refusal skipped the manual fallback below and surfaced 9 s later as
-                // the `wait.slotConfirmed` timeout. A refusal now throws into the catch
-                // and the recruiter's Confirm runs.
-                await okJson(
-                  await fetch(`/api/schedule/${inv.token}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ slot: slot.label, slotAt: slot.value }) })
-                );
-                log(t("log.selfScheduled", { candidate: targetLabel, slot: slot.label }));
-                scheduled = true;
-                notifyDataChanged();
-              }
-              await beat(800);
-              patch({ frame: null });
-            }
-          } catch (e) {
-            // A Stop pressed mid-frame is the presenter's, not a refused automate path.
-            if (e instanceof SimStop) throw e;
-            // The automate path (mint a link, read its slots, confirm one) is refused
-            // on any deploy where /api/schedule/invite needs an operator. Falling
-            // through to the manual Confirm is the right behaviour — silently is not:
-            // the demo claimed "the candidate self-scheduled" was simply skipped and
-            // the viewer saw the recruiter path with no explanation of why.
-            patch({ frame: null });
-            log(t("log.selfScheduleUnavailable"));
-          }
-          if (!scheduled) {
-            // MANUAL fallback: the recruiter confirms a slot on the shared calendar.
+            // Same shape as screen-draft: the click/accept below answers THIS draft, so
+            // a refusal here turned into a `wait.offerExtended` timeout with no code.
+            await okJson(await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
+            nav({ tab: "decisions" });
+            await beat(600);
+            // An offer row has no quick-accept: the deadline is chosen in the candidate
+            // modal. So the walk opens the ledger's third door and clicks the modal's
+            // Send offer, the flow a recruiter really takes (with its deadline lever),
+            // proven by the offer_review card leaving the entry.
             recordMove(
-              "confirmSlot",
-              await move("confirmSlot", {
+              "offerSend",
+              await move("offerSend", {
                 subject: targetId,
-                title: t("step.interview.confirmTitle"),
-                caption: t("step.interview.confirmCaption", { candidate: targetLabel }),
-                effect: async () => (await getEntries()).some((e) => e.id === targetId && e.approvalKind !== "calendar"),
+                title: t("step.offer.clickTitle"),
+                caption: t("step.offer.clickCaption", { candidate: targetLabel }),
+                effect: async () => (await getEntries()).some((e) => e.id === targetId && e.approvalKind !== "offer_review"),
                 subjectTitle: () => entryTitle(targetId),
+                // actor:"sim" — the engine (not a recruiter) extends here, so the
+                // offer_terms seal reads "auto:sim" (gsim-l2-103).
                 api: () =>
-                  fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "approve_event", detail: "Tue 14:00" }) }),
-                notVisible: t("log.scheduleNotVisible"),
-                label: t("wait.slotConfirmed"),
+                  fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) }),
+                notVisible: t("log.offerNotVisible"),
+                label: t("wait.offerExtended"),
               })
             );
-          }
-          await waitEntry(targetId, (e) => e.approvalKind !== "calendar", t("wait.slotConfirmed"));
-          const st = await advanceTo(targetId, offerStage);
-          log(t("log.stage", { stage: stageLabel(st) }));
-        },
-      });
+            const { token } = await okJson<{ token?: string }>(await fetch(`/api/sim/offer-link?entryId=${targetId}`));
+            if (offerHalt(token) || !token) throw new Error(t("error.offerTokenMissing"));
+            offerToken = token;
+            log(t("log.offerSent"));
+          },
+        }),
 
-      // OFFER — group-evaluate the role's field, then a real click on ‘Send offer’.
-      await step({
-        ...simChapter("offer"),
-        title: t("step.offer.title"),
-        caption: t("step.offer.caption", { candidate: targetLabel }),
-        action: async () => {
-          // Group evaluation: compare the field for the role before committing.
-          await runGroupEval(jobId, SIM_TITLE);
-          await beat(2600); // let the viewer read the comparison
-          patch({ groupEval: null, screenWave: null });
+        // HIRED — the candidate opens their real offer page and clicks Accept.
+        hired: () => ({
+          ...simChapter("hired"),
+          title: t("step.hired.title"),
+          caption: t("step.hired.caption", { candidate: targetLabel }),
+          action: async () => {
+            patch({ frame: { url: `/offer/${offerToken}`, title: t("step.hired.frameTitle") } });
+            await beat(1400); // let the candidate page load + the viewer see it
+            const doc = await waitDom(() => {
+              const ifr = document.querySelector("iframe[data-sim-frame]") as HTMLIFrameElement | null;
+              const d = ifr?.contentDocument ?? null;
+              return d && d.querySelector('[data-sim-click="offer-accept"]') ? d : null;
+            });
+            // Proven by the STAGE: the run is Hired only when the followed entry sits on
+            // this board's terminal-role column. It used to log "accepted" and set
+            // done:true over an unchecked POST without reading the entry at all.
+            recordMove(
+              "offerAccept",
+              await move("offerAccept", {
+                subject: targetId,
+                title: t("step.hired.acceptTitle"),
+                caption: t("step.hired.acceptCaption"),
+                doc,
+                effect: async () => hiredEffect((await getEntries()).find((e) => e.id === targetId), axis),
+                subjectTitle: () => entryTitle(targetId),
+                api: () => fetch(`/api/offer/${offerToken}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ response: "accept" }) }),
+                notVisible: t("log.offerPageUnreachable"),
+                label: t("wait.hired"),
+              })
+            );
+            await beat(1600); // show the ‘accepted’ confirmation
+            patch({ frame: null });
+            log(t("log.accepted"));
+          },
+        }),
+      };
 
-          // Same shape as screen-draft: the click/accept below answers THIS draft, so
-          // a refusal here turned into a `wait.offerExtended` timeout with no code.
-          await okJson(await fetch("/api/sim/offer-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) }));
-          nav({ tab: "decisions" });
-          await beat(600);
-          // An offer row has no quick-accept: the deadline is chosen in the candidate
-          // modal. So the walk opens the ledger's third door and clicks the modal's
-          // Send offer, the flow a recruiter really takes (with its deadline lever),
-          // proven by the offer_review card leaving the entry.
-          recordMove(
-            "offerSend",
-            await move("offerSend", {
-              subject: targetId,
-              title: t("step.offer.clickTitle"),
-              caption: t("step.offer.clickCaption", { candidate: targetLabel }),
-              effect: async () => (await getEntries()).some((e) => e.id === targetId && e.approvalKind !== "offer_review"),
-              subjectTitle: () => entryTitle(targetId),
-              // actor:"sim" — the engine (not a recruiter) extends here, so the
-              // offer_terms seal reads "auto:sim" (gsim-l2-103).
-              api: () =>
-                fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) }),
-              notVisible: t("log.offerNotVisible"),
-              label: t("wait.offerExtended"),
-            })
-          );
-          const { token } = await okJson<{ token?: string }>(await fetch(`/api/sim/offer-link?entryId=${targetId}`));
-          if (offerHalt(token) || !token) throw new Error(t("error.offerTokenMissing"));
-          offerToken = token;
-          log(t("log.offerSent"));
-        },
-      });
-
-      // HIRED — the candidate opens their real offer page and clicks Accept.
-      await step({
-        ...simChapter("hired"),
-        title: t("step.hired.title"),
-        caption: t("step.hired.caption", { candidate: targetLabel }),
-        action: async () => {
-          patch({ frame: { url: `/offer/${offerToken}`, title: t("step.hired.frameTitle") } });
-          await beat(1400); // let the candidate page load + the viewer see it
-          const doc = await waitDom(() => {
-            const ifr = document.querySelector("iframe[data-sim-frame]") as HTMLIFrameElement | null;
-            const d = ifr?.contentDocument ?? null;
-            return d && d.querySelector('[data-sim-click="offer-accept"]') ? d : null;
-          });
-          // Proven by the STAGE: the run is Hired only when the followed entry sits on
-          // this board's terminal-role column. It used to log "accepted" and set
-          // done:true over an unchecked POST without reading the entry at all.
-          recordMove(
-            "offerAccept",
-            await move("offerAccept", {
-              subject: targetId,
-              title: t("step.hired.acceptTitle"),
-              caption: t("step.hired.acceptCaption"),
-              doc,
-              effect: async () => hiredEffect((await getEntries()).find((e) => e.id === targetId), axis),
-              subjectTitle: () => entryTitle(targetId),
-              api: () => fetch(`/api/offer/${offerToken}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ response: "accept" }) }),
-              notVisible: t("log.offerPageUnreachable"),
-              label: t("wait.hired"),
-            })
-          );
-          await beat(1600); // show the ‘accepted’ confirmation
-          patch({ frame: null });
-          log(t("log.accepted"));
-        },
-      });
+      for (const chapter of chaptersFrom(startAt)) await step(chapters[chapter.id]());
 
       patch({ done: true, running: false, status: t("status.done"), ...CLEAR_OVERLAYS });
     } catch (e) {
@@ -604,6 +643,7 @@ export function useSimulationWalk({
       // permanent lock, and there is nothing here an operator would act on.
       const release = releaseInit(leaseRef.current);
       leaseRef.current = null;
+      storeLease(tabStorage(), null);
       if (release) await fetch("/api/sim/reset", release).catch(() => null);
     }
   }, [advance, advanceTo, beat, entriesFor, getBoard, getEntries, locale, log, move, nav, okJson, patch, runGroupEval, stageLabel, step, t, tErrors, topScreened, waitDom, waitEntry]);

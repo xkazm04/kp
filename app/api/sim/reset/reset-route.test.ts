@@ -28,7 +28,7 @@ const { GET, POST, DELETE } = await import("./route.ts");
 const { NextRequest } = await import("next/server");
 
 /** POST with an optional body. `hold` claims the workspace's run lock for a walk. */
-function post(body?: { hold?: boolean; renew?: boolean }, token?: string) {
+function post(body?: { hold?: boolean; renew?: boolean; keep?: boolean }, token?: string) {
   return POST(
     new NextRequest("http://localhost:3000/api/sim/reset", {
       method: "POST",
@@ -214,7 +214,9 @@ test("the release re-asserts ownership rather than freeing whoever holds the loc
 });
 
 test("the renew never reaches the purge", () => {
-  const renewBranch = src.slice(src.indexOf("if (body?.renew)"), src.indexOf("const claim = beginSimRun"));
+  // Up to the next branch (the resume claim), so the renew is read on its own.
+  const renewBranch = src.slice(src.indexOf("if (body?.renew)"), src.indexOf("if (body?.keep)"));
+  assert.ok(src.indexOf("if (body?.renew)") < src.indexOf("if (body?.keep)"), "the renew is answered before any claim");
   assert.doesNotMatch(renewBranch, /resetSim/, "a lease renewal that deleted rows would be the opposite of protection");
   assert.doesNotMatch(renewBranch, /beginSimRun/, "and it must not fall through to a claim that refuses its own holder");
 });
@@ -283,4 +285,54 @@ test("the status door reads and never writes", () => {
   const getBody = src.slice(src.indexOf("export async function GET"), src.indexOf("// Clear all artifacts"));
   assert.doesNotMatch(getBody, /resetSim|beginSimRun|endSimRun|renewSimRun/, "a status read that claimed or purged would be a trap");
   assert.match(getBody, /await currentWorkspace\(\)/, "and it answers about the CALLER's tenant, never the default");
+});
+
+// --- The no-purge claim: resuming a reloaded walk ------------------------------
+//
+// A reloaded walk used to have one way back in, a held claim, and that claim PURGED
+// every (SIM) row - the run it wanted to resume. `keep` claims the lease and deletes
+// nothing, and it is still a claim: a live walk held by another token refuses it
+// exactly as it refuses a Start. Only the SAME token (the tab's own lease, kept in
+// its session storage across the reload) re-takes a live lease.
+
+test("a keep claim takes the lease and purges nothing", async () => {
+  __resetSimRunLocks();
+  await post(); // a clean tenant
+  const kept = simEntry("resume-kept", CALLER_WS);
+  const before = simResidue(CALLER_WS);
+  assert.ok(before.total >= 1);
+
+  const res = await post({ hold: true, keep: true });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { token?: string; cleared?: unknown };
+  assert.ok(body.token, "the resumed walk owns a lease it can renew and release");
+  assert.equal(body.cleared, undefined, "nothing was purged, so nothing is counted");
+  assert.deepEqual(simResidue(CALLER_WS), before, "the walk being resumed is still on the board");
+  assert.ok(getPipelineEntry(kept.id, CALLER_WS));
+  assert.equal(simRunActive(CALLER_WS).active, true);
+
+  // Another tab's resume (or Start) is refused while this lease is live...
+  const foreign = await post({ hold: true, keep: true }, "some-other-tabs-token");
+  assert.equal(foreign.status, 409);
+  assert.equal(((await foreign.json()) as { code: string }).code, "SIM_RUN_ACTIVE");
+  assert.equal((await post({ hold: true, keep: true })).status, 409, "a tokenless keep is not the holder either");
+  assert.deepEqual(simResidue(CALLER_WS), before, "and a refused claim purged nothing");
+
+  // ...while the holder's own token re-takes it (the tab reloaded, its release was lost).
+  const again = await post({ hold: true, keep: true }, body.token);
+  assert.equal(again.status, 200);
+  assert.equal(((await again.json()) as { token?: string }).token, body.token, "the same lease, not a second one");
+
+  assert.equal((await del(body.token)).status, 200);
+  __resetSimRunLocks();
+  await post();
+});
+
+test("keep implies a held claim, and the purge path never reads it", () => {
+  const start = src.indexOf("if (body?.keep)");
+  const purgingClaim = src.indexOf("const cleared = resetSim(ws)");
+  assert.ok(start > 0 && start < purgingClaim, "the keep branch answers before the purging claim");
+  const keepBranch = src.slice(start, purgingClaim);
+  assert.match(keepBranch, /return /, "and returns from inside it, never falling through to the purge");
+  assert.doesNotMatch(keepBranch, /resetSim/, "a resume that purged would destroy the walk it resumes");
 });
