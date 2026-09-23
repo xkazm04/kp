@@ -16,7 +16,7 @@ import type { JudgeIndependence } from "./devcase-judge-independence";
 import { promoteAuditReasons, promoteVerdict, promoteVerdictInputOf, type PromoteReason } from "./devcase-promote-verdict";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
-import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
+import { buildRepoSnapshot, fetchRepoSignals, RepoUnreadableError, type RepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import {
   caseJobIdentity,
   devCaseIdForEntry,
@@ -562,7 +562,8 @@ export type SubmissionEvaluation = {
   processTrace: {
     commitCount: number;
     cadence: { count: number; spanHours: number | null; bursty: boolean | null } | null;
-    decisionsLogPresent: boolean;
+    // null = the repo tree could not be read (not "the log is missing").
+    decisionsLogPresent: boolean | null;
   };
   // ce28da40 — process-authenticity (is this genuine incremental work or a
   // paste-from-LLM?), derived from the processTrace + reflection. Persisted so the
@@ -613,7 +614,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // commits stay empty (the commit-derived reflection degrades gracefully — the
   // candidate produced no commit history by design). A normal repoRef keeps the
   // existing fetch-and-infer path unchanged.
-  let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
+  let signals: RepoSignals | null = null;
   let events: { t: number; kind: string; path?: string | null; size?: number | null }[] | null = null;
   // LLM-era controls #1 — tamper-evidence verdict on the observed log itself,
   // computed server-side (hash chain + client-clock consistency + watermark scan)
@@ -632,7 +633,15 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     const chat = getDevSessionChat(sessionId);
     chatTranscript = chat.length > 0 ? chat.map((m) => ({ channel: m.channel, role: m.role, text: m.text })) : null;
   } else {
-    signals = await fetchRepoSignals(sub.repoRef);
+    const read = await fetchRepoSignals(sub.repoRef);
+    // The commit list could not be READ (throttle / 5xx / timeout / offline). Refuse
+    // here, BEFORE the Python/LLM evaluation is spent and before anything is saved:
+    // evaluating on zero commits would score kp's own rate limit as the candidate's
+    // "no commit history" and persist it into the promote gate. A coded, retryable
+    // throw; the next run reads the repo for real. (null = the ref does not resolve,
+    // a fact about the link, and keeps today's path.)
+    if (read && !read.ok) throw new RepoUnreadableError(read.unreadable, read.retryAfterSec);
+    signals = read;
   }
   const caseBaseline = devCase ? getDevCaseBaseline(devCase.id) : null;
   // The language the CANDIDATE was given this case in — captured at intake on the
@@ -716,9 +725,13 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const processTrace = {
     commitCount: commits.length,
     cadence: signals?.cadence ?? null,
+    // A repo tree that could not be read is null ("unread"), never false: the
+    // authenticity score then skips the no-DECISIONS-log penalty it did not observe.
     decisionsLogPresent: observed
       ? events!.some((e) => e.kind === "decision_log" || (e.path != null && /decision/i.test(e.path)))
-      : (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
+      : signals && !signals.topLevelReadable
+        ? null
+        : (signals?.topLevel ?? []).some((f) => /decision/i.test(f.name)),
   };
   // ce28da40 — fold the trace + reflection into one authenticity verdict.
   const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };

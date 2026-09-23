@@ -1,6 +1,5 @@
 import { COMMITS_PER_REPO, FILES_PER_REPO, README_TRUNCATE } from "@/app/_lib/github-evidence";
-import { isOffline } from "@/app/_lib/offline";
-import { readTextWithLimit } from "@/app/_lib/request-body";
+import { githubRead, GITHUB_FETCH_TIMEOUT_MS } from "@/app/_lib/repo-snapshot";
 
 // The GitHub REST layer behind /api/github-analysis: the typed account/repo
 // shapes, the one authenticated fetch helper, the paginated owned-repo read, and
@@ -97,32 +96,6 @@ export class GithubAnalysisError extends Error {
   }
 }
 
-// GitHub's throttle answers name their own reset in two shapes: RFC-7231
-// `Retry-After` (delta-seconds, on a secondary-rate-limit 403/429) and
-// `x-ratelimit-reset` (a UNIX epoch second, on the primary limiter). Read both,
-// prefer whichever is present, and clamp: a negative/absent value is "no hint",
-// and a header claiming a day is not a hint a UI should repeat.
-const RETRY_AFTER_MAX_SEC = 3600;
-export function retryAfterSecondsFrom(headers: Headers, nowMs = Date.now()): number | undefined {
-  const raw = headers.get("retry-after");
-  if (raw) {
-    const delta = Number(raw.trim());
-    if (Number.isFinite(delta)) return clampRetryAfter(delta);
-    // The header also permits an HTTP-date; Date.parse returns NaN on garbage.
-    const at = Date.parse(raw);
-    if (Number.isFinite(at)) return clampRetryAfter((at - nowMs) / 1000);
-  }
-  const reset = Number(headers.get("x-ratelimit-reset") ?? "");
-  if (Number.isFinite(reset) && reset > 0) return clampRetryAfter(reset - nowMs / 1000);
-  return undefined;
-}
-
-function clampRetryAfter(seconds: number): number | undefined {
-  const rounded = Math.ceil(seconds);
-  if (!Number.isFinite(rounded) || rounded <= 0) return undefined;
-  return Math.min(rounded, RETRY_AFTER_MAX_SEC);
-}
-
 // A GitHub fetch failure that also carries the HTTP status, so a caller can tell a
 // genuine 404 (the resource is absent — e.g. a repo with no README → real "no
 // evidence") apart from a 403/429/5xx throttle (we couldn't read it → "could not
@@ -145,98 +118,49 @@ export function isCoverageLossError(error: unknown): boolean {
   return !(error instanceof GithubHttpError && error.status === 404);
 }
 
-// Every call here is outbound I/O to a third party, and ONE run makes up to ~31 of
-// them (3 sequential repo pages, then two fan-outs). Nothing else bounds them:
-// `maxDuration` is serverless-only — self-hosted `next start` never kills a long
-// handler (see .claude/CLAUDE.md) — and undici's default header/body timeout is 300s,
-// so a single stalled connection could hold a recruiter's analysis for minutes and the
-// three page reads are sequential. Bound each call the way the app's other outbound
-// clients do (agent-hire/bridge-client, ats-egress: `AbortSignal.timeout`). A timeout
-// is NOT a 404, so isCoverageLossError classifies it as a coverage loss and the
-// language / bundle fan-outs degrade to "could not determine" rather than to "no
-// evidence" — the honest reading of a call we never got an answer to.
-const GITHUB_FETCH_TIMEOUT_MS = 20_000;
+// The transport itself (`githubRead`: timeout, 4 MB byte cap, KP_OFFLINE refusal,
+// one credential rule, a non-throwing read / not_found / could-not-read outcome)
+// lives in the leaf module app/_lib/repo-snapshot.ts, shared with the dev-case reads.
+// Re-exported so the analyzer side imports one GitHub layer.
+export { githubRead };
+export type { GithubReadFailureKind, GithubReadOutcome } from "@/app/_lib/repo-snapshot";
 
-// A 200 body is as unbounded as a request body off the network: `response.json()`
-// buffers whatever api.github.com sends (or whatever a hijacked/proxied endpoint
-// sends), and one run makes up to ~31 of these reads inside a single handler. Cap
-// the bytes actually read off the wire with the SAME reader the request side uses
-// (readTextWithLimit's `BoundedBodySource` is structural exactly so the outbound
-// side can reuse it). 4 MB is well past the largest legitimate answer here — a
-// 100-repo page runs ~200 KB — so the cap only ever fires on an anomaly.
-const GITHUB_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
+function isTimeout(error: unknown): boolean {
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+}
 
+/** The analyzer's throw-on-failure face of `githubRead`. Its thrown shapes are the
+ *  route's contract (GithubHttpError with a status for isCoverageLossError, a
+ *  GithubAnalysisError code for everything else) and are pinned by client.test.ts. */
 export async function githubFetch<T>(url: string): Promise<T> {
-  // KP_OFFLINE — an air-gapped install makes no outbound call (self-hosting.md §7).
-  // The global fetch guard in instrumentation.ts already blocks this egress, but it
-  // does so by REJECTING the fetch, which reaches the route as an unclassified
-  // ANALYSIS_FAILED carrying a guard's internal message. Consulting the predicate
-  // here turns "we deliberately do not call GitHub" into its own coded answer,
-  // BEFORE a socket is opened.
-  if (isOffline()) {
-    throw new GithubAnalysisError("OFFLINE", GITHUB_ERRORS.OFFLINE);
-  }
-  const headers: HeadersInit = {
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "kp-jobfit-github-analysis"
-  };
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  }
-  try {
-    const response = await fetch(url, {
-      headers,
-      next: { revalidate: 0 },
-      signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS)
-    });
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new GithubHttpError(404, "PROFILE_NOT_FOUND", GITHUB_ERRORS.PROFILE_NOT_FOUND);
-      }
-      // 403 is GitHub's primary limiter / an access policy; 429 is the secondary
-      // one. Both are the same answer to a caller — come back later — and both name
-      // WHEN in a header we used to drop on the floor.
-      if (response.status === 403 || response.status === 429) {
-        throw new GithubHttpError(
-          response.status,
-          "RATE_LIMITED",
-          GITHUB_ERRORS.RATE_LIMITED,
-          retryAfterSecondsFrom(response.headers)
-        );
-      }
+  const out = await githubRead<T>(url);
+  if (out.ok) return out.data;
+  switch (out.kind) {
+    case "offline":
+      throw new GithubAnalysisError("OFFLINE", GITHUB_ERRORS.OFFLINE);
+    case "not_found":
+      throw new GithubHttpError(404, "PROFILE_NOT_FOUND", GITHUB_ERRORS.PROFILE_NOT_FOUND);
+    case "throttled":
+      throw new GithubHttpError(out.status ?? 403, "RATE_LIMITED", GITHUB_ERRORS.RATE_LIMITED, out.retryAfterSec);
+    case "http_error":
       throw new GithubHttpError(
-        response.status,
+        out.status ?? 0,
         "API_ERROR",
-        `${GITHUB_ERRORS.API_ERROR} (HTTP ${response.status})`,
-        retryAfterSecondsFrom(response.headers)
+        `${GITHUB_ERRORS.API_ERROR} (HTTP ${out.status})`,
+        out.retryAfterSec
       );
-    }
-    // Awaited inside the try on purpose: the signal aborts a stalled BODY too, so the
-    // abort can surface from the body read, not only from fetch(). Read through the
-    // byte-capped reader rather than response.json() — see GITHUB_RESPONSE_MAX_BYTES.
-    const text = await readTextWithLimit(response, GITHUB_RESPONSE_MAX_BYTES);
-    if (text === null) {
+    case "too_large":
       throw new GithubAnalysisError("RESPONSE_TOO_LARGE", GITHUB_ERRORS.RESPONSE_TOO_LARGE);
-    }
-    if (!text) return null as T;
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      // A 200 whose body is not JSON at all is the same class of surprise as a 200
-      // whose body is the wrong shape — the caller's BAD_SHAPE branch, not a raw
-      // SyntaxError reaching the route as ANALYSIS_FAILED.
+    case "bad_shape":
       throw new GithubAnalysisError("BAD_SHAPE", GITHUB_ERRORS.BAD_SHAPE);
-    }
-  } catch (error) {
-    if (error instanceof GithubAnalysisError) throw error; // already classified above
-    // The abort carries no HTTP status, so it would otherwise reach the route as an
-    // unclassified ANALYSIS_FAILED with a raw "operation was aborted" string. Give it
-    // the route's own localizable code instead.
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-      throw new GithubAnalysisError("API_ERROR", `${GITHUB_ERRORS.API_ERROR} (no response within ${GITHUB_FETCH_TIMEOUT_MS / 1000}s)`);
-    }
-    throw error;
+    case "unreachable":
+      // The abort carries no HTTP status, so it would otherwise reach the route as an
+      // unclassified ANALYSIS_FAILED with a raw "operation was aborted" string. Give it
+      // the route's own localizable code instead; any other throw propagates as before.
+      if (isTimeout(out.cause)) {
+        throw new GithubAnalysisError("API_ERROR", `${GITHUB_ERRORS.API_ERROR} (no response within ${GITHUB_FETCH_TIMEOUT_MS / 1000}s)`);
+      }
+      throw out.cause;
   }
 }
 

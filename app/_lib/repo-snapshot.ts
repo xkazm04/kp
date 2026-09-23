@@ -1,10 +1,101 @@
 // Pulls grounded reality from a GitHub repo for the Dev extension (Phase D2).
-// Mirrors the fetch layer used by /api/github-analysis. Unauthenticated works at a
-// low rate; GITHUB_TOKEN (same env var as the analyzer) raises the limit.
-//
-// Deliberately self-contained (no sibling imports) so its colocated node --test
-// keeps resolving — the seed-diff's unionChangedPaths is mirrored inline below
-// rather than imported (a one-loop union; devcase-seed-diff owns the tested copy).
+// Unreadable is not absent: a private fetch helper here once turned every failure into
+// null, and a GitHub throttle then scored as "no commit history, no DECISIONS log".
+// Every read now says read / not there (404) / could not read, and the last is carried
+// forward as unread, never as empty. unionChangedPaths is mirrored inline below
+// (devcase-seed-diff owns the tested copy).
+import { isOffline } from "@/app/_lib/offline";
+import { readTextWithLimit } from "@/app/_lib/request-body";
+
+/** The parts of a RepoSnapshot that are read from GitHub, by name. */
+export type RepoSnapshotPart = "languages" | "commits" | "contents" | "readme";
+
+// ── The ONE GitHub transport ──
+// Every api.github.com read goes through `githubRead`, the recruiter deep-dive's
+// throwing `githubFetch` (github/client.ts) included. It lives in this leaf so the
+// dev-case routes do not import the analyzer's client. It never throws.
+export type GithubReadFailureKind =
+  | "not_found" // 404
+  | "throttled" // 403 / 429
+  | "http_error" // other non-ok; `status` says which
+  | "unreachable" // timeout, abort, network
+  | "too_large" // 200 past the byte cap
+  | "bad_shape" // 200, not JSON
+  | "offline"; // KP_OFFLINE
+
+export type GithubReadOutcome<T> =
+  | { ok: true; data: T }
+  | {
+      ok: false;
+      kind: GithubReadFailureKind;
+      status?: number;
+      retryAfterSec?: number;
+      cause?: unknown; // unreachable: the throw, for githubFetch to rethrow
+    };
+
+// `next start` never kills a long handler; a timeout is "could not read", not a 404.
+export const GITHUB_FETCH_TIMEOUT_MS = 20_000;
+// A 200 body is unbounded; 4 MB is far past any legitimate answer (~200 KB).
+const GITHUB_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
+
+// `Retry-After` (seconds or HTTP-date) or `x-ratelimit-reset` (epoch s), clamped to 1 h.
+const RETRY_AFTER_MAX_SEC = 3600;
+export function retryAfterSecondsFrom(headers: Headers, nowMs = Date.now()): number | undefined {
+  const raw = headers.get("retry-after");
+  if (raw) {
+    const delta = Number(raw.trim());
+    if (Number.isFinite(delta)) return clampRetryAfter(delta);
+    const at = Date.parse(raw);
+    if (Number.isFinite(at)) return clampRetryAfter((at - nowMs) / 1000);
+  }
+  const reset = Number(headers.get("x-ratelimit-reset") ?? "");
+  if (Number.isFinite(reset) && reset > 0) return clampRetryAfter(reset - nowMs / 1000);
+  return undefined;
+}
+
+function clampRetryAfter(seconds: number): number | undefined {
+  const rounded = Math.ceil(seconds);
+  if (!Number.isFinite(rounded) || rounded <= 0) return undefined;
+  return Math.min(rounded, RETRY_AFTER_MAX_SEC);
+}
+
+export async function githubRead<T>(url: string): Promise<GithubReadOutcome<T>> {
+  if (isOffline()) return { ok: false, kind: "offline" };
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "kp-jobfit-github-analysis",
+  };
+  // One credential rule for every GitHub read (the two transports used to disagree).
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    const response = await fetch(url, {
+      headers,
+      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      if (response.status === 404) return { ok: false, kind: "not_found", status: 404 };
+      const kind: GithubReadFailureKind = response.status === 403 || response.status === 429 ? "throttled" : "http_error";
+      const retryAfterSec = retryAfterSecondsFrom(response.headers);
+      return retryAfterSec === undefined
+        ? { ok: false, kind, status: response.status }
+        : { ok: false, kind, status: response.status, retryAfterSec };
+    }
+    // Inside the try: the signal aborts a stalled BODY too.
+    const text = await readTextWithLimit(response, GITHUB_RESPONSE_MAX_BYTES);
+    if (text === null) return { ok: false, kind: "too_large", status: response.status };
+    if (!text) return { ok: true, data: null as T };
+    try {
+      return { ok: true, data: JSON.parse(text) as T };
+    } catch {
+      return { ok: false, kind: "bad_shape", status: response.status };
+    }
+  } catch (error) {
+    return { ok: false, kind: "unreachable", cause: error };
+  }
+}
 
 export type RepoSnapshot = {
   ref: string;
@@ -23,16 +114,12 @@ export type RepoSnapshot = {
   recentCommitSummaries: string[];
   loc: number;
   readmeExcerpt: string;
+  // Parts GitHub could not be READ (a 404 is a read: no README is not listed), so an
+  // empty languages map is never taken as the repo's truth. Python ignores the field.
+  unreadable: RepoSnapshotPart[];
 };
 
 const GH = "https://api.github.com";
-
-function ghHeaders(): Record<string, string> {
-  const h: Record<string, string> = { Accept: "application/vnd.github+json" };
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  if (token) h.Authorization = `Bearer ${token}`;
-  return h;
-}
 
 export function parseRepoRef(ref: string): { owner: string; repo: string } | null {
   const m =
@@ -50,20 +137,19 @@ export function parseRepoRef(ref: string): { owner: string; repo: string } | nul
   return { owner, repo };
 }
 
-async function gh<T>(url: string): Promise<T | null> {
-  try {
-    const r = await fetch(url, { headers: ghHeaders(), next: { revalidate: 0 } });
-    if (!r.ok) return null;
-    return (await r.json()) as T;
-  } catch {
-    return null;
-  }
+function arrayOf<T>(out: GithubReadOutcome<T[]>): T[] | null {
+  return out.ok && Array.isArray(out.data) ? out.data : null;
+}
+
+// Not read = a failure other than 404, or a 200 that is not the shape needed.
+function unread(out: GithubReadOutcome<unknown>, wantArray: boolean): boolean {
+  if (!out.ok) return out.kind !== "not_found";
+  return wantArray && out.data != null && !Array.isArray(out.data);
 }
 
 // The commit "subject" = the first line of a commit message, length-clamped. The
 // snapshot path and the signals path tune `max` differently (100 vs 140), but the
-// extraction itself was hand-copied; single-source it. Module-local on purpose —
-// this file stays import-free for its colocated node --test.
+// extraction itself was hand-copied; single-source it.
 function firstLine(message: string | undefined, max: number): string {
   return (message ?? "").split("\n")[0].slice(0, max);
 }
@@ -73,15 +159,25 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
   if (!parsed) return null;
   const full = `${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}`;
 
-  const [langs, commits, contents, readme] = await Promise.all([
-    gh<Record<string, number>>(`${GH}/repos/${full}/languages`),
-    gh<Array<{ commit: { message: string } }>>(`${GH}/repos/${full}/commits?per_page=20`),
-    gh<Array<{ name: string; type: string }>>(`${GH}/repos/${full}/contents`),
-    gh<{ content?: string; encoding?: string }>(`${GH}/repos/${full}/readme`),
+  const [langsR, commitsR, contentsR, readmeR] = await Promise.all([
+    githubRead<Record<string, number>>(`${GH}/repos/${full}/languages`),
+    githubRead<Array<{ commit: { message: string } }>>(`${GH}/repos/${full}/commits?per_page=20`),
+    githubRead<Array<{ name: string; type: string }>>(`${GH}/repos/${full}/contents`),
+    githubRead<{ content?: string; encoding?: string }>(`${GH}/repos/${full}/readme`),
   ]);
+  const langs = langsR.ok ? langsR.data : null;
+  const commits = arrayOf(commitsR);
+  const contents = arrayOf(contentsR);
+  const readme = readmeR.ok ? readmeR.data : null;
 
   // couldn't reach the repo at all → ungrounded
   if (!langs && !commits && !contents && !readme) return null;
+
+  const unreadable: RepoSnapshotPart[] = [];
+  if (unread(langsR, false)) unreadable.push("languages");
+  if (unread(commitsR, true)) unreadable.push("commits");
+  if (unread(contentsR, true)) unreadable.push("contents");
+  if (unread(readmeR, false)) unreadable.push("readme");
 
   const langBytes = langs ?? {};
   const total = Object.values(langBytes).reduce((a, b) => a + b, 0) || 1;
@@ -109,7 +205,7 @@ export async function buildRepoSnapshot(ref: string): Promise<RepoSnapshot | nul
   }
 
   // frameworks: [] by design — see the RESERVED note on RepoSnapshot.frameworks above.
-  return { ref, languages, inferredStack, frameworks: [], topDirs, recentCommitSummaries, loc, readmeExcerpt };
+  return { ref, languages, inferredStack, frameworks: [], topDirs, recentCommitSummaries, loc, readmeExcerpt, unreadable };
 }
 
 export type CommitEntry = { sha: string; message: string; date: string; additions?: number; deletions?: number; files?: number };
@@ -129,6 +225,7 @@ function toCommitEntry(c: { sha?: string; commit?: { message?: string; author?: 
 // NOT classify files here (tests / CI / agent configs); the model interprets the tree with
 // its own current knowledge, so this never needs recalibration when a new tool appears.
 export type RepoSignals = {
+  ok: true;
   ref: string;
   commits: CommitEntry[];
   // cadence describes the rhythm of the history. `bursty` flags a repo whose whole history
@@ -143,7 +240,36 @@ export type RepoSignals = {
   // change sizes). Feeds the seed-anchored diff: which planted seam files did the
   // candidate actually touch. Bounded by statsDepth, like the change-size stats.
   changedPaths: string[];
+  // false = /contents failed (not a 404): topLevel is [] because it was never SEEN,
+  // so no "no DECISIONS log" may be concluded from it.
+  topLevelReadable: boolean;
+  // Commit-detail fan-out: all answered / some ("partial", changedPaths from those) / none.
+  statsReadable: boolean | "partial";
 };
+
+// The commits list could not be READ (kp's condition); null = the ref does not resolve.
+export type RepoSignalsUnreadable = {
+  ok: false;
+  unreadable: Exclude<GithubReadFailureKind, "not_found">;
+  retryAfterSec?: number;
+};
+
+// A coded, retryable refusal: the repo was not read, so nothing was scored or saved.
+export class RepoUnreadableError extends Error {
+  readonly code = "REPO_UNREADABLE" as const;
+  readonly retryable = true as const;
+  readonly kind: RepoSignalsUnreadable["unreadable"];
+  readonly retryAfterSec?: number;
+  constructor(kind: RepoSignalsUnreadable["unreadable"], retryAfterSec?: number) {
+    super(
+      `The submission repository could not be read from GitHub (${kind}); nothing was evaluated or scored. Retry later` +
+        (retryAfterSec ? ` (GitHub suggests ${retryAfterSec}s).` : "."),
+    );
+    this.name = "RepoUnreadableError";
+    this.kind = kind;
+    this.retryAfterSec = retryAfterSec;
+  }
+}
 
 // "Bursty" = the history landed in one short working sitting. The rule is named and
 // unit-correct: the old `spanHours <= Math.max(6, times.length)` compared a DURATION in hours
@@ -169,16 +295,32 @@ export function summarizeCadence(commits: Pick<CommitEntry, "date">[]): RepoSign
   return { count: commits.length, spanHours, bursty };
 }
 
-export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): Promise<RepoSignals | null> {
+export async function fetchRepoSignals(
+  ref: string,
+  max = 60,
+  statsDepth = 12,
+): Promise<RepoSignals | RepoSignalsUnreadable | null> {
   const parsed = parseRepoRef(ref);
   if (!parsed) return null;
   const full = `${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}`;
 
-  const [list, contents] = await Promise.all([
-    gh<Array<{ sha: string; commit: { message: string; author?: { date?: string } } }>>(`${GH}/repos/${full}/commits?per_page=${Math.min(Math.max(max, 1), 100)}`),
-    gh<Array<{ name: string; type: string }>>(`${GH}/repos/${full}/contents`),
+  const [listR, contentsR] = await Promise.all([
+    githubRead<Array<{ sha: string; commit: { message: string; author?: { date?: string } } }>>(
+      `${GH}/repos/${full}/commits?per_page=${Math.min(Math.max(max, 1), 100)}`,
+    ),
+    githubRead<Array<{ name: string; type: string }>>(`${GH}/repos/${full}/contents`),
   ]);
-  if (!list) return null;
+  if (!listR.ok) {
+    // 404: the ref does not resolve. 409: GitHub's answer for an EMPTY repository (no
+    // commits to list). Both are facts about the repo: null, as before.
+    if (listR.kind === "not_found" || (listR.kind === "http_error" && listR.status === 409)) return null;
+    // Anything else is a read that never happened. Say so; never hand back "no commits".
+    const out: RepoSignalsUnreadable = { ok: false, unreadable: listR.kind };
+    if (listR.retryAfterSec !== undefined) out.retryAfterSec = listR.retryAfterSec;
+    return out;
+  }
+  const list = arrayOf(listR);
+  if (!list) return { ok: false, unreadable: "bad_shape" };
 
   const commits: CommitEntry[] = list.map(toCommitEntry);
 
@@ -188,11 +330,13 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
     list
       .slice(0, depth)
       .map((c) =>
-        gh<{ stats?: { additions?: number; deletions?: number }; files?: { filename?: string }[] }>(
-          `${GH}/repos/${full}/commits/${c.sha}`
-        )
-      )
+        githubRead<{ stats?: { additions?: number; deletions?: number }; files?: { filename?: string }[] }>(
+          `${GH}/repos/${full}/commits/${c.sha}`,
+        ).then((out) => (out.ok && out.data && typeof out.data === "object" ? out.data : null)),
+      ),
   );
+  const answered = stats.filter((s) => s !== null).length;
+  const statsReadable: RepoSignals["statsReadable"] = answered === depth ? true : answered === 0 ? false : "partial";
   stats.forEach((s, i) => {
     if (s?.stats) {
       commits[i].additions = s.stats.additions ?? 0;
@@ -200,9 +344,8 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
       commits[i].files = Array.isArray(s.files) ? s.files.length : undefined;
     }
   });
-  // The set of files changed across the inspected commits (for the seed diff).
-  // Inline union (mirrors devcase-seed-diff.unionChangedPaths) to keep this module
-  // import-free for its colocated test.
+  // The set of files changed across the inspected commits (for the seed diff), from
+  // the commits that answered. Inline union (mirrors devcase-seed-diff.unionChangedPaths).
   const changedSet = new Set<string>();
   for (const s of stats) {
     for (const f of Array.isArray(s?.files) ? s!.files! : []) {
@@ -211,7 +354,20 @@ export async function fetchRepoSignals(ref: string, max = 60, statsDepth = 12): 
   }
   const changedPaths = [...changedSet];
 
+  // A 404 on /contents is an empty repository: read, and genuinely empty. Any other
+  // failure (or a body that is not the documented array) is a tree we never saw.
+  const contents = arrayOf(contentsR);
+  const topLevelReadable = contents !== null || (!contentsR.ok && contentsR.kind === "not_found");
   const topLevel = (contents ?? []).map((e) => ({ name: e.name, type: e.type })).slice(0, 60);
 
-  return { ref, commits, cadence: summarizeCadence(commits), topLevel, changedPaths };
+  return {
+    ok: true,
+    ref,
+    commits,
+    cadence: summarizeCadence(commits),
+    topLevel,
+    changedPaths,
+    topLevelReadable,
+    statsReadable,
+  };
 }

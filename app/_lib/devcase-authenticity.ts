@@ -19,7 +19,11 @@ export type AuthenticityInput = {
   // From processTrace.cadence — all work in one short burst (no incremental rhythm).
   bursty: boolean | null;
   spanHours: number | null;
-  decisionsLogPresent: boolean;
+  // null = the tree could not be READ (a GitHub throttle / 5xx / timeout on the
+  // candidate's repo). That is kp's condition, not the candidate's: it must lower what
+  // a reviewer can conclude, never the score, so it costs nothing and is reported as
+  // `decisionsLogUnread`. false = the tree was read and the log is not in it.
+  decisionsLogPresent: boolean | null;
   // From the reflection (may be absent on older bundles / deterministic fallback).
   readBeforeWrite?: number | null; // 0..1
   iterationPattern?: string | null; // exploratory|linear|big-bang|test-driven|unclear
@@ -62,6 +66,7 @@ export const AUTHENTICITY_REASON_KINDS = [
   "bigBang",
   "unreadableIteration",
   "lowReadBeforeWrite",
+  "decisionsLogUnread",
 ] as const;
 export type AuthenticityReasonKind = (typeof AUTHENTICITY_REASON_KINDS)[number];
 export type AuthenticityReason = { kind: AuthenticityReasonKind; params?: Record<string, number> };
@@ -136,7 +141,12 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   }
 
   // The forced DECISIONS.md authorship artifact (case-design contract) is absent.
-  if (!input.decisionsLogPresent) {
+  // ONLY when the tree was actually read: an unread tree is not evidence of anything,
+  // and scoring it would write kp's own rate limit onto the candidate as an adverse
+  // finding. The note stays in `reasons` so the reviewer sees the axis was unread.
+  if (input.decisionsLogPresent === null) {
+    reasons.push({ kind: "decisionsLogUnread" });
+  } else if (!input.decisionsLogPresent) {
     score -= 25;
     reasons.push({ kind: "noDecisionsLog" });
   }
