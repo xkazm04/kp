@@ -185,14 +185,27 @@ job/internship evidence: `transferable._TRANSFERABLE_MAP` credits meta-skills at
 masculine-only token silently credits a man and not the woman who held the same
 job. Most masculine forms are a *prefix* of their feminine counterpart and cover
 both (`učitel` ⊃ `učitelka`, `ředitel` ⊃ `ředitelka`, `koordinátor` ⊃
-`koordinátorka`); where the stem changes they do not, and the feminine stem has to
-be listed alongside — `pedagog`/`pedagož`, `poradce`/`poradkyn`,
-`právník`/`právnič`, `voják`/`vojačk` — or the adjective truncated to its neutral
-stem (`projektov` covers *projektový manažer* **and** *projektová manažerka*).
-Before that fix, *Projektová manažerka* earned no project-management meta-skills
-and graded `far` where *Projektový manažer* graded `moderate` — a different
-`potential_score` off nothing but grammar. `tests/test_transferable_gender.py`
-pins the symmetry; apply the same check to any Czech token added to these lists.
+`koordinátorka`); where the stem changes they do not, or the adjective is truncated
+to its neutral stem (`projektov` covers *projektový manažer* **and** *projektová
+manažerka*). Before that fix, *Projektová manažerka* earned no project-management
+meta-skills and graded `far` where *Projektový manažer* graded `moderate` — a
+different `potential_score` off nothing but grammar.
+
+The map is split into an authored table (`_AUTHORED_TRANSFERABLE_MAP`) and a
+load-time expansion (`with_feminine_forms`) that **appends** each Czech agent
+noun's full feminine words from `taxonomy.feminine_probe_forms` — `právník` gains
+`právnice` and `právnička`, `pedagog` gains `pedagožka`, `voják` gains `vojačka`.
+Full words, not the `feminine_variants` stems: the map matches by raw substring,
+and the stem `právnic` would credit every accountant whose CV says *právnických
+osob* with `negotiation`. The expansion is additive because a nominative does not
+reach the case forms a CV is written in (*praxe pedagožky*, *práce právničky*,
+*služba vojačky*), so the authored inflection stems `pedagož`, `právnič`, `vojačk`
+stay beside the derived words; `poradkyn` stays authored because the probe
+vocabulary has no `-ce→-kyně` rule. Measured before the derivation: *Právnice*,
+the dictionary-standard feminine, earned 4 of the 7 meta-skills *Právník* and
+*Právnička* earn and graded `far` where they graded `moderate`.
+`tests/test_transferable_gender.py` pins the pairs, the inflected pairs, the
+*právnických osob* negative control and that English signals derive nothing.
 
 The *taxonomy's own* surfaces carried the same gap, and there it reached further
 than the switcher bridge. `taxonomy.feminine_variants` now derives the
@@ -214,7 +227,11 @@ student's gender. What this closed, measured on the shipped data:
 `taxonomy_check.scan_gender_gaps` asserts it mechanically over the real data —
 `python -m pipeline.jobfit.taxonomy_check` fails on any masculine surface whose
 feminine the live matcher cannot reach, and `derive=False` replays the pre-rule
-state (55 gaps) so the check is a measurement, not a tautology.
+state (55 gaps) so the check is a measurement, not a tautology. The same CLI runs
+`scan_transferable_gender_gaps` over the third consumer, the transferable map,
+with `map_transferable`'s own rule (any form in the signal's group is a substring
+of the feminine word); `derive=False` there replays 1 gap (`právník` →
+`právnice`), and the CLI's `GENDER PARITY` line counts both.
 `tests/test_taxonomy_gender.py` pins all three rows plus the negative control:
 the derivation must add *only* feminine forms (an earlier draft derived the stem
 `technic` from `technik`, which would have matched the English
