@@ -95,9 +95,12 @@ test("the status projection gains a BOOLEAN and nothing else about the audio", a
   // name or a date would be a fact about the interview on a public, token-only wire.
   assert.deepEqual(
     Object.keys(body).sort(),
-    ["company", "hasInterviewRecording", "jobTitle", "letter", "relayConfigured", "status", "updatedAt"],
+    ["company", "hasInterviewRecording", "jobTitle", "letter", "nextAction", "relayConfigured", "status", "updatedAt"],
     "the candidate projection must not grow silently"
   );
+  // challenge-r06 application-status-page/B: nextAction is null or the three-key projection,
+  // never a capability (status-resend.test.ts pins the token half).
+  assert.ok(body.nextAction === null || Object.keys(body.nextAction as object).sort().join() === "expiresAt,kind,sentAt");
   const serialized = JSON.stringify(body);
   assert.doesNotMatch(serialized, /\.webm/, "no file name on the public wire");
   assert.doesNotMatch(serialized, new RegExp(c.session.id), "no session id either");

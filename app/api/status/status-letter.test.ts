@@ -131,9 +131,12 @@ test("the status projection gains `letter` — the contract's four fields and no
   const body = (await res.json()) as Record<string, unknown>;
   assert.deepEqual(
     Object.keys(body).sort(),
-    ["company", "hasInterviewRecording", "jobTitle", "letter", "relayConfigured", "status", "updatedAt"],
+    ["company", "hasInterviewRecording", "jobTitle", "letter", "nextAction", "relayConfigured", "status", "updatedAt"],
     "the candidate projection must not grow silently"
   );
+  // challenge-r06 application-status-page/B: nextAction is null or the three-key projection,
+  // never a capability (status-resend.test.ts pins the token half).
+  assert.ok(body.nextAction === null || Object.keys(body.nextAction as object).sort().join() === "expiresAt,kind,sentAt");
   assert.deepEqual(body.letter, { canRequest: true, state: null, requestedAt: null, text: null });
 });
 
