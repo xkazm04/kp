@@ -105,3 +105,42 @@ test("the cap is a stated bound, applied oldest-waiting-first so nothing starves
     "the declared cap is a ceiling, not a default a caller can raise"
   );
 });
+
+// One aging clock (challenge-r02 pipeline-actions-events/A): the pass hands Python the
+// aging TIER resolved from the board's stage-role SLA on the entry's OWN workspace
+// axis, so a composed column ("Tech round", role interview) ages at the interview SLA
+// for that team and never on the flat legacy cut or on another team's board.
+test("each entry carries agingTier resolved on its own workspace's axis", async () => {
+  const { setDecisionConfig } = await import("../decision-config-store.ts");
+  const WS_AXIS = "ws-auto-axis";
+  setDecisionConfig(
+    "pipelineStages",
+    {
+      stages: [
+        { id: "Applied", label: "Applied", role: "entry" },
+        { id: "Tech round", label: "Tech round", role: "interview" },
+        { id: "Offer", label: "Offer", role: "offer" },
+        { id: "Placed", label: "Placed", role: "terminal" },
+      ],
+      retired: [],
+    },
+    WS_AXIS,
+    "team"
+  );
+  const ago = (days: number) => new Date(Date.now() - days * 86_400_000 - 3_600_000).toISOString();
+  const place = (workspaceId: string, id: string, stage: string, days: number) => {
+    const e = seed(workspaceId, id, ago(days));
+    ensureDb().prepare(`UPDATE pipeline_entries SET stage = ? WHERE id = ?`).run(stage, e.id);
+    return e.id;
+  };
+  const tech6 = place(WS_AXIS, "tech6", "Tech round", 6);
+  const tech10 = place(WS_AXIS, "tech10", "Tech round", 10);
+  const acc6 = place("workspace", "acc6", "Accepted", 6);
+  const acc10 = place("workspace", "acc10", "Accepted", 10);
+
+  const byId = new Map(listActiveEntriesForAutomation().map((r) => [r.id, r]));
+  assert.equal(byId.get(tech6)!.agingTier, "aging", "interview role SLA is 5 d");
+  assert.equal(byId.get(tech10)!.agingTier, "stalled", "twice the SLA is stalled");
+  assert.equal(byId.get(acc6)!.agingTier, "none", "the entry role SLA is 14 d");
+  assert.equal(byId.get(acc10)!.agingTier, "none");
+});

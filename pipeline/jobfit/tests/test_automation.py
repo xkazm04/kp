@@ -118,6 +118,86 @@ class PolicyTest(unittest.TestCase):
     def test_recent_screening_skips(self):
         self.assertEqual(self.ev(matchScore=90, recentScreening=True)["action"], "none")
 
+    # --- one aging clock (challenge-r02 pipeline-actions-events/A) ------------------
+    # The TS pass resolves each entry's aging tier from the board's stage-role SLA on
+    # the entry's own workspace axis (app/_lib/aging-policy.ts) and hands it in as
+    # `agingTier`. The flat POLICY cut is only the fallback for a caller that sends none.
+
+    def test_hired_never_alerts_even_on_legacy_input(self):
+        # Legacy input (no agingTier): a hire used to collect an aging_alert every day
+        # from day 30 on, forever — the terminal guard ran AFTER the alerts were built.
+        d = self.ev(stage="Hired", matchScore=99, daysInStage=99)
+        self.assertEqual(d["alerts"], [])
+
+    def test_renamed_terminal_with_tier_none_never_alerts(self):
+        d = self.ev(stage="Placed", daysInStage=40, agingTier="none")
+        self.assertEqual(d["alerts"], [])
+
+    def test_ts_tier_maps_to_the_alert_kinds(self):
+        self.assertEqual(self.ev(stage="Offer", daysInStage=3, agingTier="aging")["alerts"], ["stale_alert"])
+        self.assertEqual(self.ev(stage="Offer", daysInStage=6, agingTier="stalled")["alerts"], ["aging_alert"])
+
+    def test_ts_tier_wins_over_the_flat_cut(self):
+        # 35 days would be an aging_alert on the flat fallback; the resolved tier says no.
+        self.assertEqual(self.ev(stage="Offer", daysInStage=35, agingTier="none")["alerts"], [])
+
+    def test_an_unrecognised_tier_falls_back_to_the_flat_cut(self):
+        self.assertEqual(self.ev(daysInStage=35, agingTier="bogus")["alerts"], ["aging_alert"])
+
+
+class AgingTierSyncTest(unittest.TestCase):
+    """Drift guard for the TS -> Python aging bridge (the test_fit_threshold_sync shape).
+
+    TS owns the tier: ``app/_lib/aging-policy.ts`` declares the vocabulary and which
+    alert kind each tier is written as. Python consumes the tier string and maps it
+    through ``automation.AGING_TIER_ALERTS``. Rename a tier or swap the two kinds on one
+    side alone and the feed silently stops alerting (or alerts under the wrong name) —
+    this reads the TS source and fails on any divergence, in both directions.
+    """
+
+    AGING_TS = __import__("pathlib").Path(__file__).resolve().parents[3] / "app" / "_lib" / "aging-policy.ts"
+    STAGES_TS = __import__("pathlib").Path(__file__).resolve().parents[3] / "app" / "_lib" / "pipeline-stages.ts"
+
+    @staticmethod
+    def _strip(text: str) -> str:
+        import re
+
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+        return re.sub(r"//[^\n]*", "", text)
+
+    def _ts(self) -> str:
+        self.assertTrue(self.AGING_TS.exists(), f"missing {self.AGING_TS}")
+        return self._strip(self.AGING_TS.read_text(encoding="utf-8"))
+
+    def test_the_tier_vocabulary_matches(self):
+        import re
+
+        m = re.search(r"\bAGING_TIERS\s*=\s*\[([^\]]*)\]", self._ts())
+        self.assertIsNotNone(m, "aging-policy.ts must export AGING_TIERS as a literal array")
+        ts_tiers = tuple(re.findall(r'"(\w+)"', m.group(1)))
+        self.assertEqual(ts_tiers, automation.AGING_TIERS)
+
+    def test_the_tier_to_alert_map_matches(self):
+        import re
+
+        m = re.search(r"\bAGING_TIER_ALERT\b[^=]*=\s*\{([^}]*)\}", self._ts())
+        self.assertIsNotNone(m, "aging-policy.ts must export AGING_TIER_ALERT as a literal object")
+        ts_map = dict(re.findall(r'(\w+)\s*:\s*"(\w+)"', m.group(1)))
+        self.assertEqual(ts_map, automation.AGING_TIER_ALERTS)
+        # Every non-"none" tier alerts, and "none" never does.
+        self.assertEqual(set(ts_map), set(automation.AGING_TIERS) - {"none"})
+
+    def test_the_legacy_terminal_guard_matches_the_shipped_axis(self):
+        # The fallback path has no axis, so it guards the SHIPPED terminal column by
+        # name; that name set must be the stages STAGE_ROLE marks terminal.
+        import re
+
+        src = self._strip(self.STAGES_TS.read_text(encoding="utf-8"))
+        block = re.search(r"\bSTAGE_ROLE\b[^=]*=\s*\{([^}]*)\}", src)
+        self.assertIsNotNone(block)
+        terminal = {k for k, v in re.findall(r'(\w+)\s*:\s*"(\w+)"', block.group(1)) if v == "terminal"}
+        self.assertEqual(terminal, set(automation.TERMINAL_STAGES))
+
 
 class ScreeningTest(unittest.TestCase):
     def test_bau_strong_advances(self):
