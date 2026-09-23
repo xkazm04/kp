@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cancelTask } from "@/app/_lib/tasks";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { taskKindCapability } from "@/app/_lib/task-admission";
 
 
 // One task by id — the full row, INCLUDING `params` and `result`, i.e. the whole
@@ -30,6 +32,10 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   // holds one abort registry for the whole process), so the tenant check has to
   // happen here or it does not happen at all.
   if (!getTask(id, ws)) return jsonRefusal("TASK_NOT_FOUND", 404);
+  // …then the SEAT the row's kind declares (app/_lib/task-admission.ts), still before
+  // the abort: a viewer may watch a colleague's run, not cancel it.
+  const denied = await requireCapabilityCoded(taskKindCapability(getTask(id, ws)?.kind ?? ""), requireCapability);
+  if (denied) return denied;
   const ok = cancelTask(id);
   return NextResponse.json({ ok, task: getTask(id, ws) });
 }

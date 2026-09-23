@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { dockMayStart, taskKindCapability } from "@/app/_lib/task-admission";
 import { ensureRecovered, isKnownKind, knownTaskKinds, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -39,8 +41,6 @@ export async function GET() {
   }
 }
 
-const SERVER_ONLY_KINDS: ReadonlySet<string> = new Set(["analyze"]);
-
 export async function POST(request: NextRequest) {
   try {
     // THROTTLE (rate-limit-contract.test.ts). This route reaches the SAME queue
@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
     // mints an anonymous demo-workspace one (which requireOperator rejects and this
     // route never asked for), so on a password-gated deploy with the demo enabled an
     // anonymous visitor could spend unbounded LLM credit by varying params to defeat
-    // the dedupe key. requireOperator is NOT the fix here: it would 401 the guided
-    // demo, which legitimately starts batch_screen through this door.
+    // the dedupe key. (The seat check below closes the demo half: /api/demo mints no
+    // session on any KP_SECRET deploy, and open mode folds every caller to owner, so
+    // asking pipeline:write costs the guided walk nothing.)
     const ip = clientIpFrom(request.headers);
     if (!rateLimit(`tasks-start:${ip}`, TASKS_START_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -59,15 +60,21 @@ export async function POST(request: NextRequest) {
     if (!body.kind || !isKnownKind(body.kind)) {
       return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: body.kind ?? null });
     }
-    // Kinds whose params are SERVER-BUILT file paths never come through this generic
-    // door: analyze's baseDir/cvPath are a workdir /api/analyze made from the upload,
-    // and a client body naming them let the runner read any file and rm -rf any
-    // directory (fixed 2026-09-23; runAnalyze and cleanupWorkdir now also refuse
-    // anything that is not a jobfit workdir). The per-kind door table that generalises
-    // this is challenge-r05 workspace-config-api/A.
-    if (SERVER_ONLY_KINDS.has(body.kind)) {
+    // THE DOOR (app/_lib/task-admission.ts): a kind a server route builds and gates
+    // itself never comes through this generic door with client params. analyze was the
+    // case that forced it — its baseDir/cvPath are a workdir /api/analyze made from the
+    // upload, and a client body naming them let the runner read any file and rm -rf any
+    // directory (fixed 2026-09-23; runAnalyze and cleanupWorkdir still refuse anything
+    // that is not a jobfit workdir, independently of this door). The same table closes
+    // lifecycle, jd_build, repo_scan, agent_fit, interview_kit, interview_letter,
+    // companion_digest and jobseeker_scan, whose own doors ask gates this one skipped.
+    if (!dockMayStart(body.kind)) {
       return jsonRefusal("TASK_KIND_SERVER_ONLY", 403, { kind: body.kind });
     }
+    // THE SEAT: the capability the kind declares, before any per-class budget is spent.
+    // A viewer may watch the dock, not spend a screen sweep.
+    const denied = await requireCapabilityCoded(taskKindCapability(body.kind), requireCapability);
+    if (denied) return denied;
     // The tenant comes from the SESSION, never the body — a client-supplied
     // workspace would let any caller run work against another team's data.
     const ws = await currentWorkspace();

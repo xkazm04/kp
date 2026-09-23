@@ -2,7 +2,9 @@ import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { taskKindCapability } from "@/app/_lib/task-admission";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
@@ -67,6 +69,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // An absent or unreadable body is the whole-run replay (the original contract).
     const body = (await request.json().catch(() => null)) as { scope?: unknown } | null;
     const task = getTask(id, ws);
+    // The SEAT the stored row's kind declares (app/_lib/task-admission.ts), right after
+    // the tenant read — another team's id stays a 404 below, never a capability answer.
+    // Unlike POST /api/tasks there is no DOOR check here: a retry replays params a
+    // server route authored and stored, never the client's, so a server kind replays.
+    if (task) {
+      const denied = await requireCapabilityCoded(taskKindCapability(task.kind), requireCapability);
+      if (denied) return denied;
+    }
     const decision = retryDecision(task, body?.scope);
     if (!task || "refuse" in decision) {
       // retryDecision weighs the (tenant-scoped) read FIRST, so a null row is its
