@@ -17,6 +17,7 @@ import {
   listOutboxFiltered,
   claimLifecycleClose,
 } from "../../../../../_lib/db.ts";
+import { createPipelineEntry } from "../../../../../_lib/db/pipeline.ts";
 import { listAudit } from "../../../../../_lib/dev-control.ts";
 import { POST } from "./route.ts";
 
@@ -74,6 +75,26 @@ test("two overlapping closes send exactly ONE rejection batch (no doubled advers
   const closedAudits = listAudit().filter((e) => e.action === "closed" && e.lifecycleId === id);
   assert.equal(closedAudits.length, 1, "exactly one 'closed' audit row");
   assert.equal(getLifecycle(id)!.stage, "closed");
+});
+
+test("close never sends a rejection to a submitter already promoted to the pipeline", async () => {
+  // Promotion is recorded as a pipeline entry linked by dev_submission_id — nothing in
+  // the store writes a submission status of "promoted", so the old status check skipped
+  // nobody: every candidate who had just received the "Next step" letter was then sent
+  // "we won't be moving forward". The pipeline owns a promoted candidate's comms.
+  const lc = createLifecycle({ title: "Backend role" }, false);
+  const dc = saveDevCase({ need: {}, analysis: {}, role: { title: "Backend Engineer" }, case: { title: "API case" } });
+  updateLifecycle(lc.id, { caseId: dc.id, stage: "promoted" });
+  const posting = createPosting({ caseId: dc.id, channel: "link", token: `tok-${dc.id}`, roleTitle: "Backend Engineer", caseTitle: "API case" });
+  const promoted = createSubmission({ postingId: posting.id, candidateRef: "promoted-pat", repoRef: "repo-p", contact: "pat@example.test" });
+  createSubmission({ postingId: posting.id, candidateRef: "passed-over-quinn", repoRef: "repo-q", contact: "quinn@example.test" });
+  createPipelineEntry({ candidateId: "profile-pat", candidateLabel: "Pat", jobId: "jd-backend", jobTitle: "Backend Engineer", devCaseId: dc.id, devSubmissionId: promoted.submission.id });
+
+  const before = new Set(listOutboxFiltered({ kind: "rejection" }).map((row) => row.id));
+  const res = await POST(req(lc.id), ctx(lc.id));
+  assert.equal(res.status, 200);
+  const sent = listOutboxFiltered({ kind: "rejection" }).filter((row) => !before.has(row.id));
+  assert.deepEqual(sent.map((row) => row.recipient), ["quinn@example.test"], "only the submitter who was not promoted is told no");
 });
 
 test("close skips opaque candidate handles but uses an email ref when contact is absent", async () => {

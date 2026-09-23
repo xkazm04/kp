@@ -5,6 +5,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { sendComm } from "@/app/_lib/comms";
+import { findEntryByDevSubmission } from "@/app/_lib/db/pipeline";
 import { recordAudit } from "@/app/_lib/dev-control";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,7 +64,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     for (const posting of postings) {
       const role = posting.roleTitle ?? posting.caseTitle ?? "the role";
       for (const submission of listSubmissions(posting.id, lc.workspaceId)) {
-        if (submission.status === "promoted") continue;
+        // A submitter PROMOTED to the pipeline is not rejected here: promotion is recorded as
+        // a pipeline entry linked by dev_submission_id (no code writes a submission status of
+        // "promoted"), and from then on the pipeline owns that candidate's comms. Checking the
+        // status alone skipped nobody, so every candidate who had just been sent the "Next
+        // step" letter was then told "we won't be moving forward".
+        if (submission.status === "promoted" || findEntryByDevSubmission(submission.id, lc.workspaceId)) continue;
         // candidateRef can be an opaque handle or display name. Only an actual
         // address belongs in the comms outbox; an email-shaped ref is a valid
         // fallback for older submissions without a separate contact field.
