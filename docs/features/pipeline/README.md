@@ -1127,6 +1127,35 @@ rows) is pruned on the next load and stated once on the status line
 `reconcileSelection` checks against the whole board, never the filtered view, so a row the
 filter hides is still kept and disclosed.
 
+**A bulk move says what it sets off before it fires** (blast-radius-computation,
+challenge-r06). A committed move schedules the arrival hook: a `homework` column mails a
+work-sample assignment (designing one first when the job has none), an `interview` column
+whose first round is AI mints a voice-screen link and emails it (`auto`) or parks the
+candidate on the Schedule docket (`human`; a never-saved plan runs `auto`), and
+`setPipelineEntryStage` erases the row's pending approval, including a drafted offer whose
+terms exist only there. What an arrival sets off is decided once, in the pure
+`app/_lib/pipeline-arrival-plan.ts`: `arrivalBranch` / `arrivalEffect` (`ai_invite`,
+`ai_invite_held`, `homework`, `plain`, `refused_terminal`) and `planArrival`, which adds
+`noop` / `closed`, the approval the move `clears`, and `holdBack` for an `offer_review`.
+`runStageEnteredHook` reads `arrivalBranch` for its own branch, so the preview cannot
+describe a hook that no longer exists. `POST /api/pipeline/batch` with `dryRun: true`
+answers each `set_stage` item with `{ ok, preview: { effect, clears, holdBack, stage } }`
+through set_stage's own gates in its own order (unknown stage, terminal 422, missing,
+CAS / closed 409) and writes nothing: no row, no event, no hook. On the board the first
+*Move N* click asks for that preview (`pipelineBulkMovePreview.ts`). A move that sets
+nothing off still commits on the one click; otherwise the bar states the preview
+(`pipeline.tab.bulkMovePreview*`: moving, AI invites now, held for you, work-samples,
+decisions cleared, drafted offers kept back, already there, changed since) and the button
+becomes *Confirm move*. The move confirm sits in the reducer's single confirm slot and
+signs the cohort AND the target column, so a poll that re-stages anyone or a new *Move to*
+choice makes the next click preview again. The commit (`commitItemsFromPreview`) sends
+exactly the previewed rows, each with its previewed stage as `expectedStage` (a row that
+moved since is a per-id 409 that stays selected); a drafted-offer holder is never sent and
+stays selected with `pipeline.tab.bulkMoveOfferHeld`. Pinned by
+`app/_lib/pipeline-arrival-plan.test.ts` (including unit-DB parity with the set_stage door
+and the hook), `app/api/pipeline/batch/route.test.ts` (dry run writes nothing) and
+`pipelineBulkMovePreview.test.ts`. Keyless: the preview is a DB read, no model is called.
+
 A third rule keeps it honest about **which stages** it can move rows to:
 
 - **Every move affordance derives its target list from `moveTargetStages`**
@@ -1137,8 +1166,8 @@ A third rule keeps it honest about **which stages** it can move rows to:
   raw stage axis, so picking "Hired" and applying returned N × 422 with the whole
   selection still selected. A bulk selection has no single current stage, so only the
   unconditional exclusion applies: `Hired` out, every other canonical stage offered —
-  per-row current-stage exclusion is deliberately not attempted (`bulkMove` already
-  treats an already-at-target card as moved with no round trip).
+  per-row current-stage exclusion is deliberately not attempted (the move preview reports
+  an already-at-target card as `noop`, and the commit counts it as moved without sending it).
 
 Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject → apply a
 saved view → confirm), `pipelineBulkConfirm.test.ts`, `pipelineBulkSelection.test.ts` (cohort
