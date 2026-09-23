@@ -1,11 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CARD_PAD, DIVIDER, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, CARD_PAD, DIVIDER, EYEBROW, INTRO, PANEL, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { HistoryFilterBar } from "./HistoryFilterBar";
 import { HistoryTable } from "./HistoryTable";
-import { distinct, historyRowMatchesQuery, readAnalysesListPayload, type AnalysisRow } from "./HistoryTypes";
+import type { AnalysisRow } from "./HistoryTypes";
+import {
+  isHistoryFiltering,
+  mergeHistoryPages,
+  readHistoryPage,
+  toSearchParams,
+  type HistoryFacets,
+  type HistoryQuery,
+} from "./historyQuery";
+
+/** How long the search box rests before it asks the server. The dropdowns ask at once. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+const analysesUrl = (query: HistoryQuery, cursor?: string | null) => {
+  const qs = toSearchParams(query, cursor);
+  return qs ? `/api/analyses?${qs}` : `/api/analyses`;
+};
 
 export function HistoryTab() {
   const t = useTranslations("history");
@@ -15,79 +31,109 @@ export function HistoryTab() {
   };
   const [rows, setRows] = useState<AnalysisRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // The list route's honesty flag: a full page is not "exactly this many exist".
-  // Default false is "the route has not said truncated", not a completeness claim
-  // of our own — the Showing-of line still needs this bit to refuse rows.length
-  // as a total when the payload DID say so.
+  // The route's exact cap+1 answer: true means more groups match THIS query than are on
+  // screen, and nextCursor is where they start. Default false is "the route has not
+  // said truncated", not a completeness claim of our own.
   const [truncated, setTruncated] = useState(false);
-  // Client-side search + filter (RES3). History was an un-queryable flat table —
-  // unusable past a few dozen runs. Filtering the loaded set (≤200 rows) needs no
-  // schema/server change; server-side query params + tagging are a follow-up for
-  // when history outgrows that cap.
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreFailed, setMoreFailed] = useState(false);
+  // The dropdown vocabulary for the WHOLE workspace, from the server. Deriving it from
+  // the loaded rows could never offer a family only older runs carry.
+  const [facets, setFacets] = useState<HistoryFacets>({ families: [], seniorities: [] });
+  // Search + filter (RES3), asked of the SERVER (challenge-r09 cv-analyze-workspace/A).
+  // History used to filter the newest 200 groups it had loaded, so past that cap a
+  // search missed older candidates and 'undecided' under-counted; the route now filters
+  // the whole workspace before its window. The recorded disposition (RES5) is
+  // filterable; "undecided" matches a group with no recorded decision.
   const [q, setQ] = useState("");
+  const [appliedQ, setAppliedQ] = useState("");
   const [roleFamily, setRoleFamily] = useState("");
   const [seniority, setSeniority] = useState("");
-  // RES3 follow-up (06-10 scan #3): the recorded disposition (RES5) is the
-  // strongest triage signal on the table but postdated the filter bar — make it
-  // filterable. "undecided" matches rows with no recorded decision.
   const [disposition, setDisposition] = useState("");
+  const applied: HistoryQuery = { q: appliedQ, family: roleFamily, seniority, disposition };
 
-  // Extracted so the error panel's "Try again" can re-run it IN PLACE — a transient
-  // SQLITE_BUSY / 500 on tab-open (or a workspace switch) otherwise dead-ended at a red
-  // panel with no recovery but a full page reload. A generation ref means only the
-  // latest request's result is applied, so rapid retries / a locale switch mid-load
-  // can't write a stale rows/error. State is only written in the async continuation
-  // (never synchronously when the effect fires); the retry handler below does the
-  // synchronous loading-state reset in its event handler instead.
+  // One generation per page-1 load: only the latest query's answer is applied, so a
+  // fast typist, a retry or a locale switch mid-load can never paint a stale list, and
+  // a Load more that returns after the query changed is dropped rather than appended
+  // to the wrong list. State is only written in the async continuation (never
+  // synchronously when the effect fires).
   const reqGen = useRef(0);
-  const load = useCallback(() => {
-    const gen = ++reqGen.current;
-    fetch("/api/analyses")
-      .then(async (response) => {
-        if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
-        const payload = await response.json();
-        if (reqGen.current === gen) {
-          const page = readAnalysesListPayload(payload);
-          setRows(page.analyses);
-          setTruncated(page.truncated);
-          setError(null);
-        }
-      })
-      .catch((caught) => {
-        if (reqGen.current === gen) {
-          setError(caught instanceof Error ? caught.message : t("loadFailed"));
-          setRows(null);
-          setTruncated(false);
-        }
-      });
-  }, [t]);
+  const load = useCallback(
+    (query: HistoryQuery) => {
+      const gen = ++reqGen.current;
+      fetch(analysesUrl(query))
+        .then(async (response) => {
+          if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
+          const payload = await response.json();
+          if (reqGen.current === gen) {
+            const page = readHistoryPage(payload);
+            setRows(page.analyses);
+            setTruncated(page.truncated);
+            setNextCursor(page.nextCursor);
+            if (page.facets) setFacets(page.facets);
+            setMoreFailed(false);
+            setError(null);
+          }
+        })
+        .catch((caught) => {
+          if (reqGen.current === gen) {
+            setError(caught instanceof Error ? caught.message : t("loadFailed"));
+            setRows(null);
+            setTruncated(false);
+            setNextCursor(null);
+          }
+        });
+    },
+    [t]
+  );
+
+  // The search box asks after a pause; the dropdowns ask on change.
+  useEffect(() => {
+    const timer = setTimeout(() => setAppliedQ(q), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  useEffect(() => {
+    load({ q: appliedQ, family: roleFamily, seniority, disposition });
+  }, [load, appliedQ, roleFamily, seniority, disposition]);
 
   // "Try again": clear the failure and show the loading state immediately (a
-  // synchronous set is fine in an event handler), then refetch.
+  // synchronous set is fine in an event handler), then refetch the same query.
   const retry = () => {
     setError(null);
     setRows(null);
-    load();
+    load(applied);
   };
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // The next keyset page of the SAME query, merged by slug in server order.
+  const loadMore = () => {
+    if (!nextCursor || loadingMore) return;
+    const gen = reqGen.current;
+    setLoadingMore(true);
+    setMoreFailed(false);
+    fetch(analysesUrl(applied, nextCursor))
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        const page = readHistoryPage(await response.json());
+        if (reqGen.current !== gen) return;
+        setRows((prev) => mergeHistoryPages(prev ?? [], page.analyses));
+        setTruncated(page.truncated);
+        setNextCursor(page.nextCursor);
+      })
+      .catch(() => {
+        if (reqGen.current === gen) setMoreFailed(true);
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
-  const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
-  const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
-  const filtered = useMemo(() => {
-    return (rows ?? []).filter(
-      (r) =>
-        historyRowMatchesQuery(r, q) &&
-        (!roleFamily || r.role_family === roleFamily) &&
-        (!seniority || r.seniority === seniority) &&
-        (!disposition || (disposition === "undecided" ? r.disposition == null : r.disposition === disposition))
-    );
-  }, [rows, q, roleFamily, seniority, disposition]);
-  const filtering = Boolean(q.trim() || roleFamily || seniority || disposition);
+  // Whether the rows on screen ANSWER a narrowed query (the empty state differs), and
+  // whether the recruiter is narrowing right now (the Clear control).
+  const answersFilter = isHistoryFiltering(applied);
+  const filtering = isHistoryFiltering({ ...applied, q });
   const clearAll = () => {
     setQ("");
+    setAppliedQ("");
     setRoleFamily("");
     setSeniority("");
     setDisposition("");
@@ -96,8 +142,8 @@ export function HistoryTab() {
   return (
     // Tier 1 (docs/design/loading-choreography.md): header + the fetch-dependent
     // region cascade in as this section's direct children. aria-busy covers
-    // only the FIRST load — rows, once loaded, are never nulled out by this
-    // component again, so a later render never re-blanks what's on screen.
+    // only the FIRST load — rows, once loaded, are never nulled out by a query
+    // change (the previous answer stays until the next one lands).
     <section className={`stagger-children ${PANEL} ${CARD_PAD}`} aria-busy={rows == null && !error}>
       <header className={`${DIVIDER} border-t-0 border-b pb-4`}>
         <p className={EYEBROW}>{t("eyebrow")}</p>
@@ -122,17 +168,12 @@ export function HistoryTab() {
           // yet. Reserve the table's rough height and stay invisible for
           // 150ms so a fast response never flashes a "Loading…" line at all.
           <div className="reveal-quiet min-h-[16rem]" aria-hidden />
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && !answersFilter && !filtering ? (
           <p className="rounded-md bg-paper p-4 text-base text-steel">
             {t.rich("emptyNoRuns", { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
         ) : (
           <>
-            {truncated ? (
-              <p role="status" className="mb-3 text-sm text-amber-800">
-                {t("truncated", { count: rows.length })}
-              </p>
-            ) : null}
             <HistoryFilterBar
               q={q}
               setQ={setQ}
@@ -142,16 +183,16 @@ export function HistoryTab() {
               setSeniority={setSeniority}
               disposition={disposition}
               setDisposition={setDisposition}
-              families={families}
-              seniorities={seniorities}
+              families={facets.families}
+              seniorities={facets.seniorities}
               filtering={filtering}
-              filteredCount={filtered.length}
-              totalCount={rows.length}
+              answersFilter={answersFilter}
+              shownCount={rows.length}
               truncated={truncated}
               onClear={clearAll}
               dispLabel={dispLabel}
             />
-            {filtered.length === 0 ? (
+            {rows.length === 0 ? (
               <p className="mt-4 rounded-md bg-paper p-4 text-base text-steel">
                 {t("noMatch")}{" "}
                 <button type="button" onClick={clearAll} className="font-semibold text-coral underline underline-offset-2">
@@ -159,8 +200,20 @@ export function HistoryTab() {
                 </button>
               </p>
             ) : (
-              <HistoryTable rows={filtered} dispLabel={dispLabel} />
+              <HistoryTable rows={rows} dispLabel={dispLabel} />
             )}
+            {nextCursor ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button type="button" onClick={loadMore} disabled={loadingMore} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+                  {loadingMore ? t("loading") : t("loadMore")}
+                </button>
+                {moreFailed ? (
+                  <span role="status" className="text-sm text-red-700">
+                    {t("loadFailed")}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </div>

@@ -50,29 +50,14 @@ export const DISPOSITION_STYLE: Record<string, string> = {
   pass: "bg-coral/10 text-coral",
 };
 
-// Distinct, sorted, non-null values of a column — drives the filter dropdowns
-// from whatever's actually in the loaded history. The order here is over the
+// Distinct, sorted, non-null values of a column. The filter dropdowns no longer
+// derive from the loaded rows (the server answers the workspace's facets, see
+// historyQuery.ts), but the facets arrive in this same order: over the
 // canonical English SLUGS (`sales_marketing`, `data_ai`); what the dropdown
 // actually shows is the localized label, so the caller re-sorts by that — see
 // sortOptionsByLabel.
 export function distinct(values: (string | null)[]): string[] {
   return [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
-}
-
-/**
- * Case- and diacritic-insensitive search key. Same fold as the profile roster
- * and the analytics audit log: a recruiter who cannot type Č still finds Čapek.
- * Copied rather than imported across feature modules (three lines).
- */
-export function foldForSearch(value: string): string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-/** True when the History search needle hits the candidate label or the slug. */
-export function historyRowMatchesQuery(row: Pick<AnalysisRow, "candidate_label" | "slug">, q: string): boolean {
-  const needle = foldForSearch(q.trim());
-  if (!needle) return true;
-  return foldForSearch(row.candidate_label).includes(needle) || foldForSearch(row.slug).includes(needle);
 }
 
 // Filter-dropdown options ordered by what is ON SCREEN, in the reader's locale.
@@ -117,10 +102,4 @@ export function readAnalysesListPayload(payload: unknown): AnalysesListPage {
       ? Math.floor(body.limit)
       : null;
   return { analyses, truncated: body.truncated === true, limit };
-}
-
-/** The Showing-of line may name a total only when the page is complete. A
- *  truncated slice has no population figure — `rows.length` is the loaded cap. */
-export function historyShowingTotal(loadedCount: number, truncated: boolean): number | null {
-  return truncated ? null : loadedCount;
 }
