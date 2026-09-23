@@ -54,3 +54,47 @@ test("an absent or non-string kind is refused, never coerced", async () => {
     assert.equal(((await r.json()) as { code?: string }).code, "TASK_KIND_UNKNOWN");
   }
 });
+
+// ---- challenge-r05 workspace-config-api/A: the door table ------------------------
+//
+// The one-kind SERVER_ONLY_KINDS set generalised into app/_lib/task-admission.ts: every
+// kind a server route builds and gates itself answers the SAME refusal the analyze fix
+// introduced, and none of them leaves a row behind.
+const SERVER_KINDS = [
+  "analyze",
+  "interview_letter",
+  "lifecycle",
+  "agent_fit",
+  "interview_kit",
+  "jd_build",
+  "repo_scan",
+  "companion_digest",
+  "jobseeker_scan",
+] as const;
+
+for (const kind of SERVER_KINDS) {
+  test(`server-built kind ${kind} is refused 403 TASK_KIND_SERVER_ONLY and creates no row`, async () => {
+    const { listRecentTasks } = await import("../../_lib/db/tasks.ts");
+    const before = listRecentTasks("1970-01-01T00:00:00.000Z", 500).length;
+    const r = await POST(post({ kind, params: { lifecycleId: "x", jobId: "x", letterId: "x" } }));
+    assert.equal(r.status, 403, `${kind} was admitted through the dock door`);
+    const body = (await r.json()) as { code?: string; kind?: unknown };
+    assert.equal(body.code, "TASK_KIND_SERVER_ONLY");
+    assert.equal(body.kind, kind);
+    assert.equal(listRecentTasks("1970-01-01T00:00:00.000Z", 500).length, before, "a refused start must not enqueue");
+  });
+}
+
+test("the door refusal sits after the overall IP bucket and before the per-class budget", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  const ipAt = src.indexOf("rateLimit(`tasks-start:${ip}`");
+  const doorAt = src.indexOf('jsonRefusal("TASK_KIND_SERVER_ONLY", 403');
+  const seatAt = src.search(/requireCapabilityCoded\(taskKindCapability\(body\.kind\)/);
+  const clsAt = src.indexOf("rateLimit(`tasks-start:${cls}:${ip}`");
+  assert.ok(ipAt > 0 && doorAt > ipAt, "the door decision follows the overall bucket");
+  assert.ok(seatAt > doorAt, "the seat is asked after the door");
+  assert.ok(clsAt > seatAt, "…and a refused start spends no per-class budget");
+  assert.match(src, /dockMayStart\(body\.kind\)/, "the door reads the declared table");
+  assert.doesNotMatch(src, /SERVER_ONLY_KINDS/, "the one-kind set is absorbed into the table");
+});

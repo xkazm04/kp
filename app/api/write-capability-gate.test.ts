@@ -257,3 +257,85 @@ test("an owner is not refused by the org:manage gate", async () => {
   assert.notEqual(r.status, 403, "an owner holds org:manage");
   assert.notEqual(r.status, 401);
 });
+
+// ---- the task doors (challenge-r05 workspace-config-api/A) ------------------------
+//
+// POST /api/tasks, its retry door and its cancel door asked no seat: a viewer could
+// spend a board-wide screen sweep, replay a colleague's run or cancel it. Each door now
+// asks the capability the KIND declares (app/_lib/task-admission.ts) — the start door of
+// the posted kind, retry and cancel of the STORED row's kind, after the tenant read.
+// They are not in DOORS: retry and cancel need a real row in the caller's own team to
+// get past the ownership 404 that (correctly) comes first.
+const { POST: tasksStart } = await import("./tasks/route.ts");
+const { DELETE: taskCancel } = await import("./tasks/[id]/route.ts");
+const { POST: taskRetry } = await import("./tasks/[id]/retry/route.ts");
+const taskStore = await import("../_lib/db/tasks.ts");
+
+const taskReq = (body?: unknown): NextRequest =>
+  new Request("http://localhost/api/tasks", {
+    method: "POST",
+    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: { "content-type": "application/json", "x-forwarded-for": "10.0.0.9" },
+  }) as unknown as NextRequest;
+
+async function assertCapabilityRefusal(r: Response, what: string): Promise<void> {
+  assert.equal(r.status, 403, `${what} let a viewer through`);
+  const body = (await r.json()) as { code?: string; capability?: string };
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(body.capability, "pipeline:write");
+}
+
+test("POST /api/tasks refuses a viewer's batch_screen with FORBIDDEN_CAPABILITY (pipeline:write)", async () => {
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await tasksStart(taskReq({ kind: "batch_screen", params: { entryIds: ["e1"] } })), "POST /api/tasks");
+});
+
+test("POST /api/tasks does not refuse an owner, nor anyone in open mode, at the seat", async () => {
+  signedInAs(owner);
+  const r = await tasksStart(taskReq({ kind: "batch_screen", params: { entryIds: ["e-owner-none"] } }));
+  assert.notEqual(r.status, 403, "an owner holds pipeline:write");
+  assert.notEqual(r.status, 401);
+  const saved = process.env.KP_OPERATOR_PASSWORD;
+  delete process.env.KP_OPERATOR_PASSWORD;
+  try {
+    signedInAs(null);
+    const open = await tasksStart(taskReq({ kind: "batch_screen", params: { entryIds: ["e-open-none"] } }));
+    assert.notEqual(open.status, 403, "open mode folds to owner — the guided walk keeps its door");
+    assert.notEqual(open.status, 401);
+  } finally {
+    process.env.KP_OPERATOR_PASSWORD = saved;
+  }
+});
+
+test("POST /api/tasks/[id]/retry refuses a viewer on its own team's failed row", async () => {
+  taskStore.createTask("t-cap-retry", "batch_screen", null, "Screen", { entryIds: ["e1"] }, team.id);
+  taskStore.finishTask("t-cap-retry", "failed", { error: "boom" });
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await taskRetry(taskReq(), params({ id: "t-cap-retry" })), "retry");
+  // Tenancy still comes first: another team's id is a 404, never a capability answer.
+  assert.equal((await taskRetry(taskReq(), params({ id: "t-cap-nowhere" }))).status, 404);
+});
+
+test("DELETE /api/tasks/[id] refuses a viewer and leaves the row running", async () => {
+  taskStore.createTask("t-cap-cancel", "batch_screen", null, "Screen", { entryIds: ["e1"] }, team.id);
+  taskStore.markTaskRunning("t-cap-cancel");
+  signedInAs(viewer);
+  await assertCapabilityRefusal(await taskCancel(taskReq(), params({ id: "t-cap-cancel" })), "DELETE");
+  assert.equal(taskStore.getTask("t-cap-cancel", team.id)?.status, "running", "a refused cancel must not abort");
+  // Non-vacuity: an owner's cancel goes through.
+  signedInAs(owner);
+  const r = await taskCancel(taskReq(), params({ id: "t-cap-cancel" }));
+  assert.equal(r.status, 200);
+});
+
+test("retry of a SERVER kind is not the dock rule: an owner's analyze replay reaches the inputs check", async () => {
+  // Retry replays params a server route authored and stored — it never takes the
+  // client's. So a server kind is admitted at the seat and judged on its own merits:
+  // this row's workdir is gone, so the answer is the replay refusal, not the dock's.
+  taskStore.createTask("t-cap-analyze", "analyze", null, "Analyze", { baseDir: "/nonexistent-kp-cap/jobfit-x", variants: [] }, team.id);
+  taskStore.finishTask("t-cap-analyze", "failed", { error: "boom" });
+  signedInAs(owner);
+  const r = await taskRetry(taskReq(), params({ id: "t-cap-analyze" }));
+  assert.equal(r.status, 409);
+  assert.equal(((await r.json()) as { code?: string }).code, "TASK_REPLAY_INPUTS_GONE");
+});
