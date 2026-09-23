@@ -285,3 +285,65 @@ test("an advance stores its basis and the pipeline event names the acknowledged 
   const passBasis = JSON.parse(basisOf(slug).decision_basis ?? "null") as { acknowledged: string[] };
   assert.deepEqual(passBasis.acknowledged, []);
 });
+
+// ---- the gate's read and its write are one compare-and-swap ---------------------
+// The PATCH reads the stored disposition + payload, derives the gate from them, then
+// writes. Between that read and that write another save (another process on the same
+// SQLite file) can move the row: an un-acknowledged advance that read a stored
+// 'advance' (so was not a TRANSITION) could land after the row went to 'hold', and a
+// basis computed from a payload an anonymize just rewrote would be recorded as the one
+// decided against. The write therefore re-asserts both values in its WHERE; a row that
+// moved is 'moved', never silently overwritten. The route answers 'moved' by
+// re-reading and re-deciding, so the stale write never lands.
+
+const { setAnalysisDispositionGuarded } = await import("../../_lib/db/analyses.ts");
+const rowOf = (slug: string) =>
+  ensureDb().prepare(`SELECT disposition, decision_note, decision_basis, payload_json FROM analyses WHERE slug = ?`).get(slug) as {
+    disposition: string | null;
+    decision_note: string | null;
+    decision_basis: string | null;
+    payload_json: string;
+  };
+
+test("a disposition write decided against a stale disposition is refused and the row is unchanged", async () => {
+  seat(recruiter);
+  const slug = seedFlagged("Race Disposition");
+  assert.equal((await patch(slug, { disposition: "advance", acknowledged: [WARN_1, WARN_2] })).status, 200);
+  // Save X reads here: stored 'advance', so its un-acknowledged advance is a note edit.
+  const read = rowOf(slug);
+  // Save Y lands between X's read and X's write.
+  assert.equal((await patch(slug, { disposition: "hold", note: "wait for refs" })).status, 200);
+  // X's write, still carrying what it read.
+  const res = setAnalysisDispositionGuarded(slug, "advance", "note typed later", DEFAULT_WORKSPACE, undefined, {
+    disposition: read.disposition,
+    payloadJson: read.payload_json,
+  });
+  assert.equal(res, "moved");
+  const after = rowOf(slug);
+  assert.equal(after.disposition, "hold", "the stale advance must not land over the hold");
+  assert.equal(after.decision_note, "wait for refs");
+});
+
+test("a basis computed from a payload that was rewritten since the read is refused", async () => {
+  seat(recruiter);
+  const slug = seedFlagged("Race Payload");
+  const read = rowOf(slug);
+  ensureDb().prepare(`UPDATE analyses SET payload_json = ? WHERE slug = ?`).run(JSON.stringify({ ...PAYLOAD, sanityChecks: [WARN_1] }), slug);
+  const res = setAnalysisDispositionGuarded(slug, "advance", "", DEFAULT_WORKSPACE, JSON.stringify({ stale: true }), {
+    disposition: read.disposition,
+    payloadJson: read.payload_json,
+  });
+  assert.equal(res, "moved");
+  assert.equal(rowOf(slug).disposition, null);
+  assert.equal(rowOf(slug).decision_basis, null);
+});
+
+test("an unchanged row is saved and an unknown slug is missing, not moved", async () => {
+  seat(recruiter);
+  const slug = seedFlagged("Race Fresh");
+  const read = rowOf(slug);
+  const expected = { disposition: read.disposition, payloadJson: read.payload_json };
+  assert.equal(setAnalysisDispositionGuarded(slug, "hold", "fresh", DEFAULT_WORKSPACE, null, expected), "saved");
+  assert.equal(rowOf(slug).disposition, "hold");
+  assert.equal(setAnalysisDispositionGuarded("no-such-slug", "hold", "", DEFAULT_WORKSPACE, null, expected), "missing");
+});

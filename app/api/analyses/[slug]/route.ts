@@ -1,4 +1,4 @@
-import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDisposition, setAnalysisGithub } from "@/app/_lib/db/analyses";
+import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDispositionGuarded, setAnalysisGithub } from "@/app/_lib/db/analyses";
 import { candidateLabelWithholdsPii, recordAnalysisDispositionEvents } from "@/app/_lib/db/pipeline";
 import { maskCandidateName, scrubPiiFromPayload } from "@/app/_lib/consent";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
@@ -11,6 +11,9 @@ import { decisionBasis, decisionBrief, decisionGate } from "@/app/_components/re
 // Defensive ceiling for an attached GitHub payload. A real GithubAnalysis is
 // tens of KB; anything near this is malformed or hostile, not a deep-dive.
 const MAX_GITHUB_JSON_BYTES = 256 * 1024;
+
+// Re-read + re-decide rounds when the disposition compare-and-swap finds the row moved.
+const MAX_DISPOSITION_ATTEMPTS = 3;
 
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
@@ -105,19 +108,41 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // advance must acknowledge every open trust warning. Re-saving the stored
     // disposition (a note edit, the keepalive unmount flush) is never gated, so a
     // decision recorded before the gate existed is never locked.
-    const found = loadAnalysis(slug, ws);
-    const stored = found?.row.disposition ?? "";
-    const brief = decisionBrief(found?.payload);
-    const gate = decisionGate(brief, disposition, { acknowledged, note, stored });
-    if (!gate.canSave && gate.needs === "ack") {
-      return jsonRefusal("DISPOSITION_ACK_REQUIRED", 409, { pending: gate.pending });
+    //
+    // Read -> decide -> write is a compare-and-swap, not a lock: the write re-asserts the
+    // disposition and payload this read saw, and a row another save moved in between is
+    // RE-READ and RE-DECIDED here rather than overwritten (an un-acknowledged "advance"
+    // that read a stored advance must not land over a hold that arrived since, and a
+    // basis must describe the payload actually stored). Bounded: a row that keeps moving
+    // is a store fault, answered by code.
+    let found: ReturnType<typeof loadAnalysis> = null;
+    let basis: ReturnType<typeof decisionBasis> | undefined;
+    let written = false;
+    for (let attempt = 0; attempt < MAX_DISPOSITION_ATTEMPTS && !written; attempt++) {
+      found = loadAnalysis(slug, ws);
+      if (!found) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
+      const stored = found.row.disposition ?? "";
+      const brief = decisionBrief(found.payload);
+      const gate = decisionGate(brief, disposition, { acknowledged, note, stored });
+      if (!gate.canSave && gate.needs === "ack") {
+        return jsonRefusal("DISPOSITION_ACK_REQUIRED", 409, { pending: gate.pending });
+      }
+      // advance/pass records what it was decided against; a note-only edit keeps the
+      // basis it annotates (undefined); hold/clear carry none.
+      const decided = (disposition === "advance" || disposition === "pass") && disposition !== stored;
+      basis = decided ? decisionBasis(brief, acknowledged) : undefined;
+      const outcome = setAnalysisDispositionGuarded(
+        slug,
+        disposition,
+        note,
+        ws,
+        basis ? JSON.stringify(basis) : disposition === stored ? undefined : null,
+        { disposition: found.row.disposition, payloadJson: found.row.payload_json },
+      );
+      if (outcome === "missing") return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
+      written = outcome === "saved";
     }
-    // advance/pass records what it was decided against; a note-only edit keeps the
-    // basis it annotates (undefined); hold/clear carry none.
-    const decided = (disposition === "advance" || disposition === "pass") && found ? disposition !== stored : false;
-    const basis = decided ? decisionBasis(brief, acknowledged) : undefined;
-    const ok = setAnalysisDisposition(slug, disposition, note, ws, basis ? JSON.stringify(basis) : disposition === stored ? undefined : null);
-    if (!ok) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
+    if (!written) throw new Error(`disposition row kept moving across ${MAX_DISPOSITION_ATTEMPTS} attempts`);
     // d95fed6d — echo the decision onto the candidate's pipeline record(s) so
     // it shows in the drawer history instead of living only on the history
     // page. Best-effort and clear-skipping: clearing a disposition isn't a

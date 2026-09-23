@@ -284,19 +284,48 @@ export function setAnalysisDisposition(
   // drops it.
   basis?: string | null
 ): boolean {
+  return writeDisposition(slug, disposition, note, workspaceId, basis, null) === "saved";
+}
+
+/** What the disposition gate read: the stored disposition and payload, as read. */
+export type DispositionReadStamp = { disposition: string | null | undefined; payloadJson: string };
+
+/** The gated write as a compare-and-swap on what the gate read: a row another save moved
+ *  in between is "moved" (nothing written), an unknown slug "missing". */
+export function setAnalysisDispositionGuarded(
+  slug: string,
+  disposition: string,
+  note: string,
+  workspaceId: string,
+  basis: string | null | undefined,
+  expected: DispositionReadStamp
+): "saved" | "moved" | "missing" {
+  const outcome = writeDisposition(slug, disposition, note, workspaceId, basis, expected);
+  if (outcome === "saved") return "saved";
+  const exists = ensureDb().prepare(`SELECT 1 FROM analyses WHERE slug = ? AND workspace_id = ?`).get(slug, workspaceId);
+  return exists ? "moved" : "missing";
+}
+
+function writeDisposition(
+  slug: string,
+  disposition: string,
+  note: string,
+  workspaceId: string,
+  basis: string | null | undefined,
+  expected: DispositionReadStamp | null
+): "saved" | "unchanged" {
   const db = ensureDb();
   const clean = (ANALYSIS_DISPOSITIONS as readonly string[]).includes(disposition) ? disposition : null;
   const noteVal = clean && note.trim() ? note.trim() : null;
   const basisVal = clean ? basis : null;
-  const res =
-    basisVal === undefined
-      ? db
-          .prepare(`UPDATE analyses SET disposition = ?, decision_note = ? WHERE slug = ? AND workspace_id = ?`)
-          .run(clean, noteVal, slug, workspaceId)
-      : db
-          .prepare(`UPDATE analyses SET disposition = ?, decision_note = ?, decision_basis = ? WHERE slug = ? AND workspace_id = ?`)
-          .run(clean, noteVal, basisVal, slug, workspaceId);
-  return res.changes > 0;
+  const set = basisVal === undefined ? `disposition = ?, decision_note = ?` : `disposition = ?, decision_note = ?, decision_basis = ?`;
+  const setArgs = basisVal === undefined ? [clean, noteVal] : [clean, noteVal, basisVal];
+  const guard = expected ? ` AND disposition IS ? AND payload_json = ?` : ``;
+  const guardArgs = expected ? [expected.disposition ?? null, expected.payloadJson] : [];
+  const res = db
+    .prepare(`UPDATE analyses SET ${set} WHERE slug = ? AND workspace_id = ?${guard}`)
+    .run(...setArgs, slug, workspaceId, ...guardArgs);
+  return res.changes > 0 ? "saved" : "unchanged";
 }
 
 // Calibration Engine (moonshot A/C, foundational primitive P1) — the first
