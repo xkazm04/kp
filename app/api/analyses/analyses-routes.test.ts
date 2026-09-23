@@ -347,3 +347,56 @@ test("an unchanged row is saved and an unknown slug is missing, not moved", asyn
   assert.equal(rowOf(slug).disposition, "hold");
   assert.equal(setAnalysisDispositionGuarded("no-such-slug", "hold", "", DEFAULT_WORKSPACE, null, expected), "missing");
 });
+
+// ---- the query door (challenge-r09 cv-analyze-workspace/A) ----------------------
+// History now asks the server: q/family/seniority/disposition narrow BEFORE the window,
+// the page is keyset-cut with a cursor, and `truncated` is the store's exact cap+1
+// answer. It used to be `rows.length >= limit`, which called an exact fit "cut".
+
+type ListBody = {
+  analyses: Array<{ slug: string; role_family: string | null }>;
+  truncated: boolean;
+  limit: number;
+  nextCursor?: string | null;
+  facets?: { families: string[]; seniorities: string[] };
+};
+const listBody = async (qs: string) => (await (await listRoute(listUrl(qs))).json()) as ListBody;
+
+test("route truncation is exact: two matching groups under limit=2 are the whole answer", async () => {
+  seat(recruiter);
+  seedFamily("Data One", "fx_route_data");
+  seedFamily("Data Two", "fx_route_data");
+  const exact = await listBody("?family=fx_route_data&limit=2");
+  assert.equal(exact.analyses.length, 2);
+  assert.ok(exact.analyses.every((r) => r.role_family === "fx_route_data"), "the filter ran on the server");
+  assert.equal(exact.truncated, false, "an exact fit is not a cut page");
+  assert.equal(exact.nextCursor ?? null, null);
+
+  seedFamily("Data Three", "fx_route_data");
+  const cut = await listBody("?family=fx_route_data&limit=2");
+  assert.equal(cut.analyses.length, 2);
+  assert.equal(cut.truncated, true);
+  assert.equal(typeof cut.nextCursor, "string");
+  const rest = await listBody(`?family=fx_route_data&limit=2&cursor=${encodeURIComponent(cut.nextCursor as string)}`);
+  assert.equal(rest.analyses.length, 1);
+  assert.equal(rest.truncated, false);
+  const union = new Set([...cut.analyses, ...rest.analyses].map((r) => r.slug));
+  assert.equal(union.size, 3, "the cursor continues the same query without a repeat");
+});
+
+test("the list answers the workspace's facets and a folded q", async () => {
+  seat(recruiter);
+  seedFamily("Jiří Šťastný", "legal_ops");
+  const body = await listBody("?q=stastny");
+  assert.deepEqual(body.analyses.map((r) => r.role_family), ["legal_ops"]);
+  assert.ok(body.facets?.families.includes("legal_ops"));
+  assert.ok(body.facets?.families.includes("fx_route_data"), "facets describe the workspace, not this page");
+  // A bare GET keeps its old shape and default.
+  const bare = await listBody("");
+  assert.equal(bare.limit, 200);
+  assert.equal(bare.truncated, false);
+});
+
+function seedFamily(label: string, family: string) {
+  return saveAnalysis({ candidateLabel: label, jdSlug: null, score: 60, roleFamily: family, seniority: "mid", payload: PAYLOAD }).slug;
+}
