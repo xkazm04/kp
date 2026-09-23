@@ -11197,6 +11197,17 @@
         "s7": "AUTO1 RETIRED : la passe n'applique plus aucun rejet",
         "s9": "personne n'atteint Recruté depuis ici"
       }
+    },
+    "transport": {
+      "group": "Commandes de la scène",
+      "back": "Étape précédente",
+      "forward": "Étape suivante",
+      "stop": "Arrêter cette animation",
+      "play": "Lire cette animation",
+      "scrub": "Étape",
+      "position": "Étape {n} sur {total}",
+      "stopAll": "Arrêter toutes les animations",
+      "playAll": "Lire les animations"
     }
   },
   "companion": {

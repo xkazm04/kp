@@ -11197,6 +11197,17 @@
         "s7": "AUTO1 RETIRED: the pass no longer applies a rejection at all",
         "s9": "Hired is not reachable from here by anyone"
       }
+    },
+    "transport": {
+      "group": "Scene controls",
+      "back": "Previous beat",
+      "forward": "Next beat",
+      "stop": "Stop this animation",
+      "play": "Play this animation",
+      "scrub": "Beat",
+      "position": "Beat {n} of {total}",
+      "stopAll": "Stop all animations",
+      "playAll": "Play animations"
     }
   },
   "companion": {

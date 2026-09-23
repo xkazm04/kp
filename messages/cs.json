@@ -11197,6 +11197,17 @@
         "s7": "AUTO1 RETIRED: průchod už zamítnutí vůbec neprovádí",
         "s9": "na Přijat se odsud nedostane nikdo"
       }
+    },
+    "transport": {
+      "group": "Ovládání scény",
+      "back": "Předchozí krok",
+      "forward": "Další krok",
+      "stop": "Zastavit tuto animaci",
+      "play": "Přehrát tuto animaci",
+      "scrub": "Krok",
+      "position": "Krok {n} z {total}",
+      "stopAll": "Zastavit všechny animace",
+      "playAll": "Přehrát animace"
     }
   },
   "companion": {

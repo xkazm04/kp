@@ -11197,6 +11197,17 @@
         "s7": "AUTO1 RETIRED: der Durchlauf führt Ablehnungen gar nicht mehr aus",
         "s9": "zu Eingestellt gelangt von hier aus niemand"
       }
+    },
+    "transport": {
+      "group": "Szenensteuerung",
+      "back": "Vorheriger Schritt",
+      "forward": "Nächster Schritt",
+      "stop": "Diese Animation anhalten",
+      "play": "Diese Animation abspielen",
+      "scrub": "Schritt",
+      "position": "Schritt {n} von {total}",
+      "stopAll": "Alle Animationen anhalten",
+      "playAll": "Animationen abspielen"
     }
   },
   "companion": {
