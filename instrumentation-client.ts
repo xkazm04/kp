@@ -8,6 +8,12 @@
 // server-only var that never reaches this bundle.
 //
 // NEXT_PUBLIC_* is inlined at BUILD time; see app/_lib/sentry-client.ts.
+
+// The fields the redaction hooks below read and rewrite, typed locally: the committed lockfile
+// hoists @sentry/core 10.69 under @sentry/* 10.71, which leaves Sentry.init's options untyped
+// (every callback parameter an implicit any). These shapes hold whichever version resolves.
+type SentryEventLike = { request?: { url?: string }; transaction?: string };
+type SentryBreadcrumbLike = { message?: string; data?: Record<string, unknown> };
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 // EVERY candidate surface in this app is a CAPABILITY LINK: the opaque segment in
@@ -49,7 +55,7 @@ if (dsn) {
         // Error reporting only — no performance tracing, no extra egress.
         tracesSampleRate: 0,
         // Navigation/fetch/xhr breadcrumbs carry the URL they moved to or called.
-        beforeBreadcrumb(breadcrumb) {
+        beforeBreadcrumb(breadcrumb: SentryBreadcrumbLike) {
           if (breadcrumb.message) breadcrumb.message = redactTokens(breadcrumb.message);
           const data = breadcrumb.data;
           if (data) {
@@ -60,7 +66,7 @@ if (dsn) {
           return breadcrumb;
         },
         // The event's own URL + the resolved route name.
-        beforeSend(event) {
+        beforeSend(event: SentryEventLike) {
           if (event.request?.url) event.request.url = redactTokens(event.request.url);
           if (event.transaction) event.transaction = redactTokens(event.transaction);
           return event;
