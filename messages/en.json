@@ -3339,7 +3339,17 @@
       "slaLocalItem": "{stage} {days, plural, one {# day} other {# days}}",
       "slaLocalAdopt": "Apply to the team",
       "slaLocalDiscard": "Discard",
-      "selectionDeparted": "{count, plural, one {# selected candidate left the board (closed elsewhere) and was deselected} other {# selected candidates left the board (closed elsewhere) and were deselected}}"
+      "selectionDeparted": "{count, plural, one {# selected candidate left the board (closed elsewhere) and was deselected} other {# selected candidates left the board (closed elsewhere) and were deselected}}",
+      "bulkMoveConfirm": "Confirm move ({count})",
+      "bulkMovePreviewMoving": "{count} will move",
+      "bulkMovePreviewInvitesNow": "{count, plural, one {# gets an AI interview invite now} other {# get an AI interview invite now}}",
+      "bulkMovePreviewInvitesHeld": "{count, plural, one {# AI interview held for your go-ahead} other {# AI interviews held for your go-ahead}}",
+      "bulkMovePreviewHomework": "{count, plural, one {# gets a work-sample assignment} other {# get a work-sample assignment}}",
+      "bulkMovePreviewVerdictsCleared": "{count, plural, one {# pending decision is cleared} other {# pending decisions are cleared}}",
+      "bulkMovePreviewOffersHeld": "{count, plural, one {# drafted offer kept back (the move would erase it)} other {# drafted offers kept back (the move would erase them)}}",
+      "bulkMovePreviewAlreadyThere": "{count} already there",
+      "bulkMovePreviewStale": "{count, plural, one {# changed since and will not move} other {# changed since and will not move}}",
+      "bulkMoveOfferHeld": "{count, plural, one {# kept back with a drafted offer, still selected. Extend or discard the offer first} other {# kept back with drafted offers, still selected. Extend or discard the offers first}}"
     },
     "emptyState": {
       "optional": "Optional",

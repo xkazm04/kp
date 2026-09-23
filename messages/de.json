@@ -3339,7 +3339,17 @@
       "slaLocalItem": "{stage} {days, plural, one {# Tag} other {# Tage}}",
       "slaLocalAdopt": "Für das Team übernehmen",
       "slaLocalDiscard": "Verwerfen",
-      "selectionDeparted": "{count, plural, one {# ausgewählte Person hat das Board verlassen (anderswo abgeschlossen) und wurde abgewählt} other {# ausgewählte Personen haben das Board verlassen (anderswo abgeschlossen) und wurden abgewählt}}"
+      "selectionDeparted": "{count, plural, one {# ausgewählte Person hat das Board verlassen (anderswo abgeschlossen) und wurde abgewählt} other {# ausgewählte Personen haben das Board verlassen (anderswo abgeschlossen) und wurden abgewählt}}",
+      "bulkMoveConfirm": "Verschieben bestätigen ({count})",
+      "bulkMovePreviewMoving": "{count} werden verschoben",
+      "bulkMovePreviewInvitesNow": "{count, plural, one {# erhält jetzt eine Einladung zum KI-Interview} other {# erhalten jetzt eine Einladung zum KI-Interview}}",
+      "bulkMovePreviewInvitesHeld": "{count, plural, one {# KI-Interview wartet auf Ihre Freigabe} other {# KI-Interviews warten auf Ihre Freigabe}}",
+      "bulkMovePreviewHomework": "{count, plural, one {# erhält eine Arbeitsprobe} other {# erhalten eine Arbeitsprobe}}",
+      "bulkMovePreviewVerdictsCleared": "{count, plural, one {# offene Entscheidung wird verworfen} other {# offene Entscheidungen werden verworfen}}",
+      "bulkMovePreviewOffersHeld": "{count, plural, one {# vorbereitetes Angebot zurückgehalten (das Verschieben würde es löschen)} other {# vorbereitete Angebote zurückgehalten (das Verschieben würde sie löschen)}}",
+      "bulkMovePreviewAlreadyThere": "{count} bereits dort",
+      "bulkMovePreviewStale": "{count, plural, one {# hat sich inzwischen geändert und wird nicht verschoben} other {# haben sich inzwischen geändert und werden nicht verschoben}}",
+      "bulkMoveOfferHeld": "{count, plural, one {# wegen eines vorbereiteten Angebots zurückgehalten, weiterhin ausgewählt. Senden oder verwerfen Sie zuerst das Angebot} other {# wegen vorbereiteter Angebote zurückgehalten, weiterhin ausgewählt. Senden oder verwerfen Sie zuerst die Angebote}}"
     },
     "emptyState": {
       "optional": "Optional",

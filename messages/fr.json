@@ -3339,7 +3339,17 @@
       "slaLocalItem": "{stage} {days, plural, one {# jour} other {# jours}}",
       "slaLocalAdopt": "Appliquer à l'équipe",
       "slaLocalDiscard": "Ignorer",
-      "selectionDeparted": "{count, plural, one {# candidat sélectionné a quitté le tableau (clôturé ailleurs) et a été désélectionné} other {# candidats sélectionnés ont quitté le tableau (clôturés ailleurs) et ont été désélectionnés}}"
+      "selectionDeparted": "{count, plural, one {# candidat sélectionné a quitté le tableau (clôturé ailleurs) et a été désélectionné} other {# candidats sélectionnés ont quitté le tableau (clôturés ailleurs) et ont été désélectionnés}}",
+      "bulkMoveConfirm": "Confirmer le déplacement ({count})",
+      "bulkMovePreviewMoving": "{count, plural, one {# sera déplacé} other {# seront déplacés}}",
+      "bulkMovePreviewInvitesNow": "{count, plural, one {# reçoit maintenant une invitation à l'entretien IA} other {# reçoivent maintenant une invitation à l'entretien IA}}",
+      "bulkMovePreviewInvitesHeld": "{count, plural, one {# entretien IA en attente de votre accord} other {# entretiens IA en attente de votre accord}}",
+      "bulkMovePreviewHomework": "{count, plural, one {# reçoit un exercice pratique} other {# reçoivent un exercice pratique}}",
+      "bulkMovePreviewVerdictsCleared": "{count, plural, one {# décision en attente est effacée} other {# décisions en attente sont effacées}}",
+      "bulkMovePreviewOffersHeld": "{count, plural, one {# offre préparée retenue (le déplacement l'effacerait)} other {# offres préparées retenues (le déplacement les effacerait)}}",
+      "bulkMovePreviewAlreadyThere": "{count, plural, one {# y est déjà} other {# y sont déjà}}",
+      "bulkMovePreviewStale": "{count, plural, one {# a changé entre-temps et ne sera pas déplacé} other {# ont changé entre-temps et ne seront pas déplacés}}",
+      "bulkMoveOfferHeld": "{count, plural, one {# retenu à cause d'une offre préparée, toujours sélectionné. Envoyez ou abandonnez d'abord l'offre} other {# retenus à cause d'offres préparées, toujours sélectionnés. Envoyez ou abandonnez d'abord les offres}}"
     },
     "emptyState": {
       "optional": "Facultatif",

@@ -3339,7 +3339,17 @@
       "slaLocalItem": "{stage} {days, plural, one {# den} few {# dny} other {# dní}}",
       "slaLocalAdopt": "Použít pro tým",
       "slaLocalDiscard": "Zahodit",
-      "selectionDeparted": "{count, plural, one {# vybraný kandidát opustil nástěnku (uzavřen jinde) a výběr u něj byl zrušen} few {# vybraní kandidáti opustili nástěnku (uzavřeni jinde) a výběr u nich byl zrušen} other {# vybraných kandidátů opustilo nástěnku (uzavřeni jinde) a výběr u nich byl zrušen}}"
+      "selectionDeparted": "{count, plural, one {# vybraný kandidát opustil nástěnku (uzavřen jinde) a výběr u něj byl zrušen} few {# vybraní kandidáti opustili nástěnku (uzavřeni jinde) a výběr u nich byl zrušen} other {# vybraných kandidátů opustilo nástěnku (uzavřeni jinde) a výběr u nich byl zrušen}}",
+      "bulkMoveConfirm": "Potvrdit přesun ({count})",
+      "bulkMovePreviewMoving": "{count, plural, one {# se přesune} few {# se přesunou} other {# se přesune}}",
+      "bulkMovePreviewInvitesNow": "{count, plural, one {# dostane pozvánku na AI pohovor hned} few {# dostanou pozvánku na AI pohovor hned} other {# dostane pozvánku na AI pohovor hned}}",
+      "bulkMovePreviewInvitesHeld": "{count, plural, one {# AI pohovor čeká na Vaše schválení} few {# AI pohovory čekají na Vaše schválení} other {# AI pohovorů čeká na Vaše schválení}}",
+      "bulkMovePreviewHomework": "{count, plural, one {# dostane praktický úkol} few {# dostanou praktický úkol} other {# dostane praktický úkol}}",
+      "bulkMovePreviewVerdictsCleared": "{count, plural, one {# čekající rozhodnutí bude zrušeno} few {# čekající rozhodnutí budou zrušena} other {# čekajících rozhodnutí bude zrušeno}}",
+      "bulkMovePreviewOffersHeld": "{count, plural, one {# připravená nabídka zadržena (přesun by ji smazal)} few {# připravené nabídky zadrženy (přesun by je smazal)} other {# připravených nabídek zadrženo (přesun by je smazal)}}",
+      "bulkMovePreviewAlreadyThere": "{count, plural, one {# už tam je} few {# už tam jsou} other {# už tam je}}",
+      "bulkMovePreviewStale": "{count, plural, one {# se mezitím změnil a nepřesune se} few {# se mezitím změnili a nepřesunou se} other {# se mezitím změnilo a nepřesune se}}",
+      "bulkMoveOfferHeld": "{count, plural, one {# zadržen kvůli připravené nabídce, zůstává vybrán. Nejprve nabídku odešlete nebo zahoďte} few {# zadrženi kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte} other {# zadrženo kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte}}"
     },
     "emptyState": {
       "optional": "Volitelné",
