@@ -484,6 +484,41 @@ automation run, an intake subset). The committed `measurements.json` diff is the
 review. If the new figure falls below a bar's slack floor, `thresholds --tighten`
 and `test_thresholds.py` say so as before.
 
+**The units behind each figure are recorded too.** A (rate, `n`) pair cannot tell
+"one unit left and another joined" from "nothing changed", and relevance@5 is a
+mean, so one scenario falling while another rises by the same amount kept the
+figure. Both certified clean. Every deterministic bar now also records its units by
+identity, each with its own value, in
+[`pipeline/jobfit/eval/measurements.units.json`](../../pipeline/jobfit/eval/measurements.units.json).
+The file is sorted by bar and then by unit id, one unit per line, and the same
+`--record` writes it:
+
+| bar | unit id | unit value |
+| --- | --- | --- |
+| `MATCHING_THRESHOLDS.archetype_accuracy` / `role_relevance_at5` | `<scenario>` | 1.0 / 0.0 routed; the scenario's relevance@5 |
+| `MATCHING_THRESHOLDS.entry_precision` | `<scenario>` (early-career only) | the scenario's entry precision |
+| `RELIABILITY_THRESHOLD` | `<task>/<scenario>` | 1.0 reliable, 0.0 not |
+| `FAULT_THRESHOLD` | `<mode>/<task>/<scenario>` | 1.0 contract held, 0.0 not |
+| `INTAKE_THRESHOLD` | `<persona>/<check>` | 1.0 held, 0.0 not |
+
+`thresholds.py` refuses at import a deterministic bar with a record but no units
+(the error names its recorder command), a unit count that differs from the record's
+`n`, and a duplicate unit id. A strict run compares the units as well. A stale-record
+finding then names up to 10 changed units, then `+k more`, and ends with the
+recorder command:
+
+```text
+matching_eval: stale record — MATCHING_THRESHOLDS.role_relevance_at5: live 0.857 over n=7,
+recorded 0.857 over n=7 (2026-09-24) — the units behind it moved. Units: flipped:
+accountant_medior 1.0 -> 0.2, senior_backend 0.6 -> 1.0. ... Re-record:
+`python -m pipeline.jobfit.eval.matching_eval --record`
+```
+
+"Intended, or a regression?" is then answered by reading those ids. The `--record`
+summary prints the same per-unit diff (`units: 1 left, 1 joined, 0 flipped; ...`),
+and the committed `measurements.units.json` diff shows the reviewer exactly which
+units the new record accepts.
+
 `salary_overlap` is containment-aware — a Gemini range fully inside the expected band
 scores 1.0; partial overlaps fall back to IoU. The aggregate report and per-fixture
 breakdown print as a markdown table; `--json` swaps in machine-readable output for
