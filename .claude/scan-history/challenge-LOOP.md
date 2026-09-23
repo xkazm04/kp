@@ -27,12 +27,14 @@ whole loop (irreversible / policy-loosen still never built).
 | challenge-r02 | 8 | 11 | done — 16/16 landed + 1 follow-up; flawless 12/16 (10 strict); 3 coordinator fixes |
 | challenge-r03 | 8 | 5 | done — 16/16 landed; flawless 13/16 (11 strict); 5 coordinator fixes; page ceiling lowered 8875->8645 by glyph/A |
 | challenge-r04 | 8 | 3 | done — 16/16 landed + 1 follow-up; flawless 13/16 (8 strict); test:perf fully green |
-| challenge-r05 | 8 | 2 | carded + critiqued (3.69/4.50/4.19; 5 build / 11 revise; billing A+B confirmed no charge change; workspace-config/A generalises SERVER_ONLY_KINDS) — builds after r04 closes |
+| challenge-r05 | 8 | 2 | building — W1 6/6 landed + integrated (perf settle; constitution waiver for billing/alerts/[id] route-auth-posture: requireOrgCapability org:manage is a real fail-closed guard the lens regex does not recognise); W2 next |
+| challenge-r06 | 8 | 3 | carded + critiqued (4.44/4.88/4.56 — best yet; 12 build / 4 revise; db-pipeline-store/A owns the re-add transition, apply-flow/A after it) |
 
-Side fixes outside the card flow: a9bd69f62 companion recall scoped to workspace (r02 llm-api scout); 93f485438 interview-sim /s+/ word count (r03 scout); **9e834cf04 SECURITY: POST /api/tasks analyze with client paths could read any file and rm -rf any directory — refused + confined (r05 workspace-config-api scout)**; e00c802fc keyless devcase fallback graded unknown probes as failures (r05 devcase-core scout).
+Side fixes outside the card flow: a9bd69f62 companion recall scoped to workspace (r02 llm-api scout); 93f485438 interview-sim /s+/ word count (r03 scout); **9e834cf04 SECURITY: POST /api/tasks analyze with client paths could read any file and rm -rf any directory — refused + confined (r05 workspace-config-api scout)**; e00c802fc keyless devcase fallback graded unknown probes as failures (r05 devcase-core scout); **43f92ced0 SECURITY: hire-from-need let a human's body.workspace pick another team (r06 agents-api scout)**.
 Small follow-ups noted by scouts, not yet built: skill-profile public page limiter keyed per token (guessing gets fresh allowance); companion_cli fallbackReason raw provider text (llm-api/B may cover); /api/schedule ?limit >500 truncated:false; about riders: voice ticker double role=status, palette-preview raw stage labels.
 python-runner-concurrency is a genuine timing FLAKE (isolated: 3/3 pass once, 1/2 fail later); unchanged by this work — owner's quarantine call.
 Registry: scan-sweep 3.5.1 (e1c0626b) — riders, --until-covered, --in-flight all committed with tests.
+Lens gap for the owner: review:constitution's route-auth-posture recognises only requireOperator|isOperator|requireWorkspace, not requireOrgCapability/requireCapability — one waiver so far (billing/alerts/[id]).
 Known flake (not ours, owner's call): `app/_lib/python-runner-concurrency.test.ts` process-tree-kill case.
 - OWED at loop end: run e2e/token-doors-axe.spec.ts against a KP_EMPTY=1 prod build (llm-api/A moved its offer case onto a (SIM) entry; builders could not run it).
 - Reword app/features/shared/sharedGet.ts:5-12 comment (Schedule grid+panel double fetch no longer true after schedule/A).
