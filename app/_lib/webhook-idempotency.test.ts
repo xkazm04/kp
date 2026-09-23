@@ -2,14 +2,19 @@
 // byte-identical retry within the TTL is a duplicate (caller short-circuits), a
 // released or expired claim runs again, and an explicit Idempotency-Key header
 // wins over the body hash.
+// The claim is a row now (db/webhook-claims.ts, whose own suite pins the restart,
+// lease, horizon and digest cases), so this file needs the throwaway DB.
 //   npm run test:unit
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { cleanupUnitDb } from "./testing/unit-db.ts";
 import {
   claimWebhookIdempotency,
   releaseWebhookIdempotency,
   webhookIdempotencyKey,
 } from "./webhook-idempotency.ts";
+
+after(() => cleanupUnitDb());
 
 test("first claim wins, an immediate retry of the same key is a duplicate", () => {
   const key = `inbound:tok:${webhookIdempotencyKey('{"a":1}', null)}`;

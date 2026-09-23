@@ -7,7 +7,7 @@ import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-
 import { jsonThrottled } from "@/app/_lib/throttle-response";
 import { stageForRole } from "@/app/_lib/pipeline-axis-server";
 import { readTextWithLimit } from "@/app/_lib/request-body";
-import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
+import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 
 // Agent-candidate bridge — the PUBLIC inbound report receiver. The hired Personas
 // agent POSTs execution events, period rollups and lifecycle transitions here;
@@ -207,9 +207,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
     // Request-level idempotency for raw replays (Idempotency-Key header, else a
-    // body hash). Execution events ALSO carry durable DB idempotency on exec_id
-    // and rollups upsert by period, so a replay outside this TTL still can't
-    // double-count — this claim just short-circuits the common retry storm.
+    // body hash), held durably for the done-horizon once applied. Execution events
+    // ALSO carry durable DB idempotency on exec_id and rollups upsert by period, so a
+    // replay outside the horizon still can't double-count.
     const idemKey = `agent-report:${token}:${webhookIdempotencyKey(
       rawBody,
       request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key")
@@ -220,6 +220,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     claimedIdemKey = idemKey;
 
     const outcome = applyReport(agent, parsed.report);
+    // Applied: the claim is DONE, durably (db/webhook-claims.ts), so a replay after a
+    // restart short-circuits here instead of leaning on the downstream upserts alone.
+    settleWebhookIdempotency(idemKey);
+    claimedIdemKey = null;
     return jsonOk({ ...outcome, kind: parsed.report.kind });
   } catch (error) {
     // Processing failed → the sender will retry; release the claim so the retry

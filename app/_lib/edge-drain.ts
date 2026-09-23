@@ -15,8 +15,11 @@
 //   POST /heartbeat {at,cursor}  signed   → "I am awake", so the nudge stays quiet
 //
 // ACK AFTER APPLY, NEVER BEFORE. A crash between the two replays the tail on the
-// next tick, which is harmless (the intake core dedupes by idempotency key and again
-// by email); a crash between an ack and an apply would lose a candidate silently.
+// next tick, which is harmless because the intake core dedupes on the event's
+// idempotency key in a DURABLE claim (db/webhook-claims.ts — it outlives the crash
+// that causes the replay; the process-local Map it replaced did not, and a replayed
+// knockout lead was declined and emailed twice) and again by email for accepted
+// leads; a crash between an ack and an apply would lose a candidate silently.
 // The cursor is what the edge trusts, so `recordDrain` only ever moves it forward
 // over events that were actually applied.
 //
@@ -26,6 +29,7 @@
 // skipping past it. Deterministic refusals — an unknown token, a closed role, a lead
 // with no email — are HANDLED: they will never succeed on a retry, so they advance.
 
+import { createHash } from "node:crypto";
 import {
   getEdgeConfig,
   recordDrain,
@@ -176,7 +180,15 @@ export function mailToLead(body: unknown): Record<string, unknown> {
 
 type ApplyOutcome = "applied" | "skipped" | "hold";
 
-async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: string): Promise<ApplyOutcome> {
+/** The idempotency key of one drained event: `edge:<pairing>:<seq>`, where the pairing
+ *  is a sha256 prefix of the edge URL. The URL itself stays out of the key (it is
+ *  deployment topology, and the claim store hashes keys anyway); the prefix is enough
+ *  to tell two pairings apart. */
+export function edgeIdempotencyKey(edgeUrl: string, seq: number): string {
+  return `edge:${createHash("sha256").update(edgeUrl).digest("hex").slice(0, 16)}:${seq}`;
+}
+
+async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: string, edgeUrl: string): Promise<ApplyOutcome> {
   const body = await bodyOf(event, privateJwk);
   if (event.kind === "receipt") {
     const r = (body ?? {}) as { ref?: unknown; kind?: unknown; outcome?: unknown; detail?: unknown; recipient?: unknown };
@@ -203,9 +215,10 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
       token: event.token,
       rawBody: JSON.stringify(payload ?? null),
       origin,
-      // The edge's sequence number IS the delivery's identity, so a replayed page
-      // collides on it and files nothing twice.
-      idempotencyKey: `edge:${event.seq}`,
+      // The edge's sequence number, NAMESPACED BY PAIRING, is the delivery's identity:
+      // a replayed page collides on it and files nothing twice, while a re-provisioned
+      // edge whose sequence restarts at 1 is a different edge, not a replay.
+      idempotencyKey: edgeIdempotencyKey(edgeUrl, event.seq),
     });
     if (!inboundHandled(result)) return "hold";
     return result.status === 200 && result.body.result === "accepted" ? "applied" : "skipped";
@@ -284,7 +297,7 @@ export async function drainEdge(): Promise<DrainSummary> {
       if (typeof event.seq !== "number" || event.seq <= cursor) continue; // already applied
       let outcome: ApplyOutcome;
       try {
-        outcome = await applyEvent(event, edge.privateJwk, origin);
+        outcome = await applyEvent(event, edge.privateJwk, origin, edge.url);
       } catch (e) {
         // Unsealing or a store write blew up: HOLD. The event stays at the edge and
         // the operator gets a reason instead of a silently missing candidate.

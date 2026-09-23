@@ -11,7 +11,7 @@ import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "@/app/_lib/rate-
 import { jsonThrottled } from "@/app/_lib/throttle-response";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { readTextWithLimit } from "@/app/_lib/request-body";
-import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
+import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 import { extractUploadedText, ingestCvApplication } from "@/app/_lib/cv-intake";
 
@@ -170,6 +170,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       // Stamp an ACCEPTED lead only for a genuinely new candidate (created), never a
       // duplicate re-send — so the Channels "leads" metric counts real candidates.
       // (The liveness receipt was already stamped at authentication, above.)
+      // The candidate is filed and acknowledged: the claim is DONE, durably, so a
+      // provider replay (even after a restart) is a duplicate. Settled before the
+      // accepted stamp, which must not re-open the key if it throws.
+      settleWebhookIdempotency(claimedIdemKey);
+      claimedIdemKey = null;
       if (outcome.created) recordChannelWebhookAccepted(token);
       return NextResponse.json({
         result: "accepted",

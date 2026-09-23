@@ -2300,6 +2300,22 @@ export function ensureDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_feedback_ws ON feedback (workspace_id, created_at DESC);
   `);
+  // Durable webhook idempotency (db/webhook-claims.ts): one row per claimed delivery on
+  // the inbound receiver, the pull pass, the edge drain and the agent-report route, so a
+  // replay after a restart is absorbed instead of re-filing. `key` is sha256(composed
+  // key) hex — NEVER the key itself, which embeds a raw capability token. `state` is
+  // 'inflight' under a lease or 'done' under the done-horizon; `expires_at` (epoch ms)
+  // is when either becomes re-claimable, and the store's lazy sweep deletes expired
+  // rows. Tenancy-EXEMPT: a globally-unique delivery digest (see tenancy.ts).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS webhook_claims (
+      key TEXT PRIMARY KEY,
+      state TEXT NOT NULL CHECK(state IN ('inflight','done')),
+      expires_at INTEGER NOT NULL,
+      claimed_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_webhook_claims_expires ON webhook_claims (expires_at);
+  `);
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());

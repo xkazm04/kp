@@ -32,7 +32,7 @@ import { intakeLead } from "./lead-intake";
 import { capAttribution, extractLead } from "./lead-payload";
 import { recordOutreachReply } from "./outreach-state-store";
 import { publicBaseUrl } from "./public-base-url";
-import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "./webhook-idempotency";
+import { claimWebhookIdempotency, releaseWebhookIdempotency, settleWebhookIdempotency, webhookIdempotencyKey } from "./webhook-idempotency";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 
 /** Field caps — shared with the route's multipart branch, which imports them so a
@@ -119,6 +119,9 @@ export async function ingestInboundLeadJson(input: InboundLeadJsonInput): Promis
     // delivery must not pile up another `re_applied`, re-dispatch the acknowledgement,
     // or double-count the ACCEPTED lead. Claimed ONLY now that the role is open + the
     // payload is valid, so the claim brackets exactly the real side-effects window.
+    // The claim is a durable row (db/webhook-claims.ts): a store fault THROWS into the
+    // catch below and answers 500, which inboundHandled() reads as "hold the cursor" —
+    // an unchecked delivery is refused, never admitted.
     const idemKey = `inbound:${webhook.token}:${webhookIdempotencyKey(rawBody, input.idempotencyKey)}`;
     if (!claimWebhookIdempotency(idemKey)) {
       return { status: 200, body: { result: "duplicate_ignored", duplicate: true } };
@@ -151,6 +154,14 @@ export async function ingestInboundLeadJson(input: InboundLeadJsonInput): Promis
       // lead-intake appends the entry's opaque lead token before the ack goes out.
       enrichLink: `${publicBaseUrl(input.origin)}/apply/${job.id}?lang=${locale}`,
     });
+
+    // The candidate-facing side effects have committed (the decline record + its
+    // notice, or the filed entry + its ack). From here the claim is DONE, durably: a
+    // replay of this delivery — including the one the drain produces after a crash
+    // between apply and ack — is a duplicate, never a second decline email. Settled
+    // BEFORE the bookkeeping below, which is best-effort and must not re-open the key.
+    settleWebhookIdempotency(idemKey);
+    claimedIdemKey = null;
 
     if (outcome.result === "declined") {
       return { status: 200, body: { result: "declined", code: "knockout_failed", failed: lead.failedKoIds } };
