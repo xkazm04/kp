@@ -1757,6 +1757,7 @@
     "TASK_START_FAILED": "Impossible de lancer cette tâche IA. Veuillez réessayer.",
     "TASK_RETRY_FAILED": "Impossible de relancer cette tâche IA. Veuillez réessayer.",
     "TASK_KIND_UNKNOWN": "Ce type de tâche IA n'existe pas dans cette version.",
+    "TASK_KIND_SERVER_ONLY": "Ce type de tâche IA ne peut être lancé que depuis son propre écran.",
     "TASK_BUDGET_EXHAUSTED": "Trop de traitements IA de ce type ont été lancés récemment. Réessayez dans un instant.",
     "TASK_NOT_FOUND": "Cette tâche n'existe plus.",
     "TASK_NOT_RETRYABLE": "Seules les tâches en échec, interrompues ou annulées peuvent être relancées.",

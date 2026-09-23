@@ -1757,6 +1757,7 @@
     "TASK_START_FAILED": "Úlohu se nepodařilo spustit. Zkuste to prosím znovu.",
     "TASK_RETRY_FAILED": "Úlohu se nepodařilo spustit znovu. Zkuste to prosím později.",
     "TASK_KIND_UNKNOWN": "Tento druh AI úlohy v této verzi neexistuje.",
+    "TASK_KIND_SERVER_ONLY": "Tento druh AI úlohy lze spustit jen z jeho vlastní obrazovky.",
     "TASK_BUDGET_EXHAUSTED": "Nedávno se spustilo příliš mnoho AI běhů tohoto druhu. Zkuste to prosím za chvíli.",
     "TASK_NOT_FOUND": "Tato úloha už neexistuje.",
     "TASK_NOT_RETRYABLE": "Znovu spustit lze jen neúspěšné, přerušené nebo zrušené úlohy.",

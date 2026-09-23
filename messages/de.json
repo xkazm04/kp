@@ -1757,6 +1757,7 @@
     "TASK_START_FAILED": "Die Aufgabe konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
     "TASK_RETRY_FAILED": "Die Aufgabe konnte nicht erneut ausgeführt werden. Bitte versuchen Sie es erneut.",
     "TASK_KIND_UNKNOWN": "Diese Art von KI-Aufgabe gibt es in dieser Version nicht.",
+    "TASK_KIND_SERVER_ONLY": "Diese Art von KI-Aufgabe kann nur über ihre eigene Ansicht gestartet werden.",
     "TASK_BUDGET_EXHAUSTED": "Zu viele KI-Läufe dieser Art wurden kürzlich gestartet. Bitte versuchen Sie es in Kürze erneut.",
     "TASK_NOT_FOUND": "Diese Aufgabe existiert nicht mehr.",
     "TASK_NOT_RETRYABLE": "Nur fehlgeschlagene, unterbrochene oder abgebrochene Aufgaben lassen sich erneut ausführen.",

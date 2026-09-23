@@ -10,7 +10,7 @@ import { countSanityWarns } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
-import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { assertConfinedToWorkdir, cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
@@ -292,6 +292,11 @@ function startGithubStage(
 }
 
 export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, signal?: AbortSignal): Promise<unknown> {
+  // Every input path must lie inside the workdir /api/analyze made for this run, and
+  // baseDir must BE such a workdir — checked before anything is read, and before the try
+  // whose finally rm -rf's baseDir. A task row's params are data a caller may have
+  // written (POST /api/tasks accepted this kind from a client body until 2026-09-23).
+  assertConfinedToWorkdir(p.baseDir, [...(p.variants ?? []).map((v) => v.cvPath), p.jobDescriptionPath, p.companyPath]);
   const startedAt = Date.now();
   // The saved slug reaches the GitHub stage as a PROMISE (it attaches itself once the CV
   // half has a row); settled null in the finally on every path that saves none.

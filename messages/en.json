@@ -1757,6 +1757,7 @@
     "TASK_START_FAILED": "Could not start that AI task. Please try again.",
     "TASK_RETRY_FAILED": "Could not re-run that AI task. Please try again.",
     "TASK_KIND_UNKNOWN": "This kind of AI task does not exist in this version.",
+    "TASK_KIND_SERVER_ONLY": "This kind of AI task can only be started from its own screen.",
     "TASK_BUDGET_EXHAUSTED": "Too many AI runs of this kind have been started recently. Try again shortly.",
     "TASK_NOT_FOUND": "That task no longer exists.",
     "TASK_NOT_RETRYABLE": "Only failed, interrupted or canceled tasks can be re-run.",

@@ -27,6 +27,20 @@ test("a misspelled kind is refused 400 TASK_KIND_UNKNOWN, naming the kind", asyn
   assert.equal(body.kind, "batch_sceen");
 });
 
+test("a server-only kind (analyze) cannot be started through the generic door", async () => {
+  // analyze's params are server-built file paths (/api/analyze persists the uploads
+  // into a fresh workdir). Accepting them from a client body let a caller point
+  // runAnalyze at any file to read and any directory to rm -rf.
+  // The path is deliberately one that does not exist: this case must be harmless even
+  // against the vulnerable code it pins the fix for.
+  const nowhere = `/nonexistent-kp-test-${Date.now()}`;
+  const r = await POST(post({ kind: "analyze", params: { baseDir: nowhere, variants: [{ label: "x", cvPath: `${nowhere}/cv.pdf` }] } }));
+  assert.equal(r.status, 403);
+  const body = (await r.json()) as { code?: string; kind?: unknown };
+  assert.equal(body.code, "TASK_KIND_SERVER_ONLY");
+  assert.equal(body.kind, "analyze");
+});
+
 test("a late-bound runner that is not a queue kind is refused the same way", async () => {
   const r = await POST(post({ kind: "intake_round" }));
   assert.equal(r.status, 400);

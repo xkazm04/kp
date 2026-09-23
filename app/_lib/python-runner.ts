@@ -62,7 +62,45 @@ export async function createWorkdir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "jobfit-"));
 }
 
+// ── The jobfit workdir guard ──────────────────────────────────────────────────
+// createWorkdir makes a fresh `jobfit-*` directory directly under the OS temp dir; every
+// caller persists its uploads there and removes it afterwards. That is the ONLY shape a
+// workdir has. A path that arrives any other way, above all one a client supplied in a
+// task's params, must be neither read from nor rm -rf'd. Kept in this module (not a leaf
+// of its own) because python-runner is already on every route graph that could need it.
+const WORKDIR_PREFIX = "jobfit-";
+
+/** True only for a direct `jobfit-*` child of the OS temp dir (after resolving `..`). */
+export function isJobfitWorkdir(dir: unknown): dir is string {
+  if (typeof dir !== "string" || dir.trim() === "") return false;
+  const resolved = path.resolve(dir);
+  return (
+    path.dirname(resolved) === path.resolve(os.tmpdir()) &&
+    path.basename(resolved).startsWith(WORKDIR_PREFIX) &&
+    path.basename(resolved).length > WORKDIR_PREFIX.length
+  );
+}
+
+/** Throws unless `baseDir` is a real workdir and every non-null path lies inside it.
+ *  The message is a code, never the offending path (it may be a probe of the server's
+ *  filesystem, and the route answers with the code). */
+export function assertConfinedToWorkdir(baseDir: unknown, paths: readonly (string | null | undefined)[]): void {
+  if (!isJobfitWorkdir(baseDir)) throw new Error("ANALYZE_PARAMS_UNCONFINED");
+  const root = path.resolve(baseDir) + path.sep;
+  for (const p of paths) {
+    if (p === null || p === undefined) continue;
+    if (typeof p !== "string" || !path.resolve(p).startsWith(root)) throw new Error("ANALYZE_PARAMS_UNCONFINED");
+  }
+}
+
+/** Removes a workdir createWorkdir made — and NOTHING else. A recursive, forced rm on
+ *  a path that is not a `jobfit-*` child of the temp dir is refused (logged, not thrown:
+ *  callers run this in a finally, where a throw would mask the real outcome). */
 export async function cleanupWorkdir(workdir: string): Promise<void> {
+  if (!isJobfitWorkdir(workdir)) {
+    console.warn("[python-runner] refused to delete a path that is not a jobfit workdir");
+    return;
+  }
   await rm(workdir, { recursive: true, force: true });
 }
 

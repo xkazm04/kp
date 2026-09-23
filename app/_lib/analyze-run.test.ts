@@ -69,6 +69,9 @@ registerHooks({
           "  return { message: stderr || 'fake failure', status: exitCode === 2 ? 400 : 500, code: 'engine_error' };",
           "}",
           "export async function cleanupWorkdir() {}",
+          // The real confinement is pinned in python-runner-workdir-guard.test.ts; these
+          // cases use kp-analyze-run-test-* temp dirs, not jobfit workdirs.
+          "export function assertConfinedToWorkdir() {}",
           "export async function createWorkdir() { return ''; }",
           "export async function persistFile() { return ''; }",
           "export const ENGINE_BUSY_CODE = 'ENGINE_BUSY';",

@@ -39,6 +39,8 @@ export async function GET() {
   }
 }
 
+const SERVER_ONLY_KINDS: ReadonlySet<string> = new Set(["analyze"]);
+
 export async function POST(request: NextRequest) {
   try {
     // THROTTLE (rate-limit-contract.test.ts). This route reaches the SAME queue
@@ -56,6 +58,15 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { kind?: string; params?: Record<string, unknown> };
     if (!body.kind || !isKnownKind(body.kind)) {
       return jsonRefusal("TASK_KIND_UNKNOWN", 400, { kind: body.kind ?? null });
+    }
+    // Kinds whose params are SERVER-BUILT file paths never come through this generic
+    // door: analyze's baseDir/cvPath are a workdir /api/analyze made from the upload,
+    // and a client body naming them let the runner read any file and rm -rf any
+    // directory (fixed 2026-09-23; runAnalyze and cleanupWorkdir now also refuse
+    // anything that is not a jobfit workdir). The per-kind door table that generalises
+    // this is challenge-r05 workspace-config-api/A.
+    if (SERVER_ONLY_KINDS.has(body.kind)) {
+      return jsonRefusal("TASK_KIND_SERVER_ONLY", 403, { kind: body.kind });
     }
     // The tenant comes from the SESSION, never the body — a client-supplied
     // workspace would let any caller run work against another team's data.

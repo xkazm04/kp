@@ -1447,6 +1447,9 @@ export const REFUSAL_ERRORS = {
   /** A kind this build has no handler for (400) — a hand-rolled call, or a row
    *  written by an older version whose kind has since been dropped. */
   TASK_KIND_UNKNOWN: "This kind of AI task does not exist in this version.",
+  /** A task kind whose params are server-built (file paths in a fresh workdir) was
+   *  asked for through the generic POST /api/tasks door (403). It has its own route. */
+  TASK_KIND_SERVER_ONLY: "This kind of AI task can only be started from its own screen.",
   /** The per-kind budget class refused this start (429). Distinct from
    *  TOO_MANY_REQUESTS, which is the door's overall burst bucket: this one says
    *  "too many runs of THIS weight", and the remedy is to wait rather than to slow
