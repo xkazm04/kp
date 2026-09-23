@@ -1629,6 +1629,39 @@ resolved elsewhere (another window, the batch bar) closes it too rather than
 offering a stale verdict. `useDecisionsCandidate.ts` holds that state; the queue
 hook now also carries the workspace axis off the same `/api/pipeline` read.
 
+**A quick reject lands after a stated 8-second undo window, not on the click.** A
+reject is sealed into the decision chain, emails the candidate and fires the ATS
+`candidate.rejected` webhook, so the batch reject and the screening wave already
+confirm it; the ledger's ✕ and the candidate modal's Reject (the most-clicked doors)
+now ARM a commit window instead of writing. The row leaves at once and
+`DecisionsUndoStrip.tsx` says "Rejecting Ana in 8 s. Nothing has been sent yet." with
+an Undo: the sentence is announced once (`role="status"`, stating the full interval),
+the visible count ticks without re-announcing, and focus lands on Undo when the decided
+row took it. Undo writes nothing, so no retraction ever reaches the decision chain, the
+candidate or the ATS. The lifecycle is the pure reducer `decisionsCommitWindow.ts`
+(`idle → pending → committing → idle`, `DECISION_UNDO_MS` = 8000): ONE window, so a
+second reject flushes (commits) the first and the strip always names the latest; a
+double click cannot arm twice; a commit that did not land brings the row back and the
+strip names it with the refusal resolved from its code. `useDecisionCommitWindow.ts` is
+a module-scoped store (one holder, one timer, `useSyncExternalStore`) shared by the
+ledger section and the candidate modal, so a pending reject outlives a `?tab=` switch
+and commits on time. Leaving COMMITS, never drops: `pagehide` flushes synchronously,
+and every window write (expiry or teardown) goes through `commitDecision(entryId,
+action, expectedStage)`, a `keepalive: true` POST to `/api/pipeline/{id}` — never
+through `useDecisionsQueue`'s `act()`, whose plain request the browser cancels when the
+page goes away. The server's compare-and-swap still holds: the POST carries the stage
+the row was rendered from, so a reject committed late is a coded 409 rather than an
+overwrite of a row another actor moved. After a commit answers, `notifyDataChanged()`
+re-reads the queue; a landed row stays hidden until that read no longer lists it.
+Accepts (✓ and the modal's Accept) still write on the click: their handoff (Schedule,
+interview prep, an offer's secure link) is `act()`'s to apply, and a forward move is
+not the terminal, emailed act the window exists for. **Residual:** the pending decision
+lives in the tab; a browser crash or a killed process inside the window loses it (the
+candidate simply stays in the queue, undecided), which is why the strip says nothing
+has been sent. Pinned by `decisionsCommitWindow.test.ts` (reducer cases, the catalog
+statement of the interval, and a scan that the store commits only through the
+keepalive `commitDecision`).
+
 The AI-review cards shipped the **"Ladder" body** (winner of the same round; now the
 modal's side panel):
 screening/scorecard cards replaced the AI's prose with the role's ranked
