@@ -9,15 +9,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { postPipelineBatch, type PipelineBatchItem } from "@/app/_lib/useAddToPipeline";
 import { capabilityAwareReason, useErrorMessage } from "@/app/_lib/use-error-message";
 import { toast } from "@/app/_components/toast-store";
-import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
+import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
-import type { GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
 import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
-import { selectionCacheKey } from "./groupEval/cache-key";
-import { syncGovernanceOnCacheHit, type GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
+import { useGroupEvalOpen } from "./groupEval/useGroupEvalOpen";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { createTicketGate } from "./decisionsLatestWins";
 import { foldQueueLoadThrow, readQueueResponse } from "./decisionsQueueLoad";
@@ -90,7 +88,6 @@ export function useDecisionsQueue() {
   const [summaryEntry, setSummaryEntry] = useState<Entry | null>(null);
   // The role whose screening wave (DEC1/DEC2) is open — jobId + title for the modal.
   const [waveRole, setWaveRole] = useState<{ jobId: string; title: string } | null>(null);
-  const [evalRole, setEvalRole] = useState<{ roleKey: string; roleTitle: string } | null>(null);
   // Governance mode for the next group evaluation (P1-3). "recommendation" keeps the
   // AI-picks-a-lead default; "committee" / "eligibility_list" make the AI advisory.
   const [evalMode, applyEvalMode] = useState<"recommendation" | "committee" | "eligibility_list">("recommendation");
@@ -104,19 +101,6 @@ export function useDecisionsQueue() {
     evalModeChosen.current = true;
     applyEvalMode(mode);
   };
-  // Set when a served CACHED evaluation was produced under a different governance mode
-  // than the control now shows; the modal discloses it. Cleared on every open.
-  const [evalGovernanceMismatch, setEvalGovernanceMismatch] = useState<GovernanceCacheMismatch | null>(null);
-  const [evalData, setEvalData] = useState<GroupEvalPayload | null>(null);
-  const [evalCreatedAt, setEvalCreatedAt] = useState<string | null>(null);
-  const [evalTaskId, setEvalTaskId] = useState<string | null>(null);
-  // Whether the in-flight eval run is over an explicit SELECTION (selection-rerun-cache).
-  // Its result is cached under the selection's own key, so it must not flip the role's
-  // "evaluated" chip, which promises a role-level top-N eval.
-  const [evalIsSelection, setEvalIsSelection] = useState(false);
-  // Set when a role marked "evaluated" has an unreadable/missing saved payload, so the modal
-  // shows an honest "couldn't load — re-run" instead of the misleading "no evaluation yet".
-  const [evalError, setEvalError] = useState<string | null>(null);
   const [evaluated, setEvaluated] = useState<Record<string, string>>({});
 
   // Direction 2 (queue-staleness) — the JD content-edit time per role, fetched for
@@ -560,22 +544,6 @@ export function useDecisionsQueue() {
     return () => gate.invalidate(); // a re-keyed effect drops its predecessor
   }, [roleKeys]);
 
-  // Watch the group-eval background task; its result is fetched on demand once it
-  // finishes (the poll omits the blob). Completion is consumed DURING render
-  // (guarded: the task id is cleared in the same pass, so this runs once per
-  // task) — the guarded render-phase pattern instead of an effect round-trip.
-  const { status: evalStatus, full: evalFull } = useTaskResult(evalTaskId);
-  if (evalTaskId && evalStatus === "succeeded" && evalFull) {
-    setEvalData((evalFull.result as GroupEvalPayload) ?? null);
-    setEvalTaskId(null);
-    // Only a top-N run makes the ROLE "evaluated" — a selection run's eval lives under
-    // its own cache key (selection-rerun-cache), and claiming the role otherwise would
-    // send the next default open to a role-level row that was never written.
-    if (evalRole && !evalIsSelection) setEvaluated((s) => ({ ...s, [evalRole.roleKey]: new Date().toISOString() }));
-  } else if (evalTaskId && (evalStatus === "failed" || evalStatus === "canceled" || evalStatus === "interrupted")) {
-    setEvalTaskId(null);
-  }
-
   // Resolves TRUE only when the server confirmed the decision, FALSE on any failure
   // (a stale-stage 409, a transport error, a 500). Callers that claim an outcome —
   // DecisionsModals seals the group-eval reject identity and toasts "the reason is on
@@ -654,89 +622,6 @@ export function useDecisionsQueue() {
     }
   };
 
-  const openGroupEval = async (g: Group, rerun = false, selection?: string[]) => {
-    setEvalRole({ roleKey: g.roleKey, roleTitle: g.roleTitle });
-    setEvalData(null);
-    setEvalCreatedAt(null);
-    setEvalTaskId(null);
-    setEvalError(null);
-    // A mismatch belongs to ONE served payload; it must never outlive the open that
-    // produced it, or the next role inherits a disclosure about a different comparison.
-    setEvalGovernanceMismatch(null);
-    const hasSelection = Array.isArray(selection) && selection.length > 0;
-    const cohortCands = g.entries.map((e) => ({ entryId: e.id, candidateId: e.candidateId, label: e.candidateLabel, matchScore: e.matchScore }));
-    // Selection: send the chosen subset as `candidates` and the FULL cohort as
-    // `cohort` (the server validates membership + cap and anchors coverage/drift to
-    // the full cohort). No selection: send the full cohort as `candidates` — today's
-    // shape, byte-identical — and omit `cohort`.
-    const selectedSet = hasSelection ? new Set(selection) : null;
-    const candidates = selectedSet ? cohortCands.filter((c) => selectedSet.has(c.entryId)) : cohortCands;
-    // selection-rerun-cache — WHICH saved eval this open is looking for. A default
-    // top-N open looks up the role key (unchanged); a selection open looks up the key
-    // for THAT exact field (roleKey + a hash of its sorted member ids), computed from
-    // the same ids the server hashes when it persists the run. Reopening the identical
-    // four-candidate comparison therefore serves the cache instead of re-spawning the
-    // full ≤8-process pipeline (LLM weights, embeddings, compare narrative).
-    const cacheKey = selectedSet ? selectionCacheKey(g.roleKey, candidates.map((c) => c.entryId)) : g.roleKey;
-    // A top-N open reads the cache only when the role is KNOWN to be evaluated (the
-    // roles list drives the chip); a selection open always probes its own key, since
-    // nothing lists selection rows — a miss simply falls through to a fresh run.
-    const tryCache = !rerun && (selectedSet ? true : Boolean(evaluated[g.roleKey]));
-    if (tryCache) {
-      // A probe that FAILED — offline, a 500, an unparseable body — is NOT a cache
-      // miss, and it used to be indistinguishable from one: the `.catch(() => null)`
-      // fell straight through to a fresh paid run (the full <=8-process pipeline: LLM
-      // weights, embeddings, compare narrative) without ever telling the recruiter the
-      // cached comparison could not be checked. Disclose it and let them choose — the
-      // modal's Re-run button IS the "run fresh" the notice offers.
-      const probe = await fetch(`/api/decisions/group-eval?role=${encodeURIComponent(cacheKey)}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
-      if (!probe) {
-        setEvalError(t("evalCacheProbeFailed"));
-        return;
-      }
-      const payload = (probe?.evaluation?.payload as GroupEvalPayload) ?? null;
-      // The role is marked evaluated but the stored eval is unreadable/missing (parse failed,
-      // or removed between the list and this read). Surface an error so the modal doesn't fall
-      // through to "No evaluation yet" for a role its own button promised had one. Only for the
-      // top-N path: a selection was never PROMISED a cached run, so a miss there just spawns.
-      if (!payload && !selectedSet) {
-        setEvalError(t("evalLoadFailed"));
-        return;
-      }
-      if (payload) {
-        setEvalData(payload);
-        setEvalCreatedAt((probe?.evaluation?.createdAt as string) ?? null);
-        // Bind the segmented control to the role's PERSISTED governance (bug-ui-scan #1):
-        // evalMode is unpersisted per-mount state that defaults to "recommendation", so
-        // without this a rerun of a committee/eligibility role could re-send
-        // "recommendation" and (were the server to trust it) silently auto-seal an AI lead.
-        // That anti-DOWNGRADE half is why this sync exists and it still runs.
-        //
-        // What it must NOT do is the other direction. group-eval-governance.ts states the
-        // rule its own server enforces: "a user may always escalate
-        // recommendation->governed; only the silent governed->recommendation downgrade is
-        // blocked." Overwriting in both directions erased a committee mode the recruiter
-        // had just chosen AND served them the saved recommendation-mode comparison as the
-        // answer - two silent losses on one click. syncGovernanceOnCacheHit arbitrates
-        // through the SERVER's ordering, and hands back the disclosure it owes the reader.
-        const sync = syncGovernanceOnCacheHit(payload.governanceMode, evalMode, evalModeChosen.current);
-        applyEvalMode(sync.mode);
-        setEvalGovernanceMismatch(sync.mismatch);
-        return;
-      }
-    }
-    // The run this open is about to spawn is a SELECTION run: its result is stored
-    // under the selection key, not the role key, so completion must not mark the ROLE
-    // evaluated (the chip promises a role-level top-N eval that would then 404).
-    setEvalIsSelection(Boolean(selectedSet));
-    const params: Record<string, unknown> = { roleKey: g.roleKey, roleTitle: g.roleTitle, jobId: g.jobId, candidates, governanceMode: evalMode };
-    if (selectedSet) params.cohort = cohortCands;
-    const started = await startTask("group_eval", params);
-    if (started) setEvalTaskId(started.id);
-  };
-
   const decide = (e: Entry, action: "accept" | "reject", detail?: string) => {
     setSummaryEntry(null);
     void act(e, action, detail);
@@ -755,32 +640,19 @@ export function useDecisionsQueue() {
   const peersOf = (e: Entry): PeerScore[] => peersForEntry(entries ?? [], e);
   const peerFactsOf = (e: Entry): JobPeerContext | null => (e.jobId ? peerCtx[e.jobId] ?? null : null);
 
-  const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
-
-  // Pool drift: how many candidates were added/removed from this role's pending pool
-  // since the cached evaluation ran, so a stale comparison prompts a re-run. Compared
-  // against the FULL cohort the eval was computed over. selection-memory-rerun: prefer
-  // stable ENTRY IDS when the payload carries them (evaluatedIds) so two same-named
-  // candidates are counted distinctly; fall back to labels only for legacy payloads
-  // saved before ids were persisted.
-  const evalDrift = (() => {
-    if (!evalGroup) return 0;
-    const countDrift = (evaluated: string[], current: string[]): number => {
-      const evaluatedSet = new Set(evaluated);
-      const currentSet = new Set(current);
-      let changed = 0;
-      for (const k of evaluatedSet) if (!currentSet.has(k)) changed += 1;
-      for (const k of currentSet) if (!evaluatedSet.has(k)) changed += 1;
-      return changed;
-    };
-    if (evalData?.evaluatedIds && evalData.evaluatedIds.length > 0) {
-      return countDrift(evalData.evaluatedIds, evalGroup.entries.map((e) => e.id));
-    }
-    if (evalData?.evaluatedLabels) {
-      return countDrift(evalData.evaluatedLabels, evalGroup.entries.map((e) => e.candidateLabel));
-    }
-    return 0;
-  })();
+  // The group-eval open: one machine (groupEval/groupEvalOpenMachine.ts) with a
+  // latest-wins ticket and a named failure for every way a run can not arrive. It
+  // used to be loose state plus an un-ticketed async open inline here: a probe that
+  // resolved after the recruiter opened another role painted the old role's
+  // comparison (and governance) into the new modal, and a failed or unfetchable
+  // paid run read as "No evaluation yet" or spun forever.
+  const groupEval = useGroupEvalOpen({
+    groups,
+    isRoleEvaluated: (roleKey) => Boolean(evaluated[roleKey]),
+    markEvaluated: (roleKey) => setEvaluated((s) => ({ ...s, [roleKey]: new Date().toISOString() })),
+    governance: () => ({ selected: evalMode, userChose: evalModeChosen.current }),
+    applyMode: applyEvalMode,
+  });
 
   return {
     t, locale, search,
@@ -796,13 +668,8 @@ export function useDecisionsQueue() {
     waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry,
     waveRole, setWaveRole,
-    evalRole, setEvalRole,
     evalMode, setEvalMode,
-    evalGovernanceMismatch,
-    evalData, setEvalData,
-    evalCreatedAt, setEvalCreatedAt,
-    evalTaskId, setEvalTaskId,
-    evalError, setEvalError,
+    groupEval,
     evaluated,
     reconsider, reinstating, reinstate, reinstateErrors,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
@@ -815,8 +682,7 @@ export function useDecisionsQueue() {
     selectedReviewIds, toggleReviewSelect, exitSelectMode, selectAllReviews, clearSelectedReviews,
     bulkBusy, bulkResult, confirmingBulkReject, setConfirmingBulkReject, bulkDecideReviews,
     visibleGroups,
-    act, openGroupEval, decide,
-    evalGroup, evalDrift,
+    act, decide,
     staleSinceOf,
     peersOf, peerFactsOf,
     load,

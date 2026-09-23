@@ -11,10 +11,9 @@ import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { DecisionRulesModal } from "./DecisionsRulesModal";
 import { DecisionsGroupEvalRejectModal } from "./DecisionsGroupEvalRejectModal";
-import { GroupEvalModal, type GroupEvalPayload } from "./GroupEvalModal";
-import type { GovernanceCacheMismatch } from "./groupEval/governanceCacheSync";
+import { GroupEvalModal } from "./GroupEvalModal";
+import type { GroupEvalOpen } from "./groupEval/useGroupEvalOpen";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
-import type { Group } from "./decisionsQueueTypes";
 
 const AnalysisSummaryModal = dynamic(
   () => import("./DecisionsAnalysisSummaryModal").then((m) => ({ default: m.AnalysisSummaryModal })),
@@ -26,30 +25,16 @@ const ScreenWaveModal = dynamic(() => import("./DecisionsScreenWaveModal").then(
 
 export function DecisionsModals({
   summaryEntry, setSummaryEntry, decide,
-  evalRole, setEvalRole, evalData, setEvalData, evalCreatedAt, setEvalCreatedAt,
-  evalTaskId, setEvalTaskId, evalError, setEvalError, evalGroup, evalDrift,
-  evalGovernanceMismatch,
-  openGroupEval, act,
+  groupEval, act,
   rulesOpen, setRulesOpen,
   waveRole, setWaveRole, load, setWaveCommsFailed, setWaveSealFailed,
 }: {
   summaryEntry: Entry | null;
   setSummaryEntry: (e: Entry | null) => void;
   decide: (e: Entry, action: "accept" | "reject", detail?: string) => void;
-  evalRole: { roleKey: string; roleTitle: string } | null;
-  setEvalRole: (v: { roleKey: string; roleTitle: string } | null) => void;
-  evalData: GroupEvalPayload | null;
-  setEvalData: (v: GroupEvalPayload | null) => void;
-  evalCreatedAt: string | null;
-  setEvalCreatedAt: (v: string | null) => void;
-  evalTaskId: string | null;
-  setEvalTaskId: (v: string | null) => void;
-  evalError: string | null;
-  setEvalError: (v: string | null) => void;
-  evalGroup: Group | null;
-  evalDrift: number;
-  evalGovernanceMismatch?: GovernanceCacheMismatch | null;
-  openGroupEval: (g: Group, rerun?: boolean, selection?: string[]) => void;
+  /** The group-eval open (groupEval/useGroupEvalOpen.ts): role, view, payload,
+   *  failure sentence, drift and the open/rerun/close verbs, as one object. */
+  groupEval: GroupEvalOpen;
   act: (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => Promise<boolean>;
   rulesOpen: boolean;
   setRulesOpen: (v: boolean) => void;
@@ -69,6 +54,8 @@ export function DecisionsModals({
   // button is no longer a dead click once the entry has left the live pool.
   const [reasonPending, setReasonPending] = useState<{ entry: Entry; identity: string; action: "accept" | "reject" } | null>(null);
   const [sealedOutcomes, setSealedOutcomes] = useState<Readonly<Record<string, "accept" | "reject">>>({});
+  const evalRole = groupEval.role;
+  const evalGroup = groupEval.group;
   return (
     <>
       {summaryEntry ? (
@@ -89,34 +76,30 @@ export function DecisionsModals({
           // rather than on a second click.
           sealed={sealedOutcomes}
           roleTitle={evalRole.roleTitle}
-          evaluation={evalData}
-          loading={evalTaskId !== null}
-          error={evalError}
-          createdAt={evalCreatedAt}
-          poolDrift={evalDrift}
-          governanceMismatch={evalGovernanceMismatch}
+          evaluation={groupEval.evaluation}
+          // Loading always ends: every terminal task reading leaves the machine's
+          // `running` phase, and a failure carries its own sentence in `error`
+          // rather than falling to the "No evaluation yet" empty state.
+          loading={groupEval.view === "loading"}
+          error={groupEval.error}
+          createdAt={groupEval.createdAt}
+          poolDrift={groupEval.drift}
+          governanceMismatch={groupEval.governanceMismatch}
           onClose={() => {
-            setEvalRole(null);
-            setEvalData(null);
-            setEvalCreatedAt(null);
-            setEvalTaskId(null);
-            setEvalError(null);
+            // One close: the machine invalidates every in-flight probe and start.
+            groupEval.close();
             // Never leave a confirm dialog (or a session's sealed-outcome memory)
             // orphaned behind a closed comparison.
             setReasonPending(null);
             setSealedOutcomes({});
           }}
-          onRerun={() => {
-            if (!evalGroup) return;
-            // selection-memory-rerun — replay the original explicit selection when this
-            // eval was selection-launched (payload.selection present + persisted
-            // comparedIds). openGroupEval filters those ids against the CURRENT cohort, so
-            // members who left are dropped; the server re-validates membership + cap and
-            // compares the survivors (falling back to top-N when fewer than a comparable
-            // pair survive). A default top-N eval (no selection) simply re-runs as top-N.
-            const savedSelection = evalData?.selection != null ? evalData?.comparedIds : undefined;
-            void openGroupEval(evalGroup, true, savedSelection);
-          }}
+          // selection-memory-rerun — replays the original explicit selection when this
+          // eval was selection-launched (payload.selection + persisted comparedIds, or
+          // the failed open's own ids). The open filters those ids against the CURRENT
+          // cohort, so members who left are dropped; the server re-validates membership +
+          // cap and compares the survivors (falling back to top-N when fewer than a
+          // comparable pair survive). A default top-N eval simply re-runs as top-N.
+          onRerun={groupEval.rerun}
           onDecide={(identity, action) => {
             // Resolve the eval candidate back to the live pipeline entry by stable id
             // (candIdentity = entry id, label fallback), then reuse act() — same

@@ -30,9 +30,7 @@ export function DecisionsTab() {
     waveCommsFailed, setWaveCommsFailed,
     waveSealFailed, setWaveSealFailed,
     summaryEntry, setSummaryEntry, waveRole, setWaveRole,
-    evalRole, setEvalRole, evalMode, setEvalMode, evalData, setEvalData,
-    evalGovernanceMismatch,
-    evalCreatedAt, setEvalCreatedAt, evalTaskId, setEvalTaskId, evalError, setEvalError,
+    evalMode, setEvalMode, groupEval,
     evaluated, reconsider, reinstating, reinstate, reinstateErrors,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
     fmtDate, reconsiderReasonText,
@@ -41,7 +39,7 @@ export function DecisionsTab() {
     selectionDrift, selectMode, setSelectMode, selectedReviewIds,
     toggleReviewSelect, exitSelectMode, selectAllReviews, clearSelectedReviews,
     bulkBusy, bulkResult, confirmingBulkReject, setConfirmingBulkReject, bulkDecideReviews,
-    visibleGroups, act, openGroupEval, decide, evalGroup, evalDrift, staleSinceOf,
+    visibleGroups, act, decide, staleSinceOf,
     peersOf, peerFactsOf, load,
   } = useDecisionsQueue();
   // The candidate modal a ledger row's Decide opens — the board's own modal, with
@@ -148,9 +146,9 @@ export function DecisionsTab() {
                   roleTitle={g.roleTitle}
                   entries={g.entries}
                   evaluated={Boolean(evaluated[g.roleKey])}
-                  busy={evalTaskId !== null && evalRole?.roleKey === g.roleKey}
+                  busy={groupEval.isBusy(g.roleKey)}
                   onCandidate={setSummaryEntry}
-                  onGroupEval={(selection) => openGroupEval(g, false, selection)}
+                  onGroupEval={(selection) => groupEval.open(g, false, selection)}
                   onScreenWave={g.jobId ? () => setWaveRole({ jobId: g.jobId as string, title: g.roleTitle }) : undefined}
                   // The pre-armed selection lands only on the deep-linked role's row;
                   // the row consumes it once at mount (a later remount re-seeds from
@@ -201,20 +199,7 @@ export function DecisionsTab() {
         summaryEntry={summaryEntry}
         setSummaryEntry={setSummaryEntry}
         decide={decide}
-        evalRole={evalRole}
-        setEvalRole={setEvalRole}
-        evalData={evalData}
-        setEvalData={setEvalData}
-        evalCreatedAt={evalCreatedAt}
-        setEvalCreatedAt={setEvalCreatedAt}
-        evalTaskId={evalTaskId}
-        setEvalTaskId={setEvalTaskId}
-        evalError={evalError}
-        setEvalError={setEvalError}
-        evalGroup={evalGroup}
-        evalDrift={evalDrift}
-        evalGovernanceMismatch={evalGovernanceMismatch}
-        openGroupEval={openGroupEval}
+        groupEval={groupEval}
         act={act}
         rulesOpen={rulesOpen}
         setRulesOpen={setRulesOpen}
