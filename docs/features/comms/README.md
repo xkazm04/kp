@@ -578,6 +578,23 @@ semantics, the same idempotency window, the same receipt/accepted stamps and the
 same reply-halt, by construction rather than by discipline. Pinned by
 `channels-receiver-contract.test.ts`.
 
+**The idempotency claim is durable.** Every door claims its delivery key through
+`app/_lib/webhook-idempotency.ts`, which stores it as a row in `webhook_claims`
+(`app/_lib/db/webhook-claims.ts`) rather than in process memory, because the edge drain
+and the pull pass are at-least-once: a crash between apply and ack replays the tail on
+the next tick, and an in-memory claim was emptied by exactly that crash (a replayed
+knockout lead was declined, and the candidate emailed, twice). A claim is one
+`INSERT … ON CONFLICT` write. It is **in flight** for a 15-minute lease, so a crash
+mid-work re-runs the delivery once the lease lapses instead of dropping it. It is
+**done** for 7 days once the door `settle`s it after its side effects committed. A
+failure `release`s it for the retry. Expired rows are swept lazily (at most once a
+minute), so the table stays bounded. The row holds `sha256(key)` only: the composed key
+embeds the receiver's raw capability token and the provider's `Idempotency-Key`, and
+neither is written to disk. A claim-store error **fails closed**: the door answers 5xx
+and the drain holds its cursor, so nothing is admitted unchecked. The table is
+tenancy-exempt as a globally-unique delivery digest (`app/_lib/tenancy.ts`). Pinned by
+`db/webhook-claims.test.ts` and `inbound-replay-restart.test.ts`.
+
 **Untrusted free text is cleaned once, at the core.** A lead payload is written by
 someone else's form, and the three free-text values it carries (name, campaign,
 variant) are rendered to a recruiter, stored into `intakeDegradedReason` — prose a
@@ -676,7 +693,7 @@ The loop, and why the order is load-bearing:
 |---|---|---|
 | 1 | `GET /drain?since=&limit=` (signed) | events in sequence order |
 | 2 | apply each through the same cores a live request uses | the decision stays local |
-| 3 | `POST /ack {upto}` (signed) | **only after** applying — a crash between 2 and 3 replays harmlessly (idempotency key + email dedupe); a crash between 3 and 2 would lose a candidate silently |
+| 3 | `POST /ack {upto}` (signed) | **only after** applying — a crash between 2 and 3 replays harmlessly (the durable idempotency claim, keyed `edge:<pairing>:<seq>` where the pairing is a sha256 prefix of the edge URL, so a re-provisioned edge restarting at seq 1 is not mistaken for a replay; plus email dedupe); a crash between 3 and 2 would lose a candidate silently |
 | 4 | `POST /heartbeat` (signed) | presence; this is what keeps the nudge quiet |
 
 A deterministic refusal (unknown token, closed role, no mappable email, a kind
