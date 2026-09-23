@@ -190,6 +190,7 @@ test("the reason vocabulary is closed and every kind is reachable", () => {
     { commitCount: 0, bursty: null, spanHours: null, decisionsLogPresent: true, observed: true, observedBulkPaste: true },
     { commitCount: 0, bursty: null, spanHours: null, decisionsLogPresent: true, observed: true, integrityCompromised: true },
     { ...base, iterationPattern: "unclear" },
+    { ...base, decisionsLogPresent: null },
   ];
   for (const c of cases) for (const r of scoreAuthenticity(c).reasons) fired.add(r.kind);
   assert.deepEqual(
@@ -205,4 +206,33 @@ test("isAuthenticityReasonKind rejects a kind this build does not know", () => {
   assert.equal(isAuthenticityReasonKind("noDecisionsLog"), true);
   assert.equal(isAuthenticityReasonKind("someFutureTell"), false);
   assert.equal(isAuthenticityReasonKind(undefined), false);
+});
+
+// ── An unread signal is not a finding against the candidate (challenge-r04
+// github-repo-intelligence/A). The repo tree could not be read (a GitHub throttle, a
+// 5xx, a timeout) -> the caller passes decisionsLogPresent: null. That is kp's own
+// infrastructure condition, not candidate behaviour: it must lower what the reviewer
+// can conclude, never the score.
+
+test("an UNREAD decisions log costs nothing and says it was not read", () => {
+  const input = { commitCount: 5, bursty: false, spanHours: 40, decisionsLogPresent: null };
+  const a = scoreAuthenticity(input);
+  const read = scoreAuthenticity({ ...input, decisionsLogPresent: true });
+  assert.equal(a.score, read.score, "an unread tree must not move the score");
+  assert.ok(!kinds(a).includes("noDecisionsLog"));
+  assert.ok(kinds(a).includes("decisionsLogUnread"));
+  assert.equal(a.band, read.band);
+});
+
+test("a READ tree with no decisions log keeps today's -25 noDecisionsLog", () => {
+  const input = { commitCount: 5, bursty: false, spanHours: 40, decisionsLogPresent: false };
+  const a = scoreAuthenticity(input);
+  const read = scoreAuthenticity({ ...input, decisionsLogPresent: true });
+  assert.equal(read.score - a.score, 25);
+  assert.ok(kinds(a).includes("noDecisionsLog"));
+  assert.ok(!kinds(a).includes("decisionsLogUnread"));
+});
+
+test("decisionsLogUnread is a kind this build knows (the panel renders it)", () => {
+  assert.equal(isAuthenticityReasonKind("decisionsLogUnread"), true);
 });
