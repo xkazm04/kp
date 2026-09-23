@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { isOperator } from "@/app/_lib/auth/require-operator";
+import { isHomeOrgReader, isOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { isEntityKind, isPreviewableTab, resolveEntityPreview, resolveTabPreview } from "@/app/_lib/palette-preview";
 
@@ -11,7 +11,8 @@ import { isEntityKind, isPreviewableTab, resolveEntityPreview, resolveTabPreview
 // a 200, because the pane simply has nothing to say, not an error to surface.
 // Operator-only tabs (billing, models, integrations, organization, workspaces)
 // resolve to { view: "restricted" } for a demo session — same carve-out
-// requireOperator applies to the pages themselves.
+// requireOperator applies to the pages themselves. Deployment-wide previews (activity,
+// models) follow the home-org gate their data routes use (requireHomeOrgReader).
 const MAX_ID_LENGTH = 128;
 
 export async function GET(request: Request) {
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     const ws = await currentWorkspace();
     if (tab) {
       if (!isPreviewableTab(tab)) return NextResponse.json({ preview: { view: "missing" } });
-      return NextResponse.json({ preview: await resolveTabPreview(tab, ws, await isOperator()) });
+      return NextResponse.json({ preview: await resolveTabPreview(tab, ws, await isOperator(), await isHomeOrgReader()) });
     }
     if (type && id && isEntityKind(type)) {
       return NextResponse.json({ preview: resolveEntityPreview(type, id, ws) });

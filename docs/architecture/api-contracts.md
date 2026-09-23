@@ -326,12 +326,13 @@ tenant's) and it is what `useSpendData` renders for a dead telemetry read.
 `app/api/deployment-read-gate.test.ts` is the ratchet: any `app/api/**/route.ts`
 that calls `coreTableCounts`, `countActiveTasks`, `aggregateLlmUsage`,
 `listLlmActivity`, `tailJsonl`, `rateLimitRefusalStats` or `routingHealth` must call
-the home-org gate, with no allowlist. **Known gap, stated rather than counted as
-covered:** the scan sees direct calls only. `GET /api/palette/preview` reaches
-`aggregateLlmUsage` and `countActiveTasks` through `app/_lib/palette-preview`
-(`resolveActivity`'s 30-day calls, cost and queue; the Models preview's 30-day
-cost), gated no higher than `isOperator()`, so another org's member can still read
-those deployment-wide totals there.
+the home-org gate, with no allowlist. The scan sees direct calls only, so the one
+indirect reader is gated where the aggregate is read: `GET /api/palette/preview`
+reaches `aggregateLlmUsage` and `countActiveTasks` through `app/_lib/palette-preview`
+(the Activity preview's 30-day calls, cost and queue; the Models preview's 30-day
+cost). Those two tabs are `DEPLOYMENT_WIDE_TABS` and `resolveTabPreview` takes a
+required `homeOrgReader` flag (the route passes `isHomeOrgReader()`), so outside the
+home org they resolve to `restricted`, as the pages' own data routes answer 403.
 
 **A verdict answers "is something broken", not "is anything here yet."** The same
 probe used to answer **503** whenever the jobs table had no rows, so a brand-new

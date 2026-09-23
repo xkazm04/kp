@@ -14,7 +14,7 @@ import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { deriveDarkAccent } from "../brand-config.ts";
 import { saveBrand } from "../brand-store.ts";
 import { sealDecisionRecord, verifyDecisionChain } from "../decision-record-store.ts";
-import { ENTITY_KINDS, OPERATOR_ONLY_TABS, PREVIEWABLE_TABS, resolveEntityPreview, resolveTabPreview } from "./index.ts";
+import { DEPLOYMENT_WIDE_TABS, ENTITY_KINDS, OPERATOR_ONLY_TABS, PREVIEWABLE_TABS, resolveEntityPreview, resolveTabPreview } from "./index.ts";
 
 const WS = "workspace";
 
@@ -22,16 +22,28 @@ after(() => cleanupUnitDb());
 
 test("A. every previewable tab resolves to its own view for an operator", async () => {
   for (const tab of PREVIEWABLE_TABS) {
-    const p = await resolveTabPreview(tab, WS, true);
+    const p = await resolveTabPreview(tab, WS, true, true);
     assert.equal(p.view, tab, `tab ${tab} resolved to view ${p.view}`);
   }
 });
 
-test("B. operator-only tabs are restricted for a non-operator, nothing else is", async () => {
+test("B. operator-only and deployment-wide tabs are restricted for a non-operator outside the home org, nothing else is", async () => {
   for (const tab of PREVIEWABLE_TABS) {
-    const p = await resolveTabPreview(tab, WS, false);
-    if (OPERATOR_ONLY_TABS.has(tab)) assert.equal(p.view, "restricted", `tab ${tab} should be restricted`);
+    const p = await resolveTabPreview(tab, WS, false, false);
+    if (OPERATOR_ONLY_TABS.has(tab) || DEPLOYMENT_WIDE_TABS.has(tab)) assert.equal(p.view, "restricted", `tab ${tab} should be restricted`);
     else assert.equal(p.view, tab, `tab ${tab} should not be restricted`);
+  }
+});
+
+test("D. deployment-wide previews (install-wide LLM spend, the task queue) need the HOME org, not just an operator seat", async () => {
+  // /api/ops, /api/llm/usage and /api/llm/activity gate on requireHomeOrgReader; the palette's
+  // Activity and Models previews read the same deployment-wide aggregates and must follow it,
+  // or an operator seat in a self-signup org reads this install's spend through the palette.
+  assert.deepEqual([...DEPLOYMENT_WIDE_TABS].sort(), ["activity", "models"]);
+  for (const tab of PREVIEWABLE_TABS) {
+    const p = await resolveTabPreview(tab, WS, true, false);
+    if (DEPLOYMENT_WIDE_TABS.has(tab)) assert.equal(p.view, "restricted", `tab ${tab} must be restricted outside the home org`);
+    else assert.equal(p.view, tab, `tab ${tab} should not be restricted for an operator`);
   }
 });
 
@@ -43,7 +55,7 @@ test("C. an unknown entity id is 'missing' for every kind", () => {
 
 test("branding preview carries both theme accents when an accent is stored", async () => {
   saveBrand({ displayName: "Acme", accentColor: "#0057b8", logoUrl: null });
-  const p = await resolveTabPreview("branding", WS, true);
+  const p = await resolveTabPreview("branding", WS, true, true);
   assert.equal(p.view, "branding");
   if (p.view !== "branding") return;
   assert.equal(p.accentColor, "#0057b8");
@@ -53,7 +65,7 @@ test("branding preview carries both theme accents when an accent is stored", asy
 });
 
 test("pipeline preview carries the axis stages in board order with counts", async () => {
-  const p = await resolveTabPreview("pipeline", WS, true);
+  const p = await resolveTabPreview("pipeline", WS, true, true);
   assert.equal(p.view, "pipeline");
   if (p.view !== "pipeline") return;
   assert.ok(p.stages.length > 0, "at least one stage");
@@ -92,7 +104,7 @@ test("decisions preview reports the TRUE sealed total, not a capped page", async
   const total = verifyDecisionChain(WS).count;
   assert.ok(total > 500, `fixture must exceed the old 500 page cap, got ${total}`);
 
-  const p = await resolveTabPreview("decisions", WS, true);
+  const p = await resolveTabPreview("decisions", WS, true, true);
   assert.equal(p.view, "decisions");
   if (p.view !== "decisions") return;
   // Pre-fix: sealed === 500 (listDecisionRecords' limit) while chain.count === 510.
