@@ -25,21 +25,32 @@ test("a scene ticks only when it is on screen, allowed to move, and the tab is o
   );
 });
 
-test("every combination that is not all three is off", () => {
-  // Written as a truth table rather than as three cases because this predicate
-  // is exactly the kind that silently loses a term when a fourth condition is
-  // added later.
+test("every combination that is not all four is off", () => {
+  // Written as a truth table rather than as cases because this predicate is
+  // exactly the kind that silently loses a term when a condition is added —
+  // and one was: the reader's own stop (the About transport) is the fourth.
   for (const inView of [true, false]) {
     for (const reduced of [true, false]) {
       for (const visible of [true, false]) {
-        assert.equal(
-          shouldTick({ inView, reduced, visible }),
-          inView && !reduced && visible,
-          `inView=${inView} reduced=${reduced} visible=${visible}`
-        );
+        for (const stopped of [true, false]) {
+          assert.equal(
+            shouldTick({ inView, reduced, visible, stopped }),
+            inView && !reduced && visible && !stopped,
+            `inView=${inView} reduced=${reduced} visible=${visible} stopped=${stopped}`
+          );
+        }
       }
     }
   }
+});
+
+test("a user stop vetoes the timer even when every machine condition is favourable", () => {
+  assert.equal(shouldTick({ inView: true, reduced: false, visible: true, stopped: true }), false);
+  assert.equal(
+    shouldTick({ inView: true, reduced: false, visible: true }),
+    true,
+    "an absent stop term is autoplay, so callers that predate the transport keep their behaviour"
+  );
 });
 
 test("visibilityState is read permissively — only \"hidden\" pauses", () => {
