@@ -23,9 +23,11 @@ import {
   createSubmission,
   listLifecycles,
   saveDevCase,
+  setPostingStatus,
   updateLifecycle,
 } from "./devcase.ts";
 import { listCaseLedger, listCaseLedgerFacets } from "./devcase-ledger.ts";
+import { lifecycleStall } from "../devcase-sla.ts";
 
 after(() => cleanupUnitDb());
 
@@ -180,4 +182,35 @@ test("a job filter keeps only that role's cases, before the limit", () => {
   assert.deepEqual(listCaseLedger(3, ws, { job: "j_ledger_1" }).map((r) => r.id), [mine]);
   assert.deepEqual(listCaseLedger(3, ws, { job: "j_nobody" }), []);
   assert.equal(listCaseLedger(50, ws, { job: "" }).length, 7, "a blank job filter narrows nothing");
+});
+
+// challenge-r09 devcase-lifecycle/B: the ledger's no-lifecycle fallback read 'published'
+// whenever ANY posting existed - the `posted` CTE never looked at status - so a case
+// whose intake was stopped still read live, and devcase-sla's stall rule (which counts
+// 'published' as an open stage) kept chasing it. An OPEN posting reads 'published'; only
+// closed postings read 'closed', the same word a closed lifecycle already uses.
+test("no lifecycle: only closed postings read 'closed' (no stall), an open one still reads 'published'", () => {
+  const ws = createWorkspace("Ledger intake team", "org-ledger-intake").id;
+  const stopped = approveCase("Stopped by hand", ws);
+  const p = createPosting({ caseId: stopped, channel: "local", token: `tok-stopped-${stopped}`, roleTitle: null, caseTitle: null });
+  setPostingStatus(p.id, "closed");
+  const reopened = approveCase("Reopened after a stop", ws);
+  const old = createPosting({ caseId: reopened, channel: "local", token: `tok-old-${reopened}`, roleTitle: null, caseTitle: null });
+  setPostingStatus(old.id, "closed");
+  createPosting({ caseId: reopened, channel: "local", token: `tok-new-${reopened}`, roleTitle: null, caseTitle: null });
+
+  const rows = listCaseLedger(50, ws);
+  const stoppedRow = rows.find((r) => r.id === stopped);
+  assert.equal(stoppedRow?.stage, "closed");
+  assert.equal(rows.find((r) => r.id === reopened)?.stage, "published");
+  assert.deepEqual(listCaseLedger(50, ws, { stage: "closed" }).map((r) => r.id), [stopped]);
+  // The stall chip reads the ledger's stage: a closed case is not an empty OPEN one.
+  const longAgo = Date.parse(stoppedRow!.createdAt) + 30 * 86_400_000;
+  assert.equal(
+    lifecycleStall({ stage: stoppedRow!.stage, createdAt: stoppedRow!.createdAt, submissionCount: 0 }, longAgo).stalled,
+    false
+  );
+  const facets = listCaseLedgerFacets(ws);
+  assert.ok(facets.stages.includes("closed"), "the stage picker offers 'closed'");
+  assert.ok(facets.stages.includes("published"));
 });
