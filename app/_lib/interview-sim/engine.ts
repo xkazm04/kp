@@ -58,6 +58,7 @@ import { DIRECTOR_HEARTBEAT_MS, SIM_EPOCH_MS, SPEAKING_WPM, spokenMs, spokenPref
 import { InMemoryDirector, type SimDirectorTurn, type SimExchangeResult } from "./director-loop";
 import { parseCandidateReply, parseInterviewerReply, toolLinesOf, toolResultLine } from "./tool-line";
 import type { SimInstrument } from "./instrument";
+import { situationSha } from "./situations";
 import {
   SIM_TOOL_LINE_EXAMPLE,
   type SimConversation,
@@ -439,6 +440,7 @@ class SimCall {
     return {
       runId,
       situationId: situation.id,
+      situationSha: situationSha(situation),
       fixture: instrument.fixture,
       instrument: { ...instrument.record, agendaBlockIds: [...instrument.record.agendaBlockIds] },
       turns: this.turns,

@@ -16,6 +16,9 @@
 //                            margins, findings by impact, quality rates, the cross-block
 //                            measurement, what passed
 //   <outDir>/voices/<character>.md   with --characters (voices.ts)
+//   <outDir>/diff.json, diff.md   with --baseline only (baseline-diff.ts): every situation ×
+//                            invariant cell classified against an earlier verdict run —
+//                            non-local regression first, then intended, noise, not comparable
 //   <runDir>/verdicts/<situationId>.json   the per-conversation verdict file, which is also
 //                            the judge CACHE, keyed by (dump sha256, judge id, rubric version)
 //
@@ -23,7 +26,10 @@
 // RATE (k fail / n evaluable) — "a cell red once in three runs is a rate, not a fact"
 // (registry: persona-by-behaviour-heatmap). Dumps of the same situation made by different
 // instruments (briefSha / directorVersion) are refused, naming them: a rate over two
-// instruments is a rate over nothing.
+// instruments is a rate over nothing. The same holds for the CAST: dumps of one situation
+// with different situationSha (an edited persona) are refused too; a dump graded against a
+// bank entry edited since it ran is a warning (it is re-graded against a situation it never
+// ran).
 //
 // NEVER AVERAGED. Reliability, protocol, policy and quality are reported side by side; no
 // number anywhere blends two axes. not_provoked and not_evaluable are counted separately
@@ -38,8 +44,9 @@ import { CROSS_BLOCK_CLASSES, countCrossBlock, measureCrossBlock, type CrossBloc
 import { evaluateRules, qualityMetrics, type InvariantAxis, type InvariantVerdict, type QualityMetrics, type StimulusMap } from "./detectors";
 import type { SimConversationDump } from "./engine";
 import { factsOf, judgeConversation, judgeIndependenceProblem, judgeIndependenceWarning, JUDGE_RUBRIC_VERSION, roleFactsOf, stimulusFromFacts, type JudgeResult } from "./judge";
+import { diffVerdicts, loadBaseline, renderDiff, type DiffReport } from "./baseline-diff";
 import { conversationRef, excerpt, transcriptRef } from "./record";
-import { loadSituations, SIM_INVARIANTS, type SimInvariantId } from "./situations";
+import { loadSituations, situationSha, SIM_INVARIANTS, type SimInvariantId } from "./situations";
 import type { SimFixture, SimLlm, SimSituation } from "./types";
 import { characterClaims, characterVoice, parseCharacter, renderVoiceMarkdown, type CharacterFile, type VoiceResult } from "./voices";
 
@@ -122,6 +129,8 @@ export type ConversationVerdicts = {
   language: string;
   character: string | null;
   dumpSha: string;
+  /** The cast the dump ran (null on dumps written before it was recorded). */
+  situationSha: string | null;
   endedBy: string;
   instrument: { briefSha: string; directorVersion: string };
   providers: { interviewer: string; candidate: string };
@@ -337,16 +346,19 @@ export class JudgeIndependenceError extends Error {}
 
 /** Refuse to merge dumps of one situation made by different instruments. */
 export function instrumentConflicts(runs: readonly { dir: string; dumps: readonly { dump: SimConversationDump }[] }[]): string[] {
-  const seen = new Map<string, { dir: string; briefSha: string; directorVersion: string }>();
+  const seen = new Map<string, { dir: string; briefSha: string; directorVersion: string; situationSha: string | null }>();
   const problems: string[] = [];
   for (const run of runs) {
     for (const { dump } of run.dumps) {
       const id = dump.situationId;
-      const cur = { dir: run.dir, briefSha: dump.instrument?.briefSha ?? "?", directorVersion: dump.instrument?.directorVersion ?? "?" };
+      const cur = { dir: run.dir, briefSha: dump.instrument?.briefSha ?? "?", directorVersion: dump.instrument?.directorVersion ?? "?", situationSha: dump.situationSha ?? null };
       const prev = seen.get(id);
       if (!prev) seen.set(id, cur);
       else if (prev.briefSha !== cur.briefSha || prev.directorVersion !== cur.directorVersion) {
         problems.push(`${id}: ${prev.dir} ran briefSha ${prev.briefSha} / directorVersion ${prev.directorVersion}, ${cur.dir} ran ${cur.briefSha} / ${cur.directorVersion}`);
+      } else if (prev.situationSha && cur.situationSha && prev.situationSha !== cur.situationSha) {
+        // A dump without the digest predates it: unknown, not a conflict.
+        problems.push(`${id}: ${prev.dir} ran situationSha ${prev.situationSha}, ${cur.dir} ran ${cur.situationSha} (the situation was edited between the runs)`);
       }
     }
   }
@@ -368,6 +380,10 @@ export type VerdictRunOptions = {
   /** The voice model (the judge's). Voices are skipped without one. */
   voiceLlm?: SimLlm | null;
   concurrency?: number;
+  /** Compare against an earlier verdict run (its output directory, or the run directory
+   *  holding verdict/): writes diff.json + diff.md (baseline-diff.ts). `targets` are the
+   *  invariant ids or situation ids the change aimed at. Absent = nothing new is written. */
+  baseline?: { dir: string; targets?: string[] } | null;
   log?: (line: string) => void;
 };
 
@@ -380,6 +396,8 @@ export type VerdictRunResult = {
   reliabilityFails: number;
   warnings: string[];
   files: string[];
+  /** Only with `baseline`. */
+  diff?: DiffReport;
 };
 
 const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
@@ -421,6 +439,9 @@ export async function verdictRuns(opts: VerdictRunOptions): Promise<VerdictRunRe
   const outDir = path.resolve(opts.outDir ?? path.join(opts.dirs[0], "verdict"));
   const runs = opts.dirs.map((d) => loadRun(path.resolve(d)));
 
+  // Read the baseline BEFORE anything is written: --out may be the baseline's own directory.
+  const baseline = opts.baseline ? loadBaseline(path.resolve(opts.baseline.dir)) : null;
+
   const conflicts = instrumentConflicts(runs);
   if (conflicts.length) throw new InstrumentIdentityError(`refusing to merge dumps of different instruments (instrument identity):\n  ${conflicts.join("\n  ")}`);
 
@@ -441,14 +462,18 @@ export async function verdictRuns(opts: VerdictRunOptions): Promise<VerdictRunRe
   const characterFor = (s: SimSituation) => characters.find((c) => characterClaims(c, s))?.name ?? null;
 
   const unknownSituations: string[] = [];
+  const editedSince: string[] = [];
   const items: { run: LoadedRun; loaded: LoadedDump; situation: SimSituation }[] = [];
   for (const run of runs) {
     for (const loaded of run.dumps) {
       const s = bank.get(loaded.dump.situationId);
-      if (s) items.push({ run, loaded, situation: s });
-      else unknownSituations.push(`${run.dir}/${loaded.file} (situation ${loaded.dump.situationId} is not in the bank)`);
+      if (s) {
+        items.push({ run, loaded, situation: s });
+        if (loaded.dump.situationSha && loaded.dump.situationSha !== situationSha(s)) editedSince.push(`${run.dir}/${loaded.file}`);
+      } else unknownSituations.push(`${run.dir}/${loaded.file} (situation ${loaded.dump.situationId} is not in the bank)`);
     }
   }
+  if (editedSince.length) warnings.push(`${editedSince.length} dump(s) ran a situation edited since in situations.json, and are graded against the CURRENT entry: ${editedSince.join(", ")}`);
   const missing = runs.flatMap((r) => r.missing.map((id) => `${r.dir}/${id}`));
   const selected = items.length + missing.length + unknownSituations.length;
 
@@ -501,6 +526,7 @@ export async function verdictRuns(opts: VerdictRunOptions): Promise<VerdictRunRe
       language: situation.language,
       character: characterFor(situation),
       dumpSha,
+      situationSha: dump.situationSha ?? null,
       endedBy: dump.endedBy,
       instrument: { briefSha: dump.instrument?.briefSha ?? "?", directorVersion: dump.instrument?.directorVersion ?? "?" },
       providers: { interviewer: dump.trace?.providers?.interviewer ?? "?", candidate: dump.trace?.providers?.candidate ?? "?" },
@@ -550,7 +576,13 @@ export async function verdictRuns(opts: VerdictRunOptions): Promise<VerdictRunRe
   write("heatmap.md", renderHeatmap(conversations, runs.length));
   write("report.md", renderReport({ conversations, findings, coverage, runs: runs.map((r) => ({ dir: r.dir, instruments: [...r.instruments.values()] })), judge: meta.judge, warnings, voices, samples: runs.length }));
   for (const v of voices) write(path.join("voices", `${v.character}.md`), renderVoiceMarkdown(v));
-  return { outDir, conversations, findings, voices, coverage, reliabilityFails, warnings, files };
+  let diff: DiffReport | undefined;
+  if (baseline && opts.baseline) {
+    diff = diffVerdicts({ conversations: baseline.conversations, dirs: baseline.dirs?.length ? baseline.dirs : [path.dirname(baseline.file)] }, { conversations, dirs: meta.dirs }, { targets: opts.baseline.targets ?? [] });
+    write("diff.json", `${JSON.stringify({ ...diff, baselineFile: baseline.file, generatedAt: new Date().toISOString() }, null, 2)}\n`);
+    write("diff.md", renderDiff(diff));
+  }
+  return { outDir, conversations, findings, voices, coverage, reliabilityFails, warnings, files, ...(diff ? { diff } : {}) };
 }
 
 // ---- rendering ---------------------------------------------------------------------------------

@@ -32,6 +32,7 @@
 // every other situation is built as if the applicant had chosen its language
 // (instrumentLocaleFor below).
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { SIM_FIXTURES, type SimFixture, type SimSituation } from "./types";
 
@@ -150,4 +151,25 @@ export function loadSituations(): SimSituation[] {
  *  opener) when the situation exists to test the language lock, else its own language. */
 export function instrumentLocaleFor(situation: Pick<SimSituation, "language" | "provokes">): string | null {
   return situation.provokes.includes("language_follow") ? null : situation.language;
+}
+
+/** The digest of what a situation IS to the conversation: every field that shapes what the
+ *  simulated candidate says or how the transcript is graded — persona, first line, the
+ *  provocations, the required response, fixture and language — as canonical JSON (fixed
+ *  key order, absent optional fields as null). The title and behaviour label are not in
+ *  it: renaming a situation does not change its cast. Recorded on every dump
+ *  (`SimConversation.situationSha`) so resume and a baseline diff can tell an edited
+ *  situation from the one that ran (registry: prompt-change-regression-baseline — "the
+ *  cast, byte-exact"). */
+export function situationSha(s: Pick<SimSituation, "persona" | "firstMessage" | "provokes" | "firstMessageProvokes" | "handles" | "fixture" | "language">): string {
+  const canonical = JSON.stringify([
+    ["persona", s.persona],
+    ["firstMessage", s.firstMessage ?? null],
+    ["provokes", [...s.provokes]],
+    ["firstMessageProvokes", s.firstMessageProvokes ? [...s.firstMessageProvokes] : null],
+    ["handles", s.handles],
+    ["fixture", s.fixture],
+    ["language", s.language],
+  ]);
+  return `sha256:${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
 }

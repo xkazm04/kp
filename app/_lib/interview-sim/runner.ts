@@ -10,10 +10,11 @@
 //                                                  one-line summary per conversation
 //
 // RESUMABLE. A rerun into the same directory skips a situation whose dump exists, did
-// not end in `error`, and was produced by the SAME instrument (briefSha and
-// directorVersion) — a dump of a different brief is stale, and mixing the two in one
-// directory is the "instrument identity" failure the registry warns about (a cast run
-// at one variant, scored as another). Errored and stale conversations run again and
+// not end in `error`, was produced by the SAME instrument (briefSha and
+// directorVersion) AND ran the same situation (situationSha: persona, first line,
+// provocations, required response) — a dump of a different brief or of an edited cast
+// is stale, and mixing the two in one directory is the "instrument identity" failure the
+// registry warns about (a cast run at one variant, scored as another). Errored and stale conversations run again and
 // overwrite their dump.
 //
 // Instruments are built BEFORE any conversation starts and sequentially (they write the
@@ -24,7 +25,7 @@ import path from "node:path";
 
 import { CANDIDATE_HARNESS_PREAMBLE, INTERVIEWER_HARNESS_PREAMBLE, runConversation, type SimConversationDump, type SimLimits } from "./engine";
 import type { SimInstrument } from "./instrument";
-import { instrumentLocaleFor } from "./situations";
+import { instrumentLocaleFor, situationSha } from "./situations";
 import type { SimFixture, SimLlm, SimSituation } from "./types";
 
 export type SimRunOptions = {
@@ -184,7 +185,8 @@ export async function runSimulations(opts: SimRunOptions): Promise<SimRunResult>
       prior !== null &&
       prior.endedBy !== "error" &&
       prior.instrument?.briefSha === inst.record.briefSha &&
-      prior.instrument?.directorVersion === inst.record.directorVersion;
+      prior.instrument?.directorVersion === inst.record.directorVersion &&
+      prior.situationSha === situationSha(s);
     if (current) skipped.push(s.id);
     else todo.push(s);
   }

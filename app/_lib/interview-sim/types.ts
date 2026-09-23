@@ -73,6 +73,11 @@ export type SimConversation = {
   /** The instrument that was under test, recorded so a later diff can say what changed
    *  (registry: prompt-change-regression-baseline records the instrument text). */
   instrument: { briefSha: string; agendaBlockIds: string[]; directorVersion: string };
+  /** The digest of the situation this conversation ran (situations.ts `situationSha`):
+   *  the cast is part of a dump's identity, so an edited persona is neither resumed nor
+   *  diffed as the same conversation. Absent on dumps written before it existed — read
+   *  as "cast unknown", never as a match. */
+  situationSha?: string;
   turns: SimTurn[];
   endedBy: SimEndReason;
   simElapsedMs: number;

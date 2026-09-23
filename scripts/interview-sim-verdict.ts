@@ -23,19 +23,32 @@
 //                            `character` and the first-person voices (voice = judge model)
 //   --timeout <s>            per judge / voice call (default 300)
 //   --workers <n>            conversations judged in parallel (default 3)
+//   --baseline <dir>         compare against an EARLIER verdict run (its output directory,
+//                            or the simulator run directory holding verdict/): writes
+//                            diff.json + diff.md classifying every situation × invariant
+//                            cell — non-local regression, intended improvement, non-local
+//                            improvement, noise, not comparable. Keyless: it reads two
+//                            verdicts.json files, never a model.
+//   --targets <ids>          with --baseline: the invariant ids or situation ids the change
+//                            aimed at (comma-separated); a better targeted cell is an
+//                            intended improvement, anything else that moved is non-local
 //
 // The judge reads the transcript and a rubric written for transcripts — never the
 // interviewer's brief. A cached judgement (<run dir>/verdicts/<situationId>.json) is reused
 // when the dump, the judge id and the rubric version all match. Refuses to call the Claude
 // CLI under KP_OFFLINE. Exit 0 when the verdict ran — a failing interviewer is a RESULT,
 // not a CLI error; 2 on a usage error or a refusal (offline, same-model judge, mixed
-// instruments). Never touches a database.
+// instruments, --targets without --baseline, an unknown target). A blocking diff (a
+// reliability regression) is a RESULT too: exit 0, the headline says BLOCKING. Never
+// touches a database.
 
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+import { BaselineError } from "@/app/_lib/interview-sim/baseline-diff";
 import { fakeCharacterVoice, fakeJudge } from "@/app/_lib/interview-sim/fake";
 import { claudeCliLlm, SimProviderError } from "@/app/_lib/interview-sim/providers";
+import { loadSituations, SIM_INVARIANTS } from "@/app/_lib/interview-sim/situations";
 import { InstrumentIdentityError, JudgeIndependenceError, verdictRuns } from "@/app/_lib/interview-sim/verdict-run";
 import type { SimLlm } from "@/app/_lib/interview-sim/types";
 
@@ -68,13 +81,23 @@ const int = (flags: Flags, name: string, fallback: number) => {
 
 async function main(): Promise<number> {
   const flags = parseFlags(process.argv.slice(2));
-  const known = new Set(["runs", "out", "judge-model", "no-judge", "fake-judge", "characters", "timeout", "workers"]);
+  const known = new Set(["runs", "out", "judge-model", "no-judge", "fake-judge", "characters", "timeout", "workers", "baseline", "targets"]);
   for (const k of flags.keys()) if (!known.has(k)) throw new UsageError(`unknown flag --${k}`);
   const dirs = list(flags, "runs").map((d) => path.resolve(d));
   if (dirs.length === 0) throw new UsageError("--runs <dir>[,<dir>] is required");
   for (const d of dirs) if (!existsSync(path.join(d, "index.json"))) throw new UsageError(`${d} holds no index.json — not a simulator output directory`);
   const characters = list(flags, "characters").map((p) => path.resolve(p));
   for (const p of characters) if (!existsSync(p)) throw new UsageError(`Character file not found: ${p}`);
+
+  const baselineDir = one(flags, "baseline") ? path.resolve(one(flags, "baseline") as string) : null;
+  const targets = list(flags, "targets");
+  if (targets.length && !baselineDir) throw new UsageError("--targets needs --baseline <earlier verdict dir>: a target only means something in a comparison");
+  if (baselineDir && !existsSync(baselineDir)) throw new UsageError(`--baseline ${baselineDir} does not exist`);
+  if (targets.length) {
+    const knownTargets = new Set<string>([...Object.keys(SIM_INVARIANTS), ...loadSituations().map((s) => s.id)]);
+    const unknown = targets.filter((t) => !knownTargets.has(t));
+    if (unknown.length) throw new UsageError(`--targets: ${unknown.join(", ")} is neither an invariant id nor a situation id`);
+  }
 
   const judgeModel = one(flags, "judge-model")?.trim() || null;
   const modes = [judgeModel ? "--judge-model" : "", flags.has("no-judge") ? "--no-judge" : "", flags.has("fake-judge") ? "--fake-judge" : ""].filter(Boolean);
@@ -102,6 +125,7 @@ async function main(): Promise<number> {
     characters,
     voiceLlm: voice,
     concurrency: int(flags, "workers", 3),
+    baseline: baselineDir ? { dir: baselineDir, targets } : null,
     log: (line) => console.log(`[interview-sim-verdict] ${line}`),
   });
 
@@ -112,6 +136,7 @@ async function main(): Promise<number> {
     `[interview-sim-verdict] ${result.reliabilityFails} reliability fail(s) across ${result.conversations.length} conversation(s); ` +
       `coverage ${cov.produced}/${cov.selected}; ${gaps.length} finding(s), ${result.findings.length - gaps.length} strength row(s)`,
   );
+  if (result.diff) for (const h of result.diff.headline) console.log(`[interview-sim-verdict] diff: ${h}`);
   for (const f of result.files) console.log(`[interview-sim-verdict] wrote ${f}`);
   return 0;
 }
@@ -119,7 +144,7 @@ async function main(): Promise<number> {
 main().then(
   (code) => process.exit(code),
   (err) => {
-    if (err instanceof UsageError || err instanceof SimProviderError || err instanceof JudgeIndependenceError || err instanceof InstrumentIdentityError) {
+    if (err instanceof UsageError || err instanceof SimProviderError || err instanceof JudgeIndependenceError || err instanceof InstrumentIdentityError || err instanceof BaselineError) {
       console.error(`[interview-sim-verdict] ${err.message}`);
       process.exit(2);
     }
