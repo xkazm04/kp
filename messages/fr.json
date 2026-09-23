@@ -3606,7 +3606,9 @@
         "closeTray": "Fermer le panneau",
         "showResult": "Dernier résultat",
         "noActions": "Aucune action IA disponible à cette étape"
-      }
+      },
+      "needsYou": "{count, plural, one {# requiert votre attention} other {# requièrent votre attention}}",
+      "needsYouAria": "{count, plural, one {# message n'a pas été remis et requiert votre attention} other {# messages n'ont pas été remis et requièrent votre attention}}"
     },
     "actions": {
       "screen": "Présélection AI",

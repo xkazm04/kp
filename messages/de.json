@@ -3606,7 +3606,9 @@
         "closeTray": "Bereich schließen",
         "showResult": "Letztes Ergebnis",
         "noActions": "In diesem Schritt sind keine KI-Aktionen verfügbar"
-      }
+      },
+      "needsYou": "{count, plural, one {# braucht Sie} other {# brauchen Sie}}",
+      "needsYouAria": "{count, plural, one {# Nachricht wurde nicht zugestellt und braucht Ihre Aufmerksamkeit} other {# Nachrichten wurden nicht zugestellt und brauchen Ihre Aufmerksamkeit}}"
     },
     "actions": {
       "screen": "Mit AI prüfen",

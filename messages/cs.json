@@ -3606,7 +3606,9 @@
         "closeTray": "Zavřít panel",
         "showResult": "Poslední výsledek",
         "noActions": "V této fázi nejsou k dispozici žádné akce AI"
-      }
+      },
+      "needsYou": "{count, plural, one {# vyžaduje pozornost} few {# vyžadují pozornost} other {# vyžaduje pozornost}}",
+      "needsYouAria": "{count, plural, one {# dopis nebyl doručen a vyžaduje vaši pozornost} few {# dopisy nebyly doručeny a vyžadují vaši pozornost} other {# dopisů nebylo doručeno a vyžaduje vaši pozornost}}"
     },
     "actions": {
       "screen": "Prověřit přes AI",

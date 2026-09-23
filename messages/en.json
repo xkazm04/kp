@@ -3606,7 +3606,9 @@
         "closeTray": "Close panel",
         "showResult": "Last result",
         "noActions": "No AI actions at this step"
-      }
+      },
+      "needsYou": "{count, plural, one {# needs you} other {# need you}}",
+      "needsYouAria": "{count, plural, one {# letter was not delivered and needs you} other {# letters were not delivered and need you}}"
     },
     "actions": {
       "screen": "Screen with AI",
