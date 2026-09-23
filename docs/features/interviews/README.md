@@ -473,7 +473,8 @@ because it passes through the candidate's browser.
 | Surface | Role |
 | --- | --- |
 | `POST /api/interview/director` (`app/api/interview/director/route.ts`) | Public token route. Body capped at 64 KB. Per-token limit of 240 per 10 min (`interview-director:<token>`). The tenant is the session's own workspace. |
-| `app/_lib/voice/director-step.ts` | Parses the untrusted request (at most 50 turns and 20 observations per request, turns clamped like the hang-up transcript) and runs one exchange in one IMMEDIATE transaction. |
+| `app/_lib/voice/director-step.ts` | Parses the untrusted request (at most 50 turns and 20 observations per request, turns clamped like the hang-up transcript) and runs one exchange in one IMMEDIATE transaction, over an `interview_events` store (the 4000-event ceiling, idempotent turns, `maxInterviewTurnSeq`). Answers the `DirectorResponse` projection only. |
+| `app/_lib/voice/director-exchange.ts` | `directorExchange`: the one exchange algorithm (persist turns and observations tagged with the prior block, at most one tool, at most one directive, `endCall` and clock). Synchronous, no DB import, over a `DirectorEventStore` port. The interview simulator runs the same function over an array store. |
 | `app/_lib/voice/director.ts` | Pure policy: `deriveDirectorState`, `decideDirective`, `applyDirectorTool`. No DB, no clock. |
 | `app/_lib/voice/resume.ts` | `buildResumeContext` for `/connect`. |
 | `app/_lib/quote-match.ts` | Shared, pure quote-to-turn matcher. |
@@ -942,7 +943,7 @@ telling the recruiter that a required question may have been missed.
 | Any accepted `end_interview` (complete, time or candidate_request) | Closing line, then the call ends. | `end_requested` plus **one `must_ask_unasked { questionId, question, endReason }` per outstanding must-ask** |
 
 `candidate_request` is never refused: the candidate may stop at any time. The server's
-`endCall` in `director-step.ts` reads the same `endCeilingMin` as `end_now`.
+`endCall` in `director-exchange.ts` reads the same `endCeilingMin` as `end_now`.
 
 **The browser's fallback stop follows the moved limit.** Every `POST /api/interview/director`
 response now carries `clock: { elapsedMs, endLimitMs } | null`. Both values are live
@@ -1769,7 +1770,7 @@ it writes; "Verdicts" covers what a run proves.
 | `app/_lib/interview-sim/situations.json` + `situations.ts` | The tracked situation bank, its loader/validator, `SIM_INVARIANTS` (the ids a situation may `provoke`) and `instrumentLocaleFor`. |
 | `app/_lib/interview-sim/instrument.ts` | `buildSimInstrument(fixture, locale)`: seeds a fixture into the throwaway DB and composes it through the real builders; `assertThrowawayDb`, `throwawayDbProblem`, `directorVersion`, `briefSha`. |
 | `app/_lib/interview-sim/engine.ts` | `runConversation`: the turn loop, the director exchanges, the simulated clock, the end handshake; the harness preambles. |
-| `app/_lib/interview-sim/director-loop.ts` | `InMemoryDirector`: `voice/director-step.ts`'s exchange with the events table replaced by an array. |
+| `app/_lib/interview-sim/director-loop.ts` | `InMemoryDirector`: runs `voice/director-exchange.ts`, the live route's own exchange, over an array store that absorbs a resent turn like the table does. |
 | `app/_lib/interview-sim/tool-line.ts` | Parses an interviewer reply into spoken text and tool calls, and a candidate reply into words and pauses. |
 | `app/_lib/interview-sim/clock.ts` | `SPEAKING_WPM`, `TURN_LATENCY_MS`, `DIRECTOR_HEARTBEAT_MS`, `SIM_EPOCH_MS`, `spokenMs`. |
 | `app/_lib/interview-sim/providers.ts` | `claudeCliLlm`: the Claude CLI as a `SimLlm`. |
@@ -1812,8 +1813,9 @@ The stand-in interviewer receives the **private** brief (the one minted for Open
 director protocol, private notes, must-asks and weights). The candidate-safe brief is recorded
 beside it for leak checks and is never sent anywhere. `instrument = { briefSha, agendaBlockIds,
 directorVersion }` is recorded on every conversation. `briefSha` is the SHA-256 of the private
-brief alone. `directorVersion` is the SHA-256 of `voice/director.ts`, `voice/director-tools.mjs`
-and `quote-match.ts` (line endings normalised).
+brief alone. `directorVersion` is the SHA-256 of `voice/director.ts`, `voice/director-tools.mjs`,
+`quote-match.ts` and the exchange kernel `voice/director-exchange.ts` (line endings normalised),
+so runs on different kernels never merge as one instrument.
 
 #### Flows
 
@@ -1834,7 +1836,8 @@ and `quote-match.ts` (line endings normalised).
    refused `complete`, a covered block begun again, extra time nobody asked for), the words
    are withheld and the stand-in is asked to continue. A reply of tool lines alone gets a
    continuation too. There are at most two continuations per turn.
-4. **The director loop.** `InMemoryDirector.exchange` mirrors `runDirectorStep`'s order:
+4. **The director loop.** `InMemoryDirector.exchange` runs `directorExchange`, the same
+   kernel `runDirectorStep` runs, so the order is production's by construction:
    - persist the turns, tagged with the block active before the exchange, clamped like
      production;
    - apply at most one tool;
@@ -1843,8 +1846,10 @@ and `quote-match.ts` (line endings normalised).
 
    Every finalized turn is posted at once. There is a heartbeat exchange every 20 simulated
    seconds. A directive's text, already `[Director]`-prefixed, is injected into the
-   interviewer's context verbatim, without prompting a reply. `engine.test.ts` pins
-   director-step's order and the heartbeat, so the mirror goes red rather than stale.
+   interviewer's context verbatim, without prompting a reply. The heartbeat is
+   `DIRECTOR_HEARTBEAT_MS` from `call-observations.ts`, the browser's own constant.
+   `voice/director-exchange.test.ts` runs a scripted call through the live step on the unit
+   DB and through the simulator and requires the same answers exchange by exchange.
 5. **The end.** `endCall`, and the browser's fallback hard stop, run the browser's end
    handshake (`call-observations.ts`). The fallback hard stop is armed with
    `hardStopDelayMs`, re-armed with `extendedHardStopDeadline`, and frozen once an end signal
