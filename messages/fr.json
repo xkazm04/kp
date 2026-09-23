@@ -10608,7 +10608,39 @@
       "refreshFailed": "Impossible de joindre kp pour actualiser cet agent. Réessayez.",
       "refreshUnpollable": "Personas n'a renvoyé aucun nouvel état pour cet agent. Vérifiez l'application Personas ou la connexion dans Paramètres → Intégrations."
     },
-    "inDevelopment": "En développement"
+    "inDevelopment": "En développement",
+    "nextAction": {
+      "stripLabel": "À traiter",
+      "showAll": "Tout afficher",
+      "filtered": "{shown} agents affichés sur {total}",
+      "soonest": "la prochaine expire dans {hours, plural, one {# heure} other {# heures}}",
+      "chip": {
+        "repair_bridge": "{count, plural, one {# agent attend} other {# agents attendent}} la connexion Personas",
+        "approval_lapsed": "{count, plural, one {# approbation expirée} other {# approbations expirées}}",
+        "approve_in_personas": "{count, plural, one {# approbation en attente} other {# approbations en attente}} dans Personas",
+        "review_probation": "{count, plural, one {# bilan de période d’essai à faire} other {# bilans de période d’essai à faire}}",
+        "check_reporter": "{count, plural, one {# remontée à vérifier} other {# remontées à vérifier}}",
+        "redispatch": "{count, plural, one {# recrutement à renvoyer} other {# recrutements à renvoyer}}"
+      },
+      "move": {
+        "repair_bridge": "La connexion Personas n’est pas appairée",
+        "approval_lapsed": "La fenêtre d’approbation de 24 heures dans Personas est close",
+        "approve_in_personas": "À approuver dans Personas : {hours, plural, one {# heure restante} other {# heures restantes}}",
+        "approve_no_clock": "En attente d’approbation dans Personas",
+        "review_probation": "Le bilan de période d’essai est à faire dans Personas",
+        "check_reporter_silent": "Personas n’a rien remonté depuis plus de 7 jours",
+        "check_reporter_rejected": "Personas envoie des remontées, mais aucune n’a été acceptée",
+        "redispatch": "Ce recrutement n’a pas abouti"
+      },
+      "control": {
+        "integrations": "Appairer la connexion",
+        "redispatch": "Renvoyer",
+        "redispatching": "Envoi…"
+      },
+      "redispatchDone": "Renvoyé. Le nouveau recrutement figure dans l’effectif.",
+      "redispatchExisting": "Un recrutement actif couvre déjà ce poste, rien de nouveau n’a été envoyé.",
+      "redispatchFailed": "Impossible de renvoyer ce recrutement. Veuillez réessayer."
+    }
   },
   "simulation": {
     "status": {

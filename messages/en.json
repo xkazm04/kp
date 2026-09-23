@@ -10608,7 +10608,39 @@
       "refreshFailed": "Couldn't reach kp to refresh this agent. Try again.",
       "refreshUnpollable": "Personas returned no new state for this agent. Check the Personas app, or the bridge in Settings → Integrations."
     },
-    "inDevelopment": "In development"
+    "inDevelopment": "In development",
+    "nextAction": {
+      "stripLabel": "Needs you",
+      "showAll": "Show all",
+      "filtered": "Showing {shown} of {total} agents",
+      "soonest": "next lapses in {hours, plural, one {# hour} other {# hours}}",
+      "chip": {
+        "repair_bridge": "{count, plural, one {# agent waits} other {# agents wait}} on the Personas bridge",
+        "approval_lapsed": "{count, plural, one {# approval lapsed} other {# approvals lapsed}}",
+        "approve_in_personas": "{count, plural, one {# approval waiting} other {# approvals waiting}} in Personas",
+        "review_probation": "{count, plural, one {# probation review due} other {# probation reviews due}}",
+        "check_reporter": "{count, plural, one {# reporter to check} other {# reporters to check}}",
+        "redispatch": "{count, plural, one {# hire to re-dispatch} other {# hires to re-dispatch}}"
+      },
+      "move": {
+        "repair_bridge": "The Personas bridge isn't paired",
+        "approval_lapsed": "The 24-hour approval window in Personas has closed",
+        "approve_in_personas": "Approve in Personas: {hours, plural, one {# hour} other {# hours}} left",
+        "approve_no_clock": "Waiting for approval in Personas",
+        "review_probation": "Probation review is due in Personas",
+        "check_reporter_silent": "Personas hasn't reported in over 7 days",
+        "check_reporter_rejected": "Personas is reporting, but no report has been accepted",
+        "redispatch": "This hire didn't go through"
+      },
+      "control": {
+        "integrations": "Pair the bridge",
+        "redispatch": "Re-dispatch",
+        "redispatching": "Dispatching…"
+      },
+      "redispatchDone": "Dispatched again. The new hire is on the roster.",
+      "redispatchExisting": "A live hire already covers this role, so nothing new was dispatched.",
+      "redispatchFailed": "Couldn't re-dispatch this hire. Try again."
+    }
   },
   "simulation": {
     "status": {

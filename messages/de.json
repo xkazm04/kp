@@ -10608,7 +10608,39 @@
       "refreshFailed": "kp war für die Aktualisierung dieses Agenten nicht erreichbar. Bitte erneut versuchen.",
       "refreshUnpollable": "Personas hat für diesen Agenten keinen neuen Status geliefert. Prüfen Sie die Personas-App oder die Verbindung unter Einstellungen → Integrationen."
     },
-    "inDevelopment": "In Entwicklung"
+    "inDevelopment": "In Entwicklung",
+    "nextAction": {
+      "stripLabel": "Wartet auf Sie",
+      "showAll": "Alle anzeigen",
+      "filtered": "{shown} von {total} Agenten angezeigt",
+      "soonest": "nächste läuft in {hours, plural, one {# Stunde} other {# Stunden}} ab",
+      "chip": {
+        "repair_bridge": "{count, plural, one {# Agent wartet} other {# Agenten warten}} auf die Personas-Verbindung",
+        "approval_lapsed": "{count, plural, one {# Freigabe abgelaufen} other {# Freigaben abgelaufen}}",
+        "approve_in_personas": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}} in Personas",
+        "review_probation": "{count, plural, one {# Probezeit-Bewertung fällig} other {# Probezeit-Bewertungen fällig}}",
+        "check_reporter": "{count, plural, one {# Berichtsweg zu prüfen} other {# Berichtswege zu prüfen}}",
+        "redispatch": "{count, plural, one {# Einstellung erneut zu senden} other {# Einstellungen erneut zu senden}}"
+      },
+      "move": {
+        "repair_bridge": "Die Personas-Verbindung ist nicht gekoppelt",
+        "approval_lapsed": "Das 24-Stunden-Freigabefenster in Personas ist abgelaufen",
+        "approve_in_personas": "In Personas freigeben: noch {hours, plural, one {# Stunde} other {# Stunden}}",
+        "approve_no_clock": "Wartet auf Freigabe in Personas",
+        "review_probation": "Die Probezeit-Bewertung in Personas ist fällig",
+        "check_reporter_silent": "Personas hat seit über 7 Tagen nichts gemeldet",
+        "check_reporter_rejected": "Personas meldet, aber kein Bericht wurde angenommen",
+        "redispatch": "Diese Einstellung ist nicht zustande gekommen"
+      },
+      "control": {
+        "integrations": "Verbindung koppeln",
+        "redispatch": "Erneut senden",
+        "redispatching": "Wird gesendet…"
+      },
+      "redispatchDone": "Erneut gesendet. Die neue Einstellung steht im Überblick.",
+      "redispatchExisting": "Für diese Rolle läuft bereits eine Einstellung, es wurde nichts Neues gesendet.",
+      "redispatchFailed": "Die Einstellung konnte nicht erneut gesendet werden. Bitte versuchen Sie es erneut."
+    }
   },
   "simulation": {
     "status": {

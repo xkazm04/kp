@@ -10608,7 +10608,39 @@
       "refreshFailed": "Nepodařilo se spojit s kp a stav agenta obnovit. Zkuste to znovu.",
       "refreshUnpollable": "Personas nevrátila pro tohoto agenta žádný nový stav. Zkontrolujte aplikaci Personas nebo propojení v Nastavení → Integrace."
     },
-    "inDevelopment": "Ve vývoji"
+    "inDevelopment": "Ve vývoji",
+    "nextAction": {
+      "stripLabel": "Vyžaduje vaši pozornost",
+      "showAll": "Zobrazit vše",
+      "filtered": "Zobrazeno {shown} z {total} agentů",
+      "soonest": "nejbližší vyprší za {hours, plural, one {# hodinu} few {# hodiny} other {# hodin}}",
+      "chip": {
+        "repair_bridge": "{count, plural, one {# agent čeká} few {# agenti čekají} other {# agentů čeká}} na propojení s Personas",
+        "approval_lapsed": "{count, plural, one {# schválení vypršelo} few {# schválení vypršela} other {# schválení vypršelo}}",
+        "approve_in_personas": "{count, plural, one {# schválení čeká} few {# schválení čekají} other {# schválení čeká}} v Personas",
+        "review_probation": "Hodnocení zkušební doby k provedení: {count}",
+        "check_reporter": "Zkontrolujte hlášení: {count, plural, one {# agent} few {# agenti} other {# agentů}}",
+        "redispatch": "{count, plural, one {# nábor} few {# nábory} other {# náborů}} k opětovnému odeslání"
+      },
+      "move": {
+        "repair_bridge": "Propojení s Personas není spárováno",
+        "approval_lapsed": "24hodinové okno pro schválení v Personas uplynulo",
+        "approve_in_personas": "Schvalte v Personas: {hours, plural, one {zbývá # hodina} few {zbývají # hodiny} other {zbývá # hodin}}",
+        "approve_no_clock": "Čeká na schválení v Personas",
+        "review_probation": "V Personas je třeba vyhodnotit zkušební dobu",
+        "check_reporter_silent": "Personas neposlalo hlášení déle než 7 dní",
+        "check_reporter_rejected": "Personas hlášení posílá, ale žádné nebylo přijato",
+        "redispatch": "Tento nábor neproběhl"
+      },
+      "control": {
+        "integrations": "Spárovat propojení",
+        "redispatch": "Odeslat znovu",
+        "redispatching": "Odesílání…"
+      },
+      "redispatchDone": "Odesláno znovu. Nový nábor je v přehledu.",
+      "redispatchExisting": "Tuto roli již pokrývá aktivní nábor, nic nového se neodeslalo.",
+      "redispatchFailed": "Nábor se nepodařilo znovu odeslat. Zkuste to prosím znovu."
+    }
   },
   "simulation": {
     "status": {
