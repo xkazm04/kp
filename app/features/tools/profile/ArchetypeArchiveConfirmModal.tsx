@@ -6,22 +6,25 @@
 // no idea of the blast radius: the profiles already routed to it keep scoring against
 // its weights, and nothing on screen said how many that was. The count is the whole
 // point of the dialog — "Retire Returner" reads very differently at 0 profiles and at
-// 34 — so it is fetched before the question is answerable, and shown as pending until
-// it lands rather than guessed at.
+// 34 — so it is known before the question is answerable, and shown as pending until
+// the tab's population lands rather than guessed at. It counts BOTH stores (the
+// matrix lane being retired shows saved profiles AND analysed candidates without one),
+// so the number matches the lane on screen.
 import { Archive } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 
 export function ArchetypeArchiveConfirmModal({
   label,
-  routedCount,
+  routed,
   busy,
   onClose,
   onConfirm,
 }: {
   label: string;
-  /** Profiles currently routed to this archetype; null while the count is in flight. */
-  routedCount: number | null;
+  /** Candidates currently routed to this archetype, per store; null while the tab's
+   *  population read is in flight. */
+  routed: { profiles: number; analyses: number } | null;
   busy: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -53,7 +56,8 @@ export function ArchetypeArchiveConfirmModal({
       }
     >
       <p className="text-body text-steel">
-        {routedCount === null ? t("archiveConfirmCounting") : t("archiveConfirmBody", { count: routedCount })}
+        {routed === null ? t("archiveConfirmCounting") : t("archiveConfirmBody", { count: routed.profiles })}
+        {routed && routed.analyses > 0 ? <> {t("archiveConfirmAnalyses", { count: routed.analyses })}</> : null}
       </p>
       <p className="mt-2 text-sm text-steel">{t("archiveConfirmNote")}</p>
     </Modal>

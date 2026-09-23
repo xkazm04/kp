@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeDef } from "@/app/features/shared/profileTypes";
+import { routedCount, type PopulationRow } from "@/app/_lib/candidate-population";
 import { ArchetypeArchiveConfirmModal } from "./ArchetypeArchiveConfirmModal";
 import { ArchetypeManagerList } from "./ArchetypeManagerList";
 import { ArchetypeManagerViewPanel } from "./ArchetypeManagerViewPanel";
@@ -52,10 +53,16 @@ export function ArchetypeManager({
   archetypes,
   loading,
   onChanged,
+  population,
 }: {
   archetypes: ArchetypeDef[];
   loading: boolean;
   onChanged: () => void;
+  /** The tab's ONE candidate population (useCandidatePopulation) — the retire dialog
+   *  counts the lane from these rows, the same rows the matrix draws the lane from.
+   *  null while the read is in flight (or failed): the dialog then says it is counting
+   *  rather than inventing a number. */
+  population: readonly PopulationRow[] | null;
 }) {
   const t = useTranslations("profile.archetypes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -63,26 +70,14 @@ export function ArchetypeManager({
   const blank = useMemo(() => blankDraft({ skills: t("dimSkills"), career: t("dimCareer"), personal: t("dimPersonal") }), [t]);
   const [draft, setDraft] = useState<Draft>(blank);
   const [showArchived, setShowArchived] = useState(false);
-  // The retire confirm and the blast radius it names. `routedCount` stays null until
-  // the roster read lands, so the dialog never invents a number.
+  // The retire confirm and the blast radius it names. The count is DERIVED from the
+  // tab's population, not fetched: it used to re-read the whole roster on every open,
+  // and counted saved profiles only — so the dialog could say "No profile routes here"
+  // over a matrix lane full of analysed candidates. Both stores are counted now, and the
+  // number is known before the dialog opens.
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; label: string } | null>(null);
-  const [routedCount, setRoutedCount] = useState<number | null>(null);
-
-  const requestArchive = useCallback((id: string, label: string) => {
-    setArchiveTarget({ id, label });
-    setRoutedCount(null);
-    void fetch("/api/profile")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("profiles unavailable"))))
-      .then((p) => {
-        const rows = (p.profiles as { archetype: string | null }[]) ?? [];
-        setRoutedCount(rows.filter((row) => row.archetype === id).length);
-      })
-      .catch(() => {
-        // best-effort: the count is context, never the gate. A failed read leaves the
-        // dialog on its "counting" line rather than claiming a confident zero.
-        setRoutedCount(null);
-      });
-  }, []);
+  const routed = archiveTarget && population ? routedCount(population, archiveTarget.id) : null;
+  const requestArchive = (id: string, label: string) => setArchiveTarget({ id, label });
 
   // Active vs retired: retired archetypes leave the pickers (this left list) and move to
   // a collapsed section below; the entry stays in the registry so profiles routed to it
@@ -212,7 +207,7 @@ export function ArchetypeManager({
       {archiveTarget ? (
         <ArchetypeArchiveConfirmModal
           label={archiveTarget.label}
-          routedCount={routedCount}
+          routed={routed}
           busy={busyArchiveId === archiveTarget.id}
           onClose={() => setArchiveTarget(null)}
           onConfirm={() => {
