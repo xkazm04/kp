@@ -8,8 +8,6 @@ connectors-⊆-catalog invariant, and the CLI's uniform provenance envelope.
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
@@ -17,6 +15,7 @@ from pathlib import Path
 
 from pipeline.jobfit import agentfit, agentfit_cli
 from pipeline.jobfit.jobs import Job
+from pipeline.jobfit.tests._helpers import run_cli
 
 CATALOG = [
     {"name": "gmail", "description": "Send and read email"},
@@ -166,34 +165,29 @@ class AgentFitFallbackTest(unittest.TestCase):
 
 class AgentFitCliTest(unittest.TestCase):
     def test_envelope_contract(self):
-        with tempfile.TemporaryDirectory() as td:
-            job_path = Path(td) / "job.json"
-            catalog_path = Path(td) / "catalog.json"
-            job_path.write_text(json.dumps({
-                "id": "job-1",
-                "title": "Reporting Analyst",
-                "requirements": [{"skill": "SQL", "kind": "must_have", "hardness": "prerequisite"}],
-                "salaryBand": [40000, 60000],
-            }), encoding="utf-8")
-            catalog_path.write_text(json.dumps(CATALOG), encoding="utf-8")
-
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                code = agentfit_cli.main([
-                    "--job-json", str(job_path),
-                    "--catalog-json", str(catalog_path),
-                    "--no-llm",
-                ])
-            self.assertEqual(code, 0)
-            envelope = json.loads(out.getvalue().strip().splitlines()[-1])
-            self.assertEqual(envelope["source"], "deterministic")
-            self.assertEqual(envelope["perStepSources"], {"agentFit": "deterministic"})
-            self.assertNotIn("fallbackReason", envelope, "--no-llm is a clean deterministic run, not a failure")
-            result = envelope["result"]
-            for key in ("fit", "spec", "budget", "metrics", "promptVersion"):
-                self.assertIn(key, result)
-            # camelCase salaryBand (the TS JobRecord shape) validated into the band rule.
-            self.assertEqual(result["budget"]["suggestedMonthlyUsd"], round(1000 / agentfit.CZK_PER_USD, 2))
+        run = run_cli(
+            agentfit_cli.main,
+            ["--job-json", "@job.json", "--catalog-json", "@catalog.json", "--no-llm"],
+            files={
+                "job.json": {
+                    "id": "job-1",
+                    "title": "Reporting Analyst",
+                    "requirements": [{"skill": "SQL", "kind": "must_have", "hardness": "prerequisite"}],
+                    "salaryBand": [40000, 60000],
+                },
+                "catalog.json": CATALOG,
+            },
+        )
+        self.assertEqual(run.code, 0)
+        envelope = run.payload
+        self.assertEqual(envelope["source"], "deterministic")
+        self.assertEqual(envelope["perStepSources"], {"agentFit": "deterministic"})
+        self.assertNotIn("fallbackReason", envelope, "--no-llm is a clean deterministic run, not a failure")
+        result = envelope["result"]
+        for key in ("fit", "spec", "budget", "metrics", "promptVersion"):
+            self.assertIn(key, result)
+        # camelCase salaryBand (the TS JobRecord shape) validated into the band rule.
+        self.assertEqual(result["budget"]["suggestedMonthlyUsd"], round(1000 / agentfit.CZK_PER_USD, 2))
 
     def test_a_mid_call_descent_reaches_the_ledger_coded(self):
         """challenge-r04 tests-llm-eval/A — an AVAILABLE provider leaves the gate's descent at
@@ -203,39 +197,34 @@ class AgentFitCliTest(unittest.TestCase):
 
         from pipeline.jobfit.llm.fault import FaultProvider
 
+        # Its own tempdir: the ledger file must outlive run_cli's input directory.
         with tempfile.TemporaryDirectory() as td:
-            job_path = Path(td) / "job.json"
-            catalog_path = Path(td) / "catalog.json"
             ledger = Path(td) / "usage.ndjson"
-            job_path.write_text(json.dumps({"id": "job-1", "title": "Reporting Analyst"}), encoding="utf-8")
-            catalog_path.write_text(json.dumps(CATALOG), encoding="utf-8")
-            out = io.StringIO()
             with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": str(ledger)}, clear=False), \
                     mock.patch.object(agentfit_cli, "resolve_provider", return_value=FaultProvider("malformed")), \
-                    self.assertLogs("pipeline.jobfit.agentfit", level="WARNING"), \
-                    contextlib.redirect_stdout(out):
-                code = agentfit_cli.main(["--job-json", str(job_path), "--catalog-json", str(catalog_path)])
-            self.assertEqual(code, 0)
+                    self.assertLogs("pipeline.jobfit.agentfit", level="WARNING"):
+                run = run_cli(
+                    agentfit_cli.main,
+                    ["--job-json", "@job.json", "--catalog-json", "@catalog.json"],
+                    files={"job.json": {"id": "job-1", "title": "Reporting Analyst"}, "catalog.json": CATALOG},
+                )
+            self.assertEqual(run.code, 0)
             rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
         det = [r for r in rows if r["source"] == "deterministic"]
         self.assertEqual([r.get("reason") for r in det], ["unparseable_output"])
-        envelope = json.loads(out.getvalue().strip().splitlines()[-1])
+        envelope = run.payload
         self.assertNotIn("fallbackCode", envelope["result"])
         self.assertIn("agentFit", envelope["fallbackReason"])
 
     def test_invalid_input_is_a_400(self):
-        with tempfile.TemporaryDirectory() as td:
-            job_path = Path(td) / "job.json"
-            catalog_path = Path(td) / "catalog.json"
-            job_path.write_text(json.dumps([1, 2]), encoding="utf-8")  # wrong shape
-            catalog_path.write_text(json.dumps(CATALOG), encoding="utf-8")
-            err = io.StringIO()
-            with contextlib.redirect_stderr(err):
-                code = agentfit_cli.main(["--job-json", str(job_path), "--catalog-json", str(catalog_path), "--no-llm"])
-            self.assertEqual(code, 2)
-            envelope = json.loads(err.getvalue().strip().splitlines()[-1])
-            self.assertEqual(envelope["status"], 400)
-            self.assertEqual(envelope["code"], "invalid_input")
+        run = run_cli(
+            agentfit_cli.main,
+            ["--job-json", "@job.json", "--catalog-json", "@catalog.json", "--no-llm"],
+            files={"job.json": [1, 2], "catalog.json": CATALOG},  # wrong shape
+        )
+        self.assertEqual(run.code, 2)
+        self.assertEqual(run.envelope["status"], 400)
+        self.assertEqual(run.envelope["code"], "invalid_input")
 
 
 class PopulationFitTest(unittest.TestCase):
