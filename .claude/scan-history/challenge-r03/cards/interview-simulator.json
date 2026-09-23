@@ -1,0 +1,103 @@
+[
+  {
+    "context": "interview-simulator",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One director exchange kernel: the live route and the simulator run the same code",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/voice/director-exchange.ts",
+      "app/_lib/voice/director-exchange.test.ts",
+      "app/_lib/voice/director-step.ts",
+      "app/_lib/interview-sim/director-loop.ts",
+      "app/_lib/interview-sim/engine.test.ts",
+      "app/_lib/interview-sim/clock.ts",
+      "app/_components/voice/call-observations.ts",
+      "app/_components/voice/useDirector.ts",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/_lib/voice/director-exchange.ts",
+      "app/_lib/voice/director-exchange.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "directorExchange over an in-memory store, agenda with b1 active, one candidate turn plus a begin_topic(b2) tool in the same exchange -> the stored turn event carries blockId b1 (tagged with the block active BEFORE the tool), and the returned agenda state has b2 active",
+      "directorExchange with a store that reports canStore=false (the per-session ceiling) and a mark_topic_covered tool -> toolResult is still returned and a due directive is still decided, but store.append is never called",
+      "directorExchange at nowMs where state.elapsedMs >= endCeilingMin(agenda, state) * 60000 -> endCall true and clock.endLimitMs equals endCeilingMin * 60000; one ms earlier with no end request -> endCall false",
+      "Parity: the same scripted sequence of 6 exchanges (turns, begin_topic, a rejected quote, a heartbeat past a budget, end_interview) run through runDirectorStep on the unit DB and through InMemoryDirector.exchange -> identical toolResult strings, directive kinds and endCall values exchange by exchange",
+      "A resent turn (same seq twice) through the kernel with the in-memory store -> recorded once and ackSeq unchanged, matching the DB store's ON CONFLICT behaviour instead of the mirror's documented omission",
+      "engine.test.ts no longer reads app/_lib/voice/director-step.ts or app/_components/voice/useDirector.ts as source text (0 readFileSync of either), and clock.ts declares no heartbeat literal: DIRECTOR_HEARTBEAT_MS has exactly one declaration in the repo, imported by both useDirector.ts and clock.ts",
+      "Regression: every test in app/api/interview/director/director-route.test.ts (13 cases) passes unchanged"
+    ],
+    "premise": [
+      "app/_lib/interview-sim/director-loop.ts:3 calls itself 'A line-for-line mirror of voice/director-step.ts runDirectorStep with the interview_events table replaced by an array'",
+      "app/_lib/interview-sim/director-loop.ts:22-25 lists what the mirror deliberately leaves out (the per-session event ceiling, the activity stamp, resent-turn idempotency) and says a SOURCE test pins director-step's order",
+      "app/_lib/interview-sim/engine.test.ts:139-150 is that pin: it readFileSync's director-step.ts and asserts four string needles, two of which are COMMENTS ('// 1. Persist what the browser observed', '// 2. At most one tool call.') - renaming a production comment reddens the simulator; changing logic between the needles does not",
+      "app/_lib/interview-sim/engine.test.ts:152-157 pins the heartbeat the same way: a regex over useDirector.ts source for DIRECTOR_HEARTBEAT_MS, because clock.ts:38 re-declares 20_000 (clock.ts:24-27 explains the client hook is not importable)",
+      "app/_components/voice/useDirector.ts:1 is 'use client' and declares DIRECTOR_HEARTBEAT_MS at :54, while it already imports runtime values from ./call-observations (:41), which the simulator engine also imports (app/_lib/interview-sim/engine.ts imports END_QUIET_MS etc. from call-observations)",
+      "app/_lib/voice/director-step.ts:178-260 and app/_lib/interview-sim/director-loop.ts:90-145 are the same algorithm twice: persist turns tagged before.activeBlockId, applyDirectorTool against stateOf(events), decideDirective, endCall = outcome.endCall || state.endRequested || overTime",
+      "The two already differ in ways no needle catches: ackSeq is maxInterviewTurnSeq(...) at director-step.ts:252 vs Math.max over array turn seqs at director-loop.ts:136, and director-step.ts:176 gates every write on canStore while the mirror has no ceiling"
+    ],
+    "rollback": "The series reverts cleanly: the kernel is a new module; director-step.ts and director-loop.ts go back to their inline bodies, the heartbeat constant goes back to useDirector.ts/clock.ts, and the two source-pin tests come back from history. No schema, no route contract, no catalog touched.",
+    "gate": "architecture",
+    "runner_up": "Make record.ts's join explicit: the engine writes callId on SimTurn.tool and directiveId on director turns, so record.ts:85-103 stops pairing the k-th tool turn with callId sim-k and the k-th director turn with trace.directives[k] by position.",
+    "technique": "prompt-change-regression-baseline",
+    "body": "## Summary\nExtract the director's per-exchange algorithm (persist turns tagged with the prior block, apply at most one tool, decide at most one directive, compute endCall/clock) into one pure kernel over a small event-store port. The live route wraps it in its IMMEDIATE transaction with the DB store; the simulator wraps it with an array store. The mirror, and the two source-text tests that pin it, disappear.\n\n## Description\nThe simulator exists to test the REAL instrument, yet its director is a hand-kept copy of `runDirectorStep` (`director-loop.ts:3`), guarded by `engine.test.ts` grepping production source for four strings, two of them comments. That guard is both too strict (renaming a comment in the live route breaks the simulator's suite) and too loose (the copies already disagree on ackSeq and the event ceiling, and resent-turn idempotency is simply absent from the mirror). The heartbeat is the same pattern: `clock.ts` re-declares 20_000 and a regex reads `useDirector.ts` to check it. The registry's fidelity rule for a harness is that a copy must be pinned by a drift guard and that the stronger arrangement is to run the exact production path; this card takes the stronger arrangement. Afterwards a director change is made once, is exercised by both the route tests and every simulator run, and the kernel gets DB-free unit tests of its own for the first time.\n\n## Flow\n1. New `app/_lib/voice/director-exchange.ts`: `directorExchange({ agenda, attempt, attemptStartedAtMs, nowMs, turns, clientEvents, tool, store })` where `store` is `{ events(): readonly DirectorEvent[]; canStore(): boolean; append(drafts): DirectorEvent[]; maxTurnSeq(): number }`. Synchronous; no DB import.\n2. `director-step.ts` keeps parsing, `touchInterviewActivity`, `clampClientAt` and `withInterviewEventsLock`, and passes a DB-backed store (ceiling, ON CONFLICT idempotency, `maxInterviewTurnSeq`).\n3. `director-loop.ts` becomes an array store (with the same idempotency on (attempt, seq)) plus the kernel call; `SimExchangeResult` stays its public shape so `engine.ts` is untouched.\n4. Move `DIRECTOR_HEARTBEAT_MS` into `call-observations.ts`; `useDirector.ts` and `clock.ts` import it.\n5. Replace the two source-pin tests with `director-exchange.test.ts` (kernel cases + the route-vs-simulator parity sequence).\n6. Update the simulator section of `docs/features/interviews/README.md` (\"mirrors\" -> \"runs\").\n\n## Expected impact\nOne place to change director exchange behaviour; the simulator can no longer certify a director that production does not run; the live exchange gains DB-free unit coverage; two brittle source-text tests are retired. Everything the simulator reports (LC verdicts, the cross-block measurement, the must-ask and overrun invariants) rests on this loop, so its fidelity is the fidelity of every LC finding.\n\n## Evaluation\nClaim: the live director route and the simulator execute one exchange implementation, and their outputs agree exchange by exchange on a scripted call.\nBefore: 0 of 7 acceptance cases pass (no kernel module exists; the parity test and the idempotent array store do not exist; the source pins are present).\nAfter: 7 of 7.\nMethod: gate - `npm run test:unit` (new director-exchange.test.ts, engine.test.ts, director-route.test.ts), plus `npx tsc --noEmit` and `npm run lint`.\nResult: pending build.\nGate: architecture.",
+    "evidence": "director-loop.ts:3 '// A line-for-line mirror of voice/director-step.ts `runDirectorStep` with the'. director-loop.ts:22-24 'What the mirror leaves out, on purpose: the per-session event ceiling (MAX_INTERVIEW_EVENTS_PER_SESSION = 4000 ...), the activity stamp, and resent-turn idempotency (the simulator never resends). A source test (engine.test.ts) pins director-step's order'. engine.test.ts:139-150: test(\"the in-memory exchange still mirrors director-step.ts's order\") -> readFileSync(new URL(\"../voice/director-step.ts\")) ; at(\"// 1. Persist what the browser observed\") < at(\"// 2. At most one tool call.\") < at(\"// 3. At most one stage direction\"); at(\"blockId: before.activeBlockId\"); at(\"endCall: Boolean(outcome?.endCall) || state.endRequested || overTime\"). engine.test.ts:152-157 regex over useDirector.ts for DIRECTOR_HEARTBEAT_MS. clock.ts:38 'export const DIRECTOR_HEARTBEAT_MS = 20_000;' and useDirector.ts:54 the same literal (grep: exactly two declarations). director-step.ts:252 'ackSeq: maxInterviewTurnSeq(session.id, attempt, workspaceId)' vs director-loop.ts:136 'ackSeq: turnSeqs.length ? Math.max(...turnSeqs) : -1'. director-step.ts:176 'const canStore = events.length < MAX_INTERVIEW_EVENTS_PER_SESSION;' - no counterpart in director-loop.ts. grep of app/**/*.test.ts for director-step: only engine.test.ts (source read) and rate-limit-contract.test.ts; live behaviour is covered through app/api/interview/director/director-route.test.ts (13 tests, DB-backed)."
+  },
+  {
+    "context": "interview-simulator",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Brief-change diff: --baseline classifies every cell fixed, regressed or noise",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "app/_lib/interview-sim/baseline-diff.ts",
+      "app/_lib/interview-sim/baseline-diff.test.ts",
+      "app/_lib/interview-sim/verdict-run.ts",
+      "app/_lib/interview-sim/types.ts",
+      "app/_lib/interview-sim/engine.ts",
+      "app/_lib/interview-sim/runner.ts",
+      "app/_lib/interview-sim/situations.ts",
+      "scripts/interview-sim-verdict.ts",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/_lib/interview-sim/baseline-diff.ts",
+      "app/_lib/interview-sim/baseline-diff.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "diffVerdicts: baseline no_leak (reliability) pass in situation S, candidate no_leak fail in S, S and no_leak not in --targets -> cell class nonlocal_regression, report.blocking true, and the cell carries transcript refs from both sides",
+      "diffVerdicts: targets=[consent_stop]; baseline consent_stop fail, candidate pass -> intended_improvement, blocking false",
+      "diffVerdicts: baseline cell sampled 3 times with 1 fail / 3 evaluable, candidate 1 fail / 1 -> noise (inside the baseline's own spread), never nonlocal_regression",
+      "diffVerdicts: baseline pass, candidate not_evaluable (or not_provoked) -> not_comparable with that reason; it is counted in neither the regression nor the improvement totals",
+      "Cast identity: a situation whose persona text changed between the two runs (situationSha differs) -> every cell of it is not_comparable with reason 'cast changed', and the report headline names it",
+      "Both sides share briefSha and directorVersion -> the report says 'no instrument change: this is a spread measurement' and no cell can be intended_improvement",
+      "runSimulations resume: a prior dump whose situationSha differs from the current bank's persona -> the situation runs again instead of being skipped (today runner.ts:183-187 skips it)",
+      "CLI: interview-sim-verdict --runs <new> --baseline <old verdict dir> [--targets a,b] writes diff.md (non-local regressions first, then intended, noise, not comparable) and diff.json beside report.md; without --baseline nothing new is written"
+    ],
+    "premise": [
+      "app/_lib/interview-sim/verdict-run.ts:424-425 throws InstrumentIdentityError when dumps of one situation come from different instruments - correct for merging samples, but it leaves the operator who edited the brief NO way to compare before and after except reading two report.md files side by side",
+      "app/_lib/interview-sim/verdict-run.ts:548 already persists per-conversation verdicts (every InvariantVerdict with state, evidence seqs, instrument, providers) in verdicts.json - the baseline data exists; nothing reads it back",
+      "scripts/interview-sim-verdict.ts:71 the known flags are runs, out, judge-model, no-judge, fake-judge, characters, timeout, workers - there is no baseline, compare or targets flag",
+      "app/_lib/interview-sim/types.ts:69-82 SimConversation records situationId and the instrument (briefSha, agendaBlockIds, directorVersion) but not the situation's content, so the cast is not part of a dump's identity",
+      "app/_lib/interview-sim/runner.ts:183-187 resume skips a situation when briefSha and directorVersion match - an edited persona, firstMessage or provokes in situations.json silently reuses the stale dump",
+      "app/_lib/interview-sim/verdict-run.ts:439 evaluates every dump against the CURRENT bank (loadSituations()), so a provokes/handles edit re-grades an old transcript against a situation it never ran",
+      "Registry recruiting/conversational-assessment-validation technique prompt-change-regression-baseline: 'The question a validation run answers after a change is not did the new version pass. It is did anything that used to pass now fail'; three things pin a baseline (instrument text, the cast byte-exact, the rubric); classify every cell into intended improvement / non-local regression / non-local improvement / noise; block on any non-local reliability regression"
+    ],
+    "rollback": "Additive: baseline-diff.ts is new and only reached through the new --baseline flag; situationSha is an extra optional field on the dump (old dumps without it read as 'cast unknown' -> not_comparable, never a crash), and the runner's resume check gains one condition. Reverting the series restores today's behaviour exactly.",
+    "gate": "none",
+    "runner_up": "An accept-rule rerun mode (--failing-plus-sample N): re-run only the failing situations plus a seeded random sample of passing ones after a brief edit, as the same technique's hill-climb accept rule prescribes.",
+    "technique": "prompt-change-regression-baseline",
+    "body": "## Summary\nGive the verdict command a compare mode. `--baseline <verdict dir>` reads the earlier run's verdicts.json and classifies every situation x invariant cell of the new run as intended improvement, non-local regression, non-local improvement, noise or not comparable, writes diff.md/diff.json, and flags a non-local reliability regression as blocking. Dumps start carrying a digest of their situation so the cast is part of the comparison's identity.\n\n## Description\nThe simulator is the tuning instrument for the AI interviewer's brief and director, and the normal outcome of a brief edit is that the targeted behaviour improves while something three categories away breaks. Today the verdict run correctly refuses to MERGE two instruments (verdict-run.ts:424-425), but offers nothing to COMPARE them: the operator runs twice and reads two report.md files by eye, with no notion of which flips are real and which are the baseline's own spread. The persisted verdicts.json (verdict-run.ts:548) already holds everything a cell-by-cell diff needs. Separately, a dump does not record the situation it ran (types.ts:69-82), so an edited persona both slips past resume (runner.ts:183-187) and is re-graded against a situation it never ran (verdict-run.ts:439); the same digest closes both.\n\n## Flow\n1. `situations.ts`: `situationSha(s)` over the canonical JSON of persona, firstMessage, provokes, firstMessageProvokes, handles, fixture, language.\n2. `types.ts`/`engine.ts`: `SimConversation.situationSha` written into every dump; `runner.ts` resume also requires it to match.\n3. `baseline-diff.ts` (pure): `diffVerdicts(baseline, candidate, { targets })` -> cells with class, sample counts on each side, refs; `blocking` = any non-local regression on the reliability axis. Noise = the cell flipped within the baseline's own observed fail rate when the baseline has 2+ samples.\n4. `verdict-run.ts`: optional `baseline` path; after the normal artifacts, load its verdicts.json, diff, write diff.json and diff.md (non-local regressions first, each with both transcripts' refs).\n5. `scripts/interview-sim-verdict.ts`: `--baseline <dir>` and `--targets <invariants or situation ids>`; exit code semantics unchanged (a regression is a RESULT).\n6. Document the mode in the Verdicts section of `docs/features/interviews/README.md`.\n\n## Expected impact\nEvery brief or director change gets an answer to the question that matters - did anything that used to pass now fail - in one command, with noise separated from regression and the cast pinned. Turns the simulator from a snapshot reporter into a regression gate for the interviewer instrument, and stops stale dumps of edited situations from being reused or mis-graded.\n\n## Evaluation\nClaim: given two verdict runs, the tool classifies every comparable cell into the technique's four buckets plus not_comparable, marks a non-local reliability regression as blocking, and refuses to compare cells whose cast changed.\nBefore: 0 of 8 acceptance cases pass (no diff module, no --baseline flag, no situationSha in dumps, resume ignores the cast).\nAfter: 8 of 8.\nMethod: gate - `npm run test:unit` (baseline-diff.test.ts, engine.test.ts resume case, verdict-run.test.ts), `npx tsc --noEmit`, `npm run lint`; one keyless end-to-end on --fake runs.\nResult: pending build.\nGate: none.",
+    "evidence": "verdict-run.ts:424-425 'const conflicts = instrumentConflicts(runs); if (conflicts.length) throw new InstrumentIdentityError(`refusing to merge dumps of different instruments ...`)'. verdict-run.ts:548 'write(\"verdicts.json\", ... conversations ...)'. scripts/interview-sim-verdict.ts:71 'const known = new Set([\"runs\", \"out\", \"judge-model\", \"no-judge\", \"fake-judge\", \"characters\", \"timeout\", \"workers\"]);'. types.ts:69-75 SimConversation { runId; situationId; fixture; instrument: { briefSha; agendaBlockIds; directorVersion } ... } - no situation digest. runner.ts:183-187 'const current = prior !== null && prior.endedBy !== \"error\" && prior.instrument?.briefSha === inst.record.briefSha && prior.instrument?.directorVersion === inst.record.directorVersion;'. verdict-run.ts:439 'const bank = new Map(loadSituations().map((s) => [s.id, s]));'. grep -n -i 'baseline|compare' over app/_lib/interview-sim/*.ts and scripts/interview-sim*.ts: no compare mode. docs/features/interviews/README.md Verdicts section documents only merge-as-samples and the instrument refusal. Registry file knowledge/recruiting/assessment/conversational-assessment-validation/techniques/prompt-change-regression-baseline.md, sections 'What a baseline is' and 'Reading a diff'."
+  }
+]

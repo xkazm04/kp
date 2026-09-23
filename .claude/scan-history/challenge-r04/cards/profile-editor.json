@@ -1,0 +1,123 @@
+[
+  {
+    "context": "profile-editor",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Version-stamp the editor's crash backup and restore it three-way, never blind",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/profile/profileEditorBackup.ts",
+      "app/features/tools/profile/profileEditorBackup.test.ts",
+      "app/features/tools/profile/useProfileEditorFields.ts",
+      "app/features/tools/profile/useProfileEditorFields.test.ts",
+      "app/features/tools/profile/profileDraftMerge.ts",
+      "app/features/tools/profile/ProfileEditor.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/profile/profileEditorBackup.ts",
+      "app/features/tools/profile/profileEditorBackup.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "backupSlot({editingId:'p1'}) !== backupSlot({editingId:null, sourceAnalysisSlug:'a1'}) !== backupSlot({editingId:null}) !== backupSlot({editingId:'p1', sourceAnalysisSlug:'a2'}): a plain edit, a build-from-analysis, a blank create and a rebuild of the same row each get their own slot -> four distinct keys",
+      "envelope {baseVersion:'t1', baseline:B, draft:D} restored into a load with updatedAt 't1' and the same baseline B -> {kind:'silent', state:D} (today's behaviour kept for the unchanged case)",
+      "envelope baseVersion 't1', the recruiter changed location to 'Brno'; the load is 't2' and the server changed availability only -> {kind:'moved', merged.location:'Brno', merged.availability:<server value>, contested:[]} - never kind 'silent'",
+      "envelope baseVersion 't1'; recruiter set displayName 'Ana', the server (t2) set displayName 'Anna' -> kind 'moved', contested:['displayName'], merged.displayName === 'Anna' (the server's committed value stands until the recruiter picks 'use mine anyway')",
+      "an envelope whose draft equals its own baseline (nothing was typed) -> {kind:'none'} and the slot is reported for removal",
+      "a legacy slot (a bare ProfileFormState with no v/baseVersion, as the current build writes) -> {kind:'offer', state: applyBackup(loaded, raw)}; it is never applied silently",
+      "unparseable / null / array / primitive raw -> {kind:'none'}; none of the inputs (loaded, envelope baseline, envelope draft) is mutated",
+      "skills rows identical except for their client-only _id (hydrate mints fresh ids) -> not counted as an edit on either side, so a re-hydrated load is not reported as 'moved' for skills"
+    ],
+    "premise": [
+      "app/features/tools/profile/useProfileEditorFields.ts:27 - the backup key is `${BACKUP_PREFIX}${editingId ?? \"new\"}`: keyed on the row id only, with no version and no source analysis",
+      "app/features/tools/profile/useProfileEditorFields.ts:120-123 - on mount the slot is read and `setState((s) => applyBackup(s, raw))` applies it with no check of what the editor just loaded",
+      "app/features/tools/profile/useProfileEditorFields.ts:51 - applyBackup is `{ ...state, ...(parsed) }`: the backup is the WHOLE form (line 140 writes JSON.stringify(state)), so every field the backup holds overwrites the freshly loaded value, edited or not",
+      "app/features/tools/profile/useProfileTabDeepLinks.ts:61-62,68 - a build-from-analysis opens with editingId null (create) and a rebuild opens with editingId = the existing profile id, so a build-from-analysis shares the blank-create 'new' slot and a rebuild shares the plain-edit slot",
+      "app/features/tools/profile/ProfileTab.tsx:123 - the blank 'New profile' create also opens with editingId null -> the same 'new' slot as every build-from-analysis",
+      "app/features/tools/profile/ProfileEditor.tsx:145,269 - clearBackup runs only on Back and on the stale-reload button (plus onPersisted after a save); leaving any other way (tab switch, refresh, closed tab) leaves the slot behind to be restored later",
+      "app/features/tools/profile/useProfileTabDeepLinks.ts:40 + app/features/tools/profile/useProfileEditorSubmit.ts:88 - the editor seeds expectedUpdatedAt from the FRESH load and sends it on the PUT, so a stale backup restored over a newer version passes the PROFILE_STALE guard (app/api/profile/route.ts:264-271): the version guard is defeated by the restore",
+      "app/api/profile/route.ts:277-278 - a PUT carrying sourceAnalysisSlug re-stamps lineage, so a rebuild whose form was overwritten by an older edit-session backup saves the OLD content under the NEW analysis's lineage (staleness cleared, data not refreshed)",
+      "app/features/tools/profile/profileDraftMerge.ts:70-84,102-121 - the id-blind comparison (`comparable`/`same`) and a two-input merge already exist; only the three-way classification and the envelope are missing"
+    ],
+    "rollback": "Two commits (pure module + tests, then the hook/editor wiring + catalogs + doc) revert cleanly: the envelope lives only in sessionStorage, so a revert just leaves v2 envelopes that the old applyBackup would spread (their keys are unknown ProfileFormState fields and are ignored by every reader) - no stored data, no API or schema change.",
+    "gate": "contract",
+    "runner_up": "One exit interceptor for the editor (Back, tab switch, stale reload) that flushes-then-asks Save and leave / Discard / Stay, instead of Back silently dropping the backup.",
+    "technique": "navigation-guards",
+    "body": "## Summary\nThe profile editor's crash-safety net is keyed on the row id alone and restored wholesale over whatever the editor just loaded. A backup written against an older version, a different source analysis, or an unrelated blank create silently replaces the fresh form - and because the editor seeds its version guard from the fresh load, the save then passes PROFILE_STALE and commits the old content. Make the backup a versioned envelope with a pure three-way restore planner, so an unchanged row restores silently, a moved row surfaces as a conflict, and a different identity never restores at all.\n\n## Description\nToday `profileEditorBackupKey(editingId)` gives a plain edit and a rebuild of the same row one slot, and a blank create and every build-from-analysis another shared slot (`useProfileEditorFields.ts:27`, `useProfileTabDeepLinks.ts:61-68`, `ProfileTab.tsx:123`). The slot survives every exit except Back and stale-reload (`ProfileEditor.tsx:145,269`). On the next open `applyBackup` spreads the whole stored form over the loaded one (`:51`, `:120-123`). Three concrete losses follow: (1) a colleague's save is reverted, because the restore happens after the fresh `updatedAt` was read and the PUT carries that fresh stamp; (2) a rebuild from a newer CV is overwritten by an older edit session, and then saved under the new analysis's lineage (`route.ts:277-278`), so the roster says 'current' over old data; (3) candidate X's abandoned intake is restored into a build-from-analysis for candidate Y and saved with Y's lineage. The registry standard is explicit: a stale persisted draft is a conflict, surfaced as one - never silently applied over newer committed work, never silently deleted (draft-editing / navigation-guards, prohibition 6; draft-model's identity-survives-reuse).\n\nNew pure `profileEditorBackup.ts`: `backupSlot({editingId, sourceAnalysisSlug})` (edit / rebuild-from-slug / new-from-slug / blank), an envelope `{v:2, baseVersion, savedAt, baseline, draft}` and `planRestore(raw, {baseVersion, loaded})` returning `none | silent | moved | offer`. `moved` is a three-way per-field classification over the existing id-blind `same()` (exported from `profileDraftMerge.ts`): recruiter-only edits apply, server-only changes stand, both-changed-differently fields are `contested` and keep the server value. The hook writes the envelope (baseline = what this session loaded, version = initialUpdatedAt) and, on `moved`/`offer`, opens on the LOADED form and seeds the existing `pending` machinery (before = loaded, draft = the recruiter's full form, kept = contested), so the banner, 'use mine anyway' and one-click Undo are reused rather than rebuilt. ProfileEditor only gains restore-specific banner copy (from date, contested count).\n\nSequencing: shares `useProfileEditorFields.ts` and `ProfileEditor.tsx` with challenge-r03 candidate-profile/B (rebuild merge); build after that card lands, on top of its `pending` seeding.\n\n## Flow\n1. Tests first: profileEditorBackup.test.ts (cases 1-8); update useProfileEditorFields.test.ts's key test to the new slot shape.\n2. Export `same` from profileDraftMerge.ts (no behaviour change).\n3. profileEditorBackup.ts: backupSlot, envelope codec, planRestore.\n4. useProfileEditorFields(initialPayload, {editingId, sourceAnalysisSlug, initialUpdatedAt}): write envelopes; restore through planRestore; silent -> setState; moved/offer -> keep loaded, set pending with a `source:'restore'` tag; none -> remove the slot.\n5. ProfileEditor.tsx: pass the identity; banner copy switches on the pending source (restoredFrom date via useFormatter, contested count).\n6. Catalog keys x4 (profile.editor.restore*); docs/features/candidates/README.md 'An abandoned intake survives...' paragraph rewritten to the versioned rule.\n\n## Expected impact\nCloses a silent lost-update class that currently defeats the PROFILE_STALE optimistic-concurrency guard the route and store were built around, and a cross-candidate data bleed on the build-from-analysis path. A recruiter who refreshes mid-edit on an unchanged row sees exactly today's behaviour; only the cases that used to lose someone's work now ask.\n\n## Evaluation\nClaim: a restored backup never overwrites a newer version or another identity without the recruiter seeing it.\nBefore: 0 of 8 acceptance cases pass (no envelope, no planner; the key collides for rebuild/create-from-analysis).\nAfter: 8 of 8.\nMethod: node:test over profileEditorBackup.ts + the updated useProfileEditorFields.test.ts (npm run test:unit), then the integration gate (tsc, lint, i18n:check).\nResult: pending build.\nGate: contract",
+    "evidence": "useProfileEditorFields.ts:27  return `${BACKUP_PREFIX}${editingId ?? \"new\"}`;\nuseProfileEditorFields.ts:51  return { ...state, ...(parsed as Partial<ProfileFormState>) };\nuseProfileEditorFields.ts:120-123  const raw = window.sessionStorage.getItem(backupKey); ... if (raw) setState((s) => applyBackup(s, raw));\nuseProfileEditorFields.ts:140  window.sessionStorage.setItem(backupKey, JSON.stringify(state));\nuseProfileTabDeepLinks.ts:61-62  mode: rebuildProfileId ? \"edit\" : \"create\", editingId: rebuildProfileId,\nuseProfileTabDeepLinks.ts:68  sourceAnalysisSlug: slug,\nProfileTab.tsx:123  setEditor({ mode: \"create\", editingId: null, initialPayload: null })\nProfileEditor.tsx:81  useProfileEditorFields(initialPayload, editingId)  <- no version, no source\nProfileEditor.tsx:145,269  clearBackup();  (Back, stale reload) - the only exits that drop the slot besides onPersisted\nuseProfileEditorSubmit.ts:88  { id: targetId, profile, signals, expectedUpdatedAt, ...lineage }  <- stamp from the FRESH load\nroute.ts:264-271  updateProfile(..., expected) ... if (expected) return jsonRefusal(\"PROFILE_STALE\", 409);\nroute.ts:277-278  const lineage = resolveLineage(body.sourceAnalysisSlug, ws); if (lineage) setProfileLineage(body.id, lineage, ws);\ndocs/features/candidates/README.md:799  `sessionStorage` per profile id (`kp.profileEditor.<id|new>`), restores it after mount\nPrior decks/backlog: no title on backup, restore, sessionStorage or versioned draft for profile-editor/candidate-profile/profile-roster-matrix (leftover-develop has 3 candidate-profile items: archetype-lock, collapse-chip [adopted by r03 A], pin-two-chips)."
+  },
+  {
+    "context": "profile-editor",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Live readiness in the editor: routing and Add-next update as you type",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/profile/profileReadiness.ts",
+      "app/features/tools/profile/profileReadiness.test.ts",
+      "pipeline/jobfit/tests/profile_readiness_cases.json",
+      "pipeline/jobfit/tests/test_profile_readiness_parity.py",
+      "app/features/tools/profile/ProfileEditor.tsx",
+      "app/features/tools/profile/ProfileResultPanel.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/candidates/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/profile/profileReadiness.ts",
+      "app/features/tools/profile/profileReadiness.test.ts",
+      "pipeline/jobfit/tests/profile_readiness_cases.json",
+      "pipeline/jobfit/tests/test_profile_readiness_parity.py"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "blank form (choice 'auto', nothing filled) -> readiness(form, archetypes) = {archetype:'bau', confidence:0.4, reasonCodes:[{kind:'default'}], completeness:0} with every bau + common check as a gap, ordered biggest weight first exactly as the fixture's Python output",
+      "choice 'student', 3 skills, languages 'Czech', educationLevel 'bachelor' -> archetype 'student', confidence 0.9, first reason kind 'self_declared' with params.archetype 'student'; gaps exclude education_known, has_languages and min_3_skills",
+      "choice 'auto', isEnrolled true, expectedGraduation '2027' -> archetype 'student', confidence 1, reason kinds ['signal_enrolled','signal_expected_graduation'] with params {expected_graduation:'2027'}",
+      "every case in pipeline/jobfit/tests/profile_readiness_cases.json (>= 12, including a contradiction and a custom archetype) -> the TS readiness equals the case's expected archetype, confidence, completeness and gap check order; test_profile_readiness_parity.py asserts profile_cli.main over the same file yields the same, so a drift on either side fails a gate",
+      "a years value typed under career_switcher, then choice switched to 'student' -> has_years and the years signals see nothing (readiness reads the payload through buildProfilePayload, the same visibility rule the save uses)",
+      "a checklist item with an unknown check id -> counted as unmet (fail closed), matching profile.py's CHECKS.get(check, lambda _p: False)",
+      "the set of check ids the TS predicates implement equals the CHECKS keys read from pipeline/jobfit/profile.py source (lockstep guard in the style of app/_lib/archetype-registry-lockstep.test.ts)",
+      "each gap carries its field target via fieldTargetForCheck (min_3_skills -> 'skills', has_seniority -> 'seniority'), so the live Add-next list is clickable"
+    ],
+    "premise": [
+      "app/features/tools/profile/ProfileEditor.tsx:280-285 - the routing line, completeness meter and clickable Add-next list render only once `result` exists, i.e. after a server round trip",
+      "app/features/tools/profile/ProfileEditor.tsx:243,247 - the only way to see them without saving is the 'Check (preview)' button, build(false)",
+      "app/api/profile/route.ts:185,204,212 - that preview is a POST that passes the same `profile-save:<ip>` 60/10min limiter as a save and spawns profile_cli (routeAndScore) BEFORE the persist:false branch returns, so every preview is a Python spawn charged against the save budget",
+      "pipeline/jobfit/registry.py:188-202,269-330 - archetype detection is a data-driven evaluator (all/any/truthy/not/lt/gte conditions, weighted signals, contradictions, default) over pipeline/jobfit/archetypes.json `detection`",
+      "pipeline/jobfit/registry.py:171-179 + pipeline/jobfit/profile.py:135-146,162-186 - completeness is a weighted checklist (commonChecklist + the archetype's checklist from the same JSON) over ten one-line predicates in CHECKS; unknown ids fail closed",
+      "app/_lib/archetype-registry.ts:80-81 - checklist and detection rules are not UI-editable ('stay code-adjacent'), so a client import of archetypes.json is exactly as current as the file the Python spawn reads; the per-archetype checklist also arrives live on the editor's `archetypes` prop (ArchetypeDef.checklist)",
+      "app/features/tools/profile/profileCompletenessFields.ts:12 - the editor module tree already imports @/pipeline/jobfit/archetypes.json on the client",
+      "pipeline/jobfit/profile_cli.py:61-75,108 - the CLI's whole output (archetype, confidence, reasonCodes, completeness, missingGaps) is a pure function of profile + signals, so a shared case file can pin both engines"
+    ],
+    "rollback": "Additive: the pure module, its tests and the fixture pair revert with no data or API change; the editor commit reverts to the preview button. /api/profile is untouched - the server stays the source of truth for what is persisted.",
+    "gate": "contract",
+    "runner_up": "Unsaved-changes guard on every editor exit (Save and leave / Discard / Stay), flush-then-ask, never firing on a clean form.",
+    "technique": "completeness-derivation",
+    "body": "## Summary\nThe profile editor knows, from the form in memory, everything needed to say where this candidate will route and what is still missing - but it only says so after a server round trip (Check preview or Save), each one a Python spawn charged to the save rate limit. Evaluate routing and the completeness checklist in the editor from the same archetypes.json the Python router reads, pinned to the Python engine by one shared case file both test suites assert, and render the readiness panel live as the recruiter types.\n\n## Description\nToday the recruiter fills a 17-field form blind: the archetype chip, the 'Routing: ...' explanation, the completeness meter and the clickable 'Add next' gaps appear only once `result` is set (`ProfileEditor.tsx:280`), which requires a POST that spawns profile_cli even for a preview (`route.ts:204` runs before the `persist === false` branch at `:212`) and spends the shared 60/10min `profile-save` budget (`:185`). Switching the Who segment or ticking 'currently enrolled' changes routing and the whole checklist, and nothing on screen moves until another round trip.\n\nBoth halves are data, not code: detection is a small condition evaluator over `archetypes.json.detection` (`registry.py:188-202,269-330`) and completeness is a weighted checklist over ten one-line predicates (`profile.py:135-186`). Neither is UI-editable (`archetype-registry.ts:80-81`), so a client evaluation reads the same rules the spawn reads. New pure `profileReadiness.ts`: `detectRouting(signals, ids)` (a line-for-line port of detect_detailed including reasonCodes and params), `CHECK_PREDICATES` (the ten CHECKS), and `readiness(form, archetypes)` which reads the form through `buildProfilePayload` so the hidden-field rule is the save's own. Drift is made a red gate, not a risk: `pipeline/jobfit/tests/profile_readiness_cases.json` holds the intake cases and expected outputs; `profileReadiness.test.ts` asserts the TS engine over it and `test_profile_readiness_parity.py` asserts `profile_cli.main` over it, plus a source-read lockstep on the CHECKS key set. The panel becomes `ProfileResultPanel` fed by a `ReadinessView` (live readiness, or the saved server result after a save, which stays authoritative); the preview button goes, the gaps stay one click from their field via the existing `focusProfileField`. Per the technique: completeness gates nothing - Save stays enabled - and the figure always travels with its named checklist.\n\n## Flow\n1. Author the case file (>= 12 cases: blank, each built-in declared, auto via each signal, a contradiction, a custom archetype, hidden-years) with outputs captured from profile_cli; Python parity test first.\n2. profileReadiness.test.ts over the same file + cases 1-3, 5-8 (red).\n3. profileReadiness.ts: detectRouting, CHECK_PREDICATES, readiness (green).\n4. ProfileResultPanel takes a ReadinessView (archetype, confidence, reasonCodes, completeness, gaps, saved?) - no data fetching in it.\n5. ProfileEditor.tsx: useMemo(readiness(form, archetypes)) renders the panel live; after a save the server result replaces it; remove the Check preview button.\n6. Catalog keys x4 (a 'live - confirmed on save' label; remove checkPreview in all four); docs/features/candidates/README.md section 3 updated.\n\n## Expected impact\nThe recruiter sees routing and the next gap while typing instead of after a round trip, which is the loop the result panel was built for ('fill a gap, see it close'). Preview spawns disappear from the save budget. The data-driven registry gains a second, gate-pinned reader, which the apply follow-up and jobseeker surfaces can reuse later.\n\n## Evaluation\nClaim: the editor's live readiness equals profile_cli's output for every pinned case, and updates without a request.\nBefore: 0 of 8 acceptance cases pass (no TS evaluator, no shared case file).\nAfter: 8 of 8.\nMethod: node:test (profileReadiness.test.ts, npm run test:unit) + the Python parity test (npm run test:python:gate), then tsc, lint, i18n:check.\nResult: pending build.\nGate: contract",
+    "evidence": "ProfileEditor.tsx:243  onClick={() => build(false)}\nProfileEditor.tsx:247  {loading ? t(\"working\") : t(\"checkPreview\")}\nProfileEditor.tsx:280-281  {result ? ( <ProfileResultPanel ...\nroute.ts:185  if (!rateLimit(`profile-save:${clientIpFrom(request.headers)}`, PROFILE_RATE_LIMIT)) {\nroute.ts:204  const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);\nroute.ts:212  if (body.persist === false) {   <- after the spawn\nregistry.py:171 def checklist_specs(archetype)  / :188 def _eval(cond, ctx)  / :269 def detect_detailed(\nprofile.py:135 CHECKS: dict[str, Callable[[CandidateProfileV2], bool]] = {  (10 one-line predicates)\nprofile.py:175 def completeness_gaps(profile)\nprofile_cli.py:61 registry.detect_detailed(  / :75 normalize_profile(profile) / :108 \"missingGaps\": completeness_gaps(profile)\narchetype-registry.ts:80  // scoring/fairness/detection); checklist + detection rules stay code-adjacent and\nprofileCompletenessFields.ts:12  import registry from \"@/pipeline/jobfit/archetypes.json\";\narchetypes.json: detection {defaultArchetype 'bau', defaultConfidence 0.4, selfDeclaredConfidence 0.9, 8 signals, contradictions}; commonChecklist [education_known 1, has_languages 1, min_3_skills 1.5]; bau/student/career_switcher checklists.\ngrep of app/ for contradictions|checklist_specs evaluation: no TS evaluator exists (only label lookups in profileCompletenessFields.ts / completeness-followup.ts).\nPrior decks/backlog: no live-completeness / live-routing title for profile-editor, candidate-profile or profile-roster-matrix."
+  }
+]

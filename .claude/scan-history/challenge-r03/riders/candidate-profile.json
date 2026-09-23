@@ -1,0 +1,12 @@
+[
+  {
+    "rider": "saved-analysis-report",
+    "files_read": 3,
+    "checked": "Read app/history/[slug]/page.tsx (283 lines), error.tsx, loading.tsx in full. Hypothesis traced: the report is the analysis-side half of the identity seam card A targets - it already joins on cv_hash for the cross-job footprint (listAnalysesByCvHash, :114) and label collision (:125), but never asks whether a saved PROFILE was built from this CV, so a promoted candidate's report offers no route to that profile. Kept that out of card A to hold the write set at 14 files; once A lands, findProfileIdBySourceCvHash makes it a one-query S follow-up. Also checked: the header still prints the raw slug `JD {jd_slug}` (:199-200) although jdTitle is loaded at :152-157, and the on-board chip names only onBoard[0] (:211) - both are already open S items in leftover-develop-2026-09-17 ('Show JD title...', 'Show every live board position...'), so no card. Every secondary lookup is try/catch best-effort as documented; no crash path found."
+  },
+  {
+    "rider": "skill-profile-public-page",
+    "files_read": 4,
+    "checked": "Read app/skill/[token]/page.tsx (230 lines), PrintCredentialButton.tsx, error.tsx, loading.tsx in full, plus the limiter pin in app/api/rate-limit-contract.test.ts:2657-2710. Hypothesis traced: the per-state trust ladder (resolveSkillProfileCardState, score card gated on skillProfileShowsScoreCard :140) and the revoked/tampered/unverifiable body copy (:119-121) hold; the print button and locale-formatted issued date already shipped, so the open S items on this page are partly stale. Finding worth recording, not carded: the page throttle is keyed `skill-view:${ip}:${token}` (:43), so each guessed token opens a fresh bucket - the per-token key protects shared-IP readers but does NOT bound enumeration, which the comment at :12-18 and the contract test's header claim it does. Token entropy (HMAC-signed) makes a walk impractical, and the fix (a second per-IP miss budget on notFound) is S and policy-tighten, so it is below the challenge floor; it belongs in the stabilize backlog."
+  }
+]

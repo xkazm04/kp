@@ -1,0 +1,130 @@
+[
+  {
+    "context": "pipeline-board-ui",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Stage aging SLAs become team data on the axis, not per-browser storage",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/pipeline-stages.ts",
+      "app/_lib/decision-config-schema.ts",
+      "app/_lib/pipeline-axis.ts",
+      "app/features/shared/pipelineAxisDraft.ts",
+      "app/features/shared/pipelineTypes.ts",
+      "app/api/pipeline/stage-sla/route.ts",
+      "app/api/pipeline/stage-sla/route.test.ts",
+      "app/_lib/stage-sla.test.ts",
+      "app/features/hiring/pipeline/usePipelineSla.ts",
+      "app/features/hiring/pipeline/pipelineBoardStorage.ts",
+      "app/features/hiring/pipeline/PipelineSlaEditor.tsx",
+      "app/features/hiring/pipeline/usePipelineTabState.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md",
+      "docs/architecture/api-reference.md"
+    ],
+    "new_files": [
+      "app/api/pipeline/stage-sla/route.ts",
+      "app/api/pipeline/stage-sla/route.test.ts",
+      "app/_lib/stage-sla.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "validateDecisionConfig('pipelineStages', axis whose 'Screened' stage carries slaDays: 9) -> ok and the stored stage keeps slaDays 9; slaDays 0, 400, 2.5 or the string '7' -> {ok:false}; slaDays on the terminal-role stage -> {ok:false} (a hired candidate has no clock)",
+      "resolveStageAxis(rule with Screened.slaDays 9).stages -> the Screened StageDef carries slaDays 9; draftToStored(draftFromStored(rule), rule.stages) keeps Screened.slaDays 9 (a Settings -> Hiring composer save no longer erases the team's cadences)",
+      "slaForStage('Interview', undefined, axis where Interview.slaDays = 2) -> 2; the same axis without slaDays -> 5 (interview role default); an explicit overrides map still wins over the axis value",
+      "attentionCounts(ws) for a workspace whose axis sets Screened.slaDays = 2 counts an active entry 3 days in Screened as stale (pipeline badge +1); the identical entry in a workspace with no slaDays is not stale (role default 7) - with NO edit to app/_lib/attention.ts",
+      "PATCH /api/pipeline/stage-sla {stage:'Screened', days:3} -> 200; getPipelineAxis(ws).stages Screened.slaDays === 3 while every other stage's id/label/role/actions and the retired list are byte-identical, and a second workspace's axis is untouched; {stage:'Screened', days:null} removes the key",
+      "PATCH with a stage id not on the live axis, the terminal stage, or days outside [1,365] -> 400 DECISION_CONFIG_INVALID and nothing written; a seat without pipeline:write -> 403 FORBIDDEN_CAPABILITY",
+      "slaOverridesFromAxis(axis with Screened.slaDays 3) -> {Screened: 3}; pendingLocalAdoption(local {Screened: 4, Gone: 9}, axis) -> [{stage:'Screened', days:4}] (a local cadence for a column this board no longer draws is dropped, one equal to the team value is not offered)"
+    ],
+    "premise": [
+      "messages/en.json:3251 - slaEditorNote is literally 'Blank = default. Saved for this browser.': the cadence the board ages against is a per-browser preference",
+      "app/features/hiring/pipeline/usePipelineSla.ts:30-33,45 - overrides hydrate from and write to localStorage (readStoredSla / writeStoredSla); app/features/hiring/pipeline/pipelineBoardStorage.ts:27 SLA_PREFIX 'kp.pipelineStageSla:' + workspaceId - keyed per tenant per BROWSER, so two recruiters on one team age the same board differently",
+      "app/features/hiring/pipeline/usePipelineTabState.ts:126-127 - the board's 'Aging N' chip uses slaForStage(e.stage, slaOverrides, board.axis); app/_lib/attention.ts:90 - the sidebar Pipeline badge uses slaForStage(e.stage, undefined, axis): the two surfaces disagree whenever a recruiter tuned a column, and the badge never says it is an approximation",
+      "app/features/shared/pipelineTypes.ts:117 - 'Recruiters can override these per board (localStorage, keyed by column id)'; :148-159 slaForStage resolves override -> role default and has no team-owned layer",
+      "app/_lib/pipeline-stages.ts:79-86 StageDef = {id,label,role,actions?}; app/_lib/decision-config-schema.ts:362 STAGE_KEYS ['id','label','role','actions'] and :424-450 validateStage - the per-workspace axis (the pipelineStages decision-config phase, already org/team tiered) is the natural home and already carries one optional per-column setting (actions) the same way",
+      "app/_lib/pipeline-axis.ts:23-28 toStageDef and app/features/shared/pipelineAxisDraft.ts:85-90 wire() copy only id/label/role/actions - any new per-stage key must be threaded through both or a composer save drops it",
+      "app/_lib/decision-config-store.ts:374-405 updateDecisionConfig re-reads the effective team config inside an .immediate() transaction - the lost-update-safe primitive a single-column PATCH needs, instead of round-tripping the whole axis",
+      "app/api/decisions/config/route.ts:43 - axis writes already require pipeline:write, and app/features/settings/hiring/useHiringComposer.ts:308-313 writes the axis at scope 'team', so a team-scoped SLA write matches the existing axis tiering",
+      "r02 card pipeline-actions-events/A ('One aging clock: policy-pass alerts follow the board's stage SLA') is approved but unbuilt (no app/_lib/aging-policy.ts); its server-side pass can only follow 'the board's stage SLA' if that SLA is readable server-side - this card is the prerequisite, and touches none of its write set (attention.ts, pipelineRenderDiet.ts, automation-pass.ts)"
+    ],
+    "rollback": "Reverts cleanly as a commit series: slaDays is an OPTIONAL additive key. getDecisionConfig does not validate pipelineStages on read (app/_lib/decision-config-store.ts:150-154 only re-validates legacy interviewPlan blobs), so rows that still carry slaDays after a revert are inert - the old toStageDef ignores the key and the old composer's wire() drops it on the next save. The one loss is local cadences already adopted into the team axis: after a revert the board falls back to role defaults until someone re-enters them (localStorage copies are cleared only after a successful adoption, so un-adopted ones survive).",
+    "gate": "contract",
+    "runner_up": "One pure board projection (filtered set, cohort order, the five stat counts) - focusDegradedCohort re-implements the filter -> sort -> visible-order pipeline (usePipelineTabState.ts:187-195) and the header counts at :100-133 have no test.",
+    "technique": "overridable-defaults-with-a-server-side-approximation",
+    "body": "## Summary\nMove the per-stage aging cadence off per-browser localStorage and onto the workspace's board axis (an optional `slaDays` on each stage in the `pipelineStages` decision-config phase), written through one narrow, lock-safe `PATCH /api/pipeline/stage-sla`. Every surface that asks \"is this candidate aging?\" - the board chip, the sidebar badge, and the policy pass r02 already approved - then reads the same team-owned number through `slaForStage(stage, _, axis)`.\n\n## Description\nToday the SLA editor says in its own copy that cadences are \"Saved for this browser\". Two recruiters on the same team therefore age the same board differently, and the shared counter (`attentionCounts`, which feeds the sidebar badge, the palette preview and the companion digest) silently uses role defaults - so the badge and the board's Aging chip disagree the moment anyone tunes a column, with nothing saying which is right. The registry's technique for exactly this seam (`overridable-defaults-with-a-server-side-approximation`) has an explicit exit: *if overrides can live in the store the shared computation reads, use them and skip the approximation*. Here they can: the axis is already per-workspace, org/team tiered, validated, and read by every server consumer that resolves stages by role.\n\nThe move: `StageDef.slaDays?` (validated integer 1..365, refused on the terminal role), carried by `toStageDef` and the composer's `draftToStored`; `slaForStage` gains the axis layer (explicit override -> axis `slaDays` -> role default -> legacy fallback), so `attention.ts` inherits the team value without an edit. The board's editor writes through a new `PATCH /api/pipeline/stage-sla` that uses `updateDecisionConfig(..., 'team')` (IMMEDIATE, re-reads the current axis) and requires `pipeline:write` like every other axis write. `usePipelineSla` stops reading localStorage; it offers any leftover local cadences once as an explicit \"apply to the team\" action (never a silent import of one browser's taste into team policy) and clears them after a successful write.\n\n## Flow\n1. Schema: add `slaDays` to `PipelineStageWire` / `STAGE_KEYS`, validate in `validateStage`, thread through `toStageDef` and `pipelineAxisDraft.wire()`.\n2. `slaForStage`: consult `axis.find(id).slaDays` between the override and the role default.\n3. Route: `PATCH /api/pipeline/stage-sla {stage, days|null}` -> `requireOperator` + `pipeline:write` -> `updateDecisionConfig('pipelineStages', setStageSla, ws, 'team')`; refusals answer `DECISION_CONFIG_INVALID` (existing code); `npm run api:docs` regenerates the reference row.\n4. Client: `usePipelineSla` derives values from the board axis, keeps an optimistic in-memory override until the next load, exposes `pendingLocalAdoption`; the editor shows the team value, a save-failed line via `useErrorMessage`, and the new copy \"Applies to everyone on this team\" in 4 locales.\n5. Doc: pipeline README's SLA section and Known gaps.\n\n## Expected impact\nOne answer to \"is this candidate aging\" per team instead of one per browser; the sidebar badge stops contradicting the board for every tuned workspace; the approved r02 aging-clock card gets a server-readable SLA to follow instead of inventing a second policy table; a new recruiter's first visit sees the team's cadences instead of role defaults. Removes a per-browser tenancy workaround (the SLA half of `pipelineBoardStorage` + its legacy-key migration).\n\n## Evaluation\nClaim: the aging cadence becomes team data that the board, the attention badge and a server writer all resolve identically, and no axis writer can erase it.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test cases in app/_lib/stage-sla.test.ts (schema, axis round-trip, slaForStage, attentionCounts over a temp KP_DB_PATH, adoption helper) and app/api/pipeline/stage-sla/route.test.ts (write, scope, refusals, capability), then the challenge integrationGate (tsc, lint, i18n:check, api:check, docs:check, test:unit).\nResult: pending - measured by the builder.\nGate: contract",
+    "evidence": "messages/en.json:3251  \"slaEditorNote\": \"Blank = default. Saved for this browser.\"\napp/features/hiring/pipeline/pipelineBoardStorage.ts:27  const SLA_PREFIX = \"kp.pipelineStageSla:\";\napp/features/hiring/pipeline/usePipelineSla.ts:32  setSlaOverrides(readStoredSla(localStorage, workspaceId));\napp/features/hiring/pipeline/usePipelineSla.ts:45  writeStoredSla(localStorage, workspaceId, next);\napp/features/hiring/pipeline/usePipelineTabState.ts:127  !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides, board.axis);\napp/_lib/attention.ts:90  const sla = slaForStage(e.stage, undefined, axis);\napp/_lib/decision-config-schema.ts:362  const STAGE_KEYS = [\"id\", \"label\", \"role\", \"actions\"] as const;\napp/_lib/pipeline-axis.ts:23-28  toStageDef copies id/label/role/actions only\napp/features/shared/pipelineAxisDraft.ts:85-90  wire() copies id/label/role/actions only\ngrep attentionCounts consumers: app/api/attention/route.ts:13, app/features/shell/WorkspaceNav.tsx:54, app/_lib/companion-run.ts:92, app/_lib/palette-preview/index.ts (4 shared surfaces that never see a browser override)\nls app/_lib/aging-policy.ts -> No such file (r02 aging-clock card approved in challenge-r02/DECK.md:20, not built)\nRegistry: recruiting/pipeline-aging-and-attention-triage, technique overridable-defaults-with-a-server-side-approximation - 'When not to use this: ... if overrides live in the same store the shared computation reads, use them and skip the whole apparatus'; also 'Visible on the surface it changes' and 'per board, attributed' - per-browser storage meets neither."
+  },
+  {
+    "context": "pipeline-board-ui",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Make the Subway a working board: pick beads in select mode, drag or menu-move",
+    "size": "L",
+    "effort": 7,
+    "impact": 9,
+    "risk": 5,
+    "write_set": [
+      "app/features/hiring/pipeline/map/subway/subwayInteraction.ts",
+      "app/features/hiring/pipeline/map/subway/subwayInteraction.test.ts",
+      "app/features/hiring/pipeline/map/subway/SubwayBeads.tsx",
+      "app/features/hiring/pipeline/map/subway/SubwayLineRow.tsx",
+      "app/features/hiring/pipeline/map/PipelineBoardSubway.tsx",
+      "app/features/hiring/pipeline/map/mapTypes.ts",
+      "app/features/hiring/pipeline/usePipelineBulk.ts",
+      "app/features/hiring/pipeline/usePipelineTabState.ts",
+      "app/features/hiring/pipeline/PipelinePopulatedBoard.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/features/hiring/pipeline/map/subway/subwayInteraction.ts",
+      "app/features/hiring/pipeline/map/subway/subwayInteraction.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "beadIntent({selectMode:false}, entry) -> {kind:'open'}; beadIntent({selectMode:true}, entry) -> {kind:'toggle', id: entry.id}; beadA11y(selectMode true, selected true) -> {role:'checkbox', checked:true}; selectMode false -> no checkbox role",
+      "cellSelectState(selected {}, cell [a,b]) -> 'none'; {a} -> 'some'; {a,b} -> 'all'; an empty cell -> 'none'",
+      "toggleCellSelection(selected {a,x}, cell [a,b]) -> {a,b,x} (a partial cell selects the rest); toggleCellSelection({a,b,x}, [a,b]) -> {x}; ids outside the cell are never added or removed",
+      "canDropOn(entry {stage:'Screened', jobId:'j1'}, {positionId:'j1', stageId:'Interview'}, default axis) -> true; same stage -> false; the terminal-role column -> false; a station on another line (positionId 'j2') -> false; on a custom axis whose terminal column is renamed 'Placed', 'Placed' -> false",
+      "dropMove(entry, target, axis, {selectMode:true}) -> null (drag is off while the bead is a checkbox, the card board's rule); with selectMode false and a legal target -> {entry, toStage:'Interview'} and the board calls the existing moveEntry exactly once",
+      "moveMenuItems(entry at 'Screened', axis with workspace label 'Tech round' on id 'Interview') -> ids equal to moveTargetStages('Screened', axis) in axis order, the renamed column labelled 'Tech round', never the terminal stage - the keyboard/right-click twin calls the SAME dropMove path the drag does"
+    ],
+    "premise": [
+      "app/features/hiring/pipeline/map/mapTypes.ts:29-31 - 'select-mode and drag-and-drop remain unused (see the pipeline README's Known gaps)'; :51-54 still declares selectMode / selectedIds / onToggleSelect / onMove",
+      "app/features/hiring/pipeline/map/PipelineBoardSubway.tsx:18-19 - 'Select mode and drag-and-drop between stages are not carried over from the card board yet'; its props destructure (:46-64) never reads selectMode, selectedIds or onToggleSelect, and onMove only reaches the off-axis strip (:152)",
+      "app/features/hiring/pipeline/PipelinePopulatedBoard.tsx:43-72 opens the bulk bar when select mode is on, and :143-146 hands selectMode / selectedIds / onToggleSelect={s.toggleSelected} / onMove={s.moveEntry} to a board that drops them - so after 'Select' the only way to build a cohort is usePipelineBulk.ts:169-173 selectAllVisible; toggleSelected (:159-168) has no caller on the shipped board",
+      "app/features/hiring/pipeline/map/subway/SubwayBeads.tsx:35 - a bead's click is always onOpen; app/features/hiring/pipeline/map/subway/SubwayLineRow.tsx:159 - a station click is always onOpenCell; :178 bead onOpen={() => openCandidate(e, cellEntries)} whatever the mode",
+      "app/features/hiring/pipeline/usePipelineBoardData.ts:259-318 - a complete optimistic drag-move (CAS on expectedStage, rollback, bounced-bead reason, eventsOnly reconcile) whose only caller on the board is PipelineBoardOffAxisStrip.tsx:117-124",
+      "app/features/hiring/pipeline/PipelineCandidateRow.tsx:22-26,134-141 - the retired card board's select/drag/keyboard-move grammar (checkbox role, drag only outside select mode, move menu = moveTargetStages) - imported by nothing since the map board shipped; pipelineMoveTargets.ts:29-32 moveTargetStages is the reusable legality rule",
+      "docs/features/pipeline/README.md:1616-1624 - Known gap: 'Porting selection and drag to beads/stations is the next board round'",
+      "Adopts three OPEN leftover items (.claude/scan-history/leftover-develop-2026-09-17.jsonl, absent from both low-risk-drain-2026-09-22*-results.jsonl): 'Wire selectMode onto subway beads' (pipeline-board-ui, M), 'Drag beads between stations with the existing move machine' and 'Offer a keyboard Move-to menu on beads' (pipeline-move-bulk-operations, M) - one operation with two inputs belongs in one build"
+    ],
+    "rollback": "The series reverts cleanly: the new module is additive, the bead/station components regain their single open behaviour, and the props the board ignores today are still declared (mapTypes.ts:51-54), so PipelinePopulatedBoard keeps compiling either way. No server, route, schema or stored state is touched - moves go through the existing set_stage action with its expectedStage CAS.",
+    "gate": "none",
+    "runner_up": "Per-bead state on the Subway (aging/stalled, needs-intake, awaiting-decision glyphs): isStale is handed to the board (PipelinePopulatedBoard.tsx:138) and never read by the map, so the 'Aging N' chip filters to beads that look exactly like healthy ones.",
+    "technique": "keyboard-alternatives",
+    "body": "## Summary\nThe map board replaced the card board but left its two working modes behind: in select mode a recruiter cannot pick a single bead (only 'select all shown'), and no bead can be moved from the board at all. Port both onto the Subway as one operation with two inputs - select mode turns beads and stations into checkboxes, and outside it a bead can be dragged to a legal station on its own line or moved from a keyboard/right-click 'Move to' menu, both through one pure legality module and the board's existing optimistic, CAS-guarded moveEntry.\n\n## Description\nThe bulk bar (move, accept/reject, invite, outreach) is the board's strongest verb, and on the shipped board it only works on whatever the filters leave visible: `toggleSelected` exists and nothing calls it, and a bead click still opens the modal while the bar says 'Select'. Moving one candidate takes three steps (bead -> modal -> footer select) although `usePipelineBoardData.moveEntry` already does optimistic paint, rollback, the bounced-bead reason and an events-only reconcile - reachable today only from the off-axis strip. This card makes the Subway act on what the recruiter points at: a bead in select mode is a `role=checkbox` with a selected ring; a station in select mode toggles its whole cell (partial -> all, all -> none) instead of opening the Orchard; the '+N' roster items toggle too. Outside select mode a bead is draggable onto stations of its own line that `moveTargetStages` allows (the terminal stage and its own column refuse visibly), and Shift+F10 / right-click opens the existing `PipelineCandidateMenu` with the same targets - both calling one `dropMove` so the keyboard path cannot decay (registry: drag-drop / keyboard-alternatives). Cell selection goes through a new `setSelectedMany` in usePipelineBulk that dispatches `selectionChanged`, so an armed bulk reject/outreach confirm disarms exactly as a single toggle does.\n\n## Flow\n1. `map/subway/subwayInteraction.ts` (pure): `beadIntent`, `beadA11y`, `cellSelectState`, `toggleCellSelection`, `canDropOn`, `dropMove`, `moveMenuItems` - tests first.\n2. usePipelineBulk: `setSelectedMany(ids, on)` (clears bulkResult, dispatches selectionChanged); usePipelineTabState + PipelinePopulatedBoard pass it and `axis` through.\n3. PipelineBoardSubway / LineRow / Bead: read selectMode + selectedIds; station button toggles the cell in select mode; bead is checkbox in select mode, draggable + menu door otherwise (drag source on a wrapper span - Firefox does not start a drag from a button); legal stations highlight while a drag is live, illegal ones refuse.\n4. Catalogs: cell-select aria ('Select all {count} in {stage}'), drop-target hint - 4 locales; reuse candidateRow.selectCandidate / moveTo.\n5. README: close the first Known gaps bullet, describe the two modes.\n\n## Expected impact\nThe board's batch verbs work on a hand-picked cohort for the first time since the redesign; a single stage move drops from three steps and a modal to one gesture or one menu; the dormant move machine and the orphaned card-row grammar become the shipped behaviour again. Closes three open leftover items in one coherent build.\n\n## Evaluation\nClaim: select mode can build any cohort from beads and stations, and a bead moves from the board by drag or keyboard through one legality rule and the existing CAS move.\nBefore: 0 of 6 acceptance cases pass.\nAfter: 6 of 6.\nMethod: gate - node:test cases in app/features/hiring/pipeline/map/subway/subwayInteraction.test.ts, then the challenge integrationGate (tsc, lint, i18n:check, design:check, test:unit); a both-theme visual check of the selected ring and drop highlight.\nResult: pending - measured by the builder.\nGate: none",
+    "evidence": "app/features/hiring/pipeline/map/mapTypes.ts:30-31  map board renders bounced-move feedback on beads; select-mode and drag-and-drop remain unused\napp/features/hiring/pipeline/map/PipelineBoardSubway.tsx:18  // Select mode and drag-and-drop between stages are not carried over from the card\ngrep -rn 'selectMode|selectedIds|onToggleSelect' app/features/hiring/pipeline/map -> only mapTypes.ts:51-53 (declarations); no reader\napp/features/hiring/pipeline/PipelinePopulatedBoard.tsx:143-146  selectMode={s.selectMode} selectedIds={s.selectedIds} onToggleSelect={s.toggleSelected} onMove={s.moveEntry}\napp/features/hiring/pipeline/map/subway/SubwayBeads.tsx:35  onClick={onOpen}\napp/features/hiring/pipeline/map/subway/SubwayLineRow.tsx:159  onOpenCell({ ... })  (unconditional)\ngrep 'onMove' map/PipelineBoardSubway.tsx -> :58 destructured, :152 forwarded only to PipelineBoardOffAxisStrip\ngrep imports of CandidateRow / PipelineCandidateRow across app/ -> none (orphan since the map board)\ndocs/features/pipeline/README.md:1616  **The map board does not yet render select mode or drag-and-drop between stages.**\nleftover-develop-2026-09-17.jsonl: 'Wire selectMode onto subway beads' (M, open), 'Drag beads between stations with the existing move machine' (M, open), 'Offer a keyboard Move-to menu on beads' (M, open); none in low-risk-drain-2026-09-22*-results.jsonl"
+  }
+]

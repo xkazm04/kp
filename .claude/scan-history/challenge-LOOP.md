@@ -25,14 +25,17 @@ whole loop (irreversible / policy-loosen still never built).
 | --- | --- | --- | --- |
 | challenge-2026-09-22 (r01) | 6 | 0 | done — 12/12 landed (apply-A completed 2026-09-23, f76c8462b) |
 | challenge-r02 | 8 | 11 | done — 16/16 landed + 1 follow-up; flawless 12/16 (10 strict); 3 coordinator fixes |
-| challenge-r03 | 8 | 5 | carded + critiqued (3.94/4.69/4.31, 5 revise) — builds after r02 closes |
+| challenge-r03 | 8 | 5 | done — 16/16 landed; flawless 13/16 (11 strict); 5 coordinator fixes; page ceiling lowered 8875->8645 by glyph/A |
+| challenge-r04 | 8 | 3 | carded + critiqued (4.00/4.44/4.25; 10 build / 6 revise; rulings: db-org/B needs an executed rollback drill, decisions/B keepalive commit, ops/A hash keys) — builds after r03 closes |
 
 Side fixes outside the card flow: a9bd69f62 companion recall scoped to workspace (r02 llm-api scout); 93f485438 interview-sim /s+/ word count (r03 scout).
 Small follow-ups noted by scouts, not yet built: skill-profile public page limiter keyed per token (guessing gets fresh allowance); companion_cli fallbackReason raw provider text (llm-api/B may cover); /api/schedule ?limit >500 truncated:false; about riders: voice ticker double role=status, palette-preview raw stage labels.
-The python-runner-concurrency failure is load-induced: passes 3/3 in isolation.
+python-runner-concurrency is a genuine timing FLAKE (isolated: 3/3 pass once, 1/2 fail later); unchanged by this work — owner's quarantine call.
 Registry: scan-sweep 3.5.1 (e1c0626b) — riders, --until-covered, --in-flight all committed with tests.
 Known flake (not ours, owner's call): `app/_lib/python-runner-concurrency.test.ts` process-tree-kill case.
 - OWED at loop end: run e2e/token-doors-axe.spec.ts against a KP_EMPTY=1 prod build (llm-api/A moved its offer case onto a (SIM) entry; builders could not run it).
 - Reword app/features/shared/sharedGet.ts:5-12 comment (Schedule grid+panel double fetch no longer true after schedule/A).
 - companion_cli exception path still sends raw provider text as fallbackReason; switching to a code needs app/_lib/companion-turn.ts companionFallbackClass + tests (llm-api/B follow-up).
 - Dead catalog key pipeline.tab.previewApplyGlobal (pipeline/B); team-scoped pass filters the shared 2000-row list (documented gap).
+- OWED at loop end: browser pass (both themes) over the new UI surfaces the builders could not open — incl. Analyze drag-and-drop (r03 cv-analyze/A), About transport, schedule pending cards, routing chips, promote verdict, receiver editor, SLA editor, glyph empty states.
+- Subway keyboard move: no screen-reader announcement and focus does not return to the moved bead (pipeline-board-ui/B gap); tablet cannot move a bead.

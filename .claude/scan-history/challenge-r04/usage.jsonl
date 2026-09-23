@@ -1,0 +1,9 @@
+{"ctx":"github-repo-intelligence","role":"scout","tokens":191714,"ms":367011}
+{"ctx":"profile-editor","role":"scout","tokens":209708,"ms":433278}
+{"ctx":"decisions-review-ui","role":"scout","tokens":215824,"ms":428746}
+{"ctx":"tests-llm-eval","role":"scout","tokens":188450,"ms":432093}
+{"ctx":"analytics-dashboard","role":"scout","tokens":206408,"ms":515680}
+{"ctx":"auth-session-rbac","role":"scout","tokens":231191,"ms":535753}
+{"ctx":"shell-simulation-engine","role":"scout","tokens":222497,"ms":566473}
+{"ctx":"db-org-users-channels","role":"scout","tokens":247094,"ms":725236}
+{"ctx":"*","role":"critic","model":"fable","tokens":273527,"ms":729460}

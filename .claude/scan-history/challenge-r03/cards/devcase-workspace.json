@@ -1,0 +1,120 @@
+[
+  {
+    "context": "devcase-workspace",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Serve the assignment ledger as one server row: stage, submissions, stall",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/db/devcase.ts",
+      "app/api/devcase/route.ts",
+      "app/api/devcase/route.test.ts",
+      "app/features/tools/devcases/DevTypes.ts",
+      "app/features/tools/devcases/useDevTabData.ts",
+      "app/features/tools/devcases/DevTab.tsx",
+      "app/features/tools/devcases/DevTabCasesView.tsx",
+      "app/features/tools/devcases/DevCasesTable.tsx",
+      "app/features/tools/devcases/DevCasesTable.filter.ts",
+      "app/features/tools/devcases/DevCasesTable.filter.test.ts",
+      "app/features/tools/devcases/casesPage.ts",
+      "app/features/tools/devcases/casesPage.test.ts",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/api/devcase/[id]/route.ts",
+      "app/_lib/db/devcase-ledger.test.ts"
+    ],
+    "shared_surfaces": [
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "Store: workspace W has 60 lifecycles and case C whose lifecycle is the 60th-newest with stage 'collecting' -> listCaseLedger(50, W) returns C with stage 'collecting' (today the table's caseStage falls back to 'published'/'approved' because GET /api/devcase/lifecycle only carries the 50 newest lifecycles)",
+      "Store: case with no lifecycle and one open posting -> stage 'published'; with no lifecycle and no posting -> stage 'approved' (the caseStage fallback preserved, now computed in SQL)",
+      "Store: case with two postings carrying 2 and 3 submissions -> submissionCount 5; lifecycleUpdatedAt and lifecycleCreatedAt present so stallForCase gets the same inputs the table computes today",
+      "Store: a case in workspace B never appears in listCaseLedger(_, W), and every new statement passes the tenantVerdict scan in app/_lib/db/devcase-tenancy.test.ts",
+      "Route: GET /api/devcase?limit=50&stage=collecting over 120 cases of which 70 are collecting -> 50 collecting rows and truncated:true (the filter runs in the store BEFORE the limit, so a filtered page is not empty while matching rows exist past it)",
+      "Route: GET /api/devcase rows carry no need/analysis/role/case JSON keys (a list projection, not the row); GET /api/devcase/<id> returns the full record for an id in the caller's workspace and 404 for another workspace's id",
+      "Client: filterCasesUrl({limit:50,title:' Api ',stage:'ranked',seniority:''}) -> '/api/devcase?limit=50&q=api&stage=ranked' (blank filters omitted, title trimmed and lowercased) - the pure URL builder that replaces the in-memory filterCases",
+      "Client: opening a row fetches /api/devcase/<id> and the detail reader renders from that record; the Cases table no longer imports lifecycles or postings to compute stage or submission counts"
+    ],
+    "premise": [
+      "app/api/devcase/lifecycle/route.ts:18 - GET answers listLifecycles(50, ws): only the 50 newest lifecycles reach the studio",
+      "app/api/devcase/route.ts:25 + app/features/tools/devcases/casesPage.ts:5 - the cases page goes to 500 (CASE_PAGE_LIMITS [50,150,500]), ten times the lifecycle window it is joined against",
+      "app/features/tools/devcases/DevCasesTable.filter.ts:6-8 - caseStage = lifecycles.find(caseId)?.stage ?? (posting exists ? 'published' : 'approved'): a case whose lifecycle fell outside the 50 is silently shown the fallback stage",
+      "app/features/tools/devcases/DevCasesTable.filter.ts:11 - 'Filter only the loaded ledger page': the stage/title/seniority filter runs over what the client happens to hold",
+      "app/features/tools/devcases/DevCasesTable.tsx:120-132 - per row, lifecycles.find + postings.filter + caseStage + stallForCase: stall inputs (lc?.updatedAt) come from the same truncated list",
+      "app/api/devcase/postings/route.ts:19 - every posting in the workspace with listSubmissions(p.id, ws) inlined, each submission's eval_json parsed (app/_lib/db/devcase.ts:486) - the table uses it only for a count",
+      "app/_lib/db/devcase.ts:202 - listDevCases selects c.* (need/analysis/role/case JSON) for up to 500 rows; app/features/tools/devcases/DevTypes.ts:88-90 records that the full row is shipped so the detail opens without a second fetch",
+      "app/api/jobs/[id]/assignments/route.ts:14-19 - the repo's own precedent for this table: 'A LIST projection, not the row', because the payload is large as well as sensitive (it includes cover probes)",
+      "app/_lib/db/core.ts:813-814 - dev_lifecycle is indexed on created_at and posting_id only; nothing indexes case_id, the join key this card needs"
+    ],
+    "rollback": "Three commits (store+test, routes, client) revert cleanly in reverse order: the new store function and the [id] route are additive, the GET /api/devcase shape change has one consumer (casesPage.ts / useDevTabData.ts, verified by grep), and the case_id index is CREATE INDEX IF NOT EXISTS, inert if left behind.",
+    "gate": "contract",
+    "runner_up": "Replace DevTab's hand-coded task-kind -> list-reload map (DevTab.tsx:79-89) with a declared per-kind invalidation table beside TASK_KINDS so a new task kind cannot forget to refresh the studio.",
+    "technique": "filter-after-return-under-limit",
+    "body": "## Summary\nThe Assignments ledger computes each row's stage, submission count and stall by joining three separately-bounded client lists (cases up to 500, lifecycles capped at 50, every posting with every submission). Past fifty lifecycles the join silently shows the wrong stage, the stage filter only sees the loaded page, and the table pays for full case JSON and every evaluation bundle to draw a count. Move the join into one store read that returns a ledger projection per case, filtered before the limit, and give the detail reader its own by-id read.\n\n## Description\nAdd `listCaseLedger(limit, ws, filters)` to app/_lib/db/devcase.ts: dev_cases LEFT JOIN the latest dev_lifecycle per case_id (stage, created_at, updated_at) and a per-case submission COUNT via dev_postings, with the published/approved fallback in SQL and q/stage/seniority applied in WHERE before LIMIT+1. Ensure an index on dev_lifecycle(workspace_id, case_id) in-store (the submissionStore additive-DDL shape). GET /api/devcase returns these projection rows (identity, jobId/jobTitle/jdSlug, stage, submissionCount, lifecycle timestamps) plus `truncated`; a new GET /api/devcase/[id] (requireOperator, workspace-checked) returns the full record for the detail reader. The client drops caseStage/filterCases in favour of a pure URL builder, and the table reads stage and counts from the row. Postings and lifecycles keep loading for the lifecycle strip and the detail's submissions; the ledger simply stops depending on them.\n\n## Flow\n1. Store function + ledger/tenancy tests (acceptance 1-4). 2. GET /api/devcase projection + filters, new [id] route, route tests, `npm run api:docs` (5-6). 3. casesPage URL builder, useDevTabData filter state, DevCasesTable reading row fields, DevTabCasesView fetching the detail on open (7-8). 4. Doc update in docs/features/dev-case/README.md.\n\n## Expected impact\nA studio past fifty lifecycles stops mislabelling older live assignments (and hiding their stall chip); the stage filter answers for the whole library instead of the loaded page; the ledger payload drops the need/analysis/role/case JSON and the table no longer needs every evaluation bundle to draw a number. The seam also stops the next feature on this table (sort, job filter, counts) from inheriting a three-list client join.\n\n## Evaluation\nClaim: the ledger's stage, count and filter are computed once, server-side, over the whole workspace, and are correct past the lifecycle window.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test store/route/URL-builder cases written first, plus the integration gate (tsc, lint, api:check, docs:check, test:unit).\nResult: pending build.\nGate: contract (GET /api/devcase response shape changes; one in-repo consumer).",
+    "evidence": "grep -n 'listLifecycles(50' app/api/devcase/lifecycle/route.ts -> 18: return NextResponse.json({ lifecycles: listLifecycles(50, await currentWorkspace()) });\ngrep -n 'CASE_PAGE_LIMITS' casesPage.ts -> 5: export const CASE_PAGE_LIMITS = [50, 150, 500] as const;\nDevCasesTable.filter.ts:7-8: return lifecycles.find((item) => item.caseId === caseId)?.stage ?? (postings.some((item) => item.caseId === caseId) ? \"published\" : \"approved\");\nDevCasesTable.filter.ts:11: /** Filter only the loaded ledger page; the table keeps its truncation notice. */\npostings/route.ts:19: const postings = listPostings(ws).map((p) => ({ ...p, submissions: listSubmissions(p.id, ws) }));\ndevcase.ts:486: evaluation: safeRowParse(r.eval_json ...)\ndevcase.ts:202: `SELECT c.*, j.title AS job_title FROM dev_cases c LEFT JOIN jobs j ...`\ncore.ts:813-814: only idx_dev_lifecycle_created and idx_dev_lifecycle_posting.\nConsumers of GET /api/devcase (grep '/api/devcase?'): casesPage.ts:19 only; POST caller useDevTabNeedAnalysis.ts:108 unaffected."
+  },
+  {
+    "context": "devcase-workspace",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Make Assignments addressable: ?lifecycle opens its review, ?case and ?job land",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/features/tools/devcases/DevTab.tsx",
+      "app/features/tools/devcases/DevTabCasesView.tsx",
+      "app/features/tools/devcases/DevLifecycleSection.tsx",
+      "app/features/tools/devcases/DevLifecycleRow.tsx",
+      "app/features/tools/devcases/DevCasesTable.tsx",
+      "app/features/tools/devcases/DevCasesTable.filter.ts",
+      "app/features/tools/devcases/DevCasesTable.filter.test.ts",
+      "app/features/shell/tabs.ts",
+      "app/features/shell/tabs.test.ts",
+      "app/features/library/jobs/JobsLifecycleStrip.tsx",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/features/tools/devcases/assignmentsDeepLink.ts",
+      "app/features/tools/devcases/assignmentsDeepLink.test.ts"
+    ],
+    "shared_surfaces": [
+      "app/features/shell/tabs.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "parseAssignmentsLink('tab=assignments&lifecycle=lc_1') -> {kind:'lifecycle', id:'lc_1'}; 'case=c_9' -> {kind:'case', id:'c_9'}; 'job=j_1' -> {kind:'job', id:'j_1'}; blank or absent values -> null; when several are present precedence is case > lifecycle > job",
+      "resolveAssignmentsLink({kind:'lifecycle',id:'lc_1'}, {lifecycles:[{id:'lc_1',stage:'awaiting_approval'}], loaded:true}) -> {view:'cases', openReview:'lc_1', focus:'lc_1'}",
+      "the same intent when lc_1's stage is 'collecting' (the gate was decided since the link was minted) -> {view:'cases', focus:'lc_1', notice:{kind:'gateDecided', stage:'collecting'}} and NO openReview",
+      "a lifecycle or case id absent from a fully loaded, untruncated list -> {notice:{kind:'lifecycleMissing'|'caseMissing'}} and no selection change (the location the reader already has is left alone); before the list's first load -> {pending:true}",
+      "{kind:'case', id:'c_9'} with c_9 in the loaded page -> {selectedCaseId:'c_9'}; c_9 absent but the page is truncated and can grow -> {action:'raiseLimit'}; absent and not truncated -> caseMissing notice",
+      "{kind:'job', id:'j_1'} -> {view:'cases', jobFilter:'j_1'}, and filterCases(cases, lifecycles, postings, {title:'',stage:'',seniority:'',job:'j_1'}) keeps only cases whose jobId is 'j_1'",
+      "consumedSearch('tab=assignments&lifecycle=lc_1&lang=cs') -> 'tab=assignments&lang=cs' (one-shot, stripped via history.replaceState like ?arm=), and TAB_SCOPED_PARAM_KEYS now contains 'case' and 'lifecycle' so a bare tab switch clears them (tabs.test.ts exact-set pin updated)",
+      "JobsLifecycleStrip's assignments segment navigates with params {job: jobId}, so the 'N assignments' chip on a job lands on the Cases ledger filtered to that job with a clearable 'Showing assignments for <job>' chip"
+    ],
+    "premise": [
+      "app/control/GatesPanel.tsx:41 - every pending Art. 22 gate links Review to `/?tab=assignments&lifecycle=<id>`, and app/control/gatesPanel.test.ts:11-15 pins only that the href carries the id",
+      "docs/features/compliance/README.md:573-575 - the compliance doc promises that link lets 'sign-off happen on DevLifecycleReviewPanel (case edits, probe-gate override)'",
+      "grep useSearchParams app/features/tools/devcases/*.tsx -> only DevCaseJobLink.tsx:3,30 (to push a job link OUT); DevTab.tsx:32-33 holds view and selectedCaseId in plain useState, so ?lifecycle= is never read and the reviewer lands on the unfocused Cases table",
+      "app/features/tools/devcases/DevLifecycleRow.tsx:50 - reviewOpen = useState(false); the review panel only opens on a click of the row's own Review button (line 141-145), gated by awaiting = stage === 'awaiting_approval' (line 38)",
+      "app/features/library/jobs/JobsLifecycleStrip.tsx:125 - the job's 'N assignments' segment carries tab:'assignments' and no params, while its sibling decisions segment passes params {job: jobId}",
+      "app/features/tools/devcases/DevTab.tsx:93 - selectedCase resolves only from the loaded page (cases.find), so no address could open a case today even if one were parsed",
+      "app/features/shell/tabs.ts:445-492 - TAB_SCOPED_PARAM_KEYS has job and stage but neither case nor lifecycle; app/features/hiring/decisions/useDecisionsQueue.ts:60-68 is the one-shot consume-then-replaceState precedent for ?arm="
+    ],
+    "rollback": "Additive: the pure module and its test are new; DevTab/row/section gain an optional focus prop whose absence is today's behaviour; the two TAB_SCOPED keys and four catalog key sets revert with their commit; JobsLifecycleStrip reverts to a bare tab switch. No store or route change.",
+    "gate": "none",
+    "runner_up": "Resume a finished role+case design after leaving Define: designId/designFrom are hook state (useDevTabNeedAnalysis.ts:18-31) so a design_artifacts run that completes while the reader is on another tab is unreachable - bind it back to its need task from the task poll.",
+    "technique": "navigation-model",
+    "body": "## Summary\nThree surfaces already send people to Assignments with a destination in mind - the Control Room's Art. 22 gate Review link (carries ?lifecycle=), the Job page's 'N assignments' chip, and any future share of a case - and the tab reads none of it: view and selection are local state, the review panel opens only on its own click. Make the tab an address: ?lifecycle= scrolls to the lifecycle and opens its review panel (or says the gate was already decided), ?case= opens the case reader, ?job= filters the ledger to that role.\n\n## Description\nA new pure module assignmentsDeepLink.ts parses the three params (with precedence), resolves an intent against the loaded lists into a view/selection/notice/action, and computes the consumed search string. DevTab reads it once per arrival, waits for the relevant list's first load, applies the resolution, raises the page limit when a case may sit past the page, and strips the params via history.replaceState (the ?arm= one-shot shape). LifecycleSection/Row accept a focus id that scrolls the row into view and opens the review panel when the row is awaiting approval. An unresolvable address leaves the reader where they are and shows a named, localized notice (missing, other team, already decided), per the navigation-model rule for arrivals into a standing session. The Cases table gains a job filter (and a clearable chip); JobsLifecycleStrip passes {job}. `case` and `lifecycle` join TAB_SCOPED_PARAM_KEYS.\n\n## Flow\n1. Write assignmentsDeepLink.test.ts (acceptance 1-7) and the filter job case. 2. Implement the module + filter. 3. Wire DevTab/DevTabCasesView/LifecycleSection/LifecycleRow (focus + open review), notices in four catalogs under the lock. 4. tabs.ts keys + pin, JobsLifecycleStrip params (acceptance 8). 5. Doc update (dev-case README) and correct the compliance README sentence if wording changes.\n\n## Expected impact\nThe Control Room's Review becomes a one-click path to the actual human-gate panel the compliance doc says it is, instead of a list the reviewer must search; a job's assignment chip lands on that job's assignments; a stale gate link explains itself instead of silently showing a table. Assignments becomes linkable from the palette, tasks and future notifications with no further work.\n\n## Evaluation\nClaim: every address that points into Assignments lands on what it names, or says why it cannot.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over assignmentsDeepLink.ts, DevCasesTable.filter.ts and tabs.ts written first; optional Playwright check that /?tab=assignments&lifecycle=<id> shows the review panel.\nResult: pending build.\nGate: none.",
+    "evidence": "GatesPanel.tsx:41: href={`/?tab=assignments&lifecycle=${encodeURIComponent(g.id)}`}\ngrep -rn useSearchParams app/features/tools/devcases/*.tsx -> DevCaseJobLink.tsx:3 and :30 only.\nDevTab.tsx:32-33: const [view, setView] = useState<DevView>(\"cases\"); const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);\nDevLifecycleRow.tsx:38 const awaiting = lc.stage === \"awaiting_approval\"; :50 const [reviewOpen, setReviewOpen] = useState(false);\nJobsLifecycleStrip.tsx:125: assignments ? { key: \"assignments\", label: t(\"assignments\", { count: assignments }), tab: \"assignments\" } : null,\ncompliance/README.md:573-575: 'Each pending gate also carries a **Review** link to `/?tab=assignments&lifecycle=<id>` so sign-off can happen on `DevLifecycleReviewPanel`'\ntabs.test.ts:110 exact-set pin lists job and stage, not case or lifecycle.\nOverlap note: shares DevTab.tsx, DevTabCasesView.tsx, DevCasesTable.tsx and DevCasesTable.filter.ts with slot A - schedule in different waves."
+  }
+]

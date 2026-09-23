@@ -1,0 +1,118 @@
+[
+  {
+    "context": "shell-simulation-engine",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Scripted clicks prove their effect: one verified door for every walk write",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/features/shell/simulation/simDoor.ts",
+      "app/features/shell/simulation/simDoor.test.ts",
+      "app/features/shell/simulation/useSimulationEngine.ts",
+      "app/features/shell/simulation/useSimulationWalk.ts",
+      "app/features/shell/simulation/simulationProviderTypes.ts",
+      "app/features/shell/simulation/simWalkSteps.ts",
+      "app/features/shell/simulation/simWalkSteps.test.ts",
+      "app/features/library/jobs/JobsPublishDialog.tsx",
+      "app/features/hiring/decisions/ledger/LedgerCells.tsx",
+      "docs/features/simulation/README.md"
+    ],
+    "new_files": [
+      "app/features/shell/simulation/simDoor.ts",
+      "app/features/shell/simulation/simDoor.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "doorOutcome({clicked:true, effectAfterClick:true}) -> {route:'dom', reason:null, halt:null}",
+      "doorOutcome({clicked:true, effectAfterClick:false, apiOk:true, effectAfterApi:true}) -> {route:'api', reason:'noEffect', halt:null}: a click that landed but changed nothing is reported as a fallback with its reason, never as a DOM success (today the publish click returns true, no fallback runs, and the walk logs 'sourced 0' and carries on)",
+      "doorOutcome({clicked:false, apiOk:true, effectAfterApi:true}) -> {route:'api', reason:'notVisible', halt:null}",
+      "doorOutcome({clicked:false, apiOk:false}) -> halt carrying the server's code; doorOutcome({clicked:false, apiOk:true, effectAfterApi:false}) -> halt 'doorNoEffect' (never narrate an outcome the board does not show)",
+      "SIM_DOORS declares the publish door as click [data-sim-click=\"publish\"] THEN confirm [data-sim-click=\"publish-confirm\"], and the offer door as open [data-sim-click=\"decide\"] THEN [role=\"dialog\"] [data-sim-click=\"accept\"]; a source scan asserts each declared attribute value is present in the product file the door names (JobsPublishDialog.tsx, LedgerCells.tsx, CandidateDecisionBar.tsx)",
+      "source scan of LedgerCells.tsx: data-sim-click=\"decide\" appears AFTER the closing of the `row.kind === \"offer\" ? null` guard, i.e. the offer row renders the door the walk clicks",
+      "source scan of useSimulationWalk.ts: zero POST fetches outside okJson()/door() (today 4: the slot confirm, the manual approve_event, the offer-accept fallback, the candidate offer accept); the lease renew/release calls stay the declared best-effort exception",
+      "hiredEffect(entry, axis) is true only when the target entry sits on the axis's terminal-role stage; the walk sets done:true only after it holds"
+    ],
+    "premise": [
+      "app/features/library/jobs/JobsDraftsPanel.tsx:176-177 - the button the walk clicks (data-sim-click=\"publish\") now only calls setPendingDraft(d.id); publishing happens in JobsPublishDialog's onConfirm (JobsDraftsPanel.tsx:192-199), introduced in 7198f0c31 (2026-09-16)",
+      "app/features/library/jobs/JobsPublishDialog.tsx:71-77 - the dialog's confirm button carries no data-sim anchor, so the walk cannot reach the real publish",
+      "app/features/shell/simulation/useSimulationWalk.ts:271-282 - clickEl returns true for the publish click, so the API fallback never runs; :285-294 then polls 12 s and logs log.sourced with count 0 and walks on with no halt",
+      "app/features/hiring/decisions/ledger/LedgerCells.tsx:97-100 - `row.kind === \"offer\" ? null` hides the only data-sim-click=\"accept\" on an offer row (9e772a836, 2026-09-17); the offer chapter clicks exactly that selector for an offer_review entry (useSimulationWalk.ts:514; app/api/sim/offer-draft/route.ts:60 sets offer_review), so it waits out waitDom's 9000 ms (useSimulationEngine.ts:114) and falls back to the API on every run",
+      "app/features/hiring/pipeline/candidate/decision/CandidateDecisionBar.tsx:73-78 - the real Send offer is data-sim-click=\"accept\" inside the candidate modal, with the deadline lever (ttlDays), reached through the ledger's third door (LedgerCells.tsx:122 onClick={onDecide}), which has no anchor",
+      "app/features/shell/simulation/useSimulationWalk.ts:463-465 - the self-schedule slot confirm POST is unchecked and sets scheduled=true regardless of the answer, which also skips the manual fallback",
+      "app/features/shell/simulation/useSimulationWalk.ts:488, :522 - the manual approve_event and the offer-accept fallback POSTs are unchecked; their failure surfaces as a 9 s wait timeout (wait.slotConfirmed / wait.offerExtended) instead of the server's code",
+      "app/features/shell/simulation/useSimulationWalk.ts:554-562 - the candidate's offer accept POST is unchecked and the walk logs log.accepted and sets done:true without reading the entry's stage",
+      "app/features/shell/simulation/simWalkSteps.ts:302-306 - clickRoute(clicked) is the only route model: it cannot express 'clicked, nothing happened'"
+    ],
+    "rollback": "Two commits (test, then feat) plus a one-line anchor in each of two product files; git revert of the series restores clickEl + ad-hoc fallbacks. The new anchors are inert attributes and the door primitive is only called by the walk, so no other surface depends on it.",
+    "gate": "contract",
+    "runner_up": "Anchor manifest gate alone (guided-tours anchor-contracts): generate the product's data-sim set from app/**/*.tsx and fail when a walk selector has no declaration - catches a vanished anchor but, as both live regressions show, not an anchor whose click stopped doing the work.",
+    "technique": "action-driven-advancement",
+    "body": "## Summary\nEvery scripted interaction in the guided walk becomes a declared DOOR - the anchor(s) to click, the board effect that proves it worked, and the checked API call that does the same work - run by one engine primitive. A click that lands but changes nothing is reported, the fallback is checked, and the walk only narrates what the board shows.\n\n## Description\nThe demo's whole claim is that it drives the real product with real clicks (simWalkSteps.ts:293-301). Today a click is judged by one bit - was the element found - and two of the four clicks broke inside a week without any gate or log noticing: since 2026-09-16 the Publish button opens a terms dialog (JobsDraftsPanel.tsx:176-199), so the click 'succeeds', no fallback runs, and the walk sources zero candidates and walks on (useSimulationWalk.ts:271-294); since 2026-09-17 offer rows hide the quick-accept (LedgerCells.tsx:97-100), so the climactic Send-offer click falls back to the API on every run after a 9 s wait - through the no-deadline door the product itself closed. Four more writes are unchecked (useSimulationWalk.ts:463, 488, 522, 554), and the run declares 'Hired' without reading the stage. The seam: `clickEl -> boolean` plus four hand-written fallbacks. The move: `SIM_DOORS` (pure, in simDoor.ts) declares per door the click path (including a confirm/open step), the effect predicate over the board, and the API equivalent; `door()` in the engine runs click -> bounded effect wait -> checked API fallback -> effect re-check, and records `{route, reason}` per chapter in SimState. The two dead doors are repaired by adding the missing anchors on the product side (publish-confirm on the dialog, decide on the ledger's third door) so the real flows - terms dialog, deadline lever - are what the viewer watches.\n\n## Flow\n1. Write simDoor.test.ts: doorOutcome cases, SIM_DOORS anchor source-scans, the no-bare-POST scan of useSimulationWalk.ts, hiredEffect. Watch them fail.\n2. simDoor.ts: SimDoor type, SIM_DOORS (publish, confirmSlot, offerSend, offerAccept), doorOutcome, hiredEffect - pure.\n3. useSimulationEngine.ts: `door(doorId, ids)` over clickEl/waitEntry/okJson.\n4. useSimulationWalk.ts: the four click sites and the four unchecked writes go through door()/okJson; done:true gated on hiredEffect; per-chapter route recorded.\n5. Add data-sim-click=\"publish-confirm\" (JobsPublishDialog.tsx confirm) and data-sim-click=\"decide\" (LedgerCells.tsx third door).\n6. Catalog keys for the new reasons (log.doorNoEffect, error.doorNoEffect) in four locales; update docs/features/simulation/README.md (the 'API fallback is labelled' gap becomes 'verified').\n\n## Expected impact\nThe demo sources a real pool again and shows the real Send-offer modal with its deadline; a click whose door changes semantics is named in the run log on the next run instead of silently degrading the tour; no chapter narrates an outcome the server refused. Closes the class 'a UI change breaks the tour without a red anything' at the one seam every chapter shares.\n\n## Evaluation\nClaim: every scripted walk interaction is verified by its board effect and every walk write is checked.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: npm run test:unit (simDoor.test.ts, simWalkSteps.test.ts), then the overlay's integration gate\nResult: pending build\nGate: contract",
+    "evidence": "JobsDraftsPanel.tsx:176-177 `data-sim-click=\"publish\"` / `onClick={() => setPendingDraft(d.id)}`; :192-199 `{pendingDraft ? (<JobsPublishDialog ... onConfirm={(terms) => { ... void sourceDraft(id, terms); }}`. `git log -S setPendingDraft -- JobsDraftsPanel.tsx` -> 7198f0c31 2026-09-16. JobsPublishDialog.tsx: `grep data-sim` -> no match; :77 `onClick={() => onConfirm({ targetHires: parsed, langs })}`. LedgerCells.tsx:97 `{row.kind === \"offer\" ? null : (`, :100 `data-sim-click=\"accept\"`, :122 `onClick={onDecide}` (no anchor); decisionsOfferQuickAccept.test.ts pins the hide (9e772a836 2026-09-17). offer-draft/route.ts:60 `setSimApproval(entry, \"offer_review\", ...)`; decisionsLedgerModel.ts ledgerKindOf: offer_review -> 'offer'. useSimulationWalk.ts:514 clicks `[data-sim-entry=\"${targetId}\"] [data-sim-click=\"accept\"]`. Unchecked POSTs in useSimulationWalk.ts: :463 schedule slot, :488 approve_event, :522 accept fallback, :554 /api/offer accept. `grep -rn data-sim-click app --include=*.tsx` outside the sim folder: publish, confirm, accept (x2), offer-accept, simulate-inbound, offer-decline-confirm - no publish-confirm, no decide."
+  },
+  {
+    "context": "shell-simulation-engine",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Resume a reloaded walk at the chapter the board shows, not Reset and restart",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/features/shell/simulation/simWalkResume.ts",
+      "app/features/shell/simulation/simWalkResume.test.ts",
+      "app/features/shell/simulation/useSimulationWalk.ts",
+      "app/features/shell/simulation/SimulationProvider.tsx",
+      "app/features/shell/simulation/simulationProviderTypes.ts",
+      "app/features/shell/simulation/simRunLease.ts",
+      "app/features/shell/simulation/SimControlDockSimFace.tsx",
+      "app/api/sim/reset/route.ts",
+      "app/api/sim/reset/reset-route.test.ts",
+      "docs/features/simulation/README.md"
+    ],
+    "new_files": [
+      "app/features/shell/simulation/simWalkResume.ts",
+      "app/features/shell/simulation/simWalkResume.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "resumePointOf({entries: [], axis: DEFAULT_STAGE_AXIS}) -> null (nothing to resume; Start stays the action)",
+      "entries of a job whose jobTitle is not isSimTitle() are ignored: a real candidate at the offer stage never becomes a resume target",
+      "a (SIM) job whose entries all sit on the entry-role stage -> {phase:'match', jobId}",
+      "a (SIM) job with entries on screenedLandingStage(axis) and no approval -> {phase:'screen', targetId: the compareByMatchScoreDesc-first screened entry, targetLabel}",
+      "target one stage past screened with approvalKind 'calendar' -> {phase:'interview'}; target on the offer-role stage with approvalKind 'offer_review' -> {phase:'offer'}; offer-role stage with approvalKind null -> {phase:'hired'}",
+      "target on the terminal-role stage -> null with reason 'complete' (a finished run offers Reset, not Resume)",
+      "chaptersFrom('offer') -> the ids ['offer','hired'] in SIM_CHAPTERS order; chaptersFrom on an id not in SIM_CHAPTERS throws",
+      "POST /api/sim/reset {hold:true, keep:true} claims the lease, answers a token and purges nothing (no `cleared`, simResidue unchanged); refused SIM_RUN_ACTIVE 409 while another token holds the workspace"
+    ],
+    "premise": [
+      "app/features/shell/simulation/useSimulationWalk.ts:151-154 - jobId, targetId, targetLabel and offerToken are locals of one run() closure; nothing can enter the walk anywhere but chapter one",
+      "app/features/shell/simulation/useSimulationWalk.ts:204-207 - every run starts with POST /api/sim/reset {hold:true}, and app/api/sim/reset/route.ts:106-111 purges every (SIM) row on that claim - so the only way back into a walk is to destroy it",
+      "app/features/shell/simulation/SimulationProvider.tsx:98-101 - pagehide releases the tab's lease, so after a reload the board keeps the walk's rows but no tab owns them",
+      "app/features/shell/simulation/simRunControl.ts:71-78 - consoleMode shows the sim console when residue > 0, and the console's actions are Start (purges) or Reset (purges) - SimControlDockSimFace.tsx:60-66 renders only startSim when not running and not done",
+      "app/features/shell/simulation/useSimulationEngine.ts:57-69 - getBoard already returns the workspace's entries (jobId, jobTitle, stage, approvalKind, matchScore per BOARD_ENTRY_FIELDS, app/_lib/db/pipeline.ts:117-140) AND its stage axis, so a resume point is derivable from one read with no new storage",
+      "app/features/shell/simulation/constants.ts:21-23 - isSimTitle() is the single-sourced test for a walk's own rows",
+      "docs/features/simulation/README.md:295-296 - 'The seven SIM_PHASES are a fixed script ... no way to replay one phase without a full reset'"
+    ],
+    "rollback": "The route change is additive (a new `keep` flag; absent it, every existing shape behaves byte-identically and reset-route.test.ts pins that), and the walk's `from` parameter defaults to the first chapter. Reverting the series removes the Resume action and the flag; no data or schema is touched.",
+    "gate": "architecture",
+    "runner_up": "Step mode holds the overlay moments: the screen-wave audit, the group evaluation and the candidate's offer page auto-dismiss on a timer INSIDE the chapter action (useSimulationWalk.ts:414-415, 506-507, 556-557) before the presenter's gate at :141, so the presenter can never talk over the Art. 22 audit - hold them until Next in step mode.",
+    "technique": "tour-lifecycle",
+    "body": "## Summary\nAdopts the open escalated item 'Resume a live walk after reload from the held lease' (leftover-develop-2026-09-17, M, risk 4, architecture, not drained). A reload, a crashed tab or a presenter who navigated away mid-demo gets a 'Resume at Offer - <candidate>' action that re-enters the walk at the chapter the board proves it reached, instead of Reset-and-replay-seven-chapters.\n\n## Description\nThe walk's progress already lives on the server - the (SIM) job and its entries survive a reload - but the walk can only begin at chapter one, and chapter one's first act is a purge (useSimulationWalk.ts:204-207, route.ts:106-111). So the console, which correctly surfaces the residue (simRunControl.ts:71-78), offers only the two buttons that delete it. The guided-tours standard's lifecycle rule is the opposite: progress persists and resume is the default, and resume re-validates and replays the activation path rather than repainting saved state. The board IS the validated record: `resumePointOf(board, axis)` (pure) finds the (SIM) job, the followed candidate and the first chapter whose postcondition the board does not yet satisfy, all resolved by stage ROLE from the live axis the way the walk already does (useSimulationWalk.ts:218-221). The route gains a no-purge claim (`{hold:true, keep:true}`) so resuming takes the lease without wiping the run it resumes; run(from) seeds jobId/targetId/targetLabel from the resume point (offerToken via the existing /api/sim/offer-link) and walks `chaptersFrom(phase)`.\n\n## Flow\n1. simWalkResume.test.ts: the resume-point, chaptersFrom and keep-claim cases; watch them fail.\n2. simWalkResume.ts: resumePointOf + chaptersFrom, pure over PipelineEntryView[] + StageDef[].\n3. route.ts + simRunLease.ts: `keep` on the hold claim skips resetSim; claimInit(lease, {keep}) helper; route test pins old shapes unchanged.\n4. useSimulationWalk.ts: run(from?) skips completed chapters, seeds the context, logs log.resumed.\n5. SimulationProvider.tsx + types: on console mount with residue and no live foreign lease, read the board once and expose `resumable` + `resume()`.\n6. SimControlDockSimFace.tsx: Resume at <phase> as the primary action beside Reset when resumable.\n7. Four-locale keys; README known gap rewritten.\n\n## Expected impact\nA mid-demo reload costs one click instead of a purge and a 2-3 minute replay (SIM_RUN_TTL_MS comment, sim-store.ts: 'A full walk is ~2-3 minutes of beats'); a public demo visitor who refreshes lands back where they were. It also turns the documented 'no way to replay one phase' gap into a derived entry point that the open 'start from one SIM_PHASE' item can reuse.\n\n## Evaluation\nClaim: a reloaded walk re-enters at the chapter its board state proves it reached, without purging.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: npm run test:unit (simWalkResume.test.ts, reset-route.test.ts), then the overlay's integration gate\nResult: pending build\nGate: architecture",
+    "evidence": "useSimulationWalk.ts:151-154 `let jobId = \"\"; let targetId = \"\"; let targetLabel = \"\"; let offerToken = \"\";` inside `const run = useCallback(async () => {`; :204-206 `await fetch(\"/api/sim/reset\", { method: \"POST\", ..., body: JSON.stringify({ hold: true }) })`. route.ts:106 `const claim = beginSimRun(ws);` :111 `const cleared = resetSim(ws);` - no branch skips the purge on a claim. SimulationProvider.tsx:99 `window.addEventListener(\"pagehide\", releaseLease);`. simRunControl.ts:77 `return door.runActive || door.residue > 0 ? \"sim\" : \"ops\";`. SimControlDockSimFace.tsx:60-66 `if (!sim.done) { return (<button ... onClick={sim.start} ...> {t(\"startSim\")}`. pipeline.ts:117-140 BOARD_ENTRY_FIELDS includes jobId, jobTitle, stage, matchScore, approvalKind. leftover-develop-2026-09-17.jsonl line 676: {\"title\":\"Resume a live walk after reload from the held lease\",\"context\":\"shell-simulation-engine\",\"size\":\"M\",\"risk\":4,\"gate\":\"architecture\",\"route\":\"human\"}; absent from low-risk-drain-2026-09-22*-results.jsonl (only 'Copy the run log...' 9bacf585 and 'Run the schedule-invite walk through okJson...' d5330048 drained for this context)."
+  }
+]

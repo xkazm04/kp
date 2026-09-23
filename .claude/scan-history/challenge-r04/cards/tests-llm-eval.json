@@ -1,0 +1,109 @@
+[
+  {
+    "context": "tests-llm-eval",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Drill the shared fallback runner: coded descents for generate_with_fallback",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "pipeline/jobfit/llm/degradation.py",
+      "pipeline/jobfit/automation.py",
+      "pipeline/jobfit/llm/monitor.py",
+      "pipeline/jobfit/devcase/provenance.py",
+      "pipeline/jobfit/devcase/devcase_cli.py",
+      "pipeline/jobfit/agentfit_cli.py",
+      "pipeline/jobfit/eval/fault_eval.py",
+      "pipeline/jobfit/tests/test_fault_eval.py",
+      "pipeline/jobfit/tests/test_devcase_provenance.py",
+      "pipeline/jobfit/tests/test_llm_monitor.py",
+      "pipeline/jobfit/tests/test_fault_injection.py",
+      "docs/development/fault-injection.md"
+    ],
+    "new_files": [
+      "pipeline/jobfit/llm/degradation.py"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "generate_with_fallback with FaultProvider('malformed') on devcase analyze_need -> source 'deterministic', provider.calls == 2, artifact carries fallbackCode 'unparseable_output' (today: only free-text fallbackReason 'LLMError: ...', no code)",
+      "generate_with_fallback with FaultProvider('wrong_shape') on intake.run_intake_turn (coerce raises ValueError 'no reply') -> fallbackCode 'unusable_output', NOT 'provider_error' (today the coercer raise and a transport failure share one except at provenance.py:315-326)",
+      "generate_with_fallback with FaultProvider('hang', timeout=2) -> fallbackCode 'provider_timeout' and wall-clock <= 5s; FaultProvider('transient') -> code in {provider_timeout, provider_error}",
+      "devcase_cli _emit for a step whose provider was AVAILABLE but degraded mid-call -> emit_deterministic receives the step's code (e.g. 'unparseable_output'), not None (today devcase_cli.py:189 passes the availability descent, which is None at :337-339 when the provider was available)",
+      "collect_fallback_reasons(pop=True) removes BOTH fallbackReason and fallbackCode from the artifact, so the code never reaches a frozen devcase seat or the TS wire",
+      "monitor._reason_code('unusable_output: the provider answered but coercion kept none of it') -> 'unusable_output' (today it collapses to 'provider_error' because the prefix is not in _PROSE_TYPE_REASON)",
+      "fault_eval run_drill() includes rows for the fallback-runner seam family (analyze_need, analyze_agent_fit, run_intake_turn) across all 10 MODES, and --strict exits 0 only when every NO_PAYLOAD mode names an in-vocabulary code; a seam that degrades anonymously fails the drill",
+      "fault_eval REASONED_TASKS includes 'rematch' (automation.py:2655-2659 now records a descent via on_fallback), asserted wherever _call_was_owed is true"
+    ],
+    "premise": [
+      "pipeline/jobfit/eval/fault_eval.py:67-71 - header admits the fallback seams outside automation 'still degrade anonymously' and the drill 'can only hold that one seam to the contract'",
+      "pipeline/jobfit/eval/fault_eval.py:90 + :386-396 - the drill imports TASKS/SCENARIOS from automation_eval and iterates ONLY automation TASKS",
+      "pipeline/jobfit/devcase/provenance.py:315-326 - one try wraps complete_json AND coerce; the reason is describe_fallback(exc) free text, no code; a coercer raise is filed like a transport failure",
+      "pipeline/jobfit/automation.py:490-547 - automation._generate separates call failure (_call_failure_reason) from coercer failure ('unusable_output') - the contract generate_with_fallback lacks",
+      "15 generate_with_fallback call sites across 12 modules (agentfit, devcase analyze/baseline/chat/design/evaluate/interview_scenario/reflect/seed_materializer, intake, jobseeker, repo_scan) - grep '= generate_with_fallback(|return generate_with_fallback('",
+      "pipeline/jobfit/intake.py:1636-1640 - intake turn coerce raises ValueError('intake turn returned no reply') on any payload lacking reply",
+      "pipeline/jobfit/devcase/devcase_cli.py:337-339 + :189 - descent is None when the provider was available, and that None is what emit_deterministic gets for a mid-call degradation; same shape at pipeline/jobfit/agentfit_cli.py:62-74",
+      "pipeline/jobfit/llm/monitor.py:176-197 - _reason_code collapses any non-code prose to _PROSE_TYPE_REASON or 'provider_error'; UNUSABLE_OUTPUT_REASON (provenance.py:124) starts 'unusable_output:' and so lands as provider_error",
+      "Four classifiers of one taxonomy: automation._call_failure_reason (automation.py:440), automation._classify_fallback_text (automation.py:464), monitor._failure_reason (monitor.py:146), monitor._reason_code (monitor.py:176)",
+      "pipeline/jobfit/eval/fault_eval.py:98-105 - REASONED_TASKS excludes rematch claiming match_reasoning 'has not adopted the vocabulary', but automation.py:2655-2659 now records rematch's descent via on_fallback -> the exclusion is stale",
+      "docs/development/fault-injection.md:185-193 Known gaps still describes four private _generate copies; they now delegate to provenance.generate_with_fallback (e.g. devcase/analyze.py:31-35)"
+    ],
+    "rollback": "Additive seam: degradation.py is new, automation/monitor keep their public names as re-exports, fallbackCode is a new popped key, and fault_eval's new seam family is a separate list. Reverting the commit series restores the automation-only drill and the free-text reasons with no data migration (the ledger reason column is text; rows already written with a code stay valid words of DEGRADATION_REASONS).",
+    "gate": "policy-tighten",
+    "runner_up": "Collapse test:eval:ci's four-way && chain into one runner that reports every eval's verdict even after the first fails (today a red match eval hides whether automation/fault/intake also regressed).",
+    "technique": "structured-propagation",
+    "body": "## Summary\nThe fault drill, a CI gate, only covers the automation tasks. `devcase/provenance.generate_with_fallback` is the runner that 15 other LLM call sites share, and it is never drilled. When it degrades partway through a call, the ledger records no reason: it writes only free text, and it cannot tell a paid-but-unusable answer apart from a transport failure. This card lifts the degradation taxonomy into one `llm/degradation.py`. The runner then stamps a coded reason, the devcase and agentfit CLIs pass that reason to the ledger, and fault_eval gains a second family of seams.\n\n## Description\nToday there are four classifiers for one vocabulary: `automation._call_failure_reason`, `automation._classify_fallback_text`, `monitor._failure_reason` and `monitor._reason_code`. Only the automation seam puts a coded reason on the wire. `generate_with_fallback` wraps both the call and the coercion in one `try` and records `describe_fallback(exc)` prose. The devcase and agentfit CLIs then call `emit_deterministic` with the availability descent, which is `None` whenever the provider was available. So every devcase, intake, jobseeker and repo-scan degradation that happens after the gate said yes reaches the ledger with no reason. That is exactly the anonymity fault_eval's header was written to refuse. The fault drill cannot see it, because it imports automation's TASKS and nothing else.\n\n## Flow\n1. New `llm/degradation.py` holds `DEGRADATION_REASONS` and `classify(exc)`, which reads the subtype. `automation` and `monitor` import it and keep their old names as aliases.\n2. `generate_with_fallback` splits the call from the coercion, the way `automation._generate` already does. It stamps `fallbackCode` beside `fallbackReason`, and `collect_fallback_reasons` pops both.\n3. `devcase_cli._emit` and `agentfit_cli` pass `descent or step_code` to `emit_deterministic`.\n4. `monitor._reason_code` accepts a leading code token.\n5. fault_eval gets `FALLBACK_SEAMS`: `analyze_need`, `analyze_agent_fit` and `run_intake_turn`, each with its own run and check. The same `EXPECTATIONS` apply: WIRE, BOUND, CLOCK and REASON, where the reason is read from the stamped code. `rematch` joins `REASONED_TASKS`.\n6. Regenerate the doc table and rewrite the Known-gaps paragraph.\n\n## Expected impact\nThe fallback runner behind 15 call sites is held to the same degradation contract as automation, on every push, with no API key. An operator reading the Models usage ledger can now tell 'no key' from 'the provider answered with prose' for devcase, agentfit and intake traffic. The taxonomy is defined once, not four times. The drill's stale `rematch` exemption and the stale doc gap are both closed.\n\n## Evaluation\nClaim: every mid-call descent of the shared fallback runner is coded, ledgered and drilled.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: policy-tighten. The new cases are in test_fault_eval, test_devcase_provenance and test_llm_monitor, plus `npm run test:eval:fault` (inside test:eval:ci) and `npm run test:python:gate`.\nResult: pending build.\nGate: policy-tighten. The CI eval gate covers more seams and loses nothing.",
+    "evidence": "fault_eval.py:67-71: 'STILL NOT COVERED ... devcase/{analyze,design,evaluate,reflect}.py and in match_reasoning ... Those still degrade anonymously. This drill runs the automation tasks, so it can only hold that one seam to the contract'. fault_eval.py:90: 'from .automation_eval import SCENARIOS, TASKS'. fault_eval.py:388-393 builds items only over TASKS x SCENARIOS_UNDER_FAULT. provenance.py:315-326: 'try: payload = _complete_json(...); result = coerce(payload) except Exception as exc: reason = describe_fallback(exc) ... result[FALLBACK_REASON_KEY] = reason'. intake.py:1640: 'raise ValueError(\"intake turn returned no reply\")'. devcase_cli.py:337: 'descent = \"disabled\" if args.no_llm else None'; :339 'ok, descent = provider_availability(provider)'; :189 'emit_deterministic(use_case, reason=descent_reason)'. agentfit_cli.py:62-74 same shape. monitor.py:194-197: 'if _REASON_CODE.match(token): return token / return _PROSE_TYPE_REASON.get(token.split(\":\", 1)[0].strip(), \"provider_error\")'. provenance.py:124 UNUSABLE_OUTPUT_REASON = 'unusable_output: the provider answered but coercion kept none of it' (contains spaces, so _REASON_CODE fails and it maps to provider_error). grep count: 15 generate_with_fallback call sites in 12 modules. automation.py:2655-2659: '_note_degradation(None); reasoning, source = generate_reasoning(..., on_fallback=lambda text: _note_degradation(_classify_fallback_text(text)))' vs fault_eval.py:99-104 'rematch ... has not adopted the vocabulary, so it still degrades anonymously'. Prior decks: only llm-api cards touch the LLM layer (sim-door gate, routing rows), not this seam. The open leftover 'Run FaultProvider against complete_document / cv_analysis' targets the gemini extraction path, a different seam, and is not restated here."
+  },
+  {
+    "context": "tests-llm-eval",
+    "slot": "B-architecture (no UI surface)",
+    "lens": "architecture-challenger",
+    "title": "Keyless evals certify their own recorded measurement, not a hand-typed one",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "pipeline/jobfit/eval/thresholds.py",
+      "pipeline/jobfit/eval/measurements.json",
+      "pipeline/jobfit/eval/matching_eval.py",
+      "pipeline/jobfit/eval/automation_eval.py",
+      "pipeline/jobfit/eval/fault_eval.py",
+      "pipeline/jobfit/eval/intake_eval.py",
+      "pipeline/jobfit/tests/test_thresholds.py",
+      "pipeline/jobfit/tests/test_automation_eval.py",
+      "pipeline/jobfit/tests/test_intake_eval.py",
+      "docs/development/testing-and-evaluation.md"
+    ],
+    "new_files": [
+      "pipeline/jobfit/eval/measurements.json"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "thresholds.certify_live({'MATCHING_THRESHOLDS.role_relevance_at5': (0.857, n)}) with recorded 0.857/n -> [] (no finding)",
+      "certify_live with live 0.95 vs recorded 0.857 on a deterministic bar -> one finding naming the bar, both figures and the `--record` command; matching_eval --strict then exits 1",
+      "certify_live with the same rate 1.0 but n 43 vs recorded 42 (automation task-runs) -> finding 'corpus size moved', so the scenario-count claim in the corpus string can no longer drift silently",
+      "a non-deterministic bar (PASS_THRESHOLDS.role_family, keyed Gemini pilot) is never live-certified: differing live figures produce no finding",
+      "matching_eval --record rewrites only its three bars' measured/n/measured_at in measurements.json and leaves every other entry byte-identical",
+      "thresholds import with a deterministic bar missing from measurements.json -> ValueError at import (a deterministic bar must carry a record)",
+      "every module invoked by package.json test:eval:ci (matching, automation --no-llm, fault, intake --no-llm) owns at least one Bar in all_bars() (today intake_eval imports nothing from thresholds)"
+    ],
+    "premise": [
+      "pipeline/jobfit/eval/thresholds.py:101 + :168-176 - role_relevance_at5 measured=0.857, measured_at 2026-09-04, typed by hand; nothing re-derives it",
+      "pipeline/jobfit/eval/thresholds.py:17-22 - the module exists because a bar drifted 26 points under an unrecorded live figure (0.60 vs 0.857)",
+      "pipeline/jobfit/eval/thresholds.py:99-100 - 'The matching eval has no model in the loop: same corpus, same code, same number every run' - the live figure is exactly checkable",
+      "pipeline/jobfit/tests/test_thresholds.py:151-162 - SlackTest compares the bar to the RECORDED measurement only; no test compares the record to a live run",
+      "pipeline/jobfit/eval/thresholds.py:189-191 - RELIABILITY corpus 'automation_eval.SCENARIOS (42 task-runs)' is a hand-typed count (live today: 7 TASKS x 6 SCENARIOS = 42)",
+      "pipeline/jobfit/eval/matching_eval.py:595-597 and automation_eval.py:473 - --strict compares only against the bar value, never against the recorded measurement",
+      "package.json test:eval:ci runs intake_eval --no-llm --strict, but pipeline/jobfit/eval/intake_eval.py imports nothing from thresholds (grep THRESHOLD: no hit), so 'single source of truth for every eval pass/fail threshold' (thresholds.py:1) is false for one of the four gated evals"
+    ],
+    "rollback": "measurements.json is read by thresholds.py only. Reverting inlines the figures back into the Bar literals and drops certify_live and the --record flags. No gate loses a check it had before this change.",
+    "gate": "policy-tighten",
+    "runner_up": "A single `eval:ci` runner that aggregates the four keyless verdicts into one scoreboard (bar / live / recorded / slack) instead of npm && short-circuiting on the first red.",
+    "technique": "counted-set-snapshot",
+    "body": "## Summary\nThe keyless evals already compute their figures fresh on every push. The `measured` figure each bar is judged against was typed into thresholds.py by hand on 2026-09-04. This card moves the measurements into a data file. Each deterministic eval gets `--record`, and a strict run fails when the live figure (or its n) no longer matches the record. A stale measurement then turns red instead of quietly widening the slack.\n\n## Description\nthresholds.py was written because `role_relevance_at5` sat 26 points under what the engine measured. Its fix is to compare each bar to a recorded measurement within a slack. But the record is prose in a Python literal, and nothing checks it against the run that produced it. If a matching change lifts relevance@5 to 0.95, the record still says 0.857. The bar stays at 0.84, and a later regression back to 0.86 ships green. That is the same 0.60-vs-0.857 blindness, re-opened one layer up. For the three evals with no model in the loop (matching, automation --no-llm, fault), live equals measured by construction, so the check is exact and has no flake budget. The same pass also puts intake_eval, the fourth gated eval, under a Bar, so the single-source claim is actually true.\n\n## Flow\n1. `eval/measurements.json` holds measured, n, measured_at, source, corpus and deterministic for each bar name. thresholds.py builds each Bar from it and validates it as it does today.\n2. `thresholds.certify_live(live)` returns findings for deterministic bars whose live value or n differs from the record.\n3. matching_eval, automation_eval (only with `--no-llm`), fault_eval and intake_eval call it under `--strict`. A finding prints the bar, both figures and the re-record command, then exits 1.\n4. `--record` rewrites only that eval's entries, dated today. The committed diff is the review.\n5. Update the doc section on bars and ratchets.\n\n## Expected impact\nA figure recorded for a deterministic bar can no longer go stale without a red CI run. The --tighten ratchet then always works from a true measurement. Scenario-count claims ('42 task-runs') become checked data rather than prose. All four gated evals read their bar from one place.\n\n## Evaluation\nClaim: every deterministic bar's recorded measurement equals the live keyless run, or CI is red.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: policy-tighten. test_thresholds, test_automation_eval and test_intake_eval cases, plus `npm run test:eval:ci` green on the recorded tree.\nResult: pending build.\nGate: policy-tighten. The CI eval gate gains a staleness check and loses nothing.",
+    "evidence": "Live run 2026-09-23: `python -m pipeline.jobfit.eval.matching_eval --json` -> {'archetype_accuracy': 1.0, 'role_relevance_at5': 0.857, 'entry_precision': 1.0}; `automation_eval --no-llm --json` aggregate -> {'reliability': 1.0, 'total': 42, 'reliable': 42}. The records match today, but only because nobody has moved the engine since 2026-09-04, and nothing would notice if someone did. thresholds.py:101: '_MATCH = dict(measured_at=\"2026-09-04\", source=\"matching_eval --json\", corpus=\"data/seed_jobs (committed corpus)\")'. thresholds.py:174: 'measured=0.857'. thresholds.py:191: 'corpus=\"automation_eval.SCENARIOS (42 task-runs)\"'. test_thresholds.py:151-162 checks only bar.within_slack against the recorded measured. matching_eval.py:595: 'if args.strict and not report.passes(): return 1'. intake_eval.py: grep 'thresholds|THRESHOLD' returns no hits. package.json:46 test:eval:ci = match && automation && fault && intake. Not on any prior deck or backlog: the leftover titles for this context are routing and exemption pins, token ceilings, gateway schemas, FaultProvider on cv_analysis and QUALITY_SCORES pins."
+  }
+]
