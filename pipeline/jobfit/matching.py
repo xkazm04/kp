@@ -25,6 +25,7 @@ from typing import Any, Literal, NamedTuple
 from pydantic import Field, field_validator
 
 from . import registry
+from .education import education_gate, is_degree_unstated
 from .jobs import Job
 from .market_config import ACTIVE_MARKET
 from .models import _Base
@@ -42,7 +43,6 @@ from .taxonomy import (
 )
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
-_EDU_RANK = {"none": 0, "high_school": 1, "university": 2, "bachelor": 3, "master": 4, "phd": 5}
 
 # Language alias buckets so "Czech (native)" satisfies a "Czech" requirement. Now
 # data-driven (data/taxonomy.json::language_aliases, loaded + validated in
@@ -382,11 +382,11 @@ def ko_filter(candidate: MatchCandidate, job: Job) -> tuple[bool, list[KoReason]
         if not entry_ok and (job_rank - cand_rank) >= 2:
             reasons.append(KoReason(key="seniority", detail=f"seniority gap ({candidate.seniority} candidate vs {job.seniority} role)"))
 
-    # Minimum education (skip when the candidate's level is unknown — uncertainty).
-    if job.min_education and job.min_education != "none":
-        cand_edu = _EDU_RANK.get(candidate.education_level)
-        if cand_edu is not None and cand_edu < _EDU_RANK.get(job.min_education, 0):
-            reasons.append(KoReason(key="education", detail=f"below minimum education ({job.min_education})"))
+    # Minimum education: only a MEASURED shortfall knocks out. An unknown level, and
+    # a school named with no degree ("university" on the candidate side), are
+    # "uncertain" — they widen the band (_confidence) instead (education.py).
+    if education_gate(candidate.education_level, job.min_education) == "below":
+        reasons.append(KoReason(key="education", detail=f"below minimum education ({job.min_education})"))
 
     # Required languages (lenient: skip when the candidate lists none).
     if candidate.languages:
@@ -977,7 +977,9 @@ _BAND_MODERATE_AT = 8
 _BAND_WIDE_AT = 12
 
 
-def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str]) -> Confidence:
+def _confidence(
+    candidate: MatchCandidate, total: int, missing_musts: list[str], job_min_education: str | None = None
+) -> Confidence:
     """Honest score band + the specific reasons it is wide.
 
     Each uncertainty source both widens the band and records a recruiter-readable
@@ -1008,6 +1010,13 @@ def _confidence(candidate: MatchCandidate, total: int, missing_musts: list[str])
     if candidate.education_level == "unknown":
         spread += 4
         add("Education level unknown", "eduUnknown")
+    elif is_degree_unstated(candidate.education_level) and (
+        education_gate(candidate.education_level, job_min_education) == "uncertain"
+    ):
+        # The CV names a school but no degree, and the role asks for more than "any
+        # degree": the floor is unverified, not failed — widen, never KO.
+        spread += 4
+        add("Degree not stated: the CV names a school but no degree title", "eduDegreeUnstated")
     if not candidate.languages:
         spread += 4
         add("No languages listed", "noLanguages")
@@ -1100,7 +1109,7 @@ def score_job(
         career_score=career,
         personal_score=personal,
         score_breakdown=breakdown,
-        confidence=_confidence(candidate, total, missing),
+        confidence=_confidence(candidate, total, missing, job.min_education),
         matched_skills=matched,
         # DISPLAY provenance — deliberately NOT `provenance_default` (UAT RECON-02).
         # provenance_default is "professional" for every BAU candidate, so falling
@@ -1184,6 +1193,12 @@ def _candidate_assumption_pairs(candidate: MatchCandidate) -> list[tuple[str, La
 
     if candidate.education_level == "unknown":
         add("Education level unknown — not penalized (absence of evidence, not a fail).", "eduUnknown")
+    elif is_degree_unstated(candidate.education_level):
+        add(
+            "Degree not stated — the CV names a school but no degree title; a degree floor is "
+            "treated as unverified, not failed.",
+            "eduDegreeUnstated",
+        )
     if not candidate.languages:
         add("No languages listed — language KO skipped rather than failed.", "noLanguages")
     if candidate.archetype in _EARLY_CAREER:
