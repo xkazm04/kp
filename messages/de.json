@@ -3336,7 +3336,8 @@
       "slaLocalOffer": "Dieser Browser enthält noch {count, plural, one {# Zeitraum} other {# Zeiträume}} aus der Zeit, bevor sie mit dem Team geteilt wurden: {list}.",
       "slaLocalItem": "{stage} {days, plural, one {# Tag} other {# Tage}}",
       "slaLocalAdopt": "Für das Team übernehmen",
-      "slaLocalDiscard": "Verwerfen"
+      "slaLocalDiscard": "Verwerfen",
+      "selectionDeparted": "{count, plural, one {# ausgewählte Person hat das Board verlassen (anderswo abgeschlossen) und wurde abgewählt} other {# ausgewählte Personen haben das Board verlassen (anderswo abgeschlossen) und wurden abgewählt}}"
     },
     "emptyState": {
       "optional": "Optional",

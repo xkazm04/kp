@@ -3336,7 +3336,8 @@
       "slaLocalOffer": "Ce navigateur conserve encore {count, plural, one {# délai} other {# délais}} datant d'avant leur partage avec l'équipe : {list}.",
       "slaLocalItem": "{stage} {days, plural, one {# jour} other {# jours}}",
       "slaLocalAdopt": "Appliquer à l'équipe",
-      "slaLocalDiscard": "Ignorer"
+      "slaLocalDiscard": "Ignorer",
+      "selectionDeparted": "{count, plural, one {# candidat sélectionné a quitté le tableau (clôturé ailleurs) et a été désélectionné} other {# candidats sélectionnés ont quitté le tableau (clôturés ailleurs) et ont été désélectionnés}}"
     },
     "emptyState": {
       "optional": "Facultatif",

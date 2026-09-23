@@ -3336,7 +3336,8 @@
       "slaLocalOffer": "This browser still holds {count, plural, one {# cadence} other {# cadences}} from before cadences were shared with the team: {list}.",
       "slaLocalItem": "{stage} {days, plural, one {# day} other {# days}}",
       "slaLocalAdopt": "Apply to the team",
-      "slaLocalDiscard": "Discard"
+      "slaLocalDiscard": "Discard",
+      "selectionDeparted": "{count, plural, one {# selected candidate left the board (closed elsewhere) and was deselected} other {# selected candidates left the board (closed elsewhere) and were deselected}}"
     },
     "emptyState": {
       "optional": "Optional",

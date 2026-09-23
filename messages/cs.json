@@ -3336,7 +3336,8 @@
       "slaLocalOffer": "Tento prohlížeč stále uchovává {count, plural, one {# lhůtu} few {# lhůty} other {# lhůt}} z doby, kdy se lhůty s týmem nesdílely: {list}.",
       "slaLocalItem": "{stage} {days, plural, one {# den} few {# dny} other {# dní}}",
       "slaLocalAdopt": "Použít pro tým",
-      "slaLocalDiscard": "Zahodit"
+      "slaLocalDiscard": "Zahodit",
+      "selectionDeparted": "{count, plural, one {# vybraný kandidát opustil nástěnku (uzavřen jinde) a výběr u něj byl zrušen} few {# vybraní kandidáti opustili nástěnku (uzavřeni jinde) a výběr u nich byl zrušen} other {# vybraných kandidátů opustilo nástěnku (uzavřeni jinde) a výběr u nich byl zrušen}}"
     },
     "emptyState": {
       "optional": "Volitelné",
