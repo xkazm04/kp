@@ -1,0 +1,121 @@
+[
+  {
+    "context": "llm-api",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Make the sim doors' 'demo corpus only' exemption true: one (SIM)-row gate",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/sim-entry.ts",
+      "app/_lib/sim-entry.test.ts",
+      "app/api/sim/screen-draft/route.ts",
+      "app/api/sim/offer-draft/route.ts",
+      "app/api/sim/offer-link/route.ts",
+      "app/api/sim/offer-link/offer-link-scope.test.ts",
+      "app/api/sim/sim-door-contract.test.ts",
+      "app/api/route-capability-coverage.test.ts",
+      "e2e/token-doors-axe.spec.ts",
+      "docs/features/simulation/README.md",
+      "scripts/docs/feature-doc-map.json"
+    ],
+    "new_files": [
+      "app/_lib/sim-entry.ts",
+      "app/_lib/sim-entry.test.ts",
+      "app/api/sim/sim-door-contract.test.ts"
+    ],
+    "shared_surfaces": [
+      "scripts/docs/feature-doc-map.json"
+    ],
+    "acceptance": [
+      "sim-entry: resolveSimEntry(id, ws) for an entry in ws whose jobTitle carries the (SIM) marker -> returns the entry",
+      "sim-entry: resolveSimEntry(id, ws) for a REAL (unmarked) active entry in the caller's own ws -> null (the caller answers SIM_ENTRY_NOT_FOUND 404, indistinguishable from a missing id)",
+      "sim-entry: resolveSimEntry(id, otherWs) for a (SIM) entry of another team -> null (tenant scoping kept)",
+      "POST /api/sim/offer-draft {entryId: <real seeded entry>} -> 404 SIM_ENTRY_NOT_FOUND and the entry's approval_kind/approval_detail are byte-identical before and after",
+      "POST /api/sim/screen-draft {entryId: <real entry with a pending approval>} -> 404 and the pending approval is not overwritten; the same call on a (SIM) entry -> 200 and approval_kind 'screening_review'",
+      "GET /api/sim/offer-link?entryId=<real entry with an open offer> -> 404, no token in the body; for a (SIM) entry with an open offer -> 200 {token}",
+      "sim-door-contract (source scan): no app/api/sim/**/route.ts imports getPipelineEntry, setApproval or getOpenOfferForEntry directly - every by-id entry read goes through resolveSimEntry; a new sim route that does otherwise is red",
+      "e2e token-doors-axe: the offer token is minted on a (SIM) entry created through POST /api/sim/inbound (not on the first seeded active entry) and the offer page still passes axe"
+    ],
+    "premise": [
+      "app/api/sim/offer-draft/route.ts:26-28 resolves the entry with getPipelineEntry(entryId, workspaceId) and never checks isSimTitle(entry.jobTitle); :56 then calls setApproval(entryId, \"offer_review\", ...) on whatever entry that is",
+      "app/api/sim/screen-draft/route.ts:22-24 same unmarked lookup; :38 setApproval(entryId, \"screening_review\", ...)",
+      "app/api/sim/offer-link/route.ts:29-38 returns the open offer's token for any entry in the caller's team; its own comment :19-21 states /api/offer/<token> is a PUBLIC route whose POST accepts or declines on the candidate's behalf (app/api/offer/[token]/route.ts:44, public-routes.ts:76)",
+      "app/_lib/db/pipeline.ts:2831-2860 setApproval overwrites approval_kind/approval_detail unconditionally unless opts.expectedApprovalKind is passed - the sim routes pass none",
+      "no app/api/sim/*/route.ts calls requireOperator, requireCapability or isSimTitle (grep over the six route files returns nothing); proxy.ts:133 admits any valid session, so any seat - a viewer included - reaches them",
+      "app/api/route-capability-coverage.test.ts:179,181 exempts sim/offer-draft and sim/screen-draft from the capability ratchet with the reason \"guided-sim sandbox - writes only the demo corpus\", which the code does not enforce",
+      "e2e/token-doors-axe.spec.ts:122-128 picks the FIRST seeded active entry (a real, unmarked row) and :145 POSTs /api/sim/offer-draft on it, :151 reads its token back through /api/sim/offer-link - the repo's own spec uses the sim door on a non-sim candidate",
+      "the demo marker already exists and is the reset/analytics authority: app/features/shell/simulation/constants.ts:21-29 (isSimTitle / markSimTitle), app/_lib/cv-intake.ts:176-177 (simCvIntakeTarget), app/_lib/comms-dispatch.ts:257-258 (only a (SIM) title is kept off the real channel) - so a sim-drafted offer on a real entry is extended through the REAL channel"
+    ],
+    "rollback": "The series is additive-then-narrowing: sim-entry.ts plus its callers in three routes, one contract test and one e2e fixture change. Reverting the commits restores the unmarked lookups exactly; no schema, no migration, no catalog key (the refusal reuses the existing SIM_ENTRY_NOT_FOUND code).",
+    "gate": "policy-tighten",
+    "runner_up": "One canary probe seam for /api/llm/test + /api/llm/keys/test: shared spawn/verdict/log, the Python availability reason (base.AVAILABILITY_REASONS, which verdict.ts:70 collapses into one 'unavailable') carried as a lockstepped code, and the keys route's three English-prose errors plus both catch paths' forwarded error.message turned into codes.",
+    "technique": "runtime-dispatch-not-build-flag",
+    "body": "## Summary\nThe guided simulation's write doors (`/api/sim/screen-draft`, `/api/sim/offer-draft`, `/api/sim/offer-link`) are exempted from the capability ratchet because they \"write only the demo corpus\" - but nothing makes that true. They resolve ANY entry in the caller's team, overwrite its pending approval with a fabricated draft, and hand back a real candidate's offer capability token. Put every sim by-id read behind one gate that admits only (SIM)-marked rows, and pin it with a source contract so the exemption reason becomes a property of the code.\n\n## Description\nThe demo plane and the real plane share the pipeline store, and the only thing separating them is the `(SIM)` title marker - which the reset, the analytics filter and comms dispatch all honour, and which three of the six sim doors ignore. Any signed-in seat (a viewer too: the routes ask no capability, the proxy admits every valid session) can post an entry id and (a) replace a real candidate's pending screening or offer approval with the sim's canned draft - the next recruiter click on \"Send offer\" mails that fabricated salary to a real person through the real channel, because comms-dispatch only diverts (SIM) titles; (b) read the open offer token of a real candidate and accept or decline on their behalf through the public `/api/offer/<token>` door. The repo's own e2e spec (`token-doors-axe`) already drives the sim offer door against a seeded real entry, which is the proof that the door reaches the real corpus.\n\nThe move is structural, not a patch per route: a `resolveSimEntry(entryId, workspaceId)` in `app/_lib/sim-entry.ts` that is the ONLY way a sim route reads an entry by id (tenant-scoped AND `isSimTitle`), a contract test that fails when a sim route imports the raw store accessors, and the e2e fixture moved onto a (SIM) entry minted through `/api/sim/inbound`. The refusal is the existing `SIM_ENTRY_NOT_FOUND` 404, so a real id is indistinguishable from a missing one and no catalog key is added.\n\n## Flow\n1. Write `sim-entry.test.ts` against the unit DB: one (SIM) entry, one real entry in the same team, one (SIM) entry in another team - cases 1-3 red.\n2. Add `resolveSimEntry` (reads with the workspace, returns null unless `isSimTitle(entry.jobTitle)`).\n3. Route screen-draft, offer-draft and offer-link through it; offer-link keeps its offer-workspace belt-and-braces check.\n4. Add `sim-door-contract.test.ts` (source scan over app/api/sim/**) and update `offer-link-scope.test.ts`'s regexes to the new call.\n5. Make the capability-ratchet reason in `route-capability-coverage.test.ts` cite the gate, so the exemption names the thing that makes it true.\n6. Move `e2e/token-doors-axe.spec.ts`'s offer mint onto a (SIM) entry (POST /api/sim/inbound on the seeded entry's job, then offer-draft / accept / offer-link on the returned entryId); the erasure and invite tokens stay on the real entry.\n7. Doc: the simulation README states the containment rule; map `app/api/sim/**` to it in feature-doc-map.json so the next edit is watched.\n\n## Expected impact\nCloses two concrete integrity paths from any seat to a real candidate (a fabricated offer that the real channel then sends; a real offer token handed to a non-recruiter) and turns an asserted exemption into an enforced one. The guided demo is unaffected: every entry it touches sits on the (SIM) job or a `markSimTitle` intake row. Future sim doors inherit the containment by construction instead of by remembering it.\n\n## Evaluation\nClaim: no sim door can read or mutate an entry that is not (SIM)-marked, and the demo walk still completes.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test (sim-entry.test.ts, route-level tests, sim-door-contract.test.ts) plus the token-doors-axe Playwright spec against a prod build.\nResult: pending build.\nGate: npm run test:unit; npm run lint; npx tsc --noEmit; npm run docs:check; e2e/token-doors-axe.spec.ts.",
+    "evidence": "grep -n \"requireOperator\\|requireCapability\\|isSimTitle\" app/api/sim/*/route.ts -> (no output)\n\napp/api/sim/offer-draft/route.ts:27-28\n    const entry = getPipelineEntry(entryId, workspaceId);\n    if (!entry) return jsonRefusal(\"SIM_ENTRY_NOT_FOUND\", 404);\napp/api/sim/offer-draft/route.ts:56\n    setApproval(entryId, \"offer_review\", JSON.stringify(draft), entry.workspaceId);\n\napp/api/route-capability-coverage.test.ts:179,181\n  [\"sim/offer-draft/route.ts\", \"guided-sim sandbox — writes only the demo corpus\"],\n  [\"sim/screen-draft/route.ts\", \"guided-sim sandbox — writes only the demo corpus\"],\n\ne2e/token-doors-axe.spec.ts:125-128,145\n  const entry = entries.find((e) => e.status === \"active\");\n  const entryId = entry!.id;\n  ...\n  const drafted = await page.request.post(\"/api/sim/offer-draft\", { data: { entryId } });\n\napp/_lib/comms-dispatch.ts:257-258\n  async function sendCommUnlessSim(msg, jobTitle) {\n    if (!isSimTitle(jobTitle)) return sendComm(msg);\n\napp/_lib/db/pipeline.ts:2841,2855-2857 - the approval UPDATE re-asserts approval_kind only when opts.expectedApprovalKind is supplied."
+  },
+  {
+    "context": "llm-api",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Routing rows show what each use case actually served, and the repair to make",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 4,
+    "write_set": [
+      "app/_lib/db/llm.ts",
+      "app/api/llm/config/route.ts",
+      "app/api/llm/config/routing-health.test.ts",
+      "app/features/settings/models/modelsRoutingHealth.ts",
+      "app/features/settings/models/modelsRoutingHealth.test.ts",
+      "app/features/settings/models/ModelsRoutingPanel.tsx",
+      "app/features/settings/models/ModelsRoutingRow.tsx",
+      "pipeline/jobfit/companion_cli.py",
+      "pipeline/jobfit/tests/test_companion_cli.py",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/llm-provider-layer.md"
+    ],
+    "new_files": [
+      "app/api/llm/config/routing-health.test.ts",
+      "app/features/settings/models/modelsRoutingHealth.ts",
+      "app/features/settings/models/modelsRoutingHealth.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "classify: use case pinned to gemini at T0; ledger since T0 = 3 rows source 'llm' outcome 'ok' provider gemini model m -> state 'serving', served {provider: gemini, model: m}, lastAt = newest ts",
+      "classify: pinned use case; ledger since pin = 2 rows source 'deterministic' reason 'missing_key', 0 llm rows -> state 'falling_back', reason 'missing_key', repair 'keys' (links ?modelSec=keys)",
+      "classify: newest ledger row since pin is outcome 'failed' reason 'provider_timeout' after earlier ok rows -> state 'failing', reason 'provider_timeout', repair 'test'",
+      "classify: rows exist only BEFORE the pin's updatedAt -> state 'unproven' (pinned, no traffic since the re-pin), not 'serving' - the old provider's success is not credited to the new pin",
+      "classify: pinned to openai; llm rows since the pin were served by claude_cli -> state 'drift' naming the served provider",
+      "classify: unpinned (Default) use case with llm rows served by gemini -> state 'serving' with served.provider gemini, so 'Default' names what it resolved to; no rows in the window -> 'idle'",
+      "GET /api/llm/config returns `health` keyed by every LLM_USE_CASES id present in the window, computed since max(window start, pin.updatedAt); ledger-only use cases outside the catalog (e.g. key_probe) are absent; rows/providers/useCases unchanged",
+      "pytest: companion_cli._complete with a provider whose availability() is (False, 'offline_policy') writes one ledger line {use_case: 'assistant', source: 'deterministic', reason: 'offline_policy'} and still returns fallbackReason 'no provider available' (companionFallbackClass keeps matching)"
+    ],
+    "premise": [
+      "app/features/settings/models/ModelsRoutingRow.tsx:173-178 - the row's only state is a Pinned/Default badge (statePinned/stateDefault) plus an 'Updated <date>' line (:142-146): configuration, never outcome",
+      "app/features/settings/models/ModelsRoutingRow.tsx:56 - a canary verdict lives in component state (`note`) and is gone on reload or section switch; nothing persists what the last Test found",
+      "app/api/llm/config/route.ts:35-43 - GET returns rows + providers + useCases only",
+      "app/_lib/llm-usage-ledger.ts:47,55 and app/_lib/db/llm.ts:419-462 - every ledger row already carries use_case, provider, model, source ('llm'|'deterministic'), outcome and a closed-vocabulary reason; app/_lib/db/llm.ts:506-547 (aggregateLlmUsage, the only rollup) groups by day x use_case x provider x model and never splits source, so no reader can say 'this use case is being served by the template fallback'",
+      "pipeline/jobfit/llm/registry.py:219-231 - an unpinned file-input use case resolves to Gemini, not the CLI: the 'Default' badge hides which provider serves it",
+      "pipeline/jobfit/companion_cli.py:361-362 - the assistant use case checks a bare provider.available() and returns 'no provider available' without provider_availability or emit_deterministic, unlike pipeline/jobfit/repo_scan_cli.py:68,88 which records the descent reason; so the ledger never shows the companion's fallback serves",
+      "app/features/settings/models/ModelsTab.tsx:51-52 - the Keys section is already addressable by ?modelSec=keys, so a 'fix the key' repair can be a link, not a new route"
+    ],
+    "rollback": "Additive on every layer: one new read in db/llm.ts, one new field on the GET payload, one pure module, a chip column in the row, four catalog blocks, and one ledger emit in companion_cli. Reverting the commits removes the field and the chip; no table, column or migration is introduced (llm_usage and llm_config are already deployment-wide and tenancy-exempt).",
+    "gate": "none",
+    "runner_up": "Persist the last canary verdict per (use case, pin updatedAt) so a Test result survives reload and marks the pin proven/failing - rejected as second-best because the ledger already records every real serve and a stored verdict would be a second, staler truth.",
+    "technique": "probe-the-grant-not-the-config",
+    "body": "## Summary\nThe Models > Routing table tells an operator what is PINNED, never what is SERVING. The usage ledger already records, per call, the use case, the provider and model that answered, whether the deterministic template served instead, whether the call failed, and a closed-vocabulary reason. Surface that per row - since the pin was last changed - as a health state with the one repair it calls for.\n\n## Description\nToday the operator re-pins blind. A use case pinned to a provider whose key was removed quietly falls back to templates; a pin that times out every morning shows the same blue Pinned badge as one that works; a Default row does not say it resolves to Gemini for file inputs; and the only way to learn any of it is to press Test (a billable canary whose verdict disappears on reload) or to cross-read Insights > Activity by hand. The data to answer all of it is in `llm_usage`; the table just never reads it.\n\nThe card adds a per-use-case health read (`routingHealth` in db/llm.ts, windowed and cut at each pin's `updatedAt` so a new pin is never credited with its predecessor's traffic), a pure classifier (`modelsRoutingHealth.ts`: serving / falling_back / failing / drift / unproven / idle, plus a repair: keys section, Test, or none), and a chip + one-line hint per row. The one blind spot in the ledger that would make the `assistant` row lie is closed at its source: companion_cli records its availability descent the way repo_scan_cli already does, keeping its prose fallbackReason intact for the dock's classifier.\n\n## Flow\n1. Write `modelsRoutingHealth.test.ts` (cases 1-6) and `routing-health.test.ts` (case 7) against the unit DB with `insertLlmUsage` fixtures - red.\n2. db/llm.ts: `routingHealth(sinceDays)` - one grouped read joined to llm_config for the per-use-case cutoff, returning counts by source/outcome plus the newest row's provider/model/outcome/reason.\n3. `modelsRoutingHealth.ts`: pure classifier from (pin row | null, health row | undefined) to {state, reason, served, lastAt, repair}.\n4. GET /api/llm/config adds `health`; the panel threads it into each row.\n5. ModelsRoutingRow: the State cell keeps Pinned/Default and gains the health chip, a hint resolved from `models.routing.health.*` (reason codes fall back to a generic line when unknown), and a Keys link for key-shaped reasons.\n6. companion_cli: `provider_availability` + `emit_deterministic(\"assistant\", reason=descent)` on the unavailable path; pytest case 8.\n7. Catalog keys in all four locales; llm-provider-layer.md documents the read and the states.\n\n## Expected impact\nThe routing decision stops being blind: an operator sees which use cases are silently on the template floor, failing, drifted or unproven since a re-pin, and gets the exact next step, without a billable Test click or a trip to another tab. Keyless installs see every row honestly as falling back with a named reason instead of a uniform 'Default'.\n\n## Evaluation\nClaim: every routing row reports what served it since the pin changed and the repair that applies.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test for the classifier and the route, pytest for the companion ledger emit.\nResult: pending build.\nGate: npm run test:unit; npm run test:python:gate; npm run i18n:check; npx tsc --noEmit; npm run lint; npm run design:check.",
+    "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:173-178\n  {row ? (\n    <Badge tone=\"info\" label={t(\"statePinned\")} className=\"mt-1.5\" />\n  ) : (\n    <Badge tone=\"neutral\" label={t(\"stateDefault\")} muted className=\"mt-1.5\" />\n\napp/api/llm/config/route.ts:38-42\n  return NextResponse.json({ rows: listLlmConfig(), providers: LLM_PROVIDERS, useCases: LLM_USE_CASES });\n\napp/_lib/db/llm.ts:519-529 (aggregateLlmUsage) - GROUP BY day, use_case, provider, model; no source column in the SELECT.\napp/_lib/db/llm.ts:438 (listLlmActivity) - SELECT ... source, outcome, reason ... per row.\n\npipeline/jobfit/companion_cli.py:361-362\n    if provider is None or not provider.available():\n        return UNREACHABLE_REPLY[locale], \"deterministic\", \"no provider available\"\npipeline/jobfit/repo_scan_cli.py:68,88\n            ok, descent = provider_availability(provider)\n            emit_deterministic(\"repo_scan\", reason=descent)\n\ngrep -n \"emit_deterministic\\|provider_availability\" pipeline/jobfit/companion_cli.py -> (no output)"
+  }
+]

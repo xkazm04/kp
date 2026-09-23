@@ -1,0 +1,119 @@
+[
+  {
+    "context": "decisions-screen-wave-logic",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One client-safe screen-wave contract: typed codes, guarded result, reason-aware 409s",
+    "size": "M",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/screen-wave-contract.ts",
+      "app/_lib/screen-wave.ts",
+      "app/_lib/screen-wave-approval.ts",
+      "app/api/decisions/screen-wave/route.ts",
+      "app/features/hiring/decisions/decisionsScreenWaveTypes.ts",
+      "app/features/hiring/decisions/decisionsScreenWaveMachine.ts",
+      "app/features/hiring/decisions/useDecisionsScreenWave.ts",
+      "app/features/hiring/decisions/DecisionsScreenWaveModal.tsx",
+      "app/features/shell/simulation/useSimulationWalk.ts",
+      "app/features/shell/simulation/simulationProviderTypes.ts",
+      "app/features/hiring/decisions/decisionsFloorDisclosure.test.ts",
+      "app/features/hiring/decisions/decisionsScreenWaveMachine.test.ts",
+      "app/_lib/screen-wave-contract.test.ts",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/screen-wave-contract.ts",
+      "app/_lib/screen-wave-contract.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "readWaveResult({decisions:[{entryId:'a',label:'A',archetype:null,matchScore:40,action:'reject',rationale:'r',reasonCode:'reject',reasonParams:{}}],rejected:1,kept:0,cohort:1,commsFailures:0,sealFailures:0,dryRun:true,approvalToken:'1.x'}) -> {ok:true, result} with result.decisions[0].reasonCode === 'reject'",
+      "readWaveResult of a 200 body missing the decisions array, or with sealFailures not a number -> {ok:false} (never a fabricated clean result with sealFailures 0)",
+      "readWaveResult on a keep row carrying reasonCode 'bogus' -> the row survives with reasonCode null (rendered from its rationale), never cast into the ScreenReasonCode union",
+      "readWaveRefusal(409, {code:'SCREEN_WAVE_APPROVAL_UNATTRIBUTED', reason:'unattributed'}) -> 'unattributed'; readWaveRefusal(409, {}) and readWaveRefusal(409, {reason:'nope'}) -> 'mismatch' (the ScreenWaveApprovalError default)",
+      "waveReduce(state, {type:'commitRefused', reason:'unattributed', message:m}) -> refreshNonce unchanged, commitBlocked === 'unattributed', error === m; a later previewSucceeded does NOT clear commitBlocked (re-previewing cannot fix a missing approver)",
+      "waveReduce(state, {type:'commitRefused', reason:'mismatch'|'expired'|'required', ...}) -> refreshNonce + 1 and keepCommitNotice true (today's 409 path preserved byte-for-byte)",
+      "waveReduce(state, {type:'commitRefused', reason:'spent', ...}) -> refreshNonce + 1 AND landedElsewhere === true (the hook calls onCommitted() so the queue reloads); the flag is consumed by the next previewSettled",
+      "every SCREEN_REASON_CODES member except 'reject' has messages/en.json decisions.wave.reasons.<code>; 'reject' has rejectWould + rejectDid; and screen-wave-contract.ts contains no import statement (client-safe by construction)"
+    ],
+    "premise": [
+      "app/features/hiring/decisions/decisionsScreenWaveTypes.ts:5 declares WaveDecision as a hand-written mirror ('mirrors ScreenDecision in screen-wave.ts'), with reasonCode loosened to `string` at :17 while the server's is the closed union ScreenReasonCode (app/_lib/screen-wave.ts:65-86)",
+      "decisionsScreenWaveTypes.ts:37 declares `holdout: number` REQUIRED on WaveResult, but runScreenWave's return (app/_lib/screen-wave.ts:669) has no `holdout` field at all; decisionsFloorDisclosure.test.ts:86 pins the phantom field by source regex",
+      "the helpers that would consume holdout keeps, holdoutCount and waveKeepKind (decisionsFloorDisclosure.ts:60 and :78), have no non-test caller anywhere in app/ (grep): the wave lists render holdouts as ordinary keeps",
+      "the refusal vocabulary SCREEN_WAVE_REFUSAL_REASONS (app/_lib/screen-wave-approval.ts:141) lives in a module whose first line is `import { createHash } from \"node:crypto\"` (:1), so no client module can value-import its guard",
+      "app/api/decisions/screen-wave/route.ts:116-122 sends `reason` on every 409 because 'the five refusals ask the recruiter for five different things'; screen-wave-approval.ts:136-140 says a client that cannot tell them apart 'tells the recruiter to re-review a set that did not move'",
+      "useDecisionsScreenWave.ts:83-86 maps EVERY 409 to {type:'commitConflict'} and decisionsScreenWaveMachine.ts:79-82 answers it by bumping refreshNonce, so an 'unattributed' refusal (screen-wave.ts:359, thrown on every commit when no named approver exists) re-previews and re-arms a commit that must fail again, and a 'spent' refusal (screen-wave.ts:372, the wave DID commit on a lost-response retry) is narrated as 'the set changed' and never reloads the queue",
+      "a third copy of the wire shape lives in app/features/shell/simulation/useSimulationWalk.ts:38 (`Partial<ScreenWave> & { approvalToken?: string }`)"
+    ],
+    "rollback": "Pure additive module plus import re-pointing: screen-wave.ts and screen-wave-approval.ts keep re-exporting ScreenDecision / ScreenReasonCode / SCREEN_WAVE_REFUSAL_REASONS under their old names, so reverting the series restores the mirrors without touching the route's wire shape (no field is added or removed on the wire).",
+    "gate": "none",
+    "runner_up": "Parse the approval token's cleartext issuedAt on the client and show an Art. 22 review clock that re-previews before the 15-minute window lapses instead of failing the commit with 'expired'.",
+    "technique": "module-design/module-depth",
+    "body": "## Summary\nThe screen-wave has one server vocabulary and three hand-kept client copies of it. Put the wire contract (reason codes, decision/result types, the five refusal reasons and their runtime guards) in one import-free module that both sides import, and make the modal's state machine branch on the refusal reason the route already sends.\n\n## Description\n`runScreenWave` returns a closed `ScreenReasonCode` union and the route answers every approval refusal with a machine `reason`. The client never sees either. `decisionsScreenWaveTypes.ts` is a hand mirror that has drifted: `reasonCode` is a bare string, and `holdout: number` is declared required and pinned by a source-regex test even though the server never sends it. The two helpers written to render holdout keeps (`holdoutCount`, `waveKeepKind`) have no caller. The refusal guard sits in `screen-wave-approval.ts` behind `node:crypto`, so the client could not import it. As a result the modal folds all five 409s into a re-preview. An `unattributed` refusal loops (re-preview, commit, the same 409 again), and a `spent` refusal (the wave actually landed on a retried request) is reported as 'the set changed' while the queue behind the modal keeps showing people who were already rejected.\n\nThe move: `app/_lib/screen-wave-contract.ts` with no imports holds `SCREEN_REASON_CODES` (literal array, derived union), `ScreenDecision`, `ScreenWaveResult`, `SCREEN_WAVE_REFUSAL_REASONS` + `isScreenWaveRefusalReason`, `readWaveResult(payload)` and `readWaveRefusal(status, body)`. The server imports its types and re-exports them under the old names. The client types become aliases, and the phantom `holdout` field is deleted. The machine's `commitConflict` becomes `commitRefused{reason}` driven by a per-reason effect table, and the simulation walk reads the same guard.\n\n## Flow\n1. Create the contract module + its test (cases 1-4, 8) before touching callers.\n2. Re-point screen-wave.ts / screen-wave-approval.ts to import from it and keep re-exports. tsc proves the server shape is unchanged.\n3. Alias decisionsScreenWaveTypes.ts to the contract, drop `holdout`, and re-point decisionsFloorDisclosure.test.ts:80-87 to assert the alias instead of the phantom.\n4. Replace commitConflict with commitRefused{reason} + REFUSAL_EFFECT table (repreview / blocked / landedElsewhere). Machine tests cover cases 5-7.\n5. The hook folds the body through readWaveResult/readWaveRefusal, calls onCommitted() on landedElsewhere, and the modal disables Commit with the blocked reason in its existing aria-live line.\n6. useSimulationWalk reads through readWaveResult, and the pipeline README section on the wave names the contract module.\n\n## Expected impact\nOne authority per vocabulary: a new reason code or refusal becomes a type error in every consumer, where today it is a silent string. The open/keyless install's commit dead-end (no named approver) stops pretending a re-preview helps. A replayed commit that landed reloads the queue instead of leaving rejected candidates on screen with live buttons. The phantom field and its pinning test go away.\n\n## Evaluation\nClaim: the wave's wire contract has one client-safe source and the modal acts on the refusal reason the server sends.\nBefore: 0 of 8 acceptance cases pass (the contract module, commitRefused and landedElsewhere do not exist).\nAfter: 8 of 8.\nMethod: gate - node:test cases in app/_lib/screen-wave-contract.test.ts and decisionsScreenWaveMachine.test.ts under npm run test:unit, plus tsc over the re-pointed imports.\nResult: pending build.\nGate: none",
+    "evidence": "decisionsScreenWaveTypes.ts:5 `// One decision in the wave (mirrors ScreenDecision in screen-wave.ts)`; :17 `reasonCode?: string;`; :37 `holdout: number;`\nscreen-wave.ts:669 `return { decisions, rejected, kept: decisions.length - rejected, cohort: cohort.length, config: cfg, commsFailures, sealFailures, dryRun, approvalToken };` (no holdout)\ngrep -rn 'holdoutCount\\|waveKeepKind' app --include=*.ts --include=*.tsx | grep -v test -> only decisionsFloorDisclosure.ts:60, :78 (definitions) and a comment at decisionsScreenWaveTypes.ts:36\ndecisionsFloorDisclosure.test.ts:86 `assert.match(types, /export type WaveResult = \\{[\\s\\S]*holdout:\\s*number/, \"WaveResult must require holdout\");`\nscreen-wave-approval.ts:1 `import { createHash } from \"node:crypto\";` / :141 `export const SCREEN_WAVE_REFUSAL_REASONS = [\"required\", \"expired\", \"mismatch\", \"spent\", \"unattributed\"] as const;`\nroute.ts:122 `return jsonRefusal(SCREEN_WAVE_APPROVAL_CODES[error.reason], 409, { reason: error.reason });`\nuseDecisionsScreenWave.ts:83-86 `if (r.status === 409) { dispatch({ type: \"commitConflict\", message: errMsg(d, setChangedRepreviewFallback) }); return; }`\ndecisionsScreenWaveMachine.ts:82 `return { ...state, error: event.message, keepCommitNotice: true, refreshNonce: state.refreshNonce + 1 };`\nscreen-wave.ts:359 `if (!dryRun && !isNamedApprover(approvedBy)) throw new ScreenWaveApprovalError(NAMED_APPROVER_REQUIRED, \"unattributed\");` / :372-376 spent refusal\nuseSimulationWalk.ts:38 `type ScreenWaveResponse = Partial<ScreenWave> & { approvalToken?: string };`"
+  },
+  {
+    "context": "decisions-screen-wave-logic",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Let the reviewer spare individuals from a wave, signed into the approval",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/screen-wave-spare.ts",
+      "app/_lib/screen-wave.ts",
+      "app/api/decisions/screen-wave/route.ts",
+      "app/features/hiring/decisions/decisionsScreenWaveTypes.ts",
+      "app/features/hiring/decisions/decisionsScreenWaveMachine.ts",
+      "app/features/hiring/decisions/useDecisionsScreenWave.ts",
+      "app/features/hiring/decisions/DecisionsScreenWaveLists.tsx",
+      "app/features/hiring/decisions/DecisionsScreenWaveModal.tsx",
+      "app/features/hiring/pipeline/pipelineEventCatalog.ts",
+      "app/_lib/decision-attribution.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/screen-wave-spare.ts",
+      "app/_lib/screen-wave-spare.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "normalizeSpareList(['b','a','a','  ']) -> {ok:true, ids:['a','b']}; normalizeSpareList({}) / normalizeSpareList([1]) / an array longer than SPARE_MAX -> {ok:false} (route answers 400 DECISION_CONFIG_INVALID-style refusal, never a 500)",
+      "runScreenWave(job, rule, {dryRun:true, spare:[X]}) where X is in the would-reject set -> X is returned as action 'keep' with reasonCode 'recruiterSpared', rejected is one lower than the no-spare preview, and approvalToken differs from the no-spare preview's token",
+      "runScreenWave with spare listing only ids that would be KEPT anyway (fairness-shielded, above cutoff, unscored) or not in the cohort -> decisions and approvalToken are byte-identical to the no-spare preview (a spare can only narrow, never widen, and an empty effective spare leaves policyVersion unchanged)",
+      "commit with spare:[X] and the token from the spare:[X] preview -> every other would-reject is rejected, X stays status 'active' at 'Screened', and one `screen_wave_recruiter_spared` event naming the resolved approver is recorded on X",
+      "commit with spare:[] carrying the token minted by the spare:[X] preview -> ScreenWaveApprovalError reason 'mismatch' (409): the exclusions are part of what the human signed",
+      "waveReduce: spareToggled(X) twice -> spared set {X} then {}; each toggle bumps refreshNonce (a fresh preview + fresh token), and the spared set survives a commitRefused/commitConflict re-preview",
+      "waveReduce: after commitSucceeded, spareToggled(X) leaves state unchanged (the committed view is frozen)",
+      "decisions.wave.reasons.recruiterSpared exists in all 4 catalogs and pipelineEventCatalog + decision-attribution map screen_wave_recruiter_spared as a HUMAN (auto:false) event"
+    ],
+    "premise": [
+      "DecisionsScreenWaveLists.tsx:305-317 renders each would-reject row as a read-only <li> (label, score, chips, reason). There is no per-row control, so the only way to take one person out of the wave is to move a global slider, which changes the whole set",
+      "useDecisionsScreenWave.ts:32 builds the request's override from the three slider values only, and route.ts:56-62 accepts only jobId / override / dryRun / approvalToken / approvedBy; validateScreeningOverride rejects any other key (app/_lib/decision-config-schema.ts:767-770), so a per-person exclusion has no door at all",
+      "screen-wave.ts:314-317 already removes two kinds of person from `wouldReject` (reinstatedSpared, then heldOut) BEFORE the approval token is signed at :323, which is exactly the insertion point a reviewer's exclusions need",
+      "screen-wave-approval.ts:30-44 signs the sorted reject-id set, so removing a spared id from wouldReject before signing binds the exclusion into the token with no change to the token algorithm",
+      "the governing technique (registry recruiting/bulk-adverse-action-governance, preview-then-approve-the-signed-set, 'The procedure' step 2) says: 'A human reads the preview, optionally removes individuals, and approves. Removal re-derives the token: the reviewer's exclusions are part of what they signed.' kp implements steps 1 and 3 but not the removal",
+      "screen-wave.ts:65-86 ScreenReasonCode is a closed union with per-code keep reasons (reinstated, holdout, ...); adding 'recruiterSpared' follows the existing shape, and pipelineEventCatalog.ts:117-120 / decision-attribution.ts:74-78 are where the sibling screen_wave_holdout event kinds are registered"
+    ],
+    "rollback": "The spare field is optional on the request and absent means byte-identical behaviour (empty effective spare adds no policyVersion suffix, so every existing token and sealed policyVersion is unchanged). Reverting the series removes the button, the field and the new reason code/event kind. Any `screen_wave_recruiter_spared` events already written are ordinary audit rows and remain readable.",
+    "gate": "contract",
+    "runner_up": "Show what moved on every re-preview: diff the new reject set against the last one the reviewer saw (entered / left the wave) so a 409 or slider drag is a targeted re-review, not a re-read of the whole list.",
+    "technique": "bulk-adverse-action-governance/preview-then-approve-the-signed-set",
+    "body": "## Summary\nThe screening wave is all-or-nothing. A recruiter who reads the preview and disagrees about one person has to drag a global slider, which reshapes everyone's outcome. Add a per-row 'Spare' in the preview. Spared people come back as keeps with the reason 'spared by you', the approval token is re-derived over the narrowed set, and the commit records who spared whom.\n\n## Description\nToday the Art. 22 review is a signature over a set the reviewer cannot edit. The registry's own procedure for this subject makes the reviewer's removals part of the signed set. The server already has the right shape for it: runScreenWave removes reinstated and holdout people from `wouldReject` before it signs the token, and the token is a hash of the sorted reject ids, so one more removal step before signing binds the recruiter's exclusions for free. The commit re-derives the same narrowed set from the echoed `spare` list, and a commit that drops the spares, or that carries a token minted without them, fails with the existing 'mismatch' 409.\n\nNew pieces: a pure `app/_lib/screen-wave-spare.ts` (normalizeSpareList: array of non-empty ids, de-duplicated, sorted, capped; effectiveSpare(wouldReject, spare) keeps only ids that would really be rejected); a `spare` option on runScreenWave and the route; a keep reason `recruiterSpared` with a localized line; a `screen_wave_recruiter_spared` human event on commit; and a `spared` set in the wave machine whose toggle forces a fresh preview. When the effective spare list is non-empty, policyVersion gets a `/spared<n>` suffix, so the sealed reject records say this wave had human exclusions. An empty list leaves the suffix off, which keeps policyVersion byte-identical to today's.\n\n## Flow\n1. Recruiter opens the wave. Each would-reject row gets a 'Spare' button beside its reason.\n2. Clicking it moves the row to the kept list as 'Spared by you' with an Undo, triggers a debounced re-preview carrying `spare:[...]`, and returns a new token.\n3. The commit echoes the same `spare` and token. The server re-derives the narrowed set, verifies the token and commits the rest. For each spared person it records the event and the approver.\n4. The committed banner counts spared people separately from ordinary keeps.\n\n## Expected impact\nThe reviewer can override one row, which is what makes the approval a review and not only a signature. Today one disagreement costs a slider move that rejects or spares other people nobody looked at, or it pushes the recruiter to commit and then use the reconsider queue after the rejection email has already gone out. Each exclusion is attributed and audited.\n\n## Evaluation\nClaim: a reviewer can remove individuals from a wave preview, the removal is bound into the approval token, and the commit honours exactly that narrowed set.\nBefore: 0 of 8 acceptance cases pass (no spare field, reason code, event kind or machine state exists).\nAfter: 8 of 8.\nMethod: gate - node:test in app/_lib/screen-wave-spare.test.ts, app/_lib/screen-wave.test.ts (temp-DB wave cases 2-5) and decisionsScreenWaveMachine.test.ts under npm run test:unit, plus npm run i18n:check for case 8.\nResult: pending build.\nGate: contract",
+    "evidence": "DecisionsScreenWaveLists.tsx:305-317 reject rows: `<li key={d.entryId} className=\"rounded-md border border-coral/30 ...\"><span className=\"font-medium text-ink\">{d.label}</span> ... {reasonText(d)}</li>` (no control)\nuseDecisionsScreenWave.ts:32 `const override = () => ({ autoRejectEnabled: enabled, rejectBottomPercent: bottomPercent, maxMatchToReject: maxMatch });`\nroute.ts:56-62 body type `{ jobId?, override?, dryRun?, approvalToken?, approvedBy? }`\ndecision-config-schema.ts:767-770 `const stray = Object.keys(obj).filter((k) => !(SCREENING_KEYS as readonly string[]).includes(k)); if (stray.length > 0) return { ok: false, ... }`\nscreen-wave.ts:314-317 `const reinstatedSpared = entryIdsWithEvent([...wouldReject], \"reinstated\", workspaceId); for (const id of reinstatedSpared) wouldReject.delete(id); const heldOut = new Set(selectHoldout(jobId, [...wouldReject], holdoutPct).spared); for (const id of heldOut) wouldReject.delete(id);`\nscreen-wave.ts:323 `const approvalToken = screenWaveApprovalToken(jobId, policyVersion, [...wouldReject]);`\nscreen-wave-approval.ts:36-43 token = sha256(`${jobId}|${policyVersion}|${issued}|${sorted ids}`)\nregistry preview-then-approve-the-signed-set.md, 'The procedure' step 2: 'A human reads the preview, optionally removes individuals, and approves. Removal re-derives the token: the reviewer's exclusions are part of what they signed.'\npipelineEventCatalog.ts:117 `\"screen_wave_holdout\",` ; decision-attribution.ts:74 `screen_wave_holdout: { auto: true, tone: \"text-steel\" },`\nOpen backlog for this context (leftover-develop-2026-09-17): only 'Pin bulk and ledger reject as reason-required, like group-eval' (S) - not this. Digest pending item 'Lift the screen-wave approval protocol into a gate-kind-generic approval gate (ADR-0009 R3)' generalizes the server gate; it does not add reviewer exclusions."
+  }
+]

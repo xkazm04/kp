@@ -1,0 +1,17 @@
+[
+  {
+    "rider": "casesim-evaluator",
+    "files_read": 1,
+    "checked": "Read casesim/eval_round.py in full (122 lines). Hypotheses traced: (1) the discrimination verdict asserts too little - it passes with only two canonical personas (line 108 `len(canonical) >= 2`) and never asserts the gamer; (2) no --lang is passed to evaluate-submission (args at 34-54); (3) it swallows a missing observedChecks by defaulting to {} (72). All three are already open leftover-develop items for this context ('Require verifier and delegator personas before a discrimination PASS', 'Fail a round when the gamer persona keeps both canaries propagated', 'Pass --lang into evaluate-submission so locale signals are gated', 'Gate eval_round on the committed promote-gate round'), so a card would restate them. It is also a developer CLI with no user surface and each remaining fix is S-sized (a few lines in main()), below the M floor. No card went here."
+  },
+  {
+    "rider": "devcase-candidate-apply",
+    "files_read": 4,
+    "checked": "Read app/devcase/apply/[token]/page.tsx (160), DevApplyForm.tsx (142), error.tsx and loading.tsx in full. Traced: the closed-posting card keeps the server-resolved AI disclosure (42-54); the seed note is suppressed on the deterministic path (101-102); ONE submit path chosen by seed presence (141-157); the repo form reads codes via useErrorMessage and shows the opaque reference, never the store id (223-233). No defect found at M size. The two experience leaps this page invites - token expiry after an SLA and a candidate status page keyed on the opaque reference - are both already open leftover-develop items ('Expire apply tokens from posting created_at after the assignment SLA', 'Give candidates a status page keyed on the opaque submission reference'), so no card went here."
+  },
+  {
+    "rider": "devcase-live-work-surface",
+    "files_read": 6,
+    "checked": "Read LiveWorkSurface.tsx (715) in full plus liveWorkDraft.ts, liveWorkMint.ts, liveWorkDraft.test.ts, liveWorkMint.test.ts, and one hop out to app/api/devcase/session/route.ts + session-limits.ts and the two tests that regex its source (liveWorkDraft.test.ts:116-121, devcase-candidate-refusals.test.ts:71-79) and e2e/journey-one-thread.spec.ts:265-269. Hypothesis: the session protocol (mint/flush/re-buffer/403/404/409/submit) is untestable because it lives in component closures, and a coded mint refusal is re-attempted on every debounced edit and 8s tick (LiveWorkSurface.tsx:218-219, 263, 278-280). Confirmed - Slot A card 'Lift the live-work sync engine out of the 715-line surface into a tested client' targets this rider. Its three open leftover items (pagehide flush, add/delete files, Run control) were left as they are; the card makes them additions to a tested module."
+  }
+]

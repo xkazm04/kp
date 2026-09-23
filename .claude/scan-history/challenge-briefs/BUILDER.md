@@ -42,9 +42,9 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
    (`app/_components/ui/recipes-literals.test.ts` counts hand-typed recipe strings
    repo-wide; `devcase-studio-robustness.test.ts` pins route source; `perf-budget.json`
    caps each route's and `app/page.tsx`'s import graph), and three wave-2 breaks
-   were exactly those. `test:perf` is ALREADY red on `llm-config.ts` 322/320 and
-   `job-ingest.ts` 403/400 — ignore those two lines only; any other overage line is
-   yours. Compose recipes from `app/_components/ui/recipes.ts` (PANEL, ICON_TILE,
+   were exactly those. `test:perf` is ALREADY red on exactly one line, `job-ingest.ts`
+   402/400 — ignore that line only; any other overage line is yours (if it comes only
+   from a sibling's UNCOMMITTED files, say so in `notes`). Compose recipes from `app/_components/ui/recipes.ts` (PANEL, ICON_TILE,
    BTN_*, …) rather than re-typing their class strings. A source-guard test that pins
    the OLD expression of code you correctly changed: update it to pin the new AND
    still forbid the old defect, in the same commit. A whole-tree gate (tsc) red on a path you did NOT touch is a
@@ -82,6 +82,9 @@ and `C:/Users/kazda/kiro/ai-registry/skills/scan-sweep/references/challenge.md` 
 - Release the lock ONLY if YOU took it: `mkdir <lock> && { edit; commit; rmdir <lock>; }`.
   Never `mkdir <lock> && ...; rmdir <lock>` — when the mkdir fails (someone else holds
   it) the `;` still runs the rmdir and deletes THEIR lock (it happened, 2026-09-23).
+- Scratch files (helper scripts, catalog patchers) go in a subfolder named after YOUR card
+  (`<scratchpad>/<ctx>--<slot>/`), never at the scratchpad root: builders share it, and
+  one overwrote another's `catalogs.mjs` mid-build (2026-09-23).
 - If `git commit` fails on `index.lock`, wait a few seconds and retry.
 - Never run `npm run build`, `npm run dev`, or anything that touches `.next` —
   the operator's dev servers are running.

@@ -1,0 +1,126 @@
+[
+  {
+    "context": "pipeline-actions-events",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One aging clock: policy-pass alerts follow the board's stage SLA, once per stint",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/aging-policy.ts",
+      "app/_lib/aging-policy.test.ts",
+      "app/features/hiring/pipeline/pipelineRenderDiet.ts",
+      "app/_lib/attention.ts",
+      "app/_lib/db/pipeline.ts",
+      "app/_lib/automation-pass.ts",
+      "app/_lib/automation-pass.test.ts",
+      "pipeline/jobfit/automation.py",
+      "pipeline/jobfit/tests/test_automation.py",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md",
+      "docs/features/hiring-pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/aging-policy.ts",
+      "app/_lib/aging-policy.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "agingTier(stage='Offer', daysInStage=2, DEFAULT axis) -> 'none'; daysInStage=3 -> 'aging' (offer role SLA 3 d); daysInStage=6 -> 'stalled' (STALLED_MULTIPLE = 2 x SLA, stated once in aging-policy.ts)",
+      "agingTier on a terminal-ROLE stage -> 'none' at any dwell: 'Hired' at 400 d on the default axis, and a renamed terminal column 'Placed' (role terminal) at 400 d on a custom axis",
+      "evaluate_entry({stage:'Hired', daysInStage:99, matchScore:99}) (legacy input, no agingTier) returns alerts == [] (today it returns ['aging_alert']); evaluate_entry({stage:'Placed', daysInStage:40, agingTier:'none'}) returns alerts == []",
+      "evaluate_entry({stage:'Offer', agingTier:'aging'}) -> alerts ['stale_alert']; agingTier:'stalled' -> ['aging_alert']; agingTier:'none' with daysInStage 35 -> [] (the TS-resolved tier wins over the flat 21/30-day POLICY cut, which remains only as the fallback when agingTier is absent)",
+      "listActiveEntriesForAutomation stamps agingTier from the entry's OWN workspace axis: a workspace whose axis has an interview-role column 'Tech round' -> entry there at 6 d is 'aging', at 10 d 'stalled'; the same dwell on a default-workspace 'Accepted' (entry role, 14 d) entry is 'none'",
+      "Committed pass run three times (same day, then next day, then two days later) over one entry that stays in the same stage and tier -> exactly ONE stale_alert pipeline_events row for that stint (dedupe keyed on stage_changed_at, not the business day); after the entry moves stage and ages past the new SLA -> a second row; fairness_gate_blocked_reject keeps its per-day dedupe",
+      "Parity fixture: for every stage on the shipped axis x daysInStage 0..20, the board's agingBucket(entry, null, now) === (agingTier(...) !== 'none') and attentionCounts' stale predicate agrees with it for the same entries",
+      "pipelineEventCatalog.test.ts still passes set-equality in all four locales after the stale_alert / aging_alert verbs are reworded to name their tier (soft: past the stage SLA; hard: stalled at twice the SLA)"
+    ],
+    "premise": [
+      "pipeline/jobfit/automation.py:137-138 — POLICY stale_days 21, aging_days 30: one flat, stage-blind cut",
+      "pipeline/jobfit/automation.py:943-947 — alerts are computed BEFORE any stage branch, so every stage (terminal included) ages on the flat cut; automation.py:995-996 'Hired' returns action none but the alerts list is already filled",
+      "Ran evaluate_entry({'stage':'Hired','daysInStage':99,'matchScore':99}) -> {'action':'none','alerts':['aging_alert'],'reason':'hired — terminal stage'}; {'stage':'Offer','daysInStage':4} -> alerts [] (the board flags the same offer amber at day 3)",
+      "app/_lib/pipeline-status.ts:11-13 — a hired candidate keeps status='active' (stage 'Hired'), so listActiveEntriesForAutomation (app/_lib/db/pipeline.ts:2735-2785, WHERE status='active') hands every hire to the pass",
+      "app/_lib/automation-pass.ts:482-486 — each alert is recorded when !hasEventToday(...); app/_lib/db/pipeline.ts:3005-3011 hasEventToday compares only the business DAY, so a stalled entry gets a fresh alert row in the feed every business day, and a hire 30+ days old gets an aging_alert every day forever",
+      "app/features/shared/pipelineTypes.ts:119-130 ROLE_SLA_DEFAULTS (entry 14, screening 7, interview 5, offer 3, terminal 0) + :148 slaForStage — the board's threshold, read by app/features/hiring/pipeline/pipelineRenderDiet.ts:38-49 agingBucket and app/_lib/attention.ts:90-91; Python never receives it (app/_lib/db/pipeline.ts:2780-2784 enriches only daysInStage + recentScreening)",
+      "messages/en.json:3097-3098 — aging_alert 'is aging past the stage SLA', stale_alert 'is going stale in this stage': the feed claims a STAGE SLA the writer never consulted, and the tier names are inverted against the board (board 'aging' = the soft tier, Python 'aging_alert' = the hard tier)",
+      "pipeline/jobfit/tests/test_automation.py:110-112 test_hired_is_terminal asserts only action/toStage, never alerts — the terminal leak is unpinned"
+    ],
+    "rollback": "Revert the commit series: aging-policy.ts is additive, the Python side keeps its flat POLICY fallback when agingTier is absent, and the dedupe change only narrows what gets written. No schema change, no migration, no stored-data rewrite — alert rows already written stay readable under the same event kinds.",
+    "gate": "contract",
+    "runner_up": "Team-shared SLAs: move the per-browser localStorage overrides (pipelineBoardStorage.ts:92-117) onto the workspace axis as StageDef.slaDays via the decision-config 'pipelineStages' rule — held back because docs/features/pipeline/README.md:853 records team-shared SLAs as an explicit owner decision.",
+    "technique": "aging-versus-stalled-two-tier-alerts",
+    "body": "## Summary\nThe pipeline has three aging clocks that disagree: the board and sidebar badge age a card by its stage ROLE's SLA (offer 3 d, interview 5 d, terminal never), while the automation policy pass that writes `stale_alert`/`aging_alert` into the activity feed uses one flat 21/30-day cut for every stage, including Hired. Make one TS module the only source of the aging tier, hand the tier to Python, and write each alert once per stage stint.\n\n## Description\nToday an offer turns amber on the board on day 3 but the feed says nothing until day 21, and then says it every business day. A hired candidate (status stays `active`) gets an `aging_alert` in the feed every day from day 30 on, forever — the registry's terminal-stages-never-age failure, at the source of the computation. The feed's verb says \"past the stage SLA\" although the writer never read one, and the soft/hard tier names are inverted between the board and the engine.\n\nThe move: `app/_lib/aging-policy.ts` exports `agingTier(stage, daysInStage, axis, overrides?) -> none|aging|stalled` over the existing `slaForStage` + a single `STALLED_MULTIPLE` (2x, per the technique). `agingBucket` (board) and `attentionCounts` (badge) delegate to it; `listActiveEntriesForAutomation` stamps `agingTier` per entry from that entry's OWN workspace axis (axis cached per workspace for the pass); `evaluate_entry` maps aging->stale_alert, stalled->aging_alert, never alerts on a terminal stage, and falls back to its flat POLICY only when the tier is absent (CLI/back-compat). The commit loop dedupes aging alerts on `stage_changed_at` (once per stint per tier) instead of per business day. Event kinds are unchanged (persisted rows keep reading); only the four-locale verbs are reworded to name their tier.\n\n## Flow\n1. Add aging-policy.ts + its test (tier table, terminal rule, parity fixture against agingBucket).\n2. Delegate agingBucket and attention.ts to it — byte-identical on the shipped axis.\n3. Enrich automation entries with agingTier; add `hasEventSinceStageChange` beside hasEventToday.\n4. Python: consume agingTier, move the terminal guard ahead of alerts, keep the flat fallback; extend test_automation.py.\n5. Swap the alert dedupe in automation-pass.ts; pin it in automation-pass.test.ts.\n6. Reword the two verbs in en/cs/de/fr (both namespaces), update the two pipeline docs.\n\n## Expected impact\nThe feed, the badge and the board give one answer to \"is this candidate waiting too long\": an offer ignored for 4 days produces an alert instead of silence, a hire produces none, and a stalled row produces one entry per stint instead of a daily line that buries the feed. Closes a whole class (every future stage/axis change now moves all three surfaces together).\n\n## Evaluation\nClaim: aging alerts are written from the same stage-role SLA the board renders, never for a terminal stage, once per stage stint.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract\nResult: pending build\nGate: contract",
+    "evidence": "python -c evaluate_entry probe (this scout, 2026-09-23):\n  {'stage':'Hired','daysInStage':99,'matchScore':99} -> {'action': 'none', 'toStage': None, 'alerts': ['aging_alert'], 'reason': 'hired — terminal stage'}\n  {'stage':'Offer','daysInStage':4,'matchScore':80} -> {'action': 'hold', ..., 'alerts': []}\n  {'stage':'Placed','daysInStage':40,'matchScore':80} -> {'action': 'none', 'alerts': ['aging_alert'], 'reason': 'no policy for this stage'}\npipeline/jobfit/automation.py:137  \"stale_days\": 21,\npipeline/jobfit/automation.py:138  \"aging_days\": 30,\npipeline/jobfit/automation.py:944  if days >= POLICY[\"aging_days\"]:\npipeline/jobfit/automation.py:945      alerts.append(\"aging_alert\")\npipeline/jobfit/automation.py:995  if stage == \"Hired\":\npipeline/jobfit/automation.py:996      return out(\"none\", None, \"hired — terminal stage\")\napp/_lib/automation-pass.ts:482-484  for (const alert of d.alerts ?? []) { if (!hasEventToday(d.entryId, alert, entryWs)) { recordAutomationEvent(...)\napp/_lib/db/pipeline.ts:3010  return !!row && businessDay(row.created_at) === businessDay(new Date().toISOString());\napp/_lib/db/pipeline.ts:2783  return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id) };\napp/features/shared/pipelineTypes.ts:127-128  offer: 3, terminal: 0,\napp/_lib/pipeline-status.ts:11-12  active — ... Includes the terminal STAGE \"Hired\": a hired candidate keeps status='active'\nmessages/en.json:3097  \"aging_alert\": \"is aging past the stage SLA\",\nmessages/en.json:3098  \"stale_alert\": \"is going stale in this stage\",\nregistry: recruiting/pipeline-aging-and-attention-triage — techniques per-stage-aging-thresholds-not-one-global-cut, terminal-stages-never-age, aging-versus-stalled-two-tier-alerts ('the stalled boundary is a multiple of the aging threshold'; 'the observed failure is that the names invert on the way')."
+  },
+  {
+    "context": "pipeline-actions-events",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Commit the pass you previewed: per-row opt-out and a changed-since-preview report",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "write_set": [
+      "app/_lib/automation-commit-plan.ts",
+      "app/_lib/automation-commit-plan.test.ts",
+      "app/_lib/automation-pass.ts",
+      "app/_lib/api-response.ts",
+      "app/api/automation/run/route.ts",
+      "app/api/automation/run/route.test.ts",
+      "app/features/hiring/pipeline/PassPreviewModal.tsx",
+      "app/features/shell/simulation/simControlCenterKit.ts",
+      "app/features/shell/simulation/SimControlDock.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/pipeline/README.md"
+    ],
+    "new_files": [
+      "app/_lib/automation-commit-plan.ts",
+      "app/_lib/automation-commit-plan.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "planCommit(fresh=[advance e1 Screened->Interview], approved=[{entryId:e1, action:'advance', toStage:'Interview'}]) -> e1 verdict 'apply'",
+      "planCommit(fresh=[advance e2], approved=[] (row unticked in the modal)) -> e2 verdict 'declined'; executed through executeAutomationPass the decision carries outcome 'skipped' + reasonCode 'notApproved' and the entry's stage is unchanged in pipeline_entries",
+      "planCommit(fresh=[hold e3], approved=[{entryId:e3, action:'advance', toStage:'Interview'}]) -> e3 verdict 'drifted'; the route response lists e3 under `drifted` and nothing is applied to e3",
+      "An approved entryId whose entry belongs to another workspace is ignored: that entry's fresh advance is NOT applied by this caller's commit (verdict 'declined'), and it never appears in the response",
+      "A commit with NO `approved` field (the scheduler clock, /api/pipeline/command, an external cron) applies exactly what it applies today — pinned by running the existing automation-pass.test.ts cases unchanged",
+      "A commit carrying `approved` that joins an already in-flight pass returns `selectionHonored: false` and the modal renders the not-honoured notice instead of the applied summary",
+      "Alerts are recorded regardless of selection: an unticked advance whose decision also carries an alert still writes the alert event",
+      "POST /api/automation/run with a malformed `approved` (not an array, an action other than advance/reject, more than the pass entry cap) -> 400 with code AUTOMATION_SELECTION_INVALID and no pass executed"
+    ],
+    "premise": [
+      "app/features/shell/simulation/simControlCenterKit.ts:142 — the commit is `fetch(\"/api/automation/run\", { method: \"POST\" })` with NO body: the pass is re-computed from scratch, so what lands is whatever the pass decides at click time, not the rows the recruiter just reviewed",
+      "app/_lib/automation-pass.ts:171-180 — runAutomationPass takes only {dryRun}; a commit re-runs executeAutomationPass(false) over a fresh listActiveEntriesForAutomation snapshot",
+      "app/features/hiring/pipeline/PassPreviewModal.tsx:118-129 — the only commit control is one all-or-nothing 'Apply N' button; rows (:156-161, :171-176) are read-only list items with no per-row choice",
+      "app/features/hiring/pipeline/PassPreviewModal.tsx:89-90,117,128 — when only OTHER teams have changes, the button offers previewApplyGlobal: one team's recruiter applies other teams' advances from their own click",
+      "app/api/automation/run/route.ts:48-51 — a commit that finds a pass in flight JOINS it and returns that pass's result as if it were this click's",
+      "app/_lib/automation-pass.ts:44-50 markStaleSkip + :31-37 PassReasonCode — the codes-not-sentences precedent for a skipped decision ('staleSkip') that the new 'notApproved' / 'changedSincePreview' codes follow, rendered through app/features/hiring/pipeline/passReasonText.ts",
+      "app/_lib/scheduler-jobs.test.ts:31 — the policy pass is opt-in (defaultEnabled false), so the preview->commit button is the primary way most installs run it"
+    ],
+    "rollback": "Revert the series: `approved` is an optional body field, so every caller that does not send it (clock, command bar, cron) is untouched throughout; removing it returns the modal to one all-or-nothing button. No schema or stored-data change — skipped decisions persist in the run log with an existing outcome value ('skipped').",
+    "gate": "contract",
+    "runner_up": "Progress-aware empty board: pipelineEmptyMoves.ts:62-65 hard-codes FIRST_MOVE as 'role' even when roles and unfiled analyses already exist; derive each move's done-state from the workspace and offer 'file these N analyses' as the one-click next move.",
+    "technique": "resume-after-decision",
+    "body": "## Summary\nThe policy pass's look-before-commit modal previews a list and then commits something else: the Apply button re-runs the whole pass with no reference to what was shown, applies all of it or nothing, and — when only other teams have changes — applies theirs. Make the commit carry the recruiter's reviewed selection, apply only rows that still match what was shown, and report the ones that changed.\n\n## Description\nToday the preview is advisory. Between the dry run and the click the pass is recomputed, so a candidate whose score landed in between can be advanced without ever appearing in the modal, a row the recruiter disagrees with cannot be held back without abandoning the whole pass, and a join onto an in-flight clock pass returns someone else's result as if it were this click's. That is the hitl-approval failure 'what runs on approval is not what was shown'.\n\nThe leap: each advance and would-be-reject row gets a checkbox (default on). Commit posts `approved: [{entryId, action, toStage}]`. A pure `automation-commit-plan.ts` reconciles the fresh decisions against it per entry: `apply` (same action and target), `declined` (unticked, absent, or another team's), `drifted` (the pass now decides differently). Declined/drifted decisions are not applied and persist as outcome 'skipped' with reasonCode `notApproved` / `changedSincePreview`; alerts and holds stay autonomous. The modal's commit result lists drifted rows with a Re-preview action; a joined pass answers `selectionHonored:false` and says so. Calls without `approved` keep today's behaviour exactly.\n\n## Flow\n1. automation-commit-plan.ts + tests (the four verdicts, workspace scoping, validation).\n2. runAutomationPass({ approved }) consults the plan in the commit loop; two new PassReasonCodes.\n3. Route: validate `approved` (400 AUTOMATION_SELECTION_INVALID), scope it to the caller's workspace, return `drifted` + `selectionHonored`.\n4. PassPreviewModal: per-row checkboxes, 'Apply N selected', post-commit drift list; drop the apply-other-teams branch when a selection is sent.\n5. useAutomationPass/SimControlDock pass the selection through.\n6. Catalog keys in four locales; the pipeline doc's automation section.\n\n## Expected impact\nThe one human checkpoint on unattended advances becomes a real approval: what the recruiter ticked is exactly what lands, a single disagreeable row no longer forces 'apply all or cancel', and drift between preview and commit is visible instead of silently applied. Also closes the cross-team apply from one team's button.\n\n## Evaluation\nClaim: a committed pass applies only the previewed decisions the recruiter kept, and names every one that changed since the preview.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract\nResult: pending build\nGate: contract",
+    "evidence": "app/features/shell/simulation/simControlCenterKit.ts:142  const r = await fetch(\"/api/automation/run\", { method: \"POST\" });\napp/features/shell/simulation/simControlCenterKit.ts:107-111  (dry run) fetch(\"/api/automation/run\", { method: \"POST\", ..., body: JSON.stringify({ dryRun: true }) })\napp/_lib/automation-pass.ts:171  export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<AutomationPassResult> {\napp/_lib/automation-pass.ts:177  inFlightPass = executeAutomationPass(false).finally(...)\napp/api/automation/run/route.ts:28  const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown };\napp/api/automation/run/route.ts:48  const joined = isPassInFlight();\napp/features/hiring/pipeline/PassPreviewModal.tsx:90  const othersOnly = partial && changes === 0 && globalChanges > 0;\napp/features/hiring/pipeline/PassPreviewModal.tsx:128  {committing ? t(\"runningPass\") : othersOnly ? t(\"previewApplyGlobal\", { count: globalChanges }) : t(\"previewApply\", { count: changes })}\napp/features/shell/simulation/SimControlDock.tsx:113-120  <PassPreviewModal ... onCommit={() => void pass.commit()} />  (the real dock mounts it; grep finds no other commit caller)\napp/_lib/scheduler-jobs.test.ts:31  assert.equal(policy.defaultEnabled, false, \"the policy pass is opt-in\");\nregistry: software-engineering/llm-agent/orchestration/hitl-approval — technique resume-after-decision (use_when: 'what runs on approval is not what was shown'); review-queues ('judging whether a batch approval is one decision')."
+  }
+]

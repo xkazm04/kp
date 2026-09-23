@@ -1,0 +1,19 @@
+{
+  "card": "db-jobs-devcase-interviews/A",
+  "title": "Per-team lifecycle overlay for shared corpus roles: one team's close is not all",
+  "status": "landed",
+  "base": "0c4b92dd4",
+  "shas": ["1640363d7", "ca1cc565e", "056416ed5", "ea0f7fcc6", "0a7876065", "58d3983a6", "42ca60c96"],
+  "tests_added": [
+    "app/_lib/db/job-workspace-state.test.ts",
+    "app/_lib/db/job-workspace-state-tenancy.test.ts"
+  ],
+  "cases_red_before": 11,
+  "cases_green_after": 12,
+  "cases_total": 12,
+  "gates": {"tsc": 0, "eslint": 0, "i18n": null, "design": null, "docs": 0, "api": null, "ratchet": 0, "perf": 1, "unit": 1},
+  "files_changed": 12,
+  "lines_changed": 600,
+  "deviations_from_card": "Critic revision applied: published_at stays on the shared jobs row and out of the overlay. setJobStatus on a corpus row writes the team's overlay status and stamps jobs.published_at as before, and classifyPublish(X, wsB) after wsA's publish is {already:false, billable:false}. Case 1 also asserts that the public apply door follows the DEFAULT (filing) team. ADDED, to keep billing byte-identical: a LEGACY corpus row stored as 'published' with published_at NULL stays on the shared path until it is closed (jobLifecycleInOverlay in core.ts). Routing that row's close to one team's overlay would change who pays for the next go-live. Case 8 and a seeded random three-team billing-parity case pin this, and a mutation that drops the exception fails both. Overlay table has no published_at column (the tenancy test asserts that). Write set grew past the card by two coupled registries that a new scoped table forces: app/_lib/db/pipeline.ts (one ERASURE_EXEMPT entry, required by erasure-full-scrub.test.ts) and perf-budget.json (shared surface, under the lock: +1 KB over measured on five named route overrides, ~7 KB from this card, no module added). Store params are OPTIONAL (workspaceId?: string) and resolve to the corpus role's filing team via lifecycleTeam(). This is not `= DEFAULT_WORKSPACE_ID`, so the ~40 existing getJob/getJobStatus call sites are not enrolled in route-tenancy-coverage's ratchet. For corpus rows these reads now return the filing team's lifecycle. For authored rows nothing changed.",
+  "notes": "Billing: charge == today's charge at every step, including legacy rows (parity test). The only behavioural change on publish is that a second team adopting a corpus role another team already took live now gets its own go-live: status flip plus sourcing into its own pipeline, with no debit. Before, it was an alreadyPublished no-op. Residuals the coordinator should know about. (1) The translations route (app/api/jobs/[id]/translations/route.ts:41,71) and ~40 recruiter routes call getJob/getRoleOpenConfig without a team. For a corpus role they read the filing (default) team's lifecycle, not the caller's. Before, they read the shared row. Threading the session team into those routes is a follow-up outside this write set. (2) tsc is clean outside kpi-sim/ (an untracked foreign directory whose errors predate this build). (3) test:unit exit 1 is solely app/_lib/python-runner-concurrency.test.ts ('aborted spawn kills the whole process tree'). It went BROKEN on the first run and FLAKE on the second. It imports only python-runner.ts and no file this card touched. (4) test:perf exit 1 is only the pre-existing job-ingest.ts line: 403 -> 402 KB, ceiling 400. llm-config.ts is back under its ceiling. (5) The test commit 1640363d7 is red by design (test-first). ca1cc565e turns it green except the manifest case, and 056416ed5 (tenancy.ts under the lock) completes it."
+}

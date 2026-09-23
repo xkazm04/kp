@@ -1,0 +1,19 @@
+{
+  "card": "db-jobs-devcase-interviews/B",
+  "title": "One interview-session transition table; late writes re-assert it",
+  "status": "landed",
+  "base": "42ca60c96",
+  "shas": ["b18cc257c", "eccf4665c", "268c48da8"],
+  "tests_added": [
+    "app/_lib/interview-session-status.test.ts",
+    "app/_lib/db/interview-session-transitions.test.ts"
+  ],
+  "cases_red_before": 7,
+  "cases_green_after": 7,
+  "cases_total": 7,
+  "gates": {"tsc": 0, "eslint": 0, "i18n": null, "design": null, "docs": 0, "api": 0, "ratchet": 0, "perf": 1, "unit": 1},
+  "files_changed": 8,
+  "lines_changed": 510,
+  "deviations_from_card": "(1) Write set grew by one existing test: app/_lib/automation-run.test.ts has two fixtures that attached a scorecard to a never-completed session. They now complete it with a transcript first, which is the state /complete always attached in. (2) The card's post-connect writes (agenda, failover provider) only run on some paths: the agenda when a kit was built, the provider only on failover. So a lab session, or a connect whose kit build failed and that did not fail over, would still hand credentials across a revoke. I added isInterviewSessionStillLive(id), a by-id point read that runs synchronously right before the response. The effect it guards is the HTTP response, not a store write, and no await sits between that check and the return. (3) markInterviewRecordingConsent also moved from `!= 'completed'` to the live guard. (4) A refusal on markInterviewStarted now names what happened: INTERVIEW_LINK_INACTIVE for a revoked row, INTERVIEW_ALREADY_COMPLETED otherwise. This is the existing code and adds no new one. (5) completeInterviewSession now uses UPDATE ... RETURNING status (one statement) and returns { session, applied, status }. attachInterviewScorecard returns { session, applied }. setInterviewSessionProvider returns boolean.",
+  "notes": "Card cases 1-7 were all red before (11 node:test cases across the 2 files; 0 passed), and all 11 pass after. tsc: no errors in my files. The whole-tree tsc run shows sibling in-flight errors (aging-policy / ScheduleTab / AboutTab / ModelsRoutingPanel) and errors from the untracked kpi-sim/ copy, and none of them touch my paths. Unit tests: 253 interview/automation/erasure/status tests pass. The full test:unit exited 1 on six app/_lib files (erasure-*, match-candidate, offers-store, pipeline-github-handle, rematch-source), and every one of them passes when re-run alone. The failure was a transient react.development.js resolution error while a sibling was mid-edit on pipeline.ts / attention.ts / aging-policy.ts. PERF, which the coordinator must act on: test:perf is red, with 31 route lines over their ceiling by +1 module and +1..12 KB. I rebuilt HEAD plus only my 4 source files into a temp tree and ran evaluate() on it. That tree's only finding is the known job-ingest.ts 402/400, so my change fits the budget on its own. The overage comes from my interview-session-status.ts (+1 module, about 5 KB, reached through db/interviews.ts) stacking on the sibling's new app/_lib/aging-policy.ts (+1 module, reached through db/pipeline.ts). Whichever of the two lands second needs a perf-budget.json raise. I did not raise it for an overage that my change alone does not cause."
+}

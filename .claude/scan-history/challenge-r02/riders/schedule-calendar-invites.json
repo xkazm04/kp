@@ -1,0 +1,7 @@
+[
+  {
+    "rider": "candidate-self-scheduling-page",
+    "files_read": 10,
+    "checked": "Read in full: app/schedule/[token]/page.tsx, SchedulePicker.tsx, use-schedule-invite.ts, BookedCard.tsx, SlotPicker.tsx, ProposeSection.tsx, DeadLinkCard.tsx, schedule-focus.ts, error.tsx, loading.tsx (the three colocated tests were listed, not opened). Hypotheses traced: (1) the propose-your-own-times escalation is a candidate dead end - ProposeSection.tsx:28-36 shows a static 'pending' card and use-schedule-invite.ts loads once (:90-122) with no poll or re-check, so a candidate never learns in-page that the recruiter accepted a time; but the 2026-09-22 deck already carries 'Tell the candidate when a recruiter cancels or accepts their proposed time' as a runner-up, so no card. (2) Focus/state ordering - schedule-focus.ts:27-31 mirrors SchedulePicker's branch order and is unit-pinned; clean. (3) Truthful delivery - use-schedule-invite.ts:136-143 keeps sent/queued/failed; clean. (4) Zones on chips / fencing proposals to the working day are both open leftover items (leftover-develop-2026-09-17: 'Show candidate and interviewer zones on every slot chip', 'Fence proposed times in the candidate's working day') - not re-proposed. No card went to the rider: the host's recruiter side is where the blind decision lives (card B makes the candidate's proposals and link state actionable on the recruiter's card, which is the other half of this rider's escalation flow)."
+  }
+]

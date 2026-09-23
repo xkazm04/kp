@@ -1,0 +1,107 @@
+[
+  {
+    "context": "devcase-live-work-surface",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Lift the live-work sync engine out of the 715-line surface into a tested client",
+    "size": "L",
+    "effort": 7,
+    "impact": 7,
+    "risk": 6,
+    "write_set": [
+      "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+      "app/devcase/apply/[token]/liveWorkSync.ts",
+      "app/devcase/apply/[token]/liveWorkSync.test.ts",
+      "app/devcase/apply/[token]/liveWorkDraft.test.ts",
+      "app/api/devcase/devcase-candidate-refusals.test.ts",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/devcase/apply/[token]/liveWorkSync.ts",
+      "app/devcase/apply/[token]/liveWorkSync.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "Idle visitor: a sync client with no session and no pending events -> flush() resolves false and the injected fetch was called 0 times (the lazy-mint contract, today only an inline guard at LiveWorkSurface.tsx:278).",
+      "Concurrent mint: two ensureSession() calls issued while the first POST /api/devcase/session is unresolved -> exactly 1 mint request; both calls resolve to the same session id 's1'.",
+      "403 on flush: pending [e1] then record(e2) during the request, flush answered 403 -> flush() resolves false, pending is [e1, e2] in that order, state.syncBlocked === true, persist() was called.",
+      "404/409 on flush: flush answered 409 -> sessionId becomes null and the batch is re-buffered; the NEXT flush issues exactly one mint and then POSTs the re-buffered batch to the new id.",
+      "Coded mint refusal is not retried blind: mint answered 404 {code:'DEVCASE_SESSION_UNAVAILABLE'} -> state.refusal.code === 'DEVCASE_SESSION_UNAVAILABLE'; three subsequent record() calls plus two flush() ticks inside the backoff window issue 0 further mint requests; retryMint() (or the window elapsing on the injected clock) issues exactly 1.",
+      "Submit refuses to seal an unlanded tree: final flush answered 500 -> submit() makes NO request to /api/devcase/session/{id}/submit, resolves status 'error' with errorKind 'generic', filesDirty stays true and the draft is not cleared.",
+      "Files ride only when dirty: edit() then flush -> body carries files; a second flush with no edit -> body has events only; a flush that throws leaves filesDirty true so the next tick re-sends the tree.",
+      "Submit outcomes fold: finalize 200 {reference:'DC-7Q'} -> status 'submitted', reference 'DC-7Q', clearDraft() called once; finalize 410 {code:'POSTING_CLOSED'} -> status 'error', errorKind 'closed', refusal.code 'POSTING_CLOSED'."
+    ],
+    "premise": [
+      "app/devcase/apply/[token]/LiveWorkSurface.tsx is 715 lines; the whole session protocol lives in component closures: ensureSession (202-257), record (259-266), flush (272-343), submit (376-430), over eight refs (sessionIdRef, startingRef, submittingRef, pendingRef, filesRef, filesDirtyRef, nameRef, contactRef at 72-98).",
+      "No behavioural test reaches that protocol: liveWorkDraft.test.ts:10 reads LiveWorkSurface.tsx as TEXT and 116-121 regex-match its source; app/api/devcase/devcase-candidate-refusals.test.ts:71-79 does the same; the only pure halves are liveWorkDraft.ts (encode/decode) and liveWorkMint.ts (foldMintRefusal, 4 cases).",
+      "The one e2e over this flow bypasses it on purpose: e2e/journey-one-thread.spec.ts:265-269 drives the session API directly 'because the editor's 8s autosave loop is a timing dependency this spec has no reason to take'.",
+      "Live defect the extraction closes: a coded mint refusal is remembered only for display (setRefusal at LiveWorkSurface.tsx:218, return null at 219) - nothing records that minting was refused, so record() re-calls ensureSession on every debounced edit (263, EDIT_DEBOUNCE_MS 600 at 25) and every 8s tick re-mints because pending is non-empty (278-280, FLUSH_MS 8000 at 24). A candidate on a closed link or a spent quota (app/api/devcase/session/route.ts:26-37, 404 / 429) fires POST /api/devcase/session forever.",
+      "Three open leftover-develop items for this rider all land inside that closure soup: 'Flush the live-work tree on pagehide so a closed tab keeps work', 'In-browser Run control that records eval process events', 'Let the candidate add and delete files on the seed tree' (.claude/scan-history/leftover-develop-2026-09-17.jsonl)."
+    ],
+    "rollback": "Two commits (module+tests, then the component rewire + doc). The rewire is behaviour-preserving except the mint backoff; reverting the second commit restores the inline closures and the new module becomes dead code, reverting both leaves the tree exactly as today. No schema, route or catalog change.",
+    "gate": "architecture",
+    "runner_up": "One pure evalReading.ts that derives the 'was this watched' fact once - today four different tells (DevEvalPanel.tsx:81 perStepSources.tooling, :106 ev.integrity, DevEvalPanelProcessTrace.tsx:22 / DevEvalPanelScores.tsx:56 tooling.signals, DevSubmissionRow.tsx:223 repoRef) plus the Python thresholds mirrored inline in DevEvalPanelChecks.tsx:54,57.",
+    "technique": "error-classification-for-retry",
+    "body": "## Summary\nMove the Live Work Surface's session protocol - lazy mint, 8s flush, re-buffer, 403/404/409 handling, dirty-tree tracking and the seal-only-after-a-landed-flush submit - out of React closures into `liveWorkSync.ts`, a framework-free client with injected `fetch`, clock and persistence, and make the component a thin renderer of its state. Classify a coded mint refusal as non-retryable-until-backoff so a closed link stops re-minting every 8 seconds.\n\n## Description\nThis is the path that produces the evidence the product calls its strongest (a watched process, not a reconstructed git log), and it is the least tested code in the group: 715 lines, eight refs, and the only tests read the `.tsx` as a string. The e2e spec deliberately routes around it. Every open item on this rider (pagehide flush, a Run control, add/delete files) adds more state to the same closures, so each one is harder than it should be and none can be pinned before it is built. The extraction gives the protocol a seam node:test can drive with a fake fetch, and the error classification the registry asks for (`error-classification-for-retry`: fatal-versus-retry lives in ONE place in the client) - today a 404 'this link is not taking work' and a dropped packet take the same retry path.\n\n## Flow\n1. Write `liveWorkSync.test.ts` with the eight acceptance cases against a fake fetch + manual clock; they fail (module absent).\n2. Create `liveWorkSync.ts`: `createLiveWorkSync({ token, fetch, now, persist, clearDraft, onChange })` exposing `record`, `edit`, `ensureSession`, `retryMint`, `flush`, `submit`, `snapshot()`; move the existing logic verbatim, then add the refusal backoff (a coded 4xx mint refusal suppresses minting until `retryMint()` or a backoff window; a thrown fetch stays retryable per `suspension-is-not-failure`).\n3. Rewire `LiveWorkSurface.tsx` to hold one client in a ref and render from `snapshot()`; the draft hydrate/persist stays in the component (liveWorkDraft.ts unchanged).\n4. Move the two source-regex tests to assert against the module/behaviour instead of the component text.\n5. Update docs/features/dev-case/README.md (Live Work Surface section).\n\n## Expected impact\nThe candidate evidence path gets its first behavioural suite (8 cases vs 0); the closed-link/quota re-mint storm stops; the three open rider items become additions to a tested module instead of edits to a 715-line component. The component should drop by roughly 250 lines.\n\n## Evaluation\nClaim: the live-work session protocol is testable without a DOM and a coded mint refusal no longer re-mints on every tick.\nBefore: 0 of 8 acceptance cases pass (no module exists; case 5 is a live defect).\nAfter: 8 of 8.\nMethod: gate - `npm run test:unit` (liveWorkSync.test.ts + the migrated liveWorkDraft/candidate-refusals tests), plus `npx tsc --noEmit`, `npm run lint`.\nResult: pending build.\nGate: architecture.",
+    "evidence": "wc -l app/devcase/apply/[token]/LiveWorkSurface.tsx -> 715.\nLiveWorkSurface.tsx:24 `const FLUSH_MS = 8000;` :25 `const EDIT_DEBOUNCE_MS = 600;`\n:213-219 `if (!r.ok) { ... setRefusal(foldMintRefusal({ ok: false, payload })); return null; }` (no memory that minting was refused)\n:259-264 `const record = useCallback((kind, path, size) => { pendingRef.current.push(...); persistDraft(); void ensureSession(); }`\n:278-280 `if (!sessionIdRef.current && pendingRef.current.length === 0) return false; const sid = await ensureSession(); if (!sid) return false;`\n:354 `const iv = setInterval(() => void flush(), FLUSH_MS);`\napp/api/devcase/session/route.ts:26-30 closed/missing posting -> jsonRefusal('DEVCASE_SESSION_UNAVAILABLE', 404); :35-37 quota -> jsonRefusal('DEVCASE_SESSION_QUOTA', 429).\nliveWorkDraft.test.ts:10 `const surface = readFileSync(... 'LiveWorkSurface.tsx')`; :116-121 six assert.match over the source.\ndevcase-candidate-refusals.test.ts:71-79 readFileSync LiveWorkSurface.tsx + regex.\ne2e/journey-one-thread.spec.ts:265-269 'driven directly because the editor's 8s autosave loop is a timing dependency this spec has no reason to take'.\nleftover-develop-2026-09-17.jsonl devcase-live-work-surface: 3 open items (pagehide flush S, add/delete files S, Run control M)."
+  },
+  {
+    "context": "devcase-eval",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Show the promote verdict before the click: advance or hold, with coded reasons",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "write_set": [
+      "app/_lib/devcase-promote-verdict.ts",
+      "app/_lib/devcase-promote-verdict.test.ts",
+      "app/_lib/devcase-run.ts",
+      "app/api/devcase/promote/route.ts",
+      "app/api/devcase/postings/route.ts",
+      "app/features/tools/devcases/DevTypes.ts",
+      "app/features/tools/devcases/useDevSubmissionRow.ts",
+      "app/features/tools/devcases/DevEvalPanel.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/_lib/devcase-promote-verdict.ts",
+      "app/_lib/devcase-promote-verdict.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "promoteVerdict({ transferScore: 82, floor: 70, authenticityBand: 'authentic', confidence: 0.8 }) -> { recommendation: 'advance', reasons: [{ code: 'score_clears_floor', params: { score: 82, floor: 70 } }] }.",
+      "Blocker above the ladder: promoteVerdict({ transferScore: 95, floor: 70, authenticityBand: 'suspect', authenticityScore: 28, confidence: 0.9 }) -> recommendation 'hold' and reasons[0] is { code: 'authenticity_suspect', params: { score: 28 } } (the blocker is listed before the score reason).",
+      "Thin evidence holds: transferScore 90, floor 70, confidence 0.3 -> 'hold' with a { code: 'low_confidence', params: { confidence: 0.3 } } reason; confidence 0.41 with the same score -> 'advance'.",
+      "Absent score is its own tier: transferScore null -> 'hold' with { code: 'not_scored' } and NO reason carrying score 0 (today devcase-run.ts writes 'transfer score 0 vs calibrated floor').",
+      "Parity: for the four fixtures above, promoteSubmission(id, floor).recommendation equals promoteVerdict(...).recommendation, the PromoteResult carries the same reason codes, and the automation-trail string stays the locale-invariant English sentence it is today.",
+      "GET /api/devcase/postings: an evaluated submission carries promotePreview equal to promoteVerdict(its bundle, activePromoteFloor()); an unevaluated submission carries no promotePreview key.",
+      "Client fold: foldPromoteResponse(500, { code: 'DEVCASE_PROMOTE_FAILED' }) -> { state: 'error', code: 'DEVCASE_PROMOTE_FAILED' } (today useDevSubmissionRow drops a non-OK silently); foldPromoteResponse(200, { recommendation: 'hold', reasonCodes: [...] }) -> { state: 'promoted', recommendation: 'hold' }.",
+      "Catalog: every PROMOTE_REASON_CODES member renders in en/cs/de/fr with its params (no raw key, no missing ICU argument)."
+    ],
+    "premise": [
+      "The verdict exists and is thrown away. app/_lib/devcase-run.ts:1159-1160 computes `score >= floor && !suspectAuth && !lowConfidence ? 'advance' : 'hold'`, 1161-1165 builds English `reasons`; app/api/devcase/promote/route.ts:52-53 returns `recommendation` and `reasons`; app/features/tools/devcases/useDevSubmissionRow.ts:213-218 reads only `r.ok` (`if (r.ok) setPromoted(true);`) and never the body.",
+      "A failed promote is silent: useDevSubmissionRow.ts:209-222 has no error branch and no catch surface - a 400 'evaluate the submission first', a 404 or a DEVCASE_PROMOTE_FAILED 500 leaves the button re-enabled with nothing said.",
+      "The recruiter decides blind: DevEvalPanel.tsx:161-171 renders the Promote button beside the static `promoteHint` ('-> becomes a Decisions review card', messages/en.json:9822) and, after the click, the same green 'in pipeline' check for an advance and for a hold.",
+      "The rule is inline in a DB write: devcase-run.ts:1036-1195 (promoteSubmission) mixes the verdict into the `.immediate()` transaction, so no read path can preview it; the floor is server-only (app/_lib/devcase-orchestrator.ts:37 activePromoteFloor) and the postings GET (app/api/devcase/postings/route.ts:16-28) attaches only the latest outcome.",
+      "Reasons are prose, not codes: devcase-run.ts:1162-1164 `transfer score ${score} vs calibrated floor ${floor}` etc., and 1192 folds them into the automation-trail sentence - uncountable and untranslatable on a 4-locale surface.",
+      "Absent score is fabricated: devcase-run.ts:1046 `const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);` so an unscored submission's reason reads 'transfer score 0'."
+    ],
+    "rollback": "Additive on the wire (a promotePreview field on the postings payload, reasonCodes beside the existing reasons on the promote response). Reverting the UI commit leaves unused fields; reverting the lib commit restores the inline rule in promoteSubmission, which devcase-promote.test.ts continues to pin. The four catalog blocks revert with the UI commit.",
+    "gate": "contract",
+    "runner_up": "Evidence rows in the Compare matrix (canaries caught/graded, chain verified/broken, observed vs inferred per column) so the side-by-side is not rubric-only - DevCompareSubmissions.tsx:77-115 renders authenticity + axes and nothing from integrity/observedChecks.",
+    "technique": "a-hold-that-blocks-auto-advance",
+    "body": "## Summary\nThe advance/hold verdict a promotion will land with is computed on the server, returned, and discarded; the recruiter clicks Promote without knowing whether the candidate will read as ADVANCE or be parked on HOLD, and learns nothing afterwards. Extract the rule into a pure `devcase-promote-verdict.ts` with a closed, coded reason vocabulary, ship its result as a per-submission `promotePreview`, and render it on the EvalPanel beside the button - before the click, and truthfully after it.\n\n## Description\n`promoteSubmission` already implements the registry's hold-that-blocks rule (suspect authenticity and low evidence-confidence force hold regardless of score), but only as a side effect inside an IMMEDIATE transaction, with English reasons. The UI never reads it, so the most consequential click on the panel is blind and its failure path is silent. Lifting the rule into a pure function (blockers evaluated above the score ladder; absent score is its own tier, never 0) gives three callers one truth: `promoteSubmission` (unchanged behaviour, plus reason codes), the postings GET (a preview at the server's calibrated floor), and the panel. Reasons become codes resolved in the reader's language (`reason-codes-over-prose`); the audit trail keeps its locale-invariant English sentence built from the same codes.\n\n## Flow\n1. Write `devcase-promote-verdict.test.ts` (cases 1-4, 7-8) and extend the parity check (case 5); they fail.\n2. Create `app/_lib/devcase-promote-verdict.ts`: import-free `PROMOTE_REASON_CODES` literal array + derived union, `promoteVerdict(input)`, `promoteAuditSentence(verdict)`, `foldPromoteResponse(status, body)`.\n3. `devcase-run.ts` promoteSubmission calls promoteVerdict outside the transaction and writes the same card/trail; PromoteResult gains `reasonCodes`.\n4. promote route returns `reasonCodes`; postings GET attaches `promotePreview` to evaluated submissions using `activePromoteFloor()`.\n5. `useDevSubmissionRow.promote` folds the response: error -> `useErrorMessage` line; success -> holds the returned recommendation.\n6. `DevEvalPanel` renders a verdict chip (moss advance / amber hold, tokens only) with the coded reasons before the click, and 'In pipeline - held for review' vs 'advancing' after it.\n7. Catalog keys in all four locales; update docs/features/dev-case/README.md.\n\n## Expected impact\nEvery promote becomes an informed decision: a suspect or thin-evidence submission reads HOLD with its cause before anyone clicks, a hold no longer looks identical to an advance afterwards, and a failed promote stops being a silent no-op. The reason vocabulary becomes countable across a cohort, which the calibration loop can later use.\n\n## Evaluation\nClaim: the promote verdict and its reasons are visible before and after the click, from one pure rule shared with the server.\nBefore: 0 of 8 acceptance cases pass (no verdict module, no preview, no fold, no catalog keys).\nAfter: 8 of 8.\nMethod: gate - `npm run test:unit` (new verdict tests + existing devcase-promote.test.ts), `npm run i18n:check`, `npx tsc --noEmit`, `npm run lint`, `npm run design:check`.\nResult: pending build.\nGate: contract.",
+    "evidence": "app/_lib/devcase-run.ts:1046 `const score = sub.transferScore ?? Number(transfer.transferScore ?? 0);`\n:1057 `const suspectAuth = bundle.authenticity?.band === \"suspect\";` :1066 `const lowConfidence = evalConfidence != null && evalConfidence <= LOW_EVAL_CONFIDENCE;` (:1014 = 0.4)\n:1159-1160 `const recommendation ... = score >= floor && !suspectAuth && !lowConfidence ? \"advance\" : \"hold\";`\n:1161-1165 `const reasons = [ `transfer score ${score} vs calibrated floor ${floor}`, ...(suspectAuth ? [`process authenticity is suspect (...)`] : []), ...]`\n:1192 recordAutomationEvent(entry.id, \"screening_hold\", `promoted from dev case — ${recommendation}: ${reasons.join(\"; \")} | ...`)\napp/api/devcase/promote/route.ts:52-53 `recommendation: result?.recommendation ?? null, reasons: result?.reasons ?? [],`\nuseDevSubmissionRow.ts:213-218 `const r = await fetch(\"/api/devcase/promote\", ...); if (r.ok) setPromoted(true);` then `finally { setPromoting(false); }` - no body read, no error state.\nDevEvalPanel.tsx:162-170 promoted ? <Check/> tr(\"inPipeline\") : <button onClick={onPromote}>...; <span>{tr(\"promoteHint\")}</span>\nmessages/en.json:9821-9822 \"promote\": \"Promote to pipeline\", \"promoteHint\": \"→ becomes a Decisions review card\"\napp/api/devcase/postings/route.ts:19-27 merges only `outcome` onto each submission.\napp/_lib/devcase-orchestrator.ts:37 `export const activePromoteFloor = (): number => getPromoteFloor() ?? DEV_POLICY.promoteFloor;`\nRegistry: recruiting/combining-signals-into-a-hire-decision technique a-hold-that-blocks-auto-advance ('The hold must carry its reasons visibly'; 'blocker sits above the ladder'); recruiting/decision-audit-and-traceability technique reason-codes-over-prose."
+  }
+]

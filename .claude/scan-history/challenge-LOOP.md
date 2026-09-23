@@ -23,5 +23,16 @@ whole loop (irreversible / policy-loosen still never built).
 
 | Run | Hosts | Riders | Status |
 | --- | --- | --- | --- |
-| challenge-2026-09-22 (r01) | 6 | 0 | done — 11 landed + 1 partial (apply-A, completion builder dispatched 2026-09-23) |
-| challenge-r02 | 8 | 11 | scouting |
+| challenge-2026-09-22 (r01) | 6 | 0 | done — 12/12 landed (apply-A completed 2026-09-23, f76c8462b) |
+| challenge-r02 | 8 | 11 | done — 16/16 landed + 1 follow-up; flawless 12/16 (10 strict); 3 coordinator fixes |
+| challenge-r03 | 8 | 5 | carded + critiqued (3.94/4.69/4.31, 5 revise) — builds after r02 closes |
+
+Side fixes outside the card flow: a9bd69f62 companion recall scoped to workspace (r02 llm-api scout); 93f485438 interview-sim /s+/ word count (r03 scout).
+Small follow-ups noted by scouts, not yet built: skill-profile public page limiter keyed per token (guessing gets fresh allowance); companion_cli fallbackReason raw provider text (llm-api/B may cover); /api/schedule ?limit >500 truncated:false; about riders: voice ticker double role=status, palette-preview raw stage labels.
+The python-runner-concurrency failure is load-induced: passes 3/3 in isolation.
+Registry: scan-sweep 3.5.1 (e1c0626b) — riders, --until-covered, --in-flight all committed with tests.
+Known flake (not ours, owner's call): `app/_lib/python-runner-concurrency.test.ts` process-tree-kill case.
+- OWED at loop end: run e2e/token-doors-axe.spec.ts against a KP_EMPTY=1 prod build (llm-api/A moved its offer case onto a (SIM) entry; builders could not run it).
+- Reword app/features/shared/sharedGet.ts:5-12 comment (Schedule grid+panel double fetch no longer true after schedule/A).
+- companion_cli exception path still sends raw provider text as fallbackReason; switching to a code needs app/_lib/companion-turn.ts companionFallbackClass + tests (llm-api/B follow-up).
+- Dead catalog key pipeline.tab.previewApplyGlobal (pipeline/B); team-scoped pass filters the shared 2000-row list (documented gap).
