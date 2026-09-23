@@ -2340,6 +2340,27 @@ export function ensureDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_webhook_claims_expires ON webhook_claims (expires_at);
   `);
+  // Usage journal (db/billing.ts, docs/features/billing/README.md): ONE row per meter
+  // debit, written by recordMeterUsage in the same transaction as the billing_usage
+  // counter it explains — qty, its included/credits split, and the cause (source_kind +
+  // an opaque source_ref id). Write-only evidence: no gate or charge reads it. Org-keyed
+  // like every billing table (tenancy-exempt billing block, exported with the org).
+  // New-in-full, so a legacy DB simply gains it on boot.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS billing_usage_journal (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      org_id TEXT NOT NULL DEFAULT 'org-default',
+      meter TEXT NOT NULL,
+      period TEXT NOT NULL,
+      qty INTEGER NOT NULL,
+      from_included INTEGER NOT NULL,
+      from_credits INTEGER NOT NULL,
+      source_kind TEXT NOT NULL,
+      source_ref TEXT,
+      occurred_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_billing_usage_journal_org ON billing_usage_journal (org_id, period);
+  `);
   // Tenant foundation (P2): ensure the single default workspace row exists ('workspace'
   // matches DEFAULT_WORKSPACE in auth/session.ts and billing's id).
   db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, created_at) VALUES (?, ?, ?)`).run("workspace", "Default workspace", new Date().toISOString());
