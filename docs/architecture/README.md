@@ -82,7 +82,13 @@ tenant and undo the rule. Every handler in the `HANDLERS` table declares `tenanc
 line; `app/_lib/tasks-pump.test.ts` fails on a kind that declares neither, and on a
 `scoped` one whose handler never actually reads the workspace. Durable, cross-restart
 queueing remains out of scope — the `tasks` row is the source of truth, and a run
-orphaned mid-flight is marked `interrupted` rather than resumed.
+orphaned mid-flight is marked `interrupted` rather than resumed. Every handler runs
+in the Python engine's *background* admission lane (`withSpawnLane`, opened by the
+runner around `spec.run`), so its spawns queue behind a recruiter's click instead of
+being refused at the interactive 20 s bound ([api-contracts](./api-contracts.md)).
+A failed row stores a catalogued code for the runtime's own failures
+(`ENGINE_TIMEOUT`, `TASK_TIME_LIMIT`, …), which the Tasks drawer and the Activity
+detail resolve in the reader's language.
 
 Three kinds are **late-bound**: `jobseeker_scan`, `interview_kit` and `interview_letter`
 call `externalRunner(kind)` (`app/_lib/task-external-runners.ts`, a leaf registry on

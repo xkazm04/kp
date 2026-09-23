@@ -666,6 +666,26 @@ BEFORE its catch-all and answers `jsonRefusal(busy.code, busy.status)` —
 to fold it into their generic `*_FAILED` 500. Sizing guidance:
 [self-hosting §3b](./self-hosting.md#3b-sizing-the-python-engine).
 
+**The door has two lanes.** The 20 s bound is written for a caller with a person
+waiting. Work the task runner or the automation clock started is *background*
+(`withSpawnLane("background", …)` in `app/_lib/llm-request-context.ts`, opened at
+exactly those two places, `tasks.ts` and `scheduler.ts`, and nowhere else): it is
+admitted only while no interactive caller is waiting, holds at most ceiling-1
+slots, and waits `KP_PYTHON_BACKGROUND_WAIT_MS` (10 min) before the same
+`ENGINE_BUSY`. A route never names a lane, so a route's contract is the
+interactive one above, unchanged. Pinned by `app/_lib/python-runner-lanes.test.ts`.
+
+**A stored failure is a code.** A failed task row is read later, in the reader's
+language, so the task runner stores the runtime's own failures as catalogued codes,
+never as English engine text: `spawnFailureCode(err)` (python-runner) maps
+`ENGINE_BUSY`, a `SpawnFailure` of kind `timeout` to `ENGINE_TIMEOUT` and the other
+kinds to `ENGINE_FAILED`; the runner's own outcomes are `TASK_TIME_LIMIT` (the
+wall-clock watchdog and the reaper) and `TASK_KIND_UNKNOWN`. A handler's own error
+keeps its text. Every surface that shows the row resolves the stored value through
+`errors.<CODE>` first and falls back to the text (`resolveError({ code: task.error },
+task.error)`); `app/_lib/task-failure-code.test.ts` pins the writer and the five
+readers.
+
 **The runner's own failures are typed.** A deadline, an abort, the output ceiling
 and an interpreter that would not start reject a `SpawnFailure` (extends
 `PipelineError`) with `kind` = `timeout` (504, code `timeout`) | `aborted` |

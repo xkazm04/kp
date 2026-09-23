@@ -254,6 +254,7 @@ rather than letting a burst starve the Node server every route shares.
 |---|---|---|
 | `KP_PYTHON_MAX_CONCURRENT` | `4` | Interpreters allowed to run at once, process-wide. Sized for the 2-vCPU floor the Helm chart requests: enough that a recruiter's parallel board actions genuinely overlap, low enough to leave a core for Next and keep worst-case engine memory under ~1 GB. Raise it on a bigger host; `1` makes the engine strictly serial. |
 | `KP_PYTHON_QUEUE_WAIT_MS` | `20000` | How long a call waits for a slot before the route answers **503 `ENGINE_BUSY`**. Well inside a normal client deadline; an unbounded queue would only convert an overload into sockets held open past the point their users gave up. |
+| `KP_PYTHON_BACKGROUND_WAIT_MS` | `600000` | How long BACKGROUND work (a task-runner handler, the automation clock's pass) waits for a slot before it is refused `ENGINE_BUSY`. Long because nobody is holding a socket open and the task has a 15-minute budget; bounded so a wedged engine still answers the task. See the lane rule below. |
 | `PYTHON_MAX_BUFFER_MB` | `64` | Combined stdout+stderr a child may buffer before it is killed. |
 | `PYTHON_CMD` | `python3` (`python` on Windows) | The interpreter. |
 
@@ -263,6 +264,17 @@ Two operational properties to know:
   Node process. A horizontally-scaled deployment multiplies it by the replica
   count; the same swap the rate limiter would need (a shared store behind the same
   function shape) applies here.
+- **Two admission lanes, one ceiling.** A spawn made inside the background-task
+  runner or the automation clock's tick is in the *background* lane; everything
+  else (a route with a person waiting) is *interactive*. When a slot frees, an
+  interactive waiter always goes first; background may hold at most
+  `KP_PYTHON_MAX_CONCURRENT - 1` slots (never fewer than 1, so `1` still makes
+  progress), so a recruiter's click always has a slot to take; and background
+  waits `KP_PYTHON_BACKGROUND_WAIT_MS` instead of the 20 s interactive bound, so
+  a group evaluation's six concurrent reasoning spawns against the default ceiling
+  of 4 queue instead of being refused by the engine's own gate. A forced "Run now"
+  of the automation pass has an operator waiting and stays interactive.
+  `pythonSpawnLoad().lanes` reports in-flight and queued per lane.
 - **A killed spawn takes its children with it.** A timeout, an abort, or a
   buffer overrun ends the whole process *tree* — the interpreter plus every
   `claude` / `git` it shelled out to (POSIX: the child leads its own process
