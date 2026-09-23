@@ -24,12 +24,21 @@ test("the offer letter and the offer reminder both pin the link to the letter's 
   const offerAt = src.indexOf("export async function dispatchOffer(");
   const reminderAt = src.indexOf("export async function dispatchOfferReminder(");
   assert.ok(offerAt > 0 && reminderAt > 0, "both dispatchers must exist");
+  const composeAt = src.indexOf("export function composeOfferLetter(");
+  assert.ok(composeAt > 0, "the offer letter has ONE composer, shared by the send and the preview");
   const offerBody = src.slice(offerAt, src.indexOf("\n}\n", offerAt));
   const reminderBody = src.slice(reminderAt, src.indexOf("\n}\n", reminderAt));
-  for (const [name, body] of [["dispatchOffer", offerBody], ["dispatchOfferReminder", reminderBody]] as const) {
-    assert.match(body, /candidateLocale\(entry\.locale, entry\.workspaceId\)/, `${name} resolves the letter's locale`);
-    assert.match(body, /pinLinkLocale\([A-Za-z]+, locale\)/, `${name} pins the link to THAT locale`);
-    assert.doesNotMatch(body, /\{ link: (responseLink|link) \}/, `${name} must not hand the catalog the unpinned link`);
+  const composeBody = src.slice(composeAt, src.indexOf("\n}\n", composeAt));
+  // dispatchOffer resolves the locale and hands it, with the raw link, to the composer,
+  // which does the pinning (challenge-r06 comms-dispatch-relay/B): the pin is asserted
+  // where it now lives, and neither body may hand the catalog an unpinned link.
+  assert.match(offerBody, /candidateLocale\(entry\.locale, entry\.workspaceId\)/, "dispatchOffer resolves the letter's locale");
+  assert.match(offerBody, /composeOfferLetter\([\s\S]*link: responseLink,[\s\S]*locale,/, "dispatchOffer composes with THAT locale");
+  assert.match(composeBody, /pinLinkLocale\(opts\.link, locale\)/, "composeOfferLetter pins the link to the letter's locale");
+  assert.match(reminderBody, /candidateLocale\(entry\.locale, entry\.workspaceId\)/, "dispatchOfferReminder resolves the letter's locale");
+  assert.match(reminderBody, /pinLinkLocale\([A-Za-z]+, locale\)/, "dispatchOfferReminder pins the link to THAT locale");
+  for (const [name, body] of [["dispatchOffer", offerBody], ["dispatchOfferReminder", reminderBody], ["composeOfferLetter", composeBody]] as const) {
+    assert.doesNotMatch(body, /\{ link: (responseLink|opts\.link) \}/, `${name} must not hand the catalog the unpinned link`);
   }
 });
 

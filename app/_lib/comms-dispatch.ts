@@ -194,6 +194,19 @@ async function candidateFooters(
   const optOutToken = ensureOptOutToken(entry.id, workspaceId);
   if (!erasureToken && !optOutToken) return { text: "", unsubscribeUrl: null };
   const base = await candidateLinkBase();
+  return renderCandidateFooters(t, locale, base, { erasureToken, optOutToken });
+}
+
+/** The footer TEXT for given tokens, with no minting and no request read: what
+ *  candidateFooters sends and what the offer-letter preview shows with placeholder
+ *  tokens (comms-letter-preview.ts), so the two cannot word the legal lines apart. */
+export function renderCandidateFooters(
+  t: CommsTranslator,
+  locale: Locale,
+  base: string,
+  tokens: { erasureToken: string | null; optOutToken: string | null }
+): { text: string; unsubscribeUrl: string | null } {
+  const { erasureToken, optOutToken } = tokens;
   // ?lang= pins each page to the language the LETTER is written in, exactly as the status
   // link that rides beside them does (proxy.ts turns the param into the NEXT_LOCALE
   // cookie). Unpinned, the page resolved from a cookie the candidate does not have and
@@ -636,6 +649,36 @@ export async function dispatchKnockoutDecline(input: {
 }
 
 /**
+ * THE ONE OFFER-LETTER COMPOSER (challenge-r06 comms-dispatch-relay/B). dispatchOffer
+ * sends what this returns and the approval card's preview (comms-letter-preview.ts)
+ * shows what this returns, so the letter a recruiter approves cannot drift from the
+ * letter the candidate receives. Pure: no token, no row, no clock. The caller hands
+ * it the link (a real one to send, a placeholder to preview) and the deadline.
+ * Returns the letter WITHOUT the GDPR footers, which sendCandidateComm appends.
+ */
+export function composeOfferLetter(
+  entry: { jobTitle?: string | null; locale?: string | null; workspaceId?: string | null },
+  draft: { subject?: unknown; body?: unknown },
+  opts: { link: string; expiresAt: string | null; startDate: string | null; locale: Locale; t: CommsTranslator }
+): { subject: string; body: string } {
+  const { t, locale } = opts;
+  const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
+  const letter = String(draft.body ?? "").trim();
+  const terms: string[] = [];
+  const deadline = formatOfferDeadline(opts.expiresAt, entry.locale, entry.workspaceId);
+  if (deadline) terms.push(t("offer.deadlineLine", { deadline }));
+  const startDate = (opts.startDate ?? "").trim();
+  if (startDate) terms.push(t("offer.startLine", { date: startDate }));
+  const termsBlock = terms.length > 0 ? `${terms.join("\n")}\n\n` : "";
+  // The response link is pinned to the LETTER's locale here, beside the resolution
+  // above, so the page it opens speaks the language the letter was written in — the
+  // status, erasure and schedule links already do; the offer link was the one bare
+  // door (perfect: offer-door-speaks-the-letter-language, 2026-09-01).
+  const link = pinLinkLocale(opts.link, locale);
+  return { subject, body: `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link }) };
+}
+
+/**
  * Deliver the (recruiter-approved) offer to the candidate with a token-gated
  * accept/decline link. The offer DECISION stays human — this fires only after a
  * recruiter extends the drafted offer. Appends the response link to the letter.
@@ -657,20 +700,13 @@ export async function dispatchOffer(
 ): Promise<DispatchOutcome> {
   const locale = candidateLocale(entry.locale, entry.workspaceId);
   const t = await commsTranslator(locale);
-  const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
-  const letter = String(draft.body ?? "").trim();
-  const terms: string[] = [];
-  const deadline = formatOfferDeadline(opts?.expiresAt ?? null, entry.locale, entry.workspaceId);
-  if (deadline) terms.push(t("offer.deadlineLine", { deadline }));
-  const startDate = (opts?.startDate ?? "").trim();
-  if (startDate) terms.push(t("offer.startLine", { date: startDate }));
-  const termsBlock = terms.length > 0 ? `${terms.join("\n")}\n\n` : "";
-  // The response link is pinned to the LETTER's locale here, beside the resolution
-  // above, so the page it opens speaks the language the letter was written in — the
-  // status, erasure and schedule links already do; the offer link was the one bare
-  // door (perfect: offer-door-speaks-the-letter-language, 2026-09-01).
-  const link = pinLinkLocale(responseLink, locale);
-  const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link });
+  const { subject, body } = composeOfferLetter(entry, draft, {
+    link: responseLink,
+    expiresAt: opts?.expiresAt ?? null,
+    startDate: opts?.startDate ?? null,
+    locale,
+    t,
+  });
   const outcome = await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
   // `offer_sent` is what analytics counts as "offers extended" and what the timeline
   // shows the recruiter: a dead-lettered or refused letter is neither. The caller
@@ -1009,7 +1045,7 @@ export function formatSlotForLetter(
   }
 }
 
-function formatOfferDeadline(iso: string | null, locale: string | null | undefined, workspaceId?: string | null): string {
+export function formatOfferDeadline(iso: string | null, locale: string | null | undefined, workspaceId?: string | null): string {
   if (!iso) return "";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
