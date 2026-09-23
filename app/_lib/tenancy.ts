@@ -424,6 +424,17 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   "schema_migrations",
   "_migrations",
   "sqlite_sequence", // sqlite internal
+  // Durable webhook idempotency (db/webhook-claims.ts): one row per claimed delivery on
+  // the inbound receiver, pull pass, edge drain and agent-report route. EXEMPT because a
+  // row is a GLOBALLY-UNIQUE DELIVERY DIGEST — sha256 of a key that already namespaces
+  // itself by the receiver's own capability token (or the edge pairing), the same shape
+  // of reason billing_events carries for the provider's global event id. The digest is
+  // one-way: no token, no header, no payload and no candidate data is stored (the store
+  // never persists the composed key, which embeds the raw token), so there is nothing a
+  // team could read of another's, nothing to export (orgExportClass -> exclude) and
+  // nothing an Art. 17 request could reach. Rows expire (lease / done-horizon) and are
+  // swept, so the table is bounded bookkeeping, not tenant data.
+  "webhook_claims",
 ]);
 
 /** Tables created LAZILY on a store's OWN better-sqlite3 connection (openStore), not by
