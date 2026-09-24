@@ -2293,6 +2293,16 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobseeker_dialogs", "The seeker's own CV-polish and fit conversations; same controller relationship as jobseeker_profiles."],
   ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
+  // Gigs module (db/gigs-*.ts): the OPERATOR's own freelance/bounty work - paid work the
+  // operator takes on, not hiring. No table is keyed to a pipeline entry or holds a
+  // candidate, so a candidate's Art. 17 request routed through pipeline_entries has
+  // nothing in any of them to reach.
+  ["gig_sources", "Acquisition configuration for the operator's own paid-work search (which official APIs, terms acknowledgements, pause state) - operator config, no personal data."],
+  ["gigs", "Public work LISTINGS (security programs, freelance briefs, competitions, bounties) as their publishers posted them - the same class as job_postings; never keyed to a candidate."],
+  ["gig_specialists", "The operator's AI specialist agents (a hired_agents row + recipe spec). Art. 17 protects natural persons; an agent is software."],
+  ["gig_attempts", "An AI specialist's run on a listing: its draft, the operator's review and the metered cost - the operator's own work product, no candidate data."],
+  ["gig_outcomes", "Append-only verdicts on work the operator sent (accepted/rejected, money awarded, the client's feedback) - the operator's own business record, never keyed to a candidate."],
+  ["gig_lessons", "Generalized lesson bullets for a registry recipe, distilled from an outcome with no account, client name or path - no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
   ["intake_events", "The append-only history of that same role-definition dialogue (db/intake-events.ts): one row per round, holding the requestor's words about a ROLE. Same class as `role_intakes` above and inherits its basis — it is written before any candidate exists and is keyed to an intake, never to a pipeline entry, so this entry-keyed scrub has no path to it and a candidate's Art. 17 request has nothing in it to reach. The requestor is an operator-side employee, not a candidate: their own erasure runs through `eraseIntakeEvents(intakeId, workspaceId)`, the table's only DELETE."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],

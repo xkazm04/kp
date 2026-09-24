@@ -323,6 +323,28 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // One team's lifecycle of a SHARED corpus role, keyed (workspace_id, job_id); no
   // by-id carve-out (job-workspace-state-tenancy.test.ts).
   "job_workspace_state",
+  // The Gigs module (db/gigs-*.ts, vocabulary in gigs/types.ts): paid work a specialist
+  // agent drafts and the operator sends. Every read and write binds `workspace_id = ?`,
+  // point reads included, and there is NO carve-out and no tenant default - every store
+  // export takes workspaceId as its first, required argument.
+  // Sources: the operator's confirmed API list, incl. terms acknowledgements and the
+  // invalid-outcome streak that pauses a source (gigs-sources-tenancy.test.ts).
+  "gig_sources",
+  // Gigs: the listings, keyed (workspace_id, COALESCE(source_id,'manual'), external_key)
+  // so one workspace's scan or forward never touches another's row (gigs-tenancy.test.ts).
+  "gigs",
+  // Specialists: the hired agent + spec (recipes, exemplars, budget) a team built
+  // (gigs-specialists-tenancy.test.ts).
+  "gig_specialists",
+  // Attempts: one specialist run, its deliverable, the operator's review and its metered
+  // cost - a team's spend and draft work (gigs-attempts-tenancy.test.ts).
+  "gig_attempts",
+  // Outcomes: the append-only external verdicts, incl. money awarded
+  // (gigs-outcomes-tenancy.test.ts).
+  "gig_outcomes",
+  // Lessons: what an outcome taught a recipe, queued for the registry lander
+  // (gigs-lessons-tenancy.test.ts).
+  "gig_lessons",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

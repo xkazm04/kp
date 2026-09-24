@@ -1516,6 +1516,147 @@ export function ensureDb(): Database.Database {
     -- read-then-insert two clicks could race.
     CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
     CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
+
+    -- Gigs module (app/_lib/gigs/types.ts, stores in db/gigs-*.ts): real paid work found in
+    -- the world, drafted by a specialist agent and SENT BY THE OPERATOR. Six tables, every
+    -- one workspace-scoped with NO by-id carve-out (a leaked id must not resolve another
+    -- workspace's source, gig, specialist, attempt, outcome or lesson).
+    --
+    -- Status columns carry no CHECK list on purpose: the vocabularies live once in
+    -- gigs/types.ts and the stores only write typed values, while a CHECK would turn every
+    -- added status into a table rebuild. tier is the exception - A/B/C is the terms
+    -- contract itself, not a growing list.
+    --
+    -- A source mirrors jobseeker_sources: a tier-B adapter is created disabled with
+    -- paused_reason 'terms_review' and enabled only together with the acknowledgement
+    -- columns. invalid_streak counts consecutive rejected/duplicate outcomes and pauses
+    -- the source at GIG_INVALID_STREAK_LIMIT (programs suspend accounts for that).
+    CREATE TABLE IF NOT EXISTS gig_sources (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      adapter TEXT NOT NULL,
+      arena TEXT NOT NULL,
+      tier TEXT NOT NULL CHECK(tier IN ('A','B','C')),
+      host TEXT NOT NULL,
+      config_json TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      acknowledged_at TEXT,
+      acknowledged_terms_hash TEXT,
+      paused_reason TEXT,
+      paused_at TEXT,
+      invalid_streak INTEGER NOT NULL DEFAULT 0,
+      last_run_at TEXT,
+      last_outcome TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_sources_ws ON gig_sources (workspace_id, created_at);
+
+    -- One row per real-world listing per source. source_id is NULL for a gig the operator
+    -- forwarded by hand, and SQLite treats NULLs as distinct inside a UNIQUE, so the key
+    -- is an EXPRESSION index over COALESCE(source_id, 'manual'): two forwards of the same
+    -- brief collide exactly like two scans of the same listing. (Source ids are minted by
+    -- randomId with a prefix, so no real source can be named 'manual'.)
+    CREATE TABLE IF NOT EXISTS gigs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      source_id TEXT,
+      arena TEXT NOT NULL,
+      external_key TEXT NOT NULL,
+      url TEXT NOT NULL,
+      title TEXT NOT NULL,
+      org TEXT,
+      reward_json TEXT,
+      deadline_at TEXT,
+      posted_at TEXT,
+      body_text TEXT NOT NULL,
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      niche TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      suspect_reasons_json TEXT NOT NULL DEFAULT '[]',
+      specialist_id TEXT,
+      qualification_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_gigs_source_key ON gigs (workspace_id, COALESCE(source_id, 'manual'), external_key);
+    CREATE INDEX IF NOT EXISTS idx_gigs_ws_status_updated ON gigs (workspace_id, status, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_gigs_ws_arena ON gigs (workspace_id, arena);
+
+    -- A specialist is a hired_agents roster row (the Personas persona) plus the spec that
+    -- makes it a specialist: arena, niche, adopted recipes, exemplars, budget.
+    CREATE TABLE IF NOT EXISTS gig_specialists (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      hired_agent_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      spec_json TEXT NOT NULL,
+      registry TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_specialists_ws ON gig_specialists (workspace_id, created_at);
+
+    -- One specialist run on one gig. A revision is a NEW attempt (revision_note carries
+    -- the operator's ask), so an attempt row never goes backwards. cost_usd NULL means
+    -- Personas did not report a cost - unmetered, not free.
+    CREATE TABLE IF NOT EXISTS gig_attempts (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      gig_id TEXT NOT NULL,
+      specialist_id TEXT NOT NULL,
+      execution_id TEXT,
+      status TEXT NOT NULL DEFAULT 'dispatched',
+      deliverable_json TEXT,
+      fallback_reason TEXT,
+      cost_usd REAL,
+      review_json TEXT,
+      revision_note TEXT,
+      sent_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_attempts_ws_status ON gig_attempts (workspace_id, status);
+    CREATE INDEX IF NOT EXISTS idx_gig_attempts_ws_gig ON gig_attempts (workspace_id, gig_id);
+
+    -- APPEND-ONLY: the external judge's verdict on a sent piece of work. The store exports
+    -- no UPDATE or DELETE for it (gigs-outcomes.test.ts pins that); a corrected verdict is
+    -- a newer row, and the KPI fold reads the latest per attempt.
+    CREATE TABLE IF NOT EXISTS gig_outcomes (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      gig_id TEXT NOT NULL,
+      attempt_id TEXT,
+      verdict TEXT NOT NULL,
+      amount REAL,
+      currency TEXT,
+      feedback_text TEXT,
+      source TEXT NOT NULL,
+      recorded_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_outcomes_ws_gig ON gig_outcomes (workspace_id, gig_id);
+
+    -- What one outcome teaches the recipe that shaped the specialist, queued for the
+    -- registry lander. landed_at NULL = still pending.
+    CREATE TABLE IF NOT EXISTS gig_lessons (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      outcome_id TEXT NOT NULL,
+      recipe_slug TEXT NOT NULL,
+      recipe_version TEXT NOT NULL,
+      arena TEXT NOT NULL,
+      verdict TEXT NOT NULL,
+      bullets_json TEXT NOT NULL,
+      landed_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_lessons_ws_landed ON gig_lessons (workspace_id, landed_at);
   `);
   // Run a DDL migration LOUDLY. An `ALTER TABLE … ADD COLUMN` goes through addColumns
   // (db/add-columns.ts): probe PRAGMA table_info, ALTER only a column that is missing, and
