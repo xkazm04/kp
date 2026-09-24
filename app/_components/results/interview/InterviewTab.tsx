@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter, Check, ClipboardCheck, CalendarPlus, Loader2 } from "lucide-react";
+import { MessagesSquare, Wrench, ShieldAlert, HelpCircle, Filter, Check, ClipboardCheck, ClipboardCopy, CalendarPlus, Loader2 } from "lucide-react";
 import type { Analysis } from "@/app/_lib/schemas";
 import { tabHref } from "@/app/features/shell/tabs";
 import { dedupe } from "@/app/_lib/dedupe";
+import { copyText } from "@/app/_lib/export-utils";
+import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 import { SoftSignalsSection } from "./SoftSignalsSection";
 import { PANEL } from "@/app/_components/ui/recipes";
 import {
@@ -74,6 +76,8 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
   const t = useTranslations("report");
   const bucketLabel = (group: GroupKey) => t(metaFor(group).labelKey as Parameters<typeof t>[0]);
   const [bucket, setBucket] = useState<FilterKey>("all");
+  const { copied, mark } = useCopyFeedback();
+  const [copyFailed, setCopyFailed] = useState(false);
 
   // The soft-signal panel is deterministic (no JD/LLM needed), so it renders
   // even when the LLM interview kit is absent — the kit placeholder card moves
@@ -91,6 +95,27 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
   }
 
   const { summary, questions } = analysis.interviewKit;
+  const signalProbes = analysis.softSignals
+    ? [...analysis.softSignals.antipatterns, ...analysis.softSignals.strengths]
+        .filter((signal) => signal.needsConfirmation && signal.suggestedProbe)
+        .map((signal) => signal.suggestedProbe)
+    : [];
+  const copyKit = async () => {
+    const lines = [t("panel.mockInterview"), summary, "", ...questions.flatMap((question, index) => [
+      `${index + 1}. ${question.question}`,
+      `${t("panel.tiedTo")} ${question.evidenceGap}`,
+      ...([
+        ["panel.starSituation", question.starScaffold.situation],
+        ["panel.starTask", question.starScaffold.task],
+        ["panel.starAction", question.starScaffold.action],
+        ["panel.starResult", question.starScaffold.result],
+      ] as const).filter(([, body]) => body).map(([key, body]) => `${t(key)}: ${body}`),
+      "",
+    ])];
+    const succeeded = await copyText(lines.join("\n"));
+    mark(succeeded);
+    setCopyFailed(!succeeded);
+  };
   // Derive tiles/chips from the buckets actually present (known buckets first,
   // then an "Other" group for anything off-taxonomy) so the per-group counts
   // sum to the total and no question can be silently filtered out of view.
@@ -128,8 +153,15 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
             questions into their real interview-prep pack instead of leaving the
             recruiter to re-type them. Absent off-pipeline (no entry handle). */}
         {prepEntryId ? (
-          <ImportToPrepButton entryId={prepEntryId} questions={questions.map((q) => q.question)} />
+          <ImportToPrepButton entryId={prepEntryId} questions={[...questions.map((q) => q.question), ...signalProbes]} />
         ) : null}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={copyKit} className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 px-3 py-1.5 text-sm font-semibold text-steel hover:bg-paper hover:text-ink">
+            {copied ? <Check size={14} aria-hidden /> : <ClipboardCopy size={14} aria-hidden />}
+            {copied ? t("copyKitDone") : t("copyKit")}
+          </button>
+          {copyFailed ? <span role="status" className="text-sm text-red-700">{t("copyKitFailed")}</span> : null}
+        </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-steel">

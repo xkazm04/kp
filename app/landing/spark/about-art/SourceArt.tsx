@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useStillMotion } from "../useStillMotion";
 import { DISPLAY } from "../tokens";
 import { DRAW, ENTER } from "./shared";
 
@@ -14,6 +15,7 @@ const ROWS = [
 ];
 
 export default function SourceArt({ color = "#caa54c" }: { color?: string }) {
+  const reduceMotion = useStillMotion();
   return (
     <div className="mx-auto w-full max-w-lg space-y-2.5">
       {ROWS.map((r, i) => (
@@ -21,8 +23,9 @@ export default function SourceArt({ color = "#caa54c" }: { color?: string }) {
           key={r.name}
           initial={{ opacity: 0, x: 40 }}
           whileInView={{ opacity: 1, x: 0 }}
+          animate={reduceMotion ? { opacity: 1, x: 0 } : undefined}
           viewport={ENTER}
-          transition={{ delay: i * 0.12, type: "spring", bounce: 0.3 }}
+          transition={reduceMotion ? { duration: 0 } : { delay: i * 0.12, type: "spring", bounce: 0.3 }}
           className="flex items-center gap-3 rounded-2xl border-[3px] border-[#17202a] bg-white p-3 shadow-[4px_4px_0_#17202a]"
         >
           <span
@@ -39,8 +42,9 @@ export default function SourceArt({ color = "#caa54c" }: { color?: string }) {
               <motion.div
                 initial={{ width: 0 }}
                 whileInView={{ width: `${r.v}%` }}
+                animate={reduceMotion ? { width: `${r.v}%` } : undefined}
                 viewport={ENTER}
-                transition={{ ...DRAW, delay: 0.2 + i * 0.12 }}
+                transition={reduceMotion ? { duration: 0 } : { ...DRAW, delay: 0.2 + i * 0.12 }}
                 className="h-full rounded-full"
                 style={{ background: color }}
               />

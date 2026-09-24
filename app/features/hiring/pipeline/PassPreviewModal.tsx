@@ -3,6 +3,7 @@
 import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
@@ -11,7 +12,7 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 
 type PreviewDecision = { entryId: string; action: string; toStage: string | null; reason: string; outcome?: string };
 type Preview = {
-  summary: { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
+  summary: { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number; scoringDeferred?: number };
   decisions: PreviewDecision[];
   /** TENANCY (a43408d) — `summary` is the GLOBAL sweep (the pass really did evaluate that
    *  many entries, across every team), while `decisions` is already filtered to the caller's
@@ -138,6 +139,12 @@ export function PassPreviewModal({
         {partial ? (
           <p className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-sm text-steel">
             {t("previewScope", { mine, total })}
+          </p>
+        ) : null}
+        {preview.summary.scoringDeferred ? (
+          <p role="status" className={`${NOTICE("amber")} px-3 py-1.5 text-sm`}>
+            <AlertTriangle size={14} className="mr-1 inline-block align-text-bottom" aria-hidden />
+            {t("previewScoringDeferred", { count: preview.summary.scoringDeferred })}
           </p>
         ) : null}
         {rejects.length > 0 ? (

@@ -94,6 +94,11 @@ export default async function HistoryDetailPage({
     const key = `stage.${stage}` as Parameters<typeof tEnums>[0];
     return tEnums.has(key) ? tEnums(key) : stage;
   };
+  const candidateLabel = (kind: "family" | "seniority", value: string | null) => {
+    if (!value) return "—";
+    const key = `${kind}.${value}` as Parameters<typeof tEnums>[0];
+    return tEnums.has(key) ? tEnums(key) : value;
+  };
 
   // Content-addressed identity (cv_hash) surfaces two things, both best-effort so a
   // store fault never breaks the report:
@@ -102,14 +107,20 @@ export default async function HistoryDetailPage({
   //     newest first (the store returns newest-first), workspace-scoped.
   //  2. Label collision — another saved analysis shares this filename-derived label
   //     but a DIFFERENT CV, i.e. two different people under one "CV.pdf"-style name.
-  const alsoAnalyzed: { jdSlug: string; slug: string }[] = [];
+  const alsoAnalyzed: { jdSlug: string; slug: string; jdTitle: string | null; score: number | null }[] = [];
   let labelCollision = false;
   try {
     const seenJds = new Set<string>();
     for (const other of listAnalysesByCvHash(found.row.cv_hash, ws, slug)) {
       if (!other.jd_slug || other.jd_slug === found.row.jd_slug || seenJds.has(other.jd_slug)) continue;
       seenJds.add(other.jd_slug);
-      alsoAnalyzed.push({ jdSlug: other.jd_slug, slug: other.slug });
+      let title: string | null = null;
+      try {
+        title = loadJd(other.jd_slug, ws)?.title.trim() || null;
+      } catch (error) {
+        console.error(`[history] cross-job title lookup failed for "${other.jd_slug}"`, error);
+      }
+      alsoAnalyzed.push({ jdSlug: other.jd_slug, slug: other.slug, jdTitle: title, score: other.score });
     }
     labelCollision = hasLabelCollision(found.row.candidate_label, found.row.cv_hash, ws);
   } catch (error) {
@@ -181,7 +192,7 @@ export default async function HistoryDetailPage({
         </div>
         <h1 className="font-serif text-display text-ink">{found.row.candidate_label}</h1>
         <p className="text-sm text-steel">
-          {found.row.role_family ?? "—"} · {found.row.seniority ?? "—"} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: savedDateTime })}
+          {candidateLabel("family", found.row.role_family)} · {candidateLabel("seniority", found.row.seniority)} · {t("histScore", { score: found.row.score ?? "—" })} · {t("histSaved", { date: savedDateTime })}
           {found.row.jd_slug ? (
             <>
               {" · "}
@@ -208,9 +219,10 @@ export default async function HistoryDetailPage({
             {alsoAnalyzed.map((entry, i) => (
               <span key={entry.slug}>
                 {i > 0 ? ", " : ""}
-                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="font-mono text-coral hover:underline">
-                  JD {entry.jdSlug}
+                <Link href={`/history/${encodeURIComponent(entry.slug)}`} className="text-coral hover:underline">
+                  {entry.jdTitle ?? `JD ${entry.jdSlug}`}
                 </Link>
+                {` · ${t("histScore", { score: entry.score ?? "—" })}`}
               </span>
             ))}
           </p>

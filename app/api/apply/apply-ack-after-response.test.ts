@@ -29,7 +29,7 @@ const helper = read("../../_lib/after-response.ts");
 test("the post-response hook is next/server's `after`, and scheduling can't break the response", () => {
   assert.match(helper, /import \{ after \} from "next\/server"/, "the sanctioned Route Handler API, not a bare detached promise");
   assert.match(helper, /try \{\s*after\(run\);\s*\} catch \{\s*void run\(\);\s*\}/, "no request context (script/test) must fall back, never throw");
-  assert.match(helper, /catch \(err\) \{\s*console\.error\(`\[after:\$\{label\}\]`/, "a deferred failure is logged, never an unhandled rejection");
+  assert.match(helper, /catch \(err\) \{\s*failureCount \+= 1;\s*console\.error\(`\[after:\$\{label\}\]`/, "a deferred failure is counted and logged, never an unhandled rejection");
 });
 
 test("both conversational ack sites are deferred — including the newly-reachable re-ack", () => {

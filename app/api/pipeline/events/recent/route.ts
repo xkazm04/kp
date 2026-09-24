@@ -7,7 +7,7 @@ import { listPipelineEventsSince, listRecentPipelineEvents } from "@/app/_lib/db
 // GET /api/pipeline/events/recent            → { events, cursor } — the last 7 days, newest first
 // GET /api/pipeline/events/recent?since=<id> → { events, cursor } — everything STRICTLY AFTER <id>
 //                                               within the window, oldest first
-// Response event: { id, candidateLabel, jobTitle, kind, fromStage, toStage, detail, createdAt }
+// Response event: { id, entryId, candidateLabel, jobTitle, kind, fromStage, toStage, detail, createdAt }
 //
 // The board's activity feed, with FULL candidate names. The sibling GET
 // /api/pipeline/events is ungated and therefore serves a privacy projection
@@ -39,12 +39,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** The feed's row: the internal entry id, archetype and actor stay off the wire —
- *  the feed reads none of them, and the entry id is the IDOR handle the public
- *  projection exists to strip. */
+/** The operator-only feed carries the entry id so a row can open its candidate.
+ *  The unauthenticated sibling still strips this IDOR handle through
+ *  toPublicPipelineEvent; archetype and actor stay off both feeds. */
 function wire(e: ReturnType<typeof listRecentPipelineEvents>[number]) {
   return {
     id: e.id,
+    entryId: e.entryId,
     candidateLabel: e.candidateLabel,
     jobTitle: e.jobTitle,
     kind: e.kind,

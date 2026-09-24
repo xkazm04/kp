@@ -33,7 +33,7 @@ const CARD_BODY_H = "h-[min(93vh,45.2rem)]";
 //
 // Prose width: body copy runs to 90% of the pane — see setupProse.ts for why.
 
-export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
+export function OnboardingWizard({ ctrl, draftRestored }: { ctrl: OnboardingCtrl; draftRestored: boolean }) {
   const t = useTranslations("setup");
   const reduced = useReducedMotion();
   // The steps THIS run walks (the intent fork, setupSteps.ts) — never the full list.
@@ -181,6 +181,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                 title: t(stepTitleKey(step.id, ctrl.state.intent)),
               })}
             </p>
+            <p role="status" className="sr-only">{draftRestored ? t("aria.draftRestored") : ""}</p>
             <div className="-mx-3 -my-1 min-w-0 flex-1 overflow-y-auto px-3 py-1">
               <AnimatePresence mode="wait">
                 <motion.div

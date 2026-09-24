@@ -34,6 +34,9 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
   "_lib/automation-run.ts": "automation / interview_scorecard",
   "_lib/devcase-run.ts": "devcase_*",
   "_lib/agent-hire/transform-run.ts": "agent_fit",
+  // The JOB-level interview kit: a second entry point into automation_cli, and a second
+  // spawn that must carry the admin's routing for the `automation` use case.
+  "_lib/interview-kit-run.ts": "automation",
   "_lib/repo-scan-run.ts": "repo_scan",
   "_lib/job-ingest.ts": "jd_ingest",
   "_lib/recruiter-run.ts": "weight_proposal",

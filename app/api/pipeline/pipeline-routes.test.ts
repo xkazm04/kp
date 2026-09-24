@@ -40,13 +40,21 @@ async function addViaRoute(extra: Record<string, unknown> = {}) {
 test("POST /api/pipeline validates the boundary: missing ids → 400, unknown stage → 400", async () => {
   const missing = await boardPost(jsonRequest("http://localhost/api/pipeline", { candidateLabel: "No Ids" }));
   assert.equal(missing.status, 400);
-  assert.match((await missing.json()).error, /candidateId and jobId/);
+  assert.equal((await missing.json()).code, "PIPELINE_ADD_IDS_REQUIRED");
 
   const badStage = await boardPost(
     jsonRequest("http://localhost/api/pipeline", { candidateId: "c", jobId: "j", stage: "Ghosted" })
   );
   assert.equal(badStage.status, 400);
-  assert.match((await badStage.json()).error, /Unknown stage/);
+  const stageBody = await badStage.json();
+  assert.equal(stageBody.code, "PIPELINE_ADD_STAGE_UNKNOWN");
+  assert.ok(stageBody.stages.includes("Screened"));
+
+  const badGithub = await boardPost(jsonRequest("http://localhost/api/pipeline", { candidateId: "c", jobId: "j", github: "bad" }));
+  assert.equal((await badGithub.json()).code, "PIPELINE_GITHUB_EVIDENCE_INVALID");
+
+  const badApproval = await boardPost(jsonRequest("http://localhost/api/pipeline", { candidateId: "c", jobId: "j", approvalKind: "review" }));
+  assert.equal((await badApproval.json()).code, "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN");
 });
 
 test("POST /api/pipeline files the candidate once: happy add persists, the re-add returns created:false", async () => {

@@ -12,6 +12,7 @@ import type { SchedEntry } from "./ScheduleTypes";
 import { findEvidenceTurn, type Session } from "./scheduleInterviewTranscriptHelpers";
 import { AiScorecardSection } from "./ScheduleInterviewAiScorecardSection";
 import { HumanScorecardSection } from "./ScheduleInterviewHumanScorecardSection";
+import { InterviewEvidenceSection } from "./ScheduleInterviewEvidenceSection";
 import { TranscriptTurns } from "./ScheduleInterviewTranscriptTurns";
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
@@ -108,7 +109,22 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
 
           {humanSc ? <HumanScorecardSection sc={humanSc} /> : null}
 
-          <TranscriptTurns provider={session.provider} transcript={transcript} citedTurns={citedTurns} highlightIdx={highlightIdx} t={t} />
+          {/* WP4 — the director's record: observations, the audio the candidate opted
+              into, and the transcript grouped under the agenda. Keyed by session id, so
+              a row without one (a legacy read) falls back to the flat transcript this
+              modal has always shown. */}
+          {session.id ? (
+            <InterviewEvidenceSection
+              sessionId={session.id}
+              provider={session.provider}
+              transcript={transcript}
+              citedTurns={citedTurns}
+              highlightIdx={highlightIdx}
+              t={t}
+            />
+          ) : (
+            <TranscriptTurns provider={session.provider} transcript={transcript} citedTurns={citedTurns} highlightIdx={highlightIdx} t={t} />
+          )}
         </div>
       )}
     </Modal>

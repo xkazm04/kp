@@ -17,7 +17,9 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { APP_CURRENCY, RATING_MAX } from "@/app/_lib/format";
+import { isNotAssessedRating } from "@/app/_lib/interview-scorecard";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
 import { SalaryBandRail } from "./DecisionsPeerViz";
@@ -31,19 +33,33 @@ const LADDER_VISIBLE = 4;
  *  queue card whose whole job is to be decided at a glance. */
 const LADDER_MAX_H = "max-h-[7.5rem]";
 
-/** The scorecard rubric dots — data, not prose, so they survive the ladder. */
+/** The scorecard rubric dots — data, not prose, so they survive the ladder.
+ *
+ *  NOT-ASSESSED IS ON THE SCALE. The AI synthesis stores a competency the interview
+ *  never reached as a real 3 carrying "Not assessed…" evidence, so three filled dots
+ *  appeared on this card exactly where nothing was observed — on the surface where the
+ *  reviewer ratifies the verdict. The shared read-side guard
+ *  (interview-scorecard.isNotAssessedRating) collapses that sentinel to the words
+ *  instead of the dots; the localized string is borrowed from the transcript modal's
+ *  catalog, the way the drawer's interview card borrows its coverage caveat, so the
+ *  three surfaces cannot word the same fact differently. */
 function RatingDots({ parsed }: { parsed: ParsedApproval }) {
+  const t = useTranslations("scheduleTab.transcript");
   if (!parsed.ratings?.length) return null;
   return (
     <ul className="space-y-1">
       {parsed.ratings.slice(0, 4).map((r, i) => (
         <li key={i} className="flex items-center justify-between gap-2">
           <span className="truncate text-sm text-steel">{r.competency}</span>
-          <span className="flex shrink-0 gap-0.5">
-            {RATING_SCALE.map((n) => (
-              <span key={n} className={`h-1.5 w-1.5 rounded-full ${n <= r.rating ? "bg-moss" : "bg-stone-200"}`} />
-            ))}
-          </span>
+          {isNotAssessedRating(r.rating, r.evidence) ? (
+            <span className={`shrink-0 ${META_LABEL}`}>{t("notAssessed")}</span>
+          ) : (
+            <span className="flex shrink-0 gap-0.5">
+              {RATING_SCALE.map((n) => (
+                <span key={n} className={`h-1.5 w-1.5 rounded-full ${n <= r.rating ? "bg-moss" : "bg-stone-200"}`} />
+              ))}
+            </span>
+          )}
         </li>
       ))}
     </ul>

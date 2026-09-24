@@ -4,7 +4,7 @@
 import type { ApprovalKind } from "../approval-kinds";
 import { TERMINAL_ENTRY_STATUSES } from "../pipeline-status";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
-import type { PipelineEntry } from "./core";
+import { coerceSlatePopulation, type PipelineEntry } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { screeningGateIndex, stagesWithRole, stageIndex, type StageDef } from "../pipeline-stages";
 
@@ -58,6 +58,9 @@ export type PipelineRow = {
   // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
   // caller holding an entry never has to be told its tenant separately.
   workspace_id?: string | null;
+  // ADR-0012 — slate columns (see the pipeline.ts twin of this row type).
+  population?: string | null;
+  rubric_version?: number | null;
 };
 
 export function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -103,6 +106,9 @@ export function rowToEntry(r: PipelineRow): PipelineEntry {
     // value now looks authoritative. devcase-source-promote-tenancy.test.ts
     // catches it behaviourally; a source-level check would not.
     workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+    // ADR-0012 — narrowed at the read boundary, same discipline as approval_kind.
+    population: coerceSlatePopulation(r.population),
+    rubricVersion: typeof r.rubric_version === "number" ? r.rubric_version : null,
   };
 }
 

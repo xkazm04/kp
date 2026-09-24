@@ -113,7 +113,8 @@ export async function submitAnalysis(
   companyText: string,
   jdSlug: string | null,
   reportLang?: string,
-  blind?: boolean
+  blind?: boolean,
+  signal?: AbortSignal,
 ): Promise<string> {
   const form = new FormData();
   form.append("grounding", "true");
@@ -127,7 +128,7 @@ export async function submitAnalysis(
   if (jdSlug) form.append("jdSlug", jdSlug);
   if (reportLang) form.append("reportLang", reportLang); // CV3 — per-run report language
 
-  const response = await fetch("/api/analyze", { method: "POST", body: form });
+  const response = await fetch("/api/analyze", { method: "POST", body: form, signal });
   // A refusal is not guaranteed to be JSON (a proxy's own 413/429 page is not),
   // so a parse failure must degrade to the coded path rather than throw a
   // SyntaxError the surface would render as an unexplained crash.

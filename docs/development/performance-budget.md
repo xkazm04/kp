@@ -17,6 +17,14 @@ fails it when a job exceeds its declared ceiling. See
 
 ## What is measured, and why this number
 
+The 2026-09-22 merge combined the interview director, journey analytics and
+feedback-letter routes with the backlog sweep. Against the previous green main,
+`app/page.tsx` measures 1364 modules / 8649 KB (previously 1287 / 7846), and
+the heaviest API route measures 229 modules / 3008 KB (previously 224 / 2880).
+`perf-budget.json` now records those merged measurements with narrow headroom.
+The API group keeps its 225-module ceiling; the four larger routes have named
+overrides so their added graph remains visible.
+
 This repo used to measure cost carefully and gate none of it. 783 tests, e2e,
 accessibility probes and LLM evals all read correctness; the committed
 threshold that now reads cost is `perf-budget.json`. The number with a measured

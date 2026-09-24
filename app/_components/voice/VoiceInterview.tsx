@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConversationProvider } from "@elevenlabs/react";
 import { useLocale, useTranslations } from "next-intl";
-import { CheckCircle2, Mic, MicOff, PhoneOff } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CheckCircle2, Mic, MicOff, PhoneOff } from "lucide-react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 // Provider id, transcript turn, and availability map are single-sourced in the
 // voice adapter layer. Import from voice/types (not the package index, which
@@ -12,7 +13,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { VoiceAvailability, VoiceProviderId, VoiceTurn } from "@/app/_lib/voice/types";
 import { BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
 import { canStart, voiceStartGate, type AvailabilityProbe } from "./availability-gate";
-import { createTimerRegistry } from "./timer-registry";
+import { createTimerRegistry, type TimerCancel } from "./timer-registry";
 // Default + fallback provider order, single-sourced in voice/types (browser-safe
 // pure data) so the picker can't default to a different provider than the server's
 // pickDefaultProvider — they previously kept inverted copies.
@@ -31,22 +32,42 @@ import { collectVoicePreflightEnv, voicePreflightCode } from "@/app/_lib/voice/p
 // the drop debounce, the agent overrides — moved with them; what stays here is the
 // shell they share: phase, consent, the transcript, and finalize().
 import {
+  sendDirective,
+  sendToolResult,
   startOpenAiCall,
   teardownOpenAi as teardownOaiTransport,
   type OaiRefs,
+  type VoiceLevels,
 } from "./transport/openai";
-import { startElevenLabsSession, useElevenLabsTransport } from "./transport/elevenlabs";
+import { sendElevenLabsDirective, startElevenLabsSession, useElevenLabsTransport } from "./transport/elevenlabs";
 import { isVoiceTransportError } from "./transport/transport-error";
 import { useMicTest } from "./useMicTest";
+import { useSpeakerTest } from "./useSpeakerTest";
 import { useTranscriptPersistence } from "./useTranscriptPersistence";
 import { micErrorText } from "./micErrorText";
 import { connectStartFailureMessage } from "./connect-start-failure";
-import { PROVIDER_LABEL, type LangHint, type Phase } from "./ui-types";
+import { PROVIDER_LABEL, portalLanguageHint, type LangHint, type Phase } from "./ui-types";
 import { MicTestPanel } from "./MicTestPanel";
 import { StatusPill } from "./VoiceStatusPill";
 import { VoiceLiveControls } from "./VoiceLiveControls";
 import { VoiceSettings } from "./VoiceSettings";
 import { VoiceTranscript } from "./VoiceTranscript";
+// The director loop (spark ai-interview-parity; ADR 0010). Everything about the
+// producer channel lives in these four modules rather than in this shell: the wire
+// discipline (director-channel), the React lifecycle (useDirector), the browser-only
+// observations (useCallObservations) and the presence derivation (presence-state).
+import { InterviewPresence } from "./InterviewPresence";
+import { presenceState } from "./presence-state";
+import { closingBegun, useDirector } from "./useDirector";
+import { useCallObservations } from "./useCallObservations";
+import { RecordingConsent, RecordingIndicator } from "./RecordingConsent";
+import { useInterviewRecording } from "./useInterviewRecording";
+import type {
+  CandidateAgendaView,
+  DirectorAgendaState,
+  ResumeContext,
+} from "@/app/_lib/voice/director-types";
+import type { DirectedEndContext, InterviewEnding } from "@/app/_lib/voice/finalize-status";
 
 // Live voice-interview MVP. OpenAI Realtime runs over raw WebRTC; ElevenLabs
 // runs through the @elevenlabs/react SDK. A switcher lets you A/B both on the
@@ -68,6 +89,20 @@ export type VoiceInterviewProps = {
   // neither and keeps the full A/B picker.
   provider?: VoiceProviderId;
   lockSettings?: boolean;
+  // Spark ai-interview-parity. The portal page resolves both server-side, where the
+  // token has already been redeemed:
+  //  - whether this workspace OFFERS an audio recording (the separate, opt-in
+  //    consent below the main one — WP3 owns what it then does);
+  //  - the candidate's own /status link, so the closing card is a door rather than
+  //    a cul-de-sac (the completed view has had one for a while; the live ending
+  //    did not).
+  recordingOffered?: boolean;
+  statusHref?: string | null;
+  /** Called whenever the director's agenda state moves, so the portal's sidebar can
+   *  follow the interview. */
+  onAgendaState?: (state: DirectorAgendaState) => void;
+  /** Called once /connect answers with the agenda projection (or null). */
+  onAgenda?: (agenda: CandidateAgendaView | null) => void;
 };
 
 // How long finalize() waits for a candidate utterance whose transcription is
@@ -92,6 +127,24 @@ const EL_DISCONNECT_GRACE_MS = 3000;
 // staring at a spinner that will never resolve.
 const CONNECT_TIMEOUT_MS = 30000;
 
+// How long a director tool call waits for a candidate utterance whose transcription
+// is still in flight (spark ai-interview-parity). THE TRANSCRIPTION RACE: the model
+// hears the answer and calls `mark_topic_covered` with the candidate's exact words
+// before OpenAI's input transcription has finished — so the director checks the quote
+// against a record that does not contain it yet, rejects a TRUE quote as `no_match`,
+// and the interviewer spends a question re-asking something already answered (it was
+// this feature's first documented known gap). Waiting up to 1.5 s and sending the turn
+// in the SAME exchange closes it; past that the call proceeds rather than leaving the
+// model blocked, because an un-recorded topic costs one question and a stalled tool
+// call costs the interview.
+const TOOL_TURN_GRACE_MS = 1500;
+
+// How often the provisional interviewer caption is allowed to re-render the shell.
+// `output_audio_transcript.delta` arrives tens of times a second and every one of them
+// would otherwise be a render of this whole component; at 200 ms the caption still
+// reads as live text while the call shell renders ~5 times a second.
+const PARTIAL_CAPTION_THROTTLE_MS = 200;
+
 /** Poll `done` every 100ms until it holds or `timeoutMs` elapses.
  *  `sleep` comes from the call's timer registry, so an unmount mid-poll both
  *  cancels the pending tick and RESOLVES this loop instead of leaving the
@@ -112,7 +165,18 @@ export function VoiceInterview(props: VoiceInterviewProps) {
   );
 }
 
-function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, provider: pinnedProvider, lockSettings }: VoiceInterviewProps) {
+function VoiceInterviewInner({
+  token,
+  candidateLabel,
+  jobTitle,
+  durationMin,
+  provider: pinnedProvider,
+  lockSettings,
+  recordingOffered,
+  statusHref,
+  onAgendaState,
+  onAgenda,
+}: VoiceInterviewProps) {
   const t = useTranslations("interview.voice");
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
@@ -144,9 +208,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   // the spoken-agent language hint from the candidate's UI locale — the agent then
   // speaks Czech for a cs visitor instead of falling to "auto". The lab keeps the
   // explicit "auto" default + the visible picker.
-  const [language, setLanguage] = useState<LangHint>(
-    lockSettings ? (locale === "cs" ? "cs" : "en") : "auto"
-  );
+  const [language, setLanguage] = useState<LangHint>(lockSettings ? portalLanguageHint(locale) : "auto");
   const [phase, setPhase] = useState<Phase>("idle");
   // True only while the OS/browser microphone-permission prompt is open — drives an
   // actionable "grant the mic" hint so the candidate knows the wait is on THEM, not a
@@ -179,10 +241,32 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   const [audioMuted, setAudioMuted] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
+  // ── the directed call (spark ai-interview-parity) ────────────────────────────
+  // The model is generating but has not started speaking: the one stretch of a voice
+  // call with no signal at all, which reads as a frozen page.
+  const [thinking, setThinking] = useState(false);
+  // The interviewer's line as it streams, before the turn finalizes. Throttled.
+  const [interviewerPartial, setInterviewerPartial] = useState("");
+  // The SEPARATE, opt-in audio-recording consent. Declining never blocks the call.
+  const [recordingConsent, setRecordingConsent] = useState(false);
+  // How many turns this transcript inherited from a dropped earlier attempt, so the
+  // candidate is told they are continuing rather than starting over.
+  const [resumedTurns, setResumedTurns] = useState(0);
+  // The connected call's ids, as STATE (not refs): the recording hook is mounted
+  // with them, and a hook argument read from a ref during render is a value React
+  // cannot see change.
+  const [liveSession, setLiveSession] = useState<{ sessionId: string; token: string; attempt: number } | null>(null);
+  // The call's own microphone stream (OpenAI only — the ElevenLabs SDK owns its own),
+  // handed to the recording hook so it captures the stream the call is using rather
+  // than opening a second one.
+  const [micStream, setMicStream] = useState<MediaStream | null>(null);
 
   // H5 follow-up: the pre-call mic test lives in its own hook — it shares nothing with
   // the call but the device, hence the two touchpoints (resetForCall / stopMicTest).
   const { micTest, micLevel, testMic, stopMicTest, resetForCall: resetMicTestForCall } = useMicTest();
+  // …and its other half: can the candidate HEAR us? Keyless by construction (a
+  // WebAudio tone, no asset and no provider) and purely advisory — see useSpeakerTest.
+  const { speakerTest, playTone, confirmHeard, stopSpeakerTest, resetSpeakerForCall } = useSpeakerTest();
 
   // Refs avoid stale closures inside provider callbacks / teardown.
   const sessionIdRef = useRef<string | null>(null);
@@ -223,6 +307,30 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   // finalize knows a final answer is still in flight at hang-up.
   const candBuf = useRef("");
   const pendingCandidateRef = useRef(false);
+  // ── refs the DIRECTED call adds ──────────────────────────────────────────────
+  // The candidate-side analyser (the presence orb follows the microphone while the
+  // interviewer listens) and the set of tool-call ids already answered.
+  const oaiInputCtxRef = useRef<AudioContext | null>(null);
+  const oaiInputRafRef = useRef<number | null>(null);
+  const answeredCallsRef = useRef<Set<string>>(new Set());
+  // Live audio levels, 0..1. A MUTABLE BOX, never state: the presence orb reads it on
+  // its own animation frame, so a meter cannot re-render the call shell.
+  const levelsRef = useRef<VoiceLevels>({ input: 0, output: 0 });
+  // The interviewer's speaking flag, mirrored for the imperative getters (the end
+  // handshake and `focus_lost.during` both ask outside of render).
+  const speakingRef = useRef(false);
+  // Whether a candidate utterance is still being transcribed, for BOTH providers.
+  // Deliberately separate from pendingCandidateRef above, which is the OpenAI
+  // finalize path's own signal and drives the "closing answer lost" system turn.
+  const candidateTurnPendingRef = useRef(false);
+  // The agenda this call is being directed against, and where the director says it
+  // has got to — both read at finalize time, which is outside render.
+  const agendaRef = useRef<CandidateAgendaView | null>(null);
+  const agendaStateRef = useRef<DirectorAgendaState>({ activeBlockId: null, coveredBlockIds: [] });
+  // HOW this call stopped. Null until something decides; a drop is the absence of a
+  // decision, which is exactly what the finalize rule keys on.
+  const endingKindRef = useRef<InterviewEnding | null>(null);
+  const partialAtRef = useRef(0);
   // EVERY delayed callback this call schedules — the 30s connect timeout, the
   // ElevenLabs disconnect-grace fallback and the finalize poll — so unmount can
   // empty all of them instead of the one that happened to have a ref.
@@ -236,16 +344,36 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     providerRef.current = provider;
   }, [provider]);
 
+  // The ONE timer "clear the connect timer" may touch. It used to call
+  // timersRef.current.clearAll() — the unmount teardown, which leaves the registry
+  // inert for good — at the start of every call and again when it went live, so the
+  // connect timeout was never armed, the ElevenLabs end fallback never fired, and
+  // the closing-answer grace became a busy-loop (timer-registry.ts).
+  const connectTimerCancelRef = useRef<TimerCancel | null>(null);
   const clearConnectTimer = useCallback(() => {
-    timersRef.current.clearAll();
+    connectTimerCancelRef.current?.();
+    connectTimerCancelRef.current = null;
   }, []);
 
-  const pushTurn = useCallback((role: VoiceTurn["role"], text: string) => {
-    const t = (text ?? "").trim();
-    if (!t) return;
-    const turn: VoiceTurn = { role, text: t, at: new Date().toISOString() };
-    turnsRef.current = [...turnsRef.current, turn];
-    setTurns(turnsRef.current);
+  // The interviewer's speaking flag goes to BOTH a ref (for the imperative getters
+  // below, which run outside render) and to state (for the pill and the orb).
+  const setSpeaking = useCallback((v: boolean) => {
+    speakingRef.current = v;
+    setOaiSpeaking(v);
+    // Audio is playing: whatever the model was doing, it is no longer thinking.
+    if (v) setThinking(false);
+  }, []);
+  const isInterviewerSpeaking = useCallback(() => speakingRef.current, []);
+
+  /** The provisional interviewer caption, throttled. The deltas arrive tens of times
+   *  a second; an empty string (the turn finalized) always lands immediately, because
+   *  a caption left standing under a finalized turn is a duplicate the candidate
+   *  reads twice. */
+  const showInterviewerPartial = useCallback((text: string) => {
+    const now = Date.now();
+    if (text && now - partialAtRef.current < PARTIAL_CAPTION_THROTTLE_MS) return;
+    partialAtRef.current = now;
+    setInterviewerPartial(text);
   }, []);
 
   // The bundle transport/openai.ts operates on. Built on demand (never during
@@ -264,17 +392,103 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
       asstBuf,
       candBuf,
       pendingCandidate: pendingCandidateRef,
+      inputCtx: oaiInputCtxRef,
+      inputRaf: oaiInputRafRef,
+      answeredCalls: answeredCallsRef,
     }),
     []
   );
 
   const teardownOpenAi = useCallback(() => {
     teardownOaiTransport(oaiRefs(), {
-      setSpeaking: setOaiSpeaking,
+      setSpeaking,
       setUnstable,
       setAudioBlocked,
+      setMicStream,
+      levels: levelsRef,
     });
-  }, [oaiRefs]);
+  }, [oaiRefs, setSpeaking]);
+
+  // ── the director loop ────────────────────────────────────────────────────────
+  // The ElevenLabs conversation object is rebuilt every render and is created BELOW
+  // (its hook needs pushTurn, which needs the director). A ref breaks that knot
+  // without making any of the three callbacks unstable.
+  const conversationRef = useRef<ReturnType<typeof useElevenLabsTransport> | null>(null);
+
+  /** Inject ONE stage direction into whichever provider is serving. `text` already
+   *  carries the server's `[Director] ` prefix and goes in VERBATIM. */
+  const injectDirective = useCallback(
+    (text: string) => {
+      const sent =
+        providerRef.current === "elevenlabs"
+          ? conversationRef.current !== null && sendElevenLabsDirective(conversationRef.current, text)
+          : sendDirective(oaiRefs(), text);
+      if (!sent) {
+        // An undelivered direction is a call that keeps running undirected — the
+        // documented degrade — but it is also the only symptom an operator would
+        // ever see of a transport that stopped accepting them.
+        console.warn("[voice] a director stage direction could not be delivered to the provider.");
+      }
+    },
+    [oaiRefs],
+  );
+
+  // The SAME teardown the End button runs — one end path, so a call is finalized,
+  // persisted and classified identically however it was decided to stop. Through a
+  // latest-ref rather than a direct closure: `end` is re-created every render (it
+  // reads half the component's state), and the director must not have to re-arm its
+  // loop every time this shell re-renders.
+  const endFnRef = useRef<(kind: InterviewEnding) => void>(() => {});
+  useEffect(() => {
+    endFnRef.current = (kind: InterviewEnding) => void end(kind);
+  });
+  const requestDirectorEnd = useCallback(() => endFnRef.current("director_end"), []);
+
+  const director = useDirector({
+    injectDirective,
+    isInterviewerSpeaking,
+    requestEnd: requestDirectorEnd,
+    timers: timersRef,
+  });
+
+  // Browser-only observations. They change NOTHING the candidate sees (see the
+  // hook's header): they are recorded, never scored, never shown as judgement.
+  const observations = useCallObservations({
+    live: phase === "live",
+    isInterviewerSpeaking,
+    onEvent: director.recordEvent,
+  });
+
+  // Keep the portal's sidebar in step with the director, and hold the two values
+  // finalize reads after the call is already over.
+  const { agendaState } = director;
+  useEffect(() => {
+    agendaStateRef.current = agendaState;
+    onAgendaState?.(agendaState);
+  }, [agendaState, onAgendaState]);
+
+  const pushTurn = useCallback(
+    (role: VoiceTurn["role"], text: string) => {
+      const t = (text ?? "").trim();
+      if (!t) return;
+      const turn: VoiceTurn = { role, text: t, at: new Date().toISOString() };
+      turnsRef.current = [...turnsRef.current, turn];
+      setTurns(turnsRef.current);
+      // `system` turns are OUR notes about the transcript (the lost-closing-answer
+      // marker), not the conversation — they are persisted with the transcript at
+      // hang-up and have no place in the director's turn numbering.
+      if (role === "system") return;
+      const seq = director.recordTurn(role, t);
+      // The real turn is now in the log above; the provisional caption of the same
+      // words would be the candidate reading it twice.
+      if (role === "interviewer") showInterviewerPartial("");
+      if (role === "candidate") {
+        candidateTurnPendingRef.current = false;
+        observations.noteCandidateTurn(seq);
+      }
+    },
+    [director, observations, showInterviewerPartial],
+  );
 
   const { saveFailed, setSaveFailed, discardedTurns, setDiscardedTurns, persistTranscript, retrySave } =
     useTranscriptPersistence({
@@ -338,9 +552,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
       pushTurn("candidate", candBuf.current);
       candBuf.current = "";
       pendingCandidateRef.current = false;
+      // The producer channel closes with the call: a queued tool call is answered
+      // (the model is never left waiting) and nothing posts to a session that is
+      // about to be finalized.
+      director.stop();
       teardownOpenAi();
       setPhase("ended");
       setEndedAs(status);
+      setThinking(false);
+      setInterviewerPartial("");
       // bug-ui-scan-2026-07-09 (voice-interview #2): a substantive call that ended on
       // a late transport blip still finalizes "completed" (interviewFinalStatus) and
       // WILL be scored — clear the transient connection error (set by onError / the
@@ -358,7 +578,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
         if (!saved && discarded === 0) setSaveFailed(true);
       }
     },
-    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, setSaveFailed, token, t]
+    [teardownOpenAi, clearConnectTimer, pushTurn, persistTranscript, setSaveFailed, token, t, director]
   );
 
   // M3: tick the elapsed timer while live so a nervous candidate can orient (am I 3 or 18 min in?).
@@ -436,13 +656,49 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   // asks the same single question, so building it here keeps the three sites from
   // classifying the same call differently. The provider branching (WHEN finalize
   // fires) stays at the call sites.
+  // What the DIRECTOR knew when the call stopped. A directed call that DROPS before
+  // its closing block is now "failed" on purpose — `failed` keeps the link
+  // reconnectable and the reconnect resumes the same agenda, so the candidate can
+  // finish rather than being locked out at minute 12 of 30 with half an interview
+  // scored (see voice/finalize-status.ts).
+  const currentDirection = (): DirectedEndContext => ({
+    directed: agendaRef.current !== null,
+    ending: endingKindRef.current ?? "drop",
+    closingBegun: closingBegun(agendaRef.current, agendaStateRef.current),
+  });
+
   const currentFinalStatus = () =>
-    interviewFinalStatus({
-      errored: erroredRef.current,
-      reachedLive: reachedLiveRef.current,
-      turnCount: turnsRef.current.length,
-      candidateTurnCount: turnsRef.current.filter((t) => t.role === "candidate").length,
-    });
+    interviewFinalStatus(
+      {
+        errored: erroredRef.current,
+        reachedLive: reachedLiveRef.current,
+        turnCount: turnsRef.current.length,
+        candidateTurnCount: turnsRef.current.filter((t) => t.role === "candidate").length,
+      },
+      currentDirection(),
+    );
+
+  /** One director tool call, end to end, for whichever provider asked. ALWAYS
+   *  resolves with the string to hand the model — "Continue with the agenda." when
+   *  the director could not be reached, so a producer outage costs direction and not
+   *  the interview. */
+  const runToolCall = useCallback(
+    async (call: { callId: string; name: string; args: unknown }): Promise<string> => {
+      // THE TRANSCRIPTION RACE: the model quotes an answer whose transcription has
+      // not landed yet. Hold the exchange for it (bounded) so the quote is checked
+      // against a record that contains it.
+      const awaitTurn = candidateTurnPendingRef.current
+        ? () =>
+            waitUntil(
+              () => !candidateTurnPendingRef.current,
+              TOOL_TURN_GRACE_MS,
+              (ms) => timersRef.current.sleep(ms),
+            )
+        : undefined;
+      return director.callTool(call, awaitTurn);
+    },
+    [director],
+  );
 
   const conversation = useElevenLabsTransport({
     isFinalized: () => finalizedRef.current,
@@ -453,6 +709,23 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
       setPhase("live");
     },
     onClosed: () => void finalize(currentFinalStatus()),
+    hooks: {
+      onMode: (mode) => {
+        setSpeaking(mode === "speaking");
+        // The SDK's mode is also the only signal that the agent's audio FINISHED —
+        // the pre-answer silence is measured from it.
+        if (mode === "listening") observations.noteInterviewerAudio("done");
+        else observations.noteInterviewerAudio("started");
+      },
+      onCandidateSpeech: (state) => {
+        if (state === "started") candidateTurnPendingRef.current = true;
+        observations.noteCandidateSpeech(state);
+        // The model is about to be handed a turn: from here until its audio starts
+        // is the "thinking" stretch.
+        if (state === "stopped") setThinking(true);
+      },
+      onInterviewerPartial: (text) => showInterviewerPartial(text),
+    },
     onError: (message: string, cause?: unknown) => {
       clearConnectTimer();
       erroredRef.current = true;
@@ -476,6 +749,12 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
       setPhase("error");
     },
     pushTurn,
+  });
+
+  // The SDK object is rebuilt every render; the director's directive injection reads
+  // it through this ref so its callback can stay stable.
+  useEffect(() => {
+    conversationRef.current = conversation;
   });
 
   useEffect(() => {
@@ -509,6 +788,11 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
 
   // Teardown on unmount.
   useEffect(() => {
+    // A remount (React's dev StrictMode runs mount → cleanup → mount) finds the
+    // registry the first cleanup tore down, and a cleared registry is inert for
+    // good — every timer this call schedules would silently no-op. Each mount owns
+    // a live one.
+    if (timersRef.current.cleared) timersRef.current = createTimerRegistry();
     // Copied inside the effect: the cleanup must clear THIS call's registry, not
     // whatever the ref points at by the time React runs the teardown.
     const timers = timersRef.current;
@@ -533,12 +817,23 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
         const tok = sessionTokenRef.current ?? token ?? null;
         if (sid && tok) {
           try {
-            const status = unmountBeaconStatus(endInFlightRef.current, {
-              errored: erroredRef.current,
-              reachedLive: reachedLiveRef.current,
-              turnCount: turnsRef.current.length,
-              candidateTurnCount: turnsRef.current.filter((t) => t.role === "candidate").length,
-            });
+            const status = unmountBeaconStatus(
+              endInFlightRef.current,
+              {
+                errored: erroredRef.current,
+                reachedLive: reachedLiveRef.current,
+                turnCount: turnsRef.current.length,
+                candidateTurnCount: turnsRef.current.filter((t) => t.role === "candidate").length,
+              },
+              // A directed call abandoned before its closing block beacons the
+              // RESUMABLE verdict, not a terminal "completed" that would lock the
+              // candidate out of a link they can still finish.
+              {
+                directed: agendaRef.current !== null,
+                ending: endingKindRef.current ?? "drop",
+                closingBegun: closingBegun(agendaRef.current, agendaStateRef.current),
+              },
+            );
             const blob = new Blob(
               [JSON.stringify({ token: tok, sessionId: sid, transcript: turnsRef.current, status })],
               { type: "application/json" }
@@ -551,6 +846,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
       }
       teardownOpenAi();
       stopMicTest();
+      stopSpeakerTest();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -561,6 +857,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   function handleOaiDrop() {
     if (finalizedRef.current || !reachedLiveRef.current) return;
     erroredRef.current = true;
+    // Nobody decided this. `endingKindRef` stays whatever an in-flight End already
+    // set — a drop a fraction after the candidate pressed End is still their End.
+    if (endingKindRef.current === null) endingKindRef.current = "drop";
     const status = currentFinalStatus();
     // bug-ui-scan-2026-07-09 (voice-interview #2): only alarm the candidate when the
     // drop actually fails the screen. A drop AFTER a substantive conversation
@@ -577,6 +876,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     setMuted(false);
     setElapsed(0);
     resetMicTestForCall(); // release the test mic before the real call claims the device
+    resetSpeakerForCall(); // …and the speaker test's audio context
     // Pre-flight BEFORE dialing (idea-b0fc8018): an in-app webview, a plain-HTTP
     // link, or a WebRTC-less browser is the most common real-world failure of a
     // first-round screen — name the root cause and the fix, and never burn a
@@ -604,6 +904,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     setUnstable(false);
     setAudioMuted(false);
     setAudioBlocked(false);
+    // …and the DIRECTED call's own per-attempt state. A retry is a new attempt:
+    // new turn numbering, a fresh agenda state, no stale ending verdict, and no
+    // caption left over from the call that dropped.
+    director.stop();
+    agendaRef.current = null;
+    agendaStateRef.current = { activeBlockId: null, coveredBlockIds: [] };
+    endingKindRef.current = null;
+    candidateTurnPendingRef.current = false;
+    speakingRef.current = false;
+    levelsRef.current = { input: 0, output: 0 };
+    setThinking(false);
+    setInterviewerPartial("");
+    setResumedTurns(0);
+    setLiveSession(null);
+    setMicStream(null);
     // Clear the prior call's session capability ids too: a re-connect that fails
     // before /connect returns fresh ones must not let finalize POST against the
     // previous (already-completed) session.
@@ -612,7 +927,8 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     setPhase("connecting");
     // Never hang on "Connecting…": if we aren't live within 30s, surface an error.
     clearConnectTimer();
-    timersRef.current.set(() => {
+    connectTimerCancelRef.current = timersRef.current.set(() => {
+      connectTimerCancelRef.current = null;
       finalizedRef.current = true; // don't POST a transcript for a failed connect
       teardownOpenAi();
       try {
@@ -631,6 +947,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
           provider,
           token,
           consent,
+          // The SEPARATE audio-recording consent. Only a literal `true` counts
+          // server-side, and only a workspace that offers recording can receive it.
+          recordingConsent: recordingOffered === true && recordingConsent,
           language: language === "auto" ? undefined : language,
         }),
       });
@@ -661,19 +980,66 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
         providerRef.current = c.provider;
         setProvider(c.provider);
       }
+
+      // ── arm the director for this attempt (spark ai-interview-parity) ────────
+      const agenda: CandidateAgendaView | null =
+        data.agenda && Array.isArray(data.agenda.blocks) ? (data.agenda as CandidateAgendaView) : null;
+      const resume: ResumeContext | null =
+        data.resume && Array.isArray(data.resume.priorTurns) ? (data.resume as ResumeContext) : null;
+      const attempt = Number.isSafeInteger(data.attempt) && data.attempt > 0 ? (data.attempt as number) : 1;
+      agendaRef.current = agenda;
+      onAgenda?.(agenda);
+      // A RESUMED attempt inherits the earlier attempts' turns into the VISIBLE
+      // transcript — and into the transcript /complete finally stores, so the record
+      // is the whole interview rather than whatever happened after the drop. Their
+      // own seq numbers belong to their own attempts; this attempt's numbering
+      // starts at 0 again (the director keys idempotence on attempt + seq), which is
+      // why they are seeded straight into turnsRef instead of through pushTurn.
+      if (resume && resume.priorTurns.length > 0) {
+        turnsRef.current = resume.priorTurns.map((pt) => ({ role: pt.role, text: pt.text, at: pt.at }));
+        setTurns(turnsRef.current);
+        setResumedTurns(resume.priorTurns.length);
+      }
+      const sessionToken = sessionTokenRef.current;
+      if (typeof data.sessionId === "string" && sessionToken) {
+        setLiveSession({ sessionId: data.sessionId, token: sessionToken, attempt });
+        director.begin({ token: sessionToken, sessionId: data.sessionId, attempt, agenda, resume });
+      }
+
       if (c.provider === "openai") {
         await startOpenAiCall(c, {
           refs: oaiRefs(),
           finalizedRef,
           reachedLiveRef,
           pushTurn,
-          setSpeaking: setOaiSpeaking,
+          setSpeaking,
           setUnstable,
           setAudioBlocked,
           setAwaitingMic,
           setLive: () => setPhase("live"),
           clearConnectTimer,
           onDrop: handleOaiDrop,
+          setMicStream,
+          levels: levelsRef,
+          hooks: {
+            onInterviewerPartial: showInterviewerPartial,
+            onCandidateSpeech: (state) => {
+              if (state === "started") candidateTurnPendingRef.current = true;
+              else setThinking(true);
+              observations.noteCandidateSpeech(state);
+            },
+            onInterviewerAudio: (state) => observations.noteInterviewerAudio(state),
+            onGenerating: () => setThinking(true),
+            // The model is BLOCKED on this result — answer it whatever happens, and
+            // hand the answer back over the same data channel.
+            onToolCall: (call) => {
+              void runToolCall(call).then((result) => {
+                if (!sendToolResult(oaiRefs(), call.callId, result)) {
+                  console.warn(`[voice] could not answer tool call ${call.callId}: the data channel is gone.`);
+                }
+              });
+            },
+          },
         });
       } else {
         startElevenLabsSession({
@@ -682,6 +1048,10 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
           agentPrompt: data.agentPrompt ?? undefined,
           asrKeywords: Array.isArray(data.asrKeywords) ? data.asrKeywords : undefined,
           language,
+          // The SDK answers the model with whatever this resolves to, so the
+          // fallback path is the same one OpenAI takes: never a rejection, never a
+          // 10-second platform timeout.
+          onToolCall: runToolCall,
           onAsyncError: (err) => {
             clearConnectTimer();
             if (err instanceof Error) console.error(`[voice] ElevenLabs connect failed: ${err.message}`);
@@ -708,8 +1078,15 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
     }
   }
 
-  async function end() {
+  /** The ONE teardown. `kind` says who decided: the candidate's End button, or the
+   *  director (its `end_interview`, the close reserve, the client hard stop). It is
+   *  what tells the finalize rule this was a DECISION and not a dropped socket. */
+  async function end(kind: InterviewEnding = "candidate_end") {
+    if (endingKindRef.current === null) endingKindRef.current = kind;
     setPhase("ending");
+    // The producer channel has nothing left to say, and a tool call still queued is
+    // answered rather than left hanging on a socket that is closing.
+    director.stop();
     // bug-ui-scan-2026-07-09 (voice-interview #5): mark a clean End in flight so an
     // unmount that races ahead of ElevenLabs onDisconnect beacons the REAL verdict
     // (completed for a substantive call) instead of a hardcoded "failed".
@@ -748,6 +1125,25 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
   const providerAvailable = canStart(startGate);
 
   const liveOrEnding = phase === "live" || phase === "ending";
+  // ONE derivation for the orb, the pill and the live region (presence-state.ts):
+  // three surfaces re-deriving "is the interviewer talking" could disagree inside
+  // the same frame, and did.
+  const interviewerSpeaking = liveProvider === "elevenlabs" ? conversation.isSpeaking : oaiSpeaking;
+  const presence = presenceState({ phase, interviewerSpeaking, thinking });
+
+  // Audio recording: this shell mounts it with the call's own microphone stream and
+  // the consent the candidate gave, and renders the one chip it is allowed during
+  // the call. Everything else about it — capture, chunking, upload, retention — is
+  // behind these exact arguments.
+  const { state: recordingState } = useInterviewRecording({
+    offered: recordingOffered === true,
+    consent: recordingConsent,
+    token: liveSession?.token ?? null,
+    sessionId: liveSession?.sessionId ?? null,
+    attempt: liveSession?.attempt ?? 1,
+    micStream,
+    active: phase === "live",
+  });
 
   return (
     <div className="space-y-6">
@@ -790,9 +1186,28 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
           <h2 className="mt-3 font-serif text-h2 text-ink">{tPortal("completedTitle")}</h2>
           <p className="mx-auto mt-1.5 max-w-md text-base leading-6 text-steel">{tPortal("completedBody")}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-steel">{t("completedNext")}</p>
+          {/* Not a cul-de-sac. The already-completed RELOAD of this page has handed
+              the candidate their durable /status link for a while; the ending they
+              actually experience — the live one — did not, so the same interview
+              ended two different ways depending on when you looked at it. */}
+          {statusHref ? (
+            <Link
+              href={statusHref}
+              className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+            >
+              {tPortal("completedStatusCta")} <ArrowRight size={13} aria-hidden />
+            </Link>
+          ) : null}
         </div>
       ) : (
         <>
+          {/* The focal point of a live call. Mounted for the whole span (not only
+              while live) so the candidate has one thing that is always saying
+              something true — connecting, listening, thinking, speaking, ended. */}
+          {phase !== "idle" || turns.length > 0 ? (
+            <InterviewPresence state={presence} levels={levelsRef} className="py-2" />
+          ) : null}
+
           {/* H5: a live call that ended with zero captured turns almost always means the mic was
               muted or produced no audio — explain the silent dead-end instead of just re-showing
               the Start controls with an empty transcript. Skipped when another error (e.g. a
@@ -807,8 +1222,28 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
             </div>
           ) : null}
 
-          {/* H5 follow-up: pre-call mic test — reassurance + early catch of a muted/dead mic. */}
-          {!isBusy ? <MicTestPanel micTest={micTest} micLevel={micLevel} onTest={testMic} /> : null}
+          {/* H5 follow-up: pre-call mic test — reassurance + early catch of a muted/dead mic.
+              It now carries the speaker check too: a candidate who cannot HEAR the
+              interviewer fails the screen exactly as completely as one we cannot hear. */}
+          {!isBusy ? (
+            <MicTestPanel
+              micTest={micTest}
+              micLevel={micLevel}
+              onTest={testMic}
+              speakerTest={speakerTest}
+              onSpeakerTest={playTone}
+              onSpeakerHeard={confirmHeard}
+            />
+          ) : null}
+
+          {/* A RESUMED attempt: say so. The transcript above already carries the
+              earlier turns, so without this line the candidate is looking at words
+              they do not remember this call saying. */}
+          {resumedTurns > 0 && phase !== "ended" ? (
+            <p role="status" className="rounded-md border border-moss/30 bg-moss/5 px-3 py-2 text-base text-ink">
+              {t("resume.continuing")}
+            </p>
+          ) : null}
 
           {/* Consent */}
           <label
@@ -824,9 +1259,28 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
               className="mt-0.5 h-4 w-4 shrink-0 rounded text-moss focus-ring"
             />
             <span className="leading-6">
-              {t.rich("consent", { b: (chunks) => <span className="font-medium">{chunks}</span> })}
+              {/* The main consent must stay TRUE. Its standing line ends "No audio
+                  is stored", which is a promise this deployment only keeps when the
+                  workspace does not offer recording — so where recording IS on
+                  offer, the recordable variant says so and points at the separate
+                  tick below. Two keys, one choice, made from the server's own
+                  answer about this workspace. */}
+              {t.rich(recordingOffered === true ? "consentRecordable" : "consent", {
+                b: (chunks) => <span className="font-medium">{chunks}</span>,
+              })}
             </span>
           </label>
+
+          {/* The SEPARATE, opt-in recording consent, directly under the main one so
+              the two are read together and told apart. Declining never blocks the
+              call, and a workspace that does not offer recording renders nothing.
+              WP3 owns the checkbox's own copy and what it then does. */}
+          <RecordingConsent
+            offered={recordingOffered === true}
+            checked={recordingConsent}
+            disabled={isBusy}
+            onChange={setRecordingConsent}
+          />
 
           {/* Controls */}
           <div
@@ -859,7 +1313,9 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
                 <span className="text-base text-ink">{t("endConfirm")}</span>
                 <button
                   type="button"
-                  onClick={end}
+                  // Named, not bare `end`: the handler takes the ending KIND, and
+                  // `onClick={end}` would hand it a click event instead.
+                  onClick={() => void end("candidate_end")}
                   className={`${BTN_PRIMARY_LG} gap-2`}
                 >
                   <PhoneOff size={18} />
@@ -886,13 +1342,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
             )}
             <StatusPill
               phase={phase}
-              speaking={liveProvider === "elevenlabs" ? conversation.isSpeaking : oaiSpeaking}
+              speaking={interviewerSpeaking}
+              // The model is generating but silent — the one stretch of a call with
+              // no cue at all before this.
+              thinking={thinking}
               // bug-ui-scan-2026-07-09 (voice-interview #3): degraded-connection cue.
               unstable={unstable}
             />
             {/* M4: mute for a "give me a moment"; M3: elapsed timer for orientation — both live-only.
                 bug-ui-scan-2026-07-09 (voice-interview #4) adds the AI-output mute and the
                 autoplay-blocked recovery to the same live-only group. */}
+            {/* The one in-call surface recording gets: a quiet chip, only while
+                audio is actually being kept. The hook answers "off" whenever the
+                workspace does not offer it or the candidate declined, so this is
+                nothing to reason about at the call site. */}
+            {phase === "live" ? <RecordingIndicator state={recordingState} /> : null}
             {phase === "live" ? (
               <VoiceLiveControls
                 muted={muted}
@@ -972,6 +1436,13 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, durationMin, pro
         awaitingMic={awaitingMic}
         candidateLabel={candidateLabel}
         jobTitle={jobTitle}
+        // The interviewer's line AS IT IS SPOKEN. It is provisional by
+        // construction — the turn still finalizes on the provider's `.done` — so it
+        // renders outside the `role="log"` list and is never persisted.
+        interviewerPartial={interviewerPartial}
+        // Earlier attempts' turns are already in `turns`; the log says where the
+        // seam is rather than pretending this call said all of it.
+        resumedTurns={resumedTurns}
       />
     </div>
   );

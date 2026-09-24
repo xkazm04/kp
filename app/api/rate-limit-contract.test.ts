@@ -678,6 +678,83 @@ const ROUTES: RouteSpec[] = [
     // The idempotent retry reply must keep answering for free, forever.
     servedBefore: "alreadyCompleted: true",
   },
+  {
+    // ADDED with the route (spark ai-interview-parity, ADR 0010). The live call's
+    // producer channel: a public token door that WRITES — every finalized turn, the
+    // interviewer model's tool calls, the director's stage directions — so it is
+    // budgeted like its siblings. Per-TOKEN only, like /connect: the link is the
+    // credential, and one candidate's call is exactly one token. 240/10min = one
+    // exchange every 2.5 s sustained, above an honest call's pace (one post per
+    // finalized turn and per tool call, plus a slow heartbeat).
+    rel: "./interview/director/route.ts",
+    key: "`interview-director:${token}`",
+    limit: 240,
+    optsSrc: "DIRECTOR_RATE_LIMIT",
+    optsDef: "const DIRECTOR_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The whole exchange — persist, apply the tool, decide, record — is one call.
+    expensive: "runDirectorStep(",
+    // The lifecycle refusals keep their 404/409 semantics ahead of the budget.
+    servedBefore: 'jsonRefusal("INTERVIEW_NOT_LIVE", 409)',
+  },
+  {
+    // ADDED with the route (spark ai-interview-parity, WP3). The candidate's opt-in
+    // microphone upload: a public token door whose body is RAW AUDIO, so every accepted
+    // call buffers up to 2 MB and then appends to a file on the operator's volume — the
+    // ./extract-text rationale, with a disk write at the end of it. Per-TOKEN only, like
+    // its /connect and /director siblings: the interview link IS the credential and one
+    // call is exactly one token, so an IP component would only punish a shared NAT.
+    // 240/10min = one chunk every 2.5 s sustained, well above the hook's 10 s timeslice
+    // plus its sequential retries.
+    rel: "./interview/recording/route.ts",
+    key: "`interview-recording:${token}`",
+    limit: 240,
+    optsSrc: "RECORDING_RATE_LIMIT",
+    optsDef: "const RECORDING_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The body read is the expensive work: the heap, and the filesystem append behind it.
+    expensive: "readBytesWithLimit(",
+    // The consent/offer 403 and the lifecycle 409 keep their semantics ahead of the
+    // budget — a call that is not being recorded must never spend a slot, and the
+    // refusal it gets is what stops the browser's hook.
+    servedBefore: 'jsonRefusal("INTERVIEW_RECORDING_NOT_OFFERED", 403)',
+  },
+  {
+    // ADDED with the route (spark ai-interview-parity, WP3). The candidate's own
+    // "delete my interview recording" door, on the PUBLIC status token. Same posture as
+    // its /data and /stop cousins and for the same reason: an anonymous, token-authed
+    // public door whose verb is an IRREVERSIBLE write, so the limiter runs BEFORE the
+    // token lookup and a flood never reaches the store. Keyed per client AND token, so
+    // the shared client key an untrusted proxy produces still gives each candidate
+    // their own bucket. 10/min: this is a decision a person makes once.
+    rel: "./status/[token]/recording/route.ts",
+    key: "`status-recording-delete:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "RECORDING_DELETE_RATE_LIMIT",
+    optsDef: "const RECORDING_DELETE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "deleteEntryRecordings(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // ADDED with the route (spark interview-feedback-letter, WP-alpha). The candidate's
+    // "ask for feedback on my interview" door, on the PUBLIC status token — the NPS door's
+    // posture: an anonymous, token-authed WRITE, and this one also queues a model-backed
+    // draft. The limiter runs BEFORE the token lookup, so a flood never reaches the store
+    // or the task queue. Keyed per client AND token, like every status sibling. 10/min: a
+    // candidate asks once, and a repeat is answered from the row without queuing anything.
+    rel: "./status/[token]/letter/route.ts",
+    key: "`status-letter:${clientIpFrom(request.headers)}:${token}`",
+    limit: 10,
+    optsSrc: "LETTER_REQUEST_RATE_LIMIT",
+    optsDef: "const LETTER_REQUEST_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The first store read — the record, the insert and the queued draft all follow it.
+    expensive: "getEntryIdByStatusToken(token)",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-voice-interview), with the limiters themselves.
   // /connect - the credential mint - had carried a per-token throttle since it
@@ -1092,6 +1169,47 @@ const ROUTES: RouteSpec[] = [
     // The visibility 404 (unknown / other-tenant role) keeps its semantics ahead of
     // the throttle, so a rejected call never consumes budget.
     servedBefore: "jobVisibleToWorkspace(id, ws)",
+  },
+  {
+    // ADDED with the route (spark interview-kit-template, 2026-09-18). The ninth jobs
+    // spend door: POST accepts a BACKGROUNDED `interview_kit` task — one model call that
+    // authors the whole kit (every competency, every question, the FAQ) from the role's
+    // own text plus its promoted RoleBrief. Capability-gated, and open mode makes that
+    // gate a documented no-op for the whole API, so it self-limits on the same 20/10min
+    // budget its sibling once-per-role doors carry. The PUT and ./publish beside it are
+    // NOT limited and deliberately so: they are ordinary authenticated row writes that
+    // spend nothing and spawn nothing, which is where this app draws the line.
+    rel: "./jobs/[id]/interview-kit/route.ts",
+    key: "`jobs-interview-kit:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "INTERVIEW_KIT_RATE_LIMIT",
+    optsDef: "const INTERVIEW_KIT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The CALL SITE with its first argument: a bare `startTask(` also appears in the
+    // import line, which precedes the limiter.
+    expensive: 'startTask("interview_kit"',
+    // Authority and ownership both answer ahead of the throttle, so a refused seat and an
+    // other-tenant role never consume budget — and never learn which job ids exist.
+    servedBefore: "canWriteJobLifecycle(id, ws)",
+  },
+  {
+    // ADDED with the route (spark interview-kit-template WP-D, 2026-09-18). The kit
+    // REHEARSAL door mints the same kind of billable, entry-less practice session
+    // /simulate does — a test-mode interview pinned to one kit version — and on a
+    // SELF-HOSTED install it skips meterGate, so there this limiter is the only bound on
+    // how many sessions one caller can mint. Same budget as /simulate: 20/10min per IP.
+    rel: "./jobs/[id]/interview-kit/rehearse/route.ts",
+    key: "`interview-kit-rehearse:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "REHEARSE_RATE_LIMIT",
+    optsDef: "const REHEARSE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The session row IS the billable artifact here, exactly as on /simulate.
+    expensive: "const session = createInterviewSession({",
+    // Every refusal answers ahead of the budget — the seat, the job, the kit, the
+    // keyless 503 and the billing 402 spend nothing and must not be masked by a 429.
+    // The 402 is the LAST of them, so pinning it pins the rest's order too.
+    servedBefore: 'jsonRefusal("BILLING_QUOTA_EXCEEDED", 402',
   },
   {
     // ADDED /perfect (schedule-door-speaks-the-candidates-language), with the limiter
@@ -1630,6 +1748,45 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "validateScreeningOverride(body.override)",
   },
   // ------------------------------------------------------------------
+  // ADDED with the routes (spark interview-feedback-letter, WP-beta). The recruiter's three
+  // feedback-letter doors. Operator-gated with `pipeline:write`, but open mode makes the
+  // operator gate a documented no-op, so each self-limits. Every limiter sits AFTER the
+  // cheap coded refusals (not found, moved, consent withheld, a text that cannot be
+  // stored), so a request that could never act spends none of the window.
+  {
+    // Approving SENDS a candidate email. 30/10min per IP: one human decision per click.
+    rel: "./decisions/feedback-letters/[id]/approve/route.ts",
+    key: "`feedback-letter-approve:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "APPROVE_RATE_LIMIT",
+    optsDef: "const APPROVE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "interviewLetterApprove(id, { finalText, decidedBy }, ws)",
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_CONSENT_WITHHELD", 409)',
+  },
+  {
+    rel: "./decisions/feedback-letters/[id]/decline/route.ts",
+    key: "`feedback-letter-decline:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "DECLINE_RATE_LIMIT",
+    optsDef: "const DECLINE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "interviewLetterDecline(id, { decidedBy }, ws)",
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_MOVED", 409, { state: letter.state })',
+  },
+  {
+    // A redraft spawns the drafting CLI and, with a model configured, a paid call. The
+    // tightest of the three; the task's own `cheap` class and its dedupe sit behind it.
+    rel: "./decisions/feedback-letters/[id]/redraft/route.ts",
+    key: "`feedback-letter-redraft:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "REDRAFT_RATE_LIMIT",
+    optsDef: "const REDRAFT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'startTask("interview_letter",',
+    servedBefore: 'jsonRefusal("FEEDBACK_LETTER_CONSENT_WITHHELD", 409)',
+  },
+  // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (billing-ui), with the limiters themselves. The two
   // BILLING doors had no throttle at all — the only doors in the app that reach a
   // MERCHANT OF RECORD. Both were guarded by `requireOperator()` alone, and open mode
@@ -1660,7 +1817,7 @@ const ROUTES: RouteSpec[] = [
     expensive: "await readTextWithLimit(request, MAX_WEBHOOK_BODY_BYTES)",
     // "Billing is not configured" costs an env read and tells an operator their
     // setup is incomplete — it must keep answering while the window is spent.
-    servedBefore: '{ error: "Billing is not configured." }',
+    servedBefore: 'jsonRefusal("BILLING_NOT_CONFIGURED", 503)',
   },
   {
     rel: "./billing/checkout/route.ts",
@@ -1725,7 +1882,9 @@ const ROUTES: RouteSpec[] = [
   // unset) makes a documented no-op for the WHOLE API — so, exactly as for the JD
   // library's spend doors, the limiter is the real bound and not a second belt.
   {
-    // The three write verbs (PUT progress, POST import, PATCH weave) share ONE bucket
+    // The three write verbs (PUT progress, POST import, PATCH weave — and PATCH
+    // { kitOverlay }, the recruiter's per-candidate kit overlay, which is the same verb
+    // and the same key: spark interview-kit-template WP-C) share ONE bucket
     // on purpose: they mutate the same artifact, so a per-verb allowance would just be
     // three windows to walk in turn. 600/10 min is deliberately loose and the reason is
     // pinned here so nobody "tightens" it into a bug: the checklist/notes PUT is
@@ -2075,6 +2234,13 @@ test("./interview/connect/route.ts throttles by token, not by caller IP", () => 
     src.includes("if (token && !rateLimit(`interview-connect:"),
     "tokenless lab sessions carry no token to charge — they stay on their own dev-only gate",
   );
+});
+
+// The director channel is the same candidate on the same link, mid-call: keyed by the
+// token alone, never by an IP the candidate's network may share or rotate.
+test("./interview/director/route.ts throttles by token, not by caller IP", () => {
+  const src = read("./interview/director/route.ts");
+  assert.doesNotMatch(src, /clientIpFrom/, "the director throttle must be keyed by token only");
 });
 
 // Same rule for the dev-case chat aggregate: the apply link is the credential, and an

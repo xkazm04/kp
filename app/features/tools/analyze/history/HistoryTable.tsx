@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
+import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { analysisProducer, DISPOSITION_STYLE, PRODUCER_STYLE, type AnalysisRow } from "./HistoryTypes";
@@ -57,7 +58,13 @@ export function HistoryTable({ rows, dispLabel }: { rows: AnalysisRow[]; dispLab
               <Td className="capitalize">{row.role_family ? enumLabel("family", row.role_family) : "—"}</Td>
               <Td className="capitalize">{row.seniority ? enumLabel("seniority", row.seniority) : "—"}</Td>
               <Td>
-                {row.score ?? "—"}
+                <span className="block">{row.score ?? "—"}</span>
+                {row.score != null ? (
+                  <ScoreProvenanceLabel
+                    provenance={{ source: "analysis", at: row.created_at, slug: row.slug }}
+                    className="block text-meta text-steel"
+                  />
+                ) : null}
                 {row.review_flags ? (
                   <span
                     className="ml-1.5 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800"

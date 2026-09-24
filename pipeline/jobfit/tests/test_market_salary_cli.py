@@ -9,11 +9,14 @@ all four app locales, so a German or French JD baked the ENGLISH sentence into a
 candidate-facing posting.
 """
 
+import io
+import json
 import unittest
+from unittest import mock
 
 from pipeline.jobfit.i18n import normalize_lang
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
-from pipeline.jobfit.market_salary_cli import _FALLBACK_SUMMARY, _coerce, _fallback
+from pipeline.jobfit.market_salary_cli import _FALLBACK_SUMMARY, _coerce, _fallback, main
 from pipeline.jobfit.taxonomy import THIN_SAMPLE_K, role_band, role_benchmark
 
 # The app's four locales (messages/{en,cs,de,fr}.json). The CLI's --lang is the
@@ -126,6 +129,16 @@ class FallbackSummaryLocaleTest(unittest.TestCase):
     def test_summaries_are_distinct_per_locale(self) -> None:
         rendered = {lang: _fallback("software_engineering", "medior", lang)["summary"] for lang in APP_LOCALES}
         self.assertEqual(len(set(rendered.values())), len(APP_LOCALES), msg=rendered)
+
+
+class SalaryCliErrorEnvelopeTest(unittest.TestCase):
+    def test_malformed_json_uses_shared_error_code(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stdin", io.StringIO("{")), mock.patch("sys.stderr", stderr):
+            self.assertEqual(main(["--no-grounding"]), 1)
+        envelope = json.loads(stderr.getvalue())
+        self.assertEqual(envelope["status"], 400)
+        self.assertEqual(envelope["code"], "invalid_input")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ import { useCopyFeedback } from "@/app/_components/ui/useCopyFeedback";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { SchedEntry } from "./ScheduleTypes";
+import type { PrepKitView } from "@/app/_lib/interview-prep-kit";
 import { normImported, type ImportedEntry, type ImportedQuestion, type Prep } from "./scheduleInterviewPrepTypes";
 // The hydration + progress arithmetic, extracted and unit-tested (schedule-ui-2).
 import { hydratePrepState, prepProgress, splitImported, wovenKeyOf as wovenKeyIn } from "./scheduleInterviewPrepProgress";
@@ -24,7 +25,13 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   // Load any saved artifact via the shared hook (handles non-OK status, an {error}
   // body, and unmount). A load FAILURE now surfaces as a distinct error+retry state
   // (idea-bc78b8f5), never collapsed into the "none yet" empty state.
-  const { data, error, reload } = useJsonFetch<{ prep?: { payload?: Prep; createdAt?: string }; jdEditedAt?: string | null }>(
+  const { data, error, reload } = useJsonFetch<{
+    prep?: { payload?: Prep; createdAt?: string };
+    jdEditedAt?: string | null;
+    // The job interview kit this candidate's interview runs on (spark
+    // interview-kit-template) — what the overlay section edits over. Null: no kit.
+    kit?: PrepKitView | null;
+  }>(
     `/api/interview-prep?entry=${encodeURIComponent(entry.id)}`,
     t("loadFailed")
   );
@@ -264,6 +271,7 @@ export function useScheduleInterviewPrep(entry: SchedEntry) {
   return {
     t,
     prep,
+    kit: data?.kit ?? null,
     loading,
     error,
     reload,

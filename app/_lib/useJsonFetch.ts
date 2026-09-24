@@ -12,6 +12,10 @@ import { asRecord, isLoadFailure } from "./load-state";
  *  `error` prose — the client resolves the code, per use-error-message.ts. */
 export type JsonFetchFailure = { code: string | null; status: number };
 
+/** Read-only dashboard requests should fail visibly instead of leaving a panel
+ * in its loading state forever when the server or a proxy stalls. */
+export const JSON_FETCH_TIMEOUT_MS = 30_000;
+
 /** The hook's failure half as a pure function, so the precedence rule
  *  (code → catalog, else the caller's localized label, never the prose) is
  *  testable without a DOM. Returns null when the response is a genuine success.
@@ -62,10 +66,16 @@ export function useJsonFetch<T>(
     // guard already reads false); the AbortError is additionally swallowed so a race
     // where the rejection lands before `alive` flips can never surface as an error.
     const controller = new AbortController();
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      if (alive) setFailure({ code: null, status: 0 });
+    }, JSON_FETCH_TIMEOUT_MS);
     fetch(url, { signal: controller.signal })
       .then(async (r) => {
         const body = (await r.json().catch(() => null)) as T | null;
-        if (!alive) return;
+        if (!alive || timedOut) return;
         const f = jsonFetchFailure(r.ok, r.status, body);
         if (f) {
           setFailure(f);
@@ -76,13 +86,17 @@ export function useJsonFetch<T>(
       .catch((err) => {
         // An abort (unmount / url change / reload) is expected — never surface it as a
         // load failure. Only a genuine fetch/parse failure sets the (reload-able) error.
-        if (!alive || controller.signal.aborted || (err as { name?: string })?.name === "AbortError") return;
+        if (!alive) return;
+        if (timedOut) return;
+        if (controller.signal.aborted || (err as { name?: string })?.name === "AbortError") return;
         // A transport failure carries no HTTP response: status 0 is the honest
         // "never reached the server", and there is no code to resolve.
         setFailure({ code: null, status: 0 });
-      });
+      })
+      .finally(() => clearTimeout(timeout));
     return () => {
       alive = false;
+      clearTimeout(timeout);
       controller.abort();
     };
   }, [url, nonce]);

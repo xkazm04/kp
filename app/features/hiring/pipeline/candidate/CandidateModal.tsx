@@ -42,6 +42,7 @@ export type CandidateModalProps = {
   onChanged: () => void;
   /** Open (or refresh in place) an entry by id — rematch links, stage moves. */
   onOpenEntry: (entryId: string) => void;
+  onOpenProfile?: (entry: Entry) => void;
   onNavigate: (entry: Entry) => void;
   onTab: (tab: CandidateTab) => void;
   /** Opened from the decisions ledger: the recommendation to rule on, its ladder

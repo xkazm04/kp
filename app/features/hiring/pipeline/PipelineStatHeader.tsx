@@ -18,11 +18,13 @@ function StatChip({
   value,
   tone = "neutral",
   onClick,
+  pressed,
 }: {
   label: string;
   value: number;
   tone?: "neutral" | "coral" | "amber" | "red";
   onClick?: () => void;
+  pressed?: boolean;
 }) {
   const valueColor =
     tone === "coral" ? "text-coral" : tone === "amber" ? "text-amber-700" : tone === "red" ? "text-red-700" : "text-ink";
@@ -34,7 +36,7 @@ function StatChip({
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className={`${cls} focus-ring transition-colors hover:border-coral/50`}>
+    <button type="button" onClick={onClick} aria-pressed={pressed} className={`${cls} focus-ring transition-colors hover:border-coral/50 ${pressed ? "border-coral bg-coral/10" : ""}`}>
       {inner}
     </button>
   ) : (
@@ -52,6 +54,10 @@ export function PipelineStatHeader({
   degradedCount,
   approvals,
   onToggleAging,
+  onToggleActive,
+  onToggleInterview,
+  activeSelected,
+  interviewSelected,
   onFocusDegraded,
   onGoToDecisions,
 }: {
@@ -64,6 +70,10 @@ export function PipelineStatHeader({
   degradedCount: number;
   approvals: Entry[];
   onToggleAging: () => void;
+  onToggleActive: () => void;
+  onToggleInterview: () => void;
+  activeSelected: boolean;
+  interviewSelected: boolean;
   onFocusDegraded: () => void;
   onGoToDecisions: () => void;
 }) {
@@ -91,8 +101,8 @@ export function PipelineStatHeader({
           <Fade show={entries.length > 0}>
             <div className="flex flex-wrap items-stretch gap-1.5">
               <StatChip label={t("statPositions")} value={positions.length} />
-              <StatChip label={t("statActive")} value={activeCount} />
-              <StatChip label={t("statInterview")} value={interviewCount} />
+              <StatChip label={t("statActive")} value={activeCount} onClick={onToggleActive} pressed={activeSelected} />
+              <StatChip label={t("statInterview")} value={interviewCount} onClick={onToggleInterview} pressed={interviewSelected} />
               <StatChip
                 label={t("statAging")}
                 value={staleCount}

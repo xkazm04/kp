@@ -39,6 +39,7 @@ from pipeline.jobfit.repo_scan import (
     FRESHNESS_CURRENT,
     FRESHNESS_STALE,
     FRESHNESS_UNKNOWN,
+    LLM_TIMEOUT_S,
     REDACTED,
     SECRET_FILE_GLOBS,
     SOURCE_HEURISTIC,
@@ -798,6 +799,37 @@ class FenceVerificationTest(unittest.TestCase):
         self.assertEqual(fence["state"], "not_applicable")
         self.assertIs(fence["verified"], True)
         self.assertIsNone(fence["cliVersion"])
+
+    def test_scan_uses_the_repo_bound_provider_for_generation(self):
+        class Bound(_RefusingProvider):
+            calls = 0
+
+            def complete_json(self, *args, **kwargs):
+                self.calls += 1
+                raise RuntimeError("offline fixture")
+
+        class Unbound(_RefusingProvider):
+            bound_root = None
+            bound_timeout = None
+
+            def __init__(self):
+                super().__init__(VERIFIED_FENCE_CLI_VERSIONS[0])
+                self.bound = Bound(VERIFIED_FENCE_CLI_VERSIONS[0])
+                self.bound.mode = "repo_scan"
+
+            def with_repo_access(self, cwd, *, timeout=None):
+                self.bound_root = cwd
+                self.bound_timeout = timeout
+                return self.bound
+
+            def complete_json(self, *args, **kwargs):
+                raise AssertionError("generation bypassed the repo binding")
+
+        provider = Unbound()
+        scan_repo(self.root, provider=provider, generated_at="2026-01-01T00:00:00+00:00")
+        self.assertEqual(provider.bound_root, str(self.root))
+        self.assertEqual(provider.bound_timeout, LLM_TIMEOUT_S)
+        self.assertEqual(provider.bound.calls, 1, "generation must use the bound provider")
 
     def test_the_keyless_walk_reports_not_applicable(self):
         fence = self._fence(None)

@@ -1,6 +1,7 @@
 import type { useTranslations } from "next-intl";
 import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
 import type { JobRecord } from "./db/core";
+import type { Locale } from "@/i18n/locales";
 import { buildIntakeProfile, type ApplyAnswers, type StepCondition } from "./apply-intake";
 
 // The "apply"-namespace translator the caller threads in so the chat prompts are
@@ -279,11 +280,12 @@ export function applyKoSteps(job: JobRecord, t: ApplyTranslator): { id: string; 
 // (provenance-resolved by the Python normalizer).
 export function buildApplyProfileDraft(
   job: JobRecord,
-  answers: ApplyAnswers
+  answers: ApplyAnswers,
+  locale?: Locale,
 ): { profile: Record<string, unknown>; signals: Record<string, unknown> } {
   // The registry-free profile assembly (locale default + years parsing) lives in
   // apply-intake.ts and is pinned by apply-intake.test.ts.
-  const profile = buildIntakeProfile(job, answers);
+  const profile = buildIntakeProfile(job, answers, locale);
 
   // Trust a valid self-declaration (router treats it as primary at 0.9); fall
   // back to "auto" heuristic routing when the candidate skipped/garbled it.

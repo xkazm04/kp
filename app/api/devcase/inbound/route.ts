@@ -32,6 +32,7 @@ const DAILY_LIMIT = 300; // per 24h — the aggregate for the link (cf. 50 live 
 /** Hard cap on this public door's request body: a work-sample submission: a token, a candidate name, a repo ref and free-text notes.
  *  Enforced on the BYTES READ, not on the caller's content-length (request-body.ts). */
 const MAX_DEVCASE_INBOUND_BODY_BYTES = 64 * 1024;
+const SENDABLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,6 +73,14 @@ export async function POST(request: NextRequest) {
     if (!body.candidate || !body.repoRef) {
       return jsonRefusal("DEVCASE_SUBMISSION_FIELDS_REQUIRED", 400);
     }
+    // An application promises an acknowledgement. A display-name candidateRef
+    // is not an address; accept it only with a real contact email. Older channel
+    // payloads that use an email as candidateRef may still omit contact.
+    const contact = [body.contact, body.candidate]
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .find((value) => SENDABLE_EMAIL_RE.test(value));
+    if (!contact) return jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400);
 
     // Throttle AFTER the credential (401), lifecycle (410) and validation (400) refusals —
     // those must keep answering honestly without consuming a real applicant's slot — and
@@ -90,7 +99,7 @@ export async function POST(request: NextRequest) {
       postingId,
       candidateRef: body.candidate,
       repoRef: body.repoRef,
-      contact: body.contact,
+      contact,
       notes: body.notes,
       locale: typeof body.locale === "string" ? body.locale : null,
     });

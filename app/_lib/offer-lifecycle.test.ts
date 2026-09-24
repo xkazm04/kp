@@ -205,6 +205,7 @@ test("offerView ships a SERVER-computed hoursRemaining so the countdown can't dr
   const view = offerView(offer.token)!;
   assert.equal(typeof view.hoursRemaining, "number", "the view must carry a server-side hours-left figure");
   assert.ok(view.hoursRemaining! >= 23 && view.hoursRemaining! <= 24, `expected ~24h, got ${view.hoursRemaining}`);
+  assert.ok(view.minutesRemaining! >= 23 * 60 && view.minutesRemaining! <= 24 * 60, "minutes use the same server deadline");
   assert.equal(view.timeZone, INTERVIEW_TZ, "the public view stamps the company's interview zone, not UTC-by-omission");
   new Intl.DateTimeFormat("en-US", { timeZone: view.timeZone });
 });

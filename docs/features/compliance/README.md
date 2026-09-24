@@ -76,6 +76,25 @@ footers, claimed by `claimConsentExpiryNotice` in an IMMEDIATE transaction so a
 re-tick cannot double-send. Opted-out, anonymized, and already-expired rows are
 skipped — expiry itself stays the anonymize sweep's job.
 
+**Interview audio has its own consent and its own clock.** The AI voice interview is
+transcript-only unless a workspace turns on `compliance.interviewRecordingOffered`
+(Settings → Decision rules → Compliance; default OFF), and then only if the candidate
+ticks a **separate** box on the portal — the transcript consent never covers audio.
+When both hold, `interview_sessions.recording_consent_at` is the fact, and the candidate's
+microphone (never the interviewer's voice, screen or camera) is stored as a file under
+`<dirname(KP_DB_PATH)>/recordings/<workspace>/`. **The promise the candidate is shown is
+the one the code enforces**: deleted 30 days after the hiring decision, at the latest 180
+days after the call (`RECORDING_RETENTION_AFTER_DECISION_DAYS` /
+`RECORDING_BACKSTOP_DAYS` in `app/_lib/interview-recording-paths.ts`, interpolated into
+`interview.voice.recording.when`), on their own request from `/status/<token>`, or with an
+Art. 17 erasure — which deletes the files AFTER `anonymizeEntry`'s transaction commits,
+because unlinking a file is irreversible and a rollback cannot put it back. The daily
+`interview_recording_retention` job enforces the two windows and the recruiter's playback
+door re-checks the same predicate on every read, so a deployment whose clock never started
+stops *serving* audio on time even while it is not yet deleting it. In every path the file
+is unlinked and the `RecordingMeta` row is kept, stamped with when and why: the deletion is
+the record. Full surface in [`../interviews/README.md`](../interviews/README.md).
+
 **Consent gates rediscovery before it ranks, not only at the send door.** `rediscoverForJob` filters the pool through `suppressedCandidateIds` (`app/_lib/rediscovery-alert-store.ts`) and `recordRediscoveryAlerts` refuses a suppressed candidate, so an erased or lapsed-consent person is never ranked, never persisted as an alert row carrying their label, and never shown in the feed — see *Rediscovery honors consent before it ranks* in [`../jobs/README.md`](../jobs/README.md).
 
 **The erasure list is pinned to the tenancy manifest.** The full-scrub test used to
@@ -423,11 +442,86 @@ window hid the rest of an irreversible wave.
 
 A **separate, redacted candidate-facing view** now exists:
 `app/_lib/status-decisions.ts` derives a `CandidateDecisionView` (kind,
-attribution, reasonCode, and — for `auto_rejected` only — the threshold facts
-that were actually decisive) from the same sealed rows, served on
-`/status/[token]`. Rejection reasons shown to candidates come **from this
-sealed record, never freshly generated** (see the module header comment,
+attribution, reasonCode, and the decisive `facts`) from the same sealed rows,
+served on `/status/[token]`. Rejection reasons shown to candidates come **from
+this sealed record, never freshly generated** (see the module header comment,
 `status-decisions.ts:1-11`).
+
+**`facts` is a closed discriminated union, and its coverage is a counted
+ratio.** Each variant is produced by exactly one extractor, registered in
+`FACT_EXTRACTORS` keyed by sealed kind; a kind with no extractor crosses with
+`facts: null` rather than an improvised shape. Today:
+
+| Variant | Sealed kind | What crosses |
+| --- | --- | --- |
+| `threshold` | `auto_rejected` | the score and the cutoff the screen wave compared (`autoRejectFacts`) |
+| `rubric` | `ai_scorecard` | the assessed competency keys and their 1–5 ratings (`aiScorecardFacts`) |
+
+`factsCoverage()` reports that as **2 of 14 candidate-visible kinds, and 2 of
+the 5 `AI_VERDICT_DECISION_KINDS`** — the subset where a machine judged the
+person, which is the denominator Art. 86 bites hardest on. The ratio is
+asserted in `app/api/status/status-decisions.test.ts`, so raising it is a number
+that moves rather than a claim in a commit message. The still-uncovered AI
+verdicts are `auto_advanced`, `group_eval_lead` and `group_eval_advisory`.
+
+Two rules constrain what an extractor may put on the wire, and both are pinned
+by tests:
+
+- **The seal decides, and the read re-checks.** `ai_scorecard` seals its rubric
+  axes through `sealableRubricDimensions` (`app/_lib/interview-scorecard.ts`),
+  which drops a NOT-ASSESSED axis — the synthesis rates an untouched competency
+  3 of 5 with `"Not assessed…"` evidence, indistinguishable from an observed
+  middling score to anything reading the rating alone. `aiScorecardFacts` then
+  re-validates everything it can from the payload alone, because records outlive
+  the code that sealed them.
+- **Evidence quotes never cross.** The verbatim transcript line behind a rating
+  is never sealed and so never reaches the candidate view: it is a *model's
+  selection* of their words, and a mis-transcribed one would read as something
+  they did not say. The competency key and its rating are the smallest thing
+  that answers "on what was I judged".
+
+Competency keys cross **canonical**, not localized; `/status/[token]` resolves
+them through `rubricLabel` + the `rubric` catalog namespace, so the candidate
+reads their own language and an off-catalog axis degrades to canonical English.
+
+### Reasons coverage — the counter behind "nothing is produced without a reason"
+
+`facts` above answers *can a decision on the wire show its decisive elements*.
+The other half of the same question is whether the verdicts this product
+produces carry a reasons block **at all**, and that is counted by
+`app/_lib/reasons-coverage.ts` with a meter over the demo corpus:
+
+```bash
+npm run kpi:reasons            # human-readable
+npm run kpi:reasons -- --json  # the record a KPI writer stores
+```
+
+Three arms, each with its own denominator, each defined by that kind's own
+producer:
+
+| Arm | A reasons block is | Read from |
+| --- | --- | --- |
+| `ranking` | a non-blank `explanation` or `jobFit.summary` | `data/seed_analyses/`, and the `analyses` table when a DB exists |
+| `scorecard` | at least one rating with REAL evidence (`isPlaceholderEvidence` is honoured, so an all-"Not assessed" scorecard is a MISS) | `interview_sessions.scorecard_json` |
+| `rejection` | text that `waveReasonText` actually resolves from the sealed code | `decision_records` of kind `auto_rejected`/`rejected` |
+
+Two properties are what make the number worth reading, and both are pinned by
+controls in `app/_lib/reasons-coverage.test.ts`:
+
+- **It resolves rather than pattern-matches.** A rejection is scored through
+  `waveReasonText` — the same resolver the reconsider queue and the decision log
+  render through — so deleting the *copy* moves the number, not just deleting the
+  code. A re-implemented resolver would have measured this module's opinion.
+- **An empty denominator is never a pass.** An arm with nothing to count reports
+  `ratio: null, measured: false`, and the result lists `unmeasuredKinds` so a
+  caller cannot report the headline as if it covered the whole goal. This is the
+  ADR-0008 failure mode applied to a metric: a counter that reads 100% because it
+  found nothing to check.
+
+On a clean checkout the seeded corpus holds **66 rankings (100%)** and no
+interviews or screening runs, so the scorecard and rejection arms read *not
+measured* until an install has produced some — which the meter states rather
+than rounds away.
 
 **Human oversight on adverse actions.** Bulk auto-rejects require a signed
 approval token the server recomputes and refuses on cohort drift
@@ -534,6 +628,8 @@ one that is neither a declared public surface nor a declared session-bearing
 exemption, and requires each public element to carry both props — so a ninth
 candidate surface cannot quietly revert to the EU default. The EU default survives
 as the last-resort fallback only.
+If the simulator's fetch fails, its disclosure names the fallback and offers a
+retry; a successful retry restores the workspace-specific regime.
 
 **Fairness backstops.** `app/_lib/archetypes.ts` (`isFairnessProtected`,
 `isEarlyCareer`) + `app/_lib/automation-fairness.ts` re-derive the sole
@@ -580,6 +676,262 @@ now pins byte-identity of the deterministic scorer's output across
 Czech-male/Czech-female(-ová)/Vietnamese/Ukrainian/Arabic/Roma-associated
 name variants — this closes what was gap G3 in the original conformity pack.
 
+## Interview feedback letters — request, record, draft
+
+### Feedback letters — request, record, draft
+
+After a **person** decided on an application (not selected, or hired), the candidate can ask,
+from their own `/status/<token>` page, for a short letter about their AI interview. A draft is
+prepared in their language from the recorded scorecard; a recruiter edits it, owns every
+sentence and approves or declines it (the review queue, delivery and the status-page UI are
+WP-beta). Only an approved letter ever reaches the candidate. Contract:
+`app/_lib/interview-letter-types.ts`.
+
+#### Who may ask (read from the record)
+
+`app/_lib/interview-letter-policy.ts` `letterEligibility` — pure, pinned by
+`interview-letter-policy.test.ts`:
+
+| Entry | Eligible | Why |
+| --- | --- | --- |
+| `rejected`, deciding event names a human (`human:…`, or an actor-less legacy `rejected` row) | yes, `not_selected` | a person decided about this candidate |
+| `rejected`, deciding event is `auto_rejected` / `auto:…` (screen wave, guided sim) | no | an automated screen-out — even when a named person approved the batch; the batch approval is about a cohort |
+| `rejected`, no reject event at all | no | fail closed: who decided is unknowable |
+| live entry at the board's terminal stage (`candidateStatusFor` = `hired`) | yes, `hired` | |
+| `role_closed`, `rematched` | no | nobody decided about this candidate |
+| `declined` | no | the candidate's own decision (reads "withdrawn") |
+| any other live entry | no | no decision yet |
+| consent withheld (`consentWithholdsPii`) | no | and the page is told nothing at all |
+| no interview scorecard on record | no | the letter is about the interview; there is nothing to report |
+
+**The deciding event** is the newest `rejected` / `auto_rejected` pipeline event on the entry
+(`interviewLetterDecidingEvent`). `actOnPipelineEntry('reject')` is the only writer of
+`status='rejected'` and writes exactly one of those kinds in the same transaction; a
+reinstatement flips the status back to `active`, so on a still-rejected entry the newest
+reject event is the one that put it there. Attribution (`letterEventAttribution`) is the
+candidate decision history's own three-state rule (`status-decisions.ts`
+`sealedActorAttribution`), restated for the two reject kinds and pinned equal to it by test.
+
+#### The request door
+
+`POST /api/status/[token]/letter` — body `{ lang?: "en"|"cs"|"de"|"fr" }` (the language the
+page was showing; otherwise the entry's comms locale via `resolveCommsLocale`).
+
+| Answer | When |
+| --- | --- |
+| `200 { ok: true, letter: CandidateLetterView }` | recorded; the `interview_letter` draft task is queued |
+| `409 STATUS_LETTER_ALREADY_REQUESTED` + `{ letter }` | a letter already exists: its state is returned, never a second letter or a second queued draft |
+| `409 STATUS_LETTER_NOT_ELIGIBLE` | one code for every reason above — the door is not a way to learn which applies |
+| `404 STATUS_LINK_INVALID` · `413 PAYLOAD_TOO_LARGE` (1 KB) · `429 TOO_MANY_REQUESTS` (10/min per client+token) · `500 STATUS_LETTER_REQUEST_FAILED` | |
+
+Gate order: throttle → token → entry (tenant from `getEntryWorkspace`) → body cap →
+eligibility / idempotency → insert → queue. Public under the `/api/status/` prefix; pinned in
+`app/api/rate-limit-contract.test.ts` and `status-letter.test.ts`. If the task queue refuses,
+the request is still recorded (the candidate is told so) and the letter waits in the
+recruiter's queue without a draft.
+
+`GET /api/status/[token]` gains `letter: CandidateLetterView` — `{ canRequest, state,
+requestedAt, text }` and nothing else: no draft, no reviewer, no ids, no delivery detail;
+`text` only once `sent`; consent withheld blanks it.
+
+#### The record
+
+`interview_letters` (DDL in `app/_lib/db/core.ts`, store `app/_lib/db/interview-letters.ts`):
+one row per application, unique on `(workspace_id, entry_id)` — the request is an
+`INSERT … ON CONFLICT DO NOTHING`, so two clicks produce one letter. States
+`requested → drafted → sent | declined`; every write is a compare-and-swap on the state it
+leaves (a late draft never overwrites a person's decision). `decidedBy` must be a `human:…`
+actor; texts are capped at `LETTER_MAX_CHARS` at the store. Workspace-scoped with no by-id
+carve-out (`interview-letters-tenancy.test.ts`). **Erasure** (`scrubEntryLinkedPii`) blanks
+`draft_text` and `final_text` and stamps `erased_at`; the row stays as the record that a letter
+was asked for, and is closed to further writes. Listed on `/data` as its own category
+(`feedbackLetter`) whenever a row exists.
+
+#### The draft
+
+`app/_lib/interview-letter-run.ts` (task kind `interview_letter`, budget `cheap`, deduped on
+the letter id) spawns the candidate-free `automation_cli interview-letter` with
+`--letter-json {outcome, jobTitle, company, kitTopics}` and the entry's stored scorecard.
+`pipeline/jobfit/automation.py`:
+
+- `letter_evidence` — built on `interview_evidence`, then narrowed to **names only**: at most
+  two strengths and two areas to develop, each matched to the rubric's own vocabulary
+  (anything off-rubric is dropped). "Experience & fit" and "Motivation" are never handed back
+  as something to work on. Kit competency titles ride along as the topics the conversation
+  was built around. No rating, verdict, quote, summary or confidence reaches the prompt.
+- `draft_interview_letter` (`INTERVIEW_LETTER_PROMPT_VERSION = "interview-letter-v1"`,
+  uncached) — thanks, what went well, what to work on, a respectful close; the outcome
+  shapes only the frame and the close. `letter_problem` discards a model letter **whole** if
+  it is empty, over the cap, uses protected-characteristic language, carries any digit
+  outside the role's own title, names the scoring machinery (score, rating, rubric,
+  scorecard, points…), or reproduces a run of the candidate's recorded words.
+
+**Keyless** (or a discarded model letter): the CLI returns an empty body plus the names, and
+the runner builds the template from `interviewLetter.template.*` and
+`rubric.competency.<key>.label` in the letter's language (`interview-letter-template.ts`); a
+name the rubric catalog does not know is dropped, never printed. The stored draft says
+`source: "model"` or `"template"`. The task result carries the engine, the language and
+whether a draft was stored — never the text or the candidate's name (the tasks table
+outlives an erasure). If the drafting CLI itself fails, the task fails and the letter stays
+`requested` for a recruiter to redraft or write by hand.
+
+#### Known gaps
+
+- No UI yet: the recruiter queue, approve/decline/redraft doors, delivery and the status-page
+  controls are WP-beta.
+- One letter per application: an application that is reopened and decided again keeps its
+  first letter.
+
+## Interview feedback letters — review, send, show
+
+The recruiter's half of the interview feedback letter (WP-beta). A letter a candidate asked
+for waits in a **Feedback requests** queue in the Decisions tab; a recruiter edits the draft,
+owns every sentence, and approves it (it is emailed and shown on the candidate's status page)
+or declines it (the status page says the team does not send individual feedback). Nothing
+reaches the candidate without a person's approval.
+
+### The queue
+
+`GET /api/decisions/feedback-letters` — `requireOperator`, the caller's own team
+(`app/_lib/interview-letter-review.ts` `feedbackLetterQueue` over the store's
+`interviewLetterQueue`, one batched `getPipelineEntriesByIds` read for the page).
+
+`200 { items: FeedbackLetterQueueItem[], truncated }` — open (`requested` / `drafted`),
+non-erased letters, oldest request first, at most 100 (`truncated` says when more wait). Each
+item: `id, candidateLabel, jobTitle, outcome (not_selected|hired), requestedAt, state, lang,
+draft {text, source (model|template), createdAt} | null, closeOnly`. `500
+FEEDBACK_LETTERS_LIST_FAILED`.
+
+`closeOnly` (`letterCloseOnly`) is `consent_withheld` when the entry's consent is expired or
+anonymized, `application_gone` when the entry no longer exists, else null. A close-only item
+carries **no draft** and a masked label (the read-time PII gate, `consent.ts`): it can only
+be declined. The approve and redraft doors refuse on exactly the same rule, so the list and
+the doors agree.
+
+Why a queue of its own: a reject clears `approval_kind`, so a decided candidate never reaches
+the ordinary Decisions queue; like **Reconsider**, this is the only list they appear on.
+
+### The doors
+
+All three: `requireOperator` → `requireCapabilityCoded("pipeline:write", requireCapability)`
+(a viewer gets `403 FORBIDDEN_CAPABILITY` + `capability`), the caller's team only (a foreign
+id is `404 FEEDBACK_LETTER_NOT_FOUND`), a per-IP limiter placed after every cheap refusal and
+pinned in `app/api/rate-limit-contract.test.ts`, the actor from `humanActor()` (the signed-in
+person, `human:<Name>`, or `human:recruiter` on a deployment that cannot name one; never from
+the body). A letter that is no longer open answers `409 FEEDBACK_LETTER_MOVED` + `{ state }`
+and writes nothing, both on the pre-read and when the store's compare-and-swap loses a race.
+
+| Door | Body | Answers |
+| --- | --- | --- |
+| `POST …/[id]/approve` | `{ finalText }` (16 KB cap, trimmed at the ends) | `200 { ok, letter: {id, state, decidedAt}, delivery }` · `400 FEEDBACK_LETTER_TEXT_EMPTY` · `400 FEEDBACK_LETTER_TEXT_TOO_LONG` + `maxChars` · `409 FEEDBACK_LETTER_CONSENT_WITHHELD` · `413 PAYLOAD_TOO_LARGE` · `429` · `500 FEEDBACK_LETTER_APPROVE_FAILED` (30/10 min) |
+| `POST …/[id]/decline` | none | `200 { ok, letter }` · `429` · `500 FEEDBACK_LETTER_DECLINE_FAILED` (30/10 min). Allowed on a close-only letter: it writes who decided, nothing about the candidate |
+| `POST …/[id]/redraft` | none | `200 { ok, taskId }` (the `interview_letter` task, params `{letterId, jobTitle}`, deduped on the letter) · `409 FEEDBACK_LETTER_CONSENT_WITHHELD` · `429` · `500 FEEDBACK_LETTER_REDRAFT_FAILED` (20/10 min) |
+
+Redraft has no body on purpose: the new draft is written from the interview record alone,
+so the recruiter's unsaved edits are never sent to it (the editor says so), and a late draft
+loses to a decision at the store's CAS.
+
+### Delivery
+
+`app/_lib/interview-letter-delivery.ts` `deliverApprovedLetter`, after the approve lands.
+`dispatchInterviewLetter` (`comms-dispatch.ts`) sends the recruiter's final text verbatim
+through `sendCandidateComm` as comm kind **`interview_letter`** (in `KNOWN_COMM_KINDS`,
+`devcase.outboxKind.interview_letter` in all four catalogs), in the **letter's** language
+(`resolveCommsLocale(letter.lang)`), subject `comms.interviewLetter.subject[Role]`, plus one
+line with the candidate's **status link** (`getOrCreateStatusLink`, absolute via
+`candidateLinkBase`, `?lang=`-pinned) and the usual data/opt-out footers. The line is omitted
+if no token can be minted, never printed dead.
+
+The letter records what the outbox reported (`interviewLetterRecordDelivery`): `sent` (relay
+accepted), `queued` (no relay: the outbox row is the destination), `failed` (dead-lettered).
+The door's `delivery` field is `{ delivery, suppressed, readableOnStatusPage, recorded }`.
+
+**Consent.** Two different gates, deliberately:
+
+- *Entry consent withheld* (expired or anonymized): approve and redraft are **refused**
+  (`409 FEEDBACK_LETTER_CONSENT_WITHHELD`) before anything is stored. No letter is written
+  about a person whose consent lapsed, the same line the draft runner holds
+  (`interview-letter-run.ts`). The page shows nothing either way (`candidateLetterView`).
+  Decline still closes the request. An anonymized entry's letter is already erased by the
+  scrub and answers `FEEDBACK_LETTER_MOVED`.
+- *The channel's gate* (`commsSendSuppression`, resolved at the candidate IDENTITY, e.g.
+  another application of the same person was erased): the approval stands, no email is sent
+  (`CommsSuppressedError`), the letter's delivery is recorded `failed` (the contract has no
+  fourth word, and `queued` would claim an outbox row that does not exist), `suppressed:
+  true` is returned, and the letter stays readable on this application's status page because
+  its own consent allows it.
+
+A delivery fault never turns the approval into a 500: the approval is on the record, and the
+response says what the email did.
+
+### The recruiter UI
+
+`app/features/hiring/decisions/DecisionsFeedbackLetters.tsx` (mounted once in
+`DecisionsTab.tsx` beside Reconsider; its own read in `useFeedbackLetters.ts`, latest-wins,
+live-refresh) — a `<details>` section: title with the count (`—` when the first read
+failed, `N+` when truncated), help line, empty state, one row per letter (candidate, role,
+outcome, asked date, state chip, **Review**). Open by default while anyone waits.
+
+`DecisionsFeedbackLetterEditor.tsx` (a `Modal`) — the draft's source (model / standard
+template / none yet) and language, the one-line rule ("names competencies, never quotes the
+candidate, never gives a score"), the text, a live counter against `LETTER_MAX_CHARS` that
+names the overshoot before any refusal (Approve is disabled while the text cannot be stored),
+a no-relay notice, **Approve and send** (moss), **Redraft** (queues a draft, watched with
+`useTaskResult` + `TaskFlightNote`; the text is replaced only when a redraft was asked for or
+the recruiter has not edited), **Decline** with an inline confirm. Outcomes are said as they
+happened: `doneSent` / `doneQueued` / `doneFailed` / `doneSuppressed`, then whether the page
+shows it; `doneDeclined` (or `doneClosed` for a close-only letter). Pure rules in
+`feedbackLetterEditorLogic.ts`.
+
+### The candidate's status page
+
+`app/status/[token]/StatusLetterCard.tsx`, rendered by `StatusClient.tsx` after the decision
+history. Pure rules in `statusLetterView.ts`:
+
+| `letter` | Card |
+| --- | --- |
+| `canRequest` | "Request feedback on your interview" + "a person on the hiring team reviews it before it is sent" |
+| `requested` | "You asked for feedback on {date}…" + follow-up |
+| `drafted` | "Your letter is being prepared…" + follow-up |
+| `sent` | the approved text, verbatim |
+| `declined` | "The hiring team has decided not to send individual feedback on this interview." |
+| anything else / consent withheld | nothing |
+
+The follow-up promises email only when a relay is configured (`whenReadyEmail` vs
+`whenReadyPage`), and both say that a decision not to send will also appear on the page. The
+request is one click (it is idempotent); a repeated request folds the existing state back; a
+"not available" refusal removes the button and says so once; any other failure is a coded
+`role="alert"` with the button left in place. The page's poll still stops at a terminal
+status, so a candidate sees later states on Refresh or from the email.
+
+### Tests
+
+`app/api/decisions/feedback-letters/feedback-letters.test.ts` (real handlers, signed
+sessions: gates, queue tenancy and shape, close-only, human actor, CAS race, 409s, delivery
+`queued` with the status link and language, suppressed send, decline, redraft task params),
+`feedbackLetterEditorLogic.test.ts`, `app/status/[token]/statusLetterView.test.ts`, the
+comm-kind pins (`comms-envelope.test.ts`, `outbox-kind-catalog.test.ts`) and the rate-limit
+contract.
+
+### Known gaps
+
+- **No decline email.** A decline is said on the status page only; the candidate learns it
+  there (they were told on request that it would appear there).
+- **A failed email is not retried from here.** The outbox row can be resent from the Comms
+  outbox, but that resend does not update the letter's `delivery`.
+- **The human-written final text is not run through a protected-attribute filter.** The
+  model draft is (`letter_problem` in `automation.py`); the recruiter's text is theirs and is
+  sent verbatim. The registry's `protected-attribute-line-suppression` asks for the filter
+  over human text too; a warn-in-editor design is open.
+- The candidate's page does not poll after a terminal status, so the letter appears on
+  Refresh or via the email link.
+
+(Also owed outside this section: `docs/features/comms/README.md` gains the
+`dispatchInterviewLetter` dispatcher; `docs/features/comms/outbound-export.md` line ~100
+lists `interview_letter` among the kinds; `docs/architecture/api-reference.md` needs
+`npm run api:docs` for the four routes; and the WP-alpha "Known gaps" bullet "No UI yet…"
+is now closed.)
+
 ## Surface
 
 | Concern | Files |
@@ -620,6 +972,11 @@ name variants — this closes what was gap G3 in the original conformity pack.
   nullable `actor` (`auto:<engine>` / `human:<Name>` / `human:recruiter` / NULL).
   Rows written before the column existed stay NULL — deliberately not backfilled,
   since inventing an approver for them would be the overclaim G5 was about.
+- `interview_sessions`: `recording_consent_at` (the candidate's SEPARATE audio consent,
+  distinct from `consent_at`) and `recordings_json` — one `RecordingMeta` per recorded
+  attempt, **including deleted ones**, each carrying `deletedAt` and a `deleteReason`
+  (`retention` | `candidate_request` | `recruiter` | `erasure`). The audio itself is a
+  file under the data dir, not a column.
 - `llm_usage`: usage ledger including a `deterministic` source flag.
 
 ## Known gaps

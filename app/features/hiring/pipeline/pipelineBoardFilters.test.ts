@@ -81,6 +81,12 @@ test("quickPredicate: aging reuses the render-diet bucket; the rest read plain f
   assert.equal(quickPredicate(aged, "aging", null, NOW), true);
   assert.equal(quickPredicate(fresh, "aging", null, NOW), false);
   assert.equal(quickPredicate(makeEntry({ stage: "Interview" }), "interview", null, NOW), true);
+  assert.equal(quickPredicate(makeEntry({ stage: "Screened" }), "active", null, NOW), true);
+  assert.equal(quickPredicate(makeEntry({ stage: "Hired" }), "active", null, NOW), false);
+  assert.equal(quickPredicate(makeEntry({ status: "rejected" }), "active", null, NOW), false);
+  assert.equal(quickPredicate(makeEntry({ jobTitle: "Demo (SIM)" }), "active", null, NOW), false);
+  assert.equal(quickPredicate(makeEntry({ stage: "Interview", status: "rejected" }), "interview", null, NOW), false);
+  assert.equal(quickPredicate(makeEntry({ stage: "Interview", jobTitle: "Demo (SIM)" }), "interview", null, NOW), false);
   assert.equal(quickPredicate(makeEntry({ approvalKind: "offer_review", status: "active" }), "awaiting", null, NOW), true);
   assert.equal(quickPredicate(makeEntry({ approvalKind: "offer_review", status: "rejected" }), "awaiting", null, NOW), false);
   assert.equal(quickPredicate(makeEntry({ intakeDegraded: true }), "intake", null, NOW), true);
@@ -216,7 +222,7 @@ test("setsEqual: order-independent membership check for the active-view match", 
 });
 
 test("the canonical value lists are what the params validate against", () => {
-  assert.deepEqual([...QUICK_FILTERS], ["interview", "aging", "awaiting", "intake"]);
+  assert.deepEqual([...QUICK_FILTERS], ["active", "interview", "aging", "awaiting", "intake"]);
   assert.deepEqual([...SCORE_BANDS], ["strong", "mid", "weak", "unscored"]);
 });
 

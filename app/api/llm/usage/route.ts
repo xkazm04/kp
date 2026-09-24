@@ -36,10 +36,12 @@ export async function GET(request: NextRequest) {
     useCase = rawUseCase;
   }
   const rows = aggregateLlmUsage(days);
+  const selectedRows = useCase ? rows.filter((r) => r.useCase === useCase) : rows;
   return NextResponse.json({
     days,
     useCase,
-    rows: useCase ? rows.filter((r) => r.useCase === useCase) : rows,
+    rows: selectedRows,
+    failedCalls: selectedRows.reduce((total, row) => total + row.failedCalls, 0),
     promptCache: promptCacheStats(),
   });
 }

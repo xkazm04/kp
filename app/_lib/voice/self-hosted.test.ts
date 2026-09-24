@@ -50,6 +50,8 @@ test("loopback and private hosts count as self-hosted", () => {
     "http://127.0.0.1:8080",
     "http://localhost:8080",
     "http://[::1]:8080",
+    "http://[fc00::1]:8080",
+    "http://[fdff::1234]:8080",
     "http://10.0.0.5:8080",
     "http://192.168.1.20:8080",
     "http://172.16.4.4:8080",
@@ -71,6 +73,9 @@ test("a public override is still treated as paid", () => {
     "https://voice.example.com",
     "https://172.32.0.1", // just outside the RFC1918 block
     "https://11.0.0.1",
+    "https://[fbff::1]",
+    "https://[fe00::1]",
+    "https://[fc::1]",
     "not a url",
   ]) {
     withEnv({ ELEVENLABS_BASE_URL: url }, () => {

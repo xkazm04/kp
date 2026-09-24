@@ -4,6 +4,7 @@ import { Component, createElement as h, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { reportBoundaryError } from "@/app/_lib/sentry-client";
+import { useErrorMessage, type ErrorMessageResolver } from "@/app/_lib/use-error-message";
 
 // JSX-free (hence `.ts`, hence `createElement`) ON PURPOSE: `node --test` strips
 // types but cannot compile JSX, so a `.tsx` boundary is a component the unit gate
@@ -17,7 +18,15 @@ import { reportBoundaryError } from "@/app/_lib/sentry-client";
  *  lifecycle), so it cannot call useTranslations itself — and until it took them as
  *  a prop, the one surface a Czech recruiter meets when a tab fails was the only
  *  shell copy outside the catalogs. */
-export type BoundaryMessages = { title: string; body: string; retry: string };
+export type BoundaryMessages = {
+  title: string;
+  body: string;
+  retry: string;
+  report: string;
+  reporting: string;
+  reportSent: string;
+  reportFailed: string;
+};
 
 type Props = {
   children: ReactNode;
@@ -25,6 +34,8 @@ type Props = {
    *  is exactly the leak this closes. Use `TranslatedErrorBoundary` below unless the
    *  host already holds a translator. */
   messages: BoundaryMessages;
+  label: BoundaryLabel;
+  resolveReportError: ErrorMessageResolver;
   /**
    * When this value changes, any caught error is cleared and the children are
    * re-rendered. The workspace passes the active tab id so switching tabs gives
@@ -34,7 +45,7 @@ type Props = {
   resetKey?: unknown;
 };
 
-type State = { error: Error | null };
+type State = { error: Error | null; report: "idle" | "busy" | "sent"; reportError: string | null };
 
 // React only supports error boundaries through the class lifecycle
 // (getDerivedStateFromError / componentDidCatch), so this stays a class
@@ -43,9 +54,10 @@ type State = { error: Error | null };
 // blanks just this panel with a recoverable fallback instead of taking down the
 // whole workspace shell (sidebar nav, simulation bar, the lot).
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  state: State = { error: null, report: "idle", reportError: null };
+  private reportEpoch = 0;
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
 
@@ -53,7 +65,8 @@ export class ErrorBoundary extends Component<Props, State> {
     // A tab switch changes resetKey; drop the captured error so the new tab
     // renders fresh rather than showing the previous tab's fallback.
     if (this.state.error && prev.resetKey !== this.props.resetKey) {
-      this.setState({ error: null });
+      this.reportEpoch++;
+      this.setState({ error: null, report: "idle", reportError: null });
     }
   }
 
@@ -69,11 +82,43 @@ export class ErrorBoundary extends Component<Props, State> {
     reportBoundaryError(error);
   }
 
-  private reset = (): void => this.setState({ error: null });
+  private reset = (): void => {
+    this.reportEpoch++;
+    this.setState({ error: null, report: "idle", reportError: null });
+  };
+
+  private sendReport = async (): Promise<void> => {
+    if (this.state.report !== "idle") return;
+    const reportEpoch = this.reportEpoch;
+    this.setState({ report: "busy", reportError: null });
+    // The thrown message may contain private data. A panel has no server digest,
+    // so send only its location and the closed-vocabulary panel label.
+    const digest = (this.state.error as Error & { digest?: string }).digest;
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Workspace ${this.props.label} crash${digest ? ` digest=${digest}` : ""}`,
+          route: window.location.pathname,
+        }),
+      });
+      if (reportEpoch !== this.reportEpoch) return;
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { code?: string } | null;
+        this.setState({ report: "idle", reportError: this.props.resolveReportError(payload, this.props.messages.reportFailed) });
+        return;
+      }
+      this.setState({ report: "sent", reportError: null });
+    } catch {
+      if (reportEpoch !== this.reportEpoch) return;
+      this.setState({ report: "idle", reportError: this.props.messages.reportFailed });
+    }
+  };
 
   render(): ReactNode {
     if (!this.state.error) return this.props.children;
-    const { title, body, retry } = this.props.messages;
+    const { title, body, retry, report, reporting, reportSent } = this.props.messages;
     return h(
       "div",
       {
@@ -85,17 +130,21 @@ export class ErrorBoundary extends Component<Props, State> {
       // The thrown message never reaches the reader — it is a stack trace's first
       // line, not copy, and on a 4-locale product it would be English.
       h("p", { className: "mx-auto mt-1 max-w-md text-body text-steel" }, body),
-      h(
-        "button",
-        {
+      h("div", { className: "mt-4 flex flex-wrap items-center justify-center gap-3" },
+        h("button", {
           type: "button",
           onClick: this.reset,
-          className:
-            "focus-ring mt-4 inline-flex h-9 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90",
-        },
-        h(RotateCcw, { size: 14, "aria-hidden": true }),
-        retry
-      )
+          className: "focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90",
+        }, h(RotateCcw, { size: 14, "aria-hidden": true }), retry),
+        h("button", {
+          type: "button",
+          onClick: () => void this.sendReport(),
+          disabled: this.state.report !== "idle",
+          className: "focus-ring inline-flex h-9 items-center rounded-md border border-steel/30 px-4 text-sm font-semibold text-ink disabled:opacity-50",
+        }, this.state.report === "busy" ? reporting : report)
+      ),
+      this.state.reportError ? h("p", { role: "alert", className: "mt-3 text-sm text-coral" }, this.state.reportError) : null,
+      this.state.report === "sent" ? h("p", { role: "status", className: "mt-3 text-sm text-ink" }, reportSent) : null
     );
   }
 }
@@ -125,9 +174,17 @@ export function TranslatedErrorBoundary({
   children: ReactNode;
 }) {
   const t = useTranslations("errorBoundary");
+  const resilience = useTranslations("resilience");
+  const resolveReportError = useErrorMessage();
   return h(ErrorBoundary, {
     resetKey,
-    messages: { title: t("title"), body: t("body", { what: t(LABEL_KEY[label]) }), retry: t("retry") },
+    label,
+    resolveReportError,
+    messages: {
+      title: t("title"), body: t("body", { what: t(LABEL_KEY[label]) }), retry: t("retry"),
+      report: resilience("report"), reporting: resilience("reporting"),
+      reportSent: resilience("reportSent"), reportFailed: resilience("reportFailed"),
+    },
     children,
   });
 }

@@ -3,7 +3,22 @@
 import { useTranslations } from "next-intl";
 import type { Phase } from "./ui-types";
 
-export function StatusPill({ phase, speaking, unstable }: { phase: Phase; speaking: boolean; unstable?: boolean }) {
+export function StatusPill({
+  phase,
+  speaking,
+  unstable,
+  thinking,
+}: {
+  phase: Phase;
+  speaking: boolean;
+  unstable?: boolean;
+  /** The model is generating but has not started speaking (spark
+   *  ai-interview-parity). Until this state existed the pill read "Listening" while
+   *  the interviewer was composing a question — i.e. it told the candidate it was
+   *  their turn at precisely the moment it was not, which is how people end up
+   *  talking over the interviewer's first word. */
+  thinking?: boolean;
+}) {
   const t = useTranslations("interview.voice");
   // bug-ui-scan-2026-07-09 (voice-interview #3): a degraded connection overrides the
   // live speaking/listening cue. UNLIKE the live pill this IS a live region
@@ -28,6 +43,17 @@ export function StatusPill({ phase, speaking, unstable }: { phase: Phase; speaki
   // and aren't in the transcript.
   // Live gets a motion treatment: bouncing equalizer bars while the AI speaks,
   // a single breathing pulse while the candidate's mic is open.
+  // Thinking sits between the two live states and must not be painted as either: a
+  // steel pill with the same breathing dot, so it reads as "hold on" rather than as
+  // "your turn" (moss) or "I am talking" (the bars).
+  if (phase === "live" && thinking && !speaking) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-meta text-steel">
+        <span className="voice-listen h-2.5 w-2.5 rounded-full bg-steel" aria-hidden />
+        {t("status.thinking")}
+      </span>
+    );
+  }
   if (phase === "live") {
     return (
       <span className="inline-flex items-center gap-2 rounded-full bg-moss/15 px-3 py-1 text-meta text-moss">

@@ -63,6 +63,7 @@ export type VoiceEvent =
   | { type: "audioBlocked"; value: boolean }
   /** Terminal: the call never came up (mint refused, mic denied, dial failed). */
   | { type: "connectFailed"; failure: VoiceFailure }
+  | { type: "cancelConnect" }
   /** Non-terminal: one utterance did not land; the call keeps going and the
    *  orchestrator puts the words back in the queue. */
   | { type: "turnFailed"; failure: VoiceFailure }
@@ -92,6 +93,8 @@ export function voiceUiReducer(state: VoiceUiState, event: VoiceEvent): VoiceUiS
       return { ...state, audioBlocked: event.value && state.phase !== "idle" };
     case "connectFailed":
       return { phase: "idle", failure: event.failure, awaitingMic: false, audioBlocked: false, extracting: false };
+    case "cancelConnect":
+      return state.phase === "connecting" ? initialVoiceUiState : state;
     case "turnFailed":
       return { ...state, failure: event.failure };
     case "finishing":

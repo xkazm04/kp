@@ -59,7 +59,7 @@ the repo's unit runner has no component renderer; same idiom as
 ## Flows
 
 1. **Mint.** `POST /api/schedule/invite` creates a `schedule_invites` row with
-   `durationMin = plannedInterviewMinutes(entry)` and mails the link.
+   `durationMin = plannedInterviewMinutes(entry)` (for a job with a published interview kit, that is the kit's booked length from `interview-kit-booking.ts` `kitBookedMin`, the same number the voice-screen mint books) and mails the link.
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
    `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
    comms-failed entry never aborts the batch and the response reports each
@@ -234,6 +234,34 @@ is re-offered instead of double-booked. It is **three-valued** — `null` means
 unknown (no calendar, or the lookup failed) and MUST proceed. An outage never
 blocks a booking.
 
+**An idempotent re-confirm means the SAME booking.** `confirmScheduleInvite`
+answers `ok` for a confirm that lands on an already-confirmed invite, so a
+double-submit or a retry after a lost response does not error. It used to answer
+`ok` whatever time the retry named — and the token route reads that `ok` as a
+fresh booking, then advances the pipeline entry (`approve_event`) and composes
+the confirmation from the **requested** slot rather than the invite it got back.
+A retry at a different hour therefore stamped the board and the candidate's
+letter with a time nobody ever held, while the stored invite kept the first one.
+The branch now compares identity — the ISO `slot_at` where the caller supplies
+one, the display label only for the legacy label-only callers — and answers
+`taken` on a mismatch, the same refusal (and the same remedy: pick again) a slot
+collision produces. Pinned by `app/_lib/schedule-store.test.ts` ("a re-confirm at
+a DIFFERENT slot is refused").
+
+**A dated pick must name a day that exists.** The recruiter's week-grid cell
+arrives as a raw `dateSlot` POST field and is resolved by `dateSlotToIso`
+(`app/_lib/schedule-slots.ts`). Its range check is per-field — month ≤ 12,
+day ≤ 31 — and cannot see that the day is absent from *that* month, while
+`Date.UTC` underneath overflows silently rather than refusing: `2026-02-30`
+resolved to 2 March, `2026-06-31` to 1 July. The booking then landed on a
+different calendar day than the one asked for, with a server-derived label
+naming the rolled day, so nothing on either side reported the shift. The
+resolved instant is now round-tripped back through `KP_INTERVIEW_TZ` and
+refused unless year/month/day survive — the same `null` a weekend, a past
+instant or an off-horizon pick already returned. Pinned by
+`app/_lib/schedule-slots.test.ts` ("refuses a calendar date that does not
+exist"). DST is untouched: only the calendar date is compared, never the hour.
+
 **All four confirm writers re-check, on the same rule.** `slotStillFree` runs on
 the candidate confirm (`app/api/schedule/[token]/route.ts`) and on every recruiter
 write that would occupy the hour: week-grid `book`, `reschedule`, and
@@ -267,10 +295,15 @@ we'll confirm by email". `calendarStatus` and `droppedForConflict` are
 statements about the *interviewer's* calendar and stay off the public token
 wire, alongside `entryId` and `reconcileReason`.
 
-Copy lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
+The Schedule tab shows that three-state verdict near its header, along with the
+number of offered times omitted for a calendar conflict when positive. Copy
+lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
 `schedule.calendarCheckedNote` / `calendarUncheckedNote` (candidate), in all
 four locales. `app/_lib/calendar/calendar-status-i18n.test.ts` set-equality
 guards the recruiter catalog against `CALENDAR_STATUSES`.
+When the verdict is `not_connected`, the status also links to the Integrations
+tab's Connect Google Calendar action; `unavailable` does not suggest connecting
+an account that is already present.
 
 ## Write-back — the interview on the real calendar
 
@@ -750,6 +783,30 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
   wider AI/Human/Hybrid mechanism design lives in
   `docs/concepts/interview-rounds.md`.
+  - **Finished AI interviews are now reachable from this tab too** (2026-09-18).
+    The ledger's awaiting/live scope above is unchanged; a separate completed list
+    (`ScheduleAiRoundCompleted.tsx`) sits beside it and opens the same transcript
+    modal, because an AI-only hiring plan renders only `ScheduleAiRound` and could
+    otherwise reach neither the prep pack nor a finished conversation.
+  - **The transcript modal carries the directed interview's record.** Turns are
+    grouped under their agenda block with mm:ss timestamps, an observations panel
+    states in its own heading that focus departures, guardrail attempts and answer
+    timing are observations and never a reason to reject, and an opt-in audio
+    recording plays per attempt. The mechanism, the event vocabulary and the
+    retention rules belong to the interview feature, not to scheduling:
+    [`docs/features/interviews/README.md`](../interviews/README.md) §"Recruiter
+    evidence", §"Director engine" and §"Opt-in audio recording". Files here:
+    `ScheduleInterviewEvidenceSection.tsx`, `ScheduleInterviewObservations.tsx`,
+    `ScheduleInterviewRecordings.tsx`, `scheduleInterviewEvidence.ts`.
+  - **The prep modal edits one candidate's kit-based plan** (2026-09-18). For a
+    candidate whose interview runs on the job's kit, the recruiter can drop,
+    rewrite or add a question for THIS candidate. The edits are stored as a
+    human-owned overlay on the prep payload (`PATCH /api/interview-prep` with
+    `{ kitOverlay }`), so a regeneration reapplies them instead of discarding
+    them, and every row says whether it came from the kit, the CV or the
+    recruiter. Files: `ScheduleInterviewPrepOverlay*.tsx`,
+    `scheduleInterviewPrepOverlayModel.ts`. The rules are the interview feature's:
+    [`docs/features/interviews/README.md`](../interviews/README.md) §"Authoring the kit".
   - **A `failed` session lands back in "Awaiting link".** `/api/interview/complete`
     downgrades a silent-mic call to `failed` so it is never scored, and
     `revokeOpenInterviewSessions` treats a failed row as reissuable — so

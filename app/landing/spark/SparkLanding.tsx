@@ -84,7 +84,7 @@ export default function SparkLanding({ signupOpen = false }: { signupOpen?: bool
           carries the short, worse version. */}
       <Proof />
       <FeatureGrid preview={preview} pinned={pinned} onHoverOpen={hoverOpen} onPin={pinOpen} onLeave={leave} />
-      <VoiceTeaser />
+      <VoiceTeaser onPreview={() => pinOpen("voice")} />
       <TrustPillars />
       <PricingSection />
       <Cta signupOpen={signupOpen} />

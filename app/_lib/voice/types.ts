@@ -60,6 +60,16 @@ export type VoiceConnect = OpenAiConnect | ElevenLabsConnect;
 
 export type VoiceAvailability = Record<VoiceProviderId, boolean>;
 
+/** A provider-neutral function-tool definition (`{ name, description, parameters }`,
+ *  JSON-schema parameters) — the shape DIRECTOR_TOOL_DEFS carries. Each adapter wraps
+ *  it in its own envelope: OpenAI mints it into the session config; ElevenLabs
+ *  declares its tools on the agent (scripts/setup-eleven-agent.mjs) and ignores it here. */
+export type VoiceToolDef = {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Readonly<Record<string, unknown>>;
+};
+
 /** One line of an interview transcript — the single canonical shape shared by
  *  the browser (which appends turns live and POSTs them on hang-up), the
  *  interview_sessions DB row mapper, and the scorecard/notes builders. `at`
@@ -97,11 +107,15 @@ export interface VoiceAdapter {
   // FINGERPRINT of it is ever sent to a provider (voice/openai.ts), so a minted
   // credential is bound to one session without handing a third party the
   // credential that opens the whole interview.
+  // `tools` (optional; OpenAI honors it, ElevenLabs declares tools on the agent
+  // instead): the interview director's function tools, for a candidate session that
+  // has an agenda (spark ai-interview-parity).
   connect(opts: {
     instructions: string;
     language?: string | null;
     relay?: boolean;
     sessionToken?: string | null;
+    tools?: readonly VoiceToolDef[] | null;
   }): Promise<VoiceConnect>;
 }
 

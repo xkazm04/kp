@@ -66,7 +66,7 @@ export function validateJdFields(title: unknown, body: unknown): JdFieldsResult 
 
 export type JdBuildInputResult =
   | { ok: true; title: string; needText: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code: "JD_BUILD_TITLE_TOO_SHORT" | "JD_BUILD_NEED_TOO_SHORT" };
 
 /** Minimum-need validation for the AI JD builder — the single source for both
  *  the thresholds (JD_BUILD_*_MIN_LENGTH) AND the exact error wording, shared by
@@ -79,10 +79,10 @@ export function validateJdBuildInput(title: unknown, needText: unknown): JdBuild
   const t = typeof title === "string" ? title.trim() : "";
   const n = typeof needText === "string" ? needText.trim() : "";
   if (t.length < JD_BUILD_TITLE_MIN_LENGTH) {
-    return { ok: false, error: `Role title must be at least ${JD_BUILD_TITLE_MIN_LENGTH} characters.` };
+    return { ok: false, error: `Role title must be at least ${JD_BUILD_TITLE_MIN_LENGTH} characters.`, code: "JD_BUILD_TITLE_TOO_SHORT" };
   }
   if (n.length < JD_BUILD_NEED_MIN_LENGTH) {
-    return { ok: false, error: `Describe the need in at least ${JD_BUILD_NEED_MIN_LENGTH} characters so the AI has something to design from.` };
+    return { ok: false, error: `Describe the need in at least ${JD_BUILD_NEED_MIN_LENGTH} characters so the AI has something to design from.`, code: "JD_BUILD_NEED_TOO_SHORT" };
   }
   return { ok: true, title: t, needText: n };
 }

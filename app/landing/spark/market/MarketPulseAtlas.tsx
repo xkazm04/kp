@@ -8,11 +8,12 @@
  * headers, warm annotations; one idea at a time. Contrast to Board (everything
  * at once). Reuses the shared market parts.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ART_TYPE_SCALE, DISPLAY, HAND } from "../tokens";
 import { snapshot, fmtInt, fmtCzkShort, metricValues, type MapMetric } from "./data";
 import CzMap from "./CzMap";
+import { marketMapSelection, type MarketMapSelection } from "./map-url";
 import {
   MetricToggle,
   MapLegend,
@@ -34,13 +35,37 @@ function SectionHead({ eyebrow, title, sub }: { eyebrow: string; title: string; 
   );
 }
 
-export default function MarketPulseAtlas() {
+export default function MarketPulseAtlas({ initialSelection }: { initialSelection: MarketMapSelection }) {
   const t = useTranslations("jobMarket");
   const locale = useLocale();
-  const [metric, setMetric] = useState<MapMetric>("volume");
-  // Preselect Praha (CZ010) so the detail card always shows a region — hovering
-  // then only swaps its text, never collapses/expands the layout.
-  const [active, setActive] = useState<string | null>("CZ010");
+  const [metric, setMetric] = useState<MapMetric>(initialSelection.metric);
+  // The server reads the URL for the first render, avoiding a hydration flash
+  // from Praha to the linked region.
+  const [active, setActive] = useState<string | null>(initialSelection.region);
+  useEffect(() => {
+    const onPopState = () => {
+      const query = new URLSearchParams(window.location.search);
+      const selection = marketMapSelection(query.get("region"), query.get("metric"));
+      setActive(selection.region);
+      setMetric(selection.metric);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+  const updateUrl = (region: string, nextMetric: MapMetric) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("region", region);
+    url.searchParams.set("metric", nextMetric);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+  const chooseMetric = (nextMetric: MapMetric) => {
+    setMetric(nextMetric);
+    if (active) updateUrl(active, nextMetric);
+  };
+  const chooseRegion = (code: string | null) => {
+    setActive(code);
+    if (code) updateUrl(code, metric);
+  };
   // Only families that actually carry postings get a tab — an empty tab would
   // open onto a section header above blank space.
   const jdGroups = snapshot.jd_references.filter((g) => g.items.length > 0);
@@ -63,10 +88,10 @@ export default function MarketPulseAtlas() {
       <section id="map" className="mx-auto grid max-w-7xl gap-6 px-6 lg:grid-cols-[1.5fr_1fr] lg:items-start">
         <div className="rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <MetricToggle metric={metric} onChange={setMetric} />
+            <MetricToggle metric={metric} onChange={chooseMetric} />
             {scale ? <MapLegend metric={metric} lo={scale.lo} mid={scale.mid} hi={scale.hi} /> : null}
           </div>
-          <CzMap regions={snapshot.regions} metric={metric} activeCode={active} onActivate={setActive} className="h-auto w-full" />
+          <CzMap regions={snapshot.regions} metric={metric} activeCode={active} onActivate={chooseRegion} className="h-auto w-full" />
         </div>
         <div className="space-y-4 lg:sticky lg:top-6">
           <RegionDetail region={region} />

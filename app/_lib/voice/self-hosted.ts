@@ -34,6 +34,9 @@ export function elevenLabsBaseUrl(env: NodeJS.ProcessEnv = process.env): string 
 function isPrivateHost(host: string): boolean {
   if (LOOPBACK_HOSTS.has(host)) return true;
   if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+  // URL.hostname brackets IPv6 literals. fc00::/7 is unique-local; require the
+  // full first hextet so [fc::1] (00fc::1) is never mistaken for that range.
+  if (/^\[f[cd][0-9a-f]{2}:/.test(host)) return true;
   // The ranges below describe IP ADDRESSES, so they may only be read off an IPv4
   // literal. Matched against a NAME they also fired on anything whose first label
   // happens to be one of those numbers — "https://10.voice-vendor.example.com" is

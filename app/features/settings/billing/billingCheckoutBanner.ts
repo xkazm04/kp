@@ -13,10 +13,10 @@ export type CheckoutBanner = "confirming" | "confirmed" | "unconfirmed" | null;
 export function checkoutBannerState(input: {
   isCheckoutReturn: boolean;
   pollWindowElapsed: boolean;
-  planReflectsPaid: boolean;
+  entitlementReflected: boolean;
 }): CheckoutBanner {
   if (!input.isCheckoutReturn) return null;
-  if (input.planReflectsPaid) return "confirmed";
+  if (input.entitlementReflected) return "confirmed";
   if (input.pollWindowElapsed) return "unconfirmed";
   return "confirming";
 }

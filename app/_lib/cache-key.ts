@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { Locale } from "@/i18n/locales";
 
 // Pure, dependency-free analyze cache-key derivation. Split out of cache.ts (no
 // `./db` import) so the hashing contract can be exercised directly by Node's
@@ -32,9 +33,9 @@ export type CacheKeyInput = {
   companyText: string;
   companyFileBytes: Buffer | null;
   grounding: boolean;
-  // Output locale the narrative was generated in ("en" | "cs"). Part of the key
+  // Output locale the narrative was generated in. Part of the key
   // so localized results don't collide — see the v5 note above.
-  lang: string;
+  lang: Locale;
   // Blind screening (idea-b8d711c4): a blind run scores a redacted CV, so its
   // result must NOT be served for a normal run (or vice-versa). Folded in only
   // when true — a normal run hashes exactly as before, so the existing cache stays

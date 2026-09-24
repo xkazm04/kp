@@ -1,5 +1,12 @@
 # Outbound Candidate Comms
 
+The Channels tab accepts `?tab=channels&sec=comms|careers|email|ads` as an
+incoming section link. An unknown section opens Communications; changing the
+selected section afterward is local app state.
+Its waiting-arrivals count reads the small workspace-scoped `/api/attention`
+payload, using the `channels` count; Channels no longer downloads the entire
+pipeline list just to compute that number.
+
 Every candidate-facing message the pipeline sends — intake acknowledgements,
 outreach, rejections, offers, interview confirmations/reminders —
 goes through one delivery layer with an honest, non-ambiguous status contract.
@@ -151,6 +158,16 @@ it, so such a message dead-letters). Every `OutboundMessage` carries `ref`
 (the pipeline entry id) so even an unaddressable message stays traceable.
 When a real email *is* captured at intake (quick-apply requires one), it
 rides the envelope as `candidate.email` — see outbound-export.md.
+
+**Refused, not guessed:** an entry whose `population` is `'agent'` (an AI agent
+on a role's slate) has no mailbox, so `candidateRecipient()` returns `null`
+(`recipientRefusal()` in `app/_lib/comms-recipient.ts` states why) rather than
+resolving its label for a relay to dead-letter. `sendCandidateComm` records the
+comm at once as `failed` on the `refused` channel with the reason in
+`failure_detail`, an empty recipient and no data/stop footers; no channel or
+relay is contacted, and the empty recipient keeps the resend door from
+re-dispatching it. The field is optional on the dispatch input — absent means a
+person — so the guard is inert until entries carry the column.
 
 ## 5. Interview-reminder policy (sub-24h bookings)
 
@@ -310,6 +327,23 @@ also scrubs the stored row, so an ANONYMIZED candidate is refused one guard earl
 the route's own 422 missing-fields check; expired consent is the case the gate answers.)
 Locked by `comms-send-gate.test.ts` and `app/api/comms/[id]/resend/resend-dedup.test.ts`.
 
+**The outreach body is cleaned and capped at the same handoff.** An outreach body is
+the model's draft, and the model read the candidate's CV, so it used to reach the outbox
+and the relay exactly as generated — any length, any markup. For `kind: "outreach"`,
+`sendComm` now runs `cleanOutreachBody` (`app/_lib/outreach-body.ts`) first: CRLF is
+normalized, invisible/bidi code points are removed (the `INVISIBLE` set shared with
+`text-sanitize.ts`), HTML tags are stripped with their words kept (`<script>`/`<style>`
+lose their contents too, and the strip repeats until stable so a split tag cannot
+reassemble), and blank-line runs are folded. Newlines survive, because they are the
+formatting of a plain-text letter. The stored row and the relay payload are the same
+cleaned text. A cleaned message (body plus footers) over `OUTREACH_BODY_MAX_LENGTH`
+(20,000 characters) is **refused, not truncated**: `CommsBodyRejectedError` is thrown and
+no row is written. Truncating could cut off the opt-out footer. It is deliberately not a
+`CommsSuppressedError`, because the resend door would render that as "this candidate can
+no longer be contacted". The outreach route answers it with its generic
+`OUTREACH_FAILED`. Other kinds pass through untouched: an offer, or a brief carrying an
+ICS block, is kp's own template. Locked by `outreach-body.test.ts`.
+
 ## 7b. The candidate's own stop (unsubscribe)
 
 Until this shipped there was **no unsubscribe anywhere**. Every candidate comm carried
@@ -437,6 +471,8 @@ was recorded (silence beats an invented rationale; the plain template ships inst
   their age) and `filtered` is raised so a recruiter can see the filter fired. A fully
   filtered gap list does **not** fall through to the derived unmet-requirement list —
   that would route around the filter.
+- German and French protected-attribute stems follow the same whole-line drop
+  rule, including inflected age, pregnancy, nationality, and disability terms.
 - **The Czech patterns are stems with an open suffix under `/u`, not `\b…\b`.** JS's
   `\b` is ASCII-only, so a diacritic is not a word character: `\bpohlaví\b` could never
   match the word at all, and `\bvěk\b` matched only the bare nominative while "věku" /
@@ -776,6 +812,7 @@ air-gapped.
 | `app/_lib/comms-relay.ts` / `comms-relay-store.ts` | Relay resolution (env → stored config) and the encrypted stored-config persistence. |
 | `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`. |
 | `app/_lib/rejection-feedback.ts` | `buildRejectionFeedback` / `renderRejectionFeedback` — recorded-only rejection reasons behind the protected-attribute filter (§9). |
+| `app/_lib/interview-letter-delivery.ts` | `dispatchInterviewLetter` (comm kind `interview_letter`) — sends a recruiter-APPROVED interview feedback letter in the letter's language with the candidate's status link, and records the truthful delivery on the letter (`queued` with no relay; `failed` when the consent gate refuses, never a phantom `queued`). The letter itself: `docs/features/compliance/README.md` §"Interview feedback letters". |
 | `app/_lib/comms-status.ts` | `OUTBOX_STATUSES`, `coerceOutboxStatus`, retry classification. |
 | `app/_lib/comms-view.ts` | `deriveCommsView`, `commsVerdict` — the single delivery-truth vocabulary. |
 | `app/_lib/comms-truth.ts` | `isRelayConfigured` legacy helper / capability surfacing. |
@@ -987,11 +1024,10 @@ already returns alongside the entries. Both rules are pinned by
   `anonymized` and treats `delivery_failed` / `replied` / `manual` / `candidate` as a
   consent lapse — map every reason 1:1 there without expanding the dispatcher's
   contract.
-- **The pull-config 400 is over-broad.** `PATCH`'s catch covers both the URL validator
-  and the encrypted store write, and the two are indistinguishable from the route, so a
-  store failure answers `400 CHANNEL_PULL_URL_INVALID` (with the real error logged
-  server-side) instead of a 500. Separating them needs a typed error out of
-  `db/channels.ts`.
+- **Pull-config refusals distinguish input from storage.** `PATCH` validates the
+  operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
+  for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
+  the route's coded `500 CHANNEL_WEBHOOK_UPDATE_FAILED` path.
 - **Pull sources have no editor UI.** `GET /api/channels/webhooks` now projects
   `pullUrl` / `hasPullSecret` / `lastPullAt` / `lastPullError` on every receiver
   (secret material never appears), so a week-old `last_pull_error` is on the same

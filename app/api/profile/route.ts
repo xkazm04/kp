@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
-      return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
+      return safeJsonError(new Error(outcome.error.message), "api:profile:create", "PROFILE_BUILD_FAILED", outcome.error.status);
     }
     const { data } = outcome;
 
@@ -256,7 +256,7 @@ export async function PUT(request: NextRequest) {
     const outcome = await routeAndScore(body.profile ?? {}, body.signals ?? {}, request.signal);
     if ("timeout" in outcome) return jsonRefusal("PROFILE_BUILD_TIMEOUT", 504);
     if ("error" in outcome) {
-      return NextResponse.json({ error: outcome.error.message }, { status: outcome.error.status });
+      return safeJsonError(new Error(outcome.error.message), "api:profile:update", "PROFILE_UPDATE_FAILED", outcome.error.status);
     }
     const { data } = outcome;
 

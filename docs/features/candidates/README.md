@@ -42,7 +42,11 @@ career-switcher) that other features key off. Downstream ranking is
     as a profile, or edit a saved one). Role, role family and source live in
     `CandidateMatrixFilterBar.tsx` (population filters) and
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
-- **Saved analysis report** — `app/history/[slug]/page.tsx`. Its "Add to pipeline"
+- **Saved analysis report** — `app/history/[slug]/page.tsx`. Its subtitle resolves
+  role family and seniority through the shared enum catalog in the reader's
+  language, falling back to a stored value it does not recognize. The cross-job
+  footprint names each JD and its saved score, with the slug as a title fallback.
+  "Add to pipeline"
   files the candidate under the JD's REAL title (`loadJd(jd_slug, ws).title`,
   workspace-scoped, best-effort); the synthetic `JD <slug>` remains only as the
   fallback for a JD deleted out from under the analysis. The live Analyze result
@@ -68,7 +72,9 @@ career-switcher) that other features key off. Downstream ranking is
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
   advance/hold/pass is recorded on the same surface as the verdict; an unsaved
-  run omits it. The panel also
+  run omits it. A persisted live result also shows `ReportActions`; Copy link
+  points to its stable `/history/<slug>` URL rather than the Analyze workspace
+  URL. The saved report keeps those actions in its own header. The panel also
   keeps its active tab in the URL fragment: selecting a tab rewrites
   `#report-<tab>` with `history.replaceState`, and the panel reads that fragment on
   mount and on `hashchange`. So a recruiter can send a colleague the salary read of
@@ -79,6 +85,13 @@ career-switcher) that other features key off. Downstream ranking is
   single-CV analysis) falls through to the default rather than painting a blank
   panel. `initialTab` is the server-side half for a caller that already knows the
   tab; a fragment in the URL wins over it.
+- **Interview kit copy** — the report's Interview tab copies its summary,
+  questions, evidence gaps, and nonempty STAR prompts to the clipboard. It
+  confirms a successful copy and reports a blocked clipboard write in place.
+  When adding the kit to a candidate's interview prep pack, the same action
+  includes soft-signal probes that still need confirmation. A live report exposes
+  this action as soon as Add to pipeline returns the new entry ID; reopening the
+  saved report is unnecessary.
 - **Engine notes in the quality strip** — `QualityStrip.tsx` mixes localized chrome
   with the engine's own deterministic English check sentences, shown verbatim so a
   degraded run is not paraphrased. Each list is now headed by a localized
@@ -93,9 +106,13 @@ career-switcher) that other features key off. Downstream ranking is
   releases the numbers only for `verified`/`stale`. The muted body block under the
   badge belongs to `incomplete` alone (it states the credential was issued without a
   scored summary, which is true only there); `revoked`/`tampered`/`unverifiable`
-  render the badge with no body, because that sentence would be a false claim about
-  what kp issued. Per-state body copy is a follow-up — it needs new keys in all four
-  locale catalogs.
+  render distinct explanatory body copy, because the incomplete sentence would be
+  a false claim about what kp issued.
+  The issued date, including the date in stale-state explanations, uses the
+  reader's locale instead of a raw ISO day.
+  Capability axes use the existing `devcase.dimension` labels in the reader's
+  locale, with the signed axis name as a fallback for older credentials.
+  The public card offers a print/PDF action; its controls disappear from print.
   Since /perfect wave 20 the card matches its sibling doors in three further ways:
   it carries a **`LanguageSwitcher`** (it is shared with employers and reached from
   a link, so the reader's language is whatever the link carried, and this was the
@@ -131,12 +148,15 @@ pickers carry `multiple` and its empty drop zone reads the whole
 `dataTransfer.files` list — `AnalyzeProfileInput.addFiles` is the one cap/gate
 choke point they all pass through (`useAnalyzeFileAccept`), it stops at the first
 rejection so the gate's inline message survives, and a batch past the cap ends on
-the same `variantLimitReject` row a single over-cap drop shows. Still single-file:
-the window-level "drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`, which
-routes `dataTransfer.files[0]`) and the JD/company zones, which hold one file by
-design. The saved-JD picker distinguishes an empty library from a failed load —
+the same `variantLimitReject` row a single over-cap drop shows. The window-level
+"drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`) now routes the full
+`dataTransfer.files` batch through that same choke point. JD/company zones hold
+one file by design. The saved-JD picker distinguishes an empty library from a failed load —
 `AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
 a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
+
+Paste CV text is another variant entry: it becomes a `pasted-cv.txt` File and
+passes the same extension, size, cap, and content-dedupe gates as uploads.
 
 **And the library itself reports its own load.** `useAnalyzeJdLibrary` answers a
 `jdLibraryState` of `loading` / `ready` / `failed` (the closed vocabulary in
@@ -190,6 +210,8 @@ task is server-side and survives a refresh, so nothing is lost). The whole
 contract is pinned by `AnalyzeApi.test.ts` against a fetch double: terminal 404,
 the ten-soft-failure ceiling shared by all three soft branches, phases forwarded
 verbatim, abort, the visibility park, and the backoff curve.
+The same abort signal now reaches the initial `/api/analyze` upload. Cancel during
+that request stops the transfer before a task id exists to cancel server-side.
 Two silences also went: a cancel the server refuses now says the task may still
 be running (`analyze.cancelFailed`) instead of leaving an idle form beside a live
 Python child, and a failed `/api/health` probe says `analyze.engineStatusUnknown`
@@ -249,6 +271,11 @@ and a DOCX body is declared UTF-8). Known limit: a Czech document with none of
 `Š/š/Ž/ž/Ť/ť` is read as cp1252 and its carons come out as Western grave accents —
 visible mis-mapping instead of silent deletion. Pinned by
 `pipeline/jobfit/tests/test_extractors.py::PlainTextDecodingTest`.
+
+The deterministic authenticity screen also recognizes common Czech CV padding
+phrases (for example, “týmový hráč” and “orientovaný na výsledky”). Its existing
+density threshold still requires several hits; a concrete Czech career summary
+remains clean. `test_authenticity.py` pins both cases.
 
 **Blind screening reads a real CV header, not just "Firstname Lastname".**
 `pipeline/jobfit/redact.py::_guess_name_line` scans the first 8 lines for a 2-4
@@ -364,6 +391,12 @@ Cancel halts the CV scan; `reset()` is the action that clears everything
 (including `githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
 
 ### 2. Conversational / quick apply
+The public conversational apply page shows a short excerpt of the opening's
+description, plus its location when present, before the chat.
+The excerpt comes from the same server-loaded job record that builds the chat
+script, is capped at 280 characters, and renders as plain text. Roles without
+those details still start directly with the chat.
+
 Conversational apply asks 4 universal questions (name, most relevant recent
 experience, skills, "which best describes you" archetype pick), then branches:
 students get project/thesis + education + aspirations questions, switchers get
@@ -381,6 +414,20 @@ animation — so a reduced-motion reader gets the same signal. Pinned by
 `app/api/apply/[id]/quick/route.ts`. Both doors mount the same off-screen
 `company_url` honeypot (not `type="hidden"`) and POST it on submit so a
 form-filling bot is dropped the same way on the chat as on the lead form.
+The conversational POST checks the honeypot before its knockout audit or
+pipeline writes and returns the ordinary decline shape for a filled field.
+For ad links, the conversational door reads `c`/`v` (or the UTM aliases),
+records them on its funnel session, and stores capped campaign/variant labels on
+the accepted pipeline entry, matching the quick-apply door.
+The experience answer extracts a whole-year count from English, Czech, German,
+and French unit words; sub-year amounts and bare dates stay unparsed.
+When a role declares no languages, the conversational applicant profile uses
+the request locale as its language fallback instead of assuming Czech and English
+for every visitor. A role's explicit language list still takes precedence.
+After a quick-apply decline, the done card lets the candidate return to their
+preserved answers and submit a corrected response.
+An accepted lead can copy the status link from the same card; the copied URL
+includes `?lang=` so it opens in the language they used to apply.
 Pinned by `app/apply/[id]/candidate-door-conversion.test.ts`.
 
 When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
@@ -607,6 +654,9 @@ every accepted save spawns `profile_cli` and writes a row, and the route is not
 operator-gated, so open mode left it an unbounded process-spawn endpoint. All five
 handlers across `route.ts` + `candidates/route.ts` answer `PROFILE_*_FAILED` codes
 rather than the thrown message (the temp workdir path, `PYTHON_CMD`, `SQLITE_*`).
+The POST/PUT child-failure branches keep the CLI status but log its stderr on the
+server and return `PROFILE_BUILD_FAILED` / `PROFILE_UPDATE_FAILED`; raw validation
+or traceback text never reaches the editor.
 
 **A save carries a version.** `GET /api/profile?id=` returns `updatedAt` (the
 row's content-write stamp) beside the payload; the editor sends it back as
@@ -673,7 +723,15 @@ lower confidence (e.g. "student" signal alongside 3+ years experience → 0.65);
 no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
 manual review**. The analyze dump stamps that as `archetypeNeedsReview` (plus
 `archetypeNeedsReviewCode` `low_confidence` / `contradiction`) beside the float,
-so the report does not re-implement the cutoff. The conservative default (unclassifiable → experienced, not
+so the report does not re-implement the cutoff. The Archetype banner shows a
+needs-review chip when this flag is set. For student and career-switcher profiles,
+the same routed `v2Profile` also carries the deterministic
+`potentialScore` and `learningSignals` used by matching. The Extraction tab
+shows a `PotentialBadge` beside the overall score dial when that measured
+potential is present; its explanation includes the recorded learning signals.
+The Archetype banner also shows the same potential badge alongside the routing
+result, so the measured potential is visible before opening Extraction.
+The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
 
@@ -833,12 +891,18 @@ Two things on `/status/[token]` that only a test can hold:
 
 ## Surface
 
+The public offer card formats its deadline in the company's named time zone
+projected by the offer API, so candidates in other zones see the same deadline
+as the hiring team. The server calculates remaining time from the absolute
+expiry instant, and the card switches from hours to minutes in the final hour.
+
 | Concern | Files |
 |---|---|
 | CV extraction (Gemini) | `pipeline/jobfit/gemini.py`, `app/api/analyze/route.ts` |
 | Analysis orchestration | `app/_lib/analyze-run.ts`, `app/_lib/analyze-phases.ts`, `app/_lib/completeness-followup.ts`, `app/_lib/provenance-dossier.ts` |
 | Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
 | Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
+| Offer response | `app/offer/[token]/OfferClient.tsx`, `offer-deadline.ts`, `app/_lib/offer-finalize.ts` |
 | Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
 | Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
@@ -966,7 +1030,9 @@ data inside the fence and does not change the schema-validated output shape.
     the assumed case and a marker on every report is chrome nobody reads. History
     rows show a localized producer chip (`analysisProducer` in `HistoryTypes.ts`:
     llm / deterministic / unknown) so a mixed workspace is not uniform; a null
-    engine paints unknown, never "llm". Pinned by
+    engine paints unknown, never "llm". The History score cell labels each measured
+    number as coming from its saved CV analysis, with the analysis date; an absent
+    score remains an unlabeled dash. Pinned by
     `analyze-run.test.ts` and `HistoryTypes.test.ts`.
 - `profiles` — structured candidate profile (archetype-conditional fields,
   typed evidence list with `kind` + `provenance` per claim).

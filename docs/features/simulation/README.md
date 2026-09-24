@@ -31,6 +31,10 @@ of minting a session the walk cannot use:
 | **Gated**, `KP_DEMO_ENABLED` on | `302 → /?demo=unavailable&code=DEMO_NOT_PROVISIONED` |
 | **Gated**, demo off | `302 → /?demo=unavailable&code=DEMO_DISABLED` |
 
+After a public walk finishes, the dock's Get Started control calls
+`enterWorkspace()`: open deployments enter the workspace, while gated ones reach
+the login page.
+
 Both gated answers are refusals because a `demo`-workspace session is
 `{ authed: false, caps: EMPTY_CAPS }` in `app/_lib/auth/current-user.ts`: the walk's
 first write (`POST /api/jds/save`, `jd:write`) answers 401, and so do
@@ -41,10 +45,13 @@ role that was never created.
 
 `DemoUnavailableNotice.tsx` resolves the `code` through `errors.<CODE>` in the
 reader's language — the same vocabulary every coded API refusal uses — and falls back
-to the generic body for an older link with no code. The banner stays dismissible
+to the generic body for an older link with no code. Dismissing the banner removes
+the `demo` and `code` query parameters from the current history entry, so a reload
+does not show the notice again. The banner stays dismissible
 and does not auto-redirect; it also links to `/about` (the public pipeline story,
 labelled with the existing `landing.nav.about`) so a gated deploy is not a dead
-end. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
+end. When self-serve sign-up is open, it also links to `/signup` using the same
+landing CTA label. Pinned by `app/api/demo/demo-door.test.ts` (all three deploy shapes plus the
 per-IP limit) and `app/landing/spark/DemoUnavailableNotice.test.ts` (the fallback
 href).
 
@@ -121,7 +128,10 @@ it on `<html>`; the sim overlays and the companion window
 (`bottom-[calc(var(--sim-bar-h)_+_8px)]`) anchor above it. It tracks BOTH deck
 states — the raised footer row and the collapsed orb — so the companion never
 lands on top of the orb. The fallback in `app/globals.css` applies only before the
-first measurement.
+first measurement. The collapsed operations orb keeps its caption visible on
+touch devices; hover-capable pointers reveal it on hover.
+The guided demo panel can copy its run log as a plain-text transcript. If the
+browser blocks clipboard access, it exposes selectable text instead.
 
 ## Data model
 
@@ -228,6 +238,9 @@ an explicit guard rather than a special-case fake:
   still written: the Outbox entry is part of what the tour shows, and `queued` is the
   outbox's honest "recorded locally, nothing will deliver it" state. Pinned by
   `app/_lib/comms-dispatch-sim.test.ts`.
+- **It checks the invite write.** The interview beat reads the schedule-invite
+  response through `okJson`, so a refused write takes the stated manual-confirm
+  fallback and records why self-scheduling was unavailable.
 - **It never lies about cleanup.** `reset()` awaits the purge and reports `reset`
   only on a 2xx; a failed purge renders the localized "cleanup failed" status in red
   (`simulation.status.resetFailed`, four locales) so the presenter retries instead of

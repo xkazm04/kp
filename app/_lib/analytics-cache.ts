@@ -36,11 +36,20 @@ export function analyticsCacheKey(workspaceId: string, windowDays: number | null
 // `optionalKeyField` (ttl-cache.ts), whose marker no real value can forge.
 const field = optionalKeyField;
 
+// Calibration's inline threshold editor reloads immediately after a successful
+// write. Keep its version separate from analytics spend/target writes: those
+// settings must not evict an unrelated calibration curve.
+const calibrationWriteVersions = new Map<string, number>();
+
+export function invalidateCalibrationWorkspace(workspaceId: string): void {
+  calibrationWriteVersions.set(workspaceId, (calibrationWriteVersions.get(workspaceId) ?? 0) + 1);
+}
+
 /** Calibration payload key: (workspace, source, family). The families list is
  *  computed from the UNFILTERED set so it's identical across family keys — that
  *  redundancy is harmless; the payload stays byte-identical to a live compute. */
 export function calibrationCacheKey(workspaceId: string, source: string, roleFamily: string | null): string {
-  return `${workspaceId}${SEP}${source}${SEP}${field(roleFamily)}`;
+  return `${workspaceId}${SEP}${calibrationWriteVersions.get(workspaceId) ?? 0}${SEP}${source}${SEP}${field(roleFamily)}`;
 }
 
 /** Per-bin drilldown key: (workspace, source, family, bin). Each bin is its own

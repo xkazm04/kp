@@ -8,6 +8,7 @@ import type { PalettePreview } from "@/app/_lib/palette-preview/types";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { CHAPTERS } from "@/app/features/insights/about/chapters";
 import { Chips, Row, Rows, Status, Sub, Tile, Tiles, useFmt } from "./previewBits";
 
 type V<K extends PalettePreview["view"]> = Extract<PalettePreview, { view: K }>;
@@ -64,9 +65,24 @@ export function PreviewActivity({ p }: { p: V<"activity"> }) {
   );
 }
 
-export function PreviewAbout() {
+export function PreviewAbout({ href }: { href: string }) {
   const t = useTranslations("palettePreview.about");
-  return <p className="text-sm leading-relaxed text-steel">{t("blurb")}</p>;
+  const about = useTranslations("about");
+  return (
+    <div className="space-y-2">
+      <p className="text-sm leading-relaxed text-steel">{t("blurb")}</p>
+      <ol className="space-y-1">
+        {CHAPTERS.map((chapter) => (
+          <li key={chapter.id}>
+            <a href={`${href}#${chapter.id}`} className="focus-ring flex items-baseline gap-2 rounded-md px-2 py-1 text-sm text-ink hover:bg-stone-100">
+              <span className="nums text-coral">{String(chapter.n).padStart(2, "0")}</span>
+              <span>{about(`chapters.${chapter.key}.title`)}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 // ── Settings ──

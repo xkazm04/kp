@@ -30,6 +30,7 @@ export const TAB_CHUNKS = {
   matrix: () => import("../insights/matrix/MatrixTab"),
   analytics: () => import("../insights/analytics/AnalyticsTab"),
   activity: () => import("../insights/activity/ActivityTab"),
+  journeys: () => import("../insights/journey/JourneyOverlay"),
   pipeline: () => import("../hiring/pipeline/PipelineTab"),
   agents: () => import("../agents-workforce/AgentsWorkforceTab"),
   channels: () => import("../hiring/channels/ChannelsTab"),
@@ -89,9 +90,9 @@ export function prefetchTabChunk(id: WorkspaceTabId): void {
   });
 }
 
-/** The tabs worth warming unprompted: the hiring flow the sidebar opens on, minus
- *  whichever one is already rendering. Everything else waits for a hover. */
-const IDLE_WARM: readonly WorkspaceTabId[] = ["pipeline", "channels", "decisions", "schedule"];
+/** The tabs worth warming unprompted: the hiring flow, including the roles
+ *  ledger and intake authoring, minus whichever one is already rendering. */
+const IDLE_WARM: readonly WorkspaceTabId[] = ["pipeline", "channels", "decisions", "schedule", "jobs", "intake"];
 
 /**
  * Warm the likely-next tabs once the browser is idle. Called from the shell after

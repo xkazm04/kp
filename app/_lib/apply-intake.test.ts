@@ -77,6 +77,16 @@ test("captures Czech `rok` (singular)", () => {
   assert.equal(parseYearsExperience("1 rok jako junior"), 1);
 });
 
+test("captures German and French whole-year units", () => {
+  assert.equal(parseYearsExperience("4 Jahre Erfahrung"), 4);
+  assert.equal(parseYearsExperience("seit 7 Jahren"), 7);
+  assert.equal(parseYearsExperience("1 Jahr Berufserfahrung"), 1);
+  assert.equal(parseYearsExperience("3 ans d'expérience"), 3);
+  assert.equal(parseYearsExperience("1 an d'expérience"), 1);
+  assert.equal(parseYearsExperience("5 années d'expérience"), 5);
+  assert.equal(parseYearsExperience("2 annees d'experience"), 2);
+});
+
 test("captures inflected Czech forms via prefix match (`lety`)", () => {
   // The Czech tokens match as a prefix, so "lety" is caught through "let".
   assert.equal(parseYearsExperience("před 5 lety jsem začal"), 5);
@@ -142,6 +152,14 @@ test("DEFAULT_APPLY_LANGUAGES is the documented Czech/English bilingual default"
 test("falls back to DEFAULT_APPLY_LANGUAGES when the job declares none", () => {
   const profile = buildIntakeProfile(baseJob, baseAnswers);
   assert.deepEqual(profile.languages, [...DEFAULT_APPLY_LANGUAGES]);
+});
+
+test("a conversational applicant without job languages gets the request locale", () => {
+  for (const [locale, language] of [["cs", "Czech"], ["en", "English"], ["de", "German"], ["fr", "French"]] as const) {
+    const profile = buildIntakeProfile(baseJob, baseAnswers, locale);
+    assert.deepEqual(profile.languages, [language], locale);
+  }
+  assert.deepEqual(buildIntakeProfile({ ...baseJob, languages: ["Spanish"] }, baseAnswers, "de").languages, ["Spanish"]);
 });
 
 test("prefers the job's declared languages over the default", () => {

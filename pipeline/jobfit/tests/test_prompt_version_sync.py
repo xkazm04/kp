@@ -43,6 +43,28 @@ AUTOMATION_VERSION_CONSTANTS = {
     "offer": "OFFER_PROMPT_VERSION",
 }
 
+# ``*_PROMPT_VERSION`` constants in automation.py that have NO cache key to be in
+# lockstep with, each with the reason. The lockstep this file enforces exists because
+# AUTOMATION_VERSION is a CACHE-KEY version: a Python prompt bump with no TS bump serves
+# the old prompt's output for 168h. A prompt whose output is never cached has no such
+# failure mode and no TS counterpart to bind — so it is named here, explicitly, rather
+# than left to fail the both-sides check or dodged by a constant name the scan misses.
+# A new entry needs the same kind of reason: "not cached", and why.
+UNCACHED_PROMPT_VERSIONS = {
+    # The JOB-level interview kit (spark interview-kit-template). Not an entry task —
+    # it runs through automation_cli's candidate-free `interview-kit` command, never
+    # through runAutomationTask — and never cached: its result is appended as a new
+    # version of a durable, append-only interview_kits row, and "draft the kit again"
+    # must mean a fresh pass. The version is stamped on the result for provenance only.
+    "INTERVIEW_KIT_PROMPT_VERSION": "job-level kit; uncached, stored as a versioned row",
+    # The candidate-requested interview FEEDBACK LETTER (spark interview-feedback-letter).
+    # Runs through automation_cli's `interview-letter` command from its own background task
+    # (app/_lib/interview-letter-run.ts), never through runAutomationTask, and is never
+    # cached: one request is one letter for one person, stored as the draft on its
+    # interview_letters row, and a recruiter's "redraft" must mean a fresh pass.
+    "INTERVIEW_LETTER_PROMPT_VERSION": "one letter per request; uncached, stored as the letter row's draft",
+}
+
 
 def _extract_ts_string_record(text: str, name: str) -> dict[str, str]:
     """The ``{key: "value"}`` pairs of a TS object literal assigned to ``name``.
@@ -134,8 +156,13 @@ class AutomationVersionLockstepTest(unittest.TestCase):
             "AUTOMATION_VERSION tasks and the Python constant map disagree",
         )
         py_consts = {n for n in dir(automation) if n.endswith("_PROMPT_VERSION")}
+        # The exemption list must name LIVE constants — a stale entry would be a door
+        # left open for whatever reuses the name next.
+        for exempt in UNCACHED_PROMPT_VERSIONS:
+            self.assertIn(exempt, py_consts, f"UNCACHED_PROMPT_VERSIONS names {exempt}, which automation.py no longer exports")
+            self.assertNotIn(exempt, AUTOMATION_VERSION_CONSTANTS.values(), f"{exempt} is both cached and exempt")
         self.assertEqual(
-            py_consts, set(AUTOMATION_VERSION_CONSTANTS.values()),
+            py_consts - set(UNCACHED_PROMPT_VERSIONS), set(AUTOMATION_VERSION_CONSTANTS.values()),
             "automation.py exports a *_PROMPT_VERSION with no AUTOMATION_VERSION "
             "counterpart (or vice versa)",
         )

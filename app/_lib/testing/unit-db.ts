@@ -21,6 +21,10 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+// Safe ahead of KP_DB_PATH below: late-bound-boot.ts and the two registries it fills are
+// import-free leaves at evaluation time — every implementation it registers is loaded
+// lazily, on first use, long after this module has set the env var.
+import { registerLateBoundImplementations } from "../late-bound-boot.ts";
 
 // Deterministic env: none of these may leak from a developer's shell into the
 // behavioral assertions (open auth mode, no comms relay, no billing provider,
@@ -122,6 +126,14 @@ process.env.KP_DB_PATH = path.join(UNIT_DB_DIR, "kp.sqlite");
 
 /** The isolated SQLite file every store in this process opens. */
 export const UNIT_DB_PATH = process.env.KP_DB_PATH;
+
+// Boot the late-bound seams exactly as instrumentation-node.ts does at server start: the
+// heavy task runners (task-external-runners.ts) and the stage hook's interview-invite
+// door (stage-hooks-invite.ts). Without this, a store test that queues an interview
+// kit/letter task, or moves an entry into an AI interview column, would meet an
+// unregistered seam that production never has. A test about the unregistered case
+// resets the registry itself (`_reset…ForTests`).
+registerLateBoundImplementations();
 
 /** Close the memoized main connection (db/core caches it on globalThis) and
  *  best-effort remove the temp dir. Isolated-store handles have no close API;

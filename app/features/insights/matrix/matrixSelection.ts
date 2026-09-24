@@ -26,6 +26,19 @@ export function matrixCellKey(candId: string, posId: string): string {
   return `${candId}|${posId}`;
 }
 
+/** The "why this score" cache identity: candidate + position + THE LANGUAGE THE
+ *  NARRATIVE WAS FETCHED IN. Separate from `matrixCellKey` on purpose — a shortlisted
+ *  cell is shortlisted whatever the reader is reading in, but a narrative is not the
+ *  same answer in two languages. The reasoning de-dupe used the selection key, while
+ *  the request it guards carries `lang`, so after a language switch re-opening a cell
+ *  hit the cache and kept the OLD language's text — and the "shown in {language}" note
+ *  beside it then compared that stale `narrativeLang` against the new locale. Both the
+ *  writer (`useMatrixTab`'s fetch) and the reader (`MatrixReasoningPopover`) spell it
+ *  here so they cannot drift apart in one direction only. */
+export function matrixReasoningKey(candId: string, posId: string, lang: string): string {
+  return `${lang}|${candId}|${posId}`;
+}
+
 /** The columns the grid actually renders, with each position's ORIGINAL index preserved
  *  so callers can index back into `cells`. A `?job=` scope wins over the family filter
  *  (arriving from a Pipeline position means "rank for this one role"), and a scope whose

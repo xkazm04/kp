@@ -337,6 +337,9 @@ def discrimination(rows: list[Row]) -> dict[str, Any]:
     strong = [r for r in done if r.planted.get("expected") == "strong"]
     weak = [r for r in done if r.planted.get("expected") == "weak"]
     gamer = [r for r in done if r.planted.get("behavior") == "ai_no_verify"]
+    # Aggregate strong rows can all be other behaviours. Keep the named
+    # careful-verifier control in the discrimination landscape before certifying it.
+    verifier_persona = [r for r in done if r.planted.get("behavior") == "careful_verifier"]
 
     def mean_o(rs):
         return round(sum(r.overall for r in rs) / len(rs), 1) if rs else None
@@ -350,9 +353,10 @@ def discrimination(rows: list[Row]) -> dict[str, Any]:
         [
             (strong_beats_weak, _evaluable(len(strong), len(weak))),
             (gamer_below_strong, _evaluable(len(strong), len(gamer))),
+            (True if verifier_persona else None, bool(verifier_persona)),
         ]
     )
-    sample = {"strong": len(strong), "weak": len(weak), "gamer": len(gamer)}
+    sample = {"strong": len(strong), "weak": len(weak), "gamer": len(gamer), "verifier_persona": len(verifier_persona)}
     return {
         "strong_mean": s_mean,
         "weak_mean": w_mean,

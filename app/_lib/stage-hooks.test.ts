@@ -12,6 +12,8 @@ import { listPipelineEventsForEntry } from "./db/pipeline-events.ts";
 import { listRecentInterviewSessions } from "./db/interviews.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { runStageEnteredHook } from "./stage-hooks.ts";
+import { _resetStageHookInviteForTests } from "./stage-hooks-invite.ts";
+import { registerLateBoundImplementations } from "./late-bound-boot.ts";
 
 after(() => cleanupUnitDb());
 
@@ -195,4 +197,38 @@ test("a candidate who already moved on is not invited to the step they left", as
   assert.equal(res.outcome, "skipped");
   assert.equal(res.outcome === "skipped" && res.reason, "stage_moved");
   assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0);
+});
+
+test("an UNREGISTERED mint door is a loud failure: parked for a human, logged by name, never a silent skip", async () => {
+  // The mint is late-bound (stage-hooks-invite.ts): instrumentation-node.ts registers it
+  // at boot, unit-db.ts does the same for this process. A boot that never registered it
+  // must not read as "nothing to do" — the candidate would sit on the column with no
+  // link and nobody told.
+  const entry = entryAt(WS_AUTO, "Interview", "unregistered@example.com");
+  const logged: string[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    logged.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "));
+  };
+  _resetStageHookInviteForTests();
+  try {
+    const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+    assert.equal(res.outcome, "failed");
+    assert.equal(res.outcome === "failed" && res.reason, "error");
+  } finally {
+    console.error = original;
+    registerLateBoundImplementations();
+  }
+  assert.ok(
+    logged.some((line) => line.includes("[stage-hooks]") && line.includes("not registered") && line.includes("instrumentation-node.ts")),
+    `the server log names the missing registration, got: ${JSON.stringify(logged)}`
+  );
+  assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0, "nothing was minted");
+  assert.ok(!kinds(entry.id, WS_AUTO).includes("interview_invite_sent"), "nothing claims to have been sent");
+  // Failed OPEN, towards the human — the same place every other mint failure lands.
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, "calendar");
+
+  // …and once registered again, the same kind of arrival mints as before.
+  const next = entryAt(WS_AUTO, "Interview", "reregistered@example.com");
+  assert.equal((await runStageEnteredHook({ entryId: next.id, stage: "Interview", workspaceId: WS_AUTO })).outcome, "invited");
 });

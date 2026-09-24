@@ -77,6 +77,7 @@ const subscriptionActive = {
 test("webhook without billing configured → 503 (provider will retry once env is fixed)", async () => {
   const res = await webhookPost(signedWebhook("evt_unconfigured", subscriptionActive));
   assert.equal(res.status, 503);
+  assert.equal(((await res.json()) as { code: string }).code, "BILLING_NOT_CONFIGURED");
 });
 
 // ---- the raw body read is BOUNDED -------------------------------------------------
@@ -192,6 +193,7 @@ test("webhook with a bad signature → 400 and NO money state written", async ()
   configurePolarEnv();
   const res = await webhookPost(signedWebhook("evt_bad_sig", subscriptionActive, { corruptSignature: true }));
   assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "BILLING_WEBHOOK_SIGNATURE_INVALID");
   assert.equal(getBillingState(), null, "an unverified delivery must never touch billing_state");
 });
 
@@ -297,6 +299,7 @@ test("checkout happy path returns the provider-hosted URL (provider hop stubbed)
     assert.equal(calls.length, 1);
     assert.match(calls[0].url, /\/v1\/checkouts\/$/);
     assert.deepEqual((calls[0].body as { products: string[] }).products, [PRODUCT_STARTER]);
+    assert.match((calls[0].body as { success_url: string }).success_url, /billing=plan-success$/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -330,13 +333,17 @@ test("checkout: a pack top-up is still allowed for an existing subscriber (one-t
   configurePolarEnv();
   upsertBillingState({ plan: "starter", status: "active", provider: "polar", providerSubscriptionId: "sub_live" });
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ url: "https://polar.test/checkout/co_pack", id: "co_pack" }), { status: 200 })) as typeof fetch;
+  let successUrl = "";
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    successUrl = (JSON.parse(String(init?.body)) as { success_url: string }).success_url;
+    return new Response(JSON.stringify({ url: "https://polar.test/checkout/co_pack", id: "co_pack" }), { status: 200 });
+  }) as typeof fetch;
   try {
     const res = await checkoutPost(
       new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ pack: "minutes_100" }) })
     );
     assert.equal(res.status, 200);
+    assert.match(successUrl, /billing=pack-success$/);
   } finally {
     globalThis.fetch = originalFetch;
   }

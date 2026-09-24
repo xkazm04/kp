@@ -34,15 +34,23 @@ export function PalettePreviewPane({ item }: { item: PaletteItem }) {
   // staggered cascade instead (`.stagger-children` — house loading tier, reduced-
   // motion aware); the key re-arms it per destination.
   if (state.status === "loading") return <div aria-busy aria-label={t("loading")} />;
-  if (state.status === "error") return <p className="animate-arrive-in text-sm text-steel">{t("unavailable")}</p>;
+  if (state.status === "error") return (
+    <div className="animate-arrive-in space-y-2 text-sm text-steel">
+      <p>{t("unavailable")}</p>
+      <button type="button" onClick={state.retry} className="focus-ring rounded-sm font-semibold text-coral underline underline-offset-2">
+        {t("retry")}
+      </button>
+    </div>
+  );
   return (
-    <div key={previewQuery(item) ?? undefined} className="stagger-children space-y-3">
-      {renderPreview(state.preview, t)}
+    <div key={previewQuery(item) ?? undefined} role="status" aria-live="polite" aria-atomic="true" className="stagger-children space-y-3">
+      <span className="sr-only">{item.label}: </span>
+      {renderPreview(state.preview, t, item)}
     </div>
   );
 }
 
-function renderPreview(p: PalettePreview, t: ReturnType<typeof useTranslations>) {
+function renderPreview(p: PalettePreview, t: ReturnType<typeof useTranslations>, item: PaletteItem) {
   switch (p.view) {
     case "pipeline":
       return <PreviewPipeline p={p} />;
@@ -73,7 +81,7 @@ function renderPreview(p: PalettePreview, t: ReturnType<typeof useTranslations>)
     case "activity":
       return <PreviewActivity p={p} />;
     case "about":
-      return <PreviewAbout />;
+      return <PreviewAbout href={item.href ?? "?tab=about"} />;
     case "organization":
       return <PreviewOrganization p={p} />;
     case "branding":

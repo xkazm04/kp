@@ -18,18 +18,20 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // from. POSTs the workspace-gated /api/feedback; failures resolve from the
 // machine `code` (use-error-message).
 
-export function FeedbackDialog({ onClose }: { onClose: () => void }) {
+export function FeedbackDialog({ onClose, sourceLabel }: { onClose: () => void; sourceLabel: string }) {
   const t = useTranslations("feedback");
   const errMsg = useErrorMessage();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [message, setMessage] = useState("");
+  const [initialMessage] = useState(() => `${sourceLabel}: `);
+  const [message, setMessage] = useState(initialMessage);
+  const hasFeedback = message.trim() !== initialMessage.trim();
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (busy || message.trim() === "") return;
+    if (busy || !hasFeedback) return;
     setBusy(true);
     setError(null);
     try {
@@ -106,7 +108,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={() => void submit()}
-              disabled={busy || message.trim() === ""}
+              disabled={busy || !hasFeedback}
               className={`${BTN_PRIMARY} h-10 px-5`}
             >
               {busy ? <Loader2 size={15} className="animate-spin" aria-hidden /> : null}

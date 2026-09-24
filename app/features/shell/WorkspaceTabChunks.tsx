@@ -38,6 +38,7 @@ const JdsIntakeTab = dynamic(() => TAB_CHUNKS.intake().then((m) => ({ default: m
 const MatrixTab = dynamic(() => TAB_CHUNKS.matrix().then((m) => ({ default: m.MatrixTab })), { loading });
 const AnalyticsTab = dynamic(() => TAB_CHUNKS.analytics().then((m) => ({ default: m.AnalyticsTab })), { loading });
 const ActivityTab = dynamic(() => TAB_CHUNKS.activity().then((m) => ({ default: m.ActivityTab })), { loading });
+const JourneyOverlay = dynamic(() => TAB_CHUNKS.journeys().then((m) => ({ default: m.JourneyOverlay })), { loading });
 const PipelineTab = dynamic(() => TAB_CHUNKS.pipeline().then((m) => ({ default: m.PipelineTab })), { loading });
 const AgentsWorkforceTab = dynamic(() => TAB_CHUNKS.agents().then((m) => ({ default: m.AgentsWorkforceTab })), { loading });
 const ChannelsTab = dynamic(() => TAB_CHUNKS.channels().then((m) => ({ default: m.ChannelsTab })), { loading });
@@ -58,7 +59,17 @@ const TemplatesTab = dynamic(() => TAB_CHUNKS.templates().then((m) => ({ default
 // <main> body. `active`/`navActive` keep their Workspace meanings (navActive is the
 // history→analyze-collapsed id used for the actual switch; active decides history
 // mode inside Analyze).
-export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceTabId; active: WorkspaceTabId }) {
+export function WorkspaceTabPanel({
+  navActive,
+  active,
+  onCloseOverlay,
+}: {
+  navActive: WorkspaceTabId;
+  active: WorkspaceTabId;
+  /** Leave an overlay-surfaced tab (currently only `journeys`) and go back to
+   *  the tab the reader came from. Threaded from Workspace, which owns tab state. */
+  onCloseOverlay: () => void;
+}) {
   return (
     <TranslatedErrorBoundary resetKey={navActive} label="tab">
       <div key={navActive} className="animate-tab-in">
@@ -78,6 +89,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "matrix" ? <MatrixTab /> : null}
         {navActive === "analytics" ? <AnalyticsTab /> : null}
         {navActive === "activity" ? <ActivityTab /> : null}
+        {navActive === "journeys" ? <JourneyOverlay onClose={onCloseOverlay} /> : null}
         {navActive === "assignments" ? <DevTab /> : null}
         {navActive === "about" ? <AboutTab /> : null}
         {navActive === "tasks" ? <TasksTab /> : null}

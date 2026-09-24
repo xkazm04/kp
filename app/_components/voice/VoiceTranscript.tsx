@@ -13,12 +13,21 @@ export function VoiceTranscript({
   awaitingMic,
   candidateLabel,
   jobTitle,
+  interviewerPartial = "",
+  resumedTurns = 0,
 }: {
   turns: VoiceTurn[];
   phase: Phase;
   awaitingMic: boolean;
   candidateLabel?: string;
   jobTitle?: string;
+  /** The interviewer's line as it streams, before the provider finalizes the turn
+   *  (spark ai-interview-parity). PROVISIONAL: it renders outside the `role="log"`
+   *  list — a live region that re-announced every partial would talk over the
+   *  interviewer it is transcribing — and it is never persisted. */
+  interviewerPartial?: string;
+  /** How many leading turns came from an earlier, dropped attempt. */
+  resumedTurns?: number;
 }) {
   const t = useTranslations("interview.voice");
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -38,7 +47,7 @@ export function VoiceTranscript({
   useEffect(() => {
     const el = logRef.current;
     if (el && followRef.current) el.scrollTop = el.scrollHeight;
-  }, [turns]);
+  }, [turns, interviewerPartial]);
 
   // The log grew without bound — every turn mounted, and each one announced by the
   // aria-live region. Render the newest window and SAY how many are folded above;
@@ -99,6 +108,12 @@ export function VoiceTranscript({
             {folded > 0 ? (
               <p className="text-center text-sm text-steel">{t("transcriptFolded", { count: folded })}</p>
             ) : null}
+            {/* A resumed attempt shows the earlier call's turns; say where the seam
+                is, so the candidate is not reading words they do not remember this
+                call saying. */}
+            {resumedTurns > 0 && folded === 0 ? (
+              <p className="text-center text-sm text-steel">{t("resume.transcriptSeam")}</p>
+            ) : null}
             {visible.map((placed) =>
               placed.turn.role === "system" ? (
                 <p key={turnKey(placed)} className="text-center text-sm text-steel">
@@ -111,6 +126,18 @@ export function VoiceTranscript({
           </>
         )}
       </div>
+      {/* OUTSIDE the log's live region, on purpose: a caption that re-announced
+          every streamed fragment would talk over the interviewer it is
+          transcribing. It is a visual aid for a candidate who missed a word, and it
+          disappears the moment the real turn lands above. */}
+      {interviewerPartial ? (
+        <p
+          aria-hidden
+          className="border-t border-stone-200 px-4 py-2.5 text-base italic leading-6 text-steel"
+        >
+          {interviewerPartial}
+        </p>
+      ) : null}
     </div>
   );
 }

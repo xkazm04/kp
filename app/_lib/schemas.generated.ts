@@ -241,6 +241,23 @@ export const roleBriefSchema = z.object({
 
 export type RoleBrief = z.infer<typeof roleBriefSchema>;
 
+export const rubricAxisSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  origin: z.enum(["requirement", "facet", "cost"]),
+  kind: z.enum(["must_have", "nice_to_have", "core"]),
+  hardness: z.enum(["prerequisite", "learnable", ""]),
+  weight: z.number(),
+  blocking: z.boolean(),
+  provenance: z.string(),
+  evidenceClass: z.enum(["requirement_coverage", "demonstrated_work", "conversation", "cost"]),
+  humanEvidence: z.enum(["analysis", "devcase", "scorecard", "salary_band"]),
+  agentEvidence: z.enum(["agent_fit", "trial_run", "mandate_exchange", "budget"]),
+  rationale: z.string()
+});
+
+export type RubricAxis = z.infer<typeof rubricAxisSchema>;
+
 export const appMasterSpecSchema = z.object({
   schemaVersion: z.number(),
   role: z.object({

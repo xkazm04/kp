@@ -19,12 +19,16 @@ import type { MatchScoreProvenance } from "../match-score";
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
 import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
-import { ensureDb, recordEvent, type PipelineEntry } from "./core";
+import { coerceSlatePopulation, ensureDb, recordEvent, type PipelineEntry, type SlatePopulation } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { knownStageIds } from "../pipeline-axis";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
+// The opt-in interview AUDIO's deletion, called AFTER anonymizeEntry's transaction
+// commits (see its tail). interview-recording.ts reaches the compliance config and the
+// interview stores, neither of which imports this module, so this is not a cycle.
+import { deleteEntryRecordings } from "../interview-recording";
 import { notifyStageEnteredHook } from "../stage-hook-registry";
 
 /** POST-COMMIT seam: "this entry now STANDS on stage X".
@@ -132,6 +136,13 @@ export const BOARD_ENTRY_FIELDS = [
   "sourceChannel",
   "sourceCampaign",
   "sourceVariant",
+  // ADR-0012 — the board renders ONE list holding both populations, so the row
+  // must be able to say which it is (a persona card offers different identity
+  // affordances from a person's). `rubricVersion` rides beside it because the
+  // drawer must be able to say WHICH standard a score was produced against
+  // rather than implying it was the current one. Neither is PII.
+  "population",
+  "rubricVersion",
 ] as const satisfies readonly (keyof PipelineEntry)[];
 
 /** The three scores GET /api/pipeline STAMPS onto each row before it goes out
@@ -456,6 +467,11 @@ type PipelineRow = {
   // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
   // caller holding an entry never has to be told its tenant separately.
   workspace_id?: string | null;
+  // ADR-0012 — slate columns. Optional here for the same reason as the others:
+  // the explicit-column SELECTs in this file don't all name them yet, and an
+  // absent column must read as the row's default rather than as undefined.
+  population?: string | null;
+  rubric_version?: number | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -501,6 +517,10 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     // value now looks authoritative. devcase-source-promote-tenancy.test.ts
     // catches it behaviourally; a source-level check would not.
     workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+    // ADR-0012 — narrowed at the read boundary (the column is free-form TEXT and
+    // is also written by the Python seed), same discipline as approval_kind.
+    population: coerceSlatePopulation(r.population),
+    rubricVersion: typeof r.rubric_version === "number" ? r.rubric_version : null,
   };
 }
 
@@ -767,7 +787,8 @@ export function listPipelinePage(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
-              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id
+              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id,
+              population, rubric_version
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC
        LIMIT ?`
@@ -1425,6 +1446,13 @@ export type CreatePipelineInput = {
   // analysis→board chip + disposition echo scope on it. Recruiter/Match/inbound adds
   // omit it today (single-tenant); a multi-tenant enable threads currentWorkspace() here.
   workspaceId?: string;
+  // ADR-0012 — which population this candidate belongs to. Omitted by every
+  // existing caller and defaulting to 'human', so the whole human intake path
+  // is byte-identical to before; only the slate composer passes 'agent'.
+  population?: SlatePopulation;
+  // The frozen rubric version the candidate's evaluation was produced against,
+  // when the caller has already evaluated it. Omitted ⇒ NULL ⇒ "unknown standard".
+  rubricVersion?: number | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -1514,11 +1542,13 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-        source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id)
+        source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id,
+        population, rubric_version)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-        @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id)`
+        @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id,
+        @population, @rubric_version)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -1543,6 +1573,8 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     dev_case_id: input.devCaseId ?? null,
     dev_submission_id: input.devSubmissionId ?? null,
     workspace_id: workspaceId,
+    population: coerceSlatePopulation(input.population),
+    rubric_version: input.rubricVersion ?? null,
   });
   recordEvent(db, {
     entryId: id,
@@ -2155,6 +2187,7 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["job_ingests", "Content-hash dedup keys for job ingest — hashes of JD text, no candidate data."],
   ["job_translations", "A role's advertisement rendered into another language — company-authored role copy, the same class as `jobs` / `job_postings`; written for an opening, never keyed to a candidate."],
   ["role_pattern_priorities", "A team's weighting of a ROLE's requirement patterns (critical / important / minor) — operator judgement about the opening, no candidate data."],
+  ["interview_kits", "A ROLE's versioned interview kit — the competencies, questions and FAQ every candidate for one job is asked from, authored by the team or generated from the posting before any candidate exists. Job-keyed and never keyed to an entry, so this scrub has no path to it; that is exactly why it may hold no candidate data, which db/interview-kits-shape.test.ts pins (per-candidate material lives in interview_preps, which scrubEntryLinkedPii below does blank)."],
   ["dev_cases", "The work-sample assignment itself (scenario, seed tree), authored before any candidate exists."],
   ["dev_lifecycle", "The per-ROLE case lifecycle (draft/approve/close) — role state, no candidate data."],
   ["dev_postings", "The public assignment posting (role title, share token) — no candidate data."],
@@ -2168,7 +2201,14 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
+  ["intake_events", "The append-only history of that same role-definition dialogue (db/intake-events.ts): one row per round, holding the requestor's words about a ROLE. Same class as `role_intakes` above and inherits its basis — it is written before any candidate exists and is keyed to an intake, never to a pipeline entry, so this entry-keyed scrub has no path to it and a candidate's Art. 17 request has nothing in it to reach. The requestor is an operator-side employee, not a candidate: their own erasure runs through `eraseIntakeEvents(intakeId, workspaceId)`, the table's only DELETE."],
+  ["role_rubrics", "A role's frozen, versioned scoring axes derived from its brief (ADR-0012) — criteria about the ROLE, written before any candidate is scored and never keyed to an entry."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
+  ["role_runs", "One row per (job, cycle) role run: a job id, a cycle label and a status. It is keyed to an OPENING, not to a person, and holds nothing about any candidate — the same class as `dev_lifecycle`."],
+  [
+    "role_run_stages",
+    "The role run's append-only stage-artifact log (ADR-0011). It holds NO candidate personal data by construction, not by convention: a payload may carry ids, scores, reason codes and hashes and may not carry a name, contact, CV text or transcript, and that rule is enforced at the single write door (assertStagePayloadPiiFree in appendStageArtifact) and asserted in both directions by role-run-stages.test.ts. What it references is an entry id, whose own erasure nulls everything the reference resolves to — the same reasoning as `application_status_links`. It is also the Art. 22 accountability record of WHICH human approved a rejection, an interview invite or an offer, and at WHAT moment, over WHICH set; editing or deleting a row would destroy the proof that the person-affecting decision was not solely automated, the same Art. 17(3)(b)/(e) ground as `decision_records`. The approver is stored as a hash for the same reason.",
+  ],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
   ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
   ["channel_spend", "Per-channel spend totals — money, no candidate data."],
@@ -2230,6 +2270,15 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
       `UPDATE interview_sessions SET candidate_label = ?, transcript_json = '[]', scorecard_json = NULL WHERE entry_id = ?`
     ).run(masked, entryId);
   }
+  // The interview director's record (db/interview-events.ts): every live turn verbatim,
+  // the evidence quotes, the guardrail quotes and the forwarded questions — the same
+  // raw-PII class as transcript_json above, and append-only by design, so it is DELETED
+  // rather than masked. Keyed by session, reached through the entry's sessions.
+  if (tables.has("interview_events")) {
+    db.prepare(
+      `DELETE FROM interview_events WHERE session_id IN (SELECT id FROM interview_sessions WHERE entry_id = ?)`
+    ).run(entryId);
+  }
   // Outbound comms outbox (ref = entry id): recipient is the candidate's email when it
   // was captured; subject/body are personalized (name + details). Blank all three; the
   // kind/status/created_at columns stay as the "a message was sent" delivery audit.
@@ -2272,6 +2321,17 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
   // metric pack is computed from and it names nobody; the comment is their own words.
   if (tables.has("candidate_nps")) {
     db.prepare(`UPDATE candidate_nps SET comment = NULL WHERE entry_id = ?`).run(entryId);
+  }
+  // The interview feedback letter (db/interview-letters.ts): the machine's draft and the
+  // recruiter's approved text are both written ABOUT this person, so both are blanked.
+  // The row itself stays — state, outcome, language, dates and the reviewer's actor token
+  // are the record that a letter was asked for and what became of it, and they name
+  // nobody. `erased_at` closes the row to every later write, so a draft still being
+  // generated when the erasure lands cannot write the text back.
+  if (tables.has("interview_letters")) {
+    db.prepare(
+      `UPDATE interview_letters SET draft_text = NULL, final_text = NULL, erased_at = COALESCE(erased_at, ?) WHERE entry_id = ?`
+    ).run(new Date().toISOString(), entryId);
   }
   // --- The DEV-CASE family, reached through the entry's work-sample link. ---
   //
@@ -2465,7 +2525,27 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
   // rather than at the first write. The claim UPDATE's `anonymized_at IS NULL`
   // re-assert above is the second half of the same decision, for a writer on another
   // connection. See actOnPipelineEntry for the canonical pairing.
-  return tx.immediate();
+  const erased = tx.immediate();
+  // POST-COMMIT, and it has to be: the candidate's opt-in interview AUDIO lives in
+  // FILES under the data dir, and unlinking a file is irreversible — a rollback cannot
+  // put it back, so deleting inside the transaction above would destroy audio for an
+  // erasure that then failed. Running it here, at the ONE chokepoint both erasure doors
+  // pass through (the candidate's /data/[token] request and the consent-expiry sweep),
+  // is also what stops the two call sites from drifting.
+  //
+  // Best-effort by classification, never by shrug: the entry is already scrubbed and
+  // stamped, so throwing here would report a failed erasure that in fact succeeded. The
+  // audio that was not deleted is still reached by the retention sweep and refused by
+  // the playback door's read-time gate, and the log names the entry so an operator can
+  // finish it by hand.
+  if (erased) {
+    try {
+      deleteEntryRecordings(entryId, workspaceId, "erasure");
+    } catch (recErr) {
+      console.error(`[consent] interview audio not deleted for erased entry ${entryId}`, recErr);
+    }
+  }
+  return erased;
 }
 
 /** Sweep: anonymize every entry whose consent has lapsed (expires_at in the past)
@@ -2532,7 +2612,7 @@ export function claimConsentExpiryNotice(
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow | undefined;
     if (!row) return null;
     const already = db
-      .prepare(`SELECT 1 AS ok FROM consent_events WHERE entry_id = ? AND kind = 'expiring_notified' AND workspace_id = ? LIMIT 1`)
+      .prepare(`SELECT 1 AS ok FROM consent_events WHERE entry_id = ? AND workspace_id = ? AND kind = 'expiring_notified' LIMIT 1`)
       .get(entryId, workspaceId) as { ok: number } | undefined;
     const snap = {
       givenAt: row.consent_given_at ?? null,
@@ -2763,7 +2843,25 @@ export function setEntryMatchScore(entryId: string, score: number, workspaceId: 
  *  `null` is a real expectation ("no pending approval when I decided").
  *
  *  Returns whether the write applied — false means the precondition failed and
- *  the caller must answer the conflict rather than claim success. */
+ *  the caller must answer the conflict rather than claim success.
+ *
+ *  SILENT MUTATION, CLOSED. Raising an approval parks a candidate behind a human
+ *  click on the path to a hire, and until now it wrote NOTHING to `pipeline_events`
+ *  — so the one state change that says "this person is waiting on a person" was
+ *  invisible to the activity feed, to the decision log and to any audit of how long
+ *  anybody waited. It now records an `approval_set` row in the SAME transaction as
+ *  the UPDATE, so the entry and its event can never disagree about whether the gate
+ *  was raised.
+ *
+ *  CLEARING writes no row, deliberately: every path that clears an approval is a
+ *  decision that already logs its own event (`actOnPipelineEntry`'s accept/reject,
+ *  `setPipelineEntryStage`'s `moved`, the offer dispatch's own marker), so a second
+ *  row would double-count one moment in the audit trail.
+ *
+ *  The event carries NO actor: this store has no request identity and inventing one
+ *  — defaulting to the operator, to "human" — would manufacture exactly the
+ *  accountability the actor column exists to make real (guardrail G3, core.ts:601).
+ *  A caller that knows who clicked records that through its own marker. */
 export function setApproval(
   entryId: string,
   approvalKind: ApprovalKind | null,
@@ -2775,26 +2873,75 @@ export function setApproval(
   // `IS` rather than `=`: the expectation is legitimately NULL ("no approval was
   // pending"), and `approval_kind = NULL` is never true in SQL.
   const guarded = opts?.expectedApprovalKind !== undefined;
-  const res = db
-    .prepare(
-      `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
-        guarded ? ` AND approval_kind IS ?` : ``
-      }`
-    )
-    .run(
-      approvalKind,
-      approvalDetail,
-      new Date().toISOString(),
-      entryId,
-      workspaceId,
-      ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
-    );
-  if (res.changes === 0 && guarded) {
-    console.warn(
-      `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
-    );
-  }
-  return res.changes > 0;
+  // read → write in ONE transaction, taken with `.immediate()` (the write lock at
+  // BEGIN) exactly as setPipelineEntryStage does: the SELECT below feeds the event
+  // row, and a deferred tx would let another connection move the entry between the
+  // two statements. Synchronous throughout — an await here would silently destroy
+  // the atomicity (eslint `no-restricted-syntax` bans one).
+  const tx = db.transaction((): boolean => {
+    const row = db
+      .prepare(`SELECT candidate_label, job_title, archetype, stage FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
+      .get(entryId, workspaceId) as
+      | { candidate_label: string; job_title: string | null; archetype: string | null; stage: string }
+      | undefined;
+    const res = db
+      .prepare(
+        `UPDATE pipeline_entries SET approval_kind=?, approval_detail=?, updated_at=? WHERE id=? AND workspace_id=?${
+          guarded ? ` AND approval_kind IS ?` : ``
+        }`
+      )
+      .run(
+        approvalKind,
+        approvalDetail,
+        new Date().toISOString(),
+        entryId,
+        workspaceId,
+        ...(guarded ? [opts?.expectedApprovalKind ?? null] : [])
+      );
+    if (res.changes === 0) {
+      if (guarded) {
+        console.warn(
+          `[pipeline:approval] skipped approval write for entry ${entryId}: approval changed under a stale decision (decided at '${opts?.expectedApprovalKind ?? "none"}').`
+        );
+      }
+      return false;
+    }
+    if (approvalKind !== null) {
+      // ⚠ A NEW EVENT KIND OWES THREE REGISTRATIONS, and they are NOT in this file's
+      // change scope — they are listed here so the next reader does not have to
+      // rediscover them from a red build:
+      //   1. `DECISION_META.approval_set` in app/_lib/decision-attribution.ts —
+      //      derived-from-source guard: decision-attribution.test.ts scans every
+      //      `recordEvent(db, { … kind: "…" })` literal and fails on an unmapped one
+      //      (an unmapped kind badges UNKNOWN, is in neither log filter, and counts in
+      //      no rollup). It is a HUMAN decision: a person raising a gate.
+      //   2. `EVENT_KINDS` + its `EVENT_CATALOG` glyph in
+      //      app/features/hiring/pipeline/pipelineEventCatalog.ts — the same test pins
+      //      the two maps set-equal in both directions.
+      //   3. `pipeline.events.approval_set` in ALL FOUR messages/*.json — the catalog
+      //      test asserts set-equality PER LOCALE, so a verb in three of them is red.
+      // `journey.events.approvalSet` already exists, so the journey board renders this
+      // row today; it is the activity feed and the decision log that still owe a verb.
+      recordEvent(db, {
+        entryId,
+        candidateLabel: row?.candidate_label ?? null,
+        jobTitle: row?.job_title ?? null,
+        archetype: row?.archetype ?? null,
+        kind: "approval_set",
+        toStage: row?.stage ?? null,
+        // WHICH gate was raised. `pipeline_events` has no structured payload column,
+        // so the kind is encoded in `detail` behind a stable prefix and decoded by
+        // app/_lib/journey/project.ts (APPROVAL_SET_DETAIL_PREFIX), whose test reads
+        // THIS file's source so the two literals cannot drift. The approval's own
+        // payload (`approvalDetail`) stays on the entry row — it can be a whole
+        // recommendation blob and the event log is not where it belongs.
+        detail: `approval:${approvalKind}`,
+        workspaceId,
+      });
+    }
+    return true;
+  });
+  return tx.immediate();
 }
 
 export function recordAutomationEvent(

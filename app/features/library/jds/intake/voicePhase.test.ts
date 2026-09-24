@@ -48,6 +48,14 @@ test("live only lands from connecting — never resurrects a closing call", () =
   assert.equal(voiceUiReducer(initialVoiceUiState, { type: "live" }).phase, "idle");
 });
 
+test("canceling a connection returns to idle without a failure or a late live call", () => {
+  const connecting = voiceUiReducer(initialVoiceUiState, { type: "start" });
+  const canceled = voiceUiReducer(connecting, { type: "cancelConnect" });
+  assert.deepEqual(canceled, initialVoiceUiState);
+  assert.deepEqual(voiceUiReducer(canceled, { type: "live" }), initialVoiceUiState);
+  assert.equal(voiceUiReducer(live, { type: "cancelConnect" }), live);
+});
+
 test("the mic hint only shows while a connect is actually in flight", () => {
   const connecting = voiceUiReducer(initialVoiceUiState, { type: "start" });
   assert.equal(voiceUiReducer(connecting, { type: "awaitingMic", value: true }).awaitingMic, true);

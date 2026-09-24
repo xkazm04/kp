@@ -31,6 +31,8 @@ export type Task = {
 
 export type TasksCtx = {
   tasks: Task[];
+  /** Every registered kind, including ones absent from the recent window. */
+  knownKinds: string[];
   running: Task[];
   /** Resolves to the started Task, or null if it never started (see `startError`). */
   startTask: (kind: string, params?: Record<string, unknown>) => Promise<Task | null>;

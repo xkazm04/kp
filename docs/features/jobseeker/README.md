@@ -236,6 +236,10 @@ the import's privacy sentence and the "what I could not read" note are `IconActi
 hints, and no control is named by a bare `title=`. Failures are the module's one
 `FailureNotice` block with a Retry, never a red paragraph; figures carry `nums`.
 
+`POST /api/extract-text` returns `text`, `charCount`, and `pageCount` (`null`
+for TXT/MD/DOCX). A PDF with pages but no text layer can therefore be identified
+as a scan, while the existing empty-text refusal still handles it in the import UI.
+
 **Import** (`ProfileImport.tsx`): drop a CV (the shared `AnalyzeFileDropZone`, same
 8 MB / PDF·DOCX·TXT·MD contract) → `POST /api/extract-text` → `POST /api/profile/draft`
 (the recruiter-side `profile_draft`, so a seeker's profile IS the `CandidateProfileV2`

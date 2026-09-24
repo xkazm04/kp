@@ -241,7 +241,11 @@ test("an ADMIN reaches a sister team's SEATS, but not its candidate data", async
 
 test("a recruiter has no authority on a sister team at all (403)", async () => {
   signedInAs(recruiter);
-  assert.equal((await requireWorkspaceCapability(sisterTeam.id, "members:manage"))?.status, 403);
+  const denied = await requireWorkspaceCapability(sisterTeam.id, "members:manage");
+  assert.equal(denied?.status, 403);
+  const body = await denied?.json();
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(body.capability, "members:manage");
   assert.deepEqual([...(await callerWorkspaceCapabilities(sisterTeam.id))], []);
 });
 
@@ -260,7 +264,11 @@ test("org-wide authority is the admin capabilities the caller holds ANYWHERE in 
 
   signedInAs(recruiter);
   assert.equal((await callerOrgCapabilities()).has("team:manage"), false);
-  assert.equal((await requireOrgCapability("team:manage"))?.status, 403);
+  const denied = await requireOrgCapability("team:manage");
+  assert.equal(denied?.status, 403);
+  const body = await denied?.json();
+  assert.equal(body.code, "FORBIDDEN_CAPABILITY");
+  assert.equal(body.capability, "team:manage");
 });
 
 test("a session whose org claim is missing has no cross-workspace authority", async () => {

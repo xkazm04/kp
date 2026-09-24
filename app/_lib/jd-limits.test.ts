@@ -60,6 +60,8 @@ test("each failure carries a distinct, user-facing message", () => {
   assert.equal(badTitle.ok, false);
   assert.equal(badNeed.ok, false);
   if (!badTitle.ok && !badNeed.ok) {
+    assert.equal(badTitle.code, "JD_BUILD_TITLE_TOO_SHORT");
+    assert.equal(badNeed.code, "JD_BUILD_NEED_TOO_SHORT");
     assert.match(badTitle.error, /title/i);
     assert.match(badNeed.error, /need/i);
     assert.notEqual(badTitle.error, badNeed.error);

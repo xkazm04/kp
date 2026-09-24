@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { ensureRecovered, isKnownKind, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
+import { ensureRecovered, isKnownKind, knownTaskKinds, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
 import { taskBudget, taskBudgetClass } from "@/app/_lib/task-budget";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -31,7 +31,7 @@ export async function GET() {
   try {
     ensureRecovered(); // self-heal orphaned 'running'/'queued' rows on the first read after a restart/crash
     const ws = await currentWorkspace();
-    return NextResponse.json({ tasks: listRecentTasks(recentTaskCutoffIso(), undefined, ws) });
+    return NextResponse.json({ tasks: listRecentTasks(recentTaskCutoffIso(), undefined, ws), kinds: knownTaskKinds() });
   } catch (error) {
     // better-sqlite3 behind this read: the thrown message carries the absolute db
     // path and SQLite detail, and the dock renders what it is handed.

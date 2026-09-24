@@ -1,6 +1,6 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { copyInviteUrl, holdsOwnerSeat, teamFor } from "@/app/features/settings/workspace/workspaceAdminHelpers";
+import { copyInviteUrl, holdsOwnerSeat, memberStatusCounts, teamFor } from "@/app/features/settings/workspace/workspaceAdminHelpers";
 import type { OrgMemberDto } from "@/app/features/settings/workspace/useWorkspaceAdmin";
 
 // The Workspaces console shows the same person through two lenses, and the two
@@ -35,6 +35,14 @@ const seatless: OrgMemberDto = {
   user: { id: "u3", email: "nobody@example.com", name: null, status: "invited", createdAt: "2026-01-01" },
   teams: [],
 };
+
+test("team counts distinguish active, invited and disabled seats", () => {
+  const invited = { ...seatless, teams: [{ workspaceId: "engineering", role: "viewer" as const, capabilities: ["read" as const] }] };
+  const disabled = { ...plainRecruiter, user: { ...plainRecruiter.user, id: "u4", status: "disabled" as const } };
+  const counts = memberStatusCounts([coOwner, plainRecruiter, invited, disabled]);
+  assert.deepEqual(counts.get("engineering"), { active: 2, invited: 1, disabled: 1, unknown: 0 });
+  assert.deepEqual(counts.get("sales"), { active: 1, invited: 0, disabled: 0, unknown: 0 });
+});
 
 test("holdsOwnerSeat is org-wide: an owner seat on another team still counts", () => {
   // The exact drift: on "engineering" the team-scoped test says "not an owner"…

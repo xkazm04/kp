@@ -166,6 +166,10 @@ chart beneath is the evidence. Which claim the funnel band may make is one pure 
 | `no-goal` | real conversion, no goal anywhere | "set a conversion goal and this brief will name your weakest stage" |
 | `healthy` | every goal-bearing stage clears its goal | the healthy claim |
 
+The bottleneck stage is selected by median wait among stages with at least three
+active entries, so one exceptionally old case does not redirect the claim. The
+displayed days remain that selected stage's rounded average.
+
 Precedence is the argument: movement licenses a conversion number at all, so it is checked
 first; dwell keeps precedence over conversion; a goal is the last gate before the band may
 call a stage weak.
@@ -373,24 +377,12 @@ sentence stating what was counted, and a renderer must show the status beside th
 figure keeps its own `unit`, so CZK spend and USD compute cost are never summed. The
 spend-dating fix rides **inside** the existing `basis` string — nothing was added to the shape.
 
-**A count is not a page.** `recruiter_capacity`'s `openRoles` term is `listCorpusJobs(ws).length`
-— the unbounded read whose predicate (`status IS NULL OR status = 'published'`) already *is* the
-open-role definition the route wants, and the same one `openOnly` / `isJobOpenForApplications`
-use. It was a `.filter()` over `listJobs({}, ws)`, the paginated **browse** read: no `limit`
-means `LIMIT 300` (a supplied one caps at 500), so a workspace carrying more visible openings
-than that had its capacity numerator silently truncated to the cap and shipped as `measured` in
-the pack. Identical on the seeded corpus (100 either way); it only diverges above the cap.
-
-**…but the count is still the wrong TIER (open).** `listCorpusJobs(ws)` enumerates the dual-tier
-predicate `workspace_id IS NULL OR workspace_id = ws`, and the ~100 seeded rows every tenant
-matches against are `workspace_id IS NULL`. So on the shipped database a workspace that has
-authored **zero** live roles and carries one recruiter reports `100 roles/recruiter`,
-`status: measured`, basis *"100 open roles carried by 1 recruiter"* — a per-team capacity figure
-that is byte-identical for every tenant, under a pack whose own disclaimer says *"Figures
-describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/jobs.ts`) returns
-`{ own, corpus, visible }` precisely so the call site can choose; the choice (almost certainly
-`own`) and a `basis` string that **names the tier** are both still to be made, in
-`app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
+**Capacity counts owned openings.** The metric pack takes `countOpenRoles(ws).own`:
+live jobs authored by this workspace, excluding the shared reference corpus. The
+DB uses an unbounded count, so the numerator cannot be truncated by the jobs
+browse page's 300-row cap. Its basis names the owned tier in all four locales.
+Before this change, a workspace with no authored roles and one recruiter could
+report roughly 100 shared corpus roles per recruiter as a measured team figure.
 
 **Pause recommendations deep-link to the board.** Each `variantRecommendations` line on
 `EconomicsBoard` with a `jobTitle` wraps in the same pipeline link the funnel uses
@@ -588,6 +580,10 @@ it: should this score be allowed to decide at all.
   other way out and it renders only when `families.length > 1`, so a one-family workspace that
   also carries an override could otherwise drill in and never get out
   (`analyticsCalibrationFamilyApplyGate.test.ts`).
+- The screening rules modal's family-floor chips open Analytics → Quality with
+  `?calFamily=<slug>` so the calibration panel starts on that family's curve,
+  recommendation and sealed history. The parameter is a one-shot inbox and is
+  cleared on tab switches; unknown family slugs are ignored.
 - `AnalyticsReliabilityDiagram.tsx` can draw the live auto-reject `threshold` and the
   `baseRate` as reference lines, with screen-reader equivalents — so a curve stepping from
   0.00 to 1.00 exactly at the floor reads as the score-caused signature it is.
@@ -817,7 +813,11 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
 | `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
 | `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()` + `pipeline:write`; `suggestedThreshold` REQUIRED and compared against the live recommendation) |
-| `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only); the sealed floor-over-time strip, read by the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain |
+
+A successful threshold apply bumps the calibration memo version for that
+workspace. The panel's immediate reload recomputes its recommendation while
+other workspaces keep their warm curve entries.
+| `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=pipeline\|analysis\|holdout`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only). Holdout bands include only sealed clean-arm entries, matching the holdout curve; the threshold strip reads the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain. |
 | `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input. POST: `requireOperator()` + `pipeline:write` |
 | `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. POST: `requireOperator()` + `pipeline:write`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
 | `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
@@ -1124,6 +1124,8 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
+  The suggestion card now warns at Apply when auto-reject is off: the write
+  saves a threshold but does not turn on the rejection policy.
 - **`effectAfterOnly` over-states an empty before side. CLOSED 2026-09-17.** With the evidence
   floor applied symmetrically, a before side of 1–7 in-band decisions still claims `after-only`,
   but the strip now maps that to `effectBeforeThin` when `effect.before.n` is in `(0, min)` —

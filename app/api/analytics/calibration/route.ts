@@ -14,7 +14,8 @@ import { createTtlCache, calibrationCacheKey } from "@/app/_lib/analytics-cache"
 // every source/family switch re-runs the full pair-table scan PLUS three compute
 // passes (computeCalibration + computeCalibrationCohorts + recommendScreeningThreshold).
 // Module-scoped so it persists across requests; keyed so no payload crosses tenants,
-// sources, or families. Short TTL (see analytics-cache.ts) → no write-path invalidation.
+// sources, or families. A threshold write bumps the workspace's key version so
+// the editor's immediate reload sees the new rule without waiting for the TTL.
 // NOTE: this is the READ path only — the /apply-threshold WRITE guard re-derives its
 // recommendation live from the DB and is deliberately NOT routed through this memo.
 const calibrationCache = createTtlCache<Record<string, unknown>>();

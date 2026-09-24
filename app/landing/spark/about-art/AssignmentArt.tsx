@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
 import { Check, Link2 } from "lucide-react";
 import { DISPLAY } from "../tokens";
@@ -19,14 +20,16 @@ const EVENTS = ["opened", "asked", "logged"] as const;
 const CHIPS = ["flaw", "prompts"] as const;
 
 export default function AssignmentArt({ color = "#42606f" }: { color?: string }) {
+  const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-5">
       <motion.div
         initial={{ opacity: 0, y: 18, rotate: -1.5 }}
         whileInView={{ opacity: 1, y: 0, rotate: -1 }}
+        animate={reduceMotion ? { opacity: 1, y: 0, rotate: -1 } : undefined}
         viewport={ENTER}
-        transition={{ type: "spring", bounce: 0.35 }}
+        transition={reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.35 }}
         className="w-full rounded-2xl border-[3px] border-[#17202a] bg-white p-4 shadow-[6px_6px_0_#17202a]"
       >
         <div className="flex items-center justify-between gap-3 border-b-[3px] border-[#17202a] pb-3">
@@ -45,8 +48,9 @@ export default function AssignmentArt({ color = "#42606f" }: { color?: string })
               key={key}
               initial={{ opacity: 0, x: -12 }}
               whileInView={{ opacity: 1, x: 0 }}
+              animate={reduceMotion ? { opacity: 1, x: 0 } : undefined}
               viewport={ENTER}
-              transition={{ delay: 0.2 + i * 0.18, type: "spring", bounce: 0.35 }}
+              transition={reduceMotion ? { duration: 0 } : { delay: 0.2 + i * 0.18, type: "spring", bounce: 0.35 }}
               className="flex items-center gap-2.5"
             >
               <span
@@ -71,8 +75,9 @@ export default function AssignmentArt({ color = "#42606f" }: { color?: string })
             key={chip}
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
+            animate={reduceMotion ? { opacity: 1, y: 0 } : undefined}
             viewport={ENTER}
-            transition={{ delay: 0.65 + i * 0.12, type: "spring", bounce: 0.4 }}
+            transition={reduceMotion ? { duration: 0 } : { delay: 0.65 + i * 0.12, type: "spring", bounce: 0.4 }}
             className="inline-flex items-center gap-1.5 rounded-full border-[3px] border-[#17202a] bg-white px-3 py-1.5 text-sm font-bold shadow-[3px_3px_0_#17202a]"
           >
             <Check className="h-3.5 w-3.5" style={{ color }} aria-hidden />

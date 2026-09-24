@@ -45,6 +45,19 @@ class WinnabilityTest(unittest.TestCase):
         gate = next(g for g in out["looseGates"] if g["kind"] == "language" and g["value"] == "German")
         self.assertEqual(gate["eligibleDelta"], 2)  # dropping German restores both
 
+    def test_education_floor_reports_only_the_candidates_it_excludes(self) -> None:
+        pool = [
+            _cand("degree", ["python"], education_level="bachelor"),
+            _cand("diploma-1", ["python"], education_level="high_school"),
+            _cand("diploma-2", ["python"], education_level="high_school"),
+        ]
+        job = _job(min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["eligible"], 1)
+        self.assertEqual(out["looseGates"], [
+            {"kind": "education", "value": "bachelor", "eligibleDelta": 2},
+        ])
+
     def test_demoting_an_unmet_must_have_raises_the_qualified_count(self) -> None:
         # A senior role that hard-requires Kafka, against a medior backend pool.
         # Three candidates have the core stack (Python) but NOT Kafka, so the Kafka

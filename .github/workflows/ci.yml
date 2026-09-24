@@ -610,6 +610,7 @@ jobs:
           quality-tables
           shell-tab-state
           locale-smoke
+          journey-board
           --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101

@@ -73,11 +73,12 @@ export function entryLaneKey(e: Pick<Entry, "jobId" | "jobTitle">): string {
   return e.jobId ?? e.jobTitle ?? "?";
 }
 
-// Mirrors the PUBLIC event projection served by /api/pipeline/events
-// (pipeline-events-public.ts): candidateLabel is initials only, and the
-// internal entryId/archetype never reach the client (idea-4c41d103).
+// The public /api/pipeline/events projection sends initials and omits entryId;
+// the operator-only /events/recent feed adds entryId so its rows can open a
+// candidate. Archetype remains off both event payloads.
 export type PipelineEvent = {
   id: number;
+  entryId?: string | null;
   candidateLabel: string | null;
   jobTitle: string | null;
   kind: string;
@@ -101,16 +102,6 @@ export const STAGES: readonly string[] = PIPELINE_STAGES;
  *  GET /api/pipeline and falls back to this, so a caller mid-migration renders
  *  exactly what it always did rather than an empty board. */
 export const DEFAULT_BOARD_AXIS: readonly StageDef[] = DEFAULT_STAGE_AXIS;
-
-// One-line, new-user-friendly explanation of what each board stage represents,
-// surfaced as the column-header tooltip so the funnel is self-explaining.
-export const STAGE_HELP: Record<string, string> = {
-  Accepted: "CV received — an inbound application or a proactively-sourced candidate, waiting to be screened.",
-  Screened: "Run through the first wave of evaluation — matched and AI-screened; strong matches advance, the rest wait on a human decision.",
-  Interview: "Interviewing — slot scheduling, AI voice screen, and scorecard.",
-  Offer: "An offer is being drafted, reviewed, or sent.",
-  Hired: "Offer accepted — candidate hired; the role closes here.",
-};
 
 export const STALE_DAYS = 10; // legacy flat default — fallback for unknown stages
 
@@ -174,17 +165,17 @@ export function daysSince(iso: string | null): number | null {
   return Math.floor((Date.now() - t) / 86_400_000);
 }
 
-// ONE catalog of archetype presentation — label, fill (bg), focus ring, and glyph.
+// ONE catalog of archetype presentation — fill (bg), focus ring, and glyph.
 // Every archetype-styled surface (candidate row, drawer, legend, analytics) reads
-// from this single source so a label/color/icon tweak lands in exactly one place
+// from this single source so a color/icon tweak lands in exactly one place
 // instead of drifting across the copies that used to live in PipelineShared
 // (ARCHETYPE_ICON) and CandidateDrawerTypes (ARCHETYPE). The glyph lets a surface
 // read without relying on hue alone (mirrors Badge's icon-plus-label doctrine).
-export type ArchetypeStyle = { label: string; bg: string; ring: string; icon: LucideIcon };
+export type ArchetypeStyle = { bg: string; ring: string; icon: LucideIcon };
 
 export const ARCHETYPE_STYLE: Record<string, ArchetypeStyle> = {
-  bau: { label: "Experienced", bg: "bg-steel", ring: "ring-steel", icon: Briefcase },
-  student: { label: "Student", bg: "bg-coral", ring: "ring-coral", icon: GraduationCap },
-  career_switcher: { label: "Switcher", bg: "bg-moss", ring: "ring-moss", icon: Repeat },
+  bau: { bg: "bg-steel", ring: "ring-steel", icon: Briefcase },
+  student: { bg: "bg-coral", ring: "ring-coral", icon: GraduationCap },
+  career_switcher: { bg: "bg-moss", ring: "ring-moss", icon: Repeat },
 };
 export const styleFor = (a: string | null): ArchetypeStyle => ARCHETYPE_STYLE[a ?? "bau"] ?? ARCHETYPE_STYLE.bau;

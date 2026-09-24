@@ -1039,6 +1039,8 @@ Arrow keys are bound to the header REGION (`tabIndex=0`, labelled), never the
 document — a global arrow handler would steal the keys from the page this mode
 exists to leave usable — and the handler ignores events from inside an input,
 select or radiogroup, because the direction switcher owns those keys itself.
+Space plays or stops the shown answer when the voice window itself has focus;
+focused controls keep their own Space behavior.
 
 ### The presentation, and what the prototype round settled
 
@@ -1074,9 +1076,13 @@ composition has nothing to fall back *from*: the strip was already showing every
 character she wrote.
 
 The shared bones are `VoiceNav`, `VoicePlaybackButton` and `VoiceParts` (prose,
-blocks, proposals, meta chips, empty and busy notes). `VoiceDots`,
-`VoicePlaybackRow` and `VoicePromptEcho` served only the deleted directions and
-went with them, along with their message keys.
+blocks, proposals, meta chips, empty and busy notes). `VoiceNav` includes a
+scrollable answer timeline; each dot jumps through `history.goTo` and marks the
+current answer. The old `VoiceDots`, `VoicePlaybackRow` and `VoicePromptEcho`
+served only the deleted directions and went with them, along with their message
+keys.
+When a browser blocks automatic speech, the ticker shows a status beside the
+answer that tells the operator to press Play.
 
 Two rules the strip keeps:
 
@@ -1245,8 +1251,8 @@ guard over exactly these decisions — the behaviour itself needs a browser.
   stricter rule for the same action.
 - **A proposal's outcome is stamped, not watched.** `outcome` records what was
   DISPATCHED (a task id, a JD slug), not whether that task later succeeded — the
-  Background-tasks view is where a dispatched run's fate lives, and nothing links
-  a proposal row back to it beyond `outcome.ref`.
+  Background-tasks view is where a dispatched run's fate lives. Accepted task
+  outcomes link to Tasks; `outcome.ref` remains the audit trail for the exact run.
 - **No approval kind.** `companion_proposal` was considered for `APPROVAL_KINDS`
   and deliberately not added: `approvalKind` marks a PIPELINE ENTRY as waiting on
   a human, feeds the `decisions` count and the Decisions tab, and is cleared by a
@@ -1254,9 +1260,10 @@ guard over exactly these decisions — the behaviour itself needs a browser.
   its own status lifecycle and its own resolution route, so adding the kind would
   have created a gate with no branch that can clear it — exactly what the registry
   in `app/_lib/approval-kinds.ts` warns against.
-- **The companion attention count reaches no badge.** `attentionCounts().companion`
+- **The companion attention count reaches the collapsed dock pill.** `attentionCounts().companion`
   is the sixth key and the only one no tab declares, because Candi lives in a dock.
-  It is read by the dock's own state line. It is deliberately kept out of
+  The rest pill shows an open-proposal count and the dock's state line names it.
+  It is deliberately kept out of
   `decisions`, whose count beacons the ControlDock orb and whose one click routes
   to the Decisions tab — a tab with no affordance that can resolve a proposal.
 - No thread switcher. The toolbar can START a conversation, and the dock still
@@ -1267,9 +1274,10 @@ guard over exactly these decisions — the behaviour itself needs a browser.
 - Not verified in a running app. The dock, the proposal card and the resolve
   route have been type-checked, linted and unit-tested, but no browser has painted
   a proposal card and no accept has dispatched a real task.
-- The kp thread id does not reach the brain. Episodes carry the workspace
-  session tag (`kp-<workspace>`) only, matching the shared format; linking a
-  turn back to its episode is done through `episodePaths` on the CLI's output.
+- Episodes carry `kp-<workspace>:<thread>` in their shared `session` field, so
+  turns in one kp conversation can be grouped without losing workspace scope.
+  Older `kp-<workspace>` episodes remain readable; `episodePaths` still links
+  each turn to the exact files the CLI wrote.
 - No reindex command. If `companion_brain_index` is truncated, nothing rebuilds
   it from the tree yet. **This now has a second consequence**: the implicit
   consent arm reads that table, so a truncated mirror on a workspace that never

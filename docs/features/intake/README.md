@@ -447,6 +447,9 @@ anonymous 500 the runner had to guess a code out of.
 | Studio kit (shared with the job-seeker dialogs) | `app/_components/studio/**` — see §*Studio kit* |
 | Per-turn arrival (pure + motion) | `intakeDelta.ts` (`diffBrief`, `diffDraft`; `intakeDelta.test.ts`), `IntakeArrivalMotion.tsx` (`useArrivalDelta`, `ArrivalList`) |
 | Tab entry predicates (pure) | `app/features/library/jds/jdsIntakeTabEntry.ts` (`opensOnGenerate`, `opensNewIntake`; `jdsIntakeTabEntry.test.ts`) |
+| Role rubric at promote (ADR-0012 §2) | `[id]/promote` calls `freezeRubricFromBrief` (`app/_lib/db/role-slate.ts`): derives axes with `deriveRoleRubric`, mints + freezes a version in `role_rubrics` (`app/_lib/db/role-rubrics.ts`) — idempotent on content, so an unchanged brief mints nothing. Best-effort: a brief that grades nothing freezes no rubric and the promote still succeeds; the response carries `rubricVersion` (or `null`) |
+| One evaluation, two evidence adapters (ADR-0012 §3, pure) | `app/_lib/role-rubric.ts::evaluateAgainstRubric` — per-axis basis `{axis, score, source, evidenceRef}`, `source` = the axis's `humanEvidence` or `agentEvidence` per population; `blockingCoverage` and `otherCoverage` reported separately, never fused; unassessed ≠ zero (`role-rubric-evaluate.test.ts`) |
+| Role slate (ADR-0012 §1) | `app/_lib/db/role-slate.ts` (`readRoleSlate`, `stampEntryRubricVersion`; `role-slate.test.ts`) + `GET /api/roles/[jobId]/slate` — operator-gated, read-only, scores nobody: members of both populations with `evaluatedAgainstVersion` and `staleMemberIds` (evaluated under an older version, or never). Store failure → `ROLE_SLATE_FAILED` |
 
 ## Data model
 
@@ -457,6 +460,12 @@ shape(power_unit|story|app_master|NULL), jd_slug, job_id, created_at,
 updated_at`. The RoleBrief schema is Pydantic-authoritative
 (`pipeline/jobfit/rolebrief.py`) and codegen'd to `roleBriefSchema`
 (`app/_lib/schemas.generated.ts`).
+
+The slate adds two columns to `pipeline_entries` (`app/_lib/db/core.ts`):
+`population` (`'human'|'agent'`, `NOT NULL DEFAULT 'human'` — every earlier row
+is a person) and `rubric_version` (the `role_rubrics.version` the entry's
+evaluation was produced under; NULL = unknown standard, never "the current one").
+Both ride on the board projection (`BOARD_ENTRY_FIELDS`).
 
 Three nullable columns carry the App-master shape, added by an idempotent
 `ALTER TABLE` inside `app/_lib/db/intakes.ts` itself (the
@@ -644,6 +653,12 @@ transport (`app/_components/voice/transport/openai.ts` — `speakText` /
 `cancelSpeech` are the relay additions). On connect the agent SPEAKS the
 pending question from the text thread (`spokenOpener`) — voice continues the
 same conversation.
+The `/voice-connect` credential request has a 15-second abort deadline, so a
+stalled mint returns to the idle state with a transport failure rather than
+leaving the composer in Connecting indefinitely.
+While Connecting, Cancel aborts the credential request or tears down the pending
+microphone/WebRTC connection. A canceled attempt returns to idle without an error,
+and late callbacks from it cannot repaint a later attempt.
 
 Three rules the client half enforces, all unit-pinned:
 
@@ -1448,6 +1463,61 @@ and is invisible to touch and to the keyboard) and
 `app/_components/IconAction.tsx`, which takes one `label` and uses it as the accessible
 name, the tooltip and the screen-reader text at once, so a control cannot ship
 as a picture with no meaning.
+
+## Role rubric store (`role_rubrics`)
+
+The second consumer of a promoted brief (ADR
+[0012](../../architecture/decisions/0012-need-role-slate-one-board.md) §2): per job,
+an ordered list of weighted axes that every candidate on the slate — a person or an
+AI agent — is scored against. **Store + derivation** today, with no route, no UI
+and no caller yet: nothing mints a rubric on promotion. The
+`GET`/`POST /api/jobs/[id]/rubric` routes, promote deriving v1, and the scorer are
+later increments of
+[`need-to-role-to-slate.md`](../../concepts/need-to-role-to-slate.md).
+
+| Piece | Path |
+| --- | --- |
+| Axis shape (Pydantic-authoritative) | `pipeline/jobfit/rolerubric.py::RubricAxis` → `rubricAxisSchema` in `app/_lib/schemas.generated.ts` |
+| Brief → axes derivation (pure, keyless) | `pipeline/jobfit/rolerubric.py::derive_role_rubric`, mirrored by `app/_lib/role-rubric.ts::deriveRoleRubric` |
+| Derivation parity | `pipeline/jobfit/tests/fixtures/role_rubric_cases.json`, read by BOTH `pipeline/jobfit/tests/test_rolerubric.py` and `app/_lib/role-rubric.test.ts` (weights compared exactly) |
+| Store | `app/_lib/db/role-rubrics.ts` — `mintRoleRubric`, `getRoleRubric`, `listRoleRubricVersions`, `freezeRoleRubric` |
+| Tenancy proof | `app/_lib/db/role-rubrics-tenancy.test.ts` (source guard, the store's own migration read back from `sqlite_master`, two-workspace drive) |
+| Behaviour | `app/_lib/db/role-rubrics-store.test.ts` |
+
+`role_rubrics` (DDL owned by `role-rubrics.ts`, created on the shared connection the
+first time the store is touched): `id, workspace_id, job_id, intake_id (NULL when not
+derived from an intake), version (≥1), axes_json (RubricAxis[]),
+source(brief|job|manual), created_at, frozen_at`, `UNIQUE (workspace_id, job_id,
+version)`.
+
+- **Versioned, append-only.** `mintRoleRubric` takes the next version inside an
+  `IMMEDIATE` transaction; nothing edits a row. A `BEFORE UPDATE` trigger refuses
+  every change except setting `frozen_at` once, so a score recorded against version
+  *n* always reads back against the axes it was produced under.
+- **The UNIQUE leads with the tenant.** Shared-corpus jobs have `workspace_id NULL` in
+  `jobs`, so two teams can hold rubrics for the same job id; each numbers its own from 1.
+- **Freezing is first-writer-wins.** `freezeRoleRubric(jobId, version)` answers
+  `frozen: true` only for the call that set `frozen_at`; a repeat returns the original
+  time.
+- **Validated on write and on read.** A mint is refused — returned, not thrown — for an
+  empty axis list, an axis that fails `rubricAxisSchema` (closed enums for origin, kind,
+  hardness and both evidence sources), a duplicate or blank key, or a weight outside
+  0..1. A stored column that stops parsing reads back as `axes: null` and is counted in
+  `getRowHealth()`; it never reads as an empty rubric.
+- **Derived, deterministically.** Every graded requirement becomes a `req:<skill>`
+  axis (a skill named twice collapses to one axis at its strongest grading and
+  largest weight). Every `core` facet with a value becomes a `facet:<name>` axis, and
+  `budget_band` becomes `cost:budget_band`. `valuable` and `context` facets never
+  become axes. Weights are shares of `brief weight (floored at 0.05) × kind factor
+  (must_have 1, nice_to_have 0.5)`, with a fixed 0.5 for a core facet, so the axes sum
+  to 1. `blocking` is must_have × prerequisite only. Each axis names its evidence per
+  population, from ADR-0012 §3's table: requirement coverage is `analysis` for a person
+  and `agent_fit` for an agent, demonstrated work is `devcase`/`trial_run`, conversation
+  is `scorecard`/`mandate_exchange`, cost is `salary_band`/`budget`. The full rules are
+  the `rolerubric.py` module docstring.
+- **Keyless by construction.** No provider is involved in the derivation or the store.
+- Erasure: `ERASURE_EXEMPT` in `app/_lib/db/pipeline.ts` — criteria about the role,
+  written before any candidate is scored and never keyed to an entry.
 
 ## Known gaps (posting corpus)
 

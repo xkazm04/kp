@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Link2 } from "lucide-react";
 import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
 import { ABOUT_STEP_KEYS, StepArt, type AboutStepKey } from "./about-art";
@@ -13,7 +13,7 @@ import { useStillMotion } from "./useStillMotion";
 import SectionRail, { type RailSection } from "./SectionRail";
 import MobileNav, { type NavDestination } from "./sections/MobileNav";
 import LegalRow from "./sections/LegalRow";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { sourceRepoHref } from "@/app/_lib/source-repo";
 
@@ -75,6 +75,10 @@ const SPINE = [
 
 function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: string; n: number; index: number }) {
   const t = useTranslations("aboutPage");
+  const locale = useLocale();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const stepId = aboutStepId(index);
+  const stepTitle = t(`steps.${stepKey}.title`);
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const scale = useSpring(useTransform(scrollYProgress, [0, 0.5, 1], [0.74, 1, 0.82]), {
@@ -100,7 +104,7 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
        row's own top clear of the topbar when a `#step-07` deep link lands
        without the rail's smooth glide. */
     <div
-      id={aboutStepId(index)}
+      id={stepId}
       ref={ref}
       className="relative scroll-mt-6 grid min-h-[80vh] items-center gap-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-10"
     >
@@ -128,7 +132,31 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
         <p className={`${HAND} text-lg`} style={{ color }}>
           {t(`steps.${stepKey}.eyebrow`)}
         </p>
-        <h2 className={`${DISPLAY} mt-1 text-3xl font-extrabold sm:text-4xl`}>{t(`steps.${stepKey}.title`)}</h2>
+        <div className={`mt-1 flex items-center gap-2 ${artLeft ? "" : "md:justify-end"}`}>
+          <h2 className={`${DISPLAY} text-3xl font-extrabold sm:text-4xl`}>{stepTitle}</h2>
+          <button
+            type="button"
+            aria-label={t("copyStepLink", { step: stepTitle })}
+            title={t("copyStepLink", { step: stepTitle })}
+            onClick={async () => {
+              const url = new URL(`/about?lang=${locale}#${stepId}`, window.location.origin).href;
+              try {
+                await navigator.clipboard.writeText(url);
+                setCopyState("copied");
+              } catch {
+                setCopyState("failed");
+              }
+            }}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-[#17202a] bg-white focus-ring"
+          >
+            <Link2 size={18} aria-hidden />
+          </button>
+        </div>
+        {copyState !== "idle" ? (
+          <p role={copyState === "failed" ? "alert" : "status"} className="mt-1 text-sm text-[#42606f]">
+            {t(copyState === "copied" ? "stepLinkCopied" : "stepLinkCopyFailed")}
+          </p>
+        ) : null}
         <p className="mt-3 text-lg leading-relaxed text-[#42606f]">{t(`steps.${stepKey}.body`)}</p>
       </motion.div>
     </div>
@@ -177,6 +205,10 @@ export default function AboutCurve() {
           <Link href="/" className="hover:text-[#d65a4a]">
             {t("nav.home")}
           </Link>
+          <Link href="/market" className="hover:text-[#d65a4a]">
+            {t("nav.market")}
+          </Link>
+          <LandingLangSwitch size="compact" />
           <button
             type="button"
             onClick={onSignIn}

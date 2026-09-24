@@ -19,8 +19,9 @@ import { DISPLAY, HAND } from "../tokens";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { snapshot, fmtDate, snapshotAgeDays, STALE_AFTER_DAYS } from "./data";
 import MarketPulseAtlas from "./MarketPulseAtlas";
+import type { MarketMapSelection } from "./map-url";
 
-export default function MarketPulseApp() {
+export default function MarketPulseApp({ initialSelection }: { initialSelection: MarketMapSelection }) {
   const t = useTranslations("jobMarket");
   const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -47,9 +48,8 @@ export default function MarketPulseApp() {
           <Link href="/">
             <Wordmark />
           </Link>
-          {/* Desktop nav (≥ sm). The language switcher used to sit here too; it
-              lives in the footer only now, matching the home landing — one
-              place to change language across every marketing page. */}
+          {/* Desktop nav (≥ sm). Keep the language control beside the destinations
+              so a reader need not reach the footer to change this page. */}
           <nav className="hidden items-center gap-6 text-[17px] font-bold sm:flex">
             <Link href="/" className="hover:text-[#d65a4a]">
               {t("nav.home")}
@@ -57,6 +57,7 @@ export default function MarketPulseApp() {
             <Link href="/about" className="hover:text-[#d65a4a]">
               {t("nav.about")}
             </Link>
+            <LandingLangSwitch size="compact" />
             <button
               type="button"
               onClick={onSignIn}
@@ -90,6 +91,7 @@ export default function MarketPulseApp() {
             <Link href="/about" onClick={() => setMenuOpen(false)} className="hover:text-[#d65a4a]">
               {t("nav.about")}
             </Link>
+            <LandingLangSwitch size="compact" />
             <button
               type="button"
               onClick={onSignIn}
@@ -129,7 +131,7 @@ export default function MarketPulseApp() {
       </section>
 
       {/* ── Body (Atlas) ───────────────────────────────────────── */}
-      <MarketPulseAtlas />
+      <MarketPulseAtlas initialSelection={initialSelection} />
 
       {/* ── Attribution footer ─────────────────────────────────── */}
       <footer className="mx-auto mt-24 max-w-5xl px-6">

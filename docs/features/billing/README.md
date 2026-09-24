@@ -201,6 +201,10 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+The redirect carries `billing=plan-success` or `billing=pack-success`. The tab
+confirms a plan only after the paid plan appears in the overview, and a pack only
+after minute credits rise above the balance recorded before checkout. Otherwise
+it keeps a pending banner and a recheck action.
 
 ### Who may open a billing door: `org:manage`, not "any session"
 
@@ -324,6 +328,10 @@ components through `billing/index.ts`. The two copies are pinned equal by
 match, and the verdict deep-equals the `jsonRefusal` body.
 
 ### The webhook reads its raw body under a hard cap
+
+The public webhook returns stable error codes for configuration, body size,
+signature verification, and processing failures. Verification and provider
+error details stay in server logs; the provider still receives non-2xx for retry.
 
 `/api/billing/webhook` is on the public allow-list (`app/_lib/auth/public-routes.ts` —
 a MACHINE posts here, so the operator gate would 401 Polar), and the standard-webhooks
@@ -537,7 +545,7 @@ different tabs:
 |---|---|
 | the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, overage, pack credits — **the caller's org** |
 | `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) — **the whole deployment** |
-| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
+| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, all-provider token totals from `llm_usage`, comms/schedule failure counters, and the bounded `ops-warn.log` tail (`opsWarnings`) |
 
 `useSpendData.ts` owns both fetches, so the section has **one** loading state and
 **one** failure state. The ledger read is the failure that matters; a dead
