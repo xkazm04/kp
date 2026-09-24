@@ -1915,6 +1915,7 @@
     "TTS_VOICE_INVALID": "That voice cannot be used for this. Pick another voice.",
     "TTS_TEXT_TOO_LONG": "That text is too long to speak in one go. Send it in shorter pieces.",
     "AGENT_HIRE_FROM_NEED_FAILED": "Could not compose and dispatch a role from that need. Please try again.",
+    "ROLE_SLATE_FAILED": "Could not load this role's candidate slate. Please try again.",
     "HIRE_AUTOMATION_DISABLED": "Machine hiring is not enabled on this installation.",
     "HIRE_UNAUTHORIZED": "Unauthorized.",
     "HIRE_NEED_REQUIRED": "Describe the need: the work, the evidence that it is needed, and what would count as done.",

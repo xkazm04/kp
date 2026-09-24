@@ -1915,6 +1915,7 @@
     "TTS_VOICE_INVALID": "Diese Stimme kann dafür nicht verwendet werden. Wählen Sie eine andere Stimme.",
     "TTS_TEXT_TOO_LONG": "Dieser Text ist zu lang, um am Stück vorgelesen zu werden. Senden Sie ihn in kürzeren Teilen.",
     "AGENT_HIRE_FROM_NEED_FAILED": "Aus diesem Bedarf konnte keine Rolle erstellt und versendet werden. Bitte versuchen Sie es erneut.",
+    "ROLE_SLATE_FAILED": "Die Kandidatenliste dieser Rolle konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "HIRE_AUTOMATION_DISABLED": "Maschinelles Einstellen ist in dieser Installation nicht aktiviert.",
     "HIRE_UNAUTHORIZED": "Nicht autorisiert.",
     "HIRE_NEED_REQUIRED": "Beschreiben Sie den Bedarf: die Arbeit, den Nachweis, dass sie nötig ist, und was als erledigt gilt.",

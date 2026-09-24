@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getIntake, markIntakePromoted } from "@/app/_lib/db/intakes";
+import { freezeRubricFromBrief } from "@/app/_lib/db/role-slate";
 import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
@@ -99,7 +100,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
     // stamped now so the back-link exists even while the build is running.
     markIntakePromoted(id, { jdSlug: slug, jobId: jdJobId(slug) }, ws);
-    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId });
+    // ADR-0012 §2 — THIS is where a stated need becomes a role, so this is where
+    // the role freezes the rubric its candidates (people and agents) are judged
+    // by. BEST-EFFORT: the promote's contract is "a JD build started", and a brief
+    // that grades nothing is a real, recoverable state — the slate reports "no
+    // rubric" until it does. An unchanged brief re-promoted mints no new version.
+    let rubricVersion: number | null = null;
+    try {
+      const frozen = freezeRubricFromBrief(jdJobId(slug), brief, { intakeId: id, workspaceId: ws });
+      if (frozen.ok) rubricVersion = frozen.rubric.version;
+      else console.warn(`[intake:promote] no rubric frozen for ${slug}: ${frozen.reason}`);
+    } catch (error) {
+      console.warn(`[intake:promote] rubric freeze failed for ${slug}: ${error instanceof Error ? error.message : error}`);
+    }
+    return NextResponse.json({ slug, jobId: jdJobId(slug), taskId, rubricVersion });
   } catch (error) {
     return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
   }

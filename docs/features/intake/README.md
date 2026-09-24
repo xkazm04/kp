@@ -447,6 +447,9 @@ anonymous 500 the runner had to guess a code out of.
 | Studio kit (shared with the job-seeker dialogs) | `app/_components/studio/**` — see §*Studio kit* |
 | Per-turn arrival (pure + motion) | `intakeDelta.ts` (`diffBrief`, `diffDraft`; `intakeDelta.test.ts`), `IntakeArrivalMotion.tsx` (`useArrivalDelta`, `ArrivalList`) |
 | Tab entry predicates (pure) | `app/features/library/jds/jdsIntakeTabEntry.ts` (`opensOnGenerate`, `opensNewIntake`; `jdsIntakeTabEntry.test.ts`) |
+| Role rubric at promote (ADR-0012 §2) | `[id]/promote` calls `freezeRubricFromBrief` (`app/_lib/db/role-slate.ts`): derives axes with `deriveRoleRubric`, mints + freezes a version in `role_rubrics` (`app/_lib/db/role-rubrics.ts`) — idempotent on content, so an unchanged brief mints nothing. Best-effort: a brief that grades nothing freezes no rubric and the promote still succeeds; the response carries `rubricVersion` (or `null`) |
+| One evaluation, two evidence adapters (ADR-0012 §3, pure) | `app/_lib/role-rubric.ts::evaluateAgainstRubric` — per-axis basis `{axis, score, source, evidenceRef}`, `source` = the axis's `humanEvidence` or `agentEvidence` per population; `blockingCoverage` and `otherCoverage` reported separately, never fused; unassessed ≠ zero (`role-rubric-evaluate.test.ts`) |
+| Role slate (ADR-0012 §1) | `app/_lib/db/role-slate.ts` (`readRoleSlate`, `stampEntryRubricVersion`; `role-slate.test.ts`) + `GET /api/roles/[jobId]/slate` — operator-gated, read-only, scores nobody: members of both populations with `evaluatedAgainstVersion` and `staleMemberIds` (evaluated under an older version, or never). Store failure → `ROLE_SLATE_FAILED` |
 
 ## Data model
 
@@ -457,6 +460,12 @@ shape(power_unit|story|app_master|NULL), jd_slug, job_id, created_at,
 updated_at`. The RoleBrief schema is Pydantic-authoritative
 (`pipeline/jobfit/rolebrief.py`) and codegen'd to `roleBriefSchema`
 (`app/_lib/schemas.generated.ts`).
+
+The slate adds two columns to `pipeline_entries` (`app/_lib/db/core.ts`):
+`population` (`'human'|'agent'`, `NOT NULL DEFAULT 'human'` — every earlier row
+is a person) and `rubric_version` (the `role_rubrics.version` the entry's
+evaluation was produced under; NULL = unknown standard, never "the current one").
+Both ride on the board projection (`BOARD_ENTRY_FIELDS`).
 
 Three nullable columns carry the App-master shape, added by an idempotent
 `ALTER TABLE` inside `app/_lib/db/intakes.ts` itself (the

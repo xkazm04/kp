@@ -592,7 +592,15 @@ export function ensureDb(): Database.Database {
       -- otherwise stores no address, so every downstream comm dead-lettered to the
       -- literal "candidate"; when present this is the deliverable recipient
       -- (candidateRecipient prefers it). Optional — recruiter/Match adds omit it.
-      contact TEXT
+      contact TEXT,
+      -- ADR-0012 (need → role → slate): WHICH POPULATION this slate member is,
+      -- 'human' or 'agent'. A hired AI agent is a candidate for the role on the
+      -- SAME board, not a second funnel. NOT NULL DEFAULT 'human' because every
+      -- row that predates the column IS a person: the historical truth.
+      population TEXT NOT NULL DEFAULT 'human',
+      -- The frozen role_rubrics.version this entry's evaluation was produced
+      -- against. NULL = unknown standard, never "the current one".
+      rubric_version INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
@@ -1629,6 +1637,10 @@ export function ensureDb(): Database.Database {
     // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
     // real session workspace (so a future multi-tenant enable scopes immediately).
     "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // ADR-0012 — the slate columns. `population` backfills 'human' (the board has
+    // only ever held people); `rubric_version` stays NULL = "unknown standard".
+    "ALTER TABLE pipeline_entries ADD COLUMN population TEXT NOT NULL DEFAULT 'human'",
+    "ALTER TABLE pipeline_entries ADD COLUMN rubric_version INTEGER",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is
@@ -3079,7 +3091,24 @@ export type PipelineEntry = {
   // projects explicit fields rather than serializing a row (see the erasure-token
   // note above, and publicInviteView in api/schedule/[token]).
   workspaceId: string;
+  // ADR-0012 — which population this slate member belongs to. The board renders
+  // ONE list and branches on this only for identity affordances, never for the
+  // evaluation, which is the same frozen rubric for both.
+  population: SlatePopulation;
+  // The frozen rubric version this entry's evaluation was produced against, or
+  // null — "unknown standard", NOT "the current standard".
+  rubricVersion: number | null;
 };
+
+/** ADR-0012 — the two populations that can appear on one role's slate. */
+export const SLATE_POPULATIONS = ["human", "agent"] as const;
+export type SlatePopulation = (typeof SLATE_POPULATIONS)[number];
+
+/** Narrow the free-form TEXT column at the read boundary. An unrecognized value
+ *  reads as 'human' (the column default) rather than throwing. */
+export function coerceSlatePopulation(value: unknown): SlatePopulation {
+  return value === "agent" ? "agent" : "human";
+}
 
 export function recordEvent(
   db: Database.Database,

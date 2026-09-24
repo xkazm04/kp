@@ -166,3 +166,111 @@ export function deriveRoleRubric(brief: RoleBrief): RubricAxis[] {
   });
   return axes;
 }
+
+// ---------------------------------------------------------------------------
+// Evaluation — ONE function, both populations (ADR-0012 §3)
+// ---------------------------------------------------------------------------
+//
+// A person and an AI agent on one role's slate are judged against the SAME frozen
+// axes by the SAME function. What differs per population is only the EVIDENCE
+// ADAPTER feeding each axis: the axis itself names the human source
+// (`humanEvidence`: analysis / devcase / scorecard / salary_band) and the agent
+// source (`agentEvidence`: agent_fit / trial_run / mandate_exchange / budget), so
+// the adapter is a lookup on the axis, never a second rubric.
+//
+// Deliberately NOT a single fused 0-100: blocking coverage and the remaining
+// weighted coverage answer different questions and are reported SEPARATELY, and
+// the unmet blocking axes are NAMED rather than deducted silently.
+
+export type EvidencePopulation = "human" | "agent";
+
+export type AxisEvidenceSource = RubricAxis["humanEvidence"] | RubricAxis["agentEvidence"];
+
+/** One axis's evidence as a producer recorded it: a score in [0,1] and a pointer
+ *  back to the artifact that produced it. */
+export type AxisEvidence = { score: number; evidenceRef?: string | null };
+
+/** What the caller holds about ONE candidate, keyed by axis key. An axis with no
+ *  entry is "not assessed", never a zero. */
+export type CandidateEvidence = {
+  population: EvidencePopulation;
+  axes: Record<string, AxisEvidence>;
+};
+
+/** The ADR-0012 §3 basis row: every axis score carries where it came from. */
+export type AxisBasis = {
+  axis: string;
+  label: string;
+  blocking: boolean;
+  weight: number;
+  /** null ⇒ this candidate has no evidence for the axis yet. */
+  score: number | null;
+  source: AxisEvidenceSource;
+  evidenceRef: string | null;
+};
+
+export type RubricEvaluation = {
+  rubricVersion: number;
+  population: EvidencePopulation;
+  basis: AxisBasis[];
+  /** Weighted mean score over the BLOCKING axes, in [0,1]; an unassessed blocking
+   *  axis counts as 0 (nobody checked it, so it is not met). 0 when the rubric has
+   *  no blocking axis — "nothing required" is not "everything met". */
+  blockingCoverage: number;
+  /** Weighted mean over the non-blocking axes that HAVE evidence, or null when
+   *  none does — an absence is not a judgement. */
+  otherCoverage: number | null;
+  /** Blocking axes with no evidence or a score below BLOCKING_MET_THRESHOLD. */
+  unmetBlocking: string[];
+  /** Axes with no evidence at all — the board says "not yet assessed" for these. */
+  unassessed: string[];
+};
+
+/** A blocking axis counts as met at or above this score. */
+export const BLOCKING_MET_THRESHOLD = 0.5;
+
+/** The evidence adapter: which producer feeds this axis for this population. */
+export function evidenceSourceFor(axis: RubricAxis, population: EvidencePopulation): AxisEvidenceSource {
+  return population === "agent" ? axis.agentEvidence : axis.humanEvidence;
+}
+
+const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0);
+
+/** Judge one candidate against a frozen rubric version. Pure. */
+export function evaluateAgainstRubric(
+  rubric: { version: number; axes: readonly RubricAxis[] },
+  evidence: CandidateEvidence
+): RubricEvaluation {
+  const basis: AxisBasis[] = rubric.axes.map((axis) => {
+    const found = Object.prototype.hasOwnProperty.call(evidence.axes, axis.key) ? evidence.axes[axis.key] : undefined;
+    return {
+      axis: axis.key,
+      label: axis.label,
+      blocking: axis.blocking,
+      weight: axis.weight,
+      score: found ? clamp01(found.score) : null,
+      source: evidenceSourceFor(axis, evidence.population),
+      evidenceRef: found?.evidenceRef ?? null,
+    };
+  });
+  const weighted = (rows: AxisBasis[]): number | null => {
+    const total = rows.reduce((s, r) => s + r.weight, 0);
+    return total > 0 ? rows.reduce((s, r) => s + r.weight * (r.score ?? 0), 0) / total : null;
+  };
+  const blocking = basis.filter((b) => b.blocking);
+  return {
+    rubricVersion: rubric.version,
+    population: evidence.population,
+    basis,
+    blockingCoverage: weighted(blocking) ?? 0,
+    otherCoverage: weighted(basis.filter((b) => !b.blocking && b.score !== null)),
+    unmetBlocking: blocking.filter((b) => b.score === null || b.score < BLOCKING_MET_THRESHOLD).map((b) => b.axis),
+    unassessed: basis.filter((b) => b.score === null).map((b) => b.axis),
+  };
+}
+
+/** Same axes, same order, same weights — "would re-deriving change the standard?".
+ *  A prose-only brief edit derives identical axes. */
+export function sameRubricAxes(a: readonly RubricAxis[], b: readonly RubricAxis[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}

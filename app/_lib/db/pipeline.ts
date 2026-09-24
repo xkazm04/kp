@@ -19,7 +19,7 @@ import type { MatchScoreProvenance } from "../match-score";
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
 import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
-import { ensureDb, recordEvent, type PipelineEntry } from "./core";
+import { coerceSlatePopulation, ensureDb, recordEvent, type PipelineEntry, type SlatePopulation } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { knownStageIds } from "../pipeline-axis";
@@ -136,6 +136,13 @@ export const BOARD_ENTRY_FIELDS = [
   "sourceChannel",
   "sourceCampaign",
   "sourceVariant",
+  // ADR-0012 — the board renders ONE list holding both populations, so the row
+  // must be able to say which it is (a persona card offers different identity
+  // affordances from a person's). `rubricVersion` rides beside it because the
+  // drawer must be able to say WHICH standard a score was produced against
+  // rather than implying it was the current one. Neither is PII.
+  "population",
+  "rubricVersion",
 ] as const satisfies readonly (keyof PipelineEntry)[];
 
 /** The three scores GET /api/pipeline STAMPS onto each row before it goes out
@@ -460,6 +467,11 @@ type PipelineRow = {
   // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
   // caller holding an entry never has to be told its tenant separately.
   workspace_id?: string | null;
+  // ADR-0012 — slate columns. Optional here for the same reason as the others:
+  // the explicit-column SELECTs in this file don't all name them yet, and an
+  // absent column must read as the row's default rather than as undefined.
+  population?: string | null;
+  rubric_version?: number | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -505,6 +517,10 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     // value now looks authoritative. devcase-source-promote-tenancy.test.ts
     // catches it behaviourally; a source-level check would not.
     workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+    // ADR-0012 — narrowed at the read boundary (the column is free-form TEXT and
+    // is also written by the Python seed), same discipline as approval_kind.
+    population: coerceSlatePopulation(r.population),
+    rubricVersion: typeof r.rubric_version === "number" ? r.rubric_version : null,
   };
 }
 
@@ -771,7 +787,8 @@ export function listPipelinePage(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
-              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id
+              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id,
+              population, rubric_version
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC
        LIMIT ?`
@@ -1429,6 +1446,13 @@ export type CreatePipelineInput = {
   // analysis→board chip + disposition echo scope on it. Recruiter/Match/inbound adds
   // omit it today (single-tenant); a multi-tenant enable threads currentWorkspace() here.
   workspaceId?: string;
+  // ADR-0012 — which population this candidate belongs to. Omitted by every
+  // existing caller and defaulting to 'human', so the whole human intake path
+  // is byte-identical to before; only the slate composer passes 'agent'.
+  population?: SlatePopulation;
+  // The frozen rubric version the candidate's evaluation was produced against,
+  // when the caller has already evaluated it. Omitted ⇒ NULL ⇒ "unknown standard".
+  rubricVersion?: number | null;
 };
 
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
@@ -1518,11 +1542,13 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-        source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id)
+        source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id,
+        population, rubric_version)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-        @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id)`
+        @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id,
+        @population, @rubric_version)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -1547,6 +1573,8 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     dev_case_id: input.devCaseId ?? null,
     dev_submission_id: input.devSubmissionId ?? null,
     workspace_id: workspaceId,
+    population: coerceSlatePopulation(input.population),
+    rubric_version: input.rubricVersion ?? null,
   });
   recordEvent(db, {
     entryId: id,
