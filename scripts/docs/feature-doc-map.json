@@ -581,7 +581,8 @@
       "sourceGlobs": [
         "app/api/gigs/**",
         "app/_lib/gigs/**",
-        "app/_lib/db/gigs-*.ts"
+        "app/_lib/db/gigs-*.ts",
+        "scripts/gigs/**"
       ]
     },
     {
