@@ -13,9 +13,9 @@ import {
   type GigStatus,
 } from "@/app/_lib/gigs/types";
 
-// Pure derivations for the Gigs tab: what needs the operator's judgement, the board's
-// lifecycle grouping, the rate as a fraction, and the desk's Approve gate. No React, no
-// fetch, the clock passed in - pinned by gigsLogic.test.ts.
+// Pure derivations for the Gigs tab: what needs the operator's judgement, the line (the
+// wall of arenas by lifecycle step), the rate as a fraction, and the desk's Approve gate.
+// No React, no fetch, the clock passed in - pinned by gigsLogic.test.ts.
 
 // ---------------------------------------------------------------------------
 // Wire shapes the tab reads (the routes' answers, typed once here)
@@ -36,9 +36,9 @@ export type SpecialistRow = GigSpecialist & { hire: SpecialistHire | null };
 
 export type SourceRow = GigSource & { termsCurrent: boolean };
 
-/** What a view calls after a write: `left` = the item left the queue it was in, `flash`
- *  = one sentence for the queue's status line. Answers the re-read KPI. */
-export type AfterWrite = (left: boolean, flash?: string | null) => Promise<GigKpi | null>;
+/** What a page calls after a write: `flash` = one sentence for the page's status line.
+ *  Answers the re-read KPI, so a verdict can say how the rate moved. */
+export type AfterWrite = (flash?: string | null) => Promise<GigKpi | null>;
 
 /** The catalog entry as GET /api/gigs/sources serves it (sources-catalog.ts). Declared
  *  here rather than imported: that module hashes with node:crypto and must stay off the
@@ -61,14 +61,15 @@ export type CatalogEntry = {
 };
 
 // ---------------------------------------------------------------------------
-// The judgement queue
+// Who acts next on a gig
 // ---------------------------------------------------------------------------
 
-/** Operator-owned kinds first (they are the four count tiles), then the kinds that sit
- *  with the agents and never pad the operator's count. */
-export const OPERATOR_KINDS = ["review", "suspect", "record", "triage"] as const;
-export const AGENT_KINDS = ["running", "revision", "failed"] as const;
-export const QUEUE_KINDS = [...OPERATOR_KINDS, ...AGENT_KINDS] as const;
+/** The three judgements the header counts and `N` walks, in that order; then triage (the
+ *  operator's too, but not a judgement), then the kinds that sit with the agents and
+ *  never pad the operator's count. */
+export const NEED_KINDS = ["review", "suspect", "record"] as const;
+export type NeedKind = (typeof NEED_KINDS)[number];
+export const QUEUE_KINDS = [...NEED_KINDS, "triage", "running", "revision", "failed"] as const;
 export type QueueKind = (typeof QUEUE_KINDS)[number];
 
 export type QueueItem = {
@@ -117,64 +118,114 @@ export function queueCounts(items: readonly QueueItem[]): Record<QueueKind, numb
   return out;
 }
 
-/** J/K movement through the visible items; clamps at both ends, starts at the first. */
-export function stepSelection(items: readonly QueueItem[], current: string | null, dir: 1 | -1): string | null {
-  if (items.length === 0) return null;
-  const at = current ? items.findIndex((i) => i.key === current) : -1;
-  if (at < 0) return items[0].key;
-  return items[Math.max(0, Math.min(items.length - 1, at + dir))].key;
-}
-
-/** After an action removed `removedKey`, what to open next: the item that took its place
- *  in the same group, else the first operator item, else nothing. */
-export function selectionAfter(before: readonly QueueItem[], after: readonly QueueItem[], removedKey: string): string | null {
-  if (after.some((i) => i.key === removedKey)) return removedKey;
-  const at = before.findIndex((i) => i.key === removedKey);
-  const kind = at >= 0 ? before[at].kind : null;
-  const sameKind = after.filter((i) => i.kind === kind);
-  if (sameKind.length) {
-    const laterInBefore = before.slice(at + 1).find((i) => i.kind === kind && after.some((x) => x.key === i.key));
-    return laterInBefore ? laterInBefore.key : sameKind[sameKind.length - 1].key;
-  }
-  const firstOperator = after.find((i) => (OPERATOR_KINDS as readonly string[]).includes(i.kind));
-  return firstOperator ? firstOperator.key : null;
+/** `N`: the next judgement after the one last opened, oldest first within its kind,
+ *  wrapping round; the first one when nothing was opened yet; null when none is owed. */
+export function nextNeed(items: readonly QueueItem[], lastGigId: string | null, only?: NeedKind): QueueItem | null {
+  const needs = items.filter((i) => (only ? i.kind === only : (NEED_KINDS as readonly string[]).includes(i.kind)));
+  if (needs.length === 0) return null;
+  if (only) return needs[0];
+  const at = lastGigId ? needs.findIndex((i) => i.gig.id === lastGigId) : -1;
+  return needs[(at + 1) % needs.length];
 }
 
 // ---------------------------------------------------------------------------
-// The board
+// The line: arenas are rows, the lifecycle steps are columns
 // ---------------------------------------------------------------------------
 
-/** Every lifecycle step, in order, including the three off-ramps - an empty step is
- *  shown, so a step nothing reached reads as a gap rather than a missing row. */
-export const BOARD_STEPS: readonly GigStatus[] = [
-  "new",
-  "suspect",
-  "qualified",
-  "dispatched",
-  "drafted",
-  "in_review",
-  "sent",
-  "accepted",
-  "rejected",
-  "declined",
-  "expired",
-  "withdrawn",
-];
+/** The canonical steps, left to right. The three ways off the line are grouped in one
+ *  column after them ("Left the line"), then each arena's terminus. */
+export const LINE_STEPS = ["new", "suspect", "qualified", "dispatched", "drafted", "in_review", "sent", "accepted", "rejected"] as const satisfies readonly GigStatus[];
+export type LineStep = (typeof LINE_STEPS)[number];
+export const OFF_STEPS = ["declined", "withdrawn", "expired"] as const satisfies readonly GigStatus[];
+export type OffStep = (typeof OFF_STEPS)[number];
 
-export type BoardFilter = { search: string; arena: GigArena | "all"; status: GigStatus | "all" };
+/** Who owns the next move at a step. `you` is a judgement - the three columns that
+ *  carry the "your judgement" band; the others name their owner in words. */
+export type StepOwner = "you" | "scan" | "dispatch" | "agent" | "send" | "judge";
+export const STEP_OWNER: Readonly<Record<LineStep, StepOwner>> = {
+  new: "scan",
+  suspect: "you",
+  qualified: "dispatch",
+  dispatched: "agent",
+  drafted: "you",
+  in_review: "send",
+  sent: "you",
+  accepted: "judge",
+  rejected: "judge",
+};
 
-export function matchesBoardFilter(gig: Gig, f: BoardFilter): boolean {
-  if (f.arena !== "all" && gig.arena !== f.arena) return false;
-  if (f.status !== "all" && gig.status !== f.status) return false;
-  const q = f.search.trim().toLowerCase();
+/** How far along the main line a gig has provably got. `suspect` is a side branch, not
+ *  a rank; a gig that left the line is read off its latest attempt. */
+const FLOW_RANK: Partial<Record<GigStatus, number>> = { new: 0, qualified: 1, dispatched: 2, drafted: 3, in_review: 4, sent: 5, accepted: 6, rejected: 6 };
+
+function furthestRank(gig: Gig, latest: GigAttempt | null): number {
+  const own = FLOW_RANK[gig.status];
+  if (own !== undefined) return own;
+  if (!latest) return 0;
+  if (latest.status === "sent") return 5;
+  if (latest.deliverable) return 3;
+  return 2;
+}
+
+/** Whether any gig of this arena ever reached `step`. An empty cell of a step the arena
+ *  reached says "none here now"; one it never reached says "none reached" - the two are
+ *  different facts and never render alike. */
+export function reachedStep(gigs: readonly Gig[], attemptsByGig: Readonly<Record<string, GigAttempt>>, step: LineStep): boolean {
+  if (step === "suspect") return gigs.some((g) => g.status === "suspect" || g.suspectReasons.length > 0);
+  if (step === "accepted" || step === "rejected") return gigs.some((g) => g.status === step);
+  const need = FLOW_RANK[step]!;
+  return gigs.some((g) => furthestRank(g, attemptsByGig[g.id] ?? null) >= need);
+}
+
+export type LineCell = { step: LineStep; gigs: Gig[]; reached: boolean };
+export type LineRow = { arena: GigArena; total: number; cells: LineCell[]; off: { step: OffStep; gigs: Gig[] }[] };
+
+/** Oldest waiting first: the latest attempt's start, else when the gig last moved. */
+function waitingSince(gig: Gig, latest: GigAttempt | null): string {
+  return latest?.createdAt ?? gig.updatedAt;
+}
+
+/** The whole wall: one row per arena (all four, an empty one included), each cell's
+ *  gigs oldest-waiting first. */
+export function lineRows(gigs: readonly Gig[], attemptsByGig: Readonly<Record<string, GigAttempt>>): LineRow[] {
+  return GIG_ARENAS.map((arena) => {
+    const mine = gigs
+      .filter((g) => g.arena === arena)
+      .sort((a, b) => {
+        const x = waitingSince(a, attemptsByGig[a.id] ?? null);
+        const y = waitingSince(b, attemptsByGig[b.id] ?? null);
+        return x < y ? -1 : x > y ? 1 : a.id < b.id ? -1 : 1;
+      });
+    return {
+      arena,
+      total: mine.length,
+      cells: LINE_STEPS.map((step) => ({ step, gigs: mine.filter((g) => g.status === step), reached: reachedStep(mine, attemptsByGig, step) })),
+      off: OFF_STEPS.map((step) => ({ step, gigs: mine.filter((g) => g.status === step) })),
+    };
+  });
+}
+
+/** `/` search: title, org, id, niche and tags. Matches stay lit; the rest dim. */
+export function matchesSearch(gig: Gig, search: string): boolean {
+  const q = search.trim().toLowerCase();
   if (!q) return true;
   return [gig.title, gig.org ?? "", gig.id, gig.niche ?? "", ...gig.tags].join(" ").toLowerCase().includes(q);
 }
 
-export function groupBoard(gigs: readonly Gig[], f: BoardFilter): { status: GigStatus; gigs: Gig[] }[] {
-  const rows = gigs.filter((g) => matchesBoardFilter(g, f));
-  const steps = f.status === "all" ? BOARD_STEPS : BOARD_STEPS.filter((s) => s === f.status);
-  return steps.map((status) => ({ status, gigs: rows.filter((g) => g.status === status) }));
+/** Whether a gig is owed one of the three judgements right now. */
+export function needsYou(gig: Gig, latest: GigAttempt | null): boolean {
+  const kind = queueKindOf(gig, latest);
+  return kind !== null && (NEED_KINDS as readonly string[]).includes(kind);
+}
+
+/** How many cards a cell shows before "show N more". */
+export const CELL_CAP = 6;
+
+/** A specialist's stable place in the edge vocabulary: its rank by hire date, so one
+ *  specialist keeps its edge across reloads and screens. */
+export function specialistEdgeIndex(specialists: readonly Pick<GigSpecialist, "id" | "createdAt">[], id: string): number {
+  const order = [...specialists].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : a.id < b.id ? -1 : 1));
+  return order.findIndex((s) => s.id === id);
 }
 
 // ---------------------------------------------------------------------------

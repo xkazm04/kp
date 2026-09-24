@@ -6,27 +6,27 @@ import { ExternalLink } from "lucide-react";
 import { BTN_AFFIRM, BTN_GHOST, BTN_SECONDARY, FIELD, KBD, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { lintDraft } from "@/app/_lib/gigs/draft-lint";
-import { GIG_DISCLOSURE_ITEM } from "@/app/_lib/gigs/types";
-import { checklistFor, checklistKeyFor, deskGate, evidenceState, markSentGate, type AfterWrite, type QueueItem, type SourceRow, type SpecialistRow } from "./gigsLogic";
+import { GIG_DISCLOSURE_ITEM, type Gig, type GigAttempt } from "@/app/_lib/gigs/types";
+import { checklistFor, checklistKeyFor, deskGate, evidenceState, markSentGate, type AfterWrite, type SourceRow, type SpecialistRow } from "./gigsLogic";
 import { GigHead, UntrustedText } from "./GigsFacts";
 import { DraftGalley, LintStrip } from "./GigsLint";
 import { sendJson } from "./useGigsData";
 import { useBareKeys } from "./useBareKeys";
 import { useGigsFormat } from "./useGigsFormat";
 
-// The review desk: one drafted attempt, read the way a careful reviewer reads it. The
-// pre-send lint strip first, then the evidence the agent ran (three states - passed,
-// failed, NOT VERIFIED, never two), then the draft as a numbered galley with margin
-// marks beside the line each finding refers to, and beside it the arena checklist (keys
-// 1-6), the disclosure sentence, the revision note and the four moves.
+// The review desk: the full page of a drafted (or approved, not yet sent) gig, read the
+// way a careful reviewer reads it. The pre-send lint strip first, then the evidence the
+// agent ran (three states - passed, failed, NOT VERIFIED, never two), then the draft as
+// a numbered galley with each finding's words underlined, and beside it the arena
+// checklist (keys 1-6), the disclosure sentence, the revision note and the four moves.
 //
 // Approve stays disabled while any blocker is open, any checklist item is unticked, or
 // any warn is not marked seen - and the button SAYS which, in its label. Approving sends
 // nothing: the operator sends from their own account, then marks it sent here.
 //
 // State is per card and local: ticking a box re-renders this desk, nothing above it, so
-// the page keeps its scroll. The parent hands in a store so a half-reviewed card keeps
-// its ticks when the operator steps to another item and back.
+// the page keeps its scroll. The tab hands in a store so a half-reviewed card keeps its
+// ticks when the operator goes back to the line and returns.
 
 export type DeskMemory = { ticks: Record<string, boolean>; seen: string[]; note: string; startedAt: number };
 export type DeskStore = Map<string, DeskMemory>;
@@ -43,27 +43,27 @@ function ReviewTimer({ startedAt }: { startedAt: number }) {
 }
 
 export function GigsDesk({
-  item,
+  gig,
+  attempt,
   source,
   specialist,
   now,
   store,
   onChanged,
 }: {
-  item: QueueItem;
+  gig: Gig;
+  attempt: GigAttempt;
   source: SourceRow | null;
   specialist: SpecialistRow | null;
   now: Date;
   store: DeskStore;
-  /** After a write: `left` = the card left the review queue; `flash` = what to say. */
+  /** After a write, with the sentence to say. */
   onChanged: AfterWrite;
 }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const resolveError = useErrorMessage();
   const uid = useId().replace(/:/g, "");
-  const attempt = item.attempt!;
-  const gig = item.gig;
   const dl = attempt.deliverable;
   const items = checklistFor(gig.arena);
 
@@ -123,15 +123,15 @@ export function GigsDesk({
     if (!res.ok) {
       setError(resolveError(res.body as ApiErrorPayload | null, t("desk.actionFailed")));
       // A revise whose re-dispatch failed still recorded the revision: the card moved.
-      if (res.body && res.body.revisionRecorded === true) await onChanged(true);
+      if (res.body && res.body.revisionRecorded === true) await onChanged(null);
       return;
     }
     if (action === "approve") {
       setNotice(t("desk.approvedNotice"));
-      await onChanged(false);
+      await onChanged(null);
       return;
     }
-    await onChanged(true, action === "mark_sent" ? t("desk.sentFlash") : action === "revise" ? t("desk.revisedFlash") : t("desk.discardedFlash"));
+    await onChanged(action === "mark_sent" ? t("desk.sentFlash") : action === "revise" ? t("desk.revisedFlash") : t("desk.discardedFlash"));
   }
 
   const approveLabel = (() => {
@@ -146,7 +146,6 @@ export function GigsDesk({
     <div>
       <GigHead
         gig={gig}
-        crumbs={[t("views.queue"), t("queue.group.review"), t("desk.crumbAttempt", { gig: gig.id, attempt: attempt.id })]}
         source={source}
         specialist={specialist}
         now={now}
@@ -159,8 +158,8 @@ export function GigsDesk({
       />
       <LintStrip findings={findings} seen={seen} onSeen={setSeen} onJump={jump} uid={uid} />
 
-      <div className="grid 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-6 px-5 py-5 2xl:border-r 2xl:border-stone-200">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-6 px-5 py-5 lg:border-r lg:border-stone-200">
           {attempt.revisionNote ? (
             <p className={`${NOTICE("info")} px-3 py-2 text-sm`}>
               <span className="font-semibold">{t("desk.earlierNote")}</span> {attempt.revisionNote}
@@ -232,7 +231,7 @@ export function GigsDesk({
                   {tab === "draft" ? (
                     <>
                       <p className="mb-3 text-sm text-steel">{dl.summary}</p>
-                      <DraftGalley text={dl.draftText} findings={findings} seen={seen} onSeen={setSeen} uid={uid} />
+                      <DraftGalley text={dl.draftText} findings={findings} uid={uid} />
                       {dl.artifacts.length > 0 ? (
                         <div className="mt-4">
                           <p className={META_LABEL}>{t("desk.artifacts")}</p>
@@ -255,7 +254,7 @@ export function GigsDesk({
           )}
         </div>
 
-        <aside className="space-y-4 border-t border-stone-200 px-5 py-5 2xl:border-t-0" aria-label={t("desk.sideLabel")}>
+        <aside className="space-y-4 border-t border-stone-200 px-5 py-5 lg:sticky lg:top-0 lg:self-start lg:border-t-0" aria-label={t("desk.sideLabel")}>
           <div className="flex items-baseline justify-between gap-2">
             <h3 className={META_LABEL}>{t("desk.checklistTitle", { arena: fmt.arena(gig.arena) })}</h3>
             <ReviewTimer startedAt={memory.startedAt} />

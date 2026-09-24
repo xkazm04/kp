@@ -13040,8 +13040,7 @@
     },
     "views": {
       "label": "Obrazovky zakázek",
-      "queue": "Fronta",
-      "board": "Nástěnka",
+      "line": "Linka",
       "specialists": "Specialisté",
       "scorecard": "Scorecard",
       "sources": "Zdroje"
@@ -13201,80 +13200,6 @@
       "unmeasured": "Neměřeno, zatím nic nerozhodnuto",
       "unmeasuredShort": "Neměřeno"
     },
-    "rail": {
-      "label": "Scorecard",
-      "title": "Míra přijatých výsledků",
-      "loading": "Načítám scorecard…",
-      "resolvedLine": "{percent} z rozhodnutých, n = {n}",
-      "nothingResolved": "Zatím není zapsaný žádný verdikt. Míra se objeví s prvním.",
-      "nothingSent": "Zatím nic neodesláno",
-      "byArena": "Podle oblasti",
-      "bySpecialist": "Podle specialisty",
-      "noSpecialists": "Zatím není najatý žádný specialista.",
-      "moneyWon": "Získané peníze",
-      "noMoney": "Žádný přijatý výsledek nemá zapsanou částku.",
-      "moneyCount": "{count, plural, one {# výplata} few {# výplaty} other {# výplat}}",
-      "neverSummed": "Vedeno zvlášť v každé měně, nikdy se nesčítá.",
-      "acceptedNoAmount": "{count, plural, one {# přijatý výsledek nemá} few {# přijaté výsledky nemají} other {# přijatých výsledků nemá}} zapsanou částku.",
-      "disclosure": "Prohlášení o použití AI zaškrtnuto u {percent} odeslané práce.",
-      "disclosureNone": "Zatím nic neodesláno, takže míra prohlášení není."
-    },
-    "queue": {
-      "tilesLabel": "Co čeká na váš úsudek",
-      "tile": {
-        "review": "{count, plural, one {koncept ke kontrole} few {koncepty ke kontrole} other {konceptů ke kontrole}}",
-        "suspect": "podezřelé k posouzení",
-        "record": "{count, plural, one {výsledek k zápisu} few {výsledky k zápisu} other {výsledků k zápisu}}",
-        "triage": "nové k roztřídění"
-      },
-      "tileSub": {
-        "review": "Přečíst, zaškrtnout, schválit nebo vrátit",
-        "suspect": "Nelze předat agentovi, dokud je neposoudíte",
-        "record": "Odesláno vámi, zatím bez verdiktu",
-        "triage": "Předat agentovi, nebo odmítnout"
-      },
-      "agentsTitle": "U agentů, ne u vás",
-      "agentsLine": "běží: {running} · nepředané revize: {revision} · neúspěšné běhy: {failed}",
-      "agentsNone": "U agentů nic není.",
-      "dismiss": "Zavřít",
-      "railLabel": "Fronta",
-      "workspaceLabel": "Pracovní plocha",
-      "group": {
-        "review": "Koncepty ke kontrole",
-        "suspect": "Podezřelé inzeráty k posouzení",
-        "record": "Výsledky k zápisu",
-        "triage": "Nové inzeráty k roztřídění",
-        "running": "U agentů: běží",
-        "revision": "U agentů: revize",
-        "failed": "Neúspěšné běhy"
-      },
-      "empty": {
-        "review": "Žádný koncept na vás nečeká.",
-        "suspect": "Žádný inzerát není označený.",
-        "record": "Každý odeslaný koncept má verdikt.",
-        "triage": "Žádné nové inzeráty.",
-        "running": "Žádný běh neprobíhá.",
-        "revision": "Žádná revize nečeká na předání.",
-        "failed": "Žádné neúspěšné běhy."
-      },
-      "meta": {
-        "review": "od: {name} · koncept {when}",
-        "approved": "Schváleno vámi, zatím neodesláno",
-        "record": "odesláno {date} · {when}",
-        "qualified": "Kvalifikováno, připraveno k předání",
-        "belowBar": "Pod hranicí kvalifikace",
-        "running": "předáno {date} · zatím bez výstupu",
-        "revision": "vaše poznámka je zapsaná, nový pokus zatím není",
-        "failed": "skončilo bez výstupu"
-      },
-      "flagBlockers": "{blockers, plural, one {# blokace} few {# blokace} other {# blokací}}{warns, plural, =0 {} other { · ke kontrole: #}}",
-      "flagWarns": "{count, plural, one {# věc ke kontrole} few {# věci ke kontrole} other {# věcí ke kontrole}}",
-      "keys": "<kbd>J</kbd> <kbd>K</kbd> další a předchozí · <kbd>1</kbd> až <kbd>6</kbd> zaškrtnout položku",
-      "pickTitle": "Vyberte něco z fronty",
-      "pickBody": "Stiskněte J a začněte nejstarší položkou, nebo zvolte dlaždici výše.",
-      "emptyTitle": "Nic na vás nečeká",
-      "emptyBody": "Nečeká žádný koncept, podezřelý inzerát, výsledek ani nový inzerát. Nástěnka ukazuje všechny zakázky."
-    },
     "facts": {
       "breadcrumb": "Kde jste",
       "arena": "Oblast",
@@ -13302,7 +13227,6 @@
       "title": "Než odešlete: {count, plural, =0 {nic nenalezeno} one {# zjištění} few {# zjištění} other {# zjištění}}",
       "none": "Automatická kontrola nic neoznačila. To neznamená, že je vše v pořádku: kontrolní seznam platí dál.",
       "seen": "viděno",
-      "noted": "vzato na vědomí",
       "blocksApprove": "brání schválení",
       "note": "poznámka",
       "goLine": "řádek {line}",
@@ -13313,7 +13237,7 @@
         "info": "Poznámka"
       },
       "noDeliverable": "Nevrátil se žádný výstup. Není co kontrolovat.",
-      "sourceInvalidStreak": "{host} byl pozastaven po {streak} zamítnutích za sebou. Další odeslaná práce tam tu řadu prodlouží.",
+      "sourceInvalidStreak": "{host} byl automaticky pozastaven po sérii zamítnutí. Další odeslaná práce tam tu řadu prodlouží.",
       "deadlinePassed": "Inzerát se uzavřel {deadline}. Už není kam to odeslat.",
       "evidenceFailed": "Důkaz {n} ({kind}) selhal.",
       "evidenceNoCommand": "Důkaz {n} ({kind}) nemá příkaz. Je to popis agenta, ne záznam běhu.",
@@ -13329,7 +13253,6 @@
       "lineN": "Řádek {n}:"
     },
     "desk": {
-      "crumbAttempt": "{gig} · pokus {attempt}",
       "drafted": "Koncept",
       "earlierNote": "Vaše dřívější poznámka:",
       "noDeliverable": "Tento pokus skončil bez výstupu. Není co kontrolovat: vyžádejte revizi, nebo ho zahoďte.",
@@ -13384,8 +13307,9 @@
     },
     "work": {
       "actionFailed": "Akce se nezdařila.",
-      "declinedFlash": "Odmítnuto. Zůstává na nástěnce, mimo pipeline.",
-      "clearedFlash": "Označení zrušeno na základě vašeho úsudku. Inzerát je zpět mezi novými a znovu se kvalifikuje."
+      "declinedFlash": "Odmítnuto. Přesouvá se do „Opustilo linku“, mimo pipeline.",
+      "clearedFlash": "Označení zrušeno na základě vašeho úsudku. Inzerát je zpět mezi novými a znovu se kvalifikuje.",
+      "withdrawnFlash": "Staženo. Přesouvá se do „Opustilo linku“, nic nebylo odesláno."
     },
     "suspectView": {
       "why": "Proč byl označen",
@@ -13398,7 +13322,6 @@
       "urlAsText": "Adresa inzerátu, bez odkazu: {url}"
     },
     "recordView": {
-      "sentBy": "Odesláno vámi",
       "whatWentOut": "Co odešlo",
       "reviewedFor": "kontrolovali jste {minutes, plural, one {# minutu} few {# minuty} other {# minut}}",
       "reviewTimeUnknown": "doba kontroly nezaznamenána",
@@ -13440,7 +13363,7 @@
       "sourcePaused": "Jeho zdroj: {reason}.",
       "dispatch": "Předat: {name}",
       "itsSpecialist": "jeho specialista",
-      "dispatchedFlash": "Předáno: {name}. Koncept se objeví ve vaší frontě, až se běh vrátí.",
+      "dispatchedFlash": "Předáno: {name}. Koncept se objeví na lince ve sloupci Koncept hotový, až se běh vrátí.",
       "belowBar": "Pod hranicí kvalifikace",
       "belowBarHow": "Předat ho lze, až ho prohledávání kvalifikuje. K tomu je potřeba aktivní specialista v jeho oblasti a dost času do uzávěrky.",
       "hireFor": "Najmout specialistu pro oblast {arena}",
@@ -13457,43 +13380,6 @@
       "noReason": "nezaznamenán",
       "dispatchWithNote": "Předat znovu s mou poznámkou",
       "dispatchAgain": "Předat znovu"
-    },
-    "board": {
-      "title": "Nástěnka: {count, plural, one {# zakázka} few {# zakázky} other {# zakázek}} podle fáze životního cyklu",
-      "lede": "Uvedena je každá fáze, i prázdná, takže fáze, do které nic nedošlo, se čte jako mezera, ne jako chybějící řádek.",
-      "truncated": "Zobrazeno {count} naposledy změněných zakázek.",
-      "searchPlaceholder": "Hledat podle názvu, organizace, štítku nebo id",
-      "searchLabel": "Hledat zakázky",
-      "arenaFilter": "Oblast",
-      "allArenas": "Všechny oblasti",
-      "statusFilter": "Fáze",
-      "allSteps": "Všechny fáze",
-      "shown": "Zobrazeno: {count}",
-      "col": {
-        "listing": "Inzerát",
-        "arena": "Oblast",
-        "reward": "Odměna (vlastní měna)",
-        "deadline": "Uzávěrka",
-        "specialist": "Specialista",
-        "latest": "Poslední pokus"
-      },
-      "step": "{step} · {count}",
-      "stepEmpty": "{step} · v této fázi nic",
-      "suspectChip": "podezřelý, nelze předat",
-      "noSpecialist": "žádný",
-      "noAttempt": "bez pokusu",
-      "back": "Zpět na nástěnku",
-      "attempts": "Pokusy a verdikty",
-      "loadingRecord": "Načítám záznam zakázky…",
-      "recordFailed": "Záznam zakázky se nepodařilo načíst.",
-      "neverAttempted": "Nikdy nezkoušeno",
-      "neverAttemptedBody": "Na tomto inzerátu zatím žádný specialista nepracoval.",
-      "recorded": "zapsáno {date}, {source}",
-      "noWords": "S tímto verdiktem nepřišla žádná slova.",
-      "openInQueue": "Otevřít ve frontě",
-      "needsNobody": "Tato zakázka teď od nikoho nic nepotřebuje.",
-      "decline": "Odmítnout",
-      "withdraw": "Stáhnout"
     },
     "specialists": {
       "title": "Specialisté",
@@ -13528,7 +13414,9 @@
       "hireNote": "Aktivní specialista pro stejnou oblast a niku se použije znovu, nenajímá se dvakrát. Najmutí probíhá přes Personas.",
       "hireFailed": "Specialistu se nepodařilo najmout.",
       "hired": "Najmutí odesláno. Objeví se tu a bude k dispozici, jakmile ho Personas schválí.",
-      "reused": "Aktivní specialista pro tuto oblast a niku už existuje. Byl použit znovu."
+      "reused": "Aktivní specialista pro tuto oblast a niku už existuje. Byl použit znovu.",
+      "onTheLine": "Na lince",
+      "nothingOnLine": "Na lince zatím nic."
     },
     "scorecard": {
       "title": "Scorecard: míra přijatých výsledků",
@@ -13549,7 +13437,16 @@
       "noTotal": "Žádný celkový součet: tyto měny se nikdy nesčítají.",
       "disclosureTitle": "Prohlášení",
       "disclosureNote": "Označit práci jako odeslanou nelze, dokud není zaškrtnuta položka s prohlášením o použití AI.",
-      "computedAt": "Spočítáno {date} ze zapsaných verdiktů."
+      "computedAt": "Spočítáno {date} ze zapsaných verdiktů.",
+      "rateTitle": "Míra přijatých výsledků",
+      "loading": "Načítám scorecard…",
+      "noSpecialists": "Zatím není najatý žádný specialista.",
+      "moneyWon": "Získané peníze",
+      "noMoney": "Žádný přijatý výsledek nemá zapsanou částku.",
+      "moneyCount": "{count, plural, one {# výplata} few {# výplaty} other {# výplat}}",
+      "acceptedNoAmount": "{count, plural, one {# přijatý výsledek nemá} few {# přijaté výsledky nemají} other {# přijatých výsledků nemá}} zapsanou částku.",
+      "disclosure": "Prohlášení o použití AI zaškrtnuto u {percent} odeslané práce.",
+      "disclosureNone": "Zatím nic neodesláno, takže míra prohlášení není."
     },
     "sources": {
       "title": "Zdroje",
@@ -13592,6 +13489,105 @@
         "no_public_api": "Každý běh odmítne: neexistuje veřejné API ke čtení.",
         "manual_only": "Nic se nenačítá: zadání přeposílejte ručně."
       }
+    },
+    "line": {
+      "needsLabel": "Co čeká na váš úsudek",
+      "need": {
+        "review": "{count, plural, one {koncept ke kontrole} few {koncepty ke kontrole} other {konceptů ke kontrole}}",
+        "suspect": "{count, plural, one {podezřelá k posouzení} few {podezřelé k posouzení} other {podezřelých k posouzení}}",
+        "record": "{count, plural, one {verdikt k zápisu} few {verdikty k zápisu} other {verdiktů k zápisu}}"
+      },
+      "searchLabel": "Hledat zakázky",
+      "truncated": "Zobrazeno {count} naposledy změněných zakázek.",
+      "needNone": "Teď nic nečeká na váš úsudek.",
+      "searchPlaceholder": "Najít inzerát ( / )",
+      "searchHits": "{count, plural, =0 {žádný inzerát neodpovídá} one {odpovídá # inzerát} few {odpovídají # inzeráty} other {odpovídá # inzerátů}}",
+      "filterLabel": "Zobrazit",
+      "filterAll": "Vše",
+      "filterNeeds": "Co čeká na vás",
+      "keys": "<kbd>N</kbd> další věc, která čeká na vás · <kbd>/</kbd> hledat · <kbd>Esc</kbd> zpět ze zakázky",
+      "tableLabel": "Zakázky podle arény a fáze",
+      "corner": "Aréna",
+      "owner": {
+        "you": "váš úsudek",
+        "scan": "kvalifikuje sken",
+        "dispatch": "předáváte vy",
+        "agent": "u agenta",
+        "send": "odesíláte vy",
+        "judge": "vnější hodnotitel"
+      },
+      "leftTheLine": "Opustilo linku",
+      "leftOwner": "odmítnuto, staženo, vypršelo",
+      "terminus": "Konečná",
+      "terminusOwner": "přijato z rozhodnutých",
+      "cellLabel": "{arena}, {step}: {count, plural, =0 {nic} one {# zakázka} few {# zakázky} other {# zakázek}}",
+      "noneReached": "sem nic nedošlo",
+      "noneHere": "teď tu nic není",
+      "noneLeft": "linku nic neopustilo",
+      "showMore": "{count, plural, one {Zobrazit # další} few {Zobrazit # další} other {Zobrazit # dalších}}",
+      "showFewer": "Zobrazit méně",
+      "listings": "{count, plural, =0 {žádné inzeráty} one {# inzerát} few {# inzeráty} other {# inzerátů}}",
+      "specialistsLabel": "Specialisté",
+      "noSpecialist": "Zatím žádný specialista.",
+      "hireOne": "Najmout",
+      "sourcesLabel": "Zdroje",
+      "noSource": "Zatím žádný zdroj.",
+      "polling": "načítá se",
+      "costPerAccepted": "{cost} za přijatou",
+      "noAcceptedCost": "zatím bez ceny za přijatou",
+      "toScorecard": "Otevřít ve Scorecard"
+    },
+    "card": {
+      "blockers": "{blockers, plural, one {# blokace} few {# blokace} other {# blokací}}{warns, plural, =0 {} other { · ke kontrole: #}}",
+      "warns": "{count, plural, one {# věc ke kontrole} few {# věci ke kontrole} other {# věcí ke kontrole}}",
+      "approved": "Schváleno vámi, zatím neodesláno",
+      "review": "připraveno k vaší kontrole",
+      "revision": "vyžádána úprava",
+      "running": "zatím bez výstupu",
+      "failed": "poslední běh selhal",
+      "pending": "čeká na verdikt · {when}",
+      "closed": "uzavřeno",
+      "daysLeft": "{days, plural, one {zbývá # den} few {zbývají # dny} other {zbývá # dní}}",
+      "quarantined": "v karanténě, nelze předat",
+      "by": "zpracovává {name}"
+    },
+    "detail": {
+      "dismiss": "Zavřít",
+      "loadingRecord": "Načítám záznam zakázky…",
+      "recordFailed": "Záznam zakázky se nepodařilo načíst.",
+      "neverAttempted": "Nikdy nezkoušeno",
+      "neverAttemptedBody": "Na tomto inzerátu zatím žádný specialista nepracoval.",
+      "recorded": "zapsáno {date}, {source}",
+      "noWords": "S tímto verdiktem nepřišla žádná slova.",
+      "needsNobody": "Tato zakázka teď od nikoho nic nepotřebuje.",
+      "decline": "Odmítnout",
+      "withdraw": "Stáhnout",
+      "back": "Zpět na linku",
+      "crumbRoot": "Zakázky",
+      "listing": "Inzerát",
+      "journey": "Dosavadní průběh",
+      "nextMove": "Co bude dál",
+      "listed": "Zveřejněno",
+      "postedUnknown": "datum zveřejnění neuvedeno",
+      "attemptN": "Pokus {n}: {name}",
+      "sentAt": "odesláno vámi {date}",
+      "amountUnknown": "částka nezapsána",
+      "restingJudged": "Vnější hodnotitel rozhodl",
+      "restingLeft": "Mimo linku",
+      "offLine": "Stáhnout z linky",
+      "offLineNote": "Odmítnutím nebo stažením se zakázka přesune do „Opustilo linku“. Nic se nikam neodešle.",
+      "notFoundTitle": "Tato zakázka v seznamu není",
+      "notFound": "Mohla se posunout mimo okno, které záložka načítá. Vraťte se na linku a obnovte ji.",
+      "escKey": "Esc"
+    },
+    "legend": {
+      "label": "Co znamenají značky a rámečky",
+      "marks": "Značky",
+      "cards": "Karty",
+      "rewardStated": "odměna uvedena",
+      "rewardNotStated": "odměna neuvedena",
+      "suspect": "podezřelé, v karanténě",
+      "edge": "levý okraj: specialista, jmenovaný u každé arény"
     }
   }
 }

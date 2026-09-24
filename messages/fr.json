@@ -13040,8 +13040,7 @@
     },
     "views": {
       "label": "Écrans des missions",
-      "queue": "File",
-      "board": "Tableau",
+      "line": "La ligne",
       "specialists": "Spécialistes",
       "scorecard": "Scorecard",
       "sources": "Sources"
@@ -13201,80 +13200,6 @@
       "unmeasured": "Non mesuré, rien de tranché pour l’instant",
       "unmeasuredShort": "Non mesuré"
     },
-    "rail": {
-      "label": "Scorecard",
-      "title": "Taux de résultats acceptés",
-      "loading": "Lecture de la scorecard…",
-      "resolvedLine": "{percent} des résultats tranchés, n = {n}",
-      "nothingResolved": "Aucun verdict enregistré. Un taux apparaît avec le premier.",
-      "nothingSent": "Rien d’envoyé pour l’instant",
-      "byArena": "Par domaine",
-      "bySpecialist": "Par spécialiste",
-      "noSpecialists": "Aucun spécialiste recruté pour l’instant.",
-      "moneyWon": "Argent gagné",
-      "noMoney": "Aucun résultat accepté n’a de montant enregistré.",
-      "moneyCount": "{count, plural, one {# paiement} other {# paiements}}",
-      "neverSummed": "Tenu par devise, jamais additionné.",
-      "acceptedNoAmount": "{count, plural, one {# résultat accepté n’a} other {# résultats acceptés n’ont}} aucun montant enregistré.",
-      "disclosure": "Mention d’usage de l’IA cochée sur {percent} du travail envoyé.",
-      "disclosureNone": "Rien d’envoyé pour l’instant, donc pas de taux de mention."
-    },
-    "queue": {
-      "tilesLabel": "Ce qui attend votre jugement",
-      "tile": {
-        "review": "{count, plural, one {brouillon à relire} other {brouillons à relire}}",
-        "suspect": "suspect à trancher",
-        "record": "{count, plural, one {résultat à saisir} other {résultats à saisir}}",
-        "triage": "nouveau à trier"
-      },
-      "tileSub": {
-        "review": "Lire, cocher, approuver ou renvoyer",
-        "suspect": "Ne peut être confié tant que vous n’avez pas tranché",
-        "record": "Envoyé par vous, pas encore de verdict",
-        "triage": "Confier ou refuser"
-      },
-      "agentsTitle": "Chez les agents, pas chez vous",
-      "agentsLine": "en cours : {running} · révisions non confiées : {revision} · exécutions échouées : {failed}",
-      "agentsNone": "Rien n’est chez les agents.",
-      "dismiss": "Fermer",
-      "railLabel": "File",
-      "workspaceLabel": "Espace de travail",
-      "group": {
-        "review": "Brouillons à relire",
-        "suspect": "Annonces suspectes à trancher",
-        "record": "Résultats à saisir",
-        "triage": "Nouvelles annonces à trier",
-        "running": "Chez les agents : en cours",
-        "revision": "Chez les agents : révisions",
-        "failed": "Exécutions échouées"
-      },
-      "empty": {
-        "review": "Aucun brouillon ne vous attend.",
-        "suspect": "Aucune annonce n’est signalée.",
-        "record": "Chaque brouillon envoyé a un verdict.",
-        "triage": "Aucune nouvelle annonce.",
-        "running": "Aucune exécution en cours.",
-        "revision": "Aucune révision n’attend d’être confiée.",
-        "failed": "Aucune exécution échouée."
-      },
-      "meta": {
-        "review": "par {name} · rédigé {when}",
-        "approved": "Approuvé par vous, pas encore envoyé",
-        "record": "envoyé le {date} · {when}",
-        "qualified": "Qualifiée, prête à confier",
-        "belowBar": "Sous le seuil de qualification",
-        "running": "confiée le {date} · pas encore de livrable",
-        "revision": "votre note est enregistrée, pas encore de nouvelle tentative",
-        "failed": "terminée sans livrable"
-      },
-      "flagBlockers": "{blockers, plural, one {# blocage} other {# blocages}}{warns, plural, =0 {} other { · # à vérifier}}",
-      "flagWarns": "{count, plural, one {# point à vérifier} other {# points à vérifier}}",
-      "keys": "<kbd>J</kbd> <kbd>K</kbd> suivant et précédent · <kbd>1</kbd> à <kbd>6</kbd> cocher la liste",
-      "pickTitle": "Choisissez un élément de la file",
-      "pickBody": "Appuyez sur J pour commencer par le plus ancien, ou choisissez une tuile ci-dessus.",
-      "emptyTitle": "Rien ne vous attend",
-      "emptyBody": "Aucun brouillon, aucune annonce suspecte, aucun résultat ni aucune nouvelle annonce n’attend. Le tableau liste toutes les missions."
-    },
     "facts": {
       "breadcrumb": "Où vous êtes",
       "arena": "Domaine",
@@ -13302,7 +13227,6 @@
       "title": "Avant d’envoyer : {count, plural, =0 {rien trouvé} one {# constat} other {# constats}}",
       "none": "Le contrôle automatique n’a rien signalé. Ce n’est pas un feu vert : la liste de contrôle s’applique toujours.",
       "seen": "vu",
-      "noted": "noté",
       "blocksApprove": "bloque l’approbation",
       "note": "note",
       "goLine": "ligne {line}",
@@ -13313,7 +13237,7 @@
         "info": "Note"
       },
       "noDeliverable": "Aucun livrable n’est revenu. Il n’y a rien à relire.",
-      "sourceInvalidStreak": "{host} a été mis en pause après {streak} rejets d’affilée. Y envoyer davantage de travail allonge cette série.",
+      "sourceInvalidStreak": "{host} a été mis en pause automatiquement après une série de rejets. Y envoyer davantage de travail allonge cette série.",
       "deadlinePassed": "L’annonce a été clôturée le {deadline}. Il n’y a plus nulle part où envoyer ceci.",
       "evidenceFailed": "La preuve {n} ({kind}) a échoué.",
       "evidenceNoCommand": "La preuve {n} ({kind}) n’a pas de commande. C’est le récit de l’agent, pas un journal d’exécution.",
@@ -13329,7 +13253,6 @@
       "lineN": "Ligne {n} :"
     },
     "desk": {
-      "crumbAttempt": "{gig} · tentative {attempt}",
       "drafted": "Rédigé",
       "earlierNote": "Votre note précédente :",
       "noDeliverable": "Cette tentative s’est terminée sans livrable. Il n’y a rien à relire : demandez une révision ou écartez-la.",
@@ -13384,8 +13307,9 @@
     },
     "work": {
       "actionFailed": "Cela n’a pas abouti.",
-      "declinedFlash": "Refusée. Elle reste sur le tableau, hors du pipeline.",
-      "clearedFlash": "Signalement levé selon votre jugement. L’annonce revient en Nouvelle et est qualifiée à nouveau."
+      "declinedFlash": "Refusée. Elle passe dans « A quitté la ligne », hors du pipeline.",
+      "clearedFlash": "Signalement levé selon votre jugement. L’annonce revient en Nouvelle et est qualifiée à nouveau.",
+      "withdrawnFlash": "Retirée. Elle passe dans « A quitté la ligne » ; rien n’a été envoyé."
     },
     "suspectView": {
       "why": "Pourquoi elle a été signalée",
@@ -13398,7 +13322,6 @@
       "urlAsText": "Adresse de l’annonce, sans lien : {url}"
     },
     "recordView": {
-      "sentBy": "Envoyé par vous",
       "whatWentOut": "Ce qui est parti",
       "reviewedFor": "vous l’avez relu pendant {minutes, plural, one {# minute} other {# minutes}}",
       "reviewTimeUnknown": "durée de relecture non enregistrée",
@@ -13440,7 +13363,7 @@
       "sourcePaused": "Sa source : {reason}.",
       "dispatch": "Confier à {name}",
       "itsSpecialist": "son spécialiste",
-      "dispatchedFlash": "Confiée à {name}. Le brouillon apparaîtra dans votre file au retour de l’exécution.",
+      "dispatchedFlash": "Confiée à {name}. Le brouillon apparaîtra sur la ligne sous « Rédigée » au retour de l’exécution.",
       "belowBar": "Sous le seuil de qualification",
       "belowBarHow": "Elle pourra être confiée dès qu’une recherche la qualifie. Il faut pour cela un spécialiste actif dans son domaine et assez de marge avant l’échéance.",
       "hireFor": "Recruter un spécialiste pour {arena}",
@@ -13457,43 +13380,6 @@
       "noReason": "aucun",
       "dispatchWithNote": "Confier à nouveau avec ma note",
       "dispatchAgain": "Confier à nouveau"
-    },
-    "board": {
-      "title": "Tableau : {count, plural, one {# mission} other {# missions}} par étape du cycle de vie",
-      "lede": "Chaque étape est listée, même vide, pour qu’une étape que rien n’a atteinte se lise comme un manque plutôt que comme une ligne absente.",
-      "truncated": "Affichage des {count} missions modifiées le plus récemment.",
-      "searchPlaceholder": "Chercher par titre, organisation, tag ou id",
-      "searchLabel": "Chercher des missions",
-      "arenaFilter": "Domaine",
-      "allArenas": "Tous les domaines",
-      "statusFilter": "Étape",
-      "allSteps": "Toutes les étapes",
-      "shown": "{count} affichées",
-      "col": {
-        "listing": "Annonce",
-        "arena": "Domaine",
-        "reward": "Rémunération (devise d’origine)",
-        "deadline": "Échéance",
-        "specialist": "Spécialiste",
-        "latest": "Dernière tentative"
-      },
-      "step": "{step} · {count}",
-      "stepEmpty": "{step} · rien à cette étape",
-      "suspectChip": "suspecte, impossible à confier",
-      "noSpecialist": "aucun",
-      "noAttempt": "aucune tentative",
-      "back": "Retour au tableau",
-      "attempts": "Tentatives et verdicts",
-      "loadingRecord": "Lecture du dossier de la mission…",
-      "recordFailed": "Impossible de charger le dossier de cette mission.",
-      "neverAttempted": "Jamais tentée",
-      "neverAttemptedBody": "Aucun spécialiste n’a travaillé sur cette annonce.",
-      "recorded": "enregistré le {date}, {source}",
-      "noWords": "Aucun mot n’est venu avec ce verdict.",
-      "openInQueue": "Ouvrir dans la file",
-      "needsNobody": "Cette mission n’attend rien de personne pour l’instant.",
-      "decline": "Refuser",
-      "withdraw": "Retirer"
     },
     "specialists": {
       "title": "Spécialistes",
@@ -13528,7 +13414,9 @@
       "hireNote": "Un spécialiste actif pour le même domaine et la même niche est réutilisé plutôt que recruté deux fois. Le recrutement passe par Personas.",
       "hireFailed": "Le spécialiste n’a pas pu être recruté.",
       "hired": "Recrutement envoyé. Il apparaît ici et devient disponible dès que Personas l’approuve.",
-      "reused": "Un spécialiste actif existe déjà pour ce domaine et cette niche. Il a été réutilisé."
+      "reused": "Un spécialiste actif existe déjà pour ce domaine et cette niche. Il a été réutilisé.",
+      "onTheLine": "Sur la ligne",
+      "nothingOnLine": "Rien sur la ligne pour l’instant."
     },
     "scorecard": {
       "title": "Scorecard : taux de résultats acceptés",
@@ -13549,7 +13437,16 @@
       "noTotal": "Pas de total général : ces devises ne sont jamais additionnées.",
       "disclosureTitle": "Mention",
       "disclosureNote": "Marquer un travail comme envoyé est refusé tant que l’élément de mention d’usage de l’IA n’est pas coché.",
-      "computedAt": "Calculé le {date} à partir des verdicts enregistrés."
+      "computedAt": "Calculé le {date} à partir des verdicts enregistrés.",
+      "rateTitle": "Taux de résultats acceptés",
+      "loading": "Lecture de la scorecard…",
+      "noSpecialists": "Aucun spécialiste recruté pour l’instant.",
+      "moneyWon": "Argent gagné",
+      "noMoney": "Aucun résultat accepté n’a de montant enregistré.",
+      "moneyCount": "{count, plural, one {# paiement} other {# paiements}}",
+      "acceptedNoAmount": "{count, plural, one {# résultat accepté n’a} other {# résultats acceptés n’ont}} aucun montant enregistré.",
+      "disclosure": "Mention d’usage de l’IA cochée sur {percent} du travail envoyé.",
+      "disclosureNone": "Rien d’envoyé pour l’instant, donc pas de taux de mention."
     },
     "sources": {
       "title": "Sources",
@@ -13592,6 +13489,105 @@
         "no_public_api": "Refuse chaque exécution : il n’y a pas d’API publique à lire.",
         "manual_only": "Rien n’est récupéré : transmettez les briefs à la main."
       }
+    },
+    "line": {
+      "needsLabel": "Ce qui attend votre jugement",
+      "need": {
+        "review": "{count, plural, one {brouillon à relire} other {brouillons à relire}}",
+        "suspect": "{count, plural, one {suspecte à trancher} other {suspectes à trancher}}",
+        "record": "{count, plural, one {verdict à saisir} other {verdicts à saisir}}"
+      },
+      "searchLabel": "Chercher des missions",
+      "truncated": "Affichage des {count} missions modifiées le plus récemment.",
+      "needNone": "Rien n’attend votre jugement pour l’instant.",
+      "searchPlaceholder": "Trouver une annonce ( / )",
+      "searchHits": "{count, plural, =0 {aucune annonce ne correspond} one {# annonce correspond} other {# annonces correspondent}}",
+      "filterLabel": "Afficher",
+      "filterAll": "Tout",
+      "filterNeeds": "Ce qui vous attend",
+      "keys": "<kbd>N</kbd> la prochaine chose qui vous attend · <kbd>/</kbd> chercher · <kbd>Échap</kbd> retour depuis une mission",
+      "tableLabel": "Missions par arène et par étape",
+      "corner": "Arène",
+      "owner": {
+        "you": "votre jugement",
+        "scan": "le scan qualifie",
+        "dispatch": "vous confiez",
+        "agent": "chez l’agent",
+        "send": "vous envoyez",
+        "judge": "le juge extérieur"
+      },
+      "leftTheLine": "A quitté la ligne",
+      "leftOwner": "refusées, retirées, expirées",
+      "terminus": "Terminus",
+      "terminusOwner": "acceptées sur tranchées",
+      "cellLabel": "{arena}, {step} : {count, plural, =0 {aucune} one {# mission} other {# missions}}",
+      "noneReached": "jamais atteinte",
+      "noneHere": "aucune ici pour l’instant",
+      "noneLeft": "aucune n’a quitté la ligne",
+      "showMore": "{count, plural, one {Afficher # de plus} other {Afficher # de plus}}",
+      "showFewer": "Afficher moins",
+      "listings": "{count, plural, =0 {aucune annonce} one {# annonce} other {# annonces}}",
+      "specialistsLabel": "Spécialistes",
+      "noSpecialist": "Pas encore de spécialiste.",
+      "hireOne": "En recruter un",
+      "sourcesLabel": "Sources",
+      "noSource": "Pas encore de source.",
+      "polling": "interrogée",
+      "costPerAccepted": "{cost} par acceptée",
+      "noAcceptedCost": "pas encore de coût par acceptée",
+      "toScorecard": "Ouvrir dans la scorecard"
+    },
+    "card": {
+      "blockers": "{blockers, plural, one {# blocage} other {# blocages}}{warns, plural, =0 {} other { · # à vérifier}}",
+      "warns": "{count, plural, one {# point à vérifier} other {# points à vérifier}}",
+      "approved": "Approuvé par vous, pas encore envoyé",
+      "review": "prête pour votre relecture",
+      "revision": "révision demandée",
+      "running": "pas encore de livrable",
+      "failed": "dernière exécution échouée",
+      "pending": "verdict attendu · {when}",
+      "closed": "clôturée",
+      "daysLeft": "{days, plural, one {encore # jour} other {encore # jours}}",
+      "quarantined": "en quarantaine, impossible à confier",
+      "by": "traitée par {name}"
+    },
+    "detail": {
+      "dismiss": "Fermer",
+      "loadingRecord": "Lecture du dossier de la mission…",
+      "recordFailed": "Impossible de charger le dossier de cette mission.",
+      "neverAttempted": "Jamais tentée",
+      "neverAttemptedBody": "Aucun spécialiste n’a travaillé sur cette annonce.",
+      "recorded": "enregistré le {date}, {source}",
+      "noWords": "Aucun mot n’est venu avec ce verdict.",
+      "needsNobody": "Cette mission n’attend rien de personne pour l’instant.",
+      "decline": "Refuser",
+      "withdraw": "Retirer",
+      "back": "Retour à la ligne",
+      "crumbRoot": "Missions",
+      "listing": "L’annonce",
+      "journey": "Le parcours jusqu’ici",
+      "nextMove": "La suite",
+      "listed": "Publiée",
+      "postedUnknown": "date de publication non indiquée",
+      "attemptN": "Tentative {n} par {name}",
+      "sentAt": "envoyée par vous le {date}",
+      "amountUnknown": "montant non saisi",
+      "restingJudged": "Le juge extérieur a tranché",
+      "restingLeft": "Hors de la ligne",
+      "offLine": "Retirer de la ligne",
+      "offLineNote": "Refuser ou retirer la mission la place dans « A quitté la ligne ». Rien n’est envoyé nulle part.",
+      "notFoundTitle": "Cette mission n’est pas dans la liste",
+      "notFound": "Elle est peut-être sortie de la fenêtre que l’onglet lit. Revenez à la ligne et actualisez.",
+      "escKey": "Échap"
+    },
+    "legend": {
+      "label": "Ce que signifient les marques et les cadres",
+      "marks": "Marques",
+      "cards": "Cartes",
+      "rewardStated": "rémunération indiquée",
+      "rewardNotStated": "rémunération non indiquée",
+      "suspect": "suspecte, en quarantaine",
+      "edge": "bord gauche : le spécialiste, nommé dans l’étiquette de chaque arène"
     }
   }
 }

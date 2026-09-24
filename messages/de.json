@@ -13040,8 +13040,7 @@
     },
     "views": {
       "label": "Ansichten für Aufträge",
-      "queue": "Warteschlange",
-      "board": "Board",
+      "line": "Die Linie",
       "specialists": "Spezialisten",
       "scorecard": "Scorecard",
       "sources": "Quellen"
@@ -13201,80 +13200,6 @@
       "unmeasured": "Nicht gemessen, noch nichts entschieden",
       "unmeasuredShort": "Nicht gemessen"
     },
-    "rail": {
-      "label": "Scorecard",
-      "title": "Quote angenommener Ergebnisse",
-      "loading": "Scorecard wird gelesen…",
-      "resolvedLine": "{percent} der entschiedenen, n = {n}",
-      "nothingResolved": "Noch kein Urteil erfasst. Eine Quote erscheint mit dem ersten.",
-      "nothingSent": "Noch nichts gesendet",
-      "byArena": "Nach Bereich",
-      "bySpecialist": "Nach Spezialist",
-      "noSpecialists": "Noch keine Spezialisten eingestellt.",
-      "moneyWon": "Gewonnenes Geld",
-      "noMoney": "Kein angenommenes Ergebnis hat einen erfassten Betrag.",
-      "moneyCount": "{count, plural, one {# Auszahlung} other {# Auszahlungen}}",
-      "neverSummed": "Je Währung geführt, nie zusammengerechnet.",
-      "acceptedNoAmount": "{count, plural, one {# angenommenes Ergebnis hat} other {# angenommene Ergebnisse haben}} keinen erfassten Betrag.",
-      "disclosure": "Hinweis auf KI-Nutzung bei {percent} der gesendeten Arbeit angehakt.",
-      "disclosureNone": "Noch nichts gesendet, daher keine Hinweisquote."
-    },
-    "queue": {
-      "tilesLabel": "Was Ihr Urteil braucht",
-      "tile": {
-        "review": "{count, plural, one {Entwurf zu prüfen} other {Entwürfe zu prüfen}}",
-        "suspect": "verdächtig, zu klären",
-        "record": "{count, plural, one {Ergebnis zu erfassen} other {Ergebnisse zu erfassen}}",
-        "triage": "neu zu sichten"
-      },
-      "tileSub": {
-        "review": "Lesen, abhaken, freigeben oder zurückgeben",
-        "suspect": "Kann erst nach Ihrer Klärung übergeben werden",
-        "record": "Von Ihnen gesendet, noch kein Urteil",
-        "triage": "Übergeben oder ablehnen"
-      },
-      "agentsTitle": "Bei den Agenten, nicht bei Ihnen",
-      "agentsLine": "laufend: {running} · nicht übergebene Überarbeitungen: {revision} · fehlgeschlagene Läufe: {failed}",
-      "agentsNone": "Bei den Agenten liegt nichts.",
-      "dismiss": "Schließen",
-      "railLabel": "Warteschlange",
-      "workspaceLabel": "Arbeitsbereich",
-      "group": {
-        "review": "Entwürfe zu prüfen",
-        "suspect": "Verdächtige Ausschreibungen zu klären",
-        "record": "Ergebnisse zu erfassen",
-        "triage": "Neue Ausschreibungen zu sichten",
-        "running": "Bei den Agenten: laufend",
-        "revision": "Bei den Agenten: Überarbeitungen",
-        "failed": "Fehlgeschlagene Läufe"
-      },
-      "empty": {
-        "review": "Kein Entwurf wartet auf Sie.",
-        "suspect": "Keine Ausschreibung ist markiert.",
-        "record": "Jeder gesendete Entwurf hat ein Urteil.",
-        "triage": "Keine neuen Ausschreibungen.",
-        "running": "Kein Lauf in Arbeit.",
-        "revision": "Keine Überarbeitung wartet auf Übergabe.",
-        "failed": "Keine fehlgeschlagenen Läufe."
-      },
-      "meta": {
-        "review": "von {name} · entworfen {when}",
-        "approved": "Von Ihnen freigegeben, noch nicht gesendet",
-        "record": "gesendet {date} · {when}",
-        "qualified": "Qualifiziert, bereit zur Übergabe",
-        "belowBar": "Unter der Qualifizierungsschwelle",
-        "running": "übergeben {date} · noch kein Ergebnis",
-        "revision": "Ihre Notiz ist erfasst, noch kein neuer Versuch",
-        "failed": "ohne Ergebnis beendet"
-      },
-      "flagBlockers": "{blockers, plural, one {# Blocker} other {# Blocker}}{warns, plural, =0 {} other { · # zu prüfen}}",
-      "flagWarns": "{count, plural, one {# Punkt zu prüfen} other {# Punkte zu prüfen}}",
-      "keys": "<kbd>J</kbd> <kbd>K</kbd> weiter und zurück · <kbd>1</kbd> bis <kbd>6</kbd> Checkliste abhaken",
-      "pickTitle": "Wählen Sie etwas aus der Warteschlange",
-      "pickBody": "Drücken Sie J, um mit dem ältesten Eintrag zu beginnen, oder wählen Sie oben eine Kachel.",
-      "emptyTitle": "Nichts wartet auf Sie",
-      "emptyBody": "Kein Entwurf, keine verdächtige Ausschreibung, kein Ergebnis und keine neue Ausschreibung wartet. Das Board zeigt alle Aufträge."
-    },
     "facts": {
       "breadcrumb": "Wo Sie sind",
       "arena": "Bereich",
@@ -13302,7 +13227,6 @@
       "title": "Vor dem Senden: {count, plural, =0 {nichts gefunden} one {# Befund} other {# Befunde}}",
       "none": "Die automatische Prüfung hat nichts markiert. Das ist keine Freigabe: die Checkliste gilt weiterhin.",
       "seen": "gesehen",
-      "noted": "zur Kenntnis genommen",
       "blocksApprove": "blockiert die Freigabe",
       "note": "Hinweis",
       "goLine": "Zeile {line}",
@@ -13313,7 +13237,7 @@
         "info": "Hinweis"
       },
       "noDeliverable": "Es kam kein Ergebnis zurück. Es gibt nichts zu prüfen.",
-      "sourceInvalidStreak": "{host} wurde nach {streak} Zurückweisungen in Folge pausiert. Weitere Arbeit dorthin verlängert diese Serie.",
+      "sourceInvalidStreak": "{host} wurde nach einer Serie von Zurückweisungen automatisch pausiert. Weitere Arbeit dorthin verlängert diese Serie.",
       "deadlinePassed": "Die Ausschreibung wurde am {deadline} geschlossen. Es gibt keinen Ort mehr, an den dies gesendet werden kann.",
       "evidenceFailed": "Nachweis {n} ({kind}) ist fehlgeschlagen.",
       "evidenceNoCommand": "Nachweis {n} ({kind}) hat keinen Befehl. Das ist die Darstellung des Agenten, kein Laufprotokoll.",
@@ -13329,7 +13253,6 @@
       "lineN": "Zeile {n}:"
     },
     "desk": {
-      "crumbAttempt": "{gig} · Versuch {attempt}",
       "drafted": "Entworfen",
       "earlierNote": "Ihre frühere Notiz:",
       "noDeliverable": "Dieser Versuch endete ohne Ergebnis. Es gibt nichts zu prüfen: fordern Sie eine Überarbeitung an oder verwerfen Sie ihn.",
@@ -13384,8 +13307,9 @@
     },
     "work": {
       "actionFailed": "Das hat nicht geklappt.",
-      "declinedFlash": "Abgelehnt. Er bleibt auf dem Board, außerhalb der Pipeline.",
-      "clearedFlash": "Markierung nach Ihrem Urteil aufgehoben. Die Ausschreibung ist zurück bei Neu und wird erneut qualifiziert."
+      "declinedFlash": "Abgelehnt. Er wandert nach „Hat die Linie verlassen“, außerhalb der Pipeline.",
+      "clearedFlash": "Markierung nach Ihrem Urteil aufgehoben. Die Ausschreibung ist zurück bei Neu und wird erneut qualifiziert.",
+      "withdrawnFlash": "Zurückgezogen. Er wandert nach „Hat die Linie verlassen“; es wurde nichts gesendet."
     },
     "suspectView": {
       "why": "Warum sie markiert wurde",
@@ -13398,7 +13322,6 @@
       "urlAsText": "Adresse der Ausschreibung, nicht verlinkt: {url}"
     },
     "recordView": {
-      "sentBy": "Von Ihnen gesendet",
       "whatWentOut": "Was hinausging",
       "reviewedFor": "Sie haben {minutes, plural, one {# Minute} other {# Minuten}} geprüft",
       "reviewTimeUnknown": "Prüfdauer nicht erfasst",
@@ -13440,7 +13363,7 @@
       "sourcePaused": "Ihre Quelle: {reason}.",
       "dispatch": "An {name} übergeben",
       "itsSpecialist": "ihren Spezialisten",
-      "dispatchedFlash": "An {name} übergeben. Der Entwurf erscheint in Ihrer Warteschlange, wenn der Lauf zurückkommt.",
+      "dispatchedFlash": "An {name} übergeben. Der Entwurf erscheint auf der Linie unter „Entworfen“, wenn der Lauf zurückkommt.",
       "belowBar": "Unter der Qualifizierungsschwelle",
       "belowBarHow": "Sie kann übergeben werden, sobald eine Suche sie qualifiziert. Dafür braucht es einen aktiven Spezialisten in ihrem Bereich und genug Zeit bis zur Frist.",
       "hireFor": "Einen Spezialisten für {arena} einstellen",
@@ -13457,43 +13380,6 @@
       "noReason": "keiner erfasst",
       "dispatchWithNote": "Mit meiner Notiz erneut übergeben",
       "dispatchAgain": "Erneut übergeben"
-    },
-    "board": {
-      "title": "Board: {count, plural, one {# Auftrag} other {# Aufträge}} nach Lebenszyklus-Schritt",
-      "lede": "Jeder Schritt wird aufgeführt, auch leere, damit ein Schritt, den nichts erreicht hat, als Lücke und nicht als fehlende Zeile erscheint.",
-      "truncated": "Es werden die {count} zuletzt geänderten Aufträge gezeigt.",
-      "searchPlaceholder": "Nach Titel, Organisation, Tag oder ID suchen",
-      "searchLabel": "Aufträge durchsuchen",
-      "arenaFilter": "Bereich",
-      "allArenas": "Alle Bereiche",
-      "statusFilter": "Schritt",
-      "allSteps": "Alle Schritte",
-      "shown": "{count} angezeigt",
-      "col": {
-        "listing": "Ausschreibung",
-        "arena": "Bereich",
-        "reward": "Vergütung (eigene Währung)",
-        "deadline": "Frist",
-        "specialist": "Spezialist",
-        "latest": "Letzter Versuch"
-      },
-      "step": "{step} · {count}",
-      "stepEmpty": "{step} · nichts in diesem Schritt",
-      "suspectChip": "verdächtig, nicht übergebbar",
-      "noSpecialist": "keiner",
-      "noAttempt": "kein Versuch",
-      "back": "Zurück zum Board",
-      "attempts": "Versuche und Urteile",
-      "loadingRecord": "Akte des Auftrags wird gelesen…",
-      "recordFailed": "Die Akte des Auftrags konnte nicht geladen werden.",
-      "neverAttempted": "Nie versucht",
-      "neverAttemptedBody": "Kein Spezialist hat an dieser Ausschreibung gearbeitet.",
-      "recorded": "erfasst {date}, {source}",
-      "noWords": "Mit diesem Urteil kamen keine Worte.",
-      "openInQueue": "In der Warteschlange öffnen",
-      "needsNobody": "Dieser Auftrag braucht gerade von niemandem etwas.",
-      "decline": "Ablehnen",
-      "withdraw": "Zurückziehen"
     },
     "specialists": {
       "title": "Spezialisten",
@@ -13528,7 +13414,9 @@
       "hireNote": "Ein aktiver Spezialist für denselben Bereich und dieselbe Nische wird wiederverwendet statt doppelt eingestellt. Die Einstellung läuft über Personas.",
       "hireFailed": "Der Spezialist konnte nicht eingestellt werden.",
       "hired": "Einstellung gesendet. Sie erscheint hier und ist verfügbar, sobald Personas sie freigibt.",
-      "reused": "Für diesen Bereich und diese Nische gibt es bereits einen aktiven Spezialisten. Er wurde wiederverwendet."
+      "reused": "Für diesen Bereich und diese Nische gibt es bereits einen aktiven Spezialisten. Er wurde wiederverwendet.",
+      "onTheLine": "Auf der Linie",
+      "nothingOnLine": "Noch nichts auf der Linie."
     },
     "scorecard": {
       "title": "Scorecard: Quote angenommener Ergebnisse",
@@ -13549,7 +13437,16 @@
       "noTotal": "Keine Gesamtsumme: diese Währungen werden nie addiert.",
       "disclosureTitle": "Hinweis",
       "disclosureNote": "Arbeit kann erst als gesendet markiert werden, wenn der Punkt zum Hinweis auf KI-Nutzung angehakt ist.",
-      "computedAt": "Berechnet am {date} aus den erfassten Urteilen."
+      "computedAt": "Berechnet am {date} aus den erfassten Urteilen.",
+      "rateTitle": "Quote angenommener Ergebnisse",
+      "loading": "Scorecard wird gelesen…",
+      "noSpecialists": "Noch keine Spezialisten eingestellt.",
+      "moneyWon": "Gewonnenes Geld",
+      "noMoney": "Kein angenommenes Ergebnis hat einen erfassten Betrag.",
+      "moneyCount": "{count, plural, one {# Auszahlung} other {# Auszahlungen}}",
+      "acceptedNoAmount": "{count, plural, one {# angenommenes Ergebnis hat} other {# angenommene Ergebnisse haben}} keinen erfassten Betrag.",
+      "disclosure": "Hinweis auf KI-Nutzung bei {percent} der gesendeten Arbeit angehakt.",
+      "disclosureNone": "Noch nichts gesendet, daher keine Hinweisquote."
     },
     "sources": {
       "title": "Quellen",
@@ -13592,6 +13489,105 @@
         "no_public_api": "Lehnt jeden Lauf ab: es gibt keine öffentliche API zum Lesen.",
         "manual_only": "Nichts wird abgerufen: Aufträge von Hand weiterleiten."
       }
+    },
+    "line": {
+      "needsLabel": "Was Ihr Urteil braucht",
+      "need": {
+        "review": "{count, plural, one {Entwurf zu prüfen} other {Entwürfe zu prüfen}}",
+        "suspect": "{count, plural, one {Verdachtsfall zu klären} other {Verdachtsfälle zu klären}}",
+        "record": "{count, plural, one {Urteil zu erfassen} other {Urteile zu erfassen}}"
+      },
+      "searchLabel": "Aufträge durchsuchen",
+      "truncated": "Es werden die {count} zuletzt geänderten Aufträge gezeigt.",
+      "needNone": "Gerade braucht nichts Ihr Urteil.",
+      "searchPlaceholder": "Ausschreibung finden ( / )",
+      "searchHits": "{count, plural, =0 {keine Ausschreibung passt} one {# Ausschreibung passt} other {# Ausschreibungen passen}}",
+      "filterLabel": "Zeigen",
+      "filterAll": "Alles",
+      "filterNeeds": "Was Sie braucht",
+      "keys": "<kbd>N</kbd> das Nächste, das Sie braucht · <kbd>/</kbd> suchen · <kbd>Esc</kbd> zurück aus einem Auftrag",
+      "tableLabel": "Aufträge nach Arena und Schritt",
+      "corner": "Arena",
+      "owner": {
+        "you": "Ihr Urteil",
+        "scan": "der Scan qualifiziert",
+        "dispatch": "Sie übergeben",
+        "agent": "beim Agenten",
+        "send": "Sie senden",
+        "judge": "das externe Urteil"
+      },
+      "leftTheLine": "Hat die Linie verlassen",
+      "leftOwner": "abgelehnt, zurückgezogen, abgelaufen",
+      "terminus": "Endstation",
+      "terminusOwner": "angenommen von entschiedenen",
+      "cellLabel": "{arena}, {step}: {count, plural, =0 {keiner} one {# Auftrag} other {# Aufträge}}",
+      "noneReached": "nie erreicht",
+      "noneHere": "gerade keiner hier",
+      "noneLeft": "keiner hat die Linie verlassen",
+      "showMore": "{count, plural, one {# weiteren zeigen} other {# weitere zeigen}}",
+      "showFewer": "Weniger zeigen",
+      "listings": "{count, plural, =0 {keine Ausschreibungen} one {# Ausschreibung} other {# Ausschreibungen}}",
+      "specialistsLabel": "Spezialisten",
+      "noSpecialist": "Noch kein Spezialist.",
+      "hireOne": "Einen einstellen",
+      "sourcesLabel": "Quellen",
+      "noSource": "Noch keine Quelle.",
+      "polling": "wird abgefragt",
+      "costPerAccepted": "{cost} pro Annahme",
+      "noAcceptedCost": "noch keine Kosten pro Annahme",
+      "toScorecard": "In der Scorecard öffnen"
+    },
+    "card": {
+      "blockers": "{blockers, plural, one {# Blocker} other {# Blocker}}{warns, plural, =0 {} other { · # zu prüfen}}",
+      "warns": "{count, plural, one {# Punkt zu prüfen} other {# Punkte zu prüfen}}",
+      "approved": "Von Ihnen freigegeben, noch nicht gesendet",
+      "review": "bereit für Ihre Prüfung",
+      "revision": "Überarbeitung angefordert",
+      "running": "noch kein Ergebnis",
+      "failed": "letzter Lauf fehlgeschlagen",
+      "pending": "wartet auf Urteil · {when}",
+      "closed": "geschlossen",
+      "daysLeft": "{days, plural, one {noch # Tag} other {noch # Tage}}",
+      "quarantined": "in Quarantäne, nicht übergebbar",
+      "by": "bearbeitet von {name}"
+    },
+    "detail": {
+      "dismiss": "Schließen",
+      "loadingRecord": "Akte des Auftrags wird gelesen…",
+      "recordFailed": "Die Akte des Auftrags konnte nicht geladen werden.",
+      "neverAttempted": "Nie versucht",
+      "neverAttemptedBody": "Kein Spezialist hat an dieser Ausschreibung gearbeitet.",
+      "recorded": "erfasst {date}, {source}",
+      "noWords": "Mit diesem Urteil kamen keine Worte.",
+      "needsNobody": "Dieser Auftrag braucht gerade von niemandem etwas.",
+      "decline": "Ablehnen",
+      "withdraw": "Zurückziehen",
+      "back": "Zurück zur Linie",
+      "crumbRoot": "Aufträge",
+      "listing": "Die Ausschreibung",
+      "journey": "Der bisherige Weg",
+      "nextMove": "Wie es weitergeht",
+      "listed": "Veröffentlicht",
+      "postedUnknown": "Veröffentlichungsdatum nicht angegeben",
+      "attemptN": "Versuch {n} von {name}",
+      "sentAt": "von Ihnen gesendet {date}",
+      "amountUnknown": "Betrag nicht erfasst",
+      "restingJudged": "Das externe Urteil ist gefallen",
+      "restingLeft": "Nicht mehr auf der Linie",
+      "offLine": "Von der Linie nehmen",
+      "offLineNote": "Ablehnen oder Zurückziehen verschiebt den Auftrag nach „Hat die Linie verlassen“. Es wird nichts gesendet.",
+      "notFoundTitle": "Dieser Auftrag ist nicht in der Liste",
+      "notFound": "Er ist vielleicht aus dem Fenster gerutscht, das der Tab liest. Gehen Sie zurück zur Linie und aktualisieren Sie.",
+      "escKey": "Esc"
+    },
+    "legend": {
+      "label": "Was Zeichen und Rahmen bedeuten",
+      "marks": "Zeichen",
+      "cards": "Karten",
+      "rewardStated": "Vergütung angegeben",
+      "rewardNotStated": "Vergütung nicht angegeben",
+      "suspect": "verdächtig, in Quarantäne",
+      "edge": "linker Rand: der Spezialist, im Etikett jeder Arena genannt"
     }
   }
 }

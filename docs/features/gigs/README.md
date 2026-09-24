@@ -77,80 +77,128 @@ imports from it.
 
 ## The Gigs tab
 
-Built from the owner's pick of a blind design contest: the "Judgement Queue" layout, with
-two borrowings, the always-visible scorecard rail and the margin marks on the draft. Every
-read and write goes through the routes below. A failure renders from its `code` through
-`useErrorMessage()`, never from the server's `error` string. Strings live under the `gigs`
-catalog namespace in all four locales.
+Built from the owner's verdict on a blind design contest: **"The Line" is what the tab opens
+on**, and the "Judgement Queue" entry supplies the gig, desk, scorecard and specialists
+screens, each as a **full page**. A page replaces the one before it; nothing slides over
+the wall (no drawer, no split pane, no modal). Every read and write goes through the routes
+below. A failure renders from its `code` through `useErrorMessage()`, never from the
+server's `error` string. Strings live under the `gigs` catalog namespace in all four
+locales (`line.*` the wall, `card.*` its cards, `detail.*` a gig's page, `legend.*`).
 
-1. **Queue (home).** Four count tiles name the judgements owed: drafts to review, suspect
-   listings to clear, outcomes to record, new listings to triage. The tiles are also the
-   navigation: a tile filters the rail and opens its oldest item. The queue rail groups
-   every open item by who acts next (`gigsLogic.ts` `queueKindOf`). Work sitting with the
-   agents (a run in flight, a revision not yet dispatched, a failed run) has its own line
-   and its own dashed box, and never counts toward the tiles. `J`/`K` move through the
-   rail. The keys stand down while a field has focus, a modal is open or a `g` chord is
-   in progress.
-2. **Desk (a drafted attempt).** A breadcrumb, then a meta row that states each absence
-   ("reward not stated", "no deadline stated", "none matched yet"). Then:
-   - the **pre-send lint strip**, from `app/_lib/gigs/draft-lint.ts` (below);
-   - the **evidence** the agent ran, in three states: passed, failed and **not verified**
-     (`passed: null` is never painted as a failure). "No command" is called out as the
-     agent's account rather than a run log;
-   - the **draft as a numbered galley**. Each line-anchored finding is a **margin mark
-     beside its line** with a "noted" tick, and the words it refers to are underlined. A
-     second tab shows the listing it answers, as untrusted text (below);
-   - the arena **checklist** (`checklists.ts`, labels under `gigs.check.*`; keys `1` to `6`
-     toggle it), the **disclosure sentence** as it will go out, the agent's questions, and
-     a **revision note** textarea. A revision needs the note: the desk says so inline and
-     focuses the field (there is no `window.prompt`).
-   - **Approve** stays disabled while any blocker is open, any checklist item is unticked
-     or any warn is not marked seen, and its label says which ("Approve (checklist 3/6)").
-     Approving sends nothing. The approved card shows a link to the listing and **Mark
-     sent**, locked the same way ("Mark sent (checklist 5/6)"). Request a revision and
-     discard (with an inline confirm) stay available. Each move sends the review: the
-     ticks, the note and the time spent on the card.
-   - Ticks and "seen" marks are React state inside the card (`GigsDesk.tsx`). Ticking a
-     box re-renders the card, not the tab, so the page keeps its scroll. A tab-level map
-     keeps a half-reviewed card's state when the operator steps away and comes back.
-3. **Suspect listing.** Its reasons (`gigs.suspectWhy.*`), the untrusted text, and **no
-   dispatch control at all**, not even a disabled one. There is only "decline" and "clear
-   the flag", the second after ticking "I read the listing and judge it legitimate".
-4. **Outcome to record.** What went out (the summary, the disclosure that went with it,
-   the review note and review time), then the verdict (accepted, rejected, duplicate, no
-   response, each with its outcome mark), an optional amount in its own currency, and the
-   judge's own words. After the POST the tab re-reads `/api/gigs/kpi` and says how the rate
-   moved ("Rate 2/5 → 3/6, pending 4 → 3"), and names the source when the verdict paused it.
-5. **New to triage.** A `new` gig below the qualification bar (its score, the factors, who
-   could take it, and a link to hire a specialist for its arena), or a `qualified` gig with
-   no run yet ("Dispatch to <specialist>"). Both can be declined.
-6. **Board.** Every gig grouped by lifecycle step. All twelve steps are shown, empty ones
-   as "none at this step". Search (title, org, tag, id) plus arena and step filters. A row
-   opens the gig's record: the listing, every attempt with its cost, every appended verdict
-   with its source and the judge's words, "Open in the queue" when someone owes it
-   something, and decline or withdraw where `transitions.ts` allows them.
-7. **Specialists.** A hire form (arena and niche) and one card per specialist: arena, niche
-   and taxonomy family, where its recipes came from (the registry, or the seed map when the
-   registry was unavailable), the hired-agent status from Personas, its accepted-of-resolved
-   fraction with pending and outcome marks, drafts waiting, cost per accepted, budget,
-   connectors, and every adopted recipe as `slug@version`.
-8. **Scorecard.** By arena (with an all-arenas row) and by specialist: accepted of resolved,
-   pending beside it, the small-sample chip under 10 resolved, a mark per sent draft, cost
-   per accepted and the count of runs that never reported a cost. Money won is listed per
-   currency with no grand total. The disclosure rate is shown.
-9. **Sources.** Each source's tier, running or paused state and why, its rejected streak
-   against the limit, and its last run. A tier-B source that is not acknowledged, or whose
-   summary changed, shows the catalog's terms summary as written, a link to the original
-   terms and the full `termsHash` the acknowledgement records, behind an "I read this
-   summary" tick. A source that reads a key names its environment variables (never their
-   values) and its keyless behaviour. Every catalog adapter can be added from here.
+A strip of four screens sits under the tab header: **The line**, **Scorecard**,
+**Specialists**, **Sources** (`GigsTab.tsx`).
 
-The **scorecard rail** is visible on every screen: on the right at 2xl widths, as a band
-above the content below that. It shows the whole desk's accepted-of-resolved with its
-percentage and n, pending counted apart, the small-sample chip, a mark per sent draft, the
-fraction per arena and per specialist, money won per currency ("never added together") and
-the disclosure rate. It reads the server's fold, re-read after every write that moves an
-outcome.
+1. **The line (home, `GigsWall.tsx` + `GigsWallCells.tsx`).** One wall for the whole
+   program. **Arenas are rows** (all four, an empty one included), each opened by a sticky
+   label: the arena, its listing count, its specialists (each beside its edge swatch, a
+   button to its card on the Specialists page, or "Hire one" when there is none), and its
+   sources with their state ("polling", or the pause reason). **The canonical steps are
+   columns**: New, Suspect, Qualified, Dispatched, Drafted, In review, Sent, Accepted,
+   Rejected (`gigsLogic.ts` `LINE_STEPS`), then **Left the line** (declined, withdrawn and
+   expired, grouped under their own heads) and a **terminus** per arena: accepted of
+   resolved, the percentage beside its n with the small-sample chip, a mark per sent draft,
+   pending apart, cost per accepted and the runs that never reported a cost, and a door to
+   the scorecard opened on that arena.
+   - **Who owns the next move** is printed under every column head (`STEP_OWNER`). Suspect,
+     Drafted and Sent carry the coral **"your judgment" band** (a rule on the head and a tint
+     down the column). The others say it in words: "the scan qualifies", "you dispatch",
+     "with the agent", "you send it", "the outside judge".
+   - **Two empty cells, never alike** (`reachedStep`). "none reached" is a hatched, dashed
+     box: no gig of that arena ever got to the step. "none here now" is a short rule and a
+     line of text: the arena got there and moved on (read off each gig's status, or its
+     latest attempt when it left the line).
+   - **A card's frame carries provenance.** A solid border means the listing stated its
+     reward; a dashed border means it did not (and the card says "reward not stated"). A
+     suspect card is hatched with the critical tint and says "quarantined, not
+     dispatchable" beside a lock. The **left edge** names the specialist: six tones and three
+     patterns (solid, dashed, a double rule), stable per specialist (`specialistEdgeIndex`,
+     by hire date), named beside the same swatch in the row label. The card's one flag
+     names the next move in words: "1 blocker · 2 to check" (from the pre-send lint),
+     "approved, not sent", "revision asked", "no deliverable yet", "last run failed",
+     "awaiting verdict · 3 days ago", or the verdict with its mark. Deadlines show as
+     "5 days left" (amber at 3 or fewer) or "closed". A cell shows six cards, then "Show N
+     more".
+   - **The header** counts what needs the operator, as buttons: drafts to review, suspects
+     to clear, verdicts to record (`NEED_KINDS`). Each opens the oldest such gig. `N` opens
+     the next one after the gig last opened (`nextNeed`), wrapping round. `/` focuses the
+     search (title, org, id, niche, tags): matches stay lit and outlined, the rest dim and
+     stay reachable. A filter ("Everything" / "What needs you") dims the cards that need
+     nobody. The whole desk's rate sits at the right. A compact legend is always on screen:
+     the outcome marks, the three card frames and the edge.
+   - **The wall scrolls inside its own frame** on both axes, with the arena labels pinned
+     left and the column heads pinned on top; the page never scrolls sideways. Keys stand
+     down while a field has focus, a modal is open or a `g` chord is in progress.
+2. **A gig's page (`GigsDetail.tsx`).** Clicking a card replaces the wall with the gig's
+   full page. A bar on top: "Back to the line" (also `Esc`) and the breadcrumb "Gigs /
+   <arena> / <title>" (either crumb goes back; the arena crumb lands on that arena's row).
+   The wall comes back exactly as it was left: the tab holds its search, filter and
+   opened-out cells, and the frame's and the page's scroll are restored before the first
+   paint, with the opened card outlined and focused. The page itself is one of two:
+   - **The review desk (`GigsDesk.tsx`)**, for a drafted or approved gig. The meta row states
+     each absence ("reward not stated", "no deadline stated", "none matched yet"). Then:
+     - the **pre-send lint strip**, from `app/_lib/gigs/draft-lint.ts` (below). Each finding
+       links to the words it refers to or to its evidence item;
+     - the **evidence** the agent ran, in three states: passed, failed and **not verified**
+       (`passed: null` is never painted as a failure). "No command" is called out as the
+       agent's account rather than a run log;
+     - the **draft as a numbered galley**, typeset as the recipient reads it: a line a
+       finding refers to carries the finding's severity shape in the gutter and its words
+       underlined. A second tab shows the listing it answers, as untrusted text (below);
+     - the arena **checklist** (`checklists.ts`, labels under `gigs.check.*`; keys `1` to
+       `6` toggle it), the **disclosure sentence** as it will go out, the agent's
+       questions, and a **revision note** textarea. A revision needs the note: the desk
+       says so inline and focuses the field (there is no `window.prompt`);
+     - **Approve** stays disabled while any blocker is open, any checklist item is unticked
+       or any warn is not marked seen, and its label says which ("Approve (checklist
+       3/6)"). Approving sends nothing: it reads "Approve: I will send it myself". The
+       approved desk shows a link to the listing and **Mark sent**, locked the same way
+       ("Mark sent (checklist 5/6)"). Request a revision and discard (with an inline
+       confirm) stay available. Each move sends the review: the ticks, the note and the
+       time spent on the card. Ticks and "seen" marks are React state inside the desk; a
+       tab-level map keeps a half-reviewed desk's state across a trip back to the line.
+   - **The gig's page (`GigsGigPage.tsx`)**, for every other status. On the left, the
+     listing as untrusted text and **the journey so far**, read fresh from
+     `GET /api/gigs/[id]`: listed, every attempt (specialist, status, date, cost, failure
+     reason, revision and review notes) and every verdict appended to it with its source,
+     amount and the judge's own words, a pending mark while none is recorded. On the right,
+     **what happens next**, by status (`GigsWorkViews.tsx`):
+     - **suspect:** its reasons (`gigs.suspectWhy.*`) and **no dispatch control at all**,
+       not even a disabled one; only "decline" and "clear the flag", the second after
+       ticking "I read the listing and judge it legitimate";
+     - **new or qualified:** who could take it (each specialist's rate) and "Dispatch to
+       <specialist>", or, below the qualification bar, how it qualifies and a link to hire
+       a specialist for its arena; decline;
+     - **sent:** what went out (the summary, the disclosure that went with it, the review
+       note and time), then the verdict (accepted, rejected, duplicate, no response, each
+       with its mark), an optional amount in its own currency and the judge's own words.
+       After the POST the tab re-reads `/api/gigs/kpi` and says how the rate moved ("Rate
+       2/5 → 3/6, pending 4 → 3"), and names the source when the verdict paused it;
+     - **with an agent:** a run in flight ("not yet", not "empty"), a revision not
+       dispatched or a failed run, with "dispatch again" where it applies;
+     - **resting:** judged or off the line, needing nobody.
+
+     Below it, the deterministic **qualification** factor by factor, and decline or
+     withdraw wherever `transitions.ts` still allows them.
+3. **Scorecard (`GigsScorecard.tsx`).** A full page: by arena (with an all-arenas row) and
+   by specialist, accepted of resolved, pending beside it, the small-sample chip under 10
+   resolved, a mark per sent draft, cost per accepted and the count of runs that never
+   reported a cost. Money won is listed per currency with no grand total. The disclosure
+   rate is shown. Opened from a terminus, the arena's row is marked and brought into view.
+4. **Specialists (`GigsSpecialists.tsx`).** A full page: a hire form (arena and niche) and
+   one card per specialist, with its edge swatch: arena, niche and taxonomy family, where
+   its recipes came from (the registry, or the seed map when the registry was unavailable),
+   the hired-agent status from Personas, its rate strip (accepted of resolved, pending,
+   outcome marks), drafts waiting, cost per accepted, budget, connectors, every adopted
+   recipe as `slug@version`, and every gig it holds on the line (each opens that gig's
+   page). Opened from a row label, that specialist's card is marked and scrolled to;
+   opened from "Hire one", the form starts on that arena.
+5. **Sources (`GigsSources.tsx`).** Each source's tier, running or paused state and why, its
+   rejected streak against the limit, and its last run. A tier-B source that is not
+   acknowledged, or whose summary changed, shows the catalog's terms summary as written, a
+   link to the original terms and the full `termsHash` the acknowledgement records, behind
+   an "I read this summary" tick. A source that reads a key names its environment
+   variables (never their values) and its keyless behaviour. Every catalog adapter can be
+   added from here.
 
 **Untrusted text.** A listing is always plain text in a dashed frame tagged "Untrusted".
 Links are text and never followed, and every zero-width or direction-control character
@@ -158,7 +206,8 @@ renders as a visible `U+XXXX` marker (`gigsLogic.ts` `revealInvisible`).
 
 **Marks differ by shape, not only colour.** Accepted is a filled disc, rejected a struck
 ring, duplicate two rings, no response a dotted ring, pending a dashed ring. Lint
-severities do the same: a filled square, an outlined diamond, a circled "i".
+severities do the same: a filled square, an outlined diamond, a circled "i". The specialist
+edge pairs each tone with a pattern for the same reason.
 
 ### The pre-send lint
 
@@ -225,7 +274,7 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/lessons.ts` | deterministic lesson bullets and the feedback scrubber |
 | `app/_lib/gigs/kpi.ts` | the pure KPI fold, including money won per currency (never totalled) from the counted verdicts |
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
-| `app/features/gigs/gigsLogic.ts` | the tab's pure derivations: the queue, the board grouping, the rate as a fraction, the Approve gate |
+| `app/features/gigs/gigsLogic.ts` | the tab's pure derivations: who acts next (`queueKindOf`, `nextNeed`), the line (`lineRows`, `reachedStep`, `STEP_OWNER`), the rate as a fraction, the Approve gate |
 | `app/_lib/gigs/sources-catalog.ts` | tiers, hosts, keys, terms summaries and hashes |
 
 ## Lessons
@@ -357,6 +406,10 @@ under `.immediate()`.
   empty Sources screen says so.
 - The tab reads at most 1,000 gigs (five pages of the list route, newest-touched first)
   and says when it is showing that window rather than everything.
+- The line's "none reached" versus "none here now" is inferred from each gig's current
+  status and its latest attempt: the list route carries no history, so a step a gig passed
+  through without leaving a trace on either (a flag cleared back to New) reads as not
+  reached.
 - Checklist ticks and "seen" marks live in the browser until a move is made. A reload
   before approving starts the card again from the review stored on the attempt (none for a
   fresh draft).

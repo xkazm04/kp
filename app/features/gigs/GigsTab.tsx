@@ -1,48 +1,76 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { FlaskConical, RefreshCw, Radar } from "lucide-react";
-import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, NOTICE, PANEL_SUNKEN, SECTION, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { FlaskConical, RefreshCw, Radar, X } from "lucide-react";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, NOTICE, PANEL_SUNKEN, SECTION, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { useTablist } from "@/app/_components/ui/useTablist";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { GigArena } from "@/app/_lib/gigs/types";
+import type { AfterWrite } from "./gigsLogic";
 import type { DeskStore } from "./GigsDesk";
-import { GigsBoard } from "./GigsBoard";
-import { GigsQueue } from "./GigsQueue";
+import { GigsDetail } from "./GigsDetail";
 import { GigsScorecard } from "./GigsScorecard";
-import { GigsScoreRail } from "./GigsScoreRail";
 import { GigsSources } from "./GigsSources";
 import { GigsSpecialists } from "./GigsSpecialists";
+import { EMPTY_WALL, GigsWall, type WallMemo, type WallState } from "./GigsWall";
 import { sendJson, useGigsData } from "./useGigsData";
 
 // The Gigs tab: real paid work found in the world, drafted by specialist agents, judged
 // and SENT by the operator under their own account - kp never submits anywhere itself
-// (docs/features/gigs/README.md). Built from the owner's pick of a blind contest: the
-// "Judgement Queue" (home is the judgements owed, not a pipeline), with the Bench's
-// always-visible scorecard rail and the Proof Room's margin marks on the draft.
+// (docs/features/gigs/README.md).
+//
+// Built from the owner's verdict on a blind contest: "The Line" is what the tab opens on
+// (arenas as rows, the lifecycle steps as columns - GigsWall.tsx), and the Judgement
+// Queue's screens are its full pages - a gig's page with the review desk (GigsDetail.tsx),
+// the scorecard, the specialists, the sources. Every page REPLACES the one before it;
+// nothing slides over the wall. The wall's state (search, filter, opened-out cells, its
+// scroll) lives here, above it, so the way back lands exactly where the operator left.
 //
 // Behind the same flag as the Agents tab (NEXT_PUBLIC_KP_AGENT_HIRING, tabs.ts): the
 // module is in development and says so on the surface.
 
-const VIEWS = ["queue", "board", "specialists", "scorecard", "sources"] as const;
+const VIEWS = ["line", "scorecard", "specialists", "sources"] as const;
 type View = (typeof VIEWS)[number];
+
+type Focus = { arena?: GigArena; specialistId?: string } | null;
 
 export function GigsTab() {
   const t = useTranslations("gigs");
   const resolveError = useErrorMessage();
   const data = useGigsData();
-  const [view, setView] = useState<View>("queue");
+  const [view, setView] = useState<View>("line");
+  /** The gig whose full page replaces the wall; null = the wall. */
+  const [openGig, setOpenGig] = useState<string | null>(null);
+  const [lastOpened, setLastOpened] = useState<string | null>(null);
+  const [arenaFocus, setArenaFocus] = useState<GigArena | null>(null);
+  const [wall, setWall] = useState<WallState>(EMPTY_WALL);
+  const wallMemo = useRef<WallMemo | null>(null);
+  const [focus, setFocus] = useState<Focus>(null);
   const [hireArena, setHireArena] = useState<GigArena | null>(null);
-  const [request, setRequest] = useState<{ key: string; nonce: number } | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const [scanNote, setScanNote] = useState<{ tone: "info" | "critical"; text: string } | null>(null);
   const [scanning, setScanning] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  // The desk memory outlives a trip to another screen; one Map for the tab's life.
+  // The desk memory outlives a trip back to the line; one Map for the tab's life.
   const [store] = useState<DeskStore>(() => new Map());
-  const { tablistProps, tabProps, panelProps } = useTablist({ ids: VIEWS, active: view, onSelect: setView });
+
+  const goTo = useCallback((v: View) => {
+    setView(v);
+    setOpenGig(null);
+    setFlash(null);
+    if (v !== "line") setArenaFocus(null);
+  }, []);
+  const { tablistProps, tabProps, panelProps } = useTablist({
+    ids: VIEWS,
+    active: view,
+    onSelect: (v) => {
+      setFocus(null);
+      goTo(v);
+    },
+  });
 
   // "Now" for deadlines and waits: refreshed each minute, not each render.
   useEffect(() => {
@@ -68,17 +96,54 @@ export function GigsTab() {
     setScanNote({ tone: "info", text: t("scan.started") });
   }
 
-  const onHire = useCallback((arena: GigArena) => {
-    setHireArena(arena);
-    setView("specialists");
+  const openGigPage = useCallback((gigId: string) => {
+    setView("line");
+    setFlash(null);
+    setArenaFocus(null);
+    setLastOpened(gigId);
+    setOpenGig(gigId);
   }, []);
-  const onOpenInQueue = useCallback((key: string) => {
-    setRequest((r) => ({ key, nonce: (r?.nonce ?? 0) + 1 }));
-    setView("queue");
+  const backToLine = useCallback((arena?: GigArena) => {
+    setOpenGig(null);
+    setFlash(null);
+    setArenaFocus(arena ?? null);
   }, []);
+  const openSpecialist = useCallback(
+    (id: string) => {
+      setFocus({ specialistId: id });
+      setHireArena(null);
+      goTo("specialists");
+    },
+    [goTo]
+  );
+  const openScorecard = useCallback(
+    (arena: GigArena) => {
+      setFocus({ arena });
+      goTo("scorecard");
+    },
+    [goTo]
+  );
+  const onHire = useCallback(
+    (arena: GigArena) => {
+      setFocus(null);
+      setHireArena(arena);
+      goTo("specialists");
+    },
+    [goTo]
+  );
+  const afterWrite: AfterWrite = useCallback(
+    async (message) => {
+      const next = await reloadWork();
+      setNow(new Date());
+      if (message) setFlash(message);
+      return next;
+    },
+    [reloadWork]
+  );
 
   const loaded = data.gigs !== null && data.sources !== null && data.specialists !== null;
   const loadError = data.failure ? resolveError(data.failure as ApiErrorPayload, t("loadFailed")) : null;
+  const detailGig = openGig && data.gigs ? (data.gigs.find((g) => g.id === openGig) ?? null) : null;
 
   return (
     <section className={`stagger-children ${SECTION}`}>
@@ -103,86 +168,107 @@ export function GigsTab() {
         </div>
       </header>
 
-      {scanNote ? (
-        <p role={scanNote.tone === "critical" ? "alert" : "status"} className={`${NOTICE(scanNote.tone)} px-3 py-2 text-sm`}>
-          {scanNote.text}
-        </p>
-      ) : null}
-
-      <div {...tablistProps} aria-label={t("views.label")} className={`${TOGGLE_GROUP} flex-wrap`}>
-        {VIEWS.map((v) => (
-          <button key={v} type="button" {...tabProps(v)} className={`focus-ring rounded px-3 py-1.5 text-sm font-semibold ${toggleBtn(view === v)}`}>
-            {t(`views.${v}`)}
-          </button>
-        ))}
-      </div>
-
-      {loadError ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p role="alert" className="text-base text-coral">
-            {loadError}
+      <div className="space-y-4">
+        {scanNote ? (
+          <p role={scanNote.tone === "critical" ? "alert" : "status"} className={`${NOTICE(scanNote.tone)} px-3 py-2 text-sm`}>
+            {scanNote.text}
           </p>
-          <button type="button" onClick={() => void refreshAll()} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
-            {t("retry")}
-          </button>
-        </div>
-      ) : null}
+        ) : null}
 
-      <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="2xl:order-2 2xl:sticky 2xl:top-4">
-          <GigsScoreRail kpi={data.kpi} gigs={data.gigs} attemptsByGig={data.attemptsByGig} specialists={data.specialists} />
+        <div {...tablistProps} aria-label={t("views.label")} className={`${TOGGLE_GROUP} flex-wrap`}>
+          {VIEWS.map((v) => (
+            <button key={v} type="button" {...tabProps(v)} className={`focus-ring rounded px-3 py-1.5 text-sm font-semibold ${toggleBtn(view === v)}`}>
+              {t(`views.${v}`)}
+            </button>
+          ))}
         </div>
-        <div {...panelProps} className="min-w-0 2xl:order-1">
+
+        {loadError ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p role="alert" className="text-base text-coral">
+              {loadError}
+            </p>
+            <button type="button" onClick={() => void refreshAll()} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+              {t("retry")}
+            </button>
+          </div>
+        ) : null}
+
+        {flash && !openGig ? (
+          <div role="status" className={`${NOTICE("info")} flex items-start justify-between gap-3 px-3 py-2 text-sm`}>
+            <span>{flash}</span>
+            <button type="button" onClick={() => setFlash(null)} className={`${BTN_GHOST} h-6 px-1`} aria-label={t("detail.dismiss")}>
+              <X size={14} aria-hidden />
+            </button>
+          </div>
+        ) : null}
+
+        <div {...panelProps} className="min-w-0">
           {!loaded ? (
             loadError ? null : <LoadingGap className="min-h-[24rem]" label={t("loading")} />
-          ) : view === "queue" ? (
-            data.gigs!.length === 0 ? (
+          ) : view === "line" ? (
+            openGig ? (
+              <GigsDetail
+                gigId={openGig}
+                gig={detailGig}
+                latest={detailGig ? (data.attemptsByGig[detailGig.id] ?? null) : null}
+                sources={data.sources!}
+                specialists={data.specialists!}
+                kpi={data.kpi}
+                now={now}
+                store={store}
+                flash={flash}
+                onDismissFlash={() => setFlash(null)}
+                onBack={backToLine}
+                onChanged={afterWrite}
+                onRated={setFlash}
+                onHire={onHire}
+              />
+            ) : data.gigs!.length === 0 ? (
               <div className={`${PANEL_SUNKEN} px-6 py-10 text-center`}>
                 <p className="font-serif text-h3 text-ink">{t("empty.title")}</p>
                 <p className="mx-auto mt-1 max-w-lg text-sm text-steel">{data.sources!.length === 0 ? t("empty.noSources") : t("empty.noGigs")}</p>
-                <button type="button" onClick={() => setView("sources")} className="focus-ring mt-3 text-sm font-semibold text-coral hover:underline">
+                <button type="button" onClick={() => goTo("sources")} className="focus-ring mt-3 text-sm font-semibold text-coral hover:underline">
                   {t("empty.toSources")}
                 </button>
               </div>
             ) : (
-              <GigsQueue
+              <GigsWall
                 gigs={data.gigs!}
                 attemptsByGig={data.attemptsByGig}
+                truncated={data.truncated}
                 kpi={data.kpi}
                 sources={data.sources!}
                 specialists={data.specialists!}
                 now={now}
-                reloadWork={reloadWork}
+                state={wall}
+                onState={setWall}
+                memoRef={wallMemo}
+                lastOpened={lastOpened}
+                arenaFocus={arenaFocus}
+                onOpen={openGigPage}
+                onOpenSpecialist={openSpecialist}
+                onOpenScorecard={openScorecard}
                 onHire={onHire}
-                store={store}
-                request={request}
+                onNothingNeeded={() => setFlash(t("line.needNone"))}
               />
             )
-          ) : view === "board" ? (
-            <GigsBoard
-              gigs={data.gigs!}
-              attemptsByGig={data.attemptsByGig}
-              truncated={data.truncated}
-              sources={data.sources!}
-              specialists={data.specialists!}
-              now={now}
-              onOpenInQueue={onOpenInQueue}
-              onChanged={reloadWork}
-            />
           ) : view === "specialists" ? (
             <GigsSpecialists
-              key={hireArena ?? "none"}
+              key={`${hireArena ?? "none"}:${focus?.specialistId ?? ""}`}
               specialists={data.specialists!}
               kpi={data.kpi}
               gigs={data.gigs!}
               attemptsByGig={data.attemptsByGig}
               initialArena={hireArena}
+              focusId={focus?.specialistId ?? null}
+              onOpenGig={openGigPage}
               onChanged={async () => {
                 await Promise.all([reloadSpecialists(), reloadWork()]);
               }}
             />
           ) : view === "scorecard" ? (
-            <GigsScorecard kpi={data.kpi} gigs={data.gigs!} attemptsByGig={data.attemptsByGig} specialists={data.specialists!} />
+            <GigsScorecard kpi={data.kpi} gigs={data.gigs!} attemptsByGig={data.attemptsByGig} specialists={data.specialists!} focus={focus} />
           ) : (
             <GigsSources sources={data.sources!} catalog={data.catalog ?? []} onChanged={reloadSources} />
           )}

@@ -1,17 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CHIP, NOTICE } from "@/app/_components/ui/recipes";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { deadlineView, revealInvisible, type SourceRow, type SpecialistRow } from "./gigsLogic";
 import { useGigsFormat } from "./useGigsFormat";
 
-// The facts every workspace view opens with: a breadcrumb, the title, and a meta row
-// whose absences are stated rather than blank ("reward not stated", "no deadline
-// stated"). Plus the one way the tab shows a stranger's listing text: framed as
-// untrusted, links as plain text, and every invisible character made visible.
+// The facts every gig page opens with: its status, the title, and a meta row whose
+// absences are stated rather than blank ("reward not stated", "no deadline stated"). The
+// breadcrumb lives one level up, in the page bar (GigsDetail.tsx). Plus the one way the
+// tab shows a stranger's listing text: framed as untrusted, links as plain text, and
+// every invisible character made visible.
 
 export function Absent({ children }: { children: ReactNode }) {
   return <span className="italic text-steel">{children}</span>;
@@ -36,15 +36,12 @@ export function DeadlineText({ gig, now }: { gig: Pick<Gig, "deadlineAt">; now: 
 
 export function GigHead({
   gig,
-  crumbs,
   source,
   specialist,
   now,
   extra,
 }: {
   gig: Gig;
-  /** Breadcrumb segments, the first being the screen ("Queue", "Board"). */
-  crumbs: string[];
   source: SourceRow | null;
   specialist: SpecialistRow | null;
   now: Date;
@@ -54,15 +51,11 @@ export function GigHead({
   const fmt = useGigsFormat();
   return (
     <header className="border-b border-stone-200 px-5 pb-4 pt-4">
-      <nav aria-label={t("facts.breadcrumb")} className="flex flex-wrap items-center gap-1.5 text-sm text-steel">
-        {crumbs.map((c, i) => (
-          <span key={i} className="inline-flex items-center gap-1.5">
-            {i > 0 ? <ChevronRight size={14} aria-hidden /> : null}
-            <span className={i === 0 ? "font-semibold" : undefined}>{c}</span>
-          </span>
-        ))}
-      </nav>
-      <h2 className="mt-1.5 max-w-3xl font-serif text-h2 text-ink">{gig.title}</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`${CHIP} text-xs`}>{fmt.status(gig.status)}</span>
+        {gig.status === "suspect" ? <span className={`${NOTICE("critical")} inline-block px-2 py-0.5 text-xs font-semibold`}>{t("card.quarantined")}</span> : null}
+      </div>
+      <h2 className="mt-2 max-w-4xl font-serif text-h2 text-ink">{gig.title}</h2>
       <dl className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
         <div>
           <dt className="sr-only">{t("facts.arena")}</dt>

@@ -1,29 +1,33 @@
-// Pure logic for the Gigs tab (gigsLogic.ts): the judgement queue, the board's
-// lifecycle grouping, the rate as a fraction, and the desk's Approve gate.
+// Pure logic for the Gigs tab (gigsLogic.ts): who acts next, the line (arenas by
+// lifecycle step), the rate as a fraction, and the desk's Approve gate.
 // Runner: node --test (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Gig, GigAttempt, GigAttemptStatus, GigKpiCell, GigStatus } from "@/app/_lib/gigs/types.ts";
 import type { DraftLintFinding } from "@/app/_lib/gigs/draft-lint.ts";
 import {
-  BOARD_STEPS,
   checklistKeyFor,
   deadlineView,
   deriveQueue,
   deskGate,
   evidenceState,
-  groupBoard,
   isTypingTarget,
+  LINE_STEPS,
+  lineRows,
   marksByLine,
   markSentGate,
+  matchesSearch,
+  needsYou,
+  nextNeed,
   overallCell,
   queueCounts,
   queueKindOf,
   rateView,
+  reachedStep,
   revealInvisible,
-  selectionAfter,
+  specialistEdgeIndex,
   splitAround,
-  stepSelection,
+  STEP_OWNER,
 } from "./gigsLogic.ts";
 
 const NOW = new Date("2026-09-24T12:00:00.000Z");
@@ -109,36 +113,86 @@ test("deriveQueue groups operator kinds before agent kinds, oldest first; agent 
   assert.equal(c.running, 1);
 });
 
-test("stepSelection clamps and starts at the first item", () => {
-  const q = deriveQueue([gig("a", "new"), gig("b", "new", { createdAt: "2026-09-02T00:00:00.000Z" })], {});
-  assert.equal(stepSelection(q, null, 1), "triage:a");
-  assert.equal(stepSelection(q, "triage:a", 1), "triage:b");
-  assert.equal(stepSelection(q, "triage:b", 1), "triage:b");
-  assert.equal(stepSelection(q, "triage:a", -1), "triage:a");
-  assert.equal(stepSelection([], null, 1), null);
+test("nextNeed walks the three judgements in order, wraps round, and never offers triage or agent work", () => {
+  const gigs = [
+    gig("t", "new"),
+    gig("s", "suspect", { suspectReasons: ["credential_request"] }),
+    gig("r", "drafted"),
+    gig("o", "sent"),
+    gig("run", "dispatched"),
+  ];
+  const attempts = { r: att("a1", "r", "drafted"), o: att("a2", "o", "sent"), run: att("a3", "run", "running") };
+  const q = deriveQueue(gigs, attempts);
+  assert.equal(nextNeed(q, null)!.gig.id, "r");
+  assert.equal(nextNeed(q, "r")!.gig.id, "s");
+  assert.equal(nextNeed(q, "s")!.gig.id, "o");
+  assert.equal(nextNeed(q, "o")!.gig.id, "r", "wraps round");
+  assert.equal(nextNeed(q, "t")!.gig.id, "r", "a gig that needs nothing restarts at the first");
+  assert.equal(nextNeed(q, null, "record")!.gig.id, "o");
+  assert.equal(nextNeed(deriveQueue([gig("t", "new")], {}), null), null);
 });
 
-test("selectionAfter opens the next item of the same kind, then the first operator item", () => {
-  const before = deriveQueue(
-    [gig("a", "new"), gig("b", "new", { createdAt: "2026-09-02T00:00:00.000Z" }), gig("c", "new", { createdAt: "2026-09-03T00:00:00.000Z" })],
-    {}
-  );
-  const after = before.filter((i) => i.key !== "triage:b");
-  assert.equal(selectionAfter(before, after, "triage:b"), "triage:c");
-  const afterLast = before.filter((i) => i.key !== "triage:c");
-  assert.equal(selectionAfter(before, afterLast, "triage:c"), "triage:b");
-  assert.equal(selectionAfter(before, [], "triage:a"), null);
+test("lineRows: all four arenas, every canonical step and the three ways off, oldest waiting first", () => {
+  const gigs = [
+    gig("b", "new", { updatedAt: "2026-09-05T00:00:00.000Z" }),
+    gig("a", "new", { updatedAt: "2026-09-02T00:00:00.000Z" }),
+    gig("d", "declined", { arena: "security" }),
+  ];
+  const rows = lineRows(gigs, {});
+  assert.deepEqual(rows.map((r) => r.arena), ["security", "freelance", "competition", "oss_bounty"]);
+  const oss = rows.find((r) => r.arena === "oss_bounty")!;
+  assert.deepEqual(oss.cells.map((c) => c.step), [...LINE_STEPS]);
+  assert.deepEqual(oss.cells[0].gigs.map((g) => g.id), ["a", "b"]);
+  assert.equal(oss.total, 2);
+  const sec = rows.find((r) => r.arena === "security")!;
+  assert.deepEqual(sec.off.map((o) => [o.step, o.gigs.length]), [["declined", 1], ["withdrawn", 0], ["expired", 0]]);
+  assert.equal(rows.find((r) => r.arena === "freelance")!.total, 0);
 });
 
-test("groupBoard lists every lifecycle step, empty ones included, and filters by search, arena and status", () => {
-  const gigs = [gig("a", "new", { title: "Rust CLI bounty", tags: ["rust"] }), gig("b", "sent", { arena: "security", org: "Acme" })];
-  const all = groupBoard(gigs, { search: "", arena: "all", status: "all" });
-  assert.deepEqual(all.map((s) => s.status), [...BOARD_STEPS]);
-  assert.equal(all.find((s) => s.status === "withdrawn")!.gigs.length, 0);
-  assert.deepEqual(groupBoard(gigs, { search: "RUST", arena: "all", status: "all" }).flatMap((s) => s.gigs.map((g) => g.id)), ["a"]);
-  assert.deepEqual(groupBoard(gigs, { search: "acme", arena: "security", status: "all" }).flatMap((s) => s.gigs.map((g) => g.id)), ["b"]);
-  const onlySent = groupBoard(gigs, { search: "", arena: "all", status: "sent" });
-  assert.deepEqual(onlySent.map((s) => s.status), ["sent"]);
+test("reachedStep separates 'none here now' from 'none reached'", () => {
+  const accepted = [gig("x", "accepted")];
+  assert.equal(reachedStep(accepted, {}, "drafted"), true, "an accepted gig passed through drafted");
+  assert.equal(reachedStep(accepted, {}, "sent"), true);
+  assert.equal(reachedStep(accepted, {}, "rejected"), false, "accepted and rejected are alternatives");
+  assert.equal(reachedStep(accepted, {}, "suspect"), false, "suspect is a side branch, not a rank");
+  const fresh = [gig("n", "new")];
+  assert.equal(reachedStep(fresh, {}, "new"), true);
+  assert.equal(reachedStep(fresh, {}, "qualified"), false);
+  // A declined gig is read off its latest attempt.
+  const left = [gig("d", "declined")];
+  assert.equal(reachedStep(left, {}, "qualified"), false);
+  assert.equal(reachedStep(left, { d: att("a", "d", "sent") }, "sent"), true);
+  assert.equal(reachedStep(left, { d: att("a", "d", "failed") }, "dispatched"), true);
+  assert.equal(reachedStep(left, { d: att("a", "d", "failed") }, "drafted"), false);
+  assert.equal(reachedStep([gig("c", "new", { suspectReasons: ["agent_addressed"] })], {}, "suspect"), true);
+  const row = lineRows(accepted, {}).find((r) => r.arena === "oss_bounty")!;
+  const drafted = row.cells.find((c) => c.step === "drafted")!;
+  assert.deepEqual([drafted.gigs.length, drafted.reached], [0, true]);
+});
+
+test("STEP_OWNER: exactly suspect, drafted and sent carry the judgement band", () => {
+  assert.deepEqual(LINE_STEPS.filter((s) => STEP_OWNER[s] === "you"), ["suspect", "drafted", "sent"]);
+});
+
+test("matchesSearch reads title, org, id, niche and tags; needsYou is the three judgements", () => {
+  const g = gig("gig_7", "new", { title: "Rust CLI bounty", org: "Acme", tags: ["tokio"], niche: "cli" });
+  for (const q of ["rust", "ACME", "gig_7", "tokio", "cli", "  "]) assert.equal(matchesSearch(g, q), true, q);
+  assert.equal(matchesSearch(g, "python"), false);
+  assert.equal(needsYou(gig("a", "suspect"), null), true);
+  assert.equal(needsYou(gig("a", "drafted"), att("x", "a", "drafted")), true);
+  assert.equal(needsYou(gig("a", "sent"), att("x", "a", "sent")), true);
+  assert.equal(needsYou(gig("a", "new"), null), false, "triage is not a judgement");
+  assert.equal(needsYou(gig("a", "dispatched"), att("x", "a", "running")), false);
+});
+
+test("specialistEdgeIndex ranks by hire date, stably", () => {
+  const sp = [
+    { id: "late", createdAt: "2026-09-03T00:00:00.000Z" },
+    { id: "early", createdAt: "2026-09-01T00:00:00.000Z" },
+  ];
+  assert.equal(specialistEdgeIndex(sp, "early"), 0);
+  assert.equal(specialistEdgeIndex(sp, "late"), 1);
+  assert.equal(specialistEdgeIndex(sp, "missing"), -1);
 });
 
 function cell(p: Partial<GigKpiCell>): GigKpiCell {

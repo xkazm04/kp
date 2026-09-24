@@ -13040,8 +13040,7 @@
     },
     "views": {
       "label": "Gigs screens",
-      "queue": "Queue",
-      "board": "Board",
+      "line": "The line",
       "specialists": "Specialists",
       "scorecard": "Scorecard",
       "sources": "Sources"
@@ -13201,80 +13200,6 @@
       "unmeasured": "Unmeasured, nothing resolved yet",
       "unmeasuredShort": "Unmeasured"
     },
-    "rail": {
-      "label": "Scorecard",
-      "title": "Accepted-outcome rate",
-      "loading": "Reading the scorecard…",
-      "resolvedLine": "{percent} of resolved, n = {n}",
-      "nothingResolved": "No verdict recorded yet. A rate appears with the first one.",
-      "nothingSent": "Nothing sent yet",
-      "byArena": "By arena",
-      "bySpecialist": "By specialist",
-      "noSpecialists": "No specialists hired yet.",
-      "moneyWon": "Money won",
-      "noMoney": "No accepted outcome has recorded an amount.",
-      "moneyCount": "{count, plural, one {# payout} other {# payouts}}",
-      "neverSummed": "Kept per currency, never added together.",
-      "acceptedNoAmount": "{count, plural, one {# accepted outcome has} other {# accepted outcomes have}} no amount recorded.",
-      "disclosure": "AI-use disclosure ticked on {percent} of sent work.",
-      "disclosureNone": "Nothing sent yet, so no disclosure rate."
-    },
-    "queue": {
-      "tilesLabel": "What needs your judgment",
-      "tile": {
-        "review": "{count, plural, one {draft to review} other {drafts to review}}",
-        "suspect": "suspect to clear",
-        "record": "{count, plural, one {outcome to record} other {outcomes to record}}",
-        "triage": "new to triage"
-      },
-      "tileSub": {
-        "review": "Read, tick, approve or send back",
-        "suspect": "Cannot be dispatched until you clear it",
-        "record": "Sent by you, no verdict yet",
-        "triage": "Dispatch or decline"
-      },
-      "agentsTitle": "With the agents, not you",
-      "agentsLine": "{running} running · {revision} revisions not dispatched · {failed} failed runs",
-      "agentsNone": "Nothing is with the agents.",
-      "dismiss": "Dismiss",
-      "railLabel": "Queue",
-      "workspaceLabel": "Workspace",
-      "group": {
-        "review": "Drafts to review",
-        "suspect": "Suspect listings to clear",
-        "record": "Outcomes to record",
-        "triage": "New listings to triage",
-        "running": "With the agents: running",
-        "revision": "With the agents: revisions",
-        "failed": "Runs that failed"
-      },
-      "empty": {
-        "review": "No draft is waiting for you.",
-        "suspect": "No listing is flagged.",
-        "record": "Every sent draft has a verdict.",
-        "triage": "No new listings.",
-        "running": "No run in flight.",
-        "revision": "No revision is waiting to be dispatched.",
-        "failed": "No failed runs."
-      },
-      "meta": {
-        "review": "by {name} · drafted {when}",
-        "approved": "Approved by you, not sent yet",
-        "record": "sent {date} · {when}",
-        "qualified": "Qualified, ready to dispatch",
-        "belowBar": "Below the qualification bar",
-        "running": "dispatched {date} · no deliverable yet",
-        "revision": "your note is recorded, no new attempt yet",
-        "failed": "ended with no deliverable"
-      },
-      "flagBlockers": "{blockers, plural, one {# blocker} other {# blockers}}{warns, plural, =0 {} one { · # to check} other { · # to check}}",
-      "flagWarns": "{count, plural, one {# thing to check} other {# things to check}}",
-      "keys": "<kbd>J</kbd> <kbd>K</kbd> next and previous · <kbd>1</kbd> to <kbd>6</kbd> tick the checklist",
-      "pickTitle": "Pick something from the queue",
-      "pickBody": "Press J to start with the oldest item, or choose a tile above.",
-      "emptyTitle": "Nothing needs you",
-      "emptyBody": "No draft, suspect listing, outcome or new listing is waiting. The board lists every gig."
-    },
     "facts": {
       "breadcrumb": "Where you are",
       "arena": "Arena",
@@ -13302,7 +13227,6 @@
       "title": "Before you send: {count, plural, =0 {nothing found} one {# finding} other {# findings}}",
       "none": "Nothing automatic was flagged. That is not a pass: the checklist still applies.",
       "seen": "seen",
-      "noted": "noted",
       "blocksApprove": "blocks approve",
       "note": "note",
       "goLine": "line {line}",
@@ -13313,7 +13237,7 @@
         "info": "Note"
       },
       "noDeliverable": "No deliverable came back. There is nothing to review.",
-      "sourceInvalidStreak": "{host} was paused after {streak} rejected outcomes in a row. Sending more work there adds to that streak.",
+      "sourceInvalidStreak": "{host} was auto-paused after a run of rejected outcomes. Sending more work there adds to that streak.",
       "deadlinePassed": "The listing closed on {deadline}. There is nowhere to send this.",
       "evidenceFailed": "Evidence {n} ({kind}) failed.",
       "evidenceNoCommand": "Evidence {n} ({kind}) has no command. It is the agent's account, not a run log.",
@@ -13329,7 +13253,6 @@
       "lineN": "Line {n}:"
     },
     "desk": {
-      "crumbAttempt": "{gig} · attempt {attempt}",
       "drafted": "Drafted",
       "earlierNote": "Your earlier note:",
       "noDeliverable": "This attempt ended without a deliverable. There is nothing to review: request a revision or discard it.",
@@ -13384,8 +13307,9 @@
     },
     "work": {
       "actionFailed": "That didn't go through.",
-      "declinedFlash": "Declined. It stays on the board, out of the pipeline.",
-      "clearedFlash": "Flag cleared on your judgment. The listing is back in New and is qualified again."
+      "declinedFlash": "Declined. It moves to “Left the line”, out of the pipeline.",
+      "clearedFlash": "Flag cleared on your judgment. The listing is back in New and is qualified again.",
+      "withdrawnFlash": "Withdrawn. It moves to “Left the line”; nothing was sent."
     },
     "suspectView": {
       "why": "Why it was flagged",
@@ -13398,7 +13322,6 @@
       "urlAsText": "Listing address, not linked: {url}"
     },
     "recordView": {
-      "sentBy": "Sent by you",
       "whatWentOut": "What went out",
       "reviewedFor": "you reviewed it for {minutes, plural, one {# minute} other {# minutes}}",
       "reviewTimeUnknown": "review time not recorded",
@@ -13440,7 +13363,7 @@
       "sourcePaused": "Its source is {reason}.",
       "dispatch": "Dispatch to {name}",
       "itsSpecialist": "its specialist",
-      "dispatchedFlash": "Dispatched to {name}. The draft appears in your queue when the run returns.",
+      "dispatchedFlash": "Dispatched to {name}. The draft lands under Drafted on the line when the run returns.",
       "belowBar": "Below the qualification bar",
       "belowBarHow": "It can be dispatched once a scan qualifies it. That takes a live specialist in its arena and enough deadline headroom.",
       "hireFor": "Hire a specialist for {arena}",
@@ -13457,43 +13380,6 @@
       "noReason": "none recorded",
       "dispatchWithNote": "Dispatch again with my note",
       "dispatchAgain": "Dispatch again"
-    },
-    "board": {
-      "title": "Board: {count, plural, one {# gig} other {# gigs}} by lifecycle step",
-      "lede": "Every step is listed, empty ones included, so a step nothing reached reads as a gap rather than a missing row.",
-      "truncated": "Showing the {count} most recently touched gigs.",
-      "searchPlaceholder": "Find by title, org, tag or id",
-      "searchLabel": "Search gigs",
-      "arenaFilter": "Arena",
-      "allArenas": "All arenas",
-      "statusFilter": "Step",
-      "allSteps": "All steps",
-      "shown": "{count} shown",
-      "col": {
-        "listing": "Listing",
-        "arena": "Arena",
-        "reward": "Reward (own currency)",
-        "deadline": "Deadline",
-        "specialist": "Specialist",
-        "latest": "Latest attempt"
-      },
-      "step": "{step} · {count}",
-      "stepEmpty": "{step} · none at this step",
-      "suspectChip": "suspect, not dispatchable",
-      "noSpecialist": "none",
-      "noAttempt": "no attempt",
-      "back": "Back to the board",
-      "attempts": "Attempts and verdicts",
-      "loadingRecord": "Reading this gig's record…",
-      "recordFailed": "Couldn't load this gig's record.",
-      "neverAttempted": "Never attempted",
-      "neverAttemptedBody": "No specialist has run on this listing.",
-      "recorded": "recorded {date}, {source}",
-      "noWords": "No words came back with this verdict.",
-      "openInQueue": "Open in the queue",
-      "needsNobody": "This gig needs nothing from anyone right now.",
-      "decline": "Decline",
-      "withdraw": "Withdraw"
     },
     "specialists": {
       "title": "Specialists",
@@ -13528,7 +13414,9 @@
       "hireNote": "A live specialist for the same arena and niche is reused rather than hired twice. The hire runs through Personas.",
       "hireFailed": "The specialist could not be hired.",
       "hired": "Hire sent. It appears here and becomes available once Personas approves it.",
-      "reused": "A live specialist for that arena and niche already exists. It was reused."
+      "reused": "A live specialist for that arena and niche already exists. It was reused.",
+      "onTheLine": "On the line",
+      "nothingOnLine": "Nothing on the line yet."
     },
     "scorecard": {
       "title": "Scorecard: accepted-outcome rate",
@@ -13549,7 +13437,16 @@
       "noTotal": "No grand total: these currencies are never added together.",
       "disclosureTitle": "Disclosure",
       "disclosureNote": "Marking work sent is refused unless the AI-use disclosure item is ticked.",
-      "computedAt": "Computed {date} from the recorded verdicts."
+      "computedAt": "Computed {date} from the recorded verdicts.",
+      "rateTitle": "Accepted-outcome rate",
+      "loading": "Reading the scorecard…",
+      "noSpecialists": "No specialists hired yet.",
+      "moneyWon": "Money won",
+      "noMoney": "No accepted outcome has recorded an amount.",
+      "moneyCount": "{count, plural, one {# payout} other {# payouts}}",
+      "acceptedNoAmount": "{count, plural, one {# accepted outcome has} other {# accepted outcomes have}} no amount recorded.",
+      "disclosure": "AI-use disclosure ticked on {percent} of sent work.",
+      "disclosureNone": "Nothing sent yet, so no disclosure rate."
     },
     "sources": {
       "title": "Sources",
@@ -13592,6 +13489,105 @@
         "no_public_api": "Declines every run: there is no public API to read.",
         "manual_only": "Nothing is fetched: forward briefs by hand."
       }
+    },
+    "line": {
+      "needsLabel": "What needs your judgment",
+      "need": {
+        "review": "{count, plural, one {draft to review} other {drafts to review}}",
+        "suspect": "{count, plural, one {suspect to clear} other {suspects to clear}}",
+        "record": "{count, plural, one {verdict to record} other {verdicts to record}}"
+      },
+      "searchLabel": "Search gigs",
+      "truncated": "Showing the {count} most recently touched gigs.",
+      "needNone": "Nothing needs your judgment right now.",
+      "searchPlaceholder": "Find a listing ( / )",
+      "searchHits": "{count, plural, =0 {no listing matches} one {# listing matches} other {# listings match}}",
+      "filterLabel": "Show",
+      "filterAll": "Everything",
+      "filterNeeds": "What needs you",
+      "keys": "<kbd>N</kbd> next thing that needs you · <kbd>/</kbd> find · <kbd>Esc</kbd> back from a gig",
+      "tableLabel": "Gigs by arena and lifecycle step",
+      "corner": "Arena",
+      "owner": {
+        "you": "your judgment",
+        "scan": "the scan qualifies",
+        "dispatch": "you dispatch",
+        "agent": "with the agent",
+        "send": "you send it",
+        "judge": "the outside judge"
+      },
+      "leftTheLine": "Left the line",
+      "leftOwner": "declined, withdrawn, expired",
+      "terminus": "Terminus",
+      "terminusOwner": "accepted of resolved",
+      "cellLabel": "{arena}, {step}: {count, plural, =0 {none} one {# gig} other {# gigs}}",
+      "noneReached": "none reached",
+      "noneHere": "none here now",
+      "noneLeft": "none left the line",
+      "showMore": "{count, plural, one {Show # more} other {Show # more}}",
+      "showFewer": "Show fewer",
+      "listings": "{count, plural, =0 {no listings} one {# listing} other {# listings}}",
+      "specialistsLabel": "Specialists",
+      "noSpecialist": "No specialist yet.",
+      "hireOne": "Hire one",
+      "sourcesLabel": "Sources",
+      "noSource": "No source yet.",
+      "polling": "polling",
+      "costPerAccepted": "{cost} per accepted",
+      "noAcceptedCost": "no cost per accepted yet",
+      "toScorecard": "Open in the scorecard"
+    },
+    "card": {
+      "blockers": "{blockers, plural, one {# blocker} other {# blockers}}{warns, plural, =0 {} one { · # to check} other { · # to check}}",
+      "warns": "{count, plural, one {# thing to check} other {# things to check}}",
+      "approved": "Approved by you, not sent yet",
+      "review": "ready for your review",
+      "revision": "revision asked",
+      "running": "no deliverable yet",
+      "failed": "last run failed",
+      "pending": "awaiting verdict · {when}",
+      "closed": "closed",
+      "daysLeft": "{days, plural, one {# day left} other {# days left}}",
+      "quarantined": "quarantined, not dispatchable",
+      "by": "worked by {name}"
+    },
+    "detail": {
+      "dismiss": "Dismiss",
+      "loadingRecord": "Reading this gig's record…",
+      "recordFailed": "Couldn't load this gig's record.",
+      "neverAttempted": "Never attempted",
+      "neverAttemptedBody": "No specialist has run on this listing.",
+      "recorded": "recorded {date}, {source}",
+      "noWords": "No words came back with this verdict.",
+      "needsNobody": "This gig needs nothing from anyone right now.",
+      "decline": "Decline",
+      "withdraw": "Withdraw",
+      "back": "Back to the line",
+      "crumbRoot": "Gigs",
+      "listing": "The listing",
+      "journey": "The journey so far",
+      "nextMove": "What happens next",
+      "listed": "Listed",
+      "postedUnknown": "posting date not stated",
+      "attemptN": "Attempt {n} by {name}",
+      "sentAt": "sent by you {date}",
+      "amountUnknown": "amount not recorded",
+      "restingJudged": "The outside judge has decided",
+      "restingLeft": "Off the line",
+      "offLine": "Take it off the line",
+      "offLineNote": "Declining or withdrawing moves it to “Left the line”. Nothing is sent anywhere.",
+      "notFoundTitle": "This gig is not in the list",
+      "notFound": "It may have moved past the window the tab reads. Go back to the line and refresh.",
+      "escKey": "Esc"
+    },
+    "legend": {
+      "label": "What the marks and frames mean",
+      "marks": "Marks",
+      "cards": "Cards",
+      "rewardStated": "reward stated",
+      "rewardNotStated": "reward not stated",
+      "suspect": "suspect, quarantined",
+      "edge": "left edge: the specialist, named in each arena’s label"
     }
   }
 }

@@ -8,10 +8,9 @@ import { bySeverity, draftLines, type DraftLintFinding, type DraftLintSeverity }
 import { marksByLine, splitAround } from "./gigsLogic";
 import { useGigsFormat } from "./useGigsFormat";
 
-// The pre-send lint as the desk shows it, twice over and in one state: a strip above the
-// draft listing every finding, and margin marks beside the exact draft line a finding
-// refers to (the Proof Room borrowing). A warn is marked "seen" in either place - the
-// strip's box and the margin's "noted" box are the same fact.
+// The pre-send lint as the desk shows it: a strip above the draft listing every finding,
+// each one linked to the words it refers to (underlined in the galley) or to the evidence
+// item. A warn is marked "seen" in the strip; the desk's Approve gate reads that state.
 
 /** The finding's sentence in the reader's language. */
 export function useLintText() {
@@ -116,38 +115,28 @@ export function LintStrip({
   );
 }
 
-/** The draft as a numbered galley with margin marks beside their line. Below `lg` the
- *  margin folds under each line instead of beside it. */
-export function DraftGalley({
-  text,
-  findings,
-  seen,
-  onSeen,
-  uid,
-}: {
-  text: string;
-  findings: readonly DraftLintFinding[];
-  seen: ReadonlySet<string>;
-  onSeen: (id: string, value: boolean) => void;
-  uid: string;
-}) {
+/** The draft as a numbered galley, typeset the way the recipient will read it. A line a
+ *  finding refers to carries the finding's severity shape in the gutter and its words
+ *  underlined; the strip's "line N" link lands here. */
+export function DraftGalley({ text, findings, uid }: { text: string; findings: readonly DraftLintFinding[]; uid: string }) {
   const t = useTranslations("gigs");
-  const lintText = useLintText();
   const lines = draftLines(text);
   const marks = marksByLine(findings);
   return (
-    <ol className="grid grid-cols-[2.5rem_minmax(0,1fr)] lg:grid-cols-[2.5rem_minmax(0,1fr)_15rem]" aria-label={t("draft.galleyLabel")}>
+    <ol className="grid max-w-[46rem] grid-cols-[2.75rem_minmax(0,1fr)]" aria-label={t("draft.galleyLabel")}>
       {lines.map((line, i) => {
         const n = i + 1;
         const here = marks.get(n) ?? [];
         const firstExcerpt = here.map((f) => f.params.excerpt).find((x): x is string => typeof x === "string");
         const parts = splitAround(line, firstExcerpt);
+        const worst = bySeverity(here)[0];
         return (
           <li key={n} id={`${uid}-line-${n}`} className="contents">
-            <span className="select-none border-r border-stone-200 pr-2 pt-0.5 text-right font-mono text-xs leading-7 text-steel" aria-hidden>
+            <span className="flex select-none items-start justify-end gap-1 border-r border-stone-200 pr-2 pt-1.5 font-mono text-xs text-steel" aria-hidden>
+              {worst ? <SeverityIcon severity={worst.severity} /> : null}
               {line.trim() ? n : ""}
             </span>
-            <span className={`min-h-7 whitespace-pre-wrap break-words px-4 font-serif text-base leading-7 text-ink dark:font-sans ${here.length ? "bg-amber-50/60" : ""}`}>
+            <span className={`min-h-7 scroll-mt-24 whitespace-pre-wrap break-words px-4 font-serif text-base leading-8 text-ink dark:font-sans ${here.length ? "bg-amber-50" : ""}`}>
               <span className="sr-only">{t("draft.lineN", { n })} </span>
               {parts ? (
                 <>
@@ -158,25 +147,6 @@ export function DraftGalley({
               ) : (
                 line
               )}
-            </span>
-            <span className={`col-start-2 px-4 pb-1 lg:col-start-auto lg:border-l lg:border-dashed lg:border-stone-300 lg:px-2 ${here.length ? "" : "hidden lg:block"}`}>
-              {here.map((f) => {
-                const isSeen = seen.has(f.id);
-                return (
-                  <span
-                    key={f.id}
-                    className={`mb-1.5 block rounded-md border px-2 py-1 text-sm dark:rounded-lg dark:-rotate-1 ${isSeen ? "border-stone-200 text-steel opacity-70" : "border-amber-600 bg-white text-ink"}`}
-                  >
-                    {lintText(f)}
-                    {f.severity === "warn" ? (
-                      <label className="mt-1 flex cursor-pointer items-center gap-1.5 text-sm text-steel">
-                        <input type="checkbox" checked={isSeen} onChange={(e) => onSeen(f.id, e.target.checked)} className="h-4 w-4 accent-moss" />
-                        {t("lint.noted")}
-                      </label>
-                    ) : null}
-                  </span>
-                );
-              })}
             </span>
           </li>
         );
