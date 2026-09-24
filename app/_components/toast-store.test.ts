@@ -149,3 +149,31 @@ test("store: cap holds end-to-end (oldest evicted)", () => {
   assert.equal(queued.length, TOAST_LIMIT);
   assert.equal(queued[0].message, "msg 1", "msg 0 was evicted");
 });
+
+test("toast.promise keeps one notice until success, then updates it in place", async () => {
+  let finish!: (value: string) => void;
+  const pending = new Promise<string>((resolve) => { finish = resolve; });
+  const work = toast.promise(pending, { loading: "Saving", success: (value) => `Saved ${value}`, error: "Save failed" });
+  const id = getToasts()[0].id;
+  assert.deepEqual(getToasts().map(({ message, duration }) => ({ message, duration })), [{ message: "Saving", duration: 0 }]);
+  finish("CV");
+  assert.equal(await work, "CV");
+  assert.equal(getToasts()[0].id, id);
+  assert.equal(getToasts()[0].variant, "success");
+  assert.equal(getToasts()[0].message, "Saved CV");
+  assert.equal(getToasts()[0].duration, TOAST_DURATION.success);
+});
+
+test("toast.promise keeps concurrent same-copy mutations separate and preserves rejection", async () => {
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => { finish = resolve; });
+  const first = toast.promise(pending, { loading: "Saving", success: "Saved", error: "Failed" });
+  const second = toast.promise(Promise.reject(new Error("offline")), { loading: "Saving", success: "Saved", error: "Failed" });
+  assert.equal(getToasts().length, 2);
+  await assert.rejects(second, /offline/);
+  assert.equal(getToasts()[0].duration, 0, "the other mutation remains pending");
+  assert.equal(getToasts()[1].variant, "error");
+  finish();
+  await first;
+  assert.equal(getToasts()[0].variant, "success");
+});

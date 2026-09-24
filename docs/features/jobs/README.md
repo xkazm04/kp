@@ -6,6 +6,10 @@ generator, and the specificity linter that runs on saved JD bodies (ledger
 and public editors), not on the Generate need prompt. Phrase findings are
 click-to-highlight locators in the ledger editor.
 
+The shared JD and template rich-text editor includes a link control. Select text,
+enter an http(s) or mailto URL, and the editor stores the result as a Markdown
+link using the same safe-link rule as the renderer.
+
 **Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
 **Job description**; **Role brief** belongs to the intake dialog and nowhere else.
 "Posting" is retired from copy — it named the `jobs` row on some surfaces ("Open the
@@ -71,9 +75,10 @@ ledger:
   instead of a dead-end notice (`jobsTabDeepLink.test.ts`).
 - `?tab=library` — the saved-JD ledger (`JdsTab.tsx` → `JdsSavedLedger.tsx`); the whole page is the table now. It opens on the All-but-live filter so live roles (the Roles tab's business) do not clutter the shelf.
 - `?tab=intake` — **Job intake**, the authoring tab (`JdsIntakeTab.tsx`): the intake dialog (default) and the AI JD builder (`JdsBuilder.tsx`, exported as `JdBuilder` via `JdsGeneratePanel.tsx`) behind one switcher. Authoring and the ledger were one page behind a Saved/Generate/Intake strip until the split; "which roles do I have" and "write me a new one" are two questions, and the ledger now opens on the answer to the first. The empty Jobs catalog's "draft a role" launchpad card routes here (`tab=intake`), not to the JD shelf. Entry-mode rule: `jdsIntakeTabEntry.ts` (see `docs/features/intake/README.md`). The tab header carries no cross-link back to the ledger: "Job descriptions" is its own sidebar row one click away, and the corner button bought nothing but a width cap on the intro. A successful **Generate** reads `{ slug, taskId }` from `POST /api/jds/generate` and replaces the old 4s queued chip with a durable status linking to `/?tab=library&jd=<slug>` (pinned by `jdsBuilderGenerate.test.ts`), so the recruiter can watch the row the paid run is filling in.
-- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract.
+- `/jds/[slug]` — the public JD page (candidate-facing). The library detail rail copies that share URL (`origin + /jds/<slug>`) without a round-trip through the page. Live (non-archived) pages advertise `alternates.languages` for en/cs/de/fr plus `x-default`, matching the shareable `?lang=` contract. The sitemap lists only non-archived JDs with a linked open opening; saved drafts and closed roles stay out of the public index.
 - Recruiter `/api/jds/*` 404s answer `jsonRefusal("JD_NOT_FOUND")` so the client localizes a missing slug.
 - `POST /api/jds` and `POST /api/jds/save` refuse empty/over-long fields with `jsonRefusal(fields.code)` (`JD_FIELDS_REQUIRED` / `JD_TITLE_TOO_LONG` / `JD_BODY_TOO_LONG`).
+- `POST /api/jds/generate` returns `JD_BUILD_TITLE_TOO_SHORT` or `JD_BUILD_NEED_TOO_SHORT` for its minimum-input refusals, so the client can explain the 2-character title and 11-character need thresholds in the reader's language.
 
 
 ## Lifecycle stages
@@ -86,7 +91,7 @@ ledger:
 | **Closed** | The role is retired: its apply link stops accepting applications, it drops out of the open catalog and the matching pool, and its in-flight pipeline entries in the caller's workspace are withdrawn. | `POST /api/jobs/[id]/close` (idempotent mirror of `/publish`). | `jobs.status = 'closed'` |
 | **Published to job boards** | *(Not yet shipped.)* Distribute the JD to external job boards. | Disabled "Publish to job boards" button on `/jds/[slug]`, shown only when `canManage` (operator on the owning team). Anonymous share-link visitors never see it. | — |
 
-A failed AI build's ledger panel resolves a machine `code` (or `JD_GENERATE_FAILED`); it never renders the Python traceback that may still sit in `analysis_error`.
+A failed AI build stores `JD_GENERATE_FAILED` in `analysis_error`; the task keeps the original failure for operator diagnosis. The ledger panel resolves that machine code and never renders a traceback.
 
 `setJobStatus` (`app/_lib/job-ingest.ts`) owns every transition; a seeded
 corpus job with a `NULL` status is treated as already live. `Closed` was
@@ -499,6 +504,10 @@ throttle in the reader's language.
 | `POST /api/jobs/[id]/candidates/outreach` | `jobs-outreach:<ip>` | 60 | drafted first-touch + Outbox dispatch |
 | `POST /api/jobs/[id]/agent-fit` | `jobs-agent-fit:<ip>` | 20 | backgrounded `agent_fit` LLM transform |
 
+The shared `rankPoolForJob` child has a 240-second process deadline, below the
+Python runner's ten-minute hang backstop. A caller may request a shorter bound;
+the group evaluation still applies its own 240-second stage deadline.
+
 Every limiter sits **after** the cheap refusals (visibility/ownership 404s, the
 validation 400s, the outreach GDPR 409, the empty-pool short-circuits) and
 **before** the spawn, the spend and — on publish — the billing transaction, so a
@@ -516,7 +525,7 @@ orphaning the children.
 ## JD specificity lint (Erika gap E7)
 
 `app/_lib/jd-lint.ts` is a pure, LLM-free rules module that runs live on every
-edit in the builder: EN+CS boilerplate phrases ("competitive salary", "dynamic
+edit in the builder: EN+CS+DE+FR boilerplate phrases ("competitive salary", "dynamic
 environment", with inflection-tolerant Czech stems), missing concretes (no pay
 figure, no place of work — a work-mode keyword counts as place; a structured
 market band suppresses the salary finding), exclusionary/gendered-coded
@@ -689,6 +698,31 @@ record whose `(jobId, lang)` is not the pair that just failed. Without that, a
 toggle, ready to be copied onto a German job board. A reload of the *same* pair
 (the refetch after a finished generation task) keeps its record, so a refresh
 still never blanks content that is already correct.
+
+## The job's interview kit (2026-09)
+
+A job can now carry an **interview kit**: the competencies it is hired on, with a coarse
+weight, a time budget, the questions asked about each, must-ask flags and a recruiter
+FAQ the AI interviewer may answer from. It is the spine of every AI interview for that
+job. The routes sit under this job's namespace and gate like its siblings: every write
+asks `pipeline:write` first, then `canWriteJobLifecycle`, and an invisible job is a 404,
+never a 403.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/jobs/[id]/interview-kit` | The latest published version, the latest draft and the version list. |
+| `POST /api/jobs/[id]/interview-kit` | Queues the `interview_kit` task that drafts a new version from the posting and the promoted RoleBrief (a model call; 20 per 10 min, pinned in the rate-limit contract). Keyless installs get a deterministic draft from `requirements[]`. |
+| `PUT /api/jobs/[id]/interview-kit` | Saves an edited kit as a NEW version (`source: "edited"`). |
+| `POST /api/jobs/[id]/interview-kit/publish` | Publishes a version; new interview links for this job are minted from the highest published one. |
+| `POST /api/jobs/[id]/interview-kit/rehearse` | Mints a test call on any version of this job's kit, draft or published, with no candidate attached, and answers the `/interview/<token>` URL. It gets the real agenda, brief and director, is metered like `/simulate`, and can never score, approve or write to a pipeline entry. |
+
+Versions are append-only (`interview_kits`), so a regeneration never overwrites an edit
+and a link pinned to version N keeps asking what version N asked. A kit holds **no
+candidate data** — the erasure scrub is entry-keyed and cannot reach a job-keyed row —
+and a shape test keeps that sentence true. The **Kit** tab of the posting modal (`JobsKitTab.tsx`) is where a recruiter drafts one from the posting, edits competencies, weights, budgets, questions, must-asks and the FAQ, publishes a version, and rehearses it before any candidate meets it. How the kit becomes an agenda, a brief and a
+director policy is the interview feature's story:
+[`docs/features/interviews/README.md`](../interviews/README.md) §"The job interview
+kit" and §"The kit in the interview".
 
 ## Surface
 

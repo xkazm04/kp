@@ -66,6 +66,10 @@ The client seam is `app/_lib/use-error-message.ts`:
 | `ErrorMessageResolver` | The bound resolver's type — thread it into a plain helper as a parameter rather than turning that helper into a hook. |
 | `capabilityAwareReason(resolve, payload, fallback)` | The one refusal that carries **data**: a capability-gated 403 answers `FORBIDDEN_CAPABILITY` plus the `capability` it wanted. `errors.FORBIDDEN_CAPABILITY` stays placeholder-free (a dozen consumers resolve it with no values), so a client that HOLDS the capability renders `errors.forbiddenCapabilityNeeds` instead, which names the permission. Takes a bound resolver, so a helper module folds it identically to a component. |
 
+The org-wide and workspace capability gates emit this coded 403 directly, with
+the requested capability as data; unauthenticated 401s and cross-org 404s keep
+their existing envelopes.
+
 ```ts
 const errMsg = useErrorMessage();
 // …

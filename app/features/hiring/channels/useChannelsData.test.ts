@@ -7,19 +7,12 @@
 //      settled the tab on a confident empty: "Off", "Nothing published", "Receivers 0",
 //      and a first-run brief telling a recruiter with live receivers how to set one up.
 //
-//   2. "Waiting" counts the ENTRY column of the axis this workspace actually renders,
-//      by role — not the stage literally named "Accepted". Intake files arrivals with
-//      stageWithRole("entry", …) (cv-intake.ts), so a composed axis parked every
-//      inbound application somewhere the tab's `=== "Accepted"` filter could not see.
+//   2. "Waiting" comes from the server's workspace-scoped attention count. A
+//      missing/malformed count stays unknown instead of becoming a false zero.
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import type { StageDef } from "@/app/_lib/pipeline-stages";
-import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
-import { countWaitingAtEntry, listFromPayload } from "./useChannelsData";
-
-const entry = (stage: string, status = "active"): PipelineEntryView =>
-  ({ id: `e_${stage}_${status}_${Math.random()}`, stage, status }) as unknown as PipelineEntryView;
+import { listFromPayload, waitingFromAttention } from "./useChannelsData";
 
 test("listFromPayload returns the list a successful body carries", () => {
   assert.deepEqual(listFromPayload<{ id: string }>({ jobs: [{ id: "j1" }] }, "jobs"), [{ id: "j1" }]);
@@ -39,27 +32,12 @@ test("listFromPayload never turns an error body into an empty channel", () => {
   assert.equal(listFromPayload({ jobs: { 0: "not-an-array" } }, "jobs"), "failed");
 });
 
-test("countWaitingAtEntry counts the default axis's entry column, active only", () => {
-  const entries = [entry("Accepted"), entry("Accepted"), entry("Accepted", "rejected"), entry("Screened")];
-  assert.equal(countWaitingAtEntry(entries, undefined), 2);
-});
-
-test("countWaitingAtEntry follows a composed axis by ROLE, not by the name Accepted", () => {
-  // A workspace that composed its own board in Settings → Hiring: the entry column is
-  // "New applicants", and cv-intake files every inbound application there.
-  const axis: StageDef[] = [
-    { id: "New applicants", label: "New applicants", role: "entry" },
-    { id: "Screened", label: "Screened", role: "screening" },
-    { id: "Hired", label: "Hired", role: "terminal" },
-  ];
-  const entries = [entry("New applicants"), entry("New applicants"), entry("New applicants", "rejected"), entry("Screened")];
-  assert.equal(countWaitingAtEntry(entries, axis), 2);
-  // …and the stage that merely KEEPS the old name is not the entry column any more.
-  assert.equal(countWaitingAtEntry([entry("Accepted")], axis), 0);
-});
-
-test("countWaitingAtEntry falls back to the shipped axis when the payload carries none", () => {
-  assert.equal(countWaitingAtEntry([entry("Accepted")], []), 1);
+test("waiting count accepts a measured attention count and refuses malformed payloads", () => {
+  assert.equal(waitingFromAttention({ channels: 0 }), 0);
+  assert.equal(waitingFromAttention({ channels: 7 }), 7);
+  assert.equal(waitingFromAttention({ error: "Unavailable" }), "failed");
+  assert.equal(waitingFromAttention({ channels: "0" }), "failed");
+  assert.equal(waitingFromAttention({ channels: -1 }), "failed");
 });
 
 // 3. The tab's two own fetches are ABORTED when it unmounts, and nothing settles state

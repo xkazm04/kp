@@ -6,6 +6,7 @@ import { jdLastEditedAt } from "./db/jobs";
 import { jdSlugOfJobId } from "./jd-limits";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
 import type { Scorecard } from "./interview-scorecard";
+import type { KitOverlay } from "./interview-kit-types";
 
 // Persisted store for interview-prep artifacts — one timed interview plan per
 // pipeline entry (candidate × role), generated on accepted screening and opened
@@ -150,6 +151,29 @@ export function saveHumanScorecard(entryId: string, scorecard: Scorecard): boole
     const existing = readPrepRow(entryId);
     if (!existing) return false;
     const payload = { ...existing.payload, humanScorecard: { ...scorecard, source: "human" as const } };
+    const res = db()
+      .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
+      .run(JSON.stringify(payload), entryId);
+    return res.changes > 0;
+  }).immediate();
+}
+
+/** Persist the recruiter's per-candidate edits to the job interview kit (spark
+ *  interview-kit-template, WP-C) under the reserved `kitOverlay` payload key. A
+ *  HUMAN-owned key: the generator never writes it, so mergeRegeneratedPrep carries it
+ *  across a Regenerate, and the agenda reads it at connect (interview-agenda.ts).
+ *
+ *  The overlay is REPLACED whole — the modal always sends its complete state — but the
+ *  write is still an atomic read-merge-write for the same reason as its two siblings
+ *  above: the checklist PUT and the scorecard POST mutate other keys of this one
+ *  payload, and a plain read-then-write here could put back a copy of those keys from
+ *  before their own save. The caller has already validated `overlay`
+ *  (interview-prep-kit.ts parseKitOverlayWrite). Returns false when there is no pack. */
+export function saveInterviewPrepKitOverlay(entryId: string, overlay: KitOverlay): boolean {
+  return db().transaction((): boolean => {
+    const existing = readPrepRow(entryId);
+    if (!existing) return false;
+    const payload = { ...existing.payload, kitOverlay: overlay };
     const res = db()
       .prepare(`UPDATE interview_preps SET payload_json = ? WHERE entry_id = ?`)
       .run(JSON.stringify(payload), entryId);

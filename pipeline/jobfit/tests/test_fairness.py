@@ -242,6 +242,10 @@ class MotivationAspirationTermTest(unittest.TestCase):
             "aspiration ['UX'] vs title 'UX Designer' must score the aspiration term > 0",
         )
 
+    def test_short_aspiration_does_not_hit_inside_another_word(self) -> None:
+        baseline = self._score([], "Luxury Designer")
+        self.assertEqual(self._score(["UX"], "Luxury Designer"), baseline)
+
     def test_glue_tokens_do_not_hit(self) -> None:
         title = "UX Designer in Prague v tymu na webu"
         none = self._score([], title)

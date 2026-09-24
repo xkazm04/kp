@@ -97,12 +97,23 @@ async function post(
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
 
-const ok = (text: string): Extractor => async () => ({ stdout: JSON.stringify({ text }), stderr: "", exitCode: 0 });
+const ok = (text: string, pageCount: number | null = null): Extractor => async () => ({
+  stdout: JSON.stringify({ text, charCount: text.length, pageCount }), stderr: "", exitCode: 0,
+});
 
 test("a readable document answers 200 with its text", async () => {
   const { status, body } = await post(ok("Senior Go engineer, Brno."));
   assert.equal(status, 200);
   assert.equal(body.text, "Senior Go engineer, Brno.");
+  assert.equal(body.charCount, String(body.text).length);
+  assert.equal(body.pageCount, null, "plain text has no meaningful page count");
+});
+
+test("an image-only PDF can report a page with zero extracted characters", async () => {
+  const { status, body } = await post(ok("", 1), upload("scan.pdf", "application/pdf", "%PDF-1.4"));
+  assert.equal(status, 200);
+  assert.deepEqual({ text: body.text, charCount: body.charCount, pageCount: body.pageCount },
+    { text: "", charCount: 0, pageCount: 1 });
 });
 
 test("the spawn is bounded 5s INSIDE maxDuration, and the number is derived, not typed twice", async () => {

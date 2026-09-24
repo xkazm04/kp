@@ -9,10 +9,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  clientToolDrift,
   diffAgentConfig,
+  diffClientTools,
+  DIRECTOR_TOOL_RESPONSE_TIMEOUT_SECS,
+  extractLiveToolIds,
   firstDifferenceIndex,
   extractLiveOverrides,
+  formatDriftReport,
+  toElevenClientTool,
 } from "./eleven-agent-diff.mjs";
+import { DIRECTOR_TOOL_DEFS } from "./director-tools.mjs";
 
 const intended = {
   prompt: "You are a warm interviewer. Ask ONE question per turn.",
@@ -180,4 +187,102 @@ test("firstDifferenceIndex: identical → -1, prefix → length of shorter", () 
   assert.equal(firstDifferenceIndex("abc", "abc"), -1);
   assert.equal(firstDifferenceIndex("abc", "abcd"), 3);
   assert.equal(firstDifferenceIndex("abX", "abY"), 2);
+});
+
+// ---- the director's client tools (spark ai-interview-parity) --------------------------
+// ElevenLabs takes tools as WORKSPACE resources referenced by
+// conversation_config.agent.prompt.tool_ids (inline prompt.tools was removed in
+// July 2025), so --check follows the ids to each tool_config and diffs it here.
+
+const CLIENT_TOOLS = DIRECTOR_TOOL_DEFS.map(toElevenClientTool);
+
+test("each director tool becomes a blocking client tool whose every property has a description", () => {
+  assert.deepEqual(CLIENT_TOOLS.map((t) => t.name), DIRECTOR_TOOL_DEFS.map((d) => d.name));
+  for (const t of CLIENT_TOOLS) {
+    assert.equal(t.type, "client");
+    assert.equal(t.expects_response, true, `${t.name}: the model waits for the director's answer`);
+    assert.equal(t.response_timeout_secs, DIRECTOR_TOOL_RESPONSE_TIMEOUT_SECS);
+    assert.ok(t.response_timeout_secs >= 1 && t.response_timeout_secs <= 120, "API bound 1..120");
+    assert.equal("additionalProperties" in t.parameters, false, "the ElevenLabs schema has no additionalProperties");
+    for (const [key, p] of Object.entries(t.parameters.properties)) {
+      assert.ok(p.description.trim().length > 0, `${t.name}.${key} needs a description (the API requires one of description/dynamic_variable/...)`);
+    }
+  }
+  const guardrail = CLIENT_TOOLS.find((t) => t.name === "report_guardrail");
+  assert.deepEqual(guardrail?.parameters.properties.kind.enum, ["score_request", "instruction_override", "prompt_disclosure", "off_topic"]);
+});
+
+test("every property carries the CONTRACT's own description whenever the contract has one", () => {
+  // The model reads the same words on both providers: OpenAI mints the contract's
+  // schema verbatim, so the ElevenLabs config must not substitute its own wording.
+  DIRECTOR_TOOL_DEFS.forEach((def, i) => {
+    const props = def.parameters.properties as Record<string, { description?: string }>;
+    for (const [key, p] of Object.entries(props)) {
+      if (typeof p.description === "string" && p.description.trim()) {
+        assert.equal(CLIENT_TOOLS[i].parameters.properties[key].description, p.description, `${def.name}.${key}`);
+      }
+    }
+  });
+});
+
+test("an enum property with NO contract description falls back to a generated \"One of:\" line", () => {
+  const synthetic = toElevenClientTool({
+    name: "synthetic_tool",
+    description: "A tool whose enum property has no description.",
+    parameters: {
+      properties: { mode: { type: "string", enum: ["a", "b"] }, note: { type: "string" } },
+      required: ["mode"],
+    },
+  });
+  assert.equal(synthetic.parameters.properties.mode.description, "One of: a, b.");
+  assert.deepEqual(synthetic.parameters.properties.mode.enum, ["a", "b"]);
+  assert.equal(synthetic.parameters.properties.note.description, "note", "a plain property falls back to its key");
+  assert.equal("enum" in synthetic.parameters.properties.note, false);
+});
+
+test("a live tool with defaulted extras and reordered `required` is NOT drift", () => {
+  const base = CLIENT_TOOLS[1];
+  const live = {
+    ...base,
+    execution_mode: "immediate",
+    pre_tool_speech: "auto",
+    parameters: { ...base.parameters, required: [...base.parameters.required].reverse() },
+  };
+  assert.deepEqual(clientToolDrift(base, live), []);
+  assert.deepEqual(clientToolDrift(base, { ...base, expects_response: false }), ["expects_response"]);
+});
+
+test("diffClientTools reports missing, extra and drifted tools by name", () => {
+  const live = [
+    ...CLIENT_TOOLS.slice(1), // begin_topic missing
+    { ...CLIENT_TOOLS[2], description: "stale wording" }, // same name, later entry wins -> drift
+    { type: "client", name: "legacy_tool", description: "x", parameters: {} },
+  ];
+  const d = diffClientTools(CLIENT_TOOLS, live);
+  assert.equal(d.match, false);
+  assert.deepEqual(d.missing, ["begin_topic"]);
+  assert.deepEqual(d.extra, ["legacy_tool"]);
+  assert.deepEqual(d.drifted, [{ name: CLIENT_TOOLS[2].name, fields: ["description"] }]);
+  assert.equal(diffClientTools(CLIENT_TOOLS, CLIENT_TOOLS).match, true);
+});
+
+test("--check verdict: an agent without the director tools is drift, and the report says so", () => {
+  const withTools = { ...intended, clientTools: CLIENT_TOOLS };
+  const agent = matchingAgent();
+  const missing = diffAgentConfig(withTools, agent, []);
+  assert.equal(missing.ok, false);
+  assert.equal(missing.tools.checked, true);
+  assert.deepEqual(missing.tools.missing, CLIENT_TOOLS.map((t) => t.name));
+  assert.match(formatDriftReport(missing), /client tools\s+✗ DRIFT/);
+  const ok = diffAgentConfig(withTools, agent, CLIENT_TOOLS);
+  assert.equal(ok.ok, true);
+  assert.match(formatDriftReport(ok), /client tools\s+✓ match/);
+  // An intent without tools checks none — older callers keep their verdict.
+  assert.equal(diffAgentConfig(intended, agent).tools.checked, false);
+  assert.equal(diffAgentConfig(intended, agent).ok, true);
+});
+
+test("extractLiveToolIds reads conversation_config.agent.prompt.tool_ids defensively", () => {
+  assert.deepEqual(extractLiveToolIds({ conversation_config: { agent: { prompt: { tool_ids: ["t1", "", 3, "t2"] } } } }), ["t1", "t2"]);
+  assert.deepEqual(extractLiveToolIds({}), []);
 });

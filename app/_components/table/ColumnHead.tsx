@@ -16,6 +16,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { META_LABEL } from "@/app/_components/ui/recipes";
+import { Tooltip } from "@/app/_components/Tooltip";
 import { ariaSort, type SortState } from "./useTableSort";
 
 export function ColumnHead<C extends string>({
@@ -54,17 +55,18 @@ export function ColumnHead<C extends string>({
       <span className={`inline-flex items-center gap-1 ${align === "right" ? "flex-row-reverse" : ""}`}>
         <span className={`${META_LABEL} ${active ? "text-coral" : ""}`}>{title}</span>
         {sortCol ? (
-          <button
-            type="button"
-            onClick={() => onSort(sortCol)}
-            aria-label={t("sortBy", { column: title })}
-            title={t("sortBy", { column: title })}
-            className={`focus-ring inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
-              active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
-            }`}
-          >
-            <SortIcon size={13} className={active ? "" : "opacity-60"} aria-hidden />
-          </button>
+          <Tooltip label={t("sortBy", { column: title })} side="bottom">
+            <button
+              type="button"
+              onClick={() => onSort(sortCol)}
+              aria-label={t("sortBy", { column: title })}
+              className={`focus-ring inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
+                active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+              }`}
+            >
+              <SortIcon size={13} className={active ? "" : "opacity-60"} aria-hidden />
+            </button>
+          </Tooltip>
         ) : null}
         {children}
       </span>

@@ -186,6 +186,37 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // (interviewedForJob) filters workspace_id + create stamps it (derived from the entry);
   // by-id/token/entry_id ops are exempt (interviews-tenancy.test.ts).
   "interview_sessions",
+  // The interview director's append-only record (db/interview-events.ts, ADR 0010):
+  // turns, tool calls, stage directions and browser observations of a live call. EVERY
+  // statement binds workspace_id — the append is an INSERT…SELECT against the session
+  // row filtered by the same workspace, so an event cannot be filed under another team's
+  // session — with NO by-id exemption; the only other writer is the erasure DELETE,
+  // keyed by the entry's sessions (interview-events-tenancy.test.ts).
+  "interview_events",
+  // The job-level interview kit (db/interview-kits.ts): the versioned, append-only
+  // competencies + questions + FAQ every interview for one role is run from. Scoped with
+  // NO by-id carve-out even though the ROLE may be a shared corpus row (jobs.workspace_id
+  // NULL) — the same reasoning as job_translations: the kit is authored by one team,
+  // against one team's LLM spend, and a leaked kit id is what a minted interview link
+  // resolves, so an unscoped by-id read would hand another team the questions they wrote.
+  // The version key is (workspace_id, job_id, version), so one team publishing a new
+  // version can never renumber or overwrite another's (interview-kits-tenancy.test.ts,
+  // whose exemption list is empty). The rows hold NO candidate data by construction —
+  // the erasure scrub is entry-keyed and could not reach them — which is pinned
+  // separately by interview-kits-shape.test.ts.
+  "interview_kits",
+  // The interview FEEDBACK LETTER (db/interview-letters.ts): one row per application —
+  // the candidate's request, the machine's draft, the recruiter's final text, who decided
+  // and what delivery reported. Scoped with NO by-id carve-out: every read and write,
+  // point reads included, binds workspace_id, because a letter id travels through the
+  // recruiter's review queue and the task runner (whose params POST /api/tasks accepts from
+  // a client), so an unscoped by-id read would hand one team another team's letter about a
+  // named person. The PUBLIC request door never takes a letter id at all — it resolves the
+  // status token to the entry and derives the tenant from it (getEntryWorkspace), the rule
+  // every /api/status/[token] sibling follows. The unique key is (workspace_id, entry_id).
+  // Holds candidate personal data, so the erasure scrub blanks it
+  // (interview-letters-tenancy.test.ts, exemption list empty).
+  "interview_letters",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).
@@ -203,6 +234,31 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // filters/stamps workspace_id; a leaked intake id never resolves across
   // tenants (intakes-tenancy.test.ts).
   "role_intakes",
+  // The role-intake conversation's append-only HISTORY (db/intake-events.ts, Journey
+  // Analytics) — one row per round, derived from the same dialog `role_intakes` holds,
+  // so it inherits that table's strict posture: NO by-id exemption. Every statement in
+  // the store, and the boot backfill's INSERT in db/core.ts, binds workspace_id, and
+  // intake-events-tenancy.test.ts scans BOTH files so the backfill copy cannot drift out
+  // of scope. There is no public token and no candidate-facing read; the `id` is an
+  // AUTOINCREMENT integer, which is precisely the kind of guessable key a by-id carve-out
+  // must never be granted to.
+  "intake_events",
+  // A role's frozen, versioned rubric (db/role-rubrics.ts, ADR-0012 §2): operator-
+  // internal, no public token, so every statement — point reads included — binds
+  // workspace_id. The version UNIQUE is (workspace_id, job_id, version) because
+  // shared-corpus jobs carry a NULL workspace and two teams may each freeze their
+  // own rubric for the same job (role-rubrics-tenancy.test.ts).
+  "role_rubrics",
+  // The role-run ledger (db/role-runs.ts, ADR-0011, docs/features/hiring-pipeline/
+  // role-run-ledger.md): `role_runs` is one row per (job, cycle) and `role_run_stages`
+  // is its append-only log of stage artifacts. Operator-internal with no public token,
+  // so the strict rule applies — EVERY query, point reads included, filters or stamps
+  // workspace_id, with no by-id exemptions (role-runs-tenancy.test.ts). Stricter than
+  // convenience: a stage artifact is the evidence behind a person-affecting decision,
+  // which makes a cross-tenant read of one worse than a leak of a draft. Both take the
+  // "workspace" org-export default — a role run IS the org's hiring record.
+  "role_runs",
+  "role_run_stages",
   // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
   // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
   // reads) + team-private drafts (workspace_id = team). Every read/write filters on

@@ -15,7 +15,7 @@
 // `skipped`. Store-free on purpose (the browser bundle imports it for labels): the
 // store is app/_lib/scheduler-store.ts.
 
-export const SCHEDULER_JOB_NAMES = ["policy_pass", "reminders", "jobseeker_scan"] as const;
+export const SCHEDULER_JOB_NAMES = ["policy_pass", "reminders", "jobseeker_scan", "interview_recording_retention"] as const;
 export type SchedulerJobName = (typeof SCHEDULER_JOB_NAMES)[number];
 
 export function isSchedulerJobName(v: unknown): v is SchedulerJobName {
@@ -46,6 +46,26 @@ export const SCHEDULER_JOBS: readonly SchedulerJobDef[] = [
   // manual scan succeeded (requiresVerifiedRun) — the route refuses to arm it before
   // that with JOBSEEKER_SCAN_UNVERIFIED (409).
   { name: "jobseeker_scan", labelKey: "jobseekerScan", defaultIntervalMinutes: 720, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: true },
+  // Opt-in interview-audio retention (spark ai-interview-parity, WP3). DAILY: the two
+  // windows it enforces are measured in days (30 after the hiring decision, 180 after
+  // the call), so a tighter cadence would spend a scan to learn the same thing.
+  //
+  // ON BY DEFAULT — the one exception beside `reminders`, and for a stronger reason:
+  // this is a STATUTORY retention duty (storage limitation) over candidate audio the
+  // candidate was PROMISED would be deleted, not a discretionary automation. A job
+  // registered OFF would mean every deployment silently keeps recordings forever until
+  // someone notices a toggle. (The read-time gate in the playback door is the backstop
+  // for a clock that is nonetheless not running.) `fanOut: "none"`: one deployment-wide
+  // sweep, scoping each write to the workspace the row names — the same shape as the
+  // consent-expiry sweep.
+  {
+    name: "interview_recording_retention",
+    labelKey: "interviewRecordingRetention",
+    defaultIntervalMinutes: 1440,
+    defaultEnabled: true,
+    fanOut: "none",
+    requiresVerifiedRun: false,
+  },
 ];
 
 export function schedulerJob(name: SchedulerJobName): SchedulerJobDef {

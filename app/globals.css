@@ -784,6 +784,28 @@ textarea {
   }
 }
 
+/*
+ * Live presence halo — the ring behind the interview presence orb
+ * (app/_components/voice/InterviewPresence.tsx). It does NOT loop: the component
+ * writes `--presence-level` (0..1, smoothed) once per animation frame from the live
+ * audio meter, and the scale follows it, so the motion IS the candidate's own voice
+ * or the interviewer's. The short transition smooths the frame-to-frame step.
+ *
+ * Under prefers-reduced-motion the component never arms that loop, so the variable
+ * stays unset and the halo rests at its default size; this block also drops the
+ * transition so a state change (which re-skins the halo's color) cannot animate.
+ */
+.voice-presence-halo {
+  transform: scale(calc(0.74 + 0.26 * var(--presence-level, 0)));
+  transition: transform 90ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-presence-halo {
+    transform: scale(0.84);
+    transition: none;
+  }
+}
+
 @keyframes score-band-fill {
   from {
     stroke-dashoffset: var(--seg-len, 500);

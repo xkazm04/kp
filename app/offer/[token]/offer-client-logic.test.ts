@@ -82,6 +82,13 @@ test("the same instant renders identically whatever the viewer's locale digits",
   assert.match(en, /UTC/);
 });
 
+test("the public card uses the company's projected zone", () => {
+  assert.match(clientSrc, /formatOfferDeadline\(offer\.expiresAt, locale, offer\.timeZone\)/);
+  const out = formatOfferDeadline("2026-09-12T21:30:00.000Z", "en", "Europe/Prague");
+  assert.match(out, /11:30|23:30/);
+  assert.match(out, /GMT\+2|CEST/);
+});
+
 test("an unparsable or absent deadline renders nothing, never 'Invalid Date'", () => {
   assert.equal(formatOfferDeadline(null, "en"), "");
   assert.equal(formatOfferDeadline("", "en"), "");

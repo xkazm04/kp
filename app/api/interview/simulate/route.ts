@@ -7,6 +7,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { coerceLanguage, defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import {
   caseGroundedInterviewerInstructions,
   DEMO_CASE_SCENARIO,
@@ -24,6 +25,7 @@ import {
 // mint. 20/10min: a recruiter trying the agent takes the call before starting
 // another, so twenty in ten minutes is far above honest pace.
 const SIMULATE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+const MAX_SIMULATE_BODY_BYTES = 16 * 1024;
 
 
 type SimMode = "student" | "student-case" | "regular";
@@ -38,11 +40,12 @@ type SimMode = "student" | "student-case" | "regular";
 // never synthesizes a scorecard or touches the pipeline.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
+    const body = await readJsonWithLimit<{
       mode?: string;
       provider?: string;
       language?: string;
-    };
+    }>(request, MAX_SIMULATE_BODY_BYTES, {});
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_SIMULATE_BODY_BYTES });
     const mode: SimMode = body.mode === "student" || body.mode === "student-case" ? body.mode : "regular";
 
     const avail = voiceAvailability();

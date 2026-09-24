@@ -394,6 +394,13 @@ export function dateSlotToIso(
   const ms = zonedInstant(y, mo, dd, hh, mm, tz);
   if (Number.isNaN(ms)) return null;
   const p = zonedParts(ms, tz);
+  // The range check above is per-FIELD (mo <= 12, dd <= 31) and cannot see that the day
+  // is absent from THAT month — and Date.UTC, which zonedInstant is built on, overflows
+  // silently rather than refusing: "2026-02-30" became 2 March, "2026-06-31" 1 July.
+  // `date` is a raw POST field, so the invite was then booked on a different calendar
+  // day than the one asked for, with a server-derived label that named the rolled day
+  // and nothing to flag the shift. Round-tripping the resolved instant back through the
+  // interview zone is the whole check, and `p` is already in hand for the weekend test.
   if (p.year !== y || p.month !== mo || p.day !== dd || p.hour !== hh || p.minute !== mm) return null;
   if (ms <= nowMs || ms > nowMs + MAX_SLOT_AHEAD_MS) return null;
   if (p.weekday === 0 || p.weekday === 6) return null; // weekend in the interview zone

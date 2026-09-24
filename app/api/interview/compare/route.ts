@@ -4,7 +4,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { getHumanScorecard } from "@/app/_lib/interview-prep";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 
@@ -29,7 +29,7 @@ function telemetryForEntry(entryId: string | null, workspaceId: string): Intervi
 // within their own cohort rather than being forced onto one rubric.
 export async function GET(request: NextRequest) {
   const jobId = request.nextUrl.searchParams.get("job");
-  if (!jobId) return NextResponse.json({ error: "job is required" }, { status: 400 });
+  if (!jobId) return jsonRefusal("INTERVIEW_JOB_REQUIRED", 400);
   try {
     // Tenancy — BOTH cohort reads below are scoped to the caller's own team. The
     // seeded jobs corpus is SHARED (workspace_id NULL), so two teams legitimately

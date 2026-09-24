@@ -119,6 +119,18 @@ def extract_text(path: Path) -> str:
     raise ValueError(f"Unsupported file type: {suffix}. Use PDF, DOCX, TXT, or MD.")
 
 
+def extract_text_with_stats(path: Path) -> tuple[str, int | None]:
+    """The same text as ``extract_text``, plus page count when the file has pages.
+
+    PDF extraction opens the reader only once. TXT/MD/DOCX have no reliable page
+    boundaries, so their page count is ``None`` rather than an invented one.
+    """
+    if path.suffix.lower() == ".pdf":
+        _reject_oversized(path)
+        return _extract_pdf_with_page_count(path)
+    return extract_text(path), None
+
+
 def clean_text(text: str) -> str:
     text = repair_text_encoding(text)
     text = unicodedata.normalize("NFC", text)
@@ -232,6 +244,10 @@ def count_letter_spacing(text: str) -> int:
 
 
 def _extract_pdf(path: Path) -> str:
+    return _extract_pdf_with_page_count(path)[0]
+
+
+def _extract_pdf_with_page_count(path: Path) -> tuple[str, int]:
     try:
         from pypdf import PdfReader
     except ImportError as exc:
@@ -248,4 +264,4 @@ def _extract_pdf(path: Path) -> str:
         chunk = page.extract_text() or ""
         pages.append(chunk)
         total += len(chunk)
-    return clean_text(collapse_letter_spacing("\n".join(pages)))
+    return clean_text(collapse_letter_spacing("\n".join(pages))), len(reader.pages)

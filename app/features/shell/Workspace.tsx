@@ -16,6 +16,7 @@ import { SimulationProvider } from "./simulation/SimulationProvider";
 import { CompanionDockProvider } from "./companion/CompanionDockProvider";
 import { WorkspaceNavDrawer } from "./WorkspaceNavDrawer";
 import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
+import { WorkspaceDocumentTitle } from "./WorkspaceDocumentTitle";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import { useOnboardingReopen } from "./setup/onboardingReopen";
 import {
@@ -30,7 +31,7 @@ import {
 
 export type { WorkspaceTabId } from "./tabs";
 
-export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?: boolean }) {
+export function Workspace({ firstRunOnboarding = false, hasSession = false }: { firstRunOnboarding?: boolean; hasSession?: boolean }) {
   // Same-document URL patching, not router.push: a `?tab=` switch changes nothing
   // the SERVER render of '/' depends on, so making it a server navigation only
   // bought a ~358 KB RSC round-trip per click. See nav/shallow-nav.ts.
@@ -103,6 +104,18 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
+  // The Journeys board is the one tab whose surface is a full-viewport OVERLAY
+  // above the workspace rather than a panel inside the content frame. Closing it
+  // must therefore restore the tab the reader was on, not leave them staring at
+  // an empty frame — so we remember the last non-overlay tab and go back to it.
+  const lastFramedTab = useRef<WorkspaceTabId>(DEFAULT_TAB);
+  useEffect(() => {
+    if (active !== "journeys") lastFramedTab.current = active;
+  }, [active]);
+  const closeOverlayTab = useCallback(() => {
+    setActive(lastFramedTab.current === "journeys" ? DEFAULT_TAB : lastFramedTab.current);
+  }, [setActive]);
+
   // Switching tabs from the sidebar clears every tab-scoped deep-link param
   // (the allowlist lives in tabs.ts, not in this call site) so the destination
   // never inherits the prior tab's selection.
@@ -174,6 +187,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
 
   return (
     <TasksProvider>
+    <WorkspaceDocumentTitle active={navActive} />
     <SimulationProvider>
     {/* Candi's dock mounts as a SIBLING of this div (fixed-positioned), inside every
         provider and outside the keyed tab panel — so a conversation survives tab
@@ -194,6 +208,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
       </div>
 
       <WorkspaceNavDrawer
+        hasSession={hasSession}
         t={t}
         drawerRef={drawerRef}
         isMobile={isMobile}
@@ -222,7 +237,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
             survive) and clears itself when resetKey/navActive changes on a tab
             switch. The inner key replays the fade-in entrance on each switch. */}
         <div className="mx-auto max-w-[108rem] px-4 py-8 pb-24 sm:px-6 lg:px-8">
-          <WorkspaceTabPanel navActive={navActive} active={active} />
+          <WorkspaceTabPanel navActive={navActive} active={active} onCloseOverlay={closeOverlayTab} />
         </div>
       </main>
       <SimSurfaces />

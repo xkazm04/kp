@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { candidateDrawerBundle } from "@/app/_lib/candidate-timeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
 // c6524f2f / one-call drawer — the WHOLE CandidateDrawer payload for one entry in
@@ -25,7 +25,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const bundle = candidateDrawerBundle(id, await currentWorkspace());
-    if (bundle === null) return NextResponse.json({ error: "entry not found" }, { status: 404 });
+    if (bundle === null) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     // `items` retained at the top level for back-compat with any reader of the
     // prior shape; the enriched fields ride alongside.
     return NextResponse.json({ ...bundle });

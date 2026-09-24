@@ -16,7 +16,7 @@ import { DISPLAY, STICKER } from "../tokens";
 // Who speaks each transcript line; the words come from landing.voice.transcript.
 const TRANSCRIPT_WHO = ["ai", "them", "ai"] as const;
 
-export default function VoiceTeaser() {
+export default function VoiceTeaser({ onPreview }: { onPreview: () => void }) {
   const t = useTranslations("landing");
   const bullets = t.raw("voice.bullets") as string[];
   const transcript = t.raw("voice.transcript") as string[];
@@ -36,6 +36,14 @@ export default function VoiceTeaser() {
             })}
           </motion.h2>
           <p className="mt-6 max-w-lg text-lg leading-relaxed text-[#42606f]">{t("voice.body")}</p>
+          <button
+            type="button"
+            onClick={onPreview}
+            aria-haspopup="dialog"
+            className="mt-5 rounded-xl border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 text-[17px] font-bold shadow-[3px_3px_0_#17202a] focus-ring"
+          >
+            {t("voice.previewCta")}
+          </button>
           <ul className="mt-6 space-y-3 text-base font-bold">
             {bullets.map((li) => (
               <li key={li} className="flex items-center gap-3">

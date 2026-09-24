@@ -24,6 +24,9 @@
  *  catches the ~90 not-yet-migrated literal panels. */
 export const PANEL = "rounded-lg border border-stone-200 bg-white shadow-panel";
 
+/** Raised coral-tinted callout for high-signal result summaries. */
+export const PANEL_ACCENT = "rounded-lg border border-coral/30 bg-coral/5 shadow-pop";
+
 /** Quiet well — empty states, placeholders, nested passive regions. A faint
  *  stone fill (not the near-invisible paper/40 tint) so it reads as genuinely
  *  recessed against a white PANEL. */

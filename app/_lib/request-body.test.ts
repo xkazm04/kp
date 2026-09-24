@@ -5,7 +5,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BODY_TOO_LARGE, readJsonWithLimit, readTextWithLimit } from "./request-body.ts";
+import { BODY_TOO_LARGE, BodyReadTimeoutError, readJsonWithLimit, readTextWithLimit } from "./request-body.ts";
 
 /** A request whose declared content-length can be set independently of what it streams. */
 function req(body: string, declared?: string): Request {
@@ -54,4 +54,32 @@ test("an honest oversized content-length is refused without reading the stream",
 test("BODY_TOO_LARGE is a value no body can produce", () => {
   assert.equal(typeof BODY_TOO_LARGE, "symbol");
   assert.notEqual(BODY_TOO_LARGE, Symbol("kp.body-too-large"));
+});
+
+test("a stalled body fails at the read deadline and cancels its stream", async () => {
+  let cancelled = 0;
+  const body = new ReadableStream<Uint8Array<ArrayBuffer>>({ cancel() { cancelled += 1; } });
+  await assert.rejects(readTextWithLimit({ body }, 64, 20), BodyReadTimeoutError);
+  assert.equal(cancelled, 1);
+});
+
+test("a slow trickle cannot reset the total body deadline", async () => {
+  let cancelled = 0;
+  let chunks = 0;
+  let interval: ReturnType<typeof setInterval>;
+  const body = new ReadableStream<Uint8Array<ArrayBuffer>>({
+    start(controller) {
+      interval = setInterval(() => {
+        chunks += 1;
+        controller.enqueue(new Uint8Array(new ArrayBuffer(1)).fill(65));
+      }, 10);
+    },
+    cancel() {
+      cancelled += 1;
+      clearInterval(interval);
+    },
+  });
+  await assert.rejects(readTextWithLimit({ body }, 1024, 45), BodyReadTimeoutError);
+  assert.ok(chunks > 0, "the stream delivered bytes before the deadline");
+  assert.equal(cancelled, 1);
 });

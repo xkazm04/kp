@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getInterviewSessionByToken } from "@/app/_lib/db/interviews";
 import { recordSimTranscriptAttached } from "@/app/_lib/db/pipeline";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { readEntityId } from "../../entry-id";
 import { isAttachableSimSession, simAttachDetail, simRunRef } from "./sim-session";
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const token = typeof body.token === "string" ? body.token.trim() : "";
     const entryId = readEntityId(body.entryId);
     if (!token || !entryId) {
-      return NextResponse.json({ error: "token and entryId are required." }, { status: 400 });
+      return jsonRefusal("INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED", 400);
     }
     // Tenant-scoped READ (wave 18b). This is a GATED recruiter action, not a
     // public token surface: the caller has a workspace and it is the authority.
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // and never-run `created` sessions, stamping a sim_attached event for an
     // interview that was never conducted.
     if (!session || !isAttachableSimSession(session)) {
-      return NextResponse.json({ error: "Simulation session not found." }, { status: 404 });
+      return jsonRefusal("INTERVIEW_SIM_SESSION_NOT_FOUND", 404);
     }
     // Idempotency per (session, entry): the store de-duplicates on this exact
     // string, and simAttachDetail makes it unique per SESSION (see sim-session.ts).
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // tenant is the authority; the picker's entry ids come from the already-scoped
     // /api/pipeline, so a caller can only ever name one of their own.
     const ok = recordSimTranscriptAttached(entryId, detail, workspace);
-    if (!ok) return NextResponse.json({ error: "entry not found" }, { status: 404 });
+    if (!ok) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     // The stable reference of the annotation now on the record. A repeat POST
     // answers the SAME ref having written nothing, so a client can confirm the
     // attachment idempotently rather than inferring it from a bare `ok`.

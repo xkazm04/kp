@@ -30,12 +30,13 @@
 import Database from "better-sqlite3";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
+import { dumpChecksum } from "./db-dump-checksum.mjs";
 
 // Keep in sync with app/_lib/db-path.ts (bare-`node` script, can't import TS).
 const DEFAULT_DB_PATH = process.env.KP_DB_PATH ?? path.join(process.cwd(), "data", "kp.sqlite");
 
 const DUMP_FORMAT = "kp-db-dump";
-const DUMP_VERSION = 1;
+const DUMP_VERSION = 2;
 
 function parseArgs(argv) {
   const args = { db: DEFAULT_DB_PATH, dump: null, replace: false, dryRun: false };
@@ -75,11 +76,21 @@ function main() {
     process.exit(1);
   }
   const payload = JSON.parse(readFileSync(args.dump, "utf-8"));
-  if (payload.format !== DUMP_FORMAT || payload.version !== DUMP_VERSION) {
+  if (payload.format !== DUMP_FORMAT || ![1, DUMP_VERSION].includes(payload.version)) {
     console.error(
       `Not a ${DUMP_FORMAT} v${DUMP_VERSION} file (got format=${payload.format}, version=${payload.version}).`
     );
     process.exit(1);
+  }
+  if (payload.version === DUMP_VERSION &&
+      (typeof payload.checksum !== "string" ||
+       !/^[0-9a-f]{64}$/.test(payload.checksum) ||
+       payload.checksum !== dumpChecksum(payload))) {
+    console.error("Refusing to load: dump SHA-256 checksum is missing or does not match its contents.");
+    process.exit(1);
+  }
+  if (payload.version === 1) {
+    console.error("WARNING: this legacy v1 dump has no checksum and cannot be integrity-verified.");
   }
 
   // "Writes nothing" has to include the workspace FILE. `new Database(path)` and

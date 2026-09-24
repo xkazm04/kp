@@ -5,7 +5,7 @@ import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, findEntryByLeadToken, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
 import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
-import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
+import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageWithRole } from "@/app/_lib/pipeline-stages";
@@ -20,6 +20,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { capAttribution } from "@/app/_lib/lead-payload";
 
 // Mint (or reuse) the candidate's status-link token for an entry (idea-e76a6fb2),
 // best-effort: the application already succeeded, so a status-link failure must
@@ -223,8 +224,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // measurement — it grants nothing, so an absent or bogus value only leaves
       // the attempt looking abandoned.
       applySessionId?: unknown;
+      company_url?: unknown;
+      campaign?: unknown;
+      variant?: unknown;
     }>(request, MAX_APPLY_BODY_BYTES, {});
     if (body === BODY_TOO_LARGE) return jsonRefusal("APPLY_PAYLOAD_TOO_LARGE", 413);
+    // A filled hidden field signals an automated submission. Mirror the ordinary
+    // knockout result without creating an entry or sending any comms.
+    if (isHoneypotFilled(body)) {
+      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+    }
     const answers = body.answers ?? {};
     // Close the funnel loop on whichever path files an entry: a first application,
     // the dedupe backstop, or a re-apply that merged onto the original. All three
@@ -430,7 +439,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         if (cvText || existing.intakeDegraded) {
           // Same tenant the entry itself is filed into (see the first-apply build
           // below): the rebuilt profile must land in the team that owns the opening.
-          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId, workspaceId);
+          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId, workspaceId, applicantLocale);
           if (rebuilt.ok) {
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
@@ -508,7 +517,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // a non-default team the recruiter opened their new applicant and found no
     // profile behind them, the Match pool never saw the candidate, and the follow-up
     // POST below 404'd (it reads getProfileRecord(profileId, getJobWorkspace(job.id))).
-    const built = await buildApplicantProfile(job, intakeAnswers, null, workspaceId);
+    const built = await buildApplicantProfile(job, intakeAnswers, null, workspaceId, applicantLocale);
     const candidateId = built.ok ? built.id : randomId("apply");
 
     const { entry, created } = createPipelineEntry({
@@ -544,6 +553,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
+      sourceCampaign: typeof body.campaign === "string" ? capAttribution(body.campaign.trim()) || null : null,
+      sourceVariant: typeof body.variant === "string" ? capAttribution(body.variant.trim()) || null : null,
       workspaceId,
     });
 

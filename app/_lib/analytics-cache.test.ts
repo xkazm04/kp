@@ -8,6 +8,7 @@ import {
   calibrationBandCacheKey,
   decisionRecordsCacheKey,
   invalidateAnalyticsWorkspace,
+  invalidateCalibrationWorkspace,
 } from "./analytics-cache.ts";
 
 test("analyticsCacheKey isolates workspaces and windows", () => {
@@ -212,4 +213,22 @@ test("invalidateAnalyticsWorkspace retires every window of ONE workspace", () =>
   assert.equal(cache.get("ws-a", 30, compute), "after", "the written workspace's windowed view must re-aggregate");
   assert.equal(cache.get("ws-a", null, compute), "after", "every window of that workspace, not just the one read last");
   assert.equal(cache.get("ws-b", 30, compute), "before", "a sibling tenant's fresh payload is not collateral");
+});
+
+test("threshold write retires only that workspace's calibration curves", () => {
+  const cache = createTtlCache<string>({ now: () => 0 });
+  const key = (workspace: string, source: string) => calibrationCacheKey(workspace, source, null);
+  let stored = "before";
+  const compute = () => stored;
+
+  assert.equal(cache.get(key("cal-a", "pipeline:advance"), compute), "before");
+  assert.equal(cache.get(key("cal-a", "holdout:advance"), compute), "before");
+  assert.equal(cache.get(key("cal-b", "pipeline:advance"), compute), "before");
+  stored = "after";
+  assert.equal(cache.get(key("cal-a", "pipeline:advance"), compute), "before");
+
+  invalidateCalibrationWorkspace("cal-a");
+  assert.equal(cache.get(key("cal-a", "pipeline:advance"), compute), "after");
+  assert.equal(cache.get(key("cal-a", "holdout:advance"), compute), "after");
+  assert.equal(cache.get(key("cal-b", "pipeline:advance"), compute), "before");
 });

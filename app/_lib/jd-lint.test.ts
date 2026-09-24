@@ -51,9 +51,26 @@ test("catches Czech culture boilerplate", () => {
   assert.deepEqual(phrases, ["mladý kolektiv", "dynamické prostředí", "rodinná atmosféra", "Staňte se součástí"]);
 });
 
+test("catches German salary and team boilerplate", () => {
+  assert.deepEqual(
+    findVaguePhrases("Wir bieten ein wettbewerbsfähiges Gehalt und ein dynamisches Team. Werde Teil unseres Teams!"),
+    ["wettbewerbsfähiges Gehalt", "dynamisches Team", "Werde Teil unseres Teams"]
+  );
+  assert.deepEqual(findVaguePhrases("Attraktive Vergütung"), ["Attraktive Vergütung"]);
+});
+
+test("catches French salary and team boilerplate", () => {
+  assert.deepEqual(
+    findVaguePhrases("Salaire compétitif, rémunération attractive. Rejoignez notre équipe dynamique !"),
+    ["Salaire compétitif", "rémunération attractive", "Rejoignez notre équipe", "équipe dynamique"]
+  );
+});
+
 test("leaves concrete, specific copy alone", () => {
   const text = "Senior React developer in Brno, 65 000–95 000 Kč/month, hybrid (2 days in office). Stack: React 19, TypeScript, Node.";
   assert.deepEqual(findVaguePhrases(text), []);
+  assert.deepEqual(findVaguePhrases("Berlin, 80.000 EUR brutto, drei Tage Homeoffice. TypeScript und PostgreSQL."), []);
+  assert.deepEqual(findVaguePhrases("Paris, 60 000 EUR brut, deux jours en télétravail. TypeScript et PostgreSQL."), []);
 });
 
 // ---------------------------------------------------------------------------

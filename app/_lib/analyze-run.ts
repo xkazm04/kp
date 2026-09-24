@@ -10,10 +10,11 @@ import { countSanityWarns } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
-import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { cleanupWorkdir, flagArg, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { isSpawnTimeoutMessage } from "@/app/_lib/intake-run";
+import type { Locale } from "@/i18n/locales";
 
 // Shared core for CV analysis, lifted out of /api/analyze so it can run inside
 // the background-task runner (detached from the request → survives navigation
@@ -35,7 +36,7 @@ export type AnalyzeParams = {
   // request time (the background task runs outside request scope, so it can't
   // read the cookie itself) and forwarded to the Python CLI via --lang. Part of
   // the cache key so localized results don't collide. Defaults to "en".
-  lang?: string;
+  lang?: Locale;
   // Blind screening (idea-b8d711c4): redact identity from the CV before scoring.
   // Forwarded to the CLI as --blind; part of the cache key so a blind and a
   // non-blind run of the same CV don't collide.
@@ -195,10 +196,11 @@ function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | n
   if (p.blind) args.push("--blind");
   args.push("--lang", p.lang || "en");
   if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
-  else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
+  // Pasted text: = form, so a JD that opens with a "- bullet" is text, not an option.
+  else if (p.jobDescriptionText?.trim()) args.push(flagArg("--job-description-text", p.jobDescriptionText.trim()));
   if (jobStructurePath) args.push("--job-json", jobStructurePath);
   if (p.companyPath) args.push("--company-path", p.companyPath);
-  else if (p.companyText?.trim()) args.push("--company-text", p.companyText.trim());
+  else if (p.companyText?.trim()) args.push(flagArg("--company-text", p.companyText.trim()));
   return args;
 }
 

@@ -17,7 +17,8 @@
 //   • the free-text query and the funnel-stage filter are single-valued, unchanged.
 
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
-import { DEFAULT_STAGE_AXIS, stagesWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, stageHasRole, stagesWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
+import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import { canonicalScoreOf } from "@/app/_lib/match-score";
 import { scoreTone } from "@/app/_lib/format";
 import { agingBucket } from "./pipelineRenderDiet";
@@ -29,7 +30,7 @@ const DAY_MS = 86_400_000;
 // value list so the ?quick= deep-link param validates against the same set the chips
 // render from. Moved here from PipelineTab so the predicate and the param parser
 // share one source.
-export const QUICK_FILTERS = ["interview", "aging", "awaiting", "intake"] as const;
+export const QUICK_FILTERS = ["active", "interview", "aging", "awaiting", "intake"] as const;
 export type QuickFilter = (typeof QUICK_FILTERS)[number];
 
 // Score bands, kept in lock-step with the canonical scoreTone tiers (format.ts:
@@ -73,6 +74,8 @@ export function quickPredicate(
   axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
 ): boolean {
   switch (f) {
+    case "active":
+      return e.status === "active" && !isSimTitle(e.jobTitle) && !stageHasRole(e.stage, "terminal", axis);
     case "aging":
       return agingBucket(e, overrides, now, axis) === 1;
     case "awaiting":
@@ -84,7 +87,7 @@ export function quickPredicate(
       // composer tells operators to add them), and this filtered set feeds bulk
       // select-all — so a name test made "invite everyone in interview" reach a
       // strict subset of them.
-      return stagesWithRole("interview", axis).includes(e.stage);
+      return e.status === "active" && !isSimTitle(e.jobTitle) && stagesWithRole("interview", axis).includes(e.stage);
     default:
       return true;
   }

@@ -117,6 +117,9 @@ test("all four handlers answer a CODE, never the thrown error's own message", ()
     !/error instanceof Error \? error\.message/.test(src),
     "no handler may shape the thrown message into the client body",
   );
+  assert.ok(src.includes('safeJsonError(new Error(outcome.error.message), "api:profile:create", "PROFILE_BUILD_FAILED", outcome.error.status)'));
+  assert.ok(src.includes('safeJsonError(new Error(outcome.error.message), "api:profile:update", "PROFILE_UPDATE_FAILED", outcome.error.status)'));
+  assert.ok(!src.includes('NextResponse.json({ error: outcome.error.message }'), "the CLI stderr must remain in the server log");
 });
 
 test("the candidate matrix read answers a code too", () => {

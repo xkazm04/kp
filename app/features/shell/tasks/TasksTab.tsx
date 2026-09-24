@@ -12,6 +12,7 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { RECENT_WINDOW_DAYS } from "./tasksTabHelpers";
 import { TaskHistory } from "./TasksHistory";
 import { TasksRunsPanel } from "./TasksRunsPanel";
+import { filterableTaskKinds } from "./taskKinds";
 
 // AI tasks — every long-running AI action the workspace kicked off, live.
 //
@@ -25,7 +26,7 @@ import { TasksRunsPanel } from "./TasksRunsPanel";
 
 export function TasksTab() {
   const t = useTranslations("tasks");
-  const { tasks, cancelTask, refresh, startError, clearStartError, markSeen, loadFailed } = useTasks();
+  const { tasks, knownKinds, cancelTask, refresh, startError, clearStartError, markSeen, loadFailed } = useTasks();
 
   // Read/unread ack: TasksRunsPanel owns it, because the dwell has to be measured
   // over the rows actually DRAWN. This tab used to ack every unread row in the
@@ -74,7 +75,7 @@ export function TasksTab() {
     (!statusFilter || task.status === statusFilter) &&
     taskMatchesSearch(renderTaskLabel(t, task), task.kind, text);
   const shown = tasks.filter(matches);
-  const kinds = [...new Set(tasks.map((task) => task.kind))].sort();
+  const kinds = filterableTaskKinds(knownKinds, tasks);
   const filtering = Boolean(text) || Boolean(kindFilter) || statusFilter !== null;
 
   return (

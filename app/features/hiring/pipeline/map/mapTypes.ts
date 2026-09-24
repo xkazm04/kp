@@ -27,9 +27,8 @@ export type RejectedTag = { stage: string; auto: boolean };
 export type OpenCandidate = (entry: Entry, cohort?: readonly Entry[] | null, tab?: CandidateTab) => void;
 
 /** The board's public props — what PipelineTab hands to <PipelineBoard />. The
- *  select-mode, drag-and-drop and bounce props are still accepted so the tab's
- *  wiring is untouched; the map board does not render them yet (see the pipeline
- *  README's Known gaps). */
+ *  map board renders bounced-move feedback on beads; select-mode and drag-and-drop
+ *  remain unused (see the pipeline README's Known gaps). */
 export type PipelineBoardProps = {
   positions: Position[];
   entries: Entry[];

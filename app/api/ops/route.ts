@@ -2,19 +2,22 @@ import { NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
+import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
-import { analyzeTelemetry, commsTelemetry, engineTelemetry } from "@/app/_lib/ops-telemetry";
+import { analyzeTelemetry, commsTelemetry, engineTelemetry, tailJsonl } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
+import { publicOriginHealth } from "@/app/_lib/public-base-url";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
+import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
 
 
 // DATA2 — the operator's read of everything the app records and nothing read:
 // the /api/health readiness signals, engine preflight (DATA4), prompt-cache
 // size + expired backlog, cache hit-rate and durations from a bounded tail of
-// analyze.log, Gemini token spend + per-stage timings from pipeline.log,
+// analyze.log, all-provider tokens from llm_usage + per-stage timings from pipeline.log,
 // comms dead-letters, and the in-process schedule counters. Read-only.
 //
 // Unlike /api/health this always answers 200 with the payload — it is a
@@ -40,6 +43,8 @@ export async function GET() {
   if (denied) return denied;
   try {
     const degradedReasons: string[] = [];
+    const originHealth = publicOriginHealth();
+    if (originHealth.reason) degradedReasons.push(originHealth.reason);
     const seed = getSeedHealth();
     for (const issue of seed.issues) {
       if (issue.severity === "error") degradedReasons.push(`seed:${issue.seed} ${issue.reason} (${issue.path})`);
@@ -109,12 +114,16 @@ export async function GET() {
       engines: engineAvailability(),
       promptCache: promptCacheStats(),
       analyze: analyzeTelemetry(),
-      engine: engineTelemetry(),
+      engine: engineTelemetry(aggregateLlmUsage(7)),
       comms: commsTelemetry(),
+      // Structured warnings were written but had no read surface. The bounded
+      // tail uses the same log directory as opsLog and stays operator-only here.
+      opsWarnings: tailJsonl("ops-warn.log"),
       schedule: {
         reconcileFailures: getScheduleReconcileCount(),
         noSlotStalls: getScheduleNoSlotsCount(),
       },
+      afterResponseFailures: getAfterResponseFailureCount(),
     });
   } catch (error) {
     // The thrown message here is the WORST kind to forward: this payload is built

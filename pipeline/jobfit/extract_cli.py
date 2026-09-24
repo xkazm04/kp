@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from ._cli import configure_stdio, emit_error, invalid_input
-from .extractors import extract_text
+from .extractors import extract_text_with_stats
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,7 +20,7 @@ def main(argv: list[str] | None = None) -> int:
     # Reuse the exact extractor the CV pipeline uses (service.analyze) so a
     # caller that only has the file reads the SAME text the main analysis does.
     try:
-        text = extract_text(args.path)
+        text, page_count = extract_text_with_stats(args.path)
     except ValueError as exc:
         # Unsupported suffix, an oversized document, an undecodable body — the caller
         # can fix all three by attaching a different file, so this is 400/invalid_input
@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
         # engine_error, retry or escalate rather than re-uploading.
         return emit_error(exc)
 
-    print(json.dumps({"text": text}, ensure_ascii=False))
+    print(json.dumps({"text": text, "charCount": len(text), "pageCount": page_count}, ensure_ascii=False))
     return 0
 
 

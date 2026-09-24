@@ -195,6 +195,8 @@ oversights: this covers the suite that is large enough for a flake to hide in.
 `npm run test:unit` runs through `scripts/test-alias-loader.mjs`, which teaches Node's
 ESM resolver the two TS conveniences the app source uses (the `@/` alias, extensionless
 relative imports) so a route handler is loadable in a plain `node --test` process.
+`npm run test:docs` runs `scripts/__tests__/test-alias-loader.test.mjs` in fresh
+Node processes to pin alias, extensionless, JSON and missing-path resolution.
 
 One more thing happens there, and it only happens in a **linked checkout** — a git
 worktree whose `node_modules` is a junction (Windows) or symlink (POSIX) back to the

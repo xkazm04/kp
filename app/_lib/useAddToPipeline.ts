@@ -90,14 +90,14 @@ export async function postPipelineAdd(
   jobId: string,
   jobTitle: string,
   c: PipelineAddInput
-): Promise<{ ok: true } | PipelineAddFailure> {
+): Promise<{ ok: true; entryId: string | null } | PipelineAddFailure> {
   try {
     const r = await fetch("/api/pipeline", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pipelineAddBody(jobId, jobTitle, c)),
     });
-    const payload = (await r.json().catch(() => null)) as { error?: string; code?: string; capability?: string } | null;
+    const payload = (await r.json().catch(() => null)) as { error?: string; code?: string; capability?: string; entry?: { id?: unknown } } | null;
     if (!r.ok) {
       return {
         ok: false,
@@ -106,7 +106,7 @@ export async function postPipelineAdd(
         status: r.status,
       };
     }
-    return { ok: true };
+    return { ok: true, entryId: typeof payload?.entry?.id === "string" ? payload.entry.id : null };
   } catch {
     // A thrown fetch is a transport blip, not a verdict: no code, no status. The
     // caller's own localized "couldn't add" line is the honest thing to show, and

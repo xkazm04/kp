@@ -1,6 +1,7 @@
 import { coerceInterviewRecommendation, type InterviewRecommendation } from "../interview-recommendation";
 import type { ScorecardRating } from "../interview-scorecard";
 import { coerceProviderId, type VoiceProviderId, type VoiceTurn } from "../voice/types";
+import type { InterviewAgenda, RecordingDeleteReason, RecordingMeta } from "../voice/director-types";
 import { randomId, randomToken } from "../random-id";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
 import { ensureDb, safeRowParse } from "./core";
@@ -152,6 +153,21 @@ export type InterviewSession = {
    *  that has not been opened yet; a dropped call that is retried (which the billing
    *  path already treats as a separate attempt) makes it 2. */
   attempts: number;
+  /** The director's agenda (block ids, budgets, competencies), built at connect for
+   *  both providers. NULL until the first connect, and on every pre-director row. */
+  agenda: InterviewAgenda | null;
+  /** When the candidate agreed to an AUDIO recording — separate from `consentAt`,
+   *  which covers the transcribed conversation. NULL = not recorded. */
+  recordingConsentAt: string | null;
+  /** One entry per recorded attempt, including deleted ones (the deletion is the record). */
+  recordings: RecordingMeta[];
+  /** The last director exchange of a live call (touchInterviewActivity). NULL before
+   *  the first one and on every undirected call. Liveness only — never a clock. */
+  lastActivityAt: string | null;
+  /** The job kit version this link was minted from (interview_kits.id), pinned at mint
+   *  so an edit cannot change what a candidate already holding a link is asked. NULL
+   *  when the job has no kit. */
+  kitId: string | null;
 };
 
 type InterviewRow = {
@@ -178,6 +194,11 @@ type InterviewRow = {
   workspace_id: string | null;
   failover_from: string | null;
   attempts: number | null;
+  agenda_json: string | null;
+  recording_consent_at: string | null;
+  recordings_json: string | null;
+  last_activity_at: string | null;
+  kit_id: string | null;
 };
 
 function rowToInterview(r: InterviewRow): InterviewSession {
@@ -211,6 +232,11 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     failoverFrom: r.failover_from ? coerceProviderId(r.failover_from, "openai") : null,
     // A row written before the column existed reads as the single attempt it was.
     attempts: Number.isFinite(r.attempts) ? Number(r.attempts) : 1,
+    agenda: safeRowParse<InterviewAgenda>(r.agenda_json ?? null, "interview.agenda", r.id),
+    recordingConsentAt: r.recording_consent_at ?? null,
+    recordings: safeRowParse<RecordingMeta[]>(r.recordings_json ?? null, "interview.recordings", r.id) ?? [],
+    lastActivityAt: r.last_activity_at ?? null,
+    kitId: r.kit_id ?? null,
   };
 }
 
@@ -347,6 +373,13 @@ export function createInterviewSession(input: {
    *  so the gate and the debit read two different tenants. An entry, when present,
    *  still wins: it is the authoritative tenant for a real candidate. */
   workspaceId?: string | null;
+  /** The job kit VERSION this link is pinned to (interview_kits.id), resolved by the
+   *  mint (interview-invite.ts) from the job's latest PUBLISHED kit. Written once, at
+   *  create, and never moved: a kit edit publishes a new version, and a candidate
+   *  already holding a link must keep facing the questions their round opened with.
+   *  NULL when the job has no kit — every pre-kit path passes nothing and behaves
+   *  exactly as it did. */
+  kitId?: string | null;
 }): InterviewSession {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -367,8 +400,8 @@ export function createInterviewSession(input: {
   }
   db.prepare(
     `INSERT INTO interview_sessions
-       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?, ?)`
+       (id, token, entry_id, candidate_label, job_id, job_title, provider, language, mode, status, instructions, run_of_show_json, duration_min, created_at, workspace_id, kit_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     token,
@@ -383,7 +416,8 @@ export function createInterviewSession(input: {
     input.runOfShow && input.runOfShow.length ? JSON.stringify(input.runOfShow) : null,
     input.durationMin ?? null,
     now,
-    workspaceId
+    workspaceId,
+    input.kitId ?? null
   );
   return getInterviewSessionById(id)!;
 }
@@ -432,11 +466,33 @@ export const LIVE_INTERVIEW_RECENCY_MIN = 30;
 
 /** Single live-call authority for an interview session — /create's reissue
  *  guard reads this so "don't revoke an active conversation" can never drift
- *  from the recency window above. */
-export function isInterviewSessionLive(session: { status: string; createdAt: string; updatedAt: string | null }): boolean {
+ *  from the recency window above.
+ *
+ *  The window runs from the LATER of the connect (updated_at) and the last director
+ *  exchange (last_activity_at). A directed call can outlast the window measured from
+ *  its connect alone — it may run to the agenda's hard cap + 2 min — and while its
+ *  browser keeps talking to the director it is live, however long ago it connected. */
+export function isInterviewSessionLive(session: {
+  status: string;
+  createdAt: string;
+  updatedAt: string | null;
+  lastActivityAt?: string | null;
+}): boolean {
   if (session.status !== "in_progress") return false;
-  const touched = Date.parse(session.updatedAt ?? session.createdAt);
+  const connected = Date.parse(session.updatedAt ?? session.createdAt);
+  const active = session.lastActivityAt ? Date.parse(session.lastActivityAt) : Number.NaN;
+  const touched = Math.max(Number.isFinite(connected) ? connected : -Infinity, Number.isFinite(active) ? active : -Infinity);
   return Number.isFinite(touched) && touched > Date.now() - LIVE_INTERVIEW_RECENCY_MIN * 60_000;
+}
+
+/** Stamp a live call's last director exchange (liveness only). Never touches
+ *  updated_at, which is the current attempt's start for billing and the director's
+ *  clock. Guarded to in_progress rows: a completed or revoked call stays as it ended. */
+export function touchInterviewActivity(id: string, atIso: string): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE interview_sessions SET last_activity_at=? WHERE id=? AND status='in_progress'`)
+    .run(atIso, id);
+  return res.changes > 0;
 }
 
 /** Revoke one open interview session. Concurrency guard in the WHERE (repo
@@ -668,6 +724,321 @@ export function setInterviewSessionProvider(
   db.prepare(
     `UPDATE interview_sessions SET provider=?, failover_from=COALESCE(failover_from, ?), updated_at=? WHERE id=? AND status != 'completed'`
   ).run(provider, failoverFrom ?? null, new Date().toISOString(), id);
+}
+
+/** Persist the director's agenda built at connect (spark ai-interview-parity). The
+ *  director validates tool calls against it and the recruiter's evidence view reads
+ *  its competencies, so it is written on every connect that built one — the stored
+ *  copy always matches the brief the provider was just given. Guarded like every
+ *  other live-row write: a raced /complete is never perturbed. Returns whether the
+ *  row took it. */
+export function setInterviewAgenda(id: string, agenda: InterviewAgenda): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE interview_sessions SET agenda_json=? WHERE id=? AND status != 'completed'`)
+    .run(JSON.stringify(agenda), id);
+  return res.changes > 0;
+}
+
+/** Stamp the candidate's AUDIO-recording consent — separate from `consent_at` (the
+ *  transcribed conversation). COALESCE keeps the FIRST agreement: a reconnect that
+ *  repeats it must not move the record of when consent was given. The caller gates
+ *  this on the workspace actually offering recording (interview-recording.ts). */
+export function markInterviewRecordingConsent(id: string): boolean {
+  const now = new Date().toISOString();
+  const res = ensureDb()
+    .prepare(
+      `UPDATE interview_sessions SET recording_consent_at=COALESCE(recording_consent_at, ?) WHERE id=? AND status != 'completed'`
+    )
+    .run(now, id);
+  return res.changes > 0;
+}
+
+// ---- Recordings (opt-in candidate microphone audio) -----------------------
+//
+// The FILES live under the data dir (app/_lib/interview-recording.ts); this column is
+// their ledger. Every function here is module-prefixed (`…InterviewRecording…`) because
+// the route-tenancy ratchet matches store functions by NAME across the tree, and every
+// one is workspace-scoped: a recording is candidate audio, the single most sensitive
+// artifact the product holds, and it must never be reachable by session id alone.
+//
+// A DELETED recording keeps its row. The deletion IS the record — "we held audio of
+// this call and it is gone, for this reason, at this time" is exactly what a candidate
+// or a regulator asks, and an erased entry in an array cannot answer it.
+
+/** The per-attempt ledger's read→compute→write helpers all share this shape. */
+export type RecordingChunkClaim = {
+  /** `claimed` — the chunk is ours to append. `duplicate` — a replay at or below the
+   *  stored cursor, already on disk, acknowledge and append nothing. `full` — the
+   *  session's byte budget is spent (the attempt is marked partial). `missing` — no
+   *  such session in this workspace. */
+  outcome: "claimed" | "duplicate" | "full" | "missing";
+  meta: RecordingMeta | null;
+  /** True when this claim CREATED the attempt's record — the caller writes the
+   *  `recording_started` event exactly once off this flag. */
+  first: boolean;
+};
+
+function readRecordings(db: ReturnType<typeof ensureDb>, sessionId: string, workspaceId: string): RecordingMeta[] | null {
+  const row = db
+    .prepare(`SELECT recordings_json FROM interview_sessions WHERE id = ? AND workspace_id = ?`)
+    .get(sessionId, workspaceId) as { recordings_json: string | null } | undefined;
+  if (!row) return null;
+  return safeRowParse<RecordingMeta[]>(row.recordings_json ?? null, "interview.recordings", sessionId) ?? [];
+}
+
+/**
+ * Claim ONE chunk of an attempt's recording: the cursor bump, the byte accounting and
+ * the per-session ceiling, decided under the write lock and written back in the same
+ * statement batch.
+ *
+ * IMMEDIATE, not a plain `tx()` — this is the canonical read→compute→write (read the
+ * ledger, decide duplicate/full/claimed, write the new ledger) and two chunks of the
+ * same call arriving together on different connections must not both pass the read.
+ * Synchronous throughout: the FILE append happens in the caller, AFTER this returns,
+ * so no await can ever sit between BEGIN and COMMIT.
+ *
+ * The claim is deliberately taken BEFORE the bytes are written: a crash between the two
+ * leaves the ledger claiming bytes the file does not have, which the caller answers by
+ * marking the attempt `partial` — the honest direction. The reverse order would let a
+ * replay append the same audio twice.
+ */
+export function claimInterviewRecordingChunk(input: {
+  sessionId: string;
+  workspaceId: string;
+  attempt: number;
+  /** 0-based, per attempt. */
+  chunk: number;
+  bytes: number;
+  mime: string;
+  /** File name relative to the workspace's recordings folder — built by the caller
+   *  from SERVER ids only (interview-recording-paths.recordingFileName). */
+  file: string;
+  maxSessionBytes: number;
+  nowIso?: string;
+}): RecordingChunkClaim {
+  const db = ensureDb();
+  const now = input.nowIso ?? new Date().toISOString();
+  const tx = db.transaction((): RecordingChunkClaim => {
+    const recordings = readRecordings(db, input.sessionId, input.workspaceId);
+    if (recordings === null) return { outcome: "missing", meta: null, first: false };
+    const idx = recordings.findIndex((r) => r.attempt === input.attempt);
+    const existing = idx >= 0 ? recordings[idx]! : null;
+    // A replayed chunk (a retried POST, a browser that re-sent after a timeout) is
+    // ALREADY on disk. Acknowledge it — a client that cannot settle keeps retrying —
+    // and change nothing.
+    if (existing && typeof existing.lastChunk === "number" && input.chunk <= existing.lastChunk) {
+      return { outcome: "duplicate", meta: existing, first: false };
+    }
+    // The ceiling counts every attempt of this session, including deleted ones: what is
+    // bounded is how much audio ONE interview link may ever push onto the disk.
+    const held = recordings.reduce((sum, r) => sum + (Number.isFinite(r.bytes) ? r.bytes : 0), 0);
+    if (held + input.bytes > input.maxSessionBytes) {
+      const marked: RecordingMeta[] = existing
+        ? recordings.map((r, i) => (i === idx ? { ...r, partial: true, endedAt: r.endedAt ?? now } : r))
+        : recordings;
+      db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+        JSON.stringify(marked),
+        input.sessionId,
+        input.workspaceId
+      );
+      return { outcome: "full", meta: idx >= 0 ? marked[idx]! : null, first: false };
+    }
+    const next: RecordingMeta = existing
+      ? { ...existing, bytes: existing.bytes + input.bytes, endedAt: now, lastChunk: input.chunk }
+      : {
+          attempt: input.attempt,
+          file: input.file,
+          bytes: input.bytes,
+          mime: input.mime,
+          startedAt: now,
+          endedAt: now,
+          partial: false,
+          deletedAt: null,
+          deleteReason: null,
+          lastChunk: input.chunk,
+        };
+    const merged = existing ? recordings.map((r, i) => (i === idx ? next : r)) : [...recordings, next];
+    db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+      JSON.stringify(merged),
+      input.sessionId,
+      input.workspaceId
+    );
+    return { outcome: "claimed", meta: next, first: existing === null };
+  });
+  return tx.immediate();
+}
+
+/** Flag an attempt's recording as incomplete — an upload that failed after its claim,
+ *  or a session that hit the byte ceiling. Never deletes: a partial recording is still
+ *  the candidate's audio, and the recruiter is told it is partial rather than shown
+ *  nothing. */
+export function markInterviewRecordingPartial(sessionId: string, workspaceId: string, attempt: number): boolean {
+  const db = ensureDb();
+  const tx = db.transaction((): boolean => {
+    const recordings = readRecordings(db, sessionId, workspaceId);
+    if (!recordings || !recordings.some((r) => r.attempt === attempt)) return false;
+    const merged = recordings.map((r) => (r.attempt === attempt ? { ...r, partial: true } : r));
+    db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+      JSON.stringify(merged),
+      sessionId,
+      workspaceId
+    );
+    return true;
+  });
+  return tx.immediate();
+}
+
+/** Record that an attempt's FILE is gone. Called AFTER the unlink, never before: a
+ *  crash between the two then leaves a row that still says "held", which the next sweep
+ *  simply re-runs — the opposite order would leave a row claiming a deletion that never
+ *  happened. Returns the attempts actually marked (a second call is a no-op). */
+export function markInterviewRecordingsDeleted(
+  sessionId: string,
+  workspaceId: string,
+  attempts: readonly number[],
+  reason: RecordingDeleteReason,
+  nowIso: string = new Date().toISOString()
+): number[] {
+  if (attempts.length === 0) return [];
+  const db = ensureDb();
+  const wanted = new Set(attempts);
+  const tx = db.transaction((): number[] => {
+    const recordings = readRecordings(db, sessionId, workspaceId);
+    if (!recordings) return [];
+    const marked: number[] = [];
+    const merged = recordings.map((r) => {
+      if (!wanted.has(r.attempt) || r.deletedAt) return r;
+      marked.push(r.attempt);
+      return { ...r, deletedAt: nowIso, deleteReason: reason };
+    });
+    if (marked.length === 0) return [];
+    db.prepare(`UPDATE interview_sessions SET recordings_json = ? WHERE id = ? AND workspace_id = ?`).run(
+      JSON.stringify(merged),
+      sessionId,
+      workspaceId
+    );
+    return marked;
+  });
+  return tx.immediate();
+}
+
+/** One session's recording ledger, scoped to the team that owns it. Null when the id
+ *  names no session of THIS workspace — the same answer an unknown id gives, so the
+ *  door is never an existence oracle across tenants. */
+export function interviewRecordingsForSession(sessionId: string, workspaceId: string): RecordingMeta[] | null {
+  return readRecordings(ensureDb(), sessionId, workspaceId);
+}
+
+/** A session that still holds at least one undeleted recording, with the timestamps the
+ *  retention rule needs. */
+export type RecordingRetentionRow = {
+  sessionId: string;
+  workspaceId: string;
+  entryId: string | null;
+  recordings: RecordingMeta[];
+  /** The call's own clock — the backstop is measured from here. */
+  callAt: string | null;
+  /** The entry's status/stage/stamps, for the hiring-decision anchor. Null for a
+   *  session with no pipeline entry (a lab or simulation run). */
+  entryStatus: string | null;
+  entryStage: string | null;
+  entryStageChangedAt: string | null;
+  entryUpdatedAt: string | null;
+};
+
+function toRetentionRows(rows: RetentionRow[]): RecordingRetentionRow[] {
+  const out: RecordingRetentionRow[] = [];
+  for (const r of rows) {
+    const recordings = safeRowParse<RecordingMeta[]>(r.recordings_json ?? null, "interview.recordings", r.id) ?? [];
+    if (!recordings.some((m) => !m.deletedAt)) continue;
+    out.push({
+      sessionId: r.id,
+      workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+      entryId: r.entry_id,
+      recordings,
+      callAt: r.started_at ?? r.created_at,
+      entryStatus: r.entry_status ?? null,
+      entryStage: r.entry_stage ?? null,
+      entryStageChangedAt: r.entry_stage_changed_at ?? null,
+      entryUpdatedAt: r.entry_updated_at ?? null,
+    });
+  }
+  return out;
+}
+
+type RetentionRow = {
+  id: string;
+  workspace_id: string | null;
+  entry_id: string | null;
+  recordings_json: string | null;
+  started_at: string | null;
+  created_at: string;
+  entry_status: string | null;
+  entry_stage: string | null;
+  entry_stage_changed_at: string | null;
+  entry_updated_at: string | null;
+};
+
+// The three reads below spell their SELECT list out rather than sharing a constant.
+// That is deliberate and it is not style: the tenancy guards in this repo are SOURCE
+// scans over the template literals in this file (interviews-tenancy.test.ts), and a
+// query assembled from `${COLUMNS}` hides its own scoping from every one of them — a
+// guard that cannot read the SQL is a guard that passes on a name.
+
+/** EVERY tenant's sessions that still hold audio — the nightly retention sweep's read.
+ *  Deliberately unscoped (`-- tenancy:global`, the shape `anonymizeExpiredConsents`
+ *  uses): storage limitation is a deployment-wide duty, and each row carries its own
+ *  workspace_id so every WRITE the sweep performs is scoped again. */
+export function listInterviewRecordingsDue(limit = 2000): RecordingRetentionRow[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.workspace_id, s.entry_id, s.recordings_json, s.started_at, s.created_at,
+              e.status AS entry_status, e.stage AS entry_stage,
+              e.stage_changed_at AS entry_stage_changed_at, e.updated_at AS entry_updated_at
+         FROM interview_sessions s -- tenancy:global
+         LEFT JOIN pipeline_entries e ON e.id = s.entry_id
+        WHERE s.recordings_json IS NOT NULL AND s.recordings_json != '[]'
+        ORDER BY s.created_at ASC
+        LIMIT ?`
+    )
+    .all(Math.max(1, Math.min(Math.trunc(limit), 20_000))) as RetentionRow[];
+  return toRetentionRows(rows);
+}
+
+/** ONE session's retention row, scoped to the caller's team — the recruiter playback
+ *  door's read. Null when the session holds no live recording, when the id belongs to
+ *  another workspace, or when it names nothing: one answer for all three, so the door
+ *  cannot be used to learn which candidates were recorded. */
+export function interviewRecordingRowForSession(sessionId: string, workspaceId: string): RecordingRetentionRow | null {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.workspace_id, s.entry_id, s.recordings_json, s.started_at, s.created_at,
+              e.status AS entry_status, e.stage AS entry_stage,
+              e.stage_changed_at AS entry_stage_changed_at, e.updated_at AS entry_updated_at
+         FROM interview_sessions s
+         LEFT JOIN pipeline_entries e ON e.id = s.entry_id
+        WHERE s.id = ? AND s.workspace_id = ?`
+    )
+    .all(sessionId, workspaceId) as RetentionRow[];
+  return toRetentionRows(rows)[0] ?? null;
+}
+
+/** One entry's sessions that still hold audio, scoped to its team — the GDPR erasure
+ *  path and the candidate's own "delete my recording" door. */
+export function listInterviewRecordingsForEntry(entryId: string, workspaceId: string): RecordingRetentionRow[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT s.id, s.workspace_id, s.entry_id, s.recordings_json, s.started_at, s.created_at,
+              e.status AS entry_status, e.stage AS entry_stage,
+              e.stage_changed_at AS entry_stage_changed_at, e.updated_at AS entry_updated_at
+         FROM interview_sessions s
+         LEFT JOIN pipeline_entries e ON e.id = s.entry_id
+        WHERE s.entry_id = ? AND s.workspace_id = ?
+          AND s.recordings_json IS NOT NULL AND s.recordings_json != '[]'
+        ORDER BY s.created_at ASC`
+    )
+    .all(entryId, workspaceId) as RetentionRow[];
+  return toRetentionRows(rows);
 }
 
 /** Attach the synthesized scorecard to an already-persisted session. Separate

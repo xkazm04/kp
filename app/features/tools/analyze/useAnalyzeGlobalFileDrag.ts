@@ -6,7 +6,7 @@ import { resolveWindowDropTarget } from "./analyzeDropRouting";
 // Listens for window-level drag events so the CV dropzone can highlight even
 // before the cursor enters its bounding box. Returns true while a file drag
 // is active anywhere on the page.
-export function useGlobalFileDrag(onDrop: (file: File) => void): boolean {
+export function useGlobalFileDrag(onDrop: (files: File[]) => void): boolean {
   const [isDragging, setIsDragging] = useState(false);
   const onDropRef = useRef(onDrop);
 
@@ -68,8 +68,8 @@ export function useGlobalFileDrag(onDrop: (file: File) => void): boolean {
       // (JD, company, and the empty CV zone own their own drops). A drop inside one
       // resolves to null here, so it can't also be added as a phantom CV variant
       // (idea-1a75b476).
-      const file = resolveWindowDropTarget(fileDrag, event.target, event.dataTransfer?.files?.[0] ?? null);
-      if (file) onDropRef.current(file);
+      const files = resolveWindowDropTarget(fileDrag, event.target, Array.from(event.dataTransfer?.files ?? []));
+      if (files) onDropRef.current([...files]);
     }
 
     window.addEventListener("dragenter", handleDragEnter);

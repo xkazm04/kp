@@ -25,6 +25,7 @@ export function ThresholdSuggestion({
   rec,
   roleFamily,
   leakage,
+  autoRejectEnabled,
   onApplied,
 }: {
   rec: ThresholdRecommendation;
@@ -34,6 +35,8 @@ export function ThresholdSuggestion({
    *  payload the panel already receives; it belongs beside the Apply button, where
    *  the irreversible-feeling click is, not in a doc. */
   leakage?: CalibrationLeakage;
+  /** A saved threshold has no screening effect while auto-reject is disabled. */
+  autoRejectEnabled: boolean | null;
   onApplied: () => void;
 }) {
   const t = useTranslations("analytics.calibration");
@@ -123,6 +126,11 @@ export function ThresholdSuggestion({
         })}
       </p>
       <p className="mt-1 text-sm text-steel">{t("recBasis", { total: rec.totalOutcomes })}</p>
+      {autoRejectEnabled === false ? (
+        <p className="mt-2 rounded-md border border-dial-amber/40 bg-white p-2 text-sm text-ink" role="status">
+          {t("recAutoRejectOff")}
+        </p>
+      ) : null}
       {/* UAT KAT-L1-006 — a suggestion derived from a score-caused label must say so
           where it is acted on. The clean arm is the check, once it clears the gate. */}
       {leakage && leakage.level === "high" ? (

@@ -43,7 +43,9 @@ to `localStorage` (`kp-theme`), and defaults from `prefers-color-scheme`. An
 inline pre-hydration script in `app/layout.tsx` applies the stored theme
 before first paint, so there is no flash. `subscribeTheme` also listens for
 `storage` events on that key, so a flip in one workspace tab updates this
-document's attribute (and `useTheme()`) without a reload.
+document's attribute (and `useTheme()`) without a reload. With no explicit
+choice stored, the same subscription follows live OS color-scheme changes;
+choosing a theme stops that automatic switch.
 
 **`/landing` is exempt — and enforced.** The Spark landing page is a fixed art
 direction with literal hexes on purpose (`app/landing/spark/tokens.ts`) — it
@@ -236,7 +238,8 @@ element:
   tone-bordered seal with a hard shadow and the display face (null scores stay
   flat — an absent score is not a verdict). `ScoreDial`'s big readout speaks
   Bricolage (`dark:font-serif`); MatchCard's score already rides the
-  `font-serif` flip.
+  `font-serif` flip. `ScoreBadge` names the numeric score for assistive tech;
+  its em dash is announced as unscored.
 - **Sticker cells.** Browsing the candidate×position matrix in dark "peels"
   the hovered cell — tilt, scale, hard shadow above its neighbors — instead
   of the light register's flat zoom. Schedule chips do the same: the selected
@@ -256,7 +259,12 @@ element:
   cannot accidentally import the Studio Light constant onto `#141b24`. Any new
   chart follows that pattern; both mirrors are pinned to `globals.css` by
   `design:check`, and `app/_lib/brand.test.ts` asserts key parity, so neither
-  half can drift the way the light half had.
+  half can drift the way the light half had. `FactorChart` also carries a
+  visually hidden data table with each localized factor and its raw points,
+  so the bars have an accessible numeric equivalent.
+- **Meter labels are part of its type contract.** Each `Meter` progress bar takes
+  a localized `aria-label`; decorative specimen bars instead declare
+  `aria-hidden`. An unnamed progress bar cannot be added silently.
 - **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
   attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
   resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`
@@ -437,6 +445,9 @@ pinned by `useTablist.test.ts`; the two per-feature copies it replaced
 carrying a note asking for this promotion on the third caller) are gone.
 
 `useDateFormat` carries four shapes — `date`, `dateTime`, `dayTime`, `time` —
+from `app/_components/ui/dateShapes.ts`. Server components and plain `.ts`
+callers use `createDateFormatters(locale)` for the same four shapes without a
+React hook; both paths share the option bags and invalid-date fallback. They are
 all null-safe with a `fallback` (default `—`), because dates arrive as ISO
 strings that can be absent or malformed and "Invalid Date" in a candidate card
 is the failure the guard exists to prevent.
@@ -566,6 +577,10 @@ the recipe's remaining fix-as-you-touch population.
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
 checklist.
+
+`PANEL_ACCENT` is the coral-tinted raised panel for high-signal summaries such
+as the report's Archetype banner. It uses the shared `shadow-pop` token, so its
+depth follows both themes.
 
 ## Type & motion (shared by both themes)
 
@@ -748,6 +763,10 @@ candidate.
 `aria-sort` cannot then be omitted) but only reaches the tables that adopted it:
 **70 of the tree's 124 header cells declared nothing**, including six surfaces
 that imported the shared `ColumnFilter` and hand-rolled the headers around it.
+Its icon-only sort button uses the shared `Tooltip`, so the column-specific
+instruction appears on keyboard focus and touch as well as pointer hover.
+The tooltip label is portaled to the document body and tracks its trigger on
+scroll and resize, so clipped table panes cannot cut off the explanation.
 
 [`app/th-scope.test.ts`](../../app/th-scope.test.ts) is a repo-wide gate, not a
 ratchet — `scope` has no legitimate residual population: it is one attribute
@@ -757,10 +776,23 @@ for a cell that heads its row), and no table shape here wants neither. It scans
 own prose about `<th>` is not read as markup, and tracking JSX brace depth so an
 attribute holding an arrow function does not end the tag early.
 
+### Mutation feedback
+
+`ConfirmDialog` composes the shared `Modal` stack with one cancel and one confirm
+action. Workspace member removals use it, so Escape, focus trapping, and the
+theme's button recipes stay consistent across confirmation surfaces.
+
+The shared toast store offers `toast.promise(task, {loading, success, error})`
+for mutations. Its pending notice stays visible until settlement, then changes
+in place to a timed success or error; concurrent mutations keep separate notices.
+Callers provide localized copy and still receive the promise's value or error.
+
 ### One size vocabulary across the field primitives (2026-09-04)
 
-`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `Select`
-also accepted `size` as a back-compat alias, and all 34 of its call sites that set
+`TextInput`, `TextArea` and `Select` all take `sizeVariant="sm" | "md"`. `TextArea`
+also offers opt-in `autoGrow` for notes that expand with their content and scroll
+after 320px, while fields with fixed rows keep their chosen height. `Select` also
+accepted `size` as a back-compat alias, and all 34 of its call sites that set
 a size had taken *that* spelling — zero used `sizeVariant` — so the primitive that
 owns the app's field sizing was the one disagreeing with its siblings about the
 prop's name. The alias is removed and the 34 sites (22 files) migrated; `size` on

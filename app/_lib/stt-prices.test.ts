@@ -8,6 +8,23 @@ test("a cloud transcript is priced per AUDIO HOUR, rounded to 6 decimals", () =>
   assert.equal(sttCostUsd("assemblyai", 720_000), Math.round(0.27 * 0.2 * 1e6) / 1e6);
 });
 
+test("an operator can override the cloud audio-hour rate without repricing local transcription", () => {
+  const previous = process.env.KP_STT_HOUR_USD_ASSEMBLYAI;
+  try {
+    process.env.KP_STT_HOUR_USD_ASSEMBLYAI = "0.13";
+    assert.equal(sttCostUsd("assemblyai", 3_600_000), 0.13);
+    assert.equal(sttCostUsd("whisper_cpp", 3_600_000), 0);
+    process.env.KP_STT_HOUR_USD_ASSEMBLYAI = "-1";
+    const warn = console.warn;
+    console.warn = () => {};
+    try { assert.equal(sttCostUsd("assemblyai", 3_600_000), STT_HOUR_PRICES.assemblyai); }
+    finally { console.warn = warn; }
+  } finally {
+    if (previous === undefined) delete process.env.KP_STT_HOUR_USD_ASSEMBLYAI;
+    else process.env.KP_STT_HOUR_USD_ASSEMBLYAI = previous;
+  }
+});
+
 test("a local engine costs a KNOWN zero, even when the clip length is unknown", () => {
   assert.equal(sttCostUsd("whisper_cpp", 3_600_000), 0);
   assert.equal(sttCostUsd("whisper_cpp", null), 0, "nothing is billed per hour, so no length can make it non-zero");

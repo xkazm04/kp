@@ -9,14 +9,14 @@ import type { AnalysisResult } from "@/app/_lib/schemas.generated";
 
 // Share/export affordances for a saved candidate report (Theme C, RES1). The
 // report previously had no way to leave the app — a recruiter handing it to a
-// hiring manager had nothing but the raw URL to read out. Rendered only on the
-// history detail page, whose /history/<slug> URL is stable + persisted, so
-// "Copy report link" yields a link that reopens this exact report. `print:hidden`
-// keeps the buttons themselves out of the printed/PDF output.
+// hiring manager had nothing but the raw URL to read out. A live persisted run
+// passes its stable /history/<slug> path; the history detail page already sits
+// at that URL. `print:hidden` keeps the buttons out of printed/PDF output.
 export function ReportActions({
   analysis,
   candidateLabel,
   savedAt,
+  reportPath,
 }: {
   // idea-0832ec48 — when present, offer an exportable provenance dossier (every
   // score component beside its CV evidence). Optional so the component stays usable
@@ -24,12 +24,16 @@ export function ReportActions({
   analysis?: AnalysisResult;
   candidateLabel?: string | null;
   savedAt?: string | null;
+  reportPath?: string;
 } = {}) {
   const t = useTranslations("report");
   const { copied, mark } = useCopyFeedback();
 
   const copyLink = async () => {
-    mark(await copyText(typeof window !== "undefined" ? window.location.href : ""));
+    const url = typeof window === "undefined" ? null : new URL(reportPath ?? window.location.href, window.location.origin);
+    if (url && reportPath) url.hash = window.location.hash;
+    const href = url?.href ?? "";
+    mark(await copyText(href));
   };
 
   const exportDossier = () => {

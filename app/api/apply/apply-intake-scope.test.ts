@@ -33,15 +33,23 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(path.join(HERE, rel), "utf8");
 const route = read("[id]/route.ts");
 
+test("conversational apply drops a filled honeypot before any candidate write", () => {
+  const dropAt = route.indexOf("if (isHoneypotFilled(body))");
+  const firstWriteAt = route.indexOf("recordKnockoutDecline({");
+  assert.ok(dropAt > 0 && dropAt < firstWriteAt, "the bot gate must precede even knockout audit writes");
+  assert.match(route.slice(dropAt, route.indexOf("const answers = body.answers", dropAt)), /result: "declined"/);
+  assert.match(read("[id]/quick/route.ts"), /if \(isHoneypotFilled\(body\)\)/);
+});
+
 test("both profile builds are filed into the SAME workspace the entry is stamped with", () => {
   assert.match(
     route,
-    /const built = await buildApplicantProfile\(job, intakeAnswers, null, workspaceId\)/,
+    /const built = await buildApplicantProfile\(job, intakeAnswers, null, workspaceId, applicantLocale\)/,
     "the first-apply build must pass the opening's workspace"
   );
   assert.match(
     route,
-    /const rebuilt = await buildApplicantProfile\(job, intakeAnswers, existing\.candidateId, workspaceId\)/,
+    /const rebuilt = await buildApplicantProfile\(job, intakeAnswers, existing\.candidateId, workspaceId, applicantLocale\)/,
     "the re-apply rebuild must pass it too"
   );
   // The buggy forms, forbidden explicitly: an omitted tenant is silent (the

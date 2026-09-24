@@ -8,9 +8,10 @@ import { buildUrl } from "@/app/features/shell/tabs";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useUrlInboxState } from "@/app/features/shell/nav/useUrlInboxState";
 import { type BadgeTone } from "@/app/_components/Badge";
 import { BTN_SECONDARY, EYEBROW, NOTICE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
-import { CHANNEL_SECTIONS, type ChannelSectionId } from "./channelsSections";
+import { CHANNEL_SECTIONS, isChannelSectionId, resolveChannelSection, type ChannelSectionId } from "./channelsSections";
 import { useChannelData, simulateInbound } from "./useChannelsData";
 import { isReceiverLive } from "./useChannelsReceivers";
 import { ChannelsTabSwitcher } from "./ChannelsTabSwitcher";
@@ -41,7 +42,11 @@ export function ChannelsTab() {
   const search = useSearchParams();
   const reduced = useReducedMotion();
   const { webhooks, webhooksTruncated, jobs, accepted, loadFailed, reload } = useChannelData();
-  const [section, setSection] = useState<ChannelSectionId>("comms");
+  const [section, setSection] = useUrlInboxState<ChannelSectionId>(
+    "sec",
+    (raw) => isChannelSectionId(raw) ? raw : null,
+    resolveChannelSection(search.get("sec")),
+  );
   // Round-2 prototype switcher: which directional initial-state system every pane
   // on this page uses. Baseline default — nothing changes on load.
   const [simNote, setSimNote] = useState<{ text: string; ok: boolean } | null>(null);

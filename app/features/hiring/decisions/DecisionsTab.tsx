@@ -14,6 +14,7 @@ import { DecisionsHeader } from "./DecisionsHeader";
 import { DecisionsBanners } from "./DecisionsBanners";
 import { DecisionsAiReviewsSection } from "./DecisionsAiReviewsSection";
 import { DecisionsReconsiderQueue } from "./DecisionsReconsiderQueue";
+import { DecisionsFeedbackLetters } from "./DecisionsFeedbackLetters";
 import { DecisionsModals } from "./DecisionsModals";
 import { useDecisionsQueue } from "./useDecisionsQueue";
 import { useDecisionsCandidate } from "./useDecisionsCandidate";
@@ -174,6 +175,10 @@ export function DecisionsTab() {
         fmtDate={fmtDate}
         reconsiderReasonText={reconsiderReasonText}
       />
+
+      {/* Spark interview-feedback-letter — decided candidates who asked for a letter about
+          their AI interview. Self-contained (its own read and editor). */}
+      <DecisionsFeedbackLetters />
 
       <AnimatePresence>
         {candidate.view ? (

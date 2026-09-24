@@ -3,7 +3,7 @@
 // Error/staleness banners + the candidate chip row + early-career note, split out
 // of MatchResults.tsx.
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Download, RefreshCw } from "lucide-react";
 import type { MatchRef, MatchResponse } from "@/app/features/shared/matchTypes";
 import { archetypeDisplayKey } from "@/app/features/shared/matchTypes";
@@ -49,6 +49,7 @@ export function MatchResultsHeader({
   // the same feature — reused rather than duplicated, exactly as MatrixDataNotices
   // reuses it for the pool cap.
   const tMatrix = useTranslations("matrix");
+  const format = useFormatter();
   const { assumptions: assumptionLabels } = useMatchLabels();
   const enumLabel = useEnumLabel();
   const router = useRouter();
@@ -73,7 +74,7 @@ export function MatchResultsHeader({
           <RefreshCw size={14} aria-hidden />
           <span className="font-semibold">{t("staleBanner")}</span>
           <span className="text-amber-700">
-            {t("staleBannerDetail", { date: new Date(staleness.newerAnalyzedAt).toLocaleDateString() })}
+            {t("staleBannerDetail", { date: format.dateTime(new Date(staleness.newerAnalyzedAt), { dateStyle: "medium" }) })}
           </span>
           <button
             type="button"

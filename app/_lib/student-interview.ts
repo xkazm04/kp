@@ -18,6 +18,8 @@
 import script from "@/pipeline/jobfit/interview-script.json";
 import { LEGACY_DEV_CASE_JOB_PREFIX, LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "./devcase-identity";
 import type { PrepQuestion, RunOfShow, ChronologyBlock } from "./run-of-show";
+// Type-only (erased): this module is client-bundled and stays free of runtime imports.
+import type { DirectedBrief } from "./voice/director-brief";
 
 export type StudentScriptPhase = {
   phase: string;
@@ -53,8 +55,9 @@ export const REGULAR_DEMO_RUN_OF_SHOW = ["Recent experience", "Depth follow-ups"
 const PREP_QUESTIONS_PER_PERSONAL_PHASE = 2;
 
 /** Lower bound of a phase's "3–4 min" style budget; the script's own total
- *  (STUDENT_SCRIPT_MIN) absorbs the slack via the last block. */
-function phaseMinutes(p: StudentScriptPhase): number {
+ *  (STUDENT_SCRIPT_MIN) absorbs the slack via the last block. Exported for the
+ *  director agenda (interview-agenda.ts), which budgets the same phases. */
+export function phaseMinutes(p: Pick<StudentScriptPhase, "minutes">): number {
   const n = parseInt(p.minutes, 10);
   return Number.isFinite(n) && n > 0 ? n : 3;
 }
@@ -213,22 +216,36 @@ function phaseLines(phases: StudentScriptPhase[]): string {
     .join("  ");
 }
 
+const STUDENT_LEAD = "Their CV cannot carry the evaluation, so YOU lead the conversation to generate the signal.";
+
 /** The agent brief that LEADS a student first-round per the GENERIC script —
- *  the fallback for roles without a designed case. */
+ *  the fallback for roles without a designed case.
+ *
+ *  `directed` (spark ai-interview-parity): the director's agenda REPLACES the phase
+ *  run-of-show (never listed twice), the leadership frame follows the self-disclosure,
+ *  and the director protocol sits before the closing rule. Absent, the brief is
+ *  byte-identical to the pre-director one — the Python eval port compares against it. */
 export function studentInterviewerInstructions(opts?: {
   candidateLabel?: string | null;
   roleLine?: string | null;
   company?: string | null;
+  directed?: DirectedBrief | null;
 }): string {
   const company = opts?.company || "Česká spořitelna";
   const role = opts?.roleLine || "a junior engineering role (entry-eligible)";
   const name = opts?.candidateLabel ? ` You are speaking with ${opts.candidateLabel}.` : "";
+  const directed = opts?.directed ?? null;
   return [
     ...personaLines(company, role, name),
-    `Their CV cannot carry the evaluation, so YOU lead the conversation to generate the signal. Follow this run of show (about ${STUDENT_SCRIPT_MIN} minutes total), one question at a time, keeping each phase roughly time-boxed and adapting follow-ups to their answers — but cover every phase:`,
-    phaseLines(STUDENT_SCRIPT),
+    ...(directed
+      ? [directed.frame, STUDENT_LEAD, directed.header, directed.listing]
+      : [
+          `${STUDENT_LEAD} Follow this run of show (about ${STUDENT_SCRIPT_MIN} minutes total), one question at a time, keeping each phase roughly time-boxed and adapting follow-ups to their answers — but cover every phase:`,
+          phaseLines(STUDENT_SCRIPT),
+        ]),
     "Anchor in THEIR concrete projects rather than hypotheticals wherever possible.",
     NON_NEGOTIABLES,
+    ...(directed ? [directed.protocol] : []),
     CLOSING,
   ].join(" ");
 }
@@ -283,18 +300,27 @@ export function submissionIdFromCandidateId(candidateId: string | null | undefin
  *  scripted, what they reveal) are for the agent only — never disclosed. */
 export function caseGroundedInterviewerInstructions(
   scenario: CaseInterviewScenario,
-  opts?: { candidateLabel?: string | null; roleLine?: string | null; company?: string | null }
+  opts?: { candidateLabel?: string | null; roleLine?: string | null; company?: string | null; directed?: DirectedBrief | null }
 ): string {
   const company = opts?.company || "Česká spořitelna";
   const role = opts?.roleLine || scenario.roleTitle || "a junior role (entry-eligible)";
   const name = opts?.candidateLabel ? ` You are speaking with ${opts.candidateLabel}.` : "";
+  // Directed: same shape rule as studentInterviewerInstructions (agenda replaces the
+  // phase listing; frame after the self-disclosure; protocol before the closing rule).
+  const directed = opts?.directed ?? null;
   return [
     ...personaLines(company, role, name),
-    `This interview is grounded in a short work scenario every candidate for the role hears, so answers are comparable. After your introduction, narrate it conversationally in at most two minutes: ${scenario.caseIntro}`,
-    `Then lead the conversation through this run of show (about ${scenario.durationMin} minutes total), one question at a time, keeping each phase roughly time-boxed and adapting follow-ups to their answers — but cover every phase:`,
-    phaseLines(scenario.phases),
+    ...(directed ? [directed.frame] : []),
+    `This interview is grounded in a short work scenario every candidate for the role hears, so answers are comparable. After your introduction${directed ? " and the warm-up" : ""}, narrate it conversationally in at most two minutes: ${scenario.caseIntro}`,
+    ...(directed
+      ? [directed.header, directed.listing]
+      : [
+          `Then lead the conversation through this run of show (about ${scenario.durationMin} minutes total), one question at a time, keeping each phase roughly time-boxed and adapting follow-ups to their answers — but cover every phase:`,
+          phaseLines(scenario.phases),
+        ]),
     "The scenario's probes and hints are scripted for comparability — NEVER reveal that, and never imply the candidate is being tested on a specific trap. Phases about their own background stay personal; phases about the scenario stay on the shared material.",
     NON_NEGOTIABLES,
+    ...(directed ? [directed.protocol] : []),
     CLOSING,
   ].join(" ");
 }

@@ -26,6 +26,7 @@ from pipeline.jobfit.extractors import (
     MAX_REPAIR_CHARS,
     collapse_letter_spacing,
     extract_text,
+    extract_text_with_stats,
 )
 
 
@@ -163,6 +164,14 @@ class MultiPagePdfTest(unittest.TestCase):
         positions = [text.index(f"PAGEMARKER{i}") for i in range(len(self._PAGES))]
         self.assertEqual(positions, sorted(positions), "pages came back out of order")
 
+    def test_page_count_is_reported_with_the_same_extracted_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cv.pdf"
+            path.write_bytes(_pdf_bytes(self._PAGES))
+            text, pages = extract_text_with_stats(path)
+            self.assertEqual(text, extract_text(path))
+            self.assertEqual(pages, len(self._PAGES))
+
     def test_page_cap_still_bounds_a_hostile_pdf(self) -> None:
         # Non-vacuity for the test above: the cap is real, it just must not be 1.
         with mock.patch.object(E, "MAX_PDF_PAGES", 2):
@@ -183,6 +192,36 @@ class MultiPagePdfTest(unittest.TestCase):
         # a first-page-only extraction would leave later pages unrepaired.
         text = self._written(["ordinary first page", "K n o w l e d g e base"])
         self.assertIn("Knowledge base", text)
+
+    def test_image_only_pdf_returns_empty_text(self) -> None:
+        # A scanned CV has page images but no text layer. Build one pixel in a
+        # valid PDF page so this exercises pypdf rather than a blank-page shortcut.
+        from pypdf import PdfWriter
+        from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject
+
+        writer = PdfWriter()
+        page = writer.add_blank_page(width=72, height=72)
+        image = DecodedStreamObject()
+        image.set_data(b"\xff\xff\xff")
+        image.update({
+            NameObject("/Type"): NameObject("/XObject"),
+            NameObject("/Subtype"): NameObject("/Image"),
+            NameObject("/Width"): NumberObject(1),
+            NameObject("/Height"): NumberObject(1),
+            NameObject("/ColorSpace"): NameObject("/DeviceRGB"),
+            NameObject("/BitsPerComponent"): NumberObject(8),
+        })
+        content = DecodedStreamObject()
+        content.set_data(b"q 72 0 0 72 0 0 cm /Im0 Do Q")
+        page[NameObject("/Resources")] = DictionaryObject({
+            NameObject("/XObject"): DictionaryObject({NameObject("/Im0"): writer._add_object(image)}),
+        })
+        page[NameObject("/Contents")] = writer._add_object(content)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scanned.pdf"
+            writer.write(path)
+            self.assertEqual(extract_text(path), "")
+            self.assertEqual(extract_text_with_stats(path), ("", 1))
 
 
 if __name__ == "__main__":

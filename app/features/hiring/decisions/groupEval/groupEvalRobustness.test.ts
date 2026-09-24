@@ -32,8 +32,13 @@ const uniform: Fairness = {
   weightSource: "deterministic",
 };
 
-// Same matrix, but one candidate's weighting was actually varied (a real cross-scheme test).
-const varied: Fairness = { ...uniform, weightNotes: { c1: ["skills weighted up on high-trust evidence"] } };
+const varied: Fairness = {
+  ...uniform,
+  schemes: [uniform.schemes[0], { skills: 0.6, career: 0.25, personal: 0.15 }],
+  matrix: [[70, 72], [63, 65]],
+  own: [70, 65],
+  mean: [71, 64],
+};
 
 test("uniform weights are reported as NOT tested — never 'assessed' (a no-op cannot pass)", () => {
   assert.equal(assessRobustness(true, uniform), "not_varied");
@@ -50,6 +55,14 @@ test("a job-less role is not-applicable — the panel stays hidden, no false rob
 
 test("varied, ranker-produced weights are a genuine assessment", () => {
   assert.equal(assessRobustness(true, varied), "assessed");
+});
+
+test("notes alone cannot claim a weighting check, and unequal schemes need no notes", () => {
+  assert.equal(
+    assessRobustness(true, { ...uniform, weightNotes: { c1: ["evidence changed"] } }),
+    "not_varied",
+  );
+  assert.equal(assessRobustness(true, { ...varied, weightNotes: {} }), "assessed");
 });
 
 test("a single-candidate field is insufficient_sample, never assessed", () => {

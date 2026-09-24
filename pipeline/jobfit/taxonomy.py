@@ -1151,6 +1151,8 @@ _FALLBACK_STOPWORDS: frozenset[str] = frozenset({
     "specialist", "analyst", "coordinator", "administrator", "officer", "assistant",
     "senior", "junior", "medior", "lead", "principal", "general", "professional",
     "experience", "skills", "knowledge", "work", "working", "team", "support",
+    # generic role / skill filler, Czech
+    "vedení", "správa", "podpora",
     # generic role / skill filler, German
     "entwicklung", "entwickler", "ingenieur", "berater", "erfahrung", "kenntnisse",
     "kenntnis", "leitung", "mitarbeiter", "bereich", "aufgaben", "arbeit",
@@ -1318,5 +1320,4 @@ def skill_match_score(
     if base <= 0.0:
         return 0.0
     return round(base * provenance_weight(provenance), 4)
-
 

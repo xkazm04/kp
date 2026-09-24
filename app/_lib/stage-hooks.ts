@@ -31,7 +31,14 @@
 // (interview-invite.ts) is the same door POST /api/interview/create goes through,
 // so the board's manual button and this hook share the live-call guard, the
 // billing reservation, the revoke-then-create reissue semantics and the truthful
-// delivery claim.
+// delivery claim. It is reached through a BOOT-REGISTERED seam
+// (stage-hooks-invite.ts, registered by late-bound-boot.ts from
+// instrumentation-node.ts) rather than a static import: db/pipeline.ts reaches this
+// module, db/pipeline.ts is on nearly every route, and a static edge put the whole
+// mint (grounding build, kit pin, agenda, director brief) on all of their compiles.
+// An unregistered door throws inside the try below, so it lands where every other
+// mint failure lands: the move stands, the candidate is parked for a human, the log
+// names the missing registration.
 
 import { afterResponse } from "./after-response";
 import { meterGate } from "./billing/enforce";
@@ -44,7 +51,7 @@ import { latestInterviewByEntry } from "./db/interviews";
 import { listPipelineEventsForEntry } from "./db/pipeline-events";
 import { getInterviewPlan } from "./interview-plan";
 import { GROUNDED_DEFAULT_MIN } from "./interview-duration.mjs";
-import { mintAndInviteVoiceScreen } from "./interview-invite";
+import { stageHookInvite } from "./stage-hooks-invite";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { stageHasRole } from "./pipeline-stages";
 import { runHomeworkArrival, type HomeworkArrivalOutcome } from "./stage-hooks-homework";
@@ -269,7 +276,7 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
       return failOpenToTheHumanQueue(entry, workspaceId, "billing", "the interview-minutes allowance is exhausted");
     }
 
-    const minted = await mintAndInviteVoiceScreen({
+    const minted = await stageHookInvite()({
       entryId,
       workspaceId,
       origin: input.origin ?? null,

@@ -313,6 +313,31 @@ const HANDLERS: Record<string, Spec> = {
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
   },
+  // The JOB-level interview kit (interview-kit-run.ts): one LLM call with a keyless
+  // deterministic fallback, saved as a DRAFT version of the role's kit. Backgrounded for
+  // the reason `agent_fit` is — the durable result is the `interview_kits` row, so the
+  // recruiter can leave the Interview tab and come back to a draft waiting for them.
+  // Late-bound like `jobseeker_scan` (late-bound-boot.ts reads `params.jobId`): the
+  // runner and its validator stay off this hub's path.
+  interview_kit: {
+    run: (ctx) =>
+      externalRunner("interview_kit")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("interviewKit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // The interview FEEDBACK LETTER a candidate asked for (interview-letter-run.ts): one
+  // drafting CLI call with the keyless catalog template behind it, stored as the draft on
+  // the interview_letters row for a recruiter to edit and approve. Queued by the
+  // candidate's own request door, so its label names the ROLE and never the candidate —
+  // the tasks table outlives an erasure (ERASURE_EXEMPT["tasks"]). Late-bound like
+  // `interview_kit` (late-bound-boot.ts reads `params.letterId`): the letter's template,
+  // policy and store stay off this hub's path.
+  interview_letter: {
+    run: (ctx) =>
+      externalRunner("interview_letter")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("interviewLetter", { job: detail(p.jobTitle, p.letterId) ?? "" }),
+  },
   // App master (P2): read a codebase into a RepoDossier. Backgrounded because the
   // in-repo agent path is minutes, not seconds — and because the repo_scans row is
   // the durable result, so the operator can leave the intake and come back. The
@@ -368,12 +393,13 @@ const HANDLERS: Record<string, Spec> = {
   //
   // The scan's implementation is NOT imported here: it reaches the whole acquisition
   // graph (adapters, rules engine, reconciliation), and this hub sits on ~60 routes'
-  // paths, so it is registered at boot from instrumentation-node.ts and looked up
-  // through task-external-runners.ts (the perf budget counts dynamic imports too).
+  // paths, so it is registered at boot (late-bound-boot.ts, called from
+  // instrumentation-node.ts) and looked up through task-external-runners.ts (the perf
+  // budget counts dynamic imports too).
   jobseeker_scan: {
     run: async (ctx) => {
       const startedAt = new Date().toISOString();
-      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress })) as ScanSummary;
+      const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params })) as ScanSummary;
       recordRun({
         job: SCAN_JOB_NAME,
         trigger: "manual",
@@ -463,6 +489,11 @@ export function ensureRecovered(): void {
 
 export function isKnownKind(kind: string): boolean {
   return kind in HANDLERS;
+}
+
+/** The filter vocabulary comes from the same registry that accepts starts. */
+export function knownTaskKinds(): string[] {
+  return Object.keys(HANDLERS).sort();
 }
 
 export function startTask(

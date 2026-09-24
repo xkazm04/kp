@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useStillMotion } from "../useStillMotion";
 import { useTranslations } from "next-intl";
 import { DISPLAY, HAND } from "../tokens";
 import { DRAW, ENTER } from "./shared";
@@ -10,6 +11,7 @@ import { DRAW, ENTER } from "./shared";
 const SKILL_CHIPS = ["Java", "Spring", "SQL", "REST"];
 
 export default function DesignArt({ color = "#42606f" }: { color?: string }) {
+  const reduceMotion = useStillMotion();
   const t = useTranslations("aboutPage");
   return (
     <div className="mx-auto w-full max-w-lg rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
@@ -32,8 +34,9 @@ export default function DesignArt({ color = "#42606f" }: { color?: string }) {
             key={c}
             initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
             whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+            animate={reduceMotion ? { opacity: 1, scale: 1, rotate: 0 } : undefined}
             viewport={ENTER}
-            transition={{ delay: 0.15 + i * 0.1, type: "spring", bounce: 0.5 }}
+            transition={reduceMotion ? { duration: 0 } : { delay: 0.15 + i * 0.1, type: "spring", bounce: 0.5 }}
             className="rounded-full border-[3px] border-[#17202a] bg-[#fdf8ee] px-3 py-1 text-sm font-bold shadow-[2px_2px_0_#17202a]"
           >
             {c}
@@ -45,8 +48,9 @@ export default function DesignArt({ color = "#42606f" }: { color?: string }) {
         <motion.div
           initial={{ width: 0 }}
           whileInView={{ width: "72%" }}
+          animate={reduceMotion ? { width: "72%" } : undefined}
           viewport={ENTER}
-          transition={{ ...DRAW, delay: 0.4 }}
+          transition={reduceMotion ? { duration: 0 } : { ...DRAW, delay: 0.4 }}
           className="h-full rounded-full"
           style={{ background: color }}
         />

@@ -1,5 +1,12 @@
 import { after } from "next/server";
 
+let failureCount = 0;
+
+/** Failures of deferred tasks seen by this process. */
+export function getAfterResponseFailureCount(): number {
+  return failureCount;
+}
+
 // Best-effort work that must NOT sit on a request's critical path.
 //
 // The motivating case is the application acknowledgement: an inbound SMTP/relay
@@ -27,6 +34,7 @@ export function afterResponse(label: string, task: () => Promise<unknown>): void
     try {
       await task();
     } catch (err) {
+      failureCount += 1;
       console.error(`[after:${label}]`, err instanceof Error ? err.message : err);
     }
   };

@@ -1,23 +1,37 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Mic } from "lucide-react";
+import { CheckCircle2, Mic, Volume2 } from "lucide-react";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { micLevelPercent, type MicTestState } from "./useMicTest";
+import type { SpeakerTestState } from "./useSpeakerTest";
 
-/** H5 follow-up: pre-call mic test — reassurance + early catch of a muted/dead mic. */
+/** H5 follow-up: pre-call mic test — reassurance + early catch of a muted/dead mic.
+ *
+ *  Both directions now (spark ai-interview-parity): a candidate who cannot HEAR the
+ *  interviewer fails the screen exactly as completely as one we cannot hear, and used
+ *  to find out by sitting in silence after Start. The speaker half is advisory — no
+ *  browser API can confirm a sound was heard, so the verdict is the candidate's own
+ *  answer and nothing here can block Start. */
 export function MicTestPanel({
   micTest,
   micLevel,
   onTest,
+  speakerTest,
+  onSpeakerTest,
+  onSpeakerHeard,
 }: {
   micTest: MicTestState;
   micLevel: number;
   onTest: () => void;
+  speakerTest: SpeakerTestState;
+  onSpeakerTest: () => void;
+  onSpeakerHeard: (heard: boolean) => void;
 }) {
   const t = useTranslations("interview.voice");
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3">
+    <div className="space-y-3 rounded-lg border border-stone-200 bg-paper/50 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-3">
       <button
         type="button"
         onClick={onTest}
@@ -74,6 +88,55 @@ export function MicTestPanel({
         {micTest === "denied" ? <span className="text-base text-coral">{t("errMicDenied")}</span> : null}
         {micTest === "not-found" ? <span className="text-base text-coral">{t("errMicNotFound")}</span> : null}
         {micTest === "busy" ? <span className="text-base text-coral">{t("errMicBusy")}</span> : null}
+      </div>
+    </div>
+
+      {/* The speaker half. Same shape as the mic row above — a button, then a
+          PERSISTENT live region that carries the verdict, so a screen-reader
+          candidate is told the outcome instead of being handed a node that appeared
+          silently. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={onSpeakerTest}
+          disabled={speakerTest === "playing"}
+          className={`${BTN_SECONDARY} h-10 justify-center gap-2 bg-white px-4 text-base`}
+        >
+          <Volume2 size={16} />
+          {speakerTest === "playing" ? t("speakerCheck.playing") : t("speakerCheck.btn")}
+        </button>
+        <div aria-live="polite" className="flex flex-wrap items-center gap-3">
+          {speakerTest === "asking" ? (
+            <>
+              <span className="text-base text-ink">{t("speakerCheck.ask")}</span>
+              <button
+                type="button"
+                onClick={() => onSpeakerHeard(true)}
+                className={`${BTN_SECONDARY} h-9 justify-center gap-1.5 bg-white px-3 text-base`}
+              >
+                <CheckCircle2 size={15} aria-hidden />
+                {t("speakerCheck.yes")}
+              </button>
+              <button
+                type="button"
+                onClick={() => onSpeakerHeard(false)}
+                className={`${BTN_SECONDARY} h-9 justify-center bg-white px-3 text-base`}
+              >
+                {t("speakerCheck.no")}
+              </button>
+            </>
+          ) : null}
+          {speakerTest === "heard" ? (
+            <span className="inline-flex items-center gap-1.5 text-base text-moss">
+              <CheckCircle2 size={16} aria-hidden /> {t("speakerCheck.heard")}
+            </span>
+          ) : null}
+          {/* Advisory, never blocking: it names what to check and leaves Start alone. */}
+          {speakerTest === "unheard" ? <span className="text-base text-coral">{t("speakerCheck.unheard")}</span> : null}
+          {speakerTest === "unsupported" ? (
+            <span className="text-base text-steel">{t("speakerCheck.unsupported")}</span>
+          ) : null}
+        </div>
       </div>
     </div>
   );

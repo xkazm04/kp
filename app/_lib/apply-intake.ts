@@ -1,5 +1,6 @@
 import type { JobRecord } from "./db/core";
 import { parseGithubUsername } from "./github-handle.ts";
+import type { Locale } from "@/i18n/locales";
 
 // Pure, registry-free intake heuristics for the conversational apply flow. Kept
 // in their own module (no `@/`-aliased imports) so the locale default and the
@@ -17,6 +18,14 @@ import { parseGithubUsername } from "./github-handle.ts";
  * the product expands to other markets.
  */
 export const DEFAULT_APPLY_LANGUAGES = ["Czech", "English"] as const;
+
+const LOCALE_APPLY_LANGUAGES: Record<Locale, readonly string[]> = {
+  cs: ["Czech"], en: ["English"], de: ["German"], fr: ["French"],
+};
+
+export function applyLanguagesForLocale(locale: Locale): string[] {
+  return [...LOCALE_APPLY_LANGUAGES[locale]];
+}
 
 /**
  * Anti-bot honeypot. `company_url` is a hidden form field a real applicant never sees
@@ -54,7 +63,9 @@ export function isHoneypotFilled(body: unknown): boolean {
  *   - A bare number with no adjacent unit: "joined in 2019" → undefined.
  */
 export function parseYearsExperience(experience: string): number | undefined {
-  const match = /\b(\d{1,2})\s*\+?\s*(?:years|yrs|let|roky|rok)/i.exec(experience);
+  // German Jahr forms and French an/année forms join the original EN/CS units;
+  // explicit inflections preserve the whole-unit boundary after each match.
+  const match = /\b(\d{1,2})\s*\+?\s*(?:years|yrs|let(?:y|ech)?|rok(?:y|u|em)?|jahr(?:e|en)?|ann(?:ée|ées|ee|ees)|ans?)(?![\p{L}])/iu.exec(experience);
   return match ? Number(match[1]) : undefined;
 }
 
@@ -402,7 +413,7 @@ export type ApplyAnswers = {
  *    claimed skills ride a `kind: "other"` item instead.
  *  - experienced/default: unchanged — one project-kind item with the skills.
  */
-export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers): Record<string, unknown> {
+export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers, locale?: Locale): Record<string, unknown> {
   const skillList = answers.skills
     .split(/[,;]/)
     .map((s) => s.trim())
@@ -459,7 +470,7 @@ export function buildIntakeProfile(job: JobRecord, answers: ApplyAnswers): Recor
     displayName: answers.name,
     roleFamily: job.roleFamily ?? "software_engineering",
     languages:
-      job.languages && job.languages.length ? job.languages : [...DEFAULT_APPLY_LANGUAGES],
+      job.languages && job.languages.length ? job.languages : locale ? applyLanguagesForLocale(locale) : [...DEFAULT_APPLY_LANGUAGES],
     evidence,
   };
 

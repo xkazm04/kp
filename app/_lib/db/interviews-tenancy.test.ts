@@ -21,10 +21,16 @@ const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 const IS = /\b(from|into|update)\s+interview_sessions\b/i;
 const KEY = /\b(id|token)\s*=\s*\?/i; // by-id/token point op (word-boundary excludes job_id/entry_id)
 
-test("interview_sessions: the by-job + by-entry reads and the create INSERT are workspace-scoped (by-id/token point reads exempt)", () => {
+test("interview_sessions: the by-job + by-entry reads and the create INSERT are workspace-scoped (by-id/token point reads and the tagged global sweep exempt)", () => {
   const touching = sqlBlocks.filter((s) => IS.test(s));
   assert.ok(touching.length >= 8, `expected >=8 interview_sessions queries, found ${touching.length}`);
-  const mustScope = touching.filter((s) => !KEY.test(s)); // interviewedForJob (job_id) + INSERT + every entry_id read
+  // `-- tenancy:global` tags a deliberately cross-tenant SYSTEM read, the same
+  // convention pipeline-events-tenancy.test.ts and tasks-tenancy.test.ts honor. One
+  // query wears it: the nightly interview-recording retention sweep
+  // (listInterviewRecordingsDue), which is a deployment-wide storage-limitation duty
+  // exactly like anonymizeExpiredConsents — it selects every tenant's rows and then
+  // scopes each WRITE to the workspace_id the row itself carries.
+  const mustScope = touching.filter((s) => !KEY.test(s) && !/tenancy:global/i.test(s)); // interviewedForJob (job_id) + INSERT + every entry_id read
   assert.ok(mustScope.length >= 5, `expected the by-job read + INSERT + the entry_id reads, found ${mustScope.length}`);
   for (const sql of mustScope) {
     assert.ok(/workspace_id/.test(sql), `an interview_sessions query is NOT workspace-scoped:\n${sql.trim().slice(0, 220)}`);

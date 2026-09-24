@@ -1,4 +1,5 @@
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
+import { jdJobId } from "../jd-limits";
 import { ensureDb, insertWithUniqueSlug, safeRowParse, type JobRecord } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
@@ -69,6 +70,22 @@ const JD_PREVIEW_CHARS = 280;
  *  a caller is a review flag (the next picker WILL forget it). Explicit
  *  show-archived surfaces (loadJd's public render) deliberately omit it. */
 export const JD_ACTIVE_SQL = "archived_at IS NULL";
+
+/** Public, currently open JD URLs for sitemap.xml. A saved JD is only a draft
+ * until its linked opening is live; the join also prevents a stale/mismatched
+ * job id from exposing another team's draft in the public index. */
+export function listLivePublicJds(): Array<{ slug: string; createdAt: string }> {
+  return ensureDb()
+    .prepare(
+      `SELECT jds.slug, jds.created_at AS createdAt
+       FROM jds JOIN jobs ON jobs.id = ? || jds.slug
+         AND jobs.workspace_id = jds.workspace_id
+       WHERE jds.${JD_ACTIVE_SQL}
+         AND (jobs.status IS NULL OR jobs.status = 'published')
+       ORDER BY jds.created_at DESC, jds.slug`
+    )
+    .all(jdJobId("")) as Array<{ slug: string; createdAt: string }>;
+}
 
 export type SaveJdInput = {
   title: string;

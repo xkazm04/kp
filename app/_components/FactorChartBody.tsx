@@ -67,7 +67,19 @@ export default function FactorChartBody({ score }: FactorChartBodyProps) {
   // none silence it because it fires before our parent measurement reaches
   // the chart. The warning is dev-mode-only and the chart renders correctly.
   return (
-    <div style={{ aspectRatio: "5 / 2", minHeight: 200 }} className="w-full nums">
+    <div className="w-full nums">
+      <table className="sr-only">
+        <caption>{t("factorPoints")}</caption>
+        <tbody>
+          {data.map((point) => (
+            <tr key={point.id}>
+              <th scope="row">{point.factor}</th>
+              <td>{point.value}/{point.max}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div aria-hidden="true" style={{ aspectRatio: "5 / 2", minHeight: 200 }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
           <CartesianGrid stroke={chrome.grid} vertical={false} />
@@ -99,6 +111,7 @@ export default function FactorChartBody({ score }: FactorChartBodyProps) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

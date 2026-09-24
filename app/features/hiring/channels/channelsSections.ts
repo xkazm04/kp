@@ -23,3 +23,11 @@ export const CHANNEL_SECTIONS: ChannelSection[] = [
   { id: "email", icon: Mail, channel: "email" },
   { id: "ads", icon: Megaphone, channel: "boards" },
 ];
+
+export function isChannelSectionId(value: string | null): value is ChannelSectionId {
+  return value != null && CHANNEL_SECTIONS.some((section) => section.id === value);
+}
+
+export function resolveChannelSection(value: string | null): ChannelSectionId {
+  return isChannelSectionId(value) ? value : "comms";
+}

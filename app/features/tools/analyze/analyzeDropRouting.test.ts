@@ -52,7 +52,7 @@ test("a file dropped on a labeled zone is not routed to the CV catch (no phantom
   // is the sole handler.
   const file = aFile();
   assert.equal(
-    resolveWindowDropTarget(true, targetInside(OWNED_DROP_ZONE_ATTR), file),
+    resolveWindowDropTarget(true, targetInside(OWNED_DROP_ZONE_ATTR), [file]),
     null,
     "a drop inside an owned zone must never be added as a CV variant",
   );
@@ -60,9 +60,9 @@ test("a file dropped on a labeled zone is not routed to the CV catch (no phantom
 
 test("a file dropped outside every labeled zone IS routed to the CV catch (drop-anywhere)", () => {
   const file = aFile();
-  assert.equal(
-    resolveWindowDropTarget(true, targetInside(), file),
-    file,
+  assert.deepEqual(
+    resolveWindowDropTarget(true, targetInside(), [file]),
+    [file],
     "the drop-anywhere CV affordance must still route bare-page drops",
   );
 });
@@ -71,18 +71,23 @@ test("a drop with no element target routes to the CV catch", () => {
   // A target that is not an Element (or is absent) is treated as outside every
   // zone, so the drop-anywhere catch still fires.
   const file = aFile();
-  assert.equal(resolveWindowDropTarget(true, null, file), file);
-  assert.equal(resolveWindowDropTarget(true, {} as EventTarget, file), file);
+  assert.deepEqual(resolveWindowDropTarget(true, null, [file]), [file]);
+  assert.deepEqual(resolveWindowDropTarget(true, {} as EventTarget, [file]), [file]);
 });
 
 test("a non-file drag is never routed, wherever it lands", () => {
   const file = aFile();
-  assert.equal(resolveWindowDropTarget(false, targetInside(), file), null);
-  assert.equal(resolveWindowDropTarget(false, targetInside(OWNED_DROP_ZONE_ATTR), file), null);
+  assert.equal(resolveWindowDropTarget(false, targetInside(), [file]), null);
+  assert.equal(resolveWindowDropTarget(false, targetInside(OWNED_DROP_ZONE_ATTR), [file]), null);
 });
 
 test("a file drag outside any zone with no file present routes nothing", () => {
-  assert.equal(resolveWindowDropTarget(true, targetInside(), null), null);
+  assert.equal(resolveWindowDropTarget(true, targetInside(), []), null);
+});
+
+test("window catch routes every dropped CV variant as one batch", () => {
+  const files = [aFile(), new File(["y"], "second.pdf", { type: "application/pdf" })];
+  assert.deepEqual(resolveWindowDropTarget(true, targetInside(), files), files);
 });
 
 test("isOwnedDropZoneTarget detects the marker and tolerates non-elements", () => {

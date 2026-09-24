@@ -68,6 +68,9 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   profile_draft: "cheap",
   // One assistant call that files a message into a thread.
   companion_digest: "cheap",
+  // One short letter for one candidate, over a handful of competency names; at most one
+  // per application from the candidate's door, plus a recruiter's occasional redraft.
+  interview_letter: "cheap",
 
   // ── metered ──
   // A CV (or several variants) through the Python pipeline + a paid multimodal call.
@@ -80,6 +83,10 @@ export const TASK_BUDGET_CLASS: Record<string, TaskBudgetClass> = {
   evaluate_submission: "metered",
   campaign: "metered",
   agent_fit: "metered",
+  // One call over the role's own text, once per role — the same shape as agent_fit, and
+  // budgeted with it. Not "cheap": unlike interview_prep it is a whole-artifact author
+  // pass (every competency, every question, the FAQ) rather than a handful of probes.
+  interview_kit: "metered",
   // Fan-out, but over a cohort the caller explicitly selected on the board.
   batch_outreach: "metered",
 

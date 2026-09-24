@@ -54,6 +54,7 @@ const SAMPLES: Record<string, string> = {
   "openai-legacy": "sk-" + FILL.slice(0, 40) + "aB3dEf7h",
   openrouter: "sk-" + "or-v1-" + HEX.slice(0, 32),
   elevenlabs: "sk" + "_" + HEX.slice(0, 40),
+  "polar-webhook": "polar" + "_whs_" + FILL.slice(0, 24),
   google: "AI" + "za" + FILL.slice(0, 35),
   "gcp-service-account": '"type"' + ': "service_account"',
   aws: "AK" + "IA" + UPPER.slice(0, 16),

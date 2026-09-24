@@ -7,6 +7,7 @@ import { orgAdminCapabilities, orgCapabilityCeiling, workspaceCapabilities, type
 import { getMembership, capabilitiesForUserInWorkspace, listMembershipsForUser } from "../db/memberships";
 import { getUserById } from "../db/users";
 import { getWorkspaceOrgId, listWorkspacesByOrg } from "../db/workspaces";
+import { jsonRefusal } from "../api-response";
 
 // Per-user identity + capability gate for REQUEST scope (route handlers / server
 // components) — the P0 companion to require-operator.ts. require-operator answers
@@ -152,7 +153,7 @@ export async function requireWorkspaceCapability(workspaceId: string, cap: Capab
   const s = await currentSession();
   const orgId = s ? currentOrgId(s) : null;
   if (orgId && getWorkspaceOrgId(workspaceId) !== orgId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return jsonRefusal("FORBIDDEN_CAPABILITY", 403, { capability: cap });
 }
 
 /** The caller's ORG-WIDE administrative capabilities — for calls that target no
@@ -173,7 +174,9 @@ export async function callerOrgCapabilities(): Promise<ReadonlySet<Capability>> 
 export async function requireOrgCapability(cap: Capability): Promise<NextResponse | null> {
   if ((await callerOrgCapabilities()).has(cap)) return null;
   const caller = await resolveCaller();
-  return NextResponse.json({ error: caller.authed ? "Forbidden" : "Unauthorized" }, { status: caller.authed ? 403 : 401 });
+  return caller.authed
+    ? jsonRefusal("FORBIDDEN_CAPABILITY", 403, { capability: cap })
+    : NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 /** The ceiling on what the caller may GRANT — everything they hold anywhere in

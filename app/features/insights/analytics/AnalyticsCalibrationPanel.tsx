@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { useUrlInboxState } from "@/app/features/shell/nav/useUrlInboxState";
 // `import type` only — calibration.ts is pure (no server imports), erased at compile.
 import type {
   CalibrationResult,
@@ -81,7 +83,11 @@ export function CalibrationPanel() {
   const search = useSearchParams();
   // Per-role-family reliability (the route's headline use case: "how accurate are you
   // for backend roles?") — was computed-capable (?roleFamily) but had no UI selector.
-  const [family, setFamily] = useState("");
+  const [family, setFamily] = useUrlInboxState(
+    "calFamily",
+    (raw) => raw && (ROLE_FAMILY_SLUGS as readonly string[]).includes(raw) ? raw : null,
+    ""
+  );
   // REC-02 — the curve names WHICH score it measures. Default: the pipeline
   // match score, i.e. the number screening auto-decisions actually act on
   // (see pipelineCalibrationPairs). The CV-analysis × disposition pairing —
@@ -265,6 +271,7 @@ export function CalibrationPanel() {
                   rec={data.recommendation}
                   roleFamily={family}
                   leakage={data.leakage}
+                  autoRejectEnabled={data.autoRejectEnabled ?? null}
                   onApplied={() => {
                     reload();
                     setApplyNonce((n) => n + 1);

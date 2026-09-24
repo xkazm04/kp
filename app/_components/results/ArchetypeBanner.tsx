@@ -11,6 +11,8 @@ import { TextInput } from "@/app/_components/TextInput";
 import { TextArea } from "@/app/_components/TextArea";
 import { formatOptionalFraction } from "./archetypeBannerView";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { PotentialBadge } from "@/app/_components/PotentialBadge";
+import { PANEL_ACCENT } from "@/app/_components/ui/recipes";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -20,12 +22,15 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 type V2 = {
   archetype?: string;
   archetypeConfidence?: number;
+  archetypeNeedsReview?: boolean;
   archetypeReasons?: string[];
   completeness?: number;
   displayName?: string;
   // The archetype checklist's unmet items (profile.completeness_gaps), riding
   // transiently on the dump — drives the targeted "fill the gaps" follow-up.
   completenessGaps?: CompletenessGap[];
+  potentialScore?: number;
+  learningSignals?: string[];
 };
 
 type SaveState =
@@ -84,6 +89,12 @@ export function ArchetypeBanner({
   const signalAgreement = formatOptionalFraction(v2.archetypeConfidence, "archetypeConfidence");
   const completeness = formatOptionalFraction(v2.completeness, "completeness");
   const reasons = v2.archetypeReasons ?? [];
+  const potentialScore = typeof v2.potentialScore === "number" && Number.isFinite(v2.potentialScore)
+    ? Math.max(0, Math.min(1, v2.potentialScore))
+    : null;
+  const learningSignals = Array.isArray(v2.learningSignals)
+    ? v2.learningSignals.filter((signal): signal is string => typeof signal === "string")
+    : [];
   // Only gaps the form knows how to collect for (an unknown/new check id has no
   // field and must not render as a label with no input).
   const gaps = (v2.completenessGaps ?? []).filter((g) => GAP_FIELDS[g.check]);
@@ -114,11 +125,16 @@ export function ArchetypeBanner({
   };
 
   return (
-    <div className="rounded-lg border border-coral/30 bg-coral/5 p-4 shadow-panel">
+    <div className={`${PANEL_ACCENT} p-4`}>
       <div className="flex flex-wrap items-center gap-2">
         <Sparkles size={16} className="text-coral" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
+        {v2.archetypeNeedsReview ? (
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-800">
+            {t("archetype.needsReview")}
+          </span>
+        ) : null}
         {signalAgreement != null ? (
           <span className="text-sm text-steel">{t("archetype.confidence", { value: signalAgreement })}</span>
         ) : null}
@@ -127,6 +143,9 @@ export function ArchetypeBanner({
             {signalAgreement != null ? "· " : ""}
             {t("archetype.completeness", { value: completeness })}
           </span>
+        ) : null}
+        {potentialScore != null ? (
+          <PotentialBadge potential={{ score: potentialScore, learningSignals }} />
         ) : null}
 
         <span className="ml-auto">

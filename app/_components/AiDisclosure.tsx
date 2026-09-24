@@ -101,6 +101,8 @@ export function AiDisclosure({
   // Only ever written by the fetch fallback; a prop-fed surface leaves it empty
   // and the effect below never runs.
   const [fetched, setFetched] = useState<{ regimeId?: RegimeId; retentionMonths?: number }>({});
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const serverResolved = regimeId !== undefined;
 
   useEffect(() => {
@@ -118,14 +120,15 @@ export function AiDisclosure({
               ? d.consentRetentionMonths
               : undefined,
         });
+        setLoadFailed(false);
       })
       .catch(() => {
-        /* keep the defaults — the universal body still stands */
+        if (alive) setLoadFailed(true);
       });
     return () => {
       alive = false;
     };
-  }, [serverResolved]);
+  }, [serverResolved, attempt]);
 
   // Precedence, most to least authoritative: the server-resolved prop, then the
   // session-bearing fetch, then the shipped EU / 12-month default. getRegime()
@@ -147,6 +150,14 @@ export function AiDisclosure({
       <p className="mt-2 text-meta text-steel">
         {t("regimeNote", { framework: regime.antiDiscrimination, dataLaw: regime.dataLaw })}
       </p>
+      {!serverResolved && loadFailed ? (
+        <p role="alert" className="mt-2 text-meta text-coral">
+          {t("loadFailed")}{" "}
+          <button type="button" onClick={() => setAttempt((value) => value + 1)} className="focus-ring underline underline-offset-2">
+            {t("retry")}
+          </button>
+        </p>
+      ) : null}
       {showDataConsent ? (
         <p className="mt-2 text-meta text-steel">{t("dataConsent", { months })}</p>
       ) : null}

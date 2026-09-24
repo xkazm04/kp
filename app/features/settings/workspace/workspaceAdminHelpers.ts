@@ -46,6 +46,23 @@ export function memberCounts(members: OrgMemberDto[]): Map<string, number> {
   return counts;
 }
 
+export type MemberStatusCounts = { active: number; invited: number; disabled: number; unknown: number };
+
+/** Per-team seat states, counting a multi-team member once in each team they hold. */
+export function memberStatusCounts(members: OrgMemberDto[]): Map<string, MemberStatusCounts> {
+  const counts = new Map<string, MemberStatusCounts>();
+  for (const member of members) {
+    for (const team of member.teams) {
+      const current = counts.get(team.workspaceId) ?? { active: 0, invited: 0, disabled: 0, unknown: 0 };
+      const status = member.user.status;
+      if (status === "active" || status === "invited" || status === "disabled") current[status] += 1;
+      else current.unknown += 1;
+      counts.set(team.workspaceId, current);
+    }
+  }
+  return counts;
+}
+
 /** The pending invites addressed at one team. An invite with no workspaceId
  *  predates per-team invites and belongs to the default team. */
 export function invitesForWorkspace<T extends { workspaceId: string | null }>(invites: T[], workspaceId: string, defaultWorkspaceId: string): T[] {

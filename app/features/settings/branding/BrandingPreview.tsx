@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { PANEL, META_LABEL } from "@/app/_components/ui/recipes";
-import { EXTERNAL_LOGO_IMG_ATTRS, shouldRenderLogo } from "@/app/_lib/brand-config";
+import { ExternalLogoImage } from "@/app/_components/ExternalLogoImage";
+import { shouldRenderLogo } from "@/app/_lib/brand-config";
 import { DARK, INK, PAPER, STEEL, WHITE } from "@/app/_lib/brand";
 
 // Tier 3 (docs/design/loading-choreography.md): the live preview is a secondary
@@ -56,12 +57,10 @@ function ThemeCard({
       <div className="mt-3 rounded-lg p-3" style={{ background: g.surface }}>
         <div className="flex items-center gap-3">
           {shouldRenderLogo(logo, logoError) ? (
-            // eslint-disable-next-line @next/next/no-img-element -- external logo URL, not a bundled asset
-            <img
+            <ExternalLogoImage
               src={logo.trim()}
               alt={name.trim() || labels.fallbackName}
               onError={onLogoError}
-              {...EXTERNAL_LOGO_IMG_ATTRS}
               className="h-8 w-8 rounded-md object-contain"
             />
           ) : (

@@ -65,10 +65,10 @@ export async function POST(request: Request) {
   let cleanTitle = title.trim();
   if (needRole) {
     const valid = validateJdBuildInput(title, needText);
-    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
+    if (!valid.ok) return jsonRefusal(valid.code, 400);
     cleanTitle = valid.title;
   } else if (cleanTitle.length < 2) {
-    return NextResponse.json({ error: "A role title is required." }, { status: 400 });
+    return jsonRefusal("JD_BUILD_TITLE_TOO_SHORT", 400);
   }
 
   // Resolve the chosen company template server-side so the build renders through it.

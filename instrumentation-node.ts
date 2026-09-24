@@ -68,6 +68,29 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       log: `jobseeker scan: ${totals.workspaces} workspace(s), matched ${totals.matched}, deep-dived ${totals.deepDived}, blocked ${totals.blocked}, collapsed ${totals.collapsed}`,
     };
   },
+  // Opt-in interview-audio retention (spark ai-interview-parity, WP3): delete the audio
+  // files whose window has run out — 30 days past the hiring decision, or the 180-day
+  // backstop for a candidate who was never decided — and stamp the deletion on the row
+  // that held them. Synchronous and deployment-wide (the sweep scopes each write to the
+  // workspace the row itself names), idempotent, and silent when nothing is due: at a
+  // daily cadence a "kept everything" row every night is noise.
+  //
+  // NOTE on the autonomy pause below: this handler runs from the REGISTERED-JOBS loop,
+  // which sits under the pause with the other discretionary passes. That is deliberate
+  // even though the duty is statutory, because the duty is ALSO enforced on the read
+  // path (the playback door re-checks the same predicate), so a paused deployment stops
+  // SERVING the audio even while it stops deleting it. Unlike the consent sweep, which
+  // has no read-side twin, nothing here goes unlawful-and-invisible while halted.
+  interview_recording_retention: async () => {
+    const { runInterviewRecordingRetention } = await import("./app/_lib/interview-recording");
+    const summary = runInterviewRecordingRetention();
+    if (summary.deleted === 0 && summary.failed === 0) return null;
+    return {
+      status: "ok",
+      summary,
+      log: `interview recordings deleted: ${summary.deleted} (scanned ${summary.scanned}, failed ${summary.failed})`,
+    };
+  },
 };
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
@@ -163,19 +186,19 @@ async function sweepExpiredConsents(): Promise<void> {
 }
 
 export async function startClock(): Promise<void> {
-  // Late-bound task runners (app/_lib/task-external-runners.ts): the job-seeker scan's
-  // implementation is registered HERE, off every route's import path, so the task hub
-  // stays light. Idempotent — the dev server re-runs instrumentation on reload.
+  // Late-bound implementations (app/_lib/late-bound-boot.ts): the heavy task runners
+  // (job-seeker scan, interview kit, feedback letter) and the stage hook's interview
+  // mint are registered HERE, off every route's import path, so the task hub and the
+  // pipeline store stay light. Idempotent — the dev server re-runs instrumentation on
+  // reload.
   try {
-    const { registerTaskRunner } = await import("./app/_lib/task-external-runners");
-    registerTaskRunner("jobseeker_scan", async (ctx) => {
-      const { runJobseekerScan } = await import("./app/_lib/jobseeker/scan");
-      return runJobseekerScan(ctx.workspaceId, { trigger: "manual", signal: ctx.signal, onProgress: ctx.progress });
-    });
+    const { registerLateBoundImplementations } = await import("./app/_lib/late-bound-boot");
+    registerLateBoundImplementations();
   } catch (e) {
-    // A failed registration surfaces the first time a scan task runs (externalRunner
-    // throws by name); log it here too so the boot log names the cause.
-    console.error("[clock] task runner registration failed:", e);
+    // A failed registration surfaces the first time a late-bound kind runs (the
+    // registries throw by name — a failed task, an invite parked for a human); log it
+    // here too so the boot log names the cause.
+    console.error("[clock] late-bound registration failed:", e);
   }
   // Late-bound stage-arrival hook (app/_lib/stage-hook-registry.ts): the same seam,
   // for the same reason. db/pipeline.ts is reached by nearly every route, and

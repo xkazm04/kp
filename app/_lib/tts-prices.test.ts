@@ -7,6 +7,23 @@ test("a cloud synthesis is priced per character, rounded to 6 decimals", () => {
   assert.equal(ttsCostUsd("elevenlabs", 280), Math.round(0.22 * 0.28 * 1e6) / 1e6);
 });
 
+test("an operator can override the cloud character rate without repricing local synthesis", () => {
+  const previous = process.env.KP_TTS_KCHAR_USD_ELEVENLABS;
+  try {
+    process.env.KP_TTS_KCHAR_USD_ELEVENLABS = "0.11";
+    assert.equal(ttsCostUsd("elevenlabs", 1000), 0.11);
+    assert.equal(ttsCostUsd("piper", 1000), 0);
+    process.env.KP_TTS_KCHAR_USD_ELEVENLABS = "not-a-rate";
+    const warn = console.warn;
+    console.warn = () => {};
+    try { assert.equal(ttsCostUsd("elevenlabs", 1000), TTS_KCHAR_PRICES.elevenlabs); }
+    finally { console.warn = warn; }
+  } finally {
+    if (previous === undefined) delete process.env.KP_TTS_KCHAR_USD_ELEVENLABS;
+    else process.env.KP_TTS_KCHAR_USD_ELEVENLABS = previous;
+  }
+});
+
 test("a local engine costs a KNOWN zero", () => {
   assert.equal(ttsCostUsd("piper", 4000), 0);
   assert.equal(ttsCostUsd("kokoro", 4000), 0);

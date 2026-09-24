@@ -7,6 +7,7 @@ import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { sendComm } from "@/app/_lib/comms";
 import { recordAudit } from "@/app/_lib/dev-control";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // W5-3 (DEVO3) — human-gated case close-out. "closed" sat in the lifecycle
 // STAGES (and the control room's TERMINAL set) with no writer: a lifecycle
@@ -63,7 +64,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       const role = posting.roleTitle ?? posting.caseTitle ?? "the role";
       for (const submission of listSubmissions(posting.id, lc.workspaceId)) {
         if (submission.status === "promoted") continue;
-        const to = submission.contact || submission.candidateRef;
+        // candidateRef can be an opaque handle or display name. Only an actual
+        // address belongs in the comms outbox; an email-shaped ref is a valid
+        // fallback for older submissions without a separate contact field.
+        const to = [submission.contact, submission.candidateRef]
+          .map((value) => value?.trim())
+          .find((value) => value && EMAIL_RE.test(value));
         if (!to || seen.has(to)) continue;
         seen.add(to);
         // ISOLATE each send: a relay/network failure on ONE wrap-up note must NOT

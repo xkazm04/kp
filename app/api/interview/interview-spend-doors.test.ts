@@ -61,13 +61,18 @@ test("/create refuses cheaply, throttles, grounds, reserves, THEN revokes and mi
   assert.ok(promote < handoff, "the entry is resolved before the mint is asked for");
 
   const live = at(door, "liveInterviewByEntry(entryId, workspaceId)", "the live-call guard");
-  const grounded = at(door, "await buildGroundedInterview(entryId, workspaceId)", "the grounding build");
+  const kitPin = at(door, "pinned = latestPublishedKit(jobId, workspaceId)", "the job-kit pin");
+  const grounded = at(door, "await buildGroundedInterview(entryId, workspaceId, { pinnedKit:", "the grounding build, handed the pinned kit");
   const reserve = at(door, "maxBillableInterviewMin(grounded.durationMin)", "the authoritative reservation");
   const revoke = at(door, "revokeOpenInterviewSessions(entryId, workspaceId)", "the reissue revoke");
   const mint = at(door, "const session = createInterviewSession({", "the session mint");
   const dispatch = at(door, "await dispatchInterviewInvite(", "the invite dispatch");
 
   assert.ok(live < grounded, "a call in progress is refused before any model-backed work");
+  assert.ok(
+    live < kitPin && kitPin < grounded,
+    "the pinned kit sets the booked length (interview-kit-booking.ts kitBookedMin), so it is read before the build that books it",
+  );
   assert.ok(
     grounded < reserve,
     "the reservation is sized from the run-of-show's booked length, so the build must come first",
@@ -78,6 +83,16 @@ test("/create refuses cheaply, throttles, grounds, reserves, THEN revokes and mi
   );
   assert.ok(revoke < mint, "exactly one link is live per entry - the prior ones die before the new one exists");
   assert.ok(mint < dispatch, "nothing is mailed before the link it points at exists");
+});
+
+test("both voice session mint doors cap bytes before the spend throttle", () => {
+  for (const [route, cap] of [["./create/route.ts", "MAX_CREATE_BODY_BYTES"], ["./simulate/route.ts", "MAX_SIMULATE_BODY_BYTES"]] as const) {
+    const src = read(route);
+    const body = at(src, `readJsonWithLimit<`, `${route} bounded body read`);
+    const refusal = at(src, `jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: ${cap} })`, `${route} 413 refusal`);
+    const throttle = at(src, "rateLimit(`interview-", `${route} spend throttle`);
+    assert.ok(body < refusal && refusal < throttle, `${route} must refuse an oversized body before spend admission`);
+  }
 });
 
 test("/create's two meter gates are the cheap default and the authoritative worst case", () => {
@@ -168,10 +183,22 @@ test("every lifecycle refusal on the PUBLIC /connect door carries a code", () =>
   assert.match(src, /need: missingVoiceEnv\(adapter\)/, "the unconfigured 503 keeps naming the missing vars");
 });
 
+test("comparison and practice attachment refuse with localized codes", () => {
+  const compare = read("./compare/route.ts");
+  const attach = read("./simulate/attach/route.ts");
+  assert.match(compare, /jsonRefusal\("INTERVIEW_JOB_REQUIRED", 400\)/);
+  for (const code of ["INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED", "INTERVIEW_SIM_SESSION_NOT_FOUND", "PIPELINE_ENTRY_NOT_FOUND"]) {
+    assert.match(attach, new RegExp(`jsonRefusal\\("${code}"`));
+  }
+  for (const src of [compare, attach]) {
+    assert.doesNotMatch(src, /NextResponse\.json\(\{ error: [^}]+\}, \{ status: 4\d\d \}\)/);
+  }
+});
+
 test("the refusal registry defines every interview code the routes answer", () => {
   const registry = read("../../_lib/api-response.ts");
   const codes = new Set<string>();
-  for (const rel of ["./create/route.ts", "./connect/route.ts", "./revoke/route.ts", "./simulate/route.ts"] as const) {
+  for (const rel of ["./create/route.ts", "./connect/route.ts", "./revoke/route.ts", "./simulate/route.ts", "./compare/route.ts", "./simulate/attach/route.ts"] as const) {
     for (const m of read(rel).matchAll(/jsonRefusal\("([A-Z_]+)"/g)) codes.add(m[1]);
   }
   assert.ok(codes.size >= 12, `expected the routes to answer a real vocabulary, found ${codes.size}`);

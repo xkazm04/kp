@@ -62,6 +62,7 @@ export async function saveRoutingPin(
 
 export async function resetRoutingPin(
   useCase: string,
+  expectedUpdatedAt: string | null,
   fallbackMessage: string,
   errMsg: ErrorMessageResolver
 ): Promise<RoutingActionResult> {
@@ -69,10 +70,15 @@ export async function resetRoutingPin(
     const r = await fetch("/api/llm/config", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ useCase }),
+      body: JSON.stringify({ useCase, expectedUpdatedAt }),
     });
     const p = (await r.json().catch(() => ({}))) as { rows?: LlmConfigRow[]; error?: string; code?: string };
-    if (!r.ok || !p.rows) throw new Error(errMsg(p, fallbackMessage));
+    if (!r.ok || !p.rows) {
+      const message = errMsg(p, fallbackMessage);
+      return p.code === "MODEL_ROUTING_STALE" && p.rows
+        ? { ok: false, message, rows: p.rows }
+        : { ok: false, message };
+    }
     return { ok: true, rows: p.rows };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : fallbackMessage };

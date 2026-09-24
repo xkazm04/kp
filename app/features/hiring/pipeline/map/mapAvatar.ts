@@ -52,7 +52,7 @@ export const AVATAR_FILL: Record<GenderHint, string> = {
   unknown: "bg-stone-100 text-stone-400",
 };
 
-/** Avatar RING by score tone — a null score draws a dashed neutral ring so "no
+/** Avatar RING by score tone — a null score draws a thin neutral ring so "no
  *  score yet" is visibly different from "weak". */
 export const AVATAR_RING: Record<ScoreTone, string> = {
   strong: "ring-2 ring-score-strong",

@@ -592,7 +592,15 @@ export function ensureDb(): Database.Database {
       -- otherwise stores no address, so every downstream comm dead-lettered to the
       -- literal "candidate"; when present this is the deliverable recipient
       -- (candidateRecipient prefers it). Optional — recruiter/Match adds omit it.
-      contact TEXT
+      contact TEXT,
+      -- ADR-0012 (need → role → slate): WHICH POPULATION this slate member is,
+      -- 'human' or 'agent'. A hired AI agent is a candidate for the role on the
+      -- SAME board, not a second funnel. NOT NULL DEFAULT 'human' because every
+      -- row that predates the column IS a person: the historical truth.
+      population TEXT NOT NULL DEFAULT 'human',
+      -- The frozen role_rubrics.version this entry's evaluation was produced
+      -- against. NULL = unknown standard, never "the current one".
+      rubric_version INTEGER
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_job ON pipeline_entries (job_id);
@@ -840,12 +848,51 @@ export function ensureDb(): Database.Database {
       failover_from TEXT,
       -- How many times this link was CONNECTED. 1 = the ordinary single-attempt call.
       attempts INTEGER NOT NULL DEFAULT 1,
+      -- The director's agenda for this call (voice/director-types.ts InterviewAgenda),
+      -- built at connect time for BOTH providers. NULL until a call connects.
+      agenda_json TEXT,
+      -- When the candidate ALSO agreed to an audio recording (separate from consent_at,
+      -- which covers the transcribed conversation). NULL = not recorded.
+      recording_consent_at TEXT,
+      -- RecordingMeta[] — one entry per recorded attempt, with its deletion record.
+      recordings_json TEXT,
+      -- The last director exchange of a live call. Liveness reads it beside updated_at
+      -- (which stays the CONNECT time: billing and the director's clock use it as the
+      -- current attempt's start, so it must not be refreshed mid-call).
+      last_activity_at TEXT,
+      -- The interview_kits version this link was minted from; NULL when the job has none.
+      kit_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_interview_token ON interview_sessions (token);
     CREATE INDEX IF NOT EXISTS idx_interview_entry ON interview_sessions (entry_id);
+
+    -- The interview DIRECTOR's append-only record (db/interview-events.ts; ADR 0010):
+    -- every finalized turn, every tool call the interviewer model made (topic begun /
+    -- covered / rejected, guardrail, forwarded question, end request), every stage
+    -- direction the director injected, and the browser-only observations (focus,
+    -- answer timing — never scored). One row per event, never UPDATEd; the only
+    -- other write is the erasure DELETE (db/pipeline.ts scrubEntryLinkedPii).
+    -- seq numbers turns per attempt so a retried POST is idempotent (the partial
+    -- unique index below); at = when it happened, created_at = when the server
+    -- recorded it (the one clock the director does its arithmetic on).
+    CREATE TABLE IF NOT EXISTS interview_events (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      attempt INTEGER NOT NULL,
+      seq INTEGER,
+      kind TEXT NOT NULL,
+      block_id TEXT,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_events_turn ON interview_events (session_id, attempt, seq) WHERE kind = 'turn';
+    CREATE INDEX IF NOT EXISTS idx_interview_events_session_at ON interview_events (session_id, at);
 
     -- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md). llm_config pins
     -- provider+model per use case (explicit rows only — absence means the
@@ -1069,6 +1116,37 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_role_intakes_ws ON role_intakes (workspace_id, created_at);
+
+    -- The role-intake conversation's HISTORY (db/intake-events.ts, Journey Analytics).
+    -- role_intakes.transcript_json is rewritten WHOLE on every exchange, so the row can
+    -- only say when it was last touched; this is the append-only ledger of the rounds
+    -- themselves. APPEND-ONLY is structural, not a convention: the store has no UPDATE
+    -- statement and its only DELETE is the erasure door (eraseIntakeEvents).
+    --
+    -- seq is monotonic per intake_id, derived as MAX(seq)+1 inside the INSERT so the
+    -- read and the write are one operation under one write lock.
+    -- topic_code is NULLABLE on purpose: a round the classifier could not place is a
+    -- legitimate row rendered through its KIND (journey/render-keys.ts), and "we could
+    -- not tell" must never look like "it was about the salary band".
+    -- Two clocks, never collapsed: occurred_at is the turn's own 'at' field, recorded_at
+    -- is
+    -- when kp wrote the row. A backfilled round is weeks apart; a live one is
+    -- milliseconds. actor NULL = kp genuinely does not know who did this.
+    CREATE TABLE IF NOT EXISTS intake_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      intake_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      topic_code TEXT,
+      facts_json TEXT,
+      occurred_at TEXT NOT NULL,
+      recorded_at TEXT NOT NULL,
+      actor TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_intake_events_intake ON intake_events (intake_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_intake_events_ws ON intake_events (workspace_id, occurred_at);
 
     -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
     -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
@@ -1353,6 +1431,84 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_jobseeker_dialogs_ws_profile ON jobseeker_dialogs (workspace_id, profile_id, updated_at DESC);
+
+    -- The JOB-LEVEL interview kit (db/interview-kits.ts): the competencies a role is
+    -- hired on, the questions asked about each, the per-competency time budget, and the
+    -- FAQ the interviewer may answer role questions from. One kit per job, and it is the
+    -- SPINE of every interview for that job.
+    --
+    -- APPEND-ONLY AND VERSIONED, for the reason agent_fit_specs states above: a
+    -- regeneration must never silently clobber an operator's edit. This table adds the
+    -- second half of that argument — a candidate's interview link is PINNED to the
+    -- version it was minted with, so everyone in one round is asked the same things and
+    -- their ratings stay comparable. An edit therefore INSERTS a new version; it never
+    -- rewrites one. (version, not created_at, is the ordering: two versions saved inside
+    -- one ISO millisecond are a real case here — a generated draft published
+    -- immediately — and agent_fit_specs had to learn that the hard way.)
+    --
+    -- THE ONE PERMITTED UPDATE is status 'draft' -> 'published' (interviewKitPublish).
+    -- It is allowed because it does not change what a version ASKS: kit_json is
+    -- untouched, so every link already pinned to that version keeps asking exactly what
+    -- it asked. All it changes is which version NEW links mint from. Expressing it as a
+    -- new row instead would duplicate an identical kit under a second id and break the
+    -- pin that the duplicate was supposed to preserve.
+    --
+    -- NO CANDIDATE DATA EVER LANDS HERE. The GDPR erasure scrub is entry-keyed
+    -- (db/pipeline.ts scrubEntryLinkedPii), so it cannot reach a job-keyed row: a pasted
+    -- candidate name or a CV-derived probe stored here would be undeletable by design.
+    -- Per-candidate material belongs in interview_preps, which the scrub does blank.
+    -- Pinned by db/interview-kits-shape.test.ts.
+    CREATE TABLE IF NOT EXISTS interview_kits (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+      kit_json TEXT NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('generated','edited')),
+      created_at TEXT NOT NULL
+    );
+
+    -- Monotonic versions per (team, job). The store computes the next version inside an
+    -- IMMEDIATE transaction; this index is what makes that correct rather than merely
+    -- likely — two writers racing on the same job collide at the DB rather than both
+    -- minting "version 4".
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_kits_version ON interview_kits (workspace_id, job_id, version);
+    CREATE INDEX IF NOT EXISTS idx_interview_kits_job ON interview_kits (workspace_id, job_id, created_at);
+
+    -- The interview FEEDBACK LETTER a candidate may ask for after a person decided on
+    -- their application (db/interview-letters.ts; contract in
+    -- app/_lib/interview-letter-types.ts). One row per application: the request, the
+    -- machine's draft, the recruiter's final text, who decided and when, and what delivery
+    -- reported. NOT named "feedback" — that table is operators' product feedback.
+    --
+    -- CANDIDATE PERSONAL DATA: draft_text and final_text are written about one person, so
+    -- the entry-keyed erasure scrub (db/pipeline.ts scrubEntryLinkedPii) blanks both and
+    -- stamps erased_at. The row stays as the record that a letter was requested.
+    CREATE TABLE IF NOT EXISTS interview_letters (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'requested' CHECK(state IN ('requested','drafted','sent','declined')),
+      outcome TEXT NOT NULL CHECK(outcome IN ('not_selected','hired')),
+      lang TEXT NOT NULL,
+      requested_at TEXT NOT NULL,
+      draft_text TEXT,
+      draft_source TEXT CHECK(draft_source IS NULL OR draft_source IN ('model','template')),
+      draft_created_at TEXT,
+      final_text TEXT,
+      decided_by TEXT,
+      decided_at TEXT,
+      delivery TEXT CHECK(delivery IS NULL OR delivery IN ('sent','queued','failed')),
+      erased_at TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    -- ONE letter per application, per team. The candidate's request door is idempotent
+    -- because of this index (an INSERT … ON CONFLICT DO NOTHING), not because of a
+    -- read-then-insert two clicks could race.
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
@@ -1481,6 +1637,10 @@ export function ensureDb(): Database.Database {
     // and keeps every insert single-tenant-correct until createPipelineEntry stamps the
     // real session workspace (so a future multi-tenant enable scopes immediately).
     "ALTER TABLE pipeline_entries ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // ADR-0012 — the slate columns. `population` backfills 'human' (the board has
+    // only ever held people); `rubric_version` stays NULL = "unknown standard".
+    "ALTER TABLE pipeline_entries ADD COLUMN population TEXT NOT NULL DEFAULT 'human'",
+    "ALTER TABLE pipeline_entries ADD COLUMN rubric_version INTEGER",
     // Tenant-level candidate-comms language default (backlog #34): the locale a
     // NULL-locale entry's letters render in (see comms-locale.resolveCommsLocale).
     // DEFAULT 'cs' backfills the existing default workspace — this deployment is
@@ -1985,6 +2145,25 @@ export function ensureDb(): Database.Database {
     // connected yet, both read as the ordinary single-attempt session rather than as
     // a fabricated zero.
     "ALTER TABLE interview_sessions ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1",
+    // The interview DIRECTOR (spark ai-interview-parity; docs/features/interviews/
+    // README.md "Director"). agenda_json is the block list the director steers by, built
+    // at connect for both providers so they stop running different kits; the two
+    // recording columns carry the SEPARATE audio consent and the per-attempt file
+    // records (with their deletion trail). All NULL on every existing row.
+    "ALTER TABLE interview_sessions ADD COLUMN agenda_json TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN recording_consent_at TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN recordings_json TEXT",
+    // Liveness for a DIRECTED call. updated_at is stamped at connect and read as the
+    // current attempt's start (the minutes debit, the director's clock), so it cannot be
+    // refreshed mid-call — and a directed call runs up to the agenda's hard cap + 2 min
+    // (38 min on a 30-min booking), past LIVE_INTERVIEW_RECENCY_MIN. Without a separate
+    // activity stamp a second tab could open the same link mid-call.
+    "ALTER TABLE interview_sessions ADD COLUMN last_activity_at TEXT",
+    // The kit VERSION this link was minted from (interview_kits.id). Pinned at mint so a
+    // recruiter editing the job's kit cannot change what a candidate who already holds a
+    // link will be asked — candidates in one round stay comparable. NULL on every link
+    // minted before kits existed, and on every job that has no kit.
+    "ALTER TABLE interview_sessions ADD COLUMN kit_id TEXT",
     // The candidate's own opt-out timestamp on an outreach_state row that predates it.
     // It has to live in THIS loop rather than the one beside the pipeline_entries
     // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws
@@ -2196,6 +2375,7 @@ export function ensureDb(): Database.Database {
   }
   migratePipelineStages(db); // remap any legacy 7-stage rows to the 5-stage model
   backfillDeclinedStatus(db); // split candidate declines out of overloaded `rejected`
+  backfillIntakeEvents(db); // recover the role-intake history that predates intake_events
 
   // Tenant scope (P2): backfill ANY analyses row missing a workspace_id (legacy
   // rows AND freshly-seeded ones) to the default workspace. After all seeders so
@@ -2911,7 +3091,24 @@ export type PipelineEntry = {
   // projects explicit fields rather than serializing a row (see the erasure-token
   // note above, and publicInviteView in api/schedule/[token]).
   workspaceId: string;
+  // ADR-0012 — which population this slate member belongs to. The board renders
+  // ONE list and branches on this only for identity affordances, never for the
+  // evaluation, which is the same frozen rubric for both.
+  population: SlatePopulation;
+  // The frozen rubric version this entry's evaluation was produced against, or
+  // null — "unknown standard", NOT "the current standard".
+  rubricVersion: number | null;
 };
+
+/** ADR-0012 — the two populations that can appear on one role's slate. */
+export const SLATE_POPULATIONS = ["human", "agent"] as const;
+export type SlatePopulation = (typeof SLATE_POPULATIONS)[number];
+
+/** Narrow the free-form TEXT column at the read boundary. An unrecognized value
+ *  reads as 'human' (the column default) rather than throwing. */
+export function coerceSlatePopulation(value: unknown): SlatePopulation {
+  return value === "agent" ? "agent" : "human";
+}
 
 export function recordEvent(
   db: Database.Database,
@@ -3001,6 +3198,127 @@ function backfillDeclinedStatus(db: Database.Database): void {
         AND id IN (SELECT entry_id FROM pipeline_events WHERE kind = 'offer_declined' AND entry_id IS NOT NULL)
         AND id NOT IN (SELECT entry_id FROM pipeline_events WHERE kind = 'rejected' AND entry_id IS NOT NULL)`
   ).run(new Date().toISOString());
+}
+
+/** The seed mark this backfill records itself under (db/seed-marks.ts). */
+export const INTAKE_EVENTS_BACKFILL_MARK = "intake-events-backfill";
+
+/**
+ * Recover the role-intake history that existed before `intake_events` did.
+ *
+ * WHY THERE IS ANYTHING TO RECOVER. `role_intakes.transcript_json` is rewritten whole on
+ * every exchange, so the ROW carries only one timestamp — but its array ELEMENTS each
+ * carry their own `at` (VoiceTurn.at, voice/types.ts). Verified against the operator's
+ * own database on 2026-09-21: 36 rows, 143 turns, every one of them stamped. So the
+ * rounds are genuinely recoverable, and `occurred_at` for a recovered round is a FACT
+ * read off the turn rather than a guess — which is precisely why `occurred_at` and
+ * `recorded_at` are two columns. One run stamps ONE `recordedAt` across every row it
+ * writes, so "what kp knew, and when it learned it" stays answerable.
+ *
+ * RECORDED IN seed_marks, never `COUNT(*) > 0`. A row count cannot tell "never
+ * backfilled" from "backfilled, then legitimately emptied" — the difference between an
+ * operator's cleared table staying cleared and demo-shaped rows reappearing on the next
+ * boot. Same rule, and the same reasoning, as every seeder above.
+ *
+ * WRITES DIRECTLY ON THE PASSED HANDLE rather than through `recordIntakeEvent`, which is
+ * otherwise the table's only writer. Same exception, for the same reason, as
+ * `seedBenchmarkTeam`: this runs INSIDE ensureDb's initializer, before `__kpDb` is
+ * memoized, so any call that reaches `ensureDb()` would re-enter the whole initializer.
+ * The statement below is the same INSERT db/intake-events.ts issues, including the
+ * MAX(seq)+1 derivation and the workspace binding, and intake-events-tenancy.test.ts
+ * scans THIS file as well as that one so the copy cannot drift out of scope.
+ *
+ * TOPIC CLASSIFICATION IS DELIBERATELY NOT RUN HERE. Placing a round in the topic
+ * vocabulary needs `app/_lib/journey/intake-topics.ts`, and core.ts is on the static
+ * import graph of every route in the app — measured 2026-09-21, importing it would add
+ * two modules to ~207 routes against a ceiling `perf-budget.json` already reports as
+ * exceeded. A recovered round therefore lands with `topic_code` NULL, which is a
+ * first-class state: render-keys.ts renders it through its KIND. Live rounds ARE
+ * classified, off the request path, by the late-bound runner. If historic topics are
+ * later judged worth the graph, the honest move is to erase this run's rows
+ * (eraseIntakeEvents) and re-run WITH the classifier from a path no route imports —
+ * never a second write, because this table has no UPDATE path.
+ *
+ * Returns the number of rows written, so a caller (or a test) can distinguish "nothing
+ * to recover" from "already recovered".
+ */
+export function backfillIntakeEvents(db: Database.Database): number {
+  if (seedAlreadyRan(db, INTAKE_EVENTS_BACKFILL_MARK)) return 0;
+  const recordedAt = new Date().toISOString();
+  let written = 0;
+  // `-- tenancy:global` for a ONE-SHOT boot migration, which legitimately walks every
+  // tenant — like the stage remap and the declined-status split above it. Each row is
+  // then written back under the workspace_id it CAME FROM (bound in the INSERT below),
+  // so no round ever crosses a tenant; this is a sweep, not a read on anyone's behalf.
+  // Only intakes that have NO history yet. This is what makes the sweep idempotent BY
+  // CONSTRUCTION rather than only by its seed mark, and the distinction matters: an
+  // install whose role_intakes table is empty at first boot (a blank tenant) must not
+  // stamp a mark it did not earn, or `seed_marks` stops meaning "a seeder ran here" —
+  // core-empty-boot.test.ts pins exactly that. Without this predicate, skipping the
+  // mark on an empty table would let a LATER boot sweep intakes whose rounds were
+  // already recorded live through recordIntakeEvent, writing every one of them twice.
+  const rows = db.prepare(`SELECT id, workspace_id, transcript_json FROM role_intakes ri
+      WHERE NOT EXISTS (SELECT 1 FROM intake_events ie WHERE ie.intake_id = ri.id) -- tenancy:global`).all() as {
+    id: string;
+    workspace_id: string;
+    transcript_json: string | null;
+  }[];
+  const insert = db.prepare(
+    `INSERT INTO intake_events (intake_id, workspace_id, seq, kind, topic_code, facts_json, occurred_at, recorded_at, actor)
+     SELECT ?, ?, COALESCE((SELECT MAX(e.seq) FROM intake_events e WHERE e.intake_id = ? AND e.workspace_id = ?), 0) + 1,
+            'intake_round', NULL, ?, ?, ?, NULL`
+  );
+  // ALL OF IT, OR NONE OF IT — rows and mark together, in one IMMEDIATE transaction.
+  // Without it a run that failed on row 90 of 143 would leave 89 rows behind with the
+  // mark unset, and the next boot would write those 89 again: the ledger would say a
+  // hiring manager asked the same question twice. Synchronous throughout (no await
+  // anywhere inside), which is what keeps the atomicity real.
+  const run = db.transaction((): number => {
+    for (const row of rows) {
+      // A transcript this cannot read costs that ONE intake its history, never the boot:
+      // safeRowParse already files the unreadable column in the row-health ledger.
+      const transcript = safeRowParse<{ role?: unknown; text?: unknown; at?: unknown }[]>(
+        row.transcript_json,
+        "intakeEvent.backfillTranscript",
+        row.id
+      );
+      if (!Array.isArray(transcript)) continue;
+      // A ROUND is the requestor's turn plus the agent question immediately before it —
+      // `role: "interviewer"` is the intake agent, `role: "candidate"` is the REQUESTOR
+      // (the name is candidate-side legacy; see db/intakes.ts). A trailing question with
+      // no answer is not a round: nothing happened in it.
+      let question = "";
+      for (const turn of transcript) {
+        const text = typeof turn?.text === "string" ? turn.text : "";
+        if (turn?.role === "interviewer") {
+          question = text;
+          continue;
+        }
+        if (turn?.role !== "candidate") continue;
+        const at = typeof turn?.at === "string" && turn.at.trim() ? turn.at : "";
+        // No `at` ⇒ no row. Stamping `recordedAt` into `occurred_at` would manufacture a
+        // fact, and an absent history is the honest reading of a turn that never recorded
+        // when it happened.
+        if (at) {
+          // FACTS, not prose (journey/types.ts): the round's two halves are carried as
+          // named values and the sentence is rendered per locale. The 600 is
+          // INTAKE_ROUND_FACT_CHARS (db/intake-events.ts) restated: that module imports
+          // core.ts, so importing it back would close a cycle the boot path must not
+          // have. Keep the two in step — a transcript turn has no length limit and this
+          // ledger is not the transcript.
+          const facts = JSON.stringify({ question: question.slice(0, 600), answer: text.slice(0, 600) });
+          insert.run(row.id, row.workspace_id, row.id, row.workspace_id, facts, at, recordedAt);
+          written += 1;
+        }
+        question = "";
+      }
+    }
+    // Nothing to recover is not a run: a blank tenant leaves seed_marks untouched.
+    // The NOT EXISTS predicate above, not this mark, is what stops a double write.
+    if (rows.length > 0) markSeedRan(db, INTAKE_EVENTS_BACKFILL_MARK);
+    return written;
+  });
+  return run.immediate();
 }
 
 function seedPipeline(db: Database.Database): void {

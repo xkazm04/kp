@@ -15,6 +15,7 @@ import { getInterviewPrep } from "./interview-prep";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
 import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
+import { listDecisionRecords } from "./decision-record-store";
 import type { InterviewTelemetry } from "./interview-telemetry";
 import type { ScorecardCoverage } from "./interview-transcript";
 
@@ -164,10 +165,41 @@ export type RematchLink = {
   candidateLabel: string | null;
 };
 
+// One SEALED decision about this candidate, projected from the tamper-evident chain
+// (decision-record-store.ts). A PROJECTION, not the stored row: `payloadJson` (the
+// decisive inputs snapshot) and the hash links stay server-side, because the drawer
+// renders a decision, not a proof — the proof is the Analytics decision panel's job
+// and it verifies the whole chain there.
+//
+// WHY IT IS HERE AT ALL. The chain already held the answer to "why was this person
+// rejected, and can we stand behind it" and it was rendered in exactly one place: an
+// Analytics panel, keyed by the whole workspace's trail. The candidate's own drawer —
+// where a recruiter actually asks that question, beside the stage moves that produced
+// it — showed nothing. `candidate_ref` on a record IS the pipeline entry id, so this
+// join always existed and was simply never made.
+export type CandidateDecision = {
+  seq: number;
+  kind: string;
+  /** "auto:<engine>" | "human:<who>" — sealed INTO the hash, so it cannot be restated
+   *  after the fact (decision-record-store.ts:24-29). */
+  actor: string;
+  reasonCode: string;
+  policyVersion: string;
+  rationale: string;
+  createdAt: string;
+  /** Was this link sealed under an HMAC key? A keyless link (`key_id ""`) is
+   *  integrity-EVIDENT but forgeable by the same insider who can write the table, so
+   *  the two guarantees must stay distinguishable on the surface that shows them. */
+  keyed: boolean;
+};
+
 // Everything the CandidateDrawer needs to render, in ONE call.
 export type CandidateDrawerBundle = {
   items: CandidateTimelineItem[];
   events: PipelineEvent[];
+  /** The sealed decisions for THIS candidate, newest first, bounded. Empty when the
+   *  chain holds nothing about them — which is the common case and not a fault. */
+  decisions: CandidateDecision[];
   comms: CandidateComm[];
   interview: InterviewOutcome | null;
   humanScorecard: Scorecard | null;
@@ -200,6 +232,13 @@ export type CandidateDrawerBundle = {
 const ANALYSES_SCAN_LIMIT = 300;
 const COMMS_LIMIT = 200;
 const EVENTS_LIMIT = 50;
+// A candidate accumulates a handful of sealed decisions (a screening verdict, an
+// auto-reject, a group-eval seal), never a trail. Bounded anyway: this is the drawer's
+// open path and every read on it carries a ceiling.
+const DECISIONS_LIMIT = 20;
+// The rationale is human-written prose. Bounded on the wire so one long justification
+// cannot dominate the bundle the drawer opens with.
+const RATIONALE_MAX = 600;
 
 export function candidateTimeline(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateTimelineItem[] | null {
   const entry = getPipelineEntry(entryId, workspaceId);
@@ -387,10 +426,37 @@ function candidateHumanScorecard(
   return sc;
 }
 
+/** The sealed decisions about ONE candidate, projected for the drawer.
+ *
+ *  Tenant-scoped through the store's own reader (`candidate_ref` + `workspace_id`),
+ *  so a foreign entry id reads as "no decisions" rather than as another team's chain.
+ *  Never throws: the chain is an audit side effect and an unreadable store must not
+ *  take the drawer down with it — the same posture `sealDecisionSafe` takes on write. */
+function candidateDecisions(entryId: string, workspaceId: string): CandidateDecision[] {
+  try {
+    return listDecisionRecords({ candidateRef: entryId, limit: DECISIONS_LIMIT, workspaceId }).map((r) => ({
+      seq: r.seq,
+      kind: r.kind,
+      actor: r.actor,
+      reasonCode: r.reasonCode,
+      policyVersion: r.policyVersion,
+      rationale: r.rationale.length > RATIONALE_MAX ? `${r.rationale.slice(0, RATIONALE_MAX - 1)}…` : r.rationale,
+      createdAt: r.createdAt,
+      keyed: r.keyId !== "",
+    }));
+  } catch (error) {
+    // best-effort: the drawer's other six sections are still the truth, and a
+    // recruiter reading a candidate must not meet a 500 because the audit store is
+    // locked. Logged, because an operator WOULD act on a chain they cannot read.
+    console.error(`[candidate-timeline] sealed decisions unavailable for entry ${entryId}`, error);
+    return [];
+  }
+}
+
 /** The whole CandidateDrawer payload — cross-store items, pipeline events, full
- *  comms, interview outcome and human scorecard — assembled in ONE call so the
- *  drawer opens with a single request. Returns null when the entry is unknown /
- *  not in the caller's workspace (the route answers 404). */
+ *  comms, interview outcome, human scorecard and the sealed decisions — assembled in
+ *  ONE call so the drawer opens with a single request. Returns null when the entry is
+ *  unknown / not in the caller's workspace (the route answers 404). */
 export function candidateDrawerBundle(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CandidateDrawerBundle | null {
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return null;
@@ -398,6 +464,7 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
   return {
     items: candidateTimelineForEntry(entry, workspaceId),
     events,
+    decisions: candidateDecisions(entry.id, entry.workspaceId),
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
     humanScorecard: candidateHumanScorecard(entry),

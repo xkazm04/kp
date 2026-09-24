@@ -43,6 +43,10 @@ big-banged 1500 nodes onto one frame. Same product, three unrelated experiences.
 5. **Arrive in waves, not in one big bang.** A tab commits in three tiers (below).
    Never build 1500 DOM nodes in the frame the user pressed the button.
 
+Paged regions using `useInfiniteScroll` abort their current fetch when the
+region unmounts. A response from an abandoned tab cannot append rows or turn
+into a visible error after navigation; remounting starts a fresh request.
+
 ## The three tiers
 
 | Tier | What | When it commits | How it enters |
@@ -107,6 +111,11 @@ A region whose content depends on a fetch renders, in the same geometry, one of:
 **A refresh must never hide data that is already on screen.** A loading flag
 decides what an *empty* region shows — nothing more. Re-fetches settle silently
 behind the current content.
+
+Shared `useJsonFetch` reads settle into a retryable error after 30 seconds if a
+server or proxy leaves a request hanging. The request is aborted, and a late
+response cannot replace the timeout state. A refresh keeps the last good data
+visible while the retry runs.
 
 **A form is chrome; only its VALUES are data.** Panel frames, labels, help text
 and buttons are hardcoded — hold a `reveal-quiet` box for a *region*, never for a

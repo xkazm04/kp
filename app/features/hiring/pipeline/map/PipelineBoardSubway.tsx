@@ -15,19 +15,18 @@
 // Parts: subway/useSubwayModel (derivation) · SubwayMarks (header, station, badge)
 // · SubwayLineRow · SubwayBeads.
 //
-// Not carried over from the card board yet (the tab still passes the props, this
-// board does not read them): select mode, drag-and-drop between stages, the
-// bounced-move reason.
+// Select mode and drag-and-drop between stages are not carried over from the card
+// board yet. A refused move names the affected bead and its reason.
 
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { displayScoreOf } from "@/app/_lib/match-score";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
-import { DEFAULT_BOARD_AXIS, STAGE_HELP, type Entry } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS, type Entry } from "@/app/features/shared/pipelineTypes";
 import { PipelineBoardOffAxisStrip } from "../PipelineBoardOffAxisStrip";
 import type { MapBoardProps } from "./mapTypes";
 import { LineRow } from "./subway/SubwayLineRow";
-import { StationHeader } from "./subway/SubwayMarks";
+import { StationHeader, SubwayKey } from "./subway/SubwayMarks";
 import { useSubwayModel } from "./subway/useSubwayModel";
 
 type PipelineT = ReturnType<typeof useTranslations<"pipeline">>;
@@ -60,6 +59,8 @@ export function PipelineBoardSubway({
   onOpenCell,
   openCell = null,
   openCandidate,
+  bouncedEntryId,
+  bouncedReason,
 }: MapBoardProps) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -74,7 +75,7 @@ export function PipelineBoardSubway({
   // label wins, a shipped stage resolves through the four-locale enum catalog.
   const stageHelp = (s: string): string => {
     const k = `stageHelp.${s}` as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : (STAGE_HELP[s] ?? s);
+    return t.has(k) ? t(k) : (axis.find((stage) => stage.id === s)?.label ?? s);
   };
   const stageLabel = (stage: StageDef): string =>
     stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
@@ -132,11 +133,14 @@ export function PipelineBoardSubway({
               openJob={openJob}
               openPositionRanking={openPositionRanking}
               openCandidate={openCandidate}
+              bouncedEntryId={bouncedEntryId}
+              bouncedReason={bouncedReason}
             />
             );
           })}
         </div>
       </div>
+      <SubwayKey />
 
       {/* Candidates standing on a column this board does not draw — loud by
           design, exactly as on the baseline board. */}

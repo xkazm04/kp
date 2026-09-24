@@ -127,6 +127,7 @@ export function ModelsRoutingPanel() {
                       useCase={useCase}
                       label={labelFor(useCase)}
                       description={useCase === "*" ? t("routing.defaultRowHint") : descFor(useCase)}
+                      inert={useCase === "devcase_role_design"}
                       row={row}
                       providers={config.providers}
                       onRows={(rows) => setConfig((c) => (c ? { ...c, rows } : c))}

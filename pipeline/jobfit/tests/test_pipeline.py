@@ -64,6 +64,20 @@ def _run(extract_value: str, payload: dict, **analyze_kwargs) -> object:
         return P.analyze_cv(Path("cv.pdf"), **analyze_kwargs)
 
 
+class RoutedProfilePotentialTest(unittest.TestCase):
+    def test_student_analysis_persists_readiness_on_v2_profile(self) -> None:
+        payload = _payload(total=80)
+        payload["profile"]["years_experience"] = 0
+        payload["is_enrolled"] = True
+        payload["education_is_dominant"] = True
+        result = _run("Student developer with Python project", payload)
+        v2 = result.v2_profile
+        self.assertIsNotNone(v2)
+        self.assertEqual(v2["archetype"], "student")
+        self.assertIsInstance(v2["potentialScore"], float)
+        self.assertGreater(v2["potentialScore"], 0)
+
+
 class PromptInjectionUnitTest(unittest.TestCase):
     """Direct unit coverage of the deterministic injection screen."""
 

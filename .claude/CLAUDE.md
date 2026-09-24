@@ -92,8 +92,9 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   alternates, no theme flash — filtered as
                               #   `shell.spec`, not `shell`)
                               # + journey-role-to-schedule + journey-one-thread
-                              # + activity-detail (Insights → Activity row detail,
-                              #   incl. the null-request_id degraded case)
+                              # + activity-detail (Insights → Activity row detail:
+                              #   drives one keyless campaign task so the ledger
+                              #   has a row linked to its run — no empty-ledger skip)
                               # + analytics-sections (the ?sec= switcher, its
                               #   fallback, and that it writes nothing to the URL)
                               # + quality-tables (the server-paged decision log and
@@ -102,6 +103,15 @@ e2e/                          # Playwright. The subset below is DECLARED as
                               #   is consumed, a repeat link still works)
                               # + locale-smoke (a cs cookie really paints Czech —
                               #   the suite is otherwise English-only)
+                              # + journey-board (the Journeys overlay: it opens, it
+                              #   renders the real ledger with NO page error, an
+                              #   absence states its reason without a hover, and Esc
+                              #   returns to the tab behind it. It exists because the
+                              #   board shipped typecheck/lint/unit green and then did
+                              #   not render — a missing ICU argument on every unmapped
+                              #   event kind, and a `fixed inset-0` overlay contained by
+                              #   the tab panel's animation transform instead of the
+                              #   viewport, so it measured 1264x0)
                               #
                               # The managed webServer runs on a THROWAWAY
                               # KP_DB_PATH (data/kp-e2e.sqlite, see

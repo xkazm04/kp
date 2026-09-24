@@ -35,6 +35,7 @@ function code(src: string): string {
 const panel = read("./AnalyticsCalibrationPanel.tsx");
 const diagram = read("./AnalyticsReliabilityDiagram.tsx");
 const chips = read("./AnalyticsFamilyFloorChips.tsx");
+const suggestion = read("./AnalyticsThresholdSuggestion.tsx");
 const route = readFileSync(
   fileURLToPath(new URL("../../../api/analytics/calibration/route.ts", import.meta.url)),
   "utf8",
@@ -118,4 +119,10 @@ test("the chips receive the flag and drop the every-family-is-screened claim", (
   assert.match(chips, /familyFloorsNoneOff/, "…with a branch that states the floor without claiming it acts");
   assert.match(chips, /floorNotEnforced/, "and an explicit line saying automatic screening is off");
   assert.match(code(chips), /role="status"/, "…announced, not only painted — it changes what every figure above means");
+});
+
+test("Apply warns that a saved threshold will not reject while auto-reject is off", () => {
+  assert.match(panel, /autoRejectEnabled=\{data\.autoRejectEnabled \?\? null\}/);
+  assert.match(code(suggestion), /autoRejectEnabled === false[\s\S]*?t\("recAutoRejectOff"\)/);
+  assert.match(code(suggestion), /role="status"/);
 });

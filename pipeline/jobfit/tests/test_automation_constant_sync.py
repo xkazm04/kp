@@ -38,6 +38,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 TRANSCRIPT_TS = REPO_ROOT / "app" / "_lib" / "interview-transcript.ts"
 CALIBRATION_TS = REPO_ROOT / "app" / "_lib" / "calibration.ts"
 CACHE_KEY_TS = REPO_ROOT / "app" / "_lib" / "automation-cache-key.ts"
+INTERVIEW_KIT_TS = REPO_ROOT / "app" / "_lib" / "interview-kit-types.ts"
+INTERVIEW_LETTER_TS = REPO_ROOT / "app" / "_lib" / "interview-letter-types.ts"
 
 # TS file -> {TS constant: the Python value it must equal}. Explicit so the map
 # itself is checkable (see test_the_map_names_live_python_constants).
@@ -55,6 +57,23 @@ MIRRORED: dict[Path, dict[str, int]] = {
         "MIN_CALIBRATION_OUTCOMES": calibration_drift.MIN_CALIBRATION_OUTCOMES,
         "CALIBRATION_BIN_COUNT": calibration_drift.CALIBRATION_BIN_COUNT,
     },
+    # The job interview kit's collection caps. TS is the ENFORCING side (the normalizer
+    # truncates over-cap input before a kit is stored); the generator repeats them so it
+    # stops short of the cap instead of paying for work the store then trims. If Python
+    # grew past TS, a generated kit would be silently cut; if it shrank below, the prompt
+    # would ask for less than the product allows and nobody would know why.
+    INTERVIEW_KIT_TS: {
+        "KIT_MAX_COMPETENCIES": automation.KIT_MAX_COMPETENCIES,
+        "KIT_MAX_QUESTIONS_PER_COMPETENCY": automation.KIT_MAX_QUESTIONS_PER_COMPETENCY,
+        "KIT_MAX_MUST_ASKS": automation.KIT_MAX_MUST_ASKS,
+        "KIT_MAX_FAQ": automation.KIT_MAX_FAQ,
+    },
+    # The feedback letter's length cap. TS is the ENFORCING side (the store refuses a text
+    # over it at every write); the generator DISCARDS a draft over it rather than handing the
+    # store a letter it would refuse. If Python grew past TS, a model draft would pass here
+    # and fail the store write; if it shrank below, drafts the product accepts would be
+    # thrown away for no stated reason.
+    INTERVIEW_LETTER_TS: {"LETTER_MAX_CHARS": automation.LETTER_MAX_CHARS},
 }
 
 
@@ -119,6 +138,29 @@ class AutomationConstantSyncTest(unittest.TestCase):
         )
         self.assertEqual(
             automation.screening_volume_tier(automation.POLICY["screen_volume_moderate_max"] + 1), "dense"
+        )
+        # The kit caps must still be the ones interview_kit's coercer reads: feed it more
+        # of everything than the caps allow and it must come back AT the caps.
+        from pipeline.jobfit.jobs import Job
+
+        class _Echo:
+            def complete_json(self, prompt, system=None, expected_keys=None):
+                many_q = [{"text": f"Q{i}?", "mustAsk": True} for i in range(automation.KIT_MAX_QUESTIONS_PER_COMPETENCY + 3)]
+                return {
+                    "competencies": [
+                        {"title": f"C{i}", "weight": 2, "budgetMin": 10, "questions": many_q}
+                        for i in range(automation.KIT_MAX_COMPETENCIES + 3)
+                    ],
+                    "faq": [{"question": f"F{i}?", "answer": "A."} for i in range(automation.KIT_MAX_FAQ + 3)],
+                }
+
+        job = Job.model_validate({"id": "j", "title": "Role", "company": "", "location": ""})
+        kit, _ = automation.interview_kit(job, None, provider=_Echo())
+        self.assertEqual(len(kit["competencies"]), automation.KIT_MAX_COMPETENCIES)
+        self.assertEqual(len(kit["competencies"][0]["questions"]), automation.KIT_MAX_QUESTIONS_PER_COMPETENCY)
+        self.assertEqual(len(kit["faq"]), automation.KIT_MAX_FAQ)
+        self.assertEqual(
+            sum(q["mustAsk"] for c in kit["competencies"] for q in c["questions"]), automation.KIT_MAX_MUST_ASKS
         )
 
     def test_extractor_rejects_a_documented_value(self) -> None:

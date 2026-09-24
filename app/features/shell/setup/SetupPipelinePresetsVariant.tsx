@@ -25,17 +25,18 @@
  * this workspace already calls its columns.
  */
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, EYEBROW, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, EYEBROW, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useStageDisplayLabel } from "@/app/features/shared/usePipelineAxisCopy";
 import { draftFromStored } from "@/app/features/shared/pipelineAxisDraft";
 import { SetupPipelineChain } from "./SetupPipelineChain";
 import { SetupPipelineStageRow } from "./SetupPipelineStageRow";
 import type { SetupPipelineEdit } from "./setupPipelineEdit";
-import { activePipelinePreset, applyPipelinePreset, SETUP_PIPELINE_PRESETS } from "./setupPipelinePresets";
+import { activePipelinePreset, applyPipelinePreset, SETUP_PIPELINE_PRESETS, type SetupPipelinePresetKey } from "./setupPipelinePresets";
 
 export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit }) {
   const t = useTranslations("setup.pipeline");
@@ -51,6 +52,11 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
   // below, so "with a work sample" shows which step it is.
   const baseIds = new Set(base.stages.map((s) => s.id));
   const addedIds = edit.stages.filter((s) => !baseIds.has(s.id)).map((s) => s.id);
+  const [pendingPreset, setPendingPreset] = useState<SetupPipelinePresetKey | null>(null);
+  const pendingShape = pendingPreset ? applyPipelinePreset(pendingPreset, base, workSampleLabel) : null;
+  const pendingIds = new Set(pendingShape?.stages.map((s) => s.id) ?? []);
+  const removed = pendingShape ? edit.stages.filter((s) => !pendingIds.has(s.id)) : [];
+  const occupied = removed.some((stage) => edit.occupants(stage) > 0);
 
   return (
     <div className="space-y-5">
@@ -65,7 +71,14 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
                 key={key}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => edit.apply(applyPipelinePreset(key, base, workSampleLabel))}
+                onClick={() => {
+                  const removedByPreset = edit.stages.some((stage) => !shape.stages.some((next) => next.id === stage.id));
+                  if (removedByPreset) setPendingPreset(key);
+                  else {
+                    setPendingPreset(null);
+                    edit.apply(shape);
+                  }
+                }}
                 initial={reduced ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={reduced ? { duration: 0 } : { duration: 0.25, delay: i * 0.06 }}
@@ -94,6 +107,27 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
             );
           })}
         </div>
+        {pendingShape && removed.length > 0 ? (
+          <div role="group" aria-label={t("presetRemoveTitle")} className={`${NOTICE("amber")} mt-2.5 px-3 py-2 text-sm`}>
+            <p className="font-semibold">{t("presetRemoveTitle")}</p>
+            <ul className="mt-1 list-inside list-disc">
+              {removed.map((stage) => (
+                <li key={stage.id}>
+                  {displayLabel(stage)}
+                  {edit.occupants(stage) > 0 ? <span className="ml-1 text-coral">{t("occupiedHint", { count: edit.occupants(stage) })}</span> : null}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" disabled={occupied} onClick={() => { edit.apply(pendingShape); setPendingPreset(null); }} className={`${BTN_SECONDARY} h-8 px-2.5 text-sm disabled:opacity-50`}>
+                {t("presetRemoveConfirm")}
+              </button>
+              <button type="button" onClick={() => setPendingPreset(null)} className="focus-ring rounded-md px-2.5 text-sm text-steel hover:text-ink">
+                {t("presetRemoveCancel")}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {/* The result of the click that just happened, and of every rename and
             reorder made below it — the tiles' claim, shown rather than described. */}
         <div className="mt-2.5 rounded-md border border-stone-200 bg-paper/50 px-2.5 py-2">

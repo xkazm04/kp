@@ -260,6 +260,29 @@ function writeConfigRow(
       }
     }
   }
+  // interviewRecordingOffered preservation — the SAME rule, and for the same reason, as
+  // familyFloors above. The compliance row is written wholesale, and its only writer
+  // until now (the jurisdiction picker) sends `{ jurisdiction }` alone: without this, a
+  // recruiter changing the jurisdiction would silently withdraw the audio-recording
+  // offer their workspace had turned on, mid-interview for anyone on a call. An
+  // EXPLICIT `false` is present in the validated config and still clears it, which is
+  // how the toggle turns the offer off.
+  if (result.phase === "compliance" && !("interviewRecordingOffered" in result.config)) {
+    const existing = tierRow(d, result.phase, workspaceId, scope);
+    if (existing) {
+      try {
+        const stored = JSON.parse(existing.config_json) as { interviewRecordingOffered?: unknown };
+        if (typeof stored.interviewRecordingOffered === "boolean") {
+          (result.config as Record<string, unknown>).interviewRecordingOffered = stored.interviewRecordingOffered;
+        }
+      } catch (error) {
+        // Same corruption class as the screening branch, and the same consequence to
+        // record: an unreadable row here silently revokes a consent offer the operator
+        // configured, so it is logged with its tier rather than dropped.
+        recordConfigIssue(result.phase, scope, workspaceId, error);
+      }
+    }
+  }
   const json = JSON.stringify(result.config);
   // STRICTLY increasing, because this stamp is the concurrency token: two saves inside
   // one millisecond would otherwise mint the same version, and the second reader's stale

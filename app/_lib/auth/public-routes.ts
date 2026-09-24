@@ -112,6 +112,16 @@ export const PUBLIC_API_EXACT: ReadonlySet<string> = new Set([
   "/api/devcase/inbound", // candidate apply webhook; the rest of /api/devcase is recruiter
   "/api/interview/connect", // candidate voice runtime; create/by-entry/compare/revoke are recruiter
   "/api/interview/complete",
+  // The live call's producer channel (ADR 0010): the candidate's browser posts turns and
+  // the interviewer model's tool calls here mid-call. Token-authed exactly like its two
+  // siblings — the candidate has no session cookie.
+  "/api/interview/director",
+  // The candidate's opt-in microphone upload (WP3). EXACT, deliberately: the playback
+  // door one segment below it (`/api/interview/recording/<sessionId>`) serves that audio
+  // back and is a RECRUITER surface, so it must stay gated. An entry in PUBLIC_API_PREFIXES
+  // would have opened both. Token-authed like its three siblings — the credential rides in
+  // `x-kp-token`, never in the URL, because this one is a live interview's bearer token.
+  "/api/interview/recording",
   // The relay's asynchronous delivery-receipt callback (bounce/complaint/drop), same
   // rationale as /api/billing/webhook and /api/devcase/inbound: a MACHINE posts here,
   // never a browser with a session cookie, so the operator gate would 401 it before its
