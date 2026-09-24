@@ -10060,7 +10060,8 @@
         "voiceScript": "Scénář hlasového pohovoru"
       },
       "shortlist": {
-        "title": "Užší výběr napříč kanály"
+        "title": "Užší výběr napříč kanály",
+        "templateTier": "Hodnoceno šablonou bez AI ({count}): tato odevzdání nejsou řazena spolu s odevzdáními výše. Pro zařazení je nechte znovu vyhodnotit modelem."
       },
       "channels": {
         "title": "Kanály pro přihlášení",
@@ -10178,7 +10179,8 @@
         "candidates_skipped": "{count, plural, one {# kandidát přeskočen (nečitelný)} few {# kandidáti přeskočeni (nečitelní)} other {# kandidátů přeskočeno (nečitelných)}}",
         "scenario_template_only": "Pohovor používá šablonové otázky",
         "seed_skeleton_only": "Výchozí kód je jen kostra",
-        "baseline_unavailable": "Chybí srovnávací řešení AI"
+        "baseline_unavailable": "Chybí srovnávací řešení AI",
+        "mixed_currency": "{count, plural, one {# odevzdání hodnocené šablonou nepostoupilo automaticky} few {# odevzdání hodnocená šablonou nepostoupila automaticky} other {# odevzdání hodnocených šablonou nepostoupilo automaticky}}"
       },
       "outcomeAction": {
         "open_decisions": "Otevřít Rozhodnutí",

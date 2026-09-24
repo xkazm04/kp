@@ -10060,7 +10060,8 @@
         "voiceScript": "Skript für das Sprachinterview"
       },
       "shortlist": {
-        "title": "Auswahlliste über alle Kanäle"
+        "title": "Auswahlliste über alle Kanäle",
+        "templateTier": "Per Vorlage ohne KI bewertet ({count}): nicht mit den Einreichungen oben verglichen. Lassen Sie sie für eine Rangfolge erneut mit einem Modell bewerten."
       },
       "channels": {
         "title": "Bewerbungskanäle",
@@ -10178,7 +10179,8 @@
         "candidates_skipped": "{count, plural, one {# Person übersprungen (nicht lesbar)} other {# Personen übersprungen (nicht lesbar)}}",
         "scenario_template_only": "Interview nutzt Vorlagenfragen",
         "seed_skeleton_only": "Startcode ist nur ein Gerüst",
-        "baseline_unavailable": "Keine KI-Vergleichslösung vorhanden"
+        "baseline_unavailable": "Keine KI-Vergleichslösung vorhanden",
+        "mixed_currency": "{count, plural, one {# per Vorlage bewertete Einreichung nicht automatisch weitergeleitet} other {# per Vorlage bewertete Einreichungen nicht automatisch weitergeleitet}}"
       },
       "outcomeAction": {
         "open_decisions": "Entscheidungen öffnen",

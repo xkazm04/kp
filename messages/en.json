@@ -10060,7 +10060,8 @@
         "voiceScript": "Voice screen script"
       },
       "shortlist": {
-        "title": "Shortlist, all channels"
+        "title": "Shortlist, all channels",
+        "templateTier": "Scored by the keyless template ({count}): not ranked against the graded submissions above. Re-evaluate with a model to rank them."
       },
       "channels": {
         "title": "Apply channels",
@@ -10178,7 +10179,8 @@
         "candidates_skipped": "{count, plural, one {# candidate skipped (unreadable)} other {# candidates skipped (unreadable)}}",
         "scenario_template_only": "Interview uses template probes",
         "seed_skeleton_only": "Starter code is a skeleton only",
-        "baseline_unavailable": "No AI baseline to compare against"
+        "baseline_unavailable": "No AI baseline to compare against",
+        "mixed_currency": "{count, plural, one {# template-scored submission not auto-promoted} other {# template-scored submissions not auto-promoted}}"
       },
       "outcomeAction": {
         "open_decisions": "Open Decisions",

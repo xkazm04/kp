@@ -10060,7 +10060,8 @@
         "voiceScript": "Script de l’entretien vocal"
       },
       "shortlist": {
-        "title": "Présélection, tous canaux"
+        "title": "Présélection, tous canaux",
+        "templateTier": "Notées par la grille sans IA ({count}) : non classées avec les soumissions ci-dessus. Réévaluez-les avec un modèle pour les classer."
       },
       "channels": {
         "title": "Canaux de candidature",
@@ -10178,7 +10179,8 @@
         "candidates_skipped": "{count, plural, one {# candidat ignoré (illisible)} other {# candidats ignorés (illisibles)}}",
         "scenario_template_only": "L’entretien utilise des questions modèles",
         "seed_skeleton_only": "Le code de départ n’est qu’un squelette",
-        "baseline_unavailable": "Aucune solution IA de référence"
+        "baseline_unavailable": "Aucune solution IA de référence",
+        "mixed_currency": "{count, plural, one {# soumission notée par la grille sans IA non retenue automatiquement} other {# soumissions notées par la grille sans IA non retenues automatiquement}}"
       },
       "outcomeAction": {
         "open_decisions": "Ouvrir Décisions",
