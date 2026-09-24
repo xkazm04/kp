@@ -175,3 +175,41 @@ test("a same-timestamp correction resolves to the later row; smallSample clears 
   assert.equal(cell.smallSample, false);
   assert.equal(cell.costPerAcceptedUsd, 1);
 });
+
+test("money won is kept per currency from the counted verdicts only, never totalled; an accepted verdict with no amount is counted apart", () => {
+  const gigs = [
+    { id: "g1", arena: "security" as const },
+    { id: "g2", arena: "freelance" as const },
+    { id: "g3", arena: "oss_bounty" as const },
+    { id: "g4", arena: "oss_bounty" as const },
+    { id: "g5", arena: "competition" as const },
+  ];
+  const attempts = gigs.map((g, i) => attempt({ id: `a${i + 1}`, gigId: g.id, specialistId: "s", status: "sent", sentAt: NOW }));
+  const kpi = foldGigKpi({
+    now: NOW,
+    gigs,
+    specialists: [],
+    attempts,
+    outcomes: [
+      outcome({ id: "o1", gigId: "g1", attemptId: "a1", verdict: "accepted", amount: 500, currency: "USD" }),
+      outcome({ id: "o2", gigId: "g2", attemptId: "a2", verdict: "accepted", amount: 300, currency: "USD" }),
+      // g3: accepted with an amount, then CORRECTED to rejected - its money is gone.
+      outcome({ id: "o3", gigId: "g3", attemptId: "a3", verdict: "accepted", amount: 100, currency: "USDC", recordedAt: "2026-09-20T00:00:00.000Z" }),
+      outcome({ id: "o4", gigId: "g3", attemptId: "a3", verdict: "rejected", recordedAt: "2026-09-21T00:00:00.000Z" }),
+      outcome({ id: "o5", gigId: "g4", attemptId: "a4", verdict: "accepted", amount: 40, currency: "USDC" }),
+      // g5: accepted, no amount recorded.
+      outcome({ id: "o6", gigId: "g5", attemptId: "a5", verdict: "accepted" }),
+    ],
+  });
+  assert.deepEqual(kpi.moneyWon, [
+    { currency: "USD", amount: 800, count: 2 },
+    { currency: "USDC", amount: 40, count: 1 },
+  ]);
+  assert.equal(kpi.acceptedWithoutAmount, 1);
+});
+
+test("with nothing accepted there is no money and nothing without an amount", () => {
+  const kpi = foldGigKpi({ now: NOW, gigs: [], specialists: [], attempts: [], outcomes: [] });
+  assert.deepEqual(kpi.moneyWon, []);
+  assert.equal(kpi.acceptedWithoutAmount, 0);
+});

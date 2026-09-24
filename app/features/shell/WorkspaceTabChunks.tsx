@@ -45,6 +45,7 @@ const ActivityTab = dynamic(() => TAB_CHUNKS.activity().then((m) => ({ default: 
 const JourneyOverlay = dynamic(() => TAB_CHUNKS.journeys().then((m) => ({ default: m.JourneyOverlay })), { loading });
 const PipelineTab = dynamic(() => TAB_CHUNKS.pipeline().then((m) => ({ default: m.PipelineTab })), { loading });
 const AgentsWorkforceTab = dynamic(() => TAB_CHUNKS.agents().then((m) => ({ default: m.AgentsWorkforceTab })), { loading });
+const GigsTab = dynamic(() => TAB_CHUNKS.gigs().then((m) => ({ default: m.GigsTab })), { loading });
 const ChannelsTab = dynamic(() => TAB_CHUNKS.channels().then((m) => ({ default: m.ChannelsTab })), { loading });
 const DevTab = dynamic(() => TAB_CHUNKS.assignments().then((m) => ({ default: m.DevTab })), { loading });
 const ProfileTab = dynamic(() => TAB_CHUNKS.archetypes().then((m) => ({ default: m.ProfileTab })), { loading });
@@ -74,6 +75,7 @@ const TAB_PANELS: Record<WorkspaceTabId, (ctx: PanelContext) => ReactNode> = {
   decisions: () => <DecisionsTab />,
   schedule: () => <ScheduleTab />,
   agents: () => <AgentsWorkforceTab />,
+  gigs: () => <GigsTab />,
   interview: () => <InterviewSimTab />,
   archetypes: () => <ProfileTab />,
   analyze: ({ active }) => <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />,

@@ -7,6 +7,7 @@ import {
   type GigAttempt,
   type GigKpi,
   type GigKpiCell,
+  type GigKpiMoney,
   type GigOutcome,
   type GigSpecialist,
 } from "./types";
@@ -30,12 +31,19 @@ import {
 //    costUsd is null (a lower-bound honesty count, never read as free).
 //  - disclosureRate = sent attempts whose review ticked the disclosure item / sent
 //    attempts, null when nothing was sent.
+//  - moneyWon reads the SAME counted verdict as the rate (a sent attempt's latest one):
+//    each `accepted` verdict with an amount adds to its currency's entry, and entries are
+//    never added to each other. An accepted verdict with no amount is counted in
+//    acceptedWithoutAmount - unknown, never $0.
 
 export type GigKpiAttemptRow = Pick<
   GigAttempt,
   "id" | "gigId" | "specialistId" | "status" | "costUsd" | "review" | "sentAt" | "createdAt"
 >;
-export type GigKpiOutcomeRow = Pick<GigOutcome, "id" | "gigId" | "attemptId" | "verdict" | "recordedAt">;
+/** `amount`/`currency` are optional so a caller that only needs the rate can omit
+ *  them; an omitted amount reads as "not recorded". */
+export type GigKpiOutcomeRow = Pick<GigOutcome, "id" | "gigId" | "attemptId" | "verdict" | "recordedAt"> &
+  Partial<Pick<GigOutcome, "amount" | "currency">>;
 export type GigKpiGigRow = Pick<Gig, "id" | "arena">;
 export type GigKpiSpecialistRow = Pick<GigSpecialist, "id">;
 
@@ -92,7 +100,7 @@ export function foldGigKpi(input: GigKpiInput): GigKpi {
   }
 
   // Latest verdict per sent attempt. Ties on recordedAt resolve to the later input row.
-  const verdictOf = new Map<string, { verdict: GigOutcome["verdict"]; recordedAt: string }>();
+  const verdictOf = new Map<string, { verdict: GigOutcome["verdict"]; recordedAt: string; amount: number | null; currency: string | null }>();
   for (const o of input.outcomes) {
     if (!arenaOfGig.has(o.gigId)) continue;
     let target: GigKpiAttemptRow | undefined;
@@ -104,7 +112,11 @@ export function foldGigKpi(input: GigKpiInput): GigKpi {
     }
     if (!target) continue;
     const prev = verdictOf.get(target.id);
-    if (!prev || o.recordedAt >= prev.recordedAt) verdictOf.set(target.id, { verdict: o.verdict, recordedAt: o.recordedAt });
+    if (!prev || o.recordedAt >= prev.recordedAt) {
+      const amount = typeof o.amount === "number" && Number.isFinite(o.amount) ? o.amount : null;
+      const currency = typeof o.currency === "string" && o.currency.trim() ? o.currency.trim() : null;
+      verdictOf.set(target.id, { verdict: o.verdict, recordedAt: o.recordedAt, amount, currency });
+    }
   }
 
   const byArena = new Map<GigArena, Acc>(GIG_ARENAS.map((a) => [a, emptyAcc()]));
@@ -145,6 +157,23 @@ export function foldGigKpi(input: GigKpiInput): GigKpi {
     }
   }
 
+  // Money won: the counted verdicts only, so a corrected verdict's old amount is gone.
+  const money = new Map<string, GigKpiMoney>();
+  let acceptedWithoutAmount = 0;
+  for (const v of verdictOf.values()) {
+    if (v.verdict !== "accepted") continue;
+    if (v.amount === null) {
+      acceptedWithoutAmount += 1;
+      continue;
+    }
+    const key = v.currency ?? "";
+    const entry = money.get(key) ?? { currency: v.currency, amount: 0, count: 0 };
+    entry.amount += v.amount;
+    entry.count += 1;
+    money.set(key, entry);
+  }
+  const moneyWon = [...money.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, m]) => m);
+
   const arenaCells = {} as Record<GigArena, GigKpiCell>;
   for (const arena of GIG_ARENAS) arenaCells[arena] = toCell(byArena.get(arena)!);
   const specialistCells: Record<string, GigKpiCell> = {};
@@ -154,6 +183,8 @@ export function foldGigKpi(input: GigKpiInput): GigKpi {
     byArena: arenaCells,
     bySpecialist: specialistCells,
     disclosureRate: sent === 0 ? null : disclosed / sent,
+    moneyWon,
+    acceptedWithoutAmount,
     computedAt: input.now,
   };
 }

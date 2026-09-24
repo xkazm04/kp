@@ -408,11 +408,26 @@ export type GigKpiCell = {
   smallSample: boolean;
 };
 
+/** Money actually awarded in ONE currency. The list is never totalled across entries:
+ *  a sum of USD and USDC is a number nobody was paid. */
+export type GigKpiMoney = {
+  /** As the verdict recorded it; null when the amount came with no currency. */
+  currency: string | null;
+  amount: number;
+  /** Accepted outcomes that carried an amount in this currency. */
+  count: number;
+};
+
 export type GigKpi = {
   byArena: Record<GigArena, GigKpiCell>;
   bySpecialist: Record<string, GigKpiCell>;
   /** Sent items whose disclosure was ticked / sent items; null when nothing was sent. */
   disclosureRate: number | null;
+  /** Money won, one entry per currency, from each counted `accepted` verdict's amount.
+   *  Sorted by currency; empty when nothing accepted carried an amount. */
+  moneyWon: GigKpiMoney[];
+  /** Counted `accepted` verdicts that recorded no amount (unknown, never zero). */
+  acceptedWithoutAmount: number;
   computedAt: string;
 };
 

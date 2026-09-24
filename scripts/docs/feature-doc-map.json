@@ -582,6 +582,7 @@
         "app/api/gigs/**",
         "app/_lib/gigs/**",
         "app/_lib/db/gigs-*.ts",
+        "app/features/gigs/**",
         "scripts/gigs/**"
       ]
     },

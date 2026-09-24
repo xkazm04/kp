@@ -33,6 +33,7 @@ export const TAB_CHUNKS = {
   journeys: () => import("../insights/journey/JourneyOverlay"),
   pipeline: () => import("../hiring/pipeline/PipelineTab"),
   agents: () => import("../agents-workforce/AgentsWorkforceTab"),
+  gigs: () => import("../gigs/GigsTab"),
   channels: () => import("../hiring/channels/ChannelsTab"),
   assignments: () => import("../tools/devcases/DevTab"),
   archetypes: () => import("../tools/profile/ProfileTab"),

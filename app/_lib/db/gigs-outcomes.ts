@@ -270,11 +270,23 @@ export function readGigKpiInput(workspaceId: string, now: string = new Date().to
   });
   const outcomes = (
     d
-      .prepare(`SELECT id, gig_id, attempt_id, verdict, recorded_at FROM gig_outcomes WHERE workspace_id = ? ORDER BY recorded_at ASC, rowid ASC`)
-      .all(workspaceId) as Pick<GigOutcomeRow, "id" | "gig_id" | "attempt_id" | "verdict" | "recorded_at">[]
+      .prepare(
+        `SELECT id, gig_id, attempt_id, verdict, amount, currency, recorded_at FROM gig_outcomes WHERE workspace_id = ? ORDER BY recorded_at ASC, rowid ASC`
+      )
+      .all(workspaceId) as Pick<GigOutcomeRow, "id" | "gig_id" | "attempt_id" | "verdict" | "amount" | "currency" | "recorded_at">[]
   ).flatMap((r) =>
     isGigOutcomeVerdict(r.verdict)
-      ? [{ id: r.id, gigId: r.gig_id, attemptId: r.attempt_id, verdict: r.verdict, recordedAt: r.recorded_at }]
+      ? [
+          {
+            id: r.id,
+            gigId: r.gig_id,
+            attemptId: r.attempt_id,
+            verdict: r.verdict,
+            amount: typeof r.amount === "number" && Number.isFinite(r.amount) ? r.amount : null,
+            currency: r.currency,
+            recordedAt: r.recorded_at,
+          },
+        ]
       : []
   );
   const gigs = (

@@ -15,6 +15,9 @@ export const WORKSPACE_TAB_IDS = [
   // Agent-candidate bridge: the hired-agents roster (dev/flag-gated in the nav
   // via AGENTS_TAB_IN_NAV below, same two-place pattern as the About tab).
   "agents",
+  // Gigs: real paid work drafted by specialist agents and sent by the operator
+  // (docs/features/gigs). Gated with Agents by the SAME flag, in the same two places.
+  "gigs",
   "interview",
   // Renamed from "profile": this surface's centre of gravity is the candidate
   // ARCHETYPE taxonomy (ArchetypeManager) plus the candidates routed to it — the
@@ -205,6 +208,9 @@ export const NAV_GROUPS: NavGroup[] = [
       // Appended last so the group's existing order (and every derived g-chord —
       // see chordOverflow) is untouched. Dev/flag-gated like About.
       ...(AGENTS_TAB_IN_NAV ? [{ id: "agents", label: "Agents", chordOverflow: true } as WorkspaceTabDef] : []),
+      // Gigs rides the Agents gate (a specialist is a hired agent) and the same chord
+      // rule: chordOverflow, so it takes a two-key chord and moves no pinned letter.
+      ...(AGENTS_TAB_IN_NAV ? [{ id: "gigs", label: "Gigs", chordOverflow: true } as WorkspaceTabDef] : []),
     ],
   },
   {

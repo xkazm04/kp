@@ -106,7 +106,7 @@ export function Workspace({
   //
   // `parse` owns the whole vocabulary so the hook stays generic: legacy ids
   // (?tab=profile, ?tab=dev) resolve to their renamed tab via LEGACY_TAB_ALIASES,
-  // and a gated tab (Agents, experimental via AGENTS_TAB_IN_NAV) is REJECTED
+  // and a gated tab (Agents and Gigs, experimental via AGENTS_TAB_IN_NAV) is REJECTED
   // here rather than adopted-then-corrected. Returning null leaves the current
   // tab alone, so a link to a gated view is inert instead of bouncing the
   // reader to the default. A CAPABILITY-locked arrival (a viewer following the
@@ -118,7 +118,7 @@ export function Workspace({
     (raw) => {
       const requested = resolveTabParam(raw);
       if (requested == null) return null;
-      if (requested === "agents" && !AGENTS_TAB_IN_NAV) return null;
+      if ((requested === "agents" || requested === "gigs") && !AGENTS_TAB_IN_NAV) return null;
       return requested;
     },
     DEFAULT_TAB
