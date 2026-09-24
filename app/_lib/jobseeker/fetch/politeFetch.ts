@@ -45,6 +45,11 @@ export type PoliteFetchOptions = {
   contentType?: string;
   /** Hand back `response.body` instead of buffering (see FetchOk.stream). */
   stream?: boolean;
+  /** An `Authorization` header value for an official API that needs one (the gig
+   *  adapters: GitHub, Kaggle, HackerOne, Upwork). Sent ONLY to the host the request
+   *  started on - a redirect onto another host drops it, so a credential never follows
+   *  a hop off the API it was issued for. Never logged. */
+  authorization?: string;
 };
 
 export type PoliteFetch = (url: string, opts: PoliteFetchOptions) => Promise<FetchOutcome>;
@@ -265,10 +270,11 @@ export const politeFetch: PoliteFetch = async function politeFetch(url, opts): P
       await waitForHost(politenessHost);
       let res: Response;
       try {
+        const hopHeaders = opts.authorization && current.host === target.host ? { ...headers, authorization: opts.authorization } : headers;
         res = await deps.fetch(current.href, {
           method,
           body: method === "POST" ? opts.body : undefined,
-          headers,
+          headers: hopHeaders,
           redirect: "manual",
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });

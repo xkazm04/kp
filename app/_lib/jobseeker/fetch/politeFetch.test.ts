@@ -167,3 +167,20 @@ test("a cross-host redirect re-checks robots on the new host", async () => {
   assert.ok(h.calls.some((c) => c.url === "https://b.example/robots.txt"), "the second host's robots.txt was read");
   assert.ok(!h.calls.some((c) => c.url === "https://b.example/landing"), "…and the disallowed page was not requested");
 });
+
+test("an authorization header reaches the starting host only; a cross-host redirect drops it; robots.txt never carries it", async () => {
+  const h = harness({
+    "https://api.a.example/robots.txt": () => new Response("", { status: 404 }),
+    "https://api.a.example/list": () => new Response(null, { status: 302, headers: { location: "https://api.a.example/list2" } }),
+    "https://api.a.example/list2": () => new Response(null, { status: 302, headers: { location: "https://cdn.b.example/list3" } }),
+    "https://cdn.b.example/robots.txt": () => new Response("", { status: 404 }),
+    "*": () => new Response("[]", { status: 200, headers: { "content-type": "application/json" } }),
+  });
+  const out = await politeFetch("https://api.a.example/list", { sourceId: "s1", authorization: "Bearer secret-token" });
+  assert.equal(out.kind, "ok");
+  const auth = (url: string) => h.calls.find((c) => c.url === url)?.headers.authorization;
+  assert.equal(auth("https://api.a.example/list"), "Bearer secret-token");
+  assert.equal(auth("https://api.a.example/list2"), "Bearer secret-token", "a same-host hop keeps it");
+  assert.equal(auth("https://cdn.b.example/list3"), undefined, "a hop onto another host drops it");
+  assert.equal(auth("https://api.a.example/robots.txt"), undefined);
+});

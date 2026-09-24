@@ -1,0 +1,46 @@
+[
+  {
+    "id": 91234,
+    "ref": "https://www.kaggle.com/competitions/grid-load-forecast-2026",
+    "title": "Grid Load Forecasting 2026",
+    "url": "https://www.kaggle.com/competitions/grid-load-forecast-2026",
+    "description": "Forecast hourly electricity load for 40 substations from weather and calendar features.",
+    "organizationName": "Nordic Grid Operators",
+    "organizationRef": "nordic-grid",
+    "category": "Featured",
+    "reward": "$50,000",
+    "tags": [
+      { "ref": "time series analysis", "name": "time series analysis", "description": "", "fullPath": "technique > time series analysis" },
+      { "ref": "tabular", "name": "tabular" }
+    ],
+    "deadline": "2026-12-15T23:59:00Z",
+    "kernelCount": 312,
+    "teamCount": 1204,
+    "userHasEntered": false,
+    "enabledDate": "2026-09-01T00:00:00Z",
+    "maxDailySubmissions": 5,
+    "maxTeamSize": 5,
+    "evaluationMetric": "Mean Absolute Error",
+    "awardsPoints": true,
+    "isKernelsSubmissionsOnly": false,
+    "submissionsDisabled": false
+  },
+  {
+    "id": 3136,
+    "ref": "titanic",
+    "title": "Titanic - Machine Learning from Disaster",
+    "description": "Start here! Predict survival on the Titanic.",
+    "organizationName": "Kaggle",
+    "category": "Getting Started",
+    "reward": "Knowledge",
+    "tags": [{ "ref": "binary classification", "name": "binary classification" }],
+    "deadline": "2030-01-01T00:00:00Z",
+    "enabledDate": "2012-09-28T21:13:33Z",
+    "evaluationMetric": "Categorization Accuracy"
+  },
+  {
+    "id": 99999,
+    "ref": "../../etc/passwd",
+    "title": "A row whose ref is not a slug"
+  }
+]

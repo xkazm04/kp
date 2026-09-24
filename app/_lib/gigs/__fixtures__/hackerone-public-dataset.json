@@ -1,0 +1,58 @@
+[
+  {
+    "allows_bounty_splitting": false,
+    "average_time_to_bounty_awarded": null,
+    "average_time_to_first_program_response": 3,
+    "average_time_to_report_resolved": null,
+    "handle": "nebius_ai_vdp",
+    "id": 0,
+    "managed_program": true,
+    "name": "Nebius AI Vulnerability Disclosure",
+    "offers_bounties": false,
+    "offers_swag": false,
+    "response_efficiency_percentage": 100,
+    "submission_state": "open",
+    "url": "https://hackerone.com/nebius_ai_vdp",
+    "website": "https://nebius.com",
+    "targets": { "in_scope": [{ "asset_identifier": "api.nebius.cloud", "asset_type": "URL", "eligible_for_bounty": false }], "out_of_scope": [] }
+  },
+  {
+    "allows_bounty_splitting": true,
+    "handle": "example_payments",
+    "id": 0,
+    "managed_program": true,
+    "name": "Example Payments",
+    "offers_bounties": true,
+    "offers_swag": false,
+    "submission_state": "open",
+    "url": "https://hackerone.com/example_payments",
+    "website": "https://payments.example",
+    "targets": {
+      "in_scope": [
+        {
+          "asset_identifier": "*.payments.example",
+          "asset_type": "WILDCARD",
+          "eligible_for_bounty": true,
+          "eligible_for_submission": true,
+          "instruction": "## In scope\nAll production subdomains. No DoS; no social engineering. A string with a ] bracket inside.",
+          "max_severity": "critical"
+        },
+        {
+          "asset_identifier": "https://github.com/example/payments-sdk",
+          "asset_type": "SOURCE_CODE",
+          "eligible_for_bounty": true,
+          "max_severity": "high"
+        }
+      ],
+      "out_of_scope": []
+    }
+  },
+  {
+    "handle": "closed_shop",
+    "name": "Closed Shop",
+    "offers_bounties": true,
+    "submission_state": "disabled",
+    "url": "https://hackerone.com/closed_shop",
+    "targets": { "in_scope": [], "out_of_scope": [] }
+  }
+]
