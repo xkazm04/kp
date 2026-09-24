@@ -1998,7 +1998,12 @@
     "STOP_LANGUAGE_FAILED": "Impossible d’enregistrer votre langue pour le moment. Veuillez réessayer.",
     "DEVCASE_INTAKE_STOP_FAILED": "Impossible de clore les candidatures de cet exercice. Veuillez réessayer.",
     "DEVCASE_INTAKE_LIFECYCLE_OWNS": "Un déroulé automatique gère les candidatures de cet exercice. Fermez plutôt ce déroulé ; les personnes ayant rendu leur travail reçoivent alors un message de clôture.",
-    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Cette action sur les candidatures n’est pas prise en charge pour cet exercice."
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Cette action sur les candidatures n’est pas prise en charge pour cet exercice.",
+    "GIG_NOT_FOUND": "Cette mission n’existe pas.",
+    "GIG_SUSPECT": "Cette annonce a été signalée comme suspecte et ne peut donc pas être confiée à un spécialiste. Vérifiez d’abord le signalement.",
+    "GIG_NOT_DISPATCHABLE": "Cette mission ne peut pas être confiée à un spécialiste dans son état actuel.",
+    "GIG_SPECIALIST_NOT_READY": "Aucun spécialiste n’est encore prêt pour cette mission. Recrutez-en un, puis attendez que Personas l’ait approuvé.",
+    "GIG_DISPATCH_FAILED": "Personas n’a pas accepté la tâche. La tentative a été enregistrée comme échouée et la mission peut être renvoyée."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3730,7 +3735,9 @@
         "policyPass": "Passage des règles",
         "reminders": "Rappels d’entretien",
         "jobseekerScan": "Analyse du marché de l’emploi",
-        "interviewRecordingRetention": "Conservation des enregistrements d’entretien"
+        "interviewRecordingRetention": "Conservation des enregistrements d’entretien",
+        "gigScan": "Analyse des missions",
+        "gigSync": "Synchronisation des missions en cours"
       },
       "unverified": "Lancez d’abord une analyse à la main. Le minuteur pourra être activé dès qu’une analyse aura réussi.",
       "jobToggleTitle": "Mettre en pause ou reprendre : {job}",

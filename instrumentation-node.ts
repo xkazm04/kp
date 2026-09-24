@@ -91,7 +91,72 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       log: `interview recordings deleted: ${summary.deleted} (scanned ${summary.scanned}, failed ${summary.failed})`,
     };
   },
+  // Gigs listing scan (app/_lib/gigs/scan.ts), the jobseeker_scan shape: per-WORKSPACE
+  // fan-out, sequential, under one shared wall budget (the scan's own per-run budget,
+  // shared by the whole pass - the jobseeker_scan convention). The gig stores have NO
+  // cross-tenant query by design (gigs-*-tenancy.test.ts forbids `tenancy:global`), so
+  // the fan-out reads the workspace list and asks each workspace's own scoped store
+  // whether it has an enabled, unpaused source. Armed only after a manual scan's `ok`.
+  gig_scan: async () => {
+    const { listWorkspaces } = await import("./app/_lib/db/workspaces");
+    const { listGigSources } = await import("./app/_lib/db/gigs-sources");
+    const { runGigScan, defaultGigScanDeps, GIG_SCAN_WALL_BUDGET_MS } = await import("./app/_lib/gigs/scan");
+    const { qualifyGigHook } = await import("./app/_lib/gigs/qualify");
+    const workspaces = listWorkspaces()
+      .map((w) => w.id)
+      .filter((ws) => listGigSources(ws).some((s) => s.enabled && s.pausedReason === null));
+    if (workspaces.length === 0) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new Error("gig_scan: clock wall budget exhausted")), GIG_SCAN_WALL_BUDGET_MS);
+    const totals = { workspaces: 0, skipped: 0 };
+    try {
+      for (const ws of workspaces) {
+        if (controller.signal.aborted) {
+          totals.skipped += 1;
+          continue;
+        }
+        // The scan's defaults plus the qualifier, exactly as the manual door runs it
+        // (late-bound-boot.ts `gig_scan`).
+        await runGigScan(ws, { ...defaultGigScanDeps(), qualify: qualifyGigHook }, controller.signal);
+        totals.workspaces += 1;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    return {
+      status: totals.workspaces > 0 ? "ok" : "skipped",
+      summary: totals,
+      log: `gig scan: ${totals.workspaces} workspace(s), ${totals.skipped} skipped on the wall budget`,
+    };
+  },
+  // Gigs run sync (app/_lib/gigs/sync.ts): per workspace with an in-flight attempt, pull
+  // the Personas execution state and land finished drafts. `null` when nothing is in
+  // flight - at a 15-minute cadence an empty row every tick would be noise.
+  gig_sync: async () => {
+    const { listWorkspaces } = await import("./app/_lib/db/workspaces");
+    const { listGigAttemptsByStatus } = await import("./app/_lib/db/gigs-attempts");
+    const { syncGigAttempts } = await import("./app/_lib/gigs/sync");
+    const workspaces = listWorkspaces()
+      .map((w) => w.id)
+      .filter((ws) => listGigAttemptsByStatus(ws, ["dispatched", "running"]).length > 0);
+    if (workspaces.length === 0) return null;
+    const totals = { workspaces: 0, drafted: 0, failed: 0, running: 0, unreachable: 0 };
+    for (const ws of workspaces) {
+      const s = await syncGigAttempts(ws);
+      totals.workspaces += 1;
+      totals.drafted += s.drafted;
+      totals.failed += s.failed;
+      totals.running += s.running;
+      totals.unreachable += s.unreachable;
+    }
+    return {
+      status: "ok",
+      summary: totals,
+      log: `gig sync: ${totals.workspaces} workspace(s), drafted ${totals.drafted}, failed ${totals.failed}, running ${totals.running}, unreachable ${totals.unreachable}`,
+    };
+  },
 };
+
 
 // --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
 // The Control Room's autonomy pause is presented to the operator as "Pause to halt

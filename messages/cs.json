@@ -1998,7 +1998,12 @@
     "STOP_LANGUAGE_FAILED": "Jazyk se teď nepodařilo uložit. Zkuste to prosím znovu.",
     "DEVCASE_INTAKE_STOP_FAILED": "Příjem pro toto zadání se nepodařilo zastavit. Zkuste to prosím znovu.",
     "DEVCASE_INTAKE_LIFECYCLE_OWNS": "Příjem tohoto zadání řídí automatický běh. Uzavřete místo toho běh; tím se zároveň rozešle závěrečné sdělení všem, kdo odevzdali.",
-    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Tuto akci příjmu toto zadání nepodporuje."
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Tuto akci příjmu toto zadání nepodporuje.",
+    "GIG_NOT_FOUND": "Tato zakázka neexistuje.",
+    "GIG_SUSPECT": "Tato nabídka byla označena jako podezřelá, proto ji nelze předat specialistovi. Nejprve označení prověřte.",
+    "GIG_NOT_DISPATCHABLE": "V současném stavu tuto zakázku nelze předat specialistovi.",
+    "GIG_SPECIALIST_NOT_READY": "Pro tuto zakázku zatím není připraven žádný specialista. Najměte ho a počkejte, až ho aplikace Personas schválí.",
+    "GIG_DISPATCH_FAILED": "Aplikace Personas zadání nepřijala. Pokus byl zaznamenán jako neúspěšný a zakázku můžete odeslat znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3730,7 +3735,9 @@
         "policyPass": "Průchod pravidel",
         "reminders": "Připomenutí pohovorů",
         "jobseekerScan": "Sken pracovního trhu",
-        "interviewRecordingRetention": "Uchovávání záznamů pohovorů"
+        "interviewRecordingRetention": "Uchovávání záznamů pohovorů",
+        "gigScan": "Sken nabídek zakázek",
+        "gigSync": "Synchronizace běhů zakázek"
       },
       "unverified": "Nejdřív spusťte jeden sken ručně. Časovač lze zapnout, až sken proběhne úspěšně.",
       "jobToggleTitle": "Pozastavit nebo obnovit: {job}",

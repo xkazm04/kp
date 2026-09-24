@@ -45,6 +45,21 @@ test("jobseeker_scan is registered DISABLED, twice daily, and gated behind a ver
   assert.equal(scan.labelKey, "jobseekerScan");
 });
 
+test("the two gig jobs: the scan is OFF, twice daily and verified-first; the sync is OFF every 15 minutes", () => {
+  const scan = schedulerJob("gig_scan");
+  assert.equal(scan.defaultEnabled, false, "a created schedule is not consent to poll a marketplace");
+  assert.equal(scan.defaultIntervalMinutes, 720);
+  assert.equal(scan.requiresVerifiedRun, true, "armed only after one manual scan recorded ok");
+  assert.equal(scan.fanOut, "per-workspace");
+  assert.equal(scan.labelKey, "gigScan");
+  const sync = schedulerJob("gig_sync");
+  assert.equal(sync.defaultEnabled, false);
+  assert.equal(sync.defaultIntervalMinutes, 15);
+  assert.equal(sync.requiresVerifiedRun, false);
+  assert.equal(sync.fanOut, "per-workspace");
+  assert.equal(sync.labelKey, "gigSync");
+});
+
 test("every job's label resolves in all four catalogs, and the unverified title exists beside them", () => {
   for (const locale of LOCALES) {
     const messages = JSON.parse(readFileSync(path.join(root, "messages", `${locale}.json`), "utf8")) as {

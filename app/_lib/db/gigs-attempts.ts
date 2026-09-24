@@ -120,6 +120,22 @@ export function listGigAttemptsByStatus(workspaceId: string, statuses: readonly 
   return rows.map(gigAttemptFromRow);
 }
 
+/** Stamp the Personas execution id on a `dispatched` attempt that has none yet - the
+ *  one write that is not a status move (the attempt stays `dispatched` until the run is
+ *  seen `running`; GIG_ATTEMPT_TRANSITIONS has no self-edge, on purpose). Write-once:
+ *  the WHERE re-asserts `status = 'dispatched' AND execution_id IS NULL`, so a second
+ *  stamp, or a stamp racing a move, changes nothing and answers null. Added by WP3
+ *  (gigs/dispatch.ts). */
+export function setGigAttemptExecutionId(workspaceId: string, id: string, executionId: string): GigAttempt | null {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE gig_attempts SET execution_id = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND status = 'dispatched' AND execution_id IS NULL`
+    )
+    .run(executionId, new Date().toISOString(), id, workspaceId);
+  return res.changes > 0 ? getGigAttempt(workspaceId, id) : null;
+}
+
 /** Fields a status move may write in the same statement. `undefined` = untouched,
  *  `null` = cleared. */
 export type GigAttemptPatch = {

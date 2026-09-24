@@ -90,6 +90,26 @@ export function registerLateBoundImplementations(): void {
     const { runGithubStageTask } = await import("./analyze-github-stage");
     return runGithubStageTask(ctx);
   });
+  // Gigs (app/_lib/gigs). Like `intake_round`, NO spec in tasks.ts: the Gig desk's
+  // "scan now" / "sync now" doors and the clock (instrumentation-node.ts) reach them
+  // through this leaf registry, which keeps the adapter graph (the scan) and the
+  // Personas bridge + deliverable parser (the sync) off every importer's path until
+  // one actually runs. Both scope every read and write to `ctx.workspaceId`.
+  //
+  // `gig_scan` runs `runGigScan(workspaceId, deps, signal)` (gigs/scan.ts) with its
+  // default deps PLUS the qualifier (gigs/qualify.ts), which the scan's defaults leave
+  // unplugged: every listing still `new` is scored and matched to a specialist as it
+  // lands. The manual run is what verifies the clock job (requiresVerifiedRun).
+  registerTaskRunner("gig_scan", async (ctx) => {
+    const { runGigScan, defaultGigScanDeps } = await import("./gigs/scan");
+    const { qualifyGigHook } = await import("./gigs/qualify");
+    return runGigScan(ctx.workspaceId, { ...defaultGigScanDeps(), qualify: qualifyGigHook }, ctx.signal);
+  });
+  // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts).
+  registerTaskRunner("gig_sync", async (ctx) => {
+    const { syncGigAttempts } = await import("./gigs/sync");
+    return syncGigAttempts(ctx.workspaceId);
+  });
   // The stage hook's AI-interview mint (stage-hooks.ts): the same door
   // POST /api/interview/create calls, unchanged.
   registerStageHookInvite(async (input) => {

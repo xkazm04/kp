@@ -106,8 +106,16 @@ test("GET keeps every legacy field AND adds jobs[] — one entry per registered 
   // The literal beside the derived list above, so a job added to the registry is a
   // deliberate edit here rather than a silently-widening assertion.
   // `interview_recording_retention` (spark ai-interview-parity, WP3) is the daily
-  // storage-limitation sweep over opt-in candidate audio.
-  assert.deepEqual(body.jobs.map((j) => j.name), ["policy_pass", "reminders", "jobseeker_scan", "interview_recording_retention"]);
+  // storage-limitation sweep over opt-in candidate audio. `gig_scan` + `gig_sync` (Gigs
+  // WP3) are the gig listing scan and the Personas run pull, both registered OFF.
+  assert.deepEqual(body.jobs.map((j) => j.name), [
+    "policy_pass",
+    "reminders",
+    "jobseeker_scan",
+    "interview_recording_retention",
+    "gig_scan",
+    "gig_sync",
+  ]);
   for (const job of body.jobs) {
     assert.equal(typeof job.labelKey, "string");
     assert.ok(Array.isArray(job.runs));

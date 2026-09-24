@@ -15,7 +15,14 @@
 // `skipped`. Store-free on purpose (the browser bundle imports it for labels): the
 // store is app/_lib/scheduler-store.ts.
 
-export const SCHEDULER_JOB_NAMES = ["policy_pass", "reminders", "jobseeker_scan", "interview_recording_retention"] as const;
+export const SCHEDULER_JOB_NAMES = [
+  "policy_pass",
+  "reminders",
+  "jobseeker_scan",
+  "interview_recording_retention",
+  "gig_scan",
+  "gig_sync",
+] as const;
 export type SchedulerJobName = (typeof SCHEDULER_JOB_NAMES)[number];
 
 export function isSchedulerJobName(v: unknown): v is SchedulerJobName {
@@ -66,6 +73,16 @@ export const SCHEDULER_JOBS: readonly SchedulerJobDef[] = [
     fanOut: "none",
     requiresVerifiedRun: false,
   },
+  // Gigs (app/_lib/gigs): the listing scan over the workspace's enabled gig sources
+  // (official APIs only - gigs/adapters). Same courtesy rule and cadence as the
+  // job-seeker scan: twice a day, OFF, and not armable before one manual scan succeeded.
+  { name: "gig_scan", labelKey: "gigScan", defaultIntervalMinutes: 720, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: true },
+  // Gigs: pull in-flight specialist runs from the local Personas app and land finished
+  // drafts (gigs/sync.ts). Every 15 minutes - it asks a loopback app about rows kp
+  // already holds, so there is no third party to be courteous to - but OFF by default:
+  // a created schedule is not consent, and a deployment with no Personas pairing has
+  // nothing to ask.
+  { name: "gig_sync", labelKey: "gigSync", defaultIntervalMinutes: 15, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: false },
 ];
 
 export function schedulerJob(name: SchedulerJobName): SchedulerJobDef {

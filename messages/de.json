@@ -1998,7 +1998,12 @@
     "STOP_LANGUAGE_FAILED": "Ihre Sprache konnte gerade nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "DEVCASE_INTAKE_STOP_FAILED": "Die Bewerbungsphase dieser Aufgabe konnte nicht beendet werden. Bitte versuchen Sie es erneut.",
     "DEVCASE_INTAKE_LIFECYCLE_OWNS": "Ein automatischer Durchlauf steuert die Bewerbungsphase dieser Aufgabe. Schließen Sie stattdessen den Durchlauf; dabei erhalten die Einreichenden auch eine Abschlussnachricht.",
-    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Diese Aktion für die Bewerbungsphase wird bei dieser Aufgabe nicht unterstützt."
+    "DEVCASE_INTAKE_ACTION_UNKNOWN": "Diese Aktion für die Bewerbungsphase wird bei dieser Aufgabe nicht unterstützt.",
+    "GIG_NOT_FOUND": "Diesen Auftrag gibt es nicht.",
+    "GIG_SUSPECT": "Dieses Angebot wurde als verdächtig markiert und kann daher nicht an einen Spezialisten übergeben werden. Prüfen Sie zuerst die Markierung.",
+    "GIG_NOT_DISPATCHABLE": "Dieser Auftrag kann in seinem aktuellen Zustand nicht an einen Spezialisten übergeben werden.",
+    "GIG_SPECIALIST_NOT_READY": "Für diesen Auftrag ist noch kein Spezialist bereit. Stellen Sie einen ein und warten Sie, bis Personas ihn freigegeben hat.",
+    "GIG_DISPATCH_FAILED": "Personas hat die Aufgabe nicht angenommen. Der Versuch wurde als fehlgeschlagen erfasst, und der Auftrag kann erneut gesendet werden."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3730,7 +3735,9 @@
         "policyPass": "Regel-Durchlauf",
         "reminders": "Interview-Erinnerungen",
         "jobseekerScan": "Stellenmarkt-Scan",
-        "interviewRecordingRetention": "Aufbewahrung von Interviewaufnahmen"
+        "interviewRecordingRetention": "Aufbewahrung von Interviewaufnahmen",
+        "gigScan": "Auftrags-Scan",
+        "gigSync": "Abgleich der Auftragsläufe"
       },
       "unverified": "Starten Sie zuerst einen Scan von Hand. Der Timer lässt sich einschalten, sobald ein Scan erfolgreich war.",
       "jobToggleTitle": "{job} pausieren oder fortsetzen",
