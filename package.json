@@ -123,7 +123,7 @@
     "autoprefixer": "^10.6.1",
     "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
-    "eslint": "^9.39.4",
+    "eslint": "^10.10.0",
     "eslint-config-next": "16.3.3",
     "eslint-plugin-i18next": "^6.1.5",
     "postcss": "^8.5.28",
