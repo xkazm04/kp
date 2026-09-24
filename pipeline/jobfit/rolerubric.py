@@ -1,6 +1,6 @@
 """Role rubric — the weighted axes a role's candidates are judged against.
 
-ADR-0010 (docs/architecture/decisions/0010-need-role-slate-one-board.md) §2: a
+ADR-0012 (docs/architecture/decisions/0012-need-role-slate-one-board.md) §2: a
 role FREEZES ONE rubric, derived from the RoleBrief's own graded requirements and
 its ``core`` facets, and every population on the slate — a person or an AI agent —
 is scored against that same list of axes. :class:`RubricAxis` is the shape of one
@@ -30,7 +30,7 @@ apart. The rules, stated once:
 * Each ``core`` facet with a name and a value becomes an axis; the first statement
   of a facet name wins. ``budget_band`` is a ``cost`` axis (``cost:budget_band``);
   every other core facet is a ``facet`` axis (``facet:<name>``). ``valuable`` and
-  ``context`` facets do not become axes: ADR-0010 names only ``core`` ("losing it
+  ``context`` facets do not become axes: ADR-0012 names only ``core`` ("losing it
   changes who you hire"), and an axis nobody said was decisive would dilute the
   ones that are.
 * Raw weight = the brief's weight clamped to 0.05..1 (a stated-but-zero-weighted
@@ -57,11 +57,11 @@ from .rolebrief import RoleBrief
 # because its evidence (salary band / budget) is not a conversation.
 RUBRIC_AXIS_ORIGINS = ("requirement", "facet", "cost")
 
-# What KIND of evidence scores an axis — the rows of ADR-0010 §3's table.
+# What KIND of evidence scores an axis — the rows of ADR-0012 §3's table.
 RUBRIC_EVIDENCE_CLASSES = ("requirement_coverage", "demonstrated_work", "conversation", "cost")
 
 # class -> (human evidence source, agent evidence source): the per-population
-# adapters of ADR-0010 §3 ("one score, two evidence adapters"). A scorer reads
+# adapters of ADR-0012 §3 ("one score, two evidence adapters"). A scorer reads
 # THESE names off the axis, never its own.
 RUBRIC_EVIDENCE_SOURCES: dict[str, tuple[str, str]] = {
     "requirement_coverage": ("analysis", "agent_fit"),

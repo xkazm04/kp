@@ -1458,7 +1458,7 @@ as a picture with no meaning.
 ## Role rubric store (`role_rubrics`)
 
 The second consumer of a promoted brief (ADR
-[0010](../../architecture/decisions/0010-need-role-slate-one-board.md) §2): per job,
+[0012](../../architecture/decisions/0012-need-role-slate-one-board.md) §2): per job,
 an ordered list of weighted axes that every candidate on the slate — a person or an
 AI agent — is scored against. **Store + derivation** today, with no route, no UI
 and no caller yet: nothing mints a rubric on promotion. The
@@ -1502,7 +1502,7 @@ version)`.
   become axes. Weights are shares of `brief weight (floored at 0.05) × kind factor
   (must_have 1, nice_to_have 0.5)`, with a fixed 0.5 for a core facet, so the axes sum
   to 1. `blocking` is must_have × prerequisite only. Each axis names its evidence per
-  population, from ADR-0010 §3's table: requirement coverage is `analysis` for a person
+  population, from ADR-0012 §3's table: requirement coverage is `analysis` for a person
   and `agent_fit` for an agent, demonstrated work is `devcase`/`trial_run`, conversation
   is `scorecard`/`mandate_exchange`, cost is `salary_band`/`budget`. The full rules are
   the `rolerubric.py` module docstring.

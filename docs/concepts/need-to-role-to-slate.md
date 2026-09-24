@@ -5,7 +5,7 @@ shape + deterministic derivation and the `role_rubrics` store. Where the as-buil
 shape differs from the sketches below, the code and
 [`docs/features/intake/README.md`](../features/intake/README.md#role-rubric-store-role_rubrics)
 are authoritative. The decision this enacts is
-[ADR 0010](../architecture/decisions/0010-need-role-slate-one-board.md); the
+[ADR 0012](../architecture/decisions/0012-need-role-slate-one-board.md); the
 need→role leg it builds on is [`role-intake-dialog.md`](role-intake-dialog.md).
 Goal served: *Hire-from-need composes a role from a stated need — a stated need
 becomes a role, the role becomes a candidate slate (an AI agent or a person),
@@ -73,7 +73,7 @@ belongs next to them):
 As built (`pipeline/jobfit/rolerubric.py`): no `requirementRef`/`facetKey` — the axis
 `key` carries its origin (`req:<skill>`, `facet:<name>`, `cost:budget_band`) — and the
 axis also records `kind`, `hardness`, `blocking`, `provenance`, `rationale` and the
-`evidenceClass` (ADR-0010 §3's row) its two evidence sources are taken from.
+`evidenceClass` (ADR-0012 §3's row) its two evidence sources are taken from.
 
 **Two columns on `pipeline_entries`** (added by the pipeline store, not
 `core.ts`, same one-owner-per-table reason):

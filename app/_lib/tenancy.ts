@@ -243,13 +243,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // AUTOINCREMENT integer, which is precisely the kind of guessable key a by-id carve-out
   // must never be granted to.
   "intake_events",
-  // A role's frozen, versioned rubric (db/role-rubrics.ts, ADR-0010 §2): operator-
+  // A role's frozen, versioned rubric (db/role-rubrics.ts, ADR-0012 §2): operator-
   // internal, no public token, so every statement — point reads included — binds
   // workspace_id. The version UNIQUE is (workspace_id, job_id, version) because
   // shared-corpus jobs carry a NULL workspace and two teams may each freeze their
   // own rubric for the same job (role-rubrics-tenancy.test.ts).
   "role_rubrics",
-  // The role-run ledger (db/role-runs.ts, ADR-0009, docs/features/hiring-pipeline/
+  // The role-run ledger (db/role-runs.ts, ADR-0011, docs/features/hiring-pipeline/
   // role-run-ledger.md): `role_runs` is one row per (job, cycle) and `role_run_stages`
   // is its append-only log of stage artifacts. Operator-internal with no public token,
   // so the strict rule applies — EVERY query, point reads included, filters or stamps

@@ -9,7 +9,7 @@ import {
   type RoleRunStageStatus,
 } from "../role-run-stages.ts";
 
-// The role-run ledger (ADR-0009). A run is STATE, not a call stack: `role_runs` is one
+// The role-run ledger (ADR-0011). A run is STATE, not a call stack: `role_runs` is one
 // row per (job, cycle), and `role_run_stages` is the append-only log of typed stage
 // artifacts that run produced. Resuming is re-reading the last artifact per branch — so
 // a crash, a `next start` restart, the 20-minute pass ceiling, and a candidate who
@@ -240,7 +240,7 @@ export type AppendStageInput = {
   payload: unknown;
 };
 
-/** Append one artifact. Throws RoleRunPiiError when the payload breaks ADR-0009 §5, and
+/** Append one artifact. Throws RoleRunPiiError when the payload breaks ADR-0011 §5, and
  *  throws when the run id is not this tenant's — both BEFORE the insert, so a rejected
  *  write leaves no partial row.
  *

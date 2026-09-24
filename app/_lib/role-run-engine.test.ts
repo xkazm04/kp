@@ -150,7 +150,7 @@ test("one role runs JD → offer draft, stopping at exactly three gates", async 
 
   // GATE 3 — offer. The run DRAFTED; it never minted. The draft carries no offer
   // reference, because there is no offer yet: createOffer is called by the gate commit,
-  // never by the run (ADR-0009 Consequences). `offerRef` being absent is the assertion —
+  // never by the run (ADR-0011 Consequences). `offerRef` being absent is the assertion —
   // an artifact that named a minted offer would mean the run had already made it.
   assert.equal(Object.hasOwn(draft.drafts[0], "offerRef"), false);
   assert.equal(latestStageArtifact(run.id, "offer_draft", strong)?.status, "awaiting_approval");
@@ -194,7 +194,7 @@ test("each stage consumes the previous stage's artifact — never in-memory stat
   assert.deepEqual(seen[3], { kind: "case_assignment", previousKind: "screen" });
 });
 
-// --- resumability (ADR-0009 §1) ----------------------------------------------
+// --- resumability (ADR-0011 §1) ----------------------------------------------
 
 test("a pass stopped at its ceiling resumes exactly where it stopped, producing nothing twice", async () => {
   seedJob("jd-resume", "Resumable", ["rust"]);
@@ -220,7 +220,7 @@ test("a pass stopped at its ceiling resumes exactly where it stopped, producing 
   assert.equal(c.length > 0, true);
 });
 
-// --- the gates actually gate (ADR-0009 §3) -----------------------------------
+// --- the gates actually gate (ADR-0011 §3) -----------------------------------
 
 test("a branch cannot be advanced past a gate without a valid, attributed, unspent approval", async () => {
   seedJob("jd-gate", "Gated", ["java"]);
@@ -273,7 +273,7 @@ test("a replayed gate commit cannot resolve the branch twice, and the token is b
 });
 
 test("the run never mints: no stage runner reaches createOffer or createScheduleInvite", () => {
-  // The non-vacuous form of "the offer stage drafts and stops". The asymmetry ADR-0009
+  // The non-vacuous form of "the offer stage drafts and stops". The asymmetry ADR-0011
   // names is structural — the minting calls live at the gate commit, so the engine must
   // not be able to reach them at all, whatever a future runner author intends.
   const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "role-run-engine.ts"), "utf8");

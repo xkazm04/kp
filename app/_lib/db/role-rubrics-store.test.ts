@@ -1,4 +1,4 @@
-// Behavioral contract of the role_rubrics store (db/role-rubrics.ts, ADR-0010 §2):
+// Behavioral contract of the role_rubrics store (db/role-rubrics.ts, ADR-0012 §2):
 // versions are minted, never edited; a version freezes once; the axes written are the
 // axes a scorer can read; and an unreadable row says so instead of scoring nothing.
 //

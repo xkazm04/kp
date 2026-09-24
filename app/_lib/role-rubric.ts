@@ -1,7 +1,7 @@
 import type { RubricAxis } from "./schemas.generated";
 import type { RoleBrief } from "./rolespec";
 
-// The role-rubric derivation (ADR-0010 §2) for the TS callers — a line-for-line
+// The role-rubric derivation (ADR-0012 §2) for the TS callers — a line-for-line
 // mirror of pipeline/jobfit/rolerubric.py::derive_role_rubric, whose module
 // docstring states the rules once. Both implementations are pinned to ONE fixture
 // (pipeline/jobfit/tests/fixtures/role_rubric_cases.json, read by

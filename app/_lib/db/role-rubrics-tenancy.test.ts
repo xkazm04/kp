@@ -1,5 +1,5 @@
 // Tenant scope — proof for role_rubrics (a role's frozen, versioned rubric,
-// db/role-rubrics.ts, ADR-0010 §2).
+// db/role-rubrics.ts, ADR-0012 §2).
 //
 // Operator-internal with NO public token, so the rule is the strict one: EVERY
 // statement touching role_rubrics — point reads included — must bind workspace_id.

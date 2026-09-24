@@ -1,7 +1,7 @@
 # The autonomous role run — task breakdown
 
 **Status:** proposal. The decision this implements is
-[ADR-0009](../architecture/decisions/0009-one-role-runs-end-to-end.md), which is
+[ADR-0011](../architecture/decisions/0011-one-role-runs-end-to-end.md), which is
 `proposed` and awaiting stakeholder sign-off. Nothing below should be built
 until that ADR reads `accepted`.
 
@@ -9,7 +9,7 @@ until that ADR reads `accepted`.
 sourced and screened candidates; case; interview; scorecard; offer draft. The
 human only approves the decisions that affect a person.
 
-This file is the work. ADR-0009 is the why, the data model and the gate list;
+This file is the work. ADR-0011 is the why, the data model and the gate list;
 this is the sequence of increments that gets there, each sized to **one Dev
 Clone pass (under 20 minutes)** and scoped to **non-overlapping files** so
 several can run in parallel.
@@ -159,7 +159,7 @@ that with a valid token they do.
 Drives `runLifecycle` per advanced candidate into a `case_assignment` artifact.
 No gate: assigning a case affects a person's time, not their candidacy, and the
 `isAtReviewGate` quality gates inside the dev-case lifecycle are the dev-case's
-own business (ADR-0009 alternative B).
+own business (ADR-0011 alternative B).
 
 Consent (P3) is checked before a case is issued, not after.
 
@@ -227,7 +227,7 @@ theme.
    replacing R3's in-process map, so a replay routed to a second worker is
    caught. Closes the limitation named in `ai-act-conformity.md`.
 2. **Split the KPI.** Autonomous-stage coverage and gate dwell time are
-   measured and reported *separately*. ADR-0009 is explicit that a single
+   measured and reported *separately*. ADR-0011 is explicit that a single
    "time to hire" number would hide which half is slow, and the goal this work
    serves is about the autonomous half.
 
@@ -235,7 +235,7 @@ theme.
 
 ## What this breakdown deliberately does not do
 
-- **No new external service, no broker, no queue.** ADR-0009 alternative C, and
+- **No new external service, no broker, no queue.** ADR-0011 alternative C, and
   ADR-0002/0003/0004 before it. The two-minute keyless start must still reach a
   populated board after every increment here.
 - **No fourth gate.** Screening holds and scorecard reviews remain a

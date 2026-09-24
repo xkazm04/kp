@@ -20,7 +20,7 @@ import {
 } from "./role-run-stages.ts";
 import { APPROVAL_KINDS } from "./approval-kinds.ts";
 
-// ADR-0009's two load-bearing claims, pinned: the run has exactly three gates, and the
+// ADR-0011's two load-bearing claims, pinned: the run has exactly three gates, and the
 // ledger holds no candidate PII. Both are compliance claims, not conveniences — the
 // gate list is the Art. 22 argument and the PII rule is what makes
 // consentWithholdsPii() at a read boundary sufficient.
@@ -79,7 +79,7 @@ test("every gate's approval kind is a value the documented taxonomy already decl
   }
 });
 
-// --- the PII rule (ADR-0009 §5) ----------------------------------------------
+// --- the PII rule (ADR-0011 §5) ----------------------------------------------
 
 test("a payload of ids, scores, codes and hashes is storable", () => {
   const screen = {
@@ -157,7 +157,7 @@ test("the write gate throws a typed error naming every violation at once", () =>
       // Two distinct violations, reported together: a stage author fixing one at a time
       // is a stage author who ships the second one.
       assert.equal(err.violations.length, 2);
-      assert.match(err.message, /ADR-0009/);
+      assert.match(err.message, /ADR-0011/);
       return true;
     }
   );
@@ -170,7 +170,7 @@ test("PII nested arbitrarily deep is still found", () => {
   assert.equal(violations[0].path, "$.a[0].b.c[0].candidateEmail");
 });
 
-// --- the transition table and the resume read (ADR-0009 §1) -------------------
+// --- the transition table and the resume read (ADR-0011 §1) -------------------
 
 type Row = RoleRunArtifactRow;
 let seqClock = 0;

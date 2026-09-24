@@ -1,5 +1,5 @@
 // The seven stage artifacts of a role run, and the rule that keeps them free of
-// candidate PII. ADR-0009 (docs/architecture/decisions/0009-one-role-runs-end-to-end.md).
+// candidate PII. ADR-0011 (docs/architecture/decisions/0011-one-role-runs-end-to-end.md).
 //
 // Pure and DB-free on purpose — the same reason screen-wave-approval.ts is: the
 // artifact vocabulary and the PII rule are the two things every other module in the
@@ -7,14 +7,14 @@
 // the test process (and without a client component that imports a stage kind pulling
 // the whole store graph into the browser bundle).
 //
-// The ledger's central claim, from ADR-0009 §1: an artifact REFERENCES store rows, it
+// The ledger's central claim, from ADR-0011 §1: an artifact REFERENCES store rows, it
 // never copies them. `jobs`, `pipeline_entries`, `dev_cases`, `schedule_invites`,
 // `offers` stay the single source of truth for their own domain; a stage artifact
 // records only what this run did, to which references, and when.
 
 import { type ApprovalKind } from "./approval-kinds.ts";
 
-/** The seven artifact kinds, in the order a run produces them (ADR-0009 §2, S0..S6).
+/** The seven artifact kinds, in the order a run produces them (ADR-0011 §2, S0..S6).
  *  Order is load-bearing: `nextRoleRunStage` is the whole "what happens next" rule,
  *  so a stage inserted in the wrong place changes the run rather than extending it. */
 export const ROLE_RUN_STAGES = [
@@ -24,7 +24,7 @@ export const ROLE_RUN_STAGES = [
   "case_assignment", // S3 — case
   "interview", // S4 — scheduling
   "scorecard", // S5 — scorecard synthesis
-  "offer_draft", // S6 — offer DRAFT (never a minted offer; see ADR-0009 Consequences)
+  "offer_draft", // S6 — offer DRAFT (never a minted offer; see ADR-0011 Consequences)
 ] as const;
 
 export type RoleRunStageKind = (typeof ROLE_RUN_STAGES)[number];
@@ -52,7 +52,7 @@ export function isRunWideStage(kind: RoleRunStageKind): boolean {
   return RUN_WIDE_STAGES.includes(kind);
 }
 
-// --- THE THREE GATES (ADR-0009 §3) -------------------------------------------
+// --- THE THREE GATES (ADR-0011 §3) -------------------------------------------
 //
 // A gate is a decision ABOUT A PERSON THAT THE PERSON WOULD FEEL. There are exactly
 // three, and the operator accepted that list as written on 2026-09-14. Everything
@@ -100,7 +100,7 @@ export function isRoleRunStageStatus(value: unknown): value is RoleRunStageStatu
   return typeof value === "string" && (ROLE_RUN_STAGE_STATUSES as readonly string[]).includes(value);
 }
 
-// --- THE TRANSITION TABLE AND THE RESUME READ (ADR-0009 §1) ------------------
+// --- THE TRANSITION TABLE AND THE RESUME READ (ADR-0011 §1) ------------------
 //
 // "Resuming a run is re-reading its last artifact." This section is that sentence as
 // code: which artifact may legally follow which, and — given nothing but the artifact
@@ -128,7 +128,7 @@ export type RoleRunChainHead = "start" | RoleRunStageState;
  *     the same kind (`complete` or `terminal`) may follow it. A gated stage written
  *     straight to `complete` is the gate skipped, so it is unreachable.
  *   - An UNGATED per-candidate stage is only ever `complete`. Ending a candidacy is felt
- *     by the candidate (ADR-0009 §3: "any later stage that would end a candidacy"), so
+ *     by the candidate (ADR-0011 §3: "any later stage that would end a candidacy"), so
  *     it happens at a gate, never as a side effect of a case or a scorecard.
  *   - A run-wide stage may be `terminal` (the job is gone). That ends the run, and it
  *     is a fact about an opening, not a decision about a person. */
@@ -329,7 +329,7 @@ export class RoleRunTransitionError extends Error {
   readonly to: RoleRunStageState;
   constructor(from: RoleRunChainHead, to: RoleRunStageState, branchRef: string | null) {
     super(
-      `role run transition ${from} → ${to} is not in the transition table (branch ${branchRef ?? "run-wide"}; ADR-0009)`
+      `role run transition ${from} → ${to} is not in the transition table (branch ${branchRef ?? "run-wide"}; ADR-0011)`
     );
     this.name = "RoleRunTransitionError";
     this.from = from;
@@ -337,7 +337,7 @@ export class RoleRunTransitionError extends Error {
   }
 }
 
-// --- THE PII RULE (ADR-0009 §5) ----------------------------------------------
+// --- THE PII RULE (ADR-0011 §5) ----------------------------------------------
 //
 // "A role_run_stage payload may contain identifiers, scores, codes and hashes. It may
 // NOT contain a candidate's name, contact, CV text or transcript."
@@ -435,7 +435,7 @@ export class RoleRunPiiError extends Error {
   readonly violations: PiiViolation[];
   constructor(violations: PiiViolation[]) {
     super(
-      `role_run_stage payload carries candidate PII (ADR-0009 §5): ${violations
+      `role_run_stage payload carries candidate PII (ADR-0011 §5): ${violations
         .map((v) => `${v.path} (${v.reason})`)
         .join(", ")}`
     );
@@ -450,7 +450,7 @@ export function assertStagePayloadPiiFree(payload: unknown): void {
   if (violations.length > 0) throw new RoleRunPiiError(violations);
 }
 
-// --- PAYLOAD SHAPES (ADR-0009 §2) --------------------------------------------
+// --- PAYLOAD SHAPES (ADR-0011 §2) --------------------------------------------
 //
 // Declared as types rather than validated at runtime: the PII rule is the invariant
 // that has to hold for a payload written by ANY caller (including a future route), and

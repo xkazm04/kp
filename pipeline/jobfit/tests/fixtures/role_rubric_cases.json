@@ -1,5 +1,5 @@
 {
-  "_comment": "Parity fixture for the role-rubric derivation (ADR-0010 §2). pipeline/jobfit/rolerubric.py::derive_role_rubric and app/_lib/role-rubric.ts::deriveRoleRubric must BOTH turn each `brief` into exactly `expected` — weights compared exactly, not approximately. Read by pipeline/jobfit/tests/test_rolerubric.py and app/_lib/role-rubric.test.ts. Change the derivation and you change this file, in both languages, in one commit.",
+  "_comment": "Parity fixture for the role-rubric derivation (ADR-0012 §2). pipeline/jobfit/rolerubric.py::derive_role_rubric and app/_lib/role-rubric.ts::deriveRoleRubric must BOTH turn each `brief` into exactly `expected` — weights compared exactly, not approximately. Read by pipeline/jobfit/tests/test_rolerubric.py and app/_lib/role-rubric.test.ts. Change the derivation and you change this file, in both languages, in one commit.",
   "cases": [
     {
       "name": "graded requirements and one core facet",

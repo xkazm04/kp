@@ -1,4 +1,4 @@
-// The three human-approval gates of a role run (ADR-0009 §3), expressed as the
+// The three human-approval gates of a role run (ADR-0011 §3), expressed as the
 // screen-wave approval protocol applied at three call sites instead of one.
 //
 // THIS MODULE DELIBERATELY INVENTS NOTHING. Every primitive here delegates to
@@ -69,7 +69,7 @@ function gateScope(runId: string, gate: RoleRunGate): string {
 
 /** The approval token a gate preview hands the recruiter: a stable, order-independent
  *  signature of THIS run's THIS gate over EXACTLY these subjects, under this policy, as
- *  of `issuedAt`. `subjectRefs` are entry ids — never names (ADR-0009 §5). */
+ *  of `issuedAt`. `subjectRefs` are entry ids — never names (ADR-0011 §5). */
 export function roleRunGateToken(
   runId: string,
   gate: RoleRunGate,

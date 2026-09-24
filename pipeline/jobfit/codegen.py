@@ -142,7 +142,7 @@ _EXPORTED_MODELS = (
     (AnalysisResult, "analysisResultSchema", "AnalysisResult"),
     (RoleSpec, "roleSpecSchema", "RoleSpec"),
     (RoleBrief, "roleBriefSchema", "RoleBrief"),
-    # ADR-0010 §2 — one axis of a role's frozen rubric (rolerubric.py). The store
+    # ADR-0012 §2 — one axis of a role's frozen rubric (rolerubric.py). The store
     # (app/_lib/db/role-rubrics.ts) validates every axes_json write against it.
     (RubricAxis, "rubricAxisSchema", "RubricAxis"),
     (AppMasterSpec, "appMasterSpecSchema", "AppMasterSpec"),

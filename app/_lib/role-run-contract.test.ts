@@ -23,7 +23,7 @@ import { ensureDb, type JobRecord } from "./db/core.ts";
 import { insertJob } from "./job-ingest.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 
-// THE LEDGER'S CONTRACT, BOTH DIRECTIONS (ADR-0009 §2, in the shape of ADR-0008).
+// THE LEDGER'S CONTRACT, BOTH DIRECTIONS (ADR-0011 §2, in the shape of ADR-0008).
 //
 //   1. A stage may not READ complete without its artifact row. Nothing the engine
 //      reports — a produced stage, a parked gate, a completed run — may be a claim the

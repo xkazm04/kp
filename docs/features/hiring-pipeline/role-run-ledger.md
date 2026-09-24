@@ -3,7 +3,7 @@
 The durable thread that carries **one role from a job description to an offer
 draft**, pausing only where a decision is felt by a person.
 
-Implements ADR-0009 (*A role runs end to end as a ledger of stage artifacts; only
+Implements ADR-0011 (*A role runs end to end as a ledger of stage artifacts; only
 person-affecting decisions gate*), accepted by the operator on 2026-09-14. This
 document describes **what is built**; the ADR carries *why*, the three rejected
 alternatives, and what would change our mind.
@@ -127,7 +127,7 @@ demonstrable with no provider configured.
 
 ## Measuring it
 
-Per ADR-0009's consequences, do **not** report a single "time to hire" over a run.
+Per ADR-0011's consequences, do **not** report a single "time to hire" over a run.
 Wall-clock is dominated by human latency at the three gates, and one number hides
 which half is slow. The two honest measures are **autonomous-stage coverage** (how
 much of the thread ran without a human step) and **gate dwell** (how long each gate

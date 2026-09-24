@@ -1,4 +1,4 @@
-"""Role rubric derivation (ADR-0010 §2, rolerubric.py).
+"""Role rubric derivation (ADR-0012 §2, rolerubric.py).
 
 Pins what the derivation promises its two consumers — the role_rubrics store and
 the TS mirror in app/_lib/role-rubric.ts:

@@ -33,7 +33,7 @@ import { getJob } from "./db/jobs.ts";
 import { listEntriesForJob } from "./db/pipeline.ts";
 import { resolveOfferTtlDays } from "./offer-policy.ts";
 
-// The engine that walks a role run from JD to offer draft (ADR-0009 §1 and §4).
+// The engine that walks a role run from JD to offer draft (ADR-0011 §1 and §4).
 //
 // It is NOT an orchestrator that calls seven functions in order. It is a function that
 // reads the ledger, works out what each branch is owed NEXT, produces at most one
@@ -74,7 +74,7 @@ export type StageRunners = Record<RoleRunStageKind, StageRunner>;
 // different runner for that one kind. The registry is the seam that makes those
 // increments independent of each other.
 //
-// A runner never writes PII: appendStageArtifact enforces ADR-0009 §5 at the write door
+// A runner never writes PII: appendStageArtifact enforces ADR-0011 §5 at the write door
 // and will throw if one tries.
 
 function hashOf(...parts: (string | number | null | undefined)[]): string {
@@ -217,7 +217,7 @@ const runInterview: StageRunner = (ctx) => ({
   } satisfies InterviewPayload,
 });
 
-/** S5 — scorecard. Unattended by decision of ADR-0009: a fourth gate here would turn the
+/** S5 — scorecard. Unattended by decision of ADR-0011: a fourth gate here would turn the
  *  run from "three pauses" into "a supervised pipeline", and the operator accepted the
  *  three-gate list as written on 2026-09-14. The recruiter can still raise a
  *  `scorecard_review` as their OWN escalation; the run does not wait on it. */
@@ -245,7 +245,7 @@ const runScorecard: StageRunner = (ctx) => {
 };
 
 /** S6 — offer draft. Drafts terms and STOPS. `createOffer` is never called by the run;
- *  it is called by the gate commit (ADR-0009 Consequences). The band is a reference to
+ *  it is called by the gate commit (ADR-0011 Consequences). The band is a reference to
  *  the job's own posted range, not a number this stage invents. */
 const runOfferDraft: StageRunner = (ctx) => {
   const ttlDays = resolveOfferTtlDays(null);
@@ -498,7 +498,7 @@ export function commitRoleRunStageGate(
         ...(typeof parked.payload === "object" && parked.payload !== null ? parked.payload : {}),
         gate: input.gate,
         decision: input.decision,
-        // The approver is recorded as a HASH, not as a name: ADR-0009 §5 bans names from
+        // The approver is recorded as a HASH, not as a name: ADR-0011 §5 bans names from
         // the ledger, and it bans them for the recruiter too. The sealed decision record
         // (sealDecisionRecord) is where the attributable identity lives.
         approverRef: hashOf(input.approver ?? ""),

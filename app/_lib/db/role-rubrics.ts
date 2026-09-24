@@ -4,7 +4,7 @@ import { randomId } from "../random-id";
 import { ensureDb, readRowColumn } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
-// Role rubrics (ADR-0010 §2, docs/concepts/need-to-role-to-slate.md increment 2) —
+// Role rubrics (ADR-0012 §2, docs/concepts/need-to-role-to-slate.md increment 2) —
 // per job, an ordered list of weighted axes every candidate on the slate is scored
 // against, a person and an AI agent alike.
 //

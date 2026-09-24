@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-// Tenant scope — source guard for role_runs / role_run_stages (ADR-0009's ledger).
+// Tenant scope — source guard for role_runs / role_run_stages (ADR-0011's ledger).
 // The surface is operator-internal with NO public token, so the rule is the stricter
 // one the role_intakes guard uses: EVERY query touching either table — point reads
 // included — must filter or stamp workspace_id. A leaked run id must never resolve
