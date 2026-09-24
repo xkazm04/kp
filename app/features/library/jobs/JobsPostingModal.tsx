@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { BarChart3, Bot, FileText, Gauge, History, Scale } from "lucide-react";
+import { BarChart3, Bot, FileText, Gauge, History, ListChecks, Scale } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { JobLifecycleStrip } from "./JobsLifecycleStrip";
 import { RecruiterCandidates } from "./JobsRecruiterCandidates";
 import { RediscoverPanel } from "./JobsRediscoverPanel";
@@ -25,15 +26,24 @@ const CoachPanel = dynamic(() => import("./JobsCoachPanel").then((m) => ({ defau
 const AgentFitTab = dynamic(() => import("./JobsAgentFitTab").then((m) => ({ default: m.JobsAgentFitTab })), {
   loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
 });
+// A NAMED gap (LoadingGap: role=status + a sr-only label), not a silent aria-hidden box —
+// the loading-gap ratchet (app/_components/ui/loading-gap-debt.json) binds new chunks.
+const KitTab = dynamic(() => import("./JobsKitTab").then((m) => ({ default: m.JobsKitTab })), {
+  loading: () => <LoadingGap className="min-h-[16rem]" />,
+});
 
 // Label key + icon per tab id. The IDS live once, in jobsPostingModalTabs.ts —
 // this is only their presentation, and `Record<PostingTabId, …>` means adding an
 // id there is a type error here until the strip learns to render it.
-const TAB_META: Record<PostingTabId, { labelKey: "tabPosting" | "tabCoach" | "tabCandidates" | "tabRediscover" | "tabCompare" | "tabAgentFit"; Icon: typeof FileText }> = {
+const TAB_META: Record<
+  PostingTabId,
+  { labelKey: "tabPosting" | "tabCoach" | "tabCandidates" | "tabRediscover" | "tabKit" | "tabCompare" | "tabAgentFit"; Icon: typeof FileText }
+> = {
   posting: { labelKey: "tabPosting", Icon: FileText },
   coach: { labelKey: "tabCoach", Icon: Gauge },
   candidates: { labelKey: "tabCandidates", Icon: BarChart3 },
   rediscover: { labelKey: "tabRediscover", Icon: History },
+  kit: { labelKey: "tabKit", Icon: ListChecks },
   compare: { labelKey: "tabCompare", Icon: Scale },
   agentfit: { labelKey: "tabAgentFit", Icon: Bot },
 };
@@ -90,7 +100,7 @@ export function JobPostingModal({
           the tab that owns it (JD → channels → board → decisions → offers). */}
       <JobLifecycleStrip jobId={job.id} jobTitle={job.title} refreshToken={lifecycleToken} />
 
-      {/* Six tabs do not fit a phone or a narrow split: the strip scrolls
+      {/* Seven tabs do not fit a phone or a narrow split: the strip scrolls
           horizontally instead of squeezing the labels off the modal's edge. */}
       <div
         {...tablist.tablistProps}
@@ -114,7 +124,7 @@ export function JobPostingModal({
         })}
       </div>
 
-      {/* ONE SIZE ACROSS THE TABS. The six panels have wildly different natural
+      {/* ONE SIZE ACROSS THE TABS. The seven panels have wildly different natural
           heights — a posting is a page, "Agent fit" is a few rows — so switching
           tabs used to resize the whole dialog under the reader's cursor, moving the
           strip they were aiming at. A floor on the PANEL (not on the modal) keeps
@@ -137,6 +147,8 @@ export function JobPostingModal({
           <RediscoverPanel jobId={job.id} jobTitle={job.title} />
         ) : tab === "agentfit" ? (
           <AgentFitTab jobId={job.id} />
+        ) : tab === "kit" ? (
+          <KitTab jobId={job.id} />
         ) : (
           <CompareInterviews jobId={job.id} />
         )}

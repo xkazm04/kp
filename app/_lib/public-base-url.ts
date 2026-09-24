@@ -121,6 +121,17 @@ export function publicOriginIsFallback(runtimeOrigin?: string | null): boolean {
   return true;
 }
 
+/** Deployment health for origin-less candidate messages sent by background work. */
+export function publicOriginHealth(): { ok: boolean; reason: string | null } {
+  if (publicOriginConflict()) {
+    return { ok: false, reason: "public-origin: APP_BASE_URL and NEXT_PUBLIC_APP_BASE_URL disagree" };
+  }
+  if (publicOriginIsFallback()) {
+    return { ok: false, reason: "public-origin: no usable APP_BASE_URL or NEXT_PUBLIC_APP_BASE_URL for detached candidate links" };
+  }
+  return { ok: true, reason: null };
+}
+
 export function publicBaseUrl(runtimeOrigin?: string | null): string {
   warnPublicOriginConflictOnce();
   // Server-only override. `typeof process` guards the read so this module is safe

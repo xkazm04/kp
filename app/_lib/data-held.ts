@@ -8,6 +8,9 @@ export type HeldSignals = {
   hasContact: boolean;
   hasInterview: boolean;
   hasScore: boolean;
+  /** A feedback letter about the interview was requested (interview_letters) — the request
+   *  itself is held data, and so is any draft or approved text written in reply. */
+  hasFeedbackLetter: boolean;
 };
 
 /** Project the held-data categories from what the entry ACTUALLY has, rather than
@@ -15,13 +18,16 @@ export type HeldSignals = {
  *  #5) — so a candidate who only applied is never falsely told we hold their
  *  "interview records and notes" or "assessment scores" on a transparency surface.
  *  `cv` + `answers` are inherent to having applied; `contact`/`interview`/`scores`
- *  are listed only when captured. Order is stable so the rendered list never reshuffles. */
+ *  are listed only when captured. Order is stable so the rendered list never reshuffles.
+ *  `feedbackLetter` is its own category rather than part of `interview`: the candidate asked
+ *  for it, and the letter is a document about them that exists only because they did. */
 export function heldDataCategories(s: HeldSignals): string[] {
   const out: string[] = ["cv"];
   if (s.hasContact) out.push("contact");
   out.push("answers");
   if (s.hasInterview) out.push("interview");
   if (s.hasScore) out.push("scores");
+  if (s.hasFeedbackLetter) out.push("feedbackLetter");
   return out;
 }
 

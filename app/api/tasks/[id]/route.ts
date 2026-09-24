@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cancelTask } from "@/app/_lib/tasks";
+import { jsonRefusal } from "@/app/_lib/api-response";
 
 
 // One task by id — the full row, INCLUDING `params` and `result`, i.e. the whole
@@ -17,7 +18,7 @@ import { cancelTask } from "@/app/_lib/tasks";
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const task = getTask(id, await currentWorkspace());
-  if (!task) return NextResponse.json({ error: "task not found" }, { status: 404 });
+  if (!task) return jsonRefusal("TASK_NOT_FOUND", 404);
   return NextResponse.json({ task });
 }
 
@@ -28,7 +29,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
   // Prove ownership BEFORE aborting: cancelTask works off the id alone (the runner
   // holds one abort registry for the whole process), so the tenant check has to
   // happen here or it does not happen at all.
-  if (!getTask(id, ws)) return NextResponse.json({ error: "task not found" }, { status: 404 });
+  if (!getTask(id, ws)) return jsonRefusal("TASK_NOT_FOUND", 404);
   const ok = cancelTask(id);
   return NextResponse.json({ ok, task: getTask(id, ws) });
 }

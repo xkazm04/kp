@@ -27,6 +27,11 @@ export default async function ApplyPage({
   const job = getJob(id);
   if (!job) notFound();
 
+  const sp = await searchParams;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? "";
+  const campaign = (first(sp.c) || first(sp.utm_campaign)).slice(0, 120);
+  const variant = (first(sp.v) || first(sp.utm_content)).slice(0, 120);
+
   const t = await getTranslations("apply");
 
   // W8-1 (JOB1) — the apply surface follows the role's lifecycle. A closed
@@ -56,6 +61,12 @@ export default async function ApplyPage({
   // The script is localized at build time (the candidate reads the prompts as-is).
   // The GET route still serves the same script for any standalone use.
   const steps = buildApplyScript(job, t);
+  // Keep the public introduction brief even when the imported JD contains a
+  // full posting. React renders this as text, so source markup cannot execute.
+  const description = job.description?.replace(/\s+/g, " ").trim();
+  const roleSummary = description && description.length > 280
+    ? `${description.slice(0, 280).replace(/\s+\S*$/, "") || description.slice(0, 280)}…`
+    : description;
 
   // Lead enrichment hand-off — the quick-apply/webhook acknowledgement's
   // "complete your profile" link carries ?lead=<opaque token>. Resolve it
@@ -66,7 +77,7 @@ export default async function ApplyPage({
   // exact entry — an alternate or typo'd email no longer mints a duplicate row.
   // Anything invalid/mismatched degrades silently to the first-time flow: the
   // emailed link must never be WORSE than no token.
-  const leadToken = coerceLeadTokenParam((await searchParams).lead);
+  const leadToken = coerceLeadTokenParam(sp.lead);
   const target = leadToken ? findEntryByLeadToken(leadToken) : null;
   const lead = leadToken && target && target.entry.jobId === job.id ? target : null;
   const prefill =
@@ -99,9 +110,18 @@ export default async function ApplyPage({
       <h1 className="mt-1 font-serif text-display text-ink">{job.title}</h1>
       {job.company ? <p className="mt-1 text-body text-steel">{job.company}</p> : null}
       <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
+      {roleSummary || job.location ? (
+        <section className="mt-5 rounded-lg border border-stone-200 bg-paper/60 p-4" aria-labelledby="apply-role-summary">
+          <h2 id="apply-role-summary" className="font-serif text-lg font-semibold text-ink">{t("roleSummary")}</h2>
+          {job.location ? <p className="mt-1 text-sm text-steel">{job.location}</p> : null}
+          {roleSummary ? <p className="mt-2 text-body text-steel">{roleSummary}</p> : null}
+        </section>
+      ) : null}
       <div className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
         <ConversationalApply
           jobId={job.id}
+          campaign={campaign}
+          variant={variant}
           steps={prefill ? trimSeededSteps(steps, prefill.answers) : steps}
           prefill={prefill}
           // Same tenant the POST files this applicant into (getJobWorkspace is the

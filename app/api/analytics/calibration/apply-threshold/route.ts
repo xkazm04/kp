@@ -11,6 +11,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { invalidateCalibrationWorkspace } from "@/app/_lib/analytics-cache";
 
 // THROTTLE. Every accepted apply spends two full-table calibration scans plus a
 // holdout read — the SAME expensive work threshold-history's read carries a budget
@@ -128,6 +129,7 @@ export async function POST(request: Request) {
       ws,
       "team"
     );
+    invalidateCalibrationWorkspace(ws);
 
     // Seal a tamper-evident record of the policy change (best-effort — a seal
     // failure must never fail the write). No candidate subject: the ref names the

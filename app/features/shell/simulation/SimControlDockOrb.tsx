@@ -63,9 +63,9 @@ export function SimControlDockOrb({
           {orbCaption}
         </span>
       ) : null}
-      {/* Ops: a label slides in on hover so the orb isn't a mystery button. */}
+      {/* Ops: touch devices have no hover, so their caption stays visible. */}
       {mode === "ops" ? (
-        <span className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3 py-1 text-sm font-medium text-ink opacity-0 shadow-panel transition-opacity group-hover:opacity-100">
+        <span className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3 py-1 text-sm font-medium text-ink shadow-panel transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
           {awaiting > 0 ? t("titleAwaiting", { count: awaiting }) : t("title")}
         </span>
       ) : null}

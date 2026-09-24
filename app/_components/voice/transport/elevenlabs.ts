@@ -7,8 +7,18 @@
 // callbacks are rebuilt every render exactly as they were before, and every
 // value they touch is either a ref or a stable callback.
 
+import { useRef } from "react";
 import { useConversation } from "@elevenlabs/react";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
+import { DIRECTOR_TOOL_NAMES } from "@/app/_lib/voice/director-types";
+import type { LangHint } from "../ui-types";
+
+/** VAD score above which the candidate counts as speaking, and below which they
+ *  count as stopped. Two thresholds, not one: a single line makes the flag chatter
+ *  on every consonant, and the timing observation would then record a 200 ms
+ *  "answer" (`onVadScore` fires continuously while the socket is open). */
+const EL_VAD_SPEAKING = 0.6;
+const EL_VAD_SILENT = 0.25;
 
 // Everything crosses this boundary as a callback rather than as a ref box: the
 // React Compiler's `react-hooks/immutability` rule forbids a hook from writing
@@ -34,12 +44,65 @@ export type ElevenLabsTransportCtx = {
    *  message alone would be guesswork against provider/transport errors. */
   onError: (message: string, cause?: unknown) => void;
   pushTurn: (role: VoiceTurn["role"], text: string) => void;
+  /** The directed call's hooks (spark ai-interview-parity). All optional: an
+   *  undirected session passes none and the transport behaves as it did before. */
+  hooks?: ElevenLabsCallHooks;
+};
+
+export type ElevenLabsCallHooks = {
+  /** `speaking` ⇒ the agent's audio is playing; `listening` ⇒ it is not. The SDK's
+   *  own mode, which is also how we learn the interviewer's audio FINISHED (the
+   *  pre-answer silence is measured from it). */
+  onMode?: (mode: "speaking" | "listening") => void;
+  /** VAD-derived candidate speech boundaries, debounced by the two thresholds above. */
+  onCandidateSpeech?: (state: "started" | "stopped") => void;
+  /** The agent's line as it streams, when this account/agent streams text at all
+   *  (`text_response_part`). Empty string clears the provisional caption. */
+  onInterviewerPartial?: (text: string) => void;
 };
 
 export type ElevenLabsConversation = ReturnType<typeof useConversation>;
 
 export function useElevenLabsTransport(ctx: ElevenLabsTransportCtx): ElevenLabsConversation {
+  // VAD state lives across renders without causing any: `onVadScore` fires many
+  // times a second and nothing about it belongs in React state.
+  const vadSpeakingRef = useRef(false);
   const conversation = useConversation({
+    onModeChange: ({ mode }: { mode: "speaking" | "listening" }) => {
+      if (!ctx.isActiveProvider()) return;
+      ctx.hooks?.onMode?.(mode);
+    },
+    onVadScore: ({ vadScore }: { vadScore: number }) => {
+      if (!ctx.isActiveProvider() || typeof vadScore !== "number") return;
+      if (!vadSpeakingRef.current && vadScore >= EL_VAD_SPEAKING) {
+        vadSpeakingRef.current = true;
+        ctx.hooks?.onCandidateSpeech?.("started");
+      } else if (vadSpeakingRef.current && vadScore <= EL_VAD_SILENT) {
+        vadSpeakingRef.current = false;
+        ctx.hooks?.onCandidateSpeech?.("stopped");
+      }
+    },
+    // Streaming interviewer caption. Whether an ElevenLabs VOICE agent emits
+    // `text_response_part` at all depends on the agent's configuration, so this is
+    // an enhancement over the turn-final `onMessage` below, never a replacement:
+    // when nothing streams, the caption simply never appears and the transcript
+    // still fills on each finalized turn.
+    onAgentChatResponsePart: ({ text, type }: { text: string; type: "start" | "delta" | "stop" }) => {
+      if (!ctx.isActiveProvider()) return;
+      if (type === "stop") ctx.hooks?.onInterviewerPartial?.("");
+      else ctx.hooks?.onInterviewerPartial?.(text);
+    },
+    // A director tool the agent is not configured for (the workspace tools were
+    // never deployed — see scripts/setup-eleven-agent.mjs). The platform answers
+    // the model itself; we only make the misconfiguration visible to the operator,
+    // because from the candidate's side it looks like an interviewer that quietly
+    // stopped keeping the record.
+    onUnhandledClientToolCall: (call: { tool_name?: string }) => {
+      console.warn(
+        `[voice] ElevenLabs called an unregistered client tool "${call?.tool_name ?? "?"}" — ` +
+          "the agent references tools this browser does not implement (run scripts/setup-eleven-agent.mjs --check).",
+      );
+    },
     onConnect: () => {
       // A late onConnect after the 30s connect timeout (which latched finalizedRef
       // and tore down) must NOT flip to "live": the candidate would talk into a
@@ -89,18 +152,22 @@ export function startElevenLabsSession(args: {
   signedUrl: string;
   agentPrompt?: string;
   asrKeywords?: string[];
-  language: "auto" | "cs" | "en";
+  language: LangHint;
   /** Some SDK versions return a promise; a rejection is surfaced here instead of hanging. */
   onAsyncError: (err: unknown) => void;
+  /** Runs one director tool call and resolves the string the model receives. Given
+   *  ⇒ all five tools are registered as CLIENT tools for this session; absent ⇒ the
+   *  session runs undirected, exactly as before. */
+  onToolCall?: (call: { callId: string; name: string; args: unknown }) => Promise<string>;
 }) {
-  const { conversation, signedUrl, agentPrompt, asrKeywords, language, onAsyncError } = args;
+  const { conversation, signedUrl, agentPrompt, asrKeywords, language, onAsyncError, onToolCall } = args;
   // Pin the agent's LANGUAGE to the candidate's, not just via the prompt. The EL agent's
   // dashboard default is Czech (setup-eleven-agent.mjs), and the prompt's "follow the
   // candidate's language" rule loses to that config over voice (the voice-harness caught the
   // agent replying in Czech to an English candidate ~2/3 of the time). The agent allows the
   // language override, so send it whenever we have a concrete hint (candidate portal seeds it
   // from the visitor's locale; the lab's "auto" leaves detection to the agent).
-  const agentOverride: { prompt?: { prompt: string }; language?: "cs" | "en" } = {};
+  const agentOverride: { prompt?: { prompt: string }; language?: Exclude<LangHint, "auto"> } = {};
   if (agentPrompt) agentOverride.prompt = { prompt: agentPrompt };
   if (language !== "auto") agentOverride.language = language;
   // Built once so an empty keyword list sends no `asr` branch at all rather than
@@ -112,13 +179,55 @@ export function startElevenLabsSession(args: {
   } = {};
   if (Object.keys(agentOverride).length) overrides.agent = agentOverride;
   if (asrKeywords && asrKeywords.length) overrides.asr = { keywords: asrKeywords };
+  // THE DIRECTOR'S TOOLS, as CLIENT tools (spark ai-interview-parity). The agent
+  // references them by id in its workspace config (scripts/setup-eleven-agent.mjs
+  // --deploy); the browser is what actually answers them, by asking our director.
+  // One handler for every name in the vocabulary — the director validates the name, so a tool the
+  // agent has and we have not is impossible by construction, and a call we cannot
+  // route still gets an answer rather than a 10-second platform timeout.
+  //
+  // The SDK gives a client tool no call id of its own, so we mint one: the director
+  // stores it on the event for the audit trail, and the channel posts each call
+  // exactly once, so nothing depends on the provider's numbering.
+  let toolSeq = 0;
+  const clientTools: Record<string, (parameters: Record<string, unknown>) => Promise<string>> | null = onToolCall
+    ? Object.fromEntries(
+        DIRECTOR_TOOL_NAMES.map((name) => [
+          name,
+          async (parameters: Record<string, unknown>) => {
+            toolSeq += 1;
+            return onToolCall({ callId: `el-${toolSeq}`, name, args: parameters });
+          },
+        ]),
+      )
+    : null;
   const maybe = conversation.startSession({
     signedUrl,
     connectionType: "websocket",
     ...(Object.keys(overrides).length ? { overrides } : {}),
+    ...(clientTools ? { clientTools } : {}),
   }) as unknown;
   // Some SDK versions return a promise; surface a rejection instead of hanging.
   if (maybe && typeof (maybe as { then?: unknown }).then === "function") {
     (maybe as Promise<unknown>).catch(onAsyncError);
+  }
+}
+
+/** Inject ONE stage direction into a live ElevenLabs session. `sendContextualUpdate`
+ *  is the SDK's channel for exactly this: text the agent READS as context for its
+ *  next turn rather than as something the candidate said, and it does not force a
+ *  reply (the parity with OpenAI's system message + no `response.create`).
+ *
+ *  `text` already carries the server's `[Director] ` prefix and is sent VERBATIM. */
+export function sendElevenLabsDirective(conversation: ElevenLabsConversation, text: string): boolean {
+  if (!text.trim()) return false;
+  try {
+    conversation.sendContextualUpdate(text);
+    return true;
+  } catch (err) {
+    // A direction that cannot be delivered is a call that keeps running undirected,
+    // which is the documented degrade — but an operator should see why.
+    console.error("[voice] ElevenLabs contextual update failed:", err);
+    return false;
   }
 }

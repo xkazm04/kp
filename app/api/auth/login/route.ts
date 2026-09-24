@@ -116,7 +116,7 @@ export async function POST(request: Request) {
       // exists — so the 429 can never become a user-existence oracle.
       recordFailedAttempt(acctKey, ACCOUNT_THROTTLE);
       if (perClientIp) recordFailedAttempt(ipKey, IP_THROTTLE);
-      return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
+      return jsonRefusal("LOGIN_CREDENTIALS_INVALID", 401);
     }
     // Success frees both buckets so a legitimate user is never held back by their
     // own earlier typos (and a good login is evidence the IP has real users on it).
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
   }
   if (!password || !constantTimeEqual(password, expected)) {
     recordFailedAttempt(opKey, OPERATOR_THROTTLE);
-    return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
+    return jsonRefusal("LOGIN_CREDENTIALS_INVALID", 401);
   }
   clearFailures(opKey);
   // `op: true` marks the operator session EXPLICITLY. resolveCaller() used to infer

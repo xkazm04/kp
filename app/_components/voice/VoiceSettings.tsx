@@ -44,6 +44,8 @@ export function VoiceSettings({
               ["auto", t("langAuto")],
               ["cs", "Čeština"],
               ["en", "English"],
+              ["de", "Deutsch"],
+              ["fr", "Français"],
             ] as [LangHint, string][]
           ).map(([v, label]) => (
             <button

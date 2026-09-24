@@ -20,6 +20,7 @@ import {
   admitCvFile,
   fitsWithinCap,
   isCvIntakeOutcome,
+  pastedCvFile,
 } from "./analyzeCvIntake.ts";
 import {
   ANALYZE_DRAFT_KEY,
@@ -29,6 +30,15 @@ import {
 } from "./analyzeDraft.ts";
 
 const CAP = 3;
+
+test("pasted CV text becomes a normal .txt variant, while whitespace is refused", async () => {
+  const file = pastedCvFile("  Ada's CV\nSkills: TypeScript  ");
+  assert.ok(file);
+  assert.equal(file.name, "pasted-cv.txt");
+  assert.equal(file.type, "text/plain");
+  assert.equal(await file.text(), "Ada's CV\nSkills: TypeScript");
+  assert.equal(pastedCvFile("  \n "), null);
+});
 
 /** A real File with the given bytes — content is what identity is computed from. */
 function cv(name: string, body: string): File {

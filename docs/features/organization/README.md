@@ -14,6 +14,13 @@ inventing a second scoping dimension.
 
 ## Entry points
 
+Pending invitations in each workspace's roster show their expiry in the
+reader's locale when the server supplies one, alongside the invitee and role.
+
+The Organization name field saves after a short pause. If the operator leaves
+the tab before that pause ends, the pending name is sent on unmount so the last
+edit is not discarded.
+
 - **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
   the console for teams **and** the people on them. See *Surface* below.
 - **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
@@ -47,7 +54,9 @@ inventing a second scoping dimension.
   `NEXT_PUBLIC_` variable; the client only ever sees the resolved boolean.
   `/login` itself does not re-prompt an entered session: if
   `hasEnteredWorkspace()` is already true, the server wrapper redirects to
-  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Anonymous
+  `safeNextPath` of `?next=` (same-origin, request origin) or `/`. Both this
+  redirect and the form's successful login preserve a valid `?plan=` choice from
+  the landing, without replacing a plan already present in `next`. Anonymous
   visitors still see the form. The member copy does not advertise the operator
   password: subtitle is email+password only, and the "leave blank" hint renders
   only while the email field is empty. Empty email + password remains the API
@@ -411,6 +420,10 @@ routes below. The switch route now refuses on the workspace the session came fro
 | Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
 
+Member-status badges use a neutral **Unknown** label for a server status outside
+`active`, `invited`, and `disabled`; an unfamiliar value is never presented as a
+disabled seat.
+
 ### The Workspaces console
 
 Two lenses over one dataset (`useWorkspaceAdmin` composes `/api/workspaces` +
@@ -436,7 +449,9 @@ way to put them on a second team.
 
 Removing somebody **from a workspace** and removing them **from the organization**
 are now distinct actions with distinct confirms: the first is reversible in two
-clicks, the second deletes the account. They used to be the same red X.
+clicks, the second deletes the account. The account-deletion confirm stays disabled
+until its blast-radius preview loads; a failed preview cannot authorize deletion.
+They used to be the same red X.
 
 **Every member write leaves a receipt, and locks the row it is writing.** A role
 change and a status toggle used to do neither: the PATCH went out, the reload came
@@ -505,8 +520,8 @@ would let any signed-in member export the whole company.
 Restore is deliberately two-step and loud: pick a file → the route returns a **dry-run
 plan** (per table, the rows the restore would actually insert against the rows it would
 delete first — the file's out-of-scope shared tier is excluded from that count so the
-preview cannot promise rows that will not land) → the operator types `REPLACE` to
-confirm. "Destructive" is decided by what
+preview cannot promise rows that will not land) → the operator types the localized
+confirmation word (`REPLACE` in English) to confirm. "Destructive" is decided by what
 would be **deleted**, not by how many tables the file names — a plan can carry
 thousands of rows and destroy nothing, or carry none and empty a live table. The write
 itself is `DELETE`-by-scope + `INSERT` in one transaction, never `DROP TABLE`, because
@@ -632,6 +647,9 @@ set only the session: `AcceptForm` redirects to `/`, and in OPEN mode (no
 had just joined the team was handed the public landing page. Both cookies are set
 inside the same best-effort `try`: with no `KP_SECRET` nothing is signed, so
 neither is written and no marker claims a session that does not exist.
+The client checks the readable marker after redeem. If best-effort signing did
+not set it, the successful account creation lands on `/login` for manual sign-in
+instead of returning to the public landing.
 
 **One transaction, not four writes.** `acceptInvite` (`app/_lib/org-service.ts`)
 runs inside `db.transaction(...).immediate()` with the redeemable-invite read
@@ -681,6 +699,8 @@ The console is fully localized in all four locales from the **`workspaceAdmin`**
 namespace, split three ways: `org` (header, General panel, the onboarding-preview
 button), `members` (roster, invite row, pending invites, both destructive
 confirms, and every toast) and `permissions` (the per-user capability editor).
+Each workspace in the left rail shows its total seats and a breakdown of active,
+invited and disabled members; an unrecognized status is shown separately.
 `app/features/settings/organization/**/*.tsx` is held at eslint **`error`** for
 `i18next/no-literal-string`.
 
@@ -698,6 +718,7 @@ translator** from the caller:
 | Helper | Signature |
 | --- | --- |
 | `roleLabel` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.role.<slug>` |
+| `roleDescription` | `(role, t: MembersTranslator)` — `workspaceAdmin.members.roleDescription.<slug>`; explains the default access beside invite role pickers |
 | `statusBadge` | `(status, t: MembersTranslator)` — `workspaceAdmin.members.status.<slug>` |
 | `capabilityMeta` | `(t: PermissionsTranslator)` — replaces the old `CAPABILITY_META` constant; `CAPABILITY_ORDER` keeps the slug order and the catalog key per row (a capability slug carries a `:` and cannot be a catalog key) |
 

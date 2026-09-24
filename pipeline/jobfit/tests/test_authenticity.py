@@ -32,6 +32,20 @@ class AuthenticityTest(unittest.TestCase):
         self.assertTrue(any("buzzword" in c for c in checks))
         self.assertIn(authenticity_band(checks), ("medium", "low"))
 
+    def test_czech_buzzword_padding_flags_but_concrete_cv_passes(self) -> None:
+        padded = (
+            "Týmový hráč orientovaný na výsledky, proaktivní v dynamickém prostředí. "
+            "Bohaté zkušenosti a výborné komunikační schopnosti."
+        )
+        checks = authenticity_checks(padded, skills_count=5, years_experience=5)
+        self.assertTrue(any("buzzword" in finding for finding in checks), checks)
+
+        concrete = (
+            "Vedla tým 8 vývojářů v Brně od roku 2020 do 2024. "
+            "Zkrátila odezvu platební služby o 40 % a nasadila 12 verzí."
+        )
+        self.assertFalse(any("buzzword" in finding for finding in authenticity_checks(concrete)), concrete)
+
     def test_long_senior_cv_with_a_few_buzzwords_does_not_flag(self) -> None:
         # Four generic phrases across a ten-page senior CV is unremarkable prose.
         # The check has a length denominator now, so it must not fire — the old

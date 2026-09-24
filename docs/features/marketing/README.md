@@ -150,12 +150,18 @@ Conventions worth keeping:
   never the `initial` prop and never the markup, so a still reader lands on the
   end state with no hydration hazard. A third `AboutCurve.test.ts` check pins
   it, with an (empty) `KNOWN_UNGATED_ENTRANCES` holdout list.
+  The Hired illustration also lets a visitor replay its seal. Its stamp,
+  confetti, and handoff rows use `useStillMotion`: a reduced-motion visitor sees
+  their final state immediately, and the replay button gives a text confirmation.
+  All eight `about-art/` illustrations now drive their in-view targets to the
+  final state with zero-duration transitions when reduced motion is requested,
+  including a mid-session preference change.
 
 ## Navigation conventions
 
 The three pages share one rule set, so a visitor learns the chrome once.
 
-- **The topbar carries destinations only** — `/about`, `/market`, Sign in.
+- **The topbar carries destinations and a compact language switch** — `/about`, `/market`, Sign in.
   In-page section anchors do not belong there: on the landing they competed with
   the links that actually leave the page.
 - **In-page sections live in the scroll rail.** `app/landing/spark/SectionRail.tsx`
@@ -163,6 +169,8 @@ The three pages share one rule set, so a visitor learns the chrome once.
   (`REVEAL_AT`), then tracks the section under the viewport's middle band via an
   `IntersectionObserver`. Sections: `#proof`, `#features`, `#voice`, `#trust`,
   `#pricing`, plus a back-to-top control. Shown from `lg` up.
+  Each About step also has a copy-link control that shares its numbered anchor in
+  the reader's language.
   - **Every label is legible at rest** — inactive entries at 55% opacity, the
     active one at full. The rail used to collapse to bare dots with only the
     active label pinned, which made it a scroll-position *readout* rather than a
@@ -180,6 +188,8 @@ The three pages share one rule set, so a visitor learns the chrome once.
     and updates the hash with `replaceState`, not `pushState` — the rail is a
     scrubber, not a trail of destinations, so it must not bury the referring
     page under five back-presses. The `href="#id"` stays as the no-JS fallback.
+- **The Voice Teaser opens its spotlight.** Its button pins the same voice
+  preview opened by the feature card.
 - **Phone navigation is one disclosure, with per-page destinations.**
   `spark/sections/MobileNav.tsx` takes a `destinations` prop (`NavDestination`:
   a `#band` of this page, or another page). The landing passes its five bands
@@ -272,6 +282,11 @@ one. Both are commented at the source and in the message keys.
 `/market` reads one committed snapshot, `data/market_pulse.json`, through the
 single seam `app/landing/spark/market/data.ts`. Nothing is fetched at request
 time.
+The map accepts `?region=CZ010&metric=salary` links. The route validates both
+values against the committed snapshot before rendering, and map exploration
+replaces those parameters in the current URL while preserving unrelated query
+parameters and the fragment. Browser history navigation restores the selected
+region and metric.
 
 ### The rule: counts and salaries come from different sources
 
@@ -353,6 +368,17 @@ asserts Prague is the highest-paid region. `market:build` validates the snapshot
 and, on any problem, refuses to overwrite `data/market_pulse.json` and exits 1 —
 so the documented `market:build && market:apply` chain cannot re-level every
 shipped salary band from a broken feed. `--force` writes anyway, deliberately.
+
+A full rebuild now records `meta.unmapped_occupations` and
+`meta.unmapped_vacancies`: CZ-ISCO codes and vacancy counts for which no explicit
+prefix matched `data/czisco-role-map.json`. The display still uses the map's
+default family, while these counts reveal how much of that family came from a
+fallback.
+
+`validateSnapshot()` refuses a rebuild when the default-family fallback covers
+more than 10% of national vacancies, or when the share is absent. The mapping
+needs review before publishing a snapshot that would misclassify that much
+demand; `--force` remains the explicit override.
 
 #### Rebuild cadence — sixty days, by hand
 
@@ -511,10 +537,9 @@ one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
   `trust.audit.body` was softened off. It is demonstration copy inside a
   stylised chart rather than a claim in a paragraph, so it was left; if the
   panel is next revised, soften it to match the body.
-- Four landing components still read reduced motion through framer's hook
-  against the rule above: `spark/SectionRail.tsx`, `spark/FeatureSpotlight.tsx`,
-  `spark/market/parts.tsx` and `spark/market/CzMap.tsx`. The first three branch
-  only `initial`/`layoutId` inside a client-only subtree; `CzMap` branches
+- Two landing components still read reduced motion through framer's hook
+  against the rule above: `spark/market/parts.tsx` and `spark/market/CzMap.tsx`.
+  `parts.tsx` branches only `layoutId` inside a client-only subtree; `CzMap` branches
   `initial={reduce ? false : { opacity: 0 }}` on a server-rendered node, which is
   the inline-style hydration mismatch the rule exists to prevent.
 - `data/market_pulse.json` region vacancy counts sum to ~35 200 against a

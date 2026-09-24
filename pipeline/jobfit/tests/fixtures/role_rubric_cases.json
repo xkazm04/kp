@@ -1,0 +1,426 @@
+{
+  "_comment": "Parity fixture for the role-rubric derivation (ADR-0012 §2). pipeline/jobfit/rolerubric.py::derive_role_rubric and app/_lib/role-rubric.ts::deriveRoleRubric must BOTH turn each `brief` into exactly `expected` — weights compared exactly, not approximately. Read by pipeline/jobfit/tests/test_rolerubric.py and app/_lib/role-rubric.test.ts. Change the derivation and you change this file, in both languages, in one commit.",
+  "cases": [
+    {
+      "name": "graded requirements and one core facet",
+      "brief": {
+        "title": "Platform Engineer",
+        "requirements": [
+          {
+            "skill": "Kubernetes",
+            "kind": "must_have",
+            "hardness": "prerequisite",
+            "weight": 0.9,
+            "rationale": "Runs the cluster",
+            "provenance": "stated"
+          },
+          {
+            "skill": "Terraform",
+            "kind": "must_have",
+            "hardness": "learnable",
+            "weight": 0.6,
+            "provenance": "inferred"
+          },
+          {
+            "skill": "Go",
+            "kind": "nice_to_have",
+            "hardness": "learnable",
+            "weight": 0.8,
+            "provenance": "stated"
+          }
+        ],
+        "facets": [
+          {
+            "key": "team_context",
+            "label": "Team",
+            "value": "Joins a squad of four",
+            "importance": "core",
+            "provenance": "stated"
+          },
+          {
+            "key": "why_now",
+            "label": "Why now",
+            "value": "Migration deadline",
+            "importance": "valuable",
+            "provenance": "stated"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "key": "req:kubernetes",
+          "label": "Kubernetes",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "prerequisite",
+          "weight": 0.375,
+          "blocking": true,
+          "provenance": "stated",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": "Runs the cluster"
+        },
+        {
+          "key": "req:terraform",
+          "label": "Terraform",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "learnable",
+          "weight": 0.25,
+          "blocking": false,
+          "provenance": "inferred",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "req:go",
+          "label": "Go",
+          "origin": "requirement",
+          "kind": "nice_to_have",
+          "hardness": "learnable",
+          "weight": 0.16666666666666669,
+          "blocking": false,
+          "provenance": "stated",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "facet:team_context",
+          "label": "Team",
+          "origin": "facet",
+          "kind": "core",
+          "hardness": "",
+          "weight": 0.20833333333333334,
+          "blocking": false,
+          "provenance": "stated",
+          "evidenceClass": "conversation",
+          "humanEvidence": "scorecard",
+          "agentEvidence": "mandate_exchange",
+          "rationale": "Joins a squad of four"
+        }
+      ]
+    },
+    {
+      "name": "duplicate skill collapses to the strongest grading",
+      "brief": {
+        "requirements": [
+          {
+            "skill": "  czech ",
+            "kind": "nice_to_have",
+            "hardness": "learnable",
+            "weight": 0.3
+          },
+          {
+            "skill": "Czech",
+            "kind": "must_have",
+            "hardness": "learnable",
+            "weight": 0.2,
+            "rationale": "Clients speak Czech"
+          },
+          {
+            "skill": "CZECH",
+            "kind": "nice_to_have",
+            "hardness": "prerequisite",
+            "weight": 0.7
+          },
+          {
+            "skill": "",
+            "kind": "must_have",
+            "weight": 1
+          }
+        ]
+      },
+      "expected": [
+        {
+          "key": "req:czech",
+          "label": "czech",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "prerequisite",
+          "weight": 1.0,
+          "blocking": true,
+          "provenance": "inferred",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": "Clients speak Czech"
+        }
+      ]
+    },
+    {
+      "name": "zero weight still counts; budget is a cost axis, work environment is demonstrated work",
+      "brief": {
+        "requirements": [
+          {
+            "skill": "SQL",
+            "kind": "must_have",
+            "hardness": "prerequisite",
+            "weight": 0
+          }
+        ],
+        "facets": [
+          {
+            "key": "budget_band",
+            "label": "Budget",
+            "value": "90-110k CZK",
+            "importance": "core"
+          },
+          {
+            "key": "work_environment",
+            "label": "",
+            "value": "Legacy PHP monolith",
+            "importance": "core"
+          },
+          {
+            "key": "budget_band",
+            "label": "Budget again",
+            "value": "ignored repeat",
+            "importance": "core"
+          },
+          {
+            "key": "",
+            "label": "",
+            "value": "no name, dropped",
+            "importance": "core"
+          },
+          {
+            "key": "urgency",
+            "label": "Urgency",
+            "value": "",
+            "importance": "core"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "key": "req:sql",
+          "label": "SQL",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "prerequisite",
+          "weight": 0.047619047619047616,
+          "blocking": true,
+          "provenance": "inferred",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "cost:budget_band",
+          "label": "Budget",
+          "origin": "cost",
+          "kind": "core",
+          "hardness": "",
+          "weight": 0.47619047619047616,
+          "blocking": false,
+          "provenance": "inferred",
+          "evidenceClass": "cost",
+          "humanEvidence": "salary_band",
+          "agentEvidence": "budget",
+          "rationale": "90-110k CZK"
+        },
+        {
+          "key": "facet:work_environment",
+          "label": "work_environment",
+          "origin": "facet",
+          "kind": "core",
+          "hardness": "",
+          "weight": 0.47619047619047616,
+          "blocking": false,
+          "provenance": "inferred",
+          "evidenceClass": "demonstrated_work",
+          "humanEvidence": "devcase",
+          "agentEvidence": "trial_run",
+          "rationale": "Legacy PHP monolith"
+        }
+      ]
+    },
+    {
+      "name": "ordering: blocking first, then must_have by weight then key, then facets by key",
+      "brief": {
+        "requirements": [
+          {
+            "skill": "Angular",
+            "kind": "nice_to_have",
+            "hardness": "prerequisite",
+            "weight": 1,
+            "provenance": "stated"
+          },
+          {
+            "skill": "Docker",
+            "kind": "must_have",
+            "hardness": "learnable",
+            "weight": 0.5,
+            "provenance": "stated"
+          },
+          {
+            "skill": "Postgres",
+            "kind": "must_have",
+            "hardness": "prerequisite",
+            "weight": 0.2,
+            "provenance": "default"
+          },
+          {
+            "skill": "Bash",
+            "kind": "must_have",
+            "hardness": "learnable",
+            "weight": 0.5,
+            "provenance": "inferred"
+          },
+          {
+            "skill": "Cobol",
+            "kind": "off_vocabulary",
+            "hardness": "whatever",
+            "weight": 3,
+            "provenance": "inferred"
+          }
+        ],
+        "facets": [
+          {
+            "key": "Work_Environment",
+            "label": "Tooling",
+            "value": "Monorepo, trunk-based",
+            "importance": "core",
+            "provenance": "stated"
+          },
+          {
+            "key": "",
+            "label": "Success after 90 days",
+            "value": "Owns the release train",
+            "importance": "core",
+            "provenance": "stated"
+          },
+          {
+            "key": "budget_band",
+            "label": "Budget",
+            "value": "not decisive here",
+            "importance": "valuable",
+            "provenance": "stated"
+          },
+          {
+            "key": "team_context",
+            "label": "Team",
+            "value": "background only",
+            "importance": "context",
+            "provenance": "stated"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "key": "req:cobol",
+          "label": "Cobol",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "prerequisite",
+          "weight": 0.27027027027027023,
+          "blocking": true,
+          "provenance": "inferred",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "req:postgres",
+          "label": "Postgres",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "prerequisite",
+          "weight": 0.05405405405405406,
+          "blocking": true,
+          "provenance": "default",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "req:bash",
+          "label": "Bash",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "learnable",
+          "weight": 0.13513513513513511,
+          "blocking": false,
+          "provenance": "inferred",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "req:docker",
+          "label": "Docker",
+          "origin": "requirement",
+          "kind": "must_have",
+          "hardness": "learnable",
+          "weight": 0.13513513513513511,
+          "blocking": false,
+          "provenance": "stated",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "req:angular",
+          "label": "Angular",
+          "origin": "requirement",
+          "kind": "nice_to_have",
+          "hardness": "prerequisite",
+          "weight": 0.13513513513513511,
+          "blocking": false,
+          "provenance": "stated",
+          "evidenceClass": "requirement_coverage",
+          "humanEvidence": "analysis",
+          "agentEvidence": "agent_fit",
+          "rationale": ""
+        },
+        {
+          "key": "facet:success after 90 days",
+          "label": "Success after 90 days",
+          "origin": "facet",
+          "kind": "core",
+          "hardness": "",
+          "weight": 0.13513513513513511,
+          "blocking": false,
+          "provenance": "stated",
+          "evidenceClass": "conversation",
+          "humanEvidence": "scorecard",
+          "agentEvidence": "mandate_exchange",
+          "rationale": "Owns the release train"
+        },
+        {
+          "key": "facet:work_environment",
+          "label": "Tooling",
+          "origin": "facet",
+          "kind": "core",
+          "hardness": "",
+          "weight": 0.13513513513513511,
+          "blocking": false,
+          "provenance": "stated",
+          "evidenceClass": "demonstrated_work",
+          "humanEvidence": "devcase",
+          "agentEvidence": "trial_run",
+          "rationale": "Monorepo, trunk-based"
+        }
+      ]
+    },
+    {
+      "name": "empty brief derives no axes",
+      "brief": {
+        "title": "Anything",
+        "requirements": [],
+        "facets": []
+      },
+      "expected": []
+    }
+  ]
+}

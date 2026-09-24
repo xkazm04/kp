@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     // Land back ON the Billing tab so the recruiter sees their plan; the
     // `billing=success` flag tells BillingTab to confirm + poll for the settled
     // entitlement (the webhook lands the plan a moment later).
-    const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=success`;
+    const successUrl = `${publicBaseUrl(new URL(request.url).origin)}/?tab=billing&billing=${req.kind}-success`;
     const checkout = await gateway.createCheckout(req, { successUrl, orgId });
     return jsonOk(checkout);
   } catch (error) {

@@ -38,6 +38,8 @@ export function LineRow({
   rejectedCount,
   onOpenRejected,
   onLineAction,
+  bouncedEntryId,
+  bouncedReason,
 }: {
   position: Position;
   axis: readonly StageDef[];
@@ -48,6 +50,8 @@ export function LineRow({
   onOpenRejected: (origin: CellSelection["origin"]) => void;
   /** Absent = no context menu (the board's consumer did not wire batch actions). */
   onLineAction?: (action: LineAction) => void;
+  bouncedEntryId?: string | null;
+  bouncedReason?: string | null;
   gridStyle: React.CSSProperties;
   openCell: { positionId: string; stageId: string } | null;
   terminal: boolean;
@@ -172,13 +176,14 @@ export function LineRow({
                   title={beadTitle(e)}
                   label={beadLabel(e)}
                   onOpen={() => openCandidate(e, cellEntries)}
+                  bouncedReason={e.id === bouncedEntryId ? bouncedReason : null}
                 />
               ))}
               {overflow ? (
                 <BeadOverflow
                   hidden={cellEntries.slice(BEAD_LIMIT)}
-                  title={beadTitle}
-                  label={beadLabel}
+                  title={(e) => e.id === bouncedEntryId && bouncedReason ? `${beadTitle(e)} — ${bouncedReason}` : beadTitle(e)}
+                  label={(e) => e.id === bouncedEntryId && bouncedReason ? `${beadLabel(e)}. ${bouncedReason}` : beadLabel(e)}
                   onOpen={(e) => openCandidate(e, cellEntries)}
                 />
               ) : null}

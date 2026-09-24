@@ -44,6 +44,14 @@ for (const rel of ["./[id]/route.ts", "./batch/route.ts", "./stage-migration/rou
   });
 }
 
+test("consent and timeline missing-entry responses use the board's localizable 404 code", () => {
+  for (const rel of ["./[id]/consent/route.ts", "./[id]/timeline/route.ts"]) {
+    const src = read(rel);
+    assert.match(src, /jsonRefusal\("PIPELINE_ENTRY_NOT_FOUND", 404\)/, `${rel} must carry the same code as the entry route`);
+    assert.doesNotMatch(src, RAW_REFUSAL, `${rel} must not answer with a bare English string`);
+  }
+});
+
 test("the shared entry action answers every refusal with a registered REFUSAL code", () => {
   const src = read("../../_lib/pipeline-entry-action.ts");
   const known = refusalCodes();

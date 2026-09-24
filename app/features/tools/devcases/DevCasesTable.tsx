@@ -9,6 +9,7 @@ import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmpty } from "./DevCasesEmpty";
+import { caseStage, filterCases } from "./DevCasesTable.filter";
 import { stallForCase } from "./DevCasesTable.stall";
 import { useStageLabel } from "./DevLabels";
 import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
@@ -53,6 +54,9 @@ export function CasesTable({
   const stageLabel = useStageLabel();
   // Snapshotted once at mount (Date.now() is impure in render) — same contract as LifecycleRow.
   const [nowMs] = useState(() => Date.now());
+  const [titleFilter, setTitleFilter] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [seniorityFilter, setSeniorityFilter] = useState("");
   // Tier 2 (docs/design/loading-choreography.md): useLoader's `data` starts as `[]`, so
   // an empty list is ambiguous between "still loading" and "genuinely no cases
   // yet" — `state.lastUpdated` disambiguates. Never loaded + healthy: hold the
@@ -66,9 +70,39 @@ export function CasesTable({
   if (cases.length === 0) {
     return <CasesEmpty state={state} onDefine={onDefine} />;
   }
+  const filteredCases = filterCases(cases, lifecycles, postings, {
+    title: titleFilter,
+    stage: stageFilter,
+    seniority: seniorityFilter,
+  });
+  const stages = [...new Set(cases.map((item) => caseStage(item.id, lifecycles, postings)))];
+  const seniorities = [...new Set(cases.map((item) => item.seniority).filter((value): value is string => Boolean(value)))];
 
   return (
     <div className={`overflow-hidden ${PANEL}`}>
+      <div className="flex flex-wrap gap-2 border-b border-stone-200 bg-paper/40 px-3 py-2">
+        <label className="flex min-w-40 flex-1 flex-col gap-1 text-micro font-semibold text-steel">
+          {t("filterTitle")}
+          <input type="search" value={titleFilter} onChange={(event) => setTitleFilter(event.target.value)}
+            className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm font-normal text-ink" />
+        </label>
+        <label className="flex min-w-36 flex-col gap-1 text-micro font-semibold text-steel">
+          {t("colStage")}
+          <select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}
+            className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm font-normal text-ink">
+            <option value="">{t("allStages")}</option>
+            {stages.map((stage) => <option key={stage} value={stage}>{stageLabel(stage)}</option>)}
+          </select>
+        </label>
+        <label className="flex min-w-36 flex-col gap-1 text-micro font-semibold text-steel">
+          {t("colSeniority")}
+          <select value={seniorityFilter} onChange={(event) => setSeniorityFilter(event.target.value)}
+            className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm font-normal text-ink">
+            <option value="">{t("allSeniorities")}</option>
+            {seniorities.map((seniority) => <option key={seniority} value={seniority}>{seniority}</option>)}
+          </select>
+        </label>
+      </div>
       <table className="w-full border-collapse text-left">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60 text-micro font-semibold uppercase tracking-wide text-steel">
@@ -82,11 +116,11 @@ export function CasesTable({
           </tr>
         </thead>
         <tbody>
-          {cases.map((c, i) => {
+          {filteredCases.map((c, i) => {
             const lc = lifecycles.find((l) => l.caseId === c.id);
             const casePostings = postings.filter((p) => p.caseId === c.id);
             const submissions = casePostings.reduce((n, p) => n + (p.submissions?.length ?? p.submissionCount ?? 0), 0);
-            const stage = lc?.stage ?? (casePostings.length > 0 ? "published" : "approved");
+            const stage = caseStage(c.id, lifecycles, postings);
             const stall = stallForCase(
               {
                 stage,
@@ -143,6 +177,9 @@ export function CasesTable({
               </tr>
             );
           })}
+          {filteredCases.length === 0 ? (
+            <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-steel">{t("noMatches")}</td></tr>
+          ) : null}
         </tbody>
       </table>
       {/* ONE THREAD (gap 8) — the legend lives here because this is the axis with

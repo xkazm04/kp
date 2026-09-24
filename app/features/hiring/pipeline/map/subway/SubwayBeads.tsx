@@ -4,6 +4,7 @@
 // score tone (all of it from avatarModelOf — never a local colour).
 
 import { useMemo } from "react";
+import { AlertTriangle } from "lucide-react";
 import { POPOVER } from "@/app/_components/ui/recipes";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { avatarModelOf } from "../mapAvatar";
@@ -17,18 +18,20 @@ export function Bead({
   title,
   label,
   onOpen,
+  bouncedReason,
 }: {
   entry: Entry;
   title: string;
   label: string;
   onOpen: () => void;
+  bouncedReason?: string | null;
 }) {
   const model = avatarModelOf(entry);
   return (
     <button
       type="button"
-      title={title}
-      aria-label={label}
+      title={bouncedReason ? `${title} — ${bouncedReason}` : title}
+      aria-label={bouncedReason ? `${label}. ${bouncedReason}` : label}
       onClick={onOpen}
       aria-haspopup="dialog"
       className="focus-ring relative z-10 inline-flex h-[22px] w-[22px] shrink-0 cursor-pointer rounded-full bg-white ring-offset-1 ring-offset-white transition-transform hover:z-20 hover:scale-110 motion-reduce:transition-none"
@@ -40,6 +43,9 @@ export function Bead({
       >
         {model.initials}
       </span>
+      {bouncedReason ? (
+        <AlertTriangle aria-hidden className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-white text-coral" />
+      ) : null}
     </button>
   );
 }

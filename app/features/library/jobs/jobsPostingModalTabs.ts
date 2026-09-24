@@ -15,6 +15,10 @@ export const POSTING_TAB_IDS = [
   "coach",
   "candidates",
   "rediscover",
+  // The job interview kit (spark interview-kit-template): the questions every AI
+  // interview for this role is run from. Beside "compare", which reads what those
+  // interviews produced.
+  "kit",
   "compare",
   "agentfit",
 ] as const;

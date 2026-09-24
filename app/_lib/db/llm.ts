@@ -85,10 +85,18 @@ export function upsertLlmConfig(input: {
   return apply.immediate();
 }
 
-/** Remove a use-case pin — it reverts to the built-in default provider. */
-export function deleteLlmConfig(useCase: string): boolean {
+/** Remove a use-case pin only if the caller still sees its current version.
+ *  Omitting the version keeps the headless unconditional DELETE contract. */
+export function deleteLlmConfig(useCase: string, expectedUpdatedAt?: string | null): { removed: boolean; stale: boolean } {
   const db = ensureDb();
-  return db.prepare(`DELETE FROM llm_config WHERE use_case = ?`).run(useCase).changes > 0;
+  const remove = db.transaction(() => {
+    const current = db.prepare(`SELECT updated_at FROM llm_config WHERE use_case = ?`).get(useCase) as { updated_at: string } | undefined;
+    if (expectedUpdatedAt !== undefined && (current?.updated_at ?? null) !== expectedUpdatedAt) {
+      return { removed: false, stale: true };
+    }
+    return { removed: db.prepare(`DELETE FROM llm_config WHERE use_case = ?`).run(useCase).changes > 0, stale: false };
+  });
+  return remove.immediate();
 }
 
 export type ProviderKeyRow = {
@@ -402,16 +410,38 @@ export const LLM_ACTIVITY_WINDOW = 500;
  * aggregateLlmUsage, instead). Bounded by `limit`; org-level like the rest of
  * the ledger (llm_usage is tenancy-exempt config/metering).
  */
-export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
+export type LlmActivityFilters = {
+  useCase?: string;
+  outcome?: "ok" | "failed";
+  cursor?: { ts: string; id: number };
+};
+
+export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW, filters: LlmActivityFilters = {}): LlmActivityRow[] {
   const db = ensureDb();
+  const predicates: string[] = [];
+  const values: Array<string | number> = [];
+  if (filters.useCase) {
+    predicates.push("use_case = ?");
+    values.push(filters.useCase);
+  }
+  if (filters.outcome) {
+    predicates.push("outcome = ?");
+    values.push(filters.outcome);
+  }
+  if (filters.cursor) {
+    predicates.push("(ts < ? OR (ts = ? AND id < ?))");
+    values.push(filters.cursor.ts, filters.cursor.ts, filters.cursor.id);
+  }
+  const where = predicates.length ? `WHERE ${predicates.join(" AND ")}` : "";
   const rows = db
     .prepare(
       `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id
          FROM llm_usage
+        ${where}
         ORDER BY ts DESC, id DESC
         LIMIT ?`
     )
-    .all(limit) as Array<Record<string, unknown>>;
+    .all(...values, limit) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: Number(r.id),
     ts: r.ts as string,
@@ -515,4 +545,3 @@ export function aggregateLlmUsage(sinceDays = 30): LlmUsageAggregateRow[] {
     costUsd: Number(r.cost_usd ?? 0),
   }));
 }
-

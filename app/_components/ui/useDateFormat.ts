@@ -25,42 +25,13 @@
 
 import { useFormatter } from "next-intl";
 import { useMemo } from "react";
-
-/** Anything a store row or an API payload can hand us for a moment in time. */
-export type DateInput = string | number | Date | null | undefined;
+import { DATE_SHAPES, parseDateInput, type DateFormatOptions, type DateFormatters, type DateInput } from "./dateShapes";
+export type { DateInput, DateFormatOptions, DateFormatters } from "./dateShapes";
 
 /** next-intl narrows `Intl.DateTimeFormatOptions` (its `timeZoneName` drops the
  *  offset variants), so the option bags below are typed from the formatter that
  *  consumes them rather than from the DOM lib. */
 type DateTimeOptions = NonNullable<Parameters<ReturnType<typeof useFormatter>["dateTime"]>[2]>;
-
-export interface DateFormatOptions {
-  /** Rendered when the value is absent or unparseable. Default "—". */
-  fallback?: string;
-  /** IANA zone. Omit to render in the viewer's zone (the right default for
-   *  everything except an invite showing the CANDIDATE's local time). */
-  timeZone?: string;
-}
-
-export interface DateFormatters {
-  /** "3 Sep 2026" — the default for a timestamp whose time of day is noise
-   *  (created, updated, analyzed, expires). */
-  date: (value: DateInput, opts?: DateFormatOptions) => string;
-  /** "3 Sep 2026, 14:30" — a timestamp where the time of day matters. */
-  dateTime: (value: DateInput, opts?: DateFormatOptions) => string;
-  /** "Thu 3 Sep, 14:30" — an appointment: the weekday leads, the year is
-   *  implied by proximity. The schedule surfaces' shape. */
-  dayTime: (value: DateInput, opts?: DateFormatOptions) => string;
-  /** "14:30" — a time inside a row that already names its day. */
-  time: (value: DateInput, opts?: DateFormatOptions) => string;
-}
-
-/** Parse to a Date, or null when there is nothing renderable. */
-function toDate(value: DateInput): Date | null {
-  if (value == null || value === "") return null;
-  const d = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
 
 export function useDateFormat(): DateFormatters {
   const format = useFormatter();
@@ -68,15 +39,15 @@ export function useDateFormat(): DateFormatters {
     const shape =
       (options: DateTimeOptions) =>
       (value: DateInput, opts?: DateFormatOptions): string => {
-        const d = toDate(value);
+        const d = parseDateInput(value);
         if (!d) return opts?.fallback ?? "—";
         return format.dateTime(d, opts?.timeZone ? { ...options, timeZone: opts.timeZone } : options);
       };
     return {
-      date: shape({ dateStyle: "medium" }),
-      dateTime: shape({ dateStyle: "medium", timeStyle: "short" }),
-      dayTime: shape({ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-      time: shape({ timeStyle: "short" }),
+      date: shape(DATE_SHAPES.date),
+      dateTime: shape(DATE_SHAPES.dateTime),
+      dayTime: shape(DATE_SHAPES.dayTime),
+      time: shape(DATE_SHAPES.time),
     };
   }, [format]);
 }

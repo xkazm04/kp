@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createTemplate, listTemplates } from "@/app/_lib/templates-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { validateTemplateFields } from "@/app/features/shared/renderTemplate";
 
 
@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
     // shared validator) so an arbitrary-length body can't be stored and a
     // whitespace-only name can't slip through to be coerced to "Untitled template".
     const fields = validateTemplateFields(body.name, body.body);
-    if (!fields.ok) return NextResponse.json({ error: fields.error }, { status: 400 });
+    if (!fields.ok) {
+      if (fields.reason.code === "unknownTokens") return jsonRefusal("TEMPLATE_UNKNOWN_PLACEHOLDERS", 400, { tokens: fields.reason.tokens });
+      return NextResponse.json({ error: fields.error }, { status: 400 });
+    }
     // Unknown {{tokens}} fail inside validateTemplateFields (unknownTokens), so a
     // caller that only uses the shared validator still cannot store {{tilte}}.
     // scope 'org' publishes to the shared company library (visible to every team);

@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
-import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
-import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
+import { ExternalLogoImage } from "@/app/_components/ExternalLogoImage";
+import { FIELD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
+import { accentIsLegible, deriveDarkAccent, normalizeHex6, sanitizeLogoUrl, shouldRenderLogo } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import { DEFAULT_ORG_NAME, readClientOrgName } from "@/app/_lib/org-settings";
 import { SETUP_PROSE } from "./setupProse";
@@ -42,6 +43,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   // door that now refuses an accent with no Spark Dark twin, so the wizard accepted
   // colors the save would reject and said nothing. Same rule as the Branding tab.
   const [customWarn, setCustomWarn] = useState<"light" | "dark" | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
 
   // ONE seed attempt, at the moment this step first paints, and only into an
   // empty field — so it can never overwrite what the operator typed, and never
@@ -71,6 +73,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
 
   const logo = ctrl.state.logoUrl.trim();
   const logoInvalid = logo !== "" && sanitizeLogoUrl(logo) === null;
+  const previewLogo = !logoInvalid && shouldRenderLogo(logo, failedLogo === logo);
   const isPreset = ACCENT_PRESETS.some((p) => p.hex === ctrl.state.accentColor);
 
   return (
@@ -189,6 +192,11 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             className="mt-1 w-full"
           />
           {logoInvalid ? <p className="mt-1 text-sm text-coral">{t("logoInvalid")}</p> : null}
+          {previewLogo ? (
+            <div className={`${PANEL} mt-2 inline-flex h-16 w-16 items-center justify-center p-2`}>
+              <ExternalLogoImage src={logo} alt={t("logoLabel")} onError={() => setFailedLogo(logo)} className="max-h-full max-w-full object-contain" />
+            </div>
+          ) : null}
         </div>
       </fieldset>
     </div>

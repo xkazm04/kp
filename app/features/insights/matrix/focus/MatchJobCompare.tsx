@@ -128,6 +128,19 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
               ))}
             </tr>
             <tr className="border-t border-stone-100">
+              <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">{t("unprovenSkills")}</th>
+              {matches.map((m) => (
+                <td key={m.jobId} className="p-2 align-top">
+                  <div className="flex flex-wrap gap-1">
+                    {(m.unprovenSkills ?? []).slice(0, 8).map((s) => (
+                      <span key={s} className="rounded bg-amber-100 px-1.5 py-0.5 text-sm text-amber-800">{s}</span>
+                    ))}
+                    {(m.unprovenSkills?.length ?? 0) === 0 ? <span className="text-stone-300">—</span> : null}
+                  </div>
+                </td>
+              ))}
+            </tr>
+            <tr className="border-t border-stone-100">
               <th scope="row" className="sticky left-0 bg-white p-2 text-left align-top text-steel">{t("missingMustHaves")}</th>
               {matches.map((m) => (
                 <td key={m.jobId} className="p-2 align-top">

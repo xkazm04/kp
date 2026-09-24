@@ -39,7 +39,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     // create, via the shared validator), so a partial edit can't store an empty
     // name/body or blow past the caps.
     const fields = validateTemplateUpdate(body);
-    if (!fields.ok) return NextResponse.json({ error: fields.error }, { status: 400 });
+    if (!fields.ok) {
+      if (fields.reason.code === "unknownTokens") return jsonRefusal("TEMPLATE_UNKNOWN_PLACEHOLDERS", 400, { tokens: fields.reason.tokens });
+      return NextResponse.json({ error: fields.error }, { status: 400 });
+    }
     // Unknown {{tokens}} fail inside validateTemplateUpdate when a body is present
     // (skipped on a rename-only edit, same as before).
     // Compare-and-swap on the stamp the editor loaded: a second recruiter's save

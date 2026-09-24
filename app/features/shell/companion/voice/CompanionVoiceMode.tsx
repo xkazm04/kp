@@ -12,6 +12,7 @@ import type { CompanionSpeech } from "../useCompanionSpeech";
 import type { CompanionThreadState } from "../useCompanionThread";
 import type { CompanionPrefsState } from "../useCompanionPrefs";
 import { CompanionVoiceTicker } from "./CompanionVoiceTicker";
+import { pressVoicePlayback } from "./VoicePlayback";
 import { useVoiceHistory } from "./useVoiceHistory";
 
 /*
@@ -125,7 +126,12 @@ export function CompanionVoiceMode({
     <section
       aria-label={t("voiceMode.label")}
       tabIndex={0}
-      onKeyDown={history.onKeyDown}
+      onKeyDown={(event) => {
+        history.onKeyDown(event);
+        if (event.key === " " && !event.repeat && event.target === event.currentTarget && pressVoicePlayback(history.entry, speech)) {
+          event.preventDefault();
+        }
+      }}
       className={`focus-ring animate-slide-in motion-reduce:animate-none fixed inset-x-3 top-3 z-[var(--z-sim-drawer)] rounded-xl ${VOICE_WINDOW_WIDTH}`}
     >
       <CompanionVoiceTicker

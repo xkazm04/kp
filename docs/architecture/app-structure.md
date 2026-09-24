@@ -59,6 +59,13 @@ The workspace is **one route**: `/` plus query params. Every selection and filte
 `?stage=`) is a param on the same page. The server render of `/` reads **none** of
 them — only `?sim=auto` and `?onboarding=1`.
 
+`WorkspaceDocumentTitle` reflects the active tab's localized nav label in the
+browser title after an in-shell switch and restores the server title when the
+workspace unmounts. The title therefore follows app state even when the URL
+does not change. While a background task reports a measured total, the browser
+title also carries its bounded `done/total` progress so an operator can monitor
+it from another tab.
+
 ### The view selectors are app state; the URL is their inbox
 
 `?tab=` (the panel) and `?sec=` (the Analytics section) are the exception: they no
@@ -144,7 +151,7 @@ to be the first moment a tab's chunk was requested, putting the download on the
 critical path between the click and the first frame. `prefetchTabChunk(id)` starts
 it on nav-item hover **and** focus (a keyboard user never hovers) and inside
 `selectTab` before the URL flips; `warmLikelyTabChunks(active)` warms the hiring
-tabs on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
+tabs, including Roles and Job intake, on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
 failed prefetch is swallowed, and the render path re-requests and surfaces a real
 failure through the tab's `ErrorBoundary`.
 
@@ -155,6 +162,11 @@ Settings → Branding still paid for the chunk at click time. The rail button no
 warms every chunk in its group on hover, focus and click (`prefetchSection`), so
 opening a section starts all of its tabs' downloads at once — 2–7 small chunks
 per group, deduped per document by `prefetchTabChunk`.
+The visible rail section is remembered in session storage across reloads. A tab
+switch makes its own section the new stored default; unavailable storage only
+loses that preference.
+The rail also announces attention-count changes through a stable polite live
+region, including when the last count drops to zero.
 
 ### A nav group may own a DOOR as well as its destinations
 
@@ -205,6 +217,8 @@ the nav is the thing that knows what its own chrome costs. Two things hang off i
   Sign out — which offered a candidate who never had a session a button that POSTs
   `/api/auth/logout` and hard-navigates them off the job ad. Appearance and language
   (`RailPreferences`) are viewer chrome and stay for everyone.
+  When a signed session exists, Sign out opens the shared confirmation dialog;
+  the open-mode entry marker with no session still leaves in one click.
 
 Open mode (`KP_OPERATOR_PASSWORD` unset) makes `isOperator()` true for everyone by
 design, so a keyless/dev install and the e2e subset are unchanged; only a
@@ -247,6 +261,11 @@ was a 403 rendered as a failed load.
   The palette simply omits them: it is a search over things you can act on.
 
 ### The tab error boundary speaks the reader's language
+
+The fallback also offers a Report action. It POSTs the workspace panel label,
+current path, and any server digest to `/api/feedback`, then confirms delivery
+or shows a localized failure. The thrown message stays in the browser console
+and configured error sink; it is never copied into a feedback row.
 
 `app/_components/ErrorBoundary.ts` is the fallback a reader meets when a tab's
 render throws. Its three strings were hardcoded English — the only shell copy
@@ -294,6 +313,8 @@ keyboard highlight); while typing, entity hits lead and the tab navigator trails
 walk would never list it: `useWorkspaceCommandPaletteItems.ts` appends
 `action-tasks` beside `action-new-intake`, offered at rest and on a match of
 `tasks.label` (or the hunt tokens `tasks` / `background`), href `/?tab=tasks`.
+The tour command becomes Pause or Resume and Stop while a run is live, so the
+palette remains a run-control door after starting the walk.
 
 **A failed search clears the rows.** `useWorkspaceCommandPaletteSearch.ts` reduces
 each response through the pure `searchResponseState(ok, body)`
@@ -305,7 +326,12 @@ row 0, and Enter opened a candidate the recruiter had not typed. A malformed but
 successful body is the opposite case and stays a genuine zero-hit result, so the
 palette may still say "no matches" for it.
 
-The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
+The palette's resting state includes the last three visited tabs from this
+browser session, alongside recent entities. It omits duplicates from the full
+tab navigator and respects capability locks. Tour and new-intake palette search
+aliases come from the four locale catalogs.
+The About tab's preview lists its six localized chapter claims with direct hash
+links to each chapter. The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
 master–detail): a dense grouped index on the left (`WorkspacePaletteRow.tsx`:
 glyph tile, match highlight) and a **live preview pane** on the right for the
 highlighted row: kind eyebrow, the name in the display face, the destination's
@@ -361,6 +387,12 @@ comes from the same door `shell/recents.ts` uses (`GET /api/workspaces` →
 `current`; the session cookie carrying it is httpOnly), resolved once per
 document, and changing it empties the cache. `previewCache.test.ts` pins the
 scoping, the TTL boundary and the three response shapes that mean "error".
+The live-refresh bus also clears the memo and re-fetches the highlighted item
+after a mutation, so its count does not remain stale until the TTL expires.
+An unavailable preview keeps the palette open with a Retry action that clears
+the cached result and fetches the highlighted item again.
+The loaded preview is a polite live region named with the highlighted item, so
+arrowing through results announces the new facts without moving input focus.
 
 The union carries **canonical slugs**, not display text, wherever the value is one
 the pipeline branches on — archetype, role family, seniority (the resolvers group
@@ -590,6 +622,10 @@ they are not interchangeable:
 single letter and both two-key chords, so either mistake fails loudly instead of
 silently moving someone's muscle memory.
 
+The `?` overlay also names the always-mounted control dock's toolbar keys:
+Left/Right and Home/End move focus among controls; Enter/Space activates the
+focused control. Arrow navigation never triggers a control's action.
+
 ## `shell/tasks/` — the AI-tasks surface
 
 `?tab=tasks` (labelled **AI tasks**; the id, the chunk and the catalog namespace
@@ -607,6 +643,14 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 | `taskSearch.ts` (+ `.test.ts`) | The free-text predicate — `taskSearchNeedle` folds what was typed, `taskMatchesSearch` tests it against the RENDERED label and the raw kind |
+
+`TaskFlightNote` links its background-run explanation to the AI tasks tab, so a
+recruiter can leave the originating surface and open the live run directly.
+
+`GET /api/tasks` includes the task kinds accepted by the server handler registry.
+The Kind filter combines that list with any legacy kind in the recent window,
+so an operator can query history for a registered kind even when its latest run
+has aged out of the live table.
 
 Eleven decisions are load-bearing:
 
@@ -726,6 +770,11 @@ page and no Companion dock. It reuses the root layout's providers and nothing fr
 | Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
 | Hand-off | how to begin (tour / solo — the tour carries a `Recommended for a new workspace` Badge) | stamps `POST /api/me/onboarding` |
 
+The Company step previews a valid logo URL beside its field before finish;
+failed image loads hide the preview, and editing the URL retries it.
+The Team invite field accepts pasted email lists separated by whitespace,
+commas or semicolons, adds unique valid addresses, and leaves invalid entries
+in the field for correction.
 **The Company step's one required field says where the name is read, and opens
 prefilled only when that is honest** (`SetupCompanyStep.tsx`). The hint
 (`setup.company.nameHint`) is wired as the input's `aria-describedby`
@@ -880,7 +929,8 @@ the stamp writes under, because session storage outlives a logout inside one tab
 and the next person to sign in must not inherit a half-typed setup. Only the
 operator's own answers travel (name, accent, logo, invites, consent, the axis
 *draft*, the step); `pipeline.stored`/`counts` and the brain probe are re-read from
-the server, so the dirty check keeps comparing against real truth. The merge lets
+the server, so the dirty check keeps comparing against real truth. Restoring a
+saved draft updates a persistent screen-reader status region. The merge lets
 anything typed in this mount win over the restored value, and finishing or
 dismissing clears the slot — a dismissal is an answer, not an interruption.
 
@@ -905,7 +955,8 @@ copy — `shared/pipelineAxisDraft.ts` is the same model Settings → Hiring use
 `shared/`: two feature groups now edit one axis). The wizard narrows it rather than
 forking it: the entry and terminal columns cannot be removed or re-roled, and an
 occupied column cannot be dropped, so no click in the step can produce a shape the
-server would refuse. That covers the presets too
+server would refuse. A preset that removes columns first lists their names for
+confirmation and disables Apply while any removed column is occupied. That covers the presets too
 (`setupPipelinePresets.ts`): *With a work sample* adds its column only when the
 loaded axis has room for one (`AXIS_MAX_STAGES`) and does not already carry a step
 by that name — in preview mode `base` is a real workspace's board, and either case

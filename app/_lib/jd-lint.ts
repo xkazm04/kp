@@ -7,7 +7,7 @@
 //
 // Deliberately rules-only (no LLM): the check must be instant, deterministic,
 // and free — it runs on every edit. The phrase lists are the highest-frequency
-// offenders in EN + CS job ads, with inflection-tolerant Czech stems (\p{L}
+// offenders in EN + CS + DE + FR job ads, with inflection-tolerant stems (\p{L}
 // because JS \w excludes diacritics — /konkurenceschopn\w*/ would stall at "ý").
 
 export type JdLintFinding =
@@ -39,6 +39,16 @@ const VAGUE_PATTERNS: RegExp[] = [
   /mlad\p{L}*\s+kolektiv\p{L}*/giu,
   /rodinn\p{L}*\s+atmosf\p{L}*/giu,
   /staň\p{L}*\s+se\s+součástí/giu,
+  // German
+  /(?:wettbewerbsfähig|konkurrenzfähig)\p{L}*\s+(?:Gehalt|Vergütung)/giu,
+  /attraktiv\p{L}*\s+(?:Gehalt|Vergütung)/giu,
+  /dynamisch\p{L}*\s+(?:Team|Umfeld|Arbeitsumfeld)/giu,
+  /werd\p{L}*\s+Teil\s+unser\p{L}*\s+Teams/giu,
+  // French
+  /salaire\s+compétitif\p{L}*/giu,
+  /rémunération\s+attractiv\p{L}*/giu,
+  /équipe\s+dynamique/giu,
+  /rejoign\p{L}*\s+notre\s+équipe/giu,
 ];
 
 // Inclusive-language patterns (7469c05f) — phrases shown to shrink or skew the

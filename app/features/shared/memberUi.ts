@@ -2,6 +2,7 @@ import { Clock, MinusCircle } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import type { BadgeContent } from "@/app/_components/Badge";
 import type { Capability, MemberRole } from "@/app/_lib/auth/roles";
+import { OVERRIDABLE_CAPABILITIES } from "@/app/_lib/auth/roles";
 import type { Locale } from "@/i18n/locales";
 
 // Presentational helpers for the REAL role slugs (auth/roles), replacing the mock
@@ -61,6 +62,11 @@ export function roleLabel(role: MemberRole, t: MembersTranslator): string {
   return t(`role.${role}`);
 }
 
+/** A short explanation of the role's default access beside invite pickers. */
+export function roleDescription(role: MemberRole, t: MembersTranslator): string {
+  return t(`roleDescription.${role}`);
+}
+
 /** Role → monogram tint (encodes the role in colour; every shade carries a dark
  *  mapping via the Badge tone shades, so both themes hold). */
 export function roleTone(role: MemberRole): string {
@@ -92,19 +98,27 @@ export function countActiveMembers(members: { user: { status: MemberStatus } }[]
 export function statusBadge(status: MemberStatus, t: MembersTranslator): BadgeContent & { dot?: boolean; muted?: boolean } {
   if (status === "active") return { tone: "positive", label: t("status.active"), dot: true };
   if (status === "invited") return { tone: "info", label: t("status.invited"), icon: Clock };
-  return { tone: "neutral", label: t("status.disabled"), icon: MinusCircle, muted: true };
+  if (status === "disabled") return { tone: "neutral", label: t("status.disabled"), icon: MinusCircle, muted: true };
+  // A future or corrupt server value must never inherit a known seat state.
+  return { tone: "neutral", label: t("status.unknown"), muted: true };
 }
 
 // The overridable capabilities, for the per-user permission editor. Order = most-
 // to least-privileged operationally. The slug carries a colon, which is not a
 // catalog-key character, so each row names its own `key` under
 // `workspaceAdmin.permissions.caps.*`.
-export const CAPABILITY_ORDER: { cap: Capability; key: "manageMembers" | "manageTeams" | "editPipeline" | "view" }[] = [
-  { cap: "members:manage", key: "manageMembers" },
-  { cap: "team:manage", key: "manageTeams" },
-  { cap: "pipeline:write", key: "editPipeline" },
-  { cap: "read", key: "view" },
-];
+type CapabilityKey = "manageMembers" | "manageTeams" | "editPipeline" | "view";
+const CAPABILITY_KEYS: Partial<Record<Capability, CapabilityKey>> = {
+  "members:manage": "manageMembers",
+  "team:manage": "manageTeams",
+  "pipeline:write": "editPipeline",
+  read: "view",
+};
+export const CAPABILITY_ORDER: { cap: Capability; key: CapabilityKey }[] = OVERRIDABLE_CAPABILITIES.map((cap) => {
+  const key = CAPABILITY_KEYS[cap];
+  if (!key) throw new Error(`Missing display key for overridable capability: ${cap}`);
+  return { cap, key };
+});
 
 /** The capability rows with their localized label + one-line description. */
 export function capabilityMeta(t: PermissionsTranslator): { cap: Capability; label: string; desc: string }[] {

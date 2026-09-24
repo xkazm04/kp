@@ -745,6 +745,10 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         evidence=evidence,
     )
     normalize_profile(v2)
+    if early:
+        from .transform import compute_potential
+
+        v2.potential_score, v2.learning_signals = compute_potential(v2)
     return v2
 
 

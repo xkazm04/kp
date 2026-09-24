@@ -21,6 +21,7 @@ import { useTestReason, type ModelsTestVerdict } from "./modelsTestReason";
 // (models.useCaseDesc.<id>, threaded in by the parent).
 export function ModelsRoutingRow({
   useCase,
+  inert,
   label,
   description,
   row,
@@ -28,6 +29,8 @@ export function ModelsRoutingRow({
   onRows,
 }: {
   useCase: string;
+  /** Catalogued for quality comparisons but not called by the production router. */
+  inert?: boolean;
   label: string;
   /** One short sentence: where in the hiring process this LLM call applies. */
   description: string | null;
@@ -87,9 +90,12 @@ export function ModelsRoutingRow({
     if (busy) return;
     setBusy("reset");
     setNote(null);
-    const result = await resetRoutingPin(useCase, t("resetFailed"), errMsg);
+    const result = await resetRoutingPin(useCase, row?.updatedAt ?? null, t("resetFailed"), errMsg);
     if (result.ok) onRows(result.rows);
-    else setNote({ text: result.message, ok: false });
+    else {
+      if (result.rows) onRows(result.rows);
+      setNote({ text: result.message, ok: false });
+    }
     setBusy(null);
   };
 
@@ -132,6 +138,7 @@ export function ModelsRoutingRow({
         <td className="py-2.5 pr-3">
           <p className="text-base font-medium text-ink">{label}</p>
           {description ? <p className="mt-0.5 max-w-xs text-sm text-steel">{description}</p> : null}
+          {inert ? <p className="mt-1 max-w-xs text-sm font-medium text-amber-800">{t("inertRow")}</p> : null}
           {row ? (
             <p className="mt-0.5 text-sm text-steel">
               {t("updated", { date: format.dateTime(new Date(row.updatedAt), { dateStyle: "medium" }) })}

@@ -2871,6 +2871,138 @@
       ]
     },
     {
+      "api_surface": "POST /api/analyze (calls); GET /api/analyze/github (calls)",
+      "business_feature": "CV Intake & Analysis Run",
+      "category": "lib",
+      "cross_refs": [
+        "cv-analyze-workspace"
+      ],
+      "db_tables": [
+        "analyses"
+      ],
+      "description": "Implements all CV intake, drag-and-drop routing, GitHub repository scanning, and analysis run delivery logic for the analyze tool. Manages file acceptance gating, drag counters, collapse state, JD library state, the Python pipeline invocation via AnalyzeApi, and delivery callbacks that update UI state on completion. The analyzeGithubRun module handles async GitHub-based CV fetches gated by policy.",
+      "entry_points": [
+        "app/features/tools/analyze/AnalyzeApi.ts",
+        "app/features/tools/analyze/analyzeCvIntake.ts",
+        "app/features/tools/analyze/analyzeRunDelivery.ts"
+      ],
+      "file_paths": [
+        "app/features/tools/analyze/AnalyzeApi.ts",
+        "app/features/tools/analyze/AnalyzeApi.test.ts",
+        "app/features/tools/analyze/AnalyzeTypes.ts",
+        "app/features/tools/analyze/analyzeCvIntake.ts",
+        "app/features/tools/analyze/analyzeCvIntake.test.ts",
+        "app/features/tools/analyze/analyzeCollapse.ts",
+        "app/features/tools/analyze/analyzeCollapse.test.ts",
+        "app/features/tools/analyze/analyzeDropRouting.ts",
+        "app/features/tools/analyze/analyzeDropRouting.test.ts",
+        "app/features/tools/analyze/analyzeDragCounter.ts",
+        "app/features/tools/analyze/analyzeDragCounter.test.ts",
+        "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts",
+        "app/features/tools/analyze/useAnalyzeCvFiles.ts",
+        "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts",
+        "app/features/tools/analyze/useAnalyzeFileAccept.ts",
+        "app/features/tools/analyze/analyzeFileIntakeGate.test.ts",
+        "app/features/tools/analyze/analyzeGithubRun.ts",
+        "app/features/tools/analyze/analyzeGithubRunPolicy.ts",
+        "app/features/tools/analyze/analyzeGithubRunPolicy.test.ts",
+        "app/features/tools/analyze/analyzeRunAnalysis.ts",
+        "app/features/tools/analyze/analyzeRunDelivery.ts",
+        "app/features/tools/analyze/analyzeRunDelivery.test.ts",
+        "app/features/tools/analyze/analyzeSurfaces.ts",
+        "app/features/tools/analyze/analyzePipelineRef.ts",
+        "app/features/tools/analyze/analyzePipelineRef.test.ts",
+        "app/features/tools/analyze/analyzeDraft.ts",
+        "app/features/tools/analyze/analyzeDraft.test.ts"
+      ],
+      "group": "CV Analysis & Scoring",
+      "group_id": "689c1782-02bd-4e76-8009-285a82c298e6",
+      "id": "01cf5f88-41a1-47e6-9310-186589ebf384",
+      "keywords": [
+        "cv-intake",
+        "file-drop",
+        "drag-drop",
+        "github-scan",
+        "analysis-run",
+        "pipeline-invoke",
+        "draft",
+        "delivery",
+        "rate-limit"
+      ],
+      "last_written_at": "2026-09-21T20:32:25.618853200+00:00",
+      "name": "cv-analyze-intake",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4"
+      ]
+    },
+    {
+      "api_surface": "POST /api/analyze (consumed)",
+      "business_feature": "CV Analysis Workspace",
+      "category": "ui",
+      "cross_refs": [
+        "cv-analyze-intake",
+        "profile-editor"
+      ],
+      "db_tables": [],
+      "description": "Provides the recruiter-facing CV analysis workspace: the main tab shell, multi-column form, file drop zone, JD picker, paste row, and the history sub-tab for reviewing past runs. Renders the segmented-control surface that switches between collapsed and expanded form states, then hands off to the intake layer for the actual analysis run. Depends on the JD library state module and next-intl for i18n.",
+      "entry_points": [
+        "app/features/tools/analyze/AnalyzeTab.tsx",
+        "app/features/tools/analyze/AnalyzeWorkspace.tsx"
+      ],
+      "file_paths": [
+        "app/features/tools/analyze/AnalyzeTab.tsx",
+        "app/features/tools/analyze/AnalyzeWorkspace.tsx",
+        "app/features/tools/analyze/AnalyzeColumn.tsx",
+        "app/features/tools/analyze/AnalyzePasteRow.tsx",
+        "app/features/tools/analyze/AnalyzeForm.tsx",
+        "app/features/tools/analyze/AnalyzeFormCollapsed.tsx",
+        "app/features/tools/analyze/AnalyzeFormFooter.tsx",
+        "app/features/tools/analyze/AnalyzeFormOptionalColumns.tsx",
+        "app/features/tools/analyze/AnalyzeProfileInput.tsx",
+        "app/features/tools/analyze/AnalyzeProfileInputFileList.tsx",
+        "app/features/tools/analyze/AnalyzeSavedJdPicker.tsx",
+        "app/features/tools/analyze/AnalyzeFileDropZone.tsx",
+        "app/features/tools/analyze/analyzeJdLibraryState.ts",
+        "app/features/tools/analyze/analyzeJdLibraryState.test.ts",
+        "app/features/tools/analyze/useAnalyzeJdLibrary.ts",
+        "app/features/tools/analyze/analyzeDesignSurface.test.ts",
+        "app/features/tools/analyze/useAnalyzeForm.ts",
+        "app/features/tools/analyze/history/HistoryTab.tsx",
+        "app/features/tools/analyze/history/HistoryTable.tsx",
+        "app/features/tools/analyze/history/HistoryFilterBar.tsx",
+        "app/features/tools/analyze/history/HistoryTypes.ts",
+        "app/features/tools/analyze/history/HistoryTypes.test.ts"
+      ],
+      "group": "CV Analysis & Scoring",
+      "group_id": "689c1782-02bd-4e76-8009-285a82c298e6",
+      "id": "6f7a0c99-f2d4-4070-83be-89bc582d0228",
+      "keywords": [
+        "cv-analysis",
+        "analyze-form",
+        "file-drop",
+        "jd-picker",
+        "history",
+        "analyze-tab",
+        "workspace",
+        "collapsed-form"
+      ],
+      "last_written_at": "2026-09-21T20:32:20.490811200+00:00",
+      "name": "cv-analyze-workspace",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl",
+        "framer-motion"
+      ]
+    },
+    {
       "api_surface": "extract_cli.py, profile_cli.py as subprocess entry points",
       "business_feature": "CV Extraction & Profiling",
       "category": "lib",
@@ -3388,7 +3520,6 @@
         "app/features/hiring/decisions/useDecisionsQueue.ts"
       ],
       "file_paths": [
-        "app/features/hiring/decisions/DecisionsAiReviewCard.tsx",
         "app/features/hiring/decisions/DecisionsAiReviewCardBody.tsx",
         "app/features/hiring/decisions/DecisionsAiReviewCardLadder.tsx",
         "app/features/hiring/decisions/DecisionsAiReviewsSection.tsx",
@@ -3428,7 +3559,7 @@
         "shortlist",
         "score"
       ],
-      "last_written_at": "2026-09-14T19:05:31.648911900+00:00",
+      "last_written_at": "2026-09-21T20:29:54.434594700+00:00",
       "name": "decisions-review-ui",
       "pinned": false,
       "tech_stack": [
@@ -3715,6 +3846,70 @@
       ]
     },
     {
+      "api_surface": "GET /api/devcases/:id (consumed); POST /api/devcases/:id/publish (consumed)",
+      "business_feature": "Dev Case Detail & Publishing",
+      "category": "ui",
+      "cross_refs": [
+        "devcase-workspace",
+        "devcase-eval",
+        "devcase-outbox-need"
+      ],
+      "db_tables": [
+        "dev_cases",
+        "dev_submissions"
+      ],
+      "description": "Renders the full dev-case detail panel: header, internal view, shortlist, channel threads, and the publish/seed/script lifecycle actions. DevCaseDetailChannels handles real-time channel messaging tied to a case; the publish and script modules implement multi-step confirmation flows with integrity guards. DevCohortProbePanel and DevProbeStrengthBanner surface AI-derived cohort signals to the recruiter.",
+      "entry_points": [
+        "app/features/tools/devcases/DevCaseDetail.tsx",
+        "app/features/tools/devcases/DevCaseDetailChannels.tsx"
+      ],
+      "file_paths": [
+        "app/features/tools/devcases/DevCaseDetail.tsx",
+        "app/features/tools/devcases/DevCaseDetail.seed.ts",
+        "app/features/tools/devcases/DevCaseDetail.seed.test.ts",
+        "app/features/tools/devcases/DevCaseDetail.publish.ts",
+        "app/features/tools/devcases/DevCaseDetail.publish.test.ts",
+        "app/features/tools/devcases/DevCaseDetail.script.ts",
+        "app/features/tools/devcases/DevCaseDetail.script.test.ts",
+        "app/features/tools/devcases/DevCaseDetailHeader.tsx",
+        "app/features/tools/devcases/DevCaseDetailShortlist.tsx",
+        "app/features/tools/devcases/DevCaseDetailInternal.tsx",
+        "app/features/tools/devcases/DevCaseDetailChannels.tsx",
+        "app/features/tools/devcases/DevCaseDetailChannels.channel.ts",
+        "app/features/tools/devcases/DevCaseDetailChannels.channel.test.ts",
+        "app/features/tools/devcases/DevProvenanceStrip.tsx",
+        "app/features/tools/devcases/DevProbeStrengthBanner.tsx",
+        "app/features/tools/devcases/DevApplyTokenPill.tsx",
+        "app/features/tools/devcases/DevPublishConfirm.tsx",
+        "app/features/tools/devcases/ResendButton.tsx",
+        "app/features/tools/devcases/DevCohortProbePanel.tsx"
+      ],
+      "group": "Developer Assessment",
+      "group_id": "058278cc-d88d-4627-ae04-e70df8c33e4d",
+      "id": "a4026dc2-d6bb-4214-914a-29103ca51fd8",
+      "keywords": [
+        "case-detail",
+        "publish",
+        "seed",
+        "script",
+        "channels",
+        "shortlist",
+        "provenance",
+        "cohort-probe",
+        "apply-token"
+      ],
+      "last_written_at": "2026-09-21T20:32:25.622900900+00:00",
+      "name": "devcase-detail",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl"
+      ]
+    },
+    {
       "api_surface": "GET/POST /api/devcases/[id]/submissions, GET /api/interview/sim",
       "business_feature": "Developer Submission Evaluation & Interview Sim",
       "category": "ui",
@@ -3785,6 +3980,79 @@
         "React 19",
         "TypeScript",
         "Tailwind 4"
+      ]
+    },
+    {
+      "api_surface": "POST /api/devcases/:id/eval (consumed); GET /api/devcases/:id/interview-kit (consumed)",
+      "business_feature": "Dev Case Evaluation & Scoring",
+      "category": "ui",
+      "cross_refs": [
+        "devcase-detail",
+        "devcase-workspace"
+      ],
+      "db_tables": [
+        "dev_submissions",
+        "dev_cases"
+      ],
+      "description": "Implements submission evaluation, scoring, and candidate assessment panels within the dev-case workflow. DevEvalPanel and its sub-panels (Checks, Integrity, ProcessTrace, Scores) render the AI-produced evaluation of a submission; DevAnalysisView shows design and reflection cards; DevSubmissionRow variants render scored submissions in the ledger; DevInterviewKit selects and surfaces the AI-generated interview question kit. Also includes session-evidence capture, anti-delegation canary catalog, voice screen panel, and comparison views.",
+      "entry_points": [
+        "app/features/tools/devcases/DevEvalPanel.tsx",
+        "app/features/tools/devcases/DevInterviewKit.tsx",
+        "app/features/tools/devcases/devcase-session-evidence.ts"
+      ],
+      "file_paths": [
+        "app/features/tools/devcases/DevEvalPanel.tsx",
+        "app/features/tools/devcases/DevEvalPanelChecks.tsx",
+        "app/features/tools/devcases/DevEvalPanelIntegrity.tsx",
+        "app/features/tools/devcases/DevEvalPanelProcessTrace.tsx",
+        "app/features/tools/devcases/DevEvalPanelScores.tsx",
+        "app/features/tools/devcases/DevAnalysisDesignCard.tsx",
+        "app/features/tools/devcases/DevAnalysisReflectionCard.tsx",
+        "app/features/tools/devcases/DevAnalysisView.tsx",
+        "app/features/tools/devcases/DevSubmissionForm.tsx",
+        "app/features/tools/devcases/DevSubmissionRow.tsx",
+        "app/features/tools/devcases/DevSubmissionRowOutcome.tsx",
+        "app/features/tools/devcases/DevSubmissionRowSkillProfile.tsx",
+        "app/features/tools/devcases/DevCompareSubmissions.tsx",
+        "app/features/tools/devcases/DevCompareSubmissions.source.test.ts",
+        "app/features/tools/devcases/DevInterviewKit.tsx",
+        "app/features/tools/devcases/DevInterviewKit.select.ts",
+        "app/features/tools/devcases/DevInterviewKit.select.test.ts",
+        "app/features/tools/devcases/DevSessionEvidencePanel.tsx",
+        "app/features/tools/devcases/DevVoiceScreenPanel.tsx",
+        "app/features/tools/devcases/DevScoreBar.tsx",
+        "app/features/tools/devcases/devEvalTaskState.ts",
+        "app/features/tools/devcases/devEvalTaskState.test.ts",
+        "app/features/tools/devcases/devcase-session-evidence.ts",
+        "app/features/tools/devcases/devcase-session-evidence.test.ts",
+        "app/features/tools/devcases/useDevSubmissionRow.ts",
+        "app/features/tools/devcases/DevHelpers.ts",
+        "app/features/tools/devcases/DevHelpers.test.ts",
+        "app/features/tools/devcases/devcase-canary-catalog.test.ts"
+      ],
+      "group": "Developer Assessment",
+      "group_id": "058278cc-d88d-4627-ae04-e70df8c33e4d",
+      "id": "82c3e0fd-b156-4895-a829-eec4f379ad63",
+      "keywords": [
+        "eval-panel",
+        "submission-scoring",
+        "integrity-check",
+        "interview-kit",
+        "canary",
+        "session-evidence",
+        "voice-screen",
+        "compare-submissions",
+        "skill-profile"
+      ],
+      "last_written_at": "2026-09-21T20:32:25.623194600+00:00",
+      "name": "devcase-eval",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl"
       ]
     },
     {
@@ -4134,6 +4402,65 @@
       ]
     },
     {
+      "api_surface": "GET /api/devcases/:id/outbox (consumed); POST /api/devcases/need (consumed)",
+      "business_feature": "Dev Case Outbox & Need Definition",
+      "category": "ui",
+      "cross_refs": [
+        "devcase-workspace",
+        "devcase-detail"
+      ],
+      "db_tables": [
+        "dev_cases"
+      ],
+      "description": "Manages the dev-case outbox (candidate communications queue) and the case need-definition flow. OutboxSection/OutboxRows display and allow re-sending of outbound messages per dev case; outboxView/outboxRefresh handle the fetch and polling logic. DevNeedForm and buildNeed model the recruiter's problem statement (the need) that seeds the AI case generator. Also contains studio copy, i18n, robustness, timebox and vocabulary test fixtures.",
+      "entry_points": [
+        "app/features/tools/devcases/OutboxSection.tsx",
+        "app/features/tools/devcases/DevNeedForm.tsx",
+        "app/features/tools/devcases/buildNeed.ts"
+      ],
+      "file_paths": [
+        "app/features/tools/devcases/OutboxRows.tsx",
+        "app/features/tools/devcases/OutboxSection.tsx",
+        "app/features/tools/devcases/outboxView.ts",
+        "app/features/tools/devcases/outboxView.test.ts",
+        "app/features/tools/devcases/outboxRefresh.ts",
+        "app/features/tools/devcases/outboxRefresh.test.ts",
+        "app/features/tools/devcases/outbox-kind-catalog.test.ts",
+        "app/features/tools/devcases/DevNeedForm.tsx",
+        "app/features/tools/devcases/buildNeed.ts",
+        "app/features/tools/devcases/buildNeed.test.ts",
+        "app/features/tools/devcases/useDevTabNeedAnalysis.ts",
+        "app/features/tools/devcases/devcaseStudioCopy.ts",
+        "app/features/tools/devcases/devcase-studio-i18n.test.ts",
+        "app/features/tools/devcases/devcase-studio-robustness.test.ts",
+        "app/features/tools/devcases/devcase-timebox-ui.test.ts",
+        "app/features/tools/devcases/devcase-vocabulary.test.ts"
+      ],
+      "group": "Developer Assessment",
+      "group_id": "058278cc-d88d-4627-ae04-e70df8c33e4d",
+      "id": "9435610d-c621-4497-842c-37b7091276f3",
+      "keywords": [
+        "outbox",
+        "resend",
+        "need-definition",
+        "case-generator",
+        "comms-queue",
+        "timebox",
+        "studio-copy",
+        "outbox-kind"
+      ],
+      "last_written_at": "2026-09-21T20:32:25.623477500+00:00",
+      "name": "devcase-outbox-need",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl"
+      ]
+    },
+    {
       "api_surface": "GET/POST /api/devcase, GET/POST /api/devcase/session, GET /api/devcase/session/[id], POST /api/devcase/session/[id]/chat, POST /api/devcase/session/[id]/submit, POST /api/devcase/submit, POST /api/devcase/publish, POST /api/devcase/promote, GET /api/devcase/outcomes, GET /api/devcase/skill-profile",
       "business_feature": "Developer Assessment Session",
       "category": "api",
@@ -4260,6 +4587,79 @@
       ]
     },
     {
+      "api_surface": "GET /api/devcases (consumed); GET /api/jobs (consumed)",
+      "business_feature": "Developer Assessment Workspace",
+      "category": "ui",
+      "cross_refs": [
+        "devcase-detail",
+        "devcase-outbox-need",
+        "devcase-eval"
+      ],
+      "db_tables": [
+        "dev_cases",
+        "dev_submissions",
+        "jobs"
+      ],
+      "description": "The top-level Developer Assessment tab shell: case table, lifecycle rows, view switcher (Cases / Define), tab data and action hooks, empty states, and the embedded Interview Simulator tab. Orchestrates which sub-view renders and manages the overall dev-case list state fetched from the API. Also contains the interview simulation billing check and mode selection cards.",
+      "entry_points": [
+        "app/features/tools/devcases/DevTab.tsx",
+        "app/features/tools/devcases/useDevTabData.ts"
+      ],
+      "file_paths": [
+        "app/features/tools/devcases/DevTab.tsx",
+        "app/features/tools/devcases/DevTab.approve-error.test.ts",
+        "app/features/tools/devcases/DevTabCasesView.tsx",
+        "app/features/tools/devcases/DevTabDefineView.tsx",
+        "app/features/tools/devcases/DevTabSwitcher.tsx",
+        "app/features/tools/devcases/DevTabViews.ts",
+        "app/features/tools/devcases/DevCasesTable.tsx",
+        "app/features/tools/devcases/DevCasesTable.stall.ts",
+        "app/features/tools/devcases/DevCasesTable.stall.test.ts",
+        "app/features/tools/devcases/DevLifecycleSection.tsx",
+        "app/features/tools/devcases/DevLifecycleRow.tsx",
+        "app/features/tools/devcases/DevLifecycleReviewPanel.tsx",
+        "app/features/tools/devcases/DevLabels.ts",
+        "app/features/tools/devcases/DevTypes.ts",
+        "app/features/tools/devcases/DevShared.tsx",
+        "app/features/tools/devcases/DevCasesEmpty.tsx",
+        "app/features/tools/devcases/DevCasesEmptyLedger.tsx",
+        "app/features/tools/devcases/casesPage.ts",
+        "app/features/tools/devcases/casesPage.test.ts",
+        "app/features/tools/devcases/useDevTabData.ts",
+        "app/features/tools/devcases/useDevTabActions.ts",
+        "app/features/tools/devcases/DevCaseJobLink.tsx",
+        "app/features/tools/interview/InterviewModeCards.tsx",
+        "app/features/tools/interview/InterviewAttachToCandidate.tsx",
+        "app/features/tools/interview/InterviewStartPanel.tsx",
+        "app/features/tools/interview/InterviewSimTab.tsx",
+        "app/features/tools/interview/simBilling.ts",
+        "app/features/tools/interview/simBilling.test.ts"
+      ],
+      "group": "Developer Assessment",
+      "group_id": "058278cc-d88d-4627-ae04-e70df8c33e4d",
+      "id": "bacab51a-4810-48e4-8926-12b3bb6efc79",
+      "keywords": [
+        "devcase",
+        "work-sample",
+        "case-table",
+        "lifecycle",
+        "interview-simulator",
+        "billing-check",
+        "tab-shell",
+        "llm-era-assessment"
+      ],
+      "last_written_at": "2026-09-21T20:32:20.495319600+00:00",
+      "name": "devcase-workspace",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl"
+      ]
+    },
+    {
       "api_surface": "Exercises: POST /api/pipeline/stage-migration, POST /api/jds, POST /api/me/onboarding, GET /schedule/[token], GET /api/profile",
       "business_feature": "End-to-End Test Suite",
       "category": "test",
@@ -4279,7 +4679,6 @@
         "e2e/dev-auth.ts",
         "e2e/fixtures/github-analysis.ts",
         "e2e/fixtures/mock-personas-bridge.ts",
-        "e2e/jds-pipeline-column.spec.ts",
         "e2e/journey-one-thread.spec.ts",
         "e2e/journey-role-to-schedule.spec.ts",
         "e2e/landing.spec.ts",
@@ -4308,7 +4707,7 @@
         "pipeline",
         "accessibility"
       ],
-      "last_written_at": "2026-09-14T19:25:18.287251900+00:00",
+      "last_written_at": "2026-09-21T20:29:54.450950500+00:00",
       "name": "e2e-suite",
       "pinned": false,
       "tech_stack": [
@@ -5349,6 +5748,71 @@
       ]
     },
     {
+      "api_surface": "none — CLI entry in scripts/; library consumed by test runner and UAT harness",
+      "business_feature": "Interview Simulator",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Text-plane simulation harness that drives the real AI director/interviewer against model-played candidate personas, exercising the same brief composition, agenda, director policy, and tool calls as a live voice session. Runs many situations in parallel with a simulated clock, writes per-conversation JSON dumps, and produces reliability verdicts through an independent judge. Used as the UAT 'LC' conversation-level certification layer — cheaper than a browser run but testing the actual instrument rather than a paraphrase.",
+      "entry_points": [
+        "app/_lib/interview-sim/types.ts",
+        "app/_lib/interview-sim/engine.ts",
+        "app/_lib/interview-sim/runner.ts"
+      ],
+      "file_paths": [
+        "app/_lib/interview-sim/types.ts",
+        "app/_lib/interview-sim/engine.ts",
+        "app/_lib/interview-sim/runner.ts",
+        "app/_lib/interview-sim/director-loop.ts",
+        "app/_lib/interview-sim/instrument.ts",
+        "app/_lib/interview-sim/clock.ts",
+        "app/_lib/interview-sim/providers.ts",
+        "app/_lib/interview-sim/tool-line.ts",
+        "app/_lib/interview-sim/situations.ts",
+        "app/_lib/interview-sim/judge.ts",
+        "app/_lib/interview-sim/detectors.ts",
+        "app/_lib/interview-sim/verdict-run.ts",
+        "app/_lib/interview-sim/cross-block.ts",
+        "app/_lib/interview-sim/record.ts",
+        "app/_lib/interview-sim/lexicon.ts",
+        "app/_lib/interview-sim/dump-builder.ts",
+        "app/_lib/interview-sim/voices.ts",
+        "app/_lib/interview-sim/fake.ts",
+        "app/_lib/interview-sim/engine.test.ts",
+        "app/_lib/interview-sim/clock.test.ts",
+        "app/_lib/interview-sim/providers.test.ts",
+        "app/_lib/interview-sim/tool-line.test.ts",
+        "app/_lib/interview-sim/judge.test.ts",
+        "app/_lib/interview-sim/detectors.test.ts",
+        "app/_lib/interview-sim/verdict-run.test.ts",
+        "app/_lib/interview-sim/lexicon.test.ts",
+        "app/_lib/interview-sim/verdict-e2e.test.ts"
+      ],
+      "group": "Interviews & Assessments",
+      "group_id": "617bf519-1b19-49e0-8b9a-d802b48c7014",
+      "id": "050c760b-ee78-46e0-a86f-77d80d89b3bf",
+      "keywords": [
+        "interview-simulator",
+        "director",
+        "candidate-persona",
+        "reliability-invariant",
+        "verdict",
+        "simulated-clock",
+        "judge",
+        "transcript",
+        "tool-line",
+        "conversational-assessment"
+      ],
+      "last_written_at": "2026-09-21T20:29:55.391700800+00:00",
+      "name": "interview-simulator",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "TypeScript",
+        "node:test"
+      ]
+    },
+    {
       "api_surface": "GET/POST /api/interview-prep, GET/POST /api/interview-prep/scorecard, POST /api/stt, POST /api/tts, GET /api/skill-profile/[token]/verify",
       "business_feature": "Interview Prep & Assessments",
       "category": "api",
@@ -5638,10 +6102,8 @@
       ],
       "file_paths": [
         "app/features/library/jds/intake/coats/atelier/AtelierBriefPlane.tsx",
-        "app/features/library/jds/intake/coats/atelier/AtelierComposer.tsx",
         "app/features/library/jds/intake/coats/atelier/AtelierDraftSheet.tsx",
         "app/features/library/jds/intake/coats/atelier/atelierPlane.tsx",
-        "app/features/library/jds/intake/coats/atelier/AtelierTranscript.tsx",
         "app/features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx",
         "app/features/library/jds/intake/coats/studioContract.ts",
         "app/features/library/jds/intake/coats/studioContract.test.ts",
@@ -5653,7 +6115,6 @@
         "app/features/library/jds/intake/JdsIntakeBriefBody.tsx",
         "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx",
         "app/features/library/jds/intake/JdsIntakeBriefTitle.tsx",
-        "app/features/library/jds/intake/JdsIntakeChoiceCards.tsx",
         "app/features/library/jds/intake/JdsIntakePanel.tsx",
         "app/features/library/jds/intake/JdsIntakeSessionsTable.tsx"
       ],
@@ -5671,7 +6132,7 @@
         "desk",
         "transcript"
       ],
-      "last_written_at": "2026-09-14T19:03:02.551037100+00:00",
+      "last_written_at": "2026-09-21T20:29:54.461828200+00:00",
       "name": "jd-intake-studio",
       "pinned": false,
       "tech_stack": [
@@ -6080,9 +6541,6 @@
       ],
       "file_paths": [
         "app/features/library/jobs/JobsCoachPanel.tsx",
-        "app/features/library/jobs/JobsCoachPanelLoosenList.tsx",
-        "app/features/library/jobs/JobsCoachPanelStageEditButton.tsx",
-        "app/features/library/jobs/jobsCoachPanelTypes.ts",
         "app/features/library/jobs/jobsCoachApply.ts",
         "app/features/library/jobs/jobsCoachApply.test.ts",
         "app/features/library/jobs/jobsCoachSalary.ts",
@@ -6110,7 +6568,7 @@
         "loosen",
         "stage edit"
       ],
-      "last_written_at": "2026-09-14T19:03:02.551417100+00:00",
+      "last_written_at": "2026-09-21T20:29:54.465172400+00:00",
       "name": "jobs-ai-coach-fit",
       "pinned": false,
       "tech_stack": [
@@ -6201,8 +6659,6 @@
       ],
       "file_paths": [
         "app/features/library/jobs/JobsRecruiterCandidates.tsx",
-        "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
-        "app/features/library/jobs/JobsRecruiterCandidatesColumn.tsx",
         "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx",
         "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts",
         "app/features/library/jobs/jobsFairnessMatrix.ts",
@@ -6229,7 +6685,7 @@
         "evidence",
         "shortlist"
       ],
-      "last_written_at": "2026-09-14T19:03:02.551533+00:00",
+      "last_written_at": "2026-09-21T20:29:54.467000600+00:00",
       "name": "jobs-candidates-compare",
       "pinned": false,
       "tech_stack": [
@@ -6334,13 +6790,7 @@
         "app/features/library/jobs/jobsIngestRunOutcome.test.ts",
         "app/features/library/jobs/JobsIngestAdPanel.tsx",
         "app/features/library/jobs/jobsIngestAdPanelLogic.ts",
-        "app/features/library/jobs/JobsIngestAdPanelResults.tsx",
-        "app/features/library/jobs/jobsCampaignPackKey.ts",
-        "app/features/library/jobs/jobsCampaignPackKey.test.ts",
-        "app/features/library/jobs/JobsCampaignTab.tsx",
-        "app/features/library/jobs/jobsCampaignTabLogic.ts",
-        "app/features/library/jobs/jobsCampaignTabTypes.ts",
-        "app/features/library/jobs/JobsCampaignTabVariantCard.tsx"
+        "app/features/library/jobs/JobsIngestAdPanelResults.tsx"
       ],
       "group": "Job & JD Management",
       "group_id": "3a309755-3939-4e65-943d-40f724727931",
@@ -6356,7 +6806,7 @@
         "pack key",
         "modal"
       ],
-      "last_written_at": "2026-09-14T19:03:02.551651100+00:00",
+      "last_written_at": "2026-09-21T20:29:54.468559+00:00",
       "name": "jobs-posting-campaign",
       "pinned": false,
       "tech_stack": [
@@ -6480,6 +6930,408 @@
         "Next.js 16",
         "React 19",
         "TypeScript"
+      ]
+    },
+    {
+      "api_surface": "GET /api/jobseeker/profile, PUT /api/jobseeker/profile, GET /api/jobseeker/profile/seen, GET /api/jobseeker/cv.md, GET /api/jobseeker/postings, GET|DELETE /api/jobseeker/postings/[id], GET /api/jobseeker/postings/[id]/deepdive, GET|POST /api/jobseeker/sources, GET|PATCH|DELETE /api/jobseeker/sources/[id], GET /api/jobseeker/sources/[id]/preview, POST /api/jobseeker/sources/[id]/rules/propose, POST /api/jobseeker/scan, GET|POST /api/jobseeker/dialogs, GET /api/jobseeker/dialogs/[id], POST /api/jobseeker/dialogs/[id]/message",
+      "business_feature": "Jobseeker Self-Service",
+      "category": "api",
+      "cross_refs": [],
+      "db_tables": [
+        "jobseeker_profiles",
+        "jobseeker_postings",
+        "jobseeker_sources",
+        "jobseeker_dialogs",
+        "scheduler_runs"
+      ],
+      "description": "Exposes the full jobseeker self-service surface: the seeker's own profile and CV studio (GET/PUT profile, CV markdown export), a paginated keyset-paged job-posting feed with new-since tracking, per-posting deepdive and dismissal, and an AI-driven Studio dialog system for CV polishing and job-fit conversations. Covers owner-confirmed acquisition source management (catalog, per-source CRUD, rules/proposal) and the manual-scan trigger that enqueues the `jobseeker_scan` background task. Every write is operator-gated and rate-limited; open-mode degrades to per-IP limiters rather than crashing.",
+      "entry_points": [
+        "app/api/jobseeker/profile/route.ts",
+        "app/api/jobseeker/postings/route.ts",
+        "app/api/jobseeker/dialogs/route.ts"
+      ],
+      "file_paths": [
+        "app/api/jobseeker/profile/route.ts",
+        "app/api/jobseeker/profile/seen/route.ts",
+        "app/api/jobseeker/cv.md/route.ts",
+        "app/api/jobseeker/postings/route.ts",
+        "app/api/jobseeker/postings/[id]/route.ts",
+        "app/api/jobseeker/postings/[id]/deepdive/route.ts",
+        "app/api/jobseeker/postings/postings-route.test.ts",
+        "app/api/jobseeker/postings/deepdive-route.test.ts",
+        "app/api/jobseeker/sources/route.ts",
+        "app/api/jobseeker/sources/[id]/route.ts",
+        "app/api/jobseeker/sources/[id]/preview/route.ts",
+        "app/api/jobseeker/sources/[id]/rules/propose/route.ts",
+        "app/api/jobseeker/sources/sources-route.test.ts",
+        "app/api/jobseeker/scan/route.ts",
+        "app/api/jobseeker/dialogs/route.ts",
+        "app/api/jobseeker/dialogs/[id]/route.ts",
+        "app/api/jobseeker/dialogs/[id]/message/route.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "81e52844-53c6-4e24-a255-6d199f016b0b",
+      "keywords": [
+        "jobseeker",
+        "cv",
+        "profile",
+        "postings",
+        "feed",
+        "dialogs",
+        "sources",
+        "scan",
+        "studio",
+        "fit"
+      ],
+      "last_written_at": "2026-09-21T20:34:57.235277900+00:00",
+      "name": "jobseeker-api",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "better-sqlite3"
+      ]
+    },
+    {
+      "api_surface": "consumes external ATS public APIs (JSON/RSS); no inbound API surface",
+      "business_feature": "ATS Job Feed Adapters",
+      "category": "lib",
+      "cross_refs": [
+        "jobseeker-core",
+        "jobseeker-feed-rules"
+      ],
+      "db_tables": [],
+      "description": "Adapter implementations for nine ATS platforms (Greenhouse, Lever, Recruitee, Teamtailor, Personio, Workable, Ashby, SmartRecruiters, and a discovery probe) that fetch structured job listings from their public APIs or RSS feeds. Each adapter maps the platform's native response shape into the shared RawPosting wire type declared in types.ts. The registry (adapters/registry.ts) routes a SourceAdapterName to its implementation; adapters/types.ts declares the SourceAdapter interface; adapters/shared.ts holds config helpers used across all ATS implementations.",
+      "entry_points": [
+        "app/_lib/jobseeker/adapters/registry.ts",
+        "app/_lib/jobseeker/adapters/types.ts"
+      ],
+      "file_paths": [
+        "app/_lib/jobseeker/adapters/types.ts",
+        "app/_lib/jobseeker/adapters/shared.ts",
+        "app/_lib/jobseeker/adapters/registry.ts",
+        "app/_lib/jobseeker/adapters/adapters.test.ts",
+        "app/_lib/jobseeker/adapters/ats/greenhouse.ts",
+        "app/_lib/jobseeker/adapters/ats/lever.ts",
+        "app/_lib/jobseeker/adapters/ats/recruitee.ts",
+        "app/_lib/jobseeker/adapters/ats/teamtailor.ts",
+        "app/_lib/jobseeker/adapters/ats/personio.ts",
+        "app/_lib/jobseeker/adapters/ats/workable.ts",
+        "app/_lib/jobseeker/adapters/ats/ashby.ts",
+        "app/_lib/jobseeker/adapters/ats/smartrecruiters.ts",
+        "app/_lib/jobseeker/adapters/ats/discover.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "d13f4735-d089-40d1-9579-f98bef981a57",
+      "keywords": [
+        "greenhouse",
+        "lever",
+        "recruitee",
+        "teamtailor",
+        "personio",
+        "workable",
+        "ashby",
+        "smartrecruiters",
+        "ats",
+        "adapter"
+      ],
+      "last_written_at": "2026-09-21T20:30:24.962373400+00:00",
+      "name": "jobseeker-ats-adapters",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "TypeScript",
+        "node:fetch"
+      ]
+    },
+    {
+      "api_surface": "internal library; consumed by /api/me/** routes and the jobseeker_scan task",
+      "business_feature": "Jobseeker Scan & Match Engine",
+      "category": "lib",
+      "cross_refs": [
+        "jobseeker-feed-rules",
+        "jobseeker-ats-adapters"
+      ],
+      "db_tables": [
+        "jobseeker_profiles",
+        "jobseeker_postings",
+        "jobseeker_sources",
+        "jobseeker_dialogs",
+        "scheduler_runs"
+      ],
+      "description": "Implements the candidate-side job-search engine: profile storage (CV text + polished markdown + preferences), posting reconciliation, LLM-based matching and deep-dive scoring, and the top-level scan orchestrator that wires acquire → structure → match → deep-dive for one workspace. All shared vocabulary (closed enums, type guards, wire shapes for postings, dialogs, and scan summaries) is declared once in types.ts and imported by every other layer. Depends on the Python CLI bridge (python-cli.ts) to invoke the jobfit pipeline for match scoring.",
+      "entry_points": [
+        "app/_lib/jobseeker/types.ts",
+        "app/_lib/jobseeker/scan.ts",
+        "app/_lib/jobseeker/profile.ts"
+      ],
+      "file_paths": [
+        "app/_lib/jobseeker/types.ts",
+        "app/_lib/jobseeker/profile.ts",
+        "app/_lib/jobseeker/scan.ts",
+        "app/_lib/jobseeker/match.ts",
+        "app/_lib/jobseeker/deepdive.ts",
+        "app/_lib/jobseeker/reconcile.ts",
+        "app/_lib/jobseeker/python-cli.ts",
+        "app/_lib/jobseeker/sources-catalog.ts",
+        "app/_lib/jobseeker/profile.test.ts",
+        "app/_lib/jobseeker/scan.test.ts",
+        "app/_lib/jobseeker/reconcile.test.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "d02d8b99-5d84-4f2e-897c-8dbed84aab91",
+      "keywords": [
+        "jobseeker",
+        "scan",
+        "matching",
+        "deep-dive",
+        "posting",
+        "preferences",
+        "fit-tier",
+        "reconcile",
+        "sources-catalog",
+        "profile"
+      ],
+      "last_written_at": "2026-09-21T20:30:24.960351100+00:00",
+      "name": "jobseeker-core",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "TypeScript",
+        "better-sqlite3",
+        "node:crypto"
+      ]
+    },
+    {
+      "api_surface": "GET /api/jobseeker/postings, PATCH /api/jobseeker/postings/[id]",
+      "business_feature": "Candidate Jobs Feed",
+      "category": "ui",
+      "cross_refs": [
+        "jobseeker-profile",
+        "jobseeker-sources-scans"
+      ],
+      "db_tables": [
+        "jobseeker_postings",
+        "jobseeker_profiles"
+      ],
+      "description": "The seeker's personalised jobs feed: a sortable, filterable list of postings scored against the candidate's profile, with eligibility flags and salary-floor comparisons. Chain-aware empty states diagnose the exact missing prerequisite (no profile, no source, no scan, no qualifying results) instead of a generic placeholder. The detail view exposes structured fit reasoning, skill breakdowns, and dimension scores; the seeker can dismiss or mark postings applied.",
+      "entry_points": [
+        "app/features/jobseeker/JobsFeed.tsx",
+        "app/features/jobseeker/feedModel.ts"
+      ],
+      "file_paths": [
+        "app/features/jobseeker/JobsFeed.tsx",
+        "app/features/jobseeker/PostingRow.tsx",
+        "app/features/jobseeker/PostingDetail.tsx",
+        "app/features/jobseeker/FitSheet.tsx",
+        "app/features/jobseeker/FitStudio.tsx",
+        "app/features/jobseeker/feedModel.ts",
+        "app/features/jobseeker/feedModel.test.ts",
+        "app/features/jobseeker/postingView.ts",
+        "app/features/jobseeker/postingView.test.ts",
+        "app/features/jobseeker/DismissPicker.tsx",
+        "app/features/jobseeker/EligibilityChips.tsx",
+        "app/features/jobseeker/FeedEmptyState.tsx",
+        "app/features/jobseeker/usePostingActions.ts"
+      ],
+      "group": "Candidate Matching & Ranking",
+      "group_id": "a1a5b5c6-2071-43f8-bdee-2247c743fe73",
+      "id": "762c265e-3eaa-492e-97c3-91266a106b6d",
+      "keywords": [
+        "jobs-feed",
+        "fit-score",
+        "posting",
+        "eligibility",
+        "salary-floor",
+        "dismiss",
+        "match",
+        "ranking",
+        "FitTier"
+      ],
+      "last_written_at": "2026-09-21T20:31:03.130939800+00:00",
+      "name": "jobseeker-feed",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "React 19",
+        "TypeScript",
+        "next-intl",
+        "Framer Motion",
+        "Tailwind 4"
+      ]
+    },
+    {
+      "api_surface": "consumes EURES REST search API, MPSV bulk XML download, and arbitrary job-board HTML/XML/JSON; no inbound surface",
+      "business_feature": "Job Board Scraping & Feed Ingestion",
+      "category": "lib",
+      "cross_refs": [
+        "jobseeker-core",
+        "jobseeker-ats-adapters"
+      ],
+      "db_tables": [],
+      "description": "Handles job-board scraping via two non-ATS adapter paths: a sitemap+JSON-LD adapter (boardSitemapJsonld), a model-authored CSS/regex extraction-rules adapter (boardRules), plus feed adapters for EURES (EU job mobility portal), MPSV bulk XML (Czech national employment service), JSON-LD pages, raw XML, and streaming JSON arrays. Includes the politeness layer (politeFetch with robots.txt parsing and per-host crawl-delay enforcement) and the extraction-rule DSL/engine (rules/) that the boardRules adapter drives. Test fixtures for all board formats live under __fixtures__/.",
+      "entry_points": [
+        "app/_lib/jobseeker/fetch/politeFetch.ts",
+        "app/_lib/jobseeker/rules/engine.ts",
+        "app/_lib/jobseeker/adapters/eures.ts"
+      ],
+      "file_paths": [
+        "app/_lib/jobseeker/adapters/boardRules.ts",
+        "app/_lib/jobseeker/adapters/boardSitemapJsonld.ts",
+        "app/_lib/jobseeker/adapters/jsonld.ts",
+        "app/_lib/jobseeker/adapters/xml.ts",
+        "app/_lib/jobseeker/adapters/eures.ts",
+        "app/_lib/jobseeker/adapters/mpsvBulk.ts",
+        "app/_lib/jobseeker/adapters/jsonArrayStream.ts",
+        "app/_lib/jobseeker/fetch/robots.ts",
+        "app/_lib/jobseeker/fetch/politeFetch.ts",
+        "app/_lib/jobseeker/fetch/politeFetch.test.ts",
+        "app/_lib/jobseeker/rules/dsl.ts",
+        "app/_lib/jobseeker/rules/engine.ts",
+        "app/_lib/jobseeker/rules/collapse.ts",
+        "app/_lib/jobseeker/rules/rules.test.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "1b76972a-b723-44f7-a452-16729228461f",
+      "keywords": [
+        "eures",
+        "mpsv",
+        "robots.txt",
+        "polite-fetch",
+        "board-scrape",
+        "extraction-rules",
+        "json-ld",
+        "sitemap",
+        "css-selector",
+        "regex"
+      ],
+      "last_written_at": "2026-09-21T20:30:24.962773300+00:00",
+      "name": "jobseeker-feed-rules",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "TypeScript",
+        "node:fetch",
+        "node:crypto"
+      ]
+    },
+    {
+      "api_surface": "PUT /api/jobseeker/profile, POST /api/extract-text, POST /api/profile/draft",
+      "business_feature": "Candidate CV Profile",
+      "category": "ui",
+      "cross_refs": [
+        "jobseeker-feed",
+        "jobseeker-sources-scans"
+      ],
+      "db_tables": [
+        "jobseeker_profiles"
+      ],
+      "description": "Manages the job-seeker's own CV profile: import from file, AI-assisted studio polish, and a summary card that anchors the /me tab. The import is a three-hop chain (extract-text → draft profile → save) whose failure paths are individually named so each miscue has a distinct remedy. CV data powers the downstream fit-scoring pipeline and surfaces via CvSheet / CvStudio dialogs.",
+      "entry_points": [
+        "app/features/jobseeker/ProfilePage.tsx",
+        "app/features/jobseeker/importOutcome.ts"
+      ],
+      "file_paths": [
+        "app/features/jobseeker/ProfilePage.tsx",
+        "app/features/jobseeker/ProfileImport.tsx",
+        "app/features/jobseeker/ProfileSummary.tsx",
+        "app/features/jobseeker/CvStudio.tsx",
+        "app/features/jobseeker/CvSheet.tsx",
+        "app/features/jobseeker/PrintButton.tsx",
+        "app/features/jobseeker/MeNav.tsx",
+        "app/features/jobseeker/MeNavDrawer.tsx",
+        "app/features/jobseeker/importOutcome.ts",
+        "app/features/jobseeker/importOutcome.test.ts",
+        "app/features/jobseeker/FailureNotice.tsx",
+        "app/features/jobseeker/apiFailure.ts",
+        "app/features/jobseeker/apiFailure.test.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "4869cfba-099f-4299-ab82-9de0e9e71840",
+      "keywords": [
+        "cv",
+        "profile",
+        "import",
+        "extract-text",
+        "studio",
+        "jobseeker",
+        "me-tab",
+        "polish",
+        "draft"
+      ],
+      "last_written_at": "2026-09-21T20:31:03.129543400+00:00",
+      "name": "jobseeker-profile",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "React 19",
+        "TypeScript",
+        "next-intl",
+        "Tailwind 4"
+      ]
+    },
+    {
+      "api_surface": "GET/POST /api/jobseeker/sources, POST /api/jobseeker/scan, GET /api/jobseeker/scans",
+      "business_feature": "Job Source & Scan Management",
+      "category": "ui",
+      "cross_refs": [
+        "jobseeker-profile",
+        "jobseeker-feed"
+      ],
+      "db_tables": [
+        "jobseeker_sources"
+      ],
+      "description": "Manages the candidate's job-source catalog and scheduled scan pipeline. Sources are tiered (A: rights-clean feeds; B: terms-gated boards requiring acknowledgement; C: refused with reasons) and each can be toggled or added by slug. The scans page shows run history, lets the seeker trigger an immediate scan, and exposes an extraction-rules authoring panel where AI-proposed rules can be previewed before being applied to future scrapes.",
+      "entry_points": [
+        "app/features/jobseeker/SourcesPage.tsx",
+        "app/features/jobseeker/ScansPage.tsx",
+        "app/features/jobseeker/sourcesApi.ts"
+      ],
+      "file_paths": [
+        "app/features/jobseeker/SourcesPage.tsx",
+        "app/features/jobseeker/SourceCard.tsx",
+        "app/features/jobseeker/SourceSwitch.tsx",
+        "app/features/jobseeker/AddSourceForm.tsx",
+        "app/features/jobseeker/sourcesApi.ts",
+        "app/features/jobseeker/sourceArrival.ts",
+        "app/features/jobseeker/EnableEuresButton.tsx",
+        "app/features/jobseeker/ScansPage.tsx",
+        "app/features/jobseeker/ScanNowButton.tsx",
+        "app/features/jobseeker/ScanRunTable.tsx",
+        "app/features/jobseeker/useScanTask.ts",
+        "app/features/jobseeker/useSheetArrival.ts",
+        "app/features/jobseeker/RulesAuthoring.tsx"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "d9b2a21b-5e9f-4c12-b5b5-247513338492",
+      "keywords": [
+        "sources",
+        "scans",
+        "EURES",
+        "tier-A",
+        "tier-B",
+        "extraction-rules",
+        "scheduler",
+        "scan-interval",
+        "scraping",
+        "acquisition"
+      ],
+      "last_written_at": "2026-09-21T20:31:09.280108300+00:00",
+      "name": "jobseeker-sources-scans",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "React 19",
+        "TypeScript",
+        "next-intl",
+        "Tailwind 4"
       ]
     },
     {
@@ -7776,7 +8628,6 @@
         "app/features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx",
         "app/features/hiring/pipeline/PipelineTodayRail.tsx",
         "app/features/hiring/pipeline/CommandBar.tsx",
-        "app/features/hiring/pipeline/PipelineAiActionsGrid.tsx",
         "app/features/hiring/pipeline/PipelineShared.tsx",
         "app/features/hiring/pipeline/pipelineBoardGrid.ts",
         "app/features/hiring/pipeline/pipelineTabHelpers.ts",
@@ -7803,7 +8654,7 @@
         "stat-header",
         "tenant"
       ],
-      "last_written_at": "2026-09-14T19:05:31.649425+00:00",
+      "last_written_at": "2026-09-21T20:29:54.479914200+00:00",
       "name": "pipeline-board-ui",
       "pinned": false,
       "tech_stack": [
@@ -7833,14 +8684,12 @@
         "app/features/hiring/pipeline/pipelineDrawerActions.ts"
       ],
       "file_paths": [
-        "app/features/hiring/pipeline/PipelineCandidateDrawer.tsx",
         "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts",
         "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.test.ts",
         "app/features/hiring/pipeline/PipelineCandidateMenu.tsx",
         "app/features/hiring/pipeline/PipelineCandidateNoteField.tsx",
         "app/features/hiring/pipeline/PipelineCandidateResultView.tsx",
         "app/features/hiring/pipeline/PipelineCandidateRow.tsx",
-        "app/features/hiring/pipeline/PipelineDrawerHeader.tsx",
         "app/features/hiring/pipeline/PipelineDrawerFooterLinks.tsx",
         "app/features/hiring/pipeline/PipelineDrawerHistoryList.tsx",
         "app/features/hiring/pipeline/PipelineCommsList.tsx",
@@ -7853,11 +8702,8 @@
         "app/features/hiring/pipeline/PipelineVoiceScreenPanel.tsx",
         "app/features/hiring/pipeline/PipelineTokenLink.tsx",
         "app/features/hiring/pipeline/passReasonText.ts",
-        "app/features/hiring/pipeline/pipelineDrawerActions.ts",
-        "app/features/hiring/pipeline/pipelineDrawerActions.test.ts",
         "app/features/hiring/pipeline/pipelineDrawerNote.ts",
         "app/features/hiring/pipeline/pipelineDrawerNote.test.ts",
-        "app/features/hiring/pipeline/usePipelineCandidateDrawerState.ts",
         "app/features/hiring/pipeline/drawerCommsTruth.test.ts",
         "app/features/hiring/pipeline/result-view-unpriced.test.ts"
       ],
@@ -7875,7 +8721,7 @@
         "comms-history",
         "token-link"
       ],
-      "last_written_at": "2026-09-14T19:05:31.649571800+00:00",
+      "last_written_at": "2026-09-21T20:29:54.480850600+00:00",
       "name": "pipeline-candidate-drawer",
       "pinned": false,
       "tech_stack": [
@@ -8022,7 +8868,6 @@
         "app/features/hiring/pipeline/pipelineBoardMove.test.ts",
         "app/features/hiring/pipeline/pipelineMoveTargets.ts",
         "app/features/hiring/pipeline/pipelineMoveTargets.test.ts",
-        "app/features/hiring/pipeline/PipelineMoveStageControl.tsx",
         "app/features/hiring/pipeline/pipelineBulkConfirm.ts",
         "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts",
         "app/features/hiring/pipeline/usePipelineBulk.ts",
@@ -8058,7 +8903,7 @@
         "views",
         "compare-and-swap"
       ],
-      "last_written_at": "2026-09-14T19:05:31.649704800+00:00",
+      "last_written_at": "2026-09-21T20:29:54.482466200+00:00",
       "name": "pipeline-move-bulk-operations",
       "pinned": false,
       "tech_stack": [
@@ -8087,7 +8932,6 @@
       ],
       "file_paths": [
         "app/features/hiring/pipeline/SchedulerControl.tsx",
-        "app/features/hiring/pipeline/SchedulerRemindersRow.tsx",
         "app/features/hiring/pipeline/SchedulerRunHistory.tsx",
         "app/features/hiring/pipeline/SchedulerSummaryBadges.tsx",
         "app/features/hiring/pipeline/SchedulerToolbar.tsx",
@@ -8113,7 +8957,7 @@
         "degraded-intake",
         "timeline"
       ],
-      "last_written_at": "2026-09-14T19:05:30.761049400+00:00",
+      "last_written_at": "2026-09-21T20:29:54.483138700+00:00",
       "name": "pipeline-scheduler-sla",
       "pinned": false,
       "tech_stack": [
@@ -8230,6 +9074,147 @@
         "Next.js 16",
         "TypeScript",
         "better-sqlite3"
+      ]
+    },
+    {
+      "api_surface": "POST /api/profile (consumed); PUT /api/profile/:id (consumed)",
+      "business_feature": "Candidate Profile Editor",
+      "category": "ui",
+      "cross_refs": [
+        "profile-roster-matrix",
+        "cv-analyze-workspace"
+      ],
+      "db_tables": [
+        "profiles"
+      ],
+      "description": "Manages creation and editing of candidate profiles: the editor form (fields, AI-draft, archetype options), payload assembly, completeness computation, draft-merge logic, and routing decisions that determine which profile variant a candidate is assigned to. ProfileTab is the root entry that lazily loads the editor. Relies on next-intl and the shared SegmentedControl; submits to the profile API.",
+      "entry_points": [
+        "app/features/tools/profile/ProfileTab.tsx",
+        "app/features/tools/profile/ProfileEditor.tsx",
+        "app/features/tools/profile/ProfileForm.ts"
+      ],
+      "file_paths": [
+        "app/features/tools/profile/ProfileTab.tsx",
+        "app/features/tools/profile/ProfileEditor.tsx",
+        "app/features/tools/profile/ProfileEditorFields.tsx",
+        "app/features/tools/profile/ProfileEditorArchetypeOptions.tsx",
+        "app/features/tools/profile/ProfileEditorAiDraft.tsx",
+        "app/features/tools/profile/profileEditorPayload.ts",
+        "app/features/tools/profile/profileEditorContracts.test.ts",
+        "app/features/tools/profile/profileEditorHelpers.ts",
+        "app/features/tools/profile/profileEditorHelpers.test.ts",
+        "app/features/tools/profile/profileDraftMerge.ts",
+        "app/features/tools/profile/profileDraftMerge.test.ts",
+        "app/features/tools/profile/ProfileForm.ts",
+        "app/features/tools/profile/ProfileForm.test.ts",
+        "app/features/tools/profile/ProfileFields.tsx",
+        "app/features/tools/profile/ProfileTabTypes.ts",
+        "app/features/tools/profile/ProfileResultPanel.tsx",
+        "app/features/tools/profile/ProfileEmptyStates.tsx",
+        "app/features/tools/profile/ProfileTabRebuildWarnModal.tsx",
+        "app/features/tools/profile/ProfileTaxonomy.test.ts",
+        "app/features/tools/profile/profileCompletenessFields.ts",
+        "app/features/tools/profile/profileCompletenessFields.test.ts",
+        "app/features/tools/profile/useProfileEditorFields.ts",
+        "app/features/tools/profile/useProfileEditorFields.test.ts",
+        "app/features/tools/profile/useProfileEditorSubmit.ts",
+        "app/features/tools/profile/profileRoutingReasons.ts",
+        "app/features/tools/profile/profileRoutingReasons.test.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "9f3047cf-311d-487b-89d3-7035a61e7433",
+      "keywords": [
+        "profile-editor",
+        "ai-draft",
+        "archetype",
+        "completeness",
+        "draft-merge",
+        "routing",
+        "taxonomy",
+        "profile-form"
+      ],
+      "last_written_at": "2026-09-21T20:32:25.623783800+00:00",
+      "name": "profile-editor",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl",
+        "framer-motion"
+      ]
+    },
+    {
+      "api_surface": "GET /api/profile (consumed); GET /api/archetypes (consumed); DELETE /api/profile/:id (consumed)",
+      "business_feature": "Candidate Roster & Matrix",
+      "category": "ui",
+      "cross_refs": [
+        "profile-editor",
+        "cv-analyze-workspace"
+      ],
+      "db_tables": [
+        "profiles",
+        "analyses"
+      ],
+      "description": "Renders the candidate roster (paginated table with row actions) and the candidate matrix (board and filter bar for visual archetype comparison), plus the archetype manager for creating, editing, archiving, and viewing archetype definitions. The three views are orchestrated from ProfileTab via SegmentedControl; roster and matrix each have their own view-model and contract test. Deep-link hooks sync the selected profile/archetype with the URL.",
+      "entry_points": [
+        "app/features/tools/profile/ProfileRoster.tsx",
+        "app/features/tools/profile/CandidateMatrix.tsx",
+        "app/features/tools/profile/ArchetypeManager.tsx"
+      ],
+      "file_paths": [
+        "app/features/tools/profile/ProfileRoster.tsx",
+        "app/features/tools/profile/ProfileRosterTable.tsx",
+        "app/features/tools/profile/ProfileRosterRow.tsx",
+        "app/features/tools/profile/ProfileRosterTypes.ts",
+        "app/features/tools/profile/profileRosterView.ts",
+        "app/features/tools/profile/profileRosterView.test.ts",
+        "app/features/tools/profile/ProfileEvidenceColumn.tsx",
+        "app/features/tools/profile/CandidateMatrix.tsx",
+        "app/features/tools/profile/CandidateMatrixBoard.tsx",
+        "app/features/tools/profile/CandidateMatrixFilterBar.tsx",
+        "app/features/tools/profile/CandidateMatrixShared.tsx",
+        "app/features/tools/profile/CandidateChip.tsx",
+        "app/features/tools/profile/CandidateDetailModal.tsx",
+        "app/features/tools/profile/candidateMatrixView.ts",
+        "app/features/tools/profile/candidateMatrixView.test.ts",
+        "app/features/tools/profile/candidateMatrixContracts.test.ts",
+        "app/features/tools/profile/ArchetypeManager.tsx",
+        "app/features/tools/profile/ArchetypeManagerList.tsx",
+        "app/features/tools/profile/ArchetypeManagerEditPanel.tsx",
+        "app/features/tools/profile/ArchetypeManagerViewPanel.tsx",
+        "app/features/tools/profile/ArchetypeArchiveConfirmModal.tsx",
+        "app/features/tools/profile/ArchetypeManagerTypes.ts",
+        "app/features/tools/profile/ArchetypeManagerTypes.test.ts",
+        "app/features/tools/profile/useArchetypeManagerActions.ts",
+        "app/features/tools/profile/useArchetypeManagerActions.test.ts",
+        "app/features/tools/profile/useProfileTabDeepLinks.ts"
+      ],
+      "group": "Candidate Intelligence",
+      "group_id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
+      "id": "e6b85437-3bfd-4a78-828e-ce67fb2e6114",
+      "keywords": [
+        "roster",
+        "candidate-matrix",
+        "archetype-manager",
+        "filter-bar",
+        "deep-link",
+        "evidence-column",
+        "profile-list",
+        "board-view"
+      ],
+      "last_written_at": "2026-09-21T20:32:25.624131600+00:00",
+      "name": "profile-roster-matrix",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16 (canary)",
+        "React 19",
+        "TypeScript",
+        "Tailwind 4",
+        "next-intl",
+        "framer-motion"
       ]
     },
     {
@@ -8626,8 +9611,6 @@
         "app/features/hiring/schedule/ScheduleCalendarEventChip.tsx",
         "app/features/hiring/schedule/ScheduleCalendarWeekPager.tsx",
         "app/features/hiring/schedule/ScheduleAddToCalendar.tsx",
-        "app/features/hiring/schedule/ScheduleAiDocket.tsx",
-        "app/features/hiring/schedule/ScheduleAiEvalPreview.tsx",
         "app/features/hiring/schedule/ScheduleAiRound.tsx",
         "app/features/hiring/schedule/ScheduleCandidateCardHeader.tsx",
         "app/features/hiring/schedule/ScheduleEmptyRelay.tsx",
@@ -8667,7 +9650,7 @@
         "pending",
         "interviewed"
       ],
-      "last_written_at": "2026-09-14T19:05:31.649828900+00:00",
+      "last_written_at": "2026-09-21T20:29:54.487109800+00:00",
       "name": "schedule-calendar-invites",
       "pinned": false,
       "tech_stack": [
@@ -9867,6 +10850,60 @@
     },
     {
       "api_surface": "",
+      "business_feature": "Studio Dialog Desk",
+      "category": "ui",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Domain-agnostic three-zone dialog desk (transcript · composer · plane) shared by the Intake Studio and the job-seeker CV/fit dialogs. Implements collapsible zones with a pinned guard, persisted fold state, voice I/O integration, choice-card messaging, and an SSR-safe zone preference store. Consumers supply an endpoint adapter (StudioApi), i18n namespace, and three storage keys; the kit owns layout, fold logic, and the zone walk.",
+      "entry_points": [
+        "app/_components/studio/index.ts",
+        "app/_components/studio/StudioDesk.tsx"
+      ],
+      "file_paths": [
+        "app/_components/studio/index.ts",
+        "app/_components/studio/StudioDesk.tsx",
+        "app/_components/studio/StudioZone.tsx",
+        "app/_components/studio/StudioOverlay.tsx",
+        "app/_components/studio/StudioTranscript.tsx",
+        "app/_components/studio/StudioComposer.tsx",
+        "app/_components/studio/StudioChoiceCards.tsx",
+        "app/_components/studio/StudioVoiceBar.tsx",
+        "app/_components/studio/studioZones.ts",
+        "app/_components/studio/studioZones.test.ts",
+        "app/_components/studio/studioVoiceIo.ts",
+        "app/_components/studio/choiceMessage.ts",
+        "app/_components/studio/useStudioDictation.ts",
+        "app/_components/studio/useStudioSpeech.ts",
+        "app/_components/studio/useStudioTranslations.ts",
+        "app/_components/studio/useUnavailableLatch.ts"
+      ],
+      "group": "Design System & Shared UI",
+      "group_id": "e9054017-6aed-4429-91ad-a1e713b914cd",
+      "id": "7ebeb4f1-a99e-45de-ae21-d45f788ae12e",
+      "keywords": [
+        "studio",
+        "dialog",
+        "transcript",
+        "composer",
+        "zone",
+        "voice",
+        "choice-cards",
+        "intake",
+        "jobseeker",
+        "fold"
+      ],
+      "last_written_at": "2026-09-21T20:34:22.578263+00:00",
+      "name": "studio-dialog-kit",
+      "pinned": false,
+      "tech_stack": [
+        "Next.js 16",
+        "React 19",
+        "TypeScript",
+        "Tailwind CSS 4"
+      ]
+    },
+    {
+      "api_surface": "",
       "business_feature": "Data Table Primitives",
       "category": "ui",
       "cross_refs": [
@@ -10771,6 +11808,121 @@
       ]
     },
     {
+      "api_surface": "createStt() registry; SttProvider interface; useStt React hook; /api/stt/route.ts (host-side, outside this package)",
+      "business_feature": "Speech-to-Text",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Multi-provider speech-to-text library that captures a candidate's spoken audio and returns a structured transcript. Exposes a single `createStt()` dispatch door backed by two adapters — on-device whisper.cpp (privacy-first default) and cloud AssemblyAI — with capability-gated resolution, honest probes (ready/absent/broken), PII redaction and diarization enforcement, and a React `useStt` hook for browser surfaces. The package is host-bound via `SttHost` so it carries no secrets and no host imports, making it portable across the Next.js app and any future embedding.",
+      "entry_points": [
+        "packages/voice-stt/src/index.ts",
+        "packages/voice-stt/src/types.ts",
+        "packages/voice-stt/src/registry.ts"
+      ],
+      "file_paths": [
+        "packages/voice-stt/package.json",
+        "packages/voice-stt/README.md",
+        "packages/voice-stt/src/index.ts",
+        "packages/voice-stt/src/types.ts",
+        "packages/voice-stt/src/validate.ts",
+        "packages/voice-stt/src/registry.ts",
+        "packages/voice-stt/src/registry.test.ts",
+        "packages/voice-stt/src/browser/wav-encode.ts",
+        "packages/voice-stt/src/browser/wav-encode.test.ts",
+        "packages/voice-stt/src/node/resolve-bin.ts",
+        "packages/voice-stt/src/node/spawn.ts",
+        "packages/voice-stt/src/node/wav.ts",
+        "packages/voice-stt/src/providers/assemblyai.ts",
+        "packages/voice-stt/src/providers/fake.ts",
+        "packages/voice-stt/src/providers/whisper-cpp.ts",
+        "packages/voice-stt/src/providers/adapters.test.ts",
+        "packages/voice-stt/src/react/useStt.ts",
+        "packages/voice-stt/src/react/useStt.test.ts"
+      ],
+      "group": "Voice Interview",
+      "group_id": "48b273fc-9118-4114-a2b7-bce972b4f93b",
+      "id": "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2",
+      "keywords": [
+        "speech-to-text",
+        "transcription",
+        "whisper",
+        "assemblyai",
+        "on-device",
+        "diarization",
+        "redaction",
+        "audio",
+        "voice",
+        "provider"
+      ],
+      "last_written_at": "2026-09-21T20:34:26.228939800+00:00",
+      "name": "voice-stt-package",
+      "pinned": false,
+      "tech_stack": [
+        "TypeScript",
+        "React 19"
+      ]
+    },
+    {
+      "api_surface": "createTts(opts) → Tts; speak(req, opts) → ServedTtsAudio; useTts() React hook",
+      "business_feature": "Multi-Provider Text-to-Speech",
+      "category": "lib",
+      "cross_refs": [
+        "voice-interview-api"
+      ],
+      "db_tables": [],
+      "description": "Multi-provider text-to-speech library that exposes a single `TtsProvider` interface over ElevenLabs (cloud), Piper (local binary), and Kokoro (local ONNX) adapters. The registry (`createTts`) resolves the operator's preferred provider via live probes, falls back visibly (never silently) when the preferred engine is absent or doesn't declare the requested language, serializes local sidecar processes one-at-a-time to avoid CPU contention, and segments long text above each engine's `maxClipChars` cap before joining WAV clips. Consumed by the host app's `/api/tts` route and the `useTts` React hook for in-browser playback.",
+      "entry_points": [
+        "packages/voice-tts/src/index.ts",
+        "packages/voice-tts/src/registry.ts",
+        "packages/voice-tts/src/types.ts"
+      ],
+      "file_paths": [
+        "packages/voice-tts/package.json",
+        "packages/voice-tts/README.md",
+        "packages/voice-tts/src/index.ts",
+        "packages/voice-tts/src/types.ts",
+        "packages/voice-tts/src/validate.ts",
+        "packages/voice-tts/src/registry.ts",
+        "packages/voice-tts/src/registry.test.ts",
+        "packages/voice-tts/src/providers/elevenlabs.ts",
+        "packages/voice-tts/src/providers/elevenlabs.test.ts",
+        "packages/voice-tts/src/providers/fake.ts",
+        "packages/voice-tts/src/providers/piper.ts",
+        "packages/voice-tts/src/providers/kokoro.ts",
+        "packages/voice-tts/src/node/resolve-bin.ts",
+        "packages/voice-tts/src/node/spawn.ts",
+        "packages/voice-tts/src/node/wav.ts",
+        "packages/voice-tts/src/react/useTts.ts",
+        "packages/voice-tts/src/react/useTts.test.ts",
+        "packages/voice-tts/src/text/normalize.ts",
+        "packages/voice-tts/src/text/segment.ts",
+        "packages/voice-tts/src/text.test.ts"
+      ],
+      "group": "Voice Interview",
+      "group_id": "48b273fc-9118-4114-a2b7-bce972b4f93b",
+      "id": "85aca759-e385-4fdf-8ad6-b2fbe9540b37",
+      "keywords": [
+        "tts",
+        "text-to-speech",
+        "elevenlabs",
+        "piper",
+        "kokoro",
+        "voice",
+        "synthesis",
+        "provider",
+        "streaming",
+        "on-device"
+      ],
+      "last_written_at": "2026-09-21T20:34:40.076126600+00:00",
+      "name": "voice-tts-package",
+      "pinned": false,
+      "tech_stack": [
+        "TypeScript",
+        "React 19",
+        "Node.js"
+      ]
+    },
+    {
       "api_surface": "",
       "business_feature": "Command Palette",
       "category": "ui",
@@ -11009,19 +12161,19 @@
       ]
     }
   ],
-  "generated_at": "2026-09-14T19:27:09.775984100+00:00",
+  "generated_at": "2026-09-21T20:34:57.306410700+00:00",
   "generator": "personas-context-scan",
   "groups": [
     {
       "color": "blue",
-      "context_count": 10,
+      "context_count": 12,
       "domain": "feature",
       "id": "689c1782-02bd-4e76-8009-285a82c298e6",
       "name": "CV Analysis & Scoring"
     },
     {
       "color": "emerald",
-      "context_count": 5,
+      "context_count": 6,
       "domain": "feature",
       "id": "a1a5b5c6-2071-43f8-bdee-2247c743fe73",
       "name": "Candidate Matching & Ranking"
@@ -11077,7 +12229,7 @@
     },
     {
       "color": "violet",
-      "context_count": 3,
+      "context_count": 4,
       "domain": "feature",
       "id": "617bf519-1b19-49e0-8b9a-d802b48c7014",
       "name": "Interviews & Assessments"
@@ -11140,21 +12292,21 @@
     },
     {
       "color": "orange",
-      "context_count": 5,
+      "context_count": 13,
       "domain": "feature",
       "id": "5748590b-3d22-43c4-a143-e7d6ab44af97",
       "name": "Candidate Intelligence"
     },
     {
       "color": "red",
-      "context_count": 14,
+      "context_count": 18,
       "domain": "feature",
       "id": "058278cc-d88d-4627-ae04-e70df8c33e4d",
       "name": "Developer Assessment"
     },
     {
       "color": "pink",
-      "context_count": 7,
+      "context_count": 9,
       "domain": "feature",
       "id": "48b273fc-9118-4114-a2b7-bce972b4f93b",
       "name": "Voice Interview"
@@ -11189,7 +12341,7 @@
     },
     {
       "color": "#6366f1",
-      "context_count": 6,
+      "context_count": 7,
       "domain": null,
       "id": "e9054017-6aed-4429-91ad-a1e713b914cd",
       "name": "Design System & Shared UI"
@@ -11208,12 +12360,12 @@
     "root": "C:\\Users\\kazda\\kiro\\kp"
   },
   "provenance": {
-    "git_commit": "add2fc24b9509bb2de53edffa9ae84588779cbf1",
-    "git_commit_count": 3068
+    "git_commit": "aecf275010c62af8d5a6ad852d559b8a1cdacd5b",
+    "git_commit_count": 3485
   },
   "stats": {
-    "contexts": 191,
-    "files": 3101,
+    "contexts": 210,
+    "files": 3442,
     "groups": 27,
     "use_cases": 12
   },
@@ -11245,7 +12397,8 @@
       "name": "AI Voice Screening",
       "pinned": false,
       "primary_context": null,
-      "slug": "ai-voice-screening"
+      "slug": "ai-voice-screening",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11257,7 +12410,8 @@
       "name": "AI-Assisted JD Authoring",
       "pinned": false,
       "primary_context": null,
-      "slug": "ai-assisted-jd-authoring"
+      "slug": "ai-assisted-jd-authoring",
+      "tier": "standard"
     },
     {
       "contexts": [],
@@ -11267,7 +12421,8 @@
       "name": "ATS Candidate Egress",
       "pinned": false,
       "primary_context": null,
-      "slug": "ats-candidate-egress"
+      "slug": "ats-candidate-egress",
+      "tier": "standard"
     },
     {
       "contexts": [],
@@ -11277,7 +12432,8 @@
       "name": "CV Analysis Pipeline",
       "pinned": false,
       "primary_context": null,
-      "slug": "cv-analysis-pipeline"
+      "slug": "cv-analysis-pipeline",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11290,7 +12446,8 @@
       "name": "Candidate Application Intake",
       "pinned": false,
       "primary_context": null,
-      "slug": "candidate-application-intake"
+      "slug": "candidate-application-intake",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11303,7 +12460,8 @@
       "name": "Candidate Pipeline Board",
       "pinned": false,
       "primary_context": null,
-      "slug": "candidate-pipeline-board"
+      "slug": "candidate-pipeline-board",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11315,7 +12473,8 @@
       "name": "Candidate Self-Scheduling",
       "pinned": false,
       "primary_context": "candidate-self-scheduling-page",
-      "slug": "candidate-self-scheduling"
+      "slug": "candidate-self-scheduling",
+      "tier": "standard"
     },
     {
       "contexts": [],
@@ -11325,7 +12484,8 @@
       "name": "Candidate–Job Matching",
       "pinned": false,
       "primary_context": null,
-      "slug": "candidate-job-matching"
+      "slug": "candidate-job-matching",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11338,7 +12498,8 @@
       "name": "Compliant Hiring Decision",
       "pinned": false,
       "primary_context": null,
-      "slug": "compliant-hiring-decision"
+      "slug": "compliant-hiring-decision",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11352,7 +12513,8 @@
       "name": "Developer Case Assessment",
       "pinned": false,
       "primary_context": null,
-      "slug": "developer-case-assessment"
+      "slug": "developer-case-assessment",
+      "tier": "standard"
     },
     {
       "contexts": [
@@ -11364,7 +12526,8 @@
       "name": "Offer Lifecycle Management",
       "pinned": false,
       "primary_context": null,
-      "slug": "offer-lifecycle-management"
+      "slug": "offer-lifecycle-management",
+      "tier": "standard"
     },
     {
       "contexts": [],
@@ -11374,7 +12537,8 @@
       "name": "Recruitment Funnel Analytics",
       "pinned": false,
       "primary_context": null,
-      "slug": "recruitment-funnel-analytics"
+      "slug": "recruitment-funnel-analytics",
+      "tier": "standard"
     }
   ],
   "version": 2

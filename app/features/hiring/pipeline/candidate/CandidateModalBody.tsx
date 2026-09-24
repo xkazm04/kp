@@ -36,6 +36,7 @@ export function CandidateModalBody({
   onClose,
   onChanged,
   onOpenEntry,
+  onOpenProfile,
   onNavigate,
   onTab,
   decision,
@@ -95,6 +96,7 @@ export function CandidateModalBody({
             matchLoading={matchLoading}
             matchError={matchError}
             st={st}
+            onOpenProfile={onOpenProfile && entry.candidateId ? () => onOpenProfile(entry) : undefined}
           />
         </div>
         <div {...panel("activity")}>

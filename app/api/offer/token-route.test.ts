@@ -148,6 +148,7 @@ test("GET pins the EXACT field set that reaches the candidate — no silent leak
     "expiresAt",
     "hoursRemaining",
     "jobTitle",
+    "minutesRemaining",
     "notes",
     "salary",
     "startDate",

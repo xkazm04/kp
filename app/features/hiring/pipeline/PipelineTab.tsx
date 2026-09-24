@@ -58,6 +58,10 @@ export function PipelineTab() {
         degradedCount={s.degradedCount}
         approvals={s.approvals}
         onToggleAging={() => s.toggleQuick("aging")}
+        onToggleActive={() => s.toggleQuick("active")}
+        onToggleInterview={() => s.toggleQuick("interview")}
+        activeSelected={s.quicks.has("active")}
+        interviewSelected={s.quicks.has("interview")}
         onFocusDegraded={s.focusDegradedCohort}
         onGoToDecisions={s.goToDecisions}
       />
@@ -189,6 +193,7 @@ export function PipelineTab() {
             events={s.events}
             eventVerb={eventVerb}
             relativeTime={relativeTime}
+            onOpenEntry={s.openEntryById}
           />
         </Defer>
       )}
@@ -207,6 +212,7 @@ export function PipelineTab() {
             onClose={s.closeCandidate}
             onChanged={s.load}
             onOpenEntry={s.openEntryById}
+            onOpenProfile={s.openProfile}
             onNavigate={s.showCandidate}
             onTab={s.setCandidateTab}
           />

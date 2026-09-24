@@ -9,7 +9,7 @@ import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";
 import { isEarlyCareer } from "./archetypes";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
-import { extractDeliverableAddress, extractRecipientName } from "./comms-recipient";
+import { extractDeliverableAddress, extractRecipientName, recipientRefusal } from "./comms-recipient";
 import { buildIcs } from "./export-utils";
 import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
 import { resolveCommsLocale } from "./comms-locale";
@@ -56,11 +56,17 @@ import { dateFormatter } from "./date-format.ts";
 //      OutboundMessage keeps even this case traceable in the Outbox audit log.
 // Recruiter/Match-sourced entries still carry no contact, so they resolve to the
 // name as before — the enrichment is purely additive for inbound applicants.
+//
+// NULL = REFUSED (recipientRefusal, comms-recipient.ts): an agent-population entry has
+// no mailbox, so there is no recipient to resolve — the cascade must not invent one
+// for a relay to dead-letter. sendCandidateComm records the refusal as `failed`.
 export function candidateRecipient(entry: {
   candidateLabel?: string | null;
   candidateId?: string | null;
   contact?: string | null;
-}): string {
+  population?: string | null;
+}): string | null {
+  if (recipientRefusal(entry)) return null;
   return (entry.contact ?? "").trim() || (entry.candidateLabel ?? "").trim() || (entry.candidateId ?? "").trim() || "candidate";
 }
 
@@ -148,6 +154,9 @@ type CandidateCommTarget = {
   candidateId?: string | null;
   contact?: string | null;
   anonymizedAt?: string | null;
+  // 'human' | 'agent' — an agent is refused a recipient (candidateRecipient). Optional:
+  // absent means a person, the only population that existed before the slate.
+  population?: string | null;
   // The entry's own team. Optional because two callers pass a structural subtype
   // assembled from an invite/session rather than a PipelineEntry; they supply the
   // tenant through their own `opts.workspaceId` instead.
@@ -242,6 +251,8 @@ async function candidateFooters(
 // the enum, the db column contract and every UI that styles by it — so the CHANNEL
 // carries the reason and the status stays truthful.
 export const SIM_COMMS_CHANNEL = "simulation";
+// The channel a REFUSED candidate comm is recorded on: it never reached a real one.
+export const REFUSED_COMMS_CHANNEL = "refused";
 
 async function sendCommUnlessSim(msg: OutboundMessage, jobTitle: string | null | undefined): Promise<OutboxEntry> {
   if (!isSimTitle(jobTitle)) return sendComm(msg);
@@ -272,9 +283,27 @@ async function sendCandidateComm(
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
 ): Promise<OutboxStatus> {
+  const to = candidateRecipient(entry);
+  if (to === null) {
+    // Refused NOW, as a `failed` row that names why, instead of handed to the relay to
+    // bounce asynchronously. No footers: minting erasure/opt-out capability tokens for
+    // an entity with no inbox mints links nobody can receive. The recipient stays
+    // empty — there is none — which also keeps the resend door from re-dispatching it.
+    return recordOutbox({
+      recipient: "",
+      subject: msg.subject,
+      body: msg.body,
+      kind: msg.kind,
+      channel: REFUSED_COMMS_CHANNEL,
+      status: "failed",
+      failureDetail: recipientRefusal(entry),
+      ref: msg.ref ?? entry.id ?? undefined,
+      workspaceId: msg.workspaceId,
+    }).status;
+  }
   const footers = await candidateFooters(entry, t, locale);
   const recorded = await sendCommUnlessSim({
-    to: candidateRecipient(entry),
+    to,
     subject: msg.subject,
     body: msg.body + footers.text,
     kind: msg.kind,
@@ -456,6 +485,42 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
       .join(" · "),
     entry.workspaceId
   );
+}
+
+/**
+ * Deliver an interview FEEDBACK LETTER a recruiter approved (spark
+ * interview-feedback-letter, WP-beta). The body is the recruiter's own final text,
+ * verbatim: a person owns every sentence of it, so nothing here rewrites, trims or
+ * appends to what they approved beyond the delivery chrome (the status line and the
+ * legal footers every candidate comm carries).
+ *
+ * THE STATUS LINK is the one piece of chrome this letter adds, and it is the thing the
+ * rejection letter still lacks: the candidate asked for this letter FROM their status
+ * page, and the page is also where it stays readable after the email is gone. ABSOLUTE
+ * (candidateLinkBase) and `?lang=`-pinned to the letter's language, like the footers.
+ * Omitted when no token could be minted rather than printed as a dead link.
+ *
+ * The language is the LETTER's (resolved once, when the candidate asked), passed in by
+ * the caller, never re-derived from the entry: a candidate who asked in Czech on a page
+ * they switched to Czech reads a Czech letter under a Czech subject.
+ *
+ * Returns the outbox row's truthful status. The consent gate is the channel's own
+ * (sendComm → commsSendSuppression), so a suppressed send THROWS CommsSuppressedError
+ * exactly as it does for every other dispatcher; the caller records that honestly.
+ */
+export async function dispatchInterviewLetter(
+  entry: PipelineEntry,
+  letter: { text: string; locale: Locale; statusToken: string | null }
+): Promise<OutboxStatus> {
+  const t = await commsTranslator(letter.locale);
+  const role = (entry.jobTitle ?? "").trim();
+  const subject = role ? t("interviewLetter.subjectRole", { role }) : t("interviewLetter.subject");
+  const lines = [letter.text.trim()];
+  if (letter.statusToken) {
+    const link = `${await candidateLinkBase()}/status/${encodeURIComponent(letter.statusToken)}?lang=${letter.locale}`;
+    lines.push("", t("interviewLetter.statusLine", { link }));
+  }
+  return sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale);
 }
 
 /** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are

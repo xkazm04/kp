@@ -191,47 +191,93 @@ export function PipelineStepRow({
 
       {meta}
 
-      <span className="ml-auto flex shrink-0 items-center gap-1 self-center pl-2">
-        <button
-          type="button"
-          onClick={() => onMove(-1)}
-          disabled={!canMoveUp}
-          aria-label={aria.moveUp}
-          className={`${BTN_SECONDARY} h-7 w-7 justify-center p-0`}
-        >
-          <ArrowUp size={13} aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => onMove(1)}
-          disabled={!canMoveDown}
-          aria-label={aria.moveDown}
-          className={`${BTN_SECONDARY} h-7 w-7 justify-center p-0`}
-        >
-          <ArrowDown size={13} aria-hidden />
-        </button>
-        {/* A row with no `onRemove` gets no button at all — a permanently disabled
-            control would only be furniture. A row that CAN'T be removed right now
-            (candidates standing on it) keeps the disabled button, because there the
-            reason is real, temporary, and worth saying. */}
-        {/* BTN_GHOST is the quiet, borderless action recipe (focus ring, steel rest,
-            soft hover wash, dark sticker radius); the destructive HOVER tone and the
-            sharper disabled fade are the two things a remove genuinely differs by, so
-            they are all that is added to it. The hand-typed string this replaces had
-            no dark-mode radius at all. */}
-        {onRemove ? (
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={!canRemove}
-            title={removeTitle}
-            aria-label={aria.remove}
-            className={`${BTN_GHOST} p-1 hover:bg-transparent hover:text-coral disabled:opacity-40 disabled:hover:text-steel`}
-          >
-            <X size={14} aria-hidden />
-          </button>
-        ) : null}
-      </span>
+      <PipelineStepRowControls
+        onMove={onMove}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onRemove={onRemove}
+        canRemove={canRemove}
+        removeTitle={removeTitle}
+        aria={aria}
+        className="ml-auto self-center pl-2"
+      />
     </li>
+  );
+}
+
+/**
+ * The row's ↑ ↓ ✕ cluster, on its own.
+ *
+ * Exported for the one other editor of an ORDERED LIST with this grammar — the job
+ * interview kit's competencies and their questions (features/library/jobs/JobsKit*),
+ * whose rows carry no stage type and so cannot be a PipelineStepRow. Sharing the
+ * cluster rather than re-drawing it keeps the same recipes, the same order, the same
+ * disabled-at-the-ends rule and — the part that drifts first — the same contract that
+ * every button is named per row by its caller ("Move Test strategy up"), never by a
+ * generic "Up" a screen reader cannot tell apart down the list.
+ */
+export function PipelineStepRowControls({
+  onMove,
+  canMoveUp,
+  canMoveDown,
+  onRemove,
+  canRemove = true,
+  removeTitle,
+  aria,
+  className = "",
+}: {
+  onMove: (delta: -1 | 1) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  /** Omit entirely to render NO remove control. */
+  onRemove?: () => void;
+  canRemove?: boolean;
+  removeTitle?: string;
+  aria: Pick<PipelineStepRowAria, "moveUp" | "moveDown" | "remove">;
+  /** Placement in the caller's row (`ml-auto`, alignment); never visual styling. */
+  className?: string;
+}) {
+  return (
+    <span className={`flex shrink-0 items-center gap-1 ${className}`}>
+      <button
+        type="button"
+        onClick={() => onMove(-1)}
+        disabled={!canMoveUp}
+        aria-label={aria.moveUp}
+        className={`${BTN_SECONDARY} h-7 w-7 justify-center p-0`}
+      >
+        <ArrowUp size={13} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => onMove(1)}
+        disabled={!canMoveDown}
+        aria-label={aria.moveDown}
+        className={`${BTN_SECONDARY} h-7 w-7 justify-center p-0`}
+      >
+        <ArrowDown size={13} aria-hidden />
+      </button>
+      {/* A row with no `onRemove` gets no button at all — a permanently disabled
+          control would only be furniture. A row that CAN'T be removed right now
+          (candidates standing on it) keeps the disabled button, because there the
+          reason is real, temporary, and worth saying. */}
+      {/* BTN_GHOST is the quiet, borderless action recipe (focus ring, steel rest,
+          soft hover wash, dark sticker radius); the destructive HOVER tone and the
+          sharper disabled fade are the two things a remove genuinely differs by, so
+          they are all that is added to it. The hand-typed string this replaces had
+          no dark-mode radius at all. */}
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canRemove}
+          title={removeTitle}
+          aria-label={aria.remove}
+          className={`${BTN_GHOST} p-1 hover:bg-transparent hover:text-coral disabled:opacity-40 disabled:hover:text-steel`}
+        >
+          <X size={14} aria-hidden />
+        </button>
+      ) : null}
+    </span>
   );
 }

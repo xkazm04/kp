@@ -9,7 +9,7 @@
 //        scored months earlier under a renamed/revised axis) as explicit off-rubric
 //        rows, instead of letting the exact-name join silently blank them to "—".
 // See bug-ui-scan-2026-07-09 (interview-simulation-comparison #1, #2).
-import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
+import { isNotAssessedRating, type ScorecardRating } from "@/app/_lib/interview-scorecard";
 
 export type RubricComp = { competency: string; description: string; anchors?: Record<string, string> };
 
@@ -86,18 +86,26 @@ export function isUnrecognizedCohort(rubric: RubricComp[]): boolean {
   return rubric.length === 0;
 }
 
+type CsvRating = { competency: string; rating: number; evidence?: string };
+
 export type CompareCsvCandidate = {
   candidateLabel?: string | null;
   recommendation?: string | null;
-  ratings: { competency: string; rating: number }[];
-  humanScorecard?: { ratings?: { competency: string; rating: number }[]; recommendation?: string | null } | null;
+  ratings: CsvRating[];
+  humanScorecard?: { ratings?: CsvRating[]; recommendation?: string | null } | null;
 };
 
 /** One cell: a real rating number, or blank when that side was never scored.
- *  Never `?? 0` — a missing human (or AI) rating is not a zero. */
-function csvRating(ratings: { competency: string; rating: number }[] | undefined, competency: string): number | "" {
+ *  Never `?? 0` — a missing human (or AI) rating is not a zero.
+ *
+ *  A NOT-ASSESSED axis is blank too, for the same reason the grid stopped colouring
+ *  one: the AI synthesis stores a competency the interview never reached as a real 3
+ *  carrying "Not assessed…" evidence, and exporting that 3 hands a spreadsheet — where
+ *  the caveat cannot follow it — a middling score nobody observed. */
+function csvRating(ratings: CsvRating[] | undefined, competency: string): number | "" {
   const hit = ratings?.find((r) => r.competency.toLowerCase() === competency.toLowerCase());
-  return typeof hit?.rating === "number" ? hit.rating : "";
+  if (typeof hit?.rating !== "number") return "";
+  return isNotAssessedRating(hit.rating, hit.evidence) ? "" : hit.rating;
 }
 
 /** Data rows of the compare grid: competency × (AI, human, recommendation) per

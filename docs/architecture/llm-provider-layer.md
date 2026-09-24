@@ -697,8 +697,9 @@ Models. One section there answers it, from three sources at once:
 | Source | What it contributes |
 | --- | --- |
 | `GET /api/billing` (prop from the tab) | This period's plan meters: included allowance, remaining, pack credits |
-| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over `?days=` (default 30, max 365). `?useCase=` restricts to one catalog id (400 + the catalog on unknown; omit = all) |
-| `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
+| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over `?days=` (default 30, max 365). `?useCase=` restricts to one catalog id (400 + the catalog on unknown; omit = all). `failedCalls` sums failed attempts across the returned rows. |
+| `GET /api/llm/activity` | Newest 500 ledger rows by default. `?useCase=` and `?outcome=ok|failed` filter before the bound; `?cursor=<ts>|<id>` reads older rows. The response supplies `nextCursor` when a full window was returned. |
+| `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters, per-process `afterResponseFailures`, bounded structured warnings from `ops-warn.log` |
 
 `useSpendData.ts` owns both fetches for the whole section — one loading state,
 one failure state. The ledger read is THE failure (it is the section's subject);
@@ -716,6 +717,10 @@ question; the section is flat now, with ruled bands rather than nested cards.
 
 `ModelsTab.tsx` is a `SegmentedControl` over three mutually exclusive sections,
 each its own chunk with its own fetch:
+
+The selected section is reflected in `?tab=models&modelSec=...` so a direct link
+opens the same panel. Invalid values fall back to Routing, and bare tab switches
+clear `modelSec` with the other tab-scoped view parameters.
 
 - **Routing** (`ModelsRoutingPanel.tsx`) — the per-use-case pin table.
 - **Quality** (`ModelsQualityOverview.tsx`) — the baked bench matrix: per-model
@@ -872,6 +877,10 @@ screen. The stamp is nudged forward on a same-millisecond collision so the token
 strictly increases. Omitting the field keeps the old unconditional write for the
 headless/curl path. Pinned by `app/api/llm/config/llm-config-race.test.ts`.
 
+Reset carries the same `expectedUpdatedAt` from the rendered pin. A stale DELETE
+returns `MODEL_ROUTING_STALE` and the current rows instead of removing another
+operator's newer pin; omitting the version still permits a headless reset.
+
 The keys route's refusals are codes, not prose: `MODEL_KEY_BODY_INVALID`,
 `MODEL_KEY_PROVIDER_UNKNOWN`, `MODEL_KEY_SECRET_REQUIRED`,
 `MODEL_KEY_LOCATION_REQUIRED`, `MODEL_KEY_ENDPOINT_REQUIRED`,
@@ -910,6 +919,8 @@ locales.
   `resolve_provider` site nor a named exemption (`github_analysis` is TS-direct
   in `app/_lib/github/code-review.ts`; `devcase_role_design` is collapsed into
   `devcase_case_design` by `design-artifacts`).
+  The Models routing table marks `devcase_role_design` as a bench-only row so a
+  saved pin there is not mistaken for a production routing change.
 - `grounded_salary` (market salary via `market_salary_cli.py`) also calls
   `gemini.py` directly and is not in the use-case catalog — un-routable.
 - Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider

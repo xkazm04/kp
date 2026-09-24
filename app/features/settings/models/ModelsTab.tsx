@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { EYEBROW, INTRO } from "@/app/_components/ui/recipes";
@@ -47,7 +47,14 @@ type Section = (typeof SECTIONS)[number];
 
 export function ModelsTab() {
   const t = useTranslations("models");
-  const [section, setSection] = useState<Section>("routing");
+  const search = useSearchParams();
+  const requested = search.get("modelSec");
+  const section: Section = SECTIONS.find((value) => value === requested) ?? "routing";
+  const setSection = (value: Section) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("modelSec", value);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  };
 
   return (
     // Tier 1: header + switcher are chrome and paint immediately; the active

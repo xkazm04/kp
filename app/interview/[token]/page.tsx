@@ -5,12 +5,12 @@ import { getTranslations } from "next-intl/server";
 import { getInterviewSessionByToken, LIVE_INTERVIEW_RECENCY_MIN } from "@/app/_lib/db/interviews";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
-import { CHIP } from "@/app/_components/ui/recipes";
-import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { CHIP, NOTICE } from "@/app/_components/ui/recipes";
 import { disclosureComplianceFor } from "@/app/_lib/compliance-disclosure";
-import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
-import { InterviewSidebar } from "@/app/_components/voice/InterviewSidebar";
-import { interviewInactiveCopyKeys, interviewPortalView } from "./portal-state";
+import { isInterviewRecordingOffered } from "@/app/_lib/interview-recording";
+import { isKitRehearsal } from "@/app/_lib/interview-rehearsal";
+import { InterviewPortalClient } from "@/app/_components/voice/InterviewPortalClient";
+import { interviewInactiveCopyKeys, interviewPortalOffers, interviewPortalView } from "./portal-state";
 
 
 // Candidate-facing portal: a tokenized link runs the first-round voice screen
@@ -34,20 +34,20 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
 
   const compliance = disclosureComplianceFor(session.workspaceId);
 
+  // The candidate's durable /status link, minted idempotently from the pipeline
+  // entry (the interview token they hold already proves this entry is theirs). It
+  // used to be computed ONLY for the already-completed reload, so the ending a
+  // candidate actually experiences — the live one — was the one with no next step.
+  // Best-effort: a session with no entry keeps the plain card. A candidate interview
+  // only (interviewPortalOffers): a recruiter's kit rehearsal is a test-mode session and
+  // never links to — or mints — a candidate's status page.
+  const offers = interviewPortalOffers(session);
+  const statusHref = offers.statusLink && session.entryId ? safeStatusHref(session.entryId) : null;
+
   if (view === "completed") {
     // Not a cul-de-sac: hand the candidate the same durable /status link the
     // apply flows issue (idempotent mint keyed on the pipeline entry, so email
-    // and this card share ONE token). The interview token they hold already
-    // proves this entry is theirs. Best-effort — older sessions without an
-    // entry link just keep the plain card.
-    let statusHref: string | null = null;
-    if (session.entryId) {
-      try {
-        statusHref = `/status/${getOrCreateStatusLink(session.entryId)}`;
-      } catch {
-        statusHref = null;
-      }
-    }
+    // and this card share ONE token).
     return (
       <main className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="font-serif text-h2 text-ink">{t("completedTitle")}</h1>
@@ -96,8 +96,26 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
     );
   }
 
+  // A recruiter REHEARSING a job's kit reaches this same portal. It must not read the
+  // candidate's promises as if they applied: nothing here is scored, no human reviews
+  // it, and no candidate's record is touched (/api/interview/complete refuses every
+  // candidate side effect for a test session). Say so above everything else.
+  const rehearsal = isKitRehearsal(session);
+
   return (
     <main className="mx-auto max-w-[1380px] px-4 py-10">
+      {rehearsal ? (
+        <div role="status" className={`${NOTICE("info")} mb-6 max-w-3xl px-4 py-3`}>
+          <p className="text-base font-semibold">{t("rehearsalTitle")}</p>
+          <p className="mt-1 text-sm">{t("rehearsalBody")}</p>
+        </div>
+      ) : null}
+      {session.status === "failed" ? (
+        <div role="status" className={`${NOTICE("info")} mb-6 max-w-3xl px-4 py-3`}>
+          <p className="text-base font-semibold">{t("resumeReadyTitle")}</p>
+          <p className="mt-1 text-sm">{t("resumeReadyBody")}</p>
+        </div>
+      ) : null}
       <header className="max-w-3xl">
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
         <h1 className="mt-1 font-serif text-display text-ink">
@@ -111,44 +129,61 @@ export default async function InterviewPortalPage({ params }: { params: Promise<
           <span className={CHIP}>
             <Sparkles size={13} className="text-moss" /> {t("chipAiLed")}
           </span>
-          <span className={CHIP}>
-            <ShieldCheck size={13} className="text-moss" /> {t("chipHuman")}
-          </span>
+          {rehearsal ? null : (
+            <span className={CHIP}>
+              <ShieldCheck size={13} className="text-moss" /> {t("chipHuman")}
+            </span>
+          )}
         </div>
       </header>
 
-      {/* M1: on mobile the call card comes FIRST (order-1) so the candidate reaches Start without
-          scrolling past the whole agenda; the agenda drops below (order-2). Desktop keeps the
-          agenda on the left. M2: the AI/human-review disclosure sits ABOVE the call card so the
-          reassurance is visible before the Start decision. */}
-      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <InterviewSidebar
-          items={session.runOfShow ?? []}
-          durationMin={durationMin}
-          className="order-2 lg:order-1 lg:sticky lg:top-10"
-        />
-        <div className="order-1 lg:order-2">
-          {/* The regime the candidate is assessed under is the one belonging to the
-              workspace that owns THIS session — resolved here, where the token has
-              already been redeemed, because AiDisclosure is a client component on a
-              session-less page and cannot ask (see its header). */}
-          <AiDisclosure
-            className="mb-6"
-            regimeId={compliance.regimeId}
-            retentionMonths={compliance.retentionMonths}
-          />
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
-            <VoiceInterviewClient
-              token={session.token}
-              candidateLabel={session.candidateLabel ?? undefined}
-              jobTitle={session.jobTitle ?? undefined}
-              durationMin={durationMin}
-              provider={session.provider}
-              lockSettings
-            />
-          </div>
-        </div>
-      </div>
+      {/* The rail and the call card are ONE client island now (spark
+          ai-interview-parity): the director's agenda state has to reach the rail,
+          and a server-rendered sibling cannot receive it. The rail still shows the
+          server's run-of-show until /connect answers, so nothing about the
+          pre-connect page changed.
+
+          The regime the candidate is assessed under is the one belonging to the
+          workspace that owns THIS session — resolved here, where the token has
+          already been redeemed, because AiDisclosure is a client component on a
+          session-less page and cannot ask (see its header). The recording OFFER is
+          resolved the same way, and for the same reason. */}
+      <InterviewPortalClient
+        token={session.token}
+        candidateLabel={session.candidateLabel ?? undefined}
+        jobTitle={session.jobTitle ?? undefined}
+        durationMin={durationMin}
+        provider={session.provider}
+        runOfShow={session.runOfShow ?? []}
+        regimeId={compliance.regimeId}
+        retentionMonths={compliance.retentionMonths}
+        recordingOffered={offers.recording && recordingOffer(session.workspaceId)}
+        statusHref={statusHref}
+      />
     </main>
   );
+}
+
+/** The candidate's /status link, or null. Best-effort by design: a status link is a
+ *  convenience on this page, and failing to mint one must never stop the interview
+ *  it is offered beside. */
+function safeStatusHref(entryId: string): string | null {
+  try {
+    return `/status/${getOrCreateStatusLink(entryId)}`;
+  } catch (error) {
+    console.error(`[interview:portal] could not mint a status link for entry ${entryId}:`, error);
+    return null;
+  }
+}
+
+/** Whether this workspace offers an audio recording. Unreadable ⇒ NOT offered: no
+ *  audio is ever kept on an unknown answer, the same stance /api/interview/connect
+ *  takes when it reads the same setting. */
+function recordingOffer(workspaceId: string): boolean {
+  try {
+    return isInterviewRecordingOffered(workspaceId);
+  } catch (error) {
+    console.error(`[interview:portal] recording offer unreadable for workspace ${workspaceId}:`, error);
+    return false;
+  }
 }

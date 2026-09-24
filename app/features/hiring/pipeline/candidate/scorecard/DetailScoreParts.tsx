@@ -8,6 +8,7 @@ import { clampPercent, scoreTone } from "@/app/_lib/format";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { TONE_BAR, TONE_TEXT } from "@/app/features/hiring/pipeline/map/mapTone";
+import { useMatchLabels } from "@/app/features/shared/matchLabels";
 import type { CandidateDetailModel } from "./candidateDetailModel";
 
 const NS = "pipeline.candidate.scorecard";
@@ -70,6 +71,7 @@ export function ScoreMeter({ model }: { model: CandidateDetailModel }) {
 /** Dimension · bar · weight · points — the full arithmetic behind the total. */
 export function BreakdownTable({ model, loading }: { model: CandidateDetailModel; loading: boolean }) {
   const t = useTranslations(NS);
+  const { dimLabel } = useMatchLabels();
   if (loading) {
     return (
       <div className="space-y-3" aria-hidden="true">
@@ -103,7 +105,7 @@ export function BreakdownTable({ model, loading }: { model: CandidateDetailModel
           const pct = clampPercent(d.percent);
           return (
             <tr key={d.key} className="border-t border-stone-200">
-              <td className="py-2 pr-3 text-ink">{d.label || d.key}</td>
+              <td className="py-2 pr-3 text-ink">{dimLabel({ ...d, label: d.label || d.key })}</td>
               <td className="w-1/2 py-2 pr-3">
                 <span className="flex items-center gap-2">
                   <span className="block h-2 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden="true">

@@ -372,6 +372,7 @@ check('a remedy is only read out of a line that instructs', () => {
   // telling nobody to run anything.
   assert.deepEqual(remediesIn('echo "run scripts/fix-it.mjs to repair" >&2').map((r) => r.ref), ['scripts/fix-it.mjs']);
   assert.deepEqual(remediesIn('console.log("write  scan-sweep (+ scripts/coverage.mjs)")'), []);
+  assert.deepEqual(remediesIn('# BEGIN consult-check (managed by ai-registry/scripts/install-consult-hook.mjs)'), []);
 });
 
 check('a remedy whose root is computed at emit time is not a literal to verify', () => {

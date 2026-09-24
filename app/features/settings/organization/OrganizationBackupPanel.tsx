@@ -59,7 +59,7 @@ export function OrganizationBackupPanel() {
   // Destructive whole-database restore needs an explicit typed confirmation, not just
   // a one-click button under a passive warning.
   const [confirmText, setConfirmText] = useState("");
-  const CONFIRM_WORD = "REPLACE";
+  const CONFIRM_WORD = t("confirmWord");
 
   const reset = () => {
     setPlan(null);

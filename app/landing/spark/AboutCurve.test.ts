@@ -52,8 +52,6 @@ const FILES = sources(LANDING);
  * on a server-rendered node — the inline-style hydration hazard the rule exists to
  * stop. Delete an entry as it is migrated; the list must only ever shrink. */
 const KNOWN_FRAMER_HOOK_HOLDOUTS = new Set([
-  "spark/FeatureSpotlight.tsx",
-  "spark/SectionRail.tsx",
   "spark/market/CzMap.tsx",
   "spark/market/parts.tsx",
 ]);
@@ -131,6 +129,23 @@ test("every preview entrance is gated on reduced motion", () => {
     `a preview entrance must gate its TRANSITION on useStillMotion() — pass the flag to ` +
       `pop/stamp or wrap the transition in entrance(reduce, …) from previews/shared.tsx: ${ungated.join(", ")}`
   );
+});
+
+test("every About illustration reveals its in-view target without motion", () => {
+  const artDir = path.join(LANDING, "spark", "about-art");
+  const artFiles = readdirSync(artDir).filter((name) => name.endsWith("Art.tsx"));
+  assert.equal(artFiles.length, 8, "each About phase has an illustration");
+  for (const name of artFiles) {
+    const lines = code(path.join(artDir, name)).split(/\r?\n/);
+    assert.ok(lines.some((line) => line.includes("useStillMotion")), `${name} must read the live preference`);
+    for (let i = 0; i < lines.length; i++) {
+      const target = lines[i].trim();
+      if (!target.startsWith("whileInView={{")) continue;
+      const finalState = target.slice("whileInView=".length + 1, -1);
+      assert.equal(lines[i + 1]?.trim(), `animate={reduceMotion ? ${finalState} : undefined}`, `${name} must reveal the same final state`);
+      assert.match(lines[i + 3] ?? "", /transition=\{reduceMotion \? \{ duration: 0 \}/, `${name} must remove motion and delay`);
+    }
+  }
 });
 
 /* The voice teaser's speakers are a parallel array to a CATALOG array, and

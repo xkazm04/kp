@@ -14,7 +14,7 @@ import { MemberConfirmModals } from "./MemberConfirmModals";
 import { WorkspaceDetailPanel } from "./WorkspaceDetailPanel";
 import { WorkspacePeoplePanel } from "./WorkspacePeoplePanel";
 import { WorkspaceRail } from "./WorkspaceRail";
-import { copyInviteUrl, memberCounts, memberName, readError } from "./workspaceAdminHelpers";
+import { copyInviteUrl, memberCounts, memberName, memberStatusCounts, readError } from "./workspaceAdminHelpers";
 import { useWorkspaceAdmin, type MemberTeam, type OrgMemberDto } from "./useWorkspaceAdmin";
 
 // Settings -> Workspaces. The single console for teams AND the people on them.
@@ -82,6 +82,7 @@ export function WorkspaceTab() {
   const [confirmingRevoke, setConfirmingRevoke] = useState<{ token: string; email: string } | null>(null);
 
   const counts = useMemo(() => memberCounts(members), [members]);
+  const statusCounts = useMemo(() => memberStatusCounts(members), [members]);
   // Selection follows the session's workspace until the user picks another, and
   // survives a reload that reorders or drops rows.
   const selected = workspaces.find((w) => w.id === selectedId) ?? workspaces.find((w) => w.id === current) ?? workspaces[0] ?? null;
@@ -129,17 +130,15 @@ export function WorkspaceTab() {
 
   async function renameWorkspace(id: string, name: string) {
     setBusy(true);
-    const r = await fetch(`/api/workspaces/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    }).catch(() => null);
-    if (r && r.ok) {
-      toast.success(t("renamed"));
+    await toast.promise(async () => {
+      const r = await fetch(`/api/workspaces/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!r.ok) throw new Error(`rename refused: ${r.status}`);
       await reload();
-    } else {
-      toast.error(t("renameFailed"));
-    }
+    }, { loading: t("org.saving"), success: t("renamed"), error: t("renameFailed") }).catch(() => {});
     setBusy(false);
   }
 
@@ -321,6 +320,7 @@ export function WorkspaceTab() {
             current={current}
             selectedId={selected?.id ?? null}
             counts={counts}
+            statusCounts={statusCounts}
             loading={loading}
             canCreate={canManageTeams && multiWorkspace}
             busy={busy}

@@ -106,8 +106,12 @@ export async function POST(request: Request) {
       // place the traceback belongs.
       return safeJsonError(new Error(err.message), "api:extract-text", "EXTRACT_TEXT_FAILED");
     }
-    const { text } = parsePythonJson<{ text: string }>(stdout, stderr);
-    return NextResponse.json({ text });
+    const { text, charCount, pageCount } = parsePythonJson<{
+      text: string;
+      charCount: number;
+      pageCount: number | null;
+    }>(stdout, stderr);
+    return NextResponse.json({ text, charCount, pageCount });
   } catch (error) {
     // The deadline is delivered as a REJECTION carrying a sentence, not a typed
     // error, so it is matched through the one shared predicate.

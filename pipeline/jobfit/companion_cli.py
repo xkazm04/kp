@@ -493,7 +493,7 @@ def run_turn(turn: dict) -> dict:
     locale = normalize_lang(turn.get("locale"))
     transcript = turn.get("transcript")
     turns = transcript if isinstance(transcript, list) else []
-    session = session_tag(str(turn.get("workspace_id") or ""))
+    session = session_tag(str(turn.get("workspace_id") or ""), str(turn.get("session_id") or ""))
     catalog = turn.get("actions") if isinstance(turn.get("actions"), list) else []
     memory = _memory_flag(turn)
 
@@ -546,7 +546,7 @@ def run_digest(turn: dict) -> dict:
     operator's mouth in a store their own recall reads back.
     """
     locale = normalize_lang(turn.get("locale"))
-    session = session_tag(str(turn.get("workspace_id") or ""))
+    session = session_tag(str(turn.get("workspace_id") or ""), str(turn.get("session_id") or ""))
     catalog = turn.get("actions") if isinstance(turn.get("actions"), list) else []
     grounding = turn.get("grounding")
     memory = _memory_flag(turn)

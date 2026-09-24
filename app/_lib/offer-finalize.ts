@@ -8,7 +8,7 @@ import { recordAudit } from "./dev-control";
 import { recordMeterUsage } from "./billing";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
-import { offerHoursRemaining } from "./offer-policy";
+import { offerHoursRemaining, offerMinutesRemaining } from "./offer-policy";
 import { INTERVIEW_TZ } from "./schedule-slots";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
@@ -210,6 +210,7 @@ export function offerView(token: string) {
   const job = offer.jobId ? getJob(offer.jobId) : null;
   const company = job?.company ?? null;
   const terms = publicOfferTerms(offer.payload);
+  const countdownNow = Date.now();
   return {
     token: offer.token,
     status: offer.status,
@@ -221,7 +222,8 @@ export function offerView(token: string) {
     expiresAt: offer.expiresAt,
     // Countdown computed on the SERVER clock (offers-onboarding #5) so the candidate's
     // "X hours left" copy can't drift from server-enforced expiry under client clock skew.
-    hoursRemaining: offerHoursRemaining(offer.expiresAt),
+    hoursRemaining: offerHoursRemaining(offer.expiresAt, countdownNow),
+    minutesRemaining: offerMinutesRemaining(offer.expiresAt, countdownNow),
     // The company's named zone (KP_INTERVIEW_TZ, Europe/Prague default) — same
     // clock the slot grid uses. The offer row has no zone column yet; formatOfferDeadline
     // already accepts this as its third argument. Server-resolved, never a client guess.
@@ -245,4 +247,3 @@ function publicOfferTerms(payload: unknown): { notes: string | null; startDate: 
   const startDate = typeof p.startDate === "string" && p.startDate.trim() ? p.startDate.trim() : null;
   return { notes, startDate };
 }
-

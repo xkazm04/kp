@@ -4,6 +4,7 @@ import { AlertTriangle, BadgeCheck, BrainCircuit, GraduationCap, Lightbulb, Spar
 import { useTranslations } from "next-intl";
 import { FactorChart } from "@/app/_components/FactorChart";
 import { ScoreDial } from "@/app/_components/ScoreDial";
+import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { labelize, reconcileScoreTotal } from "@/app/_lib/format";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
@@ -31,6 +32,13 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const educationLevel = (candidate.educationLevel ?? "").trim();
   const hasProfileFacts = skills.length > 0 || languages.length > 0 || educationLevel.length > 0;
   const recommendations = analysis.recommendations ?? [];
+  const v2 = analysis.v2Profile;
+  const potentialScore = typeof v2?.potentialScore === "number" && Number.isFinite(v2.potentialScore)
+    ? Math.max(0, Math.min(1, v2.potentialScore))
+    : null;
+  const learningSignals = Array.isArray(v2?.learningSignals)
+    ? v2.learningSignals.filter((signal): signal is string => typeof signal === "string")
+    : [];
   return (
     <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -44,7 +52,12 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
             {/* Dial reads the component sum, not the raw pipeline total, so the
                 arc can never disagree with the FactorChart bars below it (the
                 score-breakdown invariant; see reconcileScoreTotal). */}
-            <ScoreDial score={reconcileScoreTotal(analysis.score)} />
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <ScoreDial score={reconcileScoreTotal(analysis.score)} />
+              {potentialScore != null ? (
+                <PotentialBadge potential={{ score: potentialScore, learningSignals }} />
+              ) : null}
+            </div>
           </div>
         </div>
 

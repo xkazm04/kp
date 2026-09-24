@@ -9,7 +9,7 @@ import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
 import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
 export async function GET() {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       approvalKind?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
-      return NextResponse.json({ error: "candidateId and jobId are required." }, { status: 400 });
+      return jsonRefusal("PIPELINE_ADD_IDS_REQUIRED", 400);
     }
     // GH2 — optional GitHub evidence summary riding the add. Validated by the
     // shared coercer (which also bounds every field); a present-but-malformed
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     if (body.github !== undefined && body.github !== null) {
       const summary = coerceGithubEvidenceSummary(body.github);
       if (!summary) {
-        return NextResponse.json({ error: "Invalid GitHub evidence payload." }, { status: 400 });
+        return jsonRefusal("PIPELINE_GITHUB_EVIDENCE_INVALID", 400);
       }
       githubJson = JSON.stringify(summary);
     }
@@ -95,10 +95,7 @@ export async function POST(request: NextRequest) {
       const axis = getPipelineAxis(await currentWorkspace());
       const known = knownStageIds(axis);
       if (!known.has(body.stage)) {
-        return NextResponse.json(
-          { error: `Unknown stage "${body.stage}". Expected one of: ${axis.stages.map((s) => s.id).join(", ")}.` },
-          { status: 400 }
-        );
+        return jsonRefusal("PIPELINE_ADD_STAGE_UNKNOWN", 400, { stages: axis.stages.map((stage) => stage.id) });
       }
     }
     // d95fed6d — optional provenance: which surface filed this candidate.
@@ -117,10 +114,7 @@ export async function POST(request: NextRequest) {
     let approvalKind: "decision" | null = null;
     if (body.approvalKind !== undefined && body.approvalKind !== null) {
       if (body.approvalKind !== "decision") {
-        return NextResponse.json(
-          { error: `Unknown approvalKind "${String(body.approvalKind)}". Only "decision" may be requested at add time.` },
-          { status: 400 }
-        );
+        return jsonRefusal("PIPELINE_ADD_APPROVAL_KIND_UNKNOWN", 400);
       }
       approvalKind = "decision";
     }

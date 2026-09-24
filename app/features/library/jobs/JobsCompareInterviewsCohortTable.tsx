@@ -2,8 +2,10 @@
 
 import { ClipboardCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import { rubricLabel, rubricDescription } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
+import { isNotAssessedRating } from "@/app/_lib/interview-scorecard";
 import type { InterviewTelemetry } from "@/app/_lib/interview-telemetry";
 import { talkSharePercent, formatSpokenDuration } from "@/app/_lib/voice/telemetry-format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -148,9 +150,16 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
               </td>
               {candidates.map((c, i) => {
                 const r = ratingOf(c, comp.competency);
+                // NOT-ASSESSED IS ON THE SCALE. The synthesis writes an axis the
+                // interview never reached as a real 3 with "Not assessed…" evidence —
+                // which this grid coloured as a mid-band score and ranked candidates
+                // against. It is the comparison surface, so the confusion is worst
+                // here: a candidate asked about an axis and one never asked about it
+                // rendered identically. The shared read-side guard says which is which.
+                const notAssessed = r ? isNotAssessedRating(r.rating, r.evidence) : false;
                 return (
                   <td key={i} className="p-2">
-                    {r ? (
+                    {r && !notAssessed ? (
                       <span
                         className={`inline-flex h-7 w-9 items-center justify-center rounded-md font-semibold nums ${ratingColor(
                           r.rating
@@ -158,6 +167,10 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
                         title={r.evidence || ""}
                       >
                         {r.rating}
+                      </span>
+                    ) : notAssessed ? (
+                      <span className={META_LABEL} title={t("notAssessedTitle")}>
+                        {t("notAssessed")}
                       </span>
                     ) : (
                       <span className="text-steel">—</span>

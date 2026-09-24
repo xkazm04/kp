@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter } from "./types.ts";
+import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter, type VoiceToolDef } from "./types.ts";
 
 // OpenAI Realtime (gpt-realtime, GA). Browser uses WebRTC; the server mints an
 // ephemeral client secret via /v1/realtime/client_secrets and the browser POSTs
@@ -145,6 +145,27 @@ export function normalizeTranscriptionLanguage(language?: string | null): string
   return /^[a-z]{2}$/.test(primary) ? primary : null;
 }
 
+/** How eagerly semantic VAD ends the candidate's turn (Realtime GA
+ *  `audio.input.turn_detection.eagerness`). An interview answer is long and full of
+ *  thinking pauses — the default ("auto" = medium) cut candidates off mid-thought —
+ *  so the house default is "low": the longest wait before the interviewer replies. */
+export const TURN_EAGERNESS_VALUES = ["low", "medium", "high", "auto"] as const;
+export type TurnEagerness = (typeof TURN_EAGERNESS_VALUES)[number];
+export const DEFAULT_TURN_EAGERNESS: TurnEagerness = "low";
+
+/** Narrow an env value (OPENAI_REALTIME_TURN_EAGERNESS) to a legal eagerness; anything
+ *  else — unset, a typo, a stray casing — falls back to the house default rather than
+ *  being sent to the provider as an invalid session field. */
+export function coerceTurnEagerness(value: unknown): TurnEagerness {
+  const v = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return (TURN_EAGERNESS_VALUES as readonly string[]).includes(v) ? (v as TurnEagerness) : DEFAULT_TURN_EAGERNESS;
+}
+
+/** The configured eagerness, resolved at CALL time (like openAiRealtimeModel). */
+export function openAiTurnEagerness(): TurnEagerness {
+  return coerceTurnEagerness(process.env.OPENAI_REALTIME_TURN_EAGERNESS);
+}
+
 /** Build the OpenAI Realtime client_secrets session payload. Pure and exported so
  *  the language-parity behavior (idea: language enforcement parity for OpenAI) is
  *  unit-testable without a network call. When the candidate locale is known it
@@ -173,6 +194,14 @@ export function buildOpenAiSessionPayload(opts: {
    *  the provider's default applies, which is the shape the `metadata`-rejected
    *  retry in connect() falls back to. */
   expiresAfterSec?: number | null;
+  /** The interview director's function tools (spark ai-interview-parity). Each is
+   *  minted as a GA `{ type: "function", name, description, parameters }` tool with
+   *  `tool_choice: "auto"`. Absent/empty ⇒ no tool fields at all. Ignored in relay
+   *  mode, where the model never answers on its own. */
+  tools?: readonly VoiceToolDef[] | null;
+  /** semantic_vad eagerness for a conversational (non-relay) session; defaults to
+   *  DEFAULT_TURN_EAGERNESS. The route resolves it from the env (openAiTurnEagerness). */
+  turnEagerness?: TurnEagerness | null;
 }): { session: Record<string, unknown>; expires_after?: { anchor: string; seconds: number } } {
   const transcription: { model: string; language?: string } = { model: opts.transcriptionModel };
   const lang = normalizeTranscriptionLanguage(opts.language);
@@ -180,6 +209,11 @@ export function buildOpenAiSessionPayload(opts: {
   const input: Record<string, unknown> = { transcription };
   if (opts.relay) {
     input.turn_detection = { type: "server_vad", create_response: false, interrupt_response: true };
+  } else {
+    // Semantic end-of-turn detection: the model waits for a FINISHED thought, not for
+    // a pause long enough to trip a silence threshold — the difference between an
+    // interviewer who lets a candidate think and one who talks over them.
+    input.turn_detection = { type: "semantic_vad", eagerness: opts.turnEagerness ?? DEFAULT_TURN_EAGERNESS };
   }
   const session: Record<string, unknown> = {
     type: "realtime",
@@ -190,6 +224,10 @@ export function buildOpenAiSessionPayload(opts: {
       output: { voice: opts.voice },
     },
   };
+  if (!opts.relay && opts.tools && opts.tools.length > 0) {
+    session.tools = opts.tools.map((t) => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters }));
+    session.tool_choice = "auto";
+  }
   // Bind the minted credential to ONE interview session. The value is a hash, so
   // this is an identifier we can recognize, not a capability anyone can replay.
   if (opts.sessionToken) {
@@ -217,11 +255,13 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
     language,
     relay,
     sessionToken,
+    tools,
   }: {
     instructions: string;
     language?: string | null;
     relay?: boolean;
     sessionToken?: string | null;
+    tools?: readonly VoiceToolDef[] | null;
   }): Promise<OpenAiConnect> {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY is not set");
@@ -245,6 +285,8 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
             relay,
             sessionToken: withMetadata ? sessionToken : null,
             expiresAfterSec: OPENAI_SECRET_TTL_SEC,
+            tools,
+            turnEagerness: openAiTurnEagerness(),
           })
         ),
         // The candidate is watching a 30s connect latch: a mint that has not

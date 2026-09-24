@@ -30,6 +30,17 @@ Ing., Czech Technical University in Prague, 2016
 
 
 class DeterministicDraftTest(unittest.TestCase):
+    def test_degree_beats_institution_on_czech_and_english_cv_headers(self) -> None:
+        cases = (
+            ("Jane Doe\nEducation\nMaster of Science, University of Prague", "master"),
+            ("Jane Doe\nEducation\nUniversity of Prague", "university"),
+            ("Jana Nováková\nVzdělání\nIng., České vysoké učení technické", "master"),
+            ("Jana Nováková\nVzdělání\nVysoká škola ekonomická", "university"),
+        )
+        for cv, expected in cases:
+            with self.subTest(expected=expected, cv=cv):
+                self.assertEqual(deterministic_draft(cv)["education_level"], expected)
+
     def test_reads_the_header_and_the_summary(self) -> None:
         d = deterministic_draft(CV)
         self.assertEqual(d["display_name"], "Jan Novák")

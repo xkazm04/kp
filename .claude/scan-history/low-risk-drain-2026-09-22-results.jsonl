@@ -1,0 +1,135 @@
+{"source_line": 542, "disposition": "built", "commit": "fb759997c", "title": "Treat test.skipIf as a skip marker so node:test cannot silently drop coverage"}
+{"source_line": 362, "disposition": "built", "commit": "6c418ef16", "title": "Code GET /api/pipeline/events invalid-since 400"}
+{"source_line": 688, "disposition": "built", "commit": "9fa73a66b", "title": "Migrate FeatureSpotlight off framer useReducedMotion"}
+{"source_line": 57, "disposition": "built", "commit": "18a12aacc", "title": "Pin service.analyze docstring against shipped LOCALES"}
+{"source_line": 693, "disposition": "built", "commit": "3d885f0d9", "title": "Migrate SectionRail off framer useReducedMotion"}
+{"source_line": 43, "disposition": "built", "commit": "3a1d303b3", "title": "Rewrite automation.py's Claude-CLI-only runtime claim"}
+{"source_line": 359, "disposition": "built", "commit": "05117a7b6", "title": "Code consent and timeline 404s"}
+{"source_line": 55, "disposition": "built", "commit": "6446a89d5", "title": "Import shared ERROR_CODES in campaign_cli and repo_scan_cli"}
+{"source_line": 695, "disposition": "built", "commit": "a6bcdc52e", "title": "Drop demo=unavailable from the URL when the notice is dismissed"}
+{"source_line": 45, "disposition": "built", "commit": "7238cb6b3", "title": "Cover data_ai and product_project in align_candidates_csas tests"}
+{"source_line": 692, "disposition": "built", "commit": "2cf166510", "title": "Gate PricingSection whileInView motion on useStillMotion"}
+{"source_line": 58, "disposition": "built", "commit": "a02c81e82", "title": "Pin seed_jobs does not construct ClaudeCliProvider"}
+{"source_line": 576, "disposition": "built", "commit": "128e17815", "title": "Derive CAPABILITY_ORDER from OVERRIDABLE_CAPABILITIES"}
+{"source_line": 178, "disposition": "built", "commit": "929702f1a", "title": "Pin score_motivation whole-token fairness"}
+{"source_line": 691, "disposition": "built", "commit": "042b92f8d", "title": "Put compact lang switch and Market on the About topbar"}
+{"source_line": 484, "disposition": "built", "commit": "f240c9c44", "title": "Pin interview-kit behavioral and technical buckets in test_interview.py"}
+{"source_line": 699, "disposition": "built", "commit": "45bef1134", "title": "Put compact lang switch in the Market Pulse topbar and phone menu"}
+{"source_line": 583, "disposition": "built", "commit": "8749b3553", "title": "Remove unused English ARCHETYPE_STYLE.label"}
+{"source_line": 137, "disposition": "built", "commit": "e712a846e", "title": "Make a quick-apply decline recoverable in place"}
+{"source_line": 159, "disposition": "built", "commit": "03d41dc1a", "title": "Extend fallback stopwords to Czech generic role nouns"}
+{"source_line": 367, "disposition": "built", "commit": "d5e0114ff", "title": "Focus pipeline search with a / shortcut"}
+{"source_line": 155, "disposition": "built", "commit": "e8ffc5e67", "title": "Format the credential issued date in the reader's locale"}
+{"source_line": 161, "disposition": "built", "commit": "afbfde6df", "title": "Pin seeded analyses as engineKind=deterministic in the hygiene suite"}
+{"source_line": 594, "disposition": "built", "commit": "39671daa2", "title": "Type cache-key lang as Locale"}
+{"source_line": 368, "disposition": "built", "commit": "cd686d066", "title": "Localize score-dimension labels via labelCode"}
+{"source_line": 149, "disposition": "built", "commit": "daec7f713", "title": "Localize the saved-report subtitle's role-family and seniority slugs"}
+{"source_line": 239, "disposition": "built", "commit": "48e71507f", "title": "Pin master's vs university classification on Czech and EN headers"}
+{"source_line": 150, "disposition": "built", "commit": "4e5520892", "title": "Show JD title and score on the cross-job footprint, not raw slugs"}
+{"source_line": 328, "disposition": "built", "commit": "48e5ea0ea", "title": "Pin iterationPattern iterative vs single-pass from edit cadence"}
+{"source_line": 329, "disposition": "built", "commit": "31953d740", "title": "Pin sourcing ranks office-family candidates, not only software"}
+{"source_line": 551, "disposition": "built", "commit": "7c47dd134", "title": "Stop forwarding profile_cli stderr on POST/PUT /api/profile"}
+{"source_line": 589, "disposition": "built", "commit": "153579fd8", "title": "Zoom the expanded diagram from the keyboard"}
+{"source_line": 157, "disposition": "built", "commit": "9448c4f17", "title": "Add a print action to the public skill credential"}
+{"source_line": 82, "disposition": "built", "commit": "ee5223f30", "title": "Surface ops-warn.log on GET /api/ops"}
+{"source_line": 54, "disposition": "built", "commit": "5c4de70e8", "title": "Ratchet hand-rolled {status: 500} CLI envelopes"}
+{"source_line": 226, "disposition": "built", "commit": "84f9d978a", "title": "Give ScoreBadge an accessible name"}
+{"source_line": 172, "disposition": "built", "commit": "353676794", "title": "Format the stale-profile banner date with useFormatter"}
+{"source_line": 485, "disposition": "built", "commit": "cbd1f8ff6", "title": "Pin keyword coverage against structured Job.requirements in test_ats.py"}
+{"source_line": 227, "disposition": "built", "commit": "0ddb143d2", "title": "Expose FactorChart as an accessible data table"}
+{"source_line": 237, "disposition": "built", "commit": "26c71e4d4", "title": "Pin scanned-PDF empty text with a synthetic fixture"}
+{"source_line": 140, "disposition": "built", "commit": "a0fdfc351", "title": "Let the candidate copy the status link on the quick-apply done card"}
+{"source_line": 240, "disposition": "built", "commit": "77df83676", "title": "Pin v2Profile.potential_score populated after analyze routing"}
+{"source_line": 229, "disposition": "built", "commit": "d159c8986", "title": "Show ScoreProvenanceLabel beside History scores"}
+{"source_line": 684, "disposition": "built", "commit": "090877f47", "title": "Add a copy-link control on each /about step using aboutStepId"}
+{"source_line": 230, "disposition": "built", "commit": "41a4696a3", "title": "Place PotentialBadge next to ScoreDial on ExtractionTab"}
+{"source_line": 287, "disposition": "built", "commit": "37537a764", "title": "Require verifier and delegator personas before a discrimination PASS"}
+{"source_line": 696, "disposition": "built", "commit": "1fa09812f", "title": "Put a Sign-up CTA on DemoUnavailableNotice when signup is open"}
+{"source_line": 579, "disposition": "built", "commit": "1b1e76c69", "title": "Fail-closed statusBadge on an unknown status"}
+{"source_line": 690, "disposition": "built", "commit": "516c8fde7", "title": "Add a VoiceTeaser CTA that pins the voice spotlight"}
+{"source_line": 378, "disposition": "built", "commit": "c06f69937", "title": "Open the candidate from an activity-feed row"}
+{"source_line": 574, "disposition": "built", "commit": "8ae79dcd1", "title": "Zip driverCodes and drivers only when lengths match"}
+{"source_line": 153, "disposition": "built", "commit": "4db290186", "title": "Add per-state body copy for revoked, tampered, and unverifiable cards"}
+{"source_line": 527, "disposition": "built", "commit": "df28bea62", "title": "Export publicOriginHealth() so a missing APP_BASE_URL is a named degraded reason"}
+{"source_line": 369, "disposition": "built", "commit": "1923d0070", "title": "Render market-band source and vintage on the hint"}
+{"source_line": 552, "disposition": "built", "commit": "309b160eb", "title": "Code GET/DELETE /api/tasks/[id] instead of English 'task not found'"}
+{"source_line": 154, "disposition": "built", "commit": "872ffac17", "title": "Localize capability axis names on the public skill credential"}
+{"source_line": 528, "disposition": "built", "commit": "06f8e50fb", "title": "Count afterResponse failures instead of console.error only"}
+{"source_line": 366, "disposition": "built", "commit": "c3be62989", "title": "Show the bounced-move reason on the bead"}
+{"source_line": 177, "disposition": "built", "commit": "96248c313", "title": "Render missingJobs and blocked reasons in the grid CSV"}
+{"source_line": 531, "disposition": "built", "commit": "10c4e125d", "title": "Answer login 401s with a refusal code instead of an English sentence"}
+{"source_line": 278, "disposition": "built", "commit": "e4ac952c2", "title": "Replace ColumnHead native title= with Tooltip"}
+{"source_line": 553, "disposition": "built", "commit": "a01b49dd7", "title": "Return a refusal code for unknown template placeholders instead of English"}
+{"source_line": 169, "disposition": "built", "commit": "e889f79c3", "title": "Show the unproven skill bucket in role compare"}
+{"source_line": 171, "disposition": "built", "commit": "839d54f39", "title": "Include unproven skills in the match CSV export"}
+{"source_line": 634, "disposition": "built", "commit": "7b8523dfa", "title": "Add node:test coverage for protocol.ts parsers"}
+{"source_line": 372, "disposition": "built", "commit": "a5e8f63f9", "title": "Add Open profile to the degraded-intake banner"}
+{"source_line": 611, "disposition": "built", "commit": "cb3aec907", "title": "Add sessions routes to error-hygiene and catch GET /sessions"}
+{"source_line": 134, "disposition": "built", "commit": "201b007cf", "title": "Show a short role summary before the chat starts"}
+{"source_line": 381, "disposition": "built", "commit": "ebf66c95b", "title": "Deep-link degraded intake to the profile editor"}
+{"source_line": 708, "disposition": "built", "commit": "8308581e9", "title": "Set document.title from the active tab label"}
+{"source_line": 681, "disposition": "built", "commit": "bcd2c31eb", "title": "Mirror running-task progress onto document.title"}
+{"source_line": 608, "disposition": "built", "commit": "4d3e9713a", "title": "Code remaining English refusals on compare and simulate/attach"}
+{"source_line": 347, "disposition": "built", "commit": "2ab9e7b44", "title": "Pass offer.timeZone into formatOfferDeadline on the card"}
+{"source_line": 383, "disposition": "built", "commit": "47b8a5ad3", "title": "Show scoringDeferred in the pass-preview modal"}
+{"source_line": 623, "disposition": "built", "commit": "83172f277", "title": "Give TTS and STT ledger prices the same env-override as voice minutes"}
+{"source_line": 25, "disposition": "built", "commit": "e2195b0fc", "title": "Echo failedCalls on GET /api/llm/usage the activity ledger already counts"}
+{"source_line": 348, "disposition": "built", "commit": "ac59acb93", "title": "Show minutes remaining in the final hour of an offer"}
+{"source_line": 680, "disposition": "built", "commit": "76b3aa2df", "title": "Offer every registered task kind in the kind filter, not just this window"}
+{"source_line": 357, "disposition": "built", "commit": "7b39fe33f", "title": "Restore a score-ring and waiting-dot key on the subway"}
+{"source_line": 682, "disposition": "built", "commit": "f17e3f20c", "title": "Link TaskFlightNote to the tasks tab instead of only naming it"}
+{"source_line": 400, "disposition": "built", "commit": "ceb4c2ae5", "title": "Render calendarStatus on the Schedule tab"}
+{"source_line": 709, "disposition": "built", "commit": "f26184fc2", "title": "Idle-warm Jobs and Job intake chunks with the hiring set"}
+{"source_line": 401, "disposition": "built", "commit": "0ab297f83", "title": "Surface a Connect calendar CTA on the Schedule tab when disconnected"}
+{"source_line": 358, "disposition": "built", "commit": "0f447c1fc", "title": "Answer POST /api/pipeline 400s with REFUSAL_ERRORS codes"}
+{"source_line": 586, "disposition": "built", "commit": "51353ac0a", "title": "Localize the 1:1 zoom control"}
+{"source_line": 651, "disposition": "built", "commit": "a8c33cfb5", "title": "Prefill feedback with the current tab's visible name"}
+{"source_line": 588, "disposition": "built", "commit": "7e42d91c9", "title": "Announce diagram loading to assistive tech"}
+{"source_line": 22, "disposition": "built", "commit": "919029303", "title": "Filter /api/llm/activity by useCase, outcome and cursor"}
+{"source_line": 654, "disposition": "built", "commit": "31dd1b1e0", "title": "Clear previewCache on live-refresh"}
+{"source_line": 700, "disposition": "built", "commit": "6bd8d954d", "title": "Deep-link the map to ?region= and ?metric="}
+{"source_line": 587, "disposition": "built", "commit": "8d4745a1d", "title": "Export the expanded diagram as SVG"}
+{"source_line": 687, "disposition": "built", "commit": "733bac3fe", "title": "Turn HiredArt's slam-seal into a still-safe stamp the visitor can replay"}
+{"source_line": 365, "disposition": "built", "commit": "ee6792b15", "title": "Make interview and active stat chips filter the board"}
+{"source_line": 656, "disposition": "built", "commit": "8b29ac5f6", "title": "Retry a failed palette preview fetch from the pane"}
+{"source_line": 658, "disposition": "built", "commit": "086eb0c0b", "title": "Announce palette preview content when the highlight moves"}
+{"source_line": 320, "disposition": "built", "commit": "578ce7bd4", "title": "Filter the cases ledger by stage, seniority, and title"}
+{"source_line": 683, "disposition": "built", "commit": "13cf8332a", "title": "Gate about-art whileInView entrances on useStillMotion"}
+{"source_line": 382, "disposition": "built", "commit": "f23b738c2", "title": "Filter the activity feed by event kind"}
+{"source_line": 575, "disposition": "built", "commit": "56f845423", "title": "Count members by status, not only active"}
+{"source_line": 704, "disposition": "built", "commit": "704b8d177", "title": "Document sim presenter keys in the ? overlay"}
+{"source_line": 578, "disposition": "built", "commit": "6726cd89", "title": "Add role descriptions for the invite dropdown"}
+{"source_line": 217, "disposition": "built", "commit": "d717e7f9", "title": "Offer ReportActions on the live result once persistence.slug exists"}
+{"source_line": 234, "disposition": "built", "commit": "e5320683", "title": "Deep-link family-floor chips from the rules modal to the calibration editor"}
+{"source_line": 8, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Fill soak memory from the roster rollup each night"}
+{"source_line": 16, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Flag a repo dossier stale from generated_at"}
+{"source_line": 44, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Pin GeminiEmbeddingProvider.available() under KP_OFFLINE"}
+{"source_line": 48, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Pin App-master coerce reports every dropped hallucinated connector"}
+{"source_line": 49, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Assert every pinnable use case is routed or exempted"}
+{"source_line": 53, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Pin QUALITY_SCORES.models against DEFAULT_MODELS in Python tests"}
+{"source_line": 116, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Emit JSON-LD AboutPage + SoftwareApplication on /about"}
+{"source_line": 117, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Emit BreadcrumbList JSON-LD for Home to About the app"}
+{"source_line": 127, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Add visibleStepProgress() for candidate-facing step counts"}
+{"source_line": 138, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Keep LanguageSwitcher on the closed-role quick-apply card"}
+{"source_line": 148, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Format saved-report timestamps in the reader's locale, not the host's"}
+{"source_line": 180, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Pin remaining Czech feminine taxonomy pairs"}
+{"source_line": 191, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Scrub parsingNotes so Art. 17 erasure cannot leave the CV name in metadata"}
+{"source_line": 235, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Explain the early-career auto-reject shield on the rules modal"}
+{"source_line": 331, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Deep-link each pending Art. 22 gate to the assignment review panel"}
+{"source_line": 336, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Value-key pending-gate confirms so a polled replacement cannot sneak through"}
+{"source_line": 337, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Surface screen-wave sealFailures after a commit"}
+{"source_line": 379, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Format invite slots with useFormatter"}
+{"source_line": 395, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Put canReschedule on the first-confirm POST response"}
+{"source_line": 396, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Put interviewTz on the public schedule token GET"}
+{"source_line": 448, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Hide Analyze CV and job-board Publish from anonymous visitors"}
+{"source_line": 451, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Hide Apply when the JD is archived even if the job is still open"}
+{"source_line": 483, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Pin campaign pack defaultedFields in test_campaign.py"}
+{"source_line": 503, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Add inject-source-loc.cjs unit tests for host-only stamping"}
+{"source_line": 505, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Add source-loc-loader.cjs fixtures for the DEV_INSPECT hard gate"}
+{"source_line": 508, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Reject Python interpreters older than 3.11 in schemas-gen"}
+{"source_line": 513, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Offer custom top-N matching the 1–50 validator"}
+{"source_line": 517, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Confirm Calendar disconnect before revoking the Google grant"}
+{"source_line": 518, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Show Personas pairing countdown from the stored deadline"}
+{"source_line": 568, "disposition": "descoped", "reason": "Already implemented before this drain", "title": "Collapse empty list sections like empty about"}
+{"source_line": 370, "disposition": "deferred", "reason": "Requires the risk-2 contract change to join jobs.seniority onto board entries", "title": "Band the salary hint by the job's seniority"}
+{"source_line": 40, "disposition": "descoped", "reason": "Duplicate of source line 57, covered by commit 18a12aacc", "title": "Document and pin service.analyze lang as all four locales"}

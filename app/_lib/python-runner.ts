@@ -296,6 +296,39 @@ function killProcessTree(child: ChildProcessWithoutNullStreams): void {
   }
 }
 
+// ---- Argument hygiene ---------------------------------------------------------
+//
+// There is no shell between us and the interpreter (`shell: false` below), so a `;`, a
+// `$(…)` or a newline in an argument is inert data — nothing ever re-splits it. What a
+// shell-free argv does NOT protect against is the CLI's own parser: argparse treats an
+// element that starts with `-` as an option, so a user value passed as its own element
+// after `--message` either ends the run with "expected one argument" (a candidate who
+// typed "--help" loses their turn) or, next to a flag that takes no value, is read as
+// a flag. A value that reached us from a request, a candidate or a stored record goes
+// through {@link flagArg} instead: ONE element, `--flag=value`, which argparse assigns
+// to that flag whatever the value starts with.
+const LONG_FLAG = /^--[a-z][a-z0-9-]*$/;
+
+/** One `--flag=value` argv element for a value this code did not write itself. The
+ *  flag name is checked (a literal typo, or a flag built from data, throws); the value
+ *  is carried verbatim — leading dashes, newlines and shell metacharacters included —
+ *  because as the tail of a single element none of them can be read as syntax. */
+export function flagArg(flag: string, value: string): string {
+  if (!LONG_FLAG.test(flag)) throw new TypeError(`flagArg: ${JSON.stringify(flag)} is not a long flag name`);
+  return `${flag}=${value}`;
+}
+
+/** Refuse an argv the child could not receive intact: a non-string element (an
+ *  `undefined` from a missing field would reach the interpreter as the text
+ *  "undefined") or a NUL byte, which cannot cross exec and would end the value early.
+ *  The message names the position, never the value — the value may be user text. */
+export function assertSpawnArgs(args: readonly unknown[]): asserts args is string[] {
+  args.forEach((arg, i) => {
+    if (typeof arg !== "string") throw new TypeError(`spawnPython: argument ${i} is not a string`);
+    if (arg.includes("\0")) throw new TypeError(`spawnPython: argument ${i} contains a NUL byte`);
+  });
+}
+
 export function spawnPython(
   args: string[],
   opts: SpawnOptions = {},
@@ -327,6 +360,9 @@ export function spawnPython(
   // started until a slot is held, which is the whole point — counting spawns after
   // starting them would bound nothing.
   const result = (async (): Promise<SpawnResult> => {
+    // Inside the async body so a bad argv REJECTS `result` like every other spawn
+    // failure, rather than throwing out of a call its callers only guard with await.
+    assertSpawnArgs(args);
     await acquireSlot(opts.signal);
     try {
       return await runPythonChild(args, opts, usageLogPath, llmRequestId);
@@ -373,6 +409,9 @@ function runPythonChild(
     // Never on Windows, where `detached` allocates a console instead and the tree is
     // reaped by taskkill /T. We never unref(), so this does not outlive us.
     detached: process.platform !== "win32",
+    // Stated, not inherited from the default: every argument reaches the interpreter as
+    // one argv element and is never re-parsed by a shell (see flagArg).
+    shell: false,
     windowsHide: true,
   });
   // bug-ui-scan-2026-07-09 (pipeline-clis-script-bridges #3): close the child's

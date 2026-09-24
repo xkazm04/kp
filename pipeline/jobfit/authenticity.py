@@ -28,6 +28,8 @@ _BUZZWORDS = (
     "fast-paced", "value-add", "value add", "best practices", "cutting-edge", "track record",
     "hard worker", "hard-working", "go-to person", "move the needle", "hit the ground running",
     "outside the box", "dynamic individual", "highly motivated", "excellent communication skills",
+    "týmový hráč", "orientovaný na výsledky", "proaktivní", "dynamické prostředí",
+    "bohaté zkušenosti", "výborné komunikační schopnosti",
 )
 
 # Phrasing for each flag (warn-shaped — the "(manual review)" suffix makes the

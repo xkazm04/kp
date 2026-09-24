@@ -480,8 +480,10 @@ _CZECH_WORDS = re.compile(
     re.IGNORECASE,
 )
 _ENGLISH_WORDS = re.compile(
+    # Tech loanwords such as role/project/experience occur in Czech answers too.
+    # They cannot establish English on their own; keep the TS port in sync.
     r"\b(the|and|you|your|what|how|why|that|this|with|for|was|were|would|could|have|about|tell|"
-    r"walk|thanks|thank|question|role|project|experience)\b",
+    r"walk|thanks|thank|question)\b",
     re.IGNORECASE,
 )
 # AI-disclosure detection, bilingual (cs + en): who ("AI assistant" / "AI asistent") + context

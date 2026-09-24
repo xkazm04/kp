@@ -86,3 +86,20 @@ test("NON-VACUITY: omitting expectedUpdatedAt keeps the old unconditional write"
   assert.notEqual(after2.provider, before.provider, "the row really was rewritten, so this is not passing on a no-op");
   assert.equal(after2.model, "headless");
 });
+
+test("a stale reset cannot remove another operator's fresh model pin", () => {
+  const seen = pinnedRow()!.updatedAt;
+  assert.equal(upsertLlmConfig({ useCase: USE_CASE, provider: "openai", model: "fresh", expectedUpdatedAt: seen }), true);
+  assert.deepEqual(deleteLlmConfig(USE_CASE, seen), { removed: false, stale: true });
+  assert.equal(pinnedRow()?.model, "fresh");
+  const current = pinnedRow()!.updatedAt;
+  assert.deepEqual(deleteLlmConfig(USE_CASE, current), { removed: true, stale: false });
+  assert.equal(pinnedRow(), undefined);
+});
+
+test("headless reset remains unconditional and a null precondition refuses a new pin", () => {
+  upsertLlmConfig({ useCase: USE_CASE, provider: "gemini", model: "new" });
+  assert.deepEqual(deleteLlmConfig(USE_CASE, null), { removed: false, stale: true });
+  assert.equal(pinnedRow()?.model, "new");
+  assert.deepEqual(deleteLlmConfig(USE_CASE), { removed: true, stale: false });
+});

@@ -1,5 +1,9 @@
 # Hiring Pipeline & Automation
 
+The subway board's stage help uses localized `pipeline.stageHelp` text for
+standard stages. A workspace-defined stage falls back to its own label instead
+of an English description from a shared type table.
+
 The candidate funnel from a sourced/applied CV to a hire, plus the automation
 layer that assists recruiters at every stage without ever silently rejecting
 or advancing a candidate on its own. Local-first: the only runtime LLM is the
@@ -420,7 +424,7 @@ strands nobody, and moving them would rewrite closed history.
 | `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `draft_rejection` / `draft_offer` additionally take the entry’s stored scorecard and ground themselves in it through `interview_evidence` (candidate-safe projection) + `_match_competency` (the checked `decisiveCompetency`). `POLICY` dict holds the hard-coded defaults. Every task renders its fact base through `context_block`, which puts the candidate-authored half behind an untrusted fence and leaves the job/match half plain (see [Every automation prompt fences the candidate's own words](#every-automation-prompt-fences-the-candidates-own-words)); `screen_candidate` additionally shows the scorer's `unproven_facts`, and `rematch_candidate` takes `lang` + stamps `narrativeLang`. `interview_scorecard` additionally fences its transcript and the candidate's name, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
 | `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). `--lang` reaches every narrative sub-command, `rematch` included since 2026-09-05. `--pipeline-size N` (the `screen` sub-command only) is the role's active-candidate count and sets the screening strictness tier; omitted = unknown, which resolves to the most lenient tier. |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
-| `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. |
+| `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. The preview modal surfaces `summary.scoringDeferred` as a warning about job groups left for the next pass when the scoring spawn budget is reached. |
 | `app/_lib/scheduler-jobs.ts` | **The scheduler job registry** (WP4a) — the one list of named clock jobs the clock loop, the schedule route and the control panel iterate: `policy_pass` (15 min, off), `reminders` (1 min, on) and `jobseeker_scan` (720 min, off, `requiresVerifiedRun`). Each entry carries its defaults, its fan-out and whether it must be verified by one manual `ok` run before its clock may be armed. Store-free (the browser imports it for labels); `scheduler-store.ts` reads it through `ensureRegisteredSchedule(def)`. `policy_pass` is the one job still named literally — `tickScheduler` owns its run path and the payload keeps its legacy fields. Pinned by `scheduler-jobs.test.ts` (unique names, a label in all four catalogs, `jobseeker_scan` disabled by default). |
 | `app/api/automation/schedule/route.ts` | The automation clock's control surface. `GET` returns the **legacy fields unchanged** — `schedule`/`runs` (the policy pass, decision rows workspace-filtered), `reminders`/`reminderRuns`, `scheduleScope: "global"`, and the clock's **liveness** (`liveness`/`livenessReason`/`lastTickAt`, from `schedulerLiveness()` over the `scheduler_heartbeat` row, the same verdict `/api/health` and `/api/ops` render) — **plus `jobs[]`**: one entry per registry job (`name`, `labelKey`, `schedule`, `runs`, `requiresVerifiedRun`, `verified` = the store holds at least one `ok` run for it). `POST` accepts `{ job?, enabled?, intervalMinutes?, tick? }`; a body with no `job` means the policy pass and `remindersEnabled` means `{ job: "reminders", enabled }`, so every older caller still works. Operator-only. Refusals are existing codes: a malformed interval `SCHEDULE_INTERVAL_INVALID` (400), a name the registry lacks `AUTOMATION_TASK_UNKNOWN` (400), `tick` for any job but the policy pass `AUTOMATION_TASK_NOT_OFFERED` (400), and arming a `requiresVerifiedRun` job before an `ok` run exists `JOBSEEKER_SCAN_UNVERIFIED` (409); the catch answers `safeJsonError(..., "SCHEDULE_UPDATE_FAILED")`. `{"tick": true}` — a full policy pass — is throttled per IP (`schedule-tick:<ip>`, 10/10min, pinned in `app/api/rate-limit-contract.test.ts`); the GET and the cheap config writes are not. The payload's key set and both body shapes are pinned by `route.test.ts` beside it. |
 | `instrumentation-node.ts` (the clock) | `tickScheduler()` runs the policy pass; every OTHER registry job runs through one loop under it — `ensureRegisteredSchedule(job)`, `claimDueRun(job.name)`, then `JOB_HANDLERS[job.name]()` (a typed map, so a job registered without a handler is a compile error). `reminders` is the historical sweep verbatim (a zero-send sweep records no row); `jobseeker_scan` is a placeholder until WP4c that records a claimed run as `skipped` — never `ok`, because an `ok` row is what verifies the job. Each job keeps its own bookkeeping `try/catch`; the autonomy-pause ordering is unchanged. |
@@ -431,6 +435,7 @@ strands nobody, and moving them would rewrite closed history.
 | `app/_lib/automation-fairness.ts` | `assertAutoRejectFair` — TS-side defense-in-depth fairness re-check before any reject is applied. |
 | `app/_lib/decision-config-store.ts` / `decision-config-schema.ts` | Per-workspace, data-driven screening/compliance rules (Phase 3). A stored row that will not parse still falls back to the **code default** — a workspace must never be left with no rules — but that fallback is the auto-reject policy silently reverting, so each one is now recorded and logged: `getDecisionConfigHealth()` answers `{ ok, total, issues }` (sibling of `db/core.ts`'s `getRowHealth()`), and the `[decision-config]` warn line names the phase, the **tier** the unreadable row sits in (`org` baseline, which every team inherits, vs one team's `override`) and the workspace. All three parse fallbacks report: the cascade read, `updateDecisionConfig`'s org re-read (whose result is written back as the next baseline), and `writeConfigRow`'s `familyFloors` preservation (whose failure clears the operator's per-family floors). **Where an operator sees it:** `/api/health` carries the verdict (`config: "ok" | "degraded"`, and a degraded ledger flips the probe to 503) publicly like `seeds`, while the reason string and the ledger sample ride `degradedReasons` / `configIssues` behind `isOperator()` - a reason names a workspace id, so it is strictly more sensitive than the row counts already gated there. `/api/ops` is operator-gated in full and carries both, which is what the System strip renders. Pinned by `decision-config-isolation.test.ts`, `app/api/health/health-exposure.test.ts` and `app/api/ops/ops-route.test.ts`. |
 | `app/_lib/screen-wave.ts`, `screen-wave-holdout.ts`, `screen-wave-approval.ts` | Configurable bulk auto-reject wave + audited holdout + approval token (single-spend: a commit consumes the token, a re-post gets a 409 with `reason: "spent"`). |
+| Decisions rules family-floor chips | Each override links to Analytics → Quality with that family selected in calibration, where its recommendation and sealed floor history can be reviewed before applying a change. |
 | `app/_lib/interview-recommendation.ts` | Single-sourced `recommendation`/`route` vocabulary + coercion (TS side). |
 | `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
 | `app/api/pipeline/outcomes/route.ts` | The on-the-job outcome of a hire (UAT `KAT-L1-002`). `GET ?entry=<id>` returns that hire's 1..5 rating (`performance: null` = unrated) plus whether the entry stands on the terminal-role stage; `GET` with no params returns the workspace accrual counter `{ rated, hires, minOutcomes }`. `POST {entryId, performance}` records or corrects the rating. Both handlers `requireOperator()` first and scope every store call to `currentWorkspace()`. |
@@ -441,6 +446,10 @@ strands nobody, and moving them would rewrite closed history.
 | `app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx` | The candidate modal card that writes it — a 1..5 button rail, mounted only for a candidate on the terminal-role stage. |
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. The wave modal's lifecycle (debounced preview → confirm → commit → 409 → re-preview, with the "the set changed" notice consumed on exactly one preview settle) is the pure reducer `decisionsScreenWaveMachine.ts`; `useDecisionsScreenWave` is only the network around it. The modal's `WaveResult` contract requires `sealFailures` (missed Art. 22 seals) and `holdout` (clean-arm keeps: `reasonCode` `holdout` or `holdoutSealFailed`, counted by `holdoutCount` in `decisionsFloorDisclosure.ts`); older fixtures default both counts to 0. `waveKeepKind` classifies a keep row as `holdout` / `holdoutSealFailed` / `fairness` / `other` against the closed `ScreenReasonCode` set so the lists cannot render a clean-arm keep as an ordinary keep. Reinstate (the reconsider queue's safety valve) folds every path through `decisionsReinstateOutcome.ts` — a refused or never-landed reinstate keeps the row and prints its `{ code, status }` on it via `useErrorMessage`, instead of the old silent no-else. When the pending queue is empty, `DecisionsEmptyHandoff` renders the reconsider count as a button that calls the same `revealReconsider` hop as the header chip, not a static caption. A failed queue GET folds the JSON body (`FORBIDDEN_CAPABILITY` + `capability`, or `PIPELINE_LIST_FAILED`) through `foldQueueLoadThrow({ status, body })` so a viewer sees "ask for pipeline:write", not a generic load failure. |
 | `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate modal. |
+
+The header's Active and Interview counts act as quick-filter toggles. Their
+predicates use the same live, non-simulation population and workspace stage roles
+as the counts, so clicking either count filters the board to the cohort it names.
 | `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the candidate modal cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
 | `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4, workspace-keyed) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
 | `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace, and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
@@ -570,8 +579,12 @@ the link panels…) and its per-entry state hook moved in unchanged, arranged in
 | Tab | Holds |
 | --- | --- |
 | **Overview** | the degraded-intake banner and, on the terminal-role stage, the hire outcome card first; then the Scorecard — score with its kind and provenance (a transfer score names itself), the confidence meter, fit tier, estimated salary against the band in the org currency, the route across the axis, the weighted breakdown table, matched / claimed-not-proven / missing skills |
+
 | **Activity** | interview outcome (+ transcript), human scorecard, messages with their delivery verdict; the merged history with rematch links |
 | **Record** | the autosaved recruiter note, GitHub evidence / deep-dive, GDPR consent with its audit trail, links to the full match and the profile editor |
+
+The Scorecard breakdown resolves the ranker's `labelCode` through the shared
+`match.dims.*` translations, with its English label as a fallback for older rows.
 
 Mechanics. `PipelineTab` holds one `CandidateView` (`candidateView.ts`: entry, cohort,
 tab) and mounts `CandidateModal` through `next/dynamic`. The frame is portalled to
@@ -715,6 +728,9 @@ guided-tour link (`sim.start`) sits in a footer row and hides while the tour run
 | --- | --- |
 | 1 — narrowing | board title · search · the **State / Score / Source / Sort** dropdowns |
 | 2 — the result | `Showing n of m` · *Clear* · *Save view* · *Select* · *Aging SLAs* · *Full page* |
+
+Pressing `/` focuses the board search when focus is outside an editable field and
+no dialog is open.
 
 The **State** and **Source** menus list their options by displayed name, ascending,
 in the reader's locale (`localeCompare`) — the labels are translated, so a fixed code
@@ -1112,6 +1128,15 @@ already committed.**
 this store and into the billing, comms and interview layers, so a static edge would
 make a cycle out of a one-way notification (and would pull `next/server` into a
 store the node:test suite must be able to load outside a Next runtime).
+The lazy edge still counts toward every route's import graph, because the perf budget
+follows dynamic imports. So the AI-interview mint behind the hook is reached through a
+**boot-registered seam** rather than a static import: `stage-hooks.ts` calls
+`stageHookInvite()` (`app/_lib/stage-hooks-invite.ts`), which `late-bound-boot.ts` fills
+with `mintAndInviteVoiceScreen` at server boot. That is the same door
+`POST /api/interview/create` imports directly. It keeps the mint's graph (the grounded
+build, the job-kit pin and booking, the directed agenda, the voice providers; 21
+modules on `/api/tasks`, measured 2026-09-18) off every route that touches
+`db/pipeline.ts`.
 
 There are two hooks, both dispatched by **stage role** rather than by column name, so
 a team that renamed or reordered its board gets the same behaviour:
@@ -1157,6 +1182,18 @@ leaving a submitted command with no outcome. Its `p.error` branch resolves throu
 `useErrorMessage` for the same reason as the board's.
 
 ## The activity feed speaks the recruiter's language
+
+`GET /api/pipeline/events?since=<id>` rejects a malformed cursor with the
+`PIPELINE_EVENTS_CURSOR_INVALID` code, so the board can show the refusal in the
+reader's language.
+The candidate drawer's consent and timeline reads use `PIPELINE_ENTRY_NOT_FOUND`
+for a missing entry, matching the main entry route's localized 404 contract.
+
+Operator-only activity feed rows with an entry ID open that candidate's drawer.
+Rows without an entry ID stay readable. The public events endpoint still removes
+entry IDs and full candidate names.
+The feed's Event kind selector lists kinds present in the seven-day window and
+filters its rows and pager without changing the event cursor or server query.
 
 The board's activity feed (`PipelineActivityFeed`) renders **every** `pipeline_events`
 row, so its vocabulary is the *whole* writer vocabulary — not the board-lifecycle subset.
@@ -1222,6 +1259,11 @@ Two surfaces read the format now:
   by the candidate modal banner (`PipelineDegradedIntakeBanner`) and the candidate-row tooltip
   (`PipelineCandidateRow`), and both went through the same hook so they cannot disagree.
   The CV pipeline still writes real prose there and it still renders verbatim.
+
+On the pipeline board, the degraded-intake banner offers Open profile and Edit
+profile beside Mark captured when the entry has a linked profile. Edit profile
+uses the existing `?tab=archetypes&edit=<candidateId>` deep link, so the recruiter
+can correct the record before clearing the flag.
 
 ## The candidate modal and the Comms Center tell one delivery truth
 
@@ -1393,8 +1435,9 @@ match-only, and the board's sort and score bands (`pipelineBoardFilters.ts`), th
 decisions peer rank (`decisionsPeerCompare.ts`) and screen-wave all read through them.
 Consequence worth knowing: a freshly promoted assignment candidate shows a transfer
 number and still sits in the **unscored** score band, which is true — until the
-automation sweep computes their real match score. The legend lives in
-`PipelineShared.tsx` under the board, beside the archetype/status legend.
+automation sweep computes their real match score. The Subway key names ring
+strength and waiting dots below the map; detailed score-kind copy remains in
+`PipelineShared.tsx` for the earlier board view.
 
 ## Decisions peer context (comparison data for the review queue)
 
@@ -1454,7 +1497,7 @@ header and actions became the modal's **decision bar** (`candidate/decision/
 CandidateDecisionBar.tsx`: kind tag, verdict or offer amount with band + deadline,
 engine disclosure, JD-staleness chip, Accept / Reject) above the general footer, and
 the card's Ladder became a **side panel** docked to the modal's right
-(`CandidateDecisionPanel.tsx`; it takes the modal's full height and scrolls only when the ladder is taller; folds under the tabs below `md`). `isScoreStale(scoredAt, jdEditedAt, scorecardAt?)` treats a score strictly before the latest scorecard the same way it treats a score before a JD edit — missing `scorecardAt` stays non-stale. The modal's pager
+(`CandidateDecisionPanel.tsx`; it takes the modal's full height and scrolls only when the ladder is taller; folds under the tabs below `md`). `isScoreStale(scoredAt, jdEditedAt, scorecardAt?)` treats a score strictly before the latest scorecard the same way it treats a score before a JD edit — missing `scorecardAt` stays non-stale. It compares parsed instants across timezone offsets and fractional seconds; malformed timestamps cannot establish staleness. The modal's pager
 walks the visible reviews; a verdict that lands closes it, and a recommendation
 resolved elsewhere (another window, the batch bar) closes it too rather than
 offering a stale verdict. `useDecisionsCandidate.ts` holds that state; the queue
@@ -1568,14 +1611,15 @@ the same server-side instant.
 
 ## Known gaps
 
-- **The map board does not yet render select mode, drag-and-drop between stages,
-  or the bounced-move reason.** `PipelineBoard` still accepts `selectMode` /
+- **The map board does not yet render select mode or drag-and-drop between stages.**
+  `PipelineBoard` still accepts `selectMode` /
   `selectedIds` / `onToggleSelect` / `onMove` / `bouncedEntryId` so the tab's
-  wiring is untouched, but the Subway board ignores them: bulk moves still work
+  wiring is untouched, but the Subway board ignores those interactions: bulk moves still work
   from the bulk bar's stage select (it acts on the filtered cohort, not on a
-  click), a single candidate moves through the candidate modal, and a refused move is
-  reported only by the page banner. Porting these onto beads/stations is the next
-  board round.
+  click), and a single candidate moves through the candidate modal. A refused move
+  marks the affected bead and puts the localized reason in its hover text and
+  accessible name, alongside the page banner. Porting selection and drag to
+  beads/stations is the next board round.
 - **The org currency reaches only the map board.** Every other money surface
   (offers, the salary gauge, match cards' `formatBandCompact`, group eval) still
   labels figures with `APP_CURRENCY`, and the setting is a per-browser cookie, so
@@ -1585,11 +1629,10 @@ the same server-side instant.
   waiting indicators, `board.waitingHuman` / `board.waitingAi`) and the candidate
   modal — Scorecard included — are fully localized. Minting keys for the Orchard is
   a catalog change in all four locales.
-- **No on-board key explains the bead fill or the waiting dots.** The legend footer
-  was removed; the dots carry their meaning in their hover text and accessible name.
-- **The score dimension names in the Scorecard are the ranker's English `label`.**
-  `ScoreDimension.labelCode` (`match.dims.*`) exists for exactly this and the
-  Scorecard does not read it yet.
+- **The Subway names its score rings and waiting dots in a visible key.** The
+  score ring shows strong, medium, weak or no score; coral and steel dots show
+  candidates waiting on a person and AI respectively. Each line still carries
+  the exact counts in its hover text and accessible name.
 - **Avatar fill = gender is a HINT, not data.** Nothing on the wire says gender
   (the pipeline redacts gender-coded signals before scoring — `redact.py`); the
   fill comes from Czech surname morphology (`genderHintOf`, `-ová`/`-á` feminine)
@@ -1612,16 +1655,15 @@ the same server-side instant.
   producer is paired against the rating itself — nothing yet validates the
   `confidence ≥ 80` auto-advance band against how a hire actually worked out.
   Deliberate: the corpus accrues first.
-- **The market band NAMES its corpus and its vintage, but the candidate modal does not render
-  them yet.** `salaryBenchmark` (`app/_lib/db/salary-benchmark.ts`) now answers
+- **The market band names its corpus and vintage in the candidate modal.**
+  `salaryBenchmark` (`app/_lib/db/salary-benchmark.ts`) answers
   `source: "kp-reference-corpus"` (`SALARY_BENCHMARK_SOURCE_ID` — these are seeded
   reference roles, not a survey of employers) and `asOf`, the newest contributing
   role's `created_at` or `null` when none carries a usable one, both normalized
   through the shared `normalizeSalaryBenchmark` the JD side's band uses. They ride
-  `GET /api/benchmarks/salary` verbatim; `SalaryBenchmarkHint` still renders only the
-  percentiles, so the band on screen reads as current whatever its vintage. Rendering
-  them (`formatBenchmarkAsOf`, plus a caveat under `isThinBenchmark`) is a
-  component-and-catalog change, not a data one.
+  `GET /api/benchmarks/salary` verbatim. `SalaryBenchmarkHint` renders the corpus
+  identifier and the formatted month or an explicit unknown-date label beneath the
+  percentiles, so a stale or undated reference cannot appear current by default.
 - **The market salary band in the candidate modal is role-FAMILY only, never per level.**
   `SalaryBenchmarkHint` (`app/features/hiring/pipeline/PipelineSalaryBenchmarkHint.tsx`)
   accepts a `seniority` and forwards it to `/api/benchmarks/salary`, which bands by

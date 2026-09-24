@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
@@ -13,6 +14,8 @@ import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ComplianceSection } from "./DecisionsComplianceSection";
 import { familyFloorEntries, familyFloorSummaryList } from "./decisionsFloorDisclosure";
+import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
 
 // Type + default come from the pure decision-config-schema module — the same
 // source the API validates writes against — so the client clamps and the server
@@ -24,6 +27,8 @@ import { familyFloorEntries, familyFloorSummaryList } from "./decisionsFloorDisc
 export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
   const t = useTranslations("decisions.rules");
   const enumLabel = useEnumLabel();
+  const search = useSearchParams();
+  const nav = useShellNavigate();
   const [rule, setRule] = useState<ScreeningRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -189,18 +194,21 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                   {t("ruleLog")}
                 </p>
                 {floors.length > 0 ? (
-                  // Read-only chips — the value lives here for review; editing belongs to the
-                  // calibration surface (the hint below points there), so the two never diverge.
+                  // The override values stay read-only here; a chip opens the
+                  // matching calibration arm where its recommendation is edited.
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-meta uppercase tracking-wide text-steel">{t("familyOverridesLabel")}</span>
                     {floors.map((f) => (
-                      <span
+                      <button
+                        type="button"
                         key={f.family}
-                        className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink"
+                        onClick={() => nav.push(buildUrl({ ...clearedTabScopedParams(), tab: "analytics", sec: "quality", calFamily: f.family }, search.toString()))}
+                        className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink hover:border-coral/40 hover:text-coral"
                       >
                         <span className="font-semibold">{f.label}</span>
                         <span className="nums text-steel">{t("familyFloorChip", { floor: f.floor })}</span>
-                      </span>
+                        <ArrowUpRight size={12} aria-hidden />
+                      </button>
                     ))}
                     <span className="w-full text-meta text-steel">{t("familyEditHint")}</span>
                   </div>

@@ -63,6 +63,18 @@ test("the Czech filter holds in EVERY inflection, including the diacritic-final 
   }
 });
 
+test("German and French protected-attribute reasons are dropped whole", () => {
+  for (const line of [
+    "Zu alt für das Team", "Wegen Schwangerschaft ungeeignet", "Ihre Staatsangehörigkeit passt nicht",
+    "Behinderung verhindert Einsatz", "Trop âgée pour ce poste", "Grossesse incompatible avec le rôle",
+    "Nationalité non souhaitée", "Handicap incompatible avec le poste",
+  ]) {
+    const fb = buildRejectionFeedback({ profileGaps: gaps(line, "No Kafka experience") });
+    assert.deepEqual(fb.lines, ["No Kafka experience"], line);
+    assert.equal(fb.filtered, true, line);
+  }
+});
+
 test("if EVERY line is filtered, the result is no-feedback and not an empty section", () => {
   const fb = buildRejectionFeedback({ profileGaps: gaps("Maternity gap in the CV") });
   assert.equal(fb.source, "none");

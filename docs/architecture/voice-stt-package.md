@@ -317,7 +317,7 @@ can audit.
 | `provider` | the engine that actually served, `fallbackFrom` included |
 | `model` | the engine model id (`ggml-base.bin`, `universal`), or null |
 | tokens | **NULL** — audio seconds are not tokens, and `aggregateLlmUsage` sums those columns across every use case |
-| `cost_usd` | `STT_HOUR_PRICES[provider] x durationMs / 3_600_000`, rounded to 6 decimals |
+| `cost_usd` | Configured or built-in hourly rate x `durationMs / 3_600_000`, rounded to 6 decimals |
 | `source` | always `llm`; there is no transcription cache, because no two uploads are the same clip |
 
 Three price conventions, all shared with the other two meters:
@@ -328,7 +328,8 @@ Three price conventions, all shared with the other two meters:
 - **AssemblyAI is $0.27 per audio hour**, its listed price for asynchronous Universal
   transcription as of 2026-09-05. A LOCAL ESTIMATE, and a floor: diarization and PII
   redaction are priced add-ons this row does not model. An operator on a negotiated rate
-  edits the number rather than trusting it.
+  sets `KP_STT_HOUR_USD_ASSEMBLYAI` to their non-negative USD rate per audio hour.
+  Invalid values log a warning and retain the built-in estimate.
 - **whisper.cpp is a KNOWN zero, and an unlisted provider is null.** "Costs nothing" and
   "we do not know" are different facts; a null lands the call in `unpriced_calls`, where it
   is visible, instead of in the sum as a fabricated zero. The known zero holds even when the

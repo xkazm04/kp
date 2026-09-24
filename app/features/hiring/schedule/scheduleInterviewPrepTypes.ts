@@ -30,6 +30,10 @@ export type Prep = RunOfShow & {
   // that block + counts in the completion meter rather than sitting read-only below.
   // ONE key, so the voice brief that reads importedQuestions composes with it.
   importedQuestions?: ImportedQuestion[];
+  // The recruiter's per-candidate overlay on the job interview kit (KitOverlay): a
+  // human-owned key the generator never writes, carried across Regenerate. Untrusted on
+  // read — narrowKitOverlay (app/_lib/interview-kit-overlay.ts) narrows it.
+  kitOverlay?: unknown;
 };
 
 // Direction 3 — an imported question, normalized to the entry shape the modal

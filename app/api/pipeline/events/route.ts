@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { listPipelineEvents, listPipelineEventsSince } from "@/app/_lib/db/pipeline";
 import { toPublicPipelineEvent } from "@/app/_lib/pipeline-events-public";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 
 // The Activity feed's poll contract (idea-85f043ea). The old shape — "the 40
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (sinceRaw !== null) {
       const since = Number(sinceRaw);
       if (!Number.isSafeInteger(since) || since < 0) {
-        return NextResponse.json({ error: "since must be a non-negative integer" }, { status: 400 });
+        return jsonRefusal("PIPELINE_EVENTS_CURSOR_INVALID", 400);
       }
       const events = listPipelineEventsSince(since, 200, ws);
       const cursor = events.length > 0 ? events[events.length - 1].id : since;

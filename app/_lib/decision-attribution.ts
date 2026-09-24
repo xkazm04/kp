@@ -21,6 +21,12 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   advanced: { auto: false, tone: "text-moss" },
   auto_advanced: { auto: true, tone: "text-moss" },
   screening_hold: { auto: true, tone: "text-ink" },
+  // An operator raising (or changing) the approval gate on an entry. auto:false —
+  // this is a person deciding that something needs sign-off, which is exactly the
+  // kind of act the decision log exists to attribute. Until this write landed the
+  // change mutated the row with no event at all, so a state change on the path to
+  // a hire was invisible to the trail.
+  approval_set: { auto: false, tone: "text-ink" },
   interview_scorecard: { auto: true, tone: "text-steel" },
   interview_prep_generated: { auto: true, tone: "text-steel" },
   offer_drafted: { auto: true, tone: "text-steel" },

@@ -7,6 +7,11 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, Pipel
 import { buildLlmConfigEnv } from "./llm-config";
 import { withLlmRequestIdIfUnset } from "./llm-request-context";
 
+// A ranking is a reader-facing request or one bounded automation stage, not a
+// ten-minute Python hang. Keep the child under group eval's 240-second rank
+// budget while allowing a caller to choose a shorter deadline.
+export const RECRUITER_RANK_TIMEOUT_MS = 240_000;
+
 // The recruiter_cli ranking-spawn envelope shared by every "rank this pool
 // against this job" site (the candidates list, rediscovery, the automation
 // auto-score sweep, and the Decisions group eval). Each used to hand-roll the
@@ -33,7 +38,7 @@ export async function rankPoolForJob<T>(
   jobId: string,
   pool: CandidatePoolEntry[],
   job: JobRecord | null,
-  opts: { signal?: AbortSignal; weightsLlm?: boolean; embeddings?: boolean } = {},
+  opts: { signal?: AbortSignal; weightsLlm?: boolean; embeddings?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
   // Sync ranking (candidates list, rediscovery) is not always a task. Open a
   // scope only when nothing else named the run so Activity can join the spend
@@ -54,7 +59,11 @@ export async function rankPoolForJob<T>(
 
       // buildLlmConfigEnv: --weights-llm resolves the weight_proposal use case —
       // without this env the configured provider re-route never reaches the child.
-      const { result } = spawnPython(args, { signal: opts.signal, env: buildLlmConfigEnv() });
+      const { result } = spawnPython(args, {
+        signal: opts.signal,
+        timeoutMs: opts.timeoutMs ?? RECRUITER_RANK_TIMEOUT_MS,
+        env: buildLlmConfigEnv(),
+      });
       const { stdout, stderr, exitCode } = await result;
       if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
       // parsePythonJson, not raw JSON.parse: the interpreter routinely prints

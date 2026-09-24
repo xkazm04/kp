@@ -18,7 +18,8 @@ import {
   canStartPurchase,
   checkoutPollOffsetsMs,
   createLoadLatch,
-  isCheckoutReturn,
+  checkoutReturnKind,
+  packCreditsReflectPurchase,
   type Purchase,
 } from "./billingTabState";
 import { useBillingPortal } from "./useBillingPortal";
@@ -82,7 +83,14 @@ export function BillingTab() {
   // mount effect. `useSearchParams` reads the same value on the server and during
   // hydration, so the "confirming" banner paints without a mismatch.
   const searchParams = useSearchParams();
-  const [checkoutReturn] = useState(() => isCheckoutReturn(searchParams.get("billing")));
+  const [checkoutReturn] = useState(() => checkoutReturnKind(searchParams.get("billing")));
+  const [packCreditsBefore] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = sessionStorage.getItem("kp.billing.packCreditsBefore");
+      return stored === null ? null : Number(stored);
+    } catch { return null; }
+  });
   // The automatic poll window elapsed — NOT "the plan is confirmed". Confirmation is
   // derived from the real billing state below, so a timer alone can never assert a
   // plan grant; once this flips, the banner offers a manual re-check.
@@ -96,9 +104,14 @@ export function BillingTab() {
   // The banner is bound to the ACTUAL billing state, not the timer: we only claim
   // "your plan is now X" once /api/billing reflects a paid plan (plans-checkout #2).
   const checkout = checkoutBannerState({
-    isCheckoutReturn: checkoutReturn,
+    isCheckoutReturn: checkoutReturn !== null,
     pollWindowElapsed,
-    planReflectsPaid: Boolean(data && data.plan.id !== "free"),
+    entitlementReflected: checkoutReturn === "plan"
+      ? Boolean(data && data.plan.id !== "free")
+      : checkoutReturn === "pack" && packCreditsReflectPurchase(
+          packCreditsBefore,
+          data?.meters.find((meter) => meter.meter === "interview_minutes")?.credits ?? null,
+        ),
   });
   // Conversion is webhook confirmation, not the Buy click. Latch the previous
   // banner so `confirmed` re-renders (and the poll that keeps returning paid)
@@ -188,12 +201,13 @@ export function BillingTab() {
       if (stored) {
         item = stored;
         sessionStorage.removeItem("kp.billing.checkoutItem");
+        if (checkoutReturn === "pack") sessionStorage.removeItem("kp.billing.packCreditsBefore");
       }
     } catch {
       /* best-effort: analytics must never break the billing tab */
     }
     track("checkout_completed", { item });
-  }, [checkout, data?.plan.id]);
+  }, [checkout, checkoutReturn, data?.plan.id]);
 
   // Catalog-key helpers with the app-wide has() fallback so an unknown enum
   // value (new meter, new provider status) renders labelized, never crashes.
@@ -213,6 +227,10 @@ export function BillingTab() {
     track("checkout_started", { item: key });
     try {
       sessionStorage.setItem("kp.billing.checkoutItem", key);
+      if ("pack" in body) {
+        const credits = data?.meters.find((meter) => meter.meter === "interview_minutes")?.credits;
+        if (credits !== undefined) sessionStorage.setItem("kp.billing.packCreditsBefore", String(credits));
+      }
     } catch {
       /* best-effort: analytics must never break checkout */
     }
@@ -269,6 +287,7 @@ export function BillingTab() {
           BillingSelfHostPanel says the true thing in its place. */}
       <BillingStatusBanners
         checkout={checkout}
+        checkoutKind={checkoutReturn}
         planName={data?.plan.name ?? ""}
         loadError={loadError}
         onRetry={() => {

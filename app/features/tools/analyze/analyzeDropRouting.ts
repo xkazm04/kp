@@ -30,16 +30,16 @@ export function isOwnedDropZoneTarget(target: EventTarget | null): boolean {
   return el.closest(`[${OWNED_DROP_ZONE_ATTR}]`) != null;
 }
 
-/** The window catch's routing decision for a drop: the File to add as a CV
- *  variant, or null to leave the drop to whichever labeled zone (if any) owns it.
+/** The window catch's routing decision for a drop: the Files to add as CV
+ *  variants, or null to leave the drop to whichever labeled zone (if any) owns it.
  *  Routes only a genuine file drag that did NOT land inside an owned zone — the
  *  one rule that stops a JD/company drop from also becoming a phantom CV. */
 export function resolveWindowDropTarget(
   isFileDrag: boolean,
   target: EventTarget | null,
-  file: File | null,
-): File | null {
+  files: readonly File[],
+): readonly File[] | null {
   if (!isFileDrag) return null;
   if (isOwnedDropZoneTarget(target)) return null;
-  return file;
+  return files.length > 0 ? files : null;
 }

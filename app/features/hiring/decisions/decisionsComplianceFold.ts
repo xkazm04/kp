@@ -44,6 +44,21 @@ export function foldJurisdiction(landed: boolean, payload: unknown): { regime: R
   return { regime: "default-unconfirmed", jurisdiction: DEFAULT_REGIME_ID };
 }
 
+/** Fold a GET /api/decisions/config body into the audio-recording offer (WP3).
+ *
+ *  THREE states, not two, for the same reason the jurisdiction has three: `null` is
+ *  "the server has not told us", and a toggle rendered OFF on an unread config looks
+ *  exactly like a workspace that chose OFF — and a click from that state would write
+ *  the placeholder over whatever is really stored. `false` here is a real, read `false`
+ *  (present-and-off, or absent, which IS off: the field is omitted by design when the
+ *  offer has never been made — see decision-config-schema.ts). */
+export function foldRecordingOffered(landed: boolean, payload: unknown): boolean | null {
+  if (!landed) return null;
+  const configs = (payload as { configs?: { compliance?: Record<string, unknown> } } | null)?.configs;
+  if (!configs || typeof configs.compliance !== "object" || configs.compliance === null) return null;
+  return configs.compliance.interviewRecordingOffered === true;
+}
+
 /** Fold a GET /api/compliance body into the effective retention window, or null.
  *  Only a finite month count of at least 1 is a window; anything else (absent,
  *  zero, a string, NaN) is "the server did not tell us". */

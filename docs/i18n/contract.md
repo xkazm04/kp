@@ -178,6 +178,7 @@ request — no chunk-split or codegen to re-run.
 - **Never edit a catalog concurrently.** A multi-agent sweep must have agents
   *return* their proposed values and a single writer apply them; two agents
   writing `cs.json` will silently lose keys.
+- **Never rewrite a catalog through `JSON.parse` → `JSON.stringify`.** Every JS object sorts integer-like keys ascending, so `jobs.kit.weight` (authored `"3"`, `"2"`, `"1"`) comes back `1, 2, 3` and key order silently breaks; replace the value's exact text in place instead.
 - **Dead keys.** There is no dead-key checker. `grep -rn '"<leaf>"' app` before
   spending effort on a suspicious key; report a dead key rather than translating
   it.

@@ -93,3 +93,23 @@ test("compareCsvRows: two candidates produce aligned columns; a missing human ra
   assert.deepEqual(rows[1], ["Communication", 3, "", "advance", "", "", "hold"]);
   assert.ok(!rows.flat().includes(0), "a missing rating must not fabricate 0");
 });
+
+test("compareCsvRows: a NOT-ASSESSED axis exports blank, not the synthesis's mid-scale 3", () => {
+  // The AI synthesis writes an untouched competency as a real 3 with "Not assessed…"
+  // evidence. In a spreadsheet the caveat cannot travel with the number, so the number
+  // must not travel either — a genuine observed 3 still does.
+  const rubric = [R("Technical depth"), R("Communication")];
+  const rows = compareCsvRows(rubric, [
+    {
+      candidateLabel: "Ada",
+      recommendation: "hold",
+      ratings: [
+        { competency: "Technical depth", rating: 3, evidence: "Not assessed (auto-synthesis unavailable)." },
+        { competency: "Communication", rating: 3, evidence: "She walked through the rollback herself." },
+      ],
+      humanScorecard: null,
+    },
+  ]);
+  assert.deepEqual(rows[0], ["Technical depth", "", "", "hold"]);
+  assert.deepEqual(rows[1], ["Communication", 3, "", "hold"], "an observed 3 is still a 3");
+});

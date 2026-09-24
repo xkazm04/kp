@@ -30,13 +30,13 @@
  *  invisible-operator block, the bidi isolates, and the BOM. Tab/LF/CR are absent on
  *  purpose — they are whitespace and get FOLDED below, not deleted, so words joined by a
  *  newline do not run together into one nonsense token. */
-const INVISIBLE =
+export const INVISIBLE =
   /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u00AD\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
 
 /** An HTML/XML-looking tag. Bounded to one line and required to start with a letter, so
  *  an unmatched `<` in ordinary prose ("budget < 50k") survives instead of eating the
  *  rest of the value. */
-const HTML_TAG = /<\/?[A-Za-z][^<>\n]*>/g;
+export const HTML_TAG = /<\/?[A-Za-z][^<>\n]*>/g;
 
 /** Markdown links and images: keep the LABEL, drop the destination. The destination is
  *  the part with reach (a recruiter clicking it, a prompt quoting it); the label is the

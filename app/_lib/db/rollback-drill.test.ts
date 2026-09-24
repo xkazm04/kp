@@ -35,7 +35,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -321,6 +321,34 @@ test("restoring into an EMPTY target needs no flag and is a faithful copy, index
     const loaded = runScript(LOAD_SCRIPT, [dumpPath, "--db", target]);
     assert.equal(loaded.status, 0, `restoring into a fresh path needs no flag and failed:\n${loaded.out}`);
     assert.equal(snapshot(target), snapshot(source), "a restore into an empty target is not a faithful copy");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a changed v2 dump is refused before a target database is created", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-rollback-checksum-"));
+  try {
+    const source = path.join(dir, "source.sqlite");
+    const target = path.join(dir, "target.sqlite");
+    const dumpPath = path.join(dir, "dump.json");
+    const db = new Database(source);
+    db.exec(PRE_UPGRADE_SQL);
+    db.close();
+    assert.equal(runScript(DUMP_SCRIPT, ["--db", source, "--out", dumpPath]).status, 0);
+    const payload = JSON.parse(readFileSync(dumpPath, "utf8"));
+    assert.match(payload.checksum, /^[0-9a-f]{64}$/);
+    const populated = payload.tables.find((table: { rows: unknown[][] }) => table.rows.length > 0);
+    assert.ok(populated, "fixture must contain data to tamper with");
+    populated.rows[0][0] = "tampered";
+    writeFileSync(dumpPath, JSON.stringify(payload));
+
+    for (const flags of [[], ["--dry-run"]]) {
+      const refused = runScript(LOAD_SCRIPT, [dumpPath, "--db", target, ...flags]);
+      assert.notEqual(refused.status, 0);
+      assert.match(refused.out, /checksum/);
+      assert.equal(existsSync(target), false, "checksum refusal must precede opening the target");
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

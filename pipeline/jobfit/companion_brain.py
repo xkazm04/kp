@@ -124,17 +124,23 @@ def excerpt(s: str) -> str:
 
 
 def workspace_of(session_id: str) -> str:
-    """The kp workspace a ``kp-<ws>`` session tag belongs to. Sessions minted
+    """The kp workspace in ``kp-<ws>[:<thread>]``. Sessions minted
     elsewhere (Athena's own ``cli``) fall back to the default workspace, so a
     shared tree never mis-attributes a foreign episode to a real tenant."""
     if not session_id.startswith("kp-"):
         return DEFAULT_WORKSPACE_ID
-    return session_id[3:] or DEFAULT_WORKSPACE_ID
+    return session_id[3:].split(":", 1)[0] or DEFAULT_WORKSPACE_ID
 
 
-def session_tag(workspace_id: str) -> str:
-    """The session identity kp writes into every episode: ``kp-<workspace>``."""
-    return f"kp-{(workspace_id or DEFAULT_WORKSPACE_ID).strip() or DEFAULT_WORKSPACE_ID}"
+def session_tag(workspace_id: str, thread_id: str = "") -> str:
+    """Keep tenant scope and, when supplied, the kp conversation identity."""
+    workspace = (workspace_id or DEFAULT_WORKSPACE_ID).strip() or DEFAULT_WORKSPACE_ID
+    # A CLI input is not necessarily from the kp route. Keep untrusted text out
+    # of the quoted Markdown frontmatter and the ``session:`` index tag.
+    thread = thread_id.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,120}", thread):
+        thread = ""
+    return f"kp-{workspace}:{thread}" if thread else f"kp-{workspace}"
 
 
 # ---------------------------------------------------------------------------
@@ -632,7 +638,7 @@ def append_episode(role: str, content: str, session_id: str) -> dict:
     """Write one episode. Disk is truth; every index is best-effort after it.
 
     ``session_id`` is the Personas-side session identity and should be
-    ``kp-<workspace>`` (see ``session_tag``) — it becomes the ``session``
+    ``kp-<workspace>[:<thread>]`` (see ``session_tag``) — it becomes the ``session``
     frontmatter key and the ``session:`` FTS tag on all three lanes.
 
     Returns ``{id, path, absPath, indexed, skipped}`` where ``skipped`` names

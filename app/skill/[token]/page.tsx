@@ -2,11 +2,12 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { PrintCredentialButton } from "./PrintCredentialButton";
 
 // The credential PAGE was the only public token door with no throttle at all: its
 // sibling /api/skill-profile/[token]/verify has had 30/10min per client since the
@@ -30,6 +31,9 @@ export const instant = false;
 export default async function SkillProfilePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslations("skillProfile");
+  const tReport = await getTranslations("report");
+  const tAxis = await getTranslations("devcase.dimension");
+  const format = await getFormatter();
   // An RSC page has no NextRequest, so the client address comes off the request
   // headers the same way a route handler resolves it (clientIpFrom -> the trusted-
   // proxy-aware resolveClientIp). Nothing here can answer 429 — a page renders a
@@ -39,7 +43,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   if (!rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)) {
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end print:hidden">
           <LanguageSwitcher />
         </div>
         <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
@@ -54,7 +58,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   const p = verdict.profile;
   const axes = Object.entries(p.axes);
   const confidencePct = Math.round((p.confidence ?? 0) * 100);
-  const issued = p.issuedAt.slice(0, 10);
+  const issued = format.dateTime(new Date(p.issuedAt), { dateStyle: "medium" });
   // A validly-signed but SUBSTANTIVELY EMPTY credential (no axes, transfer score 0) is
   // NOT a confident "verified" verdict — it's an "incomplete" attestation, shown muted
   // so a third party never reads a green shield over a 0.
@@ -100,7 +104,8 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           reached from a link in a letter, so the reader's language is whatever the
           link carried — and until now this was the one door with no way out of a
           language they do not read. */}
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2 print:hidden">
+        <PrintCredentialButton label={tReport("print")} />
         <LanguageSwitcher />
       </div>
       <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
@@ -111,6 +116,9 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         <badge.Icon className="h-4 w-4" aria-hidden />
         {badge.label}
       </div>
+      {state === "revoked" || state === "tampered" || state === "unverifiable" ? (
+        <p className="mt-2 max-w-xl text-sm text-steel">{t(`${state}Body`)}</p>
+      ) : null}
 
       {/* A stale credential stays genuine — say so plainly and name why (old / superseded
           methodology) so an employer reads "still real, just not current", not "fake". */}
@@ -152,10 +160,12 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
             <ul className="mt-2 space-y-2">
               {axes.map(([name, score]) => {
                 const pct = Math.max(0, Math.min(100, score));
+                const axisKey = name as Parameters<typeof tAxis>[0];
+                const axisName = tAxis.has(axisKey) ? tAxis(axisKey) : name;
                 return (
                 <li key={name}>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-ink">{name}</span>
+                    <span className="text-ink">{axisName}</span>
                     <span className="font-mono text-stone-500">{Math.round(score)}</span>
                   </div>
                   {/* bug-ui-scan-2026-07-09 (dev-lifecycle-cohort-outcomes #5): the axis meter
@@ -169,7 +179,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
                     aria-valuenow={Math.round(pct)}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={t("axisMeterLabel", { axis: name, score: Math.round(score) })}
+                    aria-label={t("axisMeterLabel", { axis: axisName, score: Math.round(score) })}
                     className="mt-1 h-1.5 w-full rounded-full bg-stone-100"
                   >
                     {pct > 0 ? (
@@ -196,8 +206,7 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         // about what kp issued is worse than no statement, and the badge above already
         // names each of those three states in full ("This credential has been revoked",
         // "Signature invalid, do not trust", "Verification temporarily unavailable"), so
-        // they now render the badge alone. Per-state body copy is a follow-up: it needs
-        // new keys in all four locale catalogs.
+        // they now render their own per-state body copy under the badge.
         <section className="mt-6 rounded-lg border border-stone-200 bg-paper p-6 text-sm text-steel">
           {t("summaryUnavailable")}
         </section>

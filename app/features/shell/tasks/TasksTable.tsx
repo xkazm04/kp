@@ -23,7 +23,7 @@ export type TasksTableFilters = {
   onKind: (value: string) => void;
   status: TaskStatus | null;
   onStatus: (value: TaskStatus | null) => void;
-  /** The kinds present in the loaded window — the Kind menu's options. */
+  /** Registered kinds plus any legacy kind present in the loaded window. */
   kinds: string[];
 };
 

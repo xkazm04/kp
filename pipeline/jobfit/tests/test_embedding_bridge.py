@@ -20,6 +20,7 @@ from pipeline.jobfit.embedding_bridge import (
     _CACHE,
     MAX_EMBED_BATCH,
     GeminiEmbeddingProvider,
+    default_provider,
     prewarm,
     semantic_overlap,
 )
@@ -243,6 +244,17 @@ class BatchedPrewarmTest(unittest.TestCase):
         stub = _Short()
         self.assertEqual(prewarm(["alpha", "beta"], stub), 0)
         self.assertEqual(_CACHE.get(stub, {}), {})  # nothing mis-keyed into the cache
+
+
+class OfflineEmbeddingAvailabilityTest(unittest.TestCase):
+    def test_offline_mode_refuses_cloud_embeddings_even_with_a_key(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"KP_OFFLINE": "1", "GEMINI_API_KEY": "fixture-key", "GOOGLE_API_KEY": "fixture-key"},
+            clear=False,
+        ):
+            self.assertFalse(GeminiEmbeddingProvider().available())
+            self.assertIsNone(default_provider())
 
 
 class EmbeddingClientDeadlineTest(unittest.TestCase):

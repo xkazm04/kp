@@ -161,6 +161,8 @@ export function CompanionDock() {
         busy={dock.thread.busy}
         unread={dock.unread}
         label={t("dock.open")}
+        proposalCount={attention?.companion ?? 0}
+        proposalLabel={t("state.proposals", { count: attention?.companion ?? 0 })}
         focusOnMount={focusRest}
       />
     );

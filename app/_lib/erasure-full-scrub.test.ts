@@ -352,3 +352,65 @@ test("erasure reaches the candidate-keyed family: survey comment, dev-case chain
   assert.equal(outcome.performance, 4, "the de-identified calibration measurement is RETAINED");
   raw.close();
 });
+
+// Spark interview-feedback-letter — the letter a candidate asked for is written ABOUT them:
+// the machine's draft and the recruiter's approved text both name and describe one person.
+// Erasure blanks both and KEEPS the row (state, outcome, language, dates) as the record that
+// a letter was asked for; the stamp it leaves closes the row, so a draft still being written
+// when the erasure lands cannot put the text back.
+test("erasure blanks the interview feedback letter's texts and keeps the row as the record", async () => {
+  const { interviewLetterApprove, interviewLetterById, interviewLetterRequest, interviewLetterSaveDraft } = await import(
+    "./db/interview-letters.ts"
+  );
+  const Database = (await import("better-sqlite3")).default;
+
+  const { entry } = createPipelineEntry({
+    candidateId: "c-letter-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-letter-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+    contact: EMAIL,
+  });
+  const { letter } = interviewLetterRequest({ entryId: entry.id, lang: "cs", outcome: "not_selected" }, "workspace");
+  interviewLetterSaveDraft(letter.id, { text: "Dear " + NAME + ", thank you for your interview.", source: "template" }, "workspace");
+  interviewLetterApprove(letter.id, { finalText: "Dear " + NAME + " (" + EMAIL + "), thank you.", decidedBy: "human:Petra" }, "workspace");
+  assert.match(JSON.stringify(interviewLetterById(letter.id, "workspace")), /Zdenka/, "the letter holds PII pre-erasure");
+
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "anonymizeEntry returns the entry");
+
+  const after = interviewLetterById(letter.id, "workspace")!;
+  assert.ok(after, "the row survives as the record that a letter existed");
+  assertScrubbed(JSON.stringify(after), "interview_letters");
+  assert.equal(after.finalText, null, "the approved text is blanked");
+  assert.equal(after.draft, null, "the draft is blanked");
+  assert.ok(after.erasedAt, "the erasure is stamped on the row");
+  assert.equal(after.state, "sent", "what became of the request is still on record");
+  assert.equal(after.lang, "cs");
+  const raw = new Database(TMP);
+  const row = raw.prepare("SELECT draft_text, final_text FROM interview_letters WHERE id = ?").get(letter.id) as {
+    draft_text: string | null;
+    final_text: string | null;
+  };
+  assert.deepEqual(row, { draft_text: null, final_text: null }, "both text columns are NULL on disk, not merely hidden");
+  raw.close();
+});
+
+test("a draft that lands after the erasure cannot write the text back", async () => {
+  const { interviewLetterById, interviewLetterRequest, interviewLetterSaveDraft } = await import("./db/interview-letters.ts");
+  const { entry } = createPipelineEntry({
+    candidateId: "c-letter-late-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-letter-late-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+  });
+  const { letter } = interviewLetterRequest({ entryId: entry.id, lang: "en", outcome: "hired" }, "workspace");
+  assert.ok(anonymizeEntry(entry.id, "erasure"));
+  assert.equal(
+    interviewLetterSaveDraft(letter.id, { text: "Dear " + NAME + ", welcome.", source: "model" }, "workspace"),
+    null,
+    "the erased row refuses the late draft"
+  );
+  assertScrubbed(JSON.stringify(interviewLetterById(letter.id, "workspace")), "interview_letters (late draft)");
+});

@@ -138,6 +138,21 @@ export const STORE_ERRORS = {
   INTERVIEW_COMPLETE_FAILED: "Could not save the interview. Please try again.",
   INTERVIEW_LOOKUP_FAILED: "Could not load interview data. Please try again.",
   INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
+  /** The four verbs of /api/jobs/[id]/interview-kit. All sit on better-sqlite3 (a
+   *  JSON.parse of the stored kit included) and the generate door additionally spawns the
+   *  Python engine, so a thrown message here carries SQLITE_* text, the absolute db path,
+   *  or a traceback off python-runner. */
+  INTERVIEW_KIT_FAILED: "Could not load or save this role's interview kit. Please try again.",
+  // POST /api/interview/director — the live call's producer channel. The browser never
+  // shows this to the candidate: a failed exchange answers the model "continue" and the
+  // call goes on (a director outage must never stall an interview).
+  INTERVIEW_DIRECTOR_FAILED: "Could not update the interview's progress. The call continues.",
+  /** The opt-in audio-recording doors (WP3): the candidate's chunk upload and the
+   *  recruiter's playback. Both sit on better-sqlite3 AND the local filesystem, so a
+   *  thrown message carries the absolute recordings path and the db path. The upload is
+   *  reached by the CANDIDATE's browser mid-call, where a failure must never interrupt
+   *  or alter the interview — it is logged here and the call goes on. */
+  INTERVIEW_RECORDING_FAILED: "Could not save the interview audio. The interview itself is unaffected.",
   // Pipeline board routes (idea-66f52a3a): all sit directly on better-sqlite3.
   PIPELINE_LIST_FAILED: "Could not load the pipeline. Please try again.",
   STAGE_IMPACT_FAILED: "Could not check who is on each pipeline step. Please try again.",
@@ -218,6 +233,22 @@ export const STORE_ERRORS = {
   // the candidate re-answers into the same error.
   STATUS_NPS_READ_FAILED: "Could not load the feedback question. Please try again.",
   STATUS_NPS_WRITE_FAILED: "Could not record your feedback. Please try again.",
+  /** The candidate's own "delete my interview recording" door (public status token).
+   *  Its own code, and never a read code: a failed deletion must not read as "we could
+   *  not load the page", or the candidate walks away believing the audio is gone. */
+  STATUS_RECORDING_DELETE_FAILED: "Could not delete your interview recording right now. Please try again.",
+  /** The candidate's "ask for feedback on my interview" door (public status token). Its
+   *  own code: a failed request must not read as "we could not load the page", or the
+   *  candidate walks away believing they asked. */
+  STATUS_LETTER_REQUEST_FAILED: "Could not record your feedback request. Please try again.",
+  /** The recruiter's feedback-letter review doors (/api/decisions/feedback-letters/**).
+   *  Each sits on better-sqlite3 (and approve on the comms dispatcher), whose thrown
+   *  messages carry SQLITE_* text and the db path. One code per door, so a failed
+   *  approve never reads as "the list did not load". */
+  FEEDBACK_LETTERS_LIST_FAILED: "Could not load the feedback requests. Please try again.",
+  FEEDBACK_LETTER_APPROVE_FAILED: "Could not approve this letter. Please try again.",
+  FEEDBACK_LETTER_DECLINE_FAILED: "Could not decline this request. Please try again.",
+  FEEDBACK_LETTER_REDRAFT_FAILED: "Could not queue a new draft. Please try again.",
   // The two PUBLIC apply submissions (conversational + quick lead form). Their
   // catch paths sit on better-sqlite3, a Python profile-build subprocess, an fs
   // temp write and the comms dispatcher — every one throws messages carrying
@@ -258,6 +289,8 @@ export const STORE_ERRORS = {
   AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
   AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
   AGENT_HIRE_FROM_NEED_FAILED: "Could not compose and dispatch a role from that need. Please try again.",
+  // ADR-0012 — the role slate read (people + AI agents on one board).
+  ROLE_SLATE_FAILED: "Could not load this role's candidate slate. Please try again.",
   // The LLM usage ledger's row-level read (Insights -> Activity). It sits on
   // better-sqlite3, so a thrown message can carry the DB path and the failing SQL;
   // this route was the one door in the Models/Insights surface still forwarding
@@ -348,6 +381,7 @@ export const STORE_ERRORS = {
   // upstream provider's internals, in an English nobody in the catalog chose.
   BILLING_OVERVIEW_FAILED: "Could not load billing. Please try again.",
   BILLING_CHECKOUT_FAILED: "Could not start the checkout. Please try again.",
+  BILLING_WEBHOOK_FAILED: "Could not process the billing event. Please retry the delivery.",
   /** The outbound ATS webhook config write (/perfect 2026-09-03, integrations-settings).
    *  Its 500 forwarded the thrown message, which on this path is better-sqlite3
    *  constraint text, the absolute db path, or an at-rest crypto failure naming the key
@@ -485,6 +519,10 @@ export type StoreErrorCode = keyof typeof STORE_ERRORS;
 // The English here stays canonical for the server log and for API consumers;
 // the client renders the localized message from the code.
 export const REFUSAL_ERRORS = {
+  /** Unsupported activity filter or malformed keyset cursor (400). */
+  LLM_ACTIVITY_QUERY_INVALID: "That activity filter or cursor is not valid.",
+  /** Uniform for an unknown email, wrong user password, and wrong operator password (401). */
+  LOGIN_CREDENTIALS_INVALID: "Incorrect credentials. Try again.",
   /** The automation task in the URL is not one the engine knows (404). The board only
    *  ever names a real one, so reaching this means a hand-rolled call. */
   AUTOMATION_TASK_UNKNOWN: "That automation step does not exist.",
@@ -532,6 +570,30 @@ export const REFUSAL_ERRORS = {
    *  rather than stored: a response captured mid-process would be folded into a
    *  "candidate experience" figure that claims to measure completed journeys. */
   STATUS_NPS_NOT_APPLICABLE: "This question opens once your application has finished.",
+  /** A feedback-letter request for an application where none may be asked (409): no
+   *  decision yet, a decision no person made about this candidate (an automated screen-out,
+   *  a closed role), no interview on record, or consent withheld. ONE code for all of them,
+   *  on purpose: the public door must not become a way to learn which one applies. */
+  STATUS_LETTER_NOT_ELIGIBLE: "Written feedback on your interview is not available for this application.",
+  /** A second feedback-letter request for the same application (409). The response carries
+   *  the existing request's state beside the code (`letter`), so a repeated click still
+   *  shows the candidate where their one request stands — never a second letter. */
+  STATUS_LETTER_ALREADY_REQUESTED: "You have already asked for feedback on this interview.",
+  /** A feedback letter id that does not resolve in the caller's team (404), or whose
+   *  application is gone. One answer for both: a foreign id is not an existence oracle. */
+  FEEDBACK_LETTER_NOT_FOUND: "This feedback request no longer exists.",
+  /** The letter is no longer open (409): someone approved or declined it, or an erasure
+   *  closed it, between the read and this write. The response carries the letter's
+   *  current `state` beside the code. Nothing was written. */
+  FEEDBACK_LETTER_MOVED: "Someone already decided on this feedback request. Reload the list to see where it stands.",
+  /** The candidate's consent is withheld (expired, not yet anonymized) (409). No letter
+   *  is written or drafted about a person whose consent lapsed; a decline still closes it. */
+  FEEDBACK_LETTER_CONSENT_WITHHELD: "This candidate's consent has lapsed, so the letter can no longer be written or sent. Decline the request to close it.",
+  /** Approve with an empty final text (400). */
+  FEEDBACK_LETTER_TEXT_EMPTY: "Write the letter before approving it.",
+  /** Approve with a final text over LETTER_MAX_CHARS (400). The cap rides beside the code
+   *  as `maxChars`; the letter is never truncated to fit. */
+  FEEDBACK_LETTER_TEXT_TOO_LONG: "The letter is longer than the limit. Shorten it before approving it.",
   /** Public NPS POST with no score at all (400). parseNpsSubmission used to put
    *  the English sentence "score is required" on the wire; the status page
    *  localizes `errors.NPS_SCORE_REQUIRED` instead. */
@@ -618,6 +680,12 @@ export const REFUSAL_ERRORS = {
   /** The screen was asked for without naming a candidate — neither `entryId` nor
    *  `submissionId` arrived in a usable shape (400). */
   INTERVIEW_ENTRY_REQUIRED: "Say which candidate this interview is for.",
+  /** Comparison requires a role id (400). */
+  INTERVIEW_JOB_REQUIRED: "Choose a role to compare interviews.",
+  /** Practice attachment requires both a run token and destination candidate (400). */
+  INTERVIEW_SIM_ATTACH_FIELDS_REQUIRED: "Choose a practice interview and candidate to attach it to.",
+  /** No completed practice run with this token belongs to the caller's team (404). */
+  INTERVIEW_SIM_SESSION_NOT_FOUND: "That practice interview is not available.",
   /** A dev-case submission id that resolves to nothing, or to another team's
    *  submission (404). The two stay DELIBERATELY lumped: a distinct refusal would
    *  confirm which submission ids exist on other tenants, and this door can write a
@@ -662,6 +730,39 @@ export const REFUSAL_ERRORS = {
   INTERVIEW_PROVIDER_UNCONFIGURED: "The voice provider isn't configured on this server, so the call can't start.",
   /** A tokenless connect while the dev lab harness is off (403). */
   INTERVIEW_LAB_DISABLED: "The interview lab is not enabled on this server.",
+  /** The director was called for a session that is not the LIVE call it names (409):
+   *  a link never connected (`created`), a dropped call awaiting its reconnect
+   *  (`failed`), or an `attempt` other than the session's current one — a stale tab of
+   *  an earlier connect. Completed and revoked sessions keep their own codes. */
+  INTERVIEW_NOT_LIVE: "This interview isn't running right now.",
+  // ---- Opt-in audio recording (WP3). Every one of these is answered to the
+  // CANDIDATE'S OWN BROWSER mid-call, which is why they are coded rather than prose:
+  // the portal was opened from an invite written in their language. None of them is
+  // ever shown as an interruption — the hook simply stops recording (state "failed")
+  // and the interview continues, because an observation aid must never be able to
+  // damage the thing it observes.
+  /** Audio arrived for a workspace that does not offer recording, or for a session
+   *  whose candidate never gave the separate audio consent (403). ONE refusal for both:
+   *  "we are not keeping audio for this call" is the whole fact, and which half of it
+   *  applies is operator detail. */
+  INTERVIEW_RECORDING_NOT_OFFERED: "This interview is not being recorded.",
+  /** Audio arrived for a call that is not running and is past the final-flush window —
+   *  a link never connected, one the recruiter revoked, or a call that ended minutes
+   *  ago (409). */
+  INTERVIEW_RECORDING_CLOSED: "This interview is no longer accepting audio.",
+  /** The chunk's content type is not one of the container formats a browser's recorder
+   *  produces (415). The file name's extension comes from this allow-list, so anything
+   *  outside it has nowhere to be stored. */
+  INTERVIEW_RECORDING_TYPE_UNSUPPORTED: "That audio format can't be stored.",
+  /** This interview's audio budget is spent (413). The recording so far is KEPT and
+   *  marked partial — what was captured stays, and the recruiter is told it is
+   *  incomplete rather than shown nothing. */
+  INTERVIEW_RECORDING_FULL: "This interview has stored all the audio it can hold.",
+  /** No such recording on this team's record (404) — never uploaded, already deleted,
+   *  past its retention window, or belonging to another workspace. All four share one
+   *  refusal on purpose: distinguishing them would make the door an oracle for which
+   *  candidates were recorded. */
+  INTERVIEW_RECORDING_NOT_FOUND: "That interview recording is no longer available.",
   // ---- Document-upload refusals (app/_lib/upload-constraints.ts). The document
   // twins of AUDIO_UNSUPPORTED_TYPE / AUDIO_TOO_LARGE: the gate that guards every
   // CV / JD / company file answered hardcoded English on BOTH sides of the wire
@@ -810,6 +911,12 @@ export const REFUSAL_ERRORS = {
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */
   PIPELINE_GITHUB_EVIDENCE_INVALID: "That GitHub evidence is not in the expected shape.",
+  /** A board add cannot identify both its candidate and role (400). */
+  PIPELINE_ADD_IDS_REQUIRED: "Choose a candidate and role before adding to the board.",
+  /** The requested destination is not on this workspace's pipeline axis (400). */
+  PIPELINE_ADD_STAGE_UNKNOWN: "That pipeline stage is not available in this workspace.",
+  /** Only the decision gate may be requested when adding a candidate (400). */
+  PIPELINE_ADD_APPROVAL_KIND_UNKNOWN: "That approval kind cannot be requested when adding a candidate.",
   /** `notes` arrived as something other than text (400). */
   PIPELINE_NOTES_INVALID: "A candidate note must be text.",
   /** …or past the column's ceiling (400). The cap rides alongside in `max`. */
@@ -1114,6 +1221,7 @@ export const REFUSAL_ERRORS = {
   BILLING_ORG_MANAGE_REQUIRED: "Only an owner can manage billing for this organization.",
   /** No POLAR_* env on this deployment (503). Normal on a self-hosted install. */
   BILLING_NOT_CONFIGURED: "Billing is not configured on this deployment.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID: "The billing event signature could not be verified.",
   /** A contact-sales tier was posted to checkout (400). `plan` carries its name. */
   BILLING_PLAN_CONTACT_SALES: "That plan is custom-priced. Talk to our sales team to get set up.",
   /** A legacy tier, withdrawn from sale, was posted to checkout (400). Distinct from
@@ -1375,6 +1483,8 @@ export const REFUSAL_ERRORS = {
    *  draft (404). Deliberately lumped: distinguishing them would confirm which
    *  template ids exist on other tenants. */
   TEMPLATE_NOT_FOUND: "That template no longer exists.",
+  /** An unsupported {{token}} in a template body (400); `tokens` lists the rejected names. */
+  TEMPLATE_UNKNOWN_PLACEHOLDERS: "This template contains unsupported placeholders.",
   /** The only template this team can still see (400). Deleting it would leave the
    *  JD builder's picker empty, and the org seed only re-runs on an empty tier. */
   TEMPLATE_LAST_ONE: "This is the last template your team can see. Keep at least one.",
@@ -1421,6 +1531,7 @@ export const REFUSAL_ERRORS = {
    *  The public form validates both client-side, so this is a hand-rolled or
    *  external-channel call — which is exactly the caller who needs a code. */
   DEVCASE_SUBMISSION_FIELDS_REQUIRED: "A name and a link to your solution are both required.",
+  DEVCASE_CONTACT_REQUIRED: "Enter an email address so we can confirm your submission.",
   // ---- The four studio doors (/perfect wave 31, api-devcase-2). The manual approve
   // and the credential mint answered bare English for every refusal, on doors whose
   // consumers (useDevTabActions.runAction, DevSubmissionRowSkillProfile) resolve
@@ -1584,6 +1695,26 @@ export const REFUSAL_ERRORS = {
   INTERVIEW_PREP_QUESTIONS_REQUIRED: "Pick at least one question to add to the prep pack.",
   /** A weave/unassign arrived without naming the question to move (400). */
   INTERVIEW_PREP_QUESTION_REQUIRED: "Say which question to move.",
+  /** A recruiter's per-candidate overlay on the job interview kit could not be stored
+   *  (400): not an overlay at all, an entry the reader would have to discard, or a cap
+   *  the prep modal shows before saving (too many additions, drops or rewrites, too many
+   *  must-asks, an empty or over-long question). ONE refusal; which rule tripped rides
+   *  beside it as `reason` data (interview-prep-kit.ts parseKitOverlayWrite). */
+  INTERVIEW_PREP_OVERLAY_INVALID: "These changes to the candidate's interview questions could not be saved.",
+  /** A kit arrived that cannot be stored as one (400): no competency, a competency with
+   *  no question, a weight outside the three steps, or a budget that is not a positive
+   *  number of minutes. Deliberately ONE refusal for all of them — the recruiter's next
+   *  step is the same (fix the field the editor is pointing at), and WHICH rule tripped
+   *  rides beside the code as `reason`/`at` data rather than as a second English
+   *  sentence. Caps are NOT in this list: they are repaired by trimming, not refused
+   *  (app/_lib/interview-kit-validate.ts states that line). */
+  INTERVIEW_KIT_INVALID: "This interview kit is not complete enough to save yet.",
+  /** A publish (or a by-version read) named a kit version this team does not have, or one
+   *  that is already published (404). The two are ONE refusal on purpose: a version id is
+   *  handed to every recruiter on the team, so distinguishing them would turn the door
+   *  into an existence oracle for another team's ids without telling this one anything
+   *  they cannot see by reloading. */
+  INTERVIEW_KIT_NOT_FOUND: "That version of the interview kit is not available.",
   // ---- Engine admission (app/_lib/python-runner.ts). Every request that needed the
   // Python pipeline used to fork its own interpreter with nothing counting them, so a
   // burst was a burst of ~150 MB processes and the box — not the request — paid.
@@ -1745,6 +1876,8 @@ export const REFUSAL_ERRORS = {
   JD_NOT_FOUND: "That job description could not be found.",
   /** POST /api/jds and POST /api/jds/save: title or body missing after trim (400). */
   JD_FIELDS_REQUIRED: "A title and a description are both required.",
+  JD_BUILD_TITLE_TOO_SHORT: "Role title must be at least 2 characters.",
+  JD_BUILD_NEED_TOO_SHORT: "Describe the need in at least 11 characters so the AI has something to design from.",
   /** Title over JD_TITLE_MAX_LENGTH (400). */
   JD_TITLE_TOO_LONG: "The title must be 200 characters or fewer.",
   /** Body over JD_BODY_MAX_LENGTH (400). */
@@ -1766,11 +1899,9 @@ export function jsonRefusal(code: RefusalErrorCode, status: number, extra?: Reco
 
 /** Capability gate for a write door, with a CODED refusal.
  *
- *  The three gates in app/_lib/auth/current-user.ts (`requireCapability`,
- *  `requireWorkspaceCapability`, `requireOrgCapability`) answer the authority
- *  question correctly but shape their denial as a bare `{ error: "Forbidden" }` —
- *  the one thing the client is never allowed to render (see the header of
- *  STORE_ERRORS). This wraps one of them and re-shapes ONLY the 403 into
+ *  The base `requireCapability` gate in app/_lib/auth/current-user.ts answers
+ *  a bare 403. The org and workspace gates now code their own 403s. This
+ *  wrapper re-shapes a bare 403 into
  *  FORBIDDEN_CAPABILITY plus the capability as data; 401 (no session) and 404 (a
  *  cross-org probe, from the workspace gate) pass through untouched, because
  *  neither is a capability answer.

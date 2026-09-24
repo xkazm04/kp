@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { CORAL, CREAM, DISPLAY, HAND, LIMEWASH, STEEL } from "./tokens";
 import { PREVIEWS, type PreviewKey } from "./previews";
+import { useStillMotion } from "./useStillMotion";
 
 /*
  * The spotlight modal that frames a feature preview.
@@ -47,7 +48,7 @@ function SpotlightPanel({
   panelRef?: React.RefObject<HTMLDivElement | null>;
   dialog: boolean;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useStillMotion();
   const t = useTranslations("landing");
   const def = PREVIEWS[preview];
   return (

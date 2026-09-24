@@ -11,6 +11,7 @@ import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ReadbackEntitiesStrip } from "@/app/_components/results/interview/ReadbackEntitiesStrip";
 import { rubricAnchorLine } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
+import { isNotAssessedRating } from "@/app/_lib/interview-scorecard";
 import { RATING_MAX } from "@/app/_lib/format";
 import { PipelineInterviewTelemetryStrip } from "./PipelineInterviewTelemetryStrip";
 import type { InterviewOutcome } from "./candidate/state/useCandidateBundle";
@@ -53,11 +54,22 @@ export function PipelineInterviewOutcomeCard({
       {ivOutcome.summary ? <p className="mt-1 text-sm text-ink">{ivOutcome.summary}</p> : null}
       {ivOutcome.ratings?.length ? (
         <ul className="mt-1.5 space-y-0.5">
-          {ivOutcome.ratings.slice(0, 6).map((r, i) => (
-            <li key={i} className="text-sm text-ink">
-              <span className="font-semibold nums text-coral">{r.rating}/{RATING_MAX}</span> {r.competency}
-            </li>
-          ))}
+          {ivOutcome.ratings.slice(0, 6).map((r, i) => {
+            // NOT-ASSESSED IS ON THE SCALE: the synthesis stores an untouched competency
+            // as a real 3 carrying "Not assessed…" evidence, which read here as a
+            // confident 3/5 beside axes the interview actually reached. Same read-side
+            // guard the transcript modal's row applies (interview-scorecard.ts), so the
+            // drawer and the modal can no longer disagree about what was observed.
+            const notAssessed = isNotAssessedRating(r.rating, r.evidence);
+            return (
+              <li key={i} className="text-sm text-ink">
+                <span className={`font-semibold nums ${notAssessed ? "text-steel" : "text-coral"}`}>
+                  {notAssessed ? tTranscript("notAssessed") : `${r.rating}/${RATING_MAX}`}
+                </span>{" "}
+                {r.competency}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       {ivOutcome.ratings?.length ? (

@@ -8,7 +8,7 @@ import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
 import { roleLabel } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
-import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, inviteSubmitBlock, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteFetchResult, type InviteOutcome } from "./invite-result";
+import { canSubmitInvite, classifyInviteResult, inviteFailedCopy, inviteSubmitBlock, inviteSuccessPath, isRetryableInviteOutcome, isTerminalInviteOutcome, type InviteFetchResult, type InviteOutcome } from "./invite-result";
 
 type Preview = {
   email: string;
@@ -162,7 +162,7 @@ export function AcceptForm({ token }: { token: string }) {
     });
     const outcome = classifyInviteResult(result);
     if (outcome === "ok") {
-      window.location.assign("/");
+      window.location.assign(inviteSuccessPath(document.cookie));
       return;
     }
     setSubmitting(false);

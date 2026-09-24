@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInterviewPrep, listPreparedEntries, prepJdEditedAt, saveInterviewPrep, saveInterviewPrepProgress } from "@/app/_lib/interview-prep";
+import {
+  getInterviewPrep,
+  listPreparedEntries,
+  prepJdEditedAt,
+  saveInterviewPrep,
+  saveInterviewPrepKitOverlay,
+  saveInterviewPrepProgress,
+} from "@/app/_lib/interview-prep";
+import { parseKitOverlayWrite, prepKitForEntry } from "@/app/_lib/interview-prep-kit";
+import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -25,8 +34,16 @@ const MAX_INTERVIEWER_LENGTH = 120; // a name/email, never long
 // metered: it is a point read the modal issues on open.
 const PREP_WRITE_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 
+// The PATCH body: a weave `{ question, blockRef }` is a few hundred bytes; a kit overlay
+// is bounded by its own caps (interview-kit-overlay.ts — 120 drops, 120 rewrites of at
+// most 600 characters, 6 additions), which is ~100 KB at the absolute ceiling. 256 KB
+// leaves room for escaping and stops a crafted body being parsed before any cap runs.
+const MAX_PATCH_BODY_BYTES = 256 * 1024;
+
 // Read interview-prep artifacts (generated via the background task interview_prep).
-//   GET ?entry=<id>          → the artifact for one pipeline entry (or null)
+//   GET ?entry=<id>          → the artifact for one pipeline entry (or null), the
+//                              linked JD's last edit, and `kit`: the job interview kit
+//                              this candidate's interview runs on (or null)
 //   GET ?entries=a,b,c       → { prepared: { <entryId>: createdAt } }
 export async function GET(request: NextRequest) {
   try {
@@ -40,7 +57,15 @@ export async function GET(request: NextRequest) {
       // TENANCY — both halves scoped to the authenticated team. The read used to be
       // `getInterviewPrep(entry)`: an entry id alone, matched across every workspace,
       // while the jdEditedAt beside it was already scoped. Same predicate on both now.
-      return NextResponse.json({ prep: getInterviewPrep(entry, ws), jdEditedAt: prepJdEditedAt(entry, ws) });
+      // `kit` — the job interview kit this candidate's interview runs on (the version
+      // their open link pinned, else the role's latest published one), so the modal can
+      // show which questions come from the kit and let the recruiter overlay them. Same
+      // tenant as the pack; null when the role has no kit.
+      return NextResponse.json({
+        prep: getInterviewPrep(entry, ws),
+        jdEditedAt: prepJdEditedAt(entry, ws),
+        kit: prepKitForEntry(entry, ws),
+      });
     }
     // Bounded + de-duped at the trust boundary so a crafted/huge `entries` list
     // can't blow the SQLite variable limit or amplify the IN query (idea-191ccc0c).
@@ -160,6 +185,15 @@ export async function POST(request: NextRequest) {
 // topic) — the single-home model, so it's never duplicated into the generator-owned
 // chronology (Regenerate would wipe that) and the voice brief reading importedQuestions
 // sees the one key. Idempotent; 404 when no pack exists, 400 on a missing question.
+//
+// PATCH ?entry=<id> { kitOverlay } → REPLACE the recruiter's per-candidate overlay on the
+// job interview kit (spark interview-kit-template, WP-C): questions dropped, rewritten
+// or added for THIS candidate only. Stored under the human-owned `kitOverlay` payload
+// key, which mergeRegeneratedPrep carries across a Regenerate and the agenda reads at
+// connect. A body naming `kitOverlay` is an overlay write and nothing else — the weave
+// fields beside it are ignored. Refusals: INTERVIEW_PREP_OVERLAY_INVALID (400, with
+// `reason` as data) for a malformed or over-cap overlay; the same gate, throttle,
+// tenancy read and 404 as the weave.
 export async function PATCH(request: NextRequest) {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
@@ -174,7 +208,33 @@ export async function PATCH(request: NextRequest) {
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
-    const body = (await request.json().catch(() => ({}))) as { question?: unknown; blockRef?: unknown };
+    const body = await readJsonWithLimit<{ question?: unknown; blockRef?: unknown; kitOverlay?: unknown }>(
+      request,
+      MAX_PATCH_BODY_BYTES,
+      {}
+    );
+    if (body === BODY_TOO_LARGE) return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_PATCH_BODY_BYTES });
+
+    if (Object.prototype.hasOwnProperty.call(body, "kitOverlay")) {
+      // The ONE trust boundary for an overlay write (interview-prep-kit.ts): stricter than
+      // the read-side coercer, because a recruiter asked for exactly this to be stored and
+      // must be told — not find their edit missing at the next open — when it cannot be.
+      const parsed = parseKitOverlayWrite(body.kitOverlay);
+      if (!parsed.ok) return jsonRefusal("INTERVIEW_PREP_OVERLAY_INVALID", 400, { reason: parsed.reason });
+      if (!rateLimit(`interview-prep:${clientIpFrom(request.headers)}`, PREP_WRITE_RATE_LIMIT)) {
+        return jsonRefusal("TOO_MANY_REQUESTS", 429);
+      }
+      // TENANCY — the same read-that-authorizes as every other verb here: a foreign entry
+      // id answers the "no pack" 404, never a write into another team's plan.
+      if (!getInterviewPrep(entry, await currentWorkspace())) {
+        return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+      }
+      if (!saveInterviewPrepKitOverlay(entry, parsed.overlay)) {
+        return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
+      }
+      return NextResponse.json({ ok: true, kitOverlay: parsed.overlay });
+    }
+
     const question = typeof body.question === "string" ? body.question.trim().slice(0, MAX_IMPORT_QUESTION_LEN) : "";
     if (!question) {
       return jsonRefusal("INTERVIEW_PREP_QUESTION_REQUIRED", 400);

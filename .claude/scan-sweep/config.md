@@ -9,8 +9,16 @@ method here, and never copy it in).
 | `contextMap` | `context-map.json` (143 contexts, 17 groups) |
 | `memoryOutbox` | `.personas/memory-outbox.jsonl` |
 | `backlogDigest` | `.personas/backlog-digest.json` — **absent on this checkout**; the Personas triage deck is the live list. Read `.personas/contexts.txt` and the deck before proposing. |
+| `openBacklogs` | `.claude/scan-history/open-backlogs.jsonl` — §0 reads this **before** any new scan. |
 | `depth` | skill default (12 / 20 with `--one`) |
 | `neverSweep` | none declared |
+
+**Speak the open backlog first.** `/scan-sweep` (including `--coverage`) must print
+the `OPEN BACKLOG` notice from §0 before picking a context. As of 2026-09-17 a
+`--develop` coordinator wave left unworked findings at
+`.claude/scan-history/leftover-develop-2026-09-17.jsonl`, registered in
+`open-backlogs.jsonl`. Drain that (lowest-risk auto S/M) or close the row; do not
+start another 191-context scan on top of it unless the operator says so.
 
 ## Gates, in the order they should run
 
@@ -184,3 +192,8 @@ claim and an untrue one.
   and whose tree contained another session's files (observed: `aac14e447`,
   `f0085c17d`, `4cfa7963a`, `461f083e3`). Worktrees, or a single serialized
   owner for catalogs/docs, are the control; the pathspec reminder is not.
+
+- **2026-09-18 — A mass `--develop` wave that cannot fit the outbox is lost
+  unless it writes `open-backlogs.jsonl`.** Session `all-findings.jsonl` is
+  gone the next checkout. The register row plus
+  `.claude/scan-history/leftover-develop-2026-09-17.jsonl` is what §0 reads.

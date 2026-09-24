@@ -8,6 +8,7 @@ import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "./ats-webho
 import { logComms } from "./logger";
 import { candidateOutreachSuppression } from "./rediscovery-alert-store";
 import { outreachHaltFor } from "./outreach-state-store";
+import { cleanOutreachBody, outreachBodyRefusal } from "./outreach-body";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
 
 // Direction B — outbound communications. Pluggable channel, mirroring the deterministic-
@@ -322,10 +323,29 @@ export class CommsSuppressedError extends Error {
   }
 }
 
+/** An outreach body REFUSED by outreachBodyRefusal (outreach-body.ts). Distinct from
+ *  CommsSuppressedError on purpose: the resend door renders that one as "this candidate
+ *  can no longer be contacted", which is false here — the candidate can be, this letter
+ *  cannot. Carries no client code of its own; callers answer it with their generic one. */
+export class CommsBodyRejectedError extends Error {
+  constructor(readonly reason: string, readonly length: number) {
+    super(`Outreach body refused (${reason}, ${length} characters).`);
+    this.name = "CommsBodyRejectedError";
+  }
+}
+
 /** Convenience: dispatch one message through the active channel — after the ONE
- *  precondition above, which no door into this channel can skip. */
+ *  precondition above, which no door into this channel can skip. An outreach body is
+ *  also cleaned to plain text and length-capped here (outreach-body.ts), so the row the
+ *  outbox stores and the payload the relay receives are the same cleaned text. */
 export async function sendComm(msg: OutboundMessage): Promise<OutboxEntry> {
   const suppressed = commsSendSuppression(msg);
   if (suppressed) throw new CommsSuppressedError(suppressed);
+  if (msg.kind === "outreach") {
+    const body = cleanOutreachBody(msg.body);
+    const refused = outreachBodyRefusal(body);
+    if (refused) throw new CommsBodyRejectedError(refused, body.length);
+    msg = { ...msg, body };
+  }
   return getCommsChannel().send(msg);
 }

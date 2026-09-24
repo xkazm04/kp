@@ -14,6 +14,7 @@ import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
+import { assertPublicHttpsEndpoint } from "@/app/_lib/safe-url";
 
 
 // E3 (Erika gap) — recruiter management of inbound channel webhooks. Each
@@ -129,23 +130,17 @@ export async function PATCH(request: NextRequest) {
     if (!token) return jsonRefusal("CHANNEL_TOKEN_REQUIRED", 400);
     const pullUrl = body.pullUrl === null || body.pullUrl === undefined || body.pullUrl === "" ? null : String(body.pullUrl);
     const secret = body.pullSecret === undefined ? undefined : String(body.pullSecret);
-    // A malformed/unsafe URL throws out of the store's validation — answer 400 with
-    // the reason rather than a 500, since it is the caller's input that is wrong.
-    const ws = await currentWorkspace();
-    let ok: boolean;
+    // Classify untrusted input BEFORE the store write. The store repeats this
+    // validation as its own boundary, but a SQLite/encryption failure from that
+    // write must reach the outer 500 catch instead of masquerading as a 400.
+    let validatedUrl: string | null = null;
     try {
-      ok = setChannelPull(token, { url: pullUrl, secret }, ws);
-    } catch (e) {
-      // The validator's own sentence names the refused host and field — but this catch
-      // also covers the encrypted STORE WRITE inside setChannelPull, whose thrown
-      // message carries SQLITE_* detail and the absolute db path. The two are
-      // indistinguishable from here, so the reason goes to the server log and the
-      // caller gets the code (api-contracts.md 1.1). Narrowing this to a 400 for a
-      // typed validation error and a 500 otherwise needs a typed error out of
-      // db/channels.ts — recorded, not guessed at here.
-      console.error("[api:channels/webhooks] CHANNEL_PULL_URL_INVALID", e);
+      validatedUrl = pullUrl ? assertPublicHttpsEndpoint(pullUrl, "pullUrl") : null;
+    } catch {
       return jsonRefusal("CHANNEL_PULL_URL_INVALID", 400);
     }
+    const ws = await currentWorkspace();
+    const ok = setChannelPull(token, { url: validatedUrl, secret }, ws);
     // Same answer as an unknown token, for the same reason the receiver gives it:
     // a caller must not be able to probe which tokens exist in another team.
     if (!ok) return jsonRefusal("CHANNEL_WEBHOOK_NOT_FOUND", 404);
