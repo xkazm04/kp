@@ -29,7 +29,6 @@ which every published ranking arrives.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from dataclasses import dataclass, field
 
@@ -231,8 +230,8 @@ def main(argv: list[str] | None = None) -> int:
     if not wanted:
         print(
             "no recognizers registered.\n"
-            f"  Add one with an environment variable, e.g.\n"
-            f'    KP_ASR_CMD_WHISPER="whisper-cli -m ggml-base.bin -l {{lang}} -nt -f {{audio}}"\n'
+            "  Add one with an environment variable, e.g.\n"
+            '    KP_ASR_CMD_WHISPER="whisper-cli -m ggml-base.bin -l {lang} -nt -f {audio}"\n'
             "  then re-run. Registered from env this run: none.",
             file=sys.stderr,
         )

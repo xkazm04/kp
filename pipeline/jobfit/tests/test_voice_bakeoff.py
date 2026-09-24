@@ -69,14 +69,14 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual(rec.names(), ["stub"])
 
     def test_duplicate_registration_is_refused_unless_replacing(self):
-        rec.register(rec.CallableRecognizer(name="dup", fn=lambda p, l: ""))
+        rec.register(rec.CallableRecognizer(name="dup", fn=lambda p, lang: ""))
         with self.assertRaises(ValueError):
-            rec.register(rec.CallableRecognizer(name="dup", fn=lambda p, l: ""))
-        rec.register(rec.CallableRecognizer(name="dup", fn=lambda p, l: "x"), replace=True)
+            rec.register(rec.CallableRecognizer(name="dup", fn=lambda p, lang: ""))
+        rec.register(rec.CallableRecognizer(name="dup", fn=lambda p, lang: "x"), replace=True)
         self.assertEqual(rec.get("dup").transcribe(b""), "x")
 
     def test_unknown_engine_names_the_registered_ones(self):
-        rec.register(rec.CallableRecognizer(name="a", fn=lambda p, l: ""))
+        rec.register(rec.CallableRecognizer(name="a", fn=lambda p, lang: ""))
         with self.assertRaises(KeyError) as ctx:
             rec.get("nope")
         self.assertIn("a", str(ctx.exception))
@@ -245,7 +245,7 @@ class TestBakeoffReachability(unittest.TestCase):
         seen: list[int] = []
         pcm = _pcm()
         engines = [
-            rec.CallableRecognizer(name=f"e{i}", fn=lambda p, l: seen.append(id(p)) or "x")
+            rec.CallableRecognizer(name=f"e{i}", fn=lambda p, lang: seen.append(id(p)) or "x")
             for i in range(3)
         ]
         with mock.patch.object(bo.tts, "synthesize", return_value=pcm) as synth:
