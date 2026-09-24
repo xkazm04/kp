@@ -200,6 +200,22 @@ function registryRecipe(registryDir: string, index: Record<string, IndexEntry>, 
   };
 }
 
+/** The registry-relative folder of each slug as `recipes/index.json` lists it (the path
+ *  the registry lander appends LESSONS.md under), or null for a slug the index does not
+ *  carry, or when no registry checkout is present. Added by WP4 for the lessons export
+ *  (GET /api/gigs/lessons). A path that would escape the checkout reads as null. */
+export function gigRecipeIndexPaths(slugs: readonly string[], opts: RecipeResolveOptions = {}): Record<string, string | null> {
+  const registryDir = resolveRegistryDir(opts);
+  const index = registryDir ? readIndex(registryDir) : null;
+  const out: Record<string, string | null> = {};
+  for (const slug of slugs) {
+    const rel = index ? str(index[slug]?.path) : null;
+    const inside = rel && registryDir ? path.resolve(registryDir, rel).startsWith(path.resolve(registryDir) + path.sep) : false;
+    out[slug] = rel && inside ? rel.replace(/\\/g, "/") : null;
+  }
+  return out;
+}
+
 /** Resolve an arena's adopted recipes, per slug, registry first then seed. */
 export function resolveGigRecipes(arena: GigArena, opts: RecipeResolveOptions = {}): ResolvedGigRecipes {
   const slugs = gigRecipeSlugs(arena);

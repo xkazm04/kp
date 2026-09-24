@@ -2003,7 +2003,19 @@
     "GIG_SUSPECT": "Dieses Angebot wurde als verdächtig markiert und kann daher nicht an einen Spezialisten übergeben werden. Prüfen Sie zuerst die Markierung.",
     "GIG_NOT_DISPATCHABLE": "Dieser Auftrag kann in seinem aktuellen Zustand nicht an einen Spezialisten übergeben werden.",
     "GIG_SPECIALIST_NOT_READY": "Für diesen Auftrag ist noch kein Spezialist bereit. Stellen Sie einen ein und warten Sie, bis Personas ihn freigegeben hat.",
-    "GIG_DISPATCH_FAILED": "Personas hat die Aufgabe nicht angenommen. Der Versuch wurde als fehlgeschlagen erfasst, und der Auftrag kann erneut gesendet werden."
+    "GIG_DISPATCH_FAILED": "Personas hat die Aufgabe nicht angenommen. Der Versuch wurde als fehlgeschlagen erfasst, und der Auftrag kann erneut gesendet werden.",
+    "GIG_INPUT_INVALID": "Einige Angaben zu diesem Auftrag fehlen oder sind ungültig.",
+    "GIG_ACTION_NOT_ALLOWED": "Diese Aktion ist für den Auftrag in seinem aktuellen Zustand nicht möglich.",
+    "GIG_STATE_CHANGED": "Der Auftrag hat sich inzwischen geändert, daher wurde nichts überschrieben. Laden Sie ihn neu und versuchen Sie es noch einmal.",
+    "GIG_ATTEMPT_NOT_FOUND": "Diesen Entwurf gibt es nicht.",
+    "GIG_DISCLOSURE_REQUIRED": "Haken Sie den Hinweis auf die KI-Nutzung ab, bevor Sie die Arbeit als gesendet markieren.",
+    "GIG_REVISION_NOTE_REQUIRED": "Schreiben Sie eine Notiz, was geändert werden soll, bevor Sie eine Überarbeitung anfordern.",
+    "GIG_OUTCOME_NOT_SENT": "Ein Ergebnis lässt sich nur für gesendete Arbeit erfassen.",
+    "GIG_SOURCE_NOT_FOUND": "Diese Auftragsquelle gibt es nicht.",
+    "GIG_SOURCE_REFUSED": "Diese Quelle kann nicht hinzugefügt werden: Ihre Bedingungen oder ihr Host schließen automatisierten Zugriff aus.",
+    "GIG_SOURCE_TERMS_CHANGED": "Die Zusammenfassung der Bedingungen dieser Quelle hat sich seit Ihrer Bestätigung geändert. Lesen Sie die aktuellen Bedingungen und bestätigen Sie sie erneut.",
+    "GIG_SOURCE_TERMS_REQUIRED": "Lesen und bestätigen Sie die Bedingungen dieser Quelle, bevor Sie sie fortsetzen.",
+    "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11293,7 +11305,8 @@
       "campaign": "Kampagnenpaket · {job}",
       "profileDraft": "KI-Profilentwurf",
       "companionDigest": "Überblick zum Arbeitsbereich",
-      "jobseekerScan": "Stellenmarkt-Scan"
+      "jobseekerScan": "Stellenmarkt-Scan",
+      "gigScan": "Auftrags-Scan"
     },
     "filter": {
       "clear": "Zurücksetzen"

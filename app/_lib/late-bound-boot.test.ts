@@ -35,8 +35,8 @@ function delegatedKinds(): string[] {
 
 test("every kind tasks.ts delegates to externalRunner is registered by the boot list", () => {
   const kinds = delegatedKinds();
-  // Non-vacuity: the three kinds on the seam today.
-  assert.deepEqual(kinds, ["interview_kit", "interview_letter", "jobseeker_scan"]);
+  // Non-vacuity: the four kinds on the seam today (gig_scan added by the gigs WP4).
+  assert.deepEqual(kinds, ["gig_scan", "interview_kit", "interview_letter", "jobseeker_scan"]);
   _resetTaskRunnersForTests();
   for (const kind of kinds) assert.throws(() => externalRunner(kind), /not registered/, `${kind} starts unregistered`);
   registerLateBoundImplementations();

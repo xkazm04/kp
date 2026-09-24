@@ -18,9 +18,11 @@ export const GIG_TRANSITIONS: Readonly<Record<GigStatus, readonly GigStatus[]>> 
   qualified: ["dispatched", "declined", "expired", "withdrawn", "suspect"],
   // `qualified` again when the attempt failed (the gig is still workable).
   dispatched: ["drafted", "qualified", "expired", "withdrawn"],
-  // `dispatched` again = a revision request spawned a new attempt.
-  drafted: ["in_review", "dispatched", "declined", "withdrawn"],
-  in_review: ["sent", "dispatched", "declined", "withdrawn"],
+  // `dispatched` again = a revision request spawned a new attempt. `qualified` is an
+  // ADDED edge (WP4, the review desk's `discard`): the operator threw the draft away
+  // but the gig is still workable, exactly as after a failed attempt.
+  drafted: ["in_review", "dispatched", "declined", "withdrawn", "qualified"],
+  in_review: ["sent", "dispatched", "declined", "withdrawn", "qualified"],
   sent: ["accepted", "rejected", "expired"],
   accepted: [],
   rejected: [],

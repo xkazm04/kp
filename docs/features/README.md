@@ -21,6 +21,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | Interviews (voice) | [interviews/README.md](interviews/README.md) | `app/_lib/voice/**`, `app/api/interview`, `app/interview`, `app/interview-lab`, `app/_components/voice` |
 | Candidate comms | [comms/README.md](comms/README.md), [comms/outbound-export.md](comms/outbound-export.md) | `app/_lib/comms*.ts`, `app/api/comms`, `app/api/channels`, `app/features/hiring/channels` |
 | Agents (agent-candidate bridge) | [agents/README.md](agents/README.md) | `app/_lib/agent-hire/**`, `app/_lib/db/agents.ts`, `app/api/agents`, `app/features/agents-workforce`, `app/features/library/jobs/JobsAgentFit*`, `pipeline/jobfit/agentfit.py` |
+| Gigs (paid work drafted by specialist agents) | [gigs/README.md](gigs/README.md) | `app/api/gigs`, `app/_lib/gigs/**`, `app/_lib/db/gigs*.ts` |
 
 ## Platform
 

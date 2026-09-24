@@ -2003,7 +2003,19 @@
     "GIG_SUSPECT": "This listing was flagged as suspicious, so it cannot be sent to a specialist. Review the flag first.",
     "GIG_NOT_DISPATCHABLE": "This gig cannot be sent to a specialist in its current state.",
     "GIG_SPECIALIST_NOT_READY": "No specialist is ready for this gig yet. Hire one, then wait until Personas has approved it.",
-    "GIG_DISPATCH_FAILED": "Personas did not accept the assignment. The attempt was recorded as failed, and the gig can be sent again."
+    "GIG_DISPATCH_FAILED": "Personas did not accept the assignment. The attempt was recorded as failed, and the gig can be sent again.",
+    "GIG_INPUT_INVALID": "Some of the details sent for this gig are missing or not valid.",
+    "GIG_ACTION_NOT_ALLOWED": "That action is not available for this gig in its current state.",
+    "GIG_STATE_CHANGED": "This gig changed while that was being saved, so nothing was overwritten. Reload and try again.",
+    "GIG_ATTEMPT_NOT_FOUND": "That draft does not exist.",
+    "GIG_DISCLOSURE_REQUIRED": "Tick the AI-use disclosure before marking this work as sent.",
+    "GIG_REVISION_NOTE_REQUIRED": "Write a note saying what to change before asking for a revision.",
+    "GIG_OUTCOME_NOT_SENT": "An outcome can only be recorded for work that was sent.",
+    "GIG_SOURCE_NOT_FOUND": "That gig source does not exist.",
+    "GIG_SOURCE_REFUSED": "This source cannot be added: its terms or its host rule out automated access.",
+    "GIG_SOURCE_TERMS_CHANGED": "This source’s terms summary changed since it was acknowledged. Read the current terms and acknowledge them again.",
+    "GIG_SOURCE_TERMS_REQUIRED": "Read and acknowledge this source’s terms before resuming it.",
+    "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11293,7 +11305,8 @@
       "campaign": "Campaign pack · {job}",
       "profileDraft": "AI profile draft",
       "companionDigest": "Workspace digest",
-      "jobseekerScan": "Job-market scan"
+      "jobseekerScan": "Job-market scan",
+      "gigScan": "Gig listing scan"
     },
     "filter": {
       "clear": "Clear"

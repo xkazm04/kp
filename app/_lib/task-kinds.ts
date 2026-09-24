@@ -35,6 +35,7 @@ export const TASK_KINDS = [
   "profile_draft",
   "companion_digest",
   "jobseeker_scan",
+  "gig_scan",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];

@@ -26,9 +26,10 @@ test("the gig_sync runner is the real sync, scoped to the enqueuing workspace", 
     signal: new AbortController().signal,
     progress: () => {},
     params: {},
-  })) as { checked: number; drafted: number };
+  })) as { checked: number; drafted: number; outcomes: { checked: number } };
   assert.equal(summary.checked, 0);
   assert.equal(summary.drafted, 0);
+  assert.equal(summary.outcomes.checked, 0, "the pollers ran and found nothing sent");
 });
 
 test("the heavy gig modules are reached only lazily - never statically from the boot list or the hubs", () => {
@@ -37,10 +38,15 @@ test("the heavy gig modules are reached only lazily - never statically from the 
   assert.match(boot, /await import\("\.\/gigs\/scan"\)/);
   assert.match(boot, /qualify: qualifyGigHook/, "the manual scan runs with the qualifier plugged in");
   assert.match(boot, /await import\("\.\/gigs\/sync"\)/);
+  // WP4: the outcome pollers ride the same sync runner, after the Personas sync.
+  assert.match(boot, /await import\("\.\/gigs\/pollers"\)/);
+  assert.match(boot, /pollGigOutcomes\(ctx\.workspaceId\)/, "the pollers are scoped to the enqueuing workspace");
   assert.doesNotMatch(boot, /^import .*gigs\//m);
   for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist)/, `${hub} must not reach a gig runner`);
   const clock = readFileSync(fileURLToPath(new URL("../../../instrumentation-node.ts", import.meta.url)), "utf8");
   assert.match(clock, /gig_scan: async \(\) =>/);
   assert.match(clock, /gig_sync: async \(\) =>/);
   assert.match(clock, /qualify: qualifyGigHook/, "the clock scan qualifies exactly like the manual one");
+  assert.match(clock, /pollGigOutcomes\(ws\)/, "the clock sync asks the outcome pollers too");
+  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/pollers/, `${hub} must not reach the pollers`);
 });

@@ -247,6 +247,10 @@ export const NO_TABLE_SUMMARY = {
   // table the /me/scans page renders from the scheduler_runs row the task also writes,
   // not a label/value list — and the closed OutcomeFieldKey vocabulary has no key for it.
   jobseeker_scan: "rendered as the per-source scan table on /me/scans from the scheduler_runs row",
+  // A GigScanSummary is a per-source outcome table (found/created/suspect/qualified per
+  // source) the Gig desk renders from the scheduler_runs row the task also writes; the
+  // closed OutcomeFieldKey vocabulary has no key for a per-source row.
+  gig_scan: "rendered as the per-source scan table on the Gig desk from the scheduler_runs row",
 } as const satisfies Partial<Record<TaskKind, string>>;
 
 /** The generic fallback: the four shapes EVERY handler envelope shares. Used only

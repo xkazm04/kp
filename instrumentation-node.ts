@@ -130,18 +130,21 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
     };
   },
   // Gigs run sync (app/_lib/gigs/sync.ts): per workspace with an in-flight attempt, pull
-  // the Personas execution state and land finished drafts. `null` when nothing is in
-  // flight - at a 15-minute cadence an empty row every tick would be noise.
+  // the Personas execution state and land finished drafts; then (WP4) per workspace with
+  // SENT oss_bounty/competition work, ask the outcome pollers (gigs/pollers.ts) whether
+  // the judge decided. `null` when a workspace has neither - at a 15-minute cadence an
+  // empty row every tick would be noise.
   gig_sync: async () => {
     const { listWorkspaces } = await import("./app/_lib/db/workspaces");
     const { listGigAttemptsByStatus } = await import("./app/_lib/db/gigs-attempts");
     const { syncGigAttempts } = await import("./app/_lib/gigs/sync");
-    const workspaces = listWorkspaces()
-      .map((w) => w.id)
-      .filter((ws) => listGigAttemptsByStatus(ws, ["dispatched", "running"]).length > 0);
-    if (workspaces.length === 0) return null;
-    const totals = { workspaces: 0, drafted: 0, failed: 0, running: 0, unreachable: 0 };
-    for (const ws of workspaces) {
+    const { hasPollableGigs, pollGigOutcomes } = await import("./app/_lib/gigs/pollers");
+    const all = listWorkspaces().map((w) => w.id);
+    const inFlight = all.filter((ws) => listGigAttemptsByStatus(ws, ["dispatched", "running"]).length > 0);
+    const pollable = all.filter((ws) => hasPollableGigs(ws));
+    if (inFlight.length === 0 && pollable.length === 0) return null;
+    const totals = { workspaces: 0, drafted: 0, failed: 0, running: 0, unreachable: 0, accepted: 0, rejected: 0, pollUnreadable: 0 };
+    for (const ws of inFlight) {
       const s = await syncGigAttempts(ws);
       totals.workspaces += 1;
       totals.drafted += s.drafted;
@@ -149,10 +152,17 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       totals.running += s.running;
       totals.unreachable += s.unreachable;
     }
+    for (const ws of pollable) {
+      const p = await pollGigOutcomes(ws);
+      if (!inFlight.includes(ws)) totals.workspaces += 1;
+      totals.accepted += p.accepted;
+      totals.rejected += p.rejected;
+      totals.pollUnreadable += p.unreadable;
+    }
     return {
       status: "ok",
       summary: totals,
-      log: `gig sync: ${totals.workspaces} workspace(s), drafted ${totals.drafted}, failed ${totals.failed}, running ${totals.running}, unreachable ${totals.unreachable}`,
+      log: `gig sync: ${totals.workspaces} workspace(s), drafted ${totals.drafted}, failed ${totals.failed}, running ${totals.running}, unreachable ${totals.unreachable}; outcomes accepted ${totals.accepted}, rejected ${totals.rejected}, unreadable ${totals.pollUnreadable}`,
     };
   },
 };

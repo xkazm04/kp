@@ -10,6 +10,7 @@ import {
   GIG_ARENA_RECIPE,
   GIG_SEED_RECIPES,
   GIG_SEED_RECIPE_VERSION,
+  gigRecipeIndexPaths,
   gigRecipeSlugs,
   manifestRegistryLocal,
   resolveGigRecipes,
@@ -168,4 +169,16 @@ test("an index path escaping the checkout is refused (seeds instead)", () => {
     JSON.stringify({ recipes: { "data-competition-entry": { path: "../../../../etc", version: "9.9.9" } } })
   );
   assert.equal(resolveGigRecipes("competition", opts).recipes[0]!.origin, "seed");
+});
+
+test("gigRecipeIndexPaths: the index's registry-relative folder per slug, null when unlisted or no registry (WP4)", () => {
+  const f = fixture(["paid-work-outcome-retrospective"]);
+  assert.deepEqual(gigRecipeIndexPaths(["paid-work-outcome-retrospective", "bug-bounty-vulnerability-report"], f), {
+    "paid-work-outcome-retrospective": "recipes/general_professional/client-engagements/paid-work-outcome-retrospective",
+    "bug-bounty-vulnerability-report": null,
+  });
+  const none = fixture(null, null);
+  assert.deepEqual(gigRecipeIndexPaths(["paid-work-outcome-retrospective"], { ...none, env: { AI_REGISTRY_DIR: path.join(tmp, "absent") } }), {
+    "paid-work-outcome-retrospective": null,
+  });
 });

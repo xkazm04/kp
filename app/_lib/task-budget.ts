@@ -106,6 +106,11 @@ export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // spawns, and up to `deepDive.maxPerScan` pairs of model calls. The route's own
   // limiter (6/10min) is the first bound; this class is the tenant-hour one.
   jobseeker_scan: "agent",
+  // The gig listing scan (WP4, /api/gigs/scan): official-API reads from every enabled
+  // gig source under the shared politeness budget, then deterministic qualification. No
+  // model call, but minutes of third-party fetching - the tenant-hour bound of its
+  // job-seeker sibling, behind the route's own 6/10min limiter.
+  gig_scan: "agent",
 };
 
 /** The class a kind is budgeted under. A string outside the vocabulary (a row an

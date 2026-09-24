@@ -2003,7 +2003,19 @@
     "GIG_SUSPECT": "Cette annonce a été signalée comme suspecte et ne peut donc pas être confiée à un spécialiste. Vérifiez d’abord le signalement.",
     "GIG_NOT_DISPATCHABLE": "Cette mission ne peut pas être confiée à un spécialiste dans son état actuel.",
     "GIG_SPECIALIST_NOT_READY": "Aucun spécialiste n’est encore prêt pour cette mission. Recrutez-en un, puis attendez que Personas l’ait approuvé.",
-    "GIG_DISPATCH_FAILED": "Personas n’a pas accepté la tâche. La tentative a été enregistrée comme échouée et la mission peut être renvoyée."
+    "GIG_DISPATCH_FAILED": "Personas n’a pas accepté la tâche. La tentative a été enregistrée comme échouée et la mission peut être renvoyée.",
+    "GIG_INPUT_INVALID": "Certaines informations de cette mission sont manquantes ou invalides.",
+    "GIG_ACTION_NOT_ALLOWED": "Cette action n’est pas possible pour cette mission dans son état actuel.",
+    "GIG_STATE_CHANGED": "Cette mission a changé entre-temps, rien n’a donc été écrasé. Rechargez-la et réessayez.",
+    "GIG_ATTEMPT_NOT_FOUND": "Ce brouillon n’existe pas.",
+    "GIG_DISCLOSURE_REQUIRED": "Cochez la mention d’utilisation de l’IA avant de marquer ce travail comme envoyé.",
+    "GIG_REVISION_NOTE_REQUIRED": "Indiquez dans une note ce qu’il faut modifier avant de demander une révision.",
+    "GIG_OUTCOME_NOT_SENT": "Un résultat ne peut être enregistré que pour un travail envoyé.",
+    "GIG_SOURCE_NOT_FOUND": "Cette source de missions n’existe pas.",
+    "GIG_SOURCE_REFUSED": "Impossible d’ajouter cette source : ses conditions ou son hôte excluent tout accès automatisé.",
+    "GIG_SOURCE_TERMS_CHANGED": "Le résumé des conditions de cette source a changé depuis votre accord. Lisez les conditions actuelles et acceptez-les à nouveau.",
+    "GIG_SOURCE_TERMS_REQUIRED": "Lisez et acceptez les conditions de cette source avant de la reprendre.",
+    "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11293,7 +11305,8 @@
       "campaign": "Pack de campagne · {job}",
       "profileDraft": "Brouillon de profil IA",
       "companionDigest": "Synthèse de l’espace de travail",
-      "jobseekerScan": "Analyse du marché de l’emploi"
+      "jobseekerScan": "Analyse du marché de l’emploi",
+      "gigScan": "Analyse des missions"
     },
     "filter": {
       "clear": "Effacer"

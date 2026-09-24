@@ -105,10 +105,16 @@ export function registerLateBoundImplementations(): void {
     const { qualifyGigHook } = await import("./gigs/qualify");
     return runGigScan(ctx.workspaceId, { ...defaultGigScanDeps(), qualify: qualifyGigHook }, ctx.signal);
   });
-  // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts).
+  // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts),
+  // then asks the outcome pollers (gigs/pollers.ts, WP4) about the workspace's SENT work:
+  // a merged pull request or a scored Kaggle entry resolves without the operator typing
+  // it in. The pollers run after the sync and their summary rides beside its counts.
   registerTaskRunner("gig_sync", async (ctx) => {
     const { syncGigAttempts } = await import("./gigs/sync");
-    return syncGigAttempts(ctx.workspaceId);
+    const { pollGigOutcomes } = await import("./gigs/pollers");
+    const sync = await syncGigAttempts(ctx.workspaceId);
+    const outcomes = await pollGigOutcomes(ctx.workspaceId);
+    return { ...sync, outcomes };
   });
   // The stage hook's AI-interview mint (stage-hooks.ts): the same door
   // POST /api/interview/create calls, unchanged.

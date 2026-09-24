@@ -432,6 +432,31 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: () => encodeTaskLabel("jobseekerScan"),
   },
+  // The Gig desk's manual "scan now" (WP4, the gigs scan door): the same late-bound
+  // runner the clock job uses (late-bound-boot.ts `gig_scan`: every enabled gig source,
+  // then deterministic qualification). Like jobseeker_scan it is also what VERIFIES the
+  // clock job - `ok` only when at least one source ran and the run completed; a scan with
+  // no enabled source is `skipped`, which verifies nothing. The summary type is not
+  // imported: the shape read here is the two fields the verdict needs.
+  gig_scan: {
+    run: async (ctx) => {
+      const startedAt = new Date().toISOString();
+      const summary = (await externalRunner("gig_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params })) as {
+        sources?: unknown[];
+        aborted?: boolean;
+      };
+      recordRun({
+        job: "gig_scan",
+        trigger: "manual",
+        status: Array.isArray(summary?.sources) && summary.sources.length > 0 && !summary.aborted && !ctx.signal.aborted ? "ok" : "skipped",
+        summary,
+        startedAt,
+      });
+      return summary;
+    },
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigScan"),
+  },
 };
 
 let booted = false;

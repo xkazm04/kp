@@ -27,6 +27,10 @@
 // without needing the task queue at all. A route reaches it by importing this module,
 // which is a leaf, instead of the hub.
 //
+// Since 2026-09-24 the Gigs module adds two: `gig_scan` (a queue spec in tasks.ts, the
+// manual "scan now" that also verifies its clock job) and `gig_sync` (clock-only, the
+// Personas run sync plus the outcome pollers). Both are registered in late-bound-boot.ts.
+//
 // Contract: a spec in tasks.ts that delegates to `externalRunner(kind)` still declares
 // its own `tenancy` and still passes `ctx` (the pump test reads the spec text). A caller
 // that is NOT a task spec carries the same obligation by hand: pass the ENQUEUING

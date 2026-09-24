@@ -512,6 +512,11 @@ export const STORE_ERRORS = {
   /** POST /api/devcase/[id]/intake: the store faulted while closing the case's open
    *  postings (500). The lifecycle-owns refusal is a decision, coded in REFUSAL_ERRORS. */
   DEVCASE_INTAKE_STOP_FAILED: "Could not stop intake for this assignment. Please try again.",
+  /** Gigs module (/api/gigs/**): a store-backed read/write on the workspace's gigs,
+   *  attempts, outcomes, sources, specialists or lessons faulted (500). One code for the
+   *  module, like JOBSEEKER_STORE_FAILED: the operator's next step is the same whichever
+   *  table broke. */
+  GIG_STORE_FAILED: "Could not save or load your gigs right now. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -1996,6 +2001,41 @@ export const REFUSAL_ERRORS = {
   /** POST /api/devcase/[id]/intake (400): the body named an action other than "stop". A
    *  reopen is an ordinary POST /api/devcase/publish. */
   DEVCASE_INTAKE_ACTION_UNKNOWN: "That is not an intake action this assignment supports.",
+  // --- Gigs module (/api/gigs/**, docs/features/gigs/README.md) ---------------------
+  /** The gig in the URL is not in this workspace (404). */
+  GIG_NOT_FOUND: "That gig does not exist.",
+  /** The honeypot scan flagged the listing; dispatch waits for the operator to clear it (409). */
+  GIG_SUSPECT: "This listing was flagged as suspicious, so it cannot be sent to a specialist. Review the flag first.",
+  /** The gig's status is not one a dispatch starts from (qualified, drafted, in review) (409). */
+  GIG_NOT_DISPATCHABLE: "This gig cannot be sent to a specialist in its current state.",
+  /** No specialist in the arena, or its Personas hire is not running yet (409). */
+  GIG_SPECIALIST_NOT_READY: "No specialist is ready for this gig yet. Hire one, then wait until Personas has approved it.",
+  /** Personas did not accept the assignment (502); the attempt is recorded `failed` with
+   *  the transport's reason code, and the gig is back to qualified. */
+  GIG_DISPATCH_FAILED: "Personas did not accept the assignment. The attempt was recorded as failed, and the gig can be sent again.",
+  /** A body field is missing or malformed (400); `field` names it. */
+  GIG_INPUT_INVALID: "Some of the details sent for this gig are missing or not valid.",
+  /** The gig or attempt is not in a state the requested action starts from (409). */
+  GIG_ACTION_NOT_ALLOWED: "That action is not available for this gig in its current state.",
+  /** The row moved between the read and the write; the CAS dropped the change (409). */
+  GIG_STATE_CHANGED: "This gig changed while that was being saved, so nothing was overwritten. Reload and try again.",
+  /** The attempt in the URL is not in this workspace (404). */
+  GIG_ATTEMPT_NOT_FOUND: "That draft does not exist.",
+  /** mark_sent without the AI-use disclosure ticked on the review (422). */
+  GIG_DISCLOSURE_REQUIRED: "Tick the AI-use disclosure before marking this work as sent.",
+  /** A revision request with no note saying what to change (400). */
+  GIG_REVISION_NOTE_REQUIRED: "Write a note saying what to change before asking for a revision.",
+  /** An outcome for a gig (or attempt) that was never sent (409). */
+  GIG_OUTCOME_NOT_SENT: "An outcome can only be recorded for work that was sent.",
+  /** The gig source in the URL is not in this workspace (404). */
+  GIG_SOURCE_NOT_FOUND: "That gig source does not exist.",
+  /** A tier-C adapter (or one with no source to fetch, like manual) cannot be added (403). */
+  GIG_SOURCE_REFUSED: "This source cannot be added: its terms or its host rule out automated access.",
+  /** The acknowledged terms hash is not the catalog's current one (409, with `termsHash`). */
+  GIG_SOURCE_TERMS_CHANGED: "This source’s terms summary changed since it was acknowledged. Read the current terms and acknowledge them again.",
+  /** Resuming a tier-B source whose terms were never acknowledged, or were acknowledged
+   *  under an older summary (409, with `termsHash`). */
+  GIG_SOURCE_TERMS_REQUIRED: "Read and acknowledge this source’s terms before resuming it.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

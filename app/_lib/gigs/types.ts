@@ -78,6 +78,10 @@ export function isGigPauseReason(v: unknown): v is GigPauseReason {
   return typeof v === "string" && (GIG_PAUSE_REASONS as readonly string[]).includes(v);
 }
 
+/** The task kind the Gig desk's "scan now" enqueues (app/_lib/task-kinds.ts) - also the
+ *  scheduler job name it verifies (scheduler-jobs.ts). */
+export const GIG_SCAN_TASK_KIND = "gig_scan";
+
 /** Consecutive rejected/duplicate outcomes on one source that auto-pause it. */
 export const GIG_INVALID_STREAK_LIMIT = 5;
 

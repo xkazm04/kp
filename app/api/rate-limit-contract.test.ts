@@ -2145,6 +2145,92 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "advanceFeedAnchor(",
   },
+  // gigs — WP4 (docs/features/gigs/README.md). ADDED deliberately with the doors: every
+  // /api/gigs write is operator-gated, and open mode makes that a no-op, so each
+  // self-limits per IP before the body is read. The two that spend are the tight ones:
+  // the scan (third-party API reads under the shared politeness budget) and the
+  // specialist hire (a persona minted in Personas — mintAndDispatch's own limiter still
+  // applies behind this one); dispatch and review's `revise` start a metered Personas run.
+  {
+    // 6/10min, the job-seeker scan's budget: the dedupe key already folds a double-click
+    // onto the scan in flight.
+    rel: "./gigs/scan/route.ts",
+    key: "`gigs-scan:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // 10/10min, the agents dispatch door's budget: a hire is a rare, deliberate act.
+    rel: "./gigs/specialists/route.ts",
+    key: "`gigs-specialist-hire:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "hireGigSpecialist(",
+  },
+  {
+    // Every accepted call is a metered Personas run; 20/10min per IP.
+    rel: "./gigs/[id]/dispatch/route.ts",
+    key: "`gigs-dispatch:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "dispatchGigAttempt(ws",
+  },
+  {
+    // A review write per click; `revise` re-dispatches, so the bucket sits before it.
+    rel: "./gigs/attempts/[id]/route.ts",
+    key: "`gigs-review:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "applyGigReview(ws",
+  },
+  {
+    // A forwarded brief: one write, the honeypot scan and a qualification pass.
+    rel: "./gigs/route.ts",
+    key: "`gigs-forward:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createManualGig(ws",
+  },
+  {
+    // decline / withdraw / clear_suspect: one status write per click.
+    rel: "./gigs/[id]/route.ts",
+    key: "`gigs-write:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "clearGigSuspect(ws",
+  },
+  {
+    // One append-only verdict plus its lessons and the source's streak.
+    rel: "./gigs/[id]/outcome/route.ts",
+    key: "`gigs-outcome:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "recordGigOutcome(ws",
+  },
+  {
+    // Creating a source; the PATCH below shares the bucket (same table, same pace).
+    rel: "./gigs/sources/route.ts",
+    key: "`gigs-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "createGigSource(",
+  },
+  {
+    rel: "./gigs/sources/[id]/route.ts",
+    key: "`gigs-sources-write:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "acknowledgeGigSource(ws",
+  },
+  {
+    // The registry lander's stamp: one UPDATE batch per landing commit.
+    rel: "./gigs/lessons/route.ts",
+    key: "`gigs-lessons-land:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "markGigLessonsLanded(ws",
+  },
   // ── machine-called public doors (challenge 2026-09-22 shared-api-utilities/B) ──
   // Each is knocked on by a MACHINE that acts on Retry-After — a third-party board or a
   // Zapier relay, a Personas agent, the public apply form's channel relay. None was on

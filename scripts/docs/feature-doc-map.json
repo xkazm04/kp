@@ -577,6 +577,14 @@
       ]
     },
     {
+      "doc": "docs/features/gigs/README.md",
+      "sourceGlobs": [
+        "app/api/gigs/**",
+        "app/_lib/gigs/**",
+        "app/_lib/db/gigs-*.ts"
+      ]
+    },
+    {
       "doc": "docs/features/journey-analytics/README.md",
       "sourceGlobs": [
         "app/_lib/journey/**",

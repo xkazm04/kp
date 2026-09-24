@@ -2003,7 +2003,19 @@
     "GIG_SUSPECT": "Tato nabídka byla označena jako podezřelá, proto ji nelze předat specialistovi. Nejprve označení prověřte.",
     "GIG_NOT_DISPATCHABLE": "V současném stavu tuto zakázku nelze předat specialistovi.",
     "GIG_SPECIALIST_NOT_READY": "Pro tuto zakázku zatím není připraven žádný specialista. Najměte ho a počkejte, až ho aplikace Personas schválí.",
-    "GIG_DISPATCH_FAILED": "Aplikace Personas zadání nepřijala. Pokus byl zaznamenán jako neúspěšný a zakázku můžete odeslat znovu."
+    "GIG_DISPATCH_FAILED": "Aplikace Personas zadání nepřijala. Pokus byl zaznamenán jako neúspěšný a zakázku můžete odeslat znovu.",
+    "GIG_INPUT_INVALID": "Některé údaje k této zakázce chybí nebo nejsou platné.",
+    "GIG_ACTION_NOT_ALLOWED": "Tuto akci nelze u zakázky v jejím současném stavu provést.",
+    "GIG_STATE_CHANGED": "Zakázka se mezitím změnila, proto nebylo nic přepsáno. Načtěte ji znovu a zkuste to ještě jednou.",
+    "GIG_ATTEMPT_NOT_FOUND": "Tento návrh neexistuje.",
+    "GIG_DISCLOSURE_REQUIRED": "Než práci označíte jako odeslanou, zaškrtněte upozornění na použití AI.",
+    "GIG_REVISION_NOTE_REQUIRED": "Než požádáte o úpravu, napište poznámku, co se má změnit.",
+    "GIG_OUTCOME_NOT_SENT": "Výsledek lze zaznamenat jen u práce, která byla odeslána.",
+    "GIG_SOURCE_NOT_FOUND": "Tento zdroj zakázek neexistuje.",
+    "GIG_SOURCE_REFUSED": "Tento zdroj nelze přidat: jeho podmínky nebo hostitel automatizovaný přístup vylučují.",
+    "GIG_SOURCE_TERMS_CHANGED": "Shrnutí podmínek tohoto zdroje se od vašeho potvrzení změnilo. Přečtěte si aktuální podmínky a potvrďte je znovu.",
+    "GIG_SOURCE_TERMS_REQUIRED": "Než tento zdroj znovu spustíte, přečtěte si jeho podmínky a potvrďte je.",
+    "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11293,7 +11305,8 @@
       "campaign": "Kampaňový balíček · {job}",
       "profileDraft": "AI návrh profilu",
       "companionDigest": "Přehled pracovního prostoru",
-      "jobseekerScan": "Sken pracovního trhu"
+      "jobseekerScan": "Sken pracovního trhu",
+      "gigScan": "Sken nabídek zakázek"
     },
     "filter": {
       "clear": "Zrušit filtry"

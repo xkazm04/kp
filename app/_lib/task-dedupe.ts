@@ -186,6 +186,8 @@ export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
   // onto it instead of fetching the same boards twice under one politeness budget. The
   // workspace is in the key for the same reason as above — a builder sees only params.
   jobseeker_scan: (p) => stableKey("jobseeker_scan", p.workspaceId),
+  // Same rule for the gig scan: one per tenant in flight, a double-click coalesces.
+  gig_scan: (p) => stableKey("gig_scan", p.workspaceId),
 };
 
 /**

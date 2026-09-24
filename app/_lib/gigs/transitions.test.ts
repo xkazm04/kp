@@ -59,6 +59,9 @@ test("the gig flow's load-bearing edges", () => {
   assert.ok(canTransitionGig("dispatched", "qualified"));
   assert.ok(canTransitionGig("drafted", "dispatched"));
   assert.ok(canTransitionGig("in_review", "dispatched"));
+  // A discarded draft returns the gig to qualified (the review desk's `discard`).
+  assert.ok(canTransitionGig("drafted", "qualified"));
+  assert.ok(canTransitionGig("in_review", "qualified"));
   // Nothing skips the operator's review into sent.
   assert.equal(canTransitionGig("drafted", "sent"), false);
   assert.equal(canTransitionGig("dispatched", "sent"), false);
