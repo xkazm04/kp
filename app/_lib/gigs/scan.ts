@@ -1,8 +1,15 @@
 // The gig scan: for ONE workspace, every enabled, unpaused source runs
 //   discover -> scanGigForHoneypots -> upsertGigFromRaw -> recordGigSourceRun
 // and, when a qualifier is plugged in (deps.qualify - WP3's), every listing still `new`
-// after the upsert is handed to it. Callers (the scheduler job, a "scan now" door) own
-// the scheduler_runs row; this module answers GigScanSummary and nothing else.
+// after the upsert is handed to it. Then, when a researcher is plugged in (deps.research,
+// gigs/research.ts), up to GIG_RESEARCH_MAX_PER_SCAN gigs with no brief yet get one.
+// Callers (the scheduler job, a "scan now" door) own the scheduler_runs row; this module
+// answers GigScanSummary and nothing else.
+//
+// `opts.sourceId` narrows the run to ONE source (the Sources screen's per-source "scan
+// now"): the same rules, the same summary, one source. A paused or disabled source is
+// still not run - the door refuses it before enqueueing, and a pause that lands between
+// the enqueue and the run is honoured here (`notRunnable: 1`, nothing fetched).
 //
 // Everything is injected (GigScanDeps; defaultGigScanDeps() is the production binding:
 // the stores, politeFetch, gigAdapterFor, process.env) so scan.test.ts runs the whole
@@ -88,6 +95,46 @@ export type GigScanSummary = {
   qualifyFailed: number;
   /** True when the budget or the caller stopped the scan before its end. */
   aborted: boolean;
+  /** The one source this run was narrowed to; null for a whole-workspace scan. */
+  sourceId: string | null;
+  /** What the research pass did; null when no researcher is plugged in, or the budget
+   *  or the caller stopped the scan before it. */
+  research: GigResearchBatchSummary | null;
+};
+
+/** Gigs researched in one scan at most: each is up to three page reads plus one model
+ *  spawn, so eight keeps a scan's research inside the wall budget with room to spare. */
+export const GIG_RESEARCH_MAX_PER_SCAN = 8;
+
+/** What one research pass reports (gigs/research.ts researchGigBatch). */
+export type GigResearchBatchSummary = {
+  /** Gigs a brief was attempted for. */
+  attempted: number;
+  /** ...of which the model wrote the brief. */
+  llm: number;
+  /** ...of which kp wrote the deterministic brief (keyless, refused, failed). */
+  deterministic: number;
+  /** ...of which no brief could be stored (a store fault, logged server-side). */
+  failed: number;
+  /** Gigs a page they linked to flagged as a honeypot in this pass. */
+  flagged: number;
+  /** True once a spawn answered `no_provider`: every later gig got the deterministic
+   *  brief with no further spawn (the first spawn doubles as the provider probe). */
+  providerMissing: boolean;
+};
+
+/** The research hook: brief up to `limit` gigs of this workspace (narrowed to one source
+ *  when `sourceId` is set). `htmlByGigId` carries the raw listing HTML this scan saw -
+ *  the row stores only the text, and the HTML's hrefs are where most links live. Owns its
+ *  own writes; a throw is logged, never fatal to the scan. */
+export type GigResearchHook = (
+  workspaceId: string,
+  info: { signal: AbortSignal; limit: number; sourceId: string | null; htmlByGigId: ReadonlyMap<string, string | null> }
+) => Promise<GigResearchBatchSummary>;
+
+export type GigScanOptions = {
+  /** Run only this source. Unknown here (deleted since the enqueue) = nothing runs. */
+  sourceId?: string | null;
 };
 
 export type GigScanLogEvent = GigAdapterLogEvent & { sourceId?: string };
@@ -109,6 +156,7 @@ export type GigScanDeps = {
   pauseGigSource: typeof pauseGigSource;
   scanHoneypots: typeof scanGigForHoneypots;
   qualify?: GigQualifyHook;
+  research?: GigResearchHook;
   now: () => string;
   wallBudgetMs: number;
   log: (event: GigScanLogEvent, error?: unknown) => void;
@@ -183,9 +231,16 @@ function mapHalt(halt: FetchHalt): Mapped {
   }
 }
 
-export async function runGigScan(workspaceId: string, deps: GigScanDeps = defaultGigScanDeps(), signal?: AbortSignal): Promise<GigScanSummary> {
+export async function runGigScan(
+  workspaceId: string,
+  deps: GigScanDeps = defaultGigScanDeps(),
+  signal?: AbortSignal,
+  opts: GigScanOptions = {}
+): Promise<GigScanSummary> {
   const startedAt = deps.now();
-  const all = deps.listSources(workspaceId);
+  const only = typeof opts.sourceId === "string" && opts.sourceId !== "" ? opts.sourceId : null;
+  const listed = deps.listSources(workspaceId);
+  const all = only ? listed.filter((s) => s.id === only) : listed;
   const sources = all.filter((s) => s.enabled && s.pausedReason === null);
   const summary: GigScanSummary = {
     workspaceId,
@@ -199,8 +254,13 @@ export async function runGigScan(workspaceId: string, deps: GigScanDeps = defaul
     qualified: 0,
     qualifyFailed: 0,
     aborted: false,
+    sourceId: only,
+    research: null,
   };
   const budget = budgetSignal(signal, deps.wallBudgetMs);
+  // The raw listing HTML this scan saw, per gig: the row keeps only the text, and the
+  // research pass reads the HTML's hrefs.
+  const htmlByGigId = new Map<string, string | null>();
   try {
     for (const source of sources) {
       if (budget.signal.aborted) {
@@ -215,6 +275,7 @@ export async function runGigScan(workspaceId: string, deps: GigScanDeps = defaul
       summary.found += run.summary.found;
       summary.created += run.summary.created;
       summary.suspect += run.summary.suspect;
+      for (const { gig, bodyHtml } of run.landed) htmlByGigId.set(gig.id, bodyHtml);
 
       // Qualification AFTER the source's outcome is recorded: acquisition truth does
       // not wait on a model, and a gig left `new` by an abort is picked up next scan.
@@ -232,6 +293,20 @@ export async function runGigScan(workspaceId: string, deps: GigScanDeps = defaul
         }
       }
     }
+    // Research LAST: acquisition and qualification truth never wait on page reads or a
+    // model. A gig left unresearched by the budget is picked up by the next scan.
+    if (deps.research && !budget.signal.aborted) {
+      try {
+        summary.research = await deps.research(workspaceId, {
+          signal: budget.signal,
+          limit: GIG_RESEARCH_MAX_PER_SCAN,
+          sourceId: only,
+          htmlByGigId,
+        });
+      } catch (error) {
+        deps.log({ level: "warn", code: "research_failed" }, error);
+      }
+    }
     if (budget.signal.aborted) summary.aborted = true;
     return { ...summary, finishedAt: deps.now() };
   } finally {
@@ -244,7 +319,7 @@ async function runOneSource(
   source: GigSource,
   deps: GigScanDeps,
   callerSignal: AbortSignal | undefined
-): Promise<{ summary: GigSourceRunSummary; landed: { gig: Gig; created: boolean }[] }> {
+): Promise<{ summary: GigSourceRunSummary; landed: { gig: Gig; created: boolean; bodyHtml: string | null }[] }> {
   const summary: GigSourceRunSummary = {
     sourceId: source.id,
     adapter: source.adapter,
@@ -255,7 +330,7 @@ async function runOneSource(
     created: 0,
     suspect: 0,
   };
-  const landed: { gig: Gig; created: boolean }[] = [];
+  const landed: { gig: Gig; created: boolean; bodyHtml: string | null }[] = [];
   const finish = (m: Mapped | null) => {
     if (m) {
       summary.outcome = m.outcome;
@@ -283,7 +358,7 @@ async function runOneSource(
       summary.found += 1;
       if (result.created) summary.created += 1;
       if (reasons.length > 0) summary.suspect += 1;
-      landed.push(result);
+      landed.push({ ...result, bodyHtml: raw.bodyHtml });
       if (summary.found >= deps.limits.maxItems) break;
       // Mid-source the budget is NOT enforced (never a half-run source), but a caller
       // cancellation is: an operator who pressed stop gets a stop.

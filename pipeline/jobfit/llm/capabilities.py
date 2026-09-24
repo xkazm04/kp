@@ -96,6 +96,10 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "cv_polish": frozenset({CAP_JSON}),
     "fit_dialog": frozenset({CAP_JSON}),
     "extraction_rules": frozenset({CAP_JSON}),
+    # Gigs (app/_lib/gigs/research.ts -> gig_brief_cli.py): one listing plus the pages it
+    # links to, fenced as data, in; a structured research brief (category, difficulty,
+    # effort, challenges, summary, asks) out as JSON. kp writes the Markdown from it.
+    "gig_brief": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -164,6 +168,12 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # A rule set is ~7 rules x locator + samples; the authoring prompt also asks for
     # the reasoning per rule, which is what the reviewer reads before saving.
     "extraction_rules": 4096,
+    # A gig brief is small by contract (a summary <=900 chars, <=7 challenges, <=8 asks,
+    # each <=240) - ~900 output tokens at the structural maximum - but the INPUT is up to
+    # three 20k-char pages, and a reasoning model that thinks over that much material runs
+    # past the base 2048 before it answers; a truncated object fails coerce_brief and the
+    # deterministic brief ships instead. Sized with fit_dialog/extraction_rules.
+    "gig_brief": 4096,
     # agent_fit re-emits the WHOLE judgement in one object: up to
     # _MAX_COVERAGE_ITEMS=12 {item, coverage, rationale} rows, then a spec whose
     # `systemPromptDraft` is asked for at <=1200 chars and ACCEPTED by the coercer

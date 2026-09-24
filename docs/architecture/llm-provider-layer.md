@@ -30,7 +30,10 @@ Backend shipped and in production use:
   outreach/reject/prep/scorecard/rematch), `campaign_pack`, `jd_ingest`,
   `group_compare`, `weight_proposal`, `devcase/*`, `profile_draft`
   (config-gated — its unconfigured default stays the direct Gemini path),
-  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`.
+  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`, and `gig_brief`
+  (the gig research brief, `gig_brief_cli.py`: keyless answers `no_provider` as data
+  and the caller writes its deterministic brief; its own **Gigs** section in the
+  Models routing table - docs/features/gigs/README.md "Research").
 - **`repo_scan` is the one use case whose *engine* changes what it can see.**
   Every provider gets the same prompt, which carries the deterministic dossier and
   the repo's own `CLAUDE.md`/`AGENTS.md` as grounding — but only `claude_cli` can

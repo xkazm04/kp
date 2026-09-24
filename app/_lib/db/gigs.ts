@@ -6,6 +6,7 @@ import {
   isGigSuspectReason,
   type Gig,
   type GigArena,
+  type GigBrief,
   type GigQualification,
   type GigReward,
   type GigStatus,
@@ -47,6 +48,9 @@ type GigRow = {
   suspect_reasons_json: string;
   specialist_id: string | null;
   qualification_json: string | null;
+  /** Added by ALTER (core.ts): NULL on every row until the gig is researched. */
+  brief_json?: string | null;
+  brief_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -79,9 +83,21 @@ function gigFromRow(row: GigRow): Gig {
     suspectReasons: parseStringArray(row.suspect_reasons_json, "gig.suspectReasons", row.id).filter(isGigSuspectReason),
     specialistId: row.specialist_id,
     qualification: qualification && typeof qualification === "object" ? qualification : null,
+    brief: briefFromJson(row.brief_json ?? null, row.id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/** A stored brief is read back only in the shape this build writes (`version: 1`, the
+ *  Markdown a string, the lists arrays); anything else reads as "not researched", so the
+ *  on-demand research door can write a fresh one instead of the UI painting a half-object. */
+function briefFromJson(json: string | null, id: string): GigBrief | null {
+  const parsed = safeRowParse<Partial<GigBrief>>(json, "gig.brief", id);
+  if (!parsed || typeof parsed !== "object") return null;
+  if (parsed.version !== 1 || typeof parsed.markdown !== "string") return null;
+  if (!Array.isArray(parsed.sections) || !Array.isArray(parsed.links) || !Array.isArray(parsed.challenges)) return null;
+  return parsed as GigBrief;
 }
 
 function cleanTitle(title: string): string {
@@ -431,4 +447,73 @@ export function setGigQualification(
 /** The operator cleared the honeypot flag: suspect -> new, reasons emptied, in one CAS. */
 export function clearGigSuspect(workspaceId: string, id: string): TransitionGigResult {
   return transitionGig(workspaceId, id, { from: "suspect", to: "new", patch: { suspectReasons: [] } });
+}
+
+// ---------------------------------------------------------------------------
+// Research briefs (gigs/research.ts)
+// ---------------------------------------------------------------------------
+
+/** Statuses research still informs a decision in: before dispatch, and while a draft is
+ *  in flight or under review. A gig that left the line (declined, withdrawn, expired) or
+ *  was already judged is never researched by the scan - the on-demand door can still do it. */
+export const GIG_RESEARCHABLE_STATUSES: readonly GigStatus[] = ["new", "suspect", "qualified", "dispatched", "drafted", "in_review"];
+
+/** Store the research brief. `brief_at` is the brief's own clock; `updated_at` (the desk's
+ *  sort key) is NOT touched - a brief annotates a listing, it does not move it. Null when
+ *  the gig is not in this workspace. */
+export function setGigBrief(workspaceId: string, id: string, brief: GigBrief): Gig | null {
+  const res = ensureDb()
+    .prepare(`UPDATE gigs SET brief_json = ?, brief_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(JSON.stringify(brief), brief.createdAt, id, workspaceId);
+  return res.changes > 0 ? getGig(workspaceId, id) : null;
+}
+
+/** Gigs with no brief yet, newest listing first, in a status research still informs.
+ *  `sourceId` narrows to one source (a single-source scan researches its own listings).
+ *  A stored deterministic brief counts as a brief: whether a provider answers NOW is not
+ *  knowable from the row, so an upgrade is the operator's on-demand re-research, never a
+ *  loop that re-spawns a keyless install every scan. */
+export function listGigsNeedingBrief(workspaceId: string, limit: number, opts: { sourceId?: string | null } = {}): Gig[] {
+  const n = Math.max(1, Math.min(50, Math.trunc(limit) || 1));
+  const statuses = GIG_RESEARCHABLE_STATUSES;
+  const statusPh = statuses.map(() => "?").join(", ");
+  const bySource = typeof opts.sourceId === "string" && opts.sourceId !== "";
+  const sourceSql = bySource ? " AND source_id = ?" : "";
+  const args: (string | number)[] = [workspaceId, ...statuses];
+  if (bySource) args.push(opts.sourceId as string);
+  args.push(n);
+  const rows = ensureDb()
+    .prepare(
+      `SELECT * FROM gigs
+       WHERE workspace_id = ? AND brief_json IS NULL AND status IN (${statusPh})${sourceSql}
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT ?`
+    )
+    .all(...args) as GigRow[];
+  return rows.map(gigFromRow);
+}
+
+/** Record honeypot reasons found AFTER the listing landed (on a page the listing linked
+ *  to) without moving status: a gig past `qualified` keeps its place on the line and
+ *  carries the reasons, exactly as upsertGigFromRaw records them on a re-scan. A `new` or
+ *  `qualified` gig moves to `suspect` through transitionGig instead (gigs/research.ts).
+ *  A compare-and-swap on the reasons read, so two writers cannot drop each other's.
+ *  Null when the gig is not in this workspace. */
+export function mergeGigSuspectReasons(workspaceId: string, id: string, reasons: readonly GigSuspectReason[]): Gig | null {
+  const d = ensureDb();
+  const run = d.transaction((): boolean => {
+    const row = d.prepare(`SELECT suspect_reasons_json FROM gigs WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as
+      | Pick<GigRow, "suspect_reasons_json">
+      | undefined;
+    if (!row) return false;
+    const prior = parseStringArray(row.suspect_reasons_json, "gig.suspectReasons", id).filter(isGigSuspectReason);
+    const merged = JSON.stringify(uniqueReasons([...prior, ...reasons]));
+    if (merged === row.suspect_reasons_json) return true;
+    d.prepare(
+      `UPDATE gigs SET suspect_reasons_json = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND suspect_reasons_json = ?`
+    ).run(merged, new Date().toISOString(), id, workspaceId, row.suspect_reasons_json);
+    return true;
+  });
+  return run.immediate() ? getGig(workspaceId, id) : null;
 }

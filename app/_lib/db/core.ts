@@ -2355,6 +2355,12 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE dev_lifecycle ADD COLUMN outcome_json TEXT",
     // When the candidate CHOSE `locale` (db/pipeline-locale.ts); NULL = inferred/apply-time.
     "ALTER TABLE pipeline_entries ADD COLUMN locale_chosen_at TEXT",
+    // A gig's research brief (gigs/research.ts, docs/features/gigs/README.md "Research"):
+    // the links its listing named, what reading them found, and the readable Markdown,
+    // as one GigBrief JSON; brief_at is when it was written. NULL on every row until the
+    // gig is researched - "not researched", never an empty brief.
+    "ALTER TABLE gigs ADD COLUMN brief_json TEXT",
+    "ALTER TABLE gigs ADD COLUMN brief_at TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

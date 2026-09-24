@@ -9419,7 +9419,8 @@
         "assignments": "Aufgaben",
         "other": "Sonstiges",
         "companion": "Begleiter",
-        "jobseeker": "Jobsuche"
+        "jobseeker": "Jobsuche",
+        "gigs": "Aufträge"
       },
       "health": {
         "label": {
@@ -9588,7 +9589,8 @@
       "profile_extract": "Profil-Extraktion",
       "grounded_salary": "Fundiertes Gehalt",
       "interview_realtime": "Voice-Interview",
-      "assistant": "Assistent"
+      "assistant": "Assistent",
+      "gig_brief": "Auftragsrecherche"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9670,7 +9672,8 @@
       "devcase_tooling": "Reserviert für die Tooling-Auswertung. Noch ohne aktiven Aufruf.",
       "devcase_transfer": "Reserviert für die Transfer-Auswertung. Noch ohne aktiven Aufruf.",
       "assistant": "Chat-Turns des Operator-Begleiters.",
-      "posting_translate": "Übersetzt ein veröffentlichtes Stelleninserat in eine andere Sprache."
+      "posting_translate": "Übersetzt ein veröffentlichtes Stelleninserat in eine andere Sprache.",
+      "gig_brief": "Liest eine Auftragsausschreibung und die darin verlinkten Seiten und schreibt die Recherche zum Auftrag: Kategorie, Schwierigkeit, Aufwand und zu erwartende Hürden."
     }
   },
   "jdPublic": {

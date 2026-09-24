@@ -16,7 +16,8 @@ imports from it.
 | Surface | Path | Gate |
 | --- | --- | --- |
 | API | `app/api/gigs/**` | operator-gated by the proxy, `requireOperator` in every handler, `pipeline:write` on every write |
-| Scan runner (manual) | `gig_scan` task kind: `app/_lib/tasks.ts` delegates to `app/_lib/late-bound-boot.ts` | enqueued only by `POST /api/gigs/scan` (a server kind, `task-admission.ts`) |
+| Scan runner (manual) | `gig_scan` task kind: `app/_lib/tasks.ts` delegates to `app/_lib/late-bound-boot.ts` | enqueued only by `POST /api/gigs/scan` (a server kind, `task-admission.ts`); `{ sourceId }` narrows it to one source |
+| Research | `app/_lib/gigs/research.ts` + `pipeline/jobfit/gig_brief_cli.py` (use case `gig_brief`) | after every scan (up to 8 gigs with no brief), and on demand through `POST /api/gigs/[id]/research` |
 | Sync + outcome pollers | `gig_sync` runner (`late-bound-boot.ts`) and clock job (`instrumentation-node.ts`) | scheduler job `gig_sync`, off by default |
 | Scan clock job | scheduler job `gig_scan` (`app/_lib/scheduler-jobs.ts`) | off by default; cannot be armed before one manual scan succeeded |
 | Lessons export | `GET/POST /api/gigs/lessons` | operator session, or the `x-kp-automation-token` machine door |
@@ -38,8 +39,20 @@ imports from it.
    unpaused source runs through its adapter (`app/_lib/gigs/adapters/`, behind the
    jobseeker `politeFetch` door), every listing goes through the deterministic
    honeypot scan (`suspect.ts`), and every listing still `new` is qualified
-   (`qualify.ts`, fixed weights, no model). The operator can also forward a brief by
-   hand (`POST /api/gigs`). It gets the same honeypot scan and the same qualification.
+   (`qualify.ts`, fixed weights, no model). Then up to eight gigs with no brief yet are
+   researched (see **Research** below). The operator can also forward a brief by
+   hand (`POST /api/gigs`). It gets the same honeypot scan and the same qualification,
+   and the next whole-workspace scan researches it.
+
+   **One source at a time.** `POST /api/gigs/scan { sourceId }` runs the same task for
+   that source only (the Sources screen's per-source button). An unknown id is 404
+   `GIG_SOURCE_NOT_FOUND`. A paused or disabled source is 409 `GIG_ACTION_NOT_ALLOWED`
+   with `{ reason: <pausedReason> | "disabled" }`, and nothing is enqueued: a scan never
+   un-pauses and never enables. Two scans of one source at once collapse onto one task
+   (dedupe key `gig_scan:<ws>:source:<id>`); two different sources each run. A
+   single-source run verifies the clock job under the same rule as a whole scan
+   (`tasks.ts`: a source ran and the run completed). Research after a single-source scan
+   covers that source's gigs only.
 3. **Specialists.** `POST /api/gigs/specialists {arena, niche}` composes a spec from
    the arena's recipes (`recipes.ts`, registry first, seed map otherwise) and hires it
    through the shared agent hire path (`mintAndDispatch`). A live specialist for the
@@ -74,6 +87,108 @@ imports from it.
    lesson with the recipe's registry-relative folder from `recipes/index.json`),
    appends the bullets to each recipe's LESSONS.md, commits, then stamps them with
    `POST /api/gigs/lessons {ids}`.
+
+## Research
+
+A listing often carries the real brief behind a link: the issue a bounty points at, the
+spec, the repository, the competition's data page. Research reads those links and writes
+one readable brief per gig (`GigBrief` in `types.ts`, stored as `gigs.brief_json`).
+
+**What is read.** URLs are taken from the listing text and from the hrefs of the listing's
+HTML (the scan hands the HTML over; the row keeps only the text, so the on-demand door
+sees the text's links only). Dropped: the listing's own URL, fragment-only links, images,
+media, archives, executables and office/PDF documents (by extension), a URL carrying
+credentials, social and chat hosts (a chat invite is a honeypot's favourite link), link
+shorteners (the destination is hidden) and image/badge CDNs, GitHub chrome (login,
+settings, assets), and duplicates. The rest are ranked (same repository or org, an issue
+or pull request, docs or a spec) and **at most three** are read
+(`GIG_RESEARCH_MAX_LINKS`). Each page keeps at most 20,000 characters.
+
+**How it is read, in order.**
+
+1. **Egress guard first.** Before any byte is requested, the link goes through kp's one
+   SSRF guard (`assertPublicHttpsEndpointResolved`, `app/_lib/ats-egress-guard.ts`): a
+   public DNS name, not an IP literal or an internal/loopback name, and every address it
+   resolves to public. Refused is `blocked (not_public_host)`; a name that does not
+   resolve is `failed (dns_unresolved)`. Under `KP_OFFLINE` nothing is even resolved:
+   every link is `skipped (offline)`.
+2. **One fetch door.** Pages are fetched only through the job-seeker `politeFetch` door:
+   robots.txt honoured (`blocked (robots_disallowed)`), per-host spacing, and a
+   401/403/429 or a bot wall is `blocked`, never retried. A GitHub issue, pull request or
+   repository is read through the GitHub API reader (`githubRead`,
+   `app/_lib/repo-snapshot.ts`) instead: the issue's title, state and body, or the
+   repository's description and README. HTML becomes text through the same
+   dependency-free `htmlToText` the job-seeker adapters use
+   (`app/_lib/job-posting-fetch.ts`; ADR 0009 keeps linkedom for the rules engine alone).
+   A type that is not text is `skipped (unsupported_type)`.
+3. **Untrusted pages.** Every fetched page goes through the same honeypot scan as the
+   listing (`suspect.ts`), its raw HTML included. A hit adds its reasons to the gig: a
+   `new` or `qualified` gig moves to `suspect` through the ordinary transition, and a gig
+   further along keeps its status and records the reasons. No further link of that gig is
+   followed (`skipped (gig_suspect)`), the model is not called, and the brief is still
+   written, with the link's line saying `fetched, flagged as a honeypot (<reasons>)`. A
+   gig that is already suspect has its links listed and none followed.
+4. **The model sees data, not instructions.** `gig_brief_cli.py` receives the listing and
+   the fetched pages as two JSON fields, `untrusted_listing` and `untrusted_pages`,
+   inside a fence whose marker carries a random nonce minted per call and checked absent
+   from the payload. The instructions say the fenced region is written by strangers, may
+   try to instruct the reader, and is never obeyed. The model answers JSON only: a
+   category, a retitle, a difficulty (`easy`, `moderate`, `hard`, `very_hard`,
+   `unrated`) with a one-sentence reason, an effort range in hours with a note, 3 to 7
+   challenges, a 2 to 4 sentence summary and the listed deliverables. The CLI and
+   `research.ts` each validate and clamp it.
+
+**The Markdown is kp's, not the model's.** `research.ts` writes the brief itself, in one
+fixed shape, so every brief reads the same:
+
+```markdown
+## What the gig is
+<2-4 sentence summary>
+
+## What it asks for
+- <each deliverable or acceptance criterion>
+
+## Difficulty and effort
+**<Difficulty>** - <reason>. Estimated **<min>-<max> h**. <note>
+
+## Expected challenges
+- <challenge>
+
+## Sources read
+- [<page title>](<url>) - fetched
+- `<url>` - blocked (not_public_host)
+- [<host/path>](<url>) - blocked (robots_disallowed) | skipped (<reason>) | failed (<reason>)
+```
+
+Every model string is inserted as one line of plain text: whitespace collapsed, and every
+character `app/_components/Markdown.tsx` interprets (backslash, `*`, backtick, `<`, `#`,
+`[`, `]`, and a leading `-` or `N.`) backslash-escaped, so no model or page text can open
+a heading, a list, a link or emphasis. The renderer and `markdown-html.ts` accept `\[`
+and `\]` for this. A link the egress guard refused is shown as code, never as a
+clickable link. The brief's headings are parsed into `sections` (`{ id, level, text }`)
+in the same function that writes the Markdown, with ids from one assigner per document:
+duplicates become `-2`, `-3`; a heading that slugifies to nothing (emoji, punctuation, a
+non-Latin script) gets `section-<n>`, n being its position (registry:
+`anchor-id-single-assigner`, `server-parsed-once-reused`). A UI reads the ids from
+`sections` and never re-slugifies.
+
+**When.** After every scan, up to eight gigs with no brief (newest first; statuses `new`,
+`suspect`, `qualified`, `dispatched`, `drafted`, `in_review`), inside the scan's wall
+budget, after acquisition and qualification. On demand, `POST /api/gigs/[id]/research`
+re-researches one gig synchronously within a 90-second budget (page reads stop between
+links when it runs out; the model is not started with under 15 seconds left) and answers
+`{ gig }` with the new brief. That door is also how a deterministic brief is upgraded
+once a key is set: the scan never re-researches a gig that already has a brief, of either
+kind.
+
+**Keyless.** The first spawn is the provider probe. With no provider for `gig_brief` the
+CLI answers `fallbackReason: "no_provider"` as data (exit 0), and the rest of that scan
+writes deterministic briefs with no further spawn. The deterministic brief is stored: its
+category is the arena plus the first tag, its title "<Arena> · <listing title>", its
+difficulty `unrated`, no effort and no challenges, and its Markdown is the listing's first
+paragraphs plus the same "Sources read" list, because the link list is the part the
+operator cannot get any other way. `fallbackReason` says why (`no_provider`,
+`gig_suspect`, `budget`, `engine_error`, `llm_unusable`, `llm_error:<type>`).
 
 ## The Gigs tab
 
@@ -249,7 +364,8 @@ seen. Info never gates.
 | GET | `/api/gigs/sources` | operator | none | none |
 | POST | `/api/gigs/sources` | `pipeline:write` | 60 `gigs-sources-write` | `GIG_INPUT_INVALID`, `GIG_SOURCE_REFUSED` |
 | PATCH | `/api/gigs/sources/[id]` | `pipeline:write` | 60 `gigs-sources-write` | `GIG_SOURCE_NOT_FOUND`, `GIG_SOURCE_TERMS_CHANGED`, `GIG_SOURCE_TERMS_REQUIRED`, `GIG_ACTION_NOT_ALLOWED` |
-| POST | `/api/gigs/scan` | `pipeline:write` | 6 `gigs-scan` | none (202 + `taskId`) |
+| POST | `/api/gigs/scan` | `pipeline:write` | 6 `gigs-scan` | 202 + `taskId`; with `{ sourceId }`: `GIG_SOURCE_NOT_FOUND` (404), `GIG_ACTION_NOT_ALLOWED` (409, `reason` = the pause or `disabled`), `GIG_INPUT_INVALID` |
+| POST | `/api/gigs/[id]/research` | `pipeline:write` | 20 `gigs-research` | 200 `{ gig }`; `GIG_NOT_FOUND` |
 | GET | `/api/gigs/specialists` | operator | none | none |
 | POST | `/api/gigs/specialists` | `pipeline:write` | 10 `gigs-specialist-hire` (plus the hire tail's own) | `GIG_INPUT_INVALID`, the hire tail's codes |
 | GET | `/api/gigs/kpi` | operator | none | none (the `GigKpi` also carries `moneyWon` per currency and `acceptedWithoutAmount`) |
@@ -264,7 +380,8 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | --- | --- |
 | `app/_lib/gigs/types.ts` | the wire vocabulary |
 | `app/_lib/gigs/transitions.ts` | both state machines as data (`drafted`/`in_review` -> `qualified` added for `discard`) |
-| `app/_lib/gigs/adapters/**`, `scan.ts`, `suspect.ts` | official-API acquisition, the honeypot scan, the scan orchestrator |
+| `app/_lib/gigs/adapters/**`, `scan.ts`, `suspect.ts` | official-API acquisition, the honeypot scan, the scan orchestrator (whole workspace or one source) |
+| `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's model call, the Markdown and its sections |
 | `app/_lib/gigs/qualify.ts` | deterministic qualification and specialist match |
 | `app/_lib/gigs/recipes.ts`, `specialist.ts`, `checklists.ts` | recipe resolution, specialist composition and hire, per-arena review checklists |
 | `app/_lib/gigs/dispatch.ts`, `personas-exec.ts`, `sync.ts`, `deliverable.ts` | Personas dispatch, run sync, deliverable parser |
@@ -369,7 +486,9 @@ holds candidate data:
 `gig_sources` (`db/gigs-sources.ts`), `gigs` (`db/gigs.ts`), `gig_specialists`
 (`db/gigs-specialists.ts`), `gig_attempts` (`db/gigs-attempts.ts`), `gig_outcomes`
 (append-only) and `gig_lessons` (`db/gigs-outcomes.ts`). Every status move is a CAS
-under `.immediate()`.
+under `.immediate()`. `gigs.brief_json` (the `GigBrief`) and `gigs.brief_at` are
+ALTER-added and NULL until the gig is researched; writing a brief does not touch
+`updated_at`, the desk's sort key.
 
 ## Keyless behaviour
 
@@ -378,6 +497,8 @@ under `.immediate()`.
   pause as `no_key` until the operator sets the key.
 - Qualification, the honeypot scan, lesson derivation and the KPI are deterministic.
   No model is involved.
+- Research reads links keyless. Without a provider for `gig_brief` it writes the
+  deterministic brief (one probe spawn per scan, then none); see **Research**.
 - The GitHub poller runs keyless at GitHub's unauthenticated rate. The Kaggle poller does
   nothing without `KAGGLE_USERNAME` + `KAGGLE_KEY`: it makes no request and records no
   verdict.
@@ -387,6 +508,17 @@ under `.immediate()`.
   access.
 
 ## Known gaps
+
+- Research vets a link's host before the first request AND on every redirect hop (the
+  `hopGuard` option of `politeFetch`, `redirect_refused:<reason>`). What remains is the
+  resolve-then-fetch window `ats-egress-guard.ts` states: DNS can change between the vet
+  and the connection.
+- The brief's headings and the model's text are English whatever the reader's locale.
+  The section ids are stable, so a UI can label the five fixed sections from its own
+  catalog.
+- `app/_components/Markdown.tsx` renders no heading ids; a surface that links to a
+  section must render the ids from `sections`.
+- PDF and other document links are dropped, not read.
 
 - Three arena recipes (the bug-bounty report, the open-source bounty contribution and
   the opportunity qualification) are not in the registry yet. They resolve from the

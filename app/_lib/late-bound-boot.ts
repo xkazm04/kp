@@ -100,10 +100,22 @@ export function registerLateBoundImplementations(): void {
   // default deps PLUS the qualifier (gigs/qualify.ts), which the scan's defaults leave
   // unplugged: every listing still `new` is scored and matched to a specialist as it
   // lands. The manual run is what verifies the clock job (requiresVerifiedRun).
+  // The researcher (gigs/research.ts) is plugged the same way: after qualification, up
+  // to eight gigs with no brief get their linked pages read and a Markdown brief. It is
+  // imported HERE, never by the task hub, so the page-reading and Python-spawn graph stays
+  // off every importer's path. `params.sourceId` (POST /api/gigs/scan {sourceId}) narrows
+  // the run to one source.
   registerTaskRunner("gig_scan", async (ctx) => {
     const { runGigScan, defaultGigScanDeps } = await import("./gigs/scan");
     const { qualifyGigHook } = await import("./gigs/qualify");
-    return runGigScan(ctx.workspaceId, { ...defaultGigScanDeps(), qualify: qualifyGigHook }, ctx.signal);
+    const { researchGigBatch } = await import("./gigs/research");
+    const sourceId = typeof ctx.params.sourceId === "string" && ctx.params.sourceId ? ctx.params.sourceId : null;
+    return runGigScan(
+      ctx.workspaceId,
+      { ...defaultGigScanDeps(), qualify: qualifyGigHook, research: (ws, info) => researchGigBatch(ws, info) },
+      ctx.signal,
+      { sourceId }
+    );
   });
   // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts),
   // then asks the outcome pollers (gigs/pollers.ts, WP4) about the workspace's SENT work:

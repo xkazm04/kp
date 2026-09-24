@@ -5,7 +5,8 @@ import { safeLinkHref } from "./markdown-html";
 // A small, dependency-free Markdown renderer for the subset job postings need:
 // # / ## / ### headings, - / * bullet and 1. ordered lists, --- rules, blank-line
 // paragraphs, inline **bold** / *italic* / `code` / `[text](url)` links / <u>, and
-// backslash escapes (`\*` prints a literal `*`). It builds React elements (never
+// backslash escapes (`\*` prints a literal `*`; `\[` / `\]` print brackets that can never
+// form a link - generated text such as a gig brief relies on it). It builds React elements (never
 // dangerouslySetInnerHTML), so input text — including link hrefs — is rendered safely.
 
 function inline(text: string, keyBase: string): ReactNode[] {
@@ -16,7 +17,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
   // markers. Bold/italic/link-text recurse so nested emphasis renders; code is literal.
   // Still builds React elements, never dangerouslySetInnerHTML.
   // Groups: 1 escaped char · 2 link text · 3 link url · 4 bold · 5 italic · 6 code · 7 underline.
-  const re = /\\([\\*`<#.-])|\[([^\]]+)\]\(([^)]+)\)|\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
+  const re = /\\([\\*`<#.[\]-])|\[([^\]]+)\]\(([^)]+)\)|\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
   let rest = text;
   let n = 0;
   while (rest.length) {

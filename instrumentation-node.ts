@@ -102,6 +102,7 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
     const { listGigSources } = await import("./app/_lib/db/gigs-sources");
     const { runGigScan, defaultGigScanDeps, GIG_SCAN_WALL_BUDGET_MS } = await import("./app/_lib/gigs/scan");
     const { qualifyGigHook } = await import("./app/_lib/gigs/qualify");
+    const { researchGigBatch } = await import("./app/_lib/gigs/research");
     const workspaces = listWorkspaces()
       .map((w) => w.id)
       .filter((ws) => listGigSources(ws).some((s) => s.enabled && s.pausedReason === null));
@@ -115,9 +116,13 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
           totals.skipped += 1;
           continue;
         }
-        // The scan's defaults plus the qualifier, exactly as the manual door runs it
-        // (late-bound-boot.ts `gig_scan`).
-        await runGigScan(ws, { ...defaultGigScanDeps(), qualify: qualifyGigHook }, controller.signal);
+        // The scan's defaults plus the qualifier and the researcher, exactly as the
+        // manual door runs it (late-bound-boot.ts `gig_scan`).
+        await runGigScan(
+          ws,
+          { ...defaultGigScanDeps(), qualify: qualifyGigHook, research: (w, info) => researchGigBatch(w, info) },
+          controller.signal
+        );
         totals.workspaces += 1;
       }
     } finally {

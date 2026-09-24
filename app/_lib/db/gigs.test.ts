@@ -3,7 +3,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
-import type { GigQualification, RawGig } from "../gigs/types.ts";
+import type { GigBrief, GigQualification, RawGig } from "../gigs/types.ts";
 import { ensureDb } from "./core.ts";
 import {
   clearGigSuspect,
@@ -11,6 +11,9 @@ import {
   getGig,
   gigManualExternalKey,
   listGigs,
+  listGigsNeedingBrief,
+  mergeGigSuspectReasons,
+  setGigBrief,
   setGigQualification,
   transitionGig,
   upsertGigFromRaw,
@@ -199,4 +202,68 @@ test("another workspace cannot read, qualify or move a gig", () => {
   assert.equal(theirs.created, true);
   assert.notEqual(theirs.gig.id, g.id);
   assert.equal(getGig(WS, g.id)?.status, "new");
+});
+
+function brief(over: Partial<GigBrief> = {}): GigBrief {
+  return {
+    version: 1,
+    category: "Open-source bounty · rust",
+    title: "Open-source bounty · Fix",
+    difficulty: "unrated",
+    difficultyReason: null,
+    effort: null,
+    challenges: [],
+    markdown: "## What the gig is\nFix it.\n\n## Sources read\nThe listing links to nothing kp could read.",
+    sections: [
+      { id: "what-the-gig-is", level: 2, text: "What the gig is" },
+      { id: "sources-read", level: 2, text: "Sources read" },
+    ],
+    links: [],
+    source: "deterministic",
+    fallbackReason: "no_provider",
+    promptVersion: "gig-brief-v1",
+    createdAt: "2026-09-24T12:00:00.000Z",
+    ...over,
+  };
+}
+
+test("briefs: a new gig has none; setGigBrief stores it without touching updated_at; listGigsNeedingBrief skips briefed, off-line and other-source gigs", () => {
+  const ws = "ws-gigs-brief";
+  const a = upsertGigFromRaw(ws, { sourceId: "src-a", arena: "oss_bounty", raw: raw(), suspectReasons: [] }).gig;
+  const b = upsertGigFromRaw(ws, { sourceId: "src-a", arena: "oss_bounty", raw: raw(), suspectReasons: [] }).gig;
+  const c = upsertGigFromRaw(ws, { sourceId: "src-b", arena: "oss_bounty", raw: raw(), suspectReasons: [] }).gig;
+  const d = upsertGigFromRaw(ws, { sourceId: "src-a", arena: "oss_bounty", raw: raw(), suspectReasons: [] }).gig;
+  assert.equal(a.brief, null);
+  assert.ok(transitionGig(ws, d.id, { from: "new", to: "declined" }).ok);
+
+  const needing = listGigsNeedingBrief(ws, 10).map((g) => g.id);
+  assert.deepEqual(needing, [c.id, b.id, a.id], "newest first; a declined gig is not researched by the scan");
+  assert.deepEqual(listGigsNeedingBrief(ws, 10, { sourceId: "src-a" }).map((g) => g.id), [b.id, a.id]);
+  assert.deepEqual(listGigsNeedingBrief(ws, 1).map((g) => g.id), [c.id]);
+
+  const stored = setGigBrief(ws, a.id, brief());
+  assert.ok(stored);
+  assert.equal(stored.updatedAt, a.updatedAt, "a brief annotates a listing; it does not move it on the desk");
+  assert.deepEqual(stored.brief, brief());
+  assert.deepEqual(listGigsNeedingBrief(ws, 10).map((g) => g.id), [c.id, b.id], "a deterministic brief counts as a brief");
+  assert.equal(setGigBrief(OTHER, b.id, brief()), null, "another workspace cannot write a brief");
+  assert.equal(getGig(ws, b.id)?.brief, null);
+  const theirs = listGigsNeedingBrief(OTHER, 50).map((g) => g.id);
+  assert.ok(![a.id, b.id, c.id].some((id) => theirs.includes(id)), "a workspace never sees another's gigs");
+
+  // A row whose brief_json is not this build's shape reads as "not researched".
+  ensureDb().prepare("UPDATE gigs SET brief_json = ? WHERE id = ? AND workspace_id = ?").run(JSON.stringify({ version: 2 }), b.id, ws);
+  assert.equal(getGig(ws, b.id)?.brief, null);
+});
+
+test("mergeGigSuspectReasons records reasons without a status move, and is workspace-scoped", () => {
+  const ws = "ws-gigs-merge";
+  const g = upsertGigFromRaw(ws, { sourceId: "src-a", arena: "oss_bounty", raw: raw(), suspectReasons: [] }).gig;
+  assert.ok(transitionGig(ws, g.id, { from: "new", to: "qualified" }).ok);
+  const merged = mergeGigSuspectReasons(ws, g.id, ["agent_addressed"]);
+  assert.deepEqual([merged?.status, merged?.suspectReasons], ["qualified", ["agent_addressed"]]);
+  const again = mergeGigSuspectReasons(ws, g.id, ["agent_addressed", "off_platform_payment"]);
+  assert.deepEqual(again?.suspectReasons, ["agent_addressed", "off_platform_payment"]);
+  assert.equal(mergeGigSuspectReasons(OTHER, g.id, ["credential_request"]), null);
+  assert.deepEqual(getGig(ws, g.id)?.suspectReasons, ["agent_addressed", "off_platform_payment"]);
 });

@@ -9,7 +9,7 @@ import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
-import { getGig } from "../../_lib/db/gigs.ts";
+import { createManualGig, getGig } from "../../_lib/db/gigs.ts";
 import { gigCatalogEntry } from "../../_lib/gigs/sources-catalog.ts";
 import { GIG_DISCLOSURE_ITEM, type Gig, type GigSource } from "../../_lib/gigs/types.ts";
 import { fixtureDraftedGig, fixtureSentGig, fixtureSpecialist } from "../../_lib/gigs/__fixtures__/sent-gig.ts";
@@ -21,6 +21,7 @@ import { GET as GET_ATTEMPT, POST as REVIEW } from "./attempts/[id]/route.ts";
 import { GET as SOURCES, POST as CREATE_SOURCE } from "./sources/route.ts";
 import { PATCH as PATCH_SOURCE } from "./sources/[id]/route.ts";
 import { GET as LESSONS, POST as LAND } from "./lessons/route.ts";
+import { POST as RESEARCH } from "./[id]/research/route.ts";
 
 const WS = DEFAULT_WORKSPACE_ID;
 
@@ -242,4 +243,30 @@ test("sources: catalog, tier A enabled, tier B held for terms, manual refused, s
   const resumed = await json<{ source: GigSource }>(await PATCH_SOURCE(req("PATCH", { action: "resume" }), params(ghSource.id)));
   assert.equal(resumed.source.pausedReason, null);
   assert.equal(await code(await PATCH_SOURCE(req("PATCH", { action: "resume" }), params("gsrc-nope"))), "GIG_SOURCE_NOT_FOUND");
+});
+
+test("POST /api/gigs/[id]/research: 404 for an unknown gig; a suspect gig gets a stored deterministic brief that lists its links and follows none", async () => {
+  assert.equal(await code(await RESEARCH(req("POST"), params("gig-nope"))), "GIG_NOT_FOUND");
+  const { gig } = createManualGig(WS, {
+    arena: "freelance",
+    url: "https://example.test/brief/research-1",
+    title: "Landing page rebuild",
+    org: null,
+    reward: null,
+    deadlineAt: null,
+    bodyText: "Rebuild the landing page. Spec: https://docs.example.org/landing-spec",
+    tags: ["nextjs"],
+    suspectReasons: ["agent_addressed"],
+  });
+  assert.equal(gig.status, "suspect");
+  const res = await RESEARCH(req("POST"), params(gig.id));
+  assert.equal(res.status, 200);
+  const body = await json<{ gig: Gig }>(res);
+  const brief = body.gig.brief;
+  assert.ok(brief);
+  assert.deepEqual([brief.source, brief.fallbackReason, brief.difficulty], ["deterministic", "gig_suspect", "unrated"]);
+  assert.deepEqual(brief.links.map((l) => [l.url, l.status, l.reason]), [["https://docs.example.org/landing-spec", "skipped", "gig_suspect"]]);
+  assert.equal(brief.title, "Freelance · Landing page rebuild");
+  assert.deepEqual(brief.sections.map((s) => s.id), ["what-the-gig-is", "sources-read"]);
+  assert.deepEqual(getGig(WS, gig.id)?.brief, brief, "the brief is stored on the gig");
 });

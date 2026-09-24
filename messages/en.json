@@ -9419,7 +9419,8 @@
         "assignments": "Assignments",
         "other": "Other",
         "companion": "Companion",
-        "jobseeker": "Job search"
+        "jobseeker": "Job search",
+        "gigs": "Gigs"
       },
       "health": {
         "label": {
@@ -9588,7 +9589,8 @@
       "profile_extract": "Profile extraction",
       "grounded_salary": "Grounded salary",
       "interview_realtime": "Voice interview",
-      "assistant": "Assistant"
+      "assistant": "Assistant",
+      "gig_brief": "Gig research brief"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9670,7 +9672,8 @@
       "devcase_tooling": "Reserved for the assignment tooling evaluator. No live call site yet.",
       "devcase_transfer": "Reserved for the assignment transfer evaluator. No live call site yet.",
       "assistant": "Operator companion chat turns.",
-      "posting_translate": "Translates a published role posting into another language."
+      "posting_translate": "Translates a published role posting into another language.",
+      "gig_brief": "Reads a paid-work listing and the pages it links to, and writes the gig's research brief: category, difficulty, effort and expected challenges."
     }
   },
   "jdPublic": {

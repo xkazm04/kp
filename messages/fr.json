@@ -9419,7 +9419,8 @@
         "assignments": "Exercices",
         "other": "Autres",
         "companion": "Compagnon",
-        "jobseeker": "Recherche d'emploi"
+        "jobseeker": "Recherche d'emploi",
+        "gigs": "Missions"
       },
       "health": {
         "label": {
@@ -9588,7 +9589,8 @@
       "profile_extract": "Extraction de profil",
       "grounded_salary": "Salaire étayé",
       "interview_realtime": "Entretien vocal",
-      "assistant": "Assistant"
+      "assistant": "Assistant",
+      "gig_brief": "Fiche de recherche de mission"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9670,7 +9672,8 @@
       "devcase_tooling": "Réservé à l’évaluation de l’outillage. Pas encore d’appel actif.",
       "devcase_transfer": "Réservé à l’évaluation du transfert. Pas encore d’appel actif.",
       "assistant": "Tours de conversation du compagnon de l'opérateur.",
-      "posting_translate": "Traduit une annonce de poste publiée dans une autre langue."
+      "posting_translate": "Traduit une annonce de poste publiée dans une autre langue.",
+      "gig_brief": "Lit une annonce de mission rémunérée et les pages qu'elle cite, puis rédige la fiche de recherche : catégorie, difficulté, effort estimé et difficultés attendues."
     }
   },
   "jdPublic": {

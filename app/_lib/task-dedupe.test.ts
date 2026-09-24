@@ -232,3 +232,15 @@ test("repo_scan keys by tenant + target, so two readings of one repo are one run
   assert.equal(buildDedupeKey("repo_scan", { scanId: "r1", workspaceId: "ws1" }), null);
   assert.equal(buildDedupeKey("repo_scan", { scanId: "r1", repoUrl: "https://github.com/acme/app" }), null);
 });
+
+test("gig_scan keys by tenant, and a single-source scan by tenant + source", () => {
+  assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1" }), "gig_scan:ws-1");
+  assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "gsrc-a" }), "gig_scan:ws-1:source:gsrc-a");
+  assert.notEqual(
+    buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "gsrc-a" }),
+    buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "gsrc-b" }),
+    "two different sources each run"
+  );
+  assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "  " }), "gig_scan:ws-1", "a blank source is the whole-workspace scan");
+  assert.equal(buildDedupeKey("gig_scan", { sourceId: "gsrc-a" }), null, "no tenant, no key");
+});

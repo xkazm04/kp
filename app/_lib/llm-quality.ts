@@ -145,6 +145,7 @@ export const UNMEASURED_USE_CASES: readonly UnmeasuredUseCase[] = [
   { id: "cv_polish", reason: "No bench scenario; job-seeker polish is not in the matrix." },
   { id: "fit_dialog", reason: "No bench scenario; job-seeker fit dialog is not in the matrix." },
   { id: "extraction_rules", reason: "No bench scenario; extraction-rule authoring is not in the matrix." },
+  { id: "gig_brief", reason: "No bench scenario; gig research briefs are not in the matrix." },
 ];
 
 /** Bench ops that feed one routing use case (the "*" catch-all maps to nothing). */

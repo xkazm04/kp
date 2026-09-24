@@ -184,3 +184,23 @@ test("an authorization header reaches the starting host only; a cross-host redir
   assert.equal(auth("https://cdn.b.example/list3"), undefined, "a hop onto another host drops it");
   assert.equal(auth("https://api.a.example/robots.txt"), undefined);
 });
+
+test("a hopGuard refuses a redirect target before it is requested (SSRF through a redirect)", async () => {
+  const h = harness({
+    "https://public.example/robots.txt": () => new Response("", { status: 404 }),
+    "https://public.example/go": () => new Response(null, { status: 302, headers: { location: "http://internal.example/admin" } }),
+    "*": () => html("should never be fetched"),
+  });
+  const seen: string[] = [];
+  const out = await politeFetch("https://public.example/go", {
+    sourceId: "s1",
+    hopGuard: async (next) => {
+      seen.push(next.href);
+      return next.hostname === "internal.example" ? "not_public_host" : null;
+    },
+  });
+  assert.equal(out.kind, "blocked");
+  assert.equal(out.kind === "blocked" ? out.detail : "", "redirect_refused:not_public_host");
+  assert.deepEqual(seen, ["http://internal.example/admin"], "the guard saw the hop target");
+  assert.ok(!h.calls.some((c) => c.url.startsWith("http://internal.example")), "the private target was never requested, robots.txt included");
+});

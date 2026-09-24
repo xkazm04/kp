@@ -2224,6 +2224,15 @@ const ROUTES: RouteSpec[] = [
     expensive: "acknowledgeGigSource(ws",
   },
   {
+    // On-demand research: up to three third-party page reads under the shared politeness
+    // budget plus one model call. 20/10min per IP, the dispatch door's budget.
+    rel: "./gigs/[id]/research/route.ts",
+    key: "`gigs-research:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "researchGig(ws",
+  },
+  {
     // The registry lander's stamp: one UPDATE batch per landing commit.
     rel: "./gigs/lessons/route.ts",
     key: "`gigs-lessons-land:${clientIpFrom(request.headers)}`",

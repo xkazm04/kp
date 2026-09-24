@@ -50,6 +50,10 @@ export type PoliteFetchOptions = {
    *  started on - a redirect onto another host drops it, so a credential never follows
    *  a hop off the API it was issued for. Never logged. */
   authorization?: string;
+  /** Vets every redirect TARGET before it is requested (the gig researcher passes kp's
+   *  public-host egress guard here, so a link to a public page cannot bounce the fetch onto
+   *  a private address). Answers a refusal reason, or null to allow the hop. */
+  hopGuard?: (next: URL) => Promise<string | null>;
 };
 
 export type PoliteFetch = (url: string, opts: PoliteFetchOptions) => Promise<FetchOutcome>;
@@ -316,6 +320,10 @@ export const politeFetch: PoliteFetch = async function politeFetch(url, opts): P
     if ("redirect" in outcome) {
       if (hop === MAX_REDIRECTS) return { kind: "outage", detail: "too_many_redirects" };
       if (outcome.redirect.protocol !== "http:" && outcome.redirect.protocol !== "https:") return { kind: "outage", detail: "bad_scheme" };
+      if (opts.hopGuard) {
+        const refused = await opts.hopGuard(outcome.redirect);
+        if (refused) return { kind: "blocked", detail: `redirect_refused:${refused}` };
+      }
       current = outcome.redirect;
       continue;
     }

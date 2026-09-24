@@ -9419,7 +9419,8 @@
         "assignments": "Zadání",
         "other": "Ostatní",
         "companion": "Společník",
-        "jobseeker": "Hledání práce"
+        "jobseeker": "Hledání práce",
+        "gigs": "Zakázky"
       },
       "health": {
         "label": {
@@ -9588,7 +9589,8 @@
       "profile_extract": "Extrakce profilu",
       "grounded_salary": "Tržní odhad mzdy",
       "interview_realtime": "Hlasový pohovor",
-      "assistant": "Asistent"
+      "assistant": "Asistent",
+      "gig_brief": "Rešerše zakázky"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9670,7 +9672,8 @@
       "devcase_tooling": "Rezervováno pro vyhodnocení použitých nástrojů. Zatím bez živého volání.",
       "devcase_transfer": "Rezervováno pro vyhodnocení přenositelnosti. Zatím bez živého volání.",
       "assistant": "Konverzační tahy operátorova společníka.",
-      "posting_translate": "Překládá zveřejněný inzerát role do dalšího jazyka."
+      "posting_translate": "Překládá zveřejněný inzerát role do dalšího jazyka.",
+      "gig_brief": "Přečte inzerát placené zakázky a stránky, na které odkazuje, a sepíše k ní rešerši: kategorii, náročnost, odhad práce a očekávané potíže."
     }
   },
   "jdPublic": {

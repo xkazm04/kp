@@ -72,7 +72,7 @@ function escapeLeadingMarker(block: string): string {
 // setting innerHTML with the result is safe.
 // Groups: 1 escaped char · 2 link text · 3 link url · 4 bold · 5 italic · 6 code · 7 underline.
 function inlineToHtml(text: string): string {
-  const re = /\\([\\*`<#.-])|\[([^\]]+)\]\(([^)]+)\)|\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
+  const re = /\\([\\*`<#.[\]-])|\[([^\]]+)\]\(([^)]+)\)|\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
   let out = "";
   let rest = text;
   while (rest.length) {

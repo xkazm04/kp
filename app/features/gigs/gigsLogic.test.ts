@@ -51,6 +51,7 @@ function gig(id: string, status: GigStatus, p: Partial<Gig> = {}): Gig {
     suspectReasons: [],
     specialistId: null,
     qualification: null,
+    brief: null,
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
     ...p,

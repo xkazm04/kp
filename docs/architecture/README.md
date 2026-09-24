@@ -107,7 +107,10 @@ singleton (`"batch_screen"`); it is now the sorted `entryIds` cohort (the board
 row's AI-evaluate), or `batch_screen:<workspaceId>` for the legacy full-board sweep
 with no ids. Two roles can be evaluated at once without swapping verdicts. Lookup
 is already per-workspace (`getActiveTaskByDedupe`), so the cohort fingerprint is
-what stops same-tenant cross-role contamination.
+what stops same-tenant cross-role contamination. `gig_scan` is one per tenant, or one
+per tenant and source when the Sources screen scans a single source
+(`gig_scan:<ws>:source:<id>`), so two clicks on one source collapse and two sources
+each run.
 
 **One kind vocabulary.** The task kinds are a closed list, `TASK_KINDS` in
 `app/_lib/task-kinds.ts`, with the derived `TaskKind` union and an `isTaskKind` guard.

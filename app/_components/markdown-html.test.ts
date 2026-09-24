@@ -115,6 +115,15 @@ test("a paragraph starting with a block marker is escaped, not turned into a lis
   assert.equal(htmlToMarkdown("<h2>Real heading</h2>"), "## Real heading");
 });
 
+test("escaped brackets render literally, so escaped text can never become a link", () => {
+  // Generated briefs (gigs/research.ts escapeBriefText) escape `[` and `]` in model and
+  // page text; the renderer must print them and must not form an <a> from them.
+  assert.equal(markdownToHtml("see \\[docs\\](https://evil.example) now"), "<p>see [docs](https://evil.example) now</p>");
+  assert.equal(markdownToHtml("arr\\[0\\]"), "<p>arr[0]</p>");
+  // An unescaped link is still a link (regression guard).
+  assert.match(markdownToHtml("[docs](https://ok.example)"), /<a [^>]*href="https:\/\/ok\.example"/);
+});
+
 // ── Finding #5: [text](url) links render, round-trip, and reject unsafe schemes ──
 
 test("safeLinkHref allows only http/https/mailto", () => {

@@ -115,6 +115,7 @@ function harness(sources: GigSource[], adapters: Partial<Record<string, GigAdapt
         suspectReasons: [...input.suspectReasons],
         specialistId: null,
         qualification: null,
+        brief: null,
         createdAt: "2026-09-24T00:00:00.000Z",
         updatedAt: "2026-09-24T00:00:00.000Z",
       };
@@ -292,4 +293,96 @@ test("a qualify hook that throws is counted and logged; the scan and the other g
   const s2 = await runGigScan("ws-1", none.deps);
   assert.equal(s2.qualified, 0);
   assert.equal(s2.found, 1);
+});
+
+test("opts.sourceId runs ONLY that source; a paused one is still not run; an unknown one runs nothing", async () => {
+  const sources = [source("s-gh", "github_bounty"), source("s-fl", "freelancer_api"), source("s-paused", "kaggle", { pausedReason: "no_key" })];
+  const adapters = {
+    "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]),
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-1")]),
+    "s-paused": fixtureAdapter("kaggle", [raw("never")]),
+  };
+  const one = harness(sources, adapters);
+  const s1 = await runGigScan("ws-1", one.deps, undefined, { sourceId: "s-fl" });
+  assert.equal(s1.sourceId, "s-fl");
+  assert.deepEqual(s1.sources.map((s) => s.sourceId), ["s-fl"]);
+  assert.deepEqual(one.upserts.map((u) => u.key), ["fl-1"], "the other source is not touched");
+  assert.equal(s1.notRunnable, 0, "notRunnable counts only within the narrowed set");
+
+  const paused = harness(sources, adapters);
+  const s2 = await runGigScan("ws-1", paused.deps, undefined, { sourceId: "s-paused" });
+  assert.deepEqual(s2.sources, [], "a pause that landed after the enqueue is honoured - the scan never un-pauses");
+  assert.equal(s2.notRunnable, 1);
+  assert.deepEqual(paused.upserts, []);
+
+  const gone = harness(sources, adapters);
+  const s3 = await runGigScan("ws-1", gone.deps, undefined, { sourceId: "s-deleted" });
+  assert.deepEqual([s3.sources.length, s3.notRunnable, s3.found], [0, 0, 0]);
+
+  const all = harness(sources, adapters);
+  const s4 = await runGigScan("ws-1", all.deps);
+  assert.equal(s4.sourceId, null, "no option keeps the whole-workspace scan");
+  assert.deepEqual(s4.sources.map((s) => s.sourceId), ["s-gh", "s-fl"]);
+});
+
+test("the research hook runs LAST, once, with the scan's listing HTML and the narrowed source; its throw is logged, never fatal", async () => {
+  const calls: { limit: number; sourceId: string | null; html: [string, string | null][] }[] = [];
+  const order: string[] = [];
+  const h = harness(
+    [source("s-gh", "github_bounty")],
+    { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1", { bodyHtml: '<a href="https://docs.example/spec">spec</a>' }), raw("gh-2")]) },
+    {
+      qualify: (_ws, gig) => {
+        order.push(`qualify:${gig.externalKey}`);
+      },
+      research: async (_ws, info) => {
+        order.push("research");
+        calls.push({ limit: info.limit, sourceId: info.sourceId, html: [...info.htmlByGigId.entries()] });
+        return { attempted: 2, llm: 0, deterministic: 2, failed: 0, flagged: 0, providerMissing: true };
+      },
+    }
+  );
+  const summary = await runGigScan("ws-1", h.deps, undefined, { sourceId: "s-gh" });
+  assert.deepEqual(order, ["qualify:gh-1", "qualify:gh-2", "research"], "research follows acquisition and qualification");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].limit, 8);
+  assert.equal(calls[0].sourceId, "s-gh");
+  assert.deepEqual(calls[0].html, [
+    ["gig-gh-1", '<a href="https://docs.example/spec">spec</a>'],
+    ["gig-gh-2", null],
+  ]);
+  assert.deepEqual(summary.research, { attempted: 2, llm: 0, deterministic: 2, failed: 0, flagged: 0, providerMissing: true });
+
+  const boom = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
+    research: async () => {
+      throw new Error("spawn ENOENT");
+    },
+  });
+  const s2 = await runGigScan("ws-1", boom.deps);
+  assert.equal(s2.research, null);
+  assert.equal(s2.sources[0].outcome, "succeeded");
+  assert.ok(boom.logs.includes("-:research_failed"));
+
+  // No researcher plugged (the scan's own defaults): no research, summary says null.
+  const none = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) });
+  assert.equal((await runGigScan("ws-1", none.deps)).research, null);
+});
+
+test("research is not started once the wall budget has fired", async () => {
+  let researched = false;
+  const h = harness(
+    [source("s-slow", "github_bounty")],
+    { "s-slow": fixtureAdapter("github_bounty", [raw("gh-a")], undefined, 40) },
+    {
+      wallBudgetMs: 5,
+      research: async () => {
+        researched = true;
+        return { attempted: 0, llm: 0, deterministic: 0, failed: 0, flagged: 0, providerMissing: false };
+      },
+    }
+  );
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.equal(researched, false);
+  assert.equal(summary.research, null);
+  assert.equal(summary.aborted, true);
 });

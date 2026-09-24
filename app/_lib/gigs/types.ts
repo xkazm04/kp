@@ -191,6 +191,51 @@ export type GigQualification = {
   fallbackReason: string | null;
 };
 
+// ---------------------------------------------------------------------------
+// Research: the links a listing names, read once, and the readable brief
+// (app/_lib/gigs/research.ts, docs/features/gigs/README.md "Research")
+// ---------------------------------------------------------------------------
+
+/** How hard the work looks. `unrated` is the honest answer when no model rated it. */
+export const GIG_DIFFICULTIES = ["easy", "moderate", "hard", "very_hard", "unrated"] as const;
+export type GigDifficulty = (typeof GIG_DIFFICULTIES)[number];
+export function isGigDifficulty(v: unknown): v is GigDifficulty {
+  return typeof v === "string" && (GIG_DIFFICULTIES as readonly string[]).includes(v);
+}
+
+/** What happened to one link the listing named. `fetched` = read (a page that tripped
+ *  the honeypot scan says so in `reason`, `suspect:<reasons>`); `blocked` = refused by
+ *  kp's egress guard (private/loopback host) or by the host itself (robots.txt, a
+ *  denial); `skipped` = deliberately not read (offline, the gig is suspect, a type kp
+ *  cannot read as text, the budget ran out); `failed` = tried and could not read. */
+export const GIG_LINK_STATUSES = ["fetched", "skipped", "blocked", "failed"] as const;
+export type GigBriefLinkStatus = (typeof GIG_LINK_STATUSES)[number];
+export type GigBriefLink = { url: string; title: string | null; status: (typeof GIG_LINK_STATUSES)[number]; reason: string | null; chars: number | null };
+
+export type GigBriefSection = { id: string; level: 2 | 3; text: string };
+
+export type GigBrief = {
+  version: 1;
+  /** High-level category, e.g. "Web security · Stored XSS", "ML · Tabular forecasting". */
+  category: string;
+  /** The listing retitled with its category up front, e.g. "Web security · Stored XSS in profile bio". */
+  title: string;
+  difficulty: GigDifficulty;
+  /** Why that difficulty, one sentence; null when unrated. */
+  difficultyReason: string | null;
+  effort: { minHours: number; maxHours: number; note: string | null } | null;
+  challenges: string[];
+  /** The readable brief, Markdown (the subset app/_components/Markdown.tsx renders). */
+  markdown: string;
+  /** Headings parsed ONCE when the brief is written (registry: server-parsed-once-reused), ids minted by ONE assigner. */
+  sections: GigBriefSection[];
+  links: GigBriefLink[];
+  source: "llm" | "deterministic";
+  fallbackReason: string | null;
+  promptVersion: string;
+  createdAt: string;
+};
+
 export type Gig = {
   id: string;
   /** Null for a `manual` gig the operator forwarded. */
@@ -211,6 +256,8 @@ export type Gig = {
   /** The gig_specialists row matched to this gig; null until matched. */
   specialistId: string | null;
   qualification: GigQualification | null;
+  /** The research brief (links read + the readable Markdown); null until researched. */
+  brief: GigBrief | null;
   createdAt: string;
   updatedAt: string;
 };
