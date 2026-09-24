@@ -1,0 +1,116 @@
+[
+  {
+    "context": "db-core-migrations",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One loud column migrator for every store: catch-all ALTERs stop swallowing",
+    "size": "L",
+    "effort": 6,
+    "impact": 7,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "app/_lib/db/add-columns.ts",
+      "app/_lib/db/add-columns.test.ts",
+      "app/_lib/db/store-migrations-guard.test.ts",
+      "app/_lib/db/core.ts",
+      "app/_lib/offers-store.ts",
+      "app/_lib/scheduler-store.ts",
+      "app/_lib/schedule-store.ts",
+      "app/_lib/group-eval.ts",
+      "app/_lib/decision-record-store.ts",
+      "app/_lib/templates-store.ts",
+      "app/_lib/application-status-store.ts",
+      "app/_lib/calendar/token-store.ts",
+      "app/_lib/ats-delivery-store.ts",
+      "docs/architecture/postgres-backend.md"
+    ],
+    "new_files": [
+      "app/_lib/db/add-columns.ts",
+      "app/_lib/db/add-columns.test.ts",
+      "app/_lib/db/store-migrations-guard.test.ts"
+    ],
+    "shared_surfaces": [],
+    "acceptance": [
+      "addColumns(db, 'offers', ['expires_at TEXT','reminded_at TEXT','ttl_days INTEGER']) on a legacy offers table that has only expires_at -> issues exactly two ALTERs and returns ['reminded_at','ttl_days']; a second call returns [] and issues ZERO ALTER statements (exec spy)",
+      "addColumns on a fake db whose ALTER throws an error with code SQLITE_BUSY -> the error is re-thrown with the table and column named in the message; nothing is swallowed and nothing is memoized",
+      "addColumns on a table that does not exist (PRAGMA table_info returns no rows) -> throws naming the table instead of attempting the ALTER",
+      "race re-check: the ALTER throws 'duplicate column name' AND a re-probe of table_info now shows the column (another connection added it) -> tolerated, returns [] for that column; the same error with the column STILL absent after re-probe -> re-thrown",
+      "offers-store / scheduler-store / schedule-store opened over a throwaway legacy DB missing their ALTER-added columns -> each gains every column on first open; a second process opening the same file issues no ALTER",
+      "core.ts migrateExec over an already-migrated DB (second ensureDb() in a fresh child process) -> zero ALTER statements executed (was 127 thrown-and-caught SqliteErrors), schema identical to the first boot (core-migrations.test.ts stays green)",
+      "store-migrations-guard: a fixture file with `try { d.exec(`ALTER TABLE t ADD COLUMN c`) } catch { /* column already exists */ }` is flagged; the real tree's flagged sites match the ceiling map exactly (only the 10 not-yet-converted files, each with its current count) and a NEW site in any file fails the test"
+    ],
+    "premise": [
+      "app/_lib/db/core.ts:1519-1524 states the house rule: a bare catch around a migration 'must NOT silently boot a structurally-broken DB' - corruption, I/O, lock contention must be surfaced and re-thrown",
+      "app/_lib/db/core.ts:1525-1534 migrateExec tolerates by MESSAGE REGEX (/duplicate column name/ or /already exists/ at :1530), not by probing the column",
+      "core.ts carries 127 ALTER ... ADD COLUMN executions (125 string literals in the loops from :1565 to :2209 plus the 2-column loop at :1560-1562); on every warm boot each one throws and is caught by that regex",
+      "Outside core.ts, 19 store files run their own ALTERs inside catch-alls that swallow EVERY error: e.g. app/_lib/offers-store.ts:50-80 (four sites, each `catch { /* column already exists */ }`), app/_lib/scheduler-store.ts:71-88, app/_lib/schedule-store.ts:132-137, app/_lib/group-eval.ts:40-44 and :79-83, app/_lib/decision-record-store.ts:235-247, app/_lib/templates-store.ts:49-53, app/_lib/application-status-store.ts:32-36, app/_lib/calendar/token-store.ts:84-88, app/_lib/ats-delivery-store.ts:97-101",
+      "Each of those stores memoizes the connection right after the swallowed catch (offers-store.ts:20 and :93, scheduler-store.ts:39 and :89, schedule-store.ts:17 and :160), so a swallowed SQLITE_BUSY/IO failure leaves the column missing for the life of the process",
+      "Stores open on openStore() with busy_timeout=5000 (app/_lib/db-path.ts:160) - a writer holding the lock past 5s makes the ALTER raise SQLITE_BUSY, which the catch-all reads as 'column already exists'",
+      "A third shape already exists and is the correct one: probe-then-ALTER with no catch at app/_lib/dev-control.ts:36-38, app/_lib/dev-outcomes.ts:93-96 and app/_lib/auth/login-throttle.ts:39-42 - three shapes for one operation"
+    ],
+    "rollback": "Every converted store keeps its CREATE TABLE and column list verbatim; only the try/catch wrapper becomes one addColumns() call, and migrateExec's probe is additive. Reverting the commit series restores the previous wrappers with no schema change (no column is added or removed by this card), so older and newer images read the same file (rollback-drill.test.ts stays green).",
+    "gate": "architecture",
+    "runner_up": "A real version ledger (schema_migrations is already listed exempt at app/_lib/tenancy.ts:428 but never created) replacing convergent replay - traded away because the migrations golden path requires downgrade REFUSAL, which contradicts the additive older-image contract rollback-drill.test.ts:14-21 pins; that is a direction call, not a one-wave build.",
+    "technique": "error-propagation",
+    "dependencies": "core.ts is in r09 comms-locale-optout/B's write set (it appends one ALTER to the migrateExec list). This card's core.ts hunk is migrateExec's body only (:1525-1534); build it AFTER that card lands, not in the same wave. r08 candidate-rediscovery/A holds app/_lib/rediscovery-alert-store.ts and r09 devcase-lifecycle/B holds app/_lib/db/devcase.ts; app/_lib/interview-prep.ts is also in an r08/r09 write set - all three stay unconverted and sit in the guard's ceiling map, to be ratcheted down after those waves.",
+    "body": "## Summary\nOne additive-column migrator (`app/_lib/db/add-columns.ts`) that probes `PRAGMA table_info`, ALTERs only what is missing, re-checks on a duplicate-column race, and throws everything else. core.ts's migrateExec stops tolerating by error-message regex, nine isolated stores stop swallowing every ALTER failure, and a source guard with a ceiling map stops a new catch-all from landing.\n\n## Description\nThe repo already names the defect it keeps shipping: core.ts:1519-1524 says a bare catch around a migration boots a structurally-broken DB and produces the 'why is everything empty' hunt. core.ts obeys that rule, loosely: migrateExec tolerates by message regex (:1530) and runs 127 ALTERs that all throw on every warm boot. The 19 isolated stores that own their schema do not obey it at all. Each wraps its ALTER in `catch { /* column already exists */ }`, which also absorbs SQLITE_BUSY (busy_timeout is 5s, db-path.ts:160), a read-only file and a full disk. Each then memoizes the connection (`_db = d`), so the missing column stays missing until restart, and every later write that names it fails as 'no such column' in some unrelated feature. A correct third shape (probe, then ALTER, no catch) already exists in dev-control.ts, dev-outcomes.ts and login-throttle.ts. The move turns that shape into the one migrator. Convergent replay is kept on purpose, because the rollback drill depends on additive, ledger-less migrations. Only the guard changes: the tolerated case is decided by a probe of the post-condition (idempotent-steps: 'what a guard may conclude'), never by message text.\n\nThe race is handled with an explicit re-check (the read->write strategy). Probe, ALTER, and on 'duplicate column name' probe again. Only a column that now exists is tolerated. This is the one benign concurrent-boot case the regex was quietly covering.\n\n## Flow\n1. Red tests: add-columns.test.ts (cases 1-4 on a real temp DB plus a fake throwing db) and store-migrations-guard.test.ts (a line-window scan: an `ADD COLUMN` exec followed within 4 lines by a `catch` block that contains no `throw`; fixture-tested), plus case 5 against three stores on a throwaway KP_DB_PATH.\n2. add-columns.ts: `addColumns(db, table, defs): string[]`, which returns the added names so a caller's one-time backfill can key on them (the dev-outcomes.ts:107-114 shape).\n3. core.ts migrateExec: for `ALTER TABLE <t> ADD COLUMN <c>`, delegate to the probe. Delete the regex arm, so any throw is loud. CREATE ... IF NOT EXISTS cannot raise 'already exists'.\n4. Convert the nine stores in the write set. Record the other ten files and their current counts in the guard's ceiling map.\n5. postgres-backend.md: replace the 'tolerates ONLY the benign already-applied error' paragraph (the migrateExec description near :89) with the probe contract.\n6. Gate: tsc, lint, test:unit, test:perf (one new ~1 KB module enters the graphs of the converted stores; if the app/page.tsx or task-hub ceiling trips, the store on that path stays under the ratchet ceiling instead). Store files mapped to feature docs (templates-store -> library, schedule-store and calendar -> scheduling) get a `Doc-sync: internal-only` trailer because behaviour is unchanged.\n\n## Expected impact\nA class of defect closes: an ALTER can no longer fail silently in any converted store, and the guard stops a new one from landing. The 127 thrown-and-caught SqliteErrors per warm boot become 127 cheap probes, with zero exceptions on the boot path. For the 10 files outside this wave the guard is a ratchet that can only go down. The three migration shapes become one, which is the precondition the Postgres port (postgres-backend.md) needs before it can move schema ownership anywhere.\n\n## Evaluation\nClaim: No additive column migration in core.ts or the nine converted stores can swallow a non-benign failure, and a new catch-all cannot land.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate (npm run test:unit; add-columns.test.ts, store-migrations-guard.test.ts, core-migrations.test.ts, rollback-drill.test.ts)\nResult: pending build\nGate: architecture",
+    "evidence": "git rev-parse HEAD = c7690bd4a. grep -c '\"ALTER TABLE' app/_lib/db/core.ts -> 125; plus migrateExec(`ALTER TABLE pipeline_entries ADD COLUMN ${col} TEXT`) at :1561 over 2 cols = 127. core.ts:1530 `if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;`. Non-core ALTER sites (grep -rln 'ALTER TABLE .* ADD COLUMN' app --include=*.ts minus tests/core): 22 files. Of these, 19 use a swallow-all catch (offers-store x4, scheduler-store x2, group-eval x2, decision-record-store x2, ats/connections-store, ats-config-store, ats-delivery-store, calendar/token-store, comms-relay-store, db/agents, db/intakes, db/skill-profiles, edge-config, schedule-store, templates-store, application-status-store, plus r08/r09-held db/devcase.ts, interview-prep.ts, rediscovery-alert-store.ts) and 3 probe correctly (dev-control.ts:36, dev-outcomes.ts:94, login-throttle.ts:39). offers-store.ts:52-54 `} catch {\\n    /* column already exists — idempotent */\\n  }`. Prior art: docs/harness/ambiguity-biz-2026-06-25/data-store-persistence.md:31 recommends 'match better-sqlite3's structured error code instead of message text'; that is a harness note, not a backlog item. Not a restatement: the digest item 'Split db/core.ts (2,859 lines) into connection, migrations, and query helpers' relocates code, while this card changes what a migration may tolerate across 10 files outside core.ts; no challenge card, leftover or drain title covers ALTER tolerance."
+  },
+  {
+    "context": "db-core-migrations",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "System strip names the DB's own faults: lost unique guards, unreadable rows",
+    "size": "M",
+    "effort": 5,
+    "impact": 7,
+    "risk": 4,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "app/_lib/db/core.ts",
+      "app/_lib/db/row-health.test.ts",
+      "app/_lib/db/core-index-catches.test.ts",
+      "app/_lib/readiness.ts",
+      "app/_lib/readiness.test.ts",
+      "app/features/settings/billing/spend/readinessFindings.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/billing/README.md"
+    ],
+    "new_files": [],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "readRowColumn(corruptJson, 'listX', 'a1') in enforce mode -> getRowHealth() reports total 1 AND unreadable 1; readRowColumn(validJsonWrongShape, ctx, id, validator, 'observe') -> total 1, unreadable 0 (observed drift was served, not withheld)",
+      "collectReadiness({ rowIssues: [{ ctx: 'listX', id: 'a1', reason: 'corrupt', observed: false }], ... }) -> exactly one ROWS_UNREADABLE finding, severity fault, params { count: '1', where: 'listX', row: 'a1' }, remedy { kind: 'host' }",
+      "collectReadiness with ONLY observe-mode issues (the analyses payload drift, analyses.ts:508) -> NO ROWS_UNREADABLE finding (a demo install's known 41% drift must not paint the strip red forever)",
+      "collectReadiness({ toleratedIndexes: [{ label: 'uq_dev_postings_open' }] }) -> one UNIQUE_GUARANTEE_OFF finding, severity warn, params { index: 'uq_dev_postings_open' }, remedy host",
+      "both new codes appear in degradedReasons (so /api/ops `ok` is false) and are ABSENT from probeReasons (so /api/health's 200/503 verdict does not move); PROBE_EXEMPT is extended, not inferred from severity",
+      "child-process boot over a throwaway DB holding two OPEN dev_postings for the same (workspace, case, channel) -> getSchemaHealth().toleratedUniqueIndexes lists uq_dev_postings_open (core-index-catches.test.ts), in addition to the existing warn line",
+      "readinessFindings.test.ts bijection: models.system.findings.ROWS_UNREADABLE and .UNIQUE_GUARANTEE_OFF each have a string title and fix in en/cs/de/fr (red before the catalog commit, green after)"
+    ],
+    "premise": [
+      "app/_lib/db/core.ts:1535-1542 calls a unique index blocked by pre-existing duplicates 'an operator-actionable fact', yet migrateUniqueIndex only console.warn's it (:1549-1553). Four guards go through it (:2261-2308 and :2573-2576) and nothing records which one is off",
+      "app/_lib/db/core.ts:125-127 getRowHealth() is the only measure of unreadable stored rows, and its sole reader outside tests is the boot-tail log line (runBootMaintenance, :2671-2675)",
+      "app/_lib/db/core.ts:178-187: observe mode records the mismatch through recordRowIssue and still returns the value, so today's ledger cannot tell 'served with drift' from 'withheld from the list' - app/_lib/db/analyses.ts:508 reads analyses in observe mode",
+      "app/_lib/readiness.ts:31 imports only ensureDb and getSeedHealth from db/core; READINESS_CODES (:39-47) has no database-integrity code beyond seeds",
+      "app/_lib/readiness.ts:100 PROBE_EXEMPT is an explicit set, and the header (:13-18) says severity does not decide the probe, so new codes must be placed there deliberately",
+      "app/api/ops/route.ts:87 `ok: degradedReasons.length === 0` and app/features/settings/billing/spend/SpendEngineFacts.tsx:109-112 already render any coded finding through toView + t.has, so the operator surface needs only codes and catalog copy, not new components",
+      "app/features/settings/billing/spend/readinessFindings.test.ts:107-110 enforces the code <-> 4-catalog bijection"
+    ],
+    "rollback": "Additive: two readiness codes, two ledger getters and an `observed` flag on RowIssue. Reverting the series removes the findings. /api/health's verdict never depended on them (PROBE_EXEMPT), so no monitor or boot contract moves in either direction.",
+    "gate": "contract",
+    "runner_up": "Adopt the open L 'Declare the first REFERENCES on pipeline_events.entry_id' (leftover-develop-2026-09-17, human-routed architecture gate). Traded away because it is a second architecture card on a data seam, while the context has a real operator surface that currently reports 'ok' over a database it knows is degraded.",
+    "technique": "health-rollup",
+    "dependencies": "core.ts is in r09 comms-locale-optout/B's write set (one ALTER appended). This card's core.ts hunks are migrateUniqueIndex (:1543-1558) and recordRowIssue/readRowColumn (:135-189), disjoint from that card's, but it builds after r09 all the same. Slot A of this deck also edits core.ts (migrateExec only), so do not put A and B in the same wave. docs/features/billing/README.md is also in r09 voice-provider-io/B's write set: append-only edit, sequence after it. Catalog keys are appended under the shared-surface lock.",
+    "body": "## Summary\nThe operator's System strip learns the two database faults db/core already detects and only logs. A UNIQUE guarantee the boot migrator had to skip because legacy duplicates block it becomes a warn. Stored rows the app is silently dropping from lists because their JSON is unreadable become a fault. Each is a coded, localized finding that names the index, or the read context and the first row id.\n\n## Description\nToday the strip reads 'ok' while the database under it is in one of two states the data layer has already diagnosed. (1) migrateUniqueIndex tolerates SQLITE_CONSTRAINT_UNIQUE on four guards (dev-submission dedup, one-open-posting, llm ingest replay, one active task per dedupe key) and on billing_state's one-row-per-org. Its own comment calls that operator-actionable, but the only trace is a console.warn at boot. The operator is running without the guard that makes double-submit and duplicate-posting impossible and has no way to know it. (2) The row-health ledger counts every unreadable JSON column, and those rows are dropped from lists ('degrade to N-1'). Its only reader is one boot log line. Both facts are per-process and already in memory, so the strip is blind to data the app holds.\n\nThe leap is a status the operator can act on: which guarantee is off and which rows are gone, each with its fix (dedupe the named table, or restore or repair the named row from a dump). The degrade-visibly policy stays honest here. Observe-mode drift, the analyses payload that is served with missing fields, is split from withheld rows by an `observed` flag at the seam that records it. A demo install's known drift therefore never paints the strip red. Both codes are added to PROBE_EXEMPT: a corrupt row is a reason to look, not a reason for a load balancer to pull the instance.\n\n## Flow\n1. Red tests: row-health.test.ts (case 1), readiness.test.ts (cases 2-5 via injected sources), core-index-catches.test.ts (case 6, child-process boot), and the bijection (case 7) going red when the codes join READINESS_CODES.\n2. core.ts: `toleratedUniqueIndexes` pushed inside migrateUniqueIndex's tolerated branch, plus `getSchemaHealth()`. recordRowIssue gains `observed` and getRowHealth gains `unreadable`; `total` and `ok` keep their meaning, so runBootMaintenance's log line is unchanged.\n3. readiness.ts: ReadinessSources gains `rowIssues` / `toleratedIndexes` (injectable, defaults read the real getters), two findings, and PROBE_EXEMPT extended.\n4. Catalogs: models.system.findings.{ROWS_UNREADABLE,UNIQUE_GUARANTEE_OFF}.{title,fix} in all four locales, under the lock, one commit.\n5. billing README: the System strip section lists the two findings.\n6. Gate: tsc, lint, i18n:check, test:unit. No route, no new module, no page.tsx or task-hub graph growth (readiness.ts already imports db/core).\n\n## Expected impact\nA self-hosting operator learns from the strip, not from grepping stderr, that a database-enforced duplicate guard is off or that N stored rows are invisible, and learns where. These are the two conditions the data layer's own comments say must not be silent. The /api/health verdict is unchanged, and the /api/ops `ok` becomes truthful.\n\n## Evaluation\nClaim: The System strip reports a skipped unique guarantee and withheld unreadable rows as coded, localized findings, without flagging observe-mode drift and without moving /api/health.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: gate (npm run test:unit incl. readiness.test.ts, row-health.test.ts, core-index-catches.test.ts, readinessFindings.test.ts; npm run i18n:check)\nResult: pending build\nGate: contract",
+    "evidence": "grep -rn 'getRowHealth' app --include=*.ts | grep -v test -> core.ts only (plus comments in analyses.ts:504 and decision-config-store.ts:49/81); readiness.ts:31 `import { ensureDb, getSeedHealth, type SeedIssue } from \"./db/core\";`. core.ts:1550-1552 `console.warn(`[db:migrate] ${label}: pre-existing duplicate rows block this unique index; ...`)` with no ledger. core.ts:187 `if (mode === \"observe\") return { state: \"ok\", value: parsed as T };` comes after recordRowIssue at :179. readiness.ts:100 `const PROBE_EXEMPT ... = new Set([\"PUBLIC_ORIGIN_CONFLICT\", \"PUBLIC_ORIGIN_FALLBACK\"]);`. messages/en.json models.system.findings holds 7 codes (PUBLIC_ORIGIN_CONFLICT ... SCHEDULER_STALLED) and none is about the database. r08/r09 write sets checked: none contains readiness.ts, readinessFindings*, SpendEngineFacts.tsx or ops/health routes (voice-provider-io/B holds app/_lib/voice/readiness.ts, a different file). No prior challenge, leftover or digest title covers row-health or tolerated-index surfacing."
+  }
+]

@@ -12,8 +12,10 @@ import {
   restoreDraftBlind,
   restoreDraftLocale,
   restoreDraftValue,
+  restoreJdSource,
   serializeAnalyzeDraft,
 } from "./analyzeDraft.ts";
+import { jdSubmission } from "./analyzeJdSource.ts";
 
 test("reportLang round-trips for every supported locale", () => {
   assert.equal(LOCALES.length, 4);
@@ -70,5 +72,35 @@ test("the form serializes and restores the flags through the shared codec", () =
   assert.match(form, /restoreDraftLocale\(prev, draftedLang, localeDefault\)/);
   assert.match(form, /restoreDraftBlind\(prev, draftedBlind\)/);
   assert.match(form, /reportLang,\s*\n\s*blind,/);
-  assert.match(form, /jobDescriptionText, companyText, githubProfile, reportLang, blind/);
+  assert.match(form, /jdDraft\.jdSlug, jdDraft\.jdEdited, companyText, githubProfile, reportLang, blind/);
+});
+
+// ── challenge-r10 analyze-workspace/A case 5: the draft keeps the role link ──
+test("a picked JD's slug round-trips through the draft and restores as a saved source", () => {
+  const raw = serializeAnalyzeDraft({ jd: "X", jdSlug: "backend-dev", jdEdited: false });
+  const draft = parseAnalyzeDraft(raw);
+  assert.equal(draft?.jdSlug, "backend-dev");
+  const source = restoreJdSource(draft);
+  assert.equal(source.kind, "saved");
+  assert.deepEqual(jdSubmission(source), { file: null, text: "X", jdSlug: "backend-dev" });
+  assert.equal(source.kind === "saved" && source.restored, true, "a restored link is re-checked once the library loads");
+
+  const edited = restoreJdSource(parseAnalyzeDraft(serializeAnalyzeDraft({ jd: "X2", jdSlug: "backend-dev", jdEdited: true })));
+  assert.equal(edited.kind === "saved" && edited.edited, true);
+  assert.equal(edited.kind === "saved" && edited.baseline, null, "the baseline is not stored; revert re-fetches it");
+});
+
+test("a non-slug jdSlug is dropped and the text restores as typed", () => {
+  for (const bad of [42, "", "../x", "a b", null]) {
+    const draft = parseAnalyzeDraft(JSON.stringify({ jd: "X", jdSlug: bad, jdEdited: true }));
+    assert.equal(draft?.jdSlug, undefined, String(bad));
+    assert.equal(draft?.jdEdited, undefined, "an edit flag without its link means nothing");
+    const source = restoreJdSource(draft);
+    assert.equal(source.kind, "typed");
+    assert.deepEqual(jdSubmission(source), { file: null, text: "X", jdSlug: null });
+  }
+  // A slug with no text is not a restorable link (it would be a JD-blind run under a role).
+  assert.equal(serializeAnalyzeDraft({ jdSlug: "backend-dev" }), null);
+  assert.equal(parseAnalyzeDraft(JSON.stringify({ jdSlug: "backend-dev", company: "c" }))?.jdSlug, undefined);
+  assert.equal(restoreJdSource(null).kind, "none");
 });

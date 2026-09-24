@@ -1,0 +1,518 @@
+{
+  "model": "claude-fable-5-1",
+  "base_sha": "d57d380b8a0fe68d2d113033b7fa61c2e59f786e",
+  "judged_against": "git log -3: d57d380b8 chore(scan-history): close challenge-r09; 02236bb1b fix(devcase-lifecycle); ce9dd85d0 fix(comms-resend). Cards were scouted at c7690bd4a / c5eca55af while r09 was building; every premise re-read on today's tree.",
+  "progress": "16 of 16 judged - complete",
+  "verdicts": [
+    {
+      "context": "analyze-workspace",
+      "slot": "A",
+      "title": "One JD source: a picked role stays linked through edits, files and tab switches",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "All cites hold on d57d380b8: analyzeDraft.ts:23-32 has no slug; useAnalyzeForm.ts:400-406 serializes jd/company/github only; :154 label is file name or chars; AnalyzeFormOptionalColumns.tsx:65-68 detaches the slug on every keystroke; useAnalyzeJdLibrary.ts:93/:118 pickJd never clears the file; analyze-run.ts:207-208 prefers the path, :221-230/:317 ground on jdSlug; AnalyzeApi.ts:162-166 sends file+text+slug; analyzePipelineRef.ts:60 'jdless'; useAnalyzeFileAccept.ts:61-62 and analyzeFileIntakeGate.test.ts:83 as cited; both deep links at :139/:296. No collision with r09 cv-analyze-workspace (its diff is history/*, analyses.ts, api/analyses only). Perf note is stale in the right direction: app/page.tsx is now exactly AT its ceiling (1455/9292 vs 1455/9294 after the r09 settle), so the +1 module still needs the coordinator's settle.",
+      "floors_ok": true,
+      "floor_notes": "M, effort 6, impact 8, risk 5, 15 files (2 new, 4 catalogs, 1 doc) - at the floor but the code files are one leaf module plus five call-site cut-overs; ~500 lines. Gate architecture. Draft fields optional, no store, no route: repo law untouched.",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "Replacing three hand-synchronised atoms with one typed source behind a single door is the move a principal makes at this seam, and it names its one product decision (edited keeps the link) instead of hiding it.",
+      "grounding": 5,
+      "grounding_why": "Every claim re-verified line by line, including the six writers and the deep-link entry that the tab hop then unlinks.",
+      "falsifiability": 5,
+      "falsifiability_why": "Eight cases plus a transition-sequence property over a pure .ts module, written before the hook cut-over; the source-pin test catches a writer left outside the door.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "analyze-workspace",
+      "slot": "B",
+      "title": "Seen before: Analyze names this exact CV's prior runs and decisions pre-spend",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "Claims hold; cites into app/_lib/db/analyses.ts moved under r09's rewrite (130 lines): the INSERT without disposition is :122-123, the newest-per-(cv_hash, jd_slug) collapse is listAnalysesPage :193-260 (NOT EXISTS at :238), listAnalysesByCvHash is :324-341 and still selects no disposition, the observe-mode read is :618. r09 added a prior_runs COUNT badge to History rows (HistoryTable.tsx:67-73) - post-run, so 'nothing reads prior runs before a run' is still true and the card does not restate it. cv-variant.ts:26-30, analyze/route.ts:245, analyze-run.ts:489-495/:524-525, AnalyzeFormFooter.tsx:119, constitution-check.mjs:477, require-operator.ts:35/:44, feature-doc-map.json (:117 candidates, :381 candidate-data-flow), analyses-tenancy.test.ts:22 reads only analyses.ts, MAX_CV_VARIANTS=3 - all verified. app/api/analyze/prior does not exist.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/8/5, 15 files of which 6 new, 4 catalogs, 3 docs; ~450 lines. New GET route calls requireOperator + requireCapabilityCoded('read') and is not in public-routes.ts - the lens matches. Reuses ANALYSES_LIST_FAILED, so no new code. Not an open/paid route, so the rate-limit contract is untouched (correct). Information only, no refusal, so no other surface owes a loop close.",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "Pre-spend footprint by content hash, with the orphaned-decision consequence stated in words and blind mode treated as a re-identification boundary - a product-lead move, not a badge.",
+      "grounding": 4,
+      "grounding_why": "All claims true on today's tree, but three analyses.ts cites are 40-110 lines stale after r09 - the coordinator should re-point them.",
+      "falsifiability": 4,
+      "falsifiability_why": "Pure query/summarize module and a route test on a throwaway SQLite cover tenancy, 401, blind and the characterization case; the strip's mount and abort-on-change are .tsx and stay unproven by node:test.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "db-core-migrations",
+      "slot": "A",
+      "title": "One loud column migrator for every store: catch-all ALTERs stop swallowing",
+      "verdict": "revise",
+      "premise_false": false,
+      "premise_notes": "core.ts:1522-1524 house rule, :1530 message-regex tolerance, :1561 loop - verified. ALTER count is now 126 literals + 2 loop cols = 128 (r09 comms-locale-optout/B appended one, 617e0a197 - already landed, so the card's 'build after r09' dependency is satisfied). All nine store sites re-read at the cited lines (offers-store.ts:50-80 x4, scheduler-store.ts:71-88 x2, schedule-store.ts:132-137 loop, group-eval.ts:40-44, decision-record-store.ts:235-247 x2, templates-store.ts:49-53, application-status-store.ts:32-36, calendar/token-store.ts:84-88, ats-delivery-store.ts:97-101) and every catch swallows all; memoization right after (offers-store:93, scheduler-store:89, schedule-store:160). Three probe-then-ALTER sites at dev-control.ts:36-38, dev-outcomes.ts:93-96, login-throttle.ts:39-42 verified. 22 non-core ALTER files, tenancy.ts:428 schema_migrations, rollback-drill.test.ts:14-21 additive contract, postgres-backend.md:89 - verified. SQLITE_BUSY: db-path.ts:160 sets busy_timeout=5000, so BUSY reaches a store's ALTER only after 5 s of a held write lock (an IMMEDIATE transaction across a slow Python spawn would do it, but no such site is named). Reachable, not demonstrated; the demonstrable swallowed classes are SQLITE_READONLY, SQLITE_FULL, SQLITE_IOERR and SQLITE_CORRUPT.",
+      "floors_ok": true,
+      "floor_notes": "L, 6/7/5, 14 files (3 new); the nine store conversions are each a 4-8 line hunk, ~350 lines total. core.ts hunk is migrateExec only - disjoint from slot B's hunks but the same file, so never the same wave. Rollback claim holds (no schema change).",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "Collapsing three migration shapes into one probe-based migrator with a ratcheting source guard is the structural precondition the Postgres port needs, and it deletes the message-regex arm rather than adding a fourth shape.",
+      "grounding": 4,
+      "grounding_why": "Every site verified; the ALTER count is one short after r09 and the BUSY story is stated as a certainty where the tree only shows it as a 5-second-contention possibility.",
+      "falsifiability": 4,
+      "falsifiability_why": "Cases 1-4 and 7 are clean node:test over a temp DB / fake db / fixture scan; cases 5-6 need an exec counter visible from a child process, which the card does not say how it will expose.",
+      "revise": "Restate premise 6 and acceptance case 2: the swallowed class is 'any non-duplicate failure - SQLITE_BUSY only once busy_timeout's 5 s expires under a held write lock, plus SQLITE_READONLY / SQLITE_FULL / SQLITE_IOERR / SQLITE_CORRUPT'; make case 2 throw a coded SqliteError with code SQLITE_READONLY (the demonstrable one) and keep BUSY as a second parameter of the same case. Also drop the 'build after r09' dependency (617e0a197 has landed) but keep 'not in slot B's wave'.",
+      "void_reason": null
+    },
+    {
+      "context": "db-core-migrations",
+      "slot": "B",
+      "title": "System strip names the DB's own faults: lost unique guards, unreadable rows",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "core.ts: getRowHealth :125, recordRowIssue :135, readRowColumn :159, observe return :187 after the record at :179, migrateUniqueIndex console.warn :1551 with no ledger, five call sites (:2263/:2276/:2290/:2305/:2575), runBootMaintenance :2657 - verified. readiness.ts:31 imports only ensureDb/getSeedHealth, READINESS_CODES :39-47 has seven codes none about the database, PROBE_EXEMPT :100 explicit set, header :13-18 says severity does not decide the probe - verified. ops/route.ts:87, SpendEngineFacts.tsx:109-112 toView + t.has, readinessFindings.test.ts bijection :105-112, en.json findings = the same seven codes - verified. analyses.ts observe read moved :508 -> :618 (r09). The three named test files exist, so new_files [] is honest. r09 voice-provider-io/B (billing README) has landed, so the append-after sequencing is moot.",
+      "floors_ok": true,
+      "floor_notes": "M, 5/7/4 - effort and risk sit exactly on the floor; 11 files, ~250 lines. Gate contract. Both codes added to PROBE_EXEMPT deliberately, so /api/health's boot contract does not move - the card states it and case 5 pins it.",
+      "rereproposal": "r03 platform-auth-api built the coded-findings strip itself; this adds two database codes to it, an extension not a restatement.",
+      "ambition": 3,
+      "ambition_why": "Correct and operator-visible, but it wires two facts the data layer already computes into an existing findings vocabulary - a principal would do it, and would call it a tidy-up.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified, including the injectable-sources design and the bijection test the catalogs must pass.",
+      "falsifiability": 5,
+      "falsifiability_why": "Injected ReadinessSources make cases 2-5 pure node:test, the child-process boot pattern already exists in core-index-catches.test.ts, and the bijection turns red the moment the codes join READINESS_CODES.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "devcase-detail",
+      "slot": "A",
+      "title": "One cohort ranking: auto-promote and the shortlist stop mixing score currencies",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "devcase-orchestrator.ts:580-583 filter/sort/slice on `?? 0` - verified verbatim. devcase-compare.ts:71-73 and devcase-interview-kit.ts:113-120 `?? -1` - verified. DevCaseDetail.tsx's sort moved :76 -> :89 under r09 devcase-lifecycle (landed; the card does not edit that file, so no collision). devcase-run.ts:786-787/:791, devcase-cohort.ts:23-33/:74, DevCaseDetailShortlist.tsx:30-31, devcase-stage-outcome.ts:33-41 vocabulary and :89 parser drop, DevLifecycleRow.tsx:24-32 exhaustive tone map, evaluate.py:469, reflect.py:296/:303, evaluation_pipeline.py:149 - all verified. en.json baseline_unavailable is at :10181 (card says :10072; catalogs grew). Least-sure point (5): devcase-orchestrator.test.ts already drives the ranked stage with seeded bundles - `evaluatedWithConfidence()` at :351-357 goes createSubmission + saveSubmissionEvaluation with a hand-built bundle, so a perStepSources.transfer of 'llm' vs 'deterministic' is one field on that fixture; cases 4-5 are writable.",
+      "floors_ok": true,
+      "floor_notes": "M, 7/8/6, 15 files (2 new, 4 catalogs, 1 doc); ~400 lines. Gate policy-tighten - it withholds auto-promotion from template rows, so keyless installs (uniform cohort) do not move, which case 3 pins. Loop close: the new warning is explain-only and the exhaustive Record<OutcomeWarningCode, BadgeTone> forces the one display surface; the manual promote door judges one row against the floor and is rightly untouched.",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "Refusing a cross-instrument ranking at the point where it writes a board entry and sends a letter is the fairness move a principal makes, and it consolidates four orderings into one tested module on the way.",
+      "grounding": 5,
+      "grounding_why": "Every claim stands, including the Python instrument definitions and the cohort.ts precedent the ranking fails to follow.",
+      "falsifiability": 5,
+      "falsifiability_why": "Pure module cases plus the orchestrator's existing ranked-stage harness with seeded provenance; the source guard catches a comparator left inline.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "devcase-detail",
+      "slot": "B",
+      "title": "Source DB previews who it files: pick from the ranked matches, counts that are true",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "source/route.ts:54 runSourceForRole, :58 seedPipelineFromMatches, :71 answers candidates+skipped, :21-22 'most expensive door' - verified. useDevTabActions.ts:121-124 keeps only `added` - verified. devcase-run.ts:880-902 `added += 1` unconditionally while pipeline.ts:1480 returns `created: boolean` (:1500 documents it) - verified. DevCaseDetailHeader.tsx was rewritten by r09 devcase-lifecycle/B (landed): the Source DB button is now :167-175, prop `source: (caseId: string) => void` at :51 - claim true, cite stale. DevLifecycleRow.tsx:110-128 reSource POSTs {caseId} - verified. devcase-stage-outcome.ts:121 re_source, api-response.ts AUTOMATION_SELECTION_INVALID at :570 (card :557-560), core.ts:572/:576, devcase-identity.ts:99, rate-limit-contract.test.ts:1580 - verified. Route already calls requireOperator (:34), requireCapabilityCoded('pipeline:write') (:36) and rateLimit (:49); the card keeps all three. route.test.ts does not exist yet (new_files honest).",
+      "floors_ok": true,
+      "floor_notes": "M, 6/8/5, 15 files (4 new, 4 catalogs, 1 doc, api-response shared); ~550 lines. Gate contract. Loop close: both surfaces that offer the blind write (header button, lifecycle re_source) are in the write set; the orchestrator's `sourced` fact at devcase-orchestrator.ts:440 reads `.added` and inherits the true count. New refusal code owes four catalog entries - listed. One tsc note: the header must widen its `source` prop type to carry ids (or the panel fetches itself, as the body says) - either stays inside the write set.",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "Turning the studio's most expensive blind write into a preview-pick-commit with re-ranked commit and a true count is the product move, and it fixes a lying counter on the way.",
+      "grounding": 4,
+      "grounding_why": "All claims true; two cites are stale (header lines after r09's rewrite, api-response line) and the card's 'build after r09' is already satisfied.",
+      "falsifiability": 4,
+      "falsifiability_why": "Route driven as a real handler on a temp DB with a stubbed matcher, pure pick module, count case and a source guard - the panel's tick/untick is .tsx and unproven, as expected.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "e2e-suite",
+      "slot": "A",
+      "title": "E2E specs import the routes' own view types: tsc catches payload drift CI hid",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "journey-one-thread.spec.ts:345-355 records the drift and :522-532 re-declares BoardEntry with devCaseId/devSubmissionId - verified. pipeline.ts:117 BOARD_ENTRY_FIELDS, :150-155 PipelineEntryView with the 'import type' guidance - verified. Cast counts 18/17/9/7/3/3/3 = 60 - verified by grep. tsconfig includes **/*.ts and excludes only node_modules/edge - verified, so e2e/ is under `npm run typecheck`. schedule/[token]/route.ts:48 non-exported publicInviteView returning proposals (:70); eslint NO_ROUTE_HANDLER_IMPORT selector at :112 has no importKind filter; use-schedule-invite.ts:9-21 Invite lacks proposals - verified. pipeline-stages.ts:12, journey-role-to-schedule cites :312-314/:342/:265/:418-422 - verified. app/_lib/devcase-postings-view.ts exists now (r09 landed) - the card's deferred postings reads could be typed too, but leaving them is fine. e2e/wire.ts does not exist.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/7/5, 13 files (5 new); the spec edits are cast-for-reader swaps, ~450 lines. Gate contract. Moving publicInviteView keeps the public projection an explicit allowlist (CLAUDE.md token-route rule) and adds a key-set pin it never had. e2e run owed on CI is stated; behaviour-neutral by construction.",
+      "rereproposal": null,
+      "ambition": 3,
+      "ambition_why": "A real class closes (payload drift found only in the CI browser job becomes a tsc error) but the move is a typed reader layer plus one lifted projection - solid engineering, not a product bet.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified, including the spec's own stale pipeline.ts:72 that the card corrects.",
+      "falsifiability": 5,
+      "falsifiability_why": "@ts-expect-error pins and source-pin ceilings fail tsc/node:test the moment a projection re-adds a field or a cast returns; the projection's key-set test is pure.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "e2e-suite",
+      "slot": "B-architecture (no UI surface)",
+      "title": "One axe policy for every spec: a contrast-measured holdout ledger that expires",
+      "verdict": "revise",
+      "premise_false": false,
+      "premise_notes": "Five AxeBuilder sites with the two tag sets and the two `.exclude(\".text-coral\")` (journey-role-to-schedule.spec.ts:84, token-doors-axe.spec.ts:110) - verified. The prose-only expiry at :79-80 and :108 - verified. public-pages.spec.ts:51-56 A11Y_HOLDOUTS and :35-38 eyebrow note, landing.spec.ts:29/:39/:45 - verified (r09 spark-about-illustrations' landing.spec edit has landed). playwright.config.ts:75-81 'joins this list when the token is darkened', no testMatch (testDir only at :93) - verified. brand-config.ts:106 contrastRatio, brand.ts:31/:33/:39 - verified. run-unit-tests.mjs:98-103 DEFAULT_PATTERNS without e2e/** - verified. Least-sure point (6): journey-role-to-schedule IS a release-gate keyless spec (ci.yml:570-579) and token-doors-axe is not; lifting both to wcag21a/aa can surface findings on /schedule and /offer that no builder can see. Case 8 states the e2e run is owed, which the brief requires - but a red release job is the cost of guessing wrong.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/7/5, 11 files (3 new); ~400 lines. Gate policy-tighten. NOTE for the coordinator: scripts/run-unit-tests.mjs is in the dispatch guard's protected set (scripts/agent/dispatch.mjs:189, 'the runner every unit gate goes through') - a challenge builder is not the dispatch lane, but the glob addition should be reviewed as a gate edit, and the AGENTS.md test:unit row names the four globs it walks. keyless-e2e-pin.test.mjs parses KEYLESS_SPECS, which the card leaves untouched.",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "A waiver that measures its own reason from the brand tokens and names what it unlocks when the palette moves is the principal's version of an a11y gate, and it restores non-contrast detection the blanket exclude hides.",
+      "grounding": 5,
+      "grounding_why": "Every site, ratio and config line verified; the three-tag-sets and four-waiver-shapes count is exact.",
+      "falsifiability": 4,
+      "falsifiability_why": "Seven pure cases over fixture axe results and source pins are node:test-able once the runner glob lands; the eighth case is the owed CI run, which is where the tag uplift can only be proven.",
+      "revise": "Split the WCAG 2.1 tag uplift for the two candidate-door specs (journey-role-to-schedule, token-doors-axe) into the series' LAST commit, separate from the policy module and the migration of the other specs, so that if the owed keyless CI run reports new /schedule or /offer findings the coordinator reverts one commit (or records the findings as measured ledger entries) without losing the ledger. State in the card that the release job's journey-role-to-schedule is the spec at risk.",
+      "void_reason": null
+    },
+    {
+      "context": "interview-execution-scoring",
+      "slot": "A",
+      "title": "Voice scorecard commits once: attach, gate, seal in one locked unit",
+      "verdict": "revise",
+      "premise_false": false,
+      "premise_notes": "interview-run.ts:789 awaits runAutomationTask('scorecard') first and stamps rubricCoverage/telemetry/coverage/observedSkills after (:802-835) - verified. automation-run.ts:526 approvalDetail stringifies at :594, unguarded setApproval, while the screen branch CASes at :541-546 - verified. complete/route.ts:434-436 and :451-455 conditional attach after the approval already landed - verified. interviews.ts attach CAS moved :1115 -> :1142 (r09 voice-provider-io edited the file; landed). The human door moved: interview-prep/scorecard/route.ts:166-172 is now :212-215 after r09 schedule-interview-prep (fileHumanScorecard), same active + interview-role + null|calendar rule. decisionsAiReviewCardLogic.ts:23 and ScheduleInterviewTranscriptModal.tsx:43-44 - verified. Least-sure point (7): better-sqlite3's wrapTransaction (node_modules/better-sqlite3/lib/methods/transaction.js:52-61) checks db.inTransaction and uses SAVEPOINT/RELEASE for any nested call on the SAME connection - `.immediate()` only changes the outermost BEGIN - so setApproval's own `.immediate()` (pipeline.ts:2970+, ensureDb) and recordAutomationEvent compose inside the outer unit. The seal does NOT: decision-record-store.ts:2/:212 opens its own `openStore()` handle to the same file, so sealDecisionRecord inside the outer immediate transaction is a second connection asking for the write lock the outer holds - it waits busy_timeout (5 s) and throws SQLITE_BUSY, which rolls the outer back. publish-atomicity.test.ts:1-17 documents exactly this two-connection failure. Acceptance case 1's 'one immediate unit ... seal' is therefore not buildable as written.",
+      "floors_ok": true,
+      "floor_notes": "L, 7/8/6, 14 files (2 new, 4 catalogs, 1 doc); ~500 lines. Gate architecture. Shares app/_lib/automation-run.ts with pipeline-core/A (different hunks: deferApply vs argv builder) - separate waves. The manual drawer path gains a refusal ('skipped_gate_closed'): the drawer's APPLIED_LABEL surface is in the write set (PipelineCandidateDrawerTypes.ts), so the loop closes.",
+      "rereproposal": null,
+      "ambition": 4,
+      "ambition_why": "Reordering the verdict so the record is attached before the gate opens, and never over a human's, is the decision-records move a principal makes on the Interview->Offer gate.",
+      "grounding": 4,
+      "grounding_why": "Every defect claim verified; the design claim that the seal joins the locked unit is wrong on this tree because the decision ledger lives on its own connection.",
+      "falsifiability": 4,
+      "falsifiability_why": "Six unit-db cases with a stubbed scorer and mint plus a source pin - but the source pin as written ('one immediate transaction and the route calls sealDecisionSafe nowhere') pins the unbuildable shape.",
+      "revise": "Move the seal OUT of the locked unit: commitCandidateScorecard runs attach -> gate re-read -> setApproval (expectedApprovalKind) -> event inside ONE ensureDb().transaction().immediate() on the core connection, returns what it applied, and finalizeCandidateInterviewScoring seals `ai_scorecard` via sealDecisionSafe immediately AFTER the commit returns attached+gated (the ledger is on decision-record-store's own openStore() handle, decision-record-store.ts:212, and cannot write while the core connection holds the lock - publish-atomicity.test.ts:1-17). Reword case 1 and case 7 accordingly (seal count still exactly one, sealed only for an attached scorecard).",
+      "void_reason": null
+    },
+    {
+      "context": "interview-execution-scoring",
+      "slot": "B",
+      "title": "A finished-but-unscored interview shows on Schedule with Re-score",
+      "verdict": "revise",
+      "premise_false": false,
+      "premise_notes": "complete/route.ts:438-447 log-only failure with the 'no status column' comment - verified verbatim. scheduleTabDerived.ts:50-60 admits only approvalKind 'scorecard_review' (:57) - verified. useScheduleTab.ts:165-167 loads calendar|scorecard_review only - verified. ScheduleTabInterviewedList.tsx:83-96 'Review scorecard in Decisions' as the only next step - verified. :168-173 refuses a re-run on a completed session - verified. PipelineCandidateDrawerTypes.ts:42-44 note-only synthesis - verified. interviewStatusByEntries moved :564-591 -> :591+ and still selects no scorecard_json/mode - verified. No re-score door exists (grep hits are profile/group-eval); app/api/interview/sessions/[id]/rescore does not exist; /api/interview/sessions/** is not in public-routes.ts - verified. r09 voice-provider-io (interviews.ts, api-response.ts) and schedule-interview-prep (transcript modal) have landed, so the sequencing note is satisfied.",
+      "floors_ok": false,
+      "floor_notes": "L, 6/8/5. Write set is 19 files: 4 catalogs + 2 docs + 3 tests + rate-limit-contract.test.ts = 10 non-code, 9 code files - RULING: over the ~15 floor but mostly catalogs/tests/docs, so the size is accepted; it is narrowed by one file through the revise below (drops the shared A-owned module, which also removes the A/B write-set overlap). Hard dependency on slot A (build A first). New route: requireOperator stated, rate-limited per session and pinned in the contract test - correct. Loop close: both surfaces that display the state (Interviewed row, transcript modal) and both that offer Re-score are in the write set.",
+      "rereproposal": "Leftover 'Regenerate a stale prep pack before composing the voice brief' and 'Remind unused AI-interview links' are different seams; r07 voice-interview-api 'director ledger is the transcript of record' is upstream of this, not the same card.",
+      "ambition": 4,
+      "ambition_why": "A candidate who vanishes between Schedule and Decisions after a failed scoring is a real loss, and recovering the verdict from the paid-for transcript is the product move; deriving the state from existing columns keeps it honest.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified, including the absence of any re-score door and the public-routes posture.",
+      "falsifiability": 4,
+      "falsifiability_why": "Pure state module, scheduleTabDerived cases and a unit-db route test with a stub scorer are node:test-able; the race case (case 6) depends on A's commit exposing requireUnscored through the attach CAS, and the row/modal rendering stays .tsx-unproven.",
+      "revise": "Drop app/_lib/interview-scorecard-commit.ts from the write set: have slot A's finalizeCandidateInterviewScoring take `deps.attach` (defaulting to attachInterviewScorecard), and let the rescore route pass an attach bound with { requireUnscored: true } - the CAS lives in interviews.ts, which B already edits. Write set becomes 18 and no longer overlaps A's module.",
+      "void_reason": null
+    },
+    {
+      "context": "jobs-posting-campaign",
+      "slot": "A",
+      "title": "Go-live leaves a durable receipt: abandoned or failed sourcing resumes",
+      "verdict": "revise",
+      "premise_false": false,
+      "premise_notes": "publish/route.ts:119-129 go-live transaction (classifyPublish -> jobPostGate -> setJobStatus -> setRoleOpenConfig -> recordMeterUsage) commits before sourcing; :123 `already`; :181/:243 gate sourcing and the raise on !already; :203 awaits runSourceForRole on request.signal; :219 `sourced += 1` ignoring created; :172 reopenEntriesByJobId - all verified. jobsPublishResult.ts:88-92 module-scope Map - verified. en.json publishAbandoned moved :5733 -> :5791. JobsPublishNote.tsx:74 comment - verified; note the note renders sentences through an explicit switch (:19-31), so the two new sentences DO need that file (write set correct). rediscover.ts:260 raiseRediscoveryAlertsForJob, pipeline.ts:1480/:1500 created flag - verified. runSourceForRole callers = exactly the three named. Context-map drift (campaign tab deleted) noted by the scout is real. DESIGN DEFECT: the card says openReceipt is 'called INSIDE the existing go-live transaction' and the store follows 'the tenant-scoped store pattern of rediscovery-alert-store.ts' - that pattern opens its OWN connection (rediscovery-alert-store.ts:2/:27 openStore(), db-path.ts:143). A write on a second connection inside the core transaction is the exact SQLITE_BUSY_SNAPSHOT failure publish-atomicity.test.ts:1-17 was written for (setJobStatus once did this).",
+      "floors_ok": false,
+      "floor_notes": "M, 7/8/6. Write set is 17: 3 tests + 4 catalogs + 2 docs (api-reference.md is regenerated by api:docs) = 9 non-code, 8 code files - RULING: over the ~15 floor but mostly tests/catalogs/docs; accepted at that size, no further narrowing without dropping the resume door itself. Gate architecture (new persistent table -> tenancy manifest entry + colocated tenancy test, both in the write set). New GET on the publish route calls requireOperator - stated. Shares publish/route.ts with slot B (disjoint halves; build A first). Loop close: the only surface that can offer resume (the modal footer of a live role) is in the write set.",
+      "rereproposal": "Leftover jobs-posting-campaign rows are all campaign-pack items; r07 shell-setup-wizard 'Finish ends on a receipt' is the wizard, a different surface.",
+      "ambition": 4,
+      "ambition_why": "Turning 'live, billed, never sourced' from a permanent silent state into a receipt with an idempotent CAS resume is the principal's shape for a two-act request, and it fixes the double-counted reopen on the way.",
+      "grounding": 4,
+      "grounding_why": "Every defect cite verified; the store pattern the card names for the receipt is the one connection shape the tree's own atomicity test forbids inside that transaction.",
+      "falsifiability": 5,
+      "falsifiability_why": "Injected source/raise deps make runGoLive testable without Python; the CAS cases (stale finisher, double claim, window) are exact row-count assertions on a temp DB.",
+      "revise": "State that golive-receipt-store.ts writes through ensureDb() (the core connection) - its CREATE TABLE IF NOT EXISTS runs lazily on that handle - and never through its own openStore(); rediscovery-alert-store.ts is the tenancy-test pattern to copy, not the connection pattern, because openReceipt runs inside the go-live transaction and publish-atomicity.test.ts:1-17 pins that a second connection there rolls the debit back with SQLITE_BUSY_SNAPSHOT.",
+      "void_reason": null
+    },
+    {
+      "context": "jobs-posting-campaign",
+      "slot": "B",
+      "title": "Reopening a role restates its terms: prefilled seats, a floor above hires",
+      "verdict": "revise",
+      "premise_false": false,
+      "premise_notes": "JobsPublishDialog.tsx:49 `useState(() => \"1\")` and :54 `[appLocale]` - verified. JobsPostingModal.tsx:196 passes only reopen={isClosed} - verified. jobsPostingModalLogic.ts:150 always sends targetHires+langs - verified; route.ts:34-46 'absent means do not change it' and setRoleOpenConfig COALESCE - verified. JobsTypes.ts:79-81, db/jobs.ts:838-841 - verified. stage-hooks-role-fill.ts:104-109 and jobsRoleStatus.ts:52-54 - verified. JobsPostingModalFooter.tsx:52-55 comment - verified. route.ts:52-56 parse range only, listJobPipelineStats at pipeline.ts:1086 (ensureDb) - verified. JOB_TARGET_HIRES_INVALID moved to api-response.ts:1624 / en.json:1965. Least-sure point (8): the transaction body (route.ts:119-129) runs classifyPublish, jobPostGate, setJobStatus, setRoleOpenConfig, recordMeterUsage - all on the core connection since the atomicity fix - and listJobPipelineStats is ensureDb too, so upgrading to `.immediate()` is safe and correct (a hire committing from another connection between the hired read and the flip is the BUSY_SNAPSHOT shape). publish-atomicity.test.ts:80 is a hand copy 'verbatim in shape', not a source pin, so `.immediate()` does not break it - but the copy then lies about the shape. The release e2e publish journey is a single request and is unaffected.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/8/5, 12 files (3 new, 4 catalogs, 1 doc, api-response shared); ~350 lines. Gate contract. Loop close: the footer's Reopen opens this dialog; the Drafts panel and the guided walk publish drafts where wasClosed is false, pinned by case 6 - correct. New refusal owes four catalog entries - listed. Shares publish/route.ts with slot A (build after A).",
+      "rereproposal": null,
+      "ambition": 3,
+      "ambition_why": "A correct headcount precondition on reopen with the data the app already holds - a principal would ship it, and would call it closing a gap rather than a bet.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified, including the unreachable COALESCE contract and the role-fill hook that closes the reopened role at once.",
+      "falsifiability": 5,
+      "falsifiability_why": "Pure terms module and a unit-db route case that asserts no flip, no usage and no spawn on refusal; case 6 pins that drafts cannot be refused.",
+      "revise": "Add app/api/jobs/publish-atomicity.test.ts to the write set and mirror the `.immediate()` upgrade in its hand-copied transaction (:80) plus one sentence in its header, so the test stays 'verbatim in shape' with the route.",
+      "void_reason": null
+    },
+    {
+      "context": "pipeline-core",
+      "slot": "A",
+      "title": "Automation drafts from the entry's own role, not the seed file",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "automation_cli.py:93-99 _find_job raises NotFoundError, :243-244 load_corpus(args.jobs) with no --jobs passed, :274-278 per-entry lookup, :125-129/:194-206 interview-kit already takes --job-json - all verified. matching.py load_corpus default to the seed - verified by the surrounding code. automation-run.ts:464 pushes --job-id only, :333-349 loads the live corpus for rematch only with the 'Other tasks ... skip the corpus entirely' comment at :340 - verified; no --job-json anywhere in automation-run.ts. automation.py:2691 salary_band from the seed copy, automation-cache-key.ts:166 jobId only, reasoning-run.ts:136 jobPayload precedent, _cli.py:65 load_jobs_arg, recruiter_cli.py:48-52 and winnability_cli.py:55-59 hand-rolled lookups, all six callers (tasks.ts:146/:208, interview-prep-run.ts:45, interview-run.ts:789, outreach route:145, automation/[task]/route.ts:58) - verified. The scout's reproduction (404 on a published jd-* role) follows from the code path. Minor: the two new test files are listed under new_files but not write_set.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/9/5, 9 files + 2 new tests; ~400 lines across Python and TS. Gate contract. No new route or code. The cache-axis addition retires the automation cache once - named as a cost. Shares app/_lib/automation-run.ts with interview-execution-scoring/A (disjoint hunks) - separate waves.",
+      "rereproposal": "Leftover pipeline-core rows are S items on other CLIs; no prior deck card covers the job door.",
+      "ambition": 4,
+      "ambition_why": "Six automation tasks silently 404 on every role a team authored - closing that through one job-resolution door and a content-keyed cache is the structural fix, not a flag.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified in both languages, with the contradiction between the TS comment and the CLI shown on the tree.",
+      "falsifiability": 5,
+      "falsifiability_why": "CLI main() cases with temp files, a pure argv builder and cache-key cases are all writable before the change; the source pin catches a lookup left inline.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "pipeline-core",
+      "slot": "B-architecture (no UI surface)",
+      "title": "Policy pass decides by stage role, not the five shipped stage names",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "automation.py:951/:960/:980/:982/:987 literal-name branches, :989 'no policy for this stage', :958/:977 literal advance targets, :180 TERMINAL_STAGES=('Hired',) - verified verbatim. decision-config-schema.ts:341-349 role vocabulary with repeatable screening/homework/interview/custom - verified. pipeline-axis-server.test.ts:39-48 renamed board and pipeline-axis-server.ts:20-27 rename note - verified. automation-pass.ts:468 advances via actOnPipelineEntry(accept) with expectedStage+expectedApprovalKind, landing on nextStageOnAxis (pipeline.ts:3328, pipeline-core.ts:188) - verified. automation-commit-plan.ts:71 compares toStage - verified. pipeline.ts:2921-2922 resolves the axis for agingTier but hands Python the raw stage - verified. test_automation.py:148 AgingTierSyncTest - verified; STAGE_ROLE at pipeline-stages.ts:95, StageRole :57. Least-sure point (2): the operator DB has no custom axis (the scout checked), so on THIS install the defect is latent; it is live for any team that uses the Settings -> Hiring board composer, and it fails silently ('none' is a valid answer). Impact 7 is honest as 'a whole class closes' but it is the floor, and the card should not be read as moving a number here.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/7/6, 5 files + 1 new test; ~350 lines. Gate contract. Default-board decisions pinned byte-identical (case 6). One fairness note the card understates: keying the reject rule on the screening ROLE extends auto-reject-queue reach to every screening-role stage on a composed board (roles repeat freely) - still human-queued, but the ai-act-conformity.md edit in the write set must say 'every screening-role stage', not only rename the literal.",
+      "rereproposal": null,
+      "ambition": 3,
+      "ambition_why": "Closing the last label-keyed rule engine is the right structural move and the registry law says so, but on this install nobody notices - it is a correctness upgrade for a composed board rather than a product bet.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified on both sides, including the exact landing-stage mismatch between preview and commit.",
+      "falsifiability": 5,
+      "falsifiability_why": "Python unittest over evaluate_entry with and without stageRole, a node:test over the pure stamp, and a TS<->Python sync pin in the AgingTierSyncTest shape.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "voice-tts-package",
+      "slot": "A",
+      "title": "Language coverage is probed from installed voices, not a hardcoded list",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "piper.ts:14 INSTALL_HINT (two downloads), :23 static ['en','cs'], :90 falls through to voices[0] - verified. kokoro.ts:24-26 three 'en' voices, :37 eight declared languages, :66 extras get language null, :95 never reads req.language, :106-110 sidecar args carry sid + text only - verified. registry.ts:97-98 speaks() reads capabilities only, :117 probe, :122 speaks - verified. tts/route.ts:142 header, VoicePlayback.tsx:77 wrongLanguage (en.json :11995, card :11873), voice-tts-package.md:125 'whatever voices are installed' - verified. Least-sure point (3): the card's Kokoro claims are limited to what the code shows - the declared list vs the catalog and the absence of a language argument to the sidecar; it makes no claim about what the Kokoro model can speak, and KOKORO_VOICES gains an explicit language field rather than inferring one. voice-pick.ts does not exist.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/7/5, 14 files (2 new, 4 catalogs, 1 doc); ~350 lines. Gate contract. Additive on TtsProbe/TtsStatus; ElevenLabs and FakeTts unchanged (case 6). Loop close: the one surface that displays coverage (TtsComparePanel) is in the write set; the companion's wrongLanguage note already exists and starts firing. Shares TtsComparePanel.tsx and the package doc with slot B - separate waves.",
+      "rereproposal": "r09 voice-provider-io 'providers declare their traits' is the realtime plane (app/_lib/voice), disjoint from packages/voice-tts.",
+      "ambition": 4,
+      "ambition_why": "Moving language from declaration to probe is the engine-abstraction rule applied where it bites (Czech, the key market), and it makes the product's own wrong-language warning finally fire.",
+      "grounding": 5,
+      "grounding_why": "Every cite verified, and the card keeps its Kokoro claims to the catalog and the argv the code builds.",
+      "falsifiability": 5,
+      "falsifiability_why": "Temp voice dirs with PIPER_BIN/KOKORO_BIN as readable files drive probe() without a sidecar; registry.test.ts guards the unchanged providers.",
+      "revise": null,
+      "void_reason": null
+    },
+    {
+      "context": "voice-tts-package",
+      "slot": "B",
+      "title": "A resumed utterance plays to its end: blocked and truncated speech continue",
+      "verdict": "build",
+      "premise_false": false,
+      "premise_notes": "useTts.ts:328 onended resolves 'done' while :334 already resolved 'blocked'; :356-361 ensure() prefetches ahead; :368-370 served from chunk 0; :380-382 blocked -> setPlayback and return; :392-397 error path sets state without release(); :402-411 resume() plays the element and sets 'playing' with nothing ever setting idle - all verified verbatim. useStudioSpeech.ts:140 speaking from 'playing', StudioVoiceBar.tsx:138-145 Stop square, useCompanionSpeech.ts:61/:149, VoicePlayback.tsx:20/:54, TtsComparePanel.tsx:163 'truncated' (en.json :2538, card :2519), CompanionSpeakButton resume label - verified. utterance.ts does not exist. useTts consumers are exactly useCompanionSpeech, useStudioSpeech and TtsComparePanel - all in the write set.",
+      "floors_ok": true,
+      "floor_notes": "M, 6/8/5, 15 files (2 new, 4 catalogs, 1 doc); the loop MOVES out of useTts, ~450 lines net. Gate contract. No new playback member, so no consumer switch grows. Loop close: every surface that offers resume or shows the failed state (CompanionSpeakButton, VoicePlayback, StudioVoiceBar, TtsComparePanel) is in the write set. Perf: the companion dock and studio bar are on app/page.tsx, which is AT its ceiling - the card names the settle up front.",
+      "rereproposal": "r08 voice-interview-components 'A dropped call resumes itself' is the realtime call transport, not TTS playback.",
+      "ambition": 4,
+      "ambition_why": "Auto-speak lands blocked almost every time by the code's own admission, so 'Play continues to the end and Continue costs one chunk' fixes the most common voice path rather than a corner.",
+      "grounding": 5,
+      "grounding_why": "Every line verified, including the unreleased-URL error path and the consumers that keep the turn lit.",
+      "falsifiability": 5,
+      "falsifiability_why": "A pure driver with scripted fetch/play/revoke fakes makes all six cases exact call-count and outcome assertions before useTts is touched.",
+      "revise": null,
+      "void_reason": null
+    }
+  ],
+  "overlaps": [
+    {
+      "file": "app/_lib/db/core.ts",
+      "cards": [
+        "db-core-migrations/A",
+        "db-core-migrations/B"
+      ],
+      "note": "disjoint hunks (migrateExec vs migrateUniqueIndex/readRowColumn) - separate waves"
+    },
+    {
+      "file": "messages/{en,cs,de,fr}.json",
+      "cards": [
+        "analyze-workspace/A",
+        "analyze-workspace/B",
+        "db-core-migrations/B"
+      ],
+      "note": "shared surface under the lock"
+    },
+    {
+      "file": "docs/features/candidates/README.md",
+      "cards": [
+        "analyze-workspace/A",
+        "analyze-workspace/B"
+      ]
+    },
+    {
+      "file": "perf-budget.json (app/page.tsx ceiling)",
+      "cards": [
+        "analyze-workspace/A",
+        "analyze-workspace/B"
+      ],
+      "note": "page.tsx is AT its ceiling today; each card adds modules - coordinator settles once per wave"
+    },
+    {
+      "file": "app/features/tools/devcases/DevLifecycleRow.tsx",
+      "cards": [
+        "devcase-detail/A",
+        "devcase-detail/B"
+      ],
+      "note": "both edit it plus the catalogs - separate waves"
+    },
+    {
+      "file": "e2e/journey-role-to-schedule.spec.ts",
+      "cards": [
+        "e2e-suite/A",
+        "e2e-suite/B-architecture"
+      ],
+      "note": "disjoint hunks (wire reads vs axe helper) - sequential"
+    },
+    {
+      "file": "e2e/token-doors-axe.spec.ts",
+      "cards": [
+        "e2e-suite/A",
+        "e2e-suite/B-architecture"
+      ],
+      "note": "disjoint hunks - sequential"
+    },
+    {
+      "file": "docs/development/testing-and-evaluation.md",
+      "cards": [
+        "e2e-suite/A",
+        "e2e-suite/B-architecture"
+      ]
+    },
+    {
+      "file": "app/_lib/automation-run.ts",
+      "cards": [
+        "interview-execution-scoring/A",
+        "pipeline-core/A"
+      ],
+      "note": "CROSS-CONTEXT: deferApply hunk vs argv-builder/--job-json hunk - never the same wave"
+    },
+    {
+      "file": "app/_lib/interview-scorecard-commit.ts",
+      "cards": [
+        "interview-execution-scoring/A",
+        "interview-execution-scoring/B"
+      ],
+      "note": "hard dependency B->A; removed from B by the revise"
+    },
+    {
+      "file": "app/api/jobs/[id]/publish/route.ts",
+      "cards": [
+        "jobs-posting-campaign/A",
+        "jobs-posting-campaign/B"
+      ],
+      "note": "post-commit half vs parse/transaction half - build A first, B after"
+    },
+    {
+      "file": "app/_lib/api-response.ts",
+      "cards": [
+        "devcase-detail/B",
+        "interview-execution-scoring/B",
+        "jobs-posting-campaign/B"
+      ],
+      "note": "append-only REFUSAL_ERRORS rows under the shared-surface lock"
+    },
+    {
+      "file": "app/api/rate-limit-contract.test.ts",
+      "cards": [
+        "interview-execution-scoring/B"
+      ],
+      "note": "declared shared surface; devcase-detail/B reads it but must not change it"
+    },
+    {
+      "file": "app/_components/voice/TtsComparePanel.tsx",
+      "cards": [
+        "voice-tts-package/A",
+        "voice-tts-package/B"
+      ],
+      "note": "separate waves"
+    },
+    {
+      "file": "docs/architecture/voice-tts-package.md",
+      "cards": [
+        "voice-tts-package/A",
+        "voice-tts-package/B"
+      ]
+    },
+    {
+      "file": "docs/features/interviews/README.md",
+      "cards": [
+        "interview-execution-scoring/A",
+        "interview-execution-scoring/B"
+      ]
+    },
+    {
+      "file": "docs/features/jobs/README.md",
+      "cards": [
+        "jobs-posting-campaign/A",
+        "jobs-posting-campaign/B"
+      ]
+    },
+    {
+      "file": "docs/features/pipeline/README.md",
+      "cards": [
+        "pipeline-core/A",
+        "pipeline-core/B-architecture"
+      ]
+    },
+    {
+      "file": "docs/features/dev-case/README.md",
+      "cards": [
+        "devcase-detail/A",
+        "devcase-detail/B"
+      ]
+    },
+    {
+      "file": "docs/architecture/api-reference.md",
+      "cards": [
+        "analyze-workspace/B",
+        "interview-execution-scoring/B",
+        "jobs-posting-campaign/A"
+      ],
+      "note": "regenerated by npm run api:docs - last writer in a wave regenerates once"
+    },
+    {
+      "file": "perf-budget.json (app/page.tsx ceiling)",
+      "cards": [
+        "analyze-workspace/A",
+        "analyze-workspace/B",
+        "devcase-detail/A",
+        "devcase-detail/B",
+        "voice-tts-package/B"
+      ],
+      "note": "page.tsx sits AT its ceiling (1455/9292 vs 1455/9294): coordinator settles once per wave, by name"
+    }
+  ],
+  "wave_hint": {
+    "rule": "A/B pairs that share a code file never share a wave; B after A where B depends on A; automation-run.ts splits interview/A from pipeline-core/A; api-response.ts appenders queue on the lock.",
+    "wave1": [
+      "analyze-workspace/A",
+      "db-core-migrations/A",
+      "devcase-detail/A",
+      "e2e-suite/A",
+      "interview-execution-scoring/A (revised: seal after commit)",
+      "jobs-posting-campaign/A (revised: receipt on ensureDb)",
+      "pipeline-core/B-architecture",
+      "voice-tts-package/A"
+    ],
+    "wave2": [
+      "analyze-workspace/B",
+      "db-core-migrations/B",
+      "devcase-detail/B",
+      "e2e-suite/B-architecture (revised: tag uplift as last commit)",
+      "interview-execution-scoring/B (after A; revised write set)",
+      "jobs-posting-campaign/B (after A; atomicity test mirrored)",
+      "pipeline-core/A",
+      "voice-tts-package/B"
+    ],
+    "wave3": [
+      "follow-ups for loop_open records",
+      "perf-budget settles by name",
+      "the owed keyless e2e run (e2e-suite/A and B, jobs-posting-campaign/A response fields) - revert e2e-suite/B tag-uplift commit alone if /schedule or /offer report new wcag21 findings",
+      "api:docs regeneration once"
+    ]
+  },
+  "idea_score": {
+    "ambition": 3.75,
+    "grounding": 4.69,
+    "falsifiability": 4.63,
+    "premise_false": 0,
+    "void": 0,
+    "revise": 6,
+    "build": 10
+  }
+}

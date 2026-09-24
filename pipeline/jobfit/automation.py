@@ -17,15 +17,16 @@ directly gets only the Python half. So they are stated separately:
       deterministic fallback, can never leave this module as a reject route.
     * an early-career candidate (``registry.early_career_archetypes()``) is
       never auto-advanced and never auto-rejected: ``evaluate_entry`` holds them
-      at Screened, and `screen_candidate` rewrites a "reject" verdict to "hold"
+      on every screening-role stage, and `screen_candidate` rewrites a "reject" verdict to "hold"
       AFTER the model, so the model cannot override the gate.
     * the VOLUME gate (``volume_allows_reject``): a candidate from a RELATED area
       (``related_area``) is never recommended for reject while the role's pipeline
       is sparse or moderate — a handful of applicants is too few to screen a
       near-miss out without a human. Re-applied after the model exactly like the
       early-career gate, and the deterministic fallback runs the same predicate.
-    * ``evaluate_entry`` emits ``action:"reject"`` on exactly ONE path — stage
-      "Screened", a non-early archetype, no pending approval, no recent
+    * ``evaluate_entry`` emits ``action:"reject"`` on exactly ONE path — a
+      screening-ROLE stage (any such column on the entry's own board; "Screened"
+      on the shipped one), a non-early archetype, no pending approval, no recent
       screening decision, and a GENUINE match score (absent/0 is an unscored
       data gap, not a zero match) below ``POLICY["bau_reject_score"]``.
     * caveat, deliberately pinned rather than fixed here: the early-career gate
@@ -179,6 +180,42 @@ AGING_TIER_ALERTS: dict[str, str] = {"aging": "stale_alert", "stalled": "aging_a
 # STAGE_ROLE marks terminal in app/_lib/pipeline-stages.ts). A hire is not "waiting".
 TERMINAL_STAGES: tuple[str, ...] = ("Hired",)
 
+# The policy pass decides by STAGE ROLE, never by a column's name (challenge-r10
+# pipeline-core/B). A workspace composes its own board in Settings -> Hiring with any
+# stage ids, and roles repeat freely (two screening columns, three interview rounds),
+# so the TS pass stamps every snapshot entry with `stageRole` (roleOf on the entry's
+# OWN workspace axis; null = off-axis) and `advanceTo` (nextStageOnAxis, the column
+# actOnPipelineEntry("accept") will land on; null = none). The two literals below are
+# the SHIPPED board, used only when a caller sends no `stageRole` key (the bare CLI,
+# back-compat). Both cross the boundary as code: tests/test_automation.py
+# StageRoleSyncTest reads STAGE_ROLE and the StageRole union from
+# app/_lib/pipeline-stages.ts and fails on drift.
+STAGE_ROLES: tuple[str, ...] = ("entry", "screening", "homework", "interview", "scoring", "offer", "terminal", "custom")
+DEFAULT_STAGE_ROLE: dict[str, str] = {
+    "Accepted": "entry",
+    "Screened": "screening",
+    "Interview": "interview",
+    "Offer": "offer",
+    "Hired": "terminal",
+}
+_DEFAULT_ORDER: tuple[str, ...] = tuple(DEFAULT_STAGE_ROLE)
+_DEFAULT_ADVANCE_TO: dict[str, str | None] = {
+    s: (_DEFAULT_ORDER[i + 1] if i + 1 < len(_DEFAULT_ORDER) else None) for i, s in enumerate(_DEFAULT_ORDER)
+}
+
+
+def stage_facts(entry: dict[str, Any]) -> tuple[str | None, str | None]:
+    """(role, advanceTo) for one snapshot entry: the TS-stamped facts when the key is
+    present, else the shipped board's. An unknown role string reads as off-axis (None)
+    — a rule never fires on a column nobody has classified."""
+    stage = entry.get("stage")
+    if "stageRole" in entry:
+        role = entry.get("stageRole")
+        advance_to = entry.get("advanceTo") or None
+        return (role if role in STAGE_ROLES else None), (advance_to if isinstance(advance_to, str) else None)
+    role = DEFAULT_STAGE_ROLE.get(stage) if isinstance(stage, str) else None
+    return role, (_DEFAULT_ADVANCE_TO.get(stage) if role else None)
+
 
 def aging_alerts(entry: dict[str, Any], days: int) -> list[str]:
     """The aging alerts for one entry: the TS-resolved tier when present, else the
@@ -187,7 +224,7 @@ def aging_alerts(entry: dict[str, Any], days: int) -> list[str]:
     if tier in AGING_TIERS:
         kind = AGING_TIER_ALERTS.get(tier)
         return [kind] if kind else []
-    if entry.get("stage") in TERMINAL_STAGES:
+    if entry.get("stage") in TERMINAL_STAGES or entry.get("stageRole") == "terminal":
         return []
     if days >= POLICY["aging_days"]:
         return ["aging_alert"]
@@ -916,7 +953,8 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Decide one entry's automated move. Pure; operates on the entry snapshot.
 
     entry keys used: stage, archetype, matchScore, daysInStage, approvalKind, recentScreening,
-    agingTier (optional; see aging_alerts).
+    agingTier (optional; see aging_alerts), stageRole + advanceTo (optional; see
+    stage_facts — absent = the shipped board's name -> role map).
     Returns {action: advance|reject|hold|none, toStage, alerts:[...], reason}.
 
     An absent/null matchScore (matching not yet run, or a data gap) is treated as
@@ -926,6 +964,7 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     ``0 < bau_reject_score``, silently turning a data gap into a rejection.
     """
     stage = entry.get("stage")
+    role, advance_to = stage_facts(entry)
     archetype = entry.get("archetype") or "bau"
     score = int(entry.get("matchScore") or 0)
     # `score == 0` means matching hasn't produced a real result yet (None, absent,
@@ -935,6 +974,10 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     approval = entry.get("approvalKind")
     recent_screening = bool(entry.get("recentScreening"))
     early = archetype in _EARLY_CAREER
+    # The column as a reason names it: the shipped name alone on the shipped board (so
+    # every default-board reason is byte-identical to the name-keyed engine), the
+    # team's own name plus its role on a composed one.
+    named = stage if DEFAULT_STAGE_ROLE.get(stage) == role else f"{stage} ({role} stage)"
 
     alerts: list[str] = aging_alerts(entry, days)
 
@@ -948,20 +991,23 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
     if recent_screening:
         return out("none", None, "recent screening decision; policy pass skipped")
 
-    if stage == "Accepted":
+    if role == "entry":
         # CV received (inbound application or proactively sourced), waiting for
         # screening. Once a match score exists it has cleared first-wave matching →
-        # advance into Screened, where the archetype-aware gate decides. This move is
-        # fair — archetype-neutral and never a reject — so intake doesn't stall in
-        # Accepted. No score yet → hold until matching has run.
-        if scored:
-            return out("advance", "Screened", f"received with match score {score} → Screened")
-        return out("hold", None, "accepted; awaiting match score")
-    if stage == "Screened":
-        # First wave of evaluation (matching + AI screening), collapsed into one
-        # stage. Early-career is NEVER auto-advanced/rejected (human screening gate);
-        # a pending approval holds; weak BAU is screened out; strong BAU clears
-        # screening and advances to Interview once it has settled; mid → human.
+        # advance into the board's next column, where the archetype-aware gate
+        # decides. This move is fair — archetype-neutral and never a reject — so
+        # intake doesn't stall on the entry column. No score yet → hold for matching.
+        if not scored:
+            return out("hold", None, "accepted; awaiting match score")
+        if not advance_to:
+            return out("hold", None, f"received with match score {score}; no next column on this board")
+        return out("advance", advance_to, f"received with match score {score} → {advance_to}")
+    if role == "screening":
+        # First wave of evaluation (matching + AI screening). EVERY screening-role
+        # column gets the same thresholds — roles repeat freely on a composed board.
+        # Early-career is NEVER auto-advanced/rejected (human screening gate); a
+        # pending approval holds; weak BAU is screened out (queued for a human by the
+        # TS pass, never applied); strong BAU advances once it has settled; mid → human.
         if approval:
             return out("hold", None, "approval already pending")
         if early:
@@ -973,19 +1019,33 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
         if score < POLICY["bau_reject_score"]:
             return out("reject", None, f"BAU score {score} < {POLICY['bau_reject_score']}")
         if score >= POLICY["bau_advance_score"]:
+            if not advance_to:
+                return out("hold", None, f"BAU score {score} cleared screening; no next column on this board")
             if days >= POLICY["screening_auto_days"]:
-                return out("advance", "Interview", f"BAU score {score} cleared screening, {days}d in Screened → Interview")
-            return out("hold", None, f"BAU score {score} cleared screening; settling in Screened")
+                return out("advance", advance_to, f"BAU score {score} cleared screening, {days}d in {named} → {advance_to}")
+            return out("hold", None, f"BAU score {score} cleared screening; settling in {named}")
         return out("hold", None, f"BAU mid score {score} → human review")
-    if stage == "Interview":
-        return out("hold", None, "Interview → Offer is always a human decision")
-    if stage == "Offer":
-        # Extending the offer is the recruiter's call; the Offer → Hired move is the
+    if role == "interview":
+        # Leaving an interview round is always the recruiter's call.
+        if advance_to:
+            return out("hold", None, f"{named} → {advance_to} is always a human decision")
+        return out("hold", None, f"{named} is always a human decision")
+    if role == "offer":
+        # Extending the offer is the recruiter's call; the offer → hire move is the
         # candidate's (captured via their accept/decline link). Policy never advances
         # or rejects an offer — it only surfaces aging so a stale offer gets a nudge.
-        return out("hold", None, "Offer is a human + candidate decision; awaiting response")
-    if stage == "Hired":
+        return out("hold", None, f"{named} is a human + candidate decision; awaiting response")
+    if role in ("homework", "scoring", "custom"):
+        # Human-owned (or machine-worked elsewhere) columns: the work-sample step, a
+        # scoring round, a column the team invented. The policy pass never moves a
+        # candidate out of one; it only surfaces aging.
+        return out("hold", None, f"{role} stage ({stage}): a human decision; policy never moves it")
+    if role == "terminal":
         return out("none", None, "hired — terminal stage")
+    if "stageRole" in entry:
+        # Off-axis: a retired column, a legacy row, or a role this engine does not
+        # know. Nothing to resolve, so nothing is decided — never a reject.
+        return out("none", None, "off-axis stage; no policy")
     return out("none", None, "no policy for this stage")
 
 

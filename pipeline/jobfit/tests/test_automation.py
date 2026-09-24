@@ -199,6 +199,141 @@ class AgingTierSyncTest(unittest.TestCase):
         self.assertEqual(terminal, set(automation.TERMINAL_STAGES))
 
 
+class StageRolePolicyTest(unittest.TestCase):
+    """The policy pass decides by STAGE ROLE (challenge-r10 pipeline-core/B).
+
+    The TS pass stamps every snapshot entry with ``stageRole`` and ``advanceTo`` (the
+    next column on the entry's OWN workspace axis — where actOnPipelineEntry("accept")
+    lands). evaluate_entry used to match the five shipped NAMES, so a composed board
+    (Settings -> Hiring) got "no policy for this stage" on its entry column and on any
+    renamed screening column, and the preview named a landing the commit did not use.
+    """
+
+    def ev(self, **kw):
+        base = {"stage": "Tech screen", "stageRole": "screening", "advanceTo": "Panel",
+                "archetype": "bau", "matchScore": 60, "daysInStage": 0, "approvalKind": None}
+        base.update(kw)
+        return automation.evaluate_entry(base)
+
+    def test_a_renamed_entry_column_advances_to_the_axis_next(self):
+        d = self.ev(stage="Inbox", stageRole="entry", advanceTo="Phone", matchScore=72)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Phone"))
+        self.assertIn("Phone", d["reason"])
+        self.assertNotIn("Screened", d["reason"])
+
+    def test_a_renamed_screening_column_rejects_only_on_the_legal_path(self):
+        self.assertEqual(self.ev(matchScore=30)["action"], "reject")
+        self.assertIsNone(self.ev(matchScore=30)["toStage"])
+        for archetype in automation._EARLY_CAREER:
+            self.assertEqual(self.ev(matchScore=30, archetype=archetype)["action"], "hold", archetype)
+        for missing in (None, 0):
+            self.assertEqual(self.ev(matchScore=missing)["action"], "hold", repr(missing))
+
+    def test_a_renamed_screening_column_advances_to_the_axis_next(self):
+        d = self.ev(matchScore=80, daysInStage=3)
+        self.assertEqual((d["action"], d["toStage"]), ("advance", "Panel"))
+        self.assertIn("Panel", d["reason"])
+        self.assertNotIn("Interview", d["reason"])
+
+    def test_human_owned_roles_hold_with_a_role_named_reason(self):
+        for role in ("homework", "scoring", "custom", "interview", "offer"):
+            for score in (20, 95):
+                d = self.ev(stage="Column X", stageRole=role, advanceTo="Next", matchScore=score, daysInStage=9)
+                self.assertEqual((d["action"], d["toStage"]), ("hold", None), (role, score))
+                self.assertIn(role, d["reason"], (role, d["reason"]))
+
+    def test_terminal_role_is_none(self):
+        d = self.ev(stage="Signed", stageRole="terminal", advanceTo=None, matchScore=99, daysInStage=99)
+        self.assertEqual((d["action"], d["toStage"]), ("none", None))
+
+    def test_an_off_axis_stage_is_none_never_reject(self):
+        for score in (None, 10, 30, 95):
+            d = self.ev(stage="Offer", stageRole=None, advanceTo=None, matchScore=score, daysInStage=9)
+            self.assertEqual((d["action"], d["toStage"], d["reason"]), ("none", None, "off-axis stage; no policy"), score)
+
+    def test_an_unknown_role_string_is_none(self):
+        d = self.ev(stageRole="bogus", matchScore=10)
+        self.assertEqual((d["action"], d["reason"]), ("none", "off-axis stage; no policy"))
+
+    def test_the_stamped_default_board_decides_like_the_legacy_path(self):
+        nxt = dict(zip(automation.DEFAULT_STAGE_ROLE, list(automation.DEFAULT_STAGE_ROLE)[1:] + [None]))
+        for stage, role in automation.DEFAULT_STAGE_ROLE.items():
+            for arch in ("bau", "student"):
+                for score in (None, 0, 35, 40, 60, 80):
+                    for days in (0, 3, 35):
+                        for appr in (None, "screening_review"):
+                            snap = {"stage": stage, "archetype": arch, "matchScore": score,
+                                    "daysInStage": days, "approvalKind": appr}
+                            self.assertEqual(
+                                automation.evaluate_entry({**snap, "stageRole": role, "advanceTo": nxt[stage]}),
+                                automation.evaluate_entry(snap),
+                                snap,
+                            )
+
+    def test_the_legacy_path_is_byte_identical(self):
+        # No stageRole key (the bare CLI, back-compat): the decision grid over the five
+        # shipped stages + an unknown one is digested; the digest was taken on the tree
+        # BEFORE the role switch (d57d380b8), so any change of action/toStage/reason/
+        # alerts on the legacy path fails here.
+        import hashlib
+
+        rows = []
+        for stage in ("Accepted", "Screened", "Interview", "Offer", "Hired", "Placed"):
+            for arch in ("bau", "student"):
+                for score in (None, 0, 35, 39, 40, 60, 80):
+                    for days in (0, 3, 25, 35):
+                        for appr in (None, "screening_review"):
+                            d = automation.evaluate_entry({"stage": stage, "archetype": arch, "matchScore": score,
+                                                           "daysInStage": days, "approvalKind": appr})
+                            rows.append([stage, arch, score, days, appr, d["action"], d["toStage"], d["reason"], d["alerts"]])
+        digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        self.assertEqual(len(rows), 672)
+        self.assertEqual(digest, "a6ae0f22d12a21ccf180d0672b9c61d05a37e08d97877a5291bf6e1fd418dde9")
+
+    def test_reject_is_reached_only_from_a_screening_role(self):
+        floor = automation.POLICY["bau_reject_score"]
+        seen = False
+        for role in (*automation.STAGE_ROLES, None, "bogus"):
+            for arch in ("bau", *automation._EARLY_CAREER):
+                for score in (None, 0, 1, floor - 1, floor, 95):
+                    for appr in (None, "rejection_review"):
+                        d = self.ev(stageRole=role, archetype=arch, matchScore=score, approvalKind=appr, daysInStage=5)
+                        if d["action"] != "reject":
+                            continue
+                        seen = True
+                        self.assertEqual(role, "screening")
+                        self.assertNotIn(arch, automation._EARLY_CAREER)
+                        self.assertIsNone(appr)
+                        self.assertTrue(score and score < floor)
+        self.assertTrue(seen)
+
+
+class StageRoleSyncTest(unittest.TestCase):
+    """Drift guard for the stage-role bridge (the AgingTierSyncTest shape): the legacy
+    name -> role map and the role vocabulary Python decides on must be the ones
+    app/_lib/pipeline-stages.ts declares (STAGE_ROLE, StageRole)."""
+
+    STAGES_TS = __import__("pathlib").Path(__file__).resolve().parents[3] / "app" / "_lib" / "pipeline-stages.ts"
+
+    def _ts(self) -> str:
+        return AgingTierSyncTest._strip(self.STAGES_TS.read_text(encoding="utf-8"))
+
+    def test_the_default_name_to_role_map_matches_in_order(self):
+        import re
+
+        block = re.search(r"\bSTAGE_ROLE\b[^=]*=\s*\{([^}]*)\}", self._ts())
+        self.assertIsNotNone(block)
+        ts_pairs = re.findall(r'(\w+)\s*:\s*"(\w+)"', block.group(1))
+        self.assertEqual(ts_pairs, list(automation.DEFAULT_STAGE_ROLE.items()))
+
+    def test_the_role_vocabulary_matches(self):
+        import re
+
+        m = re.search(r"\btype\s+StageRole\s*=\s*([^;]*);", self._ts())
+        self.assertIsNotNone(m, "pipeline-stages.ts must declare StageRole as a literal union")
+        self.assertEqual(tuple(re.findall(r'"(\w+)"', m.group(1))), automation.STAGE_ROLES)
+
+
 class ScreeningTest(unittest.TestCase):
     def test_bau_strong_advances(self):
         job = mkjob()

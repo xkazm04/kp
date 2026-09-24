@@ -1,0 +1,132 @@
+[
+  {
+    "context": "devcase-detail",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "One cohort ranking: auto-promote and the shortlist stop mixing score currencies",
+    "size": "M",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "base_sha": "c5eca55af7247cac4a25bc224ef644b5e4f949b7",
+    "write_set": [
+      "app/_lib/devcase-cohort-rank.ts",
+      "app/_lib/devcase-cohort-rank.test.ts",
+      "app/_lib/devcase-orchestrator.ts",
+      "app/_lib/devcase-orchestrator.test.ts",
+      "app/_lib/devcase-stage-outcome.ts",
+      "app/_lib/devcase-compare.ts",
+      "app/_lib/devcase-compare.test.ts",
+      "app/_lib/devcase-interview-kit.ts",
+      "app/features/tools/devcases/DevCaseDetailShortlist.tsx",
+      "app/features/tools/devcases/DevLifecycleRow.tsx",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/_lib/devcase-cohort-rank.ts",
+      "app/_lib/devcase-cohort-rank.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "perf-budget.json"
+    ],
+    "acceptance": [
+      "rankCohort([a{transferScore 85, evaluation.perStepSources.transfer 'deterministic'}, b{transferScore 72, perStepSources.transfer 'llm'}, c{transferScore null, no evaluation}]) -> {mixed:true, ranked:[b], template:[a], unscored:[c]}; b carries rank 1, a carries rank null (it is listed, never numbered against b)",
+      "evaluationCurrency precedence: {perStepSources:{transfer:'llm', tooling:'deterministic'}, source:'partial'} -> 'graded'; {source:'deterministic'} with no perStepSources -> 'template'; a bundle with neither -> 'graded' (legacy bundles are kept, the rule devcase-cohort.ts:32 already applies)",
+      "Uniform keyless cohort (all three transfer 'deterministic': 85, 60, 40) -> mixed:false, all three ranked by score, and autoPromoteSlate(ranked, floor 55, topN 3) -> [85, 60]: exactly today's filter/sort/slice, so a keyless install's auto-promote does not move",
+      "devcase-orchestrator ranked stage, posting with submissions {llm 72, deterministic 85}, floor 55 -> promoteSubmission is called for the llm submission only; the deterministic one stays 'evaluated' and gets no advance letter; the stored outcome carries warning {code:'mixed_currency', count:1}",
+      "devcase-orchestrator ranked stage, all-deterministic {85, 75} -> both promoted, outcome has no mixed_currency warning",
+      "rubricCompare over a mixed cohort -> template columns are marked currency 'template' and never win leaderByAxis; an axis scored only by a template column -> leader null",
+      "isOutcomeWarningCode('mixed_currency') === true; outcomeActions yields NO action for it (explain-only, like eval_failed); devcase.lifecycle.outcome.mixed_currency exists in all four catalogs (npm run i18n:check) and WARNING_TONE covers it (tsc exhaustiveness)",
+      "Source guard: none of devcase-orchestrator.ts, devcase-compare.ts, devcase-interview-kit.ts, DevCaseDetailShortlist.tsx contains a `transferScore ?? -1` or `transferScore ?? 0` comparator; each imports the comparator from devcase-cohort-rank.ts"
+    ],
+    "premise": [
+      "app/_lib/devcase-orchestrator.ts:580-583 - the auto-promote step ranks with its own rule: `.filter((s) => (s.transferScore ?? 0) >= floor).sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0)).slice(0, DEV_POLICY.promoteTopN)` and then promotes (board write + advance letter) in that order",
+      "app/features/tools/devcases/DevCaseDetail.tsx:74-76 - the studio shortlist ranks with a second rule (`?? -1`), app/_lib/devcase-compare.ts:71-73 with a third (evaluated-only, `?? -1`), app/_lib/devcase-interview-kit.ts:113-120 with a fourth (held first, then `?? -1`): four hand-written orderings of one cohort",
+      "None of the four reads provenance, though every saved bundle carries it: app/_lib/devcase-run.ts:786-787 persists `source` and `perStepSources`, and :791 takes transferScore from the transfer step whatever produced it",
+      "The two currencies are different instruments: the deterministic transfer is `_pct(0.5 * fluency + 0.5 * verif)` (pipeline/jobfit/devcase/evaluate.py:469) over a template tooling read that fixes fluency at 0.5 with confidence 0.2 (pipeline/jobfit/devcase/reflect.py:296,303); the step keys are reflect/tooling/evaluate/transfer (pipeline/jobfit/devcase/evaluation_pipeline.py:149), and a per-call fallback (an LLM call that raised) mixes them inside one cohort",
+      "The codebase already decided template evaluations are not comparable evidence in a cohort fold: app/_lib/devcase-cohort.ts:23-33 and :74 drop deterministic-tooling submissions from the probe-miss rates - the ranking that decides who is promoted does not apply the same rule",
+      "app/features/tools/devcases/DevCaseDetailShortlist.tsx:30-35 numbers every scored row and crowns index 0 (`isTop = rank === 1`), so a template 85 sits above a graded 72 as #1",
+      "app/_lib/devcase-stage-outcome.ts:33-41 is the closed warning vocabulary and app/features/tools/devcases/DevLifecycleRow.tsx:24-32 is its exhaustive tone map (`Record<OutcomeWarningCode, BadgeTone>`), so a new warning is one code + one tone + four catalog entries under devcase.lifecycle.outcome (en.json:10072 is the sibling baseline_unavailable)"
+    ],
+    "rollback": "The series reverts cleanly: devcase-cohort-rank.ts is a new import-free module, the orchestrator/compare/kit/shortlist changes are call-site swaps back to their inline sorts, and the one new warning code is additive (a stored outcome carrying mixed_currency is dropped after a revert by the outcome parser, which keeps only codes isOutcomeWarningCode knows (app/_lib/devcase-stage-outcome.ts:89), so the row renders without it). No table, no column, no route.",
+    "gate": "policy-tighten",
+    "runner_up": "Probe health as one tested verdict: fold the design audit (devcase-probe-audit.ts) and the cohort miss rates into per-probe status with a sample floor - today the 'miscalibrated' banner fires on two submissions (DevCohortProbePanel.tsx:39, `c.evaluated > 1`) from a rule that lives in JSX node:test cannot load.",
+    "technique": "refuse-a-cross-currency-comparison",
+    "body": "## Summary\nOne pure module, `app/_lib/devcase-cohort-rank.ts`, owns how a case's submissions are ordered: it tiers them by evaluation currency (graded vs keyless template vs unscored), ranks inside a tier with one comparator, and gives the orchestrator its auto-promote slate. The orchestrator, the studio shortlist, the rubric compare matrix and the interview-kit order all read it, and a mixed cohort no longer lets a template score outrank - or be auto-promoted over - a graded one.\n\n## Description\nThe cohort is ordered in four places with four null conventions (orchestrator `?? 0` + floor, shortlist `?? -1`, compare evaluated-only, kit held-first), and none of them reads the provenance every bundle already carries. That matters because a deterministic transfer score is a different instrument (fluency pinned at 0.5, confidence 0.2) and a per-call LLM fallback puts both instruments in one cohort. The server then auto-promotes by raw number - a board write and an advance letter - and the studio crowns the same template row '#1'. devcase-cohort.ts already refuses to fold template evaluations into cohort rates; the ranking that decides promotion does not.\n\nThe move (technique refuse-a-cross-currency-comparison: withhold the incomparable from the comparer, do not caveat it):\n1. `evaluationCurrency(bundle)`: perStepSources.transfer ?? perStepSources.evaluate ?? source; 'deterministic' -> template, anything else (llm/partial/legacy-absent) -> graded.\n2. `rankCohort(subs)` -> {mixed, ranked, template, unscored}. A uniform cohort (every scored row the same currency - the whole keyless install) is `mixed:false` and ranks as today. In a mixed cohort only the graded tier is numbered; the template tier is listed after it, unnumbered.\n3. `autoPromoteSlate(rank, floor, topN)` replaces orchestrator.ts:580-583. In a mixed cohort it draws from the graded tier only and the stage outcome gains an explain-only `mixed_currency` warning (count = template rows withheld). A human can still evaluate again or promote by hand; the manual promote door and the per-row promote preview are untouched (they judge one submission against the floor, not a cohort order).\n4. rubricCompare marks template columns and excludes them from leaderByAxis; orderInterviewKitInputs uses the shared comparator after its held-first key.\n5. DevCaseDetailShortlist re-tiers what it is handed (DevCaseDetail.tsx is NOT edited - both challenge-r09 devcase-lifecycle cards rewrite it; its now-redundant sort at :74-76 is harmless and can go after r09 lands).\n\nRead->write: the orchestrator's promote loop is unchanged in shape - the slate is a read, and every promotion still passes the existing per-item fence() re-check and promoteSubmission's own guards, so no new lock is needed. Perf: devcase-cohort-rank.ts is import-free; it enters the app/page.tsx graph (the Assignments tab is a dynamic chunk the budget walks) as +1 module (~3 KB) - the coordinator settles perf-budget.json under the lock. No new table, route, or error code; four catalog entries for the warning. Must not share a wave with this context's slot-B card (both edit DevLifecycleRow.tsx and the catalogs).\n\n## Flow\nLLM outage mid-batch -> two submissions fall back to the template read -> orchestrator reaches `ranked` -> rankCohort sees a mixed cohort -> auto-promotes from the graded tier only, records mixed_currency:2 -> lifecycle row shows the caution warning -> the recruiter opens the assignment: the shortlist numbers the graded rows, lists the two template rows under 'Scored by the keyless template - not ranked against the others' -> re-evaluates them with a key -> the cohort is uniform again and they rank normally.\n\n## Expected impact\nNo candidate is advanced (board + letter) or crowned '#1' on a number from a different instrument than the people they are ranked against; the one ordering rule is tested once instead of drifting across four files; keyless installs behave exactly as today.\n\n## Evaluation\nClaim: every cohort ordering (auto-promote, shortlist, compare, kit) comes from one tested module that refuses to rank template scores against graded ones.\nBefore: 0 of 8 acceptance cases pass.\nAfter: 8 of 8.\nMethod: gate - node:test over devcase-cohort-rank.test.ts, devcase-orchestrator.test.ts (ranked stage on a temp KP_DB_PATH), devcase-compare.test.ts and the source guard; npm run i18n:check; tsc for the exhaustive tone map; npm run test:perf for the page budget.\nResult: pending build.\nGate: policy-tighten.",
+    "evidence": "$ grep -n \"transferScore ?? -1\\|transferScore ?? 0\" (non-test)\napp/_lib/devcase-orchestrator.ts:581:        .filter((s) => (s.transferScore ?? 0) >= floor)\napp/_lib/devcase-orchestrator.ts:582:        .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))\napp/features/tools/devcases/DevCaseDetail.tsx:76:    .sort((a, b) => (b.s.transferScore ?? -1) - (a.s.transferScore ?? -1));\napp/_lib/devcase-compare.ts:73:    .sort((a, b) => (b.transferScore ?? -1) - (a.transferScore ?? -1));\napp/_lib/devcase-interview-kit.ts:118:    return (b.transferScore ?? -1) - (a.transferScore ?? -1);\n\napp/_lib/devcase-run.ts:786:    source: payload.source,\napp/_lib/devcase-run.ts:787:    perStepSources: payload.perStepSources ?? {},\napp/_lib/devcase-run.ts:791:  const transferScore = Number((payload.result.transfer ...).transferScore ?? 0);\npipeline/jobfit/devcase/evaluate.py:469:            \"transfer\": _pct(0.5 * fluency + 0.5 * verif),\npipeline/jobfit/devcase/reflect.py:296:            \"fluency\": 0.5,\npipeline/jobfit/devcase/reflect.py:303:            \"confidence\": 0.2,\npipeline/jobfit/devcase/evaluation_pipeline.py:149:        {\"reflect\": rsrc, \"tooling\": tsrc, \"evaluate\": esrc, \"transfer\": xsrc, \"followups\": fsrc},\napp/_lib/devcase-cohort.ts:74:    if (sub.evaluation?.perStepSources?.tooling === DETERMINISTIC_TOOLING) continue;\napp/features/tools/devcases/DevCaseDetailShortlist.tsx:30:          const rank = s.transferScore != null ? i + 1 : null;\napp/features/tools/devcases/DevCaseDetailShortlist.tsx:31:          const isTop = rank === 1;\napp/features/tools/devcases/DevLifecycleRow.tsx:24:const WARNING_TONE: Record<OutcomeWarningCode, BadgeTone> = {\nmessages/en.json:10072 -> devcase.lifecycle.outcome.baseline_unavailable\nr08/r09 write sets: none contains devcase-orchestrator.ts, devcase-compare.ts, devcase-interview-kit.ts, devcase-stage-outcome.ts, DevCaseDetailShortlist.tsx or DevLifecycleRow.tsx (checked all cards/*.json)."
+  },
+  {
+    "context": "devcase-detail",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "Source DB previews who it files: pick from the ranked matches, counts that are true",
+    "size": "M",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "base_sha": "c5eca55af7247cac4a25bc224ef644b5e4f949b7",
+    "write_set": [
+      "app/api/devcase/source/route.ts",
+      "app/api/devcase/source/route.test.ts",
+      "app/_lib/devcase-run.ts",
+      "app/_lib/devcase-source-pick.ts",
+      "app/_lib/devcase-source-pick.test.ts",
+      "app/_lib/api-response.ts",
+      "app/features/tools/devcases/DevSourcePreview.tsx",
+      "app/features/tools/devcases/DevCaseDetailHeader.tsx",
+      "app/features/tools/devcases/DevLifecycleRow.tsx",
+      "app/features/tools/devcases/useDevTabActions.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/dev-case/README.md"
+    ],
+    "new_files": [
+      "app/api/devcase/source/route.test.ts",
+      "app/_lib/devcase-source-pick.ts",
+      "app/_lib/devcase-source-pick.test.ts",
+      "app/features/tools/devcases/DevSourcePreview.tsx"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/_lib/api-response.ts",
+      "perf-budget.json"
+    ],
+    "acceptance": [
+      "POST /api/devcase/source {caseId, preview:true} on a case whose role ranks 3 profiles, one of which already has a pipeline entry on the case's job -> 200 {preview:true, candidates:[3 rows each with candidateId,label,archetype,score,matchedSkills,onBoard], skipped, skippedReasons}; the on-board row has onBoard {status:'active'|...}, the others onBoard null; pipeline_entries row count is unchanged and the lifecycle outcome is not rewritten",
+      "POST {caseId, candidateIds:[p1]} after that preview -> files ONLY p1 at Accepted with sourceChannel 'devcase'; answers {added:1, alreadyOnBoard:0, dropped:[]}",
+      "POST {caseId, candidateIds:[p1, gone]} where `gone` no longer appears in a fresh ranking (profile erased or below the floor since the preview) -> p1 filed, `gone` not filed and returned in dropped:['gone'] (the commit re-ranks; it never trusts the preview's list)",
+      "seedPipelineFromMatches over 2 matches whose (candidate, job) entry already exists -> {added:0, alreadyOnBoard:2}: `added` counts createPipelineEntry's created:true only, so the orchestrator's `sourced` fact and the legacy {caseId}-only call stop over-counting re-sources",
+      "POST {caseId, candidateIds:[]} or a non-array / non-string entry -> 400 DEVCASE_SOURCE_SELECTION_INVALID (REFUSAL_ERRORS, catalogued in all four locales); a viewer seat -> the existing coded 403 from requireCapabilityCoded('pipeline:write') for both preview and commit",
+      "devcase-source-pick.ts: defaultPicks(rows) selects every row with onBoard null and no row that is on the board; commitSummary({added, alreadyOnBoard, dropped}) -> the catalog key + counts the panel renders ('filed' / 'nothing new' / 'n no longer match')",
+      "Source guard: DevLifecycleRow.tsx and DevCaseDetailHeader.tsx no longer POST {caseId} alone to /api/devcase/source - both open DevSourcePreview; the rate-limit contract key `devcase-source:${ip}` is unchanged (app/api/rate-limit-contract.test.ts:1579-1580 passes untouched)"
+    ],
+    "premise": [
+      "app/api/devcase/source/route.ts:54-58 runs the matcher and immediately files every match - `seedPipelineFromMatches(matches, ...)` - with no preview; the route comment (:21-22) calls it 'the single most expensive door in the studio' and it WRITES pipeline entries at Accepted",
+      "app/api/devcase/source/route.ts:71 already answers `candidates: matches` plus `skipped`/`skippedReasons` ('surfaced so the UI can be honest about an empty shortlist', :69-70), but app/features/tools/devcases/useDevTabActions.ts:121-124 keeps only `added` and discards the people and the skip count",
+      "app/_lib/devcase-run.ts:880-902 counts `added += 1` for every match whatever createPipelineEntry did, while app/_lib/db/pipeline.ts:1478-1483 returns `created: boolean` and :1498-1501 documents the re-add as idempotent ('Returns created:false when an entry already existed, letting the caller surface the repeat') - so a second Source DB click says 'Sourced 8' having filed nobody",
+      "Two surfaces offer the blind write: the header button (app/features/tools/devcases/DevCaseDetailHeader.tsx:116-129, label 'Sourced {count}' from messages/en.json devcase.studio.detail.sourced) and the lifecycle row's stall / sourcing_failed fix (app/features/tools/devcases/DevLifecycleRow.tsx:110-128, the `re_source` action app/_lib/devcase-stage-outcome.ts:121 maps it to)",
+      "runSourceForRole is deterministic matching with no LLM (route.ts:14; devcase-run.ts:817 topN 8, floor 45), so a preview costs one matcher spawn and works keyless",
+      "The preview-then-apply refusal shape already exists: AUTOMATION_SELECTION_INVALID in REFUSAL_ERRORS (app/_lib/api-response.ts:557-560, 'Preview the pass again and re-apply')",
+      "Whether a person is already on the board is one read: pipeline_entries carries candidate_id and job_id (app/_lib/db/core.ts:572,576) and the case's job is caseJobIdentity (app/_lib/devcase-identity.ts:99), the same identity seedPipelineFromMatches files under"
+    ],
+    "rollback": "Reverts cleanly: the route keeps its legacy {caseId}-only body (file every fresh match) throughout, so reverting the UI commits restores today's one-click behavior with no data to migrate; the seedPipelineFromMatches count fix returns a superset shape ({added, alreadyOnBoard}) that the orchestrator reads only `.added` from; the new refusal code is additive. No table, no new route or method (api:check unchanged).",
+    "gate": "contract",
+    "runner_up": "Shortlist lead honesty (confidence-band-lead-separation): 'Top match' and the #1 crown only when the leader's evidence band clears the runner-up's, using the confidence/scoredWeight every bundle already carries (DevCaseDetailShortlist.tsx:30-35, DevSubmissionRow.tsx:79-82 hardcodes 'Top match').",
+    "technique": "read-time-relevance-refilter",
+    "body": "## Summary\n'Source DB' stops being a blind write. It opens a preview of the ranked matches - who, score, matched skills, and whether they are already on this job's board - the recruiter unticks anyone they do not want, and only the picked people are filed. The count it reports afterwards is the number actually filed, not the number matched.\n\n## Description\nToday one click spawns the matcher over the whole pool and files up to eight people at Accepted, and the button then says 'Sourced N'. The route already returns the people and the skip count; the client throws both away and keeps the integer. That integer is also wrong on any repeat: seedPipelineFromMatches adds one per match even though createPipelineEntry reports created:false for a person already on the job, so a re-source reads 'Sourced 8' having filed nobody - and the orchestrator's `sourced` fact carries the same inflation. The lifecycle row's Re-source fix is the same blind door.\n\nBuild:\n1. Route, same POST, same limiter and auth posture (requireOperator + pipeline:write; public-routes.ts does not admit it, unchanged): `{caseId, preview:true}` ranks and returns candidates annotated with onBoard (one pipeline_entries read by workspace + the case's job id + candidate ids) and writes NOTHING - no entries, no outcome rewrite. `{caseId, candidateIds}` re-ranks fresh and files the intersection (re-check strategy: the commit never trusts the preview's list; a profile erased or fallen below the floor in between is returned in `dropped`). `{caseId}` alone keeps today's semantics for API callers. Only a successful commit clears the sourcing_failed warning (existing line, moved behind the commit branch).\n2. devcase-run.ts seedPipelineFromMatches takes an optional id filter and returns {added, alreadyOnBoard} from createPipelineEntry's `created` - createPipelineEntry is already its own IMMEDIATE transaction, so no new lock.\n3. devcase-source-pick.ts (pure): default picks (everyone not already on the board), the selection validator the route uses, and the post-commit summary the panel renders.\n4. DevSourcePreview.tsx: the panel both surfaces open (header button and the lifecycle row's re_source action), own fetch like the lifecycle row's existing handler; empty-pool and skipped-candidates states say which one it is.\n5. useDevTabActions.source(caseId, candidateIds) sends the picks and stores the true `added`.\nNew refusal DEVCASE_SOURCE_SELECTION_INVALID = one REFUSAL_ERRORS entry + four catalog entries; panel copy in all four locales.\n\nSequencing: DevCaseDetailHeader.tsx is in challenge-r09 devcase-lifecycle/B's write set (the publish/stop/reopen button); this card only replaces the adjacent Source DB button's onClick with the panel toggle, so it must build AFTER that card lands. Must not share a wave with this context's slot-A card (DevLifecycleRow.tsx, catalogs). The Source DB prop threading through DevCaseDetail.tsx/DevTab.tsx is NOT touched: the widened `source(caseId, ids?)` flows through the existing `(caseId) => void` props structurally. Perf: DevSourcePreview.tsx + devcase-source-pick.ts join the Assignments chunk on the app/page.tsx graph (+2 modules, ~6 KB) - the coordinator settles perf-budget.json under the lock.\n\n## Flow\nOpen an assignment -> 'Source DB' -> panel: '6 matches, 1 already on the board (Rejected)' with scores and matched skills, 5 pre-ticked -> untick one -> 'File 4 into Accepted' -> '4 filed' (or '3 filed, 1 no longer matches') -> button reads 'Sourced 4'. Same panel from a stalled lifecycle row's Re-source.\n\n## Expected impact\nThe studio's most expensive write becomes a decision the recruiter sees before it lands on the board: no stranger filed at Accepted unseen, no rejected candidate silently re-pinged by a re-source, and every 'Sourced N' (button and lifecycle outcome) is a true count. Keyless: the matcher is deterministic, so the preview works without any key.\n\n## Evaluation\nClaim: sourcing previews before it writes, files only the picked people after re-ranking, and reports the number it actually filed.\nBefore: 0 of 7 acceptance cases pass.\nAfter: 7 of 7.\nMethod: gate - node:test over devcase-source-pick.test.ts, the source route driven as a real handler on a temp KP_DB_PATH with a stubbed matcher, a seedPipelineFromMatches count case, and the source guard; npm run i18n:check; app/api/rate-limit-contract.test.ts untouched and green; npm run api:check (no method change) and test:perf.\nResult: pending build.\nGate: contract.",
+    "evidence": "app/api/devcase/source/route.ts:54:    const { candidates: matches, skipped, skippedReasons } = await runSourceForRole(role, { workspaceId: ws });\napp/api/devcase/source/route.ts:58:    const { added } = seedPipelineFromMatches(matches, { caseId: devCase.id, roleTitle, workspaceId: ws });\napp/api/devcase/source/route.ts:71:    return NextResponse.json({ ok: true, added, skipped, skippedReasons, candidates: matches });\napp/features/tools/devcases/useDevTabActions.ts:123:          const added = body && typeof body === \"object\" && \"added\" in body ? Number((body as { added: unknown }).added) : 0;\napp/features/tools/devcases/useDevTabActions.ts:124:          setSourcedCounts((s) => ({ ...s, [caseId]: added }));\napp/_lib/devcase-run.ts:880:    if (!m.candidateId) continue;\napp/_lib/devcase-run.ts:881:    createPipelineEntry({\napp/_lib/devcase-run.ts:892:      stage: \"Accepted\",\napp/_lib/devcase-run.ts:902:    added += 1;\napp/_lib/db/pipeline.ts:1480:  created: boolean;\napp/_lib/db/pipeline.ts:1500:// (`applicantKey`) dedups on its key instead. Returns created:false when an\napp/_lib/devcase-orchestrator.ts:440:        sourced = seedPipelineFromMatches(outcome.candidates, {...}).added;\napp/features/tools/devcases/DevLifecycleRow.tsx:110:  const reSource = async () => {\napp/features/tools/devcases/DevLifecycleRow.tsx:115:      const r = await fetch(\"/api/devcase/source\", {\napp/features/tools/devcases/DevCaseDetailHeader.tsx:118:            onClick={() => source(kase.id)}\nmessages/en.json:9931:        \"sourced\": \"Sourced {count}\",\nmessages/en.json:9932:        \"sourceHint\": \"Rank the existing candidate database against this role and seed the pipeline\",\napp/api/rate-limit-contract.test.ts:1579-1580: rel ./devcase/source/route.ts, key `devcase-source:${clientIpFrom(request.headers)}`\nOverlap check: of this write set only DevCaseDetailHeader.tsx appears in an r08/r09 card (r09 devcase-lifecycle/B) - named as a build-after dependency; app/_lib/api-response.ts is the r09 critic's declared shared surface."
+  }
+]

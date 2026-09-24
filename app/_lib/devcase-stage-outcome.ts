@@ -38,6 +38,7 @@ export const OUTCOME_WARNING_CODES = [
   "scenario_template_only", // every candidate faces template interview probes
   "seed_skeleton_only", // the starter code is a skeleton (prose materials)
   "baseline_unavailable", // no naive-LLM baseline to diff submissions against
+  "mixed_currency", // template-scored submissions withheld from auto-promotion in a mixed cohort (devcase-cohort-rank.ts)
 ] as const;
 export type OutcomeWarningCode = (typeof OUTCOME_WARNING_CODES)[number];
 

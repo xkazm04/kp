@@ -10,6 +10,7 @@ import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
 import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
+import { addColumns, parseAddColumn } from "./add-columns";
 import { fixtureSeedEnabled } from "./seed-gate";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
@@ -1516,18 +1517,23 @@ export function ensureDb(): Database.Database {
     CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
     CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
   `);
-  // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
-  // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —
-  // corruption, I/O, lock contention under the documented multi-connection scheduler
-  // load — must NOT silently boot a structurally-broken DB: a bare `catch {}` here was
-  // the exact "why is everything empty" hunt the seed-health code exists to prevent,
-  // reintroduced one layer down. Surface the unexpected ones loudly and re-throw.
+  // Run a DDL migration LOUDLY. An `ALTER TABLE … ADD COLUMN` goes through addColumns
+  // (db/add-columns.ts): probe PRAGMA table_info, ALTER only a column that is missing, and
+  // tolerate only a lost duplicate-column race that a re-probe confirms — so a warm boot
+  // issues no ALTER at all instead of throwing-and-catching one SqliteError per column, and
+  // the benign case is decided by the post-condition, never by error-message text. Every
+  // other statement routed here is `CREATE … IF NOT EXISTS`, which cannot raise "already
+  // exists", so nothing else is tolerated. Any failure — corruption, I/O, a read-only file,
+  // lock contention past busy_timeout — must NOT silently boot a structurally-broken DB: a
+  // bare `catch {}` here was the exact "why is everything empty" hunt the seed-health code
+  // exists to prevent, reintroduced one layer down. Surface it loudly and re-throw.
   const migrateExec = (sql: string) => {
     try {
-      db.exec(sql);
+      const alter = parseAddColumn(sql);
+      if (alter) addColumns(db, alter.table, [alter.def]);
+      else db.exec(sql);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (/duplicate column name/i.test(msg) || /already exists/i.test(msg)) return;
       console.error(`[db:migrate] unexpected failure running: ${sql}\n  ${msg}`);
       throw error;
     }
@@ -2172,7 +2178,7 @@ export function ensureDb(): Database.Database {
     // The candidate's own opt-out timestamp on an outreach_state row that predates it.
     // It has to live in THIS loop rather than the one beside the pipeline_entries
     // ALTERs: outreach_state is CREATEd further down the file, and migrateExec re-throws
-    // "no such table" (only "duplicate column"/"already exists" are benign), so an
+    // a missing table (addColumns refuses to ALTER a table that is not there), so an
     // earlier ALTER would hard-fail every fresh boot.
     "ALTER TABLE outreach_state ADD COLUMN candidate_halt_at TEXT",
     // The seeker's LAST-SEEN anchor on their own feed (docs/features/jobseeker/README.md,
@@ -2212,7 +2218,7 @@ export function ensureDb(): Database.Database {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
     // structurally-broken DB — the exact "why is everything empty" trap migrateExec
-    // was written to prevent. It tolerates only the benign "already applied" error.
+    // was written to prevent. It skips a column that is already there by probing for it.
     migrateExec(sql);
   }
   // applicant-key.ts: one filing per (team, job, key); NULL (legacy, erased) never collides.

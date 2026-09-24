@@ -10,6 +10,9 @@ import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairn
 import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
 import { isAgingAlertKind } from "./aging-policy";
 import { planCommit, type CommitSelection, type CommitVerdict } from "./automation-commit-plan";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { roleOf, type StageDef, type StageRole } from "./pipeline-stages";
+import { nextStageOnAxis } from "./db/pipeline-core";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
@@ -544,6 +547,44 @@ export function entriesForPass(entries: AutomationEntry[], workspace?: string): 
   return workspace ? entries.filter((e) => e.workspaceId === workspace) : entries;
 }
 
+/** The stage facts the policy pass decides on (challenge-r10 pipeline-core/B). */
+export type PolicyStageFacts = {
+  /** The entry's stage role on its OWN workspace axis; null = off-axis (a retired
+   *  column, a legacy row) — Python answers `none` for it, never a reject. */
+  stageRole: StageRole | null;
+  /** The column an advance lands on: nextStageOnAxis, i.e. exactly where the commit's
+   *  actOnPipelineEntry("accept") moves the row. Null when there is no next column
+   *  (terminal, last column, off-axis). */
+  advanceTo: string | null;
+};
+
+/** Stamp every snapshot entry with {@link PolicyStageFacts} before it crosses to
+ *  Python. `evaluate_entry` used to branch on the five shipped stage NAMES and name a
+ *  literal landing ("Screened", "Interview"); on a board a team composed in Settings →
+ *  Hiring the entry column never advanced, a renamed screening column had no rule, and
+ *  the preview's planned stage was not the stage the commit landed on. Now Python
+ *  decides by role and returns `advanceTo` as `toStage`, so the preview/commit drift
+ *  check (automation-commit-plan.ts) compares the real landing.
+ *
+ *  Pure and additive: every other field crosses unchanged. The sweep is cross-tenant,
+ *  so `axisFor` is read once per workspace (the listActiveEntriesForAutomation shape). */
+export function withPolicyStageFacts<E extends { stage: string; workspaceId: string }>(
+  entries: readonly E[],
+  axisFor: (workspaceId: string) => readonly StageDef[]
+): Array<E & PolicyStageFacts> {
+  const axes = new Map<string, readonly StageDef[]>();
+  return entries.map((e) => {
+    let axis = axes.get(e.workspaceId);
+    if (!axis) {
+      axis = axisFor(e.workspaceId);
+      axes.set(e.workspaceId, axis);
+    }
+    const stageRole = roleOf(e.stage, axis);
+    const next = stageRole ? nextStageOnAxis(e.stage, axis) : e.stage;
+    return { ...e, stageRole, advanceTo: next === e.stage ? null : next };
+  });
+}
+
 async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection): Promise<AutomationPassResult> {
   const entries = entriesForPass(listActiveEntriesForAutomation(), selection?.workspace);
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
@@ -558,7 +599,10 @@ async function executeAutomationPass(dryRun: boolean, selection?: CommitSelectio
   try {
     workdir = await createWorkdir();
     const inputPath = path.join(workdir, "entries.json");
-    await writeFile(inputPath, JSON.stringify(entries), "utf-8");
+    // Python decides by stage ROLE on each entry's own board and names the axis's own
+    // next column — the stamped facts, not the raw stage id.
+    const snapshot = withPolicyStageFacts(entries, (ws) => getPipelineAxis(ws).stages);
+    await writeFile(inputPath, JSON.stringify(snapshot), "utf-8");
 
     const { result } = spawnPython(["-m", "pipeline.jobfit.automation_cli", "policy-pass", "--entries-json", inputPath]);
     const { stdout, stderr, exitCode } = await result;

@@ -5,6 +5,9 @@ import {
   rememberPublishResult,
   lastPublishResult,
   forgetPublishResults,
+  receiptNote,
+  receiptResumable,
+  RESUMABLE_RECEIPT_STATES,
 } from "./jobsPublishResult.ts";
 
 // POST /api/jobs/[id]/publish answers six facts — sourced, skipped,
@@ -100,4 +103,58 @@ test("sourcing failure still wins the note — it precedes the raise entirely", 
   const input = { sourcingWarning: "boom", silverMedalistsFailed: true };
   assert.deepEqual(keys(input), ["wentLive", "sourcingFailed"]);
   assert.equal(publishNoteSentences(input).tone, "warn");
+});
+
+// ── The durable receipt (challenge-r10 jobs-posting-campaign/A) ───────────────
+// A resume re-runs the sweep on a role that is already live. It is NOT the idempotent
+// "already live, nothing happened" case, so it must not early-return like one.
+
+test("a resumed sweep leads with the resume and states what it sourced", () => {
+  const note = publishNoteSentences({ alreadyPublished: true, resumed: true, sourced: 2 });
+  assert.equal(note.tone, "ok");
+  assert.deepEqual(note.sentences, [{ key: "resumed" }, { key: "sourced", count: 2 }]);
+});
+
+test("an abandoned sweep reads as incomplete, never as a clean go-live", () => {
+  const note = publishNoteSentences({ sourced: 0, sourcingAbandoned: true });
+  assert.equal(note.tone, "warn");
+  assert.deepEqual(keys({ sourced: 0, sourcingAbandoned: true }), ["wentLive", "sourcingIncomplete"]);
+});
+
+test("receiptNote: an abandoned receipt is amber, says the sweep did not finish, and offers the resume", () => {
+  assert.deepEqual(receiptNote({ state: "abandoned" }), {
+    tone: "warn",
+    sentences: [{ key: "sourcingIncomplete" }],
+    resumable: true,
+  });
+});
+
+test("receiptNote: each state tells its own truth", () => {
+  const done = receiptNote({ state: "done", sourced: 3, skipped: 0, silverMedalists: 1 });
+  assert.equal(done.resumable, false);
+  assert.equal(done.tone, "ok");
+  assert.deepEqual(done.sentences.map((s) => s.key), ["wentLive", "sourced", "silverMedalists"]);
+
+  const failed = receiptNote({ state: "sourcing_failed" });
+  assert.deepEqual(failed, { tone: "warn", sentences: [{ key: "sourcingFailed" }], resumable: true });
+
+  const raise = receiptNote({ state: "raise_failed", sourced: 2 });
+  assert.equal(raise.resumable, true);
+  assert.deepEqual(raise.sentences.map((s) => s.key), ["sourced", "silverMedalistsFailed"]);
+
+  // A run in flight elsewhere (another tab, another recruiter) — not offered, not "done".
+  const running = receiptNote({ state: "sourcing" });
+  assert.deepEqual(running, { tone: "ok", sentences: [{ key: "sourcingInProgress" }], resumable: false });
+  // …unless the server says it died (the stale window is the server's call).
+  const dead = receiptNote({ state: "sourcing", resumable: true });
+  assert.deepEqual(dead, { tone: "warn", sentences: [{ key: "sourcingIncomplete" }], resumable: true });
+});
+
+test("the resumable states are one vocabulary, shared with the store's CAS", () => {
+  assert.deepEqual([...RESUMABLE_RECEIPT_STATES].sort(), ["abandoned", "raise_failed", "sourcing_failed"]);
+  const now = Date.parse("2026-09-24T12:00:00Z");
+  assert.equal(receiptResumable({ state: "sourcing", startedAt: new Date(now - 60_000).toISOString() }, now), false);
+  assert.equal(receiptResumable({ state: "sourcing", startedAt: new Date(now - 30 * 60_000).toISOString() }, now), true);
+  assert.equal(receiptResumable({ state: "done", startedAt: new Date(now - 30 * 60_000).toISOString() }, now), false);
+  assert.equal(receiptResumable({ state: "abandoned", startedAt: new Date(now).toISOString() }, now), true);
 });

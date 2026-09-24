@@ -10,13 +10,15 @@
 // straight into a controlled <textarea> — the white-screen shape this repo has
 // already been bitten by once on the ?jd= deep link.
 //
-// Text plus the two run-config flags (blind, reportLang) — and nothing else. File
+// Text, the saved-JD link it came from (jdSlug/jdEdited), plus the two run-config
+// flags (blind, reportLang) — and nothing else. File
 // objects cannot be serialized, and a CV is candidate PII that must never reach
 // browser storage, so attachments are NOT part of this draft: they survive a switch
 // in module memory instead (analyzeAttachmentStore.ts) and end with a reload. The
 // landed result is its own layer (analyzeSession.ts, which declares all four).
 
 import { isLocale } from "@/i18n/locales";
+import { JD_NONE, type JdSource } from "./analyzeJdSource";
 
 export const ANALYZE_DRAFT_KEY = "kp.analyzeDraft";
 
@@ -26,7 +28,25 @@ export type AnalyzeDraft = {
   github?: string;
   reportLang?: string;
   blind?: boolean;
+  /** The saved JD `jd` came from (challenge-r10 analyze-workspace/A). Without it a
+   *  sidebar hop brought a picked role back as plain text: no must/nice grounding,
+   *  and a disabled Add-to-pipeline — learned only after paying for the run. Kept
+   *  only beside a non-empty `jd` and only when it looks like a slug. */
+  jdSlug?: string;
+  /** The linked text differs from the saved body (kept only with `jdSlug`). */
+  jdEdited?: boolean;
 };
+
+// A JD slug as the store mints it (letters, digits, dashes). Anything else under the
+// key — a number, a path, whitespace — is not a link this draft will restore.
+const JD_SLUG = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+
+/** Keep the link fields only when they are well-formed AND ride on real JD text. */
+function keepJdLink(from: Record<string, unknown>, into: AnalyzeDraft): void {
+  if (!into.jd || typeof from.jdSlug !== "string" || !JD_SLUG.test(from.jdSlug)) return;
+  into.jdSlug = from.jdSlug;
+  if (from.jdEdited === true) into.jdEdited = true;
+}
 
 /** The draft's text fields, in the order the restore applies them. */
 export const ANALYZE_DRAFT_FIELDS = ["jd", "company", "github"] as const;
@@ -57,6 +77,7 @@ export function parseAnalyzeDraft(raw: string | null | undefined): AnalyzeDraft 
   }
   if (isLocale(source.reportLang)) draft.reportLang = source.reportLang;
   if (typeof source.blind === "boolean") draft.blind = source.blind;
+  keepJdLink(source, draft);
   return Object.keys(draft).length > 0 ? draft : null;
 }
 
@@ -75,6 +96,7 @@ export function serializeAnalyzeDraft(draft: AnalyzeDraft): string | null {
   }
   if (isLocale(draft.reportLang)) kept.reportLang = draft.reportLang;
   if (draft.blind === true) kept.blind = true;
+  keepJdLink(draft, kept);
   if (Object.keys(kept).length === 0) return null;
   return JSON.stringify(kept);
 }
@@ -98,4 +120,18 @@ export function restoreDraftLocale(current: string, drafted: string | undefined,
 export function restoreDraftBlind(current: boolean, drafted: boolean | undefined, mountDefault = false): boolean {
   if (current !== mountDefault) return current;
   return typeof drafted === "boolean" ? drafted : mountDefault;
+}
+
+/**
+ * The JD column a draft restores to: a linked saved JD when the draft carries its
+ * slug, typed text otherwise. A restored link is marked `restored` so the form
+ * re-checks it against the library once that has loaded (reconcileRestoredLink).
+ * An edited link has no stored baseline; Revert re-fetches the body instead.
+ */
+export function restoreJdSource(draft: AnalyzeDraft | null): JdSource {
+  const text = draft?.jd;
+  if (!text || !text.trim()) return JD_NONE;
+  if (!draft.jdSlug) return { kind: "typed", text };
+  const edited = draft.jdEdited === true;
+  return { kind: "saved", slug: draft.jdSlug, text, baseline: edited ? null : text, state: "ready", edited, restored: true };
 }

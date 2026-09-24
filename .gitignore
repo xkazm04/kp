@@ -129,6 +129,7 @@ scripts/app-master-bench/tenures/*.json
 /.claude/skills/architect
 /.claude/skills/contest
 /.claude/skills/conform
+/.claude/skills/council
 /.claude/skills/cx
 /.claude/skills/consult
 /.claude/skills/explorer

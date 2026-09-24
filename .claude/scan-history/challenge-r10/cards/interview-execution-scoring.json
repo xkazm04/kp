@@ -1,0 +1,137 @@
+[
+  {
+    "context": "interview-execution-scoring",
+    "slot": "A",
+    "lens": "architecture-challenger",
+    "title": "Voice scorecard commits once: attach, gate, seal in one locked unit",
+    "size": "L",
+    "effort": 7,
+    "impact": 8,
+    "risk": 6,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "app/_lib/interview-scorecard-commit.ts",
+      "app/_lib/interview-scorecard-commit.test.ts",
+      "app/_lib/interview-run.ts",
+      "app/_lib/interview-run.test.ts",
+      "app/_lib/automation-run.ts",
+      "app/api/interview/complete/route.ts",
+      "app/api/interview/complete/complete-transcript-of-record.test.ts",
+      "app/_lib/db/interview-session-transitions.test.ts",
+      "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/_lib/interview-scorecard-commit.ts",
+      "app/_lib/interview-scorecard-commit.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json"
+    ],
+    "acceptance": [
+      "unit-db: completed candidate session with a non-empty transcript, entry active at the interview-role stage with approval_kind NULL -> finalizeCandidateInterviewScoring(session, transcript, {score: stub}) attaches scorecard_json, sets approval_kind='scorecard_review', writes exactly one 'interview_scorecard' event and one 'ai_scorecard' decision record; JSON.parse(approval_detail).coverage and .telemetry deep-equal the attached scorecard's coverage and telemetry (today the approval payload is stringified before either is stamped)",
+      "unit-db: the session is erased/revoked (status leaves 'completed') while the stub scorer is awaited -> result {attached:false}; the entry's approval_kind stays NULL, zero 'interview_scorecard' events, zero 'ai_scorecard' records (today runAutomationTask has already set the approval and the event before the attach is refused)",
+      "unit-db: during the scoring await a recruiter saved a HUMAN scorecard (approval_kind='scorecard_review', approval_detail.source='human') -> the AI scorecard attaches to the session and is sealed, but approval_detail still parses to source 'human' and the result reports gate:'held' (today automation-run.ts:594 overwrites it unguarded)",
+      "unit-db: the entry was rejected / moved off the interview-role stage during the await -> attach applies (the call is on record), approval_kind is NOT set, result gate:'closed'",
+      "unit-db: the observed-skill mint dep is NOT invoked when the attach is refused, and when it is invoked with credited skills, the session scorecard_json afterwards carries observedSkills (re-attached under the same status/transcript CAS)",
+      "unit-db: manual drawer path runAutomationTask(entry, 'scorecard', note) on an entry whose approval_kind is 'offer_review' -> returns applied 'skipped_gate_closed' and approval_kind remains 'offer_review'; on approval NULL at the interview stage it still sets scorecard_review exactly as today",
+      "source: interview-scorecard-commit.ts has one db.transaction(...).immediate() and no await inside it (the eslint no-restricted-syntax ban passes on the new file), and complete/route.ts no longer calls attachInterviewScorecard or sealDecisionSafe directly"
+    ],
+    "premise": [
+      "app/_lib/interview-run.ts:789 - runInterviewScorecard calls runAutomationTask(entryId, 'scorecard', ...) FIRST; that call persists the approval and the event (automation-run.ts:593-596) before anything below it runs",
+      "app/_lib/automation-run.ts:526 - approvalDetail() is JSON.stringify({...result, ...provenance}) evaluated at automation-run.ts:594, so the enrichments interview-run.ts stamps afterwards never reach the approval: rubricCoverage (interview-run.ts:802), telemetry (:810), coverage (:820-821), observedSkills (:832-835)",
+      "app/_lib/automation-run.ts:594 - the scorecard branch calls setApproval with no expectedApprovalKind and no stage re-check, while the screen branch 50 lines above CASes on the snapshot stage (automation-run.ts:541-546) and the human-scorecard door only gates an active interview-role entry whose approval is null|calendar (app/api/interview-prep/scorecard/route.ts:166-172)",
+      "app/api/interview/complete/route.ts:451-455 - the attach is conditional (a GDPR scrub or revoke during scoring refuses it) and its comment says 'a refused attach seals no decision either', but by then the scorecard_review approval and the interview_scorecard event already landed inside runInterviewScorecard (route.ts:434-436 says so: 'the scorecard_review APPROVAL on the entry is set inside this run')",
+      "app/_lib/db/interviews.ts:1115-1128 - attachInterviewScorecard is the only CAS in the chain (WHERE status='completed' AND transcript non-empty); the approval, event and seal (complete/route.ts:462-489) are three separate writes around it",
+      "app/_lib/interview-run.ts:830-838 - mintObservedFromCaseInterview credits observed skills onto the candidate profile BEFORE the attach, so a refused attach still leaves profile evidence minted from an interview that is not on record",
+      "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 - the Decisions review card renders from entry.approvalDetail, while the transcript modal reads telemetry/coverage from the session scorecard (app/features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx:43-44) - two different payloads for one verdict"
+    ],
+    "rollback": "Three commits (commit module + tests; runInterviewScorecard/automation-run defer-apply; route cut-over + doc). Reverting the route commit restores today's three-write sequence because runAutomationTask keeps its default (apply) behaviour for every caller that does not pass the new defer option; no schema, no migration, no stored-shape change (approval_detail only gains fields readers already treat as optional).",
+    "gate": "architecture",
+    "runner_up": "One brief-branch resolver (debrief > case > student > prep > quick) shared by buildGroundedInterview, buildCandidateSafeBrief and plannedInterviewMinutes - today held in step only by comments (interview-run.ts:595, :760-763).",
+    "technique": "decision-records",
+    "depends_on": "Soft: r09 schedule-interview-prep/A rewrites app/api/interview-prep/scorecard/route.ts (the human door whose guard this card mirrors). This card does not edit that file; it exports scorecardGateOpen() so the human door can adopt it after r09 lands.",
+    "body": "## Summary\nThe AI interview verdict is written as five separate effects in the wrong order: approval + event first (inside the automation task), then enrichments stamped on an object the approval has already serialised, then a conditional attach, then a seal. Collapse the write half into one synchronous `.immediate()` unit that attaches first and gates/seals only what it attached.\n\n## Description\n`runInterviewScorecard` (interview-run.ts:767) awaits `runAutomationTask('scorecard')`, which calls `setApproval('scorecard_review')` unguarded (automation-run.ts:594) and records the event. Only then does it stamp rubricCoverage, telemetry, coverage and mint observed skills; only then does the route attach (CAS) and seal. Consequences on today's tree: (1) a refused attach (scrub/revoke mid-scoring) still opens the Interview->Offer gate on a candidate whose interview is no longer on record; (2) a human scorecard saved during the 20-60 s hop is overwritten by the AI payload, silently changing whose judgment Decisions ratifies; (3) the Decisions card ratifies a payload without the coverage caveat the drawer and modal show for the same verdict (decision-records: 'what was shown' must be the record).\n\nNew module `app/_lib/interview-scorecard-commit.ts`:\n- `scorecardGateOpen(entry, stages)` - pure predicate: active, interview-role stage, approval null|calendar (the human door's rule, route.ts:166-171).\n- `commitCandidateScorecard(...)` - ONE `db.transaction().immediate()`: attachInterviewScorecard CAS -> if refused, return `{attached:false}`; re-read the entry inside the lock -> if `scorecardGateOpen`, setApproval with the fully-enriched scorecard + provenance (expectedApprovalKind = the kind just read) and the event; seal `ai_scorecard` via sealDecisionRecord in the same tx. No await inside.\n- `finalizeCandidateInterviewScoring(session, transcript, deps)` - the orchestration the route calls: score (await, outside any tx) -> commit -> mint only if attached (await, outside) -> re-attach observedSkills under the same CAS. Deps injectable so the unit-db tests stub the scorer and the mint.\n`runAutomationTask` gains `opts.deferApply` for the scorecard task (returns result + provenance, writes nothing); the manual drawer path keeps applying but behind `scorecardGateOpen`, answering `skipped_gate_closed` (new `pipeline.applied.skipped_gate_closed` key in 4 catalogs + APPLIED_LABEL fallback).\n\nLock-or-re-check: LOCK. The read->decide->write of the entry gate happens under `.immediate()`; the slow LLM and Python mint stay outside it (CLAUDE.md transaction rule).\n\n## Flow\n1. POST /api/interview/complete persists the transcript (unchanged).\n2. finalizeCandidateInterviewScoring awaits the scorer (no writes), stamps enrichments.\n3. commitCandidateScorecard: attach -> gate (if open) -> event -> seal, atomically.\n4. Mint observed skills only after an applied attach; re-attach observedSkills.\n5. Decisions card and transcript modal now read the same enriched payload.\n\n## Expected impact\nCloses three silent-wrong-state paths on the Interview->Offer gate (gate opened for an erased interview, human verdict overwritten, profile credited from an unrecorded call) and makes the ratified payload equal the recorded one. Gives B (and any future re-score) a single commit to call instead of re-copying the route's block.\n\n## Evaluation\nClaim: the AI verdict's gate, event, seal and mint happen only for an attached scorecard, never overwrite a human gate, and carry the same payload the session stores.\nBefore: 0 of 7 acceptance cases pass\nAfter: 7 of 7\nMethod: contract - node:test over unit-db (app/_lib/testing/unit-db.ts) with a stubbed scorer + mint, plus the integration gate (tsc, lint incl. the no-await-in-transaction rule, i18n:check, test:unit)\nResult: pending\nGate: architecture",
+    "evidence": "automation-run.ts:526  const approvalDetail = (): string => JSON.stringify({ ...result, ...provenance });\nautomation-run.ts:593-596  } else if (task === \"scorecard\") { setApproval(entry.id, \"scorecard_review\", approvalDetail(), workspaceId); recordAutomationEvent(... \"interview_scorecard\" ...); applied = \"scorecard_ready\";\nautomation-run.ts:541  // CAS on the snapshot stage: `entry` was read before the seconds-long Python/LLM hop  (screen branch only)\ninterview-run.ts:789  const { result } = await runAutomationTask(entryId, \"scorecard\", notes, undefined, undefined, workspaceId);\ninterview-run.ts:802/810/821/834  stampAiScorecardRubricCoverage / .telemetry = / .coverage = / .observedSkills =   (all after :789)\ncomplete/route.ts:434-436  // ...the scorecard_review APPROVAL on the entry is set inside this run (runAutomationTask)... scorecard = await runInterviewScorecard(session.entryId, transcript, ws);\ncomplete/route.ts:451-455  // The attach lands AFTER the scoring await, so it is conditional ... a refused attach seals no decision either ... const attached = scorecard ? attachInterviewScorecard(sessionId, scorecard) : null;\ndb/interviews.ts:1123-1124  UPDATE interview_sessions SET scorecard_json=?, updated_at=? WHERE id=? AND status='completed' AND transcript_json IS NOT NULL AND transcript_json != '[]'\ninterview-prep/scorecard/route.ts:166-172  pipelineEntry.status === \"active\" && stageHasRole(..., \"interview\", ...) && (approvalKind === null || approvalKind === \"calendar\") -> setApproval(entry, \"scorecard_review\", ...)\ngrep 'runInterviewScorecard(' app -> the only production caller is app/api/interview/complete/route.ts:436\ngrep coverage app/features/hiring/decisions/decisionsAiReviewCardLogic.ts -> 0 hits (card parses approvalDetail at :23)"
+  },
+  {
+    "context": "interview-execution-scoring",
+    "slot": "B",
+    "lens": "ux-elevation",
+    "title": "A finished-but-unscored interview shows on Schedule with Re-score",
+    "size": "L",
+    "effort": 6,
+    "impact": 8,
+    "risk": 5,
+    "base_sha": "c7690bd4aa895cdabbeffb8f6a0819ee0dbfa91e",
+    "write_set": [
+      "app/_lib/interview-scoring-state.ts",
+      "app/_lib/interview-scoring-state.test.ts",
+      "app/_lib/db/interviews.ts",
+      "app/_lib/interview-scorecard-commit.ts",
+      "app/api/interview/sessions/[id]/rescore/route.ts",
+      "app/api/interview/sessions/[id]/rescore/route.test.ts",
+      "app/features/hiring/schedule/scheduleTabDerived.ts",
+      "app/features/hiring/schedule/scheduleTabDerived.test.ts",
+      "app/features/hiring/schedule/useScheduleTab.ts",
+      "app/features/hiring/schedule/ScheduleTabInterviewedList.tsx",
+      "app/features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx",
+      "app/_lib/api-response.ts",
+      "app/api/rate-limit-contract.test.ts",
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "docs/architecture/api-reference.md",
+      "docs/features/interviews/README.md"
+    ],
+    "new_files": [
+      "app/_lib/interview-scoring-state.ts",
+      "app/_lib/interview-scoring-state.test.ts",
+      "app/api/interview/sessions/[id]/rescore/route.ts",
+      "app/api/interview/sessions/[id]/rescore/route.test.ts"
+    ],
+    "shared_surfaces": [
+      "messages/en.json",
+      "messages/cs.json",
+      "messages/de.json",
+      "messages/fr.json",
+      "app/_lib/api-response.ts",
+      "app/api/rate-limit-contract.test.ts",
+      "docs/architecture/api-reference.md"
+    ],
+    "acceptance": [
+      "interview-scoring-state: {mode:'candidate', entryId:'e1', status:'completed', hasTranscript:true, hasScorecard:false, endedAt: now-10min} -> 'unscored'; same with endedAt now-60s -> 'scoring' (inside SCORING_GRACE_MS); hasScorecard:true -> 'scored'; mode 'test' or status 'failed' or hasTranscript false -> 'not_scorable'",
+      "scheduleTabDerived: interviewedEntriesFrom over an active interview-stage entry with approvalKind null whose status row is {status:'completed', hasTranscript:true, hasScorecard:false, mode:'candidate'} -> the entry IS listed, tagged scoringState 'unscored' (today it is dropped: only approvalKind 'scorecard_review' is admitted)",
+      "scheduleTabDerived: an entry with approvalKind 'scorecard_review' and a scored session keeps today's behaviour (listed, scoringState 'scored'); a human-scorecard-only entry keeps being listed",
+      "rescore route (unit-db, stub scorer): POST /api/interview/sessions/<id>/rescore as operator on an 'unscored' session -> 200, session.scorecard_json set, entry approval 'scorecard_review', one ai_scorecard record (through interview-scorecard-commit, not a copied block)",
+      "rescore route: session already scored, or still inside the grace window, or mode 'test' -> 409 {code:'INTERVIEW_NOT_RESCORABLE'} and the scorer stub is never called; a foreign workspace's session id -> 404 INTERVIEW_SESSION_NOT_FOUND",
+      "rescore race (unit-db): the original completion's commit lands between the rescore's gate check and its commit -> the rescore's attach (requireUnscored: WHERE scorecard_json IS NULL) is refused, no second approval/event/seal, route answers 409 INTERVIEW_NOT_RESCORABLE",
+      "rate-limit contract: the rescore route calls rateLimit keyed per session (interview-rescore:<sessionId>) and the contract test pins it; the route calls requireOperator and is NOT in app/_lib/auth/public-routes.ts",
+      "source: ScheduleTabInterviewedList renders the Re-score button and hides 'Review scorecard in Decisions' when scoringState is 'unscored'; the transcript modal shows the unscored notice + Re-score when the session has a transcript and no scorecard"
+    ],
+    "premise": [
+      "app/api/interview/complete/route.ts:438-447 - a failed scoring is recorded ONLY as console.error; the comment decides 'no status column is added here' because 'the ABSENCE of a scorecard is already the durable state a reader sees'",
+      "app/features/hiring/schedule/scheduleTabDerived.ts:50-60 - interviewedEntriesFrom admits an entry only when approvalKind === 'scorecard_review' (line 57), which a failed scoring never sets (the approval is written inside the scorer - complete/route.ts:434-436)",
+      "app/features/hiring/schedule/useScheduleTab.ts:165-167 - the Schedule tab loads only entries whose approvalKind is 'calendar' or 'scorecard_review', so an interviewed-but-unscored entry never reaches the derivation at all",
+      "app/features/hiring/schedule/ScheduleTabInterviewedList.tsx:83-96 - the Interviewed row's only next step is 'Review scorecard in Decisions'; there is no action for a verdict that does not exist",
+      "grep 'runInterviewScorecard(' -> the only caller is app/api/interview/complete/route.ts:436, and a second POST to /complete on a completed session is deliberately refused from re-running it (complete/route.ts:168-173) - no door re-scores a saved transcript",
+      "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts:42-44 - the drawer's manual 'Synthesize scorecard' consumes the recruiter's NOTE, not the stored transcript, so it is not a re-score of the call",
+      "app/_lib/db/interviews.ts:564-591 - interviewStatusByEntries already reads status/transcript per entry but not scorecard_json or mode, the two facts the unscored state needs"
+    ],
+    "rollback": "Four commits (pure state module + db read fields; rescore route + registries; Schedule surfaces + catalogs; doc). Reverting the UI commit restores today's list; reverting the route commit removes the door and its api-reference row (regenerated). No schema change: 'unscored' is derived from existing columns, so nothing stored has to be migrated back.",
+    "gate": "contract",
+    "runner_up": "Reminder give-up becomes an operator attention item with a 'reach the candidate' action instead of a console.error (interview-reminders.ts:73-77 logs 'giving up on invite' and the invite silently leaves the sweep).",
+    "technique": "review-queues",
+    "depends_on": "HARD: slot A of this deck (reuses commitCandidateScorecard / finalizeCandidateInterviewScoring; build A first). SEQUENCING: r09 voice-provider-io/B edits app/_lib/db/interviews.ts and app/_lib/api-response.ts, r09 schedule-interview-prep/A edits ScheduleInterviewTranscriptModal.tsx - build after r09 lands; this card only appends fields/codes/one notice there.",
+    "body": "## Summary\nWhen the AI scoring of a completed voice interview fails (model unreachable, entry unresolvable, process restart mid-hop) the recruiter today loses the candidate: the Schedule tab's Interviewed list drops them, Decisions has no card, and nothing can re-score the saved transcript. Derive an explicit scoring state and give the transcript a one-click Re-score.\n\n## Description\nThe complete route treats a failed score as log-only (route.ts:438-447) on the theory that absence is visible. It is not: Schedule loads only calendar|scorecard_review entries (useScheduleTab.ts:166) and lists Interviewed only at scorecard_review (scheduleTabDerived.ts:57). The one scorer caller is the hang-up POST, which by design never re-runs on a completed session.\n\n1. `app/_lib/interview-scoring-state.ts` (pure, no store import): `interviewScoringState(row, nowMs)` -> 'scored' | 'scoring' | 'unscored' | 'not_scorable', with `SCORING_GRACE_MS` (5 min) separating an in-flight synchronous scoring from a dead one. Same function used by the server refusal and the client list, so they cannot disagree.\n2. `interviewStatusByEntries` adds `hasScorecard` and `mode` (db/interviews.ts); `attachInterviewScorecard` gains `{requireUnscored}` (adds `AND scorecard_json IS NULL`).\n3. `POST /api/interview/sessions/[id]/rescore` - requireOperator + currentWorkspace scoping (not public; api-reference row via `npm run api:docs`), `rateLimit('interview-rescore:<sessionId>')` pinned in rate-limit-contract.test.ts, refuses with `INTERVIEW_NOT_RESCORABLE` unless the state is 'unscored', then calls slot A's finalize with requireUnscored. Failures answer `safeJsonError(..., 'INTERVIEW_RESCORE_FAILED')`. Two codes -> 8 catalog entries.\n4. Schedule: the loader also keeps active interview-stage entries whose status row is candidate+completed+transcript; `interviewedEntriesFrom` admits scoringState 'unscored'|'scoring' and tags it. The row shows an amber 'Not scored yet' / 'Scoring...' chip, and 'Re-score' replaces 'Review scorecard in Decisions' while unscored. The transcript modal shows the same notice + button when a transcript has no scorecard.\n\nLock-or-re-check: RE-CHECK. The route's state check is advisory; the authoritative guard is the attach's `scorecard_json IS NULL` inside slot A's `.immediate()` commit, so a racing original completion and a re-score can never both gate or seal. Spend is bounded by the per-session limiter.\nPerf: interview-scoring-state.ts is a pure leaf (<1 KB); the Schedule tab chunk grows only by it and the button - test:perf measures the page.tsx graph.\nNot touched on purpose: the drawer outcome card (r08 rewrites candidateBundle.ts) renders only when a scorecard exists and so displays no false state; adopting the chip there is a named follow-up.\n\n## Flow\n1. Candidate hangs up; scoring throws -> transcript saved, no approval (as today).\n2. Recruiter opens Schedule: the candidate appears under Interviewed as 'Not scored yet' (after 5 min; 'Scoring...' before).\n3. Re-score -> rescore route -> A's finalize -> attach + gate + seal -> row flips to scored and 'Review scorecard in Decisions' returns.\n4. A double click or a late original completion answers 409 INTERVIEW_NOT_RESCORABLE; nothing is double-sealed.\n\n## Expected impact\nA completed candidate interview can no longer vanish between Schedule and Decisions; the recruiter recovers a failed verdict in one click from the call already paid for instead of re-inviting the candidate to a second call.\n\n## Evaluation\nClaim: every completed candidate interview is visible on Schedule in exactly one scoring state, and an unscored one can be re-scored once from its transcript.\nBefore: 0 of 8 acceptance cases pass\nAfter: 8 of 8\nMethod: contract - node:test (pure state module, scheduleTabDerived, unit-db route test with stub scorer, rate-limit contract) + integration gate (tsc, lint, i18n:check, api:check, test:perf, test:unit)\nResult: pending\nGate: contract",
+    "evidence": "complete/route.ts:438-444  // Best-effort by design ... The ABSENCE of a scorecard is already the durable state a reader sees ... so no status column is added here\ncomplete/route.ts:445-447  console.error(`[interview:complete] scorecard synthesis failed for session ${sessionId} ... the transcript is saved, the verdict is not.`)\nscheduleTabDerived.ts:57  e.approvalKind === \"scorecard_review\" &&\nuseScheduleTab.ts:166  (e) => (e.approvalKind === \"calendar\" || e.approvalKind === \"scorecard_review\") && e.status === \"active\"\nScheduleTabInterviewedList.tsx:95  {t(\"reviewScorecard\")}  (en: \"Review scorecard in Decisions\", messages/en.json:4571)\ncomplete/route.ts:168-173  // a completed session is done ... must neither overwrite the persisted transcript nor re-run the scorecard\ngrep -rn 'runInterviewScorecard(' app (non-test) -> app/api/interview/complete/route.ts:436 only\ngrep -rniE 'rescore|re-score' app -> no interview re-score door (hits are profile/group-eval only)\ndb/interviews.ts:578-580  SELECT s.id, s.entry_id, s.status, s.ended_at, (transcript non-empty) AS has_tr  -- no scorecard_json, no mode\npublic-routes.ts:113-124 lists /api/interview/connect, /complete, /director, /recording only - /api/interview/sessions/** stays behind the auth gate"
+  }
+]

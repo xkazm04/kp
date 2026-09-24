@@ -426,3 +426,65 @@ test("outcome: the store round-trips it, and a patch without one leaves it alone
   assert.deepEqual(getLifecycle(lifecycleId)?.outcome, outcome, "untouched by a detail-only patch");
   assert.equal(getLifecycle(lifecycleId)?.detail, "something else");
 });
+
+// --- One cohort ranking (devcase-cohort-rank.ts, challenge-r10 devcase-detail/A). ---
+// The ranked stage used to promote by the raw transfer number whatever instrument made
+// it. A keyless TEMPLATE transfer (a per-call LLM fallback) is not comparable with a
+// graded one, so in a mixed cohort the template row is withheld from auto-promotion -
+// no board write, no advance letter - and the outcome says how many were withheld.
+
+function evaluatedWithCurrency(postingId: string, candidateRef: string, score: number, transfer: "llm" | "deterministic") {
+  const { submission } = createSubmission({ postingId, candidateRef, repoRef: `https://example.test/${candidateRef}` });
+  saveSubmissionEvaluation(
+    submission.id,
+    {
+      evaluation: { summary: "Solid, well-tested work.", strengths: ["testing"], concerns: [], confidence: 0.9 },
+      source: transfer === "llm" ? "llm" : "deterministic",
+      perStepSources: { reflect: transfer, tooling: transfer, evaluate: transfer, transfer },
+    },
+    score
+  );
+  return submission;
+}
+
+function entryForSubmission(submissionId: string): number {
+  const row = ensureDb().prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE dev_submission_id = ?`).get(submissionId) as { n: number };
+  return Number(row.n);
+}
+
+test("ranking: a mixed cohort auto-promotes the graded submission only and records mixed_currency", async () => {
+  const { lifecycleId, postingId } = collecting();
+  const graded = evaluatedWithCurrency(postingId, "Greta", 72, "llm");
+  const tpl = evaluatedWithCurrency(postingId, "Tobias", 85, "deterministic");
+  assert.ok(activePromoteFloor() <= 72, "fixture assumes the default floor");
+
+  const out = await runLifecycle(lifecycleId);
+  assert.equal(out.stage, "promoted");
+
+  assert.equal(entryForSubmission(graded.id), 1, "the graded submission is on the board");
+  assert.equal(entryForSubmission(tpl.id), 0, "the template 85 is not promoted over a graded 72");
+  const invites = listOutbox(50, WS).filter((o) => o.kind === "invite");
+  assert.equal(invites.filter((o) => o.ref === tpl.id).length, 0, "and gets no advance letter");
+  assert.equal(invites.filter((o) => o.ref === graded.id).length, 1);
+
+  const outcome = getLifecycle(lifecycleId)?.outcome;
+  assert.equal(outcome?.facts.promoted, 1);
+  assert.deepEqual(
+    outcome?.warnings.filter((w) => w.code === "mixed_currency"),
+    [{ code: "mixed_currency", count: 1 }]
+  );
+});
+
+test("ranking: an all-template (keyless) cohort promotes as before, with no mixed_currency warning", async () => {
+  const { lifecycleId, postingId } = collecting();
+  const a = evaluatedWithCurrency(postingId, "Hana", 85, "deterministic");
+  const b = evaluatedWithCurrency(postingId, "Ivo", 75, "deterministic");
+
+  await runLifecycle(lifecycleId);
+
+  assert.equal(entryForSubmission(a.id), 1);
+  assert.equal(entryForSubmission(b.id), 1);
+  const outcome = getLifecycle(lifecycleId)?.outcome;
+  assert.equal(outcome?.facts.promoted, 2);
+  assert.equal(outcome?.warnings.some((w) => w.code === "mixed_currency"), false);
+});

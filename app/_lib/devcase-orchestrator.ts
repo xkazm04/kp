@@ -17,6 +17,8 @@ import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator } from "./comms-translator";
 import { getAutonomy, getPromoteFloor, recordAudit } from "./dev-control";
 import { stopVerdict, type StopVerdict } from "./devcase-lifecycle-fence";
+// Pure and import-free: the ONE cohort ordering (challenge-r10 devcase-detail/A).
+import { autoPromoteSlate, rankCohort, withheldFromPromotion } from "./devcase-cohort-rank";
 // Types only (erased): no module joins this runner's import graph.
 import type { OutcomeWarning, OutcomeWarningCode, StageOutcome } from "./devcase-stage-outcome";
 
@@ -577,10 +579,17 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // non-default team ranked an empty set: the stage reported "promoted 0/3", the
       // lifecycle went terminal, and candidates who had already been scored were never
       // put on the board or told they were moving forward.
-      const ranked = (lc.postingId ? listSubmissions(lc.postingId, lc.workspaceId) : [])
-        .filter((s) => (s.transferScore ?? 0) >= floor)
-        .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))
-        .slice(0, DEV_POLICY.promoteTopN);
+      //
+      // The ONE cohort ordering (devcase-cohort-rank.ts): a keyless TEMPLATE transfer is a
+      // different instrument from a graded one, so in a MIXED cohort the slate draws from
+      // the graded tier only - a template 85 is never advanced (board write + letter) over
+      // a graded 72 on a number the two do not share. A uniform cohort (every keyless
+      // install) promotes exactly as before. The withheld rows stay 'evaluated': a human
+      // can re-evaluate them with a key or promote one by hand (that door judges one
+      // submission against the floor, not a cohort order), and the outcome says how many.
+      const cohort = rankCohort(lc.postingId ? listSubmissions(lc.postingId, lc.workspaceId) : []);
+      const ranked = autoPromoteSlate(cohort, floor, DEV_POLICY.promoteTopN);
+      const withheld = withheldFromPromotion(cohort, floor);
       const roleTitle = lc.role?.title ?? lc.title ?? "the role";
       let promoted = 0;
       let held = 0;
@@ -706,11 +715,12 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         progress?.(STAGES.indexOf("ranked"), STAGES.length, `promoting ${promoted + held}`);
       }
       const heldNote = held > 0 ? `, ${held} held for review` : "";
-      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline${heldNote}`;
+      const withheldNote = withheld > 0 ? `, ${withheld} template-scored withheld (mixed cohort)` : "";
+      const detail = `promoted ${promoted}/${DEV_POLICY.promoteTopN} (floor ${floor}) to the pipeline${heldNote}${withheldNote}`;
       const promotedOutcome: StageOutcome = {
         code: "promoted",
         facts: { promoted, topN: DEV_POLICY.promoteTopN, floor },
-        warnings: carried(lc.outcome, warn("held", held)),
+        warnings: carried(lc.outcome, [...warn("held", held), ...warn("mixed_currency", withheld)]),
       };
       if (!advance({ stage: "promoted", detail, outcome: promotedOutcome })) return lostRace();
       recordAudit({ lifecycleId: id, workspaceId: lc.workspaceId, actor: "auto", action: "promoted", reason: detail });

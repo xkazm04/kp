@@ -29,6 +29,7 @@ import { offeredStageActions } from "./stage-ai-actions";
 import type { StageAiAction } from "./pipeline-stages";
 import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
+import { gateScorecardReview } from "./interview-scorecard-commit";
 import {
   coerceInterviewRecommendation,
   coerceScreenRoute,
@@ -182,7 +183,18 @@ export class AutomationError extends Error {
   }
 }
 
-export type AutomationResult = { result: Record<string, unknown>; source: string; applied: string };
+export type AutomationResult = {
+  result: Record<string, unknown>;
+  source: string;
+  applied: string;
+  /** Present ONLY on a `deferApply` run: what the caller needs to apply the verdict
+   *  itself, in its own locked unit (interview-scorecard-commit.ts). */
+  deferred?: DeferredApply;
+};
+/** The apply half a `deferApply` run hands back instead of writing it: the verdict's
+ *  provenance, the actor its event is recorded under, and the coerced recommendation
+ *  that event carries. The SAME three values the in-module branches write with. */
+export type DeferredApply = { provenance: VerdictProvenance; actor: string; recommendation: string };
 type CliPayload = { result: Record<string, unknown>; source: string };
 
 // ---- Verdict provenance (llm vs template) -----------------------------------
@@ -284,8 +296,12 @@ export async function runAutomationTask(
   signal?: AbortSignal,
   lang?: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  /** `manual`: a recruiter asked for this from the candidate modal or the API. */
-  opts: { manual?: boolean } = {},
+  /** `manual`: a recruiter asked for this from the candidate modal or the API.
+   *  `deferApply`: score only - persist NOTHING on the entry (no approval, no event)
+   *  and return the apply half as `deferred`. The voice-interview completion uses it
+   *  so the verdict is attached to the session BEFORE any gate opens, in one locked
+   *  unit (interview-scorecard-commit.ts); the cache write is the only side effect. */
+  opts: { manual?: boolean; deferApply?: boolean } = {},
 ): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404, "unknown_task");
   // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
@@ -526,6 +542,15 @@ export async function runAutomationTask(
   const approvalDetail = (): string => JSON.stringify({ ...result, ...provenance });
   let applied = "drafted";
 
+  if (opts.deferApply) {
+    return {
+      result,
+      source: payload.source,
+      applied: "deferred",
+      deferred: { provenance, actor: engineActor, recommendation: readRecommendation(result, task) },
+    };
+  }
+
   if (task === "screen") {
     // Validate the screen-route gate at the TS parse boundary (Python derives
     // route ∈ {advance, hold}; anything off-set holds, never silently advances),
@@ -591,9 +616,19 @@ export async function runAutomationTask(
     }
     if (applied !== "auto_ratified") applied = screenApplied;
   } else if (task === "scorecard") {
-    setApproval(entry.id, "scorecard_review", approvalDetail(), workspaceId);
-    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId, engineActor);
-    applied = "scorecard_ready";
+    // Behind the SAME gate the voice completion and the human scorecard door use
+    // (interview-scorecard-commit.ts::scorecardGateOpen), re-read under the write lock:
+    // `entry` is a snapshot from before the seconds-long hop. This used to be an
+    // unguarded setApproval, so a drawer synthesis overwrote an offer_review or a
+    // human scorecard_review that was already waiting on a person.
+    const gate = gateScorecardReview({
+      entryId: entry.id,
+      workspaceId,
+      approvalDetail: approvalDetail(),
+      recommendation: readRecommendation(result, task),
+      actor: engineActor,
+    });
+    applied = gate === "opened" ? "scorecard_ready" : "skipped_gate_closed";
   } else if (task === "offer") {
     setApproval(entry.id, "offer_review", approvalDetail(), workspaceId);
     recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId, engineActor);

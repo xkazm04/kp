@@ -29,6 +29,9 @@ const WARNING_TONE: Record<OutcomeWarningCode, BadgeTone> = {
   scenario_template_only: "neutral",
   seed_skeleton_only: "neutral",
   baseline_unavailable: "neutral",
+  // Explain-only (no button: the fix is a re-evaluation with a model, per submission), but
+  // caution: a person should look at the withheld rows before the cohort is final.
+  mixed_currency: "caution",
 };
 const ACTION_BTN =
   "focus-ring inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50";

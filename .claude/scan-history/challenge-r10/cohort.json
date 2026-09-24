@@ -1,0 +1,62 @@
+{
+  "cohort": [
+    {
+      "name": "analyze-workspace",
+      "group": "CV Analysis & Scoring",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "pipeline-core",
+      "group": "AI & LLM Infrastructure",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "voice-tts-package",
+      "group": "Voice Interview",
+      "files": 20,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "db-core-migrations",
+      "group": "Data Access Layer",
+      "files": 19,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "devcase-detail",
+      "group": "Developer Assessment",
+      "files": 19,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "e2e-suite",
+      "group": "Workspace Shell & Onboarding",
+      "files": 19,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "interview-execution-scoring",
+      "group": "Interviews & Assessments",
+      "files": 19,
+      "reason": "never challenged",
+      "riders": []
+    },
+    {
+      "name": "jobs-posting-campaign",
+      "group": "Job & JD Management",
+      "files": 19,
+      "reason": "never challenged",
+      "riders": []
+    }
+  ],
+  "eligible": 172,
+  "uncovered": 110
+}

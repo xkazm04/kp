@@ -2,13 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { JdSummary } from "./AnalyzeTypes";
+import type { JdAction } from "./analyzeJdSource";
 import {
   JD_LIBRARY_LIMIT,
   readJdLibraryPayload,
   type JdLibraryState,
 } from "./analyzeJdLibraryState";
 
-export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => void) {
+/**
+ * The saved-JD library and the pick flow. The column's source of truth (which JD is
+ * linked, its body, whether it loaded) is NOT held here: it is the form's one
+ * JdSource (analyzeJdSource.ts), and this hook dispatches the pick into it.
+ */
+export function useAnalyzeJdLibrary(dispatchJd: (action: JdAction) => void) {
   const [jdLibrary, setJdLibrary] = useState<JdSummary[]>([]);
   // The library's honest load state. It used to be inferred from `jdLibrary.length`,
   // which cannot tell "still loading" from "this workspace has no saved JDs" from
@@ -32,16 +38,11 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
     setStateForAttempt(libraryAttempt);
     setJdLibraryState("loading");
   }
-  const [selectedJdSlug, setSelectedJdSlug] = useState<string | null>(null);
-  // True while a picked JD's body fetch is in flight. The textarea is populated only AFTER
-  // this resolves, and the server never resolves the slug→body itself — so submitting before
-  // it lands runs the analysis JD-blind while still tagging it with the slug. Callers OR this
-  // into the submit gate so a pick-then-immediately-Analyze can't run without the JD.
-  const [jdLoading, setJdLoading] = useState(false);
-  // True when the last pick's body fetch failed (404 from a stale list, network
-  // error, or a bodyless payload). The slug is cleared on failure so the run can't
-  // be tagged with a JD it never saw; this flag lets the picker say why.
-  const [jdLoadFailed, setJdLoadFailed] = useState(false);
+  // A picked JD's body lands in the textarea only after its fetch resolves, and the
+  // server never resolves slug->body itself. While it is in flight the source is
+  // `saved/loading`, which sends NO slug (jdSubmission) and holds the submit (jdLoading);
+  // a failed or bodyless answer is `saved/failed`, which also sends none, so a JD-blind
+  // run can never be filed as a role-specific match.
   // Monotonic pick counter: ignore a slow saved-JD body fetch that resolves after
   // a newer pick, so the textarea can't end up holding JD A's body while the slug
   // records JD B (the run would then silently use the wrong JD). One counter shared
@@ -90,44 +91,27 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
   // then fetches the full body and populates the textarea.
   const pickJd = useCallback(
     (slug: string) => {
-      setSelectedJdSlug(slug);
-      setJdLoadFailed(false);
       const seq = ++jdPickSeqRef.current;
-      setJdLoading(true);
-      // A failed body fetch must DETACH the pick, not just skip the textarea write:
-      // the slug rides along in the submit, so keeping it recorded would persist a
-      // JD-blind run as a role-specific match (analyze-run logs jd_present:false
-      // with jd_slug set). Clear the slug and flag the failure for the picker.
+      // The pick becomes the column's source now: an attached JD file is dropped by
+      // the transition, so the file's prose can no longer be scored under this role.
+      dispatchJd({ type: "pickSaved", slug });
       const fail = () => {
-        if (seq !== jdPickSeqRef.current) return; // a newer pick owns the slug now
-        setSelectedJdSlug(null);
-        setJdLoadFailed(true);
+        if (seq !== jdPickSeqRef.current) return; // a newer pick owns the column now
+        dispatchJd({ type: "bodyFailed", slug });
       };
       fetch(`/api/jds/${encodeURIComponent(slug)}`)
         .then((response) => (response.ok ? response.json() : null))
-        .then((full) => {
-          // Drop a stale response: a slower earlier pick must not last-write-win
-          // over a newer one (textarea/slug would then disagree).
+        .then((full: { body?: unknown } | null) => {
+          // Drop a stale response: a slower earlier pick must not last-write-win over a
+          // newer one. The transition re-checks the slug and the loading state as well.
           if (seq !== jdPickSeqRef.current) return;
-          // The slug endpoint can return a non-{body:string} shape (an { error },
-          // a renamed field, a partial record); setting a non-string into the
-          // controlled textarea white-screens the whole tab (e.g. from a shareable
-          // ?jd= URL). Guard the write — and treat it as a failed load (the run
-          // would otherwise proceed JD-blind), same as a 404/network error.
-          if (full && typeof full.body === "string") {
-            setJobDescriptionText(full.body);
-          } else {
-            fail();
-          }
+          // A non-string or blank body (an { error }, a renamed field) is a failed load
+          // inside the transition — never a non-string pushed into the textarea.
+          dispatchJd({ type: "bodyLoaded", slug, body: full?.body });
         })
-        .catch(fail)
-        .finally(() => {
-          // Only the current pick owns the flag — a superseded pick's resolution must not
-          // clear a newer pick's loading state.
-          if (seq === jdPickSeqRef.current) setJdLoading(false);
-        });
+        .catch(fail);
     },
-    [setJobDescriptionText]
+    [dispatchJd]
   );
 
   // Load the JD named by a shareable ?jd= URL on mount, through the same loader.
@@ -142,23 +126,11 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
     return () => window.clearTimeout(t);
   }, [pickJd]);
 
-  // External slug writes (detach, paste-over, file attach) are corrective actions —
-  // they also dismiss a lingering load-failure message, so callers don't need to
-  // know the flag exists.
-  const setSelectedJdSlugExternal = useCallback((slug: string | null) => {
-    setJdLoadFailed(false);
-    setSelectedJdSlug(slug);
-  }, []);
-
   return {
     jdLibrary,
     jdLibraryState,
     jdLibraryTruncated,
     reloadJdLibrary,
-    selectedJdSlug,
-    setSelectedJdSlug: setSelectedJdSlugExternal,
     pickJd,
-    jdLoading,
-    jdLoadFailed,
   };
 }
