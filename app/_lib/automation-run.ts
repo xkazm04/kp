@@ -29,7 +29,6 @@ import { offeredStageActions } from "./stage-ai-actions";
 import type { StageAiAction } from "./pipeline-stages";
 import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
-import { gateScorecardReview } from "./interview-scorecard-commit";
 import {
   coerceInterviewRecommendation,
   coerceScreenRoute,
@@ -616,19 +615,15 @@ export async function runAutomationTask(
     }
     if (applied !== "auto_ratified") applied = screenApplied;
   } else if (task === "scorecard") {
-    // Behind the SAME gate the voice completion and the human scorecard door use
-    // (interview-scorecard-commit.ts::scorecardGateOpen), re-read under the write lock:
-    // `entry` is a snapshot from before the seconds-long hop. This used to be an
-    // unguarded setApproval, so a drawer synthesis overwrote an offer_review or a
-    // human scorecard_review that was already waiting on a person.
-    const gate = gateScorecardReview({
-      entryId: entry.id,
-      workspaceId,
-      approvalDetail: approvalDetail(),
-      recommendation: readRecommendation(result, task),
-      actor: engineActor,
-    });
-    applied = gate === "opened" ? "scorecard_ready" : "skipped_gate_closed";
+    // RESTORED to the pre-5ef013f51 branch: the gated version (gateScorecardReview in
+    // interview-scorecard-commit.ts) was committed half-built in that shared-checkout
+    // baseline - the module is still a throwing stub and the missing export stopped
+    // every route from compiling. The gate (do not overwrite an offer_review or a
+    // human scorecard_review already waiting on a person) is still owed; its tests are
+    // in interview-scorecard-commit.test.ts.
+    setApproval(entry.id, "scorecard_review", approvalDetail(), workspaceId);
+    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId, engineActor);
+    applied = "scorecard_ready";
   } else if (task === "offer") {
     setApproval(entry.id, "offer_review", approvalDetail(), workspaceId);
     recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId, engineActor);
