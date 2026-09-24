@@ -124,15 +124,15 @@ class CommandRecognizer:
         Two Windows hazards, both silent. ``shlex.split`` in POSIX mode treats ``\\`` as an
         escape, so formatting the path in first turns ``C:\\Users\\...\\tmp.wav`` into
         ``C:Users...tmp.wav`` and the engine reports a missing file for a file the harness
-        definitely wrote. Splitting first fixes the substituted path; ``posix=False`` on
-        Windows fixes the same corruption in paths the OPERATOR wrote into the template
-        (a model path is the common case), at the cost of leaving quote characters on the
-        tokens, which is why they are stripped here.
+        definitely wrote. Splitting first fixes the substituted path; ``posix=False`` fixes
+        the same corruption in paths the OPERATOR wrote into the template (a model path is
+        the common case), at the cost of leaving quote characters on the tokens, which is
+        why they are stripped here. This does not depend on the host OS running the
+        harness: a Windows-style path can land in the template on any platform, so the
+        protection has to be unconditional, not gated on ``os.name``.
         """
-        if os.name == "nt":
-            toks = shlex.split(self.template, posix=False)
-            return [t[1:-1] if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" else t for t in toks]
-        return shlex.split(self.template)
+        toks = shlex.split(self.template, posix=False)
+        return [t[1:-1] if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" else t for t in toks]
 
     def _argv(self, audio_path: str, lang: str) -> list[str]:
         return [t.format(audio=audio_path, lang=lang) for t in self._tokens()]
