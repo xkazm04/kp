@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import type { JobseekerSource, SourceTier } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { callJson, entryForSource, type ApiFailure, type CatalogEntryView } from "../sourcesApi";
+import { callJson, entryForSource, sourceDisplayLabel, type ApiFailure, type CatalogEntryView } from "../sourcesApi";
 import { LockIcon, ProvMark } from "./marks";
 import { sourceIsOn } from "./sieveModel";
 import { cx, SV_BTN_GHOST, SV_BTN_PRIMARY, SV_BTN_SM_GHOST, SV_LOCK, SV_SWITCH } from "./sieveRecipes";
@@ -234,7 +234,7 @@ export function StepSources({
               if (e.needsCompanyConfig) {
                 const mine = sources.filter((s) => entryForSource(catalog, s)?.id === e.id);
                 return [
-                  ...mine.map((s) => card(s.id, `${e.label} · ${String((s.config as { slug?: unknown }).slug ?? s.host)}`, s.host, e, s, tier)),
+                  ...mine.map((s) => card(s.id, sourceDisplayLabel(catalog, s), s.host, e, s, tier)),
                   <div key={`${e.id}-add`} className="src">
                     <div className="sh">
                       <div>

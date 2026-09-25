@@ -97,15 +97,18 @@ export function useSieveData(initial: { profile: JobseekerProfile | null; source
     []
   );
 
+  // Keyed on the profile's ID: a preference save replaces the profile object, and that
+  // is not a reason to re-read the conversations.
+  const profileId = profile?.id ?? null;
   const reloadDialogs = useCallback(() => {
     // No profile, no conversation: the caller reads `cvDialog` only beside a profile.
-    if (!profile) return Promise.resolve();
-    return callJson<{ dialogs?: JobseekerDialog[] }>(`/api/jobseeker/dialogs?profileId=${encodeURIComponent(profile.id)}`).then((r) => {
+    if (!profileId) return Promise.resolve();
+    return callJson<{ dialogs?: JobseekerDialog[] }>(`/api/jobseeker/dialogs?profileId=${encodeURIComponent(profileId)}`).then((r) => {
       if (!r.ok) return;
       // The newest CV conversation, open or closed: its artifact is the latest reading.
       setCvDialog((r.body.dialogs ?? []).filter((d) => d.kind === "cv_polish").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null);
     });
-  }, [profile]);
+  }, [profileId]);
 
   useEffect(() => {
     void reloadRows();

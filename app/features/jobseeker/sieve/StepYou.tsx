@@ -113,8 +113,11 @@ const PROV_KINDS: { key: ProvenanceKey; mark: ProvenanceMark }[] = [
   { key: "stated", mark: "dashed" },
 ];
 
+/** Once per CV: keyed on the CV's hash (written by the profile PUT), never on
+ *  updatedAt, which every preference save bumps. A profile saved before the hash was
+ *  written falls back to the text's length, which a preference save does not touch. */
 function flownKey(profile: JobseekerProfile): string {
-  return `kp-me-flown:${profile.id}:${profile.cvHash ?? profile.updatedAt}`;
+  return `kp-me-flown:${profile.id}:${profile.cvHash ?? `len${profile.cvSourceText?.length ?? 0}`}`;
 }
 
 export function StepYou({

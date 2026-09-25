@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Loader2, Radar } from "lucide-react";
 import { Tooltip } from "@/app/_components/Tooltip";
 import { BTN_PRIMARY, NOTICE } from "@/app/_components/ui/recipes";
-import type { JobseekerSource } from "@/app/_lib/jobseeker/types";
+import type { JobseekerProfile, JobseekerSource } from "@/app/_lib/jobseeker/types";
 import { FailureNotice } from "./FailureNotice";
 import { euresCountries } from "./feedModel";
 import { callJson, type ApiFailure, type SourcesPayload } from "./sourcesApi";
@@ -47,12 +47,16 @@ export function EnableEuresButton({
   countries,
   scan,
   onEnabled,
+  onProfileSaved,
 }: {
   /** `preferences.countries` as the server read them (may be empty). */
   countries: string[];
   scan: ScanTaskState & { start(): Promise<void> };
   /** The chain just gained an enabled source: the caller re-reads the feed. */
   onEnabled(): void;
+  /** The countries this door wrote onto the profile, so the caller's copy of the
+   *  preferences is the one the server holds (a later direct edit replaces lists). */
+  onProfileSaved?(profile: JobseekerProfile): void;
 }) {
   const t = useTranslations("me.jobs.empty.no_sources");
   const tScan = useTranslations("me.jobs.scan");
@@ -96,14 +100,18 @@ export function EnableEuresButton({
       }
       if (defaulted) {
         // Written BEFORE the scan, so the first run searches the country the button named.
-        const saved = await callJson("/api/jobseeker/profile", { method: "PUT", body: JSON.stringify({ preferences: { countries: wanted } }) });
+        const saved = await callJson<JobseekerProfile>("/api/jobseeker/profile", { method: "PUT", body: JSON.stringify({ preferences: { countries: wanted } }) });
         if (!saved.ok) {
           setFailure(saved.fail);
           return;
         }
+        onProfileSaved?.(saved.body);
       }
-      if (!source.enabled) {
-        const patched = await callJson<{ source: JobseekerSource }>(`/api/jobseeker/sources/${encodeURIComponent(source.id)}`, { method: "PATCH", body: JSON.stringify({ enabled: true }) });
+      // A PAUSED EURES is enabled but not scanned: the door resumes it, or the scan
+      // below finds no source and the same empty state comes straight back.
+      if (!source.enabled || source.pausedReason) {
+        const body = source.pausedReason ? { resume: true } : { enabled: true };
+        const patched = await callJson<{ source: JobseekerSource }>(`/api/jobseeker/sources/${encodeURIComponent(source.id)}`, { method: "PATCH", body: JSON.stringify(body) });
         if (!patched.ok) {
           setFailure(patched.fail);
           return;
@@ -143,7 +151,7 @@ export function EnableEuresButton({
         </button>
       </Tooltip>
       <p className="text-sm text-steel">
-        <Link href="/me" className="focus-ring rounded underline">
+        <Link href="/me#s-want" className="focus-ring rounded underline">
           {t("euresPrefs")}
         </Link>
       </p>

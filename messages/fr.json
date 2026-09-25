@@ -13004,7 +13004,8 @@
         "eveningPartial": "la meilleure est partielle · {score}",
         "weighCount": "{open, plural, =0 {aucune ouverte} one {# ouverte} other {# ouvertes}} · traitées : {decided}",
         "sourcesCount": "actives : {on}{held, plural, =0 { · aucune à la porte} other { · # à la porte}}",
-        "note": "Les barres rétrécissent à mesure que le tamis travaille : <b>{found}</b> trouvées, <b>{through}</b> passées, <b>{worth}</b> fortes ou prometteuses, <b>{decided}</b> traitées."
+        "note": "Les barres rétrécissent à mesure que le tamis travaille : <b>{found}</b> trouvées, <b>{through}</b> passées, <b>{worth}</b> fortes ou prometteuses, <b>{decided}</b> traitées.",
+        "loadFailed": "chargement impossible"
       },
       "tally": {
         "found": "Trouvées : <b>{n}</b>",
@@ -13272,7 +13273,8 @@
           "noAsIf": "pas de score hypothétique",
           "notRead": "source désactivée",
           "notScored": "pas encore notée"
-        }
+        },
+        "more": "+{n} de plus"
       },
       "evening": {
         "eyebrow": "Étape 6 · Dignes de votre soirée",

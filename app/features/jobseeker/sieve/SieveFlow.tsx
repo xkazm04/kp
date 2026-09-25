@@ -8,12 +8,12 @@ import { EnableEuresButton } from "../EnableEuresButton";
 import { FailureNotice } from "../FailureNotice";
 import { renderedAnchor, type FeedTuple } from "../feedModel";
 import { recallDraftSource, type DraftSource } from "../importOutcome";
-import type { CatalogEntryView } from "../sourcesApi";
+import { sourceDisplayLabel, type CatalogEntryView } from "../sourcesApi";
 import { useScanTask } from "../useScanTask";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "../apiFailure";
 import { ScanDoor } from "./ScanDoor";
 import { SieveFrame, type RailStep } from "./SieveFrame";
-import { deriveSieve, initialsOf, sourceIsOn } from "./sieveModel";
+import { deriveSieve, initialsOf, provenanceOf, sourceIsOn } from "./sieveModel";
 import { StepArrive } from "./StepArrive";
 import { StepEvening } from "./StepEvening";
 import { StepSieve } from "./StepSieve";
@@ -90,10 +90,7 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
   const sourceLabel = useCallback(
     (id: string) => {
       const s = sources.find((x) => x.id === id);
-      if (!s) return id;
-      const h = s.host.toLowerCase();
-      const entry = catalog.find((e) => e.host === h) ?? catalog.find((e) => h.endsWith(`.${e.host}`));
-      return entry ? entry.label.split(" (")[0]! : s.host;
+      return s ? sourceDisplayLabel(catalog, s, { short: true }) : id;
     },
     [sources, catalog]
   );
@@ -211,7 +208,8 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
   const prefs = profile?.preferences;
   const wantsSet = prefs ? [prefs.locations.length + prefs.countries.length > 0, !!prefs.salaryFloor, prefs.targetTitles.length > 0, prefs.workModes.length > 0, !!prefs.seniority].filter(Boolean).length : 0;
   const found = facts?.all.length ?? 0;
-  const stated = (profile?.profile.skillClaims ?? []).filter((c) => !c.provenance || c.provenance === "self_declared").length;
+  // The SAME rule the tiles draw with (provenanceOf), so the rail and the legend agree.
+  const stated = (profile?.profile.skillClaims ?? []).filter((c) => provenanceOf(c.provenance).stated).length;
   const steps: RailStep[] = [
     { id: "arrive", anchor: "s-arrive", label: t("rail.arrive"), count: profile ? t("rail.arriveIn", { name: first ?? t("rail.you") }) : t("rail.arriveOut"), state: profile ? "done" : "reached" },
     {
@@ -233,7 +231,7 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
       id: "sieve",
       anchor: "s-sieve",
       label: t("rail.sieve"),
-      count: !profile ? t("rail.notReached") : !facts ? t("rail.loading") : found ? t("rail.sieveCount", { found, through: facts.scored.length, held: facts.held.length }) : t("rail.sieveEmpty"),
+      count: !profile ? t("rail.notReached") : !facts ? (data.rowsError ? t("rail.loadFailed") : t("rail.loading")) : found ? t("rail.sieveCount", { found, through: facts.scored.length, held: facts.held.length }) : t("rail.sieveEmpty"),
       state: !profile ? "gap" : found ? "done" : "reached",
       bar: facts && found ? { tone: "b-pass", value: facts.scored.length / found } : null,
       emptyBar: !facts || !found,
@@ -315,6 +313,7 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
           <EnableEuresButton
             countries={profile?.preferences.countries ?? []}
             scan={scan}
+            onProfileSaved={data.setProfile}
             onEnabled={() => {
               void data.reloadSources();
               void data.reloadRows();
@@ -322,6 +321,7 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
           />
         }
         scanDoor={scanDoor}
+        loadError={loadError}
         onOpen={open}
         reduceMotion={reduceMotion}
       />
@@ -347,7 +347,8 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
         profileId={profile?.id ?? null}
         salaryFloor={profile?.preferences.salaryFloor ?? null}
         locale={locale}
-        active={active === "weigh" || active === "evening"}
+        navActive={active === "weigh" || active === "evening"}
+        decideActive={active === "weigh"}
         onOpen={open}
         onRowUpdate={data.replaceRow}
         onToast={say}

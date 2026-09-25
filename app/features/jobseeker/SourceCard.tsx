@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, ExternalLink, Pause, Play, ShieldCheck, SlidersHorizontal, Timer } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
 import { IconAction } from "@/app/_components/IconAction";
-import { Tooltip } from "@/app/_components/Tooltip";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 import { Collapse } from "@/app/features/hiring/pipeline/PipelineMotion";
@@ -14,6 +13,7 @@ import type { JobseekerSource } from "@/app/_lib/jobseeker/types";
 import { FailureNotice } from "./FailureNotice";
 import { RulesAuthoring } from "./RulesAuthoring";
 import { SourceSwitch } from "./SourceSwitch";
+import { sourceIsOn } from "./sieve/sieveModel";
 import { callJson, type ApiFailure, type CatalogEntryView } from "./sourcesApi";
 
 // One tier A or tier B source, as a LEDGER ROW rather than a card.
@@ -97,10 +97,14 @@ export function SourceCard({ source, entry, onChange }: { source: JobseekerSourc
         {/* State, as pills and a numeral-free sentence — never a coloured paragraph.
             The pause REASON rides in the pill's tooltip instead of spending a line. */}
         <span className="flex flex-wrap items-center gap-2 text-steel">
+          {/* The pause REASON is what the owner needs to decide on Resume, so it is
+              written beside the pill, never kept in a hover-only tooltip (a Badge is not
+              focusable, so keyboard and touch readers never reached it). */}
           {source.pausedReason ? (
-            <Tooltip label={t("paused", { reason: t(`pauseReason.${source.pausedReason}`), when: source.pausedAt ? rel(source.pausedAt) : "" })}>
+            <>
               <Badge tone="caution" label={t("pausedPill")} />
-            </Tooltip>
+              <span>{t("paused", { reason: t(`pauseReason.${source.pausedReason}`), when: source.pausedAt ? rel(source.pausedAt) : "" })}</span>
+            </>
           ) : null}
           {source.lastRunAt && source.lastOutcome ? (
             <>
@@ -115,13 +119,16 @@ export function SourceCard({ source, entry, onChange }: { source: JobseekerSourc
         {/* The trailing action cell — the roster's shape: every row's controls end on
             the same axis, so the column scans. */}
         <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {/* ONE rule for "on" across /me (sieveModel.sourceIsOn): a paused source does
+              not feed the sieve, so it reads off here too, and switching it on resumes it —
+              the flow's Sources step does exactly this. */}
           <SourceSwitch
-            on={source.enabled}
+            on={sourceIsOn(source)}
             label={t("toggleLabel", { label })}
             onLabel={t("enabled")}
             offLabel={t("disabled")}
             busy={busy}
-            onToggle={() => void patch({ enabled: !source.enabled })}
+            onToggle={() => void patch(source.pausedReason ? { resume: true } : { enabled: !source.enabled })}
           />
           {source.pausedReason ? (
             <button type="button" className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`} disabled={busy} onClick={() => void patch({ resume: true })}>

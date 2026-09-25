@@ -68,3 +68,15 @@ export function entryForSource(catalog: CatalogEntryView[], source: JobseekerSou
   const h = source.host.toLowerCase();
   return catalog.find((e) => e.host === h) ?? catalog.find((e) => h.endsWith(`.${e.host}`)) ?? null;
 }
+
+/** ONE label for a source, wherever /me names it: the catalog label's short half
+ *  ("EURES", the text before " (") or the full label, plus the company slug for a
+ *  per-company ATS ("Greenhouse · acme"), else the host. Two companies on one vendor
+ *  must never collapse into one name. */
+export function sourceDisplayLabel(catalog: CatalogEntryView[], source: JobseekerSource, { short = false }: { short?: boolean } = {}): string {
+  const entry = entryForSource(catalog, source);
+  if (!entry) return source.host;
+  const base = short ? entry.label.split(" (")[0]! : entry.label;
+  const slug = (source.config as { slug?: unknown }).slug;
+  return entry.needsCompanyConfig && typeof slug === "string" && slug.trim() ? `${base} · ${slug.trim()}` : base;
+}

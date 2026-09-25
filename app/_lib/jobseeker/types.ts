@@ -313,7 +313,7 @@ export type JobseekerFeedAnchor = { at: string; id: string };
 /** What the feed route answers beside the rows: how many live postings arrived after the
  *  anchor, and the anchor the count was measured against. `null` — not `{count: 0}` —
  *  when there is no anchor yet, which is the quiet first run: no badge, no divider. */
-export type FeedNewSince = { count: number; anchorAt: string } | null;
+export type FeedNewSince = { count: number; anchorAt: string; anchorId: string } | null;
 
 // ---------------------------------------------------------------------------
 // Dialogs (the Studio kit's two seeker variants)

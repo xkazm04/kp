@@ -60,16 +60,22 @@ export function StepWant({
   const [save, setSave] = useState<Save>("idle");
   const [saveError, setSaveError] = useState<ClassifiedFailure | null>(null);
   const [changed, setChanged] = useState(false);
+  // An edit is queued or in flight (state, not the ref: render must not read a ref).
+  const [dirty, setDirty] = useState(false);
   const [filling, setFilling] = useState<number>(-1);
   const pending = useRef<Partial<JobseekerPreferences>>({});
   const timer = useRef<number | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const profileId = profile?.id ?? null;
 
-  // A new profile (a re-import) resets the cards to what the server holds.
-  const [seenProfileId, setSeenProfileId] = useState(profileId);
-  if (profileId !== seenProfileId) {
-    setSeenProfileId(profileId);
+  // The cards follow what the server holds whenever the stored profile changes from
+  // OUTSIDE this step (a re-import, the EURES door writing countries, a CV conversation
+  // closing) and no edit of the seeker's own is still waiting to be saved — else the
+  // next direct edit would replace a list with this step's stale copy of it.
+  const version = profile ? `${profile.id}:${profile.updatedAt}` : null;
+  const [seenVersion, setSeenVersion] = useState(version);
+  if (version !== seenVersion && !dirty) {
+    setSeenVersion(version);
     setPrefs(profile?.preferences ?? null);
     setAmount(profile?.preferences.salaryFloor?.amount ?? 0);
     setCurrency(profile?.preferences.salaryFloor?.currency ?? null);
@@ -97,6 +103,7 @@ export function StepWant({
       }
       setSaveError(null);
       setSave("saved");
+      if (Object.keys(pending.current).length === 0) setDirty(false);
       onSaved(body);
     } catch {
       pending.current = { ...patch, ...pending.current };
@@ -109,6 +116,7 @@ export function StepWant({
     (patch: Partial<JobseekerPreferences>) => {
       pending.current = { ...pending.current, ...patch };
       setChanged(true);
+      setDirty(true);
       if (timer.current) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => void flush(), SAVE_DELAY_MS);
     },

@@ -113,6 +113,20 @@ export function SieveFrame({
 
       <main className="main" id="sv-main">
         {children}
+        {/* Below 860px the rail is a horizontal strip with no room for its foot, so the
+            side pages and the house preferences move here — the end of the page, where
+            the preference menus can open upward. Hidden on wider screens. */}
+        <div className="mobile-foot">
+          <Link href="/me/sources" aria-current={page === "sources" ? "page" : undefined}>
+            {t("advancedSources")}
+          </Link>
+          <Link href="/me/scans" aria-current={page === "scans" ? "page" : undefined}>
+            {t("scanHistory")}
+          </Link>
+          <span className="mobile-prefs">
+            <RailPreferences />
+          </span>
+        </div>
       </main>
     </div>
   );

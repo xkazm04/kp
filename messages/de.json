@@ -13004,7 +13004,8 @@
         "eveningPartial": "Beste nur teilweise passend · {score}",
         "weighCount": "{open, plural, =0 {keine offen} other {# offen}} · {decided} entschieden",
         "sourcesCount": "{on} an{held, plural, =0 { · keine zurückgehalten} other { · # zurückgehalten}}",
-        "note": "Die Balken werden schmaler, während das Sieb arbeitet: <b>{found}</b> gefunden, <b>{through}</b> durchgekommen, <b>{worth}</b> stark oder vielversprechend, <b>{decided}</b> entschieden."
+        "note": "Die Balken werden schmaler, während das Sieb arbeitet: <b>{found}</b> gefunden, <b>{through}</b> durchgekommen, <b>{worth}</b> stark oder vielversprechend, <b>{decided}</b> entschieden.",
+        "loadFailed": "konnte nicht geladen werden"
       },
       "tally": {
         "found": "<b>{n}</b> gefunden",
@@ -13272,7 +13273,8 @@
           "noAsIf": "kein Score ohne Schranke",
           "notRead": "Quelle aus",
           "notScored": "noch nicht bewertet"
-        }
+        },
+        "more": "+{n} weitere"
       },
       "evening": {
         "eyebrow": "Schritt 6 · Ihren Abend wert",

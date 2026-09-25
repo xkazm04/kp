@@ -4,7 +4,6 @@ import { useRef, useState, type DragEvent } from "react";
 import { useTranslations } from "next-intl";
 import type { JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { ACCEPT_EXTENSIONS, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
-import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { FailureNotice } from "../FailureNotice";
 import { classifyDraft, classifyExtract, classifySave, IMPORT_STAGES, rememberDraftSource, type DraftSource, type ImportFailure, type ImportStage, type ResponseLike } from "../importOutcome";
 import { initialsOf } from "./sieveModel";
@@ -47,7 +46,6 @@ export function StepArrive({
 }) {
   const t = useTranslations("me.sieve.arrive");
   const tImport = useTranslations("me.import");
-  const rel = useRelativeTime();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [failure, setFailure] = useState<ImportFailure | null>(null);
@@ -181,9 +179,6 @@ export function StepArrive({
             <span>
               <p className="eyebrow">{t("eyebrow")}</p>
               <h2 id="h-arrive">{t("inTitle", { name: name.split(/\s+/)[0] ?? name })}</h2>
-              <span className="small muted" suppressHydrationWarning>
-                {t("inMeta", { when: rel(profile.updatedAt) })}
-              </span>
             </span>
           </span>
           <div className="arrived-drop">{dropZone(true)}</div>

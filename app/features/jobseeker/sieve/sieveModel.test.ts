@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
+import { PROVENANCE } from "@/app/_lib/taxonomy.generated";
 import { deriveSieve, EMPTY_FILTER, filterScored, firstGate, initialsOf, isFilterActive, liftSkills, provenanceOf, sourceIsOn } from "./sieveModel";
 
 // The sieve's numbers are DERIVED from the rows; these pin the placements the page draws
@@ -140,6 +141,12 @@ test("a claim nobody backed is drawn as stated, never as checked", () => {
   assert.equal(provenanceOf("self_declared").stated, true);
   assert.equal(provenanceOf(null).stated, true);
   assert.equal(provenanceOf("something_new").stated, true);
+});
+
+test("every provenance the taxonomy defines has a mark, and only self_declared reads as stated", () => {
+  for (const value of PROVENANCE) {
+    assert.equal(provenanceOf(value).stated, value === "self_declared", value);
+  }
 });
 
 test("initials read two words, and say ? for no name", () => {

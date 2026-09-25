@@ -74,8 +74,9 @@ export function deriveSieve(rows: readonly SievePosting[], sources: readonly Pic
   const gateKeys = (Object.keys(gateCounts) as KoReasonKey[]).sort((a, b) => (gateCounts[b] ?? 0) - (gateCounts[a] ?? 0) || (a < b ? -1 : 1));
   const open = scored.filter((r) => isOpenStatus(r.status));
   const byDecision = { shortlisted: 0, applied: 0, dismissed: 0 };
+  const heldIds = new Set(held.map((r) => r.id));
   for (const row of rows) {
-    if (held.includes(row)) continue;
+    if (heldIds.has(row.id)) continue;
     if (row.status === "shortlisted" || row.status === "applied" || row.status === "dismissed") byDecision[row.status]++;
   }
   const rank: Record<string, number> = {};
@@ -167,14 +168,20 @@ export type ProvenanceKey = "work" | "project" | "study" | "stated";
 export type ProvenanceMark = "solid" | "half" | "ring" | "dashed";
 
 export function provenanceOf(provenance: string | null | undefined): { key: ProvenanceKey; mark: ProvenanceMark; rank: number; stated: boolean } {
+  // Every value of the taxonomy's PROVENANCE vocabulary maps here (sieveModel.test.ts
+  // loops over it): only `self_declared` — or a value nobody declared — reads as stated.
   switch (provenance) {
     case "professional":
+    case "internship":
       return { key: "work", mark: "solid", rank: 4, stated: false };
     case "personal_project":
+    case "open_source":
       return { key: "project", mark: "half", rank: 3, stated: false };
     case "academic_project":
     case "thesis":
     case "coursework":
+    case "certification":
+    case "extracurricular":
       return { key: "study", mark: "ring", rank: 2, stated: false };
     default:
       return { key: "stated", mark: "dashed", rank: 1, stated: true };

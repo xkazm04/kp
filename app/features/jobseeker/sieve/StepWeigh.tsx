@@ -64,7 +64,8 @@ export function StepWeigh({
   profileId,
   salaryFloor,
   locale,
-  active,
+  navActive,
+  decideActive,
   onOpen,
   onRowUpdate,
   onToast,
@@ -79,8 +80,11 @@ export function StepWeigh({
   profileId: string | null;
   salaryFloor: SalaryFloor | null;
   locale: string;
-  /** The step is on screen: the A/S/D/J/K keys belong to it. */
-  active: boolean;
+  /** J / K walk the list while the ranking or this step is on screen. */
+  navActive: boolean;
+  /** A / S / D decide only while THIS step is on screen: a decision is never made on a
+   *  posting the reader cannot see. */
+  decideActive: boolean;
   onOpen(id: string): void;
   onRowUpdate(row: JobseekerPostingSummary): void;
   onToast(message: string): void;
@@ -228,13 +232,15 @@ export function StepWeigh({
     }
   }, [openId, diving, load]);
 
-  // The decision keys, only while this step is the one on screen and nothing is typed.
+  // The keys, only while nothing is being typed: J/K while the list or this step is on
+  // screen, A/S/D only while this step is.
   useEffect(() => {
-    if (!active) return;
+    if (!navActive && !decideActive) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || studio) return;
-      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable) return;
       const k = e.key.toLowerCase();
       if (k === "escape" && pop) {
         setPop(null);
@@ -247,14 +253,14 @@ export function StepWeigh({
         e.preventDefault();
         nav(-1);
       }
-      if (!openId || status === "gone") return;
+      if (!decideActive || !openId || status === "gone") return;
       if (k === "a" && status !== "applied") setPop("apply");
       else if (k === "s") void write(status === "shortlisted" ? "new" : "shortlisted");
       else if (k === "d") setPop("dismiss");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, nav, openId, status, pop, write, studio]);
+  }, [navActive, decideActive, nav, openId, status, pop, write, studio]);
 
   const header = (title: string, meta?: ReactNode) => (
     <div className="step-head">

@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { useTranslations } from "next-intl";
 import type { KoReasonKey } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import { firstGate, type SieveFacts, type SievePosting } from "./sieveModel";
+import type { SieveFacts } from "./sieveModel";
+import { asIf, sieveGeometry, type Dot } from "./sieveGeometry";
 import { cx, SV_BTN_SM_GHOST, SV_CATCH_ROW } from "./sieveRecipes";
 
 // Step 5 — The sieve. Every posting is a dot, and the seeker WATCHES them pour through:
@@ -21,97 +22,6 @@ import { cx, SV_BTN_SM_GHOST, SV_CATCH_ROW } from "./sieveRecipes";
 // When a decision or a source switch moves rows between layers, the dots MOVE from where
 // they were to where they now belong — the sieve re-derives, it never re-deals.
 
-const LAYER_GAP = 116;
-const FIRST_Y = 172;
-const FIELD_LBL = 96;
-
-type Layer = { kind: "door" | "gate" | "wait"; key: string; items: SievePosting[]; also: SievePosting[]; all: SievePosting[]; y: number };
-type Dot = { id: string; layer: string; x: number; y: number; r: number; cls: string };
-type Model = { layers: Layer[]; dots: Dot[]; ghosts: { x: number; y: number; r: number }[]; fieldTop: number; base: number; H: number; x0: number; fx(v: number): number };
-
-function asIf(row: SievePosting): number {
-  return row.asIfTotal ?? 0;
-}
-
-export function sieveGeometry(facts: SieveFacts, W: number): Model {
-  const layers: Layer[] = [];
-  let y = FIRST_Y;
-  if (facts.held.length) {
-    layers.push({ kind: "door", key: "door", items: facts.held, also: [], all: facts.held, y });
-    y += LAYER_GAP;
-  }
-  for (const key of facts.gateKeys) {
-    const all = facts.gated.filter((r) => r.blockedBy.includes(key));
-    layers.push({
-      kind: "gate",
-      key,
-      items: all.filter((r) => firstGate(r, facts.gateKeys) === key),
-      also: all.filter((r) => firstGate(r, facts.gateKeys) !== key),
-      all,
-      y,
-    });
-    y += LAYER_GAP;
-  }
-  if (facts.waiting.length) {
-    layers.push({ kind: "wait", key: "wait", items: facts.waiting, also: [], all: facts.waiting, y });
-    y += LAYER_GAP;
-  }
-  const x0 = Math.max(W * 0.42, 250);
-  const x1 = W - 18;
-  const pitch = Math.max(11, Math.min(16, (x1 - x0) / 34));
-  const rr = pitch * 0.38;
-  const cols = Math.max(6, Math.floor((x1 - x0) / pitch));
-  const dots: Dot[] = [];
-  const ghosts: { x: number; y: number; r: number }[] = [];
-  const at = (i: number, ly: number) => ({ x: x0 + (i % cols) * pitch + pitch / 2, y: ly - rr - 5 - Math.floor(i / cols) * pitch });
-  for (const L of layers) {
-    const list = [...L.items].sort((a, b) => (L.kind === "door" ? (a.sourceId < b.sourceId ? -1 : 1) : asIf(b) - asIf(a)));
-    list.forEach((row, i) => {
-      const p = at(i, L.y);
-      const cls = L.kind === "door" ? "d-held" : L.kind === "wait" ? "d-wait" : cx("d-gated", row.blockedBy.length > 1 && "d-double");
-      dots.push({ id: row.id, layer: L.key, x: p.x, y: p.y, r: rr, cls });
-    });
-    L.also.forEach((_, j) => {
-      const p = at(list.length + j, L.y);
-      ghosts.push({ x: p.x, y: p.y, r: rr * 0.85 });
-    });
-  }
-  const top = new Map(facts.top5.map((r, i) => [r.id, i + 1]));
-  const fx = (v: number) => 24 + (v / 100) * (W - 48);
-  const binW = (W - 48) / 50;
-  const colsPer = binW >= 30 ? 3 : binW >= 16 ? 2 : 1;
-  const fr = Math.max(3.4, Math.min(5, binW / (colsPer * 2.3)));
-  const rowP = fr * 2 + 1.4;
-  const bins = new Map<number, number>();
-  let maxRows = 0;
-  for (const row of facts.scored) {
-    const b = Math.min(49, Math.floor((row.matchTotal ?? 0) / 2));
-    const n = (bins.get(b) ?? 0) + 1;
-    bins.set(b, n);
-    maxRows = Math.max(maxRows, Math.ceil(n / colsPer));
-  }
-  const fieldTop = (layers.length ? y - LAYER_GAP : FIRST_Y - 40) + 28;
-  const fieldH = FIELD_LBL + Math.max(40, maxRows * rowP + 14);
-  const base = fieldTop + fieldH;
-  const fill = new Map<number, number>();
-  for (const row of facts.scored) {
-    const b = Math.min(49, Math.floor((row.matchTotal ?? 0) / 2));
-    const k = fill.get(b) ?? 0;
-    fill.set(b, k + 1);
-    const cx0 = fx(b * 2 + 1) + ((k % colsPer) - (colsPer - 1) / 2) * rowP;
-    const cy0 = base - fr - 2 - Math.floor(k / colsPer) * rowP;
-    dots.push({
-      id: row.id,
-      layer: "field",
-      x: cx0,
-      y: cy0,
-      r: top.has(row.id) ? fr + 1.6 : fr,
-      cls: cx(`d-${row.fitTier ?? "partial"}`, top.has(row.id) && "d-top", row.status === "gone" && "d-gone"),
-    });
-  }
-  return { layers, dots, ghosts, fieldTop, base, H: base + 46, x0, fx };
-}
-
 export function StepSieve({
   facts,
   hasProfile,
@@ -121,6 +31,7 @@ export function StepSieve({
   lastScanAt,
   emptyDoor,
   scanDoor,
+  loadError,
   onOpen,
   reduceMotion,
 }: {
@@ -133,6 +44,8 @@ export function StepSieve({
   /** What to offer when no source feeds the sieve (the one-click EURES door). */
   emptyDoor: ReactNode;
   scanDoor: ReactNode;
+  /** The failed postings read, with its Retry: a failure is said here, never drawn as loading. */
+  loadError: ReactNode;
   onOpen(id: string): void;
   reduceMotion: boolean;
 }) {
@@ -302,6 +215,15 @@ export function StepSieve({
     );
   }
 
+  if (loadError && !facts) {
+    return (
+      <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
+        {head}
+        {loadError}
+      </section>
+    );
+  }
+
   if (loading || !facts || !model) {
     return (
       <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
@@ -392,6 +314,13 @@ export function StepSieve({
           {model.dots.map((d) => (
             <circle key={d.id} data-id={d.id} className={cx("d", d.cls)} r={d.r} cx={d.x} cy={d.y} />
           ))}
+          {model.layers
+            .filter((L) => L.overflow > 0)
+            .map((L) => (
+              <text key={`more-${L.key}`} x={W - 18} y={L.y - 8} textAnchor="end" fontSize={14} fontWeight={700} fill="var(--sv-ink-2)" fontFamily="var(--sv-sans)">
+                {t("more", { n: L.overflow })}
+              </text>
+            ))}
         </svg>
 
         <div className="layer-lbl hop" style={{ top: 14, width: Math.max(200, model.x0 - 34) }}>
@@ -402,7 +331,7 @@ export function StepSieve({
           </div>
         </div>
         {model.layers.map((L) => (
-          <div key={L.key} className={cx("layer-lbl", L.kind)} style={{ top: L.y - 100, width: Math.max(200, model.x0 - 34) }}>
+          <div key={L.key} className={cx("layer-lbl", L.kind)} style={{ top: L.top, width: Math.max(200, model.x0 - 34) }}>
             {/* keyed by the count: the pour writes this text directly, and a new count must
                 mount a fresh node rather than update the one the pour replaced */}
             <span key={`${L.key}:${L.items.length}`} className="ln" data-lc={L.key}>

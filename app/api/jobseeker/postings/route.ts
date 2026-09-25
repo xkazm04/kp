@@ -85,7 +85,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // "we have nothing to compare against".
     const profile = getJobseekerProfile(currentUserId(await currentSession()), ws);
     const anchor = profile ? getFeedAnchor(profile.id, ws) : null;
-    const newSince: FeedNewSince = anchor ? { count: countJobseekerPostingsNewSince(anchor, ws), anchorAt: anchor.at } : null;
+    const newSince: FeedNewSince = anchor ? { count: countJobseekerPostingsNewSince(anchor, ws), anchorAt: anchor.at, anchorId: anchor.id } : null;
     return NextResponse.json({ rows, nextCursor, newSince });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings", "JOBSEEKER_STORE_FAILED");

@@ -13004,7 +13004,8 @@
         "eveningPartial": "best is partial · {score}",
         "weighCount": "{open, plural, =0 {none open} other {# open}} · {decided} decided",
         "sourcesCount": "{on} on{held, plural, =0 { · none held} other { · # held}}",
-        "note": "The bars narrow as the sieve works: <b>{found}</b> found, <b>{through}</b> through, <b>{worth}</b> strong or promising, <b>{decided}</b> decided."
+        "note": "The bars narrow as the sieve works: <b>{found}</b> found, <b>{through}</b> through, <b>{worth}</b> strong or promising, <b>{decided}</b> decided.",
+        "loadFailed": "could not load"
       },
       "tally": {
         "found": "<b>{n}</b> found",
@@ -13272,7 +13273,8 @@
           "noAsIf": "no as-if score",
           "notRead": "source off",
           "notScored": "not scored yet"
-        }
+        },
+        "more": "+{n} more"
       },
       "evening": {
         "eyebrow": "Step 6 · Worth your evening",

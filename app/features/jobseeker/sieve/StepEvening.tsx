@@ -89,6 +89,13 @@ export function StepEvening({
     return () => ro.disconnect();
   }, [ready]);
 
+  // "New" is ONE rule, applied to the rows this step shows: the chips and the header count
+  // both come from it, against the full stored anchor tuple (at AND id), so the anchor row
+  // the seeker already saw is never chipped and the count equals the chips on screen.
+  const anchor = newSince ? { at: newSince.anchorAt, id: newSince.anchorId } : null;
+  const isNew = (r: SievePosting) => !!anchor && isNewerThanAnchor({ at: r.firstSeenAt, id: r.id }, anchor);
+  const newCount = facts && anchor ? facts.scored.filter(isNew).length : 0;
+
   const head = (title: string, lede?: string) => (
     <div className="step-head">
       <div className="grow">
@@ -96,9 +103,9 @@ export function StepEvening({
         <h2 id="h-evening">{title}</h2>
         {lede ? <p className="lede">{lede}</p> : null}
       </div>
-      {newSince && newSince.count > 0 ? (
+      {newCount > 0 ? (
         <span className="scanline">
-          <span className="chip st-new">{t("newSince", { count: newSince.count })}</span>
+          <span className="chip st-new">{t("newSince", { count: newCount })}</span>
           <button type="button" className={SV_BTN_SM_GHOST} onClick={onMarkSeen}>
             {t("markSeen")}
           </button>
@@ -144,8 +151,6 @@ export function StepEvening({
     if (r.fitTier) tierCounts.set(r.fitTier, (tierCounts.get(r.fitTier) ?? 0) + 1);
     if (r.workMode) modeCounts.set(r.workMode, (modeCounts.get(r.workMode) ?? 0) + 1);
   }
-  const anchor = newSince ? { at: newSince.anchorAt, id: "" } : null;
-  const isNew = (r: SievePosting) => !!anchor && newSince!.count > 0 && isNewerThanAnchor({ at: r.firstSeenAt, id: r.id }, anchor);
 
   // ---- skyline geometry ----
   const H = 250;

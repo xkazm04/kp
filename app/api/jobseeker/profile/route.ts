@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
@@ -80,7 +81,10 @@ export async function PUT(request: Request): Promise<NextResponse> {
     const preferences = body.preferencesReplace === true ? { ...base, ...patch } : mergePreferencePatch(base, patch);
     const cvSourceText =
       body.cvSourceText === null ? null : typeof body.cvSourceText === "string" ? body.cvSourceText.slice(0, MAX_CV_SOURCE_CHARS) : undefined;
-    const saved = upsertJobseekerProfile({ userId, profile, preferences, cvSourceText }, ws);
+    // The CV's identity travels with its text: a hash of exactly what was imported, so a
+    // client can tell "a new CV" from "a preference edit" (both bump updated_at).
+    const cvHash = cvSourceText === undefined ? undefined : cvSourceText === null ? null : createHash("sha256").update(cvSourceText, "utf8").digest("hex");
+    const saved = upsertJobseekerProfile({ userId, profile, preferences, cvSourceText, cvHash }, ws);
     return NextResponse.json(saved);
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");

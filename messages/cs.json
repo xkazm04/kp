@@ -13004,7 +13004,8 @@
         "eveningPartial": "nejlepší: částečná · {score}",
         "weighCount": "{open, plural, =0 {nic otevřeného} other {otevřené: #}} · rozhodnuté: {decided}",
         "sourcesCount": "zapnuto {on}{held, plural, =0 { · nic nezadrženo} other { · zadrženo #}}",
-        "note": "Pruhy se zužují, jak síto pracuje: nalezeno <b>{found}</b>, prošlo <b>{through}</b>, za váš večer stojí <b>{worth}</b>, rozhodnuto <b>{decided}</b>."
+        "note": "Pruhy se zužují, jak síto pracuje: nalezeno <b>{found}</b>, prošlo <b>{through}</b>, za váš večer stojí <b>{worth}</b>, rozhodnuto <b>{decided}</b>.",
+        "loadFailed": "nepodařilo se načíst"
       },
       "tally": {
         "found": "nalezeno <b>{n}</b>",
@@ -13272,7 +13273,8 @@
           "noAsIf": "bez hypotetického skóre",
           "notRead": "zdroj vypnutý",
           "notScored": "zatím neohodnoceno"
-        }
+        },
+        "more": "{n, plural, one {+# další} few {+# další} other {+# dalších}}"
       },
       "evening": {
         "eyebrow": "Krok 6 · Stojí za váš večer",
