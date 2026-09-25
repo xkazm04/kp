@@ -21,6 +21,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../../../..");
 const readFileSync = (rel: string, enc: "utf8") => read(resolve(ROOT, rel), enc);
 
+// The Comms Center's ledger rows and its message document are the Channels kit view's (Gate K2).
+const CHANNELS_LEDGER = "app/features/hiring/channels/kit/ChannelsKitComms.tsx";
+const CHANNELS_MESSAGE = "app/features/hiring/channels/kit/ChannelsKitMessagePane.tsx";
 const DRAWER_LIST = "app/features/hiring/pipeline/PipelineCommsList.tsx";
 const TOKEN_LINK = "app/features/hiring/pipeline/PipelineTokenLink.tsx";
 
@@ -68,11 +71,10 @@ test("a genuinely queued message with a real address does NOT warn", () => {
 
 // --- one predicate, two surfaces --------------------------------------------------
 
-// The Comms Center's half left with the "Intake Studio" ledger (kit-unification, Gate K2): the
-// kit ledger (channels/kit/ChannelsKitComms.tsx) renders no unaddressable warning yet, and its
-// message pane shows the raw `deliverable` bit. Until it does, only the drawer is pinned here.
-test("the drawer routes through the shared predicate and does not re-derive it", () => {
-  for (const file of [DRAWER_LIST]) {
+// The Comms Center's half is the kit ledger (a caution mark on the row) and the kit message
+// document (a caution note); both ask the shared predicate, like the drawer.
+test("BOTH surfaces route through the shared predicate and neither re-derives it", () => {
+  for (const file of [CHANNELS_LEDGER, CHANNELS_MESSAGE, DRAWER_LIST]) {
     const src = readFileSync(file, "utf8");
     assert.match(src, /isUnaddressable\(/, `${file} must ask the shared predicate`);
     // A local `deliverable === false` is exactly how the divergence grew the first
@@ -88,6 +90,9 @@ test("the drawer routes through the shared predicate and does not re-derive it",
 test("the drawer reuses the Comms Center's WORDING, not a second vocabulary", () => {
   const src = readFileSync(DRAWER_LIST, "utf8");
   assert.match(src, /noAddressHint/, "the drawer must render channels.comms.noAddressHint");
+  for (const file of [CHANNELS_LEDGER, CHANNELS_MESSAGE]) {
+    assert.match(readFileSync(file, "utf8"), /noAddressHint/, `${file} must render channels.comms.noAddressHint`);
+  }
 });
 
 // --- the drawer no longer drops payload it is handed -------------------------------

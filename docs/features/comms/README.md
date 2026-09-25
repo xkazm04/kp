@@ -1036,22 +1036,26 @@ which re-uses the tab's own decisions (`commsVerdict`, `receiverHealth`,
 - **Communications** (`ChannelsKitComms`): the Delivery block (relay and edge), then the
   ledger as one windowed `DataTable`, dead letters first, then newest first; "Load
   older" appears only while a cursor reaches more rows, and `beyondWindow` is the whole
-  affordance once the derivation window is exhausted (§7).
+  affordance once the derivation window is exhausted (§7). On a known-false relay the
+  ledger opens with `relayNotConfigured` in full as a critical note (`role=alert`). A row
+  whose recipient no real relay can address wears a caution mark beside the name (tip:
+  `channels.comms.noAddressHint`), from the shared `isUnaddressable` predicate and the
+  `useDeliveryCapability` bit, exactly as the candidate modal's messages do (§8;
+  `drawerCommsTruth.test.ts` pins both surfaces).
 - **Email intake / Ad forms** (`ChannelsKitReceivers`): the receivers of that channel,
   add and remove, the "not wired" note when no inbound mail domain is configured.
 - **Careers page** (`ChannelsKitCareers`): every open role's apply link in one windowed
   table (its pager counts them, so nothing is cut at eight).
-- **The reading pane**, only while a row is selected: a message (verdict, record, body,
-  the resend door from `resendDoorOf`), a receiver (health, the setup guide per client,
+- **The reading pane**, only while a row is selected: a message (verdict, the
+  unaddressable caution note from the same predicate, record, body, the resend door from
+  `resendDoorOf`), a receiver (health, the setup guide per client,
   the pull editor), or the relay / edge configuration.
 
 **Retired with the "Intake Studio" view (2026-09-25):** the icon-pill switcher and its
 accents, the hero stage, the guided email-intake wizard and ad-forms pane (their steps
 live on in the receiver pane's setup guide), the CV simulator card, the per-section
 empty-state briefs, and the 20-row `TablePager` paging of the old ledger and receiver
-tables. The kit ledger renders no unaddressable-recipient warning yet (the candidate
-modal's messages still do, through `isUnaddressable`); its message pane shows the raw
-`deliverable` bit. The paging, careers-preview and chrome-cascade notes below describe
+tables. The paging, careers-preview and chrome-cascade notes below describe
 the retired tables and stay as their record.
 
 ## Channels tab: paging and the render cascade

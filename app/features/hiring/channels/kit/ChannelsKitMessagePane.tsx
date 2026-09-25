@@ -1,8 +1,9 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { KeyValueGrid, Mark, Section } from "@/app/_components/kit";
-import { commsVerdict } from "@/app/_lib/comms-view";
+import { KeyValueGrid, Mark, Note, Section } from "@/app/_components/kit";
+import { commsVerdict, isUnaddressable } from "@/app/_lib/comms-view";
+import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { labelize } from "@/app/_lib/format";
 import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 import { ResendButton } from "@/app/features/tools/devcases/ResendButton";
@@ -13,7 +14,9 @@ import { humanKind, ledgerName, ledgerRole, recordedShort, VERDICT_MARK } from "
 /**
  * One message as a document: subject, recipient and channel, the verdict with its reason,
  * the resend door the current modal offers (ResendButton for a failed send, BouncedResend
- * for a bounced address: the product's own actions), the record, the body.
+ * for a bounced address: the product's own actions), the record, the body. An unaddressable
+ * recipient is a caution note from the shared predicate (isUnaddressable), never a local read of
+ * the raw `deliverable` bit: the drawer and this pane tell one truth (drawerCommsTruth.test.ts).
  */
 export function ChannelsKitMessagePane({ message: m, refs, receipt, onResent }: {
   message: Message;
@@ -24,6 +27,7 @@ export function ChannelsKitMessagePane({ message: m, refs, receipt, onResent }: 
   const t = useTranslations("channels.comms");
   const tk = useTranslations("channels.kit");
   const locale = useLocale();
+  const relay = useDeliveryCapability();
   const labels = commsStatusLabels(t);
   const verdict = commsVerdict(m);
   const door = resendDoorOf({ verdict, channel: m.channel });
@@ -54,6 +58,7 @@ export function ChannelsKitMessagePane({ message: m, refs, receipt, onResent }: 
           {reason ? <> {"·"} {reason}</> : null}
         </div>
       </div>
+      {isUnaddressable(m, relay) ? <Note tone="caution">{t("noAddressHint")}</Note> : null}
       {door === "correctAddress" ? (
         <BouncedResend id={m.id} defaultRecipient={m.recipient} onResent={onResent} />
       ) : door === "retry" ? (
@@ -66,7 +71,6 @@ export function ChannelsKitMessagePane({ message: m, refs, receipt, onResent }: 
             { label: t("colRole"), value: ledgerRole(m, refs), absent: tk("noEntry") },
             { label: t("colType"), value: m.kind ? humanKind(m.kind) : null },
             { label: t("colRecorded"), value: recordedShort(m.createdAt, locale) },
-            { label: tk("deliverable"), value: m.deliverable === undefined ? null : m.deliverable ? tk("deliverableYes") : tk("deliverableNo") },
             { label: t("colChannel"), value: m.channel ? labelize(m.channel) : null },
           ]}
         />

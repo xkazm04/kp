@@ -1,19 +1,26 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Button, ChipButton, DataTable, Mark, Section, type Column } from "@/app/_components/kit";
-import { commsVerdict } from "@/app/_lib/comms-view";
+import { Button, ChipButton, DataTable, Mark, Note, Section, type Column } from "@/app/_components/kit";
+import { commsVerdict, isUnaddressable } from "@/app/_lib/comms-view";
+import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { labelize } from "@/app/_lib/format";
 import { resendDoorOf } from "@/app/_lib/comms-resend-outcome";
 import { commsStatusLabels, displaySubject, isActionable, type Message, type ReceiptLabels, type RefInfo } from "../channelsCommsHelpers";
 import type { useCommsFeed } from "../useCommsFeed";
-import { deadCount, humanKind, ledgerName, ledgerRole, nthSentence, recordedShort, VERDICT_MARK, type ChannelsSelection, type VerdictFilter } from "./channelsKitModel";
+import { deadCount, humanKind, ledgerName, ledgerRole, recordedShort, VERDICT_MARK, type ChannelsSelection, type VerdictFilter } from "./channelsKitModel";
 import { ChannelsKitDelivery } from "./ChannelsKitDelivery";
 
 /**
  * Communications on the kit: the Delivery block, then the ledger as ONE windowed DataTable
  * (dead letters first, newest first, 11 rows tall), its pager carrying "load older" while a
  * cursor reaches more and the honest "beyond this view" once none does.
+ *
+ * A row whose recipient no real relay can address wears a caution mark beside the name, from the
+ * shared isUnaddressable predicate (comms-view.ts) and the drawer's own wording
+ * (channels.comms.noAddressHint), so the ledger and the candidate drawer cannot disagree about the
+ * same message (drawerCommsTruth.test.ts pins both). A KNOWN-false relay is said in full, as an
+ * alert above the rows: nothing on this ledger reaches a candidate.
  */
 export function ChannelsKitComms({ feed, ledger, refs, receipt, verdict, setVerdict, filtered, sel, setSel }: {
   feed: ReturnType<typeof useCommsFeed>;
@@ -30,6 +37,7 @@ export function ChannelsKitComms({ feed, ledger, refs, receipt, verdict, setVerd
   const tc = useTranslations("channels.comms");
   const tk = useTranslations("channels.kit");
   const locale = useLocale();
+  const relay = useDeliveryCapability();
   const labels = commsStatusLabels(tc);
   const all = feed.feed.messages;
   const dead = all ? deadCount(all) : 0;
@@ -63,7 +71,6 @@ export function ChannelsKitComms({ feed, ledger, refs, receipt, verdict, setVerd
         count={all ? (feed.feed.hasMore || feed.feed.truncated ? tc("olderExist", { count: all.length }) : tc("count", { count: shown.length })) : undefined}
         tone={feed.relayConfigured ? "default" : "critical"}
         stateMark={feed.relayConfigured ? undefined : <Mark kind="fail" />}
-        state={feed.relayConfigured ? undefined : nthSentence(tc("relayNotConfigured"), 1)}
         actions={
           dead ? (
             <ChipButton
@@ -72,6 +79,9 @@ export function ChannelsKitComms({ feed, ledger, refs, receipt, verdict, setVerd
           ) : null
         }
       >
+        {/* Only on a KNOWN-false relay: useCommsFeed seeds true, so a read in flight never
+            accuses a configured relay of dropping mail. Critical notes carry role=alert. */}
+        {feed.relayConfigured ? null : <Note tone="critical">{tc("relayNotConfigured")}</Note>}
         <DataTable
           label={t("ledger")}
           rows={shown}
@@ -95,6 +105,7 @@ export function ChannelsKitComms({ feed, ledger, refs, receipt, verdict, setVerd
               <Mark key="m" kind={VERDICT_MARK[commsVerdict(m)]} tip={verdictTip(m)} />,
               <>
                 {ledgerName(m, refs, receipt)}
+                {isUnaddressable(m, relay) ? <> <Mark kind="caution" tip={tc("noAddressHint")} /></> : null}
                 <small>{role ?? <span className="k-absent">{"—"}</span>}</small>
               </>,
               displaySubject(m, receipt) ?? "",
