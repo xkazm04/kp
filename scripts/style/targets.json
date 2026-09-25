@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "about": "Named surfaces the style instruments (shoot.mjs, e2e/perf-vitals.spec.ts) know how to reach. `path` may carry {placeholders}; each is resolved by `resolve.<name>.sql`, run READ-ONLY against the throwaway data copy the run serves. `root` is the element that must mount (present, at least minHeight px tall - default 120 - and at least minText chars of text - default 40) or the shot fails; the workspace tabs raise minText to 200 because main#main carries the tab header before the body streams in. `tab` is the workspace tab id (app/features/shell/tabs.ts) for the warm-switch measurement. `gate: true` = one of the kit-unification gate surfaces; the rest are reference-quality surfaces to compare against. docs/design/instruments.md is the operator page.",
+  "targets": {
+    "settings-hiring": {
+      "gate": true,
+      "path": "/?tab=hiring",
+      "tab": "hiring",
+      "root": "main#main",
+      "minText": 200,
+      "note": "Settings -> Hiring pipeline composer (tab id `hiring`)"
+    },
+    "channels": {
+      "gate": true,
+      "path": "/?tab=channels",
+      "tab": "channels",
+      "root": "main#main",
+      "minText": 200,
+      "note": "Hiring -> Channels"
+    },
+    "offer": {
+      "gate": true,
+      "path": "/offer/{token}",
+      "root": "main",
+      "auth": false,
+      "resolve": {
+        "token": {
+          "sql": "SELECT token FROM offers ORDER BY (status = 'extended') DESC, created_at DESC LIMIT 1",
+          "why": "the candidate offer door; prefers a still-open offer, else the newest one (the demo corpus carries an accepted and an expired one)"
+        }
+      },
+      "note": "public token route, no session"
+    },
+    "skill": {
+      "gate": true,
+      "path": "/skill/{token}",
+      "root": "main",
+      "auth": false,
+      "seed": "skill-profile",
+      "resolve": {
+        "token": {
+          "sql": "SELECT access_token FROM skill_profiles WHERE revoked_at IS NULL AND access_token IS NOT NULL ORDER BY issued_at DESC LIMIT 1",
+          "why": "the public Durable Skill Profile card. The demo corpus has no evaluated dev-case submission, so the `skill-profile` seed inserts ONE into the throwaway copy and mints it through POST /api/devcase/skill-profile (the real signing path) when nothing is found"
+        }
+      },
+      "note": "public token route, no session"
+    },
+    "journey": {
+      "gate": true,
+      "path": "/?tab=journeys",
+      "tab": "journeys",
+      "root": "[role=dialog][aria-modal=true]",
+      "note": "the Journeys full-viewport overlay above the workspace"
+    },
+    "history": {
+      "gate": true,
+      "path": "/history/{slug}",
+      "root": "main",
+      "resolve": {
+        "slug": {
+          "sql": "SELECT slug FROM analyses WHERE workspace_id = 'workspace' ORDER BY created_at DESC, slug LIMIT 1",
+          "why": "the newest saved analysis report in the default workspace"
+        }
+      },
+      "note": "saved analysis report, /history/<slug>"
+    },
+    "analytics": {
+      "gate": false,
+      "path": "/?tab=analytics",
+      "tab": "analytics",
+      "root": "main#main",
+      "minText": 200,
+      "note": "reference-quality surface"
+    },
+    "me": {
+      "gate": false,
+      "path": "/me",
+      "root": "main",
+      "note": "reference-quality surface: the job-seeker profile & CV studio"
+    }
+  }
+}
