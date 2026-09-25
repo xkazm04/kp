@@ -82,7 +82,8 @@ const BLOCKED_MATCH = {
 test("postingDetailView: a filtered posting has no match view and a blocked view naming its gate and as-if score", () => {
   const view = postingDetailView(posting({ match: BLOCKED_MATCH, matchVersion: "jobseeker-match-v2", matchedAt: "2026-09-23T10:00:00.000Z" }), "EURES", null);
   assert.equal(view.match, null, "the as-if score is never rendered as the posting's score");
-  assert.deepEqual(view.blocked, { koKeys: ["work_mode"], asIfTotal: 78, asIfTier: "strong", eligibility: [FLAG] });
+  // The unknown gate's sentence ("?") is dropped with its key; details stay index-aligned.
+  assert.deepEqual(view.blocked, { koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"], asIfTotal: 78, asIfTier: "strong", eligibility: [FLAG] });
 });
 
 test("postingDetailView: a scored posting and a never-matched one carry no blocked view", () => {
@@ -100,6 +101,7 @@ test("blockedView: unreadable verdicts degrade to null, and an unreadable as-if 
   assert.equal(blockedView(BLOCKED_MATCH, 70), null, "a row with a total is scored, whatever its payload says");
   assert.deepEqual(blockedView({ blocked: { koKeys: ["language"] }, asIf: "garbage" }, null), {
     koKeys: ["language"],
+    koDetails: [],
     asIfTotal: null,
     asIfTier: null,
     eligibility: [],

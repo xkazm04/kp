@@ -19,11 +19,16 @@ export type PostingMatchView = {
   total: number;
   fitTier: FitTier | null;
   matchedSkills: string[];
+  /** Where the seeker's claim to each matched skill comes from (profile provenance). */
+  matchedSkillProvenance: Record<string, string>;
   missingSkills: string[];
   unprovenSkills: string[];
   breakdown: ScoreDimension[];
   confidence: Confidence | null;
   eligibility: EligibilityFlag[];
+  /** Whether the posting is open to an early-career seeker, and how friendly it is (0-1). */
+  entryEligible: boolean | null;
+  graduateFriendliness: number | null;
 };
 
 /** A posting the hard filter removed (setPostingBlocked): the gates, and what it would
@@ -31,6 +36,8 @@ export type PostingMatchView = {
  *  flag that explains the gate, not a full card for a score the posting does not have. */
 export type PostingBlockedView = {
   koKeys: KoReasonKey[];
+  /** The engine's sentence per gate, as stored beside the keys. */
+  koDetails: string[];
   asIfTotal: number | null;
   asIfTier: FitTier | null;
   eligibility: EligibilityFlag[];
@@ -88,15 +95,21 @@ export function matchView(match: Record<string, unknown> | null, total: number |
       ? { low: c.low, high: c.high, level: c.level, drivers: strings(c.drivers, 10) }
       : null;
   const eligibility = eligibilityFlags(m.eligibility);
+  const prov = m.matchedSkillProvenance && typeof m.matchedSkillProvenance === "object" ? (m.matchedSkillProvenance as Record<string, unknown>) : {};
+  const matchedSkillProvenance: Record<string, string> = {};
+  for (const [skill, value] of Object.entries(prov)) if (typeof value === "string") matchedSkillProvenance[skill] = value;
   return {
     total,
     fitTier,
     matchedSkills: strings(m.matchedSkills),
+    matchedSkillProvenance,
     missingSkills: strings(m.missingSkills),
     unprovenSkills: strings(m.unprovenSkills),
     breakdown,
     confidence,
     eligibility,
+    entryEligible: typeof m.isEntryEligible === "boolean" ? m.isEntryEligible : null,
+    graduateFriendliness: typeof m.graduateFriendliness === "number" && Number.isFinite(m.graduateFriendliness) ? m.graduateFriendliness : null,
   };
 }
 
@@ -119,7 +132,12 @@ export function blockedView(match: Record<string, unknown> | null, total: number
   const asIf = match.asIf && typeof match.asIf === "object" && !Array.isArray(match.asIf) ? (match.asIf as Record<string, unknown>) : {};
   const asIfTotal = typeof asIf.total === "number" && Number.isFinite(asIf.total) ? asIf.total : null;
   const asIfTier = (FIT_TIERS as readonly unknown[]).includes(asIf.fitTier) ? (asIf.fitTier as FitTier) : null;
-  return { koKeys, asIfTotal, asIfTier, eligibility: eligibilityFlags(asIf.eligibility).filter((f) => f.state === "flag") };
+  // A detail is the engine's sentence for the key at the same index: keep it only beside a
+  // key this vocabulary knows, so an unknown gate's sentence never rides on a known one.
+  const rawKeys = Array.isArray(blocked?.koKeys) ? (blocked.koKeys as unknown[]) : [];
+  const rawDetails = Array.isArray(blocked?.koDetails) ? (blocked.koDetails as unknown[]) : [];
+  const koDetails = rawDetails.filter((d, i): d is string => typeof d === "string" && d.trim() !== "" && isKoReasonKey(rawKeys[i])).slice(0, 5);
+  return { koKeys, koDetails, asIfTotal, asIfTier, eligibility: eligibilityFlags(asIf.eligibility).filter((f) => f.state === "flag") };
 }
 
 export function reasoningView(reasoning: Record<string, unknown> | null): PostingReasoningView | null {

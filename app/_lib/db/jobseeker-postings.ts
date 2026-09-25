@@ -6,6 +6,7 @@ import {
   isWorkMode,
   FIT_TIERS,
   SALARY_PERIODS,
+  SUMMARY_SKILL_CAP,
   type DismissReason,
   type EligibilityFlag,
   type FitTier,
@@ -158,14 +159,50 @@ function projectBlockedBy(match: Record<string, unknown> | null): JobseekerPosti
  *  when a field is renamed there — an unreadable projection is empty, never a throw. A
  *  blocked row's payload is `{blocked, asIf}`, so its own eligibility/confidence read
  *  empty: the as-if flags describe a score the posting does not have. */
-function projectMatch(match: Record<string, unknown> | null): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy"> {
+function projectMatch(
+  match: Record<string, unknown> | null
+): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy" | "blockedDetails" | "asIfTotal" | "matchedSkills" | "missingSkills"> {
   const eligibility = Array.isArray(match?.eligibility) ? (match.eligibility as EligibilityFlag[]) : [];
   const raw = match?.confidence;
   const confidence =
     raw && typeof raw === "object" && typeof (raw as { low?: unknown }).low === "number" && typeof (raw as { high?: unknown }).high === "number"
       ? (raw as JobseekerPostingSummary["confidence"])
       : null;
-  return { eligibility, confidence, blockedBy: projectBlockedBy(match) };
+  const blockedBy = projectBlockedBy(match);
+  // A filtered row's skills and as-if score live under `asIf`: they describe a score the
+  // posting does not have, so they ride as the as-if figure only, never as its skills.
+  const asIf = blockedBy.length > 0 && match?.asIf && typeof match.asIf === "object" ? (match.asIf as Record<string, unknown>) : null;
+  const asIfTotal = asIf && typeof asIf.total === "number" && Number.isFinite(asIf.total) ? asIf.total : null;
+  const scored = blockedBy.length === 0 ? match : null;
+  return {
+    eligibility,
+    confidence,
+    blockedBy,
+    blockedDetails: blockedBy.length > 0 ? projectBlockedDetails(match) : [],
+    asIfTotal,
+    matchedSkills: projectMatchedSkills(scored),
+    missingSkills: projectStrings(scored?.missingSkills, SUMMARY_SKILL_CAP),
+  };
+}
+
+/** The engine's sentence per gate, kept only beside a key the vocabulary knows (index-aligned). */
+function projectBlockedDetails(match: Record<string, unknown> | null): string[] {
+  const blocked = match?.blocked as { koKeys?: unknown; koDetails?: unknown } | undefined;
+  const keys = Array.isArray(blocked?.koKeys) ? blocked.koKeys : [];
+  const details = Array.isArray(blocked?.koDetails) ? blocked.koDetails : [];
+  return details.filter((d, i): d is string => typeof d === "string" && d.trim() !== "" && isKoReasonKey(keys[i])).slice(0, 5);
+}
+
+function projectStrings(v: unknown, cap: number): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "").slice(0, cap) : [];
+}
+
+/** The matched skills with the provenance of the seeker's claim (`matchedSkillProvenance`),
+ *  so a card can draw a stated-only claim differently from one done at work. */
+function projectMatchedSkills(match: Record<string, unknown> | null): JobseekerPostingSummary["matchedSkills"] {
+  const skills = projectStrings(match?.matchedSkills, SUMMARY_SKILL_CAP);
+  const prov = match?.matchedSkillProvenance && typeof match.matchedSkillProvenance === "object" ? (match.matchedSkillProvenance as Record<string, unknown>) : {};
+  return skills.map((skill) => ({ skill, provenance: typeof prov[skill] === "string" ? (prov[skill] as string) : null }));
 }
 
 function fromSummaryRow(row: SummaryRow): JobseekerPostingSummary {
@@ -441,7 +478,9 @@ export function getJobseekerPosting(id: string, workspaceId: string = DEFAULT_WO
 }
 
 export type ListPostingsOptions = {
-  status?: PostingStatus;
+  /** One status, or `all` for every row (the /me sieve draws decided and gone rows too);
+   *  absent = the LIVE feed. */
+  status?: PostingStatus | "all";
   minTotal?: number;
   sourceId?: string;
   sort?: "total" | "posted" | "seen";
@@ -490,7 +529,9 @@ export function listJobseekerPostings(
   // (job-postings.ts: a scoping the source guard cannot see is not a scoping).
   const clauses: string[] = [];
   const args: (string | number)[] = [workspaceId];
-  if (opts.status) {
+  if (opts.status === "all") {
+    // Every row: the sieve counts what the seeker decided and what went away.
+  } else if (opts.status) {
     clauses.push("status = ?");
     args.push(opts.status);
   } else {

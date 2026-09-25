@@ -10,6 +10,7 @@ import { isPostingStatus, type FeedNewSince } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // GET /api/jobseeker/postings?status=&minTotal=&sourceId=&sort=total|posted|seen&cursor=&limit=
+// (`status=all` = every row, decided and gone included — what the /me sieve draws)
 // → { rows: JobseekerPostingSummary[], nextCursor, newSince } — the seeker's feed (WP4c). The
 // projection is the store's summary (no body, no JSON-LD, no full match payload);
 // paging is keyset (an opaque cursor), so a scan writing between two pages never
@@ -36,8 +37,9 @@ function parseListQuery(params: URLSearchParams): { opts: ListPostingsOptions } 
   const opts: ListPostingsOptions = {};
   const status = params.get("status");
   if (status !== null && status !== "") {
-    if (!isPostingStatus(status)) return { field: "status" };
-    opts.status = status;
+    if (status === "all") opts.status = "all";
+    else if (!isPostingStatus(status)) return { field: "status" };
+    else opts.status = status;
   }
   const minTotal = params.get("minTotal");
   if (minTotal !== null && minTotal !== "") {

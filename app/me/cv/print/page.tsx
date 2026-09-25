@@ -9,7 +9,7 @@ import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { PrintButton } from "@/app/features/jobseeker/PrintButton";
 
 // /me/cv/print — the polished CV in a print layout. Under /me, so the layout's gate
-// is the gate and its rail hides itself for paper (`print:hidden`). A4-friendly:
+// is the gate; it draws no flow frame, so nothing but the header needs hiding for paper. A4-friendly:
 // one column at 210mm, the reader's own document and nothing else on the sheet.
 // Tokens only — the print stylesheet is the same design system on white.
 //
@@ -27,7 +27,7 @@ export default async function CvPrintPage() {
   const markdown = profile?.cvPolishedMd ?? null;
 
   return (
-    <div className={`mx-auto max-w-[210mm] ${SECTION} print:space-y-0`}>
+    <div className={`mx-auto max-w-[210mm] px-4 py-8 ${SECTION} print:space-y-0 print:p-0`}>
       <header className={`${PAGE_HEADER} print:hidden`}>
         <div className="min-w-0">
           <p className={EYEBROW}>{t("eyebrow")}</p>

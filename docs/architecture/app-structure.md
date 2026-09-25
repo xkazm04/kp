@@ -896,11 +896,12 @@ seen what failed. The tour tile passes `sim.start` as `finish(after)`, so the de
 starts once the run has closed, never beside the writes. The hand-off meta counts
 "invitation links to share after setup", not "teammates invited".
 
-**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route with its own
-rail (`app/features/jobseeker/MeNav.tsx` — brand mark, four links, the shared
-appearance/language preferences, `print:hidden`), gated by `isOperator()` else 404
-exactly like `/control`, `instant = false`, a `TranslatedErrorBoundary` around the
-page and no Companion dock. It reuses the root layout's providers and nothing from
+**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route, gated by
+`isOperator()` else 404 exactly like `/control`, `instant = false`, a
+`TranslatedErrorBoundary` around the page and no Companion dock. The pages draw their
+own chrome — the flow's top bar and numbered step rail
+(`app/features/jobseeker/sieve/SieveFrame.tsx`, the shared appearance/language
+preferences in its foot, hidden for print). It reuses the root layout's providers and nothing from
 `Workspace.tsx`. The profile & CV studio it hosts is documented in
 [`docs/features/jobseeker/README.md`](../features/jobseeker/README.md).
 

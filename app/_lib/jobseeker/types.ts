@@ -290,8 +290,19 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
   confidence: { low: number; high: number; level: "tight" | "moderate" | "wide" } | null;
   /** The hard gates that removed this posting (empty for a scored or not-yet-matched row). */
   blockedBy: KoReasonKey[];
+  /** The engine's one sentence per gate (`koDetails`), for a filtered row only. */
+  blockedDetails: string[];
+  /** What a FILTERED row would have scored with its gates lifted — never a rank key. */
+  asIfTotal: number | null;
+  /** The skills the score met, each with where the seeker's claim comes from (capped). */
+  matchedSkills: { skill: string; provenance: string | null }[];
+  /** The skills the posting asks for that the profile does not show (capped). */
+  missingSkills: string[];
   deepDived: boolean;
 };
+
+/** How many skills a summary row carries: enough for a card, never the whole payload. */
+export const SUMMARY_SKILL_CAP = 6;
 
 /** The feed's LAST-SEEN anchor: the ordering tuple the keyset pager already uses
  *  (`firstSeenAt`, `id`) for the newest row the seeker demonstrably saw settled. One

@@ -1424,9 +1424,6 @@
       "raw-button": 1,
       "literal-page-header": 1
     },
-    "features/jobseeker/DismissPicker.tsx": {
-      "raw-text-size": 2
-    },
     "features/jobseeker/EligibilityChips.tsx": {
       "raw-text-size": 1
     },
@@ -1438,9 +1435,6 @@
       "raw-text-size": 2,
       "raw-button": 1
     },
-    "features/jobseeker/FeedEmptyState.tsx": {
-      "raw-text-size": 2
-    },
     "features/jobseeker/FitSheet.tsx": {
       "raw-text-size": 11,
       "raw-stone-text": 1
@@ -1449,31 +1443,6 @@
       "raw-text-size": 1,
       "raw-button": 1,
       "literal-page-header": 1
-    },
-    "features/jobseeker/JobsFeed.tsx": {
-      "raw-text-size": 4,
-      "raw-table": 1
-    },
-    "features/jobseeker/MeNav.tsx": {
-      "below-floor-text": 1,
-      "arbitrary-text-size": 1
-    },
-    "features/jobseeker/MeNavDrawer.tsx": {
-      "raw-button": 1
-    },
-    "features/jobseeker/PostingDetail.tsx": {
-      "raw-text-size": 25,
-      "bare-rounded": 1
-    },
-    "features/jobseeker/PostingRow.tsx": {
-      "raw-text-size": 2,
-      "bare-rounded": 4
-    },
-    "features/jobseeker/ProfileImport.tsx": {
-      "raw-text-size": 3
-    },
-    "features/jobseeker/ProfileSummary.tsx": {
-      "raw-text-size": 8
     },
     "features/jobseeker/RulesAuthoring.tsx": {
       "raw-text-size": 8,

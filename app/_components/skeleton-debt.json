@@ -32,9 +32,6 @@
     "features/hiring/pipeline/map/orchard/TicketEvidence.tsx": {
       "skeleton": 2
     },
-    "features/jobseeker/ProfileImport.tsx": {
-      "skeleton": 1
-    },
     "features/setup-studio/VoicePanel.tsx": {
       "skeleton": 2
     },
