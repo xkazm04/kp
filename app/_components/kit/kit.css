@@ -572,12 +572,6 @@ input.k-input:focus-visible, select.k-input:focus-visible { outline: none; borde
 /* a sticker panel keeps the measure: it bleeds 14px outside the tracks so names still start on one line */
 [data-theme="dark"] .k-section__head, [data-theme="dark"] .k-section__body { margin-inline: -14px; padding-inline: 14px; }
 
-/* Shown only while the sheet has folded its meta+N tracks (<= 1000px): a control whose column folded
-   reappears where a row's detail line can reach it. Last in the sheet, after the fold steps. */
-@container sheet (max-width: 1000px) {
-  .k-show-folded { display: contents; }
-}
-
 /* ---------- the inline toolbar with a search: filters never run under it (Gate 3) ----------
    Inline, the filters sat on meta / end and the search on fig / act of the same line, so a filter
    row wider than meta ran under the search field (the Journeys lane board with its pane open).
@@ -591,3 +585,10 @@ input.k-input:focus-visible, select.k-input:focus-visible { outline: none; borde
 @container sheet (max-width: 860px) {
   .k-toolbar--inline:has(> .k-toolbar__search) > .k-toolbar__filters { grid-row: 3; }
 }
+
+/* Shown only while the sheet has folded its meta+N tracks (<= 1000px): a control whose column folded
+   reappears where a row's detail line can reach it. Last in the sheet, after the fold steps. */
+@container sheet (max-width: 1000px) {
+  .k-show-folded { display: contents; }
+}
+
