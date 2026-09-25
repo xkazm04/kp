@@ -73,6 +73,20 @@ test("robots.txt: groups, longest match, empty Disallow, Crawl-delay", () => {
   assert.equal(isPathAllowed(parseRobots("User-agent: *\nDisallow:\n"), "/anything"), true, "an empty Disallow allows everything");
 });
 
+test("robots.txt: two groups for the same agent are ONE group (RFC 9309 §2.2.1)", () => {
+  // Remotive's robots.txt carries a second `User-agent: *` group that disallows its
+  // API; reading only the first `*` group treated /api/* as allowed.
+  const split = parseRobots("User-agent: *\nDisallow: /admin\n\nUser-agent: *\nDisallow: /api/*\nCrawl-delay: 4\n");
+  assert.equal(isPathAllowed(split, "/api/remote-jobs"), false);
+  assert.equal(isPathAllowed(split, "/admin"), false);
+  assert.equal(isPathAllowed(split, "/jobs/1"), true);
+  assert.equal(crawlDelayFor(split), 4);
+  // The same holds for a group naming our own token, and ours still beats `*`.
+  const ours = parseRobots("User-agent: kp-jobseeker\nAllow: /jobs/\n\nUser-agent: *\nDisallow: /\n\nUser-agent: kp-jobseeker\nDisallow: /jobs/private\n");
+  assert.equal(isPathAllowed(ours, "/jobs/1"), true);
+  assert.equal(isPathAllowed(ours, "/jobs/private"), false);
+});
+
 test("robots.txt: a many-wildcard pattern is matched in linear time with RFC 9309 semantics", () => {
   // `/*a*a*...*b` against `/aaaa...` was exponential backtracking in a regex translation
   // (10 wildcards measured 45 s) — a hostile robots.txt could stall the scan thread.

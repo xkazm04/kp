@@ -67,15 +67,23 @@ export function parseRobots(text: string): RobotsRules {
 }
 
 /** The group that binds `token`: the most specific user-agent match wins (a group
- *  naming our token beats `*`); no group at all = everything allowed. */
+ *  naming our token beats `*`); no group at all = everything allowed.
+ *
+ *  Several groups naming the same agent are ONE group (RFC 9309 §2.2.1): their rules
+ *  are combined, and the politest Crawl-delay among them binds. Taking only the first
+ *  read a second `User-agent: *` block that disallowed a whole API as absent. */
 export function groupFor(rules: RobotsRules, token: string = CRAWLER_TOKEN): RobotsGroup | null {
   const lower = token.toLowerCase();
-  let star: RobotsGroup | null = null;
-  for (const group of rules.groups) {
-    if (group.agents.some((a) => a !== "*" && (lower.includes(a) || a.includes(lower)))) return group;
-    if (!star && group.agents.includes("*")) star = group;
-  }
-  return star;
+  const own = rules.groups.filter((g) => g.agents.some((a) => a !== "*" && (lower.includes(a) || a.includes(lower))));
+  const bound = own.length ? own : rules.groups.filter((g) => g.agents.includes("*"));
+  if (bound.length === 0) return null;
+  if (bound.length === 1) return bound[0]!;
+  const delays = bound.map((g) => g.crawlDelaySeconds).filter((d): d is number => d !== null);
+  return {
+    agents: [...new Set(bound.flatMap((g) => g.agents))],
+    rules: bound.flatMap((g) => g.rules),
+    crawlDelaySeconds: delays.length ? Math.max(...delays) : null,
+  };
 }
 
 /** Does `path` match a robots pattern? `*` is any run (including an empty one), a
