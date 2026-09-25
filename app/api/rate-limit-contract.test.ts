@@ -2117,6 +2117,15 @@ const ROUTES: RouteSpec[] = [
     expensive: "listJobseekerPostings(",
   },
   {
+    // The Weigh step's one-posting read (GET), one per J/K step through the list;
+    // 240/10min per IP. Same file as the PATCH row below, its own key and budget.
+    rel: "./jobseeker/postings/[id]/route.ts",
+    key: "`jobseeker-posting-read:${clientIpFrom(request.headers)}`",
+    limit: 240,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getJobseekerPosting(",
+  },
+  {
     // One status write per card click; 120/10min per IP.
     rel: "./jobseeker/postings/[id]/route.ts",
     key: "`jobseeker-postings-write:${clientIpFrom(request.headers)}`",
