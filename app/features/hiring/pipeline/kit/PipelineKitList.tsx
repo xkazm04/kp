@@ -10,11 +10,14 @@ import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
 import { ageDays, OUT, provenance } from "./pipelineKitModel";
 import { useApprovalWord } from "./useApprovalWord";
+import { SelectBox } from "@/app/_components/kit/SelectBox";
+import { PipelineKitBulk } from "./PipelineKitBulk";
 
 /** "Candidates": the windowed list, waiting-on-you first, then by match; a row opens the reading pane. */
 export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabState; k: PipelineKit; status: PartState; onEditSla: () => void }) {
   const t = useTranslations("pipeline.kit");
   const tt = useTranslations("pipeline.tab");
+  const tr = useTranslations("pipeline.candidateRow");
   const locale = useLocale();
   const approval = useApprovalWord();
   const n = (v: number) => formatCount(v, locale);
@@ -33,7 +36,9 @@ export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabSta
     { id: "act", label: "", track: "act" },
   ];
 
+  const picking = s.selectMode;
   const entryMark = (e: Entry) => {
+    if (picking) return <SelectBox checked={s.selectedIds.has(e.id)} label={tr("selectCandidate", { name: e.candidateLabel })} onToggle={() => s.toggleSelected(e)} />;
     if (k.ctx.needs(e)) return <Mark kind="needs" tip={t("markWaiting", { what: approval(e.approvalKind) })} />;
     if (stageHasRole(e.stage, "terminal", s.axis)) return <Mark kind="ok" tip={t("markHired")} />;
     return <Mark kind="wait" tip={t("markActive", { stage: label(e.stage) })} />;
@@ -72,19 +77,30 @@ export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabSta
       title={t("listTitle")}
       count={k.rows.length === total ? n(total) : t("listCount", { shown: k.rows.length, total })}
       state={s.sort === "insertion" ? t("listState") : tt(s.sort === "score" ? "sortScore" : "sortAge")}
-      actions={<Button label={tt("agingSlas")} tip={tt("agingSlasTitle")} variant="ghost" size="sm" onClick={onEditSla} />}
+      actions={
+        <>
+          <Button label={picking ? tt("selectDone") : tt("select")} variant={picking ? "secondary" : "ghost"} size="sm" aria-pressed={picking} onClick={s.toggleSelectMode} />
+          <Button label={tt("agingSlas")} tip={tt("agingSlasTitle")} variant="ghost" size="sm" onClick={onEditSla} />
+        </>
+      }
     >
+      {picking ? <PipelineKitBulk s={s} k={k} /> : null}
       <DataTable
         label={t("listLabel")}
         rows={k.rows}
         columns={columns}
         cells={cells}
         rowKey={(e) => e.id}
-        rowState={(e) => (k.ctx.needs(e) ? ["needs"] : [])}
+        rowState={(e) => [...(k.ctx.needs(e) ? (["needs"] as const) : []), ...(picking && s.selectedIds.has(e.id) ? (["selected"] as const) : [])]}
         visibleRows={10}
         metaSplit="minmax(0,1fr) 150px"
-        selectedKey={k.open?.id ?? null}
-        onSelect={(id) => k.select(id)}
+        selectedKey={picking ? null : k.open?.id ?? null}
+        // In select mode a row is a checkbox (the board's grammar): a click toggles it, nothing opens.
+        onSelect={(id) => {
+          const e = picking ? k.rows.find((r) => r.id === id) : null;
+          if (e) s.toggleSelected(e);
+          else k.select(id);
+        }}
         state={status}
         emptyText={k.layer === OUT ? t("outListEmpty", { count: rejected }) : tt("noMatch")}
         errorText={tt("loadFailed")}

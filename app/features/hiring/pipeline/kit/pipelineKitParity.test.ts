@@ -55,3 +55,24 @@ test("the SLA editor writes the TEAM cadence on blur or Enter, clamped, and offe
   assert.match(src, /s\.adoptLocalSla/);
   assert.match(src, /st\.role !== "terminal"/, "a hired candidate has no clock");
 });
+
+test("select mode: a row is a checkbox, select-all acts on the KIT list's rows, the bar states the over-reach", () => {
+  const list = read("PipelineKitList.tsx");
+  assert.match(list, /if \(e\) s\.toggleSelected\(e\);\s*else k\.select\(id\);/, "in select mode a row click toggles, nothing opens");
+  assert.match(list, /<PipelineKitBulk s=\{s\} k=\{k\} \/>/);
+  const bar = read("PipelineKitBulk.tsx");
+  assert.match(bar, /const shown = k\.rows\.map\(\(e\) => e\.id\)/);
+  assert.match(bar, /toggleAll\(cur, shown\)/);
+  assert.match(bar, /selectedOutsideFilter/);
+});
+
+test("the bulk actions keep their confirms: move previews first, outreach arms when a relay would send, reject arms", () => {
+  const bar = read("PipelineKitBulk.tsx");
+  assert.match(bar, /bulkMoveTargetStages\(s\.axis\)/, "only stages a manual move can reach");
+  assert.match(bar, /bulkMoveConfirm/);
+  assert.match(bar, /s\.relayConfigured !== false && !outreachArmed\) s\.dispatchBulkConfirm\(\{ type: "arm", which: "outreach" \}\)/);
+  const detail = read("PipelineKitBulkDetail.tsx");
+  assert.match(detail, /dispatchBulkConfirm\(\{ type: "arm", which: "reject" \}\)/);
+  assert.match(detail, /capabilityAwareReason\(/, "a refusal is read from its CODE in the reader's language");
+  for (const k of ["selectionDeparted", "bulkMoveOfferHeld", "bulkInvitedQueued", "bulkDraftedQueued"]) assert.ok(detail.includes(k), k);
+});
