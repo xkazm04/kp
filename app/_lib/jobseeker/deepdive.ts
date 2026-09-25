@@ -47,8 +47,10 @@ export const defaultDeepDiveDeps: DeepDiveDeps = {
 };
 
 export type DeepDiveOutcome =
-  /** Persisted: the rationale came from a model. */
-  | { kind: "done"; source: "llm"; reasoning: Record<string, unknown>; restructured: boolean; rematched: boolean }
+  /** The rationale came from a model and is persisted — unless `moved`: the posting's
+   *  content changed while the dive was out at the model, so nothing it computed was
+   *  written over the new ad (the next scan structures and scores the new content). */
+  | { kind: "done"; source: "llm"; reasoning: Record<string, unknown>; restructured: boolean; rematched: boolean; moved: boolean }
   /** Not persisted: the engine served its template. The caller stops the shortlist. */
   | { kind: "deterministic"; source: "deterministic"; reasoning: Record<string, unknown>; restructured: boolean }
   /** Not persisted, nothing spent: no provider resolves for jd_ingest. */
@@ -71,6 +73,15 @@ export async function deepDivePosting(
   let job: Record<string, unknown> | null = posting.job;
   let restructured = false;
   let rematched = false;
+  // Every write re-asserts the content hash this dive read (compare-and-swap, not a lock:
+  // the model calls take minutes and must not hold one). The first refusal means the ad
+  // moved under us; every later write is skipped, and it is said once.
+  const guard = { expectedContentHash: posting.contentHash };
+  let moved = false;
+  const markMoved = (step: string) => {
+    if (!moved) deps.log(`${posting.id}: content changed during the deep-dive (${step}), nothing written over the new ad`);
+    moved = true;
+  };
 
   // 1. Model structuring. The keyless refusal ends the deep-dive before any model spend;
   //    any other failure keeps the deterministic Job — the rationale is still worth having.
@@ -85,8 +96,8 @@ export async function deepDivePosting(
     });
     if (out.job && typeof out.job === "object" && out.source === "llm") {
       job = { ...(out.job as Record<string, unknown>), id: posting.id };
-      deps.setPostingStructure(posting.id, job, "llm", ws);
-      restructured = true;
+      if (deps.setPostingStructure(posting.id, job, "llm", ws, guard)) restructured = true;
+      else markMoved("structure");
     }
   } catch (error) {
     if (isNoProviderError(error)) return { kind: "no_provider" };
@@ -103,13 +114,14 @@ export async function deepDivePosting(
   //    Job (a deterministic spawn, no model). A KO here leaves the previous match in place
   //    — the row already carries a score the seeker saw, and "not comparable" would be a
   //    silent demotion; the rationale below says what changed.
-  if (restructured) {
+  if (restructured && !moved) {
     try {
       const { matched } = await matchChunk(profile, [{ id: posting.id, job }], deps.runCli, opts.signal);
       const hit = matched.find((m) => m.id === posting.id);
       if (hit) {
-        deps.setPostingMatch(posting.id, hit.match, { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: deps.now() }, ws);
-        rematched = true;
+        const projection = { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: deps.now() };
+        if (deps.setPostingMatch(posting.id, hit.match, projection, ws, guard)) rematched = true;
+        else markMoved("match");
       }
     } catch (error) {
       deps.log(`${posting.id}: re-match after model structuring failed, keeping the earlier score`, error);
@@ -136,6 +148,6 @@ export async function deepDivePosting(
     total: typeof out.total === "number" ? out.total : null,
     at: deps.now(),
   };
-  deps.setPostingReasoning(posting.id, stored, ws);
-  return { kind: "done", source: "llm", reasoning, restructured, rematched };
+  if (!moved && !deps.setPostingReasoning(posting.id, stored, ws, guard)) markMoved("reasoning");
+  return { kind: "done", source: "llm", reasoning, restructured, rematched, moved };
 }

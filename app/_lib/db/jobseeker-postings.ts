@@ -355,16 +355,29 @@ export function markAbsent(sourceId: string, seenBefore: string, workspaceId: st
   return run.immediate();
 }
 
+/** A write computed from content read EARLIER (the deep-dive spends up to minutes at the
+ *  model between reading the row and writing back). `expectedContentHash` is the hash the
+ *  caller read: the UPDATE re-asserts it in its WHERE, so a posting whose content moved in
+ *  the meantime (upsertPosting nulls job/match/reasoning) is a `false` return — the
+ *  caller's result is about an ad that no longer exists — never an overwrite. Absent, the
+ *  write is unconditional (the scan writes what it read inside the same sweep). */
+export type ContentGuard = { expectedContentHash?: string };
+
 /** The structured Job the extractor produced (deterministic or LLM). */
 export function setPostingStructure(
   id: string,
   job: Record<string, unknown>,
   jobSource: "deterministic" | "llm",
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  guard: ContentGuard = {}
 ): boolean {
+  const hash = guard.expectedContentHash ?? null;
   const res = ensureDb()
-    .prepare(`UPDATE jobseeker_postings SET job_json = ?, job_source = ? WHERE id = ? AND workspace_id = ?`)
-    .run(JSON.stringify(job), jobSource, id, workspaceId);
+    .prepare(
+      `UPDATE jobseeker_postings SET job_json = ?, job_source = ?
+       WHERE id = ? AND workspace_id = ? AND (? IS NULL OR content_hash = ?)`
+    )
+    .run(JSON.stringify(job), jobSource, id, workspaceId, hash, hash);
   return res.changes > 0;
 }
 
@@ -374,14 +387,16 @@ export function setPostingMatch(
   id: string,
   match: Record<string, unknown>,
   projection: { total: number; fitTier: FitTier; version: string; matchedAt: string },
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  guard: ContentGuard = {}
 ): boolean {
+  const hash = guard.expectedContentHash ?? null;
   const res = ensureDb()
     .prepare(
       `UPDATE jobseeker_postings SET match_json = ?, match_total = ?, fit_tier = ?, match_version = ?, matched_at = ?
-       WHERE id = ? AND workspace_id = ?`
+       WHERE id = ? AND workspace_id = ? AND (? IS NULL OR content_hash = ?)`
     )
-    .run(JSON.stringify(match), projection.total, projection.fitTier, projection.version, projection.matchedAt, id, workspaceId);
+    .run(JSON.stringify(match), projection.total, projection.fitTier, projection.version, projection.matchedAt, id, workspaceId, hash, hash);
   return res.changes > 0;
 }
 
@@ -411,10 +426,19 @@ export function setPostingBlocked(
   return res.changes > 0;
 }
 
-export function setPostingReasoning(id: string, reasoning: Record<string, unknown>, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+export function setPostingReasoning(
+  id: string,
+  reasoning: Record<string, unknown>,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  guard: ContentGuard = {}
+): boolean {
+  const hash = guard.expectedContentHash ?? null;
   const res = ensureDb()
-    .prepare(`UPDATE jobseeker_postings SET reasoning_json = ? WHERE id = ? AND workspace_id = ?`)
-    .run(JSON.stringify(reasoning), id, workspaceId);
+    .prepare(
+      `UPDATE jobseeker_postings SET reasoning_json = ?
+       WHERE id = ? AND workspace_id = ? AND (? IS NULL OR content_hash = ?)`
+    )
+    .run(JSON.stringify(reasoning), id, workspaceId, hash, hash);
   return res.changes > 0;
 }
 

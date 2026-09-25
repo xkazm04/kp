@@ -142,3 +142,48 @@ test("a model answered: 200 llm / fallbackReason null, and the rationale IS stor
   assert.ok(stored, "a model rationale is persisted — that is what makes the refresh worth doing");
   assert.equal((stored.reasoning as Record<string, unknown>).verdict, "Strong overlap on the stack.");
 });
+
+// A content change that lands WHILE the dive is out at the model (a scan re-harvesting
+// the posting) nulls job/match/reasoning (upsertPosting). The dive's writes carry the
+// content hash it read as a precondition, so nothing computed from the OLD ad is
+// stamped over the new one: the row stays unstructured for the next scan to redo.
+function changedBody(id: string): void {
+  const row = getJobseekerPosting(id)!;
+  const outcome = upsertPosting("src-dd", { ...raw(), externalKey: row.externalKey, bodyText: "Completely different role. Requirements: Rust." }, T0);
+  assert.equal(outcome.outcome, "changed");
+}
+
+test("a content change during model structuring: no job, match or rationale is written over the new ad", async () => {
+  const id = structuredPosting();
+  const run: CliRunner = async (call: CliCall) => {
+    if (call.module === "jobs_cli") {
+      changedBody(id);
+      return { source: "llm", job: { title: "Old ad, model-structured", requiredSkills: ["TypeScript"] } };
+    }
+    if (call.module === "match_cli") return { matches: [{ jobId: id, total: 88, fitTier: "strong" }] };
+    return { source: "llm", reasoning: { verdict: "About the old ad." } };
+  };
+  defaultDeepDiveDeps.runCli = run;
+
+  const res = await dive(id);
+  assert.equal(res.status, 200);
+  const row = getJobseekerPosting(id)!;
+  assert.equal(row.job, null, "a Job structured from the OLD ad must not land on the new content");
+  assert.equal(row.match, null, "nor a score computed from it");
+  assert.equal(row.reasoning, null, "nor a rationale about it");
+});
+
+test("a content change during the rationale call: the rationale is not stored on the new ad", async () => {
+  const id = structuredPosting();
+  const run: CliRunner = async (call: CliCall) => {
+    if (call.module === "jobs_cli") return { source: "deterministic" };
+    changedBody(id);
+    return { source: "llm", reasoning: { verdict: "About the old ad." } };
+  };
+  defaultDeepDiveDeps.runCli = run;
+
+  await dive(id);
+  const row = getJobseekerPosting(id)!;
+  assert.equal(row.job, null);
+  assert.equal(row.reasoning, null, "a rationale written against a moved content hash is a rationale about another ad");
+});
