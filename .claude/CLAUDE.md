@@ -171,6 +171,10 @@ When writing or changing components, always assume **both** themes:
   suffices.
 - Verify new surfaces in both themes before finishing (the appearance control
   on the sidebar rail).
+- The keyboard-side summary (type floor, radius, button heights, don't-hand-roll
+  table) is `.claude/rules/ui.md`, loaded for `app/**/*.tsx|css`. The style ratchet
+  `app/_components/ui/style-debt.test.ts` (ceilings in `style-debt.json`) fails
+  `npm run test:unit` when a raw style step grows in any file.
 
 ## Documentation Sync — update the doc in the same change
 

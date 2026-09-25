@@ -15,6 +15,8 @@ Self-hostable AI recruiting studio (Next.js + Python jobfit pipeline).
 Full agent guide: **[`.claude/CLAUDE.md`](./.claude/CLAUDE.md)** — read it
 before changing anything.
 
+UI work (`app/**/*.tsx|css`): the style law and its ratchet are in [`.claude/rules/ui.md`](./.claude/rules/ui.md).
+
 Verify a change:
 
 ```bash

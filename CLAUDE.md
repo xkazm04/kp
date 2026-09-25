@@ -9,6 +9,8 @@
 > commits in this shared checkout, 4-locale message parity, design tokens, the
 > `db.transaction()` rules), and neither of the projections repeats them.
 
+UI work (`app/**/*.tsx|css`): [`.claude/rules/ui.md`](./.claude/rules/ui.md) holds the style law and its ratchet.
+
 <!-- personas:context-map:start -->
 ## Project Context Map
 
