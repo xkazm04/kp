@@ -358,7 +358,9 @@ export function StepYou({
           )}
         </div>
 
-        <div className="you" id="s-you" aria-label={t("youLabel")}>
+        {/* data-step names this column to the rail's observer (SieveFlow STEP_IDS): without
+            it the "You" step could never become the active one. */}
+        <div className="you" id="s-you" data-step="you" aria-label={t("youLabel")}>
           <div className="you-id">
             <span className="av" data-tgt="name" aria-hidden>
               {initialsOf(p.displayName)}
