@@ -577,3 +577,17 @@ input.k-input:focus-visible, select.k-input:focus-visible { outline: none; borde
 @container sheet (max-width: 1000px) {
   .k-show-folded { display: contents; }
 }
+
+/* ---------- the inline toolbar with a search: filters never run under it (Gate 3) ----------
+   Inline, the filters sat on meta / end and the search on fig / act of the same line, so a filter
+   row wider than meta ran under the search field (the Journeys lane board with its pane open).
+   With a search present the filters stop where the search starts and wrap inside meta; once the
+   sheet has folded to 1000px they take their own line under the search, from the mark track. */
+.k-toolbar--inline:has(> .k-toolbar__search) > .k-toolbar__filters { grid-column: meta / fig; }
+@container sheet (max-width: 1000px) {
+  .k-toolbar--inline:has(> .k-toolbar__search) > .k-toolbar__filters { grid-column: mark / end; grid-row: 2; }
+}
+/* at 860px the search itself takes line two (the fold above), so the filters go under it on three */
+@container sheet (max-width: 860px) {
+  .k-toolbar--inline:has(> .k-toolbar__search) > .k-toolbar__filters { grid-row: 3; }
+}
