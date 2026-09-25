@@ -77,12 +77,19 @@ type PostingRow = {
 type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "reasoning_json" | "content_hash"> & {
   body_chars: number;
   deep_dived: number;
+  reasoned_at: string | null;
 };
+
+/** WHEN the stored rationale's inputs were read: `reasonedAt` (deepdive.ts), or the
+ *  dive's own `at` for a rationale written before the stamp existed. A malformed payload
+ *  reads NULL rather than failing the whole list (json_extract throws on invalid JSON). */
+const REASONED_AT = `CASE WHEN json_valid(reasoning_json)
+       THEN COALESCE(json_extract(reasoning_json, '$.reasonedAt'), json_extract(reasoning_json, '$.at')) END`;
 
 const SUMMARY_COLUMNS = `id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode,
      posted_at, salary_min, salary_max, salary_currency, salary_period, match_json, match_total, fit_tier,
      match_version, matched_at, job_source, status, dismiss_reason, dismiss_note, applied_at, first_seen_at, last_seen_at, gone_at,
-     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived`;
+     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived, ${REASONED_AT} AS reasoned_at`;
 
 function coerceFitTier(value: string | null): FitTier | null {
   return value !== null && (FIT_TIERS as readonly string[]).includes(value) ? (value as FitTier) : null;
@@ -164,7 +171,7 @@ function projectBlockedBy(match: Record<string, unknown> | null): JobseekerPosti
  *  empty: the as-if flags describe a score the posting does not have. */
 function projectMatch(
   match: Record<string, unknown> | null
-): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy" | "blockedDetails" | "asIfTotal" | "matchedSkills" | "missingSkills"> {
+): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy" | "blockedDetails" | "asIfTotal" | "matchedSkills" | "missingSkills" | "previousTotal"> {
   const eligibility = Array.isArray(match?.eligibility) ? (match.eligibility as EligibilityFlag[]) : [];
   const raw = match?.confidence;
   const confidence =
@@ -185,7 +192,17 @@ function projectMatch(
     asIfTotal,
     matchedSkills: projectMatchedSkills(scored),
     missingSkills: projectStrings(scored?.missingSkills, SUMMARY_SKILL_CAP),
+    previousTotal: projectPreviousTotal(scored),
   };
+}
+
+/** The score a deep-dive re-match replaced (deepdive.ts writes `previous` into the new
+ *  payload only when the total moved); null for every other row. */
+function projectPreviousTotal(match: Record<string, unknown> | null): number | null {
+  const previous = match?.previous;
+  if (!previous || typeof previous !== "object") return null;
+  const total = (previous as { total?: unknown }).total;
+  return typeof total === "number" && Number.isFinite(total) ? total : null;
 }
 
 /** The engine's sentence per gate, kept only beside a key the vocabulary knows (index-aligned). */
@@ -208,13 +225,27 @@ function projectMatchedSkills(match: Record<string, unknown> | null): JobseekerP
   return skills.map((skill) => ({ skill, provenance: typeof prov[skill] === "string" ? (prov[skill] as string) : null }));
 }
 
-function fromSummaryRow(row: SummaryRow): JobseekerPostingSummary {
+/** `profileUpdatedAt` is the workspace profile's last change (workspaceProfileUpdatedAt):
+ *  a rationale whose inputs were read before it was written for a CV or preferences the
+ *  seeker no longer has. */
+function fromSummaryRow(row: SummaryRow, profileUpdatedAt: string | null): JobseekerPostingSummary {
+  const deepDived = row.deep_dived === 1;
   return {
     ...baseFromRow(row),
     ...projectMatch(parseMatch(row.match_json, row.id)),
     bodyChars: row.body_chars,
-    deepDived: row.deep_dived === 1,
+    deepDived,
+    reasoningStale: deepDived && profileUpdatedAt !== null && (row.reasoned_at ?? "") < profileUpdatedAt,
   };
+}
+
+/** The newest profile's updated_at in the workspace — the profile the scan matches and
+ *  reasons with (getWorkspaceJobseekerProfile) — or null when there is none. */
+function workspaceProfileUpdatedAt(workspaceId: string): string | null {
+  const row = ensureDb()
+    .prepare(`SELECT MAX(updated_at) AS at FROM jobseeker_profiles WHERE workspace_id = ?`)
+    .get(workspaceId) as { at: string | null } | undefined;
+  return row?.at ?? null;
 }
 
 /** Same normalization as job-postings.ts: whitespace and case are not content, so a
@@ -616,7 +647,8 @@ export function listJobseekerPostings(
         id: last.id,
       })
     : null;
-  return { rows: page.map(fromSummaryRow), nextCursor };
+  const profileAt = workspaceProfileUpdatedAt(workspaceId);
+  return { rows: page.map((row) => fromSummaryRow(row, profileAt)), nextCursor };
 }
 
 /** The summary projection of ONE posting — what a write door hands back (PATCH, the
@@ -625,7 +657,7 @@ export function getPostingSummary(id: string, workspaceId: string = DEFAULT_WORK
   const row = ensureDb()
     .prepare(`SELECT ${SUMMARY_COLUMNS} FROM jobseeker_postings WHERE id = ? AND workspace_id = ?`)
     .get(id, workspaceId) as SummaryRow | undefined;
-  return row ? fromSummaryRow(row) : null;
+  return row ? fromSummaryRow(row, workspaceProfileUpdatedAt(workspaceId)) : null;
 }
 
 /** The RawPosting the structurer reads, rebuilt from the row: the scan structures a
@@ -668,20 +700,25 @@ export function listPostingsNeedingStructure(workspaceId: string = DEFAULT_WORKS
   return rows.map((row) => ({ id: row.id, raw: rawFromRow(row) }));
 }
 
-/** The deep-dive shortlist: scored at or above the seeker's threshold, still live, not
- *  yet reasoned about — best first, capped at the policy's per-scan maximum. */
+/** The deep-dive shortlist: scored at or above the seeker's threshold, still live, and
+ *  either not yet reasoned about or — given `profileUpdatedAt` — reasoned about from
+ *  inputs older than the profile (a CV or preference edit since; REASONED_AT). Never-dived
+ *  rows first, then best first, capped at the policy's per-scan maximum: a stale rationale
+ *  is still a rationale, a missing one is nothing. */
 export function listDeepDiveCandidates(
-  opts: { threshold: number; limit: number },
+  opts: { threshold: number; limit: number; profileUpdatedAt?: string | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): JobseekerPosting[] {
+  const profileAt = opts.profileUpdatedAt ?? null;
   const rows = ensureDb()
     .prepare(
       `SELECT * FROM jobseeker_postings
-       WHERE workspace_id = ? AND match_total >= ? AND reasoning_json IS NULL AND status NOT IN ('dismissed', 'gone')
-       ORDER BY match_total DESC, id DESC
+       WHERE workspace_id = ? AND match_total >= ? AND status NOT IN ('dismissed', 'gone')
+         AND (reasoning_json IS NULL OR (? IS NOT NULL AND COALESCE(${REASONED_AT}, '') < ?))
+       ORDER BY (reasoning_json IS NOT NULL) ASC, match_total DESC, id DESC
        LIMIT ?`
     )
-    .all(workspaceId, opts.threshold, Math.max(0, Math.trunc(opts.limit))) as PostingRow[];
+    .all(workspaceId, opts.threshold, profileAt, profileAt, Math.max(0, Math.trunc(opts.limit))) as PostingRow[];
   return rows.map(fromRow);
 }
 

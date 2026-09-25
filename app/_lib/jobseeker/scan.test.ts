@@ -206,11 +206,19 @@ function makeStore() {
         r.reasoning = reasoning;
         return true;
       },
-      listDeepDiveCandidates: ({ threshold, limit }) =>
-        [...rows.values()]
-          .filter((r) => r.matchTotal !== null && r.matchTotal >= threshold && r.reasoning === null && r.status !== "dismissed" && r.status !== "gone")
-          .sort((a, b) => (b.matchTotal ?? 0) - (a.matchTotal ?? 0))
-          .slice(0, limit),
+      // Mirrors the store: never-reasoned rows, plus (given profileUpdatedAt) rows whose
+      // rationale was reasoned from older inputs; never-dived first, then best first.
+      listDeepDiveCandidates: ({ threshold, limit, profileUpdatedAt }) => {
+        const stale = (r: Row) => {
+          if (r.reasoning === null) return false;
+          const at = typeof r.reasoning.reasonedAt === "string" ? r.reasoning.reasonedAt : typeof r.reasoning.at === "string" ? r.reasoning.at : "";
+          return typeof profileUpdatedAt === "string" && at < profileUpdatedAt;
+        };
+        return [...rows.values()]
+          .filter((r) => r.matchTotal !== null && r.matchTotal >= threshold && (r.reasoning === null || stale(r)) && r.status !== "dismissed" && r.status !== "gone")
+          .sort((a, b) => Number(a.reasoning !== null) - Number(b.reasoning !== null) || (b.matchTotal ?? 0) - (a.matchTotal ?? 0))
+          .slice(0, limit);
+      },
     } satisfies Partial<ScanDeps> & { setPostingReasoning: (id: string, reasoning: Record<string, unknown>) => boolean },
   };
   return store;
@@ -769,4 +777,33 @@ test("scanWholePhaseFailure: only a structure/match phase with EVERY unit failed
     of: 2,
     code: "ENGINE_TIMEOUT",
   });
+});
+
+// ── D.2: a rationale reasoned before the profile moved is owed a new one ────────────
+
+test("(m) after a CV/preference edit the next scan re-dives the rationales reasoned from the old inputs", async () => {
+  const store = makeStore();
+  const sources = [source("alpha", { postings: [raw(1, "alpha"), raw(2, "alpha")] })];
+  const first: CliCall[] = [];
+  const one = await runJobseekerScan(WS, { trigger: "manual", deps: depsFor(store, scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, first), sources) });
+  assert.equal(one.deepDived, 2);
+  for (const r of store.rows.values()) assert.equal(r.reasoning?.reasonedAt, NOW, "stamped with the scan's inputs time");
+
+  // Unchanged profile: nothing is owed a rationale.
+  const second: CliCall[] = [];
+  const two = await runJobseekerScan(WS, { trigger: "clock", deps: depsFor(store, scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, second), sources) });
+  assert.equal(two.deepDived, 0);
+  assert.equal(second.filter((c) => c.module === "reasoning_cli").length, 0);
+
+  // The seeker edits their preferences: both rationales predate the inputs.
+  const LATER = "2026-09-16T12:00:00.000Z";
+  const moved: JobseekerProfile = { ...profile, updatedAt: LATER };
+  const third: CliCall[] = [];
+  const three = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: { ...depsFor(store, scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, third), sources, true, moved), now: () => LATER },
+  });
+  assert.equal(three.deepDived, 2, "both stale rationales were re-dived");
+  const reasoned = third.find((c) => c.module === "reasoning_cli")!;
+  assert.deepEqual(reasoned.files["preferences.json"], moved.preferences, "for the seeker as they are now");
 });

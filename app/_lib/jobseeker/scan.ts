@@ -326,7 +326,9 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
     progress(done, total, "deepdive");
     if (!signal.aborted) {
       const policy = profile.preferences.deepDive;
-      const shortlist = deps.listDeepDiveCandidates({ threshold: policy.threshold, limit: policy.maxPerScan }, workspaceId);
+      // `profileUpdatedAt`: a rationale reasoned before the seeker's last CV/preference
+      // edit is owed a new one, after every posting that never had one.
+      const shortlist = deps.listDeepDiveCandidates({ threshold: policy.threshold, limit: policy.maxPerScan, profileUpdatedAt: profile.updatedAt }, workspaceId);
       for (const posting of shortlist) {
         if (signal.aborted) break;
         try {

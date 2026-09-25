@@ -56,6 +56,17 @@ export type DeepDiveOutcome =
   /** Not persisted, nothing spent: no provider resolves for jd_ingest. */
   | { kind: "no_provider" };
 
+/** The stored score a deep-dive re-match is about to replace, when the new total differs
+ *  from it — `null` when there was no score (never matched, or KO'd: the as-if figure is
+ *  not a score the seeker was shown) or the total did not move. */
+export function previousScore(
+  posting: Pick<JobseekerPosting, "matchTotal" | "fitTier" | "matchedAt">,
+  nextTotal: number
+): { total: number; fitTier: JobseekerPosting["fitTier"]; matchedAt: string | null } | null {
+  if (posting.matchTotal === null || posting.matchTotal === nextTotal) return null;
+  return { total: posting.matchTotal, fitTier: posting.fitTier, matchedAt: posting.matchedAt };
+}
+
 /** The text the ad parser reads: the header the source gave us, then the body. */
 export function adTextFor(posting: Pick<JobseekerPosting, "title" | "company" | "location" | "bodyText">): string {
   const header = [posting.title, [posting.company, posting.location].filter(Boolean).join(" — ")].filter(Boolean).join("\n");
@@ -124,7 +135,14 @@ export async function deepDivePosting(
       const hit = matched.find((m) => m.id === posting.id);
       if (hit) {
         const projection = { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: inputsAt };
-        if (deps.setPostingMatch(posting.id, hit.match, projection, ws, guard)) rematched = true;
+        // The score this re-match REPLACES rides inside the new payload when it differs:
+        // a 71 that became a 39 on the richer Job is a fact the seeker should be able to
+        // see, not an overwrite with no trace. Inside match_json, so no schema change; the
+        // next ordinary re-match (a new version, a profile edit) writes its own payload
+        // and the note goes with the score it explained.
+        const previous = previousScore(posting, hit.total);
+        const match = previous ? { ...hit.match, previous } : hit.match;
+        if (deps.setPostingMatch(posting.id, match, projection, ws, guard)) rematched = true;
         else markMoved("match");
       }
     } catch (error) {
@@ -133,11 +151,20 @@ export async function deepDivePosting(
   }
 
   // 3. The rationale. `--jobs` names a one-job corpus so the seed corpus never loads and
-  //    `--job-id` resolves to this posting; `--profile-json` is the seeker's own profile.
+  //    `--job-id` resolves to this posting; `--profile-json` is the seeker's own profile
+  //    and `--preferences-json` their preferences, overlaid exactly as match_cli overlays
+  //    them — without it the rationale was written for a candidate with no salary floor,
+  //    no work modes and the CV's seniority: not the one the score was computed for.
   const out = await deps.runCli({
     module: "reasoning_cli",
-    files: { "profile.json": profile.profile, "corpus.json": [{ ...job, id: posting.id }] },
-    args: (f) => ["--profile-json", f["profile.json"], "--jobs", f["corpus.json"], "--job-id", posting.id, "--lang", lang],
+    files: { "profile.json": profile.profile, "preferences.json": profile.preferences, "corpus.json": [{ ...job, id: posting.id }] },
+    args: (f) => [
+      "--profile-json", f["profile.json"],
+      "--preferences-json", f["preferences.json"],
+      "--jobs", f["corpus.json"],
+      "--job-id", posting.id,
+      "--lang", lang,
+    ],
     signal: opts.signal,
     llm: true,
     timeoutMs: LLM_SPAWN_TIMEOUT_MS,
@@ -151,6 +178,10 @@ export async function deepDivePosting(
     promptVersion: typeof out.promptVersion === "string" ? out.promptVersion : null,
     total: typeof out.total === "number" ? out.total : null,
     at: deps.now(),
+    // The INPUTS time, the same rule as matchedAt: a rationale is current while this is
+    // at or after the profile's updated_at. A CV or preference edit saved later makes it
+    // stale (listDeepDiveCandidates re-dives it, the summary says `reasoningStale`).
+    reasonedAt: inputsAt,
   };
   if (!moved && !deps.setPostingReasoning(posting.id, stored, ws, guard)) markMoved("reasoning");
   return { kind: "done", source: "llm", reasoning, restructured, rematched, moved };
