@@ -3177,7 +3177,9 @@
       "viewDefaultLabel": "{name} (par défaut)",
       "done": "Terminé",
       "slaDefault": "Valeur par défaut du rôle : {days, plural, one {# jour} other {# jours}}",
-      "slaFor": "Jours avant qu’un candidat vieillisse en {stage}"
+      "slaFor": "Jours avant qu’un candidat vieillisse en {stage}",
+      "activityWhat": "Ce qui s’est passé",
+      "activityWhen": "Quand"
     },
     "board": {
       "scrollHint": "Cliquez sur l’en-tête d’une étape pour la centrer · faites défiler pour parcourir le pipeline",
@@ -3510,7 +3512,11 @@
       "selectionDeparted": "{count, plural, one {# candidat sélectionné a quitté le tableau (clôturé ailleurs) et a été désélectionné} other {# candidats sélectionnés ont quitté le tableau (clôturés ailleurs) et ont été désélectionnés}}",
       "bulkMoveConfirm": "Confirmer le déplacement ({count})",
       "bulkMoveOfferHeld": "{count, plural, one {# retenu à cause d'une offre préparée, toujours sélectionné. Envoyez ou abandonnez d'abord l'offre} other {# retenus à cause d'offres préparées, toujours sélectionnés. Envoyez ou abandonnez d'abord les offres}}",
-      "moveErrorDismiss": "Ignorer"
+      "moveErrorDismiss": "Ignorer",
+      "activityWindow": "7 derniers jours",
+      "activityKindLabel": "Type d’événement",
+      "activityAllKinds": "Tous les événements",
+      "candidateFallback": "Candidat"
     },
     "emptyState": {
       "optional": "Facultatif",
@@ -3550,7 +3556,11 @@
       "offerReviews": "{count, plural, =1 {1 offre rédigée en attente de votre approbation} other {# offres rédigées en attente de votre approbation}}",
       "awaitingSlot": "{count, plural, =1 {1 entretien en attente de créneau} other {# entretiens en attente de créneau}}",
       "offersOut": "{count, plural, =1 {1 candidat à l’étape Offre} other {# candidats à l’étape Offre}}",
-      "hired": "{count, plural, =1 {1 candidat recruté cette semaine} other {# candidats recrutés cette semaine}}"
+      "hired": "{count, plural, =1 {1 candidat recruté cette semaine} other {# candidats recrutés cette semaine}}",
+      "eyebrow": "Aujourd’hui",
+      "showBoard": "Afficher sur le tableau",
+      "openDecisions": "Ouvrir Décisions",
+      "openSchedule": "Ouvrir Planification"
     },
     "drawer": {
       "close": "Fermer",

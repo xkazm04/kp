@@ -57,7 +57,7 @@ export function PipelineKitSkyline({ k, status }: { k: PipelineKit; status: Part
         items={items}
         brush={k.brush}
         onBrush={k.setBrush}
-        onPick={(it) => k.select(it.id)}
+        onPick={(it) => k.openRow(it.id)}
         picked={k.open?.id ?? null}
         state={status}
         replayKey={k.skyKey}

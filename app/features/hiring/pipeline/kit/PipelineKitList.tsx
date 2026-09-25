@@ -54,7 +54,7 @@ export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabSta
         onSelect={(id) => {
           const e = picking ? k.rows.find((r) => r.id === id) : null;
           if (e) s.toggleSelected(e);
-          else k.select(id);
+          else k.openRow(id);
         }}
         state={shelf && status === "ready" ? (k.shelf.status === "error" ? "error" : k.shelf.status) : status}
         emptyText={shelf ? t("outListEmpty", { count: rejected }) : tt("noMatch")}

@@ -7,6 +7,7 @@ import { ShapeMark } from "@/app/_components/kit/graphic";
 import { SelectBox } from "@/app/_components/kit/SelectBox";
 import { stageHasRole } from "@/app/_lib/pipeline-stages";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { displayScoreOf } from "@/app/_lib/match-score";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
@@ -25,6 +26,7 @@ export function usePipelineKitCells(s: PipelineTabState, k: PipelineKit) {
   const t = useTranslations("pipeline.kit");
   const tb = useTranslations("pipeline.board");
   const tr = useTranslations("pipeline.candidateRow");
+  const tk = useTranslations("pipeline.scoreKind");
   const locale = useLocale();
   const enumLabel = useEnumLabel();
   const approval = useApprovalWord();
@@ -69,6 +71,17 @@ export function usePipelineKitCells(s: PipelineTabState, k: PipelineKit) {
     );
   };
 
+  // ONE number per row, and what kind it is: the canonical match, else a work-sample TRANSFER score,
+  // labelled and tipped so it is never read as a match (ONE THREAD gap 2), else "—" with its reason.
+  const match = (e: Entry, score: number | null) => {
+    if (score != null) return n(score);
+    const shown = displayScoreOf(e);
+    if (shown?.kind === "transfer") {
+      return <span key="match" data-tip={tk("transferTitle")} tabIndex={-1}>{n(shown.score)} <small>{tk("transferShort")}</small></span>;
+    }
+    return <span key="match" className="k-absent" data-tip={t("neverScoredTip")} tabIndex={-1}>—</span>;
+  };
+
   const cells = (e: Entry) => {
     const score = k.ctx.score(e);
     const age = ageDays(e, k.ctx.now);
@@ -78,7 +91,7 @@ export function usePipelineKitCells(s: PipelineTabState, k: PipelineKit) {
       <Fragment key="name">{e.candidateLabel}<small>{e.jobTitle ?? t("noRole")}</small></Fragment>,
       stage(e),
       e.sourceChannel ? s.channelName(e.sourceChannel) : <span className="k-absent" data-tip={t("sourceNone")} tabIndex={-1}>—</span>,
-      score == null ? <span className="k-absent" data-tip={t("neverScoredTip")} tabIndex={-1}>—</span> : n(score),
+      match(e, score),
       age == null ? (
         <span className="k-absent" data-tip={t("prov.dashed")} tabIndex={-1}>—</span>
       ) : moved ? (
@@ -88,7 +101,7 @@ export function usePipelineKitCells(s: PipelineTabState, k: PipelineKit) {
       ),
       <Fragment key="act">
         {shelf || s.selectMode ? null : <PipelineKitMove s={s} entry={e} where="row" />}
-        <Button label={t("openHistory")} icon="right" iconOnly size="sm" variant="ghost" onClick={(ev) => { ev.stopPropagation(); k.select(e.id); }} />
+        <Button label={t("openHistory")} icon="right" iconOnly size="sm" variant="ghost" onClick={(ev) => { ev.stopPropagation(); k.openRow(e.id); }} />
       </Fragment>,
     ];
   };

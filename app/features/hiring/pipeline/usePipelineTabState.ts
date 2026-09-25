@@ -249,7 +249,7 @@ export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
     filteredEntries, boardPositions, cohortOrder, filtering,
     axis: board.axis, retiredStages: board.retiredStages, plan: board.plan, rejectedByLane: board.rejectedByLane,
     isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
-    openCandidate: nav.openCandidate, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
+    openCandidate: nav.openCandidate, recordEntry: nav.recordEntry, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,
     selectedAwaiting: bulk.selectedAwaiting, awaitingKinds: bulk.awaitingKinds, selectedActive: bulk.selectedActive,
     bulkMove: bulk.bulkMove, bulkDecide: bulk.bulkDecide, bulkInvite: bulk.bulkInvite, bulkOutreach: bulk.bulkOutreach,

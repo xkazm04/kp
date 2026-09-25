@@ -58,7 +58,7 @@ test("the SLA editor writes the TEAM cadence on blur or Enter, clamped, and offe
 
 test("select mode: a row is a checkbox, select-all acts on the KIT list's rows, the bar states the over-reach", () => {
   const list = read("PipelineKitList.tsx");
-  assert.match(list, /if \(e\) s\.toggleSelected\(e\);\s*else k\.select\(id\);/, "in select mode a row click toggles, nothing opens");
+  assert.match(list, /if \(e\) s\.toggleSelected\(e\);\s*else k\.openRow\(id\);/, "in select mode a row click toggles, nothing opens");
   assert.match(list, /<PipelineKitBulk s=\{s\} k=\{k\} \/>/);
   const bar = read("PipelineKitBulk.tsx");
   assert.match(bar, /const shown = k\.rows\.map\(\(e\) => e\.id\)/);
@@ -108,4 +108,35 @@ test("the exit layer lists the rejected shelf, where and by whom", () => {
   assert.match(read("usePipelineKit.ts"), /useRejectedShelf\(layer === OUT/);
   assert.match(read("useRejectedShelf.ts"), /\/api\/pipeline\/rejected\?lane=/);
   assert.match(read("PipelineKitCells.tsx"), /rejectedAtByAi/);
+});
+
+test("Today names who waits where, from the same population the head counts, each row a door", () => {
+  const src = read("PipelineKitToday.tsx");
+  assert.match(src, /deriveRailRows\(s\.entries, s\.axis, now\)/);
+  assert.match(src, /if \(row\.stage\) k\.showLayer\(row\.stage\)/);
+  assert.match(read("PipelineKitView.tsx"), /<PipelineKitToday s=\{s\} k=\{k\} \/>/);
+});
+
+test("Activity: seven days, a kind filter, a row opens the entry, a failed read is said", () => {
+  const src = read("PipelineKitActivity.tsx");
+  assert.match(src, /7 \* 86_400_000/);
+  assert.match(src, /s\.openEntryById\(ev\.entryId\)/);
+  assert.match(src, /s\.eventsError \? <Note/);
+  assert.match(read("PipelineKitView.tsx"), /<PipelineKitActivity s=\{s\} \/>/);
+});
+
+test("a transfer score shows with its kind, never as a match", () => {
+  for (const f of ["PipelineKitCells.tsx", "PipelineKitPane.tsx"]) {
+    const src = read(f);
+    assert.match(src, /displayScoreOf\(/, f);
+    assert.match(src, /transferShort/, f);
+  }
+});
+
+test("opening a candidate records the sidebar Recent, and the modal pages through the kit list's order", () => {
+  assert.match(read("usePipelineKit.ts"), /if \(e\) s\.recordEntry\(e\);/);
+  assert.match(read("PipelineKitList.tsx"), /else k\.openRow\(id\);/);
+  const view = read("PipelineKitView.tsx");
+  assert.match(view, /s\.openCandidate\(k\.open, null, "overview"\)/);
+  assert.match(view, /boardCohort=\{k\.rows\}/);
 });

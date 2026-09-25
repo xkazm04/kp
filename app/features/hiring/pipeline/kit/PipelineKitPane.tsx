@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button, KeyValueGrid, Mark, Note, ReadingPane, Section, formatCount } from "@/app/_components/kit";
 import { StageRail } from "@/app/_components/kit/graphic";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { canonicalScoreOf } from "@/app/_lib/match-score";
+import { canonicalScoreOf, displayScoreOf } from "@/app/_lib/match-score";
 import { stageHasRole } from "@/app/_lib/pipeline-stages";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
@@ -37,6 +37,8 @@ export function PipelineKitPane({ s, k, entry, onOpenRecord }: { s: PipelineTabS
   const live = entry.status === "active" && !stageHasRole(entry.stage, "terminal", s.axis);
   const pv = provenance(entry);
   const score = canonicalScoreOf(entry);
+  const shown = displayScoreOf(entry);
+  const tk = useTranslations("pipeline.scoreKind");
   const waiting = k.ctx.needs(entry);
   const loading = bundle.bundleStatus === "loading";
   const failed = bundle.bundleFailed;
@@ -69,7 +71,12 @@ export function PipelineKitPane({ s, k, entry, onOpenRecord }: { s: PipelineTabS
       <KeyValueGrid
         items={[
           { label: t("kvStage"), value: stageLabel },
-          { label: t("colMatch"), value: score == null ? null : formatCount(score, locale), absent: t("neverScoredTip") },
+          {
+            label: t("colMatch"),
+            // A work-sample transfer score is shown WITH its kind, never as a match.
+            value: score != null ? formatCount(score, locale) : shown?.kind === "transfer" ? `${formatCount(shown.score, locale)} · ${tk("transferShort")}` : null,
+            absent: t("neverScoredTip"),
+          },
           { label: t("kvHow"), value: t(`prov.${pv}`) },
           { label: t("kvArchetype"), value: entry.archetype ? enumLabel("archetype", entry.archetype) : null, absent: t("archetypeNone") },
           { label: t("colSource"), value: entry.sourceChannel ? s.channelName(entry.sourceChannel) : null, absent: t("sourceNone") },

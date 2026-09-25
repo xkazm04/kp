@@ -17,6 +17,8 @@ import { PipelineKitList } from "./PipelineKitList";
 import { PipelineKitPane } from "./PipelineKitPane";
 import { PipelineKitSla } from "./PipelineKitSla";
 import { PipelineKitOffBoard } from "./PipelineKitOffBoard";
+import { PipelineKitToday } from "./PipelineKitToday";
+import { PipelineKitActivity } from "./PipelineKitActivity";
 import { PipelineKitViewDialog } from "./PipelineKitViewDialog";
 import { useKitFilters } from "./useKitFilters";
 
@@ -49,7 +51,7 @@ export function PipelineKitView() {
   return (
     <>
       <KitSurface
-        pane={k.open ? <PipelineKitPane s={s} k={k} entry={k.open} onOpenRecord={() => k.open && s.showCandidate(k.open, { cohort: null, tab: "overview" })} /> : null}
+        pane={k.open ? <PipelineKitPane s={s} k={k} entry={k.open} onOpenRecord={() => k.open && s.openCandidate(k.open, null, "overview")} /> : null}
         onStep={k.step}
         onClose={() => k.select(null)}
       >
@@ -65,10 +67,12 @@ export function PipelineKitView() {
             />
           ) : (
             <>
+              <PipelineKitToday s={s} k={k} />
               <PipelineKitOffBoard s={s} />
               <PipelineKitSieve s={s} k={k} status={status} />
               <PipelineKitSkyline k={k} status={status} />
               <PipelineKitList s={s} k={k} status={status} onEditSla={() => setSlaOpen(true)} />
+              <PipelineKitActivity s={s} />
             </>
           )}
         </div>
@@ -79,7 +83,8 @@ export function PipelineKitView() {
         <CandidateModal
           key="candidate-modal"
           view={s.candidate}
-          boardCohort={s.cohortOrder}
+          // The modal's prev / next walks the kit list's CURRENT order (its filters, layer and sort).
+          boardCohort={k.rows}
           axis={s.axis}
           onClose={s.closeCandidate}
           onChanged={s.load}

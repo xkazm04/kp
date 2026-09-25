@@ -80,12 +80,19 @@ export function usePipelineKit(s: PipelineTabState, f: KitFilters) {
     resetKey: `${f.scope}|${s.visibleScope}`,
     toggleLayer: (id: string) => f.setLayer((cur) => (cur === id ? null : id)),
     clearLayer: () => f.setLayer(null),
+    showLayer: (id: string) => f.setLayer(id),
     setRole: f.setRole, setBrush: f.setBrush,
     toggleNeeds: () => f.setNeedsOnly((v) => !v),
     reviewWaiting: () => { f.setNeedsOnly(true); f.setLayer(null); f.setBrush(null); },
     clearKitFilters: () => { f.setLayer(null); f.setRole(null); f.setNeedsOnly(false); f.setBrush(null); },
     pourAgain: () => setPour((p) => p + 1),
     select: (id: string | null) => setSelected(id),
+    /** Open a row in the reading pane: the kit's "open a candidate", recorded in the sidebar's Recent. */
+    openRow: (id: string) => {
+      setSelected(id);
+      const e = entries.find((x) => x.id === id) ?? shelf.rows.find((x) => x.id === id);
+      if (e) s.recordEntry(e);
+    },
     step: (delta: 1 | -1) => {
       if (!rows.length) return;
       const at = index < 0 ? (delta > 0 ? -1 : rows.length) : index;

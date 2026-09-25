@@ -3177,7 +3177,9 @@
       "viewDefaultLabel": "{name} (výchozí)",
       "done": "Hotovo",
       "slaDefault": "Výchozí pro roli: {days, plural, one {# den} few {# dny} other {# dní}}",
-      "slaFor": "Počet dní, po kterých kandidát ve fázi {stage} stárne"
+      "slaFor": "Počet dní, po kterých kandidát ve fázi {stage} stárne",
+      "activityWhat": "Co se stalo",
+      "activityWhen": "Kdy"
     },
     "board": {
       "scrollHint": "Kliknutím na záhlaví fáze ji vycentrujete · posouváním se pohybujete napříč náborem",
@@ -3510,7 +3512,11 @@
       "selectionDeparted": "{count, plural, one {# vybraný kandidát opustil nástěnku (uzavřen jinde) a výběr u něj byl zrušen} few {# vybraní kandidáti opustili nástěnku (uzavřeni jinde) a výběr u nich byl zrušen} other {# vybraných kandidátů opustilo nástěnku (uzavřeni jinde) a výběr u nich byl zrušen}}",
       "bulkMoveConfirm": "Potvrdit přesun ({count})",
       "bulkMoveOfferHeld": "{count, plural, one {# zadržen kvůli připravené nabídce, zůstává vybrán. Nejprve nabídku odešlete nebo zahoďte} few {# zadrženi kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte} other {# zadrženo kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte}}",
-      "moveErrorDismiss": "Zavřít"
+      "moveErrorDismiss": "Zavřít",
+      "activityWindow": "Posledních 7 dní",
+      "activityKindLabel": "Typ události",
+      "activityAllKinds": "Všechny události",
+      "candidateFallback": "Kandidát"
     },
     "emptyState": {
       "optional": "Volitelné",
@@ -3550,7 +3556,11 @@
       "offerReviews": "{count, plural, =1 {1 připravená nabídka čeká na vaše schválení} few {# připravené nabídky čekají na vaše schválení} other {# připravených nabídek čeká na vaše schválení}}",
       "awaitingSlot": "{count, plural, =1 {1 pohovor čeká na termín} few {# pohovory čekají na termín} other {# pohovorů čeká na termín}}",
       "offersOut": "{count, plural, =1 {1 kandidát ve fázi Nabídka} few {# kandidáti ve fázi Nabídka} other {# kandidátů ve fázi Nabídka}}",
-      "hired": "{count, plural, =1 {1 kandidát tento týden přijat} few {# kandidáti tento týden přijati} other {# kandidátů tento týden přijato}}"
+      "hired": "{count, plural, =1 {1 kandidát tento týden přijat} few {# kandidáti tento týden přijati} other {# kandidátů tento týden přijato}}",
+      "eyebrow": "Dnes",
+      "showBoard": "Zobrazit na nástěnce",
+      "openDecisions": "Otevřít Rozhodnutí",
+      "openSchedule": "Otevřít Plánování"
     },
     "drawer": {
       "close": "Zavřít",

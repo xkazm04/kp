@@ -3177,7 +3177,9 @@
       "viewDefaultLabel": "{name} (default)",
       "done": "Done",
       "slaDefault": "Role default: {days, plural, one {# day} other {# days}}",
-      "slaFor": "Days before a candidate ages in {stage}"
+      "slaFor": "Days before a candidate ages in {stage}",
+      "activityWhat": "What happened",
+      "activityWhen": "When"
     },
     "board": {
       "scrollHint": "Click a stage header to centre it · scroll to move across the pipeline",
@@ -3510,7 +3512,11 @@
       "selectionDeparted": "{count, plural, one {# selected candidate left the board (closed elsewhere) and was deselected} other {# selected candidates left the board (closed elsewhere) and were deselected}}",
       "bulkMoveConfirm": "Confirm move ({count})",
       "bulkMoveOfferHeld": "{count, plural, one {# kept back with a drafted offer, still selected. Extend or discard the offer first} other {# kept back with drafted offers, still selected. Extend or discard the offers first}}",
-      "moveErrorDismiss": "Dismiss"
+      "moveErrorDismiss": "Dismiss",
+      "activityWindow": "Last 7 days",
+      "activityKindLabel": "Event kind",
+      "activityAllKinds": "All events",
+      "candidateFallback": "Candidate"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3550,7 +3556,11 @@
       "offerReviews": "{count, plural, =1 {1 drafted offer awaiting your approval} other {# drafted offers awaiting your approval}}",
       "awaitingSlot": "{count, plural, =1 {1 interview waiting on a slot} other {# interviews waiting on a slot}}",
       "offersOut": "{count, plural, =1 {1 candidate in the Offer stage} other {# candidates in the Offer stage}}",
-      "hired": "{count, plural, =1 {1 candidate hired this week} other {# candidates hired this week}}"
+      "hired": "{count, plural, =1 {1 candidate hired this week} other {# candidates hired this week}}",
+      "eyebrow": "Today",
+      "showBoard": "Show on the board",
+      "openDecisions": "Open Decisions",
+      "openSchedule": "Open Schedule"
     },
     "drawer": {
       "close": "Close",

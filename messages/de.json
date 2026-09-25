@@ -3177,7 +3177,9 @@
       "viewDefaultLabel": "{name} (Standard)",
       "done": "Fertig",
       "slaDefault": "Standard der Rolle: {days, plural, one {# Tag} other {# Tage}}",
-      "slaFor": "Tage, bis ein Kandidat in {stage} altert"
+      "slaFor": "Tage, bis ein Kandidat in {stage} altert",
+      "activityWhat": "Was geschah",
+      "activityWhen": "Wann"
     },
     "board": {
       "scrollHint": "Auf eine Phasen-Überschrift klicken, um sie zu zentrieren · scrollen, um durch die Pipeline zu navigieren",
@@ -3510,7 +3512,11 @@
       "selectionDeparted": "{count, plural, one {# ausgewählte Person hat das Board verlassen (anderswo abgeschlossen) und wurde abgewählt} other {# ausgewählte Personen haben das Board verlassen (anderswo abgeschlossen) und wurden abgewählt}}",
       "bulkMoveConfirm": "Verschieben bestätigen ({count})",
       "bulkMoveOfferHeld": "{count, plural, one {# wegen eines vorbereiteten Angebots zurückgehalten, weiterhin ausgewählt. Senden oder verwerfen Sie zuerst das Angebot} other {# wegen vorbereiteter Angebote zurückgehalten, weiterhin ausgewählt. Senden oder verwerfen Sie zuerst die Angebote}}",
-      "moveErrorDismiss": "Ausblenden"
+      "moveErrorDismiss": "Ausblenden",
+      "activityWindow": "Letzte 7 Tage",
+      "activityKindLabel": "Ereignistyp",
+      "activityAllKinds": "Alle Ereignisse",
+      "candidateFallback": "Kandidat/in"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3550,7 +3556,11 @@
       "offerReviews": "{count, plural, =1 {1 entworfenes Angebot wartet auf Ihre Genehmigung} other {# entworfene Angebote warten auf Ihre Genehmigung}}",
       "awaitingSlot": "{count, plural, =1 {1 Interview wartet auf einen Termin} other {# Interviews warten auf einen Termin}}",
       "offersOut": "{count, plural, =1 {1 Kandidat/in in der Angebotsphase} other {# Kandidat/innen in der Angebotsphase}}",
-      "hired": "{count, plural, =1 {1 Kandidat/in diese Woche eingestellt} other {# Kandidat/innen diese Woche eingestellt}}"
+      "hired": "{count, plural, =1 {1 Kandidat/in diese Woche eingestellt} other {# Kandidat/innen diese Woche eingestellt}}",
+      "eyebrow": "Heute",
+      "showBoard": "Auf dem Board anzeigen",
+      "openDecisions": "Entscheidungen öffnen",
+      "openSchedule": "Planung öffnen"
     },
     "drawer": {
       "close": "Schließen",
