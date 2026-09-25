@@ -225,3 +225,70 @@ test("a hopGuard refuses a redirect target before it is requested (SSRF through 
   assert.deepEqual(seen, ["http://internal.example/admin"], "the guard saw the hop target");
   assert.ok(!h.calls.some((c) => c.url.startsWith("http://internal.example")), "the private target was never requested, robots.txt included");
 });
+
+/** The platform's `redirect: "follow"` on top of the scripted routes: a fetcher that asks
+ *  to follow gets followed, exactly as undici would - so a test sees what really leaves. */
+function followingHarness(routes: Record<string, () => Response>) {
+  const calls: string[] = [];
+  _setPoliteFetchDepsForTests({
+    now: () => 1_000_000,
+    sleep: async () => undefined,
+    fetch: async function scripted(input, init): Promise<Response> {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      calls.push(url);
+      const factory = routes[url] ?? routes["*"];
+      const res = factory ? factory() : new Response("not routed", { status: 404 });
+      const location = res.headers.get("location");
+      if ((init?.redirect ?? "follow") === "follow" && res.status >= 300 && res.status < 400 && location) {
+        return scripted(new URL(location, url).href, init);
+      }
+      return res;
+    },
+  });
+  return { calls };
+}
+
+test("a robots.txt redirect is vetted by the hopGuard: an internal target is never requested, robots reads as unavailable (allow)", async () => {
+  const h = followingHarness({
+    "https://public.example/robots.txt": () => new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/meta-data/" } }),
+    "http://169.254.169.254/latest/meta-data/": () => new Response("User-agent: *\nDisallow: /\n", { status: 200 }),
+    "*": () => html("the page"),
+  });
+  const out = await politeFetch("https://public.example/jobs", {
+    sourceId: "s1",
+    hopGuard: async (next) => (next.hostname === "169.254.169.254" ? "not_public_host" : null),
+  });
+  assert.ok(!h.calls.some((c) => c.includes("169.254.169.254")), `the metadata address was requested: ${h.calls.join(", ")}`);
+  assert.equal(out.kind, "ok", "a refused robots hop is 'no policy published' - the page itself is allowed");
+});
+
+test("a robots.txt redirect onto a public host is followed (at most five hops) and its rules apply", async () => {
+  const h = followingHarness({
+    "https://a.example/robots.txt": () => new Response(null, { status: 301, headers: { location: "https://www.a.example/robots.txt" } }),
+    "https://www.a.example/robots.txt": () => new Response("User-agent: *\nDisallow: /private\n", { status: 200 }),
+    "*": () => html("page"),
+  });
+  const out = await politeFetch("https://a.example/private/1", { sourceId: "s1", hopGuard: async () => null });
+  assert.equal(out.kind, "robots_disallowed");
+  assert.ok(h.calls.includes("https://www.a.example/robots.txt"));
+});
+
+test("a robots.txt body is read through a bounded reader: a huge file is not pulled past 512 KiB", async () => {
+  let pulled = 0;
+  const chunk = new TextEncoder().encode(`${"# padding line\n".repeat(4096)}`); // ~60 KiB
+  const endless = () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulled += chunk.byteLength;
+          if (pulled > 8 * 1024 * 1024) controller.close();
+          else controller.enqueue(chunk);
+        },
+      }),
+      { status: 200, headers: { "content-type": "text/plain" } }
+    );
+  followingHarness({ "https://big.example/robots.txt": endless, "*": () => html("page") });
+  const out = await politeFetch("https://big.example/jobs", { sourceId: "s1" });
+  assert.equal(out.kind, "ok");
+  assert.ok(pulled <= 512 * 1024 + 2 * chunk.byteLength, `pulled ${pulled} bytes of robots.txt`);
+});

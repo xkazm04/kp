@@ -162,26 +162,58 @@ function stampHost(host: string, sourceId: string, crawlDelaySeconds: number | n
   nextAllowedAt.set(host, deps.now() + spacingFor(sourceId, crawlDelaySeconds));
 }
 
-async function robotsFor(origin: URL): Promise<RobotsEntry> {
+/** RFC 9309 §2.5: a crawler parses at least 500 KiB of robots.txt; what is past the cap is dropped, not failed. */
+export const MAX_ROBOTS_BYTES = 512 * 1024;
+
+/** Where robots.txt ends up after at most MAX_REDIRECTS hops, each target vetted by the
+ *  caller's hopGuard BEFORE it is requested (a public host 302-ing its robots.txt onto a
+ *  metadata address must not become a request to it). `null` = no policy readable. */
+async function fetchRobots(origin: URL, hopGuard: PoliteFetchOptions["hopGuard"]): Promise<Response | null> {
+  let current = new URL(`${origin.protocol}//${origin.host}/robots.txt`);
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const res = await deps.fetch(current.href, {
+      method: "GET",
+      redirect: "manual",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { "user-agent": USER_AGENT, accept: "text/plain,*/*;q=0.5" },
+    });
+    if (res.status < 300 || res.status >= 400) return res;
+    const location = res.headers.get("location");
+    await res.body?.cancel().catch(() => undefined);
+    if (!location || hop === MAX_REDIRECTS) return null;
+    let next: URL;
+    try {
+      next = new URL(location, current);
+    } catch {
+      return null; /* an unparseable Location: the host published no readable policy */
+    }
+    if (next.protocol !== "http:" && next.protocol !== "https:") return null;
+    if (hopGuard && (await hopGuard(next))) return null;
+    current = next;
+  }
+  return null;
+}
+
+async function robotsFor(origin: URL, hopGuard: PoliteFetchOptions["hopGuard"]): Promise<RobotsEntry> {
   const host = origin.host;
   const cached = robotsCache.get(host);
   const now = deps.now();
   if (cached && now - cached.fetchedAt < cached.ttlMs) return cached;
   let entry: RobotsEntry;
   try {
-    const res = await deps.fetch(`${origin.protocol}//${host}/robots.txt`, {
-      method: "GET",
-      redirect: "follow",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: { "user-agent": USER_AGENT, accept: "text/plain,*/*;q=0.5" },
-    });
-    if (res.status >= 500) {
+    const res = await fetchRobots(origin, hopGuard);
+    if (!res) {
+      // A redirect chain that is refused, too long or malformed: no policy we may read.
+      entry = { fetchedAt: now, ttlMs: ROBOTS_TTL_MS, rules: null, outage: false };
+    } else if (res.status >= 500) {
+      await res.body?.cancel().catch(() => undefined);
       entry = { fetchedAt: now, ttlMs: ROBOTS_OUTAGE_TTL_MS, rules: null, outage: true };
     } else if (res.ok) {
-      const text = (await res.text()).slice(0, 512 * 1024);
+      const text = await readCapped(res, MAX_ROBOTS_BYTES);
       entry = { fetchedAt: now, ttlMs: ROBOTS_TTL_MS, rules: parseRobots(text), outage: false };
     } else {
       // 404/403/other 4xx: the host publishes no policy for us — allow (RFC 9309 §2.3.1.3).
+      await res.body?.cancel().catch(() => undefined);
       entry = { fetchedAt: now, ttlMs: ROBOTS_TTL_MS, rules: null, outage: false };
     }
   } catch (error) {
@@ -194,6 +226,33 @@ async function robotsFor(origin: URL): Promise<RobotsEntry> {
   }
   robotsCache.set(host, entry);
   return entry;
+}
+
+/** The first `max` bytes of a body, decoded; the rest is never pulled off the wire. */
+async function readCapped(res: Response, max: number): Promise<string> {
+  if (!res.body) return (await res.text()).slice(0, max);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    const room = max - total;
+    chunks.push(value.byteLength > room ? value.subarray(0, room) : value);
+    total += Math.min(value.byteLength, room);
+    if (total >= max) {
+      await reader.cancel().catch(() => undefined);
+      break;
+    }
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    merged.set(c, offset);
+    offset += c.byteLength;
+  }
+  return new TextDecoder("utf-8").decode(merged);
 }
 
 function looksLikeInterstitial(contentType: string, body: string): boolean {
@@ -265,7 +324,7 @@ export const politeFetch: PoliteFetch = async function politeFetch(url, opts): P
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const politenessHost = hop === 0 && opts.host ? opts.host : current.host;
     const outcome = await withHostSlot(politenessHost, async (): Promise<FetchOutcome | { redirect: URL }> => {
-      const robots = await robotsFor(current);
+      const robots = await robotsFor(current, opts.hopGuard);
       if (robots.outage) return { kind: "outage", status: 503, detail: "robots_5xx" };
       if (robots.rules && !isPathAllowed(robots.rules, `${current.pathname}${current.search}`)) {
         return { kind: "robots_disallowed", detail: `${current.pathname} disallowed for ${CRAWLER_TOKEN}` };
