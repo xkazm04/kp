@@ -590,6 +590,31 @@
   border-color: var(--sv-held);
   color: var(--sv-held);
 }
+/* Direction: where the posting sits against the seeker's STATED way (a preference, never
+ * a gate). Target = the accent and the bullseye; target field = a plain outline in ink;
+ * the past = dashed, because it is where they have been, not where they are going. */
+.sv .chip.dir-target {
+  background: var(--sv-accent-soft);
+  border-color: transparent;
+  color: var(--sv-accent-ink);
+  font-weight: 700;
+}
+.sv .chip.dir-family {
+  border-color: var(--sv-ink-2);
+  color: var(--sv-ink);
+  font-weight: 600;
+}
+.sv .chip.dir-past {
+  border-style: dashed;
+  color: var(--sv-ink-3);
+}
+.sv .tmark {
+  flex: none;
+  color: var(--sv-accent-ink);
+}
+.sv .fchip[aria-pressed="true"] .tmark {
+  color: inherit;
+}
 
 /* ---------- arrive ---------- */
 .sv .arrive {
@@ -1718,6 +1743,17 @@
   font-size: 0.875rem;
   color: var(--sv-ink-3);
 }
+.sv .tcard .dirmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--sv-accent-ink);
+}
+.sv .prow .t .tmark {
+  vertical-align: -1px;
+}
 .sv .scoreline {
   display: flex;
   align-items: center;
@@ -2043,6 +2079,13 @@
   font-size: 0.9375rem;
   color: var(--sv-ink-2);
   padding-bottom: 6px;
+}
+/* The score a deep-dive replaced: a fact beside the number, never struck through. */
+.sv .gauge-top .was {
+  font: 600 1rem/1 var(--sv-sans);
+  color: var(--sv-ink-3);
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 8px;
 }
 .sv .gauge {
   margin-top: 14px;

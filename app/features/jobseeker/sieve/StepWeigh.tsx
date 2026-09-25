@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import type { DismissReason, FitArtifact, JobseekerDialog, JobseekerPostingSummary, PostingStatus, SalaryFloor, SourceTier } from "@/app/_lib/jobseeker/types";
+import type { DismissReason, FitArtifact, JobseekerDialog, JobseekerPostingSummary, PostingStatus, SalaryFloor, SourceTier, TargetAlignment } from "@/app/_lib/jobseeker/types";
 import { DISMISS_REASONS } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "../apiFailure";
 import type { StudioDegradation } from "../CvStudio";
@@ -13,8 +14,8 @@ import { compareSalary } from "../feedModel";
 import { FitStudio } from "../FitStudio";
 import { diveOutcome, reasoningView, type DiveOutcome, type PostingDetailView } from "../postingView";
 import { payText } from "./StepEvening";
-import { Pip, ProvMark, StatusChip, TierChip } from "./marks";
-import { provenanceOf } from "./sieveModel";
+import { Pip, ProvMark, StatusChip, TargetMark, TierChip } from "./marks";
+import { directionOf, provenanceOf, replacedScore } from "./sieveModel";
 import { cx, SV_BTN, SV_BTN_ACCENT, SV_BTN_SM, SV_BTN_SM_ACCENT, SV_BTN_SM_GHOST, SV_REASON } from "./sieveRecipes";
 
 // Step 7 — Weigh one posting. Left: the score as a BAND on a gauge (the number, and the
@@ -34,6 +35,8 @@ type Detail = {
   view: PostingDetailView;
   fit: { artifact: FitArtifact; at: string } | null;
   source: { id: string; tier: SourceTier; host: string } | null;
+  /** The direction the matcher read (the route projects it beside the view). */
+  targetAlignment: TargetAlignment | null;
 };
 type Pop = "apply" | "dismiss" | null;
 type StudioState = { dialog: JobseekerDialog; degradation: StudioDegradation | null } | null;
@@ -44,7 +47,7 @@ async function fetchDetail(id: string): Promise<{ ok: true; detail: Detail } | {
     const res = await fetch(`/api/jobseeker/postings/${encodeURIComponent(id)}`);
     const body = (await res.json().catch(() => null)) as (Detail & { code?: string }) | null;
     if (!res.ok || !body?.view) return { ok: false, fail: classifyApiFailure(res, body) };
-    return { ok: true, detail: { view: body.view, fit: body.fit ?? null, source: body.source ?? null } };
+    return { ok: true, detail: { view: body.view, fit: body.fit ?? null, source: body.source ?? null, targetAlignment: body.targetAlignment ?? null } };
   } catch {
     return { ok: false, fail: TRANSPORT_FAILURE };
   }
@@ -98,6 +101,8 @@ export function StepWeigh({
   const tChecks = useTranslations("me.sieve.checks");
   const tGate = useTranslations("me.sieve.gate");
   const tStatus = useTranslations("me.sieve.status");
+  const tDir = useTranslations("me.sieve.direction");
+  const enumLabel = useEnumLabel();
   const resolveError = useErrorMessage();
   const rel = useRelativeTime();
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -329,11 +334,30 @@ export function StepWeigh({
   const reasoning = v.reasoning ?? dive?.reasoning ?? null;
   const breakdownTone = ["b0", "b1", "b2"];
   const coverText = fit?.coverNoteMd ? (cover[v.id] ?? fit.coverNoteMd) : null;
+  // The direction and the replaced score ride on the summary row the list holds; the
+  // route's own alignment wins when it is there (a deep link before the rows arrive).
+  const direction = directionOf({ targetAlignment: detail.targetAlignment ?? row?.targetAlignment ?? null });
+  const was = m ? replacedScore({ previousTotal: row?.previousTotal ?? null, matchTotal: m.total }) : null;
+  const wasMark = was !== null ? <span className="was">{t("was", { n: was })}</span> : null;
   const floorText = salaryFloor ? `${new Intl.NumberFormat(locale).format(salaryFloor.amount)} ${salaryFloor.currency} ${tPrefs(`period.${salaryFloor.period}`)}` : t("noFloor");
 
   const meta = (
     <div className="w-meta">
       <TierChip tier={m?.fitTier ?? null} />
+      {direction ? (
+        <span className={`chip dir-${direction.state}`}>
+          {direction.state === "target" ? <TargetMark size={12} /> : null}
+          {direction.state === "target"
+            ? direction.title
+              ? tDir("target", { title: direction.title })
+              : tDir("targetBare")
+            : direction.state === "family"
+              ? tDir("family")
+              : direction.family
+                ? tDir("past", { family: enumLabel("family", direction.family) })
+                : tDir("pastBare")}
+        </span>
+      ) : null}
       <StatusChip status={status} />
       {v.location ? <span className="chip">{v.location}</span> : null}
       {v.workMode ? <span className="chip">{tPrefs(`workMode.${v.workMode}`)}</span> : null}
@@ -352,6 +376,7 @@ export function StepWeigh({
               <h4>{t("scoreTitle")}</h4>
               <div className="gauge-top">
                 <span className="gauge-num">{m.total}</span>
+                {wasMark}
                 <span className="gt">{t.rich("band", { low: m.confidence.low, high: m.confidence.high, level: t(`level.${m.confidence.level}`), b: (c) => <b>{c}</b> })}</span>
               </div>
               <div className="gauge">
@@ -378,7 +403,10 @@ export function StepWeigh({
           ) : m ? (
             <div className="panel">
               <h4>{t("scoreTitle")}</h4>
-              <span className="gauge-num">{m.total}</span>
+              <div className="gauge-top">
+                <span className="gauge-num">{m.total}</span>
+                {wasMark}
+              </div>
             </div>
           ) : v.blocked ? (
             <div className="panel">
@@ -512,6 +540,7 @@ export function StepWeigh({
             <h4>{t("readTitle")}</h4>
             {reasoning ? (
               <>
+                {row?.reasoningStale && v.reasoning && !dive ?<p className="small muted">{t("readStale")}</p> : null}
                 <p>{reasoning.verdict}</p>
                 {reasoning.strengths.length ? (
                   <p className="small">

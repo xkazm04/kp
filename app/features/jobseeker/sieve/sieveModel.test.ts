@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
 import { PROVENANCE } from "@/app/_lib/taxonomy.generated";
-import { deriveSieve, EMPTY_FILTER, filterScored, firstGate, initialsOf, isFilterActive, liftSkills, provenanceOf, sourceIsOn } from "./sieveModel";
+import { applyDirection, deriveSieve, directionFilterOn, directionOf, EMPTY_FILTER, filterScored, firstGate, inDirection, initialsOf, isFilterActive, liftSkills, provenanceOf, replacedScore, sourceIsOn } from "./sieveModel";
 
 // The sieve's numbers are DERIVED from the rows; these pin the placements the page draws
 // and the honesty rules the marks encode.
@@ -156,4 +156,48 @@ test("initials read two words, and say ? for no name", () => {
   assert.equal(initialsOf("Aneta Veselá"), "AV");
   assert.equal(initialsOf("  "), "?");
   assert.equal(initialsOf(null), "?");
+});
+
+test("a posting's direction reads the matcher's alignment, and an absent field is null", () => {
+  const ta = (over: Record<string, unknown>) => ({ targetAlignment: { targetFamilies: [], ...over } as unknown as JobseekerPostingSummary["targetAlignment"] });
+  assert.deepEqual(directionOf(ta({ state: "target", matchedTitle: "AI Engineer" })), { state: "target", title: "AI Engineer" });
+  // The wire drops empty fields: a missing matchedTitle / pastFamily is "not named".
+  assert.deepEqual(directionOf(ta({ state: "target" })), { state: "target", title: null });
+  assert.deepEqual(directionOf(ta({ state: "family" })), { state: "family" });
+  assert.deepEqual(directionOf(ta({ state: "past", pastFamily: "data_ai" })), { state: "past", family: "data_ai" });
+  assert.deepEqual(directionOf(ta({ state: "past", pastFamily: "  " })), { state: "past", family: null });
+  assert.equal(directionOf(ta({ state: "none" })), null);
+  assert.equal(directionOf(ta({ state: "sideways" })), null);
+  assert.equal(directionOf({ targetAlignment: null }), null);
+});
+
+test("only a target title or a target family is in the direction; the past is not", () => {
+  const at = (state: string) => row(state, { targetAlignment: { state, matchedTitle: null, targetFamilies: [], pastFamily: null } as JobseekerPostingSummary["targetAlignment"] });
+  assert.equal(inDirection(at("target")), true);
+  assert.equal(inDirection(at("family")), true);
+  assert.equal(inDirection(at("past")), false);
+  assert.equal(inDirection(at("none")), false);
+  assert.equal(inDirection(row("unmatched")), false);
+});
+
+test("the direction filter defaults on only with a stated title and something to keep", () => {
+  const onWay = row("t", { targetAlignment: { state: "target", matchedTitle: "AI Engineer", targetFamilies: ["data_ai"], pastFamily: null } });
+  const past = row("p", { targetAlignment: { state: "past", matchedTitle: null, targetFamilies: ["data_ai"], pastFamily: "business_analysis" } });
+  assert.equal(directionFilterOn(null, 1, [onWay, past]), true);
+  assert.equal(directionFilterOn(null, 0, [onWay, past]), false);
+  // Nothing in the direction: the filter would hide everything, so it does not exist.
+  assert.equal(directionFilterOn(null, 2, [past]), false);
+  assert.equal(directionFilterOn(true, 2, [past]), false);
+  // The seeker's own choice wins over the default.
+  assert.equal(directionFilterOn(false, 1, [onWay]), false);
+  assert.equal(directionFilterOn(true, 0, [onWay]), true);
+  assert.deepEqual(applyDirection([onWay, past, row("x")], true), { rows: [onWay], hidden: 2 });
+  assert.deepEqual(applyDirection([onWay, past], false), { rows: [onWay, past], hidden: 0 });
+});
+
+test("a replaced score is said only when the deep-dive moved it", () => {
+  assert.equal(replacedScore({ previousTotal: 71, matchTotal: 39 }), 71);
+  assert.equal(replacedScore({ previousTotal: 39, matchTotal: 39 }), null);
+  assert.equal(replacedScore({ previousTotal: null, matchTotal: 39 }), null);
+  assert.equal(replacedScore(null), null);
 });

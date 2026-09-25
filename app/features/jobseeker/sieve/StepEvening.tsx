@@ -5,8 +5,21 @@ import { useTranslations } from "next-intl";
 import { FIT_TIERS, POSTING_STATUSES, WORK_MODES, type FeedNewSince } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { isNewerThanAnchor } from "../feedModel";
-import { BandGlyph, Pip, Pips, ProvMark, StatusChip, TierChip } from "./marks";
-import { EMPTY_FILTER, filterScored, isFilterActive, liftSkills, provenanceOf, type ListFilter, type SieveFacts, type SievePosting } from "./sieveModel";
+import { BandGlyph, Pip, Pips, ProvMark, StatusChip, TargetMark, TierChip } from "./marks";
+import {
+  applyDirection,
+  directionFilterOn,
+  directionOf,
+  EMPTY_FILTER,
+  filterScored,
+  inDirection,
+  isFilterActive,
+  liftSkills,
+  provenanceOf,
+  type ListFilter,
+  type SieveFacts,
+  type SievePosting,
+} from "./sieveModel";
 import { cx, SV_BTN_SM_GHOST, SV_CARD, SV_CHIP_BTN, SV_FCHIP, SV_LINK_BTN, SV_ROW } from "./sieveRecipes";
 
 // Step 6 — "Worth your evening". The ranking, three ways at once:
@@ -20,6 +33,11 @@ import { cx, SV_BTN_SM_GHOST, SV_CARD, SV_CHIP_BTN, SV_FCHIP, SV_LINK_BTN, SV_RO
 //                rows as calm as 6
 // A day whose best posting is only a partial fit says so first, as a starting point and
 // not a verdict, and names the skills that would lift the most scores at once.
+//
+// DIRECTION is a view over the ranking, not a layer of the sieve: "Your direction" keeps
+// the list to postings on the seeker's stated way (a target title or a target family),
+// on by default once they named a title and something matches it, and it says how many
+// it hides. The top five stay the sieve's ranking and carry the bullseye instead.
 
 export function payText(row: Pick<SievePosting, "salaryMin" | "salaryMax" | "salaryCurrency" | "salaryPeriod">, locale: string, perMonth: string, perYear: string): string | null {
   if (!row.salaryCurrency || (row.salaryMin === null && row.salaryMax === null)) return null;
@@ -43,6 +61,7 @@ export function StepEvening({
   onOpen,
   onOrderChange,
   loadError,
+  targetTitles,
 }: {
   facts: SieveFacts | null;
   hasProfile: boolean;
@@ -57,14 +76,19 @@ export function StepEvening({
   /** The list's current order, so J/K on the Weigh step walks what the seeker sees. */
   onOrderChange(ids: string[]): void;
   loadError: ReactNode;
+  /** How many target titles the seeker stated: the direction filter's default. */
+  targetTitles: number;
 }) {
   const t = useTranslations("me.sieve.evening");
   const tPrefs = useTranslations("me.preferences");
   const tMode = useTranslations("me.preferences.workMode");
   const tTier = useTranslations("me.sieve.tier");
   const tStatus = useTranslations("me.sieve.status");
+  const tDir = useTranslations("me.sieve.direction");
   const rel = useRelativeTime();
   const [f, setF] = useState<ListFilter>(EMPTY_FILTER);
+  // null = untouched: the default follows the facts (directionFilterOn).
+  const [dirChoice, setDirChoice] = useState<boolean | null>(null);
   const [skyFocus, setSkyFocus] = useState(0);
   const [skyKeyed, setSkyKeyed] = useState(false);
   const skyHost = useRef<HTMLDivElement | null>(null);
@@ -72,7 +96,9 @@ export function StepEvening({
   const perMonth = tPrefs("period.month");
   const perYear = tPrefs("period.year");
 
-  const rows = useMemo(() => (facts ? filterScored(facts.scored, f) : []), [facts, f]);
+  const dirOffered = !!facts && facts.scored.some(inDirection);
+  const dirOn = !!facts && directionFilterOn(dirChoice, targetTitles, facts.scored);
+  const { rows, hidden: dirHidden } = useMemo(() => applyDirection(facts ? filterScored(facts.scored, f) : [], dirOn), [facts, f, dirOn]);
   useEffect(() => {
     onOrderChange(rows.map((r) => r.id));
   }, [rows, onOrderChange]);
@@ -346,6 +372,12 @@ export function StepEvening({
                 <span className="rk">{i + 1}</span>
                 {r.id === guidedId ? <span className="flagged">{t("guided")}</span> : null}
                 <span className="tt">{r.title}</span>
+                {directionOf(r)?.state === "target" ? (
+                  <span className="dirmark">
+                    <TargetMark size={12} />
+                    {tDir("mark")}
+                  </span>
+                ) : null}
                 <span className="meta">{[r.company, r.location, r.workMode ? tMode(r.workMode) : null].filter(Boolean).join(" · ")}</span>
                 <span className="scoreline">
                   <span className="sc">{r.matchTotal}</span>
@@ -387,6 +419,12 @@ export function StepEvening({
       <h3>{t("allTitle")}</h3>
       <div className="filters">
         <input type="search" placeholder={t("search")} aria-label={t("search")} value={f.q} onChange={(e) => setF((cur) => ({ ...cur, q: e.target.value }))} />
+        {dirOffered ? (
+          <button type="button" className={SV_FCHIP} aria-pressed={dirOn} onClick={() => setDirChoice(!dirOn)}>
+            <TargetMark size={12} />
+            {tDir("filter")}
+          </button>
+        ) : null}
         <span className="fchips" role="group" aria-label={t("fitLabel")}>
           {FIT_TIERS.filter((k) => tierCounts.get(k)).map((k) => {
             const on = f.tiers.includes(k);
@@ -425,6 +463,7 @@ export function StepEvening({
         <span className="muted" role="status">
           {t("showing", { shown: rows.length, total: n })}
           {f.brush ? ` · ${t("skyRange", { from: f.brush[0] + 1, to: f.brush[1] + 1 })}` : ""}
+          {dirOn && dirHidden > 0 ? ` · ${tDir("hides", { n: dirHidden })}` : ""}
         </span>
         <span className="pip-legend">
           <span>{t("checksKey")}</span>
@@ -454,8 +493,15 @@ export function StepEvening({
         {rows.length === 0 ? (
           <div className="empty">
             {t("noMatch")}{" "}
-            {isFilterActive(f) ? (
-              <button type="button" className={SV_LINK_BTN} onClick={() => setF(EMPTY_FILTER)}>
+            {isFilterActive(f) || dirOn ? (
+              <button
+                type="button"
+                className={SV_LINK_BTN}
+                onClick={() => {
+                  setF(EMPTY_FILTER);
+                  if (dirOn) setDirChoice(false);
+                }}
+              >
                 {t("clearFilters")}
               </button>
             ) : null}
@@ -467,7 +513,15 @@ export function StepEvening({
               <button key={r.id} type="button" className={cx(SV_ROW, openId === r.id && "cur")} onClick={() => onOpen(r.id)}>
                 <span className="rk">{facts.rank[r.id]}</span>
                 <span className="pt">
-                  <span className="t">{r.title}</span>
+                  <span className="t">
+                    {directionOf(r)?.state === "target" ? (
+                      <>
+                        <TargetMark size={12} />
+                        <span className="vh">{tDir("mark")}</span>{" "}
+                      </>
+                    ) : null}
+                    {r.title}
+                  </span>
                   <span className="m">
                     {isNew(r) ? `${t("new")} · ` : ""}
                     {r.status !== "new" ? `${tStatus(r.status)} · ` : ""}

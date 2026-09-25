@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { SENIORITIES, WORK_MODES, type JobseekerPreferences, type JobseekerProfile, type SalaryFloor, type SalaryPeriod } from "@/app/_lib/jobseeker/types";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { FailureNotice } from "../FailureNotice";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "../apiFailure";
 import { ProvMark } from "./marks";
@@ -53,6 +54,7 @@ export function StepWant({
 }) {
   const t = useTranslations("me.sieve.want");
   const tPrefs = useTranslations("me.preferences");
+  const enumLabel = useEnumLabel();
   const [prefs, setPrefs] = useState<JobseekerPreferences | null>(profile?.preferences ?? null);
   const [amount, setAmount] = useState<number>(profile?.preferences.salaryFloor?.amount ?? 0);
   const [currency, setCurrency] = useState<string | null>(profile?.preferences.salaryFloor?.currency ?? null);
@@ -63,6 +65,7 @@ export function StepWant({
   // An edit is queued or in flight (state, not the ref: render must not read a ref).
   const [dirty, setDirty] = useState(false);
   const [filling, setFilling] = useState<number>(-1);
+  const [countryError, setCountryError] = useState<string | null>(null);
   const pending = useRef<Partial<JobseekerPreferences>>({});
   const timer = useRef<number | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -177,13 +180,19 @@ export function StepWant({
     const input = e.currentTarget.elements.namedItem("v") as HTMLInputElement | null;
     const raw = (input?.value ?? "").trim();
     if (!raw) return;
-    const value = field === "countries" ? raw.toLowerCase().slice(0, 2) : raw;
-    if (field === "countries" && !/^[a-z]{2}$/.test(value)) return;
+    const value = field === "countries" ? raw.toLowerCase() : raw;
+    // A country code the engine cannot read is SAID, never dropped: the typed value stays
+    // in the field so it can be corrected.
+    if (field === "countries" && !/^[a-z]{2}$/.test(value)) {
+      setCountryError(t("places.countryInvalid", { value: raw }));
+      return;
+    }
+    if (field === "countries") setCountryError(null);
     const list = prefs[field];
     if (!list.some((x) => x.toLowerCase() === value.toLowerCase())) edit({ [field]: [...list, value] });
     if (input) input.value = "";
   };
-  const removeFrom = (field: "locations" | "targetTitles" | "countries", i: number) => edit({ [field]: prefs[field].filter((_, j) => j !== i) });
+  const removeFrom = (field: "locations" | "targetTitles" | "countries" | "targetRoleFamilies", i: number) => edit({ [field]: prefs[field].filter((_, j) => j !== i) });
 
   const scale = payScale(currency, period);
   const noFloor = !currency;
@@ -237,11 +246,26 @@ export function StepWant({
             </button>
           </form>
           <form className="addin" onSubmit={addTo("countries")}>
-            <input name="v" placeholder={t("places.country")} aria-label={t("places.country")} maxLength={2} />
+            <input
+              name="v"
+              placeholder={t("places.country")}
+              aria-label={t("places.country")}
+              aria-invalid={countryError ? true : undefined}
+              aria-describedby={countryError ? "sv-country-error" : undefined}
+              maxLength={3}
+              onChange={() => {
+                if (countryError) setCountryError(null);
+              }}
+            />
             <button className={SV_BTN_SM_GHOST} type="submit">
               {t("add")}
             </button>
           </form>
+          {countryError ? (
+            <div id="sv-country-error" className="rule warn" role="alert">
+              {countryError}
+            </div>
+          ) : null}
           <div className="said">{t("places.rule")}</div>
         </div>
 
@@ -326,6 +350,22 @@ export function StepWant({
               {t("add")}
             </button>
           </form>
+          {/* The target FIELDS the ranking also reads. Older profiles had one seeded
+              from the CV's own past field, silently; shown here so it can go. */}
+          {prefs.targetRoleFamilies.length ? (
+            <div className="tokens" role="group" aria-label={t("titles.families")}>
+              <span className="small muted">{t("titles.families")}</span>
+              {prefs.targetRoleFamilies.map((fam, i) => (
+                <span key={`f-${fam}`} className="token">
+                  {enumLabel("family", fam)}
+                  <button type="button" aria-label={t("remove", { value: enumLabel("family", fam) })} onClick={() => removeFrom("targetRoleFamilies", i)}>
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div className="rule">{t("titles.ranks")}</div>
           <div className="said">{t("titles.rule")}</div>
         </div>
 

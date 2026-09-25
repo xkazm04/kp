@@ -337,6 +337,7 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
         onOpen={open}
         onOrderChange={setOrder}
         loadError={loadError}
+        targetTitles={prefs?.targetTitles.length ?? 0}
       />
       <StepWeigh
         openId={openId}

@@ -76,6 +76,18 @@ export function StatusChip({ status }: { status: PostingStatus }) {
   return <span className={`chip st-${status}`}>{t(status)}</span>;
 }
 
+/** On the seeker's stated way: a bullseye — the title matches a target they named. The
+ *  mark is decorative; the text beside it (or a visually hidden one) says it. */
+export function TargetMark({ size = 14 }: { size?: number }) {
+  const c = size / 2;
+  return (
+    <svg className="tmark" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+      <circle cx={c} cy={c} r={c - 1} fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx={c} cy={c} r={Math.max(1.5, c / 2.4)} fill="currentColor" />
+    </svg>
+  );
+}
+
 export function LockIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
