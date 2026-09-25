@@ -37,7 +37,10 @@
   --m-fig: 112px;
   --m-time: 124px;
   --m-act: 104px;
-  --m-detail: clamp(520px, 40vw, 720px);
+  /* Gate K2: kp's nav rail + sidebar take ~330px the contest page never had, so the variant's
+     clamp(520px, 40vw, 720px) left a ~500px sheet at 1440 with the pane open. The floor is 448px, not
+     400: a Channels message body keeps >= 400px (448 - 2 x 22px padding - the 1px rule = 403). */
+  --m-detail: clamp(448px, 30vw, 560px);
 
   /* density tier (compact default for tools) */
   --row-h: 44px;
@@ -73,7 +76,7 @@
 .k-stage { display: grid; grid-template-columns: minmax(0, 1fr); }
 .k-stage[data-detail="open"] { grid-template-columns: minmax(0, 1fr) var(--m-detail); }
 .k-sheet { position: relative; min-width: 0; container: sheet / inline-size; }
-.k-stage[data-detail="open"] .k-sheet { padding-right: var(--m-pad); }
+.k-stage[data-detail="open"] .k-sheet { padding-right: 16px; }
 .k-sheet.is-entering { animation: .32s var(--k-ease) both k-enter; }
 @keyframes k-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -122,7 +125,7 @@
 .k-section__title { grid-column: mark / meta; display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .k-section__title h2, .k-section__title h3 { font-family: var(--font-serif); font-size: var(--text-h3); line-height: var(--text-h3--line-height); font-weight: 600; margin: 0; white-space: nowrap; }
 [data-theme="dark"] .k-section__title h2, [data-theme="dark"] .k-section__title h3 { font-weight: 700; }
-.k-section__count { font-size: var(--text-micro); color: var(--k-quiet); font-variant-numeric: tabular-nums; }
+.k-section__count { font-size: var(--text-micro); color: var(--k-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .k-section__state { grid-column: meta / fig; font-size: var(--text-micro); color: var(--k-quiet); display: flex; gap: 8px; align-items: center; min-width: 0; }
 .k-section__state span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .k-section__acts { grid-column: fig / end; display: flex; justify-content: flex-end; gap: 8px; }
@@ -328,7 +331,7 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 /* ---------- 10 · READING PANE (split pane; exists only while a row is selected) ---------- */
 .k-margin {
   position: sticky; top: var(--k-top); height: calc(100vh - var(--k-top)); overflow-y: auto;
-  border-left: 1px solid var(--k-rule-strong); background: var(--k-plane); padding: 28px 36px 80px;
+  border-left: 1px solid var(--k-rule-strong); background: var(--k-plane); padding: 28px 22px 80px;
 }
 .k-margin.is-entering { animation: .26s var(--k-ease) both k-pane; }
 @keyframes k-pane { from { opacity: 0; transform: translateX(24px); } }
@@ -337,7 +340,8 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 .k-margin__card.is-entering { animation: .28s var(--k-ease) both k-enter; }
 .k-margin__trail { display: flex; align-items: center; gap: 6px; font-size: var(--text-micro); color: var(--k-quiet); margin-bottom: 10px; white-space: nowrap; overflow: hidden; }
 .k-margin__trail span { overflow: hidden; text-overflow: ellipsis; }
-.k-margin__nav { margin-left: auto; display: flex; gap: 4px; }
+.k-margin__nav { margin-left: auto; display: flex; gap: 4px; flex: none; }
+.k-margin__nav span { overflow: visible; }
 .k-margin h3:not([data-role="kit-section-title"]) { font-family: var(--font-serif); font-size: var(--text-h2); line-height: var(--text-h2--line-height); font-weight: 600; margin: 0 0 4px; }
 .k-margin .k-margin__sub { font-size: var(--text-micro); color: var(--k-quiet); margin: 0 0 16px; }
 .k-margin .k-section { margin-top: 24px; }
@@ -426,7 +430,8 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 /* ---------- the measure's collapse order ----------
    When the sheet is narrower than the full measure needs (a reading pane is open at 1280), the tracks fold
    in a fixed order: meta first, then act. Mark, name, figure and time never fold and are never covered.
-   The graphic layer's fold rules (sieve field, skyline) are the variant's too; they stay here with it. */
+   The graphic parts never fold away (the Sieve keeps its dots, the Skyline its bars): their own narrow
+   layouts are in graphic/graphic.css. */
 /* step 1 (a kit rule, not a surface's): the extra meta tracks of a split meta (DataTable
    metaSplit, cells on meta+N) fold first, and name shares the room they free; the page head
    puts its figures on a second line so a display title never wraps beside them. Added at
@@ -437,27 +442,32 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
   .k-head { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; }
   .k-head__figs { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
   .k-head__acts { grid-column: 2; grid-row: 1; align-self: start; }
+  /* a section head never breaks mid-phrase: title+count, the actions and the state line are whole
+     units; title and actions share line one, the state line (and a legend in it) takes line two */
+  .k-section__head { display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: var(--m-gap); row-gap: 4px; }
+  .k-section__title { flex: 0 1 auto; flex-wrap: wrap; row-gap: 2px; }
+  .k-section__acts { order: 1; flex: none; margin-left: auto; }
+  .k-section__state { order: 2; flex: 1 0 100%; padding-top: 4px; }
+  /* a stage cell keeps its shape and the stage; the reason moves into the cell's tip (the row's
+     coral edge still says it waits on you) */
+  .k-stagecell .k-needs-t { display: none; }
 }
 /* steps 2 and 3: meta, then act */
 @container sheet (max-width: 860px) {
   .k-measure { grid-template-columns: [mark] var(--m-mark) [name] minmax(0, 1fr) [meta] 0px [fig] var(--m-fig) [time] var(--m-time) [act] 0px [end]; }
   .k-table__head, .k-table__row { --t-meta-cur: var(--t-meta0); --t-name-cur: minmax(0, 1fr); --m-act-cur: 0px; }
-  .k-row__meta, .k-row__acts, .k-td.in-meta, .k-td.in-act, .k-th.in-meta, .k-th.in-act, .k-set__why, .k-sieve__field, .k-sieve__legend { visibility: hidden; }
-  .k-sieve__dots { display: none; }
+  .k-row__meta, .k-row__acts, .k-td.in-meta, .k-td.in-act, .k-th.in-meta, .k-th.in-act, .k-set__why { visibility: hidden; }
   /* port fix: a hidden consequence in a 0px track still wrapped one word per line and made the
      setting row as tall as its sentence; the variant never showed Channels folded to see it. */
   .k-set__why { max-height: 0; overflow: hidden; }
   .k-head { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; }
   .k-head__figs { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
   .k-head__acts { grid-column: 2; grid-row: 1; align-self: start; }
-  .k-section__state { grid-column: name / end; grid-row: 2; padding-top: 4px; }
-  .k-section__state span { white-space: normal; overflow: visible; }
   .k-toolbar__seg { grid-column: mark / end; }
   .k-toolbar__search { grid-column: mark / end; grid-row: 2; }
   .k-toolbar__filters { grid-column: mark / end; grid-row: 3; }
   .k-toolbar__acts { grid-row: 1; }
   .k-set__ctl { grid-column: fig / end; }
-  .k-sky { display: none; }
   .k-table__head.is-tall { min-height: 40px; }
   .k-table__head.is-tall .k-th.is-rail { display: none; }
   .k-folded-note { display: block !important; }
@@ -479,12 +489,15 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 .k-stagecell .k-needs-t::before { content: "· "; color: var(--k-faint); }
 .k-quietage { display: block; font-size: var(--text-micro); color: var(--color-amber-800); }
 .k-td.is-num small.k-quietage { text-align: right; }
-.k-vrail { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto; column-gap: 12px; }
+/* the label is never overlapped: it keeps its width and the count/reason column shrinks (ellipsis,
+   the full reason in the tip) in a narrow pane */
+.k-vrail { display: grid; grid-template-columns: 22px max-content minmax(0, 1fr) auto; column-gap: 12px; }
 .k-vrail__step { display: contents; }
 .k-vrail__step > * { padding: 7px 0; border-bottom: 1px solid var(--k-rule); font-size: var(--text-micro); align-self: stretch; display: flex; align-items: center; }
 .k-vrail__label { color: var(--k-quiet); }
 .k-vrail__step.is-reached .k-vrail__label { color: var(--k-ink); }
-.k-vrail__n { color: var(--k-quiet); justify-content: flex-end; }
+.k-vrail__n { color: var(--k-quiet); justify-content: flex-end; min-width: 0; }
+.k-vrail__n > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .k-vrail__t { color: var(--k-quiet); font-variant-numeric: tabular-nums; justify-content: flex-end; min-width: 92px; }
 [data-theme="dark"] .k-vrail__step > * { border-bottom: 1px dashed var(--k-rule-strong); }
 .k-vrail__step > .k-shp { box-sizing: content-box; }

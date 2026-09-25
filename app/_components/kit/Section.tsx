@@ -18,6 +18,7 @@ export function Section({
   count?: ReactNode;
   /** One line; its full text is also the tip, so an ellipsis never hides it. */
   state?: string;
+  /** Drawn on the state line before `state`; renders on its own too (a legend needs no sentence). */
   stateMark?: ReactNode;
   tone?: RowTone;
   actions?: ReactNode;
@@ -37,10 +38,10 @@ export function Section({
           <h3 data-role="kit-section-title">{title}</h3>
           {count != null ? <span className="k-section__count" data-role="kit-section-count">{count}</span> : null}
         </div>
-        {state ? (
+        {state || stateMark ? (
           <div className="k-section__state">
             {stateMark}
-            <span data-tip={state} tabIndex={0}>{state}</span>
+            {state ? <span data-tip={state} tabIndex={0}>{state}</span> : null}
           </div>
         ) : null}
         <div className="k-section__acts">{actions}</div>
