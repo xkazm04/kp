@@ -79,7 +79,7 @@ export const euresAdapter: SourceAdapter = {
       for (const item of items) {
         const raw = euresItemToRaw(item);
         if (!raw) continue;
-        if (!matchesLocations(raw.location, ctx.preferences)) continue;
+        if (!matchesLocations(raw, ctx.preferences)) continue;
         yield { externalKey: raw.externalKey, url: raw.url, hint: raw } satisfies PostingRef;
         if (++yielded >= ctx.limits.maxRefs) return;
       }

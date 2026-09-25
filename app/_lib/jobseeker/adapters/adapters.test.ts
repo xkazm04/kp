@@ -283,6 +283,45 @@ test("mpsv_bulk: streams the file, filters by targets/locations, caps at maxRefs
   }
 });
 
+test("eures: the city filter lets through a posting in a named country and a stated-remote one", async () => {
+  const src = source({ adapter: "eures", kind: "feed", tier: "A", host: "europa.eu" });
+  const run = async (over: Partial<typeof EMPTY_PREFERENCES>) => {
+    const ctx = ctxFor(src, async () => ok(fx("eures-search.json"), "application/json"));
+    ctx.preferences = { ...EMPTY_PREFERENCES, countries: ["cz"], ...over };
+    return (await collect(adapterFor("eures").discover(ctx))).map((r) => r.hint!.location);
+  };
+  // The Dresden fixture says "Homeoffice möglich", so it states remote.
+  assert.deepEqual(await run({ locations: ["Praha"], workModes: ["hybrid"] }), ["Praha"], "remote ruled out, and neither Dresden nor de was named");
+  assert.deepEqual(await run({ locations: ["Praha"], workModes: ["hybrid"], countries: ["cz", "de"] }), ["Praha", "Dresden"], "de was named: Dresden is in the market");
+  assert.deepEqual(await run({ locations: ["Praha"] }), ["Praha", "Dresden"], "no work mode named: a stated-remote posting is reachable from Praha");
+});
+
+test("mpsv_bulk: a stated-remote posting outside the seeker's city is kept; titles match whole words", async () => {
+  const records = [
+    { referencniCislo: "R1", nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Ostrava" } }, popis: "Práce z domova, 100% remote." },
+    { referencniCislo: "R2", nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Ostrava" } }, popis: "Na pracovišti." },
+    { referencniCislo: "R3", nazev: "JavaScript kodér", mistoVykonuPrace: { obec: { nazev: "Praha" } }, popis: "Na pracovišti." },
+  ];
+  const fetch: PoliteFetch = async (url) => ({
+    kind: "ok",
+    status: 200,
+    contentType: "application/json",
+    body: "",
+    finalUrl: url,
+    stream: new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(JSON.stringify(records)));
+        c.close();
+      },
+    }),
+  });
+  const ctx = ctxFor(source({ adapter: "mpsv_bulk", kind: "feed", tier: "A", host: "data.mpsv.cz" }), fetch, { maxRefs: 50, maxDetailFetches: 0 });
+  ctx.preferences = { ...EMPTY_PREFERENCES, targetTitles: ["java"], locations: ["Praha"] };
+  const refs = await collect(adapterFor("mpsv_bulk").discover(ctx));
+  assert.deepEqual(refs.map((r) => r.externalKey), ["R1"], "R1 states remote; R2 is on-site in Ostrava; R3 is JavaScript, not Java");
+  assert.equal(refs[0].hint!.workMode, "remote");
+});
+
 test("mpsv_bulk: a stream deadline mid-file is a FetchHalt outage that says how far it got", async () => {
   const records = [0, 1].map((i) => JSON.stringify({ referencniCislo: `R${i}`, nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Praha" } } }));
   let sent = false;

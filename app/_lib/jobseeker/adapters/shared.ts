@@ -91,19 +91,50 @@ export function fold(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-/** Does a posting's title match the seeker's targets? Empty targets = everything. */
-export function matchesTargets(title: string, prefs: JobseekerPreferences): boolean {
-  const targets = [...prefs.targetTitles, ...prefs.targetRoleFamilies].map(fold).filter(Boolean);
-  if (targets.length === 0) return true;
-  const t = fold(title);
-  return targets.some((needle) => t.includes(needle.replace(/_/g, " ")) || t.includes(needle));
+// The two local filters below are HARD acquisition filters: a posting they drop is
+// never stored, never scored. So they must never be stricter than the matcher
+// downstream (pipeline/jobfit/matching.py), which ranks. When in doubt, let it through.
+
+/** A folded title as space-delimited whole words, padded so a needle matches only on
+ *  word boundaries ("java" is in "Java programátor", not in "JavaScript"). `+` and `#`
+ *  stay inside a word so "C++" and "C#" survive. */
+function wordsOf(s: string): string {
+  const words = fold(s).split(/[^\p{L}\p{N}+#]+/u).filter(Boolean);
+  return words.length ? ` ${words.join(" ")} ` : "";
 }
 
-export function matchesLocations(location: string | null, prefs: JobseekerPreferences): boolean {
+/** Does a posting's title match the seeker's target TITLES (folded, whole words)?
+ *  No titles = everything. Role-family slugs are deliberately NOT title text: a family
+ *  is a ranking signal the matcher weighs, and a title that does not spell the slug
+ *  ("Senior AI Engineer" for `software_engineering`) is not evidence it is off-target. */
+export function matchesTargets(title: string, prefs: JobseekerPreferences): boolean {
+  const needles = prefs.targetTitles.map(wordsOf).filter(Boolean);
+  if (needles.length === 0) return true;
+  const hay = wordsOf(title);
+  return needles.some((needle) => hay.includes(needle));
+}
+
+/** What the location filter reads from a posting: the place, the market, the mode. */
+export type LocationFacts = Pick<RawPosting, "location" | "country" | "workMode">;
+
+/** ISO-3166-1 alpha-2, lower-case, or null — the form `preferences.countries` holds. */
+export function isoCountry(v: string | null | undefined): string | null {
+  const c = (v ?? "").trim().toLowerCase();
+  return /^[a-z]{2}$/.test(c) ? c : null;
+}
+
+/** Is the posting somewhere the seeker would work? It passes when the seeker named no
+ *  place, when the posting's place is unknown (never a penalty — types.ts
+ *  EligibilityFlag), when the city matches, when it is in a country the seeker named,
+ *  or when it STATES remote and the seeker has not ruled remote out. */
+export function matchesLocations(posting: LocationFacts, prefs: JobseekerPreferences): boolean {
   if (prefs.locations.length === 0) return true;
-  if (!location) return true; // unknown is never a penalty (types.ts EligibilityFlag)
-  const l = fold(location);
-  return prefs.locations.some((needle) => l.includes(fold(needle)));
+  if (!posting.location) return true;
+  const l = fold(posting.location);
+  if (prefs.locations.some((needle) => l.includes(fold(needle)))) return true;
+  const country = isoCountry(posting.country);
+  if (country && prefs.countries.some((c) => isoCountry(c) === country)) return true;
+  return posting.workMode === "remote" && (prefs.workModes.length === 0 || prefs.workModes.includes("remote"));
 }
 
 /** Read a config value as a non-empty string, or null. */

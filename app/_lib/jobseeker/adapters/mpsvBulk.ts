@@ -69,7 +69,7 @@ export const mpsvBulkAdapter: SourceAdapter = {
         const raw = mpsvItemToRaw(item as Item);
         if (!raw) continue;
         if (!matchesTargets(raw.title, ctx.preferences)) continue;
-        if (!matchesLocations(raw.location, ctx.preferences)) continue;
+        if (!matchesLocations(raw, ctx.preferences)) continue;
         yield { externalKey: raw.externalKey, url: raw.url, hint: raw } satisfies PostingRef;
         if (++yielded >= ctx.limits.maxRefs) break;
       }
