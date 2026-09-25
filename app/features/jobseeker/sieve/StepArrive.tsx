@@ -12,7 +12,9 @@ import { cx, SV_BTN_ACCENT, SV_BTN_SM_GHOST } from "./sieveRecipes";
 // Step 1 — Arrive. The CV goes in here, for real: a file → text (POST /api/extract-text)
 // → a structured profile draft (POST /api/profile/draft, the recruiter-side
 // profile_draft, so a seeker's profile is the shape the matcher already scores) → the
-// seeker's row (PUT /api/jobseeker/profile). What ended a hop is decided in
+// seeker's row (PUT /api/jobseeker/profile). The draft hop may run the AI model this
+// install is configured with (the fixed parser otherwise), and the privacy line says so:
+// nothing goes to a job board, but "it stays on this install" would not be true. What ended a hop is decided in
 // importOutcome.ts and only painted here; the three hops tick as a checklist so a stall
 // says WHERE, and "read without AI" is remembered for the "You" step to disclose.
 //
@@ -146,6 +148,9 @@ export function StepArrive({
           <span className="small muted">{t("privacy")}</span>
         </div>
       ) : null}
+      {/* A new CV re-reads the person, not the postings: the scores on screen were
+          computed against the old one until the next scan (StepWant says the same). */}
+      {compact && (file || busy || stage === "saved") ? <p className="small muted">{t("replaceNote")}</p> : null}
       {busy || stage === "saved" ? (
         <ol className="stages" aria-live="polite">
           {IMPORT_STAGES.map((s) => {
