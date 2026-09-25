@@ -6,6 +6,7 @@ import { EMPTY_PREFERENCES, type JobseekerSource, type PauseReason, type RawPost
 import { AdapterCollapsed, DEFAULT_ADAPTER_LIMITS, FetchHalt, type AdapterContext, type PostingRef, type SourceAdapter } from "./adapters/types.ts";
 import { RECONCILE_REASONS, reconcileSource, type ReconcileDeps } from "./reconcile.ts";
 import type { FetchFailure } from "./fetch/politeFetch.ts";
+import { detailOk } from "./adapters/shared.ts";
 
 const src: JobseekerSource = {
   id: "jss-1",
@@ -187,4 +188,52 @@ test("the detail budget bounds fetching adapters; a truncated run does NOT mark 
   const s2 = await reconcileSource(src, adapter(refs, async (r) => raw(r.externalKey), false), c, d2);
   assert.equal(s2.new, 10);
   assert.equal(ac2(), 1);
+});
+
+test("hitting maxRefs is a truncated pass - whether reconcile stopped the adapter or the adapter stopped itself - and marks nothing absent", async () => {
+  const c = ctx();
+  c.limits = { maxRefs: 10, maxDetailFetches: 60 };
+  const many = Array.from({ length: 15 }, (_, i) => ({ externalKey: `k${i}`, url: `https://b.example/${i}` }));
+  const { d, absentCalls } = deps();
+  const s = await reconcileSource(src, adapter(many, async (r) => raw(r.externalKey), false), c, d);
+  assert.equal(s.outcome, "succeeded");
+  assert.equal(s.new, 10, "the first maxRefs refs are read");
+  assert.equal(absentCalls(), 0, "the five refs past the cap are not 'gone'");
+  // An adapter that honours maxRefs itself (every ATS adapter: `if (++n >= maxRefs) return`)
+  // ends its iterator AT the cap - reconcile cannot tell that from "that was all", so the
+  // cap itself is the signal.
+  const { d: d2, absentCalls: ac2 } = deps();
+  await reconcileSource(src, adapter(many.slice(0, 10), async (r) => raw(r.externalKey), false), c, d2);
+  assert.equal(ac2(), 0);
+  // Under the cap, the pass is complete and absence is measured.
+  const { d: d3, absentCalls: ac3 } = deps();
+  await reconcileSource(src, adapter(many.slice(0, 9), async (r) => raw(r.externalKey), false), c, d3);
+  assert.equal(ac3(), 1);
+});
+
+test("a detail fetch that hit an outage makes the pass incomplete (not absent); a gone detail does not", async () => {
+  const refs = ["a", "b", "c"].map((k) => ({ externalKey: k, url: `https://b.example/${k}` }));
+  const withDetail = (failure: FetchFailure) =>
+    adapter(refs, async (r) => {
+      if (r.externalKey !== "b") return raw(r.externalKey);
+      // The real adapters route a detail fetch through detailOk: outage/gone -> null.
+      const c = ctxSeen;
+      return detailOk(failure, c!, r.url) ? raw(r.externalKey) : null;
+    });
+  let ctxSeen: AdapterContext | null = null;
+  const capture = (a: SourceAdapter): SourceAdapter => ({
+    ...a,
+    detail: (ref, c) => {
+      ctxSeen = c;
+      return a.detail(ref, c);
+    },
+  });
+  const { d, absentCalls } = deps();
+  const s = await reconcileSource(src, capture(withDetail({ kind: "outage", status: 503, detail: "http_503" })), ctx(), d);
+  assert.equal(s.outcome, "succeeded");
+  assert.equal(s.new, 2);
+  assert.equal(absentCalls(), 0, "b could not be read, which says nothing about whether it is gone");
+  const { d: d2, absentCalls: ac2 } = deps();
+  await reconcileSource(src, capture(withDetail({ kind: "gone", status: 404, detail: "http_404" })), ctx(), d2);
+  assert.equal(ac2(), 1, "a 404 detail IS evidence: the pass is complete");
 });

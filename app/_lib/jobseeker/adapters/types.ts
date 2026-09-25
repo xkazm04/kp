@@ -30,6 +30,10 @@ export type AdapterContext = {
   fetch: PoliteFetch;
   limits: AdapterLimits;
   log(event: AdapterLogEvent): void;
+  /** Says a posting could not be READ though it may still be live (a detail outage):
+   *  the run keeps going, but it is no longer a complete pass, so reconcile marks
+   *  nothing absent. Set by reconcile; absent in a bare context. */
+  incomplete?(reason: string): void;
 };
 
 export type SourceAdapter = {

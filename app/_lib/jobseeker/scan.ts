@@ -47,7 +47,9 @@ import { reconcileSource } from "./reconcile";
 import type { JobseekerPosting, JobseekerProfile, JobseekerSource, ScanSummary, SourceAdapterName, SourceRunSummary } from "./types";
 
 /** Per source per run. Tighter than DEFAULT_ADAPTER_LIMITS on refs: a twice-daily scan
- *  over several boards is a courtesy budget, and the next run picks up where this left off. */
+ *  over several boards is a courtesy budget. There is no cursor — the next run starts
+ *  from the top again — so a source that reaches either cap is a TRUNCATED pass and
+ *  reconcile marks nothing absent on it (a posting past the cap is unseen, not gone). */
 export const SCAN_LIMITS: AdapterLimits = { maxRefs: 300, maxDetailFetches: 60 };
 /** The whole scan — acquisition, structuring, matching, deep-dive — for one workspace. */
 export const SCAN_WALL_BUDGET_MS = 8 * 60_000;

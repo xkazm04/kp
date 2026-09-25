@@ -13,10 +13,13 @@ export function mustOk(outcome: FetchOutcome): FetchOk {
 }
 
 /** A detail fetch: `blocked`/`offline` halt the source (a denial anywhere is a
- *  denial), while `gone`/`outage`/`robots_disallowed` skip just this posting. */
+ *  denial), while `gone`/`outage`/`robots_disallowed` skip just this posting. An
+ *  outage also marks the pass incomplete: the posting was not read, which is not
+ *  evidence that it is gone (a 404/410 is). */
 export function detailOk(outcome: FetchOutcome, ctx: AdapterContext, url: string): FetchOk | null {
   if (outcome.kind === "ok") return outcome;
   if (outcome.kind === "blocked" || outcome.kind === "offline") throw new FetchHalt(outcome);
+  if (outcome.kind === "outage") ctx.incomplete?.(`detail_outage: ${url}`);
   ctx.log({ level: "warn", code: `detail_${outcome.kind}`, detail: `${url}: ${outcome.detail}` });
   return null;
 }
