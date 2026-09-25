@@ -257,3 +257,16 @@ test("PATCH on a gone row is refused: the opening was withdrawn, so no status mo
   }
   assert.equal(getJobseekerPosting(id)!.status, "gone", "a refused move writes nothing");
 });
+
+test("POST seen: only the canonical ISO instant is an anchor — a parseable non-ISO `at` would wedge it", async () => {
+  // "9999" parses (Date.parse → year 9999) but compares as a STRING against the ISO
+  // first_seen_at of every row: as the stored anchor it sorts after all of them, so
+  // nothing is ever "new" again and no forward beacon can move it.
+  for (const at of ["9999", "2026-09-16", "Wed, 16 Sep 2026 12:00:00 GMT", "2026-09-16T12:00:00Z"]) {
+    const bad = await seen({ at, id: "jpo-wedge" });
+    assert.equal(bad.status, 400, at);
+    const body = (await bad.json()) as { code: string; field: string };
+    assert.equal(body.code, "APPLY_SELECTION_INVALID");
+    assert.equal(body.field, "at");
+  }
+});

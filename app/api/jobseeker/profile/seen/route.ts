@@ -32,6 +32,11 @@ const MAX_TUPLE_CHARS = 64;
 
 type SeenBody = { at?: unknown; id?: unknown };
 
+function isCanonicalIso(at: string): boolean {
+  const ms = Date.parse(at);
+  return !Number.isNaN(ms) && new Date(ms).toISOString() === at;
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   const denied = await requireOperator();
   if (denied) return denied;
@@ -42,9 +47,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
   try {
     const body = (await request.json().catch(() => ({}))) as SeenBody;
-    // A timestamp this store can compare as a string: the ISO form every row carries.
-    // Anything else would make the monotonic predicate compare nonsense.
-    if (typeof body.at !== "string" || body.at.length > MAX_TUPLE_CHARS || Number.isNaN(Date.parse(body.at))) {
+    // A timestamp this store can compare as a string: the canonical ISO form every row
+    // carries (toISOString), byte for byte. "Parseable" is not enough — "9999" parses,
+    // then compares as a string AFTER every row's first_seen_at, and a stored anchor the
+    // monotonic predicate can never move past wedges the feed at "nothing new" for good.
+    if (typeof body.at !== "string" || body.at.length > MAX_TUPLE_CHARS || !isCanonicalIso(body.at)) {
       return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: "at" });
     }
     if (typeof body.id !== "string" || body.id.length === 0 || body.id.length > MAX_TUPLE_CHARS) {
