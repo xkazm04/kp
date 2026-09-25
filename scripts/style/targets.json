@@ -10,6 +10,14 @@
       "minText": 200,
       "note": "Settings -> Hiring pipeline composer (tab id `hiring`)"
     },
+    "settings-hiring-kit": {
+      "gate": true,
+      "path": "/?tab=hiring&kit=1",
+      "tab": "hiring",
+      "root": "main#main",
+      "minText": 200,
+      "note": "Settings -> Hiring rendered from the composition kit (the ?kit=1 switch is dev-only: shoot it with --server dev)"
+    },
     "channels": {
       "gate": true,
       "path": "/?tab=channels",
