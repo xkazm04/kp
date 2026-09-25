@@ -602,12 +602,13 @@ test("(stale stamp) a profile edit that lands while the scan is scoring leaves t
   let tick = 0;
   const clock = () => new Date(Date.parse(NOW) + 1000 * tick++).toISOString();
   const seeker: JobseekerProfile = { ...profile, updatedAt: NOW };
-  let editedAt: string | null = null;
+  // A holder, not a `let`: TS does not see the closure's write and would narrow a let to null.
+  const edit: { at: string | null } = { at: null };
   const scripted = scriptedRunner({ totals: () => 60 }, []);
   const runCli: CliRunner = async (call) => {
-    if (call.module === "match_cli" && editedAt === null) {
-      editedAt = clock();
-      seeker.updatedAt = editedAt;
+    if (call.module === "match_cli" && edit.at === null) {
+      edit.at = clock();
+      seeker.updatedAt = edit.at;
     }
     return scripted(call);
   };
@@ -616,10 +617,11 @@ test("(stale stamp) a profile edit that lands while the scan is scoring leaves t
     trigger: "manual",
     deps: { ...depsFor(store, runCli, [source("stale", { postings })], true, seeker), now: clock, getProfile: () => ({ ...seeker }) },
   });
+  const editedAt = edit.at;
   assert.ok(editedAt, "the edit landed mid-scan");
   const scored = [...store.rows.values()];
   assert.equal(scored.length, 3);
-  for (const r of scored) assert.ok(r.matchedAt !== null && r.matchedAt < editedAt!, `matchedAt ${r.matchedAt} must predate the edit at ${editedAt}`);
+  for (const r of scored) assert.ok(r.matchedAt !== null && r.matchedAt < editedAt, `matchedAt ${r.matchedAt} must predate the edit at ${editedAt}`);
   const next = store.deps.listPostingsForMatching(WS, { upToDateVersion: MATCH_VERSION, profileUpdatedAt: seeker.updatedAt });
   assert.equal(next.rows.length, 3, "scored against the OLD preferences: the next scan re-matches them");
   assert.equal(next.skippedUpToDate, 0);
