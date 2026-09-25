@@ -3,6 +3,7 @@ import {
   isDismissReason,
   isKoReasonKey,
   isPostingStatus,
+  isTargetAlignmentState,
   isWorkMode,
   FIT_TIERS,
   SALARY_PERIODS,
@@ -15,6 +16,7 @@ import {
   type PostingStatus,
   type RawPosting,
   type SalaryPeriod,
+  type TargetAlignment,
 } from "../jobseeker/types";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
@@ -171,7 +173,7 @@ function projectBlockedBy(match: Record<string, unknown> | null): JobseekerPosti
  *  empty: the as-if flags describe a score the posting does not have. */
 function projectMatch(
   match: Record<string, unknown> | null
-): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy" | "blockedDetails" | "asIfTotal" | "matchedSkills" | "missingSkills" | "previousTotal"> {
+): Pick<JobseekerPostingSummary, "eligibility" | "confidence" | "blockedBy" | "blockedDetails" | "asIfTotal" | "matchedSkills" | "missingSkills" | "previousTotal" | "targetAlignment"> {
   const eligibility = Array.isArray(match?.eligibility) ? (match.eligibility as EligibilityFlag[]) : [];
   const raw = match?.confidence;
   const confidence =
@@ -193,6 +195,29 @@ function projectMatch(
     matchedSkills: projectMatchedSkills(scored),
     missingSkills: projectStrings(scored?.missingSkills, SUMMARY_SKILL_CAP),
     previousTotal: projectPreviousTotal(scored),
+    targetAlignment: postingTargetAlignment(match),
+  };
+}
+
+/** The direction the matcher read (MatchResult `targetAlignment`, camelCase from
+ *  match_cli), from the row's own result — or, for a filtered row (`{blocked, asIf}`),
+ *  from its as-if result: the gate does not change which way the posting points. Null
+ *  when absent (the seeker stated no target), unmatched, or unreadable. match_cli drops
+ *  None fields (exclude_none), so a missing `matchedTitle`/`pastFamily` reads null.
+ *  Exported for the one-posting read (GET /api/jobseeker/postings/[id]). */
+export function postingTargetAlignment(match: Record<string, unknown> | null): TargetAlignment | null {
+  const blocked = match?.blocked && typeof match.blocked === "object";
+  const result = blocked ? match?.asIf : match;
+  const raw = result && typeof result === "object" ? (result as Record<string, unknown>).targetAlignment : null;
+  if (!raw || typeof raw !== "object") return null;
+  const t = raw as Record<string, unknown>;
+  if (!isTargetAlignmentState(t.state)) return null;
+  const text = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v : null);
+  return {
+    state: t.state,
+    matchedTitle: text(t.matchedTitle),
+    targetFamilies: projectStrings(t.targetFamilies, 20),
+    pastFamily: text(t.pastFamily),
   };
 }
 

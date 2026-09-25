@@ -307,7 +307,27 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
    *  (a CV or preference edit since): still shown, flagged, and re-dived by the next scan.
    *  False for a row with no rationale. */
   reasoningStale: boolean;
+  /** The direction the matcher read (match_json `targetAlignment`; a filtered row's comes
+   *  from its as-if result): "matches your target: AI Engineer" vs "matches your past".
+   *  Null when the seeker stated no target, or the row is not matched. */
+  targetAlignment: TargetAlignment | null;
 };
+
+/** How a posting sits against the seeker's STATED direction (pipeline/jobfit/matching.py
+ *  `TargetAlignment`): `target` — the title matches a stated target title (`matchedTitle`
+ *  is the seeker's own wording); `family` — the role family is one of `targetFamilies`;
+ *  `past` — neither, but it is the CV's own family (`pastFamily`); `none` — none of these. */
+export const TARGET_ALIGNMENT_STATES = ["target", "family", "past", "none"] as const;
+export type TargetAlignmentState = (typeof TARGET_ALIGNMENT_STATES)[number];
+export type TargetAlignment = {
+  state: TargetAlignmentState;
+  matchedTitle: string | null;
+  targetFamilies: string[];
+  pastFamily: string | null;
+};
+export function isTargetAlignmentState(v: unknown): v is TargetAlignmentState {
+  return typeof v === "string" && (TARGET_ALIGNMENT_STATES as readonly string[]).includes(v);
+}
 
 /** How many skills a summary row carries: enough for a card, never the whole payload. */
 export const SUMMARY_SKILL_CAP = 6;

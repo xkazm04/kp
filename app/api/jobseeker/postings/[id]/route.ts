@@ -4,14 +4,14 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { latestFitDialogForPosting } from "@/app/_lib/db/jobseeker-dialogs";
-import { getJobseekerPosting, getPostingSummary, setJobseekerPostingStatus } from "@/app/_lib/db/jobseeker-postings";
+import { getJobseekerPosting, getPostingSummary, postingTargetAlignment, setJobseekerPostingStatus } from "@/app/_lib/db/jobseeker-postings";
 import { getJobseekerSource } from "@/app/_lib/db/jobseeker-sources";
 import { catalogEntryForHost } from "@/app/_lib/jobseeker/sources-catalog";
 import { DISMISS_REASONS, isDismissReason, isPostingStatus } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { postingDetailView } from "@/app/features/jobseeker/postingView";
 
-// GET /api/jobseeker/postings/[id] → { view, fit, source } — one posting as the /me flow's
+// GET /api/jobseeker/postings/[id] → { view, fit, source, targetAlignment } — one posting as the /me flow's
 // Weigh step reads it: the SAME projection the server page used to hand its client
 // (postingView.ts: body as text, skill lists with provenance, breakdown, confidence,
 // eligibility, reasoning — never the raw JSON-LD or the structured Job), the latest
@@ -37,6 +37,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       view: postingDetailView(posting, entry?.label ?? source?.host ?? posting.sourceId, entry?.attribution ?? null),
       fit,
       source: source ? { id: source.id, tier: source.tier, host: source.host } : null,
+      // The direction the matcher read — the SAME projection the feed's summary carries
+      // (a filtered row's comes from its as-if result); null when no target was stated.
+      targetAlignment: postingTargetAlignment(posting.match),
     });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings/[id]", "JOBSEEKER_STORE_FAILED");
