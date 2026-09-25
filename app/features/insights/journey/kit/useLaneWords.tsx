@@ -56,24 +56,31 @@ export function useLaneWords() {
     [t, date, label]
   );
 
-  const statusMark = useCallback(
-    (l: LaneRow) => {
+  /** The status in words: the mark's tip, and the pane's Status value beside the mark. */
+  const statusWord = useCallback(
+    (l: LaneRow): string => {
       switch (l.status) {
-        case "needs": return <Mark kind="needs" tip={t("kit.markNeeds")} />;
-        case "hired": return <Mark kind="ok" tip={t("cohort.outcome.hired")} />;
-        case "rejected": return <Mark kind="fail" tip={t("cohort.outcome.rejected")} />;
-        case "withdrawn": return <Mark kind="bounce" tip={t("cohort.outcome.withdrawn")} />;
-        case "rematched": return <Mark kind="recovered" tip={t("cohort.outcome.rematched")} />;
-        case "stalled": return <Mark kind="wait" tip={t("cohort.outcome.stalled")} />;
-        case "open": return <Mark kind="wait" tip={t("kit.markOpen", { stage: l.column.stage })} />;
-        case "empty": {
-          const e = emptyWords(l);
-          return <Mark kind={e.reasoned ? "unknown" : "caution"} tip={e.text} />;
-        }
+        case "needs": return t("kit.markNeeds");
+        case "hired": return t("cohort.outcome.hired");
+        case "rejected": return t("cohort.outcome.rejected");
+        case "withdrawn": return t("cohort.outcome.withdrawn");
+        case "rematched": return t("cohort.outcome.rematched");
+        case "stalled": return t("cohort.outcome.stalled");
+        case "open": return t("kit.markOpen", { stage: l.column.stage });
+        case "empty": return emptyWords(l).text;
       }
     },
     [t, emptyWords]
   );
 
-  return { cellTip, statusMark, emptyWords, label };
+  const statusMark = useCallback(
+    (l: LaneRow) => {
+      const kind = ({ needs: "needs", hired: "ok", rejected: "fail", withdrawn: "bounce", rematched: "recovered", stalled: "wait", open: "wait" } as const)[l.status as Exclude<LaneRow["status"], "empty">];
+      if (l.status === "empty") return <Mark kind={emptyWords(l).reasoned ? "unknown" : "caution"} tip={statusWord(l)} />;
+      return <Mark kind={kind} tip={statusWord(l)} />;
+    },
+    [emptyWords, statusWord]
+  );
+
+  return { cellTip, statusMark, statusWord, emptyWords, label };
 }

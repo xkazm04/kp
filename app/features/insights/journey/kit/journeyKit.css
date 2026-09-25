@@ -5,6 +5,11 @@
 /* The overlay is the viewport, so the board sets its own margins: the overlay header's 20px. */
 .jk-frame { padding: 16px 20px 48px; }
 
+/* The tables window their own rows, so their heads need not stick to the overlay's scroll; sticky,
+   a head rode over its own section's rows and pager while the page scrolled (Roles looked clipped
+   under its head with the pane open). Each Section keeps its full height. */
+.jk .k-table__head { position: static; }
+
 /* ---------- the lane table: the lanes ARE this surface, so they get the width ---------- */
 /* The measure's name track is a proportion (26%) and its act track 104px; this table has no row
    action (the row opens the pane) and a two-line name, so the rail and the lanes take what the two
@@ -27,6 +32,12 @@
 .jk-legend { padding: 2px 0 12px calc(var(--m-mark) + var(--m-gap)); }
 
 /* ---------- the pane ---------- */
+/* The role's kind rail in the pane: its labels are sentences, so they wrap in the free column and
+   the state ("1 event", "skipped", "not reached") and the date keep the width their words need.
+   The kit's column rail gives the label max-content, which starved the state to "Ski…". */
+.jk-vrail .k-vrail { grid-template-columns: 22px minmax(0, 1fr) max-content max-content; }
+.jk-vrail .k-vrail__label { white-space: normal; }
+.jk-vrail .k-vrail__n, .jk-vrail .k-vrail__n > span { white-space: nowrap; overflow: visible; }
 /* On this surface italic means "generated" and nothing else (the Broadsheet's rule): a silence or a
    missing phase is a gap row, set upright. */
 .jk-trail .k-mini.k-gap { font-style: normal; }

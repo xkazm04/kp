@@ -13652,6 +13652,7 @@
       "cellReached": "{count, plural, one {# Ereignis} other {# Ereignisse}}, zuerst am {date}",
       "cellHidden": "Hier gibt es nur unbestätigte Zeilen, ausgeblendet durch Nur beobachtete Zeilen",
       "cellMachine": "die Maschine hat es erledigt",
+      "stateSkipped": "übersprungen",
       "legend": {
         "solid": "beobachtet",
         "half": "nur über den Namen zugeordnet",

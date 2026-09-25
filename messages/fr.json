@@ -13652,6 +13652,7 @@
       "cellReached": "{count, plural, one {# événement} other {# événements}}, le premier le {date}",
       "cellHidden": "Seulement des lignes non confirmées ici, masquées par Lignes observées uniquement",
       "cellMachine": "la machine l'a fait",
+      "stateSkipped": "sauté",
       "legend": {
         "solid": "observé",
         "half": "rapproché par le nom seulement",

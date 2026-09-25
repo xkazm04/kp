@@ -13652,6 +13652,7 @@
       "cellReached": "{count, plural, one {# event} other {# events}}, first {date}",
       "cellHidden": "Only unconfirmed rows here, hidden by Observed rows only",
       "cellMachine": "the machine took it",
+      "stateSkipped": "skipped",
       "legend": {
         "solid": "observed",
         "half": "matched by name only",

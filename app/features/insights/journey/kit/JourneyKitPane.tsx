@@ -22,7 +22,7 @@ export function JourneyKitPane({ k }: { k: JourneyKit }) {
   const locale = useLocale();
   const { date } = useDateFormat();
   const sentence = useJourneySentence();
-  const { statusMark } = useLaneWords();
+  const { statusMark, statusWord } = useLaneWords();
   const cluster = k.cluster;
   if (!k.pane || !cluster) return null;
 
@@ -50,7 +50,8 @@ export function JourneyKitPane({ k }: { k: JourneyKit }) {
       shape: s.shape,
       tip: s.state === "present" ? `${label}${word ? `. ${t(word)}` : ""}` : `${label}: ${t(s.state === "skipped" ? "rail.skipped" : "rail.neverReached")}`,
       count: s.events.length,
-      reason: s.state === "present" ? undefined : t(s.state === "skipped" ? "rail.skipped" : "rail.neverReached"),
+      // The short word in the row (the full sentence is the shape's tip), so it never truncates.
+      reason: s.state === "present" ? undefined : t(s.state === "skipped" ? "kit.stateSkipped" : "kit.legend.none"),
       time: s.events[0] ? date(s.events[0].occurredAt) : undefined,
     };
   });
@@ -73,14 +74,16 @@ export function JourneyKitPane({ k }: { k: JourneyKit }) {
         items={[
           { label: t("kit.kvStage"), value: col.stage },
           { label: t("kit.colMatch"), value: col.matchScore == null ? null : formatCount(col.matchScore, locale), absent: t("kit.neverScored") },
-          { label: t("kit.kvStatus"), value: <span className="jk-status">{statusMark(lane)}</span> },
+          { label: t("kit.kvStatus"), value: <span className="jk-status">{statusMark(lane)} {statusWord(lane)}</span> },
           { label: t("kit.kvLanguage"), value: col.locale },
           { label: t("kit.kvOrigin"), value: col.origin.kind === "live" ? t("kit.originLive") : `${t("mark.testRun")} · ${col.origin.runId}` },
           { label: t("kit.kvEvents"), value: formatCount(col.events.length, locale) },
         ]}
       />
       <Section title={t("kit.paneThrough")} count={t("kit.paneThroughCount", { reached, total: steps.length })}>
-        <StageRail orientation="column" steps={column} label={t("rail.forRole", { role: cluster.title })} />
+        <div className="jk-vrail">
+          <StageRail orientation="column" steps={column} label={t("rail.forRole", { role: cluster.title })} />
+        </div>
       </Section>
       <Section title={t("kit.paneTrail")} count={formatCount(col.events.length, locale)}>
         <JourneyKitTrail key={col.entryId} rows={rows} entryId={col.entryId} origin={col.origin} />

@@ -13652,6 +13652,7 @@
       "cellReached": "{count, plural, one {# událost} few {# události} many {# události} other {# událostí}}, první {date}",
       "cellHidden": "Jsou tu jen nepotvrzené řádky, skryté volbou Jen pozorované řádky",
       "cellMachine": "provedl to stroj",
+      "stateSkipped": "přeskočeno",
       "legend": {
         "solid": "pozorováno",
         "half": "spárováno jen podle jména",
