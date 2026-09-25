@@ -23,14 +23,8 @@
     "data/[token]/DataClient.tsx": {
       "skeleton": 8
     },
-    "features/hiring/pipeline/PipelineStatHeader.tsx": {
-      "skeleton": 1
-    },
     "features/hiring/pipeline/candidate/scorecard/DetailScoreParts.tsx": {
       "skeleton": 1
-    },
-    "features/hiring/pipeline/map/orchard/TicketEvidence.tsx": {
-      "skeleton": 2
     },
     "features/setup-studio/VoicePanel.tsx": {
       "skeleton": 2

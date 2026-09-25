@@ -293,7 +293,4 @@ test("the Today rail resolves its stage buckets by ROLE, not by stage name", () 
     /e\.stage === "/,
     "a literal stage-name test answers a different question on a composed board"
   );
-  const src = readFileSync(resolve(HERE, "PipelineTodayRail.tsx"), "utf8");
-  assert.match(src, /deriveRailRows\(/, "the rail must render the shared derivation, not re-derive");
-  assert.doesNotMatch(src, /e\.stage === "/, "…and must not grow a name-based bucket of its own");
 });

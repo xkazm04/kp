@@ -22,8 +22,6 @@
 // Runner: Node's built-in test runner with type stripping. `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-
 import { armedConfirm, bulkConfirmReducer, type BulkConfirm } from "./pipelineBulkConfirm.ts";
 import {
   selectionOutsideVisible,
@@ -201,36 +199,6 @@ test("nothing to disclose when the whole selection is on screen", () => {
 test("an empty selection discloses nothing, and an empty board discloses everything", () => {
   assert.deepEqual(selectionOutsideVisible(new Set<string>(), [{ id: "e1" }]), []);
   assert.deepEqual(selectionOutsideVisible(new Set(["e1", "e2"]), []), ["e1", "e2"]);
-});
-
-test("the bulk bar actually RENDERS the disclosure, in every locale", () => {
-  // The pure helper above proves the count is computable; this proves the recruiter
-  // is told. Two independent ways this could silently rot: the bar stops rendering the
-  // key, or the key is dropped from the catalogs. `npm run i18n:check` catches neither
-  // when a key is missing from ALL FOUR locales (parity stays green on a uniform
-  // deletion), so the locale set is asserted here against the catalog dir itself —
-  // never against a hand-typed locale list that could drift when a 5th locale lands.
-  const dir = new URL("../../../../messages/", import.meta.url);
-  const locales = readdirSync(dir).filter((f) => f.endsWith(".json"));
-  assert.ok(locales.length >= 4, `expected the four shipped locales, found ${locales.join(", ")}`);
-
-  const bar = readFileSync(new URL("./PipelineBulkActionBar.tsx", import.meta.url), "utf8");
-  assert.match(
-    bar,
-    /t\("selectedOutsideFilter", \{ count: selectedOutsideCount \}\)/,
-    "the bulk bar must render the out-of-filter count next to the selected count"
-  );
-
-  for (const file of locales) {
-    const cat = JSON.parse(readFileSync(new URL(file, dir), "utf8")) as {
-      pipeline?: { tab?: Record<string, string> };
-    };
-    const copy = cat.pipeline?.tab?.selectedOutsideFilter;
-    assert.ok(copy, `messages/${file} is missing pipeline.tab.selectedOutsideFilter`);
-    // Literal {count} or an ICU plural over count ({count, plural, …} — the
-    // Czech catalog uses the plural form for proper one/few/other agreement).
-    assert.match(copy, /\{count[,}]/, `messages/${file}: the disclosure must state HOW MANY rows are hidden`);
-  }
 });
 
 test("the selection is NOT pruned — disclosure is the mechanism, by design", () => {

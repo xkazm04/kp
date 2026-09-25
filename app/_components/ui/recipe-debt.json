@@ -103,9 +103,6 @@
     "features/hiring/pipeline/PassPreviewModal.tsx": {
       "noticeAmber": 1
     },
-    "features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx": {
-      "noticeAmber": 1
-    },
     "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
       "panel": 1
     },
@@ -115,17 +112,8 @@
     "features/hiring/pipeline/PipelineConsentPanel.tsx": {
       "rawDate": 1
     },
-    "features/hiring/pipeline/PipelineFilterBar.tsx": {
-      "noticeAmber": 1
-    },
-    "features/hiring/pipeline/PipelineFilterMenu.tsx": {
-      "panel": 1
-    },
     "features/hiring/pipeline/PipelineHireOutcomeCard.tsx": {
       "rawDate": 1
-    },
-    "features/hiring/pipeline/PipelineViewDialog.tsx": {
-      "noticeAmber": 1
     },
     "features/hiring/pipeline/SchedulerToolbar.tsx": {
       "noticeAmber": 1

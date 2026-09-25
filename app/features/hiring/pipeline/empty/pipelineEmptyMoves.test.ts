@@ -61,7 +61,8 @@ test("the empty set draws one lane per live axis stage, not the shipped five nam
   assert.equal(emptyBoardLanes(DEFAULT_STAGE_AXIS)[0]?.role, "entry");
 
   const emptySrc = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "PipelineEmptyState.tsx"), "utf8");
-  const tabSrc = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "PipelineTab.tsx"), "utf8");
+  // The kit view mounts the empty set since the kit promotion (kit-unification, Gate K2).
+  const tabSrc = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "kit", "PipelineKitView.tsx"), "utf8");
   assert.match(tabSrc, /axis=\{s\.axis\}/, "the tab threads the loaded axis into the empty set");
   assert.match(emptySrc, /emptyBoardLanes\(axis\)/);
   assert.match(emptySrc, /isEmptyBoardEntryLane\(stage\)/);

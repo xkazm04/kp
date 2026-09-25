@@ -94,7 +94,7 @@ test("the batch route carries the helper's CODE onto each per-id row", () => {
   assert.match(src, /REFUSAL_ERRORS\.PIPELINE_BATCH_ITEM_FAILED/);
 });
 
-test("the bulk action bar resolves those codes instead of painting the server's string", () => {
+test("the bulk hook keeps those codes instead of the server's string", () => {
   // The per-id fold lives in pipelineBulkSelection.ts since challenge-r06
   // (pipeline-move-bulk-operations/A): one fold for move, decide and invite.
   const hook =
@@ -103,10 +103,7 @@ test("the bulk action bar resolves those codes instead of painting the server's 
   assert.match(hook, /reasonCodes/, "the hook must keep the CODES");
   assert.ok(!/reasons\.add\(r\.reason\)/.test(hook), "keeping the server's prose is the bug this closes");
   assert.match(hook, /if \(r\.code\) reasonCodes\.add\(r\.code\)/);
-
-  const bar = read("../../features/hiring/pipeline/PipelineBulkActionBar.tsx");
-  assert.match(bar, /useErrorMessage/, "the bar resolves errors.<CODE> in the reader's language");
-  assert.match(bar, /reasonCodes\?\.length/, "…and renders the resolved codes");
+  // The bulk action bar that rendered them left with the board view (kit-unification, Gate K2).
 });
 
 test("STAGE_MIGRATION_FAILED no longer claims nothing was saved", () => {

@@ -14,8 +14,8 @@
 // body read at all.
 //
 // The hook is React state over a fetch and the repo has no component renderer, so
-// the contract is pinned by reading the source — the technique PipelineFilterBar.test.ts
-// and pipelineMoveTargets.test.ts already use for this directory.
+// the contract is pinned by reading the source — the technique drawerCommsTruth.test.ts
+// already uses for this directory.
 //
 // Runner: Node's built-in test runner (no extra deps).
 //   npm run test:unit
@@ -25,7 +25,6 @@ import { readFileSync } from "node:fs";
 import { resolveErrorMessage } from "../../../_lib/use-error-message.ts";
 
 const hook = readFileSync(new URL("./usePipelineBulk.ts", import.meta.url), "utf8");
-const bar = readFileSync(new URL("./PipelineBulkActionBar.tsx", import.meta.url), "utf8");
 
 // Re-anchored by challenge-r06 pipeline-move-bulk-operations/A: the refusal fold moved
 // out of the hook into ONE pure function (pipelineBulkSelection.foldBatchSettle), so the
@@ -50,16 +49,10 @@ test("bulk invite reads the refusal body instead of counting silent failures", (
   assert.match(invite, /foldBatchSettle\(/, "…and it settles through the one fold, whose codes reach bulkResult");
 });
 
-test("the bar renders a capability refusal with the permission as data", () => {
-  // The bar's status-line type IS the reducer's (one definition since challenge-r06).
-  assert.match(bar, /import type \{ BulkResult as BulkSelectionResult \} from "\.\/pipelineBulkSelection"/);
-  assert.match(selection, /refusalCapability\?: string \| null;/, "the bar must accept the capability the hook carried");
-  assert.match(
-    bar,
-    /capabilityAwareReason\(errMsg, \{ code, capability: bulkResult\.refusalCapability \}, t\("bulkRequestFailed"\)\)/,
-    "…and fold it into the localized sentence rather than painting a bare code"
-  );
-  assert.doesNotMatch(bar, /bulkResult\.reason\b[^C]*\.error/, "the bar never paints a server `error` string");
+test("the fold carries the capability a refusal named", () => {
+  // The bulk bar that rendered it left with the board view (kit-unification, Gate K2); the fold's
+  // result type still carries the permission for the next surface that renders a bulk refusal.
+  assert.match(selection, /refusalCapability\?: string \| null;/, "the result must carry the capability the hook read");
 });
 
 // The fold itself, against the real catalog: a FORBIDDEN_CAPABILITY payload that

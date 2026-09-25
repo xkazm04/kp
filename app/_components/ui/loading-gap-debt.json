@@ -30,9 +30,6 @@
     "features/hiring/decisions/DecisionsTab.tsx": {
       "blockGap": 1
     },
-    "features/hiring/pipeline/PipelineTab.tsx": {
-      "blockGap": 3
-    },
     "features/hiring/schedule/ScheduleAiRound.tsx": {
       "blockGap": 1
     },

@@ -617,34 +617,6 @@
       "raw-status-hue": 4,
       "raw-button": 3
     },
-    "features/hiring/pipeline/PipelineActivityFeed.tsx": {
-      "raw-text-size": 6,
-      "raw-status-hue": 2,
-      "raw-button": 1
-    },
-    "features/hiring/pipeline/PipelineAttentionStrip.tsx": {
-      "raw-text-size": 2,
-      "raw-status-hue": 3
-    },
-    "features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx": {
-      "raw-text-size": 4,
-      "raw-status-hue": 6,
-      "raw-button": 2,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/PipelineBulkActionBar.tsx": {
-      "raw-text-size": 9,
-      "raw-button": 5
-    },
-    "features/hiring/pipeline/PipelineBulkDecideRow.tsx": {
-      "raw-text-size": 6,
-      "raw-stone-text": 1,
-      "raw-button": 3
-    },
-    "features/hiring/pipeline/PipelineBulkOutreachButton.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 2
-    },
     "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
       "raw-text-size": 1,
       "bare-rounded": 1
@@ -683,16 +655,6 @@
     "features/hiring/pipeline/PipelineDrawerHistoryList.tsx": {
       "raw-text-size": 2
     },
-    "features/hiring/pipeline/PipelineFilterBar.tsx": {
-      "raw-text-size": 4,
-      "raw-status-hue": 5,
-      "raw-button": 3,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/PipelineFilterMenu.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 2
-    },
     "features/hiring/pipeline/PipelineGithubEvidenceCard.tsx": {
       "raw-text-size": 10,
       "raw-status-hue": 1,
@@ -714,18 +676,9 @@
     "features/hiring/pipeline/PipelineInterviewTelemetryStrip.tsx": {
       "raw-text-size": 1
     },
-    "features/hiring/pipeline/PipelinePopulatedBoard.tsx": {
-      "raw-text-size": 1,
-      "raw-button": 1
-    },
     "features/hiring/pipeline/PipelineRematchAffordance.tsx": {
       "raw-button": 1,
       "bare-rounded": 1
-    },
-    "features/hiring/pipeline/PipelineSavedViews.tsx": {
-      "raw-text-size": 1,
-      "raw-button": 5,
-      "bare-rounded": 5
     },
     "features/hiring/pipeline/PipelineSelfSchedulingPanel.tsx": {
       "raw-text-size": 6,
@@ -736,35 +689,12 @@
       "raw-text-size": 2,
       "raw-status-hue": 2
     },
-    "features/hiring/pipeline/PipelineSlaEditor.tsx": {
-      "raw-text-size": 1,
-      "raw-status-hue": 1
-    },
-    "features/hiring/pipeline/PipelineStatHeader.tsx": {
-      "raw-status-hue": 2,
-      "raw-button": 1,
-      "literal-page-header": 1
-    },
-    "features/hiring/pipeline/PipelineTab.tsx": {
-      "raw-text-size": 2,
-      "raw-status-hue": 4,
-      "raw-button": 1,
-      "bare-rounded": 1
-    },
     "features/hiring/pipeline/PipelineTimelineItemRow.tsx": {
       "raw-status-hue": 2
-    },
-    "features/hiring/pipeline/PipelineTodayRail.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 1
     },
     "features/hiring/pipeline/PipelineTokenLink.tsx": {
       "raw-text-size": 4,
       "raw-button": 2
-    },
-    "features/hiring/pipeline/PipelineViewDialog.tsx": {
-      "raw-text-size": 4,
-      "raw-status-hue": 3
     },
     "features/hiring/pipeline/PipelineVoiceScreenPanel.tsx": {
       "raw-text-size": 11,
@@ -847,61 +777,6 @@
       "raw-status-hue": 2,
       "raw-button": 1,
       "bare-rounded": 1
-    },
-    "features/hiring/pipeline/map/CellOverlaySpectrum.tsx": {
-      "raw-text-size": 1
-    },
-    "features/hiring/pipeline/map/orchard/OrchardBranch.tsx": {
-      "raw-text-size": 3
-    },
-    "features/hiring/pipeline/map/orchard/OrchardGrid.tsx": {
-      "raw-text-size": 1
-    },
-    "features/hiring/pipeline/map/orchard/OrchardHeader.tsx": {
-      "raw-text-size": 2,
-      "literal-page-header": 1
-    },
-    "features/hiring/pipeline/map/orchard/OrchardTicket.tsx": {
-      "below-floor-text": 3,
-      "raw-text-size": 5,
-      "raw-status-hue": 2,
-      "raw-button": 1,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/map/orchard/TicketEvidence.tsx": {
-      "below-floor-text": 5,
-      "raw-status-hue": 4,
-      "bare-rounded": 2
-    },
-    "features/hiring/pipeline/map/orchard/UnscoredBay.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 1
-    },
-    "features/hiring/pipeline/map/subway/LineContextMenu.tsx": {
-      "raw-text-size": 1,
-      "raw-status-hue": 3,
-      "raw-button": 1,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/map/subway/SubwayBeads.tsx": {
-      "below-floor-text": 4,
-      "arbitrary-text-size": 1,
-      "raw-text-size": 1,
-      "raw-button": 2,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/map/subway/SubwayLineRow.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 4,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/map/subway/SubwayMarks.tsx": {
-      "below-floor-text": 2,
-      "arbitrary-text-size": 1,
-      "raw-text-size": 1,
-      "raw-stone-text": 1,
-      "raw-status-hue": 4,
-      "raw-button": 1
     },
     "features/hiring/schedule/ScheduleAddToCalendar.tsx": {
       "raw-text-size": 1,

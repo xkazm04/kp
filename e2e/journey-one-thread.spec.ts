@@ -385,13 +385,16 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   expect(onBoard[0].matchScore, "a work sample must not be written into the match score").toBeNull();
   expect(typeof onBoard[0].transferScore, "the transfer score reaches the board as itself").toBe("number");
 
-  // …and the board SAYS so. The bead's title carries the kind sentence only on a
-  // non-match score (beadTitle, map/PipelineBoardSubway.tsx): it tells a recruiter
-  // which of the four 0-100 numbers they are looking at.
+  // …and the board does not pass it off as a match. The board is the composition-kit list
+  // (kit-unification, Gate K2): its Match column reads the canonical match score only
+  // (canonicalScoreOf, kit/PipelineKitList.tsx), so a transfer-scored entry shows the absent
+  // mark there, never the transfer number. (The old subway bead also NAMED the kind in its
+  // title; the kit list has no such line yet.)
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(CANDIDATE)}`);
-  const row = page.getByRole("button", { name: CANDIDATE }).first();
+  const row = page.getByRole("row").filter({ hasText: CANDIDATE }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTitle(/A work-sample transfer score, not a match score/).first()).toBeVisible();
+  // Cells: mark, candidate, stage, source, MATCH, age, act.
+  await expect(row.getByRole("cell").nth(4)).toHaveText("—");
 });
 
 test("the voice screen is offered from the assignment, on the same entry", async ({ page }) => {

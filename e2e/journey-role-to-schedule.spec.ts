@@ -110,19 +110,19 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   }).toPass({ timeout: 30_000 });
 }
 
-// Open ONE candidate in the candidate modal, by name. `?q=` pre-filters the board to
-// that candidate, so the bead is never hidden behind a "+N" overflow. Same
-// dev-hydration retry as the sibling specs: click until the modal opens. The modal is
-// named by its heading (the candidate's label). Shared by the mint step (the footer's
-// scheduling link) and the confirmed-booking step (the Activity tab), which read the
+// Open ONE candidate in the candidate modal, by name. `?q=` pre-filters the board's list to
+// that candidate, so its row is inside the list's window. The board is the composition-kit
+// surface (kit-unification, Gate K2): a row opens the reading pane, and the pane's "Full record"
+// opens the candidate modal, which is named by its heading (the candidate's label). Same
+// dev-hydration retry as the sibling specs: click until the modal opens. Shared by the mint step
+// (the footer's scheduling link) and the confirmed-booking step (the Activity tab), which read the
 // same candidate for different halves of the same invite.
 //
 // A CANDIDATE LABEL IS NOT AN ENTRY ID, and this helper can only address the board
-// by label. One person can hold two pipeline entries (two jobs), and both rows
-// render the SAME accessible name — `Actions for {name}` is built from
-// `entry.candidateLabel` alone (the bead's label, map/PipelineBoardSubway.tsx) and
-// the bead carries no id anchor in the DOM. So `.first()` opens whichever row the board's column
-// ordering happens to put first, which need not be the entry the caller chose from
+// by label. One person can hold two pipeline entries (two jobs), and both list rows
+// carry the SAME name (`entry.candidateLabel`, kit/PipelineKitList.tsx) with no id in
+// their accessible text. So `.first()` would open whichever row the list's ordering
+// happens to put first, which need not be the entry the caller chose from
 // /api/pipeline. If that row's entry fails the modal's own gate
 // (`showLinks` = active + a screening/interview stage, the candidate state hook)
 // the modal opens under the RIGHT NAME with the self-scheduling panel absent — a
@@ -134,16 +134,20 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
 async function openCandidateModal(page: Page, label: string): Promise<Locator> {
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(label)}`);
   const modal = page.getByRole("dialog", { name: label, exact: true });
-  const rowMenus = page.getByRole("button", { name: `Actions for ${label}` });
-  const rowMenu = rowMenus.first();
-  await expect(rowMenu).toBeVisible({ timeout: 30_000 });
+  const rows = page.getByRole("row").filter({ hasText: label });
+  const row = rows.first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(
-    rowMenus,
-    `"${label}" matches more than one board row — the row's accessible name carries no entry id, ` +
+    rows,
+    `"${label}" matches more than one board row — the row carries no entry id, ` +
       "so .first() would open an arbitrary one of this person's entries. Pick a label unique on the board."
   ).toHaveCount(1);
+  const fullRecord = page.getByRole("button", { name: "Full record" });
   await expect(async () => {
-    if (!(await modal.isVisible())) await rowMenu.click().catch(() => undefined);
+    if (!(await modal.isVisible())) {
+      if (!(await fullRecord.isVisible())) await row.click().catch(() => undefined);
+      await fullRecord.click({ timeout: 1000 }).catch(() => undefined);
+    }
     await expect(modal).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });
   return modal;
