@@ -14,6 +14,7 @@ import { memo, useCallback, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 import type { JourneyPhaseId } from "@/app/_lib/journey/types";
+import { unobservedBandKey } from "./journeyMarks";
 import { GeneratedStrip, NeverRecorded, NeverReachedTail, NothingHappened, SkippedCell } from "./JourneyAbsence";
 import { JourneyRow } from "./JourneyRow";
 import {
@@ -182,7 +183,7 @@ function JourneyColumnImpl({
                 goes, so the third empty state costs no extra height and lands
                 exactly on the rail's band label. */}
             {isAllGenerated(plan, phase) ? (
-              <GeneratedStrip height={JOURNEY_BAND_LABEL_PX} />
+              <GeneratedStrip height={JOURNEY_BAND_LABEL_PX} reasonKey={unobservedBandKey(column.origin)} />
             ) : (
               <div style={{ height: JOURNEY_BAND_LABEL_PX }} className="shrink-0 border-b border-stone-200 bg-stone-50" />
             )}

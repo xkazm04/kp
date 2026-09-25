@@ -91,6 +91,26 @@ export function rowProvenance(
   };
 }
 
+/**
+ * What kind of row this is, as catalog keys: "a real product row" for an observed row, "from a
+ * test run" ONLY when the column came from one, and "matched by name alone" for a name-only row.
+ * The two unobserved reasons are different facts: a live row joined by name is not a test run,
+ * and the board used to read every unobserved row aloud as "From a test run".
+ */
+export type ProvenanceKey = "mark.observed" | "mark.testRun" | "mark.labelOnly";
+export function provenanceKeys(p: RowProvenance): ProvenanceKey[] {
+  const keys: ProvenanceKey[] = [];
+  if (p.observed) keys.push("mark.observed");
+  if (p.fromTestRun) keys.push("mark.testRun");
+  if (p.labelOnly) keys.push("mark.labelOnly");
+  return keys;
+}
+
+/** Why a band whose every row is unobserved is so: a test-run column, or rows matched by name. */
+export function unobservedBandKey(origin: JourneyOrigin | undefined): "mark.testRun" | "mark.labelOnly" {
+  return origin !== undefined && origin.kind === "test-run" ? "mark.testRun" : "mark.labelOnly";
+}
+
 /* ── The marks themselves ──────────────────────────────────────────────────
  *
  * Every colour resolves through a brand token so it follows [data-theme="dark"]:

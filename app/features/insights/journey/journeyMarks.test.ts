@@ -59,3 +59,15 @@ test("no class string carries a literal colour — every mark resolves through a
     assert.equal(/rgba?\(/.test(value), false, value);
   }
 });
+
+test("a live name-only row is never announced as a test run", async () => {
+  const { provenanceKeys, unobservedBandKey } = await import("./journeyMarks.ts");
+  const live = { kind: "live" } as const;
+  const testRun = { kind: "test-run", runId: "uat-1" } as const;
+  assert.deepEqual(provenanceKeys(rowProvenance({ actor: null, confidence: "label-only" }, live)), ["mark.labelOnly"]);
+  assert.deepEqual(provenanceKeys(rowProvenance({ actor: null }, live)), ["mark.observed"]);
+  assert.deepEqual(provenanceKeys(rowProvenance({ actor: null }, testRun)), ["mark.testRun"]);
+  assert.deepEqual(provenanceKeys(rowProvenance({ actor: null, confidence: "label-only" }, testRun)), ["mark.testRun", "mark.labelOnly"]);
+  assert.equal(unobservedBandKey(live), "mark.labelOnly");
+  assert.equal(unobservedBandKey(testRun), "mark.testRun");
+});

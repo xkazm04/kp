@@ -90,13 +90,15 @@ export function JourneyFactCard({
         <span className="rounded-full border border-stone-200 px-2 py-0.5 text-xs text-steel">
           {t(ACTOR_MARK_KEY[p.actor])}
         </span>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs ${
-            p.observed ? "border border-moss text-moss" : "border border-dashed border-amber-400 text-amber-900"
-          }`}
-        >
-          {p.observed ? t("mark.observed") : t("mark.testRun")}
-        </span>
+        {p.observed || p.fromTestRun ? (
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              p.observed ? "border border-moss text-moss" : "border border-dashed border-amber-400 text-amber-900"
+            }`}
+          >
+            {p.observed ? t("mark.observed") : t("mark.testRun")}
+          </span>
+        ) : null}
         {p.labelOnly ? (
           <span className="rounded-full border border-dashed border-amber-400 px-2 py-0.5 text-xs text-amber-900">
             {t("mark.labelOnly")}

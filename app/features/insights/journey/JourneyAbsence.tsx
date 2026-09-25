@@ -13,7 +13,8 @@
 //                      Deliberately loud: this is a hole in the ledger, not a
 //                      decision somebody made.
 //   3 GeneratedStrip   the band has rows but not one of them is a real,
-//                      certainly-attributed product row. `mark.testRun`.
+//                      certainly-attributed product row. `mark.testRun` for a
+//                      test-run column, `mark.labelOnly` for rows matched by name.
 //
 //  ROW-level (one canonical step, imported from the contest's runner-up)
 //   4 SkippedCell      no event at this step, but the journey went on.
@@ -62,7 +63,7 @@ export function NeverRecorded({ height }: { height: number }) {
 }
 
 /** 3 — the band holds rows, but the ledger vouches for none of them. */
-export function GeneratedStrip({ height }: { height: number }) {
+export function GeneratedStrip({ height, reasonKey }: { height: number; reasonKey: "mark.testRun" | "mark.labelOnly" }) {
   const t = useTranslations("journey");
   return (
     <div
@@ -70,7 +71,7 @@ export function GeneratedStrip({ height }: { height: number }) {
       style={{ height }}
     >
       <span className="h-2 w-2 shrink-0 rotate-45 border border-dashed border-amber-600" aria-hidden="true" />
-      <span>{t("mark.testRun")}</span>
+      <span>{t(reasonKey)}</span>
     </div>
   );
 }

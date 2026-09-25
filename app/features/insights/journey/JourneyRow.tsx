@@ -29,7 +29,7 @@ import { memo } from "react";
 import { useTranslations } from "next-intl";
 import type { JourneyEvent, JourneyOrigin } from "@/app/_lib/journey/types";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { ACTOR_GLYPH, ACTOR_MARK_KEY, rowFrameClass, rowProvenance, rowTextClass } from "./journeyMarks";
+import { ACTOR_GLYPH, ACTOR_MARK_KEY, provenanceKeys, rowFrameClass, rowProvenance, rowTextClass } from "./journeyMarks";
 import { useJourneySentence } from "./useJourneySentence";
 
 export type JourneyRowProps = {
@@ -92,8 +92,7 @@ function JourneyRowImpl({
           </span>
           <span className="sr-only">
             {` — ${t(ACTOR_MARK_KEY[p.actor])}`}
-            {p.observed ? ` — ${t("mark.observed")}` : ` — ${t("mark.testRun")}`}
-            {p.labelOnly ? ` — ${t("mark.labelOnly")}` : ""}
+            {provenanceKeys(p).map((key) => ` — ${t(key)}`).join("")}
           </span>
         </span>
         <time dateTime={event.occurredAt} className="nums mt-px shrink-0 text-xs text-steel">
