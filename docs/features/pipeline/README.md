@@ -542,49 +542,89 @@ mapping from board rows to layers, dots and list rows is `kit/pipelineKitModel.t
    live-status population the old stat header counted): Active of all live, Awaiting you
    (coral when anything waits, with a tip) and Hired. Its one primary action, "Review N
    waiting", appears only when approvals wait and switches the list to them. The
-   toolbar holds the role select, the chips (waiting on you, and a clear chip for an
-   active layer or brush) and the search box, which filters with the board's own
-   predicate (`entryMatchesFilters`) and stays URL-synced as `?q=`.
-2. **The Sieve** (`PipelineKitSieve`). Every candidate is a dot poured through the
+   toolbar holds the role select, the search (URL-synced as `?q=`; `/` focuses it) and,
+   on its filter line (`PipelineKitFacets`), the retired filter bar's four facets as kit
+   `Menu`s over the URL-synced filter state (`usePipelineFilters`): State (active,
+   interview, aging, awaiting, needs intake, plus a deep-linked `?stage=` as a checked
+   option), Score bands, Source (shown when the board spans more than one channel or a
+   source is already on) and Sort ("waiting first, then match" is the kit order; score;
+   longest in stage). Then the chips: waiting on you, "Needs intake" (the intake cohort the
+   old attention strip's first row focused), the picked layer or brushed range, Clear. A
+   `?stage=` that is no longer a column keeps filtering and says so in a caution note with
+   "Remove this filter". Under the toolbar: the saved-views line (`PipelineKitViews`: one
+   chip per view; the active view's open-by-default toggle, rename, copy link and delete;
+   "Save view" while narrowed; the save / rename `KitDialog` warns before an overwrite) and,
+   while a role is picked, that role's doors (`PipelineKitRole`): open the job, Rank
+   candidates (the Fit matrix scoped to the job) and, over the role's new arrivals on the
+   entry column, Accept all, Reject all (armed by a second click) and AI evaluate (one
+   `batch_screen` task), answered by toasts.
+2. **Today** (`PipelineKitToday`), when any queue is non-empty: one row per queue from
+   `deriveRailRows` (new applications, scorecards and drafted offers to review,
+   interviews waiting on a slot, offers out, this week's hires) with who is in it; the
+   row opens the queue's layer here, Decisions or Schedule.
+3. **Off the board** (`PipelineKitOffBoard`), when anyone stands on a column the
+   workspace removed: one row per retired column (its retired label, who stands there)
+   with "Move all to…".
+4. **The Sieve** (`PipelineKitSieve`). Every candidate is a dot poured through the
    workspace's axis (`buildLayers`: the axis in order, any retired column someone
    still stands on as its own layer, then an exit layer counting `rejectedByLane`). A
    dot's shape is how the entry got there (walked, placed without a recorded move,
-   nothing on record); a layer is a filter button for the list. The pour plays once per
-   change of the entries' `id:stage:stageChangedAt` signature, and on "pour again".
-3. **The Skyline** (`PipelineKitSkyline`). The match distribution, one bar per
+   nothing on record); a layer is a filter button for the list. Picking the exit layer
+   lists the rejected shelf (`useRejectedShelf`: `GET /api/pipeline/rejected?lane=` per
+   lane with rejections, only the picked role's lanes when a role is picked) with the
+   stage each was rejected at and whether the AI did it. The pour plays once per change
+   of the entries' `id:stage:stageChangedAt` signature, and on "pour again".
+5. **The Skyline** (`PipelineKitSkyline`). The match distribution, one bar per
    candidate ranked by canonical score, never-scored candidates as counted dashed
    stubs. A brush is a rank range that filters the list and dims the Sieve; the presets
    (all, top 10, over 70, never scored) set one.
-4. **The list** (`PipelineKitList`). A windowed `DataTable`: status mark, candidate and
-   role, stage (with its provenance shape and, when it waits on you, the reason), source,
-   match (the canonical score; "—" with its reason when never scored), age. Rows that
-   wait on you come first, then by match. A row opens the reading pane.
-5. **The reading pane** (`PipelineKitPane`), only while a row is selected: who and
-   where; what waits on you with a door to Decisions; the record (stage, match, how
-   the entry was placed, archetype, source, added, changed, intake); the entry's path
-   as a column `StageRail` and its history with the silences in place, both from the
-   entry's own `GET /api/pipeline/[id]/timeline`. "Full record" opens the candidate
-   modal. j / k step through the list, Esc closes.
+6. **The list** (`PipelineKitList`, cells in `PipelineKitCells`). A windowed `DataTable`:
+   status mark, candidate and role, stage (with its provenance shape and, when it waits
+   on you, the reason), source, match (the canonical score; a work-sample transfer score
+   labelled "transfer" with its tip; "—" with its reason when neither exists), age, and
+   the act track ("Move to…" and the door to the pane). Filtered by the board's whole
+   predicate (`entryMatchesFilters`) and the kit's own narrowing (`useKitFilters`: layer,
+   role, waiting-only, brush), ordered waiting-first then by match unless a sort is
+   chosen. A row opens the reading pane and records the sidebar's Recent entry. The
+   section's actions: **Select** (select mode: the mark track becomes a checkbox, a row
+   click toggles it, and the kit `BulkBar` above the rows states how many are selected and
+   how many the view hides, then select all shown, clear, move with its blast-radius
+   preview and confirm, scheduling links, outreach drafts armed when a relay would send
+   them, and the decide row for the awaiting subset with Reject armed; all of it
+   `usePipelineBulk`, its confirm scope including the kit's narrowing) and **Aging SLAs**
+   (a `KitDialog` of SettingRows: the team cadence per non-terminal stage, saved on blur
+   or Enter through `PATCH /api/pipeline/stage-sla`, clamped 1-365, leftover per-browser
+   cadences offered once).
+7. **Activity** (`PipelineKitActivity`), when anything happened in the last seven days or
+   the read failed: a five-row table of events with a kind filter; a row opens the entry.
+8. **The reading pane** (`PipelineKitPane`), only while a row is selected: who and
+   where; what waits on you with a door to Decisions; "Move to…" (also `m`); the record
+   (stage, match, how the entry was placed, archetype, source, added, changed, intake);
+   the entry's path as a column `StageRail` and its history with the silences in place,
+   both from the entry's own `GET /api/pipeline/[id]/timeline`. "Full record" opens the
+   candidate modal, whose prev / next walks the kit list's current order. j / k step
+   through the list, Esc closes.
+
+Stage moves. The kit has no board, so the retired Subway's **drag is replaced, not
+ported**: a move is a pick from "Move to…" (the pane, the row's act track, `m` while the
+pane is open), offering `moveTargetStages` (never the own stage, never the terminal
+role) and running the board's optimistic, CAS-guarded `moveEntry`. A refused move rolls
+back and says why: the bounce mark on its row, a critical note in its pane or above the
+list, with a dismiss.
 
 A workspace with nobody on the board gets the stage set under the head instead of
-parts 2-4 ([The empty board](#the-empty-board--the-stage-set)): it is the only door
+parts 2-7 ([The empty board](#the-empty-board--the-stage-set)): it is the only door
 back into an unfinished setup wizard (`shell/setup/useSetupUnfinished.ts` +
 `shell/setup/onboardingReopen.ts`) and the guided tour's start.
 
-**Retired with the board view (2026-09-25).** The old surface's parts left with it: the
-stat header's positions / interview / aging / needs-intake chips and the attention
-strip, the Today rail, the filter bar (quick filters, score and source facets, sort,
-the stage deep-link notice, full-page mode), saved views, the aging-SLA editor, select
-mode and the bulk bar (move, decide, invite, draft outreach), the Subway board (drag
-moves, the line context menu, the waiting dots, the `role="grid"` contract), the
-Orchard overlay, the "Move all to…" control for candidates stranded on a retired
-column (the Sieve still shows them, as their own layer), the activity feed, and the
-bead title that named a transfer score (the list shows the canonical match only). The
-hooks and pure models behind them (`usePipelineBulk`, `usePipelineSavedViews`,
-`usePipelineSla`, `usePipelineFilters`, `pipelineBoardLayout.ts`…) still run inside
-`usePipelineTabState` and keep their tests; the subsections below that describe those
-controls are the record of the retired view until a kit surface takes them up.
-Per-candidate moves and decisions happen in the candidate modal and on Decisions.
+**Not brought back from the board view (2026-09-25 parity port).** The Orchard overlay
+(one role and stage cell as salary branches by score band, with ticket evidence): the kit
+has no salary graphic, and a candidate's salary against the band is on the candidate
+modal's Overview. The bead avatar (its gender-hinted fill was an open fairness question).
+The full-page board toggle: the page is the list. The waiting-on-AI line mark read from
+the hiring plan. The subsections below that describe the Subway board are the record of
+the retired view. The kit parts added for this port are `Menu`, `KitDialog`,
+`ActionLine`, `BulkBar` and `SelectBox` (`app/_components/kit/`, styles in `menu.css`).
 
 ### Salary currency
 
@@ -608,7 +648,7 @@ the link panels…) and its per-entry state hook moved in unchanged, arranged in
 
 | Door | Lands on | Pager cohort |
 | --- | --- | --- |
-| "Full record" in the kit surface's reading pane | Overview | the board's visible order (`cohortOrder`, from the tab state's filters, not the kit list's) |
+| "Full record" in the kit surface's reading pane | Overview | the kit list's current order (its facets, layer, role, brush and sort) |
 | The profile fallback (no `candidateId`) | Overview | the board's visible order |
 | A rematch link / the refresh after a stage move (`openEntryById`) | the tab already open | the cohort already open |
 
