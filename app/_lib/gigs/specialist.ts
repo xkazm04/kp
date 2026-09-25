@@ -195,6 +195,14 @@ export type GigHirePlacement = {
   placementSkipped: PersonasPlaceFailureReason | null;
 };
 
+/** The handle a gig specialist's hire carries to Personas as `kp.jobId`: a specialist has
+ *  no job posting, and Personas refuses an empty jobId outside the intake shape. Stable per
+ *  arena + niche, ASCII, bounded to Personas' 128-character field. */
+export function gigSpecialistLinkJobId(spec: Pick<GigSpecialistSpec, "arena" | "niche">): string {
+  const niche = cleanNiche(spec.niche).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "general";
+  return `gig-specialist:${spec.arena}:${niche}`.slice(0, 128);
+}
+
 export type HireGigSpecialistResult =
   | ({ ok: true; specialist: GigSpecialist; hiredAgentId: string; requestId: string | null; reused: boolean } & GigHirePlacement)
   | { ok: false; status: number; code: string; error: string; hiredAgentId: string | null };
@@ -246,6 +254,7 @@ export async function hireGigSpecialist(
   const placement = arenaWs.ok ? { workspaceId: arenaWs.id } : null;
   const res = await mintAndDispatch(req ?? syntheticRequest(), workspaceId, {
     jobId: "",
+    linkJobId: gigSpecialistLinkJobId(spec),
     jobTitle: `${GIG_SPECIALIST_JOB_TITLE_PREFIX} - ${dispatchSpec.name}`,
     intakeId: null,
     spec: dispatchSpec,

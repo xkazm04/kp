@@ -64,6 +64,11 @@ export async function mintAndDispatch(
     jobId: string;
     jobTitle: string;
     intakeId?: string | null;
+    /** The handle Personas receives as `kp.jobId` when the hire has no job posting
+     *  behind it (a gig specialist: `gig-specialist:<arena>:<niche>`). Personas refuses
+     *  an empty jobId outside the intake shape; the stored row keeps `jobId` as given,
+     *  so nothing in kp resolves this handle as a job. */
+    linkJobId?: string | null;
     spec: DispatchSpec;
     fit: unknown;
     metrics: unknown[];
@@ -99,7 +104,7 @@ export async function mintAndDispatch(
 
   const kpLink: KpLink = {
     baseUrl: publicBaseUrl(new URL(request.url).origin),
-    jobId: input.jobId,
+    jobId: input.jobId || input.linkJobId?.trim() || "",
     jobTitle: input.jobTitle,
     workspace: ws,
     ...(input.intakeId ? { intakeId: input.intakeId } : {}),

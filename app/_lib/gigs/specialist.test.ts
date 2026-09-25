@@ -14,6 +14,7 @@ import {
   composeGigSpecialistSpec,
   gigSpecialistName,
   hireGigSpecialist,
+  gigSpecialistLinkJobId,
   specialistDispatchSpec,
 } from "./specialist.ts";
 import { getHiredAgent, getActiveHiredAgentForJob, listHiredAgents } from "../db/agents.ts";
@@ -103,7 +104,7 @@ test("the prompt is built from trusted parts only: it has no gig text to leak", 
   assert.equal(specialistDispatchSpec.length, 2);
 });
 
-test("hire: mints through mintAndDispatch with jobId '' and a gig jobTitle, then records the specialist", async () => {
+test("hire: mints through mintAndDispatch with jobId '' stored, a gig handle on the wire, then records the specialist", async () => {
   process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
   process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
   const bodies: unknown[] = [];
@@ -141,7 +142,9 @@ test("hire: mints through mintAndDispatch with jobId '' and a gig jobTitle, then
     appMaster?: unknown;
     placement?: { workspaceId: string };
   };
-  assert.equal(sent.kp.jobId, "");
+  // Personas refuses an empty kp.jobId outside the intake shape (validate_kp_persona_request),
+  // so the wire carries a stable gig handle while the stored row keeps "" (no posting).
+  assert.equal(sent.kp.jobId, "gig-specialist:competition:tabular");
   assert.equal(sent.spec.name, "Competition specialist - tabular");
   assert.equal(sent.appMaster, undefined);
   // Filed into the arena's Personas workspace, ensured first.
@@ -215,4 +218,11 @@ test("hire: a failed dispatch records no specialist and reports the bridge's cod
   assert.equal(getHiredAgent(r.hiredAgentId!, ws)!.status, "failed");
   assert.equal(listGigSpecialists(ws).length, 0);
   assert.equal(listHiredAgents(ws).length, 1);
+});
+
+test("gigSpecialistLinkJobId: stable ASCII handle per arena + niche, bounded to Personas' 128 chars", () => {
+  assert.equal(gigSpecialistLinkJobId({ arena: "freelance", niche: "AI consulting and technical reports" }), "gig-specialist:freelance:ai-consulting-and-technical-reports");
+  assert.equal(gigSpecialistLinkJobId({ arena: "freelance", niche: "  Web · Development!! " }), "gig-specialist:freelance:web-development");
+  assert.equal(gigSpecialistLinkJobId({ arena: "security", niche: "" }), "gig-specialist:security:general");
+  assert.ok(gigSpecialistLinkJobId({ arena: "freelance", niche: "x".repeat(300) }).length <= 128);
 });
