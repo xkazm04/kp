@@ -47,7 +47,8 @@ export function PipelineKitList({ s, k, status }: { s: PipelineTabState; k: Pipe
     return [
       entryMark(e),
       <Fragment key="name">{e.candidateLabel}<small>{e.jobTitle ?? t("noRole")}</small></Fragment>,
-      <span key="stage" className="k-stagecell">
+      // At <= 1000px of sheet the reason folds out of the cell (kit.css): the tip still carries it.
+      <span key="stage" className="k-stagecell" data-tip={k.ctx.needs(e) ? `${label(e.stage)} · ${approval(e.approvalKind)}` : undefined}>
         <ShapeMark shape={pv} tone={tone(e.stage)} tip={t(`prov.${pv}`)} />
         <span>{label(e.stage)}</span>
         {k.ctx.needs(e) ? <span className="k-needs-t">{approval(e.approvalKind)}</span> : null}

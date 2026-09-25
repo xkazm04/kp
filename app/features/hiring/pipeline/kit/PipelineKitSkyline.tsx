@@ -28,21 +28,17 @@ export function PipelineKitSkyline({ k, status }: { k: PipelineKit; status: Part
     <Section
       title={t("skyTitle")}
       count={t("skyCount", { count: never })}
-      // The winner's state line IS its legend: a swatch per stage, then the coral cap whose word is the
-      // Section's one state string (Section renders stateMark only beside a state).
-      state={t("legendWaiting")}
+      // The winner's state line IS its legend: a swatch per stage, then the coral cap.
       stateMark={
         <span className="k-g-legend">
           {stageTones.map((l) => (
             <span key={l.id} className={`k-tone--${l.tone}`}><i className="k-swatch" /><span className="k-g-legend__word">{l.label}</span></span>
           ))}
-          <i className="k-swatch is-cap" />
+          <span><i className="k-swatch is-cap" />{t("legendWaiting")}</span>
         </span>
       }
-      // With the reading pane open the sheet folds and the chart with it (the container query); its
-      // presets would only crowd the folded head, so they leave with it and return when the pane closes.
       actions={
-        k.open ? null : <Segmented
+        <Segmented
           label={t("presetsLabel")}
           value={current}
           onChange={(v) => k.setBrush(v === "all" ? null : k.presets[v as Exclude<Preset, "all">])}

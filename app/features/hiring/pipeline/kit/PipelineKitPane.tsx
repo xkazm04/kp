@@ -60,7 +60,6 @@ export function PipelineKitPane({ s, k, entry, onOpenRecord }: { s: PipelineTabS
         </>
       ) : null}
       <KeyValueGrid
-        cols={3}
         items={[
           { label: t("kvStage"), value: stageLabel },
           { label: t("colMatch"), value: score == null ? null : formatCount(score, locale), absent: t("neverScoredTip") },
@@ -75,7 +74,7 @@ export function PipelineKitPane({ s, k, entry, onOpenRecord }: { s: PipelineTabS
       <Section
         title={t("throughTitle")}
         count={t("throughCount", { at: stagePosition(s.axis, entry.stage), total: s.axis.length })}
-        status={failed ? "error" : "ready"}
+        status={loading ? "loading" : failed ? "error" : "ready"}
         errorText={t("historyFailed")}
         onRetry={bundle.retry}
       >

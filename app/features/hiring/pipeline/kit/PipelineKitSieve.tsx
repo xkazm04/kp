@@ -21,7 +21,7 @@ export function PipelineKitSieve({ s, k, status }: { s: PipelineTabState; k: Pip
 
   const layers: SieveLayer[] = k.layers.map((l) =>
     l.exit
-      ? { id: OUT, label: t("outLabel"), exit: true, mark: <Mark kind="fail" tip={t("outTip")} />, sub: <span>{t("outSub")}</span>, empty: t("outEmpty") }
+      ? { id: OUT, label: t("outLabel"), exit: true, mark: <Mark kind="fail" tip={t("outTip")} />, sub: <span>{t("outSub")}</span>, tip: t("outSub"), empty: t("outEmpty") }
       : {
           id: l.id,
           label: l.label,
@@ -29,6 +29,9 @@ export function PipelineKitSieve({ s, k, status }: { s: PipelineTabState; k: Pip
           sub: l.waiting ? <span className="k-needs-t">{t("layerWaiting", { count: l.waiting })}</span> : <span>{t("layerProv", { walked: l.walked, placed: l.placed })}</span>,
           time: l.medianAge == null ? <span className="k-absent">—</span> : t("layerMedian", { days: l.medianAge }),
           timeTip: t("layerMedianTip", { stage: l.label }),
+          tip: [l.waiting ? t("layerWaiting", { count: l.waiting }) : t("layerProv", { walked: l.walked, placed: l.placed }), l.medianAge == null ? null : t("layerMedian", { days: l.medianAge })]
+            .filter(Boolean)
+            .join(" · "),
           empty: t("layerEmpty", { stage: l.label }),
         }
   );
