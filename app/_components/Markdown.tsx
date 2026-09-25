@@ -79,11 +79,22 @@ function isBlockBoundary(trimmed: string): boolean {
   );
 }
 
-export function Markdown({ content, className = "" }: { content: string; className?: string }) {
+/** One heading as the renderer meets it: its 0-based position among the document's
+ *  headings (every level, fenced code skipped), its `#` count and its raw Markdown text. */
+export type MarkdownHeading = { index: number; level: 1 | 2 | 3; text: string };
+
+/** `headingId` addresses the headings: it answers the id a heading renders with (the
+ *  address a contents list links to), or undefined for none. It must be PURE in its
+ *  argument - React may render twice - so the ids come from wherever the document was
+ *  prepared (registry: anchor-id-single-assigner), never minted here. An addressed
+ *  heading is a focus destination but never a tab stop (tabIndex -1). Without the hook,
+ *  headings carry no id, exactly as before. */
+export function Markdown({ content, className = "", headingId }: { content: string; className?: string; headingId?: (heading: MarkdownHeading) => string | undefined }) {
   const lines = (content ?? "").replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
   let key = 0;
+  let headingIndex = 0;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -129,7 +140,12 @@ export function Markdown({ content, className = "" }: { content: string; classNa
       const level = heading[1].length;
       const cls = level === 1 ? "font-serif text-h2 text-ink mt-4 first:mt-0" : level === 2 ? "font-serif text-h3 text-ink mt-4" : "text-base font-semibold text-ink mt-3";
       const Tag = (level === 1 ? "h2" : level === 2 ? "h3" : "h4") as "h2" | "h3" | "h4";
-      blocks.push(<Tag key={key++} className={cls}>{inline(heading[2], `h${key}`)}</Tag>);
+      const id = headingId?.({ index: headingIndex++, level: level as 1 | 2 | 3, text: heading[2] });
+      blocks.push(
+        <Tag key={key++} id={id} tabIndex={id ? -1 : undefined} className={cls}>
+          {inline(heading[2], `h${key}`)}
+        </Tag>
+      );
       i += 1;
       continue;
     }

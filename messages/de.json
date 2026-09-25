@@ -13306,7 +13306,8 @@
       "budget": "Budget {budget} pro Versuch",
       "sentFlash": "Als von Ihnen gesendet erfasst. Bis ein Urteil kommt, zählt es als ausstehend.",
       "revisedFlash": "Mit Ihrer Notiz zurückgegeben. Es kommt als neuer Versuch zurück.",
-      "discardedFlash": "Entwurf verworfen. Nichts wurde gesendet."
+      "discardedFlash": "Entwurf verworfen. Nichts wurde gesendet.",
+      "tabBrief": "Das Recherche-Briefing"
     },
     "work": {
       "actionFailed": "Das hat nicht geklappt.",
@@ -13491,6 +13492,43 @@
       "declines": {
         "no_public_api": "Lehnt jeden Lauf ab: es gibt keine öffentliche API zum Lesen.",
         "manual_only": "Nichts wird abgerufen: Aufträge von Hand weiterleiten."
+      },
+      "streakValue": "{count} / {limit}",
+      "streakNear": "kurz vor der automatischen Pause",
+      "streakAt": "am Limit: die Quelle pausiert sich selbst",
+      "scanThis": "Diese Quelle durchsuchen",
+      "scanStarting": "Suche wird gestartet…",
+      "scanQueued": "Suche in der Warteschlange. Sie beginnt, sobald der Aufgabenläufer frei ist.",
+      "scanRunning": "{host} wird durchsucht…",
+      "scanReading": "Suche beendet. Ergebnis wird gelesen…",
+      "scanDone": "Suche beendet: {outcome}. {found, plural, =0 {Nichts gefunden} one {# Ausschreibung gefunden} other {# Ausschreibungen gefunden}}, {created, plural, =0 {keine neu} one {# neu} other {# neu}}.",
+      "scanDoneReason": "Suche beendet: {outcome} ({reason}). {found, plural, =0 {Nichts gefunden} one {# Ausschreibung gefunden} other {# Ausschreibungen gefunden}}, {created, plural, =0 {keine neu} one {# neu} other {# neu}}.",
+      "scanNotRun": "Nicht gelaufen: Die Quelle wurde pausiert, bevor die Suche sie erreichte.",
+      "scanUnknown": "Suche beendet, aber ihr Ergebnis ließ sich nicht lesen. Quelle und Linie wurden neu gelesen.",
+      "scanFailed": "Die Suche ist nicht fertig geworden: {status}.",
+      "scanStatus": {
+        "failed": "sie ist fehlgeschlagen",
+        "canceled": "sie wurde abgebrochen",
+        "interrupted": "sie wurde unterbrochen (der Server wurde neu gestartet)"
+      },
+      "scanBlockedTerms": "Bestätigen Sie oben die Bedingungen, bevor Sie diese Quelle durchsuchen.",
+      "scanBlockedPaused": "Pausiert ({reason}). Setzen Sie sie fort, um zu suchen.",
+      "scanBlockedOff": "Aus. Setzen Sie sie fort, um zu suchen.",
+      "scanReason": {
+        "blocked": "der Host hat abgelehnt",
+        "offline": "kp ist offline",
+        "shape_changed": "der Anbieter hat seine Antwort geändert",
+        "required_rule_miss": "der Antwort fehlt ein Pflichtfeld",
+        "robots_disallowed": "robots.txt verbietet es",
+        "source_outage": "der Anbieter ist nicht erreichbar",
+        "source_gone": "der Endpunkt existiert nicht mehr",
+        "no_key": "kein API-Schlüssel gesetzt",
+        "no_public_api": "keine öffentliche API",
+        "manual_only": "nur manuell",
+        "wall_budget": "der Suche ist die Zeit ausgegangen",
+        "aborted": "abgebrochen",
+        "store_error": "kp konnte eine Ausschreibung nicht speichern",
+        "adapter_error": "der Adapter ist fehlgeschlagen"
       }
     },
     "line": {
@@ -13581,7 +13619,68 @@
       "offLineNote": "Ablehnen oder Zurückziehen verschiebt den Auftrag nach „Hat die Linie verlassen“. Es wird nichts gesendet.",
       "notFoundTitle": "Dieser Auftrag ist nicht in der Liste",
       "notFound": "Er ist vielleicht aus dem Fenster gerutscht, das der Tab liest. Gehen Sie zurück zur Linie und aktualisieren Sie.",
-      "escKey": "Esc"
+      "escKey": "Esc",
+      "columnLabel": "Aufträge in {step}",
+      "columnPos": "{index} von {total} in {step}",
+      "prevInColumn": "Vorheriger Auftrag in {step}",
+      "nextInColumn": "Nächster Auftrag in {step}",
+      "declineConfirm": "„{title}“ ablehnen? Das ist endgültig. Drücken Sie noch einmal <kbd>D</kbd> oder <kbd>Enter</kbd>; <kbd>Esc</kbd> bricht ab.",
+      "declineYes": "Ablehnen",
+      "declineNo": "Abbrechen",
+      "declining": "Wird abgelehnt…",
+      "declinedFlash": "„{title}“ abgelehnt.",
+      "keysNav": "<kbd>←</kbd> <kbd>→</kbd> vorheriger oder nächster in dieser Spalte",
+      "keysDecline": "<kbd>D</kbd> ablehnen",
+      "keysChecklist": "<kbd>1</kbd> bis <kbd>{count}</kbd> Checkliste abhaken",
+      "keysBack": "<kbd>Esc</kbd> zurück zur Linie"
+    },
+    "brief": {
+      "title": "Recherche-Briefing",
+      "notYet": "Noch nicht recherchiert",
+      "notYetBody": "Die Recherche liest bis zu drei Seiten, auf die die Ausschreibung verweist, und schreibt ein Briefing: worum es geht, wie schwer es aussieht, der Aufwand und die zu erwartenden Hürden.",
+      "research": "Jetzt recherchieren",
+      "researchAgain": "Erneut recherchieren",
+      "researching": "Recherche läuft: bis zu drei verlinkte Seiten, dann ein Modellaufruf. Das kann eine Minute dauern.",
+      "failed": "Die Recherche konnte nicht ausgeführt werden.",
+      "byModel": "{count, plural, =0 {Von einem Modell nur aus der Ausschreibung geschrieben} one {Von einem Modell aus der Ausschreibung und # verlinkten Seite geschrieben} other {Von einem Modell aus der Ausschreibung und # verlinkten Seiten geschrieben}}",
+      "byKp": "{count, plural, =0 {Ohne Modell ({reason}) nur aus der Ausschreibung zusammengestellt} one {Ohne Modell ({reason}) aus der Ausschreibung und # verlinkten Seite zusammengestellt} other {Ohne Modell ({reason}) aus der Ausschreibung und # verlinkten Seiten zusammengestellt}}",
+      "researchedAt": "recherchiert {date}",
+      "fallback": {
+        "no_provider": "kein Anbieter",
+        "gig_suspect": "eine verlinkte Seite wurde markiert",
+        "budget": "Zeit abgelaufen",
+        "engine_error": "die Engine ist fehlgeschlagen",
+        "llm_unusable": "die Antwort des Modells war unbrauchbar",
+        "llm_error": "der Modellaufruf ist fehlgeschlagen"
+      },
+      "category": "Kategorie",
+      "difficulty": "Schwierigkeit",
+      "level": {
+        "easy": "Leicht",
+        "moderate": "Mittel",
+        "hard": "Schwer",
+        "very_hard": "Sehr schwer",
+        "unrated": "Nicht bewertet"
+      },
+      "unratedWhy": "Kein Modell hat sie bewertet.",
+      "cardDifficulty": "Schwierigkeit: {level}",
+      "effort": "Aufwand",
+      "effortRange": "{min}–{max} h",
+      "effortNone": "nicht geschätzt",
+      "challenges": "Zu erwartende Hürden",
+      "challengesNone": "keine genannt",
+      "contents": "Inhalt des Briefings",
+      "contentsTitle": "In diesem Briefing",
+      "sourcesRead": "Gelesene Quellen",
+      "linksNone": "Die Ausschreibung nennt keinen Link, der sich zu lesen lohnt.",
+      "linkStatus": {
+        "fetched": "Gelesen",
+        "skipped": "Übersprungen",
+        "blocked": "Blockiert",
+        "failed": "Fehlgeschlagen"
+      },
+      "linkFlagged": "als Köder (Honeypot) markiert",
+      "linkChars": "{count, plural, one {# Zeichen gelesen} other {# Zeichen gelesen}}"
     },
     "legend": {
       "label": "Was Zeichen und Rahmen bedeuten",
@@ -13590,7 +13689,8 @@
       "rewardStated": "Vergütung angegeben",
       "rewardNotStated": "Vergütung nicht angegeben",
       "suspect": "verdächtig, in Quarantäne",
-      "edge": "linker Rand: der Spezialist, im Etikett jeder Arena genannt"
+      "edge": "linker Rand: der Spezialist, im Etikett jeder Arena genannt",
+      "difficulty": "Schwierigkeit"
     }
   }
 }

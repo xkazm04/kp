@@ -13306,7 +13306,8 @@
       "budget": "budget {budget} par tentative",
       "sentFlash": "Enregistré comme envoyé par vous. Il compte comme en attente jusqu’au verdict.",
       "revisedFlash": "Renvoyé avec votre note. Il reviendra sous forme de nouvelle tentative.",
-      "discardedFlash": "Brouillon écarté. Rien n’a été envoyé."
+      "discardedFlash": "Brouillon écarté. Rien n’a été envoyé.",
+      "tabBrief": "La note de recherche"
     },
     "work": {
       "actionFailed": "Cela n’a pas abouti.",
@@ -13491,6 +13492,43 @@
       "declines": {
         "no_public_api": "Refuse chaque exécution : il n’y a pas d’API publique à lire.",
         "manual_only": "Rien n’est récupéré : transmettez les briefs à la main."
+      },
+      "streakValue": "{count} / {limit}",
+      "streakNear": "proche de la pause automatique",
+      "streakAt": "à la limite : la source se met en pause",
+      "scanThis": "Rechercher dans cette source",
+      "scanStarting": "Lancement de la recherche…",
+      "scanQueued": "Recherche en file d’attente. Elle démarre dès que l’exécuteur de tâches est libre.",
+      "scanRunning": "Recherche dans {host}…",
+      "scanReading": "Recherche terminée. Lecture du résultat…",
+      "scanDone": "Recherche terminée : {outcome}. {found, plural, =0 {Rien trouvé} one {# annonce trouvée} other {# annonces trouvées}}, {created, plural, =0 {aucune nouvelle} one {# nouvelle} other {# nouvelles}}.",
+      "scanDoneReason": "Recherche terminée : {outcome} ({reason}). {found, plural, =0 {Rien trouvé} one {# annonce trouvée} other {# annonces trouvées}}, {created, plural, =0 {aucune nouvelle} one {# nouvelle} other {# nouvelles}}.",
+      "scanNotRun": "Non exécutée : la source a été mise en pause avant que la recherche ne l’atteigne.",
+      "scanUnknown": "Recherche terminée, mais son résultat n’a pas pu être lu. La source et la ligne ont été relues.",
+      "scanFailed": "La recherche n’a pas abouti : {status}.",
+      "scanStatus": {
+        "failed": "elle a échoué",
+        "canceled": "elle a été annulée",
+        "interrupted": "elle a été interrompue (le serveur a redémarré)"
+      },
+      "scanBlockedTerms": "Acceptez les conditions ci-dessus avant de rechercher dans cette source.",
+      "scanBlockedPaused": "En pause ({reason}). Reprenez-la pour rechercher.",
+      "scanBlockedOff": "Désactivée. Reprenez-la pour rechercher.",
+      "scanReason": {
+        "blocked": "l’hôte a refusé",
+        "offline": "kp est hors ligne",
+        "shape_changed": "le fournisseur a changé sa réponse",
+        "required_rule_miss": "il manque un champ obligatoire à la réponse",
+        "robots_disallowed": "robots.txt l’interdit",
+        "source_outage": "le fournisseur est injoignable",
+        "source_gone": "le point d’accès n’existe plus",
+        "no_key": "aucune clé d’API n’est définie",
+        "no_public_api": "pas d’API publique",
+        "manual_only": "manuel uniquement",
+        "wall_budget": "la recherche a manqué de temps",
+        "aborted": "annulée",
+        "store_error": "kp n’a pas pu enregistrer une annonce",
+        "adapter_error": "l’adaptateur a échoué"
       }
     },
     "line": {
@@ -13581,7 +13619,68 @@
       "offLineNote": "Refuser ou retirer la mission la place dans « A quitté la ligne ». Rien n’est envoyé nulle part.",
       "notFoundTitle": "Cette mission n’est pas dans la liste",
       "notFound": "Elle est peut-être sortie de la fenêtre que l’onglet lit. Revenez à la ligne et actualisez.",
-      "escKey": "Échap"
+      "escKey": "Échap",
+      "columnLabel": "Missions dans {step}",
+      "columnPos": "{index} sur {total} dans {step}",
+      "prevInColumn": "Mission précédente dans {step}",
+      "nextInColumn": "Mission suivante dans {step}",
+      "declineConfirm": "Refuser « {title} » ? C’est définitif. Appuyez encore sur <kbd>D</kbd> ou sur <kbd>Entrée</kbd> ; <kbd>Échap</kbd> annule.",
+      "declineYes": "Refuser",
+      "declineNo": "Annuler",
+      "declining": "Refus en cours…",
+      "declinedFlash": "« {title} » refusée.",
+      "keysNav": "<kbd>←</kbd> <kbd>→</kbd> précédente ou suivante dans cette colonne",
+      "keysDecline": "<kbd>D</kbd> refuser",
+      "keysChecklist": "<kbd>1</kbd> à <kbd>{count}</kbd> cocher la liste de contrôle",
+      "keysBack": "<kbd>Échap</kbd> retour à la ligne"
+    },
+    "brief": {
+      "title": "Note de recherche",
+      "notYet": "Pas encore recherchée",
+      "notYetBody": "La recherche lit jusqu’à trois pages vers lesquelles l’annonce renvoie et rédige une note : ce qu’est la mission, sa difficulté apparente, l’effort et les obstacles à prévoir.",
+      "research": "Lancer la recherche",
+      "researchAgain": "Relancer la recherche",
+      "researching": "Recherche en cours : jusqu’à trois pages liées, puis un appel au modèle. Cela peut prendre une minute.",
+      "failed": "La recherche n’a pas pu être lancée.",
+      "byModel": "{count, plural, =0 {Rédigée par un modèle à partir de l’annonce seule} one {Rédigée par un modèle à partir de l’annonce et de # page liée} other {Rédigée par un modèle à partir de l’annonce et de # pages liées}}",
+      "byKp": "{count, plural, =0 {Assemblée sans modèle ({reason}) à partir de l’annonce seule} one {Assemblée sans modèle ({reason}) à partir de l’annonce et de # page liée} other {Assemblée sans modèle ({reason}) à partir de l’annonce et de # pages liées}}",
+      "researchedAt": "recherchée le {date}",
+      "fallback": {
+        "no_provider": "aucun fournisseur",
+        "gig_suspect": "une page liée a été signalée",
+        "budget": "temps écoulé",
+        "engine_error": "le moteur a échoué",
+        "llm_unusable": "la réponse du modèle était inutilisable",
+        "llm_error": "l’appel au modèle a échoué"
+      },
+      "category": "Catégorie",
+      "difficulty": "Difficulté",
+      "level": {
+        "easy": "Facile",
+        "moderate": "Moyenne",
+        "hard": "Difficile",
+        "very_hard": "Très difficile",
+        "unrated": "Non évaluée"
+      },
+      "unratedWhy": "Aucun modèle ne l’a évaluée.",
+      "cardDifficulty": "Difficulté : {level}",
+      "effort": "Effort",
+      "effortRange": "{min}–{max} h",
+      "effortNone": "non estimé",
+      "challenges": "Obstacles attendus",
+      "challengesNone": "aucun indiqué",
+      "contents": "Sommaire de la note",
+      "contentsTitle": "Dans cette note",
+      "sourcesRead": "Sources lues",
+      "linksNone": "L’annonce ne cite aucun lien qui vaille la lecture.",
+      "linkStatus": {
+        "fetched": "Lue",
+        "skipped": "Ignorée",
+        "blocked": "Bloquée",
+        "failed": "Échec"
+      },
+      "linkFlagged": "signalée comme piège (honeypot)",
+      "linkChars": "{count, plural, one {# caractère lu} other {# caractères lus}}"
     },
     "legend": {
       "label": "Ce que signifient les marques et les cadres",
@@ -13590,7 +13689,8 @@
       "rewardStated": "rémunération indiquée",
       "rewardNotStated": "rémunération non indiquée",
       "suspect": "suspecte, en quarantaine",
-      "edge": "bord gauche : le spécialiste, nommé dans l’étiquette de chaque arène"
+      "edge": "bord gauche : le spécialiste, nommé dans l’étiquette de chaque arène",
+      "difficulty": "Difficulté"
     }
   }
 }

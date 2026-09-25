@@ -1,8 +1,12 @@
 import { GIG_CHECKLISTS } from "@/app/_lib/gigs/checklists";
 import { lintGate, type DraftLintFinding } from "@/app/_lib/gigs/draft-lint";
+import { canTransitionGig } from "@/app/_lib/gigs/transitions";
 import {
   GIG_ARENAS,
   GIG_DISCLOSURE_ITEM,
+  type GigBriefSection,
+  type GigDifficulty,
+  type GigSourceRunOutcome,
   type Gig,
   type GigArena,
   type GigAttempt,
@@ -203,6 +207,120 @@ export function lineRows(gigs: readonly Gig[], attemptsByGig: Readonly<Record<st
       off: OFF_STEPS.map((step) => ({ step, gigs: mine.filter((g) => g.status === step) })),
     };
   });
+}
+
+/** Where a gig sits in its wall column, and who is either side of it. */
+export type ColumnNeighbours = {
+  prev: string | null;
+  next: string | null;
+  /** 1-based position in the column. */
+  index: number;
+  total: number;
+  /** The column: a canonical step, or the off-line step the gig left by. */
+  step: LineStep | OffStep;
+};
+
+/** Left/Right on a gig's page: the previous/next gig in the SAME status column, in the
+ *  wall's own order - the column read top to bottom through the arena rows (each cell
+ *  oldest-waiting first, as lineRows sorts it). A gig that left the line moves within
+ *  its own off-line step (declined, withdrawn or expired). No wrap: the ends answer null.
+ *  Null when the gig is not on the wall. */
+export function columnNeighbours(rows: readonly LineRow[], gigId: string): ColumnNeighbours | null {
+  let step: LineStep | OffStep | null = null;
+  for (const r of rows) {
+    const cell = r.cells.find((c) => c.gigs.some((g) => g.id === gigId));
+    if (cell) {
+      step = cell.step;
+      break;
+    }
+    const off = r.off.find((o) => o.gigs.some((g) => g.id === gigId));
+    if (off) {
+      step = off.step;
+      break;
+    }
+  }
+  if (!step) return null;
+  const at = step;
+  const column = rows.flatMap((r) => (r.cells.find((c) => c.step === at) ?? r.off.find((o) => o.step === at))?.gigs ?? []);
+  const i = column.findIndex((g) => g.id === gigId);
+  return { prev: i > 0 ? column[i - 1].id : null, next: i < column.length - 1 ? column[i + 1].id : null, index: i + 1, total: column.length, step };
+}
+
+/** Whether the quick decline (`D`) is offered: exactly the statuses PATCH
+ *  /api/gigs/[id] {action:"decline"} accepts, read off the same transition table. */
+export function canQuickDecline(status: GigStatus): boolean {
+  return canTransitionGig(status, "declined");
+}
+
+/** Where a decline lands: the next gig in the column, else the previous, else the wall. */
+export function afterDeclineTarget(n: ColumnNeighbours | null): string | null {
+  return n?.next ?? n?.prev ?? null;
+}
+
+/** The rejected streak's tone as it nears the auto-pause: calm under 40% of the limit
+ *  (0 of 5 reads calm, never absent), watch under 80%, near below the limit, at it. */
+export type StreakTone = "calm" | "watch" | "near" | "at";
+export function streakTone(count: number, limit: number): StreakTone {
+  if (limit <= 0 || count >= limit) return "at";
+  const r = count / limit;
+  return r < 0.4 ? "calm" : r < 0.8 ? "watch" : "near";
+}
+
+/** How many of the four difficulty bars are filled; 0 for `unrated`, which is drawn
+ *  hollow and dashed - an absence, never "easy". */
+export function difficultyBars(d: GigDifficulty): 0 | 1 | 2 | 3 | 4 {
+  return d === "easy" ? 1 : d === "moderate" ? 2 : d === "hard" ? 3 : d === "very_hard" ? 4 : 0;
+}
+
+/** A brief heading's plain text: its Markdown escapes and emphasis removed. RESTATES
+ *  research.ts `plainHeadingText` (a server module the client must not import);
+ *  gigsLogic.test.ts runs both over one document and fails if they part. A comparator,
+ *  never an id source. */
+export function briefHeadingText(raw: string): string {
+  return raw
+    .replace(/\\([\\*`<#.\-[\]])/g, "$1")
+    .replace(/\*\*|`/g, "")
+    .trim();
+}
+
+/** The brief's heading ids for Markdown.tsx's `headingId` hook. The ids are the ones the
+ *  server minted with ONE assigner when it wrote the brief (`brief.sections`); nothing is
+ *  re-slugged here. Pure in its argument (React may render twice): the heading's position
+ *  picks its section, and a heading whose level or text does not match that section gets
+ *  NO id rather than a guessed one. kp's brief has no level-1 heading, so positions align;
+ *  a document that ever carries one degrades to unaddressed headings, not wrong ones. */
+export function briefHeadingResolver(sections: readonly GigBriefSection[]): (h: { index: number; level: 1 | 2 | 3; text: string }) => string | undefined {
+  return (h) => {
+    const s = sections[h.index];
+    if (!s || s.level !== h.level || s.text !== briefHeadingText(h.text)) return undefined;
+    return s.id;
+  };
+}
+
+/** The part of the `gig_scan` task result a source card reads (gigs/scan.ts
+ *  GigScanSummary, restated narrowly: that module reaches the stores). */
+export type ScanRunResult = {
+  sourceId: string | null;
+  notRunnable: number;
+  aborted: boolean;
+  sources: { sourceId: string; outcome: GigSourceRunOutcome; reason: string | null; created: number; found: number }[];
+};
+
+export type SourceScanView =
+  | { kind: "ran"; outcome: GigSourceRunOutcome; reason: string | null; created: number; found: number }
+  | { kind: "not_run" }
+  | { kind: "unknown" };
+
+/** What one source's scan did, read off the task's result: its own run line, "not run"
+ *  when a pause landed between the enqueue and the run, or unknown when the result is
+ *  unreadable (never a made-up "0 new"). */
+export function sourceScanView(result: unknown, sourceId: string): SourceScanView {
+  if (!result || typeof result !== "object" || !Array.isArray((result as ScanRunResult).sources)) return { kind: "unknown" };
+  const r = result as ScanRunResult;
+  const line = r.sources.find((s) => s && s.sourceId === sourceId);
+  if (line) return { kind: "ran", outcome: line.outcome, reason: line.reason ?? null, created: Number(line.created) || 0, found: Number(line.found) || 0 };
+  if (r.notRunnable > 0) return { kind: "not_run" };
+  return { kind: "unknown" };
 }
 
 /** `/` search: title, org, id, niche and tags. Matches stay lit; the rest dim. */

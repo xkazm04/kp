@@ -13306,7 +13306,8 @@
       "budget": "budget {budget} per attempt",
       "sentFlash": "Recorded as sent by you. It counts as pending until a verdict comes back.",
       "revisedFlash": "Sent back with your note. It returns as a new attempt.",
-      "discardedFlash": "Draft discarded. Nothing was sent."
+      "discardedFlash": "Draft discarded. Nothing was sent.",
+      "tabBrief": "The research brief"
     },
     "work": {
       "actionFailed": "That didn't go through.",
@@ -13491,6 +13492,43 @@
       "declines": {
         "no_public_api": "Declines every run: there is no public API to read.",
         "manual_only": "Nothing is fetched: forward briefs by hand."
+      },
+      "streakValue": "{count} / {limit}",
+      "streakNear": "close to an automatic pause",
+      "streakAt": "at the limit: the source pauses itself",
+      "scanThis": "Scan this source",
+      "scanStarting": "Starting the scan…",
+      "scanQueued": "Scan queued. It starts when the task runner is free.",
+      "scanRunning": "Scanning {host}…",
+      "scanReading": "Scan finished. Reading its result…",
+      "scanDone": "Scan finished: {outcome}. {found, plural, =0 {Nothing found} one {# listing found} other {# listings found}}, {created, plural, =0 {none new} one {# new} other {# new}}.",
+      "scanDoneReason": "Scan finished: {outcome} ({reason}). {found, plural, =0 {Nothing found} one {# listing found} other {# listings found}}, {created, plural, =0 {none new} one {# new} other {# new}}.",
+      "scanNotRun": "Not run: the source was paused before the scan reached it.",
+      "scanUnknown": "Scan finished, but its result could not be read. The source and the line were read again.",
+      "scanFailed": "The scan did not finish: {status}.",
+      "scanStatus": {
+        "failed": "it failed",
+        "canceled": "it was canceled",
+        "interrupted": "it was interrupted (the server restarted)"
+      },
+      "scanBlockedTerms": "Acknowledge the terms above before scanning this source.",
+      "scanBlockedPaused": "Paused ({reason}). Resume it to scan.",
+      "scanBlockedOff": "Off. Resume it to scan.",
+      "scanReason": {
+        "blocked": "the host refused",
+        "offline": "kp is offline",
+        "shape_changed": "the provider changed its answer",
+        "required_rule_miss": "the answer lacks a required field",
+        "robots_disallowed": "robots.txt disallows it",
+        "source_outage": "the provider is unreachable",
+        "source_gone": "the endpoint is gone",
+        "no_key": "no API key is set",
+        "no_public_api": "no public API",
+        "manual_only": "manual only",
+        "wall_budget": "the scan ran out of time",
+        "aborted": "canceled",
+        "store_error": "kp could not store a listing",
+        "adapter_error": "the adapter failed"
       }
     },
     "line": {
@@ -13581,7 +13619,68 @@
       "offLineNote": "Declining or withdrawing moves it to “Left the line”. Nothing is sent anywhere.",
       "notFoundTitle": "This gig is not in the list",
       "notFound": "It may have moved past the window the tab reads. Go back to the line and refresh.",
-      "escKey": "Esc"
+      "escKey": "Esc",
+      "columnLabel": "Gigs in {step}",
+      "columnPos": "{index} of {total} in {step}",
+      "prevInColumn": "Previous gig in {step}",
+      "nextInColumn": "Next gig in {step}",
+      "declineConfirm": "Decline “{title}”? This is final. Press <kbd>D</kbd> again or <kbd>Enter</kbd>; <kbd>Esc</kbd> cancels.",
+      "declineYes": "Decline it",
+      "declineNo": "Cancel",
+      "declining": "Declining…",
+      "declinedFlash": "Declined “{title}”.",
+      "keysNav": "<kbd>←</kbd> <kbd>→</kbd> previous or next in this column",
+      "keysDecline": "<kbd>D</kbd> decline",
+      "keysChecklist": "<kbd>1</kbd> to <kbd>{count}</kbd> tick the checklist",
+      "keysBack": "<kbd>Esc</kbd> back to the line"
+    },
+    "brief": {
+      "title": "Research brief",
+      "notYet": "Not researched yet",
+      "notYetBody": "Research reads up to three pages the listing links to and writes a brief: what the gig is, how hard it looks, the effort, and the challenges to expect.",
+      "research": "Research now",
+      "researchAgain": "Research again",
+      "researching": "Researching: up to three linked pages, then one model call. This can take a minute.",
+      "failed": "The research could not be run.",
+      "byModel": "{count, plural, =0 {Written by a model from the listing alone} one {Written by a model from the listing and # linked page} other {Written by a model from the listing and # linked pages}}",
+      "byKp": "{count, plural, =0 {Assembled without a model ({reason}) from the listing alone} one {Assembled without a model ({reason}) from the listing and # linked page} other {Assembled without a model ({reason}) from the listing and # linked pages}}",
+      "researchedAt": "researched {date}",
+      "fallback": {
+        "no_provider": "no provider",
+        "gig_suspect": "a linked page was flagged",
+        "budget": "out of time",
+        "engine_error": "the engine failed",
+        "llm_unusable": "the model’s answer was unusable",
+        "llm_error": "the model call failed"
+      },
+      "category": "Category",
+      "difficulty": "Difficulty",
+      "level": {
+        "easy": "Easy",
+        "moderate": "Moderate",
+        "hard": "Hard",
+        "very_hard": "Very hard",
+        "unrated": "Not rated"
+      },
+      "unratedWhy": "No model rated it.",
+      "cardDifficulty": "Difficulty: {level}",
+      "effort": "Effort",
+      "effortRange": "{min}–{max} h",
+      "effortNone": "not estimated",
+      "challenges": "Expected challenges",
+      "challengesNone": "none listed",
+      "contents": "Contents of the brief",
+      "contentsTitle": "In this brief",
+      "sourcesRead": "Sources read",
+      "linksNone": "The listing names no link worth reading.",
+      "linkStatus": {
+        "fetched": "Fetched",
+        "skipped": "Skipped",
+        "blocked": "Blocked",
+        "failed": "Failed"
+      },
+      "linkFlagged": "flagged as a honeypot",
+      "linkChars": "{count, plural, one {# character read} other {# characters read}}"
     },
     "legend": {
       "label": "What the marks and frames mean",
@@ -13590,7 +13689,8 @@
       "rewardStated": "reward stated",
       "rewardNotStated": "reward not stated",
       "suspect": "suspect, quarantined",
-      "edge": "left edge: the specialist, named in each arena’s label"
+      "edge": "left edge: the specialist, named in each arena’s label",
+      "difficulty": "Difficulty"
     }
   }
 }

@@ -8,6 +8,7 @@ import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-mess
 import { lintDraft } from "@/app/_lib/gigs/draft-lint";
 import { GIG_DISCLOSURE_ITEM, type Gig, type GigAttempt } from "@/app/_lib/gigs/types";
 import { checklistFor, checklistKeyFor, deskGate, evidenceState, markSentGate, type AfterWrite, type SourceRow, type SpecialistRow } from "./gigsLogic";
+import { GigBriefPanel } from "./GigsBrief";
 import { GigHead, UntrustedText } from "./GigsFacts";
 import { DraftGalley, LintStrip } from "./GigsLint";
 import { sendJson } from "./useGigsData";
@@ -80,7 +81,7 @@ export function GigsDesk({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [tab, setTab] = useState<"draft" | "listing">("draft");
+  const [tab, setTab] = useState<"draft" | "brief" | "listing">("draft");
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
 
   const findings = useMemo(() => lintDraft({ gig, attempt, source, now }), [gig, attempt, source, now]);
@@ -214,7 +215,7 @@ export function GigsDesk({
 
               <section>
                 <div role="tablist" aria-label={t("desk.readLabel")} className="flex gap-1 border-b border-stone-200">
-                  {(["draft", "listing"] as const).map((k) => (
+                  {(["draft", "brief", "listing"] as const).map((k) => (
                     <button
                       key={k}
                       type="button"
@@ -223,7 +224,7 @@ export function GigsDesk({
                       onClick={() => setTab(k)}
                       className={`focus-ring -mb-px border-b-2 px-3 py-1.5 text-sm font-semibold ${tab === k ? "border-coral text-ink" : "border-transparent text-steel hover:text-ink"}`}
                     >
-                      {k === "draft" ? t("desk.tabDraft") : t("desk.tabListing")}
+                      {k === "draft" ? t("desk.tabDraft") : k === "brief" ? t("desk.tabBrief") : t("desk.tabListing")}
                     </button>
                   ))}
                 </div>
@@ -245,6 +246,8 @@ export function GigsDesk({
                         </div>
                       ) : null}
                     </>
+                  ) : tab === "brief" ? (
+                    <GigBriefPanel gig={gig} onChanged={onChanged} />
                   ) : (
                     <UntrustedText gig={gig} source={source} />
                   )}

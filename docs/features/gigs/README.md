@@ -231,15 +231,18 @@ A strip of four screens sits under the tab header: **The line**, **Scorecard**,
      names the next move in words: "1 blocker · 2 to check" (from the pre-send lint),
      "approved, not sent", "revision asked", "no deliverable yet", "last run failed",
      "awaiting verdict · 3 days ago", or the verdict with its mark. Deadlines show as
-     "5 days left" (amber at 3 or fewer) or "closed". A cell shows six cards, then "Show N
-     more".
+     "5 days left" (amber at 3 or fewer) or "closed". A researched gig also carries its
+     brief's category as a small chip and a **difficulty glyph**: four ascending bars filled
+     to the level (easy 1, moderate 2, hard 3, very hard 4), and four hollow dashed bars for
+     `unrated`, so "not rated" never reads as "easy" (`GigsMarks.tsx` `DifficultyGlyph`,
+     named in words for screen readers). A cell shows six cards, then "Show N more".
    - **The header** counts what needs the operator, as buttons: drafts to review, suspects
      to clear, verdicts to record (`NEED_KINDS`). Each opens the oldest such gig. `N` opens
      the next one after the gig last opened (`nextNeed`), wrapping round. `/` focuses the
      search (title, org, id, niche, tags): matches stay lit and outlined, the rest dim and
      stay reachable. A filter ("Everything" / "What needs you") dims the cards that need
      nobody. The whole desk's rate sits at the right. A compact legend is always on screen:
-     the outcome marks, the three card frames and the edge.
+     the outcome marks, the three card frames, the edge and the five difficulty glyphs.
    - **The wall scrolls inside its own frame** on both axes, with the arena labels pinned
      left and the column heads pinned on top; the page never scrolls sideways. Keys stand
      down while a field has focus, a modal is open or a `g` chord is in progress.
@@ -248,7 +251,58 @@ A strip of four screens sits under the tab header: **The line**, **Scorecard**,
    <arena> / <title>" (either crumb goes back; the arena crumb lands on that arena's row).
    The wall comes back exactly as it was left: the tab holds its search, filter and
    opened-out cells, and the frame's and the page's scroll are restored before the first
-   paint, with the opened card outlined and focused. The page itself is one of two:
+   paint, with the opened card outlined and focused.
+
+   **Quick decisions.** The same bar carries "‹ 3 of 7 in Drafted ›": `←` / `→` (and the two
+   buttons) swap the page for the previous / next gig in the **same status column**, in the
+   wall's own order - the column top to bottom through the arena rows, each cell oldest
+   waiting first (`gigsLogic.ts` `columnNeighbours`, over the tab's `lineRows`). A gig that
+   left the line walks its own off-line step (declined, withdrawn or expired). No wrap: the
+   ends disable the button. **`D` declines** wherever `PATCH /api/gigs/[id] {action:"decline"}`
+   is allowed (`canQuickDecline` reads the same `transitions.ts` table: new, suspect,
+   qualified, drafted, in review); elsewhere `D` does nothing and the bar shows no decline.
+   Declining is terminal, so the first `D` (or the "Decline D" button) opens an inline
+   confirm with focus on its "Decline it" button: `D` again or `Enter` confirms, `Esc`
+   cancels and hands focus back. A confirmed decline re-reads the list and lands on the next
+   gig in the column, else the previous, else the wall, with the flash "Declined “<title>”".
+   Every swap lands at the page's top with focus on "Back to the line" (registry
+   `focus-transfer-on-in-place-navigation`: never on a control that is gone). A line under
+   the bar lists the page's keys (`←` `→`, `D` where offered, `1` to `6` on the desk,
+   `Esc`). The keys go through `useBareKeys`, which stands down while typing, under a modal,
+   with a modifier, after a bare `g` (the shell's chords: `g d` is Decisions, not decline),
+   and for a key another listener already handled; `←` / `→` also stand down inside a widget
+   that owns the arrows (toolbar, tablist, radio group, listbox, menu, grid, slider, tree)
+   or a region that scrolls.
+
+   **The research brief** (`GigsBrief.tsx`) opens the left column of the gig's page, above
+   the listing, and is a tab ("The research brief") between the draft and the listing on
+   the desk. The page header also shows the brief's category and difficulty. The brief
+   states its provenance ("Written by a model from the listing and 2 linked pages" or
+   "Assembled without a model (no provider) from the listing and 2 linked pages", and when)
+   and offers **Research again** (`POST /api/gigs/[id]/research`; the answer replaces the
+   brief in place, an error resolves through `useErrorMessage()`); with no brief it says
+   "Not researched yet" beside the same button. Then the category chip, the categorized
+   title, the difficulty with its reason ("Not rated" is an absence, never "easy"), the
+   effort ("12–20 h" and its note, or "not estimated"), the challenges as a list, a
+   contents list when the brief has 3 or more sections, the Markdown body through
+   `app/_components/Markdown.tsx` (React elements only, safe hrefs, links in a new tab with
+   `rel="noopener noreferrer"`) at a ~70ch measure and 16px+, and **Sources read** as a list
+   whose status is a word (fetched, blocked, skipped, failed) with the reason code and the
+   characters read. A link kp did not open is shown as text, never as a link. No reading
+   time is shown.
+
+   The headings carry the ids the server minted with one assigner (`brief.sections`,
+   registry `anchor-id-single-assigner` + `server-parsed-once-reused`): Markdown.tsx's
+   optional `headingId` hook takes them from `briefHeadingResolver`, which matches each
+   heading to its section by position and refuses (no id) when the level or text disagrees,
+   so a divergent body degrades to unaddressed headings, never to wrong ones. Nothing is
+   re-slugged on the client. The body is rendered up to the server-declared
+   `## Sources read` line and the structured list takes that section's place under the same
+   id. A contents link scrolls its heading in (a 1.5rem scroll margin: the workspace has no
+   sticky top chrome) and moves focus onto it (`tabIndex -1`: a focus destination, never a
+   tab stop).
+
+   The page itself is one of two:
    - **The review desk (`GigsDesk.tsx`)**, for a drafted or approved gig. The meta row states
      each absence ("reward not stated", "no deadline stated", "none matched yet"). Then:
      - the **pre-send lint strip**, from `app/_lib/gigs/draft-lint.ts` (below). Each finding
@@ -308,7 +362,20 @@ A strip of four screens sits under the tab header: **The line**, **Scorecard**,
    page). Opened from a row label, that specialist's card is marked and scrolled to;
    opened from "Hire one", the form starts on that arena.
 5. **Sources (`GigsSources.tsx`).** Each source's tier, running or paused state and why, its
-   rejected streak against the limit, and its last run. A tier-B source that is not
+   rejected streak against the limit in the card's top-right corner ("2 / 5", its tone
+   rising at 2 and again at 4, with "close to an automatic pause" / "at the limit" in words;
+   "0 / 5" reads calm, not absent), and its last run in the bottom-left corner (date and
+   outcome, or "never run"). Bottom right, **Scan this source** posts
+   `POST /api/gigs/scan {sourceId}` and follows the task through the workspace's task poll
+   (`useTaskResult`, the record the Background tasks tab shows): starting, queued, running,
+   then the run's own line from the task result ("Scan finished: succeeded. 9 listings
+   found, 3 new", with the reason when it did not succeed), "not run" when a pause landed
+   before the run, or "did not finish" for a failed, canceled or interrupted task; when the
+   task ends the tab re-reads the sources and the gigs. The button is disabled from the
+   click until the task ends, so two clicks never start two scans. A paused or disabled
+   source shows it disabled with the reason beside it in words ("Paused (…). Resume it to
+   scan.", "Acknowledge the terms above before scanning this source."). The tab-wide "Scan
+   now" still only says the scan started. A tier-B source that is not
    acknowledged, or whose summary changed, shows the catalog's terms summary as written, a
    link to the original terms and the full `termsHash` the acknowledgement records, behind
    an "I read this summary" tick. A source that reads a key names its environment
@@ -516,8 +583,9 @@ ALTER-added and NULL until the gig is researched; writing a brief does not touch
 - The brief's headings and the model's text are English whatever the reader's locale.
   The section ids are stable, so a UI can label the five fixed sections from its own
   catalog.
-- `app/_components/Markdown.tsx` renders no heading ids; a surface that links to a
-  section must render the ids from `sections`.
+- `app/_components/Markdown.tsx` gives headings ids only through its `headingId` hook;
+  the brief's resolver maps by position, so a level-1 heading (kp's brief has none) would
+  leave the headings after it unaddressed rather than mis-addressed.
 - PDF and other document links are dropped, not read.
 
 - Three arena recipes (the bug-bounty report, the open-source bounty contribution and

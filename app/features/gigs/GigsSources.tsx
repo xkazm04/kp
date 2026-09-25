@@ -1,18 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ExternalLink } from "lucide-react";
-import { BTN_AFFIRM, BTN_SECONDARY, CHIP, CHIP_QUIET, META_LABEL, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { ExternalLink, Loader2, Radar } from "lucide-react";
+import { BTN_AFFIRM, BTN_PRIMARY, BTN_SECONDARY, CHIP, CHIP_QUIET, META_LABEL, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { GIG_INVALID_STREAK_LIMIT } from "@/app/_lib/gigs/types";
-import type { CatalogEntry, SourceRow } from "./gigsLogic";
+import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
+import { sourceScanView, streakTone, type CatalogEntry, type SourceRow, type StreakTone } from "./gigsLogic";
 import { Absent } from "./GigsFacts";
 import { sendJson } from "./useGigsData";
 import { useGigsFormat } from "./useGigsFormat";
 
 // The sources: official APIs only. Each configured source shows its tier, whether it is
-// running or paused and why, its invalid streak and its last run. A tier-B source runs
+// running or paused and why, its rejected streak (top right, its tone rising as it nears
+// the auto-pause) and its last run (bottom left), and can be scanned on its own (bottom
+// right: POST /api/gigs/scan {sourceId}, then the task followed through the workspace's
+// task poll - useTaskResult - to its outcome and new-listing count). A tier-B source runs
 // only after the operator acknowledges the terms summary the catalog shows - the summary
 // and its hash are on screen, exactly what the acknowledgement records. A source that
 // needs a key names the environment variables it reads (never their values).
@@ -21,10 +25,13 @@ export function GigsSources({
   sources,
   catalog,
   onChanged,
+  onScanned,
 }: {
   sources: readonly SourceRow[];
   catalog: readonly CatalogEntry[];
   onChanged: () => Promise<unknown>;
+  /** A source's own scan ended: re-read the sources and the gigs. */
+  onScanned: () => Promise<unknown>;
 }) {
   const t = useTranslations("gigs");
   const byAdapter = new Map(catalog.map((c) => [c.adapter, c]));
@@ -44,7 +51,7 @@ export function GigsSources({
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {sources.map((s) => (
-            <SourceCard key={s.id} source={s} entry={byAdapter.get(s.adapter) ?? null} onChanged={onChanged} />
+            <SourceCard key={s.id} source={s} entry={byAdapter.get(s.adapter) ?? null} onChanged={onChanged} onScanned={onScanned} />
           ))}
         </div>
       )}
@@ -89,7 +96,24 @@ function KeyHint({ entry }: { entry: CatalogEntry }) {
   );
 }
 
-function SourceCard({ source, entry, onChanged }: { source: SourceRow; entry: CatalogEntry | null; onChanged: () => Promise<unknown> }) {
+const STREAK_TONE: Record<StreakTone, string> = {
+  calm: "text-ink",
+  watch: "text-amber-700",
+  near: "text-coral",
+  at: "text-red-800",
+};
+
+function SourceCard({
+  source,
+  entry,
+  onChanged,
+  onScanned,
+}: {
+  source: SourceRow;
+  entry: CatalogEntry | null;
+  onChanged: () => Promise<unknown>;
+  onScanned: () => Promise<unknown>;
+}) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const label = useAdapterLabel();
@@ -99,6 +123,7 @@ function SourceCard({ source, entry, onChanged }: { source: SourceRow; entry: Ca
   const [read, setRead] = useState(false);
   const running = source.enabled && !source.pausedReason;
   const needsAck = source.tier === "B" && (!source.termsCurrent || source.pausedReason === "terms_review");
+  const tone = streakTone(source.invalidStreak, GIG_INVALID_STREAK_LIMIT);
 
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
@@ -110,36 +135,50 @@ function SourceCard({ source, entry, onChanged }: { source: SourceRow; entry: Ca
     await onChanged();
   }
 
+  // Why this source cannot be scanned now, as visible text beside the disabled button
+  // (the scan door refuses a paused or disabled source; it never un-pauses one).
+  const scanBlocked = needsAck
+    ? t("sources.scanBlockedTerms")
+    : source.pausedReason
+      ? t("sources.scanBlockedPaused", { reason: fmt.paused(source.pausedReason) })
+      : !source.enabled
+        ? t("sources.scanBlockedOff")
+        : null;
+
   return (
-    <article className={`${PANEL} space-y-3 p-5`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`${CHIP} text-xs`}>{t("sources.tier", { tier: source.tier })}</span>
-        <span className={`${CHIP_QUIET} text-xs`}>{fmt.arena(source.arena)}</span>
-        {running ? (
-          <span className={`${NOTICE("info")} inline-block px-2 py-0.5 text-xs font-semibold`}>{t("sources.running")}</span>
-        ) : (
-          <span className={`${NOTICE("amber")} inline-block px-2 py-0.5 text-xs font-semibold`}>{source.pausedReason ? fmt.paused(source.pausedReason) : t("sources.disabled")}</span>
-        )}
-      </div>
-      <div>
-        <h3 className="font-serif text-h3 text-ink">{label(entry, source.adapter)}</h3>
-        <p className="font-mono text-sm text-steel">{source.host}</p>
+    <article className={`${PANEL} flex flex-col gap-3 p-5`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`${CHIP} text-xs`}>{t("sources.tier", { tier: source.tier })}</span>
+            <span className={`${CHIP_QUIET} text-xs`}>{fmt.arena(source.arena)}</span>
+            {running ? (
+              <span className={`${NOTICE("info")} inline-block px-2 py-0.5 text-xs font-semibold`}>{t("sources.running")}</span>
+            ) : (
+              <span className={`${NOTICE("amber")} inline-block px-2 py-0.5 text-xs font-semibold`}>{source.pausedReason ? fmt.paused(source.pausedReason) : t("sources.disabled")}</span>
+            )}
+          </div>
+          <div>
+            <h3 className="font-serif text-h3 text-ink">{label(entry, source.adapter)}</h3>
+            <p className="font-mono text-sm text-steel">{source.host}</p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className={META_LABEL}>{t("sources.streak")}</p>
+          <p className={`font-serif text-h3 leading-tight nums ${STREAK_TONE[tone]}`}>
+            <span aria-hidden>{t("sources.streakValue", { count: source.invalidStreak, limit: GIG_INVALID_STREAK_LIMIT })}</span>
+            <span className="sr-only">{t("sources.streakLine", { count: source.invalidStreak, limit: GIG_INVALID_STREAK_LIMIT })}</span>
+          </p>
+          {tone === "near" || tone === "at" ? <p className={`text-xs font-semibold ${STREAK_TONE[tone]}`}>{tone === "at" ? t("sources.streakAt") : t("sources.streakNear")}</p> : null}
+        </div>
       </div>
       <p className="text-sm text-steel">{t(`sources.tierMeaning.${source.tier}` as Parameters<typeof t>[0])}</p>
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-        <dt className="text-steel">{t("sources.lastRun")}</dt>
-        <dd className="text-ink">
-          {source.lastRunAt ? t("sources.lastRunLine", { date: fmt.dateTime(source.lastRunAt), outcome: t(`runOutcome.${source.lastOutcome ?? "none"}` as Parameters<typeof t>[0]) }) : <Absent>{t("sources.neverRun")}</Absent>}
-        </dd>
-        <dt className="text-steel">{t("sources.streak")}</dt>
-        <dd className="text-ink nums">{t("sources.streakLine", { count: source.invalidStreak, limit: GIG_INVALID_STREAK_LIMIT })}</dd>
-        {source.pausedAt ? (
-          <>
-            <dt className="text-steel">{t("sources.pausedSince")}</dt>
-            <dd className="text-ink">{fmt.dateTime(source.pausedAt)}</dd>
-          </>
-        ) : null}
-      </dl>
+      {source.pausedAt ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+          <dt className="text-steel">{t("sources.pausedSince")}</dt>
+          <dd className="text-ink">{fmt.dateTime(source.pausedAt)}</dd>
+        </dl>
+      ) : null}
       {source.pausedReason ? <p className="text-sm text-ink">{t(`pausedWhy.${source.pausedReason}` as Parameters<typeof t>[0])}</p> : null}
       {entry ? <KeyHint entry={entry} /> : null}
 
@@ -169,18 +208,137 @@ function SourceCard({ source, entry, onChanged }: { source: SourceRow; entry: Ca
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {running ? (
-          <button type="button" disabled={busy} onClick={() => patch({ action: "pause" })} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
-            {t("sources.pause")}
-          </button>
-        ) : !needsAck ? (
-          <button type="button" disabled={busy} onClick={() => patch({ action: "resume" })} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
-            {source.pausedReason === "invalid_streak" ? t("sources.resumeStreak") : t("sources.resume")}
-          </button>
-        ) : null}
-      </div>
+
+      <SourceScan source={source} blocked={scanBlocked} onScanned={onScanned}>
+        {(scanButton) => (
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-t border-stone-200 pt-3">
+            <div className="min-w-0 text-sm">
+              <p className={META_LABEL}>{t("sources.lastRun")}</p>
+              <p className="text-ink">
+                {source.lastRunAt ? t("sources.lastRunLine", { date: fmt.dateTime(source.lastRunAt), outcome: t(`runOutcome.${source.lastOutcome ?? "none"}` as Parameters<typeof t>[0]) }) : <Absent>{t("sources.neverRun")}</Absent>}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {running ? (
+                <button type="button" disabled={busy} onClick={() => patch({ action: "pause" })} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+                  {t("sources.pause")}
+                </button>
+              ) : !needsAck ? (
+                <button type="button" disabled={busy} onClick={() => patch({ action: "resume" })} className={`${BTN_SECONDARY} h-9 px-3 text-sm`}>
+                  {source.pausedReason === "invalid_streak" ? t("sources.resumeStreak") : t("sources.resume")}
+                </button>
+              ) : null}
+              {scanButton}
+            </div>
+          </div>
+        )}
+      </SourceScan>
     </article>
+  );
+}
+
+/** One source's own scan: the button (bottom right of the card's footer) and the line
+ *  that follows its task - queued, running, finished with the run's outcome and its new
+ *  listings, or failed. Two clicks never start two scans: the button is disabled from the
+ *  click until the task ends (and the door folds a repeat onto the running task anyway).
+ *  The task is followed through the workspace's own task poll (useTaskResult), the same
+ *  record the Background tasks tab shows. */
+function SourceScan({
+  source,
+  blocked,
+  onScanned,
+  children,
+}: {
+  source: SourceRow;
+  /** Why the source cannot be scanned now, or null. */
+  blocked: string | null;
+  onScanned: () => Promise<unknown>;
+  children: (scanButton: ReactNode) => ReactNode;
+}) {
+  const t = useTranslations("gigs");
+  const fmt = useGigsFormat();
+  const resolveError = useErrorMessage();
+  const { refresh } = useTasks();
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const watch = useTaskResult(taskId);
+  // Between the 202 and the poll's first sight of the task, the status is unknown: queued.
+  const awaitingPoll = taskId !== null && watch.status === null;
+  const inFlight = starting || awaitingPoll || watch.active || watch.loading;
+  const ended = taskId !== null && (watch.full !== null || watch.resultUnavailable) ? taskId : null;
+
+  // The run ended: re-read the sources (last run, streak, pause) and the gigs, once per task.
+  const reloadedFor = useRef<string | null>(null);
+  const onScannedRef = useRef(onScanned);
+  useEffect(() => {
+    onScannedRef.current = onScanned;
+  });
+  useEffect(() => {
+    if (!ended || reloadedFor.current === ended) return;
+    reloadedFor.current = ended;
+    void onScannedRef.current();
+  }, [ended]);
+
+  async function start() {
+    if (inFlight || blocked) return;
+    setStarting(true);
+    setStartError(null);
+    const res = await sendJson("/api/gigs/scan", "POST", { sourceId: source.id });
+    setStarting(false);
+    const id = res.ok && typeof res.body?.taskId === "string" ? res.body.taskId : null;
+    if (!id) {
+      setStartError(resolveError(res.body as ApiErrorPayload | null, t("scan.failed")));
+      return;
+    }
+    setTaskId(id);
+    refresh();
+  }
+
+  let line: { tone: "info" | "critical" | "quiet"; text: string } | null = null;
+  if (startError) line = { tone: "critical", text: startError };
+  else if (starting) line = { tone: "quiet", text: t("sources.scanStarting") };
+  else if (awaitingPoll || watch.status === "queued") line = { tone: "quiet", text: t("sources.scanQueued") };
+  else if (watch.status === "running") line = { tone: "quiet", text: watch.progressMsg || t("sources.scanRunning", { host: source.host }) };
+  else if (watch.loading) line = { tone: "quiet", text: t("sources.scanReading") };
+  else if (watch.status === "failed" || watch.status === "canceled" || watch.status === "interrupted") {
+    line = { tone: "critical", text: t("sources.scanFailed", { status: t(`sources.scanStatus.${watch.status}` as Parameters<typeof t>[0]) }) };
+  } else if (watch.resultUnavailable) line = { tone: "info", text: t("sources.scanUnknown") };
+  else if (watch.full) {
+    const view = sourceScanView(watch.full.result, source.id);
+    if (view.kind === "ran") {
+      const outcome = t(`runOutcome.${view.outcome}` as Parameters<typeof t>[0]);
+      const reasonKey = `sources.scanReason.${view.reason ?? ""}` as Parameters<typeof t>[0];
+      const reason = view.reason ? (t.has(reasonKey) ? t(reasonKey) : view.reason.replace(/_/g, " ")) : null;
+      line = {
+        tone: view.outcome === "succeeded" ? "info" : "critical",
+        text: reason ? t("sources.scanDoneReason", { outcome, reason, created: view.created, found: view.found }) : t("sources.scanDone", { outcome, created: view.created, found: view.found }),
+      };
+    } else if (view.kind === "not_run") line = { tone: "info", text: t("sources.scanNotRun") };
+    else line = { tone: "info", text: t("sources.scanUnknown") };
+  }
+
+  const button = (
+    <span className="inline-flex flex-wrap items-center justify-end gap-2">
+      {blocked ? <span className="max-w-[18rem] text-right text-sm text-steel">{blocked}</span> : null}
+      <button type="button" disabled={inFlight || blocked !== null} onClick={() => void start()} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
+        {inFlight ? <Loader2 size={14} aria-hidden className="animate-spin motion-reduce:animate-none" /> : <Radar size={14} aria-hidden />} {t("sources.scanThis")}
+      </button>
+    </span>
+  );
+
+  // The run's line sits with the footer at the card's foot, never stranded mid-card when
+  // the card beside it is taller.
+  return (
+    <div className="mt-auto space-y-3">
+      {line ? (
+        <p role={line.tone === "critical" ? "alert" : "status"} className={line.tone === "quiet" ? "text-sm text-steel" : `${NOTICE(line.tone)} px-3 py-2 text-sm`}>
+          {line.text}
+          {watch.full?.finishedAt && !inFlight && !startError ? <span> · {fmt.dateTime(watch.full.finishedAt)}</span> : null}
+        </p>
+      ) : null}
+      {children(button)}
+    </div>
   );
 }
 

@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
-import type { Gig, GigAttempt, GigKpiCell } from "@/app/_lib/gigs/types";
-import { rateView } from "./gigsLogic";
+import type { Gig, GigAttempt, GigDifficulty, GigKpiCell } from "@/app/_lib/gigs/types";
+import { difficultyBars, rateView } from "./gigsLogic";
 import { useGigsFormat } from "./useGigsFormat";
 
 // The tab's small visual vocabulary, in one place so every screen draws it the same way.
@@ -146,6 +146,50 @@ const NO_EDGE = "bg-stone-200";
 
 export function edgeClass(index: number): string {
   return index < 0 ? NO_EDGE : EDGES[index % EDGES.length];
+}
+
+// ---------------------------------------------------------------------------
+// Difficulty
+// ---------------------------------------------------------------------------
+
+export const DIFFICULTY_ORDER = ["easy", "moderate", "hard", "very_hard", "unrated"] as const satisfies readonly GigDifficulty[];
+
+const DIFFICULTY_TONE: Record<GigDifficulty, string> = {
+  easy: "text-moss",
+  moderate: "text-dial-amber",
+  hard: "text-coral",
+  very_hard: "text-coral",
+  unrated: "text-steel",
+};
+
+/** Four ascending bars, filled up to the level: read by COUNT and shape, colour second.
+ *  `unrated` is four hollow dashed bars - an absence, never drawn like "easy". */
+export function DifficultyGlyph({ difficulty, className = "" }: { difficulty: GigDifficulty; className?: string }) {
+  const filled = difficultyBars(difficulty);
+  const unrated = difficulty === "unrated";
+  return (
+    <svg viewBox="0 0 16 12" className={`inline-block h-3 w-4 shrink-0 ${DIFFICULTY_TONE[difficulty]} ${className}`} aria-hidden focusable="false">
+      {[0, 1, 2, 3].map((i) => {
+        const h = 3 + i * 2.6;
+        const on = i < filled;
+        return (
+          <rect
+            key={i}
+            x={0.75 + i * 3.8}
+            y={11.25 - h}
+            width={2.8}
+            height={h}
+            rx={0.4}
+            fill={on ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth={on ? 0 : 0.9}
+            strokeDasharray={unrated ? "1.2 1" : undefined}
+            opacity={on || unrated ? 1 : 0.5}
+          />
+        );
+      })}
+    </svg>
+  );
 }
 
 /** The strip on its own, for a label or a legend: same width, same pattern. */

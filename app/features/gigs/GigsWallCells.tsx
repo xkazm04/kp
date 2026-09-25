@@ -7,7 +7,7 @@ import { CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
 import { lintDraft, lintGate } from "@/app/_lib/gigs/draft-lint";
 import type { Gig, GigArena, GigAttempt, GigKpiCell } from "@/app/_lib/gigs/types";
 import { deadlineView, rateView, type SourceRow, type SpecialistRow } from "./gigsLogic";
-import { EdgeSwatch, edgeClass, markForGig, MarkLegend, MarkRow, OutcomeMark, type MarkKind } from "./GigsMarks";
+import { DIFFICULTY_ORDER, DifficultyGlyph, EdgeSwatch, edgeClass, markForGig, MarkLegend, MarkRow, OutcomeMark, type MarkKind } from "./GigsMarks";
 import { useGigsFormat } from "./useGigsFormat";
 
 // The pieces of the line (GigsWall.tsx): one card per gig, the sticky arena label that
@@ -114,6 +114,13 @@ export const GigCard = memo(function GigCard({
     >
       <span aria-hidden className={`absolute inset-y-1 left-1 w-1.5 rounded-sm ${edgeClass(edge)}`} />
       <span className="line-clamp-3 break-words text-sm font-semibold leading-snug text-ink">{gig.title}</span>
+      {gig.brief ? (
+        <span className="mt-1 flex min-w-0 items-start gap-1.5 text-xs text-steel">
+          <DifficultyGlyph difficulty={gig.brief.difficulty} className="mt-0.5" />
+          <span className="sr-only">{t("brief.cardDifficulty", { level: t(`brief.level.${gig.brief.difficulty}` as Parameters<typeof t>[0]) })}</span>
+          <span className="line-clamp-2 min-w-0 break-words rounded bg-stone-100 px-1.5 py-px leading-snug">{gig.brief.category}</span>
+        </span>
+      ) : null}
       <span className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 text-xs text-steel">
         <span className="min-w-0 break-words">{gig.reward ? gig.reward.text : <span className="italic">{t("facts.rewardNotStated")}</span>}</span>
         {d.state === "passed" ? (
@@ -287,6 +294,15 @@ export function WallLegend() {
           <EdgeSwatch index={0} />
           {t("legend.edge")}
         </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-semibold text-ink">{t("legend.difficulty")}</span>
+        {DIFFICULTY_ORDER.map((d) => (
+          <span key={d} className="inline-flex items-center gap-1.5">
+            <DifficultyGlyph difficulty={d} />
+            {t(`brief.level.${d}` as Parameters<typeof t>[0])}
+          </span>
+        ))}
       </div>
     </div>
   );

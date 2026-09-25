@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { CHIP, NOTICE } from "@/app/_components/ui/recipes";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { deadlineView, revealInvisible, type SourceRow, type SpecialistRow } from "./gigsLogic";
+import { DifficultyGlyph } from "./GigsMarks";
 import { useGigsFormat } from "./useGigsFormat";
 
 // The facts every gig page opens with: its status, the title, and a meta row whose
@@ -61,6 +62,21 @@ export function GigHead({
           <dt className="sr-only">{t("facts.arena")}</dt>
           <dd className={`${CHIP} text-xs`}>{fmt.arena(gig.arena)}</dd>
         </div>
+        {gig.brief ? (
+          <>
+            <div>
+              <dt className="sr-only">{t("brief.category")}</dt>
+              <dd className={`${CHIP} text-xs`}>{gig.brief.category}</dd>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <dt className="text-steel">{t("brief.difficulty")}</dt>
+              <dd className="inline-flex items-center gap-1.5 text-ink">
+                <DifficultyGlyph difficulty={gig.brief.difficulty} />
+                {gig.brief.difficulty === "unrated" ? <Absent>{t("brief.level.unrated")}</Absent> : t(`brief.level.${gig.brief.difficulty}` as Parameters<typeof t>[0])}
+              </dd>
+            </div>
+          </>
+        ) : null}
         <div className="flex gap-1.5">
           <dt className="text-steel">{t("facts.org")}</dt>
           <dd className="font-semibold text-ink">{gig.org ? gig.org : <Absent>{t("facts.orgNotStated")}</Absent>}</dd>

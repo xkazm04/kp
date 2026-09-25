@@ -13306,7 +13306,8 @@
       "budget": "rozpočet {budget} na pokus",
       "sentFlash": "Zapsáno jako odeslané vámi. Dokud nepřijde verdikt, počítá se jako čekající.",
       "revisedFlash": "Vráceno s vaší poznámkou. Vrátí se jako nový pokus.",
-      "discardedFlash": "Koncept zahozen. Nic nebylo odesláno."
+      "discardedFlash": "Koncept zahozen. Nic nebylo odesláno.",
+      "tabBrief": "Rešeršní brief"
     },
     "work": {
       "actionFailed": "Akce se nezdařila.",
@@ -13491,6 +13492,43 @@
       "declines": {
         "no_public_api": "Každý běh odmítne: neexistuje veřejné API ke čtení.",
         "manual_only": "Nic se nenačítá: zadání přeposílejte ručně."
+      },
+      "streakValue": "{count} / {limit}",
+      "streakNear": "blízko automatické pauzy",
+      "streakAt": "na limitu: zdroj se sám pozastaví",
+      "scanThis": "Prohledat tento zdroj",
+      "scanStarting": "Spouštím prohledávání…",
+      "scanQueued": "Prohledávání čeká ve frontě. Začne, jakmile bude spouštěč úloh volný.",
+      "scanRunning": "Prohledávám {host}…",
+      "scanReading": "Prohledávání skončilo. Načítám výsledek…",
+      "scanDone": "Prohledávání skončilo: {outcome}. {found, plural, =0 {Nic nenalezeno} one {Nalezena # nabídka} few {Nalezeny # nabídky} many {Nalezeno # nabídky} other {Nalezeno # nabídek}}, {created, plural, =0 {žádná nová} one {# nová} few {# nové} many {# nové} other {# nových}}.",
+      "scanDoneReason": "Prohledávání skončilo: {outcome} ({reason}). {found, plural, =0 {Nic nenalezeno} one {Nalezena # nabídka} few {Nalezeny # nabídky} many {Nalezeno # nabídky} other {Nalezeno # nabídek}}, {created, plural, =0 {žádná nová} one {# nová} few {# nové} many {# nové} other {# nových}}.",
+      "scanNotRun": "Neproběhlo: zdroj byl pozastaven dřív, než na něj prohledávání došlo.",
+      "scanUnknown": "Prohledávání skončilo, ale jeho výsledek nešel načíst. Zdroj i linka byly načteny znovu.",
+      "scanFailed": "Prohledávání nedoběhlo: {status}.",
+      "scanStatus": {
+        "failed": "selhalo",
+        "canceled": "bylo zrušeno",
+        "interrupted": "bylo přerušeno (server se restartoval)"
+      },
+      "scanBlockedTerms": "Před prohledáním tohoto zdroje potvrďte podmínky výše.",
+      "scanBlockedPaused": "Pozastaveno ({reason}). Pro prohledání zdroj obnovte.",
+      "scanBlockedOff": "Vypnuto. Pro prohledání zdroj obnovte.",
+      "scanReason": {
+        "blocked": "hostitel odmítl",
+        "offline": "kp je offline",
+        "shape_changed": "poskytovatel změnil podobu odpovědi",
+        "required_rule_miss": "v odpovědi chybí povinné pole",
+        "robots_disallowed": "zakazuje to robots.txt",
+        "source_outage": "poskytovatel je nedostupný",
+        "source_gone": "koncový bod už neexistuje",
+        "no_key": "není nastaven klíč API",
+        "no_public_api": "žádné veřejné API",
+        "manual_only": "jen ručně",
+        "wall_budget": "prohledávání došel čas",
+        "aborted": "zrušeno",
+        "store_error": "kp nemohl uložit nabídku",
+        "adapter_error": "adaptér selhal"
       }
     },
     "line": {
@@ -13581,7 +13619,68 @@
       "offLineNote": "Odmítnutím nebo stažením se zakázka přesune do „Opustilo linku“. Nic se nikam neodešle.",
       "notFoundTitle": "Tato zakázka v seznamu není",
       "notFound": "Mohla se posunout mimo okno, které záložka načítá. Vraťte se na linku a obnovte ji.",
-      "escKey": "Esc"
+      "escKey": "Esc",
+      "columnLabel": "Zakázky ve sloupci {step}",
+      "columnPos": "{index} z {total} ve sloupci {step}",
+      "prevInColumn": "Předchozí zakázka ve sloupci {step}",
+      "nextInColumn": "Další zakázka ve sloupci {step}",
+      "declineConfirm": "Odmítnout „{title}“? Nejde to vrátit. Stiskněte znovu <kbd>D</kbd> nebo <kbd>Enter</kbd>; <kbd>Esc</kbd> zruší.",
+      "declineYes": "Odmítnout",
+      "declineNo": "Zrušit",
+      "declining": "Odmítám…",
+      "declinedFlash": "Zakázka „{title}“ je odmítnutá.",
+      "keysNav": "<kbd>←</kbd> <kbd>→</kbd> předchozí nebo další v tomto sloupci",
+      "keysDecline": "<kbd>D</kbd> odmítnout",
+      "keysChecklist": "<kbd>1</kbd> až <kbd>{count}</kbd> odškrtnout kontrolní seznam",
+      "keysBack": "<kbd>Esc</kbd> zpět na linku"
+    },
+    "brief": {
+      "title": "Rešeršní brief",
+      "notYet": "Zatím bez rešerše",
+      "notYetBody": "Rešerše přečte až tři stránky, na které inzerát odkazuje, a sepíše brief: o čem zakázka je, jak náročně vypadá, kolik práce zabere a jaké potíže čekat.",
+      "research": "Provést rešerši",
+      "researchAgain": "Provést rešerši znovu",
+      "researching": "Probíhá rešerše: až tři odkazované stránky a pak jedno volání modelu. Může to trvat minutu.",
+      "failed": "Rešerši se nepodařilo spustit.",
+      "byModel": "{count, plural, =0 {Sepsal model jen z inzerátu} one {Sepsal model z inzerátu a # odkazované stránky} few {Sepsal model z inzerátu a # odkazovaných stránek} many {Sepsal model z inzerátu a # odkazované stránky} other {Sepsal model z inzerátu a # odkazovaných stránek}}",
+      "byKp": "{count, plural, =0 {Sestaveno bez modelu ({reason}) jen z inzerátu} one {Sestaveno bez modelu ({reason}) z inzerátu a # odkazované stránky} few {Sestaveno bez modelu ({reason}) z inzerátu a # odkazovaných stránek} many {Sestaveno bez modelu ({reason}) z inzerátu a # odkazované stránky} other {Sestaveno bez modelu ({reason}) z inzerátu a # odkazovaných stránek}}",
+      "researchedAt": "rešerše {date}",
+      "fallback": {
+        "no_provider": "není poskytovatel",
+        "gig_suspect": "odkazovaná stránka byla označena",
+        "budget": "došel čas",
+        "engine_error": "selhal engine",
+        "llm_unusable": "odpověď modelu byla nepoužitelná",
+        "llm_error": "volání modelu selhalo"
+      },
+      "category": "Kategorie",
+      "difficulty": "Náročnost",
+      "level": {
+        "easy": "Snadná",
+        "moderate": "Střední",
+        "hard": "Těžká",
+        "very_hard": "Velmi těžká",
+        "unrated": "Nehodnoceno"
+      },
+      "unratedWhy": "Žádný model ji neohodnotil.",
+      "cardDifficulty": "Náročnost: {level}",
+      "effort": "Pracnost",
+      "effortRange": "{min}–{max} h",
+      "effortNone": "neodhadnuto",
+      "challenges": "Očekávané potíže",
+      "challengesNone": "žádné neuvedeny",
+      "contents": "Obsah briefu",
+      "contentsTitle": "V tomto briefu",
+      "sourcesRead": "Přečtené zdroje",
+      "linksNone": "Inzerát neuvádí žádný odkaz, který by stálo za to číst.",
+      "linkStatus": {
+        "fetched": "Načteno",
+        "skipped": "Přeskočeno",
+        "blocked": "Zablokováno",
+        "failed": "Selhalo"
+      },
+      "linkFlagged": "označeno jako past (honeypot)",
+      "linkChars": "{count, plural, one {přečten # znak} few {přečteny # znaky} many {přečteno # znaku} other {přečteno # znaků}}"
     },
     "legend": {
       "label": "Co znamenají značky a rámečky",
@@ -13590,7 +13689,8 @@
       "rewardStated": "odměna uvedena",
       "rewardNotStated": "odměna neuvedena",
       "suspect": "podezřelé, v karanténě",
-      "edge": "levý okraj: specialista, jmenovaný u každé arény"
+      "edge": "levý okraj: specialista, jmenovaný u každé arény",
+      "difficulty": "Náročnost"
     }
   }
 }

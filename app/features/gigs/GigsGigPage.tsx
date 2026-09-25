@@ -6,13 +6,14 @@ import { META_LABEL, NOTICE, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { Gig, GigArena, GigAttempt, GigKpi, GigOutcome } from "@/app/_lib/gigs/types";
 import { queueKindOf, type AfterWrite, type SourceRow, type SpecialistRow } from "./gigsLogic";
+import { GigBriefPanel } from "./GigsBrief";
 import { Absent, GigHead, UntrustedText } from "./GigsFacts";
 import { OutcomeMark } from "./GigsMarks";
 import { AgentPanel, OffLineMoves, QualificationFacts, RecordPanel, SuspectPanel, TriagePanel } from "./GigsWorkViews";
 import { useGigsFormat } from "./useGigsFormat";
 
-// A gig's full page, for every status the review desk does not own: the listing as
-// untrusted text, the journey so far (every attempt with its cost and notes, every
+// A gig's full page, for every status the review desk does not own: the research brief
+// (GigsBrief.tsx), the listing as untrusted text, the journey so far (every attempt with its cost and notes, every
 // verdict appended to it with the judge's own words), the qualification factors, and
 // the moves the status still allows - clear or decline a suspect, dispatch or decline a
 // new one, record the outside verdict, re-dispatch a failed run, withdraw.
@@ -67,6 +68,7 @@ export function GigsGigPage({
       <GigHead gig={gig} source={source} specialist={specialist} now={now} />
       <div className="grid lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-8 px-5 py-5 lg:border-r lg:border-stone-200">
+          <GigBriefPanel gig={gig} onChanged={onChanged} />
           <section className="space-y-2">
             <h3 className={META_LABEL}>{t("detail.listing")}</h3>
             <UntrustedText gig={gig} source={source} />

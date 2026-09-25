@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FlaskConical, RefreshCw, Radar, X } from "lucide-react";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, NOTICE, PANEL_SUNKEN, SECTION, TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
@@ -9,7 +9,7 @@ import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { useTablist } from "@/app/_components/ui/useTablist";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { GigArena } from "@/app/_lib/gigs/types";
-import type { AfterWrite } from "./gigsLogic";
+import { columnNeighbours, lineRows, type AfterWrite } from "./gigsLogic";
 import type { DeskStore } from "./GigsDesk";
 import { GigsDetail } from "./GigsDetail";
 import { GigsScorecard } from "./GigsScorecard";
@@ -108,6 +108,24 @@ export function GigsTab() {
     setFlash(null);
     setArenaFocus(arena ?? null);
   }, []);
+  /** Left / Right on a gig's page: the neighbour replaces it, and becomes the card the
+   *  wall outlines when the operator goes back. */
+  const stepToGig = useCallback((gigId: string) => {
+    setFlash(null);
+    setLastOpened(gigId);
+    setOpenGig(gigId);
+  }, []);
+  /** After a quick decline: the next page (or the wall), with the flash that names it. */
+  const afterDecline = useCallback((nextGigId: string | null, message: string) => {
+    if (nextGigId) {
+      setLastOpened(nextGigId);
+      setOpenGig(nextGigId);
+    } else {
+      setOpenGig(null);
+      setArenaFocus(null);
+    }
+    setFlash(message);
+  }, []);
   const openSpecialist = useCallback(
     (id: string) => {
       setFocus({ specialistId: id });
@@ -144,6 +162,9 @@ export function GigsTab() {
   const loaded = data.gigs !== null && data.sources !== null && data.specialists !== null;
   const loadError = data.failure ? resolveError(data.failure as ApiErrorPayload, t("loadFailed")) : null;
   const detailGig = openGig && data.gigs ? (data.gigs.find((g) => g.id === openGig) ?? null) : null;
+  // The wall's own rows, so a gig page walks its column in exactly the wall's order.
+  const rows = useMemo(() => (data.gigs ? lineRows(data.gigs, data.attemptsByGig) : []), [data.gigs, data.attemptsByGig]);
+  const neighbours = openGig ? columnNeighbours(rows, openGig) : null;
 
   return (
     <section className={`stagger-children ${SECTION}`}>
@@ -218,8 +239,11 @@ export function GigsTab() {
                 now={now}
                 store={store}
                 flash={flash}
+                neighbours={neighbours}
                 onDismissFlash={() => setFlash(null)}
                 onBack={backToLine}
+                onStep={stepToGig}
+                onDeclined={afterDecline}
                 onChanged={afterWrite}
                 onRated={setFlash}
                 onHire={onHire}
@@ -270,7 +294,15 @@ export function GigsTab() {
           ) : view === "scorecard" ? (
             <GigsScorecard kpi={data.kpi} gigs={data.gigs!} attemptsByGig={data.attemptsByGig} specialists={data.specialists!} focus={focus} />
           ) : (
-            <GigsSources sources={data.sources!} catalog={data.catalog ?? []} onChanged={reloadSources} />
+            <GigsSources
+              sources={data.sources!}
+              catalog={data.catalog ?? []}
+              onChanged={reloadSources}
+              onScanned={async () => {
+                await Promise.all([reloadSources(), reloadWork()]);
+                setNow(new Date());
+              }}
+            />
           )}
         </div>
       </div>

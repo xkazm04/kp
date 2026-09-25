@@ -6,8 +6,14 @@ import assert from "node:assert/strict";
 import type { Gig, GigAttempt, GigAttemptStatus, GigKpiCell, GigStatus } from "@/app/_lib/gigs/types.ts";
 import type { DraftLintFinding } from "@/app/_lib/gigs/draft-lint.ts";
 import {
+  afterDeclineTarget,
+  briefHeadingResolver,
+  briefHeadingText,
+  canQuickDecline,
   checklistKeyFor,
+  columnNeighbours,
   deadlineView,
+  difficultyBars,
   deriveQueue,
   deskGate,
   evidenceState,
@@ -25,9 +31,11 @@ import {
   rateView,
   reachedStep,
   revealInvisible,
+  sourceScanView,
   specialistEdgeIndex,
   splitAround,
   STEP_OWNER,
+  streakTone,
 } from "./gigsLogic.ts";
 
 const NOW = new Date("2026-09-24T12:00:00.000Z");
@@ -309,4 +317,149 @@ test("QUALIFY_BAR restates qualify.ts's threshold exactly", async () => {
   assert.ok(m, "qualify.ts still declares QUALIFY_THRESHOLD");
   const { QUALIFY_BAR } = await import("./gigsLogic.ts");
   assert.equal(QUALIFY_BAR, Number(m[1]));
+});
+
+// ---------------------------------------------------------------------------
+// Quick decisions on a gig's page
+// ---------------------------------------------------------------------------
+
+test("columnNeighbours walks the status column top to bottom through the arena rows, oldest first, no wrap", () => {
+  const gigs = [
+    gig("sec-old", "drafted", { arena: "security", updatedAt: "2026-09-02T00:00:00.000Z" }),
+    gig("sec-new", "drafted", { arena: "security", updatedAt: "2026-09-08T00:00:00.000Z" }),
+    gig("oss-1", "drafted", { arena: "oss_bounty", updatedAt: "2026-09-01T00:00:00.000Z" }),
+    gig("free-1", "drafted", { arena: "freelance", updatedAt: "2026-09-09T00:00:00.000Z" }),
+    gig("other", "qualified", { arena: "security" }),
+  ];
+  const rows = lineRows(gigs, {});
+  // The wall's row order is security, freelance, competition, oss_bounty.
+  const first = columnNeighbours(rows, "sec-old")!;
+  assert.deepEqual(first, { prev: null, next: "sec-new", index: 1, total: 4, step: "drafted" });
+  assert.deepEqual(columnNeighbours(rows, "sec-new"), { prev: "sec-old", next: "free-1", index: 2, total: 4, step: "drafted" });
+  assert.deepEqual(columnNeighbours(rows, "oss-1"), { prev: "free-1", next: null, index: 4, total: 4, step: "drafted" }, "no wrap at the end");
+  assert.deepEqual(columnNeighbours(rows, "other"), { prev: null, next: null, index: 1, total: 1, step: "qualified" }, "a column of one");
+  assert.equal(columnNeighbours(rows, "nope"), null);
+});
+
+test("columnNeighbours keeps a gig that left the line inside its own off-line step", () => {
+  const rows = lineRows(
+    [
+      gig("d1", "declined", { arena: "security" }),
+      gig("w1", "withdrawn", { arena: "security" }),
+      gig("d2", "declined", { arena: "oss_bounty" }),
+    ],
+    {}
+  );
+  assert.deepEqual(columnNeighbours(rows, "d1"), { prev: null, next: "d2", index: 1, total: 2, step: "declined" });
+  assert.deepEqual(columnNeighbours(rows, "w1"), { prev: null, next: null, index: 1, total: 1, step: "withdrawn" });
+});
+
+test("canQuickDecline offers D exactly where PATCH decline is allowed; a decline lands next, else previous, else the wall", () => {
+  const offered = (["new", "suspect", "qualified", "dispatched", "drafted", "in_review", "sent", "accepted", "rejected", "declined", "expired", "withdrawn"] as GigStatus[]).filter(canQuickDecline);
+  assert.deepEqual(offered, ["new", "suspect", "qualified", "drafted", "in_review"]);
+  assert.equal(afterDeclineTarget({ prev: "p", next: "n", index: 2, total: 3, step: "new" }), "n");
+  assert.equal(afterDeclineTarget({ prev: "p", next: null, index: 3, total: 3, step: "new" }), "p");
+  assert.equal(afterDeclineTarget({ prev: null, next: null, index: 1, total: 1, step: "new" }), null);
+  assert.equal(afterDeclineTarget(null), null);
+});
+
+test("streakTone: 0 of 5 is calm (never absent), rising to the limit", () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((n) => streakTone(n, 5)), ["calm", "calm", "watch", "watch", "near", "at", "at"]);
+});
+
+test("difficultyBars: unrated fills nothing - it is never drawn as easy", () => {
+  assert.deepEqual((["easy", "moderate", "hard", "very_hard", "unrated"] as const).map(difficultyBars), [1, 2, 3, 4, 0]);
+});
+
+test("sourceScanView reads the source's own run line; a pause before the run is 'not run'; junk is unknown, never 0 new", () => {
+  const result = { sourceId: "s1", notRunnable: 0, aborted: false, sources: [{ sourceId: "s1", outcome: "succeeded", reason: null, created: 3, found: 9, adapter: "github_bounty", paused: null, suspect: 0 }] };
+  assert.deepEqual(sourceScanView(result, "s1"), { kind: "ran", outcome: "succeeded", reason: null, created: 3, found: 9 });
+  assert.deepEqual(sourceScanView({ ...result, sources: [], notRunnable: 1 }, "s1"), { kind: "not_run" });
+  assert.deepEqual(sourceScanView({ ...result, sources: [] }, "s1"), { kind: "unknown" });
+  assert.deepEqual(sourceScanView(null, "s1"), { kind: "unknown" });
+  assert.deepEqual(sourceScanView({ nope: 1 }, "s1"), { kind: "unknown" });
+});
+
+// ---------------------------------------------------------------------------
+// The brief's heading ids: the server's assigner, the renderer's walk, one address space
+// ---------------------------------------------------------------------------
+
+/** The heading walk Markdown.tsx performs (fenced code skipped, the same trimmed
+ *  `#{1,3}` rule), emitting what its `headingId` hook receives. node:test cannot render
+ *  the .tsx component, so the walk is restated here; if Markdown.tsx's rule moves, move
+ *  this with it. */
+function rendererHeadings(markdown: string): { index: number; level: 1 | 2 | 3; text: string }[] {
+  const out: { index: number; level: 1 | 2 | 3; text: string }[] = [];
+  let fenced = false;
+  for (const line of markdown.replace(/\r\n/g, "\n").split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("```")) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const m = /^(#{1,3})\s+(.*)$/.exec(t);
+    if (m) out.push({ index: out.length, level: m[1].length as 1 | 2 | 3, text: m[2] });
+  }
+  return out;
+}
+
+test("briefHeadingResolver renders exactly the ids the server's one assigner minted (duplicates, emoji, non-Latin, escapes, fences)", async () => {
+  const { parseGigBriefSections } = await import("@/app/_lib/gigs/research.ts");
+  const md = [
+    "## Overview",
+    "Text.",
+    "## Overview",
+    "### 🚀🚀",
+    "## Обзор",
+    "```",
+    "## not a heading inside a fence",
+    "```",
+    "## Stored \\*XSS\\* in \\[bio\\]",
+    "### **Bold** and `code`",
+    "## Overview",
+  ].join("\n");
+  const sections = parseGigBriefSections(md);
+  const resolve = briefHeadingResolver(sections);
+  const rendered = rendererHeadings(md).map(resolve);
+  assert.deepEqual(rendered, sections.map((s) => s.id), "the renderer and the extractor agree id for id, in order");
+  // The instrument fired the paths it exists for.
+  assert.ok(rendered.includes("overview-2") && rendered.includes("overview-3"), "duplicate suffixes were exercised");
+  assert.equal(rendered.filter((id) => /^section-\d+$/.test(id ?? "")).length, 2, "the emoji and the Cyrillic heading took the positional fallback");
+  assert.ok(rendered.every((id) => typeof id === "string"), "every heading got an address");
+  // Text agreement is what lets a divergent body degrade instead of mis-addressing.
+  for (const [i, h] of rendererHeadings(md).entries()) assert.equal(briefHeadingText(h.text), sections[i].text);
+});
+
+test("briefHeadingResolver refuses rather than guesses when the body and its sections disagree", async () => {
+  const { parseGigBriefSections } = await import("@/app/_lib/gigs/research.ts");
+  const sections = parseGigBriefSections("## One\n## Two");
+  const resolve = briefHeadingResolver(sections);
+  assert.equal(resolve({ index: 0, level: 2, text: "One" }), "one");
+  assert.equal(resolve({ index: 1, level: 2, text: "Changed" }), undefined, "text moved: no id");
+  assert.equal(resolve({ index: 1, level: 3, text: "Two" }), undefined, "level moved: no id");
+  assert.equal(resolve({ index: 2, level: 2, text: "Three" }), undefined, "past the end: no id");
+  // Pure: asking twice (React may render twice) answers the same.
+  assert.equal(resolve({ index: 0, level: 2, text: "One" }), "one");
+});
+
+test("briefHeadingResolver over a real assembled brief addresses all five fixed sections", async () => {
+  const { buildLlmGigBrief } = await import("@/app/_lib/gigs/research.ts");
+  const brief = buildLlmGigBrief(
+    {
+      category: "Web security · Stored XSS",
+      title: "Stored XSS in the profile bio",
+      difficulty: "hard",
+      difficultyReason: "Needs a CSP bypass.",
+      effort: { minHours: 12, maxHours: 20, note: null },
+      challenges: ["CSP", "Sanitiser"],
+      summary: "Find a stored XSS.",
+      asks: ["A report"],
+    },
+    [{ url: "https://example.test/spec", title: "Spec", status: "fetched", reason: null, chars: 1200 }],
+    { promptVersion: "gig-brief-v1", createdAt: "2026-09-24T00:00:00.000Z" }
+  );
+  const ids = rendererHeadings(brief.markdown).map(briefHeadingResolver(brief.sections));
+  assert.deepEqual(ids, ["what-the-gig-is", "what-it-asks-for", "difficulty-and-effort", "expected-challenges", "sources-read"]);
+  assert.ok(brief.markdown.includes("\n## Sources read\n"), "the page splits the body at this exact line (GigsBrief.tsx)");
 });
