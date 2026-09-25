@@ -338,7 +338,7 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 .k-margin__trail { display: flex; align-items: center; gap: 6px; font-size: var(--text-micro); color: var(--k-quiet); margin-bottom: 10px; white-space: nowrap; overflow: hidden; }
 .k-margin__trail span { overflow: hidden; text-overflow: ellipsis; }
 .k-margin__nav { margin-left: auto; display: flex; gap: 4px; }
-.k-margin h3 { font-family: var(--font-serif); font-size: var(--text-h2); line-height: var(--text-h2--line-height); font-weight: 600; margin: 0 0 4px; }
+.k-margin h3:not([data-role="kit-section-title"]) { font-family: var(--font-serif); font-size: var(--text-h2); line-height: var(--text-h2--line-height); font-weight: 600; margin: 0 0 4px; }
 .k-margin .k-margin__sub { font-size: var(--text-micro); color: var(--k-quiet); margin: 0 0 16px; }
 .k-margin .k-section { margin-top: 24px; }
 .k-margin .k-section__head { grid-template-columns: 1fr auto; min-height: 36px; }
