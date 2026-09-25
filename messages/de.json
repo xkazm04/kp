@@ -14257,5 +14257,28 @@
       "edge": "linker Rand: der Spezialist, im Etikett jeder Arena genannt",
       "difficulty": "Schwierigkeit"
     }
+  },
+  "kit": {
+    "of": "von {total, number}",
+    "absent": "Nie erfasst",
+    "emptyMark": "Noch nichts vorhanden",
+    "table": {
+      "range": "Zeilen <b>{from, number}–{to, number}</b> von <b>{total, number}</b>",
+      "dom": "{count, plural, one {# Zeile} other {# Zeilen}} im DOM",
+      "domTip": "Fensterung: Nur die sichtbaren Zeilen und je drei darüber und darunter existieren auf der Seite. Beim Scrollen werden dieselben Knoten wiederverwendet.",
+      "prev": "Vorherige Zeilen",
+      "next": "Nächste Zeilen"
+    },
+    "pane": {
+      "label": "Detail",
+      "position": "{index} von {total}",
+      "prev": "Vorheriger (k)",
+      "next": "Nächster (j)",
+      "close": "Schließen (Esc)"
+    },
+    "stepper": {
+      "decrease": "Verringern",
+      "increase": "Erhöhen"
+    }
   }
 }

@@ -14257,5 +14257,28 @@
       "edge": "left edge: the specialist, named in each arena’s label",
       "difficulty": "Difficulty"
     }
+  },
+  "kit": {
+    "of": "of {total, number}",
+    "absent": "Never recorded",
+    "emptyMark": "Nothing here yet",
+    "table": {
+      "range": "Rows <b>{from, number}–{to, number}</b> of <b>{total, number}</b>",
+      "dom": "{count, plural, one {# row} other {# rows}} in the DOM",
+      "domTip": "Windowing: only the visible rows, plus 3 above and below, exist in the page. Scrolling re-uses the same nodes.",
+      "prev": "Previous rows",
+      "next": "Next rows"
+    },
+    "pane": {
+      "label": "Detail",
+      "position": "{index} of {total}",
+      "prev": "Previous (k)",
+      "next": "Next (j)",
+      "close": "Close (Esc)"
+    },
+    "stepper": {
+      "decrease": "Decrease",
+      "increase": "Increase"
+    }
   }
 }

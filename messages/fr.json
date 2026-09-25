@@ -14257,5 +14257,28 @@
       "edge": "bord gauche : le spécialiste, nommé dans l’étiquette de chaque arène",
       "difficulty": "Difficulté"
     }
+  },
+  "kit": {
+    "of": "sur {total, number}",
+    "absent": "Jamais enregistré",
+    "emptyMark": "Rien ici pour l’instant",
+    "table": {
+      "range": "Lignes <b>{from, number}–{to, number}</b> sur <b>{total, number}</b>",
+      "dom": "{count, plural, one {# ligne} other {# lignes}} dans le DOM",
+      "domTip": "Fenêtrage : seules les lignes visibles, plus trois au-dessus et trois en dessous, existent dans la page. Le défilement réutilise les mêmes nœuds.",
+      "prev": "Lignes précédentes",
+      "next": "Lignes suivantes"
+    },
+    "pane": {
+      "label": "Détail",
+      "position": "{index} sur {total}",
+      "prev": "Précédent (k)",
+      "next": "Suivant (j)",
+      "close": "Fermer (Échap)"
+    },
+    "stepper": {
+      "decrease": "Diminuer",
+      "increase": "Augmenter"
+    }
   }
 }

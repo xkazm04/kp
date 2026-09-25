@@ -14257,5 +14257,28 @@
       "edge": "levý okraj: specialista, jmenovaný u každé arény",
       "difficulty": "Náročnost"
     }
+  },
+  "kit": {
+    "of": "z {total, number}",
+    "absent": "Nikdy nezaznamenáno",
+    "emptyMark": "Zatím tu nic není",
+    "table": {
+      "range": "Řádky <b>{from, number}–{to, number}</b> z <b>{total, number}</b>",
+      "dom": "{count, plural, one {# řádek} few {# řádky} other {# řádků}} v DOM",
+      "domTip": "Okénkování: na stránce existují jen viditelné řádky a tři nad nimi a pod nimi. Při posouvání se znovu používají tytéž uzly.",
+      "prev": "Předchozí řádky",
+      "next": "Další řádky"
+    },
+    "pane": {
+      "label": "Detail",
+      "position": "{index} z {total}",
+      "prev": "Předchozí (k)",
+      "next": "Další (j)",
+      "close": "Zavřít (Esc)"
+    },
+    "stepper": {
+      "decrease": "Snížit",
+      "increase": "Zvýšit"
+    }
   }
 }
