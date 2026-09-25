@@ -61,8 +61,14 @@ export type PoliteFetch = (url: string, opts: PoliteFetchOptions) => Promise<Fet
 export const USER_AGENT = `${CRAWLER_TOKEN}/1.0 (+https://github.com/xkazm04/kp; owner-operated)`;
 export const DEFAULT_ACCEPT = "application/ld+json, application/json;q=0.9, text/html;q=0.8, application/xml;q=0.7, */*;q=0.1";
 
-/** Same bound as job-posting-fetch.ts: the abort signal IS the timeout on a self-host. */
+/** Same bound as job-posting-fetch.ts: the abort signal IS the timeout on a self-host.
+ *  It covers the whole exchange of a buffered request; in stream mode it ends when the
+ *  headers arrive and the two stream deadlines below take over. */
 export const FETCH_TIMEOUT_MS = 15_000;
+/** Stream mode: no byte from upstream for this long and the body is cut. */
+export const STREAM_IDLE_TIMEOUT_MS = 20_000;
+/** Stream mode: the most a body may take from headers to its last byte. */
+export const STREAM_TOTAL_TIMEOUT_MS = 120_000;
 /** A listing or detail page is tens of kB; two megabytes is a download, not a page. */
 export const MAX_BODY_BYTES = 2 * 1024 * 1024;
 /** No host is asked more often than this, whatever robots.txt says or omits. */
@@ -292,6 +298,66 @@ async function readBounded(res: Response): Promise<{ text: string } | { tooLarge
   return { text: new TextDecoder("utf-8").decode(merged) };
 }
 
+/** A streamed body that stalled or overran its deadline. Its `name` is "TimeoutError",
+ *  the same as undici's own timeout, so a consumer checks one name for both. */
+export class StreamTimeout extends Error {
+  readonly which: "idle" | "total";
+  constructor(which: "idle" | "total") {
+    super(which === "idle" ? `stream idle for ${STREAM_IDLE_TIMEOUT_MS} ms` : `stream still open after ${STREAM_TOTAL_TIMEOUT_MS} ms`);
+    this.name = "TimeoutError";
+    this.which = which;
+  }
+}
+
+/** `body` behind the two stream deadlines: an idle gap between upstream chunks and a
+ *  total time since the headers. A deadline cancels the upstream body, aborts the
+ *  request, and errors the stream the consumer holds - a read waiting on a stalled
+ *  socket rejects instead of hanging the scan. */
+function withStreamDeadlines(body: ReadableStream<Uint8Array>, abort: (reason: unknown) => void): ReadableStream<Uint8Array> {
+  const reader = body.getReader();
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let totalTimer: ReturnType<typeof setTimeout> | undefined;
+  let failed = false;
+  const clear = () => {
+    clearTimeout(idleTimer);
+    clearTimeout(totalTimer);
+  };
+  const fail = (controller: ReadableStreamDefaultController<Uint8Array>, error: StreamTimeout) => {
+    if (failed) return;
+    failed = true;
+    clear();
+    reader.cancel(error).catch(() => undefined);
+    abort(error);
+    controller.error(error);
+  };
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      totalTimer = setTimeout(() => fail(controller, new StreamTimeout("total")), STREAM_TOTAL_TIMEOUT_MS);
+    },
+    async pull(controller) {
+      idleTimer = setTimeout(() => fail(controller, new StreamTimeout("idle")), STREAM_IDLE_TIMEOUT_MS);
+      try {
+        const { done, value } = await reader.read();
+        clearTimeout(idleTimer);
+        if (failed) return;
+        if (done) {
+          clear();
+          controller.close();
+        } else if (value) controller.enqueue(value);
+      } catch (error) {
+        clearTimeout(idleTimer);
+        if (failed) return;
+        clear();
+        controller.error(error);
+      }
+    },
+    cancel(reason) {
+      clear();
+      return reader.cancel(reason);
+    },
+  });
+}
+
 function classifyStatus(status: number): FetchFailure | null {
   if (status === 401 || status === 403 || status === 429) return { kind: "blocked", status, detail: `http_${status}` };
   if (status === 404 || status === 410) return { kind: "gone", status, detail: `http_${status}` };
@@ -331,50 +397,65 @@ export const politeFetch: PoliteFetch = async function politeFetch(url, opts): P
       }
       const crawlDelay = robots.rules ? crawlDelayFor(robots.rules) : null;
       await waitForHost(politenessHost);
-      let res: Response;
-      try {
-        const hopHeaders = opts.authorization && current.host === target.host ? { ...headers, authorization: opts.authorization } : headers;
-        res = await deps.fetch(current.href, {
-          method,
-          body: method === "POST" ? opts.body : undefined,
-          headers: hopHeaders,
-          redirect: "manual",
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
-      } catch (error) {
-        stampHost(politenessHost, opts.sourceId, crawlDelay);
-        const message = error instanceof Error ? error.message : String(error);
-        return { kind: "outage", detail: /timeout|abort/i.test(message) ? "timeout" : "network" };
-      } finally {
-        stampHost(politenessHost, opts.sourceId, crawlDelay);
-      }
-      if (res.status >= 300 && res.status < 400) {
-        const location = res.headers.get("location");
-        await res.body?.cancel().catch(() => undefined);
-        if (!location) return { kind: "outage", status: res.status, detail: "redirect_without_location" };
+      // The request's one controller. The header timer aborts it for a buffered request
+      // (headers AND body); in stream mode the timer is cleared once the headers arrive
+      // and the body deadlines (withStreamDeadlines) abort it instead.
+      const controller = new AbortController();
+      const headerTimer = setTimeout(() => controller.abort(new DOMException("fetch timeout", "TimeoutError")), FETCH_TIMEOUT_MS);
+      const exchange = async (): Promise<FetchOutcome | { redirect: URL }> => {
+        let res: Response;
         try {
-          return { redirect: new URL(location, current) };
-        } catch {
-          return { kind: "outage", status: res.status, detail: "bad_redirect" };
+          const hopHeaders = opts.authorization && current.host === target.host ? { ...headers, authorization: opts.authorization } : headers;
+          res = await deps.fetch(current.href, {
+            method,
+            body: method === "POST" ? opts.body : undefined,
+            headers: hopHeaders,
+            redirect: "manual",
+            signal: controller.signal,
+          });
+        } catch (error) {
+          stampHost(politenessHost, opts.sourceId, crawlDelay);
+          const message = error instanceof Error ? error.message : String(error);
+          return { kind: "outage", detail: /timeout|abort/i.test(message) ? "timeout" : "network" };
+        } finally {
+          stampHost(politenessHost, opts.sourceId, crawlDelay);
         }
+        if (res.status >= 300 && res.status < 400) {
+          const location = res.headers.get("location");
+          await res.body?.cancel().catch(() => undefined);
+          if (!location) return { kind: "outage", status: res.status, detail: "redirect_without_location" };
+          try {
+            return { redirect: new URL(location, current) };
+          } catch {
+            return { kind: "outage", status: res.status, detail: "bad_redirect" };
+          }
+        }
+        const failure = classifyStatus(res.status);
+        if (failure) {
+          await res.body?.cancel().catch(() => undefined);
+          return failure;
+        }
+        const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+        if (opts.stream) {
+          // Headers are here: the 15 s bound would otherwise kill a 184 MB body mid-read.
+          clearTimeout(headerTimer);
+          const stream = res.body ? withStreamDeadlines(res.body, (reason) => controller.abort(reason)) : null;
+          return { kind: "ok", status: res.status, contentType, body: "", finalUrl: res.url || current.href, stream };
+        }
+        if (method === "HEAD") {
+          await res.body?.cancel().catch(() => undefined);
+          return { kind: "ok", status: res.status, contentType, body: "", finalUrl: current.href, stream: null };
+        }
+        const read = await readBounded(res);
+        if ("tooLarge" in read) return { kind: "outage", status: res.status, detail: "too_large" };
+        if (looksLikeInterstitial(contentType, read.text)) return { kind: "blocked", status: res.status, detail: "interstitial" };
+        return { kind: "ok", status: res.status, contentType, body: read.text, finalUrl: current.href, stream: null };
+      };
+      try {
+        return await exchange();
+      } finally {
+        clearTimeout(headerTimer);
       }
-      const failure = classifyStatus(res.status);
-      if (failure) {
-        await res.body?.cancel().catch(() => undefined);
-        return failure;
-      }
-      const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
-      if (opts.stream) {
-        return { kind: "ok", status: res.status, contentType, body: "", finalUrl: res.url || current.href, stream: res.body };
-      }
-      if (method === "HEAD") {
-        await res.body?.cancel().catch(() => undefined);
-        return { kind: "ok", status: res.status, contentType, body: "", finalUrl: current.href, stream: null };
-      }
-      const read = await readBounded(res);
-      if ("tooLarge" in read) return { kind: "outage", status: res.status, detail: "too_large" };
-      if (looksLikeInterstitial(contentType, read.text)) return { kind: "blocked", status: res.status, detail: "interstitial" };
-      return { kind: "ok", status: res.status, contentType, body: read.text, finalUrl: current.href, stream: null };
     });
     if ("redirect" in outcome) {
       if (hop === MAX_REDIRECTS) return { kind: "outage", detail: "too_many_redirects" };

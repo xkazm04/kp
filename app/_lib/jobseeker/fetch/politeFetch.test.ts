@@ -1,7 +1,7 @@
 // The politeness contract on a FAKE clock: robots.txt is honoured before a byte
 // leaves, Crawl-delay spaces the host, a denial is `blocked` and is never retried,
 // an interstitial on a 200 is `blocked`, KP_OFFLINE answers before any network.
-import { test, beforeEach, afterEach } from "node:test";
+import { test, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -291,4 +291,135 @@ test("a robots.txt body is read through a bounded reader: a huge file is not pul
   const out = await politeFetch("https://big.example/jobs", { sourceId: "s1" });
   assert.equal(out.kind, "ok");
   assert.ok(pulled <= 512 * 1024 + 2 * chunk.byteLength, `pulled ${pulled} bytes of robots.txt`);
+});
+
+/** Let every already-settled promise chain run, without touching the (mocked) clock. */
+async function drain(turns = 20): Promise<void> {
+  for (let i = 0; i < turns; i++) await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+/** A body we drive by hand: `push` enqueues a chunk; nothing else ever arrives. */
+function handStream() {
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    start(c) {
+      controller = c;
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  return {
+    stream,
+    // A server keeps writing after we hang up; its bytes just go nowhere.
+    push: (text: string) => {
+      if (!cancelled) controller.enqueue(new TextEncoder().encode(text));
+    },
+    cancelled: () => cancelled,
+  };
+}
+
+test("stream mode: the 15 s header timeout ends when headers arrive - a slow but live body keeps flowing", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const body = handStream();
+    let signal: AbortSignal | undefined;
+    _setPoliteFetchDepsForTests({
+      now: () => 1_000_000,
+      sleep: async () => undefined,
+      fetch: async (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (url.endsWith("/robots.txt")) return new Response("", { status: 404 });
+        signal = init?.signal ?? undefined;
+        return new Response(body.stream, { status: 200, headers: { "content-type": "application/json" } });
+      },
+    });
+    const out = await politeFetch("https://data.example/bulk.json", { sourceId: "s1", stream: true });
+    assert.equal(out.kind, "ok");
+    const reader = (out.kind === "ok" ? out.stream : null)!.getReader();
+    // A chunk every 10 s for 60 s: past the 15 s header bound, never idle for 20 s.
+    let read = 0;
+    for (let i = 0; i < 6; i++) {
+      mock.timers.tick(10_000);
+      body.push(`chunk${i}`);
+      const next = await reader.read();
+      assert.equal(next.done, false, `chunk ${i}`);
+      read++;
+    }
+    assert.equal(read, 6);
+    assert.equal(signal?.aborted, false, "nothing aborted the transfer");
+    await reader.cancel();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("stream mode: a body idle for 20 s, or running past 120 s in total, is cut with a TimeoutError", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    // Each tick is followed by a drain so the stream's pull has armed its next idle timer
+    // before the clock moves again - the order a real socket and event loop produce.
+    const cases: { label: string; which: string; drive: (push: (t: string) => void) => Promise<void> }[] = [
+      {
+        label: "idle",
+        which: "idle",
+        drive: async () => {
+          mock.timers.tick(20_001);
+        },
+      },
+      {
+        label: "total",
+        which: "total",
+        drive: async (push) => {
+          // A chunk every 10 s: never idle, but still open at 120 s.
+          for (let t = 0; t < 130; t += 10) {
+            mock.timers.tick(10_000);
+            push("x");
+            await drain();
+          }
+        },
+      },
+    ];
+    for (const { label, which, drive } of cases) {
+      _resetPolitenessForTests();
+      const body = handStream();
+      _setPoliteFetchDepsForTests({
+        now: () => 1_000_000,
+        sleep: async () => undefined,
+        fetch: async (input) => {
+          const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          if (url.endsWith("/robots.txt")) return new Response("", { status: 404 });
+          return new Response(body.stream, { status: 200, headers: { "content-type": "application/json" } });
+        },
+      });
+      const out = await politeFetch("https://data.example/bulk.json", { sourceId: "s1", stream: true });
+      assert.equal(out.kind, "ok");
+      const reader = (out.kind === "ok" ? out.stream : null)!.getReader();
+      body.push("first");
+      await reader.read();
+      let settled: { error?: unknown; done?: boolean } | null = null;
+      const pending = (async () => {
+        try {
+          for (;;) {
+            const r = await reader.read();
+            if (r.done) return { done: true };
+          }
+        } catch (error) {
+          return { error };
+        }
+      })().then((r) => (settled = r));
+      await drain();
+      await drive(body.push);
+      await drain();
+      assert.ok(settled, `${label}: a stalled/overlong stream was never cut`);
+      const error = (settled as { error?: unknown }).error;
+      assert.ok(error instanceof Error && error.name === "TimeoutError", `${label}: ${String(error)}`);
+      assert.equal((error as Error & { which?: string }).which, which, `${label}: the right deadline fired`);
+      assert.ok(body.cancelled(), `${label}: the upstream body was cancelled`);
+      void pending;
+    }
+  } finally {
+    mock.timers.reset();
+  }
 });

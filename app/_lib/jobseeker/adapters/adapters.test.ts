@@ -283,6 +283,31 @@ test("mpsv_bulk: streams the file, filters by targets/locations, caps at maxRefs
   }
 });
 
+test("mpsv_bulk: a stream deadline mid-file is a FetchHalt outage that says how far it got", async () => {
+  const records = [0, 1].map((i) => JSON.stringify({ referencniCislo: `R${i}`, nazev: "Java programátor", mistoVykonuPrace: { obec: { nazev: "Praha" } } }));
+  let sent = false;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(c) {
+      if (!sent) {
+        sent = true;
+        c.enqueue(new TextEncoder().encode(`[${records.join(",")},`));
+        return;
+      }
+      // What politeFetch's stream deadline raises (and what undici raises on a timed-out signal).
+      c.error(Object.assign(new Error("stream idle for 20000 ms"), { name: "TimeoutError" }));
+    },
+  });
+  const fetch: PoliteFetch = async (url) => ({ kind: "ok", status: 200, contentType: "application/json", body: "", finalUrl: url, stream });
+  const src = source({ adapter: "mpsv_bulk", kind: "feed", tier: "A", host: "data.mpsv.cz" });
+  const ctx = ctxFor(src, fetch, { maxRefs: 50, maxDetailFetches: 0 });
+  await assert.rejects(collect(adapterFor("mpsv_bulk").discover(ctx)), (error: unknown) => {
+    assert.ok(error instanceof FetchHalt, `a ${String(error)} escaped as-is`);
+    assert.equal(error.outcome.kind, "outage");
+    assert.match(error.outcome.detail, /2 records read/);
+    return true;
+  });
+});
+
 test("atsDiscover probes each vendor once and reports the hits", async () => {
   const { fetch, calls } = scripted({
     "https://boards-api.greenhouse.io/v1/boards/acme/jobs?content=true": ok(fx("greenhouse-jobs.json"), "application/json"),

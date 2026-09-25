@@ -12,7 +12,7 @@
 import type { RawPosting } from "../types";
 import { readJsonArrayStream } from "./jsonArrayStream";
 import { cfg, isoOrNull, matchesLocations, matchesTargets, mustOk, rawPosting, str, workModeFromText } from "./shared";
-import { AdapterCollapsed, type PostingRef, type SourceAdapter } from "./types";
+import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "./types";
 
 export const MPSV_FULL_URL = "https://data.mpsv.cz/od/soubory/volna-mista/volna-mista.json";
 const MPSV_DETAIL_URL = "https://www.uradprace.cz/web/cz/volna-mista-v-cr#/volne-misto/";
@@ -62,15 +62,25 @@ export const mpsvBulkAdapter: SourceAdapter = {
     // revisions and a bare array in others; `arrayKey` handles the former, and a bare
     // array simply never matches the key seek — so try the array first, then the key.
     const arrayKey = cfg(ctx.source, "arrayKey");
-    for await (const item of readJsonArrayStream(out.stream, { arrayKey: arrayKey ?? null })) {
-      scanned++;
-      if (!item || typeof item !== "object") continue;
-      const raw = mpsvItemToRaw(item as Item);
-      if (!raw) continue;
-      if (!matchesTargets(raw.title, ctx.preferences)) continue;
-      if (!matchesLocations(raw.location, ctx.preferences)) continue;
-      yield { externalKey: raw.externalKey, url: raw.url, hint: raw } satisfies PostingRef;
-      if (++yielded >= ctx.limits.maxRefs) break;
+    try {
+      for await (const item of readJsonArrayStream(out.stream, { arrayKey: arrayKey ?? null })) {
+        scanned++;
+        if (!item || typeof item !== "object") continue;
+        const raw = mpsvItemToRaw(item as Item);
+        if (!raw) continue;
+        if (!matchesTargets(raw.title, ctx.preferences)) continue;
+        if (!matchesLocations(raw.location, ctx.preferences)) continue;
+        yield { externalKey: raw.externalKey, url: raw.url, hint: raw } satisfies PostingRef;
+        if (++yielded >= ctx.limits.maxRefs) break;
+      }
+    } catch (error) {
+      // politeFetch's stream deadlines (idle 20 s / total 120 s) and undici's own timeout
+      // both raise a TimeoutError: the file stalled - an outage of the source, said with
+      // how far the read got, never an adapter_error.
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw new FetchHalt({ kind: "outage", detail: `stream_timeout: ${scanned} records read, ${yielded} kept` });
+      }
+      throw error;
     }
     ctx.log({ level: "info", code: "mpsv_scanned", detail: `${scanned} records read, ${yielded} kept` });
     if (scanned === 0) throw new AdapterCollapsed("shape_changed", "MPSV bulk file yielded no records");
