@@ -30,7 +30,9 @@
 .k-cells__c.is-zero .k-cells__n b { color: var(--k-faint); }
 .k-cells__wait { display: inline-flex; align-items: center; gap: 3px; color: var(--color-coral); }
 .k-cells__wait::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--color-coral); }
-.k-cells__beads { display: flex; align-items: center; min-width: 0; height: 16px; overflow: hidden; }
+.k-cells__beads { display: flex; align-items: center; min-width: 0; height: 16px; }
+/* the strip gives way before "+N" does: on a tight cell it clips its last beads, the count stays */
+.k-cells__strip { display: flex; align-items: center; min-width: 0; flex: 0 1 auto; overflow: hidden; padding: 1px 0 1px 2px; }
 .k-cells__bead { display: inline-flex; flex: none; border-radius: 50%; background: var(--k-row-bg, var(--color-paper)); }
 .k-cells__bead + .k-cells__bead { margin-left: -2px; }
 .k-cells__bead.is-needs { box-shadow: 0 0 0 1.5px var(--color-coral); position: relative; z-index: 1; }
@@ -42,10 +44,25 @@
 [data-theme="dark"] .k-cells__c:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--k-rule-strong); border-radius: 10px; }
 [data-theme="dark"] .k-cells__h { font-family: var(--font-serif); letter-spacing: .04em; font-weight: 600; }
 
-/* A narrow sheet (a reading pane open at 1280): the numerals stay, the bead strips and the bar
-   samples fold into the cells' names and the legend. */
+/* A sheet of <= 1000px (1280 with the nav rail): the cells give up air, not content. The gaps and
+   padding tighten, the beads step down to 12px and the head drops its tone shape, so a numeral, its
+   waiting count, five beads and "+N" still fit a ~90px cell. */
+@container sheet (max-width: 1000px) {
+  .k-cells { column-gap: 4px; }
+  .k-cells .k-cells__c { padding: 0 4px; }
+  .k-cells__h { padding: 0 4px; }
+  .k-cells__h > .k-shp { display: none; }
+  .k-cells .k-cells__bead > .k-shp { width: 12px; height: 12px; }
+  .k-cells__bead + .k-cells__bead { margin-left: -3px; }
+  .k-cells__more { margin-left: 4px; }
+  .k-cells__n { gap: 6px; }
+}
+/* A narrow sheet (a reading pane open at 1280): the numerals stay; the bead strips, the in-cell waiting
+   count and the bar samples fold into the cells' names and the legend. */
 @container sheet (max-width: 860px) {
-  .k-cells .k-cells__c { height: 40px; padding: 0 4px; }
+  .k-cells .k-cells__c { height: 40px; padding: 0 2px; }
+  .k-cells { column-gap: 2px; }
+  .k-cells__wait { display: none; }
   .k-cells__beads, .k-sbar__sample { display: none; }
   .k-cells__h > .k-shp { display: none; }
 }

@@ -55,11 +55,13 @@ export function StageCells({ cells, picked, onCell }: { cells: readonly StageCel
           </span>
           {c.count ? (
             <span className="k-cells__beads" aria-hidden="true">
-              {c.beads.map((b) => (
-                <span key={b.id} className={`k-cells__bead${b.needs ? " is-needs" : ""}`}>
-                  <ShapeMark shape={b.shape} tone={b.tone} size={14} tip={null} />
-                </span>
-              ))}
+              <span className="k-cells__strip">
+                {c.beads.map((b) => (
+                  <span key={b.id} className={`k-cells__bead${b.needs ? " is-needs" : ""}`}>
+                    <ShapeMark shape={b.shape} tone={b.tone} size={14} tip={null} />
+                  </span>
+                ))}
+              </span>
               {c.more > 0 ? <span className="k-cells__more k-nums">{t("more", { count: c.more })}</span> : null}
             </span>
           ) : null}
