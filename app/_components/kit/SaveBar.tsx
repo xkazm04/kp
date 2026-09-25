@@ -7,16 +7,19 @@ import { SAVE_MARK, saveBarClass, type SaveTone } from "./fields";
 import "./kit.css";
 
 /**
- * @catalog The save bar of a draft-then-save surface: sticky at the sheet's foot, on the measure; its mark's shape and edge say clean / dirty / blocked / saving, one status line says why, the discard and save actions sit in the figure-to-act tracks.
+ * @catalog The save bar of a draft-then-save surface: sticky at the sheet's foot or in flow, on the measure; its mark's shape and edge say clean / dirty / blocked / saving, one status line says why, the discard and save actions sit in the figure-to-act tracks.
  */
-export function SaveBar({ tone, status, actions }: {
+export function SaveBar({ tone, status, actions, placement = "sticky" }: {
   tone: SaveTone;
+  /** sticky: pinned to the sheet's foot. flow: in the page where it is placed, taking its own
+   *  height, so it never covers a row (a caller shows it only while there is something to save). */
+  placement?: "sticky" | "flow";
   /** One line: what is saved, what is not, or why a save is refused. */
   status: ReactNode;
   actions?: ReactNode;
 }) {
   return (
-    <Measure className={saveBarClass(tone)} data-part="save-bar" data-role="kit-save-bar">
+    <Measure className={saveBarClass(tone, placement)} data-part="save-bar" data-role="kit-save-bar">
       <div className="k-row__mark" aria-hidden>
         <Mark kind={SAVE_MARK[tone]} />
       </div>

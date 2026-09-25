@@ -17,6 +17,8 @@ export { ChipRow, ChipButton, Tag, type Chip } from "./ChipRow";
 export { Toolbar, Segmented, SearchField, type Segment } from "./Toolbar";
 export { SettingRow, Toggle, Stepper } from "./SettingRow";
 export { DataTable, type Column } from "./DataTable";
+export { FlowTable } from "./FlowTable";
+export { flowRowClass, flowVars, type FlowRowState } from "./flow";
 export { ReadingPane } from "./ReadingPane";
 export { Button, type ButtonVariant, type ButtonSize } from "./Button";
 export { TextField, SelectField, type FieldOption } from "./Field";

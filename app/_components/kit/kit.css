@@ -446,6 +446,17 @@ input.k-input:focus-visible, select.k-input:focus-visible { outline: none; borde
 [data-theme="dark"] .k-savebar { border: 2px solid var(--k-rule-strong); border-radius: 16px; background: var(--k-raised); box-shadow: var(--sticker-sm-shadow); margin-inline: -14px; padding-inline: 14px; bottom: 8px; }
 [data-theme="dark"] .k-savebar.is-dirty, [data-theme="dark"] .k-savebar.is-saving { border-color: var(--color-dial-amber); }
 [data-theme="dark"] .k-savebar.is-blocked { border-color: var(--color-red-600); }
+.k-savebar.is-flow { position: relative; bottom: auto; z-index: auto; margin-top: 0; }
+[data-theme="dark"] .k-savebar.is-flow { margin-top: 12px; bottom: auto; }
+.k-acts-note { align-self: center; font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; }
+/* FlowTable: a short editable table in flow. Rows grow (a detail line), cells let a control's focus
+   ring show instead of clipping it, and a draft row carries its edge. */
+.k-table__row.k-flow__row { height: auto; min-height: var(--row2-h); padding: 6px 0; }
+.k-flow__row .k-td { overflow: visible; }
+.k-flow__row.is-changed { box-shadow: inset 3px 0 0 var(--color-dial-amber); }
+.k-flow__row.is-error { box-shadow: inset 3px 0 0 var(--color-red-600); }
+.k-flow__detail { grid-column: name / end; grid-row: 2; padding: 6px 0 4px; min-width: 0; }
+.k-show-folded { display: none; }
 
 /* ---------- tracks tighten ---------- */
 @media (max-width: 1520px) {
@@ -560,3 +571,9 @@ input.k-input:focus-visible, select.k-input:focus-visible { outline: none; borde
 
 /* a sticker panel keeps the measure: it bleeds 14px outside the tracks so names still start on one line */
 [data-theme="dark"] .k-section__head, [data-theme="dark"] .k-section__body { margin-inline: -14px; padding-inline: 14px; }
+
+/* Shown only while the sheet has folded its meta+N tracks (<= 1000px): a control whose column folded
+   reappears where a row's detail line can reach it. Last in the sheet, after the fold steps. */
+@container sheet (max-width: 1000px) {
+  .k-show-folded { display: contents; }
+}

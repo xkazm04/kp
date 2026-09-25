@@ -39,6 +39,9 @@ test("each save tone hangs a distinct mark shape, and its class has a rule in bo
     assert.ok(css.includes(`[data-theme="dark"] .k-savebar.is-${tone}`), `dark rule for ${tone}`);
   }
   assert.match(css, /\.k-savebar \{\n  position: sticky; bottom: 0;/);
+  // In flow the bar takes its own height, so it can never cover a row.
+  assert.equal(saveBarClass("dirty", "flow"), "k-savebar is-dirty is-flow");
+  assert.match(css, /\.k-savebar\.is-flow \{ position: relative;/);
 });
 
 test("the new props and parts emit classes kit.css styles: SettingRow detail, Segmented lead, Clip", () => {

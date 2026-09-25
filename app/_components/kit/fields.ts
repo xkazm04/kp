@@ -20,9 +20,9 @@ export type SaveTone = "clean" | "dirty" | "blocked" | "saving";
 /** The mark a save bar hangs in the mark track: its SHAPE says the state; the words sit beside it. */
 export const SAVE_MARK: Record<SaveTone, MarkKind> = { clean: "ok", dirty: "caution", blocked: "fail", saving: "wait" };
 
-/** The save bar's class list (kit.css `.k-savebar`, `.is-dirty` / `.is-blocked` / `.is-saving`). */
-export function saveBarClass(tone: SaveTone): string {
-  return tone === "clean" ? "k-savebar" : `k-savebar is-${tone}`;
+/** The save bar's class list (kit.css `.k-savebar`, `.is-dirty` / `.is-blocked` / `.is-saving`, `.is-flow`). */
+export function saveBarClass(tone: SaveTone, placement: "sticky" | "flow" = "sticky"): string {
+  return ["k-savebar", tone === "clean" ? "" : `is-${tone}`, placement === "flow" ? "is-flow" : ""].filter(Boolean).join(" ");
 }
 
 /** Which tone a draft is in. Blocked wins over dirty: a draft that cannot be saved must say so first. */
