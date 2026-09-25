@@ -73,6 +73,27 @@ test("robots.txt: groups, longest match, empty Disallow, Crawl-delay", () => {
   assert.equal(isPathAllowed(parseRobots("User-agent: *\nDisallow:\n"), "/anything"), true, "an empty Disallow allows everything");
 });
 
+test("robots.txt: a many-wildcard pattern is matched in linear time with RFC 9309 semantics", () => {
+  // `/*a*a*...*b` against `/aaaa...` was exponential backtracking in a regex translation
+  // (10 wildcards measured 45 s) — a hostile robots.txt could stall the scan thread.
+  const hostile = `/${"*a".repeat(12)}*b`;
+  const rules = parseRobots(`User-agent: *\nDisallow: ${hostile}\nDisallow: /x*y$\n`);
+  const started = performance.now();
+  const verdict = isPathAllowed(rules, `/${"a".repeat(40)}`);
+  const elapsed = performance.now() - started;
+  assert.ok(elapsed < 50, `took ${elapsed.toFixed(1)} ms`);
+  assert.equal(verdict, true, "no `b` in the path: the Disallow does not match");
+  assert.equal(isPathAllowed(rules, `/${"a".repeat(40)}b`), false, "with the `b` it does");
+  // `$` anchors the end; `*` spans any run, including an empty one.
+  assert.equal(isPathAllowed(rules, "/xy"), false);
+  assert.equal(isPathAllowed(rules, "/x-anything-y"), false);
+  assert.equal(isPathAllowed(rules, "/x-anything-y?z"), true, "`$` means the path ENDS there");
+  // Regex metacharacters in a pattern are literal.
+  const meta = parseRobots("User-agent: *\nDisallow: /a.b(c)+\n");
+  assert.equal(isPathAllowed(meta, "/a.b(c)+/1"), false);
+  assert.equal(isPathAllowed(meta, "/aXb(c)/1"), true);
+});
+
 test("a robots Disallow means the page is never requested", async () => {
   const h = harness({
     "https://board.example/robots.txt": () => new Response(robotsTxt, { status: 200 }),
