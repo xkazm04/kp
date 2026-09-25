@@ -2242,6 +2242,16 @@ const ROUTES: RouteSpec[] = [
     expensive: "prepareGigProject(ws",
   },
   {
+    // The on-demand analogue of the clock's gig_sync (the headless dry run polls it):
+    // one sync pass opens a socket to the local Personas app per in-flight attempt, so
+    // it self-limits per IP before the pass. 20/10min, the dispatch/workspace budget.
+    rel: "./gigs/sync/route.ts",
+    key: "`gigs-sync:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "syncGigAttempts(ws",
+  },
+  {
     // The registry lander's stamp: one UPDATE batch per landing commit.
     rel: "./gigs/lessons/route.ts",
     key: "`gigs-lessons-land:${clientIpFrom(request.headers)}`",

@@ -505,6 +505,7 @@ seen. Info never gates.
 | POST | `/api/gigs/[id]/research` | `pipeline:write` | 20 `gigs-research` | 200 `{ gig }`; `GIG_NOT_FOUND` |
 | GET | `/api/gigs/specialists` | operator | none | none |
 | POST | `/api/gigs/specialists` | `pipeline:write` | 10 `gigs-specialist-hire` (plus the hire tail's own) | `GIG_INPUT_INVALID`, the hire tail's codes; a hire answers `placement` and `placementSkipped` |
+| POST | `/api/gigs/sync` | `pipeline:write` | 20 `gigs-sync` | 200 `{ synced, attempts }` (the attempts this pass moved); the on-demand analogue of the clock's `gig_sync` (see **Running it headless**) |
 | GET | `/api/gigs/kpi` | operator | none | none (the `GigKpi` also carries `moneyWon` per currency and `acceptedWithoutAmount`) |
 | GET | `/api/gigs/lessons` | operator or automation token | none | `GIG_INPUT_INVALID` |
 | POST | `/api/gigs/lessons` | `pipeline:write` or automation token | 60 `gigs-lessons-land` | `GIG_INPUT_INVALID` |
@@ -704,3 +705,16 @@ NULL until Personas registers it) and written by `setGigWorkspace`, which does n
   in another language gets fewer of those findings, not false ones.
 - The tier-B terms summary is shown in the language the catalog wrote it in (English),
   because its hash is what the acknowledgement records. The Sources screen says so.
+
+## Running it headless
+
+The whole pipeline up to a drafted deliverable can be driven over kp's HTTP routes
+without a single UI click, by the orchestrator `scripts/gigs/dry-run.mjs`
+(`npm run gigs:dry-run`). It is a dry run in the exact sense that matters: it proves
+the pipeline lands a deliverable on the review desk and then **stops** — it never
+approves, never submits, never crosses the human-send gate. See
+[`headless-dry-run.md`](./headless-dry-run.md) for the full path, the one irreducible
+manual step (starting the Personas desktop app), and the security note on
+`PERSONAS_HEADLESS_BRIDGE`. The on-demand `POST /api/gigs/sync` route the loop polls is
+the analogue of the clock's `gig_sync` job (`instrumentation-node.ts`); it lands finished
+runs without waiting the ~15-minute clock and widens nothing else.
