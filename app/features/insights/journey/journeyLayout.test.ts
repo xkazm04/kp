@@ -286,3 +286,14 @@ test("the rail follows the reader: which cluster is under the view", () => {
   // An empty board has no cluster in view, and says so rather than answering 0.
   assert.equal(clusterIndexInView(0, rail, []), -1);
 });
+
+test("the shared band claims a conversation only when there was one", async () => {
+  const { sharedBandClaim } = await import("./journeyLayout.ts");
+  const has = (k: string) => k === "absence.intakeMissing";
+  const col = { phases: { "job-definition": { present: false, absenceReasonKey: "journey.absence.intakeMissing" } } };
+  const none = { sharedEvents: [], sharedEventsUnlinked: false, columns: [col] } as unknown as Parameters<typeof sharedBandClaim>[0];
+  assert.deepEqual(sharedBandClaim(none, has), { kind: "absent", reasonKey: "absence.intakeMissing" });
+  assert.deepEqual(sharedBandClaim({ ...none, columns: [] }, has), { kind: "absent", reasonKey: null });
+  const one = { ...none, sharedEvents: [{}], sharedEventsUnlinked: true } as unknown as Parameters<typeof sharedBandClaim>[0];
+  assert.deepEqual(sharedBandClaim(one, has), { kind: "conversation", unlinked: true });
+});

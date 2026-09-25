@@ -48,6 +48,7 @@ import {
   type ClusterPlan,
   rowHeight,
   rowOffset,
+  sharedBandClaim,
 } from "./journeyLayout";
 
 export type JourneyClusterProps = {
@@ -115,6 +116,8 @@ function JourneyClusterImpl({
   const t = useTranslations("journey");
   const { date } = useDateFormat();
   const cluster = plan.cluster;
+  // A band may only say "one conversation defined this role" when there was one.
+  const claim = sharedBandClaim(cluster, (key) => t.has(key as Parameters<typeof t.has>[0]));
   const selectRow = useCallback(
     (entryId: string, eventId: string) => onSelectRow(entryId, eventId),
     [onSelectRow]
@@ -167,9 +170,11 @@ function JourneyClusterImpl({
               style={{ height: JOURNEY_SHARED_HEAD_PX }}
             >
               <p className="text-sm leading-snug text-ink">
-                {t("shared.headline", { count: cluster.totalColumns })}
+                {claim.kind === "conversation"
+                  ? t("shared.headline", { count: cluster.totalColumns })
+                  : `${t("absence.nothingHappened")}. ${claim.reasonKey ? t(claim.reasonKey as Parameters<typeof t>[0]) : t("absence.neverRecorded")}`}
               </p>
-              {cluster.sharedEventsUnlinked ? (
+              {claim.kind === "conversation" && claim.unlinked ? (
                 <p className={`${NOTICE("amber")} inline-block px-2 py-0.5 text-xs`} role="status">
                   {t("shared.unlinked")}
                 </p>

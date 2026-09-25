@@ -139,6 +139,32 @@ export function normalizeAbsenceKey(key: string): string {
   return key.startsWith("journey.") ? key.slice("journey.".length) : key;
 }
 
+/**
+ * What the shared job-definition band may SAY. "One conversation defined this role" is a claim
+ * that there was one; a role whose intake left no events has no conversation to claim, and the
+ * band says why instead: the reason the columns carry for their job-definition phase (the same
+ * key for every column of a role, `absence.intakeMissing` in the corpus), or "never recorded" when
+ * no resolvable reason is on file. `unlinked` is only meaningful when there is a conversation.
+ */
+export type SharedBandClaim =
+  | { kind: "conversation"; unlinked: boolean }
+  | { kind: "absent"; reasonKey: string | null };
+
+export function sharedBandClaim(
+  cluster: Pick<RoleCluster, "sharedEvents" | "sharedEventsUnlinked" | "columns">,
+  hasKey: (key: string) => boolean
+): SharedBandClaim {
+  if (cluster.sharedEvents.length > 0) return { kind: "conversation", unlinked: cluster.sharedEventsUnlinked };
+  for (const column of cluster.columns) {
+    const state = column.phases["job-definition"];
+    if (state && !state.present) {
+      const key = normalizeAbsenceKey(state.absenceReasonKey);
+      if (hasKey(key)) return { kind: "absent", reasonKey: key };
+    }
+  }
+  return { kind: "absent", reasonKey: null };
+}
+
 function silenceBefore(previous: JourneyEvent | undefined, event: JourneyEvent): number | undefined {
   if (!previous) return undefined;
   const a = Date.parse(previous.occurredAt);
