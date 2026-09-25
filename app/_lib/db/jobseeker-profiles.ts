@@ -1,5 +1,6 @@
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { EMPTY_PREFERENCES, type JobseekerFeedAnchor, type JobseekerPreferences, type JobseekerProfile } from "../jobseeker/types";
+import { mergePreferencePatch } from "../jobseeker/profile";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -196,9 +197,12 @@ export function setPolishedCv(id: string, cvMarkdown: string, workspaceId: strin
   return res.changes > 0;
 }
 
-/** Shallow-merge a partial preference set over the stored one — what the cv_polish
- *  dialog does on close with the preferences it extracted. Read→merge→write, so
- *  IMMEDIATE: two dialogs closing at once must not lose one's fields. */
+/** Merge a partial preference set over the stored one — what the cv_polish dialog does
+ *  on close with the preferences it extracted. The merge rule is profile.ts's
+ *  `mergePreferencePatch` (the ONE rule): `undefined` never overwrites, and an empty
+ *  list never erases a stated one — a dialog that did not mention places hands back
+ *  `[]`, which is "nothing said", not "no places". Read→merge→write, so IMMEDIATE: two
+ *  dialogs closing at once must not lose one's fields. */
 export function mergePreferences(
   id: string,
   partial: Partial<JobseekerPreferences>,
@@ -211,9 +215,7 @@ export function mergePreferences(
       .get(id, workspaceId) as ProfileRow | undefined;
     if (!row) return null;
     const current = fromRow(row);
-    // `undefined` members of a Partial must not overwrite stored values.
-    const defined = Object.fromEntries(Object.entries(partial).filter(([, v]) => v !== undefined));
-    const merged: JobseekerPreferences = { ...current.preferences, ...defined };
+    const merged: JobseekerPreferences = mergePreferencePatch(current.preferences, partial);
     const now = new Date().toISOString();
     d.prepare(`UPDATE jobseeker_profiles SET preferences_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`).run(
       JSON.stringify(merged),

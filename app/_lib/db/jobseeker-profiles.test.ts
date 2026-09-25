@@ -7,7 +7,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { EMPTY_PREFERENCES } from "../jobseeker/types.ts";
-import { advanceFeedAnchor, getFeedAnchor, upsertJobseekerProfile } from "./jobseeker-profiles.ts";
+import { advanceFeedAnchor, getFeedAnchor, mergePreferences, upsertJobseekerProfile } from "./jobseeker-profiles.ts";
 
 after(() => cleanupUnitDb());
 
@@ -60,4 +60,14 @@ test("the anchor is workspace-scoped: another workspace's id resolves nothing", 
   assert.equal(getFeedAnchor(mine.id, "ws-anchor-b"), null);
   assert.equal(advanceFeedAnchor(mine.id, { at: T1, id: "jpo-4" }, "ws-anchor-b"), null, "a foreign id writes nothing");
   assert.deepEqual(getFeedAnchor(mine.id, "ws-anchor-a"), { at: T1, id: "jpo-3" });
+});
+
+test("mergePreferences: an empty list from a dialog does not erase a stated one; a non-empty list replaces it", () => {
+  const ws = "ws-merge";
+  const profile = upsertJobseekerProfile({ userId: null, profile: {} as never, preferences: { ...EMPTY_PREFERENCES, locations: ["Brno"] } }, ws);
+  // The cv_polish dialog closes with the preferences IT extracted; a turn that never
+  // mentioned places hands back [] — which is "nothing said", not "no places".
+  const merged = mergePreferences(profile.id, { locations: [] }, ws);
+  assert.deepEqual(merged?.preferences.locations, ["Brno"]);
+  assert.deepEqual(mergePreferences(profile.id, { locations: ["Praha"] }, ws)?.preferences.locations, ["Praha"]);
 });
