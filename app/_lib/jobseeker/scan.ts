@@ -38,6 +38,8 @@ import { listJobseekerSources, pauseSource, recordSourceRun } from "../db/jobsee
 import { adapterFor } from "./adapters/registry";
 import type { AdapterLimits, AdapterLogEvent, SourceAdapter } from "./adapters/types";
 import { deepDivePosting, type DeepDiveOutcome } from "./deepdive";
+import type { HostLookup } from "../ats-egress-guard";
+import { egressGuardedFetch } from "./fetch/egress";
 import { politeFetch, type PoliteFetch } from "./fetch/politeFetch";
 import { matchPostings, MATCH_VERSION, type StructuredPosting } from "./match";
 import { runPythonCli, type CliRunner } from "./python-cli";
@@ -62,7 +64,12 @@ export type ScanDeps = {
   getProfile: (workspaceId: string) => JobseekerProfile | null;
   listSources: (workspaceId: string) => JobseekerSource[];
   adapterFor: (name: SourceAdapterName) => SourceAdapter;
+  /** The transport. The scan wraps it in the egress guard (fetch/egress.ts) itself, so
+   *  a sitemap <loc>, a rule-extracted detail URL or a redirect a board controls never
+   *  reaches a private address, whatever transport is bound. */
   fetch: PoliteFetch;
+  /** DNS for that guard; unset = the system resolver. */
+  lookup?: HostLookup;
   upsertPosting: typeof upsertPosting;
   markAbsent: typeof markAbsent;
   recordSourceRun: typeof recordSourceRun;
@@ -158,6 +165,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
   }
 
   const sources = deps.listSources(workspaceId).filter((s) => s.enabled && s.pausedReason === null);
+  const guardedFetch = egressGuardedFetch(deps.fetch, deps.lookup);
   // Progress steps: one per source, then structure, match, deep-dive.
   const total = sources.length + 3;
   let done = 0;
@@ -176,7 +184,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
         {
           source,
           preferences: profile.preferences,
-          fetch: deps.fetch,
+          fetch: guardedFetch,
           limits: SCAN_LIMITS,
           log: (event) => deps.log({ ...event, sourceId: source.id }),
         },

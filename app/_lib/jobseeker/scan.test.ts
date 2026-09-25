@@ -544,3 +544,52 @@ test("(g) a KO'd posting is stored once with its gate and as-if score, and the n
   assert.equal(two.skippedUpToDate, 3, "the blocked row counts as already current");
   assert.equal(matchSpawns(second), 0, "and nothing is re-sent to the matcher");
 });
+
+test("(egress) the scan's fetch binding refuses private URLs before the transport, and hands every fetch a hopGuard", async () => {
+  const store = makeStore();
+  const requested: { url: string; hopGuard?: (next: URL) => Promise<string | null> }[] = [];
+  // An adapter that fetches whatever its config names - the shape of a sitemap <loc> or a
+  // rule-extracted detail link a board controls.
+  const fetchingAdapter: SourceAdapter = {
+    name: "board_sitemap_jsonld",
+    detailFetches: false,
+    async *discover(ctx) {
+      const out = await ctx.fetch(ctx.source.config.url as string, { sourceId: ctx.source.id });
+      if (out.kind !== "ok") throw new FetchHalt(out);
+    },
+    async detail() {
+      return null;
+    },
+  };
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: {
+      ...depsFor(store, scriptedRunner({}, []), [
+        source("loopback", { url: "http://127.0.0.1:8080/sitemap.xml" }),
+        source("metadata", { url: "http://169.254.169.254/latest/meta-data/" }),
+        source("rebind", { url: "https://rebind.example/sitemap.xml" }),
+        source("public", { url: "https://public.example/sitemap.xml" }),
+      ]),
+      adapterFor: () => fetchingAdapter,
+      lookup: async (host) => [{ address: host === "rebind.example" ? "10.0.0.5" : "93.184.216.34" }],
+      fetch: async (url, opts) => {
+        requested.push({ url, hopGuard: opts.hopGuard });
+        return { kind: "ok", status: 200, contentType: "application/xml", body: "", finalUrl: url, stream: null };
+      },
+    },
+  });
+  assert.deepEqual(
+    requested.map((r) => r.url),
+    ["https://public.example/sitemap.xml"],
+    "only the public URL reached the transport"
+  );
+  const outcome = (id: string) => summary.sources.find((s) => s.sourceId === id)?.outcome;
+  for (const id of ["loopback", "metadata", "rebind"]) {
+    assert.equal(outcome(id), "blocked", `${id}: a source pointing the server at a private address is paused for its owner`);
+  }
+  assert.equal(outcome("public"), "succeeded");
+  const hopGuard = requested[0].hopGuard;
+  assert.ok(hopGuard, "the public fetch carries a hopGuard for its redirects");
+  assert.ok(await hopGuard(new URL("http://169.254.169.254/latest/meta-data/")), "a redirect onto the metadata address is refused");
+  assert.equal(await hopGuard(new URL("https://public.example/next")), null);
+});
