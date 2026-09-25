@@ -49,7 +49,7 @@ export const STYLE_REMEDY: Record<StyleRule, string> = {
   "raw-button": "hand-rolled <button> - compose BTN_* / toggleBtn / CHIP_TOGGLE / railIconBtn, or IconAction",
   "bare-rounded": "bare `rounded` - radius is a named step (rounded-md / -lg / -full)",
   "literal-page-header": "literal <header> border/pb - compose PAGE_HEADER",
-  "raw-table": "raw <table> - use app/_components/table/** (and the kit table when it lands)",
+  "raw-table": "raw <table> - no new tables until the kit table lands; an existing one composes app/_components/table/ parts + STICKY_HEAD",
 };
 
 /**
