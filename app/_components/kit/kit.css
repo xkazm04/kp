@@ -391,7 +391,7 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 .k-btn--ghost:disabled { background: transparent; border-color: transparent; }
 [data-theme="dark"] .k-btn.k-btn--ghost:disabled { border-color: transparent; background: transparent; }
 .k-btn.is-loading { cursor: progress; }
-.k-btn.is-loading::after { content: "…"; }
+.k-btn.is-loading:not(.has-loading-label)::after { content: "…"; }
 .k-btn--link { background: transparent; color: var(--color-coral); padding: 0; height: auto; font-weight: 600; }
 .k-btn--link:hover { text-decoration: underline; }
 [data-theme="dark"] .k-btn { border-width: 2px; border-color: var(--color-ink); border-radius: 12px; }

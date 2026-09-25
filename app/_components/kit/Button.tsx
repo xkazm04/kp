@@ -35,6 +35,8 @@ export function Button({
     size !== "md" ? `k-btn--${size}` : "",
     iconOnly ? "k-btn--icon" : "",
     loading ? "is-loading" : "",
+    // a caller-supplied loading label carries its own ellipsis ("Saving…"); only the bare label gets one
+    loading && loadingLabel ? "has-loading-label" : "",
     className ?? "",
   ].filter(Boolean).join(" ");
   return (
