@@ -27,8 +27,13 @@ import { BTN_AFFIRM, EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/
 import { PlanImpactStrip } from "./PipelineComposerBits";
 import { PipelineStepsEditor } from "./PipelineStepsEditor";
 import { useHiringComposer } from "./useHiringComposer";
+import { HiringKitSwitch } from "./kit/HiringKitSwitch";
 
 export function HiringTab() {
+  return <HiringKitSwitch current={<HiringTabCurrent />} />;
+}
+
+function HiringTabCurrent() {
   const t = useTranslations("hiringPlan");
   const c = useHiringComposer();
 

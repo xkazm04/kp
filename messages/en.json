@@ -138,7 +138,17 @@
     "refreshFailed": "Saved. This view couldn't be refreshed, so it may still show the previous plan.",
     "refreshRetry": "Refresh",
     "stale": "Someone saved a newer version of this pipeline. Nothing of yours was written.",
-    "staleReload": "Reload the saved plan"
+    "staleReload": "Reload the saved plan",
+    "kit": {
+      "roundsToBook": "Rounds to book",
+      "savedOn": "Saved {date}",
+      "neverSaved": "Never saved: the product defaults apply",
+      "policyTitle": "Who runs each step, and who signs off",
+      "policyNone": "None of these steps carries a decision.",
+      "cohortWhy": "How many from the previous round reach this one.",
+      "actionsEdit": "Choose",
+      "actionsDone": "Done"
+    }
   },
   "diagrams": {
     "eyebrow": "Architecture",

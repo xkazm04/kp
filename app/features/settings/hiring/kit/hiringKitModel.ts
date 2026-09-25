@@ -1,0 +1,262 @@
+// Settings > Hiring, composed from the kit (Gate 1): the data-to-rows mapping, as pure functions.
+//
+// The kit view reads the SAME state the current tab does (useHiringComposer: the axis draft, the
+// plan draft, occupancy, the stranded mapping) and edits it through the SAME model functions
+// (pipelineAxisDraft, pipelineComposerModel). What lives here is only the kit's own reading of
+// that state: one row per step, one row per decision a step carries, which marks those rows
+// wear, what changed against the stored plan, and the page head's figures. No React, no fetch.
+import { planStep, prunePlanToAxis } from "@/app/_lib/decision-config-schema";
+import type { StageAiAction, StageDef, StageRole } from "@/app/_lib/pipeline-stages";
+import { defaultStageActions, stageActions } from "@/app/_lib/stage-ai-actions";
+import type { AxisDraft, StrandedStage } from "@/app/features/shared/pipelineAxisDraft";
+import type { BlockedReason } from "../composerState";
+import type { useHiringComposer } from "../useHiringComposer";
+import {
+  deriveImpact,
+  newRound,
+  patchRound,
+  roundCount,
+  setStepGate,
+  setStepRounds,
+  type GateMode,
+  type PipelinePlan,
+  type PlanRound,
+  type RoundKind,
+} from "../pipelineComposerModel";
+
+/** What the view's sections receive: the current tab's own hook, whole. */
+export type Composer = ReturnType<typeof useHiringComposer>;
+
+/** A draft stage as the rows read it (the axis draft's stages, minus the draft-only flag). */
+export type KitStage = Pick<StageDef, "id" | "label" | "role" | "actions">;
+
+export type StepRow = {
+  id: string;
+  label: string;
+  role: StageRole;
+  /** False for a step this draft added: it has no stored key yet and holds nobody. */
+  saved: boolean;
+  /** Candidates standing here; null until the occupancy read lands (never a guessed 0). */
+  count: number | null;
+  /** Differs from the stored axis: new, renamed, re-typed, re-scoped actions, or moved. */
+  changed: boolean;
+  /** Its name is empty or repeats another step's (the two label problems axisProblems names). */
+  invalid: boolean;
+  first: boolean;
+  last: boolean;
+};
+
+const labelKey = (label: string) => label.trim().toLowerCase();
+
+export function stepRows(
+  draft: AxisDraft,
+  savedStages: readonly StageDef[],
+  counts: Record<string, number>,
+  countsLoaded: boolean,
+): StepRow[] {
+  const seen = new Map<string, number>();
+  for (const s of draft.stages) if (labelKey(s.label)) seen.set(labelKey(s.label), (seen.get(labelKey(s.label)) ?? 0) + 1);
+  const n = draft.stages.length;
+  // MOVED is judged on the order of the columns both sides still have: removing or adding a column
+  // shifts every index after it, and marking those rows changed would blame the reader for a move
+  // they never made.
+  const liveIds = new Set(draft.stages.map((s) => s.id));
+  const savedIds = new Set(savedStages.map((s) => s.id));
+  const wasOrder = savedStages.map((s) => s.id).filter((id) => liveIds.has(id));
+  const nowOrder = draft.stages.map((s) => s.id).filter((id) => savedIds.has(id));
+  return draft.stages.map((s, i) => {
+    const was = savedStages.find((x) => x.id === s.id) ?? null;
+    const changed =
+      !s.saved ||
+      !was ||
+      was.label !== s.label ||
+      was.role !== s.role ||
+      JSON.stringify(was.actions ?? null) !== JSON.stringify(s.actions ?? null) ||
+      wasOrder.indexOf(s.id) !== nowOrder.indexOf(s.id);
+    return {
+      id: s.id,
+      label: s.label,
+      role: s.role,
+      saved: s.saved,
+      count: !countsLoaded ? null : s.saved ? (counts[s.id] ?? 0) : 0,
+      changed,
+      invalid: labelKey(s.label) === "" || (seen.get(labelKey(s.label)) ?? 0) > 1,
+      first: i === 0,
+      last: i === n - 1,
+    };
+  });
+}
+
+// ---- the decisions each step carries -------------------------------------------------------
+
+/** Types that carry policy at all - PipelineStepPolicy's `stepCarriesPolicy`, which lives in a
+ *  .tsx and so cannot be imported here. Entry, terminal and custom carry none (a guard on a column
+ *  the product has no semantics for would be a switch wired to nothing). */
+export const POLICY_ROLES: readonly StageRole[] = ["screening", "homework", "interview", "scoring", "offer"];
+
+export type PolicyDim = "cohort" | "executor" | "guard" | "scorecard";
+
+export type PolicyRow = {
+  key: string;
+  stageId: string;
+  role: StageRole;
+  dim: PolicyDim;
+  /** guard: GateMode · executor: RoundKind · cohort: top N or null (everyone) · scorecard: null. */
+  value: GateMode | RoundKind | number | null;
+  changed: boolean;
+  /** On the executor row: rounds a legacy plan stacked behind this column (> 1 = say so). */
+  stacked?: number;
+};
+
+/**
+ * One row per decision, in board order - the three policy slots of the current table
+ * (cohort, executor, guard), each as its own setting row. Same rules as PipelineStepPolicy:
+ * an untouched column reads as its conservative default (a person approves; an interview is an
+ * AI round nobody has approved yet), a cohort is offered only after a previous round, and a
+ * human round's verdict IS the decision (the scorecard row states it, nothing to choose).
+ */
+export function policyRows(plan: PipelinePlan, savedPlan: PipelinePlan | null, stages: readonly KitStage[]): PolicyRow[] {
+  const rows: PolicyRow[] = [];
+  let roundsBefore = 0;
+  for (const stage of stages) {
+    const step = planStep(plan, stage.id);
+    const was = savedPlan ? planStep(savedPlan, stage.id) : null;
+    const rounds = step?.rounds ?? [];
+    const before = roundsBefore;
+    roundsBefore += rounds.length;
+    if (!POLICY_ROLES.includes(stage.role)) continue;
+    const base = { stageId: stage.id, role: stage.role };
+    if (stage.role !== "interview") {
+      const gate = step?.gate ?? "human";
+      rows.push({ ...base, key: `${stage.id}:guard`, dim: "guard", value: gate, changed: gate !== (was?.gate ?? "human") });
+      continue;
+    }
+    const round = rounds[0] ?? newRound("ai");
+    const old = was?.rounds[0] ?? newRound("ai");
+    if (before > 0) rows.push({ ...base, key: `${stage.id}:cohort`, dim: "cohort", value: round.topN, changed: round.topN !== old.topN });
+    rows.push({
+      ...base,
+      key: `${stage.id}:executor`,
+      dim: "executor",
+      value: round.kind,
+      changed: round.kind !== old.kind,
+      ...(rounds.length > 1 ? { stacked: rounds.length } : {}),
+    });
+    rows.push(
+      round.kind === "human"
+        ? { ...base, key: `${stage.id}:scorecard`, dim: "scorecard", value: null, changed: false }
+        : { ...base, key: `${stage.id}:guard`, dim: "guard", value: round.gate, changed: round.gate !== old.gate || old.kind !== "ai" },
+    );
+  }
+  return rows;
+}
+
+/** Apply one row's new value - the same plan edits PipelineStepPolicy makes. An interview column
+ *  the plan has not met yet gets its default round written on this first edit, not on render. */
+export function setPolicy(
+  plan: PipelinePlan,
+  row: Pick<PolicyRow, "stageId" | "role" | "dim">,
+  value: GateMode | RoundKind | number | null,
+): PipelinePlan {
+  if (row.role !== "interview") return row.dim === "guard" ? setStepGate(plan, row.stageId, value as GateMode) : plan;
+  const patch: Partial<PlanRound> =
+    row.dim === "executor"
+      ? { kind: value as RoundKind }
+      : row.dim === "guard"
+        ? { gate: value as GateMode }
+        : row.dim === "cohort"
+          ? { topN: value as number | null }
+          : {};
+  const rounds = planStep(plan, row.stageId)?.rounds ?? [];
+  return rounds.length > 0 ? patchRound(plan, row.stageId, 0, patch) : setStepRounds(plan, row.stageId, [{ ...newRound("ai"), ...patch }]);
+}
+
+// ---- marks and figures ------------------------------------------------------------------------
+
+/** Who decides at a column, as the server will read the plan (deriveImpact's rules). */
+export type Decider = "human" | "machine" | "nobody";
+
+const GATED: readonly StageRole[] = ["screening", "homework", "scoring", "offer"];
+
+export function deciders(plan: PipelinePlan, axis: readonly KitStage[]): Record<string, Decider> {
+  const live = prunePlanToAxis(plan, axis as StageDef[]);
+  const out: Record<string, Decider> = {};
+  for (const stage of axis) {
+    const step = planStep(live, stage.id);
+    const gated = GATED.includes(stage.role);
+    if (!step || (!gated && step.rounds.length === 0)) {
+      out[stage.id] = "nobody";
+      continue;
+    }
+    const human = (gated && step.gate === "human") || step.rounds.some((r) => r.kind === "human" || r.gate === "human");
+    out[stage.id] = human ? "human" : "machine";
+  }
+  return out;
+}
+
+/** The page head's figures and their change against the STORED plan on the STORED axis. */
+export function planFigures(
+  plan: PipelinePlan,
+  axis: readonly KitStage[],
+  savedPlan: PipelinePlan | null,
+  savedAxis: readonly KitStage[],
+): { decisions: number; decisionsDelta: number; rounds: number; roundsDelta: number } {
+  const decisions = deriveImpact(plan, axis as StageDef[]).humanTouchpoints;
+  const rounds = roundCount(plan, axis as StageDef[]);
+  if (!savedPlan) return { decisions, decisionsDelta: 0, rounds, roundsDelta: 0 };
+  return {
+    decisions,
+    decisionsDelta: decisions - deriveImpact(savedPlan, savedAxis as StageDef[]).humanTouchpoints,
+    rounds,
+    roundsDelta: rounds - roundCount(savedPlan, savedAxis as StageDef[]),
+  };
+}
+
+/** Everyone on the board, or null while occupancy is unknown. */
+export function boardTotal(stages: readonly KitStage[], counts: Record<string, number>, countsLoaded: boolean): number | null {
+  return countsLoaded ? stages.reduce((n, s) => n + (counts[s.id] ?? 0), 0) : null;
+}
+
+// ---- AI actions, strandings, the save line --------------------------------------------------------
+
+export type ActionRow = { id: string; current: StageAiAction[]; defaults: StageAiAction[]; custom: boolean };
+
+export function actionRows(stages: readonly KitStage[]): ActionRow[] {
+  const axis = stages as StageDef[];
+  return stages.map((s) => ({
+    id: s.id,
+    current: stageActions(s.id, axis),
+    defaults: defaultStageActions(s.id, axis),
+    custom: s.actions !== undefined,
+  }));
+}
+
+export type StrandedRow = { id: string; label: string; count: number; target: string; unmapped: boolean };
+
+/** A destination must still exist on the draft (composerState's `unmapped` rule). */
+export function strandedRows(
+  stranded: readonly StrandedStage[],
+  mapping: Record<string, string>,
+  stages: readonly KitStage[],
+): StrandedRow[] {
+  const live = new Set(stages.map((s) => s.id));
+  return stranded.map((s) => {
+    const target = mapping[s.stage.id] ?? "";
+    return { id: s.stage.id, label: s.stage.label, count: s.count, target, unmapped: !live.has(target) };
+  });
+}
+
+/** The save bar's sentence - HiringTab's order: the reason a save is refused wins over "unsaved". */
+export function saveStatusKey(reason: BlockedReason, dirty: boolean) {
+  if (reason === "occupancy") return "blockedOccupancy" as const;
+  if (reason === "unmapped") return "blockedStranded" as const;
+  if (reason === "problems") return "blocked" as const;
+  return dirty ? ("unsaved" as const) : ("allSaved" as const);
+}
+
+/** First sentence of a catalog sentence pair ("X. Click to Y." -> "X."): a click hint does not
+ *  belong beside a segmented control, which shows both answers. */
+export function firstSentence(text: string): string {
+  const m = /^(.+?[.!?])(\s|$)/.exec(text);
+  return m ? m[1] : text;
+}

@@ -138,7 +138,17 @@
     "refreshFailed": "Uloženo. Zobrazení se nepodařilo obnovit, může proto ukazovat předchozí plán.",
     "refreshRetry": "Obnovit",
     "stale": "Někdo mezitím uložil novější verzi tohoto procesu. Vaše změny se neuložily.",
-    "staleReload": "Načíst uložený plán"
+    "staleReload": "Načíst uložený plán",
+    "kit": {
+      "roundsToBook": "Kola k naplánování",
+      "savedOn": "Uloženo {date}",
+      "neverSaved": "Nikdy neuloženo: platí výchozí nastavení",
+      "policyTitle": "Kdo krok vede a kdo ho schvaluje",
+      "policyNone": "Žádný z těchto kroků nenese rozhodnutí.",
+      "cohortWhy": "Kolik kandidátů z předchozího kola postoupí do tohoto.",
+      "actionsEdit": "Vybrat",
+      "actionsDone": "Hotovo"
+    }
   },
   "diagrams": {
     "eyebrow": "Architektura",

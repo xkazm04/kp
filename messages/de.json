@@ -138,7 +138,17 @@
     "refreshFailed": "Gespeichert. Diese Ansicht ließ sich nicht aktualisieren und zeigt womöglich noch den vorherigen Plan.",
     "refreshRetry": "Aktualisieren",
     "stale": "Jemand hat eine neuere Version dieser Pipeline gespeichert. Ihre Änderungen wurden nicht geschrieben.",
-    "staleReload": "Gespeicherten Plan laden"
+    "staleReload": "Gespeicherten Plan laden",
+    "kit": {
+      "roundsToBook": "Runden zu planen",
+      "savedOn": "Gespeichert am {date}",
+      "neverSaved": "Nie gespeichert: Es gelten die Standardwerte",
+      "policyTitle": "Wer jeden Schritt ausführt und wer freigibt",
+      "policyNone": "Keiner dieser Schritte trägt eine Entscheidung.",
+      "cohortWhy": "Wie viele aus der vorigen Runde diese erreichen.",
+      "actionsEdit": "Auswählen",
+      "actionsDone": "Fertig"
+    }
   },
   "diagrams": {
     "eyebrow": "Architektur",
