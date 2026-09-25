@@ -3171,7 +3171,13 @@
         "rejection_review": "Eine Ablehnung zu bestätigen",
         "offer_review": "Ein Angebot freizugeben",
         "calendar": "Ein Interview zu buchen"
-      }
+      },
+      "sortKit": "Wartende zuerst, dann Match",
+      "intakeTip": "Bewerbungen, deren Eingang fehlgeschlagen ist: Niemand kann sie matchen, bis ein Profil erfasst ist",
+      "viewDefaultLabel": "{name} (Standard)",
+      "done": "Fertig",
+      "slaDefault": "Standard der Rolle: {days, plural, one {# Tag} other {# Tage}}",
+      "slaFor": "Tage, bis ein Kandidat in {stage} altert"
     },
     "board": {
       "scrollHint": "Auf eine Phasen-Überschrift klicken, um sie zu zentrieren · scrollen, um durch die Pipeline zu navigieren",
@@ -3412,7 +3418,54 @@
       "bulkMovePreviewVerdictsCleared": "{count, plural, one {# offene Entscheidung wird verworfen} other {# offene Entscheidungen werden verworfen}}",
       "bulkMovePreviewOffersHeld": "{count, plural, one {# vorbereitetes Angebot zurückgehalten (das Verschieben würde es löschen)} other {# vorbereitete Angebote zurückgehalten (das Verschieben würde sie löschen)}}",
       "bulkMovePreviewAlreadyThere": "{count} bereits dort",
-      "bulkMovePreviewStale": "{count, plural, one {# hat sich inzwischen geändert und wird nicht verschoben} other {# haben sich inzwischen geändert und werden nicht verschoben}}"
+      "bulkMovePreviewStale": "{count, plural, one {# hat sich inzwischen geändert und wird nicht verschoben} other {# haben sich inzwischen geändert und werden nicht verschoben}}",
+      "filterInterview": "Interview",
+      "filterAging": "Alterung",
+      "filterAwaiting": "Wartet auf Entscheidung",
+      "filterIntake": "Erfassung nötig",
+      "filterStage": "Phase: {stage}",
+      "filterStateLabel": "Status",
+      "filterScoreLabel": "Score",
+      "filterScoreStrong": "Stark 75+",
+      "filterScoreMid": "Mittel 50–74",
+      "filterScoreWeak": "Schwach <50",
+      "filterScoreUnscored": "Ohne Score",
+      "filterSourceLabel": "Quelle",
+      "sortScore": "Score, absteigend",
+      "sortAge": "Am längsten in Phase",
+      "stageOffBoard": "Phase {stage} ist keine Spalte dieses Boards mehr. Der Filter bleibt aktiv, Sie sehen also nur die Kandidat/innen, die weiterhin auf ihr stehen.",
+      "stageOffBoardClear": "Diesen Filter entfernen",
+      "views": "Ansichten",
+      "applyView": "Diese Ansicht anwenden",
+      "setDefaultView": "{name} als Standardansicht festlegen",
+      "unsetDefaultView": "{name} als Standardansicht aufheben",
+      "setDefaultViewTitle": "Standardmäßig öffnen",
+      "defaultViewTitle": "Standardansicht, öffnet sich beim Ankommen. Zum Aufheben klicken.",
+      "renameViewTitle": "Ansicht umbenennen",
+      "deleteView": "Ansicht {name} löschen",
+      "saveView": "Ansicht speichern",
+      "saveViewModalTitle": "Diese Ansicht speichern",
+      "saveViewModalSubtitle": "Benennen Sie die aktuelle Suche, Filter und Sortierung, um später dorthin zurückzukehren.",
+      "saveViewSubmit": "Ansicht speichern",
+      "renameViewModalTitle": "Ansicht umbenennen",
+      "renameViewModalSubtitle": "Nur die Bezeichnung ändert sich. Die gespeicherten Filter und der Teilen-Link bleiben gleich.",
+      "renameViewSubmit": "Umbenennen",
+      "viewDialogCancel": "Abbrechen",
+      "viewNameLabel": "Ansichtsname",
+      "viewNamePlaceholder": "z. B. Alternde Interviews",
+      "viewSetDefaultLabel": "Diese Ansicht standardmäßig öffnen",
+      "viewSetDefaultHint": "Sie öffnet sich automatisch, wenn Sie ohne geteilten Link ankommen.",
+      "viewNameOverwrite": "Eine Ansicht namens „{name}“ existiert bereits. Beim Speichern wird sie ersetzt.",
+      "agingSlas": "Alterungs-SLAs",
+      "agingSlasTitle": "Legen Sie fest, wie lange eine/r Kandidat/in in jeder Phase bleiben darf, bevor eine Alterungswarnung ausgelöst wird",
+      "slaEditorTitle": "Tage bis zur Alterung, pro Phase",
+      "slaEditorNote": "Leer = Standard der Rolle. Gilt für alle in diesem Team.",
+      "slaEditorRange": "{min}–{max} Tage; leer nutzt den Standard",
+      "slaSaveFailed": "Dieser Zeitraum konnte nicht gespeichert werden.",
+      "slaLocalOffer": "Dieser Browser enthält noch {count, plural, one {# Zeitraum} other {# Zeiträume}} aus der Zeit, bevor sie mit dem Team geteilt wurden: {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# Tag} other {# Tage}}",
+      "slaLocalAdopt": "Für das Team übernehmen",
+      "slaLocalDiscard": "Verwerfen"
     },
     "emptyState": {
       "optional": "Optional",
@@ -14402,6 +14455,9 @@
     "stepper": {
       "decrease": "Verringern",
       "increase": "Erhöhen"
+    },
+    "menu": {
+      "named": "{label}: {value}"
     }
   }
 }

@@ -2,14 +2,23 @@
 
 import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { Button, ChipRow, Mark, PageHead, SearchField, Toolbar, type Chip, type PartState } from "@/app/_components/kit";
+import { Button, Note, PageHead, SearchField, Toolbar, type PartState } from "@/app/_components/kit";
 import { stageHasRole } from "@/app/_lib/pipeline-stages";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { boardPopulation } from "../pipelineBoardPopulation";
+import { resolveStageFilter } from "../usePipelineFilters";
 import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
-import { OUT } from "./pipelineKitModel";
+import { PipelineKitFacets } from "./PipelineKitFacets";
+import { PipelineKitViews } from "./PipelineKitViews";
+import { useSlashSearch } from "./useSlashSearch";
 
-/** The page head (three figures, one primary action) and the toolbar (role, chips, search). */
+/**
+ * The page head (three figures, one primary action), the toolbar (role, search, then the facets and
+ * chips on its filter line), the saved-views line, and the one notice a deep link can owe: the
+ * `?stage=` it carries is no longer a column here (the filter stays applied, so the list shows who
+ * still stands on it, and the notice says why and offers the way out).
+ */
 export function PipelineKitHead({ s, k, status }: { s: PipelineTabState; k: PipelineKit; status: PartState }) {
   const t = useTranslations("pipeline.kit");
   const tt = useTranslations("pipeline.tab");
@@ -21,13 +30,11 @@ export function PipelineKitHead({ s, k, status }: { s: PipelineTabState; k: Pipe
   const waiting = s.approvals.length;
   const lastMove = k.entries.reduce((m, e) => (e.stageChangedAt && e.stageChangedAt > m ? e.stageChangedAt : m), "");
   const date = lastMove ? fmt.date(lastMove) : null;
-  const layerLabel = k.layer === OUT ? t("outLabel") : s.axis.find((a) => a.id === k.layer)?.label ?? k.layer;
-
-  const chips: Chip[] = [
-    { id: "needs", label: t("chipWaiting"), count: waiting, mark: <Mark kind="needs" />, pressed: k.needsOnly, disabled: waiting === 0 && !k.needsOnly, onPress: k.toggleNeeds },
-    ...(k.layer ? [{ id: "layer", label: t("chipClear", { what: layerLabel ?? "" }), pressed: true, onPress: k.clearLayer }] : []),
-    ...(k.brush ? [{ id: "brush", label: t("chipBrush", { from: k.brush[0] + 1, to: k.brush[1] + 1 }), pressed: true, onPress: () => k.setBrush(null) }] : []),
-  ];
+  const enumLabel = useEnumLabel();
+  const searchRef = useSlashSearch();
+  // Only once the axis has arrived can the board say a stage is NOT one of its columns.
+  const resolved = s.stageFilter && s.entries != null ? resolveStageFilter(s.stageFilter, s.axis, s.retiredStages) : null;
+  const offBoard = resolved != null && !resolved.onBoard;
 
   return (
     <>
@@ -61,9 +68,15 @@ export function PipelineKitHead({ s, k, status }: { s: PipelineTabState; k: Pipe
             </select>
           </label>
         }
-        filters={<ChipRow chips={chips} />}
-        search={<SearchField label={tt("searchLabel")} value={s.query} onChange={s.setQueryAndSync} />}
+        filters={<PipelineKitFacets s={s} k={k} />}
+        search={<span ref={searchRef} className="contents"><SearchField label={tt("searchLabel")} value={s.query} onChange={s.setQueryAndSync} /></span>}
       />
+      <PipelineKitViews s={s} />
+      {offBoard ? (
+        <Note tone="caution" action={<Button label={tt("stageOffBoardClear")} variant="ghost" size="sm" onClick={s.clearStageFilter} />}>
+          {tt("stageOffBoard", { stage: resolved?.label || enumLabel("stage", s.stageFilter ?? "") })}
+        </Note>
+      ) : null}
     </>
   );
 }

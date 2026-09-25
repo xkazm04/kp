@@ -48,7 +48,10 @@ import {
   type ShowCandidateOptions,
 } from "./candidate/candidateView";
 
-export function usePipelineTabState() {
+/** `scope` is what the caller's OWN narrowing adds to "what the board is showing" (the kit view's
+ *  layer / role / waiting-only / brush, useKitFilters): it joins the scope an armed bulk confirm is
+ *  stamped with, so narrowing the list de-arms it exactly like a facet change does. */
+export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
   const t = useTranslations("pipeline.tab");
   // Source-facet chip labels reuse the channel-name catalog Analytics maintains
   // (mirrors the drawer's origin chip), falling back to the raw id for unmapped
@@ -177,7 +180,7 @@ export function usePipelineTabState() {
 
   // Bulk select mode + the four batch actions, resolved against exactly what the
   // board renders (filteredEntries) and scoped by what it was showing (visibleScope).
-  const bulk = usePipelineBulk({ t, entries, filteredEntries, visibleScope, relayConfigured, load });
+  const bulk = usePipelineBulk({ t, entries, filteredEntries, visibleScope: scope ? `${visibleScope}|${scope}` : visibleScope, relayConfigured, load });
   const nav = usePipelineNavigation({ entries, showCandidate });
 
   // drawer-flow-friction — the degraded/needs-intake chip ARMS the board's existing
@@ -225,6 +228,7 @@ export function usePipelineTabState() {
     sources, toggleSource: filters.toggleSource, sourceValues,
     sort, setSortAndSync: filters.setSortAndSync,
     stageFilter, clearStageFilter: filters.clearStageFilter, showStage: filters.showStage, clearFilters: filters.clearFilters,
+    visibleScope,
     selectMode: bulk.selectMode, toggleSelectMode: bulk.toggleSelectMode,
     selectedIds: bulk.selectedIds, toggleSelected: bulk.toggleSelected, updateSelection: bulk.updateSelection,
     selectAllVisible: bulk.selectAllVisible,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { KitSurface } from "@/app/_components/kit";
@@ -14,6 +15,9 @@ import { PipelineKitSieve } from "./PipelineKitSieve";
 import { PipelineKitSkyline } from "./PipelineKitSkyline";
 import { PipelineKitList } from "./PipelineKitList";
 import { PipelineKitPane } from "./PipelineKitPane";
+import { PipelineKitSla } from "./PipelineKitSla";
+import { PipelineKitViewDialog } from "./PipelineKitViewDialog";
+import { useKitFilters } from "./useKitFilters";
 
 // The full candidate record stays one click away from the pane, split out of the tab chunk: most
 // visits never open it.
@@ -32,8 +36,10 @@ const CandidateModal = dynamic(() => import("../candidate/CandidateModal").then(
  * an operator who left it early, and the guided tour's start.
  */
 export function PipelineKitView() {
-  const s = usePipelineTabState();
-  const k = usePipelineKit(s);
+  const f = useKitFilters();
+  const s = usePipelineTabState({ scope: f.scope });
+  const k = usePipelineKit(s, f);
+  const [slaOpen, setSlaOpen] = useState(false);
   const t = useTranslations("pipeline.kit");
   const status = s.error ? "error" : s.entries == null ? "loading" : "ready";
   const setupUnfinished = useSetupUnfinished();
@@ -60,11 +66,13 @@ export function PipelineKitView() {
             <>
               <PipelineKitSieve s={s} k={k} status={status} />
               <PipelineKitSkyline k={k} status={status} />
-              <PipelineKitList s={s} k={k} status={status} />
+              <PipelineKitList s={s} k={k} status={status} onEditSla={() => setSlaOpen(true)} />
             </>
           )}
         </div>
       </KitSurface>
+      <PipelineKitViewDialog s={s} />
+      {slaOpen ? <PipelineKitSla s={s} onClose={() => setSlaOpen(false)} /> : null}
       {s.candidate ? (
         <CandidateModal
           key="candidate-modal"

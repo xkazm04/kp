@@ -3171,7 +3171,13 @@
         "rejection_review": "Un rejet à confirmer",
         "offer_review": "Une offre à approuver",
         "calendar": "Un entretien à planifier"
-      }
+      },
+      "sortKit": "En attente, puis correspondance",
+      "intakeTip": "Candidatures dont la réception a échoué : impossible de les rapprocher tant qu’un profil n’est pas saisi",
+      "viewDefaultLabel": "{name} (par défaut)",
+      "done": "Terminé",
+      "slaDefault": "Valeur par défaut du rôle : {days, plural, one {# jour} other {# jours}}",
+      "slaFor": "Jours avant qu’un candidat vieillisse en {stage}"
     },
     "board": {
       "scrollHint": "Cliquez sur l’en-tête d’une étape pour la centrer · faites défiler pour parcourir le pipeline",
@@ -3412,7 +3418,54 @@
       "bulkMovePreviewVerdictsCleared": "{count, plural, one {# décision en attente est effacée} other {# décisions en attente sont effacées}}",
       "bulkMovePreviewOffersHeld": "{count, plural, one {# offre préparée retenue (le déplacement l'effacerait)} other {# offres préparées retenues (le déplacement les effacerait)}}",
       "bulkMovePreviewAlreadyThere": "{count, plural, one {# y est déjà} other {# y sont déjà}}",
-      "bulkMovePreviewStale": "{count, plural, one {# a changé entre-temps et ne sera pas déplacé} other {# ont changé entre-temps et ne seront pas déplacés}}"
+      "bulkMovePreviewStale": "{count, plural, one {# a changé entre-temps et ne sera pas déplacé} other {# ont changé entre-temps et ne seront pas déplacés}}",
+      "filterInterview": "Entretien",
+      "filterAging": "Stagnation",
+      "filterAwaiting": "En attente de décision",
+      "filterIntake": "À saisir",
+      "filterStage": "Étape : {stage}",
+      "filterStateLabel": "État",
+      "filterScoreLabel": "Score",
+      "filterScoreStrong": "Fort 75+",
+      "filterScoreMid": "Moyen 50–74",
+      "filterScoreWeak": "Faible <50",
+      "filterScoreUnscored": "Sans score",
+      "filterSourceLabel": "Source",
+      "sortScore": "Score, décroissant",
+      "sortAge": "Plus longtemps en étape",
+      "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
+      "stageOffBoardClear": "Supprimer ce filtre",
+      "views": "Vues",
+      "applyView": "Appliquer cette vue",
+      "setDefaultView": "Définir {name} comme vue par défaut",
+      "unsetDefaultView": "Retirer {name} comme vue par défaut",
+      "setDefaultViewTitle": "Ouvrir par défaut",
+      "defaultViewTitle": "Vue par défaut, s’ouvre à l’arrivée. Cliquez pour la retirer.",
+      "renameViewTitle": "Renommer la vue",
+      "deleteView": "Supprimer la vue {name}",
+      "saveView": "Enregistrer la vue",
+      "saveViewModalTitle": "Enregistrer cette vue",
+      "saveViewModalSubtitle": "Nommez la recherche, les filtres et le tri actuels pour y revenir.",
+      "saveViewSubmit": "Enregistrer la vue",
+      "renameViewModalTitle": "Renommer la vue",
+      "renameViewModalSubtitle": "Seul le libellé change. Les filtres enregistrés et le lien de partage restent identiques.",
+      "renameViewSubmit": "Renommer",
+      "viewDialogCancel": "Annuler",
+      "viewNameLabel": "Nom de la vue",
+      "viewNamePlaceholder": "ex. Entretiens qui traînent",
+      "viewSetDefaultLabel": "Ouvrir cette vue par défaut",
+      "viewSetDefaultHint": "Elle s’ouvre automatiquement lorsque vous arrivez sans lien partagé.",
+      "viewNameOverwrite": "Une vue nommée « {name} » existe déjà. L’enregistrement la remplace.",
+      "agingSlas": "SLA de stagnation",
+      "agingSlasTitle": "Définir combien de temps un candidat peut rester dans chaque étape avant d’être signalé comme en stagnation",
+      "slaEditorTitle": "Jours avant stagnation, par étape",
+      "slaEditorNote": "Vide = valeur par défaut du rôle. S'applique à toute l'équipe.",
+      "slaEditorRange": "{min}–{max} jours ; vide = valeur par défaut",
+      "slaSaveFailed": "Impossible d'enregistrer ce délai.",
+      "slaLocalOffer": "Ce navigateur conserve encore {count, plural, one {# délai} other {# délais}} datant d'avant leur partage avec l'équipe : {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# jour} other {# jours}}",
+      "slaLocalAdopt": "Appliquer à l'équipe",
+      "slaLocalDiscard": "Ignorer"
     },
     "emptyState": {
       "optional": "Facultatif",
@@ -14402,6 +14455,9 @@
     "stepper": {
       "decrease": "Diminuer",
       "increase": "Augmenter"
+    },
+    "menu": {
+      "named": "{label} : {value}"
     }
   }
 }

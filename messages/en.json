@@ -3171,7 +3171,13 @@
         "rejection_review": "A rejection to confirm",
         "offer_review": "An offer to approve",
         "calendar": "An interview to book"
-      }
+      },
+      "sortKit": "Waiting first, then match",
+      "intakeTip": "Applications whose intake failed: nobody can match them until a profile is captured",
+      "viewDefaultLabel": "{name} (default)",
+      "done": "Done",
+      "slaDefault": "Role default: {days, plural, one {# day} other {# days}}",
+      "slaFor": "Days before a candidate ages in {stage}"
     },
     "board": {
       "scrollHint": "Click a stage header to centre it · scroll to move across the pipeline",
@@ -3412,7 +3418,54 @@
       "bulkMovePreviewVerdictsCleared": "{count, plural, one {# pending decision is cleared} other {# pending decisions are cleared}}",
       "bulkMovePreviewOffersHeld": "{count, plural, one {# drafted offer kept back (the move would erase it)} other {# drafted offers kept back (the move would erase them)}}",
       "bulkMovePreviewAlreadyThere": "{count} already there",
-      "bulkMovePreviewStale": "{count, plural, one {# changed since and will not move} other {# changed since and will not move}}"
+      "bulkMovePreviewStale": "{count, plural, one {# changed since and will not move} other {# changed since and will not move}}",
+      "filterInterview": "Interview",
+      "filterAging": "Aging",
+      "filterAwaiting": "Awaiting decision",
+      "filterIntake": "Needs intake",
+      "filterStage": "Stage: {stage}",
+      "filterStateLabel": "State",
+      "filterScoreLabel": "Score",
+      "filterScoreStrong": "Strong 75+",
+      "filterScoreMid": "Mid 50–74",
+      "filterScoreWeak": "Weak <50",
+      "filterScoreUnscored": "Unscored",
+      "filterSourceLabel": "Source",
+      "sortScore": "Score, high to low",
+      "sortAge": "Longest in stage",
+      "stageOffBoard": "Stage {stage} is no longer a column on this board. The filter is still applied, so you are seeing only the candidates still standing on it.",
+      "stageOffBoardClear": "Remove this filter",
+      "views": "Views",
+      "applyView": "Apply this view",
+      "setDefaultView": "Make {name} the default view",
+      "unsetDefaultView": "Clear {name} as the default view",
+      "setDefaultViewTitle": "Open by default",
+      "defaultViewTitle": "Default view, opens on arrival. Click to clear.",
+      "renameViewTitle": "Rename view",
+      "deleteView": "Delete view {name}",
+      "saveView": "Save view",
+      "saveViewModalTitle": "Save this view",
+      "saveViewModalSubtitle": "Name the current search, filters, and sort so you can return to them.",
+      "saveViewSubmit": "Save view",
+      "renameViewModalTitle": "Rename view",
+      "renameViewModalSubtitle": "Only the label changes. The saved filters and the share link stay the same.",
+      "renameViewSubmit": "Rename",
+      "viewDialogCancel": "Cancel",
+      "viewNameLabel": "View name",
+      "viewNamePlaceholder": "e.g. Aging interviews",
+      "viewSetDefaultLabel": "Open this view by default",
+      "viewSetDefaultHint": "It opens automatically when you arrive without a shared link.",
+      "viewNameOverwrite": "A view named \"{name}\" already exists. Saving replaces it.",
+      "agingSlas": "Aging SLAs",
+      "agingSlasTitle": "Set how long a candidate may sit in each stage before it flags as aging",
+      "slaEditorTitle": "Days before aging, per stage",
+      "slaEditorNote": "Blank = role default. Applies to everyone on this team.",
+      "slaEditorRange": "{min}–{max} days; blank uses the default",
+      "slaSaveFailed": "Could not save that cadence.",
+      "slaLocalOffer": "This browser still holds {count, plural, one {# cadence} other {# cadences}} from before cadences were shared with the team: {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# day} other {# days}}",
+      "slaLocalAdopt": "Apply to the team",
+      "slaLocalDiscard": "Discard"
     },
     "emptyState": {
       "optional": "Optional",
@@ -14402,6 +14455,9 @@
     "stepper": {
       "decrease": "Decrease",
       "increase": "Increase"
+    },
+    "menu": {
+      "named": "{label}: {value}"
     }
   }
 }

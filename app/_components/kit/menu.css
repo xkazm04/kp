@@ -1,0 +1,93 @@
+/* The kit's action parts, added for the Pipeline parity port (builder Q): the Menu (a facet or an
+   action list on a trigger), the SelectBox of a select mode and the BulkBar that acts on the selection,
+   and the KitDialog body. Its own sheet, loaded by those parts, so kit.css (edited by several builders)
+   is not touched. Colour only through the kit's and the app's variables; both registers. */
+
+/* ---------- Menu: the facet trigger (a field-height pill: name, then what is on) ---------- */
+.k-menu__facet {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; max-width: 16rem; padding: 0 10px 0 12px;
+  border: 1px solid var(--k-rule-strong); border-radius: var(--k-radius); background: var(--k-raised);
+  font-family: inherit; font-size: var(--text-micro); color: var(--k-ink); cursor: pointer; white-space: nowrap;
+}
+.k-menu__facet.is-sm { height: 32px; }
+.k-menu__facet:hover { border-color: var(--k-quiet); }
+.k-menu__facet:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+.k-menu__facet:disabled { cursor: not-allowed; color: var(--k-faint); background: var(--k-plane); }
+.k-menu__facet .k-menu__label { color: var(--k-quiet); }
+.k-menu__facet .k-menu__value { font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.k-menu__facet svg { width: 14px; height: 14px; flex: none; color: var(--k-quiet); }
+.k-menu__facet.is-on { border-color: var(--k-ink); }
+.k-menu__facet[aria-expanded="true"] svg:last-child { transform: rotate(180deg); }
+[data-theme="dark"] .k-menu__facet { border-width: 2px; border-radius: 12px; }
+[data-theme="dark"] .k-menu__facet.is-on { border-color: var(--color-coral); box-shadow: var(--sticker-xs-shadow); }
+.k-btn[role="combobox"] svg:last-child { width: 14px; height: 14px; }
+
+/* ---------- Menu: the list (portalled to <body>; the layer re-opens the kit's variables) ---------- */
+.k-menu__layer { position: static; }
+.k-menu {
+  position: fixed; z-index: 61; max-width: calc(100vw - 16px); max-height: 18rem; overflow: auto; padding: 4px;
+  border: 1px solid var(--k-rule); border-radius: var(--k-radius); background: var(--k-raised);
+  box-shadow: var(--shadow-pop); animation: k-menu-in .14s var(--k-ease);
+}
+.k-menu ul { list-style: none; margin: 0; padding: 0; }
+.k-menu__opt {
+  display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px 0 6px; border-radius: 6px;
+  font-size: var(--text-micro); color: var(--k-ink); cursor: pointer; white-space: nowrap;
+}
+.k-menu__opt.is-active { background: var(--k-hover); }
+.k-menu__opt[aria-selected="true"] { font-weight: 600; }
+.k-menu__opt[aria-disabled="true"] { color: var(--k-faint); cursor: not-allowed; }
+.k-menu__check { display: inline-flex; width: 16px; height: 16px; flex: none; color: var(--k-ink); }
+.k-menu__check svg { width: 16px; height: 16px; }
+.k-menu__empty { padding: 8px 10px; font-size: var(--text-micro); color: var(--k-quiet); }
+[data-theme="dark"] .k-menu { border: 2px solid var(--k-rule-strong); border-radius: 12px; box-shadow: var(--sticker-sm-shadow); }
+[data-theme="dark"] .k-menu__opt.is-active { background: color-mix(in srgb, var(--color-coral) 18%, var(--k-raised)); }
+@keyframes k-menu-in { from { opacity: 0; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .k-menu { animation: none; } }
+
+/* ---------- SelectBox: a select mode's checkbox, hung in the mark track ---------- */
+.k-check {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0;
+  border: 1.5px solid var(--k-quiet); border-radius: 5px; background: var(--k-raised); color: var(--color-paper); cursor: pointer;
+}
+.k-check svg { width: 14px; height: 14px; }
+.k-check[aria-checked="true"], .k-check[aria-checked="mixed"] { background: var(--k-ink); border-color: var(--k-ink); }
+.k-check:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+[data-theme="dark"] .k-check { border-width: 2px; border-radius: 6px; }
+[data-theme="dark"] .k-check[aria-checked="true"], [data-theme="dark"] .k-check[aria-checked="mixed"] { background: var(--color-coral); border-color: var(--color-coral); }
+
+/* ---------- BulkBar: in flow above the list it acts on, sticky while that list scrolls ---------- */
+.k-bulkbar {
+  position: sticky; top: var(--k-top); z-index: 4; row-gap: 6px; padding: 10px 0; margin-bottom: 4px;
+  background: var(--color-paper); border-top: 2px solid var(--k-ink); border-bottom: 1px solid var(--k-rule);
+}
+.k-bulkbar__n {
+  grid-column: mark; grid-row: 1; align-self: center; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--k-ink); color: var(--color-paper);
+  font-size: var(--text-micro); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.k-bulkbar__status { grid-column: name / end; grid-row: 1; align-self: center; min-width: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-bulkbar__status b { color: var(--k-ink); font-weight: 600; }
+.k-bulkbar__acts { grid-column: name / end; grid-row: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.k-bulkbar__detail { grid-column: name / end; grid-row: 3; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 6px; border-top: 1px dashed var(--k-rule); font-size: var(--text-micro); color: var(--k-quiet); }
+.k-bulkbar__detail:empty { display: none; }
+.k-bulkbar .k-good { color: var(--color-moss); font-weight: 600; }
+.k-bulkbar .k-bad { color: var(--color-red-700); font-weight: 600; }
+.k-bulkbar .k-push { margin-left: auto; }
+[data-theme="dark"] .k-bulkbar { border: 2px solid var(--color-coral); border-radius: 16px; background: var(--k-raised); box-shadow: var(--sticker-sm-shadow); margin-inline: -14px; padding-inline: 14px; }
+[data-theme="dark"] .k-bulkbar__n { background: var(--color-coral); }
+
+/* ---------- KitDialog: a kit body inside the app's Modal chrome ---------- */
+.k-dialog { display: flex; flex-direction: column; gap: 12px; }
+.k-dialog .k-set { border-bottom: 1px solid var(--k-rule); }
+.k-dialog__label { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-micro); font-weight: 600; }
+.k-dialog__acts { display: flex; justify-content: flex-end; gap: 8px; width: 100%; }
+
+/* ---------- ActionLine: one quiet lead word, then chips and small actions, on the measure ---------- */
+.k-actline { min-height: 44px; padding: 6px 0; align-items: center; }
+.k-actline__body { grid-column: name / end; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; min-width: 0; }
+.k-actline__lead { font-size: var(--text-micro); color: var(--k-quiet); margin-right: 4px; }
+.k-actline__sep { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--k-rule); }
+.k-actline__toggle { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-dialog__hint { display: block; color: var(--k-quiet); font-weight: 400; }
+.k-dialog__num { width: 88px; font-variant-numeric: tabular-nums; }

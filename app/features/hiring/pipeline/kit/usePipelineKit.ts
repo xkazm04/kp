@@ -5,14 +5,10 @@ import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { canonicalScoreOf } from "@/app/_lib/match-score";
 import { foldOrder } from "@/app/_components/kit/graphic/sieveLayout";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
-import { entryMatchesFilters, type QuickFilter, type ScoreBandKey } from "../pipelineBoardFilters";
+import { entryMatchesFilters, sortFilteredEntries } from "../pipelineBoardFilters";
 import type { PipelineTabState } from "../usePipelineTabState";
+import type { KitFilters } from "./useKitFilters";
 import { buildLayers, dimmed, listRows, OUT, presets, rankByMatch, sieveDots, type Ctx, type Filters } from "./pipelineKitModel";
-
-// The kit view searches with the board's own predicate and nothing else of it (never mutated).
-const NO_QUICKS = new Set<QuickFilter>();
-const NO_BANDS = new Set<ScoreBandKey>();
-const NO_SOURCES = new Set<string>();
 
 /** A short, stable signature for a replay key: equal data, equal key, no replay. */
 export function signature(parts: readonly string[]): string {
@@ -22,16 +18,14 @@ export function signature(parts: readonly string[]): string {
 }
 
 /*
- * The kit view's state over the SAME tab state the current PipelineTab reads (usePipelineTabState:
- * the board payload, the URL-synced search, the navigation helpers). What is new here is only what
- * the winner's surface adds on top: the selected layer, the role, the waiting-only chip, the match
- * brush, the replay counter and the open entry.
+ * The kit view's state over the SAME tab state the pipeline has always read (usePipelineTabState:
+ * the board payload, the URL-synced search and facets, the navigation helpers) plus the kit's own
+ * narrowing (useKitFilters: layer, role, waiting-only, match brush). The list is filtered by BOTH:
+ * the board's compound predicate (entryMatchesFilters: query, stage deep link, quicks, score bands,
+ * sources, with the team's SLA cadences) and the kit's; the chosen sort then reorders it, "board
+ * order" keeping the kit's waiting-first-then-match order.
  */
-export function usePipelineKit(s: PipelineTabState) {
-  const [layer, setLayer] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [needsOnly, setNeedsOnly] = useState(false);
-  const [brush, setBrush] = useState<[number, number] | null>(null);
+export function usePipelineKit(s: PipelineTabState, f: KitFilters) {
   const [pour, setPour] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
@@ -48,17 +42,20 @@ export function usePipelineKit(s: PipelineTabState) {
   );
   const dots = useMemo(() => foldOrder(sieveDots(ranked, layers, ctx), (d) => d.rank), [ranked, layers, ctx]);
 
-  const query = s.query;
-  const axis = s.axis;
+  const { query, quicks, scoreBands, sources, stageFilter, slaOverrides, axis, sort } = s;
+  const { layer, needsOnly, role, brush } = f;
   const filters: Filters = useMemo(
     () => ({
-      query: (e: Entry) => entryMatchesFilters(e, { query, quicks: NO_QUICKS, scoreBands: NO_BANDS, sources: NO_SOURCES, stage: null }, { axis }),
+      query: (e: Entry) => entryMatchesFilters(e, { query, quicks, scoreBands, sources, stage: stageFilter }, { overrides: slaOverrides, axis, now }),
       layer, needsOnly, role, brush,
     }),
-    [query, axis, layer, needsOnly, role, brush]
+    [query, quicks, scoreBands, sources, stageFilter, slaOverrides, axis, now, layer, needsOnly, role, brush]
   );
   // Rejected rows are counted on the exit layer but never on the board payload: that layer lists nobody.
-  const rows = useMemo(() => (layer === OUT ? [] : listRows(entries, filters, rankOf, ctx)), [layer, entries, filters, rankOf, ctx]);
+  const rows = useMemo(
+    () => (layer === OUT ? [] : sortFilteredEntries(listRows(entries, filters, rankOf, ctx), sort, { now })),
+    [layer, entries, filters, rankOf, ctx, sort, now]
+  );
   const dim = useMemo(() => dimmed(entries, filters, rankOf, ctx), [entries, filters, rankOf, ctx]);
   const roles = useMemo(() => {
     const m = new Map<string, number>();
@@ -74,12 +71,13 @@ export function usePipelineKit(s: PipelineTabState) {
   return {
     ctx, entries, ranked, rankOf, layers, dots, rows, dim, roles, presets: presets(ranked, ctx),
     layer, role, needsOnly, brush, sieveKey, skyKey, open, index,
-    resetKey: `${layer}|${role}|${needsOnly}|${brush?.join("-") ?? ""}|${query}`,
-    toggleLayer: (id: string) => setLayer((cur) => (cur === id ? null : id)),
-    clearLayer: () => setLayer(null),
-    setRole, setBrush,
-    toggleNeeds: () => setNeedsOnly((v) => !v),
-    reviewWaiting: () => { setNeedsOnly(true); setLayer(null); setBrush(null); },
+    resetKey: `${f.scope}|${s.visibleScope}`,
+    toggleLayer: (id: string) => f.setLayer((cur) => (cur === id ? null : id)),
+    clearLayer: () => f.setLayer(null),
+    setRole: f.setRole, setBrush: f.setBrush,
+    toggleNeeds: () => f.setNeedsOnly((v) => !v),
+    reviewWaiting: () => { f.setNeedsOnly(true); f.setLayer(null); f.setBrush(null); },
+    clearKitFilters: () => { f.setLayer(null); f.setRole(null); f.setNeedsOnly(false); f.setBrush(null); },
     pourAgain: () => setPour((p) => p + 1),
     select: (id: string | null) => setSelected(id),
     step: (delta: 1 | -1) => {

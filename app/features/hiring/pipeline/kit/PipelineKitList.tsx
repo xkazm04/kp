@@ -12,7 +12,7 @@ import { ageDays, OUT, provenance } from "./pipelineKitModel";
 import { useApprovalWord } from "./useApprovalWord";
 
 /** "Candidates": the windowed list, waiting-on-you first, then by match; a row opens the reading pane. */
-export function PipelineKitList({ s, k, status }: { s: PipelineTabState; k: PipelineKit; status: PartState }) {
+export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabState; k: PipelineKit; status: PartState; onEditSla: () => void }) {
   const t = useTranslations("pipeline.kit");
   const tt = useTranslations("pipeline.tab");
   const locale = useLocale();
@@ -71,7 +71,8 @@ export function PipelineKitList({ s, k, status }: { s: PipelineTabState; k: Pipe
       id="pipeline-kit-list"
       title={t("listTitle")}
       count={k.rows.length === total ? n(total) : t("listCount", { shown: k.rows.length, total })}
-      state={t("listState")}
+      state={s.sort === "insertion" ? t("listState") : tt(s.sort === "score" ? "sortScore" : "sortAge")}
+      actions={<Button label={tt("agingSlas")} tip={tt("agingSlasTitle")} variant="ghost" size="sm" onClick={onEditSla} />}
     >
       <DataTable
         label={t("listLabel")}

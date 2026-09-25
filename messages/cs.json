@@ -3171,7 +3171,13 @@
         "rejection_review": "Zamítnutí k potvrzení",
         "offer_review": "Nabídka ke schválení",
         "calendar": "Pohovor k naplánování"
-      }
+      },
+      "sortKit": "Čekající první, pak shoda",
+      "intakeTip": "Přihlášky, jejichž příjem selhal: dokud se nezachytí profil, nelze je napárovat",
+      "viewDefaultLabel": "{name} (výchozí)",
+      "done": "Hotovo",
+      "slaDefault": "Výchozí pro roli: {days, plural, one {# den} few {# dny} other {# dní}}",
+      "slaFor": "Počet dní, po kterých kandidát ve fázi {stage} stárne"
     },
     "board": {
       "scrollHint": "Kliknutím na záhlaví fáze ji vycentrujete · posouváním se pohybujete napříč náborem",
@@ -3412,7 +3418,54 @@
       "bulkMovePreviewVerdictsCleared": "{count, plural, one {# čekající rozhodnutí bude zrušeno} few {# čekající rozhodnutí budou zrušena} other {# čekajících rozhodnutí bude zrušeno}}",
       "bulkMovePreviewOffersHeld": "{count, plural, one {# připravená nabídka zadržena (přesun by ji smazal)} few {# připravené nabídky zadrženy (přesun by je smazal)} other {# připravených nabídek zadrženo (přesun by je smazal)}}",
       "bulkMovePreviewAlreadyThere": "{count, plural, one {# už tam je} few {# už tam jsou} other {# už tam je}}",
-      "bulkMovePreviewStale": "{count, plural, one {# se mezitím změnil a nepřesune se} few {# se mezitím změnili a nepřesunou se} other {# se mezitím změnilo a nepřesune se}}"
+      "bulkMovePreviewStale": "{count, plural, one {# se mezitím změnil a nepřesune se} few {# se mezitím změnili a nepřesunou se} other {# se mezitím změnilo a nepřesune se}}",
+      "filterInterview": "Pohovor",
+      "filterAging": "Stárnoucí",
+      "filterAwaiting": "Čeká na rozhodnutí",
+      "filterIntake": "Vyžaduje zadání",
+      "filterStage": "Fáze: {stage}",
+      "filterStateLabel": "Stav",
+      "filterScoreLabel": "Skóre",
+      "filterScoreStrong": "Silné 75+",
+      "filterScoreMid": "Střední 50–74",
+      "filterScoreWeak": "Slabé <50",
+      "filterScoreUnscored": "Bez skóre",
+      "filterSourceLabel": "Zdroj",
+      "sortScore": "Skóre sestupně",
+      "sortAge": "Nejdéle ve fázi",
+      "stageOffBoard": "Fáze {stage} už na této nástěnce není sloupcem. Filtr zůstává aktivní, takže vidíte jen kandidáty, kteří v ní stále stojí.",
+      "stageOffBoardClear": "Odebrat tento filtr",
+      "views": "Pohledy",
+      "applyView": "Použít tento pohled",
+      "setDefaultView": "Nastavit {name} jako výchozí pohled",
+      "unsetDefaultView": "Zrušit {name} jako výchozí pohled",
+      "setDefaultViewTitle": "Otevírat jako výchozí",
+      "defaultViewTitle": "Výchozí pohled, otevře se při příchodu. Kliknutím jej zrušíte.",
+      "renameViewTitle": "Přejmenovat pohled",
+      "deleteView": "Smazat pohled {name}",
+      "saveView": "Uložit pohled",
+      "saveViewModalTitle": "Uložit tento pohled",
+      "saveViewModalSubtitle": "Pojmenujte aktuální hledání, filtry a řazení, abyste se k nim mohli vrátit.",
+      "saveViewSubmit": "Uložit pohled",
+      "renameViewModalTitle": "Přejmenovat pohled",
+      "renameViewModalSubtitle": "Změní se jen název. Uložené filtry i odkaz ke sdílení zůstávají stejné.",
+      "renameViewSubmit": "Přejmenovat",
+      "viewDialogCancel": "Zrušit",
+      "viewNameLabel": "Název pohledu",
+      "viewNamePlaceholder": "např. Stárnoucí pohovory",
+      "viewSetDefaultLabel": "Otevírat tento pohled jako výchozí",
+      "viewSetDefaultHint": "Otevře se automaticky, když přijdete bez sdíleného odkazu.",
+      "viewNameOverwrite": "Pohled s názvem „{name}“ už existuje. Uložením jej nahradíte.",
+      "agingSlas": "SLA stárnutí",
+      "agingSlasTitle": "Nastavte, jak dlouho může kandidát zůstat v každé fázi, než se označí jako stárnoucí",
+      "slaEditorTitle": "Dny do stárnutí, podle fáze",
+      "slaEditorNote": "Prázdné = výchozí hodnota role. Platí pro všechny v tomto týmu.",
+      "slaEditorRange": "{min}–{max} dní; prázdné použije výchozí",
+      "slaSaveFailed": "Tuto lhůtu se nepodařilo uložit.",
+      "slaLocalOffer": "Tento prohlížeč stále uchovává {count, plural, one {# lhůtu} few {# lhůty} other {# lhůt}} z doby, kdy se lhůty s týmem nesdílely: {list}.",
+      "slaLocalItem": "{stage} {days, plural, one {# den} few {# dny} other {# dní}}",
+      "slaLocalAdopt": "Použít pro tým",
+      "slaLocalDiscard": "Zahodit"
     },
     "emptyState": {
       "optional": "Volitelné",
@@ -14402,6 +14455,9 @@
     "stepper": {
       "decrease": "Snížit",
       "increase": "Zvýšit"
+    },
+    "menu": {
+      "named": "{label}: {value}"
     }
   }
 }
