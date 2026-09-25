@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { currentUserId } from "@/app/_lib/auth/session";
+import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerPosting, getPostingSummary } from "@/app/_lib/db/jobseeker-postings";
-import { getWorkspaceJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { deepDivePosting } from "@/app/_lib/jobseeker/deepdive";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
@@ -50,10 +51,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
+    const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
     const posting = getJobseekerPosting(id, ws);
     if (!posting) return jsonRefusal("POSTING_NOT_FOUND", 404);
-    const profile = getWorkspaceJobseekerProfile(ws);
+    // The CALLER's profile — the same resolution GET/PUT profile and the dialogs door make.
+    // getWorkspaceJobseekerProfile (the newest in the workspace) is the scan's answer, for
+    // a clock job with no session; on a request it reasoned with another seeker's CV.
+    const profile = getJobseekerProfile(currentUserId(session), ws);
     if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
     const langParam = new URL(request.url).searchParams.get("lang");
     const lang = isLocale(langParam) ? langParam : "en";

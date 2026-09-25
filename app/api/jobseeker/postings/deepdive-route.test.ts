@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { getJobseekerPosting, setPostingStructure, upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
 import { upsertJobseekerProfile } from "../../../_lib/db/jobseeker-profiles.ts";
+import { ensureDb } from "../../../_lib/db/core.ts";
 import { defaultDeepDiveDeps } from "../../../_lib/jobseeker/deepdive.ts";
 import type { CliCall, CliRunner } from "../../../_lib/jobseeker/python-cli.ts";
 import { PipelineError } from "../../../_lib/python-runner.ts";
@@ -186,4 +187,23 @@ test("a content change during the rationale call: the rationale is not stored on
   const row = getJobseekerPosting(id)!;
   assert.equal(row.job, null);
   assert.equal(row.reasoning, null, "a rationale written against a moved content hash is a rationale about another ad");
+});
+
+test("the dive reasons with the SESSION user's profile, not whichever profile in the workspace was touched last", async () => {
+  // Open mode (unit-db scrubs the password): no session, so the caller is the user-less
+  // seeker — the same resolution GET/PUT profile and the dialogs door make. A second
+  // seeker's profile in the same workspace, updated more recently, must not be used.
+  const other = upsertJobseekerProfile({ userId: "u-other-seeker", profile: { displayName: "Someone else" }, preferences: EMPTY_PREFERENCES });
+  ensureDb().prepare(`UPDATE jobseeker_profiles SET updated_at = ? WHERE id = ?`).run("2099-01-01T00:00:00.000Z", other.id);
+  const id = structuredPosting();
+  let profileSent: unknown = null;
+  const run: CliRunner = async (call: CliCall) => {
+    if (call.module === "jobs_cli") return { source: "deterministic" };
+    profileSent = call.files["profile.json"];
+    return { source: "deterministic", reasoning: { verdict: "t" } };
+  };
+  defaultDeepDiveDeps.runCli = run;
+
+  assert.equal((await dive(id)).status, 200);
+  assert.equal((profileSent as { displayName?: string } | null)?.displayName, "Seeker", "the caller's own profile, never the workspace's newest");
 });
