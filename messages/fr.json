@@ -1937,6 +1937,7 @@
     "TTS_VOICE_INVALID": "Cette voix ne peut pas être utilisée ici. Choisissez une autre voix.",
     "TTS_TEXT_TOO_LONG": "Ce texte est trop long pour être lu en une fois. Envoyez-le en parties plus courtes.",
     "AGENT_HIRE_FROM_NEED_FAILED": "Impossible de composer et d'envoyer un rôle à partir de ce besoin. Veuillez réessayer.",
+    "ROLE_SLATE_FAILED": "Impossible de charger la liste des candidats de ce rôle. Veuillez réessayer.",
     "HIRE_AUTOMATION_DISABLED": "Le recrutement automatisé n'est pas activé sur cette installation.",
     "HIRE_UNAUTHORIZED": "Non autorisé.",
     "HIRE_NEED_REQUIRED": "Décrivez le besoin : le travail, la preuve qu'il est nécessaire et ce qui vaudra pour terminé.",

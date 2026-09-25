@@ -42,6 +42,7 @@ from .education import CANDIDATE_LEVELS
 from .models import AnalysisResult
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .rolebrief import RoleBrief
+from .rolerubric import RubricAxis
 from .taxonomy import UI_PROVENANCE
 
 
@@ -156,6 +157,9 @@ _EXPORTED_MODELS = (
     (AnalysisResult, "analysisResultSchema", "AnalysisResult"),
     (RoleSpec, "roleSpecSchema", "RoleSpec"),
     (RoleBrief, "roleBriefSchema", "RoleBrief"),
+    # ADR-0012 §2 — one axis of a role's frozen rubric (rolerubric.py). The store
+    # (app/_lib/db/role-rubrics.ts) validates every axes_json write against it.
+    (RubricAxis, "rubricAxisSchema", "RubricAxis"),
     (AppMasterSpec, "appMasterSpecSchema", "AppMasterSpec"),
     (RepoDossier, "repoDossierSchema", "RepoDossier"),
     (PerformanceBackbone, "performanceBackboneSchema", "PerformanceBackbone"),

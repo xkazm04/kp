@@ -716,6 +716,88 @@ Five properties the harness described but did not have. All five are pinned offl
 
 ---
 
+## 9.13 The engine seam — scoring a CANDIDATE, not just the incumbent (2026-09-08)
+
+Everything above measures the engine we already use. That is the right shape for catching a
+regression in the integration and the wrong shape for answering *which recogniser should we
+use*, and the two questions had quietly become one instrument.
+
+The gap was structural rather than a missing metric. §9.9 already established the metric
+that matters — `entity_fidelity`, because a live Czech call scored **8.33 % WER**, sat well
+inside the 35 % budget, and still turned `React` → `Rust` and `PostgreSQL` → `později SQL`,
+so the candidate would have been rated on a fabricated skill set. That lesson was wired into
+the **session gate** and never into an **engine decision**, because `el_ws.py` speaks one
+provider's realtime conversation protocol directly and `run_voice_scenario` drives that
+driver rather than an interface. There was no way to run a second engine at all, so "is this
+other model better for us" could only ever be answered by a published leaderboard — which
+ranks engines on someone else's error distribution.
+
+| Where | Was | Now |
+|---|---|---|
+| **The seam** (`voice/recognizers.py`, new) | The only way to obtain a transcript was to open a full conversational session against one provider. | A `Recognizer` is one method — `transcribe(pcm, *, lang) -> str` — deliberately far narrower than a session, because choosing an engine needs neither turn-taking nor barge-in nor agent replies, only the transcript the scorer will grade. `CallableRecognizer` covers in-process engines and the tests; `CommandRecognizer` drives a local binary over a temp WAV, which is the drop-in path for an offline open-weights model (whisper.cpp, faster-whisper, sherpa-onnx, vosk) **without the project taking a dependency on any of them**. Adding a candidate is a `register()` call or one `KP_ASR_CMD_<NAME>` variable, never an edit to the harness. |
+| **The choice instrument** (`voice/bakeoff.py`, new) | Nothing. The engine question had no instrument. | `python -m pipeline.jobfit.eval.voice.bakeoff` synthesizes the selection set **once per utterance**, applies the §9.9 degradation once, and hands every engine **the same bytes** — re-synthesizing per engine would make the arms differ by more than the engine under test. It reports both numbers and, when they disagree, says so. |
+| **The metric contract** | Both numbers were computed and reported; neither was named as *the* ranking input. | **Decisive-term recall is optimized; aggregate WER is demoted to a threshold** (35 %, matching the session gate so the two surfaces cannot quietly disagree about "unusable"). The aggregate keeps a real job — an engine whose bulk accuracy collapses is unusable however well it preserves nouns — but it must never *rank*, because ranking is the operation it performs worst. |
+| **Unreachable engines** | — | Reported, never silently dropped (`UNREACHABLE — <reason>`, the `tts.available()` shape). A ranking over a population that was never assembled is the same failure one level up. An engine that dies mid-run also **discards its partial scores** rather than being ranked on the utterances it happened to survive. |
+
+### Why the aggregate cannot be the ranking input, measured here
+
+Two candidate engines over the same three-utterance set — one substituting domain nouns with
+the sentence frame intact (the real V1 output), one garbling only function words and
+inflection:
+
+| | aggregate WER | decisive-term recall |
+|---|---|---|
+| substitutes nouns | **16.7 %** | 66.7 % (lost `react`, `postgresql`) |
+| garbles glue | 27.8 % | **100 %** |
+
+The aggregate prefers the engine that fabricated two skills, by 40 %. And on the **decisive
+utterance alone both engines score an identical 23.1 %** — the two error classes happened to
+cost the same number of tokens, so there the aggregate is not merely wrong about the ranking,
+it is blind. That is why `BakeoffReport.inversions()` exists and why the report prints the
+disagreement rather than leaving it to be noticed.
+
+### Using it
+
+```
+# any local ASR binary; {audio} is required, {lang} optional
+KP_ASR_CMD_WHISPER="whisper-cli -m ggml-base.bin -l {lang} -nt -f {audio}"
+python -m pipeline.jobfit.eval.voice.bakeoff --noise-snr-db 10
+```
+
+Every number travels with `n` and the degradation condition, both printed in the header. A
+recall figure without those is not a measurement — and it is the form in which every
+published ranking arrives.
+
+### What this does not do, and the axis that matters most
+
+The selection set is synthesized, which buys exact ground truth for free and spends realism:
+it can vary the **channel** (seeded noise, gain) and cannot vary the **speaker** — accent,
+disfluency, rate, or a speaker changing language mid-sentence. Read against a current vendor
+feature list, this harness can score noise tolerance, partly score vocabulary biasing, and
+**cannot score** per-word timing, speaker attribution, automatic language identification, or
+in-sentence language switching.
+
+That last one is the gap worth naming, because it is not hypothetical: the recorded V1
+corruption *is* the in-sentence switch case — a Czech sentence carrying English technology
+nouns — and a one-language-at-a-time synthesizer is least able to generate more of exactly
+the case this product has already been broken by once. `DEFAULT_SET` keeps that utterance
+verbatim, and a test pins it there so a later tidy-up cannot drop it.
+
+One non-obvious hazard, found by running the thing end to end rather than by a unit test:
+formatting the audio path into the command template *before* splitting it let `shlex` eat the
+backslashes, so `C:\Users\...\tmp.wav` reached the engine as `C:Users...tmp.wav` and every
+candidate reported a missing file for a file the harness had just written. The template is
+now split first and substituted per token, with `posix=False` on Windows so an operator's
+model path survives too. Both directions are pinned in `tests/test_voice_bakeoff.py`.
+
+**Rights, checked before quality.** An open-weights engine's licence governs what may be
+done with its *output*, and it is the one placement input no probe can establish — the
+weights are byte-identical before and after a re-licensing. Read the licence before adding a
+candidate, not after it wins: a bake-off that ranks an engine the product may not ship has
+spent its budget on an answer it cannot use.
+
+---
+
 ## 10. Findings folded from live sweeps (interview-improvement inputs)
 
 The harness above produced real, applied prompt/product/UI fixes across several sweeps

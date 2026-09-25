@@ -144,7 +144,7 @@ test("5. the forecast reads the send path's own predicates", async () => {
   assert.equal(suppressed.forecast, "suppressed");
   assert.equal(suppressed.forecastReason, "consent_expired");
 
-  const agent = { ...offerEntry(), population: "agent" };
+  const agent = { ...offerEntry(), population: "agent" as const };
   const refused = await withRelay(() => previewOfferLetter(agent, { now: NOW, origin: ORIGIN }));
   assert.equal(refused.forecast, "refused");
   assert.equal(refused.recipient, null);

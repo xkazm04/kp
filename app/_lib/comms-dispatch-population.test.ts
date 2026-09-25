@@ -51,8 +51,8 @@ async function withStubbedRelay(fn: () => Promise<void>): Promise<string[]> {
 }
 
 test("an agent-population entry is refused as `failed` at once, and the relay is never contacted", async () => {
-  // The column is additive; until the store carries it the dispatcher reads it off the entry.
-  const agent = { ...entryFixture(), population: "agent" };
+  // The store carries the column now (createPipelineEntry({ population })); the spread keeps this test on the dispatcher.
+  const agent = { ...entryFixture(), population: "agent" as const };
   const posted = await withStubbedRelay(async () => {
     await dispatchRejection(agent);
   });
@@ -68,7 +68,7 @@ test("an agent-population entry is refused as `failed` at once, and the relay is
 });
 
 test("a person on the same slate is still delivered", async () => {
-  const person = { ...entryFixture(), population: "human" };
+  const person = { ...entryFixture(), population: "human" as const };
   const posted = await withStubbedRelay(async () => {
     await dispatchRejection(person);
   });

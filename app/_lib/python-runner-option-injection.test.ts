@@ -89,7 +89,7 @@ test("devcase runNeedAnalysis: repoUrl is serialised to a JSON file, not a bare 
 // Uses Node.js as the "Python interpreter" — no Python toolchain needed.
 
 process.env.PYTHON_CMD = process.execPath;
-const { spawnPython } = await import("./python-runner.ts");
+const { assertSpawnArgs, flagArg, spawnPython } = await import("./python-runner.ts");
 
 test("= form passes a --prefixed user value as data, not as a new flag", async () => {
   // Verify the = form contract: "--message=--model adversarial" is passed as a
@@ -114,4 +114,89 @@ test("= form passes a --prefixed user value as data, not as a new flag", async (
     userValue,
     "= form must deliver the user value intact, including leading --",
   );
+});
+
+// ─── 4. flagArg + assertSpawnArgs: hostile and valid values through a real child ──
+//
+// Each hostile value goes through flagArg and a real, shell-free spawn (Node as the
+// interpreter again) and must come back as exactly ONE argv element, byte-for-byte.
+// A shell would split on ";" or run "$(…)"; a two-element form would hand argparse a
+// leading "-" as an option. Neither can happen to a single `--flag=value` element.
+
+const ECHO_ARGV = "process.stdout.write(JSON.stringify(process.argv.slice(1)));";
+
+async function childArgv(extra: string[]): Promise<string[]> {
+  const { result } = spawnPython(["-e", ECHO_ARGV, "--", ...extra], { timeoutMs: 4000 });
+  const { stdout, exitCode } = await result;
+  assert.equal(exitCode, 0);
+  return JSON.parse(stdout.trim()) as string[];
+}
+
+const HOSTILE: Array<[string, string]> = [
+  ["leading dash", "--model adversarial-model"],
+  ["bare short option", "-h"],
+  ["newline", "first line\n--lang=xx"],
+  ["shell metacharacters", `a; rm -rf / && echo $(whoami) | tee x > y \`id\` "q" 'q' %PATH% ^& *`],
+];
+
+for (const [name, value] of HOSTILE) {
+  test(`flagArg delivers a hostile value (${name}) as one intact element`, async () => {
+    const argv = await childArgv([flagArg("--message", value), "--lang=en"]);
+    assert.deepEqual(argv, [`--message=${value}`, "--lang=en"]);
+  });
+}
+
+test("flagArg delivers an ordinary value unchanged", async () => {
+  assert.equal(flagArg("--job-id", "job-42"), "--job-id=job-42");
+  const argv = await childArgv([flagArg("--job-description-text", "Senior Python engineer, Prague")]);
+  assert.deepEqual(argv, ["--job-description-text=Senior Python engineer, Prague"]);
+});
+
+test("flagArg refuses a flag name that is not a literal long option", () => {
+  for (const bad of ["message", "-m", "--", "--Message", "--msg x", "--msg\n--model", "--msg=1"]) {
+    assert.throws(() => flagArg(bad, "v"), TypeError, `flag ${JSON.stringify(bad)} must be refused`);
+  }
+});
+
+test("assertSpawnArgs refuses a non-string or NUL element and names only its position", () => {
+  assert.throws(() => assertSpawnArgs(["-m", undefined]), /argument 1 is not a string/);
+  assert.throws(() => assertSpawnArgs(["-m", "x\0--model secret"]), (err: Error) => {
+    assert.match(err.message, /argument 1 contains a NUL byte/);
+    assert.ok(!err.message.includes("secret"), "the value must not be echoed");
+    return true;
+  });
+  assert.doesNotThrow(() => assertSpawnArgs(["-m", "pipeline.jobfit.cli", "--lang=en"]));
+});
+
+test("spawnPython rejects a NUL-bearing argv through its result, before any child starts", async () => {
+  const { result } = spawnPython(["-e", ECHO_ARGV, "--", "bad\0value"], { timeoutMs: 4000 });
+  await assert.rejects(result, /argument 3 contains a NUL byte/);
+});
+
+// ─── 5. Source contracts: the migrated call sites stay on the = form ─────────────
+
+const src = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf-8");
+
+test("spawn is pinned to shell: false", () => {
+  assert.match(src("./python-runner.ts"), /\bshell: false\b/);
+  assert.doesNotMatch(src("./python-runner.ts"), /\bshell: true\b/);
+});
+
+test("user-supplied values reach their CLIs through flagArg, not as a separate element", () => {
+  // The lookbehind matters: `flagArg("--message", message)` itself contains
+  // `"--message", message`, so only an occurrence NOT opened by `flagArg(` is the
+  // two-element form.
+  const cases: Array<[string, RegExp, string]> = [
+    ["./devcase-run.ts", /(?<!flagArg\()"--message"\s*,\s*message\b/, 'flagArg("--message", message)'],
+    ["./devcase-run.ts", /(?<!flagArg\()"--channel"\s*,\s*channel\b/, 'flagArg("--channel", channel)'],
+    ["./analyze-run.ts", /(?<!flagArg\()"--job-description-text"\s*,/, 'flagArg("--job-description-text"'],
+    ["./analyze-run.ts", /(?<!flagArg\()"--company-text"\s*,/, 'flagArg("--company-text"'],
+    ["./reasoning-run.ts", /(?<!flagArg\()"--job-id"\s*,\s*jobId\b/, 'flagArg("--job-id", jobId)'],
+    ["../api/llm/keys/test/route.ts", /(?<!flagArg\()"--model"\s*,\s*model\b/, 'flagArg("--model", model)'],
+  ];
+  for (const [file, twoElement, fixed] of cases) {
+    const text = src(file);
+    assert.doesNotMatch(text, twoElement, `${file} passes a user value as its own argv element`);
+    assert.ok(text.includes(fixed), `${file} must use ${fixed}`);
+  }
 });

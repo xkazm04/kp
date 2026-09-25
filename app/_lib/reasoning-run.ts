@@ -5,7 +5,7 @@ import { lookupPromptCache, storePromptCache } from "./db/analyses";
 import { getJob, listCorpusJobs } from "./db/jobs";
 import { buildLlmConfigEnv } from "./llm-config";
 import { resolveMatchInput, materializeMatchInput, type MatchInputBody } from "./match-input";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, flagArg, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
 import { isCacheableReasoning, narrativeLangFor } from "./reasoning-cache-policy";
@@ -67,7 +67,7 @@ export type ReasoningInput = MatchInputBody & { jobId?: string; lang?: string };
  * literal) is in reasoning-cache-first.test.ts.
  */
 export function reasoningCliArgs(inputArgs: string[], jobId: string, engineLang: string): string[] {
-  return ["-m", "pipeline.jobfit.reasoning_cli", ...inputArgs, "--job-id", jobId, "--lang", engineLang];
+  return ["-m", "pipeline.jobfit.reasoning_cli", ...inputArgs, flagArg("--job-id", jobId), "--lang", engineLang];
 }
 
 // Shared core for /api/match/reasoning AND the background-task runner.

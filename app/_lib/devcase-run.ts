@@ -14,7 +14,7 @@ import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcas
 import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import type { JudgeIndependence } from "./devcase-judge-independence";
 import { promoteAuditReasons, promoteVerdict, promoteVerdictInputOf, type PromoteReason } from "./devcase-promote-verdict";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { cleanupWorkdir, createWorkdir, flagArg, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, RepoUnreadableError, type RepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import {
@@ -271,10 +271,10 @@ export async function runSessionChat(
         await write("case.json", kase),
         "--role-json",
         await write("role.json", role),
-        "--channel",
-        channel,
-        "--message",
-        message,
+        // The candidate's own text: = form, so a message that starts with "-" is the
+        // message and not an option (flagArg in python-runner.ts).
+        flagArg("--channel", channel),
+        flagArg("--message", message),
         "--lang",
         lang || "en",
       ];

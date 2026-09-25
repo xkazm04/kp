@@ -10,7 +10,7 @@ import { trustWarnCount, trustedScoreTotal } from "@/app/_lib/sanity-checks";
 import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
-import { assertConfinedToWorkdir, cleanupWorkdir, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
+import { assertConfinedToWorkdir, cleanupWorkdir, flagArg, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { externalRunner } from "@/app/_lib/task-external-runners";
@@ -205,10 +205,11 @@ function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | n
   if (p.blind) args.push("--blind");
   args.push("--lang", p.lang || "en");
   if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
-  else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
+  // Pasted text: = form, so a JD that opens with a "- bullet" is text, not an option.
+  else if (p.jobDescriptionText?.trim()) args.push(flagArg("--job-description-text", p.jobDescriptionText.trim()));
   if (jobStructurePath) args.push("--job-json", jobStructurePath);
   if (p.companyPath) args.push("--company-path", p.companyPath);
-  else if (p.companyText?.trim()) args.push("--company-text", p.companyText.trim());
+  else if (p.companyText?.trim()) args.push(flagArg("--company-text", p.companyText.trim()));
   return args;
 }
 

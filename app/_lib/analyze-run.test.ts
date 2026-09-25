@@ -78,6 +78,7 @@ registerHooks({
           "  return { result: Promise.resolve({ stdout: JSON.stringify(script.payload), stderr: '', exitCode: 0 }) };",
           "}",
           "export function parsePythonJson(stdout) { return JSON.parse(stdout); }",
+          "export function flagArg(flag, value) { return flag + '=' + value; }",
           "export function parseStderrError(stderr, exitCode) {",
           "  return { message: stderr || 'fake failure', status: exitCode === 2 ? 400 : 500, code: 'engine_error' };",
           "}",

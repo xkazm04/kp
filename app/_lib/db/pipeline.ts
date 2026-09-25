@@ -19,7 +19,7 @@ import type { MatchScoreProvenance } from "../match-score";
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
 import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
-import { ensureDb, recordEvent, type PipelineEntry } from "./core";
+import { coerceSlatePopulation, ensureDb, recordEvent, type PipelineEntry, type SlatePopulation } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { knownStageIds } from "../pipeline-axis";
@@ -137,6 +137,13 @@ export const BOARD_ENTRY_FIELDS = [
   "sourceChannel",
   "sourceCampaign",
   "sourceVariant",
+  // ADR-0012 — the board renders ONE list holding both populations, so the row
+  // must be able to say which it is (a persona card offers different identity
+  // affordances from a person's). `rubricVersion` rides beside it because the
+  // drawer must be able to say WHICH standard a score was produced against
+  // rather than implying it was the current one. Neither is PII.
+  "population",
+  "rubricVersion",
 ] as const satisfies readonly (keyof PipelineEntry)[];
 
 /** The three scores GET /api/pipeline STAMPS onto each row before it goes out
@@ -461,6 +468,11 @@ type PipelineRow = {
   // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
   // caller holding an entry never has to be told its tenant separately.
   workspace_id?: string | null;
+  // ADR-0012 — slate columns. Optional here for the same reason as the others:
+  // the explicit-column SELECTs in this file don't all name them yet, and an
+  // absent column must read as the row's default rather than as undefined.
+  population?: string | null;
+  rubric_version?: number | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -506,6 +518,10 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     // value now looks authoritative. devcase-source-promote-tenancy.test.ts
     // catches it behaviourally; a source-level check would not.
     workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
+    // ADR-0012 — narrowed at the read boundary (the column is free-form TEXT and
+    // is also written by the Python seed), same discipline as approval_kind.
+    population: coerceSlatePopulation(r.population),
+    rubricVersion: typeof r.rubric_version === "number" ? r.rubric_version : null,
   };
 }
 
@@ -801,7 +817,8 @@ export function listPipelinePage(
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
-              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id
+              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id,
+              population, rubric_version
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC
        LIMIT ?`
@@ -1469,6 +1486,13 @@ export type CreatePipelineInput = {
   // A re-add reopens a CLOSED entry only when a human door names itself (humanActor());
   // every machine door omits this, so no machine can undo a human's reject.
   reopen?: { actorRef: string } | null;
+  // ADR-0012 — which population this candidate belongs to. Omitted by every
+  // existing caller and defaulting to 'human', so the whole human intake path
+  // is byte-identical to before; only the slate composer passes 'agent'.
+  population?: SlatePopulation;
+  // The frozen rubric version the candidate's evaluation was produced against,
+  // when the caller has already evaluated it. Omitted ⇒ NULL ⇒ "unknown standard".
+  rubricVersion?: number | null;
 };
 
 /** Why a re-add left a closed entry closed: no human asked; a role_closed/rematched
@@ -1623,11 +1647,13 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
            (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
             stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
             intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-            source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key)
+            source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key,
+            population, rubric_version)
          VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
             @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
             @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-            @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key)`
+            @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key,
+            @population, @rubric_version)`
       ).run({
         id,
         candidate_id: input.candidateId,
@@ -1653,6 +1679,8 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
         dev_submission_id: input.devSubmissionId ?? null,
         workspace_id: workspaceId,
         applicant_key: applicantKey,
+        population: coerceSlatePopulation(input.population),
+        rubric_version: input.rubricVersion ?? null,
       });
     } catch (err) {
       const winner =
@@ -2306,7 +2334,13 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   ["gig_lessons", "Generalized lesson bullets for a registry recipe, distilled from an outcome with no account, client name or path - no personal data."],
   ["role_intakes", "The recruiter's role-definition dialogue with the studio — operator text about a ROLE."],
   ["intake_events", "The append-only history of that same role-definition dialogue (db/intake-events.ts): one row per round, holding the requestor's words about a ROLE. Same class as `role_intakes` above and inherits its basis — it is written before any candidate exists and is keyed to an intake, never to a pipeline entry, so this entry-keyed scrub has no path to it and a candidate's Art. 17 request has nothing in it to reach. The requestor is an operator-side employee, not a candidate: their own erasure runs through `eraseIntakeEvents(intakeId, workspaceId)`, the table's only DELETE."],
+  ["role_rubrics", "A role's frozen, versioned scoring axes derived from its brief (ADR-0012) — criteria about the ROLE, written before any candidate is scored and never keyed to an entry."],
   ["decision_config", "The workspace's screening policy + compliance jurisdiction — configuration, no candidate data."],
+  ["role_runs", "One row per (job, cycle) role run: a job id, a cycle label and a status. It is keyed to an OPENING, not to a person, and holds nothing about any candidate — the same class as `dev_lifecycle`."],
+  [
+    "role_run_stages",
+    "The role run's append-only stage-artifact log (ADR-0011). It holds NO candidate personal data by construction, not by convention: a payload may carry ids, scores, reason codes and hashes and may not carry a name, contact, CV text or transcript, and that rule is enforced at the single write door (assertStagePayloadPiiFree in appendStageArtifact) and asserted in both directions by role-run-stages.test.ts. What it references is an entry id, whose own erasure nulls everything the reference resolves to — the same reasoning as `application_status_links`. It is also the Art. 22 accountability record of WHICH human approved a rejection, an interview invite or an offer, and at WHAT moment, over WHICH set; editing or deleting a row would destroy the proof that the person-affecting decision was not solely automated, the same Art. 17(3)(b)/(e) ground as `decision_records`. The approver is stored as a hash for the same reason.",
+  ],
   ["analytics_targets", "Per-team funnel/time-to-hire goals — numbers about the team, no candidate data."],
   ["channel_webhooks", "Inbound lead-channel bindings (token + destination), no candidate data."],
   ["channel_spend", "Per-channel spend totals — money, no candidate data."],
