@@ -333,7 +333,7 @@ class MatchResult(_Base):
     target_alignment: TargetAlignment | None = None
 
 
-KoReasonKey =Literal["language", "seniority", "early_career", "education", "work_mode"]
+KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
 
 
 class BlockedMatch(_Base):

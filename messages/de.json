@@ -12621,7 +12621,22 @@
         "unreachable": "Der Scan läuft noch auf dem Server, sein Fortschritt konnte aber nicht gelesen werden. Laden Sie die Seite gleich neu.",
         "failed": "Der Scan ist fehlgeschlagen.",
         "failedMsg": "Der Scan ist fehlgeschlagen: {msg}",
-        "startError": "Der Scan konnte nicht gestartet werden."
+        "startError": "Der Scan konnte nicht gestartet werden.",
+        "progressSource": "{done} von {total} · liest {source}",
+        "progressAt": "{label} · {done} von {total}",
+        "phase": {
+          "structure": "Stellenanzeigen werden gelesen",
+          "match": "Abgleich",
+          "deepdive": "Vertiefte Prüfung der engeren Auswahl",
+          "done": "Wird abgeschlossen",
+          "aborted": "Wird angehalten",
+          "no_profile": "Kein Profil für den Abgleich"
+        },
+        "partial": {
+          "structure": "Der Scan ist abgeschlossen, aber einige Stellenanzeigen konnten nicht gelesen werden: {msg}",
+          "match": "Der Scan ist abgeschlossen, aber der Abgleich ist fehlgeschlagen: {msg}",
+          "deepdive": "Der Scan ist abgeschlossen, aber einige vertiefte Prüfungen sind fehlgeschlagen: {msg}"
+        }
       },
       "lastScan": "Letzte Suche {when}",
       "newSince": "{count, plural, one {# neue Stelle seit Ihrem letzten Besuch} other {# neue Stellen seit Ihrem letzten Besuch}}",
@@ -12898,7 +12913,14 @@
         },
         "matched": "{n} abgeglichen",
         "deepDived": "{n} vertieft geprüft",
-        "deepDiveSkipped": "vertiefte Prüfung übersprungen: kein KI-Modell"
+        "deepDiveSkipped": "vertiefte Prüfung übersprungen: kein KI-Modell",
+        "koFiltered": "{n, plural, one {# an einer Schranke hängen geblieben} other {# an Schranken hängen geblieben}}",
+        "upToDate": "{n} bereits aktuell",
+        "failure": {
+          "structure": "Lesen der Stellenanzeigen fehlgeschlagen bei {chunks} von {of, plural, one {# Stapel} other {# Stapeln}}: {msg}",
+          "match": "Abgleich fehlgeschlagen bei {chunks} von {of, plural, one {# Stapel} other {# Stapeln}}: {msg}",
+          "deepdive": "Vertiefte Prüfung fehlgeschlagen bei {chunks} von {of, plural, one {# Stellenanzeige} other {# Stellenanzeigen}}: {msg}"
+        }
       },
       "table": {
         "source": "Quelle",
@@ -12907,7 +12929,9 @@
         "changed": "Geändert",
         "absent": "Fehlend",
         "reason": "Grund",
-        "resumeLink": "Unter Quellen fortsetzen"
+        "resumeLink": "Unter Quellen fortsetzen",
+        "truncated": "teilweise gelesen",
+        "truncatedHint": "Diese Quelle listet mehr, als ein Scan liest. Nur der erste Teil wurde gelesen, und keine Stellenanzeige wurde als verschwunden markiert."
       }
     },
     "sieve": {
@@ -13448,8 +13472,12 @@
           "onWith": "{label} an · {n} Stellen wieder im Sieb",
           "off": "{label} aus",
           "offWith": "{label} aus · {n} Stellen an der Tür zurückgehalten",
-          "released": "{n} Stellen in Ihr Sieb freigegeben"
-        }
+          "released": "{n} Stellen in Ihr Sieb freigegeben",
+          "onCountries": "{label} an · sucht in {countries}"
+        },
+        "euresCountries": "Sucht in {countries}",
+        "euresDefault": "Noch kein Land gesetzt: Beim Einschalten wird {countries} durchsucht",
+        "euresNoCountry": "Kein Land gesetzt, EURES hat also nichts zu durchsuchen. Geben Sie eines unter Was Sie suchen an."
       }
     },
     "designedCv": {

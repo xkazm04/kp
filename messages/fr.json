@@ -12621,7 +12621,22 @@
         "unreachable": "L'analyse tourne encore sur le serveur, mais sa progression n'a pas pu être lue. Rechargez la page dans un instant.",
         "failed": "L'analyse a échoué.",
         "failedMsg": "L'analyse a échoué : {msg}",
-        "startError": "L'analyse n'a pas pu démarrer."
+        "startError": "L'analyse n'a pas pu démarrer.",
+        "progressSource": "{done} sur {total} · lecture de {source}",
+        "progressAt": "{label} · {done} sur {total}",
+        "phase": {
+          "structure": "Lecture des offres",
+          "match": "Évaluation",
+          "deepdive": "Approfondissement de la présélection",
+          "done": "Finalisation",
+          "aborted": "Arrêt en cours",
+          "no_profile": "Aucun profil à comparer"
+        },
+        "partial": {
+          "structure": "L'analyse est terminée, mais certaines offres n'ont pas pu être lues : {msg}",
+          "match": "L'analyse est terminée, mais l'évaluation a échoué : {msg}",
+          "deepdive": "L'analyse est terminée, mais certains approfondissements ont échoué : {msg}"
+        }
       },
       "lastScan": "Dernière recherche {when}",
       "newSince": "{count, plural, one {# nouvelle offre depuis votre dernière visite} other {# nouvelles offres depuis votre dernière visite}}",
@@ -12898,7 +12913,14 @@
         },
         "matched": "{n} comparées",
         "deepDived": "{n} approfondies",
-        "deepDiveSkipped": "approfondissement ignoré : aucun modèle d'IA"
+        "deepDiveSkipped": "approfondissement ignoré : aucun modèle d'IA",
+        "koFiltered": "{n, plural, one {# arrêtée par un filtre} other {# arrêtées par des filtres}}",
+        "upToDate": "{n, plural, one {# déjà à jour} other {# déjà à jour}}",
+        "failure": {
+          "structure": "La lecture des offres a échoué pour {chunks, plural, one {# lot} other {# lots}} sur {of} : {msg}",
+          "match": "L'évaluation a échoué pour {chunks, plural, one {# lot} other {# lots}} sur {of} : {msg}",
+          "deepdive": "L'approfondissement a échoué pour {chunks, plural, one {# offre} other {# offres}} sur {of} : {msg}"
+        }
       },
       "table": {
         "source": "Source",
@@ -12907,7 +12929,9 @@
         "changed": "Modifiées",
         "absent": "Absentes",
         "reason": "Raison",
-        "resumeLink": "Reprendre dans Sources"
+        "resumeLink": "Reprendre dans Sources",
+        "truncated": "lecture partielle",
+        "truncatedHint": "Cette source liste plus d'offres qu'une analyse n'en lit. Seule la première partie a été lue, et aucune offre n'a été marquée comme disparue."
       }
     },
     "sieve": {
@@ -13448,8 +13472,12 @@
           "onWith": "Source activée : {label} · {n} offres de retour",
           "off": "Source désactivée : {label}",
           "offWith": "Source désactivée : {label} · {n} offres restent à la porte",
-          "released": "{n} offres libérées dans votre tamis"
-        }
+          "released": "{n} offres libérées dans votre tamis",
+          "onCountries": "Source activée : {label} · recherche dans {countries}"
+        },
+        "euresCountries": "Recherche dans : {countries}",
+        "euresDefault": "Aucun pays défini : une fois activée, la recherche porte sur {countries}",
+        "euresNoCountry": "Aucun pays défini : EURES n'a donc rien à chercher. Indiquez-en un dans Ce que vous voulez."
       }
     },
     "designedCv": {

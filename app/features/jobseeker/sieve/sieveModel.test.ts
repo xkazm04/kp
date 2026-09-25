@@ -44,6 +44,9 @@ function row(id: string, over: Partial<JobseekerPostingSummary> = {}): Jobseeker
     matchedSkills: [],
     missingSkills: [],
     deepDived: false,
+    previousTotal: null,
+    reasoningStale: false,
+    targetAlignment: null,
     ...over,
   };
 }

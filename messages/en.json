@@ -12621,7 +12621,22 @@
         "unreachable": "The scan is still running on the server, but its progress could not be read. Reload the page in a moment.",
         "failed": "The scan failed.",
         "failedMsg": "The scan failed: {msg}",
-        "startError": "The scan could not be started."
+        "startError": "The scan could not be started.",
+        "progressSource": "{done} of {total} · reading {source}",
+        "progressAt": "{label} · {done} of {total}",
+        "phase": {
+          "structure": "Reading the postings",
+          "match": "Scoring",
+          "deepdive": "Deep-diving the shortlist",
+          "done": "Finishing",
+          "aborted": "Stopping",
+          "no_profile": "No profile to match against"
+        },
+        "partial": {
+          "structure": "The scan finished, but some postings could not be read: {msg}",
+          "match": "The scan finished, but scoring failed: {msg}",
+          "deepdive": "The scan finished, but some deep-dives failed: {msg}"
+        }
       },
       "lastScan": "Last scan {when}",
       "newSince": "{count, plural, one {# new since your last visit} other {# new since your last visit}}",
@@ -12898,7 +12913,14 @@
         },
         "matched": "{n} matched",
         "deepDived": "{n} deep-dived",
-        "deepDiveSkipped": "deep-dive skipped: no AI model"
+        "deepDiveSkipped": "deep-dive skipped: no AI model",
+        "koFiltered": "{n, plural, one {# caught by a gate} other {# caught by gates}}",
+        "upToDate": "{n} already current",
+        "failure": {
+          "structure": "Reading postings failed for {chunks} of {of, plural, one {# batch} other {# batches}}: {msg}",
+          "match": "Scoring failed for {chunks} of {of, plural, one {# batch} other {# batches}}: {msg}",
+          "deepdive": "The deep-dive failed for {chunks} of {of, plural, one {# posting} other {# postings}}: {msg}"
+        }
       },
       "table": {
         "source": "Source",
@@ -12907,7 +12929,9 @@
         "changed": "Changed",
         "absent": "Absent",
         "reason": "Reason",
-        "resumeLink": "Resume on Sources"
+        "resumeLink": "Resume on Sources",
+        "truncated": "partial read",
+        "truncatedHint": "This source lists more than one scan reads, so only the first part was read, and no posting was marked as gone."
       }
     },
     "sieve": {
@@ -13448,8 +13472,12 @@
           "onWith": "{label} on · {n} postings back in",
           "off": "{label} off",
           "offWith": "{label} off · {n} postings held at the door",
-          "released": "{n} postings released into your sieve"
-        }
+          "released": "{n} postings released into your sieve",
+          "onCountries": "{label} on · searching {countries}"
+        },
+        "euresCountries": "Searches {countries}",
+        "euresDefault": "No country set yet: switching it on searches {countries}",
+        "euresNoCountry": "No country set, so EURES has nothing to search. Name one under What you want."
       }
     },
     "designedCv": {

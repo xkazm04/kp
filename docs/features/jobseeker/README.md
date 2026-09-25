@@ -455,7 +455,81 @@ contacts, roles, bullets, groups, improvements, no invented numbers, prose-vs-ac
 `app/_lib/jobseeker/cv-pdf.test.ts` (origin never from Host, cookie parsing, no browser ->
 unavailable, only the app origin reachable, browser always closed).
 
+## Direction and markets
+
+A seeker's CV says where they have been; `targetTitles` / `targetRoleFamilies` say where
+they are going. A career changer (years as an analyst, one year of AI work, aiming at
+AI Engineering) used to be ranked by the past. Now:
+
+- **The matcher reads the direction, never as evidence.** `transform.apply_preferences`
+  carries the targets onto `MatchCandidate`; `score_career`'s family term, when a target
+  is stated, is 1.0 for a title hit, 0.75 for a target family, 0.35 otherwise - the CV's
+  own past family included. The seniority term is unchanged, and the skills dimension
+  never reads targets: direction is a preference fit, not a claim of possession
+  (registry: candidate-archetype-routing, skill-adjacency-and-normalization). Early-career
+  profiles apply the same term to the family part of their fit slot. With no target,
+  scores are byte-identical (pinned) and the recruiter path never passes preferences.
+- **Title matching** (`pipeline/jobfit/target_titles.py`): whole-word, case- and
+  diacritic-folded, level words (Senior/Lead/Junior) and parentheticals ignored, a small
+  curated alias table (AI / ML / LLM / GenAI engineer; frontend; backend; full-stack; QA).
+  Target families = the stated ones plus the families the stated titles route to.
+- **`MatchResult.targetAlignment`** = `{state: target|family|past|none, matchedTitle,
+  targetFamilies, pastFamily}`, absent when no target is stated (empty fields are
+  dropped from the dump, so read a missing `matchedTitle` like null). A KO'd row's as-if
+  result carries it too. The posting summary and `GET /api/jobseeker/postings/[id]`
+  project it as `targetAlignment`. `MATCH_VERSION` is `jobseeker-match-v3`.
+- **Measured** on a synthetic 8-year analyst/QA/frontend + 1-year AI consultant with
+  target "AI Engineer": AI Engineer 55 -> 69, Senior AI Engineer (LLM) 64 -> 77, IT
+  Business Analyst 75 -> 61, QA Engineer 52 -> 52. The same profile routed as
+  `career_switcher` still ranks the analyst posting first (transferable-skill credit
+  fills its skills slot); /me saves every seeker as experienced, so that path is not
+  reached today.
+- **Targets come only from the seeker.** The CV studio no longer seeds the CV's own
+  role family into `targetRoleFamilies` (it used to, invisibly, steering fetches back
+  to the past). Rows seeded before this change keep the value; it is shown and
+  removable under What you want.
+- **The CV studio tailors toward the first target** (`CV_POLISH_PROMPT_VERSION =
+  "cv-polish-v2"`): the persona gets a tailoring block with the hard rule "never add a
+  skill, employer, date, number or responsibility the CV does not contain", and the
+  keyless path adds grounded `lead` / `move_up` / `transfer` / `gap` suggestions in
+  en/cs/de/fr, every `before` a verbatim source line.
+- **Acquisition lets the market in.** The adapters' local location filter
+  (`adapters/shared.ts` `matchesLocations`) keeps a posting when no place is named, its
+  location is unknown, its city matches, its country is one the seeker named, or it
+  states remote and the seeker has not ruled remote out. The title filter
+  (`matchesTargets`) matches target TITLES as folded whole words; role families alone
+  never discard a posting (the matcher ranks).
+- **EURES never scans for nothing.** With no country the adapter stops before any
+  request (`config_invalid`, detail `config_missing_countries`). Both EURES doors - the
+  feed's one-click button and the Sources card - write the derived default country first
+  (`app/features/jobseeker/euresDoor.ts`), and the card says which countries it searches.
+- **Arbeitnow** (`adapters/arbeitnow.ts`, tier A, key-less): German, UK and French
+  editions of one public API, at most 4 pages of 250 per scan, filtered locally (no
+  search parameter), attribution "Jobs via Arbeitnow.com" plus each posting's own URL as
+  the link-back its terms ask for; country only from the `.co.uk`/`.fr` edition domains,
+  never a salary. Remotive was evaluated and NOT added: its robots.txt disallows
+  `/api/*` in a second `User-agent: *` group.
+- **robots.txt groups combine** (RFC 9309 §2.2.1): several groups naming the same agent
+  are one group, and the politest Crawl-delay among them binds (`fetch/robots.ts`
+  `groupFor`). Reading only the first `*` group had treated that Remotive API as allowed.
+
 ## Scan and scoring
+
+**A scan's failures are on the record.** `ScanSummary.failures` lists each failed phase
+(structure / match / deepdive) as `{chunks, of, code}` - failed units out of attempted and
+the first failure's code, the raw error in the server log - and `koFiltered` counts what
+the hard gates removed. A run whose structure or match phase failed completely is stored
+as `error`, so it does not verify the clock; a partial failure stays `ok`.
+`SourceRunSummary.truncated` marks a pass that hit `maxRefs` or the detail budget (the
+history shows "partial read"). While a source is read the task reports
+"<host> · done of total" detail progress; phase messages are the closed
+`SCAN_PROGRESS_PHASES`. The history shows "N caught by gates" and "N already current".
+
+**A deep-dive keeps its trace.** A re-match that moves the total keeps `previous` in
+`match_json` (summary: `previousTotal`); the rationale is written with the seeker's
+preferences (`reasoning_cli --preferences-json`, the same `apply_preferences` as the
+matcher) and stamped `reasonedAt`; a rationale older than the profile's last change is
+`reasoningStale`, and the next scan re-dives it after every never-dived posting.
 
 `app/_lib/jobseeker/scan.ts` — `runJobseekerScan(workspaceId, {trigger, signal?,
 onProgress?, deps?})` → `ScanSummary`. Four phases, every dependency injected

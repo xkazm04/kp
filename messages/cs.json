@@ -12621,7 +12621,22 @@
         "unreachable": "Sken na serveru stále běží, ale jeho průběh se nepodařilo přečíst. Za chvíli stránku obnovte.",
         "failed": "Sken selhal.",
         "failedMsg": "Sken selhal: {msg}",
-        "startError": "Sken se nepodařilo spustit."
+        "startError": "Sken se nepodařilo spustit.",
+        "progressSource": "{done} z {total} · čte se {source}",
+        "progressAt": "{label} · {done} z {total}",
+        "phase": {
+          "structure": "Čtení nabídek",
+          "match": "Hodnocení shody",
+          "deepdive": "Podrobné prověřování užšího výběru",
+          "done": "Dokončování",
+          "aborted": "Zastavování",
+          "no_profile": "Chybí profil, se kterým by šlo porovnávat"
+        },
+        "partial": {
+          "structure": "Sken doběhl, ale některé nabídky se nepodařilo přečíst: {msg}",
+          "match": "Sken doběhl, ale hodnocení shody selhalo: {msg}",
+          "deepdive": "Sken doběhl, ale některá podrobná prověření selhala: {msg}"
+        }
       },
       "lastScan": "Poslední kontrola {when}",
       "newSince": "{count, plural, one {# nová nabídka od vaší poslední návštěvy} few {# nové nabídky od vaší poslední návštěvy} many {# nové nabídky od vaší poslední návštěvy} other {# nových nabídek od vaší poslední návštěvy}}",
@@ -12898,7 +12913,14 @@
         },
         "matched": "{n} porovnáno",
         "deepDived": "{n} podrobně prověřeno",
-        "deepDiveSkipped": "podrobné prověření vynecháno: žádný AI model"
+        "deepDiveSkipped": "podrobné prověření vynecháno: žádný AI model",
+        "koFiltered": "{n, plural, one {# nabídka zachycena branou} few {# nabídky zachyceny branami} many {# nabídky zachyceno branami} other {# nabídek zachyceno branami}}",
+        "upToDate": "{n, plural, one {# nabídka už je aktuální} few {# nabídky už jsou aktuální} many {# nabídky už je aktuálních} other {# nabídek už je aktuálních}}",
+        "failure": {
+          "structure": "Čtení nabídek selhalo u {chunks} z {of, plural, one {# dávky} few {# dávek} many {# dávky} other {# dávek}}: {msg}",
+          "match": "Hodnocení shody selhalo u {chunks} z {of, plural, one {# dávky} few {# dávek} many {# dávky} other {# dávek}}: {msg}",
+          "deepdive": "Podrobné prověření selhalo u {chunks} z {of, plural, one {# nabídky} few {# nabídek} many {# nabídky} other {# nabídek}}: {msg}"
+        }
       },
       "table": {
         "source": "Zdroj",
@@ -12907,7 +12929,9 @@
         "changed": "Změněné",
         "absent": "Chybějící",
         "reason": "Důvod",
-        "resumeLink": "Obnovit ve Zdrojích"
+        "resumeLink": "Obnovit ve Zdrojích",
+        "truncated": "neúplné čtení",
+        "truncatedHint": "Tento zdroj nabízí víc, než jeden sken přečte. Přečetla se jen první část a žádná nabídka nebyla označena jako zmizelá."
       }
     },
     "sieve": {
@@ -13448,8 +13472,12 @@
           "onWith": "Zapnuto: {label} · {n, plural, one {# nabídka zpět} few {# nabídky zpět} many {# nabídky zpět} other {# nabídek zpět}}",
           "off": "Vypnuto: {label}",
           "offWith": "Vypnuto: {label} · {n, plural, one {# nabídka u dveří} few {# nabídky u dveří} many {# nabídky u dveří} other {# nabídek u dveří}}",
-          "released": "{n, plural, one {Do síta propuštěna # nabídka} few {Do síta propuštěny # nabídky} many {Do síta propuštěno # nabídky} other {Do síta propuštěno # nabídek}}"
-        }
+          "released": "{n, plural, one {Do síta propuštěna # nabídka} few {Do síta propuštěny # nabídky} many {Do síta propuštěno # nabídky} other {Do síta propuštěno # nabídek}}",
+          "onCountries": "Zapnuto: {label} · hledá v: {countries}"
+        },
+        "euresCountries": "Hledá v zemích: {countries}",
+        "euresDefault": "Zatím není nastavena žádná země: po zapnutí bude hledat v: {countries}",
+        "euresNoCountry": "Není nastavena žádná země, EURES tedy nemá kde hledat. Zadejte ji v kroku Co chcete."
       }
     },
     "designedCv": {

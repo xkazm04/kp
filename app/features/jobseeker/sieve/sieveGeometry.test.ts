@@ -15,7 +15,7 @@ function row(id: string, over: Partial<JobseekerPostingSummary>): JobseekerPosti
     workMode: null, postedAt: null, salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null, jobSource: null,
     matchTotal: null, fitTier: null, matchVersion: null, matchedAt: null, status: "new", dismissReason: null, dismissNote: null,
     appliedAt: null, firstSeenAt: "2026-09-20T00:00:00Z", lastSeenAt: "2026-09-24T00:00:00Z", goneAt: null, bodyChars: 1,
-    eligibility: [], confidence: null, blockedBy: [], blockedDetails: [], asIfTotal: null, matchedSkills: [], missingSkills: [], deepDived: false,
+    eligibility: [], confidence: null, blockedBy: [], blockedDetails: [], asIfTotal: null, matchedSkills: [], missingSkills: [], deepDived: false, previousTotal: null, reasoningStale: false, targetAlignment: null,
     ...over,
   };
 }

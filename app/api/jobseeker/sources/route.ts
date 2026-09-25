@@ -46,7 +46,7 @@ async function refuseConfig(host: string, config: Record<string, unknown>): Prom
 }
 
 function kindFor(adapter: string): SourceKind {
-  if (adapter === "eures" || adapter === "mpsv_bulk") return "feed";
+  if (adapter === "eures" || adapter === "mpsv_bulk" || adapter === "arbeitnow") return "feed";
   return adapter.startsWith("ats_") ? "ats" : "board";
 }
 
