@@ -1,0 +1,2816 @@
+{
+  "$comment": [
+    "The declared per-file, per-rule ceiling on every raw style step under app/**/*.tsx",
+    "(tests, app/landing/**, app/about/**, app/market/**, app/features/gigs/** and the",
+    "composition kit app/_components/kit/** excluded). Read and enforced by",
+    "style-debt.test.ts beside it, which runs in the ordinary unit gate",
+    "(`npm run test:unit`). Matchers: style-debt-rules.ts, shared with the edit-time hook",
+    "scripts/style/lint-edited.mjs. Law: .claude/rules/ui.md.",
+    "",
+    "RATCHET, not aspiration: these are the counts of the tree TODAY (seeded 2026-09-25).",
+    "A number never goes up. Fix the file, then:",
+    "",
+    "  node --experimental-transform-types app/_components/ui/style-debt.test.ts --tighten",
+    "",
+    "A file burnt down to zero loses its entry, which LOCKS the win: the file is then",
+    "undeclared for that rule, and the next raw step to arrive there is a red build."
+  ],
+  "ceilings": {
+    "_components/AiDisclosure.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "_components/AnalysisProgress.tsx": {
+      "raw-text-size": 6
+    },
+    "_components/Badge.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1,
+      "raw-status-hue": 6
+    },
+    "_components/BrandHeader.tsx": {
+      "raw-text-size": 1
+    },
+    "_components/ChainEmptyState.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "_components/Checkbox.tsx": {
+      "raw-text-size": 2
+    },
+    "_components/CompletionCta.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "_components/ConfirmDialog.tsx": {
+      "raw-text-size": 3
+    },
+    "_components/FactorChartBody.tsx": {
+      "raw-table": 1
+    },
+    "_components/GithubAnalysisPanel.tsx": {
+      "raw-text-size": 34,
+      "raw-status-hue": 10,
+      "raw-button": 1
+    },
+    "_components/IconAction.tsx": {
+      "raw-stone-text": 1
+    },
+    "_components/LanguageSwitcher.tsx": {
+      "raw-text-size": 1,
+      "bare-rounded": 1
+    },
+    "_components/LoadStatus.tsx": {
+      "raw-status-hue": 2
+    },
+    "_components/Markdown.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 2,
+      "raw-text-size": 4,
+      "bare-rounded": 1
+    },
+    "_components/Modal.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "_components/PotentialBadge.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "_components/RichTextEditor.tsx": {
+      "arbitrary-text-size": 1,
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 3,
+      "bare-rounded": 5
+    },
+    "_components/RouteError.tsx": {
+      "raw-text-size": 3
+    },
+    "_components/ScoreBadge.tsx": {
+      "raw-text-size": 1
+    },
+    "_components/ScoreDial.tsx": {
+      "raw-text-size": 2
+    },
+    "_components/SegmentedControl.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "_components/Select.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 2
+    },
+    "_components/Skeleton.tsx": {
+      "bare-rounded": 1
+    },
+    "_components/TextArea.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1
+    },
+    "_components/TextInput.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1
+    },
+    "_components/Toast.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "_components/chat/ChatComposer.tsx": {
+      "raw-text-size": 1
+    },
+    "_components/chat/ChatMiniChart.tsx": {
+      "raw-text-size": 1,
+      "raw-table": 1
+    },
+    "_components/chat/ChatTable.tsx": {
+      "raw-text-size": 1,
+      "raw-table": 1
+    },
+    "_components/chat/ChatTranscript.tsx": {
+      "raw-text-size": 1
+    },
+    "_components/puml/PlantUml.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 4,
+      "raw-button": 2
+    },
+    "_components/results/AddToPipelineButton.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 1
+    },
+    "_components/results/ArchetypeBanner.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 3,
+      "raw-button": 1
+    },
+    "_components/results/DispositionEditor.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "_components/results/QualityStrip.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 7,
+      "raw-button": 1
+    },
+    "_components/results/ReportActions.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 3
+    },
+    "_components/results/ResultPanel.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 2
+    },
+    "_components/results/VerdictBanner.tsx": {
+      "raw-text-size": 5
+    },
+    "_components/results/compare/CompareTab.tsx": {
+      "raw-text-size": 21,
+      "raw-status-hue": 2,
+      "raw-table": 1
+    },
+    "_components/results/extraction/ExtractionTab.tsx": {
+      "raw-text-size": 15
+    },
+    "_components/results/interview/InterviewTab.tsx": {
+      "raw-text-size": 19,
+      "raw-status-hue": 2,
+      "raw-button": 3
+    },
+    "_components/results/interview/SoftSignalsSection.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "_components/results/job-fit/JobFitTab.tsx": {
+      "raw-text-size": 17,
+      "raw-status-hue": 6,
+      "bare-rounded": 2
+    },
+    "_components/results/job-fit/MissingSkillsTiers.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "_components/results/job-fit/SkillChips.tsx": {
+      "raw-text-size": 3
+    },
+    "_components/results/salary/SalaryGauge.tsx": {
+      "raw-text-size": 2
+    },
+    "_components/results/salary/SalaryTab.tsx": {
+      "raw-text-size": 10
+    },
+    "_components/results/shared.tsx": {
+      "raw-text-size": 7,
+      "raw-button": 1
+    },
+    "_components/studio/StudioChoiceCards.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "_components/studio/StudioOverlay.tsx": {
+      "raw-text-size": 3
+    },
+    "_components/studio/StudioTranscript.tsx": {
+      "raw-stone-text": 2
+    },
+    "_components/studio/StudioVoiceBar.tsx": {
+      "raw-text-size": 3
+    },
+    "_components/studio/StudioZone.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 2,
+      "raw-button": 1
+    },
+    "_components/table/ColumnFilter.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "bare-rounded": 2
+    },
+    "_components/table/ColumnHead.tsx": {
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "_components/table/FilterMenu.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "_components/table/TablePager.tsx": {
+      "raw-text-size": 2
+    },
+    "_components/ui/PipelineShapeBar.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1
+    },
+    "_components/ui/StructuredReadout.tsx": {
+      "raw-text-size": 10,
+      "raw-table": 1
+    },
+    "_components/voice/InterviewSidebar.tsx": {
+      "raw-text-size": 4
+    },
+    "_components/voice/MicTestPanel.tsx": {
+      "raw-text-size": 14
+    },
+    "_components/voice/ReconnectNotice.tsx": {
+      "raw-text-size": 4
+    },
+    "_components/voice/TtsComparePanel.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 2
+    },
+    "_components/voice/VoiceInterview.tsx": {
+      "raw-text-size": 11,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "_components/voice/VoiceInterviewClient.tsx": {
+      "raw-text-size": 1
+    },
+    "_components/voice/VoiceSettings.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 3
+    },
+    "_components/voice/VoiceTranscript.tsx": {
+      "raw-text-size": 10
+    },
+    "apply/[id]/ApplyDoneCard.tsx": {
+      "raw-text-size": 4
+    },
+    "apply/[id]/ApplyErrorBlock.tsx": {
+      "raw-text-size": 1
+    },
+    "apply/[id]/ApplyFollowup.tsx": {
+      "raw-text-size": 6
+    },
+    "apply/[id]/ApplyStepControls.tsx": {
+      "raw-text-size": 10
+    },
+    "apply/[id]/ConversationalApply.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "apply/[id]/page.tsx": {
+      "raw-text-size": 2
+    },
+    "apply/[id]/quick/QuickApplyForm.tsx": {
+      "raw-text-size": 16
+    },
+    "control/AutonomyBar.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 2
+    },
+    "control/CalibrationPanel.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 4,
+      "bare-rounded": 4,
+      "raw-table": 2
+    },
+    "control/ControlRoom.tsx": {
+      "raw-text-size": 1
+    },
+    "control/GatesPanel.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "data/[token]/DataClient.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 1
+    },
+    "devcase/apply/[token]/DevApplyForm.tsx": {
+      "raw-text-size": 6
+    },
+    "devcase/apply/[token]/LiveWorkSurface.tsx": {
+      "raw-text-size": 10,
+      "bare-rounded": 2
+    },
+    "devcase/apply/[token]/page.tsx": {
+      "raw-text-size": 1
+    },
+    "diagrams/PipelineExplorer.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 2
+    },
+    "diagrams/page.tsx": {
+      "arbitrary-text-size": 2,
+      "raw-text-size": 2,
+      "bare-rounded": 5,
+      "literal-page-header": 1
+    },
+    "features/agents-workforce/AgentsWorkforceRoster.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/agents-workforce/AgentsWorkforceRow.tsx": {
+      "raw-text-size": 25,
+      "raw-stone-text": 3,
+      "raw-button": 2
+    },
+    "features/agents-workforce/AgentsWorkforceTab.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/channels/ChannelsAdFormsPane.tsx": {
+      "raw-text-size": 4,
+      "bare-rounded": 1
+    },
+    "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 2
+    },
+    "features/hiring/channels/ChannelsCommsBouncedResend.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 2,
+      "raw-status-hue": 4
+    },
+    "features/hiring/channels/ChannelsCommsMessageModal.tsx": {
+      "below-floor-text": 6,
+      "raw-text-size": 2,
+      "raw-status-hue": 6
+    },
+    "features/hiring/channels/ChannelsCommsRows.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 1,
+      "raw-status-hue": 2,
+      "raw-table": 1
+    },
+    "features/hiring/channels/ChannelsCommsTable.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 7,
+      "bare-rounded": 1
+    },
+    "features/hiring/channels/ChannelsCvSimCard.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 5,
+      "raw-button": 4
+    },
+    "features/hiring/channels/ChannelsEdgeCard.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 8,
+      "raw-status-hue": 1
+    },
+    "features/hiring/channels/ChannelsEmailIntakeWizard.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 3,
+      "bare-rounded": 1
+    },
+    "features/hiring/channels/ChannelsEmpty.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 1
+    },
+    "features/hiring/channels/ChannelsReceiverPullCard.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 6,
+      "raw-status-hue": 4,
+      "bare-rounded": 2
+    },
+    "features/hiring/channels/ChannelsReceiverTable.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 6,
+      "raw-status-hue": 7,
+      "raw-button": 3,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
+      "raw-text-size": 6
+    },
+    "features/hiring/channels/ChannelsSetupGuide.tsx": {
+      "below-floor-text": 3,
+      "raw-text-size": 6,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "bare-rounded": 2
+    },
+    "features/hiring/channels/ChannelsTab.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "features/hiring/channels/ChannelsTabStage.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/channels/ChannelsTabSwitcher.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/channels/ChannelsTabWidgets.tsx": {
+      "below-floor-text": 1,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/DecisionsAiReviewCardBody.tsx": {
+      "raw-text-size": 5
+    },
+    "features/hiring/decisions/DecisionsAiReviewCardLadder.tsx": {
+      "raw-text-size": 5,
+      "bare-rounded": 2
+    },
+    "features/hiring/decisions/DecisionsAiReviewsSection.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
+      "raw-text-size": 7
+    },
+    "features/hiring/decisions/DecisionsAnalysisParts.tsx": {
+      "below-floor-text": 2,
+      "arbitrary-text-size": 2,
+      "raw-text-size": 20,
+      "raw-status-hue": 10,
+      "raw-button": 1,
+      "bare-rounded": 5
+    },
+    "features/hiring/decisions/DecisionsBanners.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 3,
+      "raw-button": 5,
+      "bare-rounded": 2
+    },
+    "features/hiring/decisions/DecisionsBatchBar.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 4,
+      "raw-button": 4
+    },
+    "features/hiring/decisions/DecisionsComplianceImpactCheck.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 2,
+      "raw-table": 1
+    },
+    "features/hiring/decisions/DecisionsComplianceSection.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 1
+    },
+    "features/hiring/decisions/DecisionsEmptyHandoff.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/DecisionsFeedbackLetterEditor.tsx": {
+      "raw-text-size": 9
+    },
+    "features/hiring/decisions/DecisionsFeedbackLetters.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 3
+    },
+    "features/hiring/decisions/DecisionsGroupEvalRejectModal.tsx": {
+      "raw-text-size": 4
+    },
+    "features/hiring/decisions/DecisionsHeader.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 4,
+      "raw-button": 2
+    },
+    "features/hiring/decisions/DecisionsOfferLetterPreview.tsx": {
+      "raw-text-size": 8,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/DecisionsReconsiderQueue.tsx": {
+      "raw-text-size": 3,
+      "raw-stone-text": 5,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/DecisionsRoleRow.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 4
+    },
+    "features/hiring/decisions/DecisionsRulesModal.tsx": {
+      "raw-text-size": 10,
+      "raw-button": 3
+    },
+    "features/hiring/decisions/DecisionsScreenWaveConfirmModal.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 2
+    },
+    "features/hiring/decisions/DecisionsScreenWaveLists.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 4
+    },
+    "features/hiring/decisions/DecisionsScreenWaveModal.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 3,
+      "raw-button": 2
+    },
+    "features/hiring/decisions/DecisionsShared.tsx": {
+      "raw-text-size": 5
+    },
+    "features/hiring/decisions/DecisionsTab.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 2
+    },
+    "features/hiring/decisions/DecisionsUndoStrip.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/GroupEvalModal.tsx": {
+      "raw-text-size": 4
+    },
+    "features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx": {
+      "raw-text-size": 5
+    },
+    "features/hiring/decisions/groupEval/GroupEvalComparisonCells.tsx": {
+      "arbitrary-text-size": 1,
+      "raw-text-size": 4,
+      "raw-status-hue": 4,
+      "bare-rounded": 1
+    },
+    "features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx": {
+      "raw-text-size": 7,
+      "raw-table": 1
+    },
+    "features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx": {
+      "raw-text-size": 11,
+      "raw-status-hue": 3,
+      "raw-table": 1
+    },
+    "features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx": {
+      "raw-text-size": 6
+    },
+    "features/hiring/decisions/groupEval/GroupEvalNotices.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/hiring/decisions/groupEval/GroupEvalPrimitives.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 4
+    },
+    "features/hiring/decisions/groupEval/GroupEvalRerunDelta.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/decisions/groupEval/GroupEvalRisks.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/decisions/groupEval/GroupEvalSalaryCell.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/decisions/ledger/DecisionsLedger.tsx": {
+      "raw-text-size": 4,
+      "raw-table": 1
+    },
+    "features/hiring/decisions/ledger/LedgerCells.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/CommandBar.tsx": {
+      "raw-text-size": 7,
+      "raw-stone-text": 2,
+      "raw-status-hue": 1,
+      "raw-button": 4
+    },
+    "features/hiring/pipeline/PassPreviewModal.tsx": {
+      "raw-text-size": 16,
+      "raw-status-hue": 4,
+      "raw-button": 3
+    },
+    "features/hiring/pipeline/PipelineActivityFeed.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/PipelineAttentionStrip.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 3
+    },
+    "features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 6,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineBulkActionBar.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 5
+    },
+    "features/hiring/pipeline/PipelineBulkDecideRow.tsx": {
+      "raw-text-size": 6,
+      "raw-stone-text": 1,
+      "raw-button": 3
+    },
+    "features/hiring/pipeline/PipelineBulkOutreachButton.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
+      "raw-text-size": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineCandidateNoteField.tsx": {
+      "raw-status-hue": 1
+    },
+    "features/hiring/pipeline/PipelineCandidateResultView.tsx": {
+      "raw-text-size": 16,
+      "raw-status-hue": 2,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineCandidateRow.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineCommsList.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 6
+    },
+    "features/hiring/pipeline/PipelineConsentPanel.tsx": {
+      "raw-text-size": 5
+    },
+    "features/hiring/pipeline/PipelineDegradedIntakeBanner.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 13,
+      "raw-button": 3,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineDrawerFooterLinks.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/hiring/pipeline/PipelineDrawerHistoryList.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/pipeline/PipelineFilterBar.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 5,
+      "raw-button": 3,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineFilterMenu.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/hiring/pipeline/PipelineGithubEvidenceCard.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineHireOutcomeCard.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineHumanScorecardCard.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/PipelineInterviewTelemetryStrip.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/pipeline/PipelinePopulatedBoard.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/PipelineRematchAffordance.tsx": {
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineSavedViews.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 5,
+      "bare-rounded": 5
+    },
+    "features/hiring/pipeline/PipelineSelfSchedulingPanel.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/PipelineShared.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 2
+    },
+    "features/hiring/pipeline/PipelineSlaEditor.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 1
+    },
+    "features/hiring/pipeline/PipelineStatHeader.tsx": {
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "features/hiring/pipeline/PipelineTab.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 4,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/PipelineTimelineItemRow.tsx": {
+      "raw-status-hue": 2
+    },
+    "features/hiring/pipeline/PipelineTodayRail.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/PipelineTokenLink.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 2
+    },
+    "features/hiring/pipeline/PipelineViewDialog.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 3
+    },
+    "features/hiring/pipeline/PipelineVoiceScreenPanel.tsx": {
+      "raw-text-size": 11,
+      "raw-status-hue": 2,
+      "raw-button": 3,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/SchedulerControl.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/pipeline/SchedulerJobRow.tsx": {
+      "raw-text-size": 8,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/SchedulerRunHistory.tsx": {
+      "raw-text-size": 7,
+      "bare-rounded": 2
+    },
+    "features/hiring/pipeline/SchedulerSummaryBadges.tsx": {
+      "raw-status-hue": 2,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/SchedulerToolbar.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 7
+    },
+    "features/hiring/pipeline/candidate/CandidateActivityTab.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1
+    },
+    "features/hiring/pipeline/candidate/CandidateModalHeader.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 2,
+      "literal-page-header": 1
+    },
+    "features/hiring/pipeline/candidate/CandidateModalTabs.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/candidate/CandidateOverviewTab.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/pipeline/candidate/decision/CandidateDecisionBar.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 4,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/candidate/footer/CandidateFooter.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/candidate/footer/CandidateFooterTray.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 2
+    },
+    "features/hiring/pipeline/candidate/scorecard/DetailParts.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 3,
+      "raw-status-hue": 6,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/candidate/scorecard/DetailScoreParts.tsx": {
+      "raw-text-size": 3,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/hiring/pipeline/empty/PipelineEmptyMoveArt.tsx": {
+      "raw-stone-text": 3
+    },
+    "features/hiring/pipeline/empty/PipelineEmptyMoveCard.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 2,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/empty/PipelineEmptyState.tsx": {
+      "raw-text-size": 5,
+      "raw-stone-text": 1,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/map/CellOverlaySpectrum.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/pipeline/map/orchard/OrchardBranch.tsx": {
+      "raw-text-size": 3
+    },
+    "features/hiring/pipeline/map/orchard/OrchardGrid.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/pipeline/map/orchard/OrchardHeader.tsx": {
+      "raw-text-size": 2,
+      "literal-page-header": 1
+    },
+    "features/hiring/pipeline/map/orchard/OrchardTicket.tsx": {
+      "below-floor-text": 3,
+      "raw-text-size": 5,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/map/orchard/TicketEvidence.tsx": {
+      "below-floor-text": 5,
+      "raw-status-hue": 4,
+      "bare-rounded": 2
+    },
+    "features/hiring/pipeline/map/orchard/UnscoredBay.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/hiring/pipeline/map/subway/LineContextMenu.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 3,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/map/subway/SubwayBeads.tsx": {
+      "below-floor-text": 4,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 1,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/map/subway/SubwayLineRow.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 4,
+      "bare-rounded": 1
+    },
+    "features/hiring/pipeline/map/subway/SubwayMarks.tsx": {
+      "below-floor-text": 2,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 1,
+      "raw-stone-text": 1,
+      "raw-status-hue": 4,
+      "raw-button": 1
+    },
+    "features/hiring/schedule/ScheduleAddToCalendar.tsx": {
+      "raw-text-size": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/schedule/ScheduleAiLedger.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 1,
+      "raw-table": 1
+    },
+    "features/hiring/schedule/ScheduleAiRound.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2
+    },
+    "features/hiring/schedule/ScheduleAiRoundCompleted.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/hiring/schedule/ScheduleCalendar.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/schedule/ScheduleCalendarCell.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 2
+    },
+    "features/hiring/schedule/ScheduleCalendarEventChip.tsx": {
+      "raw-status-hue": 4
+    },
+    "features/hiring/schedule/ScheduleCalendarStatus.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/hiring/schedule/ScheduleCalendarWeekPager.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 2
+    },
+    "features/hiring/schedule/ScheduleCandidateCardHeader.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/schedule/ScheduleEmptyRelay.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/schedule/ScheduleHumanScorecardForm.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "features/hiring/schedule/ScheduleHumanScorecardPanel.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 4,
+      "bare-rounded": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewEvidenceSection.tsx": {
+      "raw-text-size": 2
+    },
+    "features/hiring/schedule/ScheduleInterviewHumanScorecardSection.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewObservations.tsx": {
+      "raw-text-size": 3
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepHeader.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 8,
+      "raw-button": 2
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepLoadStates.tsx": {
+      "raw-text-size": 7,
+      "raw-button": 3
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepModal.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepOverlay.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepOverlayRow.tsx": {
+      "raw-text-size": 7
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepPlanDiff.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 2
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1,
+      "bare-rounded": 3
+    },
+    "features/hiring/schedule/ScheduleInterviewRecordings.tsx": {
+      "raw-text-size": 9
+    },
+    "features/hiring/schedule/ScheduleInterviewScorecardRow.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewTelemetryStrip.tsx": {
+      "raw-text-size": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "features/hiring/schedule/ScheduleInterviewTranscriptTurns.tsx": {
+      "raw-text-size": 4
+    },
+    "features/hiring/schedule/ScheduleInviteAgendaRow.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2
+    },
+    "features/hiring/schedule/ScheduleInviteAttentionSection.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 18,
+      "raw-button": 7
+    },
+    "features/hiring/schedule/ScheduleInviteHistorySection.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 6,
+      "raw-button": 3
+    },
+    "features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2
+    },
+    "features/hiring/schedule/ScheduleInviteRecruiterControls.tsx": {
+      "raw-status-hue": 13
+    },
+    "features/hiring/schedule/ScheduleTab.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 4
+    },
+    "features/hiring/schedule/ScheduleTabInterviewedList.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 3,
+      "bare-rounded": 1
+    },
+    "features/hiring/schedule/ScheduleTabPendingList.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 4,
+      "raw-button": 5,
+      "bare-rounded": 4
+    },
+    "features/insights/about/AboutTab.tsx": {
+      "raw-text-size": 1,
+      "literal-page-header": 1
+    },
+    "features/insights/about/ChapterRail.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 2,
+      "bare-rounded": 1
+    },
+    "features/insights/about/scenes/archetypes/ArchetypeRouter.tsx": {
+      "raw-text-size": 3
+    },
+    "features/insights/about/scenes/assignments/CaseBaseline.tsx": {
+      "raw-text-size": 6
+    },
+    "features/insights/about/scenes/gates/GatesQueue.tsx": {
+      "raw-text-size": 5
+    },
+    "features/insights/about/scenes/jd/JdGrounding.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 1
+    },
+    "features/insights/about/scenes/scoring/ScoringBuckets.tsx": {
+      "raw-text-size": 2
+    },
+    "features/insights/about/scenes/screening/ScreeningLadder.tsx": {
+      "raw-text-size": 5
+    },
+    "features/insights/about/stage/Scene.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 1
+    },
+    "features/insights/activity/ActivityDetailModal.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 2
+    },
+    "features/insights/activity/ActivityInterviewRun.tsx": {
+      "raw-text-size": 5
+    },
+    "features/insights/activity/ActivityTab.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/insights/analytics/AnalyticsArchetypePanel.tsx": {
+      "raw-text-size": 2
+    },
+    "features/insights/analytics/AnalyticsAutomationPanel.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsByRoleTable.tsx": {
+      "raw-text-size": 4,
+      "bare-rounded": 4,
+      "raw-table": 1
+    },
+    "features/insights/analytics/AnalyticsCalibrationHeader.tsx": {
+      "raw-text-size": 10,
+      "raw-stone-text": 2,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsCalibrationPanel.tsx": {
+      "raw-text-size": 8,
+      "raw-stone-text": 8,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsChannelSpendInput.tsx": {
+      "raw-text-size": 1
+    },
+    "features/insights/analytics/AnalyticsComputeCostPanel.tsx": {
+      "raw-text-size": 7
+    },
+    "features/insights/analytics/AnalyticsCopyViewLink.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsDecisionRecordsPanel.tsx": {
+      "raw-text-size": 9,
+      "raw-stone-text": 3,
+      "raw-status-hue": 1,
+      "raw-button": 2
+    },
+    "features/insights/analytics/AnalyticsDeltaChip.tsx": {
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsDriftStrip.tsx": {
+      "raw-text-size": 2
+    },
+    "features/insights/analytics/AnalyticsEmptyPreview.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsEmptyShared.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsExportButton.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsFamilyFloorChips.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsFunnelEmptyGuide.tsx": {
+      "raw-text-size": 7,
+      "raw-stone-text": 1
+    },
+    "features/insights/analytics/AnalyticsGoalsEditor.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsHeader.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 1,
+      "raw-button": 2,
+      "literal-page-header": 1
+    },
+    "features/insights/analytics/AnalyticsMomentumPanel.tsx": {
+      "raw-text-size": 3
+    },
+    "features/insights/analytics/AnalyticsOfferLegPanel.tsx": {
+      "raw-text-size": 3,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsScoreBands.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsStageDwellPanel.tsx": {
+      "raw-text-size": 5
+    },
+    "features/insights/analytics/AnalyticsStat.tsx": {
+      "raw-text-size": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/AnalyticsTab.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsTargetInput.tsx": {
+      "raw-text-size": 1
+    },
+    "features/insights/analytics/AnalyticsThresholdHistoryStrip.tsx": {
+      "raw-text-size": 6,
+      "raw-stone-text": 1,
+      "raw-button": 1
+    },
+    "features/insights/analytics/AnalyticsThresholdSuggestion.tsx": {
+      "raw-text-size": 13,
+      "raw-button": 1,
+      "bare-rounded": 2
+    },
+    "features/insights/analytics/MetricPackPreview.tsx": {
+      "raw-text-size": 6
+    },
+    "features/insights/analytics/sections/AnalyticsSectionNav.tsx": {
+      "raw-text-size": 2
+    },
+    "features/insights/analytics/sections/DecisionLogTable.tsx": {
+      "raw-text-size": 11,
+      "raw-status-hue": 3,
+      "raw-button": 1,
+      "bare-rounded": 2,
+      "raw-table": 1
+    },
+    "features/insights/analytics/sections/DecisionRecordDetail.tsx": {
+      "raw-text-size": 11,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/insights/analytics/sections/DecisionRecordsTable.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "bare-rounded": 2,
+      "raw-table": 1
+    },
+    "features/insights/analytics/sections/EconomicsBoard.tsx": {
+      "raw-text-size": 12,
+      "raw-button": 1,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/insights/analytics/sections/PerformanceBriefing.tsx": {
+      "raw-text-size": 7,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/analytics/sections/QualityHireRatingQueue.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1,
+      "bare-rounded": 2
+    },
+    "features/insights/analytics/sections/QualityInstrument.tsx": {
+      "raw-text-size": 1
+    },
+    "features/insights/journey/JourneyAbsence.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 2,
+      "raw-status-hue": 3
+    },
+    "features/insights/journey/JourneyBoardView.tsx": {
+      "raw-text-size": 3
+    },
+    "features/insights/journey/JourneyCluster.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 1,
+      "literal-page-header": 1
+    },
+    "features/insights/journey/JourneyColumn.tsx": {
+      "below-floor-text": 3,
+      "raw-status-hue": 2,
+      "literal-page-header": 1
+    },
+    "features/insights/journey/JourneyFactCard.tsx": {
+      "below-floor-text": 6,
+      "raw-text-size": 7,
+      "raw-status-hue": 4,
+      "bare-rounded": 2
+    },
+    "features/insights/journey/JourneyMinimap.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/insights/journey/JourneyOverlay.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 1,
+      "literal-page-header": 1
+    },
+    "features/insights/journey/JourneyRail.tsx": {
+      "below-floor-text": 3,
+      "raw-button": 1
+    },
+    "features/insights/journey/JourneyRow.tsx": {
+      "below-floor-text": 2,
+      "raw-button": 1
+    },
+    "features/insights/journey/JourneyToolbar.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 1
+    },
+    "features/insights/journey/cohort/CohortStation.tsx": {
+      "raw-status-hue": 6,
+      "bare-rounded": 1
+    },
+    "features/insights/journey/cohort/CohortSummary.tsx": {
+      "raw-status-hue": 1
+    },
+    "features/insights/journey/cohort/JourneyCohortView.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2,
+      "bare-rounded": 3
+    },
+    "features/insights/matrix/MatrixDataNotices.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 1,
+      "raw-status-hue": 10
+    },
+    "features/insights/matrix/MatrixEmptyState.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "features/insights/matrix/MatrixFilterRow.tsx": {
+      "raw-text-size": 1
+    },
+    "features/insights/matrix/MatrixGrid.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/insights/matrix/MatrixGridRow.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/insights/matrix/MatrixReasoningPopover.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2,
+      "raw-button": 2,
+      "bare-rounded": 2
+    },
+    "features/insights/matrix/MatrixSelectBar.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 3
+    },
+    "features/insights/matrix/MatrixShared.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 2,
+      "raw-stone-text": 2,
+      "bare-rounded": 2
+    },
+    "features/insights/matrix/MatrixSlatePanel.tsx": {
+      "raw-text-size": 5
+    },
+    "features/insights/matrix/MatrixTab.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 4,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/insights/matrix/MatrixToolbar.tsx": {
+      "raw-text-size": 5,
+      "bare-rounded": 1
+    },
+    "features/insights/matrix/focus/MatchCard.tsx": {
+      "raw-text-size": 10,
+      "raw-stone-text": 1,
+      "raw-status-hue": 4,
+      "raw-button": 2
+    },
+    "features/insights/matrix/focus/MatchCardSkillChips.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 9,
+      "raw-button": 1,
+      "bare-rounded": 2
+    },
+    "features/insights/matrix/focus/MatchJobCompare.tsx": {
+      "raw-text-size": 6,
+      "raw-stone-text": 3,
+      "raw-status-hue": 6,
+      "raw-button": 1,
+      "bare-rounded": 4,
+      "raw-table": 1
+    },
+    "features/insights/matrix/focus/MatchResultsBulkToolbar.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 4
+    },
+    "features/insights/matrix/focus/MatchResultsGroupEvalBanner.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/insights/matrix/focus/MatchResultsHeader.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 10,
+      "raw-button": 3
+    },
+    "features/insights/matrix/focus/MatchWeightsPanel.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 4,
+      "bare-rounded": 1
+    },
+    "features/insights/matrix/focus/MatrixCandidateFocus.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/jobseeker/AddSourceForm.tsx": {
+      "raw-text-size": 4
+    },
+    "features/jobseeker/CvSheet.tsx": {
+      "raw-text-size": 7
+    },
+    "features/jobseeker/CvStudio.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "features/jobseeker/DismissPicker.tsx": {
+      "raw-text-size": 2
+    },
+    "features/jobseeker/EligibilityChips.tsx": {
+      "raw-text-size": 1
+    },
+    "features/jobseeker/EnableEuresButton.tsx": {
+      "raw-text-size": 3,
+      "bare-rounded": 1
+    },
+    "features/jobseeker/FailureNotice.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/jobseeker/FeedEmptyState.tsx": {
+      "raw-text-size": 2
+    },
+    "features/jobseeker/FitSheet.tsx": {
+      "raw-text-size": 11,
+      "raw-stone-text": 1
+    },
+    "features/jobseeker/FitStudio.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "features/jobseeker/JobsFeed.tsx": {
+      "raw-text-size": 4,
+      "raw-table": 1
+    },
+    "features/jobseeker/MeNav.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1
+    },
+    "features/jobseeker/MeNavDrawer.tsx": {
+      "raw-button": 1
+    },
+    "features/jobseeker/PostingDetail.tsx": {
+      "raw-text-size": 25,
+      "bare-rounded": 1
+    },
+    "features/jobseeker/PostingRow.tsx": {
+      "raw-text-size": 2,
+      "bare-rounded": 4
+    },
+    "features/jobseeker/ProfileImport.tsx": {
+      "raw-text-size": 3
+    },
+    "features/jobseeker/ProfileSummary.tsx": {
+      "raw-text-size": 8
+    },
+    "features/jobseeker/RulesAuthoring.tsx": {
+      "raw-text-size": 8,
+      "raw-table": 1
+    },
+    "features/jobseeker/ScanNowButton.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/jobseeker/ScanRunTable.tsx": {
+      "raw-text-size": 1,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/jobseeker/ScansPage.tsx": {
+      "raw-text-size": 4
+    },
+    "features/jobseeker/SourceCard.tsx": {
+      "raw-text-size": 13,
+      "bare-rounded": 1
+    },
+    "features/jobseeker/SourceSwitch.tsx": {
+      "raw-text-size": 1
+    },
+    "features/jobseeker/SourcesPage.tsx": {
+      "raw-text-size": 3
+    },
+    "features/library/jds/JdsBuilder.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 2
+    },
+    "features/library/jds/JdsBuilderChecklist.tsx": {
+      "raw-text-size": 7
+    },
+    "features/library/jds/JdsBuilderFields.tsx": {
+      "raw-text-size": 1
+    },
+    "features/library/jds/JdsCandidateList.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 3,
+      "raw-button": 1
+    },
+    "features/library/jds/JdsEmptyShelf.tsx": {
+      "raw-text-size": 2
+    },
+    "features/library/jds/JdsIntakeTab.tsx": {
+      "literal-page-header": 1
+    },
+    "features/library/jds/JdsLedgerBadges.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1,
+      "raw-status-hue": 2
+    },
+    "features/library/jds/JdsLedgerBuildProvenance.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 5,
+      "raw-button": 1
+    },
+    "features/library/jds/JdsLedgerCoachTrace.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 3,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/library/jds/JdsLedgerDetailModal.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 2
+    },
+    "features/library/jds/JdsLedgerDetailPanels.tsx": {
+      "raw-text-size": 17,
+      "raw-status-hue": 10,
+      "raw-button": 1
+    },
+    "features/library/jds/JdsLedgerDetailRail.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 1
+    },
+    "features/library/jds/JdsLedgerFilterMenu.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/library/jds/JdsLedgerRow.tsx": {
+      "raw-text-size": 5,
+      "raw-stone-text": 2,
+      "raw-status-hue": 3,
+      "raw-button": 2
+    },
+    "features/library/jds/JdsLedgerRowDelete.tsx": {
+      "raw-text-size": 3
+    },
+    "features/library/jds/JdsLedgerTable.tsx": {
+      "raw-text-size": 2,
+      "raw-table": 1
+    },
+    "features/library/jds/JdsLedgerTableHead.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 2,
+      "bare-rounded": 3
+    },
+    "features/library/jds/JdsLintPanel.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/library/jds/JdsModalEditor.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 1,
+      "raw-button": 2
+    },
+    "features/library/jds/JdsModalEditorStagedBanner.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/library/jds/JdsRevisionList.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 4,
+      "bare-rounded": 1
+    },
+    "features/library/jds/JdsRevisionPanel.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 3,
+      "raw-button": 1
+    },
+    "features/library/jds/JdsSavedLedgerPanel.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 4
+    },
+    "features/library/jds/JdsTab.tsx": {
+      "literal-page-header": 1
+    },
+    "features/library/jds/JdsTemplateManager.tsx": {
+      "raw-text-size": 5
+    },
+    "features/library/jds/JdsTemplateManagerEditor.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "bare-rounded": 3
+    },
+    "features/library/jds/JdsTemplateManagerList.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 10,
+      "raw-button": 7
+    },
+    "features/library/jds/intake/IntakeStudioActions.tsx": {
+      "raw-text-size": 3
+    },
+    "features/library/jds/intake/IntakeStudioOverlay.tsx": {
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "features/library/jds/intake/IntakeVoiceBar.tsx": {
+      "raw-text-size": 6
+    },
+    "features/library/jds/intake/JdsIntakeAppMasterCard.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 6
+    },
+    "features/library/jds/intake/JdsIntakeAttachmentsPane.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 2
+    },
+    "features/library/jds/intake/JdsIntakeBriefAtoms.tsx": {
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/library/jds/intake/JdsIntakeBriefBody.tsx": {
+      "raw-stone-text": 1,
+      "raw-status-hue": 1
+    },
+    "features/library/jds/intake/JdsIntakeBriefEdit.tsx": {
+      "raw-text-size": 6
+    },
+    "features/library/jds/intake/JdsIntakeBriefTitle.tsx": {
+      "raw-text-size": 3
+    },
+    "features/library/jds/intake/JdsIntakePanel.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1
+    },
+    "features/library/jds/intake/JdsIntakeSessionsTable.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/library/jds/intake/JdsIntakeVoice.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1
+    },
+    "features/library/jds/intake/coats/atelier/AtelierBriefPlane.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1,
+      "raw-status-hue": 1
+    },
+    "features/library/jds/intake/coats/atelier/AtelierDraftSheet.tsx": {
+      "raw-stone-text": 2
+    },
+    "features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1
+    },
+    "features/library/jds/intake/coats/atelier/atelierPlane.tsx": {
+      "raw-stone-text": 1
+    },
+    "features/library/jobs/JobsAgentFitCoverage.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 3
+    },
+    "features/library/jobs/JobsAgentFitSpecPanel.tsx": {
+      "raw-text-size": 5,
+      "raw-stone-text": 1,
+      "raw-status-hue": 2,
+      "raw-button": 2
+    },
+    "features/library/jobs/JobsAgentFitStatus.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 3
+    },
+    "features/library/jobs/JobsAgentFitTab.tsx": {
+      "raw-text-size": 17,
+      "raw-button": 2
+    },
+    "features/library/jobs/JobsCoachPanel.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/library/jobs/JobsCompareInterviews.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 2
+    },
+    "features/library/jobs/JobsCompareInterviewsCohortTable.tsx": {
+      "raw-text-size": 2,
+      "raw-table": 1
+    },
+    "features/library/jobs/JobsCompareInterviewsEvidenceCard.tsx": {
+      "raw-text-size": 4,
+      "bare-rounded": 2
+    },
+    "features/library/jobs/JobsDraftsPanel.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 4,
+      "raw-button": 3
+    },
+    "features/library/jobs/JobsEmptyLaunchpad.tsx": {
+      "raw-text-size": 5
+    },
+    "features/library/jobs/JobsIngestAdPanel.tsx": {
+      "raw-text-size": 8,
+      "raw-stone-text": 1,
+      "raw-status-hue": 1,
+      "raw-button": 5
+    },
+    "features/library/jobs/JobsIngestAdPanelResults.tsx": {
+      "raw-text-size": 1
+    },
+    "features/library/jobs/JobsKitCompetency.tsx": {
+      "raw-text-size": 5,
+      "raw-stone-text": 2
+    },
+    "features/library/jobs/JobsKitEditor.tsx": {
+      "raw-text-size": 15,
+      "raw-button": 1
+    },
+    "features/library/jobs/JobsKitFaq.tsx": {
+      "raw-text-size": 7,
+      "raw-stone-text": 1
+    },
+    "features/library/jobs/JobsKitTab.tsx": {
+      "raw-text-size": 17
+    },
+    "features/library/jobs/JobsKitVersions.tsx": {
+      "raw-text-size": 2
+    },
+    "features/library/jobs/JobsLifecycleStrip.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/library/jobs/JobsPostingModal.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 3
+    },
+    "features/library/jobs/JobsPostingModalFooter.tsx": {
+      "raw-text-size": 13,
+      "raw-status-hue": 3,
+      "raw-button": 8
+    },
+    "features/library/jobs/JobsPublishDialog.tsx": {
+      "raw-text-size": 5
+    },
+    "features/library/jobs/JobsPublishNote.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/library/jobs/JobsRecruiterCandidates.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 1
+    },
+    "features/library/jobs/JobsRecruiterCandidatesFairness.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/library/jobs/JobsRediscoverPanel.tsx": {
+      "raw-text-size": 11,
+      "raw-button": 3
+    },
+    "features/library/jobs/JobsRediscoveryFeed.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 6,
+      "raw-button": 2
+    },
+    "features/library/jobs/JobsRediscoveryFeedRow.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/library/jobs/JobsRow.tsx": {
+      "raw-text-size": 1
+    },
+    "features/library/jobs/JobsShared.tsx": {
+      "raw-text-size": 10,
+      "raw-stone-text": 1,
+      "raw-status-hue": 9
+    },
+    "features/library/jobs/JobsTab.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 6,
+      "raw-button": 2,
+      "literal-page-header": 1
+    },
+    "features/library/jobs/JobsTabResults.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 2,
+      "raw-button": 2
+    },
+    "features/library/jobs/JobsTable.tsx": {
+      "raw-table": 1
+    },
+    "features/library/jobs/candidates/CandidatePreviewModal.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 6,
+      "bare-rounded": 3
+    },
+    "features/library/jobs/candidates/CandidatesLadder.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 9,
+      "raw-button": 1,
+      "bare-rounded": 3,
+      "raw-table": 1
+    },
+    "features/library/jobs/coach/CoachLedger.tsx": {
+      "raw-text-size": 4,
+      "raw-table": 1
+    },
+    "features/library/jobs/coach/CoachPriorityDial.tsx": {
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/settings/billing/BillingAlertsPanel.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 5,
+      "raw-status-hue": 1
+    },
+    "features/settings/billing/BillingCurrentPlanPanel.tsx": {
+      "raw-text-size": 7
+    },
+    "features/settings/billing/BillingPlanCatalog.tsx": {
+      "raw-text-size": 10
+    },
+    "features/settings/billing/BillingPlanPrice.tsx": {
+      "raw-text-size": 3
+    },
+    "features/settings/billing/BillingSelfHostPanel.tsx": {
+      "raw-text-size": 6
+    },
+    "features/settings/billing/BillingStatusBanners.tsx": {
+      "raw-text-size": 7
+    },
+    "features/settings/billing/BillingUsageMeterRow.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 4
+    },
+    "features/settings/billing/spend/BillingSpendPanel.tsx": {
+      "raw-text-size": 10
+    },
+    "features/settings/billing/spend/BillingSpendSection.tsx": {
+      "raw-text-size": 2
+    },
+    "features/settings/billing/spend/SpendEngineFacts.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 3,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/settings/billing/spend/SpendVoiceFacts.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 1,
+      "raw-status-hue": 3
+    },
+    "features/settings/branding/BrandingEditorForm.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 1
+    },
+    "features/settings/branding/BrandingPreview.tsx": {
+      "raw-text-size": 8
+    },
+    "features/settings/branding/BrandingTab.tsx": {
+      "raw-text-size": 1
+    },
+    "features/settings/hiring/HiringTab.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 10,
+      "raw-button": 4
+    },
+    "features/settings/hiring/PipelineComposerBits.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 1
+    },
+    "features/settings/hiring/PipelineStepPolicy.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2
+    },
+    "features/settings/hiring/PipelineStepsEditor.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 6,
+      "raw-button": 1
+    },
+    "features/settings/hiring/StageActionsPicker.tsx": {
+      "raw-text-size": 4
+    },
+    "features/settings/hiring/impact/ImpactDecisionsCard.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 8
+    },
+    "features/settings/hiring/impact/ImpactOverviewCard.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 2
+    },
+    "features/settings/hiring/impact/ImpactScheduleCard.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 2,
+      "bare-rounded": 2
+    },
+    "features/settings/hiring/impact/impactShared.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 7
+    },
+    "features/settings/integrations/IntegrationsAtsForm.tsx": {
+      "raw-text-size": 4
+    },
+    "features/settings/integrations/IntegrationsAtsPanel.tsx": {
+      "raw-text-size": 4
+    },
+    "features/settings/integrations/IntegrationsAtsRow.tsx": {
+      "raw-text-size": 6
+    },
+    "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
+      "raw-text-size": 27,
+      "raw-status-hue": 3
+    },
+    "features/settings/integrations/IntegrationsCallbackBanner.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 3
+    },
+    "features/settings/integrations/IntegrationsPersonasPanel.tsx": {
+      "raw-text-size": 22,
+      "raw-status-hue": 3
+    },
+    "features/settings/integrations/IntegrationsWebhookFields.tsx": {
+      "raw-text-size": 4
+    },
+    "features/settings/integrations/IntegrationsWebhookPanel.tsx": {
+      "raw-text-size": 6
+    },
+    "features/settings/models/ModelsKeyAddForm.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 3
+    },
+    "features/settings/models/ModelsKeyRow.tsx": {
+      "raw-text-size": 4
+    },
+    "features/settings/models/ModelsKeysList.tsx": {
+      "raw-text-size": 1
+    },
+    "features/settings/models/ModelsKeysPanel.tsx": {
+      "raw-text-size": 4
+    },
+    "features/settings/models/ModelsQualityOverview.tsx": {
+      "raw-text-size": 22,
+      "raw-status-hue": 1
+    },
+    "features/settings/models/ModelsRoutingPanel.tsx": {
+      "raw-text-size": 4,
+      "raw-table": 1
+    },
+    "features/settings/models/ModelsRoutingRow.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/settings/models/ModelsRoutingRowActions.tsx": {
+      "raw-text-size": 3
+    },
+    "features/settings/organization/OrganizationBackupFlow.tsx": {
+      "raw-text-size": 3,
+      "raw-stone-text": 1
+    },
+    "features/settings/organization/OrganizationBackupPanel.tsx": {
+      "raw-text-size": 6
+    },
+    "features/settings/organization/OrganizationBackupRestorePlan.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 3
+    },
+    "features/settings/organization/OrganizationGeneralPanel.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 3,
+      "bare-rounded": 1
+    },
+    "features/settings/organization/OrganizationTab.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/settings/templates/TemplatesByStateVariant.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 2
+    },
+    "features/settings/templates/TemplatesComposeVariant.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 1
+    },
+    "features/settings/templates/TemplatesEditorPanel.tsx": {
+      "raw-text-size": 7,
+      "raw-status-hue": 1,
+      "bare-rounded": 1
+    },
+    "features/settings/templates/TemplatesLibraryVariant.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "features/settings/templates/TemplatesShared.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/settings/templates/TemplatesTab.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/settings/workspace/MemberConfirmModals.tsx": {
+      "raw-text-size": 3
+    },
+    "features/settings/workspace/MemberPermissionsModal.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/settings/workspace/WorkspaceDetailPanel.tsx": {
+      "raw-text-size": 5,
+      "raw-stone-text": 1,
+      "bare-rounded": 1
+    },
+    "features/settings/workspace/WorkspaceMembersTable.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/settings/workspace/WorkspacePeoplePanel.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 3
+    },
+    "features/settings/workspace/WorkspaceRail.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1,
+      "raw-button": 1
+    },
+    "features/settings/workspace/WorkspaceTab.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 4
+    },
+    "features/setup-studio/ActivityDrawer.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/setup-studio/DecisionCards.tsx": {
+      "raw-text-size": 4
+    },
+    "features/setup-studio/MatrixPanel.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1
+    },
+    "features/setup-studio/PlanRail.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 2
+    },
+    "features/setup-studio/ProbePanel.tsx": {
+      "raw-text-size": 6
+    },
+    "features/setup-studio/SetupStudio.tsx": {
+      "raw-text-size": 8
+    },
+    "features/setup-studio/StudioBits.tsx": {
+      "arbitrary-text-size": 1,
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "bare-rounded": 1
+    },
+    "features/setup-studio/VoicePanel.tsx": {
+      "raw-text-size": 10
+    },
+    "features/shared/MatchPresentation.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 3
+    },
+    "features/shared/MatchReasoningPanel.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 4,
+      "bare-rounded": 1
+    },
+    "features/shared/OrgCurrencyPicker.tsx": {
+      "raw-text-size": 1,
+      "bare-rounded": 1
+    },
+    "features/shared/PipelineStepRow.tsx": {
+      "raw-text-size": 3,
+      "raw-stone-text": 2
+    },
+    "features/shell/LockedTabPanel.tsx": {
+      "raw-text-size": 6
+    },
+    "features/shell/Workspace.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/WorkspaceCommandPalette.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1
+    },
+    "features/shell/WorkspaceKeyboardShortcuts.tsx": {
+      "raw-text-size": 15
+    },
+    "features/shell/WorkspaceNav.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/WorkspaceNavDrawer.tsx": {
+      "raw-button": 1
+    },
+    "features/shell/WorkspacePaletteLedger.tsx": {
+      "below-floor-text": 2,
+      "arbitrary-text-size": 2,
+      "raw-text-size": 9,
+      "bare-rounded": 1
+    },
+    "features/shell/WorkspacePaletteRow.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "features/shell/companion/CompanionDock.tsx": {
+      "literal-page-header": 1
+    },
+    "features/shell/companion/CompanionDockBody.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/shell/companion/CompanionInputPanel.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/shell/companion/CompanionProposalCard.tsx": {
+      "raw-text-size": 3
+    },
+    "features/shell/companion/CompanionSettingsMenu.tsx": {
+      "raw-text-size": 2
+    },
+    "features/shell/companion/CompanionSpeakButton.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/shell/companion/voice/CompanionVoiceTicker.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "features/shell/companion/voice/VoiceNav.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/shell/companion/voice/VoiceParts.tsx": {
+      "raw-text-size": 2
+    },
+    "features/shell/companion/voice/VoicePlayback.tsx": {
+      "raw-text-size": 2,
+      "raw-stone-text": 1
+    },
+    "features/shell/nav/FeedbackDialog.tsx": {
+      "raw-text-size": 2
+    },
+    "features/shell/nav/NavFeedbackButton.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1
+    },
+    "features/shell/nav/NavPanelAction.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/nav/NavPanelItem.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "features/shell/nav/NavRailPreferences.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/shell/nav/NavSectionRail.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 1
+    },
+    "features/shell/palette/PalettePreviewPane.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "features/shell/palette/PreviewEntities.tsx": {
+      "raw-text-size": 3
+    },
+    "features/shell/palette/PreviewHiring.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/palette/PreviewInsightsSettings.tsx": {
+      "raw-text-size": 7,
+      "raw-stone-text": 1
+    },
+    "features/shell/palette/previewBits.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 3
+    },
+    "features/shell/session/SessionLapseDialog.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 7
+    },
+    "features/shell/setup/SetupCompanionStep.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 3
+    },
+    "features/shell/setup/SetupCompanyStep.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/shell/setup/SetupCurrencyField.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/setup/SetupFinishReceipt.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 5
+    },
+    "features/shell/setup/SetupHandoffSummary.tsx": {
+      "raw-text-size": 7,
+      "raw-button": 3
+    },
+    "features/shell/setup/SetupInviteEditor.tsx": {
+      "below-floor-text": 1,
+      "arbitrary-text-size": 1,
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/shell/setup/SetupLanguageSwitch.tsx": {
+      "raw-text-size": 2,
+      "bare-rounded": 1
+    },
+    "features/shell/setup/SetupOnboardingWizard.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/shell/setup/SetupPipelineChain.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1
+    },
+    "features/shell/setup/SetupPipelineJourneyView.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 1
+    },
+    "features/shell/setup/SetupPipelinePresetsVariant.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "features/shell/setup/SetupPipelineStageRow.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/setup/SetupPipelineStep.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 3
+    },
+    "features/shell/setup/SetupWelcomeStep.tsx": {
+      "raw-text-size": 4
+    },
+    "features/shell/simulation/SimControlDockOrb.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/shell/simulation/SimControlDockRail.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/shell/simulation/SimControlDockSimFace.tsx": {
+      "raw-text-size": 4,
+      "raw-stone-text": 1,
+      "raw-status-hue": 1,
+      "raw-button": 9
+    },
+    "features/shell/simulation/SimControlDockTiles.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 3,
+      "raw-button": 4,
+      "bare-rounded": 1
+    },
+    "features/shell/simulation/SimControlDockToolbar.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/shell/simulation/SimDecisionWave.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 2
+    },
+    "features/shell/simulation/SimExplainDrawer.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1,
+      "literal-page-header": 1,
+      "raw-table": 1
+    },
+    "features/shell/simulation/SimOfferFrame.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "bare-rounded": 4
+    },
+    "features/shell/simulation/SimSpotlight.tsx": {
+      "raw-text-size": 1
+    },
+    "features/shell/tasks/TaskFlightNote.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/shell/tasks/TasksHistory.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 2
+    },
+    "features/shell/tasks/TasksIndicator.tsx": {
+      "raw-text-size": 7,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/shell/tasks/TasksOutcome.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 1,
+      "bare-rounded": 1
+    },
+    "features/shell/tasks/TasksRowActions.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 5,
+      "bare-rounded": 3
+    },
+    "features/shell/tasks/TasksRunsPanel.tsx": {
+      "raw-text-size": 8,
+      "raw-button": 2
+    },
+    "features/shell/tasks/TasksTab.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 2,
+      "bare-rounded": 1,
+      "literal-page-header": 1
+    },
+    "features/shell/tasks/TasksTable.tsx": {
+      "raw-text-size": 1,
+      "raw-table": 1
+    },
+    "features/shell/tasks/TasksTableRow.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 1
+    },
+    "features/tools/analyze/AnalyzeColumn.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "features/tools/analyze/AnalyzeFileDropZone.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/tools/analyze/AnalyzeForm.tsx": {
+      "raw-text-size": 5
+    },
+    "features/tools/analyze/AnalyzeFormCollapsed.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 2
+    },
+    "features/tools/analyze/AnalyzeFormFooter.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 5
+    },
+    "features/tools/analyze/AnalyzeFormOptionalColumns.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 3
+    },
+    "features/tools/analyze/AnalyzePasteRow.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 2
+    },
+    "features/tools/analyze/AnalyzeProfileInput.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 3,
+      "bare-rounded": 2
+    },
+    "features/tools/analyze/AnalyzeProfileInputFileList.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "features/tools/analyze/AnalyzeReadabilityStrip.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1
+    },
+    "features/tools/analyze/AnalyzeSavedJdPicker.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 1
+    },
+    "features/tools/analyze/AnalyzeTab.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 3
+    },
+    "features/tools/analyze/AnalyzeWorkspace.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/tools/analyze/history/HistoryFilterBar.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/tools/analyze/history/HistoryTab.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 6,
+      "raw-button": 2,
+      "literal-page-header": 1
+    },
+    "features/tools/analyze/history/HistoryTable.tsx": {
+      "below-floor-text": 2,
+      "raw-text-size": 8,
+      "raw-status-hue": 2,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/tools/analyze/history/HistoryTriageDrawer.tsx": {
+      "raw-text-size": 11,
+      "raw-status-hue": 2
+    },
+    "features/tools/devcases/DevAnalysisDesignCard.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 3
+    },
+    "features/tools/devcases/DevAnalysisReflectionCard.tsx": {
+      "raw-text-size": 2
+    },
+    "features/tools/devcases/DevAnalysisView.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 2,
+      "raw-button": 1
+    },
+    "features/tools/devcases/DevApplyTokenPill.tsx": {
+      "raw-status-hue": 1,
+      "raw-button": 1
+    },
+    "features/tools/devcases/DevCaseDetail.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1
+    },
+    "features/tools/devcases/DevCaseDetailChannels.tsx": {
+      "raw-text-size": 1
+    },
+    "features/tools/devcases/DevCaseDetailHeader.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 4,
+      "raw-button": 3
+    },
+    "features/tools/devcases/DevCaseDetailInternal.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 9
+    },
+    "features/tools/devcases/DevCaseJobLink.tsx": {
+      "raw-button": 1
+    },
+    "features/tools/devcases/DevCasesEmptyLedger.tsx": {
+      "raw-text-size": 6
+    },
+    "features/tools/devcases/DevCasesTable.tsx": {
+      "raw-text-size": 9,
+      "raw-button": 2,
+      "bare-rounded": 1,
+      "raw-table": 1
+    },
+    "features/tools/devcases/DevCohortProbePanel.tsx": {
+      "raw-status-hue": 6,
+      "bare-rounded": 2
+    },
+    "features/tools/devcases/DevCompareSubmissions.tsx": {
+      "raw-stone-text": 2,
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/tools/devcases/DevEvalPanel.tsx": {
+      "raw-status-hue": 13,
+      "raw-button": 1,
+      "bare-rounded": 5
+    },
+    "features/tools/devcases/DevEvalPanelChecks.tsx": {
+      "raw-status-hue": 2,
+      "bare-rounded": 1
+    },
+    "features/tools/devcases/DevEvalPanelIntegrity.tsx": {
+      "bare-rounded": 1
+    },
+    "features/tools/devcases/DevEvalPanelProcessTrace.tsx": {
+      "raw-status-hue": 2,
+      "bare-rounded": 5
+    },
+    "features/tools/devcases/DevEvalPanelScores.tsx": {
+      "raw-stone-text": 1,
+      "raw-status-hue": 2,
+      "bare-rounded": 2
+    },
+    "features/tools/devcases/DevInterviewKit.tsx": {
+      "raw-status-hue": 2,
+      "raw-button": 2
+    },
+    "features/tools/devcases/DevLifecycleReviewPanel.tsx": {
+      "raw-status-hue": 4,
+      "raw-button": 1,
+      "bare-rounded": 5
+    },
+    "features/tools/devcases/DevLifecycleRow.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 4
+    },
+    "features/tools/devcases/DevNeedForm.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 4,
+      "raw-button": 6,
+      "bare-rounded": 1
+    },
+    "features/tools/devcases/DevProbeStrengthBanner.tsx": {
+      "raw-status-hue": 4,
+      "bare-rounded": 1
+    },
+    "features/tools/devcases/DevPublishConfirm.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 5,
+      "raw-button": 2
+    },
+    "features/tools/devcases/DevScoreBar.tsx": {
+      "raw-stone-text": 1
+    },
+    "features/tools/devcases/DevSessionEvidencePanel.tsx": {
+      "raw-button": 2,
+      "bare-rounded": 4
+    },
+    "features/tools/devcases/DevShared.tsx": {
+      "raw-status-hue": 4,
+      "bare-rounded": 1
+    },
+    "features/tools/devcases/DevSubmissionForm.tsx": {
+      "raw-status-hue": 1,
+      "raw-button": 1,
+      "bare-rounded": 3
+    },
+    "features/tools/devcases/DevSubmissionRow.tsx": {
+      "raw-status-hue": 4,
+      "raw-button": 4,
+      "bare-rounded": 6
+    },
+    "features/tools/devcases/DevSubmissionRowOutcome.tsx": {
+      "raw-status-hue": 1,
+      "raw-button": 3
+    },
+    "features/tools/devcases/DevSubmissionRowSkillProfile.tsx": {
+      "bare-rounded": 1
+    },
+    "features/tools/devcases/DevTab.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 2
+    },
+    "features/tools/devcases/DevTabCasesView.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/tools/devcases/DevTabSwitcher.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/tools/devcases/DevVoiceScreenPanel.tsx": {
+      "raw-status-hue": 2,
+      "bare-rounded": 2
+    },
+    "features/tools/devcases/OutboxRows.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 8,
+      "raw-table": 1
+    },
+    "features/tools/devcases/OutboxSection.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 1
+    },
+    "features/tools/devcases/ResendButton.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 1
+    },
+    "features/tools/interview/InterviewAttachToCandidate.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/tools/interview/InterviewModeCards.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "features/tools/interview/InterviewSimTab.tsx": {
+      "raw-text-size": 2,
+      "literal-page-header": 1
+    },
+    "features/tools/interview/InterviewStartPanel.tsx": {
+      "raw-text-size": 7
+    },
+    "features/tools/profile/ArchetypeArchiveConfirmModal.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 2
+    },
+    "features/tools/profile/ArchetypeManager.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "features/tools/profile/ArchetypeManagerEditPanel.tsx": {
+      "raw-text-size": 4,
+      "raw-status-hue": 2,
+      "raw-button": 2
+    },
+    "features/tools/profile/ArchetypeManagerList.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 3,
+      "bare-rounded": 1
+    },
+    "features/tools/profile/ArchetypeManagerViewPanel.tsx": {
+      "raw-text-size": 8,
+      "raw-button": 2
+    },
+    "features/tools/profile/CandidateChip.tsx": {
+      "raw-text-size": 1,
+      "raw-stone-text": 1,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/tools/profile/CandidateDetailModal.tsx": {
+      "raw-text-size": 3
+    },
+    "features/tools/profile/CandidateMatrix.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2,
+      "literal-page-header": 1
+    },
+    "features/tools/profile/CandidateMatrixBoard.tsx": {
+      "raw-text-size": 2
+    },
+    "features/tools/profile/CandidateMatrixFilterBar.tsx": {
+      "raw-text-size": 3,
+      "raw-button": 1
+    },
+    "features/tools/profile/ProfileEditor.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 7,
+      "raw-button": 6,
+      "bare-rounded": 1,
+      "literal-page-header": 1
+    },
+    "features/tools/profile/ProfileEditorAiDraft.tsx": {
+      "raw-text-size": 5,
+      "raw-status-hue": 1,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/tools/profile/ProfileEditorArchetypeOptions.tsx": {
+      "bare-rounded": 1
+    },
+    "features/tools/profile/ProfileEmptyStates.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 1
+    },
+    "features/tools/profile/ProfileEvidenceColumn.tsx": {
+      "raw-text-size": 3
+    },
+    "features/tools/profile/ProfileFields.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 1,
+      "raw-button": 2
+    },
+    "features/tools/profile/ProfileResultPanel.tsx": {
+      "raw-text-size": 10,
+      "raw-status-hue": 2,
+      "raw-button": 2,
+      "bare-rounded": 1
+    },
+    "features/tools/profile/ProfileRoster.tsx": {
+      "raw-text-size": 2,
+      "raw-status-hue": 2,
+      "bare-rounded": 1,
+      "literal-page-header": 1
+    },
+    "features/tools/profile/ProfileRosterRefreshBar.tsx": {
+      "raw-text-size": 13
+    },
+    "features/tools/profile/ProfileRosterRow.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 13,
+      "raw-button": 6
+    },
+    "features/tools/profile/ProfileRosterTable.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1,
+      "raw-table": 1
+    },
+    "features/tools/profile/ProfileTab.tsx": {
+      "raw-text-size": 2,
+      "raw-button": 1
+    },
+    "features/tools/profile/ProfileTabRebuildWarnModal.tsx": {
+      "raw-text-size": 3,
+      "raw-status-hue": 2
+    },
+    "history/[slug]/page.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 8,
+      "literal-page-header": 1
+    },
+    "interview-lab/page.tsx": {
+      "arbitrary-text-size": 1,
+      "bare-rounded": 1
+    },
+    "interview/[token]/page.tsx": {
+      "raw-text-size": 5
+    },
+    "invite/[token]/AcceptForm.tsx": {
+      "raw-text-size": 5
+    },
+    "jds/[slug]/JdActions.tsx": {
+      "raw-text-size": 9,
+      "raw-status-hue": 1,
+      "raw-button": 6
+    },
+    "jds/[slug]/JdBody.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "jds/[slug]/page.tsx": {
+      "raw-text-size": 8,
+      "raw-status-hue": 5,
+      "raw-button": 1,
+      "literal-page-header": 1
+    },
+    "login/LoginClient.tsx": {
+      "below-floor-text": 1,
+      "raw-text-size": 5
+    },
+    "offer/[token]/OfferClient.tsx": {
+      "raw-text-size": 23,
+      "raw-status-hue": 5
+    },
+    "privacy/page.tsx": {
+      "raw-text-size": 1,
+      "literal-page-header": 1
+    },
+    "schedule/[token]/BookedCard.tsx": {
+      "raw-text-size": 8,
+      "raw-button": 3
+    },
+    "schedule/[token]/DeadLinkCard.tsx": {
+      "raw-text-size": 1
+    },
+    "schedule/[token]/ProposeSection.tsx": {
+      "raw-text-size": 4,
+      "raw-button": 1
+    },
+    "schedule/[token]/SchedulePicker.tsx": {
+      "raw-text-size": 2
+    },
+    "schedule/[token]/SlotPicker.tsx": {
+      "raw-text-size": 6,
+      "raw-button": 2
+    },
+    "signup/SignupClient.tsx": {
+      "raw-text-size": 6
+    },
+    "skill/[token]/PrintCredentialButton.tsx": {
+      "raw-text-size": 1,
+      "raw-button": 1
+    },
+    "skill/[token]/page.tsx": {
+      "raw-text-size": 7,
+      "raw-stone-text": 3,
+      "raw-status-hue": 10
+    },
+    "status/[token]/StatusClient.tsx": {
+      "raw-text-size": 8,
+      "raw-stone-text": 1,
+      "bare-rounded": 2
+    },
+    "status/[token]/StatusLetterCard.tsx": {
+      "raw-text-size": 4
+    },
+    "status/[token]/StatusNextActionCard.tsx": {
+      "raw-text-size": 5
+    },
+    "status/[token]/StatusNpsCard.tsx": {
+      "raw-text-size": 5,
+      "raw-button": 1
+    },
+    "stop/[token]/StopClient.tsx": {
+      "raw-text-size": 1,
+      "raw-status-hue": 2
+    },
+    "terms/page.tsx": {
+      "raw-text-size": 1,
+      "literal-page-header": 1
+    },
+    "trust/TrustContent.tsx": {
+      "raw-text-size": 6,
+      "raw-status-hue": 9,
+      "literal-page-header": 1,
+      "raw-table": 1
+    }
+  }
+}
