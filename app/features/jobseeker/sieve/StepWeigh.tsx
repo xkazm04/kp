@@ -53,6 +53,26 @@ async function fetchDetail(id: string): Promise<{ ok: true; detail: Detail } | {
   }
 }
 
+// The seeker's edits to a cover-note draft survive a reload, per posting, in this tab's
+// sessionStorage: a per-viewer convenience, never a record (the draft itself is the fit
+// conversation's artifact on the server). Storage can be blocked; then nothing is kept.
+const coverKey = (id: string) => `kp-me-cover:${id}`;
+function recallCover(id: string): string | null {
+  try {
+    return window.sessionStorage.getItem(coverKey(id));
+  } catch {
+    /* storage blocked (private window, site data off): there is simply no draft to restore */
+    return null;
+  }
+}
+function keepCover(id: string, text: string): void {
+  try {
+    window.sessionStorage.setItem(coverKey(id), text);
+  } catch {
+    /* storage blocked or full: the edit lives on in the page state, only a reload loses it */
+  }
+}
+
 function splitCite(text: string): { text: string; cite: string } {
   const i = text.indexOf("Cited:");
   return i < 0 ? { text, cite: "" } : { text: text.slice(0, i).trim(), cite: text.slice(i + 6).trim() };
@@ -128,6 +148,9 @@ export function StepWeigh({
         }
         setDetailError(null);
         setDetail(r.detail);
+        // A cover-note edit this tab kept for the posting comes back with it.
+        const kept = recallCover(id);
+        if (kept !== null) setCover((c) => (c[id] !== undefined ? c : { ...c, [id]: kept }));
       }),
     []
   );
@@ -137,6 +160,7 @@ export function StepWeigh({
   if (openId !== shownId) {
     setShownId(openId);
     setPop(null);
+    setDetailError(null);
     setWriteError(null);
     setDive(null);
     setDiveError(null);
@@ -662,7 +686,15 @@ export function StepWeigh({
               <label htmlFor="sv-cover" className="small muted">
                 {t("coverHint")}
               </label>
-              <textarea id="sv-cover" value={coverText} onChange={(e) => setCover((c) => ({ ...c, [v.id]: e.target.value }))} />
+              <textarea
+                id="sv-cover"
+                value={coverText}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCover((c) => ({ ...c, [v.id]: next }));
+                  keepCover(v.id, next);
+                }}
+              />
               <div className="scanline more">
                 <button
                   type="button"

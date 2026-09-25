@@ -187,6 +187,10 @@ export function StepSieve({
     };
   }, [model, visible, pourRun, reduceMotion, W]);
 
+  // An empty sieve with a source on offers Scan now in its own box, beside the reason; the
+  // head then keeps only the "last scan" line, so the page never shows two Scan buttons
+  // (and two identical live regions) for one scan task.
+  const doorInEmpty = hasProfile && !loading && !!facts && facts.all.length === 0 && sourcesOn > 0;
   const head = (
     <div className="step-head">
       <div className="grow">
@@ -197,7 +201,7 @@ export function StepSieve({
       {hasProfile ? (
         <div className="scanline">
           <span suppressHydrationWarning>{lastScanAt ? t("lastScan", { when: rel(lastScanAt) }) : t("neverScanned")}</span>
-          {scanDoor}
+          {doorInEmpty ? null : scanDoor}
         </div>
       ) : null}
     </div>

@@ -44,7 +44,7 @@ export type SieveInitial = {
   openId: string | null;
 };
 
-const STEP_IDS = ["arrive", "cv", "want", "sieve", "evening", "weigh", "sources"] as const;
+const STEP_IDS = ["arrive", "cv", "you", "want", "sieve", "evening", "weigh", "sources"] as const;
 const noSubscription = () => () => undefined;
 
 function useReducedMotion(): boolean {
@@ -295,7 +295,16 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
           window.setTimeout(() => document.getElementById("s-cv")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }), 60);
         }}
       />
-      <StepYou profile={profile} draftSource={draftSource} cvDialog={data.cvDialog} postingsWaiting={found} polishing={opening} onPolish={() => void openStudio()} reduceMotion={reduceMotion} />
+      <StepYou
+        profile={profile}
+        draftSource={draftSource}
+        cvDialog={data.cvDialog}
+        postingsWaiting={found}
+        postings={data.rows}
+        polishing={opening}
+        onPolish={() => void openStudio()}
+        reduceMotion={reduceMotion}
+      />
       {studioError ? (
         <div className="frame-main">
           <FailureNotice failure={studioError} fallback={tCv("createError")} onRetry={() => void openStudio()} retrying={opening} onDismiss={() => setStudioError(null)} />
@@ -338,6 +347,9 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
         onOrderChange={setOrder}
         loadError={loadError}
         targetTitles={prefs?.targetTitles.length ?? 0}
+        skillless={!!profile && (profile.profile.skillClaims ?? []).length === 0}
+        polishing={opening}
+        onPolish={() => void openStudio()}
       />
       <StepWeigh
         openId={openId}
@@ -355,7 +367,16 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
         onToast={say}
         suggestions={facts?.top5 ?? []}
       />
-      <StepSources catalog={catalog} sources={sources} postingCounts={postingCounts} hasProfile={!!profile} onSourcesChange={data.setSources} onToast={say} />
+      <StepSources
+        catalog={catalog}
+        sources={sources}
+        postingCounts={postingCounts}
+        hasProfile={!!profile}
+        countries={profile?.preferences.countries ?? []}
+        onSourcesChange={data.setSources}
+        onProfileSaved={data.setProfile}
+        onToast={say}
+      />
       <footer className="foot">{t("foot")}</footer>
       <div className={toast ? "toast show" : "toast"} role="status" aria-live="polite">
         {toast}

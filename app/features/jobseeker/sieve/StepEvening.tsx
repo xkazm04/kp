@@ -62,6 +62,9 @@ export function StepEvening({
   onOrderChange,
   loadError,
   targetTitles,
+  skillless,
+  polishing,
+  onPolish,
 }: {
   facts: SieveFacts | null;
   hasProfile: boolean;
@@ -78,6 +81,11 @@ export function StepEvening({
   loadError: ReactNode;
   /** How many target titles the seeker stated: the direction filter's default. */
   targetTitles: number;
+  /** The profile claims no skill at all: every score is field and level only. */
+  skillless: boolean;
+  polishing: boolean;
+  /** Opens the CV studio (the polish conversation). */
+  onPolish(): void;
 }) {
   const t = useTranslations("me.sieve.evening");
   const tPrefs = useTranslations("me.preferences");
@@ -192,6 +200,20 @@ export function StepEvening({
     <section className="step" id="s-evening" data-step="evening" aria-labelledby="h-evening">
       {head(anyGood ? t("title", { n: Math.min(5, facts.top5.length) }) : t("titlePartial"), anyGood ? t("lede") : undefined)}
 
+      {skillless ? (
+        // A profile that lists no skill is scored on field and level alone (measured:
+        // 25-42 "partial" for unrelated roles). Said once, calmly, with the way out.
+        <div className="notice info ev-note" role="note">
+          <span>{t("noSkills")}</span>
+          <a className="btn sm ghost" href="#s-arrive">
+            {t("noSkillsDrop")}
+          </a>
+          <button type="button" className={SV_BTN_SM_GHOST} onClick={onPolish} disabled={polishing} aria-busy={polishing || undefined}>
+            {t("noSkillsPolish")}
+          </button>
+        </div>
+      ) : null}
+
       {!anyGood && best && best.confidence ? (
         <div className="honest-top">
           {t.rich("partialNote", { score: best.matchTotal ?? 0, low: best.confidence.low, high: best.confidence.high, b: (c) => <b>{c}</b> })}
@@ -253,8 +275,25 @@ export function StepEvening({
             width={skyW}
             height={H}
             viewBox={`0 0 ${skyW} ${H}`}
-            role="img"
+            // Focusable and keyboard-driven, so it is announced as a control, not a
+            // picture: a slider over the ranks, its value the posting under the cursor.
+            role="slider"
             aria-label={t("skyLabel", { n })}
+            aria-valuemin={1}
+            aria-valuemax={n}
+            aria-valuenow={Math.min(n, skyFocus + 1)}
+            aria-valuetext={
+              facts.scored[skyFocus]
+                ? t("skyFocus", {
+                    rank: skyFocus + 1,
+                    title: facts.scored[skyFocus]!.title,
+                    score: facts.scored[skyFocus]!.matchTotal ?? 0,
+                    low: facts.scored[skyFocus]!.confidence?.low ?? 0,
+                    high: facts.scored[skyFocus]!.confidence?.high ?? 0,
+                  })
+                : undefined
+            }
+            aria-orientation="horizontal"
             onPointerDown={(e) => {
               // The drag's anchor rides on the element itself: a pointer gesture is not state.
               const r = e.currentTarget.getBoundingClientRect();
@@ -298,6 +337,10 @@ export function StepEvening({
                   setF((cur) => ({ ...cur, brush: [Math.min(a0[0], next), Math.max(a0[1], next)] }));
                 }
                 setSkyFocus(next);
+              } else if (e.key === "Home" || e.key === "End") {
+                e.preventDefault();
+                setSkyKeyed(true);
+                setSkyFocus(e.key === "Home" ? 0 : n - 1);
               } else if (e.key === "Enter") {
                 e.preventDefault();
                 onOpen(facts.scored[skyFocus]!.id);

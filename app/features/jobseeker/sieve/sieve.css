@@ -58,6 +58,9 @@
   --sv-radius: 12px;
   --sv-shadow: var(--panel-shadow);
   --sv-scrim: var(--color-scrim);
+  /* The house focus ring (globals.css :where(...):focus-visible), named so a rule that
+   * paints its own box-shadow can COMPOSE with it instead of silently erasing it. */
+  --sv-ring: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-coral);
   --sv-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   background: var(--sv-paper);
@@ -1645,6 +1648,9 @@
   color: var(--sv-ink);
   margin-right: 4px;
 }
+.sv .notice.ev-note {
+  margin: 0 0 18px;
+}
 .sv .honest-top {
   border-left: 4px solid var(--sv-partial);
   background: var(--sv-card);
@@ -2886,4 +2892,27 @@
     margin: 0;
     padding: 0;
   }
+}
+
+/* ---------- focus ----------
+ * The house ring lives at ZERO specificity (globals.css `:where(...):focus-visible`), so
+ * every rule here that paints its own box-shadow on a focusable element out-ranks it and
+ * erases the ring: the top-five cards, the active rail step, the current rail link, a
+ * pressed segment and the expanded skill tile. Each gets the ring back, COMPOSED with the
+ * shadow it already wears so neither register loses its elevation. */
+.sv .tcard:focus-visible,
+.sv .rail li.active a.rs:focus-visible,
+.sv .rail-links a[aria-current="page"]:focus-visible,
+.sv .seg button[aria-pressed="true"]:focus-visible {
+  outline: none;
+  box-shadow: var(--sv-ring), var(--sv-shadow);
+}
+.sv .tile[aria-expanded="true"]:focus-visible {
+  outline: none;
+  box-shadow: var(--sv-ring);
+}
+/* The CV drop: the real control is a transparent file input laid over the label, so the
+ * ring belongs on the zone the reader sees. */
+.sv .drop:focus-within {
+  box-shadow: var(--sv-ring);
 }
