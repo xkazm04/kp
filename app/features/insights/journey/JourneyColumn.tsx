@@ -163,12 +163,12 @@ function JourneyColumnImpl({
       >
         <p className="break-words font-serif text-h3 leading-tight text-ink">{column.candidateLabel}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <span className={`${CHIP_QUIET} text-xs`}>{column.stage}</span>
+          <span className={`${CHIP_QUIET} text-micro`}>{column.stage}</span>
           {column.matchScore !== null ? (
-            <span className="nums text-xs text-steel">{column.matchScore}</span>
+            <span className="nums text-micro text-steel">{column.matchScore}</span>
           ) : null}
           {column.origin.kind === "test-run" ? (
-            <span className="rounded-full border border-dashed border-amber-400 px-2 py-0.5 text-xs text-amber-900">
+            <span className="rounded-full border border-dashed border-dial-amber px-2 py-0.5 text-micro text-ink">
               {t("mark.testRun")}
             </span>
           ) : null}

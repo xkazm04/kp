@@ -41,7 +41,7 @@ export function NothingHappened({ reasonKey, height }: { reasonKey: string; heig
     <div className={`${VOID_HATCH} shrink-0 overflow-hidden px-2 py-2`} style={{ height }}>
       <div className="rounded-md border border-stone-300 bg-white/90 p-2">
         <p className={META_LABEL}>{t("absence.nothingHappened")}</p>
-        {t.has(key) ? <p className="mt-1 text-sm leading-snug text-ink">{t(key)}</p> : null}
+        {t.has(key) ? <p className="mt-1 text-micro leading-snug text-ink">{t(key)}</p> : null}
       </div>
     </div>
   );
@@ -52,10 +52,10 @@ export function NeverRecorded({ height }: { height: number }) {
   const t = useTranslations("journey");
   return (
     <div
-      className={`${NEVER_RECORDED_FILL} shrink-0 overflow-hidden border-y border-dashed border-amber-300 px-2 py-2`}
+      className={`${NEVER_RECORDED_FILL} shrink-0 overflow-hidden border-y border-dashed border-dial-amber px-2 py-2`}
       style={{ height }}
     >
-      <p className={`${NOTICE("amber")} border-dashed p-2 text-sm leading-snug`}>
+      <p className={`${NOTICE("amber")} border-dashed p-2 text-micro leading-snug`}>
         {t("absence.neverRecorded")}
       </p>
     </div>
@@ -67,10 +67,10 @@ export function GeneratedStrip({ height, reasonKey }: { height: number; reasonKe
   const t = useTranslations("journey");
   return (
     <div
-      className={`${NOTICE("amber")} flex shrink-0 items-center gap-2 overflow-hidden rounded-none border-x-0 border-t-0 border-b border-dashed px-2 text-xs leading-snug`}
+      className={`${NOTICE("amber")} flex shrink-0 items-center gap-2 overflow-hidden rounded-none border-x-0 border-t-0 border-b border-dashed px-2 text-micro leading-snug`}
       style={{ height }}
     >
-      <span className="h-2 w-2 shrink-0 rotate-45 border border-dashed border-amber-600" aria-hidden="true" />
+      <span className="h-2 w-2 shrink-0 rotate-45 border border-dashed border-dial-amber" aria-hidden="true" />
       <span>{t(reasonKey)}</span>
     </div>
   );
@@ -88,7 +88,7 @@ export function SkippedCell({ height }: { height: number }) {
         className={`${NOTICE("amber")} flex h-full w-full items-center justify-center rounded-sm border-dashed opacity-75`}
         aria-hidden="true"
       >
-        <span className="h-0 w-6 border-t border-dashed border-amber-600" />
+        <span className="h-0 w-6 border-t border-dashed border-dial-amber" />
       </span>
       {/* Not hover-only, and not colour-only: the dashed box is the visible
           mark, this is the same fact for a screen reader and for touch. */}
@@ -105,7 +105,7 @@ export function NeverReachedTail({ height }: { height: number }) {
       className={`${NEVER_REACHED_FILL} flex shrink-0 justify-center overflow-hidden border-t border-stone-300 px-3 pt-3`}
       style={{ height }}
     >
-      <p className="max-w-[12rem] text-center text-xs leading-snug text-steel">{t("rail.neverReached")}</p>
+      <p className="max-w-[12rem] text-center text-micro leading-snug text-steel">{t("rail.neverReached")}</p>
     </div>
   );
 }

@@ -7,8 +7,8 @@
 // name-only match from a certain one, WITHOUT consulting the legend. Four
 // independent axes, four independent signals, none of them colour alone:
 //
-//   who acted        a filled disc (human) / filled square (machine) /
-//                    hollow dashed diamond (kp does not know)
+//   who acted        the kit's Mark: a filled disc (human) / filled square
+//                    (machine) / dashed hollow "nobody" (kp does not know)
 //   observed?        upright with a solid left rule, vs italic with a dotted
 //                    left rule and a faint hatch
 //   name-only match  a leading `≈` and a wavy amber underline
@@ -29,7 +29,11 @@ import { memo } from "react";
 import { useTranslations } from "next-intl";
 import type { JourneyEvent, JourneyOrigin } from "@/app/_lib/journey/types";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { ACTOR_GLYPH, ACTOR_MARK_KEY, provenanceKeys, rowFrameClass, rowProvenance, rowTextClass } from "./journeyMarks";
+import { Mark } from "@/app/_components/kit/Mark";
+import { type MarkKind } from "@/app/_components/kit/types";
+import { ACTOR_MARK_KEY, provenanceKeys, rowFrameClass, rowProvenance, rowTextClass, type ActorKind } from "./journeyMarks";
+
+const ACTOR_MARK_KIND: Record<ActorKind, MarkKind> = { human: "human", machine: "machine", unidentified: "nobody" };
 import { useJourneySentence } from "./useJourneySentence";
 
 export type JourneyRowProps = {
@@ -65,7 +69,7 @@ function JourneyRowImpl({
         // is a statement about the ledger; a blank gap would be a statement
         // about the candidate, and they are different facts.
         <div
-          className="flex shrink-0 items-center gap-2 px-2 text-xs italic text-steel"
+          className="flex shrink-0 items-center gap-2 px-2 text-micro italic text-steel"
           style={{ height: silenceHeight }}
         >
           <span className="h-0 flex-1 border-t border-dotted border-stone-300" aria-hidden="true" />
@@ -84,18 +88,23 @@ function JourneyRowImpl({
           p
         )} ${selected ? "bg-coral/10" : ""}`}
       >
-        <span className={`${ACTOR_GLYPH[p.actor]} mt-1.5`} aria-hidden="true" />
+        {/* The kit's actor mark (human disc, machine square, "nobody" dashed and
+            hollow): the same three facts the Broadsheet's 8px glyph drew, in the
+            vocabulary Pipeline and Channels use. Its tip is the actor sentence,
+            which is also the first clause of the row's accessible name. */}
+        <span className="mt-0.5 shrink-0">
+          <Mark kind={ACTOR_MARK_KIND[p.actor]} tip={t(ACTOR_MARK_KEY[p.actor])} />
+        </span>
         <span className="min-w-0 flex-1">
           <span className={rowTextClass(p)}>
             {p.labelOnly ? <span aria-hidden="true">≈ </span> : null}
             {sentence(event)}
           </span>
           <span className="sr-only">
-            {` — ${t(ACTOR_MARK_KEY[p.actor])}`}
             {provenanceKeys(p).map((key) => ` — ${t(key)}`).join("")}
           </span>
         </span>
-        <time dateTime={event.occurredAt} className="nums mt-px shrink-0 text-xs text-steel">
+        <time dateTime={event.occurredAt} className="nums mt-px shrink-0 text-micro text-steel">
           {date(event.occurredAt)}
         </time>
       </button>

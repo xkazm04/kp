@@ -93,10 +93,10 @@ function RailStep({
     >
       {/* Two lines, then the tail is clamped — the full step stays in the DOM,
           so it is still the button's accessible name in full. */}
-      <span className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-snug text-ink">
+      <span className="line-clamp-2 min-w-0 flex-1 break-words text-micro leading-snug text-ink">
         {sentence({ kind: step.kind, topicCode: step.topicCode })}
       </span>
-      <span className="nums mt-px shrink-0 text-xs text-steel">
+      <span className="nums mt-px shrink-0 text-micro text-steel">
         {t("rail.reached", { reached: step.reached, cohort: step.cohort })}
       </span>
       {/* The machine's share of that cohort. It lost its visible bar with the
@@ -188,7 +188,7 @@ function JourneyRailImpl({ cluster, phases, bandPx, sharedPx, unit, silencePx, l
             them — the one claim a per-role rail may not make. Clamped to two
             lines so a long role title cannot break the 44px head the columns
             are aligned against; the full title stays in the DOM. */}
-        <span className="line-clamp-2 text-xs font-semibold leading-tight text-coral">
+        <span className="line-clamp-2 text-micro font-semibold leading-tight text-coral">
           {t("rail.forRole", { role: roleTitle })}
         </span>
       </div>

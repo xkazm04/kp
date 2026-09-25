@@ -155,8 +155,8 @@ function JourneyClusterImpl({
           style={{ height: JOURNEY_CLUSTER_HEAD_PX }}
         >
           <div className={`sticky ${JOURNEY_RAIL_LEFT} flex min-w-0 max-w-[28rem] items-baseline gap-3 px-3`}>
-            <h2 className="truncate font-serif text-h3 text-ink">{cluster.title}</h2>
-            <span className="nums shrink-0 text-xs text-steel">{date(cluster.openedAt)}</span>
+            <h2 className="truncate font-serif text-h3 font-semibold text-ink dark:font-bold">{cluster.title}</h2>
+            <span className="k-section__count nums shrink-0">{date(cluster.openedAt)}</span>
           </div>
         </header>
 
@@ -169,13 +169,13 @@ function JourneyClusterImpl({
               className="flex flex-col justify-center gap-1 overflow-hidden border-b border-stone-200 px-3"
               style={{ height: JOURNEY_SHARED_HEAD_PX }}
             >
-              <p className="text-sm leading-snug text-ink">
+              <p className="text-micro leading-snug text-ink">
                 {claim.kind === "conversation"
                   ? t("shared.headline", { count: cluster.totalColumns })
                   : `${t("absence.nothingHappened")}. ${claim.reasonKey ? t(claim.reasonKey as Parameters<typeof t>[0]) : t("absence.neverRecorded")}`}
               </p>
               {claim.kind === "conversation" && claim.unlinked ? (
-                <p className={`${NOTICE("amber")} inline-block px-2 py-0.5 text-xs`} role="status">
+                <p className={`${NOTICE("amber")} inline-block px-2 py-0.5 text-micro`} role="status">
                   {t("shared.unlinked")}
                 </p>
               ) : null}

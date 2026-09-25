@@ -36,7 +36,9 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
-import { CHIP_TOGGLE, FIELD, META_LABEL } from "@/app/_components/ui/recipes";
+import { ChipRow, type Chip } from "@/app/_components/kit/ChipRow";
+import { SearchField, Toolbar } from "@/app/_components/kit/Toolbar";
+import { META_LABEL } from "@/app/_components/ui/recipes";
 import {
   rolePickerOptions,
   selectedRole,
@@ -70,64 +72,40 @@ export function JourneyToolbar({ filters, onChange, roles, capped }: JourneyTool
     collator: new Intl.Collator(locale, { numeric: true }),
   });
 
+  const chips: Chip[] = [
+    { id: "active", label: t("filters.activeOnly"), pressed: filters.activeOnly, onPress: () => onChange({ ...filters, activeOnly: !filters.activeOnly }) },
+    { id: "observed", label: t("filters.observedOnly"), pressed: filters.observedOnly, onPress: () => onChange({ ...filters, observedOnly: !filters.observedOnly }) },
+    { id: "runs", label: t("filters.testRuns"), pressed: filters.testRuns, onPress: () => onChange({ ...filters, testRuns: !filters.testRuns }) },
+  ];
+
+  // The kit's inline toolbar: the role picker in the segmented slot, the three
+  // filters as kit chips, the find box as the kit search field.
   return (
-    <div className="shrink-0 border-b border-stone-200 bg-paper px-4 py-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={META_LABEL}>{t("filters.role")}</span>
-        {/* The app's own Select, not a native one: this board is a focus-trapped
-            dialog, and a native <select>'s option popup is drawn by the OS and
-            does not follow [data-theme]. It also gives the picker a filter box
-            past eight options, which is the actual answer to "a company can
-            have forty roles". */}
-        <Select
-          value={selectedRole(filters)}
-          onChange={(jobId) => onChange(withSelectedRole(filters, jobId))}
-          options={options}
-          ariaLabel={t("filters.rolePicker")}
-          sizeVariant="sm"
-          className="w-64"
-        />
-
-        <span className="mx-1 h-5 w-px bg-stone-200" aria-hidden="true" />
-
-        <button
-          type="button"
-          aria-pressed={filters.activeOnly}
-          onClick={() => onChange({ ...filters, activeOnly: !filters.activeOnly })}
-          className={CHIP_TOGGLE(filters.activeOnly)}
-        >
-          {t("filters.activeOnly")}
-        </button>
-        <button
-          type="button"
-          aria-pressed={filters.observedOnly}
-          onClick={() => onChange({ ...filters, observedOnly: !filters.observedOnly })}
-          className={CHIP_TOGGLE(filters.observedOnly)}
-        >
-          {t("filters.observedOnly")}
-        </button>
-        <button
-          type="button"
-          aria-pressed={filters.testRuns}
-          onClick={() => onChange({ ...filters, testRuns: !filters.testRuns })}
-          className={CHIP_TOGGLE(filters.testRuns)}
-        >
-          {t("filters.testRuns")}
-        </button>
-
-        <label className="ml-auto flex items-center gap-2">
-          <span className="sr-only">{t("filters.find")}</span>
-          <input
-            type="search"
-            value={filters.find}
-            onChange={(event) => onChange({ ...filters, find: event.target.value })}
-            placeholder={t("filters.find")}
-            className={`${FIELD} h-9 w-56 py-1 text-sm`}
-          />
-        </label>
-      </div>
-
-      <p className="mt-1 text-xs leading-snug text-steel">
+    <div className="jr-toolbar shrink-0" data-role="journey-toolbar">
+      <Toolbar
+        inline
+        segmented={
+          <span className="jr-toolbar__role">
+            <span className={META_LABEL}>{t("filters.role")}</span>
+            {/* The app's own Select, not a native one: this board is a focus-trapped
+                dialog, and a native <select>'s option popup is drawn by the OS and
+                does not follow [data-theme]. It also gives the picker a filter box
+                past eight options, which is the actual answer to "a company can
+                have forty roles". */}
+            <Select
+              value={selectedRole(filters)}
+              onChange={(jobId) => onChange(withSelectedRole(filters, jobId))}
+              options={options}
+              ariaLabel={t("filters.rolePicker")}
+              sizeVariant="sm"
+              className="w-64"
+            />
+          </span>
+        }
+        filters={<ChipRow chips={chips} />}
+        search={<SearchField label={t("filters.find")} value={filters.find} onChange={(find) => onChange({ ...filters, find })} />}
+      />
+      <p className="jr-toolbar__note">
         {t("rail.note")}
         {capped ? ` ${t("cohort.capped", { n: capped.shown, total: capped.total })}` : null}
       </p>

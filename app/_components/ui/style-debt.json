@@ -1073,47 +1073,19 @@
     "features/insights/analytics/sections/QualityInstrument.tsx": {
       "raw-text-size": 1
     },
-    "features/insights/journey/JourneyAbsence.tsx": {
-      "below-floor-text": 2,
-      "raw-text-size": 2,
-      "raw-status-hue": 3
-    },
-    "features/insights/journey/JourneyBoardView.tsx": {
-      "raw-text-size": 3
-    },
     "features/insights/journey/JourneyCluster.tsx": {
-      "below-floor-text": 2,
-      "raw-text-size": 1,
       "literal-page-header": 1
     },
     "features/insights/journey/JourneyColumn.tsx": {
-      "below-floor-text": 3,
-      "raw-status-hue": 2,
       "literal-page-header": 1
-    },
-    "features/insights/journey/JourneyFactCard.tsx": {
-      "below-floor-text": 6,
-      "raw-text-size": 7,
-      "raw-status-hue": 4,
-      "bare-rounded": 2
     },
     "features/insights/journey/JourneyMinimap.tsx": {
-      "below-floor-text": 1,
-      "arbitrary-text-size": 1,
-      "raw-status-hue": 1,
       "raw-button": 1
     },
-    "features/insights/journey/JourneyOverlay.tsx": {
-      "raw-text-size": 2,
-      "raw-stone-text": 1,
-      "literal-page-header": 1
-    },
     "features/insights/journey/JourneyRail.tsx": {
-      "below-floor-text": 3,
       "raw-button": 1
     },
     "features/insights/journey/JourneyRow.tsx": {
-      "below-floor-text": 2,
       "raw-button": 1
     },
     "features/insights/journey/JourneyToolbar.tsx": {

@@ -44,7 +44,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, NOTICE, PANEL } from "@/app/_components/ui/recipes";
+import { Button } from "@/app/_components/kit/Button";
+import { Note } from "@/app/_components/kit/Section";
+import { PANEL } from "@/app/_components/ui/recipes";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import type { JourneyEvent, JourneyOrigin, JourneyPhaseId } from "@/app/_lib/journey/types";
 import { JourneyCluster } from "./JourneyCluster";
@@ -219,18 +221,18 @@ export function JourneyBoardView({ initialRole }: { initialRole?: string } = {})
   if (error) {
     return (
       <div className="h-full p-5">
-        <div className={`${NOTICE("critical")} p-4`} role="alert">
-          <p className="text-sm">{error}</p>
-          <button type="button" onClick={reload} className={`${BTN_SECONDARY} mt-3 h-9 px-3 text-sm`}>
-            {common("retry")}
-          </button>
+        <div className="k-kit" data-density="compact">
+          <Note tone="critical" action={<Button label={common("retry")} variant="ghost" size="sm" onClick={reload} />}>
+            {error}
+          </Note>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
+    // `k-kit`: the composition kit's variables and type for the parts seated in the board.
+    <div className="k-kit flex h-full flex-col" data-density="compact">
       <JourneyToolbar filters={filters} onChange={setFilters} roles={roles} capped={capped} />
       {plan && plan.clusters.length > 0 ? (
         <JourneyMinimap plan={plan} scrollerRef={scrollerRef} onJumpToRole={jumpToRole} />
@@ -246,7 +248,7 @@ export function JourneyBoardView({ initialRole }: { initialRole?: string } = {})
             // unfiltered empty line. It is the one string on this surface that
             // is not exactly right.
             <div className="p-5">
-              <div className={`${PANEL} p-6 text-sm text-steel`}>{t("empty")}</div>
+              <div className={`${PANEL} p-6 text-micro text-steel`}>{t("empty")}</div>
             </div>
           ) : (
             <div ref={trackRef} className="flex w-max items-start pb-16">

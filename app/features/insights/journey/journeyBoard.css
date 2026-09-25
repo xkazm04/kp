@@ -1,0 +1,17 @@
+/* The Journeys overlay's legacy board (the Broadsheet), revitalized onto the composition kit's
+   parts (Gate 3, owner's decision 2026-09-25: keep the module, fit its UI to the kit). Layout and
+   geometry are the Broadsheet's own (journeyLayout.ts); this file only seats the kit's parts in
+   it. Colour via tokens and --k-* variables, type via the text-* tokens. Scoped under jr-*. */
+
+/* The page head as the overlay's chrome: the kit's head, on the overlay's 20px margins, with the
+   one ruled edge under it every kit section carries. */
+.jr-head .k-head { padding: 12px 20px 12px; margin: 0; border-bottom: var(--k-line) solid var(--k-rule-strong); }
+
+/* The toolbar: the kit's inline toolbar on the overlay's margins, a hairline under it. */
+.jr-toolbar { padding: 0 20px; border-bottom: var(--k-line) solid var(--k-rule); }
+.jr-toolbar .k-toolbar { min-height: 52px; }
+.jr-toolbar__role { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.jr-toolbar__note { margin: 0; padding: 0 0 8px calc(var(--m-mark) + var(--m-gap)); font-size: var(--text-micro); color: var(--k-quiet); }
+
+/* The minimap: the kit's quiet plane, ruled like a kit section edge. */
+.jr-minimap { background: var(--k-plane); border-bottom: var(--k-line) solid var(--k-rule); }

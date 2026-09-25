@@ -22,14 +22,15 @@
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
-import { ArrowLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useKitFlag } from "@/app/_components/kit/useKitFlag";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
-import { BTN_GHOST, EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { Button } from "@/app/_components/kit/Button";
+import { PageHead } from "@/app/_components/kit/PageHead";
 import { JourneyBoardView } from "./JourneyBoardView";
 import { JourneyCohortView } from "./cohort/JourneyCohortView";
+import "./journeyBoard.css";
 
 type Level = { kind: "cohort" } | { kind: "board"; role: string | null };
 
@@ -70,27 +71,29 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
         tabIndex={-1}
         className="fixed inset-0 z-50 flex flex-col bg-paper focus:outline-none"
       >
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-stone-200 px-5 py-3">
-          <div className="min-w-0">
-            <p className={EYEBROW}>{level.kind === "cohort" ? t("cohort.eyebrow") : t("phases.screening")}</p>
-            <h1 className={TITLE_DISPLAY}>{t("title")}</h1>
-            <p className="mt-0.5 text-sm text-stone-500">{level.kind === "cohort" ? t("cohort.lede") : t("lede")}</p>
-          </div>
-          {level.kind === "board" && (
-            <button
-              type="button"
-              onClick={() => setLevel({ kind: "cohort" })}
-              className={`${BTN_GHOST} ml-auto px-3 py-2 text-sm`}
-              data-testid="journey-back-to-cohort"
-            >
-              <ArrowLeft size={16} aria-hidden />
-              {t("cohort.back")}
-            </button>
-          )}
-          <button type="button" onClick={onClose} className={`${BTN_GHOST} p-2`} aria-label={t("closeBoard")}>
-            <X size={18} aria-hidden />
-          </button>
-        </header>
+        {/* The kit's page head (the same eyebrow, display title, context line and
+            action track as Pipeline and Channels), shared by both levels. */}
+        <div className="k-kit jr-head shrink-0" data-density="compact">
+          <PageHead
+            eyebrow={level.kind === "cohort" ? t("cohort.eyebrow") : t("phases.screening")}
+            title={t("title")}
+            context={level.kind === "cohort" ? t("cohort.lede") : t("lede")}
+            actions={
+              <>
+                {level.kind === "board" ? (
+                  <Button
+                    label={t("cohort.back")}
+                    icon="left"
+                    variant="ghost"
+                    onClick={() => setLevel({ kind: "cohort" })}
+                    data-testid="journey-back-to-cohort"
+                  />
+                ) : null}
+                <Button label={t("closeBoard")} icon="x" iconOnly variant="ghost" onClick={onClose} />
+              </>
+            }
+          />
+        </div>
 
         {/* The board owns its own scrolling in both axes — the overlay is the
             viewport, so nothing here may introduce a second page-level scroll. */}

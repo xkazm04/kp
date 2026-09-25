@@ -19,8 +19,8 @@
 
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
-import { BTN_GHOST, BTN_PRIMARY, DIVIDER, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { Button } from "@/app/_components/kit/Button";
+import { DIVIDER, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import type { JourneyEvent, JourneyEventDetail, JourneyOrigin } from "@/app/_lib/journey/types";
@@ -46,8 +46,8 @@ export type JourneyFactCardProps = {
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <dt className="py-1.5 text-xs text-steel">{label}</dt>
-      <dd className="py-1.5 text-sm text-ink">{children}</dd>
+      <dt className="py-1.5 text-micro text-steel">{label}</dt>
+      <dd className="py-1.5 text-micro text-ink">{children}</dd>
     </>
   );
 }
@@ -79,28 +79,26 @@ export function JourneyFactCard({
     >
       <div className="flex items-start justify-between gap-2 px-4 pt-4">
         <p className={META_LABEL}>{contextLabel}</p>
-        <button type="button" onClick={onClose} className={`${BTN_GHOST} p-1.5`} aria-label={common("close")}>
-          <X size={16} aria-hidden="true" />
-        </button>
+        <Button label={common("close")} icon="x" iconOnly variant="ghost" size="sm" onClick={onClose} />
       </div>
 
       <h2 className="px-4 pt-2 font-serif text-h2 leading-tight text-ink">{sentence(event)}</h2>
 
       <div className="flex flex-wrap gap-1.5 px-4 pt-3">
-        <span className="rounded-full border border-stone-200 px-2 py-0.5 text-xs text-steel">
+        <span className="rounded-full border border-stone-200 px-2 py-0.5 text-micro text-steel">
           {t(ACTOR_MARK_KEY[p.actor])}
         </span>
         {p.observed || p.fromTestRun ? (
           <span
-            className={`rounded-full px-2 py-0.5 text-xs ${
-              p.observed ? "border border-moss text-moss" : "border border-dashed border-amber-400 text-amber-900"
+            className={`rounded-full px-2 py-0.5 text-micro ${
+              p.observed ? "border border-moss text-moss" : "border border-dashed border-dial-amber text-ink"
             }`}
           >
             {p.observed ? t("mark.observed") : t("mark.testRun")}
           </span>
         ) : null}
         {p.labelOnly ? (
-          <span className="rounded-full border border-dashed border-amber-400 px-2 py-0.5 text-xs text-amber-900">
+          <span className="rounded-full border border-dashed border-dial-amber px-2 py-0.5 text-micro text-ink">
             {t("mark.labelOnly")}
           </span>
         ) : null}
@@ -113,7 +111,7 @@ export function JourneyFactCard({
             // point of the `| null` in the contract is that this is a fact.
             <span className="text-steel">{t("mark.unidentified")}</span>
           ) : (
-            <code className="rounded bg-stone-100 px-1 text-xs">{event.actor}</code>
+            <code className="rounded-sm bg-stone-100 px-1 text-micro">{event.actor}</code>
           )}
         </Fact>
         <Fact label={t("detail.occurredAt")}>
@@ -145,15 +143,13 @@ export function JourneyFactCard({
           // A shared job-definition row belongs to the ROLE, not to any pipeline
           // entry, and the detail route is addressed by entry. Saying so is
           // better than offering a button that 404s.
-          <p className="text-sm text-steel">{t("detail.noSource")}</p>
+          <p className="text-micro text-steel">{t("detail.noSource")}</p>
         ) : !sourceOpened ? (
-          <button type="button" onClick={onOpenSource} className={`${BTN_PRIMARY} h-9 px-3 text-sm`}>
-            {t("detail.openSource")}
-          </button>
+          <Button label={t("detail.openSource")} variant="primary" size="sm" onClick={onOpenSource} />
         ) : detailLoading ? (
           <LoadingGap className="min-h-16" label={common("loading")} />
         ) : detailError ? (
-          <p className="text-sm text-coral" role="alert">
+          <p className="text-micro text-coral" role="alert">
             {detailError}
           </p>
         ) : detail?.source ? (
@@ -161,21 +157,21 @@ export function JourneyFactCard({
             {t.has(detail.source.labelKey as Key) ? (
               <figcaption className={META_LABEL}>{t(detail.source.labelKey as Key)}</figcaption>
             ) : null}
-            <blockquote className="mt-2 border-l-2 border-ink pl-3 font-serif text-base leading-relaxed text-ink">
+            <blockquote className="mt-2 border-l-2 border-ink pl-3 font-serif text-body leading-relaxed text-ink">
               {detail.source.excerpt}
             </blockquote>
             {detail.source.reply ? (
-              <blockquote className="mt-2 border-l-2 border-steel pl-3 font-serif text-base leading-relaxed text-steel">
+              <blockquote className="mt-2 border-l-2 border-steel pl-3 font-serif text-body leading-relaxed text-steel">
                 {detail.source.reply}
               </blockquote>
             ) : null}
           </figure>
         ) : (
-          <p className="text-sm text-steel">{t("detail.noSource")}</p>
+          <p className="text-micro text-steel">{t("detail.noSource")}</p>
         )}
         {entryId === null ? null : (
-          <p className="mt-3 text-xs text-steel">
-            <code className="rounded bg-stone-100 px-1">{`${event.sourceRef.table}:${event.sourceRef.id}`}</code>
+          <p className="mt-3 text-micro text-steel">
+            <code className="rounded-sm bg-stone-100 px-1">{`${event.sourceRef.table}:${event.sourceRef.id}`}</code>
           </p>
         )}
       </div>

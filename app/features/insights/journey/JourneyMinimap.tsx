@@ -100,12 +100,13 @@ export function JourneyMinimap({
   );
 
   return (
-    <div className="shrink-0 border-b border-stone-200 bg-stone-50">
+    <div className="jr-minimap shrink-0">
       {/* The named half. One button per role, grown by the same column count as
           its span below, so the label sits over the ticks it describes — and
           WRAPPED rather than truncated, because at 43-of-50 columns in one role
           the other five spans are ~45px wide and one line of them is a single
-          letter. Two lines of 10px turn "B…" back into "Business Analyst". A
+          letter. Two lines of the kit's 14px micro type (the floor; the 10px it once
+          used was below it) keep the longer spans legible. A
           span too narrow even for that still carries the whole label as the
           button's accessible name, and the rail names the role the reader
           lands on. */}
@@ -120,7 +121,7 @@ export function JourneyMinimap({
             type="button"
             onClick={() => onJumpToRole(cluster.cluster.jobId)}
             style={{ flexGrow: Math.max(1, cluster.columns.length), flexBasis: 0 }}
-            className={`focus-ring line-clamp-2 min-w-0 rounded-sm px-1 text-left text-[0.625rem] leading-tight text-steel hover:bg-stone-100 hover:text-ink ${
+            className={`focus-ring line-clamp-2 min-w-0 rounded-sm px-1 text-left text-micro leading-tight text-steel hover:bg-stone-100 hover:text-ink ${
               index > 0 ? "border-l border-ink" : ""
             }`}
           >
@@ -163,7 +164,7 @@ export function JourneyMinimap({
                     // A column with nothing in it is still a column. An empty slot
                     // would read as "not here"; a dashed box reads as "here, and
                     // holding nothing", which is the true statement.
-                    <span className="h-2 w-full border border-dashed border-amber-400" />
+                    <span className="h-2 w-full border border-dashed border-dial-amber" />
                   ) : (
                     events.map((event) => (
                       <span key={event.id} className={`h-px w-full ${TICK_CLASS[actorKind(event.actor)]}`} />
