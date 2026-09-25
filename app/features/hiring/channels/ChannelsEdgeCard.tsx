@@ -32,7 +32,7 @@ import type { EdgeErrorKind } from "@/app/_lib/edge-config";
 // And what it now SHOWS, because the engine already knew it and threw it away: when
 // the drain last ran, when the edge last heard from us, and how much is still queued
 // there. A cursor alone cannot tell "caught up" from "500 behind".
-type EdgeState = {
+export type EdgeState = {
   url: string;
   hasSecret: boolean;
   sealed: boolean;
@@ -66,6 +66,34 @@ const DRAIN_ERROR_KEY: Record<
   unknown: "drainFailedUnknown",
 };
 
+/** GET /api/edge, parsed. Null = "still unknown" (in flight, failed, or operator-denied),
+ *  never a fabricated default. Module-level so a second reader (the composition-kit view
+ *  behind the dev-only Gate K2 switch) shares this parse instead of copying it. */
+export async function readEdgeConfig(): Promise<EdgeState | null> {
+  try {
+    const r = await fetch("/api/edge");
+    if (!r.ok) return null;
+    const d = (await r.json()) as { config?: Partial<EdgeState> } | null;
+    if (!d?.config) return null;
+    const c = d.config;
+    return {
+      url: c.url ?? "",
+      hasSecret: Boolean(c.hasSecret),
+      sealed: Boolean(c.sealed),
+      cursor: c.cursor ?? 0,
+      lastDrainAt: c.lastDrainAt ?? null,
+      lastHeartbeatAt: c.lastHeartbeatAt ?? null,
+      pending: typeof c.pending === "number" ? c.pending : null,
+      lastErrorKind: c.lastErrorKind ?? null,
+      nudgeTarget: c.nudgeTarget ?? null,
+      envConfigured: Boolean(c.envConfigured),
+      offline: Boolean(c.offline),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function EdgeConfigCard() {
   const t = useTranslations("channels.edge");
   const errMsg = useErrorMessage();
@@ -80,30 +108,7 @@ export function EdgeConfigCard() {
   // overwrite what someone has already typed (RelayConfigCard's rule).
   const touched = useRef(false);
 
-  const readConfig = useCallback(async (): Promise<EdgeState | null> => {
-    try {
-      const r = await fetch("/api/edge");
-      if (!r.ok) return null;
-      const d = (await r.json()) as { config?: Partial<EdgeState> } | null;
-      if (!d?.config) return null;
-      const c = d.config;
-      return {
-        url: c.url ?? "",
-        hasSecret: Boolean(c.hasSecret),
-        sealed: Boolean(c.sealed),
-        cursor: c.cursor ?? 0,
-        lastDrainAt: c.lastDrainAt ?? null,
-        lastHeartbeatAt: c.lastHeartbeatAt ?? null,
-        pending: typeof c.pending === "number" ? c.pending : null,
-        lastErrorKind: c.lastErrorKind ?? null,
-        nudgeTarget: c.nudgeTarget ?? null,
-        envConfigured: Boolean(c.envConfigured),
-        offline: Boolean(c.offline),
-      };
-    } catch {
-      return null;
-    }
-  }, []);
+  const readConfig = useCallback(() => readEdgeConfig(), []);
 
   const adopt = useCallback((next: EdgeState | null) => {
     if (!next) return;

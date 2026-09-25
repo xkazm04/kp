@@ -1,23 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlertTriangle, Inbox } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import { ChannelEmpty } from "./ChannelsEmpty";
 import { commsStatusLabels, isActionable, statusTone, type Message, commsReceiptLabels, displayRecipient, displaySubject, matchesCommsQuery } from "./channelsCommsHelpers";
 import { ChannelsCommsMessageModal } from "./ChannelsCommsMessageModal";
 import { ChannelsCommsRows } from "./ChannelsCommsRows";
-import { EMPTY_COMMS_PAGE, mergeCommsPage, type CommsPageState } from "./channelsCommsPaging";
+import { useCommsFeed } from "./useCommsFeed";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
-
-/** Rows per read. The ledger pages CLIENT-side inside what it has loaded, and asks
- *  the route for one cursor page at a time: `?limit=500` (the whole derivation window)
- *  made `hasMore` structurally unreachable, so the "older rows exist" fact the route
- *  answers had no way to be true and the ledger could only ever end silently. */
-const COMMS_PAGE_SIZE = 200;
 
 // Communications, redesigned as a compact, column-filterable register (the JD
 // Ledger pattern) instead of the old expand-in-place card list: one row per
@@ -38,14 +31,10 @@ const COMMS_PAGE_SIZE = 200;
 export function CommsTable() {
   const t = useTranslations("channels.comms");
   const locale = useLocale();
-  // One state, folded by a pure reducer (channelsCommsPaging.ts): the rows, the refs
-  // and the two SEPARATE facts about size — `hasMore` (more rows a cursor reaches) and
-  // `truncated` (older rows past the derivation window that no cursor reaches).
-  const [feed, setFeed] = useState<CommsPageState>(EMPTY_COMMS_PAGE);
+  // The feed (rows, refs, paging, relay flag) lives in useCommsFeed, shared with the
+  // composition-kit view behind the dev-only Gate K2 switch.
+  const { feed, error, relayConfigured, loadingOlder, load, loadOlder } = useCommsFeed();
   const { messages, refs } = feed;
-  const [error, setError] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
-  const [relayConfigured, setRelayConfigured] = useState(true);
   const [nameQuery, setNameQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -63,56 +52,6 @@ export function CommsTable() {
       set(v);
       setPage(0);
     };
-
-  // One read of the feed. `cursor` null = the head of the ledger (first load and every
-  // live refresh, both of which re-read the newest page); a cursor = the next older
-  // page, folded onto what is already on screen.
-  const read = useCallback((cursor: string | null, signal?: AbortSignal) => {
-    const qs = new URLSearchParams({ limit: String(COMMS_PAGE_SIZE) });
-    if (cursor) qs.set("cursor", cursor);
-    return fetch(`/api/comms?${qs.toString()}`, { signal }).then((r) => {
-      if (!r.ok) throw new Error();
-      return r.json();
-    });
-  }, []);
-
-  const load = useCallback(
-    (signal?: AbortSignal) => {
-      read(null, signal)
-        .then((p) => {
-          setRelayConfigured(p.relayConfigured !== false);
-          // A body with no `messages` array is a FAILURE, not an empty ledger — the
-          // reducer refuses to conjure one (channelsCommsPaging.ts). A head read
-          // carries no state forward, so it folds onto EMPTY.
-          const next = mergeCommsPage(EMPTY_COMMS_PAGE, p, "replace");
-          setError(next === null);
-          if (next) setFeed(next);
-        })
-        .catch(() => {
-          // An abort is this component unmounting, not a load failure: raising the
-          // error banner for it would paint a red ledger on the way out.
-          if (!signal?.aborted) setError(true);
-        });
-    },
-    [read]
-  );
-  useEffect(() => {
-    const ac = new AbortController();
-    load(ac.signal);
-    return () => ac.abort();
-  }, [load]);
-  useLiveRefresh(load);
-
-  const loadOlder = useCallback(() => {
-    if (loadingOlder || !feed.cursor) return;
-    setLoadingOlder(true);
-    read(feed.cursor)
-      .then((p) => {
-        setFeed((prev) => mergeCommsPage(prev, p, "append") ?? prev);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoadingOlder(false));
-  }, [read, feed.cursor, loadingOlder]);
 
   const roleOf = useCallback((m: Message) => (m.ref ? refs[m.ref]?.jobTitle ?? null : null), [refs]);
   // Receipt rows have no candidate and a CODE where a recipient goes — localized here

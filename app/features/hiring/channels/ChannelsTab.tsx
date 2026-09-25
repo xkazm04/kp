@@ -17,6 +17,7 @@ import { sectionReceiverStatus } from "./receiverHealth";
 import { ChannelsTabSwitcher } from "./ChannelsTabSwitcher";
 import { ChannelsTabStage } from "./ChannelsTabStage";
 import { CHANNEL_ACCENT } from "./channelsAccent";
+import { ChannelsKitSwitch } from "./kit/ChannelsKitSwitch";
 
 // CHANNELS — the "Intake Studio". Each inbound integration is a stage with its own
 // identity: a row of icon-pill tabs (per-section accent + live status) opens a stage
@@ -30,6 +31,10 @@ import { CHANNEL_ACCENT } from "./channelsAccent";
 // eslint-disable while ~49 already-translated keys sat orphaned.
 
 export function ChannelsTab() {
+  return <ChannelsKitSwitch current={<ChannelsTabCurrent />} />;
+}
+
+function ChannelsTabCurrent() {
   const t = useTranslations("channels");
   // The shared error affordance (RouteError's namespace) — this tab's fourth loading
   // branch. Reused rather than re-worded so a failed intake load reads the same as
