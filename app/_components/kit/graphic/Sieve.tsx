@@ -25,6 +25,9 @@ export type SieveLayer = {
   exit?: boolean;
   /** Names who would stand here when nobody does ("Nobody at Offer"). */
   empty: string;
+  /** The layer's facts in words (its sub-line and its age) as the label's tip: on a narrow sheet the
+   *  sub-line and the time track fold into it, so the label is never the only place they were. */
+  tip?: string;
 };
 
 /**
@@ -105,7 +108,7 @@ export function Sieve({
               data-role="kit-sieve-layer"
             >
               <div className="k-row__mark">{L.mark}</div>
-              <div className="k-row__name" data-role="kit-sieve-label">
+              <div className="k-row__name" data-role="kit-sieve-label" data-tip={L.tip}>
                 {L.label}
                 {L.sub ? <small>{L.sub}</small> : null}
               </div>

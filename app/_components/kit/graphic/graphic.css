@@ -176,6 +176,24 @@
 [data-theme="dark"] .k-minirail i { height: 12px; border-radius: 4px; outline: 2px solid var(--k-rule-strong); outline-offset: -2px; }
 [data-theme="dark"] .k-minirail i::after { background: var(--color-dial-amber); opacity: 1; }
 
+/* step 1 (<= 1000px): the pour line's legend no longer fits beside its sentence, so it takes the line's
+   second row, item by item, instead of running under it */
+@container sheet (max-width: 1000px) {
+  .k-sieve .k-sieve__pour { padding: 6px 0; row-gap: 4px; }
+  .k-sieve .k-sieve__lt { grid-column: name / end; }
+  .k-sieve .k-sieve__legend { grid-column: name / end; grid-row: 2; }
+}
+/* ---------- the graphic parts on a narrow sheet (the measure has folded meta, <= 860px) ----------
+   The dots and the bars ARE these surfaces, so they never fold away. The Sieve's layer rows leave the
+   measure's six tracks for their own: mark, a narrow label, the dot field, the count. The sub-line and
+   the median age fold into the label's tip; the legend takes the pour line's second row, item by item. */
+@container sheet (max-width: 860px) {
+  .k-sieve .k-sieve__layer, .k-sieve .k-sieve__pour { grid-template-columns: [mark] var(--m-mark) [name] minmax(0, 132px) [meta] minmax(0, 1fr) [fig] 48px [end]; }
+  .k-sieve .k-sieve__layer .k-row__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .k-sieve .k-sieve__layer .k-row__name small, .k-sieve .k-sieve__layer .k-row__time, .k-sieve .k-sieve__layer .k-row__acts { display: none; }
+}
+.k-sky__read > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%; }
+
 @media (prefers-reduced-motion: reduce) {
   .k-rail.is-arriving .k-rail__bar i, .k-lane.is-arriving .k-lane__c, .k-lane.is-arriving::before, .is-arriving.k-sky__bar, .is-arriving.k-sky__null { animation: none !important; }
 }

@@ -66,6 +66,23 @@ export function nullRun(items: readonly SkyItem[], g: SkyGeometry): { count: num
   return { count, x: SKY.left + ((items.length - count) / g.per) * g.step };
 }
 
+/*
+ * Fewer labels on a narrow sheet, never fewer bars. The y axis drops its middle tick under 640px; the
+ * null run's label ("35 never scored · not zero") ends at the plot's right edge once the run starts in
+ * the right 45% (it used to run off the edge); "rank 1" stays only while it cannot touch that label.
+ */
+export const NULL_LABEL_PX = 190;
+export function skyTicks(width: number): number[] {
+  return width < 640 ? [0, 100] : [0, 50, 100];
+}
+export function nullLabelAt(x: number, width: number): { x: number; textAnchor: "start" | "end" } {
+  return x > width * 0.55 ? { x: width - SKY.right, textAnchor: "end" } : { x: x + 4, textAnchor: "start" };
+}
+export function showRankOne(nullX: number, width: number): boolean {
+  const labelStart = nullLabelAt(nullX, width).textAnchor === "end" ? width - SKY.right - NULL_LABEL_PX : nullX + 4;
+  return labelStart - SKY.left > 64;
+}
+
 /** Arrow keys move one item, Alt moves ten, Home/End jump; the result stays inside the items. */
 export function nextFocus(focus: number, key: string, alt: boolean, count: number): number | null {
   const last = count - 1;

@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Mark } from "../Mark";
 import { formatCount } from "../figure";
 import type { PartState, StageTone } from "../types";
-import { barBox, brushBox, growDelay, inBrush, nullRun, skyGeometry, skyY, SKY, type SkyItem } from "./skylineGeometry";
+import { barBox, brushBox, growDelay, inBrush, nullLabelAt, nullRun, showRankOne, skyGeometry, skyTicks, skyY, SKY, type SkyItem } from "./skylineGeometry";
 import { usePlayOnce } from "./usePlayOnce";
 import { useSkylineInput } from "./useSkylineInput";
 import "./graphic.css";
@@ -89,7 +89,7 @@ export function Skyline({
       >
         {geo ? (
           <>
-            {[0, 50, 100].map((v) => (
+            {skyTicks(width).map((v) => (
               <g key={v}>
                 <line className="k-sky__grid" x1={SKY.left} x2={width - SKY.right} y1={skyY(geo, v)} y2={skyY(geo, v)} />
                 <text className="k-sky__tick" x={SKY.left - 8} y={skyY(geo, v) + 5} textAnchor="end">{v}</text>
@@ -113,8 +113,10 @@ export function Skyline({
                 </g>
               );
             })}
-            {nulls.count ? <text className="k-sky__tick is-null" x={nulls.x + 4} y={height - 4}>{t("nulls", { count: nulls.count })}</text> : null}
-            <text className="k-sky__tick" x={SKY.left} y={height - 4}>{t("rankOne")}</text>
+            {nulls.count ? (
+              <text className="k-sky__tick is-null" {...nullLabelAt(nulls.x, width)} y={height - 4}>{t("nulls", { count: nulls.count })}</text>
+            ) : null}
+            {showRankOne(nulls.count ? nulls.x : width, width) ? <text className="k-sky__tick" x={SKY.left} y={height - 4}>{t("rankOne")}</text> : null}
             <rect className="k-sky__hit" x={SKY.left} y={0} width={Math.max(0, width - SKY.left - SKY.right)} height={height} />
           </>
         ) : null}

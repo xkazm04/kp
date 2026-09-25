@@ -41,7 +41,7 @@ export function StageRailColumn({ steps, label }: { steps: readonly ColumnStep[]
               {reached ? (
                 t("events", { count: s.count ?? 0 })
               ) : (
-                <span className="k-absent">{s.reason ?? t("notReached")}</span>
+                <span className="k-absent" data-tip={s.reason ?? t("notReached")}>{s.reason ?? t("notReached")}</span>
               )}
             </span>
             <span className="k-vrail__t">{reached ? s.time ?? "" : ""}</span>
