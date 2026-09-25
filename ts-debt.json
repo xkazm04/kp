@@ -23,8 +23,8 @@
   ],
   "ceilings": {
     "eslint:react-hooks/exhaustive-deps": {
-      "max": 38,
-      "why": "Effects deliberately narrower than their closure: mount-only restores, one-shot hydration, seed-once-per-step. The single largest class here and the one most worth reading twice — 39 places where the compiler's dependency analysis was overruled by hand. Retired by the same move each time: hoist the value into a ref or a stable callback so the honest dependency list is also the correct one."
+      "max": 39,
+      "why": "Effects deliberately narrower than their closure: mount-only restores, one-shot hydration, seed-once-per-step. The single largest class here and the one most worth reading twice — the places where the compiler's dependency analysis was overruled by hand. Retired by the same move each time: hoist the value into a ref or a stable callback so the honest dependency list is also the correct one. Raised 38 -> 39 on 2026-09-25 for the kit's play-once arrival (app/_components/kit/graphic/usePlayOnce.ts, app/features/insights/journey/kit/useLaneArrival.ts): `reduced` is read at claim time only, so flipping reduced-motion later cannot replay stale data - each site says so above its directive."
     },
     "directive:unreasoned": {
       "max": 36,
