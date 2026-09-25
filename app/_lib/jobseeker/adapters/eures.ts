@@ -24,13 +24,51 @@ function itemsOf(payload: unknown): EuresItem[] | null {
   return Array.isArray(list) ? (list as EuresItem[]) : null;
 }
 
+/** Czech NUTS-3 region codes -> the region's own name (a place a seeker types). EURES
+ *  tags a Czech vacancy with its region only; for other markets the country is enough
+ *  for the location filter and the matcher, and no name is guessed. */
+const CZ_NUTS3: Record<string, string> = {
+  CZ010: "Praha",
+  CZ020: "Středočeský kraj",
+  CZ031: "Jihočeský kraj",
+  CZ032: "Plzeňský kraj",
+  CZ041: "Karlovarský kraj",
+  CZ042: "Ústecký kraj",
+  CZ051: "Liberecký kraj",
+  CZ052: "Královéhradecký kraj",
+  CZ053: "Pardubický kraj",
+  CZ063: "Kraj Vysočina",
+  CZ064: "Jihomoravský kraj",
+  CZ071: "Olomoucký kraj",
+  CZ072: "Zlínský kraj",
+  CZ080: "Moravskoslezský kraj",
+};
+
+/** Where a EURES vacancy is. The search API answers `locationMap: {"CZ": ["CZ010"]}`
+ *  (country -> NUTS codes); an older shape carried `locations: [{countryCode, cityName}]`.
+ *  Reading only the old shape stored every posting with no country and no place, so the
+ *  city filter and the matcher's location check saw "unknown" for all of them (live scan,
+ *  2026-09-25). */
+function euresPlace(item: EuresItem): { location: string | null; country: string | null } {
+  const locations = Array.isArray(item.locations) ? (item.locations as Record<string, unknown>[]) : [];
+  const loc = locations[0];
+  if (loc) return { location: str(loc.cityName) ?? str(loc.region), country: str(loc.countryCode)?.toLowerCase() ?? null };
+  const map = item.locationMap && typeof item.locationMap === "object" ? (item.locationMap as Record<string, unknown>) : null;
+  const first = map ? Object.entries(map)[0] : undefined;
+  if (!first) return { location: null, country: null };
+  const [code, regions] = first;
+  const country = isoCountry(code);
+  const nuts = Array.isArray(regions) ? regions.map((r) => str(r)).filter((r): r is string => !!r) : [];
+  const names = [...new Set(nuts.map((r) => CZ_NUTS3[r.toUpperCase()]).filter((n): n is string => !!n))];
+  return { location: names.length ? names.join(", ") : null, country };
+}
+
 export function euresItemToRaw(item: EuresItem): RawPosting | null {
   const id = str(item.id) ?? str(item.jvId);
   const title = str(item.title);
   if (!id || !title) return null;
   const employer = item.employer as Record<string, unknown> | undefined;
-  const locations = Array.isArray(item.locations) ? (item.locations as Record<string, unknown>[]) : [];
-  const loc = locations[0];
+  const place = euresPlace(item);
   const description = str(item.description);
   const bodyText = bodyFromHtml(description);
   return rawPosting({
@@ -38,8 +76,8 @@ export function euresItemToRaw(item: EuresItem): RawPosting | null {
     url: `${EURES_POSTING_URL}${encodeURIComponent(id)}`,
     title,
     company: str(employer?.name),
-    location: str(loc?.cityName) ?? str(loc?.region),
-    country: str(loc?.countryCode)?.toLowerCase() ?? null,
+    location: place.location,
+    country: place.country,
     workMode: workModeFromText(`${title} ${bodyText.slice(0, 4000)}`),
     postedAt: isoOrNull(item.creationDate) ?? isoOrNull(item.lastModificationDate),
     bodyText,
@@ -52,14 +90,21 @@ function euresCountryCodes(ctx: AdapterContext): string[] {
   return [...new Set(ctx.preferences.countries.map(isoCountry).filter((c): c is string => c !== null))];
 }
 
+/** EURES reads a keyword as ANY of its words ("AI Engineer" = AI or Engineer), so an
+ *  EVERYWHERE search sorted by date answered 454,121 vacancies for "AI Engineer" and the
+ *  first 300 were cooks, cleaners and fitters (live scan, 2026-09-25). Scoped to TITLE and
+ *  sorted BEST_MATCH, the same query leads with "Principal AI Engineer", "AI Engineer
+ *  (M/Ž)", "Generative AI / Agentic AI Engineer" - so with stated titles the search is
+ *  title-scoped and relevance-sorted; with none it stays the recency feed it was. Role
+ *  family slugs ("data_ai") are internal names, never keywords. */
 export function euresRequestBody(ctx: AdapterContext, page: number): string {
-  const keywords = [...ctx.preferences.targetTitles, ...ctx.preferences.targetRoleFamilies.map((f) => f.replace(/_/g, " "))].filter(Boolean);
+  const keywords = ctx.preferences.targetTitles.map((k) => k.trim()).filter(Boolean);
   return JSON.stringify({
-    keywords: keywords.map((k) => ({ keyword: k, specificSearchCode: "EVERYWHERE" })),
+    keywords: keywords.map((k) => ({ keyword: k, specificSearchCode: "TITLE" })),
     locationCodes: euresCountryCodes(ctx),
     resultsPerPage: EURES_PAGE_SIZE,
     page,
-    sortSearch: "MOST_RECENT",
+    sortSearch: keywords.length ? "BEST_MATCH" : "MOST_RECENT",
   });
 }
 

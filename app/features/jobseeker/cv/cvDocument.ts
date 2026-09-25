@@ -407,6 +407,43 @@ export function levelPips(level: string | null): 0 | 1 | 2 | 3 {
   }
 }
 
+// ── a role's own lines in the CV text ──────────────────────────────────────────────
+
+const LEADING_YEAR = /^(?:19|20)\d\d(?![\d/.])/;
+
+function foldText(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Where a role sits in the CV text: the line naming its organisation, the dates on or
+ *  beside it, and the lines under it up to the next role, heading, blank line or dated
+ *  line. Verbatim - nothing here writes a word the CV does not hold. Null when the
+ *  organisation is not found (or is too short to find safely). */
+export function sourceRoleOf(text: string, org: string | null, allOrgs: readonly string[], role = "", nth = 0): { dates: string | null; lines: string[] } | null {
+  const needle = org ? foldText(org) : "";
+  if (needle.length < 3) return null;
+  const lines = (text || "").split(/\r?\n/).map((l) => l.trim());
+  // The nth mention: one employer twice in a career (a return years later) is two roles.
+  const mentions = lines.flatMap((l, i) => (foldText(l).includes(needle) ? [i] : []));
+  const at = mentions[Math.min(nth, mentions.length - 1)] ?? -1;
+  if (at < 0) return null;
+  const own = foldText(role);
+  const others = allOrgs.map(foldText).filter((o) => o.length >= 3 && o !== needle);
+  const dateOn = (l: string | undefined) => (l ? (l.match(DATE_RANGE)?.[0] ?? l.match(LEADING_YEAR)?.[0] ?? null) : null);
+  const dates = dateOn(lines[at]) ?? dateOn(lines[at - 1]) ?? null;
+  const body: string[] = [];
+  for (let i = at + 1; i < lines.length; i++) {
+    const l = lines[i]!;
+    const f = foldText(l);
+    if (!l || sectionOf(l) || others.some((o) => f.includes(o)) || DATE_RANGE.test(l) || LEADING_YEAR.test(l)) break;
+    if (isShouting(l) && l.length <= 30) break;
+    // The role's own title line repeats the heading the sheet already sets.
+    if (own && (f === own || own.startsWith(f))) continue;
+    body.push(l);
+  }
+  return { dates, lines: body };
+}
+
 // ── skills ─────────────────────────────────────────────────────────────────────────
 
 const LEVEL_WORD = /\s*\((junior|medior|mid|senior|lead|expert|advanced|intermediate|basic|beginner|native|fluent)\)\s*$/i;
@@ -445,24 +482,39 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
   // under the name, "AI Engineer" reads as a title the seeker has held. The direction is
   // said by the tailoring's objective line ("Seeking: AI Engineer roles"), labelled as
   // sought (cvTailor.ts).
-  const headlineLine = header.find((l) => l !== rawName && l.length <= 60 && !/@|\d{3}|\.(com|cz|io|dev|me)\b|linkedin|github/i.test(l));
+  // Compared folded: an AI draft writes "Michal Každan" for the CV's "MICHAL KAŽDAN",
+  // and the shouted name must not come back as the headline.
+  const headlineLine = header.find((l) => foldText(l) !== foldText(rawName) && l.length <= 60 && !/@|\d{3}|\.(com|cz|io|dev|me)\b|linkedin|github/i.test(l));
   const headline = headlineLine ? polishTerms(isShouting(headlineLine) ? titleCase(headlineLine) : headlineLine, log) : null;
 
   const summaryBlock = blocks.find((b) => b.kind === "summary");
   const summaryText = summaryBlock ? summaryBlock.lines.filter(Boolean).join(" ").trim() : "";
   const summary = summaryText ? bulletsOf(summaryText, log).map((b) => (b.lead ? `${b.lead}: ${b.text}` : b.text)).join(" ") : null;
 
-  const experience: CvRole[] = (profile.evidence ?? [])
-    .filter((e) => (e.kind ?? "job") === "job" && e.title && e.title !== "Summary")
-    .map((e) => {
-      const parts = parseRoleTitle(e.title ?? "");
-      return {
-        role: polishTerms(parts.role, log),
-        org: parts.org,
-        dates: formatDates(parts.dates),
-        bullets: bulletsOf(e.text ?? "", log),
-      };
-    });
+  const jobs = (profile.evidence ?? []).filter((e) => (e.kind ?? "job") === "job" && e.title && e.title !== "Summary");
+  const parsed = jobs.map((e) => {
+    const parts = parseRoleTitle(e.title ?? "");
+    // "AI Automation Specialist (Freelancer)": a trailing parenthetical is where it was.
+    const paren = !parts.org ? /\(([^()]{3,60})\)\s*$/.exec(parts.role) : null;
+    return { e, parts, org: parts.org ?? paren?.[1]?.trim() ?? null };
+  });
+  const orgs = parsed.map((p) => p.org).filter((o): o is string => !!o);
+  const seen = new Map<string, number>();
+  const experience: CvRole[] = parsed.map(({ e, parts, org }) => {
+    const key = org ? foldText(org) : "";
+    const nth = seen.get(key) ?? 0;
+    seen.set(key, nth + 1);
+    // The CV's own lines for this role, when the text holds them: an AI draft paraphrases
+    // (it dropped "TypeScript" and every date from a real CV), and the designed CV
+    // promises the seeker's own words. The draft's text is the fallback.
+    const source = sourceRoleOf(text, org, orgs, parts.role, nth);
+    return {
+      role: polishTerms(parts.role, log),
+      org: parts.org,
+      dates: formatDates(parts.dates ?? source?.dates ?? null),
+      bullets: bulletsOf(source && source.lines.length ? source.lines.join(" ") : (e.text ?? ""), log),
+    };
+  });
 
   const groups = skillGroupsFrom(blocks, log);
   const skills: CvSkillGroup[] = groups.length

@@ -1,0 +1,16 @@
+{
+  "_doc": "Synonym groups for a seeker's stated target titles, read by BOTH the matcher (pipeline/jobfit/target_titles.py) and the feed adapters' title filter (app/_lib/jobseeker/targetAliases.ts), so the two can never disagree about what counts as the target. The FIRST entry is canonical. A row is a claim that two titles name the SAME job - add only true synonyms (including the same job in cs/de/fr), never 'related' roles; relatedness is what the role-family state is for.",
+  "groups": [
+    [
+      "AI Engineer", "ML Engineer", "LLM Engineer", "Machine Learning Engineer",
+      "GenAI Engineer", "Gen AI Engineer", "Generative AI Engineer", "Applied AI Engineer",
+      "AI Developer", "AI/ML Engineer", "AI inženýr", "AI vývojář", "Vývojář AI", "Inženýr strojového učení",
+      "KI-Engineer", "KI-Entwickler", "AI-Entwickler", "KI Ingenieur", "Machine-Learning-Ingenieur",
+      "Ingénieur IA", "Ingénieur Machine Learning", "Développeur IA"
+    ],
+    ["Frontend Developer", "Front-end Developer", "Frontend Engineer", "Front-end Engineer", "UI Developer", "Frontend vývojář", "Frontend-Entwickler", "Développeur front-end"],
+    ["Backend Developer", "Back-end Developer", "Backend Engineer", "Back-end Engineer", "Backend vývojář", "Backend-Entwickler", "Développeur back-end"],
+    ["Full-stack Developer", "Fullstack Developer", "Full-stack Engineer", "Fullstack Engineer", "Fullstack vývojář", "Fullstack-Entwickler", "Développeur full-stack"],
+    ["QA Engineer", "Quality Assurance Engineer", "Test Engineer", "Test Automation Engineer", "Software Tester", "Tester softwaru", "Softwaretester", "Testeur logiciel"]
+  ]
+}

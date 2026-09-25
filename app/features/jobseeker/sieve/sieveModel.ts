@@ -40,7 +40,19 @@ export type SieveFacts = {
   promising: number;
   /** 1-based rank of every scored row. */
   rank: Record<string, number>;
+  /** Same job listed again: a kept row's id -> the ids of its twins (see twinKey). */
+  twins: Record<string, string[]>;
 };
+
+/** One job a source lists once per place (EURES files a multi-location vacancy as one
+ *  posting per region: the live scan showed the same "AI/ML Engineer" at one employer
+ *  four times). Same source, same title, same employer = the same job; a row with no
+ *  employer is never folded, because two untitled employers are not the same one. */
+export function twinKey(row: Pick<SievePosting, "sourceId" | "title" | "company">): string | null {
+  const company = (row.company ?? "").trim().toLowerCase();
+  if (!company) return null;
+  return `${row.sourceId}|${row.title.trim().toLowerCase().replace(/\s+/g, " ")}|${company}`;
+}
 
 export function compareScored(a: SievePosting, b: SievePosting): number {
   const ta = a.matchTotal ?? -1;
@@ -69,6 +81,21 @@ export function deriveSieve(rows: readonly SievePosting[], sources: readonly Pic
     else waiting.push(row);
   }
   scored.sort(compareScored);
+  // Fold twins AFTER sorting, so the best-scored copy of a job represents it.
+  const twins: Record<string, string[]> = {};
+  const keptFor = new Map<string, string>();
+  for (let i = 0; i < scored.length; i++) {
+    const key = twinKey(scored[i]!);
+    if (!key) continue;
+    const kept = keptFor.get(key);
+    if (kept === undefined) {
+      keptFor.set(key, scored[i]!.id);
+      continue;
+    }
+    (twins[kept] ??= []).push(scored[i]!.id);
+    scored.splice(i, 1);
+    i--;
+  }
   const gateCounts: Partial<Record<KoReasonKey, number>> = {};
   for (const row of gated) for (const key of row.blockedBy) gateCounts[key] = (gateCounts[key] ?? 0) + 1;
   const gateKeys = (Object.keys(gateCounts) as KoReasonKey[]).sort((a, b) => (gateCounts[b] ?? 0) - (gateCounts[a] ?? 0) || (a < b ? -1 : 1));
@@ -98,6 +125,7 @@ export function deriveSieve(rows: readonly SievePosting[], sources: readonly Pic
     strong: open.filter((r) => r.fitTier === "strong").length,
     promising: open.filter((r) => r.fitTier === "promising").length,
     rank,
+    twins,
   };
 }
 

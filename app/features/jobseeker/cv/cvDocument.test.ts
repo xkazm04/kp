@@ -131,3 +131,38 @@ test("a CV with no headline gets none: a target title never stands in for a held
   const noHead = buildCvDocument({ profile: { displayName: "Jana" }, preferences: { targetTitles: ["AI Engineer"] }, cvSourceText: "Jana\njana@example.invalid" });
   assert.equal(noHead.headline, null);
 });
+
+test("an AI draft's paraphrase gives way to the CV's own lines, dates included, per employer mention", () => {
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "DATA ENGINEER",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 4/2022 - 9/2025",
+    "Data Engineer",
+    "Kafka streaming for store analytics in TypeScript.",
+    "Beta Bank, a.s. 2019 - 2021",
+    "Analyst",
+    "Requirements for ATM software.",
+    "Acme Retail, a.s. 2015 - 2018",
+    "Junior Analyst",
+    "Reporting in SQL.",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Engineer at Acme Retail, a.s.", text: "Built streaming pipelines." },
+      { kind: "job", title: "Analyst at Beta Bank, a.s.", text: "Worked on ATMs." },
+      { kind: "job", title: "Junior Analyst at Acme Retail, a.s.", text: "Did reports." },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.equal(doc.headline, "Data Engineer", "the shouted name is never read back as the headline");
+  assert.deepEqual(
+    doc.experience.map((r) => [r.role, r.dates, r.bullets.map((b) => b.text).join(" ")]),
+    [
+      ["Data Engineer", "04/2022 – 09/2025", "Kafka streaming for store analytics in TypeScript."],
+      ["Analyst", "2019 – 2021", "Requirements for ATM software."],
+      ["Junior Analyst", "2015 – 2018", "Reporting in SQL."],
+    ]
+  );
+});

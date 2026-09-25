@@ -13177,7 +13177,9 @@
         "clearFilters": "Filter zurücksetzen",
         "noSkills": "Ihr Profil nennt keine Fähigkeiten, daher beruhen diese Scores nur auf Bereich und Level.",
         "noSkillsDrop": "Ausführlicheren Lebenslauf ablegen",
-        "noSkillsPolish": "Meinen Lebenslauf überarbeiten"
+        "noSkillsPolish": "Meinen Lebenslauf überarbeiten",
+        "twins": "{n, plural, one {+# weiterer Ort} other {+# weitere Orte}}",
+        "noReqs": "die Anzeige nennt keine Anforderungen, Kenntnisse wurden daher nicht verglichen"
       },
       "weigh": {
         "eyebrow": "Schritt 7 · Abwägen",

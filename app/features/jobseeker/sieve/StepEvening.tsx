@@ -421,7 +421,7 @@ export function StepEvening({
                     {tDir("mark")}
                   </span>
                 ) : null}
-                <span className="meta">{[r.company, r.location, r.workMode ? tMode(r.workMode) : null].filter(Boolean).join(" · ")}</span>
+                <span className="meta">{[r.company, r.location, r.workMode ? tMode(r.workMode) : null, facts.twins[r.id]?.length ? t("twins", { n: facts.twins[r.id]!.length }) : null, r.matchedSkills.length + r.missingSkills.length === 0 ? t("noReqs") : null].filter(Boolean).join(" · ")}</span>
                 <span className="scoreline">
                   <span className="sc">{r.matchTotal}</span>
                   {r.confidence ? (
@@ -569,7 +569,7 @@ export function StepEvening({
                     {isNew(r) ? `${t("new")} · ` : ""}
                     {r.status !== "new" ? `${tStatus(r.status)} · ` : ""}
                     {r.id === guidedId ? `${t("guided")} · ` : ""}
-                    {[r.company, r.location, r.workMode ? tMode(r.workMode) : null].filter(Boolean).join(" · ")}
+                    {[r.company, r.location, r.workMode ? tMode(r.workMode) : null, facts.twins[r.id]?.length ? t("twins", { n: facts.twins[r.id]!.length }) : null, r.matchedSkills.length + r.missingSkills.length === 0 ? t("noReqs") : null].filter(Boolean).join(" · ")}
                   </span>
                 </span>
                 <span className="bnd">

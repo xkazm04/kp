@@ -16,6 +16,9 @@ import { AdapterCollapsed, type PostingRef, type SourceAdapter } from "./types";
 
 export const ARBEITNOW_HOST = "www.arbeitnow.com";
 export const ARBEITNOW_MAX_PAGES = 4;
+/** One API page is 250 postings with full HTML descriptions: measured 2.23 MB live on
+ *  2026-09-25, past the fetcher's 2 MB default (the first live scan failed `too_large`). */
+export const ARBEITNOW_MAX_PAGE_BYTES = 8 * 1024 * 1024;
 export const arbeitnowPageUrl = (page: number) => `https://${ARBEITNOW_HOST}/api/job-board-api?page=${page}`;
 
 type Item = Record<string, unknown>;
@@ -74,7 +77,7 @@ export const arbeitnowAdapter: SourceAdapter = {
   async *discover(ctx) {
     let kept = 0;
     for (let page = 1; page <= ARBEITNOW_MAX_PAGES; page++) {
-      const out = mustOk(await ctx.fetch(arbeitnowPageUrl(page), { sourceId: ctx.source.id, accept: "application/json" }));
+      const out = mustOk(await ctx.fetch(arbeitnowPageUrl(page), { sourceId: ctx.source.id, accept: "application/json", maxBytes: ARBEITNOW_MAX_PAGE_BYTES }));
       const payload = parseJsonBody(out.body) as { data?: unknown; links?: { next?: unknown } } | null;
       if (!payload || !Array.isArray(payload.data)) throw new AdapterCollapsed("shape_changed", "Arbeitnow response has no data array");
       for (const item of payload.data as unknown[]) {

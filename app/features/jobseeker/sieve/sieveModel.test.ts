@@ -201,3 +201,18 @@ test("a replaced score is said only when the deep-dive moved it", () => {
   assert.equal(replacedScore({ previousTotal: null, matchTotal: 39 }), null);
   assert.equal(replacedScore(null), null);
 });
+
+test("the same job listed once per place is one row, the best-scored copy, with its twins", () => {
+  const f = deriveSieve(
+    [
+      row("y1", { sourceId: "src-on", title: "AI/ML Engineer", company: "YPOG", matchTotal: 60, fitTier: "promising" }),
+      row("y2", { sourceId: "src-on", title: "AI/ML Engineer ", company: "ypog", matchTotal: 62, fitTier: "promising" }),
+      row("y3", { sourceId: "src-on", title: "AI/ML Engineer", company: "YPOG", matchTotal: 55, fitTier: "partial" }),
+      row("n1", { sourceId: "src-on", title: "AI Engineer", company: null, matchTotal: 50, fitTier: "partial" }),
+      row("n2", { sourceId: "src-on", title: "AI Engineer", company: null, matchTotal: 49, fitTier: "partial" }),
+    ],
+    [ON]
+  );
+  assert.deepEqual(f.scored.map((r) => r.id), ["y2", "n1", "n2"], "no employer = never folded");
+  assert.deepEqual(f.twins, { y2: ["y1", "y3"] });
+});

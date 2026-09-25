@@ -2,6 +2,7 @@
 // cleanup, the RawPosting factory, and the preference filter feeds apply locally.
 
 import { htmlToText } from "../../job-posting-fetch";
+import { targetForms } from "../targetAliases";
 import type { FetchOk, FetchOutcome } from "../fetch/politeFetch";
 import { isWorkMode, type JobseekerPreferences, type RawPosting } from "../types";
 import { FetchHalt, type AdapterContext } from "./types";
@@ -108,7 +109,9 @@ function wordsOf(s: string): string {
  *  is a ranking signal the matcher weighs, and a title that does not spell the slug
  *  ("Senior AI Engineer" for `software_engineering`) is not evidence it is off-target. */
 export function matchesTargets(title: string, prefs: JobseekerPreferences): boolean {
-  const needles = prefs.targetTitles.map(wordsOf).filter(Boolean);
+  // Each stated title with its synonyms (the ONE alias table the matcher reads too):
+  // "AI Engineer" keeps "AI vývojář" and "KI-Entwickler" from a Czech or German feed.
+  const needles = prefs.targetTitles.flatMap(targetForms);
   if (needles.length === 0) return true;
   const hay = wordsOf(title);
   return needles.some((needle) => hay.includes(needle));

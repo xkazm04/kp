@@ -77,3 +77,26 @@ test("matchesTargets: with titles set, a family slug is not read as title text",
   // Under the old filter "data_science" became the needle "data science" and let this through.
   assert.equal(matchesTargets("Data Science Intern", prefs({ targetTitles: ["AI Engineer"], targetRoleFamilies: ["data_science"] })), false);
 });
+
+test("matchesTargets: a stated title keeps its synonyms in cs/de, from the one alias table", () => {
+  // The first live scan read 39,644 Czech MPSV titles against the literal words
+  // "AI Engineer" and kept none.
+  const ai = prefs({ targetTitles: ["AI Engineer"] });
+  assert.equal(matchesTargets("AI vývojář", ai), true);
+  assert.equal(matchesTargets("Senior KI-Entwickler (m/w/d)", ai), true);
+  assert.equal(matchesTargets("Machine Learning Engineer", ai), true);
+  assert.equal(matchesTargets("Data Analyst (AI Insights)", ai), false);
+  assert.equal(matchesTargets("Uklízečka", ai), false);
+});
+
+test("eures: the live search shape (locationMap) gives the country and a Czech region name", async () => {
+  const { euresItemToRaw } = await import("./eures.ts");
+  const cz = euresItemToRaw({ id: "a1", title: "AI Engineer", employer: { name: "Blocshop, s.r.o." }, locationMap: { CZ: ["CZ010"] }, description: "<p>RAG</p>" })!;
+  assert.equal(cz.country, "cz");
+  assert.equal(cz.location, "Praha");
+  const de = euresItemToRaw({ id: "a2", title: "KI-Entwickler", locationMap: { DE: ["DE212"] } })!;
+  assert.equal(de.country, "de");
+  assert.equal(de.location, null, "no place name is guessed outside the Czech table");
+  const none = euresItemToRaw({ id: "a3", title: "Tester" })!;
+  assert.equal(none.country, null);
+});

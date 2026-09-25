@@ -181,8 +181,12 @@ test("eures: POSTs the seeker's keywords/countries, maps items; a response witho
   const adapter = adapterFor("eures");
   const refs = await collect(adapter.discover(ctx));
   assert.equal(refs.length, 2);
-  const body = JSON.parse(posted!) as { keywords: { keyword: string }[]; locationCodes: string[]; resultsPerPage: number };
+  const body = JSON.parse(posted!) as { keywords: { keyword: string; specificSearchCode: string }[]; locationCodes: string[]; resultsPerPage: number; sortSearch: string };
   assert.deepEqual(body.keywords.map((k) => k.keyword), ["Java developer"]);
+  // EURES reads a keyword as ANY of its words: stated titles search TITLES, best match
+  // first (an EVERYWHERE / MOST_RECENT query answered cooks and cleaners live).
+  assert.deepEqual(body.keywords.map((k) => k.specificSearchCode), ["TITLE"]);
+  assert.equal(body.sortSearch, "BEST_MATCH");
   assert.deepEqual(body.locationCodes, ["cz", "de"]);
   assert.equal(body.resultsPerPage, 50);
   const raw = (await adapter.detail(refs[0], ctx))!;

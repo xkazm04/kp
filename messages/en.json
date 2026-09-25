@@ -13177,7 +13177,9 @@
         "clearFilters": "Clear filters",
         "noSkills": "Your profile lists no skills, so these scores come from field and level only.",
         "noSkillsDrop": "Drop a fuller CV",
-        "noSkillsPolish": "Polish my CV"
+        "noSkillsPolish": "Polish my CV",
+        "twins": "{n, plural, one {+# more place} other {+# more places}}",
+        "noReqs": "the ad lists no requirements, so skills were not compared"
       },
       "weigh": {
         "eyebrow": "Step 7 · Weigh",

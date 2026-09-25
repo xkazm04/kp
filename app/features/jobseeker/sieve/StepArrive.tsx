@@ -53,6 +53,9 @@ export function StepArrive({
   const [failure, setFailure] = useState<ImportFailure | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  // Was a CV already in when this file was chosen? Only then is there a score for the
+  // replace note to speak about - a first import has none yet.
+  const [replacing, setReplacing] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const busy = stage === "extracting" || stage === "drafting" || stage === "saving";
 
@@ -65,6 +68,7 @@ export function StepArrive({
       return;
     }
     setRefusal(null);
+    setReplacing(profile !== null);
     setFile(next);
   };
 
@@ -150,7 +154,7 @@ export function StepArrive({
       ) : null}
       {/* A new CV re-reads the person, not the postings: the scores on screen were
           computed against the old one until the next scan (StepWant says the same). */}
-      {compact && (file || busy || stage === "saved") ? <p className="small muted">{t("replaceNote")}</p> : null}
+      {compact && replacing && (file || busy || stage === "saved") ? <p className="small muted">{t("replaceNote")}</p> : null}
       {busy || stage === "saved" ? (
         <ol className="stages" aria-live="polite">
           {IMPORT_STAGES.map((s) => {

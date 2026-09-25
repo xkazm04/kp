@@ -13177,7 +13177,9 @@
         "clearFilters": "Zrušit filtry",
         "noSkills": "Váš profil neuvádí žádné dovednosti, takže tato skóre vycházejí jen z oboru a úrovně.",
         "noSkillsDrop": "Nahrát úplnější CV",
-        "noSkillsPolish": "Vylepšit moje CV"
+        "noSkillsPolish": "Vylepšit moje CV",
+        "twins": "{n, plural, one {+# další místo} few {+# další místa} many {+# dalšího místa} other {+# dalších míst}}",
+        "noReqs": "inzerát neuvádí žádné požadavky, dovednosti tedy nebylo s čím porovnat"
       },
       "weigh": {
         "eyebrow": "Krok 7 · Zvážení",

@@ -54,6 +54,10 @@ export type PoliteFetchOptions = {
    *  public-host egress guard here, so a link to a public page cannot bounce the fetch onto
    *  a private address). Answers a refusal reason, or null to allow the hop. */
   hopGuard?: (next: URL) => Promise<string | null>;
+  /** Raise the buffered-body cap for ONE known API whose pages are legitimately large
+   *  (Arbeitnow: 250 postings with full descriptions per page run past 2 MB). Clamped
+   *  to MAX_BODY_BYTES_CEILING; the default stays MAX_BODY_BYTES for everything else. */
+  maxBytes?: number;
 };
 
 export type PoliteFetch = (url: string, opts: PoliteFetchOptions) => Promise<FetchOutcome>;
@@ -71,6 +75,8 @@ export const STREAM_IDLE_TIMEOUT_MS = 20_000;
 export const STREAM_TOTAL_TIMEOUT_MS = 120_000;
 /** A listing or detail page is tens of kB; two megabytes is a download, not a page. */
 export const MAX_BODY_BYTES = 2 * 1024 * 1024;
+/** The most any caller may raise the buffered cap to (PoliteFetchOptions.maxBytes). */
+export const MAX_BODY_BYTES_CEILING = 16 * 1024 * 1024;
 /** No host is asked more often than this, whatever robots.txt says or omits. */
 export const MIN_SPACING_MS = 2_000;
 /** The jitter band added on top of the spacing; the offset inside it is a hash of the source id. */
@@ -267,9 +273,9 @@ function looksLikeInterstitial(contentType: string, body: string): boolean {
   return INTERSTITIAL_SIGNATURES.some((sig) => head.includes(sig));
 }
 
-async function readBounded(res: Response): Promise<{ text: string } | { tooLarge: true }> {
+async function readBounded(res: Response, max: number = MAX_BODY_BYTES): Promise<{ text: string } | { tooLarge: true }> {
   const declared = Number(res.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+  if (Number.isFinite(declared) && declared > max) {
     await res.body?.cancel().catch(() => undefined);
     return { tooLarge: true };
   }
@@ -282,7 +288,7 @@ async function readBounded(res: Response): Promise<{ text: string } | { tooLarge
     if (done) break;
     if (value) {
       total += value.byteLength;
-      if (total > MAX_BODY_BYTES) {
+      if (total > max) {
         await reader.cancel().catch(() => undefined);
         return { tooLarge: true };
       }
@@ -446,7 +452,7 @@ export const politeFetch: PoliteFetch = async function politeFetch(url, opts): P
           await res.body?.cancel().catch(() => undefined);
           return { kind: "ok", status: res.status, contentType, body: "", finalUrl: current.href, stream: null };
         }
-        const read = await readBounded(res);
+        const read = await readBounded(res, Math.min(Math.max(opts.maxBytes ?? MAX_BODY_BYTES, 1), MAX_BODY_BYTES_CEILING));
         if ("tooLarge" in read) return { kind: "outage", status: res.status, detail: "too_large" };
         if (looksLikeInterstitial(contentType, read.text)) return { kind: "blocked", status: res.status, detail: "interstitial" };
         return { kind: "ok", status: res.status, contentType, body: read.text, finalUrl: current.href, stream: null };

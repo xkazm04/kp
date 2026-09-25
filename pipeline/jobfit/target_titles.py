@@ -22,9 +22,11 @@ Title matching is deliberately plain and explainable:
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from functools import lru_cache
+from pathlib import Path
 
 from .taxonomy import DEFAULT_FAMILY, ROLE_FAMILY_SET, WORD_RE, classify_role_family
 
@@ -33,18 +35,16 @@ SENIORITY_WORDS = frozenset({
     "senior", "sr", "snr", "junior", "jr", "medior", "mid", "lead", "principal", "staff",
 })
 
-# Synonym groups. The FIRST entry is the canonical form (the one whose role family a
-# stated title in the group routes to — "GenAI Engineer" alone would classify as
-# software engineering; the group reads it as the AI engineer it names).
-ALIAS_GROUPS: tuple[tuple[str, ...], ...] = (
-    (
-        "AI Engineer", "ML Engineer", "LLM Engineer", "Machine Learning Engineer",
-        "GenAI Engineer", "Gen AI Engineer", "Generative AI Engineer", "Applied AI Engineer",
-    ),
-    ("Frontend Developer", "Front-end Developer", "Frontend Engineer", "Front-end Engineer", "UI Developer"),
-    ("Backend Developer", "Back-end Developer", "Backend Engineer", "Back-end Engineer"),
-    ("Full-stack Developer", "Fullstack Developer", "Full-stack Engineer", "Fullstack Engineer"),
-    ("QA Engineer", "Quality Assurance Engineer", "Test Engineer", "Test Automation Engineer", "Software Tester"),
+# Synonym groups, shared with the feed adapters' title filter through ONE file
+# (target_title_aliases.json) so the fetch-side filter and this matcher can never
+# disagree about what counts as the target. The FIRST entry is the canonical form (the
+# one whose role family a stated title in the group routes to — "GenAI Engineer" alone
+# would classify as software engineering; the group reads it as the AI engineer it
+# names). Rows carry the same job in cs/de/fr, so a Czech MPSV or German EURES title
+# ("AI vývojář", "KI-Entwickler") reads as the target it is.
+_ALIASES_FILE = Path(__file__).with_name("target_title_aliases.json")
+ALIAS_GROUPS: tuple[tuple[str, ...], ...] = tuple(
+    tuple(group) for group in json.loads(_ALIASES_FILE.read_text(encoding="utf-8"))["groups"]
 )
 
 _PARENTHETICAL = re.compile(r"\([^)]*\)|\[[^\]]*\]")

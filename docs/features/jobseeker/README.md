@@ -43,7 +43,7 @@ becomes a sticky horizontal strip.
 | 2–3 Your CV → You | `StepYou.tsx` | the CV text beside the person read out of it; on first view per CV per session the phrases the reading used light up and FLY into the portrait (`readCv` finds them on word boundaries, one flight per key). Skill tiles: size = level, SHAPE = provenance (solid work · half side project · ring study · dashed italic + STATED tag). "No AI read this" is one calm line when the draft came from the fixed parser. **Polish my CV** opens the existing `CvStudio` overlay |
 | 4 What you want | `StepWant.tsx` | five tap-first cards (places + country codes, pay floor slider with currency and period, titles, work modes, level) + languages read-only from the CV; the target FIELDS (`targetRoleFamilies`) as removable chips beside the titles, with the note that titles now shape the ranking; an unreadable country code is said inline. Saves as you go: `PUT /api/jobseeker/profile { preferences, preferencesReplace: true }`, debounced; says scores move on the next scan and offers Scan now |
 | 5 The sieve | `StepSieve.tsx` | every posting a dot, poured through named layers: held at the door (source off or paused), one layer per hard gate (most-catching first; a two-gate posting ringed on the first, ghosted on the second), waiting for a score, then the scored field piled by score. Counters tick as dots land; a decision or a source switch MOVES dots. Each layer opens a list where a gated row states what it would have scored — never a zero |
-| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort. A "Your direction" filter over the list (on by default when a target title is stated and a row matches; it says how many postings it hides; the top five stay the sieve's own ranking and carry a bullseye when they match the target); the skyline is a keyboard slider; a profile with no skill claims says its scores come from field and level only, with "drop a fuller CV" / "polish" |
+| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort. A "Your direction" filter over the list (on by default when a target title is stated and a row matches; it says how many postings it hides; the top five stay the sieve's own ranking and carry a bullseye when they match the target); the skyline is a keyboard slider; a profile with no skill claims says its scores come from field and level only, with "drop a fuller CV" / "polish". The same job listed once per place (EURES files a multi-region vacancy per region) is ONE row - same source, title and employer (`sieveModel.ts` `twinKey`), the best-scored copy kept, "+N more places" on it; a row with no employer is never folded. A posting whose ad lists no requirements says so beside its score (skills were not compared, which is why it sits low) |
 | 7 Weigh | `StepWeigh.tsx` | one posting via `GET /api/jobseeker/postings/[id]`: band gauge, the contribution stack, skills with provenance, the settled fit conversation (gaps, questions, cover-note draft) or a door to `FitStudio`, the deep read, the ad; the five checks, pay against the floor in one currency (`compareSalary`), where it came from. A sticky decide bar: Apply opens the ad first and only then offers "I applied", Let go asks why (`DISMISS_REASONS`), Undo; keys A / S / D decide, J / K walk the list the seeker is looking at. A direction chip ("Matches your target: …" / "In your target field" / "Your past field: …", from `targetAlignment`), "was n" beside a score a deep-dive replaced (`previousTotal`), and a note when the written read predates the last profile change (`reasoningStale`); the cover-note draft survives a reload, per posting (sessionStorage, per viewer) |
 | 8 Sources | `StepSources.tsx` | three lanes (tier A one tap; tier B a lock until the site's clause is acknowledged in a modal — checkbox first, CTA disabled until ticked, a changed clause re-asks; tier C refused, no control). Each card says what the source put in the sieve, or how many wait at the door while it is off |
 
@@ -440,6 +440,14 @@ another page's printout. The first page bleeds to the top edge. Every page keeps
 foot and a continuation page a 10 mm head. In print the sidebar's tint is a fixed box, so
 it runs the full height of page two.
 
+**The CV's own lines, even after an AI draft.** On the model path the draft's role text
+is a paraphrase (a real CV lost "TypeScript" and every date). `sourceRoleOf` finds each
+role in the CV text by its employer (the nth mention for an employer held twice), takes
+the dates on or beside that line and the lines under it up to the next role, heading or
+dated line, and the sheet sets those verbatim; the draft text is the fallback only when
+the employer is not found. The headline compares folded, so "MICHAL KAŽDAN" is never read
+back as the headline of "Michal Každan".
+
 **Tailored to a target** (`cvTailor.ts`, pure). The designer's "Tailor for" row lists the
 seeker's `targetTitles`; picking one REORDERS AND EMPHASISES, never adds a word. The summary
 leads with its most target-relevant sentence (every sentence verbatim); roles keep their
@@ -531,6 +539,25 @@ AI Engineering) used to be ranked by the past. Now:
   the link-back its terms ask for; country only from the `.co.uk`/`.fr` edition domains,
   never a salary. Remotive was evaluated and NOT added: its robots.txt disallows
   `/api/*` in a second `User-agent: *` group.
+- **Measured live (2026-09-25), and fixed from it.** A real career-change run (an
+  analyst-to-AI CV, target "AI Engineer", Praha + cz/de/at/nl, remote or hybrid) found
+  four acquisition defects no unit test could see:
+  - EURES reads a keyword as ANY of its words: "AI Engineer" searched EVERYWHERE and sorted
+    by date answered 454,121 vacancies and the first 300 were cooks and cleaners. With
+    stated titles the search is now title-scoped and `BEST_MATCH`-sorted (eures.ts
+    `euresRequestBody`); the same scan then held 158 target postings of 296.
+  - EURES answers `locationMap: {"CZ": ["CZ010"]}`, not the `locations[]` the adapter
+    read, so every posting was stored with no country and no place. Now the country
+    comes from the map and a Czech NUTS-3 code is named ("CZ010" -> Praha); other markets
+    carry the country, no guessed place.
+  - An Arbeitnow page is 2.23 MB (250 postings with full descriptions), past the
+    fetcher's 2 MB cap, so the source failed `too_large`. `PoliteFetchOptions.maxBytes`
+    raises the cap for one known API (clamped to 16 MB); Arbeitnow asks for 8 MB.
+  - The MPSV title filter read 39,644 Czech vacancies against the literal words "AI
+    Engineer" and kept none. Stated titles now expand through ONE alias table,
+    `pipeline/jobfit/target_title_aliases.json`, read by the matcher
+    (`target_titles.py`) and the adapters (`app/_lib/jobseeker/targetAliases.ts`) alike,
+    with the same job in cs/de/fr ("AI vývojář", "KI-Entwickler", "Ingénieur IA").
 - **robots.txt groups combine** (RFC 9309 §2.2.1): several groups naming the same agent
   are one group, and the politest Crawl-delay among them binds (`fetch/robots.ts`
   `groupFor`). Reading only the first `*` group had treated that Remotive API as allowed.

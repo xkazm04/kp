@@ -13177,7 +13177,9 @@
         "clearFilters": "Effacer les filtres",
         "noSkills": "Votre profil n’indique aucune compétence : ces scores reposent donc uniquement sur le domaine et le niveau.",
         "noSkillsDrop": "Déposer un CV plus complet",
-        "noSkillsPolish": "Retravailler mon CV"
+        "noSkillsPolish": "Retravailler mon CV",
+        "twins": "{n, plural, one {+# autre lieu} other {+# autres lieux}}",
+        "noReqs": "l’annonce ne liste aucune exigence, les compétences n’ont donc pas été comparées"
       },
       "weigh": {
         "eyebrow": "Étape 7 · Peser",
