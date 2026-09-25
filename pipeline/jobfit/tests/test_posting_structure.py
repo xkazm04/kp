@@ -252,6 +252,20 @@ def _run(module, argv):
     return code, out.getvalue(), err.getvalue()
 
 
+class DetectLanguagesStems(unittest.TestCase):
+    """A four-plus-letter needle is a word STEM: "ital" must start a word. As a bare
+    substring it read "digital" as Italian on every CV and ad that mentioned digital
+    work (measured on a real Czech CV, 2026-09-25: "Digital process analysis")."""
+
+    def test_digital_is_not_italian(self):
+        self.assertNotIn("Italian", posting_structure.detect_languages("Digital process analysis and digitalizace workflows."))
+
+    def test_a_real_stem_still_prefix_matches(self):
+        self.assertIn("Italian", posting_structure.detect_languages("Mluvím italsky a anglicky."))
+        self.assertIn("German", posting_structure.detect_languages("Sehr gute Deutschkenntnisse und Deutsch fließend."))
+        self.assertIn("Czech", posting_structure.detect_languages("Čeština rodilý mluvčí."))
+
+
 class StructureCli(unittest.TestCase):
     def test_batch_skips_one_bad_posting_and_names_it(self):
         with tempfile.TemporaryDirectory() as d:

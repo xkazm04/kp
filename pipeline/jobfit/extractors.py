@@ -4,6 +4,7 @@ import re
 import unicodedata
 import zipfile
 from pathlib import Path
+from typing import Any
 
 try:
     # defusedxml blocks entity-expansion ("billion laughs") bombs that stdlib
@@ -247,6 +248,133 @@ def _extract_pdf(path: Path) -> str:
     return _extract_pdf_with_page_count(path)[0]
 
 
+# ---------------------------------------------------------------------------
+# Two-column reading order
+# ---------------------------------------------------------------------------
+#
+# A fixed-layout PDF stores positioned glyphs, not sentences, and a sidebar CV
+# template interleaves its two columns in the content stream: pypdf's default
+# order put a sidebar's section headings above the candidate's name and glued an
+# email onto a GitHub URL that sat beside it on the same baseline. The repair is
+# LAYOUT reasoning, so it is gated on a measured signal (the registry technique
+# text-extraction-damage-and-repair: "repair layout only where you can prove it"):
+# a vertical gutter that NO text fragment crosses, with real text on both sides.
+# Without that proof the page keeps pypdf's own order, unchanged.
+
+_COLUMN_MIN_SIDE_SHARE = 0.12  # each column carries at least this share of the page's characters
+_COLUMN_MIN_SIDE_LINES = 4  # ...and at least this many lines
+_COLUMN_GUTTER_BAND = (0.18, 0.82)  # the gutter sits inside this span of the text's width
+_COLUMN_MIN_GUTTER = 0.04  # and is at least this wide, as a share of the text's width
+_SPACED_FRAGMENT = re.compile(rf"^{_LETTER}(?: {_LETTER})+(?:  {_LETTER}(?: {_LETTER})*)*$", flags=re.UNICODE)
+
+
+def _unspace_fragment(text: str) -> str:
+    """A fragment that is WHOLLY letter-spaced ("S W  A N A L Y S I S") is one tracked
+    heading: single spaces are tracking, double spaces are the word breaks."""
+    stripped = text.strip()
+    if len(stripped) >= 3 and _SPACED_FRAGMENT.match(stripped):
+        return " ".join(word.replace(" ", "") for word in stripped.split("  "))
+    return text
+
+
+def _page_fragments(page: Any) -> list[tuple[float, float, float, float, str]]:
+    """(x0, x1, y, size, text) per non-blank fragment, y growing DOWN the page."""
+    raw: list[tuple[float, float, float, float, str]] = []
+
+    def visit(text: str, cm: list[float], tm: list[float], _font: Any, size: float) -> None:
+        if not text or not text.strip():
+            return
+        # pypdf also reports accumulated output as one multi-line chunk carrying no
+        # real position; every line of it arrives again, positioned, on its own.
+        if "\n" in text.strip("\n"):
+            return
+        text = text.strip("\n")
+        x = tm[4] * cm[0] + tm[5] * cm[2] + cm[4]
+        y = tm[4] * cm[1] + tm[5] * cm[3] + cm[5]
+        scale_x = abs(tm[0] * cm[0]) or abs(cm[0]) or 1.0
+        scale_y = abs(tm[3] * cm[3]) or abs(cm[3]) or 1.0
+        # the device-space y axis points up unless the matrices flip it
+        flip = (tm[3] * cm[3]) < 0
+        width = len(text) * size * 0.5 * scale_x  # a generous average glyph width
+        raw.append((x, x + width, -y if not flip else y, size * scale_y, text))
+
+    page.extract_text(visitor_text=visit)
+    return raw
+
+
+def _find_gutter(frags: list[tuple[float, float, float, float, str]]) -> float | None:
+    """The x of a vertical gutter no fragment crosses, or None when there is none."""
+    if len(frags) < 2 * _COLUMN_MIN_SIDE_LINES:
+        return None
+    left = min(f[0] for f in frags)
+    right = max(f[1] for f in frags)
+    span = right - left
+    if span <= 0:
+        return None
+    lo, hi = left + span * _COLUMN_GUTTER_BAND[0], left + span * _COLUMN_GUTTER_BAND[1]
+    # The union of every fragment's [x0, x1]: a gutter is an x-stretch no fragment
+    # covers. Keep the widest one whose middle falls inside the band.
+    best: tuple[float, float] | None = None
+    reach = left
+    for x0, x1 in sorted((f[0], f[1]) for f in frags):
+        if x0 > reach:
+            mid, gap = (reach + x0) / 2, x0 - reach
+            if lo <= mid <= hi and gap >= span * _COLUMN_MIN_GUTTER and (best is None or gap > best[1]):
+                best = (mid, gap)
+        reach = max(reach, x1)
+    if not best:
+        return None
+    cut = best[0]
+    left_side = [f for f in frags if f[0] < cut]
+    right_side = [f for f in frags if f[0] >= cut]
+    chars = sum(len(f[4].strip()) for f in frags) or 1
+    for side in (left_side, right_side):
+        lines = {round(f[2] / max(f[3], 1.0)) for f in side}
+        if sum(len(f[4].strip()) for f in side) / chars < _COLUMN_MIN_SIDE_SHARE or len(lines) < _COLUMN_MIN_SIDE_LINES:
+            return None
+    return cut
+
+
+def _column_text(frags: list[tuple[float, float, float, float, str]]) -> str:
+    """Fragments of one column → lines, top to bottom, each line left to right."""
+    lines: list[list[tuple[float, float, float, float, str]]] = []
+    for frag in sorted(frags, key=lambda f: (f[2], f[0])):
+        tolerance = frag[3] * 0.45
+        if lines and abs(lines[-1][0][2] - frag[2]) <= tolerance:
+            lines[-1].append(frag)
+        else:
+            lines.append([frag])
+    out: list[str] = []
+    for line in lines:
+        parts = [_unspace_fragment(f[4]) for f in sorted(line, key=lambda f: f[0])]
+        text = ""
+        for part in parts:
+            if text and not text.endswith(" ") and not part.startswith((" ", ",", ".", ";", ":", ")", "!", "?")):
+                text += " "
+            text += part
+        out.append(re.sub(r"\s+", " ", text).strip())
+    return "\n".join(line for line in out if line)
+
+
+def _page_text(page: Any) -> str:
+    """One page's text: the two columns read one after the other when a gutter is
+    proven (the WIDER column first — it is the body; a sidebar follows it), else
+    pypdf's own order."""
+    default = page.extract_text() or ""
+    try:
+        frags = _page_fragments(page)
+        cut = _find_gutter(frags)
+    except Exception:  # noqa: BLE001 - a layout probe must never cost the page its text
+        return default
+    if cut is None:
+        return default
+    left = [f for f in frags if f[0] < cut]
+    right = [f for f in frags if f[0] >= cut]
+    width = lambda side: max(f[1] for f in side) - min(f[0] for f in side)  # noqa: E731
+    first, second = (right, left) if width(right) >= width(left) else (left, right)
+    return _column_text(first) + "\n\n" + _column_text(second)
+
+
 def _extract_pdf_with_page_count(path: Path) -> tuple[str, int]:
     try:
         from pypdf import PdfReader
@@ -261,7 +389,7 @@ def _extract_pdf_with_page_count(path: Path) -> tuple[str, int]:
     for i, page in enumerate(reader.pages):
         if i >= MAX_PDF_PAGES or total >= MAX_TEXT_CHARS:
             break
-        chunk = page.extract_text() or ""
+        chunk = _page_text(page)
         pages.append(chunk)
         total += len(chunk)
     return clean_text(collapse_letter_spacing("\n".join(pages))), len(reader.pages)

@@ -84,7 +84,8 @@ Four workspace-scoped tables (all in `TENANCY_SCOPED_TABLES`, each with a coloca
 
 ## Keyless behaviour (product property)
 
-- The CV import's draft step (`/api/profile/draft` -> `profile_draft_cli`) degrades to `pipeline/jobfit/cv_draft.py` when no provider can serve (no key, `KP_OFFLINE`, a refused route): taxonomy skill terms, the years / city / seniority readers and the language aliases produce a thin, `self_declared` profile, and the CLI answers `source: "deterministic"` so the page can say what read the CV.
+- The CV import's draft step (`/api/profile/draft` -> `profile_draft_cli`) degrades to `pipeline/jobfit/cv_draft.py` when no provider can serve (no key, `KP_OFFLINE`, a refused route): taxonomy skill terms, the years / city / seniority readers and the language aliases produce a thin, `self_declared` profile, and the CLI answers `source: "deterministic"` so the page can say what read the CV. Roles are split at their date lines inside experience sections (`dated_roles`: "Role — Org (dates)", an education range is never a job, a blank line or an ALL-CAPS label ends a role), and `years_experience` is the stated figure, else the UNION of the dated intervals (overlaps count once, a backwards range is dropped). The location is read only from the header, which ends at the first section heading.
+- PDF text keeps a two-column template's reading order (`pipeline/jobfit/extractors.py`, `_page_text`): when a vertical gutter no fragment crosses is PROVEN, with text on both sides, the wider column is read first and the sidebar after it; otherwise pypdf's own order stands. Before this, a sidebar CV imported with its section labels above the name and an email glued onto the URL beside it.
 - Dialog turns come from `pipeline/jobfit/jobseeker_cli.py`; without a provider the
   scripted `deterministic_turn` answers with `source: "deterministic"` and a
   `fallbackReason` — never an empty reply.
@@ -252,7 +253,8 @@ rate is read as `salary_period="hour"` with no band, and a **yearly** figure in 
 own currency is restated ×12 for the BAND only, noted `salary_period_converted:year->month`,
 so the seeker is never told "posting states no pay" about an ad that stated its pay),
 `min_years_experience` from "N+ years/let/Jahre/ans", languages from the
-taxonomy alias table plus de/fr ad-side forms. `posting_structure_cli.py` takes
+taxonomy alias table plus de/fr ad-side forms (a stem of four letters or more must
+START a word: "ital" read "digital" as Italian until 2026-09-25). `posting_structure_cli.py` takes
 `[{id, raw}]` and answers `{jobs, notes}` (one bad posting is skipped and named; exit 2 for
 malformed input).
 

@@ -286,7 +286,9 @@ _EXTRA_LANGUAGE_NEEDLES: dict[str, tuple[str, ...]] = {
 def detect_languages(text: str) -> list[str]:
     """Language names via the taxonomy's own alias table (``language_aliases``) plus the
     German/French ad-side forms above; a needle under four characters must stand as a
-    whole word so "en " does not fire on Czech prose."""
+    whole word so "en " does not fire on Czech prose, and a longer one is a STEM that
+    must start a word ("italsky", "Italienisch") — never a substring inside one, which
+    read "dig-ital" as Italian on every CV and ad that mentioned digital work."""
     folded = text.casefold()
     out: list[str] = []
     for lang, needles in LANGUAGE_ALIASES.items():
@@ -299,7 +301,7 @@ def detect_languages(text: str) -> list[str]:
                 if re.search(rf"(?<!\w){re.escape(n)}(?!\w)", folded):
                     hit = True
                     break
-            elif n in folded:
+            elif re.search(rf"(?<!\w){re.escape(n)}", folded):
                 hit = True
                 break
         if hit:
