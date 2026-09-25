@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Button, KeyValueGrid, Mark, ReadingPane, Section, formatCount } from "@/app/_components/kit";
+import { Button, KeyValueGrid, Mark, Note, ReadingPane, Section, formatCount } from "@/app/_components/kit";
 import { StageRail } from "@/app/_components/kit/graphic";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { canonicalScoreOf } from "@/app/_lib/match-score";
@@ -15,6 +15,7 @@ import type { PipelineKit } from "./usePipelineKit";
 import { provenance } from "./pipelineKitModel";
 import { historyTrail, pathCells, stagePosition } from "./pipelinePaneModel";
 import { useApprovalWord } from "./useApprovalWord";
+import { PipelineKitMove } from "./PipelineKitMove";
 
 /**
  * The reading pane for one entry: who and where, what waits on you, the record, the entry's path
@@ -24,6 +25,7 @@ import { useApprovalWord } from "./useApprovalWord";
  */
 export function PipelineKitPane({ s, k, entry, onOpenRecord }: { s: PipelineTabState; k: PipelineKit; entry: Entry; onOpenRecord: () => void }) {
   const t = useTranslations("pipeline.kit");
+  const tt = useTranslations("pipeline.tab");
   const locale = useLocale();
   const fmt = useDateFormat();
   const enumLabel = useEnumLabel();
@@ -59,6 +61,11 @@ export function PipelineKitPane({ s, k, entry, onOpenRecord }: { s: PipelineTabS
           <Button label={t("openDecisions")} variant="primary" onClick={s.goToDecisions} />
         </>
       ) : null}
+      {s.moveError && s.moveErrorEntryId === entry.id ? (
+        <Note tone="critical" action={<Button label={tt("moveErrorDismiss")} variant="ghost" size="sm" onClick={s.dismissMoveError} />}>{s.moveError}</Note>
+      ) : null}
+      {/* The kit's move: a menu here (and on the row), `m` while this pane is open. Rejected rows move in the record. */}
+      {entry.status === "active" ? <div className="k-pane-acts"><PipelineKitMove s={s} entry={entry} where="pane" hotkey /></div> : null}
       <KeyValueGrid
         items={[
           { label: t("kvStage"), value: stageLabel },

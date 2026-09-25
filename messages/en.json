@@ -3185,7 +3185,23 @@
       "scrollLeft": "Scroll one stage left",
       "scrollRight": "Scroll one stage right",
       "movedAnnounce": "Moved {name} to {stage}",
-      "dropHint": "Drop a candidate here to move them to this stage."
+      "dropHint": "Drop a candidate here to move them to this stage.",
+      "rejectedAt": "Rejected at {stage}",
+      "rejectedAtByAi": "Rejected at {stage} by the AI",
+      "rankCandidates": "Rank candidates →",
+      "openJd": "Open the job description",
+      "lineMenu": {
+        "aria": "Actions for {count, plural, one {# new candidate} other {# new candidates}}",
+        "scope": "{count, plural, =0 {No new candidates} one {# new candidate} other {# new candidates}}",
+        "acceptAll": "Accept all",
+        "rejectAll": "Reject all…",
+        "confirmRejectAll": "Reject {count, plural, one {# candidate} other {# candidates}}: click again",
+        "aiEvaluate": "AI evaluate",
+        "evaluating": "Evaluating {count, plural, one {# candidate} other {# candidates}} in the background.",
+        "accepted": "Accepted {ok} of {total}.",
+        "rejected": "Rejected {ok} of {total}.",
+        "failed": "Couldn’t apply that to the position."
+      }
     },
     "legend": {
       "awaitingDecision": "Awaiting your decision",
@@ -3493,7 +3509,8 @@
       "bulkDraftFailed": "{count} couldn't draft. Still selected, retry",
       "selectionDeparted": "{count, plural, one {# selected candidate left the board (closed elsewhere) and was deselected} other {# selected candidates left the board (closed elsewhere) and were deselected}}",
       "bulkMoveConfirm": "Confirm move ({count})",
-      "bulkMoveOfferHeld": "{count, plural, one {# kept back with a drafted offer, still selected. Extend or discard the offer first} other {# kept back with drafted offers, still selected. Extend or discard the offers first}}"
+      "bulkMoveOfferHeld": "{count, plural, one {# kept back with a drafted offer, still selected. Extend or discard the offer first} other {# kept back with drafted offers, still selected. Extend or discard the offers first}}",
+      "moveErrorDismiss": "Dismiss"
     },
     "emptyState": {
       "optional": "Optional",
@@ -3949,6 +3966,13 @@
       "leadPending": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement.",
       "leadPendingUngated": "{channel} lead: profile pending enrichment. The full-apply link was sent in the acknowledgement. Eligibility not verified by the source form: {ungated}",
       "atsImported": "Imported from {channel}: no CV profile yet. Build one from the candidate's CV to score them."
+    },
+    "offAxis": {
+      "title": "Off the board",
+      "intro": "{count, plural, one {# candidate sits on a stage this board no longer has.} other {# candidates sit on stages this board no longer has.}} Move them somewhere real, or they stay invisible to the funnel.",
+      "onStage": "{stage} · {count}",
+      "moveAll": "Move all to…",
+      "moveAria": "Move everyone stranded on {stage} to another stage"
     }
   },
   "decisions": {

@@ -3185,7 +3185,23 @@
       "scrollLeft": "Posunout o jednu fázi vlevo",
       "scrollRight": "Posunout o jednu fázi vpravo",
       "movedAnnounce": "{name} přesunut/a do fáze {stage}",
-      "dropHint": "Přetažením sem přesunete kandidáta do této fáze."
+      "dropHint": "Přetažením sem přesunete kandidáta do této fáze.",
+      "rejectedAt": "Zamítnuto ve fázi {stage}",
+      "rejectedAtByAi": "Zamítnuto AI ve fázi {stage}",
+      "rankCandidates": "Seřadit kandidáty →",
+      "openJd": "Otevřít popis pozice",
+      "lineMenu": {
+        "aria": "Akce pro {count, plural, one {# nového kandidáta} few {# nové kandidáty} other {# nových kandidátů}}",
+        "scope": "{count, plural, =0 {Žádní noví kandidáti} one {# nový kandidát} few {# noví kandidáti} other {# nových kandidátů}}",
+        "acceptAll": "Přijmout všechny",
+        "rejectAll": "Zamítnout všechny…",
+        "confirmRejectAll": "Zamítnout {count, plural, one {# kandidáta} few {# kandidáty} other {# kandidátů}}, klikněte znovu",
+        "aiEvaluate": "Vyhodnotit AI",
+        "evaluating": "Na pozadí se vyhodnocuje {count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}}.",
+        "accepted": "Přijato {ok} z {total}.",
+        "rejected": "Zamítnuto {ok} z {total}.",
+        "failed": "Akci se nepodařilo na pozici použít."
+      }
     },
     "legend": {
       "awaitingDecision": "Čeká na vaše rozhodnutí",
@@ -3493,7 +3509,8 @@
       "bulkDraftFailed": "{count} se nepodařilo připravit. Výběr zůstává, zkuste to znovu",
       "selectionDeparted": "{count, plural, one {# vybraný kandidát opustil nástěnku (uzavřen jinde) a výběr u něj byl zrušen} few {# vybraní kandidáti opustili nástěnku (uzavřeni jinde) a výběr u nich byl zrušen} other {# vybraných kandidátů opustilo nástěnku (uzavřeni jinde) a výběr u nich byl zrušen}}",
       "bulkMoveConfirm": "Potvrdit přesun ({count})",
-      "bulkMoveOfferHeld": "{count, plural, one {# zadržen kvůli připravené nabídce, zůstává vybrán. Nejprve nabídku odešlete nebo zahoďte} few {# zadrženi kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte} other {# zadrženo kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte}}"
+      "bulkMoveOfferHeld": "{count, plural, one {# zadržen kvůli připravené nabídce, zůstává vybrán. Nejprve nabídku odešlete nebo zahoďte} few {# zadrženi kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte} other {# zadrženo kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte}}",
+      "moveErrorDismiss": "Zavřít"
     },
     "emptyState": {
       "optional": "Volitelné",
@@ -3949,6 +3966,13 @@
       "leadPending": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení.",
       "leadPendingUngated": "Lead z kanálu {channel}: profil čeká na doplnění. Odkaz na plnou přihlášku byl odeslán v potvrzení. Způsobilost zdrojový formulář neověřil: {ungated}",
       "atsImported": "Importováno ze systému {channel}: zatím bez profilu z životopisu. Pro hodnocení vytvořte profil z životopisu kandidáta."
+    },
+    "offAxis": {
+      "title": "Mimo nástěnku",
+      "intro": "{count, plural, one {# kandidát je ve fázi, kterou tato nástěnka už nemá.} few {# kandidáti jsou ve fázích, které tato nástěnka už nemá.} other {# kandidátů je ve fázích, které tato nástěnka už nemá.}} Přesuňte je do existující fáze, jinak zůstanou pro trychtýř neviditelní.",
+      "onStage": "{stage} · {count}",
+      "moveAll": "Přesunout všechny do…",
+      "moveAria": "Přesunout všechny uvízlé ve fázi {stage} do jiné fáze"
     }
   },
   "decisions": {

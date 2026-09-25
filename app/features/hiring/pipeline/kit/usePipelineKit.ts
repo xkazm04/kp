@@ -8,6 +8,7 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { entryMatchesFilters, sortFilteredEntries } from "../pipelineBoardFilters";
 import type { PipelineTabState } from "../usePipelineTabState";
 import type { KitFilters } from "./useKitFilters";
+import { useRejectedShelf } from "./useRejectedShelf";
 import { buildLayers, dimmed, listRows, OUT, presets, rankByMatch, sieveDots, type Ctx, type Filters } from "./pipelineKitModel";
 
 /** A short, stable signature for a replay key: equal data, equal key, no replay. */
@@ -51,10 +52,15 @@ export function usePipelineKit(s: PipelineTabState, f: KitFilters) {
     }),
     [query, quicks, scoreBands, sources, stageFilter, slaOverrides, axis, now, layer, needsOnly, role, brush]
   );
-  // Rejected rows are counted on the exit layer but never on the board payload: that layer lists nobody.
+  // Rejected rows never ride the board payload: the exit layer lists the rejected shelf, fetched per lane
+  // only once that layer is picked (useRejectedShelf), and searched with the same text query.
+  const shelf = useRejectedShelf(layer === OUT, s.rejectedByLane, entries, role);
   const rows = useMemo(
-    () => (layer === OUT ? [] : sortFilteredEntries(listRows(entries, filters, rankOf, ctx), sort, { now })),
-    [layer, entries, filters, rankOf, ctx, sort, now]
+    () =>
+      layer === OUT
+        ? shelf.rows.filter((e) => entryMatchesFilters(e, { query, quicks: new Set(), scoreBands: new Set(), sources: new Set(), stage: null }, { axis, now }))
+        : sortFilteredEntries(listRows(entries, filters, rankOf, ctx), sort, { now }),
+    [layer, shelf.rows, query, axis, entries, filters, rankOf, ctx, sort, now]
   );
   const dim = useMemo(() => dimmed(entries, filters, rankOf, ctx), [entries, filters, rankOf, ctx]);
   const roles = useMemo(() => {
@@ -65,11 +71,11 @@ export function usePipelineKit(s: PipelineTabState, f: KitFilters) {
 
   const sieveKey = useMemo(() => `pour${pour}|${signature(entries.map((e) => `${e.id}:${e.stage}:${e.stageChangedAt ?? ""}`))}`, [pour, entries]);
   const skyKey = useMemo(() => signature(ranked.map((e) => `${e.id}:${ctx.score(e) ?? "-"}`)), [ranked, ctx]);
-  const open = selected ? entries.find((e) => e.id === selected) ?? null : null;
+  const open = selected ? entries.find((e) => e.id === selected) ?? shelf.rows.find((e) => e.id === selected) ?? null : null;
   const index = open ? rows.findIndex((e) => e.id === open.id) : -1;
 
   return {
-    ctx, entries, ranked, rankOf, layers, dots, rows, dim, roles, presets: presets(ranked, ctx),
+    ctx, entries, ranked, rankOf, layers, dots, rows, dim, roles, presets: presets(ranked, ctx), shelf,
     layer, role, needsOnly, brush, sieveKey, skyKey, open, index,
     resetKey: `${f.scope}|${s.visibleScope}`,
     toggleLayer: (id: string) => f.setLayer((cur) => (cur === id ? null : id)),

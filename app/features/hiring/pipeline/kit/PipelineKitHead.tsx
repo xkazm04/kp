@@ -11,6 +11,7 @@ import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
 import { PipelineKitFacets } from "./PipelineKitFacets";
 import { PipelineKitViews } from "./PipelineKitViews";
+import { PipelineKitRole } from "./PipelineKitRole";
 import { useSlashSearch } from "./useSlashSearch";
 
 /**
@@ -72,6 +73,7 @@ export function PipelineKitHead({ s, k, status }: { s: PipelineTabState; k: Pipe
         search={<span ref={searchRef} className="contents"><SearchField label={tt("searchLabel")} value={s.query} onChange={s.setQueryAndSync} /></span>}
       />
       <PipelineKitViews s={s} />
+      <PipelineKitRole s={s} k={k} />
       {offBoard ? (
         <Note tone="caution" action={<Button label={tt("stageOffBoardClear")} variant="ghost" size="sm" onClick={s.clearStageFilter} />}>
           {tt("stageOffBoard", { stage: resolved?.label || enumLabel("stage", s.stageFilter ?? "") })}

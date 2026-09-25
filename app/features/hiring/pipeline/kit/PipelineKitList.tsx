@@ -1,75 +1,29 @@
 "use client";
 
-import { Fragment } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Button, DataTable, Mark, Section, formatCount, type Column, type PartState } from "@/app/_components/kit";
-import { ShapeMark } from "@/app/_components/kit/graphic";
-import { stageHasRole } from "@/app/_lib/pipeline-stages";
-import type { Entry } from "@/app/features/shared/pipelineTypes";
+import { Button, DataTable, Note, Section, formatCount, type PartState } from "@/app/_components/kit";
 import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
-import { ageDays, OUT, provenance } from "./pipelineKitModel";
-import { useApprovalWord } from "./useApprovalWord";
-import { SelectBox } from "@/app/_components/kit/SelectBox";
+import { OUT } from "./pipelineKitModel";
 import { PipelineKitBulk } from "./PipelineKitBulk";
+import { usePipelineKitCells } from "./PipelineKitCells";
 
-/** "Candidates": the windowed list, waiting-on-you first, then by match; a row opens the reading pane. */
+/**
+ * "Candidates": the windowed list, waiting-on-you first, then by match (or the chosen sort); a row
+ * opens the reading pane, or in select mode toggles its checkbox. The exit layer lists the rejected
+ * shelf. A refused move the pane is not showing is stated above the rows, with a dismiss.
+ */
 export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabState; k: PipelineKit; status: PartState; onEditSla: () => void }) {
   const t = useTranslations("pipeline.kit");
   const tt = useTranslations("pipeline.tab");
-  const tr = useTranslations("pipeline.candidateRow");
   const locale = useLocale();
-  const approval = useApprovalWord();
   const n = (v: number) => formatCount(v, locale);
-  const label = (id: string) => k.layers.find((l) => l.id === id)?.label ?? id;
-  const tone = (id: string) => k.layers.find((l) => l.id === id)?.tone ?? "default";
+  const { columns, cells } = usePipelineKitCells(s, k);
   const total = k.entries.length;
   const rejected = k.layers.find((l) => l.exit)?.count ?? 0;
-
-  const columns: Column[] = [
-    { id: "mark", label: "", track: "mark" },
-    { id: "name", label: t("colCandidate"), track: "name", primary: true },
-    { id: "stage", label: t("colStage"), track: "meta" },
-    { id: "source", label: t("colSource"), track: "meta+1", quiet: true },
-    { id: "match", label: t("colMatch"), track: "fig", numeric: true },
-    { id: "age", label: t("colAge"), track: "time", numeric: true, tip: t("colAgeTip") },
-    { id: "act", label: "", track: "act" },
-  ];
-
   const picking = s.selectMode;
-  const entryMark = (e: Entry) => {
-    if (picking) return <SelectBox checked={s.selectedIds.has(e.id)} label={tr("selectCandidate", { name: e.candidateLabel })} onToggle={() => s.toggleSelected(e)} />;
-    if (k.ctx.needs(e)) return <Mark kind="needs" tip={t("markWaiting", { what: approval(e.approvalKind) })} />;
-    if (stageHasRole(e.stage, "terminal", s.axis)) return <Mark kind="ok" tip={t("markHired")} />;
-    return <Mark kind="wait" tip={t("markActive", { stage: label(e.stage) })} />;
-  };
-
-  const cells = (e: Entry) => {
-    const pv = provenance(e);
-    const score = k.ctx.score(e);
-    const age = ageDays(e, k.ctx.now);
-    const moved = pv === "solid";
-    return [
-      entryMark(e),
-      <Fragment key="name">{e.candidateLabel}<small>{e.jobTitle ?? t("noRole")}</small></Fragment>,
-      // At <= 1000px of sheet the reason folds out of the cell (kit.css): the tip still carries it.
-      <span key="stage" className="k-stagecell" data-tip={k.ctx.needs(e) ? `${label(e.stage)} · ${approval(e.approvalKind)}` : undefined}>
-        <ShapeMark shape={pv} tone={tone(e.stage)} tip={t(`prov.${pv}`)} />
-        <span>{label(e.stage)}</span>
-        {k.ctx.needs(e) ? <span className="k-needs-t">{approval(e.approvalKind)}</span> : null}
-      </span>,
-      e.sourceChannel ? s.channelName(e.sourceChannel) : <span className="k-absent" data-tip={t("sourceNone")} tabIndex={-1}>—</span>,
-      score == null ? <span className="k-absent" data-tip={t("neverScoredTip")} tabIndex={-1}>—</span> : n(score),
-      age == null ? (
-        <span className="k-absent" data-tip={t("prov.dashed")} tabIndex={-1}>—</span>
-      ) : moved ? (
-        t("ageDays", { days: age })
-      ) : (
-        <span className="k-absent" data-tip={t("neverMovedTip")} tabIndex={-1}>{t("ageDays", { days: age })}</span>
-      ),
-      <Button key="act" label={t("openHistory")} icon="right" iconOnly size="sm" variant="ghost" onClick={(ev) => { ev.stopPropagation(); k.select(e.id); }} />,
-    ];
-  };
+  const shelf = k.layer === OUT;
+  const bounced = s.moveError && s.moveErrorEntryId !== k.open?.id ? s.moveError : null;
 
   return (
     <Section
@@ -85,6 +39,7 @@ export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabSta
       }
     >
       {picking ? <PipelineKitBulk s={s} k={k} /> : null}
+      {bounced ? <Note tone="critical" action={<Button label={tt("moveErrorDismiss")} variant="ghost" size="sm" onClick={s.dismissMoveError} />}>{bounced}</Note> : null}
       <DataTable
         label={t("listLabel")}
         rows={k.rows}
@@ -101,10 +56,10 @@ export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabSta
           if (e) s.toggleSelected(e);
           else k.select(id);
         }}
-        state={status}
-        emptyText={k.layer === OUT ? t("outListEmpty", { count: rejected }) : tt("noMatch")}
+        state={shelf && status === "ready" ? (k.shelf.status === "error" ? "error" : k.shelf.status) : status}
+        emptyText={shelf ? t("outListEmpty", { count: rejected }) : tt("noMatch")}
         errorText={tt("loadFailed")}
-        onRetry={() => void s.load()}
+        onRetry={shelf ? k.shelf.retry : () => void s.load()}
         resetKey={k.resetKey}
       />
     </Section>

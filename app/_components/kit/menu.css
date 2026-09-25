@@ -93,3 +93,4 @@
 .k-dialog__num { width: 88px; font-variant-numeric: tabular-nums; }
 .k-bulkbar__result { flex-basis: 100%; }
 .k-bulkbar__why { display: block; }
+.k-pane-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }

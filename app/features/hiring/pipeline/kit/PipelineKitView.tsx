@@ -16,6 +16,7 @@ import { PipelineKitSkyline } from "./PipelineKitSkyline";
 import { PipelineKitList } from "./PipelineKitList";
 import { PipelineKitPane } from "./PipelineKitPane";
 import { PipelineKitSla } from "./PipelineKitSla";
+import { PipelineKitOffBoard } from "./PipelineKitOffBoard";
 import { PipelineKitViewDialog } from "./PipelineKitViewDialog";
 import { useKitFilters } from "./useKitFilters";
 
@@ -64,6 +65,7 @@ export function PipelineKitView() {
             />
           ) : (
             <>
+              <PipelineKitOffBoard s={s} />
               <PipelineKitSieve s={s} k={k} status={status} />
               <PipelineKitSkyline k={k} status={status} />
               <PipelineKitList s={s} k={k} status={status} onEditSla={() => setSlaOpen(true)} />

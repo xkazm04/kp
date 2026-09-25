@@ -76,3 +76,36 @@ test("the bulk actions keep their confirms: move previews first, outreach arms w
   assert.match(detail, /capabilityAwareReason\(/, "a refusal is read from its CODE in the reader's language");
   for (const k of ["selectionDeparted", "bulkMoveOfferHeld", "bulkInvitedQueued", "bulkDraftedQueued"]) assert.ok(detail.includes(k), k);
 });
+
+test("stage moves replace the drag: a Move menu in the pane (and `m`) and on the row, through the board's moveEntry", () => {
+  const move = read("PipelineKitMove.tsx");
+  assert.match(move, /onSelect=\{\(to\) => void s\.moveEntry\(entry, to\)\}/, "the board's optimistic, CAS-guarded move");
+  assert.match(move, /moveOptions\(entry\.stage, s\.axis/);
+  assert.match(move, /e\.key !== "m"/);
+  assert.match(read("PipelineKitPane.tsx"), /<PipelineKitMove s=\{s\} entry=\{entry\} where="pane" hotkey \/>/);
+  assert.match(read("PipelineKitCells.tsx"), /<PipelineKitMove s=\{s\} entry=\{e\} where="row" \/>/);
+});
+
+test("a refused move is stated: the bounce mark on its row, a note in its pane or above the list, a dismiss", () => {
+  assert.match(read("PipelineKitCells.tsx"), /s\.moveErrorEntryId === e\.id && s\.moveError\) return <Mark kind="bounce" tip=\{s\.moveError\} \/>/);
+  for (const f of ["PipelineKitPane.tsx", "PipelineKitList.tsx"]) assert.match(read(f), /s\.dismissMoveError/);
+});
+
+test("stranded candidates: named per retired column, with Move all to", () => {
+  const src = read("PipelineKitOffBoard.tsx");
+  assert.match(src, /strandedByStage\(/);
+  assert.match(src, /for \(const e of stranded\) void s\.moveEntry\(e, to\)/);
+  assert.match(read("PipelineKitView.tsx"), /<PipelineKitOffBoard s=\{s\} \/>/);
+});
+
+test("a picked role gets the Subway row's doors: open job, rank candidates, accept/reject all (armed), AI evaluate", () => {
+  const src = read("PipelineKitRole.tsx");
+  for (const call of ["s.openJob(", "s.openPositionRanking(", "postPipelineBatch(entryBatchItems(", 'startTask("batch_screen"']) assert.ok(src.includes(call), call);
+  assert.match(src, /armed === role \? void batch\("rejectAll"\) : setArmed\(role\)/);
+});
+
+test("the exit layer lists the rejected shelf, where and by whom", () => {
+  assert.match(read("usePipelineKit.ts"), /useRejectedShelf\(layer === OUT/);
+  assert.match(read("useRejectedShelf.ts"), /\/api\/pipeline\/rejected\?lane=/);
+  assert.match(read("PipelineKitCells.tsx"), /rejectedAtByAi/);
+});
