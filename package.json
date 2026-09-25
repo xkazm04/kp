@@ -69,6 +69,7 @@
     "agent:dispatch": "node scripts/agent/dispatch.mjs",
     "ci:budget": "node scripts/perf/ci-budget.mjs",
     "perf:budget": "node scripts/perf/check-budget.mjs",
+    "perf:vitals": "node scripts/style/serve.mjs --env KP_PERF_VITALS=1 -- npx playwright test e2e/perf-vitals.spec.ts --reporter=list",
     "perf:first-load": "node scripts/perf/first-load.mjs",
     "style:divergence": "node scripts/style/style-divergence.mjs",
     "style:shoot": "node scripts/style/shoot.mjs",
