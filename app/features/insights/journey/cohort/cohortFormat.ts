@@ -10,13 +10,14 @@ export function formatWait(seconds: number, locale: string): string {
   return new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "short", maximumFractionDigits: value < 10 ? 1 : 0 }).format(value);
 }
 
-/** Outcome tones. Failures (withdrew, went quiet) are the red family; a rejection is a
- *  decision, drawn neutral; hired is the good tone. */
+/** Outcome tones, on brand tokens so both registers remap them. The two failures (withdrew,
+ *  went quiet) are the coral family, coral being "needs you" across the kit: the process lost
+ *  these; a rejection is a decision, drawn neutral; hired is moss; a rematch is the dial amber. */
 export const OUTCOME_TONE: Record<JourneyCohortOutcome, string> = {
   hired: "bg-moss",
-  open: "bg-blue-200",
+  open: "bg-steel/40",
   rejected: "bg-stone-300",
-  rematched: "bg-amber-300",
-  withdrawn: "bg-red-500",
-  stalled: "bg-red-300",
+  rematched: "bg-dial-amber",
+  withdrawn: "bg-coral",
+  stalled: "bg-coral/40",
 };

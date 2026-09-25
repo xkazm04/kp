@@ -15,3 +15,25 @@
 
 /* The minimap: the kit's quiet plane, ruled like a kit section edge. */
 .jr-minimap { background: var(--k-plane); border-bottom: var(--k-line) solid var(--k-rule); }
+
+/* ---------- the cohort layer (the overlay's first level), on the same kit parts ---------- */
+/* The figures row is the kit's StatStrip; its first figure takes the same 16px inset as the others
+   rather than the measure's mark track (the layer has no row marks), inside Spark Dark's panel too. */
+.jr-cohort-stats .k-stats > .k-fig:first-child { padding-left: 16px; }
+.jr-cohort-stats { margin-bottom: 8px; }
+/* The river and its node: a neutral share on the path; the hotspot's node carries the coral edge. */
+.jr-river { background: var(--k-rule); }
+.jr-node { background: var(--color-paper); border-color: var(--k-ink); }
+.jr-node.is-hot { border-color: var(--color-coral); }
+.jr-rank { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--text-micro); color: var(--k-quiet); }
+/* The kit's figure bar, with a tick for the all-roles share and the cohort's two failure tones. */
+.jr-bar { position: relative; margin-top: 8px; }
+.jr-bar .k-fig__bar { height: 8px; border-radius: 4px; margin-top: 0; }
+.jr-bar .jr-bar--left i { background: var(--color-coral); }
+.jr-bar .jr-bar--stumbled i { background: var(--color-dial-amber); }
+.jr-bar__tick { position: absolute; top: -4px; width: 2px; height: 16px; border-radius: 1px; background: var(--k-ink); }
+.jr-cohort .k-fig { text-align: left; }
+/* The outcomes bar: one track, the outcome tones side by side, the kit's radius. */
+.jr-cohort-outcomes { margin-top: 8px; }
+.jr-outcome-bar { display: flex; height: 12px; margin-top: 16px; overflow: hidden; border-radius: 6px; background: var(--k-rule); }
+[data-theme="dark"] .jr-outcome-bar { outline: 2px solid var(--k-rule-strong); outline-offset: -2px; }

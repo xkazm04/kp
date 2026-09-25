@@ -1088,22 +1088,6 @@
     "features/insights/journey/JourneyRow.tsx": {
       "raw-button": 1
     },
-    "features/insights/journey/JourneyToolbar.tsx": {
-      "below-floor-text": 1,
-      "raw-text-size": 1
-    },
-    "features/insights/journey/cohort/CohortStation.tsx": {
-      "raw-status-hue": 6,
-      "bare-rounded": 1
-    },
-    "features/insights/journey/cohort/CohortSummary.tsx": {
-      "raw-status-hue": 1
-    },
-    "features/insights/journey/cohort/JourneyCohortView.tsx": {
-      "raw-text-size": 1,
-      "raw-status-hue": 2,
-      "bare-rounded": 3
-    },
     "features/insights/matrix/MatrixDataNotices.tsx": {
       "raw-text-size": 4,
       "raw-stone-text": 1,

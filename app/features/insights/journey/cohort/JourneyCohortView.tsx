@@ -6,10 +6,12 @@
 // candidates behind a stage is the board's job, one level down.
 
 import { useMemo, useState } from "react";
-import { ArrowDownRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
-import { BTN_PRIMARY, INTRO, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { Button } from "@/app/_components/kit/Button";
+import { Note } from "@/app/_components/kit/Section";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import { INTRO } from "@/app/_components/ui/recipes";
 import { buildSpine } from "./spine";
 import { hiringFailure, hiringInstances } from "./hiringAdapter";
 import { useJourneyCohort } from "./useJourneyCohort";
@@ -30,8 +32,15 @@ export function JourneyCohortView({ onOpenBoard }: { onOpenBoard: (jobId: string
   const roleTitle = cohort?.roles.find((r) => r.jobId === role)?.title ?? "";
 
   if (!cohort) {
-    if (error) return <p className={`${PANEL_SUNKEN} m-6 p-6 text-body text-red-700`} role="alert">{error}</p>;
-    return loading ? <CohortGhost /> : null;
+    if (error) {
+      return (
+        <div className="k-kit mx-auto w-full max-w-6xl px-6 py-8" data-density="compact">
+          <Note tone="critical">{error}</Note>
+        </div>
+      );
+    }
+    // A quiet box, not a skeleton (loading-choreography law 4).
+    return loading ? <LoadingGap className="m-6 min-h-[28rem]" /> : null;
   }
 
   const options = [
@@ -40,7 +49,8 @@ export function JourneyCohortView({ onOpenBoard }: { onOpenBoard: (jobId: string
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8" data-testid="journey-cohort">
+    // `k-kit`: the composition kit's variables and type for the parts this layer is set in.
+    <div className="k-kit jr-cohort mx-auto w-full max-w-6xl px-6 py-8" data-density="compact" data-testid="journey-cohort">
       <div className="flex flex-wrap items-end justify-between gap-4 pb-6">
         <div>
           <p className="text-h3 text-ink">
@@ -49,14 +59,17 @@ export function JourneyCohortView({ onOpenBoard }: { onOpenBoard: (jobId: string
               : t("subtitleRole", { count: view.length, role: roleTitle })}
           </p>
           <p className={`${INTRO} mt-1 max-w-3xl`}>{t("pathNote")} {t("timeNote")}</p>
-          {cohort.capped && <p className="mt-1 text-meta text-amber-800">{t("capped", { n: cohort.instances.length, total: cohort.scanned })}</p>}
+          {cohort.capped && <Note tone="caution">{t("capped", { n: cohort.instances.length, total: cohort.scanned })}</Note>}
         </div>
         <div className="flex items-center gap-3">
           <Select value={role} onChange={setRole} options={options} ariaLabel={t("roleLabel")} className="w-72" searchable />
-          <button type="button" className={`${BTN_PRIMARY} px-3 py-2 text-sm`} onClick={() => onOpenBoard(role === ALL ? null : role)} data-testid="journey-cohort-open-board">
-            {role === ALL ? t("openBoard") : t("openRoleBoard")}
-            <ArrowDownRight size={16} aria-hidden />
-          </button>
+          <Button
+            label={role === ALL ? t("openBoard") : t("openRoleBoard")}
+            icon="right"
+            variant="primary"
+            onClick={() => onOpenBoard(role === ALL ? null : role)}
+            data-testid="journey-cohort-open-board"
+          />
         </div>
       </div>
 
@@ -81,21 +94,6 @@ export function JourneyCohortView({ onOpenBoard }: { onOpenBoard: (jobId: string
           <CohortOutcomes outcomes={model.outcomes} total={model.n} />
         </>
       )}
-    </div>
-  );
-}
-
-function CohortGhost() {
-  return (
-    <div className="mx-auto w-full max-w-6xl animate-pulse space-y-10 px-6 py-8" aria-hidden="true">
-      <div className="h-16 rounded-lg bg-stone-100" />
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="grid grid-cols-[minmax(8rem,12rem)_4rem_minmax(0,1fr)] gap-x-8">
-          <span className="ml-auto h-7 w-28 rounded bg-stone-100" />
-          <span className="mx-auto h-24 w-8 rounded bg-stone-100" />
-          <span className="h-16 rounded bg-stone-100" />
-        </div>
-      ))}
     </div>
   );
 }
