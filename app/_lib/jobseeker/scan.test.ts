@@ -626,3 +626,35 @@ test("(stale stamp) a profile edit that lands while the scan is scoring leaves t
   assert.equal(next.rows.length, 3, "scored against the OLD preferences: the next scan re-matches them");
   assert.equal(next.skippedUpToDate, 0);
 });
+
+test("(o) a deep-dive re-match is stamped with the scan's inputs time, not the moment the dive finished", async () => {
+  // The same stale-stamp rule as (n), on the deep-dive's own re-match: the dive runs
+  // minutes after the profile was read, so a preferences edit saved in between must still
+  // postdate every matchedAt the dive writes.
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const runCli = scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, calls);
+  const base = depsFor(store, runCli, [source("alpha", { postings: [raw(1, "alpha")] })]);
+  const LATER = "2026-09-16T10:07:00.000Z";
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: {
+      ...base,
+      deepDive: (posting, prof, opts) =>
+        deepDivePosting(posting, prof, {
+          ...opts,
+          deps: {
+            runCli,
+            setPostingStructure: store.deps.setPostingStructure,
+            setPostingMatch: store.deps.setPostingMatch,
+            setPostingReasoning: store.deps.setPostingReasoning,
+            now: () => LATER,
+            log: () => undefined,
+          },
+        }),
+    },
+  });
+  assert.equal(summary.deepDived, 1);
+  assert.equal(store.rows.get("jpo-1")!.jobSource, "llm", "the dive restructured and re-matched the posting");
+  assert.equal(store.rows.get("jpo-1")!.matchedAt, NOW, "the re-match carries the scan's inputs time");
+});

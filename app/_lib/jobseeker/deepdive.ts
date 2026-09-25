@@ -65,11 +65,15 @@ export function adTextFor(posting: Pick<JobseekerPosting, "title" | "company" | 
 export async function deepDivePosting(
   posting: JobseekerPosting,
   profile: JobseekerProfile,
-  opts: { lang?: string; signal?: AbortSignal; workspaceId?: string; deps?: Partial<DeepDiveDeps> } = {}
+  opts: { lang?: string; signal?: AbortSignal; workspaceId?: string; inputsAt?: string; deps?: Partial<DeepDiveDeps> } = {}
 ): Promise<DeepDiveOutcome> {
   const deps: DeepDiveDeps = { ...defaultDeepDiveDeps, ...opts.deps };
   const ws = opts.workspaceId ?? DEFAULT_WORKSPACE_ID;
   const lang = opts.lang ?? "en";
+  // The re-match's stamp is the time its INPUTS were read (the caller's profile read; the
+  // scan passes its own), never the moment the dive finished: a preferences edit saved
+  // mid-dive must postdate matchedAt, or the row reads as current and is never re-matched.
+  const inputsAt = opts.inputsAt ?? deps.now();
   let job: Record<string, unknown> | null = posting.job;
   let restructured = false;
   let rematched = false;
@@ -119,7 +123,7 @@ export async function deepDivePosting(
       const { matched } = await matchChunk(profile, [{ id: posting.id, job }], deps.runCli, opts.signal);
       const hit = matched.find((m) => m.id === posting.id);
       if (hit) {
-        const projection = { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: deps.now() };
+        const projection = { total: hit.total, fitTier: hit.fitTier, version: MATCH_VERSION, matchedAt: inputsAt };
         if (deps.setPostingMatch(posting.id, hit.match, projection, ws, guard)) rematched = true;
         else markMoved("match");
       }

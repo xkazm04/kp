@@ -82,7 +82,7 @@ export type ScanDeps = {
   setPostingMatch: typeof setPostingMatch;
   setPostingBlocked: typeof setPostingBlocked;
   listDeepDiveCandidates: typeof listDeepDiveCandidates;
-  deepDive: (posting: JobseekerPosting, profile: JobseekerProfile, opts: { signal?: AbortSignal; workspaceId: string }) => Promise<DeepDiveOutcome>;
+  deepDive: (posting: JobseekerPosting, profile: JobseekerProfile, opts: { signal?: AbortSignal; workspaceId: string; inputsAt: string }) => Promise<DeepDiveOutcome>;
   runCli: CliRunner;
   log: (event: AdapterLogEvent & { sourceId?: string }, error?: unknown) => void;
 };
@@ -280,7 +280,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
       for (const posting of shortlist) {
         if (signal.aborted) break;
         try {
-          const result = await deps.deepDive(posting, profile, { signal, workspaceId });
+          const result = await deps.deepDive(posting, profile, { signal, workspaceId, inputsAt });
           if (result.kind === "done") {
             summary.deepDived += 1;
             continue;
