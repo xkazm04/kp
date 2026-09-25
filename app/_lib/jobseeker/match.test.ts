@@ -72,6 +72,8 @@ test("matchChunk drops a blocked id outside the chunk and filters ko keys to the
   assert.deepEqual(outcome.blocked, [{ id: "p1", match: asIf("p1"), koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"] }]);
 });
 
-test("MATCH_VERSION moved so every row stored under v1 is re-matched once and gains its verdict", () => {
-  assert.equal(MATCH_VERSION, "jobseeker-match-v2");
+test("MATCH_VERSION moved so every row stored under v2 is re-matched once against the stated targets", () => {
+  // v2: KO'd postings gained their gate verdict. v3: the seeker's targetTitles /
+  // targetRoleFamilies reach the career score and ride back as targetAlignment.
+  assert.equal(MATCH_VERSION, "jobseeker-match-v3");
 });

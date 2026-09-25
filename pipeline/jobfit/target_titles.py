@@ -1,0 +1,128 @@
+"""The seeker's STATED direction, read against a posting title.
+
+A job seeker names the titles they would apply to (``JobseekerPreferences.targetTitles``)
+and, optionally, role families (``targetRoleFamilies``). The matcher reads that
+direction in the CAREER dimension only (see ``matching.score_career``): it is a
+preference fit, never a claim of possession, so nothing here touches skills.
+
+Title matching is deliberately plain and explainable:
+
+* case- and diacritics-folded ("Inženýr" == "inzenyr");
+* parentheticals are dropped ("Senior AI Engineer (LLM)", "Tester (m/w/d)");
+* seniority words are dropped on BOTH sides (``SENIORITY_WORDS``) — a seeker who says
+  "AI Engineer" is looking at "Senior AI Engineer" too, and level is the seniority
+  part of the career score's job, not the title's;
+* the stated title must occur as a WHOLE-WORD run inside the posting title
+  ("AI Engineer" hits "Applied AI Engineer" and "AI/ML Engineer", never "Maintainer");
+* a tiny curated alias table (``ALIAS_GROUPS``) treats common synonyms as one
+  target. It is small on purpose: every row is a claim that two titles name the same
+  job, and a row that is wrong steers a real person's feed. Add a row only for true
+  synonyms, never for "related" roles — relatedness is what the role-family state is for.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from functools import lru_cache
+
+from .taxonomy import DEFAULT_FAMILY, ROLE_FAMILY_SET, WORD_RE, classify_role_family
+
+# Level words ignored on both sides of a title comparison.
+SENIORITY_WORDS = frozenset({
+    "senior", "sr", "snr", "junior", "jr", "medior", "mid", "lead", "principal", "staff",
+})
+
+# Synonym groups. The FIRST entry is the canonical form (the one whose role family a
+# stated title in the group routes to — "GenAI Engineer" alone would classify as
+# software engineering; the group reads it as the AI engineer it names).
+ALIAS_GROUPS: tuple[tuple[str, ...], ...] = (
+    (
+        "AI Engineer", "ML Engineer", "LLM Engineer", "Machine Learning Engineer",
+        "GenAI Engineer", "Gen AI Engineer", "Generative AI Engineer", "Applied AI Engineer",
+    ),
+    ("Frontend Developer", "Front-end Developer", "Frontend Engineer", "Front-end Engineer", "UI Developer"),
+    ("Backend Developer", "Back-end Developer", "Backend Engineer", "Back-end Engineer"),
+    ("Full-stack Developer", "Fullstack Developer", "Full-stack Engineer", "Fullstack Engineer"),
+    ("QA Engineer", "Quality Assurance Engineer", "Test Engineer", "Test Automation Engineer", "Software Tester"),
+)
+
+_PARENTHETICAL = re.compile(r"\([^)]*\)|\[[^\]]*\]")
+
+
+def _fold(text: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
+
+
+def title_tokens(title: str) -> tuple[str, ...]:
+    """A title as the comparison sees it: folded, parentheticals and level words gone."""
+    text = _PARENTHETICAL.sub(" ", _fold(title))
+    return tuple(t for t in WORD_RE.findall(text) if t not in SENIORITY_WORDS)
+
+
+def _group_of(tokens: tuple[str, ...]) -> tuple[str, ...] | None:
+    for group in ALIAS_GROUPS:
+        if any(title_tokens(alias) == tokens for alias in group):
+            return group
+    return None
+
+
+@lru_cache(maxsize=256)
+def _forms(title: str) -> tuple[tuple[str, ...], ...]:
+    """Every token run that counts as a hit for one stated title (itself + its aliases)."""
+    own = title_tokens(title)
+    if not own:
+        return ()
+    group = _group_of(own)
+    forms = [own]
+    if group:
+        forms += [f for f in (title_tokens(a) for a in group) if f and f not in forms]
+    return tuple(forms)
+
+
+def _contains_run(haystack: tuple[str, ...], needle: tuple[str, ...]) -> bool:
+    k = len(needle)
+    return any(haystack[i:i + k] == needle for i in range(len(haystack) - k + 1))
+
+
+def matched_target_title(posting_title: str, target_titles: list[str] | tuple[str, ...]) -> str | None:
+    """The first stated title the posting title matches (the seeker's own wording), or None."""
+    posting = title_tokens(posting_title)
+    if not posting:
+        return None
+    for stated in target_titles:
+        if any(_contains_run(posting, form) for form in _forms(stated)):
+            return stated
+    return None
+
+
+def has_title_form(title: str) -> bool:
+    """Whether a stated title leaves anything to match once level words are dropped."""
+    return bool(_forms(title))
+
+
+@lru_cache(maxsize=256)
+def _family_of_title(title: str) -> str | None:
+    tokens = title_tokens(title)
+    if not tokens:
+        return None
+    group = _group_of(tokens)
+    family = classify_role_family([], group[0] if group else title)
+    # A signal-free title falls through to the default family; that is "unknown", not
+    # a stated direction — reading it as one would make every general posting a hit.
+    return None if family == DEFAULT_FAMILY else family
+
+
+def target_families(target_titles: list[str] | tuple[str, ...], target_role_families: list[str] | tuple[str, ...]) -> list[str]:
+    """The families the seeker is heading for: the ones they stated (known families
+    only, in their order), then the families their stated titles route to."""
+    out: list[str] = []
+    for family in target_role_families:
+        if family in ROLE_FAMILY_SET and family not in out:
+            out.append(family)
+    for title in target_titles:
+        family = _family_of_title(title)
+        if family and family not in out:
+            out.append(family)
+    return out

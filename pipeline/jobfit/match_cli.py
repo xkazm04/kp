@@ -34,11 +34,12 @@ def main(argv: list[str] | None = None) -> int:
         "--preferences-json",
         type=Path,
         default=None,
-        help="Seeker JobseekerPreferences JSON (salaryFloor, locations, countries, workModes, seniority) — "
-        "overlaid on the candidate. salaryFloor/locations/countries drive only the MatchResult.eligibility "
-        "flags; workModes and seniority are matching inputs (transform.apply_preferences): both reach the "
-        "KO filter and seniority the career score, so they can remove a job — pair with --include-blocked "
-        "to see which and what it would score.",
+        help="Seeker JobseekerPreferences JSON (salaryFloor, locations, countries, workModes, seniority, "
+        "targetTitles, targetRoleFamilies) — overlaid on the candidate. salaryFloor/locations/countries drive "
+        "only the MatchResult.eligibility flags; workModes and seniority are matching inputs "
+        "(transform.apply_preferences): both reach the KO filter and seniority the career score, so they can "
+        "remove a job — pair with --include-blocked to see which and what it would score. targetTitles/"
+        "targetRoleFamilies reach ONLY the career score's direction term and ride back as targetAlignment.",
     )
     parser.add_argument(
         "--include-blocked",

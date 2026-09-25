@@ -29,6 +29,7 @@ from .education import education_gate, is_degree_unstated
 from .jobs import Job
 from .market_config import ACTIVE_MARKET
 from .models import _Base
+from .target_titles import has_title_form, matched_target_title, target_families
 from .taxonomy import (
     DEFAULT_PROVENANCE,
     WORD_RE,
@@ -143,6 +144,12 @@ class MatchCandidate(_Base):
     # ISO-3166-1 alpha-2, lower-case ("cz", "de"). The Job model carries no country
     # field today, so these match on location text only (see eligibility_flags).
     preferred_countries: list[str] = Field(default_factory=list)
+    # The seeker's STATED direction (JobseekerPreferences.targetTitles /
+    # targetRoleFamilies, overlaid by transform.apply_preferences). Read ONLY by the
+    # career-direction term (see _target_alignment / score_career) — a preference fit,
+    # never skill evidence. Both empty (every recruiter path) = scoring unchanged.
+    target_titles: list[str] = Field(default_factory=list)
+    target_role_families: list[str] = Field(default_factory=list)
     label: str = "Candidate"
     # Compact CV-derived context for the reasoning layer (Layer C) so the rationale
     # can cite a concrete, candidate-specific fact instead of generic boilerplate.
@@ -254,6 +261,30 @@ class EligibilityFlag(_Base):
     detail: str
 
 
+TargetState = Literal["target", "family", "past", "none"]
+
+
+class TargetAlignment(_Base):
+    """How a posting sits against the seeker's STATED direction (seeker path only).
+
+    * ``target`` — the posting title matches a stated target title (``matched_title``
+      is the seeker's own wording of it; see target_titles.matched_target_title);
+    * ``family`` — no title hit, but the posting's role family is one of
+      ``target_families`` (stated families + the families the stated titles route to);
+    * ``past``   — neither, but the posting's family is the profile's own (CV) family,
+      ``past_family`` — where the seeker has been, not where they said they are going;
+    * ``none``   — none of these.
+
+    Absent (None) on MatchResult when the seeker stated no target at all, so every
+    recruiter payload is unchanged.
+    """
+
+    state: TargetState
+    matched_title: str | None = None
+    target_families: list[str] = Field(default_factory=list)
+    past_family: str | None = None
+
+
 class MatchResult(_Base):
     job_id: str
     title: str
@@ -297,9 +328,12 @@ class MatchResult(_Base):
     # work_mode). ADDITIVE and back-compatible: absent or empty means "not read".
     # Never an input to total, fit_tier or the KO filter — see eligibility_flags.
     eligibility: list[EligibilityFlag] = Field(default_factory=list)
+    # The posting against the seeker's stated direction (see TargetAlignment). None —
+    # and so absent from the exclude_none dump — when no target was stated.
+    target_alignment: TargetAlignment | None = None
 
 
-KoReasonKey = Literal["language", "seniority", "early_career", "education", "work_mode"]
+KoReasonKey =Literal["language", "seniority", "early_career", "education", "work_mode"]
 
 
 class BlockedMatch(_Base):
@@ -666,8 +700,46 @@ def score_skills(
     return round(score, 4), matched, missing, strength, unproven
 
 
+def _target_alignment(candidate: MatchCandidate, job: Job) -> TargetAlignment | None:
+    """The posting against the seeker's stated direction, or None when nothing usable
+    was stated (no title with a matchable form, no known family) — which is every
+    recruiter-side candidate, so their scores cannot move."""
+    titles = [t for t in candidate.target_titles if has_title_form(t)]
+    families = target_families(titles, candidate.target_role_families)
+    if not titles and not families:
+        return None
+    past = candidate.role_family or None
+    hit = matched_target_title(job.title or "", titles)
+    if hit is not None:
+        state: TargetState = "target"
+    elif job.role_family and job.role_family in families:
+        state = "family"
+    elif past and job.role_family == past:
+        state = "past"
+    else:
+        state = "none"
+    return TargetAlignment(state=state, matched_title=hit, target_families=families, past_family=past)
+
+
+# The family term of the career score when the seeker STATED a direction. The past
+# (CV) family is deliberately not on this map: once a seeker says where they are
+# going, where they have been is no longer a full match — it falls to the same floor
+# as an unrelated family. A family hit is short of a title hit because a family is
+# wide ("data_ai" holds analysts and ML engineers alike).
+_TARGET_FAMILY_FIT: dict[str, float] = {"target": 1.0, "family": 0.75}
+
+
+def _family_fit(candidate: MatchCandidate, job: Job, otherwise: float) -> float:
+    alignment = _target_alignment(candidate, job)
+    if alignment is None:
+        return 1.0 if candidate.role_family == job.role_family else otherwise
+    return _TARGET_FAMILY_FIT.get(alignment.state, otherwise)
+
+
 def score_career(candidate: MatchCandidate, job: Job) -> float:
-    family = 1.0 if candidate.role_family == job.role_family else 0.35
+    # Without a stated target this is exactly the historical rule (the CV family is a
+    # 1.0, anything else 0.35) — byte-identical for every recruiter caller.
+    family = _family_fit(candidate, job, 0.35)
     cand_rank = _SENIORITY_RANK.get(candidate.seniority, 2)
     job_rank = _SENIORITY_RANK.get(job.seniority, 2)
     seniority_proximity = 1.0 - abs(cand_rank - job_rank) / 3.0
@@ -828,8 +900,11 @@ def score_motivation(candidate: MatchCandidate, job: Job, *, embedder: Any | Non
     (``in``, ``v``, ``na``) must still not hit, which is why the length guard
     is not simply deleted.
     """
-    family_hit = 1.0 if candidate.role_family == job.role_family else 0.3
-    asp = " ".join(candidate.aspirations).casefold()
+    # With a stated target the family term reads the seeker's direction, as the
+    # career score does for BAU (for early-career the career slot is POTENTIAL, so
+    # this "fit" slot is where direction lives); without one it is unchanged.
+    family_hit = _family_fit(candidate, job, 0.3)
+    asp =" ".join(candidate.aspirations).casefold()
     title = (job.title or "").casefold()
     aspiration_hit: float | None = None
     pair = _motivation_embed_pair(candidate, job) if embedder is not None else None
@@ -1156,6 +1231,7 @@ def score_job(
         graduate_friendliness=ep.graduate_friendliness if ep else 0.0,
         # Computed AFTER total/tier so it cannot feed them; a pure read of the pair.
         eligibility=eligibility_flags(candidate, job),
+        target_alignment=_target_alignment(candidate, job),
     )
 
 

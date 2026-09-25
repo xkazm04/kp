@@ -16,8 +16,11 @@ import { isKoReasonKey, type FitTier, type JobseekerProfile, type KoReasonKey } 
 
 /** Stamped on every row this module writes (`match_version`); bump when the inputs the
  *  matcher sees change shape (preferences overlay, corpus hand-off). v2: KO'd postings
- *  are stamped with their gate verdict, so every v1 row is re-matched once to gain it. */
-export const MATCH_VERSION = "jobseeker-match-v2";
+ *  are stamped with their gate verdict, so every v1 row is re-matched once to gain it.
+ *  v3: the stated targetTitles / targetRoleFamilies (already in preferences.json) now
+ *  reach the career score and come back as `targetAlignment`, so every v2 row is
+ *  re-matched once against the seeker's direction instead of their past. */
+export const MATCH_VERSION = "jobseeker-match-v3";
 /** match_cli's `--limit` is also our chunk: every job in a chunk can come back. */
 export const MATCH_CHUNK = 500;
 

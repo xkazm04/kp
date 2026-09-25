@@ -138,7 +138,9 @@ def apply_preferences(candidate: MatchCandidate, preferences: dict[str, Any] | N
     MatchCandidate: ``salaryFloor`` -> salary_expectation, ``locations`` ->
     preferred_locations, ``countries`` -> preferred_countries, ``workModes`` ->
     preferred_work_modes (only when non-empty — an empty list must not erase a
-    preference the profile carried), ``seniority`` overrides the profile's when set.
+    preference the profile carried), ``seniority`` overrides the profile's when set,
+    ``targetTitles``/``targetRoleFamilies`` -> target_titles/target_role_families (the
+    stated direction the career score reads; non-empty only).
     ``None``/empty preferences return the candidate unchanged."""
     if not preferences:
         return candidate
@@ -158,6 +160,15 @@ def apply_preferences(candidate: MatchCandidate, preferences: dict[str, Any] | N
     seniority = preferences.get("seniority")
     if isinstance(seniority, str) and seniority.strip():
         update["seniority"] = seniority.strip()
+    # The stated direction. Read only by the career-direction term (matching.
+    # _target_alignment): a preference fit, never skill evidence — skills stay what
+    # the profile shows. Non-empty only, like workModes above.
+    target_titles = _str_list(preferences.get("targetTitles"))
+    if target_titles:
+        update["target_titles"] = target_titles
+    target_families = _str_list(preferences.get("targetRoleFamilies"))
+    if target_families:
+        update["target_role_families"] = target_families
     if not update:
         return candidate
     return candidate.model_copy(update=update)
