@@ -18,6 +18,14 @@
       "minText": 200,
       "note": "Hiring -> Channels"
     },
+    "channels-kit": {
+      "gate": true,
+      "path": "/?tab=channels&kit=1",
+      "tab": "channels",
+      "root": "main#main",
+      "minText": 200,
+      "note": "Hiring -> Channels rendered from the composition kit (the ?kit=1 switch is dev-only: shoot it with --server dev)"
+    },
     "pipeline": {
       "gate": true,
       "path": "/?tab=pipeline",
