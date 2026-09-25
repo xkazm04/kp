@@ -69,6 +69,7 @@
     "agent:dispatch": "node scripts/agent/dispatch.mjs",
     "ci:budget": "node scripts/perf/ci-budget.mjs",
     "perf:budget": "node scripts/perf/check-budget.mjs",
+    "style:divergence": "node scripts/style/style-divergence.mjs",
     "style:shoot": "node scripts/style/shoot.mjs",
     "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs && node scripts/perf/__tests__/check-budget.test.mjs && node scripts/perf/__tests__/devbench.test.mjs && node scripts/perf/__tests__/sqlite-writer-knee.test.mjs",
     "security:actions": "node scripts/security/check-actions.mjs",
