@@ -1960,6 +1960,7 @@
     "JOBSEEKER_TURN_TIMEOUT": "That reply took too long. Your conversation is saved; try again.",
     "JOBSEEKER_OFFLINE": "This install is offline, so job sources cannot be fetched.",
     "JOBSEEKER_SCAN_UNVERIFIED": "Run one scan by hand first; the timer arms once a scan has succeeded.",
+    "JOBSEEKER_PDF_UNAVAILABLE": "Could not make the PDF here. Use Print and choose Save as PDF: the layout is the same.",
     "JOB_TRANSLATIONS_FAILED": "Couldn't load this role's postings in other languages. Please try again.",
     "JOB_TRANSLATE_FAILED": "Couldn't translate this posting. Please try again.",
     "JOB_TARGET_HIRES_INVALID": "A role is opened for between 1 and 50 hires.",
@@ -12538,12 +12539,12 @@
       "errSave": "Your profile could not be saved. Please try again."
     },
     "print": {
-      "title": "Print your CV",
+      "title": "Your designed CV",
       "eyebrow": "Your CV",
-      "intro": "Your polished CV, laid out for A4. Print it, or save it as a PDF.",
+      "intro": "Your CV laid out as an A4 page. Pick a layout and an accent, then download the PDF or print it.",
       "back": "Back to my job search",
       "print": "Print / save as PDF",
-      "none": "There is no polished CV yet. Finish a CV conversation first."
+      "none": "There is no CV yet. Drop your CV on your job search page first."
     },
     "jobs": {
       "eyebrow": "Job search",
@@ -13511,6 +13512,40 @@
           "released": "{n} postings released into your sieve"
         }
       }
+    },
+    "designedCv": {
+      "faceLabel": "How to show your CV",
+      "faceDropped": "As dropped",
+      "faceDesigned": "Designed",
+      "templateLabel": "Layout",
+      "template": {
+        "sidebar": "Sidebar",
+        "editorial": "Editorial",
+        "compact": "Compact"
+      },
+      "accentLabel": "Accent colour",
+      "accent": {
+        "navy": "Navy",
+        "moss": "Moss",
+        "coral": "Coral",
+        "plum": "Plum"
+      },
+      "downloadPdf": "Download PDF",
+      "preparing": "Making the PDF…",
+      "openPage": "Open full page",
+      "print": "Print",
+      "printInstead": "Print it instead",
+      "pdfFailed": "Could not make the PDF. Print it instead: the layout is the same.",
+      "improvements": "{n, plural, =0 {Nothing needed tidying} one {# wording tidied} other {# wordings tidied}}",
+      "improvementsHint": "Tool names, spelling, line breaks and weak openers, tidied. Nothing was added to what your CV says.",
+      "kind": {
+        "term": "Tool name",
+        "spelling": "Spelling",
+        "hyphen": "Line break",
+        "capital": "Capital letter",
+        "opener": "Opener"
+      },
+      "previewLabel": "Preview of your designed CV"
     }
   },
   "journey": {

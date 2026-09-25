@@ -1960,6 +1960,7 @@
     "JOBSEEKER_TURN_TIMEOUT": "La réponse a pris trop de temps. Votre conversation est enregistrée ; réessayez.",
     "JOBSEEKER_OFFLINE": "Cette installation est hors ligne ; les sources d'offres ne peuvent pas être récupérées.",
     "JOBSEEKER_SCAN_UNVERIFIED": "Lancez d'abord une analyse à la main ; le minuteur s'activera dès qu'une analyse aura réussi.",
+    "JOBSEEKER_PDF_UNAVAILABLE": "Impossible de créer le PDF ici. Choisissez Imprimer puis Enregistrer en PDF : la mise en page est la même.",
     "JOB_TRANSLATIONS_FAILED": "Impossible de charger les versions de cette annonce dans d'autres langues. Veuillez réessayer.",
     "JOB_TRANSLATE_FAILED": "Impossible de traduire cette annonce. Veuillez réessayer.",
     "JOB_TARGET_HIRES_INVALID": "Un poste s'ouvre pour 1 à 50 recrutements.",
@@ -12538,12 +12539,12 @@
       "errSave": "Votre profil n'a pas pu être enregistré. Veuillez réessayer."
     },
     "print": {
-      "title": "Imprimer votre CV",
+      "title": "Votre CV mis en page",
       "eyebrow": "Votre CV",
-      "intro": "Votre CV peaufiné, mis en page pour le format A4. Imprimez-le ou enregistrez-le en PDF.",
+      "intro": "Votre CV mis en page au format A4. Choisissez une mise en page et une couleur, puis téléchargez le PDF ou imprimez-le.",
       "back": "Retour à ma recherche d'emploi",
       "print": "Imprimer / enregistrer en PDF",
-      "none": "Il n'y a pas encore de CV retravaillé. Terminez d'abord une conversation sur le CV."
+      "none": "Il n'y a pas encore de CV. Déposez d'abord votre CV sur la page de votre recherche d'emploi."
     },
     "jobs": {
       "eyebrow": "Recherche d'emploi",
@@ -13511,6 +13512,40 @@
           "released": "{n} offres libérées dans votre tamis"
         }
       }
+    },
+    "designedCv": {
+      "faceLabel": "Comment afficher votre CV",
+      "faceDropped": "Tel que déposé",
+      "faceDesigned": "Mis en page",
+      "templateLabel": "Mise en page",
+      "template": {
+        "sidebar": "Colonne latérale",
+        "editorial": "Éditorial",
+        "compact": "Compact"
+      },
+      "accentLabel": "Couleur d’accent",
+      "accent": {
+        "navy": "Marine",
+        "moss": "Mousse",
+        "coral": "Corail",
+        "plum": "Prune"
+      },
+      "downloadPdf": "Télécharger le PDF",
+      "preparing": "Création du PDF…",
+      "openPage": "Ouvrir la page entière",
+      "print": "Imprimer",
+      "printInstead": "L’imprimer à la place",
+      "pdfFailed": "Impossible de créer le PDF. Imprimez-le à la place : la mise en page est la même.",
+      "improvements": "{n, plural, =0 {Rien à retoucher} one {# formulation retouchée} other {# formulations retouchées}}",
+      "improvementsHint": "Noms d’outils, orthographe, retours à la ligne et débuts de phrase faibles, retouchés. Rien n’a été ajouté à ce que dit votre CV.",
+      "kind": {
+        "term": "Nom d’outil",
+        "spelling": "Orthographe",
+        "hyphen": "Retour à la ligne",
+        "capital": "Majuscule",
+        "opener": "Début de phrase"
+      },
+      "previewLabel": "Aperçu de votre CV mis en page"
     }
   },
   "journey": {

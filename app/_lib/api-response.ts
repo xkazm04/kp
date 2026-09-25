@@ -1897,6 +1897,11 @@ export const REFUSAL_ERRORS = {
   /** The periodic scan cannot be armed before one manual scan succeeded (409): a new
    *  schedule is disabled until first verification. */
   JOBSEEKER_SCAN_UNVERIFIED: "Run one scan by hand first; the timer arms once a scan has succeeded.",
+  /** GET /api/jobseeker/cv.pdf: the server could not render the designed CV — no
+   *  headless browser installed, or the render failed or timed out (503; the cause goes
+   *  to the server log). The client offers the browser's own print -> Save as PDF, which
+   *  carries the same layout. */
+  JOBSEEKER_PDF_UNAVAILABLE: "Could not make the PDF here. Use Print and choose Save as PDF: the layout is the same.",
   /** DELETE /api/jds/[slug] on a description whose role is live (409). The library
    *  is the shelf of drafts; a live opening is the Roles tab's object and closing
    *  it there is the move that comes first. Deliberately not a 403: the caller has

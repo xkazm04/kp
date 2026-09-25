@@ -2095,6 +2095,17 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "getJobseekerProfile(",
   },
+  {
+    // Each hit launches a headless browser: 20/10min per IP, before the profile read
+    // and the render (renders also queue one at a time inside cv-pdf.ts).
+    rel: "./jobseeker/cv.pdf/route.ts",
+    key: "`jobseeker-cv-pdf:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "PDF_RATE_LIMIT",
+    optsDef: "const PDF_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "renderCvPdf(",
+  },
   // jobseeker — WP4c: the scan door, the feed, the seeker's status moves and the
   // on-demand deep-dive. The scan is minutes of third-party fetching plus Python spawns
   // and bounded model calls; the deep-dive is two model calls; the two posting doors are

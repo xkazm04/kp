@@ -1960,6 +1960,7 @@
     "JOBSEEKER_TURN_TIMEOUT": "Die Antwort hat zu lange gedauert. Ihre Unterhaltung ist gespeichert, versuchen Sie es erneut.",
     "JOBSEEKER_OFFLINE": "Diese Installation ist offline, Stellenquellen können nicht abgerufen werden.",
     "JOBSEEKER_SCAN_UNVERIFIED": "Starten Sie zuerst einen Scan von Hand; der Timer wird aktiv, sobald ein Scan erfolgreich war.",
+    "JOBSEEKER_PDF_UNAVAILABLE": "Das PDF konnte hier nicht erstellt werden. Wählen Sie Drucken und Als PDF speichern: Das Layout ist dasselbe.",
     "JOB_TRANSLATIONS_FAILED": "Die Fassungen dieses Inserats in anderen Sprachen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "JOB_TRANSLATE_FAILED": "Das Inserat konnte nicht übersetzt werden. Bitte versuchen Sie es erneut.",
     "JOB_TARGET_HIRES_INVALID": "Eine Stelle wird für 1 bis 50 Einstellungen eröffnet.",
@@ -12538,12 +12539,12 @@
       "errSave": "Ihr Profil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
     },
     "print": {
-      "title": "Lebenslauf drucken",
+      "title": "Ihr gestalteter Lebenslauf",
       "eyebrow": "Ihr Lebenslauf",
-      "intro": "Ihr überarbeiteter Lebenslauf im A4-Layout. Drucken Sie ihn aus oder speichern Sie ihn als PDF.",
+      "intro": "Ihr Lebenslauf als A4-Seite. Wählen Sie ein Layout und eine Farbe, dann laden Sie das PDF herunter oder drucken ihn.",
       "back": "Zurück zu meiner Jobsuche",
       "print": "Drucken / als PDF speichern",
-      "none": "Es gibt noch keinen überarbeiteten Lebenslauf. Schließen Sie zuerst ein Lebenslauf-Gespräch ab."
+      "none": "Es gibt noch keinen Lebenslauf. Laden Sie ihn zuerst auf Ihrer Jobsuche-Seite hoch."
     },
     "jobs": {
       "eyebrow": "Jobsuche",
@@ -13511,6 +13512,40 @@
           "released": "{n} Stellen in Ihr Sieb freigegeben"
         }
       }
+    },
+    "designedCv": {
+      "faceLabel": "So wird Ihr Lebenslauf gezeigt",
+      "faceDropped": "Wie hochgeladen",
+      "faceDesigned": "Gestaltet",
+      "templateLabel": "Layout",
+      "template": {
+        "sidebar": "Seitenspalte",
+        "editorial": "Editorial",
+        "compact": "Kompakt"
+      },
+      "accentLabel": "Akzentfarbe",
+      "accent": {
+        "navy": "Marineblau",
+        "moss": "Moosgrün",
+        "coral": "Koralle",
+        "plum": "Pflaume"
+      },
+      "downloadPdf": "PDF herunterladen",
+      "preparing": "PDF wird erstellt…",
+      "openPage": "Ganze Seite öffnen",
+      "print": "Drucken",
+      "printInstead": "Stattdessen drucken",
+      "pdfFailed": "Das PDF konnte nicht erstellt werden. Drucken Sie es stattdessen: Das Layout ist dasselbe.",
+      "improvements": "{n, plural, =0 {Nichts musste geglättet werden} one {# Formulierung geglättet} other {# Formulierungen geglättet}}",
+      "improvementsHint": "Werkzeugnamen, Rechtschreibung, Zeilenumbrüche und schwache Satzanfänge geglättet. Ihrem Lebenslauf wurde nichts hinzugefügt.",
+      "kind": {
+        "term": "Werkzeugname",
+        "spelling": "Rechtschreibung",
+        "hyphen": "Zeilenumbruch",
+        "capital": "Großschreibung",
+        "opener": "Satzanfang"
+      },
+      "previewLabel": "Vorschau Ihres gestalteten Lebenslaufs"
     }
   },
   "journey": {

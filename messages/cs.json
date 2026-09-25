@@ -1960,6 +1960,7 @@
     "JOBSEEKER_TURN_TIMEOUT": "Odpověď trvala příliš dlouho. Konverzace je uložená, zkuste to znovu.",
     "JOBSEEKER_OFFLINE": "Tato instalace je offline, zdroje nabídek proto nelze načítat.",
     "JOBSEEKER_SCAN_UNVERIFIED": "Nejdřív spusťte jeden sken ručně; časovač se zapne, až sken proběhne úspěšně.",
+    "JOBSEEKER_PDF_UNAVAILABLE": "PDF se tady nepodařilo vytvořit. Zvolte Tisk a Uložit jako PDF: rozvržení bude stejné.",
     "JOB_TRANSLATIONS_FAILED": "Nepodařilo se načíst verze tohoto inzerátu v jiných jazycích. Zkuste to prosím znovu.",
     "JOB_TRANSLATE_FAILED": "Inzerát se nepodařilo přeložit. Zkuste to prosím znovu.",
     "JOB_TARGET_HIRES_INVALID": "Roli lze otevřít pro 1 až 50 přijatých kandidátů.",
@@ -12538,12 +12539,12 @@
       "errSave": "Profil se nepodařilo uložit. Zkuste to prosím znovu."
     },
     "print": {
-      "title": "Tisk CV",
+      "title": "Vaše navržené CV",
       "eyebrow": "Váš životopis",
-      "intro": "Váš vylepšený životopis ve formátu A4. Vytiskněte si ho, nebo uložte jako PDF.",
+      "intro": "Vaše CV jako stránka A4. Vyberte rozvržení a barvu, pak si stáhněte PDF nebo ho vytiskněte.",
       "back": "Zpět na moje hledání práce",
       "print": "Tisknout / uložit jako PDF",
-      "none": "Zatím žádné upravené CV neexistuje. Nejdřív dokončete konverzaci o CV."
+      "none": "Zatím tu žádné CV není. Nejdřív ho nahrajte na stránce hledání práce."
     },
     "jobs": {
       "eyebrow": "Hledání práce",
@@ -13511,6 +13512,40 @@
           "released": "{n, plural, one {Do síta propuštěna # nabídka} few {Do síta propuštěny # nabídky} many {Do síta propuštěno # nabídky} other {Do síta propuštěno # nabídek}}"
         }
       }
+    },
+    "designedCv": {
+      "faceLabel": "Jak zobrazit vaše CV",
+      "faceDropped": "Jak jste ho nahráli",
+      "faceDesigned": "Navržené",
+      "templateLabel": "Rozvržení",
+      "template": {
+        "sidebar": "S postranním sloupcem",
+        "editorial": "Redakční",
+        "compact": "Kompaktní"
+      },
+      "accentLabel": "Barva zvýraznění",
+      "accent": {
+        "navy": "Námořnická modrá",
+        "moss": "Mechová",
+        "coral": "Korálová",
+        "plum": "Švestková"
+      },
+      "downloadPdf": "Stáhnout PDF",
+      "preparing": "Připravuji PDF…",
+      "openPage": "Otevřít celou stránku",
+      "print": "Tisknout",
+      "printInstead": "Raději ho vytiskněte",
+      "pdfFailed": "PDF se nepodařilo vytvořit. Vytiskněte ho: rozvržení bude stejné.",
+      "improvements": "{n, plural, =0 {Nebylo co upravit} one {# upravené slovo} few {# upravená slova} other {# upravených slov}}",
+      "improvementsHint": "Upravili jsme názvy nástrojů, pravopis, zalomení řádků a slabé úvody vět. K tomu, co vaše CV říká, jsme nic nepřidali.",
+      "kind": {
+        "term": "Název nástroje",
+        "spelling": "Pravopis",
+        "hyphen": "Zalomení řádku",
+        "capital": "Velké písmeno",
+        "opener": "Úvod věty"
+      },
+      "previewLabel": "Náhled vašeho navrženého CV"
     }
   },
   "journey": {

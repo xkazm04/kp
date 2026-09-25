@@ -38,6 +38,20 @@
      artwork; a KandiDate surface belongs on `white`/`paper`. */
   --color-white-fixed: #ffffff;
 
+  /* The designed CV (app/features/jobseeker/cv/) is a PAPER document: it is printed,
+     saved as a PDF and sent to a stranger, so it must look the same whichever theme
+     the seeker's product runs in. Theme-INVARIANT like the plate above, declared
+     identically in the dark block. Ink and rule for the sheet, four accents the
+     seeker picks from. Use them ONLY inside the CV sheet. */
+  --color-cv-paper: #ffffff;
+  --color-cv-ink: #1c2530;
+  --color-cv-muted: #5a6572;
+  --color-cv-rule: #dde2e8;
+  --color-cv-navy: #1f3a5f;
+  --color-cv-moss: #45613f;
+  --color-cv-coral: #b4493a;
+  --color-cv-plum: #5b3a63;
+
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
   --color-stone-200: #e6ddcc;
@@ -285,6 +299,15 @@ body {
   /* Deliberately NOT remapped — see the light block: this is the plate under a
      tenant's own logo, which must stay a real white in both themes. */
   --color-white-fixed: #ffffff;
+  /* Deliberately NOT remapped — the CV sheet is paper (see the light block). */
+  --color-cv-paper: #ffffff;
+  --color-cv-ink: #1c2530;
+  --color-cv-muted: #5a6572;
+  --color-cv-rule: #dde2e8;
+  --color-cv-navy: #1f3a5f;
+  --color-cv-moss: #45613f;
+  --color-cv-coral: #b4493a;
+  --color-cv-plum: #5b3a63;
   --color-stone-50: #222d39;
   --color-stone-100: #283442;
   --color-stone-200: #364453;

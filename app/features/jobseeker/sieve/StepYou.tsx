@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { CvPolishArtifact, JobseekerDialog, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { CvDesigner } from "../cv/CvDesigner";
+import { buildCvDocument } from "../cv/cvDocument";
 import type { DraftSource } from "../importOutcome";
 import { ProvMark } from "./marks";
 import { initialsOf, levelOf, provenanceOf, type ProvenanceKey, type ProvenanceMark } from "./sieveModel";
-import { cx, SV_BTN, SV_BTN_SM_GHOST, SV_TILE } from "./sieveRecipes";
+import { cx, SV_BTN, SV_BTN_GHOST, SV_BTN_PRIMARY, SV_BTN_SM_GHOST, SV_TILE } from "./sieveRecipes";
 
 // Step 2 — "This is how your CV reads", and Step 3 — "You", side by side.
 //
@@ -143,8 +144,19 @@ export function StepYou({
   const [skillOpen, setSkillOpen] = useState<string | null>(null);
   const [provFilter, setProvFilter] = useState<ProvenanceKey | null>(null);
   const [flying, setFlying] = useState(false);
+  // The CV column's two faces: the CV as dropped (where the flight starts) and the same
+  // CV designed as a page (../cv). The flight needs the dropped face, so it is the default.
+  const [face, setFace] = useState<"dropped" | "designed">("dropped");
+  const tCv = useTranslations("me.designedCv");
 
   const lines = useMemo(() => (profile?.cvSourceText ? readCv(profile.cvSourceText, termsOf(profile)) : []), [profile]);
+  const designed = useMemo(
+    () =>
+      profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length)
+        ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText })
+        : null,
+    [profile]
+  );
 
   // The flight: once per CV per browser session, when the step first scrolls into view.
   const fly = useCallback(() => {
@@ -292,46 +304,58 @@ export function StepYou({
       </div>
       <div className="cvwrap">
         <div>
-          <div className="sheet" aria-label={t("sheetLabel")}>
-            {lines.length === 0 ? (
-              <p className="l-line">{t("noText")}</p>
-            ) : (
-              lines.map((line, i) =>
-                line.kind === "sec" ? (
-                  <div key={i} className="l-sec">
-                    {line.pieces[0]!.text}
-                  </div>
+          {designed ? (
+            <div className="seg cv-face" role="group" aria-label={tCv("faceLabel")}>
+              <button type="button" aria-pressed={face === "dropped"} onClick={() => setFace("dropped")}>
+                {tCv("faceDropped")}
+              </button>
+              {/* Held while the flight runs: its phrases fly FROM the dropped face. */}
+              <button type="button" aria-pressed={face === "designed"} disabled={flying} onClick={() => setFace("designed")}>
+                {tCv("faceDesigned")}
+              </button>
+            </div>
+          ) : null}
+          {face === "designed" && designed ? (
+            <CvDesigner doc={designed} mode="inline" skin={{ primary: SV_BTN_PRIMARY, ghost: SV_BTN_GHOST }} />
+          ) : (
+            <>
+              <div className="sheet" aria-label={t("sheetLabel")}>
+                {lines.length === 0 ? (
+                  <p className="l-line">{t("noText")}</p>
                 ) : (
-                  <p key={i} className={line.kind === "name" ? "l-name" : "l-line"}>
-                    {line.pieces.map((piece, j) =>
-                      piece.key ? (
-                        <span key={j} className="hl" data-fly={piece.key}>
-                          {piece.text}
-                        </span>
-                      ) : (
-                        <span key={j}>{piece.text}</span>
-                      )
-                    )}
-                  </p>
-                )
-              )
-            )}
-          </div>
-          <div className="sheet-actions">
-            <button type="button" className={SV_BTN} onClick={onPolish} disabled={polishing}>
-              {t("polish")}
-            </button>
-            {profile.cvPolishedMd ? (
-              <>
-                <a className="btn ghost" href="/api/jobseeker/cv.md">
-                  {t("download")}
-                </a>
-                <Link className="btn ghost" href="/me/cv/print">
-                  {t("print")}
-                </Link>
-              </>
-            ) : null}
-          </div>
+                  lines.map((line, i) =>
+                    line.kind === "sec" ? (
+                      <div key={i} className="l-sec">
+                        {line.pieces[0]!.text}
+                      </div>
+                    ) : (
+                      <p key={i} className={line.kind === "name" ? "l-name" : "l-line"}>
+                        {line.pieces.map((piece, j) =>
+                          piece.key ? (
+                            <span key={j} className="hl" data-fly={piece.key}>
+                              {piece.text}
+                            </span>
+                          ) : (
+                            <span key={j}>{piece.text}</span>
+                          )
+                        )}
+                      </p>
+                    )
+                  )
+                )}
+              </div>
+              <div className="sheet-actions">
+                <button type="button" className={SV_BTN} onClick={onPolish} disabled={polishing}>
+                  {t("polish")}
+                </button>
+                {profile.cvPolishedMd ? (
+                  <a className="btn ghost" href="/api/jobseeker/cv.md">
+                    {t("download")}
+                  </a>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="you" id="s-you" aria-label={t("youLabel")}>

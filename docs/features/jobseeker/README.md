@@ -18,7 +18,7 @@ dependency decision: [ADR 0009](../../architecture/decisions/0009-one-html-parse
 | Old addresses | `app/me/jobs/page.tsx` → `/me#s-evening`, `app/me/jobs/[id]/page.tsx` → `/me?open=<id>#s-weigh` | redirects |
 | Custom boards, ATS by slug, extraction rules | `app/me/sources/**` (inside `SieveSideFrame`) | the flow's Sources step links here |
 | Scan history + the clock | `app/me/scans/**` (inside `SieveSideFrame`) | |
-| Polished CV for paper | `app/me/cv/print` | |
+| The designed CV at real size (pickers + A4 sheet; also what the PDF route prints) | `app/me/cv/print?template=&accent=` | |
 | API | `app/api/jobseeker/**` | operator-gated + `requireOperator` in every handler |
 
 ## The flow — `/me` ("The Sieve")
@@ -84,6 +84,7 @@ Four workspace-scoped tables (all in `TENANCY_SCOPED_TABLES`, each with a coloca
 
 ## Keyless behaviour (product property)
 
+- The designed CV (below) needs no model at all: `cvDocument.ts` is deterministic, and a server with no headless browser answers the PDF route with 503 `JOBSEEKER_PDF_UNAVAILABLE` while the page offers print -> Save as PDF, which carries the same layout.
 - The CV import's draft step (`/api/profile/draft` -> `profile_draft_cli`) degrades to `pipeline/jobfit/cv_draft.py` when no provider can serve (no key, `KP_OFFLINE`, a refused route): taxonomy skill terms, the years / city / seniority readers and the language aliases produce a thin, `self_declared` profile, and the CLI answers `source: "deterministic"` so the page can say what read the CV. Roles are split at their date lines inside experience sections (`dated_roles`: "Role — Org (dates)", an education range is never a job, a blank line or an ALL-CAPS label ends a role), and `years_experience` is the stated figure, else the UNION of the dated intervals (overlaps count once, a backwards range is dropped). The location is read only from the header, which ends at the first section heading.
 - PDF text keeps a two-column template's reading order (`pipeline/jobfit/extractors.py`, `_page_text`): when a vertical gutter no fragment crosses is PROVEN, with text on both sides, the wider column is read first and the sidebar after it; otherwise pypdf's own order stands. Before this, a sidebar CV imported with its section labels above the name and an email glued onto the URL beside it.
 - Dialog turns come from `pipeline/jobfit/jobseeker_cli.py`; without a provider the
@@ -101,7 +102,7 @@ the deep-dive reuses `jd_ingest` and `match_reasoning`.
 
 ## Error codes
 
-`JOBSEEKER_*` in `app/_lib/api-response.ts` (one STORE code, thirteen REFUSAL codes);
+`JOBSEEKER_*` in `app/_lib/api-response.ts` (one STORE code and the REFUSAL codes, `JOBSEEKER_PDF_UNAVAILABLE` the newest);
 every code has four catalog entries under `errors.*`.
 
 ## Scheduler
@@ -142,14 +143,22 @@ Acquisition is owner-consented (ADR 0009 §3). Every adapter fetches through ONE
 | Bounds | 15 s timeout, 2 MB body cap (`outage`/`too_large`), http(s) only, ≤ 5 redirects followed by hand so a cross-host hop re-checks the new host's robots | `FETCH_TIMEOUT_MS`, `MAX_BODY_BYTES` |
 | Classification | 401/403/429 → `blocked`; a 200 whose HTML carries one of six documented bot-wall signatures (`INTERSTITIAL_SIGNATURES`) → `blocked`; 404/410 → `gone`; 5xx/timeout/network → `outage`; disallowed path → `robots_disallowed` | `classifyStatus`, `looksLikeInterstitial` |
 | Retry | Never for `blocked`. The fetcher retries nothing; the scan runs again next tick | — |
+| Egress | Every job-seeker fetch is vetted by `app/_lib/jobseeker/fetch/egress.ts` (public-host string gate + resolve-and-reject over every A/AAAA address). Preview and rules/propose take a `url` only on the source's recorded host (or a subdomain) and public (400 `JOBSEEKER_RULES_INVALID` / 403 `JOBSEEKER_SOURCE_REFUSED`); creating a source vets the host and every config URL and refuses tier C. At scan time the transport is `egressGuardedFetch`: a URL on a non-public host (a sitemap `<loc>`, a rule-extracted link) is never requested and reads as `blocked`; every redirect hop, robots.txt's included, goes through the same hopGuard. `KP_OFFLINE` never resolves a hostname | `fetch/egress.ts` |
+| robots.txt bounds | At most five redirects, each vetted by the hopGuard (a refused hop reads as "no policy published"); the body is read to at most 512 KiB; patterns are matched by a linear wildcard matcher (RFC 9309 `*` / `$`), never a regex | `fetch/robots.ts` |
+| Stream deadlines | In stream mode (the MPSV bulk file) the 15 s timeout ends when headers arrive; the body is then bounded by 20 s idle and 120 s total. A stalled file ends the run as `source_outage` with "stream_timeout: N records read, M kept" | `politeFetch.ts` |
 
 `blocked` is a relationship signal: `reconcileSource` (`app/_lib/jobseeker/reconcile.ts`)
 stops the source at the first denial, records `blocked` and pauses it (`pausedReason:
 "blocked"`); only the owner resumes it (PATCH `{resume: true}`). A source that fetched fine
 but yielded nothing recognisable is `collapsed` (paused as `collapsed`), never a green run
 with zero rows. Postings are marked absent (`markAbsent`, two misses → `gone`) only after a
-COMPLETE successful pass — a truncated (`maxDetailFetches` reached), failed or stopped run
-says nothing about who is gone. `SourceRunSummary.reason` is the closed set
+COMPLETE successful pass — a truncated (`maxDetailFetches` or `maxRefs` reached, whether
+reconcile or the adapter stopped), failed or stopped run, or one where a detail page hit an
+outage (not a 404/410), says nothing about who is gone. There is no cursor: the next run
+starts from the top, so a source with exactly `maxRefs` live postings never marks anything
+absent. Only an undecided row (`new` / `shortlisted`) moves to `gone`; applied and dismissed
+rows keep their status and show the absence as `goneAt`, and a re-seen row keeps its
+decision. `SourceRunSummary.reason` is the closed set
 `RECONCILE_REASONS`: `blocked · offline · shape_changed · required_rule_miss ·
 robots_disallowed · source_outage · source_gone · config_invalid · adapter_error`.
 
@@ -242,7 +251,9 @@ anchor group.
 
 `pipeline/jobfit/posting_structure.py` turns every `RawPosting` into the matcher's `Job`
 with no model: work mode (`TELECOMMUTE` → remote, else remote/hybrid regexes in cs/en/de/fr,
-else onsite), seniority from the TITLE only, `role_family` via `classify_role_family`,
+else onsite only when the ad STATES the office ("on-site", "v kanceláři", "vor Ort",
+"sur site"); an ad that says nothing leaves it unstated and records `work_mode` in
+`defaulted_fields`, so the work-mode gate never knocks out a remote-only seeker on it), seniority from the TITLE only, `role_family` via `classify_role_family`,
 requirements = taxonomy skill terms (whole-token) tagged `must_have` when they sit under a
 requirements header (požadujeme / requirements / Anforderungen / exigences …) and
 `nice_to_have` otherwise or when the line says "výhodou / is a plus", a salary only when
@@ -349,11 +360,12 @@ carry `max-w-prose`, and the cover-note copy control announces through a SIBLING
 | `/api/jobseeker/dialogs/[id]` | GET | one dialog (the client re-reads after a `moved`) |
 | `/api/jobseeker/dialogs/[id]/message` | POST `{message}` | one exchange → `DialogReply`; CAS `appendDialogTurns` → 409 `JOBSEEKER_DIALOG_MOVED`; on `done` the artifact's preferences merge into the profile and `cvMarkdown` becomes `cvPolishedMd`. Empty body → `INTAKE_TEXT_REQUIRED` (the existing generic "nothing to send"); oversized is cut at 4 000 chars |
 | `/api/jobseeker/cv.md` | GET | `text/markdown`, `Content-Disposition: attachment; filename="cv.md"`; 404 until a polished CV exists |
-| `/me/cv/print` | page | the polished CV at 210 mm with `window.print()` |
+| `/api/jobseeker/cv.pdf` | GET | `?template=sidebar|editorial|compact&accent=navy|moss|coral|plum` -> `application/pdf`, `attachment; filename="<name>-cv.pdf"`; 404 `JOBSEEKER_PROFILE_MISSING` without a profile; 503 `JOBSEEKER_PDF_UNAVAILABLE` when no browser is installed or the render failed (cause in the server log) |
+| `/me/cv/print` | page | the designed CV at real size (`CvDesigner` mode `page`); the header is print-hidden, so `window.print()` and the PDF route both carry only the sheet |
 
 Limiters (pinned in `app/api/rate-limit-contract.test.ts`): profile 60/10 min,
 dialog create 30, message 30 (after the 404/409/400 refusals, before the spawn),
-export 60.
+export 60, PDF 20 (`jobseeker-cv-pdf`, before the profile read and the render).
 
 **Engine.** `app/_lib/jobseeker-run.ts` spawns `pipeline/jobfit/jobseeker_cli.py`
 (`--input-json`; `JOBSEEKER_DIALOG_TIMEOUT_MS = 120 s`, opening 30 s, `buildLlmConfigEnv`
@@ -375,6 +387,73 @@ sectioned Markdown re-flow where **no source line is lost** — every non-empty 
 in `cvMarkdown` or in `unreadable` (pinned by
 `pipeline/jobfit/tests/test_jobseeker_dialog.py`). A locale outside the four is
 disclosed as `fallbackLang`. The `fit` kind is the section below.
+
+## The designed CV
+
+The CV the seeker dropped, laid out as a page and taken away as a PDF, keyless. The
+"Polish my CV" conversation above rewrites the WORDS with a model; this is the LAYOUT,
+and it needs none.
+
+| Piece | Path | What |
+| --- | --- | --- |
+| Document builder | `app/features/jobseeker/cv/cvDocument.ts` | pure: profile + preferences + CV text -> `CvDocument` (name, headline, contacts, summary, roles with bullets, the CV's own skill groups with levels, education, languages, `lang`, `improvements`) |
+| Sheet | `app/features/jobseeker/cv/DesignedCv.tsx` + `cv.css` | one markup, three templates (`sidebar`, `editorial`, `compact`), four accents; hook-free, so the server print page and the client preview render the same component |
+| Designer | `app/features/jobseeker/cv/CvDesigner.tsx` (`cvRecipes.ts`) | layout thumbnails, accent dots, the tidied-wordings list, Download PDF; mode `inline` (the flow) or `page` (`/me/cv/print`) |
+| PDF renderer | `app/_lib/jobseeker/cv-pdf.ts` | headless Chromium (optional `playwright-core`) prints `/me/cv/print` with the stylesheet's own A4 `@page` |
+| Route | `app/api/jobseeker/cv.pdf/route.ts` | see the doors table above |
+
+**Where it shows.** Step 2 of the flow (`StepYou.tsx`) gains an "As dropped | Designed"
+switch over the CV column. As dropped stays the default because the flight starts from it,
+and the switch is held while the flight runs. Designed shows the real A4 sheet scaled to
+the column (laid out at 210 mm and transformed, so line breaks match the PDF), `inert`,
+with the pickers above it and a link to the full page. The layout and accent are
+remembered per browser (`localStorage` `kp-me-cv-design`) and, on the page, in the URL.
+
+**What "better expressed" means, and does not.** Deterministic and listed, never silent.
+Canonical tool names (NextJS -> Next.js, Postgres -> PostgreSQL, Langchain -> LangChain,
+lower-case acronyms), a small misspelling dictionary (Continous -> Continuous), a hyphen the
+line wrap left open ("prototype-to- production"), a lower-case sentence start, and the weak
+opener "Responsible for" -> "Owned". Each change is an `improvements` row the designer
+lists ("12 wordings tidied"). A word that is also prose ("the rest of the team", "soap")
+stays prose unless a technical neighbour makes it the acronym ("Rest/Graph", "rest API").
+No claim, number or date is invented: dates are only typeset (en dash, two-digit month).
+
+**Reading.** Contacts come only from the header (the lines before the first section
+heading), so a date range is never a phone. An ALL-CAPS label below the header is a skill
+group of the CV's own ("LLM RELATED" -> "LLM Related"); with no groups, the profile's claims
+form one group, strong first. "(senior)"-style levels become 1-3 pips and the word stays in
+the text layer for a parser. Roles with bullets come first, earlier one-line roles form a
+compact list after them. The DOM order is header -> experience -> side on every template,
+so a text-order parser (an ATS) reads the name, then the work.
+
+**Language.** Section headings follow the language the CV is WRITTEN in (`cvLanguageOf`,
+stop-word counts over en/cs/de/fr), not the reader's UI locale: an English CV opened in
+the Czech product keeps English headings. They live in `CV_HEADINGS`, as document
+content, not in the UI catalogs.
+
+**Paper, not UI.** The sheet is theme-INVARIANT: `--color-cv-*` in `app/globals.css`,
+declared identically in both theme blocks (the `white-fixed` precedent), and set in points
+with Fraunces/Inter pinned (not `--font-serif`, which turns into Bricolage after dark). The
+designer's chrome around it is ordinary themed UI with the 14px floor. `cv.css` uses a
+NAMED page (`@page cv`), so a stylesheet still loaded after navigation never re-margins
+another page's printout. The first page bleeds to the top edge. Every page keeps a 10 mm
+foot and a continuation page a 10 mm head. In print the sidebar's tint is a fixed box, so
+it runs the full height of page two.
+
+**The PDF.** The route renders the print page in a headless Chromium with the requester's
+own cookies. The page may reach only that ONE origin (every other request is aborted),
+and the origin is never the Host header: `KP_PDF_ORIGIN` when set, else `127.0.0.1` on
+`PORT` or the request's port. Renders queue one at a time. `playwright-core` is loaded
+lazily and listed in `serverExternalPackages`. It is a dev dependency today, so a pruned
+production install answers `JOBSEEKER_PDF_UNAVAILABLE` and the page falls back to print.
+To enable server PDFs there, install `playwright-core` and a Chromium build. Measured
+locally: about 3 s a render, text selectable, 1-2 A4 pages for a ten-year CV (the
+compact template fits it on one).
+
+Tests: `app/features/jobseeker/cv/cvDocument.test.ts` (a synthetic two-column CV: header,
+contacts, roles, bullets, groups, improvements, no invented numbers, prose-vs-acronym) and
+`app/_lib/jobseeker/cv-pdf.test.ts` (origin never from Host, cookie parsing, no browser ->
+unavailable, only the app origin reachable, browser always closed).
 
 ## Scan and scoring
 
@@ -435,7 +514,14 @@ posting through `matchChunk` (deterministic; a KO here leaves the earlier score 
 rather than silently demoting a card the seeker saw), then `reasoning_cli --profile-json
 --jobs <one-job corpus> --job-id` (use case `match_reasoning`) → `setPostingReasoning`.
 Re-match after model structuring IS done: it is one deterministic spawn and it is what
-makes the indexed total and the eligibility flags reflect the richer Job.
+makes the indexed total and the eligibility flags reflect the richer Job. It is stamped
+with the time its inputs were read (the scan's `inputsAt`, or the call's start), like the
+scan's own matches, so a preferences edit saved mid-dive still re-matches the row. Every
+dive write (structure, match, reasoning) re-checks the content hash it read: if the
+posting changed mid-dive nothing is written over the new ad (outcome `moved: true`). The
+deep-dive route uses the caller's own profile, not the workspace's newest. A preference
+merge from a dialog uses `mergePreferencePatch` inside the IMMEDIATE transaction, so an
+empty list never erases a stated one.
 
 **Keyless is a decision.** There is no TS-side provider oracle, so the first step is the
 probe: `jobs_cli`'s "No LLM provider available" refusal (`isNoProviderError`) or a
@@ -457,8 +543,9 @@ postings are still structured and matched.
 | --- | --- | --- | --- |
 | `/api/jobseeker/scan` | POST | `startTask("jobseeker_scan", {trigger: "manual", workspaceId})` → 202 `{taskId}` | `jobseeker-scan` 6/10 min |
 | `/api/jobseeker/postings` | GET | `?status=&minTotal=&sourceId=&sort=total,posted,seen&cursor=&limit=` (1..100, default 50) → `{rows: JobseekerPostingSummary[], nextCursor, newSince}`; keyset cursor; no `status` = the live feed; `newSince` = `{count, anchorAt}` derived from the seeker's feed anchor, `null` when there is none; a value outside its vocabulary → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-postings` 120/10 min |
-| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus`; `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; `applied` stamps `applied_at` (and leaving `applied` clears it), so the card can say when the SEEKER acted instead of when the crawler last looked; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
-| `/api/jobseeker/profile/seen` | POST | `{at, id}` — the ordering tuple of the newest row the feed RENDERED → `advanceFeedAnchor` (monotonic; an older tuple is a no-op) → `{anchor}`; no profile → 404 `JOBSEEKER_PROFILE_MISSING`; a malformed tuple → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-feed-seen` 120/10 min |
+| `/api/jobseeker/postings/[id]` | GET | one posting's summary; 240/10 min per IP (`jobseeker-posting-read`) |
+| `/api/jobseeker/postings/[id]` | PATCH | `{status, dismissReason?, note?}` → `setPostingStatus` (a `gone` row is refused, 400 `APPLY_SELECTION_INVALID` `{field: "status", options: []}`); `dismissed` requires a `DISMISS_REASONS` reason (400 `APPLY_SELECTION_INVALID` `{field, options}`); `gone` is refused (the scan's verdict); unknown id → 404 `POSTING_NOT_FOUND`; `applied` stamps `applied_at` (and leaving `applied` clears it), so the card can say when the SEEKER acted instead of when the crawler last looked; answers `{posting}` (summary) | `jobseeker-postings-write` 120/10 min |
+| `/api/jobseeker/profile/seen` | POST | `{at, id}` — the ordering tuple of the newest row the feed RENDERED (`at` must be a canonical ISO instant, a `toISOString` round-trip, else 400 `APPLY_SELECTION_INVALID` `{field: "at"}`) → `advanceFeedAnchor` (monotonic; an older tuple is a no-op) → `{anchor}`; no profile → 404 `JOBSEEKER_PROFILE_MISSING`; a malformed tuple → 400 `APPLY_SELECTION_INVALID` `{field}` | `jobseeker-feed-seen` 120/10 min |
 | `/api/jobseeker/postings/[id]/deepdive` | POST | `?lang=` → `deepDivePosting` synchronously (maxDuration 120) → `{posting, source, reasoning, fallbackReason}`: `llm`/`null` (persisted), or 200 `deterministic` with `fallbackReason` `template` or `no_provider` and `reasoning` null when the template was empty (`deepdive-route.test.ts`); no profile → 409 `JOBSEEKER_PROFILE_MISSING` | `jobseeker-deepdive` 20/10 min |
 
 Codes are reused, not minted: `APPLY_SELECTION_INVALID` is the existing generic "not one
@@ -659,6 +746,10 @@ change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
 
 ## Known gaps
 
+- No seeker erasure door: nothing deletes a `jobseeker_profiles` row or cascades to its dialogs (`ERASURE_EXEMPT` in `app/_lib/db/pipeline.ts` names the gap).
+- A deep-dive whose posting changed mid-dive writes nothing (`moved: true`), but POST `/deepdive` still answers `source: "llm"` and the scan counts it in `deepDived`; the client contract has no "moved" state.
+- Regex locators: a nested quantifier (`(a+)+`, `(?:x*)*`, `(a+){2,}`) is refused at validation and a stored one is a miss at run time; one locator collects at most 1000 matches per page.
+- The designed CV's "better expressed" is deterministic tidying only; rewording bullets with a model is the CV-polish conversation's job and does not yet feed the designed sheet (its output is Markdown).
 - Everything above marked with a work-package number is not built yet. WP5 (feed, detail,
   fit dialog, sources, scans) is built, as the flow's steps.
 - The "New" chip compares against `newSince.anchorAt` alone — the anchor's id half is not
