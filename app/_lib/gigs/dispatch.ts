@@ -1,11 +1,13 @@
 import { boundedBudget } from "@/app/api/agents/dispatch/spec-bounds";
-import { getHiredAgent, type AgentStatus } from "../db/agents";
+import { getHiredAgent } from "../db/agents";
 import { getGig, transitionGig } from "../db/gigs";
 import { createGigAttempt, setGigAttemptExecutionId, transitionGigAttempt } from "../db/gigs-attempts";
-import { findGigSpecialistForArena, getGigSpecialist } from "../db/gigs-specialists";
+import { getGigSpecialist } from "../db/gigs-specialists";
 import { gigChecklist } from "./checklists";
+import { GIG_RUNNABLE_HIRE_STATUSES, pickGigMatch } from "./match";
 import { executePersonaForGig, type ExecutePersonaResult } from "./personas-exec";
 import { prepareGigProject, type PrepareGigProjectResult } from "./project";
+import { rankGigSpecialists } from "./qualify";
 import { GIG_DEFAULT_BUDGET_USD } from "./specialist-defaults";
 import {
   GIG_DELIVERABLE_CONTRACT,
@@ -73,17 +75,23 @@ export type GigPlacement = { workdir: string; projectId: string | null };
  *  drafted / in-review gig's revision. */
 export const DISPATCHABLE_GIG_STATUSES: readonly GigStatus[] = ["qualified", "drafted", "in_review"];
 
-/** Hire statuses under which the persona exists in Personas and may run. */
-const RUNNABLE_AGENT_STATUSES: readonly AgentStatus[] = ["onboarding", "active"];
+/** Hire statuses under which the persona exists in Personas and may run (match.ts owns the list). */
+const RUNNABLE_AGENT_STATUSES = GIG_RUNNABLE_HIRE_STATUSES;
 
 function isSuspect(gig: Gig): boolean {
   return gig.status === "suspect" || gig.suspectReasons.length > 0;
 }
 
-/** The specialist the gig is matched to (qualify.ts records it), else the arena's. */
+/** The specialist the gig is matched to (qualify.ts records it, a route overrides it),
+ *  else the matcher's pick (match.ts): the best ready candidate, or - so the refusal can
+ *  name the hire's state - the best-fitting one that is not ready yet. Null when nothing
+ *  in the arena fits the gig at all. */
 function specialistFor(workspaceId: string, gig: Gig): GigSpecialist | null {
   const matched = gig.specialistId ? getGigSpecialist(workspaceId, gig.specialistId) : null;
-  return matched ?? findGigSpecialistForArena(workspaceId, gig.arena, gig.niche);
+  if (matched) return matched;
+  const ranked = rankGigSpecialists(workspaceId, gig);
+  const pick = pickGigMatch(ranked) ?? ranked.find((m) => m.score > 0) ?? null;
+  return pick ? getGigSpecialist(workspaceId, pick.specialistId) : null;
 }
 
 /** The assignment kp hands Personas as `input_data`. Pure. */

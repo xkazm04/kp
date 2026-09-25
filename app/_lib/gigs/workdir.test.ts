@@ -6,6 +6,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Gig } from "./types.ts";
+import { GIG_RUN_CONSTRAINTS } from "./contract.ts";
 import {
   GIG_UNTRUSTED_HEADING,
   asciiSlug,
@@ -96,7 +97,7 @@ test("GIG.md: front matter, the brief, and the listing fenced as UNTRUSTED with 
   assert.ok(withBrief.indexOf("## What the gig is") < withBrief.indexOf(GIG_UNTRUSTED_HEADING), "the brief precedes the listing");
 });
 
-test("scaffold: creates the three files once, never overwrites, and re-creates only what is missing; the contract is kp's and kept current", () => {
+test("scaffold: creates the files once, never overwrites, and re-creates only what is missing; the contract is kp's and kept current", () => {
   const env = { KP_GIGS_ROOT: path.join(TMP, "root-c") };
   const first = scaffoldGigWorkdir(gig(), { env, now: () => new Date("2026-09-25T10:00:00Z") });
   assert.ok(first.ok);
@@ -104,6 +105,14 @@ test("scaffold: creates the three files once, never overwrites, and re-creates o
   assert.deepEqual(first.created, ["GIG.md", "NOTES.md", "deliverable/.gitkeep", "DELIVERABLE-CONTRACT.md"]);
   const contract = readFileSync(path.join(first.workdir, "DELIVERABLE-CONTRACT.md"), "utf8");
   assert.ok(contract.includes("kp-deliverable.json") && contract.includes('"version": 1'), "the contract names the file and the exact shape");
+  // The rules reach the run through the folder (kp sends a gig specialist no prompt): the
+  // same constraint strings the requirements carry, plus the arena's checklist with meanings.
+  for (const c of GIG_RUN_CONSTRAINTS) assert.ok(contract.includes(`- ${c}`), c);
+  assert.match(contract, /- brief_answered: Every requirement stated in the brief is answered\./);
+  assert.match(contract, /- disclosure: /);
+  assert.match(contract, /`GIG\.md`: read it first/);
+  assert.match(contract, /`NOTES\.md`: your process log/);
+  assert.match(contract, /`deliverable\/`: every file meant for the client/);
   const notes = readFileSync(path.join(first.workdir, "NOTES.md"), "utf8");
   for (const h of ["## Restatement", "## Assumptions and defaults", "## Decisions", "## Verification", "## Lesson candidates"]) {
     assert.ok(notes.includes(h), h);

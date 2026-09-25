@@ -2017,6 +2017,7 @@
     "GIG_SOURCE_TERMS_CHANGED": "Le résumé des conditions de cette source a changé depuis votre accord. Lisez les conditions actuelles et acceptez-les à nouveau.",
     "GIG_SOURCE_TERMS_REQUIRED": "Lisez et acceptez les conditions de cette source avant de la reprendre.",
     "GIG_WORKSPACE_FAILED": "Le dossier de travail de la mission ou son projet Personas n’a pas pu être préparé, donc rien n’a été envoyé. Vérifiez la connexion à Personas et réessayez.",
+    "GIG_ROUTE_ARENA_MISMATCH": "Ce spécialiste travaille dans un autre domaine que cette mission, elle ne peut donc pas lui être attribuée.",
     "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer."
   },
   "resilience": {
@@ -13747,6 +13748,53 @@
     "later": "Plus tard"
   },
   "gigs": {
+    "routing": {
+      "title": "Attribution",
+      "lede": "À qui revient cette mission. L’appariement classe les spécialistes de ce domaine selon les mots de leur niche présents dans la catégorie du brief, les tags et le titre ; vous pouvez aussi attribuer la mission à la main.",
+      "goesTo": "Revient à",
+      "routedByYou": "attribuée par vous",
+      "autoMatched": "attribuée automatiquement",
+      "noneMatched": "Aucun spécialiste attribué pour l’instant",
+      "candidates": "{count, plural, one {# candidat dans le domaine {arena}} other {# candidats dans le domaine {arena}}}",
+      "noCandidates": "Aucun spécialiste ne travaille encore dans le domaine {arena}.",
+      "fit": "Adéquation {score} sur 100",
+      "fitLabel": "Score d’adéquation de {name} : {score} sur 100",
+      "ready": "Prêt à s’exécuter",
+      "notReady": "Pas prêt : {status}",
+      "current": "Attribution actuelle",
+      "routeHere": "Attribuer ici",
+      "autoMatch": "Attribution automatique",
+      "autoMatchHint": "Annule votre attribution ; l’appariement choisit à nouveau le spécialiste.",
+      "working": "Enregistrement de l’attribution…",
+      "routedFlash": "Attribuée à {name}.",
+      "unroutedFlash": "Attribution annulée. L’appariement choisit à nouveau le spécialiste.",
+      "failed": "L’attribution n’a pas pu être enregistrée.",
+      "locked": {
+        "dispatched": "Une exécution utilise le spécialiste en ce moment. L’attribution redevient possible à son retour.",
+        "suspect": "Levez le signalement d’annonce suspecte avant d’attribuer cette mission.",
+        "closed": "Cette mission a quitté la ligne, son attribution est donc figée."
+      },
+      "noFitTitle": "Aucun spécialiste ne correspond",
+      "noFitBody": "Aucun spécialiste de ce domaine ne correspond à cette mission tout en étant prêt à s’exécuter. Recrutez-en un pour cette niche ; modifiez-la d’abord si elle ne convient pas.",
+      "nicheLabel": "Niche",
+      "hire": "Recruter pour cette niche",
+      "hiring": "Envoi du recrutement…",
+      "hired": "Recrutement envoyé. Le spécialiste apparaît dans la liste et peut prendre la mission dès que Personas l’approuve.",
+      "reused": "Un spécialiste actif existe déjà pour cette niche. Il a été réutilisé.",
+      "hireFailed": "Le spécialiste n’a pas pu être recruté.",
+      "nicheRequired": "Indiquez d’abord la niche.",
+      "reason": {
+        "routed": "Attribuée par vous : la mission porte sa niche « {evidence} »",
+        "category_terms": "La catégorie du brief mentionne {evidence}",
+        "tag_terms": "Les tags de l’annonce mentionnent {evidence}",
+        "title_terms": "Le titre mentionne {evidence}",
+        "generalist": "Niche généraliste : prend toute mission, classée sous les vraies correspondances",
+        "no_overlap": "Rien dans le brief, les tags ou le titre ne correspond à sa niche",
+        "record": "Acceptés : {evidence} de ses travaux envoyés (ne départage qu’en cas d’égalité)",
+        "hire_not_ready": "Recrutement pas encore exécutable : {evidence}",
+        "no_hire": "Son dossier de recrutement est introuvable"
+      }
+    },
     "workspace": {
       "title": "Espace de travail",
       "folder": "Dossier",

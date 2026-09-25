@@ -1,6 +1,9 @@
-import { ACTIVE_AGENT_STATUSES, getHiredAgent } from "../db/agents";
+import { getHiredAgent } from "../db/agents";
 import { getGig, setGigQualification, transitionGig } from "../db/gigs";
-import { findGigSpecialistForArena } from "../db/gigs-specialists";
+import { readGigKpiInput } from "../db/gigs-outcomes";
+import { getGigSpecialist, listGigSpecialists } from "../db/gigs-specialists";
+import { foldGigKpi } from "./kpi";
+import { pickGigMatch, rankSpecialistsForGig, type GigMatch, type GigMatchGig } from "./match";
 import type { Gig, GigQualification, GigSpecialist } from "./types";
 
 // Gig qualification - "is this listing worth a specialist's attempt?" - as deterministic
@@ -105,19 +108,47 @@ export type QualifyAndMatchResult =
  *  gets its (zero) verdict recorded so the desk can show why it is held. */
 const QUALIFIABLE: readonly Gig["status"][] = ["new", "suspect"];
 
-/** Find the arena's specialist, record the verdict, and move `new -> qualified` when it
- *  clears QUALIFY_THRESHOLD (otherwise the gig stays `new` for the operator to decide).
- *  A specialist whose hire is no longer live (failed, rejected, retired) is not a match.
- *  Synchronous: every step is a local store call, no await, no transaction spanning a
- *  slow call. The move is a CAS - a gig that moved meanwhile keeps its verdict and
- *  reports `moved: false`. */
+/** The workspace's specialists ranked for `gig` (match.ts, the pure ranker), with each
+ *  one's hire status and accepted-outcome record read from the store. Same-arena only. */
+export function rankGigSpecialists(workspaceId: string, gig: GigMatchGig): GigMatch[] {
+  const specialists = listGigSpecialists(workspaceId).filter((s) => s.spec.arena === gig.arena);
+  if (specialists.length === 0) return [];
+  const bySpecialist = foldGigKpi(readGigKpiInput(workspaceId)).bySpecialist;
+  return rankSpecialistsForGig(
+    gig,
+    specialists.map((s) => {
+      const cell = bySpecialist[s.id];
+      return {
+        specialist: s,
+        hireStatus: getHiredAgent(s.hiredAgentId, workspaceId)?.status ?? null,
+        record: cell && cell.resolved > 0 ? { accepted: cell.accepted, resolved: cell.resolved } : null,
+      };
+    })
+  );
+}
+
+/** The specialist the matcher picks for `gig`: the best READY candidate scoring above 0
+ *  (match.ts pickGigMatch), else null. */
+export function matchGigSpecialist(workspaceId: string, gig: GigMatchGig): GigSpecialist | null {
+  const best = pickGigMatch(rankGigSpecialists(workspaceId, gig));
+  return best ? getGigSpecialist(workspaceId, best.specialistId) : null;
+}
+
+/** Rank the arena's specialists (match.ts), take the best READY one scoring above 0,
+ *  record the verdict, and move `new -> qualified` when it clears QUALIFY_THRESHOLD
+ *  (otherwise the gig stays `new` for the operator to decide or route). A specialist
+ *  whose hire is not runnable (onboarding | active) is ranked but never the match, and
+ *  one whose niche has nothing in common with the gig is not a match either - the
+ *  operator routes such a gig by hand (PATCH /api/gigs/[id] `route`). A routed gig's
+ *  niche equals its specialist's, which the ranker scores 100, so a re-qualification
+ *  keeps the operator's choice. Synchronous: every step is a local store call, no await,
+ *  no transaction spanning a slow call. The move is a CAS - a gig that moved meanwhile
+ *  keeps its verdict and reports `moved: false`. */
 export function qualifyAndMatch(workspaceId: string, gigId: string, opts: { now?: Date } = {}): QualifyAndMatchResult {
   const gig = getGig(workspaceId, gigId);
   if (!gig) return { ok: false, reason: "not_found" };
   if (!QUALIFIABLE.includes(gig.status)) return { ok: false, reason: "not_qualifiable" };
-  const candidate = findGigSpecialistForArena(workspaceId, gig.arena, gig.niche);
-  const agent = candidate ? getHiredAgent(candidate.hiredAgentId, workspaceId) : null;
-  const specialist = candidate && agent && ACTIVE_AGENT_STATUSES.includes(agent.status) ? candidate : null;
+  const specialist = matchGigSpecialist(workspaceId, gig);
   const qualification = qualifyGig(gig, { specialist, now: opts.now ?? new Date() });
   const recorded = setGigQualification(workspaceId, gigId, qualification, specialist?.id ?? null) ?? gig;
   if (gig.status !== "new" || !qualifies(qualification)) {

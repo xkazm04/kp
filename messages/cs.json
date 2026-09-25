@@ -2017,6 +2017,7 @@
     "GIG_SOURCE_TERMS_CHANGED": "Shrnutí podmínek tohoto zdroje se od vašeho potvrzení změnilo. Přečtěte si aktuální podmínky a potvrďte je znovu.",
     "GIG_SOURCE_TERMS_REQUIRED": "Než tento zdroj znovu spustíte, přečtěte si jeho podmínky a potvrďte je.",
     "GIG_WORKSPACE_FAILED": "Pracovní složku zakázky nebo její projekt v Personas se nepodařilo připravit, a tak se nic neodeslalo. Zkontrolujte připojení k Personas a zkuste to znovu.",
+    "GIG_ROUTE_ARENA_MISMATCH": "Tento specialista pracuje v jiné oblasti než zakázka, takže mu ji nelze přiřadit.",
     "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu."
   },
   "resilience": {
@@ -13747,6 +13748,53 @@
     "later": "Teď ne"
   },
   "gigs": {
+    "routing": {
+      "title": "Přiřazení",
+      "lede": "Komu zakázka připadne. Párování řadí specialisty této oblasti podle slov jejich niky, která najde v kategorii zadání, ve štítcích a v názvu; zakázku můžete přiřadit i ručně.",
+      "goesTo": "Připadne",
+      "routedByYou": "přiřazeno vámi",
+      "autoMatched": "přiřazeno automaticky",
+      "noneMatched": "Zatím není přiřazen žádný specialista",
+      "candidates": "{count, plural, one {# kandidát v oblasti {arena}} few {# kandidáti v oblasti {arena}} other {# kandidátů v oblasti {arena}}}",
+      "noCandidates": "V oblasti {arena} zatím nepracuje žádný specialista.",
+      "fit": "Shoda {score} ze 100",
+      "fitLabel": "Skóre shody pro {name}: {score} ze 100",
+      "ready": "Připraven ke spuštění",
+      "notReady": "Není připraven: {status}",
+      "current": "Aktuální přiřazení",
+      "routeHere": "Přiřadit sem",
+      "autoMatch": "Přiřadit automaticky",
+      "autoMatchHint": "Zruší vaše přiřazení; specialistu znovu vybere párování.",
+      "working": "Ukládá se přiřazení…",
+      "routedFlash": "Přiřazeno: {name}.",
+      "unroutedFlash": "Přiřazení zrušeno. Specialistu znovu vybírá párování.",
+      "failed": "Přiřazení se nepodařilo uložit.",
+      "locked": {
+        "dispatched": "Specialista na zakázce právě pracuje. Přiřazení se znovu otevře, až se běh vrátí.",
+        "suspect": "Než zakázku přiřadíte, zrušte příznak podezřelého inzerátu.",
+        "closed": "Zakázka už opustila linku, takže její přiřazení je uzavřené."
+      },
+      "noFitTitle": "Žádný specialista nesedí",
+      "noFitBody": "V této oblasti není specialista, který by se na zakázku hodil a zároveň byl připraven ke spuštění. Najměte ho pro tuto niku; pokud nesedí, nejdřív ji upravte.",
+      "nicheLabel": "Nika",
+      "hire": "Najmout pro tuto niku",
+      "hiring": "Odesílá se najmutí…",
+      "hired": "Najmutí odesláno. Specialista se objeví v seznamu a zakázku převezme, jakmile ho Personas schválí.",
+      "reused": "Aktivní specialista pro tuto niku už existuje, a tak byl použit znovu.",
+      "hireFailed": "Specialistu se nepodařilo najmout.",
+      "nicheRequired": "Nejdřív zadejte niku.",
+      "reason": {
+        "routed": "Přiřazeno vámi: zakázka nese jeho niku „{evidence}“",
+        "category_terms": "Kategorie zadání zmiňuje: {evidence}",
+        "tag_terms": "Štítky inzerátu zmiňují: {evidence}",
+        "title_terms": "Název zmiňuje: {evidence}",
+        "generalist": "Obecná nika: vezme jakoukoli zakázku, řadí se pod skutečné shody",
+        "no_overlap": "Nic v zadání, štítcích ani názvu neodpovídá jeho nice",
+        "record": "Přijato {evidence} jeho odeslaných prací (rozhoduje jen při shodném skóre)",
+        "hire_not_ready": "Najmutí zatím nelze spustit: {evidence}",
+        "no_hire": "Chybí záznam o jeho najmutí"
+      }
+    },
     "workspace": {
       "title": "Pracovní prostor",
       "folder": "Složka",

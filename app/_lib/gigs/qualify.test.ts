@@ -122,7 +122,9 @@ test("deadlineHeadroomDays: null for absent or unparseable, one decimal otherwis
 const WS = "ws-gig-qualify";
 let seq = 0;
 
-function newGig(arena: Gig["arena"] = "security", over: { deadlineAt?: string | null; suspect?: boolean } = {}): Gig {
+// Tagged "web" by default so the default specialist niche ("web") fits it: the matcher
+// (match.ts) no longer hands a gig to an arena specialist that nothing in it names.
+function newGig(arena: Gig["arena"] = "security", over: { deadlineAt?: string | null; suspect?: boolean; tags?: string[]; title?: string } = {}): Gig {
   seq += 1;
   return upsertGigFromRaw(WS, {
     sourceId: "gsrc-q",
@@ -130,23 +132,23 @@ function newGig(arena: Gig["arena"] = "security", over: { deadlineAt?: string | 
     raw: {
       externalKey: `q-${seq}`,
       url: `https://example.test/q/${seq}`,
-      title: `Qualify ${seq}`,
+      title: over.title ?? `Qualify ${seq}`,
       org: null,
       reward: { amount: 300, currency: "USD", text: "$300" },
       deadlineAt: over.deadlineAt === undefined ? inDays(20) : over.deadlineAt,
       postedAt: null,
       bodyText: "Find the bug.",
       bodyHtml: null,
-      tags: [],
+      tags: over.tags ?? ["web"],
     },
     suspectReasons: over.suspect ? ["hidden_instructions"] : [],
   }).gig;
 }
 
-function hireSpecialist(arena: Gig["arena"], status: "pending_approval" | "active" | "failed" = "active"): GigSpecialist {
+function hireSpecialist(arena: Gig["arena"], status: "pending_approval" | "active" | "failed" = "active", niche = "web"): GigSpecialist {
   const agent = createHiredAgent({ jobTitle: "Gig specialist - test", spec: {} }, WS);
   updateHiredAgentStatus(agent.id, status, { personaId: status === "active" ? `p-${agent.id}` : null }, WS);
-  return createGigSpecialist(WS, { hiredAgentId: agent.id, name: "Spec", spec: spec(arena), registry: "unavailable" });
+  return createGigSpecialist(WS, { hiredAgentId: agent.id, name: "Spec", spec: spec(arena, niche), registry: "unavailable" });
 }
 
 test("qualifyAndMatch: no specialist -> verdict recorded, gig stays new", () => {
@@ -180,6 +182,28 @@ test("qualifyAndMatch: a specialist whose hire failed is not a match", () => {
   const gig = newGig("oss_bounty");
   const r = qualifyAndMatch(WS, gig.id, { now: NOW });
   assert.ok(r.ok && !r.moved && r.specialistId === null);
+});
+
+test("qualifyAndMatch: the best-fitting READY specialist wins, not the oldest in the arena", () => {
+  // Freelance is otherwise empty in this file. Hired oldest first.
+  const web = hireSpecialist("freelance", "active", "web development");
+  const pending = hireSpecialist("freelance", "pending_approval", "AI consulting and technical reports");
+  const ai = hireSpecialist("freelance", "active", "AI consulting");
+  const gig = newGig("freelance", { title: "Feasibility report for AI agents", tags: ["AI Consulting", "AI Agents"] });
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW });
+  assert.ok(r.ok && r.moved);
+  if (!r.ok) return;
+  assert.equal(r.specialistId, ai.id, "the web one is older but does not fit; the pending one fits but is not ready");
+  assert.notEqual(r.specialistId, web.id);
+  assert.notEqual(r.specialistId, pending.id);
+  assert.equal(getGig(WS, gig.id)!.specialistId, ai.id);
+});
+
+test("qualifyAndMatch: an arena specialist whose niche nothing in the gig names is not a match", () => {
+  const gig = newGig("freelance", { title: "Knit me a scarf", tags: ["Knitting"] });
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW });
+  assert.ok(r.ok && !r.moved && r.specialistId === null);
+  assert.equal(getGig(WS, gig.id)!.qualification?.factors.arenaFit, false);
 });
 
 test("qualifyAndMatch: a rushed deadline stays new with its low verdict", () => {

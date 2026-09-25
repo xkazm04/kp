@@ -2017,6 +2017,7 @@
     "GIG_SOURCE_TERMS_CHANGED": "Die Zusammenfassung der Bedingungen dieser Quelle hat sich seit Ihrer Bestätigung geändert. Lesen Sie die aktuellen Bedingungen und bestätigen Sie sie erneut.",
     "GIG_SOURCE_TERMS_REQUIRED": "Lesen und bestätigen Sie die Bedingungen dieser Quelle, bevor Sie sie fortsetzen.",
     "GIG_WORKSPACE_FAILED": "Der Arbeitsordner des Auftrags oder sein Personas-Projekt konnte nicht vorbereitet werden, daher wurde nichts gesendet. Prüfen Sie die Verbindung zu Personas und versuchen Sie es erneut.",
+    "GIG_ROUTE_ARENA_MISMATCH": "Dieser Spezialist arbeitet in einem anderen Bereich als dieser Auftrag, daher kann der Auftrag ihm nicht zugeordnet werden.",
     "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
@@ -13747,6 +13748,53 @@
     "later": "Nicht jetzt"
   },
   "gigs": {
+    "routing": {
+      "title": "Zuordnung",
+      "lede": "Wer diesen Auftrag bekommt. Das Matching ordnet die Spezialisten dieses Bereichs nach den Wörtern ihrer Nische, die in der Kategorie der Aufgabe, den Tags und dem Titel vorkommen; Sie können den Auftrag auch von Hand zuordnen.",
+      "goesTo": "Geht an",
+      "routedByYou": "von Ihnen zugeordnet",
+      "autoMatched": "automatisch zugeordnet",
+      "noneMatched": "Noch kein Spezialist zugeordnet",
+      "candidates": "{count, plural, one {# Kandidat im Bereich {arena}} other {# Kandidaten im Bereich {arena}}}",
+      "noCandidates": "Im Bereich {arena} arbeitet noch kein Spezialist.",
+      "fit": "Passung {score} von 100",
+      "fitLabel": "Passungswert für {name}: {score} von 100",
+      "ready": "Startbereit",
+      "notReady": "Nicht bereit: {status}",
+      "current": "Aktuelle Zuordnung",
+      "routeHere": "Hierher zuordnen",
+      "autoMatch": "Automatisch zuordnen",
+      "autoMatchHint": "Hebt Ihre Zuordnung auf; das Matching wählt den Spezialisten neu.",
+      "working": "Zuordnung wird gespeichert…",
+      "routedFlash": "{name} zugeordnet.",
+      "unroutedFlash": "Zuordnung aufgehoben. Das Matching wählt den Spezialisten neu.",
+      "failed": "Die Zuordnung konnte nicht gespeichert werden.",
+      "locked": {
+        "dispatched": "Ein Lauf nutzt den Spezialisten gerade. Die Zuordnung ist wieder möglich, sobald er zurückkommt.",
+        "suspect": "Heben Sie die Markierung als verdächtige Ausschreibung auf, bevor Sie diesen Auftrag zuordnen.",
+        "closed": "Dieser Auftrag hat die Linie verlassen, seine Zuordnung steht fest."
+      },
+      "noFitTitle": "Kein Spezialist passt",
+      "noFitBody": "In diesem Bereich passt kein Spezialist zu diesem Auftrag und ist zugleich startbereit. Stellen Sie einen für diese Nische ein; passen Sie sie vorher an, wenn sie nicht stimmt.",
+      "nicheLabel": "Nische",
+      "hire": "Für diese Nische einstellen",
+      "hiring": "Einstellung wird gesendet…",
+      "hired": "Einstellung gesendet. Der Spezialist erscheint in der Liste und kann den Auftrag übernehmen, sobald Personas ihn freigibt.",
+      "reused": "Für diese Nische gibt es bereits einen aktiven Spezialisten. Er wurde wiederverwendet.",
+      "hireFailed": "Der Spezialist konnte nicht eingestellt werden.",
+      "nicheRequired": "Geben Sie zuerst die Nische an.",
+      "reason": {
+        "routed": "Von Ihnen zugeordnet: Der Auftrag trägt seine Nische „{evidence}“",
+        "category_terms": "Die Kategorie der Aufgabe nennt {evidence}",
+        "tag_terms": "Die Tags der Ausschreibung nennen {evidence}",
+        "title_terms": "Der Titel nennt {evidence}",
+        "generalist": "Allgemeine Nische: nimmt jeden Auftrag, eingeordnet unter echten Treffern",
+        "no_overlap": "Nichts in Aufgabe, Tags oder Titel passt zu seiner Nische",
+        "record": "Angenommen: {evidence} seiner gesendeten Arbeiten (entscheidet nur bei Gleichstand)",
+        "hire_not_ready": "Einstellung noch nicht lauffähig: {evidence}",
+        "no_hire": "Sein Einstellungsdatensatz fehlt"
+      }
+    },
     "workspace": {
       "title": "Arbeitsbereich",
       "folder": "Ordner",

@@ -2017,6 +2017,7 @@
     "GIG_SOURCE_TERMS_CHANGED": "This source’s terms summary changed since it was acknowledged. Read the current terms and acknowledge them again.",
     "GIG_SOURCE_TERMS_REQUIRED": "Read and acknowledge this source’s terms before resuming it.",
     "GIG_WORKSPACE_FAILED": "The gig’s working folder or its Personas project could not be prepared, so nothing was sent. Check the Personas connection and try again.",
+    "GIG_ROUTE_ARENA_MISMATCH": "That specialist works a different arena than this gig, so the gig cannot be routed to it.",
     "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again."
   },
   "resilience": {
@@ -13747,6 +13748,53 @@
     "later": "Not now"
   },
   "gigs": {
+    "routing": {
+      "title": "Match",
+      "lede": "Who this gig goes to. The matcher ranks this arena’s specialists by their niche words found in the brief category, the tags and the title; you can also route the gig by hand.",
+      "goesTo": "Goes to",
+      "routedByYou": "routed by you",
+      "autoMatched": "auto-matched",
+      "noneMatched": "No specialist matched yet",
+      "candidates": "{count, plural, one {# candidate in {arena}} other {# candidates in {arena}}}",
+      "noCandidates": "No specialist works in {arena} yet.",
+      "fit": "Fit {score} of 100",
+      "fitLabel": "Fit score for {name}: {score} of 100",
+      "ready": "Ready to run",
+      "notReady": "Not ready: {status}",
+      "current": "Current match",
+      "routeHere": "Route here",
+      "autoMatch": "Auto-match",
+      "autoMatchHint": "Clears your routing; the matcher picks the specialist again.",
+      "working": "Saving the routing…",
+      "routedFlash": "Routed to {name}.",
+      "unroutedFlash": "Routing cleared. The matcher picks the specialist again.",
+      "failed": "The routing could not be saved.",
+      "locked": {
+        "dispatched": "A run is using the specialist right now. Routing opens again when it returns.",
+        "suspect": "Clear the suspicious-listing flag before routing this gig.",
+        "closed": "This gig has left the line, so its routing is fixed."
+      },
+      "noFitTitle": "No specialist fits",
+      "noFitBody": "No specialist in this arena both fits this gig and is ready to run. Hire one for this niche; edit it first if it reads wrong.",
+      "nicheLabel": "Niche",
+      "hire": "Hire for this niche",
+      "hiring": "Sending the hire…",
+      "hired": "Hire sent. The specialist appears in the list and can take the gig once Personas approves it.",
+      "reused": "A live specialist for that niche already exists, so it was reused.",
+      "hireFailed": "The specialist could not be hired.",
+      "nicheRequired": "Name the niche first.",
+      "reason": {
+        "routed": "Routed by you: the gig carries its niche “{evidence}”",
+        "category_terms": "Brief category mentions {evidence}",
+        "tag_terms": "Listing tags mention {evidence}",
+        "title_terms": "Title mentions {evidence}",
+        "generalist": "Generalist niche: takes any gig, ranked below real fits",
+        "no_overlap": "Nothing in the brief, tags or title matches its niche",
+        "record": "Accepted {evidence} of its sent work (only breaks ties)",
+        "hire_not_ready": "Hire not runnable yet: {evidence}",
+        "no_hire": "Its hire record is missing"
+      }
+    },
     "workspace": {
       "title": "Workspace",
       "folder": "Folder",

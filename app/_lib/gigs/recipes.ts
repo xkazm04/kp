@@ -90,6 +90,12 @@ export type ResolvedGigRecipe = {
   guidance: string | null;
   /** Every outcome's success criteria, flattened in order; [] for a seed slug. */
   successCriteria: string[];
+  /** The recipe's activity labels, in order (what the craft has its agent do); [] for a
+   *  seed slug. Read by the specialist requirements (requirements.ts). */
+  activities: string[];
+  /** The recipe's folder in the registry checkout, absolute (where its LESSONS.md lives);
+   *  null for a seed slug. Never persisted - the spec pins `ref` only. */
+  folder: string | null;
 };
 
 export type ResolvedGigRecipes = {
@@ -164,6 +170,8 @@ function seedRecipe(slug: string): ResolvedGigRecipe {
     coreAction: null,
     guidance: null,
     successCriteria: [],
+    activities: [],
+    folder: null,
   };
 }
 
@@ -189,6 +197,11 @@ function registryRecipe(registryDir: string, index: Record<string, IndexEntry>, 
     const crit = o && typeof o === "object" ? (o as { success_criteria?: unknown }).success_criteria : null;
     if (Array.isArray(crit)) for (const c of crit) if (str(c)) successCriteria.push(str(c)!);
   }
+  const activities: string[] = [];
+  for (const a of Array.isArray(recipe.activities) ? recipe.activities : []) {
+    const label = a && typeof a === "object" ? str((a as { label?: unknown }).label) : null;
+    if (label) activities.push(label);
+  }
   return {
     ref: { slug, version: str(entry.version) ?? str(recipe.version) ?? GIG_SEED_RECIPE_VERSION },
     origin: "registry",
@@ -197,6 +210,8 @@ function registryRecipe(registryDir: string, index: Record<string, IndexEntry>, 
     coreAction: str(description.core_action),
     guidance: str(recipe.guidance),
     successCriteria,
+    activities,
+    folder: path.dirname(file),
   };
 }
 

@@ -285,6 +285,18 @@ The dispatch payload kp sends:
 }
 ```
 
+**Requirement-driven hires: `spec.requirements`, no `systemPromptDraft`.** `DispatchSpec`
+(`app/_lib/agent-hire/bridge-client.ts`) has an optional `requirements` field, and
+`systemPromptDraft` is optional. A hire that kp composes from requirements rather than a
+prompt (today only a gig specialist: a `kp.agent-requirements.v1` object built by
+`app/_lib/gigs/requirements.ts`, see
+[docs/features/gigs/README.md](../gigs/README.md) **Requirements**) sends
+`spec.requirements` and leaves `systemPromptDraft` off the wire entirely. It is never sent as
+`""`. Personas designs the agent from the requirements. The spec is serialized as the caller
+built it, so the recruiting (agent-fit) and App-master hires, which set `systemPromptDraft` and
+no `requirements`, send the same bytes as before. The roster row's `spec_json` keeps whichever
+shape was sent.
+
 ## Hiring from a need, with nobody in the loop
 
 `POST /api/agents/hire-from-need` is the door **Personas** asks through. An App

@@ -57,7 +57,9 @@ imports from it.
    the arena's recipes (`recipes.ts`, registry first, seed map otherwise) and hires it
    through the shared agent hire path (`mintAndDispatch`), filed into its arena's
    Personas workspace (see **Workspaces and projects**). A live specialist for the
-   same arena and niche is reused.
+   same arena and niche is reused. The hire sends **requirements**, not a prompt: the
+   recipes' craft and lessons plus what research of the arena's listings found (see
+   **Requirements**).
 4. **Dispatch.** `POST /api/gigs/[id]/dispatch` first prepares the gig's workspace (its
    folder and its Personas project, see **Workspaces and projects**), then claims the gig
    by CAS, creates an attempt and POSTs the assignment to Personas with `workdir` and
@@ -195,6 +197,63 @@ paragraphs plus the same "Sources read" list, because the link list is the part 
 operator cannot get any other way. `fallbackReason` says why (`no_provider`,
 `gig_suspect`, `budget`, `engine_error`, `llm_unusable`, `llm_error:<type>`).
 
+## Requirements
+
+A specialist is hired from **requirements**, not from a prompt kp wrote. The operator's
+decision (2026-09-25): "KP should not create prompts, KP should extract requirements for
+agent based on research. Personas should create agent in alignment with its design to
+execute it, so we are able to overview and manage in the app." The hire request
+(`POST {bridge}/api/kp/persona-requests`) carries `spec.requirements`, a
+`kp.agent-requirements.v1` object built by `composeGigRequirements`
+(`app/_lib/gigs/requirements.ts`), and **no** `spec.systemPromptDraft`: the key is left off
+the wire, never sent empty. Personas designs the agent from the requirements, stores them on
+the persona and shows them in its app. The recruiting and App-master hires are unchanged.
+The same 2026-09-25 dry run is the other reason: Personas' build gave the persona its own
+structured prompt and rendered that instead of kp's, so kp's prompt never reached the run.
+
+| Field | Where it comes from |
+| --- | --- |
+| `role`, `arena`, `niche`, `budgetUsdPerAttempt` | the specialist spec (`composeGigSpecialistSpec`) |
+| `purpose` | the arena recipe's need |
+| `responsibilities` | the adopted recipes' activity labels, in order (a recipe without activities gives its core action; a seed recipe gives nothing) |
+| `craft[]` | per adopted recipe: `slug@version`, title, need, core action (absent for a seed recipe), success criteria, and `lessons`: the newest bullets of the recipe's `LESSONS.md` in the registry checkout (resolved as `recipes.ts` resolves the recipe; the last 64 KB, at most 5 bullets, newest block first, only bullets under a `## <version> - <date> - <project>` heading). A seed recipe has none |
+| `research` | this workspace's research briefs in the arena (`listGigBriefsForArena`: at most 500, newest first, gigs the honeypot scan held back left out), aggregated below |
+| `inputs` | `kp.gig.v1` and every assignment field (a record typed over `GigAssignment`, so a new field cannot go unlisted) |
+| `outputs` | `contract.ts`: `kp-deliverable.v1`, `kp-deliverable.json`, `deliverable/`, `NOTES.md` and (an extra key) `DELIVERABLE-CONTRACT.md`; the review checklist keys from `checklists.ts` |
+| `constraints` | `GIG_RUN_CONSTRAINTS` (`contract.ts`): the same strings every gig folder's `DELIVERABLE-CONTRACT.md` carries |
+| `tools` | `GIG_ARENA_TOOLS` (`specialist-defaults.ts`), each with a `why` |
+
+**Research.** The briefs are scoped to the niche when every word of the niche starts a word
+of the gig's niche or the brief's category ("web development" takes "Web development ·
+Landing page", not "Mobile development · …"); when none matches, or the niche is `general`,
+the whole arena is used (`scope: "niche" | "arena"`). `categories`, `commonAsks` (the
+bullets under the brief's "What it asks for") and `commonChallenges` are normalized (case,
+accents, punctuation, stop words), counted once per brief, and the top 8 are kept in the
+wording of their first (newest) occurrence. Research text comes from listings strangers
+wrote, so every string the honeypot scan (`suspect.ts`) flags is dropped.
+`typicalEffortHours` is the 25th percentile of the rated briefs' minimum hours and the 75th of
+their maximum; `null` when no brief rated effort. No briefs: `gigsResearched: 0`, empty
+lists, `null` effort.
+
+**Tools.** A tool only when a deliverable needs it. `source_control` on a freelance specialist
+made Personas design a GitHub-commit phase nobody asked for (the 2026-09-25 dry run), when a
+freelance deliverable is files in the gig folder.
+
+| Arena | Tools |
+| --- | --- |
+| freelance | `research`: check vendor facts and public docs the brief depends on |
+| security | `research`: the program's scope and rules, and the disclosed reports a duplicate check needs |
+| competition | `research`: the rules, data description and evaluation metric (`ai` removed) |
+| oss_bounty | `source_control`: clone and run the tests locally, never push; `research`: the issue, claim rules, contributing guide |
+
+**Bounds** (Personas validates them): every string trimmed and at most 1000 characters, every
+list at most 30 items, the serialized object at most 30 KB (under Personas' 32 KB). When it is
+over, success criteria, lessons and research lists shrink first; constraints, outputs and
+tools never do. Deterministic and keyless: no model; no registry means seed recipes and no
+lessons; no briefs means `gigsResearched: 0`. The roster row (`hired_agents.spec_json`) keeps
+the spec as sent, requirements included. A specialist's stored `spec.promptVersion` is now
+`gig-requirements.v1` (the field keeps its name; prompt versions ended at `gig-specialist.v3`).
+
 ## Workspaces and projects
 
 Every gig attempt runs **in the gig's own folder**, so the agent's files, notes and
@@ -214,7 +273,8 @@ skipped; the working directory is the boundary the run is told to keep).
   NOTES.md          headings only: Restatement, Assumptions and defaults, Decisions,
                     Verification, Lesson candidates (a line under each saying what goes there)
   deliverable/      every file meant for the client (.gitkeep to start)
-  DELIVERABLE-CONTRACT.md   the deliverable contract (contract.ts) - kp-owned, REWRITTEN on
+  DELIVERABLE-CONTRACT.md   the run's rules, this layout, the arena's review checklist and the
+                    deliverable contract (contract.ts) - kp-owned, REWRITTEN on
                     every prepare when it differs, so a contract change reaches gigs already
                     scaffolded
   kp-deliverable.json       written by the specialist: its handoff object (see below)
@@ -239,11 +299,11 @@ gig's URL as its description and the brief's category as its tech stack, ensured
 folder, then workspace, then project, and records `workdir` and `personas_project_id` on
 the gig. Specialists are hired into their arena's workspace (`placement: {workspaceId}` on
 the hire request). A dispatched run carries `_projectId` in its `input_data`; Personas
-binds the run's cwd to that project's root. The specialist's prompt (`gig-specialist.v3`)
-has a "Working directory" section: read `GIG.md` first, keep the process log in
-`NOTES.md`, put client files under `deliverable/`, never read or write outside the working
-directory, and list deliverable files in `artifacts` as kind `file` with the path relative
-to it.
+binds the run's cwd to that project's root. kp sends the specialist no prompt (see
+**Requirements**); the folder's `DELIVERABLE-CONTRACT.md` tells the run to read `GIG.md`
+first, keep the process log in `NOTES.md`, put client files under `deliverable/`, never read
+or write outside the gig folder, and list deliverable files in `artifacts` as kind `file`
+with the path relative to it.
 
 **The handoff** (`contract.ts`, `sync.ts`). The contract travels with the WORK, not only
 with the persona. The 2026-09-25 dry run found why: Personas' autonomous build gives a hired
@@ -253,8 +313,10 @@ Personas appends its own output protocol after the model's last words, so "end w
 fenced block, nothing after it" cannot hold. Both runs did the work and handed nothing kp
 could read. So:
 
-- every gig folder carries `DELIVERABLE-CONTRACT.md`, rendered from the same function as
-  the prompt's contract section (`gigDeliverableContractMarkdown`);
+- every gig folder carries `DELIVERABLE-CONTRACT.md` (`gigContractFileMarkdown(arena)`): the
+  run's rules (`GIG_RUN_CONSTRAINTS`, the strings the requirements' `constraints` carry), the
+  folder layout, the arena's review checklist with each item's meaning, and the deliverable
+  contract;
 - the specialist writes its deliverable object to `kp-deliverable.json` at the folder root
   (never under `deliverable/`, which is what the client receives), and also fences it at the
   end of its output;
@@ -264,8 +326,9 @@ could read. So:
   A file that fails validation fails the attempt with `invalid_json` / `invalid_shape` and a
   detail prefixed `kp-deliverable.json:`.
 
-The hard rules do not depend on the prompt either: the gigs repository's own `CLAUDE.md`
-(loaded by the CLI for any run under it) carries them.
+The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
+every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under
+it) carries them too.
 
 `POST /api/gigs/[id]/workspace` runs the same step on demand. The gig's page shows it as
 one row above the page (`GigsWorkspace.tsx`): the folder path as selectable text,
@@ -286,6 +349,69 @@ and **Prepare workspace**.
 At execute, Personas' 404 `project_not_found` and 403 `project_outside_persona_workspace`
 become `personas_project_not_found` / `personas_project_outside_workspace`: the attempt
 fails and the gig returns to `qualified`, like every other dispatch failure.
+
+## Matchmaking and routing
+
+Which specialist a gig goes to. Until 2026-09-25 a gig went to the OLDEST specialist in its
+arena (`findGigSpecialistForArena`: an exact `gig.niche` match, else the first), and since
+nothing ever set `gig.niche`, every freelance gig went to whichever specialist was hired
+first. Now a matcher ranks them and the operator can override it.
+
+**The matcher** (`app/_lib/gigs/match.ts`, pure, deterministic, keyless, client-safe).
+`rankSpecialistsForGig(gig, candidates)` answers
+`[{ specialistId, score 0..100, reasons: [{ code, evidence }], ready }]`, sorted:
+
+| Signal | Rule |
+| --- | --- |
+| arena | must match, else the specialist is not a candidate at all |
+| routed | `gig.niche` equal (trimmed, case-insensitive) to the specialist's niche: 100, reason `routed` |
+| niche fit | the specialist's niche words found in the brief category (weight 1.0, reason `category_terms`), the listing's tags (0.85, `tag_terms`) or its title and brief title (0.7, `title_terms`); each word counted once, in its strongest field. Words are normalized (case, accents, `front-end` -> `frontend`), lightly stemmed (plural `s`, `-ies`, `-ing`), stopwords dropped, and folded through ONE synonym table, `GIG_NICHE_SYNONYMS` (web / website / frontend / html / css; data / excel / sheets / analysis; writing / content / copy; ai / llm / agents / automation). Generic words ("development", "design", "services") weigh 0.4. Up to 90 points: half for how much of the niche the gig covers, half for how strong the hits are (two full hits saturate) |
+| generalist | a niche with no words left ("general"): 15, reason `generalist`, below every real fit |
+| record | accepted / resolved sent work (`kpi.ts` `bySpecialist`), damped under 10 resolved: up to 10 points, reason `record` with `accepted/resolved`. Added only to a specialist that already fits, so it breaks ties and never matches alone |
+| ready | the hire is `onboarding` or `active` (`GIG_RUNNABLE_HIRE_STATUSES`, which dispatch reads too). Not part of the score: a specialist waiting on Personas is ranked and shown (`hire_not_ready` / `no_hire`), never picked |
+
+Order: score desc, ready first, the gig's current specialist (so an unchanged gig never
+flips on a tie), the oldest, then id. `pickGigMatch` takes the best READY candidate scoring
+above 0, else none. `suggestNicheForGig` names the niche to hire for: the brief category's
+head ("Web development · Typing test tool" -> "Web development"), else the first tag.
+
+**Who calls it.** `qualify.ts` `rankGigSpecialists` feeds the ranker the workspace's
+specialists, each hire's status and the KPI record; `qualifyAndMatch` records
+`pickGigMatch`'s specialist, so a gig whose words name no specialist's niche is NOT matched
+(`arenaFit` false, it stays `new`) instead of falling to the oldest. The qualify arithmetic
+is unchanged. `dispatch.ts` uses the gig's recorded specialist, else the matcher's pick (or,
+so the refusal names the hire's state, the best-fitting specialist that is not ready).
+`findGigSpecialistForArena` (`db/gigs-specialists.ts`) keeps its old behaviour and no
+longer has a caller in the gig line.
+
+**Routing** (`app/_lib/gigs/routing.ts`, through `PATCH /api/gigs/[id]`):
+
+- `{ action: "route", specialistId }` sets `specialist_id` and copies the specialist's niche
+  onto `gig.niche`, which the matcher's `routed` signal then scores 100, so every later
+  ranking keeps the choice. The specialist must be in the same workspace (another
+  workspace's reads as absent: 409 `GIG_SPECIALIST_NOT_READY`, `detail: no_specialist`), the
+  same arena (409 `GIG_ROUTE_ARENA_MISMATCH`), with a runnable hire (409
+  `GIG_SPECIALIST_NOT_READY`, `detail: hire_<status>`). A routed `new` gig is re-qualified at
+  once, so it can become `qualified`.
+- `{ action: "unroute" }` clears `gig.niche` and puts the matcher's pick (or none) in
+  `specialist_id`; a `new` gig is re-qualified the same way.
+- Both are allowed while the gig is `new`, `qualified`, `drafted` or `in_review` and carries
+  no honeypot reasons (`canRouteGig`, `GIG_ROUTABLE_STATUSES`); never while `dispatched`
+  (a run holds the specialist), never a suspect gig, never off the line (409
+  `GIG_ACTION_NOT_ALLOWED` with `gigStatus`). The write (`db/gigs.ts` `setGigRoute`) is one
+  UPDATE whose WHERE re-asserts the status read, so a gig a dispatch claimed meanwhile is
+  left alone (409 `GIG_STATE_CHANGED`).
+
+**The Match panel** (`app/features/gigs/GigsRouting.tsx`, derivation in `routingView.ts`),
+under the workspace row on every gig page: who the gig goes to now ("routed by you" or
+"auto-matched"); every specialist in the arena ranked by the same `rankSpecialistsForGig`
+the server runs, each with its fit as a labelled `Meter` AND "Fit N of 100" in words, its
+reasons as sentences and its readiness; **Route here** on each ready candidate that is not
+the current one; **Auto-match** (unroute) on a routed gig. When no candidate both scores
+above 0 and is ready, "No specialist fits" offers a hire for the suggested niche, editable
+inline, through the Specialists page's own door (`POST /api/gigs/specialists`). While the
+gig is dispatched, suspect or off the line the buttons are gone and a sentence says why.
+Strings: `gigs.routing.*`, four catalogs.
 
 ## The Gigs tab
 
@@ -520,7 +646,7 @@ seen. Info never gates.
 | GET | `/api/gigs` | operator | none | `GIG_INPUT_INVALID` |
 | POST | `/api/gigs` | `pipeline:write` | 30 `gigs-forward` | `GIG_INPUT_INVALID` |
 | GET | `/api/gigs/[id]` | operator | none | `GIG_NOT_FOUND` |
-| PATCH | `/api/gigs/[id]` | `pipeline:write` | 120 `gigs-write` | `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED`, `GIG_STATE_CHANGED`, `GIG_INPUT_INVALID` |
+| PATCH | `/api/gigs/[id]` | `pipeline:write` | 120 `gigs-write` | `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED`, `GIG_STATE_CHANGED`, `GIG_INPUT_INVALID`; `route` / `unroute` (see **Matchmaking and routing**) add `GIG_SPECIALIST_NOT_READY` (409, `detail`) and `GIG_ROUTE_ARENA_MISMATCH` (409) |
 | POST | `/api/gigs/[id]/dispatch` | `pipeline:write` | 20 `gigs-dispatch` | `GIG_NOT_FOUND`, `GIG_SUSPECT`, `GIG_NOT_DISPATCHABLE`, `GIG_SPECIALIST_NOT_READY` (409), `GIG_DISPATCH_FAILED` (502), `GIG_WORKSPACE_FAILED` (502 Personas / 500 folder, `detail`) |
 | POST | `/api/gigs/[id]/workspace` | `pipeline:write` | 20 `gigs-workspace` | 200 `{ gig, personas }`; `GIG_NOT_FOUND`, `GIG_WORKSPACE_FAILED` (500, `detail` = `workdir_*`) |
 | POST | `/api/gigs/[id]/outcome` | `pipeline:write` | 60 `gigs-outcome` | `GIG_NOT_FOUND`, `GIG_ATTEMPT_NOT_FOUND`, `GIG_OUTCOME_NOT_SENT`, `GIG_INPUT_INVALID` |
@@ -548,7 +674,8 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/transitions.ts` | both state machines as data (`drafted`/`in_review` -> `qualified` added for `discard`) |
 | `app/_lib/gigs/adapters/**`, `scan.ts`, `suspect.ts` | official-API acquisition, the honeypot scan, the scan orchestrator (whole workspace or one source) |
 | `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's model call, the Markdown and its sections |
-| `app/_lib/gigs/qualify.ts` | deterministic qualification and specialist match |
+| `app/_lib/gigs/qualify.ts` | deterministic qualification; `rankGigSpecialists` / `matchGigSpecialist` feed the matcher from the store |
+| `app/_lib/gigs/match.ts`, `routing.ts` | the pure, client-safe specialist ranker (`rankSpecialistsForGig`, `pickGigMatch`, `suggestNicheForGig`) and the operator's route / unroute |
 | `app/_lib/gigs/recipes.ts`, `specialist.ts`, `checklists.ts` | recipe resolution, specialist composition and hire, per-arena review checklists |
 | `app/_lib/gigs/dispatch.ts`, `personas-exec.ts`, `sync.ts`, `deliverable.ts` | Personas dispatch, run sync, deliverable parser |
 | `app/_lib/gigs/workdir.ts`, `project.ts`, `personas-places.ts` | the gig's folder, the Personas workspace per arena and project per gig, the two bridge calls |
@@ -693,6 +820,9 @@ NULL until Personas registers it) and written by `setGigWorkspace`, which does n
   the brief's resolver maps by position, so a level-1 heading (kp's brief has none) would
   leave the headings after it unaddressed rather than mis-addressed.
 - PDF and other document links are dropped, not read.
+- A scan qualifies a listing BEFORE researching it, so its first match reads only the title
+  and tags; a gig left `new` for want of a fit is not re-matched when its brief lands (the
+  Match panel ranks with the brief, and a route or unroute re-qualifies it).
 - `GIG.md` is written once. A brief researched after the folder was made does not reach
   it (the file may carry the agent's or the operator's edits); re-research updates the
   gig's page only.

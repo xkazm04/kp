@@ -3,12 +3,12 @@
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { GIG_ARENAS, GIG_DELIVERABLE_CONTRACT, GIG_DELIVERABLE_FENCE } from "./types.ts";
+import { GIG_ARENAS } from "./types.ts";
 import { gigRecipeSlugs, type ResolvedGigRecipe, type ResolvedGigRecipes } from "./recipes.ts";
+import { GIG_REQUIREMENTS_KIND, composeGigRequirements, type GigRequirementsResearch } from "./requirements.ts";
 import {
   GIG_ARENA_CONNECTORS,
   GIG_DEFAULT_BUDGET_USD,
-  GIG_DISCLOSURE_SENTENCE,
   GIG_SPECIALIST_JOB_TITLE_PREFIX,
   cleanNiche,
   composeGigSpecialistSpec,
@@ -38,6 +38,8 @@ function seeded(arena: (typeof GIG_ARENAS)[number]): ResolvedGigRecipes {
     coreAction: i === 0 ? `Core ${slug}.` : null,
     guidance: i === 0 ? `Guidance ${slug}.` : null,
     successCriteria: i === 0 ? [`Criterion A of ${slug}`, `Criterion B of ${slug}`] : [],
+    activities: i === 0 ? [`Activity of ${slug}`] : [],
+    folder: null,
   }));
   return { recipes, registry: "unavailable", registryDir: null };
 }
@@ -51,10 +53,14 @@ test("compose: arena defaults for connectors, family, budget; recipes pinned fro
     assert.equal(spec.budgetUsdPerAttempt, GIG_DEFAULT_BUDGET_USD[arena]);
     assert.deepEqual(spec.recipes.map((r) => r.slug), gigRecipeSlugs(arena));
     assert.deepEqual(spec.exemplars, []);
-    assert.equal(spec.promptVersion, "gig-specialist.v3");
+    assert.equal(spec.promptVersion, "gig-requirements.v1", "the stored field keeps its name; the value is the requirements version");
   }
-  assert.deepEqual(GIG_ARENA_CONNECTORS.security, ["research", "source_control"]);
-  assert.deepEqual(GIG_ARENA_CONNECTORS.competition, ["research", "ai"]);
+  // A tool only when a deliverable needs it: only the bounty's deliverable is a change to a
+  // repository (source_control on freelance made Personas design a GitHub-commit phase).
+  assert.deepEqual(GIG_ARENA_CONNECTORS.freelance, ["research"]);
+  assert.deepEqual(GIG_ARENA_CONNECTORS.security, ["research"]);
+  assert.deepEqual(GIG_ARENA_CONNECTORS.competition, ["research"]);
+  assert.deepEqual(GIG_ARENA_CONNECTORS.oss_bounty, ["source_control", "research"]);
 });
 
 test("compose: a valid family and budget override are kept, invalid ones fall back", () => {
@@ -73,33 +79,34 @@ test("name is '<Arena> specialist - <niche>' and the niche is bounded", () => {
   assert.equal(cleanNiche("x".repeat(500)).length, 80);
 });
 
-test("dispatch spec: mission from the arena recipe, prompt carries recipes, checklist, contract and hard rules", () => {
+const NO_RESEARCH: GigRequirementsResearch = {
+  gigsResearched: 0,
+  scope: "arena",
+  categories: [],
+  commonAsks: [],
+  commonChallenges: [],
+  typicalEffortHours: null,
+  asOf: "2026-09-25",
+};
+
+test("dispatch spec: mission from the arena recipe, the requirements ride as-is, and there is no prompt", () => {
   const resolved = seeded("oss_bounty");
   const spec = composeGigSpecialistSpec({ arena: "oss_bounty", niche: "rust cli" }, resolved);
-  const d = specialistDispatchSpec(spec, resolved.recipes);
+  const requirements = composeGigRequirements(spec, resolved, NO_RESEARCH, { lessons: {} });
+  const d = specialistDispatchSpec(spec, requirements);
   assert.equal(d.name, "Open-source bounty specialist - rust cli");
   assert.equal(d.mission, "Need open-source-bounty-contribution. Core open-source-bounty-contribution.");
   assert.deepEqual(d.connectors, ["source_control", "research"]);
   assert.equal(d.maxBudgetUsd, GIG_DEFAULT_BUDGET_USD.oss_bounty);
   assert.deepEqual(d.successMetrics, []);
-  const p = d.systemPromptDraft;
-  assert.match(p, /Guidance open-source-bounty-contribution\./);
-  assert.match(p, /- Criterion A of open-source-bounty-contribution/);
-  for (const slug of gigRecipeSlugs("oss_bounty")) assert.ok(p.includes(`${slug}@0.1.0`), `${slug} section`);
-  assert.ok(p.includes(GIG_DELIVERABLE_CONTRACT));
-  assert.ok(p.includes("```" + GIG_DELIVERABLE_FENCE), "the fence tag the parser looks for");
-  assert.ok(p.includes(GIG_DISCLOSURE_SENTENCE));
-  assert.match(p, /bodyUntrusted/);
-  assert.match(p, /never instructions/i);
-  assert.match(p, /Never send, submit, post, comment/);
-  assert.match(p, /- disclosure: /, "the arena checklist, with meanings");
-  assert.match(p, /- tests_pass: /);
+  assert.equal("systemPromptDraft" in d, false, "kp writes no prompt for a gig specialist - absent, not empty");
+  assert.equal(d.requirements, requirements);
 });
 
-test("the prompt is built from trusted parts only: it has no gig text to leak", () => {
+test("the requirements are built from trusted parts only: no gig of the specialist's own to leak", () => {
   // composeGigSpecialistSpec takes no gig at all; the listing reaches the persona only
   // as `bodyUntrusted` in a per-attempt assignment (dispatch.ts). This pins the input
-  // surface so a future "personalize the prompt with the gig" change has to come here.
+  // surface so a future "personalize the hire with the gig" change has to come here.
   assert.equal(composeGigSpecialistSpec.length, 2);
   assert.equal(specialistDispatchSpec.length, 2);
 });
@@ -138,7 +145,7 @@ test("hire: mints through mintAndDispatch with jobId '' stored, a gig handle on 
 
   const sent = bodies[0] as {
     kp: { jobId: string };
-    spec: { name: string; systemPromptDraft: string };
+    spec: { name: string; systemPromptDraft?: string; requirements?: { kind: string; research: GigRequirementsResearch; tools: unknown } };
     appMaster?: unknown;
     placement?: { workspaceId: string };
   };
@@ -146,6 +153,13 @@ test("hire: mints through mintAndDispatch with jobId '' stored, a gig handle on 
   // so the wire carries a stable gig handle while the stored row keeps "" (no posting).
   assert.equal(sent.kp.jobId, "gig-specialist:competition:tabular");
   assert.equal(sent.spec.name, "Competition specialist - tabular");
+  // Requirements, not a prompt; a workspace with no researched gigs says so (0 + nulls).
+  assert.equal("systemPromptDraft" in sent.spec, false);
+  assert.equal(sent.spec.requirements?.kind, GIG_REQUIREMENTS_KIND);
+  assert.equal(sent.spec.requirements?.research.gigsResearched, 0);
+  assert.equal(sent.spec.requirements?.research.typicalEffortHours, null);
+  assert.deepEqual(sent.spec.requirements?.tools, [{ connector: "research", why: "read the competition's rules, data description and evaluation metric" }]);
+  assert.deepEqual((agent.spec as { requirements?: { kind?: string } }).requirements?.kind, GIG_REQUIREMENTS_KIND, "the roster row keeps what was sent");
   assert.equal(sent.appMaster, undefined);
   // Filed into the arena's Personas workspace, ensured first.
   assert.deepEqual(workspaceCalls[0], { name: "Competitions", description: (workspaceCalls[0] as { description: string }).description });
@@ -189,23 +203,6 @@ test("hire: an injected workspace step that throws still hires, unplaced", async
     },
   });
   assert.ok(r.ok && r.placement === null && r.placementSkipped === "personas_unreachable");
-});
-
-test("the prompt's Working directory section: GIG.md first, NOTES.md, deliverable/, never outside, file artifacts relative", () => {
-  const resolved = seeded("freelance");
-  const spec = composeGigSpecialistSpec({ arena: "freelance", niche: "copy" }, resolved);
-  const p = specialistDispatchSpec(spec, resolved.recipes).systemPromptDraft;
-  assert.match(p, /## Working directory/);
-  assert.match(p, /Read `GIG\.md` first/);
-  assert.match(p, /`NOTES\.md`/);
-  assert.match(p, /under `deliverable\/`/);
-  assert.match(p, /Never read or write outside the working directory/);
-  assert.match(p, /kind `file`, with `ref` the path relative to the working directory/);
-  // The deliverable also goes to a file at the folder root: Personas can replace this prompt
-  // and append its own protocol after the model's last words (contract.ts).
-  assert.match(p, /`kp-deliverable\.json` in the gig folder ROOT/);
-  assert.match(p, /`DELIVERABLE-CONTRACT\.md`/);
-  assert.equal(spec.promptVersion, "gig-specialist.v3");
 });
 
 test("hire: a failed dispatch records no specialist and reports the bridge's code", async () => {

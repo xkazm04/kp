@@ -449,6 +449,28 @@ export function setGigQualification(
   return res.changes > 0 ? getGig(workspaceId, id) : null;
 }
 
+/** Route a gig: set its matched specialist and its niche WITHOUT moving status - a
+ *  compare-and-swap on the status the caller read (gigs/routing.ts decides whether that
+ *  status may be routed). `niche: null` clears the routing (auto-match again). One
+ *  statement whose WHERE re-asserts the status, so a gig that moved meanwhile (a dispatch
+ *  claimed it) is left alone and reported `stale`. */
+export function setGigRoute(
+  workspaceId: string,
+  id: string,
+  route: { expectedStatus: GigStatus; specialistId: string | null; niche: string | null }
+): TransitionGigResult {
+  const niche = route.niche?.trim() ? route.niche.trim().slice(0, 120) : null;
+  const res = ensureDb()
+    .prepare(
+      `UPDATE gigs SET specialist_id = ?, niche = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND status = ?`
+    )
+    .run(route.specialistId, niche, new Date().toISOString(), id, workspaceId, route.expectedStatus);
+  const gig = getGig(workspaceId, id);
+  if (!gig) return { ok: false, reason: "not_found" };
+  return res.changes === 0 ? { ok: false, reason: "stale" } : { ok: true, gig };
+}
+
 /** The operator cleared the honeypot flag: suspect -> new, reasons emptied, in one CAS. */
 export function clearGigSuspect(workspaceId: string, id: string): TransitionGigResult {
   return transitionGig(workspaceId, id, { from: "suspect", to: "new", patch: { suspectReasons: [] } });
@@ -520,6 +542,35 @@ export function listGigsNeedingBrief(workspaceId: string, limit: number, opts: {
     )
     .all(...args) as GigRow[];
   return rows.map(gigFromRow);
+}
+
+/** The most research briefs one arena aggregate reads (listGigBriefsForArena). */
+export const GIG_ARENA_BRIEFS_MAX = 500;
+
+/** One researched gig as the specialist requirements' research aggregate reads it. */
+export type GigArenaBrief = { gigId: string; niche: string | null; brief: GigBrief };
+
+/** The research briefs of one arena's gigs in this workspace, newest brief first, at most
+ *  `limit` (1..GIG_ARENA_BRIEFS_MAX). A gig the honeypot scan flagged - held as `suspect`,
+ *  or carrying reasons past it - is left out: its brief describes a lure, not the work the
+ *  arena pays for (gigs/requirements.ts). Only the columns the aggregate reads. */
+export function listGigBriefsForArena(workspaceId: string, arena: GigArena, limit: number = GIG_ARENA_BRIEFS_MAX): GigArenaBrief[] {
+  const n = Math.max(1, Math.min(GIG_ARENA_BRIEFS_MAX, Math.trunc(limit) || GIG_ARENA_BRIEFS_MAX));
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, niche, suspect_reasons_json, brief_json FROM gigs
+       WHERE workspace_id = ? AND arena = ? AND brief_json IS NOT NULL AND status <> 'suspect'
+       ORDER BY brief_at DESC, rowid DESC
+       LIMIT ?`
+    )
+    .all(workspaceId, arena, n) as Pick<GigRow, "id" | "niche" | "suspect_reasons_json" | "brief_json">[];
+  const out: GigArenaBrief[] = [];
+  for (const row of rows) {
+    if (parseStringArray(row.suspect_reasons_json, "gig.suspectReasons", row.id).some(isGigSuspectReason)) continue;
+    const brief = briefFromJson(row.brief_json ?? null, row.id);
+    if (brief) out.push({ gigId: row.id, niche: row.niche, brief });
+  }
+  return out;
 }
 
 /** Record honeypot reasons found AFTER the listing landed (on a page the listing linked

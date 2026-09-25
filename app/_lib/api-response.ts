@@ -2045,6 +2045,9 @@ export const REFUSAL_ERRORS = {
    *  made (500), or Personas refused or could not be reached to register the gig's project
    *  (502). `detail` is the reason code. A dispatch refused this way claimed nothing. */
   GIG_WORKSPACE_FAILED: "The gig’s working folder or its Personas project could not be prepared, so nothing was sent. Check the Personas connection and try again.",
+  /** PATCH /api/gigs/[id] `route` (409): the specialist works a different arena than the
+   *  gig's, so it cannot take it (gigs/routing.ts). */
+  GIG_ROUTE_ARENA_MISMATCH: "That specialist works a different arena than this gig, so the gig cannot be routed to it.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -6,9 +6,9 @@ import { GIG_ARENAS, GIG_DISCLOSURE_ITEM, type GigArena } from "./types";
 //
 // Items are STABLE KEYS, not sentences: GigReview.checklist is keyed by them and
 // `mark_sent` looks up GIG_DISCLOSURE_ITEM by key, so a reworded sentence must never
-// orphan a stored tick. The UI renders each key through the catalog; the specialist's
-// system prompt carries the English meaning below (GIG_CHECKLIST_MEANING), because a
-// persona prompt is not a UI surface.
+// orphan a stored tick. The UI renders each key through the catalog; every gig folder's
+// DELIVERABLE-CONTRACT.md (contract.ts) carries the English meaning below
+// (GIG_CHECKLIST_MEANING), because a file the agent reads is not a UI surface.
 //
 // Every arena carries GIG_DISCLOSURE_ITEM, last, so the AI-use disclosure is the final
 // thing the operator confirms before anything goes out (checklists.test.ts pins it).
@@ -20,8 +20,8 @@ export const GIG_CHECKLISTS: Readonly<Record<GigArena, readonly string[]>> = {
   freelance: ["brief_answered", "scope_honest", "no_overclaim", "deliverable_verified", "no_off_platform", GIG_DISCLOSURE_ITEM],
 };
 
-/** What each key asks, in one English line - read by the specialist's system prompt
- *  (specialist.ts), never rendered to the operator (the catalog owns that copy). */
+/** What each key asks, in one English line - written into the gig folder's rules file
+ *  (contract.ts), never rendered to the operator (the catalog owns that copy). */
 export const GIG_CHECKLIST_MEANING: Readonly<Record<string, string>> = {
   in_scope: "The target and the vulnerability class are inside the program's published scope.",
   repro_steps: "A triager can reproduce the finding from the written steps alone.",

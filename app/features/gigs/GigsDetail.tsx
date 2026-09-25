@@ -9,6 +9,7 @@ import type { Gig, GigArena, GigAttempt, GigKpi } from "@/app/_lib/gigs/types";
 import { afterDeclineTarget, canQuickDecline, checklistFor, type AfterWrite, type ColumnNeighbours, type SourceRow, type SpecialistRow } from "./gigsLogic";
 import { GigsDesk, type DeskStore } from "./GigsDesk";
 import { GigsGigPage } from "./GigsGigPage";
+import { GigsRouting } from "./GigsRouting";
 import { GigWorkspaceRow } from "./GigsWorkspace";
 import { useBareKeys } from "./useBareKeys";
 import { sendJson } from "./useGigsData";
@@ -29,7 +30,8 @@ import { useGigsFormat } from "./useGigsFormat";
 // focus-transfer-on-in-place-navigation), so focus never sits on a control that is gone.
 //
 // Below the bar: the gig's workspace row (its folder and Personas project, GigsWorkspace.tsx),
-// then the review desk for a drafted or approved gig (A/1's desk), otherwise the gig's own
+// the Match panel (who the gig goes to, the ranked specialists, route / auto-match / hire -
+// GigsRouting.tsx), then the review desk for a drafted or approved gig (A/1's desk), otherwise the gig's own
 // page with the moves its status allows.
 
 export function GigsDetail({
@@ -277,6 +279,7 @@ export function GigsDetail({
       ) : null}
 
       {gig ? <GigWorkspaceRow key={gig.id} gig={gig} onChanged={onChanged} /> : null}
+      {gig ? <GigsRouting key={`routing-${gig.id}`} gig={gig} specialists={specialists} kpi={kpi} onChanged={onChanged} /> : null}
 
       <div className={`${PANEL} min-w-0`}>
         {!gig ? (

@@ -47,6 +47,7 @@ function fixture(slugs: string[] | null, manifest: string | null = "registry:\n 
             { id: "b", statement: "s", success_criteria: [`${slug} criterion 3`] },
           ],
           guidance: `Guidance for ${slug}.`,
+          activities: [{ id: "x", label: `Activity of ${slug}`, kind: "act" }, { id: "y", kind: "act" }],
         })
       );
     }
@@ -82,6 +83,7 @@ test("registry present with every slug: all resolve from it, registry available"
   assert.equal(first.need, "Need of data-competition-entry.");
   assert.equal(first.coreAction, "Core of data-competition-entry.");
   assert.equal(first.guidance, "Guidance for data-competition-entry.");
+  assert.deepEqual(first.activities, ["Activity of data-competition-entry"], "labelled activities only, in order");
   assert.deepEqual(first.successCriteria, [
     "data-competition-entry criterion 1",
     "data-competition-entry criterion 2",
@@ -113,6 +115,7 @@ test("registry present with SOME slugs (today's registry): per-slug origin, regi
   assert.equal(seeded.need, GIG_SEED_RECIPES["paid-work-opportunity-qualification"]!.need);
   assert.equal(seeded.guidance, null);
   assert.deepEqual(seeded.successCriteria, []);
+  assert.deepEqual(seeded.activities, []);
 
   const sec = resolveGigRecipes("security", opts);
   assert.equal(sec.recipes[0]!.origin, "seed", "bug-bounty-vulnerability-report is not authored yet");

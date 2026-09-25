@@ -233,11 +233,18 @@ export async function fetchConnectorCatalog(): Promise<ConnectorCatalogResult> {
 export type DispatchSpec = {
   name: string;
   mission: string;
-  systemPromptDraft: string;
+  /** The persona's system prompt, as the recruiting and App-master hires compose it.
+   *  ABSENT for a requirement-driven hire (a gig specialist): kp writes no prompt there,
+   *  and an absent key is left off the wire entirely - never sent as "". */
+  systemPromptDraft?: string;
   connectors: string[];
   maxBudgetUsd: number | null;
   maxTurns?: number | null;
   successMetrics: unknown[];
+  /** A requirement-driven hire's `kp.agent-requirements.v1` object (gigs/requirements.ts):
+   *  what the agent is for and must honour, from which Personas designs it. Carried as
+   *  `spec.requirements`; absent on every other hire, so their wire is unchanged. */
+  requirements?: unknown;
 };
 
 export type KpLink = {
@@ -304,6 +311,9 @@ export async function dispatchPersonaRequest(
       headers: headers(bridge.apiKey),
       body: JSON.stringify({
         kp,
+        // As the caller built it: JSON.stringify drops an undefined key, so a spec without
+        // `systemPromptDraft` / `requirements` sends neither, and a spec that has them sends
+        // them exactly as before - byte-identical for every hire that predates requirements.
         spec,
         reportToken,
         ...(appMaster ? { appMaster } : {}),
