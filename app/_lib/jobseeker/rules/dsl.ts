@@ -44,6 +44,64 @@ export function regexCaptureGroups(expr: string): number | null {
   }
 }
 
+/** The length of an UNBOUNDED quantifier (`*`, `+`, `{n,}`, each optionally lazy) at
+ *  `i`, or 0. `?` and `{n}` / `{n,m}` are bounded and do not count. */
+function unboundedQuantifierAt(expr: string, i: number): number {
+  const c = expr[i];
+  let len = 0;
+  if (c === "*" || c === "+") len = 1;
+  else if (c === "{") {
+    const m = /^\{\d+,\}/.exec(expr.slice(i, i + 12));
+    if (m) len = m[0].length;
+  }
+  if (len && expr[i + len] === "?") len += 1;
+  return len;
+}
+
+/** Does the pattern repeat a group that itself repeats — `(a+)+`, `(?:x*)*`,
+ *  `((?:\w+\s?)*)` — the shape that backtracks exponentially on a near-miss? A
+ *  scanner over the pattern text (escapes and character classes skipped), not a
+ *  full regex parser: it can only refuse a pattern, and what it refuses is exactly
+ *  the form an owner or a model never needs to pull one value out of a page. */
+export function hasNestedQuantifier(expr: string): boolean {
+  // One frame per open group: does anything inside it repeat without bound?
+  const stack: boolean[] = [false];
+  for (let i = 0; i < expr.length; i++) {
+    const c = expr[i];
+    if (c === "\\") {
+      i += 1; // an escaped char is one atom
+      continue;
+    }
+    if (c === "[") {
+      // A class is one atom; `]` right after `[` or `[^` is literal.
+      let j = i + 1;
+      if (expr[j] === "^") j += 1;
+      if (expr[j] === "]") j += 1;
+      while (j < expr.length && expr[j] !== "]") j += expr[j] === "\\" ? 2 : 1;
+      i = j;
+      continue;
+    }
+    if (c === "(") {
+      stack.push(false);
+      continue;
+    }
+    if (c === ")") {
+      const innerRepeats = stack.length > 1 ? stack.pop()! : false;
+      const q = unboundedQuantifierAt(expr, i + 1);
+      if (q && innerRepeats) return true;
+      if (q || innerRepeats) stack[stack.length - 1] = true;
+      i += q;
+      continue;
+    }
+    const q = unboundedQuantifierAt(expr, i);
+    if (q) {
+      stack[stack.length - 1] = true;
+      i += q - 1;
+    }
+  }
+  return false;
+}
+
 function validateOne(raw: unknown, index: number): ExtractionRule | { error: string } {
   const at = `rules[${index}]`;
   if (!raw || typeof raw !== "object") return { error: `${at}: not an object` };
@@ -60,6 +118,9 @@ function validateOne(raw: unknown, index: number): ExtractionRule | { error: str
   if (loc.kind === "regex") {
     const groups = regexCaptureGroups(loc.expr);
     if (groups === null) return { error: `${at}.locator.expr: regex does not compile` };
+    // The page is a third party's text: a pattern that can backtrack exponentially on
+    // it stalls the scan thread (the regex runs synchronously over the whole HTML).
+    if (hasNestedQuantifier(loc.expr)) return { error: `${at}.locator.expr: a nested quantifier like (a+)+ can backtrack without bound; flatten it` };
     if (groups !== 1) return { error: `${at}.locator.expr: regex must have exactly one capture group (has ${groups})` };
   }
   if (loc.kind === "pointer" && !loc.expr.startsWith("/")) return { error: `${at}.locator.expr: a JSON pointer starts with /` };
