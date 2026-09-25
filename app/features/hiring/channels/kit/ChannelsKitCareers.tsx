@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, DataTable, Mark, Section, formatCount, type Column } from "@/app/_components/kit";
@@ -12,14 +13,17 @@ import { useCopyState } from "../useCopyState";
  * Careers page on the kit: every OPEN role's public apply link (useChannelData reads
  * openOnly, so no row hands out a dead link), one row each, the copy action on the act
  * track. The variant showed 8 rows and a "showing 8 of N" pager; the windowed table shows
- * all of them 8 rows tall and its pager counts them, so nothing is cut.
+ * all of them 8 rows tall and its pager counts them, so nothing is cut. The copy answers Copied /
+ * Copy failed on the row that asked (useCopyState: a blocked clipboard must never look like a copy).
  */
 export function ChannelsKitCareers({ jobs }: { jobs: ChannelJob[] | null }) {
   const t = useTranslations("channels");
   const locale = useLocale();
   const router = useRouter();
   const search = useSearchParams();
-  const { copy } = useCopyState();
+  const { state: copyState, copy } = useCopyState();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const said = (id: string) => (copiedId === id ? copyState : "idle");
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
   const toJobs = () => router.push(buildTabSwitchUrl("jobs", search.toString()));
 
@@ -36,6 +40,9 @@ export function ChannelsKitCareers({ jobs }: { jobs: ChannelJob[] | null }) {
       count={jobs ? formatCount(jobs.length, locale) : undefined}
       actions={<Button label={jobs && jobs.length === 0 ? t("careers.publishRole") : t("careers.viewAllRoles")} variant="ghost" size="sm" onClick={toJobs} />}
     >
+      <span className="sr-only" role="status">
+        {copyState === "copied" ? t("copied") : copyState === "failed" ? t("copyFailed") : ""}
+      </span>
       <DataTable
         label={t("stats.publishedRoles")}
         rows={jobs ?? []}
@@ -52,7 +59,18 @@ export function ChannelsKitCareers({ jobs }: { jobs: ChannelJob[] | null }) {
             <a key="l" className="k-code" href={url} target="_blank" rel="noreferrer">
               {url}
             </a>,
-            <Button key="a" label={t("copyLink")} icon="copy" iconOnly size="sm" variant="ghost" onClick={() => copy(url)} />,
+            <Button
+              key="a"
+              label={said(j.id) === "copied" ? t("copied") : said(j.id) === "failed" ? t("copyFailed") : t("copyLink")}
+              icon={said(j.id) === "copied" ? "check" : said(j.id) === "failed" ? "x" : "copy"}
+              iconOnly
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setCopiedId(j.id);
+                copy(url);
+              }}
+            />,
           ];
         }}
       />

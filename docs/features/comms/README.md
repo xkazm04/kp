@@ -1030,9 +1030,15 @@ which re-uses the tab's own decisions (`commsVerdict`, `receiverHealth`,
   its context line, the section's figures (waiting in the pipeline, and per section the
   messages and dead letters, the published roles, or received and leads), and "Receive a
   test application" as the one action (`data-sim-click="simulate-inbound"`; the block
-  carries `data-sim="channel-inbound"`, the guided walk's "match" chapter target). The
-  toolbar holds the section switch with a status mark per section, and on
-  Communications the verdict chips and the ledger search.
+  carries `data-sim="channel-inbound"`, the guided walk's "match" chapter target), with
+  "N waiting in the pipeline" beside it as a link to the Pipeline tab; a filed test
+  application is also announced through a status line. The toolbar holds the section
+  switch with a status mark per section (arrow keys / Home / End move through it, the
+  `useTablist` movement rule), and on Communications the verdict chips, the Role /
+  Channel / Type facets (`kit/ChannelsKitLedgerFacets.tsx`: compact selects over the
+  values the loaded ledger holds, `ledgerFacetOptions` in the reader's collation) and the
+  ledger search. The surface is `aria-busy` only until every source settled once, and a
+  failed load releases it.
 - **Communications** (`ChannelsKitComms`): the Delivery block (relay and edge), then the
   ledger as one windowed `DataTable`, dead letters first, then newest first; "Load
   older" appears only while a cursor reaches more rows, and `beyondWindow` is the whole
@@ -1050,8 +1056,11 @@ which re-uses the tab's own decisions (`commsVerdict`, `receiverHealth`,
   receiver has no language, and its endpoint copy answers Copied / Copy failed
   (`useCopyState`, announced through a status line).
 - **Careers page** (`ChannelsKitCareers`): every open role's apply link in one windowed
-  table (its pager counts them, so nothing is cut at eight).
-- **The reading pane**, only while a row is selected: a message (verdict, the
+  table (its pager counts them, so nothing is cut at eight); the copy answers Copied /
+  Copy failed on the row that asked.
+- **The reading pane**, only while a row is selected (on Email intake / Ad forms the first
+  receiver opens by itself while nothing is selected; a pane closed by hand stays closed
+  until the section changes): a message (verdict, the
   unaddressable caution note from the same predicate, record, body, the resend door from
   `resendDoorOf`), a receiver (health, the setup guide per client, the ads direct-POST
   footnote, the full "forwarding not wired" note with the copyable HTTP receiver, the CV

@@ -10,7 +10,7 @@ import type { Message } from "../channelsCommsHelpers";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import {
   VERDICT_MARK, deadCount, filterLedger, firstSentence, ledgerName, ledgerRole, receiverRow, receiverTotals,
-  receiversFor, sectionMark, sortLedger, verdictCounts,
+  receiversFor, sectionMark, sortLedger, verdictCounts, NO_FACETS, ledgerFacetOptions,
 } from "./channelsKitModel";
 
 const msg = (id: string, over: Partial<Message> = {}): Message => ({
@@ -95,4 +95,28 @@ test("the section marks read the same facts as the current tab's badges", () => 
 test("a setting row's consequence is the paragraph's first sentence", () => {
   assert.equal(firstSentence("Where mail goes. Wire a relay."), "Where mail goes.");
   assert.equal(firstSentence("No full stop"), "No full stop");
+});
+
+test("the column facets keep only their role, channel and kind; empty means all", () => {
+  const rows = [
+    msg("a", { channel: "email", kind: "invite", ref: "e1" }),
+    msg("b", { channel: "webhook", kind: "invite", ref: "e2" }),
+    msg("c", { channel: "email", kind: "reject", ref: null }),
+  ];
+  const roleOf = (m: Message) => (m.ref === "e1" ? "Designer" : m.ref === "e2" ? "Engineer" : null);
+  const ids = (facets: { role: string; channel: string; kind: string }) =>
+    filterLedger(rows, { ...Q, facets, roleOf }).map((m) => m.id).sort();
+  assert.deepEqual(ids(NO_FACETS), ["a", "b", "c"]);
+  assert.deepEqual(ids({ ...NO_FACETS, role: "Designer" }), ["a"]);
+  assert.deepEqual(ids({ ...NO_FACETS, channel: "email" }), ["a", "c"]);
+  assert.deepEqual(ids({ ...NO_FACETS, kind: "invite", channel: "webhook" }), ["b"]);
+});
+
+test("facet options are the values present, deduplicated, in the reader's collation", () => {
+  const rows = [msg("a", { channel: "email", kind: "invite" }), msg("b", { channel: "email", kind: null }), msg("c", { channel: "sms", kind: "offer" })];
+  const roles: Record<string, string> = { a: "Zahradník", b: "Čistič", c: "Architekt" };
+  const opts = ledgerFacetOptions(rows, (m) => roles[m.id], "cs");
+  assert.deepEqual(opts.role, ["Architekt", "Čistič", "Zahradník"]);
+  assert.deepEqual(opts.channel, ["email", "sms"]);
+  assert.deepEqual(opts.kind, ["invite", "offer"]);
 });

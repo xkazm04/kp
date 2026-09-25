@@ -43,7 +43,33 @@ export const TONE_MARK: Record<BadgeTone, MarkKind> = {
 /** A verdict chip, or "dead" (every row that needs you: isActionable, the dead-letter set). */
 export type VerdictFilter = CommsVerdict | "dead" | null;
 
-export type LedgerQuery = { verdict: VerdictFilter; q: string; nameOf: (m: Message) => string; subjectOf: (m: Message) => string | null; recipientOf: (m: Message) => string | null };
+export type LedgerQuery = {
+  verdict: VerdictFilter;
+  q: string;
+  nameOf: (m: Message) => string;
+  subjectOf: (m: Message) => string | null;
+  recipientOf: (m: Message) => string | null;
+  /** The column facets (the retired table's Role / Channel / Type filters); "" or absent = all. */
+  facets?: LedgerFacets;
+  roleOf?: (m: Message) => string | null;
+};
+
+/** The ledger's three column facets: a role title, a channel code, a kind code ("" = all). */
+export type LedgerFacets = { role: string; channel: string; kind: string };
+export const NO_FACETS: LedgerFacets = { role: "", channel: "", kind: "" };
+
+/** What each facet can be set to: only the values present in the loaded ledger, sorted by the
+ *  reader's collation (a plain sort puts Č/Ř/Š/Ž after Z; the retired table's rule). */
+export function ledgerFacetOptions(
+  messages: readonly Message[],
+  roleOf: (m: Message) => string | null,
+  locale: string,
+): { role: string[]; channel: string[]; kind: string[] } {
+  const cmp = new Intl.Collator(locale).compare;
+  const distinct = (pick: (m: Message) => string | null) =>
+    [...new Set(messages.map(pick).filter((v): v is string => Boolean(v)))].sort(cmp);
+  return { role: distinct(roleOf), channel: distinct((m) => m.channel), kind: distinct((m) => m.kind) };
+}
 
 /** Dead letters first, then newest first: the current ledger's order (ChannelsCommsTable). */
 export function sortLedger(messages: readonly Message[]): Message[] {
@@ -59,6 +85,10 @@ export function filterLedger(messages: readonly Message[], query: LedgerQuery): 
   return sortLedger(messages).filter((m) => {
     if (query.verdict === "dead" && !isActionable(m)) return false;
     if (query.verdict && query.verdict !== "dead" && commsVerdict(m) !== query.verdict) return false;
+    const f = query.facets;
+    if (f?.role && (query.roleOf ? query.roleOf(m) : null) !== f.role) return false;
+    if (f?.channel && m.channel !== f.channel) return false;
+    if (f?.kind && m.kind !== f.kind) return false;
     return matchesCommsQuery(query.nameOf(m), query.subjectOf(m), query.recipientOf(m), query.q);
   });
 }
@@ -148,10 +178,4 @@ export function recordedShort(iso: string, locale: string): string {
 export function humanKind(kind: string): string {
   const s = kind.replace(/[_-]+/g, " ").trim();
   return s ? s[0].toUpperCase() + s.slice(1) : s;
-}
-
-/** The n-th sentence of a localized paragraph, or the paragraph when it has fewer. */
-export function nthSentence(text: string, n: number): string {
-  const parts = text.trim().match(/[^.!?]+[.!?]+(?=\s|$)/g);
-  return parts && parts[n] ? parts[n].trim() : text.trim();
 }
