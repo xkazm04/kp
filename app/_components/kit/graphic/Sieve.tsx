@@ -10,6 +10,8 @@ import type { PartState } from "../types";
 import { ShapeMark } from "./ShapeMark";
 import { countByLayer, type SieveItem } from "./sieveLayout";
 import { useSieveField } from "./useSieveField";
+import { drawsBars, sieveBars } from "./scaleModel";
+import { SieveBarField } from "./SieveBarField";
 import "./graphic.css";
 
 export type SieveLayer = {
@@ -36,10 +38,12 @@ export type SieveLayer = {
  * Layers sit ON the measure: label on the name track, the dot field on meta, the count on fig, an age
  * on time, an action on act. The pour plays once per `replayKey` (reduced motion: final frame). Items
  * are reached through the caller's linked list, never through dots; above `budget` one dot stands for
- * ceil(n / budget) items and prints its count.
+ * ceil(n / budget) items and prints its count. Above `barsAbove` (unset = never) no dots are drawn at
+ * all: each layer draws its count as a proportional bar and its shapes as a legend-sized sample
+ * (scaleModel.ts), which is what a field of thousands reads as.
  */
 export function Sieve({
-  id, layers, items, selected, dim, selectedItem, onLayer, budget = 400, state = "ready", replayKey,
+  id, layers, items, selected, dim, selectedItem, onLayer, budget = 400, barsAbove, state = "ready", replayKey,
   legend, pouredLabel, loadingText, errorText, onRetry,
 }: {
   id: string;
@@ -50,6 +54,8 @@ export function Sieve({
   selectedItem?: string | null;
   onLayer: (layerId: string) => void;
   budget?: number;
+  /** Above this many items, bars instead of dots (additive: unset keeps the dots at every size). */
+  barsAbove?: number;
   state?: PartState;
   replayKey: string;
   legend?: ReactNode;
@@ -67,8 +73,9 @@ export function Sieve({
   const ids = layers.map((l) => l.id);
   const per = countByLayer(ids, items);
   const ready = state === "ready";
+  const bars = drawsBars(items.length, barsAbove) ? sieveBars(ids, items, dim) : null;
   const { boxRef, svgRef } = useSieveField({
-    id, layerIds: ids, items, dim, picked: selectedItem ?? undefined, replayKey, budget, reduced, format, enabled: ready,
+    id, layerIds: ids, items, dim, picked: selectedItem ?? undefined, replayKey, budget, reduced, format, enabled: ready && !bars,
   });
   const press = (layerId: string) => (e: KeyboardEvent) => {
     if (e.key !== "Enter" && e.key !== " ") return;
@@ -77,7 +84,7 @@ export function Sieve({
   };
 
   return (
-    <div ref={boxRef} className={`k-sieve${ready ? "" : ` is-${state}`}`} data-part="sieve" data-role="kit-sieve">
+    <div ref={boxRef} className={`k-sieve${ready ? "" : ` is-${state}`}${bars ? " is-bars" : ""}`} data-part="sieve" data-role="kit-sieve">
       <div className="k-sieve__pour k-measure">
         <div className="k-row__mark"><ShapeMark shape="solid" tone="accepted" tip={null} /></div>
         <div className="k-sieve__lt"><b className="k-nums">{format(items.length)}</b> {pouredLabel ?? t("poured")}</div>
@@ -113,7 +120,7 @@ export function Sieve({
                 {L.sub ? <small>{L.sub}</small> : null}
               </div>
               <div className="k-sieve__field" data-sv-field={L.id}>
-                {count ? null : <span className="k-absent">{L.empty}</span>}
+                {!count ? <span className="k-absent">{L.empty}</span> : bars?.[L.id] ? <SieveBarField bar={bars[L.id]} /> : null}
               </div>
               <div className="k-row__fig k-sieve__n" data-role="kit-sieve-count">
                 <b data-sv-count={L.id}>{format(count)}</b>
@@ -124,7 +131,7 @@ export function Sieve({
           );
         })
       )}
-      {ready ? <svg ref={svgRef} className="k-sieve__dots" aria-hidden="true" /> : null}
+      {ready && !bars ? <svg ref={svgRef} className="k-sieve__dots" aria-hidden="true" /> : null}
     </div>
   );
 }

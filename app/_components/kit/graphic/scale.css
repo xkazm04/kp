@@ -1,0 +1,51 @@
+/* The graphic layer at scale (kit-unification, builder R): the Sieve's BAR mode and the StageCells
+   grid a board of many rows sets on a table's meta track. Its own file so the parallel builders'
+   graphic.css stays untouched. Colour only via tokens and the kit's --k-* / --tone-* variables, type
+   only via the text-* tokens; the dark register under [data-theme="dark"]. */
+
+/* ---------- Sieve, bar mode: a layer's count as a bar, its shapes as a legend-sized sample ---------- */
+.k-sbar { display: flex; align-items: center; gap: 14px; width: 100%; min-width: 0; }
+.k-sbar__track { position: relative; flex: 1 1 auto; min-width: 48px; height: 12px; }
+.k-sbar__fill {
+  position: absolute; inset: 0 auto 0 0; width: max(3px, calc(var(--p) * 100%)); border-radius: 3px;
+  background: linear-gradient(90deg, currentColor calc(var(--kept) * 100%), color-mix(in srgb, currentColor 22%, transparent) 0);
+}
+.k-sbar__sample { display: flex; flex: none; gap: 12px; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-sbar__sample > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+[data-theme="dark"] .k-sbar__track { height: 14px; }
+[data-theme="dark"] .k-sbar__fill { border-radius: 6px; outline: 2px solid var(--color-paper); outline-offset: -2px; filter: drop-shadow(1.5px 1.5px 0 var(--color-scrim)); }
+
+/* ---------- StageCells: one row's stages on a shared grid ---------- */
+.k-cells { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); column-gap: 8px; width: 100%; align-items: center; }
+.k-cells .k-cells__c {
+  all: unset; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  min-width: 0; height: 48px; padding: 0 8px; border-radius: 6px; cursor: pointer;
+}
+.k-cells__c:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--k-rule-strong); background: var(--k-raised); }
+.k-cells__c:focus-visible { box-shadow: inset 0 0 0 2px var(--color-coral); }
+.k-cells__c:disabled { cursor: default; }
+.k-cells__c.is-picked { background: var(--k-select); box-shadow: inset 0 0 0 1px var(--k-ink); }
+.k-cells__n { display: flex; align-items: baseline; gap: 8px; font-size: var(--text-micro); line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.k-cells__n b { font-weight: 400; color: var(--k-ink); }
+.k-cells__c.is-zero .k-cells__n b { color: var(--k-faint); }
+.k-cells__wait { display: inline-flex; align-items: center; gap: 3px; color: var(--color-coral); }
+.k-cells__wait::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--color-coral); }
+.k-cells__beads { display: flex; align-items: center; min-width: 0; height: 16px; overflow: hidden; }
+.k-cells__bead { display: inline-flex; flex: none; border-radius: 50%; background: var(--k-row-bg, var(--color-paper)); }
+.k-cells__bead + .k-cells__bead { margin-left: -2px; }
+.k-cells__bead.is-needs { box-shadow: 0 0 0 1.5px var(--color-coral); position: relative; z-index: 1; }
+.k-cells__more { flex: none; margin-left: 6px; font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; }
+.k-cells--head { align-items: end; }
+.k-cells__h { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 8px; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-cells__h > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-theme="dark"] .k-cells__c.is-picked { background: transparent; box-shadow: inset 0 0 0 2px var(--color-coral), var(--sticker-xs-shadow); border-radius: 10px; }
+[data-theme="dark"] .k-cells__c:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--k-rule-strong); border-radius: 10px; }
+[data-theme="dark"] .k-cells__h { font-family: var(--font-serif); letter-spacing: .04em; font-weight: 600; }
+
+/* A narrow sheet (a reading pane open at 1280): the numerals stay, the bead strips and the bar
+   samples fold into the cells' names and the legend. */
+@container sheet (max-width: 860px) {
+  .k-cells .k-cells__c { height: 40px; padding: 0 4px; }
+  .k-cells__beads, .k-sbar__sample { display: none; }
+  .k-cells__h > .k-shp { display: none; }
+}

@@ -14467,7 +14467,8 @@
         "poured": "eingegangen",
         "loading": "Fluss wird gelesen…",
         "error": "Der Fluss konnte nicht gelesen werden.",
-        "layerAria": "{label}: {count, number}. In der Liste zeigen"
+        "layerAria": "{label}: {count, number}. In der Liste zeigen",
+        "barKept": "{kept, number} von {count, number} entsprechen den Filtern"
       },
       "rail": {
         "label": "Schritte",
@@ -14496,6 +14497,10 @@
         "ranks": "Ränge {from}–{to}",
         "followed": "ausgewählt · die Liste unten folgt",
         "hint": "Über die Balken ziehen, um einen Bereich zu wählen · Pfeile bewegen · Umschalt erweitert · Eingabe öffnet"
+      },
+      "cells": {
+        "waiting": "{count, number}",
+        "more": "+{count, number}"
       }
     },
     "of": "von {total, number}",

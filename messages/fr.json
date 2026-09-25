@@ -14467,7 +14467,8 @@
         "poured": "entrés",
         "loading": "Lecture du flux…",
         "error": "Le flux n’a pas pu être lu.",
-        "layerAria": "{label} : {count, number}. Les afficher dans la liste"
+        "layerAria": "{label} : {count, number}. Les afficher dans la liste",
+        "barKept": "{kept, number} sur {count, number} correspondent aux filtres"
       },
       "rail": {
         "label": "Étapes",
@@ -14496,6 +14497,10 @@
         "ranks": "Rangs {from}–{to}",
         "followed": "sélectionnés · la liste ci-dessous suit",
         "hint": "Faites glisser sur les barres pour choisir une plage · les flèches déplacent · Maj étend · Entrée ouvre"
+      },
+      "cells": {
+        "waiting": "{count, number}",
+        "more": "+{count, number}"
       }
     },
     "of": "sur {total, number}",

@@ -9,3 +9,5 @@ export { StageRail, type RailStep, type ColumnStep } from "./StageRail";
 export { Lane, type LaneCell } from "./Lane";
 export { Skyline, type SkylineItem } from "./Skyline";
 export type { SieveItem } from "./sieveLayout";
+export { StageCells, StageCellsHead, type StageCell } from "./StageCells";
+export { capBeads, SIEVE_BARS_ABOVE, type Bead } from "./scaleModel";

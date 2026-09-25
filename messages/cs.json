@@ -14467,7 +14467,8 @@
         "poured": "vstoupilo",
         "loading": "Tok se načítá…",
         "error": "Tok se nepodařilo načíst.",
-        "layerAria": "{label}: {count, number}. Zobrazit je v seznamu"
+        "layerAria": "{label}: {count, number}. Zobrazit je v seznamu",
+        "barKept": "{kept, number} z {count, number} odpovídá filtrům"
       },
       "rail": {
         "label": "Kroky",
@@ -14496,6 +14497,10 @@
         "ranks": "Pořadí {from}–{to}",
         "followed": "vybráno · seznam níže se řídí výběrem",
         "hint": "Tažením přes sloupce vyberete rozsah · šipky posouvají · Shift rozšiřuje · Enter otevírá"
+      },
+      "cells": {
+        "waiting": "{count, number}",
+        "more": "+{count, number}"
       }
     },
     "of": "z {total, number}",

@@ -14467,7 +14467,8 @@
         "poured": "poured in",
         "loading": "Pouring…",
         "error": "The flow could not be read.",
-        "layerAria": "{label}: {count, number}. Show them in the list"
+        "layerAria": "{label}: {count, number}. Show them in the list",
+        "barKept": "{kept, number} of {count, number} match the filters"
       },
       "rail": {
         "label": "Steps",
@@ -14496,6 +14497,10 @@
         "ranks": "Ranks {from}–{to}",
         "followed": "selected · the list below follows",
         "hint": "Drag across the bars to pick a range · arrows move · Shift extends · Enter opens"
+      },
+      "cells": {
+        "waiting": "{count, number}",
+        "more": "+{count, number}"
       }
     },
     "of": "of {total, number}",

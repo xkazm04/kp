@@ -19,6 +19,7 @@ export type Column = {
   numeric?: boolean;
   /** Tip on the column head (hover and focus). */
   tip?: string;
+  head?: ReactNode; // the head cell's content when words are not enough (a stage grid on meta); `label` names it
   /** Two-line primary cell: the row's one weight-600 name + a quiet small line. */
   primary?: boolean;
   quiet?: boolean;
@@ -117,7 +118,7 @@ export function DataTable<T>({
           data-tip={c.tip}
           tabIndex={c.tip ? 0 : undefined}
         >
-          {c.label}
+          {c.head ?? c.label}
         </div>
       ))}
     </Measure>
