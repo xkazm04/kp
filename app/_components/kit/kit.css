@@ -472,6 +472,13 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
   .k-table__head.is-tall .k-th.is-rail { display: none; }
   .k-folded-note { display: block !important; }
 }
+/* Narrow sheet (a reading pane open at 1280): the display title steps down one size rather than
+   breaking into three lines, and the head's actions take their own row under the figures. */
+@container sheet (max-width: 640px) {
+  .k-title { font-size: var(--text-h2); line-height: var(--text-h2--line-height); }
+  .k-head { grid-template-columns: minmax(0, 1fr); }
+  .k-head__acts { grid-column: 1; grid-row: 3; justify-content: flex-start; }
+}
 .k-folded-note { display: none; font-size: var(--text-micro); color: var(--k-quiet); padding: 10px 0 0 calc(var(--m-mark) + var(--m-gap)); }
 @media (max-width: 1180px) {
   .k-kit { --m-name: 28%; --m-time: 104px; --m-act: 88px; }
