@@ -12312,14 +12312,6 @@
       "unreachable": "Could not reach the server. Check that the app is running, then retry.",
       "explain": "What this means"
     },
-    "title": "My job search",
-    "nav": {
-      "profile": "Profile & CV",
-      "jobs": "Jobs",
-      "sources": "Sources",
-      "scans": "Scans",
-      "jobsNew": "{count, plural, one {# new job} other {# new jobs}}"
-    },
     "studio": {
       "closeBusy": "A reply is still arriving. Closing now won't stop it.",
       "closeStay": "Stay",
@@ -12412,31 +12404,6 @@
       "downloadUnavailable": "Finish a CV conversation first; the download appears once a polished CV exists.",
       "print": "Print / PDF"
     },
-    "profile": {
-      "eyebrow": "Job search",
-      "intro": "What your CV told us, the preferences that steer the search, and the studio that polishes both.",
-      "readTitle": "What I read from your CV",
-      "unknownName": "Your profile",
-      "updated": "Updated {when}",
-      "reimport": "Import another CV",
-      "field": {
-        "name": "Name",
-        "roleFamily": "Role family",
-        "years": "Years of experience",
-        "skills": "Skills found",
-        "location": "Location",
-        "languages": "Languages",
-        "education": "Education"
-      },
-      "couldNotReadTitle": "What I could not read",
-      "couldNotReadBody": "These are gaps in what the CV states, not marks against you. The studio will ask about them.",
-      "readWithoutAiTitle": "Read without AI - check the details",
-      "readWithoutAiBody": "No AI model was configured or reachable, so a fixed parser read your CV. Your skills are recorded exactly as the CV states them and nothing was inferred. Add a model in Settings, Models, then import again to have one read it.",
-      "skillsTitle": "Skills read from your CV",
-      "skillSelfDeclared": "{skill} - stated by you, not verified",
-      "skillProvenance": "{skill} - evidence: {provenance}",
-      "couldNotReadNone": "Every field I look for was there."
-    },
     "preferences": {
       "title": "Search preferences",
       "empty": "Nothing set yet. The CV studio asks about places, pay and titles as you go.",
@@ -12486,71 +12453,16 @@
       "none": "There is no CV yet. Drop your CV on your job search page first."
     },
     "jobs": {
-      "eyebrow": "Job search",
-      "title": "Jobs",
-      "intro": "Every posting your sources found, scored against your profile. Shortlist, apply, or dismiss with a reason the coach learns from.",
-      "filter": {
-        "status": "Status",
-        "statusOption": {
-          "live": "Live",
-          "new": "New",
-          "shortlisted": "Shortlisted",
-          "applied": "Applied",
-          "dismissed": "Dismissed"
-        },
-        "minFit": "Min fit",
-        "minFitAny": "Any",
-        "minFitValue": "{n}+",
-        "source": "Source",
-        "allSources": "All sources"
-      },
-      "sort": {
-        "label": "Sort",
-        "total": "Best fit",
-        "posted": "Newest posted",
-        "seen": "Last seen"
-      },
-      "actionError": "That change could not be saved. Please try again.",
-      "loadError": "The feed could not be loaded.",
-      "loading": "Loading",
-      "loadMore": "Load more",
       "empty": {
-        "no_profile": {
-          "title": "Start with your CV",
-          "body": "The feed scores postings against your profile, and there is no profile yet. Import your CV first.",
-          "cta": "Go to Profile & CV"
-        },
         "no_sources": {
-          "title": "No source is switched on",
-          "body": "Your profile is ready, but nothing is being read. Enable at least one source and the next scan fills this page.",
           "euresCta": "Enable EURES for {countries}",
           "euresNote": "EURES is the European Labour Authority's own vacancy feed, rights-clean with attribution, so there is nothing to acknowledge. One click switches it on and runs the first scan of {countries}.",
           "euresDefault": "No country is set in your preferences yet, so this switches EURES on and scans {countries}.",
           "euresPrefs": "Change countries",
-          "euresError": "EURES could not be switched on.",
-          "cta": "Choose sources"
-        },
-        "no_scan": {
-          "title": "Nothing has been scanned yet",
-          "body": "Your sources are on. Run the first scan now; once it succeeds, the timer on the Scans page can take over."
-        },
-        "below_min": {
-          "title": "Nothing above your minimum fit",
-          "body": "{count, plural, one {# posting sits} other {# postings sit}} below the fit you asked for. Lower the minimum to see them."
-        },
-        "nothing_live": {
-          "title": "Nothing live right now",
-          "body": "The last scan found nothing new, or everything has been dismissed. Scan again, or check the Dismissed filter."
+          "euresError": "EURES could not be switched on."
         }
       },
       "card": {
-        "unscored": "Not scored",
-        "deepDived": "Deep-dived",
-        "source": "Source: {label}",
-        "seen": "Seen {when}",
-        "confidence": "Confidence {level} ({low} to {high})",
-        "dismissed": "Dismissed: {reason}",
-        "applied": "Applied {when}",
         "filtered": {
           "seniority": "Filtered: seniority",
           "early_career": "Filtered: experience level",
@@ -12559,37 +12471,7 @@
           "work_mode": "Filtered: work mode"
         }
       },
-      "confidenceLevel": {
-        "tight": "tight",
-        "moderate": "moderate",
-        "wide": "wide"
-      },
-      "workMode": {
-        "remote": "Remote",
-        "hybrid": "Hybrid",
-        "onsite": "On site"
-      },
-      "status": {
-        "new": "New",
-        "shortlisted": "Shortlisted",
-        "applied": "Applied",
-        "dismissed": "Dismissed",
-        "gone": "Gone"
-      },
-      "action": {
-        "shortlist": "Shortlist",
-        "unshortlist": "Unshortlist",
-        "applied": "I applied",
-        "dismiss": "Dismiss",
-        "restore": "Restore"
-      },
       "dismiss": {
-        "title": "Dismiss {title}",
-        "reasonLabel": "Why? (the coach learns from this)",
-        "noteLabel": "Note (optional)",
-        "notePlaceholder": "One line, for you",
-        "confirm": "Dismiss",
-        "cancel": "Keep it",
         "reason": {
           "salary": "Pay",
           "location": "Location",
@@ -12637,18 +12519,6 @@
           "match": "The scan finished, but scoring failed: {msg}",
           "deepdive": "The scan finished, but some deep-dives failed: {msg}"
         }
-      },
-      "lastScan": "Last scan {when}",
-      "newSince": "{count, plural, one {# new since your last visit} other {# new since your last visit}}",
-      "markAllSeen": "Mark all as seen",
-      "table": {
-        "fit": "Fit",
-        "role": "Role",
-        "source": "Source",
-        "posted": "Posted",
-        "seen": "Last seen",
-        "status": "Status",
-        "actions": "Actions"
       }
     },
     "posting": {
@@ -13031,7 +12901,7 @@
         "read": "Read my CV",
         "reading": "Reading…",
         "clear": "Choose another",
-        "privacy": "It stays on this install. Nothing goes to a job board.",
+        "privacy": "Nothing goes to a job board. Reading your CV may use the AI model this install is set up with; without one, the built-in parser reads it.",
         "stage": {
           "extracting": "Reading the file",
           "drafting": "Finding you in it",
@@ -13057,7 +12927,7 @@
         },
         "you": "You",
         "inTitle": "{name}'s CV is in",
-        "inMeta": "Read {when}"
+        "replaceNote": "Your scores stay as they are until the next scan."
       },
       "you": {
         "eyebrow": "Step 2 · Your CV → Step 3 · You",
@@ -13069,7 +12939,6 @@
         "noText": "No text was kept from this CV. Drop it again to see it here.",
         "polish": "Polish my CV",
         "download": "Download .md",
-        "print": "Print",
         "youLabel": "You, as read from your CV",
         "unnamed": "Your profile",
         "aiming": "Aiming at <b>{role}</b>",
@@ -13124,7 +12993,8 @@
           "none": "No place yet - add a city, or a country code",
           "add": "Add a city",
           "country": "Country code, e.g. cz",
-          "rule": "Country codes choose the markets EURES searches."
+          "rule": "Country codes choose the markets EURES searches.",
+          "countryInvalid": "{value} is not a two-letter country code, e.g. cz or de."
         },
         "pay": {
           "title": "Pay floor",
@@ -13142,7 +13012,9 @@
           "hint": "what you'd apply to",
           "none": "No title yet",
           "add": "Add a title",
-          "rule": "The titles you'd apply to, not the ones you've had."
+          "rule": "The titles you'd apply to, not the ones you've had.",
+          "families": "Target fields",
+          "ranks": "Titles now shape your ranking: a title match counts fully, a target field partly."
         },
         "modes": {
           "title": "Work mode",
@@ -13302,7 +13174,10 @@
           "posted": "Posted"
         },
         "noMatch": "No posting matches these filters.",
-        "clearFilters": "Clear filters"
+        "clearFilters": "Clear filters",
+        "noSkills": "Your profile lists no skills, so these scores come from field and level only.",
+        "noSkillsDrop": "Drop a fuller CV",
+        "noSkillsPolish": "Polish my CV"
       },
       "weigh": {
         "eyebrow": "Step 7 · Weigh",
@@ -13417,7 +13292,9 @@
         "toast": {
           "moved": "{status} · your ranking moved",
           "undone": "Back to undecided"
-        }
+        },
+        "was": "was {n}",
+        "readStale": "Written before your latest profile change. The next scan writes it again."
       },
       "sources": {
         "eyebrow": "Step 8 · Sources",
@@ -13478,6 +13355,16 @@
         "euresCountries": "Searches {countries}",
         "euresDefault": "No country set yet: switching it on searches {countries}",
         "euresNoCountry": "No country set, so EURES has nothing to search. Name one under What you want."
+      },
+      "direction": {
+        "target": "Matches your target: {title}",
+        "targetBare": "Matches your target",
+        "family": "In your target field",
+        "past": "Your past field: {family}",
+        "pastBare": "Your past field",
+        "mark": "Matches your target",
+        "filter": "Your direction",
+        "hides": "{n, plural, one {hides # posting outside your direction} other {hides # postings outside your direction}}"
       }
     },
     "designedCv": {
@@ -13510,9 +13397,39 @@
         "spelling": "Spelling",
         "hyphen": "Line break",
         "capital": "Capital letter",
-        "opener": "Opener"
+        "opener": "Opener",
+        "tailor": "Tailoring"
       },
-      "previewLabel": "Preview of your designed CV"
+      "previewLabel": "Preview of your designed CV",
+      "tailorLabel": "Tailor for",
+      "tailorOff": "As written",
+      "objectiveToggle": "Say what you are seeking",
+      "compactToggle": "Off-target roles on one line",
+      "compactHint": "Your CV runs over one page.",
+      "tailorMoves": "{n, plural, =0 {Nothing to move for {target}} one {# move for {target}} other {# moves for {target}}}",
+      "tailorMovesHint": "Only the order and the bold type changed: every word is still yours, and your roles stay in date order.",
+      "tailorMove": {
+        "summary": "Your profile now opens with “{after}”",
+        "bullets": "“{after}” now leads {where}",
+        "groups": "The “{after}” skills come first",
+        "items": "Listed first in {where}: {after}",
+        "emphasis": "{n, plural, one {# term that matters for {target} set in bold} other {# terms that matter for {target} set in bold}}",
+        "compact": "{where} set on one line: nothing in it speaks to {target}",
+        "objective": "“{after}” added under your headline, as what you are looking for"
+      },
+      "coverage": {
+        "postings": "Your CV shows {shown} of {total, plural, one {the # skill} other {the # skills}} {target} postings ask for.",
+        "from": "{n, plural, one {Read from # {target} posting in your feed.} other {Read from # {target} postings in your feed.}}",
+        "lexicon": "Your CV shows {shown} of {total, plural, one {# skill} other {# skills}} typical for {target} roles.",
+        "lexiconNote": "No {target} posting in your feed yet, so this is a general list.",
+        "none": "No {target} posting in your feed yet, and no general list for this title: the order follows the words of the title alone.",
+        "missingTitle": "Not on your CV",
+        "missingHint": "Only you see this list: it is never printed. Add a skill only if you have really used it.",
+        "allShown": "Your CV shows every one of them.",
+        "shownToggle": "Where your CV shows them",
+        "inSkills": "Skills",
+        "inSummary": "Profile"
+      }
     }
   },
   "journey": {

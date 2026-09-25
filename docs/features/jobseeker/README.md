@@ -39,12 +39,12 @@ becomes a sticky horizontal strip.
 
 | Step | Component | What it does |
 | --- | --- | --- |
-| 1 Arrive | `StepArrive.tsx` | the real import (extract → draft → save, `importOutcome.ts` classifies each hop) as a three-stage checklist; folds to one line once a CV is in |
+| 1 Arrive | `StepArrive.tsx` | the real import (extract → draft → save, `importOutcome.ts` classifies each hop) as a three-stage checklist; folds to one line once a CV is in. The privacy line says what happens: nothing goes to a job board, and reading the CV may use the AI model this install is set up with (else the built-in parser); replacing a CV says scores stay until the next scan |
 | 2–3 Your CV → You | `StepYou.tsx` | the CV text beside the person read out of it; on first view per CV per session the phrases the reading used light up and FLY into the portrait (`readCv` finds them on word boundaries, one flight per key). Skill tiles: size = level, SHAPE = provenance (solid work · half side project · ring study · dashed italic + STATED tag). "No AI read this" is one calm line when the draft came from the fixed parser. **Polish my CV** opens the existing `CvStudio` overlay |
-| 4 What you want | `StepWant.tsx` | five tap-first cards (places + country codes, pay floor slider with currency and period, titles, work modes, level) + languages read-only from the CV. Saves as you go: `PUT /api/jobseeker/profile { preferences, preferencesReplace: true }`, debounced; says scores move on the next scan and offers Scan now |
+| 4 What you want | `StepWant.tsx` | five tap-first cards (places + country codes, pay floor slider with currency and period, titles, work modes, level) + languages read-only from the CV; the target FIELDS (`targetRoleFamilies`) as removable chips beside the titles, with the note that titles now shape the ranking; an unreadable country code is said inline. Saves as you go: `PUT /api/jobseeker/profile { preferences, preferencesReplace: true }`, debounced; says scores move on the next scan and offers Scan now |
 | 5 The sieve | `StepSieve.tsx` | every posting a dot, poured through named layers: held at the door (source off or paused), one layer per hard gate (most-catching first; a two-gate posting ringed on the first, ghosted on the second), waiting for a score, then the scored field piled by score. Counters tick as dots land; a decision or a source switch MOVES dots. Each layer opens a list where a gated row states what it would have scored — never a zero |
-| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort |
-| 7 Weigh | `StepWeigh.tsx` | one posting via `GET /api/jobseeker/postings/[id]`: band gauge, the contribution stack, skills with provenance, the settled fit conversation (gaps, questions, cover-note draft) or a door to `FitStudio`, the deep read, the ad; the five checks, pay against the floor in one currency (`compareSalary`), where it came from. A sticky decide bar: Apply opens the ad first and only then offers "I applied", Let go asks why (`DISMISS_REASONS`), Undo; keys A / S / D decide, J / K walk the list the seeker is looking at |
+| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort. A "Your direction" filter over the list (on by default when a target title is stated and a row matches; it says how many postings it hides; the top five stay the sieve's own ranking and carry a bullseye when they match the target); the skyline is a keyboard slider; a profile with no skill claims says its scores come from field and level only, with "drop a fuller CV" / "polish" |
+| 7 Weigh | `StepWeigh.tsx` | one posting via `GET /api/jobseeker/postings/[id]`: band gauge, the contribution stack, skills with provenance, the settled fit conversation (gaps, questions, cover-note draft) or a door to `FitStudio`, the deep read, the ad; the five checks, pay against the floor in one currency (`compareSalary`), where it came from. A sticky decide bar: Apply opens the ad first and only then offers "I applied", Let go asks why (`DISMISS_REASONS`), Undo; keys A / S / D decide, J / K walk the list the seeker is looking at. A direction chip ("Matches your target: …" / "In your target field" / "Your past field: …", from `targetAlignment`), "was n" beside a score a deep-dive replaced (`previousTotal`), and a note when the written read predates the last profile change (`reasoningStale`); the cover-note draft survives a reload, per posting (sessionStorage, per viewer) |
 | 8 Sources | `StepSources.tsx` | three lanes (tier A one tap; tier B a lock until the site's clause is acknowledged in a modal — checkbox first, CTA disabled until ticked, a changed clause re-asks; tier C refused, no control). Each card says what the source put in the sieve, or how many wait at the door while it is off |
 
 **Everything is derived, nothing is counted** (`sieveModel.ts`, pinned by
@@ -361,7 +361,7 @@ carry `max-w-prose`, and the cover-note copy control announces through a SIBLING
 | `/api/jobseeker/dialogs/[id]/message` | POST `{message}` | one exchange → `DialogReply`; CAS `appendDialogTurns` → 409 `JOBSEEKER_DIALOG_MOVED`; on `done` the artifact's preferences merge into the profile and `cvMarkdown` becomes `cvPolishedMd`. Empty body → `INTAKE_TEXT_REQUIRED` (the existing generic "nothing to send"); oversized is cut at 4 000 chars |
 | `/api/jobseeker/cv.md` | GET | `text/markdown`, `Content-Disposition: attachment; filename="cv.md"`; 404 until a polished CV exists |
 | `/api/jobseeker/cv.pdf` | GET | `?template=sidebar|editorial|compact&accent=navy|moss|coral|plum` -> `application/pdf`, `attachment; filename="<name>-cv.pdf"`; 404 `JOBSEEKER_PROFILE_MISSING` without a profile; 503 `JOBSEEKER_PDF_UNAVAILABLE` when no browser is installed or the render failed (cause in the server log) |
-| `/me/cv/print` | page | the designed CV at real size (`CvDesigner` mode `page`); the header is print-hidden, so `window.print()` and the PDF route both carry only the sheet |
+| `/me/cv/print` | page | `?template=&accent=[&tailor=&compact=&objective=]` - the designed CV at real size (`CvDesigner` mode `page`), tailored when `tailor` names a target; the header is print-hidden, so `window.print()` and the PDF route both carry only the sheet |
 
 Limiters (pinned in `app/api/rate-limit-contract.test.ts`): profile 60/10 min,
 dialog create 30, message 30 (after the 404/409/400 refusals, before the spawn),
@@ -440,6 +440,28 @@ another page's printout. The first page bleeds to the top edge. Every page keeps
 foot and a continuation page a 10 mm head. In print the sidebar's tint is a fixed box, so
 it runs the full height of page two.
 
+**Tailored to a target** (`cvTailor.ts`, pure). The designer's "Tailor for" row lists the
+seeker's `targetTitles`; picking one REORDERS AND EMPHASISES, never adds a word. The summary
+leads with its most target-relevant sentence (every sentence verbatim); roles keep their
+date order (reordering history reads as hiding it) and inside each role the relevant bullets
+lead, with up to two demanded terms per bullet in bold; skill groups and items go
+relevant-first, nothing removed. The CV's own headline stays - a target title never stands
+in for a missing one, because under the name it reads as a title held. An optional objective
+line ("Seeking: AI Engineer roles", in the CV's language) states the direction as sought.
+`compactOffTarget`, offered only when the sheet runs over one A4 page, sets a role with
+nothing relevant as one line, in place. Every move is a `tailor` improvement, listed apart
+from the tidied wordings.
+**Demand** is what that market asks for: the union of `matchedSkills` + `missingSkills` over
+postings whose `targetAlignment.state` is `target` at that title, most asked first and
+order-independent (summaries cap each list at 6 per posting). With no such posting yet, a
+built-in list per target kind (AI/ML/LLM, frontend, backend, full-stack, QA - mirroring
+`target_titles.py`) stands in, and the designer says so. **Coverage** ("Your CV shows 9 of
+the 14 skills AI Engineer postings ask for", where each shows, the missing ones named) is
+designer chrome for the seeker and is never printed.
+`/me/cv/print` and `GET /api/jobseeker/cv.pdf` take `&tailor=<index>&compact=1&objective=0`
+(`cvQuery.ts`, one parser for all three readers); the print page reads the seeker's
+postings through `listJobseekerPostings` (a store failure falls back to the built-in list).
+
 **The PDF.** The route renders the print page in a headless Chromium with the requester's
 own cookies. The page may reach only that ONE origin (every other request is aborted),
 and the origin is never the Host header: `KP_PDF_ORIGIN` when set, else `127.0.0.1` on
@@ -486,8 +508,8 @@ AI Engineering) used to be ranked by the past. Now:
   reached today.
 - **Targets come only from the seeker.** The CV studio no longer seeds the CV's own
   role family into `targetRoleFamilies` (it used to, invisibly, steering fetches back
-  to the past). Rows seeded before this change keep the value; it is shown and
-  removable under What you want.
+  to the past). Rows seeded before this change keep the value; What you want shows
+  every target field as a removable chip, so the seeker can see and drop it.
 - **The CV studio tailors toward the first target** (`CV_POLISH_PROMPT_VERSION =
   "cv-polish-v2"`): the persona gets a tailoring block with the hard rule "never add a
   skill, employer, date, number or responsibility the CV does not contain", and the
@@ -703,7 +725,7 @@ block serves all three seeker surfaces: a `NOTICE("critical")` with `role="alert
 sentence resolved by CODE, and a Retry that re-issues exactly the request that failed
 (busy while it runs) — the filters, the sort and the scroll position survive it. Three
 rules hold around it: a BROKEN CHAIN is answered without a request at all
-(`feedModel.ts: shouldFetchRows` — no profile or no enabled source means the page
+(no profile or no enabled source means the page
 already knows what it will show, so a failed read can never be painted as an empty
 feed), a failure and an empty state are never rendered together, and the page's chrome
 stays — `/me/sources` keeps the Add form and whatever tiers it already holds, `/me/scans`

@@ -126,3 +126,8 @@ test("helpers", () => {
   assert.equal(levelPips(null), 0);
   assert.deepEqual(bulletsOf("", []), []);
 });
+
+test("a CV with no headline gets none: a target title never stands in for a held one", () => {
+  const noHead = buildCvDocument({ profile: { displayName: "Jana" }, preferences: { targetTitles: ["AI Engineer"] }, cvSourceText: "Jana\njana@example.invalid" });
+  assert.equal(noHead.headline, null);
+});

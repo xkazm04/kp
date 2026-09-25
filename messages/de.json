@@ -12312,14 +12312,6 @@
       "unreachable": "Der Server ist nicht erreichbar. Prüfen Sie, ob die App läuft, und versuchen Sie es erneut.",
       "explain": "Was das bedeutet"
     },
-    "title": "Meine Jobsuche",
-    "nav": {
-      "profile": "Profil & Lebenslauf",
-      "jobs": "Stellen",
-      "sources": "Quellen",
-      "scans": "Scans",
-      "jobsNew": "{count, plural, one {# neue Stelle} other {# neue Stellen}}"
-    },
     "studio": {
       "closeBusy": "Eine Antwort ist noch unterwegs. Schließen stoppt sie nicht.",
       "closeStay": "Bleiben",
@@ -12412,31 +12404,6 @@
       "downloadUnavailable": "Schließen Sie zuerst ein Lebenslauf-Gespräch ab; der Download erscheint, sobald ein überarbeiteter Lebenslauf vorliegt.",
       "print": "Drucken / PDF"
     },
-    "profile": {
-      "eyebrow": "Jobsuche",
-      "intro": "Was Ihr Lebenslauf uns gesagt hat, die Präferenzen, die die Suche steuern, und das Studio, das beides schärft.",
-      "readTitle": "Was ich aus Ihrem Lebenslauf gelesen habe",
-      "unknownName": "Ihr Profil",
-      "updated": "Aktualisiert {when}",
-      "reimport": "Anderen Lebenslauf importieren",
-      "field": {
-        "name": "Name",
-        "roleFamily": "Rollenfamilie",
-        "years": "Jahre Erfahrung",
-        "skills": "Gefundene Kenntnisse",
-        "location": "Ort",
-        "languages": "Sprachen",
-        "education": "Ausbildung"
-      },
-      "couldNotReadTitle": "Was ich nicht lesen konnte",
-      "couldNotReadBody": "Das sind Lücken in dem, was der Lebenslauf nennt, keine Minuspunkte. Das Studio fragt danach.",
-      "readWithoutAiTitle": "Ohne KI gelesen - prüfen Sie die Angaben",
-      "readWithoutAiBody": "Es war kein KI-Modell eingerichtet oder erreichbar, deshalb hat ein fester Parser Ihren Lebenslauf gelesen. Die Fähigkeiten stehen genau so da, wie der Lebenslauf sie nennt, nichts wurde abgeleitet. Richten Sie unter Einstellungen, Modelle ein Modell ein und importieren Sie erneut, damit ein Modell ihn liest.",
-      "skillsTitle": "Aus Ihrem Lebenslauf gelesene Fähigkeiten",
-      "skillSelfDeclared": "{skill} - von Ihnen angegeben, nicht geprüft",
-      "skillProvenance": "{skill} - Nachweis: {provenance}",
-      "couldNotReadNone": "Jedes Feld, nach dem ich suche, war da."
-    },
     "preferences": {
       "title": "Suchpräferenzen",
       "empty": "Noch nichts festgelegt. Das Lebenslauf-Studio fragt nach und nach nach Orten, Gehalt und Titeln.",
@@ -12486,71 +12453,16 @@
       "none": "Es gibt noch keinen Lebenslauf. Laden Sie ihn zuerst auf Ihrer Jobsuche-Seite hoch."
     },
     "jobs": {
-      "eyebrow": "Jobsuche",
-      "title": "Stellen",
-      "intro": "Jede Stelle, die Ihre Quellen gefunden haben, bewertet an Ihrem Profil. In die Auswahl nehmen, bewerben oder mit einem Grund verwerfen, aus dem der Coach lernt.",
-      "filter": {
-        "status": "Status",
-        "statusOption": {
-          "live": "Aktiv",
-          "new": "Neu",
-          "shortlisted": "Auswahl",
-          "applied": "Beworben",
-          "dismissed": "Verworfen"
-        },
-        "minFit": "Min. Passung",
-        "minFitAny": "Beliebig",
-        "minFitValue": "{n}+",
-        "source": "Quelle",
-        "allSources": "Alle Quellen"
-      },
-      "sort": {
-        "label": "Sortieren",
-        "total": "Beste Passung",
-        "posted": "Zuletzt veröffentlicht",
-        "seen": "Zuletzt gesehen"
-      },
-      "actionError": "Die Änderung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-      "loadError": "Die Liste konnte nicht geladen werden.",
-      "loading": "Wird geladen",
-      "loadMore": "Mehr laden",
       "empty": {
-        "no_profile": {
-          "title": "Beginnen Sie mit Ihrem Lebenslauf",
-          "body": "Die Liste bewertet Stellen an Ihrem Profil, und noch gibt es keines. Importieren Sie zuerst Ihren Lebenslauf.",
-          "cta": "Zu Profil und Lebenslauf"
-        },
         "no_sources": {
-          "title": "Keine Quelle ist eingeschaltet",
-          "body": "Ihr Profil ist bereit, aber nichts wird gelesen. Schalten Sie mindestens eine Quelle ein; der nächste Scan füllt diese Seite.",
           "euresCta": "EURES für {countries} aktivieren",
           "euresNote": "EURES ist die Stellenbörse der Europäischen Arbeitsbehörde, rechtlich unbedenklich mit Quellenangabe, es gibt also nichts zu bestätigen. Ein Klick schaltet sie ein und startet den ersten Scan für {countries}.",
           "euresDefault": "In Ihren Einstellungen ist noch kein Land hinterlegt, deshalb wird EURES eingeschaltet und {countries} durchsucht.",
           "euresPrefs": "Länder ändern",
-          "euresError": "EURES konnte nicht eingeschaltet werden.",
-          "cta": "Quellen wählen"
-        },
-        "no_scan": {
-          "title": "Noch nichts gescannt",
-          "body": "Ihre Quellen sind eingeschaltet. Starten Sie jetzt den ersten Scan; sobald er gelingt, kann der Timer auf der Seite Scans übernehmen."
-        },
-        "below_min": {
-          "title": "Nichts über Ihrer Mindestpassung",
-          "body": "{count, plural, one {# Stelle liegt} other {# Stellen liegen}} unter der gewünschten Passung. Senken Sie das Minimum, um sie zu sehen."
-        },
-        "nothing_live": {
-          "title": "Gerade nichts Aktives",
-          "body": "Der letzte Scan fand nichts Neues, oder alles wurde verworfen. Scannen Sie erneut oder prüfen Sie den Filter Verworfen."
+          "euresError": "EURES konnte nicht eingeschaltet werden."
         }
       },
       "card": {
-        "unscored": "Nicht bewertet",
-        "deepDived": "Vertieft geprüft",
-        "source": "Quelle: {label}",
-        "seen": "Gesehen {when}",
-        "confidence": "Konfidenz {level} ({low} bis {high})",
-        "dismissed": "Verworfen: {reason}",
-        "applied": "Beworben {when}",
         "filtered": {
           "seniority": "Gefiltert: Seniorität",
           "early_career": "Gefiltert: Berufserfahrung",
@@ -12559,37 +12471,7 @@
           "work_mode": "Gefiltert: Arbeitsmodell"
         }
       },
-      "confidenceLevel": {
-        "tight": "eng",
-        "moderate": "mittel",
-        "wide": "weit"
-      },
-      "workMode": {
-        "remote": "Remote",
-        "hybrid": "Hybrid",
-        "onsite": "Vor Ort"
-      },
-      "status": {
-        "new": "Neu",
-        "shortlisted": "Auswahl",
-        "applied": "Beworben",
-        "dismissed": "Verworfen",
-        "gone": "Verschwunden"
-      },
-      "action": {
-        "shortlist": "In die Auswahl",
-        "unshortlist": "Aus der Auswahl",
-        "applied": "Ich habe mich beworben",
-        "dismiss": "Verwerfen",
-        "restore": "Wiederherstellen"
-      },
       "dismiss": {
-        "title": "{title} verwerfen",
-        "reasonLabel": "Warum? (der Coach lernt daraus)",
-        "noteLabel": "Notiz (optional)",
-        "notePlaceholder": "Eine Zeile, nur für Sie",
-        "confirm": "Verwerfen",
-        "cancel": "Behalten",
         "reason": {
           "salary": "Gehalt",
           "location": "Ort",
@@ -12637,18 +12519,6 @@
           "match": "Der Scan ist abgeschlossen, aber der Abgleich ist fehlgeschlagen: {msg}",
           "deepdive": "Der Scan ist abgeschlossen, aber einige vertiefte Prüfungen sind fehlgeschlagen: {msg}"
         }
-      },
-      "lastScan": "Letzte Suche {when}",
-      "newSince": "{count, plural, one {# neue Stelle seit Ihrem letzten Besuch} other {# neue Stellen seit Ihrem letzten Besuch}}",
-      "markAllSeen": "Alle als gesehen markieren",
-      "table": {
-        "fit": "Passung",
-        "role": "Rolle",
-        "source": "Quelle",
-        "posted": "Veröffentlicht",
-        "seen": "Zuletzt gesehen",
-        "status": "Status",
-        "actions": "Aktionen"
       }
     },
     "posting": {
@@ -13031,7 +12901,7 @@
         "read": "Meinen Lebenslauf lesen",
         "reading": "Wird gelesen…",
         "clear": "Andere Datei wählen",
-        "privacy": "Er bleibt auf dieser Installation. Nichts geht an eine Jobbörse.",
+        "privacy": "Nichts geht an eine Jobbörse. Zum Lesen Ihres Lebenslaufs kann das KI-Modell dieser Installation genutzt werden; ohne eines liest ihn der eingebaute Parser.",
         "stage": {
           "extracting": "Datei lesen",
           "drafting": "Sie darin finden",
@@ -13057,7 +12927,7 @@
         },
         "you": "Sie",
         "inTitle": "Lebenslauf von {name} liegt vor",
-        "inMeta": "Gelesen {when}"
+        "replaceNote": "Ihre Scores bleiben bis zum nächsten Scan unverändert."
       },
       "you": {
         "eyebrow": "Schritt 2 · Ihr Lebenslauf → Schritt 3 · Sie",
@@ -13069,7 +12939,6 @@
         "noText": "Von diesem Lebenslauf wurde kein Text behalten. Legen Sie ihn erneut ab, um ihn hier zu sehen.",
         "polish": "Meinen Lebenslauf überarbeiten",
         "download": ".md herunterladen",
-        "print": "Drucken",
         "youLabel": "Sie, wie Ihr Lebenslauf Sie zeigt",
         "unnamed": "Ihr Profil",
         "aiming": "Ziel: <b>{role}</b>",
@@ -13124,7 +12993,8 @@
           "none": "Noch kein Ort. Fügen Sie eine Stadt oder einen Ländercode hinzu",
           "add": "Stadt hinzufügen",
           "country": "Ländercode, z. B. cz",
-          "rule": "Ländercodes bestimmen die Märkte, die EURES durchsucht."
+          "rule": "Ländercodes bestimmen die Märkte, die EURES durchsucht.",
+          "countryInvalid": "{value} ist kein zweibuchstabiger Ländercode, z. B. cz oder de."
         },
         "pay": {
           "title": "Gehaltsuntergrenze",
@@ -13142,7 +13012,9 @@
           "hint": "worauf Sie sich bewerben würden",
           "none": "Noch kein Titel",
           "add": "Titel hinzufügen",
-          "rule": "Die Titel, auf die Sie sich bewerben würden, nicht die, die Sie hatten."
+          "rule": "Die Titel, auf die Sie sich bewerben würden, nicht die, die Sie hatten.",
+          "families": "Zielbereiche",
+          "ranks": "Titel bestimmen jetzt die Rangfolge: Ein Titeltreffer zählt voll, ein Zielbereich teilweise."
         },
         "modes": {
           "title": "Arbeitsmodell",
@@ -13302,7 +13174,10 @@
           "posted": "Veröffentlicht"
         },
         "noMatch": "Keine Stelle passt zu diesen Filtern.",
-        "clearFilters": "Filter zurücksetzen"
+        "clearFilters": "Filter zurücksetzen",
+        "noSkills": "Ihr Profil nennt keine Fähigkeiten, daher beruhen diese Scores nur auf Bereich und Level.",
+        "noSkillsDrop": "Ausführlicheren Lebenslauf ablegen",
+        "noSkillsPolish": "Meinen Lebenslauf überarbeiten"
       },
       "weigh": {
         "eyebrow": "Schritt 7 · Abwägen",
@@ -13417,7 +13292,9 @@
         "toast": {
           "moved": "{status} · Ihre Rangliste hat sich verschoben",
           "undone": "Zurück auf unentschieden"
-        }
+        },
+        "was": "vorher {n}",
+        "readStale": "Vor Ihrer letzten Profiländerung geschrieben. Der nächste Scan schreibt sie neu."
       },
       "sources": {
         "eyebrow": "Schritt 8 · Quellen",
@@ -13478,6 +13355,16 @@
         "euresCountries": "Sucht in {countries}",
         "euresDefault": "Noch kein Land gesetzt: Beim Einschalten wird {countries} durchsucht",
         "euresNoCountry": "Kein Land gesetzt, EURES hat also nichts zu durchsuchen. Geben Sie eines unter Was Sie suchen an."
+      },
+      "direction": {
+        "target": "Passt zu Ihrem Ziel: {title}",
+        "targetBare": "Passt zu Ihrem Ziel",
+        "family": "In Ihrem Zielbereich",
+        "past": "Ihr bisheriger Bereich: {family}",
+        "pastBare": "Ihr bisheriger Bereich",
+        "mark": "Passt zu Ihrem Ziel",
+        "filter": "Ihre Richtung",
+        "hides": "{n, plural, one {blendet # Stelle außerhalb Ihrer Richtung aus} other {blendet # Stellen außerhalb Ihrer Richtung aus}}"
       }
     },
     "designedCv": {
@@ -13510,9 +13397,39 @@
         "spelling": "Rechtschreibung",
         "hyphen": "Zeilenumbruch",
         "capital": "Großschreibung",
-        "opener": "Satzanfang"
+        "opener": "Satzanfang",
+        "tailor": "Zuschnitt"
       },
-      "previewLabel": "Vorschau Ihres gestalteten Lebenslaufs"
+      "previewLabel": "Vorschau Ihres gestalteten Lebenslaufs",
+      "tailorLabel": "Zuschneiden auf",
+      "tailorOff": "Wie geschrieben",
+      "objectiveToggle": "Angeben, was Sie suchen",
+      "compactToggle": "Stationen ohne Zielbezug einzeilig",
+      "compactHint": "Ihr Lebenslauf ist länger als eine Seite.",
+      "tailorMoves": "{n, plural, =0 {Für {target} nichts umzustellen} one {# Umstellung für {target}} other {# Umstellungen für {target}}}",
+      "tailorMovesHint": "Geändert haben sich nur Reihenfolge und Fettdruck: Jedes Wort stammt weiter von Ihnen, und Ihre Stationen bleiben in zeitlicher Reihenfolge.",
+      "tailorMove": {
+        "summary": "Ihr Profil beginnt jetzt mit „{after}“",
+        "bullets": "„{after}“ steht jetzt oben bei {where}",
+        "groups": "Die Kenntnisse „{after}“ stehen jetzt vorn",
+        "items": "Zuerst in {where}: {after}",
+        "emphasis": "{n, plural, one {# für {target} wichtiger Begriff fett gesetzt} other {# für {target} wichtige Begriffe fett gesetzt}}",
+        "compact": "{where} einzeilig gesetzt: Nichts darin betrifft {target}",
+        "objective": "„{after}“ unter Ihrer Überschrift ergänzt, als das, was Sie suchen"
+      },
+      "coverage": {
+        "postings": "Ihr Lebenslauf zeigt {shown} von {total, plural, one {# Kenntnis} other {# Kenntnissen}}, die Stellen als {target} verlangen.",
+        "from": "{n, plural, one {Gelesen aus # Stelle als {target} in Ihrem Feed.} other {Gelesen aus # Stellen als {target} in Ihrem Feed.}}",
+        "lexicon": "Ihr Lebenslauf zeigt {shown} von {total, plural, one {# Kenntnis} other {# Kenntnissen}}, die für {target} typisch sind.",
+        "lexiconNote": "Noch keine Stelle als {target} in Ihrem Feed, daher eine allgemeine Liste.",
+        "none": "Noch keine Stelle als {target} in Ihrem Feed und keine allgemeine Liste für diesen Titel: Die Reihenfolge folgt nur den Wörtern des Titels.",
+        "missingTitle": "Nicht in Ihrem Lebenslauf",
+        "missingHint": "Nur Sie sehen diese Liste, sie wird nie gedruckt. Ergänzen Sie eine Kenntnis nur, wenn Sie sie wirklich haben.",
+        "allShown": "Ihr Lebenslauf zeigt alle.",
+        "shownToggle": "Wo Ihr Lebenslauf sie zeigt",
+        "inSkills": "Kenntnisse",
+        "inSummary": "Profil"
+      }
     }
   },
   "journey": {

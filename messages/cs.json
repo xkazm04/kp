@@ -12312,14 +12312,6 @@
       "unreachable": "Server není dostupný. Zkontrolujte, že aplikace běží, a zkuste to znovu.",
       "explain": "Co to znamená"
     },
-    "title": "Moje hledání práce",
-    "nav": {
-      "profile": "Profil a CV",
-      "jobs": "Nabídky",
-      "sources": "Zdroje",
-      "scans": "Skeny",
-      "jobsNew": "{count, plural, one {# nová nabídka} few {# nové nabídky} many {# nové nabídky} other {# nových nabídek}}"
-    },
     "studio": {
       "closeBusy": "Odpověď ještě přichází. Zavření ji nezastaví.",
       "closeStay": "Zůstat",
@@ -12412,31 +12404,6 @@
       "downloadUnavailable": "Nejdřív dokončete konverzaci o CV; stažení se objeví, jakmile existuje upravené CV.",
       "print": "Tisk / PDF"
     },
-    "profile": {
-      "eyebrow": "Hledání práce",
-      "intro": "Co nám řeklo vaše CV, preference, které řídí hledání, a studio, které vylepší obojí.",
-      "readTitle": "Co jsem z vašeho CV přečetl",
-      "unknownName": "Váš profil",
-      "updated": "Aktualizováno {when}",
-      "reimport": "Nahrát jiné CV",
-      "field": {
-        "name": "Jméno",
-        "roleFamily": "Oblast rolí",
-        "years": "Roky praxe",
-        "skills": "Nalezené dovednosti",
-        "location": "Místo",
-        "languages": "Jazyky",
-        "education": "Vzdělání"
-      },
-      "couldNotReadTitle": "Co jsem nedokázal přečíst",
-      "couldNotReadBody": "Jde o mezery v tom, co CV uvádí, ne o body proti vám. Studio se na ně zeptá.",
-      "readWithoutAiTitle": "Přečteno bez AI - zkontrolujte údaje",
-      "readWithoutAiBody": "Žádný AI model není nastavený ani dostupný, vaše CV proto přečetl pevný parser. Dovednosti jsou zaznamenané přesně tak, jak je uvádí CV, nic nebylo odvozeno. Přidejte model v Nastavení, Modely a importujte znovu, aby CV přečetl model.",
-      "skillsTitle": "Dovednosti přečtené z vašeho CV",
-      "skillSelfDeclared": "{skill} - uvádíte vy, neověřeno",
-      "skillProvenance": "{skill} - doklad: {provenance}",
-      "couldNotReadNone": "Všechna pole, která hledám, tam byla."
-    },
     "preferences": {
       "title": "Preference hledání",
       "empty": "Zatím nic nenastaveno. Studio CV se postupně zeptá na místa, mzdu a pozice.",
@@ -12486,71 +12453,16 @@
       "none": "Zatím tu žádné CV není. Nejdřív ho nahrajte na stránce hledání práce."
     },
     "jobs": {
-      "eyebrow": "Hledání práce",
-      "title": "Nabídky",
-      "intro": "Každá nabídka, kterou vaše zdroje našly, ohodnocená podle vašeho profilu. Dejte ji do užšího výběru, přihlaste se nebo ji odložte s důvodem, ze kterého se kouč učí.",
-      "filter": {
-        "status": "Stav",
-        "statusOption": {
-          "live": "Aktivní",
-          "new": "Nové",
-          "shortlisted": "Užší výběr",
-          "applied": "Přihlášeno",
-          "dismissed": "Odložené"
-        },
-        "minFit": "Min. shoda",
-        "minFitAny": "Libovolná",
-        "minFitValue": "{n}+",
-        "source": "Zdroj",
-        "allSources": "Všechny zdroje"
-      },
-      "sort": {
-        "label": "Řadit",
-        "total": "Nejlepší shoda",
-        "posted": "Nejnověji zveřejněné",
-        "seen": "Naposledy viděné"
-      },
-      "actionError": "Změnu se nepodařilo uložit. Zkuste to prosím znovu.",
-      "loadError": "Přehled se nepodařilo načíst.",
-      "loading": "Načítání",
-      "loadMore": "Načíst další",
       "empty": {
-        "no_profile": {
-          "title": "Začněte svým CV",
-          "body": "Přehled hodnotí nabídky podle vašeho profilu a ten zatím neexistuje. Nejdřív importujte své CV.",
-          "cta": "Přejít na Profil a CV"
-        },
         "no_sources": {
-          "title": "Žádný zdroj není zapnutý",
-          "body": "Váš profil je připraven, ale nic se nečte. Zapněte alespoň jeden zdroj a příští sken tuto stránku naplní.",
           "euresCta": "Zapnout EURES pro {countries}",
           "euresNote": "EURES je databáze volných míst Evropského úřadu práce, právně čistá s uvedením zdroje, takže není co odsouhlasovat. Jedno kliknutí ji zapne a spustí první prohledání zemí {countries}.",
           "euresDefault": "V předvolbách zatím nemáte nastavenou zemi, proto se zapne EURES a prohledá se {countries}.",
           "euresPrefs": "Změnit země",
-          "euresError": "EURES se nepodařilo zapnout.",
-          "cta": "Vybrat zdroje"
-        },
-        "no_scan": {
-          "title": "Zatím nic nebylo prohledáno",
-          "body": "Vaše zdroje jsou zapnuté. Spusťte první sken teď; jakmile proběhne, může se na stránce Skeny zapnout časovač."
-        },
-        "below_min": {
-          "title": "Nic nad vaší minimální shodou",
-          "body": "{count, plural, one {# nabídka je} few {# nabídky jsou} other {# nabídek je}} pod shodou, kterou jste nastavili. Snižte minimum a uvidíte je."
-        },
-        "nothing_live": {
-          "title": "Právě nic aktivního",
-          "body": "Poslední sken nenašel nic nového, nebo jste všechno odložili. Spusťte sken znovu, nebo se podívejte do filtru Odložené."
+          "euresError": "EURES se nepodařilo zapnout."
         }
       },
       "card": {
-        "unscored": "Bez hodnocení",
-        "deepDived": "Podrobně prověřeno",
-        "source": "Zdroj: {label}",
-        "seen": "Viděno {when}",
-        "confidence": "Spolehlivost {level} ({low} až {high})",
-        "dismissed": "Odloženo: {reason}",
-        "applied": "Přihlášeno {when}",
         "filtered": {
           "seniority": "Vyřazeno: seniorita",
           "early_career": "Vyřazeno: úroveň praxe",
@@ -12559,37 +12471,7 @@
           "work_mode": "Vyřazeno: způsob práce"
         }
       },
-      "confidenceLevel": {
-        "tight": "vysoká",
-        "moderate": "střední",
-        "wide": "nízká"
-      },
-      "workMode": {
-        "remote": "Na dálku",
-        "hybrid": "Hybridně",
-        "onsite": "V kanceláři"
-      },
-      "status": {
-        "new": "Nové",
-        "shortlisted": "Užší výběr",
-        "applied": "Přihlášeno",
-        "dismissed": "Odloženo",
-        "gone": "Zmizelo"
-      },
-      "action": {
-        "shortlist": "Do užšího výběru",
-        "unshortlist": "Vyřadit z výběru",
-        "applied": "Přihlásil(a) jsem se",
-        "dismiss": "Odložit",
-        "restore": "Obnovit"
-      },
       "dismiss": {
-        "title": "Odložit {title}",
-        "reasonLabel": "Proč? (kouč se z toho učí)",
-        "noteLabel": "Poznámka (nepovinná)",
-        "notePlaceholder": "Jeden řádek, jen pro vás",
-        "confirm": "Odložit",
-        "cancel": "Ponechat",
         "reason": {
           "salary": "Plat",
           "location": "Místo",
@@ -12637,18 +12519,6 @@
           "match": "Sken doběhl, ale hodnocení shody selhalo: {msg}",
           "deepdive": "Sken doběhl, ale některá podrobná prověření selhala: {msg}"
         }
-      },
-      "lastScan": "Poslední kontrola {when}",
-      "newSince": "{count, plural, one {# nová nabídka od vaší poslední návštěvy} few {# nové nabídky od vaší poslední návštěvy} many {# nové nabídky od vaší poslední návštěvy} other {# nových nabídek od vaší poslední návštěvy}}",
-      "markAllSeen": "Označit vše jako přečtené",
-      "table": {
-        "fit": "Shoda",
-        "role": "Pozice",
-        "source": "Zdroj",
-        "posted": "Zveřejněno",
-        "seen": "Naposledy viděno",
-        "status": "Stav",
-        "actions": "Akce"
       }
     },
     "posting": {
@@ -13031,7 +12901,7 @@
         "read": "Přečíst moje CV",
         "reading": "Čtení…",
         "clear": "Vybrat jiné",
-        "privacy": "Zůstává na tomto serveru. Nic se neposílá na pracovní portály.",
+        "privacy": "Nic se neposílá na pracovní portály. Při čtení CV se může použít AI model nastavený na tomto serveru; bez něj ho přečte vestavěný parser.",
         "stage": {
           "extracting": "Čteme soubor",
           "drafting": "Hledáme v něm vás",
@@ -13057,7 +12927,7 @@
         },
         "you": "Vy",
         "inTitle": "Nahráno CV: {name}",
-        "inMeta": "Přečteno {when}"
+        "replaceNote": "Skóre zůstane beze změny až do příštího skenu."
       },
       "you": {
         "eyebrow": "Krok 2 · Vaše CV → Krok 3 · Vy",
@@ -13069,7 +12939,6 @@
         "noText": "Z tohoto CV se neuložil žádný text. Vložte ho znovu a uvidíte ho tady.",
         "polish": "Vylepšit moje CV",
         "download": "Stáhnout .md",
-        "print": "Tisknout",
         "youLabel": "Vy podle vašeho CV",
         "unnamed": "Váš profil",
         "aiming": "Míříte na pozici <b>{role}</b>",
@@ -13124,7 +12993,8 @@
           "none": "Zatím žádné místo. Přidejte město nebo kód země",
           "add": "Přidat město",
           "country": "Kód země, např. cz",
-          "rule": "Kódy zemí určují trhy, které prohledává EURES."
+          "rule": "Kódy zemí určují trhy, které prohledává EURES.",
+          "countryInvalid": "{value} není dvoupísmenný kód země, např. cz nebo de."
         },
         "pay": {
           "title": "Minimální plat",
@@ -13142,7 +13012,9 @@
           "hint": "kam se chcete hlásit",
           "none": "Zatím žádná pozice",
           "add": "Přidat pozici",
-          "rule": "Pozice, na které se chcete hlásit, ne ty, které už máte za sebou."
+          "rule": "Pozice, na které se chcete hlásit, ne ty, které už máte za sebou.",
+          "families": "Cílové obory",
+          "ranks": "Pozice teď ovlivňují pořadí: shoda s pozicí se počítá plně, cílový obor částečně."
         },
         "modes": {
           "title": "Režim práce",
@@ -13302,7 +13174,10 @@
           "posted": "Zveřejněno"
         },
         "noMatch": "Těmto filtrům neodpovídá žádná nabídka.",
-        "clearFilters": "Zrušit filtry"
+        "clearFilters": "Zrušit filtry",
+        "noSkills": "Váš profil neuvádí žádné dovednosti, takže tato skóre vycházejí jen z oboru a úrovně.",
+        "noSkillsDrop": "Nahrát úplnější CV",
+        "noSkillsPolish": "Vylepšit moje CV"
       },
       "weigh": {
         "eyebrow": "Krok 7 · Zvážení",
@@ -13417,7 +13292,9 @@
         "toast": {
           "moved": "{status} · pořadí se změnilo",
           "undone": "Zpět na nerozhodnuto"
-        }
+        },
+        "was": "dříve {n}",
+        "readStale": "Rozbor vznikl před vaší poslední změnou profilu. Příští sken ho napíše znovu."
       },
       "sources": {
         "eyebrow": "Krok 8 · Zdroje",
@@ -13478,6 +13355,16 @@
         "euresCountries": "Hledá v zemích: {countries}",
         "euresDefault": "Zatím není nastavena žádná země: po zapnutí bude hledat v: {countries}",
         "euresNoCountry": "Není nastavena žádná země, EURES tedy nemá kde hledat. Zadejte ji v kroku Co chcete."
+      },
+      "direction": {
+        "target": "Odpovídá vašemu cíli: {title}",
+        "targetBare": "Odpovídá vašemu cíli",
+        "family": "Ve vašem cílovém oboru",
+        "past": "Váš dosavadní obor: {family}",
+        "pastBare": "Váš dosavadní obor",
+        "mark": "Odpovídá vašemu cíli",
+        "filter": "Váš směr",
+        "hides": "{n, plural, one {skrývá # nabídku mimo váš směr} few {skrývá # nabídky mimo váš směr} many {skrývá # nabídky mimo váš směr} other {skrývá # nabídek mimo váš směr}}"
       }
     },
     "designedCv": {
@@ -13510,9 +13397,39 @@
         "spelling": "Pravopis",
         "hyphen": "Zalomení řádku",
         "capital": "Velké písmeno",
-        "opener": "Úvod věty"
+        "opener": "Úvod věty",
+        "tailor": "Přizpůsobení"
       },
-      "previewLabel": "Náhled vašeho navrženého CV"
+      "previewLabel": "Náhled vašeho navrženého CV",
+      "tailorLabel": "Přizpůsobit pro",
+      "tailorOff": "Beze změn",
+      "objectiveToggle": "Uvést, co hledáte",
+      "compactToggle": "Role mimo cíl na jeden řádek",
+      "compactHint": "Vaše CV přesahuje jednu stranu.",
+      "tailorMoves": "{n, plural, =0 {Pro pozici {target} není co přesunout} one {# přesun pro pozici {target}} few {# přesuny pro pozici {target}} many {# přesunu pro pozici {target}} other {# přesunů pro pozici {target}}}",
+      "tailorMovesHint": "Změnilo se jen pořadí a tučné písmo: každé slovo je stále vaše a role zůstávají v časovém pořadí.",
+      "tailorMove": {
+        "summary": "Profil nyní začíná větou „{after}“",
+        "bullets": "„{after}“ je nyní první v roli {where}",
+        "groups": "Dovednosti „{after}“ jsou nyní první",
+        "items": "Na začátku skupiny {where}: {after}",
+        "emphasis": "{n, plural, one {# pojem důležitý pro pozici {target} je tučně} few {# pojmy důležité pro pozici {target} jsou tučně} many {# pojmu důležitého pro pozici {target} je tučně} other {# pojmů důležitých pro pozici {target} je tučně}}",
+        "compact": "Role {where} je na jednom řádku: nic v ní se netýká pozice {target}",
+        "objective": "Pod titulek přibyl řádek „{after}“ jako to, co hledáte"
+      },
+      "coverage": {
+        "postings": "Vaše CV ukazuje {shown} z {total, plural, one {# dovednosti, kterou} few {# dovedností, které} many {# dovednosti, které} other {# dovedností, které}} požadují nabídky na pozici {target}.",
+        "from": "{n, plural, one {Podle # nabídky na pozici {target} ve vašem výběru.} few {Podle # nabídek na pozici {target} ve vašem výběru.} many {Podle # nabídky na pozici {target} ve vašem výběru.} other {Podle # nabídek na pozici {target} ve vašem výběru.}}",
+        "lexicon": "Vaše CV ukazuje {shown} z {total, plural, one {# dovednosti typické} few {# dovedností typických} many {# dovednosti typických} other {# dovedností typických}} pro pozici {target}.",
+        "lexiconNote": "Ve vašem výběru zatím není žádná nabídka na pozici {target}, jde tedy o obecný seznam.",
+        "none": "Ve vašem výběru zatím není žádná nabídka na pozici {target} a pro tento název nemáme obecný seznam: pořadí se řídí jen slovy z názvu.",
+        "missingTitle": "Ve vašem CV chybí",
+        "missingHint": "Tento seznam vidíte jen vy, nikdy se netiskne. Dovednost doplňte, jen pokud ji opravdu máte.",
+        "allShown": "Vaše CV ukazuje všechny.",
+        "shownToggle": "Kde je vaše CV ukazuje",
+        "inSkills": "Dovednosti",
+        "inSummary": "Profil"
+      }
     }
   },
   "journey": {

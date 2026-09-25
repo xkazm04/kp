@@ -12312,14 +12312,6 @@
       "unreachable": "Le serveur est injoignable. Vérifiez que l'application est lancée, puis réessayez.",
       "explain": "Ce que cela signifie"
     },
-    "title": "Ma recherche d'emploi",
-    "nav": {
-      "profile": "Profil et CV",
-      "jobs": "Offres",
-      "sources": "Sources",
-      "scans": "Analyses",
-      "jobsNew": "{count, plural, one {# nouvelle offre} other {# nouvelles offres}}"
-    },
     "studio": {
       "closeBusy": "Une réponse est encore en route. Fermer maintenant ne l'arrêtera pas.",
       "closeStay": "Rester",
@@ -12412,31 +12404,6 @@
       "downloadUnavailable": "Terminez d'abord une conversation sur le CV ; le téléchargement apparaît dès qu'un CV retravaillé existe.",
       "print": "Imprimer / PDF"
     },
-    "profile": {
-      "eyebrow": "Recherche d'emploi",
-      "intro": "Ce que votre CV nous a appris, les préférences qui orientent la recherche, et le studio qui affine les deux.",
-      "readTitle": "Ce que j'ai lu dans votre CV",
-      "unknownName": "Votre profil",
-      "updated": "Mis à jour {when}",
-      "reimport": "Importer un autre CV",
-      "field": {
-        "name": "Nom",
-        "roleFamily": "Famille de métiers",
-        "years": "Années d'expérience",
-        "skills": "Compétences trouvées",
-        "location": "Lieu",
-        "languages": "Langues",
-        "education": "Formation"
-      },
-      "couldNotReadTitle": "Ce que je n'ai pas pu lire",
-      "couldNotReadBody": "Ce sont des lacunes dans ce que le CV indique, pas des points en moins. Le studio vous posera la question.",
-      "readWithoutAiTitle": "Lu sans IA - vérifiez les détails",
-      "readWithoutAiBody": "Aucun modèle d'IA n'était configuré ni joignable : votre CV a donc été lu par un analyseur fixe. Les compétences sont enregistrées telles que le CV les énonce, rien n'a été déduit. Ajoutez un modèle dans Paramètres, Modèles, puis réimportez pour qu'un modèle le lise.",
-      "skillsTitle": "Compétences lues dans votre CV",
-      "skillSelfDeclared": "{skill} - déclaré par vous, non vérifié",
-      "skillProvenance": "{skill} - preuve : {provenance}",
-      "couldNotReadNone": "Tous les champs que je recherche étaient présents."
-    },
     "preferences": {
       "title": "Préférences de recherche",
       "empty": "Rien de défini pour l'instant. Le studio CV vous demandera les lieux, le salaire et les intitulés au fil de la conversation.",
@@ -12486,71 +12453,16 @@
       "none": "Il n'y a pas encore de CV. Déposez d'abord votre CV sur la page de votre recherche d'emploi."
     },
     "jobs": {
-      "eyebrow": "Recherche d'emploi",
-      "title": "Offres",
-      "intro": "Chaque offre trouvée par vos sources, notée selon votre profil. Présélectionnez, postulez ou écartez avec une raison dont le coach apprend.",
-      "filter": {
-        "status": "Statut",
-        "statusOption": {
-          "live": "Actives",
-          "new": "Nouvelles",
-          "shortlisted": "Présélection",
-          "applied": "Candidature envoyée",
-          "dismissed": "Écartées"
-        },
-        "minFit": "Adéquation min.",
-        "minFitAny": "Toutes",
-        "minFitValue": "{n}+",
-        "source": "Source",
-        "allSources": "Toutes les sources"
-      },
-      "sort": {
-        "label": "Trier",
-        "total": "Meilleure adéquation",
-        "posted": "Publiées récemment",
-        "seen": "Vues récemment"
-      },
-      "actionError": "La modification n'a pas pu être enregistrée. Veuillez réessayer.",
-      "loadError": "Le flux n'a pas pu être chargé.",
-      "loading": "Chargement",
-      "loadMore": "Charger la suite",
       "empty": {
-        "no_profile": {
-          "title": "Commencez par votre CV",
-          "body": "Le flux note les offres selon votre profil, et il n'y en a pas encore. Importez d'abord votre CV.",
-          "cta": "Aller à Profil et CV"
-        },
         "no_sources": {
-          "title": "Aucune source n'est activée",
-          "body": "Votre profil est prêt, mais rien n'est lu. Activez au moins une source et la prochaine analyse remplira cette page.",
           "euresCta": "Activer EURES pour {countries}",
           "euresNote": "EURES est la base d'offres de l'Autorité européenne du travail, libre de droits avec attribution : il n'y a donc rien à accepter. Un clic l'active et lance la première analyse pour {countries}.",
           "euresDefault": "Aucun pays n'est encore défini dans vos préférences : EURES est activé et la recherche portera sur {countries}.",
           "euresPrefs": "Changer de pays",
-          "euresError": "EURES n'a pas pu être activé.",
-          "cta": "Choisir des sources"
-        },
-        "no_scan": {
-          "title": "Rien n'a encore été analysé",
-          "body": "Vos sources sont activées. Lancez la première analyse maintenant ; une fois réussie, le minuteur de la page Analyses pourra prendre le relais."
-        },
-        "below_min": {
-          "title": "Rien au-dessus de votre adéquation minimale",
-          "body": "{count, plural, one {# offre se situe} other {# offres se situent}} sous l'adéquation demandée. Abaissez le minimum pour les voir."
-        },
-        "nothing_live": {
-          "title": "Rien d'actif pour le moment",
-          "body": "La dernière analyse n'a rien trouvé de nouveau, ou tout a été écarté. Relancez une analyse, ou consultez le filtre Écartées."
+          "euresError": "EURES n'a pas pu être activé."
         }
       },
       "card": {
-        "unscored": "Non notée",
-        "deepDived": "Analyse approfondie",
-        "source": "Source : {label}",
-        "seen": "Vue {when}",
-        "confidence": "Confiance {level} ({low} à {high})",
-        "dismissed": "Écartée : {reason}",
-        "applied": "Candidature envoyée {when}",
         "filtered": {
           "seniority": "Filtrée : séniorité",
           "early_career": "Filtrée : niveau d'expérience",
@@ -12559,37 +12471,7 @@
           "work_mode": "Filtrée : mode de travail"
         }
       },
-      "confidenceLevel": {
-        "tight": "élevée",
-        "moderate": "moyenne",
-        "wide": "faible"
-      },
-      "workMode": {
-        "remote": "Télétravail",
-        "hybrid": "Hybride",
-        "onsite": "Sur site"
-      },
-      "status": {
-        "new": "Nouvelle",
-        "shortlisted": "Présélection",
-        "applied": "Candidature envoyée",
-        "dismissed": "Écartée",
-        "gone": "Disparue"
-      },
-      "action": {
-        "shortlist": "Présélectionner",
-        "unshortlist": "Retirer de la présélection",
-        "applied": "J'ai postulé",
-        "dismiss": "Écarter",
-        "restore": "Rétablir"
-      },
       "dismiss": {
-        "title": "Écarter {title}",
-        "reasonLabel": "Pourquoi ? (le coach en tient compte)",
-        "noteLabel": "Note (facultative)",
-        "notePlaceholder": "Une ligne, pour vous",
-        "confirm": "Écarter",
-        "cancel": "Garder",
         "reason": {
           "salary": "Salaire",
           "location": "Lieu",
@@ -12637,18 +12519,6 @@
           "match": "L'analyse est terminée, mais l'évaluation a échoué : {msg}",
           "deepdive": "L'analyse est terminée, mais certains approfondissements ont échoué : {msg}"
         }
-      },
-      "lastScan": "Dernière recherche {when}",
-      "newSince": "{count, plural, one {# nouvelle offre depuis votre dernière visite} other {# nouvelles offres depuis votre dernière visite}}",
-      "markAllSeen": "Tout marquer comme vu",
-      "table": {
-        "fit": "Adéquation",
-        "role": "Poste",
-        "source": "Source",
-        "posted": "Publié",
-        "seen": "Vu pour la dernière fois",
-        "status": "Statut",
-        "actions": "Actions"
       }
     },
     "posting": {
@@ -13031,7 +12901,7 @@
         "read": "Lire mon CV",
         "reading": "Lecture…",
         "clear": "Choisir un autre",
-        "privacy": "Il reste sur cette installation. Rien n’est envoyé à un site d’emploi.",
+        "privacy": "Rien n’est envoyé à un site d’emploi. La lecture de votre CV peut utiliser le modèle d’IA configuré sur cette installation ; sinon, l’analyseur intégré s’en charge.",
         "stage": {
           "extracting": "Lecture du fichier",
           "drafting": "Repérage de votre profil",
@@ -13057,7 +12927,7 @@
         },
         "you": "Vous",
         "inTitle": "CV reçu : {name}",
-        "inMeta": "Lu {when}"
+        "replaceNote": "Vos scores restent inchangés jusqu’à la prochaine analyse."
       },
       "you": {
         "eyebrow": "Étape 2 · Votre CV → Étape 3 · Vous",
@@ -13069,7 +12939,6 @@
         "noText": "Aucun texte de ce CV n’a été conservé. Déposez-le à nouveau pour le voir ici.",
         "polish": "Retravailler mon CV",
         "download": "Télécharger le .md",
-        "print": "Imprimer",
         "youLabel": "Vous, d’après votre CV",
         "unnamed": "Votre profil",
         "aiming": "Vous visez <b>{role}</b>",
@@ -13124,7 +12993,8 @@
           "none": "Aucun lieu pour l’instant. Ajoutez une ville ou un code pays",
           "add": "Ajouter une ville",
           "country": "Code pays, p. ex. cz",
-          "rule": "Les codes pays choisissent les marchés où EURES cherche."
+          "rule": "Les codes pays choisissent les marchés où EURES cherche.",
+          "countryInvalid": "{value} n’est pas un code pays à deux lettres, p. ex. cz ou de."
         },
         "pay": {
           "title": "Salaire minimum",
@@ -13142,7 +13012,9 @@
           "hint": "ce à quoi vous postuleriez",
           "none": "Aucun intitulé pour l’instant",
           "add": "Ajouter un intitulé",
-          "rule": "Les intitulés auxquels vous postuleriez, pas ceux que vous avez occupés."
+          "rule": "Les intitulés auxquels vous postuleriez, pas ceux que vous avez occupés.",
+          "families": "Domaines cibles",
+          "ranks": "Les intitulés orientent désormais le classement : un intitulé correspondant compte pleinement, un domaine cible en partie."
         },
         "modes": {
           "title": "Mode de travail",
@@ -13302,7 +13174,10 @@
           "posted": "Publiée"
         },
         "noMatch": "Aucune offre ne correspond à ces filtres.",
-        "clearFilters": "Effacer les filtres"
+        "clearFilters": "Effacer les filtres",
+        "noSkills": "Votre profil n’indique aucune compétence : ces scores reposent donc uniquement sur le domaine et le niveau.",
+        "noSkillsDrop": "Déposer un CV plus complet",
+        "noSkillsPolish": "Retravailler mon CV"
       },
       "weigh": {
         "eyebrow": "Étape 7 · Peser",
@@ -13417,7 +13292,9 @@
         "toast": {
           "moved": "{status} · votre classement a changé",
           "undone": "Décision annulée"
-        }
+        },
+        "was": "avant {n}",
+        "readStale": "Rédigée avant votre dernière modification du profil. La prochaine analyse la réécrira."
       },
       "sources": {
         "eyebrow": "Étape 8 · Sources",
@@ -13478,6 +13355,16 @@
         "euresCountries": "Recherche dans : {countries}",
         "euresDefault": "Aucun pays défini : une fois activée, la recherche porte sur {countries}",
         "euresNoCountry": "Aucun pays défini : EURES n'a donc rien à chercher. Indiquez-en un dans Ce que vous voulez."
+      },
+      "direction": {
+        "target": "Correspond à votre objectif : {title}",
+        "targetBare": "Correspond à votre objectif",
+        "family": "Dans votre domaine cible",
+        "past": "Votre domaine passé : {family}",
+        "pastBare": "Votre domaine passé",
+        "mark": "Correspond à votre objectif",
+        "filter": "Votre direction",
+        "hides": "{n, plural, one {masque # offre hors de votre direction} other {masque # offres hors de votre direction}}"
       }
     },
     "designedCv": {
@@ -13510,9 +13397,39 @@
         "spelling": "Orthographe",
         "hyphen": "Retour à la ligne",
         "capital": "Majuscule",
-        "opener": "Début de phrase"
+        "opener": "Début de phrase",
+        "tailor": "Adaptation"
       },
-      "previewLabel": "Aperçu de votre CV mis en page"
+      "previewLabel": "Aperçu de votre CV mis en page",
+      "tailorLabel": "Adapter pour",
+      "tailorOff": "Tel quel",
+      "objectiveToggle": "Indiquer ce que vous cherchez",
+      "compactToggle": "Postes hors cible sur une ligne",
+      "compactHint": "Votre CV dépasse une page.",
+      "tailorMoves": "{n, plural, =0 {Rien à déplacer pour {target}} one {# déplacement pour {target}} other {# déplacements pour {target}}}",
+      "tailorMovesHint": "Seuls l’ordre et le gras ont changé : chaque mot reste le vôtre, et vos postes restent dans l’ordre chronologique.",
+      "tailorMove": {
+        "summary": "Votre profil commence désormais par « {after} »",
+        "bullets": "« {after} » passe en tête de {where}",
+        "groups": "Les compétences « {after} » passent en premier",
+        "items": "En tête de {where} : {after}",
+        "emphasis": "{n, plural, one {# terme important pour {target} mis en gras} other {# termes importants pour {target} mis en gras}}",
+        "compact": "{where} tient sur une ligne : rien n’y concerne {target}",
+        "objective": "« {after} » ajouté sous votre titre, comme ce que vous cherchez"
+      },
+      "coverage": {
+        "postings": "Votre CV montre {shown} sur {total, plural, one {# compétence demandée} other {# compétences demandées}} par les offres de {target}.",
+        "from": "{n, plural, one {D’après # offre de {target} dans votre flux.} other {D’après # offres de {target} dans votre flux.}}",
+        "lexicon": "Votre CV montre {shown} sur {total, plural, one {# compétence typique} other {# compétences typiques}} d’un poste de {target}.",
+        "lexiconNote": "Aucune offre de {target} dans votre flux pour l’instant : il s’agit d’une liste générale.",
+        "none": "Aucune offre de {target} dans votre flux pour l’instant, et pas de liste générale pour ce titre : l’ordre suit seulement les mots du titre.",
+        "missingTitle": "Absent de votre CV",
+        "missingHint": "Vous seul voyez cette liste : elle n’est jamais imprimée. N’ajoutez une compétence que si vous l’avez vraiment.",
+        "allShown": "Votre CV les montre toutes.",
+        "shownToggle": "Où votre CV les montre",
+        "inSkills": "Compétences",
+        "inSummary": "Profil"
+      }
     }
   },
   "journey": {

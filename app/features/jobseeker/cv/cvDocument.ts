@@ -432,7 +432,8 @@ function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] 
 // ── the document ───────────────────────────────────────────────────────────────────
 
 export function buildCvDocument(input: { profile: ProfilePayload; preferences: Pick<JobseekerPreferences, "targetTitles">; cvSourceText: string | null }): CvDocument {
-  const { profile, preferences } = input;
+  // `preferences` stays on the input (the callers hold it) but no longer shapes the sheet.
+  const { profile } = input;
   const text = input.cvSourceText ?? "";
   const log: CvImprovement[] = [];
   const blocks = blocksOf(text);
@@ -440,10 +441,12 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
 
   const rawName = profile.displayName?.trim() || header[0] || "";
   const name = isShouting(rawName) ? titleCase(rawName) : rawName;
-  // The CV's own headline wins: it is the author's choice of words. The seeker's first
-  // target title stands in only when the CV has none.
+  // The headline is the CV's own, or none. A target title never stands in for it: set
+  // under the name, "AI Engineer" reads as a title the seeker has held. The direction is
+  // said by the tailoring's objective line ("Seeking: AI Engineer roles"), labelled as
+  // sought (cvTailor.ts).
   const headlineLine = header.find((l) => l !== rawName && l.length <= 60 && !/@|\d{3}|\.(com|cz|io|dev|me)\b|linkedin|github/i.test(l));
-  const headline = headlineLine ? polishTerms(isShouting(headlineLine) ? titleCase(headlineLine) : headlineLine, log) : (preferences.targetTitles[0] ?? null);
+  const headline = headlineLine ? polishTerms(isShouting(headlineLine) ? titleCase(headlineLine) : headlineLine, log) : null;
 
   const summaryBlock = blocks.find((b) => b.kind === "summary");
   const summaryText = summaryBlock ? summaryBlock.lines.filter(Boolean).join(" ").trim() : "";
