@@ -6999,7 +6999,11 @@
       "outlook1": "Öffnen Sie Outlook im Web → <b>Einstellungen ⚙ → E-Mail → Regeln → Neue Regel hinzufügen</b>.",
       "outlook2": "Nennen Sie sie <i>„Bewerbungen → Kandi“</i> und fügen Sie eine Bedingung hinzu (z. B. <i>Betreff enthält „Bewerbung“</i>).",
       "outlook3": "Setzen Sie die Aktion auf <b>Umleiten an</b> (oder <b>Weiterleiten an</b>) <endpoint></endpoint>.",
-      "outlook4": "Klicken Sie auf <b>Speichern</b>. Passende Mail wird nun automatisch umgeleitet, ohne Bestätigungscode."
+      "outlook4": "Klicken Sie auf <b>Speichern</b>. Passende Mail wird nun automatisch umgeleitet, ohne Bestätigungscode.",
+      "introWired": "Leiten Sie Bewerbungen aus Outlook oder Gmail weiter. Legen Sie <b>eine Regel pro Stelle</b> fest, und jede Bewerbung fließt automatisch in die Pipeline.",
+      "introUnwired": "Ein Empfänger pro Stelle. E-Mail-Weiterleitung ist auf diesem Deployment nicht verdrahtet, deshalb ist der Empfänger jeder Stelle ein <b>HTTP-Endpunkt</b>, an den alles eine Bewerbung POSTen kann.",
+      "notWiredBody": "Dieses Deployment hat keinen Anbieter für eingehende E-Mails, eine Gmail- oder Outlook-Regel würde Bewerbungen für <b>{role}</b> also an eine Adresse schicken, die nichts annimmt. Der echte Empfänger ist ein HTTP-Endpunkt:",
+      "notWiredHowToSetup": "Für echte Weiterleitung leiten Sie einen Anbieter für eingehende E-Mails (Postmark, SendGrid oder Mailgun Inbound) auf diesen Endpunkt und setzen <code>EMAIL_INBOUND_DOMAIN</code> auf die Domain, unter der er Mail annimmt. Die Weiterleitungsadresse und die Gmail-/Outlook-Schritte erscheinen dann hier."
     },
     "ads": {
       "title": "Anzeigenformular-Empfänger hinzufügen",
@@ -7015,7 +7019,9 @@
       "meta1": "Erstellen Sie in <b>Zapier</b> oder <b>Make</b> einen Flow: Trigger <b>Facebook Lead Ads → New Lead</b> (verbinden Sie Ihre Seite).",
       "meta2": "Fügen Sie die Aktion <b>Webhooks → POST</b> hinzu und setzen Sie die URL auf <endpoint></endpoint>.",
       "meta3": "Mappen Sie <b>Name</b>, <b>E-Mail</b> und ein etwaiges Lebenslauf-Upload-Feld in den Request-Body.",
-      "meta4": "Schalten Sie ihn ein. Neue Meta-Leads werden nun automatisch in die Pipeline gepostet."
+      "meta4": "Schalten Sie ihn ein. Neue Meta-Leads werden nun automatisch in die Pipeline gepostet.",
+      "intro": "Richten Sie den Webhook eines LinkedIn- oder Meta-Lead-Formulars auf die <b>Empfänger-URL</b> einer Stelle, und jeder Lead landet automatisch in der Pipeline.",
+      "footnote": "Fortgeschritten: Sie können den Konnektor überspringen und Leads direkt an diese URL POSTen. LinkedIns Lead-Sync-API oder eine Meta-App mit <code>leadgen</code>-Webhook-Abo kann sie nach der Verifizierung ansprechen."
     },
     "guide": {
       "setupFor": "Einrichtung für",
@@ -7079,6 +7085,21 @@
       "neverPaired": "Nie gekoppelt",
       "notSet": "Nicht gesetzt",
       "notRead": "Noch nicht gelesen"
+    },
+    "cvSim": {
+      "open": "Mit einem echten Lebenslauf testen",
+      "choose": "Lebenslauf wählen: PDF, DOCX, TXT oder MD",
+      "namePlaceholder": "Name (optional)",
+      "emailPlaceholder": "E-Mail (optional)",
+      "run": "Diesen Lebenslauf empfangen",
+      "running": "Wird geparst und erfasst…",
+      "hint": "Parst die Datei, baut einen matchbaren Kandidateneintrag und erfasst ihn bei „Angenommen“.",
+      "failed": "Konnte nicht erfasst werden: {reason}",
+      "failedStatus": "Fehlgeschlagen ({status}).",
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "landed": "<b>{name}</b> ist bei <b>Angenommen</b> zur Stelle {role} gelandet{suffix}",
+      "stub": " (als Stub, weil der Lebenslauftext zu dünn war)",
+      "openInPipeline": "In der Pipeline öffnen"
     }
   },
   "interviewSim": {

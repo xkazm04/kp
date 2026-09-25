@@ -955,7 +955,7 @@ air-gapped.
 | `COMMS_WEBHOOK_URL` | outbound | local outbox only; every surface says messages aren't being sent | messages POST to the relay as `kp.comm.v1` (no HMAC) |
 | *(Channels tab → Relay config)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
 | `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
-| `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake wizard shows the HTTP receiver URL and says forwarding isn't wired | wizard hands out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |
+| `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake receivers show the HTTP receiver URL, and the receiver pane says forwarding isn't wired (the role, the copyable URL, how to wire it) | the receivers and the setup guide hand out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |
 | `KP_EDGE_URL` + `KP_EDGE_SECRET` | inbound (all kinds) | **inbound events reach this install only while it is running** — the honest local-first default; the Channels → Edge card says "Not paired" | the clock drains the edge every tick: webhooks, mail and bounce receipts that arrived while the studio was closed are filed on wake (§11) |
 | *(Channels tab → Edge card)* | inbound | same as above until a URL is saved | stored URL + secret (encrypted at rest), env wins when both are set |
 | `KP_NUDGE_TARGET` | inbound | the edge still holds and counts; it just never tells you | the edge POSTs "N events waiting" to this endpoint after a quiet period — counts, never names |
@@ -1043,18 +1043,27 @@ which re-uses the tab's own decisions (`commsVerdict`, `receiverHealth`,
   `useDeliveryCapability` bit, exactly as the candidate modal's messages do (§8;
   `drawerCommsTruth.test.ts` pins both surfaces).
 - **Email intake / Ad forms** (`ChannelsKitReceivers`): the receivers of that channel,
-  add and remove, the "not wired" note when no inbound mail domain is configured.
+  add and remove, the "not wired" note when no inbound mail domain is configured. The
+  section's intro (`email.introWired` / `introUnwired`, `ads.intro`) is its one-line
+  state. Each row names its health in words under the role (`receiverHealth`'s label,
+  plus the first lead's age once there is one), shows the default locale when the
+  receiver has no language, and its endpoint copy answers Copied / Copy failed
+  (`useCopyState`, announced through a status line).
 - **Careers page** (`ChannelsKitCareers`): every open role's apply link in one windowed
   table (its pager counts them, so nothing is cut at eight).
 - **The reading pane**, only while a row is selected: a message (verdict, the
   unaddressable caution note from the same predicate, record, body, the resend door from
-  `resendDoorOf`), a receiver (health, the setup guide per client,
-  the pull editor), or the relay / edge configuration.
+  `resendDoorOf`), a receiver (health, the setup guide per client, the ads direct-POST
+  footnote, the full "forwarding not wired" note with the copyable HTTP receiver, the CV
+  simulator `kit/ChannelsKitCvSim.tsx`, the pull editor), or the relay / edge
+  configuration. The CV simulator posts a PDF / DOCX / TXT / MD to `/api/sim/apply-cv`
+  for the receiver's role, reports landed (or landed as a stub) with "Open in pipeline",
+  and fires `notifyDataChanged` so every live view re-reads.
 
 **Retired with the "Intake Studio" view (2026-09-25):** the icon-pill switcher and its
 accents, the hero stage, the guided email-intake wizard and ad-forms pane (their steps
-live on in the receiver pane's setup guide), the CV simulator card, the per-section
-empty-state briefs, and the 20-row `TablePager` paging of the old ledger and receiver
+live on in the receiver pane's setup guide; the CV simulator and the not-wired detail were
+rebuilt on kit parts in the parity port), the per-section empty-state briefs, and the 20-row `TablePager` paging of the old ledger and receiver
 tables. The paging, careers-preview and chrome-cascade notes below describe
 the retired tables and stay as their record.
 

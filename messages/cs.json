@@ -6999,7 +6999,11 @@
       "outlook1": "Otevřete Outlook na webu → <b>Nastavení ⚙ → Pošta → Pravidla → Přidat nové pravidlo</b>.",
       "outlook2": "Pojmenujte ho <i>„Přihlášky → Kandi“</i> a přidejte podmínku (např. <i>Předmět obsahuje „přihláška“</i>).",
       "outlook3": "Jako akci zvolte <b>Přesměrovat na</b> (nebo <b>Přeposlat na</b>) <endpoint></endpoint>.",
-      "outlook4": "Klikněte na <b>Uložit</b>. Odpovídající pošta se teď přesměrovává automaticky a žádný kód se nepotvrzuje."
+      "outlook4": "Klikněte na <b>Uložit</b>. Odpovídající pošta se teď přesměrovává automaticky a žádný kód se nepotvrzuje.",
+      "introWired": "Přeposílejte přihlášky z Outlooku nebo Gmailu. Nastavte <b>jedno pravidlo na pozici</b> a každá přihláška poteče do pipeline automaticky.",
+      "introUnwired": "Jeden přijímač na pozici. Přeposílání e-mailů na tomto nasazení není zapojené, takže přijímačem každé pozice je <b>HTTP adresa</b>, na kterou může přihlášku poslat cokoli.",
+      "notWiredBody": "Toto nasazení nemá poskytovatele příchozí pošty, takže pravidlo v Gmailu či Outlooku by posílalo přihlášky na pozici <b>{role}</b> na adresu, která nic nepřijímá. Skutečným přijímačem je HTTP adresa:",
+      "notWiredHowToSetup": "Skutečné přeposílání zapnete tak, že na tuto adresu nasměrujete poskytovatele příchozí pošty (Postmark, SendGrid nebo Mailgun inbound) a nastavíte <code>EMAIL_INBOUND_DOMAIN</code> na doménu, na které přijímá poštu. Adresa pro přeposílání a kroky pro Gmail/Outlook se pak objeví tady."
     },
     "ads": {
       "title": "Přidat přijímač reklamních formulářů",
@@ -7015,7 +7019,9 @@
       "meta1": "V <b>Zapieru</b> nebo <b>Make</b> vytvořte tok: spouštěč <b>Facebook Lead Ads → New Lead</b> (propojte svou stránku).",
       "meta2": "Přidejte akci <b>Webhooks → POST</b> a nastavte URL na <endpoint></endpoint>.",
       "meta3": "Namapujte do těla požadavku <b>jméno</b>, <b>e-mail</b> a případné pole s nahraným životopisem.",
-      "meta4": "Zapněte tok. Nové leady z Meta teď přicházejí do pipeline automaticky."
+      "meta4": "Zapněte tok. Nové leady z Meta teď přicházejí do pipeline automaticky.",
+      "intro": "Nasměrujte webhook lead formuláře na LinkedIn nebo Meta na <b>adresu přijímače</b> dané pozice a každý lead dorazí do pipeline automaticky.",
+      "footnote": "Pokročilé: konektor můžete vynechat a posílat leady POSTem přímo na tuto URL. Po ověření na ni může mířit LinkedIn Lead Sync API nebo aplikace Meta přihlášená k webhooku <code>leadgen</code>."
     },
     "guide": {
       "setupFor": "Nastavení pro",
@@ -7079,6 +7085,21 @@
       "neverPaired": "Nikdy nespárováno",
       "notSet": "Nenastaveno",
       "notRead": "Zatím nenačteno"
+    },
+    "cvSim": {
+      "open": "Vyzkoušet se skutečným životopisem",
+      "choose": "Vyberte životopis: PDF, DOCX, TXT nebo MD",
+      "namePlaceholder": "Jméno (nepovinné)",
+      "emailPlaceholder": "E-mail (nepovinný)",
+      "run": "Přijmout tento životopis",
+      "running": "Zpracování a zápis…",
+      "hint": "Zpracuje soubor, sestaví kandidáta pro párování a zapíše ho do stavu Přijato.",
+      "failed": "Nepodařilo se zapsat: {reason}",
+      "failedStatus": "Selhalo ({status}).",
+      "requestFailed": "Požadavek selhal.",
+      "landed": "<b>{name}</b> jsme zapsali do stavu <b>Přijato</b> u pozice {role}{suffix}",
+      "stub": " (jako neúplný záznam, protože text životopisu byl příliš strohý)",
+      "openInPipeline": "Otevřít v pipeline"
     }
   },
   "interviewSim": {

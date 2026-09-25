@@ -55,6 +55,7 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["email.notWiredHowTo", {}],
   ["copy", {}],
   ["copied", {}],
+  ["copyFailed", {}],
   ["copyLink", {}],
   ["stats.publishedRoles", {}],
   ["stats.waiting", {}],
@@ -103,6 +104,12 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["ads.waiting", {}],
   ["guide.setupFor", {}],
   ["guide.live", {}],
+  // The CV simulator (kit/ChannelsKitCvSim.tsx), restored with the kit parity port.
+  ...(["open", "choose", "namePlaceholder", "emailPlaceholder", "run", "running", "hint", "stub", "requestFailed", "openInPipeline"] as const).map(
+    (k): [string, Record<string, unknown>] => [`cvSim.${k}`, {}],
+  ),
+  ["cvSim.failed", { reason: "Unsupported file" }],
+  ["cvSim.failedStatus", { status: 500 }],
   // Comms Center chrome (rendered from the channels.comms sub-namespace).
   ["comms.colName", {}],
   ["comms.colRole", {}],
@@ -161,6 +168,14 @@ const RICH: [string, Record<string, unknown>][] = [
   ["ads.meta2", { ...TAGS }],
   ["ads.meta3", { ...TAGS }],
   ["ads.meta4", { ...TAGS }],
+  // Section intros (the receivers state line), the not-wired detail and the ads footnote.
+  ["email.introWired", { ...TAGS }],
+  ["email.introUnwired", { ...TAGS }],
+  ["email.notWiredBody", { role: "Backend Engineer", ...TAGS }],
+  ["email.notWiredHowToSetup", { ...TAGS }],
+  ["ads.intro", { ...TAGS }],
+  ["ads.footnote", { ...TAGS }],
+  ["cvSim.landed", { name: "Jana Nová", role: "Backend Engineer", suffix: " · Builder", ...TAGS }],
 ];
 
 const SECTION_IDS = ["comms", "careers", "email", "ads"] as const;

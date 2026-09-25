@@ -6999,7 +6999,11 @@
       "outlook1": "Open Outlook on the web → <b>Settings ⚙ → Mail → Rules → Add new rule</b>.",
       "outlook2": "Name it <i>“Applications → Kandi”</i> and add a condition (e.g. <i>Subject includes “application”</i>).",
       "outlook3": "Set the action to <b>Redirect to</b> (or <b>Forward to</b>) <endpoint></endpoint>.",
-      "outlook4": "Click <b>Save</b>. Matching mail is now redirected automatically, with no code to confirm."
+      "outlook4": "Click <b>Save</b>. Matching mail is now redirected automatically, with no code to confirm.",
+      "introWired": "Forward applications from Outlook or Gmail. Set <b>one rule per role</b> and every application flows into the pipeline automatically.",
+      "introUnwired": "One receiver per role. Email forwarding isn’t wired on this deployment, so each role’s receiver is an <b>HTTP endpoint</b> anything can POST an application to.",
+      "notWiredBody": "This deployment has no inbound-email provider, so a Gmail or Outlook rule would send <b>{role}</b> applications to an address that accepts nothing. The real receiver is an HTTP endpoint:",
+      "notWiredHowToSetup": "To turn on real forwarding, route an inbound-email provider (Postmark, SendGrid or Mailgun inbound) at this endpoint and set <code>EMAIL_INBOUND_DOMAIN</code> to the domain it accepts mail on. The forwarding address and the Gmail/Outlook steps appear here once it is set."
     },
     "ads": {
       "title": "Add ad-form receiver",
@@ -7015,7 +7019,9 @@
       "meta1": "In <b>Zapier</b> or <b>Make</b>, create a flow: trigger <b>Facebook Lead Ads → New Lead</b> (connect your Page).",
       "meta2": "Add an action <b>Webhooks → POST</b> and set the URL to <endpoint></endpoint>.",
       "meta3": "Map the lead’s <b>name</b>, <b>email</b> and any CV upload field into the request body.",
-      "meta4": "Turn it on. New Meta leads now post into the pipeline automatically."
+      "meta4": "Turn it on. New Meta leads now post into the pipeline automatically.",
+      "intro": "Point a LinkedIn or Meta lead-gen ad form’s webhook at a role’s <b>receiver URL</b>, and every lead lands in the pipeline automatically.",
+      "footnote": "Advanced: skip the connector and POST leads to this URL directly. LinkedIn’s Lead Sync API, or a Meta app subscribed to the <code>leadgen</code> webhook, can target it once verified."
     },
     "guide": {
       "setupFor": "Setup for",
@@ -7079,6 +7085,21 @@
       "neverPaired": "Never paired",
       "notSet": "Not set",
       "notRead": "Not read yet"
+    },
+    "cvSim": {
+      "open": "Test with a real CV",
+      "choose": "Choose a CV: PDF, DOCX, TXT or MD",
+      "namePlaceholder": "Name (optional)",
+      "emailPlaceholder": "Email (optional)",
+      "run": "Receive this CV",
+      "running": "Parsing & filing…",
+      "hint": "Parses the file, builds a matchable candidate, lands them at Accepted.",
+      "failed": "Couldn’t file it: {reason}",
+      "failedStatus": "Failed ({status}).",
+      "requestFailed": "Request failed.",
+      "landed": "<b>{name}</b> landed at <b>Accepted</b> on {role}{suffix}",
+      "stub": " (as a stub, because the CV text was thin)",
+      "openInPipeline": "Open in pipeline"
     }
   },
   "interviewSim": {

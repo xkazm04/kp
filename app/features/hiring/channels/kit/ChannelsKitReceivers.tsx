@@ -8,6 +8,7 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { useCommsCapability } from "@/app/features/shell/useDeliveryCapability";
+import { DEFAULT_LOCALE } from "@/i18n/locales";
 import { useReceivers, isReceiverLive } from "../useChannelsReceivers";
 import { AddReceiverModal } from "../ChannelsAddReceiverModal";
 import { useCopyState } from "../useCopyState";
@@ -19,6 +20,9 @@ import { receiverRow, type ChannelsSelection } from "./channelsKitModel";
  * webhooks (health mark, role + first lead, endpoint, language, accepted of received, last
  * received). Add, copy and remove are the current tab's own actions (AddReceiverModal,
  * useReceivers.revoke behind a confirm); the setup guide and pull source open in the pane.
+ * The section's intro is its state line (one line, the full text in the tip); each row names its
+ * health in words under the role (the mark's shape says the same), a receiver with no language
+ * reads as the default locale, and the endpoint copy says Copied / Copy failed (useCopyState).
  */
 export function ChannelsKitReceivers({ section, channel, receivers, webhooks, jobs, truncated, reload, sel, setSel }: {
   section: "email" | "ads";
@@ -38,7 +42,12 @@ export function ChannelsKitReceivers({ section, channel, receivers, webhooks, jo
   const rel = useRelativeTime();
   const { emailInboundDomain } = useCommsCapability();
   const { revoke, revoking, revokeFailed } = useReceivers({ channel, webhooks, reload });
-  const { copy } = useCopyState();
+  const { state: copyState, copy } = useCopyState();
+  // One clipboard state for the table; the row that asked is the one whose button answers.
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const copyLabel = (w: ChannelWebhookRecord) =>
+    copiedToken !== w.token || copyState === "idle" ? t("receivers.copyEndpoint") : copyState === "copied" ? t("copied") : t("copyFailed");
+  const intro = section === "email" ? t.markup(emailInboundDomain ? "email.introWired" : "email.introUnwired", { b: (c) => c }) : t.markup("ads.intro", { b: (c) => c });
   const [addOpen, setAddOpen] = useState(false);
   const [confirm, setConfirm] = useState<ChannelWebhookRecord | null>(null);
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
@@ -68,8 +77,13 @@ export function ChannelsKitReceivers({ section, channel, receivers, webhooks, jo
       <Section
         title={t("stats.receivers")}
         count={receivers ? formatCount(receivers.length, locale) : undefined}
+        state={intro}
         actions={<Button label={section === "email" ? t("email.add") : t("ads.add")} icon="plus" size="sm" onClick={() => setAddOpen(true)} />}
       >
+        {/* The icon button's name changes silently; this line is what a screen reader hears. */}
+        <span className="sr-only" role="status">
+          {copyState === "copied" ? t("copied") : copyState === "failed" ? t("copyFailed") : ""}
+        </span>
         <DataTable
           label={t("stats.receivers")}
           rows={receivers ?? []}
@@ -89,10 +103,13 @@ export function ChannelsKitReceivers({ section, channel, receivers, webhooks, jo
               <Mark key="m" kind={r.mark} tip={r.detail ? `${label}: ${r.detail}` : label} />,
               <>
                 {w.jobTitle ?? w.jobId}
-                <small>{w.firstAcceptedAt ? tk("firstLeadAgo", { time: rel(w.firstAcceptedAt) }) : isReceiverLive(w) ? tk("noLeadYet") : tk("neverReached")}</small>
+                <small>
+                  {label}
+                  {w.firstAcceptedAt ? ` · ${tk("firstLeadAgo", { time: rel(w.firstAcceptedAt) })}` : null}
+                </small>
               </>,
               <code key="e" className="k-code">{endpointOf(w)}</code>,
-              (w.lang ?? "").toUpperCase(),
+              (w.lang ?? DEFAULT_LOCALE).toUpperCase(),
               w.receivedCount ? (
                 <>
                   {formatCount(w.acceptedCount, locale)}
@@ -103,7 +120,17 @@ export function ChannelsKitReceivers({ section, channel, receivers, webhooks, jo
               ),
               w.lastReceivedAt ? rel(w.lastReceivedAt) : "—",
               <span key="a" style={{ display: "contents" }} onClick={(e) => e.stopPropagation()}>
-                <Button label={t("receivers.copyEndpoint")} icon="copy" iconOnly size="sm" variant="ghost" onClick={() => copy(endpointOf(w))} />
+                <Button
+                  label={copyLabel(w)}
+                  icon={copiedToken !== w.token || copyState === "idle" ? "copy" : copyState === "copied" ? "check" : "x"}
+                  iconOnly
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setCopiedToken(w.token);
+                    copy(endpointOf(w));
+                  }}
+                />
                 <Button label={t("receivers.removeAria", { role: w.jobTitle ?? w.jobId })} icon="trash" iconOnly size="sm" variant="ghost" disabled={revoking === w.token} onClick={() => setConfirm(w)} />
               </span>,
             ];

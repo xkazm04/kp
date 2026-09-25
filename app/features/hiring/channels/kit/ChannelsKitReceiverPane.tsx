@@ -7,14 +7,19 @@ import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { useCommsCapability } from "@/app/features/shell/useDeliveryCapability";
-import { SetupGuide } from "../ChannelsSetupGuide";
+import { DEFAULT_LOCALE } from "@/i18n/locales";
+import { CopyChip, SetupGuide } from "../ChannelsSetupGuide";
 import { ReceiverPullCard } from "../ChannelsReceiverPullCard";
 import { isReceiverLive } from "../useChannelsReceivers";
+import { ChannelsKitCvSim } from "./ChannelsKitCvSim";
 
 /**
  * One receiver as a document: its health figures, the pull failure when there is one, the
  * setup guide (the current tab's SetupGuide, per client) and the pull source editor (the
  * current tab's ReceiverPullCard). The guide and editor are reused as-is, not re-drawn.
+ * With no inbound mail domain the setup says why in full: the role, the real HTTP receiver
+ * (copyable), what reaches it today and how to wire forwarding. Ad forms carry the direct-POST
+ * footnote. The CV simulator (ChannelsKitCvSim) tests the receiver's role end to end.
  */
 export function ChannelsKitReceiverPane({ receiver: w, section, reload }: {
   receiver: ChannelWebhookRecord;
@@ -30,6 +35,7 @@ export function ChannelsKitReceiverPane({ receiver: w, section, reload }: {
   const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
   const role = w.jobTitle ?? w.jobId;
   const bold = (c: ReactNode) => <b>{c}</b>;
+  const code = (c: ReactNode) => <code className="k-code">{c}</code>;
   const receiverUrl = `${base}/api/channels/inbound/${w.token}`;
   const wired = section === "ads" || Boolean(emailInboundDomain);
   const endpoint = section === "email" && emailInboundDomain ? `${w.token}@${emailInboundDomain}` : receiverUrl;
@@ -47,7 +53,7 @@ export function ChannelsKitReceiverPane({ receiver: w, section, reload }: {
     <>
       <h3>{role}</h3>
       <p className="k-margin__sub">
-        {t("guide.setupFor")} {"·"} {(w.lang ?? "").toUpperCase()}
+        {t("guide.setupFor")} {"·"} {(w.lang ?? DEFAULT_LOCALE).toUpperCase()}
       </p>
       {w.pullUrl && w.lastPullError ? (
         <Note tone="critical">
@@ -75,13 +81,16 @@ export function ChannelsKitReceiverPane({ receiver: w, section, reload }: {
             clients={section === "email" ? [{ value: "gmail", label: "Gmail" }, { value: "outlook", label: "Outlook" }] : [{ value: "linkedin", label: "LinkedIn" }, { value: "meta", label: "Meta" }]}
             stepsFor={stepsFor}
             waitingLabel={section === "email" ? t("email.waiting") : t("ads.waiting")}
+            footnote={section === "ads" ? t.rich("ads.footnote", { code }) : undefined}
           />
         ) : (
           <Note tone="caution">
-            {t("email.notWiredTitle")} {t("email.notWiredHowTo")}
+            <b>{t("email.notWiredTitle")}</b> {t.rich("email.notWiredBody", { role, b: bold })} <CopyChip value={receiverUrl} />{" "}
+            {t("email.notWiredHowTo")} {t.rich("email.notWiredHowToSetup", { code })}
           </Note>
         )}
       </Section>
+      <ChannelsKitCvSim key={w.token} jobId={w.jobId} channel={w.channel} onDone={reload} />
       <Section title={t("pull.title")}>
         <ReceiverPullCard key={w.token} receiver={w} onSaved={reload} />
       </Section>
