@@ -710,8 +710,8 @@ pinned by `app/api/apply/apply-intake-scope.test.ts`:
   `stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted"` —
   written once, in the filing core below, which the conversational apply, quick
   apply / lead webhooks (`lead-intake.ts`) and CV intake all file through. A
-  hardcoded stage name strands applicants on `PipelineBoardOffAxisStrip` as soon
-  as a team renames its first column.
+  hardcoded stage name strands applicants off the board's axis (the pipeline
+  Sieve's retired-column layer) as soon as a team renames its first column.
 
 **The application-filing core** (`app/_lib/application-filing.ts`,
 `fileApplication`) is the one place a door turns an applicant into an entry:

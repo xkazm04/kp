@@ -1000,8 +1000,9 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
 - **The bulk bar still counts minted links, not deliveries.** The route now
   returns a per-entry `delivery` and a `delivered` aggregate, but
   `usePipelineBulk.bulkInvite` counts `results[].ok` (minted) and
-  `PipelineBulkActionBar` picks its copy from the relay CAPABILITY
-  (`bulkInvited` vs `bulkInvitedQueued`). With a relay configured and the
+  `PipelineBulkActionBar` picked its copy from the relay CAPABILITY
+  (`bulkInvited` vs `bulkInvitedQueued`). The bar left with the pipeline board
+  view on 2026-09-25; the hook's count is what the next bulk surface inherits. With a relay configured and the
   webhook dead-lettering, the bar therefore still reads "N invited to
   schedule". The remaining edit is client-side: count `delivery === "sent"`
   and fall back to the queued copy otherwise.

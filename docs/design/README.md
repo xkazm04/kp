@@ -570,9 +570,9 @@ layer hanging off its trigger, so the pop layer keeps `shadow-pop` (its own
 token, a hard offset in *both* registers). That is why the ratchet carried
 `Select`'s `panel: 1` instead of "fixing" it.
 
-Four feature menus (`PipelineCandidateMenu`, `PipelineFilterMenu`,
-`JdsLedgerFilterMenu`, `MatrixReasoningPopover`) still re-type the shell and are
-the recipe's remaining fix-as-you-touch population.
+Three feature menus (`PipelineCandidateMenu`, `JdsLedgerFilterMenu`,
+`MatrixReasoningPopover`) still re-type the shell and are the recipe's remaining
+fix-as-you-touch population (`PipelineFilterMenu` left with the pipeline board view).
 
 A `TABLE` recipe is not yet formalized — `AnalyticsTab`'s tables are still
 hand-rolled. See `docs/concepts/visual-uplift-plan.md` for the open rollout
@@ -586,6 +586,151 @@ depth follows both themes.
 (the channels receiver, relay and edge cards). It is tokens only, so both themes
 remap it; compose it rather than re-typing the class string, which the recipe
 literal ratchet reads as a hand-typed panel.
+
+## Composition kit
+
+`app/_components/kit/` is how a workspace surface is **composed**, where the recipes
+above are how one element is **painted**. It is the One Measure entry that won the
+style-kit contest of the kit-unification spark (2026-09), ported into kp from measured
+computed styles. Hiring > Pipeline and Hiring > Channels render from it (promoted at
+Gate K2, 2026-09-25). A new or revitalized tool surface composes from these parts
+before it reaches for a recipe. Out of scope, like every rule in this file: the
+marketing pages (`app/landing/**`, `/about`, `/market`).
+
+### Two layers
+
+- **The everyday parts** (`@/app/_components/kit`): a page head, sections, rows,
+  tables, figures, fields, chips, marks and the reading pane. Most surfaces need
+  nothing else.
+- **The graphic parts** (`@/app/_components/kit/graphic`), used only where the data
+  has a shape worth seeing: a funnel (Sieve), a distribution (Skyline), a journey
+  (StageRail, Lane). They sit on the same tracks and share the same tokens, states and
+  motion rule. A surface whose data has no such shape does not get one for decoration.
+
+### The parts
+
+The `@catalog` tag on each part is its one-line contract; this table is the index.
+
+| Part | Purpose | Key props |
+|---|---|---|
+| `KitSurface` | the root: density tier, the one delegated tip, j / k / Esc, the sheet beside a reading pane | `density`, `pane` (null = no pane), `onStep`, `onClose` |
+| `PageHead` | coral eyebrow, display title, one context line, 0-4 figures, at most one primary action | `eyebrow`, `title`, `context`, `figures`, `actions`, `state`, `errorText`, `onRetry` |
+| `Section` / `Note` | a serif head with a numeral count, one state line, actions, bounded by one rule / a notice line inside it | `title`, `count`, `state`, `stateMark`, `tone`, `actions`, `status`, `onRetry` / `tone`, `action` |
+| `ListRow` | one row on the measure; the name is its one weight-600 emphasis | `mark`, `name`, `sub`, `meta`, `fig`, `time`, `actions`, `state`, `provenance`, `onSelect` |
+| `DataTable<T>` | the windowed table: sticky head, fixed-height rows, only the visible rows (+3) in the DOM, the pager under the last row | `rows`, `columns` (each names a track), `cells`, `rowKey`, `rowState`, `visibleRows`, `metaSplit`, `selectedKey`, `onSelect`, `state`, `emptyText` |
+| `FlowTable<T>` | a short table in flow (a settings matrix): DataTable's head, tracks and fold order, every row in the DOM and editable, an optional detail line; no viewport, no pager | `rows`, `columns`, `cells`, `rowKey`, `rowState`, `detail`, `metaSplit`, `nameTrack` |
+| `StatStrip` / `FigureView` | 2-6 figures in equal columns / one figure, set the one way the kit sets a number | `items: Figure[]` / a `Figure` (`label`, `value`, `of`, `unit`, `delta`, `draw`, `tone`, `tip`) |
+| `KeyValueGrid` | label / value pairs in 2-5 columns; every value null is the exemplar of what will fill | `items` (`label`, `value`, `absent`), `cols` |
+| `ChipRow` / `ChipButton` / `Tag` | actionable 30px chips with a mark and a count / one chip / an inert token | `chips` (`label`, `count`, `mark`, `pressed`, `disabled`, `onPress`) / `label` |
+| `Toolbar` / `Segmented` / `SearchField` | the toolbar on the measure / the section switch / the search box | `segmented`, `search`, `filters`, `actions`, `inline` / `items`, `value`, `onChange`, `label` |
+| `SettingRow` / `Toggle` / `Stepper` | a setting: name, one-line consequence, control; changed / muted / error | `name`, `sub`, `consequence`, `control`, `wide`, `state`, `detail` |
+| `TextField` / `SelectField` / `SaveBar` | 40px (md) or 32px (sm) fields / the sticky save bar of a draft-then-save surface | `label`, `size`, `invalid`, `tip` / `tone`, `status`, `actions` |
+| `ReadingPane` | the detail layer: a trail, "N of M" with j / k, Esc and × close, a document body | `trail`, `index`, `total`, `onStep`, `onClose`, `itemKey` |
+| `Button` | primary / affirm / secondary / ghost / danger / link at 32 / 40 / 48px; a loading label, never a spinner | `label`, `variant`, `size`, `icon`, `iconOnly`, `loading`, `loadingLabel` |
+| `Mark` / `KitIcon` / `Clip` | a 16px status mark whose SHAPE carries the meaning / a 16px line icon / one line that never wraps, its full text as the tip | `kind`, `tip`, `hollow` / `name` / `text` |
+| `ShapeMark` (graphic) | a provenance shape: solid walked, half name-only, ring placed, dashed nothing on record, none, exit | `shape`, `tone`, `tip` (required) |
+| `Sieve` (graphic) | items pour through named layers as dots; a layer is a filter button | `layers`, `items`, `selected`, `dim`, `onLayer`, `budget`, `state`, `replayKey` |
+| `Skyline` (graphic) | every item as one ranked bar, null values as counted dashed stubs, brushable into a rank range | `items`, `brush`, `onBrush`, `onPick`, `state`, `replayKey` |
+| `StageRail` / `Lane` (graphic) | steps that fill as progress bars (a row of toggles, or a column for a reading pane) / one row's path drawn on the rail's columns | `steps`, `orientation`, `label` / `cells`, `arriving` |
+
+`Measure` is internal: parts own it and callers never pass columns. The contest's
+portable API sketch, with the round-2 plan of where each graphic part goes next, is
+`.contest/arena/style-kit-r2/entries/claude-opus_xhigh-v1/variant-1/API.md`.
+
+### The measure and its fold order
+
+One grid template is the kit's spine, six named tracks every row-shaped part sets
+itself on (`kit.css` `--m-*`, `tracks.ts`):
+
+```
+[mark] 28px [name] 26% [meta] 1fr [fig] 112px [time] 124px [act] 104px   (gap 16px)
+```
+
+A column names a TRACK, never a width. `meta` may be split (`DataTable metaSplit`);
+its extra tracks are `meta+N`. The measure answers to the width of its **sheet** (a
+container query), not the window, because a reading pane narrows the sheet. The
+tracks fold in a fixed order (`FOLD_ORDER`, pinned by `foldOrder.test.ts`):
+
+| Sheet | What folds |
+|---|---|
+| ≤ 1000px | the `meta+N` tracks, and the page head puts its figures on a second line |
+| ≤ 860px | `meta`, then `act`; the toolbar stacks |
+| ≤ 640px | the display title steps down to the h2 size instead of breaking into three lines |
+
+`mark`, `name`, `fig` and `time` never fold and nothing is laid over them; `name` takes
+the room each step frees. Graphic parts never fold away: the Sieve keeps its dots and
+the Skyline its bars at every sheet width.
+
+### Density
+
+A surface sets one tier on its root (`KitSurface density`). **Compact** (the default)
+is for tool surfaces: rows 44 / 56px, tight section gaps. **Calm** is for documents and
+token pages: rows 56 / 72px, wider gaps. Density changes spacing only. The type size
+never changes, and nothing goes below the 14px floor to fit.
+
+### Emphasis, absence, motion
+
+- **One emphasis per row, by weight, never by opacity.** A row's name is the only
+  weight-600 text on it (700 when the row waits on you); everything else is 400 in the
+  quiet ink. Hierarchy is a size step or a weight, never a fade and never smaller type.
+- **Absence renders as "—" with its reason**, never as 0. A `Figure` or
+  `KeyValueGrid` value of `null` prints the dash and carries its reason as a tip (hover
+  and focus). A zero is a measured zero; an unknown is a dash.
+- **Motion plays once per `replayKey`.** A graphic part animates the first time it
+  draws for a key (the pour, the bars, the counters), never loops, and stays within
+  about 600-900 ms; an equal key means no motion, so a re-render or a brush never
+  replays it. Under reduced motion every part renders its final frame at once.
+- **The reading pane exists only while something is selected.** It takes its own
+  column (`--m-detail`, 448-560px); the sheet narrows and folds, and nothing is
+  overlaid. With no selection there is no pane and no empty column waiting for one.
+
+### How both registers render
+
+The kit reads the register's tokens and never forks its markup by theme.
+**Studio Light**: Fraunces for titles and figures, cream paper, 1px hairline rules,
+8 / 12px radii, a raised pressed segment. **Spark Dark**: the same parts in Bricolage
+(`--font-serif` remaps) at weight 700, 2px drawn outlines and dashed row rules,
+12 / 16px radii, sticker shadows on the stat strip and the selected row, an amber
+sticker for the pressed segment, a coral pressed chip, and a springier ease. Coral
+means "needs you" in both and is never a stage tone.
+
+### How a module is revitalized
+
+The procedure every later gate and the fleet follow:
+
+1. **Before shots.** `node scripts/style/shoot.mjs --out <before> <target>` at the
+   default frames (1280x800, 1728x1080, 1440x3200) in both themes, from a throwaway
+   server over a copy of the data (`docs/design/instruments.md`). Keep the
+   `kp-snapshot.sqlite` it writes; the after run reuses the same rows.
+2. **Compose the surface from the kit behind `useKitFlag`.** The kit view renders
+   when `?kit=1` is in the URL (dev only; production always renders the current
+   surface). Read the SAME data through the same hooks; reuse what already reads well.
+3. **After shots and the pair.** Give the kit view a `<target>-kit` entry in
+   `scripts/style/targets.json` whose path carries `?kit=1`, then
+   `shoot.mjs --out <after> --db <before>/kp-snapshot.sqlite --server dev <target>-kit`
+   and `shoot.mjs --pair <before> <after> --out <pair>`: 1280, 1728 and 1440x3200, both
+   themes.
+4. **The owner judges in the product**, not in the shots and not on token counts.
+5. **Promote.** Remove the `useKitFlag` switch so the tab renders the kit view, delete
+   the old view (every file only it rendered, proven by an importer walk; anything
+   with another importer stays), delete the catalog keys only it used in all four
+   locales, and bank the drops with `--tighten` on the style, recipe, skeleton and
+   loading-gap ratchets in the same commit.
+
+The rules the owner has taught, which every step answers to:
+
+- **The registers are identity.** Studio Light and Spark Dark stay distinct; the kit
+  expresses both, it does not average them.
+- **Fit, row height, wrapping and weight hierarchy are judged before tokens.** A
+  surface that is token-clean and wraps a name onto three lines has failed.
+- **Dense surfaces are compact, with one emphasis per row**, and the type stays at the
+  floor or above.
+- **Unique surfaces get graphic parts**, because "safe approach does not work well":
+  a funnel drawn as a funnel beats a fifth table.
+- **Keep what reads well and unify what is broken.** A revitalization is not a
+  rewrite of what already works.
+- **A port is made from measurement** (computed styles of the chosen design), never
+  from memory.
 
 ## Type & motion (shared by both themes)
 

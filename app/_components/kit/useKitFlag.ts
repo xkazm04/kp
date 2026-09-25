@@ -3,11 +3,12 @@
 import { useSyncExternalStore } from "react";
 
 /*
- * Gate K2 decision switch (kit-unification spark). While the owner judges the composition-kit
+ * The kit-port decision switch (kit-unification spark). While the owner judges a composition-kit
  * port INSIDE the product, a surface that has a kit port renders it when `?kit=1` is in the URL
  * or `localStorage["kp-kit"] === "1"`; `?kit=0` switches back and clears the stored choice.
- * Production builds always render the current surface. Deleted (and the ports promoted) when
- * the owner decides.
+ * Production builds always render the current surface. It stays for every module gate: a promoted
+ * surface stops calling it and deletes its old view (Pipeline and Channels, Gate K2, 2026-09-25;
+ * docs/design/README.md "How a module is revitalized").
  */
 
 const KEY = "kp-kit";

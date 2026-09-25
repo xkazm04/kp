@@ -24,15 +24,7 @@
       "tab": "channels",
       "root": "main#main",
       "minText": 200,
-      "note": "Hiring -> Channels"
-    },
-    "channels-kit": {
-      "gate": true,
-      "path": "/?tab=channels&kit=1",
-      "tab": "channels",
-      "root": "main#main",
-      "minText": 200,
-      "note": "Hiring -> Channels rendered from the composition kit (the ?kit=1 switch is dev-only: shoot it with --server dev)"
+      "note": "Hiring -> Channels, the composition-kit surface (promoted at Gate K2)"
     },
     "pipeline": {
       "gate": true,
@@ -40,15 +32,7 @@
       "tab": "pipeline",
       "root": "main#main",
       "minText": 200,
-      "note": "Hiring -> Pipeline, the current tab (the Gate K2 before-shot)"
-    },
-    "pipeline-kit": {
-      "gate": true,
-      "path": "/?tab=pipeline&kit=1",
-      "tab": "pipeline",
-      "root": "main#main",
-      "minText": 200,
-      "note": "Hiring -> Pipeline rendered from the composition kit (the ?kit=1 switch is dev-only: shoot it with --server dev)"
+      "note": "Hiring -> Pipeline, the composition-kit surface (promoted at Gate K2)"
     },
     "offer": {
       "gate": true,

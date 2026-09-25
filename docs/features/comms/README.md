@@ -976,14 +976,13 @@ air-gapped.
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and `ChannelsTab` says it ONCE above the switcher (`channels.receiversTruncated`) rather than leaving each pane to guess. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and the kit receivers section (`kit/ChannelsKitReceivers.tsx`) says it once (`channels.receiversTruncated`) rather than leaving each section to guess. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
 | `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. The client read is a **live fact, not a boot cache**: `app/features/shell/deliveryCapabilityCache.ts` holds it (one read per page while nothing changes; in-flight dedupe; UNKNOWN is never cached, so it retries; a generation guard so a read that started before an invalidation never lands as final), and `invalidateCommsCapability()` (exported by `useDeliveryCapability.ts`) re-reads it for every mounted consumer. `ChannelsRelayConfigCard.tsx` calls it plus `notifyDataChanged()` after a successful save and after a 409 adopt, so the "sent"/"queued" vocabulary follows a relay save or clear without a reload and the Comms ledger's "relay not configured" alert re-reads. Other windows hear it on a dedicated `kp:comms-capability` BroadcastChannel (`capability-changed`), not the general live-refresh bus, so a pipeline mutation never refetches the capability. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
-| `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsMessageModal.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsReceiverTable.tsx`, `ChannelsSetupGuide.tsx`, `useCopyState.ts`) | Channels tab UI: relay config, Comms Center table + detail modal, bounce resend, receiver tables (row status from `receiverHealth.ts`, the pull editor `ChannelsReceiverPullCard.tsx` + `receiverPullForm.ts` — §11) and the shared clipboard state. Each receiver row shows `acceptedCount` (filed candidates) beside `receivedCount` (connectivity), with a quiet relative `firstAcceptedAt` when a lead has landed — an em dash when it has not — so a live-but-zero-leads Zapier mapping is visible on the row that owns the setup guide. Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The Comms ledger Name search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
-| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Comms Center modal, the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
-| `app/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+| `app/features/hiring/channels/**` (`ChannelsTab.tsx` → `kit/ChannelsKitView.tsx`; the parts it mounts: `ChannelsRelayConfigCard.tsx`, `ChannelsEdgeCard.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsAddReceiverModal.tsx`, `ChannelsSetupGuide.tsx`, `ChannelsReceiverPullCard.tsx`, `useCopyState.ts`) | Channels tab UI, composed from the composition kit since 2026-09-25 (see [Channels tab: the kit surface](#channels-tab-the-kit-surface)): the Communications ledger and its message pane with the resend door, the receiver sections (row health from `receiverHealth.ts`, the pull editor `ChannelsReceiverPullCard.tsx` + `receiverPullForm.ts` — §11), the careers links, relay and edge configuration. Each receiver row shows accepted of received, so a live-but-zero-leads mapping is visible on the row that owns the setup guide; Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The ledger search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
+| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Comms Center's message pane (`kit/ChannelsKitMessagePane.tsx`), the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
 
 ## Who may administer a receiver
 
@@ -1014,6 +1013,46 @@ are two different, actionable outcomes.
 Behaviour is driven against the real handlers in
 `app/api/channels/channels-doors-gate.test.ts`; the limiter call sites are pinned by
 `app/api/rate-limit-contract.test.ts`.
+
+## Channels tab: the kit surface
+
+Since 2026-09-25 the tab is the composition-kit surface (kit-unification spark, Gate K2;
+the kit's rules are `docs/design/README.md` "Composition kit"). `ChannelsTab.tsx`
+renders `kit/ChannelsKitView.tsx` with a static import (the tab module is already the
+lazy chunk). The data comes through the same hooks as before: `useChannelData`
+(receivers, open roles, the attention count), `useCommsFeed` (the ledger, one cursor
+page at a time through `channelsCommsPaging.ts`) and the URL-synced `sec` param. The
+pure view model is `kit/channelsKitModel.ts` (pinned by `kit/channelsKitModel.test.ts`),
+which re-uses the tab's own decisions (`commsVerdict`, `receiverHealth`,
+`sectionReceiverStatus`) rather than restating them. Inside one `KitSurface` (compact):
+
+- **Head and toolbar** (`ChannelsKitHead`): the page head with the section's blurb as
+  its context line, the section's figures (waiting in the pipeline, and per section the
+  messages and dead letters, the published roles, or received and leads), and "Receive a
+  test application" as the one action (`data-sim-click="simulate-inbound"`; the block
+  carries `data-sim="channel-inbound"`, the guided walk's "match" chapter target). The
+  toolbar holds the section switch with a status mark per section, and on
+  Communications the verdict chips and the ledger search.
+- **Communications** (`ChannelsKitComms`): the Delivery block (relay and edge), then the
+  ledger as one windowed `DataTable`, dead letters first, then newest first; "Load
+  older" appears only while a cursor reaches more rows, and `beyondWindow` is the whole
+  affordance once the derivation window is exhausted (§7).
+- **Email intake / Ad forms** (`ChannelsKitReceivers`): the receivers of that channel,
+  add and remove, the "not wired" note when no inbound mail domain is configured.
+- **Careers page** (`ChannelsKitCareers`): every open role's apply link in one windowed
+  table (its pager counts them, so nothing is cut at eight).
+- **The reading pane**, only while a row is selected: a message (verdict, record, body,
+  the resend door from `resendDoorOf`), a receiver (health, the setup guide per client,
+  the pull editor), or the relay / edge configuration.
+
+**Retired with the "Intake Studio" view (2026-09-25):** the icon-pill switcher and its
+accents, the hero stage, the guided email-intake wizard and ad-forms pane (their steps
+live on in the receiver pane's setup guide), the CV simulator card, the per-section
+empty-state briefs, and the 20-row `TablePager` paging of the old ledger and receiver
+tables. The kit ledger renders no unaddressable-recipient warning yet (the candidate
+modal's messages still do, through `isUnaddressable`); its message pane shows the raw
+`deliverable` bit. The paging, careers-preview and chrome-cascade notes below describe
+the retired tables and stay as their record.
 
 ## Channels tab: paging and the render cascade
 

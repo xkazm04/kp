@@ -5,7 +5,7 @@ tree). Three rules apply to `app/features/**`:
 
 1. **No `.tsx` over 200 lines.** Anything larger is split into modules.
 2. **Every module in a feature folder starts with that feature's name** —
-   `PipelineBoard.tsx`, `candidate/CandidateModal.tsx`, `pipelineBoardFilters.ts`
+   `PipelineTab.tsx`, `candidate/CandidateModal.tsx`, `pipelineBoardFilters.ts`
    — so a file's home is readable from its name alone and the folder sorts by
    role. PascalCase for `.tsx` components, camelCase for `.ts` helpers.
 3. **The folder tree mirrors the app's menu** — `hiring/pipeline`,

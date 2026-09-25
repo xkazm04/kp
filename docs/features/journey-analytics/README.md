@@ -21,8 +21,8 @@ intake, which had no history at all.
 
 Every other tab renders inside Workspace's `max-w-[108rem]` container. This board puts dozens of
 columns side by side with a canonical step rail down the left and needs the whole window, height
-included. It reuses the shape `app/features/hiring/pipeline/map/orchard/OverlayShell.tsx`
-established — scrim at `z-40`, dialog surface at `z-50`, `useDialogA11y` for the focus trap, scroll
+included. It reuses the shape the pipeline map's Orchard overlay (`OverlayShell.tsx`, retired
+with the board view on 2026-09-25) established — scrim at `z-40`, dialog surface at `z-50`, `useDialogA11y` for the focus trap, scroll
 lock and Escape. `journeys` is still a real tab id, so deep links, the chord system and the nav
 highlight all work; closing the overlay returns the reader to the tab they came from, which
 `Workspace.tsx` remembers.
