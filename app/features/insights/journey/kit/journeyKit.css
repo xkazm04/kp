@@ -1,0 +1,58 @@
+/* The Journeys lane board (kit-unification Gate 3), on the composition kit. Loaded with the kit
+   view's dynamic chunk only. Colour only via tokens and the kit's --k-* variables, type only via the
+   text-* tokens. Scoped under .jk (the sheet), .jk-lanes (the lane table) and jk-* (the pane). */
+
+/* The overlay is the viewport, so the board sets its own margins: the overlay header's 20px. */
+.jk-frame { padding: 16px 20px 48px; }
+
+/* ---------- the lane table: the lanes ARE this surface, so they get the width ---------- */
+/* The measure's name track is a proportion (26%) and its act track 104px; this table has no row
+   action (the row opens the pane) and a two-line name, so the rail and the lanes take what the two
+   free. */
+.jk-lanes { --t-name: minmax(0, 20%); --m-act: 0px; --m-fig: 88px; }
+.jk-lanes .k-td .k-lane { height: 100%; }
+
+/* The rail is the lane table's head: the same measure, the StageRail on the meta track. */
+.jk-lanes .jk-railhead { position: static; min-height: 92px; padding: 6px 0; align-items: end; }
+.jk-railhead__name { grid-column: name; align-self: end; padding-bottom: 8px; font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jk-railhead__name b { color: var(--k-ink); font-weight: 600; }
+.jk-railhead__rail { grid-column: meta; min-width: 0; }
+
+/* A journey the record says nothing about: amber words, unlike the quiet "nothing happened". */
+.jk-never { font-size: var(--text-micro); color: var(--color-amber-800); }
+.jk-lanes .k-td small.jk-quiet { display: block; font-size: var(--text-micro); color: var(--color-amber-800); }
+.jk-partial { margin: 0; padding: 10px 0 0 calc(var(--m-mark) + var(--m-gap)); font-size: var(--text-micro); color: var(--k-quiet); }
+
+/* The toolbar's shape legend, set from the name track like the filters above it. */
+.jk-legend { padding: 2px 0 12px calc(var(--m-mark) + var(--m-gap)); }
+
+/* ---------- the pane ---------- */
+/* On this surface italic means "generated" and nothing else (the Broadsheet's rule): a silence or a
+   missing phase is a gap row, set upright. */
+.jk-trail .k-mini.k-gap { font-style: normal; }
+.jk-trail .k-mini.jk-jump { color: var(--color-amber-800); border-bottom-style: solid; }
+.jk-trail__row { cursor: pointer; }
+.jk-trail__row:hover { background: var(--k-hover); }
+.jk-trail__row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--color-coral); }
+.jk-trail .k-row__name.k-gen { font-style: italic; }
+.jk-fact { padding: 4px 0 16px 32px; border-bottom: 1px solid var(--k-rule); }
+.jk-fact__source { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; font-size: var(--text-micro); }
+.jk-fact__source figure { margin: 0; flex: 1 0 100%; }
+.jk-error { margin: 0; color: var(--color-coral); }
+.jk-status .k-mark { vertical-align: middle; }
+
+/* ---------- a narrow sheet (the reading pane open at 1280) ----------
+   The kit folds the meta track at 1000 / 860px of sheet. The lanes live on meta and ARE this
+   surface (the Sieve's field keeps its place for the same reason, graphic.css), so here the name
+   track narrows, the time track folds instead, and the rail and the lanes stay. */
+@container sheet (max-width: 1000px) {
+  .jk-lanes .k-table__head, .jk-lanes .k-table__row { --t-meta-cur: minmax(0, 1fr); --t-name-cur: minmax(0, 22%); }
+}
+@container sheet (max-width: 860px) {
+  .jk-lanes { --m-time: 0px; --m-fig: 56px; }
+  .jk-lanes .k-table__head, .jk-lanes .k-table__row { --t-meta-cur: minmax(0, 1fr); --t-name-cur: minmax(0, 150px); --m-act-cur: 0px; }
+  .jk-lanes .k-td.in-meta, .jk-lanes .k-th.in-meta { visibility: visible; }
+  .jk-lanes .jk-railhead__name { visibility: hidden; }
+  /* "7 stop here" is wider than a step here: it wraps under itself instead of running into the next. */
+  .jk-lanes .k-rail__stop { white-space: normal; line-height: 1.2; min-height: 2.4em; }
+}

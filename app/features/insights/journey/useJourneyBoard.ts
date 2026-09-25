@@ -32,7 +32,14 @@ export type JourneyBoardState = {
 
 type ApiErrorBody = { error?: string; code?: string };
 
-export function useJourneyBoard(): JourneyBoardState {
+/**
+ * `role` narrows the request server-side to one role's columns (`?role=<jobId>`), which is what the
+ * kit lane board reads: one role against one rail, and a page of 50 that covers the whole role
+ * rather than the first 50 journeys of the workspace. `skip` holds the request until the caller
+ * knows which role to ask for. The Broadsheet calls this with neither and gets the same request as
+ * before.
+ */
+export function useJourneyBoard(role?: string, skip = false): JourneyBoardState {
   const t = useTranslations("journey");
   const errMsg = useErrorMessage();
   const [board, setBoard] = useState<JourneyBoard | null>(null);
@@ -41,6 +48,7 @@ export function useJourneyBoard(): JourneyBoardState {
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
+    if (skip) return;
     // The cleanup below aborts the previous request, so a reload while one is in
     // flight never leaves two responses racing for the same state.
     const controller = new AbortController();
@@ -58,7 +66,8 @@ export function useJourneyBoard(): JourneyBoardState {
 
     (async () => {
       try {
-        const res = await fetch(`/api/journeys?limit=${JOURNEY_PAGE_SIZE}&offset=0`, {
+        const scope = role ? `&role=${encodeURIComponent(role)}` : "";
+        const res = await fetch(`/api/journeys?limit=${JOURNEY_PAGE_SIZE}&offset=0${scope}`, {
           signal: controller.signal,
           headers: { accept: "application/json" },
         });
@@ -84,7 +93,7 @@ export function useJourneyBoard(): JourneyBoardState {
       live = false;
       controller.abort();
     };
-  }, [nonce, t, errMsg]);
+  }, [nonce, t, errMsg, role, skip]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return { board, loading, error, reload };

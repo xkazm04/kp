@@ -21,19 +21,33 @@
 
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { ArrowLeft, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { useKitFlag } from "@/app/_components/kit/useKitFlag";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { BTN_GHOST, EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { JourneyBoardView } from "./JourneyBoardView";
 import { JourneyCohortView } from "./cohort/JourneyCohortView";
 
 type Level = { kind: "cohort" } | { kind: "board"; role: string | null };
 
+// Gate 3 (kit-unification spark, dev only): `?kit=1` renders the board level as the composition
+// kit's lane board, and the overlay opens on it (its Roles section is the role switch; the cohort
+// layer stays one "back" away). Its code and CSS load only behind the flag (a dynamic chunk);
+// production always renders the Broadsheet below.
+const JourneyKitView = dynamic(() => import("./kit/JourneyKitView"), {
+  loading: () => <LoadingGap className="m-5 min-h-[28rem]" />,
+});
+
 export function JourneyOverlay({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const t = useTranslations("journey");
-  const [level, setLevel] = useState<Level>({ kind: "cohort" });
+  const kit = useKitFlag();
+  // null = not moved yet: the Broadsheet opens on the cohort, the kit lane board on itself.
+  const [moved, setLevel] = useState<Level | null>(null);
+  const level: Level = moved ?? (kit ? { kind: "board", role: null } : { kind: "cohort" });
   useDialogA11y(ref, onClose, { trap: true, lockScroll: true });
 
   // PORTALED TO document.body, and it has to be. The tab panel that renders this
@@ -85,9 +99,15 @@ export function JourneyOverlay({ onClose }: { onClose: () => void }) {
             <JourneyCohortView onOpenBoard={(role) => setLevel({ kind: "board", role })} />
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <JourneyBoardView initialRole={level.role ?? undefined} />
-          </div>
+          kit ? (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <JourneyKitView initialRole={level.role} />
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <JourneyBoardView initialRole={level.role ?? undefined} />
+            </div>
+          )
         )}
       </div>
     </>,

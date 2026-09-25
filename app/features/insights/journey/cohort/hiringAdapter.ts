@@ -26,6 +26,13 @@ const STAGE_OF: Record<string, HiringStage> = {
   onboarding_started: "onboard", onboarding_intake_submitted: "onboard",
 };
 
+/** The stage an event kind files under, or undefined for a kind that is no stage (an analysis,
+ *  a decision marker). Read by the cohort below and by the kit lane board's steps, so the two
+ *  layers of the Journeys overlay file every kind under the same stage. */
+export function hiringStageOf(kind: string): HiringStage | undefined {
+  return STAGE_OF[kind];
+}
+
 /** Events that are friction by themselves: a hold, a chase, a lapse, a re-route. */
 const FRICTION = new Set(["screening_hold", "interview_reminder_sent", "offer_reminder_sent", "offer_expired",
   "intake_degraded", "reinstated", "rematched_from", "moved"]);
