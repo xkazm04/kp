@@ -60,6 +60,13 @@
       "root": "[role=dialog][aria-modal=true]",
       "note": "the Journeys full-viewport overlay above the workspace"
     },
+    "journey-kit": {
+      "gate": true,
+      "path": "/?tab=journeys&kit=1",
+      "tab": "journeys",
+      "root": "[role=dialog][aria-modal=true]",
+      "note": "the Journeys overlay with the composition kit's lane board (Gate 3; the ?kit=1 switch is dev-only: shoot it with --server dev)"
+    },
     "history": {
       "gate": true,
       "path": "/history/{slug}",
