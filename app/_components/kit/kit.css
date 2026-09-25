@@ -427,6 +427,18 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
    When the sheet is narrower than the full measure needs (a reading pane is open at 1280), the tracks fold
    in a fixed order: meta first, then act. Mark, name, figure and time never fold and are never covered.
    The graphic layer's fold rules (sieve field, skyline) are the variant's too; they stay here with it. */
+/* step 1 (a kit rule, not a surface's): the extra meta tracks of a split meta (DataTable
+   metaSplit, cells on meta+N) fold first, and name shares the room they free; the page head
+   puts its figures on a second line so a display title never wraps beside them. Added at
+   Gate K2: kp's nav rail leaves a 944px sheet at 1280 where the contest page had 1200. */
+@container sheet (max-width: 1000px) {
+  .k-table__head, .k-table__row { --t-meta-cur: var(--t-meta1); --t-name-cur: minmax(0, 1fr); }
+  .k-td.in-meta-x, .k-th.in-meta-x { visibility: hidden; }
+  .k-head { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; }
+  .k-head__figs { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+  .k-head__acts { grid-column: 2; grid-row: 1; align-self: start; }
+}
+/* steps 2 and 3: meta, then act */
 @container sheet (max-width: 860px) {
   .k-measure { grid-template-columns: [mark] var(--m-mark) [name] minmax(0, 1fr) [meta] 0px [fig] var(--m-fig) [time] var(--m-time) [act] 0px [end]; }
   .k-table__head, .k-table__row { --t-meta-cur: var(--t-meta0); --t-name-cur: minmax(0, 1fr); --m-act-cur: 0px; }

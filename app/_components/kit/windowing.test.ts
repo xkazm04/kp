@@ -5,7 +5,7 @@
 // Runner: Node's built-in test runner with type stripping - npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { OVERSCAN, foldedTracks, rowWindow, scrollToRow, stepKey, trackCount } from "./windowing.ts";
+import { OVERSCAN, foldedExtras, foldedTracks, rowWindow, scrollToRow, stepKey, trackCount } from "./windowing.ts";
 
 test("at the top: the visible rows plus the overscan below, no slice offset", () => {
   const w = rowWindow(0, 11 * 56, 56, 200);
@@ -54,4 +54,10 @@ test("the collapse order folds every sub-track of a split meta to 0px", () => {
   assert.equal(trackCount("minmax(0,1fr)"), 1);
   assert.equal(trackCount("minmax(0, 1fr) 200px"), 2);
   assert.equal(foldedTracks("minmax(0,1fr) 80px"), "0px 0px");
+});
+
+test("fold step 1 keeps a split meta's first track and folds only its extras", () => {
+  assert.equal(foldedExtras("minmax(0,1fr) 200px"), "minmax(0,1fr) 0px");
+  assert.equal(foldedExtras("minmax(0, 1fr) 80px 120px"), "minmax(0, 1fr) 0px 0px");
+  assert.equal(foldedExtras("minmax(0,1fr)"), "minmax(0,1fr)", "an unsplit meta has nothing to fold at step 1");
 });

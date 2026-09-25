@@ -21,7 +21,25 @@ export function isMetaTrack(track: TableTrack): boolean {
   return track === "meta" || track.startsWith("meta+");
 }
 
-/** The fold class a cell or head wears so the collapse order can hide it (kit.css). */
+/**
+ * The measure's collapse order (kit.css container queries on the sheet): at <= 1000px the
+ * extra meta tracks (meta+N) fold, at <= 860px meta itself and then act. mark, name, fig and
+ * time never fold; name takes the room each step frees.
+ */
+export const FOLD_ORDER = ["meta+N", "meta", "act"] as const;
+export const FOLD_AT = { "meta+N": 1000, meta: 860, act: 860 } as const;
+
+/** Which fold step hides a track (0-based in FOLD_ORDER), or null when it never folds. */
+export function foldStep(track: TableTrack): number | null {
+  if (track.startsWith("meta+")) return 0;
+  if (track === "meta") return 1;
+  if (track === "act") return 2;
+  return null;
+}
+
+/** The fold class a cell or head wears so the collapse order can hide it (kit.css). A meta+N
+ *  cell wears both: it folds at the first step and stays folded with meta. */
 export function foldClass(track: TableTrack): string {
-  return track === "act" ? " in-act" : isMetaTrack(track) ? " in-meta" : "";
+  const step = foldStep(track);
+  return step === 0 ? " in-meta in-meta-x" : step === 1 ? " in-meta" : step === 2 ? " in-act" : "";
 }

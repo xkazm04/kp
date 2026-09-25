@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { useTranslations } from "next-intl";
 import type { PartState, RowState } from "./types";
 import { columnTrack, foldClass, type TableTrack } from "./tracks";
-import { foldedTracks, rowWindow, scrollToRow } from "./windowing";
+import { foldedExtras, foldedTracks, rowWindow, scrollToRow } from "./windowing";
 import { Measure } from "./Measure";
 import { Mark } from "./Mark";
 import { Note } from "./Section";
@@ -63,7 +63,7 @@ export function DataTable<T>({
   const total = rows.length;
   const vis = Math.max(1, Math.min(total, visibleRows));
   const meta = metaSplit ?? "minmax(0,1fr)";
-  const style = { "--t-meta": meta, "--t-meta0": foldedTracks(meta) } as CSSProperties;
+  const style = { "--t-meta": meta, "--t-meta1": foldedExtras(meta), "--t-meta0": foldedTracks(meta) } as CSSProperties;
 
   const measure = useCallback(() => {
     const vp = viewport.current;

@@ -60,3 +60,21 @@ export function trackCount(template: string): number {
 export function foldedTracks(template: string): string {
   return Array.from({ length: trackCount(template) }, () => "0px").join(" ");
 }
+
+/** The first step of the collapse order: a split meta keeps its FIRST track and folds every
+ *  extra one (meta+N) to 0px ("minmax(0,1fr) 200px" -> "minmax(0,1fr) 0px"). */
+export function foldedExtras(template: string): string {
+  const tracks: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of template.trim()) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    if (ch === " " && depth === 0) {
+      if (cur) tracks.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur) tracks.push(cur);
+  return [tracks[0] ?? "minmax(0,1fr)", ...tracks.slice(1).map(() => "0px")].join(" ");
+}
