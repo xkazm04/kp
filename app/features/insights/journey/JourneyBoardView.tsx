@@ -60,6 +60,7 @@ import {
 } from "./journeyLayout";
 import { useClusterInView } from "./useClusterInView";
 import { useJourneyBoard } from "./useJourneyBoard";
+import { boardCoverage } from "./journeyPages";
 import { useJourneyDetail } from "./useJourneyDetail";
 import { useRowUnit } from "./useRowUnit";
 import { useVisibleColumns } from "./useVisibleColumns";
@@ -204,6 +205,9 @@ export function JourneyBoardView({ initialRole }: { initialRole?: string } = {})
     [board]
   );
 
+  const coverage = board ? boardCoverage(board) : null;
+  const capped = coverage && coverage.shown < coverage.total ? coverage : null;
+
   if (loading && !board) {
     return (
       <div className="h-full p-5">
@@ -227,7 +231,7 @@ export function JourneyBoardView({ initialRole }: { initialRole?: string } = {})
 
   return (
     <div className="flex h-full flex-col">
-      <JourneyToolbar filters={filters} onChange={setFilters} roles={roles} />
+      <JourneyToolbar filters={filters} onChange={setFilters} roles={roles} capped={capped} />
       {plan && plan.clusters.length > 0 ? (
         <JourneyMinimap plan={plan} scrollerRef={scrollerRef} onJumpToRole={jumpToRole} />
       ) : null}

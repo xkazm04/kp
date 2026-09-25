@@ -49,9 +49,11 @@ export type JourneyToolbarProps = {
   filters: JourneyFilterState;
   onChange: (next: JourneyFilterState) => void;
   roles: RolePickerRole[];
+  /** Set when the workspace holds more journeys than the board read (JOURNEY_MAX_PAGES). */
+  capped?: { shown: number; total: number } | null;
 };
 
-export function JourneyToolbar({ filters, onChange, roles }: JourneyToolbarProps) {
+export function JourneyToolbar({ filters, onChange, roles, capped }: JourneyToolbarProps) {
   const t = useTranslations("journey");
   // `roleArea` is the canonical `jobs.role_family` slug; the picker shows the
   // same localized label the rest of the app does, and falls back to the slug
@@ -127,6 +129,7 @@ export function JourneyToolbar({ filters, onChange, roles }: JourneyToolbarProps
 
       <p className="mt-1 text-xs leading-snug text-steel">
         {t("rail.note")}
+        {capped ? ` ${t("cohort.capped", { n: capped.shown, total: capped.total })}` : null}
       </p>
     </div>
   );

@@ -16,11 +16,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import type { JourneyBoard } from "@/app/_lib/journey/types";
+import type { JourneyBoard, RoleCluster } from "@/app/_lib/journey/types";
+import { JOURNEY_SERVER_PAGE, mergeBoardPages, remainingOffsets, replaceClusters } from "./journeyPages";
 
-/** How many columns to ask for. The projection is a read over five append-only
- *  logs, so a page is cheap, but a board is a reading surface and not a dump. */
-export const JOURNEY_PAGE_SIZE = 120;
+/** How many columns to ask for per request: the server's own page ceiling. It asked
+ *  for 120 and was silently given 50; journeyPages.ts reads the rest page by page. */
+export const JOURNEY_PAGE_SIZE = JOURNEY_SERVER_PAGE;
 
 export type JourneyBoardState = {
   board: JourneyBoard | null;
@@ -32,12 +33,15 @@ export type JourneyBoardState = {
 
 type ApiErrorBody = { error?: string; code?: string };
 
+/** A non-2xx answer, carrying the message already resolved from its code. */
+class BoardReadError extends Error {}
+
 /**
  * `role` narrows the request server-side to one role's columns (`?role=<jobId>`), which is what the
  * kit lane board reads: one role against one rail, and a page of 50 that covers the whole role
  * rather than the first 50 journeys of the workspace. `skip` holds the request until the caller
- * knows which role to ask for. The Broadsheet calls this with neither and gets the same request as
- * before.
+ * knows which role to ask for. The Broadsheet calls this with neither and gets EVERY role: the pages
+ * until the workspace's total is covered (bounded), merged by role (journeyPages.ts).
  */
 export function useJourneyBoard(role?: string, skip = false): JourneyBoardState {
   const t = useTranslations("journey");
@@ -64,22 +68,47 @@ export function useJourneyBoard(role?: string, skip = false): JourneyBoardState 
       setError(null);
     });
 
+    /** One GET; a failure throws its already-localized message. */
+    const read = async (query: string): Promise<JourneyBoard> => {
+      const res = await fetch(`/api/journeys?limit=${JOURNEY_PAGE_SIZE}&${query}`, {
+        signal: controller.signal,
+        headers: { accept: "application/json" },
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new BoardReadError(errMsg(body as ApiErrorBody, t("loadError")));
+      return body as JourneyBoard;
+    };
+
     (async () => {
       try {
-        const scope = role ? `&role=${encodeURIComponent(role)}` : "";
-        const res = await fetch(`/api/journeys?limit=${JOURNEY_PAGE_SIZE}&offset=0${scope}`, {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        const body: unknown = await res.json().catch(() => null);
-        if (!live) return;
-        if (!res.ok) {
-          setError(errMsg(body as ApiErrorBody, t("loadError")));
+        if (role) {
+          const one = await read(`offset=0&role=${encodeURIComponent(role)}`);
+          if (live) setBoard(one);
+          return;
+        }
+        // Every role, not the first page of them (journeyPages.ts).
+        const first = await read("offset=0");
+        const size = first.query.limit || JOURNEY_PAGE_SIZE;
+        const rest: JourneyBoard[] = [];
+        for (const offset of remainingOffsets(first.totals.columns, size)) {
+          if (!live) return;
+          rest.push(await read(`offset=${offset}`));
+        }
+        const merged = mergeBoardPages([first, ...rest]);
+        const whole: RoleCluster[] = [];
+        for (const jobId of merged.split) {
+          if (!live) return;
+          const one = await read(`offset=0&role=${encodeURIComponent(jobId)}`);
+          const c = one.clusters.find((x) => x.jobId === jobId);
+          if (c) whole.push(c);
+        }
+        if (live) setBoard(replaceClusters(merged.board, whole));
+      } catch (err) {
+        if (live && err instanceof BoardReadError) {
+          setError(err.message);
           setBoard(null);
           return;
         }
-        setBoard(body as JourneyBoard);
-      } catch (err) {
         // An abort is this hook doing its job, not a failure to report.
         if (!live || (err instanceof DOMException && err.name === "AbortError")) return;
         setError(t("loadError"));
