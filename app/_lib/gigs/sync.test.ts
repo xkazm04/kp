@@ -4,9 +4,12 @@ import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { Gig, GigAttempt } from "./types.ts";
-import { landingFor, syncGigAttempts, DISPATCH_INTERRUPTED_MS, type GigSyncDeps } from "./sync.ts";
+import { landingFor, syncGigAttempts, DISPATCH_INTERRUPTED_MS, readGigDeliverableFile, resolveGigDeliverable, type GigSyncDeps } from "./sync.ts";
+import { mkdtempSync, writeFileSync, utimesSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import type { FetchExecutionResult, GigExecutionSnapshot } from "./personas-exec.ts";
-import { getGig, transitionGig, upsertGigFromRaw } from "../db/gigs.ts";
+import { getGig, setGigWorkspace, transitionGig, upsertGigFromRaw } from "../db/gigs.ts";
 import { createGigAttempt, getGigAttempt, setGigAttemptExecutionId, transitionGigAttempt } from "../db/gigs-attempts.ts";
 
 after(() => cleanupUnitDb());
@@ -238,4 +241,102 @@ test("a sync only touches its own workspace", async () => {
   await syncGigAttempts("ws-sync-mine", d);
   assert.deepEqual(d.asked, [mine.attempt.executionId]);
   assert.equal(getGigAttempt("ws-sync-theirs", theirs.attempt.id)!.status, "dispatched");
+});
+
+// ---- the deliverable file (Personas can replace kp's prompt and append its own protocol after
+// the model's last words, so the specialist also writes kp-deliverable.json at its folder root)
+
+const GOOD_OBJECT = {
+  version: 1,
+  summary: "Wrote the report.",
+  draftText: "Proposal text",
+  artifacts: [{ kind: "file", ref: "deliverable/report.md", title: "Report" }],
+  evidence: [],
+  disclosure: "Prepared with AI assistance, reviewed by me.",
+  confidence: 0.7,
+  questions: [],
+};
+
+test("resolveGigDeliverable: the output's block wins; the file is read only when the output has none", () => {
+  let reads = 0;
+  const read = () => {
+    reads += 1;
+    return JSON.stringify(GOOD_OBJECT);
+  };
+  const fromOutput = resolveGigDeliverable(GOOD_OUTPUT, "/w", "2026-01-01T00:00:00Z", read);
+  assert.ok(fromOutput.ok);
+  assert.equal(fromOutput.source, "output");
+  assert.equal(reads, 0, "a valid block never touches the folder");
+
+  const fromFile = resolveGigDeliverable("{\"user_message\": {}}", "/w", "2026-01-01T00:00:00Z", read);
+  assert.ok(fromFile.ok);
+  assert.equal(fromFile.source, "file");
+  if (fromFile.ok) assert.equal(fromFile.deliverable.summary, "Wrote the report.");
+
+  const noWorkdir = resolveGigDeliverable("no block", null, "2026-01-01T00:00:00Z", read);
+  assert.deepEqual(noWorkdir, { ok: false, reason: "no_deliverable_block" }, "no folder: the output's own reason");
+
+  const noFile = resolveGigDeliverable("no block", "/w", "2026-01-01T00:00:00Z", () => null);
+  assert.deepEqual(noFile, { ok: false, reason: "no_deliverable_block" });
+
+  const badJson = resolveGigDeliverable("no block", "/w", "2026-01-01T00:00:00Z", () => "{nope");
+  assert.equal(badJson.ok, false);
+  if (!badJson.ok) {
+    assert.equal(badJson.reason, "invalid_json");
+    assert.match(badJson.detail ?? "", /^kp-deliverable\.json: /);
+  }
+
+  // The shape the 2026-09-25 dry run's agent improvised: no version, no disclosure.
+  const improvised = resolveGigDeliverable("no block", "/w", "2026-01-01T00:00:00Z", () =>
+    JSON.stringify({ contract: "kp-deliverable.v1", summary: "s", draftText: "d", artifacts: [] })
+  );
+  assert.equal(improvised.ok, false);
+  if (!improvised.ok) {
+    assert.equal(improvised.reason, "invalid_shape");
+    assert.match(improvised.detail ?? "", /kp-deliverable\.json: .*version/);
+  }
+});
+
+test("readGigDeliverableFile: a regular file written after the attempt started; older, absent or oversized is null", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-deliv-"));
+  const file = path.join(dir, "kp-deliverable.json");
+  assert.equal(readGigDeliverableFile(dir, "2026-01-01T00:00:00Z"), null, "absent");
+
+  writeFileSync(file, JSON.stringify(GOOD_OBJECT));
+  const written = new Date();
+  assert.ok(readGigDeliverableFile(dir, new Date(written.getTime() - 60_000).toISOString()), "newer than the attempt");
+
+  const old = new Date(written.getTime() - 3_600_000);
+  utimesSync(file, old, old);
+  assert.equal(readGigDeliverableFile(dir, new Date(written.getTime() - 60_000).toISOString()), null, "an earlier attempt's file is never this attempt's draft");
+
+  const asDir = mkdtempSync(path.join(tmpdir(), "kp-deliv-dir-"));
+  mkdirSync(path.join(asDir, "kp-deliverable.json"));
+  assert.equal(readGigDeliverableFile(asDir, "2026-01-01T00:00:00Z"), null, "a directory is not a deliverable");
+
+  const big = mkdtempSync(path.join(tmpdir(), "kp-deliv-big-"));
+  writeFileSync(path.join(big, "kp-deliverable.json"), "x".repeat(512 * 1024 + 1));
+  assert.equal(readGigDeliverableFile(big, "2026-01-01T00:00:00Z"), null, "oversized");
+});
+
+test("completed with no block but a deliverable file in the gig folder: drafted from the file", async () => {
+  const ws = "ws-sync-file";
+  const { gig, attempt } = inFlight(ws);
+  setGigWorkspace(ws, gig.id, { workdir: "/gigs/freelance/x" });
+  const seen: string[] = [];
+  const d = {
+    ...deps({ [attempt.executionId!]: snapshot("completed", "Deliverables written. {\"outcome_assessment\": {}}", 0.6) }),
+    readDeliverableFile: (workdir: string, notBefore: string) => {
+      seen.push(`${workdir}|${notBefore}`);
+      return JSON.stringify(GOOD_OBJECT);
+    },
+  };
+  const s = await syncGigAttempts(ws, d);
+  assert.equal(s.drafted, 1);
+  assert.deepEqual(seen, [`/gigs/freelance/x|${attempt.createdAt}`], "read from the gig's own folder, bounded by the attempt's start");
+  const a = getGigAttempt(ws, attempt.id)!;
+  assert.equal(a.status, "drafted");
+  assert.equal(a.deliverable?.draftText, "Proposal text");
+  assert.equal(a.costUsd, 0.6);
+  assert.equal(getGig(ws, gig.id)!.status, "drafted");
 });

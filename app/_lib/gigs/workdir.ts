@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { GIG_CONTRACT_FILE, gigContractFileMarkdown } from "./contract";
 import type { Gig } from "./types";
 
 // The gig's own folder on disk: where the specialist's run executes (gigs/project.ts binds
@@ -11,7 +12,10 @@ import type { Gig } from "./types";
 //   <root>/<arena>/<yyyy-mm-dd>-<title slug>-<last 6 of the gig id>/
 //     GIG.md            front matter + the research brief + the listing, fenced as UNTRUSTED
 //     NOTES.md          the process log's headings
+//     DELIVERABLE-CONTRACT.md  the deliverable contract (contract.ts) - kp-owned, REWRITTEN on
+//                       every prepare so a contract change reaches gigs already scaffolded
 //     deliverable/      every file meant for the client
+//     kp-deliverable.json  written by the specialist: the deliverable object sync.ts reads
 //
 // <root> is KP_GIGS_ROOT, else the sibling `../gigs` resolved against the kp repo root - the
 // same shape `.ai/manifest.yaml` uses for `../ai-registry` (recipes.ts resolves that one the
@@ -165,8 +169,16 @@ function writeIfAbsent(file: string, content: string): boolean {
   }
 }
 
+/** kp's own file, rewritten when its content differs. True = it did not exist before. */
+function writeOwned(file: string, content: string): boolean {
+  const existed = existsSync(file);
+  if (existed && readFileSync(file, "utf8") === content) return false;
+  writeFileSync(file, content, { encoding: "utf8" });
+  return !existed;
+}
+
 /** mkdir -p the gig's folder and write GIG.md, NOTES.md and deliverable/.gitkeep - each only
- *  when absent. `created` lists the paths written this call, relative to the workdir. */
+ *  when absent - plus the kp-owned DELIVERABLE-CONTRACT.md, rewritten when it changed. `created` lists the paths written this call, relative to the workdir. */
 export function scaffoldGigWorkdir(
   gig: Gig,
   opts: GigWorkdirRootOptions & { now?: () => Date } = {}
@@ -182,6 +194,7 @@ export function scaffoldGigWorkdir(
     if (writeIfAbsent(path.join(workdir, "GIG.md"), gigMarkdown(gig, now))) created.push("GIG.md");
     if (writeIfAbsent(path.join(workdir, "NOTES.md"), GIG_NOTES_MARKDOWN)) created.push("NOTES.md");
     if (writeIfAbsent(path.join(workdir, "deliverable", ".gitkeep"), "")) created.push("deliverable/.gitkeep");
+    if (writeOwned(path.join(workdir, GIG_CONTRACT_FILE), gigContractFileMarkdown())) created.push(GIG_CONTRACT_FILE);
   } catch {
     // Permissions, a full disk, a file where the folder should be: the caller answers
     // with the reason code; the OS message (which names local paths) stays here.

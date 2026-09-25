@@ -96,12 +96,14 @@ test("GIG.md: front matter, the brief, and the listing fenced as UNTRUSTED with 
   assert.ok(withBrief.indexOf("## What the gig is") < withBrief.indexOf(GIG_UNTRUSTED_HEADING), "the brief precedes the listing");
 });
 
-test("scaffold: creates the three files once, never overwrites, and re-creates only what is missing", () => {
+test("scaffold: creates the three files once, never overwrites, and re-creates only what is missing; the contract is kp's and kept current", () => {
   const env = { KP_GIGS_ROOT: path.join(TMP, "root-c") };
   const first = scaffoldGigWorkdir(gig(), { env, now: () => new Date("2026-09-25T10:00:00Z") });
   assert.ok(first.ok);
   if (!first.ok) return;
-  assert.deepEqual(first.created, ["GIG.md", "NOTES.md", "deliverable/.gitkeep"]);
+  assert.deepEqual(first.created, ["GIG.md", "NOTES.md", "deliverable/.gitkeep", "DELIVERABLE-CONTRACT.md"]);
+  const contract = readFileSync(path.join(first.workdir, "DELIVERABLE-CONTRACT.md"), "utf8");
+  assert.ok(contract.includes("kp-deliverable.json") && contract.includes('"version": 1'), "the contract names the file and the exact shape");
   const notes = readFileSync(path.join(first.workdir, "NOTES.md"), "utf8");
   for (const h of ["## Restatement", "## Assumptions and defaults", "## Decisions", "## Verification", "## Lesson candidates"]) {
     assert.ok(notes.includes(h), h);
@@ -111,6 +113,7 @@ test("scaffold: creates the three files once, never overwrites, and re-creates o
   // The agent and the operator edit these; a second prepare must not undo either.
   writeFileSync(path.join(first.workdir, "NOTES.md"), "operator edits");
   writeFileSync(path.join(first.workdir, "GIG.md"), "agent edits");
+  writeFileSync(path.join(first.workdir, "DELIVERABLE-CONTRACT.md"), "an agent rewrote the contract");
   rmSync(path.join(first.workdir, "deliverable", ".gitkeep"));
   const computed = gigWorkdirFor(env.KP_GIGS_ROOT, gig());
   assert.ok(computed.ok && computed.workdir === first.workdir, "the computed folder is stable for the same gig");
@@ -122,6 +125,7 @@ test("scaffold: creates the three files once, never overwrites, and re-creates o
   assert.deepEqual(again.created, ["deliverable/.gitkeep"]);
   assert.equal(readFileSync(path.join(first.workdir, "NOTES.md"), "utf8"), "operator edits");
   assert.equal(readFileSync(path.join(first.workdir, "GIG.md"), "utf8"), "agent edits");
+  assert.equal(readFileSync(path.join(first.workdir, "DELIVERABLE-CONTRACT.md"), "utf8"), contract, "the contract is kp-owned: restored, and not reported as created");
   assert.equal(scaffoldGigWorkdir(gig(), { env }).ok && existsSync(path.join(first.workdir, "deliverable")), true);
 });
 

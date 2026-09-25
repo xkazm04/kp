@@ -64,7 +64,9 @@ imports from it.
    `_projectId`, so the run executes in the gig's own folder. The Personas calls run
    outside any transaction (`dispatch.ts`). The listing text is sent as data
    (`bodyUntrusted`), never as part of the prompt. `gig_sync` pulls the run's state and lands the
-   `kp-deliverable` block (`sync.ts`, `deliverable.ts`).
+   `kp-deliverable` block, or, when the output carries none, the object the specialist wrote
+   to `kp-deliverable.json` in its gig folder (`sync.ts`, `deliverable.ts`; see **The
+   handoff**).
 5. **Review.** `POST /api/gigs/attempts/[id]` with `approve`, `revise` (a note is
    required; a new attempt carries it), `discard` (the gig returns to `qualified`) or
    `mark_sent`. **`mark_sent` is refused (422 `GIG_DISCLOSURE_REQUIRED`) unless the
@@ -212,6 +214,10 @@ skipped; the working directory is the boundary the run is told to keep).
   NOTES.md          headings only: Restatement, Assumptions and defaults, Decisions,
                     Verification, Lesson candidates (a line under each saying what goes there)
   deliverable/      every file meant for the client (.gitkeep to start)
+  DELIVERABLE-CONTRACT.md   the deliverable contract (contract.ts) - kp-owned, REWRITTEN on
+                    every prepare when it differs, so a contract change reaches gigs already
+                    scaffolded
+  kp-deliverable.json       written by the specialist: its handoff object (see below)
 ```
 
 The title slug is ASCII, lower-case, at most 48 characters (`gig` when nothing is left).
@@ -233,11 +239,33 @@ gig's URL as its description and the brief's category as its tech stack, ensured
 folder, then workspace, then project, and records `workdir` and `personas_project_id` on
 the gig. Specialists are hired into their arena's workspace (`placement: {workspaceId}` on
 the hire request). A dispatched run carries `_projectId` in its `input_data`; Personas
-binds the run's cwd to that project's root. The specialist's prompt (`gig-specialist.v2`)
+binds the run's cwd to that project's root. The specialist's prompt (`gig-specialist.v3`)
 has a "Working directory" section: read `GIG.md` first, keep the process log in
 `NOTES.md`, put client files under `deliverable/`, never read or write outside the working
 directory, and list deliverable files in `artifacts` as kind `file` with the path relative
 to it.
+
+**The handoff** (`contract.ts`, `sync.ts`). The contract travels with the WORK, not only
+with the persona. The 2026-09-25 dry run found why: Personas' autonomous build gives a hired
+persona its own structured prompt, and when one exists the runner renders that INSTEAD of
+the system prompt kp sent, so kp's contract (and its hard rules) never reached the run; and
+Personas appends its own output protocol after the model's last words, so "end with the
+fenced block, nothing after it" cannot hold. Both runs did the work and handed nothing kp
+could read. So:
+
+- every gig folder carries `DELIVERABLE-CONTRACT.md`, rendered from the same function as
+  the prompt's contract section (`gigDeliverableContractMarkdown`);
+- the specialist writes its deliverable object to `kp-deliverable.json` at the folder root
+  (never under `deliverable/`, which is what the client receives), and also fences it at the
+  end of its output;
+- sync uses the output's last block first; when there is no valid one, it reads the file,
+  but only a regular file of at most 512 KB modified after the attempt was created (an
+  earlier attempt's file is never landed as this one's draft), through the same validator.
+  A file that fails validation fails the attempt with `invalid_json` / `invalid_shape` and a
+  detail prefixed `kp-deliverable.json:`.
+
+The hard rules do not depend on the prompt either: the gigs repository's own `CLAUDE.md`
+(loaded by the CLI for any run under it) carries them.
 
 `POST /api/gigs/[id]/workspace` runs the same step on demand. The gig's page shows it as
 one row above the page (`GigsWorkspace.tsx`): the folder path as selectable text,

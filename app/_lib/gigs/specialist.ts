@@ -7,19 +7,12 @@ import { createGigSpecialist, listGigSpecialists } from "../db/gigs-specialists"
 import { publicBaseUrl } from "../public-base-url";
 import { ROLE_FAMILY_SLUGS } from "../role-families";
 import { GIG_CHECKLISTS, GIG_CHECKLIST_MEANING } from "./checklists";
+import { GIG_CONTRACT_FILE, GIG_DELIVERABLE_FILE, GIG_DISCLOSURE_SENTENCE, gigDeliverableContractMarkdown } from "./contract";
 import type { ensurePersonasWorkspace, PersonasPlaceFailureReason } from "./personas-places";
 import { ensureGigArenaWorkspace } from "./project";
 import { resolveGigRecipes, type ResolvedGigRecipe, type ResolvedGigRecipes } from "./recipes";
 import { GIG_ARENA_CONNECTORS, GIG_ARENA_LABEL, GIG_DEFAULT_BUDGET_USD, GIG_DEFAULT_FAMILY } from "./specialist-defaults";
-import {
-  GIG_DELIVERABLE_CONTRACT,
-  GIG_DELIVERABLE_FENCE,
-  GIG_ARTIFACT_KINDS,
-  GIG_EVIDENCE_KINDS,
-  type GigArena,
-  type GigSpecialist,
-  type GigSpecialistSpec,
-} from "./types";
+import type { GigArena, GigSpecialist, GigSpecialistSpec } from "./types";
 
 // Gig specialists: compose the spec (arena + niche + adopted recipes), project it onto
 // the flat DispatchSpec the Personas hire has always taken, and HIRE it through the one
@@ -49,17 +42,17 @@ import {
 
 // v2 (2026-09-25): the "Working directory" section - the run executes inside the gig's own
 // folder (gigs/workdir.ts), GIG.md first, NOTES.md as the log, deliverable/ for the client.
-export const GIG_SPECIALIST_PROMPT_VERSION = "gig-specialist.v2";
+// v3 (2026-09-25): the deliverable object is written to kp-deliverable.json at the folder root
+// as well as fenced in the output (contract.ts has why).
+export const GIG_SPECIALIST_PROMPT_VERSION = "gig-specialist.v3";
 
 /** The hired_agents job_title prefix that marks a gig specialist on the roster. */
 export const GIG_SPECIALIST_JOB_TITLE_PREFIX = "Gig specialist";
 
 export { GIG_ARENA_CONNECTORS, GIG_ARENA_LABEL, GIG_DEFAULT_BUDGET_USD, GIG_DEFAULT_FAMILY };
 
-/** The disclosure sentence every deliverable must carry (the specialist may adapt the
- *  wording to the venue, never drop it). */
-export const GIG_DISCLOSURE_SENTENCE =
-  "This work was prepared with the assistance of an AI agent and reviewed by me before sending.";
+/** The disclosure sentence every deliverable must carry (contract.ts owns it; re-exported). */
+export { GIG_DISCLOSURE_SENTENCE };
 
 const NICHE_MAX = 80;
 
@@ -103,30 +96,6 @@ export function gigSpecialistName(spec: Pick<GigSpecialistSpec, "arena" | "niche
   return `${GIG_ARENA_LABEL[spec.arena]} specialist - ${cleanNiche(spec.niche)}`;
 }
 
-function deliverableContractText(): string {
-  const example = {
-    version: 1,
-    summary: "One paragraph: what you did and what the operator should check first.",
-    draftText: "The full text the operator would send.",
-    artifacts: [{ kind: "pr", ref: "https://example.invalid/pull/1", title: "What this artifact is" }],
-    evidence: [{ kind: "test", command: "the command you ran", result: "what it printed", passed: true }],
-    disclosure: GIG_DISCLOSURE_SENTENCE,
-    confidence: 0.6,
-    questions: ["Anything you could not resolve and need the operator to answer."],
-  };
-  return [
-    `## Deliverable contract (${GIG_DELIVERABLE_CONTRACT})`,
-    `End EVERY run with exactly one fenced block tagged \`${GIG_DELIVERABLE_FENCE}\` containing JSON of this shape, and nothing after it:`,
-    "```" + GIG_DELIVERABLE_FENCE,
-    JSON.stringify(example, null, 2),
-    "```",
-    `- artifacts[].kind is one of: ${GIG_ARTIFACT_KINDS.join(", ")}. evidence[].kind is one of: ${GIG_EVIDENCE_KINDS.join(", ")}.`,
-    "- evidence lists only what you actually ran; `passed` is null when the result has no pass/fail meaning.",
-    "- confidence is your own estimate from 0 to 1; it is shown to the operator, never used as a score.",
-    "- If you cannot produce acceptable work, still end with the block: say why in `summary`, put your questions in `questions`, and keep confidence low.",
-  ].join("\n");
-}
-
 function recipeSection(r: ResolvedGigRecipe): string {
   const lines = [`### ${r.title} (${r.ref.slug}@${r.ref.version})`];
   if (r.need) lines.push(`Why it matters: ${r.need}`);
@@ -158,6 +127,7 @@ export function gigSpecialistSystemPrompt(spec: GigSpecialistSpec, recipes: read
     "- Put every file meant for the client under `deliverable/`.",
     "- Never read or write outside the working directory.",
     "- List each deliverable file in `artifacts` as kind `file`, with `ref` the path relative to the working directory (e.g. `deliverable/proposal.md`).",
+    `- \`${GIG_CONTRACT_FILE}\` in the folder restates the deliverable contract below; write the deliverable object to \`${GIG_DELIVERABLE_FILE}\` at the folder root.`,
     "",
     "## Craft (adopted recipes)",
     ...recipes.map(recipeSection),
@@ -166,7 +136,7 @@ export function gigSpecialistSystemPrompt(spec: GigSpecialistSpec, recipes: read
     "The operator ticks these before sending; the assignment lists the same keys in `checklist`. Draft so every one can be ticked:",
     ...checklist.map((k) => `- ${k}: ${GIG_CHECKLIST_MEANING[k] ?? k}`),
     "",
-    deliverableContractText(),
+    gigDeliverableContractMarkdown(),
   ].join("\n");
 }
 

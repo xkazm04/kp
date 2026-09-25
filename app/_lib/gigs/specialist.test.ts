@@ -51,7 +51,7 @@ test("compose: arena defaults for connectors, family, budget; recipes pinned fro
     assert.equal(spec.budgetUsdPerAttempt, GIG_DEFAULT_BUDGET_USD[arena]);
     assert.deepEqual(spec.recipes.map((r) => r.slug), gigRecipeSlugs(arena));
     assert.deepEqual(spec.exemplars, []);
-    assert.equal(spec.promptVersion, "gig-specialist.v2");
+    assert.equal(spec.promptVersion, "gig-specialist.v3");
   }
   assert.deepEqual(GIG_ARENA_CONNECTORS.security, ["research", "source_control"]);
   assert.deepEqual(GIG_ARENA_CONNECTORS.competition, ["research", "ai"]);
@@ -201,7 +201,11 @@ test("the prompt's Working directory section: GIG.md first, NOTES.md, deliverabl
   assert.match(p, /under `deliverable\/`/);
   assert.match(p, /Never read or write outside the working directory/);
   assert.match(p, /kind `file`, with `ref` the path relative to the working directory/);
-  assert.equal(spec.promptVersion, "gig-specialist.v2");
+  // The deliverable also goes to a file at the folder root: Personas can replace this prompt
+  // and append its own protocol after the model's last words (contract.ts).
+  assert.match(p, /`kp-deliverable\.json` in the gig folder ROOT/);
+  assert.match(p, /`DELIVERABLE-CONTRACT\.md`/);
+  assert.equal(spec.promptVersion, "gig-specialist.v3");
 });
 
 test("hire: a failed dispatch records no specialist and reports the bridge's code", async () => {

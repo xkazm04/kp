@@ -1,6 +1,9 @@
-import { transitionGig } from "../db/gigs";
+import { lstatSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { getGig, transitionGig } from "../db/gigs";
 import { listGigAttemptsByStatus, transitionGigAttempt } from "../db/gigs-attempts";
-import { parseGigDeliverable } from "./deliverable";
+import { GIG_DELIVERABLE_FILE } from "./contract";
+import { parseGigDeliverable, validateGigDeliverable, type ParseGigDeliverableResult } from "./deliverable";
 import { fetchPersonaExecution, type FetchExecutionResult } from "./personas-exec";
 import type { GigAttempt } from "./types";
 
@@ -14,6 +17,7 @@ import type { GigAttempt } from "./types";
 //   queued / pending         unchanged (still `dispatched`)       unchanged
 //   running                  dispatched -> running                unchanged
 //   completed + deliverable  -> drafted (deliverable, cost)       dispatched -> drafted
+//     (the output's block, else the gig folder's kp-deliverable.json - see THE DELIVERABLE FILE)
 //   completed, no/bad block  -> failed (parse reason, cost)       dispatched -> qualified
 //   incomplete + deliverable -> drafted (deliverable, cost)       dispatched -> drafted
 //   incomplete, no block     -> failed `personas_incomplete`      dispatched -> qualified
@@ -34,8 +38,55 @@ import type { GigAttempt } from "./types";
 
 export const DISPATCH_INTERRUPTED_MS = 10 * 60_000;
 
+// THE DELIVERABLE FILE. A completed run whose output carries no valid `kp-deliverable`
+// block is not failed yet: the specialist also writes the object to kp-deliverable.json at
+// its gig folder's root (contract.ts has why - Personas can replace kp's prompt and append
+// its own protocol after the model's last words). The file counts only when it is a
+// regular file (never a link out of the folder), at most GIG_DELIVERABLE_FILE_MAX_BYTES,
+// and modified AFTER this attempt was created - an earlier attempt's file is never landed
+// as this one's draft. It goes through the same validator as a fenced block.
+export const GIG_DELIVERABLE_FILE_MAX_BYTES = 512 * 1024;
+
+/** The deliverable file's text, or null when there is none this attempt may use. */
+export function readGigDeliverableFile(workdir: string, notBefore: string): string | null {
+  const file = path.join(workdir, GIG_DELIVERABLE_FILE);
+  try {
+    const st = lstatSync(file);
+    if (!st.isFile() || st.size > GIG_DELIVERABLE_FILE_MAX_BYTES) return null;
+    const since = Date.parse(notBefore);
+    if (Number.isFinite(since) && st.mtimeMs < since) return null;
+    return readFileSync(file, "utf8");
+  } catch {
+    // absent or unreadable: the attempt fails on the output's own reason, exactly as before
+    return null;
+  }
+}
+
+/** The output's block first; else the gig folder's deliverable file. Pure given `readFile`. */
+export function resolveGigDeliverable(
+  outputData: string | null,
+  workdir: string | null,
+  notBefore: string,
+  readFile: (workdir: string, notBefore: string) => string | null
+): ParseGigDeliverableResult & { source?: "output" | "file" } {
+  const fromOutput = parseGigDeliverable(outputData);
+  if (fromOutput.ok) return { ...fromOutput, source: "output" };
+  const text = workdir ? readFile(workdir, notBefore) : null;
+  if (text === null) return fromOutput;
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (e) {
+    return { ok: false, reason: "invalid_json", detail: `${GIG_DELIVERABLE_FILE}: ${e instanceof Error ? e.message.slice(0, 160) : "unparseable"}` };
+  }
+  const fromFile = validateGigDeliverable(value);
+  return fromFile.ok ? { ...fromFile, source: "file" } : { ...fromFile, detail: `${GIG_DELIVERABLE_FILE}: ${fromFile.detail ?? ""}`.trim() };
+}
+
 export type GigSyncDeps = {
   fetchExecution: (executionId: string) => Promise<FetchExecutionResult>;
+  /** The gig folder's deliverable file (default: readGigDeliverableFile). */
+  readDeliverableFile?: (workdir: string, notBefore: string) => string | null;
   now?: () => Date;
 };
 
@@ -151,7 +202,8 @@ async function syncOne(workspaceId: string, attempt: GigAttempt, deps: GigSyncDe
     failAttempt(workspaceId, attempt, landing.reason, landing.costUsd, s);
     return;
   }
-  const parsed = parseGigDeliverable(landing.outputData);
+  const workdir = getGig(workspaceId, attempt.gigId)?.workdir ?? null;
+  const parsed = resolveGigDeliverable(landing.outputData, workdir, attempt.createdAt, deps.readDeliverableFile ?? readGigDeliverableFile);
   if (!parsed.ok) {
     failAttempt(workspaceId, attempt, parsed.reason, landing.costUsd, s);
     return;
