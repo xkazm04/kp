@@ -2599,7 +2599,7 @@
         "savingFirst": "Connection lost. Saving your answers before reconnecting.",
         "waitOnline": "You are offline. The interview reconnects when your connection returns.",
         "budget": "Reconnecting automatically did not work. Press Start again to carry on from where you left off.",
-        "cancelled": "Reconnect cancelled. Press Start again when you are ready to carry on from where you left off.",
+        "cancelled": "Reconnect canceled. Press Start again when you are ready to carry on from where you left off.",
         "manual": "Press Start again to try the call again.",
         "saveRefused": "This attempt could not be saved because the interview link no longer accepts it."
       }
@@ -4550,7 +4550,7 @@
     "feedbackLetters": {
       "title": "Feedback requests · {count}",
       "help": "Candidates who asked for a short letter about their AI interview after a person decided on their application. You edit and own every sentence before anything is sent.",
-      "empty": "No candidate is waiting for a feedback letter.",
+      "empty": "No candidate is waiting for a letter of feedback.",
       "loadFailed": "Could not load the feedback requests.",
       "candidateUnknown": "Candidate",
       "outcomeNotSelected": "Not selected",
@@ -4567,7 +4567,7 @@
         "sourceModel": "Drafted by the AI model from the interview record. Edit it freely: you own every sentence.",
         "sourceTemplate": "Built from the standard template, without an AI model. Edit it freely: you own every sentence.",
         "sourceNone": "No draft yet. One may still be on its way, or you can write the letter yourself.",
-        "rule": "A feedback letter names competencies. It never quotes the candidate and never gives a score.",
+        "rule": "A letter of feedback names competencies. It never quotes the candidate and never gives a score.",
         "label": "Letter text",
         "count": "{count} of {max} characters",
         "over": "{over, plural, one {# character} other {# characters}} over the limit. Shorten the letter before approving it.",
@@ -8711,7 +8711,7 @@
     "cohortTruncatedNote": "Only the newest {count, plural, one {# entry} other {# entries}} in this window were counted. The cohort is larger than one read covers, so every figure below is a bounded sample. Narrow the window to see it whole.",
     "colScope": "Scope",
     "koUnattributedTitle": "Knockout declines are recorded by job title before an application exists, so they cannot be split between roles that share a title, or shown for a single role.",
-    "analyseRole": "Analyse this role",
+    "analyseRole": "Analyze this role",
     "analyseRoleTitle": "Scope the whole Analytics tab to this role",
     "jobScopeChip": "Role: {title}",
     "jobScopeUnknownTitle": "not found in this workspace",
@@ -13380,7 +13380,7 @@
         "editorial": "Editorial",
         "compact": "Compact"
       },
-      "accentLabel": "Accent colour",
+      "accentLabel": "Accent color",
       "accent": {
         "navy": "Navy",
         "moss": "Moss",
@@ -13572,7 +13572,7 @@
       "reinstated": "Candidate was reinstated",
       "koDeclined": "Candidate was declined at the knockout gate",
       "approvalSet": "Approval was set to {gate}",
-      "analysis": "CV was analysed and scored {score}",
+      "analysis": "CV was analyzed and scored {score}",
       "interviewSession": "Voice interview was held",
       "interviewRound": "An interview round took place",
       "topicBegun": "Interviewer opened a new topic",
@@ -13592,7 +13592,7 @@
       "intakeBriefChanged": "The role brief changed",
       "intakePromoted": "The conversation became a job",
       "unknown": "An event of kind {kind} was recorded",
-      "analysisUnscored": "CV was analysed, but no score was recorded"
+      "analysisUnscored": "CV was analyzed, but no score was recorded"
     },
     "topics": {
       "role-shape": "Requestor described the shape of the role",
@@ -13621,7 +13621,7 @@
     },
     "kit": {
       "steps": {
-        "analysed": "Analysed",
+        "analysed": "Analyzed",
         "case": "Case"
       },
       "figJourneys": "Journeys",
