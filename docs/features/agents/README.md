@@ -346,6 +346,12 @@ hired App master in its attention loop, and `originPersonaId` to record which
 persona asked for the role. Both are the *caller's* declaration about the
 circumstances of the ask, not properties of the role kp composed.
 
+A third passthrough, **`placement: { workspaceId }`**, files the hired persona into a
+Personas workspace. It is sent only when set, and today only the Gigs module sets it: a
+gig specialist is placed in its arena's workspace (`app/_lib/gigs/project.ts`, see
+`docs/features/gigs/README.md` "Workspaces and projects"). Personas answers 400
+`workspace_not_found` for an unknown id; a build that predates placement ignores the key.
+
 ## Reporter v2 — the App-master backbone
 
 `POST /api/agents/report/[token]` takes additive fields on two of its three shapes.

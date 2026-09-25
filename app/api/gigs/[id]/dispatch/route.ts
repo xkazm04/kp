@@ -20,6 +20,9 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //   404 GIG_NOT_FOUND · 409 GIG_SUSPECT · 409 GIG_NOT_DISPATCHABLE (`detail` = status or
 //   the lost CAS) · 409 GIG_SPECIALIST_NOT_READY (`detail`) · 502 GIG_DISPATCH_FAILED
 //   ({ reason, attempt, gig } - the reason is the transport's code, never an error text)
+//   · GIG_WORKSPACE_FAILED (`detail` = the reason code): 502 when Personas refused or could
+//   not be reached to register the gig's project, 500 when the gig's folder could not be
+//   made (gigs/project.ts). Nothing is claimed in either case.
 //
 // Throttled per IP BEFORE the body is read: every accepted call is a metered Personas run.
 
@@ -56,6 +59,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return jsonRefusal("GIG_DISPATCH_FAILED", 502, { reason: res.reason, attempt: res.attempt, gig: res.gig });
     }
     if (res.code === "GIG_NOT_FOUND") return jsonRefusal("GIG_NOT_FOUND", 404);
+    if (res.code === "GIG_WORKSPACE_FAILED") {
+      return jsonRefusal("GIG_WORKSPACE_FAILED", res.detail.startsWith("personas_") ? 502 : 500, { detail: res.detail });
+    }
     return jsonRefusal(res.code, 409, res.detail ? { detail: res.detail } : undefined);
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/dispatch", "GIG_STORE_FAILED");

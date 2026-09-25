@@ -127,3 +127,26 @@ test("get execution: 404 and 403 are terminal, transport and 5xx are retryable",
   globalThis.fetch = (async () => json({ success: true, data: {} })) as typeof fetch;
   assert.deepEqual(await fetchPersonaExecution("x"), { ok: false, reason: "personas_bad_response", retryable: true });
 });
+
+test("execute with _projectId: 404 project_not_found and 403 project_outside_persona_workspace are the project's codes", async () => {
+  paired();
+  const withProject: GigAssignment = { ...ASSIGNMENT, workdir: "/gigs/security/x", _projectId: "proj-1" };
+  let seen: RequestInit | null = null;
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    seen = init;
+    return json({ success: false, error: "project_not_found" }, 404);
+  }) as typeof fetch;
+  assert.deepEqual(await executePersonaForGig("p1", withProject), { ok: false, reason: "personas_project_not_found", status: 404 });
+  const sent = JSON.parse(String(seen!.body)) as { input_data: GigAssignment };
+  assert.equal(sent.input_data._projectId, "proj-1", "_projectId rides input_data as a top-level string");
+  assert.equal(sent.input_data.workdir, "/gigs/security/x");
+
+  globalThis.fetch = (async () => json({ success: false, error: "project_outside_persona_workspace" }, 403)) as typeof fetch;
+  assert.deepEqual(await executePersonaForGig("p1", withProject), { ok: false, reason: "personas_project_outside_workspace", status: 403 });
+
+  // A 404/403 that does not name the project keeps its ordinary meaning.
+  globalThis.fetch = (async () => json({ success: false, error: "persona not found" }, 404)) as typeof fetch;
+  assert.deepEqual(await executePersonaForGig("p1", withProject), { ok: false, reason: "personas_persona_missing", status: 404 });
+  globalThis.fetch = (async () => json({ success: false, error: "forbidden" }, 403)) as typeof fetch;
+  assert.deepEqual(await executePersonaForGig("p1", withProject), { ok: false, reason: "personas_scope_missing", status: 403 });
+});

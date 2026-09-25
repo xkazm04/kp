@@ -2015,6 +2015,7 @@
     "GIG_SOURCE_REFUSED": "Diese Quelle kann nicht hinzugefügt werden: Ihre Bedingungen oder ihr Host schließen automatisierten Zugriff aus.",
     "GIG_SOURCE_TERMS_CHANGED": "Die Zusammenfassung der Bedingungen dieser Quelle hat sich seit Ihrer Bestätigung geändert. Lesen Sie die aktuellen Bedingungen und bestätigen Sie sie erneut.",
     "GIG_SOURCE_TERMS_REQUIRED": "Lesen und bestätigen Sie die Bedingungen dieser Quelle, bevor Sie sie fortsetzen.",
+    "GIG_WORKSPACE_FAILED": "Der Arbeitsordner des Auftrags oder sein Personas-Projekt konnte nicht vorbereitet werden, daher wurde nichts gesendet. Prüfen Sie die Verbindung zu Personas und versuchen Sie es erneut.",
     "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut."
   },
   "resilience": {
@@ -13028,6 +13029,30 @@
     "later": "Nicht jetzt"
   },
   "gigs": {
+    "workspace": {
+      "title": "Arbeitsbereich",
+      "folder": "Ordner",
+      "notPrepared": "noch nicht vorbereitet",
+      "project": "Personas-Projekt",
+      "linked": "verknüpft",
+      "notLinked": "nicht verknüpft",
+      "notLinkedReason": "nicht verknüpft ({reason})",
+      "prepare": "Arbeitsbereich vorbereiten",
+      "preparing": "Arbeitsbereich wird vorbereitet…",
+      "failed": "Der Arbeitsbereich konnte nicht vorbereitet werden.",
+      "hint": "Der Lauf des Spezialisten arbeitet in diesem Ordner: GIG.md, NOTES.md und deliverable/.",
+      "reason": {
+        "personas_unpaired": "Personas ist nicht gekoppelt",
+        "personas_key_unreadable": "der gespeicherte Personas-Schlüssel ist nicht lesbar",
+        "personas_key_invalid": "der Personas-Schlüssel ist abgelaufen",
+        "personas_scope_missing": "dem Personas-Schlüssel fehlt die Build-Berechtigung",
+        "personas_route_missing": "diese Personas-Version unterstützt keine Projekte",
+        "personas_unreachable": "Personas antwortet nicht",
+        "personas_project_conflict": "der Ordner ist in einem anderen Personas-Arbeitsbereich registriert",
+        "personas_workspace_not_found": "der Personas-Arbeitsbereich dieser Arena existiert nicht mehr",
+        "personas_bad_path": "Personas hat den Ordnerpfad abgelehnt"
+      }
+    },
     "eyebrow": "Bezahlte Arbeit",
     "title": "Aufträge",
     "inDevelopment": "In Entwicklung",

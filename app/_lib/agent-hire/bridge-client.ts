@@ -278,6 +278,11 @@ export type DispatchPassthrough = {
   simulation?: boolean;
   /** The Personas persona that asked for this role, when a persona did. */
   originPersonaId?: string;
+  /** File the hired persona into this Personas workspace (`POST /api/dev/workspaces`
+   *  minted it). A gig specialist is placed in its arena's workspace
+   *  (gigs/project.ts). Sent only when set; a Personas build that predates placement
+   *  ignores the key and files the persona where it always has. */
+  placement?: { workspaceId: string };
 };
 
 export async function dispatchPersonaRequest(
@@ -308,6 +313,7 @@ export async function dispatchPersonaRequest(
         // absent one as false since it shipped.
         ...(passthrough?.simulation ? { simulation: true } : {}),
         ...(passthrough?.originPersonaId ? { originPersonaId: passthrough.originPersonaId } : {}),
+        ...(passthrough?.placement?.workspaceId ? { placement: { workspaceId: passthrough.placement.workspaceId } } : {}),
       }),
       redirect: "manual",
       signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),

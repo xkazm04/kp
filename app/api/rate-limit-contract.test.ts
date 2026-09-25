@@ -2233,6 +2233,15 @@ const ROUTES: RouteSpec[] = [
     expensive: "researchGig(ws",
   },
   {
+    // Preparing a gig's workspace: disk writes under the gigs root plus up to two calls to
+    // the local Personas app. 20/10min per IP, the research door's budget.
+    rel: "./gigs/[id]/workspace/route.ts",
+    key: "`gigs-workspace:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "prepareGigProject(ws",
+  },
+  {
     // The registry lander's stamp: one UPDATE batch per landing commit.
     rel: "./gigs/lessons/route.ts",
     key: "`gigs-lessons-land:${clientIpFrom(request.headers)}`",

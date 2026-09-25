@@ -66,6 +66,9 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
       const extra = { revisionRecorded: true, attempt: res.attempt, gig: res.gig };
       if (d.code === "GIG_DISPATCH_FAILED") return jsonRefusal("GIG_DISPATCH_FAILED", 502, { ...extra, reason: d.reason, newAttempt: d.attempt });
       if (d.code === "GIG_NOT_FOUND") return jsonRefusal("GIG_NOT_FOUND", 404, extra);
+      if (d.code === "GIG_WORKSPACE_FAILED") {
+        return jsonRefusal("GIG_WORKSPACE_FAILED", d.detail.startsWith("personas_") ? 502 : 500, { ...extra, detail: d.detail });
+      }
       return jsonRefusal(d.code, 409, d.detail ? { ...extra, detail: d.detail } : extra);
     }
     return NextResponse.json({

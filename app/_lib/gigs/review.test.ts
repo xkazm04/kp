@@ -23,6 +23,13 @@ function transport(): { deps: DispatchGigDeps; calls: GigAssignment[] } {
         calls.push(assignment);
         return { ok: true, executionId: `exec-${calls.length}` };
       },
+      // The workspace step, linked, without disk or Personas (project.test.ts covers it).
+      prepareProject: async (workspaceId, gigId) => {
+        const gig = getGig(workspaceId, gigId);
+        return gig
+          ? { ok: true, gig, workdir: `/gigs/${gigId}`, created: [], personas: { linked: true, projectId: `proj-${gigId}`, workspaceId: "pws", created: false } }
+          : { ok: false, code: "GIG_NOT_FOUND" };
+      },
     },
   };
 }

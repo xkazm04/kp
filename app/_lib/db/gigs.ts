@@ -51,6 +51,9 @@ type GigRow = {
   /** Added by ALTER (core.ts): NULL on every row until the gig is researched. */
   brief_json?: string | null;
   brief_at?: string | null;
+  /** Added by ALTER (core.ts): NULL until the gig's workspace is prepared (gigs/project.ts). */
+  workdir?: string | null;
+  personas_project_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -84,6 +87,8 @@ function gigFromRow(row: GigRow): Gig {
     specialistId: row.specialist_id,
     qualification: qualification && typeof qualification === "object" ? qualification : null,
     brief: briefFromJson(row.brief_json ?? null, row.id),
+    workdir: row.workdir ?? null,
+    personasProjectId: row.personas_project_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -465,6 +470,30 @@ export function setGigBrief(workspaceId: string, id: string, brief: GigBrief): G
   const res = ensureDb()
     .prepare(`UPDATE gigs SET brief_json = ?, brief_at = ? WHERE id = ? AND workspace_id = ?`)
     .run(JSON.stringify(brief), brief.createdAt, id, workspaceId);
+  return res.changes > 0 ? getGig(workspaceId, id) : null;
+}
+
+// ---------------------------------------------------------------------------
+// The gig's workspace (gigs/workdir.ts + gigs/project.ts)
+// ---------------------------------------------------------------------------
+
+/** Record the gig's folder and, when Personas registered it, the project rooted there.
+ *  `personasProjectId: undefined` leaves the stored id alone (Personas unreachable says
+ *  nothing about whether the project it registered earlier still exists); `null` clears it.
+ *  Like the brief, this annotates the listing: `updated_at` (the desk's sort key) is NOT
+ *  touched. Null when the gig is not in this workspace. */
+export function setGigWorkspace(
+  workspaceId: string,
+  id: string,
+  place: { workdir: string; personasProjectId?: string | null }
+): Gig | null {
+  const d = ensureDb();
+  const res =
+    place.personasProjectId === undefined
+      ? d.prepare(`UPDATE gigs SET workdir = ? WHERE id = ? AND workspace_id = ?`).run(place.workdir, id, workspaceId)
+      : d
+          .prepare(`UPDATE gigs SET workdir = ?, personas_project_id = ? WHERE id = ? AND workspace_id = ?`)
+          .run(place.workdir, place.personasProjectId, id, workspaceId);
   return res.changes > 0 ? getGig(workspaceId, id) : null;
 }
 

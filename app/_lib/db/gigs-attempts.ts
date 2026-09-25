@@ -62,6 +62,9 @@ export type CreateGigAttemptInput = {
   specialistId: string;
   /** The operator's note when this attempt answers a revision request. */
   revisionNote: string | null;
+  /** A degrade known at dispatch (e.g. `personas_route_missing`: the run is not bound to the
+   *  gig's folder). Absent/null for an ordinary dispatch. */
+  fallbackReason?: string | null;
 };
 
 /** A new attempt, status `dispatched`. Null when the gig is not in this workspace - the
@@ -75,14 +78,15 @@ export function createGigAttempt(workspaceId: string, input: CreateGigAttemptInp
     if (!gig) return false;
     const now = new Date().toISOString();
     d.prepare(
-      `INSERT INTO gig_attempts (id, workspace_id, gig_id, specialist_id, status, revision_note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'dispatched', ?, ?, ?)`
+      `INSERT INTO gig_attempts (id, workspace_id, gig_id, specialist_id, status, revision_note, fallback_reason, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'dispatched', ?, ?, ?, ?)`
     ).run(
       id,
       workspaceId,
       input.gigId,
       input.specialistId,
       input.revisionNote?.trim() ? input.revisionNote.trim().slice(0, 4000) : null,
+      input.fallbackReason?.trim() ? input.fallbackReason.trim().slice(0, 120) : null,
       now,
       now
     );

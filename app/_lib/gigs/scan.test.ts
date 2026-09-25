@@ -116,6 +116,8 @@ function harness(sources: GigSource[], adapters: Partial<Record<string, GigAdapt
         specialistId: null,
         qualification: null,
         brief: null,
+        workdir: null,
+        personasProjectId: null,
         createdAt: "2026-09-24T00:00:00.000Z",
         updatedAt: "2026-09-24T00:00:00.000Z",
       };

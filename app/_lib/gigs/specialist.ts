@@ -7,6 +7,8 @@ import { createGigSpecialist, listGigSpecialists } from "../db/gigs-specialists"
 import { publicBaseUrl } from "../public-base-url";
 import { ROLE_FAMILY_SLUGS } from "../role-families";
 import { GIG_CHECKLISTS, GIG_CHECKLIST_MEANING } from "./checklists";
+import type { ensurePersonasWorkspace, PersonasPlaceFailureReason } from "./personas-places";
+import { ensureGigArenaWorkspace } from "./project";
 import { resolveGigRecipes, type ResolvedGigRecipe, type ResolvedGigRecipes } from "./recipes";
 import { GIG_ARENA_CONNECTORS, GIG_ARENA_LABEL, GIG_DEFAULT_BUDGET_USD, GIG_DEFAULT_FAMILY } from "./specialist-defaults";
 import {
@@ -45,7 +47,9 @@ import {
 // arrives per attempt as `bodyUntrusted` inside the assignment (dispatch.ts), and the
 // prompt tells the specialist to treat it as data.
 
-export const GIG_SPECIALIST_PROMPT_VERSION = "gig-specialist.v1";
+// v2 (2026-09-25): the "Working directory" section - the run executes inside the gig's own
+// folder (gigs/workdir.ts), GIG.md first, NOTES.md as the log, deliverable/ for the client.
+export const GIG_SPECIALIST_PROMPT_VERSION = "gig-specialist.v2";
 
 /** The hired_agents job_title prefix that marks a gig specialist on the roster. */
 export const GIG_SPECIALIST_JOB_TITLE_PREFIX = "Gig specialist";
@@ -147,6 +151,14 @@ export function gigSpecialistSystemPrompt(spec: GigSpecialistSpec, recipes: read
     "- Always include the AI-use disclosure sentence in `disclosure` and in the text that goes out.",
     "- Stay inside the assignment's `budgetUsd`. Answer a revision request (`revisionNote`) directly before anything else.",
     "",
+    "## Working directory",
+    "- The run executes inside the gig's own folder (the assignment's `workdir`). It holds this gig's files and nothing else.",
+    "- Read `GIG.md` first: the gig's facts, the research brief, and the listing fenced as untrusted text.",
+    "- Keep your process log in `NOTES.md`, under its headings (Restatement, Assumptions and defaults, Decisions, Verification, Lesson candidates).",
+    "- Put every file meant for the client under `deliverable/`.",
+    "- Never read or write outside the working directory.",
+    "- List each deliverable file in `artifacts` as kind `file`, with `ref` the path relative to the working directory (e.g. `deliverable/proposal.md`).",
+    "",
     "## Craft (adopted recipes)",
     ...recipes.map(recipeSection),
     "",
@@ -174,8 +186,17 @@ export function specialistDispatchSpec(spec: GigSpecialistSpec, recipes: readonl
   };
 }
 
+/** Where a new hire was filed in Personas: its arena's workspace, or nowhere (with why). A
+ *  reused specialist reports null/null - it was filed when it was hired. */
+export type GigHirePlacement = {
+  placement: { workspaceId: string } | null;
+  /** Why the hire went out WITHOUT a placement (e.g. `personas_route_missing` on an older
+   *  Personas). Never blocks the hire. */
+  placementSkipped: PersonasPlaceFailureReason | null;
+};
+
 export type HireGigSpecialistResult =
-  | { ok: true; specialist: GigSpecialist; hiredAgentId: string; requestId: string | null; reused: boolean }
+  | ({ ok: true; specialist: GigSpecialist; hiredAgentId: string; requestId: string | null; reused: boolean } & GigHirePlacement)
   | { ok: false; status: number; code: string; error: string; hiredAgentId: string | null };
 
 /** The request mintAndDispatch reads for its per-IP limiter and kp's public base URL,
@@ -193,7 +214,8 @@ function syntheticRequest(): NextRequest {
 export async function hireGigSpecialist(
   workspaceId: string,
   input: ComposeGigSpecialistInput,
-  req?: NextRequest
+  req?: NextRequest,
+  deps: { ensureWorkspace?: typeof ensurePersonasWorkspace } = {}
 ): Promise<HireGigSpecialistResult> {
   const niche = cleanNiche(input.niche);
   const existing = listGigSpecialists(workspaceId).find(
@@ -202,13 +224,26 @@ export async function hireGigSpecialist(
   if (existing) {
     const agent = getHiredAgent(existing.hiredAgentId, workspaceId);
     if (agent && ACTIVE_AGENT_STATUSES.includes(agent.status)) {
-      return { ok: true, specialist: existing, hiredAgentId: agent.id, requestId: agent.requestId, reused: true };
+      return {
+        ok: true,
+        specialist: existing,
+        hiredAgentId: agent.id,
+        requestId: agent.requestId,
+        reused: true,
+        placement: null,
+        placementSkipped: null,
+      };
     }
   }
 
   const resolved = resolveGigRecipes(input.arena);
   const spec = composeGigSpecialistSpec({ ...input, niche }, resolved);
   const dispatchSpec = specialistDispatchSpec(spec, resolved.recipes);
+  // File the hire into its arena's Personas workspace (project.ts). Any failure - an older
+  // Personas without the route above all - hires WITHOUT a placement and says so: the
+  // workspace is housekeeping, the hire is the point.
+  const arenaWs = await ensureGigArenaWorkspace(spec.arena, deps.ensureWorkspace);
+  const placement = arenaWs.ok ? { workspaceId: arenaWs.id } : null;
   const res = await mintAndDispatch(req ?? syntheticRequest(), workspaceId, {
     jobId: "",
     jobTitle: `${GIG_SPECIALIST_JOB_TITLE_PREFIX} - ${dispatchSpec.name}`,
@@ -217,6 +252,7 @@ export async function hireGigSpecialist(
     fit: { kind: "kp.gig-specialist.v1", arena: spec.arena, niche: spec.niche, recipes: spec.recipes },
     metrics: [],
     budgetUsd: dispatchSpec.maxBudgetUsd,
+    ...(placement ? { passthrough: { placement } } : {}),
   });
   const body = (await res.json().catch(() => null)) as {
     hiredAgentId?: unknown;
@@ -246,5 +282,7 @@ export async function hireGigSpecialist(
     hiredAgentId,
     requestId: typeof body?.requestId === "string" ? body.requestId : null,
     reused: false,
+    placement,
+    placementSkipped: arenaWs.ok ? null : arenaWs.reason,
   };
 }

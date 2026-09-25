@@ -2036,6 +2036,10 @@ export const REFUSAL_ERRORS = {
   /** Resuming a tier-B source whose terms were never acknowledged, or were acknowledged
    *  under an older summary (409, with `termsHash`). */
   GIG_SOURCE_TERMS_REQUIRED: "Read and acknowledge this source’s terms before resuming it.",
+  /** The gig's workspace could not be prepared (gigs/project.ts): its folder could not be
+   *  made (500), or Personas refused or could not be reached to register the gig's project
+   *  (502). `detail` is the reason code. A dispatch refused this way claimed nothing. */
+  GIG_WORKSPACE_FAILED: "The gig’s working folder or its Personas project could not be prepared, so nothing was sent. Check the Personas connection and try again.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

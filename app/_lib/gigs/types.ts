@@ -258,6 +258,12 @@ export type Gig = {
   qualification: GigQualification | null;
   /** The research brief (links read + the readable Markdown); null until researched. */
   brief: GigBrief | null;
+  /** The gig's own folder on disk (gigs/workdir.ts): absolute, under the gigs root.
+   *  Null until its workspace is first prepared. */
+  workdir: string | null;
+  /** The Personas project rooted at `workdir` (gigs/project.ts); null until Personas
+   *  registered it (unpaired, unreachable, or a build without the project route). */
+  personasProjectId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -349,6 +355,15 @@ export type GigAssignment = {
   revisionNote: string | null;
   budgetUsd: number;
   deliverableContract: typeof GIG_DELIVERABLE_CONTRACT;
+  /** The gig's own folder (gigs/workdir.ts), absolute. The run's working directory when
+   *  `_projectId` is present; otherwise where the gig's files are, for reference. Absent
+   *  when the folder could not be prepared. */
+  workdir?: string;
+  /** The Personas project rooted at `workdir`. Personas reads `input_data._projectId`
+   *  (a top-level string) and binds the run's cwd to that project's root. Absent when the
+   *  Personas build has no project route (`personas_route_missing`), so the run executes
+   *  where Personas always ran it. */
+  _projectId?: string;
 };
 
 export const GIG_ARTIFACT_KINDS = ["text", "pr", "file", "submission", "report"] as const;

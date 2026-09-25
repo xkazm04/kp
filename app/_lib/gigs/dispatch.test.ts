@@ -7,6 +7,7 @@ import type { Gig, GigAssignment, GigSpecialist } from "./types.ts";
 import { GIG_DELIVERABLE_CONTRACT, GIG_DISCLOSURE_ITEM } from "./types.ts";
 import { buildGigAssignment, dispatchGigAttempt, type DispatchGigDeps } from "./dispatch.ts";
 import type { ExecutePersonaResult } from "./personas-exec.ts";
+import type { PrepareGigProjectResult } from "./project.ts";
 import { getGig, transitionGig, upsertGigFromRaw } from "../db/gigs.ts";
 import { createGigSpecialist } from "../db/gigs-specialists.ts";
 import { getGigAttempt, listGigAttemptsForGig, setGigAttemptExecutionId, transitionGigAttempt } from "../db/gigs-attempts.ts";
@@ -64,7 +65,23 @@ function qualified(gig: Gig, spec: GigSpecialist): Gig {
   return r.ok ? r.gig : gig;
 }
 
-function transport(result: ExecutePersonaResult): { deps: DispatchGigDeps; calls: { personaId: string; assignment: GigAssignment }[] } {
+/** The workspace step as a linked project, without touching disk or Personas. */
+function linkedProject(workspaceId: string, gigId: string): Promise<PrepareGigProjectResult> {
+  const gig = getGig(workspaceId, gigId);
+  if (!gig) return Promise.resolve({ ok: false, code: "GIG_NOT_FOUND" });
+  return Promise.resolve({
+    ok: true,
+    gig,
+    workdir: `/gigs/${gig.arena}/${gig.id}`,
+    created: [],
+    personas: { linked: true, projectId: `proj-${gig.id}`, workspaceId: "pws-arena", created: false },
+  });
+}
+
+function transport(
+  result: ExecutePersonaResult,
+  prepareProject: DispatchGigDeps["prepareProject"] = linkedProject
+): { deps: DispatchGigDeps; calls: { personaId: string; assignment: GigAssignment }[] } {
   const calls: { personaId: string; assignment: GigAssignment }[] = [];
   return {
     calls,
@@ -73,6 +90,7 @@ function transport(result: ExecutePersonaResult): { deps: DispatchGigDeps; calls
         calls.push({ personaId, assignment });
         return result;
       },
+      prepareProject,
     },
   };
 }
@@ -101,6 +119,74 @@ test("success: claims the gig, creates the attempt, POSTs the assignment and sta
   assert.ok(assignment.checklist.includes(GIG_DISCLOSURE_ITEM));
   assert.deepEqual(assignment.recipes, [{ slug: "open-source-bounty-contribution", version: "0.1.0" }]);
   assert.equal(assignment.revisionNote, null);
+  assert.equal(assignment.workdir, `/gigs/oss_bounty/${gig.id}`, "the gig's folder rides the assignment");
+  assert.equal(assignment._projectId, `proj-${gig.id}`, "Personas binds the run's cwd to this project");
+  assert.equal(r.attempt.fallbackReason, null);
+});
+
+test("an older Personas without the project route: dispatches with the folder but no _projectId, and the attempt says so", async () => {
+  const spec = specialist("oss_bounty", "active", "persona-old-build");
+  const gig = qualified(newGig(), spec);
+  const t = transport({ ok: true, executionId: "exec-nr" }, async (ws, id) => {
+    const linked = await linkedProject(ws, id);
+    return linked.ok ? { ...linked, personas: { linked: false, reason: "personas_route_missing" } } : linked;
+  });
+  const r = await dispatchGigAttempt(WS, gig.id, {}, t.deps);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const { assignment } = t.calls[0]!;
+  assert.equal(assignment.workdir, `/gigs/oss_bounty/${gig.id}`);
+  assert.equal("_projectId" in assignment, false, "absent, never null");
+  assert.equal(r.attempt.fallbackReason, "personas_route_missing");
+  assert.equal(getGigAttempt(WS, r.attempt.id)!.fallbackReason, "personas_route_missing");
+});
+
+test("any other workspace failure refuses GIG_WORKSPACE_FAILED before the claim: nothing moves, nothing is sent", async () => {
+  const spec = specialist("oss_bounty", "active", "persona-ws-fail");
+  for (const [label, prepare, detail] of [
+    [
+      "Personas unpaired",
+      async (ws: string, id: string): Promise<PrepareGigProjectResult> => {
+        const linked = await linkedProject(ws, id);
+        return linked.ok ? { ...linked, personas: { linked: false, reason: "personas_unpaired" } } : linked;
+      },
+      "personas_unpaired",
+    ],
+    [
+      "a project conflict",
+      async (ws: string, id: string): Promise<PrepareGigProjectResult> => {
+        const linked = await linkedProject(ws, id);
+        return linked.ok ? { ...linked, personas: { linked: false, reason: "personas_project_conflict" } } : linked;
+      },
+      "personas_project_conflict",
+    ],
+    ["a folder that cannot be made", async (): Promise<PrepareGigProjectResult> => ({ ok: false, code: "GIG_WORKSPACE_FAILED", reason: "workdir_io_error" }), "workdir_io_error"],
+    [
+      "a throwing prepare",
+      async (): Promise<PrepareGigProjectResult> => {
+        throw new Error("disk on fire");
+      },
+      "workdir_io_error",
+    ],
+  ] as const) {
+    const gig = qualified(newGig(), spec);
+    const t = transport({ ok: true, executionId: "never" }, prepare);
+    const r = await dispatchGigAttempt(WS, gig.id, {}, t.deps);
+    assert.ok(!r.ok && r.code === "GIG_WORKSPACE_FAILED", label);
+    if (!r.ok && r.code === "GIG_WORKSPACE_FAILED") assert.equal(r.detail, detail, label);
+    assert.equal(t.calls.length, 0, `${label}: Personas is not asked to run`);
+    assert.equal(getGig(WS, gig.id)!.status, "qualified", `${label}: the gig is not claimed`);
+    assert.deepEqual(listGigAttemptsForGig(WS, gig.id), [], `${label}: no attempt is minted`);
+  }
+});
+
+test("Personas refusing the project at execute (404 project_not_found) fails the attempt and reverts the gig", async () => {
+  const spec = specialist("oss_bounty", "active", "persona-proj-gone");
+  const gig = qualified(newGig(), spec);
+  const r = await dispatchGigAttempt(WS, gig.id, {}, transport({ ok: false, reason: "personas_project_not_found", status: 404 }).deps);
+  assert.ok(!r.ok && r.code === "GIG_DISPATCH_FAILED" && r.reason === "personas_project_not_found");
+  if (!r.ok && r.code === "GIG_DISPATCH_FAILED") assert.equal(r.attempt?.fallbackReason, "personas_project_not_found");
+  assert.equal(getGig(WS, gig.id)!.status, "qualified");
 });
 
 test("refuses a suspect gig with GIG_SUSPECT and writes nothing", async () => {
@@ -169,6 +255,7 @@ test("a throwing transport is a failed attempt, not a thrown dispatch", async ()
     executePersona: async () => {
       throw new Error("socket hang up");
     },
+    prepareProject: linkedProject,
   });
   assert.ok(!r.ok && r.code === "GIG_DISPATCH_FAILED" && r.reason === "personas_unreachable");
   assert.equal(getGig(WS, gig.id)!.status, "qualified");

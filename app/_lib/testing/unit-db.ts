@@ -127,6 +127,11 @@ process.env.KP_DB_PATH = path.join(UNIT_DB_DIR, "kp.sqlite");
 /** The isolated SQLite file every store in this process opens. */
 export const UNIT_DB_PATH = process.env.KP_DB_PATH;
 
+// Gig folders (gigs/workdir.ts) land in this run's temp dir, never in the sibling `../gigs`
+// a developer's real gig work lives in - whatever the shell exported. A test that wants a
+// specific root sets KP_GIGS_ROOT itself after this import.
+process.env.KP_GIGS_ROOT = path.join(UNIT_DB_DIR, "gigs");
+
 // Boot the late-bound seams exactly as instrumentation-node.ts does at server start: the
 // heavy task runners (task-external-runners.ts) and the stage hook's interview-invite
 // door (stage-hooks-invite.ts). Without this, a store test that queues an interview

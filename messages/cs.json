@@ -2015,6 +2015,7 @@
     "GIG_SOURCE_REFUSED": "Tento zdroj nelze přidat: jeho podmínky nebo hostitel automatizovaný přístup vylučují.",
     "GIG_SOURCE_TERMS_CHANGED": "Shrnutí podmínek tohoto zdroje se od vašeho potvrzení změnilo. Přečtěte si aktuální podmínky a potvrďte je znovu.",
     "GIG_SOURCE_TERMS_REQUIRED": "Než tento zdroj znovu spustíte, přečtěte si jeho podmínky a potvrďte je.",
+    "GIG_WORKSPACE_FAILED": "Pracovní složku zakázky nebo její projekt v Personas se nepodařilo připravit, a tak se nic neodeslalo. Zkontrolujte připojení k Personas a zkuste to znovu.",
     "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu."
   },
   "resilience": {
@@ -13028,6 +13029,30 @@
     "later": "Teď ne"
   },
   "gigs": {
+    "workspace": {
+      "title": "Pracovní prostor",
+      "folder": "Složka",
+      "notPrepared": "zatím nepřipravena",
+      "project": "Projekt v Personas",
+      "linked": "propojen",
+      "notLinked": "nepropojen",
+      "notLinkedReason": "nepropojen ({reason})",
+      "prepare": "Připravit pracovní prostor",
+      "preparing": "Připravuji pracovní prostor…",
+      "failed": "Pracovní prostor se nepodařilo připravit.",
+      "hint": "Specialista pracuje uvnitř této složky: GIG.md, NOTES.md a deliverable/.",
+      "reason": {
+        "personas_unpaired": "Personas není spárováno",
+        "personas_key_unreadable": "uložený klíč k Personas nelze přečíst",
+        "personas_key_invalid": "klíči k Personas vypršela platnost",
+        "personas_scope_missing": "klíč k Personas nemá oprávnění k sestavení",
+        "personas_route_missing": "tato verze Personas projekty nepodporuje",
+        "personas_unreachable": "Personas neodpovídá",
+        "personas_project_conflict": "složka je registrovaná v jiném pracovním prostoru Personas",
+        "personas_workspace_not_found": "pracovní prostor této oblasti v Personas už neexistuje",
+        "personas_bad_path": "Personas cestu ke složce odmítlo"
+      }
+    },
     "eyebrow": "Placená práce",
     "title": "Zakázky",
     "inDevelopment": "Ve vývoji",

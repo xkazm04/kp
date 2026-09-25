@@ -50,7 +50,7 @@ test("compose: arena defaults for connectors, family, budget; recipes pinned fro
     assert.equal(spec.budgetUsdPerAttempt, GIG_DEFAULT_BUDGET_USD[arena]);
     assert.deepEqual(spec.recipes.map((r) => r.slug), gigRecipeSlugs(arena));
     assert.deepEqual(spec.exemplars, []);
-    assert.equal(spec.promptVersion, "gig-specialist.v1");
+    assert.equal(spec.promptVersion, "gig-specialist.v2");
   }
   assert.deepEqual(GIG_ARENA_CONNECTORS.security, ["research", "source_control"]);
   assert.deepEqual(GIG_ARENA_CONNECTORS.competition, ["research", "ai"]);
@@ -107,7 +107,12 @@ test("hire: mints through mintAndDispatch with jobId '' and a gig jobTitle, then
   process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
   process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
   const bodies: unknown[] = [];
-  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+  const workspaceCalls: unknown[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).endsWith("/api/dev/workspaces")) {
+      workspaceCalls.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ success: true, data: { id: "pws-comp", name: "Competitions", groupTeamId: "gt-1", created: true } }), { status: 200 });
+    }
     bodies.push(JSON.parse(String(init.body)));
     return new Response(JSON.stringify({ requestId: "pr-gig-1" }), { status: 200, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
@@ -130,16 +135,70 @@ test("hire: mints through mintAndDispatch with jobId '' and a gig jobTitle, then
   assert.equal(agent.status, "pending_approval");
   assert.equal(getActiveHiredAgentForJob("", ws), null, "an empty job id never matches the job idempotency read");
 
-  const sent = bodies[0] as { kp: { jobId: string }; spec: { name: string; systemPromptDraft: string }; appMaster?: unknown };
+  const sent = bodies[0] as {
+    kp: { jobId: string };
+    spec: { name: string; systemPromptDraft: string };
+    appMaster?: unknown;
+    placement?: { workspaceId: string };
+  };
   assert.equal(sent.kp.jobId, "");
   assert.equal(sent.spec.name, "Competition specialist - tabular");
   assert.equal(sent.appMaster, undefined);
+  // Filed into the arena's Personas workspace, ensured first.
+  assert.deepEqual(workspaceCalls[0], { name: "Competitions", description: (workspaceCalls[0] as { description: string }).description });
+  assert.match((workspaceCalls[0] as { description: string }).description, /Gigs module/);
+  assert.deepEqual(sent.placement, { workspaceId: "pws-comp" });
+  assert.deepEqual(r.placement, { workspaceId: "pws-comp" });
+  assert.equal(r.placementSkipped, null);
 
   // Same arena + niche while the hire is live: reused, Personas not asked again.
   const again = await hireGigSpecialist(ws, { arena: "competition", niche: "Tabular" });
   assert.ok(again.ok && again.reused && again.specialist.id === r.specialist.id);
   assert.equal(bodies.length, 1);
   assert.equal(listGigSpecialists(ws).length, 1);
+});
+
+test("hire: an older Personas without the workspace route hires WITHOUT a placement and says so", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  const bodies: Record<string, unknown>[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).endsWith("/api/dev/workspaces")) return new Response("Not Found", { status: 404 });
+    bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+    return new Response(JSON.stringify({ requestId: "pr-gig-old" }), { status: 200 });
+  }) as typeof fetch;
+  const r = await hireGigSpecialist("ws-gig-hire-old", { arena: "freelance", niche: "copywriting" });
+  assert.ok(r.ok, "the hire is never blocked on the workspace");
+  if (!r.ok) return;
+  assert.equal(r.placement, null);
+  assert.equal(r.placementSkipped, "personas_route_missing");
+  assert.equal(bodies.length, 1);
+  assert.equal("placement" in bodies[0]!, false, "no placement key on the wire");
+});
+
+test("hire: an injected workspace step that throws still hires, unplaced", async () => {
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  globalThis.fetch = (async () => new Response(JSON.stringify({ requestId: "pr-gig-throw" }), { status: 200 })) as typeof fetch;
+  const r = await hireGigSpecialist("ws-gig-hire-throw", { arena: "security", niche: "api" }, undefined, {
+    ensureWorkspace: async () => {
+      throw new Error("boom");
+    },
+  });
+  assert.ok(r.ok && r.placement === null && r.placementSkipped === "personas_unreachable");
+});
+
+test("the prompt's Working directory section: GIG.md first, NOTES.md, deliverable/, never outside, file artifacts relative", () => {
+  const resolved = seeded("freelance");
+  const spec = composeGigSpecialistSpec({ arena: "freelance", niche: "copy" }, resolved);
+  const p = specialistDispatchSpec(spec, resolved.recipes).systemPromptDraft;
+  assert.match(p, /## Working directory/);
+  assert.match(p, /Read `GIG\.md` first/);
+  assert.match(p, /`NOTES\.md`/);
+  assert.match(p, /under `deliverable\/`/);
+  assert.match(p, /Never read or write outside the working directory/);
+  assert.match(p, /kind `file`, with `ref` the path relative to the working directory/);
+  assert.equal(spec.promptVersion, "gig-specialist.v2");
 });
 
 test("hire: a failed dispatch records no specialist and reports the bridge's code", async () => {

@@ -94,6 +94,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         specialist: { ...res.specialist, hire: hireOf(getHiredAgent(res.hiredAgentId, ws)) },
         requestId: res.requestId,
         reused: res.reused,
+        // Where the hire was filed in Personas (its arena's workspace), or why it was not.
+        placement: res.placement,
+        placementSkipped: res.placementSkipped,
       },
       { status: res.reused ? 200 : 201 }
     );

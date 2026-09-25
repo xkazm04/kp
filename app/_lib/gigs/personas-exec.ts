@@ -43,6 +43,8 @@ export type ExecuteFailureReason =
   | "personas_unreachable"
   | "personas_response_too_large"
   | "personas_no_execution_id"
+  | "personas_project_not_found"
+  | "personas_project_outside_workspace"
   | `personas_http_${number}`;
 
 export type ExecutePersonaResult = { ok: true; executionId: string } | { ok: false; reason: ExecuteFailureReason; status?: number };
@@ -117,6 +119,12 @@ export async function executePersonaForGig(personaId: string, assignment: GigAss
       signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
     if (isRedirectResponse(r)) return { ok: false, reason: "personas_redirect" };
+    // With `_projectId` in the assignment (gigs/project.ts), a 404 or 403 can name the
+    // PROJECT rather than the persona or the key: the body says which.
+    if (r.status === 404 || r.status === 403) {
+      const projectReason = assignment._projectId ? await projectRefusal(r) : null;
+      if (projectReason) return { ok: false, reason: projectReason, status: r.status };
+    }
     if (r.status === 404) return { ok: false, reason: "personas_persona_missing", status: 404 };
     if (r.status === 400) return { ok: false, reason: "personas_persona_disabled", status: 400 };
     if (!r.ok) return { ok: false, reason: statusReason(r.status), status: r.status };
@@ -132,6 +140,16 @@ export async function executePersonaForGig(personaId: string, assignment: GigAss
     // a reason; the error text (a stack-bearing undici message) is not the operator's.
     return { ok: false, reason: transportReason() };
   }
+}
+
+/** `project_not_found` (404) and `project_outside_persona_workspace` (403) are Personas'
+ *  words for a `_projectId` it will not bind; anything else is the ordinary status map. */
+async function projectRefusal(r: Response): Promise<"personas_project_not_found" | "personas_project_outside_workspace" | null> {
+  const read = await readBridgeJson<unknown>(r);
+  const text = read.ok ? JSON.stringify(read.value ?? "").toLowerCase() : "";
+  if (text.includes("project_outside_persona_workspace")) return "personas_project_outside_workspace";
+  if (text.includes("project_not_found")) return "personas_project_not_found";
+  return null;
 }
 
 function finiteCost(v: unknown): number | null {

@@ -2361,6 +2361,12 @@ export function ensureDb(): Database.Database {
     // gig is researched - "not researched", never an empty brief.
     "ALTER TABLE gigs ADD COLUMN brief_json TEXT",
     "ALTER TABLE gigs ADD COLUMN brief_at TEXT",
+    // A gig's own folder on disk (gigs/workdir.ts) and the Personas project rooted there
+    // (gigs/project.ts, docs/features/gigs/README.md "Workspaces and projects"). NULL until
+    // the workspace is first prepared; the project id stays NULL while Personas is unpaired,
+    // unreachable or predates the project route.
+    "ALTER TABLE gigs ADD COLUMN workdir TEXT",
+    "ALTER TABLE gigs ADD COLUMN personas_project_id TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

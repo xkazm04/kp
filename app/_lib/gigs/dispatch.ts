@@ -5,6 +5,7 @@ import { createGigAttempt, setGigAttemptExecutionId, transitionGigAttempt } from
 import { findGigSpecialistForArena, getGigSpecialist } from "../db/gigs-specialists";
 import { gigChecklist } from "./checklists";
 import { executePersonaForGig, type ExecutePersonaResult } from "./personas-exec";
+import { prepareGigProject, type PrepareGigProjectResult } from "./project";
 import { GIG_DEFAULT_BUDGET_USD } from "./specialist-defaults";
 import {
   GIG_DELIVERABLE_CONTRACT,
@@ -20,6 +21,11 @@ import {
 // ORDER, and why it is not "create, POST, then move the gig":
 //   1. cheap refusals (not found, suspect, not dispatchable, specialist not ready) -
 //      nothing written;
+//   1b. PREPARE the gig's workspace (project.ts: its folder, the arena's Personas workspace,
+//      the project rooted at the folder) - network, so outside any transaction, and before
+//      the claim so a refusal here leaves the gig exactly where it was. A Personas build
+//      without the project route dispatches WITHOUT `_projectId` (the attempt records
+//      `personas_route_missing`); any other failure refuses with GIG_WORKSPACE_FAILED;
 //   2. CLAIM the gig: `qualified | drafted | in_review -> dispatched` as a CAS. This is
 //      the serialization point - two operators (or a double-click) racing the same gig
 //      cannot both mint an attempt, because only one CAS lands;
@@ -43,13 +49,25 @@ export type DispatchGigRefusalCode =
 export type DispatchGigAttemptResult =
   | { ok: true; gig: Gig; attempt: GigAttempt; executionId: string }
   | { ok: false; code: DispatchGigRefusalCode; detail?: string }
+  /** The workspace could not be prepared: `detail` is the reason code (workdir_* for the
+   *  folder, personas_* for the project). Nothing was claimed or written but the folder. */
+  | { ok: false; code: "GIG_WORKSPACE_FAILED"; detail: string }
   | { ok: false; code: "GIG_DISPATCH_FAILED"; reason: string; attempt: GigAttempt | null; gig: Gig | null };
 
 export type DispatchGigDeps = {
   executePersona: (personaId: string, assignment: GigAssignment) => Promise<ExecutePersonaResult>;
+  /** Required, not defaulted per call: a test that injects a transport must also say where
+   *  the folder goes, or it would scaffold into the real gigs root. */
+  prepareProject: (workspaceId: string, gigId: string) => Promise<PrepareGigProjectResult>;
 };
 
-const defaultDeps: DispatchGigDeps = { executePersona: executePersonaForGig };
+const defaultDeps: DispatchGigDeps = {
+  executePersona: executePersonaForGig,
+  prepareProject: (workspaceId, gigId) => prepareGigProject(workspaceId, gigId),
+};
+
+/** Where the run executes: the folder always when prepared, the project only when linked. */
+export type GigPlacement = { workdir: string; projectId: string | null };
 
 /** The gig statuses a dispatch may start from: a qualified gig's first attempt, or a
  *  drafted / in-review gig's revision. */
@@ -69,7 +87,7 @@ function specialistFor(workspaceId: string, gig: Gig): GigSpecialist | null {
 }
 
 /** The assignment kp hands Personas as `input_data`. Pure. */
-export function buildGigAssignment(gig: Gig, attempt: GigAttempt, specialist: GigSpecialist): GigAssignment {
+export function buildGigAssignment(gig: Gig, attempt: GigAttempt, specialist: GigSpecialist, place?: GigPlacement): GigAssignment {
   const budget = boundedBudget(specialist.spec.budgetUsdPerAttempt);
   return {
     kind: "kp.gig.v1",
@@ -86,6 +104,9 @@ export function buildGigAssignment(gig: Gig, attempt: GigAttempt, specialist: Gi
     revisionNote: attempt.revisionNote,
     budgetUsd: budget !== null && budget > 0 ? budget : GIG_DEFAULT_BUDGET_USD[gig.arena],
     deliverableContract: GIG_DELIVERABLE_CONTRACT,
+    // Omitted, never null, when absent: Personas reads `_projectId` as "a string or not there".
+    ...(place ? { workdir: place.workdir } : {}),
+    ...(place?.projectId ? { _projectId: place.projectId } : {}),
   };
 }
 
@@ -107,6 +128,24 @@ export async function dispatchGigAttempt(
     return { ok: false, code: "GIG_SPECIALIST_NOT_READY", detail: agent ? `hire_${agent.status}` : "no_hire" };
   }
 
+  // Step 1b - the workspace. Outside any transaction; nothing claimed yet.
+  let prepared: PrepareGigProjectResult;
+  try {
+    prepared = await deps.prepareProject(workspaceId, gigId);
+  } catch {
+    // The default never throws (its fs errors are reason codes); an injected one might.
+    prepared = { ok: false, code: "GIG_WORKSPACE_FAILED", reason: "workdir_io_error" };
+  }
+  if (!prepared.ok) {
+    if (prepared.code === "GIG_NOT_FOUND") return { ok: false, code: "GIG_NOT_FOUND" };
+    return { ok: false, code: "GIG_WORKSPACE_FAILED", detail: prepared.reason };
+  }
+  const link = prepared.personas;
+  if (!link.linked && link.reason !== "personas_route_missing") {
+    return { ok: false, code: "GIG_WORKSPACE_FAILED", detail: link.reason };
+  }
+  const place: GigPlacement = { workdir: prepared.workdir, projectId: link.linked ? link.projectId : null };
+
   // Step 2 - the claim. A stale CAS means another dispatch (or the operator) moved it.
   const claimed = transitionGig(workspaceId, gigId, {
     from: DISPATCHABLE_GIG_STATUSES,
@@ -119,13 +158,16 @@ export async function dispatchGigAttempt(
     gigId,
     specialistId: specialist.id,
     revisionNote: opts.revisionNote ?? null,
+    // An older Personas without the project route: the run executes where Personas always
+    // ran it, and the attempt says so.
+    fallbackReason: link.linked ? null : link.reason,
   });
   if (!attempt) {
     // The gig vanished between the claim and the insert (deleted in another tab).
     return { ok: false, code: "GIG_NOT_FOUND" };
   }
 
-  const assignment = buildGigAssignment(claimed.gig, attempt, specialist);
+  const assignment = buildGigAssignment(claimed.gig, attempt, specialist, place);
   let sent: ExecutePersonaResult;
   try {
     sent = await deps.executePersona(agent.personaId, assignment);
