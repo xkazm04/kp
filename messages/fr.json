@@ -14259,6 +14259,42 @@
     }
   },
   "kit": {
+    "graphic": {
+      "sieve": {
+        "poured": "entrés",
+        "loading": "Lecture du flux…",
+        "error": "Le flux n’a pas pu être lu.",
+        "layerAria": "{label} : {count, number}. Les afficher dans la liste"
+      },
+      "rail": {
+        "label": "Étapes",
+        "tipAbsent": "{label} : {reason}",
+        "tipUnknown": "{label} : pas encore chargé",
+        "tipReached": "{label} : {reached} sur {of} atteint{stopped, plural, =0 {} one {, # arrêté ici} other {, # arrêtés ici}}",
+        "tipPress": "Appuyez pour voir qui s’est arrêté ici.",
+        "none": "aucun",
+        "of": "sur {of}",
+        "stop": "{count, plural, one {# s’arrête ici} other {# s’arrêtent ici}}",
+        "events": "{count, plural, one {# événement} other {# événements}}",
+        "notReached": "non atteint"
+      },
+      "lane": {
+        "nothing": "Rien ne s’est passé ici"
+      },
+      "skyline": {
+        "loading": "Lecture des scores…",
+        "error": "Les scores n’ont pas pu être lus.",
+        "empty": "Rien n’est encore noté",
+        "roledesc": "graphique à sélection de plage",
+        "aria": "{label}. Les flèches gauche et droite déplacent, Maj étend la plage, Entrée ouvre, Échap efface la sélection.",
+        "neverScored": "jamais noté",
+        "nulls": "{count, number} jamais notés · pas zéro",
+        "rankOne": "rang 1",
+        "ranks": "Rangs {from}–{to}",
+        "followed": "sélectionnés · la liste ci-dessous suit",
+        "hint": "Faites glisser sur les barres pour choisir une plage · les flèches déplacent · Maj étend · Entrée ouvre"
+      }
+    },
     "of": "sur {total, number}",
     "absent": "Jamais enregistré",
     "emptyMark": "Rien ici pour l’instant",

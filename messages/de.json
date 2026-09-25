@@ -14259,6 +14259,42 @@
     }
   },
   "kit": {
+    "graphic": {
+      "sieve": {
+        "poured": "eingegangen",
+        "loading": "Fluss wird gelesen…",
+        "error": "Der Fluss konnte nicht gelesen werden.",
+        "layerAria": "{label}: {count, number}. In der Liste zeigen"
+      },
+      "rail": {
+        "label": "Schritte",
+        "tipAbsent": "{label}: {reason}",
+        "tipUnknown": "{label}: noch nicht geladen",
+        "tipReached": "{label}: {reached} von {of} erreicht{stopped, plural, =0 {} one {, # hier stehen geblieben} other {, # hier stehen geblieben}}",
+        "tipPress": "Drücken, um zu zeigen, wer hier stehen blieb.",
+        "none": "keine",
+        "of": "von {of}",
+        "stop": "{count, plural, one {# bleibt hier} other {# bleiben hier}}",
+        "events": "{count, plural, one {# Ereignis} other {# Ereignisse}}",
+        "notReached": "nicht erreicht"
+      },
+      "lane": {
+        "nothing": "Hier ist nichts passiert"
+      },
+      "skyline": {
+        "loading": "Scores werden gelesen…",
+        "error": "Die Scores konnten nicht gelesen werden.",
+        "empty": "Noch nichts bewertet",
+        "roledesc": "Diagramm mit Bereichsauswahl",
+        "aria": "{label}. Pfeiltasten links und rechts bewegen, Umschalt erweitert den Bereich, Eingabe öffnet, Escape hebt die Auswahl auf.",
+        "neverScored": "nie bewertet",
+        "nulls": "{count, number} nie bewertet · nicht null",
+        "rankOne": "Rang 1",
+        "ranks": "Ränge {from}–{to}",
+        "followed": "ausgewählt · die Liste unten folgt",
+        "hint": "Über die Balken ziehen, um einen Bereich zu wählen · Pfeile bewegen · Umschalt erweitert · Eingabe öffnet"
+      }
+    },
     "of": "von {total, number}",
     "absent": "Nie erfasst",
     "emptyMark": "Noch nichts vorhanden",

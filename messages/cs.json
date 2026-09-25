@@ -14259,6 +14259,42 @@
     }
   },
   "kit": {
+    "graphic": {
+      "sieve": {
+        "poured": "vstoupilo",
+        "loading": "Tok se načítá…",
+        "error": "Tok se nepodařilo načíst.",
+        "layerAria": "{label}: {count, number}. Zobrazit je v seznamu"
+      },
+      "rail": {
+        "label": "Kroky",
+        "tipAbsent": "{label}: {reason}",
+        "tipUnknown": "{label}: zatím nenačteno",
+        "tipReached": "{label}: dosáhlo {reached} z {of}{stopped, plural, =0 {} one {, # se zde zastavil} few {, # se zde zastavili} other {, # se zde zastavilo}}",
+        "tipPress": "Stisknutím zobrazíte, kdo se zde zastavil.",
+        "none": "nikdo",
+        "of": "z {of}",
+        "stop": "{count, plural, one {# se zde zastavil} few {# se zde zastavili} other {# se zde zastavilo}}",
+        "events": "{count, plural, one {# událost} few {# události} other {# událostí}}",
+        "notReached": "nedosaženo"
+      },
+      "lane": {
+        "nothing": "Nic se tu nestalo"
+      },
+      "skyline": {
+        "loading": "Skóre se načítá…",
+        "error": "Skóre se nepodařilo načíst.",
+        "empty": "Zatím nic nemá skóre",
+        "roledesc": "graf s výběrem rozsahu",
+        "aria": "{label}. Šipky vlevo a vpravo posouvají, Shift rozšiřuje rozsah, Enter otevírá, Escape výběr zruší.",
+        "neverScored": "bez skóre",
+        "nulls": "{count, number} bez skóre · to není nula",
+        "rankOne": "pořadí 1",
+        "ranks": "Pořadí {from}–{to}",
+        "followed": "vybráno · seznam níže se řídí výběrem",
+        "hint": "Tažením přes sloupce vyberete rozsah · šipky posouvají · Shift rozšiřuje · Enter otevírá"
+      }
+    },
     "of": "z {total, number}",
     "absent": "Nikdy nezaznamenáno",
     "emptyMark": "Zatím tu nic není",

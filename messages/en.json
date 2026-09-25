@@ -14259,6 +14259,42 @@
     }
   },
   "kit": {
+    "graphic": {
+      "sieve": {
+        "poured": "poured in",
+        "loading": "Pouring…",
+        "error": "The flow could not be read.",
+        "layerAria": "{label}: {count, number}. Show them in the list"
+      },
+      "rail": {
+        "label": "Steps",
+        "tipAbsent": "{label}: {reason}",
+        "tipUnknown": "{label}: not loaded yet",
+        "tipReached": "{label}: {reached} of {of} reached{stopped, plural, =0 {} one {, # stopped here} other {, # stopped here}}",
+        "tipPress": "Press to show who stopped here.",
+        "none": "none",
+        "of": "of {of}",
+        "stop": "{count, plural, one {# stops here} other {# stop here}}",
+        "events": "{count, plural, one {# event} other {# events}}",
+        "notReached": "not reached"
+      },
+      "lane": {
+        "nothing": "Nothing happened here"
+      },
+      "skyline": {
+        "loading": "Reading scores…",
+        "error": "Scores could not be read.",
+        "empty": "Nothing scored yet",
+        "roledesc": "brushable chart",
+        "aria": "{label}. Left and right arrows move, Shift extends the range, Enter opens, Escape clears.",
+        "neverScored": "never scored",
+        "nulls": "{count, number} never scored · not zero",
+        "rankOne": "rank 1",
+        "ranks": "Ranks {from}–{to}",
+        "followed": "selected · the list below follows",
+        "hint": "Drag across the bars to pick a range · arrows move · Shift extends · Enter opens"
+      }
+    },
     "of": "of {total, number}",
     "absent": "Never recorded",
     "emptyMark": "Nothing here yet",
