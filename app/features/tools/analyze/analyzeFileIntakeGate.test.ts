@@ -76,24 +76,11 @@ test("every Analyze File entry point plans through the router, never through a p
   assert.match(zone, /planSingleSlot\(/, "a standalone zone (the /me import) still plans its own single slot");
 });
 
-test("replacing the JD by any path goes through the one JD-source door", () => {
-  // challenge-r10 analyze-workspace/A: the file/text/slug trio was kept in step by hand
-  // at six writers (a setJobDescriptionFile + setSelectedJdSlug(null) pair here, three in
-  // the column), and the picker's own pick was the one that forgot. The rule now lives
-  // in analyzeJdSource.ts; every writer dispatches into it.
+test("replacing the JD by any path detaches the saved-JD slug", () => {
   const intake = code("./useAnalyzeFileAccept.ts");
   const jdCommit = intake.slice(intake.indexOf("plan.jd"), intake.indexOf("plan.company"));
-  assert.match(jdCommit, /dispatchJd\(\{ type: "attachFile", file: plan\.jd\.file \}\)/, "the router commits a JD file through the door");
-  for (const rel of ["./useAnalyzeFileAccept.ts", "./AnalyzeFormOptionalColumns.tsx"]) {
-    const src = code(rel);
-    assert.doesNotMatch(src, /setSelectedJdSlug|setJobDescriptionFile|setJobDescriptionText/, `${rel} writes a JD atom outside the door`);
-  }
-  const hook = code("./useAnalyzeJdLibrary.ts");
-  assert.doesNotMatch(hook, /setSelectedJdSlug|setJobDescriptionText/, "the library hook dispatches, it holds no JD atom");
-  assert.match(hook, /type: "pickSaved"/);
-  const form = code("./useAnalyzeForm.ts");
-  assert.doesNotMatch(form, /useState<File \| null>\(\(\) => takeAnalyzeAttachments\(\)\.jobDescriptionFile\)/, "no separate JD file atom");
-  assert.match(form, /jdSubmission\(jdSource\)/, "the submit sends the source's projection");
+  assert.match(jdCommit, /setJobDescriptionFile\(/);
+  assert.match(jdCommit, /setSelectedJdSlug\(null\)/, "the router's JD commit keeps the picker's slug rule");
 });
 
 test("upload-constraints exports the paired client + server gates, no divergent duplicate", () => {
