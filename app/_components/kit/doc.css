@@ -1,0 +1,69 @@
+/* The calm document: Letter, LetterHead, LetterBlock, LetterActs, Outcome, ScoreList (Gate 2, the
+   candidate token pages /offer and /skill, builder T). Ported from the contest page's "the calm
+   document (Offer)" block (.contest/arena/style-kit-r2/entries/claude-opus_xhigh-v1/variant-1/kit.css),
+   which kit.css left for this gate. Its own file so the everyday sheet stays untouched: a surface
+   that mounts no Letter never loads it. Colour only via app/globals.css variables and kit.css's --k-*. */
+
+.k-doc { max-width: 800px; margin: 0 auto; }
+.k-public { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 20px; }
+
+.k-letter { position: relative; background: var(--k-raised); border: 1px solid var(--k-rule); border-radius: 14px; box-shadow: var(--panel-shadow); padding: 40px 48px 36px; }
+.k-letter::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; border-radius: 14px 14px 0 0; background: linear-gradient(90deg, var(--color-coral), var(--color-dial-amber), var(--color-moss)); }
+[data-theme="dark"] .k-letter { border: 2px solid var(--k-rule-strong); border-radius: 20px; }
+[data-theme="dark"] .k-letter::before { height: 8px; border-radius: 18px 18px 0 0; }
+
+/* the head is the lead alone: no figures or actions beside it, so it takes the letter's full width */
+.k-head--calm { display: block; }
+.k-letter__brand { display: flex; align-items: center; gap: 12px; }
+.k-letter__brand + .k-title { margin-top: 12px; }
+.k-letter__mono { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: var(--k-radius); background: var(--color-steel); color: var(--color-white); font-family: var(--font-serif); font-size: var(--text-body); font-weight: 600; }
+[data-theme="dark"] .k-letter__mono { border: 2px solid var(--color-ink); box-shadow: var(--sticker-xs-shadow); transform: rotate(-2deg); }
+
+/* a letter's terms: figures read left to right from the letter's edge, at display size */
+.k-letter .k-fig { text-align: left; }
+.k-letter .k-stats > .k-fig:first-child { padding-left: 0; }
+.k-letter .k-fig__value { font-size: var(--text-display); line-height: 1.1; }
+[data-theme="dark"] .k-letter .k-stats > .k-fig:first-child { padding-left: 16px; }
+
+.k-letter__block { margin-top: 20px; }
+.k-letter__block.k-letter__decide { margin-top: 28px; }
+.k-letter__label { font-size: var(--text-micro); color: var(--k-quiet); margin-bottom: 6px; }
+.k-letter__line { font-size: var(--text-body); color: var(--k-quiet); margin: 0 0 6px; }
+.k-letter__line.is-needs { color: var(--color-coral); font-weight: 600; }
+.k-letter__acts { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+.k-letter__foot { margin: 24px 0 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-letter__foot a { color: var(--k-ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* the outcome: a result, a confirm step, a dead link */
+.k-result { padding: 18px 20px; border-radius: 12px; background: var(--k-plane); border: 1px solid var(--k-rule); }
+.k-result:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+.k-result__title { font-family: var(--font-serif); font-size: var(--text-h2); line-height: var(--text-h2--line-height); font-weight: 600; margin: 0 0 4px; }
+.k-result p { margin: 0; color: var(--k-quiet); }
+.k-result--ok { background: color-mix(in srgb, var(--color-limewash) 60%, var(--k-raised)); border-color: color-mix(in srgb, var(--color-moss) 40%, transparent); }
+[data-theme="dark"] .k-result { border: 2px solid var(--k-rule-strong); box-shadow: var(--sticker-sm-shadow); }
+[data-theme="dark"] .k-result__title { font-weight: 700; }
+[data-theme="dark"] .k-result--ok { background: var(--color-limewash); border-color: var(--color-moss); }
+
+/* ScoreList: a labelled meter per score */
+.k-scores { list-style: none; margin: 0; padding: 0; }
+.k-scores li { padding: 10px 0; border-bottom: 1px solid var(--k-rule); }
+[data-theme="dark"] .k-scores li { border-bottom-style: dashed; }
+.k-scores__line { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-micro); margin-bottom: 6px; }
+.k-scores__line > span:last-child { font-weight: 600; }
+.k-scores__bar { height: 6px; border-radius: 3px; background: var(--k-rule); overflow: hidden; }
+.k-scores__bar i { display: block; height: 100%; border-radius: 3px; background: var(--color-steel); }
+.k-scores__bar.is-zero i { width: 4px; background: var(--k-rule-strong); }
+[data-theme="dark"] .k-scores__bar { height: 8px; border-radius: 4px; outline: 2px solid var(--k-rule-strong); }
+[data-theme="dark"] .k-scores__bar i { background: var(--color-dial-amber); }
+
+/* a phone: the letter keeps its rule, loses its margins */
+@media (max-width: 640px) {
+  .k-letter { padding: 28px 20px 24px; }
+}
+
+/* print (the credential is printed and shared): no elevation, no sticker shadows, the rule prints */
+@media print {
+  .k-letter { box-shadow: none; }
+  .k-letter::before { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .k-result { box-shadow: none; }
+}

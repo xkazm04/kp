@@ -31,3 +31,6 @@ export { useKitKeys } from "./useKitKeys";
 export { rowWindow, stepKey, scrollToRow, OVERSCAN } from "./windowing";
 export { columnTrack, type TableTrack } from "./tracks";
 export { formatCount, figureValue, ABSENT } from "./figure";
+export { Letter, LetterHead, LetterBlock, LetterActs, Monogram, Outcome } from "./Letter";
+export { ScoreList, type Score } from "./ScoreList";
+export { outcomeClass, scorePct, type OutcomeTone } from "./doc";
