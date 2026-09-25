@@ -37,7 +37,7 @@
           "why": "the candidate offer door; prefers a still-open offer, else the newest one (the demo corpus carries an accepted and an expired one)"
         }
       },
-      "note": "public token route, no session"
+      "note": "public token route, no session; the composition-kit letter (promoted at Gate 2)"
     },
     "skill": {
       "gate": true,
@@ -51,34 +51,7 @@
           "why": "the public Durable Skill Profile card. The demo corpus has no evaluated dev-case submission, so the `skill-profile` seed inserts ONE into the throwaway copy and mints it through POST /api/devcase/skill-profile (the real signing path) when nothing is found"
         }
       },
-      "note": "public token route, no session"
-    },
-    "offer-kit": {
-      "gate": true,
-      "path": "/offer/{token}?kit=1",
-      "root": "main",
-      "auth": false,
-      "resolve": {
-        "token": {
-          "sql": "SELECT token FROM offers ORDER BY (status = 'extended') DESC, created_at DESC LIMIT 1",
-          "why": "the same offer the `offer` target shoots, so the pair compares one row"
-        }
-      },
-      "note": "the offer door rendered from the composition kit (Gate 2; the ?kit=1 switch is dev-only: shoot it with --server dev)"
-    },
-    "skill-kit": {
-      "gate": true,
-      "path": "/skill/{token}?kit=1",
-      "root": "main",
-      "auth": false,
-      "seed": "skill-profile",
-      "resolve": {
-        "token": {
-          "sql": "SELECT access_token FROM skill_profiles WHERE revoked_at IS NULL AND access_token IS NOT NULL ORDER BY issued_at DESC LIMIT 1",
-          "why": "the same credential the `skill` target shoots (the page throttles 30 views per 10 min per client and token: shoot it on its own run)"
-        }
-      },
-      "note": "the Durable Skill Profile card rendered from the composition kit (Gate 2; dev-only ?kit=1, --server dev)"
+      "note": "public token route, no session; the composition-kit letter (promoted at Gate 2). The page throttles 30 views per 10 min per client and token: shoot it on its own run"
     },
     "journey": {
       "gate": true,
