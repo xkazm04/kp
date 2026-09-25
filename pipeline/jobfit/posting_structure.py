@@ -37,11 +37,22 @@ _REMOTE_RE = re.compile(
     re.IGNORECASE,
 )
 _HYBRID_RE = re.compile(r"(?<!\w)(hybrid\w*|hybride)(?!\w)", re.IGNORECASE)
+_ONSITE_RE = re.compile(
+    r"(?<!\w)(on[- ]?site|in[- ]office|in the office|office[- ]based|v kancel[áa][řr]i|na pracovi[šs]ti|"
+    r"vor ort|im b[üu]ro|sur site|en pr[ée]sentiel)(?!\w)",
+    re.IGNORECASE,
+)
 
 
-def detect_work_mode(raw: dict[str, Any], text: str) -> str:
+def detect_work_mode(raw: dict[str, Any], text: str) -> str | None:
     """JSON-LD ``jobLocationType == TELECOMMUTE`` wins; then the adapter's own reading;
-    then the regexes; else onsite (a posting that says nothing is an office job)."""
+    then the regexes; else None.
+
+    None, not "onsite": an ad that says nothing about where the work happens has not
+    said it is an office job. :func:`jobs.normalize_job` then stamps the locale default
+    AND records ``work_mode`` in ``defaulted_fields``, which is what keeps the matcher's
+    work-mode gate from knocking out a remote-only seeker on a mode the ad never stated.
+    An ad that does state the office ("on-site", "v kanceláři") still reads onsite."""
     jsonld = raw.get("jsonld") or {}
     if isinstance(jsonld, dict) and str(jsonld.get("jobLocationType") or "").upper() == "TELECOMMUTE":
         return "remote"
@@ -52,7 +63,9 @@ def detect_work_mode(raw: dict[str, Any], text: str) -> str:
         return "hybrid"
     if _REMOTE_RE.search(text):
         return "remote"
-    return "onsite"
+    if _ONSITE_RE.search(text):
+        return "onsite"
+    return None
 
 
 # --- seniority ------------------------------------------------------------------------
