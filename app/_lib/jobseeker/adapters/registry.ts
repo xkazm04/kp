@@ -12,6 +12,7 @@ import { recruiteeAdapter, recruiteeHost } from "./ats/recruitee";
 import { smartrecruitersAdapter, SMARTRECRUITERS_HOST } from "./ats/smartrecruiters";
 import { teamtailorAdapter, teamtailorHost } from "./ats/teamtailor";
 import { workableAdapter, WORKABLE_HOST } from "./ats/workable";
+import { arbeitnowAdapter, ARBEITNOW_HOST } from "./arbeitnow";
 import { boardRulesAdapter } from "./boardRules";
 import { boardSitemapJsonldAdapter } from "./boardSitemapJsonld";
 import { euresAdapter } from "./eures";
@@ -32,6 +33,7 @@ const ADAPTERS: Record<SourceAdapterName, SourceAdapter> = {
   ats_smartrecruiters: smartrecruitersAdapter,
   board_sitemap_jsonld: boardSitemapJsonldAdapter,
   board_rules: boardRulesAdapter,
+  arbeitnow: arbeitnowAdapter,
 };
 
 export function adapterFor(name: SourceAdapterName): SourceAdapter {
@@ -45,6 +47,8 @@ export function hostForAdapter(adapter: SourceAdapterName, config: Record<string
   switch (adapter) {
     case "eures":
       return "europa.eu";
+    case "arbeitnow":
+      return ARBEITNOW_HOST;
     case "mpsv_bulk": {
       const url = cfg(s, "url") ?? MPSV_FULL_URL;
       try {

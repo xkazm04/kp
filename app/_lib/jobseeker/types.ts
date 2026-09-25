@@ -114,6 +114,7 @@ export const SOURCE_ADAPTERS = [
   "ats_smartrecruiters",
   "board_sitemap_jsonld",
   "board_rules",
+  "arbeitnow",
 ] as const;
 export type SourceAdapterName = (typeof SOURCE_ADAPTERS)[number];
 export function isSourceAdapterName(v: unknown): v is SourceAdapterName {
@@ -299,6 +300,13 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
   /** The skills the posting asks for that the profile does not show (capped). */
   missingSkills: string[];
   deepDived: boolean;
+  /** The total a deep-dive re-match REPLACED, when the richer Job moved it (match_json
+   *  `previous`); null for every other row. "71 → 39" is a fact, not an overwrite. */
+  previousTotal: number | null;
+  /** The stored rationale was reasoned from inputs older than the profile's last change
+   *  (a CV or preference edit since): still shown, flagged, and re-dived by the next scan.
+   *  False for a row with no rationale. */
+  reasoningStale: boolean;
 };
 
 /** How many skills a summary row carries: enough for a card, never the whole payload. */
