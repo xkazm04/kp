@@ -422,6 +422,31 @@ input.k-input:disabled, select.k-input:disabled { background: var(--k-plane); co
 .k-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--text-micro); color: var(--k-quiet); }
 .k-legend span { display: inline-flex; gap: 6px; align-items: center; }
 
+/* ---------- form parts (Gate 1, Settings > Hiring: the first settings surface on the kit) ----------
+   Field.tsx sizes and invalid state; Clip's one line; SettingRow's detail line; Segmented's visible lead; SaveBar. The
+   variant drew the save bar as inline-styled markup (kit.js settings()); these are its values as rules. */
+input.k-input.k-input--sm, select.k-input.k-input--sm { height: 32px; padding: 0 10px; }
+input.k-input:focus-visible, select.k-input:focus-visible { outline: none; border-color: var(--color-coral); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-coral) 20%, transparent); }
+.k-input[aria-invalid="true"] { border-color: var(--color-red-600); }
+.k-set__name .k-input { font-weight: inherit; }
+.k-set__detail { grid-column: name / end; grid-row: 2; padding-top: 8px; min-width: 0; }
+.k-clip { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-seg-lead { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; }
+.k-seg-lead__word { font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; }
+.k-savebar {
+  position: sticky; bottom: 0; z-index: 3; margin-top: 32px; padding: 12px 0;
+  background: var(--color-paper); border-top: var(--k-line) solid var(--k-rule);
+}
+.k-savebar.is-dirty, .k-savebar.is-saving { border-top-color: var(--color-dial-amber); }
+.k-savebar.is-blocked { border-top-color: var(--color-red-600); }
+.k-savebar__status { grid-column: name / fig; font-size: var(--text-micro); color: var(--k-quiet); min-width: 0; }
+.k-savebar.is-dirty .k-savebar__status { color: var(--k-ink); font-weight: 600; }
+.k-savebar.is-blocked .k-savebar__status { color: var(--color-red-700); font-weight: 600; }
+.k-savebar__acts { grid-column: fig / end; display: flex; justify-content: flex-end; gap: 8px; }
+[data-theme="dark"] .k-savebar { border: 2px solid var(--k-rule-strong); border-radius: 16px; background: var(--k-raised); box-shadow: var(--sticker-sm-shadow); margin-inline: -14px; padding-inline: 14px; bottom: 8px; }
+[data-theme="dark"] .k-savebar.is-dirty, [data-theme="dark"] .k-savebar.is-saving { border-color: var(--color-dial-amber); }
+[data-theme="dark"] .k-savebar.is-blocked { border-color: var(--color-red-600); }
+
 /* ---------- tracks tighten ---------- */
 @media (max-width: 1520px) {
   .k-kit { --m-pad: 28px; --m-name: 25%; --m-fig: 104px; --m-time: 116px; --m-act: 96px; }

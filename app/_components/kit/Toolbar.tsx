@@ -10,16 +10,18 @@ import "./kit.css";
 export type Segment = { value: string; label: string; count?: number; mark?: ReactNode; disabled?: boolean; tip?: string };
 
 /**
- * @catalog A segmented control: the pressed segment is raised (Studio Light) or an amber sticker (Spark Dark), with an optional mark and count per segment; disabled segments stay visible.
+ * @catalog A segmented control: the pressed segment is raised (Studio Light) or an amber sticker (Spark Dark), with an optional mark and count per segment; disabled segments stay visible; an optional visible lead names the group.
  */
-export function Segmented({ items, value, onChange, label }: {
+export function Segmented({ items, value, onChange, label, lead }: {
   items: Segment[];
   value: string;
   onChange: (v: string) => void;
   label: string;
+  /** A visible quiet word before the group ("Start from"); `label` stays the group's accessible name. */
+  lead?: string;
 }) {
   const locale = useLocale();
-  return (
+  const group = (
     <div className="k-seg" role="group" aria-label={label} data-role="kit-seg">
       {items.map((it) => (
         <button
@@ -36,6 +38,13 @@ export function Segmented({ items, value, onChange, label }: {
         </button>
       ))}
     </div>
+  );
+  if (!lead) return group;
+  return (
+    <span className="k-seg-lead">
+      <span className="k-seg-lead__word" aria-hidden>{lead}</span>
+      {group}
+    </span>
   );
 }
 

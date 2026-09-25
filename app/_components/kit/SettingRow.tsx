@@ -7,10 +7,10 @@ import { Measure } from "./Measure";
 import "./kit.css";
 
 /**
- * @catalog A setting on the measure: name (+ sub) / one-line consequence / control / actions; changed = an amber edge, muted when a parent setting disables it, error = the field's border.
+ * @catalog A setting on the measure: name (+ sub) / one-line consequence / control / actions; changed = an amber edge, muted when a parent setting disables it, error = the field's border; an optional detail line opens under it from the name track.
  */
 export function SettingRow({
-  mark, name, sub, consequence, control, wide = false, actions, state = [],
+  mark, name, sub, consequence, control, wide = false, actions, state = [], detail,
 }: {
   mark?: ReactNode;
   name: ReactNode;
@@ -21,6 +21,9 @@ export function SettingRow({
   wide?: boolean;
   actions?: ReactNode;
   state?: ("changed" | "muted" | "error")[];
+  /** A second line under the row, from the name track to the end: the setting's expanded editor
+   *  (a chip set, a longer list) when one line cannot hold it. Absent = the row stays one line. */
+  detail?: ReactNode;
 }) {
   return (
     <Measure className={["k-set", ...state.map((s) => `is-${s}`)].join(" ")} data-part="setting-row" data-role="kit-setting">
@@ -32,6 +35,7 @@ export function SettingRow({
       {wide ? null : <div className="k-set__why">{consequence}</div>}
       <div className={`k-set__ctl${wide ? " is-wide" : ""}`}>{control}</div>
       <div className="k-set__acts">{actions}</div>
+      {detail ? <div className="k-set__detail" data-role="kit-setting-detail">{detail}</div> : null}
     </Measure>
   );
 }
