@@ -12,12 +12,11 @@
 //     also fails if a disable comment reappears.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createTranslator } from "next-intl";
 import { LOCALES, type Locale } from "@/i18n/locales";
-import { CHANNEL_EMPTY_SPECS } from "./channelsEmptySpecs";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,9 +34,10 @@ function translator(locale: Locale): { plain: Rich; rich: Rich } {
 const chunks = (c: unknown) => String(c ?? "");
 const TAGS = { b: chunks, i: chunks, code: chunks, endpoint: () => "hook_x@inbound.example.cz" };
 
-// (key, values) exactly as the components call them — kept in lockstep with
-// ChannelsTab / EmailIntakeWizard / AdFormsPane / CvSimCard / channel-receivers /
-// SetupGuide / CommsTable. The column-filter and pager copy moved OUT of this
+// (key, values) exactly as the components call them — kept in lockstep with the kit
+// surface (kit/ChannelsKit*.tsx) and the parts it still mounts (AddReceiverModal,
+// SetupGuide, ReceiverPullCard, receiverHealth.ts). Keys only the retired "Intake
+// Studio" view called left the catalog with it (kit-unification, Gate K2). The column-filter and pager copy moved OUT of this
 // namespace with the primitives themselves (app/_components/table/*) and is pinned
 // the same way in app/_components/table/table-i18n.test.ts.
 const PLAIN: [string, Record<string, unknown>][] = [
@@ -71,14 +71,9 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["careers.publishRole", {}],
   ["receivers.role", {}],
   ["receivers.lang", {}],
-  ["receivers.status", {}],
-  ["receivers.received", {}],
-  ["receivers.receivedHint", {}],
-  ["receivers.accepted", {}],
   ["receivers.acceptedHint", {}],
   ["receivers.firstLead", {}],
   ["receivers.copyEndpoint", {}],
-  ["receivers.remove", {}],
   ["receivers.removeAria", { role: "Backend Engineer" }],
   ["receivers.confirmTitle", {}],
   ["receivers.cancel", {}],
@@ -108,23 +103,7 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["ads.waiting", {}],
   ["guide.setupFor", {}],
   ["guide.live", {}],
-  ["cvSim.open", {}],
   ["cvSim.title", {}],
-  ["cvSim.close", {}],
-  ["cvSim.choose", {}],
-  ["cvSim.namePlaceholder", {}],
-  ["cvSim.emailPlaceholder", {}],
-  ["cvSim.run", {}],
-  ["cvSim.running", {}],
-  ["cvSim.hint", {}],
-  ["cvSim.failed", { reason: "Job not found." }],
-  ["cvSim.failedStatus", { status: 500 }],
-  ["cvSim.requestFailed", {}],
-  ["cvSim.stub", {}],
-  ["cvSim.openInPipeline", {}],
-  // Intake-brief empty states (channels.empty.*, keys carried by channelsEmptySpecs).
-  ["empty.notConnected", {}],
-  ["empty.connectedIdle", {}],
   // Comms Center chrome (rendered from the channels.comms sub-namespace).
   ["comms.colName", {}],
   ["comms.colRole", {}],
@@ -189,22 +168,9 @@ const RICH: [string, Record<string, unknown>][] = [
   ["ads.meta2", { ...TAGS }],
   ["ads.meta3", { ...TAGS }],
   ["ads.meta4", { ...TAGS }],
-  ["cvSim.landed", { name: "Jana Nová", role: "Backend Engineer", suffix: ".", ...TAGS }],
 ];
 
 const SECTION_IDS = ["comms", "careers", "email", "ads"] as const;
-
-// Pinned against the real spec table rather than a copy of it: if a spec ever names
-// a key the catalogs don't carry, this fails instead of shipping a raw key to a
-// recruiter. (channelsEmptySpecs is pure + locale-free, so importing it is free.)
-const EMPTY_KEYS = Object.values(CHANNEL_EMPTY_SPECS).flatMap((s) => [
-  s.promise,
-  s.proof,
-  s.actionHint,
-  ...s.steps,
-  s.effort,
-  s.waiting,
-]);
 
 for (const locale of LOCALES) {
   test(`channels catalog (${locale}): every plain message renders with the values the UI passes`, () => {
@@ -236,36 +202,20 @@ for (const locale of LOCALES) {
     }
   });
 
-  test(`channels catalog (${locale}): every empty-state spec key resolves to real copy`, () => {
-    const { plain } = translator(locale);
-    for (const key of EMPTY_KEYS) {
-      const out = String(plain(`empty.${key}`));
-      assert.ok(out.trim().length > 0, `${locale} channels.empty.${key} rendered empty`);
-      assert.ok(!out.includes("channels."), `${locale} channels.empty.${key} is missing (next-intl echoed the key): ${out}`);
-    }
-  });
 }
 
 test("no prototype-stage literal-string disable survives on the Channels surface", () => {
-  // The Jul-28 restructure re-prefixed these files by area and SPLIT the tab and the
-  // Comms ledger into children — the guarantee is per SURFACE, so every child that
-  // now owns a piece of that markup is held to it too.
+  // The guarantee is per SURFACE, so every file that owns a piece of its markup is held
+  // to it: the tab entry, the kit surface (kit-unification, Gate K2) and the parts it mounts.
   const files = [
     "ChannelsTab.tsx",
-    "ChannelsTabStage.tsx",
-    "ChannelsTabSwitcher.tsx",
-    "ChannelsTabWidgets.tsx",
-    "ChannelsEmailIntakeWizard.tsx",
-    "ChannelsAdFormsPane.tsx",
-    "ChannelsCvSimCard.tsx",
-    "ChannelsReceiverTable.tsx",
     "ChannelsAddReceiverModal.tsx",
-    "ChannelsCommsTable.tsx",
-    "ChannelsCommsRows.tsx",
-    "ChannelsCommsMessageModal.tsx",
     "ChannelsCommsBouncedResend.tsx",
     "ChannelsSetupGuide.tsx",
-    "ChannelsEmpty.tsx",
+    "ChannelsReceiverPullCard.tsx",
+    "ChannelsEdgeCard.tsx",
+    "ChannelsRelayConfigCard.tsx",
+    ...readdirSync(path.join(dir, "kit")).filter((f) => f.endsWith(".tsx")).map((f) => `kit/${f}`),
   ];
   for (const f of files) {
     const src = readFileSync(path.join(dir, f), "utf8");

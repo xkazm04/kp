@@ -87,7 +87,8 @@ test("self-check: the scan sees ChainEmptyState and MotionizedGlyph call sites a
   const sites = files.flatMap((f) => chainEmptyElements(f.text));
   const glyphs = files.reduce((n, f) => n + (f.text.split("<MotionizedGlyph").length - 1), 0);
   assert.ok(sites.length >= 4, `expected ChainEmptyState call sites, found ${sites.length}`);
-  assert.ok(glyphs >= 12, `expected MotionizedGlyph render sites, found ${glyphs}`);
+  // 11 since the Channels "Intake Studio" empty state left with its view (kit promotion, 2026-09-25).
+  assert.ok(glyphs >= 11, `expected MotionizedGlyph render sites, found ${glyphs}`);
   assert.ok(Object.keys(GLYPH_BY_TAB).length >= 8, "registry is empty — the gate would pass vacuously");
 });
 

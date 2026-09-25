@@ -17,10 +17,9 @@ import { ChannelsKitCareers } from "./ChannelsKitCareers";
 import { ChannelsKitPane } from "./ChannelsKitPane";
 
 /**
- * Hiring > Channels, composed from the composition kit (Gate K2; rendered only behind the
- * dev-only `?kit=1` switch, see ChannelsTab). Same data as the current tab, read through the
- * same hooks: useChannelData (receivers, open roles, the attention count), useCommsFeed (the
- * ledger), the `sec` inbox param. Layout is the One Measure winner's Channels surface: a page
+ * Hiring > Channels, composed from the composition kit (promoted at Gate K2; ChannelsTab renders
+ * it). Its data comes through the tab's hooks: useChannelData (receivers, open roles, the
+ * attention count), useCommsFeed (the ledger), the `sec` inbox param. Layout is the One Measure winner's Channels surface: a page
  * head with the section's figures, a toolbar (sections, verdict chips, search), the section's
  * body, and a reading pane that exists only while a row is selected.
  */

@@ -3346,7 +3346,6 @@
       "intro": "Live view of candidates moving through open positions. Items that need a human decision surface at the top. Approve or reject, or confirm a proposed interview slot.",
       "statActive": "Active",
       "moveFailed": "Couldn't move the candidate. The board has been refreshed.",
-      "moveErrorDismiss": "Dismiss",
       "statAwaitingYou": "Awaiting you",
       "batchScreening": "Screening {done}/{total}…",
       "batchScreenAll": "AI-screen all matched",
@@ -3409,7 +3408,6 @@
       "previewCommitFailed": "The pass could not be applied.",
       "bulkTaskIncomplete": "The drafting task ended without a result. Still selected, retry.",
       "bulkInviteItemsRefused": "Some invitations were refused. Open a candidate to see why.",
-      "boardFullPageAria": "Positions board, full page",
       "previewApplySelected": "{count, plural, one {Apply # of {total} changes} other {Apply # of {total} changes}}",
       "previewRowToggle": "Include {name} in this commit",
       "previewSelectionNote": "Untick a row to hold it back. Only the ticked changes are applied, and only on your team's board.",
@@ -6965,20 +6963,14 @@
       "empty": "No published roles yet. Publish a job and its apply link appears here.",
       "applyLink": "apply link",
       "publishRole": "Publish a role",
-      "showingOf": "Showing {shown} of {total}",
       "viewAllRoles": "All roles"
     },
     "receivers": {
       "role": "Role",
       "lang": "Lang",
-      "status": "Status",
-      "received": "Received",
-      "receivedHint": "Authenticated POSTs this receiver has taken, probes and rejected payloads included. “Leads filed” is the candidate count.",
-      "accepted": "Accepted",
       "acceptedHint": "Candidates this receiver actually filed. Received is connectivity, including probes and rejected payloads.",
       "firstLead": "First lead",
       "copyEndpoint": "Copy endpoint",
-      "remove": "Remove",
       "removeAria": "Remove receiver for {role}",
       "confirmTitle": "Remove this receiver?",
       "confirmBody": "This deletes the intake endpoint for <b>{role}</b>. The <b>{endpoint}</b> stops accepting applications immediately and can’t be restored. You’d have to add a new receiver and re-point the source at its new address.",
@@ -7048,65 +7040,7 @@
       "live": "Receiving"
     },
     "cvSim": {
-      "open": "Test with a real CV",
-      "title": "Simulate a CV for",
-      "close": "Close",
-      "choose": "Choose a CV: PDF, DOCX, TXT or MD",
-      "namePlaceholder": "Name (optional)",
-      "emailPlaceholder": "Email (optional)",
-      "run": "Receive this CV",
-      "running": "Parsing & filing…",
-      "hint": "Parses the file, builds a matchable candidate, lands them at Accepted.",
-      "failed": "Couldn’t file it: {reason}",
-      "failedStatus": "Failed ({status}).",
-      "requestFailed": "Request failed.",
-      "landed": "<b>{name}</b> landed at <b>Accepted</b> on {role}{suffix}",
-      "stub": " (as a stub, because the CV text was thin)",
-      "openInPipeline": "Open in pipeline"
-    },
-    "empty": {
-      "notConnected": "Not connected",
-      "connectedIdle": "Connected, nothing yet",
-      "comms": {
-        "promise": "Every candidate message on one auditable record",
-        "proof": "Once the relay is set, each invite, rejection and reminder is logged here with the delivery result it actually got.",
-        "actionHint": "Set the relay endpoint below",
-        "step1": "Paste your delivery endpoint URL into the relay card below.",
-        "step2": "Add a signing secret so a receiver can prove the call came from Kandi.",
-        "step3": "Send the test ping and confirm it comes back green.",
-        "effort": "About 2 minutes: one endpoint serves the whole workspace",
-        "waiting": "The relay is set and nothing has been sent yet. Messages appear here the moment you act on a candidate."
-      },
-      "careers": {
-        "promise": "One public apply link, embeddable anywhere",
-        "proof": "Publish a role and its apply link shows up here, ready to paste into a post, an email signature or your own site.",
-        "actionHint": "Publish a role to mint its link",
-        "step1": "Draft or import a job description in the Library.",
-        "step2": "Publish the role. Publishing is what mints its public apply link.",
-        "step3": "Copy that link into your post, your site or your email signature.",
-        "effort": "About a minute once a role exists",
-        "waiting": "The links are live and no one has applied yet. The first application lands straight in the pipeline."
-      },
-      "email": {
-        "promise": "Applications forwarded straight out of your mailbox",
-        "proof": "Every email matching your rule becomes a candidate card with its CV attached. Nobody re-types an application again.",
-        "actionHint": "Add a role inbox to get its address",
-        "step1": "Add a role inbox. Kandi mints a parse address bound to that role.",
-        "step2": "In Gmail or Outlook, forward matching mail to that address.",
-        "step3": "Confirm the rule; the setup guide walks the exact steps per client.",
-        "effort": "About 3 minutes: one rule per role",
-        "waiting": "The rule is in place and nothing has been forwarded yet. The first application shows up in the pipeline."
-      },
-      "ads": {
-        "promise": "Lead-gen ad forms file their own leads",
-        "proof": "A LinkedIn or Meta lead becomes a candidate card seconds after someone submits the ad form.",
-        "actionHint": "Add a receiver to get its webhook URL",
-        "step1": "Add a receiver for the role you are advertising.",
-        "step2": "In Zapier or Make, trigger a flow on a new lead from the ad form.",
-        "step3": "POST that lead to the receiver URL Kandi hands you.",
-        "effort": "About 5 minutes: one receiver per advertised role",
-        "waiting": "The receiver is armed and no leads have arrived yet. The first one files itself into the pipeline."
-      }
+      "title": "Simulate a CV for"
     },
     "copyFailed": "Copy failed. Select the text.",
     "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is.",

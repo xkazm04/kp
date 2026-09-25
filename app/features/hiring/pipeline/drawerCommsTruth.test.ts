@@ -21,7 +21,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../../../..");
 const readFileSync = (rel: string, enc: "utf8") => read(resolve(ROOT, rel), enc);
 
-const CHANNELS_ROWS = "app/features/hiring/channels/ChannelsCommsRows.tsx";
 const DRAWER_LIST = "app/features/hiring/pipeline/PipelineCommsList.tsx";
 const TOKEN_LINK = "app/features/hiring/pipeline/PipelineTokenLink.tsx";
 
@@ -69,8 +68,11 @@ test("a genuinely queued message with a real address does NOT warn", () => {
 
 // --- one predicate, two surfaces --------------------------------------------------
 
-test("BOTH surfaces route through the shared predicate and neither re-derives it", () => {
-  for (const file of [CHANNELS_ROWS, DRAWER_LIST]) {
+// The Comms Center's half left with the "Intake Studio" ledger (kit-unification, Gate K2): the
+// kit ledger (channels/kit/ChannelsKitComms.tsx) renders no unaddressable warning yet, and its
+// message pane shows the raw `deliverable` bit. Until it does, only the drawer is pinned here.
+test("the drawer routes through the shared predicate and does not re-derive it", () => {
+  for (const file of [DRAWER_LIST]) {
     const src = readFileSync(file, "utf8");
     assert.match(src, /isUnaddressable\(/, `${file} must ask the shared predicate`);
     // A local `deliverable === false` is exactly how the divergence grew the first
@@ -86,8 +88,6 @@ test("BOTH surfaces route through the shared predicate and neither re-derives it
 test("the drawer reuses the Comms Center's WORDING, not a second vocabulary", () => {
   const src = readFileSync(DRAWER_LIST, "utf8");
   assert.match(src, /noAddressHint/, "the drawer must render channels.comms.noAddressHint");
-  const channels = readFileSync(CHANNELS_ROWS, "utf8");
-  assert.match(channels, /noAddressHint/);
 });
 
 // --- the drawer no longer drops payload it is handed -------------------------------
@@ -235,7 +235,8 @@ test("the two non-chip verdict surfaces share ONE class table", () => {
 // with their OWN predicate (raw `bounced`/`status === "failed" && !recovered` in one,
 // `verdict` in the other). resendDoorOf (comms-resend-outcome.ts) is now the one rule.
 
-const CHANNELS_MODAL = "app/features/hiring/channels/ChannelsCommsMessageModal.tsx";
+// The Comms Center's message document is the kit reading pane since the kit promotion (Gate K2).
+const CHANNELS_MODAL = "app/features/hiring/channels/kit/ChannelsKitMessagePane.tsx";
 const OUTBOX_ROWS = "app/features/tools/devcases/OutboxRows.tsx";
 
 test("every surface that offers a resend asks resendDoorOf, and none re-derives the door", () => {

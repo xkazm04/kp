@@ -21,12 +21,6 @@
     "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
       "blockGap": 1
     },
-    "features/hiring/channels/ChannelsTabStage.tsx": {
-      "blockGap": 1
-    },
-    "features/hiring/channels/ChannelsTabSwitcher.tsx": {
-      "blockGap": 1
-    },
     "features/hiring/decisions/DecisionsTab.tsx": {
       "blockGap": 1
     },

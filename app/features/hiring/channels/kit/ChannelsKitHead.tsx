@@ -80,25 +80,29 @@ export function ChannelsKitHead({ section, setSection, data, messages, olderExis
 
   return (
     <>
-      <PageHead
-        eyebrow={t("eyebrow")}
-        title={t("title")}
-        context={sim.note?.ok ? sim.note.text : t(`sections.${section}.blurb`)}
-        figures={figures}
-        state={loadFailed ? "error" : "ready"}
-        errorText={tErr("errorTitle")}
-        onRetry={() => reload()}
-        actions={
-          <Button
-            label={t("sim.run")}
-            loadingLabel={t("sim.running")}
-            loading={sim.busy}
-            disabled={jobs === null}
-            onClick={simulate}
-            data-sim-click="simulate-inbound"
-          />
-        }
-      />
+      {/* data-sim: the guided walk's "match" chapter spotlights the inbound figures here
+          (shell/simulation/simWalkSteps.ts); a plain block, so the spotlight has a box. */}
+      <div data-sim="channel-inbound">
+        <PageHead
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          context={sim.note?.ok ? sim.note.text : t(`sections.${section}.blurb`)}
+          figures={figures}
+          state={loadFailed ? "error" : "ready"}
+          errorText={tErr("errorTitle")}
+          onRetry={() => reload()}
+          actions={
+            <Button
+              label={t("sim.run")}
+              loadingLabel={t("sim.running")}
+              loading={sim.busy}
+              disabled={jobs === null}
+              onClick={simulate}
+              data-sim-click="simulate-inbound"
+            />
+          }
+        />
+      </div>
       {sim.note && !sim.note.ok ? <Note tone="caution">{sim.note.text}</Note> : null}
       <Toolbar
         segmented={<Segmented label={t("tablist")} items={segments} value={section} onChange={(v) => setSection(v as ChannelSectionId)} />}

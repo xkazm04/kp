@@ -357,10 +357,6 @@
     "features/agents-workforce/AgentsWorkforceTab.tsx": {
       "raw-text-size": 2
     },
-    "features/hiring/channels/ChannelsAdFormsPane.tsx": {
-      "raw-text-size": 4,
-      "bare-rounded": 1
-    },
     "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
       "raw-text-size": 5,
       "raw-button": 2
@@ -370,54 +366,16 @@
       "raw-text-size": 2,
       "raw-status-hue": 4
     },
-    "features/hiring/channels/ChannelsCommsMessageModal.tsx": {
-      "below-floor-text": 6,
-      "raw-text-size": 2,
-      "raw-status-hue": 6
-    },
-    "features/hiring/channels/ChannelsCommsRows.tsx": {
-      "below-floor-text": 1,
-      "raw-text-size": 1,
-      "raw-status-hue": 2,
-      "raw-table": 1
-    },
-    "features/hiring/channels/ChannelsCommsTable.tsx": {
-      "raw-text-size": 6,
-      "raw-status-hue": 7,
-      "bare-rounded": 1
-    },
-    "features/hiring/channels/ChannelsCvSimCard.tsx": {
-      "below-floor-text": 1,
-      "raw-text-size": 5,
-      "raw-button": 4
-    },
     "features/hiring/channels/ChannelsEdgeCard.tsx": {
       "below-floor-text": 2,
       "raw-text-size": 8,
       "raw-status-hue": 1
-    },
-    "features/hiring/channels/ChannelsEmailIntakeWizard.tsx": {
-      "raw-text-size": 9,
-      "raw-status-hue": 3,
-      "bare-rounded": 1
-    },
-    "features/hiring/channels/ChannelsEmpty.tsx": {
-      "raw-text-size": 2,
-      "raw-stone-text": 1
     },
     "features/hiring/channels/ChannelsReceiverPullCard.tsx": {
       "below-floor-text": 2,
       "raw-text-size": 6,
       "raw-status-hue": 4,
       "bare-rounded": 2
-    },
-    "features/hiring/channels/ChannelsReceiverTable.tsx": {
-      "below-floor-text": 2,
-      "raw-text-size": 6,
-      "raw-status-hue": 7,
-      "raw-button": 3,
-      "bare-rounded": 1,
-      "raw-table": 1
     },
     "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
       "raw-text-size": 6
@@ -428,26 +386,6 @@
       "raw-status-hue": 2,
       "raw-button": 1,
       "bare-rounded": 2
-    },
-    "features/hiring/channels/ChannelsTab.tsx": {
-      "raw-text-size": 3,
-      "raw-button": 1
-    },
-    "features/hiring/channels/ChannelsTabStage.tsx": {
-      "raw-text-size": 5,
-      "raw-button": 1,
-      "bare-rounded": 1
-    },
-    "features/hiring/channels/ChannelsTabSwitcher.tsx": {
-      "below-floor-text": 2,
-      "raw-text-size": 1,
-      "raw-button": 1,
-      "bare-rounded": 1
-    },
-    "features/hiring/channels/ChannelsTabWidgets.tsx": {
-      "below-floor-text": 1,
-      "raw-status-hue": 2,
-      "raw-button": 1
     },
     "features/hiring/decisions/DecisionsAiReviewCardBody.tsx": {
       "raw-text-size": 5

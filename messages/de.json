@@ -3346,7 +3346,6 @@
       "intro": "Live-Ansicht der Kandidat/innen, die durch offene Positionen laufen. Elemente, die eine menschliche Entscheidung benötigen, erscheinen ganz oben. Genehmigen Sie, lehnen Sie ab, oder bestätigen Sie einen vorgeschlagenen Interviewtermin.",
       "statActive": "Aktiv",
       "moveFailed": "Kandidat/in konnte nicht verschoben werden. Das Board wurde aktualisiert.",
-      "moveErrorDismiss": "Ausblenden",
       "statAwaitingYou": "Wartet auf Sie",
       "batchScreening": "Screening {done}/{total}…",
       "batchScreenAll": "Alle Matches per AI prüfen",
@@ -3409,7 +3408,6 @@
       "previewCommitFailed": "Der Durchlauf konnte nicht angewendet werden.",
       "bulkTaskIncomplete": "Die Entwurfsaufgabe endete ohne Ergebnis. Weiterhin ausgewählt, bitte erneut versuchen.",
       "bulkInviteItemsRefused": "Einige Einladungen wurden abgelehnt. Öffnen Sie eine Kandidatin oder einen Kandidaten, um den Grund zu sehen.",
-      "boardFullPageAria": "Positions-Board, ganze Seite",
       "previewApplySelected": "{count, plural, one {# von {total} Änderungen anwenden} other {# von {total} Änderungen anwenden}}",
       "previewRowToggle": "{name} in diese Übernahme einbeziehen",
       "previewSelectionNote": "Entfernen Sie das Häkchen, um eine Zeile zurückzuhalten. Nur die markierten Änderungen werden angewendet, und nur auf dem Board Ihres Teams.",
@@ -6965,20 +6963,14 @@
       "empty": "Noch keine veröffentlichten Stellen. Veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier.",
       "applyLink": "Bewerbungslink",
       "publishRole": "Stelle veröffentlichen",
-      "showingOf": "{shown} von {total} angezeigt",
       "viewAllRoles": "Alle Stellen"
     },
     "receivers": {
       "role": "Stelle",
       "lang": "Sprache",
-      "status": "Status",
-      "received": "Empfangen",
-      "receivedHint": "Authentifizierte POSTs, die dieser Empfänger angenommen hat, Tests und abgelehnte Payloads eingeschlossen. Die Kandidat/innen-Zahl steht unter „Erfasste Leads“.",
-      "accepted": "Erfasst",
       "acceptedHint": "Kandidat/innen, die dieser Empfänger tatsächlich angelegt hat. Empfangen ist die Verbindung, inklusive Tests und abgelehnter Payloads.",
       "firstLead": "Erster Lead",
       "copyEndpoint": "Adresse kopieren",
-      "remove": "Entfernen",
       "removeAria": "Empfänger für {role} entfernen",
       "confirmTitle": "Diesen Empfänger entfernen?",
       "confirmBody": "Damit löschen Sie den Eingangspunkt für <b>{role}</b>. <b>{endpoint}</b> nimmt sofort keine Bewerbungen mehr an und lässt sich nicht wiederherstellen. Sie müssten einen neuen Empfänger anlegen und die Quelle auf dessen neue Adresse umstellen.",
@@ -7048,65 +7040,7 @@
       "live": "Empfängt"
     },
     "cvSim": {
-      "open": "Mit einem echten Lebenslauf testen",
-      "title": "Lebenslauf simulieren für",
-      "close": "Schließen",
-      "choose": "Lebenslauf wählen: PDF, DOCX, TXT oder MD",
-      "namePlaceholder": "Name (optional)",
-      "emailPlaceholder": "E-Mail (optional)",
-      "run": "Diesen Lebenslauf empfangen",
-      "running": "Wird geparst und erfasst…",
-      "hint": "Parst die Datei, baut einen matchbaren Kandidateneintrag und erfasst ihn bei „Angenommen“.",
-      "failed": "Konnte nicht erfasst werden: {reason}",
-      "failedStatus": "Fehlgeschlagen ({status}).",
-      "requestFailed": "Anfrage fehlgeschlagen.",
-      "landed": "<b>{name}</b> ist bei <b>Angenommen</b> zur Stelle {role} gelandet{suffix}",
-      "stub": " (als Stub, weil der Lebenslauftext zu dünn war)",
-      "openInPipeline": "In der Pipeline öffnen"
-    },
-    "empty": {
-      "notConnected": "Nicht verbunden",
-      "connectedIdle": "Verbunden, noch nichts da",
-      "comms": {
-        "promise": "Jede Nachricht an Kandidat/innen in einem prüfbaren Journal",
-        "proof": "Sobald das Relay eingerichtet ist, wird jede Einladung, Absage und Erinnerung hier mit dem tatsächlich erzielten Zustellergebnis protokolliert.",
-        "actionHint": "Relay-Endpunkt unten eintragen",
-        "step1": "Fügen Sie die URL Ihres Zustell-Endpunkts unten in die Relay-Karte ein.",
-        "step2": "Hinterlegen Sie einen Signaturschlüssel, damit ein Empfänger nachweisen kann, dass der Aufruf von Kandi stammt.",
-        "step3": "Senden Sie den Test-Ping und prüfen Sie, dass er grün zurückkommt.",
-        "effort": "Etwa 2 Minuten: Ein Endpunkt genügt für den gesamten Arbeitsbereich",
-        "waiting": "Das Relay ist eingerichtet und es wurde noch nichts gesendet. Nachrichten erscheinen hier, sobald Sie mit einem Kandidaten etwas tun."
-      },
-      "careers": {
-        "promise": "Ein öffentlicher Bewerbungslink, überall einbettbar",
-        "proof": "Veröffentlichen Sie eine Stelle, dann erscheint ihr Bewerbungslink hier, bereit für einen Post, eine E-Mail-Signatur oder Ihre eigene Website.",
-        "actionHint": "Stelle veröffentlichen, um ihren Link zu erzeugen",
-        "step1": "Entwerfen oder importieren Sie eine Stellenbeschreibung in der Bibliothek.",
-        "step2": "Veröffentlichen Sie die Stelle. Erst die Veröffentlichung erzeugt ihren öffentlichen Bewerbungslink.",
-        "step3": "Kopieren Sie diesen Link in Ihren Post, auf Ihre Website oder in Ihre E-Mail-Signatur.",
-        "effort": "Etwa eine Minute, sobald eine Stelle existiert",
-        "waiting": "Die Links sind aktiv und es hat sich noch niemand beworben. Die erste Bewerbung landet direkt in der Pipeline."
-      },
-      "email": {
-        "promise": "Bewerbungen direkt aus Ihrem Postfach weitergeleitet",
-        "proof": "Jede E-Mail, die Ihrer Regel entspricht, wird zu einer Kandidatenkarte samt angehängtem CV. Niemand tippt eine Bewerbung erneut ab.",
-        "actionHint": "Stellen-Postfach anlegen, um seine Adresse zu erhalten",
-        "step1": "Legen Sie ein Stellen-Postfach an. Kandi erzeugt eine Verarbeitungsadresse, die an diese Stelle gebunden ist.",
-        "step2": "Leiten Sie in Gmail oder Outlook passende Mails an diese Adresse weiter.",
-        "step3": "Bestätigen Sie die Regel; die Einrichtungsanleitung zeigt die genauen Schritte je Mail-Client.",
-        "effort": "Etwa 3 Minuten: eine Regel pro Stelle",
-        "waiting": "Die Regel steht und es wurde noch nichts weitergeleitet. Die erste Bewerbung erscheint in der Pipeline."
-      },
-      "ads": {
-        "promise": "Lead-Formulare legen ihre Leads selbst ab",
-        "proof": "Ein LinkedIn- oder Meta-Lead wird Sekunden nach dem Absenden des Anzeigenformulars zu einer Kandidatenkarte.",
-        "actionHint": "Empfänger anlegen, um seine Webhook-URL zu erhalten",
-        "step1": "Legen Sie einen Empfänger für die Stelle an, für die Sie werben.",
-        "step2": "Lösen Sie in Zapier oder Make einen Flow bei einem neuen Lead aus dem Anzeigenformular aus.",
-        "step3": "Senden Sie diesen Lead per POST an die Empfänger-URL, die Kandi Ihnen ausgibt.",
-        "effort": "Etwa 5 Minuten: ein Empfänger pro beworbener Stelle",
-        "waiting": "Der Empfänger ist bereit und es sind noch keine Leads eingegangen. Der erste legt sich selbst in der Pipeline ab."
-      }
+      "title": "Lebenslauf simulieren für"
     },
     "copyFailed": "Kopieren fehlgeschlagen. Text markieren.",
     "receiversTruncated": "Angezeigt werden die neuesten Empfänger. Einige fehlen in der Liste, daher kann ein Kanal unten leerer wirken, als er ist.",

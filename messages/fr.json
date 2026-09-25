@@ -3346,7 +3346,6 @@
       "intro": "Vue en direct des candidats qui progressent dans les postes ouverts. Les éléments nécessitant une décision humaine remontent en haut. Approuvez ou rejetez, ou confirmez un créneau d’entretien proposé.",
       "statActive": "Actifs",
       "moveFailed": "Impossible de déplacer le candidat. Le tableau a été actualisé.",
-      "moveErrorDismiss": "Ignorer",
       "statAwaitingYou": "Vous attend",
       "batchScreening": "Présélection {done}/{total}…",
       "batchScreenAll": "Présélectionner par AI tous les candidats correspondants",
@@ -3409,7 +3408,6 @@
       "previewCommitFailed": "Le passage n’a pas pu être appliqué.",
       "bulkTaskIncomplete": "La tâche de rédaction s’est terminée sans résultat. Toujours sélectionnés, réessayez.",
       "bulkInviteItemsRefused": "Certaines invitations ont été refusées. Ouvrez un candidat pour en connaître la raison.",
-      "boardFullPageAria": "Tableau des postes, pleine page",
       "previewApplySelected": "{count, plural, one {Appliquer # changement sur {total}} other {Appliquer # changements sur {total}}}",
       "previewRowToggle": "Inclure {name} dans cette validation",
       "previewSelectionNote": "Décochez une ligne pour la retenir. Seuls les changements cochés sont appliqués, et uniquement sur le tableau de votre équipe.",
@@ -6965,20 +6963,14 @@
       "empty": "Aucun poste publié pour l’instant. Publiez un poste et son lien de candidature apparaîtra ici.",
       "applyLink": "lien de candidature",
       "publishRole": "Publier un poste",
-      "showingOf": "{shown} sur {total} affichés",
       "viewAllRoles": "Tous les postes"
     },
     "receivers": {
       "role": "Poste",
       "lang": "Langue",
-      "status": "Statut",
-      "received": "Reçus",
-      "receivedHint": "Requêtes POST authentifiées reçues par ce récepteur, sondes et payloads rejetés compris. Le nombre de candidats figure sous « Leads enregistrés ».",
-      "accepted": "Enregistrés",
       "acceptedHint": "Candidats réellement déposés par ce récepteur. Reçus mesure la connectivité, sondes et payloads rejetés compris.",
       "firstLead": "Premier lead",
       "copyEndpoint": "Copier l’adresse",
-      "remove": "Supprimer",
       "removeAria": "Supprimer le récepteur du poste {role}",
       "confirmTitle": "Supprimer ce récepteur ?",
       "confirmBody": "Cela supprime le point d’entrée du poste <b>{role}</b>. <b>{endpoint}</b> cesse immédiatement d’accepter les candidatures et ne peut pas être restauré. Vous devriez ajouter un nouveau récepteur et réorienter la source vers sa nouvelle adresse.",
@@ -7048,65 +7040,7 @@
       "live": "Réception"
     },
     "cvSim": {
-      "open": "Tester avec un vrai CV",
-      "title": "Simuler un CV pour",
-      "close": "Fermer",
-      "choose": "Choisir un CV : PDF, DOCX, TXT ou MD",
-      "namePlaceholder": "Nom (facultatif)",
-      "emailPlaceholder": "E-mail (facultatif)",
-      "run": "Recevoir ce CV",
-      "running": "Analyse et enregistrement…",
-      "hint": "Analyse le fichier, construit un candidat comparable et l’enregistre à « Accepté ».",
-      "failed": "Impossible de l’enregistrer : {reason}",
-      "failedStatus": "Échec ({status}).",
-      "requestFailed": "La requête a échoué.",
-      "landed": "<b>{name}</b> arrive à <b>Accepté</b> sur {role}{suffix}",
-      "stub": " (en ébauche, car le texte du CV était trop mince)",
-      "openInPipeline": "Ouvrir dans le pipeline"
-    },
-    "empty": {
-      "notConnected": "Non connecté",
-      "connectedIdle": "Connecté, rien pour l’instant",
-      "comms": {
-        "promise": "Chaque message aux candidats dans un registre auditable",
-        "proof": "Une fois le relais configuré, chaque invitation, refus et relance est consigné ici avec le résultat de distribution réellement obtenu.",
-        "actionHint": "Configurez l’endpoint du relais ci-dessous",
-        "step1": "Collez l’URL de votre endpoint de distribution dans la carte du relais ci-dessous.",
-        "step2": "Ajoutez un secret de signature pour qu’un récepteur puisse prouver que l’appel vient de Kandi.",
-        "step3": "Envoyez le ping de test et vérifiez qu’il revient au vert.",
-        "effort": "Environ 2 minutes : un seul endpoint sert tout l’espace de travail",
-        "waiting": "Le relais est configuré et rien n’a encore été envoyé. Les messages apparaîtront ici dès que vous agirez sur un candidat."
-      },
-      "careers": {
-        "promise": "Un lien de candidature public, intégrable partout",
-        "proof": "Publiez un poste et son lien de candidature apparaît ici, prêt à être collé dans une annonce, une signature e-mail ou votre propre site.",
-        "actionHint": "Publiez un poste pour générer son lien",
-        "step1": "Rédigez ou importez une fiche de poste dans la Bibliothèque.",
-        "step2": "Publiez le poste. C’est la publication qui génère son lien de candidature public.",
-        "step3": "Copiez ce lien dans votre annonce, sur votre site ou dans votre signature e-mail.",
-        "effort": "Environ une minute, une fois qu’un poste existe",
-        "waiting": "Les liens sont actifs et personne n’a encore postulé. La première candidature arrive directement dans le pipeline."
-      },
-      "email": {
-        "promise": "Des candidatures transférées directement depuis votre boîte mail",
-        "proof": "Chaque e-mail correspondant à votre règle devient une fiche candidat avec son CV joint. Plus personne ne ressaisit une candidature.",
-        "actionHint": "Ajoutez une boîte de poste pour obtenir son adresse",
-        "step1": "Ajoutez une boîte de poste. Kandi génère une adresse de traitement liée à ce poste.",
-        "step2": "Dans Gmail ou Outlook, transférez les e-mails correspondants vers cette adresse.",
-        "step3": "Confirmez la règle. Le guide d’installation détaille les étapes exactes pour chaque client mail.",
-        "effort": "Environ 3 minutes : une règle par poste",
-        "waiting": "La règle est en place et rien n’a encore été transféré. La première candidature apparaîtra dans le pipeline."
-      },
-      "ads": {
-        "promise": "Les formulaires de leads déposent leurs leads eux-mêmes",
-        "proof": "Un lead LinkedIn ou Meta devient une fiche candidat quelques secondes après l’envoi du formulaire publicitaire.",
-        "actionHint": "Ajoutez un récepteur pour obtenir son URL de webhook",
-        "step1": "Ajoutez un récepteur pour le poste que vous mettez en avant.",
-        "step2": "Dans Zapier ou Make, déclenchez un flux à chaque nouveau lead du formulaire publicitaire.",
-        "step3": "Envoyez ce lead en POST vers l’URL de récepteur que Kandi vous fournit.",
-        "effort": "Environ 5 minutes : un récepteur par poste mis en avant",
-        "waiting": "Le récepteur est prêt et aucun lead n’est encore arrivé. Le premier se déposera tout seul dans le pipeline."
-      }
+      "title": "Simuler un CV pour"
     },
     "copyFailed": "Échec de la copie. Sélectionnez le texte.",
     "receiversTruncated": "Seuls les récepteurs les plus récents sont affichés. Certains ne figurent pas dans la liste : un canal ci-dessous peut donc sembler plus vide qu'il ne l'est.",

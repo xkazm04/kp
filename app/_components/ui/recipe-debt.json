@@ -70,14 +70,8 @@
     "features/agents-workforce/AgentsWorkforceRoster.tsx": {
       "metaLabel": 1
     },
-    "features/hiring/channels/ChannelsCommsMessageModal.tsx": {
-      "chipQuiet": 1
-    },
     "features/hiring/channels/ChannelsEdgeCard.tsx": {
       "panel": 1
-    },
-    "features/hiring/channels/ChannelsEmailIntakeWizard.tsx": {
-      "noticeAmber": 1
     },
     "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
       "panel": 1
