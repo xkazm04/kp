@@ -157,6 +157,11 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
   const finish = (): ScanSummary => ({ ...summary, finishedAt: deps.now() });
   const progress: ScanProgress = opts.onProgress ?? (() => undefined);
 
+  // The INPUTS time: taken before the profile is read, and the stamp every match of this
+  // scan carries. A match is "current" when matchedAt >= the profile's updatedAt; stamped
+  // with the time the scoring FINISHED, a preferences edit saved mid-scan (after the read,
+  // before the stamp) would read as already applied and never be re-matched.
+  const inputsAt = startedAt;
   const profile = deps.getProfile(workspaceId);
   if (!profile) {
     // Nothing to match against: no acquisition either — a dataset nobody can read is
@@ -249,7 +254,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
         signal,
         onChunkError: (error, chunk) => deps.log({ level: "warn", code: "match_failed", detail: `chunk ${chunk}` }, error),
       });
-      const matchedAt = deps.now();
+      const matchedAt = inputsAt;
       for (const m of outcome.matched) {
         deps.setPostingMatch(m.id, m.match, { total: m.total, fitTier: m.fitTier, version: MATCH_VERSION, matchedAt }, workspaceId);
       }

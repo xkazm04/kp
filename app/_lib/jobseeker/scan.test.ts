@@ -16,6 +16,7 @@ import "../testing/unit-db.ts";
 import { PipelineError } from "../python-runner.ts";
 import { FetchHalt, type SourceAdapter } from "./adapters/types.ts";
 import { deepDivePosting } from "./deepdive.ts";
+import { MATCH_VERSION } from "./match.ts";
 import { runPythonCli, type CliCall, type CliRunner } from "./python-cli.ts";
 import { runJobseekerScan, SCAN_SKIP_REASON, type ScanDeps } from "./scan.ts";
 import type { JobseekerPosting, JobseekerProfile, JobseekerSource, RawPosting, ScanSummary } from "./types.ts";
@@ -592,4 +593,34 @@ test("(egress) the scan's fetch binding refuses private URLs before the transpor
   assert.ok(hopGuard, "the public fetch carries a hopGuard for its redirects");
   assert.ok(await hopGuard(new URL("http://169.254.169.254/latest/meta-data/")), "a redirect onto the metadata address is refused");
   assert.equal(await hopGuard(new URL("https://public.example/next")), null);
+});
+
+test("(stale stamp) a profile edit that lands while the scan is scoring leaves those rows owed a re-match", async () => {
+  const store = makeStore();
+  // A clock that moves: every read is one second later. The seeker saves their
+  // preferences WHILE match_cli is running - after the scan read the profile.
+  let tick = 0;
+  const clock = () => new Date(Date.parse(NOW) + 1000 * tick++).toISOString();
+  const seeker: JobseekerProfile = { ...profile, updatedAt: NOW };
+  let editedAt: string | null = null;
+  const scripted = scriptedRunner({ totals: () => 60 }, []);
+  const runCli: CliRunner = async (call) => {
+    if (call.module === "match_cli" && editedAt === null) {
+      editedAt = clock();
+      seeker.updatedAt = editedAt;
+    }
+    return scripted(call);
+  };
+  const postings = Array.from({ length: 3 }, (_, i) => raw(i + 1, "stale"));
+  await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: { ...depsFor(store, runCli, [source("stale", { postings })], true, seeker), now: clock, getProfile: () => ({ ...seeker }) },
+  });
+  assert.ok(editedAt, "the edit landed mid-scan");
+  const scored = [...store.rows.values()];
+  assert.equal(scored.length, 3);
+  for (const r of scored) assert.ok(r.matchedAt !== null && r.matchedAt < editedAt!, `matchedAt ${r.matchedAt} must predate the edit at ${editedAt}`);
+  const next = store.deps.listPostingsForMatching(WS, { upToDateVersion: MATCH_VERSION, profileUpdatedAt: seeker.updatedAt });
+  assert.equal(next.rows.length, 3, "scored against the OLD preferences: the next scan re-matches them");
+  assert.equal(next.skippedUpToDate, 0);
 });
