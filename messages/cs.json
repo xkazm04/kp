@@ -3181,13 +3181,6 @@
       "movedAnnounce": "{name} přesunut/a do fáze {stage}",
       "dropHint": "Přetažením sem přesunete kandidáta do této fáze."
     },
-    "stageHelp": {
-      "Accepted": "Přijatý životopis: příchozí přihláška nebo aktivně vyhledaný kandidát čekající na prověření.",
-      "Screened": "Prošlo první vlnou hodnocení: spárováno a prověřeno AI. Silné shody postupují, ostatní čekají na rozhodnutí člověka.",
-      "Interview": "Probíhá pohovor: domluvení termínu, hlasový screening AI a hodnoticí karta.",
-      "Offer": "Nabídka se připravuje, kontroluje nebo odesílá.",
-      "Hired": "Nabídka přijata: kandidát přijat a nastupuje."
-    },
     "legend": {
       "awaitingDecision": "Čeká na vaše rozhodnutí",
       "aging": "Stárne ve fázi (SLA dle fáze)",
@@ -6991,8 +6984,6 @@
     "email": {
       "title": "Přidat schránku pozice",
       "add": "Přidat schránku",
-      "introWired": "Přeposílejte přihlášky z Outlooku nebo Gmailu. Nastavte <b>jedno pravidlo na pozici</b> a každá přihláška poteče do pipeline automaticky.",
-      "introUnwired": "Jeden přijímač na pozici. Přeposílání e-mailů na tomto nasazení není zapojené, takže přijímačem každé pozice je <b>HTTP adresa</b>, na kterou může přihlášku poslat cokoli.",
       "emptyWired": "Zatím žádné schránky pozic. Přidejte jednu a získáte adresu pro přeposílání.",
       "emptyUnwired": "Zatím žádné schránky pozic. Přidejte jednu a získáte její adresu přijímače.",
       "endpointWired": "Adresa pro přeposílání",
@@ -7000,7 +6991,6 @@
       "lead": "Přeposílejte přihlášky na pozici <b>{role}</b> na",
       "waiting": "Čeká se na první přeposlaný e-mail…",
       "notWiredTitle": "Přeposílání e-mailů zatím není zapojené. Neexistuje schránka, kam přeposílat.",
-      "notWiredBody": "Toto nasazení nemá poskytovatele příchozí pošty, takže pravidlo v Gmailu či Outlooku by posílalo přihlášky na pozici <b>{role}</b> na adresu, která nic nepřijímá. Skutečným přijímačem je HTTP adresa:",
       "notWiredHowTo": "Cokoli, co umí poslat POST, se na ni dostane už dnes: automatizace (Zapier/Make), formulář nebo služba pro zpracování e-mailů.",
       "gmail1": "Otevřete Gmail → <b>Nastavení ⚙ → Zobrazit všechna nastavení → Přeposílání a POP/IMAP</b>.",
       "gmail2": "Klikněte na <b>Přidat adresu pro přeposílání</b>, vložte <endpoint></endpoint> a pak <b>Další → Pokračovat</b>.",
@@ -7009,18 +6999,15 @@
       "outlook1": "Otevřete Outlook na webu → <b>Nastavení ⚙ → Pošta → Pravidla → Přidat nové pravidlo</b>.",
       "outlook2": "Pojmenujte ho <i>„Přihlášky → Kandi“</i> a přidejte podmínku (např. <i>Předmět obsahuje „přihláška“</i>).",
       "outlook3": "Jako akci zvolte <b>Přesměrovat na</b> (nebo <b>Přeposlat na</b>) <endpoint></endpoint>.",
-      "outlook4": "Klikněte na <b>Uložit</b>. Odpovídající pošta se teď přesměrovává automaticky a žádný kód se nepotvrzuje.",
-      "notWiredHowToSetup": "Skutečné přeposílání zapnete tak, že na tuto adresu nasměrujete poskytovatele příchozí pošty (Postmark, SendGrid nebo Mailgun inbound) a nastavíte <code>EMAIL_INBOUND_DOMAIN</code> na doménu, na které přijímá poštu. Adresa pro přeposílání a kroky pro Gmail/Outlook se pak objeví tady."
+      "outlook4": "Klikněte na <b>Uložit</b>. Odpovídající pošta se teď přesměrovává automaticky a žádný kód se nepotvrzuje."
     },
     "ads": {
       "title": "Přidat přijímač reklamních formulářů",
       "add": "Přidat přijímač",
-      "intro": "Nasměrujte webhook lead formuláře na LinkedIn nebo Meta na <b>adresu přijímače</b> dané pozice a každý lead dorazí do pipeline automaticky.",
       "empty": "Zatím žádné přijímače reklamních formulářů. Přidejte jeden a získáte webhook URL.",
       "endpoint": "Adresa přijímače",
       "lead": "Nasměrujte reklamní formulář pozice <b>{role}</b> na",
       "waiting": "Čeká se na první lead…",
-      "footnote": "Pokročilé: konektor můžete vynechat a posílat leady POSTem přímo na tuto URL. Po ověření na ni může mířit LinkedIn Lead Sync API nebo aplikace Meta přihlášená k webhooku <code>leadgen</code>.",
       "linkedin1": "V <b>Zapieru</b> nebo <b>Make</b> vytvořte tok: spouštěč <b>LinkedIn Lead Gen Forms → New Lead</b> (propojte svůj reklamní účet).",
       "linkedin2": "Přidejte akci <b>Webhooks → POST</b> a nastavte URL na <endpoint></endpoint>.",
       "linkedin3": "Namapujte do těla požadavku <b>jméno</b>, <b>e-mail</b> a soubor s životopisem.",
@@ -7033,9 +7020,6 @@
     "guide": {
       "setupFor": "Nastavení pro",
       "live": "Přijímá"
-    },
-    "cvSim": {
-      "title": "Simulovat životopis pro"
     },
     "copyFailed": "Kopírování selhalo. Označte text.",
     "receiversTruncated": "Zobrazujeme nejnovější příjemce. Některé v seznamu nejsou, takže některý kanál níže může působit prázdněji, než ve skutečnosti je.",

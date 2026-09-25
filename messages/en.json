@@ -3181,13 +3181,6 @@
       "movedAnnounce": "Moved {name} to {stage}",
       "dropHint": "Drop a candidate here to move them to this stage."
     },
-    "stageHelp": {
-      "Accepted": "CV received: an inbound application or a proactively-sourced candidate, waiting to be screened.",
-      "Screened": "Run through the first wave of evaluation: matched and AI-screened. Strong matches advance, the rest wait on a human decision.",
-      "Interview": "Interviewing: slot scheduling, AI voice screen, and scorecard.",
-      "Offer": "An offer is being drafted, reviewed, or sent.",
-      "Hired": "Offer accepted: candidate hired and onboarding."
-    },
     "legend": {
       "awaitingDecision": "Awaiting your decision",
       "aging": "Aging in stage (per-stage SLA)",
@@ -6991,8 +6984,6 @@
     "email": {
       "title": "Add role inbox",
       "add": "Add inbox",
-      "introWired": "Forward applications from Outlook or Gmail. Set <b>one rule per role</b> and every application flows into the pipeline automatically.",
-      "introUnwired": "One receiver per role. Email forwarding isn’t wired on this deployment, so each role’s receiver is an <b>HTTP endpoint</b> anything can POST an application to.",
       "emptyWired": "No role inboxes yet. Add one to get a forwarding address.",
       "emptyUnwired": "No role inboxes yet. Add one to get its receiver URL.",
       "endpointWired": "Forwarding address",
@@ -7000,7 +6991,6 @@
       "lead": "Forward <b>{role}</b> applications to",
       "waiting": "Waiting for the first forward…",
       "notWiredTitle": "Email forwarding isn’t wired yet. There is no mailbox to forward to.",
-      "notWiredBody": "This deployment has no inbound-email provider, so a Gmail or Outlook rule would send <b>{role}</b> applications to an address that accepts nothing. The real receiver is an HTTP endpoint:",
       "notWiredHowTo": "Anything that can POST reaches it today: an automation (Zapier/Make), a form, or a mail-parsing service.",
       "gmail1": "Open Gmail → <b>Settings ⚙ → See all settings → Forwarding and POP/IMAP</b>.",
       "gmail2": "Click <b>Add a forwarding address</b>, paste <endpoint></endpoint>, then <b>Next → Proceed</b>.",
@@ -7009,18 +6999,15 @@
       "outlook1": "Open Outlook on the web → <b>Settings ⚙ → Mail → Rules → Add new rule</b>.",
       "outlook2": "Name it <i>“Applications → Kandi”</i> and add a condition (e.g. <i>Subject includes “application”</i>).",
       "outlook3": "Set the action to <b>Redirect to</b> (or <b>Forward to</b>) <endpoint></endpoint>.",
-      "outlook4": "Click <b>Save</b>. Matching mail is now redirected automatically, with no code to confirm.",
-      "notWiredHowToSetup": "To turn on real forwarding, route an inbound-email provider (Postmark, SendGrid or Mailgun inbound) at this endpoint and set <code>EMAIL_INBOUND_DOMAIN</code> to the domain it accepts mail on. The forwarding address and the Gmail/Outlook steps appear here once it is set."
+      "outlook4": "Click <b>Save</b>. Matching mail is now redirected automatically, with no code to confirm."
     },
     "ads": {
       "title": "Add ad-form receiver",
       "add": "Add receiver",
-      "intro": "Point a LinkedIn or Meta lead-gen ad form’s webhook at a role’s <b>receiver URL</b>, and every lead lands in the pipeline automatically.",
       "empty": "No ad-form receivers yet. Add one to get a webhook URL.",
       "endpoint": "Receiver URL",
       "lead": "Point the <b>{role}</b> ad form at",
       "waiting": "Waiting for the first lead…",
-      "footnote": "Advanced: skip the connector and POST leads to this URL directly. LinkedIn’s Lead Sync API, or a Meta app subscribed to the <code>leadgen</code> webhook, can target it once verified.",
       "linkedin1": "In <b>Zapier</b> or <b>Make</b>, create a flow: trigger <b>LinkedIn Lead Gen Forms → New Lead</b> (connect your ad account).",
       "linkedin2": "Add an action <b>Webhooks → POST</b> and set the URL to <endpoint></endpoint>.",
       "linkedin3": "Map the lead’s <b>name</b>, <b>email</b> and résumé/CV file into the request body.",
@@ -7033,9 +7020,6 @@
     "guide": {
       "setupFor": "Setup for",
       "live": "Receiving"
-    },
-    "cvSim": {
-      "title": "Simulate a CV for"
     },
     "copyFailed": "Copy failed. Select the text.",
     "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is.",

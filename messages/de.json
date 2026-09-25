@@ -3181,13 +3181,6 @@
       "movedAnnounce": "{name} nach {stage} verschoben",
       "dropHint": "Ziehen Sie eine Karte hierher, um den Kandidaten in diese Phase zu verschieben."
     },
-    "stageHelp": {
-      "Accepted": "Lebenslauf erhalten: eine eingehende Bewerbung oder ein/e proaktiv gesourcte/r Kandidat/in, wartet auf das Screening.",
-      "Screened": "Erste Bewertungswelle durchlaufen: abgeglichen und per AI geprüft. Starke Matches werden weitergeleitet, der Rest wartet auf eine menschliche Entscheidung.",
-      "Interview": "Interview-Phase: Terminplanung, AI-Voice-Screening und Scorecard.",
-      "Offer": "Ein Angebot wird entworfen, geprüft oder versendet.",
-      "Hired": "Angebot angenommen: Kandidat/in eingestellt, Onboarding läuft."
-    },
     "legend": {
       "awaitingDecision": "Wartet auf Ihre Entscheidung",
       "aging": "Alterung in Phase (SLA pro Phase)",
@@ -6991,8 +6984,6 @@
     "email": {
       "title": "Stellen-Postfach hinzufügen",
       "add": "Postfach hinzufügen",
-      "introWired": "Leiten Sie Bewerbungen aus Outlook oder Gmail weiter. Legen Sie <b>eine Regel pro Stelle</b> fest, und jede Bewerbung fließt automatisch in die Pipeline.",
-      "introUnwired": "Ein Empfänger pro Stelle. E-Mail-Weiterleitung ist auf diesem Deployment nicht verdrahtet, deshalb ist der Empfänger jeder Stelle ein <b>HTTP-Endpunkt</b>, an den alles eine Bewerbung POSTen kann.",
       "emptyWired": "Noch keine Stellen-Postfächer. Legen Sie eines an, um eine Weiterleitungsadresse zu erhalten.",
       "emptyUnwired": "Noch keine Stellen-Postfächer. Legen Sie eines an, um seine Empfänger-URL zu erhalten.",
       "endpointWired": "Weiterleitungsadresse",
@@ -7000,7 +6991,6 @@
       "lead": "Leiten Sie Bewerbungen für <b>{role}</b> weiter an",
       "waiting": "Warten auf die erste Weiterleitung…",
       "notWiredTitle": "Die E-Mail-Weiterleitung ist noch nicht eingerichtet. Es gibt kein Postfach, an das weitergeleitet werden könnte.",
-      "notWiredBody": "Dieses Deployment hat keinen Anbieter für eingehende E-Mails, eine Gmail- oder Outlook-Regel würde Bewerbungen für <b>{role}</b> also an eine Adresse schicken, die nichts annimmt. Der echte Empfänger ist ein HTTP-Endpunkt:",
       "notWiredHowTo": "Alles, was POSTen kann, erreicht ihn schon heute: eine Automatisierung (Zapier/Make), ein Formular oder ein E-Mail-Parsing-Dienst.",
       "gmail1": "Öffnen Sie Gmail → <b>Einstellungen ⚙ → Alle Einstellungen aufrufen → Weiterleitung und POP/IMAP</b>.",
       "gmail2": "Klicken Sie auf <b>Weiterleitungsadresse hinzufügen</b>, fügen Sie <endpoint></endpoint> ein und dann <b>Weiter → Fortfahren</b>.",
@@ -7009,18 +6999,15 @@
       "outlook1": "Öffnen Sie Outlook im Web → <b>Einstellungen ⚙ → E-Mail → Regeln → Neue Regel hinzufügen</b>.",
       "outlook2": "Nennen Sie sie <i>„Bewerbungen → Kandi“</i> und fügen Sie eine Bedingung hinzu (z. B. <i>Betreff enthält „Bewerbung“</i>).",
       "outlook3": "Setzen Sie die Aktion auf <b>Umleiten an</b> (oder <b>Weiterleiten an</b>) <endpoint></endpoint>.",
-      "outlook4": "Klicken Sie auf <b>Speichern</b>. Passende Mail wird nun automatisch umgeleitet, ohne Bestätigungscode.",
-      "notWiredHowToSetup": "Für echte Weiterleitung leiten Sie einen Anbieter für eingehende E-Mails (Postmark, SendGrid oder Mailgun Inbound) auf diesen Endpunkt und setzen <code>EMAIL_INBOUND_DOMAIN</code> auf die Domain, unter der er Mail annimmt. Die Weiterleitungsadresse und die Gmail-/Outlook-Schritte erscheinen dann hier."
+      "outlook4": "Klicken Sie auf <b>Speichern</b>. Passende Mail wird nun automatisch umgeleitet, ohne Bestätigungscode."
     },
     "ads": {
       "title": "Anzeigenformular-Empfänger hinzufügen",
       "add": "Empfänger hinzufügen",
-      "intro": "Richten Sie den Webhook eines LinkedIn- oder Meta-Lead-Formulars auf die <b>Empfänger-URL</b> einer Stelle, und jeder Lead landet automatisch in der Pipeline.",
       "empty": "Noch keine Anzeigenformular-Empfänger. Legen Sie einen an, um eine Webhook-URL zu erhalten.",
       "endpoint": "Empfänger-URL",
       "lead": "Richten Sie das Anzeigenformular für <b>{role}</b> auf",
       "waiting": "Warten auf den ersten Lead…",
-      "footnote": "Fortgeschritten: Sie können den Konnektor überspringen und Leads direkt an diese URL POSTen. LinkedIns Lead-Sync-API oder eine Meta-App mit <code>leadgen</code>-Webhook-Abo kann sie nach der Verifizierung ansprechen.",
       "linkedin1": "Erstellen Sie in <b>Zapier</b> oder <b>Make</b> einen Flow: Trigger <b>LinkedIn Lead Gen Forms → New Lead</b> (verbinden Sie Ihr Werbekonto).",
       "linkedin2": "Fügen Sie die Aktion <b>Webhooks → POST</b> hinzu und setzen Sie die URL auf <endpoint></endpoint>.",
       "linkedin3": "Mappen Sie <b>Name</b>, <b>E-Mail</b> und die Lebenslauf-Datei des Leads in den Request-Body.",
@@ -7033,9 +7020,6 @@
     "guide": {
       "setupFor": "Einrichtung für",
       "live": "Empfängt"
-    },
-    "cvSim": {
-      "title": "Lebenslauf simulieren für"
     },
     "copyFailed": "Kopieren fehlgeschlagen. Text markieren.",
     "receiversTruncated": "Angezeigt werden die neuesten Empfänger. Einige fehlen in der Liste, daher kann ein Kanal unten leerer wirken, als er ist.",
