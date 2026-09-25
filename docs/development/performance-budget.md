@@ -257,6 +257,11 @@ that only `ci.yml` blocks the loop this budget exists to protect.
   pinned by `scripts/perf/__tests__/devbench.test.mjs` (11 checks) in
   `npm run test:perf`, which also validates the committed file — a ratchet whose
   committed state is malformed is a gate that silently never fires.
+- **What the browser loads first.** This budget walks dynamic imports and server code, so a
+  lazy-loading win cannot move it. `scripts/perf/first-load.mjs` walks STATIC client imports only
+  (shell, each workspace tab chunk, the gate routes; it stops at `'use server'`), and
+  `npm run perf:vitals` measures cold loads and warm tab switches in a browser. Both are report-only;
+  see [`../design/instruments.md`](../design/instruments.md).
 - **Client bundle bytes.** A worthwhile second metric, and it needs a build
   (`.next/`), which puts it in a different CI tier from this one.
 - **SQLite write throughput.** Already measured, with its result written down:
