@@ -142,12 +142,7 @@
     "kit": {
       "roundsToBook": "Rounds to book",
       "savedOn": "Saved {date}",
-      "neverSaved": "Never saved: the product defaults apply",
-      "policyTitle": "Who runs each step, and who signs off",
-      "policyNone": "None of these steps carries a decision.",
-      "cohortWhy": "How many from the previous round reach this one.",
-      "actionsEdit": "Choose",
-      "actionsDone": "Done"
+      "neverSaved": "Never saved: the product defaults apply"
     }
   },
   "diagrams": {

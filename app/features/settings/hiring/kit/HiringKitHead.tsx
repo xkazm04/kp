@@ -56,14 +56,21 @@ export function HiringKitHead({ c }: { c: Composer }) {
         state={c.loadFailed ? "error" : ready ? "ready" : "loading"}
         errorText={t("loadFailed")}
         actions={
-          <Button
+          <>
+            {ready && !c.dirty && !c.saving ? (
+              <span className="k-acts-note" role="status">
+                {t("allSaved")}
+              </span>
+            ) : null}
+            <Button
             label={t("save")}
             variant="primary"
             loading={c.saving}
             loadingLabel={t("saving")}
             disabled={!ready || !c.dirty || c.blocked}
             onClick={() => void c.save()}
-          />
+            />
+          </>
         }
       />
       {ready ? (

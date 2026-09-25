@@ -142,12 +142,7 @@
     "kit": {
       "roundsToBook": "Kola k naplánování",
       "savedOn": "Uloženo {date}",
-      "neverSaved": "Nikdy neuloženo: platí výchozí nastavení",
-      "policyTitle": "Kdo krok vede a kdo ho schvaluje",
-      "policyNone": "Žádný z těchto kroků nenese rozhodnutí.",
-      "cohortWhy": "Kolik kandidátů z předchozího kola postoupí do tohoto.",
-      "actionsEdit": "Vybrat",
-      "actionsDone": "Hotovo"
+      "neverSaved": "Nikdy neuloženo: platí výchozí nastavení"
     }
   },
   "diagrams": {

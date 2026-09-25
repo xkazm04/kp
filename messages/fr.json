@@ -142,12 +142,7 @@
     "kit": {
       "roundsToBook": "Tours à planifier",
       "savedOn": "Enregistré le {date}",
-      "neverSaved": "Jamais enregistré : les valeurs par défaut s’appliquent",
-      "policyTitle": "Qui exécute chaque étape, et qui valide",
-      "policyNone": "Aucune de ces étapes ne porte de décision.",
-      "cohortWhy": "Combien de candidats du tour précédent atteignent celui-ci.",
-      "actionsEdit": "Choisir",
-      "actionsDone": "Terminé"
+      "neverSaved": "Jamais enregistré : les valeurs par défaut s’appliquent"
     }
   },
   "diagrams": {

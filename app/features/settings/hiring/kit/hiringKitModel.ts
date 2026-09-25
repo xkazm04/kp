@@ -5,7 +5,7 @@
 // (pipelineAxisDraft, pipelineComposerModel). What lives here is only the kit's own reading of
 // that state: one row per step, one row per decision a step carries, which marks those rows
 // wear, what changed against the stored plan, and the page head's figures. No React, no fetch.
-import { planStep, prunePlanToAxis } from "@/app/_lib/decision-config-schema";
+import { planStep } from "@/app/_lib/decision-config-schema";
 import type { StageAiAction, StageDef, StageRole } from "@/app/_lib/pipeline-stages";
 import { defaultStageActions, stageActions } from "@/app/_lib/stage-ai-actions";
 import type { AxisDraft, StrandedStage } from "@/app/features/shared/pipelineAxisDraft";
@@ -171,28 +171,7 @@ export function setPolicy(
   return rounds.length > 0 ? patchRound(plan, row.stageId, 0, patch) : setStepRounds(plan, row.stageId, [{ ...newRound("ai"), ...patch }]);
 }
 
-// ---- marks and figures ------------------------------------------------------------------------
-
-/** Who decides at a column, as the server will read the plan (deriveImpact's rules). */
-export type Decider = "human" | "machine" | "nobody";
-
-const GATED: readonly StageRole[] = ["screening", "homework", "scoring", "offer"];
-
-export function deciders(plan: PipelinePlan, axis: readonly KitStage[]): Record<string, Decider> {
-  const live = prunePlanToAxis(plan, axis as StageDef[]);
-  const out: Record<string, Decider> = {};
-  for (const stage of axis) {
-    const step = planStep(live, stage.id);
-    const gated = GATED.includes(stage.role);
-    if (!step || (!gated && step.rounds.length === 0)) {
-      out[stage.id] = "nobody";
-      continue;
-    }
-    const human = (gated && step.gate === "human") || step.rounds.some((r) => r.kind === "human" || r.gate === "human");
-    out[stage.id] = human ? "human" : "machine";
-  }
-  return out;
-}
+// ---- the page head's figures ------------------------------------------------------------------------
 
 /** The page head's figures and their change against the STORED plan on the STORED axis. */
 export function planFigures(
@@ -210,11 +189,6 @@ export function planFigures(
     rounds,
     roundsDelta: rounds - roundCount(savedPlan, savedAxis as StageDef[]),
   };
-}
-
-/** Everyone on the board, or null while occupancy is unknown. */
-export function boardTotal(stages: readonly KitStage[], counts: Record<string, number>, countsLoaded: boolean): number | null {
-  return countsLoaded ? stages.reduce((n, s) => n + (counts[s.id] ?? 0), 0) : null;
 }
 
 // ---- AI actions, strandings, the save line --------------------------------------------------------
@@ -254,9 +228,51 @@ export function saveStatusKey(reason: BlockedReason, dirty: boolean) {
   return dirty ? ("unsaved" as const) : ("allSaved" as const);
 }
 
-/** First sentence of a catalog sentence pair ("X. Click to Y." -> "X."): a click hint does not
- *  belong beside a segmented control, which shows both answers. */
-export function firstSentence(text: string): string {
-  const m = /^(.+?[.!?])(\s|$)/.exec(text);
-  return m ? m[1] : text;
+// ---- the matrix: one row per step ------------------------------------------------------------------
+
+/** Who decides at a column: a person, the machine unattended, or nothing is decided there. */
+export type Decider = "human" | "machine" | "nobody";
+
+/** One step as the matrix draws it: the column, its decisions, its AI actions, and the mark the
+ *  row wears - who decides there AS THE CONTROLS SHOW IT (an untouched interview column reads as the
+ *  AI round nobody has approved yet, so its row says "a person decides", matching its controls). */
+export type MatrixRow = StepRow & {
+  policy: PolicyRow[];
+  actions: ActionRow;
+  decider: Decider;
+  /** Rounds a legacy plan stacked behind this column, when more than one. */
+  stacked: number | null;
+  /** The step itself changed, or any decision on it did. */
+  dirty: boolean;
+};
+
+export function matrixRows(
+  draft: AxisDraft,
+  savedStages: readonly StageDef[],
+  counts: Record<string, number>,
+  countsLoaded: boolean,
+  plan: PipelinePlan,
+  savedPlan: PipelinePlan | null,
+): MatrixRow[] {
+  const policy = policyRows(plan, savedPlan, draft.stages);
+  const actions = new Map(actionRows(draft.stages).map((a) => [a.id, a]));
+  return stepRows(draft, savedStages, counts, countsLoaded).map((s) => {
+    const mine = policy.filter((p) => p.stageId === s.id);
+    const human = mine.some((p) => p.dim === "scorecard" || (p.dim === "guard" && p.value === "human"));
+    const decides = mine.some((p) => p.dim === "guard" || p.dim === "scorecard");
+    return {
+      ...s,
+      policy: mine,
+      actions: actions.get(s.id)!,
+      decider: human ? "human" : decides ? "machine" : "nobody",
+      stacked: mine.find((p) => p.stacked)?.stacked ?? null,
+      dirty: s.changed || mine.some((p) => p.changed),
+    };
+  });
+}
+
+/** The latest time either half of the plan was stored, or null when neither ever was. */
+export function latestVersion(versions: Record<string, string | null>, phases: readonly string[]): string | null {
+  const stamps = phases.map((p) => versions[p]).filter((v): v is string => Boolean(v));
+  return stamps.length ? stamps.sort().at(-1)! : null;
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Mark, Section, SelectField, SettingRow } from "@/app/_components/kit";
+import { Mark, Section, SettingRow } from "@/app/_components/kit";
+import { Select } from "@/app/_components/Select";
 import { strandedRows, type Composer } from "./hiringKitModel";
 
 /**
@@ -24,9 +25,10 @@ export function HiringKitStranded({ c }: { c: Composer }) {
           mark={<Mark kind={r.unmapped ? "needs" : "ok"} />}
           name={t("strandedRow", { stage: r.label, count: r.count })}
           control={
-            <SelectField
-              size="sm"
-              label={t("mapAria", { stage: r.label })}
+            <Select
+              sizeVariant="sm"
+              className="w-full"
+              ariaLabel={t("mapAria", { stage: r.label })}
               value={r.target}
               options={options}
               invalid={r.unmapped}

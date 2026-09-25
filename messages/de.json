@@ -142,12 +142,7 @@
     "kit": {
       "roundsToBook": "Runden zu planen",
       "savedOn": "Gespeichert am {date}",
-      "neverSaved": "Nie gespeichert: Es gelten die Standardwerte",
-      "policyTitle": "Wer jeden Schritt ausführt und wer freigibt",
-      "policyNone": "Keiner dieser Schritte trägt eine Entscheidung.",
-      "cohortWhy": "Wie viele aus der vorigen Runde diese erreichen.",
-      "actionsEdit": "Auswählen",
-      "actionsDone": "Fertig"
+      "neverSaved": "Nie gespeichert: Es gelten die Standardwerte"
     }
   },
   "diagrams": {

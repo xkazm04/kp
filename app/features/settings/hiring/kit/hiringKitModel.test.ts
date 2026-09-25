@@ -12,9 +12,8 @@ import { addStage, draftFromStored, moveStage, removeStage, renameStage, setStag
 import type { PipelinePlan } from "../pipelineComposerModel";
 import {
   actionRows,
-  boardTotal,
-  deciders,
-  firstSentence,
+  latestVersion,
+  matrixRows,
   planFigures,
   policyRows,
   saveStatusKey,
@@ -93,13 +92,39 @@ test("a legacy stacked column says so on its executor row", () => {
   assert.equal(policyRows(plan, plan, SAVED).find((r) => r.dim === "executor")!.stacked, 2);
 });
 
-test("marks and figures read the plan as the server will (deriveImpact)", () => {
-  assert.deepEqual(deciders(PLAN, SAVED), { Accepted: "nobody", Screened: "human", Interview: "human", Offer: "human", Hired: "nobody" });
+test("the head's figures count against the stored plan (deriveImpact)", () => {
   const auto = setPolicy(PLAN, { stageId: "Screened", role: "screening", dim: "guard" }, "auto");
-  assert.equal(deciders(auto, SAVED).Screened, "machine");
   assert.deepEqual(planFigures(auto, SAVED, PLAN, SAVED), { decisions: 2, decisionsDelta: -1, rounds: 1, roundsDelta: 0 });
-  assert.equal(boardTotal(SAVED, { Accepted: 17, Screened: 20 }, true), 37);
-  assert.equal(boardTotal(SAVED, {}, false), null, "unknown occupancy is not an empty board");
+});
+
+test("the matrix: one row per step carrying its own decisions, its mark as the controls show it", () => {
+  const rows = matrixRows(draft(), SAVED, { Offer: 43 }, true, PLAN, PLAN);
+  assert.deepEqual(rows.map((r) => [r.id, r.decider, r.policy.map((p) => p.dim).join("+")]), [
+    ["Accepted", "nobody", ""],
+    ["Screened", "human", "guard"],
+    ["Interview", "human", "executor+guard"],
+    ["Offer", "human", "guard"],
+    ["Hired", "nobody", ""],
+  ]);
+  assert.equal(rows[3].count, 43);
+  assert.ok(rows.every((r) => !r.dirty && r.stacked === null));
+  const auto = setPolicy(PLAN, { stageId: "Screened", role: "screening", dim: "guard" }, "auto");
+  const edited = matrixRows(draft(), SAVED, {}, true, auto, PLAN);
+  assert.equal(edited[1].decider, "machine");
+  assert.deepEqual(edited.filter((r) => r.dirty).map((r) => r.id), ["Screened"], "a decision edit marks its own step row");
+  const human = setPolicy(PLAN, { stageId: "Interview", role: "interview", dim: "executor" }, "human");
+  assert.equal(matrixRows(draft(), SAVED, {}, true, human, PLAN)[2].decider, "human", "a human round's verdict is a person deciding");
+});
+
+test("a legacy stacked column carries its count on the step row", () => {
+  const plan: PipelinePlan = { steps: [{ stageId: "Interview", gate: "human", rounds: [{ kind: "ai", gate: "human", topN: null }, { kind: "human", gate: "human", topN: 3 }] }] };
+  assert.equal(matrixRows(draft(), SAVED, {}, true, plan, plan)[2].stacked, 2);
+});
+
+test("saved-on reads the latest of the two phases; never saved when neither was", () => {
+  assert.equal(latestVersion({ pipelineStages: null, interviewPlan: "2026-08-10T09:00:00Z" }, ["pipelineStages", "interviewPlan"]), "2026-08-10T09:00:00Z");
+  assert.equal(latestVersion({ pipelineStages: "2026-09-01T00:00:00Z", interviewPlan: "2026-08-10T09:00:00Z" }, ["pipelineStages", "interviewPlan"]), "2026-09-01T00:00:00Z");
+  assert.equal(latestVersion({ pipelineStages: null, interviewPlan: null }, ["pipelineStages", "interviewPlan"]), null);
 });
 
 test("AI actions follow the default until the step sets its own list", () => {
@@ -125,9 +150,4 @@ test("the save sentence: the refusal reason wins over 'unsaved'", () => {
   assert.equal(saveStatusKey("problems", true), "blocked");
   assert.equal(saveStatusKey(null, true), "unsaved");
   assert.equal(saveStatusKey(null, false), "allSaved");
-});
-
-test("a click hint is cut from a catalog sentence pair", () => {
-  assert.equal(firstSentence("An AI interview runs here. Click to make it a human round."), "An AI interview runs here.");
-  assert.equal(firstSentence("No full stop"), "No full stop");
 });

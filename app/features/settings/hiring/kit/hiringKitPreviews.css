@@ -1,0 +1,66 @@
+/* Settings > Hiring (kit view): the three impact previews, as one strip of panes on the measure.
+   Each pane is a miniature of the tab it predicts, drawn in that tab's grammar (the board's ruled
+   columns, the Decisions ladder, the Schedule week), with the kit's rules, marks, tags and type
+   tokens so it reads as the same family as the rest of the sheet. Colour only via tokens. Scoped
+   under .hk-prev; loaded with the kit view's dynamic chunk only. */
+
+.hk-prev { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: var(--k-line) solid var(--k-rule); }
+.hk-prev__pane { min-width: 0; padding: 14px 16px 16px; border-left: 1px solid var(--k-rule); }
+.hk-prev__pane:first-child { border-left: 0; padding-left: calc(var(--m-mark) + var(--m-gap)); }
+.hk-prev__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.hk-prev__title { margin: 0; font-size: var(--text-micro); font-weight: 600; }
+.hk-prev__sub { margin: 2px 0 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.hk-prev__aside { font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hk-prev__head .k-fig__value { font-size: var(--text-h3); line-height: 1.2; }
+.hk-prev__note { margin: 8px 0 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.hk-prev__legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* Overview: the board, ruled columns in board order */
+.hk-board { display: grid; overflow-x: auto; }
+.hk-board__col { min-width: 0; padding: 0 8px; border-left: 1px solid var(--k-rule); }
+.hk-board__col:first-child { border-left: 0; padding-left: 0; }
+.hk-board__h { font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hk-board__h.is-live { color: var(--k-ink); font-weight: 600; }
+.hk-board__cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 64px; margin-top: 8px; }
+.hk-board__n { font-size: var(--text-micro); color: var(--k-quiet); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Decisions: the checkpoint ladder, every gate including the ones left on auto */
+.hk-ladder { list-style: none; margin: 0; padding: 0; }
+.hk-ladder li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--k-rule); font-size: var(--text-micro); }
+.hk-ladder li:last-child { border-bottom: 0; }
+.hk-ladder b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hk-ladder li.is-auto b { font-weight: 400; color: var(--k-quiet); }
+.hk-ladder small { display: block; font-size: var(--text-micro); color: var(--k-quiet); }
+
+/* Schedule: a representative week, labelled as one */
+.hk-week { display: grid; grid-template-columns: 2.5rem repeat(5, minmax(0, 1fr)); border: 1px solid var(--k-rule); border-radius: var(--k-radius); overflow: hidden; font-size: var(--text-micro); }
+.hk-week__row { display: contents; }
+.hk-week__row > div { min-width: 0; min-height: 30px; padding: 4px; border-left: 1px solid var(--k-rule); border-top: 1px solid var(--k-rule); }
+.hk-week__row > div:first-child { border-left: 0; }
+.hk-week__row > .hk-week__h { min-height: 0; border-top: 0; background: var(--k-plane); color: var(--k-quiet); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hk-week__t { color: var(--k-quiet); text-align: center; font-variant-numeric: tabular-nums; }
+.hk-week__block { display: block; padding: 0 4px; border-radius: 4px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hk-week__block.is-ai { background: color-mix(in srgb, var(--color-coral) 14%, var(--k-raised)); color: var(--color-coral); }
+.hk-week__block.is-human { background: color-mix(in srgb, var(--color-moss) 16%, var(--k-raised)); color: var(--color-moss); }
+
+[data-theme="dark"] .hk-prev { border-bottom: 0; }
+[data-theme="dark"] .hk-prev__pane { border-left: 2px dashed var(--k-rule-strong); }
+[data-theme="dark"] .hk-prev__pane:first-child { border-left: 0; }
+[data-theme="dark"] .hk-board__col { border-left-style: dashed; }
+[data-theme="dark"] .hk-ladder li { border-bottom-style: dashed; }
+[data-theme="dark"] .hk-week { border-width: 2px; border-color: var(--k-rule-strong); border-radius: 12px; }
+[data-theme="dark"] .hk-week__block { border-radius: 999px; }
+
+/* A sheet of 1000px or less (1280 beside kp's shell): the board takes the whole first line, where
+   its five columns read without truncating, and the ladder and the week share the second. */
+@container sheet (max-width: 1000px) {
+  .hk-prev { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hk-prev__pane:first-child { grid-column: 1 / -1; border-bottom: 1px solid var(--k-rule); }
+  .hk-prev__pane:nth-child(2) { border-left: 0; padding-left: calc(var(--m-mark) + var(--m-gap)); }
+}
+[data-theme="dark"] .hk-prev__pane:first-child { border-bottom-style: dashed; }
+@container sheet (max-width: 760px) {
+  .hk-prev { grid-template-columns: minmax(0, 1fr); }
+  .hk-prev__pane, .hk-prev__pane:first-child { border-left: 0; padding-left: calc(var(--m-mark) + var(--m-gap)); border-top: 1px solid var(--k-rule); }
+  .hk-prev__pane:first-child { grid-column: auto; border-top: 0; border-bottom: 0; }
+}
