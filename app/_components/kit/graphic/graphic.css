@@ -13,8 +13,9 @@
  * stay in kit.css with it, so each rule has one home.
  *
  * The one departure from the winner: kp has no violet token, and the winner's Spark-Dark Offer tone
- * was Tailwind's violet-500. It is mixed from two brand tokens here, the same mix the /me Sieve uses
- * for its "held" violet (app/features/jobseeker/sieve/sieve.css --sv-held).
+ * was Tailwind's violet-500. It is mixed here from two dark-mapped tokens in oklch, where the hue path
+ * from blue-700 to coral runs through violet (70/30 lands near violet-500's hue, lighter). The /me
+ * Sieve's srgb steel+coral mix was tried first and read pink, not violet, in Spark Dark.
  */
 
 /* ---------- tones: one ramp for "how far along", coral stays "needs you" ---------- */
@@ -30,7 +31,7 @@
   --g-outline: 0px;
 }
 [data-theme="dark"] .k-kit {
-  --tone-offer: color-mix(in srgb, var(--color-steel) 52%, var(--color-coral));
+  --tone-offer: color-mix(in oklch, var(--color-blue-700) 70%, var(--color-coral));
   --g-outline: 1.6px;
 }
 .k-tone--accepted { color: var(--tone-accepted); }

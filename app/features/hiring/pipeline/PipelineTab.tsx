@@ -21,6 +21,7 @@ import { PipelineFilterBar } from "./PipelineFilterBar";
 import { PipelinePopulatedBoard } from "./PipelinePopulatedBoard";
 import { Fade } from "./PipelineMotion";
 import { resolveStageFilter } from "./usePipelineFilters";
+import { useKitFlag } from "@/app/_components/kit/useKitFlag";
 
 // Tier 3 (docs/design/loading-choreography.md): the candidate modal is a large
 // subtree (scorecard, interview transcript, consent panel, GitHub evidence,
@@ -34,7 +35,18 @@ const CandidateModal = dynamic(() => import("./candidate/CandidateModal").then((
   loading: () => <div className="reveal-quiet fixed inset-0 z-50 bg-scrim" aria-hidden />,
 });
 
+// Gate K2 (kit-unification spark, dev only): `?kit=1` renders the composition-kit port of this tab.
+// Its code and CSS load only behind the flag; production always renders PipelineTabCurrent. No
+// loading placeholder: the flag is dev-only and a placeholder would add a module to the tab's chunk.
+const PipelineKitView = dynamic(() => import("./kit/PipelineKitView").then((m) => ({ default: m.PipelineKitView })), {
+  loading: () => null,
+});
+
 export function PipelineTab() {
+  return useKitFlag() ? <PipelineKitView /> : <PipelineTabCurrent />;
+}
+
+function PipelineTabCurrent() {
   const s = usePipelineTabState();
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
