@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { CvPolishArtifact, JobseekerDialog, JobseekerProfile } from "@/app/_lib/jobseeker/types";
+import type { CvPolishArtifact, JobseekerDialog, JobseekerPostingSummary, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CvDesigner } from "../cv/CvDesigner";
 import { buildCvDocument } from "../cv/cvDocument";
+import { tailorTargetsOf } from "../cv/cvTailor";
 import type { DraftSource } from "../importOutcome";
 import { ProvMark } from "./marks";
 import { initialsOf, levelOf, provenanceOf, type ProvenanceKey, type ProvenanceMark } from "./sieveModel";
@@ -129,6 +130,7 @@ export function StepYou({
   polishing,
   onPolish,
   reduceMotion,
+  postings,
 }: {
   profile: JobseekerProfile | null;
   draftSource: DraftSource;
@@ -137,6 +139,9 @@ export function StepYou({
   polishing: boolean;
   onPolish(): void;
   reduceMotion: boolean;
+  /** The sieve's rows (every posting, decided and gone included): the designed CV's
+   *  "Tailor for" reads what postings at each stated target ask for. Null while loading. */
+  postings?: JobseekerPostingSummary[] | null;
 }) {
   const t = useTranslations("me.sieve.you");
   const enumLabel = useEnumLabel();
@@ -157,6 +162,8 @@ export function StepYou({
         : null,
     [profile]
   );
+  // The seeker's stated targets, each with its demand, for the designer's "Tailor for".
+  const tailorTargets = useMemo(() => (profile ? tailorTargetsOf(profile.preferences.targetTitles, postings) : []), [profile, postings]);
 
   // The flight: once per CV per browser session, when the step first scrolls into view.
   const fly = useCallback(() => {
@@ -316,7 +323,7 @@ export function StepYou({
             </div>
           ) : null}
           {face === "designed" && designed ? (
-            <CvDesigner doc={designed} mode="inline" skin={{ primary: SV_BTN_PRIMARY, ghost: SV_BTN_GHOST }} />
+            <CvDesigner doc={designed} mode="inline" targets={tailorTargets} skin={{ primary: SV_BTN_PRIMARY, ghost: SV_BTN_GHOST }} />
           ) : (
             <>
               <div className="sheet" aria-label={t("sheetLabel")}>

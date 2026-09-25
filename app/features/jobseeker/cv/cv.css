@@ -112,6 +112,19 @@
   letter-spacing: 0.02em;
   color: var(--cv-ink);
 }
+/* The tailored objective: the seeker's stated target, labelled ("Seeking: AI Engineer
+   roles") — quieter than the headline, the CV's own words stay first. */
+.cvsheet .cv-objective {
+  margin-top: 1.2mm;
+  font-size: 9.4pt;
+  font-weight: 500;
+  color: var(--cv-accent);
+}
+/* A term the tailored target asks for, inside a bullet or a skill list. */
+.cvsheet .cv-em {
+  font-weight: 650;
+  color: var(--cv-ink);
+}
 .cvsheet .cv-contacts {
   display: flex;
   flex-wrap: wrap;
@@ -435,6 +448,12 @@
 .cvsheet[data-template="compact"] .cv-headline {
   color: color-mix(in srgb, var(--cv-paper) 86%, var(--cv-accent));
 }
+.cvsheet[data-template="compact"] .cv-objective {
+  color: var(--cv-paper);
+}
+.cvsheet[data-template="compact"] .cv-head:has(.cv-objective) .cv-contacts {
+  grid-row: 1 / span 3;
+}
 .cvsheet[data-template="compact"] .cv-contacts {
   grid-column: 2;
   grid-row: 1 / span 2;
@@ -702,6 +721,92 @@
 .cvdesk-list s {
   color: var(--color-steel);
 }
+/* Tailoring: the target picker, its two options, and the coverage the SEEKER reads (the
+   missing skills are listed here and never reach the sheet). */
+.cvdesk-tailor {
+  flex-basis: 100%;
+  display: grid;
+  gap: 10px;
+}
+.cvdesk-tailor .cvdesk-pick {
+  flex-wrap: wrap;
+}
+.cvdesk-label {
+  font-size: 14px;
+  color: var(--color-steel);
+}
+.cvdesk-opt {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-stone-300);
+  border-radius: 999px;
+  background: var(--color-white);
+  color: var(--color-steel);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.cvdesk-opt:hover {
+  color: var(--color-ink);
+  border-color: var(--color-ink);
+}
+.cvdesk-opt[aria-pressed="true"] {
+  border-color: var(--color-coral);
+  background: var(--color-coralwash);
+  color: var(--color-ink);
+}
+.cvdesk-cover {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-stone-200);
+  border-radius: 10px;
+  background: var(--color-white);
+  font-size: 14px;
+  color: var(--color-steel);
+}
+.cvdesk-cover p {
+  margin: 0;
+}
+.cvdesk-cover b {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.cvdesk-cover .cvdesk-link {
+  justify-self: start;
+}
+.cvdesk-sub {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.cvdesk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cvdesk-chips li {
+  padding: 3px 10px;
+  border: 1px dashed var(--color-stone-300);
+  border-radius: 999px;
+  color: var(--color-ink);
+}
+.cvdesk-where {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cvdesk-where li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .cvdesk-frame {
   position: relative;
   margin: 0;
@@ -737,6 +842,7 @@
 @media (prefers-reduced-motion: reduce) {
   .cvdesk-tpl,
   .cvdesk-dot,
+  .cvdesk-opt,
   .cvdesk-frame {
     transition: none;
   }

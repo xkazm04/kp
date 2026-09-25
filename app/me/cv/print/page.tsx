@@ -4,12 +4,16 @@ import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PAGE_HEADER, PAN
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { currentUserId } from "@/app/_lib/auth/session";
+import { listJobseekerPostings } from "@/app/_lib/db/jobseeker-postings";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
 import { CvDesigner } from "@/app/features/jobseeker/cv/CvDesigner";
-import { buildCvDocument, isCvAccent, isCvTemplate } from "@/app/features/jobseeker/cv/cvDocument";
+import { buildCvDocument } from "@/app/features/jobseeker/cv/cvDocument";
+import { parseCvDesign } from "@/app/features/jobseeker/cv/cvQuery";
+import { tailorTargetsOf, type CvTailorTarget } from "@/app/features/jobseeker/cv/cvTailor";
 
-// /me/cv/print?template=&accent= — the designed CV at real size. Under /me, so the
-// layout's gate is the gate.
+// /me/cv/print?template=&accent=[&tailor=&compact=&objective=] — the designed CV at real
+// size. Under /me, so the layout's gate is the gate.
 //
 // Three readers, one render: the seeker (pickers in a print-hidden header, the A4 sheet
 // below), the browser's print dialog (only the sheet reaches paper; cv.css owns the
@@ -18,17 +22,49 @@ import { buildCvDocument, isCvAccent, isCvTemplate } from "@/app/features/jobsee
 // seeker's own profile and CV text (cvDocument.ts) — deterministic, keyless, and the
 // same component the /me flow previews.
 //
+// Tailored (`tailor=<index into targetTitles>`), the demand for each target is read here
+// from the seeker's postings — every row, decided and gone included, the same rows the
+// /me sieve pages through — so the preview there and this sheet order the CV the same way
+// (cvTailor.ts `demandFor` is order-independent).
+//
 // It OPENS like /me does (PAGE_HEADER + EYEBROW / TITLE_DISPLAY / INTRO), so arriving
 // here does not read as leaving the product.
 export const instant = false;
+
+/** Enough pages for any real feed; a runaway cursor stops here rather than looping. */
+const MAX_PAGES = 20;
+
+function allPostings(workspaceId: string): JobseekerPostingSummary[] {
+  const rows: JobseekerPostingSummary[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const out = listJobseekerPostings({ status: "all", sort: "seen", limit: 200, cursor }, workspaceId);
+    rows.push(...out.rows);
+    cursor = out.nextCursor;
+    if (!cursor) break;
+  }
+  return rows;
+}
 
 export default async function CvPrintPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const t = await getTranslations("me.print");
   const [session, ws, params] = await Promise.all([currentSession(), currentWorkspace(), searchParams]);
   const profile = getJobseekerProfile(currentUserId(session), ws);
-  const template = isCvTemplate(params.template) ? params.template : undefined;
-  const accent = isCvAccent(params.accent) ? params.accent : undefined;
+  const design = parseCvDesign((k) => params[k]);
   const doc = profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length) ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText }) : null;
+  let targets: CvTailorTarget[] = [];
+  if (doc && profile!.preferences.targetTitles.some((title) => title.trim())) {
+    // The market read is an enhancement: a store failure tailors from the built-in
+    // lexicon instead of losing the page.
+    let rows: JobseekerPostingSummary[] | null = null;
+    try {
+      rows = allPostings(ws);
+    } catch (err) {
+      console.error("[me/cv/print] JOBSEEKER_STORE_FAILED", err);
+    }
+    targets = tailorTargetsOf(profile!.preferences.targetTitles, rows);
+  }
+  const tailor = design.tailor !== null && design.tailor < targets.length ? design.tailor : null;
 
   return (
     <div className="mx-auto max-w-[240mm] px-4 py-8 print:max-w-none print:p-0">
@@ -45,7 +81,13 @@ export default async function CvPrintPage({ searchParams }: { searchParams: Prom
         </div>
       </header>
       {doc ? (
-        <CvDesigner doc={doc} mode="page" initialTemplate={template} initialAccent={accent} skin={{ primary: `${BTN_PRIMARY} h-9 px-4`, ghost: `${BTN_SECONDARY} h-9 px-4` }} />
+        <CvDesigner
+          doc={doc}
+          mode="page"
+          targets={targets}
+          initial={{ ...design, tailor }}
+          skin={{ primary: `${BTN_PRIMARY} h-9 px-4`, ghost: `${BTN_SECONDARY} h-9 px-4` }}
+        />
       ) : (
         <section className={`${PANEL} p-6`}>
           <p className="text-body text-steel">{t("none")}</p>

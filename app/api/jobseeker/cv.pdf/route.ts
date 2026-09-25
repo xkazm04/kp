@@ -7,9 +7,9 @@ import { currentUserId } from "@/app/_lib/auth/session";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { pdfOrigin, renderCvPdf } from "@/app/_lib/jobseeker/cv-pdf";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { isCvAccent, isCvTemplate } from "@/app/features/jobseeker/cv/cvDocument";
+import { cvPrintPath } from "@/app/features/jobseeker/cv/cvQuery";
 
-// GET /api/jobseeker/cv.pdf?template=&accent= — the designed CV as a PDF, rendered from
+// GET /api/jobseeker/cv.pdf?template=&accent=[&tailor=&compact=&objective=] — the designed CV as a PDF, rendered from
 // the print page by a headless Chromium (app/_lib/jobseeker/cv-pdf.ts) so the file keeps
 // the layout the seeker previewed. The seeker's own document: a 404 with a code when there
 // is no profile, a 503 JOBSEEKER_PDF_UNAVAILABLE when this server has no browser (or the
@@ -26,10 +26,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   if (!rateLimit(`jobseeker-cv-pdf:${clientIpFrom(request.headers)}`, PDF_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
-  const url = new URL(request.url);
-  const template = url.searchParams.get("template");
-  const accent = url.searchParams.get("accent");
-  const query = new URLSearchParams({ template: isCvTemplate(template) ? template : "sidebar", accent: isCvAccent(accent) ? accent : "navy" });
+  // The design (layout, accent, and the tailoring: tailor / compact / objective) passes
+  // through to the print page re-validated, so the PDF is the sheet the seeker previewed.
+  const printPath = cvPrintPath(new URL(request.url).searchParams);
 
   let name = "cv";
   try {
@@ -43,7 +42,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const origin = pdfOrigin(request.url);
   if (!origin) return jsonRefusal("JOBSEEKER_PDF_UNAVAILABLE", 503);
-  const out = await renderCvPdf({ origin, cookieHeader: request.headers.get("cookie"), path: `/me/cv/print?${query}` });
+  const out = await renderCvPdf({ origin, cookieHeader: request.headers.get("cookie"), path: printPath });
   if (out.kind !== "ok") {
     console.error("[api:jobseeker/cv.pdf] JOBSEEKER_PDF_UNAVAILABLE", out.kind === "unavailable" ? out.reason : out.error);
     return jsonRefusal("JOBSEEKER_PDF_UNAVAILABLE", 503);

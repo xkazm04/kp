@@ -9,3 +9,6 @@ export const CV_TEMPLATE_BTN = "cvdesk-tpl";
 export const CV_ACCENT_BTN = "cvdesk-dot";
 /** A quiet underlined action inside a line of text. */
 export const CV_LINK_BTN = "cvdesk-link";
+/** A tailoring choice or toggle: a quiet pill (aria-pressed), the target titles and the
+ *  "Seeking" / one-line options beside them. */
+export const CV_OPTION_BTN = "cvdesk-opt";

@@ -19,19 +19,40 @@ import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
-export type CvRole = { role: string; org: string | null; dates: string | null; bullets: CvBullet[] };
-/** A bullet may open with a lead phrase ("RAG pipeline design:") the template sets in bold. */
-export type CvBullet = { lead: string | null; text: string };
+/** `compact`: the tailoring pass (cvTailor.ts) set this role as one line — it stays, in
+ *  its place, but its bullets are not printed. */
+export type CvRole = { role: string; org: string | null; dates: string | null; bullets: CvBullet[]; compact?: boolean };
+/** A bullet may open with a lead phrase ("RAG pipeline design:") the template sets in bold.
+ *  `emphasis` = [start, end) ranges of `text` the template bolds (a target term; cvTailor.ts). */
+export type CvBullet = { lead: string | null; text: string; emphasis?: [number, number][] };
+/** `emphasis`: the item names a skill the target asks for (cvTailor.ts); the template bolds it. */
+export type CvSkillItem = { name: string; level: string | null; emphasis?: boolean };
 /** `title` is the CV's own group label ("LLM related"); null = the template's localised "Skills". */
-export type CvSkillGroup = { title: string | null; items: { name: string; level: string | null }[] };
+export type CvSkillGroup = { title: string | null; items: CvSkillItem[] };
 export type CvEducation = { title: string; detail: string | null; dates: string | null };
-export type CvImprovement = { kind: "term" | "spelling" | "hyphen" | "capital" | "opener"; before: string; after: string };
+/** A deterministic wording change (this file). */
+export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital" | "opener"; before: string; after: string };
+/** A tailoring move (cvTailor.ts): what led BEFORE and what leads now, `where` it happened
+ *  (a role, a skill group), `n` for a counted move (terms set in bold). Order and emphasis
+ *  only — never a new word. */
+export type CvTailorMove = {
+  kind: "tailor";
+  move: "summary" | "bullets" | "groups" | "items" | "emphasis" | "compact" | "objective";
+  before: string;
+  after: string;
+  where: string | null;
+  n: number;
+};
+export type CvImprovement = CvEdit | CvTailorMove;
 
 export type CvDocument = {
   /** The language the CV is written in; the template's headings follow it. */
   lang: CvLang;
   name: string;
   headline: string | null;
+  /** The seeker's STATED direction under the headline ("Seeking: AI Engineer roles"), set
+   *  only by the tailoring pass — a preference, labelled as one, never a held title. */
+  objective?: string | null;
   location: string | null;
   contacts: CvContact[];
   summary: string | null;
@@ -239,6 +260,19 @@ export function blocksOf(text: string): Block[] {
 
 const ABBREVIATION = /(?:(?:^|[\s(])(?:inc|ltd|co|corp|llc|gmbh|e\.g|i\.e|etc|vs|approx|dr|mr|ms|no|nr|tel|resp|mj|tzv|např|atd)\.|(?:\p{L}\.){2,})$/iu;
 
+/** A sentence ends at . ! ? before the next word, whatever its case (a wrapped CV often
+ *  starts the next line lower-case) — except after an abbreviation ("s.r.o.", "Inc.").
+ *  Every piece is kept verbatim; only whitespace at the cut is dropped. */
+export function splitSentences(body: string): string[] {
+  const parts: string[] = [];
+  for (const piece of (body || "").split(/(?<=[.!?])\s+(?=[\p{L}\d])/u)) {
+    const prev = parts[parts.length - 1];
+    if (prev !== undefined && ABBREVIATION.test(prev)) parts[parts.length - 1] = `${prev} ${piece}`;
+    else parts.push(piece);
+  }
+  return parts.map((part) => part.trim()).filter((part) => part.length > 1);
+}
+
 /** Wrapped lines rejoined ("prototype-to-\nproduction"), then cut into sentence bullets. */
 export function bulletsOf(text: string, log: CvImprovement[]): CvBullet[] {
   let body = (text || "").replace(/\s+/g, " ").trim();
@@ -248,15 +282,7 @@ export function bulletsOf(text: string, log: CvImprovement[]): CvBullet[] {
     log.push({ kind: "hyphen", before: m, after: `${a}-${b}` });
     return `${a}-${b}`;
   });
-  // A sentence ends at . ! ? before the next word, whatever its case (a wrapped CV often
-  // starts the next line lower-case) — except after an abbreviation ("s.r.o.", "Inc.").
-  const parts: string[] = [];
-  for (const piece of body.split(/(?<=[.!?])\s+(?=[\p{L}\d])/u)) {
-    const prev = parts[parts.length - 1];
-    if (prev !== undefined && ABBREVIATION.test(prev)) parts[parts.length - 1] = `${prev} ${piece}`;
-    else parts.push(piece);
-  }
-  return parts.map((part) => part.trim()).filter((part) => part.length > 1).map((part) => {
+  return splitSentences(body).map((part) => {
     let s = polishTerms(part, log);
     const opener = /^responsible for\s+/i.exec(s);
     if (opener) {
@@ -344,6 +370,15 @@ export const CV_HEADINGS: Record<CvLang, CvHeadings> = {
   cs: { summary: "Profil", experience: "Pracovní zkušenosti", skills: "Dovednosti", education: "Vzdělání", languages: "Jazyky", contact: "Kontakt" },
   de: { summary: "Profil", experience: "Berufserfahrung", skills: "Kenntnisse", education: "Ausbildung", languages: "Sprachen", contact: "Kontakt" },
   fr: { summary: "Profil", experience: "Expérience", skills: "Compétences", education: "Formation", languages: "Langues", contact: "Contact" },
+};
+
+/** The objective line under the headline, in the CV's language: the seeker's STATED
+ *  target, labelled as what they are looking for — never worded as a title they held. */
+export const CV_OBJECTIVE: Record<CvLang, (target: string) => string> = {
+  en: (target) => `Seeking: ${target} roles`,
+  cs: (target) => `Hledám pozici: ${target}`,
+  de: (target) => `Angestrebte Position: ${target}`,
+  fr: (target) => `Poste recherché : ${target}`,
 };
 
 /** A stated level as 1-3 pips; the CV's own word stays beside it for a parser and a reader. */

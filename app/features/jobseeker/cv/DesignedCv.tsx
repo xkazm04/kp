@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CV_HEADINGS, levelPips, type CvAccent, type CvContact, type CvDocument, type CvTemplate } from "./cvDocument";
+import { CV_HEADINGS, levelPips, type CvAccent, type CvBullet, type CvContact, type CvDocument, type CvRole, type CvTemplate } from "./cvDocument";
 import "./cv.css";
 
 // The designed CV — one markup, three templates (cv.css). Pure and hook-free, so the
@@ -28,8 +28,45 @@ function Glyph({ kind }: { kind: keyof typeof ICON }) {
   );
 }
 
+/** A bullet's text with its emphasis ranges (a term the tailored target asks for) bolded. */
+function Emphasised({ text, ranges }: { text: string; ranges: CvBullet["emphasis"] }) {
+  if (!ranges?.length) return <>{text}</>;
+  const out: ReactNode[] = [];
+  let at = 0;
+  ranges.forEach(([s, e], i) => {
+    if (s < at || e > text.length) return;
+    if (s > at) out.push(text.slice(at, s));
+    out.push(
+      <strong key={i} className="cv-em">
+        {text.slice(s, e)}
+      </strong>
+    );
+    at = e;
+  });
+  if (at < text.length) out.push(text.slice(at));
+  return <>{out}</>;
+}
+
+/** An earlier role with no bullets — or one the tailoring set as one line — reads as a
+ *  compact line: role · org, dates. */
+function ShortRole({ r }: { r: CvRole }) {
+  return (
+    <div className="cv-role is-short">
+      <div className="cv-role-head">
+        <h4 className="cv-role-title">
+          {r.role}
+          {r.org ? <span className="cv-org"> · {r.org}</span> : null}
+        </h4>
+        {r.dates ? <span className="cv-dates">{r.dates}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; template: CvTemplate; accent: CvAccent; id?: string }) {
   const h = CV_HEADINGS[doc.lang];
+  // A compact (tailored) role keeps its place among the detailed ones, so the history
+  // stays in date order; bullet-less roles form the one-line list after them as before.
   const detailed = doc.experience.filter((r) => r.bullets.length > 0);
   const short = doc.experience.filter((r) => r.bullets.length === 0);
   const titled = doc.skills.some((g) => g.title);
@@ -39,6 +76,7 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
       <header className="cv-head">
         <p className="cv-name">{doc.name}</p>
         {doc.headline ? <p className="cv-headline">{doc.headline}</p> : null}
+        {doc.objective ? <p className="cv-objective">{doc.objective}</p> : null}
         {doc.contacts.length || doc.location ? (
           <ul className="cv-contacts" aria-label={h.contact}>
             {doc.location ? (
@@ -67,33 +105,29 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
         {doc.experience.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.experience}</h3>
-            {detailed.map((r, i) => (
-              <div key={`d${i}`} className="cv-role">
-                <div className="cv-role-head">
-                  <h4 className="cv-role-title">{r.role}</h4>
-                  {r.dates ? <span className="cv-dates">{r.dates}</span> : null}
-                  {r.org ? <span className="cv-org">{r.org}</span> : null}
+            {detailed.map((r, i) =>
+              r.compact ? (
+                <ShortRole key={`d${i}`} r={r} />
+              ) : (
+                <div key={`d${i}`} className="cv-role">
+                  <div className="cv-role-head">
+                    <h4 className="cv-role-title">{r.role}</h4>
+                    {r.dates ? <span className="cv-dates">{r.dates}</span> : null}
+                    {r.org ? <span className="cv-org">{r.org}</span> : null}
+                  </div>
+                  <ul className="cv-bullets">
+                    {r.bullets.map((b, j) => (
+                      <li key={j}>
+                        {b.lead ? <b>{b.lead}: </b> : null}
+                        <Emphasised text={b.text} ranges={b.emphasis} />
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="cv-bullets">
-                  {r.bullets.map((b, j) => (
-                    <li key={j}>
-                      {b.lead ? <b>{b.lead}: </b> : null}
-                      {b.text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+              )
+            )}
             {short.map((r, i) => (
-              <div key={`s${i}`} className="cv-role is-short">
-                <div className="cv-role-head">
-                  <h4 className="cv-role-title">
-                    {r.role}
-                    {r.org ? <span className="cv-org"> · {r.org}</span> : null}
-                  </h4>
-                  {r.dates ? <span className="cv-dates">{r.dates}</span> : null}
-                </div>
-              </div>
+              <ShortRole key={`s${i}`} r={r} />
             ))}
           </section>
         ) : null}
@@ -115,7 +149,7 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
                           const n = levelPips(it.level);
                           return (
                             <li key={it.name} className="cv-skill">
-                              <span>{it.name}</span>
+                              {it.emphasis ? <strong className="cv-em">{it.name}</strong> : <span>{it.name}</span>}
                               {n ? (
                                 <span className="cv-pips" data-n={n}>
                                   <i />
@@ -131,7 +165,7 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
                     ) : (
                       <ul className="cv-tags">
                         {g.items.map((it) => (
-                          <li key={it.name}>{it.name}</li>
+                          <li key={it.name}>{it.emphasis ? <strong className="cv-em">{it.name}</strong> : it.name}</li>
                         ))}
                       </ul>
                     )}
