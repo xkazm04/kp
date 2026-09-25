@@ -10,7 +10,7 @@ Reference: **`docs/design/README.md`** (paint, kit), **`docs/design/surface-doct
 **`docs/design/loading-choreography.md`** (waiting). Out of scope: `app/landing/**`, `/about`, `/market`.
 **Compose from the kit**: a tool surface is built from `app/_components/kit/` (README "Composition kit":
 parts, measure, fold order, density); recipes (`ui/recipes.ts`) paint single elements. A port under
-judgement sits behind `useKitFlag()` (`?kit=1`, dev only) until promoted ("How a module is revitalized").
+judgement sits behind `useKitFlag()` (`?kit=1`, dev only) and is promoted only with a full feature-parity table.
 
 ## The law
 

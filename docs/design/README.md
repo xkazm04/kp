@@ -710,8 +710,15 @@ The procedure every later gate and the fleet follow:
    `shoot.mjs --out <after> --db <before>/kp-snapshot.sqlite --server dev <target>-kit`
    and `shoot.mjs --pair <before> <after> --out <pair>`: 1280, 1728 and 1440x3200, both
    themes.
-4. **The owner judges in the product**, not in the shots and not on token counts.
-5. **Promote.** Remove the `useKitFlag` switch so the tab renders the kit view, delete
+4. **Feature parity, then the owner judges in the product.** Before the gate, list every
+   capability the current surface offers (control, action, dialog, filter, saved state,
+   keyboard path, drag target, warning, label, side effect such as Recent, tour target,
+   deep link) and where it lives in the kit view. Anything missing is ported onto the kit
+   first. The owner judges the look in the product, not in the shots and not on token
+   counts; parity is not his job to spot. (Learned 2026-09-25: the Pipeline promotion
+   deleted bulk actions, saved views, the SLA editor, drag moves and the activity feed
+   with the old board, because the gate had judged only the look.)
+5. **Promote only a view whose parity table is complete.** Remove the `useKitFlag` switch so the tab renders the kit view, delete
    the old view (every file only it rendered, proven by an importer walk; anything
    with another importer stays), delete the catalog keys only it used in all four
    locales, and bank the drops with `--tighten` on the style, recipe, skeleton and
@@ -728,7 +735,8 @@ The rules the owner has taught, which every step answers to:
 - **Unique surfaces get graphic parts**, because "safe approach does not work well":
   a funnel drawn as a funnel beats a fifth table.
 - **Keep what reads well and unify what is broken.** A revitalization is not a
-  rewrite of what already works.
+  rewrite of what already works: it keeps the surface's information architecture
+  (one dense matrix stays one matrix) and changes its parts.
 - **A port is made from measurement** (computed styles of the chosen design), never
   from memory.
 
