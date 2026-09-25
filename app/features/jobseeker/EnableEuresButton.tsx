@@ -8,8 +8,8 @@ import { Tooltip } from "@/app/_components/Tooltip";
 import { BTN_PRIMARY, NOTICE } from "@/app/_components/ui/recipes";
 import type { JobseekerProfile, JobseekerSource } from "@/app/_lib/jobseeker/types";
 import { FailureNotice } from "./FailureNotice";
-import { euresCountries } from "./feedModel";
-import { callJson, type ApiFailure, type SourcesPayload } from "./sourcesApi";
+import { euresCountryPlan, saveEuresCountries, scanningSourceName } from "./euresDoor";
+import { callJson, type ApiFailure, type CatalogEntryView, type SourcesPayload } from "./sourcesApi";
 import type { ScanTaskState } from "./useScanTask";
 
 // "One click to first results" — the door out of the `no_sources` empty state.
@@ -36,9 +36,13 @@ import type { ScanTaskState } from "./useScanTask";
 //
 // TRUTHFUL COPY: the EURES search takes location codes from the seeker's OWN
 // preferences (adapters/eures.ts: `ctx.preferences.countries`), and an empty list is a
-// query for nothing. When no country is set the button says which one it will search
-// and WRITES it, so the sentence on the button is what the scan actually does; the link
-// beside it goes to the preferences that own the choice.
+// query for nothing (the adapter refuses it as config_invalid). When no country is set
+// the button says which one it will search and WRITES it, so the sentence on the button
+// is what the scan actually does; the link beside it goes to the preferences that own
+// the choice. The derivation is euresDoor.ts, shared with the Sources step's EURES card.
+//
+// The progress line names the source being read ("1 of 4 · EURES"), from the catalog
+// the chain already fetched — a bare "1 of 4" said the scan moved, not what it read.
 
 const EURES_CATALOG_ID = "eures";
 const EURES_ADAPTER = "eures";
@@ -62,6 +66,8 @@ export function EnableEuresButton({
   const tScan = useTranslations("me.jobs.scan");
   const [working, setWorking] = useState(false);
   const [failure, setFailure] = useState<ApiFailure | null>(null);
+  // The catalog the chain read, so the progress line can name the source by its label.
+  const [catalog, setCatalog] = useState<CatalogEntryView[]>([]);
   // This button started a scan, and the parent has not been told yet.
   const startedRef = useRef(false);
   const notifiedRef = useRef(false);
@@ -72,11 +78,16 @@ export function EnableEuresButton({
     onEnabledRef.current = onEnabled;
   });
 
-  const wanted = euresCountries(countries);
-  const defaulted = countries.filter((c) => c.trim()).length === 0;
-  const label = wanted.map((c) => c.toUpperCase()).join(", ");
+  const plan = euresCountryPlan(countries);
+  const { defaulted, label } = plan;
   const busy = working || scan.starting || scan.active;
-  const progress = scan.progressTotal > 0 ? tScan("progress", { done: scan.progressDone, total: scan.progressTotal }) : scan.progressMsg;
+  const reading = scanningSourceName(catalog, scan.progressMsg);
+  const progress =
+    scan.progressTotal > 0
+      ? reading
+        ? tScan("progressSource", { done: scan.progressDone, total: scan.progressTotal, source: reading })
+        : tScan("progress", { done: scan.progressDone, total: scan.progressTotal })
+      : scan.progressMsg;
 
   const enable = async () => {
     // The busy-state contract: one submit at a time, and the scan's own window counts.
@@ -89,6 +100,7 @@ export function EnableEuresButton({
         setFailure(list.fail);
         return;
       }
+      setCatalog(list.body.catalog);
       let source: JobseekerSource | null = list.body.sources.find((s) => s.adapter === EURES_ADAPTER) ?? null;
       if (!source) {
         const created = await callJson<{ source: JobseekerSource }>("/api/jobseeker/sources", { method: "POST", body: JSON.stringify({ catalogId: EURES_CATALOG_ID }) });
@@ -98,15 +110,13 @@ export function EnableEuresButton({
         }
         source = created.body.source;
       }
-      if (defaulted) {
-        // Written BEFORE the scan, so the first run searches the country the button named.
-        const saved = await callJson<JobseekerProfile>("/api/jobseeker/profile", { method: "PUT", body: JSON.stringify({ preferences: { countries: wanted } }) });
-        if (!saved.ok) {
-          setFailure(saved.fail);
-          return;
-        }
-        onProfileSaved?.(saved.body);
+      // Written BEFORE the scan, so the first run searches the country the button named.
+      const saved = await saveEuresCountries(plan);
+      if (!saved.ok) {
+        setFailure(saved.fail);
+        return;
       }
+      if (saved.profile) onProfileSaved?.(saved.profile);
       // A PAUSED EURES is enabled but not scanned: the door resumes it, or the scan
       // below finds no source and the same empty state comes straight back.
       if (!source.enabled || source.pausedReason) {

@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { JobseekerSource, SourceTier } from "@/app/_lib/jobseeker/types";
+import type { JobseekerProfile, JobseekerSource, SourceTier } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { euresCountryPlan, readPreferredCountries, saveEuresCountries } from "../euresDoor";
 import { callJson, entryForSource, sourceDisplayLabel, type ApiFailure, type CatalogEntryView } from "../sourcesApi";
 import { LockIcon, ProvMark } from "./marks";
 import { sourceIsOn } from "./sieveModel";
@@ -24,6 +25,13 @@ import { cx, SV_BTN_GHOST, SV_BTN_PRIMARY, SV_BTN_SM_GHOST, SV_LOCK, SV_SWITCH }
 // disabled until it is ticked — the contract the keyless e2e pins), and a changed terms
 // summary re-asks with a line saying so. `blocked` and `collapsed` are pause reasons a
 // scan set and only the seeker clears.
+//
+// EURES searches the seeker's own countries and an empty list is a query for nothing
+// (the adapter refuses it as config_invalid). So switching the EURES card ON with no
+// country set writes the country it names first — the same derivation as the feed's
+// one-click door (euresDoor.ts) — and the card says which countries it searches.
+
+const EURES_ADAPTER = "eures";
 
 type Ack = { entry: CatalogEntryView; source: JobseekerSource | null; changed: boolean };
 
@@ -32,7 +40,9 @@ export function StepSources({
   sources,
   postingCounts,
   hasProfile,
+  countries,
   onSourcesChange,
+  onProfileSaved,
   onToast,
 }: {
   catalog: CatalogEntryView[];
@@ -40,7 +50,12 @@ export function StepSources({
   /** How many postings each source put into the dataset (any state). */
   postingCounts: Map<string, number>;
   hasProfile: boolean;
+  /** `preferences.countries` as the page holds them. Absent = not handed in: the EURES
+   *  card then reads them from the server at the moment it is switched on. */
+  countries?: readonly string[];
   onSourcesChange(next: (prev: JobseekerSource[]) => JobseekerSource[]): void;
+  /** The countries the EURES card wrote, so the page's copy matches the server's. */
+  onProfileSaved?(profile: JobseekerProfile): void;
   onToast(message: string): void;
 }) {
   const t = useTranslations("me.sieve.sources");
@@ -90,6 +105,29 @@ export function StepSources({
     return true;
   };
 
+  /** EURES is about to be switched on: make sure it has a country to search, writing
+   *  the derived one when the seeker named none. The countries it will search, or null
+   *  when the read or the write failed (the failure is on the card). */
+  const ensureEuresCountries = async (key: string): Promise<string | null> => {
+    let named = countries;
+    if (named === undefined) {
+      const read = await readPreferredCountries();
+      if (!read.ok) {
+        fail(key, read.fail);
+        return null;
+      }
+      named = read.countries;
+    }
+    const plan = euresCountryPlan(named);
+    const saved = await saveEuresCountries(plan);
+    if (!saved.ok) {
+      fail(key, saved.fail);
+      return null;
+    }
+    if (saved.profile) onProfileSaved?.(saved.profile);
+    return plan.label;
+  };
+
   const toggle = async (key: string, entry: CatalogEntryView | null, existing: JobseekerSource | null) => {
     if (busy) return;
     setBusy(key);
@@ -98,10 +136,14 @@ export function StepSources({
       const source = entry ? await ensure(entry, existing) : existing;
       if (!source) return;
       const turningOn = !sourceIsOn(source);
+      // Written BEFORE the switch flips, so an enabled EURES always has a market to search.
+      const euresSearch = turningOn && source.adapter === EURES_ADAPTER ? await ensureEuresCountries(key) : null;
+      if (turningOn && source.adapter === EURES_ADAPTER && euresSearch === null) return;
       const ok = await patch(key, source, source.pausedReason ? { resume: true } : { enabled: turningOn }, entry);
       const n = postingCounts.get(source.id) ?? 0;
       const label = entry?.label ?? source.host;
-      if (ok) onToast(turningOn ? (n ? t("toast.onWith", { label, n }) : t("toast.on", { label })) : n ? t("toast.offWith", { label, n }) : t("toast.off", { label }));
+      if (ok && euresSearch) onToast(t("toast.onCountries", { label, countries: euresSearch }));
+      else if (ok) onToast(turningOn ? (n ? t("toast.onWith", { label, n }) : t("toast.on", { label })) : n ? t("toast.offWith", { label, n }) : t("toast.off", { label }));
     } finally {
       setBusy(null);
     }
@@ -148,6 +190,7 @@ export function StepSources({
     const n = source ? postingCounts.get(source.id) ?? 0 : 0;
     const locked = tier === "B" && !(source?.acknowledgedAt && source.acknowledgedTermsHash === entry?.termsHash);
     const err = errors[key];
+    const eures = (source?.adapter ?? entry?.adapter) === EURES_ADAPTER && countries !== undefined ? euresCountryPlan(countries) : null;
     return (
       <div key={key} className={cx("src", source?.acknowledgedAt && tier === "B" && "acked", source?.pausedReason && "paused")}>
         <div className="sh">
@@ -180,6 +223,11 @@ export function StepSources({
           ) : null}
           {source?.lastRunAt && source.lastOutcome ? <span className="small muted" suppressHydrationWarning>{t("lastRun", { outcome: tOutcome(source.lastOutcome), when: rel(source.lastRunAt) })}</span> : null}
           {tier === "B" && source?.acknowledgedAt ? <span className="small muted" suppressHydrationWarning>{t("acked", { when: rel(source.acknowledgedAt) })}</span> : null}
+          {eures ? (
+            <span className="small muted" data-testid="eures-countries">
+              {!eures.defaulted ? t("euresCountries", { countries: eures.label }) : on ? t("euresNoCountry") : t("euresDefault", { countries: eures.label })}
+            </span>
+          ) : null}
         </div>
         {entry ? (
           <details>

@@ -7,8 +7,8 @@
 // Attribution: data © European Labour Authority / EURES (sources-catalog.json).
 
 import type { RawPosting } from "../types";
-import { bodyFromHtml, isoOrNull, matchesLocations, mustOk, parseJsonBody, rawPosting, str, workModeFromText } from "./shared";
-import { AdapterCollapsed, type AdapterContext, type PostingRef, type SourceAdapter } from "./types";
+import { bodyFromHtml, isoCountry, isoOrNull, matchesLocations, mustOk, parseJsonBody, rawPosting, str, workModeFromText } from "./shared";
+import { AdapterCollapsed, FetchHalt, type AdapterContext, type PostingRef, type SourceAdapter } from "./types";
 
 export const EURES_SEARCH_URL = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search";
 export const EURES_PAGE_SIZE = 50;
@@ -47,11 +47,16 @@ export function euresItemToRaw(item: EuresItem): RawPosting | null {
   });
 }
 
+/** The seeker's markets as EURES location codes (ISO-2 lower, deduplicated). */
+function euresCountryCodes(ctx: AdapterContext): string[] {
+  return [...new Set(ctx.preferences.countries.map(isoCountry).filter((c): c is string => c !== null))];
+}
+
 export function euresRequestBody(ctx: AdapterContext, page: number): string {
   const keywords = [...ctx.preferences.targetTitles, ...ctx.preferences.targetRoleFamilies.map((f) => f.replace(/_/g, " "))].filter(Boolean);
   return JSON.stringify({
     keywords: keywords.map((k) => ({ keyword: k, specificSearchCode: "EVERYWHERE" })),
-    locationCodes: ctx.preferences.countries.map((c) => c.toLowerCase()),
+    locationCodes: euresCountryCodes(ctx),
     resultsPerPage: EURES_PAGE_SIZE,
     page,
     sortSearch: "MOST_RECENT",
@@ -62,6 +67,10 @@ export const euresAdapter: SourceAdapter = {
   name: "eures",
   detailFetches: false,
   async *discover(ctx) {
+    // EURES takes location codes, and an empty list is a query for nothing: the run
+    // would "succeed" with zero postings and say nothing. Stop instead, with a reason
+    // reconcile names (`config_*` → config_invalid) and the seeker can fix on /me.
+    if (euresCountryCodes(ctx).length === 0) throw new FetchHalt({ kind: "outage", detail: "config_missing_countries" });
     const maxPages = Math.max(1, Math.min(EURES_MAX_PAGES, Math.ceil(ctx.limits.maxRefs / EURES_PAGE_SIZE)));
     let yielded = 0;
     for (let page = 1; page <= maxPages; page++) {

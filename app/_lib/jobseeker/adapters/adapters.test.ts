@@ -16,6 +16,7 @@ import { readJsonArrayStream } from "./jsonArrayStream.ts";
 import { rawFromDetailPage } from "./jsonld.ts";
 import { atsDiscover } from "./ats/discover.ts";
 import { mpsvItemToRaw } from "./mpsvBulk.ts";
+import { reconcileSource } from "../reconcile.ts";
 
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "__fixtures__");
 const fx = (name: string) => readFileSync(path.join(FIXTURES, name), "utf8");
@@ -193,7 +194,9 @@ test("eures: POSTs the seeker's keywords/countries, maps items; a response witho
   assert.match(raw.bodyText, /Spring Boot/);
   assert.ok(raw.postedAt?.startsWith("2026-09-12"));
   const collapsed = scripted({ "*": ok('{"numberOfResults": 0}', "application/json") });
-  await assert.rejects(collect(adapter.discover(ctxFor(src, collapsed.fetch))), (e: unknown) => e instanceof AdapterCollapsed && e.reason === "shape_changed");
+  const collapsedCtx = ctxFor(src, collapsed.fetch);
+  collapsedCtx.preferences = { ...EMPTY_PREFERENCES, countries: ["cz"] };
+  await assert.rejects(collect(adapter.discover(collapsedCtx)), (e: unknown) => e instanceof AdapterCollapsed && e.reason === "shape_changed");
 });
 
 test("ats_greenhouse and ats_teamtailor map their feeds; detail completes from the hint without a fetch", async () => {
@@ -281,6 +284,24 @@ test("mpsv_bulk: streams the file, filters by targets/locations, caps at maxRefs
     assert.match(r.hint!.title!, /Java/);
     assert.equal(r.hint!.location, "Praha");
   }
+});
+
+test("eures: no country to search stops the run with config_invalid, before any request", async () => {
+  const { fetch, calls } = scripted({ "*": ok(fx("eures-search.json"), "application/json") });
+  const src = source({ adapter: "eures", kind: "feed", tier: "A", host: "europa.eu" });
+  const ctx = ctxFor(src, fetch);
+  ctx.preferences = { ...EMPTY_PREFERENCES, targetTitles: ["Java developer"], countries: [] };
+  await assert.rejects(collect(adapterFor("eures").discover(ctx)), (e: unknown) => e instanceof FetchHalt && e.outcome.kind === "outage" && e.outcome.detail === "config_missing_countries");
+  assert.equal(calls.length, 0, "an empty location list is a query for nothing: it is never sent");
+  // Through the real run: a named reason, not a silent empty success.
+  const summary = await reconcileSource(src, adapterFor("eures"), ctx, {
+    upsertPosting: () => assert.fail("nothing to upsert"),
+    markAbsent: () => assert.fail("a failed pass marks nothing absent"),
+    recordSourceRun: () => undefined,
+    pauseSource: () => assert.fail("a config gap is the seeker's to fix, not a pause"),
+  });
+  assert.equal(summary.outcome, "failed");
+  assert.equal(summary.reason, "config_invalid");
 });
 
 test("eures: the city filter lets through a posting in a named country and a stated-remote one", async () => {
@@ -390,8 +411,11 @@ test("KP_OFFLINE: every adapter in the registry yields offline through the REAL 
     const src = source({ adapter: name, ...configs[name] });
     const adapter = adapterFor(name);
     let halt: FetchHalt | null = null;
+    // A seeker who named a market: EURES with no country stops on its config first.
+    const ctx = ctxFor(src, politeFetch);
+    ctx.preferences = { ...EMPTY_PREFERENCES, countries: ["cz"] };
     try {
-      await collect(adapter.discover(ctxFor(src, politeFetch)));
+      await collect(adapter.discover(ctx));
     } catch (e) {
       halt = e instanceof FetchHalt ? e : null;
       if (!halt) throw e;
