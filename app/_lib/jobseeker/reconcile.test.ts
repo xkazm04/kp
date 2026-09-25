@@ -74,7 +74,7 @@ test("succeeded: new/changed/unchanged counted, absent measured, run recorded, n
   const { d, runs, pauses } = deps({ a: "body a", b: "old b" });
   const refs = ["a", "b", "c"].map((k) => ({ externalKey: k, url: `https://b.example/${k}` }));
   const summary = await reconcileSource(src, adapter(refs, async (r) => raw(r.externalKey)), ctx(), d);
-  assert.deepEqual(summary, { sourceId: "jss-1", outcome: "succeeded", new: 1, changed: 1, unchanged: 1, absent: 2, reason: null });
+  assert.deepEqual(summary, { sourceId: "jss-1", outcome: "succeeded", new: 1, changed: 1, unchanged: 1, absent: 2, reason: null, truncated: false });
   assert.equal(runs.length, 1);
   assert.equal(runs[0].outcome, "succeeded");
   assert.deepEqual(pauses, []);
@@ -183,11 +183,13 @@ test("the detail budget bounds fetching adapters; a truncated run does NOT mark 
   assert.equal(s.new, 4);
   assert.equal(s.absent, 0);
   assert.equal(absentCalls(), 0);
+  assert.equal(s.truncated, true, "the detail budget ran out: said on the record");
   // A feed adapter (no detail fetches) is not bounded by it.
   const { d: d2, absentCalls: ac2 } = deps();
   const s2 = await reconcileSource(src, adapter(refs, async (r) => raw(r.externalKey), false), c, d2);
   assert.equal(s2.new, 10);
   assert.equal(ac2(), 1);
+  assert.equal(s2.truncated, false);
 });
 
 test("hitting maxRefs is a truncated pass - whether reconcile stopped the adapter or the adapter stopped itself - and marks nothing absent", async () => {
@@ -199,6 +201,7 @@ test("hitting maxRefs is a truncated pass - whether reconcile stopped the adapte
   assert.equal(s.outcome, "succeeded");
   assert.equal(s.new, 10, "the first maxRefs refs are read");
   assert.equal(absentCalls(), 0, "the five refs past the cap are not 'gone'");
+  assert.equal(s.truncated, true, "a capped pass is recorded as one, not as a plain success");
   // An adapter that honours maxRefs itself (every ATS adapter: `if (++n >= maxRefs) return`)
   // ends its iterator AT the cap - reconcile cannot tell that from "that was all", so the
   // cap itself is the signal.
@@ -236,4 +239,32 @@ test("a detail fetch that hit an outage makes the pass incomplete (not absent); 
   const { d: d2, absentCalls: ac2 } = deps();
   await reconcileSource(src, capture(withDetail({ kind: "gone", status: 404, detail: "http_404" })), ctx(), d2);
   assert.equal(ac2(), 1, "a 404 detail IS evidence: the pass is complete");
+});
+
+test("onDetailProgress: done-of-planned per detail read, the plan capped by the detail budget", async () => {
+  const refs = Array.from({ length: 6 }, (_, i) => ({ externalKey: `k${i}`, url: `https://b.example/${i}` }));
+  const c = ctx();
+  c.limits = { maxRefs: 100, maxDetailFetches: 4 };
+  const { d } = deps();
+  const seen: [number, number][] = [];
+  await reconcileSource(src, adapter(refs, async (r) => (r.externalKey === "k1" ? null : raw(r.externalKey))), c, {
+    ...d,
+    onDetailProgress: (done, total) => seen.push([done, total]),
+  });
+  assert.deepEqual(seen, [[0, 4], [1, 4], [2, 4], [3, 4], [4, 4]], "a detail that came back empty still counts as read");
+  // A feed adapter plans every ref.
+  const { d: d2 } = deps();
+  const seen2: [number, number][] = [];
+  await reconcileSource(src, adapter(refs, async (r) => raw(r.externalKey), false), c, { ...d2, onDetailProgress: (done, total) => seen2.push([done, total]) });
+  assert.deepEqual(seen2[0], [0, 6]);
+  assert.deepEqual(seen2.at(-1), [6, 6]);
+});
+
+test("a failed / blocked run is not truncated unless it had reached a cap first", async () => {
+  const { d } = deps();
+  const s = await reconcileSource(src, adapter([{ externalKey: "a", url: "https://b.example/a" }], async () => {
+    throw new FetchHalt({ kind: "blocked", status: 403, detail: "403" });
+  }), ctx(), d);
+  assert.equal(s.outcome, "blocked");
+  assert.equal(s.truncated, false);
 });

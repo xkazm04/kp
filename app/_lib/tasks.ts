@@ -31,7 +31,7 @@ import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { runCompanionDigestTask } from "./companion-digest-run";
 import { externalRunner } from "./task-external-runners";
 import type { ScanSummary } from "./jobseeker/types";
-import { SCAN_JOB_NAME } from "./jobseeker/types";
+import { SCAN_JOB_NAME, scanWholePhaseFailure } from "./jobseeker/types";
 import { recordRun } from "./scheduler-store";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
@@ -420,10 +420,17 @@ const HANDLERS: Record<TaskKind, Spec> = {
     run: async (ctx) => {
       const startedAt = new Date().toISOString();
       const summary = (await externalRunner("jobseeker_scan")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params })) as ScanSummary;
+      // A scan that could not structure or score AT ALL (every batch of the phase threw)
+      // is an `error` row carrying the failure's code — never an `ok` that verifies the
+      // clock job over a run that scored nothing. A partial failure stays `ok`; the
+      // summary's `failures` says which phase and how much.
+      const ran = summary.sources.length > 0 && !ctx.signal.aborted;
+      const whole = ran ? scanWholePhaseFailure(summary) : null;
       recordRun({
         job: SCAN_JOB_NAME,
         trigger: "manual",
-        status: summary.sources.length > 0 && !ctx.signal.aborted ? "ok" : "skipped",
+        status: !ran ? "skipped" : whole ? "error" : "ok",
+        error: whole?.code,
         summary,
         startedAt,
       });

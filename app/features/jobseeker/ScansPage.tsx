@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { History } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
-import { EYEBROW, FIELD, INTRO, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { EYEBROW, FIELD, INTRO, NOTICE, PAGE_HEADER, PANEL, SECTION, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { ArrivalList } from "@/app/features/library/jds/intake/IntakeArrivalMotion";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import { SCAN_JOB_NAME, type JobseekerSource, type ScanSummary } from "@/app/_lib/jobseeker/types";
+import { SCAN_JOB_NAME, scanWholePhaseFailure, type JobseekerSource, type ScanPhaseFailure, type ScanSummary } from "@/app/_lib/jobseeker/types";
 import type { SchedulerJobView } from "@/app/features/hiring/pipeline/SchedulerSummaryBadges";
 import { FailureNotice } from "./FailureNotice";
 import { nearestScanInterval, SCAN_INTERVALS } from "./feedModel";
@@ -41,6 +42,11 @@ function isScanSummary(v: unknown): v is ScanSummary {
   return !!v && typeof v === "object" && Array.isArray((v as { sources?: unknown }).sources);
 }
 
+/** A stored count, or 0 for a summary written before the field existed. */
+function countOf(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
 export function ScansPage({
   initialJob,
   initialSources,
@@ -55,6 +61,11 @@ export function ScansPage({
   const t = useTranslations("me.scans");
   const tSched = useTranslations("pipeline.scheduler");
   const rel = useRelativeTime();
+  const resolveError = useErrorMessage();
+  // One phase failure as a sentence: which phase, how much of it, and the code's own
+  // localized message — never the engine's text (the summary does not carry it).
+  const failureLine = (f: ScanPhaseFailure) =>
+    t(`history.failure.${f.phase}`, { chunks: f.chunks, of: f.of, msg: resolveError({ code: f.code }, f.code) });
   const [job, setJob] = useState<SchedulerJobView>(initialJob);
   const [sources, setSources] = useState<JobseekerSource[]>(initialSources);
   const [labels, setLabels] = useState<Map<string, string>>(() => new Map(initialLabels));
@@ -201,6 +212,14 @@ export function ScansPage({
                 itemClassName={`${PANEL} p-4`}
                 renderItem={(run) => {
                   const summary = isScanSummary(run.summary) ? run.summary : null;
+                  const failures: ScanPhaseFailure[] = summary && Array.isArray(summary.failures) ? summary.failures : [];
+                  // An `error` run of this job is a phase that failed WHOLE (tasks.ts):
+                  // its sentence is the failure block's; any other failed phase is a
+                  // caveat line under the counts.
+                  const whole = run.status === "error" && summary ? scanWholePhaseFailure(summary) : null;
+                  const partial = failures.filter((f) => f.phase !== whole?.phase);
+                  const koFiltered = countOf(summary?.koFiltered);
+                  const upToDate = countOf(summary?.skippedUpToDate);
                   return (
                     <>
                       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -210,6 +229,8 @@ export function ScansPage({
                         {summary ? (
                           <span className="nums text-steel">
                             {t("history.matched", { n: summary.matched })}
+                            {koFiltered > 0 ? ` · ${t("history.koFiltered", { n: koFiltered })}` : null}
+                            {upToDate > 0 ? ` · ${t("history.upToDate", { n: upToDate })}` : null}
                             {" · "}
                             {summary.deepDiveSkipped === "no_provider" ? t("history.deepDiveSkipped") : t("history.deepDived", { n: summary.deepDived })}
                           </span>
@@ -219,7 +240,19 @@ export function ScansPage({
                           span: the sentence is localized and the detail rides inside it
                           (the persisted error has no machine code to resolve). */}
                       {run.status === "error" ? (
-                        <FailureNotice fallback={run.error ? tSched("runFailedMsg", { msg: run.error }) : tSched("runFailed")} className="mt-2" />
+                        <FailureNotice
+                          fallback={whole ? failureLine(whole) : run.error ? tSched("runFailedMsg", { msg: resolveError({ code: run.error }, run.error) }) : tSched("runFailed")}
+                          className="mt-2"
+                        />
+                      ) : null}
+                      {partial.length > 0 ? (
+                        <ul className="mt-2 space-y-1">
+                          {partial.map((f) => (
+                            <li key={f.phase} className={`${NOTICE("amber")} px-3 py-1.5 text-micro`}>
+                              {failureLine(f)}
+                            </li>
+                          ))}
+                        </ul>
                       ) : null}
                       {summary && summary.sources.length > 0 ? <ScanRunTable rows={summary.sources} labels={labels} pausedById={pausedById} /> : null}
                     </>

@@ -35,6 +35,10 @@ export type ReconcileDeps = {
   recordSourceRun(sourceId: string, outcome: SourceRunOutcome, at: string): void;
   pauseSource(sourceId: string, reason: PauseReason): void;
   now?: () => string;
+  /** Detail progress for the caller's live line: `done` of the `total` refs this run will
+   *  read (the ref list capped by the detail budget), called once before the first detail
+   *  and after each one. Optional; a throw from it is the caller's bug, not the source's. */
+  onDetailProgress?: (done: number, total: number) => void;
 };
 
 function haltToSummary(halt: FetchHalt): { outcome: SourceRunOutcome; reason: ReconcileReason; pause: PauseReason | null } {
@@ -60,12 +64,14 @@ export async function reconcileSource(
 ): Promise<SourceRunSummary> {
   const now = deps.now ?? (() => new Date().toISOString());
   const startedAt = now();
-  const summary: SourceRunSummary = { sourceId: source.id, outcome: "succeeded", new: 0, changed: 0, unchanged: 0, absent: 0, reason: null };
+  const summary: SourceRunSummary = { sourceId: source.id, outcome: "succeeded", new: 0, changed: 0, unchanged: 0, absent: 0, reason: null, truncated: false };
   let detailFetches = 0;
   let truncated = false;
   const finish = (outcome: SourceRunOutcome, reason: ReconcileReason | null, pause: PauseReason | null): SourceRunSummary => {
     summary.outcome = outcome;
     summary.reason = reason;
+    // Said on the record, not only in the log: a capped pass read part of the source.
+    summary.truncated = truncated;
     if (pause) deps.pauseSource(source.id, pause);
     deps.recordSourceRun(source.id, outcome, now());
     return summary;
@@ -94,6 +100,9 @@ export async function reconcileSource(
       truncated = true;
       ctx.log({ level: "info", code: "ref_cap_reached", detail: `${ctx.limits.maxRefs} refs read; absence not measured this run` });
     }
+    const planned = adapter.detailFetches ? Math.min(refs.length, ctx.limits.maxDetailFetches) : refs.length;
+    let read = 0;
+    deps.onDetailProgress?.(0, planned);
     for (const ref of refs) {
       if (adapter.detailFetches) {
         if (detailFetches >= ctx.limits.maxDetailFetches) {
@@ -104,6 +113,7 @@ export async function reconcileSource(
         detailFetches++;
       }
       const raw = await adapter.detail(ref, runCtx);
+      deps.onDetailProgress?.(++read, planned);
       if (!raw) continue;
       const seenAt = now();
       const { outcome } = deps.upsertPosting(source.id, raw, seenAt);

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Loader2, Radar } from "lucide-react";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { isScanProgressPhase } from "@/app/_lib/jobseeker/types";
 import { FailureNotice } from "./FailureNotice";
 import type { ScanTaskState } from "./useScanTask";
 
@@ -12,6 +13,31 @@ import type { ScanTaskState } from "./useScanTask";
 // feed, re-read the schedule); this renders the button, the live progress line and
 // the refusal by code. `variant` picks the recipe: the empty state's primary call, or
 // the Scans page's secondary control beside the clock toggle.
+
+/** The two lines every scan door shares, so the Sieve's pill and this button never word
+ *  one scan two ways:
+ *   - `progress`: the live line. While a source is read the task reports ITS host with
+ *     done/total counting that source's detail reads, so the line says "jobs.example ·
+ *     12 of 60" — it used to hide the name whenever a total existed and sat on "0 of 7".
+ *     A phase message (structure / match / deep-dive…) is a closed code, translated.
+ *   - `partial`: a scan that FINISHED with a failed phase (its summary's `failures`) says
+ *     so by code; a "succeeded" task whose scoring threw is not a quiet success. */
+export function useScanLines(scan: ScanTaskState): { progress: string | null; partial: string | null } {
+  const t = useTranslations("me.jobs.scan");
+  const resolveError = useErrorMessage();
+  const msg = scan.progressMsg;
+  const label = msg ? (isScanProgressPhase(msg) ? t(`phase.${msg}`) : msg) : null;
+  const progress =
+    scan.progressTotal > 0
+      ? label
+        ? t("progressAt", { label, done: scan.progressDone, total: scan.progressTotal })
+        : t("progress", { done: scan.progressDone, total: scan.progressTotal })
+      : label;
+  const failures = scan.status === "succeeded" && Array.isArray(scan.summary?.failures) ? scan.summary.failures : [];
+  const first = failures[0] ?? null;
+  const partial = first ? t(`partial.${first.phase}`, { msg: resolveError({ code: first.code }, first.code) }) : null;
+  return { progress, partial };
+}
 
 // `quiet` keeps the button and drops its notices: the feed mounts this door twice while
 // its empty state is on screen (header chrome + the empty state's own CTA), and both
@@ -24,8 +50,7 @@ export function ScanNowButton({ scan, variant = "primary", quiet = false }: { sc
   const resolveError = useErrorMessage();
   const busy = scan.starting || scan.active;
   const recipe = variant === "primary" ? BTN_PRIMARY : BTN_SECONDARY;
-  const progress =
-    scan.progressTotal > 0 ? t("progress", { done: scan.progressDone, total: scan.progressTotal }) : scan.progressMsg ? scan.progressMsg : null;
+  const { progress, partial } = useScanLines(scan);
   return (
     <div className="space-y-2">
       <button type="button" className={`${recipe} h-10 gap-2 px-4`} disabled={busy} onClick={() => void scan.start()} aria-busy={busy || undefined}>
@@ -40,6 +65,13 @@ export function ScanNowButton({ scan, variant = "primary", quiet = false }: { sc
         // paragraph that reads as body copy under a button.
         <p className={`${NOTICE("info")} px-3 py-1.5 text-sm`} role="status">
           {progress}
+        </p>
+      ) : null}
+      {!busy && partial ? (
+        // The run finished, but a phase of it threw: the amber caveat, not the red
+        // failure — whatever the other phases landed is on screen and real.
+        <p className={`${NOTICE("amber")} px-3 py-1.5 text-micro`} role="status">
+          {partial}
         </p>
       ) : null}
       {scan.unreachable ? (

@@ -18,9 +18,9 @@ import { FetchHalt, type SourceAdapter } from "./adapters/types.ts";
 import { deepDivePosting } from "./deepdive.ts";
 import { MATCH_VERSION } from "./match.ts";
 import { runPythonCli, type CliCall, type CliRunner } from "./python-cli.ts";
-import { runJobseekerScan, SCAN_SKIP_REASON, type ScanDeps } from "./scan.ts";
+import { runJobseekerScan, scanFailureCode, SCAN_LIMITS, SCAN_SKIP_REASON, type ScanDeps } from "./scan.ts";
 import type { JobseekerPosting, JobseekerProfile, JobseekerSource, RawPosting, ScanSummary } from "./types.ts";
-import { EMPTY_PREFERENCES } from "./types.ts";
+import { EMPTY_PREFERENCES, scanWholePhaseFailure } from "./types.ts";
 
 // ── fixtures ────────────────────────────────────────────────────────────────────────
 
@@ -225,6 +225,8 @@ type Script = {
   reasoningSource?: (call: number) => "llm" | "deterministic";
   /** jobs_cli: throw the keyless refusal. */
   keyless?: boolean;
+  /** match_cli: every call throws the engine's non-zero exit. */
+  failMatch?: boolean;
 };
 
 function scriptedRunner(script: Script, calls: CliCall[]): CliRunner {
@@ -238,6 +240,7 @@ function scriptedRunner(script: Script, calls: CliCall[]): CliRunner {
         return { jobs: items.map((it) => ({ id: it.id, job: { id: it.id, title: it.raw.title, company: "Example", location: "Praha" } })), notes: [] };
       }
       case "match_cli": {
+        if (script.failMatch) throw new PipelineError({ message: "Traceback: KeyError 'skills' (the raw engine text)", status: 500, code: "engine_error" });
         const jobs = f["jobs.json"] as { id: string }[];
         const matches = jobs
           .map((j) => ({ id: j.id, total: script.totals ? script.totals(j.id) : 70 }))
@@ -334,7 +337,7 @@ test("(a) 30 fixture postings: every row is structured and carries a match_total
     assert.equal(row.jobSource, "deterministic");
     assert.equal(typeof row.matchTotal, "number", `${row.id} scored`);
     assert.ok(row.fitTier, `${row.id} banded`);
-    assert.equal(row.matchVersion, "jobseeker-match-v2");
+    assert.equal(row.matchVersion, MATCH_VERSION);
   }
   assert.equal(summary.matched, 30);
   // ONE structure spawn (30 < 200) and ONE match spawn (30 < 500).
@@ -444,6 +447,8 @@ test("(e) the summary is the ScanSummary shape, and an aborted budget records un
     "sources",
     "matched",
     "skippedUpToDate",
+    "koFiltered",
+    "failures",
     "deepDived",
     "deepDiveSkipped",
   ];
@@ -531,7 +536,7 @@ test("(g) a KO'd posting is stored once with its gate and as-if score, and the n
   const blocked = store.rows.get("jpo-2")!;
   assert.equal(blocked.matchTotal, null, "a filtered posting is not a 0 % fit and never sorts as a score");
   assert.equal(blocked.fitTier, null);
-  assert.equal(blocked.matchVersion, "jobseeker-match-v2");
+  assert.equal(blocked.matchVersion, MATCH_VERSION);
   assert.equal(blocked.matchedAt, NOW);
   assert.deepEqual(blocked.match, {
     blocked: { koKeys: ["work_mode"], koDetails: ["work mode onsite not preferred"] },
@@ -657,4 +662,111 @@ test("(o) a deep-dive re-match is stamped with the scan's inputs time, not the m
   assert.equal(summary.deepDived, 1);
   assert.equal(store.rows.get("jpo-1")!.jobSource, "llm", "the dive restructured and re-matched the posting");
   assert.equal(store.rows.get("jpo-1")!.matchedAt, NOW, "the re-match carries the scan's inputs time");
+});
+
+// ── D.1: a scan whose phases failed says so in its record ───────────────────────────
+
+test("(h) every match batch throws: the summary names the phase and its CODE, and the run is a whole-phase failure", async () => {
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const logged: { code: string; error: unknown }[] = [];
+  const runCli = scriptedRunner({ failMatch: true }, calls);
+  const postings = Array.from({ length: 4 }, (_, i) => raw(i + 1, "alpha"));
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: { ...depsFor(store, runCli, [source("alpha", { postings })]), log: (event, error) => logged.push({ code: event.code, error }) },
+  });
+  assert.equal(summary.matched, 0);
+  assert.deepEqual(summary.failures, [{ phase: "match", chunks: 1, of: 1, code: "ENGINE_FAILED" }], "said on the record, not only in the log");
+  assert.ok(!JSON.stringify(summary).includes("Traceback"), "the raw engine text never reaches the summary");
+  assert.ok(logged.some((l) => l.code === "match_failed" && l.error instanceof PipelineError), "…it stays in the server log");
+  assert.deepEqual(scanWholePhaseFailure(summary), { phase: "match", chunks: 1, of: 1, code: "ENGINE_FAILED" }, "nothing was scored: the door records `error`");
+  assert.equal(summary.deepDived, 0);
+});
+
+test("(i) one deep-dive throwing is a PARTIAL failure: counted of the shortlist, the others still land, the run is not an error", async () => {
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const runCli = scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, calls);
+  const base = depsFor(store, runCli, [source("alpha", { postings: Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha")) })]);
+  let dives = 0;
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: {
+      ...base,
+      deepDive: async (posting, prof, opts) => {
+        if (dives++ === 0) throw new Error("model exploded");
+        return base.deepDive!(posting, prof, opts);
+      },
+    },
+  });
+  assert.equal(summary.deepDived, 2);
+  assert.deepEqual(summary.failures, [{ phase: "deepdive", chunks: 1, of: 3, code: "ENGINE_FAILED" }]);
+  assert.equal(scanWholePhaseFailure(summary), null, "the scores stand: a deep-dive failure never fails the run");
+});
+
+test("(j) the KO-filtered count rides the summary beside `matched`", async () => {
+  const store = makeStore();
+  const totals = (id: string) => (id === "jpo-2" || id === "jpo-3" ? null : 60);
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: depsFor(store, scriptedRunner({ totals }, []), [source("alpha", { postings: Array.from({ length: 4 }, (_, i) => raw(i + 1, "alpha")) })]),
+  });
+  assert.equal(summary.matched, 2);
+  assert.equal(summary.koFiltered, 2);
+  assert.deepEqual(summary.failures, []);
+});
+
+test("(k) a source that reached maxRefs is recorded `truncated`; one under the cap is not", async () => {
+  const store = makeStore();
+  const many = Array.from({ length: SCAN_LIMITS.maxRefs + 5 }, (_, i) => raw(i + 1, "big"));
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    deps: depsFor(store, scriptedRunner({ totals: () => 40 }, []), [source("big", { postings: many }), source("small", { postings: [raw(1, "small")] })]),
+  });
+  const bySource = new Map(summary.sources.map((s) => [s.sourceId, s]));
+  assert.equal(bySource.get("big")!.outcome, "succeeded");
+  assert.equal(bySource.get("big")!.truncated, true);
+  assert.equal(bySource.get("big")!.new, SCAN_LIMITS.maxRefs);
+  assert.equal(bySource.get("small")!.truncated, false);
+});
+
+test("(l) the live line names the source being read and counts ITS detail reads, then the phases", async () => {
+  const store = makeStore();
+  const seen: [number, number, string | undefined][] = [];
+  await runJobseekerScan(WS, {
+    trigger: "manual",
+    onProgress: (done, total, msg) => seen.push([done, total, msg]),
+    deps: depsFor(store, scriptedRunner({ totals: () => 40 }, []), [source("alpha", { postings: Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha")) })]),
+  });
+  assert.deepEqual(seen.slice(0, 5), [
+    [0, 0, "alpha.example"],
+    [0, 3, "alpha.example"],
+    [1, 3, "alpha.example"],
+    [2, 3, "alpha.example"],
+    [3, 3, "alpha.example"],
+  ]);
+  assert.deepEqual(
+    seen.slice(5).map((s) => s[2]),
+    ["structure", "match", "deepdive", "done"],
+    "the phase messages are the closed SCAN_PROGRESS_PHASES vocabulary the doors translate"
+  );
+});
+
+test("scanFailureCode: the engine's typed failures keep their code; anything else is ENGINE_FAILED, never a message", () => {
+  assert.equal(scanFailureCode(new PipelineError({ message: "boom", status: 500, code: "engine_error" })), "ENGINE_FAILED");
+  assert.equal(scanFailureCode(new Error("ECONNRESET")), "ENGINE_FAILED");
+  assert.equal(scanFailureCode("string"), "ENGINE_FAILED");
+});
+
+test("scanWholePhaseFailure: only a structure/match phase with EVERY unit failed; stored summaries without `failures` read null", () => {
+  assert.equal(scanWholePhaseFailure({}), null);
+  assert.equal(scanWholePhaseFailure({ failures: [{ phase: "match", chunks: 1, of: 2, code: "ENGINE_FAILED" }] }), null);
+  assert.equal(scanWholePhaseFailure({ failures: [{ phase: "deepdive", chunks: 3, of: 3, code: "ENGINE_FAILED" }] }), null);
+  assert.deepEqual(scanWholePhaseFailure({ failures: [{ phase: "structure", chunks: 2, of: 2, code: "ENGINE_TIMEOUT" }] }), {
+    phase: "structure",
+    chunks: 2,
+    of: 2,
+    code: "ENGINE_TIMEOUT",
+  });
 });

@@ -409,7 +409,39 @@ export type SourceRunSummary = {
   absent: number;
   /** Why `failed`/`blocked`/`collapsed` — a closed-vocabulary code, never a message. */
   reason: string | null;
+  /** The pass stopped at a cap (maxRefs, or the detail-fetch budget): postings past it
+   *  were not read this run and nothing was marked absent. Absent on a summary stored
+   *  before the flag existed — read it as unknown, not as `false`. */
+  truncated: boolean;
 };
+
+/** The scan's post-acquisition phases that can fail on their own. */
+export const SCAN_FAILURE_PHASES = ["structure", "match", "deepdive"] as const;
+export type ScanFailurePhase = (typeof SCAN_FAILURE_PHASES)[number];
+
+/** One phase that failed, whole or in part: `chunks` of the `of` units it attempted
+ *  (structure/match batches; deep-dive postings) threw. `code` is the FIRST failure's
+ *  code from the errors registry (ENGINE_BUSY / ENGINE_TIMEOUT / ENGINE_FAILED) — the raw
+ *  error stays in the server log and never reaches the summary. */
+export type ScanPhaseFailure = { phase: ScanFailurePhase; chunks: number; of: number; code: string };
+
+/** The progress messages a scan reports beside done/total, besides a source's host
+ *  (which is what it reports while acquiring). A closed set so the doors translate it. */
+export const SCAN_PROGRESS_PHASES = ["structure", "match", "deepdive", "done", "aborted", "no_profile"] as const;
+export type ScanProgressPhase = (typeof SCAN_PROGRESS_PHASES)[number];
+export function isScanProgressPhase(v: unknown): v is ScanProgressPhase {
+  return typeof v === "string" && (SCAN_PROGRESS_PHASES as readonly string[]).includes(v);
+}
+
+/** The phase the scan could not do AT ALL — every structure or match batch it attempted
+ *  threw — or null. A deep-dive failure never qualifies: the scores stand without it.
+ *  The manual door records such a run as `error` (tasks.ts), so it neither reads `ok` in
+ *  the history nor verifies the clock job. Defensive over stored summaries that predate
+ *  `failures`. */
+export function scanWholePhaseFailure(summary: { failures?: unknown }): ScanPhaseFailure | null {
+  const failures = Array.isArray(summary.failures) ? (summary.failures as ScanPhaseFailure[]) : [];
+  return failures.find((f) => f && f.phase !== "deepdive" && f.of > 0 && f.chunks >= f.of) ?? null;
+}
 
 export type ScanSummary = {
   workspaceId: string;
@@ -423,6 +455,11 @@ export type ScanSummary = {
    *  still the truth (same MATCH_VERSION, written after the profile last changed).
    *  Optional: a caller that does not scope the match phase reports nothing here. */
   skippedUpToDate?: number;
+  /** Postings the matcher's hard filter removed THIS run (stored with their gate and an
+   *  as-if score, never counted in `matched`). */
+  koFiltered: number;
+  /** Phases that failed, whole or in part — empty when every phase did all its work. */
+  failures: ScanPhaseFailure[];
   deepDived: number;
   /** `no_provider` when the deep-dive was skipped keyless. */
   deepDiveSkipped: string | null;

@@ -21,7 +21,12 @@
 //     whose stored match was still the truth, so a re-scan that changed nothing says "0
 //     scored, N already current" instead of quietly re-spending on the whole dataset;
 //   - the deep-dive stops at the FIRST keyless / deterministic answer, `deepDiveSkipped:
-//     "no_provider"` — one cheap spawn per scan without a key, never maxPerScan of them.
+//     "no_provider"` — one cheap spawn per scan without a key, never maxPerScan of them;
+//   - a phase that throws is ON THE RECORD, not only in the log: `failures` names the
+//     phase, how many of its batches (deep-dive: postings) failed out of how many, and
+//     the first failure's CODE. A scan whose every match batch failed used to read "ok,
+//     0 matched" — indistinguishable from a dataset with nothing new in it;
+//   - `koFiltered` is what the hard filter removed this run, beside `matched`.
 
 import {
   listDeepDiveCandidates,
@@ -41,10 +46,21 @@ import { deepDivePosting, type DeepDiveOutcome } from "./deepdive";
 import type { HostLookup } from "../ats-egress-guard";
 import { egressGuardedFetch } from "./fetch/egress";
 import { politeFetch, type PoliteFetch } from "./fetch/politeFetch";
-import { matchPostings, MATCH_VERSION, type StructuredPosting } from "./match";
+import { MATCH_CHUNK, matchPostings, MATCH_VERSION, type StructuredPosting } from "./match";
 import { runPythonCli, type CliRunner } from "./python-cli";
+import { spawnFailureCode } from "../python-runner";
 import { reconcileSource } from "./reconcile";
-import type { JobseekerPosting, JobseekerProfile, JobseekerSource, ScanSummary, SourceAdapterName, SourceRunSummary } from "./types";
+import type {
+  JobseekerPosting,
+  JobseekerProfile,
+  JobseekerSource,
+  ScanFailurePhase,
+  ScanPhaseFailure,
+  ScanProgressPhase,
+  ScanSummary,
+  SourceAdapterName,
+  SourceRunSummary,
+} from "./types";
 
 /** Per source per run. Tighter than DEFAULT_ADAPTER_LIMITS on refs: a twice-daily scan
  *  over several boards is a courtesy budget. There is no cursor — the next run starts
@@ -59,7 +75,28 @@ export const STRUCTURE_CHUNK = 200;
 export const SCAN_SKIP_REASON = "wall_budget";
 
 export type ScanTrigger = ScanSummary["trigger"];
-export type ScanProgress = (done: number, total: number, msg?: string) => void;
+/** `msg` is a ScanProgressPhase, or the host of the source being acquired — in which case
+ *  done/total count that source's detail reads ("jobs.example · 12 of 60"). */
+export type ScanProgress = (done: number, total: number, msg?: ScanProgressPhase | string) => void;
+
+/** A phase failure's code: the engine's typed spawn failures keep theirs; anything else
+ *  the engine threw (a non-zero exit, an unparseable envelope) is ENGINE_FAILED. Never
+ *  the message — that stays in the server log. */
+export function scanFailureCode(error: unknown): string {
+  return spawnFailureCode(error) ?? "ENGINE_FAILED";
+}
+
+/** Counts one phase's failed units into the summary: one entry per phase, the first
+ *  failure's code kept (a batch that failed for a second reason is still counted). */
+function failureLedger(failures: ScanPhaseFailure[]) {
+  return {
+    fail(phase: ScanFailurePhase, of: number, error: unknown) {
+      const entry = failures.find((f) => f.phase === phase);
+      if (entry) entry.chunks += 1;
+      else failures.push({ phase, chunks: 1, of, code: scanFailureCode(error) });
+    },
+  };
+}
 
 export type ScanDeps = {
   now: () => string;
@@ -137,7 +174,7 @@ function budgetSignal(outer: AbortSignal | undefined): { signal: AbortSignal; re
 }
 
 function skippedSummary(sourceId: string): SourceRunSummary {
-  return { sourceId, outcome: "skipped", new: 0, changed: 0, unchanged: 0, absent: 0, reason: SCAN_SKIP_REASON };
+  return { sourceId, outcome: "skipped", new: 0, changed: 0, unchanged: 0, absent: 0, reason: SCAN_SKIP_REASON, truncated: false };
 }
 
 export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): Promise<ScanSummary> {
@@ -151,9 +188,12 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
     sources: [],
     matched: 0,
     skippedUpToDate: 0,
+    koFiltered: 0,
+    failures: [],
     deepDived: 0,
     deepDiveSkipped: null,
   };
+  const ledger = failureLedger(summary.failures);
   const finish = (): ScanSummary => ({ ...summary, finishedAt: deps.now() });
   const progress: ScanProgress = opts.onProgress ?? (() => undefined);
 
@@ -184,7 +224,9 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
         summary.sources.push(skippedSummary(source.id));
         continue;
       }
-      progress(done, total, source.host);
+      // While a source is read, done/total are ITS detail reads, so the live line moves
+      // ("jobs.example · 12 of 60") instead of sitting on "0 of 7" for minutes.
+      progress(0, 0, source.host);
       const run = await reconcileSource(
         source,
         deps.adapterFor(source.adapter),
@@ -201,6 +243,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
           recordSourceRun: (sourceId, outcome, at) => deps.recordSourceRun(sourceId, outcome, at, workspaceId),
           pauseSource: (sourceId, reason) => deps.pauseSource(sourceId, reason, workspaceId),
           now: deps.now,
+          onDetailProgress: (read, planned) => progress(read, planned, source.host),
         }
       );
       summary.sources.push(run);
@@ -211,6 +254,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
     progress(done, total, "structure");
     if (!signal.aborted) {
       const pending = deps.listPostingsNeedingStructure(workspaceId);
+      const chunks = Math.ceil(pending.length / STRUCTURE_CHUNK);
       for (let i = 0; i < pending.length && !signal.aborted; i += STRUCTURE_CHUNK) {
         const chunk = pending.slice(i, i + STRUCTURE_CHUNK);
         try {
@@ -230,6 +274,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
           if (notes) deps.log({ level: "info", code: "structure_notes", detail: `${notes} note(s) over ${chunk.length} posting(s)` });
         } catch (error) {
           deps.log({ level: "warn", code: "structure_failed", detail: `chunk ${i / STRUCTURE_CHUNK}` }, error);
+          ledger.fail("structure", chunks, error);
         }
       }
     }
@@ -249,10 +294,14 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
       });
       const structured: StructuredPosting[] = pending.rows;
       summary.skippedUpToDate = pending.skippedUpToDate;
+      const matchChunks = Math.ceil(structured.length / MATCH_CHUNK);
       const outcome = await matchPostings(profile, structured, {
         runCli: deps.runCli,
         signal,
-        onChunkError: (error, chunk) => deps.log({ level: "warn", code: "match_failed", detail: `chunk ${chunk}` }, error),
+        onChunkError: (error, chunk) => {
+          deps.log({ level: "warn", code: "match_failed", detail: `chunk ${chunk}` }, error);
+          ledger.fail("match", matchChunks, error);
+        },
       });
       const matchedAt = inputsAt;
       for (const m of outcome.matched) {
@@ -265,6 +314,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
         deps.setPostingBlocked(b.id, { blocked: { koKeys: b.koKeys, koDetails: b.koDetails }, asIf: b.match }, { version: MATCH_VERSION, matchedAt }, workspaceId);
       }
       summary.matched = outcome.matched.length;
+      summary.koFiltered = outcome.koFiltered;
       if (outcome.koFiltered) {
         deps.log({ level: "info", code: "ko_filtered", detail: `${outcome.koFiltered} posting(s) failed the hard filter: ${JSON.stringify(outcome.koReasons)}` });
       }
@@ -273,7 +323,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
 
     // ── 4. Deep-dive (model; bounded by the seeker's policy; stops at the first
     //      keyless answer) ───────────────────────────────────────────────────────
-    progress(done, total, "deep-dive");
+    progress(done, total, "deepdive");
     if (!signal.aborted) {
       const policy = profile.preferences.deepDive;
       const shortlist = deps.listDeepDiveCandidates({ threshold: policy.threshold, limit: policy.maxPerScan }, workspaceId);
@@ -291,6 +341,7 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
           // An engine fault on one posting is not a verdict on the provider: log it and
           // let the next shortlisted posting try. The loop is bounded by maxPerScan.
           deps.log({ level: "warn", code: "deepdive_failed", detail: posting.id }, error);
+          ledger.fail("deepdive", shortlist.length, error);
         }
       }
     }
