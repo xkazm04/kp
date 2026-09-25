@@ -2,29 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import dynamic from "next/dynamic";
-import { Loader2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
-import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
-import { Skeleton } from "@/app/_components/Skeleton";
-import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { initials } from "@/app/_lib/initials";
-import { BTN_AFFIRM, BTN_PRIMARY_LG, BTN_SECONDARY_LG } from "@/app/_components/ui/recipes";
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import { classifyOfferResponse, offerRespondAllowed } from "./offer-response";
-import { formatOfferDeadline } from "./offer-deadline";
-import { useDateFormat } from "@/app/_components/ui/useDateFormat";
-import { useKitFlag } from "@/app/_components/kit/useKitFlag";
-import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import OfferKitView from "./kit/OfferKitView";
 
-// Gate 2 (kit-unification spark, dev only): `?kit=1` renders the composition-kit letter. It is a
-// VIEW of this component's state: the load, the revalidation, the in-flight guard and the decline
-// confirm below are shared, so the two cannot drift. Its code and CSS load only behind the flag.
-const OfferKitView = dynamic(() => import("./kit/OfferKitView"), {
-  loading: () => <LoadingGap className="min-h-[28rem]" />,
-});
+// The offer door's STATE: the load, the 60s + focus revalidation, the one-in-flight accept/decline
+// guard, the 410 -> expired rule and the decline confirm step. Its markup is the composition-kit
+// letter in ./kit (promoted at Gate 2 of the kit-unification spark, 2026-09-25), which renders this
+// state and owns none of its own.
 
 type OfferView = {
   token: string;
@@ -58,11 +46,7 @@ export function OfferClient({
   const params = useParams<{ token: string }>();
   const token = params?.token;
   const t = useTranslations("offer");
-  const tCommon = useTranslations("common");
-  const locale = useLocale();
-  const dates = useDateFormat();
   const errMsg = useErrorMessage();
-  const kit = useKitFlag();
   const [offer, setOffer] = useState<OfferView | null>(null);
   // Two distinct failure modes, deliberately separated: a GET load failure has nothing to show,
   // so it replaces the whole card; a POST response failure surfaces as an inline banner that
@@ -226,332 +210,24 @@ export function OfferClient({
     }
   };
 
-  if (kit) {
-    return (
-      <OfferKitView
-        offer={offer}
-        notFound={notFound}
-        loadError={loadError}
-        responseError={responseError}
-        pending={pending}
-        result={result}
-        confirmingDecline={confirmingDecline}
-        onRetry={retryLoad}
-        onAccept={() => respond("accept")}
-        onAskDecline={() => setConfirmingDecline(true)}
-        onCancelDecline={() => setConfirmingDecline(false)}
-        onConfirmDecline={() => respond("decline")}
-        acceptedRef={acceptedCardRef}
-        disclosure={
-          !result ? <AiDisclosure regimeId={compliance.regimeId} retentionMonths={compliance.retentionMonths} /> : null
-        }
-      />
-    );
-  }
-
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper p-6">
-      <div className="w-full max-w-md">
-      {/* The candidate's own escape hatch, mirroring the status page: the emailed
-          offer link is now ?lang=-pinned to the letter's language, but a forwarded
-          link or a stale NEXT_LOCALE cookie can still land them in a language they
-          don't read — and this page has no other chrome. */}
-      <div className="mb-3 flex justify-end">
-        <LanguageSwitcher />
-      </div>
-      <div className="w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-panel">
-        {/* Brand accent — a premium letterhead strip so the offer reads as official. */}
-        <div className="h-1.5 bg-gradient-to-r from-steel via-steel to-coral" aria-hidden="true" />
-        <div className="p-7">
-        {notFound ? (
-          <div className="rounded-lg bg-stone-100 p-4 text-center">
-            <p className="text-base font-semibold text-ink">{t("invalidLink")}</p>
-            <p className="mt-1 text-sm text-steel">{t("invalidLinkBody")}</p>
-          </div>
-        ) : loadError ? (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            <p>{loadError}</p>
-            <button
-              type="button"
-              onClick={retryLoad}
-              className={`${BTN_SECONDARY_LG} mt-2 px-4`}
-            >
-              {tCommon("retry")}
-            </button>
-          </div>
-        ) : !offer ? (
-          // Skeleton mirrors the loaded offer's shape so the high-stakes first paint
-          // reserves its height instead of a bare line that visibly reflows (CLS).
-          <div className="space-y-4" aria-busy="true" aria-label={tCommon("loading")}>
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-11 w-11 rounded-lg" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/3" />
-              </div>
-            </div>
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-20 w-full rounded-lg" />
-            <Skeleton className="h-3 w-5/6" />
-            <Skeleton className="h-3 w-3/4" />
-            <div className="flex gap-2 pt-2">
-              <Skeleton className="h-10 flex-1 rounded-md" />
-              <Skeleton className="h-10 flex-1 rounded-md" />
-            </div>
-          </div>
-        ) : (
-          <>
-            {offer.company ? (
-              <header className="flex items-center gap-3">
-                {/* Logo slot — monogram stand-in until a real logo asset exists. */}
-                <span
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-steel font-serif text-base font-semibold text-white"
-                  aria-hidden="true"
-                >
-                  {initials(offer.company, "•")}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
-                  <p className="truncate font-serif text-lg text-ink">{offer.company}</p>
-                </div>
-              </header>
-            ) : (
-              <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
-            )}
-            <h1 className="mt-4 font-serif text-2xl text-ink">
-              {offer.jobTitle ?? (offer.company ? t("roleAt", { company: offer.company }) : t("roleGeneric"))}
-            </h1>
-            {offer.candidateLabel ? (
-              <p className="mt-1 text-sm text-steel">{t("preparedFor", { name: offer.candidateLabel })}</p>
-            ) : null}
-
-            {(() => {
-              const notes = offer.notes?.trim() || null;
-              const rawStart = offer.startDate?.trim() || null;
-              const startDateLabel = rawStart ? dates.date(rawStart, { fallback: "" }) || rawStart : null;
-              if (offer.salary == null && !notes && !startDateLabel) return null;
-              return (
-                <div className="mt-4 rounded-lg border border-stone-200 bg-paper/60 p-4">
-                  {offer.salary != null ? (
-                    <>
-                      <p className="text-meta uppercase tracking-wide text-steel">{t("compensation")}</p>
-                      <p className="mt-0.5 font-serif text-3xl text-ink">
-                        {/* P2-1 — show the offer's OWN stored currency; never fabricate CZK
-                            for a non-Czech offer. When the currency is genuinely unknown,
-                            omit the unit rather than asserting a wrong one. */}
-                        {offer.salary.toLocaleString(locale)}
-                        {offer.currency ? <span className="text-lg text-steel"> {offer.currency}</span> : null}
-                      </p>
-                    </>
-                  ) : null}
-                  {notes ? (
-                    <p className={`${offer.salary != null ? "mt-3" : ""} whitespace-pre-wrap text-sm text-ink`}>
-                      <span className="block text-meta uppercase tracking-wide text-steel">{t("notesLabel")}</span>
-                      {notes}
-                    </p>
-                  ) : null}
-                  {startDateLabel ? (
-                    <p className={`${offer.salary != null || notes ? "mt-3" : ""} text-sm text-ink`}>
-                      <span className="block text-meta uppercase tracking-wide text-steel">{t("startDate")}</span>
-                      {startDateLabel}
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })()}
-
-            {result === "accepted" ? (
-              // bug-ui-scan-2026-07-09 (offers-onboarding #4): announce the terminal
-              // outcome (role=status + aria-live) so the success of this irreversible
-              // action isn't silent to assistive tech; focus moves to the CTA below.
-              <div
-                ref={acceptedCardRef}
-                tabIndex={-1}
-                role="status"
-                aria-live="polite"
-                className="focus-ring mt-6 rounded-lg bg-moss/10 p-4 text-center"
-              >
-                <p className="text-lg font-semibold text-moss">{t("acceptedTitle")}</p>
-                <p className="mt-1 text-sm text-steel">
-                  {offer.company ? t("acceptedBodyCompany", { company: offer.company }) : t("acceptedBodyGeneric")}
-                </p>
-              </div>
-            ) : result === "declined" ? (
-              // bug-ui-scan-2026-07-09 (offers-onboarding #4): the decline is also a
-              // terminal swap after a candidate action — announce it to assistive tech.
-              <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
-                <p className="text-base font-semibold text-ink">{t("declinedTitle")}</p>
-                <p className="mt-1 text-sm text-steel">{t("declinedBody")}</p>
-              </div>
-            ) : result === "expired" ? (
-              // The offer lapsed past its deadline (idea-29361408) — a definite
-              // dead-end state, not an error the candidate can retry past. Announced
-              // to assistive tech on the swap (bug-ui-scan-2026-07-09 offers-onboarding #4).
-              <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-stone-100 p-4 text-center">
-                <p className="text-base font-semibold text-ink">{t("expiredTitle")}</p>
-                <p className="mt-1 text-sm text-steel">{t("expiredBody")}</p>
-              </div>
-            ) : (
-              <>
-                <p className="mt-5 text-sm text-steel">
-                  {offer.company ? t("prompt", { company: offer.company }) : t("promptGeneric")}
-                </p>
-                {/* Deadline countdown (idea-29361408): the offer's lever to force a
-                    timely decision. Turns coral inside the final 48h. The hours-left
-                    figure is SERVER-computed (offers-onboarding #5) so it can't disagree
-                    with server-enforced expiry on a skewed client clock. */}
-                {(() => {
-                  const hrs = offer.hoursRemaining;
-                  if (hrs === null || !offer.expiresAt) return null;
-                  // Use the company's zone projected by the server, never the
-                  // candidate's browser zone. The formatter names that clock.
-                  const date = formatOfferDeadline(offer.expiresAt, locale, offer.timeZone);
-                  if (!date) return null;
-                  const mins = offer.minutesRemaining;
-                  return (
-                    <p className={`mt-2 text-sm font-medium ${hrs <= 48 ? "text-coral" : "text-steel"}`}>
-                      {t("deadline", { date })} {mins !== null && mins <= 60
-                        ? t("deadlineMinutes", { minutes: mins })
-                        : t("deadlineHours", { hours: hrs })}
-                    </p>
-                  );
-                })()}
-                {/* POST failure: inline + retryable. The card and buttons below stay put. */}
-                {responseError ? (
-                  <p
-                    role="alert"
-                    className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-                  >
-                    {responseError}
-                  </p>
-                ) : null}
-                {confirmingDecline ? (
-                  <DeclineConfirm
-                    busy={pending !== null}
-                    pending={pending === "decline"}
-                    onCancel={() => setConfirmingDecline(false)}
-                    onConfirm={() => respond("decline")}
-                  />
-                ) : (
-                  <div className="mt-4 flex gap-3">
-                    <button
-                      type="button"
-                      data-sim-click="offer-accept"
-                      onClick={() => respond("accept")}
-                      disabled={pending !== null}
-                      aria-busy={pending === "accept"}
-                      className={`${BTN_AFFIRM} h-11 flex-1 justify-center text-base ${
-                        pending === "decline" ? "opacity-40" : ""
-                      }`}
-                    >
-                      {pending === "accept" ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                          {t("recording")}
-                        </>
-                      ) : (
-                        t("accept")
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingDecline(true)}
-                      disabled={pending !== null}
-                      className={`${BTN_SECONDARY_LG} px-4 ${pending === "accept" ? "opacity-40" : ""}`}
-                    >
-                      {t("decline")}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-            {!result ? (
-              <AiDisclosure
-                className="mt-5"
-                regimeId={compliance.regimeId}
-                retentionMonths={compliance.retentionMonths}
-              />
-            ) : null}
-          </>
-        )}
-        </div>
-      </div>
-      </div>
-    </main>
-  );
-}
-
-/**
- * The decline confirm. Declining is IRREVERSIBLE (offer-finalize markEntryStatus
- * 'declined' closes the entry) and this is a public page a candidate reaches from
- * an email, so it is a real modal `alertdialog` on the SAME shared hook the
- * lower-stakes erasure door already uses. It used to CLAIM role="alertdialog"
- * while hand-rolling one focus() call: no Tab trap, no Escape, no focus restore
- * and no aria-modal, so a screen-reader user could tab straight out of an open
- * confirm back onto the live Accept button behind it.
- *
- *  - `useDialogA11y` moves focus inside on open, traps Tab, closes on Escape and
- *    restores focus to the trigger;
- *  - Cancel is FIRST in the DOM, so the hook's "focus the first focusable" lands a
- *    keyboard user on the safe option and the destructive button sits last;
- *  - it is its own component so the hook mounts and unmounts with the dialog.
- */
-function DeclineConfirm({
-  busy,
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  busy: boolean;
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const t = useTranslations("offer");
-  const ref = useRef<HTMLDivElement>(null);
-  // Escape must not close the dialog mid-write: the POST is already irreversible
-  // and a vanished dialog would leave no place for its result.
-  useDialogA11y(ref, () => {
-    if (!busy) onCancel();
-  });
-  return (
-    <div
-      ref={ref}
-      tabIndex={-1}
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="decline-confirm-title"
-      aria-describedby="decline-confirm-desc"
-      className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-4"
-    >
-      <p id="decline-confirm-title" className="text-base font-semibold text-ink">
-        {t("declineConfirmTitle")}
-      </p>
-      <p id="decline-confirm-desc" className="mt-0.5 text-sm text-steel">
-        {t("declineConfirmBody")}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-3">
-        <button type="button" onClick={onCancel} disabled={busy} className={`${BTN_SECONDARY_LG} px-4`}>
-          {t("goBack")}
-        </button>
-        <button
-          type="button"
-          data-sim-click="offer-decline-confirm"
-          onClick={onConfirm}
-          disabled={busy}
-          aria-busy={pending}
-          className={`${BTN_PRIMARY_LG} flex-1`}
-        >
-          {pending ? (
-            <>
-              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-              {t("recording")}
-            </>
-          ) : (
-            t("confirm")
-          )}
-        </button>
-      </div>
-    </div>
+    <OfferKitView
+      offer={offer}
+      notFound={notFound}
+      loadError={loadError}
+      responseError={responseError}
+      pending={pending}
+      result={result}
+      confirmingDecline={confirmingDecline}
+      onRetry={retryLoad}
+      onAccept={() => respond("accept")}
+      onAskDecline={() => setConfirmingDecline(true)}
+      onCancelDecline={() => setConfirmingDecline(false)}
+      onConfirmDecline={() => respond("decline")}
+      acceptedRef={acceptedCardRef}
+      disclosure={
+        !result ? <AiDisclosure regimeId={compliance.regimeId} retentionMonths={compliance.retentionMonths} /> : null
+      }
+    />
   );
 }

@@ -63,7 +63,7 @@ export const SIM_MOVES: Readonly<Record<SimMoveId, SimMove>> = {
   // The candidate accepts on their own offer page.
   offerAccept: {
     id: "offerAccept",
-    clicks: [{ anchor: "offer-accept", scope: "frame", file: "app/offer/[token]/OfferClient.tsx" }],
+    clicks: [{ anchor: "offer-accept", scope: "frame", file: "app/offer/[token]/kit/OfferKitDecision.tsx" }],
   },
 };
 

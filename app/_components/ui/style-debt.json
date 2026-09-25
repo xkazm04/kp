@@ -2489,10 +2489,6 @@
       "below-floor-text": 1,
       "raw-text-size": 5
     },
-    "offer/[token]/OfferClient.tsx": {
-      "raw-text-size": 23,
-      "raw-status-hue": 5
-    },
     "privacy/page.tsx": {
       "raw-text-size": 1,
       "literal-page-header": 1
@@ -2517,15 +2513,6 @@
     },
     "signup/SignupClient.tsx": {
       "raw-text-size": 6
-    },
-    "skill/[token]/PrintCredentialButton.tsx": {
-      "raw-text-size": 1,
-      "raw-button": 1
-    },
-    "skill/[token]/page.tsx": {
-      "raw-text-size": 7,
-      "raw-stone-text": 3,
-      "raw-status-hue": 10
     },
     "status/[token]/StatusClient.tsx": {
       "raw-text-size": 8,

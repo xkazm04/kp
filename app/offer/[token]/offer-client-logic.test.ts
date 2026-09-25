@@ -1,6 +1,6 @@
 // The offer door's two pure decisions, pinned.
 //
-// OfferClient.tsx is a client component — JSX + hooks, unloadable under
+// The offer door's components are client components — JSX + hooks, unloadable under
 // `node --test` — so until now the two judgements that decide what a candidate
 // SEES after the most consequential click in the product lived inside it,
 // untested: which HTTP answer means "expired" rather than "retry", and what the
@@ -15,7 +15,13 @@ import { formatOfferDeadline, OFFER_DEADLINE_ZONE } from "./offer-deadline.ts";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const clientSrc = readFileSync(fileURLToPath(new URL("./OfferClient.tsx", import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+// The door's markup is the composition-kit letter in ./kit (Gate 2): the deadline sentence is built in
+// OfferKitDecision, the terms in OfferKitView, their presence rules in offerKitModel (pinned by
+// kit/offerKitModel.test.ts).
+const src = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8").replace(/\r\n/g, "\n");
+const decisionSrc = src("./kit/OfferKitDecision.tsx");
+const viewSrc = src("./kit/OfferKitView.tsx");
+const modelSrc = src("./kit/offerKitModel.ts");
 
 // ── classifyOfferResponse ────────────────────────────────────────────────────
 
@@ -83,7 +89,7 @@ test("the same instant renders identically whatever the viewer's locale digits",
 });
 
 test("the public card uses the company's projected zone", () => {
-  assert.match(clientSrc, /formatOfferDeadline\(offer\.expiresAt, locale, offer\.timeZone\)/);
+  assert.match(decisionSrc, /formatOfferDeadline\(offer\.expiresAt, locale, offer\.timeZone\)/);
   const out = formatOfferDeadline("2026-09-12T21:30:00.000Z", "en", "Europe/Prague");
   assert.match(out, /11:30|23:30/);
   assert.match(out, /GMT\+2|CEST/);
@@ -96,11 +102,13 @@ test("an unparsable or absent deadline renders nothing, never 'Invalid Date'", (
 });
 
 test("notes and startDate render when present and are omitted when empty", () => {
-  assert.match(clientSrc, /t\("notesLabel"\)/);
-  assert.match(clientSrc, /t\("startDate"\)/);
-  assert.match(clientSrc, /whitespace-pre-wrap/);
-  assert.match(clientSrc, /useDateFormat/);
-  assert.match(clientSrc, /offer\.notes\?\.trim\(\) \|\| null/);
-  assert.match(clientSrc, /offer\.startDate\?\.trim\(\) \|\| null/);
-  assert.match(clientSrc, /if \(offer\.salary == null && !notes && !startDateLabel\) return null/);
+  assert.match(viewSrc, /t\("notesLabel"\)/);
+  assert.match(viewSrc, /t\("startDate"\)/);
+  // the notes keep their line breaks: kit.css .k-body is white-space: pre-wrap
+  assert.match(viewSrc, /className="k-body"/);
+  assert.match(src("../../_components/kit/kit.css"), /\.k-body \{[^}]*white-space: pre-wrap/);
+  assert.match(viewSrc, /useDateFormat/);
+  assert.match(modelSrc, /notes: o\.notes\?\.trim\(\) \|\| null/);
+  assert.match(modelSrc, /startDate: o\.startDate\?\.trim\(\) \|\| null/);
+  assert.match(modelSrc, /salary: o\.salary != null \?/);
 });

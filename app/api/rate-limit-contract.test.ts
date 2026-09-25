@@ -2891,8 +2891,11 @@ test(`${SKILL_PAGE}: the credential read is throttled per client AND token, befo
   const expensiveAt = src.indexOf("verifySkillProfileToken(token)");
   assert.ok(expensiveAt > at, "the limiter must precede verifySkillProfileToken");
 
-  // The refusal a page can actually give: rendered copy, in the reader's language.
-  assert.match(src.slice(at, at + 1200), /t\("throttledTitle"\)/, "the throttled branch must render its own copy");
+  // The refusal a page can actually give: rendered copy, in the reader's language. The markup is
+  // the composition-kit letter (Gate 2), which renders the throttled copy for this card kind.
+  assert.match(src.slice(at, at + 1200), /card=\{\{ kind: "throttled" \}\}/, "the throttled branch must render the throttled letter");
+  const view = read("../skill/[token]/kit/SkillKitView.tsx");
+  assert.match(view, /t\("throttledTitle"\)/, "the throttled letter must render its own copy");
 });
 
 test(`${SKILL_PAGE}: hit ${SKILL_PAGE_LIMIT.limit + 1} inside one window is refused`, () => {

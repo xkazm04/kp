@@ -236,18 +236,16 @@ career-switcher) that other features key off. Downstream ranking is
   is unaffected. Pinned by `app/api/rate-limit-contract.test.ts`, and swept by
   `e2e/token-doors-axe.spec.ts` when the database holds an evaluated submission to
   mint a credential from.
-- **Composition-kit views of the two token doors (dev only, Gate 2 of the
-  kit-unification spark).** With `?kit=1` (`useKitFlag`; production always renders
-  today's pages) `/offer/[token]` and `/skill/[token]` render as a calm kit letter
-  (`Letter`, `LetterHead`, `Outcome`, `ScoreList` in `app/_components/kit/`).
-  `app/offer/[token]/kit/OfferKitView.tsx` is a view of `OfferClient`'s own state:
-  the load, the revalidation, the in-flight guard, the 410 → expired rule and the
-  decline alertdialog stay in `OfferClient`, so the two views cannot drift. The
-  credential's server page resolves the same facts it renders into a plain
-  `SkillKitCard` and hands it to `app/skill/[token]/kit/SkillKitSwitch.tsx`, which
-  never refetches; the server HTML (and a print of it) is always today's card. The
-  data → parts mappings are pinned by `offerKitModel.test.ts` and
-  `skillKitModel.test.ts`.
+- **Both token doors are composition-kit letters** (promoted at Gate 2 of the
+  kit-unification spark, 2026-09-25; `Letter`, `LetterHead`, `Outcome`, `ScoreList` in
+  `app/_components/kit/`). `OfferClient` owns the offer door's STATE only (the load, the
+  revalidation, the in-flight guard, the 410 → expired rule, the decline confirm step) and renders
+  `app/offer/[token]/kit/OfferKitView.tsx`, which owns none. The credential's server page resolves
+  every fact it shows into a plain `SkillKitCard` and renders `app/skill/[token]/kit/SkillKitView.tsx`
+  (a client component, server-rendered, never refetching): the server HTML is the whole card, so it
+  prints without JavaScript; the public bar (Print, language) is print-hidden and the letter drops
+  its elevation in print (`doc.css`). The data → parts mappings are pinned by
+  `offerKitModel.test.ts` and `skillKitModel.test.ts`.
 
 ## Flows
 
@@ -1367,7 +1365,7 @@ expiry instant, and the card switches from hours to minutes in the final hour.
 | Analyze preflight (readability + blind guard) | `app/features/tools/analyze/analyzeCvReadability.ts`, `useAnalyzeReadability.ts`, `AnalyzeReadabilityStrip.tsx`, mounted by `AnalyzeFormFooter.tsx` |
 | Apply intake | `app/_lib/apply-intake.ts`, `app/_lib/apply.ts`, `app/apply/[id]/ConversationalApply.tsx` (+ `use-apply-draft.ts`, `use-apply-submit.ts`, `use-apply-followup.ts`, `ApplyStepControls.tsx`, `ApplyDoneCard.tsx`, `ApplyErrorBlock.tsx`, `ApplyFollowup.tsx`, `apply-chat-types.ts`), `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/route.ts`, `app/api/apply/[id]/quick/route.ts` |
 | Apply session state | `app/_lib/apply-session-client.ts`, `app/_lib/apply-session-store.ts`, `app/api/apply/[id]/session/` |
-| Offer response | `app/offer/[token]/OfferClient.tsx`, `offer-deadline.ts`, `app/_lib/offer-finalize.ts`; kit view (dev `?kit=1`) `app/offer/[token]/kit/` |
+| Offer response | `app/offer/[token]/OfferClient.tsx`, `offer-deadline.ts`, `app/_lib/offer-finalize.ts`; markup `app/offer/[token]/kit/` |
 | Profile editing | `app/features/tools/profile/ProfileEditor.tsx`, `ProfileEditorFields.tsx`, `useProfileEditorSubmit.ts`, `profileEditorPayload.ts` |
 | Profile schema (shared) | `app/features/tools/profile/ProfileTabTypes.ts`, `pipeline/jobfit/profile.py` |
 | Archetype registry | `pipeline/jobfit/archetypes.json`, `pipeline/jobfit/registry.py`, `app/_lib/archetype-registry.ts`, `app/_lib/archetypes.ts` |
@@ -1376,7 +1374,7 @@ expiry instant, and the card switches from hours to minutes in the final hour.
 | GitHub analysis run | `app/api/github-analysis/route.ts` (HTTP shell only) over `app/_lib/github/`: `analysis.ts` (orchestration), `client.ts` (REST), `heuristics.ts` (ranking/complexity/language), `skills.ts` (JD fit taxonomy + `canonicalSkill`), `skill-ledger.ts` (the one skill ledger the panel renders), `code-review.ts` (Gemini deep review), `usage.ts` (metering), `cache.ts` (TTL cache) |
 | Signal display | `app/_components/Badge.tsx`, `PotentialBadge.tsx`, `FactorChart.tsx`, `ScoreDial.tsx`, `ScoreBadge.tsx`, `ScoreProvenanceLabel.tsx` |
 | Saved analyses | `app/history/[slug]/page.tsx`, `app/features/tools/analyze/history/*` |
-| Public skill credential | `app/skill/[token]/page.tsx`; kit view (dev `?kit=1`) `app/skill/[token]/kit/` |
+| Public skill credential | `app/skill/[token]/page.tsx`; markup `app/skill/[token]/kit/` |
 
 ### What the GitHub payload says, and in which language
 

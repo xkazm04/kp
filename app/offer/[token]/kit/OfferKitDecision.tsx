@@ -2,7 +2,10 @@
 
 import { useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Button, LetterActs, Note, Outcome } from "@/app/_components/kit";
+// Slices, not the kit barrel: a public door loads only the parts it draws.
+import { Button } from "@/app/_components/kit/Button";
+import { LetterActs, Outcome } from "@/app/_components/kit/Letter";
+import { Note } from "@/app/_components/kit/Section";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { formatOfferDeadline } from "../offer-deadline";
 import { offerKitDeadline, type OfferKitInput } from "./offerKitModel";
@@ -27,9 +30,10 @@ export function OfferKitDecision(
 ) {
   const t = useTranslations("offer");
   const locale = useLocale();
-  const deadline = offerKitDeadline(p.offer);
+  const offer = p.offer;
+  const deadline = offerKitDeadline(offer);
   // The company's zone projected by the server, never the candidate's browser zone.
-  const date = deadline ? formatOfferDeadline(p.offer.expiresAt, locale, p.offer.timeZone) : "";
+  const date = deadline ? formatOfferDeadline(offer.expiresAt, locale, offer.timeZone) : "";
   return (
     <>
       <p className="k-letter__line">{p.company ? t("prompt", { company: p.company }) : t("promptGeneric")}</p>
@@ -68,7 +72,7 @@ export function OfferKitDecision(
 
 /**
  * The decline confirm (declining is irreversible): a real modal alertdialog on the shared hook, as
- * in OfferClient's DeclineConfirm. Focus moves in, Tab is trapped, Escape cancels (never mid-write),
+ * the door has always had. Focus moves in, Tab is trapped, Escape cancels (never mid-write),
  * focus returns to the trigger; "Go back" is FIRST in the DOM so the hook lands a keyboard user on
  * the safe option and the destructive button sits last.
  */

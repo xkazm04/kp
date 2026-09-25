@@ -2,19 +2,25 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  Button, KitSurface, Letter, LetterBlock, LetterHead, Mark, Note, Outcome, ScoreList, Section, StatStrip, formatCount,
-} from "@/app/_components/kit";
+// Slices, not the kit barrel: a public door loads only the parts it draws.
+import { Button } from "@/app/_components/kit/Button";
+import { KitSurface } from "@/app/_components/kit/KitSurface";
+import { Letter, LetterBlock, LetterHead, Outcome } from "@/app/_components/kit/Letter";
+import { Mark } from "@/app/_components/kit/Mark";
+import { ScoreList } from "@/app/_components/kit/ScoreList";
+import { Note, Section } from "@/app/_components/kit/Section";
+import { StatStrip } from "@/app/_components/kit/StatStrip";
+import { formatCount } from "@/app/_components/kit/figure";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { skillBody, skillFigures, skillStaleKey, skillVerdict, type SkillKitCard } from "./skillKitModel";
 
 /**
- * /skill/[token] composed from the composition kit (Gate 2; rendered only behind the dev-only
- * `?kit=1` switch, see SkillKitSwitch). A calm letter: the credential's head, the verdict line whose
- * mark SHAPE carries the trust state, the two headline figures and the capability axes as labelled
- * meters (trusted states only), and the methodology line. Every fact arrives from the server page as
- * props; nothing is refetched. Print: the public bar (Print, language) is print-hidden, the letter
- * drops its elevation (doc.css), and the rest is flat text that prints as it reads.
+ * /skill/[token]'s markup, composed from the composition kit (promoted at Gate 2 of the
+ * kit-unification spark). A calm letter: the credential's head, the verdict line whose mark SHAPE
+ * carries the trust state, the two headline figures and the capability axes as labelled meters
+ * (trusted states only), and the methodology line. Every fact arrives from the server page as
+ * props; nothing is refetched, so the server HTML is the whole card. Print: the public bar (Print,
+ * language) is print-hidden and the letter drops its elevation (doc.css); the rest prints as it reads.
  */
 export default function SkillKitView({ card }: { card: SkillKitCard }) {
   const t = useTranslations("skillProfile");

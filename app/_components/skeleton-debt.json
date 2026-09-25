@@ -38,9 +38,6 @@
     "features/tools/devcases/DevSessionEvidencePanel.tsx": {
       "skeleton": 3
     },
-    "offer/[token]/OfferClient.tsx": {
-      "skeleton": 9
-    },
     "stop/[token]/StopClient.tsx": {
       "skeleton": 5
     }

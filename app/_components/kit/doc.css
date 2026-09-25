@@ -71,6 +71,8 @@
 
 /* print (the credential is printed and shared): no elevation, no sticker shadows, the rule prints */
 @media print {
+  /* this sheet is unlayered, so it beats Tailwind's layered print:hidden on .k-public: hide it here */
+  .k-public { display: none; }
   .k-letter { box-shadow: none; }
   .k-letter::before { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .k-result { box-shadow: none; }

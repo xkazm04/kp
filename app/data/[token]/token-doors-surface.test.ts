@@ -100,7 +100,11 @@ for (const rel of [DATA_CLIENT, INVITE_FORM, LOGIN_CLIENT]) {
 // the 44px floor either by carrying `h-11`/`min-h-11` itself OR by composing one
 // of those two recipes — and the recipes' own height is pinned below, so the
 // indirection cannot quietly shrink.
-const OFFER_CLIENT = "../../offer/[token]/OfferClient.tsx";
+// The offer door's markup is the composition-kit letter (promoted at Gate 2 of the kit-unification
+// spark): its controls are the kit `Button`, sized by a `size` prop rather than a class string, so
+// it has its own touch-target rule below instead of the recipe loop.
+const OFFER_VIEW = "../../offer/[token]/kit/OfferKitView.tsx";
+const OFFER_DECISION = "../../offer/[token]/kit/OfferKitDecision.tsx";
 const STATUS_CLIENT = "../../status/[token]/StatusClient.tsx";
 const STATUS_NPS = "../../status/[token]/StatusNpsCard.tsx";
 const SIGNUP_CLIENT = "../../signup/SignupClient.tsx";
@@ -133,7 +137,21 @@ test("the touch-sized recipes are what this file's 44px rule leans on — they m
   }
 });
 
-for (const rel of [OFFER_CLIENT, STATUS_CLIENT, STATUS_NPS, SIGNUP_CLIENT]) {
+test("the offer door: every control is a kit Button at 48px (size lg), none hand-rolled", () => {
+  // kit.css .k-btn--lg is 48px, above the 44px floor. A raw <button> or <a> would bypass it.
+  const kitCss = read("../../_components/kit/kit.css");
+  assert.match(kitCss, /\.k-btn--lg \{ height: 48px;/, "the kit's lg button must stay 48px");
+  for (const rel of [OFFER_VIEW, OFFER_DECISION]) {
+    const src = read(rel);
+    assert.equal(controlTags(src).length, 0, `${rel}: a raw <button>/<a> bypasses the kit's touch size`);
+    const buttons = [...src.matchAll(/<Button\b[\s\S]*?\/>/g)].map((m) => m[0]);
+    assert.ok(buttons.length > 0, `${rel}: expected kit Buttons`);
+    for (const b of buttons) assert.match(b, /size="lg"/, `${rel}: a control under 44px: ${b}`);
+    assert.ok(!/\btext-xs\b/.test(src), "text-xs must not appear on a public door");
+  }
+});
+
+for (const rel of [STATUS_CLIENT, STATUS_NPS, SIGNUP_CLIENT]) {
   test(`${rel}: every control clears the 44px touch target`, () => {
     const src = read(rel);
     const tags = controlTags(src);
@@ -172,8 +190,8 @@ for (const rel of [OFFER_CLIENT, STATUS_CLIENT, STATUS_NPS, SIGNUP_CLIENT]) {
   });
 }
 
-test("OfferClient: the decline confirm is a real MODAL alertdialog on the shared hook, safe action first", () => {
-  const src = read(OFFER_CLIENT);
+test("the offer door: the decline confirm is a real MODAL alertdialog on the shared hook, safe action first", () => {
+  const src = read(OFFER_DECISION);
   // It claimed the role and hand-rolled ONE focus() call: no trap, no Escape, no
   // focus restore, no aria-modal — over an irreversible action, on the door where
   // the stakes are highest of the four.
@@ -189,8 +207,8 @@ test("OfferClient: the decline confirm is a real MODAL alertdialog on the shared
   assert.ok(cancelAt < confirmAt, "Cancel must precede the destructive action so focus lands on the safe option");
 });
 
-test("OfferClient: the deadline is formatted in ONE named zone, never the viewer's", () => {
-  const src = read(OFFER_CLIENT);
+test("the offer door: the deadline is formatted in ONE named zone, never the viewer's", () => {
+  const src = read(OFFER_DECISION);
   assert.match(src, /formatOfferDeadline\(offer\.expiresAt, locale, offer\.timeZone\)/, "the label must go through the shared formatter with the offer's zone");
   assert.ok(
     !/dateStyle: "medium", timeStyle: "short"/.test(src),

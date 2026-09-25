@@ -593,7 +593,8 @@ literal ratchet reads as a hand-typed panel.
 above are how one element is **painted**. It is the One Measure entry that won the
 style-kit contest of the kit-unification spark (2026-09), ported into kp from measured
 computed styles. Hiring > Pipeline and Hiring > Channels render from it (promoted at
-Gate K2, 2026-09-25). A new or revitalized tool surface composes from these parts
+Gate K2, 2026-09-25), and so do the two candidate token doors, `/offer` and `/skill`
+(Gate 2, the same day). A new or revitalized tool surface composes from these parts
 before it reaches for a recipe. Out of scope, like every rule in this file: the
 marketing pages (`app/landing/**`, `/about`, `/market`).
 

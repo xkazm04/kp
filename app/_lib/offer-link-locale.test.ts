@@ -43,6 +43,7 @@ test("the offer letter and the offer reminder both pin the link to the letter's 
 });
 
 test("the offer page gives the candidate a way back to their own language", () => {
-  const src = read("../offer/[token]/OfferClient.tsx");
+  // The offer door's markup is the kit letter (Gate 2); its public bar carries the switcher.
+  const src = read("../offer/[token]/kit/OfferKitView.tsx");
   assert.match(src, /LanguageSwitcher/, "the offer page renders the shared LanguageSwitcher, like the status page");
 });

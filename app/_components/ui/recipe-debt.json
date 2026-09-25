@@ -335,11 +335,6 @@
     "jds/[slug]/page.tsx": {
       "noticeAmber": 1
     },
-    "skill/[token]/page.tsx": {
-      "panel": 1,
-      "metaLabel": 1,
-      "noticeAmber": 1
-    },
     "status/[token]/StatusClient.tsx": {
       "btnAffirm": 1,
       "rawDate": 2

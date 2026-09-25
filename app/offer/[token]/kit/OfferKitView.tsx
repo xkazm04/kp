@@ -2,7 +2,13 @@
 
 import type { ReactNode, RefObject } from "react";
 import { useTranslations } from "next-intl";
-import { Button, KitSurface, Letter, LetterBlock, LetterHead, Monogram, Note, Outcome, StatStrip, type Figure } from "@/app/_components/kit";
+// Slices, not the kit barrel: a public door loads only the parts it draws.
+import { Button } from "@/app/_components/kit/Button";
+import { KitSurface } from "@/app/_components/kit/KitSurface";
+import { Letter, LetterBlock, LetterHead, Monogram, Outcome } from "@/app/_components/kit/Letter";
+import { Note } from "@/app/_components/kit/Section";
+import { StatStrip } from "@/app/_components/kit/StatStrip";
+import type { Figure } from "@/app/_components/kit/types";
 import { initials } from "@/app/_lib/initials";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
@@ -23,10 +29,10 @@ export type OfferKitViewProps = OfferKitDecisionProps & {
 };
 
 /**
- * /offer/[token] composed from the composition kit (Gate 2; rendered only behind the dev-only
- * `?kit=1` switch in OfferClient). A calm letter: the eyebrow names the company, the role is the
- * h1, the terms are a stat strip, the team's notes a document block, then the decision or its
- * outcome, then the disclosure. Every piece of state and every guard is OfferClient's.
+ * /offer/[token]'s markup, composed from the composition kit (promoted at Gate 2 of the
+ * kit-unification spark). A calm letter: the eyebrow names the company, the role is the h1, the
+ * terms are a stat strip, the team's notes a document block, then the decision or its outcome,
+ * then the disclosure. Every piece of state and every guard is OfferClient's.
  */
 export default function OfferKitView({
   offer, notFound, loadError, result, onRetry, acceptedRef, disclosure, ...decision
@@ -41,7 +47,7 @@ export default function OfferKitView({
           {notFound ? (
             <Outcome title={t("invalidLink")}>{t("invalidLinkBody")}</Outcome>
           ) : loadError ? (
-            <Note tone="critical" action={<Button label={tCommon("retry")} size="sm" onClick={onRetry} />}>
+            <Note tone="critical" action={<Button label={tCommon("retry")} size="lg" onClick={onRetry} />}>
               {loadError}
             </Note>
           ) : !offer ? (
