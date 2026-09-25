@@ -13,7 +13,8 @@ deterministic fallback so the pipeline never blocks when the CLI is missing.
   [The surface](#the-surface--composed-from-the-kit)).
   It is the default tab, so a bare `/` lands here; the sidebar calls it **Overview**
   (`nav.tabs.pipeline`, all four locales) because the surface is the workspace's
-  landing page — the head's figures, the Sieve, the match Skyline, then the list. The tab id, the
+  landing page — the head's figures, then the roles board (one row per role), and under it the picked
+  role's Sieve, match Skyline and list. The tab id, the
   catalog key and the page's own eyebrow/title stay "pipeline".
 - `/?tab=decisions` — the Decisions queue, where AI holds/recommendations land for
   a human to approve or reject (`app/features/hiring/decisions/DecisionsTab.tsx`).
@@ -529,10 +530,25 @@ the kit's own rules are `docs/design/README.md` "Composition kit"). `PipelineTab
 renders `kit/PipelineKitView.tsx` with a static import: the tab module is already the
 lazy chunk (`shell/tabChunks.ts`). The state is `usePipelineTabState` (the board
 payload, the URL-synced search, the navigation helpers), plus `usePipelineKit`
-(`kit/usePipelineKit.ts`) for what the surface adds: the selected layer, the role, the
-waiting-only chip, the match brush, the replay counter and the open entry. The pure
-mapping from board rows to layers, dots and list rows is `kit/pipelineKitModel.ts`
-(pinned by `kit/pipelineKit.test.ts`). Top to bottom, inside one `KitSurface`
+(`kit/usePipelineKit.ts`) for what the surface adds: the level (the roles board, or a
+scope under it), the selected layer, the waiting-only chip, the match brush, the replay
+counter and the open entry. The pure mapping from board rows to layers, dots and list rows
+is `kit/pipelineKitModel.ts` (pinned by `kit/pipelineKit.test.ts`); the roles board's is
+`kit/rolesBoardModel.ts` (pinned by `kit/rolesBoard.test.ts`).
+
+**Two levels, built for scale** (2026-09-25, the owner: "current view is not practical for
+large companies with dozens role open and thousands of candidates"). Level 1, the tab's
+default, is the **roles board**: one row per role. Level 2 opens UNDER it when a role, one
+role's stage cell, or "All roles" is picked: that scope's Sieve, Skyline and list, read from
+the scope's entries alone, so a dot per candidate reads again at one role's scale. It sits
+under the board rather than in the reading pane because the pane is the candidate's (a
+448-560px document) and a Sieve, a Skyline and a windowed list need the sheet's width; the
+row that opened it stays in view, marked, one press from any other role. The level is a
+deep link: `?role=<job id or role title>` or `?role=all` lands on level 2 (tab-scoped in
+`shell/tabs.ts`, written back on every pick), and a link that names candidates
+(`?q=`, `?stage=`, `?quick=`, `?score=`, `?source=`) lands on level 2 over every role so the
+people it names show without a click; `?sort=` alone stays on the board. Top to bottom,
+inside one `KitSurface`
 (compact density; the region carries `data-sim="pipeline-board"`, the guided walk's
 "hired" chapter target):
 
@@ -542,7 +558,7 @@ mapping from board rows to layers, dots and list rows is `kit/pipelineKitModel.t
    live-status population the old stat header counted): Active of all live, Awaiting you
    (coral when anything waits, with a tip) and Hired. Its one primary action, "Review N
    waiting", appears only when approvals wait and switches the list to them. The
-   toolbar holds the role select, the search (URL-synced as `?q=`; `/` focuses it) and,
+   toolbar holds the level select (the roles board, all roles, or one role by size), the search (URL-synced as `?q=`; `/` focuses it) and,
    on its filter line (`PipelineKitFacets`), the retired filter bar's four facets as kit
    `Menu`s over the URL-synced filter state (`usePipelineFilters`): State (active,
    interview, aging, awaiting, needs intake, plus a deep-linked `?stage=` as a checked
@@ -553,11 +569,8 @@ mapping from board rows to layers, dots and list rows is `kit/pipelineKitModel.t
    `?stage=` that is no longer a column keeps filtering and says so in a caution note with
    "Remove this filter". Under the toolbar: the saved-views line (`PipelineKitViews`: one
    chip per view; the active view's open-by-default toggle, rename, copy link and delete;
-   "Save view" while narrowed; the save / rename `KitDialog` warns before an overwrite) and,
-   while a role is picked, that role's doors (`PipelineKitRole`): open the job, Rank
-   candidates (the Fit matrix scoped to the job) and, over the role's new arrivals on the
-   entry column, Accept all, Reject all (armed by a second click) and AI evaluate (one
-   `batch_screen` task), answered by toasts.
+   "Save view" while narrowed; the save / rename `KitDialog` warns before an overwrite).
+   Clear clears the filters and keeps the level.
 2. **Today** (`PipelineKitToday`), when any queue is non-empty: one row per queue from
    `deriveRailRows` (new applications, scorecards and drafted offers to review,
    interviews waiting on a slot, offers out, this week's hires) with who is in it; the
@@ -565,26 +578,52 @@ mapping from board rows to layers, dots and list rows is `kit/pipelineKitModel.t
 3. **Off the board** (`PipelineKitOffBoard`), when anyone stands on a column the
    workspace removed: one row per retired column (its retired label, who stands there)
    with "Move all to…".
-4. **The Sieve** (`PipelineKitSieve`). Every candidate is a dot poured through the
+4. **The roles board** (`PipelineKitRoles`, level 1). A windowed `DataTable` (ten rows
+   tall, five while a scope is open; about 13 rows in the DOM whatever the role count)
+   whose meta track carries the kit's `StageCells`: per axis stage a numeral, a strip of
+   at most five provenance beads (`BEAD_CAP`, the retired Subway's limit; the ones waiting
+   on you first, haloed coral), "+N" for the rest and a coral count of who waits there.
+   Then the role's total, how many wait on you, and its last move. The row's second line
+   is the role's area and how many wait on the AI (`lineAttention.waitingOn` over the
+   hiring plan, restored from the Subway with its tests). The first row, **All roles**,
+   is the same columns summed: the funnel at a glance. Rows sort waiting-on-you first,
+   then the latest move; search, the facets and the waiting chip narrow the counts to the
+   candidates they keep and drop roles left empty. A row opens its scope (a second press
+   closes it), a cell opens it on that stage. Rows are keyed by `entryLaneKey` (job id,
+   else title), so two jobs that share a title are two rows. `GET /api/pipeline` reads at
+   most 2,000 active rows ordered by job title (`PIPELINE_BOARD_CAP`) and carries no
+   `truncated` flag; a board at that count says in a caution note that roles past the cut
+   are missing or undercounted (see Known gaps).
+5. **The scope** (`PipelineKitScope`, level 2): a section named for the role (or
+   "Everyone") with "Back to roles" and, for one role, its doors (`PipelineKitRole`):
+   open the job, Rank candidates (the Fit matrix scoped to the job) and, over the role's
+   new arrivals on the entry column, Accept all, Reject all (armed by a second click) and
+   AI evaluate (one `batch_screen` task), answered by toasts. Opening a scope scrolls it
+   into view. Items 6-8 are the scope's.
+6. **The Sieve** (`PipelineKitSieve`). Every candidate is a dot poured through the
    workspace's axis (`buildLayers`: the axis in order, any retired column someone
    still stands on as its own layer, then an exit layer counting `rejectedByLane`). A
    dot's shape is how the entry got there (walked, placed without a recorded move,
    nothing on record); a layer is a filter button for the list. Picking the exit layer
    lists the rejected shelf (`useRejectedShelf`: `GET /api/pipeline/rejected?lane=` per
-   lane with rejections, only the picked role's lanes when a role is picked) with the
+   lane with rejections, only the scope's lane for one role) with the
    stage each was rejected at and whether the AI did it. The pour plays once per change
-   of the entries' `id:stage:stageChangedAt` signature, and on "pour again".
-5. **The Skyline** (`PipelineKitSkyline`). The match distribution, one bar per
-   candidate ranked by canonical score, never-scored candidates as counted dashed
+   of the entries' `id:stage:stageChangedAt` signature, and on "pour again". Above 300
+   candidates (`SIEVE_BARS_ABOVE`, every role at once at scale) no dots are drawn: each
+   layer is a bar proportional to the fullest one, the part the filters keep solid, with
+   its shapes as a legend-sized sample and their counts.
+7. **The Skyline** (`PipelineKitSkyline`). The match distribution, one bar per
+   candidate ranked by canonical score (past about one bar per 3px the kit bins
+   consecutive ranks into one bar, so 2,000 candidates draw about 400), never-scored candidates as counted dashed
    stubs. A brush is a rank range that filters the list and dims the Sieve; the presets
    (all, top 10, over 70, never scored) set one.
-6. **The list** (`PipelineKitList`, cells in `PipelineKitCells`). A windowed `DataTable`:
+8. **The list** (`PipelineKitList`, cells in `PipelineKitCells`). A windowed `DataTable`:
    status mark, candidate and role, stage (with its provenance shape and, when it waits
    on you, the reason), source, match (the canonical score; a work-sample transfer score
    labelled "transfer" with its tip; "—" with its reason when neither exists), age, and
    the act track ("Move to…" and the door to the pane). Filtered by the board's whole
    predicate (`entryMatchesFilters`) and the kit's own narrowing (`useKitFilters`: layer,
-   role, waiting-only, brush), ordered waiting-first then by match unless a sort is
+   waiting-only, brush) inside the scope, ordered waiting-first then by match unless a sort is
    chosen. A row opens the reading pane and records the sidebar's Recent entry. The
    section's actions: **Select** (select mode: the mark track becomes a checkbox, a row
    click toggles it, and the kit `BulkBar` above the rows states how many are selected and
@@ -595,9 +634,9 @@ mapping from board rows to layers, dots and list rows is `kit/pipelineKitModel.t
    (a `KitDialog` of SettingRows: the team cadence per non-terminal stage, saved on blur
    or Enter through `PATCH /api/pipeline/stage-sla`, clamped 1-365, leftover per-browser
    cadences offered once).
-7. **Activity** (`PipelineKitActivity`), when anything happened in the last seven days or
+9. **Activity** (`PipelineKitActivity`), when anything happened in the last seven days or
    the read failed: a five-row table of events with a kind filter; a row opens the entry.
-8. **The reading pane** (`PipelineKitPane`), only while a row is selected: who and
+10. **The reading pane** (`PipelineKitPane`), only while a row is selected: who and
    where; what waits on you with a door to Decisions; "Move to…" (also `m`); the record
    (stage, match, how the entry was placed, archetype, source, added, changed, intake);
    the entry's path as a column `StageRail` and its history with the silences in place,
@@ -613,7 +652,7 @@ back and says why: the bounce mark on its row, a critical note in its pane or ab
 list, with a dismiss.
 
 A workspace with nobody on the board gets the stage set under the head instead of
-parts 2-7 ([The empty board](#the-empty-board--the-stage-set)): it is the only door
+parts 2-9 ([The empty board](#the-empty-board--the-stage-set)): it is the only door
 back into an unfinished setup wizard (`shell/setup/useSetupUnfinished.ts` +
 `shell/setup/onboardingReopen.ts`) and the guided tour's start.
 
@@ -621,8 +660,8 @@ back into an unfinished setup wizard (`shell/setup/useSetupUnfinished.ts` +
 (one role and stage cell as salary branches by score band, with ticket evidence): the kit
 has no salary graphic, and a candidate's salary against the band is on the candidate
 modal's Overview. The bead avatar (its gender-hinted fill was an open fairness question).
-The full-page board toggle: the page is the list. The waiting-on-AI line mark read from
-the hiring plan. The subsections below that describe the Subway board are the record of
+The full-page board toggle: the page is the board. (The waiting-on-AI line mark came back
+with the roles board, 2026-09-25.) The subsections below that describe the Subway board are the record of
 the retired view. The kit parts added for this port are `Menu`, `KitDialog`,
 `ActionLine`, `BulkBar` and `SelectBox` (`app/_components/kit/`, styles in `menu.css`).
 
@@ -1930,6 +1969,13 @@ the same server-side instant.
 
 ## Known gaps
 
+- **Above 2,000 active candidates the roles board is partial.** The board reads
+  `GET /api/pipeline`, capped at `PIPELINE_BOARD_CAP` (2,000) and ordered by job title,
+  so the roles past the cut vanish or are undercounted (measured 2026-09-25 on a 40-role,
+  3,000-candidate copy: 28 of 40 roles shown). The board says so in a caution note but
+  cannot count what it was not sent; no per-role aggregate route exists yet
+  (`listJobPipelineStats` counts terminal rows too). Level 1 needs a role × stage
+  aggregate read (a `GROUP BY` beside the capped rows) to be right at that scale.
 - **Touch has no way to move a bead from the board.** HTML5 drag never fires from a
   touch sequence and the Subway's Move-to menu opens on `contextmenu` only (a long
   press on some browsers), with no always-visible trigger like the retired card row

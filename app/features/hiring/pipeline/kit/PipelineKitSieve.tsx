@@ -2,13 +2,14 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Button, Mark, Section, formatCount, type PartState } from "@/app/_components/kit";
-import { ShapeMark, Sieve, type SieveLayer } from "@/app/_components/kit/graphic";
+import { SIEVE_BARS_ABOVE, ShapeMark, Sieve, type SieveLayer } from "@/app/_components/kit/graphic";
 import { stageHasRole } from "@/app/_lib/pipeline-stages";
 import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
 import { OUT } from "./pipelineKitModel";
 
-/** "Where everyone is": every candidate a dot, poured through the workspace's stages and out of the funnel. */
+/** "Where everyone is": every candidate a dot, poured through the workspace's stages and out of the funnel;
+ *  above SIEVE_BARS_ABOVE candidates (every role at once, at scale) each stage is a bar instead. */
 export function PipelineKitSieve({ s, k, status }: { s: PipelineTabState; k: PipelineKit; status: PartState }) {
   const t = useTranslations("pipeline.kit");
   // The board error is resolved to the tab's own localized line, never the server's message.
@@ -52,7 +53,7 @@ export function PipelineKitSieve({ s, k, status }: { s: PipelineTabState; k: Pip
   return (
     <Section
       title={t("sieveTitle")}
-      count={t("sieveCount", { count: k.entries.length, stages: stages.length })}
+      count={t("sieveCount", { count: k.scoped.length, stages: stages.length })}
       state={offer && offer.placed ? t("sieveState", { placed: n(offer.placed), total: n(offer.count), stage: offer.label }) : undefined}
       actions={<Button label={t("pourAgain")} tip={t("pourAgainTip")} variant="ghost" size="sm" onClick={k.pourAgain} />}
     >
@@ -60,6 +61,7 @@ export function PipelineKitSieve({ s, k, status }: { s: PipelineTabState; k: Pip
         id="pipeline-sieve"
         layers={layers}
         items={k.dots}
+        barsAbove={SIEVE_BARS_ABOVE}
         selected={k.layer}
         dim={k.dim}
         selectedItem={k.open?.id ?? null}
@@ -67,7 +69,7 @@ export function PipelineKitSieve({ s, k, status }: { s: PipelineTabState; k: Pip
         replayKey={k.sieveKey}
         state={status}
         legend={legend}
-        pouredLabel={t("poured")}
+        pouredLabel={k.dots.length > SIEVE_BARS_ABOVE ? t("pouredBars") : t("poured")}
         errorText={tt("loadFailed")}
         onRetry={() => void s.load()}
       />

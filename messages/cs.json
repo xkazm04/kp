@@ -3179,7 +3179,25 @@
       "slaDefault": "Výchozí pro roli: {days, plural, one {# den} few {# dny} other {# dní}}",
       "slaFor": "Počet dní, po kterých kandidát ve fázi {stage} stárne",
       "activityWhat": "Co se stalo",
-      "activityWhen": "Kdy"
+      "activityWhen": "Kdy",
+      "roleBoard": "Přehled pozic",
+      "rolesTitle": "Pozice",
+      "allRoles": "Všechny pozice",
+      "allRolesSub": "{roles, plural, one {# pozice} few {# pozice} other {# pozic}} · celý trychtýř najednou",
+      "areaNone": "Oblast není uvedena",
+      "colTotal": "Celkem",
+      "colWaiting": "Čeká",
+      "colLast": "Poslední posun",
+      "colLastTip": "Kdy naposledy kandidát této pozice změnil fázi",
+      "lastNone": "Žádný posun v záznamu",
+      "capNote": "Nástěnka načte nejvýš {cap, number} aktivních kandidátů podle názvu pozice: pozice za touto hranicí zde chybí nebo mají nižší počty.",
+      "scopeEveryone": "Všichni",
+      "scopeAria": "{role}: její pipeline",
+      "scopeCount": "{count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}}",
+      "scopeStage": "ve fázi {stage}",
+      "scopeBack": "Zpět na pozice",
+      "withAi": "{count, number} u AI",
+      "pouredBars": "kandidátů vstoupilo, jeden pruh za každou fázi"
     },
     "board": {
       "scrollHint": "Kliknutím na záhlaví fáze ji vycentrujete · posouváním se pohybujete napříč náborem",
@@ -3203,7 +3221,12 @@
         "accepted": "Přijato {ok} z {total}.",
         "rejected": "Zamítnuto {ok} z {total}.",
         "failed": "Akci se nepodařilo na pozici použít."
-      }
+      },
+      "position": "Pozice",
+      "gridAria": "Pozice podle fází",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {žádní kandidáti} one {# kandidát} few {# kandidáti} other {# kandidátů}}",
+      "cellWaiting": "{count, plural, one {# čeká na vás} few {# čekají na vás} other {# čeká na vás}}",
+      "waitingAi": "{count, plural, one {# kandidát čeká na AI} few {# kandidáti čekají na AI} other {# kandidátů čeká na AI}}"
     },
     "legend": {
       "awaitingDecision": "Čeká na vaše rozhodnutí",

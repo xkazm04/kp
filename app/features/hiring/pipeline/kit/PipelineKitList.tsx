@@ -19,7 +19,7 @@ export function PipelineKitList({ s, k, status, onEditSla }: { s: PipelineTabSta
   const locale = useLocale();
   const n = (v: number) => formatCount(v, locale);
   const { columns, cells } = usePipelineKitCells(s, k);
-  const total = k.entries.length;
+  const total = k.scoped.length;
   const rejected = k.layers.find((l) => l.exit)?.count ?? 0;
   const picking = s.selectMode;
   const shelf = k.layer === OUT;

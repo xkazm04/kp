@@ -8,7 +8,7 @@
  */
 import { stagesWithRole, type StageDef } from "../../../../_lib/pipeline-stages.ts";
 import type { PipelineBatchItem } from "../../../../_lib/useAddToPipeline.ts";
-import type { Entry } from "../../../shared/pipelineTypes.ts";
+import { entryLaneKey, type Entry } from "../../../shared/pipelineTypes.ts";
 import { moveTargetStages } from "../pipelineMoveTargets.ts";
 
 export type MoveOption = { value: string; label: string };
@@ -36,11 +36,12 @@ export function strandedByStage(entries: readonly Entry[], axis: readonly StageD
 }
 
 /** The role's new arrivals: its ACTIVE candidates on the axis's ENTRY column. A role action that reached
- *  every column would make "Reject all" a way to empty a whole role in one click. */
-export function entryColumnCohort(role: string, entries: readonly Entry[], axis: readonly StageDef[]): Entry[] {
+ *  every column would make "Reject all" a way to empty a whole role in one click. `lane` is the role's
+ *  lane key (entryLaneKey: job id, else title), so two roles that share a title stay apart. */
+export function entryColumnCohort(lane: string, entries: readonly Entry[], axis: readonly StageDef[]): Entry[] {
   const entry = stagesWithRole("entry", axis)[0];
   if (!entry) return [];
-  return entries.filter((e) => e.status === "active" && e.stage === entry && (e.jobTitle ?? "") === role);
+  return entries.filter((e) => e.status === "active" && e.stage === entry && entryLaneKey(e) === lane);
 }
 
 /** Accept all = move each to the column after the entry column; Reject all = the guarded reject. Both

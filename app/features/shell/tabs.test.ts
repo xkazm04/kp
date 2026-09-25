@@ -107,7 +107,7 @@ test("tabHref points the default tab at / and every other tab at /?tab=<id>", ()
 test("the tab-scoped allowlist is exactly the known deep-link params", () => {
   assert.deepEqual(
     [...TAB_SCOPED_PARAM_KEYS].sort(),
-    ["arm", "calFamily", "case", "coachEdit", "duplicate", "edit", "jdCompany", "jdFamily", "jdNeed", "jdSeniority", "jdTask", "jdTitle", "job", "lifecycle", "modelSec", "profile", "q", "quick", "score", "sort", "source", "stage"]
+    ["arm", "calFamily", "case", "coachEdit", "duplicate", "edit", "jdCompany", "jdFamily", "jdNeed", "jdSeniority", "jdTask", "jdTitle", "job", "lifecycle", "modelSec", "profile", "q", "quick", "role", "score", "sort", "source", "stage"]
   );
 });
 

@@ -1,0 +1,25 @@
+/* The roles board (Hiring > Pipeline, level 1): a kit DataTable whose meta track carries one row's
+   stages (kit/graphic StageCells) and whose head carries their names (StageCellsHead), then the total
+   on meta+1, waiting on fig and the last move on time. Loaded with the pipeline kit view's chunk only.
+   Colour only via tokens, type only via the text-* tokens. Scoped under .pk-roles. */
+
+/* The cells ARE this board, so they get the width: the name track narrows from the measure's 26%, the
+   board has no row action (a row opens its scope), and the figures keep the width their numerals need. */
+.pk-roles { --t-name: minmax(0, 18%); --m-act: 0px; --m-fig: 80px; --m-time: 112px; }
+.pk-roles__halo { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.8px solid var(--color-coral); flex: none; }
+
+/* The kit folds meta+N at 1000px of sheet and meta at 860px. Here the stage cells and the total are
+   the surface (the Journeys lanes keep their meta for the same reason), so the name narrows instead,
+   and at 860px (a reading pane open at 1280) the last move folds and the total folds into the cells'
+   names, while every stage numeral stays. */
+@container sheet (max-width: 1000px) {
+  .pk-roles { --m-fig: 64px; --m-time: 88px; }
+  .pk-roles .k-table__head, .pk-roles .k-table__row { --t-meta-cur: minmax(0, 1fr) 56px; --t-name-cur: minmax(0, 15%); }
+  .pk-roles .k-td.in-meta-x, .pk-roles .k-th.in-meta-x { visibility: visible; }
+}
+@container sheet (max-width: 860px) {
+  .pk-roles { --m-time: 0px; --m-fig: 56px; --m-gap: 8px; }
+  .pk-roles .k-table__head, .pk-roles .k-table__row { --t-meta-cur: minmax(0, 1fr) 0px; --t-name-cur: minmax(0, 120px); --m-act-cur: 0px; }
+  .pk-roles .k-td.in-meta, .pk-roles .k-th.in-meta { visibility: visible; }
+  .pk-roles .k-td.in-meta-x, .pk-roles .k-th.in-meta-x { visibility: hidden; }
+}

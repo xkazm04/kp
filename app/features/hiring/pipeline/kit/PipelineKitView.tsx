@@ -11,9 +11,8 @@ import { PipelineEmptyState } from "../empty/PipelineEmptyState";
 import { usePipelineTabState } from "../usePipelineTabState";
 import { usePipelineKit } from "./usePipelineKit";
 import { PipelineKitHead } from "./PipelineKitHead";
-import { PipelineKitSieve } from "./PipelineKitSieve";
-import { PipelineKitSkyline } from "./PipelineKitSkyline";
-import { PipelineKitList } from "./PipelineKitList";
+import { PipelineKitRoles } from "./PipelineKitRoles";
+import { PipelineKitScope } from "./PipelineKitScope";
 import { PipelineKitPane } from "./PipelineKitPane";
 import { PipelineKitSla } from "./PipelineKitSla";
 import { PipelineKitOffBoard } from "./PipelineKitOffBoard";
@@ -29,10 +28,12 @@ const CandidateModal = dynamic(() => import("../candidate/CandidateModal").then(
 });
 
 /*
- * The Hiring pipeline rendered from the composition kit (promoted at Gate K2). The winner's
- * surface, top to bottom: the page head, a toolbar, the Sieve (every candidate a dot, poured through
- * the workspace's stages), the match Skyline (brushable into the sieve and the list), and the windowed
- * list; a row opens the reading pane. It reads the tab state usePipelineTabState holds.
+ * The Hiring pipeline rendered from the composition kit (promoted at Gate K2), in two levels so it holds
+ * dozens of roles and thousands of candidates. Top to bottom: the page head and toolbar, Today, the
+ * candidates off the board, then LEVEL 1, the roles board (one row per role, a cell per stage, "All
+ * roles" first), and under it LEVEL 2 once a role, a role's stage or "All roles" is picked: that scope's
+ * Sieve, match Skyline and windowed list (PipelineKitScope); a list row opens the reading pane. Activity
+ * closes the page. It reads the tab state usePipelineTabState holds.
  *
  * A workspace with nobody on the board gets the first-run stage set (empty/PipelineEmptyState.tsx)
  * under the head instead of three empty parts: it is the only door back into the setup wizard for
@@ -69,9 +70,8 @@ export function PipelineKitView() {
             <>
               <PipelineKitToday s={s} k={k} />
               <PipelineKitOffBoard s={s} />
-              <PipelineKitSieve s={s} k={k} status={status} />
-              <PipelineKitSkyline k={k} status={status} />
-              <PipelineKitList s={s} k={k} status={status} onEditSla={() => setSlaOpen(true)} />
+              <PipelineKitRoles s={s} k={k} status={status} />
+              <PipelineKitScope s={s} k={k} status={status} onEditSla={() => setSlaOpen(true)} />
               <PipelineKitActivity s={s} />
             </>
           )}

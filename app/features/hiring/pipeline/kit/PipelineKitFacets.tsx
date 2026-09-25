@@ -51,7 +51,8 @@ export function PipelineKitFacets({ s, k }: { s: PipelineTabState; k: PipelineKi
 
   const waiting = s.approvals.length;
   const layerLabel = k.layer === OUT ? t("outLabel") : k.layers.find((l) => l.id === k.layer)?.label ?? k.layer ?? "";
-  const narrowed = s.filtering || k.layer != null || k.role != null || k.brush != null || k.needsOnly;
+  // The level (the roles board or a scope under it) is not a filter: Clear keeps it.
+  const narrowed = s.filtering || k.layer != null || k.brush != null || k.needsOnly;
   const chips: Chip[] = [
     { id: "needs", label: t("chipWaiting"), count: waiting, mark: <Mark kind="needs" />, pressed: k.needsOnly, disabled: waiting === 0 && !k.needsOnly, onPress: k.toggleNeeds },
     ...(s.degradedCount > 0 || s.quicks.has("intake")

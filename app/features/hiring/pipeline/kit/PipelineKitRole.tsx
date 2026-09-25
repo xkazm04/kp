@@ -17,7 +17,7 @@ import { entryBatchItems, entryColumnCohort } from "./pipelineKitMoves";
  * (the Fit matrix scoped to the job) and its context menu over the role's NEW arrivals (the entry
  * column): Accept all, Reject all (armed by a second click, because it notifies everyone) and AI
  * evaluate (one background batch_screen task). Outcomes come back as a toast in the reader's
- * language; the board reloads behind it. Shown only while a role is picked.
+ * language; the board reloads behind it. Shown only while level 2 is ONE role (k.lane, its lane key).
  */
 export function PipelineKitRole({ s, k }: { s: PipelineTabState; k: PipelineKit }) {
   const t = useTranslations("pipeline.board");
@@ -25,9 +25,9 @@ export function PipelineKitRole({ s, k }: { s: PipelineTabState; k: PipelineKit 
   const errMsg = useErrorMessage();
   const { startTask } = useTasks();
   const [armed, setArmed] = useState<string | null>(null);
-  const role = k.role;
+  const role = k.lane;
   if (!role) return null;
-  const jobId = k.entries.find((e) => (e.jobTitle ?? "") === role && e.jobId)?.jobId ?? null;
+  const jobId = k.scoped.find((e) => e.jobId)?.jobId ?? null;
   const cohort = entryColumnCohort(role, k.entries, s.axis);
   const n = cohort.length;
 

@@ -3179,7 +3179,25 @@
       "slaDefault": "Valeur par défaut du rôle : {days, plural, one {# jour} other {# jours}}",
       "slaFor": "Jours avant qu’un candidat vieillisse en {stage}",
       "activityWhat": "Ce qui s’est passé",
-      "activityWhen": "Quand"
+      "activityWhen": "Quand",
+      "roleBoard": "Tableau des postes",
+      "rolesTitle": "Postes",
+      "allRoles": "Tous les postes",
+      "allRolesSub": "{roles, plural, one {# poste} other {# postes}} · l’entonnoir d’un coup d’œil",
+      "areaNone": "Aucun domaine enregistré",
+      "colTotal": "Total",
+      "colWaiting": "En attente",
+      "colLast": "Dernier mouvement",
+      "colLastTip": "Quand un candidat de ce poste a changé d’étape pour la dernière fois",
+      "lastNone": "Aucun mouvement enregistré",
+      "capNote": "Le tableau lit au plus {cap, number} candidats actifs, par intitulé de poste : les postes au-delà manquent ici ou sont sous-comptés.",
+      "scopeEveryone": "Tout le monde",
+      "scopeAria": "{role} : son pipeline",
+      "scopeCount": "{count, plural, one {# candidat} other {# candidats}}",
+      "scopeStage": "à l’étape {stage}",
+      "scopeBack": "Retour aux postes",
+      "withAi": "{count, number} chez l’IA",
+      "pouredBars": "candidat(e)s entrés, une barre par étape"
     },
     "board": {
       "scrollHint": "Cliquez sur l’en-tête d’une étape pour la centrer · faites défiler pour parcourir le pipeline",
@@ -3203,7 +3221,12 @@
         "accepted": "{ok} sur {total} acceptées.",
         "rejected": "{ok} sur {total} refusées.",
         "failed": "Impossible d’appliquer l’action à ce poste."
-      }
+      },
+      "position": "Poste",
+      "gridAria": "Postes par étape",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {aucun candidat} one {# candidat} other {# candidats}}",
+      "cellWaiting": "{count, plural, one {# vous attend} other {# vous attendent}}",
+      "waitingAi": "{count, plural, one {# candidature attend l’IA} other {# candidatures attendent l’IA}}"
     },
     "legend": {
       "awaitingDecision": "En attente de votre décision",

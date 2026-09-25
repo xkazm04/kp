@@ -3179,7 +3179,25 @@
       "slaDefault": "Role default: {days, plural, one {# day} other {# days}}",
       "slaFor": "Days before a candidate ages in {stage}",
       "activityWhat": "What happened",
-      "activityWhen": "When"
+      "activityWhen": "When",
+      "roleBoard": "Roles board",
+      "rolesTitle": "Roles",
+      "allRoles": "All roles",
+      "allRolesSub": "{roles, plural, one {# role} other {# roles}} · the funnel at a glance",
+      "areaNone": "No area on record",
+      "colTotal": "Total",
+      "colWaiting": "Waiting",
+      "colLast": "Last move",
+      "colLastTip": "When a candidate in this role last changed stage",
+      "lastNone": "No move on record",
+      "capNote": "The board reads at most {cap, number} active candidates, by role title: roles past that point are missing or undercounted here.",
+      "scopeEveryone": "Everyone",
+      "scopeAria": "{role}: its pipeline",
+      "scopeCount": "{count, plural, one {# candidate} other {# candidates}}",
+      "scopeStage": "at {stage}",
+      "scopeBack": "Back to roles",
+      "withAi": "{count, number} with the AI",
+      "pouredBars": "candidates poured in, one bar per stage"
     },
     "board": {
       "scrollHint": "Click a stage header to centre it · scroll to move across the pipeline",
@@ -3203,7 +3221,12 @@
         "accepted": "Accepted {ok} of {total}.",
         "rejected": "Rejected {ok} of {total}.",
         "failed": "Couldn’t apply that to the position."
-      }
+      },
+      "position": "Position",
+      "gridAria": "Positions by stage",
+      "cellAria": "{position}, {stage}, {count, plural, =0 {no candidates} =1 {1 candidate} other {# candidates}}",
+      "cellWaiting": "{count, plural, one {# waits on you} other {# wait on you}}",
+      "waitingAi": "{count, plural, one {# candidate waits for the AI} other {# candidates wait for the AI}}"
     },
     "legend": {
       "awaitingDecision": "Awaiting your decision",

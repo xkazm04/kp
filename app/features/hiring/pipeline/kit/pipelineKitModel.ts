@@ -18,7 +18,7 @@
  *   age / median     <- days since stageChangedAt ?? createdAt.
  */
 import type { StageTone, ShapeKind } from "../../../../_components/kit/types.ts";
-import type { Entry, StageDef } from "../../../shared/pipelineTypes.ts";
+import { entryLaneKey, type Entry, type StageDef } from "../../../shared/pipelineTypes.ts";
 
 export const OUT = "__out";
 const DAY = 86_400_000;
@@ -104,12 +104,13 @@ export function sieveDots(ranked: readonly Entry[], layers: readonly LayerModel[
   return dots;
 }
 
+/** `role` is a lane key (entryLaneKey: job id, else title); the kit view scopes by it before filtering. */
 export type Filters = { query: (e: Entry) => boolean; layer: string | null; needsOnly: boolean; role: string | null; brush: readonly [number, number] | null };
 
 /** Whether an entry survives the filters; `skipLayer` answers "would it, ignoring the layer" (the dimming set). */
 export function passes(e: Entry, f: Filters, rankOf: ReadonlyMap<string, number>, ctx: Pick<Ctx, "needs">, skipLayer = false): boolean {
   if (!skipLayer && f.layer && e.stage !== f.layer) return false;
-  if (f.role && (e.jobTitle ?? "") !== f.role) return false;
+  if (f.role && entryLaneKey(e) !== f.role) return false;
   if (f.needsOnly && !ctx.needs(e)) return false;
   const r = rankOf.get(e.id) ?? -1;
   if (f.brush && (r < f.brush[0] || r > f.brush[1])) return false;

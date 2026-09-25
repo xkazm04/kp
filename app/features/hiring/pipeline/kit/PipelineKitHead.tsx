@@ -11,12 +11,13 @@ import type { PipelineTabState } from "../usePipelineTabState";
 import type { PipelineKit } from "./usePipelineKit";
 import { PipelineKitFacets } from "./PipelineKitFacets";
 import { PipelineKitViews } from "./PipelineKitViews";
-import { PipelineKitRole } from "./PipelineKitRole";
 import { useSlashSearch } from "./useSlashSearch";
+import { ALL } from "./rolesBoardModel";
 
 /**
- * The page head (three figures, one primary action), the toolbar (role, search, then the facets and
- * chips on its filter line), the saved-views line, and the one notice a deep link can owe: the
+ * The page head (three figures, one primary action), the toolbar (the level: the roles board, every
+ * role, or one role; search; then the facets and chips on its filter line), the saved-views line, and
+ * the one notice a deep link can owe: the
  * `?stage=` it carries is no longer a column here (the filter stays applied, so the list shows who
  * still stands on it, and the notice says why and offers the way out).
  */
@@ -61,10 +62,11 @@ export function PipelineKitHead({ s, k, status }: { s: PipelineTabState; k: Pipe
       <Toolbar
         segmented={
           <label className="k-field" style={{ width: "auto", maxWidth: 340 }}>
-            <select value={k.role ?? ""} onChange={(e) => k.setRole(e.target.value || null)} aria-label={t("roleLabel")}>
-              <option value="">{t("roleAll", { count: k.roles.length })}</option>
-              {k.roles.map(([title, n]) => (
-                <option key={title} value={title}>{t("roleOption", { title, count: n })}</option>
+            <select value={k.role ?? ""} onChange={(e) => (e.target.value ? k.openScope(e.target.value) : k.closeScope())} aria-label={t("roleLabel")}>
+              <option value="">{t("roleBoard")}</option>
+              <option value={ALL}>{t("roleAll", { count: k.roles.length })}</option>
+              {k.roles.map((p) => (
+                <option key={p.id} value={p.id}>{t("roleOption", { title: p.title, count: p.count })}</option>
               ))}
             </select>
           </label>
@@ -73,7 +75,6 @@ export function PipelineKitHead({ s, k, status }: { s: PipelineTabState; k: Pipe
         search={<span ref={searchRef} className="contents"><SearchField label={tt("searchLabel")} value={s.query} onChange={s.setQueryAndSync} /></span>}
       />
       <PipelineKitViews s={s} />
-      <PipelineKitRole s={s} k={k} />
       {offBoard ? (
         <Note tone="caution" action={<Button label={tt("stageOffBoardClear")} variant="ghost" size="sm" onClick={s.clearStageFilter} />}>
           {tt("stageOffBoard", { stage: resolved?.label || enumLabel("stage", s.stageFilter ?? "") })}

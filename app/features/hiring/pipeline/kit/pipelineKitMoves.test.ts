@@ -40,9 +40,14 @@ test("stranded candidates group by the retired stage they stand on", () => {
   assert.deepEqual(g.get("Second interview")?.map((x) => x.id), ["a", "c"]);
 });
 
-test("the role cohort is its ACTIVE candidates on the ENTRY column only", () => {
-  const entries = [e("a", "Accepted"), e("b", "Accepted", { status: "rejected" }), e("c", "Screened"), e("d", "Accepted", { jobTitle: "Frontend" })];
-  assert.deepEqual(entryColumnCohort("Backend", entries, DEFAULT_STAGE_AXIS).map((x) => x.id), ["a"]);
+test("the role cohort is its ACTIVE candidates on the ENTRY column only, keyed by the role's lane", () => {
+  const entries = [
+    e("a", "Accepted"), e("b", "Accepted", { status: "rejected" }), e("c", "Screened"),
+    e("d", "Accepted", { jobId: "job-2", jobTitle: "Frontend" }),
+    e("t", "Accepted", { jobId: "job-3" }),
+  ];
+  assert.deepEqual(entryColumnCohort("job-1", entries, DEFAULT_STAGE_AXIS).map((x) => x.id), ["a"], "a second job with the same title stays out");
+  assert.deepEqual(entryColumnCohort("Backend", [e("u", "Accepted", { jobId: null })], DEFAULT_STAGE_AXIS).map((x) => x.id), ["u"], "no job id: the title is the lane");
 });
 
 test("accept all moves to the column after the entry column; reject all rejects; both guarded", () => {

@@ -473,6 +473,9 @@ export const TAB_SCOPED_PARAM_KEYS = [
   "score",
   "source",
   "sort",
+  // The pipeline's level (the kit roles board): ?role=<job id or title> / ?role=all opens that
+  // scope's pipeline under the board. A selection like the filters above, so tab-scoped too.
+  "role",
   // Analytics calibration's one-shot family deep link from the screening rules.
   "calFamily",
   // Models section is a shareable view choice, but a bare tab switch starts
