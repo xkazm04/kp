@@ -8,6 +8,8 @@ import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { PrintCredentialButton } from "./PrintCredentialButton";
+import { SkillKitSwitch } from "./kit/SkillKitSwitch";
+import type { SkillKitCard } from "./kit/skillKitModel";
 
 // The credential PAGE was the only public token door with no throttle at all: its
 // sibling /api/skill-profile/[token]/verify has had 30/10min per client since the
@@ -41,15 +43,21 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
   // temporarily unavailable and is worth retrying, which is the honest reading of a
   // throttle and never implies the credential is bad.
   if (!rateLimit(`skill-view:${clientIpFrom(await headers())}:${token}`, SKILL_VIEW_RATE_LIMIT)) {
+    // Gate 2: `?kit=1` (dev only) swaps in the composition-kit letter; this markup is unchanged.
     return (
-      <main className="mx-auto max-w-xl px-4 py-12">
-        <div className="mb-4 flex justify-end print:hidden">
-          <LanguageSwitcher />
-        </div>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h1 className="mt-1 font-serif text-display text-ink">{t("throttledTitle")}</h1>
-        <p className="mt-2 text-body text-steel">{t("throttledBody")}</p>
-      </main>
+      <SkillKitSwitch
+        card={{ kind: "throttled" }}
+        current={
+          <main className="mx-auto max-w-xl px-4 py-12">
+            <div className="mb-4 flex justify-end print:hidden">
+              <LanguageSwitcher />
+            </div>
+            <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+            <h1 className="mt-1 font-serif text-display text-ink">{t("throttledTitle")}</h1>
+            <p className="mt-2 text-body text-steel">{t("throttledBody")}</p>
+          </main>
+        }
+      />
     );
   }
   const verdict = verifySkillProfileToken(token);
@@ -97,7 +105,25 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
               ? { Icon: ShieldAlert, cls: "border-amber-200 bg-amber-50 text-amber-800", label: t("stale") }
               : { Icon: ShieldAlert, cls: "border-red-200 bg-red-50 text-red-800", label: t("tampered") };
 
+  // Gate 2 (kit-unification, dev only): the same facts as plain props for the `?kit=1` letter,
+  // resolved here so the client switch never refetches. The page below is unchanged.
+  const kitCard: SkillKitCard = {
+    kind: "card",
+    state,
+    showsScores: skillProfileShowsScoreCard(state),
+    transferScore: p.transferScore,
+    confidencePct,
+    issued,
+    version: p.version,
+    staleReason: freshness.reason,
+    axes: axes.map(([name, score]) => {
+      const axisKey = name as Parameters<typeof tAxis>[0];
+      return { name, label: tAxis.has(axisKey) ? tAxis(axisKey) : name, score };
+    }),
+  };
+
   return (
+    <SkillKitSwitch card={kitCard} current={
     <main className="mx-auto max-w-xl px-4 py-12">
       {/* The candidate's own escape hatch, as on every other public door (status,
           offer, erasure). This card is SHARED with employers by the candidate and
@@ -226,5 +252,6 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
         . {t("version", { version: p.version })}
       </p>
     </main>
+    } />
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
@@ -15,6 +16,15 @@ import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import { classifyOfferResponse, offerRespondAllowed } from "./offer-response";
 import { formatOfferDeadline } from "./offer-deadline";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
+import { useKitFlag } from "@/app/_components/kit/useKitFlag";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+
+// Gate 2 (kit-unification spark, dev only): `?kit=1` renders the composition-kit letter. It is a
+// VIEW of this component's state: the load, the revalidation, the in-flight guard and the decline
+// confirm below are shared, so the two cannot drift. Its code and CSS load only behind the flag.
+const OfferKitView = dynamic(() => import("./kit/OfferKitView"), {
+  loading: () => <LoadingGap className="min-h-[28rem]" />,
+});
 
 type OfferView = {
   token: string;
@@ -52,6 +62,7 @@ export function OfferClient({
   const locale = useLocale();
   const dates = useDateFormat();
   const errMsg = useErrorMessage();
+  const kit = useKitFlag();
   const [offer, setOffer] = useState<OfferView | null>(null);
   // Two distinct failure modes, deliberately separated: a GET load failure has nothing to show,
   // so it replaces the whole card; a POST response failure surfaces as an inline banner that
@@ -214,6 +225,29 @@ export function OfferClient({
       setPending(null);
     }
   };
+
+  if (kit) {
+    return (
+      <OfferKitView
+        offer={offer}
+        notFound={notFound}
+        loadError={loadError}
+        responseError={responseError}
+        pending={pending}
+        result={result}
+        confirmingDecline={confirmingDecline}
+        onRetry={retryLoad}
+        onAccept={() => respond("accept")}
+        onAskDecline={() => setConfirmingDecline(true)}
+        onCancelDecline={() => setConfirmingDecline(false)}
+        onConfirmDecline={() => respond("decline")}
+        acceptedRef={acceptedCardRef}
+        disclosure={
+          !result ? <AiDisclosure regimeId={compliance.regimeId} retentionMonths={compliance.retentionMonths} /> : null
+        }
+      />
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper p-6">

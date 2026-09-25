@@ -34,6 +34,14 @@
 .k-letter__foot { margin: 24px 0 0; font-size: var(--text-micro); color: var(--k-quiet); }
 .k-letter__foot a { color: var(--k-ink); text-decoration: underline; text-underline-offset: 3px; }
 
+/* a verdict line in a letter (kit.css .k-verdict): the label is the one emphasis; when and why stay quiet */
+.k-letter .k-verdict { padding: 0 0 16px; }
+.k-verdict__when { color: var(--k-quiet); }
+.k-verdict__body { margin-top: 2px; color: var(--k-quiet); }
+.k-letter .k-note { margin-bottom: 16px; }
+/* a section inside the letter keeps the letter's edge: the sticker panel does not bleed past the strip above it */
+[data-theme="dark"] .k-letter .k-section__head, [data-theme="dark"] .k-letter .k-section__body { margin-inline: 0; }
+
 /* the outcome: a result, a confirm step, a dead link */
 .k-result { padding: 18px 20px; border-radius: 12px; background: var(--k-plane); border: 1px solid var(--k-rule); }
 .k-result:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
