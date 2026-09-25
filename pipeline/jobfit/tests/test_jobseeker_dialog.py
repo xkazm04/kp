@@ -205,6 +205,8 @@ class DeterministicDialogTest(unittest.TestCase):
         self.assertEqual(prefs["seniority"], "senior")
         # Seeded from the CV, never asked.
         self.assertEqual(prefs["languages"], ["Czech", "English"])
+        # …but never the CV's own role family: that is the past, not a stated target.
+        self.assertNotIn("targetRoleFamilies", prefs)
         self.assertTrue(preferences_complete(prefs))
         for turn in turns:
             self.assertTrue(turn["text"].strip(), "never an empty reply")
@@ -251,6 +253,22 @@ class DeterministicDialogTest(unittest.TestCase):
         self.assertNotIn("Passionate team player", result["artifact"]["cvMarkdown"])
         self.assertEqual(result["artifact"]["suggestions"], [])
         self.assertIn("Summary", result["reply"])
+
+    def test_closing_leaves_target_families_as_stated(self) -> None:
+        # A career changer: the CV routes to software_engineering, the seeker states
+        # AI roles. Closing the dialog must not seed the past family as a target.
+        answers = ["Praha", "60 000 Kč měsíčně", "AI Engineer", "Remote", "Senior", "yes"]
+        _turns, result = _drive(answers)
+        self.assertTrue(result["done"], result["reply"])
+        self.assertEqual(result["artifact"]["preferences"]["targetTitles"], ["AI Engineer"])
+        self.assertEqual(result["artifact"]["preferences"].get("targetRoleFamilies", []), [])
+        # Families the seeker DID state survive the close unchanged.
+        stated = {"targetRoleFamilies": ["data_ai"]}
+        result = opening_turn(_req(preferences=stated))
+        self.assertNotIn("targetRoleFamilies", result["artifact"]["preferences"])
+        turns = [{"role": "interviewer", "text": result["reply"]}]
+        result = deterministic_turn(_req(preferences=stated, transcript=turns, message="Praha", artifact=result["artifact"]))
+        self.assertNotIn("targetRoleFamilies", result["artifact"]["preferences"])
 
     def test_run_turn_without_provider_is_the_twin(self) -> None:
         turns, _ = _drive(["Praha"])

@@ -733,12 +733,16 @@ def _base_artifact(req: dict[str, Any], lang: str, profile: CandidateProfileV2) 
 
 
 def _seed_from_profile(prefs: dict[str, Any], profile: CandidateProfileV2) -> dict[str, Any]:
-    """What the CV already says never has to be asked: languages, the role family."""
+    """What the CV already says never has to be asked: the languages.
+
+    NOT the role family. The CV's family is where the seeker has BEEN; targets are
+    where they say they are going, and only the seeker states those. Seeding it into
+    ``targetRoleFamilies`` (a field the UI neither shows nor edits) fed the fetch
+    keywords, the title filter and — since the matcher reads targets — the career
+    score, steering a career changer straight back to their past."""
     seeded = dict(prefs)
     if not seeded.get("languages") and profile.languages:
         seeded["languages"] = [_clean(x, 40) for x in profile.languages][:10]
-    if not seeded.get("targetRoleFamilies") and profile.role_family:
-        seeded["targetRoleFamilies"] = [profile.role_family]
     return seeded
 
 
