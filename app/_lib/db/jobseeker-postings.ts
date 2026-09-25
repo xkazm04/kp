@@ -30,7 +30,10 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // Lifecycle a scan drives:
 //   upsertPosting  — new / changed (content hash moved) / unchanged (only last_seen_at)
 //   markAbsent     — TWO consecutive misses before status = 'gone' (gone_at is the
-//                    first-miss marker); a re-seen posting revives to 'new'.
+//                    first-miss marker); a re-seen posting revives to 'new'. Only an
+//                    UNDECIDED row ('new' / 'shortlisted') is ever moved to 'gone': an
+//                    applied or dismissed row keeps the seeker's decision, and its absence
+//                    shows as gone_at alone.
 // The seeker drives status otherwise (shortlisted / applied / dismissed).
 
 type PostingRow = {
@@ -288,8 +291,12 @@ export function upsertPosting(
     }
     // A seen posting is present, whatever the scan had concluded before: the first-miss
     // marker clears, and a 'gone' row comes back as 'new' (the seeker's own statuses —
-    // shortlisted / applied / dismissed — are untouched).
-    const revive = `status = CASE WHEN status = 'gone' THEN 'new' ELSE status END, gone_at = NULL`;
+    // shortlisted / applied / dismissed — are untouched). A 'gone' row that still carries
+    // a decision's own column (applied_at, dismiss_reason — written by the markAbsent that
+    // used to overwrite decisions) revives to THAT decision, not to 'new'.
+    const revive = `status = CASE WHEN status = 'gone' THEN
+         CASE WHEN applied_at IS NOT NULL THEN 'applied' WHEN dismiss_reason IS NOT NULL THEN 'dismissed' ELSE 'new' END
+       ELSE status END, gone_at = NULL`;
     if (existing.content_hash === contentHash) {
       d.prepare(`UPDATE jobseeker_postings SET last_seen_at = ?, ${revive} WHERE id = ? AND workspace_id = ?`).run(
         seenAt,
@@ -333,7 +340,11 @@ export function upsertPosting(
 
 /** After a source's scan: every posting of the source NOT seen in it (last_seen_at
  *  before the scan started) takes one step toward gone. First miss stamps gone_at;
- *  a second consecutive miss sets status = 'gone'. Returns how many moved to gone.
+ *  a second consecutive miss sets status = 'gone' — for an UNDECIDED row only ('new',
+ *  'shortlisted'). 'applied' and 'dismissed' are the seeker's decisions and outlive the
+ *  ad: overwriting them lost the application date and the dismiss reason the feed
+ *  learns from, and a revival then brought the row back as 'new'. Their absence stays
+ *  visible through gone_at. Returns how many moved to gone.
  *  Two statements in one IMMEDIATE transaction, second-miss FIRST — otherwise the
  *  first-miss stamp written a moment earlier would count as the second. */
 export function markAbsent(sourceId: string, seenBefore: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
@@ -343,7 +354,8 @@ export function markAbsent(sourceId: string, seenBefore: string, workspaceId: st
     const gone = d
       .prepare(
         `UPDATE jobseeker_postings SET status = 'gone'
-         WHERE source_id = ? AND workspace_id = ? AND last_seen_at < ? AND gone_at IS NOT NULL AND status != 'gone'`
+         WHERE source_id = ? AND workspace_id = ? AND last_seen_at < ? AND gone_at IS NOT NULL
+           AND status IN ('new', 'shortlisted')`
       )
       .run(sourceId, workspaceId, seenBefore);
     d.prepare(
@@ -445,6 +457,10 @@ export function setPostingReasoning(
 /** The seeker's own status move. `dismiss` is required by shape when the status is
  *  'dismissed' (the reason is what the feed learns from); any other status clears it.
  *
+ *  Never out of 'gone': the opening was withdrawn (the scan's verdict), so the WHERE
+ *  re-asserts `status != 'gone'` and such a row answers `false` like a missing one — the
+ *  caller tells the two apart with a point read (the PATCH door answers a 400).
+ *
  *  `applied_at` follows the status in the SAME statement: it is stamped when the row
  *  becomes 'applied' and cleared when it leaves (a restored row did not apply). COALESCE
  *  keeps the FIRST stamp — re-sending 'applied' for a row that already is must not
@@ -461,7 +477,7 @@ export function setJobseekerPostingStatus(
       `UPDATE jobseeker_postings
        SET status = ?, dismiss_reason = ?, dismiss_note = ?,
            applied_at = CASE WHEN ? = 'applied' THEN COALESCE(applied_at, ?) ELSE NULL END
-       WHERE id = ? AND workspace_id = ?`
+       WHERE id = ? AND workspace_id = ? AND status != 'gone'`
     )
     .run(
       status,

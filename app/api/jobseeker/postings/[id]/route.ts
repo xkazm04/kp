@@ -46,7 +46,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 // PATCH /api/jobseeker/postings/[id] { status, dismissReason?, note? } — the seeker's own
 // status move (WP4c): shortlisted / applied / dismissed / new. `dismissed` REQUIRES a
 // `dismissReason` from DISMISS_REASONS — the reason is what the feed learns from — else
-// 400. Answers the refreshed summary row so the feed can replace it in place.
+// 400. Answers the refreshed summary row so the feed can replace it in place. A row the
+// scan marked `gone` is not moved at all (400, field `status`, no options): the opening
+// was withdrawn, and a status move would bring it back into the live feed.
 //
 // Codes, deliberately reused rather than minted: APPLY_SELECTION_INVALID ("not one of the
 // options offered") for a status / reason outside its vocabulary, with `field` and the
@@ -84,7 +86,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       dismiss = { reason: body.dismissReason, note: typeof body.note === "string" ? body.note : null };
     }
     const ws = await currentWorkspace();
-    if (!setJobseekerPostingStatus(id, body.status, dismiss, ws)) return jsonRefusal("POSTING_NOT_FOUND", 404);
+    if (!setJobseekerPostingStatus(id, body.status, dismiss, ws)) {
+      // The store refuses a move OUT of 'gone' (a withdrawn opening, the scan's verdict)
+      // the same way it misses an unknown id; the point read tells the two apart. The
+      // /me flow offers no status control on a gone row, and this door agrees with it.
+      const current = getJobseekerPosting(id, ws);
+      if (current?.status === "gone") {
+        return jsonRefusal("APPLY_SELECTION_INVALID", 400, { field: "status", options: [] });
+      }
+      return jsonRefusal("POSTING_NOT_FOUND", 404);
+    }
     return NextResponse.json({ posting: getPostingSummary(id, ws) });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/postings/[id]", "JOBSEEKER_STORE_FAILED");

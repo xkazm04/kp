@@ -7,6 +7,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import type { RawPosting } from "../jobseeker/types.ts";
+import { ensureDb } from "./core.ts";
 import {
   getJobseekerPosting,
   getPostingSummary,
@@ -115,6 +116,46 @@ test("markAbsent leaves the seeker's own statuses alone except the terminal move
   assert.equal(getJobseekerPosting(p.id)!.status, "shortlisted", "first miss does not touch status");
   markAbsent(source, T2);
   assert.equal(getJobseekerPosting(p.id)!.status, "gone", "second miss does — a withdrawn opening cannot stay shortlisted");
+});
+
+test("markAbsent never overwrites a DECISION: applied and dismissed keep their status, the absence shows as gone_at", () => {
+  const source = "src-absent-decided";
+  const applied = upsertPosting(source, raw(), T0);
+  const dismissed = upsertPosting(source, raw(), T0);
+  setJobseekerPostingStatus(applied.id, "applied", null);
+  setJobseekerPostingStatus(dismissed.id, "dismissed", { reason: "salary", note: null });
+  markAbsent(source, T1);
+  assert.equal(markAbsent(source, T2), 0, "a decided row is not moved to gone");
+  const a = getJobseekerPosting(applied.id)!;
+  assert.equal(a.status, "applied", "the seeker applied — the ad being withdrawn does not un-apply them");
+  assert.ok(a.appliedAt, "and the date they applied survives");
+  assert.ok(a.goneAt, "the absence is still visible");
+  const d = getJobseekerPosting(dismissed.id)!;
+  assert.equal(d.status, "dismissed");
+  assert.equal(d.dismissReason, "salary", "the reason the feed learns from survives");
+  assert.ok(d.goneAt);
+});
+
+test("a re-seen decided posting keeps its decision; a legacy gone row that was decided revives to the decision", () => {
+  const source = "src-revive-decided";
+  const first = raw();
+  const dismissed = upsertPosting(source, first, T0);
+  setJobseekerPostingStatus(dismissed.id, "dismissed", { reason: "location", note: null });
+  markAbsent(source, T1);
+  markAbsent(source, T2);
+  upsertPosting(source, first, T3);
+  let row = getJobseekerPosting(dismissed.id)!;
+  assert.equal(row.status, "dismissed", "a dismissed posting the board shows again is still dismissed");
+  assert.equal(row.goneAt, null);
+
+  // A row the OLD markAbsent had already stamped 'gone' over an application.
+  const legacy = raw();
+  const l = upsertPosting(source, legacy, T0);
+  setJobseekerPostingStatus(l.id, "applied", null);
+  ensureDb().prepare(`UPDATE jobseeker_postings SET status = 'gone', gone_at = ? WHERE id = ?`).run(T1, l.id);
+  upsertPosting(source, legacy, T3);
+  row = getJobseekerPosting(l.id)!;
+  assert.equal(row.status, "applied", "applied_at is still on the row, so the revival restores the decision, not 'new'");
 });
 
 test("listJobseekerPostings: keyset paging by total walks every row once, nulls last; minTotal filters", () => {
