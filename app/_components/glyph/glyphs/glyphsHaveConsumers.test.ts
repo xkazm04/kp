@@ -12,7 +12,7 @@
 // Art is loaded BY ID now (challenge-r03 glyph-system/A): the modules are imported
 // only by the server-side `../glyphCatalog.ts` behind GET /api/glyphs/[id], and a
 // render site names its glyph — `<MotionizedGlyph glyph="jobs" />`, or a spec
-// field `glyph: "channelAds"`. An import of the module is no longer how a surface
+// field `glyph: "schedule"`. An import of the module is no longer how a surface
 // consumes it (and importing one from a client component is how the ~274 KB got
 // onto the workspace page graph — glyphLoader.test.ts forbids that). So the
 // consumer here is an id reference in a `glyph` prop or field, in a file OUTSIDE
@@ -65,7 +65,8 @@ const corpus = SEARCH_ROOTS.flatMap((root) => sourceFiles(join(REPO_ROOT, root))
   .map((path) => ({ path, text: readFileSync(path, "utf8") }));
 
 test("self-check: the scan sees the glyph modules and the app corpus", () => {
-  assert.ok(modules.length > 10, `expected the traced glyph modules, found ${modules.length}`);
+  // 9 since the four channel glyphs left with the Channels Intake Studio view (2026-09-25).
+  assert.ok(modules.length >= 9, `expected the traced glyph modules, found ${modules.length}`);
   assert.ok(corpus.length > 100, `expected the app source corpus, found ${corpus.length} files`);
 });
 

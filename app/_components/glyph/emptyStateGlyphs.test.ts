@@ -29,7 +29,6 @@ const TAB_PATH: { re: RegExp; tab: GlyphRegistryTabId }[] = [
   { re: /features[/\\]library[/\\]jds[/\\]/, tab: "library" },
   { re: /features[/\\]insights[/\\]analytics[/\\]/, tab: "analytics" },
   { re: /features[/\\]hiring[/\\]decisions[/\\]/, tab: "decisions" },
-  { re: /features[/\\]hiring[/\\]channels[/\\]/, tab: "channels" },
   { re: /features[/\\]hiring[/\\]schedule[/\\]/, tab: "schedule" },
   { re: /features[/\\]tools[/\\]devcases[/\\]/, tab: "assignments" },
   { re: /features[/\\]tools[/\\]profile[/\\]/, tab: "archetypes" },

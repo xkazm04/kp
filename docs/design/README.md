@@ -979,11 +979,12 @@ A render site now names its glyph by **id** and never imports art:
 - [`glyphRegistry.ts`](../../app/_components/glyph/glyphRegistry.ts) is the closed
   vocabulary — `GLYPH_IDS` (one per generated module, `jobsGlyph.ts` → `"jobs"`),
   the `GlyphId` union and the `isGlyphId` guard — plus the tab map
-  (`jobs`, `library`, `analytics`, `decisions`, `channels`, `schedule`,
-  `assignments`, `archetypes`, `matrix`). `glyphForTab(id)` returns an id or
-  `undefined`; it does not throw. `ChainEmptyState` takes an optional `tab` and
-  resolves through that map; an explicit `glyph` id still wins. Channel pane extras
-  (ads / careers / email) are ids in `channelsEmptySpecs`; the archetypes matrix
+  (`jobs`, `library`, `analytics`, `decisions`, `schedule`, `assignments`,
+  `archetypes`, `matrix`). `glyphForTab(id)` returns an id or `undefined`; it does
+  not throw. `ChainEmptyState` takes an optional `tab` and resolves through that
+  map; an explicit `glyph` id still wins. The four channel glyphs (comms, careers,
+  email, ads) left with the Channels "Intake Studio" view on 2026-09-25, which was
+  their only render site; /motionize regenerates them. The archetypes matrix
   projection is `ARCHETYPE_VIEW_GLYPHS`, not a second tab id.
 - [`glyphCatalog.ts`](../../app/_components/glyph/glyphCatalog.ts) is **server-only**:
   the one module that value-imports the generated art, served by

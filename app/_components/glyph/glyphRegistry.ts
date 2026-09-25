@@ -14,10 +14,6 @@ import type { WorkspaceTabId } from "@/app/features/shell/tabs";
 // task-kinds.ts.
 export const GLYPH_IDS = [
   "analytics",
-  "channelAds",
-  "channelCareers",
-  "channelComms",
-  "channelEmail",
   "decisions",
   "devCases",
   "jobs",
@@ -37,8 +33,8 @@ export function isGlyphId(value: unknown): value is GlyphId {
   return typeof value === "string" && GLYPH_ID_SET.has(value);
 }
 
-// Tab → traced glyph for first-run empty states. Channel pane extras
-// (ads / careers / email) stay in channelsEmptySpecs; the tab default is comms.
+// Tab → traced glyph for first-run empty states. (The four channel glyphs left with the
+// Channels "Intake Studio" view and its empty states, 2026-09-25; /motionize regenerates them.)
 // Archetypes has two projections — list uses the roster trace, matrix uses its
 // own — so ARCHETYPE_VIEW_GLYPHS keys the second id.
 export const GLYPH_BY_TAB = {
@@ -46,7 +42,6 @@ export const GLYPH_BY_TAB = {
   library: "library",
   analytics: "analytics",
   decisions: "decisions",
-  channels: "channelComms",
   schedule: "schedule",
   assignments: "devCases",
   archetypes: "profileRoster",

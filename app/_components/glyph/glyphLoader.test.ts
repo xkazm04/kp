@@ -58,7 +58,7 @@ test("walkGraph('app/page.tsx') reaches no traced glyph module and not the serve
 
 test("glyphUrl maps a GlyphId to its route and an unknown string to null", () => {
   assert.equal(glyphUrl("decisions"), "/api/glyphs/decisions");
-  assert.equal(glyphUrl("channelComms"), "/api/glyphs/channelComms");
+  assert.equal(glyphUrl("schedule"), "/api/glyphs/schedule");
   assert.equal(glyphUrl("nope" as GlyphId), null);
   assert.equal(glyphUrl("constructor" as GlyphId), null);
   // Type level: tsc fails this file if glyphUrl ever widens to accept any string.

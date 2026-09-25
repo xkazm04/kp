@@ -24,14 +24,14 @@ const moduleIds = readdirSync(GLYPHS_DIR)
   .sort();
 
 test("GLYPH_IDS is one literal entry per traced module file, set-equal to the directory", () => {
-  assert.equal(GLYPH_IDS.length, 13);
+  assert.equal(GLYPH_IDS.length, 9);
   assert.equal(new Set(GLYPH_IDS).size, GLYPH_IDS.length, "GLYPH_IDS repeats an id");
   assert.deepEqual([...GLYPH_IDS].sort(), moduleIds);
 });
 
 test("isGlyphId accepts a real id and rejects prototype keys and strangers", () => {
   assert.equal(isGlyphId("decisions"), true);
-  assert.equal(isGlyphId("channelComms"), true);
+  assert.equal(isGlyphId("schedule"), true);
   assert.equal(isGlyphId("constructor"), false);
   assert.equal(isGlyphId("toString"), false);
   assert.equal(isGlyphId("nope"), false);
@@ -43,17 +43,17 @@ test("isGlyphId accepts a real id and rejects prototype keys and strangers", () 
 test("glyphForTab returns an id string and undefined for an unmapped or unknown tab", () => {
   assert.equal(glyphForTab("jobs"), "jobs");
   assert.equal(typeof glyphForTab("jobs"), "string");
-  assert.equal(glyphForTab("channels"), "channelComms");
+  assert.equal(glyphForTab("channels"), undefined, "the channel glyphs left with the Intake Studio view");
   assert.equal(glyphForTab("pipeline"), undefined);
   assert.equal(glyphForTab("no-such-tab"), undefined);
   assert.equal(glyphForTab("constructor"), undefined);
 });
 
-test("every registry value is a GlyphId, and every non-channel id is reachable from a tab or view", () => {
+test("every registry value is a GlyphId, and every id is reachable from a tab or view", () => {
   const values = [...Object.values(GLYPH_BY_TAB), ...Object.values(ARCHETYPE_VIEW_GLYPHS)];
   for (const v of values) assert.ok(isGlyphId(v), `${v} is not a GlyphId`);
   const reached = new Set<string>(values);
-  const missing = GLYPH_IDS.filter((id) => !id.startsWith("channel") && !reached.has(id));
+  const missing = GLYPH_IDS.filter((id) => !reached.has(id));
   assert.deepEqual(missing, [], `traced glyph(s) no tab or view maps: ${missing.join(", ")}`);
 });
 

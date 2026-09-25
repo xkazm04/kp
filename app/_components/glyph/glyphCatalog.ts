@@ -12,10 +12,6 @@
 import type { TracedGlyph } from "./MotionizedGlyph";
 import { isGlyphId, type GlyphId } from "./glyphRegistry";
 import { ANALYTICS_GLYPH } from "./glyphs/analyticsGlyph";
-import { CHANNEL_ADS_GLYPH } from "./glyphs/channelAdsGlyph";
-import { CHANNEL_CAREERS_GLYPH } from "./glyphs/channelCareersGlyph";
-import { CHANNEL_COMMS_GLYPH } from "./glyphs/channelCommsGlyph";
-import { CHANNEL_EMAIL_GLYPH } from "./glyphs/channelEmailGlyph";
 import { DECISIONS_GLYPH } from "./glyphs/decisionsGlyph";
 import { DEV_CASES_GLYPH } from "./glyphs/devCasesGlyph";
 import { JOBS_GLYPH } from "./glyphs/jobsGlyph";
@@ -27,10 +23,6 @@ import { SCHEDULE_GLYPH } from "./glyphs/scheduleGlyph";
 
 export const GLYPH_CATALOG: Readonly<Record<GlyphId, TracedGlyph>> = {
   analytics: ANALYTICS_GLYPH,
-  channelAds: CHANNEL_ADS_GLYPH,
-  channelCareers: CHANNEL_CAREERS_GLYPH,
-  channelComms: CHANNEL_COMMS_GLYPH,
-  channelEmail: CHANNEL_EMAIL_GLYPH,
   decisions: DECISIONS_GLYPH,
   devCases: DEV_CASES_GLYPH,
   jobs: JOBS_GLYPH,
