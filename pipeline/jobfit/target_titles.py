@@ -97,6 +97,38 @@ def matched_target_title(posting_title: str, target_titles: list[str] | tuple[st
     return None
 
 
+# Role nouns that name a KIND of job, not its subject: "AI Engineer" is about AI, and
+# an "AI Consultant" line in a CV is evidence toward it. Used only to find which CV
+# lines speak to a target (target_phrases) — never by the matcher's title match.
+_ROLE_NOUNS = frozenset({
+    "engineer", "developer", "programmer", "analyst", "consultant", "specialist", "manager",
+    "architect", "designer", "scientist", "officer", "administrator", "technician", "expert",
+    "inzenyr", "vyvojar", "analytik", "konzultant", "specialista",
+    "entwickler", "ingenieur", "berater", "developpeur", "analyste",
+})
+
+
+def fold_tokens(text: str) -> tuple[str, ...]:
+    """Every word of ``text``, case- and diacritics-folded (nothing dropped)."""
+    return tuple(WORD_RE.findall(_fold(text)))
+
+
+def target_phrases(title: str) -> tuple[tuple[str, ...], ...]:
+    """The SUBJECT of a target title and its aliases, as token runs a CV line can
+    contain: "AI Engineer" -> ("ai",), ("ml",), ("llm",), ("machine", "learning")…
+    A title that is nothing but a role noun yields nothing."""
+    out: list[tuple[str, ...]] = []
+    for form in _forms(title):
+        subject = tuple(t for t in form if t not in _ROLE_NOUNS)
+        if subject and subject not in out:
+            out.append(subject)
+    return tuple(out)
+
+
+def contains_phrase(tokens: tuple[str, ...], phrases: tuple[tuple[str, ...], ...]) -> bool:
+    return any(_contains_run(tokens, p) for p in phrases)
+
+
 def has_title_form(title: str) -> bool:
     """Whether a stated title leaves anything to match once level words are dropped."""
     return bool(_forms(title))

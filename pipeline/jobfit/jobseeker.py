@@ -44,10 +44,12 @@ from .i18n import LANG_NAMES, language_directive, normalize_lang
 from .intake import _choices_payload
 from .profile import CandidateProfileV2
 from .soft_signals import build_soft_signal_panel
+from .target_titles import contains_phrase, fold_tokens, target_families, target_phrases
+from .taxonomy import classify_role_family
 
 _LOG = logging.getLogger(__name__)
 
-CV_POLISH_PROMPT_VERSION = "cv-polish-v1"
+CV_POLISH_PROMPT_VERSION = "cv-polish-v2"  # v2: tailors suggestions to the first stated target title
 FIT_PROMPT_VERSION = "fit-dialog-v1"
 PROMPT_VERSIONS = {"cv_polish": CV_POLISH_PROMPT_VERSION, "fit": FIT_PROMPT_VERSION}
 
@@ -225,6 +227,101 @@ _SUGGEST_WHY: dict[str, dict[str, str]] = {
         "fr": "Les formules génériques sont la première chose qu'un tri écarte.",
     },
 }
+# Target-aware templates (a stated targetTitle, the FIRST one). Same rule as above: a
+# template says what to DO with what the CV already holds; the only CV text it carries
+# is a verbatim source line in `{fact}`. It never names a skill, employer, date, number
+# or responsibility the CV does not contain.
+_TARGET_AFTER: dict[str, dict[str, str]] = {
+    "lead": {
+        "en": "For {target} roles, open the summary with the work closest to the target — “{fact}” — and follow with the experience that led to it.",
+        "cs": "Pro pozici {target} začněte profil prací, která má k cíli nejblíž — „{fact}“ — a teprve po ní uveďte zkušenosti, které k ní vedly.",
+        "de": "Für eine Stelle als {target} beginnen Sie das Profil mit der Arbeit, die dem Ziel am nächsten ist — „{fact}“ — und lassen die Erfahrung folgen, die dorthin geführt hat.",
+        "fr": "Pour un poste de {target}, ouvrez le profil par le travail le plus proche de la cible — « {fact} » — puis enchaînez avec l'expérience qui y a mené.",
+    },
+    "move_up": {
+        "en": "For {target} roles, move this line up: it is the closest match to the target and belongs before the lines further from it.",
+        "cs": "Pro pozici {target} posuňte tento řádek výš: k cíli má nejblíž, a proto patří před řádky, které jsou od něj dál.",
+        "de": "Für eine Stelle als {target} rücken Sie diese Zeile nach oben: Sie passt am besten zum Ziel und gehört vor die Zeilen, die weiter davon entfernt sind.",
+        "fr": "Pour un poste de {target}, remontez cette ligne : c'est la plus proche de la cible, elle doit précéder celles qui en sont plus éloignées.",
+    },
+    "transfer": {
+        "en": "For {target} roles, name what carries over: this work is {transfer}. Say it in this line, without adding a tool or a result the CV does not show.",
+        "cs": "Pro pozici {target} pojmenujte, co si nesete s sebou: tato práce je {transfer}. Řekněte to v tomto řádku, bez nástroje či výsledku, který CV neuvádí.",
+        "de": "Für eine Stelle als {target} benennen Sie, was übertragbar ist: Diese Arbeit ist {transfer}. Sagen Sie es in dieser Zeile, ohne ein Werkzeug oder Ergebnis, das der Lebenslauf nicht nennt.",
+        "fr": "Pour un poste de {target}, nommez ce qui se transfère : ce travail, c'est {transfer}. Dites-le dans cette ligne, sans ajouter d'outil ni de résultat absent du CV.",
+    },
+    "gap": {
+        "en": "Nothing in the CV names {target} work yet. Say plainly that you are moving toward {target} roles and point to the closest thing you have done — nothing more.",
+        "cs": "V CV zatím nic nezmiňuje práci na pozici {target}. Řekněte otevřeně, že směřujete k pozici {target}, a ukažte na to nejbližší, co jste dělali — nic víc.",
+        "de": "Noch nichts im Lebenslauf nennt Arbeit als {target}. Sagen Sie offen, dass Sie in Richtung {target} gehen, und verweisen Sie auf das Nächstliegende, das Sie getan haben — mehr nicht.",
+        "fr": "Rien dans le CV ne mentionne encore un travail de {target}. Dites clairement que vous vous orientez vers un poste de {target} et montrez ce que vous avez fait de plus proche — rien de plus.",
+    },
+}
+_TARGET_WHY: dict[str, dict[str, str]] = {
+    "lead": {
+        "en": "A screen reads the first line of the summary, and it now opens with work further from {target}.",
+        "cs": "Screening čte první řádek profilu a ten teď začíná prací, která má k pozici {target} daleko.",
+        "de": "Ein Screening liest die erste Zeile des Profils, und die beginnt jetzt mit Arbeit, die weiter von {target} entfernt ist.",
+        "fr": "Un tri lit la première ligne du profil, et elle commence aujourd'hui par un travail plus éloigné de {target}.",
+    },
+    "move_up": {
+        "en": "Recruiters read top-down; the line closest to the target should not sit below the rest.",
+        "cs": "Recruiteři čtou shora dolů; řádek, který má k cíli nejblíž, nemá být pod ostatními.",
+        "de": "Recruiter lesen von oben nach unten; die Zeile, die dem Ziel am nächsten ist, gehört nicht unter den Rest.",
+        "fr": "Les recruteurs lisent de haut en bas ; la ligne la plus proche de la cible ne doit pas se trouver sous les autres.",
+    },
+    "transfer": {
+        "en": "A transferable strength counts only when the CV names it; a reader will not make the link for you.",
+        "cs": "Přenositelná silná stránka se počítá, jen když ji CV pojmenuje; čtenář tu souvislost za vás neudělá.",
+        "de": "Eine übertragbare Stärke zählt nur, wenn der Lebenslauf sie benennt; der Leser stellt die Verbindung nicht für Sie her.",
+        "fr": "Un atout transférable ne compte que si le CV le nomme ; le lecteur ne fera pas le lien à votre place.",
+    },
+    "gap": {
+        "en": "A stated direction with an honest gap reads better than a stretched claim.",
+        "cs": "Jasně řečený směr s poctivě přiznanou mezerou působí lépe než přibarvené tvrzení.",
+        "de": "Eine klar benannte Richtung mit ehrlicher Lücke wirkt besser als eine gedehnte Behauptung.",
+        "fr": "Une orientation assumée avec un manque avoué convainc mieux qu'une affirmation exagérée.",
+    },
+}
+# What an analysis / testing line carries over, worded for an AI target and for any
+# other target. Framing only — it names the line's own work, never a new skill.
+_TRANSFER: dict[str, dict[str, dict[str, str]]] = {
+    "analysis": {
+        "ai": {
+            "en": "how the requirements of an AI system get specified",
+            "cs": "způsob, jak se specifikují požadavky na systém s AI",
+            "de": "die Art, wie die Anforderungen an ein KI-System festgelegt werden",
+            "fr": "la façon dont on spécifie les exigences d'un système d'IA",
+        },
+        "any": {
+            "en": "how the requirements of the work get specified and scoped",
+            "cs": "způsob, jak se specifikují a vymezují požadavky na práci",
+            "de": "die Art, wie die Anforderungen an die Arbeit festgelegt und abgegrenzt werden",
+            "fr": "la façon dont on spécifie et cadre les exigences du travail",
+        },
+    },
+    "testing": {
+        "ai": {
+            "en": "the evaluation discipline an AI system needs before it ships",
+            "cs": "disciplína vyhodnocování, kterou systém s AI potřebuje před nasazením",
+            "de": "die Evaluationsdisziplin, die ein KI-System vor dem Einsatz braucht",
+            "fr": "la discipline d'évaluation dont un système d'IA a besoin avant sa mise en production",
+        },
+        "any": {
+            "en": "the verification discipline the role relies on",
+            "cs": "disciplína ověřování, na které pozice stojí",
+            "de": "die Prüfdisziplin, auf die die Stelle angewiesen ist",
+            "fr": "la discipline de vérification sur laquelle repose le poste",
+        },
+    },
+}
+# Folded token prefixes that mark a line as analysis / testing work (en/cs/de/fr).
+_TRANSFER_PREFIXES: dict[str, tuple[str, ...]] = {
+    "analysis": ("analy", "requirement", "pozadav", "anforderung", "exigence"),
+    "testing": ("test", "qa", "quality", "kvalit", "qualit", "selenium", "cypress"),
+}
+MAX_TARGET_SUGGESTIONS = 4
+
 _SECTION_LABEL: dict[str, dict[str, str]] = {
     "experience": {"en": "Experience", "cs": "Zkušenosti", "de": "Berufserfahrung", "fr": "Expérience"},
     "summary": {"en": "Summary", "cs": "Profil", "de": "Profil", "fr": "Profil"},
@@ -635,9 +732,128 @@ def _section_of(sentence: str, source: str) -> str:
     return current
 
 
-def deterministic_suggestions(source: str | None, profile: CandidateProfileV2, lang: str) -> list[dict[str, str]]:
-    """Template suggestions grounded in the two deterministic critics. Each one cites
-    a sentence that occurs in the source; nothing is invented."""
+def _source_lines(source: str) -> list[tuple[str, str]]:
+    """(section kind, line) for every non-empty, non-heading source line, in order;
+    lines before the first recognised heading are ``header``."""
+    out: list[tuple[str, str]] = []
+    current = "header"
+    for raw in (source or "").split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        kind = _heading_kind(line)
+        if kind:
+            current = kind
+            continue
+        out.append((current, line))
+    return out
+
+
+def _first_sentence(line: str) -> str:
+    m = _SENTENCE.match(line.strip())
+    return (m.group(0) if m else line).strip()
+
+
+def _transfer_kind(line: str) -> str | None:
+    tokens = fold_tokens(line)
+    for kind, prefixes in _TRANSFER_PREFIXES.items():
+        if any(t == p or (len(p) > 3 and t.startswith(p)) for t in tokens for p in prefixes):
+            return kind
+    return None
+
+
+def target_suggestion_plan(source: str, target: str) -> list[tuple[str, str, dict[str, str]]]:
+    """The target-aware critique as (kind, before, params), built ONLY from lines the
+    existing readers find in the source — the summary opener, the experience/project
+    lines, a line's own words. ``params['fact']`` is always a verbatim source line.
+
+    A line speaks to the target when it contains the target's subject (target_titles.
+    target_phrases: "AI Engineer" -> ai / ml / llm / machine learning …). Only a title
+    with no subject beyond its role noun ("Engineer") falls back to the taxonomy's
+    role-family routing per line — ~65 ms a line, too slow to run on every turn of a
+    dialog whose every turn is a fresh process, so it is the fallback, not the rule."""
+    target = (target or "").strip()
+    if not target or not (source or "").strip():
+        return []
+    phrases = target_phrases(target)
+    families = set(target_families([target], []))
+    verdicts: dict[str, bool] = {}
+
+    def relevant(line: str) -> bool:
+        if line not in verdicts:
+            if phrases:
+                verdicts[line] = contains_phrase(fold_tokens(line), phrases)
+            else:
+                verdicts[line] = bool(families) and classify_role_family([], line) in families
+        return verdicts[line]
+
+    lines = _source_lines(source)
+    work = [ln for sec, ln in lines if sec in ("experience", "projects")]
+    experience = [ln for sec, ln in lines if sec == "experience"]
+    summary = [ln for sec, ln in lines if sec == "summary"]
+    hits = [ln for ln in work if relevant(ln)]
+    opener = _first_sentence(summary[0]) if summary else ""
+    plan: list[tuple[str, str, dict[str, str]]] = []
+    if hits:
+        if opener and not relevant(opener):
+            plan.append(("lead", opener, {"fact": hits[0][:160]}))
+        # A target line sitting BELOW a line that is further from the target.
+        first_other = next((i for i, ln in enumerate(experience) if not relevant(ln)), None)
+        if first_other is not None:
+            later = next((ln for ln in experience[first_other + 1:] if relevant(ln)), None)
+            if later:
+                plan.append(("move_up", later, {}))
+    else:
+        anchor = opener or (experience[0] if experience else "")
+        if anchor:
+            plan.append(("gap", anchor, {}))
+    ai_target = "data_ai" in families
+    done: set[str] = set()
+    for ln in work:
+        kind = _transfer_kind(ln)
+        if kind and kind not in done and not relevant(ln):
+            done.add(kind)
+            plan.append(("transfer", ln, {"concept": kind, "flavour": "ai" if ai_target else "any"}))
+    return plan[:MAX_TARGET_SUGGESTIONS]
+
+
+def target_suggestions(source: str | None, lang: str, target: str | None) -> list[dict[str, str]]:
+    """The plan above rendered in the seeker's language; each ``before`` occurs in the
+    source (the same grounding filter every suggestion passes)."""
+    text = source or ""
+    name = _clean(target, 80)
+    out: list[dict[str, str]] = []
+    for kind, before, params in target_suggestion_plan(text, name):
+        before = before.strip()
+        if not _grounded(before, text):
+            continue
+        fill = {"target": name, "fact": params.get("fact", "")}
+        if kind == "transfer":
+            fill["transfer"] = _localized(_TRANSFER[params["concept"]][params["flavour"]], lang)
+        out.append({
+            "section": _localized(_SECTION_LABEL[_section_of(before, text)], lang),
+            "before": before[:300],
+            "after": _localized(_TARGET_AFTER[kind], lang).format(**fill),
+            "why": _localized(_TARGET_WHY[kind], lang).format(**fill),
+        })
+    return out
+
+
+def _first_target(prefs: dict[str, Any]) -> str | None:
+    titles = prefs.get("targetTitles") if isinstance(prefs, dict) else None
+    if isinstance(titles, list):
+        for t in titles:
+            if isinstance(t, str) and t.strip():
+                return t.strip()
+    return None
+
+
+def deterministic_suggestions(
+    source: str | None, profile: CandidateProfileV2, lang: str, target: str | None = None
+) -> list[dict[str, str]]:
+    """Template suggestions grounded in the two deterministic critics — and, when the
+    seeker stated a target title, the target-aware ones first (target_suggestions).
+    Each one cites a sentence that occurs in the source; nothing is invented."""
     text = source or ""
     if not text.strip():
         return []
@@ -645,6 +861,10 @@ def deterministic_suggestions(source: str | None, profile: CandidateProfileV2, l
     flags = authenticity_checks(text, skills_count=len(profile.skill_claims), years_experience=int(profile.years_experience or 0) or None)
     out: list[dict[str, str]] = []
     seen: set[str] = set()
+    for s in target_suggestions(text, lang, target) if target else []:
+        if s["before"] not in seen:
+            seen.add(s["before"])
+            out.append(s)
 
     def add(kind: str, before: str) -> None:
         before = before.strip()
@@ -728,8 +948,30 @@ def _base_artifact(req: dict[str, Any], lang: str, profile: CandidateProfileV2) 
         "cvMarkdown": markdown,
         "preferences": {},
         "unreadable": unreadable,
-        "suggestions": deterministic_suggestions(req.get("cvSourceText"), profile, lang),
+        "suggestions": deterministic_suggestions(
+            req.get("cvSourceText"), profile, lang, _first_target(_norm_prefs(req.get("preferences")))
+        ),
     }
+
+
+def _with_target_suggestions(artifact: dict[str, Any], source: str | None, lang: str, prefs: dict[str, Any]) -> dict[str, Any]:
+    """Once a target title is known (stated earlier, or just now in the dialog), its
+    target-aware suggestions lead the list. One is added only while its ``before`` is
+    still on the sheet — an applied suggestion replaced it, so it does not come back."""
+    target = _first_target(prefs)
+    if not target:
+        return artifact
+    current = [s for s in artifact.get("suggestions") or [] if isinstance(s, dict)]
+    markdown = str(artifact.get("cvMarkdown") or "")
+    have = {(s.get("before"), s.get("after")) for s in current}
+    taken = {s.get("before") for s in current}
+    fresh = [
+        s for s in target_suggestions(source, lang, target)
+        if (s["before"], s["after"]) not in have and s["before"] not in taken and s["before"] in markdown
+    ]
+    if not fresh:
+        return artifact
+    return {**artifact, "suggestions": (fresh + current)[:MAX_SUGGESTIONS]}
 
 
 def _seed_from_profile(prefs: dict[str, Any], profile: CandidateProfileV2) -> dict[str, Any]:
@@ -767,12 +1009,13 @@ def deterministic_turn(req: dict[str, Any]) -> dict[str, Any]:
     agent_said = _agent_turns(transcript)
 
     def answer(reply: str, *, done: bool = False, choices: dict | None = None) -> dict[str, Any]:
+        sheet = _with_target_suggestions(artifact, req.get("cvSourceText"), lang, prefs)
         return {
             "reply": reply[:MAX_REPLY_CHARS],
             "done": done,
             "source": "deterministic",
             "choices": choices,
-            "artifact": {**artifact, "preferences": partial},
+            "artifact": {**sheet, "preferences": partial},
             "promptVersion": CV_POLISH_PROMPT_VERSION,
             **disclosure,
         }
@@ -1496,8 +1739,23 @@ _PERSONA = (
 )
 
 
-def cv_polish_system_brief(lang: str) -> str:
-    return f"{_PERSONA}\n\n{language_directive(lang)}"
+# Added to the persona once the seeker has stated a target title. The title is the
+# seeker's own words, so it is quoted as JSON data, never spliced in as instruction.
+_TAILOR = (
+    "TAILORING: the seeker is aiming for {target} roles (their first stated target title). Tailor "
+    "every suggestion to that target by REFRAMING what the CV already holds: lead the summary with "
+    "the target-relevant work, move target-relevant roles and bullets up, name transferable strengths "
+    "(analysis work -> specifying requirements for the target's systems; testing/QA -> evaluation), and "
+    "flag the gap honestly where the CV shows no target-relevant work.\n"
+    "HARD RULE: never add a skill, employer, date, number or responsibility the CV does not contain. "
+    "Reframing reorders and renames what is there; it never adds. Every suggestion's `before` must "
+    "still be an exact sentence from the source text, or it is dropped."
+)
+
+
+def cv_polish_system_brief(lang: str, target: str | None = None) -> str:
+    tailor = f"\n\n{_TAILOR.format(target=json.dumps(target, ensure_ascii=False))}" if target else ""
+    return f"{_PERSONA}{tailor}\n\n{language_directive(lang)}"
 
 
 def _grounding_block(source: str, profile: CandidateProfileV2) -> str:
@@ -1595,8 +1853,9 @@ def run_turn(provider: Any | None, req: dict[str, Any]) -> dict[str, Any]:
         '"suggestions": [{"section": "...", "before": "<exact source sentence>", "after": "...", "why": "..."}]}}'
     )
 
+    target = _first_target(merge_prefs(stored, base_artifact["preferences"]))
     artifact, source_kind = generate_with_fallback(
-        provider, prompt, cv_polish_system_brief(lang), deterministic, coerce, _LOG, expected_keys=("reply", "artifact")
+        provider, prompt, cv_polish_system_brief(lang, target), deterministic, coerce, _LOG, expected_keys=("reply", "artifact")
     )
     artifact["source"] = source_kind
     reason = artifact.pop(FALLBACK_REASON_KEY, None)
