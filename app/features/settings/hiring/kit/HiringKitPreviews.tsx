@@ -1,19 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { FigureView, Mark, Section, Tag } from "@/app/_components/kit";
 import { deriveImpact, occupancyMark, roundCount } from "../pipelineComposerModel";
 import { gateLedger, useImpactCopy } from "../impact/impactShared";
 import type { Composer } from "./hiringKitModel";
 import "./hiringKitPreviews.css";
 
-/** Short weekday names Mon-Fri in the reader's locale, off a fixed reference week (2024-01-01 was a
- *  Monday), as ImpactScheduleCard reads them. */
-function weekdays(locale: string): string[] {
-  const fmt = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" });
-  return [0, 1, 2, 3, 4].map((i) => fmt.format(new Date(Date.UTC(2024, 0, 1 + i))));
-}
+/** A fixed reference week (2024-01-01 was a Monday), so the miniature never drifts with the clock. */
+const WEEK = [0, 1, 2, 3, 4].map((i) => new Date(Date.UTC(2024, 0, 1 + i)));
 
 function Pane({ title, sub, aside, children }: { title: string; sub: string; aside?: ReactNode; children: ReactNode }) {
   return (
@@ -40,7 +36,8 @@ function Pane({ title, sub, aside, children }: { title: string; sub: string; asi
 export function HiringKitPreviews({ c }: { c: Composer }) {
   const t = useTranslations("hiringPlan.impact");
   const th = useTranslations("hiringPlan");
-  const locale = useLocale();
+  // Short weekday names Mon-Fri in the reader's locale, through the app's formatter.
+  const format = useFormatter();
   const stages = c.axis?.stages ?? [];
   const { stationLabel } = useImpactCopy(stages);
   const plan = c.plan;
@@ -48,7 +45,7 @@ export function HiringKitPreviews({ c }: { c: Composer }) {
   const impact = deriveImpact(plan, stages);
   const ledger = gateLedger(plan, stages);
   const rounds = roundCount(plan, stages);
-  const days = weekdays(locale);
+  const days = WEEK.map((d) => format.dateTime(d, { weekday: "short", timeZone: "UTC" }));
 
   return (
     <Section title={t("heading")} count={t("colsN", { count: stages.length })}>
@@ -87,7 +84,10 @@ export function HiringKitPreviews({ c }: { c: Composer }) {
                   <Mark kind={human ? "human" : "machine"} tip={human ? th("gateHuman") : t("unattended")} />
                   <span className="min-w-0">
                     <b>{row.kind === "round" ? th("stationRound", { n: row.n ?? 1 }) : stationLabel(row.stageId)}</b>
-                    <small>{human ? th("gateHuman") : th("gateAuto")}</small>
+                    <small>
+                      {human ? th("gateHuman") : th("gateAuto")}
+                      {row.roundKind ? ` · ${row.roundKind === "ai" ? t("roundAi") : t("roundHuman")}` : null}
+                    </small>
                   </span>
                 </li>
               );

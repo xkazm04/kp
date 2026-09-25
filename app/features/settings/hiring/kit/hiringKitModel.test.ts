@@ -1,5 +1,5 @@
 // Settings > Hiring's kit view: the data-to-rows mapping. Each assertion pins that the kit REUSES
-// the current tab's rules (pipelineAxisDraft's label problems, PipelineStepPolicy's slots and
+// the product's rules (pipelineAxisDraft's label problems, the policy slots and
 // defaults, deriveImpact's decisions, HiringTab's save sentence) and only adds its own reading:
 // which rows exist, which of them changed against the stored plan, which mark a column wears.
 //

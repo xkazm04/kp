@@ -93,9 +93,6 @@
     "features/settings/branding/BrandingTab.tsx": {
       "blockGap": 2
     },
-    "features/settings/hiring/HiringTab.tsx": {
-      "blockGap": 1
-    },
     "features/settings/integrations/IntegrationsAtsPanel.tsx": {
       "blockGap": 1
     },

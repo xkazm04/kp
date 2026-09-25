@@ -17,7 +17,7 @@ export function Segmented({ items, value, onChange, label, lead }: {
   value: string;
   onChange: (v: string) => void;
   label: string;
-  /** A visible quiet word before the group ("Start from"); `label` stays the group's accessible name. */
+  /** A visible quiet word before the group, e.g. a preset row's lead; `label` stays the group's accessible name. */
   lead?: string;
 }) {
   const locale = useLocale();

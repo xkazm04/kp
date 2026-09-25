@@ -10,8 +10,8 @@ import { HiringKitStranded } from "./HiringKitStranded";
 import { HiringKitPreviews } from "./HiringKitPreviews";
 
 /**
- * Settings > Hiring, composed from the composition kit (Gate 1; rendered only behind the dev-only
- * `?kit=1` switch, see HiringKitSwitch). The same state as the current tab, read through the same
+ * Settings > Hiring, composed from the composition kit (Gate 1 of the kit-unification spark; the
+ * owner promoted it, so it is the tab). Read through the tab's one
  * hook (useHiringComposer: two drafts, occupancy, the stranded mapping, save / discard / reload)
  * and edited through the same model functions. Layout: a page head with the plan's figures and the
  * save, the presets, the pipeline as ONE matrix (a row per step: name, type, AI actions, cohort,

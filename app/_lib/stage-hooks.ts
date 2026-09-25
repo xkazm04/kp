@@ -155,7 +155,7 @@ export function scheduleStageEnteredHook(input: StageEnteredInput): void {
  * owner should decide whether to keep it:
  *
  *   The shipped default plan (`INTERVIEW_PLAN_DEFAULT`) gates its one AI interview
- *   round as "human", and the plan editor (`PipelineStepPolicy.tsx`) paints an
+ *   round as "human", and the plan editor (`policyRows` in settings/hiring/kit/hiringKitModel.ts) paints an
  *   untouched step as "human" for the same reason. But the owner's instruction for
  *   this hook is "hold when human, BY DEFAULT set as auto/AI step" — an AI step
  *   nobody has configured should run unattended.

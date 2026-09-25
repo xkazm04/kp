@@ -1,13 +1,45 @@
 # Hiring pipeline (Settings → Hiring)
 
-The workspace's hiring-pipeline composer — the **"Matrix" control board**
-(winner of the /prototype round, 2026-08-10).
+The workspace's hiring-pipeline composer — one step matrix plus three impact
+previews, rendered from the composition kit (`app/_components/kit/`; promoted at
+Gate 1 of the kit-unification spark, 2026-09). The earlier "Matrix" control board
+(the /prototype winner of 2026-08-10) is what the kit view re-sets on the measure.
 
 ## Entry point
 
 `/?tab=hiring` — the "Hiring" item in the Settings nav group (`tabs.ts`,
 appended last; chunk in `tabChunks.ts`; glyph `GitBranch` in `navMeta.ts`).
-Feature dir: `app/features/settings/hiring/`.
+Feature dir: `app/features/settings/hiring/`. `HiringTab.tsx` renders
+`kit/HiringKitView.tsx`; the state and IO are `useHiringComposer.ts`, the rules
+that read them `composerState.ts`, the plan model `pipelineComposerModel.ts`, and
+the kit view's own data-to-rows reading `kit/hiringKitModel.ts` (pinned by
+`kit/hiringKitModel.test.ts`).
+
+### Layout (composition kit)
+
+- **Page head** (`kit/HiringKitHead.tsx`): eyebrow, title, intro; three figures
+  (steps of 12, human decisions, rounds to book), each with its change against the
+  STORED plan; the one primary **Save plan**, with a quiet "All changes saved."
+  beside it while nothing is unsaved. The presets sit under it as a segmented
+  control.
+- **Pipeline steps** (`kit/HiringKitMatrix.tsx`, the kit `FlowTable`): ONE row per
+  board column. The name is the field (the stored key rides its tip; a draft-only
+  step says *New*), its quiet line says the type, who stands there now and a legacy
+  stack ("2 rounds here", with the row's mark turned to caution); type (the app's
+  `Select`) and the AI-actions button sit in the meta track, the cohort in meta+1,
+  the executor and the guard in the figure and time tracks, reorder and remove in
+  the act track. The row mark's SHAPE says who decides there (a person, the machine
+  unattended, nothing). The section's state line says when the plan was stored, or
+  **"Never saved: the product defaults apply"** when neither half ever was
+  (`versions` from `/api/decisions/config`). At a sheet of 1000px or less (1280
+  beside the shell) only the cohort column folds; it reappears in the row's detail
+  line.
+- **Stranded candidates** (`kit/HiringKitStranded.tsx`): a caution section with a
+  destination per removed column; see *Nobody gets stranded silently*.
+- **Save bar**: exists only while a draft is unsaved, IN FLOW under the matrix, so
+  it never covers a row; it says why a save is refused before it says "unsaved".
+- **Impact previews** (`kit/HiringKitPreviews.tsx`): see *How the impact previews
+  are drawn*.
 
 ## What it does
 
@@ -61,35 +93,33 @@ It was two tables until the plan became stage-keyed: this one, and a Station /
 Mode / Approval / Cohort matrix (`PipelineComposerMatrix`, deleted) that listed
 the same columns again in its own order with its own words, so the recruiter had
 to hold "row 3 there is row 2 here" in their head. A row-per-column editor needs
-one policy per column, which the role-keyed shape could not give it. The **impact strip** (`PlanImpactStrip`)
-derives, live, what the composed plan does to the Hiring tabs: the Overview
+one policy per column, which the role-keyed shape could not give it. The **impact previews**
+derive, live, what the composed plan does to the Hiring tabs: the Overview
 funnel stations, the human queues appearing in Decisions (with a
 decisions-per-hire count), and which Schedule surfaces (AI-round docket /
 calendar + self-scheduling) are in play.
 
-### How the impact strip is drawn
+### How the impact previews are drawn
 
-The strip lives in `app/features/settings/hiring/impact/`;
-`PipelineComposerBits.tsx` re-exports `PlanImpactStrip` from there, so consumers
-are unchanged. It used to be three identical `ImpactPanel` rectangles of chips —
-nothing about a card said WHICH surface it predicted. Each card now borrows its
-destination's own grammar, and `impact/impactShared.tsx` owns that identity once
-(`TONE`: Overview a coral top rule, Decisions an amber left margin, Schedule a
-tinted calendar header band) plus the `ImpactCard` shell, `RoundChip`,
-`useImpactCopy()` and `gateLedger()`.
+`kit/HiringKitPreviews.tsx` draws three panes in one strip on the measure, each a
+miniature of the tab it predicts in that tab's own grammar, with the kit's rules,
+marks, tags and figures (token CSS in `kit/hiringKitPreviews.css`, loaded with the
+tab's chunk). `impact/impactShared.tsx` keeps the two readings they share,
+`useImpactCopy()` (station labels through `enums.stage.*`) and `gateLedger()`. At a
+sheet of 1000px or less the board takes its own line.
 
-| Card | File | Drawn as |
-| --- | --- | --- |
-| Overview | `ImpactOverviewCard.tsx` | a miniature of the board — ruled columns in board order, `enums.stage.*` headers, the board's own `·` in a column the plan runs nothing at, and the live occupancy count under each station (`occupancyMark`: omit while the fetch is in flight, `·` when zero) |
-| Decisions | `ImpactDecisionsCard.tsx` | a checkpoint ladder over `gateLedger()`, mirroring the policy table above it |
-| Schedule | `ImpactScheduleCard.tsx` | a miniature week grid in ScheduleCalendar's `grid-cols-[2rem_repeat(5,1fr)]` shape, plus a legend naming the live channels |
+| Pane | Drawn as |
+| --- | --- |
+| Overview | a miniature of the board: ruled columns in board order, `enums.stage.*` headers, round tags, the board's own `·` in a column the plan runs nothing at, and the live occupancy under each station (`occupancyMark`: omit while the fetch is in flight) |
+| Decisions | a checkpoint ladder over `gateLedger()`, each gate's mark shaped by who decides it, with the human-decisions figure |
+| Schedule | a representative week grid (labelled as one), the rounds-to-book figure, and tags naming the live channels |
 
 **The ladder shows the gates you turned OFF.** `PlanImpact.decisions` lists only
 the HUMAN queues, so any reading built on it alone is blind to an `auto` gate —
 the recruiter could not see what they had just switched off. `gateLedger()`
 (`impact/impactShared.tsx`) instead returns EVERY point where a verdict could be
 ratified — screening, each round, offer — with the mode that governs it, and the
-card draws the auto ones as hollow dashed checkpoints. It applies the same rule
+pane marks the auto ones with the machine shape. It applies the same rule
 `deriveImpact()` does: a HUMAN round's verdict is human by definition, so the
 gate only governs AI rounds.
 
@@ -195,9 +225,10 @@ A plan saved *before* that rule can still hold a stacked column. The editor rend
 its first round and shows an amber "{n} rounds here" chip naming the fix, and
 leaves the data alone: silently dropping a round would change who gets interviewed.
 
-Three fixed slots per row, in `PipelineStepPolicy` — **cohort · executor · guard**,
-at widths shared with the header (`POLICY_SLOT`), so one dimension reads straight
-down the table. What fills them is decided by the column's TYPE, never its position:
+Three decision cells per row — **cohort · executor · guard** — each on its own
+track of the matrix (`policyRows` in `kit/hiringKitModel.ts`, drawn by
+`kit/HiringKitCells.tsx`), so one dimension reads straight down the table. What
+fills them is decided by the column's TYPE, never its position:
 
 | Type | Cohort | Executor | Guard |
 | --- | --- | --- | --- |
@@ -210,25 +241,28 @@ down the table. What fills them is decided by the column's TYPE, never its posit
 | custom | — | — | — (the automation layer resolves policy by role, so a guard here would be a switch wired to nothing) |
 
 Each decision is ONE button showing its current value, flipping on click, with a
-`title` that says both the state and what a click does. A cohort is offered only
+kit tip that says both the state and what a click does; a decision the type fixes
+is stated as quiet text whose tip carries the sentence ("Screening is always done
+by AI. What you choose is who signs it off."). A cohort is offered only
 where it means something — the plan's first round has no previous cohort to reduce,
 which is what the validator enforces — and its slot is reserved even then, so rows
 stay in a grid.
 
 ## Pipeline steps — the board's columns, editable
 
-`PipelineStepsEditor.tsx` is the half of this tab that used to not exist. Until
+The matrix's step half (`kit/HiringKitMatrix.tsx`) is the part of this tab that used to not exist. Until
 it landed, Settings → Hiring could compose *policy* (who approves what) but not
 the funnel: the five board columns were a compile-time literal, identical for
 every workspace forever.
 
-Each row is one board column: **type** (the role picker, fixed width), **label**
-(free text, elastic), the stored **id** (read-only), reorder, remove. Add appends
+Each row is one board column: **label** (the name field), **type** (the role
+picker), the stored **id** (the name field's tip), reorder, remove. Add appends
 before the terminal column.
 
-The row itself is `app/features/shared/PipelineStepRow.tsx` — shared with the
-first-run wizard's Pipeline step, which binds it through
-`SetupPipelineStageRow.tsx`. Type comes **before** the name in both: the type is
+The first-run wizard's Pipeline step edits the same axis with its own row,
+`app/features/shared/PipelineStepRow.tsx` (bound through
+`SetupPipelineStageRow.tsx`); the Settings matrix no longer shares it. In the wizard
+the type comes **before** the name: the type is
 the closed vocabulary every product rule resolves through, and it is what makes a
 free-text name legible ("Tech screen" says nothing until you know it is an
 *Interview*). It is also the only fixed-width cell, so a column of pickers lines
@@ -268,7 +302,7 @@ name. A step the draft only *added* just disappears — it was never stored.
 
 ### Which AI actions each step offers
 
-The last column of the steps table (`StageActionsPicker.tsx`) says which AI actions a
+The AI-actions button on each matrix row (it opens the row's detail line of action chips) says which AI actions a
 recruiter can run from the candidate modal on someone standing in that step — Screen,
 Prep, Scorecard, Draft offer, Outreach, Rejection, Explore alternatives. Until someone
 picks otherwise a step offers **our default for its type** (screening steps screen,
@@ -278,8 +312,8 @@ one type defined by what it does *not* offer: outreach, rejection and alternativ
 only. `Screen` is withheld because a screen run there would advance the candidate
 past the assignment the column exists to give them (`screeningStageIds` excludes
 homework columns even though they are pre-gate), and `Prep` because there is nothing
-to prep from until the case comes back. Each default action is marked
-"Default" in the list and the button reads "Default" or "Custom".
+to prep from until the case comes back. Each default action's chip tips
+"Default", and the button's tip says whether the step follows the default or a custom list.
 
 A selection is stored on the stage as `actions` in the same `pipelineStages` config the
 columns live in (`setStageActions` in `pipelineAxisDraft.ts`, saved with the columns),

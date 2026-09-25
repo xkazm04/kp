@@ -89,8 +89,8 @@ export function stepRows(
 
 // ---- the decisions each step carries -------------------------------------------------------
 
-/** Types that carry policy at all - PipelineStepPolicy's `stepCarriesPolicy`, which lives in a
- *  .tsx and so cannot be imported here. Entry, terminal and custom carry none (a guard on a column
+/** Types that carry policy at all (the pre-kit editor's `stepCarriesPolicy`, now owned here).
+ *  Entry, terminal and custom carry none (a guard on a column
  *  the product has no semantics for would be a switch wired to nothing). */
 export const POLICY_ROLES: readonly StageRole[] = ["screening", "homework", "interview", "scoring", "offer"];
 
@@ -110,7 +110,7 @@ export type PolicyRow = {
 
 /**
  * One row per decision, in board order - the three policy slots of the current table
- * (cohort, executor, guard), each as its own setting row. Same rules as PipelineStepPolicy:
+ * (cohort, executor, guard), each as its own control. The rules the pre-kit editor kept:
  * an untouched column reads as its conservative default (a person approves; an interview is an
  * AI round nobody has approved yet), a cohort is offered only after a previous round, and a
  * human round's verdict IS the decision (the scorecard row states it, nothing to choose).
@@ -151,7 +151,7 @@ export function policyRows(plan: PipelinePlan, savedPlan: PipelinePlan | null, s
   return rows;
 }
 
-/** Apply one row's new value - the same plan edits PipelineStepPolicy makes. An interview column
+/** Apply one row's new value - the same plan edits the pre-kit editor made. An interview column
  *  the plan has not met yet gets its default round written on this first edit, not on render. */
 export function setPolicy(
   plan: PipelinePlan,

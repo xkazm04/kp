@@ -1668,44 +1668,6 @@
     "features/settings/branding/BrandingTab.tsx": {
       "raw-text-size": 1
     },
-    "features/settings/hiring/HiringTab.tsx": {
-      "raw-text-size": 10,
-      "raw-status-hue": 10,
-      "raw-button": 4
-    },
-    "features/settings/hiring/PipelineComposerBits.tsx": {
-      "raw-text-size": 2,
-      "raw-stone-text": 1
-    },
-    "features/settings/hiring/PipelineStepPolicy.tsx": {
-      "raw-text-size": 1,
-      "raw-status-hue": 2
-    },
-    "features/settings/hiring/PipelineStepsEditor.tsx": {
-      "raw-text-size": 7,
-      "raw-status-hue": 6,
-      "raw-button": 1
-    },
-    "features/settings/hiring/StageActionsPicker.tsx": {
-      "raw-text-size": 4
-    },
-    "features/settings/hiring/impact/ImpactDecisionsCard.tsx": {
-      "raw-text-size": 3,
-      "raw-status-hue": 8
-    },
-    "features/settings/hiring/impact/ImpactOverviewCard.tsx": {
-      "raw-text-size": 1,
-      "raw-stone-text": 2
-    },
-    "features/settings/hiring/impact/ImpactScheduleCard.tsx": {
-      "raw-text-size": 8,
-      "raw-status-hue": 2,
-      "bare-rounded": 2
-    },
-    "features/settings/hiring/impact/impactShared.tsx": {
-      "raw-text-size": 2,
-      "raw-status-hue": 7
-    },
     "features/settings/integrations/IntegrationsAtsForm.tsx": {
       "raw-text-size": 4
     },

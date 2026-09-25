@@ -206,22 +206,6 @@
     "features/settings/billing/spend/SpendEngineFacts.tsx": {
       "noticeAmber": 1
     },
-    "features/settings/hiring/HiringTab.tsx": {
-      "noticeAmber": 2
-    },
-    "features/settings/hiring/PipelineStepsEditor.tsx": {
-      "noticeAmber": 1
-    },
-    "features/settings/hiring/impact/ImpactDecisionsCard.tsx": {
-      "noticeAmber": 1
-    },
-    "features/settings/hiring/impact/ImpactScheduleCard.tsx": {
-      "metaLabel": 1,
-      "rawDate": 1
-    },
-    "features/settings/hiring/impact/PlanImpactStrip.tsx": {
-      "metaLabel": 1
-    },
     "features/settings/integrations/IntegrationsCalendarPanel.tsx": {
       "noticeAmber": 1
     },

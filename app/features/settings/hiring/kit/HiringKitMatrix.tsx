@@ -40,8 +40,10 @@ export function HiringKitMatrix({ c }: { c: Composer }) {
 
   const columns: Column[] = [
     { id: "mark", label: "", track: "mark" },
-    { id: "name", label: t("colLabel"), track: "name", primary: true },
-    { id: "type", label: `${t("colStation")} · ${ts("colActions")}`, track: "meta" },
+    // The heads carry the sentences the pre-kit table printed above itself and in its picker:
+    // renaming never moves the stored key, and what an AI action is.
+    { id: "name", label: t("colLabel"), track: "name", primary: true, tip: ts("intro") },
+    { id: "type", label: `${t("colStation")} · ${ts("colActions")}`, track: "meta", tip: ts("actionsHint") },
     { id: "cohort", label: t("colCohort"), track: "meta+1" },
     { id: "exec", label: t("colExecutor"), track: "fig" },
     { id: "guard", label: t("colGuard"), track: "time" },
@@ -103,7 +105,7 @@ export function HiringKitMatrix({ c }: { c: Composer }) {
     ];
   };
 
-  // The AI actions a row offers, as chips; the default stores nothing (StageActionsPicker's rule).
+  // The AI actions a row offers, as chips; the default stores nothing (the rule the pre-kit picker kept).
   // While the sheet has folded the cohort column, the cohort control rides here too.
   const detail = (r: MatrixRow) => {
     if (open !== r.id) return null;
