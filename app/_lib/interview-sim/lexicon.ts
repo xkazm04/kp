@@ -225,7 +225,7 @@ export const VERDICT_FORMS: readonly LexForm[] = [
   form(
     "fr.reussi",
     "fr",
-    w(`${FR_NOT_AN_OUTCOME}(?:vous avez (?:réussi|échoué)(?=\s*[.!,;]|\s*$|\s+(?:l'entretien|cet entretien|ce tour|cette étape|l'étape))|vous êtes (?:retenue?|embauchée?|admise?|recalée?)|vous avez (?:le poste|l'emploi|le job)|vous passez (?:au|à l'étape|à la) (?:prochain|prochaine|suivant|suivante|tour|étape))`),
+    w(`${FR_NOT_AN_OUTCOME}(?:vous avez (?:réussi|échoué)(?=\\s*[.!,;]|\\s*$|\\s+(?:l'entretien|cet entretien|ce tour|cette étape|l'étape))|vous êtes (?:retenue?|embauchée?|admise?|recalée?)|vous avez (?:le poste|l'emploi|le job)|vous passez (?:au|à l'étape|à la) (?:prochain|prochaine|suivant|suivante|tour|étape))`),
   ),
   form("fr.score", "fr", w("votre (?:score|note|évaluation) (?:est|sera|serait)|je vous (?:donnerais|mettrais|attribuerais) (?:un |une )?(?:\\d+|dix|neuf|huit|sept|six|cinq)|je vous (?:embaucherais|recommanderais|recommande|retiendrais)")),
   form(
