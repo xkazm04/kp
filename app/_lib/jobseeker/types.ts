@@ -89,6 +89,34 @@ export type JobseekerProfile = {
 };
 
 // ---------------------------------------------------------------------------
+// CVs already read (db/jobseeker-cvs.ts) — remembered so the same file is never
+// drafted twice and an earlier one can be made active again
+// ---------------------------------------------------------------------------
+
+/** Which reader drafted the profile from a CV: a model, or the fixed parser. */
+export type CvDraftSource = "llm" | "deterministic";
+
+/** One stored CV as a list shows it: metadata only, never the text or the draft. */
+export type JobseekerCvSummary = {
+  id: string;
+  fileName: string | null;
+  byteSize: number | null;
+  /** null = the draft route did not say (never claimed either way). */
+  draftSource: CvDraftSource | null;
+  /** When it was first read. */
+  createdAt: string;
+  /** When it was last read, reused or picked again. */
+  lastUsedAt: string;
+};
+
+/** A list row: the summary plus whether the profile is built from this CV right now. */
+export type JobseekerCvListItem = JobseekerCvSummary & { active: boolean };
+
+/** Bounds on the per-seeker UI state the server keeps (db/jobseeker-ui-state.ts). */
+export const COVER_NOTE_MAX_CHARS = 8000;
+export const COVER_NOTES_KEPT = 200;
+
+// ---------------------------------------------------------------------------
 // Sources (owner-confirmed acquisition; tiers decide the confirmation door)
 // ---------------------------------------------------------------------------
 

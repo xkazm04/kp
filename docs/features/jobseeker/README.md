@@ -485,6 +485,33 @@ contacts, roles, bullets, groups, improvements, no invented numbers, prose-vs-ac
 `app/_lib/jobseeker/cv-pdf.test.ts` (origin never from Host, cookie parsing, no browser ->
 unavailable, only the app origin reachable, browser always closed).
 
+## Across sessions: the CV archive and the seeker's working state
+
+Everything the pipeline produces already lives in SQLite (profile, preferences, postings,
+scores, dialogs, deep-dives). Three things did not, and now do:
+
+- **A CV already read is remembered** (`jobseeker_cvs`, `app/_lib/db/jobseeker-cvs.ts`).
+  Every import is recorded per seeker by the sha256 of its extracted text with whitespace
+  folded. Before drafting, `POST /api/jobseeker/cvs/reuse` checks the hash: on a hit the
+  stored draft is applied with NO model call, and Arrive says so ("Read before on <date> -
+  reused, no AI call") with "Read it again", which forces a fresh draft. The import's last
+  hop is `POST /api/jobseeker/cvs` (`importCv` in `importOutcome.ts`); a failed reuse check
+  simply drafts.
+- **Earlier CVs can be picked again.** Arrive lists them (newest use first; up to 30 per
+  seeker, least recently used dropped beyond that) with "Use this one" ->
+  `POST /api/jobseeker/cvs/[id]/use`, which writes the profile through the same function an
+  import does (`makeJobseekerCvActive`). `GET /api/jobseeker/cvs` returns metadata only - no
+  text, no draft, no hash. Another seeker's id answers 404 `JOBSEEKER_CV_NOT_FOUND`.
+- **Design choices and cover notes follow the seeker** (`jobseeker_ui_state`,
+  `GET/PUT /api/jobseeker/ui-state`): the designed-CV choices and one cover-note draft per
+  posting (8000 chars each, 200 kept), saved debounced with retry (`serverDraft.ts`). Browser
+  storage is only the first paint; an edit the server never confirmed is re-sent, not
+  overwritten; a failed save says "Not saved yet - retrying" and keeps the text. The print
+  page stays URL-first. A malformed body answers 400 `JOBSEEKER_REQUEST_INVALID`.
+- Both tables are tenancy-scoped (workspace + seeker) and sit in `ERASURE_EXEMPT` beside
+  `jobseeker_profiles` under the same known gap: there is still no erasure door for a
+  seeker's own data.
+
 ## Direction and markets
 
 A seeker's CV says where they have been; `targetTitles` / `targetRoleFamilies` say where

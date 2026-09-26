@@ -1904,6 +1904,12 @@ export const REFUSAL_ERRORS = {
    *  to the server log). The client offers the browser's own print -> Save as PDF, which
    *  carries the same layout. */
   JOBSEEKER_PDF_UNAVAILABLE: "Could not make the PDF here. Use Print and choose Save as PDF: the layout is the same.",
+  /** POST /api/jobseeker/cvs/[id]/use: the CV id is not one of THIS seeker's stored CVs
+   *  (another seeker's, another workspace's, or none) - 404, never a hint which. */
+  JOBSEEKER_CV_NOT_FOUND: "That CV is not among yours.",
+  /** A /me write whose body is not the shape the route takes (a CV record without its
+   *  draft, a design that is not an object, a cover note over its cap) - 400, nothing saved. */
+  JOBSEEKER_REQUEST_INVALID: "That change was not in the expected shape, so nothing was saved.",
   /** DELETE /api/jds/[slug] on a description whose role is live (409). The library
    *  is the shelf of drafts; a live opening is the Roles tab's object and closing
    *  it there is the move that comes first. Deliberately not a 403: the caller has

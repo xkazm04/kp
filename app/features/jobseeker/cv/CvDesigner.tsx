@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
 import { CV_ACCENTS, CV_TEMPLATES, type CvAccent, type CvDocument, type CvTemplate } from "./cvDocument";
 import { CV_DESIGN_DEFAULT, cvDesignQuery, type CvDesign } from "./cvQuery";
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
@@ -27,8 +28,9 @@ import { DesignedCv } from "./DesignedCv";
 //
 // The PDF comes from the server when it has a browser (GET /api/jobseeker/cv.pdf); when it
 // answers JOBSEEKER_PDF_UNAVAILABLE the notice offers Print -> Save as PDF instead, which
-// carries the same layout. The choice of layout, accent and target is a per-viewer
-// convenience, remembered in localStorage and, on the page, in the URL.
+// carries the same layout. The choice of layout, accent and target is kept for the
+// seeker on the server (so it follows them to another browser), painted first from
+// localStorage, and on the page carried in the URL.
 
 const A4_WIDTH_PX = 793.7; // 210mm at 96dpi
 const A4_HEIGHT_PX = 1122.5; // 297mm at 96dpi
@@ -36,16 +38,38 @@ const STORE_KEY = "kp-me-cv-design";
 
 export type CvDesignerSkin = { primary: string; ghost: string };
 
-function readStored(): { template: CvTemplate; accent: CvAccent; tailor: number | null } | null {
+function readStored(): CvDesign | null {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null") as { template?: unknown; accent?: unknown; tailor?: unknown } | null;
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null") as Record<string, unknown> | null;
     if (!raw) return null;
     return {
       template: (CV_TEMPLATES as readonly unknown[]).includes(raw.template) ? (raw.template as CvTemplate) : "sidebar",
       accent: (CV_ACCENTS as readonly unknown[]).includes(raw.accent) ? (raw.accent as CvAccent) : "navy",
       tailor: typeof raw.tailor === "number" && Number.isInteger(raw.tailor) && raw.tailor >= 0 ? raw.tailor : null,
+      compact: raw.compact === true,
+      objective: raw.objective !== false,
     };
   } catch {
+    return null;
+  }
+}
+
+/** One key per design, in a fixed field order, so "has it changed" is a string compare. */
+function designKeyOf(d: CvDesign): string {
+  return JSON.stringify([d.template, d.accent, d.tailor, d.compact, d.objective]);
+}
+
+/** The seeker's saved choice (GET /api/jobseeker/ui-state), already validated server-side
+ *  through cvQuery.ts; null when none is kept, there is no profile, or the read failed. */
+async function fetchSavedDesign(): Promise<CvDesign | null> {
+  try {
+    const res = await fetch("/api/jobseeker/ui-state");
+    if (!res.ok) return null;
+    const body = (await res.json().catch(() => null)) as { design?: CvDesign | null } | null;
+    const d = body?.design;
+    return d && typeof d === "object" && typeof d.template === "string" ? d : null;
+  } catch {
+    /* offline: the remembered-in-this-browser choice stands */
     return null;
   }
 }
@@ -119,8 +143,8 @@ export function CvDesigner({
   const [template, setTemplate] = useState<CvTemplate>(() => initial?.template ?? stored?.template ?? CV_DESIGN_DEFAULT.template);
   const [accent, setAccent] = useState<CvAccent>(() => initial?.accent ?? stored?.accent ?? CV_DESIGN_DEFAULT.accent);
   const [tailorPick, setTailor] = useState<number | null>(() => (initial ? (initial.tailor ?? null) : (stored?.tailor ?? null)));
-  const [compact, setCompact] = useState<boolean>(() => initial?.compact ?? false);
-  const [objective, setObjective] = useState<boolean>(() => initial?.objective ?? true);
+  const [compact, setCompact] = useState<boolean>(() => initial?.compact ?? stored?.compact ?? false);
+  const [objective, setObjective] = useState<boolean>(() => initial?.objective ?? stored?.objective ?? true);
   const [pdf, setPdf] = useState<{ state: "idle" | "busy" } | { state: "failed"; message: string }>({ state: "idle" });
   const [showChanges, setShowChanges] = useState(false);
   const [showMoves, setShowMoves] = useState(false);
@@ -137,14 +161,50 @@ export function CvDesigner({
 
   const query = cvDesignQuery({ template, accent, tailor, compact, objective });
 
+  // The choice FOLLOWS THE SEEKER (PUT /api/jobseeker/ui-state): every change is saved
+  // debounced and retried (serverDraft.ts); this browser's localStorage is only the
+  // instant first paint, and inline the server's saved choice replaces it when it
+  // arrives — unless the seeker already picked something in the meantime, which then
+  // stands and is the one saved. The page keeps its URL as the truth (cvQuery.ts: the
+  // print page and the PDF route read their query), so it saves changes but never reads.
+  const design: CvDesign = { template, accent, tailor: tailorPick, compact, objective };
+  const designKey = designKeyOf(design);
+  const firstKey = useRef(designKey);
+  const latestKey = useRef(designKey);
+  const syncedKey = useRef(designKey);
+  const [saveState, setSaveState] = useState<SaveState | null>(null);
+  const [saver] = useState(() => createKeyedSaver<CvDesign>((_key, d) => putJson("/api/jobseeker/ui-state", { design: d }), (_key, s) => setSaveState(s)));
+  useEffect(() => () => saver.dispose(), [saver]);
+  useEffect(() => {
+    if (mode !== "inline" || initial) return;
+    let live = true;
+    void fetchSavedDesign().then((saved) => {
+      if (!live || !saved || latestKey.current !== firstKey.current) return;
+      syncedKey.current = designKeyOf(saved);
+      setTemplate(saved.template);
+      setAccent(saved.accent);
+      setTailor(saved.tailor);
+      setCompact(saved.compact);
+      setObjective(saved.objective);
+    });
+    return () => {
+      live = false;
+    };
+  }, [mode, initial]);
+
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ template, accent, tailor }));
+      localStorage.setItem(STORE_KEY, JSON.stringify({ template, accent, tailor: tailorPick, compact, objective }));
     } catch {
-      /* storage refused (private mode): the choice lives for this visit only */
+      /* storage refused (private mode): the server copy still carries the choice */
     }
     if (mode === "page") window.history.replaceState(null, "", `${window.location.pathname}?${query}`);
-  }, [template, accent, tailor, mode, query]);
+    latestKey.current = designKey;
+    if (designKey !== syncedKey.current) {
+      syncedKey.current = designKey;
+      saver.push("design", { template, accent, tailor: tailorPick, compact, objective });
+    }
+  }, [template, accent, tailorPick, compact, objective, mode, query, designKey, saver]);
 
   // The sheet is laid out at its true A4 width so line breaks match the PDF. Inline, only
   // a transform scales it to the column. Both modes measure whether it runs over one page:
@@ -320,6 +380,11 @@ export function CvDesigner({
               {t("printInstead")}
             </button>
           )}
+        </p>
+      ) : null}
+      {saveState === "failed" ? (
+        <p className="cvdesk-note" role="status">
+          {t("saveFailed")}
         </p>
       ) : null}
       {tailoring}

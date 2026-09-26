@@ -134,6 +134,7 @@ export const IDENTITY_KEYS: ReadonlyMap<string, string> = new Map([
   ["jd_templates(id)", MINTED],
   ["job_postings(id)", MINTED],
   ["job_translations(id)", MINTED],
+  ["jobseeker_cvs(id)", MINTED],
   ["jobseeker_dialogs(id)", MINTED],
   ["jobseeker_postings(id)", MINTED],
   ["jobseeker_profiles(id)", MINTED],

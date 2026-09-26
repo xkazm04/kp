@@ -2106,6 +2106,63 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "renderCvPdf(",
   },
+  // The seeker's CV archive and cross-session UI state (docs/features/jobseeker/README.md):
+  // store reads and small writes behind the operator gate, self-limited per IP because
+  // open mode makes the gate a no-op. Each limiter sits before the store call it names.
+  {
+    rel: "./jobseeker/cvs/route.ts",
+    key: "`jobseeker-cvs-list:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "LIST_RATE_LIMIT",
+    optsDef: "const LIST_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "listJobseekerCvs(",
+  },
+  {
+    rel: "./jobseeker/cvs/route.ts",
+    key: "`jobseeker-cvs-record:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "RECORD_RATE_LIMIT",
+    optsDef: "const RECORD_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "recordJobseekerCv(",
+  },
+  {
+    rel: "./jobseeker/cvs/reuse/route.ts",
+    key: "`jobseeker-cvs-reuse:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "REUSE_RATE_LIMIT",
+    optsDef: "const REUSE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "findJobseekerCvByText(",
+  },
+  {
+    rel: "./jobseeker/cvs/[id]/use/route.ts",
+    key: "`jobseeker-cvs-use:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "USE_RATE_LIMIT",
+    optsDef: "const USE_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getJobseekerCv(",
+  },
+  {
+    rel: "./jobseeker/ui-state/route.ts",
+    key: "`jobseeker-ui-state-read:${clientIpFrom(request.headers)}`",
+    limit: 240,
+    optsSrc: "READ_RATE_LIMIT",
+    optsDef: "const READ_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getCvDesignState(",
+  },
+  {
+    rel: "./jobseeker/ui-state/route.ts",
+    key: "`jobseeker-ui-state-write:${clientIpFrom(request.headers)}`",
+    limit: 600,
+    optsSrc: "WRITE_RATE_LIMIT",
+    optsDef: "const WRITE_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "setCoverNote(",
+  },
   // jobseeker — WP4c: the scan door, the feed, the seeker's status moves and the
   // on-demand deep-dive. The scan is minutes of third-party fetching plus Python spawns
   // and bounded model calls; the deep-dive is two model calls; the two posting doors are

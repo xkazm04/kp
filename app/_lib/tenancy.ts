@@ -336,6 +336,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "jobseeker_postings",
   // Dialogs: the seeker's CV-polish / fit conversations (jobseeker-dialogs-tenancy.test.ts).
   "jobseeker_dialogs",
+  // CVs already read: text + the draft it produced, one row per (workspace, seeker,
+  // content hash); reads also bind the seeker's user_id (jobseeker-cvs-tenancy.test.ts).
+  "jobseeker_cvs",
+  // The seeker's cross-device UI state: designed-CV choices and per-posting cover-note
+  // drafts, keyed by the profile row (jobseeker-ui-state-tenancy.test.ts).
+  "jobseeker_ui_state",
   // One team's lifecycle of a SHARED corpus role, keyed (workspace_id, job_id); no
   // by-id carve-out (job-workspace-state-tenancy.test.ts).
   "job_workspace_state",

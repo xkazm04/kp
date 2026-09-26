@@ -1447,6 +1447,46 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_jobseeker_dialogs_ws_profile ON jobseeker_dialogs (workspace_id, profile_id, updated_at DESC);
 
+    -- Every CV the seeker has had read (db/jobseeker-cvs.ts): the extracted text, the
+    -- profile draft it produced and WHICH reader produced it, so dropping the same CV
+    -- again reuses the draft (no model call) and an earlier CV can be made active again.
+    -- content_hash is sha256 of the text with whitespace normalised. One row per
+    -- (workspace, seeker, hash): user_id is nullable like the profile row, and SQLite
+    -- treats NULL as distinct inside a plain UNIQUE, so the key is an EXPRESSION index
+    -- over IFNULL(user_id, '') and the store's upsert is SELECT-then-write under IMMEDIATE.
+    CREATE TABLE IF NOT EXISTS jobseeker_cvs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT,
+      content_hash TEXT NOT NULL,
+      file_name TEXT,
+      byte_size INTEGER,
+      source_text TEXT NOT NULL,
+      draft_json TEXT NOT NULL,
+      draft_source TEXT CHECK(draft_source IS NULL OR draft_source IN ('llm','deterministic')),
+      created_at TEXT NOT NULL,
+      last_used_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_jobseeker_cvs_seeker_hash ON jobseeker_cvs (workspace_id, IFNULL(user_id, ''), content_hash);
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_cvs_seeker_used ON jobseeker_cvs (workspace_id, user_id, last_used_at DESC);
+
+    -- The seeker's small, per-profile UI state that must follow them across browsers
+    -- (db/jobseeker-ui-state.ts): the designed-CV choices (kind cv_design, key '') and a
+    -- cover-note draft per posting (kind cover_note, key = posting id). Keyed by the
+    -- profile row (never NULL), so the upsert is a plain ON CONFLICT on the primary key.
+    CREATE TABLE IF NOT EXISTS jobseeker_ui_state (
+      workspace_id TEXT NOT NULL,
+      profile_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN ('cv_design','cover_note')),
+      key TEXT NOT NULL,
+      value_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, profile_id, kind, key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_jobseeker_ui_state_recent ON jobseeker_ui_state (workspace_id, profile_id, kind, updated_at DESC);
+
     -- The JOB-LEVEL interview kit (db/interview-kits.ts): the competencies a role is
     -- hired on, the questions asked about each, the per-competency time budget, and the
     -- FAQ the interviewer may answer role questions from. One kit per job, and it is the

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import type { DismissReason, FitArtifact, JobseekerDialog, JobseekerPostingSummary, PostingStatus, SalaryFloor, SourceTier, TargetAlignment } from "@/app/_lib/jobseeker/types";
-import { DISMISS_REASONS } from "@/app/_lib/jobseeker/types";
+import { COVER_NOTE_MAX_CHARS, DISMISS_REASONS } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -13,6 +13,7 @@ import { FailureNotice } from "../FailureNotice";
 import { compareSalary } from "../feedModel";
 import { FitStudio } from "../FitStudio";
 import { diveOutcome, reasoningView, type DiveOutcome, type PostingDetailView } from "../postingView";
+import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
 import { payText } from "./StepEvening";
 import { Pip, ProvMark, StatusChip, TargetMark, TierChip } from "./marks";
 import { directionOf, provenanceOf, replacedScore } from "./sieveModel";
@@ -53,10 +54,15 @@ async function fetchDetail(id: string): Promise<{ ok: true; detail: Detail } | {
   }
 }
 
-// The seeker's edits to a cover-note draft survive a reload, per posting, in this tab's
-// sessionStorage: a per-viewer convenience, never a record (the draft itself is the fit
-// conversation's artifact on the server). Storage can be blocked; then nothing is kept.
+// The seeker's edits to a cover-note draft are KEPT ON THE SERVER, per posting (PUT
+// /api/jobseeker/ui-state, debounced and retried by serverDraft.ts), so they follow the
+// seeker to another browser and survive the tab closing. This tab's sessionStorage is
+// only the instant first paint: when the server's copy arrives it wins — unless this tab
+// holds an edit the server has not confirmed yet (the pending mark, set on every edit
+// and cleared when a save lands), which is then written instead of being overwritten.
+// Storage can be blocked; the page state and the server still hold the text.
 const coverKey = (id: string) => `kp-me-cover:${id}`;
+const coverPendingKey = (id: string) => `kp-me-cover-pending:${id}`;
 function recallCover(id: string): string | null {
   try {
     return window.sessionStorage.getItem(coverKey(id));
@@ -65,11 +71,41 @@ function recallCover(id: string): string | null {
     return null;
   }
 }
-function keepCover(id: string, text: string): void {
+function keepCover(id: string, text: string, pending: boolean): void {
   try {
     window.sessionStorage.setItem(coverKey(id), text);
+    if (pending) window.sessionStorage.setItem(coverPendingKey(id), "1");
+    else window.sessionStorage.removeItem(coverPendingKey(id));
   } catch {
-    /* storage blocked or full: the edit lives on in the page state, only a reload loses it */
+    /* storage blocked or full: the edit lives on in the page state and goes to the server */
+  }
+}
+function coverUnsynced(id: string): boolean {
+  try {
+    return window.sessionStorage.getItem(coverPendingKey(id)) === "1";
+  } catch {
+    /* storage blocked: only the saver's in-memory pending set can say, and it is asked too */
+    return false;
+  }
+}
+function settleCover(id: string): void {
+  try {
+    window.sessionStorage.removeItem(coverPendingKey(id));
+  } catch {
+    /* storage blocked: there is no mark to clear */
+  }
+}
+
+/** The server's copy of one posting's cover note; null = none kept, or not reachable. */
+async function fetchServerCover(id: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/jobseeker/ui-state?posting=${encodeURIComponent(id)}`);
+    if (!res.ok) return null;
+    const body = (await res.json().catch(() => null)) as { cover?: { text?: unknown } | null } | null;
+    return typeof body?.cover?.text === "string" ? body.cover.text : null;
+  } catch {
+    /* offline: the local first paint stands, and the next edit is saved as usual */
+    return null;
   }
 }
 
@@ -131,6 +167,28 @@ export function StepWeigh({
   const [busy, setBusy] = useState(false);
   const [writeError, setWriteError] = useState<ClassifiedFailure | null>(null);
   const [cover, setCover] = useState<Record<string, string>>({});
+  const [coverSync, setCoverSync] = useState<Record<string, SaveState>>({});
+  // The same map as `cover`, readable from the async server answer without a stale closure.
+  const coverRef = useRef<Record<string, string>>({});
+  const [coverSaver] = useState(() =>
+    createKeyedSaver<string>(
+      (posting, text) => putJson("/api/jobseeker/ui-state", { posting, cover: text.slice(0, COVER_NOTE_MAX_CHARS) }),
+      (posting, state) => {
+        setCoverSync((c) => ({ ...c, [posting]: state }));
+        if (state === "saved") settleCover(posting);
+      }
+    )
+  );
+  useEffect(() => () => coverSaver.dispose(), [coverSaver]);
+  const editCover = useCallback(
+    (id: string, text: string) => {
+      coverRef.current = { ...coverRef.current, [id]: text };
+      setCover((c) => ({ ...c, [id]: text }));
+      keepCover(id, text, true);
+      coverSaver.push(id, text);
+    },
+    [coverSaver]
+  );
   const [studio, setStudio] = useState<StudioState>(null);
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<ClassifiedFailure | null>(null);
@@ -148,11 +206,28 @@ export function StepWeigh({
         }
         setDetailError(null);
         setDetail(r.detail);
-        // A cover-note edit this tab kept for the posting comes back with it.
+        // A cover-note edit this tab kept for the posting comes back with it at once...
         const kept = recallCover(id);
-        if (kept !== null) setCover((c) => (c[id] !== undefined ? c : { ...c, [id]: kept }));
+        if (kept !== null && coverRef.current[id] === undefined) {
+          coverRef.current = { ...coverRef.current, [id]: kept };
+          setCover((c) => (c[id] !== undefined ? c : { ...c, [id]: kept }));
+        }
+        // ...and the server's copy replaces it when it arrives, unless this tab holds an
+        // edit the server never confirmed: that one is written, not overwritten.
+        if (!profileId || !r.detail.fit) return;
+        void fetchServerCover(id).then((server) => {
+          const local = coverRef.current[id];
+          if (local !== undefined && (coverSaver.isPending(id) || coverUnsynced(id))) {
+            if (!coverSaver.isPending(id)) coverSaver.push(id, local);
+            return;
+          }
+          if (server === null) return;
+          coverRef.current = { ...coverRef.current, [id]: server };
+          setCover((c) => ({ ...c, [id]: server }));
+          keepCover(id, server, false);
+        });
       }),
-    []
+    [profileId, coverSaver]
   );
 
   // A new posting opened: forget the last one's transient state, then read this one.
@@ -686,15 +761,7 @@ export function StepWeigh({
               <label htmlFor="sv-cover" className="small muted">
                 {t("coverHint")}
               </label>
-              <textarea
-                id="sv-cover"
-                value={coverText}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setCover((c) => ({ ...c, [v.id]: next }));
-                  keepCover(v.id, next);
-                }}
-              />
+              <textarea id="sv-cover" value={coverText} maxLength={COVER_NOTE_MAX_CHARS} onChange={(e) => editCover(v.id, e.target.value)} />
               <div className="scanline more">
                 <button
                   type="button"
@@ -708,7 +775,10 @@ export function StepWeigh({
                 >
                   {t("coverCopy")}
                 </button>
-                <span role="status">{cover[v.id] !== undefined ? t("coverEdited") : t("coverUntouched")}</span>
+                <span role="status">
+                  {cover[v.id] !== undefined ? t("coverEdited") : t("coverUntouched")}
+                  {coverSync[v.id] === "failed" ? ` · ${t("coverSaveFailed")}` : coverSync[v.id] === "saved" ? ` · ${t("coverSaved")}` : ""}
+                </span>
               </div>
             </div>
           ) : null}

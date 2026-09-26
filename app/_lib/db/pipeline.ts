@@ -2320,6 +2320,8 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   // dialogs (docs/features/jobseeker/README.md, Known gaps).
   ["jobseeker_profiles", "The seeker's OWN profile, CV text and preferences - the operator's data about themselves, never reached by a candidate scrub (no seeker delete door exists yet - a known gap)."],
   ["jobseeker_dialogs", "The seeker's own CV-polish and fit conversations; same controller relationship as jobseeker_profiles."],
+  ["jobseeker_cvs", "Every CV the seeker had read (its text and the profile draft it produced) - the operator's data about themselves, same controller relationship as jobseeker_profiles, never reached by a candidate scrub (no seeker delete door exists yet - the same known gap)."],
+  ["jobseeker_ui_state", "The seeker's own designed-CV choices and cover-note drafts, keyed to their profile row; same controller relationship as jobseeker_profiles (no seeker delete door exists yet - the same known gap)."],
   ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   // Gigs module (db/gigs-*.ts): the OPERATOR's own freelance/bounty work - paid work the

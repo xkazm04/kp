@@ -1,9 +1,10 @@
-import type { JobseekerProfile } from "@/app/_lib/jobseeker/types";
+import type { JobseekerCvListItem, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 
 /*
  * The CV import is three hops — POST /api/extract-text, POST /api/profile/draft,
- * PUT /api/jobseeker/profile — and until this module existed the page collapsed
+ * POST /api/jobseeker/cvs (with a reuse check before the draft, `importCv` below) —
+ * and until this module existed the page collapsed
  * every way each of them can end into ONE red sentence per hop. Three different
  * failures read identically at the first hop alone: a file we genuinely cannot
  * read (a coded refusal, EXTRACT_TEXT_UNREADABLE), a PDF that extracted cleanly
@@ -92,6 +93,93 @@ export function classifySave(res: ResponseLike, body: { id?: unknown; code?: unk
   if (bad) return bad;
   if (!body || typeof body.id !== "string" || !body.id) return fail("saving", "unknown");
   return { ok: true, stage: "saving", profile: body as unknown as JobseekerProfile };
+}
+
+/** POST /api/jobseeker/cvs (the import's last hop) answers `{ profile, cv }`. */
+export type RecordOutcome = { ok: true; stage: "saving"; profile: JobseekerProfile; cv: JobseekerCvListItem | null } | ImportFailure;
+
+export function classifyRecorded(res: ResponseLike, body: { profile?: unknown; cv?: unknown; code?: unknown } | null): RecordOutcome {
+  const bad = transportOrCoded("saving", res, body);
+  if (bad) return bad;
+  const profile = body?.profile as { id?: unknown } | undefined;
+  if (!profile || typeof profile !== "object" || typeof profile.id !== "string" || !profile.id) return fail("saving", "unknown");
+  return { ok: true, stage: "saving", profile: profile as unknown as JobseekerProfile, cv: cvOf(body?.cv) };
+}
+
+function cvOf(raw: unknown): JobseekerCvListItem | null {
+  const cv = raw as Partial<JobseekerCvListItem> | null | undefined;
+  return cv && typeof cv === "object" && typeof cv.id === "string" && typeof cv.createdAt === "string" ? (cv as JobseekerCvListItem) : null;
+}
+
+/** POST /api/jobseeker/cvs/reuse: a stored CV with this text was applied, or not. Any
+ *  failure of THIS door is "not reused" — the check is an optimisation, and a seeker
+ *  whose reuse lookup failed still gets their CV read (degrade, never block). */
+export function classifyReuse(
+  res: ResponseLike,
+  body: { reused?: unknown; profile?: unknown; cv?: unknown } | null
+): { profile: JobseekerProfile; cv: JobseekerCvListItem } | null {
+  if (!res.ok || !body || body.reused !== true) return null;
+  const profile = body.profile as { id?: unknown } | undefined;
+  const cv = cvOf(body.cv);
+  if (!profile || typeof profile.id !== "string" || !cv) return null;
+  return { profile: profile as unknown as JobseekerProfile, cv };
+}
+
+/* ── The import, hop by hop ────────────────────────────────────────────────────
+ *
+ * extract-text → (reuse check) → profile/draft → record. The reuse check sits between
+ * the file's text and the model: a CV already read — same text, whitespace aside — is
+ * answered from the store with the draft it produced the first time, and the draft hop
+ * (a model call of ~12 s) never runs. `fresh` ("Read it again") skips the check and
+ * drafts anew; the record hop then replaces the stored draft.
+ *
+ * The page supplies `post` (a fetch that never throws), so a test drives every branch
+ * without a network and can see exactly which doors were — and were not — knocked on.
+ */
+
+export type ImportPost = (url: string, init: RequestInit) => Promise<{ res: ResponseLike; body: Record<string, unknown> | null }>;
+
+export type ImportDone = {
+  ok: true;
+  profile: JobseekerProfile;
+  /** Which reader drafted the profile now in force (the stored one's, on a reuse). */
+  source: DraftSource;
+  cv: JobseekerCvListItem | null;
+  /** The text was read before: its stored draft was applied and no draft ran. */
+  reused: boolean;
+};
+
+export async function importCv(
+  file: Blob,
+  opts: { post: ImportPost; fileName?: string | null; fresh?: boolean; onStage?: (stage: ImportStage) => void }
+): Promise<ImportDone | ImportFailure> {
+  const { post, onStage } = opts;
+  onStage?.("extracting");
+  const form = new FormData();
+  form.append("file", file, opts.fileName ?? undefined);
+  const extracted = await post("/api/extract-text", { method: "POST", body: form });
+  const extract = classifyExtract(extracted.res, extracted.body);
+  if (!extract.ok) return extract;
+
+  onStage?.("drafting");
+  const jsonPost = (body: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!opts.fresh) {
+    const looked = await post("/api/jobseeker/cvs/reuse", jsonPost({ text: extract.text }));
+    const hit = classifyReuse(looked.res, looked.body);
+    if (hit) return { ok: true, profile: hit.profile, source: hit.cv.draftSource, cv: hit.cv, reused: true };
+  }
+  const drafted = await post("/api/profile/draft", jsonPost({ text: extract.text }));
+  const draft = classifyDraft(drafted.res, drafted.body);
+  if (!draft.ok) return draft;
+
+  onStage?.("saving");
+  const saved = await post(
+    "/api/jobseeker/cvs",
+    jsonPost({ text: extract.text, profile: draft.profile, draftSource: draft.source, fileName: opts.fileName ?? null, byteSize: file.size })
+  );
+  const stored = classifyRecorded(saved.res, saved.body);
+  if (!stored.ok) return stored;
+  return { ok: true, profile: stored.profile, source: draft.source, cv: stored.cv, reused: false };
 }
 
 /* ── How "no model read this" survives a reload ───────────────────────────────

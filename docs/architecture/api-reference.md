@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_277 routes, 365 handlers._
+_281 routes, 371 handlers._
 
 ### `/api/agents`
 
@@ -447,6 +447,9 @@ _277 routes, 365 handlers._
 | --- | --- | --- |
 | `/api/jobseeker/cv.md` | GET | gated |
 | `/api/jobseeker/cv.pdf` | GET | gated |
+| `/api/jobseeker/cvs` | GET, POST | gated |
+| `/api/jobseeker/cvs/[id]/use` | POST | gated |
+| `/api/jobseeker/cvs/reuse` | POST | gated |
 | `/api/jobseeker/dialogs` | GET, POST | gated |
 | `/api/jobseeker/dialogs/[id]` | GET | gated |
 | `/api/jobseeker/dialogs/[id]/message` | POST | gated |
@@ -460,6 +463,7 @@ _277 routes, 365 handlers._
 | `/api/jobseeker/sources/[id]` | PATCH | gated |
 | `/api/jobseeker/sources/[id]/preview` | POST | gated |
 | `/api/jobseeker/sources/[id]/rules/propose` | POST | gated |
+| `/api/jobseeker/ui-state` | GET, PUT | gated |
 
 ### `/api/journeys`
 
