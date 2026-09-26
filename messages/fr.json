@@ -2024,7 +2024,9 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Lisez et acceptez les conditions de cette source avant de la reprendre.",
     "GIG_WORKSPACE_FAILED": "Le dossier de travail de la mission ou son projet Personas n’a pas pu être préparé, donc rien n’a été envoyé. Vérifiez la connexion à Personas et réessayez.",
     "GIG_ROUTE_ARENA_MISMATCH": "Ce spécialiste travaille dans un autre domaine que cette mission, elle ne peut donc pas lui être attribuée.",
-    "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer."
+    "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer.",
+    "JOBSEEKER_CV_NOT_FOUND": "Ce CV ne fait pas partie des vôtres.",
+    "JOBSEEKER_REQUEST_INVALID": "Cette modification n’avait pas la forme attendue, rien n’a été enregistré."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -12928,7 +12930,24 @@
         },
         "you": "Vous",
         "inTitle": "CV reçu : {name}",
-        "replaceNote": "Vos scores restent inchangés jusqu’à la prochaine analyse."
+        "replaceNote": "Vos scores restent inchangés jusqu’à la prochaine analyse.",
+        "reused": "Déjà lu le {date}. Réutilisé, sans appel à l’IA.",
+        "readAgain": "Le relire",
+        "switched": "Vous utilisez maintenant ce CV.",
+        "earlier": {
+          "toggle": "{count, plural, one {# CV précédent} other {# CV précédents}}",
+          "unnamed": "Un CV sans nom de fichier",
+          "readOn": "Lu le {date}",
+          "how": {
+            "llm": "par le modèle d’IA",
+            "deterministic": "par l’analyseur intégré"
+          },
+          "use": "Utiliser celui-ci",
+          "using": "Changement…",
+          "useFailed": "Impossible de passer à ce CV. Votre CV actuel reste en place.",
+          "loadFailed": "Vos CV précédents n’ont pas pu être chargés.",
+          "retry": "Réessayer"
+        }
       },
       "you": {
         "eyebrow": "Étape 2 · Votre CV → Étape 3 · Vous",
@@ -13297,7 +13316,9 @@
           "undone": "Décision annulée"
         },
         "was": "avant {n}",
-        "readStale": "Rédigée avant votre dernière modification du profil. La prochaine analyse la réécrira."
+        "readStale": "Rédigée avant votre dernière modification du profil. La prochaine analyse la réécrira.",
+        "coverSaved": "Enregistré",
+        "coverSaveFailed": "Pas encore enregistré, nouvel essai en cours. Votre texte reste ici."
       },
       "sources": {
         "eyebrow": "Étape 8 · Sources",
@@ -13432,7 +13453,8 @@
         "shownToggle": "Où votre CV les montre",
         "inSkills": "Compétences",
         "inSummary": "Profil"
-      }
+      },
+      "saveFailed": "Votre choix de mise en page n’est pas encore enregistré, nouvel essai en cours."
     }
   },
   "journey": {

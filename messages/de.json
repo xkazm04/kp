@@ -2024,7 +2024,9 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Lesen und bestätigen Sie die Bedingungen dieser Quelle, bevor Sie sie fortsetzen.",
     "GIG_WORKSPACE_FAILED": "Der Arbeitsordner des Auftrags oder sein Personas-Projekt konnte nicht vorbereitet werden, daher wurde nichts gesendet. Prüfen Sie die Verbindung zu Personas und versuchen Sie es erneut.",
     "GIG_ROUTE_ARENA_MISMATCH": "Dieser Spezialist arbeitet in einem anderen Bereich als dieser Auftrag, daher kann der Auftrag ihm nicht zugeordnet werden.",
-    "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut."
+    "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut.",
+    "JOBSEEKER_CV_NOT_FOUND": "Dieser Lebenslauf gehört nicht zu Ihren.",
+    "JOBSEEKER_REQUEST_INVALID": "Diese Änderung hatte nicht die erwartete Form, es wurde nichts gespeichert."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -12928,7 +12930,24 @@
         },
         "you": "Sie",
         "inTitle": "Lebenslauf von {name} liegt vor",
-        "replaceNote": "Ihre Scores bleiben bis zum nächsten Scan unverändert."
+        "replaceNote": "Ihre Scores bleiben bis zum nächsten Scan unverändert.",
+        "reused": "Bereits am {date} gelesen. Wiederverwendet, ohne KI-Aufruf.",
+        "readAgain": "Neu einlesen",
+        "switched": "Zu diesem Lebenslauf gewechselt.",
+        "earlier": {
+          "toggle": "{count, plural, one {# früherer Lebenslauf} other {# frühere Lebensläufe}}",
+          "unnamed": "Ein Lebenslauf ohne Dateinamen",
+          "readOn": "Gelesen am {date}",
+          "how": {
+            "llm": "vom KI-Modell",
+            "deterministic": "vom eingebauten Parser"
+          },
+          "use": "Diesen verwenden",
+          "using": "Wechsle…",
+          "useFailed": "Der Wechsel zu diesem Lebenslauf ist fehlgeschlagen. Ihr aktueller bleibt in Gebrauch.",
+          "loadFailed": "Ihre früheren Lebensläufe konnten nicht geladen werden.",
+          "retry": "Erneut versuchen"
+        }
       },
       "you": {
         "eyebrow": "Schritt 2 · Ihr Lebenslauf → Schritt 3 · Sie",
@@ -13297,7 +13316,9 @@
           "undone": "Zurück auf unentschieden"
         },
         "was": "vorher {n}",
-        "readStale": "Vor Ihrer letzten Profiländerung geschrieben. Der nächste Scan schreibt sie neu."
+        "readStale": "Vor Ihrer letzten Profiländerung geschrieben. Der nächste Scan schreibt sie neu.",
+        "coverSaved": "Gespeichert",
+        "coverSaveFailed": "Noch nicht gespeichert, wird erneut versucht. Ihr Text bleibt hier."
       },
       "sources": {
         "eyebrow": "Schritt 8 · Quellen",
@@ -13432,7 +13453,8 @@
         "shownToggle": "Wo Ihr Lebenslauf sie zeigt",
         "inSkills": "Kenntnisse",
         "inSummary": "Profil"
-      }
+      },
+      "saveFailed": "Ihre Layout-Wahl ist noch nicht gespeichert, wird erneut versucht."
     }
   },
   "journey": {

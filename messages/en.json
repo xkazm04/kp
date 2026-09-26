@@ -2024,7 +2024,9 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Read and acknowledge this source’s terms before resuming it.",
     "GIG_WORKSPACE_FAILED": "The gig’s working folder or its Personas project could not be prepared, so nothing was sent. Check the Personas connection and try again.",
     "GIG_ROUTE_ARENA_MISMATCH": "That specialist works a different arena than this gig, so the gig cannot be routed to it.",
-    "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again."
+    "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again.",
+    "JOBSEEKER_CV_NOT_FOUND": "That CV is not among yours.",
+    "JOBSEEKER_REQUEST_INVALID": "That change was not in the expected shape, so nothing was saved."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -12928,7 +12930,24 @@
         },
         "you": "You",
         "inTitle": "{name}'s CV is in",
-        "replaceNote": "Your scores stay as they are until the next scan."
+        "replaceNote": "Your scores stay as they are until the next scan.",
+        "reused": "Read before on {date} - reused, no AI call.",
+        "readAgain": "Read it again",
+        "switched": "Switched to that CV.",
+        "earlier": {
+          "toggle": "{count, plural, one {# earlier CV} other {# earlier CVs}}",
+          "unnamed": "A CV with no file name",
+          "readOn": "Read {date}",
+          "how": {
+            "llm": "by the AI model",
+            "deterministic": "by the built-in parser"
+          },
+          "use": "Use this one",
+          "using": "Switching…",
+          "useFailed": "Could not switch to that CV. The one you have stays in use.",
+          "loadFailed": "Your earlier CVs could not be loaded.",
+          "retry": "Try again"
+        }
       },
       "you": {
         "eyebrow": "Step 2 · Your CV → Step 3 · You",
@@ -13297,7 +13316,9 @@
           "undone": "Back to undecided"
         },
         "was": "was {n}",
-        "readStale": "Written before your latest profile change. The next scan writes it again."
+        "readStale": "Written before your latest profile change. The next scan writes it again.",
+        "coverSaved": "Saved",
+        "coverSaveFailed": "Not saved yet - retrying. Your text stays here."
       },
       "sources": {
         "eyebrow": "Step 8 · Sources",
@@ -13432,7 +13453,8 @@
         "shownToggle": "Where your CV shows them",
         "inSkills": "Skills",
         "inSummary": "Profile"
-      }
+      },
+      "saveFailed": "Your layout choice is not saved yet - retrying."
     }
   },
   "journey": {

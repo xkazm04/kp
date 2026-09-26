@@ -2024,7 +2024,9 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Než tento zdroj znovu spustíte, přečtěte si jeho podmínky a potvrďte je.",
     "GIG_WORKSPACE_FAILED": "Pracovní složku zakázky nebo její projekt v Personas se nepodařilo připravit, a tak se nic neodeslalo. Zkontrolujte připojení k Personas a zkuste to znovu.",
     "GIG_ROUTE_ARENA_MISMATCH": "Tento specialista pracuje v jiné oblasti než zakázka, takže mu ji nelze přiřadit.",
-    "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu."
+    "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu.",
+    "JOBSEEKER_CV_NOT_FOUND": "Toto CV mezi vašimi není.",
+    "JOBSEEKER_REQUEST_INVALID": "Změna neměla očekávaný tvar, nic se neuložilo."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -12928,7 +12930,24 @@
         },
         "you": "Vy",
         "inTitle": "Nahráno CV: {name}",
-        "replaceNote": "Skóre zůstane beze změny až do příštího skenu."
+        "replaceNote": "Skóre zůstane beze změny až do příštího skenu.",
+        "reused": "Toto CV jsme už četli {date}. Použili jsme ho znovu, bez volání AI.",
+        "readAgain": "Přečíst znovu",
+        "switched": "Přepnuto na toto CV.",
+        "earlier": {
+          "toggle": "{count, plural, one {# dřívější CV} few {# dřívější CV} many {# dřívějšího CV} other {# dřívějších CV}}",
+          "unnamed": "CV bez názvu souboru",
+          "readOn": "Přečteno {date}",
+          "how": {
+            "llm": "modelem AI",
+            "deterministic": "vestavěným parserem"
+          },
+          "use": "Použít toto",
+          "using": "Přepínám…",
+          "useFailed": "Na toto CV se nepodařilo přepnout. Zůstává vaše současné.",
+          "loadFailed": "Vaše dřívější CV se nepodařilo načíst.",
+          "retry": "Zkusit znovu"
+        }
       },
       "you": {
         "eyebrow": "Krok 2 · Vaše CV → Krok 3 · Vy",
@@ -13297,7 +13316,9 @@
           "undone": "Zpět na nerozhodnuto"
         },
         "was": "dříve {n}",
-        "readStale": "Rozbor vznikl před vaší poslední změnou profilu. Příští sken ho napíše znovu."
+        "readStale": "Rozbor vznikl před vaší poslední změnou profilu. Příští sken ho napíše znovu.",
+        "coverSaved": "Uloženo",
+        "coverSaveFailed": "Zatím neuloženo, zkoušíme to znovu. Váš text zůstává zde."
       },
       "sources": {
         "eyebrow": "Krok 8 · Zdroje",
@@ -13432,7 +13453,8 @@
         "shownToggle": "Kde je vaše CV ukazuje",
         "inSkills": "Dovednosti",
         "inSummary": "Profil"
-      }
+      },
+      "saveFailed": "Vaše volba rozvržení zatím není uložena, zkoušíme to znovu."
     }
   },
   "journey": {
