@@ -141,13 +141,47 @@ _INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\boverride\s+(?:the\s+)?(?:previous|prior|above|system|prior\s+)?(?:instruction|instructions|prompt|rules)\b", re.IGNORECASE),
 )
 
-# Invisible / zero-width characters used to smuggle instructions past a human reader
-# (they render as nothing but pypdf extracts them verbatim): BOM, zero-width
-# space/joiner/non-joiner, word joiner, LTR/RTL marks + embedding/override, soft
-# hyphen, invisible separators.
-_INVISIBLE_CHARS = re.compile(
-    "[\u200b\u200c\u200d\u2060\ufeff\u200e\u200f\u202a-\u202e\u2066-\u2069\u00ad]"
-)
+# Hidden content smuggled past a human reader (it renders as nothing but pypdf
+# extracts it verbatim). The screen scores what the hidden characters SAY, never
+# that they are there: a lone zero-width joiner is how an emoji sequence, a Persian
+# word or a Devanagari half-form is spelled, a bidi mark is mandatory in correctly
+# typeset right-to-left text, and a soft hyphen or a stray BOM is what word
+# processors and concatenated exports leave behind. Flagging the character class
+# fired on every one of those real uses. Four shapes carry content instead:
+#   - a zero-width RUN (a payload, not typography);
+#   - an imperative that the instruction patterns match only once zero-width
+#     characters and soft hyphens are removed (the characters were hiding it);
+#   - Unicode tag characters (U+E0000-E007F), which encode ASCII invisibly; the one
+#     legitimate use, an emoji subdivision flag such as England's, is skipped;
+#   - a bidi OVERRIDE (LRO/RLO), which makes displayed order differ from stored
+#     order. The embeddings, isolates and marks that RTL text needs are not flagged.
+# Tests: test_authenticity.py (both directions, every escape written as \u).
+_ZERO_WIDTH = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u180e\u00ad]")
+_ZERO_WIDTH_RUN = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u180e]{8,}")
+_BIDI_OVERRIDE = re.compile("[\u202d\u202e]")
+_TAG_RUN = re.compile("[\U000e0000-\U000e007f]+")
+_SUBDIVISION_FLAG_TAG = re.compile(r"^[a-z]{2}[a-z0-9]{1,4}$")
+
+
+def _tag_smuggled(text: str) -> list[str]:
+    """Decoded tag-character payloads that are not an emoji subdivision flag."""
+    out: list[str] = []
+    for match in _TAG_RUN.finditer(text):
+        payload = "".join(chr(ord(ch) - 0xE0000) for ch in match.group()).rstrip("\x7f")
+        if not _SUBDIVISION_FLAG_TAG.match(payload):
+            out.append(payload)
+    return out
+
+
+def _instructs(text: str) -> bool:
+    return any(pattern.search(text) for pattern in _INJECTION_PATTERNS)
+
+
+def _has_hidden_content(text: str) -> bool:
+    if _ZERO_WIDTH_RUN.search(text) or _BIDI_OVERRIDE.search(text) or _tag_smuggled(text):
+        return True
+    # An instruction that only reads as one once the invisible characters vanish.
+    return not _instructs(text) and _instructs(_ZERO_WIDTH.sub("", text))
 
 # Scope ``input`` (the document itself is suspect), NOT ``authenticity``: the
 # authenticity band must not move on an injection attempt (two ledgers on purpose).
@@ -158,9 +192,10 @@ _INJECTION_IMPERATIVE_FLAG = Finding(
     code="injection_instructions", severity="warn", scope="input",
 )
 _INJECTION_INVISIBLE_FLAG = Finding(
-    "Prompt-injection screen: the CV contains hidden/zero-width characters that can "
-    "smuggle instructions past a human reader — inspect the source document before "
-    "trusting the AI narrative (manual review).",
+    "Prompt-injection screen: the CV carries content in hidden characters that a human "
+    "reader does not see (a zero-width run, a masked instruction, tag characters or a "
+    "bidi override) — inspect the source document before trusting the AI narrative "
+    "(manual review).",
     code="injection_invisible_chars", severity="warn", scope="input",
 )
 _INJECTION_REPETITION_FLAG = Finding(
@@ -183,9 +218,9 @@ def prompt_injection_checks(raw_cv_text: str) -> list[str]:
     analysis so a false positive costs a review note, not a lost candidate."""
     text = raw_cv_text or ""
     flags: list[str] = []
-    if any(pattern.search(text) for pattern in _INJECTION_PATTERNS):
+    if _instructs(text):
         flags.append(_INJECTION_IMPERATIVE_FLAG)
-    if _INVISIBLE_CHARS.search(text):
+    if _has_hidden_content(text):
         flags.append(_INJECTION_INVISIBLE_FLAG)
     if _has_absurd_repetition(text):
         flags.append(_INJECTION_REPETITION_FLAG)
