@@ -904,17 +904,49 @@ def deterministic_suggestions(
 def _apply_suggestion(artifact: dict[str, Any], section: str) -> tuple[dict[str, Any], bool]:
     """Replace `before` with `after` in cvMarkdown for the first REWRITE whose section
     matches (case-insensitive); the applied suggestion leaves the list. A ``question``
-    is advice or a request for a fact, never a wording: it is never applied."""
+    is advice or a request for a fact, never a wording: it is never applied.
+
+    The accepted edit is RECORDED in ``applied`` — before, after, and the prompt version
+    that proposed it (machine-rewrite-fidelity-contract rules 4-5: acceptance names its
+    actor, and accepted changes flow into the ONE document). The designed CV and its PDF
+    are built from the CV text with these edits applied (cvContent.ts applyAcceptedEdits),
+    so what the seeker accepts here is what they download."""
     suggestions = list(artifact.get("suggestions") or [])
     markdown = str(artifact.get("cvMarkdown") or "")
     for i, s in enumerate(suggestions):
         if s.get("kind") == "question":
             continue
         if str(s.get("section", "")).strip().lower() == section.strip().lower() and s.get("before") and s["before"] in markdown:
-            markdown = markdown.replace(s["before"], str(s.get("after") or ""), 1)
+            after = str(s.get("after") or "")
+            markdown = markdown.replace(s["before"], after, 1)
             suggestions.pop(i)
-            return {**artifact, "cvMarkdown": markdown[:MAX_CV_MARKDOWN_CHARS], "suggestions": suggestions}, True
+            applied = [*_applied_of(artifact), {
+                "section": str(s.get("section") or "")[:60],
+                "before": str(s["before"])[:300],
+                "after": after[:600],
+                "promptVersion": CV_POLISH_PROMPT_VERSION,
+            }]
+            return {**artifact, "cvMarkdown": markdown[:MAX_CV_MARKDOWN_CHARS], "suggestions": suggestions, "applied": applied[-MAX_APPLIED:]}, True
     return artifact, False
+
+
+MAX_APPLIED = 60
+
+
+def _applied_of(holder: dict[str, Any] | None, key: str = "applied") -> list[dict[str, str]]:
+    """The accepted line edits an artifact holds (or a request carries under
+    ``acceptedEdits``) — well-formed entries only, the newest ``MAX_APPLIED``."""
+    raw = holder.get(key) if isinstance(holder, dict) else None
+    out: list[dict[str, str]] = []
+    for a in raw if isinstance(raw, list) else []:
+        if isinstance(a, dict) and isinstance(a.get("before"), str) and a["before"].strip() and isinstance(a.get("after"), str):
+            out.append({
+                "section": str(a.get("section") or "")[:60],
+                "before": a["before"][:300],
+                "after": a["after"][:600],
+                "promptVersion": str(a.get("promptVersion") or "")[:40],
+            })
+    return out[-MAX_APPLIED:]
 
 
 def _names_question(artifact: dict[str, Any], section: str) -> bool:
@@ -1312,15 +1344,28 @@ def _base_artifact(req: dict[str, Any], lang: str, profile: CandidateProfileV2) 
             "preferences": _norm_prefs(current.get("preferences")),
             "unreadable": [str(x)[:400] for x in current.get("unreadable") or [] if str(x).strip()][:50],
             "suggestions": screen_suggestions(stored, _record_of(req), lang, target),
+            "applied": _applied_of(current),
         }
     markdown, unreadable = reflow_cv(req.get("cvSourceText"), lang, profile.display_name)
+    # A new conversation carries the edits the seeker accepted in earlier ones
+    # (``acceptedEdits``, read by the route from their dialogs): each is re-applied while
+    # its ``before`` is still the seeker's line — bound to the text it judged, never
+    # re-anchored by a fuzzy match (fidelity contract rule 6).
+    carried = [a for a in _applied_of(req, "acceptedEdits") if a["before"] in markdown]
+    for a in carried:
+        markdown = markdown.replace(a["before"], a["after"], 1)
+    suggestions = [
+        s for s in deterministic_suggestions(
+            req.get("cvSourceText"), profile, lang, _first_target(_norm_prefs(req.get("preferences")))
+        )
+        if s["before"] in markdown
+    ]
     return {
-        "cvMarkdown": markdown,
+        "cvMarkdown": markdown[:MAX_CV_MARKDOWN_CHARS],
         "preferences": {},
         "unreadable": unreadable,
-        "suggestions": deterministic_suggestions(
-            req.get("cvSourceText"), profile, lang, _first_target(_norm_prefs(req.get("preferences")))
-        ),
+        "suggestions": suggestions,
+        "applied": carried,
     }
 
 
@@ -2221,7 +2266,10 @@ def run_turn(provider: Any | None, req: dict[str, Any]) -> dict[str, Any]:
             "reply": reply,
             "done": done,
             "choices": choices,
-            "artifact": {"cvMarkdown": markdown, "preferences": partial, "unreadable": unreadable, "suggestions": suggestions},
+            "artifact": {
+                "cvMarkdown": markdown, "preferences": partial, "unreadable": unreadable, "suggestions": suggestions,
+                "applied": _applied_of(sheet),
+            },
             "promptVersion": CV_POLISH_PROMPT_VERSION,
         }
 

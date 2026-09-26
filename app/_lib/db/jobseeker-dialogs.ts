@@ -58,8 +58,10 @@ function fromRow(row: DialogRow): JobseekerDialog {
   };
 }
 
+/** `artifact`: stored with the opening when given (a cv_polish dialog that carries the
+ *  seeker's earlier accepted edits must hold them from its first row); NULL otherwise. */
 export function createDialog(
-  input: { profileId: string; kind: DialogKind; postingId: string | null; lang: string; opening: StudioTurn[] },
+  input: { profileId: string; kind: DialogKind; postingId: string | null; lang: string; opening: StudioTurn[]; artifact?: DialogArtifact | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): JobseekerDialog {
   const d = ensureDb();
@@ -68,8 +70,19 @@ export function createDialog(
   d.prepare(
     `INSERT INTO jobseeker_dialogs
        (id, workspace_id, profile_id, kind, posting_id, transcript_json, artifact_json, status, lang, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, 'open', ?, ?, ?)`
-  ).run(id, workspaceId, input.profileId, input.kind, input.postingId, JSON.stringify(capTurns(input.opening)), input.lang.slice(0, 16), now, now);
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`
+  ).run(
+    id,
+    workspaceId,
+    input.profileId,
+    input.kind,
+    input.postingId,
+    JSON.stringify(capTurns(input.opening)),
+    input.artifact ? JSON.stringify(input.artifact) : null,
+    input.lang.slice(0, 16),
+    now,
+    now
+  );
   return fromRow(d.prepare(`SELECT * FROM jobseeker_dialogs WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as DialogRow);
 }
 

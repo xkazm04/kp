@@ -394,7 +394,16 @@ export type CvPolishArtifact = {
    *  applied (pipeline/jobfit/jobseeker.py `screen_suggestions`). Absent on rows stored
    *  before the screen existed — the engine screens those again on the next turn. */
   suggestions: { section: string; before: string; after: string; why: string; kind?: "rewrite" | "question" }[];
+  /** The line edits the seeker ACCEPTED ("Apply"), oldest first — the one record the
+   *  designed CV and its PDF apply onto the CV text (cvContent.ts applyAcceptedEdits).
+   *  A new cv_polish dialog carries the earlier dialogs' edits forward. Absent on rows
+   *  written before it existed. */
+  applied?: CvAcceptedEdit[];
 };
+
+/** One accepted line edit: the seeker's own line (`before`, verbatim in the CV text),
+ *  the screened rewrite they accepted, and the prompt version that proposed it. */
+export type CvAcceptedEdit = { section: string; before: string; after: string; promptVersion: string };
 
 export type FitArtifact = {
   verdict: "apply" | "skip" | "undecided";

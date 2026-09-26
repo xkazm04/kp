@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCvDocument, formatDates } from "./cvDocument";
-import { descriptorIn, languageLines, outcomeRung, SKILL_CAP } from "./cvContent";
+import { acceptedEditsOf, applyAcceptedEdits, descriptorIn, languageLines, outcomeRung, SKILL_CAP } from "./cvContent";
 import { tailorCvDocument } from "./cvTailor";
 
 // The designed CV's content rules, held to registry recruiting/cv-content-construction.
@@ -287,4 +287,40 @@ test("no personal data by default: birth date, marital status, nationality, phot
   // The model has no field for any of it: no photo, birth date, marital status or signature.
   for (const key of ["photo", "birthDate", "dateOfBirth", "maritalStatus", "nationality", "signature"]) assert.ok(!(key in doc), key);
   assert.deepEqual(doc.skills.flatMap((g) => g.items.map((i) => i.name)), ["Python", "SQL"]);
+});
+
+test("an ACCEPTED polish edit reaches the designed CV; a suggestion the seeker did not accept never does", () => {
+  const accepted = { before: "Responsible for client workshops.", after: "Ran client workshops." };
+  const offered = { before: "Documented the architecture in Confluence.", after: "Documented the platform architecture in Confluence." };
+  const dialogs = [
+    { kind: "fit", createdAt: "2026-09-20T10:00:00Z", updatedAt: "2026-09-20T10:00:00Z", artifact: { applied: [{ ...offered, section: "x", promptVersion: "v" }] } },
+    {
+      kind: "cv_polish",
+      createdAt: "2026-09-21T10:00:00Z",
+      updatedAt: "2026-09-21T11:00:00Z",
+      // `suggestions` is what was OFFERED; only `applied` is what the seeker accepted.
+      artifact: { cvMarkdown: "# x", suggestions: [{ section: "Experience", ...offered, why: "", kind: "rewrite" }], applied: [{ section: "Experience", ...accepted, promptVersion: "cv-polish-v3" }] },
+    },
+  ];
+  const edits = acceptedEditsOf(dialogs);
+  assert.deepEqual(edits, [accepted], "fit dialogs and unaccepted suggestions carry nothing");
+  const doc = buildCvDocument({ profile: CHANGER_PROFILE, preferences: { targetTitles: [] }, cvSourceText: CHANGER_CV, today: TODAY, acceptedEdits: edits });
+  const lines = doc.experience[0]!.bullets.concat(doc.experience[0]!.trimmed ?? []).map(lineOf);
+  assert.ok(lines.includes("Ran client workshops."), lines.join(" | "));
+  assert.ok(!lines.includes("Responsible for client workshops."));
+  assert.ok(lines.includes("Documented the architecture in Confluence."), "an offered rewrite the seeker did not accept is not on the sheet");
+  assert.ok(!JSON.stringify(doc).includes("platform architecture"));
+  // Without the edits, the sheet is the CV as written.
+  assert.ok(CHANGER.experience[0]!.bullets.map(lineOf).includes("Responsible for client workshops."));
+});
+
+test("an accepted edit is bound to the line it judged: a CV that no longer holds the line drops it", () => {
+  assert.equal(applyAcceptedEdits("Built X. Ran Y.", [{ before: "Ran Y.", after: "Ran Y weekly." }]), "Built X. Ran Y weekly.");
+  assert.equal(applyAcceptedEdits("Built X. Ran Z.", [{ before: "Ran Y.", after: "Ran Y weekly." }]), "Built X. Ran Z.");
+  // A later acceptance for the same line wins; each line is edited once.
+  const later = acceptedEditsOf([
+    { kind: "cv_polish", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-01T00:00:00Z", artifact: { applied: [{ before: "Ran Y.", after: "First." }] } },
+    { kind: "cv_polish", createdAt: "2026-09-02T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", artifact: { applied: [{ before: "Ran Y.", after: "Second." }] } },
+  ]);
+  assert.deepEqual(later, [{ before: "Ran Y.", after: "Second." }]);
 });

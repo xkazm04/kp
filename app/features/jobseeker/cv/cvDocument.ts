@@ -20,7 +20,7 @@
 
 import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
-import { descriptorQuestions, isPersonalData, languageLines, orderSkills, outcomeQuestions, PRESENT_WORD, rankByOutcome, roleBudget } from "./cvContent";
+import { applyAcceptedEdits, descriptorQuestions, isPersonalData, languageLines, orderSkills, outcomeQuestions, PRESENT_WORD, rankByOutcome, roleBudget } from "./cvContent";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
 /** `compact`: the role is set as ONE line (title, employer, dates) — past the recency
@@ -490,11 +490,15 @@ export function buildCvDocument(input: {
   cvSourceText: string | null;
   /** "Now" for the recency budget; the caller's clock by default. */
   today?: Date;
+  /** The line edits the seeker ACCEPTED in the CV studio (cvContent.ts acceptedEditsOf):
+   *  applied onto the CV text before anything is read from it, so the preview, the print
+   *  page and the PDF carry exactly what the seeker approved — and nothing they did not. */
+  acceptedEdits?: readonly { before: string; after: string }[] | null;
 }): CvDocument {
   // `preferences` stays on the input (the callers hold it) but no longer shapes the sheet.
   const { profile } = input;
   const today = input.today ?? new Date();
-  const text = input.cvSourceText ?? "";
+  const text = applyAcceptedEdits(input.cvSourceText ?? "", input.acceptedEdits);
   const log: CvImprovement[] = [];
   const lang = cvLanguageOf(text);
   const blocks = blocksOf(text);
@@ -541,7 +545,7 @@ export function buildCvDocument(input: {
     const dates = formatDates(parts.dates ?? source?.dates ?? null, lang);
     // Strongest outcome first (the CV's order breaks ties), then the recency budget: the
     // weakest bullets are held back, never the strongest, and never the role itself.
-    const ranked = rankByOutcome(bulletsOf(source && source.lines.length ? source.lines.join(" ") : (e.text ?? ""), log), bulletLine);
+    const ranked = rankByOutcome(bulletsOf(source && source.lines.length ? source.lines.join(" ") : applyAcceptedEdits(e.text ?? "", input.acceptedEdits), log), bulletLine);
     const budget = roleBudget(index, dates, today);
     const bullets = ranked.slice(0, budget);
     return { role: polishTerms(parts.role, log), org: parts.org, dates, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };

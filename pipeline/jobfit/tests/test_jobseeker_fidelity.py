@@ -221,5 +221,56 @@ class StoredSuggestionsTest(unittest.TestCase):
             self.assertIn(s["before"], SOURCE)
 
 
+class AcceptedEditsTest(unittest.TestCase):
+    """Rule 5: accepted changes flow into the ONE document. What the seeker applies is
+    recorded (before, after, the prompt version that proposed it) so the designed CV and
+    its PDF can be built from the CV text with exactly those edits — and nothing else."""
+
+    REWRITE = {"section": "Experience", "before": REPORT, "after": "Produced the weekly sales report.", "why": "active", "kind": "rewrite"}
+
+    def _applied(self):
+        opening = opening_turn(_req())
+        artifact = {**opening["artifact"], "suggestions": [self.REWRITE]}
+        turns = [{"role": "interviewer", "text": opening["reply"]}]
+        return deterministic_turn(_req(transcript=turns, message="Apply suggestion: Experience", artifact=artifact))
+
+    def test_an_applied_rewrite_is_recorded_with_its_actor(self) -> None:
+        result = self._applied()
+        from pipeline.jobfit.jobseeker import CV_POLISH_PROMPT_VERSION
+
+        self.assertEqual(result["artifact"]["applied"], [{
+            "section": "Experience", "before": REPORT, "after": "Produced the weekly sales report.", "promptVersion": CV_POLISH_PROMPT_VERSION,
+        }])
+
+    def test_a_question_is_never_recorded_as_accepted(self) -> None:
+        opening = opening_turn(_req())
+        turns = [{"role": "interviewer", "text": opening["reply"]}]
+        section = opening["artifact"]["suggestions"][0]["section"]
+        result = deterministic_turn(_req(transcript=turns, message=f"Apply suggestion: {section}", artifact=opening["artifact"]))
+        self.assertEqual(result["artifact"]["applied"], [])
+
+    def test_the_record_survives_later_turns_on_both_paths(self) -> None:
+        first = self._applied()
+        turns = [{"role": "interviewer", "text": "x"}, {"role": "candidate", "text": "Apply suggestion: Experience"}, {"role": "interviewer", "text": first["reply"]}]
+        keyless = deterministic_turn(_req(transcript=turns, message="Praha", artifact=first["artifact"]))
+        self.assertEqual(len(keyless["artifact"]["applied"]), 1)
+        payload = {"reply": "Noted.", "done": False, "artifact": {"cvMarkdown": "# Other", "preferences": {}, "unreadable": [], "suggestions": []}}
+        keyed = run_turn(TextReply(payload), _req(transcript=turns, message="Praha", artifact=first["artifact"]))
+        self.assertEqual(keyed["source"], "llm")
+        self.assertEqual(keyed["artifact"]["applied"], first["artifact"]["applied"])
+        self.assertIn("Produced the weekly sales report.", keyed["artifact"]["cvMarkdown"])
+
+    def test_a_new_conversation_carries_the_accepted_edits_bound_to_their_text(self) -> None:
+        carried = self._applied()["artifact"]["applied"]
+        stale = {"section": "Summary", "before": "A sentence the CV no longer holds.", "after": "Whatever.", "promptVersion": "cv-polish-v3"}
+        opening = opening_turn(_req(acceptedEdits=[*carried, stale]))
+        self.assertEqual(opening["artifact"]["applied"], carried)
+        self.assertIn("Produced the weekly sales report.", opening["artifact"]["cvMarkdown"])
+        self.assertNotIn(REPORT, opening["artifact"]["cvMarkdown"])
+        self.assertNotIn("Whatever.", opening["artifact"]["cvMarkdown"])
+        # A suggestion against a line that was already rewritten is not offered again.
+        self.assertNotIn(REPORT, [s["before"] for s in opening["artifact"]["suggestions"]])
+
+
 if __name__ == "__main__":
     unittest.main()

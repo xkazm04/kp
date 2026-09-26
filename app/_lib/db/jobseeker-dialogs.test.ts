@@ -79,3 +79,18 @@ test("latestFitDialogForPosting: the newest CLOSED fit verdict for that posting,
   assert.equal(latestFitDialogForPosting(posting)?.id, again.id);
   assert.equal((latestFitDialogForPosting(posting)?.artifact as { verdict: string }).verdict, "skip");
 });
+
+test("createDialog stores an opening artifact when given (a CV conversation that carries accepted edits)", () => {
+  const artifact = {
+    cvMarkdown: "# Jana\n- Ran client workshops.",
+    preferences: {},
+    unreadable: [],
+    suggestions: [],
+    applied: [{ section: "Experience", before: "Responsible for client workshops.", after: "Ran client workshops.", promptVersion: "cv-polish-v3" }],
+  };
+  const carried = createDialog({ profileId: "jsp-carry", kind: "cv_polish", postingId: null, lang: "en", opening, artifact });
+  assert.deepEqual(getDialog(carried.id)!.artifact, artifact);
+  // Without one, the row starts empty as before.
+  const plain = createDialog({ profileId: "jsp-carry", kind: "cv_polish", postingId: null, lang: "en", opening });
+  assert.equal(getDialog(plain.id)!.artifact, null);
+});

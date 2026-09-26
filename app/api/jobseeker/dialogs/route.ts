@@ -10,7 +10,8 @@ import { getJobseekerProfile, getJobseekerProfileById } from "@/app/_lib/db/jobs
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { fitTurnContext } from "@/app/_lib/jobseeker-fit-context";
 import { JobseekerInputError, JobseekerTimeoutError, runJobseekerOpening } from "@/app/_lib/jobseeker-run";
-import { isDialogKind, type StudioTurn } from "@/app/_lib/jobseeker/types";
+import { isDialogKind, type CvAcceptedEdit, type StudioTurn } from "@/app/_lib/jobseeker/types";
+import { coerceAcceptedEdits } from "@/app/_lib/jobseeker-run";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // The seeker's Studio dialogs: POST opens one (cv_polish over the stored CV, or fit
@@ -68,6 +69,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     // too. A fit request naming no posting, or a foreign one, is a posting not found.
     const fit = kind === "fit" ? fitTurnContext(postingId, ws) : null;
     if (kind === "fit" && !fit) return jsonRefusal("POSTING_NOT_FOUND", 404);
+    // A new CV conversation carries the line edits the seeker accepted in earlier ones,
+    // so the newest conversation stays the ONE record the designed CV applies (/me and
+    // the print page read it). Oldest first; a later acceptance for a line wins.
+    const acceptedEdits: CvAcceptedEdit[] = [];
+    if (kind === "cv_polish") {
+      const earlier = listDialogs(profile.id, ws)
+        .filter((d) => d.kind === "cv_polish")
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      for (const d of earlier) {
+        for (const edit of coerceAcceptedEdits(d.artifact && "cvMarkdown" in d.artifact ? d.artifact.applied : null)) {
+          const same = acceptedEdits.findIndex((e) => e.before === edit.before);
+          if (same >= 0) acceptedEdits.splice(same, 1);
+          acceptedEdits.push(edit);
+        }
+      }
+    }
     const opening = await runJobseekerOpening(
       {
         kind,
@@ -76,6 +93,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         preferences: profile.preferences,
         cvSourceText: profile.cvSourceText,
         artifact: null,
+        ...(acceptedEdits.length ? { acceptedEdits } : {}),
         ...(fit ?? {}),
       },
       request.signal
@@ -86,7 +104,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       at: new Date().toISOString(),
       ...(opening.choices ? { choices: opening.choices } : {}),
     };
-    const dialog = createDialog({ profileId: profile.id, kind, postingId, lang, opening: [turn] }, ws);
+    // With carried edits the opening's artifact is stored at once: the first message
+    // (and /me, which reads the newest conversation) must see them before any reply.
+    const carries = kind === "cv_polish" && !!opening.artifact && "cvMarkdown" in opening.artifact && (opening.artifact.applied?.length ?? 0) > 0;
+    const dialog = createDialog({ profileId: profile.id, kind, postingId, lang, opening: [turn], artifact: carries ? opening.artifact : null }, ws);
     // The opening's artifact (the re-flowed CV, the grounded suggestions) is the
     // sheet's first paint; it rides the create response and the first write.
     return NextResponse.json({

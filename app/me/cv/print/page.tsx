@@ -4,10 +4,12 @@ import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, INTRO, PAGE_HEADER, PAN
 import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { currentUserId } from "@/app/_lib/auth/session";
+import { listDialogs } from "@/app/_lib/db/jobseeker-dialogs";
 import { listJobseekerPostings } from "@/app/_lib/db/jobseeker-postings";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
 import { CvDesigner } from "@/app/features/jobseeker/cv/CvDesigner";
+import { acceptedEditsOf, type AcceptedEdit } from "@/app/features/jobseeker/cv/cvContent";
 import { buildCvDocument } from "@/app/features/jobseeker/cv/cvDocument";
 import { parseCvDesign } from "@/app/features/jobseeker/cv/cvQuery";
 import { tailorTargetsOf, type CvTailorTarget } from "@/app/features/jobseeker/cv/cvTailor";
@@ -51,7 +53,20 @@ export default async function CvPrintPage({ searchParams }: { searchParams: Prom
   const [session, ws, params] = await Promise.all([currentSession(), currentWorkspace(), searchParams]);
   const profile = getJobseekerProfile(currentUserId(session), ws);
   const design = parseCvDesign((k) => params[k]);
-  const doc = profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length) ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText }) : null;
+  // The line edits the seeker ACCEPTED in the CV studio, from the newest CV conversation
+  // (it carries the earlier ones forward) — the record the /me preview reads too, so the
+  // page and the PDF carry exactly what was approved. A store failure prints the CV as
+  // written rather than losing the page.
+  let acceptedEdits: AcceptedEdit[] = [];
+  if (profile) {
+    try {
+      const newest = listDialogs(profile.id, ws).find((d) => d.kind === "cv_polish") ?? null;
+      acceptedEdits = acceptedEditsOf([newest]);
+    } catch (err) {
+      console.error("[me/cv/print] JOBSEEKER_STORE_FAILED", err);
+    }
+  }
+  const doc = profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length) ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText, acceptedEdits }) : null;
   let targets: CvTailorTarget[] = [];
   if (doc && profile!.preferences.targetTitles.some((title) => title.trim())) {
     // The market read is an enhancement: a store failure tailors from the built-in

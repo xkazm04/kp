@@ -6,6 +6,7 @@ import { coerceIntakeChoiceSet } from "./intake-choices";
 import { parsePreferencesPatch } from "./jobseeker/profile";
 import {
   isDialogKind,
+  type CvAcceptedEdit,
   type CvPolishArtifact,
   type DialogArtifact,
   type DialogKind,
@@ -67,6 +68,9 @@ export type JobseekerTurnInput = {
   transcript: StudioTurn[];
   /** null = produce the opening turn (always deterministic). */
   message: string | null;
+  /** cv_polish opening only: the edits the seeker accepted in EARLIER cv_polish dialogs,
+   *  re-applied onto the new dialog's sheet while their `before` is still the CV's line. */
+  acceptedEdits?: CvAcceptedEdit[];
   /** fit only (WP5): the posting and its match. Passed through untouched. */
   posting?: Record<string, unknown> | null;
   match?: Record<string, unknown> | null;
@@ -112,7 +116,21 @@ export function coerceCvPolishArtifact(raw: unknown): CvPolishArtifact | null {
     preferences: parsePreferencesPatch(r.preferences),
     unreadable: stringList(r.unreadable, MAX_UNREADABLE, 400),
     suggestions,
+    applied: coerceAcceptedEdits(r.applied),
   };
+}
+
+const MAX_APPLIED = 60;
+
+/** The seeker's accepted line edits (the engine's `applied` record): well-formed rows
+ *  only, a line that names no source text dropped, the newest MAX_APPLIED kept. */
+export function coerceAcceptedEdits(raw: unknown): CvAcceptedEdit[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((a) => (a && typeof a === "object" ? (a as Record<string, unknown>) : null))
+    .filter((a): a is Record<string, unknown> => a !== null && typeof a.after === "string")
+    .map((a) => ({ section: text(a.section, 60), before: text(a.before, 300), after: String(a.after).trim().slice(0, 600), promptVersion: text(a.promptVersion, 40) }))
+    .filter((a) => a.before)
+    .slice(-MAX_APPLIED);
 }
 
 const FIT_VERDICTS = ["apply", "skip", "undecided"] as const;

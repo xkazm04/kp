@@ -339,3 +339,50 @@ export function isPersonalData(line: string): boolean {
 
 /** The word for "to the present" in each market's date ranges ("03/2020 – dosud"). */
 export const PRESENT_WORD: Record<CvLang, string> = { en: "present", cs: "dosud", de: "heute", fr: "aujourd'hui" };
+
+// ── accepted polish edits: one source of truth ─────────────────────────────────────
+//
+// technique machine-rewrite-fidelity-contract, rule 5: accepted changes flow into the ONE
+// document. A polished text living beside the printed one is a second source of truth —
+// the owner accepts improvements that never reach the page. So the designed CV (the /me
+// preview, the print page, the PDF) is built from the CV text with exactly the line edits
+// the seeker ACCEPTED in the CV studio applied — never a suggestion they did not accept,
+// never the model's own redraft. Rule 6: an edit is bound to the text it judged — it
+// applies only while its `before` is still, verbatim, in the CV text (a re-imported CV
+// that changed the line drops it rather than re-anchoring it by a fuzzy match).
+
+export type AcceptedEdit = { before: string; after: string };
+
+type DialogLike = { kind: string; createdAt?: string; updatedAt: string; artifact: unknown };
+
+function appliedOf(artifact: unknown): AcceptedEdit[] {
+  const raw = artifact && typeof artifact === "object" ? (artifact as { applied?: unknown }).applied : null;
+  return (Array.isArray(raw) ? raw : [])
+    .filter((a): a is AcceptedEdit => !!a && typeof a === "object" && typeof (a as AcceptedEdit).before === "string" && typeof (a as AcceptedEdit).after === "string")
+    .filter((a) => a.before.trim())
+    .map((a) => ({ before: a.before, after: a.after }));
+}
+
+/** The seeker's accepted edits across their CV-studio dialogs, oldest dialog first, one
+ *  per line (a later acceptance for the same line wins). Fit dialogs carry none. */
+export function acceptedEditsOf(dialogs: readonly (DialogLike | null | undefined)[]): AcceptedEdit[] {
+  const polish = dialogs
+    .filter((d): d is DialogLike => !!d && d.kind === "cv_polish")
+    .sort((a, b) => (a.createdAt ?? a.updatedAt).localeCompare(b.createdAt ?? b.updatedAt) || a.updatedAt.localeCompare(b.updatedAt));
+  const byLine = new Map<string, AcceptedEdit>();
+  for (const d of polish) for (const edit of appliedOf(d.artifact)) {
+    byLine.delete(edit.before);
+    byLine.set(edit.before, edit);
+  }
+  return [...byLine.values()];
+}
+
+/** `text` with each accepted edit applied once, in order, while its line is still there. */
+export function applyAcceptedEdits(text: string, edits: readonly AcceptedEdit[] | null | undefined): string {
+  let out = text || "";
+  for (const e of edits ?? []) {
+    const at = e.before ? out.indexOf(e.before) : -1;
+    if (at >= 0) out = out.slice(0, at) + e.after + out.slice(at + e.before.length);
+  }
+  return out;
+}

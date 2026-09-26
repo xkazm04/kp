@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { CvPolishArtifact, JobseekerDialog, JobseekerPostingSummary, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { CvDesigner } from "../cv/CvDesigner";
+import { acceptedEditsOf } from "../cv/cvContent";
 import { buildCvDocument } from "../cv/cvDocument";
 import { tailorTargetsOf } from "../cv/cvTailor";
 import type { DraftSource } from "../importOutcome";
@@ -155,12 +156,15 @@ export function StepYou({
   const tCv = useTranslations("me.designedCv");
 
   const lines = useMemo(() => (profile?.cvSourceText ? readCv(profile.cvSourceText, termsOf(profile)) : []), [profile]);
+  // The designed CV carries the line edits the seeker ACCEPTED in the CV studio (the
+  // newest CV conversation's record, which carries the earlier ones forward) — the same
+  // record the print page and the PDF read, so the preview is what they download.
   const designed = useMemo(
     () =>
       profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length)
-        ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText })
+        ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText, acceptedEdits: acceptedEditsOf([cvDialog]) })
         : null,
-    [profile]
+    [profile, cvDialog]
   );
   // The seeker's stated targets, each with its demand, for the designer's "Tailor for".
   const tailorTargets = useMemo(() => (profile ? tailorTargetsOf(profile.preferences.targetTitles, postings) : []), [profile, postings]);
