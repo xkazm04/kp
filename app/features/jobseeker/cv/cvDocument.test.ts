@@ -170,3 +170,34 @@ test("an AI draft's paraphrase gives way to the CV's own lines, dates included, 
     ]
   );
 });
+
+test("a draft titled 'Role, Employer' in another language still gets the CV's own lines and dates", () => {
+  // A real import: the CV in English, the AI draft's titles "Role, Employer" and its text a
+  // Czech paraphrase. The sheet must print the CV's words and dates, not the paraphrase.
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "DATA ENGINEER",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 4/2022 - 9/2025",
+    "Data Engineer",
+    "Kafka streaming for store analytics in TypeScript.",
+    "Freelancer 01/2021 - 03/2022",
+    "Analytics Consultant",
+    "Dashboards for two retail chains.",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Engineer, Acme Retail, a.s.", text: "Streamování dat pro analytiku prodejen." },
+      { kind: "job", title: "Analytics Consultant, Freelancer (Beta Chain, Inc.)", text: "Přehledy pro dva řetězce." },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.deepEqual(
+    doc.experience.map((r) => [r.role, r.org, r.dates, r.bullets.map((b) => b.text).join(" ")]),
+    [
+      ["Data Engineer", "Acme Retail, a.s.", "04/2022 – 09/2025", "Kafka streaming for store analytics in TypeScript."],
+      ["Analytics Consultant", "Freelancer (Beta Chain, Inc.)", "01/2021 – 03/2022", "Dashboards for two retail chains."],
+    ]
+  );
+});

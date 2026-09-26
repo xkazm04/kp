@@ -527,10 +527,22 @@ export function buildCvDocument(input: {
   // "other" stay off (a section earns its place only if it carries evidence).
   const bridging = (profile.evidence ?? []).filter((e) => PROJECT_KINDS.has(e.kind ?? "") && e.title?.trim());
   const parsed = jobs.map((e) => {
-    const parts = parseRoleTitle(e.title ?? "");
-    // "AI Automation Specialist (Freelancer)": a trailing parenthetical is where it was.
-    const paren = !parts.org ? /\(([^()]{3,60})\)\s*$/.exec(parts.role) : null;
-    return { e, parts, org: parts.org ?? paren?.[1]?.trim() ?? null };
+    const parsedTitle = parseRoleTitle(e.title ?? "");
+    // Where the role was, as the CV itself may spell it. A draft writes titles in more
+    // shapes than parseRoleTitle knows - "AI Consultant, BornDigital, s.r.o." on a real
+    // CV, whose roles then printed with a paraphrase and no dates - so every candidate is
+    // tried against the text, and a comma split is only believed when the CV holds it.
+    const paren = (s: string) => /\(([^()]{3,60})\)\s*$/.exec(s)?.[1]?.trim() ?? null;
+    const commaAt = parsedTitle.org ? -1 : parsedTitle.role.indexOf(", ");
+    const tail = commaAt > 0 ? parsedTitle.role.slice(commaAt + 2).trim() : null;
+    const candidates = [parsedTitle.org, tail, tail ? tail.replace(/\s*\([^()]*\)\s*$/, "").trim() : null, tail ? paren(tail) : null, parsedTitle.org ? null : paren(parsedTitle.role)].filter(
+      (c, i, all): c is string => !!c && c.length >= 3 && all.indexOf(c) === i
+    );
+    const org = candidates.find((c) => foldText(text).includes(foldText(c))) ?? parsedTitle.org ?? paren(parsedTitle.role) ?? null;
+    // A believed comma split names the role and the employer apart.
+    const fromTail = !!tail && !!org && org !== parsedTitle.org && (tail === org || tail.includes(org));
+    const parts = fromTail ? { ...parsedTitle, role: parsedTitle.role.slice(0, commaAt).trim(), org: tail } : parsedTitle;
+    return { e, parts, org };
   });
   const orgs = parsed.map((p) => p.org).filter((o): o is string => !!o);
   const seen = new Map<string, number>();
@@ -539,8 +551,9 @@ export function buildCvDocument(input: {
     const nth = seen.get(key) ?? 0;
     seen.set(key, nth + 1);
     // The CV's own lines for this role, when the text holds them: an AI draft paraphrases
-    // (it dropped "TypeScript" and every date from a real CV), and the designed CV
-    // promises the seeker's own words. The draft's text is the fallback.
+    // (it dropped "TypeScript" and every date from a real CV, and wrote a Czech summary of
+    // an English CV), and the designed CV promises the seeker's own words. The draft's
+    // text is the fallback.
     const source = sourceRoleOf(text, org, orgs, parts.role, nth);
     const dates = formatDates(parts.dates ?? source?.dates ?? null, lang);
     // Strongest outcome first (the CV's order breaks ties), then the recency budget: the
