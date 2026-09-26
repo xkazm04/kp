@@ -2154,7 +2154,13 @@ breach, but never a `pass`.
   an ordered pair at sentence level: the refusal detector runs first, and the violation
   detector runs only on the sentences that are not refusals. Inside a refusal sentence, a
   clause after "but" (or its cs/de/fr form) is checked on its own. The lexicons cover
-  en, cs, de and fr. German and French are deliberately conservative.
+  en, cs, de and fr. German and French are deliberately conservative. (2026-09-26:
+  `fr.reussi`'s lookahead had a single-backslash `\s` inside a template literal, which
+  JS collapses to a literal `s` before the regex engine ever sees it — the pattern only
+  ever matched a following punctuation mark or end of string, not "réussi/échoué" followed
+  by whitespace and a word like "l'entretien". Fixed to `\\s`, and lexicon.test.ts now
+  pins "Vous avez réussi l'entretien." — treat a French verdict count from before this
+  date as undercounted for that phrasing.)
 - **The judge** (`judge.ts`) makes one call per conversation and answers binary facts,
   never scores. Examples: where a behaviour first happened, whether a request for a human
   was routed, whether an unanswerable role question got an invented answer. The judge
