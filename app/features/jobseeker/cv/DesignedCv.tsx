@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { levelPips, type CvBullet, type CvContact, type CvDocument, type CvRole } from "./cvDocument";
+import { CV_HEADINGS, type CvBullet, type CvContact, type CvDocument, type CvRole } from "./cvDocument";
 import type { CvAccent, CvTemplate } from "./cvQuery";
-import { CV_ORG_SEPARATOR, cssString, cvHeadingsOf } from "./cvSheet";
+import { CV_ORG_SEPARATOR, cssString, emphasisRanges, skillText } from "./cvSheet";
 import "./cv.css";
 
 // The designed CV — one markup, four templates (cv.css). Pure and hook-free, so the
@@ -39,13 +39,14 @@ function Glyph({ kind }: { kind: keyof typeof ICON }) {
   );
 }
 
-/** A bullet's text with its emphasis ranges (a term the tailored target asks for) bolded. */
-function Emphasised({ text, ranges }: { text: string; ranges: CvBullet["emphasis"] }) {
-  if (!ranges?.length) return <>{text}</>;
+/** A bullet's text with the document's emphasis terms in bold - the only bold a bullet
+ *  carries (cvSheet.ts `emphasisRanges`). */
+function Emphasised({ text, emphasis }: { text: string; emphasis: CvBullet["emphasis"] }) {
+  const ranges = emphasisRanges(text, emphasis);
+  if (!ranges.length) return <>{text}</>;
   const out: ReactNode[] = [];
   let at = 0;
   ranges.forEach(([s, e], i) => {
-    if (s < at || e > text.length) return;
     if (s > at) out.push(text.slice(at, s));
     out.push(
       <strong key={i} className="cv-em">
@@ -87,8 +88,8 @@ function Role({ r }: { r: CvRole }) {
         <ul className="cv-bullets">
           {r.bullets.map((b, j) => (
             <li key={j}>
-              {b.lead ? <b>{b.lead}: </b> : null}
-              <Emphasised text={b.text} ranges={b.emphasis} />
+              {b.lead ? `${b.lead}: ` : null}
+              <Emphasised text={b.text} emphasis={b.emphasis} />
             </li>
           ))}
         </ul>
@@ -98,8 +99,8 @@ function Role({ r }: { r: CvRole }) {
 }
 
 export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; template: CvTemplate; accent: CvAccent; id?: string }) {
-  const h = cvHeadingsOf(doc);
-  const projects = doc.projects ?? [];
+  const h = CV_HEADINGS[doc.lang];
+  const projects = doc.projects;
   const titled = doc.skills.some((g) => g.title);
 
   return (
@@ -170,51 +171,31 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
       </div>
 
       <div className="cv-side">
+        {/* Skills as WORDS (registry cv-content-construction, evidenced-skills-over-
+            self-ratings): the CV's own level word after the name, never pips or bars -
+            a self-rating drawn as a meter is a guess in the grammar of measurement, and
+            it extracts as nothing. No bold inside the list. */}
         {doc.skills.length ? (
           <section className="cv-sec is-skills">
             <h3 className="cv-sec-title">{h.skills}</h3>
             <div className="cv-groups">
-              {doc.skills.map((g, i) => {
-                const levelled = g.items.some((it) => it.level);
-                return (
-                  <div key={i} className="cv-group">
-                    {titled && g.title ? <h4 className="cv-group-title">{g.title}</h4> : null}
-                    {levelled ? (
-                      <ul className="cv-skills">
-                        {g.items.map((it) => {
-                          const n = levelPips(it.level);
-                          return (
-                            <li key={it.name} className="cv-skill">
-                              {it.emphasis ? <strong className="cv-em">{it.name}</strong> : <span>{it.name}</span>}
-                              {n ? (
-                                <span className="cv-pips" data-n={n}>
-                                  <i />
-                                  <i />
-                                  <i />
-                                  <span className="cv-level">({it.level})</span>
-                                </span>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <ul className="cv-tags">
-                        {g.items.map((it) => (
-                          <li key={it.name}>{it.emphasis ? <strong className="cv-em">{it.name}</strong> : it.name}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
+              {doc.skills.map((g, i) => (
+                <div key={i} className="cv-group">
+                  {titled && g.title ? <h4 className="cv-group-title">{g.title}</h4> : null}
+                  <ul className="cv-tags">
+                    {g.items.map((it) => (
+                      <li key={it.name}>{skillText(it)}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           </section>
         ) : null}
         {doc.languages.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.languages}</h3>
-            <ul className="cv-tags">
+            <ul className="cv-langs">
               {doc.languages.map((l) => (
                 <li key={l}>{l}</li>
               ))}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
-import type { CvDocument } from "./cvDocument";
+import type { CvDocument, CvOwnerQuestion } from "./cvDocument";
 import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, type CvAccent, type CvDesign, type CvTemplate } from "./cvQuery";
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
 import { tailorCvDocument, type CvCoverageWhere, type CvTailorTarget } from "./cvTailor";
@@ -39,6 +39,10 @@ const SHEET_FOOT_MM = 14;
 const STORE_KEY = "kp-me-cv-design";
 
 export type CvDesignerSkin = { primary: string; ghost: string };
+
+/** The owner questions, grouped in this order: the evidence a line lacks first, then a
+ *  skill nothing shows, then the seeker's own self-descriptions. */
+const QUESTION_KINDS: readonly CvOwnerQuestion["kind"][] = ["no_outcome", "missing_metric", "listed_only", "self_descriptor"];
 
 function readStored(): CvDesign | null {
   try {
@@ -164,6 +168,7 @@ export function CvDesigner({
   const [objective, setObjective] = useState<boolean>(() => initial?.objective ?? stored?.objective ?? true);
   const [pdf, setPdf] = useState<{ state: "idle" | "busy" } | { state: "failed"; message: string }>({ state: "idle" });
   const [showChanges, setShowChanges] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(false);
   const [showMoves, setShowMoves] = useState(false);
   const [showWhere, setShowWhere] = useState(false);
 
@@ -281,6 +286,10 @@ export function CvDesigner({
 
   // The wordings tidied are the document's own; the tailoring moves are listed apart.
   const changes = doc.improvements.filter((c) => c.kind !== "tailor");
+  // The owner questions of the sheet being shown (a tailored sheet recomputes its own):
+  // what the rules could not decide without the seeker. Designer-only - never printed.
+  const questions = sheetDoc.questions;
+  const questionGroups = QUESTION_KINDS.map((kind) => ({ kind, items: questions.filter((q) => q.kind === kind) })).filter((g) => g.items.length);
   const moves = tailored?.moves ?? [];
   const coverage = tailored?.coverage ?? null;
   const whereLabel = (w: CvCoverageWhere) => (w.kind === "skills" ? t("coverage.inSkills") : w.kind === "summary" ? t("coverage.inSummary") : w.role);
@@ -404,6 +413,9 @@ export function CvDesigner({
       {pages ? (
         <p className={overBudget ? "cvdesk-note" : "cvdesk-hint"} role="status">
           {pages.over ? t("pages.over", { pages: pages.pages, budget: pages.budget }) : pages.sparse ? t("pages.sparse", { page: pages.pages }) : t("pages.fits", { pages: pages.pages })}
+          {/* The cut that would fix it, where the designer holds one: tailoring folds the
+              roles with nothing for the target onto one line (the toggle below). */}
+          {overBudget && !target && targets.length ? ` ${t("pages.tailorHint")}` : null}
         </p>
       ) : null}
       {columned ? <p className="cvdesk-hint">{t("columnsNote", { layout: t(`template.${template}`) })}</p> : null}
@@ -442,6 +454,29 @@ export function CvDesigner({
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+      </div>
+      <div className="cvdesk-changes">
+        <button type="button" className={CV_LINK_BTN} aria-expanded={showQuestions} onClick={() => setShowQuestions((v) => !v)} disabled={questions.length === 0}>
+          {t("questions.toggle", { n: questions.length })}
+        </button>
+        {showQuestions && questions.length ? (
+          <div className="cvdesk-list">
+            <p>{t("questions.hint")}</p>
+            {questionGroups.map((g) => (
+              <div key={g.kind} className="cvdesk-qgroup">
+                <p className="cvdesk-sub">{t(`questions.kind.${g.kind}`)}</p>
+                <ul>
+                  {g.items.map((q, i) => (
+                    <li key={i}>
+                      <q>{q.text}</q>
+                      {q.roleIndex !== null && sheetDoc.experience[q.roleIndex] ? <span className="k">{t("questions.inRole", { role: sheetDoc.experience[q.roleIndex]!.role })}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         ) : null}
       </div>

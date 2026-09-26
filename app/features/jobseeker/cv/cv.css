@@ -139,7 +139,7 @@
   font-weight: 500;
   color: var(--cv-accent);
 }
-/* A term the tailored target asks for, inside a bullet or a skill list. */
+/* A term the document emphasises inside a bullet - the only bold a bullet carries. */
 .cvsheet .cv-em {
   font-weight: 650;
   color: var(--cv-ink);
@@ -232,10 +232,6 @@
 .cvsheet .cv-bullets li::marker {
   color: var(--cv-accent);
 }
-.cvsheet .cv-bullets b {
-  font-weight: 650;
-  color: var(--cv-ink);
-}
 
 /* A one-line entry (a compacted role, a role with no bullets, an education line). */
 .cvsheet .cv-role.is-short + .cv-role.is-short {
@@ -253,42 +249,11 @@
   font-weight: 650;
   color: var(--cv-ink);
 }
-.cvsheet .cv-skills {
+/* Languages: a plain list with the CV's own words ("German (B2)"), one per line - a run
+   after the work in the single-flow templates. */
+.cvsheet .cv-langs {
   display: grid;
-  gap: 1.2mm;
-}
-.cvsheet .cv-skill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 3mm;
-}
-.cvsheet .cv-pips {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.9mm;
-  flex: none;
-}
-.cvsheet .cv-pips i {
-  width: 1.8mm;
-  height: 1.8mm;
-  border-radius: 50%;
-  border: 0.3mm solid var(--cv-accent);
-}
-.cvsheet .cv-pips[data-n="1"] i:nth-child(-n + 1),
-.cvsheet .cv-pips[data-n="2"] i:nth-child(-n + 2),
-.cvsheet .cv-pips[data-n="3"] i:nth-child(-n + 3) {
-  background: var(--cv-accent);
-}
-/* The CV's own level word stays in the text layer (a parser reads it, a reader can
-   select it) but the pips carry it visually. */
-.cvsheet .cv-level {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  gap: 0.8mm;
 }
 .cvsheet .cv-tags {
   display: flex;
@@ -336,14 +301,17 @@
 .cvsheet[data-template="classic"] .cv-group-title::after {
   content: ": ";
 }
-.cvsheet[data-template="classic"] :is(.cv-tags, .cv-skills),
-.cvsheet[data-template="classic"] :is(.cv-tags, .cv-skills) li {
+.cvsheet[data-template="classic"] :is(.cv-tags, .cv-langs),
+.cvsheet[data-template="classic"] :is(.cv-tags, .cv-langs) li,
+.cvsheet[data-template="editorial"] .cv-langs,
+.cvsheet[data-template="editorial"] .cv-langs li {
   display: inline;
   padding: 0;
   border: 0;
   background: none;
 }
-.cvsheet[data-template="classic"] :is(.cv-tags, .cv-skills) li:not(:last-child)::after {
+.cvsheet[data-template="classic"] :is(.cv-tags, .cv-langs) li:not(:last-child)::after,
+.cvsheet[data-template="editorial"] .cv-langs li:not(:last-child)::after {
   content: ", ";
 }
 
@@ -752,6 +720,14 @@
 }
 .cvdesk-list s {
   color: var(--color-steel);
+}
+/* The owner questions: one group per kind, the question as its label, each line it is
+   about quoted verbatim under it. */
+.cvdesk-qgroup + .cvdesk-qgroup {
+  margin-top: 12px;
+}
+.cvdesk-qgroup .cvdesk-sub {
+  margin-bottom: 6px;
 }
 /* Tailoring: the target picker, its two options, and the coverage the SEEKER reads (the
    missing skills are listed here and never reach the sheet). */
