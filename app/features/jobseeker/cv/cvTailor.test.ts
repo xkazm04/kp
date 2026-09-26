@@ -114,7 +114,7 @@ test("roles stay in date order; inside each, the relevant bullets lead", () => {
   assert.match(qa!.bullets[0]!.text, /Python script/);
   // Nothing relevant in it: order untouched, and no compacting unless asked.
   assert.deepEqual(ba!.bullets.map((b) => b.text), DOC.experience[2]!.bullets.map((b) => b.text));
-  assert.equal(ba!.compact, undefined);
+  assert.equal(ba!.compact, false);
   assert.equal(TAILORED.offTargetRoles, 1);
   // Same bullets, only reordered.
   for (let i = 0; i < DOC.experience.length; i++) {
@@ -206,4 +206,28 @@ test("the designer's target list: blank titles dropped, each with its demand", (
   assert.deepEqual(targets.map((t) => t.title), ["AI Engineer", "QA Engineer"]);
   assert.equal(targets[0]!.demand.source, "postings");
   assert.equal(targets[1]!.demand.source, "lexicon");
+});
+
+test("tailoring re-ranks every bullet a role holds: a relevant line the budget held back comes back", () => {
+  // Seven bullets in the current role: the recency budget prints six and holds the
+  // weakest back — here the only one that names the target's subject.
+  const text = [
+    "PETRA SVOBODOVÁ",
+    "WORK EXPERIENCE",
+    "Nova Labs 01/2025 - present",
+    "Consultant",
+    "Ran workshops weekly. Cut review time from 5 days to 2. Wrote reports for the board. Replaced a manual process. Reduced costs. Improved onboarding. Tried an LLM prototype.",
+  ].join("\n");
+  const profile = { displayName: "Petra", evidence: [{ kind: "job", title: "Consultant — Nova Labs (01/2025 - present)", text: "" }] };
+  const base = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text, today: new Date("2026-09-26") });
+  assert.equal(base.experience[0]!.bullets.length, 6);
+  assert.deepEqual(base.experience[0]!.trimmed!.map((b) => b.text), ["Tried an LLM prototype."]);
+  const out = tailorCvDocument(base, { target: "AI Engineer", postings: [] });
+  const role = out.doc.experience[0]!;
+  assert.equal(role.bullets.length, 6, "the budget stays the base sheet's");
+  assert.equal(role.bullets[0]!.text, "Tried an LLM prototype.");
+  // Every bullet the role holds is still on it: printed or held back, none lost.
+  assert.equal(role.bullets.length + role.trimmed!.length, 7);
+  // The questions follow the tailored sheet.
+  assert.ok(out.doc.questions.some((q) => q.kind === "no_outcome" && q.text === "Tried an LLM prototype."));
 });

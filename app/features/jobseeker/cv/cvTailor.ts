@@ -27,6 +27,7 @@
 // does not — is for the SEEKER's eyes in the designer, never printed on the sheet.
 
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
+import { BULLET_BUDGET, descriptorQuestions, outcomeQuestions, outcomeRung } from "./cvContent";
 import { CV_HEADINGS, CV_OBJECTIVE, polishTerms, splitSentences, type CvBullet, type CvDocument, type CvRole, type CvSkillGroup, type CvTailorMove } from "./cvDocument";
 
 // ── folding and tokens ─────────────────────────────────────────────────────────────
@@ -329,27 +330,40 @@ export function tailorCvDocument(
   }
 
   // Experience: the roles' order is the CV's (reverse-chronological); inside each, the
-  // relevant bullets lead and a demanded term is marked.
+  // relevant bullets lead — relevance first, then the outcome rung, then the CV's order —
+  // re-ranked over EVERY bullet the role holds (the ones the recency budget held back
+  // included), so a relevant line the base sheet trimmed comes back. The budget stays the
+  // base sheet's; an off-target earlier role is compressed harder (career-change-framing:
+  // one or two bullets per old role, the transferable ones first). A demanded term is marked.
   const relevance = new Map<CvRole, number>();
-  const roles: CvRole[] = doc.experience.map((r) => {
-    const ordered = byScore(r.bullets, (b) => scoreOf(bulletText(b), terms));
-    if (ordered.length && ordered[0] !== r.bullets[0]) {
-      move({ move: "bullets", before: short(bulletText(r.bullets[0]!)), after: short(ordered[0]!.lead ?? ordered[0]!.text), where: r.role });
+  const roles: CvRole[] = doc.experience.map((r, index) => {
+    const pool = [...r.bullets, ...(r.trimmed ?? [])];
+    const rel = Math.max(scoreOf(r.role, terms), ...pool.map((b) => scoreOf(bulletText(b), terms)));
+    const ranked = pool
+      .map((b, i) => ({ b, i, s: scoreOf(bulletText(b), terms), r: outcomeRung(bulletText(b)) }))
+      .sort((a, b) => b.s - a.s || a.r - b.r || a.i - b.i)
+      .map((x) => x.b);
+    const cap = r.compact ? 0 : index > 0 && rel === 0 ? Math.min(r.bullets.length, BULLET_BUDGET.offTarget) : r.bullets.length;
+    const printed = ranked.slice(0, cap);
+    if (printed.length && r.bullets.length && printed[0] !== r.bullets[0]) {
+      move({ move: "bullets", before: short(bulletText(r.bullets[0]!)), after: short(printed[0]!.lead ?? printed[0]!.text), where: r.role });
     }
-    const bullets = ordered.map((b) => {
+    const bullets = printed.map((b) => {
       const marks = emphasisIn(b.text, skillTerms);
       emphasised += marks.length;
       return marks.length ? { ...b, emphasis: marks } : { ...b };
     });
-    const role = { ...r, bullets };
-    relevance.set(role, Math.max(scoreOf(r.role, terms), ...r.bullets.map((b) => scoreOf(bulletText(b), terms))));
+    const role: CvRole = { ...r, bullets, compact: bullets.length === 0, trimmed: ranked.slice(cap) };
+    relevance.set(role, rel);
     return role;
   });
-  const offTarget = roles.filter((r) => r.bullets.length > 0 && !relevance.get(r));
-  const fullOnTarget = roles.some((r) => r.bullets.length > 0 && relevance.get(r)! > 0);
+  const offTarget = roles.filter((r) => !r.compact && !relevance.get(r));
+  const fullOnTarget = roles.some((r) => !r.compact && relevance.get(r)! > 0);
   if (options.compactOffTarget && fullOnTarget) {
     for (const r of offTarget) {
       r.compact = true;
+      r.trimmed = [...r.bullets, ...(r.trimmed ?? [])];
+      r.bullets = [];
       move({ move: "compact", before: "", after: r.role, where: r.role });
     }
   }
@@ -395,13 +409,21 @@ export function tailorCvDocument(
     const has = (text: string) => runsOf(tokensOf(text), term).length > 0;
     if (doc.skills.some((g) => g.items.some((i) => has(i.name)))) where.push({ kind: "skills" });
     if (doc.summary && has(doc.summary)) where.push({ kind: "summary" });
-    for (const r of doc.experience) if (has(r.role) || r.bullets.some((b) => has(bulletText(b)))) where.push({ kind: "role", role: r.role });
+    // What the SHEET shows: the tailored roles' printed bullets (a one-line role shows its title).
+    for (const r of roles) if (has(r.role) || r.bullets.some((b) => has(bulletText(b)))) where.push({ kind: "role", role: r.role });
     if (where.length) shown.push({ skill: s.skill, count: s.count, where });
     else missing.push({ skill: s.skill, count: s.count });
   }
 
+  // The owner questions follow the tailored sheet: what is printed is what is asked about.
+  const questions = [
+    ...descriptorQuestions({ headline: doc.headline, summarySentences: summary ? splitSentences(summary) : [], roles }),
+    ...outcomeQuestions(roles),
+    ...doc.questions.filter((q) => q.kind === "listed_only"),
+  ];
+
   return {
-    doc: { ...doc, summary, objective, experience: roles, skills: groups, improvements: [...doc.improvements, ...moves] },
+    doc: { ...doc, summary, objective, experience: roles, skills: groups, improvements: [...doc.improvements, ...moves], questions },
     moves,
     coverage: { target, source: demand.source, postings: demand.postings, shown, missing },
     offTargetRoles: fullOnTarget ? offTarget.length : 0,

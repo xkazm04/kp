@@ -20,12 +20,16 @@
 
 import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
-import { descriptorQuestions } from "./cvContent";
+import { descriptorQuestions, outcomeQuestions, rankByOutcome, roleBudget } from "./cvContent";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
-/** `compact`: the tailoring pass (cvTailor.ts) set this role as one line — it stays, in
- *  its place, but its bullets are not printed. */
-export type CvRole = { role: string; org: string | null; dates: string | null; bullets: CvBullet[]; compact?: boolean };
+/** `compact`: the role is set as ONE line (title, employer, dates) — past the recency
+ *  horizon, off-target in a tailored sheet, or simply without bullets. It stays in its
+ *  place in the date order; nothing with a date is ever deleted.
+ *  `bullets` are the printed ones, strongest outcome first, within the role's recency
+ *  budget (cvContent.ts `roleBudget`); `trimmed` holds what the budget held back — never
+ *  printed, kept for the owner to restore and for the tailoring pass to re-rank. */
+export type CvRole = { role: string; org: string | null; dates: string | null; bullets: CvBullet[]; compact: boolean; trimmed?: CvBullet[] };
 /** A bullet may open with a lead phrase ("RAG pipeline design:") the template sets in bold.
  *  `emphasis` = [start, end) ranges of `text` the template bolds (a target term; cvTailor.ts). */
 export type CvBullet = { lead: string | null; text: string; emphasis?: [number, number][] };
@@ -479,9 +483,16 @@ function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] 
 
 // ── the document ───────────────────────────────────────────────────────────────────
 
-export function buildCvDocument(input: { profile: ProfilePayload; preferences: Pick<JobseekerPreferences, "targetTitles">; cvSourceText: string | null }): CvDocument {
+export function buildCvDocument(input: {
+  profile: ProfilePayload;
+  preferences: Pick<JobseekerPreferences, "targetTitles">;
+  cvSourceText: string | null;
+  /** "Now" for the recency budget; the caller's clock by default. */
+  today?: Date;
+}): CvDocument {
   // `preferences` stays on the input (the callers hold it) but no longer shapes the sheet.
   const { profile } = input;
+  const today = input.today ?? new Date();
   const text = input.cvSourceText ?? "";
   const log: CvImprovement[] = [];
   const blocks = blocksOf(text);
@@ -512,7 +523,7 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
   });
   const orgs = parsed.map((p) => p.org).filter((o): o is string => !!o);
   const seen = new Map<string, number>();
-  const experience: CvRole[] = parsed.map(({ e, parts, org }) => {
+  const experience: CvRole[] = parsed.map(({ e, parts, org }, index) => {
     const key = org ? foldText(org) : "";
     const nth = seen.get(key) ?? 0;
     seen.set(key, nth + 1);
@@ -520,12 +531,13 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
     // (it dropped "TypeScript" and every date from a real CV), and the designed CV
     // promises the seeker's own words. The draft's text is the fallback.
     const source = sourceRoleOf(text, org, orgs, parts.role, nth);
-    return {
-      role: polishTerms(parts.role, log),
-      org: parts.org,
-      dates: formatDates(parts.dates ?? source?.dates ?? null),
-      bullets: bulletsOf(source && source.lines.length ? source.lines.join(" ") : (e.text ?? ""), log),
-    };
+    const dates = formatDates(parts.dates ?? source?.dates ?? null);
+    // Strongest outcome first (the CV's order breaks ties), then the recency budget: the
+    // weakest bullets are held back, never the strongest, and never the role itself.
+    const ranked = rankByOutcome(bulletsOf(source && source.lines.length ? source.lines.join(" ") : (e.text ?? ""), log), bulletLine);
+    const budget = roleBudget(index, dates, today);
+    const bullets = ranked.slice(0, budget);
+    return { role: polishTerms(parts.role, log), org: parts.org, dates, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };
   });
 
   const groups = skillGroupsFrom(blocks, log);
@@ -567,8 +579,13 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
     education,
     languages: (profile.languages ?? []).filter(Boolean),
     improvements: dedupeImprovements(log),
-    questions: descriptorQuestions({ headline, summarySentences, roles: experience }),
+    questions: [...descriptorQuestions({ headline, summarySentences, roles: experience }), ...outcomeQuestions(experience)],
   };
+}
+
+/** A bullet as the sheet sets it: the lead phrase, then the text. */
+export function bulletLine(b: { lead: string | null; text: string }): string {
+  return b.lead ? `${b.lead}: ${b.text}` : b.text;
 }
 
 function dedupeImprovements(log: CvImprovement[]): CvImprovement[] {
