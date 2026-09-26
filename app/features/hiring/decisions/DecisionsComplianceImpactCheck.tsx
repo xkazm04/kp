@@ -9,11 +9,39 @@ import { useTranslations } from "next-intl";
 import { computeAdverseImpact, parseGroupCounts, ADVERSE_IMPACT_MIN_COHORT } from "@/app/_lib/adverse-impact";
 import { TextArea } from "@/app/_components/TextArea";
 
+type Verdict = "insufficient" | "adverse" | "belowNotSignificant" | "significantGap" | "clean";
+const VERDICT_TONE: Record<Verdict, string> = {
+  insufficient: "text-steel",
+  adverse: "text-coral",
+  belowNotSignificant: "text-steel",
+  significantGap: "text-coral",
+  clean: "text-moss",
+};
+const VERDICT_KEY = {
+  adverse: "anyAdverse",
+  belowNotSignificant: "belowNotSignificant",
+  significantGap: "significantGap",
+  clean: "noAdverse",
+} as const;
+
+function formatP(p: number): string {
+  return p < 0.001 ? "< 0.001" : p.toFixed(3);
+}
+
 export function DecisionsComplianceImpactCheck() {
   const t = useTranslations("decisions.compliance");
   const [counts, setCounts] = useState("");
   const parsed = useMemo(() => parseGroupCounts(counts), [counts]);
   const impact = useMemo(() => (parsed.groups.length >= 2 ? computeAdverseImpact(parsed.groups) : null), [parsed]);
+  const verdict: Verdict = !impact || !impact.reliable
+    ? "insufficient"
+    : impact.anySignificantAdverse
+      ? "adverse"
+      : impact.anyAdverseImpact
+        ? "belowNotSignificant"
+        : impact.anySignificantGapAboveThreshold
+          ? "significantGap"
+          : "clean";
 
   return (
     <details className="rounded-md border border-stone-200 bg-white p-3">
@@ -59,24 +87,40 @@ export function DecisionsComplianceImpactCheck() {
                 <th scope="col" className="py-1 pr-2 font-medium">{t("colGroup")}</th>
                 <th scope="col" className="py-1 pr-2 font-medium">{t("colRate")}</th>
                 <th scope="col" className="py-1 pr-2 font-medium">{t("colRatio")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colShortfall")}</th>
+                <th scope="col" className="py-1 pr-2 font-medium">{t("colP")}</th>
                 <th scope="col" className="py-1 font-medium">{t("colStatus")}</th>
               </tr>
             </thead>
             <tbody>
-              {impact.groups.map((g) => (
-                <tr key={g.group} className="border-t border-stone-100">
+              {/* Keyed by position: the parser keeps duplicate group names as separate rows. */}
+              {impact.groups.map((g, i) => (
+                <tr key={`${i}:${g.group}`} className="border-t border-stone-100">
                   <td className="py-1 pr-2 text-ink">{g.group}</td>
                   <td className="nums py-1 pr-2 text-steel">
                     {(g.selectionRate * 100).toFixed(0)}% <span className="text-stone-400">({g.selected}/{g.total})</span>
                   </td>
                   <td className="nums py-1 pr-2 text-steel">{g.impactRatio === null ? "—" : g.impactRatio.toFixed(2)}</td>
+                  {/* Shortfall is a count of people and grows with N, so it is shown with
+                      its share of the group; the p-value beside it says whether chance
+                      could explain the gap at these sizes. Neither is read alone. */}
+                  <td className="nums py-1 pr-2 text-steel">
+                    {g.shortfall === null || g.shortfall === 0
+                      ? "—"
+                      : t("shortfallValue", { people: g.shortfall.toFixed(1), share: ((100 * g.shortfall) / g.total).toFixed(1) })}
+                  </td>
+                  <td className="nums py-1 pr-2 text-steel">{g.pValue === null ? "—" : formatP(g.pValue)}</td>
                   <td className="py-1">
                     {g.isReference ? (
                       <span className="text-steel">{t("statusReference")}</span>
                     ) : g.impactRatio === null ? (
                       <span className="text-stone-400">{t("statusNa")}</span>
-                    ) : g.adverseImpact ? (
+                    ) : g.adverseImpact && g.significant ? (
                       <span className="font-semibold text-coral">{t("statusAdverse")}</span>
+                    ) : g.adverseImpact ? (
+                      <span className="text-steel">{t("statusBelowNotSignificant")}</span>
+                    ) : g.significant && (g.shortfall ?? 0) > 0 ? (
+                      <span className="font-semibold text-coral">{t("statusSignificantGap")}</span>
                     ) : (
                       <span className="text-moss">{t("statusOk")}</span>
                     )}
@@ -87,25 +131,27 @@ export function DecisionsComplianceImpactCheck() {
           </table>
           {/* Three states, not two. "Insufficient sample" is NOT "no adverse impact":
               below ADVERSE_IMPACT_MIN_COHORT the compute forces anyAdverseImpact=false,
-              so a binary green/red readout would render a legally-loaded false clean. */}
-          <p
-            className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${
-              !impact.reliable ? "text-steel" : impact.anyAdverseImpact ? "text-coral" : "text-moss"
-            }`}
-          >
-            {!impact.reliable ? (
+              so a binary green/red readout would render a legally-loaded false clean.
+              And the ratio is read with its significance test, in both directions: a
+              flag chance can explain is a pattern to watch, and a significant gap above
+              0.8 is not a pass. */}
+          <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${VERDICT_TONE[verdict]}`}>
+            {verdict === "insufficient" ? (
               <HelpCircle size={14} />
-            ) : impact.anyAdverseImpact ? (
-              <AlertTriangle size={14} />
-            ) : (
+            ) : verdict === "clean" ? (
               <Check size={14} />
+            ) : (
+              <AlertTriangle size={14} />
             )}
-            {!impact.reliable
+            {verdict === "insufficient"
               ? t("insufficientSample", { min: ADVERSE_IMPACT_MIN_COHORT })
-              : impact.anyAdverseImpact
-                ? t("anyAdverse")
-                : t("noAdverse")}
+              : t(VERDICT_KEY[verdict])}
           </p>
+          {impact.reliable && impact.unassessedGroups > 0 ? (
+            <p className="mt-1 text-meta text-steel">
+              {t("notAssessed", { count: impact.unassessedGroups, min: ADVERSE_IMPACT_MIN_COHORT })}
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="mt-2 text-meta text-steel">{t("aiCheckHint")}</p>

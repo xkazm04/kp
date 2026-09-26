@@ -38,6 +38,42 @@ export const FOUR_FIFTHS = 0.8;
  */
 export const ADVERSE_IMPACT_MIN_COHORT = 30;
 
+/**
+ * The significance companion's level: a two-sided p below this is "statistically
+ * significant", about the two-standard-deviation line agencies and courts read. The
+ * ratio alone is a screen that errs in both directions (29 CFR 1607.4D names both): at
+ * small N a 0.6 ratio can be chance, and at large N a 0.95 ratio can be a real gap. So
+ * every measured ratio carries this test beside it, and the verdict reads both.
+ */
+export const SIGNIFICANCE_ALPHA = 0.05;
+
+/**
+ * Two-sided Lancaster mid-P exact test for one group against the reference, on the
+ * 2x2 table selected / not selected. Chosen over plain Fisher's exact test because
+ * Fisher's is conservative at the cohort sizes this check sees (it misses real gaps),
+ * while mid-P holds close to the nominal error rate with more power. It is exact at
+ * every size and converges on the familiar Z-test at large N, so there is no switch
+ * between a small-sample and a large-sample method. Tables exactly as likely as the
+ * observed one count half: that is the mid-P correction.
+ */
+export function midPExactTwoSided(aSelected: number, aTotal: number, bSelected: number, bTotal: number): number {
+  const n = aTotal + bTotal;
+  const k = aSelected + bSelected;
+  const lf = new Float64Array(n + 1);
+  for (let i = 2; i <= n; i++) lf[i] = lf[i - 1] + Math.log(i);
+  const logP = (x: number) =>
+    lf[k] + lf[n - k] + lf[aTotal] + lf[bTotal] - lf[n] - lf[x] - lf[aTotal - x] - lf[k - x] - lf[bTotal - k + x];
+  const observed = logP(aSelected);
+  let less = 0;
+  let equal = 0;
+  for (let x = Math.max(0, k - bTotal); x <= Math.min(k, aTotal); x++) {
+    const lp = logP(x);
+    if (lp < observed - 1e-7) less += Math.exp(lp);
+    else if (lp <= observed + 1e-7) equal += Math.exp(lp);
+  }
+  return Math.min(1, less + equal / 2);
+}
+
 /** Aggregate counts for one group the recruiter supplies. */
 export type GroupCount = { group: string; selected: number; total: number };
 
@@ -114,6 +150,18 @@ export type GroupImpact = {
   /** True when this group's own sample (total) meets {@link ADVERSE_IMPACT_MIN_COHORT}.
    *  When false the UI must render an "insufficient sample" state — NOT a verdict. */
   reliable: boolean;
+  /** Selections this group is short of the reference RATE: referenceRate × total −
+   *  selected, 0 at or above it. A count of people, so it grows with N exactly as a
+   *  p-value shrinks: 40 short is noise across 100,000 applicants and decisive across
+   *  100. Read it as a share of the group (shortfall ÷ total) beside the p-value, never
+   *  alone. null where there is no ratio, and on the reference row. */
+  shortfall: number | null;
+  /** Two-sided mid-P exact p-value against the reference ({@link midPExactTwoSided}).
+   *  null where there is no ratio, and on the reference row. */
+  pValue: number | null;
+  /** pValue < {@link SIGNIFICANCE_ALPHA}. A ratio below 0.8 that is not significant is
+   *  a pattern to watch, not a finding; a significant gap above 0.8 is still a gap. */
+  significant: boolean;
 };
 
 export type AdverseImpactResult = {
@@ -122,6 +170,14 @@ export type AdverseImpactResult = {
   referenceGroup: string | null;
   /** True when any group falls below the four-fifths threshold. */
   anyAdverseImpact: boolean;
+  /** True when a group is below the threshold AND its gap is statistically significant. */
+  anySignificantAdverse: boolean;
+  /** True when a group clears the threshold but still selects significantly less often
+   *  than the reference: the large-sample gap the four-fifths screen alone misses. */
+  anySignificantGapAboveThreshold: boolean;
+  /** Rows that could not be assessed (below the floor). A headline that says "no group
+   *  falls below" must also say how many groups it never measured. */
+  unassessedGroups: number;
   /** True only when at least two groups meet {@link ADVERSE_IMPACT_MIN_COHORT} — the
    *  minimum to anchor a reference and measure one comparison against it. When false
    *  the sample is too small to assess and the UI MUST show "insufficient sample"
@@ -186,6 +242,9 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     const ratioMeasurable = reference !== null && referenceRate > 0 && g.reliable;
     const impactRatio = ratioMeasurable ? g.selectionRate / referenceRate : null;
     const adverseImpact = impactRatio !== null && !isReference && impactRatio < FOUR_FIFTHS;
+    const compared = impactRatio !== null && !isReference && reference !== null;
+    const shortfall = compared ? Math.max(0, referenceRate * g.total - g.selected) : null;
+    const pValue = compared ? midPExactTwoSided(g.selected, g.total, reference.selected, reference.total) : null;
     return {
       group: g.group,
       selected: g.selected,
@@ -195,6 +254,9 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
       adverseImpact,
       isReference,
       reliable: g.reliable,
+      shortfall,
+      pValue,
+      significant: pValue !== null && pValue < SIGNIFICANCE_ALPHA,
     };
   });
 
@@ -202,6 +264,10 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     groups,
     referenceGroup: reference?.group ?? null,
     anyAdverseImpact: reliable && groups.some((g) => g.adverseImpact),
+    anySignificantAdverse: reliable && groups.some((g) => g.adverseImpact && g.significant),
+    anySignificantGapAboveThreshold:
+      reliable && groups.some((g) => !g.adverseImpact && g.significant && (g.shortfall ?? 0) > 0),
+    unassessedGroups: groups.filter((g) => !g.reliable).length,
     reliable,
   };
 }

@@ -5,7 +5,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { computeAdverseImpact, parseGroupCounts, FOUR_FIFTHS, ADVERSE_IMPACT_MIN_COHORT } from "./adverse-impact.ts";
+import {
+  computeAdverseImpact,
+  parseGroupCounts,
+  midPExactTwoSided,
+  FOUR_FIFTHS,
+  ADVERSE_IMPACT_MIN_COHORT,
+  SIGNIFICANCE_ALPHA,
+} from "./adverse-impact.ts";
 
 test("classic EEOC example: 80% vs 40% selection flags the lower group", () => {
   const r = computeAdverseImpact([
@@ -261,4 +268,74 @@ test("dropping a malformed row can change the reference — so it must be visibl
   assert.deepEqual(p.malformedRows, [3]);
   assert.equal(p.groups.length, 3);
   assert.equal(p.nonBlankRows, 4, "recruiter pasted 4 rows; the verdict runs on 3");
+});
+
+// The significance companion and the shortfall (registry technique
+// selection-rate-ratio-testing). The ratio is a screen that errs both ways, so each
+// measured ratio carries a mid-P exact test and a shortfall read as a share of the group.
+
+test("mid-P: identical rates are not significant; a zero-selection group is", () => {
+  assert.ok(midPExactTwoSided(20, 40, 20, 40) > 0.9);
+  assert.ok(midPExactTwoSided(0, 100, 50, 100) < 1e-15);
+  // Symmetric in which side is the group.
+  assert.ok(Math.abs(midPExactTwoSided(11, 30, 15, 30) - midPExactTwoSided(15, 30, 11, 30)) < 1e-12);
+});
+
+test("a small-N flag below four-fifths is kept, but reads as not significant", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 15, total: 30 },
+    { group: "G", selected: 11, total: 30 }, // ratio 0.733
+  ]);
+  const g = r.groups[1];
+  assert.equal(g.adverseImpact, true, "the four-fifths screen still fires");
+  assert.equal(g.significant, false);
+  assert.ok(g.pValue! > SIGNIFICANCE_ALPHA);
+  assert.equal(r.anyAdverseImpact, true);
+  assert.equal(r.anySignificantAdverse, false, "a chance-level gap is a pattern to watch, not a finding");
+  assert.ok(Math.abs(g.shortfall! - 4) < 1e-9);
+});
+
+test("zero selected is the most severe case, never suppressed by a numerator floor", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 50, total: 100 },
+    { group: "G", selected: 0, total: 100 },
+  ]);
+  assert.equal(r.groups[1].reliable, true, "the floor is on considered, not on observed selections");
+  assert.equal(r.anySignificantAdverse, true);
+  assert.equal(r.groups[1].shortfall, 50);
+});
+
+test("a large-N gap above four-fifths is still a significant gap", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 5000, total: 10000 },
+    { group: "G", selected: 4600, total: 10000 }, // ratio 0.92
+  ]);
+  assert.equal(r.anyAdverseImpact, false, "the ratio clears 0.8");
+  assert.equal(r.anySignificantGapAboveThreshold, true, "and still hides a significant 400-person gap");
+});
+
+test("a large shortfall at very large N is not significant: shortfall is scale-bound", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 50000, total: 100000 },
+    { group: "G", selected: 49960, total: 100000 },
+  ]);
+  const g = r.groups[1];
+  assert.ok(Math.abs(g.shortfall! - 40) < 1e-6, "40 people short");
+  assert.equal(g.significant, false, "and indistinguishable from chance at this N");
+  assert.ok(g.shortfall! / g.total < 0.001, "0.04% of the group");
+  assert.equal(r.anySignificantGapAboveThreshold, false);
+});
+
+test("the reference row and sub-floor rows carry no p-value or shortfall", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 40, total: 80 },
+    { group: "G", selected: 36, total: 80 },
+    { group: "S1", selected: 1, total: 5 },
+    { group: "S2", selected: 0, total: 9 },
+  ]);
+  assert.equal(r.groups[0].pValue, null);
+  assert.equal(r.groups[0].shortfall, null);
+  assert.equal(r.groups[2].pValue, null);
+  assert.equal(r.groups[3].shortfall, null);
+  assert.equal(r.unassessedGroups, 2, "a clean headline must also say two groups were never measured");
 });
