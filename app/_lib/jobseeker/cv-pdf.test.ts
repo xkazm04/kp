@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cookiesFor, pdfOrigin, renderCvPdf, type Launch } from "./cv-pdf";
+import { CV_PDF_OPTIONS, cookiesFor, cvPdfFileName, cvPdfTitle, pdfOrigin, renderCvPdf, type Launch } from "./cv-pdf";
 
 test("the origin never comes from the Host header", () => {
   // A forged Host lands in request.url; only its PORT is read, the host is loopback.
@@ -28,8 +28,25 @@ test("no browser installed: unavailable, never a throw", async () => {
   assert.deepEqual(out, { kind: "unavailable", reason: "Cannot find package 'playwright-core'" });
 });
 
+test("the file is named for its person: First-Last-CV.pdf, ASCII-folded, case kept", () => {
+  assert.equal(cvPdfFileName("Jana Nováková"), "Jana-Novakova-CV.pdf");
+  assert.equal(cvPdfFileName("Jörg Weißhaupt"), "Jorg-Weisshaupt-CV.pdf");
+  assert.equal(cvPdfFileName("Łukasz Żółć-Øster"), "Lukasz-Zolc-Oster-CV.pdf");
+  assert.equal(cvPdfFileName("  Anne-Marie  O'Neill "), "Anne-Marie-O-Neill-CV.pdf");
+  assert.equal(cvPdfFileName('x"; filename=evil.exe'), "x-filename-evil-exe-CV.pdf");
+  assert.equal(cvPdfFileName("李小龍"), "CV.pdf");
+  assert.equal(cvPdfFileName(null), "CV.pdf");
+  assert.ok(cvPdfFileName("A".repeat(200)).length <= 67);
+});
+
+test("the metadata title is the person's name and CV, in their own script", () => {
+  assert.equal(cvPdfTitle("  Jana   Nováková "), "Jana Nováková – CV");
+  assert.equal(cvPdfTitle(""), "CV");
+  assert.equal(cvPdfTitle(undefined), "CV");
+});
+
 function fakeBrowser(opts: { status?: number; throwAt?: string } = {}) {
-  const seen = { aborted: [] as string[], continued: [] as string[], closed: 0, cookies: [] as unknown[], goto: "" };
+  const seen = { aborted: [] as string[], continued: [] as string[], closed: 0, cookies: [] as unknown[], goto: "", title: null as unknown, pdf: null as unknown };
   let handler: ((r: { request(): { url(): string }; continue(): Promise<void>; abort(): Promise<void> }) => Promise<void>) | null = null;
   const route = (url: string) =>
     handler!({
@@ -52,8 +69,14 @@ function fakeBrowser(opts: { status?: number; throwAt?: string } = {}) {
           return { status: () => opts.status ?? 200 };
         },
         waitForSelector: async () => true,
-        evaluate: async () => true as never,
-        pdf: async () => new Uint8Array([37, 80, 68, 70]),
+        evaluate: async (_fn, arg) => {
+          seen.title = arg;
+          return true as never;
+        },
+        pdf: async (o) => {
+          seen.pdf = o;
+          return new Uint8Array([37, 80, 68, 70]);
+        },
       }),
     }),
   });
@@ -68,6 +91,14 @@ test("the headless page reaches only the app's own origin, and the browser alway
   assert.deepEqual(seen.continued, ["http://127.0.0.1:3107/me/cv/print?template=compact"]);
   assert.deepEqual(seen.aborted, ["https://fonts.example/f.woff2", "http://169.254.169.254/latest/meta-data"]);
   assert.equal(seen.closed, 1);
+});
+
+test("the PDF is printed tagged, with the person's name and CV as its title", async () => {
+  const { launch, seen } = fakeBrowser();
+  await renderCvPdf({ origin: "http://127.0.0.1:3107", cookieHeader: null, path: "/me/cv/print", title: "Jana Nováková – CV" }, launch);
+  assert.equal(seen.title, "Jana Nováková – CV");
+  assert.deepEqual(seen.pdf, CV_PDF_OPTIONS);
+  assert.equal(CV_PDF_OPTIONS.tagged, true);
 });
 
 test("a failed or refused render is a failure, and still closes the browser", async () => {

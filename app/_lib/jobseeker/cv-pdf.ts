@@ -17,10 +17,48 @@
 // forged Host would point a server-side browser, cookies attached, at any machine):
 // `KP_PDF_ORIGIN` when set, else 127.0.0.1 on the port this server serves.
 
-export type CvPdfOptions = { origin: string; cookieHeader: string | null; path: string; timeoutMs?: number };
+/** `title`: the PDF's metadata title - the person's name and "CV" (registry
+ *  export-format-and-round-trip-verification); Chromium takes it from document.title. */
+export type CvPdfOptions = { origin: string; cookieHeader: string | null; path: string; title?: string; timeoutMs?: number };
 export type CvPdfOutcome = { kind: "ok"; bytes: Uint8Array } | { kind: "unavailable"; reason: string } | { kind: "failed"; error: unknown };
 
 type Cookie = { name: string; value: string; url: string };
+
+/** The one set of `page.pdf` options, shared with the round trip (scripts/cv/roundtrip.mjs)
+ *  so the file it checks is made the way the route makes it: the stylesheet's own A4
+ *  `@page`, backgrounds, and a TAGGED PDF - headings, lists and reading order in the
+ *  structure tree for a screen reader, at no cost to a layout that is already one flow. */
+export const CV_PDF_OPTIONS = { preferCSSPageSize: true, printBackground: true, tagged: true } as const;
+
+/** The download's file name: "Jana-Novakova-CV.pdf" - the person's name and the document
+ *  kind (registry export-format-and-round-trip-verification: courtesy and findability in
+ *  a recruiter's downloads folder). ASCII-folded, so no upload form and no header encoding
+ *  trips on it: diacritics stripped, a few letters that do not decompose spelled out
+ *  (ß -> ss, Ł -> L), anything else dropped; words joined by hyphens, case kept. */
+export function cvPdfFileName(name: string | null | undefined): string {
+  const folded = (name ?? "")
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/ß/g, "ss")
+    .replace(/[Łł]/g, (c) => (c === "Ł" ? "L" : "l"))
+    .replace(/[Øø]/g, (c) => (c === "Ø" ? "O" : "o"))
+    .replace(/[Đđ]/g, (c) => (c === "Đ" ? "D" : "d"))
+    .replace(/Æ/g, "AE")
+    .replace(/æ/g, "ae")
+    .replace(/Œ/g, "OE")
+    .replace(/œ/g, "oe")
+    .replace(/[Þþ]/g, (c) => (c === "Þ" ? "Th" : "th"));
+  const words = folded.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const base = words.join("-").slice(0, 60).replace(/-+$/, "");
+  return base ? `${base}-CV.pdf` : "CV.pdf";
+}
+
+/** The PDF's metadata title: "Jana Nováková – CV" (the person's name and the document
+ *  kind, in their own script - metadata is not a header), or "CV" when there is no name. */
+export function cvPdfTitle(name: string | null | undefined): string {
+  const person = (name ?? "").replace(/\s+/g, " ").trim();
+  return person ? `${person} – CV` : "CV";
+}
 
 /** "a=b; c=d" -> cookies bound to `origin`. A malformed pair is dropped, never guessed. */
 export function cookiesFor(header: string | null, origin: string): Cookie[] {
@@ -67,8 +105,8 @@ type PwPage = {
   route(pattern: string, handler: (route: PwRoute) => Promise<void>): Promise<void>;
   goto(url: string, opts: { waitUntil: "networkidle"; timeout: number }): Promise<{ status(): number } | null>;
   waitForSelector(selector: string, opts: { timeout: number }): Promise<unknown>;
-  evaluate<T>(fn: () => T | Promise<T>): Promise<T>;
-  pdf(opts: { preferCSSPageSize: boolean; printBackground: boolean }): Promise<Uint8Array>;
+  evaluate<T, A>(fn: (arg: A) => T | Promise<T>, arg: A): Promise<T>;
+  pdf(opts: typeof CV_PDF_OPTIONS): Promise<Uint8Array>;
 };
 type PwContext = { addCookies(cookies: Cookie[]): Promise<void>; newPage(): Promise<PwPage> };
 type PwBrowser = { newContext(): Promise<PwContext>; close(): Promise<void> };
@@ -92,7 +130,7 @@ export function renderCvPdf(opts: CvPdfOptions, launch: Launch = defaultLaunch):
   return run;
 }
 
-async function renderOnce({ origin, cookieHeader, path, timeoutMs = 45_000 }: CvPdfOptions, launch: Launch): Promise<CvPdfOutcome> {
+async function renderOnce({ origin, cookieHeader, path, title, timeoutMs = 45_000 }: CvPdfOptions, launch: Launch): Promise<CvPdfOutcome> {
   let browser: PwBrowser;
   try {
     browser = await launch();
@@ -115,8 +153,12 @@ async function renderOnce({ origin, cookieHeader, path, timeoutMs = 45_000 }: Cv
     const res = await page.goto(origin + path, { waitUntil: "networkidle", timeout: timeoutMs });
     if (!res || res.status() >= 400) return { kind: "failed", error: new Error(`print page answered ${res?.status() ?? "nothing"}`) };
     await page.waitForSelector(".cvsheet", { timeout: 5_000 });
-    await page.evaluate(() => document.fonts.ready.then(() => true));
-    const bytes = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    // The metadata title is the page's title at print time: the person's, not the app's.
+    await page.evaluate((t) => {
+      if (t) document.title = t;
+      return document.fonts.ready.then(() => true);
+    }, title ?? null);
+    const bytes = await page.pdf(CV_PDF_OPTIONS);
     return { kind: "ok", bytes };
   } catch (err) {
     return { kind: "failed", error: err };
