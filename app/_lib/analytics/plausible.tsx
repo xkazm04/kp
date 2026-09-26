@@ -20,7 +20,7 @@
  *     able to break or delay a product flow. Cookieless by construction
  *     (Plausible sets no cookies and stores nothing on the visitor).
  *
- * App-side events wired today:
+ * App-side events wired today (the closed list is TrackEventProps in ./track.ts):
  *   workspace_entered { plan? }  — session-nav.enterWorkspace (landing CTAs)
  *   demo_started                 — SimulationProvider's /?sim=auto auto-start
  *   checkout_started { item }    — BillingTab.startCheckout (plan or pack id)

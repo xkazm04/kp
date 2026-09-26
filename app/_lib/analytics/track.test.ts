@@ -110,3 +110,14 @@ test("the Analytics tab fires the three named cookieless events", () => {
   assert.match(read("AnalyticsExportButton.tsx"), /track\("analytics_export"/);
   assert.match(read("AnalyticsThresholdSuggestion.tsx"), /track\("calibration_apply"/);
 });
+
+test("the event vocabulary is closed: an undeclared name or prop does not compile", () => {
+  // Type-level pin. `tsc --noEmit` fails on an unused @ts-expect-error, so under an
+  // open `track(event: string, props?: Record<...>)` both lines below break the
+  // typecheck. At runtime track() is a no-op here (no window), so nothing is sent.
+  // @ts-expect-error - a misspelled event name
+  track("landing_cta_clik", { placement: "hero" });
+  // @ts-expect-error - a prop the event does not declare, here a contact address
+  track("analytics_export", { artifact: "csv", email: "someone@example.com" });
+  track("analytics_export", { artifact: "csv" });
+});

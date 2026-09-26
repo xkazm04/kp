@@ -7,6 +7,24 @@
 
 export type TrackProps = Record<string, string | number | boolean>;
 
+/** The closed custom-event vocabulary: every name track() will send, and the
+ *  props each one may carry. A new event is a new key here, so a misspelled
+ *  name or a prop nobody declared is a type error at the call site, not a new
+ *  row in the dashboard. Names are object_action, as the existing nine are. */
+export interface TrackEventProps {
+  landing_cta_click: { placement: string; plan?: string };
+  landing_demo_click: undefined;
+  workspace_entered: { plan: string } | undefined;
+  demo_started: undefined;
+  checkout_started: { item: string };
+  checkout_completed: { item: string };
+  analytics_section: { sec: string };
+  analytics_export: { artifact: string };
+  calibration_apply: { family: number };
+}
+
+export type TrackEvent = keyof TrackEventProps;
+
 type PlausibleFn = (event: string, options?: { props?: TrackProps }) => void;
 
 /** Path prefixes whose NEXT SEGMENT is a candidate capability token — the credential
@@ -46,7 +64,7 @@ export function isTokenizedPath(pathname: string): boolean {
  *  the tokenized candidate surfaces above (the URL Plausible would attach IS the
  *  credential). Never throws, never blocks, never awaited — analytics must not be
  *  able to break or delay a product flow. Cookieless by construction. */
-export function track(event: string, props?: TrackProps): void {
+export function track<E extends TrackEvent>(event: E, props?: TrackEventProps[E]): void {
   if (typeof window === "undefined") return;
   if (isTokenizedPath(window.location?.pathname ?? "")) return;
   const plausible = (window as Window & { plausible?: unknown }).plausible;
