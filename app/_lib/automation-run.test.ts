@@ -47,10 +47,10 @@ after(() => cleanupUnitDb());
 
 let seq = 0;
 /** A candidate + a board entry, in `ws`. Returns everything the key needs. */
-function fixture(ws: string = DEFAULT_WORKSPACE_ID, locale: string | null = null, stage?: string) {
+function fixture(ws: string = DEFAULT_WORKSPACE_ID, locale: string | null = null, stage?: string, archetype: string | null = "bau") {
   seq += 1;
   const { id: candidateId } = saveProfile(
-    { label: `Cand ${seq}`, archetype: "bau", roleFamily: "software_engineering", completeness: 90, payload: { skills: ["ts"] } },
+    { label: `Cand ${seq}`, archetype: archetype ?? "bau", roleFamily: "software_engineering", completeness: 90, payload: { skills: ["ts"] } },
     ws
   );
   const jobId = `job-am-${seq}`;
@@ -59,6 +59,8 @@ function fixture(ws: string = DEFAULT_WORKSPACE_ID, locale: string | null = null
     candidateLabel: `Cand ${seq}`,
     jobId,
     jobTitle: "Backend Engineer",
+    // The entry carries its own archetype (the shield reads the ENTRY, not the profile).
+    archetype,
     ...(stage ? { stage } : {}),
     locale,
     workspaceId: ws,
@@ -183,6 +185,23 @@ test("screening gate 'auto' NEVER overrides a cautious verdict — a hold still 
   assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human still decides");
   setGate(f.ws, "screening", "human");
 });
+
+// RED FIRST (before the change): the ratify read the RECOMMENDATION, which the
+// fairness gate never narrows upward. Python routes an early-career "advance" to hold
+// (`and not early`), and this branch then advanced it unattended anyway - the
+// shield's "never auto-advance either" held for the route and not for the outcome.
+for (const archetype of ["student", "career_switcher", null, "quantum_alchemist"]) {
+  test(`screening gate 'auto' never ratifies a SHIELDED candidate (archetype ${archetype})`, async () => {
+    const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID), archetype);
+    setGate(f.ws, "screening", "auto");
+    seedVerdict(f, "screen", { route: "hold", recommendation: "advance" }, "llm", "en");
+
+    const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+    assert.notEqual(out.applied, "auto_ratified", "the shield routes both directions to a person");
+    assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human still decides");
+    setGate(f.ws, "screening", "human");
+  });
+}
 
 test("the CAS primitive the screen path arms drops a decision computed against a moved row", () => {
   const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));

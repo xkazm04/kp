@@ -19,6 +19,7 @@ import {
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
 import { getPlanGateForRole } from "./interview-plan";
+import { readLiveArchetypes } from "./archetype-live";
 import { extendDraftedOffer } from "./pipeline-entry-action";
 import { sealDecisionSafe } from "./decision-record-store";
 import { resolveCommsLocale } from "./comms-locale";
@@ -583,9 +584,16 @@ export async function runAutomationTask(
       // machinery a recruiter's click uses (advance + calendar gate + auto_advanced
       // event), CAS-guarded on the approval just set. hold/reject recommendations
       // ALWAYS park — auto mode never overrides a cautious or adverse verdict.
+      // The route cannot say WHY it held, and confidence is not the only reason:
+      // Python also holds a fairness-shielded candidate's advance (`and not early`),
+      // and the recommendation it leaves standing is the model's. So the shield is
+      // re-derived here from the entry, through the same live reader the auto-reject
+      // backstop uses (unknown/unrouted fails closed): a shielded candidate is
+      // advanced by a person, never by the plan gate.
       if (
         getPlanGateForRole("screening", workspaceId) === "auto" &&
-        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance"
+        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance" &&
+        !readLiveArchetypes().isFairnessProtected(entry.archetype)
       ) {
         const ratified = actOnPipelineEntry(
           entry.id,
