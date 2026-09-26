@@ -848,7 +848,11 @@ only the language (`setupOnboardingFinish.ts`), and after the stamp the host
 `router.push("/me")` instead of refreshing the recruiter workspace. The draft persists
 the intent and restores it FIRST, since the step count a restored position clamps to
 depends on it (`setupDraft.ts`). The hire path is byte-for-byte what it was;
-`setupSteps.test.ts` pins both sequences.
+`setupSteps.test.ts` pins both sequences. **The fork exists only where the seeker module
+does** (`KP_JOBSEEKER=1`, read once in `app/_lib/jobseeker/enabled.ts`): `app/page.tsx`
+seeds `SetupSeekOfferContext` (`setupSeekOffer.ts`, default `false`), and without it the
+Welcome step draws no fork, the run starts already answered `hire`, a restored `seek`
+draft folds onto `hire` and nothing can finish on `/me` (`setupSeekOffer.test.ts`).
 
 **The seat (2026-09-23).** The `/` gate fires per user and a redeemed invite lands on
 `/`, so an invited teammate meets this wizard too. Each step whose answers need a
@@ -896,8 +900,11 @@ seen what failed. The tour tile passes `sim.start` as `finish(after)`, so the de
 starts once the run has closed, never beside the writes. The hand-off meta counts
 "invitation links to share after setup", not "teammates invited".
 
-**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route, gated by
-`isOperator()` else 404 exactly like `/control`, `instant = false`, a
+**`/me` is the seeker's shell** (`app/me/layout.tsx`): its own route, OFF unless the
+install sets `KP_JOBSEEKER=1` (`proxy.ts` rewrites every `/me/**` and `/api/jobseeker/**`
+path to an address no route owns, so it answers exactly what an unknown route answers;
+the layout's `notFound()` repeats the gate one layer down, and the `jobseeker_scan` clock
+job is neither run nor listed), then gated by `isOperator()` else 404 exactly like `/control`, `instant = false`, a
 `TranslatedErrorBoundary` around the page and no Companion dock. The pages draw their
 own chrome — the flow's top bar and numbered step rail
 (`app/features/jobseeker/sieve/SieveFrame.tsx`, the shared appearance/language

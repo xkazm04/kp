@@ -242,6 +242,13 @@ Two variables are **mandatory for any real deployment**:
 Everything else is optional. Provider keys (§5) are **opt-in** — set only the ones
 you use; omit the rest to minimise external egress.
 
+**The job-seeker module is off unless you turn it on.** `/me` (a personal job-search
+tool: your own CV, job boards, a scan clock) is not part of a recruiting install, so with
+`KP_JOBSEEKER` unset its pages and `/api/jobseeker/*` answer exactly what an unknown route
+answers, nothing in the app links to it, and the `jobseeker_scan` clock job is neither
+registered nor run. Set `KP_JOBSEEKER=1` (exactly `1`) only to run it for yourself — the
+switch is read in one place, `app/_lib/jobseeker/enabled.ts`.
+
 ### 3b. Sizing the Python engine
 
 The jobfit pipeline is **spawned per request** ([ADR: spawn-per-request](decisions/))

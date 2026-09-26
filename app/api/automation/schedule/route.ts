@@ -11,6 +11,7 @@ import {
   setIntervalMinutes,
 } from "@/app/_lib/scheduler-store";
 import { SCHEDULER_JOBS, isSchedulerJobName, schedulerJob, type SchedulerJobName } from "@/app/_lib/scheduler-jobs";
+import { schedulerJobOffered } from "@/app/_lib/jobseeker/enabled";
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -50,7 +51,9 @@ const JOB_RUNS = 5;
 // which tenant the rows were narrowed to, next to a summary that stays global.
 async function schedulePayload() {
   const workspace = await currentWorkspace();
-  const jobs = SCHEDULER_JOBS.map((job) => ({
+  // A job whose module this install leaves off (the seeker's scan without
+  // KP_JOBSEEKER=1, app/_lib/jobseeker/enabled.ts) is not listed — and not created.
+  const jobs = SCHEDULER_JOBS.filter((job) => schedulerJobOffered(job.name)).map((job) => ({
     name: job.name,
     labelKey: job.labelKey,
     schedule: ensureRegisteredSchedule(job),
@@ -139,7 +142,8 @@ export async function POST(request: NextRequest) {
     // A job the registry does not carry. The closest existing code, not a new one:
     // AUTOMATION_TASK_UNKNOWN ("that automation step does not exist") is the
     // vocabulary the [task] door already uses for an unregistered automation name.
-    if (body.job !== undefined && !isSchedulerJobName(body.job)) {
+    // A job whose module is off is not part of this install, so it is unknown here too.
+    if (body.job !== undefined && (!isSchedulerJobName(body.job) || !schedulerJobOffered(body.job))) {
       return jsonRefusal("AUTOMATION_TASK_UNKNOWN", 400);
     }
     const job: SchedulerJobName = body.job === undefined ? POLICY_JOB : body.job;

@@ -171,7 +171,12 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
   // The heading carries the step counter ("Step 1 of 6: …"), hence the regex.
   const welcome = wizard.getByRole("heading", { name: /Let's get you started/ });
   await expect(welcome).toBeVisible();
-  await wizard.getByRole("button", { name: /^I'm hiring/ }).click();
+  // The fork is drawn only on an install that offers the seeker arm (KP_JOBSEEKER=1,
+  // app/features/shell/setup/setupSeekOffer.ts): the managed webServer sets it, the CI
+  // release server does not. Without it the run starts already answered `hire` and
+  // "Let's go" is live at once — the same walk from here on.
+  const hiring = wizard.getByRole("button", { name: /^I'm hiring/ });
+  if ((await hiring.count()) > 0) await hiring.click();
   const company = wizard.getByRole("heading", { name: "Make it your company" });
   await advanceStep(welcome, wizard.getByRole("button", { name: "Let's go" }), company);
 

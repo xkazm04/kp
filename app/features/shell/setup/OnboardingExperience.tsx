@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
@@ -30,6 +30,7 @@ import { useSetupDraft } from "./useSetupDraft";
 import type { SetupSeat } from "./setupSeat";
 import { useSetupPipelineAxis } from "./useSetupPipelineAxis";
 import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
+import { initialIntent, offeredIntent, SetupSeekOfferContext } from "./setupSeekOffer";
 
 // First-run onboarding host. Owns the setup state + step index and hands one
 // controller to the wizard. Rendered as a fixed overlay over the workspace. Two
@@ -66,7 +67,13 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // wizard with "English" selected under Czech copy, and finishing would quietly
   // switch the workspace back to English.
   const appLocale = useLocale();
-  const initial = useMemo<SetupState>(() => ({ ...INITIAL_SETUP, language: appLocale }), [appLocale]);
+  // Whether this install offers the seeker arm at all (KP_JOBSEEKER, seeded by
+  // app/page.tsx — setupSeekOffer.ts). Off: the run starts already answered `hire`.
+  const seekOffered = useContext(SetupSeekOfferContext);
+  const initial = useMemo<SetupState>(
+    () => ({ ...INITIAL_SETUP, language: appLocale, intent: initialIntent(seekOffered) }),
+    [appLocale, seekOffered]
+  );
   const [state, setState] = useState<SetupState>(initial);
   const finishing = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -139,7 +146,9 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     [update]
   );
   const restore = useCallback(
-    (draft: SetupDraft) => {
+    (stored: SetupDraft) => {
+      // A draft written while the module was on may say `seek`; fold it onto this install.
+      const draft: SetupDraft = { ...stored, intent: offeredIntent(stored.intent, seekOffered) };
       setState((s) => mergeSetupDraft(s, draft, initial));
       setDraftRestored(true);
       // The restored position is a position in the sequence the restored INTENT and
@@ -149,7 +158,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
       setMaxVisited((m) => Math.max(m, at.maxVisited));
       pendingAxis.current = draft.axisDraft;
     },
-    [initial]
+    [initial, seekOffered]
   );
   const { clear: clearDraft } = useSetupDraft({
     enabled: mode === "live",
@@ -241,7 +250,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     // affordance reads it (`useSetupUnfinished`) through its own fetch, so without
     // this it would keep offering "pick up where you left off".
     void stamp("completed").then(notifyDataChanged);
-    if (state.intent === "seek") router.push("/me");
+    if (state.intent === "seek" && seekOffered) router.push("/me");
     else router.refresh();
     onClose();
     // What the operator chose to do next (the tour tile's sim.start) runs only
@@ -249,7 +258,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     const after = afterFinish.current;
     afterFinish.current = null;
     after?.();
-  }, [state.intent, stamp, clearDraft, onClose, router]);
+  }, [state.intent, seekOffered, stamp, clearDraft, onClose, router]);
 
   // The receipt (SetupFinishReceipt.tsx) and the run it was built from — the run is
   // what a Retry narrows (finishRemainder) and folds back into (mergeFinishRuns).

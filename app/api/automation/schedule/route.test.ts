@@ -45,6 +45,12 @@ registerHooks({
   },
 });
 
+// The job-seeker module is OFF unless the install says KP_JOBSEEKER=1
+// (app/_lib/jobseeker/enabled.ts); this file pins the registry with the module ON,
+// and the last test turns it off to pin that its scan job is then neither listed nor
+// writable. Read per call, so setting it here (and flipping it there) is enough.
+process.env.KP_JOBSEEKER = "1";
+
 // Loaded AFTER the hooks — resolution hooks only affect later imports.
 const { GET, POST } = await import("./route.ts");
 const { recordRun } = await import("../../../_lib/scheduler-store.ts");
@@ -203,4 +209,22 @@ test("the malformed-interval refusal is unchanged", async () => {
   const res = await post({ intervalMinutes: "soon" });
   assert.equal(res.status, 400);
   assert.equal((await json(res)).code, "SCHEDULE_INTERVAL_INVALID");
+});
+
+test("with the job-seeker module OFF, its scan job is neither listed nor writable", async () => {
+  const was = process.env.KP_JOBSEEKER;
+  delete process.env.KP_JOBSEEKER;
+  try {
+    const body = await json(await GET());
+    assert.deepEqual(
+      body.jobs.map((j) => j.name),
+      ["policy_pass", "reminders", "interview_recording_retention", "gig_scan", "gig_sync"],
+      "jobseeker_scan is not part of an install that leaves the module off"
+    );
+    const res = await post({ job: "jobseeker_scan", enabled: false });
+    assert.equal(res.status, 400);
+    assert.equal((await json(res)).code, "AUTOMATION_TASK_UNKNOWN", "an off module's job answers like a job that does not exist");
+  } finally {
+    process.env.KP_JOBSEEKER = was;
+  }
 });

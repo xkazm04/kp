@@ -397,8 +397,12 @@ export async function startClock(): Promise<void> {
     try {
       const { SCHEDULER_JOBS } = await import("./app/_lib/scheduler-jobs");
       const { ensureRegisteredSchedule, claimDueRun, recordRun } = await import("./app/_lib/scheduler-store");
+      const { schedulerJobOffered } = await import("./app/_lib/jobseeker/enabled");
       for (const job of SCHEDULER_JOBS) {
         if (job.name === "policy_pass") continue; // tickScheduler's — see above
+        // `jobseeker_scan` belongs to the job-seeker module, which is OFF unless the
+        // install sets KP_JOBSEEKER=1: no schedule row is created and nothing runs.
+        if (!schedulerJobOffered(job.name)) continue;
         try {
           ensureRegisteredSchedule(job);
           if (claimDueRun(job.name)) {

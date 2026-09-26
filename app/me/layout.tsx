@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { TranslatedErrorBoundary } from "@/app/_components/ErrorBoundary";
 import { isOperator } from "@/app/_lib/auth/require-operator";
+import { jobseekerEnabled } from "@/app/_lib/jobseeker/enabled";
 
 // /me — the job-seeker's own space, a separate route with its own shell beside the
 // recruiter Workspace. It reuses the root layout's providers (theme, locale, brand,
@@ -12,10 +13,15 @@ import { isOperator } from "@/app/_lib/auth/require-operator";
 // Gate: the route is NOT in PUBLIC_PAGES, so proxy.ts already walls it when a password
 // is set; this mirrors app/control/page.tsx and answers a demo-workspace session with the
 // same 404 an unknown route gets rather than revealing the surface.
+// Module gate: the whole /me module is OFF unless the install sets KP_JOBSEEKER=1
+// (app/_lib/jobseeker/enabled.ts). proxy.ts already answers every /me path as an unknown
+// route when it is off; this is the same answer one layer down, so a page stays hidden
+// even if a request ever reaches the render without passing the proxy.
 // `instant = false`: the layout reads the session per request.
 export const instant = false;
 
 export default async function MeLayout({ children }: { children: React.ReactNode }) {
+  if (!jobseekerEnabled()) notFound();
   if (!(await isOperator())) notFound();
   return (
     <div className="min-h-screen bg-paper">
