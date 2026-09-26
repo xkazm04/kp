@@ -11,6 +11,15 @@ dependency decision: [ADR 0009](../../architecture/decisions/0009-one-html-parse
 
 ## Entry points
 
+**The module is OFF unless the install sets `KP_JOBSEEKER=1`** (read only in
+`app/_lib/jobseeker/enabled.ts`; kp is open source and a recruiting team's install must not
+carry a personal job-search tool by default). Off, `/me/**` and `/api/jobseeker/**` answer
+exactly as an unknown route (a `proxy.ts` rewrite after the auth gate, with matcher entries so
+the dotted `cv.pdf` / `cv.md` paths are gated too; the layout also calls `notFound()`), the
+first-run wizard shows no "looking for a job" option, and the `jobseeker_scan` clock job is
+neither run nor listed.
+
+
 | Surface | Path | Gate |
 | --- | --- | --- |
 | Gate + error boundary (no chrome of its own) | `app/me/layout.tsx` | `isOperator()` else 404; not in `PUBLIC_PAGES`, so the fail-closed proxy walls it when a password is set |
@@ -22,6 +31,14 @@ dependency decision: [ADR 0009](../../architecture/decisions/0009-one-html-parse
 | API | `app/api/jobseeker/**` | operator-gated + `requireOperator` in every handler |
 
 ## The flow — `/me` ("The Sieve")
+
+**The step rail follows the content.** Steps 2 "Your CV" and 3 "You" are one section
+(`#s-cv`), so they light as one joined pair (`railSection()`). Below 860px the step strip is
+opaque and its measured height (`--sv-strip-h`, a ResizeObserver in `SieveFrame`) is part of
+every section's scroll margin, so an anchor jump never hides a heading. The rail lights the
+section just under the strip, and a rail click keeps its step lit until the reader scrolls,
+touches or types.
+
 
 Promoted on 2026-09-25 from the design contest `me-seeker-flow` (winner A/2, "The
 Sieve"; the owner chose it over the more spectacular runner-up for its balance of wow and
