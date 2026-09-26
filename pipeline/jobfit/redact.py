@@ -164,12 +164,22 @@ def _looks_like_role_headline(cand: str) -> bool:
     (seniority markers + skill/role terms), so a headline is neither masked as
     ``[NAME]`` across the document — which would blank those common CV words from the
     blind-scored text — nor re-attached as the candidate's name. Best-effort: reuses
-    the taxonomy rather than a bespoke stop-list, so it tracks the vocabulary."""
+    the taxonomy rather than a bespoke stop-list, so it tracks the vocabulary.
+
+    A skill hit alone is not enough: the vocabulary must account for MORE than half
+    of the line's tokens. "Grace Swift" and "Rust Cohle" each carry one skill term,
+    and the old any-hit rule filed both as headlines — so a candidate whose surname
+    is Swift was never name-detected at all, while an otherwise identical CV
+    belonging to a Novak was masked. "Swift Developer" and "Machine Learning
+    Engineer" are still headlines."""
     if detected_seniority_levels(cand):
         return True
-    if detected_skills(cand, limit=1):
-        return True
-    return False
+    tokens = cand.split()
+    term_words = {
+        w for term in detected_skills(cand, limit=len(tokens) + 4) for w in term.casefold().split()
+    }
+    covered = sum(1 for t in tokens if t.casefold() in term_words)
+    return covered * 2 > len(tokens)
 
 
 def _guess_name_line(text: str) -> str | None:
@@ -214,6 +224,35 @@ def _guess_name_line(text: str) -> str | None:
     return None
 
 
+# Words that make the NEXT token a person reference ("Dear Swift", "Ms Swift"): a lone
+# name token after one of these is masked even when it is also vocabulary.
+_PERSON_CUES = frozenset(
+    {
+        "dear", "hi", "hello", "hey", "thanks", "mr", "mrs", "ms", "miss", "pan",
+        "pani", "paní", "slecna", "slečna", "vážený", "vazeny", "vážená", "vazena",
+    }
+)
+
+
+def _lone_token_is_evidence(text: str, start: int, end: int) -> bool:
+    """True when a LONE occurrence of a name token (the full name is masked
+    separately) reads as capability evidence rather than the person.
+
+    Two cases the scoring side already decides, so the mask no longer depends on
+    who the candidate is:
+      * a skill term in the shared taxonomy — Grace Swift's "Swift" in a skills line;
+      * a glued-hyphen compound — Mark Price's "Mark-to-market" is a trading term.
+    An occurrence right after a salutation or honorific stays masked either way."""
+    prev = re.search(r"([^\W\d_]+)\.?[ \t]+$", text[:start])
+    if prev and prev.group(1).casefold() in _PERSON_CUES:
+        return False
+    if text[end:end + 1] == "-" and text[end + 1:end + 2].isalpha():
+        return True
+    if start > 0 and text[start - 1] == "-" and start > 1 and text[start - 2].isalpha():
+        return True
+    return bool(detected_skills(text[start:end], limit=1))
+
+
 @dataclass
 class RedactResult:
     text: str
@@ -247,7 +286,17 @@ def redact_pii(text: str) -> RedactResult:
                 # …but never the date occurrence ("Jan 2020"), which is employment
                 # evidence, not identity.
                 pattern += _FOLLOWED_BY_YEAR
-            redacted = re.sub(pattern, "[NAME]", redacted)
+            # …and never an occurrence the shared vocabulary reads as evidence
+            # (a skill, a hyphen compound): masking those strips capability from
+            # this candidate's CV only.
+            current = redacted
+            redacted = re.sub(
+                pattern,
+                lambda m, src=current: m.group(0)
+                if _lone_token_is_evidence(src, m.start(), m.end())
+                else "[NAME]",
+                current,
+            )
         categories.append("name")
 
     for pattern, tag, cat in (
