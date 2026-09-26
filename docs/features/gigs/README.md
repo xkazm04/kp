@@ -326,6 +326,15 @@ could read. So:
   A file that fails validation fails the attempt with `invalid_json` / `invalid_shape` and a
   detail prefixed `kp-deliverable.json:`.
 
+A **stand-down** (the specialist decides not to attempt the work, e.g. the listing is
+already claimed) is a valid outcome, but it is still a deliverable: `summary`, `draftText`
+and `disclosure` are required non-empty strings on every object. The contract therefore
+tells the specialist to fill `draftText` on a stand-down too — with the message it
+recommends sending (an availability inquiry) or, when nothing should be sent, its
+recommendation and why (`Recommend declining — already claimed by #123`). An empty
+`draftText` fails the attempt as `invalid_shape`, so a stand-down that leaves it blank never
+reaches the review desk.
+
 The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under
 it) carries them too.
