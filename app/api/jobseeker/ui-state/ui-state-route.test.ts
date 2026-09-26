@@ -63,7 +63,7 @@ test("the design round-trips, re-validated by cvQuery (junk is a default, never 
 
   await put({ design: { template: "<script>", accent: 42, tailor: -3, extra: "dropped" } });
   const junk = (await (await get()).json()) as { design: Record<string, unknown> };
-  assert.deepEqual(junk.design, { template: "sidebar", accent: "navy", tailor: null, compact: false, objective: true });
+  assert.deepEqual(junk.design, { template: "classic", accent: "navy", tailor: null, compact: false, objective: true });
 
   const bad = await put({ design: "nope" });
   assert.equal(bad.status, 400);

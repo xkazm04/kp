@@ -12405,7 +12405,8 @@
       "past": "Gespräche",
       "download": "Lebenslauf herunterladen (.md)",
       "downloadUnavailable": "Schließen Sie zuerst ein Lebenslauf-Gespräch ab; der Download erscheint, sobald ein überarbeiteter Lebenslauf vorliegt.",
-      "print": "Drucken / PDF"
+      "print": "Drucken / PDF",
+      "questionLabel": "Eine Frage an Sie"
     },
     "preferences": {
       "title": "Suchpräferenzen",
@@ -13399,7 +13400,8 @@
       "template": {
         "sidebar": "Seitenspalte",
         "editorial": "Editorial",
-        "compact": "Kompakt"
+        "compact": "Kompakt",
+        "classic": "Klassisch"
       },
       "accentLabel": "Akzentfarbe",
       "accent": {
@@ -13415,13 +13417,12 @@
       "printInstead": "Stattdessen drucken",
       "pdfFailed": "Das PDF konnte nicht erstellt werden. Drucken Sie es stattdessen: Das Layout ist dasselbe.",
       "improvements": "{n, plural, =0 {Nichts musste geglättet werden} one {# Formulierung geglättet} other {# Formulierungen geglättet}}",
-      "improvementsHint": "Werkzeugnamen, Rechtschreibung, Zeilenumbrüche und schwache Satzanfänge geglättet. Ihrem Lebenslauf wurde nichts hinzugefügt.",
+      "improvementsHint": "Werkzeugnamen, Rechtschreibung und Zeilenumbrüche geglättet. Ihrem Lebenslauf wurde nichts hinzugefügt.",
       "kind": {
         "term": "Werkzeugname",
         "spelling": "Rechtschreibung",
         "hyphen": "Zeilenumbruch",
         "capital": "Großschreibung",
-        "opener": "Satzanfang",
         "tailor": "Zuschnitt"
       },
       "previewLabel": "Vorschau Ihres gestalteten Lebenslaufs",
@@ -13429,7 +13430,6 @@
       "tailorOff": "Wie geschrieben",
       "objectiveToggle": "Angeben, was Sie suchen",
       "compactToggle": "Stationen ohne Zielbezug einzeilig",
-      "compactHint": "Ihr Lebenslauf ist länger als eine Seite.",
       "tailorMoves": "{n, plural, =0 {Für {target} nichts umzustellen} one {# Umstellung für {target}} other {# Umstellungen für {target}}}",
       "tailorMovesHint": "Geändert haben sich nur Reihenfolge und Fettdruck: Jedes Wort stammt weiter von Ihnen, und Ihre Stationen bleiben in zeitlicher Reihenfolge.",
       "tailorMove": {
@@ -13439,7 +13439,8 @@
         "items": "Zuerst in {where}: {after}",
         "emphasis": "{n, plural, one {# für {target} wichtiger Begriff fett gesetzt} other {# für {target} wichtige Begriffe fett gesetzt}}",
         "compact": "{where} einzeilig gesetzt: Nichts darin betrifft {target}",
-        "objective": "„{after}“ unter Ihrer Überschrift ergänzt, als das, was Sie suchen"
+        "objective": "„{after}“ unter Ihrer Überschrift ergänzt, als das, was Sie suchen",
+        "projects": "{n, plural, one {# Projekt ohne Bezug zu {target} ausgelassen} other {# Projekte ohne Bezug zu {target} ausgelassen}}"
       },
       "coverage": {
         "postings": "Ihr Lebenslauf zeigt {shown} von {total, plural, one {# Kenntnis} other {# Kenntnissen}}, die Stellen als {target} verlangen.",
@@ -13454,7 +13455,31 @@
         "inSkills": "Kenntnisse",
         "inSummary": "Profil"
       },
-      "saveFailed": "Ihre Layout-Wahl ist noch nicht gespeichert, wird erneut versucht."
+      "saveFailed": "Ihre Layout-Wahl ist noch nicht gespeichert, wird erneut versucht.",
+      "downloadSingleFlow": "PDF einspaltig herunterladen",
+      "columnsNote": "{layout} setzt einen Teil Ihres Lebenslaufs in eine Seitenspalte, und manche Bewerbermanagementsysteme lesen ihn dann in falscher Reihenfolge. Zum Hochladen nehmen Sie das einspaltige PDF.",
+      "pages": {
+        "fits": "Passt auf {pages, plural, one {eine Seite} other {# Seiten}}.",
+        "over": "Umfasst {pages, plural, one {# Seite} other {# Seiten}}; {budget, plural, one {bei unter drei Jahren Erfahrung ist eine Seite üblich} other {üblich sind zwei Seiten}}. Setzen Sie ältere Stationen lieber in eine Zeile, statt die Schrift zu verkleinern.",
+        "sparse": "Auf Seite {page} stehen nur wenige Zeilen. Kürzen Sie etwas oder setzen Sie ältere Stationen in eine Zeile.",
+        "tailorHint": "Wählen Sie ein Ziel zum Zuschneiden, dann können Stationen ohne Bezug dazu in eine Zeile."
+      },
+      "questions": {
+        "toggle": "{n, plural, =0 {Keine Fragen an Sie} one {# Frage, die nur Sie beantworten können} other {# Fragen, die nur Sie beantworten können}}",
+        "hint": "Nur Sie sehen diese Fragen, sie werden nie gedruckt. Die Antwort gehört in Ihren Lebenslauf, in Ihren eigenen Worten.",
+        "kind": {
+          "no_outcome": "Was hat sich dadurch geändert, und woran sehen Sie das?",
+          "missing_metric": "Um wie viel hat es sich geändert?",
+          "listed_only": "Wo haben Sie das eingesetzt?",
+          "self_descriptor": "Könnte eine Zeile aus Ihrer Arbeit das stattdessen zeigen?"
+        },
+        "inRole": "als {role}"
+      },
+      "plainText": {
+        "toggle": "So liest ihn ein System",
+        "hint": "Der Text, den ein Bewerbermanagementsystem aus Ihrem PDF liest, in dieser Reihenfolge. Was hier falsch ist oder fehlt, ist auch dort falsch oder fehlt.",
+        "columns": "Der Text, den ein Bewerbermanagementsystem aus Ihrem PDF liest, in dieser Reihenfolge. {layout} hat eine Seitenspalte: Ein System, das nach Position liest, kann sie in diese Zeilen mischen."
+      }
     }
   },
   "journey": {

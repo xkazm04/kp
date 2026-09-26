@@ -12405,7 +12405,8 @@
       "past": "Conversations",
       "download": "Télécharger le CV (.md)",
       "downloadUnavailable": "Terminez d'abord une conversation sur le CV ; le téléchargement apparaît dès qu'un CV retravaillé existe.",
-      "print": "Imprimer / PDF"
+      "print": "Imprimer / PDF",
+      "questionLabel": "Une question pour vous"
     },
     "preferences": {
       "title": "Préférences de recherche",
@@ -13399,7 +13400,8 @@
       "template": {
         "sidebar": "Colonne latérale",
         "editorial": "Éditorial",
-        "compact": "Compact"
+        "compact": "Compact",
+        "classic": "Classique"
       },
       "accentLabel": "Couleur d’accent",
       "accent": {
@@ -13415,13 +13417,12 @@
       "printInstead": "L’imprimer à la place",
       "pdfFailed": "Impossible de créer le PDF. Imprimez-le à la place : la mise en page est la même.",
       "improvements": "{n, plural, =0 {Rien à retoucher} one {# formulation retouchée} other {# formulations retouchées}}",
-      "improvementsHint": "Noms d’outils, orthographe, retours à la ligne et débuts de phrase faibles, retouchés. Rien n’a été ajouté à ce que dit votre CV.",
+      "improvementsHint": "Noms d’outils, orthographe et retours à la ligne, retouchés. Rien n’a été ajouté à ce que dit votre CV.",
       "kind": {
         "term": "Nom d’outil",
         "spelling": "Orthographe",
         "hyphen": "Retour à la ligne",
         "capital": "Majuscule",
-        "opener": "Début de phrase",
         "tailor": "Adaptation"
       },
       "previewLabel": "Aperçu de votre CV mis en page",
@@ -13429,7 +13430,6 @@
       "tailorOff": "Tel quel",
       "objectiveToggle": "Indiquer ce que vous cherchez",
       "compactToggle": "Postes hors cible sur une ligne",
-      "compactHint": "Votre CV dépasse une page.",
       "tailorMoves": "{n, plural, =0 {Rien à déplacer pour {target}} one {# déplacement pour {target}} other {# déplacements pour {target}}}",
       "tailorMovesHint": "Seuls l’ordre et le gras ont changé : chaque mot reste le vôtre, et vos postes restent dans l’ordre chronologique.",
       "tailorMove": {
@@ -13439,7 +13439,8 @@
         "items": "En tête de {where} : {after}",
         "emphasis": "{n, plural, one {# terme important pour {target} mis en gras} other {# termes importants pour {target} mis en gras}}",
         "compact": "{where} tient sur une ligne : rien n’y concerne {target}",
-        "objective": "« {after} » ajouté sous votre titre, comme ce que vous cherchez"
+        "objective": "« {after} » ajouté sous votre titre, comme ce que vous cherchez",
+        "projects": "{n, plural, one {# projet sans lien avec {target} écarté} other {# projets sans lien avec {target} écartés}}"
       },
       "coverage": {
         "postings": "Votre CV montre {shown} sur {total, plural, one {# compétence demandée} other {# compétences demandées}} par les offres de {target}.",
@@ -13454,7 +13455,31 @@
         "inSkills": "Compétences",
         "inSummary": "Profil"
       },
-      "saveFailed": "Votre choix de mise en page n’est pas encore enregistré, nouvel essai en cours."
+      "saveFailed": "Votre choix de mise en page n’est pas encore enregistré, nouvel essai en cours.",
+      "downloadSingleFlow": "Télécharger le PDF sur une colonne",
+      "columnsNote": "{layout} place une partie de votre CV dans une colonne latérale, et certains logiciels de recrutement la lisent alors dans le désordre. Pour un dépôt en ligne, utilisez le PDF sur une colonne.",
+      "pages": {
+        "fits": "Tient sur {pages, plural, one {une page} other {# pages}}.",
+        "over": "Occupe {pages, plural, one {# page} other {# pages}} ; {budget, plural, one {une page est l'usage sous trois ans d'expérience} other {deux pages sont l'usage}}. Mettez plutôt les postes anciens sur une ligne que de réduire la police.",
+        "sparse": "La page {page} ne contient que quelques lignes. Raccourcissez un peu, ou mettez les postes anciens sur une ligne.",
+        "tailorHint": "Choisissez une cible pour adapter le CV : les postes sans rapport pourront tenir sur une ligne."
+      },
+      "questions": {
+        "toggle": "{n, plural, =0 {Aucune question pour vous} one {# question dont vous avez la réponse} other {# questions dont vous avez la réponse}}",
+        "hint": "Ces questions ne sont visibles que par vous et ne sont jamais imprimées. La réponse a sa place dans votre CV, avec vos propres mots.",
+        "kind": {
+          "no_outcome": "Qu'est-ce que cela a changé, et comment le savez-vous ?",
+          "missing_metric": "De combien cela a-t-il changé ?",
+          "listed_only": "Où l'avez-vous utilisé ?",
+          "self_descriptor": "Une ligne tirée de votre travail pourrait-elle le montrer à la place ?"
+        },
+        "inRole": "en tant que {role}"
+      },
+      "plainText": {
+        "toggle": "Ce qu'en lit un logiciel",
+        "hint": "Le texte qu'un logiciel de recrutement extrait de votre PDF, dans cet ordre. Ce qui est faux ou manque ici l'est aussi pour lui.",
+        "columns": "Le texte qu'un logiciel de recrutement extrait de votre PDF, dans cet ordre. {layout} a une colonne latérale : un logiciel qui lit selon la position peut la mêler à ces lignes."
+      }
     }
   },
   "journey": {

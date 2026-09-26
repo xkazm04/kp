@@ -12405,7 +12405,8 @@
       "past": "Konverzace",
       "download": "Stáhnout CV (.md)",
       "downloadUnavailable": "Nejdřív dokončete konverzaci o CV; stažení se objeví, jakmile existuje upravené CV.",
-      "print": "Tisk / PDF"
+      "print": "Tisk / PDF",
+      "questionLabel": "Otázka pro vás"
     },
     "preferences": {
       "title": "Preference hledání",
@@ -13399,7 +13400,8 @@
       "template": {
         "sidebar": "S postranním sloupcem",
         "editorial": "Redakční",
-        "compact": "Kompaktní"
+        "compact": "Kompaktní",
+        "classic": "Klasický"
       },
       "accentLabel": "Barva zvýraznění",
       "accent": {
@@ -13415,13 +13417,12 @@
       "printInstead": "Raději ho vytiskněte",
       "pdfFailed": "PDF se nepodařilo vytvořit. Vytiskněte ho: rozvržení bude stejné.",
       "improvements": "{n, plural, =0 {Nebylo co upravit} one {# upravené slovo} few {# upravená slova} other {# upravených slov}}",
-      "improvementsHint": "Upravili jsme názvy nástrojů, pravopis, zalomení řádků a slabé úvody vět. K tomu, co vaše CV říká, jsme nic nepřidali.",
+      "improvementsHint": "Upravili jsme názvy nástrojů, pravopis a zalomení řádků. K tomu, co vaše CV říká, jsme nic nepřidali.",
       "kind": {
         "term": "Název nástroje",
         "spelling": "Pravopis",
         "hyphen": "Zalomení řádku",
         "capital": "Velké písmeno",
-        "opener": "Úvod věty",
         "tailor": "Přizpůsobení"
       },
       "previewLabel": "Náhled vašeho navrženého CV",
@@ -13429,7 +13430,6 @@
       "tailorOff": "Beze změn",
       "objectiveToggle": "Uvést, co hledáte",
       "compactToggle": "Role mimo cíl na jeden řádek",
-      "compactHint": "Vaše CV přesahuje jednu stranu.",
       "tailorMoves": "{n, plural, =0 {Pro pozici {target} není co přesunout} one {# přesun pro pozici {target}} few {# přesuny pro pozici {target}} many {# přesunu pro pozici {target}} other {# přesunů pro pozici {target}}}",
       "tailorMovesHint": "Změnilo se jen pořadí a tučné písmo: každé slovo je stále vaše a role zůstávají v časovém pořadí.",
       "tailorMove": {
@@ -13439,7 +13439,8 @@
         "items": "Na začátku skupiny {where}: {after}",
         "emphasis": "{n, plural, one {# pojem důležitý pro pozici {target} je tučně} few {# pojmy důležité pro pozici {target} jsou tučně} many {# pojmu důležitého pro pozici {target} je tučně} other {# pojmů důležitých pro pozici {target} je tučně}}",
         "compact": "Role {where} je na jednom řádku: nic v ní se netýká pozice {target}",
-        "objective": "Pod titulek přibyl řádek „{after}“ jako to, co hledáte"
+        "objective": "Pod titulek přibyl řádek „{after}“ jako to, co hledáte",
+        "projects": "{n, plural, one {# projekt, který se netýká pozice {target}, vynechán} few {# projekty, které se netýkají pozice {target}, vynechány} many {# projektu, které se netýkají pozice {target}, vynecháno} other {# projektů, které se netýkají pozice {target}, vynecháno}}"
       },
       "coverage": {
         "postings": "Vaše CV ukazuje {shown} z {total, plural, one {# dovednosti, kterou} few {# dovedností, které} many {# dovednosti, které} other {# dovedností, které}} požadují nabídky na pozici {target}.",
@@ -13454,7 +13455,31 @@
         "inSkills": "Dovednosti",
         "inSummary": "Profil"
       },
-      "saveFailed": "Vaše volba rozvržení zatím není uložena, zkoušíme to znovu."
+      "saveFailed": "Vaše volba rozvržení zatím není uložena, zkoušíme to znovu.",
+      "downloadSingleFlow": "Stáhnout PDF v jednom sloupci",
+      "columnsNote": "{layout} dává část životopisu do bočního sloupce a některé náborové systémy ho pak čtou v jiném pořadí. K nahrání použijte PDF v jednom sloupci.",
+      "pages": {
+        "fits": "Vejde se na {pages, plural, one {jednu stránku} few {# stránky} other {# stránek}}.",
+        "over": "Vychází na {pages, plural, one {# stránku} few {# stránky} other {# stránek}}; {budget, plural, one {do tří let praxe je obvyklá jedna stránka} other {obvyklé jsou dvě stránky}}. Starší pozice raději zkraťte na jeden řádek, než abyste zmenšovali písmo.",
+        "sparse": "Na stránce {page} je jen pár řádků. Trochu text zkraťte, nebo dejte starší pozice na jeden řádek.",
+        "tailorHint": "Zvolte cíl v části Přizpůsobit pro a pozice, které k němu nic neříkají, se vejdou na jeden řádek."
+      },
+      "questions": {
+        "toggle": "{n, plural, =0 {Žádné otázky pro vás} one {# otázka, na kterou umíte odpovědět jen vy} few {# otázky, na které umíte odpovědět jen vy} other {# otázek, na které umíte odpovědět jen vy}}",
+        "hint": "Tyto otázky vidíte jen vy a nikdy se netisknou. Odpověď patří do vašeho životopisu, vlastními slovy.",
+        "kind": {
+          "no_outcome": "Co se díky tomu změnilo a jak to víte?",
+          "missing_metric": "O kolik se to změnilo?",
+          "listed_only": "Kde jste tuto dovednost uplatnili?",
+          "self_descriptor": "Mohl by to místo toho ukázat konkrétní řádek z vaší práce?"
+        },
+        "inRole": "v pozici {role}"
+      },
+      "plainText": {
+        "toggle": "Jak ho přečte systém",
+        "hint": "Text, který náborový systém vyčte z vašeho PDF, v tomto pořadí. Co je tady špatně nebo chybí, je špatně nebo chybí i pro něj.",
+        "columns": "Text, který náborový systém vyčte z vašeho PDF, v tomto pořadí. {layout} má boční sloupec: systém, který čte podle polohy, ho může do těchto řádků vmíchat."
+      }
     }
   },
   "journey": {

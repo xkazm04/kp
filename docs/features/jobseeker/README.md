@@ -465,6 +465,58 @@ dated line, and the sheet sets those verbatim; the draft text is the fallback on
 the employer is not found. The headline compares folded, so "MICHAL KAŽDAN" is never read
 back as the headline of "Michal Každan".
 
+**Held to a written standard.** The sheet follows the registry subjects
+`recruiting/cv-content-construction` and `recruiting/cv-presentation-and-parseability`
+(forged 2026-09-26 from outside research; branch `forge/cv-construction` in the registry).
+
+*What the sheet says* (`cvContent.ts`, pure). A verb never raises the claim (the old
+"Responsible for -> Owned" rewrite is gone); self-descriptors in the seeker's own text become
+owner questions and are never deleted from their words. Bullets are ranked by the outcome
+ladder (a stated number > a stated scale > a before/after > action and object) and budgeted by
+recency: 6 for the current role, 4 within ten years, 2 older, one line past 15 years or off
+target (`CvRole.compact`); a role is never deleted, and bullets over budget are held back
+(`trimmed`, never printed). Skills are evidenced-first and capped at 15, with a level WORD, never
+pips; a skill no role shows, and a soft-skill list, becomes an owner question. Languages carry
+their CEFR level when stated. Bold is at most 2 terms per role, never in the skills list.
+Non-job evidence (projects, thesis, courses, certifications) becomes a dated `projects`
+section; the tailored sheet keeps only the ones that speak to the target. Dates are typeset per
+market ("present" / "dosud" / "heute" / "aujourd'hui"). No photo, birth date or marital
+status is ever emitted, and a "PERSONAL DETAILS" block is never read as skills. The owner
+questions (`no_outcome`, `missing_metric`, `listed_only`, `self_descriptor`) are shown only in
+the designer, each quoting the line it is about.
+
+*The model's rewrites are screened* (`pipeline/jobfit/jobseeker.py`, `cv-polish-v3`). Every
+suggestion's REPLACEMENT is checked against the record (the CV text plus what the seeker said
+in the dialog): a new number, a skill term from the ad, or a raised title or verb turns it into
+a question (`kind: "question"`, never applied - the sheet shows "A question for you" instead
+of Apply); a new proper noun, a self-descriptor or a less specific line is dropped. A full
+redraft from the model is only read as line proposals. Accepted edits are recorded as
+`applied` on the polish artifact (carried into a new conversation) and applied by
+`buildCvDocument({ acceptedEdits })` - in the /me preview, `/me/cv/print` and the PDF alike;
+an edit applies only while its original line is still in the CV.
+
+*How it looks and parses* (`DesignedCv.tsx`, `cv.css`, `cvQuery.ts`). Four templates:
+`classic` (the default) and `editorial` are single-flow; `sidebar` and `compact` set part of
+the CV in a side column and are opt-in, with the single-column PDF offered beside them (a
+saved design from before, on the old `sidebar` default, reads once as unchosen - `v: 2`).
+Reading order on every template: head -> summary -> experience -> projects -> education ->
+skills -> languages; each entry is one line, "Title - Employer" with the dates at its end;
+nothing that carries text is positioned and headings are not letter-spaced (both had made the
+PDF text read out of order). Four type sizes only (`--cv-*`): body 10-11pt, dates at body size
+in ink, name 22-28pt. Page budget (`cvPageBudget.ts`): one page under three years of
+experience, two otherwise, a last page under a third full is sparse; the designer reports it
+and suggests one-line roles - type never shrinks. Page two repeats the name in its head
+margin. The designer also shows "How a parser reads it" (the sheet's reading order). The PDF is
+named `First-Last-CV.pdf`, titled "Name - CV" and tagged (`cv-pdf.ts`).
+
+*Checked, not asserted.* `npm run cv:roundtrip` (a dev tool: Chromium + PyMuPDF) renders five
+synthetic reference CVs (short, long, career change, Czech diacritics, two pages) in every
+template, extracts each PDF in content order (pypdf) and by position (PyMuPDF), and asserts
+the name leads, each entry stays contiguous and nothing is lost; the checker itself runs in
+`test:unit` (`cvRoundTrip.test.ts`). Measured 2026-09-26: `classic` and `editorial` pass 5/5
+in both extractors; `sidebar` fails 3/5 and `compact` 5/5 by position - hence opt-in. Before
+this change every template failed.
+
 **Tailored to a target** (`cvTailor.ts`, pure). The designer's "Tailor for" row lists the
 seeker's `targetTitles`; picking one REORDERS AND EMPHASISES, never adds a word. The summary
 leads with its most target-relevant sentence (every sentence verbatim); roles keep their

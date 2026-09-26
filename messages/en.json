@@ -12405,7 +12405,8 @@
       "past": "Conversations",
       "download": "Download CV (.md)",
       "downloadUnavailable": "Finish a CV conversation first; the download appears once a polished CV exists.",
-      "print": "Print / PDF"
+      "print": "Print / PDF",
+      "questionLabel": "A question for you"
     },
     "preferences": {
       "title": "Search preferences",
@@ -13399,7 +13400,8 @@
       "template": {
         "sidebar": "Sidebar",
         "editorial": "Editorial",
-        "compact": "Compact"
+        "compact": "Compact",
+        "classic": "Classic"
       },
       "accentLabel": "Accent color",
       "accent": {
@@ -13415,13 +13417,12 @@
       "printInstead": "Print it instead",
       "pdfFailed": "Could not make the PDF. Print it instead: the layout is the same.",
       "improvements": "{n, plural, =0 {Nothing needed tidying} one {# wording tidied} other {# wordings tidied}}",
-      "improvementsHint": "Tool names, spelling, line breaks and weak openers, tidied. Nothing was added to what your CV says.",
+      "improvementsHint": "Tool names, spelling and line breaks, tidied. Nothing was added to what your CV says.",
       "kind": {
         "term": "Tool name",
         "spelling": "Spelling",
         "hyphen": "Line break",
         "capital": "Capital letter",
-        "opener": "Opener",
         "tailor": "Tailoring"
       },
       "previewLabel": "Preview of your designed CV",
@@ -13429,7 +13430,6 @@
       "tailorOff": "As written",
       "objectiveToggle": "Say what you are seeking",
       "compactToggle": "Off-target roles on one line",
-      "compactHint": "Your CV runs over one page.",
       "tailorMoves": "{n, plural, =0 {Nothing to move for {target}} one {# move for {target}} other {# moves for {target}}}",
       "tailorMovesHint": "Only the order and the bold type changed: every word is still yours, and your roles stay in date order.",
       "tailorMove": {
@@ -13439,7 +13439,8 @@
         "items": "Listed first in {where}: {after}",
         "emphasis": "{n, plural, one {# term that matters for {target} set in bold} other {# terms that matter for {target} set in bold}}",
         "compact": "{where} set on one line: nothing in it speaks to {target}",
-        "objective": "“{after}” added under your headline, as what you are looking for"
+        "objective": "“{after}” added under your headline, as what you are looking for",
+        "projects": "{n, plural, one {# project that does not speak to {target} left off} other {# projects that do not speak to {target} left off}}"
       },
       "coverage": {
         "postings": "Your CV shows {shown} of {total, plural, one {the # skill} other {the # skills}} {target} postings ask for.",
@@ -13454,7 +13455,31 @@
         "inSkills": "Skills",
         "inSummary": "Profile"
       },
-      "saveFailed": "Your layout choice is not saved yet - retrying."
+      "saveFailed": "Your layout choice is not saved yet - retrying.",
+      "downloadSingleFlow": "Download single-column PDF",
+      "columnsNote": "{layout} sets part of your CV in a side column, and some hiring systems read it out of order. For uploading, use the single-column PDF.",
+      "pages": {
+        "fits": "Prints on {pages, plural, one {one page} other {# pages}}.",
+        "over": "Runs to {pages, plural, one {# page} other {# pages}}; {budget, plural, one {one page is usual under three years of experience} other {two pages is usual}}. Set older roles on one line rather than making the type smaller.",
+        "sparse": "Page {page} holds only a few lines. Trim a little, or set older roles on one line.",
+        "tailorHint": "Pick a target under Tailor for, and roles with nothing for it can go on one line."
+      },
+      "questions": {
+        "toggle": "{n, plural, =0 {No questions for you} one {# question only you can answer} other {# questions only you can answer}}",
+        "hint": "Only you see these, and they are never printed. An answer belongs in your CV, in your own words.",
+        "kind": {
+          "no_outcome": "What changed because of this, and how do you know?",
+          "missing_metric": "How much did it change?",
+          "listed_only": "Where did you use this?",
+          "self_descriptor": "Could a line from your work show this instead?"
+        },
+        "inRole": "as {role}"
+      },
+      "plainText": {
+        "toggle": "How a parser reads it",
+        "hint": "The text a hiring system reads out of your PDF, in its order. If a line is wrong or missing here, it is wrong or missing for them too.",
+        "columns": "The text a hiring system reads out of your PDF, in its order. {layout} has a side column: a system that reads by position may mix it into these lines."
+      }
     }
   },
   "journey": {
