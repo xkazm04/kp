@@ -157,7 +157,16 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
     reasons.push({ kind: "bursty" });
   }
 
-  if (input.iterationPattern === "big-bang") {
+  // The iteration pattern and read-before-write come from the reflection, which is
+  // inferred from the COMMIT history. An observed session has none by design, so both
+  // are read off an empty history (the deterministic path calls n=0 a "big-bang") and
+  // are waived with the commit penalties above - a signal DERIVED from what observation
+  // makes unavailable is as unavailable as the source. The watched evidence is the
+  // paste and integrity lines.
+  const commitDerivedWaived = input.observed === true;
+  if (commitDerivedWaived) {
+    // waived: nothing to score, nothing to report as a finding
+  } else if (input.iterationPattern === "big-bang") {
     score -= 15;
     reasons.push({ kind: "bigBang" });
   } else if (input.iterationPattern === "unclear") {
@@ -173,7 +182,7 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   }
 
   // Little evidence they read the existing code before generating changes.
-  if (input.readBeforeWrite != null && input.readBeforeWrite < 0.3) {
+  if (!commitDerivedWaived && input.readBeforeWrite != null && input.readBeforeWrite < 0.3) {
     score -= 15;
     reasons.push({ kind: "lowReadBeforeWrite" });
   }

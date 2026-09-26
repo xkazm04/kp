@@ -56,6 +56,32 @@ test("an observed live-session submission with a DECISIONS log is authentic, not
   assert.deepEqual(a.reasons, []);
 });
 
+test("an observed session is not charged for an iteration pattern read off the git history it cannot have", () => {
+  // The reflection is inferred from COMMITS only (evaluation_pipeline -> reflect_commits),
+  // and a watched session has none: the deterministic path reads n=0 as a big dump
+  // (`n <= 2`) and returns "big-bang" with readBeforeWrite 0.35. That is the fixture the
+  // earlier observed tests never passed - they fed "linear" - so every watched session
+  // on the no-API-key path was docked 15 and shown a big-bang finding for work the
+  // product watched edit by edit. Same class as the commit penalties: waived.
+  const a = scoreAuthenticity({
+    commitCount: 0,
+    bursty: null,
+    spanHours: null,
+    decisionsLogPresent: false,
+    readBeforeWrite: 0.2,
+    iterationPattern: "big-bang",
+    observed: true,
+  });
+  assert.equal(a.score, 75); // the missing DECISIONS log only
+  assert.equal(a.band, "authentic");
+  assert.ok(!kinds(a).includes("bigBang"));
+  assert.ok(!kinds(a).includes("lowReadBeforeWrite"));
+  // An unobserved submission with the same reflection is still read: git is its evidence.
+  const git = scoreAuthenticity({ ...base, iterationPattern: "big-bang", readBeforeWrite: 0.2 });
+  assert.ok(kinds(git).includes("bigBang"));
+  assert.ok(kinds(git).includes("lowReadBeforeWrite"));
+});
+
 test("an observed bulk paste (no incremental build-up) is held as suspect, not authentic", () => {
   // The exact paste-from-LLM hole: a clean-looking watched session that pasted a whole
   // LLM solution. Without the paste penalty this scored 100 ("authentic"); now -65 -> 35
