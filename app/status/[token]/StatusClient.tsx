@@ -337,7 +337,11 @@ export function StatusClient({
                     {d.attribution !== "unknown" ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-meta text-steel">
                         {d.attribution === "automated" ? <Bot size={11} aria-hidden /> : <UserRound size={11} aria-hidden />}
-                        {d.attribution === "automated" ? t("decisions.automated") : t("decisions.human")}
+                        {d.attribution === "automated"
+                          ? d.personApproved
+                            ? t("decisions.automatedPersonApproved")
+                            : t("decisions.automated")
+                          : t("decisions.human")}
                       </span>
                     ) : null}
                     <span className="text-meta text-steel">
@@ -351,6 +355,7 @@ export function StatusClient({
                     {d.facts?.type === "threshold" ? (
                       <span className="w-full text-base text-steel">
                         {t("decisions.reasons.reject", { score: d.facts.score, threshold: d.facts.threshold })}
+                        {d.facts.stale ? <> {t("decisions.reasons.staleScore")}</> : null}
                       </span>
                     ) : d.facts?.type === "rubric" ? (
                       <span className="w-full text-base text-steel">

@@ -2240,10 +2240,12 @@
     "decisions": {
       "title": "How decisions about your application were made",
       "automated": "Automated",
+      "automatedPersonApproved": "Automated, approved by a person",
       "human": "Human decision",
       "humanReviewNote": "You can request a human review of any decision at any time. Just reply to any message from the hiring team.",
       "reasons": {
         "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}.",
+        "staleScore": "This score was calculated before the role description was last changed, so it may not reflect the current requirements. You can ask for a human review.",
         "rubric": "The decisive facts, by competency:"
       },
       "kinds": {

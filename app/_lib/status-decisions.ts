@@ -12,6 +12,7 @@
 // applied HERE so the withholding rule is unit-pinned, not route-local.
 import { consentWithholdsPii, type ConsentSnapshot } from "./consent";
 import { decisionAttribution } from "./decision-attribution";
+import { isNamedApprover } from "./auth/operator-approver";
 
 /** The decisive facts behind ONE decision — Art. 86's "main elements of the
  *  decision", in the shape the decision itself has.
@@ -28,8 +29,11 @@ import { decisionAttribution } from "./decision-attribution";
  *  is how a redaction bug gets written. */
 export type CandidateDecisionFacts =
   /** A number the decision compared against a cutoff — the screen wave's
-   *  score-vs-threshold pair. */
-  | { type: "threshold"; score: number; threshold: number }
+   *  score-vs-threshold pair. `stale` is the caveat sealed WITH the pair: the score
+   *  predates the role description's last edit. It crosses because it is the one
+   *  fact that undermines the comparison, and a clean pair without it is a claim
+   *  the record itself does not make. True only when the seal says so. */
+  | { type: "threshold"; score: number; threshold: number; stale: boolean }
   /** A rubric verdict: WHICH competencies were assessed and what each scored.
    *  `competency` is the CANONICAL rubric key the scorecard stored, so the page
    *  localizes it through `rubricLabel` rather than shipping English. */
@@ -44,6 +48,14 @@ export type CandidateDecisionView = {
   /** Who decided — derived from the sealed actor, never guessed (three-state so
    *  an unknown writer is never misattributed to the machine OR a human). */
   attribution: "automated" | "human" | "unknown";
+  /** An AUTOMATED decision a named person approved before it applied — the screen
+   *  wave's reviewed-set approval. Selection and authorisation are two facts, and
+   *  the notice promises the second ("a rejection is always a person's"): showing
+   *  only "Automated" left the candidate reading the notice and this history as a
+   *  contradiction. True only for a sealed approver that names someone
+   *  (isNamedApprover); the placeholder posture and a missing approver stay false.
+   *  WHICH person never crosses. */
+  personApproved: boolean;
   /** Structured reason code (e.g. "reject") for candidate-appropriate copy. */
   reasonCode: string;
   /** The decisive facts this kind's extractor could recover, or null when the kind
@@ -122,7 +134,18 @@ export function autoRejectFacts(payloadJson: string): CandidateDecisionFacts | n
   const score = Number(o.score);
   const threshold = Number(o.threshold);
   if (!Number.isFinite(score) || !Number.isFinite(threshold)) return null;
-  return { type: "threshold", score, threshold };
+  return { type: "threshold", score, threshold, stale: o.stale === true };
+}
+
+/** Did a named person approve this automated decision before it applied? Read off
+ *  the sealed `approvedBy` (screen-wave.ts writes it into the inputs of every
+ *  committed auto_rejected record). The name is used to decide and then dropped:
+ *  the candidate learns THAT a person approved, never who. A human-attributed or
+ *  unknown record answers false — approval is only a second fact beside a machine. */
+export function sealedPersonApproval(record: SealedDecisionLike, attribution: CandidateDecisionView["attribution"]): boolean {
+  if (attribution !== "automated") return false;
+  const approvedBy = sealedInputs(record.payloadJson)?.approvedBy;
+  return typeof approvedBy === "string" && isNamedApprover(approvedBy);
 }
 
 /** The rating scale a sealed rubric dimension is read on. Mirrors format.ts's
@@ -235,10 +258,12 @@ export function factsCoverage(): {
 export function redactDecisionForCandidate(record: SealedDecisionLike): CandidateDecisionView | null {
   if (!CANDIDATE_VISIBLE_DECISION_KINDS.has(record.kind)) return null;
   const extract = FACT_EXTRACTORS.get(record.kind);
+  const attribution = sealedActorAttribution(record.actor, record.kind);
   return {
     kind: record.kind,
     createdAt: record.createdAt,
-    attribution: sealedActorAttribution(record.actor, record.kind),
+    attribution,
+    personApproved: sealedPersonApproval(record, attribution),
     reasonCode: record.reasonCode,
     facts: extract ? extract(record.payloadJson) : null,
   };

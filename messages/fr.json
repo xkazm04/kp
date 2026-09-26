@@ -2240,10 +2240,12 @@
     "decisions": {
       "title": "Comment les décisions concernant votre candidature ont été prises",
       "automated": "Automatisée",
+      "automatedPersonApproved": "Automatisée, approuvée par une personne",
       "human": "Décision humaine",
       "humanReviewNote": "Vous pouvez à tout moment demander un réexamen humain de toute décision. Il vous suffit de répondre à n’importe quel message de l’équipe de recrutement.",
       "reasons": {
         "reject": "Les éléments décisifs : votre score de correspondance de {score} était inférieur au seuil de présélection de {threshold}.",
+        "staleScore": "Ce score a été calculé avant la dernière modification de la description du poste : il peut ne pas refléter les exigences actuelles. Vous pouvez demander un réexamen humain.",
         "rubric": "Les éléments décisifs, par compétence :"
       },
       "kinds": {

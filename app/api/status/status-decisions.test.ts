@@ -33,10 +33,12 @@ import {
   factsCoverage,
   redactDecisionForCandidate,
   sealedActorAttribution,
+  sealedPersonApproval,
 } from "../../_lib/status-decisions.ts";
 import { MAX_SEALED_RUBRIC_DIMENSIONS, sealableRubricDimensions } from "../../_lib/interview-scorecard.ts";
 import { RATING_MAX } from "../../_lib/format.ts";
 import type { ConsentSnapshot } from "../../_lib/consent.ts";
+import { PLACEHOLDER_APPROVER } from "../../_lib/auth/operator-approver.ts";
 
 after(() => cleanupUnitDb());
 
@@ -170,7 +172,7 @@ test("no leakage fields: the wire shape is closed and scrubbed", () => {
   assert.ok(views.length > 0);
   for (const v of views) {
     // Exactly the CandidateDecisionView keys — nothing sealed rides along.
-    assert.deepEqual(Object.keys(v).sort(), ["attribution", "createdAt", "facts", "kind", "reasonCode"]);
+    assert.deepEqual(Object.keys(v).sort(), ["attribution", "createdAt", "facts", "kind", "personApproved", "reasonCode"]);
   }
   const wire = JSON.stringify(views);
   for (const leak of ["alice@example.com", "bob@example.com", "approvedBy", "policyVersion", "prevHash", "contentHash", "payloadJson", "rationale", "actor", "seq"]) {
@@ -205,7 +207,7 @@ test("no leakage fields: the wire shape is closed and scrubbed", () => {
 
 test("auto_rejected exposes ONLY the sealed score-vs-threshold pair; a kind with no extractor gets no facts", () => {
   const views = ownHistory();
-  assert.deepEqual(views.find((v) => v.kind === "auto_rejected")?.facts, { type: "threshold", score: 41, threshold: 55 });
+  assert.deepEqual(views.find((v) => v.kind === "auto_rejected")?.facts, { type: "threshold", score: 41, threshold: 55, stale: false });
   // `reinstated` is candidate-visible but has no extractor — it crosses with a
   // reason code and no decisive element, which is the honest state for a human call.
   assert.equal(views.find((v) => v.kind === "reinstated")?.facts, null);
@@ -350,4 +352,56 @@ test("the decisions route throttles before the store reads, scopes by candidateR
   for (const forbidden of ["rationale", "payloadJson", "contentHash", "verifyDecisionChain", "requireOperator"]) {
     assert.ok(!code.includes(forbidden), `route must not touch ${forbidden}`);
   }
+});
+
+test("the staleness caveat sealed with the pair crosses with it — only when the seal says so", () => {
+  // The screen wave seals `stale` beside the score because it is the one fact that
+  // undermines the comparison (the score predates the JD's last edit). A pair shown
+  // without it presents a cleaner claim than the record makes.
+  const pair = { score: 41, threshold: 55 };
+  assert.deepEqual(autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: true, staleSince: "2026-09-01T00:00:00.000Z" } })), { type: "threshold", ...pair, stale: true });
+  assert.deepEqual(autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: false } })), { type: "threshold", ...pair, stale: false });
+  // A legacy seal with no key, and a non-boolean, both read as "not stale" — the
+  // caveat is asserted by the seal or not at all. `staleSince` never crosses.
+  assert.equal((autoRejectFacts(JSON.stringify({ inputs: pair })) as { stale?: boolean } | null)?.stale, false);
+  assert.equal((autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: "true" } })) as { stale?: boolean } | null)?.stale, false);
+  assert.ok(!JSON.stringify(autoRejectFacts(JSON.stringify({ inputs: { ...pair, stale: true, staleSince: "2026-09-01" } }))).includes("staleSince"));
+});
+
+test("an automated decline a named person approved says so — without saying who", () => {
+  const views = ownHistory();
+  // The fixture is sealed the way screen-wave.ts seals a committed wave: machine
+  // actor, named approver in the inputs.
+  const auto = views.find((v) => v.kind === "auto_rejected");
+  assert.equal(auto?.attribution, "automated", "selection stays the machine's — approval does not upgrade it");
+  assert.equal(auto?.personApproved, true, "and the approval the notice promises is visible beside it");
+  assert.equal(views.find((v) => v.kind === "reinstated")?.personApproved, false, "a human decision is not 'approved by a person'");
+  assert.equal(views.find((v) => v.kind === "ai_scorecard")?.personApproved, false, "no approver sealed, no approval shown");
+  const rec = (inputs: Record<string, unknown>) => ({
+    kind: "auto_rejected",
+    actor: "auto:screen-wave",
+    reasonCode: "reject",
+    createdAt: "2026-09-26T00:00:00.000Z",
+    payloadJson: JSON.stringify({ inputs }),
+  });
+  // The posture placeholder names nobody, so it proves no person approved.
+  assert.equal(sealedPersonApproval(rec({ approvedBy: PLACEHOLDER_APPROVER }), "automated"), false);
+  assert.equal(sealedPersonApproval(rec({}), "automated"), false);
+  assert.equal(sealedPersonApproval(rec({ approvedBy: "  " }), "automated"), false);
+  assert.equal(sealedPersonApproval(rec({ approvedBy: "alice@example.com" }), "unknown"), false, "an unknown actor is never dressed up by an approver");
+  assert.ok(!JSON.stringify(views).includes("alice@example.com"), "the approver's identity never crosses");
+});
+
+test("the notice's rejection promise and the candidate's own history are the same fact", () => {
+  // aiDisclosure.body promises "A rejection is always a person's". The one adverse
+  // kind the machine selects is the screen wave's auto_rejected; the promise holds on
+  // this surface only if every committed one carries a NAMED approver (the wave
+  // refuses to seal without one) and the view renders that approval.
+  const en = JSON.parse(readFileSync(path.join(HERE, "..", "..", "..", "messages", "en.json"), "utf8"));
+  assert.match(en.aiDisclosure.body, /A rejection is always a person's/, "precondition: the promise this test reconciles");
+  const waveSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "screen-wave.ts"), "utf8");
+  assert.match(waveSrc, /if \(!dryRun && !isNamedApprover\(approvedBy\)\) throw/, "the wave refuses an unnamed approver");
+  assert.match(waveSrc, /kind: AUTO_REJECTED_KIND,\s*actor: "auto:screen-wave"/, "the seal is machine-attributed");
+  assert.match(waveSrc, /inputs: \{ \.\.\.reasonParams, approvedBy,/, "the approver rides the sealed inputs this view reads");
+  assert.equal(typeof en.status.decisions.automatedPersonApproved, "string", "the surface has copy for the approved state");
 });

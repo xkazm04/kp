@@ -2240,10 +2240,12 @@
     "decisions": {
       "title": "Wie Entscheidungen zu Ihrer Bewerbung getroffen wurden",
       "automated": "Automatisiert",
+      "automatedPersonApproved": "Automatisiert, von einer Person freigegeben",
       "human": "Menschliche Entscheidung",
       "humanReviewNote": "Sie können jederzeit eine menschliche Überprüfung jeder Entscheidung anfordern. Antworten Sie einfach auf eine beliebige Nachricht des Recruiting-Teams.",
       "reasons": {
         "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter der Screening-Schwelle von {threshold}.",
+        "staleScore": "Dieser Score wurde berechnet, bevor die Stellenbeschreibung zuletzt geändert wurde, und spiegelt die aktuellen Anforderungen daher möglicherweise nicht wider. Sie können eine menschliche Überprüfung anfordern.",
         "rubric": "Die entscheidenden Fakten nach Kompetenz:"
       },
       "kinds": {

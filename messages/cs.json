@@ -2240,10 +2240,12 @@
     "decisions": {
       "title": "Jak vznikala rozhodnutí o vaší přihlášce",
       "automated": "Automatizované",
+      "automatedPersonApproved": "Automatizované, schválené člověkem",
       "human": "Lidské rozhodnutí",
       "humanReviewNote": "Kdykoli můžete požádat o lidské přezkoumání kteréhokoli rozhodnutí. Stačí odpovědět na libovolnou zprávu od náborového týmu.",
       "reasons": {
         "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem screeningu {threshold}.",
+        "staleScore": "Toto skóre bylo spočítáno před poslední změnou popisu pozice, takže nemusí odpovídat současným požadavkům. Můžete požádat o lidské přezkoumání.",
         "rubric": "Rozhodující skutečnosti podle hodnocených oblastí:"
       },
       "kinds": {
