@@ -317,6 +317,9 @@ npm run secrets:rotate            # add -- --dry-run first to see the counts
   decrypt is the only copy of that credential), reports any such row and exits
   non-zero. It skips rows already under the current secret, so an interrupted run
   is simply re-run.
+- It runs **beside the live server**, so each column is read and rewritten inside
+  one write transaction: a credential an operator saves mid-rotation waits a moment
+  and lands, instead of being silently reverted to the value the script read.
 - With `KP_ATS_SECRET_KEY` set, ATS / calendar / edge secrets are keyed on *it*
   and a `KP_SECRET` rotation neither breaks nor touches them — the script says so
   and leaves them alone. Rotating `KP_ATS_SECRET_KEY` itself has no equivalent

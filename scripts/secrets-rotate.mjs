@@ -78,6 +78,18 @@ function hasColumn(db, table, column) {
 export function rotateColumn(db, table, column, { dryRun = false } = {}) {
   const stats = { table, column, scanned: 0, rewritten: 0, skipped: 0, unreadable: 0 };
   if (!hasColumn(db, table, column)) return { ...stats, missing: true };
+  // The runbook runs this BESIDE the live server (step 2), so the read and the write
+  // must be one IMMEDIATE transaction. Reading first and writing later reverted every
+  // value the server committed in between - measured beside a live writer over five
+  // 20,000-row passes: 31,595 committed values reverted, every pass lossy; 0 once the
+  // read moved inside the lock. The server's writes wait out the pass on busy_timeout.
+  const pass = () => rotateRows(db, table, column, stats, dryRun);
+  if (dryRun) pass();
+  else db.transaction(pass).immediate();
+  return stats;
+}
+
+function rotateRows(db, table, column, stats, dryRun) {
   const rows = db.prepare(`SELECT rowid AS rid, ${column} AS value FROM ${table}`).all();
   const update = db.prepare(`UPDATE ${table} SET ${column} = ? WHERE rowid = ?`);
   const pending = [];
@@ -101,14 +113,9 @@ export function rotateColumn(db, table, column, { dryRun = false } = {}) {
       stats.unreadable += 1;
     }
   }
-  if (!dryRun && pending.length) {
-    // Synchronous by construction — better-sqlite3 transactions must never await.
-    db.transaction((writes) => {
-      for (const [ciphertext, rid] of writes) update.run(ciphertext, rid);
-    }).immediate(pending);
-  }
+  // Synchronous by construction — better-sqlite3 transactions must never await.
+  if (!dryRun) for (const [ciphertext, rid] of pending) update.run(ciphertext, rid);
   stats.rewritten = pending.length;
-  return stats;
 }
 
 /** Rotate every declared column in one DB. `db` is an open better-sqlite3 handle. */
