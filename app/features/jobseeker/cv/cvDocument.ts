@@ -20,7 +20,7 @@
 
 import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
-import { descriptorQuestions, languageLines, orderSkills, outcomeQuestions, rankByOutcome, roleBudget } from "./cvContent";
+import { descriptorQuestions, isPersonalData, languageLines, orderSkills, outcomeQuestions, PRESENT_WORD, rankByOutcome, roleBudget } from "./cvContent";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
 /** `compact`: the role is set as ONE line (title, employer, dates) — past the recency
@@ -70,6 +70,11 @@ export type CvImprovement = CvEdit | CvTailorMove;
 export type CvDocument = {
   /** The language the CV is written in; the template's headings follow it. */
   lang: CvLang;
+  /** The market the sheet is typeset for — its date words ("03/2020 – dosud") and, later,
+   *  its conventions. The CV's own language for now; never the reader's UI locale. The
+   *  model carries NO photo, birth date, age, marital status, nationality or signature:
+   *  every protected-attribute field is off by default (cvContent.ts isPersonalData). */
+  market: CvLang;
   name: string;
   headline: string | null;
   /** The seeker's STATED direction under the headline ("Seeking: AI Engineer roles"), set
@@ -249,6 +254,8 @@ function isShouting(line: string): boolean {
 
 const SECTION_WORDS: Record<string, string[]> = {
   summary: ["profile", "summary", "about", "about me", "profil", "shrnutí", "o mně", "zusammenfassung", "über mich", "résumé", "profil professionnel"],
+  // Read so it can be LEFT OUT: a block of birth date, nationality, marital status.
+  personal: ["personal details", "personal information", "personal data", "personal info", "osobní údaje", "osobní informace", "persönliche daten", "persönliche angaben", "informations personnelles", "état civil"],
   experience: ["experience", "work experience", "employment", "prior experience", "career", "zkušenosti", "pracovní zkušenosti", "praxe", "berufserfahrung", "erfahrung", "expérience", "expérience professionnelle"],
   education: ["education", "vzdělání", "ausbildung", "bildung", "formation"],
   skills: ["skills", "dovednosti", "kenntnisse", "fähigkeiten", "compétences", "technical skills", "tech stack"],
@@ -347,15 +354,19 @@ export function parseRoleTitle(title: string): { role: string; org: string | nul
   return { role: rest, org: null, dates };
 }
 
-/** Typography only: an en dash between the ends and a two-digit month ("7/2026" ->
- *  "07/2026"). No date is inferred, moved or completed. */
-export function formatDates(dates: string | null): string | null {
+/** Typography only: an en dash between the ends, a two-digit month ("7/2026" ->
+ *  "07/2026") and the market's own word for an open end ("present", "dosud", "heute",
+ *  "aujourd'hui"). No date is inferred, moved or completed. */
+export function formatDates(dates: string | null, market: CvLang = "en"): string | null {
   if (!dates) return null;
   return dates
     .replace(/(?<!\d)(\d)(?=[./](?:19|20)\d\d)/g, "0$1")
-    .replace(/\s*(?:-|–|—|to)\s*(?=(?:\d|present|now|current|dosud|současnost|heute|aujourd))/i, " – ")
+    .replace(/\s*(?:-|–|—|to)\s*(?=(?:\d|present|now|current|today|dosud|současnost|nyní|heute|aktuell|aujourd|actuel))/i, " – ")
+    .replace(OPEN_END, PRESENT_WORD[market])
     .trim();
 }
+
+const OPEN_END = /(?<![\p{L}])(present|now|current|today|dosud|současnost|nyní|heute|aktuell|aujourd'hui|actuellement|actuel)(?![\p{L}'])/iu;
 
 // ── the document's language ────────────────────────────────────────────────────────
 //
@@ -455,7 +466,7 @@ function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] 
     const items = b.lines
       .filter((l) => l && !/[.!?]$/.test(l))
       .flatMap((l) => (b.kind === "skills" && l.includes(",") ? l.split(/\s*,\s*/) : [l]))
-      .filter((l) => l && l.length <= 48)
+      .filter((l) => l && l.length <= 48 && !isPersonalData(l))
       .map((l) => {
         const m = LEVEL_WORD.exec(l);
         const name = polishTerms((m ? l.slice(0, m.index) : l).trim(), log);
@@ -485,6 +496,7 @@ export function buildCvDocument(input: {
   const today = input.today ?? new Date();
   const text = input.cvSourceText ?? "";
   const log: CvImprovement[] = [];
+  const lang = cvLanguageOf(text);
   const blocks = blocksOf(text);
   const header = blocks[0]!.lines.filter(Boolean);
 
@@ -496,12 +508,14 @@ export function buildCvDocument(input: {
   // sought (cvTailor.ts).
   // Compared folded: an AI draft writes "Michal Každan" for the CV's "MICHAL KAŽDAN",
   // and the shouted name must not come back as the headline.
-  const headlineLine = header.find((l) => foldText(l) !== foldText(rawName) && l.length <= 60 && !/@|\d{3}|\.(com|cz|io|dev|me)\b|linkedin|github/i.test(l));
+  // A header line that states a personal attribute ("Married", "Date of birth: …") is
+  // never a headline: it is left off the sheet altogether.
+  const headlineLine = header.find((l) => foldText(l) !== foldText(rawName) && l.length <= 60 && !isPersonalData(l) && !/@|\d{3}|\.(com|cz|io|dev|me)\b|linkedin|github/i.test(l));
   const headline = headlineLine ? polishTerms(isShouting(headlineLine) ? titleCase(headlineLine) : headlineLine, log) : null;
 
   const summaryBlock = blocks.find((b) => b.kind === "summary");
   const summaryText = summaryBlock ? summaryBlock.lines.filter(Boolean).join(" ").trim() : "";
-  const summarySentences = summaryText ? bulletsOf(summaryText, log).map((b) => (b.lead ? `${b.lead}: ${b.text}` : b.text)) : [];
+  const summarySentences = summaryText ? bulletsOf(summaryText, log).map(bulletLine).filter((s) => !isPersonalData(s)) : [];
   const summary = summarySentences.length ? summarySentences.join(" ") : null;
 
   const jobs = (profile.evidence ?? []).filter((e) => (e.kind ?? "job") === "job" && e.title && e.title !== "Summary");
@@ -524,7 +538,7 @@ export function buildCvDocument(input: {
     // (it dropped "TypeScript" and every date from a real CV), and the designed CV
     // promises the seeker's own words. The draft's text is the fallback.
     const source = sourceRoleOf(text, org, orgs, parts.role, nth);
-    const dates = formatDates(parts.dates ?? source?.dates ?? null);
+    const dates = formatDates(parts.dates ?? source?.dates ?? null, lang);
     // Strongest outcome first (the CV's order breaks ties), then the recency budget: the
     // weakest bullets are held back, never the strongest, and never the role itself.
     const ranked = rankByOutcome(bulletsOf(source && source.lines.length ? source.lines.join(" ") : (e.text ?? ""), log), bulletLine);
@@ -537,7 +551,7 @@ export function buildCvDocument(input: {
     const parts = parseRoleTitle(e.title ?? "");
     const ranked = rankByOutcome(bulletsOf(e.text ?? "", log), bulletLine);
     const bullets = ranked.slice(0, PROJECT_BUDGET);
-    return { role: polishTerms(parts.role, log), org: parts.org, dates: formatDates(parts.dates), bullets, compact: bullets.length === 0, trimmed: ranked.slice(PROJECT_BUDGET) };
+    return { role: polishTerms(parts.role, log), org: parts.org, dates: formatDates(parts.dates, lang), bullets, compact: bullets.length === 0, trimmed: ranked.slice(PROJECT_BUDGET) };
   });
 
   const groups = skillGroupsFrom(blocks, log);
@@ -558,7 +572,6 @@ export function buildCvDocument(input: {
   const evidence = [...experience, ...projects].map((r) => [r.role, ...r.bullets.map(bulletLine), ...(r.trimmed ?? []).map(bulletLine)].join("\n"));
   const ordered = orderSkills(listed, evidence);
   const skills: CvSkillGroup[] = ordered.groups;
-  const lang = cvLanguageOf(text);
   const langBlock = blocks.find((b) => b.kind === "languages");
 
   const eduBlock = blocks.find((b) => b.kind === "education");
@@ -567,7 +580,7 @@ export function buildCvDocument(input: {
         {
           title: eduBlock.lines.filter(Boolean)[0] ?? profile.educationDetail ?? "",
           detail: eduBlock.lines.filter(Boolean).slice(1).join(" · ") || null,
-          dates: formatDates(eduBlock.dates),
+          dates: formatDates(eduBlock.dates, lang),
         },
       ].filter((e) => e.title)
     : profile.educationDetail
@@ -576,6 +589,7 @@ export function buildCvDocument(input: {
 
   return {
     lang,
+    market: lang,
     name,
     headline,
     location: profile.location?.trim() || null,

@@ -312,3 +312,30 @@ export function languageLines(blockLines: readonly string[] | null, profileLangu
   }
   return out;
 }
+
+// ── market conventions and personal data ───────────────────────────────────────────
+//
+// registry cv-presentation-and-parseability/market-conventions-and-personal-data: every
+// protected-attribute field defaults to OFF in every market — photo, birth date, age,
+// marital status, children, nationality. A template slot is not a reason to fill it, and
+// a line the CV volunteered is not either: the document model has no field for any of
+// them, and a line that states one is never read into the headline, a skill or a sentence.
+// Offering a market's convention (a photo in Germany) is an owner choice for a later
+// designer control, stated with its trade-off — never a default.
+
+const PERSONAL_LABEL =
+  /^(date of birth|birth ?date|born|dob|age|marital status|family status|civil status|nationality|citizenship|children|photo|photograph|religion|datum narozen[íi]|narozen[aá]?|nar\.|v[ěe]k|rodinn[ýy] stav|n[áa]rodnost|st[áa]tn[íi] ob[čc]anstv[íi]|ob[čc]anstv[íi]|d[ěe]ti|fotografie|foto|geburtsdatum|geboren|geb\.|alter|familienstand|staatsangeh[öo]rigkeit|nationalit[äa]t|kinder|konfession|date de naissance|n[ée]e? le|[âa]ge|situation familiale|[ée]tat civil|nationalit[ée]|enfants)(?=\s*:|\s+[\-–]\s|\s+\d)/iu;
+const PERSONAL_VALUE =
+  /^(married|single|divorced|widowed|ženatý|ženatá|vdaná|svobodn[ýá]|rozveden[ýá]|verheiratet|ledig|geschieden|verwitwet|mari[ée]e?|c[ée]libataire|divorc[ée]e?)[.,;]?$/iu;
+const PERSONAL_PHRASE = /(?<![\p{L}])(\d{1,2}\s*years?\s*old|\d{1,2}\s*jahre\s*alt|\d{1,2}\s*ans\b)/iu;
+
+/** A line (or sentence) that states a protected personal attribute: a labelled field
+ *  ("Date of birth: …", "Nar. 1990"), a bare marital status, or an age. A label must be
+ *  followed by a colon, a spaced dash or a digit, so "Age-verification flow" is not one. */
+export function isPersonalData(line: string): boolean {
+  const text = (line || "").trim();
+  return PERSONAL_LABEL.test(text) || PERSONAL_VALUE.test(text) || PERSONAL_PHRASE.test(text);
+}
+
+/** The word for "to the present" in each market's date ranges ("03/2020 – dosud"). */
+export const PRESENT_WORD: Record<CvLang, string> = { en: "present", cs: "dosud", de: "heute", fr: "aujourd'hui" };

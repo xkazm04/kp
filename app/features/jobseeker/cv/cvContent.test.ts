@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCvDocument } from "./cvDocument";
+import { buildCvDocument, formatDates } from "./cvDocument";
 import { descriptorIn, languageLines, outcomeRung, SKILL_CAP } from "./cvContent";
 import { tailorCvDocument } from "./cvTailor";
 
@@ -230,4 +230,61 @@ test("tailored: bold capped at two terms per role, none in the skills, each a ve
   const fe = tailorCvDocument(CHANGER, { target: "Frontend Developer", postings: [] });
   assert.deepEqual(fe.doc.projects, []);
   assert.ok(fe.moves.some((m) => m.move === "projects" && m.n === 2));
+});
+
+test("dates are typeset for the document's market: the word for 'present' follows its language", () => {
+  assert.equal(CHANGER.market, "en");
+  assert.equal(CHANGER.experience[0]!.dates, "01/2024 – present");
+  const cs = [
+    "PETRA NOVÁ",
+    "ANALYTIČKA",
+    "PRACOVNÍ ZKUŠENOSTI",
+    "Banka a.s. 3/2020 - současnost",
+    "Analytička",
+    "Vedla jsem analýzu požadavků pro nový systém a psala specifikace pro vývojáře v týmu.",
+  ].join("\n");
+  const doc = buildCvDocument({
+    profile: { displayName: "Petra Nová", evidence: [{ kind: "job", title: "Analytička — Banka a.s.", text: "" }] },
+    preferences: { targetTitles: [] },
+    cvSourceText: cs,
+    today: TODAY,
+  });
+  assert.equal(doc.market, "cs");
+  assert.equal(doc.experience[0]!.dates, "03/2020 – dosud");
+  assert.equal(formatDates("2019 - now", "de"), "2019 – heute");
+  assert.equal(formatDates("09/2021 - present", "fr"), "09/2021 – aujourd'hui");
+  // A closed range is only typeset, never completed or moved.
+  assert.equal(formatDates("7/2016 - 2019", "cs"), "07/2016 – 2019");
+});
+
+test("no personal data by default: birth date, marital status, nationality, photo never reach the sheet", () => {
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "Married",
+    "Date of birth: 12.03.1990",
+    "jana@example.invalid",
+    "PERSONAL DETAILS",
+    "Nationality: Czech",
+    "Marital status: married",
+    "Children: 2",
+    "Photo: attached",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 2022 - 2025",
+    "Data Engineer",
+    "Built batch pipelines for retail analytics.",
+    "SKILLS",
+    "Python, SQL",
+  ].join("\n");
+  const doc = buildCvDocument({
+    profile: { displayName: "Jana Nováková", evidence: [{ kind: "job", title: "Data Engineer — Acme Retail, a.s. (2022 - 2025)", text: "" }] },
+    preferences: { targetTitles: [] },
+    cvSourceText: text,
+    today: TODAY,
+  });
+  assert.equal(doc.headline, null, "a marital status is never read as a headline");
+  const sheet = JSON.stringify(doc);
+  for (const leak of ["Married", "married", "1990", "Nationality", "Czech", "Children", "Photo", "birth"]) assert.ok(!sheet.includes(leak), leak);
+  // The model has no field for any of it: no photo, birth date, marital status or signature.
+  for (const key of ["photo", "birthDate", "dateOfBirth", "maritalStatus", "nationality", "signature"]) assert.ok(!(key in doc), key);
+  assert.deepEqual(doc.skills.flatMap((g) => g.items.map((i) => i.name)), ["Python", "SQL"]);
 });
