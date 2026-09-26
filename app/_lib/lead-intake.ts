@@ -18,7 +18,7 @@
 import type { JobRecord } from "./db/core";
 import { getJobWorkspace } from "./db/jobs";
 import { ensureLeadEnrichToken, recordKnockoutDecline } from "./db/pipeline";
-import { fileApplication } from "./application-filing";
+import { fileApplication, type FilingProof } from "./application-filing";
 import { dispatchKnockoutDecline } from "./comms-dispatch";
 import { sanitizeFreeText } from "./text-sanitize";
 import { codedReasonDetail } from "./coded-reason";
@@ -75,6 +75,11 @@ export type LeadIntakeInput = {
    *  only touchpoint said "submitted" on a third-party board. The own quick-apply
    *  form keeps this false: it shows the decline live in the UI (no double message). */
   notifyDecline?: boolean;
+  /** What a repeat may write (application-filing.ts PROOF). Default "channel": a
+   *  tokened webhook is an authenticated integration. A PUBLIC door whose match can
+   *  only have come from a typed name passes "none" — a name is not a secret, and
+   *  the conversational door already refuses to let one set a contact of record. */
+  proof?: Extract<FilingProof, "channel" | "none">;
 };
 
 export type LeadIntakeOutcome =
@@ -173,7 +178,8 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   //   - proof "channel": the lead arrived through a form or webhook we issued, so a
   //     repeat (identity = the email, findApplicationByApplicant) backfills the
   //     original entry's contact and re-acks if it just became reachable — never a
-  //     profile rebuild;
+  //     profile rebuild. The quick form narrows this to "none" when the address it
+  //     was given is not already on file (input.proof): its match is then a NAME;
   //   - a profile-less STUB: a passing lead files intake-degraded (an UNCLASSIFIED
   //     archetype, the stub reason above), carrying contact, locale and E5 attribution;
   //   - the entry's opaque lead token, minted (fill-only) on every entry the filing
@@ -195,7 +201,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     sourceCampaign,
     sourceVariant,
     channelLabel: input.channelLabel,
-    proof: "channel",
+    proof: input.proof ?? "channel",
     stub: { idPrefix: "lead", reason: stubReason },
     defer: input.defer,
     onEntry: (entry) => {

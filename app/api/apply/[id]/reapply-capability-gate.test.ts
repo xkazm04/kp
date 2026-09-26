@@ -265,7 +265,10 @@ test("the quick-apply door answers a known address the same way: no tokens, one 
   assert.deepEqual(added.filter((k) => k !== "re_applied"), [], "no pipeline event for a recovery email");
 });
 
-test("quick-apply: an entry that only NOW becomes reachable gets the core's ack, not a second recovery mail", async () => {
+// This case used to pin the opposite: a contactless entry matched by name became
+// reachable at the typed address and got the core's ack. That is the unproven write
+// the test below spells out, whichever door filed the original, so it now mails nothing.
+test("quick-apply: a contactless entry matched by name gets no mail at all, core ack or recovery", async () => {
   const name = "Rita Bezadresy";
   const entryId = seedVictim(name, null, "quick-apply");
   const job = getJob(JOB_ID);
@@ -280,9 +283,45 @@ test("quick-apply: an entry that only NOW becomes reachable gets the core's ack,
     params
   );
   assert.equal(res.status, 200);
-  await settle(() => outboxFor(entryId).length > 0);
   await settle();
-  assert.equal(outboxFor(entryId).length, 1, "one message: the newly-reachable acknowledgement only");
+  assert.equal(outboxFor(entryId).length, 0, "no address was on file, and the typed one is not proof");
+  assert.equal(listEntriesForJob(JOB_ID).find((e) => e.id === entryId)?.contact ?? null, null);
+});
+
+test("quick-apply: a NAME match on a contactless entry is unproven — nothing moves, nothing goes to the typed address", async () => {
+  // The quick form is as public as the conversational door: anyone can POST a
+  // name plus an address they control. With no address on file the only match is
+  // the NAME, which is not a secret, so this is the conversational door's unproven
+  // repeat arriving through the other door.
+  const name = "Tereza Bezkontaktni";
+  const entryId = seedVictim(name); // filed through the conversational door, no email given
+  const eventsBefore = listPipelineEventsForEntry(entryId).length;
+  const consentBefore = listConsentEvents(entryId).length;
+  const job = getJob(JOB_ID);
+  assert.ok(job);
+  const ko = Object.fromEntries(applyKoSteps(job, ((k: string) => k) as never).map((s) => [s.id, true]));
+  const res = await QUICK_POST(
+    new Request(`http://localhost/api/apply/${JOB_ID}/quick`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.9.9.7" },
+      body: JSON.stringify({ answers: { name, email: "impostor@example.invalid", ...ko } }),
+    }) as unknown as NextRequest,
+    params
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal(body.duplicate, true);
+
+  const after = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.equal(after?.contact ?? null, null, "a name match must not make the caller the applicant's contact of record");
+  assert.equal(listPipelineEventsForEntry(entryId).length, eventsBefore, "an unproven repeat writes no event");
+  assert.equal(listConsentEvents(entryId).length, consentBefore, "an unproven repeat must not re-extend the retention clock");
+  await settle();
+  assert.equal(
+    listOutboxFiltered({ limit: 500 }, DEFAULT_WORKSPACE_ID).filter((r) => (r.recipient ?? "").includes("impostor@")).length,
+    0,
+    "the entry's status link must never be mailed to the address the caller typed"
+  );
 });
 
 test("the SAME repeat, carrying the entry's lead token, merges as before", async () => {

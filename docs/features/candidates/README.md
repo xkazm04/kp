@@ -737,8 +737,14 @@ states a `proof`:
 | Proof | Door | A repeat may |
 | --- | --- | --- |
 | `token` | conversational apply with a valid `?lead=` token for this job | the **proven merge**: fill-only contact and GitHub handle (re-acking a newly-reachable entry with its status link), and a profile **rebuild** into the entry's own profile id when the repeat carries a CV or the entry is a degraded stub. A failed rebuild moves nothing. The only proof that rebuilds |
-| `channel` | lead core (quick form, lead webhooks), CV intake | backfill a missing contact, refresh consent, record `re_applied`; never rebuild or re-point the profile |
-| `none` | conversational apply without a token | nothing — the door answers tokenless and link recovery re-sends to the address on file |
+| `channel` | lead core (lead webhooks; the quick form when the typed address is already on file), CV intake | backfill a missing contact, refresh consent, record `re_applied`; never rebuild or re-point the profile |
+| `none` | conversational apply without a token; the quick form when the typed address is not on file | nothing — the door answers tokenless and link recovery re-sends to the address on file |
+
+The quick form is as public as the conversational door. With no address on file its
+only possible match is a contactless entry found by **name**, and backfilling there
+made the caller the applicant's contact of record and mailed them the entry's status
+link (pinned in `reapply-capability-gate.test.ts`). A contactless applicant becomes
+reachable through the emailed token walk or a recruiter, never by a typed name.
 
 **The entry id carries nothing about the applicant.** A filing's identity is
 `applicantKey(name, email)` (`app/_lib/applicant-key.ts`, server-only): a
@@ -836,9 +842,8 @@ response. Its guarantees:
 - **Skipped, with no row at all,** for a contactless entry (no refused `failed`
   row is minted) or an anonymized entry.
 - **Quick door:** recovery runs only when the address was on file *before*
-  `intakeLead`. A contactless lead matched by name is backfilled by the lead core,
-  which sends its own newly-reachable acknowledgement (links included), so the
-  candidate gets one email, not two.
+  `intakeLead`. A contactless entry matched by name is an unproven repeat
+  (proof `none`): nothing is backfilled and nothing is sent, to either address.
 
 **Every refusal on all four apply doors carries a code.** The two submissions were
 moved onto `REFUSAL_ERRORS` earlier; the last bodied message on them was the

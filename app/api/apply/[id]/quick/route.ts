@@ -145,6 +145,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
       // watching an SMTP round-trip: the ack dispatch runs after this response.
       defer: (task) => afterResponse("quick-apply-ack", task),
+      // PROOF for a repeat. This form is public, so its typed email proves nothing
+      // it did not already match: with the address on file the match IS that
+      // address (nothing to backfill), and without it the only possible match is a
+      // contactless entry found by NAME — the unproven repeat the conversational
+      // door refuses (reapply-capability-gate.test.ts). Backfilling there made the
+      // caller the applicant's contact of record and mailed them its status link.
+      proof: addressOnFile ? "channel" : "none",
       // STRICT verdict: every expected KO answer must be present AND true.
       failedKoIds: failedKoStepIds(expectedKoIds, answers),
       // …so an ACCEPT means every gate was explicitly answered true: record them
