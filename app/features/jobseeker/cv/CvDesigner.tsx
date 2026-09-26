@@ -8,6 +8,7 @@ import type { CvDocument } from "./cvDocument";
 import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, type CvAccent, type CvDesign, type CvTemplate } from "./cvQuery";
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
 import { tailorCvDocument, type CvCoverageWhere, type CvTailorTarget } from "./cvTailor";
+import { cvPageVerdict, cvYearsOf, measureSheetLengthMm } from "./cvPageBudget";
 import { DesignedCv } from "./DesignedCv";
 
 // The designer: pick a layout and an accent, see the CV as a page, take it away as a PDF.
@@ -33,7 +34,8 @@ import { DesignedCv } from "./DesignedCv";
 // localStorage, and on the page carried in the URL.
 
 const A4_WIDTH_PX = 793.7; // 210mm at 96dpi
-const A4_HEIGHT_PX = 1122.5; // 297mm at 96dpi
+/** The sheet's bottom padding (cv.css --cv-pad), counted into its printed length. */
+const SHEET_FOOT_MM = 14;
 const STORE_KEY = "kp-me-cv-design";
 
 export type CvDesignerSkin = { primary: string; ghost: string };
@@ -225,18 +227,20 @@ export function CvDesigner({
   }, [template, accent, tailorPick, compact, objective, mode, query, designKey, saver]);
 
   // The sheet is laid out at its true A4 width so line breaks match the PDF. Inline, only
-  // a transform scales it to the column. Both modes measure whether it runs over one page:
-  // that is when "one line for off-target roles" is worth offering.
+  // a transform scales it to the column. Both modes measure the sheet's printed length
+  // against the page budget (cvPageBudget.ts): over budget, or a last page holding a few
+  // lines, is when "one line" for a role is worth offering - the type never shrinks.
   const frameRef = useRef<HTMLElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const [fit, setFit] = useState({ scale: 0.5, height: 561 });
-  const [overflows, setOverflows] = useState(false);
+  const [lengthMm, setLengthMm] = useState<number | null>(null);
   useEffect(() => {
     const box = sheetRef.current;
     if (!box || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
       const sheet = box.firstElementChild as HTMLElement | null;
-      setOverflows((sheet?.offsetHeight ?? 0) > A4_HEIGHT_PX + 2);
+      // Measured in the sheet's own millimetres, so the inline preview's scale cancels out.
+      if (sheet) setLengthMm(measureSheetLengthMm(sheet, SHEET_FOOT_MM) || null);
       const frame = frameRef.current;
       if (mode === "inline" && frame) {
         const scale = Math.min(1, frame.clientWidth / A4_WIDTH_PX);
@@ -246,7 +250,9 @@ export function CvDesigner({
     ro.observe(box);
     if (frameRef.current) ro.observe(frameRef.current);
     return () => ro.disconnect();
-  }, [mode]);
+    // A new layout or document can keep the box's size (the A4 minimum height) while its
+    // length changes: re-observe, and the observer's first call measures again.
+  }, [mode, template, sheetDoc]);
 
   const downloadPdf = useCallback(async (as?: CvTemplate) => {
     setPdf({ state: "busy" });
@@ -278,7 +284,10 @@ export function CvDesigner({
   const moves = tailored?.moves ?? [];
   const coverage = tailored?.coverage ?? null;
   const whereLabel = (w: CvCoverageWhere) => (w.kind === "skills" ? t("coverage.inSkills") : w.kind === "summary" ? t("coverage.inSummary") : w.role);
-  const offerCompact = !!tailored && tailored.offTargetRoles > 0 && (overflows || compact);
+  const years = useMemo(() => cvYearsOf(sheetDoc), [sheetDoc]);
+  const pages = lengthMm !== null ? cvPageVerdict(lengthMm, years) : null;
+  const overBudget = !!pages && (pages.over || pages.sparse);
+  const offerCompact = !!tailored && tailored.offTargetRoles > 0 && (overBudget || compact);
 
   const tailoring = targets.length ? (
     <div className="cvdesk-tailor">
@@ -305,7 +314,6 @@ export function CvDesigner({
               {t("compactToggle")}
             </button>
           ) : null}
-          {offerCompact && overflows ? <span className="cvdesk-label">{t("compactHint")}</span> : null}
         </div>
       ) : null}
       {target && coverage ? (
@@ -393,6 +401,11 @@ export function CvDesigner({
           </button>
         )}
       </div>
+      {pages ? (
+        <p className={overBudget ? "cvdesk-note" : "cvdesk-hint"} role="status">
+          {pages.over ? t("pages.over", { pages: pages.pages, budget: pages.budget }) : pages.sparse ? t("pages.sparse", { page: pages.pages }) : t("pages.fits", { pages: pages.pages })}
+        </p>
+      ) : null}
       {columned ? <p className="cvdesk-hint">{t("columnsNote", { layout: t(`template.${template}`) })}</p> : null}
       {pdf.state === "failed" ? (
         <p className="cvdesk-note" role="alert">

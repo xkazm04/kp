@@ -17,3 +17,11 @@ export function cvHeadingsOf(doc: Pick<CvDocument, "lang">) {
   const h = CV_HEADINGS[doc.lang] as (typeof CV_HEADINGS)[CvLang] & { projects?: string };
   return { ...h, projects: h.projects ?? CV_PROJECTS_HEADING[doc.lang] };
 }
+
+/** A CSS string literal for text the SEEKER wrote (their name in the running head): every
+ *  character outside letters, digits and plain punctuation is a hex escape, so no quote,
+ *  backslash or `</style` can leave the literal. */
+export function cssString(text: string): string {
+  const body = [...text].map((c) => (/[\p{L}\p{N} .,'&-]/u.test(c) ? c : `\\${c.codePointAt(0)!.toString(16)} `)).join("");
+  return `"${body}"`;
+}

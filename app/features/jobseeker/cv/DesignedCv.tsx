@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { levelPips, type CvBullet, type CvContact, type CvDocument, type CvRole } from "./cvDocument";
 import type { CvAccent, CvTemplate } from "./cvQuery";
-import { CV_ORG_SEPARATOR, cvHeadingsOf } from "./cvSheet";
+import { CV_ORG_SEPARATOR, cssString, cvHeadingsOf } from "./cvSheet";
 import "./cv.css";
 
 // The designed CV — one markup, four templates (cv.css). Pure and hook-free, so the
@@ -104,6 +104,12 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
 
   return (
     <article id={id} className="cvsheet" data-template={template} data-accent={accent} lang={doc.lang}>
+      {/* The running head of a continuation page: the name, repeated IN ADDITION to the one
+          in the flow (registry type-scale-density-and-page-budget). Its look is cv.css's
+          `@page cv`; only the words are the seeker's. The `:first` reset rides in the same
+          sheet, after the name, so no stylesheet order can put the name on page one,
+          where the margin is zero and it would sit off the paper but in the text layer. */}
+      <style>{`@page cv{@top-left{content:${cssString(doc.name)}}}@page cv:first{@top-left{content:none}}`}</style>
       <header className="cv-head">
         <p className="cv-name">{doc.name}</p>
         {doc.headline ? <p className="cv-headline">{doc.headline}</p> : null}

@@ -47,6 +47,16 @@
   --cv-pad: 14mm;
   --cv-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --cv-sans: var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
+  /* THE TYPE SCALE - four levels and no more (registry type-scale-density-and-page-budget:
+     "Four typographic levels are enough and more is noise"). Every font-size on the sheet
+     is one of these; a template re-tunes the four, never adds a fifth. Body 10-11pt,
+     name 20-28pt, and the dates are BODY size in ink, never small grey type: they are
+     among the first things read. Over the page budget, the document compacts (one line
+     for an older role) - the type never shrinks to fit. */
+  --cv-name: 24pt;
+  --cv-heading: 12pt;
+  --cv-entry: 11pt;
+  --cv-body: 10.5pt;
 
   page: cv;
   box-sizing: border-box;
@@ -55,8 +65,8 @@
   background: var(--cv-paper);
   color: var(--cv-ink);
   font-family: var(--cv-sans);
-  font-size: 9.6pt;
-  line-height: 1.45;
+  font-size: var(--cv-body);
+  line-height: 1.38;
   display: grid;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -110,6 +120,7 @@
   min-width: 0;
 }
 .cvsheet .cv-name {
+  font-size: var(--cv-name);
   font-family: var(--cv-serif);
   font-weight: 600;
   line-height: 1.05;
@@ -117,7 +128,7 @@
 }
 .cvsheet .cv-headline {
   margin-top: 1.6mm;
-  font-size: 11pt;
+  font-size: var(--cv-entry);
   font-weight: 500;
   color: var(--cv-ink);
 }
@@ -125,7 +136,6 @@
    roles") — quieter than the headline, the CV's own words stay first. */
 .cvsheet .cv-objective {
   margin-top: 1.2mm;
-  font-size: 9.4pt;
   font-weight: 500;
   color: var(--cv-accent);
 }
@@ -139,7 +149,6 @@
   flex-wrap: wrap;
   gap: 1.2mm 5mm;
   margin-top: 3.5mm;
-  font-size: 9pt;
   color: var(--cv-muted);
 }
 .cvsheet .cv-contacts li {
@@ -160,8 +169,8 @@
   display: flex;
   align-items: center;
   gap: 2.5mm;
-  margin-bottom: 3mm;
-  font-size: 8.6pt;
+  margin-bottom: 2.6mm;
+  font-size: var(--cv-heading);
   font-weight: 700;
   color: var(--cv-accent);
   break-after: avoid;
@@ -172,11 +181,12 @@
   height: 0.3mm;
   background: var(--cv-accent-mid);
 }
-.cvsheet .cv-summary {
-  font-size: 10pt;
-  line-height: 1.55;
+/* An entry may run onto the next page, but its head never leaves its first bullet
+   behind, and a bullet is never split (the running head would land inside it). */
+.cvsheet .cv-role-head {
+  break-after: avoid;
 }
-.cvsheet .cv-role {
+.cvsheet .cv-bullets li {
   break-inside: avoid;
 }
 .cvsheet .cv-role + .cv-role {
@@ -194,16 +204,15 @@
 .cvsheet .cv-role-title {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 10.6pt;
+  font-size: var(--cv-entry);
   font-weight: 650;
   color: var(--cv-ink);
 }
 .cvsheet .cv-dates {
   flex: none;
   margin-left: auto;
-  font-size: 8.8pt;
   font-variant-numeric: tabular-nums;
-  color: var(--cv-muted);
+  color: var(--cv-ink);
   white-space: nowrap;
 }
 .cvsheet .cv-org {
@@ -233,7 +242,6 @@
   margin-top: 1.8mm;
 }
 .cvsheet .cv-role.is-short .cv-role-title {
-  font-size: 9.8pt;
   font-weight: 600;
 }
 
@@ -241,8 +249,7 @@
   margin-top: 3.6mm;
 }
 .cvsheet .cv-group-title {
-  margin-bottom: 1.6mm;
-  font-size: 9.2pt;
+  margin-bottom: 1.2mm;
   font-weight: 650;
   color: var(--cv-ink);
 }
@@ -293,7 +300,6 @@
   border-radius: 1.6mm;
   background: var(--cv-accent-soft);
   border: 0.25mm solid var(--cv-accent-mid);
-  font-size: 8.8pt;
 }
 
 /* ── classic (the default: one flow) ──────────────────────────────────────────────── */
@@ -305,15 +311,14 @@
     "main"
     "side";
   grid-template-rows: auto auto 1fr;
-  padding: 15mm 17mm var(--cv-pad);
+  /* 19mm sides: at 10.5pt a line holds about 90 characters, the top of the readable
+     range. */
+  padding: 15mm 19mm var(--cv-pad);
 }
 .cvsheet[data-template="classic"] .cv-head {
   padding-bottom: 4mm;
   margin-bottom: 5mm;
   border-bottom: 0.4mm solid var(--cv-accent);
-}
-.cvsheet[data-template="classic"] .cv-name {
-  font-size: 24pt;
 }
 /* Skills and languages: single-column runs after the work - a group's label, then its
    items as one comma-separated line - never chips, never a grid. */
@@ -364,8 +369,8 @@
   padding: var(--cv-pad) var(--cv-pad) 7mm 9mm;
   border-top: 3.2mm solid var(--cv-accent);
 }
-.cvsheet[data-template="sidebar"] .cv-name {
-  font-size: 27pt;
+.cvsheet[data-template="sidebar"] {
+  --cv-name: 26pt;
 }
 .cvsheet[data-template="sidebar"] .cv-main {
   padding: 0 var(--cv-pad) var(--cv-pad) 9mm;
@@ -397,8 +402,11 @@
   margin-bottom: 7mm;
   border-bottom: 0.9mm solid var(--cv-accent);
 }
+.cvsheet[data-template="editorial"] {
+  --cv-name: 28pt;
+  --cv-heading: 13pt;
+}
 .cvsheet[data-template="editorial"] .cv-name {
-  font-size: 36pt;
   font-weight: 500;
   color: var(--cv-ink);
 }
@@ -406,12 +414,11 @@
   font-family: var(--cv-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 13pt;
+  font-size: var(--cv-heading);
   color: var(--cv-accent);
 }
 .cvsheet[data-template="editorial"] .cv-sec-title {
   font-family: var(--cv-serif);
-  font-size: 13pt;
   font-weight: 600;
 }
 /* Single-flow since the round trip measured it: the dates used to hang in a 30mm gutter
@@ -420,15 +427,18 @@
    entry's line like every template, and the lists stack in one column. */
 .cvsheet[data-template="editorial"] .cv-summary {
   font-family: var(--cv-serif);
-  font-size: 11.2pt;
-  line-height: 1.5;
+  font-size: var(--cv-entry);
 }
 
 /* ── compact ───────────────────────────────────────────────────────────────────── */
 
+/* Dense, not small: the floor of the body range (10pt) and tighter spacing, never less. */
 .cvsheet[data-template="compact"] {
-  font-size: 9pt;
-  line-height: 1.38;
+  --cv-name: 22pt;
+  --cv-heading: 11.5pt;
+  --cv-entry: 10.5pt;
+  --cv-body: 10pt;
+  line-height: 1.32;
   grid-template-columns: 1fr 58mm;
   grid-template-areas:
     "head head"
@@ -445,7 +455,6 @@
   color: var(--cv-paper);
 }
 .cvsheet[data-template="compact"] .cv-name {
-  font-size: 24pt;
   color: var(--cv-paper);
 }
 .cvsheet[data-template="compact"] .cv-headline {
@@ -483,10 +492,6 @@
 .cvsheet[data-template="compact"] .cv-role + .cv-role {
   margin-top: 3mm;
 }
-.cvsheet[data-template="compact"] .cv-summary {
-  font-size: 9.2pt;
-  line-height: 1.45;
-}
 .cvsheet[data-template="compact"] .cv-bullets {
   margin-top: 1mm;
   gap: 0.6mm;
@@ -505,7 +510,6 @@
   padding: 0;
   border: 0;
   background: none;
-  font-size: 9pt;
 }
 /* The separator rides on the item BEFORE it, glued by a no-break space, so a line may
    end with a dot but never start with one. */
@@ -527,6 +531,24 @@
 }
 @page cv:first {
   margin-top: 0;
+}
+/* Page two onwards carries the name in its head margin (DesignedCv writes the words; a
+   continuation page is otherwise anonymous once the pages are apart). Body size, the
+   muted paper ink: a label, not a fifth type level. Never on page one, where the name
+   already leads the flow. */
+@page cv {
+  @top-left {
+    padding: 0 0 2mm 17mm;
+    vertical-align: bottom;
+    font-family: var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 10.5pt;
+    color: var(--color-cv-muted);
+  }
+}
+@page cv:first {
+  @top-left {
+    content: none;
+  }
 }
 @media print {
   .cvsheet {
