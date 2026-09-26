@@ -40,9 +40,42 @@ export type CvDesign = {
   compact: boolean;
   /** cvTailor `objective` (only meaningful while tailored). */
   objective: boolean;
+  /** SAVED designs only (this browser's localStorage, the server's ui-state): the version
+   *  of the default it was saved under. Never in a URL - a URL's `template` is always an
+   *  explicit choice. See `migrateSavedCvDesign`. */
+  v?: typeof CV_DESIGN_VERSION;
 };
 
 export const CV_DESIGN_DEFAULT: CvDesign = { template: "classic", accent: "navy", tailor: null, compact: false, objective: true };
+
+/** 2 = saved since `classic` became the default. Before it, the designer wrote the design
+ *  on every mount, so a saved `sidebar` (the old default) cannot tell a choice from a
+ *  default that was merely stored. */
+export const CV_DESIGN_VERSION = 2;
+
+/** A saved design from before the version marker reads its `sidebar` as NEVER CHOSEN -
+ *  once: the result carries the marker, the caller saves it back, and from then on
+ *  whatever the seeker picks (sidebar included) sticks. Every other field, and every
+ *  other template, is kept as saved. A marked design passes through untouched. */
+export function migrateSavedCvDesign(d: CvDesign): CvDesign {
+  if (d.v === CV_DESIGN_VERSION) return d;
+  return { ...d, template: d.template === "sidebar" ? CV_DESIGN_DEFAULT.template : d.template, v: CV_DESIGN_VERSION };
+}
+
+/** A saved design object (a JSON record, not a URL) through the one validator; its
+ *  version marker rides along. Null when it is not a record. Not migrated - the caller
+ *  compares before and after to know whether to save the migration back. */
+export function parseSavedCvDesign(raw: unknown): CvDesign | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  return parseCvDesign((key) => {
+    const value = r[key];
+    if (typeof value === "string") return value;
+    if (typeof value === "number" && Number.isInteger(value)) return String(value);
+    if (typeof value === "boolean") return value ? "1" : "0";
+    return null;
+  });
+}
 
 /** A seeker names a handful of targets; an index past this is not one of them. */
 const TAILOR_MAX = 19;
@@ -66,6 +99,8 @@ export function parseCvDesign(get: Getter): CvDesign {
     tailor: tailorN !== null && tailorN <= TAILOR_MAX ? tailorN : null,
     compact: first(get("compact")) === "1",
     objective: first(get("objective")) !== "0",
+    // A saved record's version marker (the ui-state route stores what this returns).
+    ...(first(get("v")) === String(CV_DESIGN_VERSION) ? { v: CV_DESIGN_VERSION } : {}),
   };
 }
 

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
 import type { CvDocument, CvOwnerQuestion } from "./cvDocument";
-import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, type CvAccent, type CvDesign, type CvTemplate } from "./cvQuery";
+import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_DESIGN_VERSION, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, migrateSavedCvDesign, parseSavedCvDesign, type CvAccent, type CvDesign, type CvTemplate } from "./cvQuery";
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
 import { tailorCvDocument, type CvCoverageWhere, type CvTailorTarget } from "./cvTailor";
 import { cvPageVerdict, cvYearsOf, measureSheetLengthMm } from "./cvPageBudget";
@@ -45,17 +45,13 @@ export type CvDesignerSkin = { primary: string; ghost: string };
  *  skill nothing shows, then the seeker's own self-descriptions. */
 const QUESTION_KINDS: readonly CvOwnerQuestion["kind"][] = ["no_outcome", "missing_metric", "listed_only", "self_descriptor"];
 
+/** This browser's remembered design, through the one validator, and MIGRATED: a copy
+ *  saved before the version marker reads its `sidebar` as never chosen (cvQuery.ts
+ *  migrateSavedCvDesign); the store effect below writes it back marked on mount. */
 function readStored(): CvDesign | null {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null") as Record<string, unknown> | null;
-    if (!raw) return null;
-    return {
-      template: (CV_TEMPLATES as readonly unknown[]).includes(raw.template) ? (raw.template as CvTemplate) : CV_DESIGN_DEFAULT.template,
-      accent: (CV_ACCENTS as readonly unknown[]).includes(raw.accent) ? (raw.accent as CvAccent) : CV_DESIGN_DEFAULT.accent,
-      tailor: typeof raw.tailor === "number" && Number.isInteger(raw.tailor) && raw.tailor >= 0 ? raw.tailor : null,
-      compact: raw.compact === true,
-      objective: raw.objective !== false,
-    };
+    const saved = parseSavedCvDesign(JSON.parse(localStorage.getItem(STORE_KEY) ?? "null"));
+    return saved ? migrateSavedCvDesign(saved) : null;
   } catch {
     return null;
   }
@@ -66,15 +62,15 @@ function designKeyOf(d: CvDesign): string {
   return JSON.stringify([d.template, d.accent, d.tailor, d.compact, d.objective]);
 }
 
-/** The seeker's saved choice (GET /api/jobseeker/ui-state), already validated server-side
- *  through cvQuery.ts; null when none is kept, there is no profile, or the read failed. */
+/** The seeker's saved choice (GET /api/jobseeker/ui-state), validated server-side and
+ *  again here, NOT yet migrated (the caller saves a migration back); null when none is
+ *  kept, there is no profile, or the read failed. */
 async function fetchSavedDesign(): Promise<CvDesign | null> {
   try {
     const res = await fetch("/api/jobseeker/ui-state");
     if (!res.ok) return null;
-    const body = (await res.json().catch(() => null)) as { design?: CvDesign | null } | null;
-    const d = body?.design;
-    return d && typeof d === "object" && typeof d.template === "string" ? d : null;
+    const body = (await res.json().catch(() => null)) as { design?: unknown } | null;
+    return parseSavedCvDesign(body?.design);
   } catch {
     /* offline: the remembered-in-this-browser choice stands */
     return null;
@@ -207,21 +203,25 @@ export function CvDesigner({
     let live = true;
     void fetchSavedDesign().then((saved) => {
       if (!live || !saved || latestKey.current !== firstKey.current) return;
-      syncedKey.current = designKeyOf(saved);
-      setTemplate(saved.template);
-      setAccent(saved.accent);
-      setTailor(saved.tailor);
-      setCompact(saved.compact);
-      setObjective(saved.objective);
+      // A copy from before the version marker is migrated ONCE: the migrated design is
+      // saved back with the marker, so the next read passes it through untouched.
+      const design = migrateSavedCvDesign(saved);
+      if (design !== saved) saver.push("design", design);
+      syncedKey.current = designKeyOf(design);
+      setTemplate(design.template);
+      setAccent(design.accent);
+      setTailor(design.tailor);
+      setCompact(design.compact);
+      setObjective(design.objective);
     });
     return () => {
       live = false;
     };
-  }, [mode, initial]);
+  }, [mode, initial, saver]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ template, accent, tailor: tailorPick, compact, objective }));
+      localStorage.setItem(STORE_KEY, JSON.stringify({ template, accent, tailor: tailorPick, compact, objective, v: CV_DESIGN_VERSION }));
     } catch {
       /* storage refused (private mode): the server copy still carries the choice */
     }
@@ -229,7 +229,7 @@ export function CvDesigner({
     latestKey.current = designKey;
     if (designKey !== syncedKey.current) {
       syncedKey.current = designKey;
-      saver.push("design", { template, accent, tailor: tailorPick, compact, objective });
+      saver.push("design", { template, accent, tailor: tailorPick, compact, objective, v: CV_DESIGN_VERSION });
     }
   }, [template, accent, tailorPick, compact, objective, mode, query, designKey, saver]);
 

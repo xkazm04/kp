@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CV_DESIGN_DEFAULT, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, cvPrintPath, parseCvDesign } from "./cvQuery";
+import { CV_DESIGN_DEFAULT, CV_DESIGN_VERSION, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, cvPrintPath, migrateSavedCvDesign, parseCvDesign, parseSavedCvDesign } from "./cvQuery";
 
 // The preview, /me/cv/print and GET /api/jobseeker/cv.pdf build the same sheet only if
 // the same URL keys reach all three: the PDF route hands headless Chromium `cvPrintPath`
@@ -38,4 +38,31 @@ test("the default layout is the single-flow one, and every layout says whether i
   assert.equal(CV_SINGLE_FLOW[CV_DESIGN_DEFAULT.template], true);
   assert.deepEqual(Object.keys(CV_SINGLE_FLOW).sort(), [...CV_TEMPLATES].sort());
   assert.equal(parseCvDesign(get("template=sidebar")).template, "sidebar");
+});
+
+test("a saved sidebar from before the version marker reads as never chosen - once", () => {
+  // The designer wrote the design on every mount, so an old `sidebar` is the old default.
+  const old = parseSavedCvDesign({ template: "sidebar", accent: "moss", tailor: 1, compact: true, objective: false })!;
+  assert.equal(old.v, undefined);
+  const migrated = migrateSavedCvDesign(old);
+  assert.deepEqual(migrated, { template: "classic", accent: "moss", tailor: 1, compact: true, objective: false, v: CV_DESIGN_VERSION });
+  // Saved back with the marker, it passes through untouched - the same object.
+  const again = parseSavedCvDesign(JSON.parse(JSON.stringify(migrated)))!;
+  assert.equal(again.v, CV_DESIGN_VERSION);
+  assert.equal(migrateSavedCvDesign(again), again);
+  // After the migration, a seeker who PICKS sidebar keeps it.
+  const picked = parseSavedCvDesign({ template: "sidebar", accent: "navy", tailor: null, compact: false, objective: true, v: 2 })!;
+  assert.equal(migrateSavedCvDesign(picked).template, "sidebar");
+  // Only the old default is reset: an old editorial or compact choice stands, marked.
+  assert.equal(migrateSavedCvDesign(parseSavedCvDesign({ template: "editorial" })!).template, "editorial");
+  assert.equal(migrateSavedCvDesign(parseSavedCvDesign({ template: "compact", v: 1 })!).template, "compact");
+  assert.equal(parseSavedCvDesign(null), null);
+  assert.equal(parseSavedCvDesign(["sidebar"]), null);
+});
+
+test("the version marker never rides a URL, and a URL's sidebar is always a choice", () => {
+  assert.equal(parseCvDesign(get("template=sidebar")).template, "sidebar");
+  assert.equal("v" in parseCvDesign(get("template=sidebar")), false);
+  assert.equal(cvDesignQuery({ ...CV_DESIGN_DEFAULT, template: "sidebar", v: CV_DESIGN_VERSION }), "template=sidebar&accent=navy");
+  assert.equal(cvPrintPath(new URLSearchParams("template=sidebar&v=2")), "/me/cv/print?template=sidebar&accent=navy");
 });
