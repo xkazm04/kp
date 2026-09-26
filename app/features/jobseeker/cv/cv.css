@@ -723,6 +723,17 @@
 }
 /* The owner questions: one group per kind, the question as its label, each line it is
    about quoted verbatim under it. */
+/* "How a parser reads it": the sheet's text, line for line, as the PDF carries it. */
+.cvdesk-plain {
+  max-height: 360px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
 .cvdesk-qgroup + .cvdesk-qgroup {
   margin-top: 12px;
 }

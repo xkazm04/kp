@@ -9,6 +9,7 @@ import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQu
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
 import { tailorCvDocument, type CvCoverageWhere, type CvTailorTarget } from "./cvTailor";
 import { cvPageVerdict, cvYearsOf, measureSheetLengthMm } from "./cvPageBudget";
+import { cvReadingLines } from "./cvRoundTrip";
 import { DesignedCv } from "./DesignedCv";
 
 // The designer: pick a layout and an accent, see the CV as a page, take it away as a PDF.
@@ -169,6 +170,7 @@ export function CvDesigner({
   const [pdf, setPdf] = useState<{ state: "idle" | "busy" } | { state: "failed"; message: string }>({ state: "idle" });
   const [showChanges, setShowChanges] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
+  const [showPlain, setShowPlain] = useState(false);
   const [showMoves, setShowMoves] = useState(false);
   const [showWhere, setShowWhere] = useState(false);
 
@@ -477,6 +479,22 @@ export function CvDesigner({
                 </ul>
               </div>
             ))}
+          </div>
+        ) : null}
+      </div>
+      {/* "The owner sees what a machine will see" (registry export-format-and-round-trip-
+          verification): the sheet's text in the order the PDF carries it - the order
+          `npm run cv:roundtrip` holds equal to pypdf's extraction on every template. */}
+      <div className="cvdesk-changes">
+        <button type="button" className={CV_LINK_BTN} aria-expanded={showPlain} onClick={() => setShowPlain((v) => !v)}>
+          {t("plainText.toggle")}
+        </button>
+        {showPlain ? (
+          <div className="cvdesk-list">
+            <p>{columned ? t("plainText.columns", { layout: t(`template.${template}`) }) : t("plainText.hint")}</p>
+            <pre className="cvdesk-plain" lang={sheetDoc.lang}>
+              {cvReadingLines(sheetDoc).join("\n")}
+            </pre>
           </div>
         ) : null}
       </div>
