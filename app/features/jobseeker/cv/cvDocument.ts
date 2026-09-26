@@ -623,17 +623,3 @@ function dedupeImprovements(log: CvImprovement[]): CvImprovement[] {
     return true;
   });
 }
-
-// ── templates and accents (what the picker offers; the look lives in cv.css) ───────
-
-export const CV_TEMPLATES = ["sidebar", "editorial", "compact"] as const;
-export type CvTemplate = (typeof CV_TEMPLATES)[number];
-export const CV_ACCENTS = ["navy", "moss", "coral", "plum"] as const;
-export type CvAccent = (typeof CV_ACCENTS)[number];
-
-export function isCvTemplate(v: unknown): v is CvTemplate {
-  return typeof v === "string" && (CV_TEMPLATES as readonly string[]).includes(v);
-}
-export function isCvAccent(v: unknown): v is CvAccent {
-  return typeof v === "string" && (CV_ACCENTS as readonly string[]).includes(v);
-}
