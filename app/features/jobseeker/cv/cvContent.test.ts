@@ -324,3 +324,10 @@ test("an accepted edit is bound to the line it judged: a CV that no longer holds
   ]);
   assert.deepEqual(later, [{ before: "Ran Y.", after: "Second." }]);
 });
+
+test("tailoring keeps every skill question the base sheet raised (listed-only and soft skills)", () => {
+  const out = tailorCvDocument(CHANGER, { target: "AI Engineer", postings: [] });
+  const skillQs = (qs: typeof CHANGER.questions) => qs.filter((q) => q.roleIndex === null && CHANGER.skills.concat().some((g) => [...g.items, ...(g.trimmed ?? [])].some((i) => i.name === q.text)));
+  assert.deepEqual(skillQs(out.doc.questions), skillQs(CHANGER.questions));
+  assert.ok(out.doc.questions.some((q) => q.kind === "self_descriptor" && q.text === "Teamwork"));
+});

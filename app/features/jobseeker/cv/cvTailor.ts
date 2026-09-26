@@ -426,10 +426,12 @@ export function tailorCvDocument(
   }
 
   // The owner questions follow the tailored sheet: what is printed is what is asked about.
+  // The skill questions (listed-only, soft skills) do not depend on order: carried as-is.
+  const skillNames = new Set(doc.skills.flatMap((g) => [...g.items, ...(g.trimmed ?? [])].map((i) => i.name)));
   const questions = [
     ...descriptorQuestions({ headline: doc.headline, summarySentences: summary ? splitSentences(summary) : [], roles }),
     ...outcomeQuestions(roles),
-    ...doc.questions.filter((q) => q.kind === "listed_only"),
+    ...doc.questions.filter((q) => q.kind === "listed_only" || (q.kind === "self_descriptor" && q.roleIndex === null && skillNames.has(q.text))),
   ];
 
   return {
