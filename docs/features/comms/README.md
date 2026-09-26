@@ -246,8 +246,13 @@ back, keyed by the message's `ref` + `kind`:
   DEFAULT team's Comms Center. An integrator posting a foreign ref scheme used to
   fill one arbitrary tenant's centre with red receipts about candidates that team had
   never heard of. The relay still learns on the FIRST call that the pair landed
-  nowhere, which is the whole point of answering an orphan. Locked by
-  `comms-receipt.test.ts`.
+  nowhere, which is the whole point of answering an orphan. Filed nowhere is not
+  traceless: both doors authenticate the caller, so an unknown ref is the
+  configured relay speaking references kp never issued, and a relay that switches
+  ref scheme wholesale sends every real bounce down this path. Each one is counted
+  per process (`foreignReceipts` on `GET /api/ops`) and written to
+  `comms-foreign-receipts.log`, which is the only place kp's own operator can see
+  that drift. Locked by `comms-receipt.test.ts`.
 - **The receipt row stores CODES, not English.** It is written by a relay callback
   with no reader and no request locale, and the outbox is append-only — so the two
   literals it used to store (`"Delivery receipt"`, `"(relay callback)"`) were English

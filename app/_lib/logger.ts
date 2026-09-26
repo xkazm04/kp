@@ -153,6 +153,37 @@ export async function logScheduleReconcile(entry: ScheduleReconcileLog): Promise
   await appendLine("schedule-reconcile.log", { invite, ...rest });
 }
 
+// Foreign delivery receipts. A bounce receipt whose `ref` names nothing in this
+// install is refused and filed into no tenant (comms-receipt.ts `unknown_ref`) —
+// correctly, since it is about no team's candidate. But both receipt doors
+// authenticate the caller, so it is the CONFIGURED relay speaking references kp
+// never issued, and a relay that switches ref scheme wholesale sends every real bounce
+// down that path: the per-call answer reaches only the relay, and the Comms Center
+// goes quiet. We count every occurrence (readable via getForeignReceiptCount()) and
+// record a structured line, so kp's own operator can see the drift. A real
+// deployment would ship comms-foreign-receipts.log to an alerting sink.
+export type ForeignReceiptLog = {
+  ref: string;
+  kind: string;
+  outcome: string;
+};
+
+let foreignReceiptCount = 0;
+
+/** Total bounce receipts this process refused as naming no ref in the install. */
+export function getForeignReceiptCount(): number {
+  return foreignReceiptCount;
+}
+
+export async function logForeignReceipt(entry: ForeignReceiptLog): Promise<void> {
+  foreignReceiptCount += 1;
+  // The ref is the relay's, not a candidate's — but it is caller-supplied text, so
+  // bound it before it reaches a log line.
+  const ref = entry.ref.slice(0, 80);
+  console.warn(`[comms:receipt] ${entry.outcome} receipt for a ref this install never issued (ref=${ref} kind=${entry.kind})`);
+  await appendLine("comms-foreign-receipts.log", { ...entry, ref });
+}
+
 // Zero offerable slots. A candidate opened a scheduling link but every slot in
 // the proposal horizon was already booked (idea-5df8e10f) — before this the
 // picker showed a "we'll be in touch" dead-end with no recruiter-side signal, so

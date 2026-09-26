@@ -13,6 +13,7 @@
 import { getSubmission, hasOutboxSendFor, recordOutbox } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { isBounceOutcome } from "./comms-status";
+import { logForeignReceipt } from "./logger";
 import { RECEIPT_RECIPIENT_CODE, RECEIPT_SUBJECT_CODE } from "./comms-view";
 
 export type DeliveryReceipt = {
@@ -98,7 +99,12 @@ export function recordDeliveryReceipt(receipt: DeliveryReceipt): DeliveryReceipt
   // A receipt with no tenant is a fault belonging to nobody — refused, not filed into
   // whichever team happens to be the default (see receiptWorkspace).
   const workspaceId = receiptWorkspace(ref);
-  if (!workspaceId) return { recorded: false, outcome, reason: "unknown_ref", stored: false };
+  if (!workspaceId) {
+    // Filed nowhere, but not traceless: counted install-wide (logger.ts
+    // logForeignReceipt), because a wholesale ref-scheme drift arrives entirely here.
+    void logForeignReceipt({ ref, kind, outcome });
+    return { recorded: false, outcome, reason: "unknown_ref", stored: false };
+  }
   // CODES, not prose: this row is written by a relay callback with no reader and no
   // request locale, and the outbox is append-only — an English literal here is English
   // in a Czech team's ledger forever. The surface renders them (comms-view.ts

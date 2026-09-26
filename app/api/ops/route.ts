@@ -6,7 +6,7 @@ import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { analyzeTelemetry, commsTelemetry, engineTelemetry, tailJsonl } from "@/app/_lib/ops-telemetry";
-import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
+import { getForeignReceiptCount, getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";
 import { collectReadiness } from "@/app/_lib/readiness";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
@@ -112,6 +112,9 @@ export async function GET() {
         noSlotStalls: getScheduleNoSlotsCount(),
       },
       afterResponseFailures: getAfterResponseFailureCount(),
+      // Bounce receipts naming no ref in this install: filed into no tenant, so this
+      // per-process count is the only place a relay's wholesale ref drift shows.
+      foreignReceipts: getForeignReceiptCount(),
       // Which door is refusing: the in-process limiter's refusals per key FAMILY (the
       // prefix before the first ':'), never a token or client address.
       rateLimitRefusals: rateLimitRefusalStats(),
