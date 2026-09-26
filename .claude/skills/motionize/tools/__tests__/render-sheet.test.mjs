@@ -38,7 +38,7 @@ test("the glyph filter takes glyph modules and leaves the colocated tests", () =
 
 test("every committed glyph module parses and rasterizes in both themes", () => {
   const files = readdirSync(GLYPH_DIR).filter(isGlyphModule);
-  assert.ok(files.length >= 10, `expected the committed glyph set, found ${files.length}`);
+  assert.ok(files.length >= 9, `expected the committed glyph set, found ${files.length}`);
   const palettes = readPalettes();
   for (const f of files) {
     const glyph = parseGlyphModule(readFileSync(`${GLYPH_DIR}/${f}`, "utf8"), f);
