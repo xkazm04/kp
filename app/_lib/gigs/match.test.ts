@@ -143,11 +143,13 @@ test("a generalist niche takes anything, ranked below a real fit", () => {
   assert.equal(ranked[1].reasons[0].code, "generalist");
 });
 
-test("readiness: only onboarding/active hires are ready; pickGigMatch skips the rest", () => {
+test("readiness: only active hires are ready (onboarding = still being designed); pickGigMatch skips the rest", () => {
   const pending = cand("gspec-p", "web development", { hireStatus: "pending_approval", createdAt: "2026-09-25T09:00:00.000Z" });
   const gone = cand("gspec-g", "web development", { hireStatus: null, createdAt: "2026-09-25T09:30:00.000Z" });
-  const onboarding = cand("gspec-o", "web development", { hireStatus: "onboarding", createdAt: "2026-09-25T12:00:00.000Z" });
+  const onboarding = cand("gspec-o", "web development", { hireStatus: "active", createdAt: "2026-09-25T12:00:00.000Z" });
+  const building = cand("gspec-b", "web development", { hireStatus: "onboarding", createdAt: "2026-09-25T08:00:00.000Z" });
   const ranked = rankSpecialistsForGig(TYPING_TEST, [pending, gone, onboarding]);
+  assert.equal(rankSpecialistsForGig(TYPING_TEST, [building]).map((m) => m.ready)[0], false, "a hire still being designed is not ready");
   assert.equal(ranked[0].specialistId, "gspec-o", "on equal scores the ready one leads");
   assert.deepEqual(ranked.map((m) => m.ready), [true, false, false]);
   assert.deepEqual(ranked.find((m) => m.specialistId === "gspec-p")?.reasons.at(-1), { code: "hire_not_ready", evidence: "pending_approval" });

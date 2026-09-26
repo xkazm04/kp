@@ -39,8 +39,10 @@ export const MATCH_WEIGHTS = {
   strengthSaturation: 2,
 } as const;
 
-/** Hire statuses under which the specialist's persona exists in Personas and may run. */
-export const GIG_RUNNABLE_HIRE_STATUSES: readonly AgentStatus[] = ["onboarding", "active"];
+/** Hire statuses under which the specialist's persona is BUILT in Personas and may run. Only
+ *  `active`: a gig specialist is designed from kp's requirements, and `onboarding` means Personas is
+ *  still designing it - the 2026-09-26 training cycle dispatched two gigs to half-built personas. */
+export const GIG_RUNNABLE_HIRE_STATUSES: readonly AgentStatus[] = ["active"];
 
 /** Common freelance areas, one concept per row: any word in a row matches any other.
  *  Words are stored as written; they pass through the same stemmer as the text. */

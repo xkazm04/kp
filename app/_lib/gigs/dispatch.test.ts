@@ -236,7 +236,7 @@ test("refuses a gig that is not dispatchable (new, dispatched) with GIG_NOT_DISP
 });
 
 test("403 from Personas: attempt failed personas_scope_missing, gig back to qualified, no execution id", async () => {
-  const spec = specialist("oss_bounty", "onboarding", "persona-403");
+  const spec = specialist("oss_bounty", "active", "persona-403");
   const gig = qualified(newGig(), spec);
   const r = await dispatchGigAttempt(WS, gig.id, {}, transport({ ok: false, reason: "personas_scope_missing", status: 403 }).deps);
   assert.equal(r.ok, false);
