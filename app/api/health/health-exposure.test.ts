@@ -78,6 +78,17 @@ process.env.KP_OPERATOR_PASSWORD = "health-route-test-password";
 
 const { GET } = await import("./route.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
+// Real accounts: the operator gate re-reads the account a session names, and a sub with
+// no row is nobody - so the org-b owner and the home seat have to exist.
+const { createUser } = await import("../../_lib/db/users.ts");
+// Created on first use, not at import: in this file a module-scope createUser() was not
+// visible to the very next getUserById() (only the seed users were in the table; measured
+// 2026-09-26, mechanism not traced), and the gate then reads nobody.
+let accounts: { b: string; h: string } | null = null;
+const account = (k: "b" | "h") => (accounts ??= {
+  b: createUser({ orgId: "org-b", email: "gate.b-owner@example.test", name: "B Owner" }).id,
+  h: createUser({ orgId: "org-default", email: "gate.home-seat@example.test", name: "Home Seat" }).id,
+})[k];
 
 after(() => cleanupUnitDb());
 
@@ -252,7 +263,7 @@ test("an empty catalog with healthy seeds moves no verdict, and stays operator-o
 // name workspace ids and host paths move to the HOME-ORG tier, because a member of
 // another org on the same box is a different tenant.
 test("an OWNER of another org gets the verdict and engines, and no deployment-wide detail", async () => {
-  cookieValue = signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
+  cookieValue = signSession("ws_org_b", Date.now(), { sub: account("b"), org: "org-b", role: "owner" });
   const r = await GET();
   const body = (await r.json()) as HealthBody;
   assert.ok(r.status === 200 || r.status === 503, "the verdict still answers");
@@ -265,7 +276,7 @@ test("an OWNER of another org gets the verdict and engines, and no deployment-wi
 });
 
 test("a home-org member keeps the full detail", async () => {
-  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: "usr_h", org: "org-default", role: "viewer" });
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: account("h"), org: "org-default", role: "viewer" });
   const body = await probe();
   assert.ok(body.tables && body.queue && body.degradedReasons && body.engines);
 });
@@ -289,7 +300,7 @@ test("coded findings ride the home-org detail, never the anonymous or other-org 
     const anon = (await anonRes.json()) as HealthBody & { findings?: Finding[] };
     assert.equal("findings" in anon, false, "a finding names a workspace id: not a public readiness fact");
 
-    cookieValue = signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
+    cookieValue = signSession("ws_org_b", Date.now(), { sub: account("b"), org: "org-b", role: "owner" });
     const other = (await (await GET()).json()) as HealthBody & { findings?: Finding[] };
     assert.equal("findings" in other, false, "another org's member is a different tenant");
 

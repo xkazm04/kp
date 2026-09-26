@@ -161,13 +161,24 @@ test("/diagrams asks the home-org question, not the coarse one", () => {
 // ---- 2. behavioural: the llm_usage routes -----------------------------------
 
 const { signSession, DEFAULT_WORKSPACE } = await import("../_lib/auth/session.ts");
+// Real accounts: the operator gate re-reads the account a session names, and a sub with
+// no row is nobody - so the org-b owner and the home seat have to exist.
+const { createUser } = await import("../_lib/db/users.ts");
+// Created on first use, not at import: in this file a module-scope createUser() was not
+// visible to the very next getUserById() (only the seed users were in the table; measured
+// 2026-09-26, mechanism not traced), and the gate then reads nobody.
+let accounts: { b: string; h: string } | null = null;
+const account = (k: "b" | "h") => (accounts ??= {
+  b: createUser({ orgId: "org-b", email: "gate.b-owner@example.test", name: "B Owner" }).id,
+  h: createUser({ orgId: "org-default", email: "gate.home-seat@example.test", name: "Home Seat" }).id,
+})[k];
 const usage = await import("./llm/usage/route.ts");
 const activity = await import("./llm/activity/route.ts");
 const config = await import("./llm/config/route.ts");
 const { NextRequest } = await import("next/server");
 
-const ORG_B_OWNER = () => signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
-const HOME_MEMBER = () => signSession(DEFAULT_WORKSPACE, Date.now(), { sub: "usr_h", org: "org-default", role: "recruiter" });
+const ORG_B_OWNER = () => signSession("ws_org_b", Date.now(), { sub: account("b"), org: "org-b", role: "owner" });
+const HOME_MEMBER = () => signSession(DEFAULT_WORKSPACE, Date.now(), { sub: account("h"), org: "org-default", role: "recruiter" });
 const req = (p: string) => new NextRequest(`http://localhost${p}`);
 
 test("an owner of another org cannot read the llm_usage ledger, aggregate or row by row", async () => {

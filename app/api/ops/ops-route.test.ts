@@ -62,6 +62,17 @@ process.env.KP_OPERATOR_PASSWORD = "ops-route-test-password";
 
 const { GET } = await import("./route.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
+// Real accounts: the operator gate re-reads the account a session names, and a sub with
+// no row is nobody - so the org-b owner and the home seat have to exist.
+const { createUser } = await import("../../_lib/db/users.ts");
+// Created on first use, not at import: in this file a module-scope createUser() was not
+// visible to the very next getUserById() (only the seed users were in the table; measured
+// 2026-09-26, mechanism not traced), and the gate then reads nobody.
+let accounts: { b: string; h: string } | null = null;
+const account = (k: "b" | "h") => (accounts ??= {
+  b: createUser({ orgId: "org-b", email: "gate.b-owner@example.test", name: "B Owner" }).id,
+  h: createUser({ orgId: "org-default", email: "gate.home-seat@example.test", name: "Home Seat" }).id,
+})[k];
 const { afterResponse, getAfterResponseFailureCount } = await import("../../_lib/after-response.ts");
 
 after(() => cleanupUnitDb());
@@ -275,7 +286,7 @@ test("the limiter's refusals reach the operator per door family, with no key mat
 // here are every tenant's, so membership of some org is not enough: the caller must
 // belong to the install's home org.
 test("an OWNER of another org is refused with a code, and sees no deployment-wide field", async () => {
-  cookieValue = signSession("ws_org_b", Date.now(), { sub: "usr_b", org: "org-b", role: "owner" });
+  cookieValue = signSession("ws_org_b", Date.now(), { sub: account("b"), org: "org-b", role: "owner" });
   const r = await GET();
   assert.equal(r.status, 403);
   const body = await bodyOf(r);
@@ -286,7 +297,7 @@ test("an OWNER of another org is refused with a code, and sees no deployment-wid
 });
 
 test("a home-org RECRUITER still reads the strip — single-org installs are unchanged", async () => {
-  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: "usr_h", org: "org-default", role: "recruiter" });
+  cookieValue = signSession(DEFAULT_WORKSPACE, Date.now(), { sub: account("h"), org: "org-default", role: "recruiter" });
   const r = await GET();
   assert.equal(r.status, 200);
   assert.ok((await bodyOf(r)).tables);

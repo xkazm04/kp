@@ -52,6 +52,9 @@ process.env.KP_SECRET = "require-operator-test-secret";
 
 const { isOperator, requireOperator } = await import("./require-operator.ts");
 const { signSession, DEMO_WORKSPACE, SESSION_TTL_MS } = await import("./session.ts");
+const { createUser, setUserStatus } = await import("../db/users.ts");
+const { DEFAULT_ORG_ID } = await import("../db/organizations.ts");
+const { requireHomeOrgReader } = await import("./require-operator.ts");
 
 after(() => cleanupUnitDb());
 
@@ -108,8 +111,30 @@ test("a signed-in MEMBER passes too — this gate is proxy-equivalent, not owner
   // per-user question is current-user.ts's requireCapability. A test that demanded
   // 403 here would be pinning a policy this file does not implement.
   passwordMode(true);
-  withCookie(signSession(TEAM, Date.now(), { sub: "usr_member", org: "org-default", role: "recruiter" }));
+  const member = createUser({ orgId: DEFAULT_ORG_ID, email: "op.member@example.test", name: "Member" });
+  withCookie(signSession(TEAM, Date.now(), { sub: member.id, org: "org-default", role: "recruiter" }));
   assert.equal(await isOperator(), true);
+});
+
+test("an OFFBOARDED member's still-valid cookie is refused — the account is re-read, not trusted from the token", async () => {
+  // The token is stateless and lives 7 days; nothing can reach into it. What CAN be
+  // withdrawn is the source it names. capabilitiesForUserInWorkspace already reads
+  // users.status on every request, but this gate did not, so a disabled member kept
+  // every requireOperator-only route (calibration thresholds, archetypes, calendar
+  // connect, …) until the cookie expired — the console said "disabled" and the
+  // cookie said otherwise.
+  passwordMode(true);
+  const leaver = createUser({ orgId: DEFAULT_ORG_ID, email: "op.leaver@example.test", name: "Leaver" });
+  withCookie(signSession(TEAM, Date.now(), { sub: leaver.id, org: DEFAULT_ORG_ID, role: "recruiter" }));
+  assert.equal(await isOperator(), true, "active: signed in");
+  setUserStatus(leaver.id, "disabled");
+  assert.equal(await isOperator(), false, "disabled: the same cookie, byte for byte, no longer signs anyone in");
+  assert.equal((await requireOperator())?.status, 401);
+  assert.equal((await requireHomeOrgReader())?.status, 401, "and the home-org reads go with it");
+  withCookie(signSession(TEAM, Date.now(), { sub: "usr_deleted_since_mint", org: DEFAULT_ORG_ID, role: "owner" }));
+  assert.equal(await isOperator(), false, "a sub that names no account is nobody, not a member");
+  withCookie(signSession(TEAM, Date.now(), { op: true }));
+  assert.equal(await isOperator(), true, "the identity-less operator session has no row to re-read and is unchanged");
 });
 
 test("CRITICAL: an anonymous DEMO session is signed, valid — and not an operator", async () => {
@@ -135,8 +160,7 @@ test("a demo session is still refused when it carries identity claims", async ()
 // to the install's HOME org. Single-org installs are unchanged: with signup off every
 // session carries org in {absent, "org-default"}.
 
-const { homeOrgReader, isHomeOrgReader, requireHomeOrgReader, HOME_ORG_ID } = await import("./require-operator.ts");
-const { DEFAULT_ORG_ID } = await import("../db/organizations.ts");
+const { homeOrgReader, isHomeOrgReader, HOME_ORG_ID } = await import("./require-operator.ts");
 const { verifySession } = await import("./session.ts");
 
 const PASSWORD_ENV = { KP_OPERATOR_PASSWORD: "set" } as unknown as NodeJS.ProcessEnv;
@@ -160,11 +184,14 @@ test("homeOrgReader: the pure predicate, clause by clause", () => {
 
 test("requireHomeOrgReader: 401 without a session, a CODED 403 for another org, null for home", async () => {
   passwordMode(true);
+  // Real accounts: the gate re-reads the account a cookie names, so a sub with no row is nobody.
+  const otherOwner = createUser({ orgId: "org-b", email: "op.b-owner@example.test", name: "B Owner" });
+  const homeSeat = createUser({ orgId: DEFAULT_ORG_ID, email: "op.home-seat@example.test", name: "Home Seat" });
   withCookie(null);
   assert.equal((await requireHomeOrgReader())?.status, 401);
   withCookie(signSession(DEMO_WORKSPACE, Date.now(), {}));
   assert.equal((await requireHomeOrgReader())?.status, 401, "demo stays the 401 it is today");
-  withCookie(signSession(TEAM, Date.now(), { sub: "usr_b", org: "org-b", role: "owner" }));
+  withCookie(signSession(TEAM, Date.now(), { sub: otherOwner.id, org: "org-b", role: "owner" }));
   assert.equal(await isOperator(), true, "still signed in — that part is unchanged");
   assert.equal(await isHomeOrgReader(), false);
   const denied = await requireHomeOrgReader();
@@ -176,9 +203,9 @@ test("requireHomeOrgReader: 401 without a session, a CODED 403 for another org, 
   const { REFUSAL_ERRORS } = await import("../api-response.ts");
   assert.equal(body.error, REFUSAL_ERRORS.FORBIDDEN_CAPABILITY);
   assert.equal(body.capability, "deployment:read");
-  withCookie(signSession(TEAM, Date.now(), { sub: "usr_h", org: "org-default", role: "recruiter" }));
+  withCookie(signSession(TEAM, Date.now(), { sub: homeSeat.id, org: "org-default", role: "recruiter" }));
   assert.equal(await requireHomeOrgReader(), null);
   passwordMode(false);
-  withCookie(signSession(TEAM, Date.now(), { sub: "usr_b", org: "org-b", role: "owner" }));
+  withCookie(signSession(TEAM, Date.now(), { sub: otherOwner.id, org: "org-b", role: "owner" }));
   assert.equal(await requireHomeOrgReader(), null, "open mode has no gate to fail");
 });

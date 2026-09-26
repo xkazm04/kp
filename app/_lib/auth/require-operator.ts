@@ -33,10 +33,29 @@ export async function isOperator(): Promise<boolean> {
     // would satisfy operator-gated routes — e.g. the whole-DB export/import
     // exfiltration channel. Reject it here so those routes stay operator-only.
     if (currentWorkspaceId(session) === DEMO_WORKSPACE) return false;
-    return true;
+    return await accountStillLive(session);
   } catch {
     return false;
   }
+}
+
+/** Does the account a session NAMES still exist and still hold access? The session is a
+ *  stateless 7-day token and nothing can reach into it; the account row can. Offboarding
+ *  (`setUserStatus(id, "disabled")`) or deleting the account therefore has to fail the
+ *  token HERE, on every request, because the signature will keep verifying until it
+ *  expires. capabilitiesForUserInWorkspace() has asked this since the 7-day leak it
+ *  documents; this gate did not, so a disabled member's cookie still passed every
+ *  requireOperator-only route. Same predicate as the issuer and the capability read: a
+ *  missing row or `disabled` is nobody.
+ *
+ *  A session without `sub` (the password operator, open mode, a legacy claim-less
+ *  cookie) names no row and is unchanged: its only early exit is KP_SESSION_EPOCH.
+ *  The data layer is imported at call time for the reason HOME_ORG_ID below spells. */
+async function accountStillLive(session: SessionPayload): Promise<boolean> {
+  if (!session.sub) return true;
+  const { getUserById } = await import("../db/users");
+  const user = getUserById(session.sub);
+  return !!user && user.status !== "disabled";
 }
 
 // Returns a 401 NextResponse for the handler to return, or null to proceed:
@@ -69,7 +88,8 @@ export async function isHomeOrgReader(): Promise<boolean> {
   try {
     const jar = await cookies();
     await connection();
-    return homeOrgReader(verifySession(jar.get(SESSION_COOKIE)?.value));
+    const session = verifySession(jar.get(SESSION_COOKIE)?.value);
+    return homeOrgReader(session) && (session === null || (await accountStillLive(session)));
   } catch {
     return false; // fail closed: an unreadable cookie jar is no reader
   }
