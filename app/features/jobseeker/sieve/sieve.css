@@ -327,6 +327,26 @@
   border-color: var(--sv-accent);
   color: var(--sv-on-accent);
 }
+/* Two steps read in ONE section (SieveFrame railSection: "Your CV" + "You") light
+ * together and are drawn as one joined card: the seam loses its radius, and the second
+ * half's shadow is clipped at the seam so it cannot fall across the first. The first
+ * half's own shadow is left whole — the second half paints over it (a later positioned
+ * sibling), which keeps a hard offset shadow (Spark Dark) continuous down the seam.
+ * Only corners and shadow change — never padding — so the number circles and the
+ * connector line stay on their axis in every state. A focused item drops the clip so
+ * its ring is whole. */
+.sv .rail li.pair-start.active a.rs {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.sv .rail li.pair-end.active a.rs {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  clip-path: inset(0 -40px -40px -40px);
+}
+.sv .rail li.active a.rs:focus-visible {
+  clip-path: none;
+}
 .sv .rail .bar.b-pass i {
   background: var(--sv-partial);
 }
@@ -2802,7 +2822,32 @@
     border-bottom: 1px solid var(--sv-line);
     overflow-x: auto;
     flex-direction: row;
-    background: color-mix(in srgb, var(--sv-paper) 96%, transparent);
+    /* Opaque: a section heading scrolled under the strip must not show through it. */
+    background: var(--sv-paper);
+  }
+  /* The strip's height wraps with its labels, so it is MEASURED (SieveFrame publishes
+   * --sv-strip-h from a ResizeObserver) and every section lands below the top bar AND
+   * the strip. The fallback only covers the first paint, before the measure lands. */
+  .sv .step {
+    scroll-margin-top: calc(var(--sv-top-h) + var(--sv-strip-h, 72px));
+  }
+  .sv #s-you {
+    scroll-margin-top: calc(var(--sv-top-h) + var(--sv-strip-h, 72px) + 20px);
+  }
+  /* The joined pair, horizontal: no gap between its halves, and the seam and clip move
+   * to the inline edges. */
+  .sv .rail li.pair-start {
+    margin-right: -4px;
+  }
+  .sv .rail li.pair-start.active a.rs {
+    border-radius: 10px 0 0 10px;
+  }
+  .sv .rail li.pair-end.active a.rs {
+    border-radius: 0 10px 10px 0;
+    clip-path: inset(-40px -40px -40px 0);
+  }
+  .sv .rail li.active a.rs:focus-visible {
+    clip-path: none;
   }
   .sv .rail ol {
     display: flex;

@@ -12,7 +12,7 @@ import { sourceDisplayLabel, type CatalogEntryView } from "../sourcesApi";
 import { useScanTask } from "../useScanTask";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "../apiFailure";
 import { ScanDoor } from "./ScanDoor";
-import { SieveFrame, type RailStep } from "./SieveFrame";
+import { railSection, SieveFrame, type RailStep } from "./SieveFrame";
 import { deriveSieve, initialsOf, provenanceOf, sourceIsOn } from "./sieveModel";
 import { StepArrive } from "./StepArrive";
 import { StepEvening } from "./StepEvening";
@@ -44,7 +44,10 @@ export type SieveInitial = {
   openId: string | null;
 };
 
-const STEP_IDS = ["arrive", "cv", "you", "want", "sieve", "evening", "weigh", "sources"] as const;
+// How far below the covered top edge a section must reach to be the one being read.
+const READING_OFFSET = 96;
+// The reader moving on by themselves releases a step pinned by a rail click.
+const RELEASE_EVENTS = ["wheel", "touchstart", "keydown"] as const;
 const noSubscription = () => () => undefined;
 
 function useReducedMotion(): boolean {
@@ -108,24 +111,54 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
     say(summary ? t("toast.scanned", { n: summary.matched }) : t("toast.scanEnded"));
   });
 
-  // Where the reader is: the section crossing the band a little above the middle. The
-  // observer re-attaches when a step swaps between its empty and its full markup.
+  // Where the reader is: the last section whose top has passed a reading line just
+  // under whatever covers the viewport's top (the top bar, and below 860px the step
+  // strip — both already summed in every section's scroll-margin-top, sieve.css). An
+  // anchor jump puts the section's top exactly at that edge, so the step the reader
+  // asked for is the one that lights; the old mid-viewport band lit the NEXT step
+  // whenever the jumped-to section was shorter than 38% of the screen. A step read
+  // inside another's section ("You", a column of #s-cv) is folded onto it (railSection),
+  // so the rail lights the pair together.
+  //
+  // A rail click PINS its step until the reader moves on (wheel, touch, a key): a
+  // section near the end of the page cannot scroll up to the line, and the rail must
+  // not answer a click on "Weigh" by lighting "Sources".
+  const pinned = useRef<string | null>(null);
   const hasProfile = profile !== null;
   const hasRows = rows !== null;
   useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) if (e.isIntersecting) setActive((e.target as HTMLElement).dataset.step ?? "arrive");
-      },
-      { rootMargin: "-38% 0px -58% 0px" }
-    );
-    for (const id of STEP_IDS) {
-      const el = document.getElementById(`s-${id}`);
-      if (el) io.observe(el);
-    }
-    return () => io.disconnect();
+    let frame = 0;
+    const pick = () => {
+      frame = 0;
+      if (pinned.current) return;
+      const sections = Array.from(document.querySelectorAll<HTMLElement>(".sv .step[data-step]"));
+      if (sections.length === 0) return;
+      const line = (parseFloat(getComputedStyle(sections[0]).scrollMarginTop) || 0) + READING_OFFSET;
+      let current = sections[0].dataset.step ?? "arrive";
+      for (const el of sections) if (el.getBoundingClientRect().top <= line) current = el.dataset.step ?? current;
+      setActive(railSection(current));
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(pick);
+    };
+    const release = () => {
+      pinned.current = null;
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    for (const type of RELEASE_EVENTS) window.addEventListener(type, release, { passive: true });
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      for (const type of RELEASE_EVENTS) window.removeEventListener(type, release);
+    };
   }, [hasProfile, hasRows]);
+  const onStep = useCallback((id: string) => {
+    pinned.current = railSection(id);
+    setActive(railSection(id));
+  }, []);
 
   // A deep link (?open=) lands on the Weigh step once the page has painted.
   useEffect(() => {
@@ -261,7 +294,6 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
     },
     { id: "sources", anchor: "s-sources", label: t("rail.sources"), count: t("rail.sourcesCount", { on: sourcesOn, held: facts?.held.length ?? 0 }), state: sourcesOn ? "done" : "reached" },
   ];
-  const railActive = active === "cv" ? "cv" : active;
 
   const tally = facts && profile ? (
     <>
@@ -282,7 +314,8 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
       who={profile ? { name: profile.profile.displayName?.trim() || t("rail.you"), initials: initialsOf(profile.profile.displayName) } : null}
       tally={tally}
       steps={steps}
-      active={railActive}
+      active={active}
+      onStep={onStep}
       note={facts && found ? t.rich("rail.note", { found, through: facts.scored.length, worth: facts.strong + facts.promising, decided: facts.decided, b: (c) => <b>{c}</b> }) : null}
     >
       <StepArrive
