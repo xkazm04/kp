@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
-import { CV_ACCENTS, CV_TEMPLATES, type CvAccent, type CvDocument, type CvTemplate } from "./cvDocument";
-import { CV_DESIGN_DEFAULT, cvDesignQuery, type CvDesign } from "./cvQuery";
+import type { CvDocument } from "./cvDocument";
+import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, type CvAccent, type CvDesign, type CvTemplate } from "./cvQuery";
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
 import { tailorCvDocument, type CvCoverageWhere, type CvTailorTarget } from "./cvTailor";
 import { DesignedCv } from "./DesignedCv";
@@ -43,8 +43,8 @@ function readStored(): CvDesign | null {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null") as Record<string, unknown> | null;
     if (!raw) return null;
     return {
-      template: (CV_TEMPLATES as readonly unknown[]).includes(raw.template) ? (raw.template as CvTemplate) : "sidebar",
-      accent: (CV_ACCENTS as readonly unknown[]).includes(raw.accent) ? (raw.accent as CvAccent) : "navy",
+      template: (CV_TEMPLATES as readonly unknown[]).includes(raw.template) ? (raw.template as CvTemplate) : CV_DESIGN_DEFAULT.template,
+      accent: (CV_ACCENTS as readonly unknown[]).includes(raw.accent) ? (raw.accent as CvAccent) : CV_DESIGN_DEFAULT.accent,
       tailor: typeof raw.tailor === "number" && Number.isInteger(raw.tailor) && raw.tailor >= 0 ? raw.tailor : null,
       compact: raw.compact === true,
       objective: raw.objective !== false,
@@ -79,7 +79,22 @@ function Thumb({ template }: { template: CvTemplate }) {
   return (
     <svg viewBox="0 0 42 56" aria-hidden className="cvdesk-thumb">
       <rect x="0.5" y="0.5" width="41" height="55" rx="2" className="pg" />
-      {template === "sidebar" ? (
+      {template === "classic" ? (
+        <>
+          <rect x="5" y="5" width="18" height="3" className="ac" />
+          <rect x="5" y="10" width="26" height="1.2" className="ln" />
+          <rect x="5" y="13" width="32" height="0.6" className="ac" />
+          <rect x="5" y="17" width="20" height="1.6" className="ink" />
+          <rect x="31" y="17" width="6" height="1.6" className="ln" />
+          <rect x="7" y="21" width="30" height="1.4" className="ln" />
+          <rect x="7" y="24" width="26" height="1.4" className="ln" />
+          <rect x="5" y="29" width="18" height="1.6" className="ink" />
+          <rect x="31" y="29" width="6" height="1.6" className="ln" />
+          <rect x="7" y="33" width="28" height="1.4" className="ln" />
+          <rect x="5" y="40" width="32" height="1.4" className="ln" />
+          <rect x="5" y="43" width="24" height="1.4" className="ln" />
+        </>
+      ) : template === "sidebar" ? (
         <>
           <rect x="1" y="1" width="14" height="54" className="tint" />
           <rect x="1" y="1" width="40" height="2" className="ac" />
@@ -96,12 +111,12 @@ function Thumb({ template }: { template: CvTemplate }) {
         <>
           <rect x="5" y="6" width="24" height="4" className="ink" />
           <rect x="5" y="13" width="32" height="1" className="ac" />
-          <rect x="5" y="18" width="6" height="1.4" className="ln" />
-          <rect x="14" y="18" width="23" height="1.6" className="ln" />
-          <rect x="14" y="22" width="20" height="1.6" className="ln" />
-          <rect x="5" y="28" width="6" height="1.4" className="ln" />
-          <rect x="14" y="28" width="23" height="1.6" className="ln" />
-          <rect x="14" y="32" width="18" height="1.6" className="ln" />
+          <rect x="5" y="18" width="20" height="1.6" className="ink" />
+          <rect x="31" y="18" width="6" height="1.6" className="ln" />
+          <rect x="7" y="22" width="30" height="1.4" className="ln" />
+          <rect x="5" y="28" width="20" height="1.6" className="ink" />
+          <rect x="31" y="28" width="6" height="1.6" className="ln" />
+          <rect x="7" y="32" width="26" height="1.4" className="ln" />
         </>
       ) : (
         <>
@@ -160,6 +175,9 @@ export function CvDesigner({
   const sheetDoc = tailored?.doc ?? doc;
 
   const query = cvDesignQuery({ template, accent, tailor, compact, objective });
+  // A columned layout is the owner's choice; the single-flow copy rides beside it for any
+  // upload (registry parse-safe-reading-order: "ship the plain version beside it").
+  const columned = !CV_SINGLE_FLOW[template];
 
   // The choice FOLLOWS THE SEEKER (PUT /api/jobseeker/ui-state): every change is saved
   // debounced and retried (serverDraft.ts); this browser's localStorage is only the
@@ -230,10 +248,10 @@ export function CvDesigner({
     return () => ro.disconnect();
   }, [mode]);
 
-  const downloadPdf = useCallback(async () => {
+  const downloadPdf = useCallback(async (as?: CvTemplate) => {
     setPdf({ state: "busy" });
     try {
-      const res = await fetch(`/api/jobseeker/cv.pdf?${query}`);
+      const res = await fetch(`/api/jobseeker/cv.pdf?${as ? cvDesignQuery({ template: as, accent, tailor, compact, objective }) : query}`);
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { code?: string; error?: string } | null;
         setPdf({ state: "failed", message: errorMessage(body, t("pdfFailed")) });
@@ -253,7 +271,7 @@ export function CvDesigner({
     } catch {
       setPdf({ state: "failed", message: t("pdfFailed") });
     }
-  }, [query, errorMessage, t]);
+  }, [query, accent, tailor, compact, objective, errorMessage, t]);
 
   // The wordings tidied are the document's own; the tailoring moves are listed apart.
   const changes = doc.improvements.filter((c) => c.kind !== "tailor");
@@ -357,9 +375,14 @@ export function CvDesigner({
         ))}
       </div>
       <div className="cvdesk-actions">
-        <button type="button" className={skin.primary} onClick={downloadPdf} disabled={pdf.state === "busy"} aria-busy={pdf.state === "busy"}>
+        <button type="button" className={skin.primary} onClick={() => void downloadPdf()} disabled={pdf.state === "busy"} aria-busy={pdf.state === "busy"}>
           {pdf.state === "busy" ? t("preparing") : t("downloadPdf")}
         </button>
+        {columned ? (
+          <button type="button" className={skin.ghost} onClick={() => void downloadPdf(CV_DESIGN_DEFAULT.template)} disabled={pdf.state === "busy"}>
+            {t("downloadSingleFlow")}
+          </button>
+        ) : null}
         {mode === "inline" ? (
           <a className={skin.ghost} href={`/me/cv/print?${query}`}>
             {t("openPage")}
@@ -370,6 +393,7 @@ export function CvDesigner({
           </button>
         )}
       </div>
+      {columned ? <p className="cvdesk-hint">{t("columnsNote", { layout: t(`template.${template}`) })}</p> : null}
       {pdf.state === "failed" ? (
         <p className="cvdesk-note" role="alert">
           {pdf.message}{" "}

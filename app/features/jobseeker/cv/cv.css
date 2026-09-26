@@ -17,12 +17,23 @@
  * which turns into Bricolage after dark: the document does not change typeface with the
  * product's theme.
  *
- * Three templates share one markup (DesignedCv.tsx) and differ only here:
- *   sidebar   — a tinted column on the left for skills, languages, education;
- *   editorial — one column, a large serif name, dates hung in a left gutter;
- *   compact   — an accent header band and a dense two-column body for a one-page CV.
- * The DOM order is header -> experience -> side, so a parser that reads text in order
- * (an ATS) meets the name, then the work, whatever the template puts on the left.
+ * Four templates share one markup (DesignedCv.tsx) and differ only here:
+ *   classic   — THE DEFAULT: one flow, top to bottom; every entry's title, employer and
+ *               dates on one line; skills and languages as plain runs after the work;
+ *   editorial — one flow too, with a larger serif name and serif headings;
+ *   sidebar   — a tinted column on the left for skills and languages;
+ *   compact   — an accent header band and a skills column on the right.
+ * Registry recruiting/cv-presentation-and-parseability, parse-safe-reading-order: the
+ * DOM order (head -> summary -> experience -> projects -> education -> skills ->
+ * languages) is what a content-order parser reads; a POSITIONAL parser reads a page's
+ * lines left to right, so the two columned layouts come back with their side column
+ * spliced through the work. They stay as an owner's choice, with the single-flow PDF
+ * offered beside them (CvDesigner). `npm run cv:roundtrip` measures every template.
+ *
+ * Parse-safety in the CSS itself: no letter-spacing on headings or the name (many
+ * extractors return tracked text as separated letters), and nothing that carries text is
+ * positioned (Chromium paints positioned boxes after the flow, and the PDF's text order
+ * is paint order).
  */
 
 .cvsheet {
@@ -101,7 +112,6 @@
 .cvsheet .cv-name {
   font-family: var(--cv-serif);
   font-weight: 600;
-  letter-spacing: -0.01em;
   line-height: 1.05;
   color: var(--cv-accent);
 }
@@ -109,7 +119,6 @@
   margin-top: 1.6mm;
   font-size: 11pt;
   font-weight: 500;
-  letter-spacing: 0.02em;
   color: var(--cv-ink);
 }
 /* The tailored objective: the seeker's stated target, labelled ("Seeking: AI Engineer
@@ -154,8 +163,6 @@
   margin-bottom: 3mm;
   font-size: 8.6pt;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--cv-accent);
   break-after: avoid;
 }
@@ -175,64 +182,59 @@
 .cvsheet .cv-role + .cv-role {
   margin-top: 4.2mm;
 }
+/* The entry pattern (registry scan-path-hierarchy): ONE line - the title in the entry's
+   strongest weight, " — employer" after it in the same heading, the dates at the end of
+   the line. A flex row, so the dates sit right; the text order stays title, employer,
+   dates, and the gap before the dates reads as a space to an extractor. */
 .cvsheet .cv-role-head {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: 4mm;
+  display: flex;
   align-items: baseline;
+  column-gap: 4mm;
 }
 .cvsheet .cv-role-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 10.6pt;
   font-weight: 650;
   color: var(--cv-ink);
 }
 .cvsheet .cv-dates {
+  flex: none;
+  margin-left: auto;
   font-size: 8.8pt;
   font-variant-numeric: tabular-nums;
   color: var(--cv-muted);
   white-space: nowrap;
 }
 .cvsheet .cv-org {
-  grid-column: 1 / -1;
-  font-size: 9.4pt;
   font-weight: 500;
   color: var(--cv-accent);
 }
+/* The marker is the list's own (::marker paints with its item, in order); a bullet box
+   drawn with `position: absolute` needed a positioned item, which moved every bullet's
+   text to the end of the PDF's text order. */
 .cvsheet .cv-bullets {
   margin-top: 1.6mm;
   display: grid;
   gap: 1.1mm;
+  list-style: disc outside;
+  padding-left: 4.2mm;
 }
-.cvsheet .cv-bullets li {
-  position: relative;
-  padding-left: 4mm;
-}
-.cvsheet .cv-bullets li::before {
-  content: "";
-  position: absolute;
-  left: 0.6mm;
-  top: 0.62em;
-  width: 1.3mm;
-  height: 1.3mm;
-  border-radius: 50%;
-  background: var(--cv-accent);
+.cvsheet .cv-bullets li::marker {
+  color: var(--cv-accent);
 }
 .cvsheet .cv-bullets b {
   font-weight: 650;
   color: var(--cv-ink);
 }
 
-/* Earlier roles with no bullets read as a compact list, one line each. */
+/* A one-line entry (a compacted role, a role with no bullets, an education line). */
 .cvsheet .cv-role.is-short + .cv-role.is-short {
   margin-top: 1.8mm;
 }
 .cvsheet .cv-role.is-short .cv-role-title {
   font-size: 9.8pt;
   font-weight: 600;
-}
-.cvsheet .cv-role.is-short .cv-org {
-  grid-column: auto;
-  display: inline;
 }
 
 .cvsheet .cv-group + .cv-group {
@@ -293,12 +295,51 @@
   border: 0.25mm solid var(--cv-accent-mid);
   font-size: 8.8pt;
 }
-.cvsheet .cv-edu-title {
-  font-weight: 650;
+
+/* ── classic (the default: one flow) ──────────────────────────────────────────────── */
+
+.cvsheet[data-template="classic"] {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "head"
+    "main"
+    "side";
+  grid-template-rows: auto auto 1fr;
+  padding: 15mm 17mm var(--cv-pad);
 }
-.cvsheet .cv-edu-meta {
-  font-size: 9pt;
-  color: var(--cv-muted);
+.cvsheet[data-template="classic"] .cv-head {
+  padding-bottom: 4mm;
+  margin-bottom: 5mm;
+  border-bottom: 0.4mm solid var(--cv-accent);
+}
+.cvsheet[data-template="classic"] .cv-name {
+  font-size: 24pt;
+}
+/* Skills and languages: single-column runs after the work - a group's label, then its
+   items as one comma-separated line - never chips, never a grid. */
+.cvsheet[data-template="classic"] .cv-side,
+.cvsheet[data-template="editorial"] .cv-side {
+  margin-top: 6mm;
+}
+.cvsheet[data-template="classic"] .cv-group + .cv-group {
+  margin-top: 1.2mm;
+}
+.cvsheet[data-template="classic"] .cv-group-title {
+  display: inline;
+  margin: 0;
+}
+.cvsheet[data-template="classic"] .cv-group-title::after {
+  content: ": ";
+}
+.cvsheet[data-template="classic"] :is(.cv-tags, .cv-skills),
+.cvsheet[data-template="classic"] :is(.cv-tags, .cv-skills) li {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.cvsheet[data-template="classic"] :is(.cv-tags, .cv-skills) li:not(:last-child)::after {
+  content: ", ";
 }
 
 /* ── sidebar ───────────────────────────────────────────────────────────────────── */
@@ -372,53 +413,15 @@
   font-family: var(--cv-serif);
   font-size: 13pt;
   font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
 }
-.cvsheet[data-template="editorial"] .cv-role {
-  display: grid;
-  grid-template-columns: 30mm 1fr;
-  column-gap: 6mm;
-}
-.cvsheet[data-template="editorial"] .cv-role-head {
-  display: contents;
-}
-.cvsheet[data-template="editorial"] .cv-dates {
-  grid-column: 1;
-  grid-row: 1 / span 3;
-  padding-top: 0.5mm;
-  white-space: normal;
-}
-.cvsheet[data-template="editorial"] .cv-role-title,
-.cvsheet[data-template="editorial"] .cv-org,
-.cvsheet[data-template="editorial"] .cv-bullets {
-  grid-column: 2;
-}
+/* Single-flow since the round trip measured it: the dates used to hang in a 30mm gutter
+   (spanning the title and first bullets, allowed to wrap) and the lists below the work
+   sat in a three-column grid - a positional reader spliced both. Now the dates end the
+   entry's line like every template, and the lists stack in one column. */
 .cvsheet[data-template="editorial"] .cv-summary {
   font-family: var(--cv-serif);
   font-size: 11.2pt;
   line-height: 1.5;
-}
-.cvsheet[data-template="editorial"] .cv-side {
-  margin-top: 7mm;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6mm;
-  align-content: start;
-}
-.cvsheet[data-template="editorial"] .cv-side .cv-sec + .cv-sec {
-  margin-top: 0;
-}
-.cvsheet[data-template="editorial"] .cv-side .cv-sec.is-skills {
-  grid-column: 1 / -1;
-}
-.cvsheet[data-template="editorial"] .cv-side .is-skills .cv-groups {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 5mm;
-}
-.cvsheet[data-template="editorial"] .cv-side .is-skills .cv-group + .cv-group {
-  margin-top: 0;
 }
 
 /* ── compact ───────────────────────────────────────────────────────────────────── */
@@ -665,6 +668,13 @@
   background: color-mix(in srgb, var(--color-dial-amber) 18%, var(--color-white));
   color: var(--color-ink);
   font-size: 14px;
+}
+/* One quiet line under the pickers: what a columned layout costs, and the way round it. */
+.cvdesk-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-steel);
 }
 .cvdesk-link {
   padding: 0;

@@ -1,15 +1,26 @@
 import type { ReactNode } from "react";
-import { CV_HEADINGS, levelPips, type CvAccent, type CvBullet, type CvContact, type CvDocument, type CvRole, type CvTemplate } from "./cvDocument";
+import { levelPips, type CvBullet, type CvContact, type CvDocument, type CvRole } from "./cvDocument";
+import type { CvAccent, CvTemplate } from "./cvQuery";
+import { CV_ORG_SEPARATOR, cvHeadingsOf } from "./cvSheet";
 import "./cv.css";
 
-// The designed CV — one markup, three templates (cv.css). Pure and hook-free, so the
+// The designed CV — one markup, four templates (cv.css). Pure and hook-free, so the
 // server print page (/me/cv/print, which headless Chromium turns into the PDF) and the
 // client preview in the /me flow render the SAME component: what the seeker sees in the
 // preview is what the PDF carries.
 //
 // The headings are the CV's own language (CV_HEADINGS by `doc.lang`), not the reader's UI
-// locale — they are part of the document, like its bullets. The DOM order is head ->
-// experience -> side so text-order parsers (an ATS) read the name, then the work.
+// locale — they are part of the document, like its bullets.
+//
+// READING ORDER IS CONTENT (registry recruiting/cv-presentation-and-parseability,
+// parse-safe-reading-order). The DOM order is the order a content-order extractor reads
+// back from the PDF, on every template: head (name, headline, contacts) -> summary ->
+// experience -> projects -> education -> skills -> languages. Every dated entry opens
+// with ONE line - title, employer, dates - so a parser pairs a title with its own
+// interval. Nothing with text on the sheet is positioned: Chromium paints positioned
+// boxes after the flow and the PDF's text follows paint order (a `position: relative`
+// bullet once sent every bullet to the end of the extracted text). cvRoundTrip.ts
+// `cvReadingLines` is this order as text; `npm run cv:roundtrip` checks the two agree.
 
 const ICON: Record<CvContact["kind"] | "location", ReactNode> = {
   email: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
@@ -47,28 +58,48 @@ function Emphasised({ text, ranges }: { text: string; ranges: CvBullet["emphasis
   return <>{out}</>;
 }
 
-/** An earlier role with no bullets — or one the tailoring set as one line — reads as a
- *  compact line: role · org, dates. */
-function ShortRole({ r }: { r: CvRole }) {
+/** An entry's first line: title — employer, and the dates at the end of the SAME line. */
+function EntryHead({ title, org, dates }: { title: string; org: string | null; dates: string | null }) {
   return (
-    <div className="cv-role is-short">
-      <div className="cv-role-head">
-        <h4 className="cv-role-title">
-          {r.role}
-          {r.org ? <span className="cv-org"> · {r.org}</span> : null}
-        </h4>
-        {r.dates ? <span className="cv-dates">{r.dates}</span> : null}
-      </div>
+    <div className="cv-role-head">
+      <h4 className="cv-role-title">
+        {title}
+        {org ? (
+          <span className="cv-org">
+            {CV_ORG_SEPARATOR}
+            {org}
+          </span>
+        ) : null}
+      </h4>
+      {dates ? <span className="cv-dates">{dates}</span> : null}
+    </div>
+  );
+}
+
+/** A dated entry. `compact` (the document's recency compression) or no bullets: the one
+ *  line alone, in its place - the history keeps its date order. */
+function Role({ r }: { r: CvRole }) {
+  const oneLine = r.compact || r.bullets.length === 0;
+  return (
+    <div className={oneLine ? "cv-role is-short" : "cv-role"}>
+      <EntryHead title={r.role} org={r.org} dates={r.dates} />
+      {oneLine ? null : (
+        <ul className="cv-bullets">
+          {r.bullets.map((b, j) => (
+            <li key={j}>
+              {b.lead ? <b>{b.lead}: </b> : null}
+              <Emphasised text={b.text} ranges={b.emphasis} />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
 export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; template: CvTemplate; accent: CvAccent; id?: string }) {
-  const h = CV_HEADINGS[doc.lang];
-  // A compact (tailored) role keeps its place among the detailed ones, so the history
-  // stays in date order; bullet-less roles form the one-line list after them as before.
-  const detailed = doc.experience.filter((r) => r.bullets.length > 0);
-  const short = doc.experience.filter((r) => r.bullets.length === 0);
+  const h = cvHeadingsOf(doc);
+  const projects = doc.projects ?? [];
   const titled = doc.skills.some((g) => g.title);
 
   return (
@@ -105,29 +136,28 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
         {doc.experience.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.experience}</h3>
-            {detailed.map((r, i) =>
-              r.compact ? (
-                <ShortRole key={`d${i}`} r={r} />
-              ) : (
-                <div key={`d${i}`} className="cv-role">
-                  <div className="cv-role-head">
-                    <h4 className="cv-role-title">{r.role}</h4>
-                    {r.dates ? <span className="cv-dates">{r.dates}</span> : null}
-                    {r.org ? <span className="cv-org">{r.org}</span> : null}
-                  </div>
-                  <ul className="cv-bullets">
-                    {r.bullets.map((b, j) => (
-                      <li key={j}>
-                        {b.lead ? <b>{b.lead}: </b> : null}
-                        <Emphasised text={b.text} ranges={b.emphasis} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )
-            )}
-            {short.map((r, i) => (
-              <ShortRole key={`s${i}`} r={r} />
+            {doc.experience.map((r, i) => (
+              <Role key={i} r={r} />
+            ))}
+          </section>
+        ) : null}
+        {projects.length ? (
+          <section className="cv-sec">
+            <h3 className="cv-sec-title">{h.projects}</h3>
+            {projects.map((r, i) => (
+              <Role key={i} r={r} />
+            ))}
+          </section>
+        ) : null}
+        {/* Education is among the first things read: it stays in the flow on every
+            template, never in a side column. */}
+        {doc.education.length ? (
+          <section className="cv-sec">
+            <h3 className="cv-sec-title">{h.education}</h3>
+            {doc.education.map((e, i) => (
+              <div key={i} className="cv-role is-short">
+                <EntryHead title={e.title} org={e.detail} dates={e.dates} />
+              </div>
             ))}
           </section>
         ) : null}
@@ -183,18 +213,6 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
                 <li key={l}>{l}</li>
               ))}
             </ul>
-          </section>
-        ) : null}
-        {doc.education.length ? (
-          <section className="cv-sec">
-            <h3 className="cv-sec-title">{h.education}</h3>
-            {doc.education.map((e, i) => (
-              <div key={i}>
-                <p className="cv-edu-title">{e.title}</p>
-                {e.detail ? <p>{e.detail}</p> : null}
-                {e.dates ? <p className="cv-edu-meta">{e.dates}</p> : null}
-              </div>
-            ))}
           </section>
         ) : null}
       </div>

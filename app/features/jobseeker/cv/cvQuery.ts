@@ -4,7 +4,32 @@
 // headless Chromium loads). A parameter one of them forgot is a PDF that differs from the
 // preview, so they all go through `parseCvDesign` and `cvDesignQuery`.
 
-import { isCvAccent, isCvTemplate, type CvAccent, type CvTemplate } from "./cvDocument";
+// The design vocabulary lives here, beside the URL that carries it: which layouts and
+// accents exist is a PRESENTATION fact (cv.css draws them), not part of the document model.
+//
+// `classic` is the default and the one single-flow layout (registry
+// recruiting/cv-presentation-and-parseability, technique parse-safe-reading-order: "one
+// column for everything that carries identity, time or work ... the default for every
+// template"). `editorial` is single-flow too. `sidebar` and `compact` set skills and
+// languages in a second column: a positional parser reads them interleaved with the work
+// (scripts/cv/roundtrip.mjs measures it), so they are opt-in and the designer offers the
+// single-flow PDF beside them.
+export const CV_TEMPLATES = ["classic", "editorial", "sidebar", "compact"] as const;
+export type CvTemplate = (typeof CV_TEMPLATES)[number];
+export const CV_ACCENTS = ["navy", "moss", "coral", "plum"] as const;
+export type CvAccent = (typeof CV_ACCENTS)[number];
+
+/** Whether a layout's extracted text keeps its visual order for BOTH a content-order and
+ *  a positional reader - measured over the reference CVs by `npm run cv:roundtrip`, and
+ *  restated here only from its result. */
+export const CV_SINGLE_FLOW: Record<CvTemplate, boolean> = { classic: true, editorial: true, sidebar: false, compact: false };
+
+export function isCvTemplate(v: unknown): v is CvTemplate {
+  return typeof v === "string" && (CV_TEMPLATES as readonly string[]).includes(v);
+}
+export function isCvAccent(v: unknown): v is CvAccent {
+  return typeof v === "string" && (CV_ACCENTS as readonly string[]).includes(v);
+}
 
 export type CvDesign = {
   template: CvTemplate;
@@ -17,7 +42,7 @@ export type CvDesign = {
   objective: boolean;
 };
 
-export const CV_DESIGN_DEFAULT: CvDesign = { template: "sidebar", accent: "navy", tailor: null, compact: false, objective: true };
+export const CV_DESIGN_DEFAULT: CvDesign = { template: "classic", accent: "navy", tailor: null, compact: false, objective: true };
 
 /** A seeker names a handful of targets; an index past this is not one of them. */
 const TAILOR_MAX = 19;
