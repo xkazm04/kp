@@ -302,6 +302,7 @@ recovery. The rotation path:
 # 1. Keep the retired secret readable, set the new one, restart.
 KP_SECRET_PREVIOUS=<old secret>   # decryption falls back to this
 KP_SECRET=<new secret>            # everything NEW is written under this
+KP_SKILL_PROFILE_LEGACY_KEY=<old secret>  # skill profiles signed under the old one
 
 # 2. Re-encrypt every stored row under the new secret.
 npm run secrets:rotate            # add -- --dry-run first to see the counts
@@ -320,6 +321,10 @@ npm run secrets:rotate            # add -- --dry-run first to see the counts
 - It runs **beside the live server**, so each column is read and rewritten inside
   one write transaction: a credential an operator saves mid-rotation waits a moment
   and lands, instead of being silently reverted to the value the script read.
+- **Skill profiles are signed, not encrypted**, so the script cannot rewrite them.
+  Without `KP_SKILL_PROFILE_KEY`, every profile is signed under `KP_SECRET`, and a
+  rotation without the `KP_SKILL_PROFILE_LEGACY_KEY` pin shows each genuine one as
+  TAMPERED. The script counts them and exits non-zero until the pin is set.
 - With `KP_ATS_SECRET_KEY` set, ATS / calendar / edge secrets are keyed on *it*
   and a `KP_SECRET` rotation neither breaks nor touches them — the script says so
   and leaves them alone. Rotating `KP_ATS_SECRET_KEY` itself has no equivalent

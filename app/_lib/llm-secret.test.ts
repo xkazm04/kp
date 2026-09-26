@@ -17,7 +17,7 @@ import {
   isProviderSecretCiphertext,
   reencryptProviderSecret,
 } from "./llm-secret.ts";
-import { rotateDatabaseSecrets, type RotateColumnResult } from "../../scripts/secrets-rotate.mjs";
+import { legacySignedSkillProfiles, rotateDatabaseSecrets, type RotateColumnResult } from "../../scripts/secrets-rotate.mjs";
 
 /** The stats for one table, asserted to exist — a rotation that silently skipped the
  *  table under test would otherwise pass every count assertion below. */
@@ -178,6 +178,28 @@ test("a dedicated KP_ATS_SECRET_KEY takes the ATS-keyed columns out of the rotat
     // With it unset they ride along on the same envelope.
     const shared = rotateDatabaseSecrets(db, { env: {} });
     assert.equal(statsFor(shared.results, "ats_config").rewritten, 1);
+  } finally {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the rotation counts skill profiles still signed under KP_SECRET until the legacy pin is set", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "kp-rotate-dsp-"));
+  const db = new Database(path.join(dir, "rotate.sqlite"));
+  try {
+    // No table at all: nothing rides on KP_SECRET.
+    assert.equal(legacySignedSkillProfiles(db, { env: {} }), 0);
+    // A store from before key_id existed: every row is legacy-signed.
+    db.exec(`CREATE TABLE skill_profiles (token TEXT, signature TEXT)`);
+    db.prepare(`INSERT INTO skill_profiles VALUES ('t1', 'sig'), ('t2', 'sig')`).run();
+    assert.equal(legacySignedSkillProfiles(db, { env: {} }), 2);
+    // With key_id: only the '' rows are signed under KP_SECRET; a dedicated-key row is not.
+    db.exec(`ALTER TABLE skill_profiles ADD COLUMN key_id TEXT NOT NULL DEFAULT ''`);
+    db.prepare(`INSERT INTO skill_profiles VALUES ('t3', 'sig', 'k1')`).run();
+    assert.equal(legacySignedSkillProfiles(db, { env: {} }), 2);
+    // Pinning the retired value keeps them verifying, so nothing is owed.
+    assert.equal(legacySignedSkillProfiles(db, { env: { KP_SKILL_PROFILE_LEGACY_KEY: "old" } }), 0);
   } finally {
     db.close();
     rmSync(dir, { recursive: true, force: true });

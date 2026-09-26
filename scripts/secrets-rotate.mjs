@@ -131,6 +131,22 @@ export function rotateDatabaseSecrets(db, { dryRun = false, env = process.env } 
   return { atsDecoupled, results };
 }
 
+/**
+ * What KP_SECRET vouches for without encrypting it, so this script cannot rewrite it.
+ * Skill profiles with key_id "" are HMAC-signed under KP_SKILL_PROFILE_LEGACY_KEY ??
+ * KP_SECRET (app/_lib/db/skill-profiles.ts), which is EVERY profile of an install without
+ * KP_SKILL_PROFILE_KEY. Rotating KP_SECRET without pinning the old value turns each one
+ * into a red "TAMPERED" badge on /skill/<token> - measured on a default install: 3 of 3
+ * genuine credentials, while this script reported success and said unsetting was safe.
+ * Returns the count still riding on KP_SECRET; 0 when the pin is set.
+ */
+export function legacySignedSkillProfiles(db, { env = process.env } = {}) {
+  if (env.KP_SKILL_PROFILE_LEGACY_KEY?.trim()) return 0;
+  if (!hasColumn(db, "skill_profiles", "signature")) return 0;
+  const keyed = hasColumn(db, "skill_profiles", "key_id");
+  return db.prepare(`SELECT COUNT(*) AS n FROM skill_profiles${keyed ? " WHERE key_id = ''" : ""}`).get().n;
+}
+
 function parseArgs(argv) {
   const args = { db: DEFAULT_DB_PATH, dryRun: false };
   for (let i = 0; i < argv.length; i += 1) {
@@ -189,6 +205,16 @@ function main() {
       console.error(
         `${unreadable} row(s) opened with NEITHER secret and were left untouched — check that ` +
           "KP_SECRET_PREVIOUS is the secret those rows were written under."
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const signed = legacySignedSkillProfiles(db);
+    if (signed) {
+      console.error(
+        `${signed} skill profile(s) are signed under the RETIRED KP_SECRET and read as TAMPERED ` +
+          "until you set KP_SKILL_PROFILE_LEGACY_KEY=<the old secret> and restart. Set " +
+          "KP_SKILL_PROFILE_KEY too, so new profiles stop signing under the pinned value."
       );
       process.exitCode = 1;
       return;

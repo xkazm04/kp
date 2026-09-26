@@ -34,3 +34,10 @@ export declare function rotateDatabaseSecrets(
   db: unknown,
   options?: { dryRun?: boolean; env?: Record<string, string | undefined> }
 ): { atsDecoupled: boolean; results: RotateColumnResult[] };
+
+/** Skill profiles still signed under KP_SECRET (key_id ""), which a rotation cannot
+ *  rewrite; 0 when KP_SKILL_PROFILE_LEGACY_KEY pins the retired value. */
+export declare function legacySignedSkillProfiles(
+  db: unknown,
+  options?: { env?: Record<string, string | undefined> }
+): number;
