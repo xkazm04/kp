@@ -211,3 +211,104 @@ export function outcomeQuestions(roles: readonly { compact: boolean; bullets: re
   });
   return out;
 }
+
+// ── skills: evidenced, ordered, capped ─────────────────────────────────────────────
+//
+// technique evidenced-skills-over-self-ratings: grouped, not ranked; tied to evidence
+// (a skill that also appears in a role or project line is an index into the
+// experience); levels in words, never a meter; a long list cut by relevance and recency,
+// never by the owner's rating. A skill listed nowhere else is FLAGGED ("where did you use
+// it?"), not deleted — a self-asserted skill is real information. A generic soft skill
+// ("communication", "teamwork") is the purest self-descriptor on the page: flagged too.
+
+/** The most skills the sheet lists: "ten evidenced items" beat a twenty-item wall. */
+export const SKILL_CAP = 15;
+
+const SOFT_SKILLS = new Set([
+  "communication", "communication skills", "leadership", "teamwork", "team work", "problem solving", "problem-solving",
+  "critical thinking", "time management", "adaptability", "flexibility", "creativity", "interpersonal skills",
+  "komunikace", "komunikativnost", "týmová práce", "flexibilita", "samostatnost", "kreativita",
+  "kommunikation", "teamfähigkeit", "teamarbeit", "flexibilität", "kreativität",
+  "travail d'équipe", "autonomie", "créativité", "adaptabilité",
+]);
+
+export function isSoftSkill(name: string): boolean {
+  return SOFT_SKILLS.has(name.trim().toLocaleLowerCase());
+}
+
+function wordsOf(text: string): string[] {
+  return foldWords(text).map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w));
+}
+
+/** Whether `name` occurs in `text` as a whole-word run (folded, plural-tolerant). */
+export function mentions(text: string, name: string): boolean {
+  const hay = wordsOf(text);
+  const needle = wordsOf(name);
+  if (!needle.length) return false;
+  for (let i = 0; i + needle.length <= hay.length; i++) if (needle.every((w, j) => hay[i + j] === w)) return true;
+  return false;
+}
+
+type SkillItem = { name: string; level: string | null };
+type SkillGroup = { title: string | null; items: SkillItem[]; trimmed?: SkillItem[] };
+
+/** Order and cap the skill groups by evidence and recency. `evidence[i]` is the text of
+ *  the i-th most recent role or project (index 0 = the most recent). Returns the groups
+ *  (each printed list evidenced-first, then most recently used, then the CV's order;
+ *  items past the cap kept as `trimmed`), and the owner questions: listed-only skills and
+ *  soft skills. Nothing is renamed and no level is invented. */
+export function orderSkills(groups: readonly SkillGroup[], evidence: readonly string[], cap = SKILL_CAP): { groups: SkillGroup[]; questions: CvOwnerQuestion[] } {
+  const questions: CvOwnerQuestion[] = [];
+  const ranked = groups.flatMap((g, gi) =>
+    g.items.map((item, ii) => {
+      const used = evidence.findIndex((text) => mentions(text, item.name));
+      if (isSoftSkill(item.name)) questions.push({ kind: "self_descriptor", roleIndex: null, text: item.name });
+      else if (used < 0) questions.push({ kind: "listed_only", roleIndex: null, text: item.name });
+      return { gi, ii, item, used: used < 0 ? Number.POSITIVE_INFINITY : used, soft: isSoftSkill(item.name) };
+    })
+  );
+  const order = [...ranked].sort((a, b) => Number(a.soft) - Number(b.soft) || a.used - b.used || a.gi - b.gi || a.ii - b.ii);
+  const kept = new Set(order.slice(0, cap));
+  const out: SkillGroup[] = groups.map((g) => ({ title: g.title, items: [], trimmed: [] }));
+  for (const r of order) (kept.has(r) ? out[r.gi]!.items : out[r.gi]!.trimmed!).push(r.item);
+  // Groups keep the CV's own order: grouping is the owner's; the evidence order is inside.
+  return { groups: out.filter((g) => g.items.length), questions };
+}
+
+// ── languages on the common European scale ─────────────────────────────────────────
+//
+// "German - B2", "Czech - native": the level on the scale the reader knows, when the
+// record states it. A CEFR code is kept as the code; a first-language word becomes the
+// document's word for "native"; any other stated word stays the CV's own ("fluent" has
+// no exact CEFR equivalent, so it is not converted). No level is inferred.
+
+export const NATIVE_WORD: Record<CvLang, string> = { en: "native", cs: "rodilý mluvčí", de: "Muttersprache", fr: "langue maternelle" };
+
+const NATIVE = /(?<![\p{L}])(native|mother tongue|first language|rodil[ýá] mluvč[íi]|mateřsk[ýá] jazyk|mateřština|muttersprache|langue maternelle)(?![\p{L}])/iu;
+const CEFR = /(?<![\p{L}\d])([ABC][12])(?![\p{L}\d])/u;
+
+/** One stated language as the sheet sets it: "Name – level" when a level is stated. */
+export function languageLine(raw: string, lang: CvLang): string | null {
+  const text = raw.replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  const paren = /^(.*?)\s*[(\[]([^)\]]*)[)\]]\s*$/.exec(text) ?? /^(.*?)\s*[-–—:]\s*(.+)$/.exec(text);
+  const name = (paren ? paren[1]! : text).trim();
+  const stated = (paren ? paren[2]! : "").trim();
+  if (!name || name.length > 40) return null;
+  const cased = name.charAt(0).toLocaleUpperCase() + name.slice(1);
+  const code = CEFR.exec(stated.toUpperCase());
+  const level = code ? code[1]! : NATIVE.test(stated) ? NATIVE_WORD[lang] : stated || null;
+  return level ? `${cased} – ${level}` : cased;
+}
+
+/** The languages block of the CV ("Czech (native), English (C1)") — or, with none, the
+ *  profile's list — as sheet lines, in the CV's order. */
+export function languageLines(blockLines: readonly string[] | null, profileLanguages: readonly string[], lang: CvLang): string[] {
+  const items = blockLines && blockLines.length ? blockLines.flatMap((l) => l.split(/\s*[,;·•|]\s*/)) : [...profileLanguages];
+  const out: string[] = [];
+  for (const item of items) {
+    const line = languageLine(item, lang);
+    if (line && !out.includes(line)) out.push(line);
+  }
+  return out;
+}

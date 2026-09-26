@@ -123,28 +123,31 @@ test("roles stay in date order; inside each, the relevant bullets lead", () => {
   }
 });
 
-test("a demanded term inside a bullet is marked for bold, and only a demanded term", () => {
+test("a demanded term inside a bullet is marked for bold, only a demanded term, at most two per role", () => {
   const demanded = new Set(demandFor("AI Engineer", POSTINGS).skills.map((s) => s.skill.toLowerCase().replace(/s$/, "")));
   let marks = 0;
   for (const r of TAILORED.doc.experience) {
+    assert.ok(r.bullets.flatMap((b) => b.emphasis).length <= 2, r.role);
     for (const b of r.bullets) {
-      for (const [s, e] of b.emphasis ?? []) {
+      for (const term of b.emphasis) {
         marks++;
-        assert.ok(demanded.has(b.text.slice(s, e).toLowerCase().replace(/s$/, "")), b.text.slice(s, e));
+        assert.ok(b.text.includes(term), term);
+        assert.ok(demanded.has(term.toLowerCase().replace(/s$/, "")), term);
       }
     }
   }
   assert.ok(marks >= 2);
   // "the rest of the bank" is prose, never the REST the postings ask for.
   const ba = TAILORED.doc.experience[2]!;
-  assert.ok(!(ba.bullets.some((b) => b.emphasis?.length)));
+  assert.ok(!ba.bullets.some((b) => b.emphasis.length));
 });
 
 test("skills: the LLM group first, relevant items first, nothing removed", () => {
   const groups = TAILORED.doc.skills;
   assert.equal(groups[0]!.title, "LLM Related");
   assert.deepEqual(groups[0]!.items.slice(0, 3).map((i) => i.name).sort(), ["LangChain", "Python", "RAG"]);
-  assert.ok(groups[0]!.items.find((i) => i.name === "Python")!.emphasis);
+  // Never bold inside the skills list, where every item would qualify.
+  assert.ok(groups.every((g) => g.items.every((i) => !("emphasis" in i))));
   assert.deepEqual(groups.flatMap((g) => g.items.map((i) => i.name)).sort(), DOC.skills.flatMap((g) => g.items.map((i) => i.name)).sort());
 });
 

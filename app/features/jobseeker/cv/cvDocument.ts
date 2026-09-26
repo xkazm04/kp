@@ -20,7 +20,7 @@
 
 import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
-import { descriptorQuestions, outcomeQuestions, rankByOutcome, roleBudget } from "./cvContent";
+import { descriptorQuestions, languageLines, orderSkills, outcomeQuestions, rankByOutcome, roleBudget } from "./cvContent";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
 /** `compact`: the role is set as ONE line (title, employer, dates) — past the recency
@@ -31,12 +31,15 @@ export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url
  *  printed, kept for the owner to restore and for the tailoring pass to re-rank. */
 export type CvRole = { role: string; org: string | null; dates: string | null; bullets: CvBullet[]; compact: boolean; trimmed?: CvBullet[] };
 /** A bullet may open with a lead phrase ("RAG pipeline design:") the template sets in bold.
- *  `emphasis` = [start, end) ranges of `text` the template bolds (a target term; cvTailor.ts). */
-export type CvBullet = { lead: string | null; text: string; emphasis?: [number, number][] };
-/** `emphasis`: the item names a skill the target asks for (cvTailor.ts); the template bolds it. */
-export type CvSkillItem = { name: string; level: string | null; emphasis?: boolean };
+ *  `emphasis` = the target terms the template bolds in `text`, each a verbatim substring
+ *  of it — set only by the tailoring pass, at most two per ROLE (cvTailor.ts); [] otherwise. */
+export type CvBullet = { lead: string | null; text: string; emphasis: string[] };
+/** `level` is a WORD for the sheet — the CV's own ("senior") — never a meter; null when
+ *  the CV states none (registry evidenced-skills-over-self-ratings). Never bolded. */
+export type CvSkillItem = { name: string; level: string | null };
 /** `title` is the CV's own group label ("LLM related"); null = the template's localised "Skills". */
-export type CvSkillGroup = { title: string | null; items: CvSkillItem[] };
+/** `trimmed`: items past the skills cap (cvContent.ts SKILL_CAP) — never printed. */
+export type CvSkillGroup = { title: string | null; items: CvSkillItem[]; trimmed?: CvSkillItem[] };
 export type CvEducation = { title: string; detail: string | null; dates: string | null };
 /** A deterministic wording change (this file). */
 export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital"; before: string; after: string };
@@ -56,7 +59,7 @@ export type CvOwnerQuestion = {
  *  only — never a new word. */
 export type CvTailorMove = {
   kind: "tailor";
-  move: "summary" | "bullets" | "groups" | "items" | "emphasis" | "compact" | "objective";
+  move: "summary" | "bullets" | "groups" | "items" | "emphasis" | "compact" | "objective" | "projects";
   before: string;
   after: string;
   where: string | null;
@@ -76,8 +79,14 @@ export type CvDocument = {
   contacts: CvContact[];
   summary: string | null;
   experience: CvRole[];
+  /** Dated "relevant projects" from the profile's NON-job evidence (project, thesis,
+   *  course, certification) — the bridging evidence of a career change; set after the
+   *  experience. The tailoring pass keeps only those that speak to its target. [] = none. */
+  projects: CvRole[];
   skills: CvSkillGroup[];
   education: CvEducation[];
+  /** "Czech – native", "English – C1": the level on the common European scale when the
+   *  CV states one, else the CV's own word, else the name alone. */
   languages: string[];
   improvements: CvImprovement[];
   /** Owner questions (cvContent.ts): shown in the designer, never on the sheet. */
@@ -310,7 +319,7 @@ export function bulletsOf(text: string, log: CvImprovement[]): CvBullet[] {
       s = s.charAt(0).toLocaleUpperCase() + s.slice(1);
     }
     const lead = /^([^:.]{3,60}):\s+(.+)$/.exec(s);
-    return lead ? { lead: lead[1]!.trim(), text: lead[2]!.trim() } : { lead: null, text: s };
+    return lead ? { lead: lead[1]!.trim(), text: lead[2]!.trim(), emphasis: [] } : { lead: null, text: s, emphasis: [] };
   });
 }
 
@@ -378,13 +387,13 @@ export function cvLanguageOf(text: string): CvLang {
   return best;
 }
 
-export type CvHeadings = { summary: string; experience: string; skills: string; education: string; languages: string; contact: string };
+export type CvHeadings = { summary: string; experience: string; projects: string; skills: string; education: string; languages: string; contact: string };
 
 export const CV_HEADINGS: Record<CvLang, CvHeadings> = {
-  en: { summary: "Profile", experience: "Experience", skills: "Skills", education: "Education", languages: "Languages", contact: "Contact" },
-  cs: { summary: "Profil", experience: "Pracovní zkušenosti", skills: "Dovednosti", education: "Vzdělání", languages: "Jazyky", contact: "Kontakt" },
-  de: { summary: "Profil", experience: "Berufserfahrung", skills: "Kenntnisse", education: "Ausbildung", languages: "Sprachen", contact: "Kontakt" },
-  fr: { summary: "Profil", experience: "Expérience", skills: "Compétences", education: "Formation", languages: "Langues", contact: "Contact" },
+  en: { summary: "Profile", experience: "Experience", projects: "Projects", skills: "Skills", education: "Education", languages: "Languages", contact: "Contact" },
+  cs: { summary: "Profil", experience: "Pracovní zkušenosti", projects: "Projekty", skills: "Dovednosti", education: "Vzdělání", languages: "Jazyky", contact: "Kontakt" },
+  de: { summary: "Profil", experience: "Berufserfahrung", projects: "Projekte", skills: "Kenntnisse", education: "Ausbildung", languages: "Sprachen", contact: "Kontakt" },
+  fr: { summary: "Profil", experience: "Expérience", projects: "Projets", skills: "Compétences", education: "Formation", languages: "Langues", contact: "Contact" },
 };
 
 /** The objective line under the headline, in the CV's language: the seeker's STATED
@@ -395,32 +404,6 @@ export const CV_OBJECTIVE: Record<CvLang, (target: string) => string> = {
   de: (target) => `Angestrebte Position: ${target}`,
   fr: (target) => `Poste recherché : ${target}`,
 };
-
-/** A stated level as 1-3 pips; the CV's own word stays beside it for a parser and a reader. */
-export function levelPips(level: string | null): 0 | 1 | 2 | 3 {
-  switch ((level ?? "").toLowerCase()) {
-    case "junior":
-    case "basic":
-    case "beginner":
-    case "foundational":
-      return 1;
-    case "medior":
-    case "mid":
-    case "intermediate":
-    case "working":
-      return 2;
-    case "senior":
-    case "lead":
-    case "expert":
-    case "advanced":
-    case "strong":
-    case "native":
-    case "fluent":
-      return 3;
-    default:
-      return 0;
-  }
-}
 
 // ── a role's own lines in the CV text ──────────────────────────────────────────────
 
@@ -467,9 +450,12 @@ function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] 
   const groups: CvSkillGroup[] = [];
   for (const b of blocks) {
     if (b.kind !== "group" && b.kind !== "skills") continue;
+    // A "Skills" line is a comma list before it is an item: a whole stack on one line
+    // ("Python (senior), SQL, LangChain, …") is split first, then each item is measured.
     const items = b.lines
-      .filter((l) => l && l.length <= 48 && !/[.!?]$/.test(l))
+      .filter((l) => l && !/[.!?]$/.test(l))
       .flatMap((l) => (b.kind === "skills" && l.includes(",") ? l.split(/\s*,\s*/) : [l]))
+      .filter((l) => l && l.length <= 48)
       .map((l) => {
         const m = LEVEL_WORD.exec(l);
         const name = polishTerms((m ? l.slice(0, m.index) : l).trim(), log);
@@ -482,6 +468,10 @@ function skillGroupsFrom(blocks: Block[], log: CvImprovement[]): CvSkillGroup[] 
 }
 
 // ── the document ───────────────────────────────────────────────────────────────────
+
+const PROJECT_KINDS = new Set(["project", "thesis", "course", "certification"]);
+/** A project is dated evidence, not a role: two lines of it are enough. */
+const PROJECT_BUDGET = 2;
 
 export function buildCvDocument(input: {
   profile: ProfilePayload;
@@ -515,6 +505,9 @@ export function buildCvDocument(input: {
   const summary = summarySentences.length ? summarySentences.join(" ") : null;
 
   const jobs = (profile.evidence ?? []).filter((e) => (e.kind ?? "job") === "job" && e.title && e.title !== "Summary");
+  // Non-job evidence that is evidence of a skill: the career changer's bridge. Hobbies and
+  // "other" stay off (a section earns its place only if it carries evidence).
+  const bridging = (profile.evidence ?? []).filter((e) => PROJECT_KINDS.has(e.kind ?? "") && e.title?.trim());
   const parsed = jobs.map((e) => {
     const parts = parseRoleTitle(e.title ?? "");
     // "AI Automation Specialist (Freelancer)": a trailing parenthetical is where it was.
@@ -540,8 +533,15 @@ export function buildCvDocument(input: {
     return { role: polishTerms(parts.role, log), org: parts.org, dates, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };
   });
 
+  const projects: CvRole[] = bridging.map((e) => {
+    const parts = parseRoleTitle(e.title ?? "");
+    const ranked = rankByOutcome(bulletsOf(e.text ?? "", log), bulletLine);
+    const bullets = ranked.slice(0, PROJECT_BUDGET);
+    return { role: polishTerms(parts.role, log), org: parts.org, dates: formatDates(parts.dates), bullets, compact: bullets.length === 0, trimmed: ranked.slice(PROJECT_BUDGET) };
+  });
+
   const groups = skillGroupsFrom(blocks, log);
-  const skills: CvSkillGroup[] = groups.length
+  const listed: CvSkillGroup[] = groups.length
     ? groups
     : (() => {
         // No groups in the CV text: the profile's claims, strongest first, as one group.
@@ -553,6 +553,13 @@ export function buildCvDocument(input: {
         });
         return items.length ? [{ title: null, items }] : [];
       })();
+  // Evidence, most recent first: every line a role holds (printed or held back), then the
+  // projects. A skill used there is an index into the experience; one used nowhere is asked.
+  const evidence = [...experience, ...projects].map((r) => [r.role, ...r.bullets.map(bulletLine), ...(r.trimmed ?? []).map(bulletLine)].join("\n"));
+  const ordered = orderSkills(listed, evidence);
+  const skills: CvSkillGroup[] = ordered.groups;
+  const lang = cvLanguageOf(text);
+  const langBlock = blocks.find((b) => b.kind === "languages");
 
   const eduBlock = blocks.find((b) => b.kind === "education");
   const education: CvEducation[] = eduBlock
@@ -568,18 +575,19 @@ export function buildCvDocument(input: {
       : [];
 
   return {
-    lang: cvLanguageOf(text),
+    lang,
     name,
     headline,
     location: profile.location?.trim() || null,
     contacts: findContacts(text),
     summary,
     experience,
+    projects,
     skills,
     education,
-    languages: (profile.languages ?? []).filter(Boolean),
+    languages: languageLines(langBlock ? langBlock.lines.filter(Boolean) : null, (profile.languages ?? []).filter(Boolean), lang),
     improvements: dedupeImprovements(log),
-    questions: [...descriptorQuestions({ headline, summarySentences, roles: experience }), ...outcomeQuestions(experience)],
+    questions: [...descriptorQuestions({ headline, summarySentences, roles: experience }), ...outcomeQuestions(experience), ...ordered.questions],
   };
 }
 

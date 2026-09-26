@@ -252,7 +252,10 @@ export type TailoredCv = {
   offTargetRoles: number;
 };
 
-const EMPHASIS_PER_BULLET = 2;
+/** Bold is capped per ROLE, not per bullet, and never used in the skills list: bolding
+ *  every matched term turns the page into a keyword highlight and reads as a machine pass
+ *  (registry target-role-tailoring-without-stuffing). */
+export const EMPHASIS_PER_ROLE = 2;
 
 function short(s: string): string {
   const one = s.replace(/\s+/g, " ").trim();
@@ -273,19 +276,23 @@ function byScore<T>(items: T[], score: (t: T) => number): T[] {
     .map((x) => x.item);
 }
 
-/** Up to EMPHASIS_PER_BULLET non-overlapping skill terms in `text`, heaviest first. */
-function emphasisIn(text: string, skills: Term[]): [number, number][] {
-  const toks = tokensOf(text);
-  const picked: [number, number][] = [];
+/** Up to EMPHASIS_PER_ROLE demanded terms across a role's printed bullets, heaviest
+ *  first, each term once per role, each the verbatim word(s) of the bullet it sits in. */
+function emphasiseRole(bullets: CvBullet[], skills: Term[]): CvBullet[] {
+  const picked = bullets.map(() => [] as [number, number][]);
   const used = new Set<string>();
+  let n = 0;
   for (const term of [...skills].sort((a, b) => b.weight - a.weight || b.toks.length - a.toks.length)) {
-    if (picked.length >= EMPHASIS_PER_BULLET || used.has(term.key)) continue;
-    const run = runsOf(toks, term).find(([s, e]) => !picked.some(([ps, pe]) => s < pe && e > ps));
-    if (!run) continue;
-    picked.push(run);
-    used.add(term.key);
+    if (n >= EMPHASIS_PER_ROLE) break;
+    for (let i = 0; i < bullets.length && !used.has(term.key); i++) {
+      const run = runsOf(tokensOf(bullets[i]!.text), term).find(([s, e]) => !picked[i]!.some(([ps, pe]) => s < pe && e > ps));
+      if (!run) continue;
+      picked[i]!.push(run);
+      used.add(term.key);
+      n += 1;
+    }
   }
-  return picked.sort((a, b) => a[0] - b[0]);
+  return bullets.map((b, i) => ({ ...b, emphasis: picked[i]!.sort((x, y) => x[0] - y[0]).map(([st, en]) => b.text.slice(st, en)) }));
 }
 
 export function tailorCvDocument(
@@ -344,15 +351,10 @@ export function tailorCvDocument(
       .sort((a, b) => b.s - a.s || a.r - b.r || a.i - b.i)
       .map((x) => x.b);
     const cap = r.compact ? 0 : index > 0 && rel === 0 ? Math.min(r.bullets.length, BULLET_BUDGET.offTarget) : r.bullets.length;
-    const printed = ranked.slice(0, cap);
-    if (printed.length && r.bullets.length && printed[0] !== r.bullets[0]) {
-      move({ move: "bullets", before: short(bulletText(r.bullets[0]!)), after: short(printed[0]!.lead ?? printed[0]!.text), where: r.role });
+    const bullets = ranked.slice(0, cap);
+    if (bullets.length && r.bullets.length && bullets[0] !== r.bullets[0]) {
+      move({ move: "bullets", before: short(bulletText(r.bullets[0]!)), after: short(bullets[0]!.lead ?? bullets[0]!.text), where: r.role });
     }
-    const bullets = printed.map((b) => {
-      const marks = emphasisIn(b.text, skillTerms);
-      emphasised += marks.length;
-      return marks.length ? { ...b, emphasis: marks } : { ...b };
-    });
     const role: CvRole = { ...r, bullets, compact: bullets.length === 0, trimmed: ranked.slice(cap) };
     relevance.set(role, rel);
     return role;
@@ -367,8 +369,19 @@ export function tailorCvDocument(
       move({ move: "compact", before: "", after: r.role, where: r.role });
     }
   }
+  for (const r of roles) {
+    r.bullets = emphasiseRole(r.bullets, skillTerms);
+    emphasised += r.bullets.reduce((n, b) => n + b.emphasis.length, 0);
+  }
 
-  // Skills: groups and the items inside them relevant-first; nothing removed.
+  // Relevant projects: those that speak to THIS target, the most relevant first; the rest
+  // leave the tailored sheet (they stay on the CV as written) and the move says how many.
+  const scoredProjects = doc.projects.map((p) => ({ p, s: Math.max(scoreOf(p.role, terms), ...[...p.bullets, ...(p.trimmed ?? [])].map((b) => scoreOf(bulletText(b), terms))) }));
+  const projects = byScore(scoredProjects.filter((x) => x.s > 0), (x) => x.s).map((x) => x.p);
+  if (projects.length < doc.projects.length) move({ move: "projects", before: "", after: "", where: null, n: doc.projects.length - projects.length });
+
+  // Skills: groups and the items inside them relevant-first, over every item a group holds
+  // (the ones the cap held back included); each group keeps its printed count. No bold.
   const itemScore = (name: string) => scoreOf(name, terms);
   const groupScore = (g: CvSkillGroup) => matchedTerms([g.title ?? "", ...g.items.map((i) => i.name)].join(" · "), terms).reduce((s, t) => s + t.weight, 0);
   const orderedGroups = byScore(doc.skills, groupScore);
@@ -376,16 +389,13 @@ export function tailorCvDocument(
     move({ move: "groups", before: doc.skills[0]!.title ?? heading, after: orderedGroups[0]!.title ?? heading, where: null });
   }
   const groups = orderedGroups.map((g) => {
-    const items = byScore(g.items, (i) => itemScore(i.name)).map((i) => {
-      const hit = matchedTerms(i.name, skillTerms).length > 0;
-      if (hit) emphasised += 1;
-      return hit ? { ...i, emphasis: true } : { ...i };
-    });
+    const pool = byScore([...g.items, ...(g.trimmed ?? [])], (i) => itemScore(i.name));
+    const items = pool.slice(0, g.items.length);
     if (items.length && items[0]!.name !== g.items[0]!.name) {
       const lead = items.filter((i) => itemScore(i.name) > 0).slice(0, 3).map((i) => i.name);
       move({ move: "items", before: g.items[0]!.name, after: lead.join(", "), where: g.title ?? heading });
     }
-    return { ...g, items };
+    return { ...g, items, trimmed: pool.slice(g.items.length) };
   });
   if (emphasised) move({ move: "emphasis", before: "", after: "", where: null, n: emphasised });
 
@@ -423,7 +433,7 @@ export function tailorCvDocument(
   ];
 
   return {
-    doc: { ...doc, summary, objective, experience: roles, skills: groups, improvements: [...doc.improvements, ...moves], questions },
+    doc: { ...doc, summary, objective, experience: roles, projects, skills: groups, improvements: [...doc.improvements, ...moves], questions },
     moves,
     coverage: { target, source: demand.source, postings: demand.postings, shown, missing },
     offTargetRoles: fullOnTarget ? offTarget.length : 0,

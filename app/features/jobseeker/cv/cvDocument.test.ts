@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCvDocument, bulletsOf, cvLanguageOf, findContacts, formatDates, levelPips, parseRoleTitle, polishTerms, type CvImprovement } from "./cvDocument";
+import { buildCvDocument, bulletsOf, cvLanguageOf, findContacts, formatDates, parseRoleTitle, polishTerms, type CvImprovement } from "./cvDocument";
 
 // A SYNTHETIC two-column CV as the extractor hands it over: the main column first, the
 // sidebar's own ALL-CAPS skill groups after it, shouted header, line-wrapped bullets
@@ -71,14 +71,14 @@ test("a role reads as role, organisation and typographic dates", () => {
 
 test("bullets: lead phrase, canonical terms, rejoined hyphen, capitalised - the opener stays the seeker's", () => {
   const [first, second] = doc.experience[0]!.bullets;
-  assert.deepEqual(first, { lead: "Pipeline design", text: "Node.js services feeding PostgreSQL and MongoDB through Kafka." });
+  assert.deepEqual(first, { lead: "Pipeline design", text: "Node.js services feeding PostgreSQL and MongoDB through Kafka.", emphasis: [] });
   assert.equal(second!.lead, null);
   // "Responsible for" is never raised to "Owned" (a verb that raises the claim is the owner's choice).
   assert.equal(second!.text, "Responsible for the REST API of the reporting layer; batch-to-stream migration.");
   assert.equal(doc.experience[0]!.bullets[2]!.text, "Built dashboards for store managers.");
 });
 
-test("the CV's own skill groups survive with their levels, spellings polished", () => {
+test("the CV's own skill groups survive with their level WORDS, spellings polished, evidenced first", () => {
   assert.equal(doc.skills.length, 1);
   assert.equal(doc.skills[0]!.title, "Pipelines");
   assert.deepEqual(doc.skills[0]!.items, [
@@ -87,6 +87,11 @@ test("the CV's own skill groups survive with their levels, spellings polished", 
     { name: "Python/JS scripting", level: null },
     { name: "Continuous delivery", level: null },
   ]);
+  // Listed but used in no role: asked about, not removed.
+  assert.deepEqual(
+    doc.questions.filter((q) => q.kind === "listed_only").map((q) => q.text),
+    ["Python/JS scripting", "Continuous delivery"]
+  );
 });
 
 test("education comes from its block, with its dates", () => {
@@ -123,8 +128,6 @@ test("helpers", () => {
   assert.deepEqual(parseRoleTitle("Analyst at Bank (2019 - 2020)"), { role: "Analyst", org: "Bank", dates: "2019 - 2020" });
   assert.equal(formatDates("7/2026 - present"), "07/2026 – present");
   assert.equal(cvLanguageOf("Vývoj a správa aplikací v jazyce Java pro klienty se zaměřením na bankovnictví"), "cs");
-  assert.equal(levelPips("Senior"), 3);
-  assert.equal(levelPips(null), 0);
   assert.deepEqual(bulletsOf("", []), []);
 });
 

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCvDocument } from "./cvDocument";
-import { descriptorIn, outcomeRung } from "./cvContent";
+import { descriptorIn, languageLines, outcomeRung, SKILL_CAP } from "./cvContent";
+import { tailorCvDocument } from "./cvTailor";
 
 // The designed CV's content rules, held to registry recruiting/cv-content-construction.
 // Every CV here is SYNTHETIC — nobody real.
@@ -167,4 +168,66 @@ test("a bullet with no outcome is an owner question, never a placeholder on the 
   // Nothing on the sheet reads like a slot to fill.
   const sheet = JSON.stringify({ ...CHANGER, questions: [], improvements: [] });
   assert.ok(!/\[(how much|\?)|\?\]|TODO|XX%/i.test(sheet));
+});
+
+test("skills: the CV's own long list is read, evidenced items first, capped, nothing re-rated", () => {
+  const items = CHANGER.skills.flatMap((g) => g.items);
+  assert.ok(items.length <= SKILL_CAP && items.length >= 10, `${items.length} skills`);
+  // Evidenced in the most recent role first (LangChain, RAG, PostgreSQL? no: Python, LLM…).
+  assert.deepEqual(items.slice(0, 3).map((i) => i.name), ["Python", "LangChain", "RAG"]);
+  // The level stays the CV's own WORD; nothing is drawn as a meter.
+  assert.equal(items.find((i) => i.name === "Python")!.level, "senior");
+  for (const i of items) assert.deepEqual(Object.keys(i).sort(), ["level", "name"]);
+  // What the cap held back stays on its group, unprinted.
+  const held = CHANGER.skills.flatMap((g) => g.trimmed ?? []).map((i) => i.name);
+  assert.equal(items.length + held.length, 20);
+  assert.ok(held.includes("Teamwork"), "an unevidenced soft skill is the first to go");
+});
+
+test("a listed-only skill is asked about, never deleted; a soft skill is a self-descriptor", () => {
+  const listed = CHANGER.questions.filter((q) => q.kind === "listed_only").map((q) => q.text);
+  for (const s of ["Power BI", "Tableau", "SAP", "Scrum", "Kanban", "Docker", "Git"]) assert.ok(listed.includes(s), s);
+  // Used in a role: not asked. ("Excel" is in the junior role, "UML" in the analyst one.)
+  for (const s of ["Python", "LangChain", "Selenium", "Excel", "UML"]) assert.ok(!listed.includes(s), s);
+  const soft = CHANGER.questions.filter((q) => q.kind === "self_descriptor" && q.roleIndex === null).map((q) => q.text);
+  for (const s of ["Communication", "Leadership", "Teamwork"]) assert.ok(soft.includes(s), s);
+});
+
+test("languages: CEFR codes and a native word on the scale the reader knows", () => {
+  assert.deepEqual(CHANGER.languages, ["Czech – native", "English – C1", "German – B1"]);
+  assert.deepEqual(languageLines(["čeština (rodilý mluvčí), angličtina (C1), němčina (pokročilá)"], [], "cs"), [
+    "Čeština – rodilý mluvčí",
+    "Angličtina – C1",
+    "Němčina – pokročilá",
+  ]);
+  // No level stated: none rendered, none inferred.
+  assert.deepEqual(languageLines(null, ["Czech", "English (b2)"], "en"), ["Czech", "English – B2"]);
+});
+
+test("relevant projects: non-job evidence, dated, never the choir", () => {
+  assert.deepEqual(
+    CHANGER.projects.map((p) => [p.role, p.dates, p.bullets.length > 0]),
+    [
+      ["Housing co-op chatbot", "2024", true],
+      ["Machine Learning course, Coursera", "2023", true],
+    ]
+  );
+  assert.ok(!JSON.stringify(CHANGER).includes("choir"));
+});
+
+test("tailored: bold capped at two terms per role, none in the skills, each a verbatim word of its bullet", () => {
+  const out = tailorCvDocument(CHANGER, { target: "AI Engineer", postings: [] });
+  for (const r of out.doc.experience) {
+    const terms = r.bullets.flatMap((b) => b.emphasis);
+    assert.ok(terms.length <= 2, `${r.role}: ${terms.join(", ")}`);
+    for (const b of r.bullets) for (const t of b.emphasis) assert.ok(b.text.includes(t), t);
+  }
+  assert.ok(out.doc.experience[0]!.bullets.some((b) => b.emphasis.length > 0));
+  for (const g of out.doc.skills) for (const i of g.items) assert.ok(!("emphasis" in i));
+  // Projects that speak to the target stay, the most relevant first.
+  assert.equal(out.doc.projects.length, 2);
+  // A target neither project speaks to: they leave the tailored sheet, and the move says so.
+  const fe = tailorCvDocument(CHANGER, { target: "Frontend Developer", postings: [] });
+  assert.deepEqual(fe.doc.projects, []);
+  assert.ok(fe.moves.some((m) => m.move === "projects" && m.n === 2));
 });
