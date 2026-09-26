@@ -9,14 +9,18 @@
 // "Better expressed" is deliberately narrow and deterministic: canonical spellings of
 // technology names (NextJS -> Next.js, Postgres -> PostgreSQL), a small dictionary of
 // common misspellings (Continous -> Continuous), line-wrap hyphens re-joined
-// (prototype-to- production), a sentence's first letter capitalised, a weak "Responsible
-// for" opener tightened. Every change is RECORDED in `improvements`, so the page can say
-// exactly what was tidied, and nothing is ever invented: no new claim, no new number, no
-// guessed date (registry technique text-extraction-damage-and-repair: repair is reasoning
-// about the encoding, never about the content).
+// (prototype-to- production), a sentence's first letter capitalised. Every change is
+// RECORDED in `improvements`, so the page can say exactly what was tidied, and nothing is
+// ever invented: no new claim, no new number, no guessed date (registry technique
+// text-extraction-damage-and-repair: repair is reasoning about the encoding, never about
+// the content). A verb never raises the claim — "Responsible for" is not rewritten into
+// "Owned" (recruiting/cv-content-construction/accomplishment-statements-without-invention:
+// responsibility into ownership is the owner's choice); what the rules cannot fix without
+// a fact is an owner QUESTION (`questions`, cvContent.ts), never an edit.
 
 import type { JobseekerPreferences } from "@/app/_lib/jobseeker/types";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import { descriptorQuestions } from "./cvContent";
 
 export type CvContact = { kind: "email" | "phone" | "linkedin" | "github" | "url"; value: string; href: string };
 /** `compact`: the tailoring pass (cvTailor.ts) set this role as one line — it stays, in
@@ -31,7 +35,18 @@ export type CvSkillItem = { name: string; level: string | null; emphasis?: boole
 export type CvSkillGroup = { title: string | null; items: CvSkillItem[] };
 export type CvEducation = { title: string; detail: string | null; dates: string | null };
 /** A deterministic wording change (this file). */
-export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital" | "opener"; before: string; after: string };
+export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital"; before: string; after: string };
+/** What the rules could not decide without the owner — designer-only, NEVER printed.
+ *  `text` is the line (or skill) it is about, verbatim; `roleIndex` indexes `experience`.
+ *  - `no_outcome`      a bullet with an action and an object but no outcome;
+ *  - `missing_metric`  a bullet that states a change without saying how much;
+ *  - `listed_only`     a skill listed but used in no role or project;
+ *  - `self_descriptor` a self-description ("results-driven") in the seeker's own words. */
+export type CvOwnerQuestion = {
+  kind: "no_outcome" | "listed_only" | "missing_metric" | "self_descriptor";
+  roleIndex: number | null;
+  text: string;
+};
 /** A tailoring move (cvTailor.ts): what led BEFORE and what leads now, `where` it happened
  *  (a role, a skill group), `n` for a counted move (terms set in bold). Order and emphasis
  *  only — never a new word. */
@@ -61,6 +76,8 @@ export type CvDocument = {
   education: CvEducation[];
   languages: string[];
   improvements: CvImprovement[];
+  /** Owner questions (cvContent.ts): shown in the designer, never on the sheet. */
+  questions: CvOwnerQuestion[];
 };
 
 // ── canonical terms ────────────────────────────────────────────────────────────────
@@ -284,12 +301,6 @@ export function bulletsOf(text: string, log: CvImprovement[]): CvBullet[] {
   });
   return splitSentences(body).map((part) => {
     let s = polishTerms(part, log);
-    const opener = /^responsible for\s+/i.exec(s);
-    if (opener) {
-      const rest = s.slice(opener[0].length);
-      log.push({ kind: "opener", before: opener[0].trim(), after: "Owned" });
-      s = `Owned ${rest}`;
-    }
     if (/^\p{Ll}/u.test(s)) {
       log.push({ kind: "capital", before: s.slice(0, 12), after: s.charAt(0).toLocaleUpperCase() + s.slice(1, 12) });
       s = s.charAt(0).toLocaleUpperCase() + s.slice(1);
@@ -489,7 +500,8 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
 
   const summaryBlock = blocks.find((b) => b.kind === "summary");
   const summaryText = summaryBlock ? summaryBlock.lines.filter(Boolean).join(" ").trim() : "";
-  const summary = summaryText ? bulletsOf(summaryText, log).map((b) => (b.lead ? `${b.lead}: ${b.text}` : b.text)).join(" ") : null;
+  const summarySentences = summaryText ? bulletsOf(summaryText, log).map((b) => (b.lead ? `${b.lead}: ${b.text}` : b.text)) : [];
+  const summary = summarySentences.length ? summarySentences.join(" ") : null;
 
   const jobs = (profile.evidence ?? []).filter((e) => (e.kind ?? "job") === "job" && e.title && e.title !== "Summary");
   const parsed = jobs.map((e) => {
@@ -555,6 +567,7 @@ export function buildCvDocument(input: { profile: ProfilePayload; preferences: P
     education,
     languages: (profile.languages ?? []).filter(Boolean),
     improvements: dedupeImprovements(log),
+    questions: descriptorQuestions({ headline, summarySentences, roles: experience }),
   };
 }
 

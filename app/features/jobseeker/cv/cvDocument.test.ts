@@ -69,11 +69,12 @@ test("a role reads as role, organisation and typographic dates", () => {
   assert.equal(role.dates, "04/2022 – 09/2025");
 });
 
-test("bullets: lead phrase, canonical terms, tightened opener, rejoined hyphen, capitalised", () => {
+test("bullets: lead phrase, canonical terms, rejoined hyphen, capitalised - the opener stays the seeker's", () => {
   const [first, second] = doc.experience[0]!.bullets;
   assert.deepEqual(first, { lead: "Pipeline design", text: "Node.js services feeding PostgreSQL and MongoDB through Kafka." });
   assert.equal(second!.lead, null);
-  assert.equal(second!.text, "Owned the REST API of the reporting layer; batch-to-stream migration.");
+  // "Responsible for" is never raised to "Owned" (a verb that raises the claim is the owner's choice).
+  assert.equal(second!.text, "Responsible for the REST API of the reporting layer; batch-to-stream migration.");
   assert.equal(doc.experience[0]!.bullets[2]!.text, "Built dashboards for store managers.");
 });
 
@@ -94,7 +95,7 @@ test("education comes from its block, with its dates", () => {
 
 test("every change is listed, once, and nothing is invented", () => {
   const kinds = new Set(doc.improvements.map((i) => i.kind));
-  for (const k of ["term", "spelling", "hyphen", "capital", "opener"] as const) assert.ok(kinds.has(k), k);
+  for (const k of ["term", "spelling", "hyphen", "capital"] as const) assert.ok(kinds.has(k), k);
   assert.ok(doc.improvements.some((i) => i.before === "Continous" && i.after === "Continuous"));
   const keys = doc.improvements.map((i) => `${i.kind}:${i.before}->${i.after}`);
   assert.equal(new Set(keys).size, keys.length);
