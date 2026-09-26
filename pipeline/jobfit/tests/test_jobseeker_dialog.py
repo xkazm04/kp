@@ -246,10 +246,11 @@ class DeterministicDialogTest(unittest.TestCase):
 
     def test_apply_suggestion_rewrites_the_sheet(self) -> None:
         opening = opening_turn(_req())
-        artifact = {**opening["artifact"], "suggestions": [{"section": "Summary", "before": "Passionate team player with a proven track record in backend development.", "after": "Backend engineer, 5 years on payments.", "why": "test"}]}
+        # A rewrite built only from what the CV holds (no new number, name or title).
+        artifact = {**opening["artifact"], "suggestions": [{"section": "Summary", "before": "Passionate team player with a proven track record in backend development.", "after": "Backend engineer on the payments platform.", "why": "test"}]}
         turns = [{"role": "interviewer", "text": opening["reply"]}]
         result = deterministic_turn(_req(transcript=turns, message="Apply suggestion: Summary", artifact=artifact))
-        self.assertIn("Backend engineer, 5 years on payments.", result["artifact"]["cvMarkdown"])
+        self.assertIn("Backend engineer on the payments platform.", result["artifact"]["cvMarkdown"])
         self.assertNotIn("Passionate team player", result["artifact"]["cvMarkdown"])
         self.assertEqual(result["artifact"]["suggestions"], [])
         self.assertIn("Summary", result["reply"])

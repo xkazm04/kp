@@ -33,9 +33,11 @@ answers ``None`` for a bare number and the script asks again, once.
 
 from __future__ import annotations
 
+import difflib
 import json
 import logging
 import re
+import unicodedata
 from typing import Any
 
 from .authenticity import authenticity_checks
@@ -49,7 +51,7 @@ from .taxonomy import classify_role_family
 
 _LOG = logging.getLogger(__name__)
 
-CV_POLISH_PROMPT_VERSION = "cv-polish-v2"  # v2: tailors suggestions to the first stated target title
+CV_POLISH_PROMPT_VERSION = "cv-polish-v3"  # v3: rewrites are line proposals screened against the record (v2: tailoring)
 FIT_PROMPT_VERSION = "fit-dialog-v1"
 PROMPT_VERSIONS = {"cv_polish": CV_POLISH_PROMPT_VERSION, "fit": FIT_PROMPT_VERSION}
 
@@ -835,6 +837,8 @@ def target_suggestions(source: str | None, lang: str, target: str | None) -> lis
             "before": before[:300],
             "after": _localized(_TARGET_AFTER[kind], lang).format(**fill),
             "why": _localized(_TARGET_WHY[kind], lang).format(**fill),
+            # Advice about what to do with the line, never a wording: the owner answers it.
+            "kind": "question",
         })
     return out
 
@@ -876,6 +880,7 @@ def deterministic_suggestions(
             "before": before[:300],
             "after": _localized(_SUGGEST_AFTER[kind], lang),
             "why": _localized(_SUGGEST_WHY[kind], lang),
+            "kind": "question",
         })
 
     # Buzzword sentences: cite the exact sentence the density check reads.
@@ -897,16 +902,376 @@ def deterministic_suggestions(
 
 
 def _apply_suggestion(artifact: dict[str, Any], section: str) -> tuple[dict[str, Any], bool]:
-    """Replace `before` with `after` in cvMarkdown for the first suggestion whose
-    section matches (case-insensitive); the applied suggestion leaves the list."""
+    """Replace `before` with `after` in cvMarkdown for the first REWRITE whose section
+    matches (case-insensitive); the applied suggestion leaves the list. A ``question``
+    is advice or a request for a fact, never a wording: it is never applied."""
     suggestions = list(artifact.get("suggestions") or [])
     markdown = str(artifact.get("cvMarkdown") or "")
     for i, s in enumerate(suggestions):
+        if s.get("kind") == "question":
+            continue
         if str(s.get("section", "")).strip().lower() == section.strip().lower() and s.get("before") and s["before"] in markdown:
             markdown = markdown.replace(s["before"], str(s.get("after") or ""), 1)
             suggestions.pop(i)
             return {**artifact, "cvMarkdown": markdown[:MAX_CV_MARKDOWN_CHARS], "suggestions": suggestions}, True
     return artifact, False
+
+
+def _names_question(artifact: dict[str, Any], section: str) -> bool:
+    """The seeker asked to apply a QUESTION (its section names one and no rewrite)."""
+    wanted = section.strip().lower()
+    return any(
+        isinstance(s, dict) and s.get("kind") == "question" and str(s.get("section", "")).strip().lower() == wanted
+        for s in artifact.get("suggestions") or []
+    )
+
+
+# ---------------------------------------------------------------------------
+# The fidelity contract — every model rewrite is screened against the record
+# ---------------------------------------------------------------------------
+#
+# registry recruiting/cv-content-construction/machine-rewrite-fidelity-contract: an
+# instruction not to invent is a soft control (prompt guardrails alone left
+# fabrications in about half of the rewrites measured); the contract is enforced AFTER
+# the model, against the source, and closed by the owner. Every `after` a model
+# proposes is checked deterministically against the RECORD — the CV text plus what the
+# seeker has said in this dialog (an owner's answer is a fact):
+#
+#   - a number, percentage, amount or date the record does not hold  -> a question
+#   - a skill term (a job-ad lexicon term, the target's subject) it does not hold -> a question
+#   - a title / seniority word or a verb that raises the claim ("led", "owned") that the
+#     line itself (or the seeker, in the chat) does not state          -> a question
+#   - a proper noun (employer, product, tool, institution) it does not hold -> dropped
+#   - a self-descriptor ("results-driven", "passionate", "spearheaded") -> dropped
+#   - fewer specifics (numbers + proper nouns) than the line it replaces -> dropped
+#
+# A question never carries the model's wording: it asks the owner for the fact, and it
+# can never be applied (_apply_suggestion). A whole regenerated CV is not adopted: it is
+# diffed line by line against the sheet and each changed line becomes a proposal that
+# passes the same screen (_redraft_proposals).
+
+# The skill lexicon per target kind — mirrors app/features/jobseeker/cv/cvTailor.ts
+# KIND_TABLE: what a job ad for that kind commonly asks for, i.e. the terms a tailoring
+# rewrite is most tempted to borrow. Their union is checked on every rewrite.
+_AD_LEXICON: tuple[str, ...] = (
+    "Python", "LLM", "RAG", "LangChain", "Prompt engineering", "Embeddings", "Vector database", "PyTorch",
+    "Machine learning", "NLP", "MLOps", "OpenAI", "TensorFlow", "Hugging Face", "Fine-tuning",
+    "JavaScript", "TypeScript", "React", "Next.js", "HTML", "CSS", "Vue.js", "Angular", "Accessibility", "Figma",
+    "REST", "Jest", "Java", "Node.js", "SQL", "PostgreSQL", "Docker", "Kubernetes", "Microservices", "Kafka",
+    "AWS", "Azure", "GCP", "Redis", "Git", "Test automation", "Selenium", "Cypress", "Playwright", "API testing",
+    "Postman", "Jira", "CI/CD", "Regression testing", "Terraform", "Spark", "Airflow", "Scrum", "Agile",
+)
+
+# Title and seniority words, and verbs that raise a claim (responsibility into
+# ownership, participation into leadership) — en/cs/de/fr, diacritic-folded.
+_RAISE_WORDS = frozenset({
+    "senior", "lead", "principal", "head", "chief", "director", "manager", "vp", "cto", "ceo", "cio", "cfo", "coo", "architect",
+    "led", "owned", "spearheaded", "headed", "directed", "oversaw", "supervised", "founded", "pioneered", "championed",
+    "architected", "orchestrated",
+    "vedouci", "reditel", "reditelka", "manazer", "manazerka", "vedl", "vedla", "ridil", "ridila", "zalozil", "zalozila",
+    "leiter", "leiterin", "leitete", "fuhrte", "verantwortete", "grundete", "geschaftsfuhrer",
+    "directeur", "directrice", "dirige", "pilote", "fonde", "chef",
+})
+
+# Self-descriptors banned in any generated text (the rewrite brief's list, en/cs/de/fr).
+# In the seeker's OWN words they are flagged, never deleted (cvContent.ts on the sheet).
+_BANNED_OUTPUT: tuple[str, ...] = (
+    "results-driven", "results-oriented", "passionate", "team player", "hard-working", "hardworking", "self-starter",
+    "detail-oriented", "go-getter", "dynamic", "highly motivated", "motivated", "proactive", "synergy", "spearheaded",
+    "leveraged", "proven track record", "track record", "thought leader", "fast learner", "strategic thinker",
+    "cílevědomý", "cílevědomá", "týmový hráč", "pracovitý", "pracovitá", "komunikativní", "proaktivní",
+    "motivovaný", "motivovaná", "orientovaný na výsledky", "orientovaná na výsledky", "dynamický", "dynamická",
+    "teamfähig", "belastbar", "zielorientiert", "ergebnisorientiert", "hochmotiviert", "motiviert", "leidenschaftlich",
+    "dynamisch", "kommunikationsstark", "esprit d'équipe", "dynamique", "motivé", "motivée", "passionné", "passionnée",
+    "orienté résultats", "orientée résultats", "force de proposition",
+)
+
+_NUMBER_WORDS: dict[str, str] = {
+    "one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+    "ten": "10", "eleven": "11", "twelve": "12", "twenty": "20", "thirty": "30", "fifty": "50", "hundred": "100",
+    "jeden": "1", "jedna": "1", "dva": "2", "dve": "2", "tri": "3", "ctyri": "4", "pet": "5", "sest": "6", "sedm": "7",
+    "osm": "8", "devet": "9", "deset": "10",
+    "zwei": "2", "drei": "3", "vier": "4", "funf": "5", "sechs": "6", "sieben": "7", "acht": "8", "neun": "9", "zehn": "10",
+    "deux": "2", "trois": "3", "quatre": "4", "cinq": "5", "sept": "7", "huit": "8", "neuf": "9", "dix": "10",
+}
+
+_SCREEN_NUMBER = re.compile(r"\d{1,3}(?:[  .,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?")
+_SCREEN_TOKEN = re.compile(r"\w[\w.+#'’/-]*", re.UNICODE)
+_SENTENCE_BREAK = set(".!?:;•–—-(\"'“„«*\n")
+_GERMAN_STOP = re.compile(r"(?<!\w)(und|der|die|das|mit|für|von|im|bei|als|ist|wurde)(?!\w)", re.IGNORECASE)
+_ENGLISH_STOP = re.compile(r"(?<!\w)(the|and|with|for|of|in|to|using|was|is)(?!\w)", re.IGNORECASE)
+
+_SCREEN_Q: dict[str, dict[str, dict[str, str]]] = {
+    "number": {
+        "after": {
+            "en": "This wording needs a number your CV does not state. If you have one, what changed and by how much?",
+            "cs": "Tato formulace potřebuje číslo, které vaše CV neuvádí. Pokud ho máte, co se změnilo a o kolik?",
+            "de": "Diese Formulierung braucht eine Zahl, die Ihr Lebenslauf nicht nennt. Falls Sie eine haben: Was hat sich verändert, und um wie viel?",
+            "fr": "Cette formulation demande un chiffre que votre CV n'indique pas. Si vous en avez un, qu'est-ce qui a changé, et de combien ?",
+        },
+        "why": {
+            "en": "A number your CV does not hold would be invented; only you can supply it.",
+            "cs": "Číslo, které vaše CV neobsahuje, by bylo vymyšlené; doplnit ho můžete jen vy.",
+            "de": "Eine Zahl, die Ihr Lebenslauf nicht enthält, wäre erfunden; nur Sie können sie liefern.",
+            "fr": "Un chiffre absent de votre CV serait inventé ; vous seul pouvez le fournir.",
+        },
+    },
+    "term": {
+        "after": {
+            "en": "This wording adds “{value}”, which your CV does not show. If you have used it, where?",
+            "cs": "Tato formulace přidává „{value}“, což vaše CV neukazuje. Pokud jste s tím pracovali, kde?",
+            "de": "Diese Formulierung fügt „{value}“ hinzu, was Ihr Lebenslauf nicht zeigt. Falls Sie damit gearbeitet haben: wo?",
+            "fr": "Cette formulation ajoute « {value} », que votre CV ne montre pas. Si vous l'avez utilisé, où ?",
+        },
+        "why": {
+            "en": "A skill borrowed from a job ad is the most common invention in a tailored CV.",
+            "cs": "Dovednost převzatá z inzerátu je nejčastější smyšlenka v CV upraveném na míru.",
+            "de": "Eine aus der Stellenanzeige übernommene Fähigkeit ist die häufigste Erfindung in einem angepassten Lebenslauf.",
+            "fr": "Une compétence empruntée à l'offre d'emploi est l'invention la plus fréquente d'un CV adapté.",
+        },
+    },
+    "raise": {
+        "after": {
+            "en": "This wording says “{value}”, which this line of your CV does not. Is that what you did?",
+            "cs": "Tato formulace říká „{value}“, což tento řádek vašeho CV neříká. Odpovídá to tomu, co jste dělali?",
+            "de": "Diese Formulierung sagt „{value}“, was diese Zeile Ihres Lebenslaufs nicht sagt. Entspricht das dem, was Sie getan haben?",
+            "fr": "Cette formulation dit « {value} », ce que cette ligne de votre CV ne dit pas. Est-ce bien ce que vous avez fait ?",
+        },
+        "why": {
+            "en": "A stronger title or verb than your CV states is yours to choose, not the editor's.",
+            "cs": "Silnější titul nebo sloveso, než uvádí vaše CV, můžete zvolit jen vy, ne editor.",
+            "de": "Einen stärkeren Titel oder ein stärkeres Verb, als Ihr Lebenslauf nennt, wählen Sie, nicht der Editor.",
+            "fr": "Un titre ou un verbe plus fort que ce qu'indique votre CV relève de votre choix, pas de celui de l'éditeur.",
+        },
+    },
+}
+
+_REDRAFT_WHY: dict[str, str] = {
+    "en": "From the editor's redraft of your CV: one line, offered for you to accept or leave.",
+    "cs": "Z editorova přepisu vašeho CV: jeden řádek, který můžete přijmout, nebo ponechat.",
+    "de": "Aus der Überarbeitung Ihres Lebenslaufs durch den Editor: eine Zeile, die Sie übernehmen oder lassen können.",
+    "fr": "Tiré de la réécriture de votre CV par l'éditeur : une ligne, à accepter ou à laisser.",
+}
+
+_APPLY_QUESTION: dict[str, str] = {
+    "en": "\"{section}\" is a question for you, not a wording: answer it here and I will work from your answer.",
+    "cs": "„{section}“ je otázka pro vás, ne formulace: odpovězte na ni zde a já budu vycházet z vaší odpovědi.",
+    "de": "„{section}“ ist eine Frage an Sie, keine Formulierung: Beantworten Sie sie hier, dann arbeite ich mit Ihrer Antwort.",
+    "fr": "« {section} » est une question pour vous, pas une formulation : répondez-y ici et je partirai de votre réponse.",
+}
+
+
+def _fold_word(word: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", word) if not unicodedata.combining(c)).lower()
+
+
+def _key(token: str) -> str:
+    """A token's comparison key: folded, alphanumerics only, one plural "s" dropped."""
+    k = re.sub(r"[^0-9a-z]", "", _fold_word(token))
+    return k[:-1] if len(k) > 3 and k.endswith("s") and not k.endswith("ss") else k
+
+
+def _number_keys(text: str) -> set[str]:
+    keys = {re.sub(r"\D", "", m.group(0)) for m in _SCREEN_NUMBER.finditer(text or "")}
+    for word in re.findall(r"\w+", _fold_word(text or "")):
+        if word in _NUMBER_WORDS:
+            keys.add(_NUMBER_WORDS[word])
+    return {k for k in keys if k}
+
+
+class _Record:
+    """What the seeker's record holds: the CV text plus what they said in the dialog."""
+
+    def __init__(self, source: str, owner_said: str = "") -> None:
+        text = f"{source or ''}\n{owner_said or ''}"
+        self.text = text
+        self.owner_said = owner_said or ""
+        self.numbers = _number_keys(text)
+        self.keys = {_key(t.group(0)) for t in _SCREEN_TOKEN.finditer(text)} - {""}
+        self.tokens = fold_tokens(text)
+
+    def has_key(self, key: str) -> bool:
+        if not key or key in self.keys:
+            return True
+        # A canonical spelling of a name the record holds ("postgres" -> PostgreSQL):
+        # a prefix counts only when the shorter key is long enough to be unambiguous,
+        # so "java" never vouches for "javascript".
+        return any(len(min(k, key, key=len)) >= 6 and (k.startswith(key) or key.startswith(k)) for k in self.keys)
+
+
+def _record_of(req: dict[str, Any], extra: str | None = None) -> _Record:
+    said = [str(t.get("text") or "") for t in (req.get("transcript") or []) if isinstance(t, dict) and t.get("role") == "candidate"]
+    if extra:
+        said.append(extra)
+    # "Apply suggestion: X" is a click, not a fact the seeker stated.
+    said = [s for s in said if not _APPLY_PREFIX.match(s)]
+    return _Record(str(req.get("cvSourceText") or ""), "\n".join(said))
+
+
+def _specifics(text: str, german: bool) -> list[str]:
+    """Proper-noun-like tokens: acronyms, inner capitals (LangChain), dotted or +/#
+    names (Node.js, C++), letters mixed with digits (GPT-4) — and, outside German
+    (which capitalises every noun), a capitalised word that does not open a sentence."""
+    out: list[str] = []
+    for m in _SCREEN_TOKEN.finditer(text or ""):
+        tok = m.group(0).rstrip(".-/'’")
+        letters = [c for c in tok if c.isalpha()]
+        if not letters:
+            continue
+        prev = text[: m.start()].rstrip()
+        opens = not prev or prev[-1] in _SENTENCE_BREAK
+        has_digit = any(c.isdigit() for c in tok)
+        acronym = len(letters) >= 2 and all(c.isupper() for c in letters)
+        inner_cap = any(c.isupper() for c in tok[1:]) and not acronym
+        named = bool(re.search(r"[A-Za-z]\.[A-Za-z]|[+#]", tok))
+        capital = tok[0].isupper() and not opens and not german
+        if acronym or inner_cap or named or (has_digit and letters) or capital:
+            out.append(tok)
+    return out
+
+
+def _is_german(text: str) -> bool:
+    return len(_GERMAN_STOP.findall(text or "")) > len(_ENGLISH_STOP.findall(text or ""))
+
+
+def _phrase_tokens(term: str) -> tuple[str, ...]:
+    return fold_tokens(term)
+
+
+def _ad_terms(target: str | None) -> list[tuple[str, tuple[str, ...]]]:
+    terms = [(t, _phrase_tokens(t)) for t in _AD_LEXICON]
+    for phrase in target_phrases(target) if target else ():
+        terms.append((" ".join(phrase).upper() if len(phrase) == 1 and len(phrase[0]) <= 3 else " ".join(phrase), tuple(phrase)))
+    return [(label, toks) for label, toks in terms if toks]
+
+
+def screen_rewrite(before: str, after: str, record: _Record, target: str | None = None) -> tuple[str, str | None]:
+    """The fidelity verdict on one proposed replacement: ``("ok", None)``, or
+    ``("question", "<number|term|raise>:<value>")`` — the owner must supply the fact —
+    or ``("drop", "<reason>")``. Deterministic; the model is never asked."""
+    after = after or ""
+    if not after.strip():
+        return "drop", "empty"
+    after_folded = _fold_word(after)
+    before_folded = _fold_word(before)
+    # Skill terms a job ad would ask for, which the record does not hold.
+    after_tokens = fold_tokens(after)
+    for label, toks in _ad_terms(target):
+        if contains_phrase(after_tokens, (toks,)) and not contains_phrase(record.tokens, (toks,)):
+            return "question", f"term:{label}"
+    # Numbers the record does not hold (a date is a number too).
+    for m in _SCREEN_NUMBER.finditer(after):
+        if re.sub(r"\D", "", m.group(0)) not in record.numbers:
+            return "question", "number:"
+    # A title or a verb that raises the claim over what THIS line (or the seeker) says.
+    allowed = set(fold_tokens(before)) | set(fold_tokens(record.owner_said))
+    for tok in after_tokens:
+        if tok in _RAISE_WORDS and tok not in allowed:
+            word = next((w for w in re.findall(r"\w+", after) if _fold_word(w) == tok), tok)
+            return "question", f"raise:{word}"
+    german = _is_german(record.text)
+    # A proper noun the record does not hold: an employer, a product, a tool.
+    for tok in _specifics(after, german):
+        if not record.has_key(_key(tok)):
+            return "drop", f"proper_noun:{tok}"
+    # A self-descriptor the line did not already carry.
+    for phrase in _BANNED_OUTPUT:
+        p = _fold_word(phrase)
+        if re.search(rf"(?<!\w){re.escape(p)}(?!\w)", after_folded) and not re.search(rf"(?<!\w){re.escape(p)}(?!\w)", before_folded):
+            return "drop", f"descriptor:{phrase}"
+    # Less specific than the line it replaces: a number lost, or fewer specifics.
+    before_numbers = {re.sub(r"\D", "", m.group(0)) for m in _SCREEN_NUMBER.finditer(before)}
+    after_numbers = {re.sub(r"\D", "", m.group(0)) for m in _SCREEN_NUMBER.finditer(after)}
+    if before_numbers - after_numbers:
+        return "drop", "generalised:number"
+    if len(_specifics(after, german)) + len(after_numbers) < len(_specifics(before, german)) + len(before_numbers):
+        return "drop", "generalised:specifics"
+    return "ok", None
+
+
+def _as_question(s: dict[str, str], verdict: str, lang: str) -> dict[str, str]:
+    kind, _, value = verdict.partition(":")
+    table = _SCREEN_Q[kind]
+    return {
+        "section": s["section"],
+        "before": s["before"],
+        "after": _localized(table["after"], lang).format(value=value),
+        "why": _localized(table["why"], lang),
+        "kind": "question",
+    }
+
+
+def _is_template_after(after: str) -> bool:
+    """A deterministic template (advice, never a wording) — how a suggestion stored
+    before suggestions carried a ``kind`` is recognised as the question it is."""
+    text = (after or "").strip()
+    for table in (_SUGGEST_AFTER, _TARGET_AFTER, {k: v["after"] for k, v in _SCREEN_Q.items()}):
+        for per_lang in table.values():
+            for tpl in per_lang.values():
+                if text == tpl or (tpl.split("{")[0] and text.startswith(tpl.split("{")[0])):
+                    return True
+    return False
+
+
+def screen_suggestions(
+    suggestions: list[dict[str, Any]], record: _Record, lang: str, target: str | None = None
+) -> list[dict[str, str]]:
+    """Every rewrite through :func:`screen_rewrite`: kept, turned into a question, or
+    dropped. A question stays a question; one ``before`` is one suggestion."""
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for s in suggestions:
+        if not isinstance(s, dict):
+            continue
+        before = str(s.get("before") or "").strip()
+        if not before or before in seen:
+            continue
+        item = {
+            "section": str(s.get("section") or "")[:60] or _localized(_SECTION_LABEL["other"], lang),
+            "before": before[:300],
+            "after": str(s.get("after") or "")[:600],
+            "why": str(s.get("why") or "")[:240],
+        }
+        if s.get("kind") == "question" or _is_template_after(item["after"]):
+            out.append({**item, "kind": "question"})
+            seen.add(before)
+            continue
+        verdict, detail = screen_rewrite(item["before"], item["after"], record, target)
+        if verdict == "drop":
+            _LOG.info("cv_polish: dropped a rewrite (%s)", detail)
+            continue
+        seen.add(before)
+        out.append(_as_question(item, detail or "number:", lang) if verdict == "question" else {**item, "kind": "rewrite"})
+        if len(out) >= MAX_SUGGESTIONS:
+            break
+    return out
+
+
+def _markdown_line(line: str) -> str:
+    return re.sub(r"^\s*(?:[-*•]\s+|#+\s+)", "", line).strip()
+
+
+def _redraft_proposals(base_md: str, model_md: str, source: str, lang: str) -> list[dict[str, str]]:
+    """A whole regenerated CV, read as the line proposals it implies — never adopted.
+    Lines the model REPLACED become (before -> after) pairs when the old line is the
+    seeker's own (it occurs in the source); added lines add nothing and removed lines
+    remove nothing: an addition is invention, a removal is a lost fact."""
+    old = [_markdown_line(ln) for ln in (base_md or "").split("\n")]
+    new = [_markdown_line(ln) for ln in (model_md or "").split("\n")]
+    out: list[dict[str, str]] = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes():
+        if tag != "replace":
+            continue
+        for before, after in zip(old[i1:i2], new[j1:j2]):
+            if not before or not after or before == after or not _grounded(before, source):
+                continue
+            out.append({
+                "section": _localized(_SECTION_LABEL[_section_of(before, source)], lang),
+                "before": before[:300],
+                "after": after[:600],
+                "why": _localized(_REDRAFT_WHY, lang),
+            })
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -937,11 +1302,16 @@ def _ask_count(turns: list[dict], slot: str, lang: str) -> int:
 def _base_artifact(req: dict[str, Any], lang: str, profile: CandidateProfileV2) -> dict[str, Any]:
     current = req.get("artifact") if isinstance(req.get("artifact"), dict) else None
     if current and isinstance(current.get("cvMarkdown"), str) and current["cvMarkdown"].strip():
+        # The stored list crossed a process and a database: every rewrite in it is
+        # screened again (one stored before the screen existed included), so what can be
+        # applied is only ever what the fidelity contract passed.
+        target = _first_target(merge_prefs(_norm_prefs(req.get("preferences")), _norm_prefs(current.get("preferences"))))
+        stored = [s for s in current.get("suggestions") or [] if isinstance(s, dict)][:MAX_SUGGESTIONS]
         return {
             "cvMarkdown": current["cvMarkdown"][:MAX_CV_MARKDOWN_CHARS],
             "preferences": _norm_prefs(current.get("preferences")),
             "unreadable": [str(x)[:400] for x in current.get("unreadable") or [] if str(x).strip()][:50],
-            "suggestions": [s for s in current.get("suggestions") or [] if isinstance(s, dict)][:MAX_SUGGESTIONS],
+            "suggestions": screen_suggestions(stored, _record_of(req), lang, target),
         }
     markdown, unreadable = reflow_cv(req.get("cvSourceText"), lang, profile.display_name)
     return {
@@ -1041,7 +1411,7 @@ def deterministic_turn(req: dict[str, Any]) -> dict[str, Any]:
     if applied:
         section = applied.group("section")
         artifact, ok = _apply_suggestion(artifact, section)
-        table = _APPLIED if ok else _APPLY_UNKNOWN
+        table = _APPLIED if ok else _APPLY_QUESTION if _names_question(artifact, section) else _APPLY_UNKNOWN
         return answer(_localized(table, lang).format(section=section[:80]))
 
     last = agent_said[-1] if agent_said else ""
@@ -1726,9 +2096,14 @@ _PERSONA = (
     "2. CRITIQUE THE CV using ONLY the grounding below (the deterministic critics' findings and the "
     "source text). Never invent facts, dates, employers, numbers or skills. Every suggestion cites the "
     "exact source sentence it rewrites in `before`; `after` is your proposed wording built only from "
-    "facts already in the CV; `why` is one line. Suggestions that cannot cite a source sentence are dropped.\n\n"
+    "facts already in the CV; `why` is one line. Suggestions that cannot cite a source sentence are dropped. "
+    "Every `after` is checked against the CV and the seeker's own messages: a number, name, tool, title or "
+    "stronger verb they do not hold turns your suggestion into a question for the seeker, so when a better "
+    "line needs a fact, ASK for it in your reply instead of writing it. Never use self-descriptors "
+    "(results-driven, passionate, team player, spearheaded, leveraged).\n\n"
     "Every turn return the FULL artifact: `cvMarkdown` (the whole CV as clean, sectioned Markdown — "
-    "keep every fact from the source; a block you cannot place goes in `unreadable`), `preferences` "
+    "keep every fact from the source; a block you cannot place goes in `unreadable`; it is read only as line "
+    "proposals against the seeker's sheet, never adopted as a whole), `preferences` "
     "(the PARTIAL set stated so far, camelCase: locations, countries as lower-case alpha-2, workModes "
     "from remote|hybrid|onsite, salaryFloor as {amount, currency, period: month|year} or null, "
     "targetTitles, targetRoleFamilies, languages, seniority from junior|medior|senior|lead), "
@@ -1808,22 +2183,36 @@ def run_turn(provider: Any | None, req: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("cv_polish turn returned no reply")
         art_raw = raw.get("artifact") if isinstance(raw.get("artifact"), dict) else {}
         partial = merge_prefs(base_artifact["preferences"], _norm_prefs(art_raw.get("preferences")))
-        markdown = str(art_raw.get("cvMarkdown") or "").strip()[:MAX_CV_MARKDOWN_CHARS] or base_artifact["cvMarkdown"]
-        suggestions: list[dict[str, str]] = []
+        # The sheet is NEVER the model's document: an "Apply suggestion" click is applied
+        # here, deterministically, and the model's full `cvMarkdown` is only read for the
+        # line proposals it implies (machine-rewrite-fidelity-contract, rule 1).
+        sheet = base_artifact
+        apply = _APPLY_PREFIX.match(message_text)
+        if apply:
+            sheet, _ok = _apply_suggestion(base_artifact, apply.group("section"))
+        markdown = sheet["cvMarkdown"]
+        proposed: list[dict[str, str]] = []
         for s in art_raw.get("suggestions") or []:
             if not isinstance(s, dict):
                 continue
             before = _clean(s.get("before"), 300)
             if not _grounded(before, source):
                 continue  # not the seeker's sentence → not a suggestion
-            suggestions.append({
+            proposed.append({
                 "section": _clean(s.get("section"), 60) or _localized(_SECTION_LABEL["other"], lang),
                 "before": before,
                 "after": _clean(s.get("after"), 600),
                 "why": _clean(s.get("why"), 240),
             })
-            if len(suggestions) >= MAX_SUGGESTIONS:
-                break
+        redraft = str(art_raw.get("cvMarkdown") or "").strip()[:MAX_CV_MARKDOWN_CHARS]
+        if redraft:
+            proposed.extend(_redraft_proposals(markdown, redraft, source, lang))
+        target_now = _first_target(merge_prefs(stored, partial))
+        suggestions = [
+            s for s in screen_suggestions(proposed, _record_of(req, message_text), lang, target_now)
+            # A line already rewritten on the sheet has nothing left to propose against.
+            if s["before"] in markdown
+        ][:MAX_SUGGESTIONS]
         unreadable = [str(x)[:400] for x in art_raw.get("unreadable") or [] if str(x).strip()][:50] or base_artifact["unreadable"]
         prefs = merge_prefs(stored, partial)
         done = bool(raw.get("done")) and preferences_complete(prefs)

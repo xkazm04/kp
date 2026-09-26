@@ -147,12 +147,17 @@ class DialogTargetSuggestionsTest(GroundingMixin):
         tailored = [s for s in artifact["suggestions"] if TARGET in s["after"]]
         self.assertTrue(tailored)
         self.assert_grounded(artifact["suggestions"], ANALYST_TO_AI)
-        # An applied target suggestion leaves the sheet and does not come back.
+        # A target suggestion is ADVICE about the line, never a wording: "applying" it
+        # leaves the seeker's line on the sheet (it used to be replaced by the advice
+        # sentence itself) and the question stays open for them to answer.
+        self.assertTrue(all(s["kind"] == "question" for s in tailored))
         section = tailored[0]["section"]
         prefs = {"targetTitles": [TARGET]}
         result = deterministic_turn(_req(preferences=prefs, transcript=turns, message=f"Apply suggestion: {section}", artifact=artifact))
-        self.assertNotIn(tailored[0]["before"], result["artifact"]["cvMarkdown"])
-        self.assertNotIn(tailored[0]["before"], [s["before"] for s in result["artifact"]["suggestions"]])
+        self.assertIn(tailored[0]["before"], result["artifact"]["cvMarkdown"])
+        self.assertNotIn(tailored[0]["after"], result["artifact"]["cvMarkdown"])
+        self.assertIn(tailored[0]["before"], [s["before"] for s in result["artifact"]["suggestions"]])
+        self.assertIn("question for you", result["reply"])
 
 
 class PersonaTailoringTest(unittest.TestCase):

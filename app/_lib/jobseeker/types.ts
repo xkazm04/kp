@@ -389,7 +389,11 @@ export type CvPolishArtifact = {
   preferences: Partial<JobseekerPreferences>;
   /** Blocks of the source CV the pipeline could not read — shown, never scored as absence. */
   unreadable: string[];
-  suggestions: { section: string; before: string; after: string; why: string }[];
+  /** `kind`: a `rewrite` passed the engine's fidelity screen and may be applied; a
+   *  `question` is advice or a request for a fact the CV does not hold, and is never
+   *  applied (pipeline/jobfit/jobseeker.py `screen_suggestions`). Absent on rows stored
+   *  before the screen existed — the engine screens those again on the next turn. */
+  suggestions: { section: string; before: string; after: string; why: string; kind?: "rewrite" | "question" }[];
 };
 
 export type FitArtifact = {

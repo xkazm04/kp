@@ -94,7 +94,15 @@ export function coerceCvPolishArtifact(raw: unknown): CvPolishArtifact | null {
   const suggestions = (Array.isArray(r.suggestions) ? r.suggestions : [])
     .map((s) => (s && typeof s === "object" ? (s as Record<string, unknown>) : null))
     .filter((s): s is Record<string, unknown> => s !== null)
-    .map((s) => ({ section: text(s.section, 60), before: text(s.before, 300), after: text(s.after, 600), why: text(s.why, 240) }))
+    // `kind` survives the boundary: a question the engine's fidelity screen made must
+    // come back as a question, or the next turn could read its text as a wording.
+    .map((s) => ({
+      section: text(s.section, 60),
+      before: text(s.before, 300),
+      after: text(s.after, 600),
+      why: text(s.why, 240),
+      ...(s.kind === "rewrite" || s.kind === "question" ? { kind: s.kind as "rewrite" | "question" } : {}),
+    }))
     // A suggestion that cites no source sentence is not a suggestion (the engine's
     // grounding rule, re-asserted here because the payload is model-authored).
     .filter((s) => s.section && s.before)
