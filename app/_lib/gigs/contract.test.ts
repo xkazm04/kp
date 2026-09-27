@@ -101,6 +101,9 @@ test("internal notes in client-facing text fail; a client's own 'operator' and '
   // A disclosure written about us in the third person (myt1dp: "reviewed by the operator before sending").
   const prose = withText("deliverable/guide.md", "Prepared with AI assistance and reviewed by the operator before sending.\n");
   assert.equal(prose.ok, false, prose.out);
+  // A placeholder for us inside a sentence (8u0q9o: "Reviewed and sent by [Operator Name].").
+  const placeholder = withText("deliverable/proposal.md", "Prepared with AI assistance. Reviewed and sent by [Operator Name].\n");
+  assert.equal(placeholder.ok, false, placeholder.out);
   const draft = withText("deliverable/docs/readme.md", "fine", { draftText: "Hi! Note for the operator: attach the PDF." });
   assert.equal(draft.ok, false);
   assert.match(draft.out, /draftText contains internal wording/);
