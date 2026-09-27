@@ -75,6 +75,37 @@ test("stricter than kp where it helps: a missing file artifact and a droppable r
   assert.equal(validateGigDeliverable(badRow).ok, true, "kp would accept but silently drop the row - the checker makes the agent fix it");
 });
 
+test("internal notes in client-facing text fail; a client's own 'operator' and 'personas' pass", () => {
+  const withText = (rel: string, text: string, over: Record<string, unknown> = {}) => {
+    const dir = path.join(TMP, `gig-${++n}`);
+    mkdirSync(path.join(dir, "deliverable", "docs"), { recursive: true });
+    writeFileSync(path.join(dir, "deliverable/app.html"), "<p>app</p>");
+    writeFileSync(path.join(dir, rel), text);
+    writeFileSync(path.join(dir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
+    writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify({ ...GOOD, ...over }));
+    try {
+      return { ok: true, out: execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: dir, encoding: "utf8" }) };
+    } catch (e) {
+      return { ok: false, out: String((e as { stdout?: unknown }).stdout ?? "") };
+    }
+  };
+  // The leaks the Hindi eBook review found (5q3cz5), nested one folder down.
+  const comment = withText("deliverable/docs/ebook.html", "<h1>Ch 1</h1>\n<!-- OPERATOR: swap the cover before sending -->");
+  assert.equal(comment.ok, false);
+  assert.match(comment.out, /deliverable\/docs\/ebook\.html contains internal wording/);
+  const section = withText("deliverable/proposal.md", "## Scope\nFive chapters.\n\n## Internal - do not send\nPrice floor $40.");
+  assert.equal(section.ok, false);
+  const draft = withText("deliverable/docs/readme.md", "fine", { draftText: "Hi! Note for the operator: attach the PDF." });
+  assert.equal(draft.ok, false);
+  assert.match(draft.out, /draftText contains internal wording/);
+  // A client's own domain: none of these is ours.
+  const clean = withText(
+    "deliverable/docs/guide.md",
+    "# Operators\nThe plant operator: logs each shift.\nThree buyer personas drive the funnel.\nMachine operators note the reading."
+  );
+  assert.ok(clean.ok, clean.out);
+});
+
 test("no file at all says so", () => {
   const r = check(null);
   assert.equal(r.ok, false);

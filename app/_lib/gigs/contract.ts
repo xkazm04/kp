@@ -60,6 +60,14 @@ export const GIG_CONTRACT_FILE = "DELIVERABLE-CONTRACT.md";
 /** The kp-owned checker every gig folder carries (workdir.ts writes it, rewritten on prepare). */
 export const GIG_DELIVERABLE_CHECKER_FILE = "check-deliverable.mjs";
 
+/** Internal notes that leaked into client-facing text (the proposal and deliverable/) - the
+ *  shapes the 2026-09-27 training cycle's reviewers found: an `OPERATOR:` / `[internal note]`
+ *  label opening a line, a comment or a bracket, "note to the operator", "internal - do not
+ *  send", and kp's own file names. Deliberately narrow: "the plant operator", "buyer personas"
+ *  and an "Operators" heading are a client's own domain and pass. */
+export const GIG_INTERNAL_MARKERS =
+  /(?:^|<!--|[[(])[ \t]*(?:operator|internal)(?:[ \t]+notes?)?[ \t]*[:\]]|\bnotes?[ \t]+(?:for|to)[ \t]+(?:the[ \t]+)?operator\b|\binternal[ \t]*[-:\u2013\u2014][ \t]*do[ \t]+not[ \t]+send\b|\bdo[ \t]+not[ \t]+send[ \t]+(?:this[ \t]+)?to[ \t]+(?:the[ \t]+)?client\b|\bkp-deliverable\b|\bkp\.gig\b/im;
+
 /** The checker's source: plain Node ESM, no dependencies, run as `node check-deliverable.mjs`
  *  in the gig folder. Found in the 2026-09-27 training cycle: Personas-designed specialists
  *  wrote their OWN idea of the handoff object (decision/verdict/schema keys) and one hand-wrote
@@ -73,7 +81,7 @@ export function gigDeliverableCheckerSource(): string {
   const evidenceKinds = JSON.stringify([...GIG_EVIDENCE_KINDS]);
   return `// check-deliverable.mjs - written by kp; do not edit (rewritten whenever kp prepares this gig).
 // Run in the gig folder:  node ${GIG_DELIVERABLE_CHECKER_FILE}   -> prints OK, or FAIL lines to fix.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 const FILE = ${JSON.stringify(GIG_DELIVERABLE_FILE)};
 const ARTIFACT_KINDS = ${artifactKinds};
@@ -112,6 +120,16 @@ for (const k of ["artifacts", "evidence", "questions"]) if (!Array.isArray(o[k])
   if (!(e.passed === true || e.passed === false || e.passed === null)) problems.push("evidence[" + i + "].passed must be true, false or null");
 });
 (Array.isArray(o.questions) ? o.questions : []).forEach((q, i) => { if (!nonEmpty(q)) problems.push("questions[" + i + "] must be a non-empty string"); });
+// Client-facing text must not carry internal vocabulary (found in the 2026-09-27 training cycle:
+// "OPERATOR:" comments and "internal - do not send" sections inside files meant for the client).
+const INTERNAL = ${JSON.stringify(GIG_INTERNAL_MARKERS.source)};
+const internalRe = new RegExp(INTERNAL, ${JSON.stringify(GIG_INTERNAL_MARKERS.flags)});
+const clientTexts = [["draftText", typeof o.draftText === "string" ? o.draftText : ""]];
+const walk = (rel) => { let names = []; try { names = readdirSync(path.join(dir, rel), { withFileTypes: true }); } catch { return; }
+  for (const d of names) { const r = rel + "/" + d.name; if (d.isDirectory()) { if (!/node_modules|\\.venv|__pycache__|\\.git/.test(d.name)) walk(r); }
+    else if (/\\.(md|txt|html?|csv|json)$/i.test(d.name) && statSync(path.join(dir, r)).size < 2000000) clientTexts.push([r, readFileSync(path.join(dir, r), "utf8")]); } };
+walk("deliverable");
+for (const [where, text] of clientTexts) { const m = internalRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer and move notes to NOTES.md"); }
 if (problems.length) { for (const p of problems) console.log("FAIL: " + p); process.exit(1); }
 console.log("OK " + FILE + " matches ${GIG_DELIVERABLE_CONTRACT} (" + o.artifacts.length + " artifacts, " + o.evidence.length + " evidence, " + o.questions.length + " questions)");
 `;
