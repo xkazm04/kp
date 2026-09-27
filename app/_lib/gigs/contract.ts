@@ -133,7 +133,7 @@ for (const k of ["artifacts", "evidence", "questions"]) if (!Array.isArray(o[k])
 // "OPERATOR:" comments and "internal - do not send" sections inside files meant for the client).
 const INTERNAL = ${JSON.stringify(GIG_INTERNAL_MARKERS.source)};
 const internalRe = new RegExp(INTERNAL, ${JSON.stringify(GIG_INTERNAL_MARKERS.flags)});
-const clientTexts = [["draftText", typeof o.draftText === "string" ? o.draftText : ""]];
+const clientTexts = [["draftText", typeof o.draftText === "string" ? o.draftText : ""], ["disclosure", typeof o.disclosure === "string" ? o.disclosure : ""]];
 const CLUTTER = new RegExp(${JSON.stringify(GIG_CLUTTER_DIRS.source)});
 const codeTexts = [];
 const walk = (rel) => { let names = []; try { names = readdirSync(path.join(dir, rel), { withFileTypes: true }); } catch { return; }
