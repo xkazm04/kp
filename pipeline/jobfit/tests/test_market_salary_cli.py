@@ -131,6 +131,53 @@ class FallbackSummaryLocaleTest(unittest.TestCase):
         self.assertEqual(len(set(rendered.values())), len(APP_LOCALES), msg=rendered)
 
 
+class GroundedPromptPricesTheRoleTest(unittest.TestCase):
+    """The grounded prompt prices the ROLE, never the person.
+
+    LLM salary advice measurably moves with who is asking - name, gender, origin -
+    at the same role (arXiv 2402.14875, 2506.10491). The CLI builds its prompt from
+    six role fields; this pins that as an allow-list, so a caller that starts
+    passing a candidate record through cannot leak it into the figure silently.
+    """
+
+    IDENTITY = {
+        "candidateName": "SENTINEL-NAME",
+        "name": "SENTINEL-NAME-2",
+        "gender": "SENTINEL-GENDER",
+        "nationality": "SENTINEL-ORIGIN",
+        "age": "SENTINEL-AGE",
+    }
+
+    def _prompt_for(self, role: dict) -> str:
+        from pipeline.jobfit.gemini import GroundedAnswer
+
+        captured: dict = {}
+
+        def fake(**kwargs):
+            captured.update(kwargs)
+            return GroundedAnswer(text="", payload={}, sources=[])
+
+        with (
+            mock.patch("pipeline.jobfit.market_salary_cli.grounded_answer", side_effect=fake),
+            mock.patch("pipeline.jobfit.market_salary_cli.load_local_env"),
+            mock.patch("sys.stdin", io.StringIO(json.dumps(role))),
+            mock.patch("sys.stdout", io.StringIO()),
+        ):
+            self.assertEqual(main([]), 0)
+        return captured["prompt"]
+
+    def test_role_fields_reach_the_prompt(self) -> None:
+        prompt = self._prompt_for({"title": "Backend Engineer", "seniority": "senior", "stack": ["Go"]})
+        self.assertIn("Backend Engineer", prompt)
+        self.assertIn("senior", prompt)
+
+    def test_no_candidate_identity_reaches_the_prompt(self) -> None:
+        role = {"title": "Backend Engineer", "seniority": "senior", **self.IDENTITY}
+        prompt = self._prompt_for(role)
+        for key, value in self.IDENTITY.items():
+            self.assertNotIn(value, prompt, msg=f"{key} leaked into the pricing prompt")
+
+
 class SalaryCliErrorEnvelopeTest(unittest.TestCase):
     def test_malformed_json_uses_shared_error_code(self) -> None:
         stderr = io.StringIO()
