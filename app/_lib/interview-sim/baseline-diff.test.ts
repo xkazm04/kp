@@ -139,6 +139,30 @@ test("case 6: the same instrument on both sides is a spread measurement: no cell
   assert.match(md, /BLOCKING/);
 });
 
+test("case 6b: the same brief on a different interviewer engine is an instrument change, never a spread measurement", () => {
+  // The engine is part of what the verdict judged (registry: conversational-assessment-validation
+  // → prompt-change-regression-baseline, "four things pin a baseline"). Keyed on brief + director
+  // only, a model swap under an unchanged brief read every flip as "same instrument, spread".
+  const onEngine = (interviewer: string, d: DiffConversation): DiffConversation => ({ ...d, providers: { interviewer } });
+  const r = diffVerdicts(
+    { conversations: [onEngine("claude-cli:sonnet", conv("kit-terse-en", { no_leak: "pass", no_decision: "pass" }))] },
+    { conversations: [onEngine("claude-cli:haiku", conv("kit-terse-en", { no_leak: "fail", no_decision: "pass" }, { runId: "run-b" }))] },
+    { targets: [] },
+  );
+  assert.equal(r.instrumentChanged, true);
+  assert.equal(cellOf(r, "kit-terse-en", "no_leak")?.class, "nonlocal_regression");
+  assert.equal(r.blocking, true);
+  assert.ok(r.headline.some((l) => l.includes("claude-cli:sonnet") && l.includes("claude-cli:haiku")), r.headline.join("\n"));
+  // A side that never recorded its engine is not assumed to match one that did.
+  const unknown = diffVerdicts(
+    { conversations: [conv("kit-terse-en", { no_leak: "pass" })] },
+    { conversations: [onEngine("claude-cli:haiku", conv("kit-terse-en", { no_leak: "fail" }, { runId: "run-b" }))] },
+    { targets: [] },
+  );
+  assert.equal(unknown.instrumentChanged, true);
+  assert.equal(cellOf(unknown, "kit-terse-en", "no_leak")?.class, "nonlocal_regression");
+});
+
 // ---- the verdict run and the CLI ------------------------------------------------------------
 
 const OPEN = "Hello, I'm an AI assistant for Northwind Payments. This call is transcribed for a human recruiter.";

@@ -18,8 +18,10 @@
 //   noise                 a flip consistent with the run-to-run spread: the baseline cell
 //                         itself flipped across its own samples and the candidate's result
 //                         is not improbable at that rate (one-sided binomial tail ≥
-//                         NOISE_ALPHA), or both sides ran the SAME instrument (then every
-//                         flip is spread by definition — "a spread measurement")
+//                         NOISE_ALPHA), or both sides ran the SAME instrument — brief,
+//                         director AND interviewer engine (then every flip is spread by
+//                         definition — "a spread measurement"; a model swap under an
+//                         unchanged brief is an instrument change, never spread)
 //   unchanged             the same rate on both sides
 //   not_comparable        the cell cannot be compared, and says why: the cast changed or is
 //                         unknown (situationSha), one side never evaluated it
@@ -54,6 +56,10 @@ export type DiffConversation = {
   /** Absent/null on verdicts written before dumps recorded their cast: "cast unknown". */
   situationSha?: string | null;
   instrument: { briefSha: string; directorVersion: string };
+  /** The model that played the interviewer. Part of the instrument: the same brief on another
+   *  engine is a different instrument (registry: a verdict is bound to what it judged). Absent
+   *  on hand-built rows; verdict-run always writes it, "?" when the dump did not record it. */
+  providers?: { interviewer: string } | null;
   judge?: { rubricVersion: string } | null;
   verdicts: readonly InvariantVerdict[];
 };
@@ -129,7 +135,7 @@ export function withinSpread(baseline: Pick<DiffSide, "fail" | "evaluable">, can
 
 // ---- the diff ---------------------------------------------------------------------------------
 
-const instrumentKey = (c: DiffConversation) => `${c.instrument.briefSha} / ${c.instrument.directorVersion}`;
+const instrumentKey = (c: DiffConversation) => `${c.instrument.briefSha} / ${c.instrument.directorVersion} / ${c.providers?.interviewer ?? "?"}`;
 const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x));
 
 function bySituation(convs: readonly DiffConversation[]): Map<string, DiffConversation[]> {
@@ -244,8 +250,8 @@ export function diffVerdicts(baseline: DiffRun, candidate: DiffRun, opts: { targ
   const blocking = relRegressions.length > 0;
 
   const headline: string[] = [];
-  if (!instrumentChanged) headline.push("no instrument change: this is a spread measurement — both sides ran the same brief and director, so every flip is run-to-run spread and no cell can be an intended improvement or a regression.");
-  else headline.push(`instrument changed: ${[...bInstruments].sort().join(", ")} → ${[...cInstruments].sort().join(", ")} (briefSha / directorVersion).`);
+  if (!instrumentChanged) headline.push("no instrument change: this is a spread measurement — both sides ran the same brief, director and interviewer engine, so every flip is run-to-run spread and no cell can be an intended improvement or a regression.");
+  else headline.push(`instrument changed: ${[...bInstruments].sort().join(", ")} → ${[...cInstruments].sort().join(", ")} (briefSha / directorVersion / interviewer).`);
   headline.push(
     blocking
       ? `BLOCKING — ${relRegressions.length} reliability regression(s) outside the baseline's spread: ${relRegressions
