@@ -254,6 +254,9 @@ lessons; no briefs means `gigsResearched: 0`. The roster row (`hired_agents.spec
 the spec as sent, requirements included. A specialist's stored `spec.promptVersion` is now
 `gig-requirements.v1` (the field keeps its name; prompt versions ended at `gig-specialist.v3`).
 
+
+**Narrowing a niche's tools.** A hire may pass `connectors` to narrow the arena's tools (`narrowConnectors`, specialist.ts): only a subset of `GIG_ARENA_CONNECTORS[arena]` survives, so an override can drop a tool but never add one. Personas holds a build whose test run never calls a declared tool; a niche whose work never needs `research` (data and spreadsheet, scripting) failed every hire on it until the hire declared no tool. The agent still has the CLI's own web tools; `connectors` names Personas connectors only.
+
 ## Workspaces and projects
 
 Every gig attempt runs **in the gig's own folder**, so the agent's files, notes and

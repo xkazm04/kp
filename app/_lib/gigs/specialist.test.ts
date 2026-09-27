@@ -15,6 +15,7 @@ import {
   gigSpecialistName,
   hireGigSpecialist,
   gigSpecialistLinkJobId,
+  narrowConnectors,
   specialistDispatchSpec,
 } from "./specialist.ts";
 import { getHiredAgent, getActiveHiredAgentForJob, listHiredAgents } from "../db/agents.ts";
@@ -226,4 +227,13 @@ test("gigSpecialistLinkJobId: stable ASCII handle per arena + niche, bounded to 
   assert.equal(gigSpecialistLinkJobId({ arena: "freelance", niche: "  Web · Development!! " }), "gig-specialist:freelance:web-development");
   assert.equal(gigSpecialistLinkJobId({ arena: "security", niche: "" }), "gig-specialist:security:general");
   assert.ok(gigSpecialistLinkJobId({ arena: "freelance", niche: "x".repeat(300) }).length <= 128);
+});
+
+test("narrowConnectors: an override only narrows the arena's tools, never adds one", () => {
+  assert.deepEqual(narrowConnectors("freelance", null), ["research"]);
+  assert.deepEqual(narrowConnectors("freelance", []), [], "a niche whose work needs no tool declares none");
+  assert.deepEqual(narrowConnectors("freelance", ["research", "source_control"]), ["research"], "source_control is not a freelance tool");
+  assert.deepEqual(narrowConnectors("oss_bounty", ["research"]), ["research"]);
+  const spec = composeGigSpecialistSpec({ arena: "freelance", niche: "data", connectors: [] }, seeded("freelance"));
+  assert.deepEqual(spec.connectors, []);
 });

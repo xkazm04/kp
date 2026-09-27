@@ -72,7 +72,20 @@ export type ComposeGigSpecialistInput = {
   taxonomyFamily?: string | null;
   /** Operator override of the per-attempt ceiling; bounded, else the arena default. */
   budgetUsdPerAttempt?: number | null;
+  /** Narrow the arena's tools for this niche (only a SUBSET of GIG_ARENA_CONNECTORS[arena];
+   *  anything else is dropped, so an override can never add a tool). Personas holds a build
+   *  whose test run never calls a declared tool, and a niche whose work never needs one (data,
+   *  scripting) failed every hire on `research` - found in the 2026-09-26 training cycle. */
+  connectors?: readonly string[] | null;
 };
+
+/** The arena's connectors, narrowed to `requested` when one is given (order of the arena list kept). */
+export function narrowConnectors(arena: GigArena, requested?: readonly string[] | null): string[] {
+  const allowed = GIG_ARENA_CONNECTORS[arena];
+  if (!requested) return [...allowed];
+  const want = new Set(requested.map((c) => c.trim()));
+  return allowed.filter((c) => want.has(c));
+}
 
 /** The specialist's spec. Recipes are resolved here unless the caller already did
  *  (hireGigSpecialist resolves once and reuses the result for the requirements). */
@@ -89,7 +102,7 @@ export function composeGigSpecialistSpec(input: ComposeGigSpecialistInput, resol
     taxonomyFamily: family,
     recipes: recipes.recipes.map((r) => ({ ...r.ref })),
     exemplars: [],
-    connectors: [...GIG_ARENA_CONNECTORS[input.arena]],
+    connectors: narrowConnectors(input.arena, input.connectors),
     budgetUsdPerAttempt: override !== null && override > 0 ? override : GIG_DEFAULT_BUDGET_USD[input.arena],
     // The stored field keeps its name (persisted in every gig_specialists row); its value is
     // now the requirements version - prompt versions ended at `gig-specialist.v3`.
