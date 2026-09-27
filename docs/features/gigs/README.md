@@ -346,9 +346,10 @@ text alone did not hold. The contract now tells the agent to run `node check-del
 the file until it prints OK. It applies the validator's rules from the same vocabularies and is
 stricter where that helps: rows kp would silently drop, unknown keys, and `file` artifacts whose path
 does not exist fail. `contract.test.ts` pins its verdicts against `validateGigDeliverable`.
-It also scans the client-facing text (`draftText` and every `.md/.txt/.html/.csv/.json` under
-`deliverable/`) for internal notes (`GIG_INTERNAL_MARKERS`): an `OPERATOR:` label opening a line,
-comment or bracket, "note to the operator", "internal - do not send", and kp's own file names. The
+It also scans the client-facing text (`draftText`, `disclosure` and every `.md/.txt/.html/.csv/.json`
+under `deliverable/`) for internal notes (`GIG_INTERNAL_MARKERS`): an `OPERATOR:` label opening a line,
+comment or bracket (markdown emphasis included), an `[Operator Name]` placeholder, "note to the
+operator", "reviewed/sent by the operator", "internal - do not send", and kp's own file names. The
 same cycle's reviewers found those inside files meant for the client even with the gigs repository's
 rule against it. The patterns are deliberately narrow, so a client's own "plant operator" or "buyer
 personas" still passes. Code files get only the "reviewed by the operator" form
