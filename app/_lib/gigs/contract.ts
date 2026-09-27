@@ -68,6 +68,14 @@ export const GIG_DELIVERABLE_CHECKER_FILE = "check-deliverable.mjs";
 export const GIG_INTERNAL_MARKERS =
   /(?:^|<!--|[[(])[ \t*_>#-]*(?:operator|internal)(?:[ \t]+notes?)?[ \t*_]*[:\]]|\bnotes?[ \t]+(?:for|to)[ \t]+(?:the[ \t]+)?operator\b|\binternal[ \t]*[-:\u2013\u2014][ \t]*do[ \t]+not[ \t]+send\b|\bdo[ \t]+not[ \t]+send[ \t]+(?:this[ \t]+)?to[ \t]+(?:the[ \t]+)?client\b|\b(?:reviewed|checked|approved|edited|sent)[ \t]+by[ \t]+(?:the[ \t]+)?operator\b|\bkp-deliverable\b|\bkp\.gig\b/im;
 
+/** Build and dependency folders that must never ship in deliverable/ - a shipped .venv carries
+ *  this machine's path in pyvenv.cfg, and caches make the folder not Git-ready (7bsg8m). */
+export const GIG_CLUTTER_DIRS = /^(?:node_modules|\.venv|venv|__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|.+\.egg-info)$/;
+
+/** The one internal-note form also checked in code: code has legitimate `operator:` keys, but a
+ *  generated report footer saying "reviewed by the operator" reaches the client all the same. */
+export const GIG_INTERNAL_MARKERS_IN_CODE = /\b(?:reviewed|checked|approved|edited|sent)[ \t]+by[ \t]+(?:the[ \t]+)?operator\b/i;
+
 /** The checker's source: plain Node ESM, no dependencies, run as `node check-deliverable.mjs`
  *  in the gig folder. Found in the 2026-09-27 training cycle: Personas-designed specialists
  *  wrote their OWN idea of the handoff object (decision/verdict/schema keys) and one hand-wrote
@@ -82,6 +90,7 @@ export function gigDeliverableCheckerSource(): string {
   return `// check-deliverable.mjs - written by kp; do not edit (rewritten whenever kp prepares this gig).
 // Run in the gig folder:  node ${GIG_DELIVERABLE_CHECKER_FILE}   -> prints OK, or FAIL lines to fix.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 const FILE = ${JSON.stringify(GIG_DELIVERABLE_FILE)};
 const ARTIFACT_KINDS = ${artifactKinds};
@@ -125,11 +134,22 @@ for (const k of ["artifacts", "evidence", "questions"]) if (!Array.isArray(o[k])
 const INTERNAL = ${JSON.stringify(GIG_INTERNAL_MARKERS.source)};
 const internalRe = new RegExp(INTERNAL, ${JSON.stringify(GIG_INTERNAL_MARKERS.flags)});
 const clientTexts = [["draftText", typeof o.draftText === "string" ? o.draftText : ""]];
+const CLUTTER = new RegExp(${JSON.stringify(GIG_CLUTTER_DIRS.source)});
+const codeTexts = [];
 const walk = (rel) => { let names = []; try { names = readdirSync(path.join(dir, rel), { withFileTypes: true }); } catch { return; }
-  for (const d of names) { const r = rel + "/" + d.name; if (d.isDirectory()) { if (!/node_modules|\\.venv|__pycache__|\\.git/.test(d.name)) walk(r); }
-    else if (/\\.(md|txt|html?|csv|json)$/i.test(d.name) && statSync(path.join(dir, r)).size < 2000000) clientTexts.push([r, readFileSync(path.join(dir, r), "utf8")]); } };
+  for (const d of names) { const r = rel + "/" + d.name;
+    if (d.isDirectory()) { if (d.name === ".git") continue; if (CLUTTER.test(d.name)) { problems.push(r + " is build clutter - ship source only: delete it and add a .gitignore"); continue; } walk(r); continue; }
+    const big = statSync(path.join(dir, r)).size >= 2000000;
+    if (/\\.(md|txt|html?|csv|json)$/i.test(d.name) && !big) clientTexts.push([r, readFileSync(path.join(dir, r), "utf8")]);
+    else if (/\\.(py|[cm]?js|jsx|tsx?|css|ya?ml|toml|cfg|ini|sh|ps1|sql|ipynb)$/i.test(d.name) && !big) codeTexts.push([r, readFileSync(path.join(dir, r), "utf8")]); } };
 walk("deliverable");
 for (const [where, text] of clientTexts) { const m = internalRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer and move notes to NOTES.md"); }
+const inCodeRe = new RegExp(${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.source)}, ${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.flags)});
+for (const [where, text] of codeTexts) { const m = inCodeRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer"); }
+// This machine's home folder in anything the client gets (a local path is ours, never theirs).
+const home = homedir();
+const homeForms = home.length > 3 ? [home, home.split(path.sep).join("/")].map((h) => h.toLowerCase()) : [];
+for (const [where, text] of [...clientTexts, ...codeTexts]) { const low = text.toLowerCase(); if (homeForms.some((h) => low.includes(h))) problems.push(where + " contains this machine's home folder path - use relative paths"); }
 if (problems.length) { for (const p of problems) console.log("FAIL: " + p); process.exit(1); }
 console.log("OK " + FILE + " matches ${GIG_DELIVERABLE_CONTRACT} (" + o.artifacts.length + " artifacts, " + o.evidence.length + " evidence, " + o.questions.length + " questions)");
 `;

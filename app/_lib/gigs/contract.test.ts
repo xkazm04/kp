@@ -5,7 +5,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { GIG_DELIVERABLE_CHECKER_FILE, GIG_DELIVERABLE_FILE, gigDeliverableCheckerSource } from "./contract.ts";
 import { validateGigDeliverable } from "./deliverable.ts";
@@ -110,6 +110,31 @@ test("internal notes in client-facing text fail; a client's own 'operator' and '
     "# Operators\nThe plant operator: logs each shift.\nThree buyer personas drive the funnel.\nMachine operators note the reading."
   );
   assert.ok(clean.ok, clean.out);
+});
+
+test("build clutter, this machine's home path, and a third-person footer in code fail", () => {
+  const dir = path.join(TMP, `gig-${++n}`);
+  mkdirSync(path.join(dir, "deliverable", "proof", ".venv"), { recursive: true });
+  mkdirSync(path.join(dir, "deliverable", "proof", "__pycache__"), { recursive: true });
+  mkdirSync(path.join(dir, "deliverable", ".git"), { recursive: true });
+  writeFileSync(path.join(dir, "deliverable/app.html"), "<p>app</p>");
+  writeFileSync(path.join(dir, "deliverable/proof/report.py"), 'FOOTER = "Generated with AI assistance, reviewed by the operator."\nops = {"operator": ">="}\n');
+  writeFileSync(path.join(dir, "deliverable/proof/README.md"), `Run from ${path.join(homedir(), "gigs", "x")}\n`);
+  writeFileSync(path.join(dir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
+  writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify(GOOD));
+  let out = "";
+  try {
+    execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: dir, encoding: "utf8" });
+    assert.fail("the checker passed a folder with clutter");
+  } catch (e) {
+    out = String((e as { stdout?: unknown }).stdout ?? "");
+  }
+  assert.match(out, /deliverable\/proof\/\.venv is build clutter/);
+  assert.match(out, /deliverable\/proof\/__pycache__ is build clutter/);
+  assert.doesNotMatch(out, /\.git is build clutter/, "a repository's .git is the client's, not clutter");
+  assert.match(out, /deliverable\/proof\/report\.py contains internal wording "reviewed by the operator"/);
+  assert.doesNotMatch(out, /"operator":/, "an `operator` key in code is not a note");
+  assert.match(out, /deliverable\/proof\/README\.md contains this machine's home folder path/);
 });
 
 test("no file at all says so", () => {

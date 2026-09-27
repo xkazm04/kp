@@ -351,7 +351,11 @@ It also scans the client-facing text (`draftText` and every `.md/.txt/.html/.csv
 comment or bracket, "note to the operator", "internal - do not send", and kp's own file names. The
 same cycle's reviewers found those inside files meant for the client even with the gigs repository's
 rule against it. The patterns are deliberately narrow, so a client's own "plant operator" or "buyer
-personas" still passes.
+personas" still passes. Code files get only the "reviewed by the operator" form
+(`GIG_INTERNAL_MARKERS_IN_CODE`), because code has legitimate `operator` keys, but a report footer
+it generates reaches the client. The checker also fails build clutter under `deliverable/`
+(`GIG_CLUTTER_DIRS`: `.venv`, `node_modules`, caches, `*.egg-info`, where a shipped `.venv` carries a
+local path in `pyvenv.cfg`) and any client file containing the machine's home folder path.
 
 The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under
