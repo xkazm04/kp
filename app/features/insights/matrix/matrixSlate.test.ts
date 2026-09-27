@@ -122,10 +122,25 @@ test("applySlateToSelection returns a new Set of exactly the picks and leaves th
 
 test("the confidence band says whether the pick's lead is outside its own margin", () => {
   const band = (low: number, high: number) => ({ confidence: { low, high, level: "medium" } });
-  const wide = proposeSlate(grid([A, B], [R1], [[sc(80, band(72, 88))], [sc(75)]]));
+  const wide = proposeSlate(grid([A, B], [R1], [[sc(80, band(72, 88))], [sc(75, band(71, 79))]]));
   assert.equal(line(wide, "r1").separated, false);
-  const tight = proposeSlate(grid([A, B], [R1], [[sc(80, band(78, 82))], [sc(75)]]));
+  const tight = proposeSlate(grid([A, B], [R1], [[sc(80, band(78, 82))], [sc(70, band(66, 74))]]));
   assert.equal(line(tight, "r1").separated, true);
   const none = proposeSlate(grid([A, B], [R1], [[sc(80)], [sc(75)]]));
   assert.equal(line(none, "r1").separated, null);
+});
+
+test("separation is band against band: the runner-up's ceiling, not its point score", () => {
+  const band = (low: number, high: number) => ({ confidence: { low, high, level: "tight" } });
+  // The engine's tightest band is ±4. The pick's floor (76) clears the runner-up's
+  // POINT (75) but not its ceiling (79): a lead inside the noise, which the point
+  // comparison crowned.
+  const overlap = proposeSlate(grid([A, B], [R1], [[sc(80, band(76, 84))], [sc(75, band(71, 79))]]));
+  assert.equal(line(overlap, "r1").separated, false);
+  // Touching bands are not separated.
+  const touching = proposeSlate(grid([A, B], [R1], [[sc(80, band(76, 84))], [sc(72, band(68, 76))]]));
+  assert.equal(line(touching, "r1").separated, false);
+  // A runner-up with no band is unknown, never a separation measured against its point.
+  const bandless = proposeSlate(grid([A, B], [R1], [[sc(80, band(78, 82))], [sc(75)]]));
+  assert.equal(line(bandless, "r1").separated, null);
 });

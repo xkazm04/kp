@@ -13,7 +13,7 @@ export type SlateLine = {
   pick: Pick | null;
   state: SlateState;
   rival: (Pick & { placedOn: string }) | null; // top eligible scorer, allocated elsewhere
-  separated: boolean | null; // pick's confidence.low > runner-up score
+  separated: boolean | null; // pick's confidence.low > runner-up's confidence.high; null when either band is absent
 };
 export type Slate = { lines: SlateLine[]; filled: number; total: number };
 
@@ -57,14 +57,19 @@ export function proposeSlate({ rows, cols, cells, placements, added, locale }: {
     const away = top && top.candId !== got?.candId ? roleOf.get(top.candId) : undefined;
     const rival = top && away != null ? { candId: top.candId, label: top.label, score: top.score, placedOn: cols[away].p.title } : null;
     const next = got && assessed[col].filter((a) => a.candId !== got.candId).sort(order)[0];
+    // Separation is band against band: the pick's floor must clear the runner-up's
+    // CEILING. Against the runner-up's point score, a runner-up whose own band reaches
+    // past the pick's floor read as "separated" (80 [76-84] vs 75 [71-79] is a 1-point
+    // overlap). Touching is not separated; either band missing is unknown (null).
     const band = got?.cell.confidence;
+    const nextBand = next ? next.cell.confidence : undefined;
     return {
       posId: p.id,
       title: p.title,
       pick: got ? { candId: got.candId, label: got.label, score: got.score } : null,
       state: !got ? (rival ? "contested" : "uncovered") : assessed[col].length < 2 ? "thin" : rival ? "contested" : "clear",
       rival,
-      separated: band && next ? band.low > next.score : null,
+      separated: band && nextBand ? band.low > nextBand.high : null,
     };
   });
   return { lines, filled: pickOf.size, total: cols.length };
