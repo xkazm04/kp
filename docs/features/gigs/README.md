@@ -359,7 +359,10 @@ it generates reaches the client. The checker also fails build clutter under `del
 local path in `pyvenv.cfg`) and any client file containing the machine's home folder path. Every file
 under `deliverable/` must be covered by an artifact (a folder `ref` covers its contents; `.gitkeep` and
 `.gitignore` are exempt), because a stale first version left beside its replacement reached the client
-twice in the training cycle.
+twice in the training cycle. The `disclosure` may be reworded for the venue, but the checker fails one
+that does not name AI or does not claim the review in the first person. The contract says where it
+goes: with the delivery (`draftText`, README, cover note), never into output the deliverable's own code
+generates for the client's users.
 
 The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under
