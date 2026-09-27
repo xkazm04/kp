@@ -136,13 +136,24 @@ const internalRe = new RegExp(INTERNAL, ${JSON.stringify(GIG_INTERNAL_MARKERS.fl
 const clientTexts = [["draftText", typeof o.draftText === "string" ? o.draftText : ""], ["disclosure", typeof o.disclosure === "string" ? o.disclosure : ""]];
 const CLUTTER = new RegExp(${JSON.stringify(GIG_CLUTTER_DIRS.source)});
 const codeTexts = [];
+const shipped = [];
 const walk = (rel) => { let names = []; try { names = readdirSync(path.join(dir, rel), { withFileTypes: true }); } catch { return; }
   for (const d of names) { const r = rel + "/" + d.name;
     if (d.isDirectory()) { if (d.name === ".git") continue; if (CLUTTER.test(d.name)) { problems.push(r + " is build clutter - ship source only: delete it and add a .gitignore"); continue; } walk(r); continue; }
+    shipped.push(r);
     const big = statSync(path.join(dir, r)).size >= 2000000;
     if (/\\.(md|txt|html?|csv|json)$/i.test(d.name) && !big) clientTexts.push([r, readFileSync(path.join(dir, r), "utf8")]);
     else if (/\\.(py|[cm]?js|jsx|tsx?|css|ya?ml|toml|cfg|ini|sh|ps1|sql|ipynb)$/i.test(d.name) && !big) codeTexts.push([r, readFileSync(path.join(dir, r), "utf8")]); } };
 walk("deliverable");
+// Every file under deliverable/ reaches the client, so each one is listed (a folder artifact covers
+// what is inside it). A stale v1 left beside its replacement undid a revision twice in this cycle.
+const trimRef = (s) => { let t = s.split(path.sep).join("/"); if (t.startsWith("./")) t = t.slice(2); while (t.endsWith("/")) t = t.slice(0, -1); return t; };
+const refs = (Array.isArray(o.artifacts) ? o.artifacts : []).map((a) => (a && typeof a.ref === "string" ? trimRef(a.ref) : "")).filter(Boolean);
+for (const r of shipped) {
+  const base = r.slice(r.lastIndexOf("/") + 1);
+  if (base === ".gitkeep" || base === ".gitignore") continue;
+  if (!refs.some((ref) => r === ref || r.startsWith(ref + "/"))) problems.push(r + " is in deliverable/ but not in artifacts - list it, or delete it if it is an old version (every file there reaches the client)");
+}
 for (const [where, text] of clientTexts) { const m = internalRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer and move notes to NOTES.md"); }
 const inCodeRe = new RegExp(${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.source)}, ${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.flags)});
 for (const [where, text] of codeTexts) { const m = inCodeRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer"); }
@@ -181,6 +192,7 @@ export function gigDeliverableContractMarkdown(): string {
     `- **Before you finish, run \`node ${GIG_DELIVERABLE_CHECKER_FILE}\` in the gig folder and fix the file until it prints OK.** Write the object with a JSON serializer (Python \`json.dump\`, \`JSON.stringify\`), never by hand. A file in any other shape is rejected and the whole run is lost.`,
     "- Use exactly these keys. `version` is the number 1. `summary`, `draftText` and `disclosure` are required non-empty strings; `confidence` is a number; `artifacts`, `evidence` and `questions` are arrays (empty when you have none).",
     `- artifacts[].kind is one of: ${GIG_ARTIFACT_KINDS.join(", ")}; a file you wrote is kind \`file\` with \`ref\` its path relative to the gig folder. evidence[].kind is one of: ${GIG_EVIDENCE_KINDS.join(", ")}.`,
+    `- Every file under \`${GIG_CLIENT_FILES_DIR}/\` reaches the client, so each one is covered by an artifact (a \`file\` artifact whose \`ref\` is a folder covers what is inside it). When a revision replaces a file, delete the old one.`,
     "- evidence lists only what you actually ran; `passed` is null when the result has no pass/fail meaning.",
     "- confidence is your own estimate from 0 to 1; it is shown to the operator, never used as a score.",
     `- "The operator" is kp's word for the person who reviews and sends, and it never reaches the client. \`draftText\` and every file under \`${GIG_CLIENT_FILES_DIR}/\` are written in the first person, as the freelancer ("I built", "reviewed by me"). Use the disclosure sentence as given, never a third-person variant. A note for the operator goes in NOTES.md or \`questions\`, never in a client file, not even as a comment or a placeholder.`,

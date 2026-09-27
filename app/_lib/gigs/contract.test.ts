@@ -82,7 +82,9 @@ test("internal notes in client-facing text fail; a client's own 'operator' and '
     writeFileSync(path.join(dir, "deliverable/app.html"), "<p>app</p>");
     writeFileSync(path.join(dir, rel), text);
     writeFileSync(path.join(dir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
-    writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify({ ...GOOD, ...over }));
+    // A folder artifact covers every file these cases write under deliverable/.
+    const artifacts = [{ kind: "file", ref: "deliverable", title: "Proof" }];
+    writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify({ ...GOOD, artifacts, ...over }));
     try {
       return { ok: true, out: execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: dir, encoding: "utf8" }) };
     } catch (e) {
@@ -142,6 +144,23 @@ test("build clutter, this machine's home path, and a third-person footer in code
   assert.match(out, /deliverable\/proof\/report\.py contains internal wording "reviewed by the operator"/);
   assert.doesNotMatch(out, /"operator":/, "an `operator` key in code is not a note");
   assert.match(out, /deliverable\/proof\/README\.md contains this machine's home folder path/);
+});
+
+test("a file under deliverable/ that no artifact covers fails; a folder artifact covers its contents", () => {
+  // 8a2yht shipped the uncorrected script.md beside its replacement script.txt.
+  const stale = check(JSON.stringify(GOOD), ["deliverable/app.html", "deliverable/script.md", "deliverable/.gitkeep"]);
+  assert.equal(stale.ok, false);
+  assert.match(stale.out, /deliverable\/script\.md is in deliverable\/ but not in artifacts/);
+  assert.doesNotMatch(stale.out, /\.gitkeep/);
+  const dir = path.join(TMP, `gig-${++n}`);
+  mkdirSync(path.join(dir, "deliverable", "proof", "src"), { recursive: true });
+  writeFileSync(path.join(dir, "deliverable/proof/src/main.py"), "print('hi')\n");
+  writeFileSync(path.join(dir, "deliverable/app.html"), "<p>app</p>");
+  writeFileSync(path.join(dir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
+  const folder = { ...GOOD, artifacts: [...GOOD.artifacts, { kind: "file", ref: "./deliverable/proof/", title: "Source" }] };
+  writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify(folder));
+  const out = execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: dir, encoding: "utf8" });
+  assert.match(out, /^OK /);
 });
 
 test("no file at all says so", () => {

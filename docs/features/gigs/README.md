@@ -356,7 +356,10 @@ personas" still passes. Code files get only the "reviewed by the operator" form
 (`GIG_INTERNAL_MARKERS_IN_CODE`), because code has legitimate `operator` keys, but a report footer
 it generates reaches the client. The checker also fails build clutter under `deliverable/`
 (`GIG_CLUTTER_DIRS`: `.venv`, `node_modules`, caches, `*.egg-info`, where a shipped `.venv` carries a
-local path in `pyvenv.cfg`) and any client file containing the machine's home folder path.
+local path in `pyvenv.cfg`) and any client file containing the machine's home folder path. Every file
+under `deliverable/` must be covered by an artifact (a folder `ref` covers its contents; `.gitkeep` and
+`.gitignore` are exempt), because a stale first version left beside its replacement reached the client
+twice in the training cycle.
 
 The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under
