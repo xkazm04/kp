@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { robustOrderEntries, robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
-import { isFairnessAligned } from "@/app/features/shared/groupEvalTypes";
+import { isFairnessAligned, schemesVary } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness, FairnessScheme, RobustnessStatus } from "@/app/features/shared/groupEvalTypes";
 
 // ---- Fairness check (cross-scheme dynamic-weight matrix) -------------------
@@ -74,7 +74,9 @@ export function FairnessPanel({
   }
   const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds, weightSource } = fairness;
   const schemeInitials: SchemeInitials = { skills: t("schemeSkillsShort"), career: t("schemeCareerShort"), personal: t("schemePersonalShort") };
-  const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
+  // Variance is read from the schemes, as the sealed status reads it: every candidate
+  // carries a weight note (a baseline one included), so notes cannot tell a no-op apart.
+  const adjusted = robustness !== "not_varied" && schemesVary(fairness);
 
   if (!adjusted) {
     // Uniform weights: every scheme is identical, so "order unchanged" is guaranteed a

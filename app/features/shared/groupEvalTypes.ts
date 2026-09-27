@@ -109,11 +109,20 @@ export function assessRobustness(hasJob: boolean, fairness: Fairness | null): Ro
   if (!hasJob) return "not_applicable";
   if (!isFairnessAligned(fairness)) return "unavailable";
   if (fairness.labels.length < GROUP_EVAL_MIN_COHORT) return "insufficient_sample";
+  return schemesVary(fairness) ? "assessed" : "not_varied";
+}
+
+/** Whether the cross-scheme test actually varied anything: read from the scheme
+ *  vectors themselves, never from `weightNotes`. `propose_weights` writes a note for
+ *  EVERY candidate ("Baseline … weights kept" included), so "any note present" is true
+ *  on a uniform no-op and rendered the robust-order copy on a `not_varied` run. One
+ *  predicate for the sealed status and the panel, so the two cannot disagree. */
+export function schemesVary(fairness: Pick<Fairness, "schemes">): boolean {
   const first = fairness.schemes[0];
-  const varied = fairness.schemes.some((scheme) =>
+  if (!first) return false;
+  return fairness.schemes.some((scheme) =>
     scheme.skills !== first.skills || scheme.career !== first.career || scheme.personal !== first.personal
   );
-  return varied ? "assessed" : "not_varied";
 }
 
 // ---- Structured facts (eval-speaks-your-language) --------------------------

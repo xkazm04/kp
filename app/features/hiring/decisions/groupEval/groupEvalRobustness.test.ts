@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
+import { assessRobustness, schemesVary } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness } from "@/app/features/shared/groupEvalTypes";
 import { robustOrderEntries, robustOrderVerdict } from "./groupEvalHelpers.ts";
 
@@ -63,6 +63,30 @@ test("notes alone cannot claim a weighting check, and unequal schemes need no no
     "not_varied",
   );
   assert.equal(assessRobustness(true, { ...varied, weightNotes: {} }), "assessed");
+});
+
+test("a baseline note on every candidate is still a no-op: the panel's variance read is the schemes, not the notes", () => {
+  // propose_weights notes EVERY candidate ("Baseline <archetype> weights kept …"), so
+  // the panel's old "any note present" read called two uniform bau seniors "adjusted"
+  // and rendered the robust-order copy on a run the sealed record called not_varied.
+  const baselineNoted: Fairness = {
+    ...uniform,
+    weightNotes: {
+      c1: ["Baseline bau weights kept — no high-trust must-have evidence to shift on"],
+      c2: ["Baseline bau weights kept — no high-trust must-have evidence to shift on"],
+    },
+  };
+  assert.equal(schemesVary(baselineNoted), false);
+  assert.equal(assessRobustness(true, baselineNoted), "not_varied");
+  assert.equal(schemesVary(varied), true);
+  assert.equal(schemesVary({ schemes: [] }), false, "no scheme is no variance, never a pass");
+  const panel = readFileSync(
+    path.join(REPO_ROOT, "app", "features", "hiring", "decisions", "groupEval", "GroupEvalFairnessPanel.tsx"),
+    "utf-8",
+  );
+  assert.ok(/schemesVary\(fairness\)/.test(panel), "the panel reads variance through the shared predicate");
+  assert.ok(!/weightNotes\?\.\[id\]\?\.length \?\? 0\) > 0\);/.test(panel.split("if (!adjusted)")[0]),
+    "the panel no longer derives `adjusted` from the notes");
 });
 
 test("a single-candidate field is insufficient_sample, never assessed", () => {
