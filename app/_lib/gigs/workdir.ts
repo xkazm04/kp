@@ -3,9 +3,11 @@ import path from "node:path";
 import {
   GIG_CLIENT_FILES_DIR,
   GIG_CONTRACT_FILE,
+  GIG_DELIVERABLE_CHECKER_FILE,
   GIG_FACTS_FILE,
   GIG_PROCESS_LOG_FILE,
   gigContractFileMarkdown,
+  gigDeliverableCheckerSource,
 } from "./contract";
 import type { Gig } from "./types";
 
@@ -204,6 +206,7 @@ export function scaffoldGigWorkdir(
     if (writeIfAbsent(path.join(workdir, GIG_PROCESS_LOG_FILE), GIG_NOTES_MARKDOWN)) created.push(GIG_PROCESS_LOG_FILE);
     if (writeIfAbsent(path.join(workdir, GIG_CLIENT_FILES_DIR, ".gitkeep"), "")) created.push(`${GIG_CLIENT_FILES_DIR}/.gitkeep`);
     if (writeOwned(path.join(workdir, GIG_CONTRACT_FILE), gigContractFileMarkdown(gig.arena))) created.push(GIG_CONTRACT_FILE);
+    if (writeOwned(path.join(workdir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource())) created.push(GIG_DELIVERABLE_CHECKER_FILE);
   } catch {
     // Permissions, a full disk, a file where the folder should be: the caller answers
     // with the reason code; the OS message (which names local paths) stays here.

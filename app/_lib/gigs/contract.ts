@@ -57,6 +57,66 @@ export const GIG_DELIVERABLE_FILE = "kp-deliverable.json";
 /** The kp-owned contract file in every gig folder (rewritten on each prepare). */
 export const GIG_CONTRACT_FILE = "DELIVERABLE-CONTRACT.md";
 
+/** The kp-owned checker every gig folder carries (workdir.ts writes it, rewritten on prepare). */
+export const GIG_DELIVERABLE_CHECKER_FILE = "check-deliverable.mjs";
+
+/** The checker's source: plain Node ESM, no dependencies, run as `node check-deliverable.mjs`
+ *  in the gig folder. Found in the 2026-09-27 training cycle: Personas-designed specialists
+ *  wrote their OWN idea of the handoff object (decision/verdict/schema keys) and one hand-wrote
+ *  JSON with an unescaped quote, so the contract text alone does not hold - a deterministic
+ *  check the agent runs does. Stricter than kp's validator on purpose: rows kp would silently
+ *  drop, and `file` artifacts whose path does not exist, fail here so the agent fixes them.
+ *  Generated from the same vocabularies (GIG_ARTIFACT_KINDS, GIG_EVIDENCE_KINDS), so it cannot
+ *  drift from them; contract.test.ts pins its verdicts against validateGigDeliverable. */
+export function gigDeliverableCheckerSource(): string {
+  const artifactKinds = JSON.stringify([...GIG_ARTIFACT_KINDS]);
+  const evidenceKinds = JSON.stringify([...GIG_EVIDENCE_KINDS]);
+  return `// check-deliverable.mjs - written by kp; do not edit (rewritten whenever kp prepares this gig).
+// Run in the gig folder:  node ${GIG_DELIVERABLE_CHECKER_FILE}   -> prints OK, or FAIL lines to fix.
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+const FILE = ${JSON.stringify(GIG_DELIVERABLE_FILE)};
+const ARTIFACT_KINDS = ${artifactKinds};
+const EVIDENCE_KINDS = ${evidenceKinds};
+const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\\/([A-Za-z]:)/, "$1"));
+const problems = [];
+const nonEmpty = (v) => typeof v === "string" && v.trim().length > 0;
+let text;
+try { text = readFileSync(path.join(dir, FILE), "utf8"); } catch { console.log("FAIL: " + FILE + " is missing in the gig folder root"); process.exit(1); }
+let o;
+try { o = JSON.parse(text); } catch (e) {
+  const m = /position (\\d+)/.exec(String(e.message)); const pos = m ? Number(m[1]) : -1;
+  console.log("FAIL: " + FILE + " is not valid JSON: " + e.message);
+  if (pos >= 0) console.log("  near: " + JSON.stringify(text.slice(Math.max(0, pos - 80), pos + 40)));
+  console.log("  Write it with a JSON serializer (e.g. python json.dump / JSON.stringify), never by hand: quotes inside strings must be escaped.");
+  process.exit(1);
+}
+if (!o || typeof o !== "object" || Array.isArray(o)) { console.log("FAIL: the file must hold one JSON object"); process.exit(1); }
+const allowed = ["version", "summary", "draftText", "artifacts", "evidence", "disclosure", "confidence", "questions"];
+for (const k of Object.keys(o)) if (!allowed.includes(k)) problems.push("unknown key \\"" + k + "\\" - use exactly: " + allowed.join(", "));
+if (o.version !== 1) problems.push("version must be the NUMBER 1 (got " + JSON.stringify(o.version) + ")");
+for (const k of ["summary", "draftText", "disclosure"]) if (!nonEmpty(o[k])) problems.push(k + " must be a non-empty string");
+if (typeof o.confidence !== "number" || !Number.isFinite(o.confidence)) problems.push("confidence must be a number from 0 to 1");
+for (const k of ["artifacts", "evidence", "questions"]) if (!Array.isArray(o[k])) problems.push(k + " must be an array (use [] when you have none)");
+(Array.isArray(o.artifacts) ? o.artifacts : []).forEach((a, i) => {
+  if (!a || typeof a !== "object") return problems.push("artifacts[" + i + "] must be an object {kind, ref, title}");
+  if (!ARTIFACT_KINDS.includes(a.kind)) problems.push("artifacts[" + i + "].kind must be one of " + ARTIFACT_KINDS.join(", "));
+  if (!nonEmpty(a.ref)) problems.push("artifacts[" + i + "].ref must be a non-empty string");
+  else if (a.kind === "file" && !existsSync(path.join(dir, a.ref))) problems.push("artifacts[" + i + "].ref \\"" + a.ref + "\\" does not exist (paths are relative to the gig folder)");
+  if (!nonEmpty(a.title)) problems.push("artifacts[" + i + "].title must be a non-empty string");
+});
+(Array.isArray(o.evidence) ? o.evidence : []).forEach((e, i) => {
+  if (!e || typeof e !== "object") return problems.push("evidence[" + i + "] must be an object {kind, command, result, passed}");
+  if (!EVIDENCE_KINDS.includes(e.kind)) problems.push("evidence[" + i + "].kind must be one of " + EVIDENCE_KINDS.join(", "));
+  if (!nonEmpty(e.result)) problems.push("evidence[" + i + "].result must be a non-empty string (what it printed)");
+  if (!(e.passed === true || e.passed === false || e.passed === null)) problems.push("evidence[" + i + "].passed must be true, false or null");
+});
+(Array.isArray(o.questions) ? o.questions : []).forEach((q, i) => { if (!nonEmpty(q)) problems.push("questions[" + i + "] must be a non-empty string"); });
+if (problems.length) { for (const p of problems) console.log("FAIL: " + p); process.exit(1); }
+console.log("OK " + FILE + " matches ${GIG_DELIVERABLE_CONTRACT} (" + o.artifacts.length + " artifacts, " + o.evidence.length + " evidence, " + o.questions.length + " questions)");
+`;
+}
+
 /** The disclosure sentence every deliverable must carry (the specialist may adapt the
  *  wording to the venue, never drop it). */
 export const GIG_DISCLOSURE_SENTENCE =
@@ -80,6 +140,7 @@ export function gigDeliverableContractMarkdown(): string {
     "```" + GIG_DELIVERABLE_FENCE,
     JSON.stringify(example, null, 2),
     "```",
+    `- **Before you finish, run \`node ${GIG_DELIVERABLE_CHECKER_FILE}\` in the gig folder and fix the file until it prints OK.** Write the object with a JSON serializer (Python \`json.dump\`, \`JSON.stringify\`), never by hand. A file in any other shape is rejected and the whole run is lost.`,
     "- Use exactly these keys. `version` is the number 1. `summary`, `draftText` and `disclosure` are required non-empty strings; `confidence` is a number; `artifacts`, `evidence` and `questions` are arrays (empty when you have none).",
     `- artifacts[].kind is one of: ${GIG_ARTIFACT_KINDS.join(", ")}; a file you wrote is kind \`file\` with \`ref\` its path relative to the gig folder. evidence[].kind is one of: ${GIG_EVIDENCE_KINDS.join(", ")}.`,
     "- evidence lists only what you actually ran; `passed` is null when the result has no pass/fail meaning.",
@@ -113,6 +174,7 @@ export function gigContractFileMarkdown(arena: GigArena): string {
     `- \`${GIG_PROCESS_LOG_FILE}\`: your process log, under its headings.`,
     `- \`${GIG_CLIENT_FILES_DIR}/\`: every file meant for the client, and nothing else.`,
     `- \`${GIG_DELIVERABLE_FILE}\`: the deliverable object you write at the end, in the folder root (below).`,
+    `- \`${GIG_DELIVERABLE_CHECKER_FILE}\`: kp's checker for that object - run it before you finish.`,
     "",
     "## Review checklist",
     "The operator ticks these before anything is sent. Draft so every one can be ticked:",

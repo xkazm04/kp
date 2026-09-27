@@ -102,7 +102,7 @@ test("scaffold: creates the files once, never overwrites, and re-creates only wh
   const first = scaffoldGigWorkdir(gig(), { env, now: () => new Date("2026-09-25T10:00:00Z") });
   assert.ok(first.ok);
   if (!first.ok) return;
-  assert.deepEqual(first.created, ["GIG.md", "NOTES.md", "deliverable/.gitkeep", "DELIVERABLE-CONTRACT.md"]);
+  assert.deepEqual(first.created, ["GIG.md", "NOTES.md", "deliverable/.gitkeep", "DELIVERABLE-CONTRACT.md", "check-deliverable.mjs"]);
   const contract = readFileSync(path.join(first.workdir, "DELIVERABLE-CONTRACT.md"), "utf8");
   assert.ok(contract.includes("kp-deliverable.json") && contract.includes('"version": 1'), "the contract names the file and the exact shape");
   // The rules reach the run through the folder (kp sends a gig specialist no prompt): the
