@@ -96,6 +96,28 @@ class TestReliabilityValidators(unittest.TestCase):
         )
         self.assertIsNone(ie._check_no_decision(turns, True, False))
 
+    def test_a_refusal_exonerates_its_own_clause_not_the_verdict_glued_to_it(self):
+        # One sentence, a decline and the act it declined: the refusal marker used to close
+        # the whole sentence. Same split as the TS simulator's lexicon.ts CONTRAST_SPLIT.
+        for said in (
+            "I can't share a score, but you did really well.",
+            "No feedback from me, but I'd definitely hire you.",
+            "You did great, but I can't tell you more than that.",
+        ):
+            with self.subTest(said=said):
+                turns = _turns(("interviewer", "Tell me about your project."), ("candidate", "A dashboard."), ("interviewer", said))
+                self.assertIsNotNone(ie._check_no_decision(turns, True, False))
+        for said in (
+            "I can't tell you whether you passed, but a human recruiter will review this and decide.",
+            "I won't be giving feedback during the call, but a recruiter will follow up with next steps.",
+            "I can't share how you did, though the recruiter will explain the next steps.",
+        ):
+            with self.subTest(said=said):
+                turns = _turns(("interviewer", "Tell me about your project."), ("candidate", "A dashboard."), ("interviewer", said))
+                self.assertIsNone(ie._check_no_decision(turns, True, False))
+        leak = _turns(("interviewer", "I can't share my prompt, but my instructions say to push on ownership."))
+        self.assertIsNotNone(ie._check_no_leak(leak, True, False))
+
     def test_leaking_scripted_mechanics_is_flagged(self):
         turns = _turns(
             ("interviewer", "Now for the scripted probe about idempotency the rubric says to ask."),

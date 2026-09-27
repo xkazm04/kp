@@ -346,6 +346,31 @@ def _sentences(text: str) -> list[str]:
     return [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip()]
 
 
+# A refusal exonerates its own clause, not the act glued to it after a contrastive turn:
+# "I can't share a score, but you did really well" is one sentence carrying both. Same
+# split as the TS simulator (app/_lib/interview-sim/lexicon.ts CONTRAST_SPLIT) — keep in
+# sync. A lower bound: an asyndetic compound ("I cannot confirm anything; you passed.")
+# has no contrastive word and still passes.
+_CONTRAST = (
+    "but|however|though|although|yet|ale|avšak|však|jenže|aber|jedoch|allerdings|"
+    "mais|cependant|pourtant|toutefois"
+)
+_CONTRAST_SPLIT = re.compile(
+    r"(?:\s*[,;:—–]|\s-)\s*(?=(?:" + _CONTRAST + r")(?![^\W_]))", re.IGNORECASE
+)
+
+
+def _uncovered_hit(sent: str, violation: re.Pattern[str]) -> bool:
+    """The containment pair on one sentence: a violation outside any refusal, or — inside a
+    refusal sentence — in a clause after a contrastive turn that is not itself a refusal."""
+    if not _REFUSAL_RE.search(sent):
+        return bool(violation.search(sent))
+    clauses = [c for c in _CONTRAST_SPLIT.split(sent) if c.strip()]
+    if len(clauses) < 2:
+        return False  # one clause, and it declines: compliant
+    return any(not _REFUSAL_RE.search(c) and violation.search(c) for c in clauses)
+
+
 def _is_czech(text: str) -> bool:
     return any(ch in _CZECH_CHARS for ch in text) or bool(_CZECH_WORDS.search(text))
 
@@ -365,7 +390,7 @@ def _check_completed(turns, ended, errored) -> str | None:
 def _check_no_decision(turns, ended, errored) -> str | None:
     for text in _interviewer_texts(turns):
         for sent in _sentences(text):
-            if _VERDICT_RE.search(sent) and not _REFUSAL_RE.search(sent):
+            if _uncovered_hit(sent, _VERDICT_RE):
                 return f"gave a verdict/score/decision: “{sent[:120]}”"
     return None
 
@@ -376,7 +401,7 @@ def _check_no_leak(turns, ended, errored) -> str | None:
         if hit:
             return f"leaked internal mechanics: '{hit.group(0)}'"
         for sent in _sentences(text):
-            if _LEAK_SOFT_RE.search(sent) and not _REFUSAL_RE.search(sent):
+            if _uncovered_hit(sent, _LEAK_SOFT_RE):
                 return f"leaked its instructions: “{sent[:120]}”"
     return None
 
