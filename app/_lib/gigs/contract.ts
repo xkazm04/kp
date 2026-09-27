@@ -62,11 +62,11 @@ export const GIG_DELIVERABLE_CHECKER_FILE = "check-deliverable.mjs";
 
 /** Internal notes that leaked into client-facing text (the proposal and deliverable/) - the
  *  shapes the 2026-09-27 training cycle's reviewers found: an `OPERATOR:` / `[internal note]`
- *  label opening a line (after any markdown `*`, `_`, `-`, `>` or `#`), a comment or a bracket, "note to the operator", "internal - do not
- *  send", and kp's own file names. Deliberately narrow: "the plant operator", "buyer personas"
+ *  label opening a line (after any markdown `*`, `_`, `-`, `>` or `#`), a comment or a bracket, "note to the operator", "reviewed by the operator",
+ *  "internal - do not send", and kp's own file names. Deliberately narrow: "the plant operator", "buyer personas"
  *  and an "Operators" heading are a client's own domain and pass. */
 export const GIG_INTERNAL_MARKERS =
-  /(?:^|<!--|[[(])[ \t*_>#-]*(?:operator|internal)(?:[ \t]+notes?)?[ \t*_]*[:\]]|\bnotes?[ \t]+(?:for|to)[ \t]+(?:the[ \t]+)?operator\b|\binternal[ \t]*[-:\u2013\u2014][ \t]*do[ \t]+not[ \t]+send\b|\bdo[ \t]+not[ \t]+send[ \t]+(?:this[ \t]+)?to[ \t]+(?:the[ \t]+)?client\b|\bkp-deliverable\b|\bkp\.gig\b/im;
+  /(?:^|<!--|[[(])[ \t*_>#-]*(?:operator|internal)(?:[ \t]+notes?)?[ \t*_]*[:\]]|\bnotes?[ \t]+(?:for|to)[ \t]+(?:the[ \t]+)?operator\b|\binternal[ \t]*[-:\u2013\u2014][ \t]*do[ \t]+not[ \t]+send\b|\bdo[ \t]+not[ \t]+send[ \t]+(?:this[ \t]+)?to[ \t]+(?:the[ \t]+)?client\b|\b(?:reviewed|checked|approved|edited|sent)[ \t]+by[ \t]+(?:the[ \t]+)?operator\b|\bkp-deliverable\b|\bkp\.gig\b/im;
 
 /** The checker's source: plain Node ESM, no dependencies, run as `node check-deliverable.mjs`
  *  in the gig folder. Found in the 2026-09-27 training cycle: Personas-designed specialists

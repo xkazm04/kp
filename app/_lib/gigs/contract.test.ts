@@ -98,6 +98,9 @@ test("internal notes in client-facing text fail; a client's own 'operator' and '
   // Markdown emphasis before the label (8m1azy's template: "*OPERATOR NOTE: ...").
   const emphasised = withText("deliverable/template.md", "# Today's Plan\n*OPERATOR NOTE: export to .docx*\n");
   assert.equal(emphasised.ok, false, emphasised.out);
+  // A disclosure written about us in the third person (myt1dp: "reviewed by the operator before sending").
+  const prose = withText("deliverable/guide.md", "Prepared with AI assistance and reviewed by the operator before sending.\n");
+  assert.equal(prose.ok, false, prose.out);
   const draft = withText("deliverable/docs/readme.md", "fine", { draftText: "Hi! Note for the operator: attach the PDF." });
   assert.equal(draft.ok, false);
   assert.match(draft.out, /draftText contains internal wording/);
