@@ -13072,7 +13072,13 @@
           "title": "Languages",
           "hint": "read from your CV",
           "none": "None read",
-          "rule": "Change them in your CV, not here."
+          "hintOwn": "your own list",
+          "levelOf": "Level for {value}",
+          "levelNone": "No level stated",
+          "native": "Native",
+          "add": "Add a language, e.g. German (B2)",
+          "full": "This list holds at most {max} languages. Remove one to add another.",
+          "ruleEdit": "Your designed CV prints this list instead of your CV’s own. Remove them all and your CV’s list applies again."
         },
         "saving": "Saving…",
         "saved": "Saved · {set} of 5 set",
@@ -13210,7 +13216,10 @@
         "noSkillsDrop": "Drop a fuller CV",
         "noSkillsPolish": "Polish my CV",
         "twins": "{n, plural, one {+# more place} other {+# more places}}",
-        "noReqs": "the ad lists no requirements, so skills were not compared"
+        "noReqs": "the ad lists no requirements, so skills were not compared",
+        "unmeasuredTitle": "{n, plural, one {# ad lists no requirements, so it is not ranked with the rest:} other {# ads list no requirements, so they are not ranked with the rest:}}",
+        "unmeasuredScore": "{n} on direction and fit",
+        "unmeasuredNone": "skills not compared"
       },
       "weigh": {
         "eyebrow": "Step 7 · Weigh",
@@ -13427,13 +13436,14 @@
       "printInstead": "Print it instead",
       "pdfFailed": "Could not make the PDF. Print it instead: the layout is the same.",
       "improvements": "{n, plural, =0 {Nothing needed tidying} one {# wording tidied} other {# wordings tidied}}",
-      "improvementsHint": "Tool names, spelling and line breaks, tidied. Nothing was added to what your CV says.",
+      "improvementsHint": "Tool names, spelling, line breaks and repeated titles, tidied. Nothing was added to what your CV says.",
       "kind": {
         "term": "Tool name",
         "spelling": "Spelling",
         "hyphen": "Line break",
         "capital": "Capital letter",
-        "tailor": "Tailoring"
+        "tailor": "Tailoring",
+        "repeat": "Repeated title"
       },
       "previewLabel": "Preview of your designed CV",
       "tailorLabel": "Tailor for",
@@ -13489,7 +13499,20 @@
         "toggle": "How a parser reads it",
         "hint": "The text a hiring system reads out of your PDF, in its order. If a line is wrong or missing here, it is wrong or missing for them too.",
         "columns": "The text a hiring system reads out of your PDF, in its order. {layout} has a side column: a system that reads by position may mix it into these lines."
+      },
+      "held": {
+        "toggle": "{n, plural, =0 {No lines held back} one {# line held back for length} other {# lines held back for length}}",
+        "hint": "Older roles get fewer lines so the CV keeps to its pages. These lines are still yours and nothing was deleted: if one matters, move it up in your CV."
       }
+    },
+    "erase": {
+      "open": "Delete everything about me",
+      "title": "Delete everything about you?",
+      "body": "This deletes your profile, every CV you have had read, your CV and fit conversations, your saved CV design, your cover-note drafts and the postings gathered for you (unless another job seeker shares this workspace). Your job sources stay as they are. This cannot be undone.",
+      "confirm": "Delete everything",
+      "working": "Deleting…",
+      "cancel": "Keep my data",
+      "failed": "Your data could not be deleted right now. Please try again."
     }
   },
   "journey": {

@@ -58,9 +58,9 @@ becomes a sticky horizontal strip.
 | --- | --- | --- |
 | 1 Arrive | `StepArrive.tsx` | the real import (extract → draft → save, `importOutcome.ts` classifies each hop) as a three-stage checklist; folds to one line once a CV is in. The privacy line says what happens: nothing goes to a job board, and reading the CV may use the AI model this install is set up with (else the built-in parser); replacing a CV says scores stay until the next scan |
 | 2–3 Your CV → You | `StepYou.tsx` | the CV text beside the person read out of it; on first view per CV per session the phrases the reading used light up and FLY into the portrait (`readCv` finds them on word boundaries, one flight per key). Skill tiles: size = level, SHAPE = provenance (solid work · half side project · ring study · dashed italic + STATED tag). "No AI read this" is one calm line when the draft came from the fixed parser. **Polish my CV** opens the existing `CvStudio` overlay |
-| 4 What you want | `StepWant.tsx` | five tap-first cards (places + country codes, pay floor slider with currency and period, titles, work modes, level) + languages read-only from the CV; the target FIELDS (`targetRoleFamilies`) as removable chips beside the titles, with the note that titles now shape the ranking; an unreadable country code is said inline. Saves as you go: `PUT /api/jobseeker/profile { preferences, preferencesReplace: true }`, debounced; says scores move on the next scan and offers Scan now |
+| 4 What you want | `StepWant.tsx` | five tap-first cards (places + country codes, pay floor slider with currency and period, titles, work modes, level) + a languages card: each language a token with a level picker (none stated, A1-C2, native), add by name ("German (B2)" sets the level), remove, at most 12 (`WantLanguages.tsx`, `languageEntries.ts`). It seeds from the CV's languages and saves `preferences.languages`; that list, when non-empty, is what the designed CV prints instead of the CV's own Languages block (`cvDocument.ts`); emptying it hands the CV its own list back. Languages do not change the ranking; the target FIELDS (`targetRoleFamilies`) as removable chips beside the titles, with the note that titles now shape the ranking; an unreadable country code is said inline. Saves as you go: `PUT /api/jobseeker/profile { preferences, preferencesReplace: true }`, debounced; says scores move on the next scan and offers Scan now |
 | 5 The sieve | `StepSieve.tsx` | every posting a dot, poured through named layers: held at the door (source off or paused), one layer per hard gate (most-catching first; a two-gate posting ringed on the first, ghosted on the second), waiting for a score, then the scored field piled by score. Counters tick as dots land; a decision or a source switch MOVES dots. Each layer opens a list where a gated row states what it would have scored — never a zero |
-| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort. A "Your direction" filter over the list (on by default when a target title is stated and a row matches; it says how many postings it hides; the top five stay the sieve's own ranking and carry a bullseye when they match the target); the skyline is a keyboard slider; a profile with no skill claims says its scores come from field and level only, with "drop a fuller CV" / "polish". The same job listed once per place (EURES files a multi-region vacancy per region) is ONE row - same source, title and employer (`sieveModel.ts` `twinKey`), the best-scored copy kept, "+N more places" on it; a row with no employer is never folded. A posting whose ad lists no requirements says so beside its score (skills were not compared, which is why it sits low) |
+| 6 Worth your evening | `StepEvening.tsx` | lift skills (missing most often across the top 20 open), the skyline (every scored posting: bar = confidence band, line = score; drag or Shift+arrows to pick a range), the top five as cards, and the whole list with search / tier / mode / status / sort. A "Your direction" filter over the list (on by default when a target title is stated and a row matches; it says how many postings it hides; the top five stay the sieve's own ranking and carry a bullseye when they match the target); the skyline is a keyboard slider; a profile with no skill claims says its scores come from field and level only, with "drop a fuller CV" / "polish". The same job listed once per place (EURES files a multi-region vacancy per region) is ONE row - same source, title and employer (`sieveModel.ts` `twinKey`), the best-scored copy kept, "+N more places" on it; a row with no employer is never folded. A posting whose ad lists no requirements (`skillsStated: false`, from the structured job's `requirements`) is scored 0 on skills by the matcher - its pinned rule (`test_scoring_contract.py` `UnmeasuredIsNotAPerfectFitTest`) - so it shows "—" in place of that total, with its score on what WAS measured (career + personal in their own weights, `directionTotalOf` in `db/jobseeker-postings.ts`, never a rank key). It never takes a top-five place on the skills 0: open ones are listed apart above the list (`sieveModel` `unmeasured`), the stated direction first |
 | 7 Weigh | `StepWeigh.tsx` | one posting via `GET /api/jobseeker/postings/[id]`: band gauge, the contribution stack, skills with provenance, the settled fit conversation (gaps, questions, cover-note draft) or a door to `FitStudio`, the deep read, the ad; the five checks, pay against the floor in one currency (`compareSalary`), where it came from. A sticky decide bar: Apply opens the ad first and only then offers "I applied", Let go asks why (`DISMISS_REASONS`), Undo; keys A / S / D decide, J / K walk the list the seeker is looking at. A direction chip ("Matches your target: …" / "In your target field" / "Your past field: …", from `targetAlignment`), "was n" beside a score a deep-dive replaced (`previousTotal`), and a note when the written read predates the last profile change (`reasoningStale`); the cover-note draft survives a reload, per posting (sessionStorage, per viewer) |
 | 8 Sources | `StepSources.tsx` | three lanes (tier A one tap; tier B a lock until the site's clause is acknowledged in a modal — checkbox first, CTA disabled until ticked, a changed clause re-asks; tier C refused, no control). Each card says what the source put in the sieve, or how many wait at the door while it is off |
 
@@ -429,8 +429,12 @@ remembered per browser (`localStorage` `kp-me-cv-design`) and, on the page, in t
 **What "better expressed" means, and does not.** Deterministic and listed, never silent.
 Canonical tool names (NextJS -> Next.js, Postgres -> PostgreSQL, Langchain -> LangChain,
 lower-case acronyms), a small misspelling dictionary (Continous -> Continuous), a hyphen the
-line wrap left open ("prototype-to- production"), a lower-case sentence start, and the weak
-opener "Responsible for" -> "Owned". Each change is an `improvements` row the designer
+line wrap left open ("prototype-to- production"), a lower-case sentence start, and a line
+that opens with the role's own title ("QA Engineer (SOAP, Cypress) - Legal web app" under
+the "QA Engineer" entry reads "Legal web app (SOAP, Cypress)", `withoutRoleHead`). A verb is
+never raised ("Responsible for" stays). Lines a CV lists without full stops stay separate
+bullets: a line closing a parenthesis before a capitalised line is two items, not one
+wrapped sentence (`bulletsOf`). Each change is an `improvements` row the designer
 lists ("12 wordings tidied"). A word that is also prose ("the rest of the team", "soap")
 stays prose unless a technical neighbour makes it the acronym ("Rest/Graph", "rest API").
 No claim, number or date is invented: dates are only typeset (en dash, two-digit month).
@@ -475,7 +479,7 @@ owner questions and are never deleted from their words. Bullets are ranked by th
 ladder (a stated number > a stated scale > a before/after > action and object) and budgeted by
 recency: 6 for the current role, 4 within ten years, 2 older, one line past 15 years or off
 target (`CvRole.compact`); a role is never deleted, and bullets over budget are held back
-(`trimmed`, never printed). Skills are evidenced-first and capped at 15, with a level WORD, never
+(`trimmed`, never printed; the designer lists them per role under "lines held back for length"). Skills are evidenced-first and capped at 15, with a level WORD, never
 pips; a skill no role shows, and a soft-skill list, becomes an owner question. Languages carry
 their CEFR level when stated. Bold is at most 2 terms per role, never in the skills list.
 Non-job evidence (projects, thesis, courses, certifications) becomes a dated `projects`
@@ -577,9 +581,20 @@ scores, dialogs, deep-dives). Three things did not, and now do:
   storage is only the first paint; an edit the server never confirmed is re-sent, not
   overwritten; a failed save says "Not saved yet - retrying" and keeps the text. The print
   page stays URL-first. A malformed body answers 400 `JOBSEEKER_REQUEST_INVALID`.
-- Both tables are tenancy-scoped (workspace + seeker) and sit in `ERASURE_EXEMPT` beside
-  `jobseeker_profiles` under the same known gap: there is still no erasure door for a
-  seeker's own data.
+- Both tables are tenancy-scoped (workspace + seeker) and are erased by the seeker's own
+  door (below), not by candidate erasure.
+
+**Delete everything about me.** `DELETE /api/jobseeker/profile` with `{"confirm":"erase"}`
+(any other body: 400 `JOBSEEKER_REQUEST_INVALID`; 5 per 10 minutes per IP) runs
+`eraseJobseekerData` (`db/jobseeker-profiles.ts`) - one IMMEDIATE transaction, every
+statement bound to the workspace: the seeker's UI state, dialogs, CV archive and profile
+row, and - when no other seeker profile is left in the workspace - every
+`jobseeker_postings` row (their match, reasoning, triage and notes are all about this
+seeker; the ads return on the next scan). `jobseeker_sources` (config) is kept. The door is
+a quiet link in the /me footer behind a `ConfirmDialog` (`EraseMeDoor.tsx`); on success it
+clears every `kp-me-` browser key and reloads. A scan already running is not cancelled
+(importing the task hub put the route over its import budget): it can match nothing new
+without a profile, but a match it computed before the erase can still land on a row.
 
 ## Direction and markets
 
@@ -965,7 +980,8 @@ change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
 
 ## Known gaps
 
-- No seeker erasure door: nothing deletes a `jobseeker_profiles` row or cascades to its dialogs (`ERASURE_EXEMPT` in `app/_lib/db/pipeline.ts` names the gap).
+- The seeker's erasure does not cancel a scan already running (see "Delete everything about me").
+- With two seeker profiles in one workspace, the postings are shared and no column says whose triage a row carries, so one seeker's erasure leaves the postings alone.
 - A deep-dive whose posting changed mid-dive writes nothing (`moved: true`), but POST `/deepdive` still answers `source: "llm"` and the scan counts it in `deepDived`; the client contract has no "moved" state.
 - Regex locators: a nested quantifier (`(a+)+`, `(?:x*)*`, `(a+){2,}`) is refused at validation and a stored one is a miss at run time; one locator collects at most 1000 matches per page.
 - The designed CV's "better expressed" is deterministic tidying only; rewording bullets with a model is the CV-polish conversation's job and does not yet feed the designed sheet (its output is Markdown).

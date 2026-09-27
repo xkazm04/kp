@@ -13072,7 +13072,13 @@
           "title": "Langues",
           "hint": "lues dans votre CV",
           "none": "Aucune lue",
-          "rule": "Modifiez-les dans votre CV, pas ici."
+          "hintOwn": "votre propre liste",
+          "levelOf": "Niveau pour {value}",
+          "levelNone": "Aucun niveau indiqué",
+          "native": "Langue maternelle",
+          "add": "Ajoutez une langue, p. ex. allemand (B2)",
+          "full": "La liste compte au plus {max} langues. Retirez-en une pour en ajouter une autre.",
+          "ruleEdit": "Votre CV mis en page affiche cette liste à la place de celle de votre CV. Si vous les retirez toutes, la liste de votre CV s’applique de nouveau."
         },
         "saving": "Enregistrement…",
         "saved": "Enregistré · réponses : {set} sur 5",
@@ -13210,7 +13216,10 @@
         "noSkillsDrop": "Déposer un CV plus complet",
         "noSkillsPolish": "Retravailler mon CV",
         "twins": "{n, plural, one {+# autre lieu} other {+# autres lieux}}",
-        "noReqs": "l’annonce ne liste aucune exigence, les compétences n’ont donc pas été comparées"
+        "noReqs": "l’annonce ne liste aucune exigence, les compétences n’ont donc pas été comparées",
+        "unmeasuredTitle": "{n, plural, one {# annonce ne liste aucune exigence, elle n’est donc pas classée avec les autres :} other {# annonces ne listent aucune exigence, elles ne sont donc pas classées avec les autres :}}",
+        "unmeasuredScore": "orientation et adéquation : {n}",
+        "unmeasuredNone": "compétences non comparées"
       },
       "weigh": {
         "eyebrow": "Étape 7 · Peser",
@@ -13427,13 +13436,14 @@
       "printInstead": "L’imprimer à la place",
       "pdfFailed": "Impossible de créer le PDF. Imprimez-le à la place : la mise en page est la même.",
       "improvements": "{n, plural, =0 {Rien à retoucher} one {# formulation retouchée} other {# formulations retouchées}}",
-      "improvementsHint": "Noms d’outils, orthographe et retours à la ligne, retouchés. Rien n’a été ajouté à ce que dit votre CV.",
+      "improvementsHint": "Noms d’outils, orthographe, retours à la ligne et intitulés répétés, retouchés. Rien n’a été ajouté à ce que dit votre CV.",
       "kind": {
         "term": "Nom d’outil",
         "spelling": "Orthographe",
         "hyphen": "Retour à la ligne",
         "capital": "Majuscule",
-        "tailor": "Adaptation"
+        "tailor": "Adaptation",
+        "repeat": "Intitulé répété"
       },
       "previewLabel": "Aperçu de votre CV mis en page",
       "tailorLabel": "Adapter pour",
@@ -13489,7 +13499,20 @@
         "toggle": "Ce qu'en lit un logiciel",
         "hint": "Le texte qu'un logiciel de recrutement extrait de votre PDF, dans cet ordre. Ce qui est faux ou manque ici l'est aussi pour lui.",
         "columns": "Le texte qu'un logiciel de recrutement extrait de votre PDF, dans cet ordre. {layout} a une colonne latérale : un logiciel qui lit selon la position peut la mêler à ces lignes."
+      },
+      "held": {
+        "toggle": "{n, plural, =0 {Aucune ligne mise de côté} one {# ligne mise de côté faute de place} other {# lignes mises de côté faute de place}}",
+        "hint": "Les postes anciens ont moins de lignes pour que le CV tienne dans ses pages. Ces lignes restent les vôtres et rien n’a été supprimé : si l’une compte, remontez-la dans votre CV."
       }
+    },
+    "erase": {
+      "open": "Supprimer tout ce qui me concerne",
+      "title": "Supprimer tout ce qui vous concerne ?",
+      "body": "Cela supprime votre profil, chaque CV que vous avez fait lire, vos conversations sur le CV et sur l’adéquation aux offres, la mise en page enregistrée de votre CV, vos brouillons de lettres de motivation et les offres rassemblées pour vous (sauf si une autre personne cherche un emploi dans cet espace de travail). Vos sources restent telles quelles. Cette action est irréversible.",
+      "confirm": "Tout supprimer",
+      "working": "Suppression…",
+      "cancel": "Garder mes données",
+      "failed": "Vos données n’ont pas pu être supprimées pour le moment. Veuillez réessayer."
     }
   },
   "journey": {

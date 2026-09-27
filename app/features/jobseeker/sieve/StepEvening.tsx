@@ -421,9 +421,9 @@ export function StepEvening({
                     {tDir("mark")}
                   </span>
                 ) : null}
-                <span className="meta">{[r.company, r.location, r.workMode ? tMode(r.workMode) : null, facts.twins[r.id]?.length ? t("twins", { n: facts.twins[r.id]!.length }) : null, r.matchedSkills.length + r.missingSkills.length === 0 ? t("noReqs") : null].filter(Boolean).join(" · ")}</span>
+                <span className="meta">{[r.company, r.location, r.workMode ? tMode(r.workMode) : null, facts.twins[r.id]?.length ? t("twins", { n: facts.twins[r.id]!.length }) : null, r.skillsStated === false ? t("noReqs") : null].filter(Boolean).join(" · ")}</span>
                 <span className="scoreline">
-                  <span className="sc">{r.matchTotal}</span>
+                  <span className="sc">{r.skillsStated === false ? "—" : r.matchTotal}</span>
                   {r.confidence ? (
                     <span className="band">
                       <BandGlyph total={r.matchTotal ?? 0} low={r.confidence.low} high={r.confidence.high} tier={r.fitTier} width={96} />
@@ -458,6 +458,20 @@ export function StepEvening({
           })
         )}
       </div>
+
+      {facts.unmeasured.length ? (
+        // Open ads that state no skill: not ranked on a skills score of 0, and not left to
+        // sink under it either - named here, the seeker's own direction first.
+        <div className="lift" role="group" aria-label={t("unmeasuredTitle", { n: facts.unmeasured.length })}>
+          <span className="lk">{t("unmeasuredTitle", { n: facts.unmeasured.length })}</span>
+          {facts.unmeasured.slice(0, 6).map((r) => (
+            <button key={r.id} type="button" className={SV_CHIP_BTN} onClick={() => onOpen(r.id)}>
+              {directionOf(r)?.state === "target" ? <TargetMark size={12} /> : null}
+              {[r.title, r.company, r.directionTotal !== null ? t("unmeasuredScore", { n: r.directionTotal }) : null].filter(Boolean).join(" · ")}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <h3>{t("allTitle")}</h3>
       <div className="filters">
@@ -569,12 +583,15 @@ export function StepEvening({
                     {isNew(r) ? `${t("new")} · ` : ""}
                     {r.status !== "new" ? `${tStatus(r.status)} · ` : ""}
                     {r.id === guidedId ? `${t("guided")} · ` : ""}
-                    {[r.company, r.location, r.workMode ? tMode(r.workMode) : null, facts.twins[r.id]?.length ? t("twins", { n: facts.twins[r.id]!.length }) : null, r.matchedSkills.length + r.missingSkills.length === 0 ? t("noReqs") : null].filter(Boolean).join(" · ")}
+                    {[r.company, r.location, r.workMode ? tMode(r.workMode) : null, facts.twins[r.id]?.length ? t("twins", { n: facts.twins[r.id]!.length }) : null, r.skillsStated === false ? t("noReqs") : null].filter(Boolean).join(" · ")}
                   </span>
                 </span>
                 <span className="bnd">
-                  <b>{r.matchTotal}</b>
-                  {r.confidence ? <BandGlyph total={r.matchTotal ?? 0} low={r.confidence.low} high={r.confidence.high} tier={r.fitTier} width={90} /> : null}
+                  {/* An ad that states no skill was scored 0 on skills: that number ranks
+                      it, but it is not shown as the seeker's fit - its measured part is. */}
+                  <b>{r.skillsStated === false ? "—" : r.matchTotal}</b>
+                  {r.skillsStated === false ? <span className="small muted">{r.directionTotal !== null ? t("unmeasuredScore", { n: r.directionTotal }) : t("unmeasuredNone")}</span> : null}
+                  {r.skillsStated !== false && r.confidence ? <BandGlyph total={r.matchTotal ?? 0} low={r.confidence.low} high={r.confidence.high} tier={r.fitTier} width={90} /> : null}
                 </span>
                 <span className="payc">{pay ? <span className="pay">{pay}</span> : <span className="pay muted">{t("payUnstated")}</span>}</span>
                 <Pips flags={r.eligibility} />

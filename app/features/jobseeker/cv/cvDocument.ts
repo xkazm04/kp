@@ -42,7 +42,8 @@ export type CvSkillItem = { name: string; level: string | null };
 export type CvSkillGroup = { title: string | null; items: CvSkillItem[]; trimmed?: CvSkillItem[] };
 export type CvEducation = { title: string; detail: string | null; dates: string | null };
 /** A deterministic wording change (this file). */
-export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital"; before: string; after: string };
+/** `repeat`: a line's opening role title dropped, since the entry line already sets it. */
+export type CvEdit = { kind: "term" | "spelling" | "hyphen" | "capital" | "repeat"; before: string; after: string };
 /** What the rules could not decide without the owner — designer-only, NEVER printed.
  *  `text` is the line (or skill) it is about, verbatim; `roleIndex` indexes `experience`.
  *  - `no_outcome`      a bullet with an action and an object but no outcome;
@@ -310,9 +311,16 @@ export function splitSentences(body: string): string[] {
   return parts.map((part) => part.trim()).filter((part) => part.length > 1);
 }
 
-/** Wrapped lines rejoined ("prototype-to-\nproduction"), then cut into sentence bullets. */
+/** Wrapped lines rejoined ("prototype-to-\nproduction"), then cut into sentence bullets.
+ *  A line that closes a parenthesis and a next line that opens with a capital are two
+ *  items, not one wrapped sentence: "IT Analyst (API design)\nFrontend development (React)"
+ *  is how a CV lists without full stops, and joining them printed one run-on bullet. */
 export function bulletsOf(text: string, log: CvImprovement[]): CvBullet[] {
-  let body = (text || "").replace(/\s+/g, " ").trim();
+  return (text || "").split(/(?<=\))[ \t]*\r?\n\s*(?=\p{Lu})/u).flatMap((chunk) => sentenceBullets(chunk, log));
+}
+
+function sentenceBullets(text: string, log: CvImprovement[]): CvBullet[] {
+  let body = text.replace(/\s+/g, " ").trim();
   // "prototype-to- production": a hyphen the line wrap left open. Recorded with the whole
   // compound so the change reads as what it is.
   body = body.replace(/([\p{L}-]*\p{L})- (\p{Ll}+)/gu, (m, a: string, b: string) => {
@@ -453,6 +461,24 @@ export function sourceRoleOf(text: string, org: string | null, allOrgs: readonly
   return { dates, lines: body };
 }
 
+/** A line that opens with the role's own title repeats the entry line the sheet already
+ *  sets ("QA Engineer - SingleCase" over "QA Engineer (SOAP, Cypress) - Legal web app").
+ *  The title goes; what the line says about the work stays, in its words: "Legal web app
+ *  (SOAP, Cypress)". A line that is only the title, or says nothing past it, is left. */
+export function withoutRoleHead(line: string, role: string, log: CvImprovement[]): string {
+  const own = foldText(role);
+  if (own.length < 3 || !foldText(line).startsWith(own)) return line;
+  const rest = line.slice(role.length).trim();
+  const both = /^\(([^()]+)\)\s*[-–—:]\s*(.+)$/.exec(rest);
+  const tail = /^[-–—:]\s*(.+)$/.exec(rest);
+  const only = /^\(([^()]+)\)$/.exec(rest);
+  const out = both ? `${both[2]!.trim()} (${both[1]!.trim()})` : tail ? tail[1]!.trim() : only ? only[1]!.trim() : null;
+  if (!out || out.length < 3) return line;
+  const cased = out.charAt(0).toLocaleUpperCase() + out.slice(1);
+  log.push({ kind: "repeat", before: line, after: cased });
+  return cased;
+}
+
 // ── skills ─────────────────────────────────────────────────────────────────────────
 
 const LEVEL_WORD = /\s*\((junior|medior|mid|senior|lead|expert|advanced|intermediate|basic|beginner|native|fluent)\)\s*$/i;
@@ -486,7 +512,9 @@ const PROJECT_BUDGET = 2;
 
 export function buildCvDocument(input: {
   profile: ProfilePayload;
-  preferences: Pick<JobseekerPreferences, "targetTitles">;
+  /** `languages`, when the seeker set any in /me, is their own statement and wins over
+   *  the CV's Languages block and the read profile list alike. */
+  preferences: Pick<JobseekerPreferences, "targetTitles"> & Partial<Pick<JobseekerPreferences, "languages">>;
   cvSourceText: string | null;
   /** "Now" for the recency budget; the caller's clock by default. */
   today?: Date;
@@ -495,7 +523,8 @@ export function buildCvDocument(input: {
    *  page and the PDF carry exactly what the seeker approved — and nothing they did not. */
   acceptedEdits?: readonly { before: string; after: string }[] | null;
 }): CvDocument {
-  // `preferences` stays on the input (the callers hold it) but no longer shapes the sheet.
+  // `preferences` stays on the input (the callers hold it); only its `languages` — the
+  // seeker's own statement from /me — shapes the sheet (the Languages section below).
   const { profile } = input;
   const today = input.today ?? new Date();
   const text = applyAcceptedEdits(input.cvSourceText ?? "", input.acceptedEdits);
@@ -558,7 +587,10 @@ export function buildCvDocument(input: {
     const dates = formatDates(parts.dates ?? source?.dates ?? null, lang);
     // Strongest outcome first (the CV's order breaks ties), then the recency budget: the
     // weakest bullets are held back, never the strongest, and never the role itself.
-    const ranked = rankByOutcome(bulletsOf(source && source.lines.length ? source.lines.join(" ") : applyAcceptedEdits(e.text ?? "", input.acceptedEdits), log), bulletLine);
+    const ranked = rankByOutcome(
+      bulletsOf(source && source.lines.length ? source.lines.map((l) => withoutRoleHead(l, parts.role, log)).join("\n") : applyAcceptedEdits(e.text ?? "", input.acceptedEdits), log),
+      bulletLine
+    );
     const budget = roleBudget(index, dates, today);
     const bullets = ranked.slice(0, budget);
     return { role: polishTerms(parts.role, log), org: parts.org, dates, bullets, compact: bullets.length === 0, trimmed: ranked.slice(budget) };
@@ -590,6 +622,7 @@ export function buildCvDocument(input: {
   const ordered = orderSkills(listed, evidence);
   const skills: CvSkillGroup[] = ordered.groups;
   const langBlock = blocks.find((b) => b.kind === "languages");
+  const statedLanguages = (input.preferences.languages ?? []).filter((l) => l.trim());
 
   const eduBlock = blocks.find((b) => b.kind === "education");
   const education: CvEducation[] = eduBlock
@@ -616,7 +649,7 @@ export function buildCvDocument(input: {
     projects,
     skills,
     education,
-    languages: languageLines(langBlock ? langBlock.lines.filter(Boolean) : null, (profile.languages ?? []).filter(Boolean), lang),
+    languages: statedLanguages.length ? languageLines(null, statedLanguages, lang) : languageLines(langBlock ? langBlock.lines.filter(Boolean) : null, (profile.languages ?? []).filter(Boolean), lang),
     improvements: dedupeImprovements(log),
     questions: [...descriptorQuestions({ headline, summarySentences, roles: experience }), ...outcomeQuestions(experience), ...ordered.questions],
   };

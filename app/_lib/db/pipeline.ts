@@ -2315,14 +2315,15 @@ export const ERASURE_EXEMPT: ReadonlyMap<string, string> = new Map([
   // Job-seeker module (/me): the SEEKER's own record, held for the seeker as the person
   // running the install - a different controller relationship from a recruiter-side
   // candidate, so a candidate's Art. 17 request routed through pipeline_entries has
-  // nothing in these tables to reach. KNOWN GAP: no seeker erasure door exists yet -
-  // no route or store function deletes a jobseeker_profiles row or cascades to its
-  // dialogs (docs/features/jobseeker/README.md, Known gaps).
-  ["jobseeker_profiles", "The seeker's OWN profile, CV text and preferences - the operator's data about themselves, never reached by a candidate scrub (no seeker delete door exists yet - a known gap)."],
-  ["jobseeker_dialogs", "The seeker's own CV-polish and fit conversations; same controller relationship as jobseeker_profiles."],
-  ["jobseeker_cvs", "Every CV the seeker had read (its text and the profile draft it produced) - the operator's data about themselves, same controller relationship as jobseeker_profiles, never reached by a candidate scrub (no seeker delete door exists yet - the same known gap)."],
-  ["jobseeker_ui_state", "The seeker's own designed-CV choices and cover-note drafts, keyed to their profile row; same controller relationship as jobseeker_profiles (no seeker delete door exists yet - the same known gap)."],
-  ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings; not keyed to any candidate."],
+  // nothing in these tables to reach. The seeker's OWN erasure is a separate door:
+  // eraseJobseekerData (db/jobseeker-profiles.ts), behind DELETE /api/jobseeker/profile,
+  // which deletes the profile row and cascades to its CVs, dialogs and UI state (and to
+  // the gathered postings when no other seeker remains in the workspace).
+  ["jobseeker_profiles", "The seeker's OWN profile, CV text and preferences - the operator's data about themselves, never reached by a candidate scrub; erased by the seeker's own door eraseJobseekerData (DELETE /api/jobseeker/profile)."],
+  ["jobseeker_dialogs", "The seeker's own CV-polish and fit conversations; same controller relationship as jobseeker_profiles, erased with the profile row by eraseJobseekerData (DELETE /api/jobseeker/profile), not by candidate erasure."],
+  ["jobseeker_cvs", "Every CV the seeker had read (its text and the profile draft it produced) - the operator's data about themselves, never reached by a candidate scrub; erased by the seeker's own door eraseJobseekerData (DELETE /api/jobseeker/profile)."],
+  ["jobseeker_ui_state", "The seeker's own designed-CV choices and cover-note drafts, keyed to their profile row; erased with that row by eraseJobseekerData (DELETE /api/jobseeker/profile), not by candidate erasure."],
+  ["jobseeker_postings", "Harvested job ADVERTISEMENTS - company-authored copy about an opening, the same class as job_postings, not keyed to any candidate. The seeker's triage and match columns on them go with the whole dataset when the workspace's last seeker uses eraseJobseekerData (DELETE /api/jobseeker/profile)."],
   ["jobseeker_sources", "Acquisition configuration (which boards/feeds, rules, acknowledgements) - operator config, no personal data."],
   // Gigs module (db/gigs-*.ts): the OPERATOR's own freelance/bounty work - paid work the
   // operator takes on, not hiring. No table is keyed to a pipeline entry or holds a

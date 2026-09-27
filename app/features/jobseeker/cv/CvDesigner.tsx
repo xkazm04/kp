@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
-import type { CvDocument, CvOwnerQuestion } from "./cvDocument";
+import { bulletLine, type CvDocument, type CvOwnerQuestion } from "./cvDocument";
 import { CV_ACCENTS, CV_DESIGN_DEFAULT, CV_DESIGN_VERSION, CV_SINGLE_FLOW, CV_TEMPLATES, cvDesignQuery, migrateSavedCvDesign, parseSavedCvDesign, type CvAccent, type CvDesign, type CvTemplate } from "./cvQuery";
 import { CV_ACCENT_BTN, CV_LINK_BTN, CV_OPTION_BTN, CV_TEMPLATE_BTN } from "./cvRecipes";
 import { tailorCvDocument, type CvCoverageWhere, type CvTailorTarget } from "./cvTailor";
@@ -167,6 +167,7 @@ export function CvDesigner({
   const [showChanges, setShowChanges] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showPlain, setShowPlain] = useState(false);
+  const [showHeld, setShowHeld] = useState(false);
   const [showMoves, setShowMoves] = useState(false);
   const [showWhere, setShowWhere] = useState(false);
 
@@ -292,6 +293,10 @@ export function CvDesigner({
   // what the rules could not decide without the seeker. Designer-only - never printed.
   const questions = sheetDoc.questions;
   const questionGroups = QUESTION_KINDS.map((kind) => ({ kind, items: questions.filter((q) => q.kind === kind) })).filter((g) => g.items.length);
+  // The lines the recency budget held back (cvContent.ts): still the seeker's, never
+  // deleted - listed per role so a cut is visible and a line worth keeping can be asked for.
+  const held = sheetDoc.experience.map((r) => ({ role: r.role, lines: (r.trimmed ?? []).map(bulletLine) })).filter((r) => r.lines.length);
+  const heldCount = held.reduce((n, r) => n + r.lines.length, 0);
   const moves = tailored?.moves ?? [];
   const coverage = tailored?.coverage ?? null;
   const whereLabel = (w: CvCoverageWhere) => (w.kind === "skills" ? t("coverage.inSkills") : w.kind === "summary" ? t("coverage.inSummary") : w.role);
@@ -475,6 +480,26 @@ export function CvDesigner({
                       <q>{q.text}</q>
                       {q.roleIndex !== null && sheetDoc.experience[q.roleIndex] ? <span className="k">{t("questions.inRole", { role: sheetDoc.experience[q.roleIndex]!.role })}</span> : null}
                     </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="cvdesk-changes">
+        <button type="button" className={CV_LINK_BTN} aria-expanded={showHeld} onClick={() => setShowHeld((v) => !v)} disabled={heldCount === 0}>
+          {t("held.toggle", { n: heldCount })}
+        </button>
+        {showHeld && heldCount ? (
+          <div className="cvdesk-list">
+            <p>{t("held.hint")}</p>
+            {held.map((r, i) => (
+              <div key={i} className="cvdesk-qgroup">
+                <p className="cvdesk-sub">{r.role}</p>
+                <ul>
+                  {r.lines.map((line, j) => (
+                    <li key={j}>{line}</li>
                   ))}
                 </ul>
               </div>

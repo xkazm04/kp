@@ -10,6 +10,10 @@
 //   gated    a hard gate removed it — it names the gate and keeps an as-if score, never 0
 //   waiting  structured but not scored yet — honest absence, not a low score
 //   scored   ranked by total, ties broken by the tighter band (the surer score first)
+//            — except an ad that states NO skill: the matcher scores its skills 0 (its
+//            pinned rule), which is a fact about the ad, not the seeker. Such rows still
+//            passed the sieve, but they never take a top-five place on that 0; open ones
+//            are listed apart as `unmeasured`, in the direction the seeker stated first.
 // …and `gone` rows stay in the scored field drawn hollow, because the seeker may have
 // decided on them before they went away.
 
@@ -31,6 +35,9 @@ export type SieveFacts = {
   /** Scored and still open to a decision (new or shortlisted), best first. */
   open: SievePosting[];
   top5: SievePosting[];
+  /** Open rows whose ad states no skill (`skillsStated === false`): not ranked with the
+   *  rest - target titles first, then by the direction-and-fit score. */
+  unmeasured: SievePosting[];
   /** Gate keys, most-catching first — the order the sieve stacks its layers. */
   gateKeys: KoReasonKey[];
   gateCounts: Partial<Record<KoReasonKey, number>>;
@@ -61,6 +68,18 @@ export function compareScored(a: SievePosting, b: SievePosting): number {
   const wa = a.confidence ? a.confidence.high - a.confidence.low : 100;
   const wb = b.confidence ? b.confidence.high - b.confidence.low : 100;
   if (wa !== wb) return wa - wb;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+const DIRECTION_ORDER: Record<string, number> = { target: 0, family: 1, past: 2, none: 3 };
+
+function compareUnmeasured(a: SievePosting, b: SievePosting): number {
+  const da = DIRECTION_ORDER[a.targetAlignment?.state ?? "none"] ?? 3;
+  const db = DIRECTION_ORDER[b.targetAlignment?.state ?? "none"] ?? 3;
+  if (da !== db) return da - db;
+  const ta = a.directionTotal ?? -1;
+  const tb = b.directionTotal ?? -1;
+  if (tb !== ta) return tb - ta;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
@@ -100,6 +119,7 @@ export function deriveSieve(rows: readonly SievePosting[], sources: readonly Pic
   for (const row of gated) for (const key of row.blockedBy) gateCounts[key] = (gateCounts[key] ?? 0) + 1;
   const gateKeys = (Object.keys(gateCounts) as KoReasonKey[]).sort((a, b) => (gateCounts[b] ?? 0) - (gateCounts[a] ?? 0) || (a < b ? -1 : 1));
   const open = scored.filter((r) => isOpenStatus(r.status));
+  const unmeasured = open.filter((r) => r.skillsStated === false).sort(compareUnmeasured);
   const byDecision = { shortlisted: 0, applied: 0, dismissed: 0 };
   const heldIds = new Set(held.map((r) => r.id));
   for (const row of rows) {
@@ -117,7 +137,8 @@ export function deriveSieve(rows: readonly SievePosting[], sources: readonly Pic
     waiting,
     scored,
     open,
-    top5: open.slice(0, 5),
+    top5: open.filter((r) => r.skillsStated !== false).slice(0, 5),
+    unmeasured,
     gateKeys,
     gateCounts,
     decided: byDecision.shortlisted + byDecision.applied + byDecision.dismissed,

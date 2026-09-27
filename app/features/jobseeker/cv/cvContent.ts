@@ -287,17 +287,27 @@ export const NATIVE_WORD: Record<CvLang, string> = { en: "native", cs: "rodilý 
 const NATIVE = /(?<![\p{L}])(native|mother tongue|first language|rodil[ýá] mluvč[íi]|mateřsk[ýá] jazyk|mateřština|muttersprache|langue maternelle)(?![\p{L}])/iu;
 const CEFR = /(?<![\p{L}\d])([ABC][12])(?![\p{L}\d])/u;
 
-/** One stated language as the sheet sets it: "Name – level" when a level is stated. */
-export function languageLine(raw: string, lang: CvLang): string | null {
+/** A stated language split into its name and level: "German (B2)", "Czech – native",
+ *  "English". `level` is a CEFR code, "native", the record's own other word ("fluent"),
+ *  or null when none is stated — never inferred. Null when there is no usable name. */
+export function splitLanguage(raw: string): { name: string; level: string | null } | null {
   const text = raw.replace(/\s+/g, " ").trim();
   if (!text) return null;
-  const paren = /^(.*?)\s*[(\[]([^)\]]*)[)\]]\s*$/.exec(text) ?? /^(.*?)\s*[-–—:]\s*(.+)$/.exec(text);
+  // A hyphen separates a level only after a space ("English - C1"): "Swiss-German" is a name.
+  const paren = /^(.*?)\s*[(\[]([^)\]]*)[)\]]\s*$/.exec(text) ?? /^(.*?)\s*(?:[–—:]|\s-)\s*(.+)$/.exec(text);
   const name = (paren ? paren[1]! : text).trim();
   const stated = (paren ? paren[2]! : "").trim();
   if (!name || name.length > 40) return null;
-  const cased = name.charAt(0).toLocaleUpperCase() + name.slice(1);
   const code = CEFR.exec(stated.toUpperCase());
-  const level = code ? code[1]! : NATIVE.test(stated) ? NATIVE_WORD[lang] : stated || null;
+  return { name, level: code ? code[1]! : NATIVE.test(stated) ? "native" : stated || null };
+}
+
+/** One stated language as the sheet sets it: "Name – level" when a level is stated. */
+export function languageLine(raw: string, lang: CvLang): string | null {
+  const split = splitLanguage(raw);
+  if (!split) return null;
+  const cased = split.name.charAt(0).toLocaleUpperCase() + split.name.slice(1);
+  const level = split.level === "native" ? NATIVE_WORD[lang] : split.level;
   return level ? `${cased} – ${level}` : cased;
 }
 

@@ -22,6 +22,7 @@ import { StepWant } from "./StepWant";
 import { StepWeigh } from "./StepWeigh";
 import { StepYou } from "./StepYou";
 import { useSieveData } from "./useSieveData";
+import { EraseMeDoor } from "./EraseMeDoor";
 
 // /me — THE SIEVE, the job seeker's whole flow on one scrolling page
 // (docs/features/jobseeker/README.md, "The flow"; the contest winner me-seeker-flow A/2).
@@ -410,7 +411,13 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
         onProfileSaved={data.setProfile}
         onToast={say}
       />
-      <footer className="foot">{t("foot")}</footer>
+      <footer className="foot">
+        {t("foot")}
+        {/* The seeker's own erasure door: quiet, last on the page, one confirm away. */}
+        <div className="mt-3">
+          <EraseMeDoor />
+        </div>
+      </footer>
       <div className={toast ? "toast show" : "toast"} role="status" aria-live="polite">
         {toast}
       </div>

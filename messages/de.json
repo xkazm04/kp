@@ -13072,7 +13072,13 @@
           "title": "Sprachen",
           "hint": "aus Ihrem Lebenslauf gelesen",
           "none": "Keine gelesen",
-          "rule": "Ändern Sie sie im Lebenslauf, nicht hier."
+          "hintOwn": "Ihre eigene Liste",
+          "levelOf": "Niveau für {value}",
+          "levelNone": "Kein Niveau angegeben",
+          "native": "Muttersprache",
+          "add": "Sprache hinzufügen, z. B. Deutsch (B2)",
+          "full": "Die Liste fasst höchstens {max} Sprachen. Entfernen Sie eine, um eine weitere hinzuzufügen.",
+          "ruleEdit": "Ihr gestalteter Lebenslauf zeigt diese Liste statt der aus Ihrem Lebenslauf. Entfernen Sie alle, gilt wieder die Liste aus Ihrem Lebenslauf."
         },
         "saving": "Wird gespeichert…",
         "saved": "Gespeichert · {set} von 5 festgelegt",
@@ -13210,7 +13216,10 @@
         "noSkillsDrop": "Ausführlicheren Lebenslauf ablegen",
         "noSkillsPolish": "Meinen Lebenslauf überarbeiten",
         "twins": "{n, plural, one {+# weiterer Ort} other {+# weitere Orte}}",
-        "noReqs": "die Anzeige nennt keine Anforderungen, Kenntnisse wurden daher nicht verglichen"
+        "noReqs": "die Anzeige nennt keine Anforderungen, Kenntnisse wurden daher nicht verglichen",
+        "unmeasuredTitle": "{n, plural, one {# Anzeige nennt keine Anforderungen und wird daher nicht mit den anderen gereiht:} other {# Anzeigen nennen keine Anforderungen und werden daher nicht mit den anderen gereiht:}}",
+        "unmeasuredScore": "Richtung und Passung: {n}",
+        "unmeasuredNone": "Kenntnisse nicht verglichen"
       },
       "weigh": {
         "eyebrow": "Schritt 7 · Abwägen",
@@ -13427,13 +13436,14 @@
       "printInstead": "Stattdessen drucken",
       "pdfFailed": "Das PDF konnte nicht erstellt werden. Drucken Sie es stattdessen: Das Layout ist dasselbe.",
       "improvements": "{n, plural, =0 {Nichts musste geglättet werden} one {# Formulierung geglättet} other {# Formulierungen geglättet}}",
-      "improvementsHint": "Werkzeugnamen, Rechtschreibung und Zeilenumbrüche geglättet. Ihrem Lebenslauf wurde nichts hinzugefügt.",
+      "improvementsHint": "Werkzeugnamen, Rechtschreibung, Zeilenumbrüche und wiederholte Titel geglättet. Ihrem Lebenslauf wurde nichts hinzugefügt.",
       "kind": {
         "term": "Werkzeugname",
         "spelling": "Rechtschreibung",
         "hyphen": "Zeilenumbruch",
         "capital": "Großschreibung",
-        "tailor": "Zuschnitt"
+        "tailor": "Zuschnitt",
+        "repeat": "Wiederholter Titel"
       },
       "previewLabel": "Vorschau Ihres gestalteten Lebenslaufs",
       "tailorLabel": "Zuschneiden auf",
@@ -13489,7 +13499,20 @@
         "toggle": "So liest ihn ein System",
         "hint": "Der Text, den ein Bewerbermanagementsystem aus Ihrem PDF liest, in dieser Reihenfolge. Was hier falsch ist oder fehlt, ist auch dort falsch oder fehlt.",
         "columns": "Der Text, den ein Bewerbermanagementsystem aus Ihrem PDF liest, in dieser Reihenfolge. {layout} hat eine Seitenspalte: Ein System, das nach Position liest, kann sie in diese Zeilen mischen."
+      },
+      "held": {
+        "toggle": "{n, plural, =0 {Keine Zeilen zurückgestellt} one {# Zeile aus Platzgründen zurückgestellt} other {# Zeilen aus Platzgründen zurückgestellt}}",
+        "hint": "Ältere Stationen bekommen weniger Zeilen, damit der Lebenslauf bei seinen Seiten bleibt. Diese Zeilen gehören weiter Ihnen, gelöscht wurde nichts: Ist eine davon wichtig, stellen Sie sie in Ihrem Lebenslauf weiter nach oben."
       }
+    },
+    "erase": {
+      "open": "Alles über mich löschen",
+      "title": "Alles über Sie löschen?",
+      "body": "Gelöscht werden Ihr Profil, jeder Lebenslauf, den Sie haben lesen lassen, Ihre Gespräche zum Lebenslauf und zur Passung, Ihr gespeichertes Lebenslauf-Design, Ihre Entwürfe für Anschreiben und die für Sie gesammelten Stellenanzeigen (sofern niemand sonst in diesem Arbeitsbereich eine Stelle sucht). Ihre Quellen bleiben, wie sie sind. Das lässt sich nicht rückgängig machen.",
+      "confirm": "Alles löschen",
+      "working": "Wird gelöscht…",
+      "cancel": "Daten behalten",
+      "failed": "Ihre Daten konnten gerade nicht gelöscht werden. Bitte versuchen Sie es erneut."
     }
   },
   "journey": {

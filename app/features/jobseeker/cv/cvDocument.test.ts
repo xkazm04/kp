@@ -201,3 +201,41 @@ test("a draft titled 'Role, Employer' in another language still gets the CV's ow
     ]
   );
 });
+
+test("a CV's unpunctuated list lines stay separate bullets, and a line opening with the role's title drops it", () => {
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "WORK EXPERIENCE",
+    "2021 - 2022 Beta Labs, s.r.o.",
+    "Data Analyst (SQL/Graph API design)",
+    "Frontend development (React - reporting portals)",
+    "2020 Gamma Legal, s.r.o.",
+    "QA Engineer (SOAP, Cypress) - Legal web app",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Analyst & Frontend Developer at Beta Labs, s.r.o.", text: "x" },
+      { kind: "job", title: "QA Engineer at Gamma Legal, s.r.o.", text: "y" },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.deepEqual(
+    doc.experience.map((r) => r.bullets.map((b) => b.text)),
+    [["Data Analyst (SQL/Graph API design)", "Frontend development (React - reporting portals)"], ["Legal web app (SOAP, Cypress)"]]
+  );
+  assert.ok(doc.improvements.some((i) => i.kind === "repeat" && i.after === "Legal web app (SOAP, Cypress)"));
+  // A wrapped sentence still rejoins: a lowercase continuation is never a new item.
+  assert.deepEqual(bulletsOf("Solution design across interfaces (REST,\nKafka) and data layers.", []).map((b) => b.text), ["Solution design across interfaces (REST, Kafka) and data layers."]);
+});
+
+test("the seeker's own languages from /me win over the CV's Languages block and the profile list, levels printed", () => {
+  const text = ["JANE DOE", "WORK EXPERIENCE", "Acme Retail Ltd 2022 - 2025", "Data Engineer", "Built the data pipelines for the stores.", "LANGUAGES", "Czech (native), English (B1)"].join("\n");
+  const profile = { displayName: "Jane Doe", languages: ["Czech", "English"] };
+  // No statement of their own: the CV's block wins over the read profile list.
+  assert.deepEqual(buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text }).languages, ["Czech – native", "English – B1"]);
+  assert.deepEqual(buildCvDocument({ profile, preferences: { targetTitles: [], languages: [] }, cvSourceText: text }).languages, ["Czech – native", "English – B1"]);
+  // Their own list replaces both, in their order, with the CEFR code and the native word.
+  const own = buildCvDocument({ profile, preferences: { targetTitles: [], languages: ["English (C1)", "Czech (native)", "German (B2)", "Polish"] }, cvSourceText: text });
+  assert.deepEqual(own.languages, ["English – C1", "Czech – native", "German – B2", "Polish"]);
+});

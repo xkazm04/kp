@@ -13072,7 +13072,13 @@
           "title": "Jazyky",
           "hint": "z vašeho CV",
           "none": "Žádný nenalezen",
-          "rule": "Měňte je ve svém CV, ne tady."
+          "hintOwn": "váš vlastní seznam",
+          "levelOf": "Úroveň: {value}",
+          "levelNone": "Úroveň neuvedena",
+          "native": "Rodilý mluvčí",
+          "add": "Přidejte jazyk, např. němčina (B2)",
+          "full": "Seznam má nejvýše {max} jazyků. Chcete-li přidat další, jeden odeberte.",
+          "ruleEdit": "Navržené CV vypíše tento seznam místo jazyků z vašeho CV. Když je všechny odeberete, platí znovu seznam z CV."
         },
         "saving": "Ukládání…",
         "saved": "Uloženo · nastaveno {set} z 5",
@@ -13210,7 +13216,10 @@
         "noSkillsDrop": "Nahrát úplnější CV",
         "noSkillsPolish": "Vylepšit moje CV",
         "twins": "{n, plural, one {+# další místo} few {+# další místa} many {+# dalšího místa} other {+# dalších míst}}",
-        "noReqs": "inzerát neuvádí žádné požadavky, dovednosti tedy nebylo s čím porovnat"
+        "noReqs": "inzerát neuvádí žádné požadavky, dovednosti tedy nebylo s čím porovnat",
+        "unmeasuredTitle": "{n, plural, one {# inzerát neuvádí žádné požadavky, proto se neřadí s ostatními:} few {# inzeráty neuvádějí žádné požadavky, proto se neřadí s ostatními:} many {# inzerátu neuvádí žádné požadavky, proto se neřadí s ostatními:} other {# inzerátů neuvádí žádné požadavky, proto se neřadí s ostatními:}}",
+        "unmeasuredScore": "zaměření a shoda: {n}",
+        "unmeasuredNone": "dovednosti neporovnány"
       },
       "weigh": {
         "eyebrow": "Krok 7 · Zvážení",
@@ -13427,13 +13436,14 @@
       "printInstead": "Raději ho vytiskněte",
       "pdfFailed": "PDF se nepodařilo vytvořit. Vytiskněte ho: rozvržení bude stejné.",
       "improvements": "{n, plural, =0 {Nebylo co upravit} one {# upravené slovo} few {# upravená slova} other {# upravených slov}}",
-      "improvementsHint": "Upravili jsme názvy nástrojů, pravopis a zalomení řádků. K tomu, co vaše CV říká, jsme nic nepřidali.",
+      "improvementsHint": "Upravili jsme názvy nástrojů, pravopis, zalomení řádků a opakované názvy pozic. K tomu, co vaše CV říká, jsme nic nepřidali.",
       "kind": {
         "term": "Název nástroje",
         "spelling": "Pravopis",
         "hyphen": "Zalomení řádku",
         "capital": "Velké písmeno",
-        "tailor": "Přizpůsobení"
+        "tailor": "Přizpůsobení",
+        "repeat": "Opakovaný název pozice"
       },
       "previewLabel": "Náhled vašeho navrženého CV",
       "tailorLabel": "Přizpůsobit pro",
@@ -13489,7 +13499,20 @@
         "toggle": "Jak ho přečte systém",
         "hint": "Text, který náborový systém vyčte z vašeho PDF, v tomto pořadí. Co je tady špatně nebo chybí, je špatně nebo chybí i pro něj.",
         "columns": "Text, který náborový systém vyčte z vašeho PDF, v tomto pořadí. {layout} má boční sloupec: systém, který čte podle polohy, ho může do těchto řádků vmíchat."
+      },
+      "held": {
+        "toggle": "{n, plural, =0 {Žádné řádky nejsou odložené} one {# řádek odložen kvůli délce} few {# řádky odloženy kvůli délce} many {# řádku odloženo kvůli délce} other {# řádků odloženo kvůli délce}}",
+        "hint": "Starší pozice dostávají méně řádků, aby se životopis vešel na své stránky. Tyto řádky jsou pořád vaše a nic se nesmazalo: pokud je některý důležitý, posuňte ho ve svém CV výš."
       }
+    },
+    "erase": {
+      "open": "Smazat všechno o mně",
+      "title": "Smazat všechno o vás?",
+      "body": "Smaže se váš profil, všechny životopisy, které jste nechali přečíst, vaše konverzace o životopisu a o vhodnosti pozic, uložený vzhled životopisu, rozepsané průvodní dopisy a nabídky, které jsme pro vás shromáždili (pokud tento pracovní prostor nesdílíte s jiným uchazečem). Vaše zdroje nabídek zůstanou tak, jak jsou. Tento krok nelze vrátit.",
+      "confirm": "Smazat všechno",
+      "working": "Mazání…",
+      "cancel": "Ponechat moje data",
+      "failed": "Vaše data se teď nepodařilo smazat. Zkuste to prosím znovu."
     }
   },
   "journey": {

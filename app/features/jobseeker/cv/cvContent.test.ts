@@ -331,3 +331,7 @@ test("tailoring keeps every skill question the base sheet raised (listed-only an
   assert.deepEqual(skillQs(out.doc.questions), skillQs(CHANGER.questions));
   assert.ok(out.doc.questions.some((q) => q.kind === "self_descriptor" && q.text === "Teamwork"));
 });
+
+test("a hyphenated language name is a name, a spaced hyphen still separates its level", () => {
+  assert.deepEqual(languageLines(null, ["Swiss-German", "English - C1", "German – B2"], "en"), ["Swiss-German", "English – C1", "German – B2"]);
+});

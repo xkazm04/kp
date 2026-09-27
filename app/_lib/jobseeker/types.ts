@@ -339,6 +339,12 @@ export type JobseekerPostingSummary = Omit<JobseekerPosting, "bodyText" | "jsonl
    *  from its as-if result): "matches your target: AI Engineer" vs "matches your past".
    *  Null when the seeker stated no target, or the row is not matched. */
   targetAlignment: TargetAlignment | null;
+  /** Whether the structured ad states any skill requirement; null before it is structured.
+   *  False = the matcher had nothing to compare skills against (and scored skills 0). */
+  skillsStated: boolean | null;
+  /** For a scored row whose ad states no skill: the score on career and personal fit alone
+   *  (db/jobseeker-postings.ts `directionTotalOf`). Null for every other row. Never a rank. */
+  directionTotal: number | null;
 };
 
 /** How a posting sits against the seeker's STATED direction (pipeline/jobfit/matching.py

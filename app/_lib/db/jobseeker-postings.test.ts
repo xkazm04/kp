@@ -20,6 +20,7 @@ import {
   setJobseekerPostingStatus,
   setPostingBlocked,
   upsertPosting,
+  directionTotalOf,
 } from "./jobseeker-postings.ts";
 
 after(() => cleanupUnitDb());
@@ -316,4 +317,27 @@ test("setPostingBlocked re-checks instead of locking: a posting whose content ch
   // …and a foreign workspace cannot stamp it either.
   setPostingStructure(p.id, { title: "x" }, "deterministic", ws);
   assert.equal(setPostingBlocked(p.id, { blocked: { koKeys: [], koDetails: [] }, asIf: {} }, { version: "v", matchedAt: T2 }, "ws-other"), false);
+});
+
+test("an ad that states no skill: the summary says so and carries the score on what WAS measured", () => {
+  const source = "src-unmeasured";
+  const bare = upsertPosting(source, raw(), T0);
+  const listed = upsertPosting(source, raw(), T0);
+  const unread = upsertPosting(source, raw(), T0);
+  setPostingStructure(bare.id, { title: "x", requirements: [] }, "deterministic");
+  setPostingStructure(listed.id, { title: "y", requirements: [{ skill: "TypeScript", kind: "must_have" }] }, "deterministic");
+  // Skills weigh 0.5 and scored 0; career 0.3 at 0.9, personal 0.2 at 0.6 -> 27 + 12 of 50 points.
+  const breakdown = [
+    { key: "skills", weight: 50, contribution: 0, percent: 0 },
+    { key: "career", weight: 30, contribution: 27, percent: 90 },
+    { key: "personal", weight: 20, contribution: 12, percent: 60 },
+  ];
+  setPostingMatch(bare.id, { total: 39, scoreBreakdown: breakdown }, { total: 39, fitTier: "partial", version: "v1", matchedAt: T1 });
+  setPostingMatch(listed.id, { total: 39, scoreBreakdown: breakdown }, { total: 39, fitTier: "partial", version: "v1", matchedAt: T1 });
+  assert.deepEqual([getPostingSummary(bare.id)!.skillsStated, getPostingSummary(bare.id)!.directionTotal], [false, 78]);
+  assert.deepEqual([getPostingSummary(listed.id)!.skillsStated, getPostingSummary(listed.id)!.directionTotal], [true, null]);
+  // Not structured yet: unknown, never "states no skill".
+  assert.deepEqual([getPostingSummary(unread.id)!.skillsStated, getPostingSummary(unread.id)!.directionTotal], [null, null]);
+  assert.equal(directionTotalOf({ scoreBreakdown: [{ key: "career", weight: "x" }] }), null);
+  assert.equal(directionTotalOf(null), null);
 });

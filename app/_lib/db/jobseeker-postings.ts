@@ -80,6 +80,7 @@ type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "r
   body_chars: number;
   deep_dived: number;
   reasoned_at: string | null;
+  req_count: number | null;
 };
 
 /** WHEN the stored rationale's inputs were read: `reasonedAt` (deepdive.ts), or the
@@ -88,10 +89,14 @@ type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "r
 const REASONED_AT = `CASE WHEN json_valid(reasoning_json)
        THEN COALESCE(json_extract(reasoning_json, '$.reasonedAt'), json_extract(reasoning_json, '$.at')) END`;
 
+/** How many requirements the structured job states; NULL with no (readable) job. */
+const REQ_COUNT = `CASE WHEN json_valid(job_json) THEN json_array_length(job_json, '$.requirements') END`;
+
 const SUMMARY_COLUMNS = `id, workspace_id, source_id, external_key, url, title, company, location, country, work_mode,
      posted_at, salary_min, salary_max, salary_currency, salary_period, match_json, match_total, fit_tier,
      match_version, matched_at, job_source, status, dismiss_reason, dismiss_note, applied_at, first_seen_at, last_seen_at, gone_at,
-     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived, ${REASONED_AT} AS reasoned_at`;
+     LENGTH(body_text) AS body_chars, (reasoning_json IS NOT NULL) AS deep_dived, ${REASONED_AT} AS reasoned_at,
+     ${REQ_COUNT} AS req_count`;
 
 function coerceFitTier(value: string | null): FitTier | null {
   return value !== null && (FIT_TIERS as readonly string[]).includes(value) ? (value as FitTier) : null;
@@ -230,6 +235,25 @@ function projectPreviousTotal(match: Record<string, unknown> | null): number | n
   return typeof total === "number" && Number.isFinite(total) ? total : null;
 }
 
+/** A posting whose ad states no skill is scored 0 on skills - the matcher's pinned rule
+ *  (pipeline/jobfit/tests/test_scoring_contract.py: unmeasured is never a fit), which sank
+ *  every such ad below the ones that listed skills. For the seeker it is not a poor fit,
+ *  it is an unmeasured one: this is the score on the two dimensions that WERE measured
+ *  (career and personal, in their own weights' proportion), read from the result's own
+ *  breakdown. Never a rank key - the sieve lists these rows apart (sieveModel `unmeasured`). */
+export function directionTotalOf(match: Record<string, unknown> | null): number | null {
+  const rows = Array.isArray(match?.scoreBreakdown) ? (match.scoreBreakdown as Record<string, unknown>[]) : [];
+  let weight = 0;
+  let points = 0;
+  for (const d of rows) {
+    if (!d || typeof d !== "object" || d.key === "skills") continue;
+    if (typeof d.weight !== "number" || typeof d.contribution !== "number") return null;
+    weight += d.weight;
+    points += d.contribution;
+  }
+  return weight > 0 ? Math.max(0, Math.min(100, Math.round((100 * points) / weight))) : null;
+}
+
 /** The engine's sentence per gate, kept only beside a key the vocabulary knows (index-aligned). */
 function projectBlockedDetails(match: Record<string, unknown> | null): string[] {
   const blocked = match?.blocked as { koKeys?: unknown; koDetails?: unknown } | undefined;
@@ -255,9 +279,13 @@ function projectMatchedSkills(match: Record<string, unknown> | null): JobseekerP
  *  seeker no longer has. */
 function fromSummaryRow(row: SummaryRow, profileUpdatedAt: string | null): JobseekerPostingSummary {
   const deepDived = row.deep_dived === 1;
+  const match = parseMatch(row.match_json, row.id);
+  const skillsStated = row.req_count === null ? null : row.req_count > 0;
   return {
     ...baseFromRow(row),
-    ...projectMatch(parseMatch(row.match_json, row.id)),
+    ...projectMatch(match),
+    skillsStated,
+    directionTotal: skillsStated === false && row.match_total !== null ? directionTotalOf(match) : null,
     bodyChars: row.body_chars,
     deepDived,
     reasoningStale: deepDived && profileUpdatedAt !== null && (row.reasoned_at ?? "") < profileUpdatedAt,

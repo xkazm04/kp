@@ -6,7 +6,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
-import { getJobseekerProfile, upsertJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import { eraseJobseekerData, getJobseekerProfile, upsertJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { mergePreferencePatch, parsePreferencesPatch } from "@/app/_lib/jobseeker/profile";
 import { EMPTY_PREFERENCES } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -86,6 +86,45 @@ export async function PUT(request: Request): Promise<NextResponse> {
     const cvHash = cvSourceText === undefined ? undefined : cvSourceText === null ? null : createHash("sha256").update(cvSourceText, "utf8").digest("hex");
     const saved = upsertJobseekerProfile({ userId, profile, preferences, cvSourceText, cvHash }, ws);
     return NextResponse.json(saved);
+  } catch (err) {
+    return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
+  }
+}
+
+// DELETE — the seeker's "delete everything about me" door (GDPR Art. 17 onto their OWN
+// record; docs/features/jobseeker/README.md). eraseJobseekerData removes the profile,
+// every CV read, the studio dialogs, the cross-device UI state and — when no other
+// seeker remains in the workspace — the gathered postings; the sources config stays.
+//
+// Deliberate by shape: the body must be exactly `{"confirm":"erase"}`, so a stray
+// DELETE (a replayed request, a mistaken client) cannot wipe the record. Same gates as
+// PUT — it is a write behind a seat — plus its own tighter throttle: nobody erases
+// themselves more than a handful of times in ten minutes.
+//
+// An in-flight `jobseeker_scan` is NOT cancelled here: cancelTask lives in app/_lib/tasks.ts,
+// whose graph alone puts this route over its import budget (perf-budget.json,
+// 'app/api/**/route.ts'). What a scan writes after the erasure is advertisement copy;
+// it cannot re-match anything, because the matcher reads the workspace's seeker profile
+// and there is none. The one residue is a match already computed from the profile the
+// scan read BEFORE the erasure and writes after it — a known limit of this door.
+const ERASE_RATE_LIMIT = { limit: 5, windowMs: 10 * 60_000 };
+
+export async function DELETE(request: Request): Promise<NextResponse> {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
+  if (!rateLimit(`jobseeker-profile-erase:${clientIpFrom(request.headers)}`, ERASE_RATE_LIMIT)) {
+    return jsonRefusal("TOO_MANY_REQUESTS", 429);
+  }
+  const body = (await request.json().catch(() => null)) as { confirm?: unknown } | null;
+  if (!body || typeof body !== "object" || body.confirm !== "erase") {
+    return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 400);
+  }
+  try {
+    const { userId, ws } = await principal();
+    const erased = eraseJobseekerData(userId, ws);
+    return NextResponse.json({ erased });
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }

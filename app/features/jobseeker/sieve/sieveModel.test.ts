@@ -47,6 +47,8 @@ function row(id: string, over: Partial<JobseekerPostingSummary> = {}): Jobseeker
     previousTotal: null,
     reasoningStale: false,
     targetAlignment: null,
+    skillsStated: true,
+    directionTotal: null,
     ...over,
   };
 }
@@ -215,4 +217,21 @@ test("the same job listed once per place is one row, the best-scored copy, with 
   );
   assert.deepEqual(f.scored.map((r) => r.id), ["y2", "n1", "n2"], "no employer = never folded");
   assert.deepEqual(f.twins, { y2: ["y1", "y3"] });
+});
+
+test("an ad that states no skill never takes a top-five place on its skills 0, and is listed apart, direction first", () => {
+  const dir = (state: "target" | "none") => ({ state, matchedTitle: null, targetFamilies: [], pastFamily: null });
+  const f = deriveSieve(
+    [
+      row("measured", { matchTotal: 40, fitTier: "partial" }),
+      row("bare-none", { matchTotal: 45, fitTier: "partial", skillsStated: false, directionTotal: 90, targetAlignment: dir("none") }),
+      row("bare-target", { matchTotal: 30, fitTier: "partial", skillsStated: false, directionTotal: 60, targetAlignment: dir("target") }),
+      row("bare-done", { matchTotal: 50, fitTier: "partial", skillsStated: false, directionTotal: 99, status: "dismissed" }),
+    ],
+    [ON]
+  );
+  assert.deepEqual(f.top5.map((r) => r.id), ["measured"]);
+  assert.deepEqual(f.unmeasured.map((r) => r.id), ["bare-target", "bare-none"]);
+  // Still through the sieve: counted, ranked in the full list, never dropped.
+  assert.equal(f.scored.length, 4);
 });

@@ -2063,6 +2063,17 @@ const ROUTES: RouteSpec[] = [
     expensive: "upsertJobseekerProfile(",
   },
   {
+    // The seeker's own erasure door: deletes their whole /me record. Tighter than the
+    // PUT because nobody erases themselves more than a handful of times.
+    rel: "./jobseeker/profile/route.ts",
+    key: "`jobseeker-profile-erase:${clientIpFrom(request.headers)}`",
+    limit: 5,
+    optsSrc: "ERASE_RATE_LIMIT",
+    optsDef: "const ERASE_RATE_LIMIT = { limit: 5, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "eraseJobseekerData(",
+  },
+  {
     // A create spawns one Python child for the deterministic opening. The cheap
     // refusals (no profile yet) run first so a rejected call never consumes budget.
     rel: "./jobseeker/dialogs/route.ts",

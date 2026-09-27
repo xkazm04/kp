@@ -8,12 +8,15 @@ import { FailureNotice } from "../FailureNotice";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "../apiFailure";
 import { ProvMark } from "./marks";
 import { SV_BTN_SM_GHOST } from "./sieveRecipes";
+import { WantLanguages } from "./WantLanguages";
 
 // Step 4 — "Five things steer the search". The seven-question conversation that used to
 // collect these is now five cards the seeker TAPS: places as pins, the pay floor as a
 // slider with its currency and period, titles as tokens, work modes as three toggles,
-// the level as a four-stop switch. Languages ride along read-only — they come from the
-// CV and are changed there.
+// the level as a four-stop switch. Languages ride along as a sixth card the seeker edits
+// too (each with its CEFR level or "native"): it opens on what the CV said, the first
+// edit makes the list the seeker's own (preferences.languages), and the designed CV then
+// prints that list in place of the CV's own Languages block. They do not steer the search.
 //
 // Every change is the seeker's own preference, saved as they make it (a short debounce,
 // PUT /api/jobseeker/profile with `preferencesReplace` so removing the last place really
@@ -404,21 +407,7 @@ export function StepWant({
           <div className="said">{t("level.rule")}</div>
         </div>
 
-        <div className="wcard">
-          <div className="wh">
-            <h3>{t("languages.title")}</h3>
-            <span className="small muted">{t("languages.hint")}</span>
-          </div>
-          <div className="tokens">
-            {(prefs.languages.length ? prefs.languages : profile.profile.languages ?? []).map((l) => (
-              <span key={l} className="token ro">
-                {l}
-              </span>
-            ))}
-            {!prefs.languages.length && !(profile.profile.languages ?? []).length ? <span className="small muted">{t("languages.none")}</span> : null}
-          </div>
-          <div className="said">{t("languages.rule")}</div>
-        </div>
+        <WantLanguages own={prefs.languages} fromCv={profile.profile.languages ?? []} onChange={(languages) => edit({ languages })} />
       </div>
 
       <div className="want-foot">
