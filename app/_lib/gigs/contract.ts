@@ -183,6 +183,7 @@ export function gigDeliverableContractMarkdown(): string {
     `- artifacts[].kind is one of: ${GIG_ARTIFACT_KINDS.join(", ")}; a file you wrote is kind \`file\` with \`ref\` its path relative to the gig folder. evidence[].kind is one of: ${GIG_EVIDENCE_KINDS.join(", ")}.`,
     "- evidence lists only what you actually ran; `passed` is null when the result has no pass/fail meaning.",
     "- confidence is your own estimate from 0 to 1; it is shown to the operator, never used as a score.",
+    `- "The operator" is kp's word for the person who reviews and sends, and it never reaches the client. \`draftText\` and every file under \`${GIG_CLIENT_FILES_DIR}/\` are written in the first person, as the freelancer ("I built", "reviewed by me"). Use the disclosure sentence as given, never a third-person variant. A note for the operator goes in NOTES.md or \`questions\`, never in a client file, not even as a comment or a placeholder.`,
     "- If you cannot produce acceptable work — or you decide to stand down, e.g. the listing is already claimed or taken — still write the object with every required field filled and none left empty: explain in `summary`, and in `draftText` put either the message you recommend the operator send (e.g. an availability inquiry) or, when nothing should be sent, your recommendation and why (e.g. `Recommend declining — already claimed by #123`). Put open questions in `questions` and keep `confidence` low. A stand-down is a valid outcome, but `draftText` is never empty.",
   ].join("\n");
 }
