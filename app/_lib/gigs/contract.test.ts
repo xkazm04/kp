@@ -110,6 +110,10 @@ test("internal notes in client-facing text fail; a client's own 'operator' and '
   const disclosure = withText("deliverable/docs/readme.md", "fine", { disclosure: "Prepared with AI help and reviewed by the operator before sending." });
   assert.equal(disclosure.ok, false, disclosure.out);
   assert.match(disclosure.out, /disclosure contains internal wording/);
+  // A third-person variant the marker scan cannot know every word for (gu5qvk: "the developer").
+  const thirdPerson = withText("deliverable/docs/readme.md", "fine", { disclosure: "Prepared with AI assistance and reviewed by the developer." });
+  assert.equal(thirdPerson.ok, false, thirdPerson.out);
+  assert.match(thirdPerson.out, /disclosure must name AI assistance and say that you reviewed it, in the first person/);
   const draft = withText("deliverable/docs/readme.md", "fine", { draftText: "Hi! Note for the operator: attach the PDF." });
   assert.equal(draft.ok, false);
   assert.match(draft.out, /draftText contains internal wording/);
