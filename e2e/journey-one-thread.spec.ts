@@ -385,11 +385,10 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   expect(onBoard[0].matchScore, "a work sample must not be written into the match score").toBeNull();
   expect(typeof onBoard[0].transferScore, "the transfer score reaches the board as itself").toBe("number");
 
-  // …and the board does not pass it off as a match. The board is the composition-kit list
-  // (kit-unification, Gate K2): its Match column reads the canonical match score only
-  // (canonicalScoreOf, kit/PipelineKitList.tsx), so a transfer-scored entry shows the absent
-  // mark there, never the transfer number. (The old subway bead also NAMED the kind in its
-  // title; the kit list has no such line yet.)
+  // …and the board does not pass it off as a match. `?q=` lands on the Orbit's Matches table
+  // (orbit/OrbitMatches.tsx), whose Match column reads the canonical match score only
+  // (canonicalScoreOf), so a transfer-scored entry shows the absent mark there, never the
+  // transfer number.
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(CANDIDATE)}`);
   const row = page.getByRole("row").filter({ hasText: CANDIDATE }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });

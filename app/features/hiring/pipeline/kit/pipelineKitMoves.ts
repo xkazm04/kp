@@ -1,14 +1,12 @@
 /*
- * The kit view's stage moves, pure (the parity port of the retired board's move rules). Recovered from
- * the deleted subwayInteraction.ts (the "Move to" menu, the keyboard twin of the drag) and
- * lineActions.ts (the role row's Accept all / Reject all / AI evaluate cohort). The kit has no board
- * to drag on, so a move is a menu pick (the pane, the row's act track, `m`); legality is still
- * moveTargetStages: never the entry's own stage, never the terminal ROLE (a renamed "Placed" refuses
- * exactly like "Hired").
+ * The pipeline's stage-move vocabulary, pure: a column's display name, the legal "Move to" targets
+ * (never the entry's own stage, never the terminal ROLE: a renamed "Placed" refuses exactly like
+ * "Hired"), and who stands on a column the workspace removed. Used by Off the board and the Orbit.
+ * Recovered from the retired Subway board and kept when the kit roles board was retired (2026-09-28);
+ * its role-cohort batch (Accept all / Reject all) went with the roles board.
  */
-import { stagesWithRole, type StageDef } from "../../../../_lib/pipeline-stages.ts";
-import type { PipelineBatchItem } from "../../../../_lib/useAddToPipeline.ts";
-import { entryLaneKey, type Entry } from "../../../shared/pipelineTypes.ts";
+import type { StageDef } from "../../../../_lib/pipeline-stages.ts";
+import type { Entry } from "../../../shared/pipelineTypes.ts";
 import { moveTargetStages } from "../pipelineMoveTargets.ts";
 
 export type MoveOption = { value: string; label: string };
@@ -33,24 +31,4 @@ export function strandedByStage(entries: readonly Entry[], axis: readonly StageD
   const out = new Map<string, Entry[]>();
   for (const e of entries) if (!on.has(e.stage)) out.set(e.stage, [...(out.get(e.stage) ?? []), e]);
   return out;
-}
-
-/** The role's new arrivals: its ACTIVE candidates on the axis's ENTRY column. A role action that reached
- *  every column would make "Reject all" a way to empty a whole role in one click. `lane` is the role's
- *  lane key (entryLaneKey: job id, else title), so two roles that share a title stay apart. */
-export function entryColumnCohort(lane: string, entries: readonly Entry[], axis: readonly StageDef[]): Entry[] {
-  const entry = stagesWithRole("entry", axis)[0];
-  if (!entry) return [];
-  return entries.filter((e) => e.status === "active" && e.stage === entry && entryLaneKey(e) === lane);
-}
-
-/** Accept all = move each to the column after the entry column; Reject all = the guarded reject. Both
- *  carry `expectedStage`, so a candidate that moved since the board was read is skipped by the server. */
-export function entryBatchItems(cohort: readonly Entry[], action: "acceptAll" | "rejectAll", axis: readonly StageDef[]): PipelineBatchItem[] {
-  if (action === "rejectAll") return cohort.map((e) => ({ id: e.id, action: "reject", expectedStage: e.stage }));
-  const entry = stagesWithRole("entry", axis)[0];
-  const at = axis.findIndex((s) => s.id === entry);
-  const next = at >= 0 ? axis[at + 1] : undefined;
-  if (!next) return [];
-  return cohort.map((e) => ({ id: e.id, action: "set_stage", toStage: next.id, expectedStage: e.stage }));
 }

@@ -1,15 +1,15 @@
 "use client";
 
-import { PipelineKitView } from "./kit/PipelineKitView";
+import { PipelineOrbitView } from "./orbit/PipelineOrbitView";
 
 /*
- * Hiring > Pipeline is the composition-kit surface (kit-unification spark, Gate K2: the owner judged
- * the port in-product and promoted it). The old board view and its `?kit=1` switch are gone.
+ * Hiring > Pipeline is the Orbit (orbit/PipelineOrbitView.tsx): the /contest pipeline-l0-l1 winner,
+ * promoted 2026-09-28 in place of the kit roles board.
  *
  * A static import, not next/dynamic: this module IS the tab's lazy chunk (shell/tabChunks.ts), so a
- * second dynamic boundary would only add a chunk round-trip and a loading placeholder between the
- * tab click and the first frame. The candidate record stays split out inside the kit view.
+ * second dynamic boundary would only add a chunk round-trip and a loading placeholder between the tab
+ * click and the first frame. The candidate record stays split out inside the view.
  */
 export function PipelineTab() {
-  return <PipelineKitView />;
+  return <PipelineOrbitView />;
 }

@@ -110,17 +110,17 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   }).toPass({ timeout: 30_000 });
 }
 
-// Open ONE candidate in the candidate modal, by name. `?q=` pre-filters the board's list to
-// that candidate, so its row is inside the list's window. The board is the composition-kit
-// surface (kit-unification, Gate K2): a row opens the reading pane, and the pane's "Full record"
-// opens the candidate modal, which is named by its heading (the candidate's label). Same
+// Open ONE candidate in the candidate modal, by name. `?q=` is a board filter, and the Orbit
+// (the pipeline since 2026-09-28) lists what a filter matches in its Matches table
+// (orbit/OrbitMatches.tsx): a row there opens the candidate modal directly, named by its heading
+// (the candidate's label). Same
 // dev-hydration retry as the sibling specs: click until the modal opens. Shared by the mint step
 // (the footer's scheduling link) and the confirmed-booking step (the Activity tab), which read the
 // same candidate for different halves of the same invite.
 //
 // A CANDIDATE LABEL IS NOT AN ENTRY ID, and this helper can only address the board
 // by label. One person can hold two pipeline entries (two jobs), and both list rows
-// carry the SAME name (`entry.candidateLabel`, kit/PipelineKitList.tsx) with no id in
+// carry the SAME name (`entry.candidateLabel`, orbit/OrbitMatches.tsx) with no id in
 // their accessible text. So `.first()` would open whichever row the list's ordering
 // happens to put first, which need not be the entry the caller chose from
 // /api/pipeline. If that row's entry fails the modal's own gate
@@ -142,12 +142,8 @@ async function openCandidateModal(page: Page, label: string): Promise<Locator> {
     `"${label}" matches more than one board row — the row carries no entry id, ` +
       "so .first() would open an arbitrary one of this person's entries. Pick a label unique on the board."
   ).toHaveCount(1);
-  const fullRecord = page.getByRole("button", { name: "Full record" });
   await expect(async () => {
-    if (!(await modal.isVisible())) {
-      if (!(await fullRecord.isVisible())) await row.click().catch(() => undefined);
-      await fullRecord.click({ timeout: 1000 }).catch(() => undefined);
-    }
+    if (!(await modal.isVisible())) await row.click({ timeout: 1000 }).catch(() => undefined);
     await expect(modal).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });
   return modal;

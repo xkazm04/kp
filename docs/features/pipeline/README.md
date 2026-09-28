@@ -9,8 +9,8 @@ deterministic fallback so the pipeline never blocks when the CLI is missing.
 ## Entry points
 
 - `/?tab=pipeline` — the pipeline surface (`app/features/hiring/pipeline/PipelineTab.tsx`,
-  which renders the composition-kit view `kit/PipelineKitView.tsx`; see
-  [The surface](#the-surface--composed-from-the-kit)).
+  which renders the Orbit, `orbit/PipelineOrbitView.tsx`; see
+  [The surface](#the-surface--the-orbit)).
   It is the default tab, so a bare `/` lands here; the sidebar calls it **Overview**
   (`nav.tabs.pipeline`, all four locales) because the surface is the workspace's
   landing page — the head's figures, then the roles board (one row per role), and under it the picked
@@ -155,8 +155,8 @@ GET /api/pipeline → { entries, stages: StageDef[], retiredStages: StageDef[] }
 resolves retired labels and detects off-axis entries in the browser);
 `pipeline-axis-server.ts` is the only DB-touching half. The board takes `axis`
 from that payload instead of importing the constant — the field already existed
-and was ignored, which is why the two could never disagree. The kit
-surface's Sieve draws one layer per axis column (`kit/pipelineKitModel.ts` `buildLayers`), and `moveTargetStages` / `bulkMoveTargetStages` / `moveStageSelectValues` all take
+and was ignored, which is why the two could never disagree. The Orbit
+draws one ring per axis column (`orbit/orbitLayout.ts`), and `moveTargetStages` / `bulkMoveTargetStages` / `moveStageSelectValues` all take
 the axis (defaulting to the shipped one, so untouched call sites keep working).
 
 The validator enforces only what the rest of the product resolves through: an
@@ -512,7 +512,7 @@ strands nobody, and moving them would rewrite closed history.
 | `app/api/pipeline/command/reverse/route.ts` + `command/reverse.ts` | **Undo a command-bar reject wave.** After a confirmed `reject below N%`, the bar's done panel keeps the reviewed id set and offers an undo; `POST {ids, text}` (or `{ids, threshold}`; at most 200 ids, else 400 `PIPELINE_BATCH_PAYLOAD_INVALID`) answers `{ restored, notified, skipped }`. Gated like the command route (operator, then `pipeline:write`); not rate-limited (it spends and spawns nothing). Per id, `restoreCommandRejection` runs an IMMEDIATE read-plan-write: `planWaveReversal` (`app/_lib/pipeline-command.ts`, pure) restores only an entry still `rejected` whose newest decision is THIS wave's human `rejected` event (matched on `commandRejectDetail(threshold)`, the one literal `execute.ts` writes; the letter's own `rejection_sent` / `rejection_comms_failed` may sit on top), and the UPDATE compare-and-swaps on status AND the stage that event recorded. The candidate comes back `active` on the stage they stood on (a reject never moves the stage), not the screened landing column the per-entry `reinstate` uses for auto-rejections. A hand reject, another threshold's wave, another team's row, a row moved since, or one already undone is skipped and counted, never overwritten, so a second undo is a no-op. Each restore writes a `reinstated` event named for the session's actor (detail `reason:commandWaveReversed`) and is sealed as a NEW decision (`reinstated`, reasonCode `command_wave_reversed`, policyVersion `command-bar`, threshold and `notified` in inputs); the role's group-eval cache is expired. `notified` counts restored candidates who had already been sent the rejection letter: the outbox has no withdrawn state, so the bar tells the recruiter to follow up with them rather than implying the letter was unsent. **Intended side effect:** the `reinstated` event is what `screen-wave.ts`'s reinstatement shield reads, so a wave-restored candidate is spared by the next automated screen-wave (keep-reason `reinstated`); a human can still reject them by hand. Pinned by `command/reverse.test.ts` (real unit DB, cross-workspace + idempotency + the screen-wave case). |
 | `app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx` | The candidate modal card that writes it — a 1..5 button rail, mounted only for a candidate on the terminal-role stage. |
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. The wave modal's lifecycle (debounced preview → confirm → commit → 409 → re-preview, with the "the set changed" notice consumed on exactly one preview settle) is the pure reducer `decisionsScreenWaveMachine.ts`; `useDecisionsScreenWave` is only the network around it. A 409 is `commitRefused{reason}` and the total `REFUSAL_EFFECT` table decides: `required` / `expired` / `mismatch` re-preview; `unattributed` (no named approver: sign in or set `KP_OPERATOR_NAME`) disables Commit with that reason in the footer's live line for the modal's life, because no re-preview can fix it; `spent` (an earlier attempt of the commit landed) re-previews and reloads the queue. `WaveResult` / `WaveDecision` are aliases of the contract's read shapes (`ScreenWaveRead`, `ScreenDecisionRead` in `screen-wave-contract.ts`); `sealFailures` (missed Art. 22 seals) is required, and holdout keeps (`reasonCode` `holdout` or `holdoutSealFailed`) are counted from reason codes by `holdoutCount` in `decisionsFloorDisclosure.ts`, since the server sends no holdout count. The simulation walk reads the same two responses through `readWaveResult`. `waveKeepKind` classifies a keep row as `holdout` / `holdoutSealFailed` / `fairness` / `other` against the closed `ScreenReasonCode` set so the lists cannot render a clean-arm keep as an ordinary keep. Reinstate (the reconsider queue's safety valve) folds every path through `decisionsReinstateOutcome.ts` — a refused or never-landed reinstate keeps the row and prints its `{ code, status }` on it via `useErrorMessage`, instead of the old silent no-else. When the pending queue is empty, `DecisionsEmptyHandoff` renders the reconsider count as a button that calls the same `revealReconsider` hop as the header chip, not a static caption. The empty queue has two readings, not one: while a `batch_screen` or `automation` task (the two kinds that write the decisions this queue reads) is queued or running, `DecisionsEmptyHandoff` shows "Decisions are on their way." with the runs' summed `done/total`, a link to Background tasks and the decisions glyph on the `pulse` ambient, instead of "You're all caught up." The decision is the pure `app/_components/glyph/glyphArrival.ts` (`ARRIVAL_KINDS` keyed tab -> depositing task kinds; a tab opts in only once its deposit path is verified). A failed task poll (`loadFailed`) never claims an arrival. `useLiveRefresh` does not fire when a background task writes, so `stepArrival` also reports the landing edge (a watched task left the in-flight set, or reported another item done) exactly once, and the handoff calls the queue's `load` it receives from `DecisionsTab` on that edge. The real entries replace the arriving state without a manual refresh. Every decision the tab issues (the ledger's quick accept/reject, the candidate and analysis modals, the group-eval rationale dialog, all through `useDecisionsQueue`'s `act()`, and the batch bar's `bulkDecideReviews`) goes through ONE pure fold, `decisionsDecideOutcome.ts`: `foldDecideResponse` turns a response into a typed handoff (`queueForSchedule`, `prepTask`, `offerLink`) or a coded failure (`{ code, capability, status }`, never the server's prose), and `foldBatchDecide` does the same for the batch (ok/failed ids, distinct per-id codes, a whole-request failure that overrides them). `handoffFor` is the single post-accept rule both paths apply, so a batch-accepted AI scorecard the plan routed to the human round is queued on Schedule exactly like a one-by-one accept. A refused single decision (a stale-stage 409, a capability 403, a terminal 422, a dropped request) restores the row, toasts the refusal from its code in the reader's language (`decisions.decideFailed` as the fallback) and reloads, instead of the old silent blink back; `act()` still resolves the boolean its awaiting callers rely on. The batch band resolves per-id codes through `useErrorMessage` and never paints the per-id English `reason`. Pinned by `decisionsDecideOutcome.test.ts` and `decisionsBatchRefusal.test.ts`. A failed queue GET folds the JSON body (`FORBIDDEN_CAPABILITY` + `capability`, or `PIPELINE_LIST_FAILED`) through `foldQueueLoadThrow({ status, body })` so a viewer sees "ask for pipeline:write", not a generic load failure. |
-| `app/features/hiring/pipeline/**` | The kit surface (`kit/`), the candidate modal, the empty state, and the board state hooks the surface reads. |
+| `app/features/hiring/pipeline/**` | The Orbit (`orbit/`), the page parts it keeps from the kit view (`kit/`: Today, Off the board, Activity, the SLA editor, the `/` search hook, the move vocabulary), the candidate modal, the empty state, and the board state hooks the surface reads. |
 
 The header's Active and Interview counts act as quick-filter toggles. Their
 predicates use the same live, non-simulation population and workspace stage roles
@@ -523,147 +523,68 @@ as the counts, so clicking either count filters the board to the cohort it names
 | `pipelineBoardMove.ts` / `pipelineDrawerNote.ts` | The two densest state machines, extracted pure: the drag move's apply / reconcile / roll-back decision plus its field-selective merge, and the candidate modal note's dirty / flush / hydrate bookkeeping. Pinned by their own `*.test.ts`. |
 | `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2), the network around the pure `pipelineBulkSelection.ts` reducer · opening the candidate modal, profile, job, ranking and Decisions. |
 
-## The surface — composed from the kit
+## The surface — the Orbit
 
-Since 2026-09-25 the tab is the composition-kit surface (kit-unification spark, Gate K2;
-the kit's own rules are `docs/design/README.md` "Composition kit"). `PipelineTab.tsx`
-renders `kit/PipelineKitView.tsx` with a static import: the tab module is already the
-lazy chunk (`shell/tabChunks.ts`). The state is `usePipelineTabState` (the board
-payload, the URL-synced search, the navigation helpers), plus `usePipelineKit`
-(`kit/usePipelineKit.ts`) for what the surface adds: the level (the roles board, or a
-scope under it), the selected layer, the waiting-only chip, the match brush, the replay
-counter and the open entry. The pure mapping from board rows to layers, dots and list rows
-is `kit/pipelineKitModel.ts` (pinned by `kit/pipelineKit.test.ts`); the roles board's is
-`kit/rolesBoardModel.ts` (pinned by `kit/rolesBoard.test.ts`).
+Since 2026-09-28 the tab is **the Orbit**, the winner of the `/contest pipeline-l0-l1` design
+contest (B/3, picked by the owner over the panel's first place). It replaced the kit roles board
+(`kit/PipelineKitView.tsx` and its parts, promoted at Gate K2 on 2026-09-25), which was deleted
+the same day. `PipelineTab.tsx` renders `orbit/PipelineOrbitView.tsx` with a static import: the
+tab module is already the lazy chunk (`shell/tabChunks.ts`).
 
-**Two levels, built for scale** (2026-09-25, the owner: "current view is not practical for
-large companies with dozens role open and thousands of candidates"). Level 1, the tab's
-default, is the **roles board**: one row per role. Level 2 opens UNDER it when a role, one
-role's stage cell, or "All roles" is picked: that scope's Sieve, Skyline and list, read from
-the scope's entries alone, so a dot per candidate reads again at one role's scale. It sits
-under the board rather than in the reading pane because the pane is the candidate's (a
-448-560px document) and a Sieve, a Skyline and a windowed list need the sheet's width; the
-row that opened it stays in view, marked, one press from any other role. The level is a
-deep link: `?role=<job id or role title>` or `?role=all` lands on level 2 (tab-scoped in
-`shell/tabs.ts`, written back on every pick), and a link that names candidates
-(`?q=`, `?stage=`, `?quick=`, `?score=`, `?source=`) lands on level 2 over every role so the
-people it names show without a click; `?sort=` alone stays on the board. Top to bottom,
-inside one `KitSurface`
-(compact density; the region carries `data-sim="pipeline-board"`, the guided walk's
-"hired" chapter target):
+It reads `usePipelineTabState` (the board payload, the URL-synced filters, the navigation
+helpers) plus `GET /api/jobs?limit=500` (`orbit/useOrbitJobs.ts`) for what an entry does not
+carry: location, seniority, status, target hires, and the roles nobody is on yet.
+`orbit/orbitModel.ts` (pure, `orbitModel.test.ts`) builds the roles, groups and ladders;
+`orbitLayout.ts` the geometry; `orbitPaint.ts` the canvas and the flight; styles are
+`orbit/pipelineOrbit.css`. The region carries `data-sim="pipeline-board"`, the guided walk's
+"hired" chapter target. Top to bottom:
 
-1. **Head and toolbar** (`PipelineKitHead`). The page head holds the `pipeline.tab`
-   eyebrow and title, one context line (candidates across roles, and the date of the
-   last recorded move), and three figures from `boardPopulation` (the same real-row,
-   live-status population the old stat header counted): Active of all live, Awaiting you
-   (coral when anything waits, with a tip) and Hired. Its one primary action, "Review N
-   waiting", appears only when approvals wait and switches the list to them. The
-   toolbar holds the level select (the roles board, all roles, or one role by size), the search (URL-synced as `?q=`; `/` focuses it) and,
-   on its filter line (`PipelineKitFacets`), the retired filter bar's four facets as kit
-   `Menu`s over the URL-synced filter state (`usePipelineFilters`): State (active,
-   interview, aging, awaiting, needs intake, plus a deep-linked `?stage=` as a checked
-   option), Score bands, Source (shown when the board spans more than one channel or a
-   source is already on) and Sort ("waiting first, then match" is the kit order; score;
-   longest in stage). Then the chips: waiting on you, "Needs intake" (the intake cohort the
-   old attention strip's first row focused), the picked layer or brushed range, Clear. A
-   `?stage=` that is no longer a column keeps filtering and says so in a caution note with
-   "Remove this filter". Under the toolbar: the saved-views line (`PipelineKitViews`: one
-   chip per view; the active view's open-by-default toggle, rename, copy link and delete;
-   "Save view" while narrowed; the save / rename `KitDialog` warns before an overwrite).
-   Clear clears the filters and keeps the level.
-2. **Today** (`PipelineKitToday`), when any queue is non-empty: one row per queue from
-   `deriveRailRows` (new applications, scorecards and drafted offers to review,
-   interviews waiting on a slot, offers out, this week's hires) with who is in it; the
-   row opens the queue's layer here, Decisions or Schedule.
-3. **Off the board** (`PipelineKitOffBoard`), when anyone stands on a column the
-   workspace removed: one row per retired column (its retired label, who stands there)
+1. **Head** (kit `PageHead`): four figures — waiting on a human, over the stage's SLA (of those
+   in flight), hired (of target), empty roles.
+2. **Today** (`kit/PipelineKitToday.tsx`): the day's queues. Its stage rows focus that ring on
+   the orbit (every other ring dims, the callouts count that stage, the lanes mark that column);
+   the others open Decisions or Schedule.
+3. **Off the board** (`kit/PipelineKitOffBoard.tsx`): people on a column the workspace removed,
    with "Move all to…".
-4. **The roles board** (`PipelineKitRoles`, level 1). A windowed `DataTable` (ten rows
-   tall, five while a scope is open; about 13 rows in the DOM whatever the role count)
-   whose meta track carries the kit's `StageCells`: per axis stage a numeral, a strip of
-   at most five provenance beads (`BEAD_CAP`, the retired Subway's limit; the ones waiting
-   on you first, haloed coral), "+N" for the rest and a coral count of who waits there.
-   Then the role's total, how many wait on you, and its last move. The row's second line
-   is the role's area and how many wait on the AI (`lineAttention.waitingOn` over the
-   hiring plan, restored from the Subway with its tests). The first row, **All roles**,
-   is the same columns summed: the funnel at a glance. Rows sort waiting-on-you first,
-   then the latest move; search, the facets and the waiting chip narrow the counts to the
-   candidates they keep and drop roles left empty. A row opens its scope (a second press
-   closes it), a cell opens it on that stage. Rows are keyed by `entryLaneKey` (job id,
-   else title), so two jobs that share a title are two rows. `GET /api/pipeline` reads at
-   most 2,000 active rows ordered by job title (`PIPELINE_BOARD_CAP`) and carries no
-   `truncated` flag; a board at that count says in a caution note that roles past the cut
-   are missing or undercounted (see Known gaps).
-5. **The scope** (`PipelineKitScope`, level 2): a section named for the role (or
-   "Everyone") with "Back to roles" and, for one role, its doors (`PipelineKitRole`):
-   open the job, Rank candidates (the Fit matrix scoped to the job) and, over the role's
-   new arrivals on the entry column, Accept all, Reject all (armed by a second click) and
-   AI evaluate (one `batch_screen` task), answered by toasts. Opening a scope scrolls it
-   into view. Items 6-8 are the scope's.
-6. **The Sieve** (`PipelineKitSieve`). Every candidate is a dot poured through the
-   workspace's axis (`buildLayers`: the axis in order, any retired column someone
-   still stands on as its own layer, then an exit layer counting `rejectedByLane`). A
-   dot's shape is how the entry got there (walked, placed without a recorded move,
-   nothing on record); a layer is a filter button for the list. Picking the exit layer
-   lists the rejected shelf (`useRejectedShelf`: `GET /api/pipeline/rejected?lane=` per
-   lane with rejections, only the scope's lane for one role) with the
-   stage each was rejected at and whether the AI did it. The pour plays once per change
-   of the entries' `id:stage:stageChangedAt` signature, and on "pour again". Above 300
-   candidates (`SIEVE_BARS_ABOVE`, every role at once at scale) no dots are drawn: each
-   layer is a bar proportional to the fullest one, the part the filters keep solid, with
-   its shapes as a legend-sized sample and their counts.
-7. **The Skyline** (`PipelineKitSkyline`). The match distribution, one bar per
-   candidate ranked by canonical score (past about one bar per 3px the kit bins
-   consecutive ranks into one bar, so 2,000 candidates draw about 400), never-scored candidates as counted dashed
-   stubs. A brush is a rank range that filters the list and dims the Sieve; the presets
-   (all, top 10, over 70, never scored) set one.
-8. **The list** (`PipelineKitList`, cells in `PipelineKitCells`). A windowed `DataTable`:
-   status mark, candidate and role, stage (with its provenance shape and, when it waits
-   on you, the reason), source, match (the canonical score; a work-sample transfer score
-   labelled "transfer" with its tip; "—" with its reason when neither exists), age, and
-   the act track ("Move to…" and the door to the pane). Filtered by the board's whole
-   predicate (`entryMatchesFilters`) and the kit's own narrowing (`useKitFilters`: layer,
-   waiting-only, brush) inside the scope, ordered waiting-first then by match unless a sort is
-   chosen. A row opens the reading pane and records the sidebar's Recent entry. The
-   section's actions: **Select** (select mode: the mark track becomes a checkbox, a row
-   click toggles it, and the kit `BulkBar` above the rows states how many are selected and
-   how many the view hides, then select all shown, clear, move with its blast-radius
-   preview and confirm, scheduling links, outreach drafts armed when a relay would send
-   them, and the decide row for the awaiting subset with Reject armed; all of it
-   `usePipelineBulk`, its confirm scope including the kit's narrowing) and **Aging SLAs**
-   (a `KitDialog` of SettingRows: the team cadence per non-terminal stage, saved on blur
-   or Enter through `PATCH /api/pipeline/stage-sla`, clamped 1-365, leftover per-browser
-   cadences offered once).
-9. **Activity** (`PipelineKitActivity`), when anything happened in the last seven days or
-   the read failed: a five-row table of events with a kind filter; a row opens the entry.
-10. **The reading pane** (`PipelineKitPane`), only while a row is selected: who and
-   where; what waits on you with a door to Decisions; "Move to…" (also `m`); the record
-   (stage, match, how the entry was placed, archetype, source, added, changed, intake);
-   the entry's path as a column `StageRail` and its history with the silences in place,
-   both from the entry's own `GET /api/pipeline/[id]/timeline`. "Full record" opens the
-   candidate modal, whose prev / next walks the kit list's current order. j / k step
-   through the list, Esc closes.
+4. **Matches** (`orbit/OrbitMatches.tsx`), only while a URL filter is set. Every surface that
+   links into the pipeline speaks the board's filters (`?q=` a name or a role title from Recent,
+   the palette, Analytics and the job lifecycle strip; `?stage=`, `?source=`, `?quick=`,
+   `?score=`), which `usePipelineTabState` applies as `filteredEntries`. The table lists the live
+   rows they match, waiting-on-a-human first, in the retired list's column order (mark,
+   candidate, stage, source, match, age: the match is the canonical MATCH score only, so a
+   work-sample transfer score reads as absent); a row opens the candidate record with the table
+   as its prev/next. "Clear filters" drops the table and the parameters.
+5. **The toolbar**: where you are (orbit › group › role), the lens (Role family; City and
+   Seniority from the job list), and one search for a role or a person (`/` focuses it) that
+   lands on that role's bench with the person marked.
+6. **The levels**:
 
-Stage moves. The kit has no board, so the retired Subway's **drag is replaced, not
-ported**: a move is a pick from "Move to…" (the pane, the row's act track, `m` while the
-pane is open), offering `moveTargetStages` (never the own stage, never the terminal
-role) and running the board's optimistic, CAS-guarded `moveEntry`. A refused move rolls
-back and says why: the bounce mark on its row, a critical note in its pane or above the
-list, with a dismiss.
+| Level | What it shows | Opens |
+|---|---|---|
+| L0, the orbit | every active person as a dot (`boardPopulation` active rows on the axis); rings = stages, entry outside, terminal at the hub; sectors = groups under the lens; the sector with most people waiting on a human nearest 12 o'clock; empty roles as rim marks (open, nobody yet / draft); a callout per group with waiting, late, people and live/total roles. A lens switch flies every dot to its new sector and brings each callout out of its sector's edge | a sector or callout opens L1; the dots fly to their beads |
+| L1, lanes | a row per live role (most waiting first), a cell per stage with its count and a bead per person (capped at 60, then "+N"), empty roles as chips by reason; previous / next group; the stage SLA editor (`kit/PipelineKitSla.tsx`) | the role title opens the role's whole ladder on the bench; a cell opens that role's candidates on that stage |
+| L2, the role bench | `orbit/ladder/OrbitLadderCompare.tsx`: the role's facts and ladder as a picker (a rung per stage: **scored people by score, highest first, then the unscored by first name A-Z**, `ladderCompare`), and up to four picked people side by side on stage, score, days on the stage against its cadence, waiting on, walked/placed, source, archetype, added and last event. It opens on the top two of the clicked stage (siblings), and each column steps to its neighbour on the same stage | a person opens the full candidate record (prev/next walks the ladder) |
 
-A workspace with nobody on the board gets the stage set under the head instead of
-parts 2-9 ([The empty board](#the-empty-board--the-stage-set)): it is the only door
-back into an unfinished setup wizard (`shell/setup/useSetupUnfinished.ts` +
-`shell/setup/onboardingReopen.ts`) and the guided tour's start.
+7. **Activity** (`kit/PipelineKitActivity.tsx`): the last seven days of events.
 
-**Not brought back from the board view (2026-09-25 parity port).** The Orchard overlay
-(one role and stage cell as salary branches by score band, with ticket evidence): the kit
-has no salary graphic, and a candidate's salary against the band is on the candidate
-modal's Overview. The bead avatar (its gender-hinted fill was an open fairness question).
-The full-page board toggle: the page is the board. (The waiting-on-AI line mark came back
-with the roles board, 2026-09-25.) The subsections below that describe the Subway board are the record of
-the retired view. The kit parts added for this port are `Menu`, `KitDialog`,
-`ActionLine`, `BulkBar` and `SelectBox` (`app/_components/kit/`, styles in `menu.css`).
+Keyboard: every group, role, cell and person is a button; Esc climbs one level (bench, lanes,
+orbit, the ring focus); j / k step the group's live roles on the bench. Motion is skipped under
+`prefers-reduced-motion` (a short fade instead of the flight); the flight canvas is portalled to
+`document.body` (`orbit/OrbitPortal.tsx`), because a `position: fixed` layer inside the tab
+panel is contained by its entrance transform.
+
+Honest absence: a job with `status` null is OPEN for applications (`isJobOpenForApplications`),
+so an empty one reads "open, nobody yet"; a draft reads "draft"; a closed role with nobody on it
+is not drawn (the legend counts it). A job list that fails to load disables the City and
+Seniority lenses, hides the rim and says so (people are still drawn from the board payload); a
+truncated list says so. Aging is the product's one clock (`slaForStage` over `stageChangedAt`).
+
+**What the roles board had that the Orbit does not (removed with it, 2026-09-28):** the facet
+menus (State, Score, Source, Sort) as controls (their URL parameters still filter the Matches
+table), saved views as chips (`usePipelineSavedViews` still restores a view's URL), select mode
+and the bulk bar, the reading pane with its Move to, the Sieve and the Skyline, the rejected
+shelf, and the `?role=` deep link. The subsections below that describe the roles board, the
+board header and the Subway are the record of the retired views.
 
 ### Salary currency
 
@@ -702,9 +623,9 @@ The Scorecard breakdown resolves the ranker's `labelCode` through the shared
 `match.dims.*` translations, with its English label as a fallback for older rows.
 
 Mechanics. `usePipelineTabState` holds one `CandidateView` (`candidateView.ts`: entry,
-cohort, tab) and `kit/PipelineKitView.tsx` mounts `CandidateModal` through `next/dynamic`.
+cohort, tab) and `orbit/PipelineOrbitView.tsx` mounts `CandidateModal` through `next/dynamic`.
 The frame is portalled to `<body>` at `z-50` — later portals paint on top, so it sits
-over the reading pane it was opened from and under the transcript modal it opens — and owns the dialog behaviour
+over the surface it was opened from and under the transcript modal it opens — and owns the dialog behaviour
 (`useDialogA11y`: focus trap, Escape, scroll lock); a centred dialog from `sm` up, a
 bottom sheet on a phone. `CandidateModalBody` is keyed by entry id, so a prev/next step
 resets per-entry state while the frame stays. All three panels stay mounted and only the
