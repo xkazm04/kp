@@ -27,6 +27,30 @@ test("the Lead crown is gated on a server-crowned lead, not column position", ()
   assert.doesNotMatch(src, /isLead=\{i === 0\}/, "the old positional crown must be gone");
 });
 
+// A server-crowned lead is not enough in the governed modes. Committee and
+// eligibility-list runs still carry `topPick` (the advisory "top by fit"), and the modal
+// used to pass hasLead={evaluation.topPick != null} — so a moss "Lead" crown sat on
+// column 1 directly beneath the banner saying the AI "does not pick or seal a hire".
+// The modal must gate the crown on the seal's own predicate, not a second rule.
+const modalSrc = readFileSync(path.join(DIR, "..", "GroupEvalModal.tsx"), "utf8");
+
+test("the Lead crown is withheld in the governed modes: it reads the sealing predicate", () => {
+  assert.match(
+    modalSrc,
+    /hasLead=\{evaluation\.topPick != null && sealsLead\(normalizeGovernanceMode\(evaluation\.governanceMode\)\)\}/,
+    "hasLead must require sealsLead(governanceMode), the same predicate the seal site uses",
+  );
+  assert.doesNotMatch(modalSrc, /hasLead=\{evaluation\.topPick != null\}/, "the governance-blind crown must be gone");
+});
+
+test("the predicate the crown reads crowns only the recommendation mode, and legacy payloads", async () => {
+  const { normalizeGovernanceMode, sealsLead } = await import("@/app/_lib/group-eval-governance");
+  assert.equal(sealsLead(normalizeGovernanceMode("recommendation")), true);
+  assert.equal(sealsLead(normalizeGovernanceMode(undefined)), true, "a payload saved before governance keeps its crown");
+  assert.equal(sealsLead(normalizeGovernanceMode("committee")), false);
+  assert.equal(sealsLead(normalizeGovernanceMode("eligibility_list")), false);
+});
+
 // The per-ROW leader wash is the table's second lead claim, and it used to be just as
 // positional: absent values were mapped to a -1 SENTINEL and compared with
 // `leader > -Infinity`, so an all-unscored (or exactly tied) row painted the moss

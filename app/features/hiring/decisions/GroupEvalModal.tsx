@@ -18,6 +18,7 @@ import type { GovernanceCacheMismatch } from "@/app/features/hiring/decisions/gr
 import { PerCandidateTabs } from "@/app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs";
 import { Risks } from "@/app/features/hiring/decisions/groupEval/GroupEvalRisks";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
+import { normalizeGovernanceMode, sealsLead } from "@/app/_lib/group-eval-governance";
 import { useGroupEval } from "@/app/features/hiring/decisions/groupEval/useGroupEval";
 
 // The group-eval contract (payload, candidates, fairness) and the candIdentity
@@ -168,7 +169,14 @@ export function GroupEvalModal({
                 skillRows={skillRows}
                 mustRows={mustRows}
                 roleBand={evaluation.roleSalaryBand ?? []}
-                hasLead={evaluation.topPick != null}
+                // The crown reads the SAME predicate as the seal. In committee /
+                // eligibility-list mode the server records the ranking as advisory and
+                // the banner above says "it does not pick or seal a hire"; a moss "Lead"
+                // crown on column 1 beneath that banner is the sealed pick by another
+                // exit. `topPick` still rides the payload for the summary and the
+                // per-candidate tabs — only the crown is withheld. A payload saved
+                // before governance existed normalizes to "recommendation" and keeps it.
+                hasLead={evaluation.topPick != null && sealsLead(normalizeGovernanceMode(evaluation.governanceMode))}
                 leadSeparation={evaluation.leadSeparation}
               />
               <FairnessPanel
