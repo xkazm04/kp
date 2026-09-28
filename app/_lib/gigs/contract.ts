@@ -188,7 +188,7 @@ export function gigDeliverableContractMarkdown(): string {
   };
   return [
     `## Deliverable contract (${GIG_DELIVERABLE_CONTRACT})`,
-    `Every run ends by writing ONE JSON object of exactly this shape to \`${GIG_DELIVERABLE_FILE}\` in the gig folder ROOT (not under \`${GIG_CLIENT_FILES_DIR}/\`, which is what the client receives). Overwrite the file if an earlier attempt left one. Then also end your final message with the same object in one fenced block tagged \`${GIG_DELIVERABLE_FENCE}\`; if your runtime adds its own messages after it, the file is what counts.`,
+    `Every run ends by writing ONE JSON object of exactly this shape to \`${GIG_DELIVERABLE_FILE}\` in the gig folder ROOT (not under \`${GIG_CLIENT_FILES_DIR}/\`, which is what the client receives). Overwrite the file if an earlier attempt left one - and write it on EVERY run, even one that only verifies earlier work: kp accepts only a file written after this run started. Then also end your final message with the same object in one fenced block tagged \`${GIG_DELIVERABLE_FENCE}\`; if your runtime adds its own messages after it, the file is what counts.`,
     "```" + GIG_DELIVERABLE_FENCE,
     JSON.stringify(example, null, 2),
     "```",

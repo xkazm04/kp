@@ -326,6 +326,9 @@ could read. So:
 - sync uses the output's last block first; when there is no valid one, it reads the file,
   but only a regular file of at most 512 KB modified after the attempt was created (an
   earlier attempt's file is never landed as this one's draft), through the same validator.
+  The contract therefore tells the agent to write the file on every run, even one that only
+  verifies earlier work: a retry after an interrupted run (the machine slept) found the fixes
+  already made, verified them, left the old file, and was failed as `no_deliverable_block`.
   A file that fails validation fails the attempt with `invalid_json` / `invalid_shape` and a
   detail prefixed `kp-deliverable.json:`.
 
