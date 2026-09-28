@@ -76,6 +76,11 @@ export const GIG_CLUTTER_DIRS = /^(?:node_modules|\.venv|venv|__pycache__|\.pyte
  *  generated report footer saying "reviewed by the operator" reaches the client all the same. */
 export const GIG_INTERNAL_MARKERS_IN_CODE = /\b(?:reviewed|checked|approved|edited|sent)[ \t]+by[ \t]+(?:the[ \t]+)?operator\b/i;
 
+/** The freelancer's AI disclosure - the contract sentence and the rewordings drafts used ("Prepared with
+ *  AI assistance", "written with the help of AI") - which the checker fails inside the product's own files. */
+export const GIG_DISCLOSURE_IN_PRODUCT =
+  /\b(?:prepared|produced|created|written|drafted|built)\s+with\s+(?:the\s+)?(?:(?:help|assistance)\s+of\s+(?:an?\s+)?)?AI\b|\bwith\s+(?:the\s+)?AI[- ]assist(?:ance|ed)\b|\bwith\s+AI\s+assistance\b/i;
+
 /** The checker's source: plain Node ESM, no dependencies, run as `node check-deliverable.mjs`
  *  in the gig folder. Found in the 2026-09-27 training cycle: Personas-designed specialists
  *  wrote their OWN idea of the handoff object (decision/verdict/schema keys) and one hand-wrote
@@ -162,10 +167,11 @@ const inCodeRe = new RegExp(${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.source
 for (const [where, text] of codeTexts) { const m = inCodeRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer"); }
 // The disclosure travels with the delivery (draftText, README, proposal), never inside the product: a
 // site footer or a generated report carrying it reaches the client's own users (nmha9w, bh1r1i).
-const disclosureStem = "prepared with the assistance of an ai agent";
+// The contract sentence and its rewordings ("Prepared with AI assistance. Reviewed and sent by the Editor.").
+const disclosureRe = new RegExp(${JSON.stringify(GIG_DISCLOSURE_IN_PRODUCT.source)}, ${JSON.stringify(GIG_DISCLOSURE_IN_PRODUCT.flags)});
 for (const [where, text] of [...clientTexts, ...codeTexts]) {
   if (where === "draftText" || where === "disclosure" || /\\.(md|txt)$/i.test(where)) continue;
-  if (text.toLowerCase().includes(disclosureStem)) problems.push(where + " carries the AI disclosure - it goes with the delivery (draftText, README, proposal), not into what the product shows or generates");
+  if (disclosureRe.test(text)) problems.push(where + " carries the AI disclosure - it goes with the delivery (draftText, README, proposal), not into what the product shows or generates");
 }
 // This machine's home folder in anything the client gets (a local path is ours, never theirs).
 const home = homedir();

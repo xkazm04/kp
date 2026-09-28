@@ -186,6 +186,22 @@ test("the AI disclosure inside the product (a page footer, generated output) fai
   assert.match(out, /deliverable\/index\.html carries the AI disclosure/);
   assert.match(out, /deliverable\/report\.py carries the AI disclosure/);
   assert.doesNotMatch(out, /README\.md carries/);
+  // A reworded disclosure in a page footer (udhsuh: "Prepared with AI assistance. Reviewed and sent by the Editor.").
+  const reworded = path.join(TMP, `gig-${++n}`);
+  mkdirSync(path.join(reworded, "deliverable"), { recursive: true });
+  writeFileSync(path.join(reworded, "deliverable/index.html"), "<footer>Prepared with AI assistance. Reviewed and sent by the Editor.</footer>");
+  writeFileSync(path.join(reworded, "deliverable/about.html"), "<p>Our newsroom covers how AI is changing publishing.</p>");
+  writeFileSync(path.join(reworded, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
+  writeFileSync(path.join(reworded, GIG_DELIVERABLE_FILE), JSON.stringify({ ...GOOD, artifacts: [{ kind: "file", ref: "deliverable", title: "Site" }] }));
+  let out2 = "";
+  try {
+    execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: reworded, encoding: "utf8" });
+    assert.fail("the checker passed a reworded disclosure in a footer");
+  } catch (e) {
+    out2 = String((e as { stdout?: unknown }).stdout ?? "");
+  }
+  assert.match(out2, /deliverable\/index\.html carries the AI disclosure/);
+  assert.doesNotMatch(out2, /about\.html carries/, "a page ABOUT AI is not a disclosure");
 });
 
 test("no file at all says so", () => {
