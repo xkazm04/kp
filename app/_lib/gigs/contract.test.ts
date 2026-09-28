@@ -114,6 +114,11 @@ test("internal notes in client-facing text fail; a client's own 'operator' and '
   const thirdPerson = withText("deliverable/docs/readme.md", "fine", { disclosure: "Prepared with AI assistance and reviewed by the developer." });
   assert.equal(thirdPerson.ok, false, thirdPerson.out);
   assert.match(thirdPerson.out, /disclosure must name AI assistance and say that you reviewed it, in the first person/);
+  // Our review loop leaking into the bid (5zrguo: "I've applied all the reviewer's fixes").
+  const loop = withText("deliverable/docs/readme.md", "fine", { draftText: "Hi! I've applied all the reviewer's fixes since the last version." });
+  assert.equal(loop.ok, false, loop.out);
+  const peer = withText("deliverable/docs/guide.md", "Send the manuscript to a peer reviewer before printing.\n");
+  assert.ok(peer.ok, peer.out);
   const draft = withText("deliverable/docs/readme.md", "fine", { draftText: "Hi! Note for the operator: attach the PDF." });
   assert.equal(draft.ok, false);
   assert.match(draft.out, /draftText contains internal wording/);

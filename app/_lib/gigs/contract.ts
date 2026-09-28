@@ -66,7 +66,7 @@ export const GIG_DELIVERABLE_CHECKER_FILE = "check-deliverable.mjs";
  *  "internal - do not send", and kp's own file names. Deliberately narrow: "the plant operator", "buyer personas"
  *  and an "Operators" heading are a client's own domain and pass. */
 export const GIG_INTERNAL_MARKERS =
-  /(?:^|<!--|[[(])[ \t*_>#-]*(?:operator|internal)(?:[ \t]+notes?)?[ \t*_]*[:\]]|\bnotes?[ \t]+(?:for|to)[ \t]+(?:the[ \t]+)?operator\b|\binternal[ \t]*[-:\u2013\u2014][ \t]*do[ \t]+not[ \t]+send\b|\bdo[ \t]+not[ \t]+send[ \t]+(?:this[ \t]+)?to[ \t]+(?:the[ \t]+)?client\b|\b(?:reviewed|checked|approved|edited|sent)[ \t]+by[ \t]+(?:the[ \t]+)?operator\b|\[[ \t]*operator\b[^\]\n]{0,40}\]|\bkp-deliverable\b|\bkp\.gig\b/im;
+  /(?:^|<!--|[[(])[ \t*_>#-]*(?:operator|internal)(?:[ \t]+notes?)?[ \t*_]*[:\]]|\bnotes?[ \t]+(?:for|to)[ \t]+(?:the[ \t]+)?operator\b|\binternal[ \t]*[-:\u2013\u2014][ \t]*do[ \t]+not[ \t]+send\b|\bdo[ \t]+not[ \t]+send[ \t]+(?:this[ \t]+)?to[ \t]+(?:the[ \t]+)?client\b|\b(?:reviewed|checked|approved|edited|sent)[ \t]+by[ \t]+(?:the[ \t]+)?operator\b|\[[ \t]*operator\b[^\]\n]{0,40}\]|\b(?:applied|addressed|fixed|implemented|per)[ \t]+(?:all[ \t]+)?(?:of[ \t]+)?(?:the[ \t]+)?reviewer'?s?\b|\bkp-deliverable\b|\bkp\.gig\b/im;
 
 /** Build and dependency folders that must never ship in deliverable/ - a shipped .venv carries
  *  this machine's path in pyvenv.cfg, and caches make the folder not Git-ready (7bsg8m). */
