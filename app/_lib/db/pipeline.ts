@@ -2634,8 +2634,11 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
           .all(labelKey, workspaceId) as { slug: string; payload_json: string }[])
       : [];
     if (linkedAnalyses.length > 0) {
+      // cv_hash goes too: SHA-256 of the CV bytes is a pseudonymous identifier, and a
+      // scrubbed row that kept it joined straight back to the same file uploaded again
+      // after the erasure (footprint, population fold). anonymize-cv-identity.test.ts.
       const scrubAnalysis = db.prepare(
-        `UPDATE analyses SET candidate_label = ?, payload_json = ?, github_json = NULL WHERE slug = ?`
+        `UPDATE analyses SET candidate_label = ?, payload_json = ?, github_json = NULL, cv_hash = NULL WHERE slug = ?`
       );
       for (const a of linkedAnalyses) {
         let scrubbedPayload: string;

@@ -371,7 +371,7 @@ export function anonymizeProfile(id: string, workspaceId: string = DEFAULT_WORKS
   // profiles-tenancy guard requires every statement to carry workspace_id).
   const rec = getProfileRecord(id, workspaceId);
   if (!rec) return false;
-  return updateProfile(
+  const updated = updateProfile(
     id,
     {
       label: maskCandidateName(rec.row.label),
@@ -382,6 +382,20 @@ export function anonymizeProfile(id: string, workspaceId: string = DEFAULT_WORKS
     },
     workspaceId
   );
+  if (updated) forgetProfileCvIdentity(id, workspaceId);
+  return updated;
+}
+
+// Erasure's one deliberate lineage write: drop the CV content hash so the same file
+// uploaded after the erasure is a stranger to this row. Kept, it made
+// findProfileIdBySourceCvHash refuse the new upload's profile as "already exists"
+// (pointing at the erased row) and let profileStaleness offer to rebuild the erased
+// profile from the new analysis. The source slug and date stay: they are not a
+// content identifier. setProfileLineage stays the only path that WRITES lineage.
+function forgetProfileCvIdentity(id: string, workspaceId: string): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE profiles SET source_cv_hash = NULL WHERE id = ? AND workspace_id = ?`).run(id, workspaceId);
+  invalidateProfileRecordsCache();
 }
 
 // Returns false when no row matched the id. Pipeline entries reference a profile
