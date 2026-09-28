@@ -9581,7 +9581,9 @@
           "unusable_output": "la réponse n'était pas exploitable",
           "unknown": "aucun motif n'a été enregistré"
         }
-      }
+      },
+      "lockedRow": "Fixé sur {model} avec recherche web. La fonction choisit son propre modèle, une ligne ici ne le changerait pas.",
+      "stateLocked": "Fixé"
     },
     "usage": {
       "title": "Utilisation et coût",
@@ -9717,7 +9719,8 @@
       "grounded_salary": "Salaire étayé",
       "interview_realtime": "Entretien vocal",
       "assistant": "Assistant",
-      "gig_brief": "Fiche de recherche de mission"
+      "gig_brief": "Fiche de recherche de mission",
+      "role_research": "Recherche de poste"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9800,7 +9803,8 @@
       "devcase_transfer": "Réservé à l’évaluation du transfert. Pas encore d’appel actif.",
       "assistant": "Tours de conversation du compagnon de l'opérateur.",
       "posting_translate": "Traduit une annonce de poste publiée dans une autre langue.",
-      "gig_brief": "Lit une annonce de mission rémunérée et les pages qu'elle cite, puis rédige la fiche de recherche : catégorie, difficulté, effort estimé et difficultés attendues."
+      "gig_brief": "Lit une annonce de mission rémunérée et les pages qu'elle cite, puis rédige la fiche de recherche : catégorie, difficulté, effort estimé et difficultés attendues.",
+      "role_research": "Ce que les intitulés visés par une personne en recherche demandent aujourd’hui, recherché sur le web avec ses sources."
     }
   },
   "jdPublic": {

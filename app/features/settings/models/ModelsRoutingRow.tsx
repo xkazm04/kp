@@ -35,6 +35,7 @@ const HEALTH_TONE: Record<RoutingHealthState, BadgeTone> = {
 export function ModelsRoutingRow({
   useCase,
   inert,
+  locked,
   label,
   description,
   row,
@@ -46,6 +47,9 @@ export function ModelsRoutingRow({
   useCase: string;
   /** Catalogued for quality comparisons but not called by the production router. */
   inert?: boolean;
+  /** The call site passes its own provider and model (llm-config.ts PINNED_USE_CASES):
+   *  a routing row here would never move it, so the row states the pin and offers no controls. */
+  locked?: { provider: string; model: string } | null;
   label: string;
   /** One short sentence: where in the hiring process this LLM call applies. */
   description: string | null;
@@ -193,12 +197,24 @@ export function ModelsRoutingRow({
           <p className="text-base font-medium text-ink">{label}</p>
           {description ? <p className="mt-0.5 max-w-xs text-sm text-steel">{description}</p> : null}
           {inert ? <p className="mt-1 max-w-xs text-sm font-medium text-amber-800">{t("inertRow")}</p> : null}
+          {locked ? <p className="mt-1 max-w-xs text-meta font-medium text-steel">{t("lockedRow", { model: locked.model })}</p> : null}
           {row ? (
             <p className="mt-0.5 text-sm text-steel">
               {t("updated", { date: format.dateTime(new Date(row.updatedAt), { dateStyle: "medium" }) })}
             </p>
           ) : null}
         </td>
+        {locked ? (
+          <>
+            <td className="py-2.5 pr-3 text-meta text-ink">{providerName(locked.provider)}</td>
+            <td className="py-2.5 pr-3 font-mono text-meta text-ink">{locked.model}</td>
+            <td className="py-2.5 pr-3">
+              <Badge tone="info" label={t("stateLocked")} className="mt-1.5" />
+            </td>
+            <td className="py-2.5" />
+          </>
+        ) : (
+          <>
         <td className="py-2.5 pr-3">
           <Select
             value={provider}
@@ -257,6 +273,8 @@ export function ModelsRoutingRow({
             onReset={reset}
           />
         </td>
+          </>
+        )}
       </tr>
       {note ? (
         <tr className="border-b border-stone-100">

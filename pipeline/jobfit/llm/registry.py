@@ -24,10 +24,15 @@ and may train on its inputs, so it is refused on a production deployment unless
 a use-case row, the config-less default, the Models-panel probe — meets the same
 veto, and so a refusal arrives as an unavailable provider and degrades to the
 deterministic answer instead of raising through the caller's dance above.
+
+A call site may PIN its engine (``resolve_provider(..., pin=ProviderPin(...))``)
+when the product requires one model for a use case — see :class:`ProviderPin` for
+what a pin outranks and what outranks it.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from ..claude_cli import is_production_deployment
@@ -198,8 +203,94 @@ def provider_availability(provider: Any) -> tuple[bool, str | None]:
     return ok, (None if ok else "unavailable")
 
 
-def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
-    """Provider instance for ``use_case`` (ClaudeCliProvider-compatible)."""
+@dataclass(frozen=True)
+class ProviderPin:
+    """A CALL-SITE override of the routing decision: this use case, on this call,
+    runs on exactly ``provider`` / ``model``.
+
+    Registry technique model-routing/consumer-overrides: *the router exposes an
+    override PARAMETER; it never reads override STATE.* So a pin is never an env
+    var or a config key this module consults — it is a value the caller passes to
+    :func:`resolve_provider`, visible in the caller's code, scoped to that one
+    call, and it is the only way to force an engine past the operator's routing.
+
+    What a pin OUTRANKS: the operator's ``KP_LLM_CONFIG`` row for the use case
+    (specific or ``*`` wildcard) — its provider, model AND params (the row is not
+    read at all) — and every routing default (the production Gemini preference,
+    the per-use-case default model).
+
+    What OUTRANKS a pin — policy, then the capability floor:
+
+    * policy stays on the provider, untouched: the CLI engine's KP_OFFLINE seal
+      and its production consumer-terms refusal still answer through
+      ``availability()``, so a pinned call on a refused engine is an UNAVAILABLE
+      provider and the call site degrades — the pin never exempts it;
+    * the use case's required capabilities (``unsupported_caps``) are checked
+      against the PINNED provider, and a pin below them raises ``LLMError`` with
+      the missing capability named instead of serving a broken answer.
+
+    Only ``claude_cli`` pins are implemented (a pin to another provider raises):
+    building a keyed adapter needs the key layering, and the first pin did not
+    need one. The model is recorded as the ledger's model label, so the usage
+    record names the pinned id rather than the CLI's configured default.
+    """
+
+    provider: str
+    model: str
+
+    def __post_init__(self) -> None:
+        for name in ("provider", "model"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"ProviderPin.{name} must be a non-empty string, got {value!r}")
+
+
+# The providers a pin can be honored on today (see ProviderPin).
+_PINNABLE_PROVIDERS: tuple[str, ...] = ("claude_cli",)
+
+
+def _pinned_provider(use_case: str, pin: ProviderPin, timeout: int | None) -> Any:
+    """The adapter a :class:`ProviderPin` names, after the checks that outrank it.
+
+    ``KP_LLM_CONFIG`` is not loaded at all: a pin is the call site's decision, so
+    the operator's row can neither redirect it nor, when malformed, break it."""
+    if pin.provider not in PROVIDER_CAPABILITIES:
+        raise LLMError(
+            f"unknown LLM provider {pin.provider!r} pinned for use case {use_case!r} "
+            f"(known: {sorted(PROVIDER_CAPABILITIES)})"
+        )
+    missing = unsupported_caps(use_case, pin.provider)
+    if missing:
+        raise LLMError(
+            f"pinned provider {pin.provider!r} cannot serve {use_case!r}: missing "
+            f"capabilities {sorted(missing)} — a pin never routes below a use case's "
+            "required capabilities"
+        )
+    if pin.provider not in _PINNABLE_PROVIDERS:
+        raise LLMError(
+            f"provider pins are implemented for {', '.join(_PINNABLE_PROVIDERS)} only; "
+            f"{use_case!r} pins {pin.provider!r} — build that adapter's key layering "
+            "into the pin path before pinning it"
+        )
+    return ClaudeCliAdapter(
+        model=pin.model,
+        timeout=timeout or DEFAULT_TIMEOUT_S,
+        use_case=use_case,
+        # the same lane choice every CLI route gets — a pin changes WHICH engine,
+        # never the contract that engine runs under (see _cli_strip_api_key)
+        strip_api_key=_cli_strip_api_key(),
+    )
+
+
+def resolve_provider(use_case: str, *, timeout: int | None = None, pin: ProviderPin | None = None) -> Any:
+    """Provider instance for ``use_case`` (ClaudeCliProvider-compatible).
+
+    ``pin`` is the call-site override (:class:`ProviderPin`): with one, the
+    operator's routing row is not consulted and the pinned engine/model is
+    returned after the capability check — or ``LLMError``. Without one, routing is
+    exactly the config-driven resolution below."""
+    if pin is not None:
+        return _pinned_provider(use_case, pin, timeout)
     cfg = load_config()
     entry = cfg.for_use_case(use_case) if cfg else None
 

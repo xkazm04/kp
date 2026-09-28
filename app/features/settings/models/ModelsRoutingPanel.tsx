@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, EYEBROW, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
+import { PINNED_USE_CASES } from "@/app/_lib/llm-pins";
 import type { LlmConfigRow } from "@/app/_lib/db/llm";
 import type { RoutingHealthRow } from "@/app/_lib/db/llm-routing-health";
 import { ModelsRoutingRow } from "./ModelsRoutingRow";
@@ -137,6 +138,7 @@ export function ModelsRoutingPanel() {
                       label={labelFor(useCase)}
                       description={useCase === "*" ? t("routing.defaultRowHint") : descFor(useCase)}
                       inert={useCase === "devcase_role_design"}
+                      locked={PINNED_USE_CASES[useCase] ?? null}
                       row={row}
                       // The "*" row is a pin, never a ledger use case: no health.
                       health={

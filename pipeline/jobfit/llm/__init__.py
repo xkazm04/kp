@@ -4,16 +4,18 @@
 same `available()` / `complete()` / `complete_json()` / `map()` surface — routed
 per the `KP_LLM_CONFIG` env JSON the TS side resolves from the DB. With no
 config present it returns the Claude CLI provider, so local-dev behavior is
-unchanged.
+unchanged. A call site that must run on one engine passes `pin=ProviderPin(...)`,
+the call-site override (see `registry.ProviderPin`).
 """
 
 from .base import LLMError, LLMResult, TextProvider
 from .monitor import emit_deterministic
-from .registry import provider_availability, resolve_provider
+from .registry import ProviderPin, provider_availability, resolve_provider
 
 __all__ = [
     "LLMError",
     "LLMResult",
+    "ProviderPin",
     "TextProvider",
     "emit_deterministic",
     "provider_availability",

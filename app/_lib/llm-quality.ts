@@ -145,6 +145,7 @@ export const UNMEASURED_USE_CASES: readonly UnmeasuredUseCase[] = [
   { id: "cv_polish", reason: "No bench scenario; job-seeker polish is not in the matrix." },
   { id: "fit_dialog", reason: "No bench scenario; job-seeker fit dialog is not in the matrix." },
   { id: "extraction_rules", reason: "No bench scenario; extraction-rule authoring is not in the matrix." },
+  { id: "role_research", reason: "No bench scenario; live web research has no fixed input to judge, and the use case is pinned to one model." },
   { id: "gig_brief", reason: "No bench scenario; gig research briefs are not in the matrix." },
 ];
 

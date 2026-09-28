@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import copy
 import subprocess
-from typing import Sequence
+from typing import Any, Sequence
 
 from ...claude_cli import (
     CONSUMER_TERMS_REASON,
@@ -184,6 +184,26 @@ class ClaudeCliAdapter(TextProvider):
         adapter's budget too, since base.complete derives the deadline from it."""
         clone = copy.copy(self)
         clone.cli = self.cli.with_repo_access(cwd, allowed_tools=allowed_tools, timeout=timeout)
+        if timeout is not None:
+            clone.timeout = timeout
+        return clone
+
+    def with_web_research(
+        self,
+        *,
+        max_turns: int,
+        json_schema: dict[str, Any] | None = None,
+        timeout: int | None = None,
+    ) -> "ClaudeCliAdapter":
+        """A COPY that may search and read the public web — the inner CLI's door
+        owns the grant (``ClaudeCliProvider.with_web_research``).
+
+        Mirrors :meth:`with_repo_access`: the registry's instance keeps no web
+        grant, and ``timeout`` moves the adapter's budget too, because
+        base.complete derives the total deadline (retries and the JSON repair
+        included) from it rather than from the inner CLI's per-spawn value."""
+        clone = copy.copy(self)
+        clone.cli = self.cli.with_web_research(max_turns=max_turns, json_schema=json_schema, timeout=timeout)
         if timeout is not None:
             clone.timeout = timeout
         return clone

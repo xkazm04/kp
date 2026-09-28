@@ -19,6 +19,7 @@ import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow }
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
 import { resolveProviderApiKey } from "./provider-key-precedence";
 import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
+import { PINNED_USE_CASES as PINNED } from "./llm-pins";
 
 // Keep in sync with PROVIDER_CAPABILITIES / USE_CASE_REQUIREMENTS in
 // pipeline/jobfit/llm/capabilities.py — Python is authoritative; these lists
@@ -55,9 +56,15 @@ export const LLM_USE_CASES = [
   "cv_polish",
   "fit_dialog",
   "extraction_rules",
+  "role_research",
   "gig_brief",
 ] as const;
 export type LlmUseCase = (typeof LLM_USE_CASES)[number];
+
+/** The call-site pins (llm-pins.ts, import-free so the Models panel can read it too),
+ *  typed here against the use-case catalogue. */
+export type PinnedUseCase = import("./llm-pins").PinnedUseCase & { provider: LlmProvider };
+export const PINNED_USE_CASES = PINNED as Readonly<Partial<Record<LlmUseCase, PinnedUseCase>>>;
 
 export function isLlmProvider(value: unknown): value is LlmProvider {
   return typeof value === "string" && (LLM_PROVIDERS as readonly string[]).includes(value);

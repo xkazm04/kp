@@ -1,10 +1,13 @@
 """Capability matrix: which provider can serve which use case.
 
 Providers are not interchangeable for every job — search grounding is
-Gemini-only, the Claude CLI is text-only. The registry validates routing at
-resolve time, so a wildcard config entry can't silently route ``cv_analysis``
-to a text-only provider (it raises instead, and the caller's deterministic
-fallback takes over only for *runtime* failures, never for misconfiguration).
+Gemini-only, and the Claude CLI reads no files but is the one engine that can
+research the open web (its ``with_web_research`` door). The registry validates
+routing at resolve time, so a wildcard config entry can't silently route
+``cv_analysis`` to a text-only provider (it raises instead, and the caller's
+deterministic fallback takes over only for *runtime* failures, never for
+misconfiguration). A call-site pin (``registry.ProviderPin``) is checked against
+the same matrix: a pin never routes below a use case's required capabilities.
 """
 
 from __future__ import annotations
@@ -12,6 +15,14 @@ from __future__ import annotations
 CAP_JSON = "json"
 CAP_FILE_INPUT = "file_input"
 CAP_GROUNDING = "grounding"
+# An AGENTIC web session: the model runs its own searches, fetches the pages it
+# chooses and cites them (claude_cli's web_research mode — WebSearch + WebFetch,
+# claude_cli.WEB_RESEARCH_TOOLS). Deliberately NOT CAP_GROUNDING: that one is
+# Gemini's single-shot search grounding, and a use case requiring it routes to
+# Gemini. Declared only where a door exists that actually opens the session —
+# declaring it on a text API would let that API answer "what does the market ask
+# for today" from its training data, a plausible answer with no sources behind it.
+CAP_WEB_RESEARCH = "web_research"
 
 # NOTE: CAP_FILE_INPUT is intentionally NOT advertised by the anthropic/openai/
 # azure_openai rows even though those vendors support multimodal input. Their
@@ -28,7 +39,10 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     "openai": frozenset({CAP_JSON}),
     "azure_openai": frozenset({CAP_JSON}),
     "gemini": frozenset({CAP_JSON, CAP_GROUNDING, CAP_FILE_INPUT}),
-    "claude_cli": frozenset({CAP_JSON}),
+    # web_research is earned by ClaudeCliAdapter.with_web_research (the CLI's own
+    # WebSearch/WebFetch tools); a call site that never binds that door gets a
+    # plain text session, which is why role_research_cli degrades when it is absent.
+    "claude_cli": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
     # OpenRouter serves the JSON/text use cases via prompt-embedded JSON; file input
     # varies per proxied model, so it is not advertised here.
     "openrouter": frozenset({CAP_JSON}),
@@ -96,6 +110,12 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "cv_polish": frozenset({CAP_JSON}),
     "fit_dialog": frozenset({CAP_JSON}),
     "extraction_rules": frozenset({CAP_JSON}),
+    # Job-seeker module: the skills a target title CURRENTLY asks for in the seeker's
+    # markets, researched on the public web with sources (role_research_cli.py). The
+    # web capability is the point, so only claude_cli can serve it; the call site also
+    # pins that engine and model (ProviderPin), and without a usable one it answers
+    # no_provider rather than letting a text model recite its training data.
+    "role_research": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
     # Gigs (app/_lib/gigs/research.ts -> gig_brief_cli.py): one listing plus the pages it
     # links to, fenced as data, in; a structured research brief (category, difficulty,
     # effort, challenges, summary, asks) out as JSON. kp writes the Markdown from it.
@@ -174,6 +194,15 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # past the base 2048 before it answers; a truncated object fails coerce_brief and the
     # deterministic brief ships instead. Sized with fit_dialog/extraction_rules.
     "gig_brief": 4096,
+    # A role research answer at its structural maximum: 24 skills x ~75 tokens (name,
+    # tier, share, a <=200-char why, source ids) + 16 sources x ~90 (url, title, read,
+    # publisher) + a <=400-char summary is ~3.4k tokens, past the base 2048 — and a
+    # model that overshoots the caps (the coercer trims to 24/16) must not be cut off
+    # mid-object, because a truncated answer fails coercion WHOLE and the seeker gets
+    # no research at all. NOTE the engine this use case is pinned to (claude_cli)
+    # passes no max-tokens flag, so today this row binds nothing; it is the decision
+    # for the day another provider declares CAP_WEB_RESEARCH, not a dead number.
+    "role_research": 6144,
     # agent_fit re-emits the WHOLE judgement in one object: up to
     # _MAX_COVERAGE_ITEMS=12 {item, coverage, rationale} rows, then a spec whose
     # `systemPromptDraft` is asked for at <=1200 chars and ACCEPTED by the coercer

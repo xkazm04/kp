@@ -7,9 +7,10 @@
 // hand-mirrored list rots into. That reasoning applies to three more mirrors that
 // had no guard at all:
 //
-//   LLM_PROVIDERS  <- PROVIDER_CAPABILITIES  (capabilities.py)
-//   LLM_USE_CASES  <- USE_CASE_REQUIREMENTS  (capabilities.py)
-//   BENCH_OPS      <- REGISTRY_USE_CASE      (bench/scenarios.py)
+//   LLM_PROVIDERS     <- PROVIDER_CAPABILITIES  (capabilities.py)
+//   LLM_USE_CASES     <- USE_CASE_REQUIREMENTS  (capabilities.py)
+//   BENCH_OPS         <- REGISTRY_USE_CASE      (bench/scenarios.py)
+//   PINNED_USE_CASES  <- PIN                    (role_research_cli.py, a call-site pin)
 //
 // Each rots quietly and in a direction the type system cannot see:
 //
@@ -38,7 +39,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { LLM_PROVIDERS, LLM_USE_CASES } from "./llm-config.ts";
+import { LLM_PROVIDERS, LLM_USE_CASES, PINNED_USE_CASES, type LlmUseCase } from "./llm-config.ts";
 import { BENCH_OPS, UNMEASURED_DEFAULTS, UNMEASURED_USE_CASES } from "./llm-quality.ts";
 import { QUALITY_SCORES } from "./llm-quality-scores.ts";
 import { TRANSIENT_HTTP_CODES, TRANSIENT_MARKERS } from "./gemini-retry.ts";
@@ -54,6 +55,8 @@ const MONITOR = path.join(REPO_ROOT, "pipeline", "jobfit", "llm", "monitor.py");
 // without widening either module's public surface.
 const LIGHTTRACK_TS = path.join(REPO_ROOT, "app", "_lib", "llm-lighttrack.ts");
 const QUALITY_TS = path.join(REPO_ROOT, "app", "_lib", "llm-quality.ts");
+// The one call site that pins its engine today (registry.ProviderPin). Python owns the pin.
+const ROLE_RESEARCH_CLI = path.join(REPO_ROOT, "pipeline", "jobfit", "role_research_cli.py");
 
 /** The `"key": "value"` pairs of an object/dict literal declared as `declaration`
  *  (same literal shape in TS and Python, so one reader serves both). */
@@ -144,6 +147,26 @@ test("every LLM_USE_CASES id except '*' is measured or named as unmeasured", () 
   assert.deepEqual(missing, [], "add a BENCH_OPS mapping or an UNMEASURED_USE_CASES row");
   const extra = [...unmeasured].filter((id) => !(members as readonly string[]).includes(id));
   assert.deepEqual(extra, [], "UNMEASURED_USE_CASES names a use case LLM_USE_CASES does not");
+});
+
+test("PINNED_USE_CASES mirrors the Python call-site pin exactly", () => {
+  // A pin is a CALL-SITE override: role_research_cli.py passes `pin=PIN` to
+  // resolve_provider, and that constant is what runs. The TS copy exists so a surface
+  // can say "pinned" instead of presenting a routing row as if it changed the engine —
+  // drift here would have it name a model the product no longer runs.
+  const source = readFileSync(ROLE_RESEARCH_CLI, "utf-8");
+  const useCase = source.match(/^USE_CASE = "([a-z_]+)"$/m);
+  const pin = source.match(/^PIN = ProviderPin\("([a-z_]+)", "([a-zA-Z0-9._-]+)"\)$/m);
+  assert.ok(useCase && pin, "role_research_cli.py no longer declares USE_CASE / PIN in the shape this test reads");
+  const mirror = PINNED_USE_CASES[useCase[1] as LlmUseCase];
+  assert.ok(mirror, `${useCase[1]} is pinned in Python but absent from PINNED_USE_CASES`);
+  assert.equal(mirror.provider, pin[1], "the pinned provider drifted between Python and TS");
+  assert.equal(mirror.model, pin[2], "the pinned model drifted between Python and TS");
+  assert.ok(mirror.reason.trim(), "a pin states why it overrides routing");
+  // The reverse: a TS pin with no Python pin behind it is a claim nothing enforces. A
+  // second pin extends this test with its own call-site source, not this list.
+  assert.deepEqual(Object.keys(PINNED_USE_CASES), [useCase[1]]);
+  assert.ok((LLM_USE_CASES as readonly string[]).includes(useCase[1]), "a pinned use case must be a catalog use case");
 });
 
 test("every bench op rolls up to a use case that actually exists", () => {

@@ -9581,7 +9581,9 @@
           "unusable_output": "the answer was not usable",
           "unknown": "no reason was recorded"
         }
-      }
+      },
+      "lockedRow": "Locked to {model} with web research. The feature sets its own model, so a row here would not move it.",
+      "stateLocked": "Locked"
     },
     "usage": {
       "title": "Usage & cost",
@@ -9717,7 +9719,8 @@
       "grounded_salary": "Grounded salary",
       "interview_realtime": "Voice interview",
       "assistant": "Assistant",
-      "gig_brief": "Gig research brief"
+      "gig_brief": "Gig research brief",
+      "role_research": "Role research"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9800,7 +9803,8 @@
       "devcase_transfer": "Reserved for the assignment transfer evaluator. No live call site yet.",
       "assistant": "Operator companion chat turns.",
       "posting_translate": "Translates a published role posting into another language.",
-      "gig_brief": "Reads a paid-work listing and the pages it links to, and writes the gig's research brief: category, difficulty, effort and expected challenges."
+      "gig_brief": "Reads a paid-work listing and the pages it links to, and writes the gig's research brief: category, difficulty, effort and expected challenges.",
+      "role_research": "What a job seeker's target titles ask for now, researched on the web with its sources."
     }
   },
   "jdPublic": {

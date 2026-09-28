@@ -9581,7 +9581,9 @@
           "unusable_output": "odpověď nebyla použitelná",
           "unknown": "důvod nebyl zaznamenán"
         }
-      }
+      },
+      "lockedRow": "Pevně nastaveno na {model} s průzkumem webu. Funkce si model volí sama, řádek zde by ho nezměnil.",
+      "stateLocked": "Pevné"
     },
     "usage": {
       "title": "Spotřeba a náklady",
@@ -9717,7 +9719,8 @@
       "grounded_salary": "Tržní odhad mzdy",
       "interview_realtime": "Hlasový pohovor",
       "assistant": "Asistent",
-      "gig_brief": "Rešerše zakázky"
+      "gig_brief": "Rešerše zakázky",
+      "role_research": "Průzkum pozice"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9800,7 +9803,8 @@
       "devcase_transfer": "Rezervováno pro vyhodnocení přenositelnosti. Zatím bez živého volání.",
       "assistant": "Konverzační tahy operátorova společníka.",
       "posting_translate": "Překládá zveřejněný inzerát role do dalšího jazyka.",
-      "gig_brief": "Přečte inzerát placené zakázky a stránky, na které odkazuje, a sepíše k ní rešerši: kategorii, náročnost, odhad práce a očekávané potíže."
+      "gig_brief": "Přečte inzerát placené zakázky a stránky, na které odkazuje, a sepíše k ní rešerši: kategorii, náročnost, odhad práce a očekávané potíže.",
+      "role_research": "Co dnes vyžadují cílové pozice uchazeče, zjištěno na webu i se zdroji."
     }
   },
   "jdPublic": {

@@ -39,11 +39,12 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // outreach" or "Roles & intake" would mislabel it in the one place an operator
   // goes to decide which model reads what.
   { key: "companion", useCases: ["assistant"] },
-  // The job-seeker module (/me): the seeker's own CV polish and fit dialogs, and
-  // the one-off authoring of extraction rules for a board without JSON-LD. Serves
-  // the person LOOKING for a job, so it is neither a hiring artifact nor the
-  // operator companion.
-  { key: "jobseeker", useCases: ["cv_polish", "fit_dialog", "extraction_rules"] },
+  // The job-seeker module (/me): the seeker's own CV polish and fit dialogs, the
+  // one-off authoring of extraction rules for a board without JSON-LD, and the web
+  // research of what a target title currently asks for (`role_research`, pinned at
+  // its call site — llm-config.ts PINNED_USE_CASES). Serves the person LOOKING for a
+  // job, so it is neither a hiring artifact nor the operator companion.
+  { key: "jobseeker", useCases: ["cv_polish", "fit_dialog", "extraction_rules", "role_research"] },
   // Gigs (docs/features/gigs/README.md): the research brief written from a paid-work
   // listing and the pages it links to. It serves the operator taking on outside work,
   // so it is none of the hiring clusters above and not the job-seeker's own dialogs.

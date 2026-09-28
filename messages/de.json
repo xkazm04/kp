@@ -9581,7 +9581,9 @@
           "unusable_output": "die Antwort war nicht verwendbar",
           "unknown": "kein Grund erfasst"
         }
-      }
+      },
+      "lockedRow": "Fest auf {model} mit Webrecherche. Die Funktion wählt ihr Modell selbst, eine Zeile hier würde es nicht ändern.",
+      "stateLocked": "Fest"
     },
     "usage": {
       "title": "Nutzung & Kosten",
@@ -9717,7 +9719,8 @@
       "grounded_salary": "Fundiertes Gehalt",
       "interview_realtime": "Voice-Interview",
       "assistant": "Assistent",
-      "gig_brief": "Auftragsrecherche"
+      "gig_brief": "Auftragsrecherche",
+      "role_research": "Rollenrecherche"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -9800,7 +9803,8 @@
       "devcase_transfer": "Reserviert für die Transfer-Auswertung. Noch ohne aktiven Aufruf.",
       "assistant": "Chat-Turns des Operator-Begleiters.",
       "posting_translate": "Übersetzt ein veröffentlichtes Stelleninserat in eine andere Sprache.",
-      "gig_brief": "Liest eine Auftragsausschreibung und die darin verlinkten Seiten und schreibt die Recherche zum Auftrag: Kategorie, Schwierigkeit, Aufwand und zu erwartende Hürden."
+      "gig_brief": "Liest eine Auftragsausschreibung und die darin verlinkten Seiten und schreibt die Recherche zum Auftrag: Kategorie, Schwierigkeit, Aufwand und zu erwartende Hürden.",
+      "role_research": "Was die Zieltitel einer suchenden Person heute verlangen, im Web recherchiert, mit Quellen."
     }
   },
   "jdPublic": {

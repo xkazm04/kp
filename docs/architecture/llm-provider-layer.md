@@ -34,6 +34,13 @@ Backend shipped and in production use:
   (the gig research brief, `gig_brief_cli.py`: keyless answers `no_provider` as data
   and the caller writes its deterministic brief; its own **Gigs** section in the
   Models routing table - docs/features/gigs/README.md "Research").
+- **`role_research` is the one use case whose engine is PINNED at the call site**
+  (`role_research_cli.py`, the job seeker's "what does this title ask for today",
+  researched on the public web with sources): `resolve_provider(..., pin=PIN)` runs it
+  on Claude Sonnet 5.5 through the CLI's `web_research` mode whatever the Models row
+  says; it requires the new `web_research` capability, which only `claude_cli`
+  declares. Listed in the Models table's **Job search** section. See "Call-site pins"
+  below.
 - **`repo_scan` is the one use case whose *engine* changes what it can see.**
   Every provider gets the same prompt, which carries the deterministic dossier and
   the repo's own `CLAUDE.md`/`AGENTS.md` as grounding — but only `claude_cli` can
@@ -95,7 +102,16 @@ an empty list and passing vacuously.
 | json_schema | done | done | done | done | done (via expected_keys) |
 | file_input (PDF/image) | done | done | done | done | no |
 | search_grounding | done | no | no | no | no |
+| web_research (agentic search + fetch, `CAP_WEB_RESEARCH`) | no | no | no | no | done (`with_web_research`) |
 | batch `map()` | done | done | done | done | done (process pool) |
+
+`web_research` is deliberately NOT `grounding`: grounding is Gemini's single-shot
+search grounding, and a use case requiring it routes to Gemini. `web_research` is a
+session in which the model runs its own searches, fetches the pages it chooses and cites
+them — declared only where a door actually opens one (`claude_cli`'s `web_research`
+mode). A text API must never be able to serve it: it would answer "what does the market
+ask for today" from training data, plausibly and with no sources. A config row routing
+`role_research` elsewhere raises at resolve time, pin or no pin.
 
 The registry rejects (or visibly degrades) a config that routes a use case to a
 provider missing a required capability — e.g. `cv_analysis` on OpenAI runs
@@ -449,13 +465,106 @@ inbound error translation:
 | usage/plan limit, consumer-terms refusal, missing binary | permanent `LLMError` with `usage_limit` / `consumer_terms_policy` / `not_installed` |
 
 `availability`, `probe`, `billing_lane`, `consumer_terms_blocked`,
-`with_repo_access` and a settable `extra_args` (repo_scan's secret-file deny list)
-delegate to the wrapped CLI, so the production veto and its descent reasons are
-unchanged. Ledger rows keep their shape: provider `claude_cli`, model
+`with_repo_access`, `with_web_research` and a settable `extra_args` (repo_scan's
+secret-file deny list) delegate to the wrapped CLI, so the production veto and its
+descent reasons are unchanged. Ledger rows keep their shape: provider `claude_cli`, model
 `claude-cli-default` when the CLI runs on its own default (`monitor._ledger_model`),
 the envelope's `total_cost_usd` as `cost_usd`. The eval and seed lanes still
 construct a bare `ClaudeCliProvider` on purpose. Fixtures:
 `pipeline/jobfit/tests/test_llm_claude_cli_adapter.py`.
+
+## Call-site pins (`registry.ProviderPin`)
+
+Some use cases are a product decision about ONE model, not a routing preference: the
+job seeker's `role_research` must run on Claude Sonnet 5.5 through the Claude CLI's web
+tools. The operator's Models table is the wrong place for that (it is the operator's
+choice, and a wildcard `*` row would silently move the use case), and so is an env var
+read inside the router — registry technique model-routing/consumer-overrides: *the
+router exposes an override PARAMETER; it never reads override STATE.* So the override is
+a value the call site passes, visible in its code:
+
+```python
+PIN = ProviderPin("claude_cli", "claude-sonnet-5-5")   # role_research_cli.py
+provider = resolve_provider("role_research", timeout=PROVIDER_TIMEOUT_S, pin=PIN)
+```
+
+`resolve_provider(use_case, *, timeout=None, pin=None)` — `ProviderPin(provider, model)`
+is a frozen dataclass exported from `pipeline.jobfit.llm`. Precedence, stated once:
+
+| Layer | Against a pin |
+| --- | --- |
+| Policy on the provider — the CLI's `KP_OFFLINE` seal (`offline_policy`) and its production consumer-terms refusal (`consumer_terms_policy`, unlocked by `KP_ALLOW_CLI_ENGINE=1` or a passed-through `ANTHROPIC_API_KEY`) | **Outranks it.** Untouched: the pinned adapter answers `availability()` with the descent, the call site degrades to its no-LLM answer, and the ledger's deterministic line names the descent — a pin that lost to policy is recorded, not swallowed |
+| The use case's required capabilities (`unsupported_caps`) | **Outranks it.** Checked against the PINNED provider; a pin below them raises `LLMError` naming the missing capability (`test_role_research.PinTest`) |
+| The operator's `KP_LLM_CONFIG` row (specific or `*`) — provider, model AND params | **Outranked.** Not read at all under a pin, so a malformed config cannot break a pinned call either |
+| Routing defaults (production Gemini preference, `USE_CASE_MODEL_OVERRIDES`) | **Outranked** |
+
+Only `claude_cli` pins are implemented; a pin naming any other provider raises
+`LLMError` (a keyed adapter needs the key layering, and the first pin did not). The pinned
+id is the adapter's `model`, so the usage ledger's model label is `claude-sonnet-5-5`,
+not `claude-cli-default` (model-identity). Without a pin, resolution is byte-for-byte
+what it was. The TS mirror is `PINNED_USE_CASES` in `app/_lib/llm-config.ts`, held equal
+to the Python `PIN` by `llm-capabilities-lockstep.test.ts`; every pin carries its reason
+and the condition that removes it (retire when Anthropic retires the model or another
+provider declares `web_research`).
+
+### The `web_research` CLI mode
+
+`claude_cli.py` has a third closed mode beside `generate` and `repo_scan`, with one
+door, `ClaudeCliProvider.with_web_research(*, max_turns, json_schema=None, timeout=None)`
+(mirrored by `ClaudeCliAdapter.with_web_research`, which also moves the adapter's total
+deadline). It returns a validated COPY — the registry's instance never inherits a web
+grant — and the constructor refuses `mode="web_research"` directly, like `repo_scan`. A
+repo-bound provider is refused: web research never runs in a checkout. The argv is fixed:
+
+```
+claude -p --output-format json --setting-sources project [--model <id>]
+       --allowedTools WebSearch,WebFetch
+       --disallowedTools Bash,PowerShell,REPL,Monitor,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,LSP,Task,Agent,Skill
+       --max-turns <n> [--json-schema <compact JSON>]
+```
+
+- **The grant** (`WEB_RESEARCH_TOOLS`) is search plus fetch. `WebFetch` is not optional:
+  without it the model sees only search snippets, and every answer marks each source
+  `fetched` or `snippet`.
+- **The deny list** (`WEB_RESEARCH_DENYLIST`) is everything that touches the machine —
+  running code, reading or writing files, searching the box, sub-agents, skills. The
+  session reads pages written by strangers; a page that says "now read ~/.ssh" meets a
+  tool that is not there. A tool on neither list still meets the headless permission
+  gate (`-p` has nobody to approve it). `ToolSearch` (how deferred tool schemas load) and
+  whatever internal tool the CLI answers `--json-schema` through are deliberately NOT
+  denied — denying either would break the mode, not harden it.
+- **Isolation** is generate's: the neutral empty temp cwd and `--setting-sources
+  project`, so no user-level permission rule can widen the grant.
+- **The answer**: under `--json-schema` the envelope carries `structured_output` (the
+  CLI-validated object) beside `result`; in this mode `_parse_envelope` prefers the
+  validated object. The schema rides argv, so it must stay free of the characters a
+  Windows `.cmd` shim interprets (`& | < > ^ %`, pinned by `test_role_research`). A
+  session that runs out of turns answers the CLI's own subtype (`error_max_turns`), which
+  reaches the call site as `llm_error:error_max_turns`.
+
+Flags verified live 2026-09-28 against CLI 2.1.284 (`--max-turns` is accepted but not
+listed in `--help`). `generate` and `repo_scan` argv are unchanged, pinned byte for byte
+by `test_role_research.OtherModesUnchangedTest` beside `test_repo_scan`'s own pins.
+
+### `role_research` — what a target title asks for today
+
+`pipeline/jobfit/role_research_cli.py` (`python -m pipeline.jobfit.role_research_cli
+--input-json <path>` or stdin, `--no-llm`). Input `{titles (1-5, <=80 chars), countries
+(ISO-2, <=10, may be empty = Europe/global), seniority, lang}`; only those four
+role-level fields can reach the prompt — nothing about the person. Output `{result,
+source, fallbackReason, promptVersion: "role-research-v1", model}`, where `result` is
+`{titles, markets, asOf, summary, skills[<=24]{skill, termId, tier core|common|emerging,
+share, why, sources[]}, sources[<=16]{url, title, read fetched|snippet, publisher}}`. It
+runs `resolve_provider(..., pin=PIN)`, then `provider_availability`, then the adapter's
+`with_web_research(max_turns=16, json_schema=SCHEMA)` and `complete_json` inside a 240 s
+budget. The model cites sources by id and kp re-validates everything
+(`coerce_research`): http(s)-only de-duplicated sources re-indexed onto the published
+list, skills with no surviving citation dropped, role nouns ("ML Engineer") and
+duplicates (folded name or taxonomy term — the higher tier stays) dropped, `share` kept
+only as a stated fraction in 0..1 (never clamped into one). Keyless is data, exit 0:
+`no_provider` (no, unavailable or refused provider — the ledger line names the
+descent), `llm_error:<subtype or Type>`, `llm_unusable`. Malformed input is exit 2
+`invalid_input`. Fixtures: `pipeline/jobfit/tests/test_role_research.py`.
 
 ## Prompt artifacts are PII, and their retention is explicit
 
@@ -1018,6 +1127,13 @@ locales.
   usage panel read them (`LlmActivityRow.outcome`/`.reason`,
   `UseCaseTotals.failedCalls`) but show no column for either; surfacing them is new
   operator-facing copy in four locale catalogs.
+- A call-site pin is recorded in the ledger only as its model id (`claude-sonnet-5-5`
+  on `role_research` rows): nothing in `llm_usage` says a pin, rather than routing,
+  chose it. And the Models table still offers a `role_research` row that the pin makes
+  inert — `PINNED_USE_CASES` is exported for the panel to mark it (as it marks
+  `devcase_role_design`), but the panel does not read it yet.
+- `role_research`'s `read: "fetched"` is the model's own claim: the JSON envelope
+  carries no tool trace, so kp cannot verify which pages were actually fetched.
 - Per-tenant provider KEYS are not built either, deliberately (owner decision):
   `provider_keys` and `llm_config` are one deployment-wide store. The Models panel
   states the scope rather than implying a boundary that does not exist.

@@ -179,11 +179,16 @@ MAX_STDOUT_BYTES = 4 * 1024 * 1024
 #   repo_scan  the read-only repository dossier scan. Entered ONLY through
 #              :meth:`ClaudeCliProvider.with_repo_access`, which owns the
 #              read-only stance validation (allowlist/denylist/plan mode).
+#   web_research  role-level research on the PUBLIC WEB (role_research_cli).
+#              Entered ONLY through :meth:`ClaudeCliProvider.with_web_research`,
+#              which fixes the tool grant (WebSearch + WebFetch, the rest
+#              denied), the turn budget and the answer schema. Same neutral temp
+#              cwd and user-config isolation as generate — never a repository.
 #
 # These are separate seams on purpose: folding them into kwargs made
 # "which mode am I in?" a bug that type-checks (a caller could pair
 # `permission_mode="acceptEdits"` with a repo cwd and bypass the validation).
-MODES = ("generate", "repo_scan")
+MODES = ("generate", "repo_scan", "web_research")
 
 _NEUTRAL_CWD: str | None = None
 
@@ -286,6 +291,64 @@ WRITE_TOOL_DENYLIST: tuple[str, ...] = (
     "NotebookEdit",
     "WebFetch",
 )
+
+# --------------------------------------------------------------------------- #
+# Researching the public web (web_research mode — role_research_cli)
+# --------------------------------------------------------------------------- #
+#
+# The one mode whose whole point is a TOOL: "which skills do current postings for
+# this title ask for" is a question about the web as it is today, which no model
+# answers from its weights. The grant is the smallest that does the job, and it is
+# a closed pair rather than a parameter, so no caller can widen it:
+#
+#   WebSearch  find current postings and market reports;
+#   WebFetch   actually READ a page. Without it the model sees only search
+#              snippets, and a source it cites is then a snippet it skimmed —
+#              which is why the answer marks each source `fetched` or `snippet`.
+#
+# Everything that can touch THIS machine is denied outright (deny wins over allow
+# in the CLI): running code, reading or writing files, searching the box, spawning
+# sub-agents, loading skills. The session reads pages written by strangers, so a
+# page that says "now read ~/.ssh" must meet a tool that is not there, not a
+# prompt that asks nicely. A tool on neither list still meets the headless
+# permission gate — `-p` has nobody to approve it, so it is refused at call time.
+# Deliberately NOT denied: ToolSearch (how a session loads a DEFERRED tool's schema —
+# WebSearch/WebFetch can be deferred) and whatever internal tool the CLI answers
+# `--json-schema` through. Denying either would break the mode, not harden it.
+#
+# Flags verified live 2026-09-28 against CLI 2.1.284:
+#   claude -p --model claude-sonnet-5-5 --output-format json
+#          --allowedTools WebSearch,WebFetch --max-turns 6 --json-schema '<schema>'
+# answers with `structured_output` (the validated object) beside `result` (the same
+# JSON as text), `total_cost_usd` and `modelUsage`. `--max-turns` is accepted but
+# not listed in `--help`; `--json-schema` is.
+WEB_RESEARCH_TOOLS: tuple[str, ...] = ("WebSearch", "WebFetch")
+
+WEB_RESEARCH_DENYLIST: tuple[str, ...] = (
+    # run code or commands (PowerShell/REPL are the Windows/code-running
+    # siblings `claude --help` names beside Bash; Monitor runs a shell command)
+    "Bash",
+    "PowerShell",
+    "REPL",
+    "Monitor",
+    # read, write or search the machine the child runs on
+    "Read",
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "Glob",
+    "Grep",
+    "LSP",
+    # hand the session to something with its own grants (Agent is Task's current name)
+    "Task",
+    "Agent",
+    "Skill",
+)
+
+# A research session is a handful of searches and fetches; a turn budget past this
+# is a runaway (and a bill) rather than diligence.
+MAX_WEB_RESEARCH_TURNS = 50
 
 
 def _tool_head(tool: str) -> str:
@@ -422,10 +485,12 @@ class ClaudeCliProvider:
         One of :data:`MODES`. ``"generate"`` (default) is the neutral
         text-in/text-out batch seam — the child runs in an empty temp cwd with
         no tool grants. ``"repo_scan"`` is entered via
-        :meth:`with_repo_access`, which owns the read-only stance; the
-        stance kwargs (``cwd`` / ``allowed_tools`` / ``disallowed_tools`` /
-        ``permission_mode``) are refused on a directly-constructed provider so
-        the modes cannot be re-assembled from kwargs.
+        :meth:`with_repo_access`, which owns the read-only stance, and
+        ``"web_research"`` via :meth:`with_web_research`, which owns the web
+        grant; the stance kwargs (``cwd`` / ``allowed_tools`` /
+        ``disallowed_tools`` / ``permission_mode``) are refused on a
+        directly-constructed provider so the modes cannot be re-assembled from
+        kwargs.
     """
 
     def __init__(
@@ -448,6 +513,12 @@ class ClaudeCliProvider:
             raise ValueError(
                 "repo_scan mode has one door: with_repo_access(cwd) — it validates "
                 "the read-only stance; constructing it directly would skip that"
+            )
+        if mode == "web_research":
+            raise ValueError(
+                "web_research mode has one door: with_web_research(max_turns=...) — it "
+                "fixes the tool grant and the turn budget; constructing it directly "
+                "would skip that"
             )
         # Vocabulary check first so an unknown mode string still gets the
         # informative error, then the seam check: stance kwargs belong to
@@ -479,6 +550,9 @@ class ClaudeCliProvider:
         self.allowed_tools: tuple[str, ...] | None = None
         self.disallowed_tools: tuple[str, ...] | None = None
         self.permission_mode: str | None = None
+        # web_research only (set by with_web_research, emitted only in that mode)
+        self.max_turns: int | None = None
+        self.json_schema: dict[str, Any] | None = None
 
     # -- repo binding -------------------------------------------------------
 
@@ -526,11 +600,64 @@ class ClaudeCliProvider:
             clone.timeout = timeout
         return clone
 
+    # -- web binding --------------------------------------------------------
+
+    def with_web_research(
+        self,
+        *,
+        max_turns: int,
+        json_schema: dict[str, Any] | None = None,
+        timeout: int | None = None,
+    ) -> "ClaudeCliProvider":
+        """A COPY of this provider that may search and read the public web.
+
+        The web_research mode's one door, shaped like :meth:`with_repo_access`:
+        a copy, so the registry's instance never inherits a web grant it did not
+        ask for. What the caller chooses is the BUDGET (``max_turns``, the
+        ``timeout``) and the answer's shape (``json_schema``, forwarded as
+        ``--json-schema`` so the CLI validates the final object and the envelope
+        carries it as ``structured_output``). What it cannot choose is the grant:
+        :data:`WEB_RESEARCH_TOOLS` allowed, :data:`WEB_RESEARCH_DENYLIST` denied,
+        no permission mode, and the neutral temp cwd generate uses — never a
+        repository, so a repo-bound copy is refused rather than re-pointed.
+        """
+        if self.mode == "repo_scan":
+            raise ValueError(
+                "with_web_research refuses a repo-bound provider: web research runs in "
+                "the neutral cwd, never in a checkout — bind a fresh provider instead"
+            )
+        if isinstance(max_turns, bool) or not isinstance(max_turns, int):
+            raise ValueError(f"max_turns must be an int, got {type(max_turns).__name__}")
+        if not 1 <= max_turns <= MAX_WEB_RESEARCH_TURNS:
+            raise ValueError(f"max_turns must be 1..{MAX_WEB_RESEARCH_TURNS}, got {max_turns}")
+        schema: dict[str, Any] | None = None
+        if json_schema is not None:
+            if not isinstance(json_schema, dict) or not json_schema:
+                raise ValueError("json_schema must be a non-empty JSON Schema object")
+            try:
+                json.dumps(json_schema)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"json_schema is not JSON-serializable: {exc}") from exc
+            # a private copy: a caller mutating its dict afterwards must not change
+            # what an already-bound provider sends
+            schema = copy.deepcopy(json_schema)
+        clone = copy.copy(self)
+        clone.mode = "web_research"
+        clone.cwd = None
+        clone.allowed_tools = WEB_RESEARCH_TOOLS
+        clone.disallowed_tools = WEB_RESEARCH_DENYLIST
+        clone.permission_mode = None
+        clone.max_turns = max_turns
+        clone.json_schema = schema
+        if timeout is not None:
+            clone.timeout = timeout
+        return clone
+
     def cli_args(self) -> list[str]:
         """The argv this provider would run (executable resolved). Exported so the
         read-only contract is assertable without spawning a subprocess."""
         args = [self._executable(), "-p", "--output-format", "json"]
-        if self.mode == "generate":
+        if self.mode in ("generate", "web_research"):
             # User-config isolation: the operator's own hooks can print AFTER
             # the envelope on stdout and break the strict whole-string parse.
             # `--setting-sources project` loads only project-level settings —
@@ -541,6 +668,9 @@ class ClaudeCliProvider:
             # its help states auth becomes "strictly ANTHROPIC_API_KEY or
             # apiKeyHelper" — the exact billing flip the env strip exists to
             # prevent. repo_scan keeps default sources (behavior parity).
+            # web_research shares the neutral cwd and so the isolation too — and
+            # for it the isolation is a grant question as well: no user settings
+            # means no user-level permission rule can widen the web grant.
             args += ["--setting-sources", "project"]
         if self.model:
             args += ["--model", self.model]
@@ -552,6 +682,13 @@ class ClaudeCliProvider:
             args += ["--allowedTools", ",".join(self.allowed_tools)]
         if self.disallowed_tools:
             args += ["--disallowedTools", ",".join(self.disallowed_tools)]
+        if self.mode == "web_research":
+            args += ["--max-turns", str(self.max_turns)]
+            if self.json_schema is not None:
+                # Compact, and argv rather than stdin: the flag takes the schema
+                # inline. Our schemas are constants, kept free of the characters a
+                # Windows .cmd shim would interpret (test_role_research pins it).
+                args += ["--json-schema", json.dumps(self.json_schema, separators=(",", ":"), ensure_ascii=False)]
         args += list(self.extra_args)
         return args
 
@@ -714,7 +851,9 @@ class ClaudeCliProvider:
         bare name to ``subprocess.run`` fails because ``CreateProcess`` does not
         apply ``PATHEXT``. ``shutil.which`` does, so we resolve first and invoke
         the absolute path. The prompt goes over stdin (never argv), so the
-        ``.cmd`` quoting hazards don't apply.
+        ``.cmd`` quoting hazards don't apply to it; the one structured payload on
+        argv is web_research's ``--json-schema``, a code constant kept free of the
+        characters ``cmd.exe`` interprets.
         """
         resolved = shutil.which(self.command)
         if resolved:
@@ -860,10 +999,10 @@ class ClaudeCliProvider:
 
     def _spawn_cwd(self) -> str | None:
         """Where the child runs. ``repo_scan``: the bound repository (set by
-        :meth:`with_repo_access`). ``generate``: a NEUTRAL empty temp dir —
-        never the caller's cwd, so the CLI's CLAUDE.md auto-discovery finds
-        nothing and batch prompts stay uncontaminated by kp's own agent
-        instructions."""
+        :meth:`with_repo_access`). ``generate`` and ``web_research``: a NEUTRAL
+        empty temp dir — never the caller's cwd, so the CLI's CLAUDE.md
+        auto-discovery finds nothing and batch prompts stay uncontaminated by
+        kp's own agent instructions."""
         if self.mode == "repo_scan":
             return self.cwd
         return _neutral_cwd()
@@ -905,6 +1044,14 @@ class ClaudeCliProvider:
             )
 
         text = str(envelope.get("result") or "")
+        if self.mode == "web_research" and self.json_schema is not None:
+            # Under --json-schema the CLI validated the final object itself and
+            # hands it over as `structured_output`; `result` carries the same JSON
+            # as text today, but the validated object is the one to trust. Only
+            # this mode ever passes a schema, so generate/repo_scan parse as before.
+            structured = envelope.get("structured_output")
+            if isinstance(structured, (dict, list)):
+                text = json.dumps(structured, ensure_ascii=False)
         return ClaudeResult(
             text=text,
             raw=envelope,

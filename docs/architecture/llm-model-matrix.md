@@ -126,6 +126,12 @@ the only candidate (every other column has an op under 0.9 reliability).
 Claude CLI costs are **list-price equivalents** — the CLI seat itself is
 subscription-billed; the board says so beside the price.
 
+A use case whose call site pins its own engine (`app/_lib/llm-pins.ts`) gets no
+recommendation row: `role_research` - the job seeker's web research of their target
+titles - runs on Claude Sonnet 5.5 through the Claude CLI's WebSearch and WebFetch, is
+listed in `UNMEASURED_USE_CASES` (live web research has no fixed input a bench could
+judge), and its Models row shows the pin instead of routing controls.
+
 The row joins the pick against the current pins (`modelsQualityPick.ts`):
 `pinned` (the effective pin already names the pick's bench provider AND model),
 `pin_available`, `unmeasured_pin` (your pin's model was never benchmarked),
