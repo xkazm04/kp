@@ -167,6 +167,27 @@ test("a file under deliverable/ that no artifact covers fails; a folder artifact
   assert.match(out, /^OK /);
 });
 
+test("the AI disclosure inside the product (a page footer, generated output) fails; in a README it passes", () => {
+  const dir = path.join(TMP, `gig-${++n}`);
+  mkdirSync(path.join(dir, "deliverable"), { recursive: true });
+  const sentence = "This work was prepared with the assistance of an AI agent and reviewed by me before sending.";
+  writeFileSync(path.join(dir, "deliverable/index.html"), `<footer>${sentence}</footer>`);
+  writeFileSync(path.join(dir, "deliverable/report.py"), `FOOTER = "${sentence}"\n`);
+  writeFileSync(path.join(dir, "deliverable/README.md"), `${sentence}\n`);
+  writeFileSync(path.join(dir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
+  writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify({ ...GOOD, artifacts: [{ kind: "file", ref: "deliverable", title: "Site" }] }));
+  let out = "";
+  try {
+    execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: dir, encoding: "utf8" });
+    assert.fail("the checker passed a disclosure inside the product");
+  } catch (e) {
+    out = String((e as { stdout?: unknown }).stdout ?? "");
+  }
+  assert.match(out, /deliverable\/index\.html carries the AI disclosure/);
+  assert.match(out, /deliverable\/report\.py carries the AI disclosure/);
+  assert.doesNotMatch(out, /README\.md carries/);
+});
+
 test("no file at all says so", () => {
   const r = check(null);
   assert.equal(r.ok, false);

@@ -365,7 +365,9 @@ under `deliverable/` must be covered by an artifact (a folder `ref` covers its c
 twice in the training cycle. The `disclosure` may be reworded for the venue, but the checker fails one
 that does not name AI or does not claim the review in the first person. The contract says where it
 goes: with the delivery (`draftText`, README, cover note), never into output the deliverable's own code
-generates for the client's users.
+generates for the client's users. The checker fails the disclosure sentence found in the product's own files
+(HTML, code, templates - anything under `deliverable/` but `.md`/`.txt`), because two drafts printed it in
+a site footer and a generated weekly email even after the contract said not to.
 
 The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under

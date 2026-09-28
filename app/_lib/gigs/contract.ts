@@ -160,6 +160,13 @@ for (const r of shipped) {
 for (const [where, text] of clientTexts) { const m = internalRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer and move notes to NOTES.md"); }
 const inCodeRe = new RegExp(${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.source)}, ${JSON.stringify(GIG_INTERNAL_MARKERS_IN_CODE.flags)});
 for (const [where, text] of codeTexts) { const m = inCodeRe.exec(text); if (m) problems.push(where + " contains internal wording \\"" + m[0] + "\\" - the client reads this; write as the freelancer"); }
+// The disclosure travels with the delivery (draftText, README, proposal), never inside the product: a
+// site footer or a generated report carrying it reaches the client's own users (nmha9w, bh1r1i).
+const disclosureStem = "prepared with the assistance of an ai agent";
+for (const [where, text] of [...clientTexts, ...codeTexts]) {
+  if (where === "draftText" || where === "disclosure" || /\\.(md|txt)$/i.test(where)) continue;
+  if (text.toLowerCase().includes(disclosureStem)) problems.push(where + " carries the AI disclosure - it goes with the delivery (draftText, README, proposal), not into what the product shows or generates");
+}
 // This machine's home folder in anything the client gets (a local path is ours, never theirs).
 const home = homedir();
 const homeForms = home.length > 3 ? [home, home.split(path.sep).join("/")].map((h) => h.toLowerCase()) : [];
