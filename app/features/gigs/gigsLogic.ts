@@ -17,9 +17,11 @@ import {
   type GigStatus,
 } from "@/app/_lib/gigs/types";
 
-// Pure derivations for the Gigs tab: what needs the operator's judgement, the line (the
-// wall of arenas by lifecycle step), the rate as a fraction, and the desk's Approve gate.
-// No React, no fetch, the clock passed in - pinned by gigsLogic.test.ts.
+// Pure derivations for the Gigs tab: which queue a gig sits in, how far along the line it
+// provably got, the rate as a fraction, the desk's Approve and Mark sent gates, and the
+// keyboard guards. The fused desk's own derivations (front columns, lanes, the whole file,
+// the reviewer note, margin notes) live in deskLogic.ts. No React, no fetch, the clock
+// passed in - pinned by gigsLogic.test.ts.
 
 // ---------------------------------------------------------------------------
 // Wire shapes the tab reads (the routes' answers, typed once here)
@@ -96,68 +98,13 @@ export function queueKindOf(gig: Gig, latest: GigAttempt | null): QueueKind | nu
   return null;
 }
 
-function ageKey(item: QueueItem): string {
-  const a = item.attempt;
-  if (item.kind === "record") return a?.sentAt ?? a?.updatedAt ?? item.gig.updatedAt;
-  if (a && (item.kind === "review" || item.kind === "running" || item.kind === "revision" || item.kind === "failed")) return a.createdAt;
-  return item.gig.createdAt;
-}
-
-/** Every open item, grouped in QUEUE_KINDS order, oldest first within a group. */
-export function deriveQueue(gigs: readonly Gig[], attemptsByGig: Readonly<Record<string, GigAttempt>>): QueueItem[] {
-  const items: QueueItem[] = [];
-  for (const gig of gigs) {
-    const latest = attemptsByGig[gig.id] ?? null;
-    const kind = queueKindOf(gig, latest);
-    if (!kind) continue;
-    items.push({ kind, key: `${kind}:${gig.id}`, gig, attempt: latest });
-  }
-  const rank = (k: QueueKind) => QUEUE_KINDS.indexOf(k);
-  return items.sort((a, b) => rank(a.kind) - rank(b.kind) || (ageKey(a) < ageKey(b) ? -1 : ageKey(a) > ageKey(b) ? 1 : 0) || (a.gig.id < b.gig.id ? -1 : 1));
-}
-
-export function queueCounts(items: readonly QueueItem[]): Record<QueueKind, number> {
-  const out = Object.fromEntries(QUEUE_KINDS.map((k) => [k, 0])) as Record<QueueKind, number>;
-  for (const i of items) out[i.kind] += 1;
-  return out;
-}
-
-/** `N`: the next judgement after the one last opened, oldest first within its kind,
- *  wrapping round; the first one when nothing was opened yet; null when none is owed. */
-export function nextNeed(items: readonly QueueItem[], lastGigId: string | null, only?: NeedKind): QueueItem | null {
-  const needs = items.filter((i) => (only ? i.kind === only : (NEED_KINDS as readonly string[]).includes(i.kind)));
-  if (needs.length === 0) return null;
-  if (only) return needs[0];
-  const at = lastGigId ? needs.findIndex((i) => i.gig.id === lastGigId) : -1;
-  return needs[(at + 1) % needs.length];
-}
-
 // ---------------------------------------------------------------------------
 // The line: arenas are rows, the lifecycle steps are columns
 // ---------------------------------------------------------------------------
 
-/** The canonical steps, left to right. The three ways off the line are grouped in one
- *  column after them ("Left the line"), then each arena's terminus. */
+/** The canonical steps of the line, in order (reachedStep reads them). */
 export const LINE_STEPS = ["new", "suspect", "qualified", "dispatched", "drafted", "in_review", "sent", "accepted", "rejected"] as const satisfies readonly GigStatus[];
 export type LineStep = (typeof LINE_STEPS)[number];
-export const OFF_STEPS = ["declined", "withdrawn", "expired"] as const satisfies readonly GigStatus[];
-export type OffStep = (typeof OFF_STEPS)[number];
-
-/** Who owns the next move at a step. `you` is a judgement - the three columns that
- *  carry the "your judgement" band; the others name their owner in words. */
-export type StepOwner = "you" | "scan" | "dispatch" | "agent" | "send" | "judge";
-export const STEP_OWNER: Readonly<Record<LineStep, StepOwner>> = {
-  new: "scan",
-  suspect: "you",
-  qualified: "dispatch",
-  dispatched: "agent",
-  drafted: "you",
-  in_review: "send",
-  sent: "you",
-  accepted: "judge",
-  rejected: "judge",
-};
-
 /** How far along the main line a gig has provably got. `suspect` is a side branch, not
  *  a rank; a gig that left the line is read off its latest attempt. */
 const FLOW_RANK: Partial<Record<GigStatus, number>> = { new: 0, qualified: 1, dispatched: 2, drafted: 3, in_review: 4, sent: 5, accepted: 6, rejected: 6 };
@@ -171,9 +118,9 @@ function furthestRank(gig: Gig, latest: GigAttempt | null): number {
   return 2;
 }
 
-/** Whether any gig of this arena ever reached `step`. An empty cell of a step the arena
- *  reached says "none here now"; one it never reached says "none reached" - the two are
- *  different facts and never render alike. */
+/** Whether any of these gigs ever reached `step`. An empty cell of a step they reached
+ *  says "none here now"; one they never reached says "never reached" - the two are
+ *  different facts and never render alike (Lanes, deskLogic laneRows). */
 export function reachedStep(gigs: readonly Gig[], attemptsByGig: Readonly<Record<string, GigAttempt>>, step: LineStep): boolean {
   if (step === "suspect") return gigs.some((g) => g.status === "suspect" || g.suspectReasons.length > 0);
   if (step === "accepted" || step === "rejected") return gigs.some((g) => g.status === step);
@@ -181,80 +128,10 @@ export function reachedStep(gigs: readonly Gig[], attemptsByGig: Readonly<Record
   return gigs.some((g) => furthestRank(g, attemptsByGig[g.id] ?? null) >= need);
 }
 
-export type LineCell = { step: LineStep; gigs: Gig[]; reached: boolean };
-export type LineRow = { arena: GigArena; total: number; cells: LineCell[]; off: { step: OffStep; gigs: Gig[] }[] };
-
-/** Oldest waiting first: the latest attempt's start, else when the gig last moved. */
-function waitingSince(gig: Gig, latest: GigAttempt | null): string {
-  return latest?.createdAt ?? gig.updatedAt;
-}
-
-/** The whole wall: one row per arena (all four, an empty one included), each cell's
- *  gigs oldest-waiting first. */
-export function lineRows(gigs: readonly Gig[], attemptsByGig: Readonly<Record<string, GigAttempt>>): LineRow[] {
-  return GIG_ARENAS.map((arena) => {
-    const mine = gigs
-      .filter((g) => g.arena === arena)
-      .sort((a, b) => {
-        const x = waitingSince(a, attemptsByGig[a.id] ?? null);
-        const y = waitingSince(b, attemptsByGig[b.id] ?? null);
-        return x < y ? -1 : x > y ? 1 : a.id < b.id ? -1 : 1;
-      });
-    return {
-      arena,
-      total: mine.length,
-      cells: LINE_STEPS.map((step) => ({ step, gigs: mine.filter((g) => g.status === step), reached: reachedStep(mine, attemptsByGig, step) })),
-      off: OFF_STEPS.map((step) => ({ step, gigs: mine.filter((g) => g.status === step) })),
-    };
-  });
-}
-
-/** Where a gig sits in its wall column, and who is either side of it. */
-export type ColumnNeighbours = {
-  prev: string | null;
-  next: string | null;
-  /** 1-based position in the column. */
-  index: number;
-  total: number;
-  /** The column: a canonical step, or the off-line step the gig left by. */
-  step: LineStep | OffStep;
-};
-
-/** Left/Right on a gig's page: the previous/next gig in the SAME status column, in the
- *  wall's own order - the column read top to bottom through the arena rows (each cell
- *  oldest-waiting first, as lineRows sorts it). A gig that left the line moves within
- *  its own off-line step (declined, withdrawn or expired). No wrap: the ends answer null.
- *  Null when the gig is not on the wall. */
-export function columnNeighbours(rows: readonly LineRow[], gigId: string): ColumnNeighbours | null {
-  let step: LineStep | OffStep | null = null;
-  for (const r of rows) {
-    const cell = r.cells.find((c) => c.gigs.some((g) => g.id === gigId));
-    if (cell) {
-      step = cell.step;
-      break;
-    }
-    const off = r.off.find((o) => o.gigs.some((g) => g.id === gigId));
-    if (off) {
-      step = off.step;
-      break;
-    }
-  }
-  if (!step) return null;
-  const at = step;
-  const column = rows.flatMap((r) => (r.cells.find((c) => c.step === at) ?? r.off.find((o) => o.step === at))?.gigs ?? []);
-  const i = column.findIndex((g) => g.id === gigId);
-  return { prev: i > 0 ? column[i - 1].id : null, next: i < column.length - 1 ? column[i + 1].id : null, index: i + 1, total: column.length, step };
-}
-
 /** Whether the quick decline (`D`) is offered: exactly the statuses PATCH
  *  /api/gigs/[id] {action:"decline"} accepts, read off the same transition table. */
 export function canQuickDecline(status: GigStatus): boolean {
   return canTransitionGig(status, "declined");
-}
-
-/** Where a decline lands: the next gig in the column, else the previous, else the wall. */
-export function afterDeclineTarget(n: ColumnNeighbours | null): string | null {
-  return n?.next ?? n?.prev ?? null;
 }
 
 /** The rejected streak's tone as it nears the auto-pause: calm under 40% of the limit
@@ -328,22 +205,6 @@ export function matchesSearch(gig: Gig, search: string): boolean {
   const q = search.trim().toLowerCase();
   if (!q) return true;
   return [gig.title, gig.org ?? "", gig.id, gig.niche ?? "", ...gig.tags].join(" ").toLowerCase().includes(q);
-}
-
-/** Whether a gig is owed one of the three judgements right now. */
-export function needsYou(gig: Gig, latest: GigAttempt | null): boolean {
-  const kind = queueKindOf(gig, latest);
-  return kind !== null && (NEED_KINDS as readonly string[]).includes(kind);
-}
-
-/** How many cards a cell shows before "show N more". */
-export const CELL_CAP = 6;
-
-/** A specialist's stable place in the edge vocabulary: its rank by hire date, so one
- *  specialist keeps its edge across reloads and screens. */
-export function specialistEdgeIndex(specialists: readonly Pick<GigSpecialist, "id" | "createdAt">[], id: string): number {
-  const order = [...specialists].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : a.id < b.id ? -1 : 1));
-  return order.findIndex((s) => s.id === id);
 }
 
 // ---------------------------------------------------------------------------
@@ -473,26 +334,6 @@ export function deskGate(
 export function markSentGate(items: readonly string[], ticks: Readonly<Record<string, boolean>>): { ticked: number; total: number; ready: boolean } {
   const ticked = items.filter((k) => ticks[k] === true).length;
   return { ticked, total: items.length, ready: ticked === items.length };
-}
-
-/** Margin marks: line-anchored findings grouped by line (1-based). */
-export function marksByLine(findings: readonly DraftLintFinding[]): Map<number, DraftLintFinding[]> {
-  const out = new Map<number, DraftLintFinding[]>();
-  for (const f of findings) {
-    if (f.line === null) continue;
-    const list = out.get(f.line) ?? [];
-    list.push(f);
-    out.set(f.line, list);
-  }
-  return out;
-}
-
-/** Split a line around the first occurrence of `excerpt` for underlining. */
-export function splitAround(line: string, excerpt: string | undefined): [string, string, string] | null {
-  if (!excerpt) return null;
-  const at = line.indexOf(excerpt);
-  if (at < 0) return null;
-  return [line.slice(0, at), excerpt, line.slice(at + excerpt.length)];
 }
 
 // ---------------------------------------------------------------------------

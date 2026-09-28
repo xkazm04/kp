@@ -35,6 +35,8 @@ export function useGigsFormat() {
       return currency ? `${n} ${currency}` : n;
     };
 
+    const number = (n: number): string => format.number(n);
+
     const usd = (amount: number): string => format.number(amount, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
     const percent = (whole: number): string => format.number(whole / 100, { style: "percent", maximumFractionDigits: 0 });
@@ -56,6 +58,7 @@ export function useGigsFormat() {
       verdict: (v: string) => label("verdict", v),
       hireStatus: (s: string) => label("hireStatus", s),
       money,
+      number,
       usd,
       percent,
       relative,

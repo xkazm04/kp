@@ -389,8 +389,8 @@ The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` state
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under
 it) carries them too.
 
-`POST /api/gigs/[id]/workspace` runs the same step on demand. The gig's page shows it as
-one row above the page (`GigsWorkspace.tsx`): the folder path as selectable text,
+`POST /api/gigs/[id]/workspace` runs the same step on demand. The gig's proof shows it in
+back matter F, "Routing & folder" (`GigsBackMatter.tsx`): the folder path as selectable text,
 "Personas project: linked | not linked (<reason>)" (the reason is known after a prepare),
 and **Prepare workspace**.
 
@@ -461,217 +461,175 @@ longer has a caller in the gig line.
   UPDATE whose WHERE re-asserts the status read, so a gig a dispatch claimed meanwhile is
   left alone (409 `GIG_STATE_CHANGED`).
 
-**The Match panel** (`app/features/gigs/GigsRouting.tsx`, derivation in `routingView.ts`),
-under the workspace row on every gig page: who the gig goes to now ("routed by you" or
-"auto-matched"); every specialist in the arena ranked by the same `rankSpecialistsForGig`
-the server runs, each with its fit as a labelled `Meter` AND "Fit N of 100" in words, its
-reasons as sentences and its readiness; **Route here** on each ready candidate that is not
-the current one; **Auto-match** (unroute) on a routed gig. When no candidate both scores
-above 0 and is ready, "No specialist fits" offers a hire for the suggested niche, editable
-inline, through the Specialists page's own door (`POST /api/gigs/specialists`). While the
-gig is dispatched, suspect or off the line the buttons are gone and a sentence says why.
-Strings: `gigs.routing.*`, four catalogs.
+**The routing fold** (back matter F of a gig's proof, `GigsBackMatter.tsx`; derivation in
+`routingView.ts`): who the gig goes to now ("routed by you" or "auto-matched"), the fit score
+against the qualification bar, the source, the gig's folder and Personas project with
+**Prepare workspace**, the qualification factors, and (one fold further) every specialist in
+the arena ranked by the same `rankSpecialistsForGig` the server runs, each with its fit as a
+labelled bar AND "Fit N of 100" in words, its reasons as sentences and its readiness;
+**Route here** on each ready candidate that is not the current one; **Auto-match** (unroute)
+on a routed gig. When no candidate both scores above 0 and is ready, "No specialist fits"
+offers a hire for the suggested niche, editable inline (`POST /api/gigs/specialists`).
+While the gig is dispatched, suspect or off the line the buttons are gone and a sentence
+says why. Strings: `gigs.routing.*` and `gigs.workspace.*`, four catalogs.
 
 ## The Gigs tab
 
-Built from the owner's verdict on a blind design contest: **"The Line" is what the tab opens
-on**, and the "Judgement Queue" entry supplies the gig, desk, scorecard and specialists
-screens, each as a **full page**. A page replaces the one before it; nothing slides over
-the wall (no drawer, no split pane, no modal). Every read and write goes through the routes
-below. A failure renders from its `code` through `useErrorMessage()`, never from the
-server's `error` string. Strings live under the `gigs` catalog namespace in all four
-locales (`line.*` the wall, `card.*` its cards, `detail.*` a gig's page, `legend.*`).
+Built from the owner's **combined verdict on the `gigs-calm` design contest (2026-09-28)**:
+B/3 "The Proof" gives the front page, a gig's full page (the proof), Reception and Wires;
+B/2 "The Line" gives Lanes and the three figures in the tab header. It replaced the earlier
+wall ("The Line" of the `gigs-desk` contest), which the owner found over-written. A parity
+review ran before the swap: every capability the wall-era tab had lives on in the table of
+the design record (vault `Contest/designs/gigs-calm-fusion.md`), most of it one fold deeper.
 
-A strip of four screens sits under the tab header: **The line**, **Scorecard**,
-**Specialists**, **Sources** (`GigsTab.tsx`).
+The look is one scoped stylesheet, `app/features/gigs/gigs.css` (root class `.gd`, the
+winners' own class names, every colour through kp's tokens so Spark Dark re-skins it, drawn
+outlines and a 16px radius after dark, nothing under 14px). Pure derivations live in
+`deskLogic.ts` (front columns, urgency, the whole file, niches and lanes, the reviewer note,
+margin notes; `deskLogic.test.ts`) and `gigsLogic.ts` (queues, gates, keys; `gigsLogic.test.ts`).
+Every read and write goes through the routes below. A failure renders from its `code`
+through `useErrorMessage()`, never from the server's `error` string. Strings live under the
+`gigs` catalog namespace in all four locales (`head.*`, `nav.*`, `keys.*`, `front.*`,
+`file.*`, `proof.*`, `slip.*`, `signoff.*`, `back.*`, `lanes.*`, `reception.*`, `wires.*`,
+plus the shared vocabularies `status.*`, `check.*`, `lint.*`, `brief.*` ...). Nothing is
+written to the URL: `?tab=gigs` is consumed by the shell like every tab.
 
-1. **The line (home, `GigsWall.tsx` + `GigsWallCells.tsx`).** One wall for the whole
-   program. **Arenas are rows** (all four, an empty one included), each opened by a sticky
-   label: the arena, its listing count, its specialists (each beside its edge swatch, a
-   button to its card on the Specialists page, or "Hire one" when there is none), and its
-   sources with their state ("polling", or the pause reason). **The canonical steps are
-   columns**: New, Suspect, Qualified, Dispatched, Drafted, In review, Sent, Accepted,
-   Rejected (`gigsLogic.ts` `LINE_STEPS`), then **Left the line** (declined, withdrawn and
-   expired, grouped under their own heads) and a **terminus** per arena: accepted of
-   resolved, the percentage beside its n with the small-sample chip, a mark per sent draft,
-   pending apart, cost per accepted and the runs that never reported a cost, and a door to
-   the scorecard opened on that arena.
-   - **Who owns the next move** is printed under every column head (`STEP_OWNER`). Suspect,
-     Drafted and Sent carry the coral **"your judgment" band** (a rule on the head and a tint
-     down the column). The others say it in words: "the scan qualifies", "you dispatch",
-     "with the agent", "you send it", "the outside judge".
-   - **Two empty cells, never alike** (`reachedStep`). "none reached" is a hatched, dashed
-     box: no gig of that arena ever got to the step. "none here now" is a short rule and a
-     line of text: the arena got there and moved on (read off each gig's status, or its
-     latest attempt when it left the line).
-   - **A card's frame carries provenance.** A solid border means the listing stated its
-     reward; a dashed border means it did not (and the card says "reward not stated"). A
-     suspect card is hatched with the critical tint and says "quarantined, not
-     dispatchable" beside a lock. The **left edge** names the specialist: six tones and three
-     patterns (solid, dashed, a double rule), stable per specialist (`specialistEdgeIndex`,
-     by hire date), named beside the same swatch in the row label. The card's one flag
-     names the next move in words: "1 blocker · 2 to check" (from the pre-send lint),
-     "approved, not sent", "revision asked", "no deliverable yet", "last run failed",
-     "awaiting verdict · 3 days ago", or the verdict with its mark. Deadlines show as
-     "5 days left" (amber at 3 or fewer) or "closed". A researched gig also carries its
-     brief's category as a small chip and a **difficulty glyph**: four ascending bars filled
-     to the level (easy 1, moderate 2, hard 3, very hard 4), and four hollow dashed bars for
-     `unrated`, so "not rated" never reads as "easy" (`GigsMarks.tsx` `DifficultyGlyph`,
-     named in words for screen readers). A cell shows six cards, then "Show N more".
-   - **The header** counts what needs the operator, as buttons: drafts to review, suspects
-     to clear, verdicts to record (`NEED_KINDS`). Each opens the oldest such gig. `N` opens
-     the next one after the gig last opened (`nextNeed`), wrapping round. `/` focuses the
-     search (title, org, id, niche, tags): matches stay lit and outlined, the rest dim and
-     stay reachable. A filter ("Everything" / "What needs you") dims the cards that need
-     nobody. The whole desk's rate sits at the right. A compact legend is always on screen:
-     the outcome marks, the three card frames, the edge and the five difficulty glyphs.
-   - **The wall scrolls inside its own frame** on both axes, with the arena labels pinned
-     left and the column heads pinned on top; the page never scrolls sideways. Keys stand
-     down while a field has focus, a modal is open or a `g` chord is in progress.
-2. **A gig's page (`GigsDetail.tsx`).** Clicking a card replaces the wall with the gig's
-   full page. A bar on top: "Back to the line" (also `Esc`) and the breadcrumb "Gigs /
-   <arena> / <title>" (either crumb goes back; the arena crumb lands on that arena's row).
-   The wall comes back exactly as it was left: the tab holds its search, filter and
-   opened-out cells, and the frame's and the page's scroll are restored before the first
-   paint, with the opened card outlined and focused.
+**The header (`GigsTab.tsx`).** The title and the "In development" tag, then three figures:
+**N wait on you** ("3 to clear · 38 to review · 35 to send", plus "to record" while anything
+is out), **First** (the most urgent gig, its days left and its next move; a button that opens
+it) and **a of s judged** (the accepted-outcome rate in a ring, a dashed "—" while
+unmeasured; a button to Reception). Refresh, **Scan now** and a Keyboard popover sit right.
+Under it the section nav, one tab stop with arrow keys (`useTablist`): **Front page · Lanes ·
+Reception · Wires**, each with its count. Every section and a proof REPLACE the one before;
+the tab keeps the front page's state (filter, sort, page, scroll) so the way back from a
+proof lands where the operator left.
 
-   **Quick decisions.** The same bar carries "‹ 3 of 7 in Drafted ›": `←` / `→` (and the two
-   buttons) swap the page for the previous / next gig in the **same status column**, in the
-   wall's own order - the column top to bottom through the arena rows, each cell oldest
-   waiting first (`gigsLogic.ts` `columnNeighbours`, over the tab's `lineRows`). A gig that
-   left the line walks its own off-line step (declined, withdrawn or expired). No wrap: the
-   ends disable the button. **`D` declines** wherever `PATCH /api/gigs/[id] {action:"decline"}`
-   is allowed (`canQuickDecline` reads the same `transitions.ts` table: new, suspect,
-   qualified, drafted, in review); elsewhere `D` does nothing and the bar shows no decline.
-   Declining is terminal, so the first `D` (or the "Decline D" button) opens an inline
-   confirm with focus on its "Decline it" button: `D` again or `Enter` confirms, `Esc`
-   cancels and hands focus back. A confirmed decline re-reads the list and lands on the next
-   gig in the column, else the previous, else the wall, with the flash "Declined “<title>”".
-   Every swap lands at the page's top with focus on "Back to the line" (registry
-   `focus-transfer-on-in-place-navigation`: never on a control that is gone). A line under
-   the bar lists the page's keys (`←` `→`, `D` where offered, `1` to `6` on the desk,
-   `Esc`). The keys go through `useBareKeys`, which stands down while typing, under a modal,
-   with a modifier, after a bare `g` (the shell's chords: `g d` is Decisions, not decline),
-   and for a key another listener already handled; `←` / `→` also stand down inside a widget
-   that owns the arrows (toolbar, tablist, radio group, listbox, menu, grid, slider, tree)
-   or a region that scrolls.
+1. **Front page (`GigsFront.tsx`, `GigsFile.tsx`).** A headline built from the live counts
+   ("73 proofs wait on your desk, and 3 listings in quarantine.") and a one-line deck (how
+   many only need sending, when the first closes, whether anything is out). Then the
+   **lead proof**: the most urgent gig, its facts, its top two doubts in words and the
+   draft's opening paragraphs, with "Read the proof". Then the **index columns** by next
+   move: **Ready to send**, **To proof**, **Quarantined**, and **To record** while anything
+   is sent; each most urgent first (`deskLogic.ts` `urgencyQueue`: the nearest open deadline,
+   then the move closest to done, then the longest waiting), ten rows and the rest one fold
+   away. A row carries reward, deadline, the specialist's niche and its **doubt marks** (a
+   coral diamond per stop, a ring per doubt, a moss tick when nothing automatic was found, a
+   dash while the run is still out; the sentence is the accessible name and the tooltip).
+   Below a double rule, **the whole file**: status chips (each with its count; the three that
+   wait on you marked), arena chips (an arena whose only source never ran is a dashed "—",
+   not a zero, and opens Wires), a lane chip when opened from Lanes, `/` search (title, org,
+   id, niche, tags), sort by recency, deadline, fit, or reward WITHIN one currency (never
+   converted, never compared across), 50 rows a page. `N` opens the next gig that waits in
+   the urgency order after the one last opened, wrapping. With no gigs at all the page says
+   why (no sources yet, or nothing found) and points to Wires.
+2. **A gig's proof (`GigsProof.tsx`).** A full page. The trail: "← Back / <the list it came
+   from> / i of n", **Decline (D)**, ‹ › and ×. **`←` / `→` walk the list the proof was
+   opened from** (an index column, the lead's queue, the file in its current filter and
+   sort, a lane's cell), no wrap; `Esc` goes back. `D` opens an inline confirm (focus on
+   "Decline it"): `D` again or `Enter` confirms, `Esc` cancels; a decline lands on the next
+   gig of the list, else the previous, else back, with a flash. Keys go through
+   `useBareKeys` (stands down while typing, under a modal, with a modifier, after a bare `g`,
+   inside a widget that owns the arrows). Every swap lands at the top with focus on "Back".
+   - **The sign-off (`GigsSignoff.tsx`)**, left and sticky: the state in words and ONLY the
+     moves it allows, each through its real door. A drafted or approved draft gets the desk:
+     the arena **checklist** as initials (keys `1` to `6`, "4 / 6", a progress rule, the
+     disclosure sentence quoted under its initial, a review timer), **Approve** disabled
+     while a lint blocker is open, an item unticked or a warn unseen, its label naming which
+     ("Approve (checklist 3/6)") and the still-needed list under it; **Send back for
+     revision** (a note is required; "Use the pre-send review as the note" fills it from the
+     reviewer's note); **Discard** with an inline confirm. Approved: how to send it yourself,
+     **Open the listing**, **Mark sent** locked until the checklist is complete, Send back.
+     Each move sends the review (ticks, the note - or, when the operator typed none, the note
+     already on the attempt, so approving never erases the reviewer's - and the time spent).
+     A quarantined listing has **no dispatch control at all**: Decline, or tick "I read the
+     listing" and Clear the flag. A sent gig records the verdict (five verdicts with their
+     marks, an amount in its own currency, the judge's words; the flash says how the rate
+     moved, re-read from `/api/gigs/kpi`, and names a source the verdict paused). A new or
+     qualified listing: who it goes to with their record, Dispatch or "below the bar", hire,
+     Decline. Work with an agent: in flight, sent back not dispatched, or failed, with
+     Dispatch again. Withdraw wherever `transitions.ts` allows. Confidence, this run's cost
+     ("cost not reported", never $0) and the budget close it.
+   - **The head**: the stage and the niche, the title, the facts (arena, reward, deadline,
+     org, difficulty glyph), the deliverable's summary.
+   - **The proof slip (`GigsSlip.tsx`)**: every doubt in words. The pre-send lint
+     (`draft-lint.ts`, below) is the gate: a blocker says "blocks approve", a warn carries its
+     "seen" box, open questions are one row (all of them marked seen at once, listed in a
+     fold). The **reviewer agent's note** (`deskLogic.ts` `parseReviewNote`: header, lead,
+     numbered must-dos, "Checks run", "Defects: BLOCKER") adds a row for its blockers or
+     warnings, marked "the reviewer's call": advisory, never a gate. Reviewer marks that
+     quote nothing in the draft are listed in a fold, never dropped; the note this draft
+     carries from a revision is one fold away.
+   - **The galley**: the draft as it would be sent, paragraphs numbered. Every phrase a note
+     names is underlined (amber for a lint finding on that line, coral for a reviewer note
+     that quotes it) and the note is **pinned in the margin** beside its paragraph with a
+     letter, a hairline and its source ("Pre-send lint · Check", "Reviewer agent · defect");
+     the margin is a column when the sheet has room (a container query) and sits under the
+     paragraph otherwise; a note is pulled down to its phrase. Enclosures close the sheet.
+     With no draft the galley is a stamp that says why: quarantined (with the listing
+     below), not yet written, not yet qualified, being written ("pending, not failed"), sent
+     back, no deliverable (the fallback reason), empty text.
+   - **Back matter, lettered folds (`GigsBackMatter.tsx`)**, each with its count: **A
+     Evidence** (passed, failed, NOT VERIFIED; "no command" called out; a slip link opens it
+     at the item), **B Pre-send review** (the note set out: must-dos, defects with blockers
+     marked, the checks it ran), **C Earlier drafts** (every attempt read fresh from
+     `GET /api/gigs/[id]`: status, date, specialist, cost, the note that sent it back,
+     verdicts with the judge's words and amounts), **D Research brief** (`GigsBrief.tsx`,
+     below), **E The listing** (untrusted text; a suspect's reasons explained and its URL as
+     text), **F Routing & folder** (above).
 
-   **The research brief** (`GigsBrief.tsx`) opens the left column of the gig's page, above
-   the listing, and is a tab ("The research brief") between the draft and the listing on
-   the desk. The page header also shows the brief's category and difficulty. The brief
-   states its provenance ("Written by a model from the listing and 2 linked pages" or
-   "Assembled without a model (no provider) from the listing and 2 linked pages", and when)
-   and offers **Research again** (`POST /api/gigs/[id]/research`; the answer replaces the
-   brief in place, an error resolves through `useErrorMessage()`); with no brief it says
-   "Not researched yet" beside the same button. Then the category chip, the categorized
-   title, the difficulty with its reason ("Not rated" is an absence, never "easy"), the
-   effort ("12–20 h" and its note, or "not estimated"), the challenges as a list, a
-   contents list when the brief has 3 or more sections, the Markdown body through
-   `app/_components/Markdown.tsx` (React elements only, safe hrefs, links in a new tab with
-   `rel="noopener noreferrer"`) at a ~70ch measure and 16px+, and **Sources read** as a list
-   whose status is a word (fetched, blocked, skipped, failed) with the reason code and the
-   characters read. A link kp did not open is shown as text, never as a link. No reading
-   time is shown.
-
-   The headings carry the ids the server minted with one assigner (`brief.sections`,
-   registry `anchor-id-single-assigner` + `server-parsed-once-reused`): Markdown.tsx's
-   optional `headingId` hook takes them from `briefHeadingResolver`, which matches each
-   heading to its section by position and refuses (no id) when the level or text disagrees,
-   so a divergent body degrades to unaddressed headings, never to wrong ones. Nothing is
-   re-slugged on the client. The body is rendered up to the server-declared
-   `## Sources read` line and the structured list takes that section's place under the same
-   id. A contents link scrolls its heading in (a 1.5rem scroll margin: the workspace has no
-   sticky top chrome) and moves focus onto it (`tabIndex -1`: a focus destination, never a
-   tab stop).
-
-   The page itself is one of two:
-   - **The review desk (`GigsDesk.tsx`)**, for a drafted or approved gig. The meta row states
-     each absence ("reward not stated", "no deadline stated", "none matched yet"). Then:
-     - the **pre-send lint strip**, from `app/_lib/gigs/draft-lint.ts` (below). Each finding
-       links to the words it refers to or to its evidence item;
-     - the **evidence** the agent ran, in three states: passed, failed and **not verified**
-       (`passed: null` is never painted as a failure). "No command" is called out as the
-       agent's account rather than a run log;
-     - the **draft as a numbered galley**, typeset as the recipient reads it: a line a
-       finding refers to carries the finding's severity shape in the gutter and its words
-       underlined. A second tab shows the listing it answers, as untrusted text (below);
-     - the arena **checklist** (`checklists.ts`, labels under `gigs.check.*`; keys `1` to
-       `6` toggle it), the **disclosure sentence** as it will go out, the agent's
-       questions, and a **revision note** textarea. A revision needs the note: the desk
-       says so inline and focuses the field (there is no `window.prompt`);
-     - **Approve** stays disabled while any blocker is open, any checklist item is unticked
-       or any warn is not marked seen, and its label says which ("Approve (checklist
-       3/6)"). Approving sends nothing: it reads "Approve: I will send it myself". The
-       approved desk shows a link to the listing and **Mark sent**, locked the same way
-       ("Mark sent (checklist 5/6)"). Request a revision and discard (with an inline
-       confirm) stay available. Each move sends the review: the ticks, the note and the
-       time spent on the card. Ticks and "seen" marks are React state inside the desk; a
-       tab-level map keeps a half-reviewed desk's state across a trip back to the line.
-   - **The gig's page (`GigsGigPage.tsx`)**, for every other status. On the left, the
-     listing as untrusted text and **the journey so far**, read fresh from
-     `GET /api/gigs/[id]`: listed, every attempt (specialist, status, date, cost, failure
-     reason, revision and review notes) and every verdict appended to it with its source,
-     amount and the judge's own words, a pending mark while none is recorded. On the right,
-     **what happens next**, by status (`GigsWorkViews.tsx`):
-     - **suspect:** its reasons (`gigs.suspectWhy.*`) and **no dispatch control at all**,
-       not even a disabled one; only "decline" and "clear the flag", the second after
-       ticking "I read the listing and judge it legitimate";
-     - **new or qualified:** who could take it (each specialist's rate) and "Dispatch to
-       <specialist>", or, below the qualification bar, how it qualifies and a link to hire
-       a specialist for its arena; decline;
-     - **sent:** what went out (the summary, the disclosure that went with it, the review
-       note and time), then the verdict (accepted, rejected, duplicate, no response, each
-       with its mark), an optional amount in its own currency and the judge's own words.
-       After the POST the tab re-reads `/api/gigs/kpi` and says how the rate moved ("Rate
-       2/5 → 3/6, pending 4 → 3"), and names the source when the verdict paused it;
-     - **with an agent:** a run in flight ("not yet", not "empty"), a revision not
-       dispatched or a failed run, with "dispatch again" where it applies;
-     - **resting:** judged or off the line, needing nobody.
-
-     Below it, the deterministic **qualification** factor by factor, and decline or
-     withdraw wherever `transitions.ts` still allows them.
-3. **Scorecard (`GigsScorecard.tsx`).** A full page: by arena (with an all-arenas row) and
-   by specialist, accepted of resolved, pending beside it, the small-sample chip under 10
-   resolved, a mark per sent draft, cost per accepted and the count of runs that never
-   reported a cost. Money won is listed per currency with no grand total. The disclosure
-   rate is shown. Opened from a terminus, the arena's row is marked and brought into view.
-4. **Specialists (`GigsSpecialists.tsx`).** A full page: a hire form (arena and niche) and
-   one card per specialist, with its edge swatch: arena, niche and taxonomy family, where
-   its recipes came from (the registry, or the seed map when the registry was unavailable),
-   the hired-agent status from Personas, its rate strip (accepted of resolved, pending,
-   outcome marks), drafts waiting, cost per accepted, budget, connectors, every adopted
-   recipe as `slug@version`, and every gig it holds on the line (each opens that gig's
-   page). Opened from a row label, that specialist's card is marked and scrolled to;
-   opened from "Hire one", the form starts on that arena.
-5. **Sources (`GigsSources.tsx`).** Each source's tier, running or paused state and why, its
-   rejected streak against the limit in the card's top-right corner ("2 / 5", its tone
-   rising at 2 and again at 4, with "close to an automatic pause" / "at the limit" in words;
-   "0 / 5" reads calm, not absent), and its last run in the bottom-left corner (date and
-   outcome, or "never run"). Bottom right, **Scan this source** posts
-   `POST /api/gigs/scan {sourceId}` and follows the task through the workspace's task poll
-   (`useTaskResult`, the record the Background tasks tab shows): starting, queued, running,
-   then the run's own line from the task result ("Scan finished: succeeded. 9 listings
-   found, 3 new", with the reason when it did not succeed), "not run" when a pause landed
-   before the run, or "did not finish" for a failed, canceled or interrupted task; when the
-   task ends the tab re-reads the sources and the gigs. The button is disabled from the
-   click until the task ends, so two clicks never start two scans. A paused or disabled
-   source shows it disabled with the reason beside it in words ("Paused (…). Resume it to
-   scan.", "Acknowledge the terms above before scanning this source."). The tab-wide "Scan
-   now" still only says the scan started. A tier-B source that is not
-   acknowledged, or whose summary changed, shows the catalog's terms summary as written, a
-   link to the original terms and the full `termsHash` the acknowledgement records, behind
-   an "I read this summary" tick. A source that reads a key names its environment
-   variables (never their values) and its keyless behaviour. Every catalog adapter can be
-   added from here.
+   **The research brief** (`GigsBrief.tsx`) states its provenance ("Written by a model from
+   the listing and 2 linked pages" or "Assembled without a model", and when) and offers
+   **Research again** (`POST /api/gigs/[id]/research`); with no brief it says "Not
+   researched yet" beside the same button. Then the category, the categorized title, the
+   difficulty with its reason ("Not rated" is an absence, never "easy"), the effort, the
+   challenges, a contents list when there are 3+ sections, the Markdown body through
+   `app/_components/Markdown.tsx` at a ~70ch measure, and **Sources read** with each link's
+   status in words (a link kp did not open is text, never a link). Headings carry the ids
+   the server minted with one assigner (`brief.sections`, via `briefHeadingResolver`, which
+   refuses rather than guesses); nothing is re-slugged on the client.
+3. **Lanes (`GigsLanes.tsx`).** "6 niches, 13 hires." One row per **niche** (`deskLogic.ts`
+   `foldNiches`: the same arena + niche hired twice is one lane, its working hire leading,
+   earlier hires folded under it with status, date, persona and registry vs seed) plus **No
+   specialist yet** (every gig no specialist holds). Eight stage cells per row (Found,
+   Quarantined, Qualified, With agent, To proof, To send, Sent, Verdict): a numeral with a
+   bar of its share of the column; "·" for none here now; a dashed slot for a stage the lane
+   never reached; Sent at 0 is a measured zero; Verdict at 0 is an unmeasured stub; the
+   three that wait on the operator are washed coral. A cell opens the front page's whole
+   file filtered to that lane and stage. Then the niche's attempts ("6 of 42 attempts
+   failed", a failed-share bar, "23 sent back for revision") and cost (reported, "N not
+   reported", budget per attempt, recipes as `slug@version`), from the attempt tallies
+   (`GET /api/gigs/specialists` `tallies`). A "Left the line" row opens the declined,
+   withdrawn and expired. **Hire a specialist** (arena + niche) sits in the head; a proof's
+   "hire" opens it on that arena.
+4. **Reception (`GigsReception.tsx`).** "0 sent, 0 judged." and the one sentence on what the
+   rate is. The verdict ledger (gigs that came back, newest first, each opening its proof;
+   empty is one italic sentence, never ghost rows), then by arena and by specialist niche:
+   an unmeasured rate is a dashed "not zero" stub and "—", a measured one a bar with
+   "a of r", the percentage beside its n and "small sample" under 10; pending beside, never
+   inside. Right: the whole program's attempts by status, reported cost as a lower bound
+   (unreported runs counted, not free), money won per currency with no total, sent, the
+   disclosure rate, and when it was computed.
+5. **Wires (`GigsWires.tsx`).** "7 wires, 1,000 listings filed." The tier key once (A runs
+   as soon as it is added, B only after its terms are acknowledged) and the streak key. One
+   row per source: tier, name and variant (host, job categories, missing keys, pause in
+   coral), arena, last run ("never run" in italics), what it filed ("—" when it never ran,
+   not zero), the rejected streak as pips "n / 5" rising in tone, **Scan** (the task
+   followed through `useTaskResult` to its outcome and counts, the line under the row; a
+   blocked scan says why in words) and **Pause / Resume** ("resume after the streak"). The
+   fold: the terms summary, link, checked and acknowledged dates, and for a tier-B source
+   that needs it the summary, its `termsHash` and "I read this summary" gating Acknowledge;
+   the keyless behaviour; the environment variable NAMES (never values); job categories;
+   what it filed by status. **Add a wire** lists the catalog (tier, arena, host, declines
+   note, key hint, "added paused" for tier B, "add another (n already)").
 
 **Untrusted text.** A listing is always plain text in a dashed frame tagged "Untrusted".
 Links are text and never followed, and every zero-width or direction-control character
 renders as a visible `U+XXXX` marker (`gigsLogic.ts` `revealInvisible`).
 
 **Marks differ by shape, not only colour.** Accepted is a filled disc, rejected a struck
-ring, duplicate two rings, no response a dotted ring, pending a dashed ring. Lint
-severities do the same: a filled square, an outlined diamond, a circled "i". The specialist
-edge pairs each tone with a pattern for the same reason.
+ring, duplicate two rings, no response a dotted ring, pending a dashed ring. Doubts: a stop
+is a filled diamond, a doubt a hollow ring, a note a small dot. Evidence: a tick, a cross, a
+question mark.
 
 ### The pre-send lint
 
@@ -716,7 +674,7 @@ seen. Info never gates.
 | PATCH | `/api/gigs/sources/[id]` | `pipeline:write` | 60 `gigs-sources-write` | `GIG_SOURCE_NOT_FOUND`, `GIG_SOURCE_TERMS_CHANGED`, `GIG_SOURCE_TERMS_REQUIRED`, `GIG_ACTION_NOT_ALLOWED` |
 | POST | `/api/gigs/scan` | `pipeline:write` | 6 `gigs-scan` | 202 + `taskId`; with `{ sourceId }`: `GIG_SOURCE_NOT_FOUND` (404), `GIG_ACTION_NOT_ALLOWED` (409, `reason` = the pause or `disabled`), `GIG_INPUT_INVALID` |
 | POST | `/api/gigs/[id]/research` | `pipeline:write` | 20 `gigs-research` | 200 `{ gig }`; `GIG_NOT_FOUND` |
-| GET | `/api/gigs/specialists` | operator | none | none |
+| GET | `/api/gigs/specialists` | operator | none | none; answers `{ specialists, tallies }`, `tallies` = each specialist's whole attempt record `{ attempts, byStatus, costUsd, costUnreported }` (`db/gigs-attempts.ts` `gigAttemptTallies`) |
 | POST | `/api/gigs/specialists` | `pipeline:write` | 10 `gigs-specialist-hire` (plus the hire tail's own) | `GIG_INPUT_INVALID`, the hire tail's codes; a hire answers `placement` and `placementSkipped` |
 | POST | `/api/gigs/sync` | `pipeline:write` | 20 `gigs-sync` | 200 `{ synced, attempts }` (the attempts this pass moved); the on-demand analogue of the clock's `gig_sync` (see **Running it headless**) |
 | GET | `/api/gigs/kpi` | operator | none | none (the `GigKpi` also carries `moneyWon` per currency and `acceptedWithoutAmount`) |
@@ -744,7 +702,8 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/lessons.ts` | deterministic lesson bullets and the feedback scrubber |
 | `app/_lib/gigs/kpi.ts` | the pure KPI fold, including money won per currency (never totalled) from the counted verdicts |
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
-| `app/features/gigs/gigsLogic.ts` | the tab's pure derivations: who acts next (`queueKindOf`, `nextNeed`), the line (`lineRows`, `reachedStep`, `STEP_OWNER`), the rate as a fraction, the Approve gate |
+| `app/features/gigs/gigsLogic.ts` | the tab's pure derivations: which queue a gig sits in (`queueKindOf`), how far along the line it got (`reachedStep`), the rate as a fraction, the Approve and Mark sent gates, the keyboard guards |
+| `app/features/gigs/deskLogic.ts` | the desk's derivations: front columns and the urgency order, the whole file's filter and sort, niches and lanes, the reviewer note read into parts, margin notes pinned to their paragraph |
 | `app/_lib/gigs/sources-catalog.ts` | tiers, hosts, keys, terms summaries and hashes |
 
 ## Lessons

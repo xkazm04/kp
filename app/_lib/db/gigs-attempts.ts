@@ -124,6 +124,39 @@ export function listGigAttemptsByStatus(workspaceId: string, statuses: readonly 
   return rows.map(gigAttemptFromRow);
 }
 
+/** One specialist's whole attempt record: how many runs, how they ended, what they
+ *  reported costing. `costUnreported` counts the runs whose cost is NULL - never folded
+ *  into the sum as zero. */
+export type GigAttemptTally = {
+  attempts: number;
+  byStatus: Partial<Record<GigAttemptStatus, number>>;
+  costUsd: number;
+  costUnreported: number;
+};
+
+/** Every specialist's attempt record in one grouped read (the Lanes page draws the failed
+ *  share and the cost of each niche from it; the list route carries only the LATEST
+ *  attempt per gig). Keyed by specialist id; a specialist with no attempts is absent. */
+export function gigAttemptTallies(workspaceId: string): Record<string, GigAttemptTally> {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT specialist_id, status, COUNT(*) AS n, SUM(cost_usd) AS cost, SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unreported
+       FROM gig_attempts WHERE workspace_id = ? GROUP BY specialist_id, status`
+    )
+    .all(workspaceId) as { specialist_id: string; status: string; n: number; cost: number | null; unreported: number }[];
+  const out: Record<string, GigAttemptTally> = {};
+  for (const r of rows) {
+    const t = (out[r.specialist_id] ??= { attempts: 0, byStatus: {}, costUsd: 0, costUnreported: 0 });
+    // A retired status reads as failed, the way gigAttemptFromRow renders it.
+    const status: GigAttemptStatus = isGigAttemptStatus(r.status) ? r.status : "failed";
+    t.attempts += r.n;
+    t.byStatus[status] = (t.byStatus[status] ?? 0) + r.n;
+    t.costUsd += r.cost ?? 0;
+    t.costUnreported += r.unreported;
+  }
+  return out;
+}
+
 /** Stamp the Personas execution id on a `dispatched` attempt that has none yet - the
  *  one write that is not a status move (the attempt stays `dispatched` until the run is
  *  seen `running`; GIG_ATTEMPT_TRANSITIONS has no self-edge, on purpose). Write-once:

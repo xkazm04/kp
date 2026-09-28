@@ -11,7 +11,7 @@ import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { assertConfinedToWorkdir, cleanupWorkdir, flagArg, isSpawnTimeout, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
-import { buildLlmConfigEnv } from "@/app/_lib/llm-config";
+import { buildLlmConfigEnv, llmRouteFingerprint } from "@/app/_lib/llm-config";
 import { ANALYZE_PHASE } from "@/app/_lib/analyze-phases";
 import { externalRunner } from "@/app/_lib/task-external-runners";
 import type { GithubStageInput, GithubStageResult } from "@/app/_lib/analyze-github-stage";
@@ -331,6 +331,8 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // ONE registry snapshot for the run: Python re-reads archetypes.json per spawn, so
     // the digest is a cache-key axis (cache-key.ts archetypeRegistryDigest).
     const registryDigest = archetypeRegistryFileDigest();
+    // The model route is an instrument axis too, read once per run like the registry.
+    const llmRoute = llmRouteFingerprint("cv_analysis");
 
     const results: VariantResult[] = await Promise.all(
       p.variants.map(async ({ label, cvPath }): Promise<VariantResult> => {
@@ -347,6 +349,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             blind: p.blind,
             jobStructureJson: jobStructureJson ?? undefined,
             archetypeRegistryDigest: registryDigest,
+            llmRoute,
           });
 
           const cached = lookupCachedAnalysis(cacheKey);

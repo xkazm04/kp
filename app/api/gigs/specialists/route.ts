@@ -4,6 +4,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getHiredAgent, type HiredAgentRecord } from "@/app/_lib/db/agents";
+import { gigAttemptTallies } from "@/app/_lib/db/gigs-attempts";
 import { listGigSpecialists } from "@/app/_lib/db/gigs-specialists";
 import { hireGigSpecialist } from "@/app/_lib/gigs/specialist";
 import { isGigArena } from "@/app/_lib/gigs/types";
@@ -12,7 +13,11 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // /api/gigs/specialists - the workspace's gig specialists and the door that hires one.
 // GET  -> { specialists: [{ ...GigSpecialist, hire: { id, status, personaId, personaName,
 //         requestId, updatedAt, lastReportAt } | null }] }. The hire is a projection of
-//         the hired_agents row - never its report token.
+//         the hired_agents row - never its report token. Beside it, `tallies`: each
+//         specialist's whole attempt record ({ attempts, byStatus, costUsd, costUnreported },
+//         db/gigs-attempts.ts gigAttemptTallies), keyed by specialist id - the list route
+//         carries only the latest attempt per gig, and the Lanes page draws failed share
+//         and cost from every run.
 // POST { arena, niche, taxonomyFamily?, budgetUsdPerAttempt? } -> gigs/specialist.ts
 //         hireGigSpecialist: recipes resolved, spec composed, and the hire minted and
 //         dispatched through the SHARED hire tail (mintAndDispatch - its own per-IP
@@ -44,7 +49,7 @@ export async function GET(): Promise<NextResponse> {
   try {
     const ws = await currentWorkspace();
     const specialists = listGigSpecialists(ws).map((s) => ({ ...s, hire: hireOf(getHiredAgent(s.hiredAgentId, ws)) }));
-    return NextResponse.json({ specialists });
+    return NextResponse.json({ specialists, tallies: gigAttemptTallies(ws) });
   } catch (error) {
     return safeJsonError(error, "api:gigs/specialists", "GIG_STORE_FAILED");
   }

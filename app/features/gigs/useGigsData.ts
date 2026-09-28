@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Gig, GigAttempt, GigKpi } from "@/app/_lib/gigs/types";
+import type { AttemptTally } from "./deskLogic";
 import type { CatalogEntry, GigsListAnswer, SourceRow, SpecialistRow } from "./gigsLogic";
 
 // Every read the Gigs tab makes, in one hook. Four doors, each reloadable on its own, so
@@ -54,6 +55,9 @@ export type GigsData = {
   truncated: boolean;
   kpi: GigKpi | null;
   specialists: SpecialistRow[] | null;
+  /** Each specialist's whole attempt record (GET /api/gigs/specialists `tallies`); null
+   *  until read. The list itself carries only the latest attempt per gig. */
+  tallies: Record<string, AttemptTally> | null;
   sources: SourceRow[] | null;
   catalog: CatalogEntry[] | null;
   failure: LoadFailure | null;
@@ -73,6 +77,7 @@ export function useGigsData(): GigsData {
   const [truncated, setTruncated] = useState(false);
   const [kpi, setKpi] = useState<GigKpi | null>(null);
   const [specialists, setSpecialists] = useState<SpecialistRow[] | null>(null);
+  const [tallies, setTallies] = useState<Record<string, AttemptTally> | null>(null);
   const [sources, setSources] = useState<SourceRow[] | null>(null);
   const [catalog, setCatalog] = useState<CatalogEntry[] | null>(null);
   const [failure, setFailure] = useState<LoadFailure | null>(null);
@@ -125,10 +130,13 @@ export function useGigsData(): GigsData {
   }, []);
 
   const reloadSpecialists = useCallback(async () => {
-    const r = await readJson<{ specialists: SpecialistRow[] }>("/api/gigs/specialists");
+    const r = await readJson<{ specialists: SpecialistRow[]; tallies?: Record<string, AttemptTally> }>("/api/gigs/specialists");
     if (!alive.current) return;
     if ("failure" in r) setFailure(r.failure);
-    else setSpecialists(r.data.specialists);
+    else {
+      setSpecialists(r.data.specialists);
+      setTallies(r.data.tallies ?? {});
+    }
   }, []);
 
   const reloadSources = useCallback(async () => {
@@ -141,10 +149,11 @@ export function useGigsData(): GigsData {
     }
   }, []);
 
+  // A review, dispatch or verdict moves the gigs, the KPI AND the attempt tallies.
   const reloadWork = useCallback(async (): Promise<GigKpi | null> => {
-    const [, next] = await Promise.all([reloadGigs(), reloadKpi()]);
+    const [, next] = await Promise.all([reloadGigs(), reloadKpi(), reloadSpecialists()]);
     return next;
-  }, [reloadGigs, reloadKpi]);
+  }, [reloadGigs, reloadKpi, reloadSpecialists]);
 
   const reloadAll = useCallback(async () => {
     await Promise.all([reloadGigs(), reloadKpi(), reloadSpecialists(), reloadSources()]);
@@ -156,5 +165,5 @@ export function useGigsData(): GigsData {
     void Promise.resolve().then(reloadAll);
   }, [reloadAll]);
 
-  return { gigs, attemptsByGig, truncated, kpi, specialists, sources, catalog, failure, reloadGigs, reloadKpi, reloadSpecialists, reloadSources, reloadWork, reloadAll };
+  return { gigs, attemptsByGig, truncated, kpi, specialists, tallies, sources, catalog, failure, reloadGigs, reloadKpi, reloadSpecialists, reloadSources, reloadWork, reloadAll };
 }

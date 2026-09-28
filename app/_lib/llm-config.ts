@@ -312,6 +312,37 @@ function toUseCaseEntry(row: LlmConfigRow): UseCaseEntry {
 }
 
 /**
+ * The analyze cache's model axis (cache-key.ts `llmRoute`): the provider, model and
+ * params that serve `useCase`, plus that provider's non-secret endpoint, as a stable
+ * string. The model is part of the instrument - a key that pins the prompt but not
+ * the model served the previous model's reading for a whole TTL after the operator
+ * re-routed cv_analysis. "" when no routing row exists, so the default route keeps
+ * its pre-axis key. Never carries a credential: which key pays does not change the
+ * answer, and a secret has no business inside a cache key.
+ */
+export function llmRouteFingerprint(useCase: string): string {
+  const row = listLlmConfig().find((r) => r.useCase === useCase);
+  if (!row) return "";
+  const entry = toUseCaseEntry(row);
+  // Same precedence buildLlmConfigEnv applies: byom beats platform for one provider.
+  const keyRow = listProviderKeys()
+    .filter((k) => k.provider === row.provider)
+    .sort((a, b) => (a.scope === b.scope ? 0 : a.scope === "platform" ? -1 : 1))
+    .at(-1);
+  const meta = keyRow?.meta ?? {};
+  const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
+  return JSON.stringify({
+    provider: entry.provider,
+    model: entry.model ?? null,
+    maxTokens: entry.params?.maxTokens ?? null,
+    timeoutS: entry.params?.timeoutS ?? null,
+    endpoint: str(meta.endpoint),
+    apiVersion: str(meta.apiVersion),
+    baseUrl: str(meta.baseUrl),
+  });
+}
+
+/**
  * Env fragment for spawnPython: `{ KP_LLM_CONFIG: "<json>" }` when any LLM
  * routing/keys are configured, `{}` otherwise (Python then defaults to the
  * Claude CLI — byte-for-byte the pre-wrapper behavior).

@@ -148,4 +148,5 @@ scripts/app-master-bench/tenures/*.json
 /.claude/rules/ai-registry-recruiting.md
 /.claude/rules/ai-registry-software-engineering.md
 /.claude/rules/ai-registry-localization.md
+/.ai/skill-runs.local.jsonl
 # END ai-registry linked skills

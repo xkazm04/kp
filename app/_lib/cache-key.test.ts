@@ -158,3 +158,26 @@ test("the registry digest is appended only when set, so a digest-less caller kee
     computeCacheKey({ ...base, archetypeRegistryDigest: "x" })
   );
 });
+
+// The model is part of the instrument. PROMPT_VERSION pins the prompt, and the operator
+// re-routes cv_analysis at runtime (Settings -> Models), so a key without the route
+// served the previous model's reading for the whole TTL after a switch.
+test("the model route is an axis: a re-route misses, the default route keeps its key", () => {
+  const route = (model: string, extra: Record<string, unknown> = {}): string =>
+    JSON.stringify({ provider: "openai", model, maxTokens: null, timeoutS: null, endpoint: null, apiVersion: null, baseUrl: null, ...extra });
+  const k0 = computeCacheKey({ ...base });
+  // No routing row -> "" -> byte-identical to the pre-axis key (no cache wipe).
+  assert.equal(k0, computeCacheKey({ ...base, llmRoute: "" }));
+  const a = computeCacheKey({ ...base, llmRoute: route("model-a") });
+  assert.notEqual(k0, a);
+  // Same route -> same key; a different model, token budget or endpoint -> a miss.
+  assert.equal(a, computeCacheKey({ ...base, llmRoute: route("model-a") }));
+  assert.notEqual(a, computeCacheKey({ ...base, llmRoute: route("model-b") }));
+  assert.notEqual(a, computeCacheKey({ ...base, llmRoute: route("model-a", { maxTokens: 4000 }) }));
+  assert.notEqual(a, computeCacheKey({ ...base, llmRoute: route("model-a", { baseUrl: "http://localhost:11434/v1" }) }));
+  // Behind its own marker: a route cannot be confused with a registry digest.
+  assert.notEqual(
+    computeCacheKey({ ...base, archetypeRegistryDigest: "x" }),
+    computeCacheKey({ ...base, llmRoute: "x" })
+  );
+});

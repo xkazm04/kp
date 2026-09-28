@@ -8,6 +8,7 @@ import { upsertGigFromRaw } from "./gigs.ts";
 import {
   createGigAttempt,
   getGigAttempt,
+  gigAttemptTallies,
   listGigAttemptsByStatus,
   listGigAttemptsForGig,
   transitionGigAttempt,
@@ -110,4 +111,18 @@ test("an attempt cannot be minted against another workspace's gig, nor read or m
   assert.deepEqual(listGigAttemptsByStatus(OTHER, ["dispatched"]), []);
   assert.deepEqual(transitionGigAttempt(OTHER, mine.id, { from: "dispatched", to: "failed" }), { ok: false, reason: "not_found" });
   assert.equal(getGigAttempt(WS, mine.id)?.status, "dispatched");
+});
+
+test("tallies: per specialist, by status, a NULL cost counted as unreported and never summed as zero, scoped to the workspace", () => {
+  const ws = "ws-gig-attempts-tally";
+  const g = gig(ws);
+  const a1 = createGigAttempt(ws, { gigId: g.id, specialistId: "sp-a", revisionNote: null })!;
+  const a2 = createGigAttempt(ws, { gigId: g.id, specialistId: "sp-a", revisionNote: null })!;
+  createGigAttempt(ws, { gigId: g.id, specialistId: "sp-b", revisionNote: null });
+  transitionGigAttempt(ws, a1.id, { from: "dispatched", to: "drafted", patch: { deliverable: DELIVERABLE, costUsd: 0.5 } });
+  transitionGigAttempt(ws, a2.id, { from: "dispatched", to: "failed", patch: { fallbackReason: "no_deliverable_block" } });
+  const t = gigAttemptTallies(ws);
+  assert.deepEqual(t["sp-a"], { attempts: 2, byStatus: { drafted: 1, failed: 1 }, costUsd: 0.5, costUnreported: 1 });
+  assert.deepEqual(t["sp-b"], { attempts: 1, byStatus: { dispatched: 1 }, costUsd: 0, costUnreported: 1 });
+  assert.equal(gigAttemptTallies(OTHER)["sp-a"], undefined, "another workspace's attempts are not counted");
 });

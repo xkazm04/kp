@@ -61,6 +61,12 @@ export type CacheKeyInput = {
   // a value (not read here) so this module stays pure. Appended only when set;
   // every cached analysis misses ONCE after a registry edit — intended.
   archetypeRegistryDigest?: string;
+  // The model route serving cv_analysis (llm-config.ts llmRouteFingerprint):
+  // provider, model, params and endpoint. PROMPT_VERSION pins the prompt, not the
+  // model, and the operator re-routes at runtime - a key without it served the
+  // previous model's analysis for the whole TTL after a switch. Appended only when
+  // set: the default route (no routing row) keeps its pre-axis key.
+  llmRoute?: string;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -106,6 +112,10 @@ export function computeCacheKey(input: CacheKeyInput): string {
   if (input.archetypeRegistryDigest) {
     field("archreg");
     field(input.archetypeRegistryDigest);
+  }
+  if (input.llmRoute) {
+    field("llmroute");
+    field(input.llmRoute);
   }
   return h.digest("hex");
 }
