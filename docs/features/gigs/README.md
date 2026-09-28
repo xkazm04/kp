@@ -332,6 +332,15 @@ could read. So:
   A file that fails validation fails the attempt with `invalid_json` / `invalid_shape` and a
   detail prefixed `kp-deliverable.json:`.
 
+A **fresh dispatch runs from a clean folder.** A qualified gig's dispatch — a first attempt, or
+a failed-retry after the gig reset to `qualified` — clears the prior run's outputs first
+(`clearGigDeliverableOutputs`: drops `kp-deliverable.json`, resets `NOTES.md`, empties
+`deliverable/`), because a run that finds a completed deliverable and a filled `NOTES.md` treats
+the work as done and emits no new block, so sync fails it `no_deliverable_block` (confirmed
+2026-09-27: every retry into a worked folder produced an empty run). A **revision** (a
+`drafted` / `in_review` gig dispatched with a `revisionNote`) keeps its prior work as a base and
+is never cleared — `dispatch.ts` gates the clear on `gig.status === "qualified"`.
+
 A **stand-down** (the specialist decides not to attempt the work, e.g. the listing is
 already claimed) is a valid outcome, but it is still a deliverable: `summary`, `draftText`
 and `disclosure` are required non-empty strings on every object. The contract therefore
@@ -369,7 +378,12 @@ goes: with the delivery (`draftText`, README, cover note), never into output the
 generates for the client's users. A short `draftText` that only points to a file ("[See
 deliverable/proposal.md]") fails too: it is the text the operator pastes, and one draft left nothing to send. The checker fails the disclosure sentence found in the product's own files
 (HTML, code, templates - anything under `deliverable/` but `.md`/`.txt`), because two drafts printed it in
-a site footer and a generated weekly email even after the contract said not to.
+a site footer and a generated weekly email even after the contract said not to. A `.patch`/`.diff`
+under `deliverable/` must be an **apply-able unified diff** — real `@@ -a,b +c,d @@` hunk headers,
+the output of `git diff` — not prose headers (`@@ -end of file @@`, `@@ the Payer row @@`), which
+`git apply` rejects; the contract tells the agent to deliver a code change that way or as the complete
+file(s), and the checker fails a patch whose hunk headers are prose (the dry-run print-stylesheet
+shipped exactly that).
 
 The hard rules do not depend on a prompt either: `DELIVERABLE-CONTRACT.md` states them in
 every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for any run under

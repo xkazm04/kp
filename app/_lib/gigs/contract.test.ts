@@ -172,6 +172,33 @@ test("a file under deliverable/ that no artifact covers fails; a folder artifact
   assert.match(out, /^OK /);
 });
 
+test("a patch with prose hunk headers fails; a real unified diff passes", () => {
+  // veryo9 (dry run) shipped .patch files with `@@ -end of file @@` / `@@ the Payer row @@` - git apply rejects those.
+  const patchDeliverable = { ...GOOD, artifacts: [{ kind: "file", ref: "deliverable/fix.patch", title: "CSS patch" }] };
+  const write = (patchBody: string): string => {
+    const dir = path.join(TMP, `gig-${++n}`);
+    mkdirSync(path.join(dir, "deliverable"), { recursive: true });
+    writeFileSync(path.join(dir, "deliverable/fix.patch"), patchBody);
+    writeFileSync(path.join(dir, GIG_DELIVERABLE_CHECKER_FILE), gigDeliverableCheckerSource());
+    writeFileSync(path.join(dir, GIG_DELIVERABLE_FILE), JSON.stringify(patchDeliverable));
+    return dir;
+  };
+
+  const proseDir = write("--- a/src/app.css\n+++ b/src/app.css\n@@ -end of file @@\n+.print { color: #111; }\n");
+  let proseOut = "";
+  try {
+    execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: proseDir, encoding: "utf8" });
+    assert.fail("the checker passed a patch with prose hunk headers");
+  } catch (e) {
+    proseOut = String((e as { stdout?: unknown }).stdout ?? "");
+  }
+  assert.match(proseOut, /deliverable\/fix\.patch has prose hunk headers/);
+
+  const realDir = write("--- a/src/app.css\n+++ b/src/app.css\n@@ -10,3 +10,4 @@ .card {\n   color: #111;\n+  .print { color: #111; }\n }\n");
+  const realOut = execFileSync(process.execPath, [GIG_DELIVERABLE_CHECKER_FILE], { cwd: realDir, encoding: "utf8" });
+  assert.match(realOut, /^OK /);
+});
+
 test("the AI disclosure inside the product (a page footer, generated output) fails; in a README it passes", () => {
   const dir = path.join(TMP, `gig-${++n}`);
   mkdirSync(path.join(dir, "deliverable"), { recursive: true });

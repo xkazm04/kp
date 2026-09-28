@@ -81,16 +81,19 @@ function linkedProject(workspaceId: string, gigId: string): Promise<PrepareGigPr
 function transport(
   result: ExecutePersonaResult,
   prepareProject: DispatchGigDeps["prepareProject"] = linkedProject
-): { deps: DispatchGigDeps; calls: { personaId: string; assignment: GigAssignment }[] } {
+): { deps: DispatchGigDeps; calls: { personaId: string; assignment: GigAssignment }[]; resets: string[] } {
   const calls: { personaId: string; assignment: GigAssignment }[] = [];
+  const resets: string[] = [];
   return {
     calls,
+    resets,
     deps: {
       executePersona: async (personaId, assignment) => {
         calls.push({ personaId, assignment });
         return result;
       },
       prepareProject,
+      resetDeliverable: (workdir) => resets.push(workdir),
     },
   };
 }
@@ -280,6 +283,16 @@ test("a revision from in_review carries the note and dispatches a NEW attempt", 
   assert.equal(second.attempt.revisionNote, "Add a regression test.");
   assert.equal(t.calls[0]!.assignment.revisionNote, "Add a regression test.");
   assert.equal(listGigAttemptsForGig(WS, gig.id).length, 2);
+  assert.equal(t.resets.length, 0, "a revision from in_review keeps its prior deliverable — the folder is not cleared");
+});
+
+test("a qualified gig's dispatch clears the folder first, so a retry does not inherit a prior deliverable", async () => {
+  const spec = specialist("oss_bounty", "active", "persona-clear");
+  const gig = qualified(newGig(), spec);
+  const t = transport({ ok: true, executionId: "exec-clear" });
+  const r = await dispatchGigAttempt(WS, gig.id, {}, t.deps);
+  assert.ok(r.ok);
+  assert.deepEqual(t.resets, [`/gigs/oss_bounty/${gig.id}`], "the fresh dispatch clears the gig's folder before the run");
 });
 
 test("two concurrent dispatches of one gig: exactly one wins the claim", async () => {

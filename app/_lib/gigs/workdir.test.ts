@@ -6,10 +6,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Gig } from "./types.ts";
-import { GIG_RUN_CONSTRAINTS } from "./contract.ts";
+import { GIG_CLIENT_FILES_DIR, GIG_DELIVERABLE_FILE, GIG_PROCESS_LOG_FILE, GIG_RUN_CONSTRAINTS } from "./contract.ts";
 import {
+  GIG_NOTES_MARKDOWN,
   GIG_UNTRUSTED_HEADING,
   asciiSlug,
+  clearGigDeliverableOutputs,
   gigMarkdown,
   gigWorkdirFor,
   gigWorkdirSlug,
@@ -150,4 +152,28 @@ test("scaffold: a file where the folder should be is workdir_io_error, never a t
   writeFileSync(arenaDir, "not a directory");
   const r = scaffoldGigWorkdir(gig(), { env: { KP_GIGS_ROOT: root } });
   assert.ok(!r.ok && r.reason === "workdir_io_error");
+});
+
+test("clearGigDeliverableOutputs: drops the deliverable, resets NOTES.md, empties deliverable/ but keeps .gitkeep", () => {
+  const env = { KP_GIGS_ROOT: path.join(TMP, "root-clear") };
+  const s = scaffoldGigWorkdir(gig(), { env });
+  assert.ok(s.ok);
+  if (!s.ok) return;
+  const wd = s.workdir;
+  // A prior attempt left a deliverable, a filled NOTES.md, and a client file beside .gitkeep.
+  writeFileSync(path.join(wd, GIG_DELIVERABLE_FILE), JSON.stringify({ version: 1, summary: "old" }));
+  writeFileSync(path.join(wd, GIG_PROCESS_LOG_FILE), "# Notes\n\nStage 1: disqualified, five competing PRs.\n");
+  writeFileSync(path.join(wd, GIG_CLIENT_FILES_DIR, "report.md"), "# stale report");
+  assert.ok(existsSync(path.join(wd, GIG_CLIENT_FILES_DIR, ".gitkeep")));
+
+  clearGigDeliverableOutputs(wd);
+
+  assert.equal(existsSync(path.join(wd, GIG_DELIVERABLE_FILE)), false, "the prior deliverable is gone");
+  assert.equal(readFileSync(path.join(wd, GIG_PROCESS_LOG_FILE), "utf8"), GIG_NOTES_MARKDOWN, "NOTES.md is back to the template");
+  assert.equal(existsSync(path.join(wd, GIG_CLIENT_FILES_DIR, "report.md")), false, "the stale client file is gone");
+  assert.equal(existsSync(path.join(wd, GIG_CLIENT_FILES_DIR, ".gitkeep")), true, ".gitkeep is kept");
+});
+
+test("clearGigDeliverableOutputs: a folder that is not on disk is a no-op, never a throw", () => {
+  assert.doesNotThrow(() => clearGigDeliverableOutputs(path.join(TMP, "does-not-exist-xyz")));
 });

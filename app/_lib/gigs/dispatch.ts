@@ -9,6 +9,7 @@ import { executePersonaForGig, type ExecutePersonaResult } from "./personas-exec
 import { prepareGigProject, type PrepareGigProjectResult } from "./project";
 import { rankGigSpecialists } from "./qualify";
 import { GIG_DEFAULT_BUDGET_USD } from "./specialist-defaults";
+import { clearGigDeliverableOutputs } from "./workdir";
 import {
   GIG_DELIVERABLE_CONTRACT,
   type Gig,
@@ -61,11 +62,17 @@ export type DispatchGigDeps = {
   /** Required, not defaulted per call: a test that injects a transport must also say where
    *  the folder goes, or it would scaffold into the real gigs root. */
   prepareProject: (workspaceId: string, gigId: string) => Promise<PrepareGigProjectResult>;
+  /** Clear a qualified gig's folder before a fresh run so a retry does not inherit a prior
+   *  attempt's deliverable (which makes the run treat the work as done). Optional: defaults to
+   *  `clearGigDeliverableOutputs`, which no-ops on a folder that is not on disk (a test's
+   *  injected placement), so a test need not supply it. */
+  resetDeliverable?: (workdir: string) => void;
 };
 
 const defaultDeps: DispatchGigDeps = {
   executePersona: executePersonaForGig,
   prepareProject: (workspaceId, gigId) => prepareGigProject(workspaceId, gigId),
+  resetDeliverable: clearGigDeliverableOutputs,
 };
 
 /** Where the run executes: the folder always when prepared, the project only when linked. */
@@ -153,6 +160,19 @@ export async function dispatchGigAttempt(
     return { ok: false, code: "GIG_WORKSPACE_FAILED", detail: link.reason };
   }
   const place: GigPlacement = { workdir: prepared.workdir, projectId: link.linked ? link.projectId : null };
+
+  // A qualified gig's dispatch (a first attempt, or a failed-retry after the gig reset to
+  // qualified) runs from a CLEAN folder: a run that finds a prior kp-deliverable.json and a filled
+  // NOTES.md treats the work as done and emits no new block, so sync fails it no_deliverable_block
+  // (confirmed 2026-09-27). A drafted / in-review REVISION keeps its prior work as a base, so it is
+  // never cleared. Best-effort - a clear that cannot run must not block the dispatch.
+  if (gig.status === "qualified") {
+    try {
+      (deps.resetDeliverable ?? clearGigDeliverableOutputs)(place.workdir);
+    } catch {
+      // best-effort: stale state may make the run no-op, but a clear failure never blocks dispatch.
+    }
+  }
 
   // Step 2 - the claim. A stale CAS means another dispatch (or the operator) moved it.
   const claimed = transitionGig(workspaceId, gigId, {

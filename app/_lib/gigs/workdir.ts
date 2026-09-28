@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   GIG_CLIENT_FILES_DIR,
   GIG_CONTRACT_FILE,
   GIG_DELIVERABLE_CHECKER_FILE,
+  GIG_DELIVERABLE_FILE,
   GIG_FACTS_FILE,
   GIG_PROCESS_LOG_FILE,
   gigContractFileMarkdown,
@@ -213,4 +214,43 @@ export function scaffoldGigWorkdir(
     return { ok: false, reason: "workdir_io_error", workdir };
   }
   return { ok: true, workdir, created };
+}
+
+/** Reset a gig folder's run outputs for a FRESH attempt: drop the deliverable object, put
+ *  NOTES.md back to its template, and empty deliverable/ (keeping .gitkeep). A run that finds a
+ *  prior `kp-deliverable.json` and a filled NOTES.md treats the work as already done and emits no
+ *  new block, so sync fails the attempt `no_deliverable_block` (confirmed 2026-09-27: a qualified
+ *  gig's retry into a worked folder produced an empty run). A qualified gig's dispatch - a first
+ *  attempt (nothing to clear) or a failed-retry (stale outputs to clear) - therefore starts clean;
+ *  a drafted / in-review REVISION keeps its prior work as a base and never calls this. Best-effort:
+ *  a folder not on disk yet (an injected placement in a test) or an unwritable file is left as is -
+ *  a clear that cannot run must never block the dispatch. */
+export function clearGigDeliverableOutputs(workdir: string): void {
+  if (!existsSync(workdir)) return;
+  try {
+    rmSync(path.join(workdir, GIG_DELIVERABLE_FILE), { force: true });
+  } catch {
+    // best-effort: a locked deliverable file is left for the run to overwrite.
+  }
+  try {
+    writeFileSync(path.join(workdir, GIG_PROCESS_LOG_FILE), GIG_NOTES_MARKDOWN, { encoding: "utf8" });
+  } catch {
+    // best-effort: NOTES.md is the run's own log, not the deliverable the operator reviews.
+  }
+  const del = path.join(workdir, GIG_CLIENT_FILES_DIR);
+  let names: string[] = [];
+  try {
+    names = readdirSync(del);
+  } catch {
+    // best-effort: no deliverable/ folder yet - scaffold makes it before the run.
+    return;
+  }
+  for (const name of names) {
+    if (name === ".gitkeep") continue;
+    try {
+      rmSync(path.join(del, name), { recursive: true, force: true });
+    } catch {
+      // best-effort: skip a file we cannot remove; the checker still flags a stale one.
+    }
+  }
 }

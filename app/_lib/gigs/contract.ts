@@ -155,6 +155,18 @@ const walk = (rel) => { let names = []; try { names = readdirSync(path.join(dir,
     if (/\\.(md|txt|html?|csv|json)$/i.test(d.name) && !big) clientTexts.push([r, readFileSync(path.join(dir, r), "utf8")]);
     else if (/\\.(py|[cm]?js|jsx|tsx?|css|ya?ml|toml|cfg|ini|sh|ps1|sql|ipynb)$/i.test(d.name) && !big) codeTexts.push([r, readFileSync(path.join(dir, r), "utf8")]); } };
 walk("deliverable");
+// A change to an existing codebase shipped as a patch must be an APPLY-ABLE unified diff: git apply
+// reads @@ -a,b +c,d @@ hunk headers, not prose ("@@ -end of file @@" - found 2026-09-27). A patch
+// with prose headers silently fails to apply, so the operator cannot land the change.
+for (const r of shipped) {
+  if (!/\\.(?:patch|diff)$/i.test(r)) continue;
+  let body = "";
+  try { body = readFileSync(path.join(dir, r), "utf8"); } catch { continue; }
+  const heads = body.match(/^@@ .*@@/gm) || [];
+  const real = heads.filter((h) => /^@@ -\\d+(?:,\\d+)? \\+\\d+(?:,\\d+)? @@/.test(h));
+  if (heads.length === 0) problems.push(r + " is a patch but has no @@ hunk headers - emit a real unified diff (git diff output), or ship the complete file(s) instead");
+  else if (real.length < heads.length) problems.push(r + " has prose hunk headers, not @@ -a,b +c,d @@ line ranges - git apply will reject it; produce a real unified diff or ship the complete file(s)");
+}
 // Every file under deliverable/ reaches the client, so each one is listed (a folder artifact covers
 // what is inside it). A stale v1 left beside its replacement undid a revision twice in this cycle.
 const trimRef = (s) => { let t = s.split(path.sep).join("/"); if (t.startsWith("./")) t = t.slice(2); while (t.endsWith("/")) t = t.slice(0, -1); return t; };
@@ -210,6 +222,7 @@ export function gigDeliverableContractMarkdown(): string {
     `- **Before you finish, run \`node ${GIG_DELIVERABLE_CHECKER_FILE}\` in the gig folder and fix the file until it prints OK.** Write the object with a JSON serializer (Python \`json.dump\`, \`JSON.stringify\`), never by hand. A file in any other shape is rejected and the whole run is lost.`,
     "- Use exactly these keys. `version` is the number 1. `summary`, `draftText` and `disclosure` are required non-empty strings; `confidence` is a number; `artifacts`, `evidence` and `questions` are arrays (empty when you have none).",
     `- artifacts[].kind is one of: ${GIG_ARTIFACT_KINDS.join(", ")}; a file you wrote is kind \`file\` with \`ref\` its path relative to the gig folder. evidence[].kind is one of: ${GIG_EVIDENCE_KINDS.join(", ")}.`,
+    "- A change to an existing codebase is delivered as an **apply-able unified diff** - real `@@ -oldStart,oldLines +newStart,newLines @@` hunk headers, the output of `git diff` - or as the complete new file(s). NEVER prose hunk headers like `@@ -end of file @@` or `@@ the Payer row @@`: `git apply` and `patch` reject those, so the operator cannot land the change. If you cannot run the target repo's git, either hand-write valid hunk ranges (count the lines) or ship the whole file.",
     `- Every file under \`${GIG_CLIENT_FILES_DIR}/\` reaches the client, so each one is covered by an artifact (a \`file\` artifact whose \`ref\` is a folder covers what is inside it). When a revision replaces a file, delete the old one.`,
     "- evidence lists only what you actually ran; `passed` is null when the result has no pass/fail meaning.",
     "- confidence is your own estimate from 0 to 1; it is shown to the operator, never used as a score.",
