@@ -321,3 +321,42 @@ test("a REFUSED save does not retire the memo", () => {
   assert.throws(() => setDecisionConfig("screening", { autoRejectEnabled: "yes" }, ws, "team"), /autoRejectEnabled/);
   assert.equal(analyticsWriteVersion(ws), settled, "a refused write must not retire anything");
 });
+
+// --- a write that names no tier lands where its reader looked -----------------------
+//
+// The rules screen reads the EFFECTIVE config (team override, else org baseline) and used
+// to save with no scope, which the route defaulted to the org baseline. The calibration
+// apply writes a full team row copied from the effective config. After one apply, the
+// team row shadowed every later save from the screen: unticking auto-reject wrote `false`
+// to the org row, the workspace kept running with it on, and the screen re-read the
+// team row's `true` beside "Saved". `"shown"` resolves the tier inside the write lock.
+test("a 'shown' write lands on the tier the reader was shown, so an apply's team row cannot shadow it", () => {
+  const ws = "ws-shown-tier";
+  const other = "ws-shown-other";
+  const on = { autoRejectEnabled: true, rejectBottomPercent: 10, maxMatchToReject: 45 };
+  setDecisionConfig("screening", on, ws, "org");
+
+  // No team row yet: the reader was shown the org baseline, so that is what moves.
+  setDecisionConfig("screening", { ...on, maxMatchToReject: 40 }, ws, "shown");
+  assert.equal(getDecisionConfig<ScreeningRule>("screening", other).maxMatchToReject, 40, "with no override, 'shown' is the org tier");
+
+  // The calibration apply: a family floor, written as a full team row.
+  updateDecisionConfig<ScreeningRule>(
+    "screening",
+    (cur) => ({ ...cur, familyFloors: { ...(cur.familyFloors ?? {}), software_engineering: 30 } }),
+    ws,
+    "team"
+  );
+
+  // The operator unticks auto-reject on the rules screen, which omits familyFloors.
+  setDecisionConfig("screening", { ...on, autoRejectEnabled: false, maxMatchToReject: 40 }, ws, "shown");
+  const after = getDecisionConfig<ScreeningRule>("screening", ws);
+  assert.equal(after.autoRejectEnabled, false, "the workspace that runs auto-reject is the one that stops");
+  assert.deepEqual(after.familyFloors, { software_engineering: 30 }, "the applied family floor survives the save");
+  assert.equal(getDecisionConfig<ScreeningRule>("screening", other).autoRejectEnabled, true, "another team's inherited baseline is untouched");
+
+  // Control: the old default. An org write while the team row exists moves nothing this
+  // workspace runs, which is the defect the route's default reproduced.
+  setDecisionConfig("screening", { ...on, autoRejectEnabled: true }, ws, "org");
+  assert.equal(getDecisionConfig<ScreeningRule>("screening", ws).autoRejectEnabled, false, "an explicit org write is shadowed by the override");
+});

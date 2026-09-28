@@ -8,7 +8,7 @@ import { Modal } from "@/app/_components/Modal";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { TextInput } from "@/app/_components/TextInput";
 import { type ScreeningRule } from "@/app/_lib/decision-config-schema";
-import { readScreeningRule, readScreeningRuleResponse, type ScreeningRuleRead } from "./decisionsRulesLoad";
+import { readScreeningRule, readScreeningRuleResponse, readScreeningVersion, type ScreeningRuleRead } from "./decisionsRulesLoad";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { capabilityAwareReason } from "@/app/_lib/useAddToPipeline";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -38,6 +38,9 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
   // workspace's live rules, and a save would have written them over the real ones.
   // A read that did not produce a screening rule now says so and disables save.
   const [loadFailed, setLoadFailed] = useState<ScreeningRuleRead["failure"]>(null);
+  // The version of the rules on screen, echoed on save so a save built on rules somebody
+  // has since changed is refused (409) instead of silently overwriting theirs.
+  const [version, setVersion] = useState<string | null | undefined>(undefined);
   const errMsg = useErrorMessage();
 
   // Fetch only — every state write happens on the settle, so this is the plain
@@ -47,11 +50,12 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
     // code (and the permission it wanted), which is the difference between "ask for
     // access" and "try again" - dropping it to `null` made both look like an outage.
     fetch("/api/decisions/config")
-      .then((r) => r.json().then((p: unknown) => readScreeningRuleResponse(r.status, p)))
-      .catch(() => readScreeningRuleResponse(null, null)) // offline / aborted / non-JSON
-      .then((read) => {
+      .then((r) => r.json().then((p: unknown) => ({ read: readScreeningRuleResponse(r.status, p), token: readScreeningVersion(p) })))
+      .catch(() => ({ read: readScreeningRuleResponse(null, null), token: undefined })) // offline / aborted / non-JSON
+      .then(({ read, token }) => {
         setRule(read.rule);
         setLoadFailed(read.failure);
+        setVersion(token);
       });
   }, []);
   useEffect(() => {
@@ -70,7 +74,9 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       const r = await fetch("/api/decisions/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: "screening", config: rule }),
+        // No scope: the route writes the tier GET showed, so this screen edits the rules
+        // the workspace actually runs even after a calibration apply wrote a team row.
+        body: JSON.stringify({ phase: "screening", config: rule, ...(version !== undefined ? { expectedUpdatedAt: version } : {}) }),
       });
       const d = (await r.json().catch(() => null)) as
         | { configs?: { screening?: Partial<ScreeningRule> }; code?: string; capability?: string }
@@ -79,12 +85,15 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       // door is capability-gated, and "Couldn't save" told a viewer nothing.
       if (!r.ok) {
         setNote(capabilityAwareReason(errMsg, d, t("saveFailed")));
+        // Somebody saved first: show their rules, so the change is made again against them.
+        if (d?.code === "DECISION_CONFIG_STALE") fetchRule();
         return;
       }
       // Re-sync from the server's canonical (clamped) config in the response, so the modal
       // shows exactly what was persisted rather than the possibly out-of-range value typed.
       const saved = readScreeningRule(d);
       if (saved) setRule(saved);
+      setVersion(readScreeningVersion(d));
       setNote(t("saved"));
     } catch {
       setNote(t("saveFailed"));

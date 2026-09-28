@@ -303,11 +303,21 @@ function writeConfigRow(
   return result.config as unknown as Record<string, unknown>;
 }
 
+/** The tier a cascade read resolves to for this workspace: its own override when it
+ *  has one, else the org baseline (which is also where a code-default read saves). */
+function shownTier(d: Database.Database, phase: string, workspaceId: string): "org" | "team" {
+  return tierRow(d, phase, workspaceId, "team") ? "team" : "org";
+}
+
 export function setDecisionConfig(
   phase: string,
   config: Record<string, unknown>,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
-  scope: "org" | "team" = "team",
+  /** `"shown"` writes the tier the caller's cascade read came from, resolved under the
+   *  write lock. An editor that displays the effective config and saves to a fixed tier
+   *  is shadowed the moment another writer creates a team override, and still reports
+   *  success. */
+  scope: "org" | "team" | "shown" = "team",
   /** Optimistic concurrency: the version the caller READ (see getDecisionConfigVersion).
    *  Omit it entirely for a write with no read behind it — server-side writers that
    *  compute the whole config. `null` asserts "nothing was stored when I read". */
@@ -321,7 +331,7 @@ export function setDecisionConfig(
     if (opts.expectedUpdatedAt !== undefined && effectiveUpdatedAt(d, phase, workspaceId) !== opts.expectedUpdatedAt) {
       throw new DecisionConfigStaleError(phase);
     }
-    writeConfigRow(d, phase, config, workspaceId, scope);
+    writeConfigRow(d, phase, config, workspaceId, scope === "shown" ? shownTier(d, phase, workspaceId) : scope);
   });
   tx.immediate();
   retireAnalyticsMemo(workspaceId);

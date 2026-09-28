@@ -58,10 +58,15 @@ export async function POST(request: NextRequest) {
     if (!result.ok) {
       return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: result.error });
     }
-    // scope 'team' writes THIS team's override; default 'org' edits the company baseline
-    // (the historical behavior). Publishing the org default affects every team — gate it on
-    // a manage capability once RBAC is enforced (today operator-gated, single-tenant).
-    const scope = body.scope === "team" ? "team" : "org";
+    // scope 'team' writes THIS team's override; 'org' edits the company baseline. Publishing
+    // the org default affects every team — gate it on a manage capability once RBAC is
+    // enforced (today operator-gated, single-tenant).
+    // No scope writes the tier GET showed: the override if this team has one, else the
+    // baseline. The default used to be 'org', and the rules screen and the jurisdiction
+    // picker send none. Once the calibration apply had written a team row, every save from
+    // them landed under it: unticking auto-reject answered "Saved" and changed nothing
+    // this workspace runs.
+    const scope = body.scope === "team" ? "team" : body.scope === "org" ? "org" : "shown";
     if (!rateLimit(`decision-config:${clientIpFrom(request.headers)}`, CONFIG_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }

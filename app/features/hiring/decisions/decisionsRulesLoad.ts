@@ -55,3 +55,15 @@ export function readScreeningRuleResponse(status: number | null, payload: unknow
     },
   };
 }
+
+/** The screening version a GET or POST /api/decisions/config body carries, to echo back
+ *  as `expectedUpdatedAt` on the next save. `null` is a real version: nothing stored at
+ *  either tier, so the reader is looking at the code default. `undefined` means the body
+ *  carried no token, and the save then sends none rather than invent one. */
+export function readScreeningVersion(payload: unknown): string | null | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const versions = (payload as { versions?: unknown }).versions;
+  if (!versions || typeof versions !== "object" || !("screening" in versions)) return undefined;
+  const v = (versions as { screening?: unknown }).screening;
+  return typeof v === "string" || v === null ? v : undefined;
+}
