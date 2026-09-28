@@ -16,15 +16,18 @@
 //
 // WHAT IT TOUCHES. The network, for real, tier A only: EURES (europa.eu), Arbeitnow, the
 // MPSV open-data file (data.mpsv.cz), and the public ATS boards in KP_ME_LIVE_BOARDS
-// (default: Anthropic and Google DeepMind on Greenhouse, OpenAI, ElevenLabs and Cohere on
-// Ashby, Mistral on Lever, Hugging Face on Workable). It never accepts a tier-B board's
+// (default: Anthropic and Helsing on Greenhouse, OpenAI, ElevenLabs, Cohere and Apify -
+// Prague - on Ashby, Spotify on Lever, Hugging Face on Workable; each checked to answer
+// with open roles on 2026-09-28, when Google DeepMind's Greenhouse board was gone (404) and
+// Mistral's Lever board empty). It never accepts a tier-B board's
 // terms — that acceptance is the owner's to give, and a test must not give it on their
 // behalf — and never touches tier C. The CV read may call the AI model the install is
 // configured with. Allow ~45 minutes; the scan alone may take 35.
 //   KP_ME_LIVE_COUNTRIES  default cz,de,at,nl,pl        (typed into the Places card)
 //   KP_ME_LIVE_TITLES     default AI Engineer,LLM Engineer,Machine Learning Engineer
-//   KP_ME_LIVE_BOARDS     default greenhouse:anthropic,greenhouse:deepmind,ashby:openai,
-//                         ashby:elevenlabs,ashby:cohere,lever:mistral,workable:huggingface
+//   KP_ME_LIVE_BOARDS     default greenhouse:anthropic,greenhouse:helsing,ashby:openai,
+//                         ashby:elevenlabs,ashby:cohere,ashby:apify,lever:spotify,
+//                         workable:huggingface
 //
 // PRIVACY. The CV is personal data and nothing personal is committed: its path comes from
 // KP_ME_LIVE_CV only, and every assertion compares what the app itself read (the name the
@@ -52,6 +55,7 @@ import { expect, request, test, type APIRequestContext, type BrowserContext, typ
 import type { JobseekerCvListItem, JobseekerPostingSummary, JobseekerPreferences, JobseekerProfile, JobseekerSource, ScanSummary } from "../app/_lib/jobseeker/types";
 import type { CatalogEntryView } from "../app/features/jobseeker/sourcesApi";
 import type { Task } from "../app/features/shell/tasks/tasksProviderTypes";
+import { twinKey } from "../app/features/jobseeker/sieve/sieveModel";
 import { E2E_BASE_URL, seedDevAuth } from "./dev-auth";
 
 // ── what the operator asked for (env; nothing here is personal) ─────────────────────────
@@ -68,7 +72,7 @@ function listEnv(name: string, fallback: string): string[] {
 const CITY = "Praha";
 const COUNTRIES = listEnv("KP_ME_LIVE_COUNTRIES", "cz,de,at,nl,pl").map((c) => c.toLowerCase());
 const TITLES = listEnv("KP_ME_LIVE_TITLES", "AI Engineer,LLM Engineer,Machine Learning Engineer");
-const BOARDS = listEnv("KP_ME_LIVE_BOARDS", "greenhouse:anthropic,greenhouse:deepmind,ashby:openai,ashby:elevenlabs,ashby:cohere,lever:mistral,workable:huggingface");
+const BOARDS = listEnv("KP_ME_LIVE_BOARDS", "greenhouse:anthropic,greenhouse:helsing,ashby:openai,ashby:elevenlabs,ashby:cohere,ashby:apify,lever:spotify,workable:huggingface");
 
 const OUT = path.resolve(import.meta.dirname, "..", "test-results", "me-live");
 const MIN = 60_000;
@@ -648,6 +652,9 @@ test.describe("/me live: the operator's own CV through a real scan", () => {
     // Read at runtime: the set of layouts is the designer's to change.
     run.layouts = (await layouts.allInnerTexts()).map((s) => s.trim()).filter(Boolean);
     note(`layouts offered: ${run.layouts.join(", ")}`);
+    // The layout a fresh seeker's designer opens on is the default, and the PDF worth
+    // proving is that one — not whichever the cycle below happens to end on.
+    const pressedAtOpen = await layouts.evaluateAll((els) => els.findIndex((el) => el.getAttribute("aria-pressed") === "true"));
     for (let i = 0; i < run.layouts.length; i++) {
       const button = layouts.nth(i);
       await check(`layout "${run.layouts[i]}" takes`, async () => {
@@ -656,6 +663,14 @@ test.describe("/me live: the operator's own CV through a real scan", () => {
       });
       await settle(page);
       await shot(ui.designedSheet(cv), `designer/cv-${slug(run.layouts[i]!)}.png`);
+    }
+    if (pressedAtOpen >= 0 && pressedAtOpen < run.layouts.length - 1) {
+      const back = layouts.nth(pressedAtOpen);
+      await check(`the layout it opened on ("${run.layouts[pressedAtOpen]}") takes again`, async () => {
+        await back.click();
+        await expect(back).toHaveAttribute("aria-pressed", "true");
+      });
+      await settle(page);
     }
 
     const pressed = slug((await picker.locator('button[aria-pressed="true"]').first().innerText().catch(() => "layout")).trim());
@@ -680,6 +695,20 @@ test.describe("/me live: the operator's own CV through a real scan", () => {
         expect(fs.readFileSync(file).subarray(0, 5).toString("latin1")).toBe("%PDF-");
       });
       run.pdf = path.relative(OUT, file);
+      // A variable web font embeds as Type 3 and splits a word at every diacritic when an
+      // applicant-tracking parser reads it back; the sheet's own static faces embed as
+      // TrueType (Type0/CIDFontType2). Chromium writes font dictionaries uncompressed, so
+      // the bytes say which.
+      if (fs.existsSync(file)) {
+        const bytes = fs.readFileSync(file).toString("latin1");
+        const subtypes = [...bytes.matchAll(/\/Type\s*\/Font\b[^>]*?\/Subtype\s*\/(\w+)|\/Subtype\s*\/(\w+)[^>]*?\/Type\s*\/Font\b/g)].map((m) => m[1] ?? m[2]!);
+        const faces = [...new Set([...bytes.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([^\s/>\]]+)/g)].map((m) => m[1]!))];
+        note(`the PDF's fonts: ${subtypes.length} dictionaries (${[...new Set(subtypes)].join(", ")}) · ${faces.join(", ")}`);
+        await check("the PDF embeds its text in TrueType fonts, none of them Type 3", async () => {
+          expect(subtypes.length, "no font dictionary is visible in the PDF's bytes").toBeGreaterThan(0);
+          expect(subtypes.filter((s) => s === "Type3"), "Type 3 fonts in the PDF").toEqual([]);
+        });
+      }
     } else if (res.status() === 503) {
       // No browser on the server (JOBSEEKER_PDF_UNAVAILABLE): the designer must offer the
       // print path instead, which carries the same layout.
@@ -1159,13 +1188,29 @@ async function writeReport(): Promise<string> {
     if (byTitle.size) L.push(`By the title they matched: ${[...byTitle].sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} ${n}`).join(", ")}.`);
     L.push("");
 
-    L.push("## Top 15 scored", "");
+    // Repeats folded as the sieve folds them (sieveModel.twinKey: same source, title and
+    // employer), so the table reads like the ranking the seeker sees.
+    const shown: JobseekerPostingSummary[] = [];
+    const repeats = new Map<string, number>();
+    const keptFor = new Map<string, string>();
+    for (const r of facts.scored) {
+      const key = twinKey(r);
+      const kept = key ? keptFor.get(key) : undefined;
+      if (kept) {
+        repeats.set(kept, (repeats.get(kept) ?? 0) + 1);
+        continue;
+      }
+      if (key) keptFor.set(key, r.id);
+      if (shown.length < 15) shown.push(r);
+    }
+    L.push("## Top 15 scored", "", "Repeats of one job (same source, title and employer) are folded, as the sieve folds them.", "");
     L.push("| # | Score | Tier | Direction | Title | Company | Country | Mode | Source |", "|---:|---|---|---|---|---|---|---|---|");
-    facts.scored.slice(0, 15).forEach((r, i) => {
+    shown.forEach((r, i) => {
       const a = r.targetAlignment;
       const direction = a ? `${a.state}${a.state === "target" && a.matchedTitle ? `: ${a.matchedTitle}` : a.state === "past" && a.pastFamily ? `: ${a.pastFamily}` : ""}` : "";
       const score = `${r.skillsStated === false ? "— (no skills stated) " : ""}${r.matchTotal}${r.confidence ? ` (${r.confidence.low}–${r.confidence.high})` : ""}`;
-      L.push(`| ${i + 1} | ${cell(score)} | ${cell(r.fitTier)} | ${cell(direction)} | ${cell(r.title)} | ${cell(r.company)} | ${cell(r.country)} | ${cell(r.workMode)} | ${cell(named(r.sourceId))} |`);
+      const title = `${r.title}${repeats.get(r.id) ? ` (+${repeats.get(r.id)} more listed)` : ""}`;
+      L.push(`| ${i + 1} | ${cell(score)} | ${cell(r.fitTier)} | ${cell(direction)} | ${cell(title)} | ${cell(r.company)} | ${cell(r.country)} | ${cell(r.workMode)} | ${cell(named(r.sourceId))} |`);
     });
     L.push("");
   } else {

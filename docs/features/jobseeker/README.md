@@ -1075,12 +1075,16 @@ change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
 `e2e/jobseeker-live.spec.ts`) walks the whole flow with the owner's real CV: a FRESH
 database (`data/kp-me-live.sqlite`) on an isolated `next dev` (KP_EMPTY=1, so the
 `.next-empty` distDir; it refuses, naming the holder, when that lock or the port is taken),
-the CV read, the wants typed through the cards (Praha + CZ/DE/AT/NL/PL, AI Engineer / LLM
+the CV read, every designer layout, and the default one (Studio) as a PDF that must embed
+no Type 3 font; the wants typed through the cards (Praha + CZ/DE/AT/NL/PL, AI Engineer / LLM
 Engineer / Machine Learning Engineer, remote + hybrid), the three open feeds and AI
 companies' public boards switched on (tier A only - it never accepts a tier-B board's
-terms), a real scan repeated until nothing waits for a score (at most five passes in an
-hour), then the ranking, one target match opened and shortlisted, and every section
-photographed in both themes on a desktop and a phone. The report and screenshots land in
+terms; the default boards are Anthropic, Helsing, OpenAI, ElevenLabs, Cohere, Apify,
+Spotify and Hugging Face, each checked on 2026-09-28 to list open roles - Google
+DeepMind's Greenhouse board was gone and Mistral's Lever board empty), a real scan repeated
+until nothing waits for a score (at most five passes in an hour), then the ranking, one
+target match opened and shortlisted, and every section photographed in both themes on a
+desktop and a phone. The report's top fifteen fold repeats the way the sieve does. The report and screenshots land in
 `test-results/me-live/` (git-ignored); nothing personal is asserted or printed. It is
 outside `KEYLESS_SPECS` and CI by design: it needs a CV, the network and most of an hour.
 
