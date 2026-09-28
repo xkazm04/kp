@@ -570,7 +570,11 @@ split per script, which Chromium's PDF writer embeds as Type 3 fonts with a font
 every diacritic: the operator's own exported CV read back "Každan" and "Česká Spořitelna"
 broken apart in both pypdf and PyMuPDF (pypdf kept 0 of 4 diacritic words whole). Static,
 single-file Latin + Latin Extended instances (Inter, Fraunces, Bricolage, JetBrains Mono -
-410 kB) embed as TrueType: the same CV now keeps every one whole in both extractors.
+410 kB) embed as TrueType: the same CV now keeps every one whole in both extractors. Each
+file is named for its weight ("Inter-SemiBold", with the matching weight and bold bits):
+the instancer had kept the variable font's names, so every Inter weight embedded as
+"Inter-Regular" and Bricolage 500 as "96pt ExtraBold" - the name a text extractor reports,
+and where a parser that reads weight from the font name gets it.
 Reading order on every template: head -> summary -> experience -> projects -> education ->
 skills -> languages; each entry is one line, "Title - Employer" with the dates at its end;
 nothing that carries text is positioned and headings are not letter-spaced (both had made the
