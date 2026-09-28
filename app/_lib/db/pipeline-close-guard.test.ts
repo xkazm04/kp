@@ -216,7 +216,7 @@ test("without the guard, the identical sequence silently overwrites the concurre
       a.prepare(`SELECT id FROM pipeline_entries WHERE status = ?`).all(from);
       b.prepare(`UPDATE pipeline_entries SET status=? WHERE id='e1'`).run(concurrent);
 
-      const unguarded = pipelineUpdates(functionBody(fn))[0].replace(new RegExp(`\s*AND status='${from}'`), "");
+      const unguarded = pipelineUpdates(functionBody(fn))[0].replace(new RegExp(`\\s*AND status='${from}'`), "");
       assert.doesNotMatch(unguarded, new RegExp(`status='${from}'`), "the control must actually have the guard removed");
       const res = a.prepare(unguarded).run(...bindParams(unguarded, REPLAY_VALUES));
 

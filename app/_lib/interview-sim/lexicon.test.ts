@@ -84,7 +84,7 @@ const EXAMPLES: Record<string, { forms: readonly LexForm[]; examples: Record<str
       "de.score": ["Ihre Bewertung ist sehr gut.", "Ich würde Sie sofort einstellen."],
       "de.soft_fit": ["Sie wären eine starke Besetzung.", "Genau das, was wir suchen."],
       "de.did_well": ["Sie machen das sehr gut.", "Sie haben gute Chancen."],
-      "fr.reussi": ["Vous avez réussi.", "Vous êtes retenue pour la suite."],
+      "fr.reussi": ["Vous avez réussi.", "Vous avez réussi l'entretien.", "Vous êtes retenue pour la suite."],
       "fr.score": ["Votre note est excellente.", "Je vous recommanderais sans hésiter."],
       "fr.soft_fit": ["Vous seriez un excellent candidat.", "C'est exactement ce que nous recherchons."],
       "fr.did_well": ["Vous vous en sortez très bien.", "Vous êtes sur la bonne voie."],
