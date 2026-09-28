@@ -204,6 +204,14 @@ test("the AI disclosure inside the product (a page footer, generated output) fai
   assert.doesNotMatch(out2, /about\.html carries/, "a page ABOUT AI is not a disclosure");
 });
 
+test("a draftText that only points to a file fails; a real proposal that mentions a file passes", () => {
+  const pointer = check(JSON.stringify({ ...GOOD, draftText: "[See deliverable/proposal.md for the full proposal text]" }), ["deliverable/app.html"]);
+  assert.equal(pointer.ok, false);
+  assert.match(pointer.out, /draftText only points to a file/);
+  const real = check(JSON.stringify({ ...GOOD, draftText: "Hi, I built a working sample - see deliverable/app.html. Here is my plan and price." }), ["deliverable/app.html"]);
+  assert.ok(real.ok, real.out);
+});
+
 test("no file at all says so", () => {
   const r = check(null);
   assert.equal(r.ok, false);

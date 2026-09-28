@@ -120,6 +120,8 @@ if (o.version !== 1) problems.push("version must be the NUMBER 1 (got " + JSON.s
 for (const k of ["summary", "draftText", "disclosure"]) if (!nonEmpty(o[k])) problems.push(k + " must be a non-empty string");
 // The venue may reword the disclosure, but it names AI and the review is YOURS (first person):
 // "reviewed by the operator/developer" variants kept reaching the client in the training cycle.
+// draftText is what the operator pastes: a pointer to a file ("[See deliverable/proposal.md]") leaves nothing to send.
+if (nonEmpty(o.draftText) && o.draftText.trim().length < 400 && /^\\s*\\[?\\s*(?:see|refer to|full text in|proposal in)\\b[^\\n]*(?:deliverable\\/|\\.md\\b)/i.test(o.draftText)) problems.push("draftText only points to a file - put the full text the operator will send in draftText itself");
 if (nonEmpty(o.disclosure) && !(/\\bAI\\b/i.test(o.disclosure) && /\\b(?:I|me|my|Me|My)\\b/.test(o.disclosure))) problems.push("disclosure must name AI assistance and say that you reviewed it, in the first person - e.g. " + ${JSON.stringify(GIG_DISCLOSURE_SENTENCE)});
 if (typeof o.confidence !== "number" || !Number.isFinite(o.confidence)) problems.push("confidence must be a number from 0 to 1");
 for (const k of ["artifacts", "evidence", "questions"]) if (!Array.isArray(o[k])) problems.push(k + " must be an array (use [] when you have none)");
