@@ -12990,6 +12990,13 @@
           "useFailed": "Na toto CV se nepodařilo přepnout. Zůstává vaše současné.",
           "loadFailed": "Vaše dřívější CV se nepodařilo načíst.",
           "retry": "Zkusit znovu"
+        },
+        "dropHint": "začněte tady: vložte ho sem ↓",
+        "art": {
+          "mode": "jiný režim práce",
+          "level": "jiná úroveň",
+          "pay": "pod vaším minimem",
+          "few": "těch pár, co stojí za váš večer"
         }
       },
       "you": {
@@ -13383,7 +13390,9 @@
         "was": "dříve {n}",
         "readStale": "Rozbor vznikl před vaší poslední změnou profilu. Příští sken ho napíše znovu.",
         "coverSaved": "Uloženo",
-        "coverSaveFailed": "Zatím neuloženo, zkoušíme to znovu. Váš text zůstává zde."
+        "coverSaveFailed": "Zatím neuloženo, zkoušíme to znovu. Váš text zůstává zde.",
+        "dialLabel": "Skóre {score} ze 100, pravděpodobně mezi {low} a {high}",
+        "dialLabelBare": "Skóre {score} ze 100"
       },
       "sources": {
         "eyebrow": "Krok 8 · Zdroje",

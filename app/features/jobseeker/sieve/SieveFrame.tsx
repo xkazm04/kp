@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { RailPreferences } from "@/app/features/shell/nav/NavRailPreferences";
@@ -56,6 +56,7 @@ export function SieveFrame({
   hrefBase = "",
   page,
   onStep,
+  snap = false,
   children,
 }: {
   who: { name: string; initials: string } | null;
@@ -69,6 +70,8 @@ export function SieveFrame({
   page?: "sources" | "scans";
   /** Told which step the reader just asked for, so the flow can light it at once. */
   onStep?: (id: string) => void;
+  /** The flow itself (not a side page): its chapters snap and the reading line runs. */
+  snap?: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations("me.sieve.frame");
@@ -77,8 +80,12 @@ export function SieveFrame({
   useStripHeight(rootRef, railRef);
   const activeSection = active === null ? null : railSection(active);
   const anchorOf = (s: RailStep) => steps.find((x) => x.id === railSection(s.id))?.anchor ?? s.anchor;
+  // The rail's THREAD: the connector line fills in the accent down to the step being read,
+  // so the rail shows how far into the story the reader is, not only where they are.
+  const activeIndex = activeSection === null ? -1 : steps.findIndex((s) => railSection(s.id) === activeSection);
+  const progress = steps.length > 1 && activeIndex > 0 ? activeIndex / (steps.length - 1) : 0;
   return (
-    <div className={SV_ROOT} ref={rootRef}>
+    <div className={SV_ROOT} ref={rootRef} data-snap={snap ? "1" : undefined}>
       <a className="skip" href="#sv-main">
         {t("skip")}
       </a>
@@ -100,7 +107,7 @@ export function SieveFrame({
         </span>
       </header>
 
-      <nav className="rail" aria-label={t("railLabel")} ref={railRef}>
+      <nav className="rail" aria-label={t("railLabel")} ref={railRef} style={{ "--sv-progress": progress } as CSSProperties}>
         <ol>
           {steps.map((s, i) => {
             const on = activeSection !== null && railSection(s.id) === activeSection;

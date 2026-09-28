@@ -40,6 +40,37 @@ section just under the strip, and a rail click keeps its step lit until the read
 touches or types.
 
 
+**Landing-grade chapters (2026-09-28).** The owner asked for /me to be as representative
+as the landing and /about: visual quality, motion, snap scrolling, a composition per
+section. The flow now reads as eight chapters, token-driven in both registers:
+
+- **Chapter heads** (`ChapterHead.tsx`): a large outlined numeral in the accent beside the
+  head (decoration, `aria-hidden`), the eyebrow in the landing's hand (Shantell Sans, loaded
+  for /me only as `--font-me-hand` in `app/me/layout.tsx`, with JetBrains Mono as
+  `--font-me-mono`), the title at display scale. Small labels are sentence case, never
+  letter-spaced caps.
+- **Surfaces**: chapters alternate paper and a soft tint (`data-surface="tint"`), the sieve
+  sits on a dot-grid stage (`"stage"`); on a desktop tall enough, each chapter is one
+  screen high.
+- **Motion is CSS scroll-driven** (`animation-timeline: view()`, `sieve.css` "snap +
+  motion"): heads rise in, the want cards and the top five are dealt in on a stagger, the
+  Weigh dial draws its arc, a reading line runs under the top bar and the rail's connector
+  fills in the accent to the chapter being read (`--sv-progress`). Everything sits inside
+  `@supports` and `prefers-reduced-motion: no-preference`, so an unsupporting browser or a
+  still reader gets the finished page, and reveals touch LEAF elements only - a transform
+  on a container would capture a fixed overlay inside it.
+- **Proximity snap** on the flow page only (`SieveFrame snap` → `data-snap`), desktop only:
+  a chapter that comes to rest near the top settles onto it, a long one scrolls freely.
+- **Per chapter**: Arrive is a hero (the Sieve drawn as a picture of itself, `SieveArt.tsx`,
+  postings raining into a meshed funnel with the gates named in the hand; the drop as the
+  landing's sticker; the promise in numerals; three stops on a drawn line). Your CV + You
+  get a paper-on-desk CV and a ringed portrait with a hairline fact strip. What you want is a
+  bento with icon chips (titles and languages span two). The sieve's stage wears the
+  sticker. Worth your evening deals the top five as a tilted hand of sticker cards, #1 in the
+  accent. Weigh shows the score as a dial (`ScoreDial.tsx`: the arc is the score, the soft
+  arc the band) and gives a posting's long title the full width. Sources are three doors,
+  each coloured along its top edge.
+
 Promoted on 2026-09-25 from the design contest `me-seeker-flow` (winner A/2, "The
 Sieve"; the owner chose it over the more spectacular runner-up for its balance of wow and
 practicality). The owner's brief for the contest: the module worked, but it was a wall
@@ -791,7 +822,9 @@ pre-filter it is about 0.09 s (`pipeline/jobfit/taxonomy.py`, docs/features/matc
 live scan of 1,259 postings (EURES + Anthropic + OpenAI + ElevenLabs + Cohere + Hugging
 Face + Arbeitnow) still took three passes before the speed-up; the flow reads the whole
 dataset in pages of `POSTINGS_PAGE_MAX` (500) so a large sieve loads in three requests,
-not thirteen (the list's 120/10 min limit had locked a seeker out after nine reloads).
+not thirteen (the list's 120/10 min limit had locked a seeker out after nine reloads). The
+sieve's pour spreads over at most 1.8 s however many dots fall, and a layer's counter ends
+on the layer's true count, not on the dots drawn (a capped layer of 946 read "360").
 
 ### API (`app/api/jobseeker/{scan,postings}/**`, all `requireOperator()` → limiter → work)
 
@@ -999,6 +1032,21 @@ acknowledgement with the checkbox focused and the CTA disabled until ticked, the
 toggle locked) and is NOT in
 `KEYLESS_SPECS`: enrolling it means the ci.yml step and `.claude/CLAUDE.md` in the same
 change (`keyless-e2e-pin.test.mjs`), which this package does not touch.
+
+## The live end-to-end run
+
+`KP_ME_LIVE_CV=/path/to/cv.pdf npm run e2e:me-live` (`scripts/e2e/me-live.mjs` +
+`e2e/jobseeker-live.spec.ts`) walks the whole flow with the owner's real CV: a FRESH
+database (`data/kp-me-live.sqlite`) on an isolated `next dev` (KP_EMPTY=1, so the
+`.next-empty` distDir; it refuses, naming the holder, when that lock or the port is taken),
+the CV read, the wants typed through the cards (Praha + CZ/DE/AT/NL/PL, AI Engineer / LLM
+Engineer / Machine Learning Engineer, remote + hybrid), the three open feeds and AI
+companies' public boards switched on (tier A only - it never accepts a tier-B board's
+terms), a real scan repeated until nothing waits for a score (at most five passes in an
+hour), then the ranking, one target match opened and shortlisted, and every section
+photographed in both themes on a desktop and a phone. The report and screenshots land in
+`test-results/me-live/` (git-ignored); nothing personal is asserted or printed. It is
+outside `KEYLESS_SPECS` and CI by design: it needs a CV, the network and most of an hour.
 
 ## Known gaps
 

@@ -52,7 +52,20 @@
   --sv-caught-ink: color-mix(in srgb, var(--color-dial-stone) 55%, var(--color-ink));
   --sv-serif: var(--font-serif);
   --sv-sans: var(--font-sans);
-  --sv-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --sv-mono: var(--font-me-mono), ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  /* The landing's hand-written voice (app/me/layout.tsx loads Shantell Sans): eyebrows,
+   * margin notes, the hero art's labels. Never for anything a reader must parse fast. */
+  --sv-hand: var(--font-me-hand), "Segoe Print", "Bradley Hand", cursive;
+  /* A chapter's breathing room: the landing's bands, not a workspace panel's padding. */
+  --sv-chapter-pad: clamp(56px, 7.5vh, 104px);
+  --sv-gutter: clamp(24px, 5vw, 88px);
+  /* The STICKER - the landing's ink outline and hard offset shadow. Kept for the flow's
+   * showpieces (the hero's drop, the top five, the art frames), in both registers: the
+   * ink token flips with the theme, so it is the landing's sticker on cream and Spark
+   * Dark's on ink. */
+  --sv-sticker-line: 2px solid var(--sv-ink);
+  --sv-sticker: 5px 5px 0 var(--sv-ink);
+  --sv-sticker-up: 8px 8px 0 var(--sv-ink);
   --sv-rail-w: 248px;
   --sv-top-h: 60px;
   --sv-radius: 12px;
@@ -236,6 +249,19 @@
   width: 2px;
   background: var(--sv-line);
 }
+/* The thread: the accent runs down the connector to the step being read (SieveFrame
+   sets --sv-progress), under the number circles, which paint above it. */
+.sv .rail ol::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 14px;
+  width: 2px;
+  height: calc((100% - 28px) * var(--sv-progress, 0));
+  background: var(--sv-accent);
+  border-radius: 2px;
+  transition: height 0.6s var(--sv-ease);
+}
 .sv .rail li {
   position: relative;
 }
@@ -403,55 +429,258 @@
   padding-top: var(--sv-top-h);
 }
 .sv .step {
-  padding: 56px clamp(24px, 4vw, 64px) 72px;
+  /* The content column centres itself past 1280px, so a wide screen gets margins, not
+     1900px lines; the gutter is the floor under that. */
+  padding: var(--sv-chapter-pad) max(var(--sv-gutter), calc((100% - 1280px) / 2)) calc(var(--sv-chapter-pad) + 16px);
   border-bottom: 1px solid var(--sv-line);
   position: relative;
   scroll-margin-top: var(--sv-top-h);
 }
+/* Surfaces: the chapters alternate like the landing's bands - paper, then a soft tint -
+   so the eye feels the chapter turn without a rule across the page. Both are the
+   theme's own tokens. */
+.sv .step[data-surface="tint"] {
+  background: var(--sv-paper-2);
+}
+.sv .step[data-surface="stage"] {
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--sv-ink) 13%, transparent) 1px, transparent 1.6px) 0 0 / 22px 22px,
+    var(--sv-paper);
+}
+/* A full-screen chapter on a desktop tall enough to hold one: the flow turns page by page
+   (with the proximity snap below). The folded Arrive and anything on a phone stay the
+   height of their content. */
+@media (min-width: 1024px) and (min-height: 680px) {
+  .sv .step:not(.folded) {
+    min-height: calc(100svh - var(--sv-top-h));
+  }
+}
 .sv #s-you {
   scroll-margin-top: calc(var(--sv-top-h) + 20px);
 }
-.sv .step-head {
-  display: flex;
-  align-items: flex-end;
-  gap: 18px;
-  margin-bottom: 26px;
-  flex-wrap: wrap;
-}
-.sv .step-head .grow {
-  flex: 1;
-  min-width: 260px;
-}
 .sv .eyebrow {
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 500 1.0625rem/1.3 var(--sv-hand);
   color: var(--sv-accent-ink);
-  font-weight: 700;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
 .sv h2 {
-  font: 600 clamp(28px, 2.6vw, 38px) / 1.1 var(--sv-serif);
+  font: 600 clamp(34px, 1.1rem + 2.5vw, 56px) / 1.02 var(--sv-serif);
   margin: 0;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
 }
 .sv h3 {
   font: 600 1.25rem/1.25 var(--sv-serif);
   margin: 0 0 10px;
 }
 .sv h4 {
-  font-size: 0.875rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--sv-ink-3);
-  margin: 0 0 10px;
-  font-weight: 700;
+  font: 600 0.9375rem/1.35 var(--sv-sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--sv-ink-2);
+  margin: 0 0 12px;
 }
 .sv .lede {
   color: var(--sv-ink-2);
-  font-size: 1.0625rem;
-  margin: 8px 0 0;
-  max-width: 62ch;
+  font-size: 1.125rem;
+  line-height: 1.55;
+  margin: 14px 0 0;
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+/* A margin note in the landing's hand ("drop it here", "tap any card"): a voice beside
+   the work, never an instruction a reader needs. */
+.sv .hand-note {
+  font: 500 1.125rem/1.3 var(--sv-hand);
+  color: var(--sv-ink-2);
+  margin: 0;
+}
+
+/* ---------- chapters (ChapterHead.tsx) ----------
+ * The outlined numeral sits behind the head, the head overlapping its lower half - a
+ * magazine opening. Decoration only: aria-hidden, no pointer events. */
+.sv .chapter {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px clamp(18px, 2.4vw, 36px);
+  margin-bottom: clamp(28px, 4vh, 48px);
+}
+.sv .chapter-n {
+  align-self: start;
+  font: 700 clamp(72px, 2.4rem + 4.6vw, 140px) / 0.78 var(--sv-serif);
+  letter-spacing: -0.05em;
+  color: color-mix(in srgb, var(--sv-accent) 9%, transparent);
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--sv-accent) 62%, transparent);
+  margin-top: 0.04em;
+  user-select: none;
+  pointer-events: none;
+  font-variant-numeric: lining-nums;
+}
+.sv .chapter-copy {
+  position: relative;
+  min-width: 0;
+}
+.sv .chapter-sub {
+  margin-top: 14px;
+}
+.sv .chapter-aside {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ---------- snap + motion ----------
+ * PROXIMITY snap (never mandatory): a chapter that comes to rest near the top edge
+ * settles onto it, and a long chapter (the ranked list, the sources) scrolls freely
+ * through. Desktop only - a phone's momentum scroll and a snap point argue.
+ *
+ * Motion is CSS scroll-driven (animation-timeline: view()), so it needs no script and
+ * scrubs with the reader's own scroll. Two gates: a browser without scroll timelines and
+ * a reader who asked for reduced motion both get the finished page, because nothing is
+ * hidden outside the @supports + media block. Reveals are for LEAF elements - a head, a
+ * card - never a container holding a fixed or sticky overlay (a transform, even
+ * mid-animation, would become that overlay's containing block). */
+@media (min-width: 861px) {
+  html:has(.sv[data-snap="1"]) {
+    scroll-snap-type: y proximity;
+  }
+  .sv[data-snap="1"] .step {
+    scroll-snap-align: start;
+  }
+}
+@keyframes sv-rise {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+  }
+}
+@keyframes sv-numeral {
+  from {
+    opacity: 0;
+    translate: -3% 26%;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+  }
+}
+@keyframes sv-pop {
+  from {
+    opacity: 0;
+    scale: 0.94;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: none;
+  }
+}
+/* A card dealt onto the table: from below, turned, landing on its own tilt (the tilt is
+   the element's `rotate`, which the keyframes leave alone - they move `translate` and
+   `scale` only). */
+@keyframes sv-deal {
+  from {
+    opacity: 0;
+    translate: 0 60px;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    translate: none;
+    scale: 1;
+  }
+}
+@keyframes sv-fill {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .sv .chapter-n {
+      animation: sv-numeral linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 42%;
+    }
+    .sv .chapter-copy {
+      animation: sv-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 26%;
+    }
+    .sv [data-rise] {
+      animation: sv-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 24%;
+    }
+    .sv [data-pop],
+    .sv .wants > .wcard.viewing {
+      animation: sv-pop linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 4%) cover calc(16% + var(--i, 0) * 3%);
+    }
+    .sv .dial-arc {
+      animation: sv-arc linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+    .sv .top5 > .tcard {
+      animation: sv-deal linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 5%) cover calc(18% + var(--i, 0) * 4%);
+    }
+    .sv .top5 > .tcard:nth-child(2) {
+      --i: 1;
+    }
+    .sv .top5 > .tcard:nth-child(3) {
+      --i: 2;
+    }
+    .sv .top5 > .tcard:nth-child(4) {
+      --i: 3;
+    }
+    .sv .top5 > .tcard:nth-child(5) {
+      --i: 4;
+    }
+    .sv .wants > .wcard:nth-child(2) {
+      --i: 1;
+    }
+    .sv .wants > .wcard:nth-child(3) {
+      --i: 2;
+    }
+    .sv .wants > .wcard:nth-child(4) {
+      --i: 1;
+    }
+    .sv .wants > .wcard:nth-child(5) {
+      --i: 2;
+    }
+    .sv .wants > .wcard:nth-child(6) {
+      --i: 3;
+    }
+    /* The reading progress under the top bar: the whole flow as one line. */
+    .sv[data-snap="1"] .topbar::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 2px;
+      background: var(--sv-accent);
+      transform-origin: 0 50%;
+      animation: sv-fill linear both;
+      animation-timeline: scroll(root);
+    }
+  }
 }
 .sv .muted {
   color: var(--sv-ink-3);
@@ -620,42 +849,131 @@
   color: inherit;
 }
 
-/* ---------- arrive ---------- */
-.sv .arrive {
+/* ---------- arrive: the hero ----------
+ * Composed like the landing's opening: the promise at display scale on the left, the
+ * Sieve drawn as a picture of itself on the right over a soft halo, the drop as a
+ * document slot (the landing's sticker), a margin note in the hand, the promise in
+ * numerals, and the three stops ahead on one drawn line. */
+.sv .step.hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 40px;
-  align-items: stretch;
-  min-height: calc(100vh - var(--sv-top-h) - 128px);
+  align-content: center;
+  gap: clamp(36px, 6vh, 72px);
+  background:
+    radial-gradient(ellipse 52% 60% at 78% 42%, color-mix(in srgb, var(--sv-strong-soft) 80%, transparent), transparent 70%),
+    var(--sv-paper);
 }
-.sv .arrive h1 {
-  font: 600 clamp(38px, 4.2vw, 62px) / 1.02 var(--sv-serif);
-  letter-spacing: -0.025em;
-  margin: 0 0 18px;
+.sv .hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  gap: clamp(24px, 4vw, 72px);
+  align-items: center;
 }
-.sv .arrive h1 em {
+.sv .hero .chapter {
+  display: block;
+  margin-bottom: 26px;
+}
+.sv .hero .chapter-n {
+  display: none;
+}
+.sv .hero h1 {
+  font: 600 clamp(40px, 0.6rem + 3.4vw, 72px) / 0.98 var(--sv-serif);
+  letter-spacing: -0.03em;
+  margin: 0;
+  text-wrap: balance;
+}
+/* The payoff words: italic, in the accent, over a highlighter stroke - the landing's
+   underlined "autopilot", drawn with the theme's own amber so both registers carry it.
+   `clone` repeats the stroke on every line the phrase wraps onto. */
+.sv .hero h1 em {
   font-style: italic;
   color: var(--sv-accent-ink);
+  background: linear-gradient(
+    transparent 72%,
+    color-mix(in srgb, var(--sv-promising) 42%, transparent) 72%,
+    color-mix(in srgb, var(--sv-promising) 42%, transparent) 92%,
+    transparent 92%
+  );
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 0.06em;
+}
+.sv .hero .lede {
+  font-size: 1.1875rem;
+  max-width: 52ch;
+}
+.sv .drop-hint {
+  margin: 0 0 10px 6px;
+  rotate: -2deg;
+  width: max-content;
 }
 .sv .drop {
-  margin-top: 26px;
-  border: 2.5px dashed var(--sv-line-2);
-  border-radius: 18px;
-  padding: 30px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 20px;
+  border: 2px dashed var(--sv-line-2);
+  border-radius: 18px;
+  padding: 22px 26px;
   background: var(--sv-card);
   position: relative;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    translate 0.2s var(--sv-ease),
+    box-shadow 0.2s var(--sv-ease),
+    border-color 0.2s,
+    background 0.2s;
+}
+/* The hero's drop is the sticker: an ink-outlined slot on a hard shadow that lifts
+   toward the file as it comes near. */
+.sv .hero .drop {
+  border: var(--sv-sticker-line);
+  box-shadow: var(--sv-sticker);
+  padding: 24px 28px;
+}
+.sv .hero .drop:hover,
+.sv .hero .drop.over {
+  translate: -3px -3px;
+  box-shadow: var(--sv-sticker-up);
 }
 .sv .drop.over {
   border-color: var(--sv-accent);
   background: var(--sv-accent-soft);
 }
+.sv .drop-doc {
+  width: 46px;
+  flex: none;
+  transition:
+    rotate 0.35s var(--sv-ease),
+    translate 0.35s var(--sv-ease);
+}
+.sv .drop:hover .drop-doc,
+.sv .drop.over .drop-doc {
+  rotate: -9deg;
+  translate: 0 -5px;
+}
+.sv .drop-doc .doc-page {
+  fill: var(--sv-paper);
+  stroke: var(--sv-ink);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.sv .drop-doc .doc-fold {
+  fill: none;
+  stroke: var(--sv-ink);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.sv .drop-doc .doc-lines {
+  stroke: var(--sv-accent);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+}
+.sv .drop-words {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
 .sv .drop .big {
-  font: 600 1.5rem/1.2 var(--sv-serif);
+  font: 600 1.5rem/1.15 var(--sv-serif);
+  letter-spacing: -0.01em;
 }
 .sv .drop input[type="file"] {
   position: absolute;
@@ -664,26 +982,15 @@
   cursor: pointer;
 }
 .sv .drop .note {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   color: var(--sv-ink-3);
 }
 .sv .drop .note.warn {
   color: var(--sv-accent-ink);
   font-weight: 600;
 }
-.sv .drop .file {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .sv .drop.compact {
-  margin-top: 0;
-  padding: 18px 22px;
-  flex-direction: row;
-  align-items: center;
+  padding: 16px 22px;
   flex-wrap: wrap;
   gap: 14px;
 }
@@ -692,7 +999,7 @@
 }
 .sv .stages {
   list-style: none;
-  margin: 6px 0 0;
+  margin: 14px 0 0;
   padding: 0;
   display: grid;
   gap: 6px;
@@ -731,65 +1038,242 @@
     transform: rotate(360deg);
   }
 }
-.sv .personas {
+/* The promise in numerals: display figures over their words, set apart by hairlines. */
+.sv .promise {
   display: grid;
-  gap: 14px;
-  align-content: center;
+  grid-template-columns: repeat(3, minmax(0, auto));
+  justify-content: start;
+  gap: 0;
+  margin: 30px 0 0;
 }
-.sv .pcard {
+.sv .promise > div {
+  display: flex;
+  flex-direction: column-reverse;
+  /* column-reverse: flex-END is the top, so every figure sits on one line whatever its
+     words wrap to. */
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 26px;
+  border-left: 1px solid var(--sv-line-2);
+  max-width: 220px;
+}
+.sv .promise > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.sv .promise dt {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  color: var(--sv-ink-3);
+}
+.sv .promise dd {
+  margin: 0;
+  font: 600 2.75rem/0.9 var(--sv-serif);
+  letter-spacing: -0.03em;
+  color: var(--sv-ink);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* the hero art (SieveArt.tsx) */
+.sv .hero-art {
   display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 16px;
+  place-items: center;
+  min-width: 0;
+}
+.sv .sieve-art {
+  width: min(100%, 620px);
+  height: auto;
+  overflow: visible;
+}
+.sv .sieve-art .art-halo {
+  fill: color-mix(in srgb, var(--sv-strong-soft) 90%, var(--sv-paper));
+}
+.sv .sieve-art .art-body {
+  fill: var(--sv-card);
+}
+.sv .sieve-art .art-mesh {
+  fill: none;
+  stroke: color-mix(in srgb, var(--sv-ink) 16%, transparent);
+  stroke-width: 1.2;
+}
+.sv .sieve-art .art-wall,
+.sv .sieve-art .art-rim,
+.sv .sieve-art .art-tray {
+  fill: none;
+  stroke: var(--sv-ink);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sv .sieve-art .art-rim {
+  fill: color-mix(in srgb, var(--sv-card) 70%, transparent);
+}
+.sv .sieve-art .art-tray {
+  fill: var(--sv-card);
+  stroke-width: 4;
+}
+.sv .sieve-art .art-dot.caught {
+  fill: var(--sv-caught);
+  stroke: var(--sv-card);
+  stroke-width: 2;
+}
+.sv .sieve-art .art-dot.strong {
+  fill: var(--sv-strong);
+}
+.sv .sieve-art .art-dot.promising {
+  fill: var(--sv-promising);
+}
+.sv .sieve-art .art-glow {
+  opacity: 0.28;
+}
+.sv .sieve-art .art-glow.strong {
+  fill: var(--sv-strong);
+}
+.sv .sieve-art .art-glow.promising {
+  fill: var(--sv-promising);
+}
+.sv .sieve-art .art-note text {
+  font: 500 20px var(--sv-hand);
+  fill: var(--sv-ink-2);
+}
+.sv .sieve-art .art-note .art-few {
+  fill: var(--sv-accent-ink);
+  font-weight: 600;
+}
+.sv .sieve-art .art-arrow {
+  fill: none;
+  stroke: var(--sv-ink-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 5 6;
+}
+/* The rain: every dot rests at its FINAL place in the markup and falls into it from
+   above, then fades so the next shower can come. Transition-gated only - the still
+   composition is the reduced-motion page. */
+@media (prefers-reduced-motion: no-preference) {
+  .sv .sieve-art .art-dot.caught {
+    animation: sv-rain 6.4s var(--sv-ease) infinite;
+    animation-delay: calc(var(--i) * 0.11s);
+  }
+  .sv .sieve-art .art-pass {
+    animation: sv-rain-through 6.4s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+    animation-delay: calc(1.5s + var(--i) * 0.22s);
+  }
+}
+@keyframes sv-rain {
+  0% {
+    translate: 0 var(--from);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  34% {
+    translate: 0 0;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    translate: 0 0;
+    opacity: 0;
+  }
+}
+@keyframes sv-rain-through {
+  0% {
+    translate: 0 var(--from);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  46% {
+    translate: 0 0;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    translate: 0 0;
+    opacity: 0;
+  }
+}
+
+/* The three stops ahead, on one drawn line. */
+.sv .ahead-title {
+  font: 500 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0 0 14px;
+}
+.sv .ahead ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  position: relative;
+}
+.sv .ahead ol::before {
+  content: "";
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  top: 50%;
+  border-top: 2px dashed var(--sv-line-2);
+}
+.sv .ahead-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  row-gap: 2px;
   align-items: center;
-  text-align: left;
-  padding: 18px 20px;
+  padding: 14px 18px 14px 14px;
   border-radius: 16px;
   border: 1.5px solid var(--sv-line);
   background: var(--sv-card);
   box-shadow: var(--sv-shadow);
-  width: 100%;
 }
-.sv .pcard .av {
-  width: 56px;
-  height: 56px;
+.sv .ahead-n {
+  grid-row: span 2;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: var(--sv-ink);
-  color: var(--sv-paper);
   display: grid;
   place-items: center;
-  font: 700 1.1875rem var(--sv-serif);
+  font: 700 1.125rem var(--sv-serif);
+  background: var(--sv-ink);
+  color: var(--sv-paper);
 }
-.sv .pcard .nm {
-  font: 600 1.25rem/1.2 var(--sv-serif);
+.sv .ahead-t {
+  font: 600 1.1875rem/1.2 var(--sv-serif);
 }
-.sv .pcard .sub {
-  font-size: 0.875rem;
-  color: var(--sv-ink-3);
-  margin-top: 2px;
-}
-.sv .promise {
-  display: flex;
-  gap: 22px;
-  margin-top: 22px;
-  flex-wrap: wrap;
-}
-.sv .promise div {
-  font-size: 0.875rem;
+.sv .ahead-s {
+  font-size: 0.9375rem;
   color: var(--sv-ink-3);
 }
-.sv .promise b {
-  display: block;
-  font: 600 1.875rem/1 var(--sv-serif);
-  color: var(--sv-ink);
+
+/* ---------- arrive: folded (a CV is in) ---------- */
+.sv .step.folded {
+  padding-top: clamp(28px, 4vh, 44px);
+  padding-bottom: clamp(28px, 4vh, 44px);
+  background: var(--sv-paper-2);
+}
+.sv .step.folded h2 {
+  font-size: clamp(26px, 1rem + 1.2vw, 34px);
 }
 .sv .arrived-row {
   display: flex;
-  gap: 18px;
+  gap: 18px 28px;
   align-items: center;
   flex-wrap: wrap;
 }
 .sv .drop-actions {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 .sv .arrived-drop {
   flex: 1;
@@ -797,23 +1281,25 @@
 }
 .sv .arrived-id {
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 60px 1fr;
   gap: 16px;
   align-items: center;
 }
 .sv .arrived-id .av {
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: var(--sv-ink);
   color: var(--sv-paper);
   display: grid;
   place-items: center;
-  font: 600 1.25rem var(--sv-serif);
+  font: 600 1.3125rem var(--sv-serif);
+  box-shadow:
+    0 0 0 4px var(--sv-paper-2),
+    0 0 0 6px var(--sv-accent);
 }
-.sv .pcard .nm,
-.sv .pcard .sub {
-  display: block;
+.sv .arrived-id .eyebrow {
+  margin-bottom: 2px;
 }
 
 /* ---------- cv + you ---------- */
@@ -839,9 +1325,11 @@
 .sv .sheet {
   background: var(--sv-card);
   border: 1px solid var(--sv-line);
-  border-radius: 6px;
-  box-shadow: var(--sv-shadow);
-  padding: 30px 30px 34px;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--sv-ink) 10%, transparent),
+    0 22px 48px -22px color-mix(in srgb, var(--sv-ink) 38%, transparent);
+  padding: 34px 34px 38px;
   font-family: var(--sv-serif);
   font-size: 0.9375rem;
   line-height: 1.55;
@@ -858,8 +1346,9 @@
   margin-bottom: 2px;
 }
 .sv .sheet .l-line {
-  margin: 2px 0 6px;
+  margin: 0 0 3px;
   font-size: 0.875rem;
+  line-height: 1.5;
   white-space: pre-wrap;
 }
 .sv .sheet .l-sec {
@@ -907,57 +1396,61 @@
 .sv .you {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 28px;
 }
 .sv .you-id {
   display: grid;
-  grid-template-columns: 76px 1fr;
-  gap: 18px;
+  grid-template-columns: 96px 1fr;
+  gap: 22px;
   align-items: center;
 }
 .sv .you-id .av {
-  width: 76px;
-  height: 76px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   background: var(--sv-ink);
   color: var(--sv-paper);
   display: grid;
   place-items: center;
-  font: 600 1.75rem var(--sv-serif);
+  font: 600 2.125rem var(--sv-serif);
+  box-shadow:
+    0 0 0 5px var(--sv-paper-2),
+    0 0 0 7px var(--sv-accent);
 }
 .sv .you-id .nm {
-  font: 600 2.125rem/1.05 var(--sv-serif);
-  letter-spacing: -0.015em;
+  font: 600 clamp(34px, 1.2rem + 1.6vw, 46px) / 1.02 var(--sv-serif);
+  letter-spacing: -0.025em;
 }
 .sv .you-id .role {
-  font-size: 1.0625rem;
+  font-size: 1.125rem;
   color: var(--sv-ink-2);
-  margin-top: 6px;
+  margin-top: 8px;
 }
+/* The facts as a strip of figures between hairlines - read at a glance, not opened. */
 .sv .facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  border-top: 1px solid var(--sv-line-2);
+  border-bottom: 1px solid var(--sv-line-2);
 }
 .sv .fact {
-  border: 1px solid var(--sv-line);
-  background: var(--sv-card);
-  border-radius: 12px;
-  padding: 10px 14px;
-  min-width: 120px;
+  padding: 14px 16px 16px;
+  border-left: 1px solid var(--sv-line);
+  min-width: 0;
+}
+.sv .fact:first-child {
+  border-left: 0;
+  padding-left: 0;
 }
 .sv .fact .k {
-  font-size: 0.875rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 500 0.9375rem/1.3 var(--sv-hand);
   color: var(--sv-ink-3);
-  font-weight: 700;
 }
 .sv .fact .v {
-  font-size: 0.9375rem;
+  font: 600 1.1875rem/1.25 var(--sv-serif);
   color: var(--sv-ink);
-  font-weight: 600;
-  margin-top: 2px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 .sv .fact .v .muted {
   font-weight: 400;
@@ -1131,10 +1624,7 @@
   display: none;
 }
 .sv .timeline details summary .kind {
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 500 0.9375rem var(--sv-hand);
   color: var(--sv-ink-3);
   margin-right: 8px;
 }
@@ -1179,12 +1669,14 @@
   gap: 16px;
   background: var(--sv-ink);
   color: var(--sv-paper);
-  border-radius: 16px;
-  padding: 18px 22px;
+  border-radius: 18px;
+  padding: 22px 26px;
   flex-wrap: wrap;
+  box-shadow: 6px 6px 0 var(--sv-accent);
 }
 .sv .momentum .n {
-  font: 600 2.125rem/1 var(--sv-serif);
+  font: 600 2.75rem/1 var(--sv-serif);
+  letter-spacing: -0.02em;
 }
 .sv .momentum .btn {
   background: var(--sv-paper);
@@ -1193,20 +1685,42 @@
 }
 
 /* ---------- wants ---------- */
+/* A bento: four columns, the long-valued cards (titles, languages) span two. */
 .sv .wants {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.sv .wcard.wide {
+  grid-column: span 2;
 }
 .sv .wcard {
   background: var(--sv-card);
   border: 1px solid var(--sv-line);
-  border-radius: 16px;
-  padding: 18px 18px 16px;
+  border-radius: 18px;
+  padding: 20px 20px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: box-shadow 0.3s, border-color 0.3s;
+  min-width: 0;
+  box-shadow: var(--sv-shadow);
+  transition:
+    box-shadow 0.3s,
+    border-color 0.3s,
+    translate 0.25s var(--sv-ease);
+}
+.sv .wcard.viewing:hover {
+  translate: 0 -3px;
+}
+.sv .wicon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--sv-accent-soft);
+  color: var(--sv-accent-ink);
 }
 /* Two layers (WantCard.tsx). VIEW: the value, large; the whole card is its button (the
    button's ::after covers the card, so a click anywhere opens it). EDIT: the controls on
@@ -1302,14 +1816,26 @@
   box-shadow: 0 0 0 3px var(--sv-accent-soft);
 }
 .sv .wcard .wh {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 1px;
+  align-items: center;
+}
+.sv .wcard .wh .wicon {
+  grid-row: span 2;
 }
 .sv .wcard .wh h3 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.1875rem;
+  line-height: 1.2;
+}
+.sv .wcard .wh > .small {
+  grid-column: 2;
+  line-height: 1.3;
+}
+.sv .wcard .wh:not(:has(.wicon)) > .small {
+  grid-column: 1 / -1;
 }
 .sv .said {
   font-size: 0.875rem;
@@ -1501,8 +2027,10 @@
 .sv .sieve-stage {
   position: relative;
   background: var(--sv-card);
-  border: 1px solid var(--sv-line);
-  border-radius: 18px;
+  /* The stage is the flow's showpiece: the landing's sticker, as the hero's drop is. */
+  border: var(--sv-sticker-line);
+  box-shadow: var(--sv-sticker);
+  border-radius: 22px;
   overflow: hidden;
 }
 .sv .sieve-stage svg {
@@ -1802,38 +2330,70 @@
   font-size: 0.875rem;
   color: var(--sv-ink-2);
 }
+/* The top five as a HAND OF CARDS, dealt: the landing's stickers, each tilted a little
+   off true and straightening as the pointer reaches it. The first card carries the
+   accent. On a wide screen the five sit in one row; they wrap to fit below that. */
 .sv .top5 {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
-  margin: 22px 0 30px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+  margin: 30px 0 36px;
+  padding-top: 14px;
 }
 .sv .tcard {
   background: var(--sv-card);
-  border: 1px solid var(--sv-line);
-  border-radius: 16px;
-  padding: 16px;
+  border: var(--sv-sticker-line);
+  border-radius: 18px;
+  padding: 22px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   position: relative;
   text-align: left;
-  box-shadow: var(--sv-shadow);
-  transition: transform 0.2s var(--sv-ease), border-color 0.2s;
+  min-width: 0;
+  box-shadow: var(--sv-sticker);
+  rotate: -1.2deg;
+  transition:
+    rotate 0.3s var(--sv-ease),
+    translate 0.3s var(--sv-ease),
+    box-shadow 0.3s var(--sv-ease);
 }
-.sv .tcard:hover {
-  transform: translateY(-2px);
-  border-color: var(--sv-ink);
+.sv .top5 > .tcard:nth-child(even) {
+  rotate: 1deg;
+}
+.sv .top5 > .tcard:nth-child(3n) {
+  rotate: -0.5deg;
+}
+.sv .top5 > .tcard:first-child {
+  background: color-mix(in srgb, var(--sv-accent-soft) 55%, var(--sv-card));
+  box-shadow: 5px 5px 0 var(--sv-accent);
+}
+.sv .tcard:hover,
+.sv .tcard:focus-visible {
+  rotate: 0deg;
+  translate: 0 -4px;
+  box-shadow: var(--sv-sticker-up);
+}
+.sv .top5 > .tcard:first-child:hover {
+  box-shadow: 8px 8px 0 var(--sv-accent);
 }
 .sv .tcard .rk {
   position: absolute;
-  top: -12px;
+  top: -16px;
   left: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
   background: var(--sv-ink);
   color: var(--sv-paper);
   border-radius: 999px;
-  padding: 2px 10px;
-  font: 700 0.875rem var(--sv-sans);
+  font: 700 1rem var(--sv-serif);
+  box-shadow: 0 0 0 3px var(--sv-paper);
+}
+.sv .top5 > .tcard:first-child .rk {
+  background: var(--sv-accent);
+  color: var(--sv-on-accent);
 }
 .sv .tcard .flagged {
   position: absolute;
@@ -1846,9 +2406,14 @@
   font: 700 0.875rem var(--sv-sans);
 }
 .sv .tcard .tt {
-  font: 600 1.0625rem/1.25 var(--sv-serif);
+  font: 600 1.125rem/1.22 var(--sv-serif);
   color: var(--sv-ink);
   margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .sv .tcard .meta {
   font-size: 0.875rem;
@@ -2043,6 +2608,11 @@
   background: var(--sv-card);
   max-height: 640px;
   overflow: auto;
+  /* A containing block of its own: the rows' visually-hidden labels (.vh) are absolutely
+     positioned, and with a static list their containing block was the chapter - OUTSIDE
+     this scroll box, so they escaped its clip and sat at their unscrolled places, 27,000
+     px down: a 1,124-row list stretched the page to 32,000 px of blank. */
+  position: relative;
 }
 .sv .prow {
   display: grid;
@@ -2126,10 +2696,25 @@
   gap: 28px;
   align-items: start;
 }
-.sv .w-title {
-  font: 600 clamp(26px, 2.4vw, 34px) / 1.12 var(--sv-serif);
-  margin: 0;
-  letter-spacing: -0.01em;
+/* Weigh's head: the chapter head, with the prev / next / back controls on its right. A
+   posting's title is long ("AI Engineer (m/w/d) (IT-Systemadministrator/in)"), so its
+   heading runs a step smaller than a chapter's. */
+.sv .w-head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  margin-bottom: clamp(24px, 3.5vh, 40px);
+}
+.sv .w-head .chapter {
+  margin-bottom: 0;
+}
+.sv .w-head .w-nav {
+  justify-content: flex-end;
+}
+.sv #s-weigh h2 {
+  font-size: clamp(30px, 1rem + 1.7vw, 46px);
+  line-height: 1.06;
 }
 .sv .w-meta {
   display: flex;
@@ -2149,8 +2734,106 @@
 .sv .panel {
   background: var(--sv-card);
   border: 1px solid var(--sv-line);
-  border-radius: 16px;
-  padding: 18px 20px;
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: var(--sv-shadow);
+}
+/* The score as a dial (ScoreDial.tsx): the track, the band as a wide soft arc, the score
+   as the tier's colour, the number at display size in the middle. */
+.sv .dial-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.sv .dial {
+  width: 156px;
+  height: 156px;
+  flex: none;
+}
+.sv .dial-track {
+  fill: none;
+  stroke: var(--sv-paper-2);
+  stroke-width: 12;
+}
+.sv .dial-band {
+  fill: none;
+  stroke-width: 22;
+}
+.sv .dial-arc {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+.sv .dial.t-strong .dial-arc {
+  stroke: var(--sv-strong);
+}
+.sv .dial.t-strong .dial-band {
+  stroke: var(--sv-strong-soft);
+}
+.sv .dial.t-promising .dial-arc {
+  stroke: var(--sv-promising);
+}
+.sv .dial.t-promising .dial-band {
+  stroke: var(--sv-promising-soft);
+}
+.sv .dial.t-partial .dial-arc {
+  stroke: var(--sv-partial);
+}
+.sv .dial.t-partial .dial-band {
+  stroke: var(--sv-partial-soft);
+}
+.sv .dial-num {
+  font: 600 46px var(--sv-serif);
+  letter-spacing: -0.03em;
+  fill: var(--sv-ink);
+}
+.sv .dial-words {
+  display: grid;
+  gap: 8px;
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  color: var(--sv-ink-2);
+  max-width: 30ch;
+}
+.sv .dial-words b {
+  color: var(--sv-ink);
+}
+@keyframes sv-arc {
+  from {
+    stroke-dasharray: 0 999;
+  }
+}
+/* Nothing open yet: an invitation, not an empty box - the suggestions are small tilted
+   stickers to pick from. */
+.sv #s-weigh .gapbox {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--sv-card) 72%, transparent);
+}
+.sv #s-weigh .gapbox strong {
+  font: 600 clamp(1.375rem, 1rem + 0.8vw, 1.75rem) / 1.2 var(--sv-serif);
+}
+.sv #s-weigh .gapbox .btn {
+  max-width: 100%;
+  padding: 12px 18px;
+  font-size: 1rem;
+  border: var(--sv-sticker-line);
+  box-shadow: 3px 3px 0 var(--sv-ink);
+  rotate: -0.8deg;
+  text-align: left;
+  white-space: normal;
+}
+.sv #s-weigh .gapbox .btn:nth-of-type(even) {
+  rotate: 0.8deg;
+}
+.sv #s-weigh .gapbox .btn:hover {
+  rotate: 0deg;
+  translate: -2px -2px;
+  box-shadow: 5px 5px 0 var(--sv-ink);
 }
 .sv .panel + .panel,
 .sv .weigh > div > * + * {
@@ -2481,18 +3164,31 @@
   gap: 18px;
   align-items: start;
 }
+/* Three doors, each its own colour along its top edge: open (moss), knock first (the
+   held violet), refused (the flag). */
 .sv .lane {
   background: var(--sv-paper-2);
-  border-radius: 18px;
-  padding: 14px;
+  border-radius: 20px;
+  padding: 16px;
+  border-top: 5px solid var(--sv-strong);
+  min-width: 0;
+}
+.sv .lane.B {
+  border-top-color: var(--sv-held);
+}
+.sv .lane.C {
+  border-top-color: var(--sv-flag);
 }
 .sv .lane > header {
-  padding: 4px 6px 12px;
+  padding: 4px 6px 14px;
+}
+.sv .lane > header h3 {
+  font-size: 1.375rem;
 }
 .sv .lane > header .tier {
-  font: 700 0.875rem var(--sv-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 600 1.0625rem var(--sv-hand);
+  letter-spacing: 0;
+  text-transform: none;
 }
 .sv .lane.A > header .tier {
   color: var(--sv-strong);
@@ -2511,15 +3207,32 @@
 .sv .src {
   background: var(--sv-card);
   border: 1px solid var(--sv-line);
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 14px;
+  padding: 14px 16px;
   margin-bottom: 10px;
+  transition:
+    translate 0.2s var(--sv-ease),
+    box-shadow 0.2s var(--sv-ease);
 }
+.sv .src:not(.refused):hover {
+  translate: 0 -2px;
+  box-shadow: var(--sv-shadow);
+}
+.sv .src:has(.switch[aria-checked="true"]) {
+  border-left: 4px solid var(--sv-strong);
+}
+/* The head wraps: a tier-B "Read terms to enable" lock beside a long board name ran out
+   of its lane at 1440px. */
 .sv .src .sh {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   align-items: flex-start;
   justify-content: space-between;
+}
+.sv .src .sh > div:first-child {
+  flex: 1 1 150px;
+  min-width: 0;
 }
 .sv .src .sl {
   font-weight: 700;
@@ -2607,6 +3320,7 @@
 }
 .sv .lockbtn {
   flex: none;
+  white-space: nowrap;
   border: 1.5px solid var(--sv-held);
   color: var(--sv-held);
   background: var(--sv-card);
@@ -2876,11 +3590,26 @@
     grid-column: span 2;
   }
 }
+@media (max-width: 1280px) {
+  .sv .wants {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sv .top5 {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    row-gap: 30px;
+  }
+}
 @media (max-width: 1100px) {
   .sv .cvwrap,
   .sv .weigh,
-  .sv .arrive {
+  .sv .hero-grid {
     grid-template-columns: 1fr;
+  }
+  .sv .hero-art {
+    order: -1;
+  }
+  .sv .sieve-art {
+    width: min(100%, 420px);
   }
   .sv .sheet {
     position: relative;
@@ -2943,6 +3672,7 @@
     gap: 4px;
   }
   .sv .rail ol::before,
+  .sv .rail ol::after,
   .sv .rail-note,
   .sv .rail-links,
   .sv .rail-foot {
@@ -2992,11 +3722,47 @@
   .sv-ack .consequence {
     grid-template-columns: 1fr;
   }
+  .sv .ahead ol {
+    grid-template-columns: 1fr;
+  }
+  .sv .wants {
+    grid-template-columns: 1fr;
+  }
+  .sv .wcard.wide {
+    grid-column: auto;
+  }
+  .sv .ahead ol::before {
+    left: 36px;
+    right: auto;
+    top: 22px;
+    bottom: 22px;
+    border-top: 0;
+    border-left: 2px dashed var(--sv-line-2);
+  }
+  .sv .promise > div {
+    padding: 0 16px;
+  }
+  .sv .chapter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sv .chapter-n {
+    font-size: 64px;
+  }
+  .sv .chapter-aside {
+    justify-content: flex-start;
+  }
 }
 @media print {
   .sv .topbar,
   .sv .rail {
     display: none;
+  }
+  /* Paper has no scroll: a scroll-driven reveal would print every chapter below the fold
+     at its first keyframe (invisible). The printed page is the finished one. */
+  .sv *,
+  .sv *::before,
+  .sv *::after {
+    animation: none !important;
   }
   .sv .main {
     margin: 0;
@@ -3010,12 +3776,16 @@
  * erases the ring: the top-five cards, the active rail step, the current rail link, a
  * pressed segment and the expanded skill tile. Each gets the ring back, COMPOSED with the
  * shadow it already wears so neither register loses its elevation. */
-.sv .tcard:focus-visible,
 .sv .rail li.active a.rs:focus-visible,
 .sv .rail-links a[aria-current="page"]:focus-visible,
 .sv .seg button[aria-pressed="true"]:focus-visible {
   outline: none;
   box-shadow: var(--sv-ring), var(--sv-shadow);
+}
+/* The dealt cards wear the sticker; the ring composes with it. */
+.sv .tcard:focus-visible {
+  outline: none;
+  box-shadow: var(--sv-ring), var(--sv-sticker-up);
 }
 .sv .tile[aria-expanded="true"]:focus-visible {
   outline: none;
@@ -3025,4 +3795,7 @@
  * ring belongs on the zone the reader sees. */
 .sv .drop:focus-within {
   box-shadow: var(--sv-ring);
+}
+.sv .hero .drop:focus-within {
+  box-shadow: var(--sv-ring), var(--sv-sticker);
 }

@@ -12990,6 +12990,13 @@
           "useFailed": "Could not switch to that CV. The one you have stays in use.",
           "loadFailed": "Your earlier CVs could not be loaded.",
           "retry": "Try again"
+        },
+        "dropHint": "start here: drop it in ↓",
+        "art": {
+          "mode": "wrong work mode",
+          "level": "wrong level",
+          "pay": "under your pay floor",
+          "few": "the few worth your evening"
         }
       },
       "you": {
@@ -13383,7 +13390,9 @@
         "was": "was {n}",
         "readStale": "Written before your latest profile change. The next scan writes it again.",
         "coverSaved": "Saved",
-        "coverSaveFailed": "Not saved yet - retrying. Your text stays here."
+        "coverSaveFailed": "Not saved yet - retrying. Your text stays here.",
+        "dialLabel": "Score {score} of 100, likely between {low} and {high}",
+        "dialLabelBare": "Score {score} of 100"
       },
       "sources": {
         "eyebrow": "Step 8 · Sources",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChapterHead } from "./ChapterHead";
 import { useTranslations } from "next-intl";
 import type { CvPolishArtifact, JobseekerDialog, JobseekerPostingSummary, JobseekerProfile } from "@/app/_lib/jobseeker/types";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -272,13 +273,8 @@ export function StepYou({
 
   if (!profile) {
     return (
-      <section className="step" id="s-cv" data-step="cv" aria-labelledby="h-cv">
-        <div className="step-head">
-          <div>
-            <p className="eyebrow">{t("eyebrow")}</p>
-            <h2 id="h-cv">{t("title")}</h2>
-          </div>
-        </div>
+      <section className="step" id="s-cv" data-step="cv" data-surface="tint" aria-labelledby="h-cv">
+        <ChapterHead n={2} id="h-cv" eyebrow={t("eyebrow")} title={t("title")} />
         <div className="gapbox">
           <strong>{t("notReached")}</strong>
           <span>{t("notReachedBody")}</span>
@@ -300,19 +296,21 @@ export function StepYou({
   const years = typeof p.yearsExperience === "number" ? t("years", { n: p.yearsExperience }) : p.archetype === "student" ? t("studying") : t("notStated");
 
   return (
-    <section className="step" id="s-cv" data-step="cv" aria-labelledby="h-cv" ref={sectionRef}>
-      <div className="step-head">
-        <div className="grow">
-          <p className="eyebrow">{t("eyebrow")}</p>
-          <h2 id="h-cv">{t("title")}</h2>
-        </div>
-        {draftSource === "deterministic" ? (
-          <span className="ai-note" role="note">
-            <ProvMark mark="ring" size={16} />
-            {t("noAi")}
-          </span>
-        ) : null}
-      </div>
+    <section className="step" id="s-cv" data-step="cv" data-surface="tint" aria-labelledby="h-cv" ref={sectionRef}>
+      <ChapterHead
+        n={2}
+        id="h-cv"
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        aside={
+          draftSource === "deterministic" ? (
+            <span className="ai-note" role="note">
+              <ProvMark mark="ring" size={16} />
+              {t("noAi")}
+            </span>
+          ) : null
+        }
+      />
       <div className="cvwrap">
         <div>
           {designed ? (

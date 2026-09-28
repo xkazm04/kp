@@ -317,6 +317,7 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
       steps={steps}
       active={active}
       onStep={onStep}
+      snap
       note={facts && found ? t.rich("rail.note", { found, through: facts.scored.length, worth: facts.strong + facts.promising, decided: facts.decided, b: (c) => <b>{c}</b> }) : null}
     >
       <StepArrive

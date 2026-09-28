@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ChapterHead } from "./ChapterHead";
 import { useTranslations } from "next-intl";
 import { SENIORITIES, WORK_MODES, type JobseekerPreferences, type JobseekerProfile, type Seniority, type WorkMode } from "@/app/_lib/jobseeker/types";
+import { Banknote, Crosshair, Languages, Laptop, MapPin, TrendingUp } from "lucide-react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { FailureNotice } from "../FailureNotice";
 import { addLanguage, normalizeLanguages } from "./languageEntries";
@@ -115,12 +117,7 @@ export function StepWant({
   if (!profile || !prefs) {
     return (
       <section className="step" id="s-want" data-step="want" aria-labelledby="h-want">
-        <div className="step-head">
-          <div>
-            <p className="eyebrow">{t("eyebrow")}</p>
-            <h2 id="h-want">{t("title")}</h2>
-          </div>
-        </div>
+        <ChapterHead n={4} id="h-want" eyebrow={t("eyebrow")} title={t("title")} />
         <div className="gapbox">
           <strong>{t("notReached")}</strong>
           <span>{t("notReachedBody")}</span>
@@ -143,7 +140,8 @@ export function StepWant({
     <WantCard<PlacesDraft>
       title={t("places.title")}
       hint={t("places.hint")}
-      filling={filling === 0}
+      icon={<MapPin size={18} aria-hidden />}
+      filling={filling === 1}
       empty={places.length === 0}
       value={places.length ? places.slice(0, 3).join(", ") : "—"}
       valueText={places.length ? places.join(", ") : t("places.empty")}
@@ -191,7 +189,8 @@ export function StepWant({
     <WantCard<PayDraft>
       title={t("pay.title")}
       hint={t("pay.hint")}
-      filling={filling === 1}
+      icon={<Banknote size={18} aria-hidden />}
+      filling={filling === 2}
       empty={!floor}
       value={floor ? `${formatAmount(floor.amount, locale)} ${floor.currency}` : "—"}
       valueText={floor ? `${formatAmount(floor.amount, locale)} ${floor.currency} ${tPrefs(`period.${floor.period}`)}` : t("pay.empty")}
@@ -254,7 +253,9 @@ export function StepWant({
     <WantCard<TitlesDraft>
       title={t("titles.title")}
       hint={t("titles.hint")}
-      filling={filling === 2}
+      icon={<Crosshair size={18} aria-hidden />}
+      wide
+      filling={filling === 0}
       empty={titles.length === 0}
       value={titles.length ? titles.slice(0, 2).join(" · ") : "—"}
       valueText={titles.length ? titles.join(", ") : t("titles.empty")}
@@ -289,6 +290,7 @@ export function StepWant({
     <WantCard<WorkMode[]>
       title={t("modes.title")}
       hint={t("modes.hint")}
+      icon={<Laptop size={18} aria-hidden />}
       filling={filling === 3}
       empty={modes.length === 0}
       value={modes.length ? modes.map((m) => tPrefs(`workMode.${m}`)).join(" · ") : "—"}
@@ -319,6 +321,7 @@ export function StepWant({
     <WantCard<Seniority | null>
       title={t("level.title")}
       hint={t("level.hint")}
+      icon={<TrendingUp size={18} aria-hidden />}
       filling={filling === 4}
       empty={!level}
       value={level ? tPrefs(`seniority.${level}`) : "—"}
@@ -348,6 +351,8 @@ export function StepWant({
     <WantCard<LanguagesDraft>
       title={t("languages.title")}
       hint={ownLanguages ? t("languages.hintOwn") : t("languages.hint")}
+      icon={<Languages size={18} aria-hidden />}
+      wide
       filling={false}
       empty={languages.length === 0}
       value={languages.length ? languages.slice(0, 3).join(" · ") : "—"}
@@ -368,17 +373,13 @@ export function StepWant({
   const set = wantSetCount(prefs);
   return (
     <section className="step" id="s-want" data-step="want" aria-labelledby="h-want" ref={sectionRef}>
-      <div className="step-head">
-        <div className="grow">
-          <p className="eyebrow">{t("eyebrow")}</p>
-          <h2 id="h-want">{t("title")}</h2>
-          <p className="lede">{t("lede")}</p>
-        </div>
-      </div>
+      <ChapterHead n={4} id="h-want" eyebrow={t("eyebrow")} title={t("title")} lede={t("lede")} />
+      {/* A bento: the titles lead (the ranking reads them first) and the two cards whose
+          values run long take two columns. */}
       <div className="wants">
+        {titlesCard}
         {placesCard}
         {payCard}
-        {titlesCard}
         {modesCard}
         {levelCard}
         {languagesCard}

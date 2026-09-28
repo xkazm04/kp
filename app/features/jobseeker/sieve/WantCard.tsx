@@ -22,6 +22,8 @@ export type WantCardCommit = { ok: true } | { ok: false; message: string };
 export function WantCard<D>({
   title,
   hint,
+  icon,
+  wide = false,
   filling,
   value,
   valueText,
@@ -34,6 +36,10 @@ export function WantCard<D>({
 }: {
   title: string;
   hint: string;
+  /** A line icon beside the title (decoration, aria-hidden by the caller's icon). */
+  icon?: ReactNode;
+  /** Spans two columns of the bento (the cards whose values run long). */
+  wide?: boolean;
   /** The first-view highlight (the answers arriving). */
   filling: boolean;
   /** The dominant value, or "—" when nothing is set. */
@@ -89,8 +95,9 @@ export function WantCard<D>({
   };
 
   return (
-    <div className={`wcard${open ? " editing" : " viewing"}${filling ? " filling" : ""}`}>
+    <div className={`wcard${open ? " editing" : " viewing"}${filling ? " filling" : ""}${wide ? " wide" : ""}`}>
       <div className="wh">
+        {icon ? <span className="wicon">{icon}</span> : null}
         <h3>{title}</h3>
         <span className="small muted">{hint}</span>
       </div>

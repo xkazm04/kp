@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChapterHead } from "./ChapterHead";
 import { useTranslations } from "next-intl";
 import { FIT_TIERS, POSTING_STATUSES, WORK_MODES, type FeedNewSince } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
@@ -130,22 +131,24 @@ export function StepEvening({
   const isNew = (r: SievePosting) => !!anchor && isNewerThanAnchor({ at: r.firstSeenAt, id: r.id }, anchor);
   const newCount = facts && anchor ? facts.scored.filter(isNew).length : 0;
 
-  const head = (title: string, lede?: string) => (
-    <div className="step-head">
-      <div className="grow">
-        <p className="eyebrow">{t("eyebrow")}</p>
-        <h2 id="h-evening">{title}</h2>
-        {lede ? <p className="lede">{lede}</p> : null}
-      </div>
-      {newCount > 0 ? (
-        <span className="scanline">
-          <span className="chip st-new">{t("newSince", { count: newCount })}</span>
-          <button type="button" className={SV_BTN_SM_GHOST} onClick={onMarkSeen}>
-            {t("markSeen")}
-          </button>
-        </span>
-      ) : null}
-    </div>
+  const head = (title: ReactNode, lede?: string) => (
+    <ChapterHead
+      n={6}
+      id="h-evening"
+      eyebrow={t("eyebrow")}
+      title={title}
+      lede={lede}
+      aside={
+        newCount > 0 ? (
+          <span className="scanline">
+            <span className="chip st-new">{t("newSince", { count: newCount })}</span>
+            <button type="button" className={SV_BTN_SM_GHOST} onClick={onMarkSeen}>
+              {t("markSeen")}
+            </button>
+          </span>
+        ) : null
+      }
+    />
   );
 
   if (!hasProfile || !facts || loading) {

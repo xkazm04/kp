@@ -12990,6 +12990,13 @@
           "useFailed": "Impossible de passer à ce CV. Votre CV actuel reste en place.",
           "loadFailed": "Vos CV précédents n’ont pas pu être chargés.",
           "retry": "Réessayer"
+        },
+        "dropHint": "commencez ici : déposez-le ↓",
+        "art": {
+          "mode": "mauvais mode de travail",
+          "level": "mauvais niveau",
+          "pay": "sous votre plancher",
+          "few": "les quelques-unes qui valent votre soirée"
         }
       },
       "you": {
@@ -13383,7 +13390,9 @@
         "was": "avant {n}",
         "readStale": "Rédigée avant votre dernière modification du profil. La prochaine analyse la réécrira.",
         "coverSaved": "Enregistré",
-        "coverSaveFailed": "Pas encore enregistré, nouvel essai en cours. Votre texte reste ici."
+        "coverSaveFailed": "Pas encore enregistré, nouvel essai en cours. Votre texte reste ici.",
+        "dialLabel": "Score de {score} sur 100, probablement entre {low} et {high}",
+        "dialLabelBare": "Score de {score} sur 100"
       },
       "sources": {
         "eyebrow": "Étape 8 · Sources",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChapterHead } from "./ChapterHead";
 import { useTranslations } from "next-intl";
 import type { KoReasonKey } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
@@ -21,6 +22,9 @@ import { cx, SV_BTN_SM_GHOST, SV_CATCH_ROW } from "./sieveRecipes";
 //
 // When a decision or a source switch moves rows between layers, the dots MOVE from where
 // they were to where they now belong — the sieve re-derives, it never re-deals.
+
+/** The first pour's whole spread of start times, however many postings fall. */
+const POUR_SPREAD_MS = 1800;
 
 export function StepSieve({
   facts,
@@ -105,11 +109,27 @@ export function StepSieve({
     const circles = new Map<string, SVGCircleElement>();
     svg.querySelectorAll<SVGCircleElement>("circle.d").forEach((c) => circles.set(c.dataset.id ?? "", c));
     const counts = new Map<string, number>();
-    const totals = new Map<string, number>();
-    for (const d of model.dots) totals.set(d.layer, (totals.get(d.layer) ?? 0) + 1);
+    // `drawn` is how many dots a layer draws (a layer past MAX_LAYER_ROWS draws a "+N" tail
+    // instead of the rest); `truth` is how many postings it holds. A counter ticks up in
+    // proportion as its dots land and always ENDS on the truth: it once ended on the drawn
+    // count, and a layer of 946 waiting postings read "360" beside "See the 946".
+    const drawn = new Map<string, number>();
+    for (const d of model.dots) drawn.set(d.layer, (drawn.get(d.layer) ?? 0) + 1);
+    const truth = new Map<string, number>(model.layers.map((L) => [L.key, L.items.length]));
+    // Every scored posting gets its own dot on the field, so there the drawn count IS the truth.
+    truth.set("field", drawn.get("field") ?? 0);
+    const shown = (key: string, landed: number) => {
+      const all = truth.get(key) ?? landed;
+      const of = drawn.get(key) ?? 0;
+      return String(of > 0 ? Math.min(all, Math.round((landed / of) * all)) : all);
+    };
     type Anim = { d: Dot; c: SVGCircleElement; from: { x: number; y: number }; delay: number; dur: number; done: boolean };
     const anims: Anim[] = [];
     const order = model.dots.map((_, i) => i).sort(() => Math.random() - 0.5);
+    // The shower lasts about two seconds whatever the count: 13 ms a dot was a 16-second
+    // pour at 1,257 postings (a live scan across AI companies' boards), which read as an
+    // empty sieve with counters stuck near zero.
+    const step = Math.min(13, POUR_SPREAD_MS / Math.max(1, order.length));
     order.forEach((idx, k) => {
       const d = model.dots[idx]!;
       const c = circles.get(d.id);
@@ -120,14 +140,14 @@ export function StepSieve({
         return;
       }
       const from = pv ?? { x: model.x0 + Math.random() * (W - model.x0 - 24), y: -12 - Math.random() * 80 };
-      anims.push({ d, c, from, delay: pv ? 60 + Math.random() * 500 : firstPour ? k * 13 : 60 + Math.random() * 400, dur: 600 + Math.abs(d.y - from.y) * 0.85, done: false });
+      anims.push({ d, c, from, delay: pv ? 60 + Math.random() * 500 : firstPour ? k * step : 60 + Math.random() * 400, dur: 600 + Math.abs(d.y - from.y) * 0.85, done: false });
     });
     if (anims.length === 0) {
       poured.current = true;
       return;
     }
     counters.forEach((el, key) => {
-      el.textContent = String(counts.get(key) ?? 0);
+      el.textContent = shown(key, counts.get(key) ?? 0);
     });
     anims.forEach((a) => {
       a.c.setAttribute("cx", String(a.from.x));
@@ -150,7 +170,7 @@ export function StepSieve({
           a.c.setAttribute("cy", String(a.d.y));
           counts.set(a.d.layer, (counts.get(a.d.layer) ?? 0) + 1);
           const el = counters.get(a.d.layer);
-          if (el) el.textContent = String(counts.get(a.d.layer));
+          if (el) el.textContent = shown(a.d.layer, counts.get(a.d.layer) ?? 0);
           continue;
         }
         live = true;
@@ -160,7 +180,7 @@ export function StepSieve({
         a.c.setAttribute("cy", String(a.from.y + (a.d.y - a.from.y) * ty));
       }
       if (live) raf = requestAnimationFrame(frame);
-      else counters.forEach((el, key) => (el.textContent = String(totals.get(key) ?? 0)));
+      else counters.forEach((el, key) => (el.textContent = String(truth.get(key) ?? 0)));
     };
     raf = requestAnimationFrame(frame);
     poured.current = true;
@@ -174,7 +194,7 @@ export function StepSieve({
         a.c.setAttribute("cx", String(a.d.x));
         a.c.setAttribute("cy", String(a.d.y));
       }
-      counters.forEach((el, key) => (el.textContent = String(totals.get(key) ?? 0)));
+      counters.forEach((el, key) => (el.textContent = String(truth.get(key) ?? 0)));
     }, longest + 250);
     return () => {
       window.clearTimeout(settle);
@@ -183,7 +203,7 @@ export function StepSieve({
         a.c.setAttribute("cx", String(a.d.x));
         a.c.setAttribute("cy", String(a.d.y));
       });
-      counters.forEach((el, key) => (el.textContent = String(totals.get(key) ?? 0)));
+      counters.forEach((el, key) => (el.textContent = String(truth.get(key) ?? 0)));
     };
   }, [model, visible, pourRun, reduceMotion, W]);
 
@@ -192,24 +212,26 @@ export function StepSieve({
   // (and two identical live regions) for one scan task.
   const doorInEmpty = hasProfile && !loading && !!facts && facts.all.length === 0 && sourcesOn > 0;
   const head = (
-    <div className="step-head">
-      <div className="grow">
-        <p className="eyebrow">{t("eyebrow")}</p>
-        <h2 id="h-sieve">{facts && facts.all.length ? t("title", { n: facts.all.length }) : t("titleEmpty")}</h2>
-        <p className="lede">{t("lede")}</p>
-      </div>
-      {hasProfile ? (
-        <div className="scanline">
-          <span suppressHydrationWarning>{lastScanAt ? t("lastScan", { when: rel(lastScanAt) }) : t("neverScanned")}</span>
-          {doorInEmpty ? null : scanDoor}
-        </div>
-      ) : null}
-    </div>
+    <ChapterHead
+      n={5}
+      id="h-sieve"
+      eyebrow={t("eyebrow")}
+      title={facts && facts.all.length ? t("title", { n: facts.all.length }) : t("titleEmpty")}
+      lede={t("lede")}
+      aside={
+        hasProfile ? (
+          <div className="scanline">
+            <span suppressHydrationWarning>{lastScanAt ? t("lastScan", { when: rel(lastScanAt) }) : t("neverScanned")}</span>
+            {doorInEmpty ? null : scanDoor}
+          </div>
+        ) : null
+      }
+    />
   );
 
   if (!hasProfile) {
     return (
-      <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
+      <section className="step" id="s-sieve" data-step="sieve" data-surface="stage" aria-labelledby="h-sieve">
         {head}
         <div className="gapbox">
           <strong>{t("notReached")}</strong>
@@ -221,7 +243,7 @@ export function StepSieve({
 
   if (loadError && !facts) {
     return (
-      <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
+      <section className="step" id="s-sieve" data-step="sieve" data-surface="stage" aria-labelledby="h-sieve">
         {head}
         {loadError}
       </section>
@@ -230,7 +252,7 @@ export function StepSieve({
 
   if (loading || !facts || !model) {
     return (
-      <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
+      <section className="step" id="s-sieve" data-step="sieve" data-surface="stage" aria-labelledby="h-sieve">
         {head}
         <div className="sieve-stage" ref={stageRef} style={{ height: 360 }} role="status" aria-busy="true">
           <span className="vh">{t("loading")}</span>
@@ -241,7 +263,7 @@ export function StepSieve({
 
   if (facts.all.length === 0) {
     return (
-      <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
+      <section className="step" id="s-sieve" data-step="sieve" data-surface="stage" aria-labelledby="h-sieve">
         {head}
         <div className="gapbox" data-empty-state={sourcesOn === 0 ? "no_sources" : lastScanAt ? "nothing_found" : "no_scan"}>
           <strong>{sourcesOn === 0 ? t("empty.noSources") : lastScanAt ? t("empty.nothing") : t("empty.noScan")}</strong>
@@ -262,7 +284,7 @@ export function StepSieve({
   const catchLayer = catchKey ? model.layers.find((l) => l.key === catchKey) ?? null : null;
 
   return (
-    <section className="step" id="s-sieve" data-step="sieve" aria-labelledby="h-sieve">
+    <section className="step" id="s-sieve" data-step="sieve" data-surface="stage" aria-labelledby="h-sieve">
       {head}
       <div className="sieve-stage" ref={stageRef} style={{ height: model.H }}>
         <svg
@@ -321,7 +343,8 @@ export function StepSieve({
           {model.layers
             .filter((L) => L.overflow > 0)
             .map((L) => (
-              <text key={`more-${L.key}`} x={W - 18} y={L.y - 8} textAnchor="end" fontSize={14} fontWeight={700} fill="var(--sv-ink-2)" fontFamily="var(--sv-sans)">
+              // Under the layer's line, not on it: the last row of dots reaches the right edge.
+              <text key={`more-${L.key}`} x={W - 18} y={L.y + 22} textAnchor="end" fontSize={14} fontWeight={700} fill="var(--sv-ink-2)" fontFamily="var(--sv-sans)" stroke="var(--sv-card)" strokeWidth={5} paintOrder="stroke">
                 {t("more", { n: L.overflow })}
               </text>
             ))}

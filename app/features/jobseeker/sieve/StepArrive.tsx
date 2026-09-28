@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import type { JobseekerCvListItem, JobseekerProfile } from "@/app/_lib/jobseeker/types";
@@ -8,6 +8,8 @@ import { ACCEPT_EXTENSIONS, MAX_FILE_MB } from "@/app/_lib/upload-constraints";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "../apiFailure";
 import { FailureNotice } from "../FailureNotice";
 import { importCv, IMPORT_STAGES, rememberDraftSource, type DraftSource, type ImportFailure, type ImportStage, type ResponseLike } from "../importOutcome";
+import { ChapterHead } from "./ChapterHead";
+import { SieveArt } from "./SieveArt";
 import { initialsOf } from "./sieveModel";
 import { cx, SV_BTN_ACCENT, SV_BTN_SM_GHOST, SV_LINK_BTN } from "./sieveRecipes";
 
@@ -28,9 +30,11 @@ import { cx, SV_BTN_ACCENT, SV_BTN_SM_GHOST, SV_LINK_BTN } from "./sieveRecipes"
 // CVs are listed under the fold with "Use this one", which makes one active again
 // through the same profile write an import makes.
 //
-// Before the first CV the step is the hero — the drop, the promise in numerals, the
-// three stops ahead. After it, the step folds to one line with a quiet "replace" drop:
-// a returning seeker came for the sieve, not for the welcome.
+// Before the first CV the step is the HERO, composed like the landing's: the promise at
+// display scale beside the Sieve drawn as a picture of itself (SieveArt), the drop as a
+// document slot with a note in the landing's hand, the promise in numerals, and the three
+// stops ahead joined by a drawn line. After it, the step folds to one slim chapter with a
+// quiet "replace" drop: a returning seeker came for the sieve, not for the welcome.
 
 type Stage = "idle" | ImportStage | "saved" | "error";
 const MAX_BYTES = MAX_FILE_MB * 1024 * 1024;
@@ -198,8 +202,17 @@ export function StepArrive({
         onDragLeave={(e) => onDrag(e, false)}
         onDrop={onDrop}
       >
-        <span className="big">{compact ? t("replace") : t("dropBig")}</span>
-        <span className="note">{t("dropNote", { max: MAX_FILE_MB })}</span>
+        {compact ? null : (
+          <svg className="drop-doc" viewBox="0 0 48 60" aria-hidden focusable="false">
+            <path d="M6 3h26l12 12v40a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" className="doc-page" />
+            <path d="M32 3v12h12" className="doc-fold" />
+            <path d="M12 24h22M12 31h24M12 38h18M12 45h21" className="doc-lines" />
+          </svg>
+        )}
+        <span className="drop-words">
+          <span className="big">{compact ? t("replace") : t("dropBig")}</span>
+          <span className="note">{t("dropNote", { max: MAX_FILE_MB })}</span>
+        </span>
         {file ? <span className="note">{t("chosen", { name: file.name })}</span> : null}
         {refusal ? <span className="note warn">{refusal}</span> : null}
         <input
@@ -318,7 +331,7 @@ export function StepArrive({
   if (profile) {
     const name = profile.profile.displayName?.trim() || t("you");
     return (
-      <section className="step" id="s-arrive" data-step="arrive" aria-labelledby="h-arrive">
+      <section className="step folded" id="s-arrive" data-step="arrive" aria-labelledby="h-arrive">
         <div className="arrived-row">
           <span className="arrived-id">
             <span className="av" aria-hidden>
@@ -337,46 +350,53 @@ export function StepArrive({
   }
 
   return (
-    <section className="step" id="s-arrive" data-step="arrive" aria-labelledby="h-arrive">
-      <div className="arrive">
-        <div>
-          <p className="eyebrow">{t("eyebrow")}</p>
-          <h1 id="h-arrive">{t.rich("title", { br: () => <br />, em: (chunks) => <em>{chunks}</em> })}</h1>
-          <p className="lede">{t("lede")}</p>
+    <section className="step hero" id="s-arrive" data-step="arrive" data-surface="hero" aria-labelledby="h-arrive">
+      <div className="hero-grid">
+        <div className="hero-copy">
+          <ChapterHead
+            n={1}
+            id="h-arrive"
+            level={1}
+            eyebrow={t("eyebrow")}
+            title={t.rich("title", { br: () => <br />, em: (chunks) => <em>{chunks}</em> })}
+            lede={t("lede")}
+          />
+          <p className="hand-note drop-hint" aria-hidden>
+            {t("dropHint")}
+          </p>
           {dropZone(false)}
-          <div className="promise">
+          <dl className="promise">
             <div>
-              <b>{sourcesOn}</b>
-              {t("promiseSources", { count: sourcesOn })}
+              <dt>{t("promiseSources", { count: sourcesOn })}</dt>
+              <dd>{sourcesOn}</dd>
             </div>
             <div>
-              <b>5</b>
-              {t("promiseChecks")}
+              <dt>{t("promiseChecks")}</dt>
+              <dd>5</dd>
             </div>
             <div>
-              <b>0</b>
-              {t("promiseSent")}
+              <dt>{t("promiseSent")}</dt>
+              <dd>0</dd>
             </div>
-          </div>
+          </dl>
         </div>
-        <div className="personas">
-          <h4>{t("aheadTitle")}</h4>
+        <div className="hero-art">
+          <SieveArt labels={{ mode: t("art.mode"), level: t("art.level"), pay: t("art.pay"), few: t("art.few") }} />
+        </div>
+      </div>
+      <div className="ahead">
+        <h3 className="ahead-title">{t("aheadTitle")}</h3>
+        <ol>
           {(["you", "want", "sieve"] as const).map((k, i) => (
-            <div key={k} className="pcard">
-              <span className="av" aria-hidden>
+            <li key={k} className="ahead-card" style={{ "--i": i } as CSSProperties}>
+              <span className="ahead-n" aria-hidden>
                 {i + 1}
               </span>
-              <span>
-                <span className="nm">
-                  {t(`ahead.${k}.title`)}
-                </span>
-                <span className="sub">
-                  {t(`ahead.${k}.sub`)}
-                </span>
-              </span>
-            </div>
+              <span className="ahead-t">{t(`ahead.${k}.title`)}</span>
+              <span className="ahead-s">{t(`ahead.${k}.sub`)}</span>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );

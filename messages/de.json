@@ -12990,6 +12990,13 @@
           "useFailed": "Der Wechsel zu diesem Lebenslauf ist fehlgeschlagen. Ihr aktueller bleibt in Gebrauch.",
           "loadFailed": "Ihre früheren Lebensläufe konnten nicht geladen werden.",
           "retry": "Erneut versuchen"
+        },
+        "dropHint": "hier anfangen: einfach reinziehen ↓",
+        "art": {
+          "mode": "falsche Arbeitsform",
+          "level": "falsche Stufe",
+          "pay": "unter Ihrer Gehaltsgrenze",
+          "few": "die wenigen, die Ihren Abend wert sind"
         }
       },
       "you": {
@@ -13383,7 +13390,9 @@
         "was": "vorher {n}",
         "readStale": "Vor Ihrer letzten Profiländerung geschrieben. Der nächste Scan schreibt sie neu.",
         "coverSaved": "Gespeichert",
-        "coverSaveFailed": "Noch nicht gespeichert, wird erneut versucht. Ihr Text bleibt hier."
+        "coverSaveFailed": "Noch nicht gespeichert, wird erneut versucht. Ihr Text bleibt hier.",
+        "dialLabel": "Score {score} von 100, wahrscheinlich zwischen {low} und {high}",
+        "dialLabelBare": "Score {score} von 100"
       },
       "sources": {
         "eyebrow": "Schritt 8 · Quellen",

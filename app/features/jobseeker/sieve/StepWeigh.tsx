@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ChapterHead } from "./ChapterHead";
 import { useTranslations } from "next-intl";
 import type { DismissReason, FitArtifact, JobseekerDialog, JobseekerPostingSummary, PostingStatus, SalaryFloor, SourceTier, TargetAlignment } from "@/app/_lib/jobseeker/types";
 import { COVER_NOTE_MAX_CHARS, DISMISS_REASONS } from "@/app/_lib/jobseeker/types";
@@ -16,6 +17,7 @@ import { diveOutcome, reasoningView, type DiveOutcome, type PostingDetailView } 
 import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
 import { payText } from "./StepEvening";
 import { Pip, ProvMark, StatusChip, TargetMark, TierChip } from "./marks";
+import { ScoreDial } from "./ScoreDial";
 import { directionOf, provenanceOf, replacedScore } from "./sieveModel";
 import { cx, SV_BTN, SV_BTN_ACCENT, SV_BTN_SM, SV_BTN_SM_ACCENT, SV_BTN_SM_GHOST, SV_REASON } from "./sieveRecipes";
 
@@ -367,14 +369,8 @@ export function StepWeigh({
   }, [navActive, decideActive, nav, openId, status, pop, write, studio]);
 
   const header = (title: string, meta?: ReactNode) => (
-    <div className="step-head">
-      <div className="grow">
-        <p className="eyebrow">{rank ? t("eyebrowRank", { rank, total }) : t("eyebrow")}</p>
-        <h2 id="h-weigh" className="w-title">
-          {title}
-        </h2>
-        {meta}
-      </div>
+    <div className="w-head">
+      <ChapterHead n={7} id="h-weigh" eyebrow={rank ? t("eyebrowRank", { rank, total }) : t("eyebrow")} title={title} sub={meta} />
       {openId ? (
         <div className="w-nav">
           <button type="button" className={SV_BTN_SM_GHOST} disabled={pos <= 0} onClick={() => nav(-1)}>
@@ -394,7 +390,7 @@ export function StepWeigh({
 
   if (!openId) {
     return (
-      <section className="step" id="s-weigh" data-step="weigh" aria-labelledby="h-weigh" ref={sectionRef}>
+      <section className="step" id="s-weigh" data-step="weigh" data-surface="tint" aria-labelledby="h-weigh" ref={sectionRef}>
         {header(t("title"))}
         <div className="gapbox">
           <strong>{t("nothingOpen")}</strong>
@@ -410,7 +406,7 @@ export function StepWeigh({
 
   if (!detail || detail.view.id !== openId) {
     return (
-      <section className="step" id="s-weigh" data-step="weigh" aria-labelledby="h-weigh" ref={sectionRef}>
+      <section className="step" id="s-weigh" data-step="weigh" data-surface="tint" aria-labelledby="h-weigh" ref={sectionRef}>
         {header(row?.title ?? t("title"))}
         {detailError ? (
           <FailureNotice failure={detailError} fallback={t("loadError")} onRetry={() => void load(openId)} />
@@ -466,29 +462,25 @@ export function StepWeigh({
   );
 
   return (
-    <section className="step" id="s-weigh" data-step="weigh" aria-labelledby="h-weigh" ref={sectionRef}>
+    <section className="step" id="s-weigh" data-step="weigh" data-surface="tint" aria-labelledby="h-weigh" ref={sectionRef}>
       {header(v.title, meta)}
       <div className="weigh">
         <div>
           {m && m.confidence ? (
             <div className="panel">
               <h4>{t("scoreTitle")}</h4>
-              <div className="gauge-top">
-                <span className="gauge-num">{m.total}</span>
-                {wasMark}
-                <span className="gt">{t.rich("band", { low: m.confidence.low, high: m.confidence.high, level: t(`level.${m.confidence.level}`), b: (c) => <b>{c}</b> })}</span>
-              </div>
-              <div className="gauge">
-                <div className="gtrack">
-                  <div className={`gband tb-${m.fitTier ?? "partial"}`} style={{ left: `${m.confidence.low}%`, width: `${m.confidence.high - m.confidence.low}%` }} />
-                  <div className="gmark" style={{ left: `${m.total}%` }} />
-                </div>
-                <div className="gticks" aria-hidden>
-                  <span>0</span>
-                  <span>25</span>
-                  <span>50</span>
-                  <span>75</span>
-                  <span>100</span>
+              {/* The score as a dial (ScoreDial): the arc is the score, the soft arc the band. */}
+              <div className="dial-row">
+                <ScoreDial
+                  total={m.total}
+                  low={m.confidence.low}
+                  high={m.confidence.high}
+                  tier={m.fitTier}
+                  label={t("dialLabel", { score: m.total, low: m.confidence.low, high: m.confidence.high })}
+                />
+                <div className="dial-words">
+                  <span className="gt">{t.rich("band", { low: m.confidence.low, high: m.confidence.high, level: t(`level.${m.confidence.level}`), b: (c) => <b>{c}</b> })}</span>
+                  {wasMark}
                 </div>
               </div>
               {m.confidence.drivers.length ? (
@@ -502,9 +494,9 @@ export function StepWeigh({
           ) : m ? (
             <div className="panel">
               <h4>{t("scoreTitle")}</h4>
-              <div className="gauge-top">
-                <span className="gauge-num">{m.total}</span>
-                {wasMark}
+              <div className="dial-row">
+                <ScoreDial total={m.total} low={null} high={null} tier={m.fitTier} label={t("dialLabelBare", { score: m.total })} />
+                <div className="dial-words">{wasMark}</div>
               </div>
             </div>
           ) : v.blocked ? (

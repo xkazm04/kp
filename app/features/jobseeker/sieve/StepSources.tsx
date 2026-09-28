@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { companyConfigFor } from "@/app/_lib/jobseeker/companyConfig";
+import { ChapterHead } from "./ChapterHead";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { JobseekerProfile, JobseekerSource, SourceTier } from "@/app/_lib/jobseeker/types";
+import { isSourceAdapterName, type JobseekerProfile, type JobseekerSource, type SourceTier } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { euresCountryPlan, readPreferredCountries, saveEuresCountries } from "../euresDoor";
@@ -174,7 +176,7 @@ export function StepSources({
     setBusy(entry.id);
     clear(entry.id);
     try {
-      const created = await ensure(entry, null, { slug });
+      const created = await ensure(entry, null, isSourceAdapterName(entry.adapter) ? companyConfigFor(entry.adapter, slug) : { slug });
       if (created) {
         setSlugs((s) => ({ ...s, [entry.id]: "" }));
         await patch(created.id, created, { enabled: true }, entry);
@@ -328,16 +330,18 @@ export function StepSources({
   const paused = sources.filter((s) => s.pausedReason);
   return (
     <section className="step" id="s-sources" data-step="sources" aria-labelledby="h-sources">
-      <div className="step-head">
-        <div className="grow">
-          <p className="eyebrow">{t("eyebrow")}</p>
-          <h2 id="h-sources">{t("title")}</h2>
-          <p className="lede">{hasProfile ? t("lede") : t("ledeNoProfile")}</p>
-        </div>
-        <Link className="btn sm ghost" href="/me/sources">
-          {t("advanced")}
-        </Link>
-      </div>
+      <ChapterHead
+        n={8}
+        id="h-sources"
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        lede={hasProfile ? t("lede") : t("ledeNoProfile")}
+        aside={
+          <Link className="btn sm ghost" href="/me/sources">
+            {t("advanced")}
+          </Link>
+        }
+      />
       <div className="lanes">{(["A", "B", "C"] as const).map(lane)}</div>
       <div className="paused-note">
         <ProvMark mark={paused.length ? "dashed" : "ring"} size={16} />
