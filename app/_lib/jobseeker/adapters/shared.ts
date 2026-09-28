@@ -1,6 +1,7 @@
 // Helpers every adapter reaches for: fetch-outcome handling, JSON bodies, text
 // cleanup, the RawPosting factory, and the preference filter feeds apply locally.
 
+import { employerName } from "../employer";
 import { htmlToText } from "../../job-posting-fetch";
 import { targetForms } from "../targetAliases";
 import { MAX_BODY_BYTES_CEILING, type FetchOk, type FetchOutcome } from "../fetch/politeFetch";
@@ -81,7 +82,6 @@ export function workModeFromText(text: string | null): RawPosting["workMode"] {
 
 export function rawPosting(partial: Partial<RawPosting> & Pick<RawPosting, "externalKey" | "url" | "title">): RawPosting {
   return {
-    company: null,
     location: null,
     country: null,
     postedAt: null,
@@ -91,6 +91,8 @@ export function rawPosting(partial: Partial<RawPosting> & Pick<RawPosting, "exte
     jsonld: null,
     lang: null,
     ...partial,
+    // "siehe Beschreibung" where the employer goes is no employer (employer.ts).
+    company: employerName(partial.company),
     workMode: isWorkMode(partial.workMode) ? partial.workMode : null,
   };
 }

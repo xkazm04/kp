@@ -406,6 +406,7 @@ export function StepSieve({
           held: facts.held.length,
           caught: facts.gated.length,
           waiting: facts.waiting.length,
+          folded: facts.folded,
           scored: facts.scored.length,
           top: facts.top5.length,
           b: (c) => <b>{c}</b>,

@@ -217,6 +217,9 @@ test("the same job listed once per place is one row, the best-scored copy, with 
   );
   assert.deepEqual(f.scored.map((r) => r.id), ["y2", "n1", "n2"], "no employer = never folded");
   assert.deepEqual(f.twins, { y2: ["y1", "y3"] });
+  // The funnel's arithmetic: found - held - gated - waiting - folded = scored.
+  assert.equal(f.folded, 2);
+  assert.equal(f.all.length - f.held.length - f.gated.length - f.waiting.length - f.folded, f.scored.length);
 });
 
 test("an ad that states no skill never takes a top-five place on its skills 0, and is listed apart, direction first", () => {

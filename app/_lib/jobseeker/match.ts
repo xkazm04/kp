@@ -19,8 +19,10 @@ import { isKoReasonKey, type FitTier, type JobseekerProfile, type KoReasonKey } 
  *  are stamped with their gate verdict, so every v1 row is re-matched once to gain it.
  *  v3: the stated targetTitles / targetRoleFamilies (already in preferences.json) now
  *  reach the career score and come back as `targetAlignment`, so every v2 row is
- *  re-matched once against the seeker's direction instead of their past. */
-export const MATCH_VERSION = "jobseeker-match-v3";
+ *  re-matched once against the seeker's direction instead of their past. v4: a posting
+ *  is credited to the stated title whose own words it carries before one it reaches
+ *  through a synonym (`matchedTitle`), so every v3 row is re-matched once to gain it. */
+export const MATCH_VERSION = "jobseeker-match-v4";
 /** match_cli's `--limit` is also our chunk: every job in a chunk can come back. */
 export const MATCH_CHUNK = 500;
 

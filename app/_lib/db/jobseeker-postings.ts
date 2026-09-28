@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { employerName } from "../jobseeker/employer";
 import {
   isDismissReason,
   isKoReasonKey,
@@ -124,7 +125,8 @@ function baseFromRow(row: PostingRow | SummaryRow) {
     externalKey: row.external_key,
     url: row.url,
     title: row.title,
-    company: row.company,
+    // A row stored before employer.ts keeps its stand-in in the column.
+    company: employerName(row.company),
     location: row.location,
     country: row.country,
     workMode: isWorkMode(row.work_mode) ? row.work_mode : null,
@@ -730,7 +732,7 @@ function rawFromRow(row: PostingRow): RawPosting {
     externalKey: row.external_key,
     url: row.url,
     title: row.title,
-    company: row.company,
+    company: employerName(row.company),
     location: row.location,
     country: row.country,
     workMode: isWorkMode(row.work_mode) ? row.work_mode : null,

@@ -13174,7 +13174,7 @@
         "through": "Passées : notées et classées",
         "throughHint": "Points plus gros : vos cinq meilleures encore ouvertes",
         "toRanking": "Voir le classement",
-        "funnel": "<b>{found}</b> trouvées {held, plural, =0 {} other {<a>→</a> <b>#</b> à la porte }}<a>→</a> <b>{caught}</b> arrêtées par les filtres {waiting, plural, =0 {} other {<a>→</a> <b>#</b> en attente }}<a>→</a> <b>{scored}</b> notées <a>→</a> <b>{top}</b> pour votre soirée",
+        "funnel": "<b>{found}</b> trouvées {held, plural, =0 {} other {<a>→</a> <b>#</b> à la porte }}<a>→</a> <b>{caught}</b> arrêtées par les filtres {waiting, plural, =0 {} other {<a>→</a> <b>#</b> en attente }}{folded, plural, =0 {} other {<a>→</a> <b>#</b> doublons regroupés }}<a>→</a> <b>{scored}</b> notées <a>→</a> <b>{top}</b> pour votre soirée",
         "legend": {
           "held": "Restées à la porte",
           "caught": "Arrêtée par un filtre",

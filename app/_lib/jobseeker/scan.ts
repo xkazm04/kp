@@ -340,6 +340,10 @@ export async function runJobseekerScan(workspaceId: string, opts: ScanOptions): 
           summary.deepDiveSkipped = "no_provider";
           break;
         } catch (error) {
+          // The wall budget (or the caller) stopping the scan kills the dive in flight:
+          // that is the scan ending, said by its `aborted` phase, not an engine fault on
+          // this posting (the live run of 2026-09-28 recorded it as "1 of 10 failed").
+          if (signal.aborted) break;
           // An engine fault on one posting is not a verdict on the provider: log it and
           // let the next shortlisted posting try. The loop is bounded by maxPerScan.
           deps.log({ level: "warn", code: "deepdive_failed", detail: posting.id }, error);

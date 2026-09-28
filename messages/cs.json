@@ -13174,7 +13174,7 @@
         "through": "Prošlo: ohodnoceno a seřazeno",
         "throughHint": "Větší tečky: vašich pět nejlepších, ještě otevřených",
         "toRanking": "Zobrazit pořadí",
-        "funnel": "nalezeno <b>{found}</b> {held, plural, =0 {} other {<a>→</a> zadrženo <b>#</b> }}<a>→</a> zachyceno branami <b>{caught}</b> {waiting, plural, =0 {} other {<a>→</a> čeká <b>#</b> }}<a>→</a> ohodnoceno <b>{scored}</b> <a>→</a> za váš večer stojí <b>{top}</b>",
+        "funnel": "nalezeno <b>{found}</b> {held, plural, =0 {} other {<a>→</a> zadrženo <b>#</b> }}<a>→</a> zachyceno branami <b>{caught}</b> {waiting, plural, =0 {} other {<a>→</a> čeká <b>#</b> }}{folded, plural, =0 {} other {<a>→</a> sloučeno duplicit <b>#</b> }}<a>→</a> ohodnoceno <b>{scored}</b> <a>→</a> za váš večer stojí <b>{top}</b>",
         "legend": {
           "held": "Zadrženo u dveří",
           "caught": "Zachyceno branou",

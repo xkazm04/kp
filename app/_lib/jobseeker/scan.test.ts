@@ -713,6 +713,36 @@ test("(i) one deep-dive throwing is a PARTIAL failure: counted of the shortlist,
   assert.equal(scanWholePhaseFailure(summary), null, "the scores stand: a deep-dive failure never fails the run");
 });
 
+test("(i2) a deep-dive killed by the scan stopping is the scan ending, not an engine failure", async () => {
+  const store = makeStore();
+  const calls: CliCall[] = [];
+  const runCli = scriptedRunner({ totals: () => 90, reasoningSource: () => "llm" }, calls);
+  const base = depsFor(store, runCli, [source("alpha", { postings: Array.from({ length: 3 }, (_, i) => raw(i + 1, "alpha")) })]);
+  const outer = new AbortController();
+  const phases: string[] = [];
+  let dives = 0;
+  const summary = await runJobseekerScan(WS, {
+    trigger: "manual",
+    signal: outer.signal,
+    onProgress: (_done, _total, phase) => phases.push(phase ?? ""),
+    deps: {
+      ...base,
+      deepDive: async (posting, prof, opts) => {
+        if (dives++ === 1) {
+          // The budget runs out while this dive is in flight: its subprocess dies with it.
+          outer.abort(new Error("wall budget"));
+          throw new Error("Python process aborted");
+        }
+        return base.deepDive!(posting, prof, opts);
+      },
+    },
+  });
+  assert.equal(summary.deepDived, 1);
+  assert.equal(dives, 2, "nothing is dived after the stop");
+  assert.deepEqual(summary.failures, [], "no failure on the record");
+  assert.equal(phases.at(-1), "aborted", "the stop is said by the phase");
+});
+
 test("(j) the KO-filtered count rides the summary beside `matched`", async () => {
   const store = makeStore();
   const totals = (id: string) => (id === "jpo-2" || id === "jpo-3" ? null : 60);

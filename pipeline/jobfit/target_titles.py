@@ -87,12 +87,22 @@ def _contains_run(haystack: tuple[str, ...], needle: tuple[str, ...]) -> bool:
 
 
 def matched_target_title(posting_title: str, target_titles: list[str] | tuple[str, ...]) -> str | None:
-    """The first stated title the posting title matches (the seeker's own wording), or None."""
+    """The stated title the posting title matches (the seeker's own wording), or None.
+
+    A stated title whose OWN words the posting carries wins over one it reaches only
+    through a synonym: a seeker who typed "AI Engineer" and "Machine Learning Engineer"
+    (one alias group) sees a "Machine Learning Engineer" posting credited to the second,
+    not to whichever came first - the live run credited all 178 target hits to the first.
+    """
     posting = title_tokens(posting_title)
     if not posting:
         return None
     for stated in target_titles:
-        if any(_contains_run(posting, form) for form in _forms(stated)):
+        forms = _forms(stated)
+        if forms and _contains_run(posting, forms[0]):
+            return stated
+    for stated in target_titles:
+        if any(_contains_run(posting, form) for form in _forms(stated)[1:]):
             return stated
     return None
 

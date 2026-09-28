@@ -13174,7 +13174,7 @@
         "through": "Durchgekommen: bewertet und eingereiht",
         "throughHint": "Größere Punkte: Ihre fünf besten, noch offen",
         "toRanking": "Zur Rangliste",
-        "funnel": "<b>{found}</b> gefunden {held, plural, =0 {} other {<a>→</a> <b>#</b> zurückgehalten }}<a>→</a> <b>{caught}</b> an Schranken hängen geblieben {waiting, plural, =0 {} other {<a>→</a> <b>#</b> wartend }}<a>→</a> <b>{scored}</b> bewertet <a>→</a> <b>{top}</b> Ihren Abend wert",
+        "funnel": "<b>{found}</b> gefunden {held, plural, =0 {} other {<a>→</a> <b>#</b> zurückgehalten }}<a>→</a> <b>{caught}</b> an Schranken hängen geblieben {waiting, plural, =0 {} other {<a>→</a> <b>#</b> wartend }}{folded, plural, =0 {} other {<a>→</a> <b>#</b> Dubletten zusammengeführt }}<a>→</a> <b>{scored}</b> bewertet <a>→</a> <b>{top}</b> Ihren Abend wert",
         "legend": {
           "held": "An der Tür zurückgehalten",
           "caught": "An einer Schranke hängen geblieben",

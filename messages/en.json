@@ -13174,7 +13174,7 @@
         "through": "Through - scored and ranked",
         "throughHint": "Bigger dots: your top five still open",
         "toRanking": "See the ranking",
-        "funnel": "<b>{found}</b> found {held, plural, =0 {} other {<a>→</a> <b>#</b> held }}<a>→</a> <b>{caught}</b> caught by gates {waiting, plural, =0 {} other {<a>→</a> <b>#</b> waiting }}<a>→</a> <b>{scored}</b> scored <a>→</a> <b>{top}</b> worth your evening",
+        "funnel": "<b>{found}</b> found {held, plural, =0 {} other {<a>→</a> <b>#</b> held }}<a>→</a> <b>{caught}</b> caught by gates {waiting, plural, =0 {} other {<a>→</a> <b>#</b> waiting }}{folded, plural, =0 {} other {<a>→</a> <b>#</b> duplicates merged }}<a>→</a> <b>{scored}</b> scored <a>→</a> <b>{top}</b> worth your evening",
         "legend": {
           "held": "Held at the door",
           "caught": "Caught by a gate",

@@ -49,6 +49,9 @@ export type SieveFacts = {
   rank: Record<string, number>;
   /** Same job listed again: a kept row's id -> the ids of its twins (see twinKey). */
   twins: Record<string, string[]>;
+  /** How many scored rows were folded into a twin — the step between "caught by gates"
+   *  and "scored" that the funnel line has to name for its numbers to add up. */
+  folded: number;
 };
 
 /** One job a source lists once per place (EURES files a multi-location vacancy as one
@@ -147,6 +150,7 @@ export function deriveSieve(rows: readonly SievePosting[], sources: readonly Pic
     promising: open.filter((r) => r.fitTier === "promising").length,
     rank,
     twins,
+    folded: Object.values(twins).reduce((n, ids) => n + ids.length, 0),
   };
 }
 

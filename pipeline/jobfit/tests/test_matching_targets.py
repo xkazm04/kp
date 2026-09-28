@@ -64,6 +64,16 @@ class TitleMatchingTest(unittest.TestCase):
         # Relatedness is NOT synonymy: a data analyst is not an AI engineer.
         self.assertIsNone(matched_target_title("Data Analyst", ["AI Engineer"]))
 
+    def test_own_words_outrank_a_synonym(self) -> None:
+        # Three stated titles in ONE alias group: each posting is credited to the title
+        # whose own words it carries, and a synonym-only hit to the first stated.
+        stated = ["AI Engineer", "LLM Engineer", "Machine Learning Engineer"]
+        self.assertEqual(matched_target_title("Machine Learning Engineer (m/w/d)", stated), "Machine Learning Engineer")
+        self.assertEqual(matched_target_title("Senior LLM Engineer", stated), "LLM Engineer")
+        self.assertEqual(matched_target_title("Applied AI Engineer, Startups", stated), "AI Engineer")
+        self.assertEqual(matched_target_title("AI Developer (KI-Engineer)", stated), "AI Engineer")
+        self.assertEqual(matched_target_title("KI-Entwickler", ["LLM Engineer", "AI Engineer"]), "LLM Engineer")
+
     def test_a_level_word_alone_is_no_target(self) -> None:
         self.assertIsNone(matched_target_title("Senior Accountant", ["Senior"]))
 
