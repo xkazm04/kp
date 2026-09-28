@@ -55,8 +55,8 @@
       "why": "A BLANKET `/* eslint-disable */` — every rule off for a whole file, naming none. The one occurrence is app/_dev-inspector/devInspectorUi.tsx, dev-only chrome behind DEV_INSPECT=1 that is deliberately outside the app's theming and i18n laws. Held at 1 because a second blanket disable should be a decision somebody makes on purpose, not a line somebody copies."
     },
     "ts:@ts-expect-error": {
-      "max": 1,
-      "why": "One test that deliberately drops a whole branch from a fixture to exercise a defensive read (app/_lib/voice/eleven-agent-diff.test.ts). `@ts-expect-error` rather than `@ts-ignore` on purpose: it fails if the error it claims stops happening. In product code this ceiling should stay at 1 and the occurrence should stay in a test."
+      "max": 3,
+      "why": "Three occurrences, all in tests, all deliberate. (1) app/_lib/voice/eleven-agent-diff.test.ts drops a whole branch from a fixture to exercise a defensive read. (2, 3) app/_lib/analytics/track.test.ts pins the closed analytics event vocabulary at the TYPE level (4a3ae0e38): a misspelled event name and an undeclared prop (a contact address) must not compile, and `@ts-expect-error` is the one construct that fails the typecheck if either ever stops being an error. `@ts-expect-error` rather than `@ts-ignore` on purpose everywhere. In product code this ceiling should buy nothing: every occurrence stays in a test."
     }
   }
 }
