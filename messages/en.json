@@ -13013,7 +13013,7 @@
       "want": {
         "eyebrow": "Step 4 · What you want",
         "title": "Five things steer the search",
-        "lede": "Tap to change anything. It saves as you go.",
+        "lede": "Tap a card to change it. Done saves it.",
         "notReached": "Not reached yet.",
         "notReachedBody": "This fills in once a CV is in.",
         "remove": "Remove {value}",
@@ -13025,7 +13025,8 @@
           "add": "Add a city",
           "country": "Country code, e.g. cz",
           "rule": "Country codes choose the markets EURES searches.",
-          "countryInvalid": "{value} is not a two-letter country code, e.g. cz or de."
+          "countryInvalid": "{value} is not a two-letter country code, e.g. cz or de.",
+          "empty": "No place yet: every place counts"
         },
         "pay": {
           "title": "Pay floor",
@@ -13036,7 +13037,10 @@
           "noCurrencyOption": "No currency",
           "period": "Period",
           "rule": "A floor without a currency is not a floor.",
-          "ruleWarn": "✕ No currency, so no floor - pick one."
+          "ruleWarn": "✕ No currency, so no floor - pick one.",
+          "empty": "No floor: any pay counts",
+          "amountExact": "Exact amount",
+          "needCurrency": "Pick a currency for this amount, or set it to 0 for no floor."
         },
         "titles": {
           "title": "Titles",
@@ -13045,7 +13049,9 @@
           "add": "Add a title",
           "rule": "The titles you'd apply to, not the ones you've had.",
           "families": "Target fields",
-          "ranks": "Titles now shape your ranking: a title match counts fully, a target field partly."
+          "ranks": "Titles now shape your ranking: a title match counts fully, a target field partly.",
+          "empty": "No title yet: ranked by your CV's own field",
+          "andFields": "and the field {fields}"
         },
         "modes": {
           "title": "Work mode",
@@ -13055,7 +13061,8 @@
             "remote": "from anywhere",
             "hybrid": "some days in",
             "onsite": "at the office"
-          }
+          },
+          "empty": "Any mode: none filtered out"
         },
         "level": {
           "title": "Level",
@@ -13066,7 +13073,8 @@
             "medior": "a few years in",
             "senior": "leading the work",
             "lead": "leading people"
-          }
+          },
+          "empty": "Any level"
         },
         "languages": {
           "title": "Languages",
@@ -13085,7 +13093,12 @@
         "setCount": "{set} of 5 set",
         "toSieve": "Search with these ↓",
         "rescoreNote": "Scores update on the next scan.",
-        "saveError": "That change could not be saved."
+        "saveError": "That change could not be saved.",
+        "done": "Done",
+        "cancel": "Cancel",
+        "change": "Change {card}: {value}",
+        "changeShort": "Change",
+        "more": "+{n} more"
       },
       "sieve": {
         "eyebrow": "Step 5 · The sieve",

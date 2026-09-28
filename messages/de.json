@@ -13013,7 +13013,7 @@
       "want": {
         "eyebrow": "Schritt 4 · Was Sie suchen",
         "title": "Fünf Dinge steuern die Suche",
-        "lede": "Tippen Sie, um etwas zu ändern. Es wird laufend gespeichert.",
+        "lede": "Tippen Sie auf eine Karte, um sie zu ändern. Fertig speichert sie.",
         "notReached": "Noch nicht erreicht.",
         "notReachedBody": "Das füllt sich, sobald ein Lebenslauf vorliegt.",
         "remove": "{value} entfernen",
@@ -13025,7 +13025,8 @@
           "add": "Stadt hinzufügen",
           "country": "Ländercode, z. B. cz",
           "rule": "Ländercodes bestimmen die Märkte, die EURES durchsucht.",
-          "countryInvalid": "{value} ist kein zweibuchstabiger Ländercode, z. B. cz oder de."
+          "countryInvalid": "{value} ist kein zweibuchstabiger Ländercode, z. B. cz oder de.",
+          "empty": "Noch kein Ort: jeder Ort zählt"
         },
         "pay": {
           "title": "Gehaltsuntergrenze",
@@ -13036,7 +13037,10 @@
           "noCurrencyOption": "Keine Währung",
           "period": "Zeitraum",
           "rule": "Eine Untergrenze ohne Währung ist keine Untergrenze.",
-          "ruleWarn": "✕ Ohne Währung keine Untergrenze. Wählen Sie eine."
+          "ruleWarn": "✕ Ohne Währung keine Untergrenze. Wählen Sie eine.",
+          "empty": "Keine Untergrenze: jedes Gehalt zählt",
+          "amountExact": "Genauer Betrag",
+          "needCurrency": "Wählen Sie eine Währung für diesen Betrag, oder setzen Sie ihn auf 0 für keine Untergrenze."
         },
         "titles": {
           "title": "Titel",
@@ -13045,7 +13049,9 @@
           "add": "Titel hinzufügen",
           "rule": "Die Titel, auf die Sie sich bewerben würden, nicht die, die Sie hatten.",
           "families": "Zielbereiche",
-          "ranks": "Titel bestimmen jetzt die Rangfolge: Ein Titeltreffer zählt voll, ein Zielbereich teilweise."
+          "ranks": "Titel bestimmen jetzt die Rangfolge: Ein Titeltreffer zählt voll, ein Zielbereich teilweise.",
+          "empty": "Noch kein Titel: gereiht nach dem Fachgebiet Ihres Lebenslaufs",
+          "andFields": "und das Fachgebiet {fields}"
         },
         "modes": {
           "title": "Arbeitsmodell",
@@ -13055,7 +13061,8 @@
             "remote": "von überall",
             "hybrid": "einige Tage vor Ort",
             "onsite": "im Büro"
-          }
+          },
+          "empty": "Jede Arbeitsform: keine wird ausgefiltert"
         },
         "level": {
           "title": "Level",
@@ -13066,7 +13073,8 @@
             "medior": "einige Jahre dabei",
             "senior": "leitet die Arbeit",
             "lead": "führt Menschen"
-          }
+          },
+          "empty": "Jede Stufe"
         },
         "languages": {
           "title": "Sprachen",
@@ -13085,7 +13093,12 @@
         "setCount": "{set} von 5 festgelegt",
         "toSieve": "Mit diesen Angaben suchen ↓",
         "rescoreNote": "Die Scores werden beim nächsten Scan aktualisiert.",
-        "saveError": "Die Änderung konnte nicht gespeichert werden."
+        "saveError": "Die Änderung konnte nicht gespeichert werden.",
+        "done": "Fertig",
+        "cancel": "Abbrechen",
+        "change": "{card} ändern: {value}",
+        "changeShort": "Ändern",
+        "more": "+{n} weitere"
       },
       "sieve": {
         "eyebrow": "Schritt 5 · Das Sieb",

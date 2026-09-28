@@ -17,6 +17,7 @@ export const SV_BTN_GHOST = "btn ghost";
 export const SV_BTN_SM = "btn sm";
 export const SV_BTN_SM_GHOST = "btn sm ghost";
 export const SV_BTN_SM_ACCENT = "btn sm accent";
+export const SV_BTN_SM_PRIMARY = "btn sm primary";
 /** An underlined inline action inside a sentence. */
 export const SV_LINK_BTN = "linkbtn";
 
@@ -32,6 +33,8 @@ export const SV_TILE = "tile";
 export const SV_ROW = "prow";
 export const SV_CARD = "tcard";
 export const SV_CATCH_ROW = "crow";
+/** A Step 4 card's view layer: the whole card is the button that opens its editor. */
+export const SV_WANT_VIEW = "wview";
 
 /** The on/off switch (role="switch") and the tier-B terms door. */
 export const SV_SWITCH = "switch";

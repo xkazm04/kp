@@ -13013,7 +13013,7 @@
       "want": {
         "eyebrow": "Krok 4 · Co chcete",
         "title": "Hledání řídí pět věcí",
-        "lede": "Cokoli změníte klepnutím. Ukládá se to průběžně.",
+        "lede": "Klepnutím na kartu ji změníte. Tlačítko Hotovo ji uloží.",
         "notReached": "Sem jste ještě nedošli.",
         "notReachedBody": "Vyplní se, jakmile nahrajete CV.",
         "remove": "Odebrat {value}",
@@ -13025,7 +13025,8 @@
           "add": "Přidat město",
           "country": "Kód země, např. cz",
           "rule": "Kódy zemí určují trhy, které prohledává EURES.",
-          "countryInvalid": "{value} není dvoupísmenný kód země, např. cz nebo de."
+          "countryInvalid": "{value} není dvoupísmenný kód země, např. cz nebo de.",
+          "empty": "Zatím žádné místo: počítá se každé"
         },
         "pay": {
           "title": "Minimální plat",
@@ -13036,7 +13037,10 @@
           "noCurrencyOption": "Bez měny",
           "period": "Období",
           "rule": "Minimum bez měny není minimum.",
-          "ruleWarn": "✕ Bez měny žádné minimum. Vyberte ji."
+          "ruleWarn": "✕ Bez měny žádné minimum. Vyberte ji.",
+          "empty": "Bez minima: počítá se jakákoli mzda",
+          "amountExact": "Přesná částka",
+          "needCurrency": "Zvolte k této částce měnu, nebo ji nastavte na 0 (bez minima)."
         },
         "titles": {
           "title": "Pozice",
@@ -13045,7 +13049,9 @@
           "add": "Přidat pozici",
           "rule": "Pozice, na které se chcete hlásit, ne ty, které už máte za sebou.",
           "families": "Cílové obory",
-          "ranks": "Pozice teď ovlivňují pořadí: shoda s pozicí se počítá plně, cílový obor částečně."
+          "ranks": "Pozice teď ovlivňují pořadí: shoda s pozicí se počítá plně, cílový obor částečně.",
+          "empty": "Zatím žádná pozice: řadí se podle oboru z vašeho CV",
+          "andFields": "a obor {fields}"
         },
         "modes": {
           "title": "Režim práce",
@@ -13055,7 +13061,8 @@
             "remote": "odkudkoli",
             "hybrid": "pár dní v kanceláři",
             "onsite": "v kanceláři"
-          }
+          },
+          "empty": "Jakýkoli režim: nic se nevyřazuje"
         },
         "level": {
           "title": "Seniorita",
@@ -13066,7 +13073,8 @@
             "medior": "pár let praxe",
             "senior": "vedení práce",
             "lead": "vedení lidí"
-          }
+          },
+          "empty": "Jakákoli úroveň"
         },
         "languages": {
           "title": "Jazyky",
@@ -13085,7 +13093,12 @@
         "setCount": "nastaveno {set} z 5",
         "toSieve": "Hledat s tímto nastavením ↓",
         "rescoreNote": "Skóre se aktualizuje při příštím skenu.",
-        "saveError": "Změnu se nepodařilo uložit."
+        "saveError": "Změnu se nepodařilo uložit.",
+        "done": "Hotovo",
+        "cancel": "Zrušit",
+        "change": "Změnit {card}: {value}",
+        "changeShort": "Změnit",
+        "more": "+{n} další"
       },
       "sieve": {
         "eyebrow": "Krok 5 · Síto",

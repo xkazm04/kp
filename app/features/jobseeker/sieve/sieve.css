@@ -1208,6 +1208,95 @@
   gap: 12px;
   transition: box-shadow 0.3s, border-color 0.3s;
 }
+/* Two layers (WantCard.tsx). VIEW: the value, large; the whole card is its button (the
+   button's ::after covers the card, so a click anywhere opens it). EDIT: the controls on
+   a draft, with Cancel / Done at the foot. */
+.sv .wcard.viewing {
+  position: relative;
+  cursor: pointer;
+}
+.sv .wcard.viewing:hover,
+.sv .wcard.viewing:has(.wview:focus-visible) {
+  border-color: var(--sv-accent);
+}
+.sv .wcard.viewing:has(.wview:focus-visible) {
+  box-shadow: 0 0 0 3px var(--sv-accent-soft);
+}
+.sv .wcard.editing {
+  border-color: var(--sv-ink);
+}
+.sv .wview {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 72px;
+}
+.sv .wview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+}
+.sv .wval {
+  font: 600 1.625rem/1.2 var(--sv-serif);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sv-ink);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sv .wval.none {
+  color: var(--sv-ink-3);
+}
+.sv .wsub {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .wgo {
+  align-self: flex-start;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sv-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sv .wedit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sv .wdone {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sv .langs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sv .langrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.sv .langrow select,
+.sv .payrow input[type="number"] {
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.875rem;
+}
+.sv .payrow input[type="number"] {
+  width: 128px;
+  font-variant-numeric: tabular-nums;
+}
 .sv .wcard.filling {
   border-color: var(--sv-accent);
   box-shadow: 0 0 0 3px var(--sv-accent-soft);

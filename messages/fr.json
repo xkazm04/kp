@@ -13013,7 +13013,7 @@
       "want": {
         "eyebrow": "Étape 4 · Ce que vous voulez",
         "title": "Cinq éléments orientent la recherche",
-        "lede": "Touchez pour modifier. Tout s’enregistre au fur et à mesure.",
+        "lede": "Touchez une carte pour la modifier. Terminé l’enregistre.",
         "notReached": "Étape pas encore atteinte.",
         "notReachedBody": "Cette partie se remplit dès qu’un CV est déposé.",
         "remove": "Retirer {value}",
@@ -13025,7 +13025,8 @@
           "add": "Ajouter une ville",
           "country": "Code pays, p. ex. cz",
           "rule": "Les codes pays choisissent les marchés où EURES cherche.",
-          "countryInvalid": "{value} n’est pas un code pays à deux lettres, p. ex. cz ou de."
+          "countryInvalid": "{value} n’est pas un code pays à deux lettres, p. ex. cz ou de.",
+          "empty": "Aucun lieu pour l’instant : tous comptent"
         },
         "pay": {
           "title": "Salaire minimum",
@@ -13036,7 +13037,10 @@
           "noCurrencyOption": "Aucune devise",
           "period": "Période",
           "rule": "Un minimum sans devise n’est pas un minimum.",
-          "ruleWarn": "✕ Sans devise, pas de minimum. Choisissez-en une."
+          "ruleWarn": "✕ Sans devise, pas de minimum. Choisissez-en une.",
+          "empty": "Pas de plancher : tout salaire compte",
+          "amountExact": "Montant exact",
+          "needCurrency": "Choisissez une devise pour ce montant, ou mettez-le à 0 pour aucun plancher."
         },
         "titles": {
           "title": "Intitulés",
@@ -13045,7 +13049,9 @@
           "add": "Ajouter un intitulé",
           "rule": "Les intitulés auxquels vous postuleriez, pas ceux que vous avez occupés.",
           "families": "Domaines cibles",
-          "ranks": "Les intitulés orientent désormais le classement : un intitulé correspondant compte pleinement, un domaine cible en partie."
+          "ranks": "Les intitulés orientent désormais le classement : un intitulé correspondant compte pleinement, un domaine cible en partie.",
+          "empty": "Aucun intitulé pour l’instant : classé selon le domaine de votre CV",
+          "andFields": "et le domaine {fields}"
         },
         "modes": {
           "title": "Mode de travail",
@@ -13055,7 +13061,8 @@
             "remote": "de n’importe où",
             "hybrid": "quelques jours sur place",
             "onsite": "au bureau"
-          }
+          },
+          "empty": "Tout mode de travail : aucun n’est exclu"
         },
         "level": {
           "title": "Niveau",
@@ -13066,7 +13073,8 @@
             "medior": "quelques années de métier",
             "senior": "pilotage du travail",
             "lead": "encadrement d’équipe"
-          }
+          },
+          "empty": "Tout niveau"
         },
         "languages": {
           "title": "Langues",
@@ -13085,7 +13093,12 @@
         "setCount": "Réponses : {set} sur 5",
         "toSieve": "Chercher avec ces réponses ↓",
         "rescoreNote": "Les scores se mettent à jour à la prochaine analyse.",
-        "saveError": "Cette modification n’a pas pu être enregistrée."
+        "saveError": "Cette modification n’a pas pu être enregistrée.",
+        "done": "Terminé",
+        "cancel": "Annuler",
+        "change": "Modifier {card} : {value}",
+        "changeShort": "Modifier",
+        "more": "+{n} de plus"
       },
       "sieve": {
         "eyebrow": "Étape 5 · Le tamis",
