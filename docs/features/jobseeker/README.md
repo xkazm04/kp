@@ -420,7 +420,7 @@ carry `max-w-prose`, and the cover-note copy control announces through a SIBLING
 | `/api/jobseeker/dialogs/[id]` | GET | one dialog (the client re-reads after a `moved`) |
 | `/api/jobseeker/dialogs/[id]/message` | POST `{message}` | one exchange → `DialogReply`; CAS `appendDialogTurns` → 409 `JOBSEEKER_DIALOG_MOVED`; on `done` the artifact's preferences merge into the profile and `cvMarkdown` becomes `cvPolishedMd`. Empty body → `INTAKE_TEXT_REQUIRED` (the existing generic "nothing to send"); oversized is cut at 4 000 chars |
 | `/api/jobseeker/cv.md` | GET | `text/markdown`, `Content-Disposition: attachment; filename="cv.md"`; 404 until a polished CV exists |
-| `/api/jobseeker/cv.pdf` | GET | `?template=sidebar|editorial|compact&accent=navy|moss|coral|plum` -> `application/pdf`, `attachment; filename="<name>-cv.pdf"`; 404 `JOBSEEKER_PROFILE_MISSING` without a profile; 503 `JOBSEEKER_PDF_UNAVAILABLE` when no browser is installed or the render failed (cause in the server log) |
+| `/api/jobseeker/cv.pdf` | GET | `?template=studio|signal|folio|classic|editorial|sidebar|compact&accent=ink|navy|cobalt|teal|moss|tangerine|coral|plum` -> `application/pdf`, `attachment; filename="<name>-cv.pdf"`; 404 `JOBSEEKER_PROFILE_MISSING` without a profile; 503 `JOBSEEKER_PDF_UNAVAILABLE` when no browser is installed or the render failed (cause in the server log) |
 | `/me/cv/print` | page | `?template=&accent=[&tailor=&compact=&objective=]` - the designed CV at real size (`CvDesigner` mode `page`), tailored when `tailor` names a target; the header is print-hidden, so `window.print()` and the PDF route both carry only the sheet |
 
 Limiters (pinned in `app/api/rate-limit-contract.test.ts`): profile 60/10 min,
@@ -542,10 +542,28 @@ redraft from the model is only read as line proposals. Accepted edits are record
 `buildCvDocument({ acceptedEdits })` - in the /me preview, `/me/cv/print` and the PDF alike;
 an edit applies only while its original line is still in the CV.
 
-*How it looks and parses* (`DesignedCv.tsx`, `cv.css`, `cvQuery.ts`). Four templates:
-`classic` (the default) and `editorial` are single-flow; `sidebar` and `compact` set part of
-the CV in a side column and are opt-in, with the single-column PDF offered beside them (a
-saved design from before, on the old `sidebar` default, reads once as unchosen - `v: 2`).
+*How it looks and parses* (`DesignedCv.tsx`, `cv.css`, `cvQuery.ts`). Seven templates,
+presented in the designer as two groups with a schematic of each page. One column:
+`studio` (the default since 2026-09-28 - the landing's look: the name in Bricolage under a
+short accent bar, a soft accent glow in the top corner, the headline in the accent, headings
+as a small accent square plus the word, skills inline with the level word in grey),
+`signal` (technical: dates and the contact line in JetBrains Mono, a timeline rail down the
+dated entries drawn with a border and a background dot, skills as a two-column spec sheet),
+`folio` (editorial: a masthead rule, a Fraunces name, the summary as a serif lede, en-dash
+bullets), `classic` and `editorial`. Two columns, opt-in with the single-column PDF offered
+beside them: `sidebar` and `compact`. Eight accents (`--color-cv-*`, identical in both theme
+blocks): ink, navy, cobalt (the default), teal, moss, tangerine, coral, plum. A saved design
+from before carries its version: `v: 3` reads a v2 `classic` or `navy` - the old defaults,
+indistinguishable from a choice - once as unchosen; every other saved pick is kept.
+
+*The sheet has faces of its own* (`public/fonts/cv/`, built by
+`python scripts/cv/build-cv-fonts.py` from the official OFL sources, checksummed; `--check`
+verifies the committed files are a rebuild). The product's next/font faces are variable and
+split per script, which Chromium's PDF writer embeds as Type 3 fonts with a font switch at
+every diacritic: the operator's own exported CV read back "Každan" and "Česká Spořitelna"
+broken apart in both pypdf and PyMuPDF (pypdf kept 0 of 4 diacritic words whole). Static,
+single-file Latin + Latin Extended instances (Inter, Fraunces, Bricolage, JetBrains Mono -
+410 kB) embed as TrueType: the same CV now keeps every one whole in both extractors.
 Reading order on every template: head -> summary -> experience -> projects -> education ->
 skills -> languages; each entry is one line, "Title - Employer" with the dates at its end;
 nothing that carries text is positioned and headings are not letter-spaced (both had made the
@@ -560,9 +578,10 @@ named `First-Last-CV.pdf`, titled "Name - CV" and tagged (`cv-pdf.ts`).
 synthetic reference CVs (short, long, career change, Czech diacritics, two pages) in every
 template, extracts each PDF in content order (pypdf) and by position (PyMuPDF), and asserts
 the name leads, each entry stays contiguous and nothing is lost; the checker itself runs in
-`test:unit` (`cvRoundTrip.test.ts`). Measured 2026-09-26: `classic` and `editorial` pass 5/5
-in both extractors; `sidebar` fails 3/5 and `compact` 5/5 by position - hence opt-in. Before
-this change every template failed.
+`test:unit` (`cvRoundTrip.test.ts`). It sets the sheet in the shipped faces (the fonts are
+inlined into its page). Measured 2026-09-28: `studio`, `signal`, `folio`, `classic` and
+`editorial` pass every reference in both extractors, Czech included; `sidebar` and `compact`
+fail by position - hence opt-in.
 
 **Tailored to a target** (`cvTailor.ts`, pure). The designer's "Tailor for" row lists the
 seeker's `targetTitles`; picking one REORDERS AND EMPHASISES, never adds a word. The summary

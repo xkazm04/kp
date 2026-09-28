@@ -239,3 +239,34 @@ test("the seeker's own languages from /me win over the CV's Languages block and 
   const own = buildCvDocument({ profile, preferences: { targetTitles: [], languages: ["English (C1)", "Czech (native)", "German (B2)", "Polish"] }, cvSourceText: text });
   assert.deepEqual(own.languages, ["English – C1", "Czech – native", "German – B2", "Polish"]);
 });
+
+test("'Role for Employer, Inc.' names the employer whole, and dates set two lines above it are found", () => {
+  // A real draft's shape: the legal form after the comma belongs to the employer's name,
+  // and the CV sets the dates on their own line above the title.
+  const text = [
+    "JANA NOVÁKOVÁ",
+    "WORK EXPERIENCE",
+    "Acme Retail, a.s. 04/2022 - 09/2025",
+    "Data Engineer",
+    "Kafka streaming for store analytics.",
+    "Freelancer 03/2021 - 03/2022",
+    "Automation Specialist",
+    "Beta Chain, Inc. - Process automation:",
+    "Multi-stage workflows for internal reporting.",
+  ].join("\n");
+  const profile = {
+    displayName: "Jana Nováková",
+    evidence: [
+      { kind: "job", title: "Data Engineer at Acme Retail, a.s.", text: "x" },
+      { kind: "job", title: "Automation Specialist (Freelancer) for Beta Chain, Inc.", text: "y" },
+    ],
+  };
+  const doc = buildCvDocument({ profile, preferences: { targetTitles: [] }, cvSourceText: text });
+  assert.deepEqual(
+    doc.experience.map((r) => [r.role, r.org, r.dates]),
+    [
+      ["Data Engineer", "Acme Retail, a.s.", "04/2022 – 09/2025"],
+      ["Automation Specialist (Freelancer)", "Beta Chain, Inc.", "03/2021 – 03/2022"],
+    ]
+  );
+});

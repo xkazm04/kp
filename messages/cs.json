@@ -13474,14 +13474,21 @@
         "sidebar": "S postranním sloupcem",
         "editorial": "Redakční",
         "compact": "Kompaktní",
-        "classic": "Klasický"
+        "classic": "Klasický",
+        "studio": "Studio",
+        "signal": "Signál",
+        "folio": "Folio"
       },
       "accentLabel": "Barva zvýraznění",
       "accent": {
         "navy": "Námořnická modrá",
         "moss": "Mechová",
         "coral": "Korálová",
-        "plum": "Švestková"
+        "plum": "Švestková",
+        "ink": "Inkoustová",
+        "cobalt": "Kobaltová",
+        "teal": "Petrolejová",
+        "tangerine": "Mandarinková"
       },
       "downloadPdf": "Stáhnout PDF",
       "preparing": "Připravuji PDF…",
@@ -13557,6 +13564,10 @@
       "held": {
         "toggle": "{n, plural, =0 {Žádné řádky nejsou odložené} one {# řádek odložen kvůli délce} few {# řádky odloženy kvůli délce} many {# řádku odloženo kvůli délce} other {# řádků odloženo kvůli délce}}",
         "hint": "Starší pozice dostávají méně řádků, aby se životopis vešel na své stránky. Tyto řádky jsou pořád vaše a nic se nesmazalo: pokud je některý důležitý, posuňte ho ve svém CV výš."
+      },
+      "templateGroup": {
+        "single": "Jeden sloupec",
+        "columned": "Dva sloupce"
       }
     },
     "erase": {

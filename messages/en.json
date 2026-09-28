@@ -13474,14 +13474,21 @@
         "sidebar": "Sidebar",
         "editorial": "Editorial",
         "compact": "Compact",
-        "classic": "Classic"
+        "classic": "Classic",
+        "studio": "Studio",
+        "signal": "Signal",
+        "folio": "Folio"
       },
       "accentLabel": "Accent color",
       "accent": {
         "navy": "Navy",
         "moss": "Moss",
         "coral": "Coral",
-        "plum": "Plum"
+        "plum": "Plum",
+        "ink": "Ink",
+        "cobalt": "Cobalt",
+        "teal": "Teal",
+        "tangerine": "Tangerine"
       },
       "downloadPdf": "Download PDF",
       "preparing": "Making the PDF…",
@@ -13557,6 +13564,10 @@
       "held": {
         "toggle": "{n, plural, =0 {No lines held back} one {# line held back for length} other {# lines held back for length}}",
         "hint": "Older roles get fewer lines so the CV keeps to its pages. These lines are still yours and nothing was deleted: if one matters, move it up in your CV."
+      },
+      "templateGroup": {
+        "single": "One column",
+        "columned": "Two columns"
       }
     },
     "erase": {

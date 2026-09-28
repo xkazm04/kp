@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cssString, emphasisRanges, skillText } from "./cvSheet";
+import { cssString, emphasisRanges, skillParts, skillText } from "./cvSheet";
 
 test("the running head's CSS string cannot leave its literal, whatever the seeker's name", () => {
   assert.equal(cssString("Jörg Weißhaupt"), '"Jörg Weißhaupt"');
@@ -15,6 +15,20 @@ test("a skill's level is its WORD after the name, never a meter; no word, no lev
   assert.equal(skillText({ name: "Kubernetes", level: "expert" }), "Kubernetes (expert)");
   assert.equal(skillText({ name: "Pohoda", level: "pokročilá" }), "Pohoda (pokročilá)");
   assert.equal(skillText({ name: "Git", level: null }), "Git");
+});
+
+test("a skill's two styled parts are exactly its text - the sheet never rewords it", () => {
+  for (const it of [
+    { name: "Kubernetes", level: "expert" },
+    { name: "Pohoda", level: "pokročilá" },
+    { name: "Git", level: null },
+    { name: "Anforderungsmanagement", level: "sehr gut" },
+  ]) {
+    const p = skillParts(it);
+    assert.equal(p.name + (p.level ?? ""), skillText(it));
+  }
+  assert.deepEqual(skillParts({ name: "Git", level: null }), { name: "Git", level: null });
+  assert.deepEqual(skillParts({ name: "Go", level: "expert" }), { name: "Go", level: " (expert)" });
 });
 
 test("emphasis: each term bold once, whole words only, any case, never overlapping", () => {

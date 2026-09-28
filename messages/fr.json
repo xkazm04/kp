@@ -13474,14 +13474,21 @@
         "sidebar": "Colonne latérale",
         "editorial": "Éditorial",
         "compact": "Compact",
-        "classic": "Classique"
+        "classic": "Classique",
+        "studio": "Studio",
+        "signal": "Signal",
+        "folio": "Folio"
       },
       "accentLabel": "Couleur d’accent",
       "accent": {
         "navy": "Marine",
         "moss": "Mousse",
         "coral": "Corail",
-        "plum": "Prune"
+        "plum": "Prune",
+        "ink": "Encre",
+        "cobalt": "Cobalt",
+        "teal": "Bleu canard",
+        "tangerine": "Mandarine"
       },
       "downloadPdf": "Télécharger le PDF",
       "preparing": "Création du PDF…",
@@ -13557,6 +13564,10 @@
       "held": {
         "toggle": "{n, plural, =0 {Aucune ligne mise de côté} one {# ligne mise de côté faute de place} other {# lignes mises de côté faute de place}}",
         "hint": "Les postes anciens ont moins de lignes pour que le CV tienne dans ses pages. Ces lignes restent les vôtres et rien n’a été supprimé : si l’une compte, remontez-la dans votre CV."
+      },
+      "templateGroup": {
+        "single": "Une colonne",
+        "columned": "Deux colonnes"
       }
     },
     "erase": {

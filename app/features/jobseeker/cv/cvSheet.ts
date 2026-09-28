@@ -45,3 +45,10 @@ export function emphasisRanges(text: string, emphasis: readonly string[] | undef
 export function skillText(it: { name: string; level: string | null }): string {
   return it.level ? `${it.name} (${it.level})` : it.name;
 }
+
+/** The same text in two parts, so a template can set the level word quieter than the
+ *  name: `name + (level ?? "")` IS `skillText(it)`, character for character - the sheet
+ *  styles the words, it never changes them. */
+export function skillParts(it: { name: string; level: string | null }): { name: string; level: string | null } {
+  return { name: it.name, level: it.level ? ` (${it.level})` : null };
+}

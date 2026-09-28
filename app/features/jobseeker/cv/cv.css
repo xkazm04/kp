@@ -13,13 +13,21 @@
  *     length; an A4 sheet reads at 9.5-10pt like every printed CV, and on screen the
  *     preview shows it scaled as a page, never as UI text.
  *
- * The faces are pinned to the loaded Fraunces / Inter variables, not `--font-serif`,
- * which turns into Bricolage after dark: the document does not change typeface with the
- * product's theme.
+ * The faces are pinned to the loaded font variables (Fraunces, Inter, Bricolage
+ * Grotesque, and JetBrains Mono where /me loads it), never `--font-serif`, which turns
+ * into Bricolage after dark: the document does not change typeface with the product's
+ * theme. The two newer faces carry a var() fallback, so a host that loads neither still
+ * sets the sheet in a real face.
  *
- * Four templates share one markup (DesignedCv.tsx) and differ only here:
- *   classic   — THE DEFAULT: one flow, top to bottom; every entry's title, employer and
- *               dates on one line; skills and languages as plain runs after the work;
+ * Seven templates share one markup (DesignedCv.tsx) and differ only here:
+ *   studio    — THE DEFAULT: a landing-page register - the name large in the display
+ *               grotesk under an accent bar, headings as an accent mark and a word,
+ *               skills as a tag cloud; one flow;
+ *   signal    — technical: Inter with monospaced dates and contact line, a timeline
+ *               rail down the dated entries, crisp hairlines; one flow;
+ *   folio     — editorial: a Fraunces masthead, the summary as a serif lede, serif
+ *               entry titles and headings; one flow;
+ *   classic   — the earlier default: one flow, rules after the headings, plain runs;
  *   editorial — one flow too, with a larger serif name and serif headings;
  *   sidebar   — a tinted column on the left for skills and languages;
  *   compact   — an accent header band and a skills column on the right.
@@ -36,6 +44,93 @@
  * is paint order).
  */
 
+/* THE SHEET'S OWN FACES - static, one file per weight covering Latin and Latin Extended
+   together (scripts/cv/build-cv-fonts.py builds them from the official OFL sources; the
+   licences sit beside the files in public/fonts/cv/). The product's next/font faces are
+   VARIABLE and split per script, and Chromium's PDF writer embeds a variable font as Type 3
+   and switches font mid-word at every diacritic: both pypdf and PyMuPDF read the
+   operator's own "Každan" and "Česká Spořitelna" back broken apart (measured 2026-09-28).
+   These embed as TrueType and extract whole; the next/font faces stay as the fallback.
+   `block`: the print page waits for them (cv-pdf.ts awaits document.fonts.ready), and a
+   PDF must never be cut in a fallback face. */
+@font-face {
+  font-family: "KP CV Inter";
+  src: url("/fonts/cv/inter-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Inter";
+  src: url("/fonts/cv/inter-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Inter";
+  src: url("/fonts/cv/inter-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Inter";
+  src: url("/fonts/cv/inter-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Fraunces";
+  src: url("/fonts/cv/fraunces-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Fraunces";
+  src: url("/fonts/cv/fraunces-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Fraunces";
+  src: url("/fonts/cv/fraunces-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Bricolage";
+  src: url("/fonts/cv/bricolage-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Bricolage";
+  src: url("/fonts/cv/bricolage-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Mono";
+  src: url("/fonts/cv/mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KP CV Mono";
+  src: url("/fonts/cv/mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+
 .cvsheet {
   --cv-accent: var(--color-cv-navy);
   --cv-accent-soft: color-mix(in srgb, var(--cv-accent) 7%, var(--color-cv-paper));
@@ -45,8 +140,12 @@
   --cv-rule: var(--color-cv-rule);
   --cv-paper: var(--color-cv-paper);
   --cv-pad: 14mm;
-  --cv-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --cv-sans: var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
+  --cv-serif: "KP CV Fraunces", var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --cv-sans: "KP CV Inter", var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
+  --cv-display: "KP CV Bricolage", var(--font-bricolage, "Bricolage Grotesque"), "Segoe UI", Roboto, Arial, sans-serif;
+  /* Monospaced by design, so a date's digits line up without tabular-nums; the fallbacks
+     are the platform monos when /me's JetBrains Mono is not loaded. */
+  --cv-mono: "KP CV Mono", var(--font-me-mono, "JetBrains Mono"), ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
   /* THE TYPE SCALE - four levels and no more (registry type-scale-density-and-page-budget:
      "Four typographic levels are enough and more is noise"). Every font-size on the sheet
      is one of these; a template re-tunes the four, never adds a fifth. Body 10-11pt,
@@ -80,6 +179,20 @@
 }
 .cvsheet[data-accent="plum"] {
   --cv-accent: var(--color-cv-plum);
+}
+/* Ink: the sheet's own text colour as the accent - a monochrome page, hierarchy by weight
+   alone. */
+.cvsheet[data-accent="ink"] {
+  --cv-accent: var(--color-cv-ink);
+}
+.cvsheet[data-accent="cobalt"] {
+  --cv-accent: var(--color-cv-cobalt);
+}
+.cvsheet[data-accent="teal"] {
+  --cv-accent: var(--color-cv-teal);
+}
+.cvsheet[data-accent="tangerine"] {
+  --cv-accent: var(--color-cv-tangerine);
 }
 .cvsheet *,
 .cvsheet *::before,
@@ -182,9 +295,15 @@
   background: var(--cv-accent-mid);
 }
 /* An entry may run onto the next page, but its head never leaves its first bullet
-   behind, and a bullet is never split (the running head would land inside it). */
+   behind, and a bullet is never split (the running head would land inside it). A one-line
+   entry has no bullet to keep: its head may end a page, or a run of one-liners (an older
+   role, the education lines) chains every avoid into one and the page breaks far above
+   where it could. */
 .cvsheet .cv-role-head {
   break-after: avoid;
+}
+.cvsheet .cv-role.is-short .cv-role-head {
+  break-after: auto;
 }
 .cvsheet .cv-bullets li {
   break-inside: avoid;
@@ -195,10 +314,14 @@
 /* The entry pattern (registry scan-path-hierarchy): ONE line - the title in the entry's
    strongest weight, " — employer" after it in the same heading, the dates at the end of
    the line. A flex row, so the dates sit right; the text order stays title, employer,
-   dates, and the gap before the dates reads as a space to an extractor. */
+   dates, and the gap before the dates reads as a space to an extractor.
+   When a long "Title — Employer" wraps, the dates ride its LAST line: on the first, a
+   positional reader (which reads a page line by line) set them in the middle of the
+   employer's name - "Rheinblick 01/2021 – heute Versicherungsdienste GmbH" - which the
+   round trip measured once the product's own, wider faces were in the page. */
 .cvsheet .cv-role-head {
   display: flex;
-  align-items: baseline;
+  align-items: last baseline;
   column-gap: 4mm;
 }
 .cvsheet .cv-role-title {
@@ -486,6 +609,404 @@
   color: var(--cv-accent);
 }
 
+/* ── the current presets: studio, signal, folio ─────────────────────────────────────
+ *
+ * One flow each, like classic, and held to the same laws: four type sizes, nothing with
+ * text positioned, no letter-spacing on the name or a heading, conventional headings.
+ * The contemporary look is carried by what the laws leave free - the face, the weight
+ * contrast between the name and the rest, whitespace, one accent used sparingly, and
+ * decoration drawn with borders, backgrounds and empty pseudo-elements that carry no
+ * word (an extractor reads none of it). */
+
+/* Plain block flow, not the columned templates' grid: head, main and side are already in
+   reading order, and a block breaks across pages at the latest good point - as a grid row,
+   the whole of `main` was pushed to page two whenever it could not break where it wanted,
+   leaving page one a masthead alone. */
+.cvsheet:is([data-template="studio"], [data-template="signal"], [data-template="folio"]) {
+  display: block;
+}
+.cvsheet:is([data-template="studio"], [data-template="signal"], [data-template="folio"]) .cv-sec-title::after {
+  display: none;
+}
+/* No one-word last line under a bullet or the summary ("...a runbook built / in."): the
+   browser rebalances the paragraph's last lines. Line breaks only - never a word. */
+.cvsheet:is([data-template="studio"], [data-template="signal"], [data-template="folio"]) :is(.cv-bullets li, .cv-summary, .cv-headline) {
+  text-wrap: pretty;
+}
+
+/* ── studio (THE DEFAULT) ── */
+
+.cvsheet[data-template="studio"] {
+  --cv-name: 28pt;
+  --cv-heading: 12.5pt;
+  --cv-entry: 11pt;
+  --cv-body: 10pt;
+  padding: 0 16mm var(--cv-pad);
+  line-height: 1.34;
+}
+/* The hero: an accent bar above the name, the name large in the display grotesk, the
+   headline as a confident second line in the accent, a soft light of the accent in the
+   page's top corner. The head reaches the paper's edges (negative margins) so the light
+   can; the hairline under it is drawn at the text's width. All of it is background and
+   an empty block - nothing an extractor reads. */
+.cvsheet[data-template="studio"] .cv-head {
+  margin: 0 -16mm 5mm;
+  padding: 9mm 16mm 4.5mm;
+  background:
+    linear-gradient(var(--cv-rule), var(--cv-rule)) 16mm 100% / calc(100% - 32mm) 0.25mm no-repeat,
+    radial-gradient(120mm 42mm at 100% 0%, var(--cv-accent-mid), var(--cv-accent-soft) 45%, var(--cv-paper) 100%);
+}
+.cvsheet[data-template="studio"] .cv-head::before {
+  content: "";
+  display: block;
+  width: 11mm;
+  height: 1.8mm;
+  margin-bottom: 4.5mm;
+  border-radius: 0.9mm;
+  background: var(--cv-accent);
+}
+.cvsheet[data-template="studio"] .cv-name {
+  font-family: var(--cv-display);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="studio"] .cv-headline {
+  margin-top: 2mm;
+  font-family: var(--cv-display);
+  font-size: var(--cv-heading);
+  font-weight: 500;
+  color: var(--cv-accent);
+}
+/* The stated target as a quiet pill, the way a landing page states what it is for. */
+.cvsheet[data-template="studio"] .cv-objective {
+  display: inline-block;
+  margin-top: 2mm;
+  padding: 0.3mm 3mm;
+  border-radius: 99px;
+  background: var(--cv-accent-soft);
+  color: var(--cv-accent);
+}
+.cvsheet[data-template="studio"] .cv-contacts {
+  margin-top: 3mm;
+  gap: 1mm 5mm;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="studio"] .cv-contacts svg {
+  width: 3.2mm;
+  height: 3.2mm;
+}
+.cvsheet[data-template="studio"] .cv-summary {
+  font-size: var(--cv-entry);
+  line-height: 1.4;
+}
+.cvsheet[data-template="studio"] .cv-sec + .cv-sec,
+.cvsheet[data-template="studio"] .cv-side {
+  margin-top: 5mm;
+}
+/* A heading is an accent mark and a word - no rule across the page. */
+.cvsheet[data-template="studio"] .cv-sec-title {
+  gap: 2.4mm;
+  margin-bottom: 2.2mm;
+  font-family: var(--cv-display);
+  font-weight: 700;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="studio"] .cv-sec-title::before {
+  content: "";
+  flex: none;
+  width: 2.4mm;
+  height: 2.4mm;
+  border-radius: 0.6mm;
+  background: var(--cv-accent);
+}
+.cvsheet[data-template="studio"] .cv-role + .cv-role {
+  margin-top: 3.4mm;
+}
+.cvsheet[data-template="studio"] .cv-role.is-short + .cv-role.is-short {
+  margin-top: 1.4mm;
+}
+.cvsheet[data-template="studio"] .cv-dates {
+  font-weight: 500;
+}
+.cvsheet[data-template="studio"] .cv-bullets {
+  margin-top: 1.1mm;
+  gap: 0.5mm;
+  list-style: square outside;
+  padding-left: 4.2mm;
+}
+/* Skills and languages: a run per group - the label, then the skills with an accent
+   middot between; the level word stays a word, quieter. The dot rides on the item BEFORE
+   it, glued by a no-break space, so a line may end with one but never start with one. */
+.cvsheet[data-template="studio"] .cv-group + .cv-group {
+  margin-top: 0.6mm;
+}
+.cvsheet[data-template="studio"] .cv-group-title {
+  display: inline;
+  margin: 0;
+}
+.cvsheet[data-template="studio"] .cv-group-title::after {
+  content: ": ";
+}
+.cvsheet[data-template="studio"] :is(.cv-tags, .cv-langs),
+.cvsheet[data-template="studio"] :is(.cv-tags, .cv-langs) li {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.cvsheet[data-template="studio"] :is(.cv-tags, .cv-langs) li:not(:last-child)::after {
+  content: "\00a0· ";
+  color: var(--cv-accent);
+}
+.cvsheet[data-template="studio"] .cv-lvl {
+  color: var(--cv-muted);
+}
+
+/* ── signal ── */
+
+.cvsheet[data-template="signal"] {
+  --cv-name: 26pt;
+  --cv-heading: 11.5pt;
+  --cv-entry: 10.5pt;
+  --cv-body: 10pt;
+  padding: 11mm 16mm var(--cv-pad);
+  line-height: 1.34;
+}
+.cvsheet[data-template="signal"] .cv-head {
+  padding-bottom: 4.5mm;
+  margin-bottom: 5mm;
+  border-bottom: 0.3mm solid var(--cv-ink);
+}
+.cvsheet[data-template="signal"] .cv-name {
+  font-family: var(--cv-sans);
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="signal"] .cv-headline {
+  margin-top: 1.8mm;
+  font-size: var(--cv-heading);
+  font-weight: 500;
+}
+.cvsheet[data-template="signal"] .cv-objective {
+  font-family: var(--cv-mono);
+}
+.cvsheet[data-template="signal"] .cv-contacts {
+  margin-top: 3mm;
+  gap: 1mm 5mm;
+  font-family: var(--cv-mono);
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="signal"] .cv-sec + .cv-sec,
+.cvsheet[data-template="signal"] .cv-side {
+  margin-top: 4.6mm;
+}
+.cvsheet[data-template="signal"] .cv-sec-title {
+  gap: 2.2mm;
+  margin-bottom: 2.4mm;
+  font-weight: 650;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="signal"] .cv-sec-title::before {
+  content: "";
+  flex: none;
+  width: 1.8mm;
+  height: 1.8mm;
+  background: var(--cv-accent);
+}
+/* The timeline rail: a line drawn as the entries' background, and on each entry head a
+   dot drawn as the head's background on the rail - nothing positioned, no word. The head
+   reaches back over the rail with a negative margin so its background can paint there.
+   The dot is a small OPAQUE tile (the disc and a paper ring that parts the rail around
+   it): a gradient stop fading to transparent prints with a dark fringe in Chromium's PDF. */
+.cvsheet[data-template="signal"] .cv-entries {
+  margin-left: 1.4mm;
+  padding-left: 5.3mm;
+  /* The rail itself, from the first dot's centre to a line's height above the end - a
+     border would stub out above the first dot and tail below a last one-line entry. */
+  background: linear-gradient(var(--cv-accent-mid), var(--cv-accent-mid)) 0 2.45mm / 0.3mm calc(100% - 5mm) no-repeat;
+}
+.cvsheet[data-template="signal"] .cv-role-head {
+  margin-left: -6.7mm;
+  padding-left: 6.7mm;
+  background: radial-gradient(circle closest-side, var(--cv-accent) 0 1.05mm, var(--cv-paper) 1.1mm) 0 0.9mm / 3.1mm 3.1mm no-repeat;
+}
+.cvsheet[data-template="signal"] .cv-role + .cv-role {
+  margin-top: 3.6mm;
+}
+.cvsheet[data-template="signal"] .cv-role.is-short + .cv-role.is-short {
+  margin-top: 1.6mm;
+}
+.cvsheet[data-template="signal"] .cv-dates {
+  font-family: var(--cv-mono);
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="signal"] .cv-bullets {
+  margin-top: 1.1mm;
+  gap: 0.5mm;
+  list-style: "–  " outside;
+  padding-left: 4mm;
+}
+.cvsheet[data-template="signal"] .cv-bullets li::marker {
+  color: var(--cv-muted);
+}
+/* Skills as a spec sheet: the group labels in one column as wide as the widest (so a label
+   never wraps into its skills' second line), each group's skills a plain run beside it. */
+.cvsheet[data-template="signal"] .cv-groups {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 1mm 5mm;
+}
+/* No group has a label: one plain run, no empty label column. */
+.cvsheet[data-template="signal"] .cv-groups:not(:has(.cv-group-title)) {
+  display: block;
+}
+.cvsheet[data-template="signal"] .cv-group {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+.cvsheet[data-template="signal"] .cv-group + .cv-group {
+  margin-top: 0;
+}
+.cvsheet[data-template="signal"] .cv-group-title {
+  margin: 0;
+  font-family: var(--cv-mono);
+  font-weight: 500;
+  color: var(--cv-accent);
+}
+.cvsheet[data-template="signal"] .cv-tags {
+  grid-column: 2;
+  display: block;
+}
+.cvsheet[data-template="signal"] :is(.cv-tags, .cv-langs) li {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.cvsheet[data-template="signal"] :is(.cv-tags, .cv-langs) li:not(:last-child)::after {
+  content: ", ";
+}
+.cvsheet[data-template="signal"] .cv-lvl {
+  color: var(--cv-muted);
+}
+.cvsheet[data-template="signal"] .cv-langs {
+  display: block;
+}
+
+/* ── folio ── */
+
+.cvsheet[data-template="folio"] {
+  --cv-name: 28pt;
+  --cv-heading: 12.5pt;
+  --cv-entry: 11pt;
+  --cv-body: 10pt;
+  padding: 11mm 18mm var(--cv-pad);
+  line-height: 1.34;
+}
+/* A masthead: a heavy rule, the name in the display serif, a hairline under the head. */
+.cvsheet[data-template="folio"] .cv-head {
+  padding: 5mm 0 4.5mm;
+  margin-bottom: 5.5mm;
+  border-top: 1.2mm solid var(--cv-ink);
+  border-bottom: 0.25mm solid var(--cv-ink);
+}
+.cvsheet[data-template="folio"] .cv-name {
+  font-weight: 500;
+  line-height: 1.02;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="folio"] .cv-headline {
+  margin-top: 1.6mm;
+  font-family: var(--cv-serif);
+  font-size: var(--cv-heading);
+  font-weight: 400;
+  color: var(--cv-accent);
+}
+.cvsheet[data-template="folio"] .cv-objective {
+  font-family: var(--cv-serif);
+}
+.cvsheet[data-template="folio"] .cv-contacts {
+  margin-top: 3mm;
+  gap: 1mm 0;
+  color: var(--cv-ink);
+}
+.cvsheet[data-template="folio"] .cv-contacts svg {
+  display: none;
+}
+/* Contacts as one typeset line, a middot between - the reading the designer shows. The
+   dot rides on the item BEFORE it, so a wrapped line may end with one, never start. */
+.cvsheet[data-template="folio"] .cv-contacts li:not(:last-child)::after {
+  content: "\00b7";
+  margin: 0 2.4mm 0 0.8mm;
+  color: var(--cv-accent);
+}
+/* The summary is the lede: the serif, a size up, set like a magazine standfirst. */
+.cvsheet[data-template="folio"] .cv-summary {
+  font-family: var(--cv-serif);
+  font-size: var(--cv-entry);
+  line-height: 1.42;
+}
+.cvsheet[data-template="folio"] .cv-sec + .cv-sec,
+.cvsheet[data-template="folio"] .cv-side {
+  margin-top: 4.6mm;
+}
+.cvsheet[data-template="folio"] .cv-sec-title {
+  margin-bottom: 2.2mm;
+  font-family: var(--cv-serif);
+  font-weight: 600;
+  color: var(--cv-accent);
+}
+.cvsheet[data-template="folio"] .cv-role + .cv-role {
+  margin-top: 3.4mm;
+}
+.cvsheet[data-template="folio"] .cv-role.is-short + .cv-role.is-short {
+  margin-top: 1.4mm;
+}
+.cvsheet[data-template="folio"] .cv-role-title {
+  font-family: var(--cv-serif);
+  font-weight: 600;
+}
+.cvsheet[data-template="folio"] .cv-org {
+  font-weight: 400;
+}
+.cvsheet[data-template="folio"] .cv-bullets {
+  margin-top: 1.1mm;
+  gap: 0.5mm;
+  list-style: "–  " outside;
+  padding-left: 4mm;
+}
+.cvsheet[data-template="folio"] .cv-bullets li::marker {
+  color: var(--cv-accent);
+}
+.cvsheet[data-template="folio"] .cv-group + .cv-group {
+  margin-top: 0.6mm;
+}
+.cvsheet[data-template="folio"] .cv-group-title {
+  display: inline;
+  margin: 0;
+  font-family: var(--cv-serif);
+  font-weight: 600;
+}
+.cvsheet[data-template="folio"] .cv-group-title::after {
+  content: ": ";
+}
+.cvsheet[data-template="folio"] :is(.cv-tags, .cv-langs),
+.cvsheet[data-template="folio"] :is(.cv-tags, .cv-langs) li {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.cvsheet[data-template="folio"] :is(.cv-tags, .cv-langs) li:not(:last-child)::after {
+  content: ", ";
+}
+.cvsheet[data-template="folio"] .cv-lvl {
+  color: var(--cv-muted);
+}
+
 /* ── the page ──────────────────────────────────────────────────────────────────── */
 
 /* The first page bleeds to its top edge (the compact band, the sidebar's bar); every page
@@ -508,10 +1029,16 @@
   @top-left {
     padding: 0 0 2mm 17mm;
     vertical-align: bottom;
-    font-family: var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
-    font-size: 10.5pt;
+    font-family: "KP CV Inter", var(--font-inter), "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: var(--cv-running-size, 10.5pt);
     color: var(--color-cv-muted);
   }
+}
+/* The running head is set at the sheet's BODY size, so it never becomes a fifth size. A
+   margin box cannot see the sheet's variables - it inherits from the root - so a template
+   whose body is not 10.5pt names its size on the root while it is on the page. */
+:root:has(.cvsheet:is([data-template="studio"], [data-template="signal"], [data-template="folio"])) {
+  --cv-running-size: 10pt;
 }
 @page cv:first {
   @top-left {
@@ -523,6 +1050,14 @@
     min-height: 287mm;
     position: relative;
     z-index: 0;
+  }
+  /* The last page's foot is the page's own 10mm, like every other page's. The sheet's
+     bottom padding is the preview's margin on screen; in print it had to fit below the
+     last line too, so a CV a line short of one page printed its last section alone on a
+     second. CvDesigner and the round trip measure the printed length with no foot. */
+  .cvsheet[data-template],
+  .cvsheet[data-template] :is(.cv-main, .cv-side) {
+    padding-bottom: 0;
   }
   /* The sidebar's tint as a FIXED box: in print a fixed box repeats on every page, so
      the column runs the full height of page two as well, instead of stopping where the
@@ -570,21 +1105,51 @@
   align-items: center;
   gap: 8px;
 }
+/* The layout picker: every one-column layout, then the columned ones as their own group -
+   its label is the mark, in words. Each choice is a card with a schematic of its page,
+   drawn in the accent the seeker has picked. The groups sit side by side where there is
+   room and stack where there is not. */
+.cvdesk-layouts {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 28px;
+}
+.cvdesk-lgroup {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+.cvdesk-lgroup-label {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--color-steel);
+}
+.cvdesk-tpls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .cvdesk-tpl {
   display: grid;
   justify-items: center;
-  gap: 4px;
-  padding: 6px 8px 4px;
-  border: 1px solid transparent;
+  gap: 6px;
+  width: 84px;
+  padding: 10px 6px 7px;
+  border: 1px solid var(--color-stone-200);
   border-radius: 10px;
-  background: transparent;
+  background: var(--color-white);
   color: var(--color-steel);
+  font: inherit;
   font-size: 14px;
   line-height: 1.2;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s, transform 0.2s;
 }
 .cvdesk-tpl:hover {
+  border-color: var(--color-stone-300);
   color: var(--color-ink);
   transform: translateY(-1px);
 }
@@ -593,25 +1158,21 @@
   background: var(--color-coralwash);
   color: var(--color-ink);
 }
-.cvdesk-thumb {
-  width: 38px;
-  height: 50px;
+.cvdesk-tpl:focus-visible,
+.cvdesk-dot:focus-visible {
+  outline: 2px solid var(--color-coral);
+  outline-offset: 2px;
 }
+.cvdesk-thumb {
+  width: 60px;
+  height: 84px;
+  filter: drop-shadow(0 1px 1.5px color-mix(in srgb, var(--color-ink) 16%, transparent));
+}
+/* The drawing's inks: paper tokens (it is a picture of the sheet), the accent from the
+   picker's `data-accent`. */
 .cvdesk-thumb .pg {
   fill: var(--color-cv-paper);
   stroke: var(--color-stone-300);
-}
-.cvdesk-thumb .tint {
-  fill: color-mix(in srgb, var(--color-cv-navy) 12%, var(--color-cv-paper));
-}
-.cvdesk-thumb .ac {
-  fill: var(--color-cv-navy);
-}
-.cvdesk-thumb .acf {
-  fill: var(--color-cv-navy);
-}
-.cvdesk-thumb .pgf {
-  fill: var(--color-cv-paper);
 }
 .cvdesk-thumb .ink {
   fill: var(--color-cv-ink);
@@ -619,24 +1180,60 @@
 .cvdesk-thumb .ln {
   fill: var(--color-cv-rule);
 }
+.cvdesk-thumb .mid {
+  fill: var(--color-cv-muted);
+  fill-opacity: 0.45;
+}
+.cvdesk-thumb .ac {
+  fill: var(--cvdesk-accent);
+}
+.cvdesk-thumb .acs {
+  fill: var(--cvdesk-accent);
+  fill-opacity: 0.1;
+}
+.cvdesk-thumb .acm {
+  fill: var(--cvdesk-accent);
+  fill-opacity: 0.35;
+}
+.cvdesk-thumb .pgf {
+  fill: var(--color-cv-paper);
+}
+/* One accent vocabulary for the dots and the schematics. */
+:is(.cvdesk-layouts, .cvdesk-dot) {
+  --cvdesk-accent: var(--color-cv-cobalt);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="ink"] {
+  --cvdesk-accent: var(--color-cv-ink);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="navy"] {
+  --cvdesk-accent: var(--color-cv-navy);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="teal"] {
+  --cvdesk-accent: var(--color-cv-teal);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="moss"] {
+  --cvdesk-accent: var(--color-cv-moss);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="tangerine"] {
+  --cvdesk-accent: var(--color-cv-tangerine);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="coral"] {
+  --cvdesk-accent: var(--color-cv-coral);
+}
+:is(.cvdesk-layouts, .cvdesk-dot)[data-accent="plum"] {
+  --cvdesk-accent: var(--color-cv-plum);
+}
+/* A swatch of the paper's accent, ringed in the paper's own white: in either theme it reads
+   as a sample of the sheet (the ink swatch would vanish into the dark canvas otherwise). */
 .cvdesk-dot {
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  border: 2px solid var(--color-paper);
+  border: 2px solid var(--color-cv-paper);
   box-shadow: 0 0 0 1px var(--color-stone-300);
-  background: var(--color-cv-navy);
+  background: var(--cvdesk-accent);
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-}
-.cvdesk-dot[data-accent="moss"] {
-  background: var(--color-cv-moss);
-}
-.cvdesk-dot[data-accent="coral"] {
-  background: var(--color-cv-coral);
-}
-.cvdesk-dot[data-accent="plum"] {
-  background: var(--color-cv-plum);
 }
 .cvdesk-dot:hover {
   transform: scale(1.08);

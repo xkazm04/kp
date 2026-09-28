@@ -7,22 +7,24 @@
 // The design vocabulary lives here, beside the URL that carries it: which layouts and
 // accents exist is a PRESENTATION fact (cv.css draws them), not part of the document model.
 //
-// `classic` is the default and the one single-flow layout (registry
+// `studio` is the default, and every layout but two is single-flow (registry
 // recruiting/cv-presentation-and-parseability, technique parse-safe-reading-order: "one
 // column for everything that carries identity, time or work ... the default for every
-// template"). `editorial` is single-flow too. `sidebar` and `compact` set skills and
-// languages in a second column: a positional parser reads them interleaved with the work
-// (scripts/cv/roundtrip.mjs measures it), so they are opt-in and the designer offers the
-// single-flow PDF beside them.
-export const CV_TEMPLATES = ["classic", "editorial", "sidebar", "compact"] as const;
+// template"): studio, signal and folio are the current presets, classic and editorial the
+// earlier ones. `sidebar` and `compact` set skills and languages in a second column: a
+// positional parser reads them interleaved with the work (scripts/cv/roundtrip.mjs
+// measures it), so they are opt-in and the designer offers the single-flow PDF beside
+// them. The order is the picker's: the default first, the columned ones last.
+export const CV_TEMPLATES = ["studio", "signal", "folio", "classic", "editorial", "sidebar", "compact"] as const;
 export type CvTemplate = (typeof CV_TEMPLATES)[number];
-export const CV_ACCENTS = ["navy", "moss", "coral", "plum"] as const;
+/** Ink (the sheet's own text colour, for a monochrome page), then the hues cool to warm. */
+export const CV_ACCENTS = ["ink", "navy", "cobalt", "teal", "moss", "tangerine", "coral", "plum"] as const;
 export type CvAccent = (typeof CV_ACCENTS)[number];
 
 /** Whether a layout's extracted text keeps its visual order for BOTH a content-order and
  *  a positional reader - measured over the reference CVs by `npm run cv:roundtrip`, and
  *  restated here only from its result. */
-export const CV_SINGLE_FLOW: Record<CvTemplate, boolean> = { classic: true, editorial: true, sidebar: false, compact: false };
+export const CV_SINGLE_FLOW: Record<CvTemplate, boolean> = { studio: true, signal: true, folio: true, classic: true, editorial: true, sidebar: false, compact: false };
 
 export function isCvTemplate(v: unknown): v is CvTemplate {
   return typeof v === "string" && (CV_TEMPLATES as readonly string[]).includes(v);
@@ -43,23 +45,39 @@ export type CvDesign = {
   /** SAVED designs only (this browser's localStorage, the server's ui-state): the version
    *  of the default it was saved under. Never in a URL - a URL's `template` is always an
    *  explicit choice. See `migrateSavedCvDesign`. */
-  v?: typeof CV_DESIGN_VERSION;
+  v?: CvDesignVersion;
 };
 
-export const CV_DESIGN_DEFAULT: CvDesign = { template: "classic", accent: "navy", tailor: null, compact: false, objective: true };
+export const CV_DESIGN_DEFAULT: CvDesign = { template: "studio", accent: "cobalt", tailor: null, compact: false, objective: true };
 
-/** 2 = saved since `classic` became the default. Before it, the designer wrote the design
- *  on every mount, so a saved `sidebar` (the old default) cannot tell a choice from a
- *  default that was merely stored. */
-export const CV_DESIGN_VERSION = 2;
+/** 3 = saved since `studio` in `cobalt` became the default. Every version stores the design
+ *  it shows, so a saved copy of the default of its day cannot tell a choice from a default
+ *  that was merely stored: `sidebar` before any marker, `classic` under 2, `navy` under
+ *  both. */
+export const CV_DESIGN_VERSION = 3;
+const SAVED_VERSIONS = [2, CV_DESIGN_VERSION] as const;
+export type CvDesignVersion = (typeof SAVED_VERSIONS)[number];
+/** What each earlier version stored without asking - its default. */
+const UNCHOSEN_UNMARKED = { template: "sidebar", accent: "navy" } as const satisfies Pick<CvDesign, "template" | "accent">;
+const UNCHOSEN_BY_VERSION: Record<Exclude<CvDesignVersion, typeof CV_DESIGN_VERSION>, Pick<CvDesign, "template" | "accent">> = {
+  2: { template: "classic", accent: "navy" },
+};
 
-/** A saved design from before the version marker reads its `sidebar` as NEVER CHOSEN -
- *  once: the result carries the marker, the caller saves it back, and from then on
- *  whatever the seeker picks (sidebar included) sticks. Every other field, and every
- *  other template, is kept as saved. A marked design passes through untouched. */
+/** A saved design from before the current marker reads the defaults OF ITS DAY as NEVER
+ *  CHOSEN - once: an unmarked `sidebar`, a v2 `classic`, a `navy` under either. The result
+ *  carries the current marker, the caller saves it back, and from then on whatever the
+ *  seeker picks (those included) sticks. Every other field, template and accent is kept as
+ *  saved - an unmarked `classic` was a choice, made while `sidebar` was the default. A
+ *  current-marked design passes through untouched. */
 export function migrateSavedCvDesign(d: CvDesign): CvDesign {
   if (d.v === CV_DESIGN_VERSION) return d;
-  return { ...d, template: d.template === "sidebar" ? CV_DESIGN_DEFAULT.template : d.template, v: CV_DESIGN_VERSION };
+  const unchosen = d.v === undefined ? UNCHOSEN_UNMARKED : UNCHOSEN_BY_VERSION[d.v];
+  return {
+    ...d,
+    template: d.template === unchosen.template ? CV_DESIGN_DEFAULT.template : d.template,
+    accent: d.accent === unchosen.accent ? CV_DESIGN_DEFAULT.accent : d.accent,
+    v: CV_DESIGN_VERSION,
+  };
 }
 
 /** A saved design object (a JSON record, not a URL) through the one validator; its
@@ -93,6 +111,7 @@ export function parseCvDesign(get: Getter): CvDesign {
   const accent = first(get("accent"));
   const tailorRaw = first(get("tailor"));
   const tailorN = tailorRaw !== null && /^\d{1,2}$/.test(tailorRaw) ? Number(tailorRaw) : null;
+  const v = SAVED_VERSIONS.find((n) => first(get("v")) === String(n));
   return {
     template: isCvTemplate(template) ? template : CV_DESIGN_DEFAULT.template,
     accent: isCvAccent(accent) ? accent : CV_DESIGN_DEFAULT.accent,
@@ -100,7 +119,7 @@ export function parseCvDesign(get: Getter): CvDesign {
     compact: first(get("compact")) === "1",
     objective: first(get("objective")) !== "0",
     // A saved record's version marker (the ui-state route stores what this returns).
-    ...(first(get("v")) === String(CV_DESIGN_VERSION) ? { v: CV_DESIGN_VERSION } : {}),
+    ...(v !== undefined ? { v } : {}),
   };
 }
 

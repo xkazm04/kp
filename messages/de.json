@@ -13474,14 +13474,21 @@
         "sidebar": "Seitenspalte",
         "editorial": "Editorial",
         "compact": "Kompakt",
-        "classic": "Klassisch"
+        "classic": "Klassisch",
+        "studio": "Studio",
+        "signal": "Signal",
+        "folio": "Folio"
       },
       "accentLabel": "Akzentfarbe",
       "accent": {
         "navy": "Marineblau",
         "moss": "Moosgrün",
         "coral": "Koralle",
-        "plum": "Pflaume"
+        "plum": "Pflaume",
+        "ink": "Tinte",
+        "cobalt": "Kobaltblau",
+        "teal": "Petrol",
+        "tangerine": "Mandarine"
       },
       "downloadPdf": "PDF herunterladen",
       "preparing": "PDF wird erstellt…",
@@ -13557,6 +13564,10 @@
       "held": {
         "toggle": "{n, plural, =0 {Keine Zeilen zurückgestellt} one {# Zeile aus Platzgründen zurückgestellt} other {# Zeilen aus Platzgründen zurückgestellt}}",
         "hint": "Ältere Stationen bekommen weniger Zeilen, damit der Lebenslauf bei seinen Seiten bleibt. Diese Zeilen gehören weiter Ihnen, gelöscht wurde nichts: Ist eine davon wichtig, stellen Sie sie in Ihrem Lebenslauf weiter nach oben."
+      },
+      "templateGroup": {
+        "single": "Einspaltig",
+        "columned": "Zweispaltig"
       }
     },
     "erase": {

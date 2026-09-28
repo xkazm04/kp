@@ -41,8 +41,9 @@
   /* The designed CV (app/features/jobseeker/cv/) is a PAPER document: it is printed,
      saved as a PDF and sent to a stranger, so it must look the same whichever theme
      the seeker's product runs in. Theme-INVARIANT like the plate above, declared
-     identically in the dark block. Ink and rule for the sheet, four accents the
-     seeker picks from. Use them ONLY inside the CV sheet. */
+     identically in the dark block. Ink and rule for the sheet, and the accents the
+     seeker picks from (cvQuery.ts CV_ACCENTS; `ink` reuses --color-cv-ink). Use them
+     ONLY inside the CV sheet. */
   --color-cv-paper: #ffffff;
   --color-cv-ink: #1c2530;
   --color-cv-muted: #5a6572;
@@ -51,6 +52,9 @@
   --color-cv-moss: #45613f;
   --color-cv-coral: #b4493a;
   --color-cv-plum: #5b3a63;
+  --color-cv-cobalt: #2a4bd7;
+  --color-cv-teal: #0e7470;
+  --color-cv-tangerine: #bf4a0a;
 
   --color-stone-50: #f7f2e9;
   --color-stone-100: #f1ebdd;
@@ -308,6 +312,9 @@ body {
   --color-cv-moss: #45613f;
   --color-cv-coral: #b4493a;
   --color-cv-plum: #5b3a63;
+  --color-cv-cobalt: #2a4bd7;
+  --color-cv-teal: #0e7470;
+  --color-cv-tangerine: #bf4a0a;
   --color-stone-50: #222d39;
   --color-stone-100: #283442;
   --color-stone-200: #364453;

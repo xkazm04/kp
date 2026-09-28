@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { createKeyedSaver, putJson, type SaveState } from "../serverDraft";
@@ -35,8 +35,9 @@ import { DesignedCv } from "./DesignedCv";
 // localStorage, and on the page carried in the URL.
 
 const A4_WIDTH_PX = 793.7; // 210mm at 96dpi
-/** The sheet's bottom padding (cv.css --cv-pad), counted into its printed length. */
-const SHEET_FOOT_MM = 14;
+/** What the printed sheet adds below its last section: nothing - in print the page's own
+ *  10mm margin is the foot (cv.css drops the preview's bottom padding there). */
+const SHEET_FOOT_MM = 0;
 const STORE_KEY = "kp-me-cv-design";
 
 export type CvDesignerSkin = { primary: string; ghost: string };
@@ -46,8 +47,9 @@ export type CvDesignerSkin = { primary: string; ghost: string };
 const QUESTION_KINDS: readonly CvOwnerQuestion["kind"][] = ["no_outcome", "missing_metric", "listed_only", "self_descriptor"];
 
 /** This browser's remembered design, through the one validator, and MIGRATED: a copy
- *  saved before the version marker reads its `sidebar` as never chosen (cvQuery.ts
- *  migrateSavedCvDesign); the store effect below writes it back marked on mount. */
+ *  saved under an earlier marker reads the default of its day (an old `sidebar` or
+ *  `classic`, an old `navy`) as never chosen (cvQuery.ts migrateSavedCvDesign); the store
+ *  effect below writes it back with the current marker on mount. */
 function readStored(): CvDesign | null {
   try {
     const saved = parseSavedCvDesign(JSON.parse(localStorage.getItem(STORE_KEY) ?? "null"));
@@ -77,65 +79,246 @@ async function fetchSavedDesign(): Promise<CvDesign | null> {
   }
 }
 
+// ── the layout picker's schematics ─────────────────────────────────────────────────
+//
+// A picture of each page, not a word for it: the page drawn as bars at A4's proportion,
+// in the accent the seeker has picked (the picker carries it as `data-accent`, cv.css
+// resolves the ink). Paper drawings, so they use the paper tokens, like the sheet.
+
+/** The inks of a schematic (cv.css `.cvdesk-thumb .<ink>`): the sheet's text, its light
+ *  lines, a muted grey, the accent full / soft / mid, and paper on an accent band. */
+type ThumbInk = "ink" | "ln" | "mid" | "ac" | "acs" | "acm" | "pgf";
+/** A bar: ink, x, y, width, height, corner radius (viewBox 60 x 84). */
+type ThumbBar = readonly [ThumbInk, number, number, number, number, number?];
+type ThumbSpec = { bars: readonly ThumbBar[]; dots?: readonly (readonly [number, number])[]; glow?: boolean };
+
+/** A run of bullet lines from `y`, 2.6 apart, each after its marker (or none). */
+function bulletRows(x: number, y: number, widths: readonly number[], marker: "square" | "dash" | "disc" | "none"): ThumbBar[] {
+  return widths.flatMap((w, i): ThumbBar[] => {
+    const row = y + i * 2.6;
+    const line: ThumbBar = ["ln", x + 2.6, row, w, 1.1];
+    if (marker === "none") return [line];
+    if (marker === "dash") return [["ac", x, row + 0.35, 1.3, 0.45], line];
+    return [["ac", x + 0.4, row + 0.1, 0.9, 0.9, marker === "disc" ? 0.45 : 0], line];
+  });
+}
+
+const THUMBS: Record<CvTemplate, ThumbSpec> = {
+  studio: {
+    glow: true,
+    bars: [
+      ["ac", 6, 6.5, 7, 1.6, 0.8],
+      ["ink", 6, 10.4, 27, 4.4, 0.6],
+      ["ac", 6, 17, 19, 1.8, 0.3],
+      ["ln", 6, 21.2, 10, 1.1],
+      ["ln", 18, 21.2, 14, 1.1],
+      ["ln", 34, 21.2, 11, 1.1],
+      ["mid", 6, 25, 48, 0.35],
+      ["ac", 6, 28.2, 1.8, 1.8, 0.4],
+      ["ink", 9.4, 28.2, 12, 1.8, 0.3],
+      ["ink", 6, 32.4, 21, 1.5],
+      ["mid", 46, 32.4, 8, 1.5],
+      ...bulletRows(6, 35.3, [42, 37, 40], "square"),
+      ["ink", 6, 44.6, 18, 1.5],
+      ["mid", 46, 44.6, 8, 1.5],
+      ...bulletRows(6, 47.5, [39, 33], "square"),
+      ["ac", 6, 55, 1.8, 1.8, 0.4],
+      ["ink", 9.4, 55, 11, 1.8, 0.3],
+      ["ink", 6, 59.2, 24, 1.5],
+      ["mid", 46, 59.2, 8, 1.5],
+      ["ac", 6, 64, 1.8, 1.8, 0.4],
+      ["ink", 9.4, 64, 8, 1.8, 0.3],
+      ["ink", 6, 68.2, 7, 1.1],
+      ["ln", 14, 68.2, 34, 1.1],
+      ["ink", 6, 71, 9, 1.1],
+      ["ln", 16, 71, 24, 1.1],
+    ],
+  },
+  signal: {
+    dots: [
+      [7.3, 29.95],
+      [7.3, 41.45],
+      [7.3, 50.95],
+    ],
+    bars: [
+      ["ink", 6, 7, 25, 4.2, 0.3],
+      ["mid", 6, 13.2, 21, 1.6],
+      ["ln", 6, 17, 38, 1.1],
+      ["ink", 6, 20.8, 48, 0.6],
+      ["ac", 6, 24.5, 1.4, 1.4],
+      ["ink", 9, 24.4, 11, 1.6],
+      ["acm", 7.05, 29.95, 0.5, 21],
+      ["ink", 10.5, 29.2, 20, 1.5],
+      ["mid", 46, 29.2, 8, 1.5],
+      ...bulletRows(9.9, 32.3, [38, 34, 36], "none"),
+      ["ink", 10.5, 40.7, 17, 1.5],
+      ["mid", 46, 40.7, 8, 1.5],
+      ...bulletRows(9.9, 43.8, [37, 30], "none"),
+      ["ink", 10.5, 50.2, 19, 1.5],
+      ["mid", 46, 50.2, 8, 1.5],
+      ["ac", 6, 56.5, 1.4, 1.4],
+      ["ink", 9, 56.4, 9, 1.6],
+      ["ac", 6, 61, 8, 1.1],
+      ["ln", 18, 61, 32, 1.1],
+      ["ac", 6, 63.8, 11, 1.1],
+      ["ln", 18, 63.8, 26, 1.1],
+      ["ac", 6, 66.6, 6, 1.1],
+      ["ln", 18, 66.6, 22, 1.1],
+      ["ac", 6, 71, 1.4, 1.4],
+      ["ink", 9, 70.9, 10, 1.6],
+      ["ln", 6, 74.8, 30, 1.1],
+    ],
+  },
+  folio: {
+    bars: [
+      ["ink", 6, 6, 48, 1.1],
+      ["ink", 6, 9.6, 29, 4.4, 0.2],
+      ["ac", 6, 16, 20, 1.7],
+      ["ln", 6, 19.8, 9, 1.1],
+      ["ln", 17, 19.8, 13, 1.1],
+      ["ln", 32, 19.8, 10, 1.1],
+      ["ink", 6, 23.4, 48, 0.35],
+      ["ac", 6, 26.6, 10, 1.8],
+      ["mid", 6, 30.3, 48, 1.5],
+      ["mid", 6, 32.9, 41, 1.5],
+      ["ac", 6, 37.4, 14, 1.8],
+      ["ink", 6, 41.2, 22, 1.5],
+      ["mid", 46, 41.2, 8, 1.5],
+      ...bulletRows(6, 44.2, [42, 36, 39], "dash"),
+      ["ink", 6, 52.8, 18, 1.5],
+      ["mid", 46, 52.8, 8, 1.5],
+      ...bulletRows(6, 55.8, [38], "dash"),
+      ["ac", 6, 60.6, 11, 1.8],
+      ["ink", 6, 64.4, 24, 1.5],
+      ["mid", 46, 64.4, 8, 1.5],
+      ["ac", 6, 69.2, 9, 1.8],
+      ["ink", 6, 72.8, 7, 1.1],
+      ["ln", 14, 72.8, 32, 1.1],
+    ],
+  },
+  classic: {
+    bars: [
+      ["ac", 6, 7, 26, 4, 0.2],
+      ["ink", 6, 13, 18, 1.5],
+      ["ln", 6, 16.6, 12, 1.1],
+      ["ln", 20, 16.6, 16, 1.1],
+      ["ac", 6, 20.4, 48, 0.5],
+      ["ac", 6, 24.2, 11, 1.7],
+      ["acm", 19, 24.85, 35, 0.4],
+      ["ink", 6, 28.4, 22, 1.5],
+      ["mid", 46, 28.4, 8, 1.5],
+      ...bulletRows(6, 31.4, [42, 36, 39], "disc"),
+      ["ink", 6, 40.6, 19, 1.5],
+      ["mid", 46, 40.6, 8, 1.5],
+      ...bulletRows(6, 43.6, [38], "disc"),
+      ["ac", 6, 48.6, 9, 1.7],
+      ["acm", 17, 49.25, 37, 0.4],
+      ["ink", 6, 52.8, 24, 1.5],
+      ["mid", 46, 52.8, 8, 1.5],
+      ["ac", 6, 57.6, 8, 1.7],
+      ["acm", 16, 58.25, 38, 0.4],
+      ["ink", 6, 61.6, 7, 1.1],
+      ["ln", 14, 61.6, 34, 1.1],
+      ["ink", 6, 64.4, 9, 1.1],
+      ["ln", 16, 64.4, 24, 1.1],
+    ],
+  },
+  editorial: {
+    bars: [
+      ["ink", 6, 7, 31, 5, 0.2],
+      ["ac", 6, 14.6, 21, 1.7],
+      ["ln", 6, 18.4, 12, 1.1],
+      ["ln", 20, 18.4, 16, 1.1],
+      ["ac", 6, 22, 48, 1],
+      ["ac", 6, 26.4, 12, 1.9],
+      ["mid", 6, 30.4, 48, 1.4],
+      ["mid", 6, 32.9, 40, 1.4],
+      ["ac", 6, 37.4, 14, 1.9],
+      ["ink", 6, 41.4, 22, 1.5],
+      ["mid", 46, 41.4, 8, 1.5],
+      ...bulletRows(6, 44.4, [42, 36], "disc"),
+      ["ink", 6, 51, 19, 1.5],
+      ["mid", 46, 51, 8, 1.5],
+      ...bulletRows(6, 54, [38], "disc"),
+      ["ac", 6, 58.8, 11, 1.9],
+      ["ink", 6, 62.8, 24, 1.5],
+      ["mid", 46, 62.8, 8, 1.5],
+    ],
+  },
+  sidebar: {
+    bars: [
+      ["acs", 0.5, 0.5, 19.5, 83],
+      ["ac", 0.5, 0.5, 59, 2],
+      ["ac", 24, 7.5, 24, 4, 0.2],
+      ["ink", 24, 13.6, 16, 1.4],
+      ["ln", 24, 16.8, 28, 1.1],
+      ["ac", 24, 21.4, 12, 1.6],
+      ["ink", 24, 25, 20, 1.4],
+      ...bulletRows(21.4, 27.9, [30, 26, 29], "none"),
+      ["ink", 24, 36.6, 18, 1.4],
+      ...bulletRows(21.4, 39.5, [28, 24], "none"),
+      ["ac", 24, 46.4, 11, 1.6],
+      ["ink", 24, 50, 22, 1.4],
+      ["ac", 4, 8, 11, 1.6],
+      ...bulletRows(1.4, 11.6, [13, 10, 12], "none"),
+      ["ac", 4, 22, 10, 1.6],
+      ...bulletRows(1.4, 25.6, [12, 9], "none"),
+    ],
+  },
+  compact: {
+    bars: [
+      ["ac", 0.5, 0.5, 59, 15],
+      ["pgf", 5, 5, 22, 3.6, 0.2],
+      ["pgf", 5, 10.2, 14, 1.3],
+      ["pgf", 42, 5, 13, 1.1],
+      ["pgf", 45, 7.4, 10, 1.1],
+      ["pgf", 43, 9.8, 12, 1.1],
+      ["ac", 5, 19.5, 11, 1.6],
+      ["ink", 5, 23, 22, 1.4],
+      ...bulletRows(2.4, 25.9, [30, 27, 29], "none"),
+      ["ink", 5, 34.6, 19, 1.4],
+      ...bulletRows(2.4, 37.5, [28, 24], "none"),
+      ["mid", 39.8, 19, 0.4, 50],
+      ["ac", 42.5, 19.5, 10, 1.6],
+      ...bulletRows(39.9, 23, [12, 10, 12], "none"),
+      ["ac", 42.5, 32, 9, 1.6],
+      ...bulletRows(39.9, 35.5, [11], "none"),
+    ],
+  },
+};
+
 function Thumb({ template }: { template: CvTemplate }) {
-  // A schematic of each layout — a picture of the page, not a word for it.
+  const spec = THUMBS[template];
   return (
-    <svg viewBox="0 0 42 56" aria-hidden className="cvdesk-thumb">
-      <rect x="0.5" y="0.5" width="41" height="55" rx="2" className="pg" />
-      {template === "classic" ? (
+    <svg viewBox="0 0 60 84" aria-hidden className="cvdesk-thumb">
+      <rect x="0.5" y="0.5" width="59" height="83" rx="2" className="pg" />
+      {/* studio's corner light: two nested quarter ellipses in the page's corner, a soft
+          falloff without a gradient definition (no id to collide between two pickers) */}
+      {spec.glow ? (
         <>
-          <rect x="5" y="5" width="18" height="3" className="ac" />
-          <rect x="5" y="10" width="26" height="1.2" className="ln" />
-          <rect x="5" y="13" width="32" height="0.6" className="ac" />
-          <rect x="5" y="17" width="20" height="1.6" className="ink" />
-          <rect x="31" y="17" width="6" height="1.6" className="ln" />
-          <rect x="7" y="21" width="30" height="1.4" className="ln" />
-          <rect x="7" y="24" width="26" height="1.4" className="ln" />
-          <rect x="5" y="29" width="18" height="1.6" className="ink" />
-          <rect x="31" y="29" width="6" height="1.6" className="ln" />
-          <rect x="7" y="33" width="28" height="1.4" className="ln" />
-          <rect x="5" y="40" width="32" height="1.4" className="ln" />
-          <rect x="5" y="43" width="24" height="1.4" className="ln" />
+          <path d="M33 0.5A26.5 18 0 0 0 59.5 18.5V2.5Q59.5 0.5 57.5 0.5Z" className="acs" />
+          <path d="M44 0.5A15.5 10.5 0 0 0 59.5 11V2.5Q59.5 0.5 57.5 0.5Z" className="acs" />
         </>
-      ) : template === "sidebar" ? (
-        <>
-          <rect x="1" y="1" width="14" height="54" className="tint" />
-          <rect x="1" y="1" width="40" height="2" className="ac" />
-          <rect x="18" y="7" width="18" height="3" className="ac" />
-          <rect x="18" y="14" width="20" height="1.6" className="ln" />
-          <rect x="18" y="18" width="17" height="1.6" className="ln" />
-          <rect x="18" y="24" width="20" height="1.6" className="ln" />
-          <rect x="18" y="28" width="15" height="1.6" className="ln" />
-          <rect x="4" y="8" width="8" height="1.6" className="ac" />
-          <rect x="4" y="12" width="9" height="1.4" className="ln" />
-          <rect x="4" y="15" width="7" height="1.4" className="ln" />
-        </>
-      ) : template === "editorial" ? (
-        <>
-          <rect x="5" y="6" width="24" height="4" className="ink" />
-          <rect x="5" y="13" width="32" height="1" className="ac" />
-          <rect x="5" y="18" width="20" height="1.6" className="ink" />
-          <rect x="31" y="18" width="6" height="1.6" className="ln" />
-          <rect x="7" y="22" width="30" height="1.4" className="ln" />
-          <rect x="5" y="28" width="20" height="1.6" className="ink" />
-          <rect x="31" y="28" width="6" height="1.6" className="ln" />
-          <rect x="7" y="32" width="26" height="1.4" className="ln" />
-        </>
-      ) : (
-        <>
-          <rect x="1" y="1" width="40" height="11" className="acf" />
-          <rect x="4" y="5" width="16" height="3" className="pgf" />
-          <rect x="4" y="16" width="22" height="1.6" className="ln" />
-          <rect x="4" y="20" width="20" height="1.6" className="ln" />
-          <rect x="4" y="24" width="22" height="1.6" className="ln" />
-          <rect x="29" y="16" width="0.6" height="30" className="ln" />
-          <rect x="31" y="16" width="7" height="1.4" className="ac" />
-          <rect x="31" y="20" width="8" height="1.4" className="ln" />
-        </>
-      )}
+      ) : null}
+      {spec.bars.map(([ink, x, y, w, h, r], i) => (
+        <rect key={i} x={x} y={y} width={w} height={h} rx={r || undefined} className={ink} />
+      ))}
+      {(spec.dots ?? []).map(([cx, cy], i) => (
+        <g key={`d${i}`}>
+          <circle cx={cx} cy={cy} r={1.8} className="pgf" />
+          <circle cx={cx} cy={cy} r={1.25} className="ac" />
+        </g>
+      ))}
     </svg>
   );
 }
+
+/** The picker's two groups: every one-column layout, then the columned ones - the group's
+ *  label says in words what the columned ones are (CV_SINGLE_FLOW, from the round trip). */
+const LAYOUT_GROUPS = [
+  { kind: "single", templates: CV_TEMPLATES.filter((k) => CV_SINGLE_FLOW[k]) },
+  { kind: "columned", templates: CV_TEMPLATES.filter((k) => !CV_SINGLE_FLOW[k]) },
+] as const;
 
 export function CvDesigner({
   doc,
@@ -154,6 +337,7 @@ export function CvDesigner({
 }) {
   const t = useTranslations("me.designedCv");
   const errorMessage = useErrorMessage();
+  const uid = useId();
   // Inline mounts only after the seeker flips the column to "Designed" (post-hydration),
   // so reading storage in the initialiser cannot mismatch a server render. The page is
   // server-rendered, so it starts from its URL and only WRITES the remembered choice.
@@ -204,7 +388,7 @@ export function CvDesigner({
     let live = true;
     void fetchSavedDesign().then((saved) => {
       if (!live || !saved || latestKey.current !== firstKey.current) return;
-      // A copy from before the version marker is migrated ONCE: the migrated design is
+      // A copy from before the current marker is migrated ONCE: the migrated design is
       // saved back with the marker, so the next read passes it through untouched.
       const design = migrateSavedCvDesign(saved);
       if (design !== saved) saver.push("design", design);
@@ -385,12 +569,21 @@ export function CvDesigner({
 
   const controls = (
     <div className="cvdesk-bar">
-      <div className="cvdesk-pick" role="group" aria-label={t("templateLabel")}>
-        {CV_TEMPLATES.map((k) => (
-          <button key={k} type="button" className={CV_TEMPLATE_BTN} aria-pressed={template === k} onClick={() => setTemplate(k)}>
-            <Thumb template={k} />
-            <span>{t(`template.${k}`)}</span>
-          </button>
+      <div className="cvdesk-layouts" role="group" aria-label={t("templateLabel")} data-accent={accent}>
+        {LAYOUT_GROUPS.map((g) => (
+          <div key={g.kind} className="cvdesk-lgroup" role="group" aria-labelledby={`${uid}-${g.kind}`}>
+            <p id={`${uid}-${g.kind}`} className="cvdesk-lgroup-label">
+              {t(`templateGroup.${g.kind}`)}
+            </p>
+            <div className="cvdesk-tpls">
+              {g.templates.map((k) => (
+                <button key={k} type="button" className={CV_TEMPLATE_BTN} aria-pressed={template === k} onClick={() => setTemplate(k)}>
+                  <Thumb template={k} />
+                  <span>{t(`template.${k}`)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
       <div className="cvdesk-pick" role="group" aria-label={t("accentLabel")}>

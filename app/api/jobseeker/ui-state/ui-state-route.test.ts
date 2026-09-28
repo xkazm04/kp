@@ -12,6 +12,7 @@ import { upsertPosting } from "../../../_lib/db/jobseeker-postings.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../../_lib/db/workspaces.ts";
 import { COVER_NOTE_MAX_CHARS, EMPTY_PREFERENCES, type RawPosting } from "../../../_lib/jobseeker/types.ts";
 import type { ProfilePayload } from "../../../features/shared/profileTypes.ts";
+import { CV_DESIGN_DEFAULT } from "../../../features/jobseeker/cv/cvQuery.ts";
 import { GET, PUT } from "./route.ts";
 
 after(() => cleanupUnitDb());
@@ -63,7 +64,9 @@ test("the design round-trips, re-validated by cvQuery (junk is a default, never 
 
   await put({ design: { template: "<script>", accent: 42, tailor: -3, extra: "dropped" } });
   const junk = (await (await get()).json()) as { design: Record<string, unknown> };
-  assert.deepEqual(junk.design, { template: "classic", accent: "navy", tailor: null, compact: false, objective: true });
+  // Junk reads as the designer's DEFAULT (whatever it is today), never stored raw.
+  const { template, accent, tailor, compact, objective } = CV_DESIGN_DEFAULT;
+  assert.deepEqual(junk.design, { template, accent, tailor, compact, objective });
 
   const bad = await put({ design: "nope" });
   assert.equal(bad.status, 400);

@@ -340,6 +340,9 @@ function sentenceBullets(text: string, log: CvImprovement[]): CvBullet[] {
 
 // ── roles ──────────────────────────────────────────────────────────────────────────
 
+/** A legal form after a comma is part of the employer's name, never the employer. */
+const LEGAL_FORM = /^(?:inc|ltd|llc|llp|plc|corp|co|gmbh|ag|se|kg|sa|s\.a|sas|sarl|spa|srl|bv|b\.v|nv|n\.v|oy|ab|as|a\.\s?s|s\.\s?r\.\s?o|spol\.\s?s\s?r\.\s?o|k\.\s?s|v\.\s?o\.\s?s)\.?$/i;
+
 /** "Role — Org (dates)" (the keyless draft's form), "Role, Org", "Role at Org" -> parts. */
 export function parseRoleTitle(title: string): { role: string; org: string | null; dates: string | null } {
   let rest = title.trim();
@@ -447,7 +450,16 @@ export function sourceRoleOf(text: string, org: string | null, allOrgs: readonly
   const own = foldText(role);
   const others = allOrgs.map(foldText).filter((o) => o.length >= 3 && o !== needle);
   const dateOn = (l: string | undefined) => (l ? (l.match(DATE_RANGE)?.[0] ?? l.match(LEADING_YEAR)?.[0] ?? null) : null);
-  const dates = dateOn(lines[at]) ?? dateOn(lines[at - 1]) ?? null;
+  // The dates on the employer's line or the one above it - or a little further up, where a
+  // CV sets them on their own line above the title ("Freelancer 03/2025 - 10/2025" /
+  // "AI Automation Specialist" / "Groupon, Inc. - ..."). The look-back stops at the previous
+  // role's last sentence or another employer, so it never borrows a neighbour's dates.
+  let dates = dateOn(lines[at]) ?? dateOn(lines[at - 1]) ?? null;
+  for (let k = 2; !dates && k <= 3 && at - k >= 0; k++) {
+    const l = lines[at - k]!;
+    if (!l || /[.!?]$/.test(l) || others.some((o) => foldText(l).includes(o))) break;
+    dates = dateOn(l);
+  }
   const body: string[] = [];
   for (let i = at + 1; i < lines.length; i++) {
     const l = lines[i]!;
@@ -562,15 +574,27 @@ export function buildCvDocument(input: {
     // CV, whose roles then printed with a paraphrase and no dates - so every candidate is
     // tried against the text, and a comma split is only believed when the CV holds it.
     const paren = (s: string) => /\(([^()]{3,60})\)\s*$/.exec(s)?.[1]?.trim() ?? null;
-    const commaAt = parsedTitle.org ? -1 : parsedTitle.role.indexOf(", ");
-    const tail = commaAt > 0 ? parsedTitle.role.slice(commaAt + 2).trim() : null;
-    const candidates = [parsedTitle.org, tail, tail ? tail.replace(/\s*\([^()]*\)\s*$/, "").trim() : null, tail ? paren(tail) : null, parsedTitle.org ? null : paren(parsedTitle.role)].filter(
+    // "Role for Employer" ("AI Automation Specialist (Freelancer) for Groupon, Inc." on a
+    // real draft) - believed, like the comma split, only when the CV holds the employer.
+    const forSplit = parsedTitle.org ? null : /^(.+?)\s+for\s+(.{3,})$/i.exec(parsedTitle.role);
+    const forOrg = forSplit ? forSplit[2]!.trim() : null;
+    const commaAt = parsedTitle.org || forOrg ? -1 : parsedTitle.role.indexOf(", ");
+    // A comma before a legal form belongs to the employer's name ("Groupon, Inc.",
+    // "Moneta Money Bank, a.s."): "Inc." is never the employer.
+    const rawTail = commaAt > 0 ? parsedTitle.role.slice(commaAt + 2).trim() : null;
+    const tail = rawTail && !LEGAL_FORM.test(rawTail) ? rawTail : null;
+    const candidates = [parsedTitle.org, forOrg, tail, tail ? tail.replace(/\s*\([^()]*\)\s*$/, "").trim() : null, tail ? paren(tail) : null, parsedTitle.org ? null : paren(parsedTitle.role)].filter(
       (c, i, all): c is string => !!c && c.length >= 3 && all.indexOf(c) === i
     );
     const org = candidates.find((c) => foldText(text).includes(foldText(c))) ?? parsedTitle.org ?? paren(parsedTitle.role) ?? null;
-    // A believed comma split names the role and the employer apart.
-    const fromTail = !!tail && !!org && org !== parsedTitle.org && (tail === org || tail.includes(org));
-    const parts = fromTail ? { ...parsedTitle, role: parsedTitle.role.slice(0, commaAt).trim(), org: tail } : parsedTitle;
+    // A believed split (comma or "for") names the role and the employer apart.
+    const fromFor = !!forSplit && !!org && org === forOrg;
+    const fromTail = !fromFor && !!tail && !!org && org !== parsedTitle.org && (tail === org || tail.includes(org));
+    const parts = fromFor
+      ? { ...parsedTitle, role: forSplit![1]!.trim(), org: forOrg }
+      : fromTail
+        ? { ...parsedTitle, role: parsedTitle.role.slice(0, commaAt).trim(), org: tail }
+        : parsedTitle;
     return { e, parts, org };
   });
   const orgs = parsed.map((p) => p.org).filter((o): o is string => !!o);

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { CV_HEADINGS, type CvBullet, type CvContact, type CvDocument, type CvRole } from "./cvDocument";
 import type { CvAccent, CvTemplate } from "./cvQuery";
-import { CV_ORG_SEPARATOR, cssString, emphasisRanges, skillText } from "./cvSheet";
+import { CV_ORG_SEPARATOR, cssString, emphasisRanges, skillParts } from "./cvSheet";
 import "./cv.css";
 
-// The designed CV — one markup, four templates (cv.css). Pure and hook-free, so the
+// The designed CV — one markup, every template (cv.css). Pure and hook-free, so the
 // server print page (/me/cv/print, which headless Chromium turns into the PDF) and the
 // client preview in the /me flow render the SAME component: what the seeker sees in the
 // preview is what the PDF carries.
@@ -21,6 +21,10 @@ import "./cv.css";
 // boxes after the flow and the PDF's text follows paint order (a `position: relative`
 // bullet once sent every bullet to the end of the extracted text). cvRoundTrip.ts
 // `cvReadingLines` is this order as text; `npm run cv:roundtrip` checks the two agree.
+//
+// The wrappers that carry no words (`.cv-entries` around a section's dated entries, the
+// level word's own span) exist only so a template can draw on them - a rail down the
+// entries, a quieter level - and the text stays exactly `cvReadingLines`.
 
 const ICON: Record<CvContact["kind"] | "location", ReactNode> = {
   email: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
@@ -143,17 +147,21 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
         {doc.experience.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.experience}</h3>
-            {doc.experience.map((r, i) => (
-              <Role key={i} r={r} />
-            ))}
+            <div className="cv-entries">
+              {doc.experience.map((r, i) => (
+                <Role key={i} r={r} />
+              ))}
+            </div>
           </section>
         ) : null}
         {projects.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.projects}</h3>
-            {projects.map((r, i) => (
-              <Role key={i} r={r} />
-            ))}
+            <div className="cv-entries">
+              {projects.map((r, i) => (
+                <Role key={i} r={r} />
+              ))}
+            </div>
           </section>
         ) : null}
         {/* Education is among the first things read: it stays in the flow on every
@@ -161,11 +169,13 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
         {doc.education.length ? (
           <section className="cv-sec">
             <h3 className="cv-sec-title">{h.education}</h3>
-            {doc.education.map((e, i) => (
-              <div key={i} className="cv-role is-short">
-                <EntryHead title={e.title} org={e.detail} dates={e.dates} />
-              </div>
-            ))}
+            <div className="cv-entries">
+              {doc.education.map((e, i) => (
+                <div key={i} className="cv-role is-short">
+                  <EntryHead title={e.title} org={e.detail} dates={e.dates} />
+                </div>
+              ))}
+            </div>
           </section>
         ) : null}
       </div>
@@ -183,9 +193,15 @@ export function DesignedCv({ doc, template, accent, id }: { doc: CvDocument; tem
                 <div key={i} className="cv-group">
                   {titled && g.title ? <h4 className="cv-group-title">{g.title}</h4> : null}
                   <ul className="cv-tags">
-                    {g.items.map((it) => (
-                      <li key={it.name}>{skillText(it)}</li>
-                    ))}
+                    {g.items.map((it) => {
+                      const p = skillParts(it);
+                      return (
+                        <li key={it.name}>
+                          {p.name}
+                          {p.level ? <span className="cv-lvl">{p.level}</span> : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}
