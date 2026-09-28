@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { companyConfigFor } from "@/app/_lib/jobseeker/companyConfig";
+import { companyConfigFor, companyOf } from "@/app/_lib/jobseeker/companyConfig";
 import { ChapterHead } from "./ChapterHead";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { isSourceAdapterName, type JobseekerProfile, type JobseekerSource, type SourceTier } from "@/app/_lib/jobseeker/types";
+import { isSourceAdapterName, type JobseekerProfile, type JobseekerSource, type SourceRunOutcome, type SourceTier } from "@/app/_lib/jobseeker/types";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { euresCountryPlan, readPreferredCountries, saveEuresCountries } from "../euresDoor";
@@ -28,12 +28,21 @@ import { cx, SV_BTN_GHOST, SV_BTN_PRIMARY, SV_BTN_SM_GHOST, SV_LOCK, SV_SWITCH }
 // summary re-asks with a line saying so. `blocked` and `collapsed` are pause reasons a
 // scan set and only the seeker clears.
 //
+// Tier A holds two kinds of source: whole-market feeds (EURES, the ministry's file,
+// Arbeitnow) and per-company boards. A board is ONE card per vendor (Greenhouse, Ashby...)
+// with its companies as rows - each its own switch - and the field that adds the next:
+// the live run's seven companies had made the lane twenty cards long, three times the
+// other two.
+//
 // EURES searches the seeker's own countries and an empty list is a query for nothing
 // (the adapter refuses it as config_invalid). So switching the EURES card ON with no
 // country set writes the country it names first — the same derivation as the feed's
 // one-click door (euresDoor.ts) — and the card says which countries it searches.
 
 const EURES_ADAPTER = "eures";
+/** A last run that landed (or was skipped by the cadence); any other outcome is said in
+ *  the flag's ink - a board that answered 404 read like a quiet success in grey. */
+const RAN_CLEAN: ReadonlySet<SourceRunOutcome> = new Set(["succeeded", "skipped"]);
 
 type Ack = { entry: CatalogEntryView; source: JobseekerSource | null; changed: boolean };
 
@@ -223,7 +232,11 @@ export function StepSources({
           {source?.pausedReason ? (
             <span className="chip st-dismissed">{t("paused", { reason: tPause(source.pausedReason) })}</span>
           ) : null}
-          {source?.lastRunAt && source.lastOutcome ? <span className="small muted" suppressHydrationWarning>{t("lastRun", { outcome: tOutcome(source.lastOutcome), when: rel(source.lastRunAt) })}</span> : null}
+          {source?.lastRunAt && source.lastOutcome ? (
+            <span className={cx("small muted", !RAN_CLEAN.has(source.lastOutcome) && "run-bad")} suppressHydrationWarning>
+              {t("lastRun", { outcome: tOutcome(source.lastOutcome), when: rel(source.lastRunAt) })}
+            </span>
+          ) : null}
           {tier === "B" && source?.acknowledgedAt ? <span className="small muted" suppressHydrationWarning>{t("acked", { when: rel(source.acknowledgedAt) })}</span> : null}
           {eures ? (
             <span className="small muted" data-testid="eures-countries">
@@ -231,28 +244,111 @@ export function StepSources({
             </span>
           ) : null}
         </div>
-        {entry ? (
-          <details>
-            <summary>{t("details")}</summary>
-            <p>
-              <b>{t("cadence")}</b> {entry.cadenceNote}
-            </p>
-            <p>
-              <b>{t("robots")}</b> {entry.robotsSummary}
-            </p>
-            <p>
-              <b>{t("terms")}</b> {entry.termsQuote}{" "}
-              <a href={entry.termsUrl} target="_blank" rel="noopener noreferrer">
-                {t("readOriginal")}
-              </a>
-            </p>
-          </details>
-        ) : null}
+        {entry ? details(entry) : null}
         {err ? (
           <div className="src-err" role="alert">
             {err.kind === "transport" ? resolveError(null, t("unreachable")) : resolveError(err, t("error"))}
           </div>
         ) : null}
+      </div>
+    );
+  };
+
+  const details = (entry: CatalogEntryView) => (
+    <details>
+      <summary>{t("details")}</summary>
+      <p>
+        <b>{t("cadence")}</b> {entry.cadenceNote}
+      </p>
+      <p>
+        <b>{t("robots")}</b> {entry.robotsSummary}
+      </p>
+      <p>
+        <b>{t("terms")}</b> {entry.termsQuote}{" "}
+        <a href={entry.termsUrl} target="_blank" rel="noopener noreferrer">
+          {t("readOriginal")}
+        </a>
+      </p>
+    </details>
+  );
+
+  /** One company on its vendor's card: the company, what it put in, its own switch. */
+  const companyRow = (entry: CatalogEntryView, source: JobseekerSource) => {
+    const on = sourceIsOn(source);
+    const n = postingCounts.get(source.id) ?? 0;
+    const err = errors[source.id];
+    const company = isSourceAdapterName(source.adapter) ? companyOf(source.adapter, source.config) : null;
+    return (
+      <li key={source.id} className={cx("co", source.pausedReason && "paused")}>
+        <div className="co-main">
+          <span className="co-name">{company ?? source.host}</span>
+          <span className="co-feed">
+            <span className={cx("chip", n > 0 && !on && "held")}>{n ? (on ? t("inSieve", { n }) : t("atDoor", { n })) : t("noneYet")}</span>
+            {source.pausedReason ? <span className="chip st-dismissed">{t("paused", { reason: tPause(source.pausedReason) })}</span> : null}
+            {source.lastRunAt && source.lastOutcome ? (
+              <span className={cx("small muted", !RAN_CLEAN.has(source.lastOutcome) && "run-bad")} suppressHydrationWarning>
+                {t("lastRun", { outcome: tOutcome(source.lastOutcome), when: rel(source.lastRunAt) })}
+              </span>
+            ) : null}
+          </span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          className={SV_SWITCH}
+          aria-checked={on}
+          aria-label={t("switchLabel", { label: sourceDisplayLabel(catalog, source) })}
+          disabled={!hasProfile || busy !== null}
+          aria-busy={busy === source.id || undefined}
+          onClick={() => void toggle(source.id, entry, source)}
+        />
+        {err ? (
+          <div className="src-err" role="alert">
+            {err.kind === "transport" ? resolveError(null, t("unreachable")) : resolveError(err, t("error"))}
+          </div>
+        ) : null}
+      </li>
+    );
+  };
+
+  /** A per-company vendor: its companies as rows, then the field that adds the next. */
+  const boardCard = (entry: CatalogEntryView) => {
+    const mine = sources.filter((s) => entryForSource(catalog, s)?.id === entry.id);
+    const [name, hint] = splitLabel(entry.label);
+    return (
+      <div key={entry.id} className="src board">
+        <div className="sh">
+          <div>
+            <div className="sl">{name}</div>
+            <div className="host">{hint ? `${entry.host} · ${hint}` : entry.host}</div>
+          </div>
+        </div>
+        {mine.length ? <ul className="cos">{mine.map((s) => companyRow(entry, s))}</ul> : null}
+        <form
+          className="cfg"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            void addCompany(entry);
+          }}
+        >
+          <input
+            value={slugs[entry.id] ?? ""}
+            onChange={(ev) => setSlugs((s) => ({ ...s, [entry.id]: ev.target.value }))}
+            placeholder={t("companyPlaceholder")}
+            aria-label={t("companyLabel", { label: entry.label })}
+            maxLength={80}
+            disabled={!hasProfile}
+          />
+          <button type="submit" className={SV_BTN_SM_GHOST} disabled={!hasProfile || busy !== null || !(slugs[entry.id] ?? "").trim()}>
+            {t("addCompany")}
+          </button>
+        </form>
+        {errors[entry.id] ? (
+          <div className="src-err" role="alert">
+            {resolveError(errors[entry.id], t("error"))}
+          </div>
+        ) : null}
+        {details(entry)}
       </div>
     );
   };
@@ -267,8 +363,9 @@ export function StepSources({
           <h3 id={`sv-tier-${tier}`}>{t(`lane.${tier}.title`)}</h3>
           <p>{t(`lane.${tier}.sub`)}</p>
         </header>
-        {tier === "C"
-          ? entries.map((e) => (
+        {tier === "C" ? (
+          <div className="srcs">
+            {entries.map((e) => (
               <div key={e.id} className="src refused" data-refused>
                 <div className="sh">
                   <div>
@@ -279,51 +376,34 @@ export function StepSources({
                 </div>
                 {e.refusedReason ? <div className="why">{e.refusedReason}</div> : null}
               </div>
-            ))
-          : entries.flatMap((e) => {
-              if (e.needsCompanyConfig) {
-                const mine = sources.filter((s) => entryForSource(catalog, s)?.id === e.id);
-                return [
-                  ...mine.map((s) => card(s.id, sourceDisplayLabel(catalog, s), s.host, e, s, tier)),
-                  <div key={`${e.id}-add`} className="src">
-                    <div className="sh">
-                      <div>
-                        <div className="sl">{e.label}</div>
-                        <div className="host">{t("needsCompany")}</div>
-                      </div>
-                    </div>
-                    <form
-                      className="cfg"
-                      onSubmit={(ev) => {
-                        ev.preventDefault();
-                        void addCompany(e);
-                      }}
-                    >
-                      <input
-                        value={slugs[e.id] ?? ""}
-                        onChange={(ev) => setSlugs((s) => ({ ...s, [e.id]: ev.target.value }))}
-                        placeholder={t("companyPlaceholder")}
-                        aria-label={t("companyLabel", { label: e.label })}
-                        maxLength={80}
-                        disabled={!hasProfile}
-                      />
-                      <button type="submit" className={SV_BTN_SM_GHOST} disabled={!hasProfile || busy !== null || !(slugs[e.id] ?? "").trim()}>
-                        {t("addCompany")}
-                      </button>
-                    </form>
-                    {errors[e.id] ? (
-                      <div className="src-err" role="alert">
-                        {resolveError(errors[e.id], t("error"))}
-                      </div>
-                    ) : null}
-                  </div>,
-                ];
-              }
-              const existing = sources.find((s) => entryForSource(catalog, s)?.id === e.id) ?? null;
-              return [card(e.id, e.label, e.host, e, existing, tier)];
-            })}
-        {custom.map((s) => card(s.id, s.host, s.host, null, s, tier))}
+            ))}
+          </div>
+        ) : (
+          laneBody(tier, entries, custom)
+        )}
       </section>
+    );
+  };
+
+  /** Feeds and boards, grouped when a lane holds both (tier A); one run otherwise. */
+  const laneBody = (tier: SourceTier, entries: CatalogEntryView[], custom: JobseekerSource[]) => {
+    const feeds = [
+      ...entries.filter((e) => !e.needsCompanyConfig).map((e) => card(e.id, e.label, e.host, e, sources.find((s) => entryForSource(catalog, s)?.id === e.id) ?? null, tier)),
+      ...custom.map((s) => card(s.id, s.host, s.host, null, s, tier)),
+    ];
+    const boards = entries.filter((e) => e.needsCompanyConfig).map(boardCard);
+    if (!feeds.length || !boards.length) return <div className="srcs">{[...feeds, ...boards]}</div>;
+    return (
+      <>
+        <div className="lane-group">
+          <div className="lane-sub">{t("group.feeds")}</div>
+          <div className="srcs">{feeds}</div>
+        </div>
+        <div className="lane-group">
+          <div className="lane-sub">{t("group.boards")}</div>
+          <div className="srcs">{boards}</div>
+        </div>
+      </>
     );
   };
 
@@ -373,6 +453,12 @@ export function StepSources({
       />
     </section>
   );
+}
+
+/** "Greenhouse job board (per company token)" -> the board's name and what to type. */
+function splitLabel(label: string): [string, string | null] {
+  const m = /^(.*?)\s*\(([^()]+)\)\s*$/.exec(label);
+  return m ? [m[1]!, m[2]!] : [label, null];
 }
 
 function AckDialog({

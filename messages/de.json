@@ -13452,7 +13452,11 @@
         },
         "euresCountries": "Sucht in {countries}",
         "euresDefault": "Noch kein Land gesetzt: Beim Einschalten wird {countries} durchsucht",
-        "euresNoCountry": "Kein Land gesetzt, EURES hat also nichts zu durchsuchen. Geben Sie eines unter Was Sie suchen an."
+        "euresNoCountry": "Kein Land gesetzt, EURES hat also nichts zu durchsuchen. Geben Sie eines unter Was Sie suchen an.",
+        "group": {
+          "feeds": "Offene Quellen",
+          "boards": "Karriereseiten von Firmen"
+        }
       },
       "direction": {
         "target": "Passt zu Ihrem Ziel: {title}",

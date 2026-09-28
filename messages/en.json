@@ -13452,7 +13452,11 @@
         },
         "euresCountries": "Searches {countries}",
         "euresDefault": "No country set yet: switching it on searches {countries}",
-        "euresNoCountry": "No country set, so EURES has nothing to search. Name one under What you want."
+        "euresNoCountry": "No country set, so EURES has nothing to search. Name one under What you want.",
+        "group": {
+          "feeds": "Open feeds",
+          "boards": "Company boards"
+        }
       },
       "direction": {
         "target": "Matches your target: {title}",

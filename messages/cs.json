@@ -13452,7 +13452,11 @@
         },
         "euresCountries": "Hledá v zemích: {countries}",
         "euresDefault": "Zatím není nastavena žádná země: po zapnutí bude hledat v: {countries}",
-        "euresNoCountry": "Není nastavena žádná země, EURES tedy nemá kde hledat. Zadejte ji v kroku Co chcete."
+        "euresNoCountry": "Není nastavena žádná země, EURES tedy nemá kde hledat. Zadejte ji v kroku Co chcete.",
+        "group": {
+          "feeds": "Otevřené zdroje",
+          "boards": "Kariérní stránky firem"
+        }
       },
       "direction": {
         "target": "Odpovídá vašemu cíli: {title}",

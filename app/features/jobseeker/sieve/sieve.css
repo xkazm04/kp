@@ -1309,6 +1309,17 @@
   gap: 36px;
   align-items: start;
 }
+/* The sheet column runs the row's full height, so the sheet (with its actions - they
+   stick TOGETHER) stays in view down the whole "You" column. Sticky on the sheet alone,
+   in a cell only as tall as sheet + actions, could travel just far enough to land on
+   the "Polish my CV" button under it. */
+.sv .cvwrap > :first-child {
+  align-self: stretch;
+}
+.sv .sheet-stick {
+  position: sticky;
+  top: calc(var(--sv-top-h) + 20px);
+}
 .sv .ai-note {
   display: inline-flex;
   align-items: center;
@@ -1334,9 +1345,8 @@
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--sv-ink-2);
-  position: sticky;
-  top: calc(var(--sv-top-h) + 20px);
-  max-height: calc(100vh - var(--sv-top-h) - 40px);
+  /* Room under it for the actions row (~52px) inside the viewport. */
+  max-height: calc(100vh - var(--sv-top-h) - 100px);
   overflow: auto;
 }
 .sv .sheet .l-name {
@@ -1454,6 +1464,15 @@
 }
 .sv .fact .v .muted {
   font-weight: 400;
+}
+.sv .fact .v2 {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .fact .v2 b {
+  color: var(--sv-ink-2);
+  font-weight: 600;
 }
 .sv .arch-badge {
   display: inline-flex;
@@ -2427,8 +2446,12 @@
   font-weight: 700;
   color: var(--sv-accent-ink);
 }
+/* Inline in the title: the preflight sets every svg to display:block, which had put the
+   mark on a line of its own above each target posting's title. */
 .sv .prow .t .tmark {
+  display: inline-block;
   vertical-align: -1px;
+  margin-right: 2px;
 }
 .sv .scoreline {
   display: flex;
@@ -3158,11 +3181,84 @@
 }
 
 /* ---------- sources ---------- */
+/* Tier A carries the open feeds AND a card per company-board vendor, so it takes two
+   thirds of the width with its cards in two columns, and B stands above C beside it -
+   three equal lanes had left A three times as long as the other two. */
 .sv .lanes {
   display: grid;
-  grid-template-columns: 1.25fr 1fr 0.85fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "a b"
+    "a c";
   gap: 18px;
   align-items: start;
+}
+.sv .lane.A {
+  grid-area: a;
+}
+.sv .lane.B {
+  grid-area: b;
+}
+.sv .lane.C {
+  grid-area: c;
+}
+.sv .lane.A .srcs {
+  columns: 2;
+  column-gap: 12px;
+}
+.sv .lane.A .srcs > .src {
+  break-inside: avoid;
+}
+.sv .lane-group + .lane-group {
+  margin-top: 8px;
+}
+.sv .lane-sub {
+  font: 600 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+  padding: 0 6px 8px;
+}
+/* A board: the vendor, then one row per company - each its own switch - then the field
+   that adds the next. */
+.sv .src.board .cos {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 1px dashed var(--sv-line-2);
+}
+.sv .src.board .co {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--sv-line-2);
+}
+.sv .src.board .co-main {
+  flex: 1 1 160px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sv .src.board .co-name {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+.sv .src.board .co-feed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .src.board .co .src-err {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+.sv .src.board .co.paused .co-name {
+  color: var(--sv-ink-2);
 }
 /* Three doors, each its own colour along its top edge: open (moss), knock first (the
    held violet), refused (the flag). */
@@ -3358,6 +3454,10 @@
   font-size: 0.875rem;
   color: var(--sv-ink-2);
   flex-wrap: wrap;
+}
+.sv .small.run-bad {
+  color: var(--sv-flag-ink);
+  font-weight: 600;
 }
 .sv .src-err {
   margin-top: 8px;
@@ -3584,10 +3684,10 @@
     display: none;
   }
   .sv .lanes {
-    grid-template-columns: 1fr 1fr;
-  }
-  .sv .lane.C {
-    grid-column: span 2;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "a a"
+      "b c";
   }
 }
 @media (max-width: 1280px) {
@@ -3611,9 +3711,10 @@
   .sv .sieve-art {
     width: min(100%, 420px);
   }
+  .sv .sheet-stick {
+    position: static;
+  }
   .sv .sheet {
-    position: relative;
-    top: 0;
     max-height: 420px;
   }
   .sv .brand {
@@ -3713,10 +3814,14 @@
     display: none;
   }
   .sv .lanes {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "a"
+      "b"
+      "c";
   }
-  .sv .lane.C {
-    grid-column: auto;
+  .sv .lane.A .srcs {
+    columns: 1;
   }
   .sv .honest,
   .sv-ack .consequence {

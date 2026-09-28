@@ -13452,7 +13452,11 @@
         },
         "euresCountries": "Recherche dans : {countries}",
         "euresDefault": "Aucun pays défini : une fois activée, la recherche porte sur {countries}",
-        "euresNoCountry": "Aucun pays défini : EURES n'a donc rien à chercher. Indiquez-en un dans Ce que vous voulez."
+        "euresNoCountry": "Aucun pays défini : EURES n'a donc rien à chercher. Indiquez-en un dans Ce que vous voulez.",
+        "group": {
+          "feeds": "Flux ouverts",
+          "boards": "Pages carrières d’entreprises"
+        }
       },
       "direction": {
         "target": "Correspond à votre objectif : {title}",

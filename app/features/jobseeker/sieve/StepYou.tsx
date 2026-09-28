@@ -10,6 +10,7 @@ import { acceptedEditsOf } from "../cv/cvContent";
 import { buildCvDocument } from "../cv/cvDocument";
 import { tailorTargetsOf } from "../cv/cvTailor";
 import type { DraftSource } from "../importOutcome";
+import { softWrapsJoined } from "./cvParagraphs";
 import { ProvMark } from "./marks";
 import { initialsOf, levelOf, provenanceOf, type ProvenanceKey, type ProvenanceMark } from "./sieveModel";
 import { cx, SV_BTN, SV_BTN_GHOST, SV_BTN_PRIMARY, SV_BTN_SM_GHOST, SV_TILE } from "./sieveRecipes";
@@ -68,18 +69,21 @@ function termsOf(profile: JobseekerProfile): Term[] {
   return out.filter((t) => t.term.length >= 2).sort((a, b) => b.term.length - a.term.length);
 }
 
-/** Split the CV into lines, each cut into plain text and highlighted phrases. Every key
- *  lights ONCE (its first occurrence): the flight is one phrase to one place. */
+function isHeading(line: string): boolean {
+  const bare = line.trim().replace(/[:：]$/, "").toLowerCase();
+  return bare.length <= 40 && HEADINGS.has(bare);
+}
+
+/** Split the CV into paragraphs (the PDF's soft wraps rejoined, cvParagraphs.ts), each cut
+ *  into plain text and highlighted phrases. Every key lights ONCE (its first occurrence):
+ *  the flight is one phrase to one place. */
 export function readCv(source: string, terms: Term[]): Line[] {
   const used = new Set<string>();
   const lines: Line[] = [];
   const res = terms.map((t) => ({ ...t, re: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(t.term)}(?![\\p{L}\\p{N}])`, "iu") }));
   let first = true;
-  for (const raw of source.split(/\r?\n/)) {
-    const text = raw.trimEnd();
-    if (!text.trim()) continue;
-    const bare = text.trim().replace(/[:：]$/, "").toLowerCase();
-    if (!first && bare.length <= 40 && HEADINGS.has(bare)) {
+  for (const text of softWrapsJoined(source.split(/\r?\n/), isHeading)) {
+    if (!first && isHeading(text)) {
       lines.push({ kind: "sec", pieces: [{ text: text.trim().replace(/[:：]$/, ""), key: null }] });
       continue;
     }
@@ -327,7 +331,7 @@ export function StepYou({
           {face === "designed" && designed ? (
             <CvDesigner doc={designed} mode="inline" targets={tailorTargets} skin={{ primary: SV_BTN_PRIMARY, ghost: SV_BTN_GHOST }} />
           ) : (
-            <>
+            <div className="sheet-stick">
               <div className="sheet" aria-label={t("sheetLabel")}>
                 {lines.length === 0 ? (
                   <p className="l-line">{t("noText")}</p>
@@ -363,7 +367,7 @@ export function StepYou({
                   </a>
                 ) : null}
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -388,12 +392,19 @@ export function StepYou({
               <div className="k">{t("fact.lives")}</div>
               <div className="v">{p.location?.trim() || <span className="muted">{t("notStated")}</span>}</div>
             </div>
+            {/* The field the years were spent in rides under them: as a fifth fact it sat
+                alone on a second row of the strip. */}
             <div className="fact">
               <div className="k">{t("fact.experience")}</div>
               <div className="v">
                 {years}
                 {p.archetype === "career_switcher" && typeof p.yearsExperience === "number" ? <span className="muted"> {t("otherField")}</span> : null}
               </div>
+              {p.roleFamily ? (
+                <div className="v2">
+                  {t("fact.field")} · <b>{enumLabel("family", p.roleFamily)}</b>
+                </div>
+              ) : null}
             </div>
             <div className="fact" data-tgt="edu">
               <div className="k">{t("fact.education")}</div>
@@ -403,12 +414,6 @@ export function StepYou({
               <div className="k">{t("fact.languages")}</div>
               <div className="v">{(p.languages ?? []).length ? (p.languages ?? []).join(", ") : <span className="muted">{t("notStated")}</span>}</div>
             </div>
-            {p.roleFamily ? (
-              <div className="fact">
-                <div className="k">{t("fact.field")}</div>
-                <div className="v">{enumLabel("family", p.roleFamily)}</div>
-              </div>
-            ) : null}
           </div>
 
           <div>
