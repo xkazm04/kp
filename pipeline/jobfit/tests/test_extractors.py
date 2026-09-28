@@ -166,6 +166,41 @@ def _positioned_pdf(runs: list[tuple[float, float, str]]) -> bytes:
     return bytes(out)
 
 
+class MojibakeTableTest(unittest.TestCase):
+    """A substitution is a repair only when the damaged bytes determine the answer.
+
+    A lossy decode can collapse several source letters onto one damaged sequence; a
+    table entry for that sequence is a guess, and the guess was resolved toward one
+    Czech capital letter (see the comment above MOJIBAKE_REPLACEMENTS).
+    """
+
+    @staticmethod
+    def _preimages(key: str) -> set[str]:
+        found: set[str] = set()
+        for codepage in ("cp1250", "cp1252"):
+            for codepoint in range(0x80, 0x3000):
+                char = chr(codepoint)
+                if char.encode("utf-8").decode(codepage, errors="replace") == key:
+                    found.add(char)
+        return found
+
+    def test_every_key_decodes_from_exactly_one_character(self) -> None:
+        for broken, fixed in E.MOJIBAKE_REPLACEMENTS.items():
+            with self.subTest(key=broken):
+                self.assertEqual(self._preimages(broken), {fixed})
+
+    def test_an_ambiguous_sequence_is_left_as_visible_damage(self) -> None:
+        damaged = "Plze\u0148, \u0141\u00f3d\u017a".encode("utf-8").decode("cp1250", errors="replace")
+        repaired = E.repair_text_encoding(damaged)
+        self.assertNotIn("\u0158", repaired)
+        self.assertIn("\u0139\ufffd", repaired)
+
+    def test_unambiguous_czech_damage_is_still_repaired(self) -> None:
+        text = "Senior v\u00fdvoj\u00e1\u0159, \u010cesk\u00e1 spo\u0159itelna, zku\u0161enosti"
+        damaged = text.encode("utf-8").decode("cp1250", errors="replace")
+        self.assertEqual(E.repair_text_encoding(damaged), text)
+
+
 class TwoColumnReadingOrderTest(unittest.TestCase):
     """A sidebar CV template interleaves its columns in the content stream. pypdf's
     default order put the sidebar's headings above the candidate's name and glued an

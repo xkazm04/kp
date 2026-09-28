@@ -23,6 +23,14 @@ MAX_PDF_PAGES = 200
 MAX_TEXT_CHARS = 2_000_000  # cumulative extracted-text budget
 
 
+# Every key must decode from exactly ONE character (pinned by
+# MojibakeTableTest): a table entry is a repair only while the damaged bytes still
+# determine the answer. "\u0139\ufffd" is NOT in the table on purpose. It is what
+# Ł Ń ň Ő and Ř ALL become once the second UTF-8 byte is undefined in cp1250 and
+# gets replaced, so mapping it to Ř guessed one letter of five: in this repo's own
+# Czech copy the five occur as ň 182 times to Ř 50, so the guess was wrong about
+# four times in five ("Plzeň" came back "PlzeŘ", "Łódź" as "Řód..."). The
+# sequence now passes through as visible damage instead of a confident wrong letter.
 MOJIBAKE_REPLACEMENTS = {
     "ÄŤ": "č",
     "ÄŚ": "Č",
@@ -36,7 +44,6 @@ MOJIBAKE_REPLACEMENTS = {
     "Ĺľ": "ž",
     "Ĺ˝": "Ž",
     "Ĺ™": "ř",
-    "Ĺ�": "Ř",
     "ĹŻ": "ů",
     "Ăˇ": "á",
     "Ă©": "é",
