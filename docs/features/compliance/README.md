@@ -331,13 +331,21 @@ the keyed path. `verifyDecisionChain` therefore returns a **key census**
 (`keyed`, `keylessCount`, `firstKeyedSeq`) beside `ok`, the records panel
 conditions its badge on it, and each row shows its own `key_id`.
 
-**TRUNCATION IS NOT DETECTED, at any key setting.** `verifyDecisionChain` walks a
-workspace's rows in `seq` order and checks each link against its predecessor; it
-holds no commitment to the chain's HEAD or LENGTH, so deleting the *newest* k rows
-leaves a shorter chain that still returns `ok: true` (and `keyed: true` on a keyed
-chain). Interior deletes and reorders still break the next link and are caught.
-Closing this needs an anchor outside the row set — a per-tenant head pointer MAC'd
-under the same key, which a deleter cannot re-sign — and is not built yet.
+**TRUNCATION IS DETECTED ONLY UNDER A HEAD THIS PROCESS HAS SEEN, at any key
+setting.** The chain holds no commitment to its own HEAD or LENGTH, so deleting the
+*newest* k rows leaves a shorter chain that re-hashes clean (and `keyed: true` on a
+keyed chain). Interior deletes break the next link, but the verification checkpoint
+used to hide them until the next full re-hash, because the incremental run starts
+above an anchor the delete did not touch. `resetSim` does both to the real workspace
+chain when it purges the demo's sealed rows. The **head witness** in
+`decision-record-store.ts` closes the watched case: each process remembers the highest
+`seq` it verified per workspace and how many rows sat at or below it, and a changed
+count or a missing head row fails the verdict on the next read, `{ full: true }`
+included, until restart. It lives in process memory for the checkpoint's reason (a DB
+row is writable by the deleter). A deletion made while no process had verified the
+chain is still not detected; closing that needs an anchor outside the row set — a
+per-tenant head pointer MAC'd under the same key, which a deleter cannot re-sign — and
+is not built yet.
 
 **No record is sealed for a decision that did not happen.** The screening wave seals
 the Art. 22 record *before* it flips the status (`app/_lib/screen-wave.ts`), so a
@@ -1013,7 +1021,7 @@ as of this doc:
 - **G6** — log-retention window is undocumented (never pruned, but no stated policy).
 - **Legacy entry ids still carry the applicant's email.** Applications filed before the surrogate id (`m-appl-<email-with-hyphens>-<job>`) keep that id after erasure: it is referenced by the sealed decision chain, pipeline events and exported ATS refs, and rewriting a primary key under a sealed chain is the irreversible act. New filings mint no such id, and an erased legacy row is no longer reachable by a re-application.
 - **The decision chain ships keyless by default** (UAT `LUC-ANA-1`). `KP_DECISION_HMAC_KEY` is unset in the reference deploy, so every sealed record carries `key_id = ''`: integrity-evident, not tamper-resistant against someone with write access to the database. The surface and this doc now say so (the badge is conditioned on the census, each row shows its `key_id`, and `.env.example` documents the var and its ceiling), which makes the CLAIM honest — it does not make the deployment keyed. Turning the key on is an operator action, and it cannot retro-seal existing records.
-- **Chain truncation is undetectable** (see the decision-sealing section above). `verifyDecisionChain` has no head/length commitment, so deleting the newest rows of a workspace's chain still verifies `ok: true` / `keyed: true`. Needs a MAC'd per-tenant head anchor stored outside the row set.
+- **Chain truncation is detected only when witnessed** (see the decision-sealing section above). `verifyDecisionChain` has no durable head/length commitment: the in-process head witness fails a chain that lost rows under a head the running process verified, but after a restart, deleting the newest rows of a workspace's chain still verifies `ok: true` / `keyed: true`. `resetSim` deletes sealed rows from the real workspace chain, so a demo reset now reads as a broken chain until restart. Needs a MAC'd per-tenant head anchor stored outside the row set, and a sim reset that no longer deletes sealed rows.
 - **G7** — no signed/SIEM audit export; only the org backup exists.
 - **G8** — no training/seed-data governance artifact.
 - **G10** — no post-market monitoring or incident-reporting runbook (Art. 72/73).

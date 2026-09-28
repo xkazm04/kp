@@ -200,10 +200,34 @@ type ChainCheckpoint = {
 };
 const chainCheckpoints = new Map<string, ChainCheckpoint>();
 
+// --- Head witness (deletions under a head this process verified) -----------------------
+//
+// The chain holds no commitment to its own HEAD or LENGTH (compliance README, "TRUNCATION
+// IS NOT DETECTED"): delete the newest rows and what is left re-hashes clean. And the
+// checkpoint above makes an INTERIOR delete invisible too until the next full re-hash,
+// because the incremental run starts above the anchor and the anchor row is untouched.
+// resetSim does both to the real workspace chain (it deletes the demo's sealed rows).
+//
+// The witness is the smallest commitment that closes that for a deletion this process can
+// see: the highest seq it has verified and how many rows sat at or below it. Rows at or
+// below a verified head only ever stay put (seq is AUTOINCREMENT, erasure skips this
+// table), so a changed count or a missing head row means records were removed under a
+// head this process already vouched for. Held in process memory for the checkpoint's
+// reason (a DB row would be writable by the deleter it guards against), and it is NOT
+// cleared by a failure, so every later read in this process keeps saying so, { full: true }
+// included: re-hashing what is left cannot prove what was removed.
+//
+// The limit, stated: per process and gone on restart, so a deletion made while no process
+// had verified the chain is not detected. That needs a head anchored outside the row set.
+type HeadWitness = { seq: number; count: number };
+const chainHeadWitness = new Map<string, HeadWitness>();
+
 /** Test seam: node --test isolates each file in its own process, not each test inside it,
- *  and a tamper test must be able to establish "no checkpoint yet". */
+ *  and a tamper test must be able to establish "no checkpoint yet". Clears the head
+ *  witness too: together they are what a process restart forgets. */
 export function resetDecisionChainCheckpointsForTests(): void {
   chainCheckpoints.clear();
+  chainHeadWitness.clear();
 }
 
 let _db: Database.Database | null = null;
@@ -478,6 +502,22 @@ export function verifyDecisionChain(
     keyed: Number(agg.n ?? 0) > 0 && keylessCount === 0,
     firstKeyedSeq: agg.first_keyed ?? null,
   };
+  // HEAD WITNESS — were rows removed at or below a head this process verified? If so the
+  // verified prefix is not the prefix it was: drop the checkpoint so the run below re-hashes
+  // from genesis (an interior delete then breaks at its exact seq), and fail the verdict
+  // even if what is left re-hashes clean (a tail delete leaves nothing else to break).
+  const witness = chainHeadWitness.get(workspaceId);
+  let witnessBroken = false;
+  if (witness) {
+    const w = d
+      .prepare(
+        `SELECT COUNT(*) AS n, SUM(CASE WHEN seq = ? THEN 1 ELSE 0 END) AS head
+           FROM decision_records WHERE workspace_id = ? AND seq <= ?`
+      )
+      .get(witness.seq, workspaceId, witness.seq) as { n: number; head: number | null };
+    witnessBroken = Number(w.n) !== witness.count || !Number(w.head ?? 0);
+    if (witnessBroken) chainCheckpoints.delete(workspaceId);
+  }
   // Should this run start from the checkpoint, or re-hash everything? Three ways to say no:
   // the caller demanded the full proof, no checkpoint exists yet, or the last full re-hash
   // has aged out (the scheduled re-verify).
@@ -559,6 +599,15 @@ export function verifyDecisionChain(
     // periodic full re-hash still lands on time however often the panel is opened.
     fullAt: fromSeq === 0 ? now : (start?.fullAt ?? now),
   });
+  // What is left re-hashed clean, but rows under the witnessed head are gone: the break is
+  // at that head, and the witness stays so the next read says the same.
+  if (witness && witnessBroken) return { ok: false, brokenAtSeq: witness.seq, ...census, ...scope };
+  if (lastSeq > 0 && lastSeq >= (witness?.seq ?? 0)) {
+    const atOrBelow = d
+      .prepare(`SELECT COUNT(*) AS n FROM decision_records WHERE workspace_id = ? AND seq <= ?`)
+      .get(workspaceId, lastSeq) as { n: number };
+    chainHeadWitness.set(workspaceId, { seq: lastSeq, count: Number(atOrBelow.n) });
+  }
   return { ok: true, brokenAtSeq: null, ...census, ...scope };
 }
 

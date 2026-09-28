@@ -465,3 +465,70 @@ test("a checkpoint whose key has been rotated away fails closed on the NEXT read
     delete process.env.KP_DECISION_HMAC_KEY_k9;
   }
 });
+
+// --- Deletions under a verified head (the head witness) ---------------------------------
+//
+// The chain commits to no head or length, so these are the deletes a link-by-link walk
+// cannot see. resetSim performs both shapes on a real workspace chain.
+
+/** Delete a stored row out-of-band — resetSim's DELETE, or an insider's. */
+function deleteRow(seq: number): void {
+  const d = raw();
+  d.prepare(`DELETE FROM decision_records WHERE seq=?`).run(seq);
+  d.close();
+}
+
+test("deleting the NEWEST rows under a head this process verified fails verification, full re-hash included", () => {
+  const ws = "ws-truncated";
+  ["tr1", "tr2", "tr3"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  withKey("kt", KEY_A, () => {
+    seal("tr1");
+    seal("tr2");
+    seal("tr3");
+    assert.equal(verifyDecisionChain(ws).ok, true, "sanity: verified clean, head = the third row");
+    const head = rows(ws)[2].seq;
+    deleteRow(head);
+    // What is left is a valid, fully keyed two-link chain: link-by-link it re-hashes clean.
+    const v = verifyDecisionChain(ws);
+    assert.equal(v.ok, false, "the verified head is gone, so the chain is not the chain this process vouched for");
+    assert.equal(v.brokenAtSeq, head, "the break is reported at the missing head");
+    assert.equal(v.count, 2);
+    const full = verifyDecisionChain(ws, { full: true });
+    assert.equal(full.ok, false, "re-hashing what is left cannot prove what was removed");
+  });
+});
+
+test("deleting an INTERIOR row under a checkpoint is caught on the next read, not 15 minutes later", () => {
+  const ws = "ws-interior";
+  ["in1", "in2", "in3"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  seal("in1");
+  seal("in2");
+  seal("in3");
+  assert.equal(verifyDecisionChain(ws).ok, true, "sanity: checkpointed clean at the third row");
+  const middle = rows(ws)[1].seq;
+  deleteRow(middle);
+  // Without the witness the checkpoint's anchor (the third row) is untouched, the
+  // incremental run re-hashes nothing, and this read returns ok.
+  const v = verifyDecisionChain(ws);
+  assert.equal(v.ok, false);
+  assert.equal(v.fullyVerified, true, "the witness voids the checkpoint and forces the full re-hash");
+  assert.equal(v.brokenAtSeq, rows(ws)[1].seq, "which finds the exact link that lost its predecessor");
+});
+
+test("the witness is per process: a deletion no process watched still verifies (the stated limit)", () => {
+  const ws = "ws-unwatched";
+  ["uw1", "uw2"].forEach((id) => seedEntry(id, ws));
+  resetDecisionChainCheckpointsForTests();
+  seal("uw1");
+  seal("uw2");
+  assert.equal(verifyDecisionChain(ws).ok, true);
+  resetDecisionChainCheckpointsForTests(); // a restart
+  deleteRow(rows(ws)[1].seq);
+  assert.equal(
+    verifyDecisionChain(ws, { full: true }).ok,
+    true,
+    "KNOWN LIMIT: without a head anchored outside the row set, a truncation nobody witnessed is invisible"
+  );
+});
