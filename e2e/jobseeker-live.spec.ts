@@ -149,6 +149,10 @@ const run = {
   cv: null as null | { skills: number; evidence: number; languages: number; reader: string },
   layouts: [] as string[],
   pdf: null as string | null,
+  /** The CV's own GitHub, read and used (counts only; the handle is never printed). */
+  github: null as null | { outcome: string; repos: number; skills: number; projects: number; onSheet: boolean },
+  /** The web research of the target titles (the pinned model's answer, counts only). */
+  research: null as null | { source: string; fallbackReason: string | null; model: string | null; core: number; common: number; emerging: number; sources: number; fetched: number; seconds: number },
   boards: [] as { spec: string; sourceId: string; via: "the Sources form" | "the API" }[],
   scan: null as null | { taskId: string; status: string; error: string | null; seconds: number; summary: ScanSummary | null },
   /** The follow-up passes (SCAN_PASSES): how many waited before each, and how it ended. */
@@ -893,6 +897,112 @@ test.describe("/me live: the operator's own CV through a real scan", () => {
     note(`on: ${list.filter(isOn).map((s) => sourceName(s, s.id)).join(" | ")}`);
   });
 
+  test("d2 · your GitHub: the handle the CV names is read, confirmed as yours, and its projects join the designed CV", async () => {
+    run.step = "d2";
+    test.setTimeout(6 * MIN);
+    await gotoMe(page, "/me");
+    const panel = page.locator("#s-cv .gh");
+    if (!(await check("the You column offers the GitHub panel", () => expect(panel).toBeVisible({ timeout: 30_000 })))) return;
+    const read = panel.getByRole("button", { name: /read my github/i });
+    // The panel OFFERS the handle the CV's own header names (GET's `suggestion`); a CV that
+    // names none leaves the step with nothing honest to read.
+    const offered = (await (await api.get("/api/jobseeker/github")).json()) as { suggestion?: string | null };
+    if (!(await read.count()) || !offered.suggestion) {
+      run.findings.push("The CV names no GitHub account, so the GitHub step read nothing (the panel offers a field for one).");
+      return;
+    }
+    const answered = page.waitForResponse((r) => r.request().method() === "POST" && pathnameOf(r.url()) === "/api/jobseeker/github", { timeout: 2 * MIN }).catch(() => null);
+    await read.click();
+    const res = await answered;
+    const body = res ? ((await res.json().catch(() => null)) as { outcome?: string; state?: { repos?: unknown[]; derived?: { skills?: unknown[] }; projects?: string[] } } | null) : null;
+    const outcome = body?.outcome ?? `http ${res?.status() ?? "none"}`;
+    if (outcome !== "ok") {
+      // Unavailable is not absent: a throttled or offline read is the install's state.
+      run.github = { outcome, repos: 0, skills: 0, projects: 0, onSheet: false };
+      run.findings.push(`The GitHub read answered "${outcome}": the step stopped there (the panel says so in its own words).`);
+      return;
+    }
+    await check("Yes, it's mine confirms the account and turns its evidence on", async () => {
+      await panel.getByRole("button", { name: /yes, it.s mine/i }).click();
+      await expect(panel.getByRole("switch", { name: /use my repositories/i })).toHaveAttribute("aria-checked", "true", { timeout: 30_000 });
+    });
+    const state = (await (await api.get("/api/jobseeker/github")).json()) as { state?: { confirmed?: boolean; use?: boolean; repos?: unknown[]; derived?: { skills?: unknown[] }; projects?: string[] } };
+    await check("GET /api/jobseeker/github holds the confirmation and the chosen projects", async () => {
+      expect(state.state?.confirmed).toBe(true);
+      expect(state.state?.use).toBe(true);
+      expect((state.state?.projects ?? []).length).toBeGreaterThan(0);
+    });
+    // The designed CV now carries the chosen repositories as Projects entries, each with its link.
+    const cv = ui.step(page, "cv");
+    let onSheet = false;
+    await check("the designed CV lists the chosen repositories under Projects, with their links", async () => {
+      await cv.getByRole("button", { name: /designed/i }).first().click();
+      const sheet = ui.designedSheet(cv);
+      await expect(sheet.getByText("Projects", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+      await expect(sheet.getByText(/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+/).first()).toBeVisible();
+      onSheet = true;
+    });
+    await shot(ui.designedSheet(cv), "designer/cv-with-github-projects.png");
+    run.github = {
+      outcome,
+      repos: (state.state?.repos ?? []).length,
+      skills: (state.state?.derived?.skills ?? []).length,
+      projects: (state.state?.projects ?? []).length,
+      onSheet,
+    };
+    note(`github: ${run.github.repos} repositories read, ${run.github.skills} skills shown, ${run.github.projects} projects on the CV`);
+  });
+
+  test("d3 · the market: the target titles are researched on the web, with sources", async () => {
+    run.step = "d3";
+    test.setTimeout(8 * MIN);
+    if (process.env.KP_ME_LIVE_RESEARCH === "0") {
+      run.findings.push("The market research step was skipped (KP_ME_LIVE_RESEARCH=0).");
+      return;
+    }
+    const want = ui.step(page, "want");
+    await want.scrollIntoViewIfNeeded();
+    const panel = want.locator(".market");
+    if (!(await check("the Want chapter offers the market research under the titles", () => expect(panel).toBeVisible({ timeout: 30_000 })))) return;
+    const t0 = Date.now();
+    const answered = page.waitForResponse((r) => r.request().method() === "POST" && pathnameOf(r.url()) === "/api/jobseeker/research", { timeout: 6 * MIN }).catch(() => null);
+    await panel.getByRole("button", { name: /research the market|research again/i }).first().click();
+    const res = await answered;
+    const body = res
+      ? ((await res.json().catch(() => null)) as {
+          record?: { model?: string | null; research?: { skills?: { tier: string }[]; sources?: { read: string }[] } | null } | null;
+          attempt?: { source: string; fallbackReason: string | null } | null;
+        } | null)
+      : null;
+    const research = body?.record?.research ?? null;
+    const skills = research?.skills ?? [];
+    run.research = {
+      source: body?.attempt?.source ?? (research ? "llm" : "none"),
+      fallbackReason: body?.attempt?.fallbackReason ?? null,
+      model: body?.record?.model ?? null,
+      core: skills.filter((x) => x.tier === "core").length,
+      common: skills.filter((x) => x.tier === "common").length,
+      emerging: skills.filter((x) => x.tier === "emerging").length,
+      sources: (research?.sources ?? []).length,
+      fetched: (research?.sources ?? []).filter((x) => x.read === "fetched").length,
+      seconds: Math.round((Date.now() - t0) / 1000),
+    };
+    if (!research) {
+      // Keyless is a state of the install, said by the panel - not a failed walk.
+      run.findings.push(`The market research did not run here (${run.research.fallbackReason ?? `HTTP ${res?.status() ?? "none"}`}); the designed CV's coverage read the postings instead.`);
+      return;
+    }
+    await check("the research ranks core skills with their sources, on the pinned model", async () => {
+      expect(run.research!.core).toBeGreaterThan(0);
+      expect(run.research!.sources).toBeGreaterThan(0);
+      expect(run.research!.model).toBe("claude-sonnet-5-5");
+      await expect(panel.locator(".mk-tier.core .mk-skill").first()).toBeVisible({ timeout: 30_000 });
+      await expect(panel.locator(".mk-foot")).toBeVisible();
+    });
+    await shot(panel, "market/research.png");
+    note(`research: ${run.research.core} core, ${run.research.common} common, ${run.research.emerging} emerging from ${run.research.sources} sources (${run.research.fetched} read in full) in ${run.research.seconds}s`);
+  });
+
   test("e · scan: a real scan runs to the end", async () => {
     run.step = "e";
     test.setTimeout(SCAN_BUDGET + 10 * MIN);
@@ -1152,6 +1262,20 @@ async function writeReport(): Promise<string> {
   L.push(`- Wants typed through the cards: ${[CITY, ...COUNTRIES.map((c) => c.toUpperCase())].join(", ")} · ${TITLES.join(", ")} · remote, hybrid · level and pay left unset`);
   if (run.cv) L.push(`- The CV read (counts only): ${run.cv.skills} skills, ${run.cv.evidence} evidence lines, ${run.cv.languages} languages; drafted by: ${run.cv.reader}`);
   if (run.layouts.length) L.push(`- Designer layouts cycled: ${run.layouts.join(", ")} · PDF: ${run.pdf ?? "not reached"}`);
+  if (run.github) {
+    L.push(
+      run.github.outcome === "ok"
+        ? `- The CV's own GitHub: ${run.github.repos} repositories read (labels only), ${run.github.skills} skills shown, ${run.github.projects} projects ${run.github.onSheet ? "on the designed CV" : "chosen (not seen on the sheet)"}`
+        : `- The CV's own GitHub: the read answered "${run.github.outcome}"`
+    );
+  }
+  if (run.research) {
+    L.push(
+      run.research.source === "llm"
+        ? `- Market research (${run.research.model}, ${run.research.seconds}s): ${run.research.core} core · ${run.research.common} common · ${run.research.emerging} emerging skills from ${run.research.sources} sources, ${run.research.fetched} read in full`
+        : `- Market research: did not run (${run.research.fallbackReason ?? "no answer"})`
+    );
+  }
   if (run.boards.length) L.push(`- Company boards: ${run.boards.map((b) => `${b.spec} (${b.via})`).join(", ")}`);
   if (run.scan) {
     const s = run.scan.summary;
