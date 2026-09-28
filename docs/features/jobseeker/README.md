@@ -216,6 +216,18 @@ readable text. `boardRules.ts` runs the source's rules over `config.listingUrls`
 (`{page}` placeholder, `maxPages`). Limits: `AdapterLimits { maxRefs: 500, maxDetailFetches:
 60 }` per source per run (the `PULL_LIMITS` precedent).
 
+**A company board's config names the company under the adapter's own key**
+(`companyConfig.ts`): Greenhouse `token`, Lever `site`, Ashby `board`, Workable
+`subdomain`, the rest `company`. Both UI forms used to send `{ slug }`, which no adapter
+reads, so every company board added from /me failed its create with 400; the create route
+now moves a legacy `slug` onto the right key, and the label reads either (found by the live
+e2e, 2026-09-28).
+
+**Whole-board feeds read up to the fetcher's ceiling** (`WHOLE_BOARD_MAX_BYTES`, 16 MB).
+A per-company ATS feed is one document holding every open job with its description:
+measured live, Anthropic's Greenhouse board is 9.0 MB and OpenAI's Ashby board 14.5 MB,
+both past the 2 MB page cap, so a scan recorded the AI companies' own boards as outages.
+
 ### API (`app/api/jobseeker/sources/**`, all `requireOperator()` → limiter → body)
 
 | Route | Verb | Does | Limiter |
@@ -770,6 +782,16 @@ The manual door is the `jobseeker_scan` task kind (`app/_lib/tasks.ts`: `tenancy
 workspace in flight, no outcome table — `/me/scans` renders the `scheduler_runs` row).
 Offline scans are NOT refused: acquisition answers `offline` per source and the stored
 postings are still structured and matched.
+
+**Big boards converge over passes.** A scan stops at its 8-minute wall budget and the next
+one resumes where it stopped (structured rows persist). Structuring was the slow part:
+the taxonomy's whole-token matcher recompiled a regex per term per posting (about 1.5 s a
+posting on an AI company's long ad); with its patterns cached and an exact substring
+pre-filter it is about 0.09 s (`pipeline/jobfit/taxonomy.py`, docs/features/matching). A
+live scan of 1,259 postings (EURES + Anthropic + OpenAI + ElevenLabs + Cohere + Hugging
+Face + Arbeitnow) still took three passes before the speed-up; the flow reads the whole
+dataset in pages of `POSTINGS_PAGE_MAX` (500) so a large sieve loads in three requests,
+not thirteen (the list's 120/10 min limit had locked a seeker out after nine reloads).
 
 ### API (`app/api/jobseeker/{scan,postings}/**`, all `requireOperator()` → limiter → work)
 

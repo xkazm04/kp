@@ -13,7 +13,9 @@ import { callJson, type CatalogEntryView, type SourcesPayload } from "../sources
 // conversation (its artifact carries what the CV could not place and the edit
 // suggestions the "You" step shows).
 
-const PAGE = 100;
+// A whole dataset in few requests: the list route's own ceiling (POSTINGS_PAGE_MAX), so a
+// 1,257-posting sieve loads in three reads rather than thirteen.
+const PAGE = 500;
 const MAX_PAGES = 30;
 
 type Page = { rows?: JobseekerPostingSummary[]; nextCursor?: string | null; newSince?: FeedNewSince; code?: string };

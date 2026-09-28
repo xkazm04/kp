@@ -13,6 +13,8 @@ import { politeFetch, _resetPolitenessForTests, _setPoliteFetchDepsForTests, typ
 import { adapterFor, hostForAdapter } from "./registry.ts";
 import { AdapterCollapsed, DEFAULT_ADAPTER_LIMITS, FetchHalt, type AdapterContext, type PostingRef } from "./types.ts";
 import { readJsonArrayStream } from "./jsonArrayStream.ts";
+import { WHOLE_BOARD_MAX_BYTES } from "./shared.ts";
+import { MAX_BODY_BYTES, MAX_BODY_BYTES_CEILING, type PoliteFetchOptions } from "../fetch/politeFetch.ts";
 import { rawFromDetailPage } from "./jsonld.ts";
 import { atsDiscover } from "./ats/discover.ts";
 import { mpsvItemToRaw } from "./mpsvBulk.ts";
@@ -430,4 +432,32 @@ test("KP_OFFLINE: every adapter in the registry yields offline through the REAL 
   assert.equal(network, 0, "no adapter reached the network");
   const raw: RawPosting | null = await adapterFor("eures").detail({ externalKey: "x", url: "https://e/x" }, ctxFor(source(), politeFetch));
   assert.equal(raw, null, "a feed detail with no hint yields nothing rather than fetching");
+});
+
+test("a whole-board ATS feed asks for the fetcher's ceiling, not the 2 MB page cap", async () => {
+  // Measured live 2026-09-28: Anthropic's Greenhouse board 9.0 MB, OpenAI's Ashby board
+  // 14.5 MB - read `too_large` at the default cap, and recorded as outages.
+  assert.equal(WHOLE_BOARD_MAX_BYTES, MAX_BODY_BYTES_CEILING);
+  assert.ok(WHOLE_BOARD_MAX_BYTES > MAX_BODY_BYTES);
+  const boards: Record<string, Record<string, unknown>> = {
+    ats_greenhouse: { token: "acme" },
+    ats_ashby: { board: "acme" },
+    ats_workable: { subdomain: "acme" },
+    ats_recruitee: { company: "acme" },
+    ats_lever: { site: "acme" },
+    ats_personio: { company: "acme" },
+    ats_teamtailor: { company: "acme" },
+  };
+  for (const [name, config] of Object.entries(boards)) {
+    const asked: PoliteFetchOptions[] = [];
+    const fetch: PoliteFetch = async (_url, opts) => {
+      asked.push(opts);
+      return { kind: "gone", status: 404, detail: "scripted" };
+    };
+    const src = source({ adapter: name as JobseekerSource["adapter"], kind: "ats", tier: "A", config });
+    await collect(adapterFor(src.adapter).discover(ctxFor(src, fetch))).catch(() => {
+      /* the scripted 404 ends discovery; only the options the adapter asked with matter here */
+    });
+    assert.equal(asked[0]?.maxBytes, WHOLE_BOARD_MAX_BYTES, name);
+  }
 });

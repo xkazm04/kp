@@ -2,7 +2,7 @@
 // The feed carries the description; `detail` completes from the hint.
 
 import type { RawPosting } from "../../types";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, rawPosting, safeSlug, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, rawPosting, safeSlug, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { xmlBlocks, xmlText } from "../xml";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
@@ -34,7 +34,7 @@ export const teamtailorAdapter: SourceAdapter = {
   async *discover(ctx) {
     const company = safeSlug(cfg(ctx.source, "company"));
     if (!company) throw new FetchHalt({ kind: "outage", detail: "config_missing_company" });
-    const out = mustOk(await ctx.fetch(teamtailorUrl(company), { sourceId: ctx.source.id, accept: "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8" }));
+    const out = mustOk(await ctx.fetch(teamtailorUrl(company), { sourceId: ctx.source.id, accept: "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     if (!/<rss\b|<feed\b/i.test(out.body)) throw new AdapterCollapsed("shape_changed", "Teamtailor feed is not RSS");
     const name = xmlText(out.body, "title")?.replace(/\s+[–-]\s+Jobs$/i, "") ?? company;
     let n = 0;

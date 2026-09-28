@@ -449,6 +449,10 @@ def _compact_fallback_hit(
     return False
 
 
+# Cached: the taxonomy holds thousands of surface forms, far past `re`'s own 512-entry
+# cache, so every call used to recompile its pattern - 5.1 s of a 15 s run over ten real
+# postings (posting_structure, profiled 2026-09-28 on AI companies' boards).
+@lru_cache(maxsize=32768)
 def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Pattern[str] | None":
     """Compile a whole-token matcher for an already-normalized surface form.
 
@@ -473,7 +477,16 @@ def _word_boundary_pattern(surface_norm: str, *, flexible_ws: bool) -> "re.Patte
 
 def contains_whole_token(text_norm: str, surface_norm: str) -> bool:
     """Whitespace-flexible whole-token presence of ``surface_norm`` in ``text_norm``
-    (both already :func:`normalize_text`-folded)."""
+    (both already :func:`normalize_text`-folded).
+
+    An exact pre-filter runs first: the pattern needs every word-part of the surface
+    LITERALLY present, so a part missing as a plain substring means no match - and a
+    substring test is C-fast where a lookaround regex over an 8-12 kB ad is not. Most
+    taxonomy terms are absent from any one ad; this skipped ~95% of the 9.2 s of regex
+    search the profile above measured, with no change to what matches."""
+    parts = surface_norm.split()
+    if not parts or any(part not in text_norm for part in parts):
+        return False
     pattern = _word_boundary_pattern(surface_norm, flexible_ws=True)
     return pattern is not None and pattern.search(text_norm) is not None
 
@@ -481,6 +494,8 @@ def contains_whole_token(text_norm: str, surface_norm: str) -> bool:
 def count_whole_token(text_norm: str, surface_norm: str) -> int:
     """Whole-token occurrence count of ``surface_norm`` in ``text_norm`` (both
     already :func:`normalize_text`-folded), literal spacing."""
+    if not surface_norm or surface_norm not in text_norm:
+        return 0
     pattern = _word_boundary_pattern(surface_norm, flexible_ws=False)
     return len(pattern.findall(text_norm)) if pattern is not None else 0
 

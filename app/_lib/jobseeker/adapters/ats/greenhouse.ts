@@ -3,7 +3,7 @@
 // company's careers URL (boards.greenhouse.io/<token>).
 
 import type { RawPosting } from "../../types";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
 export const GREENHOUSE_HOST = "boards-api.greenhouse.io";
@@ -35,7 +35,7 @@ export const greenhouseAdapter: SourceAdapter = {
   async *discover(ctx) {
     const token = safeSlug(cfg(ctx.source, "token"));
     if (!token) throw new FetchHalt({ kind: "outage", detail: "config_missing_token" });
-    const out = mustOk(await ctx.fetch(greenhouseUrl(token), { sourceId: ctx.source.id, accept: "application/json" }));
+    const out = mustOk(await ctx.fetch(greenhouseUrl(token), { sourceId: ctx.source.id, accept: "application/json", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     const payload = parseJsonBody(out.body) as { jobs?: unknown } | null;
     if (!payload || !Array.isArray(payload.jobs)) throw new AdapterCollapsed("shape_changed", "Greenhouse response has no jobs array");
     let n = 0;

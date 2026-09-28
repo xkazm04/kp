@@ -3,11 +3,19 @@
 
 import { htmlToText } from "../../job-posting-fetch";
 import { targetForms } from "../targetAliases";
-import type { FetchOk, FetchOutcome } from "../fetch/politeFetch";
+import { MAX_BODY_BYTES_CEILING, type FetchOk, type FetchOutcome } from "../fetch/politeFetch";
 import { isWorkMode, type JobseekerPreferences, type RawPosting } from "../types";
 import { FetchHalt, type AdapterContext } from "./types";
 
 /** A listing/index fetch the run cannot continue without: anything but `ok` halts. */
+/** A WHOLE-BOARD feed - one document holding every open job of a company WITH its
+ *  description (Greenhouse, Ashby, Workable, Recruitee, Lever, Personio, Teamtailor) - is
+ *  a download, not a page. Measured live 2026-09-28: Anthropic's Greenhouse board 9.0 MB,
+ *  OpenAI's Ashby board 14.5 MB, ElevenLabs' 2.9 MB - every one past the fetcher's 2 MB
+ *  default, so the scan read them `too_large` and recorded the AI companies' own boards as
+ *  outages. Such feeds ask for the fetcher's ceiling, which stays the one hard bound. */
+export const WHOLE_BOARD_MAX_BYTES = MAX_BODY_BYTES_CEILING;
+
 export function mustOk(outcome: FetchOutcome): FetchOk {
   if (outcome.kind !== "ok") throw new FetchHalt(outcome);
   return outcome;

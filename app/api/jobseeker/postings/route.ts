@@ -4,7 +4,7 @@ import { currentSession } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
-import { countJobseekerPostingsNewSince, listJobseekerPostings, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
+import { countJobseekerPostingsNewSince, listJobseekerPostings, POSTINGS_PAGE_MAX, type ListPostingsOptions } from "@/app/_lib/db/jobseeker-postings";
 import { getFeedAnchor, getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { isPostingStatus, type FeedNewSince } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -22,9 +22,10 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // options offered" refusal; the `field` rides beside it.
 //
 // Operator-gated by the proxy AND re-verified here; the limiter is the real bound in
-// open mode. 120/10min per IP — a feed page is a read, paged at 50.
+// open mode. 120/10min per IP — a feed page is a read, paged at 50 by default and at
+// most POSTINGS_PAGE_MAX (the flow reads its whole dataset at load in pages of that size).
 
-const POSTINGS_MAX_LIMIT = 100;
+const POSTINGS_MAX_LIMIT = POSTINGS_PAGE_MAX;
 const POSTINGS_DEFAULT_LIMIT = 50;
 
 const SORTS = ["total", "posted", "seen"] as const;

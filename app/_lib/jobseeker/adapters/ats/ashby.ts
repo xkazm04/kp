@@ -3,7 +3,7 @@
 
 import type { RawPosting } from "../../types";
 import { periodFromUnitText } from "../jsonld";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, num, parseJsonBody, rawPosting, safeSlug, str, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, num, parseJsonBody, rawPosting, safeSlug, str, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
 export const ASHBY_HOST = "api.ashbyhq.com";
@@ -56,7 +56,7 @@ export const ashbyAdapter: SourceAdapter = {
   async *discover(ctx) {
     const board = safeSlug(cfg(ctx.source, "board"));
     if (!board) throw new FetchHalt({ kind: "outage", detail: "config_missing_board" });
-    const out = mustOk(await ctx.fetch(ashbyUrl(board), { sourceId: ctx.source.id, accept: "application/json" }));
+    const out = mustOk(await ctx.fetch(ashbyUrl(board), { sourceId: ctx.source.id, accept: "application/json", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     const payload = parseJsonBody(out.body) as { jobs?: unknown } | null;
     if (!payload || !Array.isArray(payload.jobs)) throw new AdapterCollapsed("shape_changed", "Ashby response has no jobs array");
     let n = 0;

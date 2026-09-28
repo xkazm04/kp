@@ -2,7 +2,7 @@
 // tenant lives on `api.eu.lever.co` (config.eu = true). config: { site, eu? }.
 
 import type { RawPosting } from "../../types";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
 export const LEVER_HOST = "api.lever.co";
@@ -35,7 +35,7 @@ export const leverAdapter: SourceAdapter = {
   async *discover(ctx) {
     const site = safeSlug(cfg(ctx.source, "site"));
     if (!site) throw new FetchHalt({ kind: "outage", detail: "config_missing_site" });
-    const out = mustOk(await ctx.fetch(leverUrl(site, ctx.source.config.eu === true), { sourceId: ctx.source.id, accept: "application/json" }));
+    const out = mustOk(await ctx.fetch(leverUrl(site, ctx.source.config.eu === true), { sourceId: ctx.source.id, accept: "application/json", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     const payload = parseJsonBody(out.body);
     if (!Array.isArray(payload)) throw new AdapterCollapsed("shape_changed", "Lever response is not an array");
     let n = 0;

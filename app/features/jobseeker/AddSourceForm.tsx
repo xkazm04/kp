@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { companyConfigFor } from "@/app/_lib/jobseeker/companyConfig";
 import { useTranslations } from "next-intl";
 import { Info, Loader2, Plus } from "lucide-react";
 import { IconAction } from "@/app/_components/IconAction";
@@ -10,7 +11,7 @@ import { FailureNotice } from "./FailureNotice";
 import { callJson, type ApiFailure } from "./sourcesApi";
 
 // Two ways to add a source the catalog does not list by name: an ATS by company slug
-// + vendor (`{adapter: "ats_<vendor>", config: {slug}}`; the route derives the host),
+// + vendor (`{adapter: "ats_<vendor>", config: {<the adapter's key>: company}}`, companyConfig.ts; the route derives the host),
 // and a board by host (`{adapter: "board_sitemap_jsonld", host}`; an unknown host is
 // tier B by rule, so its first enable asks for the acknowledgement). Tier C hosts are
 // refused by the route with JOBSEEKER_SOURCE_REFUSED and rendered from the code.
@@ -62,7 +63,7 @@ export function AddSourceForm({ onCreated }: { onCreated(source: JobseekerSource
           className="space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (slug.trim()) void create("ats", { adapter: vendor, config: { slug: slug.trim() } });
+            if (slug.trim()) void create("ats", { adapter: vendor, config: companyConfigFor(vendor, slug) });
           }}
         >
           <p className="text-sm font-medium text-ink">{t("ats.label")}</p>

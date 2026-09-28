@@ -89,6 +89,12 @@ type SummaryRow = Omit<PostingRow, "body_text" | "jsonld_json" | "job_json" | "r
 const REASONED_AT = `CASE WHEN json_valid(reasoning_json)
        THEN COALESCE(json_extract(reasoning_json, '$.reasonedAt'), json_extract(reasoning_json, '$.at')) END`;
 
+/** The most summary rows one page returns. Summary rows carry no bodies, and the /me flow
+ *  reads its whole dataset at load: at 100 a page, a seeker whose scan found 1,257
+ *  postings spent 13 requests per load and met the list's 120/10min limit on the ninth
+ *  reload (a live scan across AI companies' boards, 2026-09-28). */
+export const POSTINGS_PAGE_MAX = 500;
+
 /** How many requirements the structured job states; NULL with no (readable) job. */
 const REQ_COUNT = `CASE WHEN json_valid(job_json) THEN json_array_length(job_json, '$.requirements') END`;
 
@@ -646,7 +652,7 @@ export function listJobseekerPostings(
   opts: ListPostingsOptions = {},
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { rows: JobseekerPostingSummary[]; nextCursor: string | null } {
-  const limit = Math.max(1, Math.min(200, Math.trunc(opts.limit ?? 50) || 50));
+  const limit = Math.max(1, Math.min(POSTINGS_PAGE_MAX, Math.trunc(opts.limit ?? 50) || 50));
   const sort = opts.sort ?? "total";
   const col = SORT_COLUMN[sort];
   // The tenant predicate is LITERAL in the SQL below, never assembled into `clauses`

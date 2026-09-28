@@ -5,6 +5,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createJobseekerSource, listJobseekerSources } from "@/app/_lib/db/jobseeker-sources";
 import { hostForAdapter } from "@/app/_lib/jobseeker/adapters/registry";
+import { withCompanyKey } from "@/app/_lib/jobseeker/companyConfig";
 import { sourceConfigUrls, vetSourceUrl } from "@/app/_lib/jobseeker/fetch/egress";
 import { catalogEntry, sourcesCatalog, tierForHost } from "@/app/_lib/jobseeker/sources-catalog";
 import { isSourceAdapterName, type SourceKind } from "@/app/_lib/jobseeker/types";
@@ -74,7 +75,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (entry.tier === "C") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403, { reason: entry.refusedReason });
       adapter = entry.adapter;
       tier = entry.tier;
-      const merged = { ...entry.defaultConfig, ...config };
+      // A company form that sent `{ slug }` (every one did) lands under the key the
+      // adapter reads (companyConfig.ts) - it used to be refused as a config with no host.
+      const merged = withCompanyKey(entry.adapter, { ...entry.defaultConfig, ...config });
       host = entry.needsCompanyConfig ? hostForAdapter(entry.adapter, merged) : entry.host;
       if (!host) return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { field: "config" });
       const refusedConfig = await refuseConfig(host, merged);
@@ -84,13 +87,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     if (!isSourceAdapterName(body.adapter)) return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { field: "adapter" });
     adapter = body.adapter;
-    host = hostForAdapter(body.adapter, config) ?? (typeof body.host === "string" && body.host.trim() ? body.host.trim().toLowerCase() : null);
+    const keyed = withCompanyKey(body.adapter, config);
+    host = hostForAdapter(body.adapter, keyed) ?? (typeof body.host === "string" && body.host.trim() ? body.host.trim().toLowerCase() : null);
     if (!host) return jsonRefusal("JOBSEEKER_RULES_INVALID", 400, { field: "host" });
     tier = tierForHost(host);
     if (tier === "C") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403);
-    const refusedConfig = await refuseConfig(host, config);
+    const refusedConfig = await refuseConfig(host, keyed);
     if (refusedConfig) return refusedConfig;
-    const created = createJobseekerSource({ kind: kindFor(adapter), adapter: body.adapter, tier, host, config }, await currentWorkspace());
+    const created = createJobseekerSource({ kind: kindFor(adapter), adapter: body.adapter, tier, host, config: keyed }, await currentWorkspace());
     return NextResponse.json({ source: created }, { status: 201 });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/sources", "JOBSEEKER_STORE_FAILED");

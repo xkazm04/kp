@@ -93,7 +93,7 @@ test("GET: filters — minTotal, sourceId, sort; an out-of-vocabulary value is a
     ["?status=archived", "status"],
     ["?sort=random", "sort"],
     ["?limit=0", "limit"],
-    ["?limit=101", "limit"],
+    ["?limit=501", "limit"],
     ["?minTotal=abc", "minTotal"],
   ] as const) {
     const bad = await get(query);

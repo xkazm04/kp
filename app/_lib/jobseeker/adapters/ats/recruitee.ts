@@ -1,7 +1,7 @@
 // Recruitee careers API (public): `<company>.recruitee.com/api/offers/`. config: { company }.
 
 import type { RawPosting } from "../../types";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
 export const recruiteeHost = (company: string) => `${company}.recruitee.com`;
@@ -35,7 +35,7 @@ export const recruiteeAdapter: SourceAdapter = {
   async *discover(ctx) {
     const company = safeSlug(cfg(ctx.source, "company"));
     if (!company) throw new FetchHalt({ kind: "outage", detail: "config_missing_company" });
-    const out = mustOk(await ctx.fetch(recruiteeUrl(company), { sourceId: ctx.source.id, accept: "application/json" }));
+    const out = mustOk(await ctx.fetch(recruiteeUrl(company), { sourceId: ctx.source.id, accept: "application/json", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     const payload = parseJsonBody(out.body) as { offers?: unknown } | null;
     if (!payload || !Array.isArray(payload.offers)) throw new AdapterCollapsed("shape_changed", "Recruitee response has no offers array");
     let n = 0;

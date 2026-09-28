@@ -61,6 +61,16 @@ networks" match a JD asking for "machine learning" without text-similarity
 noise. Coverage is tracked per role family in `data/taxonomy.json` (16
 families, 676 terms total) — see below.
 
+#### Whole-token matching is cached and pre-filtered
+`contains_whole_token` / `count_whole_token` test a surface form against normalized
+text with a lookaround regex. The taxonomy holds thousands of surface forms, past `re`'s
+512-entry cache, so every call recompiled its pattern; and each regex scanned the whole
+text even for a term the text does not hold. Profiled 2026-09-28 on real AI-company ads
+(8-12 kB each): 1.5 s a posting, 5.1 s of 15.2 s in `re.compile`, 9.2 s in `search`. The
+patterns are now `lru_cache`d and an exact pre-filter runs first (every word-part of the
+surface must be a plain substring of the text, or the pattern cannot match): 0.09 s a
+posting, with `test:eval:match` output identical to before.
+
 #### Language knock-out: alias buckets, matched on word boundaries
 The KO filter's language gate (`matching.py::_has_language`) resolves a required
 language to a curated alias bucket in `data/taxonomy.json::language_aliases` (12

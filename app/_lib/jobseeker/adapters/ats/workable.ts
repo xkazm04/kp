@@ -2,7 +2,7 @@
 // config: { subdomain }.
 
 import type { RawPosting } from "../../types";
-import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, workModeFromText } from "../shared";
+import { bodyFromHtml, cfg, isoOrNull, mustOk, parseJsonBody, rawPosting, safeSlug, str, WHOLE_BOARD_MAX_BYTES, workModeFromText } from "../shared";
 import { AdapterCollapsed, FetchHalt, type PostingRef, type SourceAdapter } from "../types";
 
 export const WORKABLE_HOST = "apply.workable.com";
@@ -34,7 +34,7 @@ export const workableAdapter: SourceAdapter = {
   async *discover(ctx) {
     const sub = safeSlug(cfg(ctx.source, "subdomain"));
     if (!sub) throw new FetchHalt({ kind: "outage", detail: "config_missing_subdomain" });
-    const out = mustOk(await ctx.fetch(workableUrl(sub), { sourceId: ctx.source.id, accept: "application/json" }));
+    const out = mustOk(await ctx.fetch(workableUrl(sub), { sourceId: ctx.source.id, accept: "application/json", maxBytes: WHOLE_BOARD_MAX_BYTES }));
     const payload = parseJsonBody(out.body) as { name?: unknown; jobs?: unknown } | null;
     if (!payload || !Array.isArray(payload.jobs)) throw new AdapterCollapsed("shape_changed", "Workable response has no jobs array");
     let n = 0;

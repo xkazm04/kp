@@ -1,5 +1,6 @@
 "use client";
 
+import { companyOf } from "@/app/_lib/jobseeker/companyConfig";
 import type { ExtractionRule, JobseekerSource, RuleDryRunResult } from "@/app/_lib/jobseeker/types";
 import { classifyApiFailure, TRANSPORT_FAILURE, type ClassifiedFailure } from "./apiFailure";
 
@@ -77,6 +78,6 @@ export function sourceDisplayLabel(catalog: CatalogEntryView[], source: Jobseeke
   const entry = entryForSource(catalog, source);
   if (!entry) return source.host;
   const base = short ? entry.label.split(" (")[0]! : entry.label;
-  const slug = (source.config as { slug?: unknown }).slug;
-  return entry.needsCompanyConfig && typeof slug === "string" && slug.trim() ? `${base} · ${slug.trim()}` : base;
+  const company = companyOf(source.adapter, source.config);
+  return entry.needsCompanyConfig && company ? `${base} · ${company}` : base;
 }
