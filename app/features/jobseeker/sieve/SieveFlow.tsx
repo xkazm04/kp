@@ -22,6 +22,8 @@ import { StepWant } from "./StepWant";
 import { StepWeigh } from "./StepWeigh";
 import { StepYou } from "./StepYou";
 import { useSieveData } from "./useSieveData";
+import { MarketMix } from "./MarketMix";
+import { useGithubEvidence, useRoleResearch } from "./useSeekerEvidence";
 import { EraseMeDoor } from "./EraseMeDoor";
 
 // /me — THE SIEVE, the job seeker's whole flow on one scrolling page
@@ -69,6 +71,10 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
   const locale = useLocale();
   const reduceMotion = useReducedMotion();
   const data = useSieveData(initial);
+  // The seeker's two outside sources: the web research of their titles and their own
+  // GitHub read - loaded once here, shown by StepWant / StepYou, used by the designed CV.
+  const research = useRoleResearch(data.profile, locale);
+  const github = useGithubEvidence(data.profile?.id ?? null);
   const { profile, rows, sources, catalog } = data;
   const [lastScanAt, setLastScanAt] = useState<string | null>(initial.lastScanAt);
   const [openId, setOpenId] = useState<string | null>(initial.openId);
@@ -339,13 +345,22 @@ export function SieveFlow({ initial }: { initial: SieveInitial }) {
         polishing={opening}
         onPolish={() => void openStudio()}
         reduceMotion={reduceMotion}
+        github={profile ? github : undefined}
+        research={research.record?.research ?? null}
       />
       {studioError ? (
         <div className="frame-main">
           <FailureNotice failure={studioError} fallback={tCv("createError")} onRetry={() => void openStudio()} retrying={opening} onDismiss={() => setStudioError(null)} />
         </div>
       ) : null}
-      <StepWant profile={profile} locale={locale} onSaved={data.setProfile} scanDoor={scanDoor} reduceMotion={reduceMotion} />
+      <StepWant
+        profile={profile}
+        locale={locale}
+        onSaved={data.setProfile}
+        scanDoor={scanDoor}
+        reduceMotion={reduceMotion}
+        market={profile ? <MarketMix api={research} profile={profile} github={github.state} /> : null}
+      />
       <StepSieve
         facts={facts}
         hasProfile={!!profile}

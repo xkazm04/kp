@@ -13471,6 +13471,81 @@
         "mark": "Correspond à votre objectif",
         "filter": "Votre direction",
         "hides": "{n, plural, one {masque # offre hors de votre direction} other {masque # offres hors de votre direction}}"
+      },
+      "github": {
+        "eyebrow": "Votre travail public",
+        "title": "Ajoutez votre GitHub",
+        "titleRead": "Votre GitHub :",
+        "lede": "Vos dépôts publics peuvent étayer les compétences de votre CV et remplir sa section Projets.",
+        "ledeSuggested": "Votre CV renvoie vers <b>github.com/{handle}</b>. Ses dépôts publics peuvent étayer les compétences de votre CV et remplir sa section Projets.",
+        "placeholder": "votre-compte-github",
+        "handleLabel": "Compte ou lien GitHub",
+        "read": "Lire mon GitHub",
+        "reading": "Lecture…",
+        "readAgain": "Relire",
+        "promise": "Nous lisons les noms, langages, sujets et descriptions de vos dépôts publics, jamais le code. Rien n’est utilisé avant que vous confirmiez que le compte est le vôtre.",
+        "isThisYou": "<b>{name}</b>, {n, plural, one {# dépôt public} other {# dépôts publics}}. Est-ce votre compte ?",
+        "confirm": "Oui, c’est le mien",
+        "notMine": "Pas le mien, l’oublier",
+        "useLabel": "Utiliser mes dépôts comme preuves",
+        "useOn": "Leurs compétences comptent comme travail de projet dans vos scores, jamais au-dessus de votre expérience professionnelle.",
+        "useOff": "Désactivé : vos scores ne lisent que votre CV.",
+        "skillsTitle": "Ce que montrent vos dépôts",
+        "repos": "{n, plural, one {# dépôt} other {# dépôts}}",
+        "onCv": "aussi dans votre CV",
+        "notOnCv": "pas dans votre CV",
+        "noSkills": "Aucune compétence que nous savons nommer n’apparaît dans les libellés de vos dépôts. Cela ne dit rien de votre travail.",
+        "projectsTitle": "Projets dans votre CV · {n} sur {max}",
+        "noDescription": "sans description",
+        "pushed": "mis à jour {when}",
+        "archived": "archivé",
+        "budget": "Lu {when} : les noms, langages, sujets et descriptions de {repos, plural, one {# dépôt public} other {# dépôts publics}}, et les langages de {read}. Pas le code.",
+        "partial": "GitHub a limité la lecture en cours de route : les langages de certains dépôts manquent. Ce n’est pas une absence.",
+        "truncated": "Vous avez plus de dépôts qu’une lecture n’en couvre ; les plus récemment mis à jour ont été lus.",
+        "forget": "Oublier mon GitHub",
+        "error": "Votre GitHub n’a pas pu être enregistré.",
+        "outcome": {
+          "ok": "Lu.",
+          "invalid_handle": "Ce n’est pas un nom ou un lien de compte GitHub.",
+          "not_found": "GitHub n’a aucun compte à ce nom.",
+          "not_a_person": "C’est le compte d’une organisation. Seul le compte personnel de quelqu’un peut étayer ses compétences.",
+          "throttled": "GitHub limite en ce moment la fréquence de lecture de cette installation. Rien n’a été conclu. Réessayez plus tard.",
+          "throttledWait": "GitHub limite la fréquence de lecture de cette installation. Rien n’a été conclu. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
+          "offline": "Cette installation fonctionne hors ligne : GitHub ne peut pas être lu.",
+          "unreachable": "GitHub n’a pas répondu. Rien n’a été conclu. Réessayez.",
+          "failed": "La lecture ne s’est pas terminée. Rien n’a été conclu. Réessayez."
+        }
+      },
+      "market": {
+        "eyebrow": "Ce que demande le marché",
+        "title": "Ce que {titles} demande aujourd’hui",
+        "lede": "Les offres et rapports de marché actuels pour {markets}, lus sur le web et comparés à votre CV.",
+        "marketsAny": "l’Europe",
+        "coreHave": "compétences clés que vous montrez",
+        "coreHaveLabel": "Vous montrez {have} compétences clés sur {total}",
+        "running": "Lecture du marché pour {titles}…",
+        "runningNote": "Claude Sonnet 5.5 cherche et lit des sources. Cela prend en général moins de deux minutes.",
+        "ctaBody": "Claude Sonnet 5.5 cherche sur le web ce que ces postes demandent en ce moment pour <b>{markets}</b>, avec ses sources. Seuls vos intitulés et vos marchés sont envoyés, jamais votre CV.",
+        "cta": "Explorer le marché",
+        "tier": {
+          "core": "Essentiel",
+          "common": "Courant",
+          "emerging": "Émergent"
+        },
+        "have": {
+          "cv": "dans votre CV",
+          "github": "votre GitHub",
+          "missing": "pas encore"
+        },
+        "read": {
+          "fetched": "lu en entier",
+          "snippet": "résultat de recherche seulement"
+        },
+        "footer": "Exploré le {date} avec {model} · {n, plural, one {# source} other {# sources}}, {fetched} lues en entier",
+        "again": "Explorer à nouveau",
+        "keyless": "La recherche web nécessite le Claude CLI sur cette installation. En attendant, la couverture de votre CV lit vos propres offres.",
+        "failed": "La recherche ne s’est pas terminée ({reason}). Rien n’a été enregistré. Réessayez.",
+        "error": "La recherche n’a pas pu démarrer."
       }
     },
     "designedCv": {
@@ -13542,7 +13617,9 @@
         "allShown": "Votre CV les montre toutes.",
         "shownToggle": "Où votre CV les montre",
         "inSkills": "Compétences",
-        "inSummary": "Profil"
+        "inSummary": "Profil",
+        "research": "Votre CV montre {shown} des {total, plural, one {# compétence} other {# compétences}} que les postes {target} demandent aujourd’hui.",
+        "researchNote": "D’après une recherche web du marché du {date}."
       },
       "saveFailed": "Votre choix de mise en page n’est pas encore enregistré, nouvel essai en cours.",
       "downloadSingleFlow": "Télécharger le PDF sur une colonne",

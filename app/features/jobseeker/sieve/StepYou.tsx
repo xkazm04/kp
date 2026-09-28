@@ -10,7 +10,11 @@ import { acceptedEditsOf } from "../cv/cvContent";
 import { buildCvDocument } from "../cv/cvDocument";
 import { tailorTargetsOf } from "../cv/cvTailor";
 import type { DraftSource } from "../importOutcome";
+import { cvProfile } from "@/app/_lib/jobseeker/githubEvidence";
+import type { RoleResearch } from "@/app/_lib/jobseeker/roleResearch";
 import { softWrapsJoined } from "./cvParagraphs";
+import { GithubPanel } from "./GithubPanel";
+import type { GithubEvidenceApi } from "./useSeekerEvidence";
 import { ProvMark } from "./marks";
 import { initialsOf, levelOf, provenanceOf, type ProvenanceKey, type ProvenanceMark } from "./sieveModel";
 import { cx, SV_BTN, SV_BTN_GHOST, SV_BTN_PRIMARY, SV_BTN_SM_GHOST, SV_TILE } from "./sieveRecipes";
@@ -137,6 +141,8 @@ export function StepYou({
   onPolish,
   reduceMotion,
   postings,
+  github,
+  research,
 }: {
   profile: JobseekerProfile | null;
   draftSource: DraftSource;
@@ -148,6 +154,12 @@ export function StepYou({
   /** The sieve's rows (every posting, decided and gone included): the designed CV's
    *  "Tailor for" reads what postings at each stated target ask for. Null while loading. */
   postings?: JobseekerPostingSummary[] | null;
+  /** The seeker's own GitHub account (useSeekerEvidence.ts): its panel here, and the
+   *  repositories they picked join the designed CV's Projects section. */
+  github?: GithubEvidenceApi;
+  /** The web research of their target titles, when there is one: it leads the designed
+   *  CV's "Tailor for" demand (cvTailor.ts demandFor), as it does on the print page. */
+  research?: RoleResearch | null;
 }) {
   const t = useTranslations("me.sieve.you");
   const enumLabel = useEnumLabel();
@@ -164,15 +176,22 @@ export function StepYou({
   // The designed CV carries the line edits the seeker ACCEPTED in the CV studio (the
   // newest CV conversation's record, which carries the earlier ones forward) — the same
   // record the print page and the PDF read, so the preview is what they download.
-  const designed = useMemo(
-    () =>
-      profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length)
-        ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText, acceptedEdits: acceptedEditsOf([cvDialog]) })
-        : null,
-    [profile, cvDialog]
+  // The GitHub repositories the seeker picked join its Projects section (the print page
+  // reads the same state, githubEvidence.ts cvProfile).
+  const githubState = github?.state ?? null;
+  const designed = useMemo(() => {
+    if (!profile) return null;
+    const sheet = cvProfile(profile.profile, githubState);
+    return profile.cvSourceText || (sheet.evidence ?? []).length
+      ? buildCvDocument({ profile: sheet, preferences: profile.preferences, cvSourceText: profile.cvSourceText, acceptedEdits: acceptedEditsOf([cvDialog]) })
+      : null;
+  }, [profile, cvDialog, githubState]);
+  // The seeker's stated targets, each with its demand, for the designer's "Tailor for" -
+  // led by the web research of those titles when there is one.
+  const tailorTargets = useMemo(
+    () => (profile ? tailorTargetsOf(profile.preferences.targetTitles, postings, research ?? null) : []),
+    [profile, postings, research]
   );
-  // The seeker's stated targets, each with its demand, for the designer's "Tailor for".
-  const tailorTargets = useMemo(() => (profile ? tailorTargetsOf(profile.preferences.targetTitles, postings) : []), [profile, postings]);
 
   // The flight: once per CV per browser session, when the step first scrolls into view.
   const fly = useCallback(() => {
@@ -505,6 +524,8 @@ export function StepYou({
               </ul>
             </div>
           ) : null}
+
+          {github ? <GithubPanel api={github} /> : null}
 
           <div className="honest">
             <div className="h">

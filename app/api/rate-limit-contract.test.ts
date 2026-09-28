@@ -2220,6 +2220,28 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     expensive: "deepDivePosting(",
   },
+  // jobseeker — the web research of the target titles and the seeker's own GitHub read.
+  {
+    // One web session on the pinned model (Claude Sonnet 5.5, WebSearch + WebFetch, up to
+    // 16 turns, a few dimes); 6 per HOUR per IP. A fresh stored answer is served before
+    // any spawn, but still behind the limiter (the POST always means "research now").
+    rel: "./jobseeker/research/route.ts",
+    key: "`jobseeker-research:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runPythonCli(",
+    windowMs: 60 * 60_000,
+    windowSrc: "60 * 60_000",
+  },
+  {
+    // One read = 1 + up to 3 list pages + up to 12 /languages calls against GitHub's own
+    // budget (60 an hour without a token), then one derivation spawn; 10/10min per IP.
+    rel: "./jobseeker/github/route.ts",
+    key: "`jobseeker-github:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "readSeekerGithub(",
+  },
   // jobseeker — round 26: the feed's last-seen anchor.
   {
     // One write per departure (visibilitychange → hidden, pagehide) or explicit

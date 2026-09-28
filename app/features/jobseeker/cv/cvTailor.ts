@@ -168,9 +168,20 @@ function subjectPhrases(title: string): string[][] {
 // ── demand ─────────────────────────────────────────────────────────────────────────
 
 export type CvDemandSkill = { skill: string; count: number };
-/** What the target asks for. `postings` = how many target postings it was read from;
- *  `lexicon` = none yet, the built-in list stands in; `none` = neither exists. */
-export type CvDemand = { source: "postings" | "lexicon" | "none"; postings: number; skills: CvDemandSkill[] };
+/** What the target asks for. `research` = a web research of the role's current mix
+ *  (roleResearch.ts; `asOf` its date, `count` the tier's weight: core 3, common 2,
+ *  emerging 1); `postings` = how many target postings it was read from; `lexicon` = none
+ *  yet, the built-in list stands in; `none` = neither exists. */
+export type CvDemand = { source: "research" | "postings" | "lexicon" | "none"; postings: number; skills: CvDemandSkill[]; asOf?: string | null };
+
+/** A research as tailoring reads it - structural, so this module (which ships to the
+ *  browser) never imports the server-side research module. */
+export type CvResearchInput = {
+  titles: readonly string[];
+  asOf: string;
+  skills: readonly { skill: string; tier: string; share: number | null }[];
+};
+const TIER_WEIGHT: Readonly<Record<string, number>> = { core: 3, common: 2, emerging: 1 };
 type PostingLike = Pick<JobseekerPostingSummary, "targetAlignment" | "matchedSkills" | "missingSkills">;
 
 /** How many demanded skills tailoring and coverage read: the most-asked, enough to be the
@@ -184,11 +195,35 @@ function isAtTarget(p: PostingLike, target: string): boolean {
   return !ta.matchedTitle || sameTokens(titleTokens(ta.matchedTitle), titleTokens(target));
 }
 
-/** The union of the requirements (met and missing) of the postings at `target`, counted
- *  once per posting, most-asked first. Order-independent: the /me preview and the server
- *  print page read the same rows in different orders and must build the same sheet. */
-export function demandFor(target: string, postings: readonly PostingLike[] | null | undefined): CvDemand {
+/** The research's skills for `target` when the research covers that title: core first,
+ *  then by the share a source stated, de-duplicated on the tailoring term. */
+function researchDemand(target: string, research: CvResearchInput, postings: number): CvDemand | null {
+  const covers = research.titles.some((t) => sameTokens(titleTokens(t), titleTokens(target)));
+  if (!covers) return null;
+  const seen = new Set<string>();
+  const skills: CvDemandSkill[] = [];
+  const ranked = [...research.skills].sort(
+    (a, b) => (TIER_WEIGHT[b.tier] ?? 2) - (TIER_WEIGHT[a.tier] ?? 2) || (b.share ?? -1) - (a.share ?? -1) || (a.skill < b.skill ? -1 : a.skill > b.skill ? 1 : 0)
+  );
+  for (const r of ranked) {
+    const term = termOf(r.skill, 1, true);
+    if (!term || seen.has(term.key)) continue;
+    seen.add(term.key);
+    skills.push({ skill: term.label, count: TIER_WEIGHT[r.tier] ?? 2 });
+    if (skills.length === DEMAND_CAP) break;
+  }
+  return skills.length ? { source: "research", postings, skills, asOf: research.asOf } : null;
+}
+
+/** What `target` asks for: a web research of the role when one covers it (the market's
+ *  current mix, sourced), else the union of the requirements (met and missing) of the
+ *  postings at `target`, counted once per posting, most-asked first, else the lexicon.
+ *  Order-independent: the /me preview and the server print page read the same rows in
+ *  different orders and must build the same sheet - and must be handed the same research. */
+export function demandFor(target: string, postings: readonly PostingLike[] | null | undefined, research?: CvResearchInput | null): CvDemand {
   const at = (postings ?? []).filter((p) => isAtTarget(p, target));
+  const fromResearch = research ? researchDemand(target, research, at.length) : null;
+  if (fromResearch) return fromResearch;
   if (at.length) {
     const byKey = new Map<string, { count: number; labels: Map<string, number> }>();
     for (const p of at) {
@@ -223,8 +258,12 @@ export function demandFor(target: string, postings: readonly PostingLike[] | nul
  *  the /me preview and the print page both build it here from the same titles. */
 export type CvTailorTarget = { title: string; demand: CvDemand };
 
-export function tailorTargetsOf(targetTitles: readonly string[], postings: readonly PostingLike[] | null | undefined): CvTailorTarget[] {
-  return targetTitles.map((t) => t.trim()).filter(Boolean).map((title) => ({ title, demand: demandFor(title, postings) }));
+export function tailorTargetsOf(
+  targetTitles: readonly string[],
+  postings: readonly PostingLike[] | null | undefined,
+  research?: CvResearchInput | null
+): CvTailorTarget[] {
+  return targetTitles.map((t) => t.trim()).filter(Boolean).map((title) => ({ title, demand: demandFor(title, postings, research) }));
 }
 
 // ── the pass ───────────────────────────────────────────────────────────────────────
@@ -241,6 +280,8 @@ export type CvCoverage = {
   target: string;
   source: CvDemand["source"];
   postings: number;
+  /** The research's date when the demand came from one. */
+  asOf: string | null;
   shown: { skill: string; count: number; where: CvCoverageWhere[] }[];
   missing: { skill: string; count: number }[];
 };
@@ -437,7 +478,7 @@ export function tailorCvDocument(
   return {
     doc: { ...doc, summary, objective, experience: roles, projects, skills: groups, improvements: [...doc.improvements, ...moves], questions },
     moves,
-    coverage: { target, source: demand.source, postings: demand.postings, shown, missing },
+    coverage: { target, source: demand.source, postings: demand.postings, asOf: demand.asOf ?? null, shown, missing },
     offTargetRoles: fullOnTarget ? offTarget.length : 0,
   };
 }

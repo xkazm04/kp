@@ -13471,6 +13471,81 @@
         "mark": "Odpovídá vašemu cíli",
         "filter": "Váš směr",
         "hides": "{n, plural, one {skrývá # nabídku mimo váš směr} few {skrývá # nabídky mimo váš směr} many {skrývá # nabídky mimo váš směr} other {skrývá # nabídek mimo váš směr}}"
+      },
+      "github": {
+        "eyebrow": "Vaše veřejná práce",
+        "title": "Přidejte svůj GitHub",
+        "titleRead": "Váš GitHub:",
+        "lede": "Vaše veřejné repozitáře mohou podložit dovednosti z životopisu a naplnit jeho sekci Projekty.",
+        "ledeSuggested": "Váš životopis odkazuje na <b>github.com/{handle}</b>. Jeho veřejné repozitáře mohou podložit dovednosti z životopisu a naplnit sekci Projekty.",
+        "placeholder": "vas-ucet-na-githubu",
+        "handleLabel": "Účet nebo odkaz na GitHub",
+        "read": "Načíst můj GitHub",
+        "reading": "Načítám…",
+        "readAgain": "Načíst znovu",
+        "promise": "Čteme názvy, jazyky, témata a popisy vašich veřejných repozitářů, nikdy kód. Nic se nepoužije, dokud nepotvrdíte, že je účet váš.",
+        "isThisYou": "<b>{name}</b>, {n, plural, one {# veřejný repozitář} few {# veřejné repozitáře} other {# veřejných repozitářů}}. Je to váš účet?",
+        "confirm": "Ano, je můj",
+        "notMine": "Není můj, zapomenout",
+        "useLabel": "Použít mé repozitáře jako doklad",
+        "useOn": "Jejich dovednosti se ve skóre počítají jako projektová práce, nikdy výš než vaše pracovní zkušenost.",
+        "useOff": "Vypnuto: skóre čte jen váš životopis.",
+        "skillsTitle": "Co ukazují vaše repozitáře",
+        "repos": "{n, plural, one {# repozitář} few {# repozitáře} other {# repozitářů}}",
+        "onCv": "i v životopise",
+        "notOnCv": "není v životopise",
+        "noSkills": "V popiscích vašich repozitářů se neobjevila žádná dovednost, kterou umíme pojmenovat. O vaší práci to nic neříká.",
+        "projectsTitle": "Projekty v životopise · {n} z {max}",
+        "noDescription": "bez popisu",
+        "pushed": "aktualizováno {when}",
+        "archived": "archivováno",
+        "budget": "Načteno {when}: názvy, jazyky, témata a popisy {repos, plural, one {# veřejného repozitáře} other {# veřejných repozitářů}} a jazyky {read} z nich. Ne kód.",
+        "partial": "GitHub čtení v půli omezil, u některých repozitářů proto chybí jazyky. Neznamená to, že tam nejsou.",
+        "truncated": "Máte víc repozitářů, než pokryje jedno načtení; načetly se ty naposledy aktualizované.",
+        "forget": "Zapomenout můj GitHub",
+        "error": "Váš GitHub se nepodařilo uložit.",
+        "outcome": {
+          "ok": "Načteno.",
+          "invalid_handle": "Tohle není název ani odkaz účtu na GitHubu.",
+          "not_found": "GitHub účet s tímto názvem nemá.",
+          "not_a_person": "Tohle je účet organizace. Dovednosti člověka může podložit jen jeho vlastní účet.",
+          "throttled": "GitHub teď omezuje, jak často smí tato instalace číst. Nic jsme nevyvodili. Zkuste to později.",
+          "throttledWait": "GitHub omezuje, jak často smí tato instalace číst. Nic jsme nevyvodili. Zkuste to za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
+          "offline": "Tato instalace běží offline, GitHub proto nelze načíst.",
+          "unreachable": "GitHub neodpověděl. Nic jsme nevyvodili. Zkuste to znovu.",
+          "failed": "Načtení se nedokončilo. Nic jsme nevyvodili. Zkuste to znovu."
+        }
+      },
+      "market": {
+        "eyebrow": "Co chce trh",
+        "title": "Co dnes vyžaduje pozice {titles}",
+        "lede": "Aktuální inzeráty a zprávy o trhu pro {markets}, přečtené na webu a porovnané s vaším životopisem.",
+        "marketsAny": "Evropu",
+        "coreHave": "klíčových dovedností ukazujete",
+        "coreHaveLabel": "Ukazujete {have} z {total} klíčových dovedností",
+        "running": "Čtu trh pro {titles}…",
+        "runningNote": "Claude Sonnet 5.5 hledá a čte zdroje. Obvykle to trvá do dvou minut.",
+        "ctaBody": "Claude Sonnet 5.5 vyhledá na webu, co tyto role právě teď vyžadují pro <b>{markets}</b>, i se zdroji. Odešlou se jen vaše pozice a trhy, nikdy váš životopis.",
+        "cta": "Prozkoumat trh",
+        "tier": {
+          "core": "Klíčové",
+          "common": "Běžné",
+          "emerging": "Nastupující"
+        },
+        "have": {
+          "cv": "v životopise",
+          "github": "váš GitHub",
+          "missing": "zatím ne"
+        },
+        "read": {
+          "fetched": "přečteno celé",
+          "snippet": "jen výsledek hledání"
+        },
+        "footer": "Prozkoumáno {date} modelem {model} · {n, plural, one {# zdroj} few {# zdroje} other {# zdrojů}}, celých přečteno {fetched}",
+        "again": "Prozkoumat znovu",
+        "keyless": "Průzkum webu potřebuje v této instalaci Claude CLI. Pokrytí životopisu zatím čte vaše vlastní inzeráty.",
+        "failed": "Průzkum se nedokončil ({reason}). Nic se neuložilo. Zkuste to znovu.",
+        "error": "Průzkum se nepodařilo spustit."
       }
     },
     "designedCv": {
@@ -13542,7 +13617,9 @@
         "allShown": "Vaše CV ukazuje všechny.",
         "shownToggle": "Kde je vaše CV ukazuje",
         "inSkills": "Dovednosti",
-        "inSummary": "Profil"
+        "inSummary": "Profil",
+        "research": "Váš životopis ukazuje {shown} z {total, plural, one {# dovednosti} other {# dovedností}}, které dnes pozice {target} vyžadují.",
+        "researchNote": "Z průzkumu trhu na webu ze dne {date}."
       },
       "saveFailed": "Vaše volba rozvržení zatím není uložena, zkoušíme to znovu.",
       "downloadSingleFlow": "Stáhnout PDF v jednom sloupci",

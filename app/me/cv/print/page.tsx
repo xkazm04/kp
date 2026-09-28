@@ -7,6 +7,9 @@ import { currentUserId } from "@/app/_lib/auth/session";
 import { listDialogs } from "@/app/_lib/db/jobseeker-dialogs";
 import { listJobseekerPostings } from "@/app/_lib/db/jobseeker-postings";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
+import { getGithubState, getRoleResearch } from "@/app/_lib/db/jobseeker-ui-state";
+import { cvProfile, githubStateOf, type GithubState } from "@/app/_lib/jobseeker/githubEvidence";
+import { researchMarkets, researchTitles, roleResearchKey, roleResearchRecordOf, type RoleResearch } from "@/app/_lib/jobseeker/roleResearch";
 import type { JobseekerPostingSummary } from "@/app/_lib/jobseeker/types";
 import { CvDesigner } from "@/app/features/jobseeker/cv/CvDesigner";
 import { acceptedEditsOf, type AcceptedEdit } from "@/app/features/jobseeker/cv/cvContent";
@@ -24,10 +27,12 @@ import { tailorTargetsOf, type CvTailorTarget } from "@/app/features/jobseeker/c
 // seeker's own profile and CV text (cvDocument.ts) — deterministic, keyless, and the
 // same component the /me flow previews.
 //
-// Tailored (`tailor=<index into targetTitles>`), the demand for each target is read here
-// from the seeker's postings — every row, decided and gone included, the same rows the
-// /me sieve pages through — so the preview there and this sheet order the CV the same way
-// (cvTailor.ts `demandFor` is order-independent).
+// Tailored (`tailor=<index into targetTitles>`), the demand for each target is the web
+// research of the seeker's titles when one covers it, else it is read here from the
+// seeker's postings — every row, decided and gone included, the same rows the /me sieve
+// pages through — so the preview there and this sheet order the CV the same way
+// (cvTailor.ts `demandFor` is order-independent). The GitHub repositories the seeker chose
+// join the Projects section (githubEvidence.ts cvProfile), as in the preview.
 //
 // It OPENS like /me does (PAGE_HEADER + EYEBROW / TITLE_DISPLAY / INTRO), so arriving
 // here does not read as leaving the product.
@@ -66,7 +71,26 @@ export default async function CvPrintPage({ searchParams }: { searchParams: Prom
       console.error("[me/cv/print] JOBSEEKER_STORE_FAILED", err);
     }
   }
-  const doc = profile && (profile.cvSourceText || (profile.profile.evidence ?? []).length) ? buildCvDocument({ profile: profile.profile, preferences: profile.preferences, cvSourceText: profile.cvSourceText, acceptedEdits }) : null;
+  // The GitHub repositories the seeker chose for their Projects section, and the web
+  // research of their target titles - the SAME two inputs the /me preview reads
+  // (useSeekerEvidence.ts), so the page and the PDF carry what the preview showed. Both
+  // are enhancements: a store failure prints the CV without them.
+  let github: GithubState | null = null;
+  let research: RoleResearch | null = null;
+  if (profile) {
+    try {
+      github = githubStateOf(getGithubState(profile.id, ws)?.value);
+      const titles = researchTitles(profile.preferences.targetTitles ?? []);
+      if (titles.length) research = roleResearchRecordOf(getRoleResearch(profile.id, roleResearchKey(titles, researchMarkets(profile.preferences.countries ?? [])), ws)?.value)?.research ?? null;
+    } catch (err) {
+      console.error("[me/cv/print] JOBSEEKER_STORE_FAILED", err);
+    }
+  }
+  const sheetProfile = profile ? cvProfile(profile.profile, github) : null;
+  const doc =
+    profile && sheetProfile && (profile.cvSourceText || (sheetProfile.evidence ?? []).length)
+      ? buildCvDocument({ profile: sheetProfile, preferences: profile.preferences, cvSourceText: profile.cvSourceText, acceptedEdits })
+      : null;
   let targets: CvTailorTarget[] = [];
   if (doc && profile!.preferences.targetTitles.some((title) => title.trim())) {
     // The market read is an enhancement: a store failure tailors from the built-in
@@ -77,7 +101,7 @@ export default async function CvPrintPage({ searchParams }: { searchParams: Prom
     } catch (err) {
       console.error("[me/cv/print] JOBSEEKER_STORE_FAILED", err);
     }
-    targets = tailorTargetsOf(profile!.preferences.targetTitles, rows);
+    targets = tailorTargetsOf(profile!.preferences.targetTitles, rows, research);
   }
   const tailor = design.tailor !== null && design.tailor < targets.length ? design.tailor : null;
 

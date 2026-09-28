@@ -39,6 +39,7 @@ import {
   upsertPosting,
 } from "../db/jobseeker-postings";
 import { getWorkspaceJobseekerProfile } from "../db/jobseeker-profiles";
+import { withGithubEvidence } from "./withGithub";
 import { listJobseekerSources, pauseSource, recordSourceRun } from "../db/jobseeker-sources";
 import { adapterFor } from "./adapters/registry";
 import type { AdapterLimits, AdapterLogEvent, SourceAdapter } from "./adapters/types";
@@ -126,7 +127,12 @@ export type ScanDeps = {
 
 export const defaultScanDeps: ScanDeps = {
   now: () => new Date().toISOString(),
-  getProfile: getWorkspaceJobseekerProfile,
+  // The matcher's view: the profile plus the GitHub evidence the seeker confirmed and
+  // chose to use (withGithub.ts) - the deep-dive route reads through the same helper.
+  getProfile: (workspaceId: string) => {
+    const profile = getWorkspaceJobseekerProfile(workspaceId);
+    return profile ? withGithubEvidence(profile, workspaceId) : null;
+  },
   listSources: listJobseekerSources,
   adapterFor,
   fetch: politeFetch,

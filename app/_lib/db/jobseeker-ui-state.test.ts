@@ -6,7 +6,21 @@
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { countCoverNotes, getCoverNote, getCvDesignState, setCoverNote, setCvDesignState } from "./jobseeker-ui-state.ts";
+import {
+  countCoverNotes,
+  deleteGithubState,
+  getCoverNote,
+  getCvDesignState,
+  getGithubState,
+  getRoleResearch,
+  ROLE_RESEARCH_KEPT,
+  setCoverNote,
+  setCvDesignState,
+  setGithubState,
+  setRoleResearch,
+  UI_STATE_KINDS,
+} from "./jobseeker-ui-state.ts";
+import { ensureDb, JOBSEEKER_UI_STATE_KINDS_SQL } from "./core.ts";
 import { COVER_NOTE_MAX_CHARS, COVER_NOTES_KEPT } from "../jobseeker/types.ts";
 
 after(() => cleanupUnitDb());
@@ -40,4 +54,38 @@ test("past COVER_NOTES_KEPT notes the least recently written go, the newest stay
   assert.equal(countCoverNotes("p-bound"), COVER_NOTES_KEPT);
   assert.equal(getCoverNote("p-bound", `post-${String(COVER_NOTES_KEPT + 4).padStart(4, "0")}`)?.value, `note ${COVER_NOTES_KEPT + 4}`);
   assert.equal(getCoverNote("p-bound", "post-0000"), null, "the oldest was dropped");
+});
+
+test("the TS kinds are exactly the table's CHECK", () => {
+  assert.equal(UI_STATE_KINDS.map((k) => `'${k}'`).join(","), JOBSEEKER_UI_STATE_KINDS_SQL);
+});
+
+test("a research result is kept per key, replaced by a later save, and bounded", () => {
+  assert.equal(getRoleResearch("p-res", "k-a"), null);
+  setRoleResearch("p-res", "k-a", { titles: ["AI Engineer"], n: 1 });
+  setRoleResearch("p-res", "k-a", { titles: ["AI Engineer"], n: 2 });
+  assert.deepEqual(getRoleResearch("p-res", "k-a")?.value, { titles: ["AI Engineer"], n: 2 });
+  for (let i = 0; i < ROLE_RESEARCH_KEPT + 3; i++) setRoleResearch("p-res-bound", `k-${String(i).padStart(3, "0")}`, { i });
+  const kept = ensureDb()
+    .prepare(`SELECT COUNT(*) AS n FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ? AND kind = 'role_research'`)
+    .get("workspace", "p-res-bound") as { n: number };
+  assert.equal(kept.n, ROLE_RESEARCH_KEPT);
+  assert.equal(getRoleResearch("p-res-bound", "k-000"), null, "the oldest went");
+  assert.deepEqual(getRoleResearch("p-res-bound", `k-${String(ROLE_RESEARCH_KEPT + 2).padStart(3, "0")}`)?.value, { i: ROLE_RESEARCH_KEPT + 2 });
+});
+
+test("the GitHub state is one row per profile; a save replaces it and delete forgets it", () => {
+  assert.equal(getGithubState("p-gh"), null);
+  setGithubState("p-gh", { handle: "octocat", confirmed: false });
+  setGithubState("p-gh", { handle: "octocat", confirmed: true });
+  assert.deepEqual(getGithubState("p-gh")?.value, { handle: "octocat", confirmed: true });
+  assert.equal(getGithubState("p-gh-other"), null);
+  assert.equal(deleteGithubState("p-gh"), true);
+  assert.equal(getGithubState("p-gh"), null);
+  assert.equal(deleteGithubState("p-gh"), false, "nothing left to forget");
+});
+
+test("the live table's CHECK takes every kind (a fresh database, or one widened at boot)", () => {
+  const sql = (ensureDb().prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobseeker_ui_state'`).get() as { sql: string }).sql;
+  for (const kind of UI_STATE_KINDS) assert.ok(sql.includes(`'${kind}'`), `the table's CHECK names ${kind}`);
 });

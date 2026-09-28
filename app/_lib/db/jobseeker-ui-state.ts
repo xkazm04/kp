@@ -16,7 +16,13 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // Tenancy: every statement binds `workspace_id = ?` (jobseeker-ui-state-tenancy.test.ts),
 // and the profile id comes from the session's own profile in the route, never the body.
 
-export const UI_STATE_KINDS = ["cv_design", "cover_note"] as const;
+// role_research: what the seeker's target titles ask for, researched on the web (one row
+// per title set + markets, ROLE_RESEARCH_KEPT kept). github: the seeker's own GitHub read
+// and what they chose to use of it (one row, key ''). Both are the seeker's own state:
+// erased with the profile (eraseJobseekerData deletes every kind).
+export const UI_STATE_KINDS = ["cv_design", "cover_note", "role_research", "github"] as const;
+/** How many research rows a profile keeps: a seeker trying titles keeps the last few. */
+export const ROLE_RESEARCH_KEPT = 6;
 export type UiStateKind = (typeof UI_STATE_KINDS)[number];
 
 /** A stored value with the time it was written. */
@@ -91,4 +97,51 @@ export function countCoverNotes(profileId: string, workspaceId: string = DEFAULT
     .prepare(`SELECT COUNT(*) AS n FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ? AND kind = 'cover_note'`)
     .get(workspaceId, profileId) as { n: number };
   return row.n;
+}
+
+/** The research stored under `key` (the route derives it from the titles and markets), or null. */
+export function getRoleResearch(profileId: string, key: string, workspaceId: string = DEFAULT_WORKSPACE_ID): UiStateEntry<Record<string, unknown>> | null {
+  const row = ensureDb()
+    .prepare(`SELECT key, value_json, updated_at FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ? AND kind = 'role_research' AND key = ?`)
+    .get(workspaceId, profileId, key) as Row | undefined;
+  return entryOf<Record<string, unknown>>(row, "jobseekerUiState.roleResearch");
+}
+
+/** Keep one research result; past ROLE_RESEARCH_KEPT the least recently written go, in
+ *  the same IMMEDIATE transaction (the cover-note bound's shape). */
+export function setRoleResearch(profileId: string, key: string, value: Record<string, unknown>, workspaceId: string = DEFAULT_WORKSPACE_ID): string {
+  const d = ensureDb();
+  const run = d.transaction((): string => {
+    const at = put(profileId, "role_research", key, value, workspaceId);
+    d.prepare(
+      `DELETE FROM jobseeker_ui_state
+       WHERE workspace_id = ? AND profile_id = ? AND kind = 'role_research'
+         AND key NOT IN (
+           SELECT key FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ? AND kind = 'role_research'
+           ORDER BY updated_at DESC, key DESC LIMIT ?
+         )`
+    ).run(workspaceId, profileId, workspaceId, profileId, ROLE_RESEARCH_KEPT);
+    return at;
+  });
+  return run.immediate();
+}
+
+/** The seeker's GitHub read and their choices about it, or null (never read). */
+export function getGithubState(profileId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): UiStateEntry<Record<string, unknown>> | null {
+  const row = ensureDb()
+    .prepare(`SELECT key, value_json, updated_at FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ? AND kind = 'github' AND key = ''`)
+    .get(workspaceId, profileId) as Row | undefined;
+  return entryOf<Record<string, unknown>>(row, "jobseekerUiState.github");
+}
+
+export function setGithubState(profileId: string, value: Record<string, unknown>, workspaceId: string = DEFAULT_WORKSPACE_ID): string {
+  return put(profileId, "github", "", value, workspaceId);
+}
+
+/** Forget the GitHub read (the seeker disconnects it). True when there was one. */
+export function deleteGithubState(profileId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const res = ensureDb()
+    .prepare(`DELETE FROM jobseeker_ui_state WHERE workspace_id = ? AND profile_id = ? AND kind = 'github' AND key = ''`)
+    .run(workspaceId, profileId);
+  return res.changes > 0;
 }

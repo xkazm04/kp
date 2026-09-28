@@ -524,11 +524,17 @@ export function CvDesigner({
             <>
               <p>
                 <b>
-                  {coverage.source === "postings"
-                    ? t("coverage.postings", { shown: coverage.shown.length, total: coverage.shown.length + coverage.missing.length, target: target.title })
-                    : t("coverage.lexicon", { shown: coverage.shown.length, total: coverage.shown.length + coverage.missing.length, target: target.title })}
+                  {coverage.source === "research"
+                    ? t("coverage.research", { shown: coverage.shown.length, total: coverage.shown.length + coverage.missing.length, target: target.title })
+                    : coverage.source === "postings"
+                      ? t("coverage.postings", { shown: coverage.shown.length, total: coverage.shown.length + coverage.missing.length, target: target.title })
+                      : t("coverage.lexicon", { shown: coverage.shown.length, total: coverage.shown.length + coverage.missing.length, target: target.title })}
                 </b>{" "}
-                {coverage.source === "postings" ? t("coverage.from", { n: coverage.postings, target: target.title }) : t("coverage.lexiconNote", { target: target.title })}
+                {coverage.source === "research"
+                  ? t("coverage.researchNote", { date: coverage.asOf ?? "" })
+                  : coverage.source === "postings"
+                    ? t("coverage.from", { n: coverage.postings, target: target.title })
+                    : t("coverage.lexiconNote", { target: target.title })}
               </p>
               {coverage.missing.length ? (
                 <>

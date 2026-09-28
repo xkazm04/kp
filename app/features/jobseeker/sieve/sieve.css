@@ -3466,6 +3466,411 @@
   font-weight: 600;
 }
 
+/* ---------- your GitHub (the You column) ----------
+   A card of its own in the You column: the handle, the identity gate, what the
+   repositories show (half marks: project evidence), the CV's projects, and the read's
+   budget in words. */
+.sv .gh {
+  margin-top: 26px;
+  background: var(--sv-card);
+  border: 1px solid var(--sv-line);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+.sv .gh h4 {
+  margin: 2px 0 6px;
+  font: 600 1.1875rem/1.3 var(--sv-serif);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.sv .gh h4 a {
+  color: var(--sv-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sv .gh-lede {
+  margin: 0 0 12px;
+  color: var(--sv-ink-2);
+  font-size: 0.9375rem;
+}
+.sv .gh-read {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sv .gh-read input {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid var(--sv-line-2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: 500 0.9375rem var(--sv-mono);
+  background: var(--sv-paper);
+  color: var(--sv-ink);
+}
+.sv .gh-budget,
+.sv .gh-outcome {
+  margin: 12px 0 0;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .gh-outcome {
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+.sv .gh-id {
+  border: 1.5px dashed var(--sv-line-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 8px 0 4px;
+}
+.sv .gh-id p {
+  margin: 0 0 10px;
+}
+.sv .gh-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+.sv .gh-use {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 10px 0 4px;
+}
+.sv .gh-use > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .gh-use b {
+  color: var(--sv-ink);
+  font-size: 0.9375rem;
+}
+.sv .gh-sub {
+  margin: 16px 0 8px;
+  font: 600 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+}
+.sv .gh-skills ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sv .gh-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sv-line-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.875rem;
+  background: var(--sv-paper);
+}
+.sv .gh-skill span {
+  color: var(--sv-ink-3);
+}
+.sv .gh-skill em {
+  font-style: normal;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .gh-skill.new {
+  border-color: var(--sv-strong);
+  background: var(--sv-strong-soft);
+}
+.sv .gh-skill.new em {
+  color: var(--sv-strong);
+  font-weight: 600;
+}
+.sv .gh-projects ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px dashed var(--sv-line-2);
+}
+.sv .gh-projects li {
+  border-bottom: 1px dashed var(--sv-line-2);
+}
+.sv .gh-projects label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 2px;
+  cursor: pointer;
+}
+.sv .gh-projects input {
+  margin-top: 4px;
+  accent-color: var(--sv-accent);
+}
+.sv .gh-projects li.picked .gh-repo b {
+  color: var(--sv-accent-ink);
+}
+.sv .gh-repo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .gh-repo b {
+  font: 600 0.9375rem var(--sv-mono);
+  color: var(--sv-ink);
+  overflow-wrap: anywhere;
+}
+.sv .gh-repo small {
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+
+/* ---------- what the market asks (the Want chapter) ----------
+   The research as three tiers of the landing's chips, each marked from the seeker's own
+   record (solid: on the CV, half: their GitHub, dashed: not yet), opening to its reason
+   and its sources; the score of core skills shown stands beside the heading. */
+.sv .market {
+  margin-top: 28px;
+  background: var(--sv-card);
+  border: var(--sv-sticker-line);
+  box-shadow: var(--sv-sticker);
+  border-radius: 22px;
+  padding: 22px 24px 18px;
+}
+.sv .mk-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.sv .mk-head h3 {
+  margin: 2px 0 6px;
+  font: 600 clamp(1.375rem, 2.2vw, 1.75rem)/1.2 var(--sv-serif);
+}
+.sv .mk-lede {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--sv-ink-2);
+  font-size: 0.9375rem;
+}
+.sv .mk-head > div:first-child {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+.sv .mk-score {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: 2px;
+}
+.sv .mk-score .n {
+  font: 600 3rem/1 var(--sv-serif);
+  color: var(--sv-strong);
+}
+.sv .mk-score .of {
+  font: 600 1.25rem var(--sv-serif);
+  color: var(--sv-ink-3);
+}
+.sv .mk-score .l {
+  grid-column: 1 / -1;
+  font: 500 0.9375rem var(--sv-hand);
+  color: var(--sv-ink-3);
+}
+.sv .mk-cta {
+  margin-top: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border: 1.5px dashed var(--sv-line-2);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.sv .mk-cta p {
+  margin: 0;
+  flex: 1 1 320px;
+  font-size: 0.9375rem;
+  color: var(--sv-ink-2);
+}
+.sv .mk-running {
+  margin-top: 16px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--sv-paper);
+}
+.sv .mk-running > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .mk-running b {
+  color: var(--sv-ink);
+  font-size: 0.9375rem;
+}
+.sv .mk-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+.sv .mk-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sv-accent);
+  opacity: 0.35;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sv .mk-dots i {
+    animation: sv-mk-dot 1.2s var(--sv-ease) infinite;
+  }
+  .sv .mk-dots i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .sv .mk-dots i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+@keyframes sv-mk-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+.sv .mk-tiers {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.sv .mk-tier-h {
+  margin: 0 0 8px;
+  font: 600 1.0625rem var(--sv-hand);
+  color: var(--sv-ink-2);
+}
+.sv .mk-tier-h span {
+  font: 500 0.875rem var(--sv-sans);
+  color: var(--sv-ink-3);
+}
+.sv .mk-tier.core .mk-tier-h {
+  color: var(--sv-accent-ink);
+}
+.sv .mk-tier > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sv .mk-skill > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid var(--sv-line-2);
+  background: var(--sv-paper);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 0.9375rem;
+  color: var(--sv-ink);
+}
+.sv .mk-skill > button:hover {
+  border-color: var(--sv-ink-3);
+}
+.sv .mk-skill b {
+  font-weight: 600;
+}
+.sv .mk-share {
+  font: 500 0.875rem var(--sv-mono);
+  color: var(--sv-ink-3);
+}
+.sv .mk-skill em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+  white-space: nowrap;
+}
+.sv .mk-skill.cv > button {
+  background: var(--sv-strong-soft);
+  border-color: color-mix(in srgb, var(--sv-strong) 45%, transparent);
+}
+.sv .mk-skill.cv em {
+  color: var(--sv-strong);
+  font-weight: 600;
+}
+.sv .mk-skill.github > button {
+  background: var(--sv-partial-soft);
+}
+.sv .mk-skill.missing > button {
+  border-style: dashed;
+}
+.sv .mk-why {
+  margin: 6px 2px 4px 24px;
+  font-size: 0.875rem;
+  color: var(--sv-ink-2);
+}
+.sv .mk-why p {
+  margin: 0 0 6px;
+}
+.sv .mk-why ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.sv .mk-why a {
+  color: var(--sv-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.sv .mk-foot {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--sv-line-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: var(--sv-ink-3);
+}
+.sv .mk-note {
+  margin: 12px 0 0;
+  font-size: 0.875rem;
+  color: var(--sv-flag-ink);
+  font-weight: 600;
+}
+@media (max-width: 860px) {
+  .sv .mk-tiers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sv .market {
+    padding: 18px 16px 14px;
+  }
+}
+
 /* ---------- acknowledgement (a real <dialog>) ---------- */
 .sv-ack {
   /* Tailwind's preflight zeroes every margin; a modal <dialog> centres itself by auto margins. */

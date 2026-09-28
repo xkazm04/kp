@@ -142,11 +142,72 @@ Four workspace-scoped tables (all in `TENANCY_SCOPED_TABLES`, each with a coloca
   matcher; the LLM deep-dive runs only for the shortlist and is skipped keyless with
   `deepDiveSkipped: "no_provider"`.
 - Under `KP_OFFLINE` every source returns `offline` before any egress.
+- The role research (below) is web research on a pinned Claude model: with no Claude CLI,
+  under `KP_OFFLINE`, or on a production box without the engine it answers
+  `source: "deterministic"` with the reason, stores nothing, and the designed CV's
+  coverage reads the seeker's own postings instead - the panel says which.
+- The GitHub read needs no model: `github.ts` reads through the one GitHub transport
+  (anonymous at 60 requests an hour without `GITHUB_TOKEN` / `GH_TOKEN`), the derivation
+  is the deterministic taxonomy scan; `KP_OFFLINE` answers `offline` before any socket.
 
 ## LLM use cases
 
-`cv_polish`, `fit_dialog`, `extraction_rules` (Settings → Models section "Job search");
-the deep-dive reuses `jd_ingest` and `match_reasoning`.
+`cv_polish`, `fit_dialog`, `extraction_rules`, `role_research` (Settings → Models section
+"Job search"); the deep-dive reuses `jd_ingest` and `match_reasoning`. `role_research` is
+the one PINNED use case: its call site passes `ProviderPin("claude_cli",
+"claude-sonnet-5-5")` to `resolve_provider`, so an operator's routing row does not move it
+(docs/architecture/llm-provider-layer.md, the pin and the `web_research` CLI mode).
+
+## What the market asks, and your GitHub
+
+Two sources of evidence from outside the CV, both the seeker's own choice, both stored per
+profile in `jobseeker_ui_state` (kinds `role_research` and `github`; the table's CHECK is
+widened once at boot for databases created before them - `core.ts`,
+`jobseeker-ui-state-migration.test.ts`) and erased with the profile.
+
+**What the market asks** (`MarketMix.tsx` under the Want cards; `roleResearch.ts`;
+`POST /api/jobseeker/research`; `pipeline/jobfit/role_research_cli.py`). The seeker's
+target titles and markets - and nothing else: never the CV, never the name - go to Claude
+Sonnet 5.5 through the Claude CLI with WebSearch and WebFetch only, up to 16 turns. It
+answers the skills current postings and market reports ask of those titles, tiered core /
+common / emerging, each with the sources it came from; a source says whether its page was
+read in full or only seen as a search result, and a skill without a surviving source is
+never shown (`roleResearchOf`). One answer per (titles, markets), order-insensitive
+(`roleResearchKey`), fresh for 14 days, six kept per profile; a miss (keyless, a failed
+run) never replaces an answer. The panel marks each skill from the seeker's OWN record -
+solid on the CV, half from their GitHub once they use it, dashed not yet - and counts the
+core skills they show; the footer names the date, the model and how many sources were read.
+The research also leads the designed CV's "Tailor for" demand (`cvTailor.ts` `demandFor`,
+source `research`, core weighing 3 / common 2 / emerging 1), on the /me preview and on the
+print page alike - it only reorders and bolds what the CV already says.
+
+**Your GitHub** (`GithubPanel.tsx` in the You column; `github.ts` reads,
+`pipeline/jobfit/github_evidence_cli.py` derives, `githubEvidence.ts` merges;
+`/api/jobseeker/github`). Registry recruiting/public-work-evidence-bounding, applied:
+- Identity is a gate. A PERSON account only (an organisation answers `not_a_person`), and
+  nothing reaches matching or the CV until the seeker says "this is my account". The panel
+  offers the handle their CV's own header names.
+- Attribution: owned, non-fork repositories only (60 most recently pushed; the languages of
+  the 12 newest non-archived).
+- The budget is said in words: names, languages, topics and descriptions were read - never
+  code; a read GitHub throttled part-way says the languages are partial, and a throttled,
+  offline or unreachable read is its own outcome, never "no evidence".
+- It corroborates, never replaces. Each repository that shows a skill becomes one
+  `personal_project` evidence item (weight 0.7, the provenance ladder's rung for personal
+  work) in the MATCHER's view of the profile (`withGithub.ts`, read by the scan and the
+  deep-dive) - never in `profile_json`, which every CV action replaces. The matcher keeps
+  the strongest basis per skill, so a CV skill used at work stays "work", a skill the CV
+  only stated rises to project standing, and a skill only the repositories show enters at
+  that rung. Turning it on or off moves the view's `updatedAt`, so the next scan re-scores;
+  forgetting it touches the profile row for the same reason.
+- The Projects section: the repositories the seeker ticks (at most six) join their
+  designed CV as project entries titled "name - github.com/owner/repo (years)", with the
+  repository's own description and its stack - nothing invented (`cvProfile`).
+
+| Route | Methods | Limit |
+| --- | --- | --- |
+| `/api/jobseeker/research` | GET the research for the current titles; POST `{ force? }` researches (a fresh answer is returned without a run unless `force`) | 6 per hour per IP |
+| `/api/jobseeker/github` | GET `{ state, suggestion }`; POST `{ handle }` reads (`outcome`: ok, invalid_handle, not_found, not_a_person, throttled, offline, unreachable, failed); PUT `{ confirmed?, use?, projects? }`; DELETE forgets | POST 10 per 10 min; PUT/DELETE 60 per 10 min |
 
 ## Error codes
 

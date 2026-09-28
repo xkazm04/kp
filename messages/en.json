@@ -13471,6 +13471,81 @@
         "mark": "Matches your target",
         "filter": "Your direction",
         "hides": "{n, plural, one {hides # posting outside your direction} other {hides # postings outside your direction}}"
+      },
+      "github": {
+        "eyebrow": "Your public work",
+        "title": "Add your GitHub",
+        "titleRead": "Your GitHub:",
+        "lede": "Your public repositories can back the skills on your CV and fill its Projects section.",
+        "ledeSuggested": "Your CV links <b>github.com/{handle}</b>. Its public repositories can back the skills on your CV and fill its Projects section.",
+        "placeholder": "your-github-handle",
+        "handleLabel": "GitHub account or link",
+        "read": "Read my GitHub",
+        "reading": "Reading…",
+        "readAgain": "Read again",
+        "promise": "Reads the names, languages, topics and descriptions of your public repositories, never the code. Nothing is used until you confirm the account is yours.",
+        "isThisYou": "<b>{name}</b>, {n, plural, one {# public repository} other {# public repositories}}. Is this your account?",
+        "confirm": "Yes, it’s mine",
+        "notMine": "Not mine, forget it",
+        "useLabel": "Use my repositories as evidence",
+        "useOn": "Their skills count as project work in your scores, never above your work experience.",
+        "useOff": "Off: your scores read your CV alone.",
+        "skillsTitle": "What your repositories show",
+        "repos": "{n, plural, one {# repository} other {# repositories}}",
+        "onCv": "on your CV too",
+        "notOnCv": "not on your CV",
+        "noSkills": "No skill we can name showed in your repositories’ labels. That says nothing about your work.",
+        "projectsTitle": "Projects on your CV · {n} of {max}",
+        "noDescription": "no description",
+        "pushed": "updated {when}",
+        "archived": "archived",
+        "budget": "Read {when}: the names, languages, topics and descriptions of {repos, plural, one {# public repository} other {# public repositories}}, and the languages of {read}. Not the code.",
+        "partial": "GitHub limited the read part-way, so some repositories’ languages are missing. That is not an absence.",
+        "truncated": "You have more repositories than one read covers; the most recently updated were read.",
+        "forget": "Forget my GitHub",
+        "error": "Your GitHub could not be saved.",
+        "outcome": {
+          "ok": "Read.",
+          "invalid_handle": "That is not a GitHub account name or link.",
+          "not_found": "GitHub has no account by that name.",
+          "not_a_person": "That is an organisation’s account. Only a person’s own account can back their skills.",
+          "throttled": "GitHub is limiting how often this install may read right now. Nothing was concluded. Try again later.",
+          "throttledWait": "GitHub is limiting how often this install may read. Nothing was concluded. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+          "offline": "This install runs offline, so GitHub cannot be read.",
+          "unreachable": "GitHub did not answer. Nothing was concluded. Try again.",
+          "failed": "The read did not finish. Nothing was concluded. Try again."
+        }
+      },
+      "market": {
+        "eyebrow": "What the market asks",
+        "title": "What {titles} asks for now",
+        "lede": "Current postings and market reports for {markets}, read on the web, set against your CV.",
+        "marketsAny": "Europe",
+        "coreHave": "core skills you show",
+        "coreHaveLabel": "You show {have} of {total} core skills",
+        "running": "Reading the market for {titles}…",
+        "runningNote": "Claude Sonnet 5.5 is searching and reading sources. It usually takes under two minutes.",
+        "ctaBody": "Claude Sonnet 5.5 searches the web for what these roles ask for in <b>{markets}</b> right now, with its sources. Only your titles and markets are sent, never your CV.",
+        "cta": "Research the market",
+        "tier": {
+          "core": "Core",
+          "common": "Common",
+          "emerging": "Emerging"
+        },
+        "have": {
+          "cv": "on your CV",
+          "github": "your GitHub",
+          "missing": "not yet"
+        },
+        "read": {
+          "fetched": "read in full",
+          "snippet": "search result only"
+        },
+        "footer": "Researched {date} with {model} · {n, plural, one {# source} other {# sources}}, {fetched} read in full",
+        "again": "Research again",
+        "keyless": "Web research needs the Claude CLI on this install. Meanwhile your CV’s coverage reads your own postings.",
+        "failed": "The research did not finish ({reason}). Nothing was stored. Try again.",
+        "error": "The research could not start."
       }
     },
     "designedCv": {
@@ -13542,7 +13617,9 @@
         "allShown": "Your CV shows every one of them.",
         "shownToggle": "Where your CV shows them",
         "inSkills": "Skills",
-        "inSummary": "Profile"
+        "inSummary": "Profile",
+        "research": "Your CV shows {shown} of {total, plural, one {the # skill} other {the # skills}} {target} roles ask for now.",
+        "researchNote": "From a web research of the market on {date}."
       },
       "saveFailed": "Your layout choice is not saved yet - retrying.",
       "downloadSingleFlow": "Download single-column PDF",

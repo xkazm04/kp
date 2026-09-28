@@ -577,8 +577,11 @@
         "app/_lib/db/jobseeker-sources.ts",
         "app/_lib/db/jobseeker-postings.ts",
         "app/_lib/db/jobseeker-dialogs.ts",
+        "app/_lib/db/jobseeker-ui-state.ts",
         "app/_lib/scheduler-jobs.ts",
-        "pipeline/jobfit/jobseeker_cli.py"
+        "pipeline/jobfit/jobseeker_cli.py",
+        "pipeline/jobfit/role_research_cli.py",
+        "pipeline/jobfit/github_evidence_cli.py"
       ]
     },
     {

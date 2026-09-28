@@ -7,6 +7,7 @@ import { currentSession, requireCapability } from "@/app/_lib/auth/current-user"
 import { getJobseekerPosting, getPostingSummary } from "@/app/_lib/db/jobseeker-postings";
 import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import { deepDivePosting } from "@/app/_lib/jobseeker/deepdive";
+import { withGithubEvidence } from "@/app/_lib/jobseeker/withGithub";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
 
@@ -57,8 +58,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // The CALLER's profile — the same resolution GET/PUT profile and the dialogs door make.
     // getWorkspaceJobseekerProfile (the newest in the workspace) is the scan's answer, for
     // a clock job with no session; on a request it reasoned with another seeker's CV.
-    const profile = getJobseekerProfile(currentUserId(session), ws);
-    if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
+    const own = getJobseekerProfile(currentUserId(session), ws);
+    if (!own) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
+    // Scored on the same inputs as the scan: plus the GitHub evidence the seeker chose.
+    const profile = withGithubEvidence(own, ws);
     const langParam = new URL(request.url).searchParams.get("lang");
     const lang = isLocale(langParam) ? langParam : "en";
     const outcome = await deepDivePosting(posting, profile, { lang, signal: request.signal, workspaceId: ws });

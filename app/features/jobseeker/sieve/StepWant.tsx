@@ -80,6 +80,7 @@ export function StepWant({
   onSaved,
   scanDoor,
   reduceMotion,
+  market,
 }: {
   profile: JobseekerProfile | null;
   locale: string;
@@ -87,6 +88,8 @@ export function StepWant({
   /** The flow's Scan now control, rendered beside the "scores update on the next scan" note. */
   scanDoor: ReactNode;
   reduceMotion: boolean;
+  /** What the titles above ask for now (MarketMix, the web research), under the cards. */
+  market?: ReactNode;
 }) {
   const t = useTranslations("me.sieve.want");
   const tPrefs = useTranslations("me.preferences");
@@ -384,6 +387,8 @@ export function StepWant({
         {levelCard}
         {languagesCard}
       </div>
+
+      {market}
 
       <div className="want-foot">
         <span className="confirmed" role="status" aria-live="polite">

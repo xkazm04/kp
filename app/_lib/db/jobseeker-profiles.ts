@@ -262,6 +262,16 @@ export function setPolishedCv(id: string, cvMarkdown: string, workspaceId: strin
   return res.changes > 0;
 }
 
+/** An input of the seeker's scores changed outside the profile row (the GitHub evidence
+ *  they stopped using): move updated_at so the next scan re-scores (scan.ts: a match is
+ *  current while matchedAt >= updatedAt). Nothing else on the row changes. */
+export function touchJobseekerProfile(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const res = ensureDb()
+    .prepare(`UPDATE jobseeker_profiles SET updated_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(new Date().toISOString(), id, workspaceId);
+  return res.changes > 0;
+}
+
 /** Merge a partial preference set over the stored one — what the cv_polish dialog does
  *  on close with the preferences it extracted. The merge rule is profile.ts's
  *  `mergePreferencePatch` (the ONE rule): `undefined` never overwrites, and an empty

@@ -83,6 +83,30 @@ test("demand = the target postings' requirements, most asked first, order-indepe
   assert.deepEqual(demandFor("AI Engineer", [...POSTINGS].reverse()), d);
 });
 
+test("a web research of the role leads when it covers the target: core first, then by stated share", () => {
+  const research = {
+    titles: ["Senior AI Engineer", "LLM Engineer"],
+    asOf: "2026-09-28",
+    skills: [
+      { skill: "Evals", tier: "emerging", share: null },
+      { skill: "RAG", tier: "common", share: 0.3 },
+      { skill: "Python", tier: "core", share: 0.47 },
+      { skill: "LLMs", tier: "core", share: 0.6 },
+      { skill: "python", tier: "common", share: null },
+    ],
+  };
+  const d = demandFor("AI Engineer", POSTINGS, research);
+  assert.equal(d.source, "research", "Senior AI Engineer covers AI Engineer: level words are not the role");
+  assert.equal(d.asOf, "2026-09-28");
+  assert.equal(d.postings, 3, "the postings at the target are still counted");
+  assert.deepEqual(d.skills.map((s) => [s.skill, s.count]), [["LLMs", 3], ["Python", 3], ["RAG", 2], ["Evals", 1]], "a repeated skill is kept once, at its best tier");
+  // A research of other titles leaves the postings' own demand in place.
+  assert.equal(demandFor("QA Engineer", POSTINGS, research).source, "lexicon", "a title the research does not cover takes the usual path");
+  assert.deepEqual(demandFor("AI Engineer", POSTINGS, { ...research, titles: ["Data Scientist"] }), demandFor("AI Engineer", POSTINGS));
+  // The preview and the print page hand the same research in: the same targets come out.
+  assert.deepEqual(tailorTargetsOf(["AI Engineer"], POSTINGS, research), tailorTargetsOf(["AI Engineer"], [...POSTINGS].reverse(), research));
+});
+
 test("no target posting yet: the kind's lexicon stands in, and says so", () => {
   const d = demandFor("Senior ML Engineer (LLM)", []);
   assert.equal(d.source, "lexicon");

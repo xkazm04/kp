@@ -13,6 +13,11 @@ import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
 import { addColumns, parseAddColumn } from "./add-columns";
 import { fixtureSeedEnabled } from "./seed-gate";
 
+/** The kinds jobseeker_ui_state accepts - its CHECK, written once for the table's DDL and
+ *  for the one-time widening in the migrations (db/jobseeker-ui-state.ts UI_STATE_KINDS is
+ *  the TS face, pinned equal by jobseeker-ui-state.test.ts). */
+export const JOBSEEKER_UI_STATE_KINDS_SQL = "'cv_design','cover_note','role_research','github'";
+
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
 // module with a fresh module-local binding, which would re-run the ENTIRE
 // CREATE/ALTER/seed/backfill initializer below against a kp.sqlite file the
@@ -1472,13 +1477,15 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_jobseeker_cvs_seeker_used ON jobseeker_cvs (workspace_id, user_id, last_used_at DESC);
 
     -- The seeker's small, per-profile UI state that must follow them across browsers
-    -- (db/jobseeker-ui-state.ts): the designed-CV choices (kind cv_design, key '') and a
-    -- cover-note draft per posting (kind cover_note, key = posting id). Keyed by the
-    -- profile row (never NULL), so the upsert is a plain ON CONFLICT on the primary key.
+    -- (db/jobseeker-ui-state.ts): the designed-CV choices (kind cv_design, key ''), a
+    -- cover-note draft per posting (kind cover_note, key = posting id), the web research
+    -- of what their target titles ask for (kind role_research, key = the research's own
+    -- key) and their GitHub read (kind github, key ''). Keyed by the profile row (never
+    -- NULL), so the upsert is a plain ON CONFLICT on the primary key.
     CREATE TABLE IF NOT EXISTS jobseeker_ui_state (
       workspace_id TEXT NOT NULL,
       profile_id TEXT NOT NULL,
-      kind TEXT NOT NULL CHECK(kind IN ('cv_design','cover_note')),
+      kind TEXT NOT NULL CHECK(kind IN (${JOBSEEKER_UI_STATE_KINDS_SQL})),
       key TEXT NOT NULL,
       value_json TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -2812,6 +2819,31 @@ export function ensureDb(): Database.Database {
   // campaign_packs -> (job_id, lang, workspace_id), guarded by the PK SHAPE (workspace_id
   // already exists, so a column guard never fires); narrowCampaignPacksKey is the way back.
   widenCampaignPacksKey(db);
+  // jobseeker_ui_state: widen the kind CHECK for the role research and the GitHub read.
+  // SQLite cannot alter a CHECK, so a table whose stored DDL lacks the newest kind is
+  // rebuilt once (rebuildTable: orphan scratch dropped first, one transaction) - guarded by
+  // its own stored DDL, so it runs exactly once and never on a fresh database.
+  const uiStateSql =
+    (db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobseeker_ui_state'`).get() as { sql: string } | undefined)?.sql ?? "";
+  if (uiStateSql && !uiStateSql.includes("'github'")) {
+    rebuildTable(
+      "jobseeker_ui_state_new",
+      `CREATE TABLE jobseeker_ui_state_new (
+         workspace_id TEXT NOT NULL,
+         profile_id TEXT NOT NULL,
+         kind TEXT NOT NULL CHECK(kind IN (${JOBSEEKER_UI_STATE_KINDS_SQL})),
+         key TEXT NOT NULL,
+         value_json TEXT NOT NULL,
+         updated_at TEXT NOT NULL,
+         PRIMARY KEY (workspace_id, profile_id, kind, key)
+       );
+       INSERT INTO jobseeker_ui_state_new (workspace_id, profile_id, kind, key, value_json, updated_at)
+         SELECT workspace_id, profile_id, kind, key, value_json, updated_at FROM jobseeker_ui_state;
+       DROP TABLE jobseeker_ui_state;
+       ALTER TABLE jobseeker_ui_state_new RENAME TO jobseeker_ui_state;
+       CREATE INDEX IF NOT EXISTS idx_jobseeker_ui_state_recent ON jobseeker_ui_state (workspace_id, profile_id, kind, updated_at DESC);`
+    );
+  }
   // Null-contract heal: `approval_detail` is nullable and "no detail" is NULL (its
   // sibling approval_kind clears to NULL), but earlier clear/insert paths wrote '',
   // so a "cleared" detail read back as "" on some rows and NULL on others. Now that
@@ -3736,6 +3768,7 @@ function campaignPacksKey(db: Database.Database): string {
 
 /** Rebuild campaign_packs under `key` from `select` (one transaction, orphan scratch
  *  dropped first, the per-team scan index restored — rebuildTable's shape; no await). */
+
 function rebuildCampaignPacks(db: Database.Database, key: string, select: string): void {
   db.transaction(() => {
     db.exec(`DROP TABLE IF EXISTS campaign_packs_new;

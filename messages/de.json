@@ -13471,6 +13471,81 @@
         "mark": "Passt zu Ihrem Ziel",
         "filter": "Ihre Richtung",
         "hides": "{n, plural, one {blendet # Stelle außerhalb Ihrer Richtung aus} other {blendet # Stellen außerhalb Ihrer Richtung aus}}"
+      },
+      "github": {
+        "eyebrow": "Ihre öffentliche Arbeit",
+        "title": "GitHub hinzufügen",
+        "titleRead": "Ihr GitHub:",
+        "lede": "Ihre öffentlichen Repositorys können die Fähigkeiten in Ihrem Lebenslauf belegen und den Abschnitt „Projekte“ füllen.",
+        "ledeSuggested": "Ihr Lebenslauf verlinkt <b>github.com/{handle}</b>. Dessen öffentliche Repositorys können die Fähigkeiten in Ihrem Lebenslauf belegen und den Abschnitt „Projekte“ füllen.",
+        "placeholder": "ihr-github-name",
+        "handleLabel": "GitHub-Konto oder Link",
+        "read": "Mein GitHub lesen",
+        "reading": "Wird gelesen …",
+        "readAgain": "Erneut lesen",
+        "promise": "Gelesen werden Namen, Sprachen, Themen und Beschreibungen Ihrer öffentlichen Repositorys, nie der Code. Nichts wird verwendet, bevor Sie bestätigen, dass das Konto Ihnen gehört.",
+        "isThisYou": "<b>{name}</b>, {n, plural, one {# öffentliches Repository} other {# öffentliche Repositorys}}. Ist das Ihr Konto?",
+        "confirm": "Ja, das bin ich",
+        "notMine": "Nicht meins, vergessen",
+        "useLabel": "Meine Repositorys als Beleg verwenden",
+        "useOn": "Ihre Fähigkeiten zählen in Ihren Scores als Projektarbeit, nie über Ihrer Berufserfahrung.",
+        "useOff": "Aus: Ihre Scores lesen nur den Lebenslauf.",
+        "skillsTitle": "Was Ihre Repositorys zeigen",
+        "repos": "{n, plural, one {# Repository} other {# Repositorys}}",
+        "onCv": "auch im Lebenslauf",
+        "notOnCv": "nicht im Lebenslauf",
+        "noSkills": "In den Angaben Ihrer Repositorys zeigte sich keine Fähigkeit, die wir benennen können. Über Ihre Arbeit sagt das nichts.",
+        "projectsTitle": "Projekte im Lebenslauf · {n} von {max}",
+        "noDescription": "keine Beschreibung",
+        "pushed": "aktualisiert {when}",
+        "archived": "archiviert",
+        "budget": "Gelesen {when}: Namen, Sprachen, Themen und Beschreibungen von {repos, plural, one {# öffentlichen Repository} other {# öffentlichen Repositorys}} und die Sprachen von {read}. Nicht der Code.",
+        "partial": "GitHub hat das Lesen unterwegs begrenzt, bei einigen Repositorys fehlen daher die Sprachen. Das ist kein Fehlen.",
+        "truncated": "Sie haben mehr Repositorys, als ein Lesevorgang abdeckt; gelesen wurden die zuletzt aktualisierten.",
+        "forget": "Mein GitHub vergessen",
+        "error": "Ihr GitHub konnte nicht gespeichert werden.",
+        "outcome": {
+          "ok": "Gelesen.",
+          "invalid_handle": "Das ist kein GitHub-Kontoname oder -Link.",
+          "not_found": "GitHub hat kein Konto mit diesem Namen.",
+          "not_a_person": "Das ist das Konto einer Organisation. Nur das eigene Konto einer Person kann ihre Fähigkeiten belegen.",
+          "throttled": "GitHub begrenzt gerade, wie oft diese Installation lesen darf. Es wurde nichts gefolgert. Versuchen Sie es später erneut.",
+          "throttledWait": "GitHub begrenzt, wie oft diese Installation lesen darf. Es wurde nichts gefolgert. Versuchen Sie es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
+          "offline": "Diese Installation läuft offline, GitHub kann daher nicht gelesen werden.",
+          "unreachable": "GitHub hat nicht geantwortet. Es wurde nichts gefolgert. Versuchen Sie es erneut.",
+          "failed": "Das Lesen wurde nicht abgeschlossen. Es wurde nichts gefolgert. Versuchen Sie es erneut."
+        }
+      },
+      "market": {
+        "eyebrow": "Was der Markt verlangt",
+        "title": "Was {titles} jetzt verlangt",
+        "lede": "Aktuelle Stellenanzeigen und Marktberichte für {markets}, im Web gelesen und Ihrem Lebenslauf gegenübergestellt.",
+        "marketsAny": "Europa",
+        "coreHave": "Kernfähigkeiten zeigen Sie",
+        "coreHaveLabel": "Sie zeigen {have} von {total} Kernfähigkeiten",
+        "running": "Der Markt für {titles} wird gelesen …",
+        "runningNote": "Claude Sonnet 5.5 sucht und liest Quellen. Das dauert meist unter zwei Minuten.",
+        "ctaBody": "Claude Sonnet 5.5 sucht im Web, was diese Rollen für <b>{markets}</b> gerade verlangen, mit Quellen. Gesendet werden nur Ihre Titel und Märkte, nie Ihr Lebenslauf.",
+        "cta": "Markt recherchieren",
+        "tier": {
+          "core": "Kern",
+          "common": "Verbreitet",
+          "emerging": "Aufkommend"
+        },
+        "have": {
+          "cv": "im Lebenslauf",
+          "github": "Ihr GitHub",
+          "missing": "noch nicht"
+        },
+        "read": {
+          "fetched": "vollständig gelesen",
+          "snippet": "nur Suchergebnis"
+        },
+        "footer": "Recherchiert am {date} mit {model} · {n, plural, one {# Quelle} other {# Quellen}}, {fetched} vollständig gelesen",
+        "again": "Erneut recherchieren",
+        "keyless": "Die Webrecherche braucht auf dieser Installation das Claude CLI. Bis dahin liest die Abdeckung Ihres Lebenslaufs Ihre eigenen Stellenanzeigen.",
+        "failed": "Die Recherche wurde nicht abgeschlossen ({reason}). Nichts wurde gespeichert. Versuchen Sie es erneut.",
+        "error": "Die Recherche konnte nicht starten."
       }
     },
     "designedCv": {
@@ -13542,7 +13617,9 @@
         "allShown": "Ihr Lebenslauf zeigt alle.",
         "shownToggle": "Wo Ihr Lebenslauf sie zeigt",
         "inSkills": "Kenntnisse",
-        "inSummary": "Profil"
+        "inSummary": "Profil",
+        "research": "Ihr Lebenslauf zeigt {shown} von {total, plural, one {der # Fähigkeit} other {den # Fähigkeiten}}, die {target}-Rollen jetzt verlangen.",
+        "researchNote": "Aus einer Webrecherche des Marktes vom {date}."
       },
       "saveFailed": "Ihre Layout-Wahl ist noch nicht gespeichert, wird erneut versucht.",
       "downloadSingleFlow": "PDF einspaltig herunterladen",
