@@ -10,7 +10,7 @@ import { GIG_DISCLOSURE_SENTENCE } from "./contract";
 import { GIG_TYPE_LABEL, gigTypeOf, type GigKnowledgeRef, type GigType } from "./gig-type";
 import { resolveGigTypeKnowledge } from "./gig-type-knowledge";
 import type { ensurePersonasWorkspace, PersonasPlaceFailureReason } from "./personas-places";
-import { GIG_PERSONA_MODEL } from "./plan-seats";
+import { GIG_PERSONA_MAX_BUDGET_USD, GIG_PERSONA_MODEL } from "./plan-seats";
 import { ensureGigArenaWorkspace } from "./project";
 import { resolveGigRecipes, type ResolvedGigRecipes } from "./recipes";
 import { GIG_REQUIREMENTS_VERSION, composeGigRequirements, gatherGigResearch, type GigAgentRequirements } from "./requirements";
@@ -317,13 +317,15 @@ export async function hireGigPersona(workspaceId: string, input: HireGigPersonaI
     knowledge,
     plan: { summary: plan.summary, steps: plan.steps, note: plan.note },
   });
-  const requirements: GigAgentRequirements = { ...composed, role: name };
+  const requirements: GigAgentRequirements = { ...composed, role: name, budgetUsdPerAttempt: GIG_PERSONA_MAX_BUDGET_USD };
   const base = specialistDispatchSpec(spec, requirements);
   const mission = plan.summary.replace(/\s+/g, " ").trim().slice(0, PERSONA_MISSION_MAX);
   const dispatchSpec: DispatchSpec = {
     ...base,
     name,
     mission: mission || base.mission,
+    // The spend cap Personas stores on the persona: none today (GIG_PERSONA_MAX_BUDGET_USD).
+    maxBudgetUsd: GIG_PERSONA_MAX_BUDGET_USD,
     modelProfile: { model: GIG_PERSONA_MODEL.model, effort: GIG_PERSONA_MODEL.effort },
   };
   const fit = {

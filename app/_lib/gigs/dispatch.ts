@@ -11,6 +11,7 @@ import { executePersonaForGig, type ExecutePersonaResult } from "./personas-exec
 import { buildGigPlanAssignment, type GigPairedAssignment, type GigPlanAssignment } from "./plan-status";
 import { prepareGigProject, type PrepareGigProjectResult } from "./project";
 import { rankGigSpecialists } from "./qualify";
+import { GIG_PERSONA_MAX_BUDGET_USD } from "./plan-seats";
 import { GIG_DEFAULT_BUDGET_USD } from "./specialist-defaults";
 import { clearGigDeliverableOutputs } from "./workdir";
 import {
@@ -150,7 +151,9 @@ export function buildGigAssignment(
     recipes: specialist.spec.recipes.map((r) => ({ ...r })),
     checklist: gigChecklist(gig.arena),
     revisionNote: attempt.revisionNote,
-    budgetUsd: budget !== null && budget > 0 ? budget : GIG_DEFAULT_BUDGET_USD[gig.arena],
+    // A gig persona (a paired run) runs at the gig persona cap - uncapped today; a niche
+    // specialist keeps its arena budget.
+    budgetUsd: plan ? GIG_PERSONA_MAX_BUDGET_USD : budget !== null && budget > 0 ? budget : GIG_DEFAULT_BUDGET_USD[gig.arena],
     deliverableContract: GIG_DELIVERABLE_CONTRACT,
     // Omitted, never null, when absent: Personas reads `_projectId` as "a string or not there".
     ...(place ? { workdir: place.workdir } : {}),

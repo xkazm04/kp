@@ -175,6 +175,9 @@ test("pairs: type workspace, project at the type folder, the plan as a milestone
   assert.equal((hire.kp as Record<string, unknown>).jobId, `gig-persona:${gig.id}`);
   const req = spec.requirements as Record<string, unknown>;
   assert.equal(req.kind, "kp.agent-requirements.v1");
+  // Uncapped (operator decision 2026-09-29): no persona budget, no "Budget" line.
+  assert.equal(spec.maxBudgetUsd ?? null, null, "a gig persona carries no spend cap");
+  assert.equal(req.budgetUsdPerAttempt, null);
   assert.deepEqual(req.knowledge, [
     { bundle: "software-engineering", subject: "authorization", path: "knowledge/software-engineering/security/identity-and-access/authorization/authorization.md" },
     { bundle: "software-engineering", subject: "supply-chain", path: "knowledge/software-engineering/security/code-provenance/supply-chain/supply-chain.md" },

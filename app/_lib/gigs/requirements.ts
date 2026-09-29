@@ -139,7 +139,8 @@ export type GigAgentRequirements = {
   };
   constraints: string[];
   tools: { connector: string; why: string }[];
-  budgetUsdPerAttempt: number;
+  /** null = uncapped (a gig persona): Personas then renders no "Budget" line. */
+  budgetUsdPerAttempt: number | null;
   /** Registry knowledge subjects the agent works to (a gig persona: gig-type.ts, by the gig's
    *  type), each with its golden path's registry-relative file. <= 12. Absent when none. */
   knowledge?: GigKnowledgeRef[];

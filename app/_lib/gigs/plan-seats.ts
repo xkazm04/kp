@@ -15,3 +15,9 @@ export const GIG_PLAN_SEATS: readonly GigPlanSeat[] = [
 
 /** The execution model every gig persona runs on (the spark's doctrine: Opus 5.5 high). */
 export const GIG_PERSONA_MODEL = { model: "claude-opus-5-5", effort: "high" } as const;
+
+/** A gig persona's spend cap per run: `null` = uncapped (operator decision 2026-09-29). It
+ *  is the persona's Personas `maxBudgetUsd`, the "Budget" line of its requirements and the
+ *  assignment's `budgetUsd`; a number here caps all three again. The niche specialists keep
+ *  their arena budget (specialist.ts). */
+export const GIG_PERSONA_MAX_BUDGET_USD: number | null = null;

@@ -428,7 +428,8 @@ export type GigAssignment = {
   checklist: string[];
   /** The operator's note when this attempt answers a revision request. */
   revisionNote: string | null;
-  budgetUsd: number;
+  /** The run's spend cap in USD; null = uncapped (a gig persona, plan-seats.ts). */
+  budgetUsd: number | null;
   deliverableContract: typeof GIG_DELIVERABLE_CONTRACT;
   /** The gig's own folder (gigs/workdir.ts), absolute. The run's working directory when
    *  `_projectId` is present; otherwise where the gig's files are, for reference. Absent

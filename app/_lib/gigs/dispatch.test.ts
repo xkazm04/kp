@@ -425,6 +425,7 @@ test("an accepted plan with an active persona: runs it, and the assignment carri
   assert.equal(plan.statusContract, "kp-plan-status.v1");
   assert.deepEqual(plan.steps.map((s) => s.goalId), ["goal-1", "goal-2", "goal-3"]);
   assert.equal(plan.steps[0]!.doneWhen, "Evidence 1 is in NOTES.md");
+  assert.equal(assignment.budgetUsd, null, "a gig persona's run is uncapped");
   assert.deepEqual(t.resets, [`/gigs/security/${gig.id}`], "a first run starts from a clean folder");
 });
 
