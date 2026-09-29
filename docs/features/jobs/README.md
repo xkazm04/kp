@@ -687,6 +687,18 @@ lands in the usage ledger's `reason` (`emit_deterministic`): a one-line
 coercion emptied. A keyless or `--no-llm` run records no reason: that descent is
 not a failure and the availability gate already named it.
 
+**The boundary checks the model's words, not only its labels.** The fact set is the
+control (the model is only told stated facts); `coerce` adds a residual check for the
+literal class the gate cannot see, and drops a variant that carries a figure the fact
+set does not hold (`95 000` passes, `120 000` and a stray year do not; a defaulted
+pay band leaves nothing to quote), a quotation mark or first-person voice in the
+pack's own language (an off-taxonomy `testimonial` relabelled `problem` keeps its
+words, so the words are checked), or a phrase from `BANNED_BOILERPLATE` — the same
+list the prompt bans, four languages, ported from `jd-lint.ts`. One bad variant costs
+one variant; a payload where nothing survives takes the template route above. It does
+not see an invented perk written without a numeral, a true value bound to the wrong
+claim, or one end of the stated band standing alone as the headline.
+
 | Route | Method | Purpose |
 |---|---|---|
 | `GET /api/jobs/[id]/campaign` | GET | Return the stored pack. |
