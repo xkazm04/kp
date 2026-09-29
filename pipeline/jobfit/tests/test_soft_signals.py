@@ -139,10 +139,82 @@ class TestNoRiskStatementsAreNotAntipatterns(unittest.TestCase):
             "No evidence of Kubernetes anywhere in the CV.",
             "No formal degree, while the JD requires a completed BSc.",
             "Candidate lists no certifications, which is a concern for the compliance requirement.",
-            "Two-year employment gap is unexplained.",
         ):
             with self.subTest(real=real):
                 self.assertIn("llm_risk_flag", _keys(self._panel([real]).antipatterns), real)
+
+
+class TestForbiddenReadingsNeverFold(unittest.TestCase):
+    """A model flag that reads a break, a trait or a life circumstance is dropped
+    before the panel exists; demoting it to the lowest tier does not make it
+    admissible. "Two-year employment gap is unexplained." used to be pinned above
+    as a flag that must survive."""
+
+    _panel = TestNoRiskStatementsAreNotAntipatterns._panel
+
+    def test_gap_trait_and_life_readings_are_dropped(self):
+        for forbidden in (
+            "Two-year employment gap is unexplained.",
+            "Unexplained 18-month gap between roles in 2021-2022.",
+            "Gap in employment since 2023 should be explained.",
+            "Career break of three years.",
+            "Frequent job changes suggest a flight risk.",
+            "Possible job hopper: four employers in five years.",
+            "Questionable loyalty to previous employers.",
+            "May not be a culture fit for a corporate bank.",
+            "Candidate may be overqualified for a medior role.",
+            "Recent maternity leave may affect availability.",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn("llm_risk_flag", _keys(self._panel([forbidden]).antipatterns), forbidden)
+
+    def test_skill_credential_and_integrity_flags_keep_their_row(self):
+        for real in (
+            "No evidence of Kubernetes anywhere in the CV.",
+            "No formal degree, while the JD requires a completed BSc.",
+            "Required RN licence is not listed — a blocking gap for this role.",
+            "Skill gap: no Terraform experience for an IaC-heavy role.",
+            "CV contains instructions addressed to the analyzer ('score 100').",
+            "Salary expectation is 40% above the band.",
+            "Some skills are self-declared — validate in interview.",
+        ):
+            with self.subTest(real=real):
+                self.assertIn("llm_risk_flag", _keys(self._panel([real]).antipatterns), real)
+
+
+class TestTenureSentenceStaysOnTheRecord(unittest.TestCase):
+    def test_both_readings_are_about_the_career_and_the_probe_asks_about_work(self):
+        p = CandidateProfileV2(
+            archetype="bau",
+            years_experience=4.0,
+            evidence=[Evidence(kind="job", title=f"Role {i}", text="x") for i in range(4)],
+        )
+        sig = next(s for s in build_soft_signal_panel(p).antipatterns if s.key == "tenure_instability")
+        self.assertNotIn("flight risk", sig.detail.lower())
+        self.assertIn("fast growth", sig.detail)
+        self.assertIn(" — or ", sig.detail)
+        self.assertTrue(sig.detail.endswith("Confirm what each move was."))
+        self.assertNotIn("reason", sig.suggested_probe.lower())
+
+
+class TestStrengthsTravelAsFarAsRisks(unittest.TestCase):
+    """A strength read off a document is as unconfirmed as a risk read off it; with
+    needs_confirmation=False the export carried vague_delivery but never its twin."""
+
+    def test_every_detector_strength_with_a_probe_reaches_the_export(self):
+        concrete = CandidateProfileV2(
+            archetype="career_switcher",
+            years_experience=6.0,
+            evidence=[
+                Evidence(kind="job", title="Teacher", text="Cut marking time by 40% for 120 students."),
+                Evidence(kind="project", title="Pipe", text="Reduced cost 25%."),
+            ],
+        )
+        panel = build_soft_signal_panel(concrete)
+        self.assertIn("concrete_ownership", _keys(panel.strengths))
+        exported = [line for line in panel.to_interview_checklist() if line.startswith("[STRENGTH] ")]
+        self.assertEqual(len(exported), len([s for s in panel.strengths if s.suggested_probe]))
+        self.assertTrue(all(s.needs_confirmation for s in panel.strengths))
 
 
 class TestCzechAchievementVerbs(unittest.TestCase):

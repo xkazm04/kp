@@ -160,11 +160,19 @@ def _tenure_instability(profile: CandidateProfileV2) -> SoftSignal | None:
         key="tenure_instability",
         kind=ANTIPATTERN,
         label=f"~{avg:.1f} yr average across {n_jobs} roles",
-        detail="Short average tenure can signal flight risk — or fast growth. Confirm the reasons.",
+        # Both readings stay on the record, never on the person: "flight risk" is a
+        # prediction about who they are, which this panel may not render at any
+        # confidence. The probe asks what the moves added, not why they happened —
+        # "the reason for each transition" is answered well only by disclosing a
+        # layoff, an illness or a family move.
+        detail=(
+            "Short average tenure can mean contract or project work, fast growth — or roles "
+            "that ended early; the CV does not say which. Confirm what each move was."
+        ),
         confidence=0.5,
         source=CV_STRUCTURAL,
         needs_confirmation=True,
-        suggested_probe="Walk through the last three moves and the reason for each transition.",
+        suggested_probe="Walk through the last three moves: what each role added and what you were looking for next.",
     )
 
 
@@ -208,7 +216,10 @@ def _potential_strengths(profile: CandidateProfileV2) -> list[SoftSignal]:
             evidence=signals,
             confidence=round(float(score), 2),
             source=CV_STRUCTURAL,
-            needs_confirmation=False,
+            # A strength read off a document is as unconfirmed as a risk read off it.
+            # False kept it off the exported checklist while its adverse twins went
+            # out: 32 of 66 seeded candidates got a risks-only export (dp-hnv-0929).
+            needs_confirmation=True,
             suggested_probe="Probe self-directed learning: how they ramped on their newest skill.",
         )
     ]
@@ -247,9 +258,37 @@ def _concrete_ownership(profile: CandidateProfileV2) -> SoftSignal | None:
         detail="Delivery described with measurable outcomes — a real-ownership signal.",
         confidence=round(min(0.5 + 0.1 * metric_hits, 0.85), 2),
         source=CV_STRUCTURAL,
-        needs_confirmation=False,
+        # The inverse of vague_delivery must travel as far as vague_delivery does:
+        # both are readings of the same metric count, and only one reached the export.
+        needs_confirmation=True,
         suggested_probe="Pressure-test one metric: how it was measured and what they'd do differently.",
     )
+
+
+# Readings this panel may not carry at any confidence, whoever produced them: a
+# break in employment (it proxies pregnancy, illness, disability, caregiving and
+# incarceration while saying almost nothing about the work), a prediction about
+# the person ("flight risk", "job hopper", loyalty, culture fit, temperament), and
+# age or family circumstance. The deterministic detectors never emit these; the
+# model's free-text flags did — "Two-year employment gap is unexplained." was
+# pinned as a flag that must SURVIVE into the panel. Matched on the category
+# phrase only, so a skill gap, a missing credential or an injection attempt keeps
+# its row. Dropped before the panel is built, so it never reaches the stored panel.
+_FORBIDDEN_READING_RE = re.compile(
+    r"\b(?:employment|career|cv|resume|résumé|work[\s-]history)\s+(?:gaps?|breaks?)\b"
+    r"|\bgaps?\s+(?:in|between)\s+(?:employment|roles|jobs|positions|work)\b"
+    r"|\b(?:unexplained|unaccounted)\s+(?:[\w-]+\s+){0,2}(?:gaps?|breaks?|absences?)\b"
+    r"|\bflight[\s-]risk\b|\bjob[\s-]?hopp(?:er|ers|ing)\b|\bloyalty\b|\bculture[\s-]fit\b"
+    r"|\bcoachab\w*|\bwork\s+ethic\b|\btemperament\b|\bpersonality\b|\battitude\b"
+    r"|\boverqualified\b|\bpregnan\w*|\b(?:maternity|paternity|parental)\s+leave\b"
+    r"|\bcaregiv\w*|\bchild\s?care\b|\bfamily\s+reasons\b|\bmarital\b|\btoo\s+(?:old|young)\b",
+    re.IGNORECASE,
+)
+
+
+def is_forbidden_reading(flag: str) -> bool:
+    """True when a free-text flag reads a gap, a trait or a life circumstance."""
+    return bool(_FORBIDDEN_READING_RE.search(flag or ""))
 
 
 def _folded_risk_flags(job_fit) -> list[SoftSignal]:
@@ -259,11 +298,13 @@ def _folded_risk_flags(job_fit) -> list[SoftSignal]:
     are dropped by the shared :func:`~pipeline.jobfit.interview.is_no_risk_statement`
     predicate — folding one in manufactured an ANTIPATTERN out of a clean bill of
     health. Shared with the interview kit so the two consumers of the same list can't
-    disagree about what counts as a finding.
+    disagree about what counts as a finding. Entries in a forbidden category
+    (:func:`is_forbidden_reading`) are dropped too: demoting them to the lowest tier
+    does not make them admissible.
     """
     if job_fit is None:
         return []
-    flags = real_risk_flags(job_fit)
+    flags = [f for f in real_risk_flags(job_fit) if not is_forbidden_reading(f)]
     return [
         SoftSignal(
             key="llm_risk_flag",
