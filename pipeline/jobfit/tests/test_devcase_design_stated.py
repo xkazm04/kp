@@ -31,6 +31,21 @@ class TestStatedRequirements(unittest.TestCase):
         self.assertIn("Snowflake", role["mustHaves"])
         self.assertEqual(role["niceToHaves"], ["Python"])
 
+    def test_stated_dealbreakers_past_the_cap_are_never_trimmed(self) -> None:
+        names = ["dbt", "SQL", "Airflow", "Python", "Snowflake", "Looker", "Git", "Testing"]
+        need = DevNeed(
+            title="Analytics Engineer",
+            stack=["SQL"],
+            seniority_target="medior",
+            stated_requirements=[
+                {"skill": s, "kind": "must_have", "hardness": "prerequisite", "weight": round(0.95 - 0.05 * i, 2)}
+                for i, s in enumerate(names)
+            ],
+        )
+        role, _ = design_role(need, NeedAnalysis(real_stack=["Redshift", "Fivetran"]), provider=None)
+        # All eight confirmed dealbreakers survive, weight-ordered; the real-stack fill is what is bounded.
+        self.assertEqual(role["mustHaves"], names)
+
     def test_prompt_carries_the_grading(self) -> None:
         capture = TextReply({})
         design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=capture)

@@ -203,7 +203,11 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "title": title,
             "seniority": need.seniority_target,
             "roleFamily": need.role_family,
-            "mustHaves": musts[:6] if stated_musts else real[:5],
+            # The bound is on what THIS fallback adds, never on what the requestor confirmed:
+            # slicing at six dropped every stated dealbreaker past the sixth, silently and
+            # by weight, which the model path's prompt forbids ("every kind=must_have entry
+            # must appear in mustHaves"). Intake already asks for a ranking above six.
+            "mustHaves": musts[: max(6, len(stated_musts))] if stated_musts else real[:5],
             "niceToHaves": stated_nices[:5],
             "responsibilities": analysis.core_responsibilities or need.responsibilities or [],
             "languages": ["English"],
