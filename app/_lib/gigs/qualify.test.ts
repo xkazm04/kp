@@ -37,7 +37,7 @@ function spec(arena: GigSpecialistSpec["arena"], niche = "web"): GigSpecialistSp
 }
 
 function fakeSpecialist(arena: GigSpecialistSpec["arena"]): GigSpecialist {
-  return { id: "gspec-1", hiredAgentId: "agent-1", name: "S", spec: spec(arena), registry: "unavailable", createdAt: "", updatedAt: "" };
+  return { id: "gspec-1", hiredAgentId: "agent-1", gigId: null, name: "S", spec: spec(arena), registry: "unavailable", createdAt: "", updatedAt: "" };
 }
 
 type QGig = Pick<Gig, "arena" | "reward" | "deadlineAt" | "status" | "suspectReasons">;

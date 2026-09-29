@@ -1712,6 +1712,31 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_gig_lessons_ws_landed ON gig_lessons (workspace_id, landed_at);
+
+    -- One model's plan proposal for one gig (gigs/plan-seats.ts; gig-mastery S1). The
+    -- operator accepts exactly one per gig (accepted_at, a CAS); progress_json mirrors the
+    -- accepted plan's Personas milestone ({milestoneId, goals[], updatedAt}). cost_usd NULL
+    -- means the model's cost was not reported - unmetered, not free.
+    CREATE TABLE IF NOT EXISTS gig_plans (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      gig_id TEXT NOT NULL,
+      seat TEXT NOT NULL,
+      model TEXT NOT NULL,
+      effort TEXT,
+      status TEXT NOT NULL DEFAULT 'queued',
+      plan_json TEXT,
+      fallback_reason TEXT,
+      cost_usd REAL,
+      duration_ms INTEGER,
+      note TEXT,
+      accepted_at TEXT,
+      progress_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_gig_plans_ws_gig ON gig_plans (workspace_id, gig_id, created_at);
   `);
   // Run a DDL migration LOUDLY. An `ALTER TABLE … ADD COLUMN` goes through addColumns
   // (db/add-columns.ts): probe PRAGMA table_info, ALTER only a column that is missing, and
@@ -2430,6 +2455,9 @@ export function ensureDb(): Database.Database {
     // {challenge, index, at}. NULL on every other gig, on a withdraw that named no
     // challenge, and on every row withdrawn before the column existed (unknown).
     "ALTER TABLE gigs ADD COLUMN withdraw_reason_json TEXT",
+    // One persona per gig (gig-mastery S2): the gig a specialist was hired FOR. NULL on the
+    // niche specialists hired before, which serve many gigs until they are retired.
+    "ALTER TABLE gig_specialists ADD COLUMN gig_id TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

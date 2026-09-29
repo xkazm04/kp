@@ -367,6 +367,9 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // Lessons: what an outcome taught a recipe, queued for the registry lander
   // (gigs-lessons-tenancy.test.ts).
   "gig_lessons",
+  // Plans: the three models' proposals for a gig and the one the operator accepted, with
+  // their cost and the mirrored milestone progress (gigs-plans-tenancy.test.ts).
+  "gig_plans",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,

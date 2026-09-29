@@ -13,6 +13,8 @@ type GigSpecialistRow = {
   id: string;
   workspace_id: string;
   hired_agent_id: string;
+  /** Added by ALTER (core.ts): the one gig this persona serves; NULL on niche specialists. */
+  gig_id?: string | null;
   name: string;
   spec_json: string;
   registry: string;
@@ -31,6 +33,7 @@ function gigSpecialistFromRow(row: GigSpecialistRow, spec: GigSpecialistSpec): G
   return {
     id: row.id,
     hiredAgentId: row.hired_agent_id,
+    gigId: row.gig_id ?? null,
     name: row.name,
     spec,
     registry: row.registry === "available" ? "available" : "unavailable",

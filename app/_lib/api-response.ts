@@ -2034,6 +2034,13 @@ export const REFUSAL_ERRORS = {
   GIG_STATE_CHANGED: "This gig changed while that was being saved, so nothing was overwritten. Reload and try again.",
   /** The attempt in the URL is not in this workspace (404). */
   GIG_ATTEMPT_NOT_FOUND: "That draft does not exist.",
+  /** Dispatch of a gig with no accepted plan (409): the operator accepts one of the
+   *  models' plans first (gig-mastery S1). */
+  GIG_PLAN_NOT_ACCEPTED: "Accept one of the plans for this gig before sending it to an agent.",
+  /** The plan in the URL is not this gig's, or not in this workspace (404). */
+  GIG_PLAN_NOT_FOUND: "That plan does not exist.",
+  /** A second plan accepted for a gig that already has one (409). */
+  GIG_PLAN_ALREADY_ACCEPTED: "A plan is already accepted for this gig.",
   /** mark_sent without the AI-use disclosure ticked on the review (422). */
   GIG_DISCLOSURE_REQUIRED: "Tick the AI-use disclosure before marking this work as sent.",
   /** A revision request with no note saying what to change (400). */

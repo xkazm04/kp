@@ -310,10 +310,78 @@ export type GigSpecialist = {
   id: string;
   /** The hired_agents roster row that carries the Personas persona. */
   hiredAgentId: string;
+  /** The ONE gig this persona was hired for (one persona per gig, gig-mastery S2); null on
+   *  the niche specialists hired before, which serve many gigs and are retired as their
+   *  open work closes. */
+  gigId: string | null;
   name: string;
   spec: GigSpecialistSpec;
   /** Whether the recipe content came from the registry checkout or the built-in seed map. */
   registry: "available" | "unavailable";
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ---------------------------------------------------------------------------
+// Plans: three models propose, the operator accepts exactly one (gig-mastery S1)
+// ---------------------------------------------------------------------------
+
+/** The seats that write plan proposals; the lineup itself is plan-seats.ts. */
+export const GIG_PLAN_SEAT_IDS = ["fable", "opus", "sonnet"] as const;
+export type GigPlanSeatId = (typeof GIG_PLAN_SEAT_IDS)[number];
+
+export function isGigPlanSeatId(v: unknown): v is GigPlanSeatId {
+  return typeof v === "string" && (GIG_PLAN_SEAT_IDS as readonly string[]).includes(v);
+}
+
+export const GIG_PLAN_STATUSES = ["queued", "running", "ready", "failed"] as const;
+export type GigPlanStatus = (typeof GIG_PLAN_STATUSES)[number];
+export function isGigPlanStatus(v: unknown): v is GigPlanStatus {
+  return typeof v === "string" && (GIG_PLAN_STATUSES as readonly string[]).includes(v);
+}
+
+/** One step of a plan; it becomes one goal of the gig's Personas milestone. */
+export type GigPlanStep = { title: string; doneWhen: string };
+
+/** A plan as one model wrote it (gig_plan_cli.py, prompt gig-plan-v1). The decisions and
+ *  risks are required reading at the gate (registry: plan-review): what the plan decided
+ *  without saying so is the part a person cannot reconstruct from the steps. */
+export type GigPlan = {
+  summary: string;
+  /** 4-9 steps. */
+  steps: GigPlanStep[];
+  decisions: string[];
+  risks: string[];
+  effortHours: { min: number; max: number } | null;
+  questions: string[];
+};
+
+/** A goal's state as the agent reports it in PLAN-STATUS.json and kp mirrors to Personas. */
+export const GIG_GOAL_STATUSES = ["open", "in-progress", "blocked", "done"] as const;
+export type GigGoalStatus = (typeof GIG_GOAL_STATUSES)[number];
+export type GigGoalProgress = { stepIndex: number; goalId: string | null; status: GigGoalStatus; progress: number; note: string | null };
+
+/** Where the accepted plan stands as a Personas milestone: written by the pairing (the
+ *  milestone and goal ids) and by the sync (each goal's reported status). */
+export type GigPlanProgress = { milestoneId: string | null; goals: GigGoalProgress[]; updatedAt: string };
+
+/** One seat's proposal for one gig, as the store holds it. `plan` is null until the seat is
+ *  `ready`; `costUsd` null = not reported (never 0). */
+export type GigPlanRow = {
+  id: string;
+  gigId: string;
+  seat: GigPlanSeatId;
+  model: string;
+  effort: string | null;
+  status: GigPlanStatus;
+  plan: GigPlan | null;
+  fallbackReason: string | null;
+  costUsd: number | null;
+  durationMs: number | null;
+  /** The operator's note at acceptance; rides into the assignment. */
+  note: string | null;
+  acceptedAt: string | null;
+  progress: GigPlanProgress | null;
   createdAt: string;
   updatedAt: string;
 };

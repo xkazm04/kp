@@ -58,6 +58,7 @@ export function spec(id: string, niche: string, status: string | null, createdAt
   return {
     id,
     hiredAgentId: `agent-${id}`,
+    gigId: null,
     name: `Specialist ${id}`,
     spec: { arena, niche, taxonomyFamily: "x", recipes: [], exemplars: [], connectors: [], budgetUsdPerAttempt: 3, promptVersion: "v1" },
     registry: "available",

@@ -10,6 +10,7 @@ function row(id: string, niche: string, status: string | null = "active", create
   return {
     id,
     hiredAgentId: `agent-${id}`,
+    gigId: null,
     name: `Spec ${niche}`,
     spec: { arena: "freelance", niche, taxonomyFamily: "general_professional", recipes: [], exemplars: [], connectors: [], budgetUsdPerAttempt: 3, promptVersion: "v" },
     registry: "unavailable",
