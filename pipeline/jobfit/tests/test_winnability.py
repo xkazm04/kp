@@ -204,6 +204,40 @@ class WinnabilityTest(unittest.TestCase):
         out = assess_winnability(pool, job)
         self.assertNotIn("jointLoosen", out)
 
+    def test_no_single_demotion_reaches_the_bar_but_a_combination_does(self) -> None:
+        # Candidates with python + terraform against five must-haves: demoting kafka OR
+        # kubernetes alone lifts them from 49 to 52 - under the 55 bar - so every
+        # qualifiedDelta is 0 and "the pool is not close" would be the verdict. Demoting
+        # both reaches 57. The joint pass reports that a combination exists.
+        names = ["python", "kafka", "kubernetes", "terraform", "docker"]
+        reqs = [JobRequirement(skill=n, kind="must_have") for n in names]
+        pool = [_cand(f"c{i}", ["python", "terraform"]) for i in range(3)]
+        job = _job(requirements=reqs)
+
+        def demoted(skills: list[str]) -> Job:
+            return job.model_copy(update={"requirements": [r.model_copy(update={"kind": "nice_to_have"}) if r.skill in skills else r for r in reqs]})
+
+        # Fixture precondition, read from the real scorer so a re-weighting fails HERE.
+        self.assertLess(score_job(pool[0], job).total, FIT_PROMISING_THRESHOLD)
+        self.assertGreaterEqual(score_job(pool[0], demoted(["kafka", "kubernetes"])).total, FIT_PROMISING_THRESHOLD)
+        for single in ("kafka", "kubernetes", "docker"):
+            self.assertLess(score_job(pool[0], demoted([single])).total, FIT_PROMISING_THRESHOLD)
+
+        out = assess_winnability(pool, job)
+        self.assertTrue(all(m["qualifiedDelta"] == 0 for m in out["looseMustHaves"]))
+        best = out["jointDemote"][0]
+        self.assertEqual(sorted(best["skills"]), ["kafka", "kubernetes"])
+        self.assertEqual(best["qualifiedDelta"], 3)
+
+    def test_no_pair_search_when_a_single_demotion_already_moves_someone(self) -> None:
+        # One must-have nobody has: the single lever already answers the question, so
+        # the pair fallback stays out of the payload.
+        pool = [_cand(f"c{i}", ["python"]) for i in range(3)]
+        job = _job(requirements=[JobRequirement(skill="python", kind="must_have"), JobRequirement(skill="kafka", kind="must_have")])
+        out = assess_winnability(pool, job)
+        self.assertGreater(out["looseMustHaves"][0]["qualifiedDelta"], 0)
+        self.assertNotIn("jointDemote", out)
+
     def test_an_ad_that_states_no_pay_gets_no_verdict_not_a_clean_one(self) -> None:
         # normalize_job stamps the market-anchor band on an ad with no pay and records
         # "salary_band" in defaulted_fields. That band IS the market band, so top-vs-floor

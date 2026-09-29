@@ -25,9 +25,14 @@ are deterministic; ``winnability_cli`` wires it to the pool + a draft Job.
 
 from __future__ import annotations
 
+from itertools import combinations
+
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig
 from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
+
+# Must-haves considered for the pair fallback: C(8, 2) = 28 extra passes at most.
+_PAIR_CANDIDATES = 8
 
 
 def _same_currency(a: str | None, b: str | None) -> bool:
@@ -131,6 +136,28 @@ def assess_winnability(
     # Surface the must-have that frees up the most candidates first.
     must_haves.sort(key=lambda m: (m["qualifiedDelta"], m["missingAmongEligible"]), reverse=True)
 
+    # A candidate several must-haves short can sit under the bar by more than any ONE
+    # demotion buys (each moves the score a few points), so every single delta reads 0
+    # and the verdict "the pool is not close" is wrong: a PAIR reaches it. Only when no
+    # single lever moves anyone, try each pair of must-haves that some eligible candidate
+    # lacks (demoting one a candidate HOLDS lowers their score, so a demote-everything
+    # pass is not a bound). Pairs are real counterfactuals like the singles, ranked
+    # best-first, capped at _PAIR_CANDIDATES skills so the extra passes stay bounded.
+    joint_demote: list[dict] = []
+    if not any(m["qualifiedDelta"] > 0 for m in must_haves):
+        lacking = [m["skill"] for m in must_haves if m["missingAmongEligible"] > 0][:_PAIR_CANDIDATES]
+        kinds = {r.skill: idx for idx, r in enumerate(requirements) if r.kind == "must_have"}
+        for a, b in combinations(dict.fromkeys(lacking), 2):
+            demoted = [
+                r.model_copy(update={"kind": "nice_to_have"}) if idx in (kinds[a], kinds[b]) else r
+                for idx, r in enumerate(requirements)
+            ]
+            variant = job.model_copy(update={"requirements": demoted})
+            delta = len(_qualified(candidates, job=variant, eligible=base_elig, threshold=fit_threshold)) - len(base_qual)
+            if delta > 0:
+                joint_demote.append({"skills": [a, b], "qualifiedDelta": delta})
+        joint_demote.sort(key=lambda p: p["qualifiedDelta"], reverse=True)
+
     # --- Salary vs market. role_band lives in `taxonomy`, but `jobs` already
     # imports it to anchor bands at parse time; read it through that re-export so
     # this module's import surface stays inside the matching/jobs core.
@@ -192,5 +219,6 @@ def assess_winnability(
         "looseGates": loose_gates,
         **({"jointLoosen": joint_loosen} if joint_loosen else {}),
         "looseMustHaves": must_haves,
+        **({"jointDemote": joint_demote} if joint_demote else {}),
         "salary": salary,
     }

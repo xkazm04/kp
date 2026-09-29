@@ -31,6 +31,9 @@ export type Winnability = {
   looseGates?: Gate[];
   jointLoosen?: JointLoosen;
   looseMustHaves?: MustHave[];
+  // Present only when NO single demotion moves anyone: the pairs of must-haves that do
+  // (best first). "The pool is not close" is only the verdict when this is absent.
+  jointDemote?: { skills: [string, string]; qualifiedDelta: number }[];
   salary?: Salary;
   /** Candidates the CLI couldn't score, so every count is over a reduced denominator. */
   skipped?: { id: string; label: string; reason: string }[];
