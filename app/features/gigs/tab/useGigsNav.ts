@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useTablist } from "@/app/_components/ui/useTablist";
-import type { Gig, GigArena } from "@/app/_lib/gigs/types";
+import type { Gig } from "@/app/_lib/gigs/types";
 import { useBareKeys } from "../data/useBareKeys";
 import { EMPTY_FILE, type FileFilter, type FileStatus } from "../logic/file";
 import { nextInQueue } from "../logic/front";
@@ -30,7 +30,6 @@ export function useGigsNav(queue: readonly Gig[]) {
   const [lastOpened, setLastOpened] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [focusLane, setFocusLane] = useState<string | null>(null);
-  const [hireArena, setHireArena] = useState<GigArena | null>(null);
   const rootRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const frontScroll = useRef<number | null>(null);
@@ -54,10 +53,7 @@ export function useGigsNav(queue: readonly Gig[]) {
       setProof(null);
       setFlash(null);
       setSection(s);
-      if (s !== "lanes") {
-        setFocusLane(null);
-        setHireArena(null);
-      }
+      if (s !== "lanes") setFocusLane(null);
       window.requestAnimationFrame(toTop);
     },
     [toTop]
@@ -121,10 +117,10 @@ export function useGigsNav(queue: readonly Gig[]) {
     },
     [goSection]
   );
+  /** A proof → Lanes, with the gig's type (its lane) in focus. */
   const openLane = useCallback(
-    (lane: string | null, arena: GigArena | null) => {
+    (lane: string | null) => {
       setFocusLane(lane);
-      setHireArena(arena);
       goSection("lanes");
     },
     [goSection]
@@ -168,7 +164,6 @@ export function useGigsNav(queue: readonly Gig[]) {
     lastOpened,
     flash,
     focusLane,
-    hireArena,
     // what the page binds
     rootRef,
     searchRef,

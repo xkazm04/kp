@@ -32,7 +32,9 @@ export function Agent({
 
   async function redispatch() {
     const body = await run(`/api/gigs/${encodeURIComponent(gig.id)}/dispatch`, "POST", {});
-    if (body) await onChanged(t("triageView.dispatchedFlash", { name: specialist?.name ?? t("desk.theAgent") }));
+    if (!body) return;
+    // 202 { pairing: "pending" }: the gig's own persona is being hired; it runs once approved.
+    await onChanged(body.pairing === "pending" ? t("pairing.pendingFlash") : t("triageView.dispatchedFlash", { name: specialist?.name ?? t("desk.theAgent") }));
   }
 
   return (

@@ -1,8 +1,8 @@
-import type { Gig, GigArena, GigAttempt, GigStatus } from "@/app/_lib/gigs/types";
+import { gigTypeOf } from "@/app/_lib/gigs/gig-type";
+import type { Gig, GigArena, GigStatus } from "@/app/_lib/gigs/types";
 import { deadlineView } from "./facts";
 import { EXIT_STATUSES } from "./lanes";
 import { matchesSearch } from "./line";
-import { laneOfGig } from "./niches";
 
 // ---------------------------------------------------------------------------
 // The whole file: every gig, filtered and sorted
@@ -17,7 +17,7 @@ export type FileSort = (typeof FILE_SORTS)[number];
 export type FileFilter = {
   status: FileStatus;
   arena: GigArena | "all";
-  /** A niche key (or NO_LANE) opened from Lanes; null = every lane. */
+  /** A gig type opened from Lanes (gig-type.ts); null = every lane. */
   lane: string | null;
   search: string;
   sort: FileSort;
@@ -41,16 +41,14 @@ export function statusMatches(filter: FileStatus, status: GigStatus): boolean {
  *  `dir` reverses the known part; absences stay at the end either way. */
 export function fileRows(
   gigs: readonly Gig[],
-  attemptsByGig: Readonly<Record<string, GigAttempt>>,
   filter: FileFilter,
-  nicheBySpecialist: ReadonlyMap<string, string>,
   now: Date
 ): Gig[] {
   const rows = gigs.filter(
     (g) =>
       statusMatches(filter.status, g.status) &&
       (filter.arena === "all" || g.arena === filter.arena) &&
-      (filter.lane === null || laneOfGig(g, attemptsByGig[g.id] ?? null, nicheBySpecialist) === filter.lane) &&
+      (filter.lane === null || gigTypeOf(g) === filter.lane) &&
       matchesSearch(g, filter.search)
   );
   const dir = filter.dir;

@@ -15,15 +15,18 @@ import type { Doubt } from "../shared/doubts";
 // shape from gig to gig. Each section is a white panel composed from the kit, inside one
 // `.k-kit` root so the kit's tokens and its delegated tip apply.
 //   Summary           ProofSummary.tsx: the summary set for reading, the key facts beside it
+//   Plans             three models' plans side by side; accept one (panels/PlansPanel.tsx)
 //   Draft             the proof slip and the galley (DraftTab.tsx)
 //   Evidence          what the agent ran: passed, failed, NOT VERIFIED (never two states)
 //   Pre-send review   the reviewer's note set out: verdict, must-dos, defects, the checks it ran
 //   Earlier drafts    every attempt, newest first: status, cost, the note that sent it back, verdicts
 //   Research brief    panels/BriefPanel.tsx (always open: it holds Research again)
 //   Listing           a stranger's text, framed as untrusted, invisible characters shown
-//   Routing & folder  who it goes to and why, the fit, the folder, every candidate
+//   Pairing           the gig's own agent, its knowledge, the folder, the milestone
+//                     (panels/PairingPanel.tsx; the legacy routing view for a gig a niche
+//                     specialist already worked). The id stays `routing`.
 
-export const PROOF_TABS = ["summary", "draft", "evidence", "review", "history", "brief", "listing", "routing"] as const;
+export const PROOF_TABS = ["summary", "plans", "draft", "evidence", "review", "history", "brief", "listing", "routing"] as const;
 export type ProofTab = (typeof PROOF_TABS)[number];
 
 /** The kit root: tokens, the calm density, the one delegated tip. */
@@ -63,6 +66,7 @@ export function useProofTabs({
   note,
   attempts,
   recurring,
+  plans,
 }: {
   gig: Gig | null;
   attempt: GigAttempt | null;
@@ -72,6 +76,8 @@ export function useProofTabs({
   attempts: number | null;
   /** Brief challenges the operator withdrew other gigs for before. */
   recurring: number;
+  /** Plans ready in the shown round, and whether one is accepted. */
+  plans: { ready: number; accepted: boolean };
 }): Segment[] {
   const t = useTranslations("gigs");
   if (!gig) return [];
@@ -81,6 +87,13 @@ export function useProofTabs({
   const stops = doubts.filter((x) => x.sev === "stop").length;
   return [
     { value: "summary", label: t("proof.summaryLabel") },
+    {
+      value: "plans",
+      label: t("plans.tab"),
+      count: plans.ready || undefined,
+      disabled: gig.brief === null,
+      mark: plans.ready && !plans.accepted ? <Mark kind="caution" tip={t("plans.readyTip", { count: plans.ready })} /> : undefined,
+    },
     {
       value: "draft",
       label: t("tabs.draft"),
@@ -113,6 +126,6 @@ export function useProofTabs({
       disabled: !gig.bodyText.trim(),
       mark: gig.suspectReasons.length ? <Mark kind="caution" tip={t("back.flags", { count: gig.suspectReasons.length })} /> : undefined,
     },
-    { value: "routing", label: t("tabs.short.routing") },
+    { value: "routing", label: t("pairing.tab") },
   ];
 }

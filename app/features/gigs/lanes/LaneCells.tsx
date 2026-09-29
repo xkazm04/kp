@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 import { Tooltip } from "@/app/_components/Tooltip";
 import { type LaneCell, YOUR_STEPS } from "../logic/lanes";
-import { type AttemptTally, type Niche, nicheTally } from "../logic/niches";
+import { type AttemptTally, nicheTally } from "../logic/niches";
+import type { SpecialistRow } from "../logic/wire";
 import { useGigsFormat } from "../data/useGigsFormat";
 
 // The lanes' cells (GigsLanes.tsx): the key that explains them, one stage cell per step,
-// and a niche's attempt record and cost.
+// and a type's agent record and cost.
 
 /** The key above the lanes: the four ways a cell reads. */
 export function LaneKey() {
@@ -15,7 +16,7 @@ export function LaneKey() {
   return (
     <p className="zkey">
       <span>
-        <i className="mk ok" aria-hidden /> {t("lanes.keyLead")}
+        <i className="mk ok" aria-hidden /> {t("lanes.keyAtWork")}
       </span>
       <span>
         <i className="mk fail" aria-hidden /> {t("lanes.keyFailed")}
@@ -76,14 +77,16 @@ export function StageCell({ cell, total, where, onOpen }: { cell: LaneCell; tota
   );
 }
 
-export function NicheRecord({ niche, tallies }: { niche: Niche; tallies: Readonly<Record<string, AttemptTally>> | null }) {
+/** A type's record: every run of its gig agents (one persona per gig, so each run belongs
+ *  to exactly one type), the failed share, revisions, and the cost they reported. Niche
+ *  specialists' runs span types and are not split here (GigsLanes' note says so). */
+export function TypeRecord({ personas, tallies }: { personas: readonly SpecialistRow[]; tallies: Readonly<Record<string, AttemptTally>> | null }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
-  const tally = nicheTally(niche, tallies);
+  const tally = nicheTally({ hires: [...personas] }, tallies);
   const failed = tally.byStatus.failed ?? 0;
   const revised = tally.byStatus.revision_requested ?? 0;
   const share = tally.attempts ? Math.round((failed / tally.attempts) * 100) : 0;
-  const spec = niche.lead.spec;
   return (
     <>
       <div className="failbar" role="cell">
@@ -110,18 +113,6 @@ export function NicheRecord({ niche, tallies }: { niche: Niche; tallies: Readonl
             <span className="l">{tally.costUnreported > 0 ? t("lanes.costUnreported", { count: tally.costUnreported }) : t("lanes.costAllReported")}</span>
           </>
         )}
-        <span className="l">{t("specialists.budgetLine", { budget: fmt.usd(spec.budgetUsdPerAttempt) })}</span>
-        <details className="fold-inline">
-          <summary>{t("lanes.recipes", { count: spec.recipes.length })}</summary>
-          <ul className="mono">
-            {spec.recipes.map((r) => (
-              <li key={r.slug}>{`${r.slug}@${r.version}`}</li>
-            ))}
-          </ul>
-          <p className="hire">
-            {t("specialists.connectors")}: {spec.connectors.length ? spec.connectors.join(", ") : t("specialists.noConnectors")}
-          </p>
-        </details>
       </div>
     </>
   );

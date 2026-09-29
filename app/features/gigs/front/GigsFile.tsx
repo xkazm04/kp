@@ -2,9 +2,9 @@
 
 import { useMemo, type RefObject } from "react";
 import { useTranslations } from "next-intl";
-import type { Gig, GigAttempt } from "@/app/_lib/gigs/types";
+import type { Gig } from "@/app/_lib/gigs/types";
 import { type FileFilter, fileRows, type FileStatus } from "../logic/file";
-import { type Niche, NO_LANE } from "../logic/niches";
+import { isGigType } from "@/app/_lib/gigs/gig-type";
 import type { SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { useGigsFormat } from "../data/useGigsFormat";
@@ -14,7 +14,7 @@ import { FileTable } from "./FileTable";
 import type { DeadlineCell, RewardCell } from "./useGigCells";
 
 // The whole file (B/3): every gig the tab read, filtered by status and arena chips (each
-// with its count), a lane opened from Lanes, and `/` search; sorted by recency, deadline,
+// with its count), a lane (gig type) opened from Lanes, and `/` search; sorted by recency, deadline,
 // the scan's fit score, or reward WITHIN one currency (never converted, never compared
 // across); fifty to a page. A row opens the gig's proof, and ← / → then walk this list in
 // this order, across its pages.
@@ -23,10 +23,7 @@ import type { DeadlineCell, RewardCell } from "./useGigCells";
 
 export function GigsFile({
   gigs,
-  attemptsByGig,
   sources,
-  nicheMap,
-  niches,
   truncated,
   now,
   filter,
@@ -41,10 +38,7 @@ export function GigsFile({
   deadline,
 }: {
   gigs: readonly Gig[];
-  attemptsByGig: Readonly<Record<string, GigAttempt>>;
   sources: readonly SourceRow[];
-  nicheMap: ReadonlyMap<string, string>;
-  niches: readonly Niche[];
   truncated: boolean;
   now: Date;
   filter: FileFilter;
@@ -60,7 +54,7 @@ export function GigsFile({
 }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
-  const rows = useMemo(() => fileRows(gigs, attemptsByGig, filter, nicheMap, now), [gigs, attemptsByGig, filter, nicheMap, now]);
+  const rows = useMemo(() => fileRows(gigs, filter, now), [gigs, filter, now]);
   const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
   const at = Math.min(page, pages - 1);
   const slice = rows.slice(at * PER_PAGE, at * PER_PAGE + PER_PAGE);
@@ -68,7 +62,7 @@ export function GigsFile({
 
   const statusLabel = (s: FileStatus) =>
     s === "in_review" ? t("front.col.ready") : s === "drafted" ? t("front.col.proof") : s === "suspect" ? t("front.col.quar") : s === "verdict" ? t("file.verdict") : s === "exit" ? t("file.exit") : s === "all" ? t("file.all") : fmt.status(s);
-  const laneLabel = filter.lane === null ? null : filter.lane === NO_LANE ? t("file.noLane") : (niches.find((n) => n.key === filter.lane)?.label ?? filter.lane);
+  const laneLabel = filter.lane === null ? null : isGigType(filter.lane) ? t(`lanes.type.${filter.lane}`) : filter.lane;
   const listLabel = [laneLabel, filter.status !== "all" ? statusLabel(filter.status) : null, filter.arena !== "all" ? fmt.arena(filter.arena) : null].filter(Boolean).join(" · ") || t("file.title");
 
   const set = (patch: Partial<FileFilter>) => onFilter({ ...filter, ...patch });

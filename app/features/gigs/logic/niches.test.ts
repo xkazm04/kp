@@ -1,12 +1,11 @@
-// Pure logic for niches and lanes (niches.ts, lanes.ts): specialists folded into niches,
-// the lane a gig runs in, the lifecycle counts per lane, and the niche's KPI and record.
+// Pure logic for niches (niches.ts): specialists folded into niches, and a niche's KPI and
+// attempt record (the lanes by gig type are lanes.test.ts).
 // Runner: node --test (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { GigKpi } from "@/app/_lib/gigs/types.ts";
-import { att, cell, gig, spec } from "./fixtures.ts";
-import { laneRows } from "./lanes.ts";
-import { foldNiches, laneOfGig, nicheBySpecialistMap, nicheCell, nicheTally, NO_LANE, programTally } from "./niches.ts";
+import { cell, spec } from "./fixtures.ts";
+import { foldNiches, nicheCell, nicheTally, programTally } from "./niches.ts";
 
 test("foldNiches: one lane per arena + niche (normalized), the working hire leads, earlier copies fold", () => {
   const niches = foldNiches([
@@ -20,34 +19,6 @@ test("foldNiches: one lane per arena + niche (normalized), the working hire lead
   const web = niches.find((n) => n.key === "freelance|web development")!;
   assert.equal(web.lead.id, "new");
   assert.deepEqual(web.earlier.map((h) => h.id), ["old", "failed"]);
-});
-
-test("laneOfGig: the latest attempt's specialist, else the routed one, else the unrouted pool", () => {
-  const map = nicheBySpecialistMap(foldNiches([spec("s1", "python", "active"), spec("s2", "writing", "active")]));
-  assert.equal(laneOfGig(gig("a", "drafted", { specialistId: "s2" }), att("x", "a", "drafted"), map), "freelance|python");
-  assert.equal(laneOfGig(gig("b", "qualified", { specialistId: "s2" }), null, map), "freelance|writing");
-  assert.equal(laneOfGig(gig("c", "new"), null, map), NO_LANE);
-});
-
-test("laneRows: counts by step, verdicts share a column, exits counted apart, 'none here now' vs 'never reached'", () => {
-  const niches = foldNiches([spec("s1", "python", "active")]);
-  const map = nicheBySpecialistMap(niches);
-  const gigs = [
-    gig("a", "drafted", { specialistId: "s1" }),
-    gig("b", "accepted", { specialistId: "s1" }),
-    gig("c", "declined", { specialistId: "s1" }),
-    gig("d", "new"),
-  ];
-  const [lane, pool] = laneRows(gigs, {}, niches, map);
-  const at = (row: typeof lane, step: string) => row.cells.find((c) => c.step === step)!;
-  assert.equal(at(lane, "drafted").count, 1);
-  assert.equal(at(lane, "verdict").count, 1);
-  assert.equal(lane.exit, 1);
-  assert.equal(at(lane, "qualified").count, 0);
-  assert.equal(at(lane, "qualified").reached, true, "a drafted gig passed qualified: none here NOW");
-  assert.equal(at(lane, "suspect").reached, false, "nothing in this lane was ever quarantined");
-  assert.equal(pool.key, NO_LANE);
-  assert.equal(at(pool, "new").count, 1);
 });
 
 test("nicheCell sums the hires' KPI cells and re-derives the rate; unmeasured stays null", () => {

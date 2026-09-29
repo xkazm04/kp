@@ -1,10 +1,15 @@
+import { GIG_TYPES, gigTypeOf, type GigType } from "@/app/_lib/gigs/gig-type";
 import type { Gig, GigAttempt, GigStatus } from "@/app/_lib/gigs/types";
 import { reachedStep } from "./line";
-import { laneOfGig, type Niche, NO_LANE } from "./niches";
+import type { SpecialistRow } from "./wire";
 
 // ---------------------------------------------------------------------------
-// Lanes: niches as rows, the lifecycle as columns
+// Lanes: gig types as rows, the lifecycle as columns
 // ---------------------------------------------------------------------------
+//
+// A lane is the KIND of work (app/_lib/gigs/gig-type.ts gigTypeOf: the brief category's
+// head, else the arena's fallback), not the niche specialist that once held it: each gig
+// is paired with its own persona now (gig-mastery S2), so the type is what a row shares.
 
 /** The line a gig walks. The two verdicts share one column: the judge's. */
 export const LANE_STEPS = ["new", "suspect", "qualified", "dispatched", "drafted", "in_review", "sent", "verdict"] as const;
@@ -22,23 +27,18 @@ export function laneStepOf(status: GigStatus): LaneStep | null {
 export const YOUR_STEPS: ReadonlySet<LaneStep> = new Set<LaneStep>(["suspect", "drafted", "in_review"]);
 
 export type LaneCell = { step: LaneStep; count: number; reached: boolean };
-export type LaneRow = { key: string; cells: LaneCell[]; exit: number; total: number };
+export type LaneRow = { key: GigType; cells: LaneCell[]; exit: number; total: number };
 
-/** One row per niche plus the unrouted pool (`NO_LANE`, last). A zero cell is either
- *  "none here now" (the lane reached the step and moved on) or "never reached" - two
- *  facts that never render alike. */
-export function laneRows(
-  gigs: readonly Gig[],
-  attemptsByGig: Readonly<Record<string, GigAttempt>>,
-  niches: readonly Pick<Niche, "key">[],
-  nicheBySpecialist: ReadonlyMap<string, string>
-): LaneRow[] {
-  const byLane = new Map<string, Gig[]>();
+/** One row per gig type, in the vocabulary's order. A zero cell is either "none here now"
+ *  (the lane reached the step and moved on) or "never reached" - two facts that never
+ *  render alike. */
+export function laneRows(gigs: readonly Gig[], attemptsByGig: Readonly<Record<string, GigAttempt>>): LaneRow[] {
+  const byLane = new Map<GigType, Gig[]>();
   for (const g of gigs) {
-    const k = laneOfGig(g, attemptsByGig[g.id] ?? null, nicheBySpecialist);
+    const k = gigTypeOf(g);
     byLane.set(k, [...(byLane.get(k) ?? []), g]);
   }
-  return [...niches.map((n) => n.key), NO_LANE].map((key) => {
+  return GIG_TYPES.map((key) => {
     const mine = byLane.get(key) ?? [];
     const cells = LANE_STEPS.map((step) => {
       const count = mine.filter((g) => laneStepOf(g.status) === step).length;
@@ -52,4 +52,17 @@ export function laneRows(
     const exit = mine.filter((g) => (EXIT_STATUSES as readonly string[]).includes(g.status)).length;
     return { key, cells, exit, total: mine.length };
   });
+}
+
+/** Each type's gig personas (a specialist hired for ONE gig, `gigId`), filed under the type
+ *  of the gig it serves. Niche specialists serve many gigs of many types, so they belong to
+ *  no lane (they finish their open drafts and retire). */
+export function personasByType(gigs: readonly Gig[], specialists: readonly SpecialistRow[]): Record<GigType, SpecialistRow[]> {
+  const typeOf = new Map(gigs.map((g) => [g.id, gigTypeOf(g)]));
+  const out = Object.fromEntries(GIG_TYPES.map((t) => [t, [] as SpecialistRow[]])) as Record<GigType, SpecialistRow[]>;
+  for (const s of specialists) {
+    const type = s.gigId ? typeOf.get(s.gigId) : undefined;
+    if (type) out[type].push(s);
+  }
+  return out;
 }

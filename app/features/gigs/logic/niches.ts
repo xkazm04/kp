@@ -1,5 +1,5 @@
 import { normalizeNicheLabel } from "@/app/_lib/gigs/match";
-import type { Gig, GigArena, GigAttempt, GigKpi, GigKpiCell } from "@/app/_lib/gigs/types";
+import type { GigArena, GigKpi, GigKpiCell } from "@/app/_lib/gigs/types";
 import type { SpecialistRow } from "./wire";
 
 // ---------------------------------------------------------------------------
@@ -41,14 +41,6 @@ export function foldNiches(specialists: readonly SpecialistRow[]): Niche[] {
     return { key, arena: hires[0].spec.arena, label: hires[0].spec.niche, hires, lead: hires[0], earlier: hires.slice(1) };
   });
   return out.sort((a, b) => hireRank(a.lead) - hireRank(b.lead) || a.label.localeCompare(b.label));
-}
-
-/** The lane a gig runs in: the niche of the specialist that holds it (its latest
- *  attempt's, else the one it is routed or matched to); `NO_LANE` when none does. */
-export const NO_LANE = "none";
-export function laneOfGig(gig: Gig, latest: GigAttempt | null, nicheBySpecialist: ReadonlyMap<string, string>): string {
-  const id = latest?.specialistId ?? gig.specialistId;
-  return (id && nicheBySpecialist.get(id)) || NO_LANE;
 }
 
 export function nicheBySpecialistMap(niches: readonly Niche[]): Map<string, string> {

@@ -109,10 +109,7 @@ export function GigsFront({
       <hr className="rule-double" />
       <GigsFile
         gigs={gigs}
-        attemptsByGig={attemptsByGig}
         sources={sources}
-        nicheMap={nicheMap}
-        niches={niches}
         truncated={truncated}
         now={now}
         filter={filter}

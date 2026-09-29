@@ -564,7 +564,7 @@ every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for a
 it) carries them too.
 
 `POST /api/gigs/[id]/workspace` runs the same step on demand. The gig's proof shows it in
-its "Routing & folder" tab (`proof/panels/RoutingPanel.tsx`): the folder path as selectable text,
+its Pairing tab (`proof/panels/WorkspaceSection.tsx`): the folder path as selectable text,
 "Personas project: linked | not linked (<reason>)" (the reason is known after a prepare),
 and **Prepare workspace**.
 
@@ -761,7 +761,7 @@ drawn outlines and a 16px radius after dark, nothing under 14px).
 Every read and write goes through the routes below. A failure renders from its `code`
 through `useErrorMessage()`, never from the server's `error` string. Strings live under the
 `gigs` catalog namespace in all four locales (`head.*`, `nav.*`, `keys.*`, `front.*`,
-`file.*`, `proof.*`, `slip.*`, `signoff.*`, `back.*`, `lanes.*`, `reception.*`, `wires.*`,
+`file.*`, `proof.*`, `slip.*`, `signoff.*`, `back.*`, `plans.*`, `pairing.*`, `lanes.*`, `reception.*`, `wires.*`,
 plus the shared vocabularies `status.*`, `check.*`, `lint.*`, `brief.*` ...). Nothing is
 written to the URL: `?tab=gigs` is consumed by the shell like every tab.
 
@@ -817,20 +817,30 @@ proof lands where the operator left.
      A quarantined listing has **no dispatch control at all**: Decline, or tick "I read the
      listing" and Clear the flag. A sent gig records the verdict (five verdicts with their
      marks, an amount in its own currency, the judge's words; the flash says how the rate
-     moved, re-read from `/api/gigs/kpi`, and names a source the verdict paused). A new or
-     qualified listing: who it goes to with their record, Dispatch or "below the bar", hire,
-     Decline. Work with an agent: in flight, sent back not dispatched, or failed, with
+     moved, re-read from `/api/gigs/kpi`, and names a source the verdict paused). A new or qualified listing: who it goes to (its own agent once paired, with its record), or
+     "Dispatch creates this gig's own agent (Opus 5.5 · high) and hands it the accepted plan";
+     then Dispatch or "below the bar", and Decline. **Dispatch needs an accepted plan**: for a gig
+     nobody worked yet and with no accepted plan the button is disabled and the reason is written
+     under it ("Accept a plan first. Dispatch hands the accepted plan to the gig's own agent.")
+     with **Open Plans**, which switches to the Plans tab; while the plans are still being read
+     it says so. A gig with an earlier attempt (worked before plans existed) is not gated, as the
+     route does not gate it. The proof reads the plans itself (`proof/panels/usePlans.ts`,
+     `GET /api/gigs/[id]/plans`) rather than widening the list route, and shares that read with
+     the Plans tab and the tab row. A dispatch answered `202 { pairing: "pending" }` flashes
+     "Pairing: the gig's own agent is being created. It starts when Personas approves it."; a
+     `409 GIG_PLAN_NOT_ACCEPTED` renders from its code. There is no hire button any more. Work with an agent: in flight, sent back not dispatched, or failed, with
      Dispatch again. Withdraw wherever `transitions.ts` allows. Confidence, this run's cost
      ("cost not reported", never $0) and the budget close it.
    - **The head**: the stage and the niche, then the title.
    - **The section tabs** (`proof/proofTabs.tsx`, the kit's `Segmented`, in the trail):
-     **Summary · Draft · Evidence · Pre-send review · Earlier drafts · Research brief ·
-     Listing · Routing & folder**, each with its count and a mark where something needs a
-     look (a stop, failed evidence, a reviewer blocker or warnings, a flagged listing). Every
-     tab is always shown; one the gig's state leaves empty is **disabled**, never hidden:
-     Draft with no attempt (unless quarantined), Evidence with no evidence item, Pre-send
-     review with no review note, Earlier drafts with no attempt, Listing with no listing text.
-     Research brief and Routing stay open (each holds its action). A proof opens on
+     **Summary · Plans · Draft · Evidence · Review · History · Brief · Listing · Pairing**, each
+     with its count and a mark where something needs a look (a stop, failed evidence, a reviewer
+     blocker or warnings, a flagged listing, plans ready and none accepted). Every tab is always
+     shown; one the gig's state leaves empty is **disabled**, never hidden: Plans with no research
+     brief (plans are written from it), Draft with no attempt (unless quarantined), Evidence with
+     no evidence item, Review with no review note, History with no attempt, Listing with no
+     listing text. Brief and Pairing stay open (each holds its action). The Pairing tab keeps the
+     id `routing`. A proof opens on
      **Summary** when there is a summary or a brief to read, else on Draft for a gig with an
      attempt or a quarantined one, else on Summary. Each section is a white panel composed
      from the kit (`StatStrip`, `Section`, `KeyValueGrid`, `Mark`, `Tag`, `Button`) inside a
@@ -845,6 +855,32 @@ proof lands where the operator left.
      The **rail** beside it holds the key facts as tags and values: category, the listing
      reference (its host as a link; text for a suspect listing) and org, reward, deadline,
      difficulty and effort, arena, the listing's own tags.
+   - **Plans** (`proof/panels/PlansPanel.tsx`, `PlanColumn.tsx`, `PlanBody.tsx`; pure
+     derivations in `logic/plans.ts`): three models each write a plan for the gig (Fable 5,
+     Opus 5.5 at extra-high effort, Sonnet 5.5 at high effort: `GIG_PLAN_SEATS` in
+     `app/_lib/gigs/plan-seats.ts`) and the operator accepts exactly one. With no plans the
+     panel says what a round does and costs ("One round is three model calls") beside
+     **Propose plans** (`POST /api/gigs/[id]/plans`). The round on screen (the accepted one's,
+     else the newest) is three columns side by side, in the lineup's order, stacked when the
+     proof column is narrower than 48rem (a container query). A column's head: the seat, its
+     state as a mark and a word, what it cost in USD (null reads "cost not reported", never
+     $0) and how long it took. A ready column: the summary at a reading size, the numbered
+     steps each with its "Done when", then **Decisions it made**, **Risks**, **Effort** (a range
+     in hours) and **Questions for you**, an empty list left out. A queued or running column is
+     one quiet line ("Writing its plan. This column fills when it finishes."); the proof
+     re-reads every 4 seconds while any seat is queued or running, and stops when none is (and
+     when the proof closes); after Propose it keeps reading until the new round appears, for at
+     most a minute. A failed column says why in words (`no_provider`, `llm_unusable`,
+     `llm_error:<type>` with its type shown, `budget`; any other code is shown as itself) with
+     **Retry**, which is a new round. Under each ready column, while nothing is accepted: an
+     optional note ("Anything the agent should know? e.g. skip step 4") and **Accept this
+     plan** (`POST /api/gigs/[id]/plans/[planId]/accept { note }`). Once one is accepted it
+     carries an "Accepted" tag, a moss rule, the date and the operator's note; the other two
+     are quieted by their ground and a dashed rule (never by opacity) and stay readable, so
+     the comparison stays; no accept buttons remain and **Propose again** (in the panel head,
+     offered only while nothing is accepted and nothing is being written) is gone. Earlier
+     rounds fold under the columns ("Earlier proposals (n)"): each seat of each round as date,
+     seat and state, expandable to its plan or its reason, read-only.
    - **Draft: the proof slip (`proof/ProofSlip.tsx`, doubts in `shared/doubts.tsx`)**: every doubt in words. The pre-send lint
      (`draft-lint.ts`, below) is the gate: a blocker says "blocks approve", a warn carries its
      "seen" box, open questions are one row (all of them marked seen at once, listed in a
@@ -877,9 +913,24 @@ proof lands where the operator left.
    - **Listing**: the suspect reasons explained, the untrusted frame (tag, source, character
      count, invisible characters), the listing's tags, and "Open the original" (a suspect
      listing's URL stays text).
-   - **Routing & folder** (above): who it goes to and the fit against the bar as two cards,
-     the workspace as a key-value grid with **Prepare workspace**, the specialists by fit as
-     rows with **Route here**.
+   - **Pairing** (`proof/panels/PairingPanel.tsx`, `MilestoneList.tsx`, `WorkspaceSection.tsx`;
+     `logic/pairing.ts`): the gig's **own agent**, the specialist hired for this gig
+     (`gigId === gig.id`): its persona name, its hire state as a mark and a word, the model
+     (Opus 5.5 · high, `GIG_PERSONA_MODEL`) and the gig type. Before dispatch it reads "Not
+     paired yet" and says the agent is created at dispatch (with **Open Plans** when no plan is
+     accepted). Beside it: the registry knowledge a gig of this type is hired with
+     (`GIG_TYPE_KNOWLEDGE[gigTypeOf(gig)]`, recomputed from the type since the row does not store
+     it) and the recipes it adopted (`spec.recipes`, `slug@version`). Then the **milestone**:
+     the accepted plan's steps as goals, from the accepted row's `progress` (PLAN-STATUS.json as
+     the sync mirrors it): the whole as a percentage and a bar, when it was last updated, and
+     each goal with its state as a mark and a word (open, in progress, blocked, done), its
+     progress as a bar and a numeral, its "Done when" and the agent's note; a step nobody
+     reported on is open at 0, and "Tracked in kp only" is said when Personas refused the
+     milestone. Then the workspace as a key-value grid with **Prepare workspace**. A gig worked
+     by a niche specialist before pairing existed (an attempt and no persona of its own) keeps
+     the **legacy routing view** (`proof/panels/RoutingPanel.tsx`): who it goes to and the fit
+     against the bar as two cards, the workspace, and the specialists by fit with **Route
+     here**. Niche specialists are no longer hired from anywhere in the tab.
 
    **The research brief** (`proof/panels/BriefPanel.tsx`, the Research brief tab) is a reading column and
    an aside. The column: the category as tags, the categorized title, then the Markdown body
@@ -896,20 +947,25 @@ proof lands where the operator left.
    beside the same button. Headings carry the ids
    the server minted with one assigner (`brief.sections`, via `briefHeadingResolver`, which
    refuses rather than guesses); nothing is re-slugged on the client.
-3. **Lanes (`lanes/GigsLanes.tsx`).** "6 niches, 13 hires." One row per **niche** (`logic/niches.ts`
-   `foldNiches`: the same arena + niche hired twice is one lane, its working hire leading,
-   earlier hires folded under it with status, date, persona and registry vs seed) plus **No
-   specialist yet** (every gig no specialist holds). Eight stage cells per row (Found,
-   Quarantined, Qualified, With agent, To proof, To send, Sent, Verdict): a numeral with a
-   bar of its share of the column; "·" for none here now; a dashed slot for a stage the lane
-   never reached; Sent at 0 is a measured zero; Verdict at 0 is an unmeasured stub; the
-   three that wait on the operator are washed coral. A cell opens the front page's whole
-   file filtered to that lane and stage. Then the niche's attempts ("6 of 42 attempts
-   failed", a failed-share bar, "23 sent back for revision") and cost (reported, "N not
-   reported", budget per attempt, recipes as `slug@version`), from the attempt tallies
-   (`GET /api/gigs/specialists` `tallies`). A "Left the line" row opens the declined,
-   withdrawn and expired. **Hire a specialist** (arena + niche) sits in the head; a proof's
-   "hire" opens it on that arena.
+3. **Lanes (`lanes/GigsLanes.tsx`, `logic/lanes.ts`).** "1,000 gigs across 7 types." and a
+   deck: gig agents at work, gigs paired with their own agent, and the niche specialists
+   still finishing their open drafts. One row per **gig type**, always all seven in the
+   vocabulary's order so the table keeps its shape (`GIG_TYPES`, `gigTypeOf`: the brief
+   category's head by keyword rules, else the arena's fallback), its head naming how many
+   gigs it holds and its agents (at work, being hired, retired, or "no agent yet"). Eight
+   stage cells per row (Found, Quarantined, Qualified, With agent, To proof, To send, Sent,
+   Verdict): a numeral with a bar of its share of the column; "·" for none here now; a dashed
+   slot for a stage the type never reached; Sent at 0 is a measured zero; Verdict at 0 is an
+   unmeasured stub; the three that wait on the operator are washed coral. A cell opens the
+   front page's whole file filtered to that type and stage (the file's lane chip names the
+   type). Then the type's **agent runs** ("6 of 42 attempts failed", a failed-share bar, "23
+   sent back for revision") and their reported cost, summed from the attempt tallies
+   (`GET /api/gigs/specialists` `tallies`) of the gig personas whose gig is of that type. A
+   note under the table says what that leaves out: the niche specialists' earlier runs span
+   several types, so they are not split by type. A "Left the line" row opens the declined,
+   withdrawn and expired. Nobody is hired from Lanes: the niche hire form is gone, and a
+   gig's persona is created when its accepted plan is dispatched.
+
 4. **Reception (`GigsReception.tsx`).** "0 sent, 0 judged." and the one sentence on what the
    rate is. The verdict ledger (gigs that came back, newest first, each opening its proof;
    empty is one italic sentence, never ghost rows), then by arena and by specialist niche:

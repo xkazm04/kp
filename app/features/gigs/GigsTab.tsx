@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
+import { gigTypeOf } from "@/app/_lib/gigs/gig-type";
 import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { sendJson, useGigsData } from "./data/useGigsData";
 import { useGigsFormat } from "./data/useGigsFormat";
@@ -26,6 +27,7 @@ import "./styles/front.css";
 import "./styles/proof.css";
 import "./styles/panels.css";
 import "./styles/records.css";
+import "./styles/plans.css";
 import "./styles/lanes.css";
 import "./styles/reception.css";
 import "./styles/wires.css";
@@ -36,11 +38,9 @@ import "./styles/themes.css";
 // (docs/features/gigs/README.md).
 //
 // Built from the owner's combined verdict on the gigs-calm contest (2026-09-28): B/3 "The
-// Proof" gives the front page (front/: a headline built from the data, the lead proof, the
-// index columns by next move, the whole file), the proof itself (proof/: a gig's full page),
-// Reception (reception/: the scorecard) and Wires (wires/: the sources); B/2 "The Line"
-// gives Lanes (lanes/: niches by lifecycle stage) and the three figures that decide the day,
-// which the owner asked to sit in THIS header (tab/GigsHeader.tsx).
+// Proof" gives the front page (front/), the proof (proof/: a gig's full page), Reception
+// (reception/) and Wires (wires/); B/2 "The Line" gives Lanes (lanes/: gig types by stage)
+// and the three figures that decide the day, in THIS header (tab/GigsHeader.tsx).
 //
 // Every section and the proof REPLACE the one before; where the operator is lives in
 // tab/useGigsNav.ts, above them, so the way back from a proof lands where they left. Behind
@@ -71,7 +71,7 @@ export function GigsTab() {
   const columns = useMemo(() => frontColumns(gigs ?? [], attemptsByGig, now), [gigs, attemptsByGig, now]);
   const counts = waitCounts(columns);
   const overall = kpi ? overallCell(kpi) : null;
-  const { section, proof, file, page, lastOpened, flash, focusLane, hireArena, rootRef, searchRef, keysRef, tablistProps, tabProps, ...go } = useGigsNav(queue);
+  const { section, proof, file, page, lastOpened, flash, focusLane, rootRef, searchRef, keysRef, tablistProps, tabProps, ...go } = useGigsNav(queue);
   const { setFlash, goSection, openProof } = go;
 
   const refreshAll = useCallback(async () => {
@@ -103,7 +103,7 @@ export function GigsTab() {
   const rate = rateView(overall);
   const sectionCount: Record<Section, string> = {
     front: String(counts.total),
-    lanes: String(niches.length),
+    lanes: String(new Set((gigs ?? []).map(gigTypeOf)).size),
     reception: rate.measured && rate.percent !== null ? fmt.percent(rate.percent) : "—",
     wires: String(sources?.length ?? 0),
   };
@@ -178,7 +178,7 @@ export function GigsTab() {
           onToWires={() => goSection("wires")}
         />
       ) : section === "lanes" ? (
-        <GigsLanes gigs={gigs} attemptsByGig={attemptsByGig} specialists={specialists} tallies={tallies} kpi={kpi} focusLane={focusLane} hireArena={hireArena} onOpenCell={go.openCell} onHired={data.reloadSpecialists} />
+        <GigsLanes gigs={gigs} attemptsByGig={attemptsByGig} specialists={specialists} tallies={tallies} focusLane={focusLane} onOpenCell={go.openCell} />
       ) : section === "reception" ? (
         <GigsReception gigs={gigs} attemptsByGig={attemptsByGig} specialists={specialists} tallies={tallies} kpi={kpi} onOpenGig={(id, ids, label) => openProof(id, { ids, label })} />
       ) : (

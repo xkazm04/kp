@@ -6,7 +6,7 @@ import type { Gig, GigAttempt, GigKpi } from "@/app/_lib/gigs/types";
 import { queueKindOf } from "../../logic/line";
 import type { AfterWrite, SourceRow, SpecialistRow } from "../../logic/wire";
 import { useGigsFormat } from "../../data/useGigsFormat";
-import { Suspect, Triage } from "./BeforeDispatch";
+import { Suspect, Triage, type PlanGate } from "./BeforeDispatch";
 import { Desk } from "./Desk";
 import { RecordVerdict } from "./RecordVerdict";
 import { Agent, OffLine } from "./WithAgent";
@@ -18,7 +18,8 @@ import { Agent, OffLine } from "./WithAgent";
 // approved draft: how to send it yourself, Open the listing, Mark sent (locked until the
 // checklist is complete). A quarantined listing has no dispatch control at all - clear it
 // (after saying you read it) or decline it. A sent one records the outside verdict. A
-// listing nobody worked yet is dispatched or declined; work with an agent says so.
+// listing nobody worked yet is dispatched (once a plan is accepted) or declined; work with
+// an agent says so.
 // Nothing here submits anywhere: the operator sends, kp records.
 //
 // The parts, one per state:
@@ -46,7 +47,8 @@ export function GigsSignoff({
   onChanged,
   onFlash,
   onDecline,
-  onHire,
+  planGate,
+  onOpenPlans,
 }: {
   gig: Gig;
   attempt: GigAttempt | null;
@@ -65,7 +67,9 @@ export function GigsSignoff({
   onFlash: (message: string) => void;
   /** Decline through the proof, which lands on the next gig of the list. */
   onDecline: () => void;
-  onHire: () => void;
+  /** Whether dispatch may go: an accepted plan ("ok"), none ("missing"), still reading. */
+  planGate: PlanGate;
+  onOpenPlans: () => void;
 }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
@@ -96,7 +100,7 @@ export function GigsSignoff({
       ) : kind === "record" ? (
         <RecordVerdict gig={gig} attempt={attempt} source={source} specialist={specialist} kpi={kpi} now={now} onChanged={onChanged} onFlash={onFlash} />
       ) : kind === "triage" ? (
-        <Triage gig={gig} source={source} specialist={specialist} kpi={kpi} onChanged={onChanged} onDecline={onDecline} onHire={onHire} />
+        <Triage gig={gig} attempt={attempt} source={source} specialist={specialist} kpi={kpi} planGate={planGate} onChanged={onChanged} onDecline={onDecline} onOpenPlans={onOpenPlans} />
       ) : kind === "running" || kind === "revision" || kind === "failed" ? (
         <Agent gig={gig} attempt={attempt} specialist={specialist} kind={kind} now={now} onChanged={onChanged} />
       ) : (
