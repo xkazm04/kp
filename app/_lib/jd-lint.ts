@@ -84,13 +84,19 @@ const MANY_MUST_HAVES = 8;
 // A stated pay figure: digits followed by a currency token ("65 000 Kč",
 // "65,000 CZK", "3 200 EUR"), or a currency symbol followed by digits ("€3,200",
 // "$120k"). Includes NBSP/narrow-NBSP — common thousands separators in cs text.
-const MONEY_RE = /\d[\d\s  .,]*\s*(?:kč|czk|eur(?:o)?\b|usd\b)|[€$]\s?\d/iu;
+// The sign also counts AFTER the figure ("60.000 €", "45 000 € brut"), which is
+// how de and fr write euros; without it a stated salary read as a missing one.
+const MONEY_RE = /\d[\d\s  .,]*\s*(?:kč|czk|€|eur(?:o)?\b|usd\b)|[€$]\s?\d/iu;
 
-// A stated place of work: a work-mode keyword (EN or CS) or a major CZ city.
+// A stated place of work: a work-mode keyword (EN, CS, DE, FR) or a major CZ city.
 // Substring stems on purpose — "hybridní", "v kanceláři", "remotely" all count;
-// trailing ASCII \b would break after diacritics (plzeň), so none is used.
+// trailing ASCII \b would break after diacritics (plzeň), so none is used. The
+// multi-word remedies are letter-guarded instead: they are the words the
+// lintMissingPlace copy tells the writer to use ("na pracovišti", "vor Ort",
+// "sur site", "télétravail"), and advice the check does not accept nags the
+// writer who followed it. Pinned against the catalogs by jd-lint.test.ts.
 const PLACE_RE =
-  /remote|hybrid|on-?site|home\s*office|na\s+dálku|z\s+domova|kancelář|praha|prague|brno|ostrava|plzeň|plzen|olomouc|liberec|hradec/iu;
+  /remote|hybrid|on-?site|home\s*office|na\s+dálku|z\s+domova|kancelář|(?<!\p{L})na\s+pracovišt\p{L}*|(?<!\p{L})vor\s+ort(?!\p{L})|t[ée]l[ée]travail|(?<!\p{L})sur\s+site(?!\p{L})|praha|prague|brno|ostrava|plzeň|plzen|olomouc|liberec|hradec/iu;
 
 /** Every boilerplate phrase in `text`, as written, in DOCUMENT order (the
  *  recruiter reads the findings against their own text top-to-bottom), first

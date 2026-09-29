@@ -6,6 +6,7 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { findVaguePhrases, jdLintMessage, lintFindingPhrase, lintJd, locateLintPhrase, type JdLintFinding } from "./jd-lint.ts";
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,42 @@ test("any work-mode signal counts as a place (remote IS a place for tech roles)"
   for (const place of ["fully remote", "hybridní režim", "on-site", "práce z domova", "v kanceláři v Olomouci"]) {
     const findings = lintJd({ body: `Senior developer, ${place}. 65 000 Kč/month.` });
     assert.deepEqual(findings, [], `should accept place signal: ${place}`);
+  }
+});
+
+// The missing-place finding tells the writer what to write, in their language. Every
+// remedy that copy names must clear the finding, or the writer who follows the advice
+// is nagged again: "vor Ort", "sur site", "télétravail" and "na pracovišti" were each
+// named by the catalog and matched by nothing. The catalog is read, not restated, so a
+// copy edit that names a new remedy fails here until the detector knows it.
+const REMEDIES: Record<string, string[]> = {
+  en: ["remote", "hybrid", "onsite"],
+  cs: ["remote", "hybrid", "na pracovišti"],
+  de: ["remote", "hybrid", "vor Ort"],
+  fr: ["télétravail", "hybride", "sur site"],
+};
+
+test("every place remedy the finding's copy names clears the finding, in every locale", () => {
+  for (const [locale, remedies] of Object.entries(REMEDIES)) {
+    const catalog = JSON.parse(readFileSync(new URL(`../../messages/${locale}.json`, import.meta.url), "utf8"));
+    const copy: string = catalog.library.result.lintMissingPlace;
+    for (const remedy of remedies) {
+      assert.ok(copy.includes(remedy), `${locale} copy no longer names "${remedy}": ${copy}`);
+      const findings = lintJd({ body: `Senior developer, ${remedy}. 65 000 Kč/month.` });
+      assert.deepEqual(findings, [], `${locale}: following the advice "${remedy}" must clear missing-place`);
+    }
+  }
+});
+
+test("a figure with the euro sign after it is a stated salary (de/fr write it that way)", () => {
+  for (const body of ["Entwickler, hybrid. 60.000 € brutto im Jahr.", "Développeur, hybride. 45 000 € brut annuel.", "Développeur, hybride. 45 000 € brut annuel."]) {
+    assert.deepEqual(lintJd({ body }), [], `should accept: ${body}`);
+  }
+});
+
+test("a word that merely contains a remedy is not a place", () => {
+  for (const body of ["Entwickler, 60.000 EUR. Zuvor Ortskenntnis nötig.", "Développeur, 45 000 EUR. Voir notre site web."]) {
+    assert.deepEqual(lintJd({ body }), [{ kind: "missing", what: "place" }], `should still flag: ${body}`);
   }
 });
 
