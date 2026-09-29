@@ -77,6 +77,13 @@ function activeSkillProfileKey(): { id: string; secret: string } | null {
  *  weakens nothing). An EMPTY list = no key material at all -> verify reports
  *  "unconfigured" (cannot verify), NOT "mismatch" (tampered). */
 function skillProfileKeysById(keyId: string): string[] {
+  // A key recorded as COMPROMISED is refused outright, exactly like a key with no material:
+  // anything sealed under it resolves to "unconfigured" (unverifiable), never "mismatch"
+  // (tampered), because a leaked key lets a forger mint rows that recompute correctly. The
+  // whole generation is refused rather than cut off at a date: the sealing time sits in the
+  // signed payload and in the row, both of which the same forger can write. The issuer reissues
+  // under the active key; retired-but-sound keys stay loadable.
+  if (process.env[`KP_SKILL_PROFILE_KEY_${keyId}_COMPROMISED`]?.trim()) return [];
   const secrets: string[] = [];
   const pinned = process.env[`KP_SKILL_PROFILE_KEY_${keyId}`]?.trim();
   if (pinned) secrets.push(pinned);
