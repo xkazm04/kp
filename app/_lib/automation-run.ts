@@ -566,7 +566,7 @@ export async function runAutomationTask(
     // "advance" made the workspace's invoice decide who moved on. It parks instead:
     // same card, verdictSource "template" disclosed, a person decides.
     const route = verdictSource === "llm" ? coerceScreenRoute(result.route) : "hold";
-    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(entry.stage, route);
+    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(entry.stage, route, getPipelineAxis(workspaceId).stages);
     // CAS on the snapshot stage: `entry` was read before the seconds-long Python/LLM
     // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage

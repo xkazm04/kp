@@ -20,6 +20,7 @@ import {
   roleOf,
   SCREENING_STAGES,
   screenedLandingStage,
+  screenStageOutcome,
   stageHasRole,
   screeningGateIndex,
   screeningStageIds,
@@ -144,6 +145,36 @@ test("a custom stage participates in ordering and claims no semantics", () => {
   assert.equal(screeningGateIndex(withCustom), 3);
   assert.equal(hasAdvancedPastScreening("Reference check", withCustom), false);
   assert.equal(stageIndex("Reference check", withCustom), 2);
+});
+
+test("the screening set is entry and screening roles before the gate, not everything before it", () => {
+  // homework, custom, scoring and an early offer column are pre-gate but triage nothing.
+  const mixed = axis(
+    ["New", "entry"],
+    ["Triage", "screening"],
+    ["Case", "homework"],
+    ["Reference check", "custom"],
+    ["Sign-off", "scoring"],
+    ["Talk", "interview"],
+    ["Won", "terminal"]
+  );
+  assert.deepEqual(screeningStageIds(mixed), ["New", "Triage"]);
+  assert.equal(isScreeningStage("Reference check", mixed), false);
+  assert.equal(isScreeningStage("Sign-off", mixed), false);
+  assert.equal(screenedLandingStage(mixed), "Triage");
+  // a screening-role column AFTER the gate is not a screening stage: the screen is advisory there
+  const lateTriage = axis(["New", "entry"], ["Talk", "interview"], ["Triage", "screening"], ["Won", "terminal"]);
+  assert.equal(isScreeningStage("Triage", lateTriage), false);
+});
+
+test("screenStageOutcome resolves against the axis it is given, not the default one", () => {
+  const renamed = axis(["Inbox", "entry"], ["Triage", "screening"], ["Talk", "interview"], ["Deal", "offer"], ["Won", "terminal"]);
+  assert.equal(screenStageOutcome("Inbox", "advance", renamed).applied, "advanced");
+  assert.equal(screenStageOutcome("Triage", "advance", renamed).applied, "advanced");
+  assert.equal(screenStageOutcome("Triage", "hold", renamed).holdForReview, true);
+  assert.equal(screenStageOutcome("Talk", "advance", renamed).applied, "advisory");
+  const lateTriage = axis(["New", "entry"], ["Talk", "interview"], ["Triage", "screening"], ["Won", "terminal"]);
+  assert.equal(screenStageOutcome("Triage", "advance", lateTriage).applied, "advisory");
 });
 
 // ---- The helpers that replaced the last name comparisons -------------------

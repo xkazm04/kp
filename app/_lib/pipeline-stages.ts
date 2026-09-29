@@ -153,8 +153,9 @@ export function stageHasRole(id: string, role: StageRole, axis: readonly StageDe
  *  stage" on purpose: a workspace may add several screening-ish stages, or none,
  *  and the question the fairness metric asks is always "did they get a real look",
  *  not "how many pre-stages were there". */
-/** Where an ALREADY-SCREENED candidate belongs: the last stage before the
- *  screening gate — i.e. "evaluated, waiting on the interview decision". Falls
+/** Where an ALREADY-SCREENED candidate belongs: the last entry or screening stage
+ *  before the screening gate — i.e. "evaluated, waiting on the interview decision"
+ *  (a homework, scoring or custom column just before the gate is not that place). Falls
  *  back to the entry stage, then the first column, so this always names a real
  *  place to put somebody.
  *
@@ -163,7 +164,7 @@ export function stageHasRole(id: string, role: StageRole, axis: readonly StageDe
  *  hardcoding "Screened", which is only that stage's name on the default axis. */
 export function screenedLandingStage(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string {
   const gate = screeningGateIndex(axis);
-  const before = axis.slice(0, gate);
+  const before = axis.slice(0, gate).filter((s) => s.role === "entry" || s.role === "screening");
   return before[before.length - 1]?.id ?? axis[0]?.id ?? "";
 }
 
@@ -206,20 +207,24 @@ export function hasAdvancedPastScreening(stage: string, axis: readonly StageDef[
 export const SCREENING_STAGES = ["Accepted", "Screened"] as const;
 export type ScreeningStage = (typeof SCREENING_STAGES)[number];
 
-/** The screening stages of an axis: everything before the screening gate, MINUS
- *  the homework columns. A case step is pre-gate but nothing triages a CV there —
- *  a "Screen with AI" run at a homework column would advance a candidate past the
- *  assignment the column exists to give them. See the StageRole comment. */
+/** The screening stages of an axis: the entry and screening columns that sit BEFORE
+ *  the screening gate. The gate supplies the ordinal half, the role supplies the
+ *  other: a homework, scoring, custom or offer column can sit before the first
+ *  interview, but nothing triages a CV there, and a "Screen with AI" run at one would
+ *  advance a candidate past the step the column exists for. A screening-role column
+ *  AFTER the gate (the enterprise preset puts human triage behind the AI round) is
+ *  not in this set: at or past the gate a screen is advisory. See the StageRole
+ *  comment. */
 export function screeningStageIds(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string[] {
   return axis
     .slice(0, screeningGateIndex(axis))
-    .filter((s) => s.role !== "homework")
+    .filter((s) => s.role === "entry" || s.role === "screening")
     .map((s) => s.id);
 }
 
 export function isScreeningStage(stage: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): stage is ScreeningStage {
   const i = stageIndex(stage, axis);
-  return i >= 0 && i < screeningGateIndex(axis) && axis[i].role !== "homework";
+  return i >= 0 && i < screeningGateIndex(axis) && (axis[i].role === "entry" || axis[i].role === "screening");
 }
 
 // The pipeline effect of a manual AI screen run at `stage`, given the screen
@@ -246,10 +251,10 @@ export type ScreenStageOutcome = { advance: boolean; holdForReview: boolean; app
  *  reused unchanged. From Screened a clean advance moves to Interview; otherwise it
  *  holds in place for review. A non-screening stage is advisory only — the verdict
  *  is informational and nothing moves. */
-export function screenStageOutcome(stage: string, route: string): ScreenStageOutcome {
-  if (!isScreeningStage(stage)) return { advance: false, holdForReview: false, applied: "advisory" };
+export function screenStageOutcome(stage: string, route: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): ScreenStageOutcome {
+  if (!isScreeningStage(stage, axis)) return { advance: false, holdForReview: false, applied: "advisory" };
   const cleared = route === "advance";
-  if (stage === "Accepted") {
+  if (stageHasRole(stage, "entry", axis)) {
     return { advance: true, holdForReview: !cleared, applied: cleared ? "advanced" : "held_for_review" };
   }
   return { advance: cleared, holdForReview: !cleared, applied: cleared ? "advanced" : "held_for_review" };
