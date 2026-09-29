@@ -40,23 +40,23 @@ export const COMPLIANCE_REGIMES: Record<RegimeId, ComplianceRegime> = {
   eu: {
     id: "eu",
     dataLaw: "GDPR",
-    oversightBasis: "EU AI Act Art. 14 + GDPR Art. 22",
+    oversightBasis: "EU AI Act Art. 14 and Art. 26(2) + GDPR Art. 22",
     antiDiscrimination: "EU equal-treatment directives",
     adverseImpactStandard: null,
   },
   uk: {
     id: "uk",
     dataLaw: "UK GDPR / Data Protection Act 2018",
-    oversightBasis: "UK GDPR Art. 22",
+    oversightBasis: "UK GDPR Arts. 22A-22D",
     antiDiscrimination: "Equality Act 2010",
     adverseImpactStandard: null,
   },
   us: {
     id: "us",
     dataLaw: "US state privacy laws (CCPA et al.) + FCRA",
-    oversightBasis: "EEOC guidance on automated employment-decision tools",
-    antiDiscrimination: "Title VII / ADEA / ADA (EEOC); OFCCP for federal contractors",
-    adverseImpactStandard: "Four-fifths (80%) rule",
+    oversightBasis: "Title VII / ADA: the employer answers for the tool",
+    antiDiscrimination: "Title VII / ADEA / ADA (EEOC); Section 503 / VEVRAA (OFCCP) for federal contractors",
+    adverseImpactStandard: "Four-fifths (80%) benchmark (29 CFR 1607.4(D))",
   },
   sg: {
     id: "sg",
