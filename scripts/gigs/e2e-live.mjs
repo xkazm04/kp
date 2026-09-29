@@ -84,6 +84,9 @@ gig this run creates. Spends money (three plan seats, the brief, one uncapped pe
   --hire-wait-s <n>      how long a hire may stay pending_approval (default 60)
   --max-plans-usd <n>    stop before dispatch when the plan round cost more (default 5)
   --allow-shared-sync    run although a workspace-wide sync could move OTHER gigs
+  --resume-gig <id>      continue a gig an EARLIER run of this script created (its title carries
+                         the "(kp e2e <run>)" marker) from the pairing step on: no new gig, no
+                         second brief or plan round, no second persona
   --help, -h             this text
 
 Auth: open dev mode needs no cookie; a passworded deploy needs ${SESSION_COOKIE_ENV}.`;
@@ -94,7 +97,7 @@ Auth: open dev mode needs no cookie; a passworded deploy needs ${SESSION_COOKIE_
 
 /** Parse argv. Throws on an unknown flag or a bad value. */
 export function parseArgs(argv) {
-  const out = { spends: false, kp: null, timeoutMin: 20, pollS: 20, hireWaitS: 60, maxPlansUsd: 5, allowSharedSync: false, help: false };
+  const out = { spends: false, kp: null, timeoutMin: 20, pollS: 20, hireWaitS: 60, maxPlansUsd: 5, allowSharedSync: false, help: false, resumeGig: null };
   const num = (flag, v) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n <= 0) throw new Error(`${flag} needs a positive number`);
@@ -107,7 +110,11 @@ export function parseArgs(argv) {
     if (a === "--i-know-this-spends") out.spends = true;
     else if (a === "--allow-shared-sync") out.allowSharedSync = true;
     else if (a === "--help" || a === "-h") out.help = true;
-    else if (a === "--kp") {
+    else if (a === "--resume-gig") {
+      if (typeof v !== "string" || v.startsWith("--")) throw new Error("--resume-gig needs a gig id");
+      out.resumeGig = v;
+      i++;
+    } else if (a === "--kp") {
       if (typeof v !== "string" || v.startsWith("--")) throw new Error("--kp needs a value");
       out.kp = v;
       i++;
@@ -239,7 +246,20 @@ async function kp(deps, method, routePath, body, timeoutMs = 60_000) {
   } catch {
     json = null;
   }
-  return { status: res.status, ok: res.ok, json, text };
+  return { status: res.status, ok: res.ok, json, text, retryAfter: res.headers?.get?.("retry-after") ?? null };
+}
+
+/** POST /api/gigs/sync, paced: the route's limiter allows 20 calls per 10 minutes per IP, so a
+ *  429 waits out the limiter (Retry-After when given, else a minute) instead of failing the run.
+ *  Gives up only past `until`. */
+async function syncPaced(deps, sleep, now, until) {
+  for (;;) {
+    const res = await kp(deps, "POST", "/api/gigs/sync", {});
+    if (res.status !== 429) return res;
+    const waitS = Math.min(120, Math.max(5, Number(res.retryAfter) || 60));
+    if (now() + waitS * 1000 > until) return res;
+    await sleep(waitS * 1000);
+  }
 }
 
 class StepFailed extends Error {}
@@ -342,68 +362,86 @@ export async function main(argv, { env = process.env, log = console.log, err = c
   }
 
   try {
-    // 2. forward -----------------------------------------------------------------------------
-    await step("forward the fixture gig", async (row) => {
-      const res = await kp(deps, "POST", "/api/gigs", fixtureGig(runId, new Date(now())));
-      const body = need(res, "POST /api/gigs");
-      if (res.status !== 201 || body?.created !== true) throw new StepFailed("the fixture gig was already on the desk: this run only works a gig it created");
-      gigId = body.gig.id;
-      report.gigId = gigId;
-      row.detail = `${gigId} (${body.gig.status})`;
-      log(`gig ${gigId} created: ${body.gig.title}`);
-      if (body.gig.status !== "qualified") throw new StepFailed(`the gig is ${body.gig.status}, not qualified (is kp paired? an unpaired install cannot qualify it)`);
-    });
+    if (opts.resumeGig) {
+      // A RESUMED run continues a gig an earlier run of this script created: its title carries
+      // the fixture marker, so this can never adopt an operator's real gig. Steps 2-6 are
+      // skipped - no new gig, no second brief or plan round, no second persona.
+      await step("resume the earlier run's gig", async (row) => {
+        const view = need(await kp(deps, "GET", `/api/gigs/${encodeURIComponent(opts.resumeGig)}`), "GET gig");
+        if (!/\(kp e2e [0-9-]+\)$/.test(String(view.gig?.title ?? ""))) throw new StepFailed(`${opts.resumeGig} is not a gig this script created (no "(kp e2e <run>)" marker): refusing to touch it`);
+        const plans = need(await kp(deps, "GET", `/api/gigs/${encodeURIComponent(opts.resumeGig)}/plans`), "GET plans").plans ?? [];
+        const accepted = plans.find((p) => p.acceptedAt);
+        if (!accepted) throw new StepFailed("that gig has no accepted plan: re-run from scratch instead");
+        gigId = view.gig.id;
+        workdir = view.gig.workdir ?? null;
+        report.gigId = gigId;
+        report.acceptedSeat = accepted.seat;
+        row.detail = `${gigId} (${view.gig.status}); accepted ${accepted.seat}`;
+      });
+    } else {
+      // 2. forward -----------------------------------------------------------------------------
+      await step("forward the fixture gig", async (row) => {
+        const res = await kp(deps, "POST", "/api/gigs", fixtureGig(runId, new Date(now())));
+        const body = need(res, "POST /api/gigs");
+        if (res.status !== 201 || body?.created !== true) throw new StepFailed("the fixture gig was already on the desk: this run only works a gig it created");
+        gigId = body.gig.id;
+        report.gigId = gigId;
+        row.detail = `${gigId} (${body.gig.status})`;
+        log(`gig ${gigId} created: ${body.gig.title}`);
+        if (body.gig.status !== "qualified") throw new StepFailed(`the gig is ${body.gig.status}, not qualified (is kp paired? an unpaired install cannot qualify it)`);
+      });
 
-    // 3. research ----------------------------------------------------------------------------
-    await step("research (brief)", async (row) => {
-      const gig = need(await kp(deps, "POST", `/api/gigs/${gigId}/research`, {}, 6 * 60_000), "POST research").gig;
-      row.detail = `${gig.brief?.source ?? "none"}${gig.brief?.fallbackReason ? ` (${gig.brief.fallbackReason})` : ""}; ${gig.brief?.challenges?.length ?? 0} challenges`;
-      row.costLabel = "in llm_usage";
-      if (gig.brief?.source !== "llm") throw new StepFailed(`the brief is ${gig.brief?.source ?? "missing"} (${gig.brief?.fallbackReason ?? "no reason"}): plans need a model-written brief to be worth measuring`);
-    });
+      // 3. research ----------------------------------------------------------------------------
+      await step("research (brief)", async (row) => {
+        const gig = need(await kp(deps, "POST", `/api/gigs/${gigId}/research`, {}, 6 * 60_000), "POST research").gig;
+        row.detail = `${gig.brief?.source ?? "none"}${gig.brief?.fallbackReason ? ` (${gig.brief.fallbackReason})` : ""}; ${gig.brief?.challenges?.length ?? 0} challenges`;
+        row.costLabel = "in llm_usage";
+        if (gig.brief?.source !== "llm") throw new StepFailed(`the brief is ${gig.brief?.source ?? "missing"} (${gig.brief?.fallbackReason ?? "no reason"}): plans need a model-written brief to be worth measuring`);
+      });
 
-    // 4. plans -------------------------------------------------------------------------------
-    await step("plans (three seats)", async (row) => {
-      const { taskId } = need(await kp(deps, "POST", `/api/gigs/${gigId}/plans`, {}), "POST plans");
-      const until = now() + 16 * 60_000;
-      for (;;) {
-        const task = need(await kp(deps, "GET", `/api/tasks/${encodeURIComponent(taskId)}`), "GET task").task;
-        if (["succeeded", "failed", "canceled", "interrupted"].includes(task.status)) {
-          if (task.status !== "succeeded") throw new StepFailed(`the gig_plans task ended ${task.status}`);
-          break;
+      // 4. plans -------------------------------------------------------------------------------
+      await step("plans (three seats)", async (row) => {
+        const { taskId } = need(await kp(deps, "POST", `/api/gigs/${gigId}/plans`, {}), "POST plans");
+        const until = now() + 16 * 60_000;
+        for (;;) {
+          const task = need(await kp(deps, "GET", `/api/tasks/${encodeURIComponent(taskId)}`), "GET task").task;
+          if (["succeeded", "failed", "canceled", "interrupted"].includes(task.status)) {
+            if (task.status !== "succeeded") throw new StepFailed(`the gig_plans task ended ${task.status}`);
+            break;
+          }
+          if (now() > until) throw new StepFailed("the gig_plans task did not finish in 16 minutes");
+          await sleep(5_000);
         }
-        if (now() > until) throw new StepFailed("the gig_plans task did not finish in 16 minutes");
-        await sleep(5_000);
-      }
-      const round = latestRound(need(await kp(deps, "GET", `/api/gigs/${gigId}/plans`), "GET plans").plans);
-      report.plans = round.map((r) => ({ seat: r.seat, model: r.model, effort: r.effort, status: r.status, costUsd: r.costUsd, durationMs: r.durationMs, fallbackReason: r.fallbackReason }));
-      for (const r of round) {
-        steps.push({ step: `  seat ${r.seat} (${r.model}${r.effort ? ` ${r.effort}` : ""})`, status: r.status, ms: r.durationMs, costUsd: r.costUsd, detail: r.fallbackReason ?? `${r.plan?.steps?.length ?? 0} steps` });
-      }
-      row.costUsd = sumCosts(round);
-      row.detail = `${round.filter((r) => r.status === "ready").length}/3 ready`;
-      if (row.costUsd !== null && row.costUsd > opts.maxPlansUsd) throw new StepFailed(`the plan round cost $${row.costUsd}, over --max-plans-usd ${opts.maxPlansUsd}: stopping before dispatch`);
-    });
+        const round = latestRound(need(await kp(deps, "GET", `/api/gigs/${gigId}/plans`), "GET plans").plans);
+        report.plans = round.map((r) => ({ seat: r.seat, model: r.model, effort: r.effort, status: r.status, costUsd: r.costUsd, durationMs: r.durationMs, fallbackReason: r.fallbackReason }));
+        for (const r of round) {
+          steps.push({ step: `  seat ${r.seat} (${r.model}${r.effort ? ` ${r.effort}` : ""})`, status: r.status, ms: r.durationMs, costUsd: r.costUsd, detail: r.fallbackReason ?? `${r.plan?.steps?.length ?? 0} steps` });
+        }
+        row.costUsd = sumCosts(round);
+        row.detail = `${round.filter((r) => r.status === "ready").length}/3 ready`;
+        if (row.costUsd !== null && row.costUsd > opts.maxPlansUsd) throw new StepFailed(`the plan round cost $${row.costUsd}, over --max-plans-usd ${opts.maxPlansUsd}: stopping before dispatch`);
+      });
 
-    // 5. accept ------------------------------------------------------------------------------
-    await step("accept the cheapest plan", async (row) => {
-      const round = latestRound(need(await kp(deps, "GET", `/api/gigs/${gigId}/plans`), "GET plans").plans);
-      const pick = cheapestReadyPlan(round);
-      if (!pick) throw new StepFailed("no seat wrote a plan to accept");
-      need(await kp(deps, "POST", `/api/gigs/${gigId}/plans/${pick.id}/accept`, { note: ACCEPT_NOTE }), "accept");
-      report.acceptedSeat = pick.seat;
-      row.detail = `${pick.seat} (${fmtUsd(pick.costUsd)}), ${pick.plan.steps.length} steps`;
-    });
+      // 5. accept ------------------------------------------------------------------------------
+      await step("accept the cheapest plan", async (row) => {
+        const round = latestRound(need(await kp(deps, "GET", `/api/gigs/${gigId}/plans`), "GET plans").plans);
+        const pick = cheapestReadyPlan(round);
+        if (!pick) throw new StepFailed("no seat wrote a plan to accept");
+        need(await kp(deps, "POST", `/api/gigs/${gigId}/plans/${pick.id}/accept`, { note: ACCEPT_NOTE }), "accept");
+        report.acceptedSeat = pick.seat;
+        row.detail = `${pick.seat} (${fmtUsd(pick.costUsd)}), ${pick.plan.steps.length} steps`;
+      });
 
-    // 6. dispatch ----------------------------------------------------------------------------
-    await step("dispatch (pairing)", async (row) => {
-      const res = await kp(deps, "POST", `/api/gigs/${gigId}/dispatch`, {});
-      if (res.status === 202) row.detail = "202 pairing pending";
-      else if (res.status === 200) row.detail = `200 ran at once (${res.json?.executionId ?? "?"})`;
-      else need(res, "dispatch");
-      const gig = need(await kp(deps, "GET", `/api/gigs/${gigId}`), "GET gig").gig;
-      workdir = gig.workdir ?? null;
-    });
+      // 6. dispatch ----------------------------------------------------------------------------
+      await step("dispatch (pairing)", async (row) => {
+        const res = await kp(deps, "POST", `/api/gigs/${gigId}/dispatch`, {});
+        if (res.status === 202) row.detail = "202 pairing pending";
+        else if (res.status === 200) row.detail = `200 ran at once (${res.json?.executionId ?? "?"})`;
+        else need(res, "dispatch");
+        const gig = need(await kp(deps, "GET", `/api/gigs/${gigId}`), "GET gig").gig;
+        workdir = gig.workdir ?? null;
+      });
+    }
 
     // 7. pairing -----------------------------------------------------------------------------
     await step("pairing (Personas approval)", async (row) => {
@@ -411,7 +449,7 @@ export async function main(argv, { env = process.env, log = console.log, err = c
       const until = now() + opts.timeoutMin * 60_000;
       let pendingSince = null;
       for (;;) {
-        need(await kp(deps, "POST", "/api/gigs/sync", {}), "POST sync");
+        need(await syncPaced(deps, sleep, now, until), "POST sync");
         const specialists = need(await kp(deps, "GET", "/api/gigs/specialists"), "GET specialists").specialists ?? [];
         const mine = specialists.filter((s) => s.gigId === gigId).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
         const status = mine?.hire?.status ?? "no_hire";
@@ -429,7 +467,8 @@ export async function main(argv, { env = process.env, log = console.log, err = c
           }
         } else pendingSince = null;
         if (now() > until) throw new StepFailed(`the hire never became active (last: ${status})`);
-        await sleep(5_000);
+        // Every pass is a workspace-wide sync (rate-limited, 20 / 10 min): pace it like the run.
+        await sleep(opts.pollS * 1000);
       }
     });
 
@@ -437,7 +476,7 @@ export async function main(argv, { env = process.env, log = console.log, err = c
     await step("persona run", async (row) => {
       const until = now() + opts.timeoutMin * 60_000;
       for (;;) {
-        need(await kp(deps, "POST", "/api/gigs/sync", {}), "POST sync");
+        need(await syncPaced(deps, sleep, now, until), "POST sync");
         const view = need(await kp(deps, "GET", `/api/gigs/${gigId}`), "GET gig");
         const attempt = (view.attempts ?? [])[view.attempts.length - 1] ?? null;
         row.detail = `gig ${view.gig.status}; attempt ${attempt?.status ?? "none"}`;
@@ -486,7 +525,7 @@ export async function main(argv, { env = process.env, log = console.log, err = c
 
     // 13. retire -----------------------------------------------------------------------------
     await step("retire the gig persona", async (row) => {
-      need(await kp(deps, "POST", "/api/gigs/sync", {}), "POST sync");
+      need(await syncPaced(deps, sleep, now, now() + 10 * 60_000), "POST sync");
       const specialists = need(await kp(deps, "GET", "/api/gigs/specialists"), "GET specialists").specialists ?? [];
       const mine = specialists.filter((s) => s.gigId === gigId);
       const statuses = mine.map((s) => s.hire?.status ?? "no_hire");
