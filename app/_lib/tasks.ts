@@ -486,6 +486,17 @@ const HANDLERS: Record<TaskKind, Spec> = {
 };
 
 let booted = false;
+// The sweep is once per PROCESS, not once per module copy. `next` loads this module
+// twice in one server process (the instrumentation bundle, which registers the
+// late-bound runners, and the route bundle), and each copy has its own `booted`. When
+// the second copy recovered on its first call it marked the first copy's LIVE tasks
+// `interrupted` - a gig scan lost its research task that way on every first scan after
+// a boot (found by e2e/gig-lifecycle.spec.ts). A process-wide mark on globalThis makes
+// the second copy skip the sweep; its own queue still pumps its own tasks.
+const RECOVERED_MARK = Symbol.for("kp.tasks.recovered");
+function processRecovered(): boolean {
+  return (globalThis as Record<symbol, unknown>)[RECOVERED_MARK] === true;
+}
 // The queue carries the WORKSPACE beside the id, because the pump's pick is a
 // fairness decision across tenants (task-pump.ts) and re-reading each row to learn
 // its tenant on every pump tick would put a SELECT in the hot path.
@@ -547,6 +558,8 @@ export function runMaintenance(nowMs: number = Date.now()): void {
 export function ensureRecovered(): void {
   if (booted) return;
   booted = true;
+  if (processRecovered()) return;
+  (globalThis as Record<symbol, unknown>)[RECOVERED_MARK] = true;
   try {
     interruptStaleTasks(); // 'running' orphans → 'interrupted' (mid-flight, unrecoverable)
     // 'queued' orphans never ran a handler, so put them back on the queue in
