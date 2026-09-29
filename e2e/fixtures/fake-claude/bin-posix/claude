@@ -1,0 +1,3 @@
+#!/bin/sh
+# The fake Claude CLI (../fake-claude.mjs) for e2e/gig-lifecycle.spec.ts, put first on PATH.
+exec node "$(dirname "$0")/../fake-claude.mjs" "$@"

@@ -18,6 +18,7 @@ import {
   type PoliteFetch,
   type PoliteFetchOptions,
 } from "../../jobseeker/fetch/politeFetch.ts";
+import { FREELANCER_API_BASE_ENV, freelancerActiveUrl } from "./freelancer.ts";
 import { gigAdapterFor, gigHostForAdapter } from "./registry.ts";
 import {
   AdapterCollapsed,
@@ -407,4 +408,15 @@ test("KP_OFFLINE: every adapter that would fetch halts `offline` with zero netwo
   // Keyless hackerone goes to the public dataset - also offline, also no network.
   await assert.rejects(collect(gigAdapterFor("hackerone").discover(ctxFor(source("hackerone"), politeFetch))), (e: unknown) => e instanceof FetchHalt);
   assert.equal(network, 0);
+});
+
+test("freelancer's test seam: KP_GIGS_FREELANCER_API_BASE is honoured only for a loopback origin", () => {
+  const env = (v: string | undefined) => (name: string) => (name === FREELANCER_API_BASE_ENV ? v : undefined);
+  const real = "https://www.freelancer.com/api/projects/0.1/projects/active/";
+  assert.equal(freelancerActiveUrl(env(undefined)), real);
+  assert.equal(freelancerActiveUrl(env("http://127.0.0.1:4555")), "http://127.0.0.1:4555/api/projects/0.1/projects/active/");
+  assert.equal(freelancerActiveUrl(env("http://localhost:9/x")), "http://localhost:9/api/projects/0.1/projects/active/");
+  for (const bad of ["https://evil.example", "http://10.0.0.5:80", "file:///etc", "not a url", "  "]) {
+    assert.equal(freelancerActiveUrl(env(bad)), real, bad);
+  }
 });

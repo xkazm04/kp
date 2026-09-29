@@ -1226,6 +1226,135 @@ sync). The gig's type is DERIVED (`gigTypeOf`) each time, not stored.
 - Under `KP_OFFLINE` every source and both pollers answer offline before any network
   access.
 
+## Testing the process end to end
+
+Two tiers drive the whole gig lifecycle: scan, research, plans, accept, dispatch (pairing),
+the run, sync, review, the simulated submission, outcome, cleanup. Both answer every human
+gate themselves, and neither submits anything: "Mark sent" is the operator saying he sent
+the work, and kp never contacts a gig's platform.
+
+### Tier 1: hermetic (`e2e/gig-lifecycle.spec.ts`)
+
+```bash
+npm run test:e2e:gigs
+# = cross-env KP_E2E_BASE_URL=http://localhost:3117 playwright test e2e/gig-lifecycle.spec.ts
+```
+
+The spec boots its OWN kp server (`next dev` on the port in `KP_E2E_BASE_URL`, `KP_EMPTY=1` so
+it uses `.next-empty` and no demo seed, a throwaway `KP_DB_PATH` and `KP_GIGS_ROOT` under the OS
+temp dir) because three fakes must be in the server's environment before it starts:
+
+| Fake | How it reaches kp | What it stands in for |
+| --- | --- | --- |
+| `e2e/fixtures/fake-claude/` | first on the server's `PATH` (`bin-win/claude.cmd` or `bin-posix/claude`); the Python LLM layer resolves `claude` with `shutil.which` | the Claude CLI: answers the brief (`gig-brief-v3`) and plan (`gig-plan-v1`) calls in the CLI's JSON envelope, a different plan per `--model`, fixed costs; logs every call (argv + the fenced payload) to `FAKE_CLAUDE_LOG` |
+| `e2e/fixtures/mock-gig-bridge.ts` | `PERSONAS_BRIDGE_URL` / `PERSONAS_BRIDGE_KEY` | Personas: workspaces, projects, the milestone and goals, the persona request (auto-approved for `fit.kind: kp.gig-persona.v1`, then `approved` -> `active` on the status poll), execute and the execution read, goal patches, retire; its `runAgent` hook writes `deliverable/`, `kp-deliverable.json` and `PLAN-STATUS.json` into the gig folder |
+| a loopback Freelancer API in the spec | `KP_GIGS_FREELANCER_API_BASE` (the test seam below) | freelancer.com's `projects/active` list |
+
+It also points `AI_REGISTRY_DIR` at a fixture registry holding only the knowledge index the `web`
+type needs, blanks the provider keys `.env.local` carries, and leaves `KP_OFFLINE` unset (the
+flag would seal the Claude CLI, and the point is the model-backed path with a fake model). No
+network, no key, no spend; about 35 seconds on the build machine, server boot included. It
+refuses to start if the port already answers, and it never touches `data/kp.sqlite` or the
+server on :3000.
+
+What it asserts, step by step (each against kp's stored state through its GET routes AND what
+the fakes received):
+
+1. **Scan.** A tier-B `freelancer_api` source is added and its terms acknowledged; the real scan
+   files three listings: one qualified, one quarantined (`off_platform_payment`: "Contact me on
+   Telegram, paid in USDT"), one past its deadline (`new`, score 0). The research pass the scan
+   enqueues writes two model briefs. A second scan's expiry sweep moves the late one to `expired`.
+2. **Research.** The brief is `source: llm`, `gig-brief-v3`, three challenges; the fake saw
+   `--model claude-sonnet-5-5`, `--allowedTools WebSearch,WebFetch`, `--disallowedTools`,
+   `--json-schema`, `--max-turns 16`. The quarantined listing never reached a model
+   (deterministic brief, `gig_suspect`).
+3. **Plans.** Three seats `ready`, each with its own plan and cost; `--effort xhigh` for Opus,
+   `high` for Sonnet, no `--effort` for Fable; no web door on a plan seat.
+4. **UI: accept.** The gig's proof (opened from the front page's file), Plans tab: three columns;
+   the Opus plan is accepted with the note "Keep the PoC harmless" (human gate 1).
+5. **Dispatch = pairing.** 202 `pairing: "pending"`. The mock received: the `Gigs · Web`
+   workspace; a project rooted at the gig's folder under `<KP_GIGS_ROOT>/web/` (scaffolded); the
+   milestone with one goal per plan step (`"<n>. <title>"`, `Done when: ...`); the persona request
+   with `spec.modelProfile {claude-opus-5-5, high}`, no budget, no `systemPromptDraft`,
+   `requirements.knowledge[]` and `requirements.plan`, top-level `fit.kind kp.gig-persona.v1`,
+   `placement {workspaceId, projectId}`, `kp.jobId gig-persona:<id>`. The mock approved it on
+   arrival (human gate 2). The accepted plan records the milestone and goal ids.
+6. **Run + sync.** Sync passes move the hire to active, run the paired gig once (the assignment
+   carries `workdir`, `_projectId`, `budgetUsd: null` and the plan with Personas goal ids and the
+   operator's note), and land the draft from `kp-deliverable.json` (cost 0.42). Goals 1 and 2 are
+   patched in Personas (`done 100`, `in-progress 50`); goal 3 reported `open` and is not.
+7. **UI: Pairing tab.** "Milestone 30% done", goal 1 at 100%, goal 2 at 50%.
+8. **Review.** Approve with the whole freelance checklist (human gate 3); a `mark_sent` whose
+   review leaves the disclosure unticked is 422 `GIG_DISCLOSURE_REQUIRED`.
+9. **Submission (simulated).** `mark_sent` moves the gig to `sent`; the mock saw no call.
+10. **Outcome.** `accepted`, 250 USD: the gig is `accepted`, lessons are queued
+    (`GET /api/gigs/lessons?pending=1`).
+11. **Cleanup.** The next sync retires the gig persona (`POST /api/kp/personas/{id}/retire`) and
+    its hire reads `retired`; a niche specialist with no open work is retired by the same sweep
+    (in kp only: its hire never got a persona).
+
+Side paths, in the same file: withdraw for a brief challenge in one click on the Brief tab
+(`withdrawReason` stored; the next brief call is handed it in `untrusted_past_withdraw_reasons`
+and the new brief repeats it word for word); a dispatch with no accepted plan is 409
+`GIG_PLAN_NOT_ACCEPTED` and reaches no Personas route; one plan seat that exits 1 is `failed`
+(`llm_error:*`) while the other two land.
+
+**Not in the keyless release subset.** The release job starts its own production server with
+none of this environment, and this spec must own its server. `npm run test:e2e:gigs` is the
+entry point; a plain `playwright test` skips it (it needs `KP_E2E_BASE_URL`).
+
+**The test seam.** `KP_GIGS_FREELANCER_API_BASE` (`app/_lib/gigs/adapters/freelancer.ts`,
+read through the adapter's env door at call time) points the `projects/active` call at another
+origin. It is honoured only for a loopback origin (`127.0.0.1`, `localhost`, `[::1]`); any other
+value is ignored, so it cannot aim a scan at a third party. Unset, nothing changes; listing URLs
+keep the real host either way.
+
+**The first scan after boot is a regression guard.** The late-bound gig runners are registered
+from `instrumentation-node.ts`, a separate server bundle with its own copy of `app/_lib/tasks.ts`.
+That copy's one-time recovery sweep used to run when the scan runner enqueued its research pass,
+marking every `running` task `interrupted` - the calling scan included, so the first scan after
+a boot lost its research task. `tasks.ts` now marks recovery once per process (`globalThis`), and
+the spec asserts that its first scan after boot ends `succeeded`.
+
+### Tier 2: live (`scripts/gigs/e2e-live.mjs`)
+
+```bash
+npm run e2e:gigs-live -- --i-know-this-spends [--kp http://localhost:3000] [--timeout-min 20]
+  [--poll-s 20] [--hire-wait-s 60] [--max-plans-usd 5] [--allow-shared-sync]
+```
+
+The same lifecycle through kp's HTTP API against the REAL Personas kp is paired with and real
+models, on ONE fixture gig the run creates ("Write a Python function that validates ISO-8601
+dates, with pytest tests", freelance, no external repository): forward it, research it, propose
+plans on all three seats (the first measurement of the Fable and Opus-xhigh seat costs), accept
+the cheapest ready plan with a note, dispatch, wait for the gig persona to become active
+(Personas' gig persona policy approves it; a hire still `pending_approval` after `--hire-wait-s`
+stops the run and prints the policy's five bounds against what kp sent, since kp's status poll
+carries no miss reason), sync every `--poll-s` until the draft lands (at most `--timeout-min`),
+check PLAN-STATUS was mirrored, approve with the checklist, mark sent, record `accepted` with the
+note "e2e live run", and sync to retire the persona.
+
+It prints the gig id at creation and a table (step, status, duration, cost: each plan seat and
+the persona run), and writes a JSON report to `<os tmp>/kp-e2e-gigs-live/<runId>.json` (the repo
+has no gitignored scratch folder).
+
+Guards:
+- it refuses to start without `--i-know-this-spends` (exit 2);
+- it works only the gig it created: a forward answered "already on the desk" is refused, every
+  gig-specific call names that gig, and nothing is withdrawn;
+- `POST /api/gigs/sync` is workspace-wide (the clock's own `gig_sync` pass), so the preflight
+  lists what a sync could move for OTHER gigs (runs in flight, pending gig personas whose
+  activation would dispatch their gig, personas of ended gigs, niche specialists) and refuses
+  (exit 3) unless `--allow-shared-sync`;
+- spend: one gig, one plan round, a stop before dispatch when the round cost more than
+  `--max-plans-usd`; the persona run is uncapped by the operator's decision and cannot be capped
+  from kp, so after `--timeout-min` the script stops waiting and says the run may still be going
+  in Personas.
+
+Exit codes: 0 all steps passed, 1 a step failed (the table names it), 2 usage, 3 preflight
+refused (unpaired, or shared-sync exposure). The Director runs it; it is not part of any CI
+chain.
+
 ## Known gaps
 
 - Research vets a link's host before the first request AND on every redirect hop (the

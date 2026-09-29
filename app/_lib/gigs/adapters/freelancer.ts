@@ -13,13 +13,36 @@
 // -> `reward: null`.
 //
 // Config (never a secret): `query` (free-text search), `jobs` (Freelancer skill ids).
+//
+// TEST SEAM (e2e/gig-lifecycle.spec.ts): `KP_GIGS_FREELANCER_API_BASE`, read through the
+// adapter's env door at call time, points the list call at a LOCAL fixture server
+// (`http://127.0.0.1:<port>`) so the real scan runs end to end with no network. Honoured only
+// for a loopback origin (127.0.0.1, localhost, [::1]); any other value is ignored and the real
+// host is used, so the variable can never aim a scan at a third party. Unset (the default):
+// unchanged. Listing URLs keep the real host either way.
 
 import type { GigReward, RawGig } from "../types";
 import { cfgList, clipBody, isoOrNull, mustOk, num, parseJsonBody, str } from "./shared";
-import { AdapterCollapsed, type GigAdapter } from "./types";
+import { AdapterCollapsed, type GigAdapter, type GigAdapterContext } from "./types";
 
 export const FREELANCER_HOST = "www.freelancer.com";
-const ACTIVE_URL = `https://${FREELANCER_HOST}/api/projects/0.1/projects/active/`;
+const ACTIVE_PATH = "/api/projects/0.1/projects/active/";
+const ACTIVE_URL = `https://${FREELANCER_HOST}${ACTIVE_PATH}`;
+export const FREELANCER_API_BASE_ENV = "KP_GIGS_FREELANCER_API_BASE";
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+/** The list endpoint: the real one, or the loopback fixture origin the test seam names. */
+export function freelancerActiveUrl(env: GigAdapterContext["env"]): string {
+  const base = env(FREELANCER_API_BASE_ENV)?.trim();
+  if (!base) return ACTIVE_URL;
+  try {
+    const u = new URL(base);
+    if ((u.protocol === "http:" || u.protocol === "https:") && LOOPBACK_HOSTS.has(u.hostname)) return `${u.origin}${ACTIVE_PATH}`;
+  } catch {
+    // not a URL: ignored, the real host is used
+  }
+  return ACTIVE_URL;
+}
 const PAGE_SIZE = 50;
 const MAX_PAGES = 2;
 
@@ -84,6 +107,7 @@ export const freelancerAdapter: GigAdapter = {
     const limit = Math.max(1, Math.min(PAGE_SIZE, ctx.limits.maxItems));
     const query = str(ctx.source.config.query)?.slice(0, 120) ?? null;
     const jobs = cfgList(ctx.source.config, "jobs").filter((j) => /^\d{1,6}$/.test(j));
+    const activeUrl = freelancerActiveUrl(ctx.env);
     let yielded = 0;
     for (let page = 0; page < MAX_PAGES && yielded < ctx.limits.maxItems; page++) {
       const params = new URLSearchParams({
@@ -95,7 +119,7 @@ export const freelancerAdapter: GigAdapter = {
       });
       if (query) params.set("query", query);
       for (const j of jobs) params.append("jobs[]", j);
-      const res = mustOk(await ctx.fetch(`${ACTIVE_URL}?${params.toString()}`, { sourceId: ctx.source.id, accept: "application/json" }));
+      const res = mustOk(await ctx.fetch(`${activeUrl}?${params.toString()}`, { sourceId: ctx.source.id, accept: "application/json" }));
       const parsed = parseJsonBody(res.body) as { status?: unknown; result?: { projects?: unknown } } | null;
       if (!parsed || typeof parsed !== "object" || parsed.status !== "success" || !Array.isArray(parsed.result?.projects)) {
         throw new AdapterCollapsed("shape_changed", "Freelancer projects/active answered without result.projects");
