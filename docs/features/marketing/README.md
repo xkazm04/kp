@@ -494,9 +494,11 @@ Provenance the snapshot always carried and the page never showed:
 
 `isFigure()` in `data.ts` is the single gate — `Number.isFinite`, not a null
 check, because `Math.min()` of an empty array is `Infinity` and the ratios
-downstream become `NaN`. `heatColor`/`salaryColor`/`regionScale` clamp
-non-finite input (`heatColor(NaN)` used to destructure `undefined` and throw,
-taking the whole map down client-side).
+downstream become `NaN`. `heatColor`/`salaryColor` clamp non-finite input
+(`heatColor(NaN)` used to destructure `undefined` and throw, taking the whole map
+down client-side). `regionScale` returns null for a region with no figure, and the
+map fills it with the same neutral as a region absent from the snapshot: it used
+to answer 0.5, which the ramp painted as an ordinary mid-scale salary.
 
 Two families carry no data at all and so never render: `product_project` has no
 ISPV occupation coverage (`apply-market-salaries.mjs` documents the same gap),
