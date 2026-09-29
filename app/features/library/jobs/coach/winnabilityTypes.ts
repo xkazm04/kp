@@ -4,6 +4,10 @@
 // the hook still import ONE module.
 
 export type Gate = { kind: "language" | "education"; value: string; eligibleDelta: number };
+// Present only when the gates jointly exclude people no single gate accounts for (the
+// same candidates fail two): eligibleDelta is what removing ALL the listed gates
+// restores, soleBlockerSum what the per-gate deltas add up to. Names no single culprit.
+export type JointLoosen = { eligibleDelta: number; soleBlockerSum: number; gates: { kind: "language" | "education"; value: string }[] };
 export type MustHave = { skill: string; missingAmongEligible: number; qualifiedDelta: number };
 export type Salary = {
   family: string;
@@ -15,6 +19,9 @@ export type Salary = {
   belowMarket: boolean | null;
   currencyComparable?: boolean;
   topVsMarketFloorPct?: number;
+  // The ad's own inputs the verdict was silenced for ("salary_band" = it stated no pay,
+  // "seniority" = the market band is for a level it never claimed). Empty/absent = none.
+  assumedInputs?: ("salary_band" | "seniority")[];
 };
 export type Winnability = {
   poolSize: number;
@@ -22,6 +29,7 @@ export type Winnability = {
   qualified?: number;
   fitThreshold?: number;
   looseGates?: Gate[];
+  jointLoosen?: JointLoosen;
   looseMustHaves?: MustHave[];
   salary?: Salary;
   /** Candidates the CLI couldn't score, so every count is over a reduced denominator. */

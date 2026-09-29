@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit import _cli, winnability_cli
-from pipeline.jobfit.jobs import Job, JobRequirement
+from pipeline.jobfit.jobs import Job, JobRequirement, normalize_job
 from pipeline.jobfit.market_config import BERLIN_MARKET, CZECH_MARKET
 from pipeline.jobfit.matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
 from pipeline.jobfit.tests._helpers import CliRun, run_cli
@@ -158,6 +158,82 @@ class WinnabilityTest(unittest.TestCase):
         job = _job(languages=["English"], requirements=[JobRequirement(skill="python")])
         out = assess_winnability(pool, job)
         self.assertEqual([g for g in out["looseGates"] if g["value"] == "English"], [])
+
+    def test_two_gates_that_block_the_same_people_are_reported_jointly(self) -> None:
+        # A single-gate delta counts only the people that gate blocks ALONE. Here every
+        # excluded candidate fails BOTH the German and the bachelor gate: each delta is 0,
+        # looseGates is empty, and the pool the two gates jointly empty would read as
+        # "no lever". The joint pass names it without inventing a culprit.
+        pool = [_cand(f"b{i}", ["python"], languages=["English"], education_level="high_school") for i in range(5)]
+        job = _job(languages=["German"], min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertEqual(out["eligible"], 0)
+        self.assertEqual(out["looseGates"], [])
+        self.assertEqual(out["jointLoosen"]["eligibleDelta"], 5)
+        self.assertEqual(out["jointLoosen"]["soleBlockerSum"], 0)
+        self.assertEqual(
+            out["jointLoosen"]["gates"],
+            [{"kind": "language", "value": "German"}, {"kind": "education", "value": "bachelor"}],
+        )
+
+    def test_the_sum_of_gate_deltas_understates_the_joint_removal(self) -> None:
+        # One candidate fails only language, one only education, three fail both. The two
+        # deltas are 1 and 1 (sole blockers); removing both gates restores five. The sum
+        # of independent deltas is never MORE than the joint effect for hard gates.
+        pool = [
+            _cand("ok", ["python"], languages=["German"], education_level="bachelor"),
+            _cand("L", ["python"], languages=["English"], education_level="bachelor"),
+            _cand("E", ["python"], languages=["German"], education_level="high_school"),
+            *[_cand(f"LE{i}", ["python"], languages=["English"], education_level="high_school") for i in range(3)],
+        ]
+        job = _job(languages=["German"], min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertEqual(sorted(g["eligibleDelta"] for g in out["looseGates"]), [1, 1])
+        self.assertEqual(out["jointLoosen"]["eligibleDelta"], 5)
+        self.assertEqual(out["jointLoosen"]["soleBlockerSum"], 2)
+
+    def test_no_joint_row_when_the_gates_block_disjoint_people(self) -> None:
+        # Nobody fails both gates, so the deltas already add up to the joint effect and a
+        # joint row would only repeat them.
+        pool = [
+            _cand("ok", ["python"], languages=["German"], education_level="bachelor"),
+            _cand("L", ["python"], languages=["English"], education_level="bachelor"),
+            _cand("E", ["python"], languages=["German"], education_level="high_school"),
+        ]
+        job = _job(languages=["German"], min_education="bachelor", requirements=[JobRequirement(skill="python")])
+        out = assess_winnability(pool, job)
+        self.assertNotIn("jointLoosen", out)
+
+    def test_an_ad_that_states_no_pay_gets_no_verdict_not_a_clean_one(self) -> None:
+        # normalize_job stamps the market-anchor band on an ad with no pay and records
+        # "salary_band" in defaulted_fields. That band IS the market band, so top-vs-floor
+        # against itself reads "not below market" (+57% over the floor): a clean bill of
+        # health for a role that named no pay. It must be silent, and must not present
+        # the anchor as the JD's band.
+        job = normalize_job({"title": "Backend engineer", "seniority": "senior", "requirements": [{"skill": "python", "kind": "must_have"}]})
+        self.assertIn("salary_band", job.defaulted_fields)
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertIsNone(salary["belowMarket"])
+        self.assertIsNone(salary["jobBand"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+        self.assertEqual(salary["assumedInputs"], ["salary_band"])
+
+    def test_a_stated_range_is_not_judged_against_an_assumed_level(self) -> None:
+        # Pay stated, seniority not: DEFAULT_POLICY stamps "medior", so the range would be
+        # measured against the medior band of a level the ad never claimed.
+        job = normalize_job({"title": "Backend engineer", "salary_min": 40000, "salary_max": 50000, "requirements": [{"skill": "python", "kind": "must_have"}]})
+        self.assertIn("seniority", job.defaulted_fields)
+        self.assertNotIn("salary_band", job.defaulted_fields)
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertIsNone(salary["belowMarket"])
+        self.assertEqual(salary["jobBand"], [40000, 50000])
+        self.assertEqual(salary["assumedInputs"], ["seniority"])
+
+    def test_a_fully_stated_ad_still_gets_its_verdict(self) -> None:
+        job = normalize_job({"title": "Backend engineer", "seniority": "senior", "salary_min": 20000, "salary_max": 30000, "requirements": [{"skill": "python", "kind": "must_have"}]})
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertTrue(salary["belowMarket"])
+        self.assertEqual(salary["assumedInputs"], [])
 
 
 def _nurse(label: str, skills: list[str], **kw) -> MatchCandidate:
