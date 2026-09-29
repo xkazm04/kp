@@ -511,8 +511,12 @@ def _coerce(payload: Any, context: dict[str, Any]) -> tuple[dict[str, Any], bool
     # backfill from the deterministic template (which cites the actual matched skills).
     # Lenient by design — one grounded strength is enough — so a genuinely specific
     # list is never touched.
+    # A swap is a backfill of the CORE, so it degrades exactly as an empty field does
+    # (both swaps below). Left False, the template's words shipped as "llm", were cached
+    # for the full TTL and carried the requested locale over English text.
     if out["strengths"] and not _any_strength_grounded(out["strengths"], _real_cv_tokens(context)):
         out["strengths"] = deterministic_reasoning(context)["strengths"]
+        degraded = True
     # …and the same post-check over the verdict's NUMBERS, which the strengths check
     # never covered: the one sentence the modal shows biggest is also the one the prompt
     # orders to quote the score, and an invented "88/100" over a 77 is a measurement
@@ -520,6 +524,7 @@ def _coerce(payload: Any, context: dict[str, Any]) -> tuple[dict[str, Any], bool
     # the real tier) rather than shipping a fabricated figure.
     if out["verdict"] and not _verdict_numbers_grounded(out["verdict"], fact_numbers(context)):
         out["verdict"] = deterministic_reasoning(context)["verdict"]
+        degraded = True
     return out, degraded
 
 

@@ -375,6 +375,67 @@ class GroundingPostCheckTest(unittest.TestCase):
         )
         self.assertEqual(out["verdict"], verdict)
 
+    # A swap IS a backfill from the template, so it degrades the source exactly as an
+    # empty field does. Before 2026-09-29 both post-checks left ``degraded`` False: the
+    # payload shipped as "llm" with template words in its CORE, was cached for the full
+    # TTL (only "llm" is cacheable) and was stamped with a locale the English template
+    # was never written in.
+    def test_a_strengths_swap_degrades_the_source(self) -> None:
+        _cand, ctx = self._ctx()
+        _out, degraded = _coerce(
+            {
+                "verdict": "Promising fit.",
+                "strengths": ["Strong communicator", "Team player"],
+                "gaps": ["No Go."],
+                "interviewProbes": ["Ask about Go."],
+            },
+            ctx,
+        )
+        self.assertTrue(degraded)
+
+    def test_a_verdict_swap_degrades_the_source(self) -> None:
+        _cand, ctx = self._ctx()
+        bogus = (ctx["match"]["total"] + 11) % 100
+        _out, degraded = _coerce(
+            {
+                "verdict": f"Strong fit at {bogus}/100.",
+                "strengths": ["Covers Python, Django and PostgreSQL."],
+                "gaps": ["No Go."],
+                "interviewProbes": ["Ask about Go."],
+            },
+            ctx,
+        )
+        self.assertTrue(degraded)
+
+    def test_a_grounded_answer_stays_the_models(self) -> None:
+        _cand, ctx = self._ctx()
+        _out, degraded = _coerce(
+            {
+                "verdict": f"Promising fit at {ctx['match']['total']}/100.",
+                "strengths": ["Covers Python, Django and PostgreSQL."],
+                "gaps": ["No Go."],
+                "interviewProbes": ["Ask about Go."],
+            },
+            ctx,
+        )
+        self.assertFalse(degraded)
+
+    def test_generate_reports_a_swapped_answer_as_deterministic(self) -> None:
+        _out, source = generate(
+            CAND,
+            JOB,
+            score_job(CAND, JOB),
+            provider=FakeProvider(
+                {
+                    "verdict": "Promising fit.",
+                    "strengths": ["Strong communicator", "Team player"],
+                    "gaps": ["No Go."],
+                    "interviewProbes": ["Ask about Go."],
+                }
+            ),
+        )
+        self.assertEqual(source, "deterministic")
+
 
 class DescentReasonTest(unittest.TestCase):
     def test_a_mid_flight_provider_failure_is_named(self) -> None:
