@@ -1,0 +1,80 @@
+/* ---- shared parts: rules, marks, chips, buttons ------------------------------- */
+.gd .rule-double { border: 0; border-top: 3px double var(--gd-rule-2); margin: 2.5rem 0 1.5rem; }
+.gd .kicker { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+.gd .zone-head { display: flex; align-items: baseline; gap: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--gd-ink); margin-bottom: 0.25rem; }
+.gd .zone-head .n { font: 600 1.375rem/1 var(--gd-serif); }
+.gd .zone-head .n.coral { color: var(--gd-coral-ink); }
+
+/* proof marks: stop = filled coral diamond, doubt = hollow ink ring, note = small dot,
+   clean = moss tick, pending = dashed dash */
+.gd .marks { display: inline-flex; align-items: center; gap: 0.25rem; min-height: 1.25rem; padding: 0 0.125rem; }
+.gd .mk { width: 0.625rem; height: 0.625rem; display: inline-block; flex: none; }
+.gd .mk.stop { background: var(--gd-coral); transform: rotate(45deg) scale(0.86); border-radius: 1px; }
+.gd .mk.doubt { border: 1.5px solid var(--gd-ink); border-radius: 50%; }
+.gd .mk.note { width: 0.375rem; height: 0.375rem; background: var(--gd-dim); border-radius: 50%; }
+.gd .mk.clean { width: 0.75rem; height: 0.4375rem; border-left: 2px solid var(--gd-moss); border-bottom: 2px solid var(--gd-moss); transform: rotate(-45deg) translate(1px, -2px); }
+.gd .mk.none { width: 0.875rem; height: 0; border-top: 1.5px dashed var(--gd-dim); }
+.gd .mk.you { border-radius: 50%; background: var(--gd-coral); width: 0.75rem; height: 0.75rem; }
+.gd .mk.ok { border-radius: 50%; background: var(--gd-moss); }
+.gd .mk.fail { position: relative; width: 0.75rem; height: 0.75rem; }
+.gd .mk.fail::before,
+.gd .mk.fail::after { content: ""; position: absolute; left: 0.3125rem; top: -1px; width: 2px; height: 0.875rem; background: var(--gd-coral); transform: rotate(45deg); }
+.gd .mk.fail::after { transform: rotate(-45deg); }
+
+.gd .chip {
+  display: inline-flex; align-items: baseline; gap: 0.5rem; min-height: 2.125rem; padding: 0.375rem 0.875rem; border-radius: 999px;
+  border: 1px solid var(--gd-rule-2); background: transparent; cursor: pointer; font-size: 0.875rem; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.gd .chip b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.gd .chip:hover { border-color: var(--gd-quiet); }
+.gd .chip[aria-pressed="true"] { background: var(--gd-ink); border-color: var(--gd-ink); color: var(--gd-paper); }
+.gd .chip.dashed { border-style: dashed; cursor: default; color: var(--gd-quiet); }
+.gd .chip.needs b { color: var(--gd-coral-ink); }
+.gd .chip[aria-pressed="true"].needs b { color: var(--gd-coral-wash); }
+
+.gd .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.5rem; padding: 0 1rem;
+  border-radius: 0.375rem; border: 1px solid var(--gd-rule-2); background: var(--gd-card); cursor: pointer;
+  font-size: 1rem; font-weight: 600; text-decoration: none; white-space: nowrap; color: var(--gd-ink);
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+.gd .btn:hover { border-color: var(--gd-quiet); }
+.gd .btn:active { transform: translateY(1px); }
+.gd .btn.primary { background: var(--gd-ink); border-color: var(--gd-ink); color: var(--gd-paper); }
+.gd .btn.primary:hover { background: color-mix(in srgb, var(--gd-ink) 85%, var(--gd-steel)); }
+.gd .btn.affirm { background: var(--gd-moss); border-color: var(--gd-moss); color: var(--color-white); }
+.gd .btn.ghost { background: transparent; border-color: transparent; }
+.gd .btn.ghost:hover { border-color: var(--gd-rule-2); }
+.gd .btn.danger { color: var(--gd-coral-ink); }
+.gd .btn.quiet { height: 2.25rem; padding: 0 0.75rem; font-size: 0.875rem; background: transparent; }
+.gd .btn.block { width: 100%; }
+.gd .btn.wrap { white-space: normal; height: auto; min-height: 2.5rem; padding-top: 0.5rem; padding-bottom: 0.5rem; text-align: left; justify-content: flex-start; }
+.gd .btn:disabled,
+.gd .btn[aria-disabled="true"] { background: var(--gd-sunken); border: 1px dashed var(--gd-rule-2); color: var(--gd-dim); cursor: not-allowed; transform: none; }
+.gd .iconbtn { width: 2.5rem; padding: 0; }
+.gd .iconbtn.quiet { width: 2.25rem; }
+.gd .linkbtn { border: 0; background: transparent; padding: 0; cursor: pointer; font-weight: 600; color: var(--gd-steel); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--gd-steel) 35%, transparent); text-underline-offset: 3px; }
+.gd .linkbtn:hover { text-decoration-color: currentColor; }
+.gd kbd { font: 600 0.875rem/1 var(--gd-sans); border: 1px solid var(--gd-rule-2); border-bottom-width: 2px; border-radius: 0.25rem; padding: 0.125rem 0.375rem; background: var(--gd-card); color: var(--gd-quiet); }
+.gd .field {
+  width: 100%; border: 1px solid var(--gd-rule-2); border-radius: 0.375rem; background: var(--gd-card); padding: 0.5rem 0.75rem; font-size: 1rem; color: var(--gd-ink);
+}
+.gd textarea.field { resize: vertical; min-height: 6rem; background: var(--gd-paper); }
+.gd .field:focus-visible { outline: 2px solid var(--gd-coral); outline-offset: 1px; }
+.gd .alert { padding: 0.5rem 0.75rem; border-radius: 0.375rem; background: var(--gd-coral-wash); color: var(--gd-coral-ink); font-size: 0.875rem; }
+.gd .note-line { padding: 0.5rem 0.75rem; border-radius: 0.375rem; background: var(--gd-lime); font-size: 0.875rem; }
+.gd .quiet-line { font-size: 0.875rem; color: var(--gd-quiet); }
+
+/* the popovers (keyboard, add a wire, hire a specialist) */
+.gd [popover].pop,
+.gd .pop-panel {
+  border: 1px solid var(--gd-rule-2); border-radius: var(--gd-radius); padding: 0.75rem; background: var(--gd-card);
+  box-shadow: var(--gd-pop-shadow); color: var(--gd-ink); width: min(34rem, 92vw);
+}
+.gd .pop h3 { padding: 0.25rem 0.5rem 0.5rem; }
+.gd .keys { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem 1rem; padding: 0.25rem 0.5rem; font-size: 0.875rem; align-items: baseline; }
+.gd .keys dt { white-space: nowrap; }
+.gd .pop .pi { display: grid; grid-template-columns: 2.125rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.625rem; border-radius: 0.375rem; }
+.gd .pop .pi + .pi { border-top: 1px solid var(--gd-rule); }
+.gd .pop .pi .d { display: block; font-size: 0.875rem; color: var(--gd-quiet); }

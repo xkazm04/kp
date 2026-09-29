@@ -3234,7 +3234,14 @@
       "matchesTitle": "Treffer",
       "matchesState": "Die Personen, nach denen der aufgerufene Link fragt",
       "matchesQuery": "Passend zu „{q}“",
-      "matchesEmpty": "Niemand in der Pipeline passt zu diesem Link."
+      "matchesEmpty": "Niemand in der Pipeline passt zu diesem Link.",
+      "ovAria": "Überblick: heute und die Summen, um den gefalteten Orbit",
+      "ovTrail": "Überblick",
+      "ovOpen": "Orbit öffnen",
+      "ovCoreAria": "Der gefaltete Orbit: {people, plural, one {# Person} other {# Personen}} in {stages, number} Phasen. Öffnen.",
+      "ovRingsLegend": "Ringe von außen nach innen: {stages}",
+      "ovActive": "Aktiv",
+      "ovNothingToday": "Für heute steht nichts an."
     },
     "board": {
       "scrollHint": "Auf eine Phasen-Überschrift klicken, um sie zu zentrieren · scrollen, um durch die Pipeline zu navigieren",
@@ -14528,7 +14535,8 @@
       "keysNav": "<kbd>←</kbd> <kbd>→</kbd> vorheriger oder nächster in dieser Spalte",
       "keysDecline": "<kbd>D</kbd> ablehnen",
       "keysChecklist": "<kbd>1</kbd> bis <kbd>{count}</kbd> Checkliste abhaken",
-      "keysBack": "<kbd>Esc</kbd> zurück zur Linie"
+      "keysBack": "<kbd>Esc</kbd> zurück zur Linie",
+      "withdrawnForFlash": "„{title}“ zurückgezogen: {reason}"
     },
     "brief": {
       "title": "Recherche-Briefing",
@@ -14549,7 +14557,6 @@
         "llm_unusable": "die Antwort des Modells war unbrauchbar",
         "llm_error": "der Modellaufruf ist fehlgeschlagen"
       },
-      "category": "Kategorie",
       "difficulty": "Schwierigkeit",
       "level": {
         "easy": "Leicht",
@@ -14559,12 +14566,9 @@
         "unrated": "Nicht bewertet"
       },
       "unratedWhy": "Kein Modell hat sie bewertet.",
-      "cardDifficulty": "Schwierigkeit: {level}",
       "effort": "Aufwand",
       "effortRange": "{min}–{max} h",
       "effortNone": "nicht geschätzt",
-      "challenges": "Zu erwartende Hürden",
-      "challengesNone": "keine genannt",
       "contents": "Inhalt des Briefings",
       "contentsTitle": "In diesem Briefing",
       "sourcesRead": "Gelesene Quellen",
@@ -14576,7 +14580,14 @@
         "failed": "Fehlgeschlagen"
       },
       "linkFlagged": "als Köder (Honeypot) markiert",
-      "linkChars": "{count, plural, one {# Zeichen gelesen} other {# Zeichen gelesen}}"
+      "linkChars": "{count, plural, one {# Zeichen gelesen} other {# Zeichen gelesen}}",
+      "challengesHint": "Ziehen Sie den Auftrag wegen eines dieser Punkte zurück, und spätere Scans merken sich den Grund. Für jeden anderen Grund nutzen Sie Zurückziehen in der Freigabe.",
+      "withdrawFor": "Deshalb zurückziehen",
+      "withdrawForTip": "Diesen Auftrag zurückziehen, weil: {challenge}",
+      "withdrawing": "Wird zurückgezogen",
+      "withdrawnBefore": "{count, plural, one {Sie haben deshalb schon einen Auftrag zurückgezogen} other {Sie haben deshalb schon # Aufträge zurückgezogen}}",
+      "withdrawnForThis": "Sie haben diesen Auftrag deshalb zurückgezogen",
+      "recurringTip": "{count, plural, one {# Hürde, wegen der Sie schon Aufträge zurückgezogen haben} other {# Hürden, wegen denen Sie schon Aufträge zurückgezogen haben}}"
     },
     "head": {
       "stripLabel": "Heute",
@@ -14707,7 +14718,14 @@
       "stampRunningBody": "Der Spezialist hat {when} begonnen. Ausstehend, nicht gescheitert: der Entwurf landet hier.",
       "stampNoDeliverable": "Kein Ergebnis",
       "stampEmpty": "Der Entwurfstext ist leer",
-      "stampEmptyBody": "Das Ergebnis enthält keinen Text zum Senden."
+      "stampEmptyBody": "Das Ergebnis enthält keinen Text zum Senden.",
+      "summaryLabel": "Zusammenfassung",
+      "aboutLabel": "Worum es geht",
+      "listingLabel": "Die Ausschreibung, nicht vertrauenswürdiger Text",
+      "category": "Kategorie",
+      "listingRef": "Ausschreibung",
+      "tags": "Schlagwörter",
+      "moreTags": "+{count, number} weitere"
     },
     "slip": {
       "label": "Prüfzettel",
@@ -14769,34 +14787,23 @@
       "running": "Bei {name} seit {when}. Der Entwurf landet hier."
     },
     "back": {
-      "label": "Anhang",
-      "title": "Anhang · der Maschinenraum",
       "evidence": "Nachweise",
       "failedN": "{count, number} gescheitert",
-      "noneRecorded": "keine erfasst",
       "review": "Prüfung vor dem Senden",
       "byAgent": "Prüf-Agent",
       "byAgentCycle": "Prüf-Agent · Zyklus {cycle}",
       "byReviewer": "Prüfung",
       "yourNote": "Ihre Notiz",
-      "noneOnFile": "keine vorhanden",
       "noReview": "Für diesen Entwurf wurde keine Prüfung erfasst.",
       "warningsYouDecide": "Warnungen: Sie entscheiden",
       "noteWord": "Notiz",
-      "noteLength": "{count, number} Zeichen, unten aufgeschlüsselt",
-      "mustDo": "Vor dem Senden · {count, number}",
-      "defects": "Mängel · {count, number}",
       "checks": "Was die Prüfung ausgeführt hat · {count, number}",
       "history": "Frühere Entwürfe",
-      "openedBy": "Die Notiz, mit der er zurückging",
       "brief": "Recherche",
-      "notResearched": "noch nicht recherchiert",
       "listing": "Die Ausschreibung",
       "flags": "{count, plural, one {# Markierung} other {# Markierungen}}",
-      "untrusted": "nicht vertrauenswürdiger Text",
       "original": "Original öffnen ↗",
       "routing": "Zuordnung und Ordner",
-      "fit": "Passung {score}",
       "notScored": "nicht bewertet",
       "fitScore": "Passungswert",
       "bar": "die Schwelle ist {bar}; keine Vorhersage",
@@ -14937,6 +14944,38 @@
       "filedTitle": "Was sie erfasst hat",
       "filedNone": "Noch nichts erfasst.",
       "noHost": "kein Host: Sie leiten das Briefing weiter"
+    },
+    "tabs": {
+      "label": "Bereiche des Entwurfs",
+      "draft": "Entwurf",
+      "noEvidenceYet": "Noch ist kein Entwurf zurückgekommen, also gibt es keine Nachweise.",
+      "evidenceSub": "{count, plural, one {# Sache, die der Agent laut eigener Angabe ausgeführt hat} other {# Dinge, die der Agent laut eigener Angabe ausgeführt hat}}",
+      "passed": "Bestanden",
+      "failed": "Gescheitert",
+      "unverified": "Nicht verifiziert",
+      "confidence": "Zuversicht des Agenten",
+      "confidenceTip": "Seine eigene Schätzung, nie eine Bewertung",
+      "mustDo": "Vor dem Senden",
+      "defects": "Mängel",
+      "defect": "Mangel",
+      "judgeSaid": "Der Prüfer schrieb",
+      "historySub": "{count, plural, =0 {Noch keine Versuche} one {# Versuch, neuester zuerst} other {# Versuche, neueste zuerst}}",
+      "draftN": "Entwurf {n}",
+      "thisDraft": "dieser Entwurf",
+      "sentBackWith": "Die Notiz, auf die er antwortet",
+      "showAll": "Alles zeigen",
+      "showLess": "Weniger zeigen",
+      "fitAria": "Passung {score} von 100; die Schwelle ist {bar}",
+      "candidates": "Spezialisten nach Passung",
+      "briefAside": "Über diese Recherche",
+      "outOf100": "von 100",
+      "short": {
+        "review": "Prüfung",
+        "history": "Verlauf",
+        "brief": "Recherche",
+        "listing": "Ausschreibung",
+        "routing": "Zuordnung"
+      }
     }
   },
   "kit": {

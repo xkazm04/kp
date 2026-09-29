@@ -44,7 +44,7 @@
 // fake fetch, fake DNS, fake GitHub and a fake CLI with no network, no DB and no key.
 
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "../ats-egress-guard";
-import { getGig, listGigsNeedingBrief, mergeGigSuspectReasons, setGigBrief, transitionGig } from "../db/gigs";
+import { getGig, listGigWithdrawReasons, listGigsNeedingBrief, mergeGigSuspectReasons, setGigBrief, transitionGig } from "../db/gigs";
 import { htmlTitle, htmlToText } from "../job-posting-fetch";
 import { politeFetch, type PoliteFetch } from "../jobseeker/fetch/politeFetch";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
@@ -52,6 +52,7 @@ import { isOffline } from "../offline";
 import { githubRead, type GithubReadOutcome } from "../repo-snapshot";
 import { GIG_RESEARCH_MAX_PER_SCAN, type GigResearchBatchSummary } from "./scan";
 import { scanGigForHoneypots } from "./suspect";
+import { GIG_BRIEF_CHALLENGES_HEADING, GIG_WITHDRAW_REASONS_TO_MODEL, tallyWithdrawReasons } from "./withdraw-reasons";
 import {
   isGigDifficulty,
   isGigSuspectReason,
@@ -77,7 +78,7 @@ const LLM_MIN_REMAINING_MS = 15_000;
 /** The spawn's hang backstop; the CLI's own provider timeout (60 s) sits under it. */
 const LLM_SPAWN_TIMEOUT_MS = 80_000;
 /** Kept in lockstep with gig_brief_cli.py PROMPT_VERSION (research.test.ts reads both). */
-export const GIG_BRIEF_PROMPT_VERSION = "gig-brief-v1";
+export const GIG_BRIEF_PROMPT_VERSION = "gig-brief-v2";
 /** The politeness key's seed: every research read shares one jitter lane. */
 const RESEARCH_FETCH_SOURCE = "gig-research";
 const RESEARCH_ACCEPT = "text/html, application/xhtml+xml;q=0.9, text/plain;q=0.9, text/markdown;q=0.9, application/json;q=0.5, */*;q=0.1";
@@ -353,7 +354,7 @@ export const GIG_BRIEF_HEADINGS = {
   what: "What the gig is",
   asks: "What it asks for",
   difficulty: "Difficulty and effort",
-  challenges: "Expected challenges",
+  challenges: GIG_BRIEF_CHALLENGES_HEADING,
   sources: "Sources read",
 } as const;
 
@@ -465,6 +466,18 @@ function clampList(v: unknown, maxItems: number, maxChars: number): string[] {
   return out;
 }
 
+/** Challenges as one-line bullets the brief can always parse back (withdraw-reasons.ts
+ *  briefChallenges): a list marker or heading marker the model added is dropped, and a
+ *  repeat is kept once. The desk offers a Withdraw per bullet, so each must stand alone. */
+function cleanChallenges(v: unknown): string[] {
+  const out: string[] = [];
+  for (const item of clampList(v, 7, 240)) {
+    const s = item.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, "").replace(/^#+/, "").trim();
+    if (s && !out.some((o) => o.toLowerCase() === s.toLowerCase())) out.push(s);
+  }
+  return out;
+}
+
 /** kp's gate on the CLI's `result` (the Python coercer is the first line; this is the
  *  one that decides what is stored). Null when a required field is missing. */
 export function parseGigBriefResult(raw: unknown): GigBriefModelResult | null {
@@ -491,7 +504,7 @@ export function parseGigBriefResult(raw: unknown): GigBriefModelResult | null {
     difficulty,
     difficultyReason,
     effort,
-    challenges: clampList(r.challenges, 7, 240),
+    challenges: cleanChallenges(r.challenges),
     summary,
     asks: clampList(r.asks, 8, 240),
   };
@@ -581,6 +594,8 @@ export type GigResearchDeps = {
   transitionGig: typeof transitionGig;
   mergeGigSuspectReasons: typeof mergeGigSuspectReasons;
   listGigsNeedingBrief: typeof listGigsNeedingBrief;
+  /** The reasons the operator withdrew gigs for (withdraw-reasons.ts), read per brief. */
+  listWithdrawReasons: typeof listGigWithdrawReasons;
   now: () => string;
   nowMs: () => number;
   log: (line: string, error?: unknown) => void;
@@ -605,6 +620,7 @@ export function defaultGigResearchDeps(): GigResearchDeps {
     transitionGig,
     mergeGigSuspectReasons,
     listGigsNeedingBrief,
+    listWithdrawReasons: listGigWithdrawReasons,
     now: () => new Date().toISOString(),
     nowMs: () => Date.now(),
     log: (line, error) => (error === undefined ? console.warn(`[gigs:research] ${line}`) : console.error(`[gigs:research] ${line}`, error)),
@@ -788,9 +804,26 @@ function flagGig(workspaceId: string, gig: Gig, reasons: readonly GigSuspectReas
   return deps.mergeGigSuspectReasons(workspaceId, gig.id, reasons) ?? fresh;
 }
 
-/** The CLI's input: the listing and the pages, both of which the CLI fences as data. */
-function cliInput(gig: Gig, pages: readonly ResearchPage[]) {
+/** The reasons this workspace withdrew gigs for, the most frequent first: the model writes
+ *  a challenge that is the same obstacle in exactly these words, so a repeat is countable.
+ *  A store that cannot answer costs the brief nothing but the memory. */
+function pastWithdrawReasons(workspaceId: string, deps: GigResearchDeps): string[] {
+  try {
+    return tallyWithdrawReasons(deps.listWithdrawReasons(workspaceId))
+      .slice(0, GIG_WITHDRAW_REASONS_TO_MODEL)
+      .map((t) => t.challenge);
+  } catch (error) {
+    deps.log("reading the withdraw reasons failed; briefing without them", error);
+    return [];
+  }
+}
+
+/** The CLI's input: the listing and the pages, both of which the CLI fences as data, and
+ *  the operator's past withdraw reasons (fenced too: each was a model's sentence about a
+ *  stranger's listing before the operator picked it). */
+function cliInput(gig: Gig, pages: readonly ResearchPage[], withdrawReasons: readonly string[]) {
   return {
+    withdrawReasons,
     listing: {
       title: gig.title,
       org: gig.org,
@@ -861,7 +894,7 @@ export async function researchGig(workspaceId: string, gig: Gig, opts: GigResear
       try {
         const out = await deps.runCli({
           module: "gig_brief_cli",
-          files: { "input.json": cliInput(current, pages) },
+          files: { "input.json": cliInput(current, pages, pastWithdrawReasons(workspaceId, deps)) },
           args: (f) => ["--input-json", f["input.json"]],
           signal: budget.signal,
           llm: true,

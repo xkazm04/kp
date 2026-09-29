@@ -3234,7 +3234,14 @@
       "matchesTitle": "Matches",
       "matchesState": "The people the link you followed asks for",
       "matchesQuery": "Matching “{q}”",
-      "matchesEmpty": "Nobody on the board matches this link."
+      "matchesEmpty": "Nobody on the board matches this link.",
+      "ovAria": "Overview: today and the totals, around the folded orbit",
+      "ovTrail": "Overview",
+      "ovOpen": "Open the orbit",
+      "ovCoreAria": "The orbit, folded: {people, plural, one {# person} other {# people}} on {stages, number} stages. Open it.",
+      "ovRingsLegend": "Rings, outside in: {stages}",
+      "ovActive": "Active",
+      "ovNothingToday": "Nothing is queued for today."
     },
     "board": {
       "scrollHint": "Click a stage header to centre it · scroll to move across the pipeline",
@@ -14528,7 +14535,8 @@
       "keysNav": "<kbd>←</kbd> <kbd>→</kbd> previous or next in this column",
       "keysDecline": "<kbd>D</kbd> decline",
       "keysChecklist": "<kbd>1</kbd> to <kbd>{count}</kbd> tick the checklist",
-      "keysBack": "<kbd>Esc</kbd> back to the line"
+      "keysBack": "<kbd>Esc</kbd> back to the line",
+      "withdrawnForFlash": "Withdrew “{title}”: {reason}"
     },
     "brief": {
       "title": "Research brief",
@@ -14549,7 +14557,6 @@
         "llm_unusable": "the model’s answer was unusable",
         "llm_error": "the model call failed"
       },
-      "category": "Category",
       "difficulty": "Difficulty",
       "level": {
         "easy": "Easy",
@@ -14559,12 +14566,9 @@
         "unrated": "Not rated"
       },
       "unratedWhy": "No model rated it.",
-      "cardDifficulty": "Difficulty: {level}",
       "effort": "Effort",
       "effortRange": "{min}–{max} h",
       "effortNone": "not estimated",
-      "challenges": "Expected challenges",
-      "challengesNone": "none listed",
       "contents": "Contents of the brief",
       "contentsTitle": "In this brief",
       "sourcesRead": "Sources read",
@@ -14576,7 +14580,14 @@
         "failed": "Failed"
       },
       "linkFlagged": "flagged as a honeypot",
-      "linkChars": "{count, plural, one {# character read} other {# characters read}}"
+      "linkChars": "{count, plural, one {# character read} other {# characters read}}",
+      "challengesHint": "Withdraw for one of these and later scans remember it. For any other reason, use Withdraw in the sign-off.",
+      "withdrawFor": "Withdraw for this",
+      "withdrawForTip": "Withdraw this gig because: {challenge}",
+      "withdrawing": "Withdrawing",
+      "withdrawnBefore": "{count, plural, one {You withdrew a gig for this before} other {You withdrew # gigs for this before}}",
+      "withdrawnForThis": "You withdrew this gig for this",
+      "recurringTip": "{count, plural, one {# challenge you withdrew gigs for before} other {# challenges you withdrew gigs for before}}"
     },
     "head": {
       "stripLabel": "Today",
@@ -14707,7 +14718,14 @@
       "stampRunningBody": "The specialist started {when}. Pending, not failed: the draft lands here.",
       "stampNoDeliverable": "No deliverable",
       "stampEmpty": "Draft text is empty",
-      "stampEmptyBody": "The deliverable carries no text to send."
+      "stampEmptyBody": "The deliverable carries no text to send.",
+      "summaryLabel": "Summary",
+      "aboutLabel": "What the gig is",
+      "listingLabel": "The listing, untrusted text",
+      "category": "Category",
+      "listingRef": "Listing",
+      "tags": "Tags",
+      "moreTags": "+{count, number} more"
     },
     "slip": {
       "label": "Proof slip",
@@ -14769,33 +14787,22 @@
       "running": "With {name} since {when}. Its draft lands here."
     },
     "back": {
-      "label": "Back matter",
-      "title": "Back matter · the machinery",
       "evidence": "Evidence",
       "failedN": "{count, number} failed",
-      "noneRecorded": "none recorded",
       "review": "Pre-send review",
       "byAgent": "Reviewer agent",
       "byReviewer": "Reviewer",
       "yourNote": "Your note",
-      "noneOnFile": "none on file",
       "noReview": "No review was recorded for this draft.",
       "warningsYouDecide": "Warnings: you decide",
       "noteWord": "Note",
-      "noteLength": "{count, number} characters, set out below",
-      "mustDo": "Before sending · {count, number}",
-      "defects": "Defects · {count, number}",
       "checks": "Checks the reviewer ran · {count, number}",
       "history": "Earlier drafts",
-      "openedBy": "The note that sent it back",
       "brief": "Research brief",
-      "notResearched": "not researched yet",
       "listing": "The listing",
       "flags": "{count, plural, one {# flag} other {# flags}}",
-      "untrusted": "untrusted text",
       "original": "Open the original ↗",
       "routing": "Routing & folder",
-      "fit": "fit {score}",
       "notScored": "not scored",
       "fitScore": "Fit score",
       "bar": "the bar is {bar}; not a prediction",
@@ -14937,6 +14944,38 @@
       "filedTitle": "What it filed",
       "filedNone": "Nothing filed yet.",
       "noHost": "no host: you forward the brief"
+    },
+    "tabs": {
+      "label": "Proof sections",
+      "draft": "Draft",
+      "noEvidenceYet": "No draft came back yet, so there is no evidence to show.",
+      "evidenceSub": "{count, plural, one {# thing the agent reports running} other {# things the agent reports running}}",
+      "passed": "Passed",
+      "failed": "Failed",
+      "unverified": "Not verified",
+      "confidence": "Agent confidence",
+      "confidenceTip": "Its own estimate, never a score",
+      "mustDo": "Before sending",
+      "defects": "Defects",
+      "defect": "Defect",
+      "judgeSaid": "The judge wrote",
+      "historySub": "{count, plural, =0 {No attempts yet} one {# attempt, newest first} other {# attempts, newest first}}",
+      "draftN": "Draft {n}",
+      "thisDraft": "this draft",
+      "sentBackWith": "The note it answers",
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "fitAria": "Fit {score} of 100; the bar is {bar}",
+      "candidates": "Specialists by fit",
+      "briefAside": "About this brief",
+      "outOf100": "of 100",
+      "short": {
+        "review": "Review",
+        "history": "History",
+        "brief": "Brief",
+        "listing": "Listing",
+        "routing": "Routing"
+      }
     }
   },
   "kit": {

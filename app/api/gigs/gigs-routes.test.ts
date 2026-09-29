@@ -9,7 +9,8 @@ import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
-import { createManualGig, getGig } from "../../_lib/db/gigs.ts";
+import { createManualGig, getGig, listGigWithdrawReasons, setGigBrief } from "../../_lib/db/gigs.ts";
+import { buildLlmGigBrief } from "../../_lib/gigs/research.ts";
 import { gigCatalogEntry } from "../../_lib/gigs/sources-catalog.ts";
 import { GIG_DISCLOSURE_ITEM, type Gig, type GigSource } from "../../_lib/gigs/types.ts";
 import { fixtureDraftedGig, fixtureSentGig, fixtureSpecialist } from "../../_lib/gigs/__fixtures__/sent-gig.ts";
@@ -130,6 +131,37 @@ test("GET/PATCH /api/gigs/[id]: 404, clear_suspect, decline, and an action the s
   const body = await json<{ code: string; gigStatus: string }>(twice);
   assert.equal(body.code, "GIG_ACTION_NOT_ALLOWED");
   assert.equal(body.gigStatus, "declined");
+});
+
+test("PATCH /api/gigs/[id] withdraw { challenge }: the named brief bullet is copied onto the gig and read back for the scans", async () => {
+  const { gig } = createManualGig(WS, { arena: "freelance", url: "https://example.test/brief/withdraw", title: "Rebuild the shop", bodyText: "Rebuild the shop in two weeks.", org: null, reward: null, deadlineAt: null, tags: [], suspectReasons: [] });
+  const challenges = ["The budget is fixed at $200 for a full rebuild.", "The client wants **daily** calls."];
+  const brief = buildLlmGigBrief(
+    { category: "Web · Shop", title: "Rebuild the shop", difficulty: "hard", difficultyReason: "Big scope", effort: null, challenges, summary: "A rebuild.", asks: [] },
+    [],
+    { promptVersion: "test", createdAt: new Date().toISOString() }
+  );
+  setGigBrief(WS, gig.id, brief);
+  // Refused: a challenge on decline, a non-integer, a bullet the brief does not have.
+  for (const body of [{ action: "decline", challenge: 0 }, { action: "withdraw", challenge: "0" }, { action: "withdraw", challenge: 1.5 }, { action: "withdraw", challenge: 7 }]) {
+    const res = await PATCH_GIG(req("PATCH", body), params(gig.id));
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.equal((await json<{ field: string }>(res)).field, "challenge");
+  }
+  assert.equal(getGig(WS, gig.id)!.status, gig.status, "a refused withdraw moves nothing");
+
+  const res = await PATCH_GIG(req("PATCH", { action: "withdraw", challenge: 1 }), params(gig.id));
+  assert.equal(res.status, 200);
+  const stored = getGig(WS, gig.id)!;
+  assert.equal(stored.status, "withdrawn");
+  assert.equal(stored.withdrawReason?.challenge, challenges[1]);
+  assert.equal(stored.withdrawReason?.index, 1);
+  assert.ok(listGigWithdrawReasons(WS).some((r) => r.withdrawReason?.challenge === challenges[1]));
+
+  // A plain withdraw names nothing.
+  const { gig: other } = createManualGig(WS, { arena: "freelance", url: "https://example.test/brief/withdraw-2", title: "Other", bodyText: "Other work.", org: null, reward: null, deadlineAt: null, tags: [], suspectReasons: [] });
+  assert.equal((await PATCH_GIG(req("PATCH", { action: "withdraw" }), params(other.id))).status, 200);
+  assert.equal(getGig(WS, other.id)!.withdrawReason, null);
 });
 
 test("POST /api/gigs/[id]/dispatch: 404 unknown, 409 not dispatchable, bad note type 400", async () => {

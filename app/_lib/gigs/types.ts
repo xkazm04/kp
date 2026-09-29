@@ -264,9 +264,16 @@ export type Gig = {
   /** The Personas project rooted at `workdir` (gigs/project.ts); null until Personas
    *  registered it (unpaired, unreachable, or a build without the project route). */
   personasProjectId: string | null;
+  /** The brief challenge the operator withdrew this gig for (withdraw-reasons.ts); null
+   *  when it is not withdrawn, or was withdrawn without naming one. */
+  withdrawReason: GigWithdrawReason | null;
   createdAt: string;
   updatedAt: string;
 };
+
+/** One of the gig's brief challenges, copied from the brief when the operator withdrew the
+ *  gig for it: the text as the brief said it, its bullet's index, and when. */
+export type GigWithdrawReason = { challenge: string; index: number; at: string };
 
 // ---------------------------------------------------------------------------
 // Specialists

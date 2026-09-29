@@ -19,6 +19,7 @@ import type { FetchOutcome, PoliteFetchOptions } from "../jobseeker/fetch/polite
 import type { CliCall } from "../jobseeker/python-cli.ts";
 import {
   assembleGigBriefMarkdown,
+  buildLlmGigBrief,
   createSectionIdAssigner,
   deterministicGigBrief,
   escapeBriefText,
@@ -34,6 +35,7 @@ import {
   type GigResearchDeps,
 } from "./research.ts";
 import { scanGigForHoneypots } from "./suspect.ts";
+import { briefChallenges } from "./withdraw-reasons.ts";
 import type { Gig, GigBrief, GigStatus, GigSuspectReason } from "./types.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +62,7 @@ function gig(over: Partial<Gig> = {}): Gig {
     brief: null,
     workdir: null,
     personasProjectId: null,
+    withdrawReason: null,
     createdAt: "2026-09-24T00:00:00.000Z",
     updatedAt: "2026-09-24T00:00:00.000Z",
     ...over,
@@ -86,6 +89,8 @@ function harness(opts: {
   cli?: (call: CliCall) => Record<string, unknown>;
   offline?: boolean;
   current?: Gig;
+  /** Past withdraw reasons the store answers (challenge text per withdrawn gig), or "throw". */
+  withdrawn?: string[] | "throw";
 } = {}): Harness {
   const h: Harness = { deps: {}, fetched: [], looked: [], github: [], cli: [], stored: [], moves: [], merged: [] };
   let current = opts.current ?? gig();
@@ -130,6 +135,10 @@ function harness(opts: {
       return current;
     },
     listGigsNeedingBrief: () => [],
+    listWithdrawReasons: () => {
+      if (opts.withdrawn === "throw") throw new Error("store down");
+      return (opts.withdrawn ?? []).map((challenge, i) => ({ withdrawReason: { challenge, index: 0, at: `2026-09-2${i}T00:00:00.000Z` } }));
+    },
     now: () => "2026-09-24T12:00:00.000Z",
     nowMs: () => 0,
     log: () => undefined,
@@ -357,7 +366,7 @@ test("researchGig: the egress guard blocks a private host BEFORE any fetch; robo
       "https://docs.acme.dev/parser": html("<h1>Grammar</h1><p>The grammar is LL(1).</p>", "Parser grammar"),
       "https://rules.example.org/terms": { kind: "robots_disallowed", detail: "/terms disallowed for kp-jobseeker" },
     },
-    cli: () => ({ result: MODEL, source: "llm", fallbackReason: null, promptVersion: "gig-brief-v1" }),
+    cli: () => ({ result: MODEL, source: "llm", fallbackReason: null, promptVersion: "gig-brief-v2" }),
     current: listing,
   });
   const out = await researchGig("ws-1", listing, { deps: h.deps });
@@ -431,7 +440,7 @@ test("researchGig: an already-suspect gig lists its links and follows none", asy
 
 test("researchGig: KP_OFFLINE skips every link before DNS; the CLI still answers (keyless no_provider -> deterministic brief)", async () => {
   const listing = gig({ bodyText: "https://docs.acme.dev/a https://docs.acme.dev/b" });
-  const h = harness({ offline: true, current: listing, cli: () => ({ result: null, source: "deterministic", fallbackReason: "no_provider", promptVersion: "gig-brief-v1" }) });
+  const h = harness({ offline: true, current: listing, cli: () => ({ result: null, source: "deterministic", fallbackReason: "no_provider", promptVersion: "gig-brief-v2" }) });
   const out = await researchGig("ws-1", listing, { deps: h.deps });
   assert.deepEqual([h.looked.length, h.fetched.length], [0, 0], "nothing resolved, nothing fetched");
   assert.deepEqual(out.brief.links.map((l) => [l.status, l.reason]), [
@@ -521,4 +530,32 @@ test("GIG_BRIEF_PROMPT_VERSION is in lockstep with gig_brief_cli.py PROMPT_VERSI
   const m = /^PROMPT_VERSION = "([^"]+)"/m.exec(py);
   assert.ok(m, "PROMPT_VERSION not found in gig_brief_cli.py");
   assert.equal(m[1], GIG_BRIEF_PROMPT_VERSION);
+});
+
+test("researchGig: the operator's past withdraw reasons ride to the model, most frequent first; a store that fails costs only the memory", async () => {
+  const listing = gig({ bodyText: "Build a shop." });
+  const cli = () => ({ result: MODEL, source: "llm", fallbackReason: null, promptVersion: "gig-brief-v2" });
+  const h = harness({ cli, current: listing, withdrawn: ["The budget is fixed.", "Daily calls are required", "the budget is fixed"] });
+  await researchGig("ws-1", listing, { deps: h.deps });
+  const input = h.cli[0].files["input.json"] as { withdrawReasons: string[] };
+  assert.deepEqual(input.withdrawReasons, ["the budget is fixed", "Daily calls are required"], "one row per reason, the newest wording, the most frequent first");
+
+  const down = harness({ cli, current: listing, withdrawn: "throw" });
+  const out = await researchGig("ws-1", listing, { deps: down.deps });
+  assert.equal(out.brief.source, "llm");
+  assert.deepEqual((down.cli[0].files["input.json"] as { withdrawReasons: string[] }).withdrawReasons, []);
+});
+
+test("briefChallenges reads back exactly the challenges the brief wrote, from the list or from the Markdown section", () => {
+  const challenges = ["A *starred* claim, with `code` and [brackets]", "- starts with a dash", "3. starts like a list", "Plain one"];
+  const brief = buildLlmGigBrief({ ...MODEL, challenges }, [], { promptVersion: "t", createdAt: "2026-09-24T12:00:00.000Z" });
+  assert.deepEqual(briefChallenges(brief), challenges);
+  assert.deepEqual(briefChallenges({ challenges: [], markdown: brief.markdown }), challenges, "the Markdown section parses back to the same list");
+  assert.deepEqual(briefChallenges({ challenges: [], markdown: assembleGigBriefMarkdown({ ...MODEL, challenges: [] }, []) }), [], "'None named.' is not a challenge");
+  assert.deepEqual(briefChallenges(null), []);
+});
+
+test("parseGigBriefResult keeps challenges as one-line bullets: list and heading markers the model added are dropped", () => {
+  const out = parseGigBriefResult({ ...MODEL, challenges: ["- Dash first", "2. Numbered", "## Heading-ish", "- dash first", "Plain"] });
+  assert.deepEqual(out?.challenges, ["Dash first", "Numbered", "Heading-ish", "Plain"]);
 });

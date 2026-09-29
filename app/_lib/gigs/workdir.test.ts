@@ -46,6 +46,7 @@ function gig(over: Partial<Gig> = {}): Gig {
     brief: null,
     workdir: null,
     personasProjectId: null,
+    withdrawReason: null,
     createdAt: "2026-09-24T18:03:00.000Z",
     updatedAt: "2026-09-24T18:03:00.000Z",
     ...over,

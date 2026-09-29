@@ -1,0 +1,80 @@
+/*
+ * THE GIGS DESK - the Gigs tab's stylesheet (docs/features/gigs/README.md, "The Gigs tab").
+ *
+ * Ported from the owner's combined verdict on the gigs-calm contest (2026-09-28): B/3
+ * "The Proof" gives the front page, the proof (a gig's full page), Reception and Wires;
+ * B/2 "The Line" gives the header's figures and the Lanes page. It is a stylesheet, in the
+ * form the winners expressed it (grids, washes, dashed stubs, pseudo-element rules), scoped
+ * under `.gd` so none of its short class names reach the rest of the app. Class names are
+ * the winners' own, which is what lets the style contract name one role on both sides.
+ *
+ * FUSED WITH KP, never re-coloured by hand: every colour resolves through the product's
+ * tokens (app/globals.css), so Spark Dark re-skins the desk - paper, ink, the stone ramp,
+ * coral for what waits on the operator, moss for done, steel for secondary text (kp's
+ * `text-steel`; the winners' stone-500..700 are not kp tokens), Fraunces as the display
+ * face, the panel shadow that turns into a hard sticker offset after dark.
+ *
+ * kp's type floor holds: nothing below 14px (0.875rem). Sizes are rem so the reader's
+ * root size carries through.
+ */
+
+.gd {
+  --gd-ink: var(--color-ink);
+  --gd-paper: var(--color-paper);
+  --gd-card: var(--color-white);
+  --gd-quiet: var(--color-steel);
+  --gd-dim: color-mix(in srgb, var(--color-ink) 45%, var(--color-paper));
+  --gd-body-2: color-mix(in srgb, var(--color-ink) 82%, var(--color-paper));
+  --gd-rule: var(--color-stone-200);
+  --gd-rule-2: var(--color-stone-300);
+  --gd-sunken: var(--color-stone-50);
+  --gd-sunken-2: var(--color-stone-100);
+  --gd-coral: var(--color-coral);
+  /* text-safe coral: the brand hue pulled toward ink so 14px copy clears AA */
+  --gd-coral-ink: color-mix(in srgb, var(--color-coral) 78%, var(--color-ink));
+  --gd-coral-wash: var(--color-coralwash);
+  --gd-now-wash: color-mix(in srgb, var(--color-coralwash) 34%, transparent);
+  --gd-moss: var(--color-moss);
+  --gd-moss-ink: color-mix(in srgb, var(--color-moss) 88%, var(--color-ink));
+  --gd-lime: var(--color-limewash);
+  --gd-steel: var(--color-steel);
+  --gd-amber: var(--color-dial-amber);
+  --gd-stone: var(--color-dial-stone);
+  --gd-serif: var(--font-serif);
+  --gd-sans: var(--font-sans);
+  --gd-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --gd-shadow: var(--panel-shadow);
+  --gd-pop-shadow: var(--overlay-shadow);
+  --gd-radius: 0.5rem;
+  --gd-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  color: var(--gd-ink);
+  font-family: var(--gd-sans);
+  font-variant-numeric: tabular-nums;
+}
+.gd *,
+.gd *::before,
+.gd *::after {
+  box-sizing: border-box;
+}
+.gd :where(h1, h2, h3, h4, p, ol, ul, dl, dd, figure, blockquote) {
+  margin: 0;
+}
+.gd :where(button, input, textarea, select) {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---- type (display 36 / h2 22 / h3 16 / body 16 / meta 14) ------------------ */
+.gd .t-display { font: 600 2.25rem/1.1 var(--gd-serif); letter-spacing: -0.01em; }
+.gd .t-h2 { font: 600 1.375rem/1.3 var(--gd-serif); }
+.gd .t-h3 { font: 600 1rem/1.4 var(--gd-sans); }
+.gd .t-meta { font-size: 0.875rem; line-height: 1.4; color: var(--gd-quiet); }
+.gd .caps { font-size: 0.875rem; line-height: 1.4; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.gd .dim { color: var(--gd-quiet); }
+.gd .coral { color: var(--gd-coral-ink); }
+.gd .moss { color: var(--gd-moss-ink); }
+.gd .strong { font-weight: 600; color: var(--gd-ink); }
+.gd .absent { font-style: italic; color: var(--gd-quiet); }
+.gd .num { font-variant-numeric: tabular-nums lining-nums; }
+.gd .fig-serif { font-family: var(--gd-serif); font-variant-numeric: tabular-nums lining-nums; }

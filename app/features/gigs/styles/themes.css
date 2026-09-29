@@ -1,0 +1,33 @@
+/* ---- motion: state changes only ----------------------------------------------------------- */
+.gd .enter { animation: gd-enter 0.28s var(--gd-ease) both; }
+@keyframes gd-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .gd *,
+  .gd *::before,
+  .gd *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+}
+
+/* ---- Spark Dark: the structural register (drawn outlines, 16px radius) ------------------- */
+:root[data-theme="dark"] .gd { --gd-radius: 1rem; }
+:root[data-theme="dark"] .gd :is(.sheet, .signoff, .galley-strip, .ledger, .mini, .pop-panel, [popover].pop, .summary-card, .panel) { border: 2px solid var(--gd-ink); }
+:root[data-theme="dark"] .gd .btn { border-radius: 0.5rem; }
+
+/* ---- widths: the tab sits in panels of every width, so the surface decides ---------------- */
+.gd { container-type: inline-size; container-name: gd; }
+@container gd (max-width: 75rem) {
+  .gd .gd-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .gd .strip { grid-column: 1 / -1; grid-row: 2; }
+  .gd .strip > *:first-child { border-left: 0; padding-left: 0; }
+  .gd .proof { grid-template-columns: 17rem minmax(0, 1fr); gap: 1.5rem; }
+  .gd .reception { grid-template-columns: minmax(0, 1fr); }
+}
+@container gd (max-width: 62rem) {
+  .gd .lead { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .gd .index { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .gd .index > section { padding: 0; border-left: 0; }
+  .gd .proof { grid-template-columns: minmax(0, 1fr); }
+  .gd .signoff { position: static; max-height: none; }
+  .gd .search { margin-left: 0; }
+  .gd .hireform { grid-template-columns: minmax(0, 1fr); }
+  .gd .wire .inner { grid-template-columns: minmax(0, 1fr); padding-left: 0.25rem; }
+}

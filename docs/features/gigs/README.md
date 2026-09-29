@@ -135,15 +135,22 @@ or pull request, docs or a spec) and **at most three** are read
    followed (`skipped (gig_suspect)`), the model is not called, and the brief is still
    written, with the link's line saying `fetched, flagged as a honeypot (<reasons>)`. A
    gig that is already suspect has its links listed and none followed.
-4. **The model sees data, not instructions.** `gig_brief_cli.py` receives the listing and
-   the fetched pages as two JSON fields, `untrusted_listing` and `untrusted_pages`,
-   inside a fence whose marker carries a random nonce minted per call and checked absent
+4. **The model sees data, not instructions.** `gig_brief_cli.py` receives the listing, the
+   fetched pages and the operator's past withdraw reasons as three JSON fields,
+   `untrusted_listing`, `untrusted_pages` and `untrusted_past_withdraw_reasons`, inside a
+   fence whose marker carries a random nonce minted per call and checked absent
    from the payload. The instructions say the fenced region is written by strangers, may
    try to instruct the reader, and is never obeyed. The model answers JSON only: a
    category, a retitle, a difficulty (`easy`, `moderate`, `hard`, `very_hard`,
    `unrated`) with a one-sentence reason, an effort range in hours with a note, 3 to 7
    challenges, a 2 to 4 sentence summary and the listed deliverables. The CLI and
-   `research.ts` each validate and clamp it.
+   `research.ts` each validate and clamp it. **Challenges have a syntax** (prompt
+   `gig-brief-v2`): each is ONE plain sentence naming ONE obstacle, under 200 characters,
+   no list marker, number or heading, because the operator can withdraw the gig for any
+   single one; both gates strip a list or heading marker the model added anyway. When the
+   gig has an obstacle the operator withdrew earlier gigs for, the model writes it in
+   exactly the words of that past reason, so a repeat is countable by text (see
+   **Withdraw reasons**).
 
 **The Markdown is kp's, not the model's.** `research.ts` writes the brief itself, in one
 fixed shape, so every brief reads the same:
@@ -196,6 +203,40 @@ difficulty `unrated`, no effort and no challenges, and its Markdown is the listi
 paragraphs plus the same "Sources read" list, because the link list is the part the
 operator cannot get any other way. `fallbackReason` says why (`no_provider`,
 `gig_suspect`, `budget`, `engine_error`, `llm_unusable`, `llm_error:<type>`).
+
+## Withdraw reasons
+
+A gig is taken off the line for a reason, and most reasons are already written down: the
+brief's **Expected challenges**. On a gig's Research brief tab each challenge is a row with
+**Withdraw for this** (`proof/panels/BriefChallenges.tsx`): one click, no confirm (picking
+the reason is the confirmation), and the proof moves to the next gig of its list with
+"Withdrew "<title>": <reason>". The sign-off's plain **Withdraw** stays for a reason the
+brief did not name, and records none.
+
+- **The write.** `PATCH /api/gigs/[id]` `{ action: "withdraw", challenge: <index> }`. The
+  client sends the bullet's index, never text; the route reads the challenge from the
+  stored brief (`app/_lib/gigs/withdraw-reasons.ts` `briefChallenges`) and writes
+  `{ challenge, index, at }` to `gigs.withdraw_reason_json` in the same CAS as the status
+  move. An index the brief does not have, a non-integer, or a `challenge` on any other
+  action is `400 GIG_INPUT_INVALID` (`field: "challenge"`) and moves nothing.
+- **Parsing.** `briefChallenges` reads the brief's stored `challenges` list, which is what
+  its "Expected challenges" section is written from; a brief whose list is empty is read
+  from that section's `- ` bullets (escapes undone, "None named." skipped). The heading is
+  one constant (`GIG_BRIEF_CHALLENGES_HEADING`) shared by the writer and the reader, and
+  `research.test.ts` pins that a written section parses back to the same list.
+- **Memory.** `listGigWithdrawReasons` (`db/gigs.ts`) reads the newest 500 withdrawn gigs
+  that named a reason; `tallyWithdrawReasons` folds them into one row per reason
+  (`challengeKey`: case, quotes, whitespace and closing punctuation folded), the most
+  frequent first. Every brief the scan or `POST /api/gigs/[id]/research` writes hands the
+  top 12 to the model (see **Research**), and a store that cannot answer costs the brief
+  the memory only.
+- **On the desk.** Counted over the gigs the tab holds, this gig left out: a challenge the
+  operator withdrew other gigs for carries "You withdrew 3 gigs for this before" (an amber
+  rule on the row), and the Research brief tab carries a caution mark saying how many of
+  its challenges repeat. A gig withdrawn for a bullet shows which one ("You withdrew this
+  gig for this", a moss row).
+- **Keyless.** A deterministic brief has no challenges, so it offers no rows; the plain
+  Withdraw still works.
 
 ## Requirements
 
@@ -341,6 +382,11 @@ the work as done and emits no new block, so sync fails it `no_deliverable_block`
 `drafted` / `in_review` gig dispatched with a `revisionNote`) keeps its prior work as a base and
 is never cleared — `dispatch.ts` gates the clear on `gig.status === "qualified"`.
 
+The contract asks for `summary` as **Markdown for the operator** (it never reaches the
+client): one lead sentence, then 3 to 6 bullets - what was delivered, what was verified and
+how, and a `**Check first:**` bullet - under about 120 words, no headings or tables. The
+proof renders it as the summary card (see **The Gigs tab**).
+
 A **stand-down** (the specialist decides not to attempt the work, e.g. the listing is
 already claimed) is a valid outcome, but it is still a deliverable: `summary`, `draftText`
 and `disclosure` are required non-empty strings on every object. The contract therefore
@@ -390,7 +436,7 @@ every folder, and the gigs repository's own `CLAUDE.md` (loaded by the CLI for a
 it) carries them too.
 
 `POST /api/gigs/[id]/workspace` runs the same step on demand. The gig's proof shows it in
-back matter F, "Routing & folder" (`GigsBackMatter.tsx`): the folder path as selectable text,
+its "Routing & folder" tab (`proof/panels/RoutingPanel.tsx`): the folder path as selectable text,
 "Personas project: linked | not linked (<reason>)" (the reason is known after a prepare),
 and **Prepare workspace**.
 
@@ -461,8 +507,8 @@ longer has a caller in the gig line.
   UPDATE whose WHERE re-asserts the status read, so a gig a dispatch claimed meanwhile is
   left alone (409 `GIG_STATE_CHANGED`).
 
-**The routing fold** (back matter F of a gig's proof, `GigsBackMatter.tsx`; derivation in
-`routingView.ts`): who the gig goes to now ("routed by you" or "auto-matched"), the fit score
+**The routing tab** ("Routing & folder" on a gig's proof, `proof/panels/RoutingPanel.tsx`;
+derivation in `logic/routing.ts`): who the gig goes to now ("routed by you" or "auto-matched"), the fit score
 against the qualification bar, the source, the gig's folder and Personas project with
 **Prepare workspace**, the qualification factors, and (one fold further) every specialist in
 the arena ranked by the same `rankSpecialistsForGig` the server runs, each with its fit as a
@@ -482,11 +528,16 @@ wall ("The Line" of the `gigs-desk` contest), which the owner found over-written
 review ran before the swap: every capability the wall-era tab had lives on in the table of
 the design record (vault `Contest/designs/gigs-calm-fusion.md`), most of it one fold deeper.
 
-The look is one scoped stylesheet, `app/features/gigs/gigs.css` (root class `.gd`, the
-winners' own class names, every colour through kp's tokens so Spark Dark re-skins it, drawn
-outlines and a 16px radius after dark, nothing under 14px). Pure derivations live in
-`deskLogic.ts` (front columns, urgency, the whole file, niches and lanes, the reviewer note,
-margin notes; `deskLogic.test.ts`) and `gigsLogic.ts` (queues, gates, keys; `gigsLogic.test.ts`).
+The code is one folder per surface under `app/features/gigs/`, every file under 200 lines:
+`GigsTab.tsx` (the entry) and `tab/` (the header, where the operator is, the notices);
+`front/`, `lanes/`, `reception/`, `wires/` (the four sections); `proof/` (a gig's page: the
+trail, the tabs, the summary, the draft, `panels/` for the other tabs, `signoff/` for the
+left column); `shared/` (doubts, marks, the untrusted-text frame, the lint's words);
+`data/` (the reads and writes, formatting, the bare keys); `logic/` (the pure derivations,
+one module per concern, each pinned by its own `*.test.ts`). The look is scoped stylesheets
+in `styles/`, one per surface, imported by `GigsTab.tsx` in cascade order (root class `.gd`,
+the winners' own class names, every colour through kp's tokens so Spark Dark re-skins it,
+drawn outlines and a 16px radius after dark, nothing under 14px).
 Every read and write goes through the routes below. A failure renders from its `code`
 through `useErrorMessage()`, never from the server's `error` string. Strings live under the
 `gigs` catalog namespace in all four locales (`head.*`, `nav.*`, `keys.*`, `front.*`,
@@ -494,7 +545,7 @@ through `useErrorMessage()`, never from the server's `error` string. Strings liv
 plus the shared vocabularies `status.*`, `check.*`, `lint.*`, `brief.*` ...). Nothing is
 written to the URL: `?tab=gigs` is consumed by the shell like every tab.
 
-**The header (`GigsTab.tsx`).** The title and the "In development" tag, then three figures:
+**The header (`tab/GigsHeader.tsx`).** The title and the "In development" tag, then three figures:
 **N wait on you** ("3 to clear · 38 to review · 35 to send", plus "to record" while anything
 is out), **First** (the most urgent gig, its days left and its next move; a button that opens
 it) and **a of s judged** (the accepted-outcome rate in a ring, a dashed "—" while
@@ -504,13 +555,13 @@ Reception · Wires**, each with its count. Every section and a proof REPLACE the
 the tab keeps the front page's state (filter, sort, page, scroll) so the way back from a
 proof lands where the operator left.
 
-1. **Front page (`GigsFront.tsx`, `GigsFile.tsx`).** A headline built from the live counts
+1. **Front page (`front/`: `GigsFront.tsx`, `GigsFile.tsx`).** A headline built from the live counts
    ("73 proofs wait on your desk, and 3 listings in quarantine.") and a one-line deck (how
    many only need sending, when the first closes, whether anything is out). Then the
    **lead proof**: the most urgent gig, its facts, its top two doubts in words and the
    draft's opening paragraphs, with "Read the proof". Then the **index columns** by next
    move: **Ready to send**, **To proof**, **Quarantined**, and **To record** while anything
-   is sent; each most urgent first (`deskLogic.ts` `urgencyQueue`: the nearest open deadline,
+   is sent; each most urgent first (`logic/front.ts` `urgencyQueue`: the nearest open deadline,
    then the move closest to done, then the longest waiting), ten rows and the rest one fold
    away. A row carries reward, deadline, the specialist's niche and its **doubt marks** (a
    coral diamond per stop, a ring per doubt, a moss tick when nothing automatic was found, a
@@ -522,15 +573,17 @@ proof lands where the operator left.
    converted, never compared across), 50 rows a page. `N` opens the next gig that waits in
    the urgency order after the one last opened, wrapping. With no gigs at all the page says
    why (no sources yet, or nothing found) and points to Wires.
-2. **A gig's proof (`GigsProof.tsx`).** A full page. The trail: "← Back / <the list it came
-   from> / i of n", **Decline (D)**, ‹ › and ×. **`←` / `→` walk the list the proof was
+2. **A gig's proof (`proof/GigsProof.tsx`).** A full page. The trail, one row pinned while
+   the page scrolls (`proof/ProofTrail.tsx`): "← Back / <the list it came from> / i of n",
+   the **section tabs**, then **Decline (D)**, ‹ › and × (the tabs take a row of their own
+   under it when the tab is narrow). **`←` / `→` walk the list the proof was
    opened from** (an index column, the lead's queue, the file in its current filter and
    sort, a lane's cell), no wrap; `Esc` goes back. `D` opens an inline confirm (focus on
    "Decline it"): `D` again or `Enter` confirms, `Esc` cancels; a decline lands on the next
    gig of the list, else the previous, else back, with a flash. Keys go through
    `useBareKeys` (stands down while typing, under a modal, with a modifier, after a bare `g`,
    inside a widget that owns the arrows). Every swap lands at the top with focus on "Back".
-   - **The sign-off (`GigsSignoff.tsx`)**, left and sticky: the state in words and ONLY the
+   - **The sign-off (`proof/signoff/`)**, left and sticky: the state in words and ONLY the
      moves it allows, each through its real door. A drafted or approved draft gets the desk:
      the arena **checklist** as initials (keys `1` to `6`, "4 / 6", a progress rule, the
      disclosure sentence quoted under its initial, a review timer), **Approve** disabled
@@ -549,45 +602,81 @@ proof lands where the operator left.
      Decline. Work with an agent: in flight, sent back not dispatched, or failed, with
      Dispatch again. Withdraw wherever `transitions.ts` allows. Confidence, this run's cost
      ("cost not reported", never $0) and the budget close it.
-   - **The head**: the stage and the niche, the title, the facts (arena, reward, deadline,
-     org, difficulty glyph), the deliverable's summary.
-   - **The proof slip (`GigsSlip.tsx`)**: every doubt in words. The pre-send lint
+   - **The head**: the stage and the niche, then the title.
+   - **The section tabs** (`proof/proofTabs.tsx`, the kit's `Segmented`, in the trail):
+     **Summary · Draft · Evidence · Pre-send review · Earlier drafts · Research brief ·
+     Listing · Routing & folder**, each with its count and a mark where something needs a
+     look (a stop, failed evidence, a reviewer blocker or warnings, a flagged listing). Every
+     tab is always shown; one the gig's state leaves empty is **disabled**, never hidden:
+     Draft with no attempt (unless quarantined), Evidence with no evidence item, Pre-send
+     review with no review note, Earlier drafts with no attempt, Listing with no listing text.
+     Research brief and Routing stay open (each holds its action). A proof opens on
+     **Summary** when there is a summary or a brief to read, else on Draft for a gig with an
+     attempt or a quarantined one, else on Summary. Each section is a white panel composed
+     from the kit (`StatStrip`, `Section`, `KeyValueGrid`, `Mark`, `Tag`, `Button`) inside a
+     `.k-kit` root with its delegated tip (`KitArea`).
+   - **Summary** (`proof/ProofSummary.tsx`): the deliverable's `summary` rendered as Markdown
+     at a reading size across the panel's width, shown whole (the contract asks for one lead
+     sentence and 3-6 bullets, the last naming what to check first; a summary written before
+     that - one long paragraph - is set the same way deterministically, its first sentence as
+     the lead and each following sentence a bullet: `logic/summary.ts` `summaryMarkdown`,
+     nothing reworded). With no draft yet it shows the brief's "What the gig is"
+     (`firstBriefSection`), else the whole listing as untrusted text (`summaryTextOf` picks).
+     The **rail** beside it holds the key facts as tags and values: category, the listing
+     reference (its host as a link; text for a suspect listing) and org, reward, deadline,
+     difficulty and effort, arena, the listing's own tags.
+   - **Draft: the proof slip (`proof/ProofSlip.tsx`, doubts in `shared/doubts.tsx`)**: every doubt in words. The pre-send lint
      (`draft-lint.ts`, below) is the gate: a blocker says "blocks approve", a warn carries its
      "seen" box, open questions are one row (all of them marked seen at once, listed in a
-     fold). The **reviewer agent's note** (`deskLogic.ts` `parseReviewNote`: header, lead,
+     fold). The **reviewer agent's note** (`logic/reviewNote.ts` `parseReviewNote`: header, lead,
      numbered must-dos, "Checks run", "Defects: BLOCKER") adds a row for its blockers or
      warnings, marked "the reviewer's call": advisory, never a gate. Reviewer marks that
      quote nothing in the draft are listed in a fold, never dropped; the note this draft
-     carries from a revision is one fold away.
-   - **The galley**: the draft as it would be sent, paragraphs numbered. Every phrase a note
-     names is underlined (amber for a lint finding on that line, coral for a reviewer note
-     that quotes it) and the note is **pinned in the margin** beside its paragraph with a
+     carries from a revision is one fold away. A slip link opens the tab it points at (a
+     margin note on Draft, an item on Evidence).
+   - **Draft: the galley** (`proof/Galley.tsx`): the draft as it would be sent, paragraphs numbered. Every phrase
+     a note names is underlined (amber for a lint finding on that line, coral for a reviewer
+     note that quotes it) and the note is **pinned in the margin** beside its paragraph with a
      letter, a hairline and its source ("Pre-send lint · Check", "Reviewer agent · defect");
      the margin is a column when the sheet has room (a container query) and sits under the
      paragraph otherwise; a note is pulled down to its phrase. Enclosures close the sheet.
      With no draft the galley is a stamp that says why: quarantined (with the listing
      below), not yet written, not yet qualified, being written ("pending, not failed"), sent
      back, no deliverable (the fallback reason), empty text.
-   - **Back matter, lettered folds (`GigsBackMatter.tsx`)**, each with its count: **A
-     Evidence** (passed, failed, NOT VERIFIED; "no command" called out; a slip link opens it
-     at the item), **B Pre-send review** (the note set out: must-dos, defects with blockers
-     marked, the checks it ran), **C Earlier drafts** (every attempt read fresh from
-     `GET /api/gigs/[id]`: status, date, specialist, cost, the note that sent it back,
-     verdicts with the judge's words and amounts), **D Research brief** (`GigsBrief.tsx`,
-     below), **E The listing** (untrusted text; a suspect's reasons explained and its URL as
-     text), **F Routing & folder** (above).
+   - **Evidence**: a stat strip (passed, failed, not verified, the agent's own confidence),
+     then one card per item: its mark and kind, the command in a code block ("no command"
+     called out as the agent's account), the result. Failed is coral, not verified dashed:
+     never two states.
+   - **Pre-send review**: the reviewer and cycle as a tag, the verdict as a pill, the lead as
+     a callout, then "Before sending" (numbered steps) beside "Defects" (blockers washed
+     coral), and the checks it ran in a fold.
+   - **Earlier drafts**: a timeline, newest first, every attempt read fresh from
+     `GET /api/gigs/[id]`: its status pill, cost, date and specialist, the note it answers
+     (clamped with "Show all"), the fallback reason, verdicts with the judge's words and
+     amounts.
+   - **Listing**: the suspect reasons explained, the untrusted frame (tag, source, character
+     count, invisible characters), the listing's tags, and "Open the original" (a suspect
+     listing's URL stays text).
+   - **Routing & folder** (above): who it goes to and the fit against the bar as two cards,
+     the workspace as a key-value grid with **Prepare workspace**, the specialists by fit as
+     rows with **Route here**.
 
-   **The research brief** (`GigsBrief.tsx`) states its provenance ("Written by a model from
-   the listing and 2 linked pages" or "Assembled without a model", and when) and offers
-   **Research again** (`POST /api/gigs/[id]/research`); with no brief it says "Not
-   researched yet" beside the same button. Then the category, the categorized title, the
-   difficulty with its reason ("Not rated" is an absence, never "easy"), the effort, the
-   challenges, a contents list when there are 3+ sections, the Markdown body through
-   `app/_components/Markdown.tsx` at a ~70ch measure, and **Sources read** with each link's
-   status in words (a link kp did not open is text, never a link). Headings carry the ids
+   **The research brief** (`proof/panels/BriefPanel.tsx`, the Research brief tab) is a reading column and
+   an aside. The column: the category as tags, the categorized title, then the Markdown body
+   through `app/_components/Markdown.tsx` at a ~68ch measure and a reading size (the body
+   already carries the difficulty reason, so nothing is listed twice). Its "Expected
+   challenges" section is set as rows, each with **Withdraw for this** (see **Withdraw
+   reasons**).
+   The aside: the provenance ("Written by a model from the listing and 2 linked pages" or
+   "Assembled without a model", and when) with **Research again**
+   (`POST /api/gigs/[id]/research`), difficulty and effort as a key-value grid ("Not rated"
+   and "not estimated" are absences, never "easy" or 0), a contents list when there are 3+
+   sections, and **Sources read** with each link's status as a mark and a word (a link kp
+   did not open is text, never a link). With no brief the panel says "Not researched yet"
+   beside the same button. Headings carry the ids
    the server minted with one assigner (`brief.sections`, via `briefHeadingResolver`, which
    refuses rather than guesses); nothing is re-slugged on the client.
-3. **Lanes (`GigsLanes.tsx`).** "6 niches, 13 hires." One row per **niche** (`deskLogic.ts`
+3. **Lanes (`lanes/GigsLanes.tsx`).** "6 niches, 13 hires." One row per **niche** (`logic/niches.ts`
    `foldNiches`: the same arena + niche hired twice is one lane, its working hire leading,
    earlier hires folded under it with status, date, persona and registry vs seed) plus **No
    specialist yet** (every gig no specialist holds). Eight stage cells per row (Found,
@@ -624,7 +713,7 @@ proof lands where the operator left.
 
 **Untrusted text.** A listing is always plain text in a dashed frame tagged "Untrusted".
 Links are text and never followed, and every zero-width or direction-control character
-renders as a visible `U+XXXX` marker (`gigsLogic.ts` `revealInvisible`).
+renders as a visible `U+XXXX` marker (`logic/untrusted.ts` `revealInvisible`).
 
 **Marks differ by shape, not only colour.** Accepted is a filled disc, rejected a struck
 ring, duplicate two rings, no response a dotted ring, pending a dashed ring. Doubts: a stop
@@ -663,7 +752,7 @@ seen. Info never gates.
 | GET | `/api/gigs` | operator | none | `GIG_INPUT_INVALID` |
 | POST | `/api/gigs` | `pipeline:write` | 30 `gigs-forward` | `GIG_INPUT_INVALID` |
 | GET | `/api/gigs/[id]` | operator | none | `GIG_NOT_FOUND` |
-| PATCH | `/api/gigs/[id]` | `pipeline:write` | 120 `gigs-write` | `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED`, `GIG_STATE_CHANGED`, `GIG_INPUT_INVALID`; `route` / `unroute` (see **Matchmaking and routing**) add `GIG_SPECIALIST_NOT_READY` (409, `detail`) and `GIG_ROUTE_ARENA_MISMATCH` (409) |
+| PATCH | `/api/gigs/[id]` | `pipeline:write` | 120 `gigs-write` | `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED`, `GIG_STATE_CHANGED`, `GIG_INPUT_INVALID` (`field: "challenge"` for a withdraw reason the brief does not hold, see **Withdraw reasons**); `route` / `unroute` (see **Matchmaking and routing**) add `GIG_SPECIALIST_NOT_READY` (409, `detail`) and `GIG_ROUTE_ARENA_MISMATCH` (409) |
 | POST | `/api/gigs/[id]/dispatch` | `pipeline:write` | 20 `gigs-dispatch` | `GIG_NOT_FOUND`, `GIG_SUSPECT`, `GIG_NOT_DISPATCHABLE`, `GIG_SPECIALIST_NOT_READY` (409), `GIG_DISPATCH_FAILED` (502), `GIG_WORKSPACE_FAILED` (502 Personas / 500 folder, `detail`) |
 | POST | `/api/gigs/[id]/workspace` | `pipeline:write` | 20 `gigs-workspace` | 200 `{ gig, personas }`; `GIG_NOT_FOUND`, `GIG_WORKSPACE_FAILED` (500, `detail` = `workdir_*`) |
 | POST | `/api/gigs/[id]/outcome` | `pipeline:write` | 60 `gigs-outcome` | `GIG_NOT_FOUND`, `GIG_ATTEMPT_NOT_FOUND`, `GIG_OUTCOME_NOT_SENT`, `GIG_INPUT_INVALID` |
@@ -702,8 +791,7 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/lessons.ts` | deterministic lesson bullets and the feedback scrubber |
 | `app/_lib/gigs/kpi.ts` | the pure KPI fold, including money won per currency (never totalled) from the counted verdicts |
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
-| `app/features/gigs/gigsLogic.ts` | the tab's pure derivations: which queue a gig sits in (`queueKindOf`), how far along the line it got (`reachedStep`), the rate as a fraction, the Approve and Mark sent gates, the keyboard guards |
-| `app/features/gigs/deskLogic.ts` | the desk's derivations: front columns and the urgency order, the whole file's filter and sort, niches and lanes, the reviewer note read into parts, margin notes pinned to their paragraph |
+| `app/features/gigs/logic/*.ts` | the tab's pure derivations, one module per concern, each with its `*.test.ts`: `line.ts` (which queue a gig sits in, `queueKindOf`; how far along the line it got, `reachedStep`), `rate.ts` (the rate as a fraction), `facts.ts` (deadlines, evidence states, the Approve and Mark sent gates), `keys.ts` (the keyboard guards), `front.ts` (front columns and the urgency order, walking a list), `file.ts` (the whole file's filter and sort), `niches.ts` / `lanes.ts` (niches and lanes), `reviewNote.ts` (the reviewer note read into parts), `galley.ts` (margin notes pinned to their paragraph), `summary.ts` (the summary set for reading), `routing.ts` (the routing tab) |
 | `app/_lib/gigs/sources-catalog.ts` | tiers, hosts, keys, terms summaries and hashes |
 
 ## Lessons
@@ -803,7 +891,9 @@ ALTER-added and NULL until the gig is researched; writing a brief does not touch
 `updated_at`, the desk's sort key. `gigs.workdir` and `gigs.personas_project_id` are
 ALTER-added the same way (NULL until the workspace is first prepared; the project id stays
 NULL until Personas registers it) and written by `setGigWorkspace`, which does not touch
-`updated_at` either. `gig_attempts.fallback_reason` may be set at dispatch
+`updated_at` either. `gigs.withdraw_reason_json` is ALTER-added too: `{ challenge, index,
+at }` when the operator withdrew the gig for a brief challenge, NULL otherwise (and on every
+row withdrawn before the column existed). `gig_attempts.fallback_reason` may be set at dispatch
 (`personas_route_missing`); the sync clears it when the draft lands.
 
 ## Keyless behaviour

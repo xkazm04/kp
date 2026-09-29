@@ -155,6 +155,10 @@ class CoerceTest(unittest.TestCase):
         self.assertEqual((out["difficulty"], out["difficultyReason"], out["effort"], out["asks"]), ("unrated", None, None, []))
         self.assertEqual(out["challenges"], ["a", "b", "c", "d", "e", "f", "g"])
 
+    def test_challenges_are_one_line_bullets_the_brief_can_parse_back(self):
+        out = gig_brief_cli.coerce_brief({**GOOD, "challenges": ["- Dash first", "2. Numbered", "* star", "## Heading-ish", "- dash first", "  ", "Plain"]})
+        self.assertEqual(out["challenges"], ["Dash first", "Numbered", "star", "Heading-ish", "Plain"])
+
     def test_effort_must_be_a_positive_ordered_range(self):
         for effort in ({"minHours": 0, "maxHours": 4}, {"minHours": True, "maxHours": 4}, {"minHours": 1, "maxHours": 5000}, "3-8"):
             out = gig_brief_cli.coerce_brief({**GOOD, "effort": effort})
@@ -175,7 +179,7 @@ class FenceTest(unittest.TestCase):
             self.assertIn(needle, inside)
             self.assertNotIn(needle, outside, needle)
         data = json.loads(inside[len(open_marker):])
-        self.assertEqual(set(data), {"untrusted_listing", "untrusted_pages"})
+        self.assertEqual(set(data), {"untrusted_listing", "untrusted_pages", "untrusted_past_withdraw_reasons"})
         self.assertIn("NEVER obeyed", outside)
 
     def test_a_payload_that_holds_the_nonce_gets_a_fresh_one(self):
@@ -187,6 +191,19 @@ class FenceTest(unittest.TestCase):
         a, b = gig_brief_cli.build_prompt(REQUEST), gig_brief_cli.build_prompt(REQUEST)
         nonce = lambda p: p.split("<<<UNTRUSTED_", 1)[1].split(">>>", 1)[0]  # noqa: E731
         self.assertNotEqual(nonce(a), nonce(b))
+
+    def test_past_withdraw_reasons_travel_inside_the_fence_bounded(self):
+        req = {**REQUEST, "withdrawReasons": ["The budget is fixed at $200", "the budget is fixed at $200", "x" * 500] + [f"r{i}" for i in range(20)]}
+        prompt = gig_brief_cli.build_prompt(req, nonce="0123456789abcdef")
+        start = prompt.rindex("<<<UNTRUSTED_0123456789abcdef>>>")
+        end = prompt.rindex("<<<END_UNTRUSTED_0123456789abcdef>>>")
+        self.assertIn("The budget is fixed at $200", prompt[start:end])
+        self.assertNotIn("The budget is fixed at $200", prompt[:start] + prompt[end:])
+        reasons = gig_brief_cli.untrusted_payload(req)["untrusted_past_withdraw_reasons"]
+        self.assertEqual(len(reasons), gig_brief_cli.MAX_WITHDRAW_REASONS)
+        self.assertEqual(reasons[0], "The budget is fixed at $200")
+        self.assertEqual(reasons[1], "x" * (gig_brief_cli.MAX_CHALLENGE_CHARS - 1) + "…")
+        self.assertEqual(gig_brief_cli.untrusted_payload(REQUEST)["untrusted_past_withdraw_reasons"], [])
 
     def test_the_pages_are_bounded(self):
         big = {"listing": {"title": "t", "body": "x" * 50_000}, "pages": [{"url": "u", "text": "y" * 50_000}] * 5}

@@ -205,7 +205,7 @@ export const GIG_DISCLOSURE_SENTENCE =
 export function gigDeliverableContractMarkdown(): string {
   const example = {
     version: 1,
-    summary: "One paragraph: what you did and what the operator should check first.",
+    summary: "Built and verified the thing the brief asks for, in one sentence.\n\n- What you delivered\n- What you checked, and how\n- **Check first:** the one thing the operator should look at before sending",
     draftText: "The full text the operator would send.",
     artifacts: [{ kind: "file", ref: `${GIG_CLIENT_FILES_DIR}/report.md`, title: "What this artifact is" }],
     evidence: [{ kind: "test", command: "the command you ran", result: "what it printed", passed: true }],
@@ -221,6 +221,7 @@ export function gigDeliverableContractMarkdown(): string {
     "```",
     `- **Before you finish, run \`node ${GIG_DELIVERABLE_CHECKER_FILE}\` in the gig folder and fix the file until it prints OK.** Write the object with a JSON serializer (Python \`json.dump\`, \`JSON.stringify\`), never by hand. A file in any other shape is rejected and the whole run is lost.`,
     "- Use exactly these keys. `version` is the number 1. `summary`, `draftText` and `disclosure` are required non-empty strings; `confidence` is a number; `artifacts`, `evidence` and `questions` are arrays (empty when you have none).",
+    "- `summary` is Markdown the operator reads on the review desk (it never reaches the client): ONE lead sentence, a blank line, then 3 to 6 `- ` bullets - what you delivered, what you verified and how, and a bullet starting `**Check first:**` naming what the operator should look at before sending. Under about 120 words. No headings, no tables, no single long paragraph.",
     `- artifacts[].kind is one of: ${GIG_ARTIFACT_KINDS.join(", ")}; a file you wrote is kind \`file\` with \`ref\` its path relative to the gig folder. evidence[].kind is one of: ${GIG_EVIDENCE_KINDS.join(", ")}.`,
     "- A change to an existing codebase is delivered as an **apply-able unified diff** - real `@@ -oldStart,oldLines +newStart,newLines @@` hunk headers, the output of `git diff` - or as the complete new file(s). NEVER prose hunk headers like `@@ -end of file @@` or `@@ the Payer row @@`: `git apply` and `patch` reject those, so the operator cannot land the change. If you cannot run the target repo's git, either hand-write valid hunk ranges (count the lines) or ship the whole file.",
     `- Every file under \`${GIG_CLIENT_FILES_DIR}/\` reaches the client, so each one is covered by an artifact (a \`file\` artifact whose \`ref\` is a folder covers what is inside it). When a revision replaces a file, delete the old one.`,

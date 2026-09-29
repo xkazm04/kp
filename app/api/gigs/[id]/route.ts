@@ -9,7 +9,8 @@ import { listOutcomesForGig } from "@/app/_lib/gigs/outcome";
 import { qualifyAndMatch } from "@/app/_lib/gigs/qualify";
 import { routeGig, unrouteGig } from "@/app/_lib/gigs/routing";
 import { canTransitionGig } from "@/app/_lib/gigs/transitions";
-import type { GigStatus } from "@/app/_lib/gigs/types";
+import type { GigStatus, GigWithdrawReason } from "@/app/_lib/gigs/types";
+import { briefChallenges } from "@/app/_lib/gigs/withdraw-reasons";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // /api/gigs/[id]
@@ -19,6 +20,11 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //                       edge the state machine holds (gigs/transitions.ts); a draft
 //                       still waiting on review (drafted | approved) is discarded with
 //                       it, so no reviewable card outlives its gig.
+//                       withdraw MAY name why: { challenge: <index> } is a bullet of the
+//                       gig's brief "Expected challenges" (withdraw-reasons.ts
+//                       briefChallenges); its text is copied from the stored brief onto
+//                       the gig (withdrawReason), which the next scans read back. The
+//                       client sends an index, never text. No such bullet = 400.
 //   clear_suspect       suspect -> new with the reasons emptied (the operator read the
 //                       flag and judged it a false positive), then qualified again.
 //   route               { specialistId }: the gig goes to that specialist (gigs/routing.ts)
@@ -59,13 +65,17 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
   }
   try {
     const { id } = await params;
-    const body = (await request.json().catch(() => ({}))) as { action?: unknown; specialistId?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { action?: unknown; specialistId?: unknown; challenge?: unknown };
     const action = body.action;
     if (typeof action !== "string" || !(PATCH_ACTIONS as readonly string[]).includes(action)) {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "action", allowed: PATCH_ACTIONS });
     }
     if (action === "route" && (typeof body.specialistId !== "string" || !body.specialistId.trim())) {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "specialistId" });
+    }
+    const named = body.challenge !== undefined && body.challenge !== null;
+    if (named && (action !== "withdraw" || typeof body.challenge !== "number" || !Number.isInteger(body.challenge) || body.challenge < 0)) {
+      return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "challenge" });
     }
     const ws = await currentWorkspace();
 
@@ -89,7 +99,14 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
 
     const to: GigStatus = action === "decline" ? "declined" : "withdrawn";
     if (!canTransitionGig(gig.status, to)) return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { gigStatus: gig.status });
-    const moved = transitionGig(ws, id, { from: gig.status, to });
+    let withdrawReason: GigWithdrawReason | undefined;
+    if (named) {
+      const index = body.challenge as number;
+      const challenge = briefChallenges(gig.brief)[index];
+      if (!challenge) return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "challenge" });
+      withdrawReason = { challenge, index, at: new Date().toISOString() };
+    }
+    const moved = transitionGig(ws, id, { from: gig.status, to, patch: withdrawReason ? { withdrawReason } : undefined });
     if (!moved.ok) return jsonRefusal(moved.reason === "not_found" ? "GIG_NOT_FOUND" : "GIG_STATE_CHANGED", moved.reason === "not_found" ? 404 : 409);
     // A reviewable draft does not outlive its gig. Each discard is its own CAS: a draft
     // that moved meanwhile keeps the state it moved to.

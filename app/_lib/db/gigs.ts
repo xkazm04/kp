@@ -11,6 +11,7 @@ import {
   type GigReward,
   type GigStatus,
   type GigSuspectReason,
+  type GigWithdrawReason,
   type RawGig,
 } from "../gigs/types";
 import { randomId } from "../random-id";
@@ -54,6 +55,8 @@ type GigRow = {
   /** Added by ALTER (core.ts): NULL until the gig's workspace is prepared (gigs/project.ts). */
   workdir?: string | null;
   personas_project_id?: string | null;
+  /** Added by ALTER (core.ts): the brief challenge the gig was withdrawn for, or NULL. */
+  withdraw_reason_json?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -89,6 +92,7 @@ function gigFromRow(row: GigRow): Gig {
     brief: briefFromJson(row.brief_json ?? null, row.id),
     workdir: row.workdir ?? null,
     personasProjectId: row.personas_project_id ?? null,
+    withdrawReason: withdrawReasonFromJson(row.withdraw_reason_json ?? null, row.id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -103,6 +107,14 @@ function briefFromJson(json: string | null, id: string): GigBrief | null {
   if (parsed.version !== 1 || typeof parsed.markdown !== "string") return null;
   if (!Array.isArray(parsed.sections) || !Array.isArray(parsed.links) || !Array.isArray(parsed.challenges)) return null;
   return parsed as GigBrief;
+}
+
+/** A stored withdraw reason in the shape this build writes, else null (unknown). */
+function withdrawReasonFromJson(json: string | null, id: string): GigWithdrawReason | null {
+  const parsed = safeRowParse<Partial<GigWithdrawReason>>(json, "gig.withdrawReason", id);
+  if (!parsed || typeof parsed !== "object") return null;
+  if (typeof parsed.challenge !== "string" || !parsed.challenge.trim() || typeof parsed.index !== "number" || typeof parsed.at !== "string") return null;
+  return { challenge: parsed.challenge, index: parsed.index, at: parsed.at };
 }
 
 function cleanTitle(title: string): string {
@@ -365,6 +377,8 @@ export type GigPatch = {
   qualification?: GigQualification | null;
   niche?: string | null;
   suspectReasons?: readonly GigSuspectReason[];
+  /** Written by the operator's withdraw only (PATCH /api/gigs/[id]); null clears it. */
+  withdrawReason?: GigWithdrawReason | null;
 };
 
 export type TransitionGigResult = { ok: true; gig: Gig } | { ok: false; reason: "not_found" | "stale" | "illegal" };
@@ -388,6 +402,10 @@ function patchColumns(patch: GigPatch | undefined): { sets: string[]; args: (str
   if (patch.suspectReasons !== undefined) {
     sets.push("suspect_reasons_json = ?");
     args.push(JSON.stringify(uniqueReasons(patch.suspectReasons)));
+  }
+  if (patch.withdrawReason !== undefined) {
+    sets.push("withdraw_reason_json = ?");
+    args.push(patch.withdrawReason === null ? null : JSON.stringify(patch.withdrawReason));
   }
   return { sets, args };
 }
@@ -542,6 +560,24 @@ export function listGigsNeedingBrief(workspaceId: string, limit: number, opts: {
     )
     .all(...args) as GigRow[];
   return rows.map(gigFromRow);
+}
+
+/** The most withdrawn gigs one read of the withdraw reasons walks (the newest). */
+export const GIG_WITHDRAW_REASONS_MAX = 500;
+
+/** The reasons the operator withdrew gigs for, newest first, as the scan's research reads
+ *  them (gigs/withdraw-reasons.ts tallies them). Only rows that named a challenge. */
+export function listGigWithdrawReasons(workspaceId: string, limit = GIG_WITHDRAW_REASONS_MAX): Pick<Gig, "withdrawReason">[] {
+  const n = Math.max(1, Math.min(GIG_WITHDRAW_REASONS_MAX, Math.trunc(limit) || 1));
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, withdraw_reason_json FROM gigs
+       WHERE workspace_id = ? AND withdraw_reason_json IS NOT NULL
+       ORDER BY updated_at DESC, rowid DESC
+       LIMIT ?`
+    )
+    .all(workspaceId, n) as Pick<GigRow, "id" | "withdraw_reason_json">[];
+  return rows.map((r) => ({ withdrawReason: withdrawReasonFromJson(r.withdraw_reason_json ?? null, r.id) })).filter((r) => r.withdrawReason !== null);
 }
 
 /** The most research briefs one arena aggregate reads (listGigBriefsForArena). */

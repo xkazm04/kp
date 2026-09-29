@@ -3234,7 +3234,14 @@
       "matchesTitle": "Shody",
       "matchesState": "Lidé, na které se ptá odkaz, kterým jste přišli",
       "matchesQuery": "Odpovídá „{q}“",
-      "matchesEmpty": "Tomuto odkazu nikdo v procesu neodpovídá."
+      "matchesEmpty": "Tomuto odkazu nikdo v procesu neodpovídá.",
+      "ovAria": "Přehled: dnešek a součty kolem složeného orbitu",
+      "ovTrail": "Přehled",
+      "ovOpen": "Otevřít orbit",
+      "ovCoreAria": "Složený orbit: {people, plural, one {# člověk} few {# lidé} other {# lidí}} v {stages, number} fázích. Otevřít.",
+      "ovRingsLegend": "Kruhy zvenku dovnitř: {stages}",
+      "ovActive": "Aktivní",
+      "ovNothingToday": "Na dnešek není nic ve frontě."
     },
     "board": {
       "scrollHint": "Kliknutím na záhlaví fáze ji vycentrujete · posouváním se pohybujete napříč náborem",
@@ -14528,7 +14535,8 @@
       "keysNav": "<kbd>←</kbd> <kbd>→</kbd> předchozí nebo další v tomto sloupci",
       "keysDecline": "<kbd>D</kbd> odmítnout",
       "keysChecklist": "<kbd>1</kbd> až <kbd>{count}</kbd> odškrtnout kontrolní seznam",
-      "keysBack": "<kbd>Esc</kbd> zpět na linku"
+      "keysBack": "<kbd>Esc</kbd> zpět na linku",
+      "withdrawnForFlash": "Staženo „{title}“: {reason}"
     },
     "brief": {
       "title": "Rešeršní brief",
@@ -14549,7 +14557,6 @@
         "llm_unusable": "odpověď modelu byla nepoužitelná",
         "llm_error": "volání modelu selhalo"
       },
-      "category": "Kategorie",
       "difficulty": "Náročnost",
       "level": {
         "easy": "Snadná",
@@ -14559,12 +14566,9 @@
         "unrated": "Nehodnoceno"
       },
       "unratedWhy": "Žádný model ji neohodnotil.",
-      "cardDifficulty": "Náročnost: {level}",
       "effort": "Pracnost",
       "effortRange": "{min}–{max} h",
       "effortNone": "neodhadnuto",
-      "challenges": "Očekávané potíže",
-      "challengesNone": "žádné neuvedeny",
       "contents": "Obsah briefu",
       "contentsTitle": "V tomto briefu",
       "sourcesRead": "Přečtené zdroje",
@@ -14576,7 +14580,14 @@
         "failed": "Selhalo"
       },
       "linkFlagged": "označeno jako past (honeypot)",
-      "linkChars": "{count, plural, one {přečten # znak} few {přečteny # znaky} many {přečteno # znaku} other {přečteno # znaků}}"
+      "linkChars": "{count, plural, one {přečten # znak} few {přečteny # znaky} many {přečteno # znaku} other {přečteno # znaků}}",
+      "challengesHint": "Stáhněte zakázku kvůli jednomu z těchto bodů a další skenování si důvod zapamatují. Z jiného důvodu použijte Stáhnout v panelu Schválení.",
+      "withdrawFor": "Stáhnout kvůli tomuto",
+      "withdrawForTip": "Stáhnout tuto zakázku, protože: {challenge}",
+      "withdrawing": "Stahuje se",
+      "withdrawnBefore": "{count, plural, one {Kvůli tomuto jste už stáhli # zakázku} few {Kvůli tomuto jste už stáhli # zakázky} other {Kvůli tomuto jste už stáhli # zakázek}}",
+      "withdrawnForThis": "Tuto zakázku jste stáhli kvůli tomuto",
+      "recurringTip": "{count, plural, one {# překážka, kvůli které jste už stáhli zakázky} few {# překážky, kvůli kterým jste už stáhli zakázky} other {# překážek, kvůli kterým jste už stáhli zakázky}}"
     },
     "head": {
       "stripLabel": "Dnes",
@@ -14707,7 +14718,14 @@
       "stampRunningBody": "Specialista začal {when}. Čeká se, nic neselhalo: koncept přistane tady.",
       "stampNoDeliverable": "Bez výstupu",
       "stampEmpty": "Text konceptu je prázdný",
-      "stampEmptyBody": "Výstup neobsahuje žádný text k odeslání."
+      "stampEmptyBody": "Výstup neobsahuje žádný text k odeslání.",
+      "summaryLabel": "Shrnutí",
+      "aboutLabel": "O co v zakázce jde",
+      "listingLabel": "Nabídka, nedůvěryhodný text",
+      "category": "Kategorie",
+      "listingRef": "Nabídka",
+      "tags": "Štítky",
+      "moreTags": "+{count, number} další"
     },
     "slip": {
       "label": "Kontrolní lístek",
@@ -14769,34 +14787,23 @@
       "running": "U specialisty {name} od {when}. Koncept přistane tady."
     },
     "back": {
-      "label": "Příloha",
-      "title": "Příloha · strojovna",
       "evidence": "Důkazy",
       "failedN": "{count, number} selhalo",
-      "noneRecorded": "nic nezaznamenáno",
       "review": "Kontrola před odesláním",
       "byAgent": "Kontrolní agent",
       "byAgentCycle": "Kontrolní agent · cyklus {cycle}",
       "byReviewer": "Kontrola",
       "yourNote": "Vaše poznámka",
-      "noneOnFile": "nic v záznamu",
       "noReview": "K tomuto konceptu nebyla zaznamenána žádná kontrola.",
       "warningsYouDecide": "Varování: rozhodujete vy",
       "noteWord": "Poznámka",
-      "noteLength": "{count, number} znaků, rozepsáno níže",
-      "mustDo": "Před odesláním · {count, number}",
-      "defects": "Vady · {count, number}",
       "checks": "Co kontrola spustila · {count, number}",
       "history": "Dřívější koncepty",
-      "openedBy": "Poznámka, se kterou se vrátil",
       "brief": "Rešerše",
-      "notResearched": "zatím neprozkoumáno",
       "listing": "Nabídka",
       "flags": "{count, plural, one {# příznak} few {# příznaky} other {# příznaků}}",
-      "untrusted": "nedůvěryhodný text",
       "original": "Otevřít originál ↗",
       "routing": "Přidělení a složka",
-      "fit": "shoda {score}",
       "notScored": "neohodnoceno",
       "fitScore": "Skóre shody",
       "bar": "laťka je {bar}; není to předpověď",
@@ -14937,6 +14944,38 @@
       "filedTitle": "Co zapsal",
       "filedNone": "Zatím nic nezapsal.",
       "noHost": "bez hostitele: zadání předáváte vy"
+    },
+    "tabs": {
+      "label": "Části konceptu",
+      "draft": "Koncept",
+      "noEvidenceYet": "Zatím se nevrátil žádný koncept, takže nejsou žádné důkazy.",
+      "evidenceSub": "{count, plural, one {# věc, kterou agent podle svých slov spustil} few {# věci, které agent podle svých slov spustil} other {# věcí, které agent podle svých slov spustil}}",
+      "passed": "Prošlo",
+      "failed": "Selhalo",
+      "unverified": "Neověřeno",
+      "confidence": "Jistota agenta",
+      "confidenceTip": "Jeho vlastní odhad, nikdy skóre",
+      "mustDo": "Před odesláním",
+      "defects": "Vady",
+      "defect": "Vada",
+      "judgeSaid": "Posuzovatel napsal",
+      "historySub": "{count, plural, =0 {Zatím žádné pokusy} one {# pokus, nejnovější nahoře} few {# pokusy, nejnovější nahoře} other {# pokusů, nejnovější nahoře}}",
+      "draftN": "Koncept {n}",
+      "thisDraft": "tento koncept",
+      "sentBackWith": "Poznámka, na kterou odpovídá",
+      "showAll": "Zobrazit vše",
+      "showLess": "Zobrazit méně",
+      "fitAria": "Shoda {score} ze 100; laťka je {bar}",
+      "candidates": "Specialisté podle shody",
+      "briefAside": "O této rešerši",
+      "outOf100": "ze 100",
+      "short": {
+        "review": "Kontrola",
+        "history": "Historie",
+        "brief": "Rešerše",
+        "listing": "Nabídka",
+        "routing": "Přidělení"
+      }
     }
   },
   "kit": {

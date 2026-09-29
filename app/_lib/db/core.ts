@@ -2426,6 +2426,10 @@ export function ensureDb(): Database.Database {
     // unreachable or predates the project route.
     "ALTER TABLE gigs ADD COLUMN workdir TEXT",
     "ALTER TABLE gigs ADD COLUMN personas_project_id TEXT",
+    // The brief challenge a gig was withdrawn FOR (gigs/withdraw-reasons.ts): JSON
+    // {challenge, index, at}. NULL on every other gig, on a withdraw that named no
+    // challenge, and on every row withdrawn before the column existed (unknown).
+    "ALTER TABLE gigs ADD COLUMN withdraw_reason_json TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
