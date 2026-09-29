@@ -405,9 +405,20 @@ def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) ->
 #
 # Word-boundary patterns so "age" flags an explicit age mention but not
 # "manage" / "language".
+#
+# The Czech, German and French terms are stems with an open tail, because a bare
+# `\bvěk\b` matches only the nominative: "ve věku 55 let" and "Vašemu věku" went straight
+# through, and the four locales the letters are drafted in were guarded in two. The
+# German and French entries are whole word forms, not open stems, where the stem is an
+# English word too ("alter" would catch "alternative" and SQL's ALTER, so the bare word is
+# only matched after a possessive or "im").
 PROTECTED_TERM_RE = re.compile(
     r"\b(age|gender|sex|race|racial|religion|religious|ethnic\w*|pregnan\w*|disab\w*|married|marital|"
-    r"věk|pohlaví|rasa|rasov\w*|nábožen\w*|těhoten\w*)\b",
+    r"věk\w*|pohlav\w*|rasa|rasy|rasu|rasov\w*|nábožen\w*|těhoten\w*|těhotn\w*|mateřsk\w*|rodinn\w*|"
+    r"národnost\w*|občanstv\w*|zdravotn\w*|"
+    r"alters|(?:im|ihr|ihres|sein|seines)\s+alter|geschlecht\w*|schwanger\w*|mutterschaft|familienstand|verheiratet|kinderbetreuung|"
+    r"staatsangehörigkeit|herkunft|behinderung|"
+    r"âge|âgé\w*|sexe|enceinte|grossesse|maternité|marié\w*|nationalité|origine|handicap\w*)\b",
     re.IGNORECASE,
 )
 
