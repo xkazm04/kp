@@ -13508,7 +13508,7 @@
           "ok": "Read.",
           "invalid_handle": "That is not a GitHub account name or link.",
           "not_found": "GitHub has no account by that name.",
-          "not_a_person": "That is an organisation’s account. Only a person’s own account can back their skills.",
+          "not_a_person": "That is an organization’s account. Only a person’s own account can back their skills.",
           "throttled": "GitHub is limiting how often this install may read right now. Nothing was concluded. Try again later.",
           "throttledWait": "GitHub is limiting how often this install may read. Nothing was concluded. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
           "offline": "This install runs offline, so GitHub cannot be read.",
