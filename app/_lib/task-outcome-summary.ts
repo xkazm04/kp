@@ -233,6 +233,21 @@ const TABLE: Record<MappedKind, Mapper> = {
   campaign: (r) => sourceLine(obj(r.pack)?.source),
   profile_draft: (r) => sourceLine(r.source),
   companion_digest: (r) => [...fact("proposals", num(r.proposals)), ...sourceLine(r.source)],
+  // The briefs themselves are on each gig; the pass's facts are how many the model wrote
+  // out of those attempted, and how many could not be stored.
+  gig_research: (r) => {
+    const attempted = num(r.attempted);
+    const llm = num(r.llm);
+    const failed = num(r.failed);
+    return [...(attempted != null && llm != null ? fact("drafted", `${llm} / ${attempted}`) : []), ...(failed ? fact("failures", failed) : [])];
+  },
+  // The plans themselves are on each gig's Plans tab; the run's facts are the seats that
+  // answered with a plan out of those that ran, and the ones that failed.
+  gig_plans: (r) => {
+    const ready = num(r.ready);
+    const failed = num(r.failed);
+    return [...(ready != null && failed != null ? fact("drafted", `${ready} / ${ready + failed}`) : []), ...(failed ? fact("failures", failed) : [])];
+  },
 };
 
 /** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed

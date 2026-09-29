@@ -97,25 +97,61 @@ export function registerLateBoundImplementations(): void {
   // one actually runs. Both scope every read and write to `ctx.workspaceId`.
   //
   // `gig_scan` runs `runGigScan(workspaceId, deps, signal)` (gigs/scan.ts) with its
-  // default deps PLUS the qualifier (gigs/qualify.ts), which the scan's defaults leave
-  // unplugged: every listing still `new` is scored and matched to a specialist as it
-  // lands. The manual run is what verifies the clock job (requiresVerifiedRun).
-  // The researcher (gigs/research.ts) is plugged the same way: after qualification, up
-  // to eight gigs with no brief get their linked pages read and a Markdown brief. It is
-  // imported HERE, never by the task hub, so the page-reading and Python-spawn graph stays
-  // off every importer's path. `params.sourceId` (POST /api/gigs/scan {sourceId}) narrows
-  // the run to one source.
+  // default deps (the expiry sweep included) PLUS the qualifier (gigs/qualify.ts), which
+  // the scan's defaults leave unplugged: every listing still `new` is scored and matched to
+  // a specialist as it lands. The manual run is what verifies the clock job
+  // (requiresVerifiedRun). The research ENQUEUER is plugged the same way: the gigs the scan
+  // created (and the links their listing HTML named, read now - the task cannot see that
+  // HTML) are handed to a `gig_research` task, and the scan returns without waiting for
+  // it. `params.sourceId` (POST /api/gigs/scan {sourceId}) narrows the run to one source.
   registerTaskRunner("gig_scan", async (ctx) => {
     const { runGigScan, defaultGigScanDeps } = await import("./gigs/scan");
     const { qualifyGigHook } = await import("./gigs/qualify");
-    const { researchGigBatch } = await import("./gigs/research");
     const sourceId = typeof ctx.params.sourceId === "string" && ctx.params.sourceId ? ctx.params.sourceId : null;
     return runGigScan(
       ctx.workspaceId,
-      { ...defaultGigScanDeps(), qualify: qualifyGigHook, research: (ws, info) => researchGigBatch(ws, info) },
+      {
+        ...defaultGigScanDeps(),
+        qualify: qualifyGigHook,
+        enqueueResearch: async (ws, req) => {
+          const { gigResearchTaskParams } = await import("./gigs/research");
+          const { startTask } = await import("./tasks");
+          return startTask("gig_research", gigResearchTaskParams(ws, req), ws).id;
+        },
+      },
       ctx.signal,
       { sourceId }
     );
+  });
+  // `gig_research` (tasks.ts spec): the research pass the scan enqueues - at most eight of
+  // the gigs it was handed, each read and briefed by the web-researching engine
+  // (gigs/research.ts researchGigBatch), inside a pass budget under the task wall clock.
+  // Params are re-validated here (a retry replays them from the row).
+  registerTaskRunner("gig_research", async (ctx) => {
+    const { GIG_RESEARCH_MAX_PER_SCAN, parseGigResearchTaskParams, researchGigBatch } = await import("./gigs/research");
+    const p = parseGigResearchTaskParams(ctx.params);
+    return researchGigBatch(ctx.workspaceId, {
+      signal: ctx.signal,
+      limit: GIG_RESEARCH_MAX_PER_SCAN,
+      sourceId: p.sourceId,
+      gigIds: p.gigIds,
+      linksByGigId: p.linksByGigId,
+    });
+  });
+  // `gig_plans` (tasks.ts spec): the plan runner (gigs/plans.ts) - for each gig in turn,
+  // the three seats (plan-seats.ts) in parallel through gig_plan_cli.py. A selection that
+  // does not fit the pass budget continues as a NEW `gig_plans` task with the rest, so a
+  // 50-gig request is never cut off by the task wall clock; the summary names that task.
+  registerTaskRunner("gig_plans", async (ctx) => {
+    const { parseGigPlansTaskParams, runGigPlans } = await import("./gigs/plans");
+    const gigIds = parseGigPlansTaskParams(ctx.params);
+    const summary = await runGigPlans(ctx.workspaceId, gigIds, { signal: ctx.signal });
+    let continuedAs: string | null = null;
+    if (summary.deferred.length > 0 && !ctx.signal.aborted) {
+      const { startTask } = await import("./tasks");
+      continuedAs = startTask("gig_plans", { workspaceId: ctx.workspaceId, gigIds: summary.deferred }, ctx.workspaceId).id;
+    }
+    return { ...summary, continuedAs };
   });
   // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts),
   // then asks the outcome pollers (gigs/pollers.ts, WP4) about the workspace's SENT work:

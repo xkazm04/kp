@@ -119,7 +119,16 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # Gigs (app/_lib/gigs/research.ts -> gig_brief_cli.py): one listing plus the pages it
     # links to, fenced as data, in; a structured research brief (category, difficulty,
     # effort, challenges, summary, asks) out as JSON. kp writes the Markdown from it.
-    "gig_brief": frozenset({CAP_JSON}),
+    # Since gig-brief-v3 the call site pins Claude Sonnet 5.5 and opens the CLI's web
+    # door (with_web_research), so the model can follow the listing's own references;
+    # like role_research, only claude_cli can serve it.
+    "gig_brief": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
+    # Gigs (app/_lib/gigs/plans.ts -> gig_plan_cli.py): one gig and its research brief,
+    # fenced as data, in; a structured plan (summary, 4-9 checkable steps, decisions,
+    # risks, an effort range, questions) out as JSON. Each seat pins its own Claude model
+    # and effort at the call site (app/_lib/gigs/plan-seats.ts); no web access - the
+    # brief already did the research.
+    "gig_plan": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -194,6 +203,12 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # past the base 2048 before it answers; a truncated object fails coerce_brief and the
     # deterministic brief ships instead. Sized with fit_dialog/extraction_rules.
     "gig_brief": 4096,
+    # A plan at its structural maximum: 9 steps x (title + doneWhen, ~60 tokens) + three
+    # lists of up to 8 short sentences + a <=900-char summary is ~1.8k tokens, and the
+    # seats think before answering (Opus at xhigh). Like role_research, the engine the
+    # use case is pinned to (claude_cli) passes no max-tokens flag, so this row binds
+    # nothing today; it is the decision for the day a keyed adapter can serve a seat.
+    "gig_plan": 4096,
     # A role research answer at its structural maximum: 24 skills x ~75 tokens (name,
     # tier, share, a <=200-char why, source ids) + 16 sources x ~90 (url, title, read,
     # publisher) + a <=400-char summary is ~3.4k tokens, past the base 2048 — and a

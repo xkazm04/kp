@@ -147,6 +147,7 @@ export const UNMEASURED_USE_CASES: readonly UnmeasuredUseCase[] = [
   { id: "extraction_rules", reason: "No bench scenario; extraction-rule authoring is not in the matrix." },
   { id: "role_research", reason: "No bench scenario; live web research has no fixed input to judge, and the use case is pinned to one model." },
   { id: "gig_brief", reason: "No bench scenario; gig research briefs are not in the matrix." },
+  { id: "gig_plan", reason: "No bench scenario; each gig plan seat pins its own model, and the side-by-side tab is the comparison." },
 ];
 
 /** Bench ops that feed one routing use case (the "*" catch-all maps to nothing). */

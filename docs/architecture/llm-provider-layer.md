@@ -34,7 +34,13 @@ Backend shipped and in production use:
   (the gig research brief, `gig_brief_cli.py`: keyless answers `no_provider` as data
   and the caller writes its deterministic brief; its own **Gigs** section in the
   Models routing table - docs/features/gigs/README.md "Research").
-- **`role_research` is the one use case whose engine is PINNED at the call site**
+- **Three use cases have their engine PINNED at the call site** (`role_research`,
+  `gig_brief`, `gig_plan`; the TS mirror is `PINNED_USE_CASES` in `app/_lib/llm-pins.ts`).
+  `gig_brief` runs on Claude Sonnet 5.5 with the CLI's web tools (docs/features/gigs
+  "Research"); `gig_plan` runs one pinned model and effort per plan seat (Fable 5, Opus 5.5
+  at `xhigh`, Sonnet 5.5 at `high`, `app/_lib/gigs/plan-seats.ts`; docs/features/gigs
+  "Plans"). The first of them:
+- **`role_research` is PINNED at the call site**
   (`role_research_cli.py`, the job seeker's "what does this title ask for today",
   researched on the public web with sources): `resolve_provider(..., pin=PIN)` runs it
   on Claude Sonnet 5.5 through the CLI's `web_research` mode whatever the Models row
@@ -488,8 +494,11 @@ PIN = ProviderPin("claude_cli", "claude-sonnet-5-5")   # role_research_cli.py
 provider = resolve_provider("role_research", timeout=PROVIDER_TIMEOUT_S, pin=PIN)
 ```
 
-`resolve_provider(use_case, *, timeout=None, pin=None)` — `ProviderPin(provider, model)`
-is a frozen dataclass exported from `pipeline.jobfit.llm`. Precedence, stated once:
+`resolve_provider(use_case, *, timeout=None, pin=None)` — `ProviderPin(provider, model,
+effort=None)` is a frozen dataclass exported from `pipeline.jobfit.llm`. `effort` is a
+closed vocabulary (`low`, `medium`, `high`, `xhigh`, `max`) that reaches the Claude CLI as
+`--effort <level>`; `None` sends no flag (the CLI's default). The gig plan seats use it to
+compare models at a stated effort; the usage ledger names the pinned model. Precedence, stated once:
 
 | Layer | Against a pin |
 | --- | --- |

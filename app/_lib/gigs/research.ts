@@ -26,12 +26,21 @@
 //      or `qualified` gig to `suspect` (transitionGig); the brief is still written and
 //      its "Sources read" line names the link that carried it. A suspect gig's links are
 //      listed but never followed, and a suspect gig never reaches the model.
-//   5. THE MODEL (pipeline/jobfit/gig_brief_cli.py, use case `gig_brief`) receives the
-//      listing and the pages ONLY as data inside a nonce fence and answers JSON; kp then
+//   5. THE MODEL (pipeline/jobfit/gig_brief_cli.py, use case `gig_brief`, pinned to Claude
+//      Sonnet 5.5 through the Claude CLI with its web door open - WebSearch + WebFetch, so it
+//      can follow the references the listing and these pages name) receives the listing and
+//      the pages ONLY as data inside a nonce fence and answers JSON; kp then
 //      writes the Markdown itself from that JSON with a fixed shape (assembleGigBriefMarkdown),
 //      inserting every model string as escaped plain text - the model never writes the
 //      structure. Headings become `sections` in the same function, ids from ONE assigner
 //      (registry: anchor-id-single-assigner, server-parsed-once-reused).
+//
+// WHERE IT RUNS. The scan no longer researches inline: it enqueues a `gig_research` task
+// with the gigs it CREATED (late-bound-boot.ts), and that task runs researchGigBatch - at
+// most GIG_RESEARCH_MAX_PER_SCAN gigs, inside GIG_RESEARCH_PASS_BUDGET_MS so the task's
+// 15-minute wall clock never kills a gig mid-call (a gig that would not fit is `deferred`
+// and keeps no brief until the operator asks). The on-demand door (POST
+// /api/gigs/[id]/research) calls researchGig directly, same engine, same budget.
 //
 // KEYLESS IS A DECISION, NOT A FAULT (jobseeker/deepdive.ts's rule): there is no TS-side
 // "is a provider configured" oracle, so the first spawn doubles as the probe. A
@@ -44,13 +53,20 @@
 // fake fetch, fake DNS, fake GitHub and a fake CLI with no network, no DB and no key.
 
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "../ats-egress-guard";
-import { getGig, listGigWithdrawReasons, listGigsNeedingBrief, mergeGigSuspectReasons, setGigBrief, transitionGig } from "../db/gigs";
+import {
+  GIG_RESEARCHABLE_STATUSES,
+  getGig,
+  listGigWithdrawReasons,
+  listGigsNeedingBrief,
+  mergeGigSuspectReasons,
+  setGigBrief,
+  transitionGig,
+} from "../db/gigs";
 import { htmlTitle, htmlToText } from "../job-posting-fetch";
 import { politeFetch, type PoliteFetch } from "../jobseeker/fetch/politeFetch";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
 import { isOffline } from "../offline";
 import { githubRead, type GithubReadOutcome } from "../repo-snapshot";
-import { GIG_RESEARCH_MAX_PER_SCAN, type GigResearchBatchSummary } from "./scan";
 import { scanGigForHoneypots } from "./suspect";
 import { GIG_BRIEF_CHALLENGES_HEADING, GIG_WITHDRAW_REASONS_TO_MODEL, tallyWithdrawReasons } from "./withdraw-reasons";
 import {
@@ -65,20 +81,54 @@ import {
   type GigSuspectReason,
 } from "./types";
 
-export { GIG_RESEARCH_MAX_PER_SCAN };
-
+/** Gigs one research pass briefs at most (the scan's `gig_research` task). NEW gigs only:
+ *  the pass is handed the gigs a scan created, never the backlog. */
+export const GIG_RESEARCH_MAX_PER_SCAN = 8;
 /** Links read per gig at most. */
 export const GIG_RESEARCH_MAX_LINKS = 3;
 /** Characters kept per page (and of the listing body handed to the model). */
 export const GIG_RESEARCH_PAGE_CHARS = 20_000;
-/** One gig's research, page reads and model call together (the on-demand door's bound). */
-export const GIG_RESEARCH_BUDGET_MS = 90_000;
-/** The model call is not started with less than this left of the budget. */
-const LLM_MIN_REMAINING_MS = 15_000;
-/** The spawn's hang backstop; the CLI's own provider timeout (60 s) sits under it. */
-const LLM_SPAWN_TIMEOUT_MS = 80_000;
-/** Kept in lockstep with gig_brief_cli.py PROMPT_VERSION (research.test.ts reads both). */
-export const GIG_BRIEF_PROMPT_VERSION = "gig-brief-v2";
+/** One gig's research, page reads and the web-researching model call together (the
+ *  on-demand door's bound, and each gig's bound inside a pass). */
+export const GIG_RESEARCH_BUDGET_MS = 5 * 60_000;
+/** One pass (the `gig_research` task): under the task runner's 15-minute wall clock
+ *  (task-maintenance.ts TASK_MAX_RUNTIME_MS) with a minute to spare, so the reaper never
+ *  kills a gig mid-call. */
+export const GIG_RESEARCH_PASS_BUDGET_MS = 14 * 60_000;
+/** A pass does not start a gig with less than this left: page reads plus a model call
+ *  worth waiting for. The gig is `deferred` instead. */
+export const GIG_RESEARCH_MIN_START_MS = 90_000;
+/** The model call is not started with less than this left of the gig's budget: a web
+ *  session that follows references needs a minute to be worth its spawn. */
+const LLM_MIN_REMAINING_MS = 60_000;
+/** The spawn's hang backstop; the CLI's own provider deadline (240 s at most, handed over
+ *  as --timeout-s) sits under it. */
+const LLM_SPAWN_TIMEOUT_MS = 255_000;
+/** What the CLI's deadline leaves the spawn: interpreter start-up and the ledger write. */
+const LLM_SPAWN_SLACK_MS = 15_000;
+/** Kept in lockstep with gig_brief_cli.py PROMPT_VERSION (research.test.ts reads both).
+ *  v3: web research on the pinned engine. */
+export const GIG_BRIEF_PROMPT_VERSION = "gig-brief-v3";
+
+/** What one research pass reports (researchGigBatch; the `gig_research` task's result). */
+export type GigResearchBatchSummary = {
+  /** Gigs a brief was attempted for. */
+  attempted: number;
+  /** ...of which the model wrote the brief. */
+  llm: number;
+  /** ...of which kp wrote the deterministic brief (keyless, refused, failed). */
+  deterministic: number;
+  /** ...of which no brief could be stored (a store fault, logged server-side). */
+  failed: number;
+  /** Gigs a page they linked to flagged as a honeypot in this pass. */
+  flagged: number;
+  /** True once a spawn answered `no_provider`: every later gig got the deterministic
+   *  brief with no further spawn (the first spawn doubles as the provider probe). */
+  providerMissing: boolean;
+  /** Gigs of the pass not started because the pass budget could not fit one more. They
+   *  keep no brief; the on-demand door researches them. */
+  deferred: number;
+};
 /** The politeness key's seed: every research read shares one jitter lane. */
 const RESEARCH_FETCH_SOURCE = "gig-research";
 const RESEARCH_ACCEPT = "text/html, application/xhtml+xml;q=0.9, text/plain;q=0.9, text/markdown;q=0.9, application/json;q=0.5, */*;q=0.1";
@@ -758,6 +808,11 @@ async function readPage(url: string, deps: GigResearchDeps): Promise<LinkRead> {
 export type GigResearchOptions = {
   /** The listing's raw HTML when the caller has it (the scan does; the row does not). */
   bodyHtml?: string | null;
+  /** The links to read, already extracted (the scan's enqueue reads them from the HTML it
+   *  held, which the task cannot see). Replaces the extraction; still filtered and capped. */
+  links?: readonly string[];
+  /** This gig's budget when a pass has less than GIG_RESEARCH_BUDGET_MS left (never more). */
+  budgetMs?: number;
   signal?: AbortSignal;
   /** `deterministic` = no spawn (a batch after the first `no_provider`). */
   mode?: "auto" | "deterministic";
@@ -842,9 +897,10 @@ function cliInput(gig: Gig, pages: readonly ResearchPage[], withdrawReasons: rea
 export async function researchGig(workspaceId: string, gig: Gig, opts: GigResearchOptions = {}): Promise<GigResearchOutcome> {
   const deps: GigResearchDeps = { ...defaultGigResearchDeps(), ...opts.deps };
   const startedMs = deps.nowMs();
-  const budget = joinedBudget(opts.signal, GIG_RESEARCH_BUDGET_MS);
+  const budgetMs = Math.max(1, Math.min(GIG_RESEARCH_BUDGET_MS, opts.budgetMs ?? GIG_RESEARCH_BUDGET_MS));
+  const budget = joinedBudget(opts.signal, budgetMs);
   try {
-    const urls = extractGigLinks({ url: gig.url, bodyText: gig.bodyText, bodyHtml: opts.bodyHtml ?? null });
+    const urls = opts.links ? givenLinks(gig.url, opts.links) : extractGigLinks({ url: gig.url, bodyText: gig.bodyText, bodyHtml: opts.bodyHtml ?? null });
     const links: GigBriefLink[] = [];
     const pages: ResearchPage[] = [];
     const flagged = new Set<GigSuspectReason>();
@@ -885,20 +941,24 @@ export async function researchGig(workspaceId: string, gig: Gig, opts: GigResear
     let brief: GigBrief | null = null;
     let providerMissing = false;
     let fallbackReason: string;
-    const remaining = GIG_RESEARCH_BUDGET_MS - (deps.nowMs() - startedMs);
+    const remaining = budgetMs - (deps.nowMs() - startedMs);
     if (suspect || current.status === "suspect") fallbackReason = "gig_suspect";
     else if (opts.mode === "deterministic") fallbackReason = opts.fallbackReason ?? "no_provider";
     else if (budget.signal.aborted || remaining < LLM_MIN_REMAINING_MS) fallbackReason = "budget";
     else {
       fallbackReason = "llm_unusable";
+      const spawnTimeoutMs = Math.max(5_000, Math.min(LLM_SPAWN_TIMEOUT_MS, remaining - 1_000));
+      // The CLI's own deadline sits under the spawn's kill, so a slow web session ends as a
+      // coded `deadline_exceeded` with its ledger line rather than as a SIGKILL.
+      const cliTimeoutS = Math.max(1, Math.floor((spawnTimeoutMs - LLM_SPAWN_SLACK_MS) / 1000));
       try {
         const out = await deps.runCli({
           module: "gig_brief_cli",
           files: { "input.json": cliInput(current, pages, pastWithdrawReasons(workspaceId, deps)) },
-          args: (f) => ["--input-json", f["input.json"]],
+          args: (f) => ["--input-json", f["input.json"], "--timeout-s", String(cliTimeoutS)],
           signal: budget.signal,
           llm: true,
-          timeoutMs: Math.max(5_000, Math.min(LLM_SPAWN_TIMEOUT_MS, remaining - 1_000)),
+          timeoutMs: spawnTimeoutMs,
         });
         const result = out.source === "llm" ? parseGigBriefResult(out.result) : null;
         if (result) {
@@ -921,23 +981,119 @@ export async function researchGig(workspaceId: string, gig: Gig, opts: GigResear
   }
 }
 
-/** The scan's research pass (GigResearchHook): brief up to `limit` gigs with no brief,
- *  newest first. The first `no_provider` switches the rest to deterministic briefs with no
- *  further spawn. Stops between gigs when the scan's budget or the caller fires. */
+/** Caller-supplied links (a task's params), re-filtered like extracted ones: http(s) only,
+ *  no credentials, not the listing itself, de-duplicated, capped. Pure. */
+function givenLinks(listingUrl: string, links: readonly string[]): string[] {
+  let listing: URL | null = null;
+  try {
+    listing = new URL(listingUrl);
+  } catch {
+    listing = null;
+  }
+  const own = listing ? comparable(listing) : null;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of links) {
+    if (typeof raw !== "string") continue;
+    const url = normalizeLink(raw, null);
+    if (!url) continue;
+    const key = comparable(url);
+    if (key === own || seen.has(key)) continue;
+    seen.add(key);
+    out.push(url.href);
+    if (out.length >= GIG_RESEARCH_MAX_LINKS) break;
+  }
+  return out;
+}
+
+/** Gig ids one `gig_research` task accepts at most (its params are validated to this). */
+export const GIG_RESEARCH_TASK_MAX_GIGS = 50;
+
+/** What the scan hands the `gig_research` task: the gigs it created (at most 50, the pass
+ *  reads the first GIG_RESEARCH_MAX_PER_SCAN it can still research) and, per gig, the links
+ *  read from the listing HTML the scan held - the task cannot see that HTML, and the row
+ *  keeps only the text. `workspaceId` rides in the params for the dedupe builder. Pure. */
+export function gigResearchTaskParams(
+  workspaceId: string,
+  req: { sourceId: string | null; gigs: readonly Pick<Gig, "id" | "url" | "bodyText">[]; htmlByGigId: ReadonlyMap<string, string | null> }
+): { workspaceId: string; sourceId: string | null; gigIds: string[]; linksByGigId: Record<string, string[]> } {
+  const gigs = req.gigs.slice(0, GIG_RESEARCH_TASK_MAX_GIGS);
+  const linksByGigId: Record<string, string[]> = {};
+  for (const g of gigs) linksByGigId[g.id] = extractGigLinks({ url: g.url, bodyText: g.bodyText, bodyHtml: req.htmlByGigId.get(g.id) ?? null });
+  return { workspaceId, sourceId: req.sourceId, gigIds: gigs.map((g) => g.id), linksByGigId };
+}
+
+/** The `gig_research` task's params, validated (they are stored on the task row and replayed
+ *  by a retry, so they are read as untrusted). Null `gigIds` = no list was given. */
+export function parseGigResearchTaskParams(params: Record<string, unknown>): {
+  sourceId: string | null;
+  gigIds: string[] | null;
+  linksByGigId: Record<string, string[]>;
+} {
+  const sourceId = typeof params.sourceId === "string" && params.sourceId.trim() ? params.sourceId.trim() : null;
+  const gigIds = Array.isArray(params.gigIds)
+    ? [...new Set(params.gigIds.filter((id): id is string => typeof id === "string" && id.trim() !== "" && id.length <= 200))].slice(0, GIG_RESEARCH_TASK_MAX_GIGS)
+    : null;
+  const linksByGigId: Record<string, string[]> = {};
+  const raw = params.linksByGigId;
+  if (raw && typeof raw === "object" && !Array.isArray(raw) && gigIds) {
+    for (const id of gigIds) {
+      const list = (raw as Record<string, unknown>)[id];
+      if (Array.isArray(list)) linksByGigId[id] = list.filter((u): u is string => typeof u === "string" && u.length <= 2000).slice(0, GIG_RESEARCH_MAX_LINKS);
+    }
+  }
+  return { sourceId, gigIds, linksByGigId };
+}
+
+/** One research pass (the `gig_research` task): brief up to `limit` gigs. With `gigIds` (the
+ *  scan's enqueue) it is exactly those gigs that still have no brief and are in a status
+ *  research informs, in the order given; without, the newest gigs with no brief (narrowed
+ *  to `sourceId`). The first `no_provider` switches the rest to deterministic briefs with no
+ *  further spawn. Stops between gigs when the caller's signal fires, and does not START a
+ *  gig the pass budget can no longer fit (`deferred`); each gig gets the smaller of its own
+ *  budget and what the pass has left. */
 export async function researchGigBatch(
   workspaceId: string,
-  info: { signal: AbortSignal; limit: number; sourceId: string | null; htmlByGigId: ReadonlyMap<string, string | null> },
+  info: {
+    signal: AbortSignal;
+    limit: number;
+    sourceId: string | null;
+    gigIds?: readonly string[] | null;
+    linksByGigId?: Readonly<Record<string, readonly string[]>>;
+    htmlByGigId?: ReadonlyMap<string, string | null>;
+    passBudgetMs?: number;
+  },
   depsOverride: Partial<GigResearchDeps> = {}
 ): Promise<GigResearchBatchSummary> {
   const deps: GigResearchDeps = { ...defaultGigResearchDeps(), ...depsOverride };
-  const summary: GigResearchBatchSummary = { attempted: 0, llm: 0, deterministic: 0, failed: 0, flagged: 0, providerMissing: false };
-  const gigs = deps.listGigsNeedingBrief(workspaceId, info.limit, { sourceId: info.sourceId });
-  for (const gig of gigs) {
+  const summary: GigResearchBatchSummary = { attempted: 0, llm: 0, deterministic: 0, failed: 0, flagged: 0, providerMissing: false, deferred: 0 };
+  const limit = Math.max(1, Math.min(GIG_RESEARCH_MAX_PER_SCAN, Math.trunc(info.limit) || 1));
+  let gigs: Gig[];
+  if (info.gigIds) {
+    gigs = [];
+    for (const id of info.gigIds) {
+      const g = deps.getGig(workspaceId, id);
+      if (g && g.brief === null && GIG_RESEARCHABLE_STATUSES.includes(g.status)) gigs.push(g);
+      if (gigs.length >= limit) break;
+    }
+  } else {
+    gigs = deps.listGigsNeedingBrief(workspaceId, limit, { sourceId: info.sourceId });
+  }
+  const passStartedMs = deps.nowMs();
+  const passBudgetMs = info.passBudgetMs ?? GIG_RESEARCH_PASS_BUDGET_MS;
+  for (const [i, gig] of gigs.entries()) {
     if (info.signal.aborted) break;
+    const left = passBudgetMs - (deps.nowMs() - passStartedMs);
+    if (left < GIG_RESEARCH_MIN_START_MS) {
+      summary.deferred = gigs.length - i;
+      break;
+    }
     summary.attempted += 1;
     try {
       const out = await researchGig(workspaceId, gig, {
-        bodyHtml: info.htmlByGigId.get(gig.id) ?? null,
+        bodyHtml: info.htmlByGigId?.get(gig.id) ?? null,
+        links: info.linksByGigId?.[gig.id],
+        budgetMs: Math.min(GIG_RESEARCH_BUDGET_MS, left),
         signal: info.signal,
         mode: summary.providerMissing ? "deterministic" : "auto",
         deps,

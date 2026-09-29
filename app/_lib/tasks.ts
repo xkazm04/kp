@@ -464,6 +464,25 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: () => encodeTaskLabel("gigScan"),
   },
+  // The gig research pass the scan enqueues (late-bound-boot.ts `gig_research`: the gigs a
+  // scan created, researched on the web by the pinned engine, at most eight per pass). Off
+  // the scan's own 8-minute budget on purpose - a web-researched brief is minutes per gig.
+  // The implementation (page reads, the Python spawn) stays off this hub's path.
+  gig_research: {
+    run: (ctx) =>
+      externalRunner("gig_research")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigResearch"),
+  },
+  // The gig plan runner (late-bound-boot.ts `gig_plans`; the Gigs module's plans.ts): three model seats
+  // per gig, in parallel, gigs one after another; a selection that does not fit one pass
+  // continues as a new task. The durable result is the gig_plans rows the Plans tab reads.
+  gig_plans: {
+    run: (ctx) =>
+      externalRunner("gig_plans")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("gigPlans", { count: Array.isArray(p.gigIds) ? p.gigIds.length : 0 }),
+  },
 };
 
 let booted = false;

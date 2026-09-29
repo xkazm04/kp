@@ -2343,6 +2343,31 @@ const ROUTES: RouteSpec[] = [
     expensive: "researchGig(ws",
   },
   {
+    // gig-mastery: proposing plans spends three model calls per gig (one of them Opus at
+    // xhigh effort). 20/10min per IP, the research door's budget; the one-gig door and the
+    // bulk door below share the bucket, so a selection cannot be split to multiply it.
+    rel: "./gigs/[id]/plans/route.ts",
+    key: "`gigs-plans:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    rel: "./gigs/plans/route.ts",
+    key: "`gigs-plans:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // Accepting a plan: one CAS write per click, the review desk's pace.
+    rel: "./gigs/[id]/plans/[planId]/accept/route.ts",
+    key: "`gigs-plan-accept:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "acceptGigPlan(ws",
+  },
+  {
     // Preparing a gig's workspace: disk writes under the gigs root plus up to two calls to
     // the local Personas app. 20/10min per IP, the research door's budget.
     rel: "./gigs/[id]/workspace/route.ts",

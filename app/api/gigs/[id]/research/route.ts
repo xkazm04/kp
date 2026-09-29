@@ -14,10 +14,11 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // deterministic brief is upgraded once a key arrives: the scan never re-researches a gig
 // that already has a brief.
 //
-// Synchronous and bounded by research's own 90-second budget (GIG_RESEARCH_BUDGET_MS):
-// the page reads stop between links when it runs out, and the model call is not started
-// without 15 seconds left. `next start` never kills a long handler, so this bound is the
-// real one.
+// The engine is the scan's research pass's (gig-brief-v3): Claude Sonnet 5.5, pinned, with
+// the CLI's web door open so it can follow the listing's references. Synchronous and
+// bounded by research's own five-minute budget (GIG_RESEARCH_BUDGET_MS): the page reads
+// stop between links when it runs out, and the model call is not started without a minute
+// left. `next start` never kills a long handler, so this bound is the real one.
 //
 //   200 { gig }  - the gig as stored, with its new `brief`
 //   404 GIG_NOT_FOUND · 500 GIG_STORE_FAILED

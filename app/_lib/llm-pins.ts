@@ -19,4 +19,20 @@ export const PINNED_USE_CASES: Readonly<Record<string, PinnedUseCase>> = {
     reason:
       "Product-owner requirement: live web research (the Claude CLI's WebSearch + WebFetch) runs on Claude Sonnet 5.5; no other configured engine can research the web.",
   },
+  // gig_brief_cli.py `PIN`: the gig research brief follows the listing's references on the
+  // web, the same engine and door as role_research.
+  gig_brief: {
+    provider: "claude_cli",
+    model: "claude-sonnet-5-5",
+    reason:
+      "Product-owner requirement: a gig is researched once, on the web (the Claude CLI's WebSearch + WebFetch), by Claude Sonnet 5.5, following the references its listing names.",
+  },
+  // gig_plan_cli.py pins `PIN_PROVIDER` with the SEAT's model and effort, so the model here
+  // names every seat - the list app/_lib/gigs/plan-seats.ts holds (the lockstep test reads it).
+  gig_plan: {
+    provider: "claude_cli",
+    model: "claude-fable-5, claude-opus-5-5, claude-sonnet-5-5",
+    reason:
+      "Product-owner requirement: each gig plan is written by three Claude seats side by side (Fable 5, Opus 5.5 at xhigh effort, Sonnet 5.5 at high effort) so their plans can be compared; the seats are fixed by kp, not by routing.",
+  },
 };

@@ -111,6 +111,14 @@ export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // model call, but minutes of third-party fetching - the tenant-hour bound of its
   // job-seeker sibling, behind the route's own 6/10min limiter.
   gig_scan: "agent",
+  // The gig research pass the scan enqueues (gigs/research.ts): up to eight web-researched
+  // briefs, each minutes of a pinned model reading pages. Server-only (the scan enqueues
+  // it), so this class binds only a route that budgets it through enforceTaskBudget.
+  gig_research: "agent",
+  // The gig plan runner (gigs/plans.ts): three model seats per gig, one of them at xhigh
+  // effort, across up to fifty gigs. Its door (/api/gigs/[id]/plans, /api/gigs/plans)
+  // carries its own 20/10min limiter; this is the class a budgeted door would spend.
+  gig_plans: "agent",
 };
 
 /** The class a kind is budgeted under. A string outside the vocabulary (a row an

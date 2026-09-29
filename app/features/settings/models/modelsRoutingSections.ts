@@ -46,9 +46,10 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // job, so it is neither a hiring artifact nor the operator companion.
   { key: "jobseeker", useCases: ["cv_polish", "fit_dialog", "extraction_rules", "role_research"] },
   // Gigs (docs/features/gigs/README.md): the research brief written from a paid-work
-  // listing and the pages it links to. It serves the operator taking on outside work,
-  // so it is none of the hiring clusters above and not the job-seeker's own dialogs.
-  { key: "gigs", useCases: ["gig_brief"] },
+  // listing and the pages it links to, and the plans the seats propose for it. Both are
+  // pinned at their call sites (llm-pins.ts). They serve the operator taking on outside
+  // work, so they are none of the hiring clusters above and not the job-seeker's dialogs.
+  { key: "gigs", useCases: ["gig_brief", "gig_plan"] },
   // The work-sample (dev-case) assignment lifecycle, design → evaluation.
   {
     key: "assignments",

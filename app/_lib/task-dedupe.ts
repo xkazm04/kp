@@ -193,7 +193,28 @@ export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
     typeof p.sourceId === "string" && p.sourceId.trim() !== ""
       ? stableKey("gig_scan", p.workspaceId, "source", p.sourceId)
       : stableKey("gig_scan", p.workspaceId),
+  // One research pass per tenant + SET of gigs: a retry of the same pass coalesces, while
+  // the next scan's new gigs start their own. No gigIds (a backlog pass) keys by tenant
+  // (+ source), like the scan.
+  gig_research: (p) =>
+    Array.isArray(p.gigIds)
+      ? stableKey("gig_research", p.workspaceId, gigIdsIdentity(p.gigIds))
+      : typeof p.sourceId === "string" && p.sourceId.trim() !== ""
+        ? stableKey("gig_research", p.workspaceId, "source", p.sourceId)
+        : stableKey("gig_research", p.workspaceId),
+  // One plan run per tenant + SET of gigs: a double-click on "Propose plans" coalesces onto
+  // the run in flight; a different selection runs on its own (the runner skips a gig whose
+  // round is already in flight, so an overlap never doubles a gig's seats).
+  gig_plans: (p) => (Array.isArray(p.gigIds) ? stableKey("gig_plans", p.workspaceId, gigIdsIdentity(p.gigIds)) : null),
 };
+
+/** A set of gig ids as one identity part: the string ids, de-duplicated and sorted, so the
+ *  order a selection was made in does not split one request into two runs. Empty (no
+ *  string id at all) answers undefined, which `stableKey` rejects. */
+function gigIdsIdentity(ids: unknown[]): string | undefined {
+  const set = [...new Set(ids.filter((id): id is string => typeof id === "string" && id.trim() !== ""))].sort();
+  return set.length > 0 ? set.join(",") : undefined;
+}
 
 /**
  * Build the stable dedupe key for a task, or `null` when the identifying params

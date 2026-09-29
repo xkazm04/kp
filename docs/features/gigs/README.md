@@ -17,7 +17,8 @@ imports from it.
 | --- | --- | --- |
 | API | `app/api/gigs/**` | operator-gated by the proxy, `requireOperator` in every handler, `pipeline:write` on every write |
 | Scan runner (manual) | `gig_scan` task kind: `app/_lib/tasks.ts` delegates to `app/_lib/late-bound-boot.ts` | enqueued only by `POST /api/gigs/scan` (a server kind, `task-admission.ts`); `{ sourceId }` narrows it to one source |
-| Research | `app/_lib/gigs/research.ts` + `pipeline/jobfit/gig_brief_cli.py` (use case `gig_brief`) | after every scan (up to 8 gigs with no brief), and on demand through `POST /api/gigs/[id]/research` |
+| Research | `app/_lib/gigs/research.ts` + `pipeline/jobfit/gig_brief_cli.py` (use case `gig_brief`, pinned to Claude Sonnet 5.5 with web research) | a background `gig_research` task the scan enqueues for the gigs it created (at most 8 per pass), and on demand through `POST /api/gigs/[id]/research` |
+| Plan runner | `gig_plans` task kind: `app/_lib/gigs/plans.ts`, registered in `app/_lib/late-bound-boot.ts` | enqueued only by `POST /api/gigs/[id]/plans` and `POST /api/gigs/plans` (server-only, deduped per workspace + set of gigs) |
 | Sync + outcome pollers | `gig_sync` runner (`late-bound-boot.ts`) and clock job (`instrumentation-node.ts`) | scheduler job `gig_sync`, off by default |
 | Scan clock job | scheduler job `gig_scan` (`app/_lib/scheduler-jobs.ts`) | off by default; cannot be armed before one manual scan succeeded |
 | Lessons export | `GET/POST /api/gigs/lessons` | operator session, or the `x-kp-automation-token` machine door |
@@ -135,8 +136,19 @@ or pull request, docs or a spec) and **at most three** are read
    followed (`skipped (gig_suspect)`), the model is not called, and the brief is still
    written, with the link's line saying `fetched, flagged as a honeypot (<reasons>)`. A
    gig that is already suspect has its links listed and none followed.
-4. **The model sees data, not instructions.** `gig_brief_cli.py` receives the listing, the
-   fetched pages and the operator's past withdraw reasons as three JSON fields,
+4. **The model sees data, not instructions, and may follow the references on the web.**
+   `gig_brief_cli.py` (prompt `gig-brief-v3`) pins its engine at the call site:
+   `ProviderPin("claude_cli", "claude-sonnet-5-5")`, mirrored in `app/_lib/llm-pins.ts`
+   (the Models tab shows the row as pinned; the operator's routing row for `gig_brief` is
+   not read). It opens the Claude CLI's web door (`with_web_research`, the same door
+   `role_research_cli.py` uses): WebSearch and WebFetch are allowed, every tool that
+   touches the machine is denied, the child runs in an empty temp directory, and the turn
+   budget is 16. So the model can follow the references the listing and the fetched pages
+   name (the issue, the repository, its docs, a spec, a competition's rules) and the
+   references those name; the prompt tells it that every page it opens is written by
+   strangers too and is never obeyed. The CLI validates the answer against a JSON schema
+   (`--json-schema`) before `coerce_brief` and `research.ts` clamp it again. The listing,
+   the fetched pages and the operator's past withdraw reasons still travel as three JSON fields,
    `untrusted_listing`, `untrusted_pages` and `untrusted_past_withdraw_reasons`, inside a
    fence whose marker carries a random nonce minted per call and checked absent
    from the payload. The instructions say the fenced region is written by strangers, may
@@ -145,7 +157,7 @@ or pull request, docs or a spec) and **at most three** are read
    `unrated`) with a one-sentence reason, an effort range in hours with a note, 3 to 7
    challenges, a 2 to 4 sentence summary and the listed deliverables. The CLI and
    `research.ts` each validate and clamp it. **Challenges have a syntax** (prompt
-   `gig-brief-v2`): each is ONE plain sentence naming ONE obstacle, under 200 characters,
+   `gig-brief-v3`): each is ONE plain sentence naming ONE obstacle, under 200 characters,
    no list marker, number or heading, because the operator can withdraw the gig for any
    single one; both gates strip a list or heading marker the model added anyway. When the
    gig has an obstacle the operator withdrew earlier gigs for, the model writes it in
@@ -186,23 +198,134 @@ non-Latin script) gets `section-<n>`, n being its position (registry:
 `anchor-id-single-assigner`, `server-parsed-once-reused`). A UI reads the ids from
 `sections` and never re-slugifies.
 
-**When.** After every scan, up to eight gigs with no brief (newest first; statuses `new`,
-`suspect`, `qualified`, `dispatched`, `drafted`, `in_review`), inside the scan's wall
-budget, after acquisition and qualification. On demand, `POST /api/gigs/[id]/research`
-re-researches one gig synchronously within a 90-second budget (page reads stop between
-links when it runs out; the model is not started with under 15 seconds left) and answers
-`{ gig }` with the new brief. That door is also how a deterministic brief is upgraded
-once a key is set: the scan never re-researches a gig that already has a brief, of either
-kind.
+**When.** Research no longer runs inside the scan. After acquisition and qualification the
+scan hands the gigs it CREATED in that run to a background task, `gig_research`
+(`late-bound-boot.ts`), and returns without waiting; its summary says which task
+(`research: { taskId, gigs }`). New gigs only: there is no backlog drip, and a gig the scan
+already knew is never re-researched by it. The scan reads each new gig's links from the
+listing HTML it holds (the task cannot see that HTML; the row keeps only the text) and
+passes them in the task's params. The pass briefs at most eight of those gigs
+(`GIG_RESEARCH_MAX_PER_SCAN`) that still have no brief and are in a status research
+informs (`new`, `suspect`, `qualified`, `dispatched`, `drafted`, `in_review`), each within
+a five-minute budget (`GIG_RESEARCH_BUDGET_MS`: page reads plus the web-researching model
+call; the call is not started with under a minute left, and the CLI's own deadline, handed
+over as `--timeout-s`, ends before the spawn's kill). The whole pass stays inside 14
+minutes (`GIG_RESEARCH_PASS_BUDGET_MS`, under the task runner's 15-minute wall clock): a
+gig it can no longer fit is not started and is counted `deferred` in the pass summary;
+it keeps no brief until the operator researches it on demand. Past eight, a scan's new
+gigs are not researched automatically either. On demand, `POST /api/gigs/[id]/research`
+re-researches one gig synchronously with the same engine and the same five-minute budget,
+and answers `{ gig }` with the new brief. That door is also how a deterministic brief is
+upgraded once a provider is available.
 
-**Keyless.** The first spawn is the provider probe. With no provider for `gig_brief` the
-CLI answers `fallbackReason: "no_provider"` as data (exit 0), and the rest of that scan
-writes deterministic briefs with no further spawn. The deterministic brief is stored: its
+**The pass's result** (the `gig_research` task's summary): `{ attempted, llm,
+deterministic, failed, flagged, providerMissing, deferred }`.
+
+**Keyless.** The first spawn of a pass is the provider probe. With no usable Claude CLI
+(not installed, `KP_OFFLINE`, or a production box on the consumer seat without
+`KP_ALLOW_CLI_ENGINE`) the pinned call answers `fallbackReason: "no_provider"` as data
+(exit 0; the usage ledger records the real descent: `not_installed`, `offline_policy`,
+`consumer_terms_policy`), and the rest of that pass writes deterministic briefs with no
+further spawn. The deterministic brief is stored: its
 category is the arena plus the first tag, its title "<Arena> · <listing title>", its
 difficulty `unrated`, no effort and no challenges, and its Markdown is the listing's first
 paragraphs plus the same "Sources read" list, because the link list is the part the
 operator cannot get any other way. `fallbackReason` says why (`no_provider`,
 `gig_suspect`, `budget`, `engine_error`, `llm_unusable`, `llm_error:<type>`).
+
+## Plans
+
+Before a gig is dispatched, three Claude models each write a plan for it, side by side,
+and the operator accepts exactly one. Only an accepted plan can be dispatched (the gate is
+the dispatch door's, see **Pairing**), and its steps become the goals of the gig's
+Personas milestone, which is why every step says how you would know it is done.
+
+**The seats** (`app/_lib/gigs/plan-seats.ts` `GIG_PLAN_SEATS`, the one place the lineup
+changes; ids probed 2026-09-29):
+
+| Seat | Model | Effort |
+| --- | --- | --- |
+| `fable` | `claude-fable-5` | the CLI default |
+| `opus` | `claude-opus-5-5` | `xhigh` |
+| `sonnet` | `claude-sonnet-5-5` | `high` |
+
+The effort reaches the Claude CLI as `--effort <level>` (`ProviderPin.effort` in
+`pipeline/jobfit/llm/registry.py`, a closed vocabulary: `low`, `medium`, `high`, `xhigh`,
+`max`); no effort sends no flag. The usage ledger names the seat's model.
+
+**On demand, never automatic.** `POST /api/gigs/[id]/plans` proposes plans for one gig;
+`POST /api/gigs/plans` `{ gigIds }` for a selection of up to 50. Both enqueue a `gig_plans`
+task (`app/_lib/gigs/plans.ts`, registered in `late-bound-boot.ts`): gigs one after
+another, each gig's three seats **in parallel**, one row per seat per round in `gig_plans`
+(`app/_lib/db/gigs-plans.ts`). A seat writes `running`, then `ready` with its plan or
+`failed` with its reason; one seat's failure never touches the others. A selection that
+does not fit one 14-minute pass (`GIG_PLANS_PASS_BUDGET_MS`; a gig is started only while a
+whole nine-minute seat timeout still fits, the first one always) continues as a new
+`gig_plans` task with the rest, named in the first task's result as `continuedAs`. The task
+summary is `{ gigs, ready, failed, skipped: [{ gigId, reason }], deferred, continuedAs }`.
+
+The runner skips a gig, and says why: `not_found` (not this workspace's), `accepted` (a
+plan is already accepted; one per gig, ever), `no_brief` (the seats read the research
+brief, so research first), `gig_suspect` (a honeypot-flagged listing never reaches a
+model), `not_plannable` (declined, withdrawn, expired, sent or judged), `in_flight` (a
+round younger than 20 minutes is still queued or running; an older one was orphaned by a
+restart and no longer blocks), `round_refused` (a plan was accepted between the read and
+the write), `aborted` (the task was cancelled).
+
+**What a seat reads.** `pipeline/jobfit/gig_plan_cli.py` (use case `gig_plan`, prompt
+`gig-plan-v1`) gets the listing's facts (title, arena, url, reward, deadline), the research
+brief (category, difficulty, effort, challenges, its Markdown) and the listing's own text as
+a page, all inside a per-call nonce fence (the same fence as the brief): the listing and the
+pages are strangers' text and the brief is another model's reading of it, so none of it is
+obeyed. The seat's model and effort are validated against closed shapes and never enter the
+prompt. No web access: the brief already followed the references. The Claude CLI child runs
+in an empty temp directory, never the repository (a CLI started in kp's checkout folds kp's
+own CLAUDE.md into the prompt and pays its cache creation on every call).
+
+**What a plan is** (`GigPlan` in `types.ts`, validated by `coerce_plan` in the CLI and
+`parseGigPlan` in `plans.ts`):
+
+- `summary` - 2 to 4 sentences: the approach and why it fits the gig;
+- `steps` - 4 to 9 `{ title, doneWhen }`, in order. Each is a goal the agent will report
+  on, so `doneWhen` names an observable result (a file, a passing test, a submitted entry),
+  never an activity. A step without one is dropped, and fewer than 4 or more than 9 left
+  makes the answer unusable (`llm_unusable`);
+- `decisions` - what the plan decided without saying so (the scope cut, an assumption, an
+  approach chosen over another): the part a reader cannot reconstruct from the steps
+  (registry: plan-review);
+- `risks`, `questions` (for the operator) - at most 8 each;
+- `effortHours` - `{ min, max }` for one specialist, or null.
+
+Strings are trimmed to one line and a list or heading marker the model added is stripped.
+
+**Accept once, with a note.** `POST /api/gigs/[id]/plans/[planId]/accept` `{ note? }`
+accepts one `ready` plan. The store's compare-and-swap under `.immediate()` makes a second
+acceptance for the same gig lose (`GIG_PLAN_ALREADY_ACCEPTED`), a plan of another gig is
+not found through this one, and a seat that has not written a plan is refused
+(`GIG_ACTION_NOT_ALLOWED`, `reason: "not_ready"`). The note (at most 2000 characters) rides
+into the agent's assignment.
+
+**Cost per seat.** Each row carries the cost the CLI reported for that seat's call (a JSON
+repair re-prompt included) and its wall time; `null` means not reported, never 0. One
+measured call (2026-09-29, the Sonnet 5.5 seat at `high` effort, a small fixture gig): 16 s,
+$0.049. The Fable and Opus-xhigh seats were not measured in this build; the first real run
+is the measurement, and the tab shows it per seat.
+
+**Keyless.** With no usable Claude CLI every seat answers `no_provider` (exit 0) and its
+row is `failed` with that reason. There is no deterministic plan: a plan made without a
+model would be a template pretending to be a design.
+
+## Expiry
+
+At the start of every gig scan (the manual door and the clock, which run the same
+registered runner), `sweepExpiredGigs` (`app/_lib/gigs/expiry.ts`) moves every gig of the
+workspace that is still `new` or `qualified` and whose `deadlineAt` is before the scan's
+clock to `expired`, through the ordinary transition (a compare-and-swap on both statuses:
+a gig dispatched in the meantime is left where it went, and not counted). The scan summary
+carries the count as `expired`. Nothing else expires: an undated gig or one whose deadline
+does not parse never does; `suspect` waits on the operator; work in flight (`dispatched`,
+`drafted`, `in_review`) is left to the send-time lint. A sweep that fails is logged
+(`expiry_failed`) and costs that scan its expiries, never the scan.
 
 ## Withdraw reasons
 
@@ -762,7 +885,11 @@ seen. Info never gates.
 | POST | `/api/gigs/sources` | `pipeline:write` | 60 `gigs-sources-write` | `GIG_INPUT_INVALID`, `GIG_SOURCE_REFUSED` |
 | PATCH | `/api/gigs/sources/[id]` | `pipeline:write` | 60 `gigs-sources-write` | `GIG_SOURCE_NOT_FOUND`, `GIG_SOURCE_TERMS_CHANGED`, `GIG_SOURCE_TERMS_REQUIRED`, `GIG_ACTION_NOT_ALLOWED` |
 | POST | `/api/gigs/scan` | `pipeline:write` | 6 `gigs-scan` | 202 + `taskId`; with `{ sourceId }`: `GIG_SOURCE_NOT_FOUND` (404), `GIG_ACTION_NOT_ALLOWED` (409, `reason` = the pause or `disabled`), `GIG_INPUT_INVALID` |
-| POST | `/api/gigs/[id]/research` | `pipeline:write` | 20 `gigs-research` | 200 `{ gig }`; `GIG_NOT_FOUND` |
+| POST | `/api/gigs/[id]/research` | `pipeline:write` | 20 `gigs-research` | 200 `{ gig }`; `GIG_NOT_FOUND`. Synchronous, five-minute budget, the pinned web-researching engine |
+| GET | `/api/gigs/[id]/plans` | operator | none | 200 `{ plans }` (every seat's row of every round, newest round first); `GIG_NOT_FOUND` |
+| POST | `/api/gigs/[id]/plans` | `pipeline:write` | 20 `gigs-plans` (shared with the bulk door) | 202 `{ taskId }`; `GIG_NOT_FOUND` (404), `GIG_PLAN_ALREADY_ACCEPTED` (409), `GIG_ACTION_NOT_ALLOWED` (409, `reason: "no_brief"`) |
+| POST | `/api/gigs/plans` | `pipeline:write` | 20 `gigs-plans` (shared with the one-gig door) | 202 `{ taskId, queued }` for `{ gigIds }` (1-50 unique ids; the task reports each skip); `GIG_INPUT_INVALID` (400, `field: "gigIds"`) |
+| POST | `/api/gigs/[id]/plans/[planId]/accept` | `pipeline:write` | 60 `gigs-plan-accept` | 200 `{ plan }` for `{ note? }` (at most 2000 characters); `GIG_NOT_FOUND`, `GIG_PLAN_NOT_FOUND` (404, also a plan of another gig), `GIG_PLAN_ALREADY_ACCEPTED` (409), `GIG_ACTION_NOT_ALLOWED` (409, `reason: "not_ready"`), `GIG_INPUT_INVALID` (400, `field: "note"`) |
 | GET | `/api/gigs/specialists` | operator | none | none; answers `{ specialists, tallies }`, `tallies` = each specialist's whole attempt record `{ attempts, byStatus, costUsd, costUnreported }` (`db/gigs-attempts.ts` `gigAttemptTallies`) |
 | POST | `/api/gigs/specialists` | `pipeline:write` | 10 `gigs-specialist-hire` (plus the hire tail's own) | `GIG_INPUT_INVALID`, the hire tail's codes; a hire answers `placement` and `placementSkipped` |
 | POST | `/api/gigs/sync` | `pipeline:write` | 20 `gigs-sync` | 200 `{ synced, attempts }` (the attempts this pass moved); the on-demand analogue of the clock's `gig_sync` (see **Running it headless**) |
@@ -779,7 +906,9 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/types.ts` | the wire vocabulary |
 | `app/_lib/gigs/transitions.ts` | both state machines as data (`drafted`/`in_review` -> `qualified` added for `discard`) |
 | `app/_lib/gigs/adapters/**`, `scan.ts`, `suspect.ts` | official-API acquisition, the honeypot scan, the scan orchestrator (whole workspace or one source) |
-| `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's model call, the Markdown and its sections |
+| `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's pinned web-researching model call, the Markdown and its sections; the `gig_research` pass |
+| `app/_lib/gigs/plans.ts`, `pipeline/jobfit/gig_plan_cli.py`, `plan-seats.ts`, `app/_lib/db/gigs-plans.ts` | the plan runner (three seats in parallel), the plan CLI, the seat lineup, the plan store and the one acceptance |
+| `app/_lib/gigs/expiry.ts` | the expiry sweep the scan runs first |
 | `app/_lib/gigs/qualify.ts` | deterministic qualification; `rankGigSpecialists` / `matchGigSpecialist` feed the matcher from the store |
 | `app/_lib/gigs/match.ts`, `routing.ts` | the pure, client-safe specialist ranker (`rankSpecialistsForGig`, `pickGigMatch`, `suggestNicheForGig`) and the operator's route / unroute |
 | `app/_lib/gigs/recipes.ts`, `specialist.ts`, `checklists.ts` | recipe resolution, specialist composition and hire, per-arena review checklists |
@@ -903,8 +1032,11 @@ row withdrawn before the column existed). `gig_attempts.fallback_reason` may be 
   pause as `no_key` until the operator sets the key.
 - Qualification, the honeypot scan, lesson derivation and the KPI are deterministic.
   No model is involved.
-- Research reads links keyless. Without a provider for `gig_brief` it writes the
-  deterministic brief (one probe spawn per scan, then none); see **Research**.
+- Research reads links keyless. Without a usable Claude CLI the pinned `gig_brief` call
+  answers `no_provider` and the pass writes the deterministic brief (one probe spawn per
+  pass, then none); see **Research**.
+- Plans need a model: keyless, every seat is `failed` with `no_provider` and there is no
+  plan to accept (so no dispatch); see **Plans**.
 - The GitHub poller runs keyless at GitHub's unauthenticated rate. The Kaggle poller does
   nothing without `KAGGLE_USERNAME` + `KAGGLE_KEY`: it makes no request and records no
   verdict.
@@ -971,6 +1103,11 @@ row withdrawn before the column existed). `gig_attempts.fallback_reason` may be 
   in another language gets fewer of those findings, not false ones.
 - The tier-B terms summary is shown in the language the catalog wrote it in (English),
   because its hash is what the acknowledgement records. The Sources screen says so.
+- A scan that creates more than eight gigs researches only eight; the rest, and any gig a
+  pass `deferred`, keep no brief until the operator asks (no backlog drip by design).
+- The expiry sweep pages the store newest-touched first; two gigs sharing an `updated_at`
+  exactly at a 200-row page boundary can be missed by one sweep and caught by the next.
+- The per-seat cost of the Fable and Opus-xhigh seats is unmeasured until the first run.
 
 ## Running it headless
 

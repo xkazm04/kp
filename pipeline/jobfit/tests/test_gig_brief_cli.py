@@ -20,7 +20,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from pipeline.jobfit import gig_brief_cli
+from pipeline.jobfit import claude_cli, gig_brief_cli
+from pipeline.jobfit.llm import ProviderPin
+# The stubbed-spawn helpers role_research's suite already pins (the CLI binary is never run).
+from pipeline.jobfit.tests.test_role_research import _env, _envelope_text, _ledger, _never_spawn, _rows, _Spawn, _stubbed_cli
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 REQUEST = {
     "listing": {
@@ -55,12 +60,17 @@ GOOD = {
 
 
 class FakeProvider:
+    """The pinned adapter's shape: availability, the web door, complete_json on the bound copy
+    (the door returns this same object, and records how it was opened)."""
+
     def __init__(self, answer=None, error: Exception | None = None, available: bool = True):
         self.answer = answer
         self.error = error
         self._available = available
         self.prompts: list[str] = []
         self.systems: list[str | None] = []
+        self.timeouts: list[int | None] = []
+        self.door_calls: list[dict] = []
 
     def availability(self):
         return (self._available, None if self._available else "not_installed")
@@ -68,9 +78,14 @@ class FakeProvider:
     def available(self):
         return self._available
 
+    def with_web_research(self, *, max_turns, json_schema=None, timeout=None):
+        self.door_calls.append({"max_turns": max_turns, "json_schema": json_schema, "timeout": timeout})
+        return self
+
     def complete_json(self, prompt, *, system=None, timeout=None, expected_keys=None):
         self.prompts.append(prompt)
         self.systems.append(system)
+        self.timeouts.append(timeout)
         if self.error:
             raise self.error
         return self.answer
@@ -211,6 +226,94 @@ class FenceTest(unittest.TestCase):
         self.assertEqual(len(payload["untrusted_listing"]["body"]), gig_brief_cli.MAX_BODY_CHARS)
         self.assertEqual(len(payload["untrusted_pages"]), gig_brief_cli.MAX_PAGES)
         self.assertEqual(len(payload["untrusted_pages"][0]["text"]), gig_brief_cli.MAX_PAGE_CHARS)
+
+
+class EngineTest(unittest.TestCase):
+    """gig-brief-v3: the call site pins Sonnet 5.5 and opens the CLI's web door."""
+
+    def test_the_pin_is_sonnet_5_5_on_the_claude_cli(self):
+        self.assertEqual(gig_brief_cli.PIN, ProviderPin("claude_cli", "claude-sonnet-5-5"))
+        self.assertEqual(gig_brief_cli.PROMPT_VERSION, "gig-brief-v3")
+
+    def test_the_call_resolves_the_pin_and_opens_the_web_door(self):
+        seen: dict = {}
+        fake = FakeProvider(answer=GOOD)
+
+        def fake_resolve(use_case, **kwargs):
+            seen["use_case"], seen["kwargs"] = use_case, kwargs
+            return fake
+
+        with mock.patch.object(gig_brief_cli, "resolve_provider", fake_resolve):
+            out = gig_brief_cli.brief(REQUEST)
+        self.assertEqual(out["source"], "llm")
+        self.assertEqual(seen["use_case"], "gig_brief")
+        self.assertEqual(seen["kwargs"], {"timeout": 240, "pin": gig_brief_cli.PIN})
+        self.assertEqual(fake.door_calls, [{"max_turns": 16, "json_schema": gig_brief_cli.SCHEMA, "timeout": 240}])
+        self.assertEqual(fake.timeouts, [240])
+        self.assertIn("WebSearch", fake.prompts[0])
+
+    def test_the_call_site_is_a_literal_the_byom_scan_can_read(self):
+        source = (REPO_ROOT / "pipeline" / "jobfit" / "gig_brief_cli.py").read_text(encoding="utf-8")
+        self.assertIn('resolve_provider("gig_brief", timeout=timeout, pin=PIN)', source)
+
+    def test_timeout_s_is_clamped_to_the_cli_deadline(self):
+        self.assertEqual(gig_brief_cli.clamp_timeout(None), 240)
+        self.assertEqual(gig_brief_cli.clamp_timeout(120), 120)
+        self.assertEqual(gig_brief_cli.clamp_timeout(5), 30)
+        self.assertEqual(gig_brief_cli.clamp_timeout(9999), 240)
+        self.assertEqual(gig_brief_cli.clamp_timeout(True), 240)
+        fake = FakeProvider(answer=GOOD)
+        with mock.patch.object(gig_brief_cli, "resolve_provider", return_value=fake):
+            gig_brief_cli.brief(REQUEST, timeout_s=100)
+        self.assertEqual(fake.door_calls[0]["timeout"], 100)
+        self.assertEqual(fake.timeouts, [100])
+
+    def test_a_provider_without_the_web_door_is_no_provider(self):
+        class Doorless:
+            def availability(self):
+                return True, None
+
+            def complete_json(self, *_a, **_k):
+                raise AssertionError("a provider without the web door must never be asked")
+
+        with mock.patch.object(gig_brief_cli, "resolve_provider", return_value=Doorless()):
+            out = gig_brief_cli.brief(REQUEST)
+        self.assertEqual((out["source"], out["fallbackReason"]), ("deterministic", "no_provider"))
+
+    def test_the_schema_travels_compact_and_cmd_shim_safe(self):
+        compact = json.dumps(gig_brief_cli.SCHEMA, separators=(",", ":"), ensure_ascii=False)
+        for ch in "&|<>^%":
+            self.assertNotIn(ch, compact)
+        self.assertNotIn(" ", compact)
+        self.assertLess(len(compact), 4000)
+
+    def test_end_to_end_through_the_real_pinned_adapter(self):
+        """The registry's pinned adapter, the web door and a stubbed spawn together: the
+        argv the child got, where it ran, and the coerced envelope."""
+        spawn = _Spawn(_envelope_text(GOOD, result="(prose)"))
+        with _env(), _ledger() as ledger, _stubbed_cli(spawn):
+            out = gig_brief_cli.brief(REQUEST)
+            rows = _rows(ledger)
+        self.assertEqual(out["source"], "llm", out)
+        self.assertEqual(out["result"]["category"], "Parsing · Grammar bug")
+        args = spawn.calls[0]["args"]
+        self.assertEqual(args[args.index("--model") + 1], "claude-sonnet-5-5")
+        self.assertEqual(args[args.index("--allowedTools") + 1], "WebSearch,WebFetch")
+        self.assertEqual(args[args.index("--max-turns") + 1], "16")
+        self.assertEqual(args[args.index("--json-schema") + 1], json.dumps(gig_brief_cli.SCHEMA, separators=(",", ":"), ensure_ascii=False))
+        self.assertNotIn("--effort", args)
+        self.assertEqual(spawn.calls[0]["cwd"], claude_cli._neutral_cwd(), "never the repository")
+        self.assertIn("Fix the flaky parser", spawn.calls[0]["input"])
+        self.assertEqual([(r["model"], r["use_case"]) for r in rows], [("claude-sonnet-5-5", "gig_brief")])
+
+    def test_keyless_end_to_end_never_spawns(self):
+        with _env(), _ledger() as ledger, _stubbed_cli(_never_spawn, which=None), mock.patch.object(
+            claude_cli.os.path, "isfile", return_value=False
+        ):
+            out = gig_brief_cli.brief(REQUEST)
+            rows = _rows(ledger)
+        self.assertEqual((out["result"], out["source"], out["fallbackReason"]), (None, "deterministic", "no_provider"))
+        self.assertEqual([(r["source"], r.get("reason")) for r in rows], [("deterministic", "not_installed")])
 
 
 class InputTest(unittest.TestCase):

@@ -244,3 +244,19 @@ test("gig_scan keys by tenant, and a single-source scan by tenant + source", () 
   assert.equal(buildDedupeKey("gig_scan", { workspaceId: "ws-1", sourceId: "  " }), "gig_scan:ws-1", "a blank source is the whole-workspace scan");
   assert.equal(buildDedupeKey("gig_scan", { sourceId: "gsrc-a" }), null, "no tenant, no key");
 });
+
+test("gig_plans and gig_research key by tenant + the SET of gigs; order does not split a request", () => {
+  assert.equal(buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g2", "g1", "g2"] }), "gig_plans:ws-1:g1,g2");
+  assert.equal(
+    buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g1", "g2"] }),
+    buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g2", "g1"] }),
+    "a double-click on the same selection coalesces"
+  );
+  assert.notEqual(buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: ["g1"] }), buildDedupeKey("gig_plans", { workspaceId: "ws-2", gigIds: ["g1"] }));
+  assert.equal(buildDedupeKey("gig_plans", { workspaceId: "ws-1", gigIds: [] }), null, "no gig, no identity");
+  assert.equal(buildDedupeKey("gig_plans", { workspaceId: "ws-1" }), null);
+  assert.equal(buildDedupeKey("gig_plans", { gigIds: ["g1"] }), null, "no tenant, no key");
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", gigIds: ["b", "a"] }), "gig_research:ws-1:a,b");
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", sourceId: "s1" }), "gig_research:ws-1:source:s1");
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1" }), "gig_research:ws-1");
+});

@@ -233,16 +233,31 @@ class ProviderPin:
     building a keyed adapter needs the key layering, and the first pin did not
     need one. The model is recorded as the ledger's model label, so the usage
     record names the pinned id rather than the CLI's configured default.
+
+    ``effort`` (optional) is the CLI's reasoning-effort level for that one call,
+    passed as ``--effort <level>`` (``claude --help``: low, medium, high, xhigh,
+    max; verified against CLI 2.1.284 on 2026-09-29). ``None`` sends no flag, so
+    the CLI runs at its own default. The gig plan seats (gig_plan_cli.py) are the
+    first pins that need it: the same model at two efforts is two different seats.
+    It is a closed vocabulary rather than a free string because it lands in argv,
+    and on Windows the CLI is a ``.cmd`` shim that interprets its arguments.
     """
 
     provider: str
     model: str
+    effort: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("provider", "model"):
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"ProviderPin.{name} must be a non-empty string, got {value!r}")
+        if self.effort is not None and self.effort not in PIN_EFFORTS:
+            raise ValueError(f"ProviderPin.effort must be one of {PIN_EFFORTS} or None, got {self.effort!r}")
+
+
+# The CLI's `--effort` levels (claude --help, CLI 2.1.284, 2026-09-29).
+PIN_EFFORTS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 
 
 # The providers a pin can be honored on today (see ProviderPin).
@@ -279,6 +294,8 @@ def _pinned_provider(use_case: str, pin: ProviderPin, timeout: int | None) -> An
         # the same lane choice every CLI route gets — a pin changes WHICH engine,
         # never the contract that engine runs under (see _cli_strip_api_key)
         strip_api_key=_cli_strip_api_key(),
+        # the pin's effort, when it names one; the ledger label stays pin.model
+        extra_args=("--effort", pin.effort) if pin.effort else (),
     )
 
 

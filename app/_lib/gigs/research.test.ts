@@ -6,6 +6,8 @@
 // robots.txt is a `blocked`, a honeypot page flags the gig and stops both further reads
 // and the model, KP_OFFLINE skips everything before DNS, GitHub links go through the
 // GitHub reader, the 3-link cap holds, and a batch stops spawning after `no_provider`.
+// The research pass (the `gig_research` task): only the gigs it was handed, links handed
+// over by the scan replace the extraction, and a gig the pass budget cannot fit is deferred.
 //
 // unit-db.ts first: research.ts binds the gig stores as its defaults (never called here).
 import "../testing/unit-db.ts";
@@ -25,9 +27,14 @@ import {
   escapeBriefText,
   extractGigLinks,
   GIG_BRIEF_PROMPT_VERSION,
+  GIG_RESEARCH_BUDGET_MS,
   GIG_RESEARCH_MAX_LINKS,
+  GIG_RESEARCH_MAX_PER_SCAN,
+  GIG_RESEARCH_MIN_START_MS,
+  gigResearchTaskParams,
   parseGigBriefResult,
   parseGigBriefSections,
+  parseGigResearchTaskParams,
   researchGig,
   researchGigBatch,
   slugifyHeading,
@@ -385,7 +392,14 @@ test("researchGig: the egress guard blocks a private host BEFORE any fetch; robo
   const input = call.files["input.json"] as { listing: { body: string; title: string }; pages: { url: string; text: string }[] };
   assert.deepEqual(input.pages.map((p) => p.url), ["https://docs.acme.dev/parser"], "only fetched pages go to the model");
   assert.match(input.pages[0].text, /The grammar is LL\(1\)\./);
-  assert.deepEqual(call.args({ "input.json": "/tmp/x/input.json" }), ["--input-json", "/tmp/x/input.json"]);
+  // The CLI's own deadline is handed over and sits under the spawn's kill (v3: web research
+  // takes minutes, so the Python deadline must end first, coded, with its ledger line).
+  const argv = call.args({ "input.json": "/tmp/x/input.json" });
+  assert.deepEqual(argv.slice(0, 3), ["--input-json", "/tmp/x/input.json", "--timeout-s"]);
+  const cliTimeoutS = Number(argv[3]);
+  assert.ok(Number.isInteger(cliTimeoutS) && cliTimeoutS >= 30 && cliTimeoutS <= 240, `--timeout-s ${argv[3]}`);
+  assert.ok((call.timeoutMs ?? 0) > cliTimeoutS * 1000, "the spawn outlives the CLI's deadline");
+  assert.ok((call.timeoutMs ?? 0) <= GIG_RESEARCH_BUDGET_MS);
 
   assert.equal(out.brief.source, "llm");
   assert.equal(out.brief.title, "Parsing · Fix the flaky parser", "the retitle leads with the category's field");
@@ -511,7 +525,7 @@ test("researchGigBatch: the first no_provider stops spawning - one cheap spawn k
   const summary = await researchGigBatch("ws-1", { signal: new AbortController().signal, limit: 8, sourceId: "s-1", htmlByGigId: new Map() }, h.deps);
   assert.deepEqual(listed, { limit: 8, sourceId: "s-1" });
   assert.equal(h.cli.length, 1, "only the first gig spawned");
-  assert.deepEqual(summary, { attempted: 3, llm: 0, deterministic: 3, failed: 0, flagged: 0, providerMissing: true });
+  assert.deepEqual(summary, { attempted: 3, llm: 0, deterministic: 3, failed: 0, flagged: 0, providerMissing: true, deferred: 0 });
   assert.deepEqual(h.stored.map((b) => b.fallbackReason), ["no_provider", "no_provider", "no_provider"]);
 });
 
@@ -523,6 +537,79 @@ test("researchGigBatch: stops between gigs when the scan's signal fires", async 
   const summary = await researchGigBatch("ws-1", { signal: controller.signal, limit: 8, sourceId: null, htmlByGigId: new Map() }, h.deps);
   assert.equal(summary.attempted, 0);
   assert.equal(h.stored.length, 0);
+});
+
+test("researchGigBatch with gigIds (the scan's pass): exactly those gigs still unbriefed and researchable, in order, capped at eight, never the backlog", async () => {
+  const byId: Record<string, Gig> = {
+    g1: gig({ id: "g1", bodyText: "no links" }),
+    g2: gig({ id: "g2", bodyText: "no links", brief: deterministicGigBrief(gig(), [], "no_provider", "2026-09-24T00:00:00.000Z") }),
+    g3: gig({ id: "g3", bodyText: "no links", status: "declined" }),
+    g4: gig({ id: "g4", bodyText: "no links", status: "qualified" }),
+  };
+  for (let i = 5; i <= 14; i++) byId[`g${i}`] = gig({ id: `g${i}`, bodyText: "no links" });
+  const h = harness({ cli: () => ({ result: MODEL, source: "llm" }) });
+  const researched: string[] = [];
+  h.deps.getGig = (_ws, id) => byId[id] ?? null;
+  h.deps.setGigBrief = (_ws, id, brief) => {
+    researched.push(id);
+    return { ...byId[id], brief };
+  };
+  h.deps.listGigsNeedingBrief = () => {
+    throw new Error("a pass handed its gigs never reads the backlog");
+  };
+  const ids = ["g1", "g2", "g3", "missing", "g4", ...Array.from({ length: 10 }, (_, i) => `g${i + 5}`)];
+  const summary = await researchGigBatch("ws-1", { signal: new AbortController().signal, limit: GIG_RESEARCH_MAX_PER_SCAN, sourceId: null, gigIds: ids }, h.deps);
+  assert.deepEqual(researched, ["g1", "g4", "g5", "g6", "g7", "g8", "g9", "g10"], "briefed, declined and unknown gigs are passed over; eight at most");
+  assert.equal(summary.attempted, 8);
+  assert.equal(summary.llm, 8);
+});
+
+test("researchGigBatch: links handed over by the scan replace the extraction (the task cannot see the listing HTML)", async () => {
+  const listing = gig({ bodyText: "Read https://docs.acme.dev/from-text" });
+  const h = harness({ current: listing, pages: { "https://docs.acme.dev/from-html": html("<p>spec</p>", "Spec") }, cli: () => ({ result: MODEL, source: "llm" }) });
+  h.deps.getGig = () => listing;
+  await researchGigBatch(
+    "ws-1",
+    { signal: new AbortController().signal, limit: 8, sourceId: null, gigIds: ["gig-1"], linksByGigId: { "gig-1": ["https://docs.acme.dev/from-html", "javascript:alert(1)", "https://user:pw@evil.example/x"] } },
+    h.deps
+  );
+  assert.deepEqual(h.fetched, ["https://docs.acme.dev/from-html"], "only the handed-over link, re-filtered: no script URL, no credentials");
+});
+
+test("researchGigBatch: a gig the pass budget cannot fit is deferred, never started; each gig gets at most what the pass has left", async () => {
+  let now = 0;
+  const gigs = [gig({ id: "g1", bodyText: "no links" }), gig({ id: "g2", bodyText: "no links" }), gig({ id: "g3", bodyText: "no links" })];
+  const h = harness({
+    cli: (call) => {
+      now += 4 * 60_000; // each model call takes four minutes of the pass
+      return { result: MODEL, source: "llm", seenTimeoutMs: call.timeoutMs };
+    },
+  });
+  h.deps.nowMs = () => now;
+  h.deps.listGigsNeedingBrief = () => gigs;
+  const summary = await researchGigBatch("ws-1", { signal: new AbortController().signal, limit: 8, sourceId: null, passBudgetMs: 9 * 60_000 }, h.deps);
+  // 0 min: g1 starts (9 left); 4 min: g2 starts (5 left); 8 min: 1 left < the start floor.
+  assert.ok(GIG_RESEARCH_MIN_START_MS > 60_000);
+  assert.equal(summary.attempted, 2);
+  assert.equal(summary.deferred, 1);
+  assert.ok((h.cli[1].timeoutMs ?? 0) <= 5 * 60_000, "the second gig's spawn is bounded by what the pass had left");
+});
+
+test("gigResearchTaskParams reads the links from the HTML the scan held; parseGigResearchTaskParams re-validates a stored row", () => {
+  const g = gig({ id: "g1", url: "https://example.test/listing", bodyText: "plain text, no links" });
+  const params = gigResearchTaskParams("ws-1", {
+    sourceId: "s-1",
+    gigs: [g],
+    htmlByGigId: new Map([["g1", '<a href="https://docs.example.org/spec">spec</a>']]),
+  });
+  assert.deepEqual(params, { workspaceId: "ws-1", sourceId: "s-1", gigIds: ["g1"], linksByGigId: { g1: ["https://docs.example.org/spec"] } });
+  assert.deepEqual(parseGigResearchTaskParams(params), { sourceId: "s-1", gigIds: ["g1"], linksByGigId: { g1: ["https://docs.example.org/spec"] } });
+  assert.deepEqual(
+    parseGigResearchTaskParams({ gigIds: ["a", "a", 3, "", "b"], linksByGigId: { a: ["u1", 7, "u2", "u3", "u4"], zz: ["x"] }, sourceId: "  " }),
+    { sourceId: null, gigIds: ["a", "b"], linksByGigId: { a: ["u1", "u2", "u3"] } },
+    "ids de-duplicated, links capped at three and only for listed gigs"
+  );
+  assert.deepEqual(parseGigResearchTaskParams({}), { sourceId: null, gigIds: null, linksByGigId: {} });
 });
 
 test("GIG_BRIEF_PROMPT_VERSION is in lockstep with gig_brief_cli.py PROMPT_VERSION", () => {

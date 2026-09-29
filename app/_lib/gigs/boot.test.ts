@@ -10,13 +10,12 @@ import { _resetTaskRunnersForTests, externalRunner } from "../task-external-runn
 
 after(() => cleanupUnitDb());
 
-test("gig_scan and gig_sync are registered at boot", () => {
+test("gig_scan, gig_sync, gig_research and gig_plans are registered at boot", () => {
+  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans"];
   _resetTaskRunnersForTests();
-  assert.throws(() => externalRunner("gig_scan"), /not registered/);
-  assert.throws(() => externalRunner("gig_sync"), /not registered/);
+  for (const kind of kinds) assert.throws(() => externalRunner(kind), /not registered/, kind);
   registerLateBoundImplementations();
-  assert.equal(typeof externalRunner("gig_scan"), "function");
-  assert.equal(typeof externalRunner("gig_sync"), "function");
+  for (const kind of kinds) assert.equal(typeof externalRunner(kind), "function", kind);
 });
 
 test("the gig_sync runner is the real sync, scoped to the enqueuing workspace", async () => {
@@ -37,16 +36,22 @@ test("the heavy gig modules are reached only lazily - never statically from the 
   const boot = read("../late-bound-boot.ts");
   assert.match(boot, /await import\("\.\/gigs\/scan"\)/);
   assert.match(boot, /qualify: qualifyGigHook/, "the manual scan runs with the qualifier plugged in");
+  // gig-mastery: research leaves the scan for its own task, and the plan runner is late-bound too.
+  assert.match(boot, /startTask\("gig_research", gigResearchTaskParams\(ws, req\), ws\)/, "the scan ENQUEUES its research");
+  assert.match(boot, /await import\("\.\/gigs\/research"\)/);
+  assert.match(boot, /await import\("\.\/gigs\/plans"\)/);
   assert.match(boot, /await import\("\.\/gigs\/sync"\)/);
   // WP4: the outcome pollers ride the same sync runner, after the Personas sync.
   assert.match(boot, /await import\("\.\/gigs\/pollers"\)/);
   assert.match(boot, /pollGigOutcomes\(ctx\.workspaceId\)/, "the pollers are scoped to the enqueuing workspace");
   assert.doesNotMatch(boot, /^import .*gigs\//m);
-  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist)/, `${hub} must not reach a gig runner`);
+  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist|research|plans)/,`${hub} must not reach a gig runner`);
   const clock = readFileSync(fileURLToPath(new URL("../../../instrumentation-node.ts", import.meta.url)), "utf8");
   assert.match(clock, /gig_scan: async \(\) =>/);
   assert.match(clock, /gig_sync: async \(\) =>/);
-  assert.match(clock, /qualify: qualifyGigHook/, "the clock scan qualifies exactly like the manual one");
+  // The clock runs the SAME registered runner as the manual door (the qualifier, the expiry
+  // sweep and the research enqueue included), so the two cannot drift apart.
+  assert.match(clock, /externalRunner\("gig_scan"\)\(\{ workspaceId: ws,/, "the clock scan is the manual one");
   assert.match(clock, /pollGigOutcomes\(ws\)/, "the clock sync asks the outcome pollers too");
   for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/pollers/, `${hub} must not reach the pollers`);
 });

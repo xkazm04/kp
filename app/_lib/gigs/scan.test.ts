@@ -3,14 +3,16 @@
 // denial pauses `blocked`, a collapse pauses `collapsed`, a missing key pauses `no_key`;
 // paused/disabled sources are never run; the wall budget stops BETWEEN sources and
 // records the unreached as `skipped: wall_budget`; the optional qualify hook sees only
-// gigs still `new`, and its throw is counted, never fatal.
+// gigs still `new`, and its throw is counted, never fatal; the expiry sweep runs first and
+// its count rides in the summary; research is ENQUEUED (never awaited) for the gigs the
+// scan created, and a cancelled scan enqueues nothing.
 //
 // unit-db.ts first: the stores defaultGigScanDeps binds are imported for their types,
 // and their db-path must never resolve to a developer's kp.sqlite.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import "../testing/unit-db.ts";
-import { runGigScan, type GigScanDeps } from "./scan.ts";
+import { defaultGigScanDeps, runGigScan, type GigScanDeps } from "./scan.ts";
 import { scanGigForHoneypots } from "./suspect.ts";
 import { AdapterCollapsed, DEFAULT_GIG_ADAPTER_LIMITS, FetchHalt, GigAdapterSkipped, type GigAdapter } from "./adapters/types.ts";
 import { GIG_ADAPTER_ARENA, type Gig, type GigAdapterName, type GigPauseReason, type GigSource, type GigSourceRunOutcome, type RawGig } from "./types.ts";
@@ -328,9 +330,11 @@ test("opts.sourceId runs ONLY that source; a paused one is still not run; an unk
   assert.deepEqual(s4.sources.map((s) => s.sourceId), ["s-gh", "s-fl"]);
 });
 
-test("the research hook runs LAST, once, with the scan's listing HTML and the narrowed source; its throw is logged, never fatal", async () => {
-  const calls: { limit: number; sourceId: string | null; html: [string, string | null][] }[] = [];
+test("research is ENQUEUED last for the gigs this scan created, with their listing HTML and the narrowed source - and never awaited", async () => {
+  const calls: { sourceId: string | null; gigs: string[]; html: [string, string | null][] }[] = [];
   const order: string[] = [];
+  // A research pass that never finishes: the scan must return anyway (it only enqueues).
+  let researchStarted = false;
   const h = harness(
     [source("s-gh", "github_bounty")],
     { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1", { bodyHtml: '<a href="https://docs.example/spec">spec</a>' }), raw("gh-2")]) },
@@ -338,54 +342,112 @@ test("the research hook runs LAST, once, with the scan's listing HTML and the na
       qualify: (_ws, gig) => {
         order.push(`qualify:${gig.externalKey}`);
       },
-      research: async (_ws, info) => {
-        order.push("research");
-        calls.push({ limit: info.limit, sourceId: info.sourceId, html: [...info.htmlByGigId.entries()] });
-        return { attempted: 2, llm: 0, deterministic: 2, failed: 0, flagged: 0, providerMissing: true };
+      enqueueResearch: (ws, req) => {
+        assert.equal(ws, "ws-1");
+        order.push("enqueue");
+        calls.push({ sourceId: req.sourceId, gigs: req.gigs.map((g) => g.id), html: [...req.htmlByGigId.entries()] });
+        researchStarted = true;
+        void new Promise(() => {}); // the background pass, still running when the scan returns
+        return "task-research-1";
       },
     }
   );
   const summary = await runGigScan("ws-1", h.deps, undefined, { sourceId: "s-gh" });
-  assert.deepEqual(order, ["qualify:gh-1", "qualify:gh-2", "research"], "research follows acquisition and qualification");
+  assert.equal(researchStarted, true);
+  assert.deepEqual(order, ["qualify:gh-1", "qualify:gh-2", "enqueue"], "research is handed over after acquisition and qualification");
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].limit, 8);
   assert.equal(calls[0].sourceId, "s-gh");
+  assert.deepEqual(calls[0].gigs, ["gig-gh-1", "gig-gh-2"]);
   assert.deepEqual(calls[0].html, [
     ["gig-gh-1", '<a href="https://docs.example/spec">spec</a>'],
     ["gig-gh-2", null],
   ]);
-  assert.deepEqual(summary.research, { attempted: 2, llm: 0, deterministic: 2, failed: 0, flagged: 0, providerMissing: true });
+  assert.deepEqual(summary.research, { taskId: "task-research-1", gigs: 2 });
 
+  // The same listings again: nothing was CREATED, so nothing is handed over (no backlog drip).
+  const again = await runGigScan("ws-1", h.deps, undefined, { sourceId: "s-gh" });
+  assert.equal(calls.length, 1, "known gigs are not re-researched by the scan");
+  assert.equal(again.research, null);
+
+  // An enqueuer that answers no task, or throws, costs the scan nothing but the research.
+  const none = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, { enqueueResearch: () => null });
+  assert.deepEqual((await runGigScan("ws-1", none.deps)).research, { taskId: null, gigs: 0 });
   const boom = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
-    research: async () => {
-      throw new Error("spawn ENOENT");
+    enqueueResearch: async () => {
+      throw new Error("task hub down");
     },
   });
   const s2 = await runGigScan("ws-1", boom.deps);
   assert.equal(s2.research, null);
   assert.equal(s2.sources[0].outcome, "succeeded");
-  assert.ok(boom.logs.includes("-:research_failed"));
+  assert.ok(boom.logs.includes("-:research_enqueue_failed"));
 
-  // No researcher plugged (the scan's own defaults): no research, summary says null.
-  const none = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) });
-  assert.equal((await runGigScan("ws-1", none.deps)).research, null);
+  // No enqueuer plugged (the scan's own defaults): no research, summary says null.
+  const unplugged = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) });
+  assert.equal((await runGigScan("ws-1", unplugged.deps)).research, null);
 });
 
-test("research is not started once the wall budget has fired", async () => {
-  let researched = false;
-  const h = harness(
-    [source("s-slow", "github_bounty")],
-    { "s-slow": fixtureAdapter("github_bounty", [raw("gh-a")], undefined, 40) },
+test("a caller cancellation enqueues no research; a scan the wall budget stopped still hands over what it created", async () => {
+  let enqueued = 0;
+  const controller = new AbortController();
+  const cancelled = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-a")]) }, {
+    enqueueResearch: () => {
+      enqueued += 1;
+      return "t";
+    },
+    qualify: () => controller.abort(),
+  });
+  await runGigScan("ws-1", cancelled.deps, controller.signal);
+  assert.equal(enqueued, 0, "an operator who pressed stop gets a stop");
+
+  const slow = harness(
+    [source("s-slow", "github_bounty"), source("s-late", "freelancer_api")],
+    { "s-slow": fixtureAdapter("github_bounty", [raw("gh-b")], undefined, 40), "s-late": fixtureAdapter("freelancer_api", [raw("fl-b")]) },
     {
       wallBudgetMs: 5,
-      research: async () => {
-        researched = true;
-        return { attempted: 0, llm: 0, deterministic: 0, failed: 0, flagged: 0, providerMissing: false };
+      enqueueResearch: (_ws, req) => {
+        enqueued += req.gigs.length;
+        return "t-budget";
       },
     }
   );
-  const summary = await runGigScan("ws-1", h.deps);
-  assert.equal(researched, false);
-  assert.equal(summary.research, null);
+  const summary = await runGigScan("ws-1", slow.deps);
   assert.equal(summary.aborted, true);
+  assert.equal(enqueued, 1, "the gig that landed before the budget fired is researched in the background");
+  assert.deepEqual(summary.research, { taskId: "t-budget", gigs: 1 });
+});
+
+test("the expiry sweep runs FIRST, at the scan's own clock, and its count rides in the summary; a failing sweep costs only the expiries", async () => {
+  const order: string[] = [];
+  const h = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
+    sweepExpired: (ws, now) => {
+      assert.equal(ws, "ws-1");
+      assert.equal(now, "2026-09-24T12:00:00.000Z");
+      order.push("sweep");
+      return 3;
+    },
+    qualify: () => {
+      order.push("qualify");
+    },
+  });
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(order, ["sweep", "qualify"]);
+  assert.equal(summary.expired, 3);
+
+  const boom = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, {
+    sweepExpired: () => {
+      throw new Error("store down");
+    },
+  });
+  const s2 = await runGigScan("ws-1", boom.deps);
+  assert.equal(s2.expired, 0);
+  assert.equal(s2.sources[0].outcome, "succeeded");
+  assert.ok(boom.logs.includes("-:expiry_failed"));
+  // No sweep plugged (a harness without it): nothing expires, the field is still honest.
+  assert.equal((await runGigScan("ws-1", harness([], {}).deps)).expired, 0);
+});
+
+test("the production scan deps plug the real expiry sweep", () => {
+  assert.equal(typeof defaultGigScanDeps().sweepExpired, "function");
+  assert.equal(defaultGigScanDeps().enqueueResearch, undefined, "the enqueuer is plugged by the task runner, not the scan's defaults");
 });

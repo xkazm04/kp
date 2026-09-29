@@ -25,13 +25,16 @@ import { TASK_KIND_ADMISSION, dockMayStart, serverOnlyTaskKinds, taskKindCapabil
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-// The nine the challenge card named, plus gig_scan (WP4 gigs). jobseeker_scan and
+// The nine the challenge card named, plus gig_scan (WP4 gigs) and gig_research + gig_plans
+// (gig-mastery: the scan enqueues the first, the plans doors the second). jobseeker_scan and
 // gig_scan are enqueued through a constant (SCAN_TASK_KIND, GIG_SCAN_TASK_KIND), never a
 // literal — the scan below has to resolve them.
 const SERVER_KINDS = [
   "agent_fit",
   "analyze",
   "companion_digest",
+  "gig_plans",
+  "gig_research",
   "gig_scan",
   "interview_kit",
   "interview_letter",
@@ -50,7 +53,7 @@ test("the table decides every kind: a door and a capability for each, no stale e
   }
 });
 
-test("exactly the ten server-built kinds are closed to the dock", () => {
+test("exactly the server-built kinds are closed to the dock", () => {
   assert.deepEqual([...serverOnlyTaskKinds()].sort(), SERVER_KINDS);
   for (const k of TASK_KINDS) assert.equal(dockMayStart(k), !SERVER_KINDS.includes(k), k);
 });

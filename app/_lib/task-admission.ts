@@ -7,7 +7,8 @@
 //                    params itself (and asking the seat): analyze's params are the paths
 //                    of a workdir /api/analyze made from the upload; lifecycle, jd_build,
 //                    repo_scan, agent_fit, interview_kit, interview_letter, companion_digest
-//                    jobseeker_scan and gig_scan each have a dedicated door with its own gates. The
+//                    jobseeker_scan, gig_scan, gig_research (the scan enqueues it) and
+//                    gig_plans each have a dedicated door with its own gates. The
 //                    generic dock door answers these 403 TASK_KIND_SERVER_ONLY.
 //   capability — what starting (dock), retrying or cancelling a run of the kind asks of
 //                the caller's seat. Retry and cancel ask it of the STORED row's kind.
@@ -53,6 +54,8 @@ export const TASK_KIND_ADMISSION: Record<TaskKind, TaskAdmission> = {
   companion_digest: RECRUITER_SERVER, // companion-actions.ts
   jobseeker_scan: RECRUITER_SERVER, // /api/jobseeker/scan, via SCAN_TASK_KIND
   gig_scan: RECRUITER_SERVER, // /api/gigs/scan, via GIG_SCAN_TASK_KIND
+  gig_research: RECRUITER_SERVER, // late-bound-boot.ts: the gig scan enqueues its research pass
+  gig_plans: RECRUITER_SERVER, // /api/gigs/[id]/plans, /api/gigs/plans (+ the runner's continuation)
 };
 
 /** May the dock (POST /api/tasks) start this kind with client params? Unknown kinds,

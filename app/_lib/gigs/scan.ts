@@ -1,8 +1,14 @@
-// The gig scan: for ONE workspace, every enabled, unpaused source runs
+// The gig scan: for ONE workspace, first the expiry sweep (gigs/expiry.ts: every `new` or
+// `qualified` gig whose deadline has passed moves to `expired`), then every enabled,
+// unpaused source runs
 //   discover -> scanGigForHoneypots -> upsertGigFromRaw -> recordGigSourceRun
 // and, when a qualifier is plugged in (deps.qualify - WP3's), every listing still `new`
-// after the upsert is handed to it. Then, when a researcher is plugged in (deps.research,
-// gigs/research.ts), up to GIG_RESEARCH_MAX_PER_SCAN gigs with no brief yet get one.
+// after the upsert is handed to it. Then, when a research enqueuer is plugged in
+// (deps.enqueueResearch, bound in late-bound-boot.ts), the gigs this scan CREATED are handed
+// to a background `gig_research` task and the scan returns without waiting for it: a
+// web-researched brief is minutes per gig (gigs/research.ts), and the 8-minute budget below
+// is acquisition's. Only new gigs are handed over - there is no backlog drip; a gig with no
+// brief is researched on demand (POST /api/gigs/[id]/research).
 // Callers (the scheduler job, a "scan now" door) own the scheduler_runs row; this module
 // answers GigScanSummary and nothing else.
 //
@@ -40,6 +46,7 @@ import {
   type GigAdapterLimits,
   type GigAdapterLogEvent,
 } from "./adapters/types";
+import { sweepExpiredGigs } from "./expiry";
 import { scanGigForHoneypots } from "./suspect";
 import type { Gig, GigAdapterName, GigPauseReason, GigSource, GigSourceRunOutcome } from "./types";
 
@@ -97,40 +104,23 @@ export type GigScanSummary = {
   aborted: boolean;
   /** The one source this run was narrowed to; null for a whole-workspace scan. */
   sourceId: string | null;
-  /** What the research pass did; null when no researcher is plugged in, or the budget
-   *  or the caller stopped the scan before it. */
-  research: GigResearchBatchSummary | null;
+  /** `new`/`qualified` gigs the expiry sweep moved to `expired` at the start of this run. */
+  expired: number;
+  /** The research this scan handed to the background: the `gig_research` task and how
+   *  many gigs it was given. Null when no enqueuer is plugged in, the scan created no gig,
+   *  the caller cancelled, or the enqueue failed (logged). */
+  research: { taskId: string | null; gigs: number } | null;
 };
 
-/** Gigs researched in one scan at most: each is up to three page reads plus one model
- *  spawn, so eight keeps a scan's research inside the wall budget with room to spare. */
-export const GIG_RESEARCH_MAX_PER_SCAN = 8;
-
-/** What one research pass reports (gigs/research.ts researchGigBatch). */
-export type GigResearchBatchSummary = {
-  /** Gigs a brief was attempted for. */
-  attempted: number;
-  /** ...of which the model wrote the brief. */
-  llm: number;
-  /** ...of which kp wrote the deterministic brief (keyless, refused, failed). */
-  deterministic: number;
-  /** ...of which no brief could be stored (a store fault, logged server-side). */
-  failed: number;
-  /** Gigs a page they linked to flagged as a honeypot in this pass. */
-  flagged: number;
-  /** True once a spawn answered `no_provider`: every later gig got the deterministic
-   *  brief with no further spawn (the first spawn doubles as the provider probe). */
-  providerMissing: boolean;
-};
-
-/** The research hook: brief up to `limit` gigs of this workspace (narrowed to one source
- *  when `sourceId` is set). `htmlByGigId` carries the raw listing HTML this scan saw -
- *  the row stores only the text, and the HTML's hrefs are where most links live. Owns its
- *  own writes; a throw is logged, never fatal to the scan. */
-export type GigResearchHook = (
+/** The research hook: hand the gigs this scan created to a background research pass and
+ *  answer its task id (null = nothing enqueued). `htmlByGigId` carries the raw listing HTML
+ *  this scan saw - the row stores only the text, and the HTML's hrefs are where most links
+ *  live, so the enqueuer reads them now. It must NOT wait for the research itself. A throw
+ *  is logged, never fatal to the scan. */
+export type GigResearchEnqueue = (
   workspaceId: string,
-  info: { signal: AbortSignal; limit: number; sourceId: string | null; htmlByGigId: ReadonlyMap<string, string | null> }
-) => Promise<GigResearchBatchSummary>;
+  req: { sourceId: string | null; gigs: readonly Gig[]; htmlByGigId: ReadonlyMap<string, string | null> }
+) => string | null | Promise<string | null>;
 
 export type GigScanOptions = {
   /** Run only this source. Unknown here (deleted since the enqueue) = nothing runs. */
@@ -156,7 +146,9 @@ export type GigScanDeps = {
   pauseGigSource: typeof pauseGigSource;
   scanHoneypots: typeof scanGigForHoneypots;
   qualify?: GigQualifyHook;
-  research?: GigResearchHook;
+  enqueueResearch?: GigResearchEnqueue;
+  /** The expiry sweep (gigs/expiry.ts), run first; answers how many gigs it expired. */
+  sweepExpired?: (workspaceId: string, now: string) => number;
   now: () => string;
   wallBudgetMs: number;
   log: (event: GigScanLogEvent, error?: unknown) => void;
@@ -173,6 +165,7 @@ export function defaultGigScanDeps(): GigScanDeps {
     recordGigSourceRun,
     pauseGigSource,
     scanHoneypots: scanGigForHoneypots,
+    sweepExpired: (workspaceId, now) => sweepExpiredGigs(workspaceId, now),
     now: () => new Date().toISOString(),
     wallBudgetMs: GIG_SCAN_WALL_BUDGET_MS,
     log: (event, error) => {
@@ -255,12 +248,23 @@ export async function runGigScan(
     qualifyFailed: 0,
     aborted: false,
     sourceId: only,
+    expired: 0,
     research: null,
   };
+  // Expiry FIRST, so a listing whose deadline passed is not qualified or researched again.
+  // A sweep that fails costs this run its expiries, never the scan.
+  if (deps.sweepExpired) {
+    try {
+      summary.expired = deps.sweepExpired(workspaceId, startedAt);
+    } catch (error) {
+      deps.log({ level: "warn", code: "expiry_failed" }, error);
+    }
+  }
   const budget = budgetSignal(signal, deps.wallBudgetMs);
   // The raw listing HTML this scan saw, per gig: the row keeps only the text, and the
-  // research pass reads the HTML's hrefs.
+  // research pass reads the HTML's hrefs. `created` = the gigs this scan inserted.
   const htmlByGigId = new Map<string, string | null>();
+  const created = new Map<string, Gig>();
   try {
     for (const source of sources) {
       if (budget.signal.aborted) {
@@ -275,7 +279,10 @@ export async function runGigScan(
       summary.found += run.summary.found;
       summary.created += run.summary.created;
       summary.suspect += run.summary.suspect;
-      for (const { gig, bodyHtml } of run.landed) htmlByGigId.set(gig.id, bodyHtml);
+      for (const { gig, bodyHtml, created: isNew } of run.landed) {
+        htmlByGigId.set(gig.id, bodyHtml);
+        if (isNew) created.set(gig.id, gig);
+      }
 
       // Qualification AFTER the source's outcome is recorded: acquisition truth does
       // not wait on a model, and a gig left `new` by an abort is picked up next scan.
@@ -293,18 +300,17 @@ export async function runGigScan(
         }
       }
     }
-    // Research LAST: acquisition and qualification truth never wait on page reads or a
-    // model. A gig left unresearched by the budget is picked up by the next scan.
-    if (deps.research && !budget.signal.aborted) {
+    // Research LAST and in the BACKGROUND: acquisition and qualification truth never wait
+    // on page reads or a model, and neither does the scan's own summary. Enqueued even when
+    // the budget stopped the scan between sources (the gigs that landed are real); not when
+    // the caller cancelled - an operator who pressed stop gets a stop.
+    if (deps.enqueueResearch && created.size > 0 && !signal?.aborted) {
       try {
-        summary.research = await deps.research(workspaceId, {
-          signal: budget.signal,
-          limit: GIG_RESEARCH_MAX_PER_SCAN,
-          sourceId: only,
-          htmlByGigId,
-        });
+        const gigs = [...created.values()];
+        const taskId = await deps.enqueueResearch(workspaceId, { sourceId: only, gigs, htmlByGigId });
+        summary.research = { taskId: taskId ?? null, gigs: taskId ? gigs.length : 0 };
       } catch (error) {
-        deps.log({ level: "warn", code: "research_failed" }, error);
+        deps.log({ level: "warn", code: "research_enqueue_failed" }, error);
       }
     }
     if (budget.signal.aborted) summary.aborted = true;

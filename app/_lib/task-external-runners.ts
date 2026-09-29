@@ -30,6 +30,8 @@
 // Since 2026-09-24 the Gigs module adds two: `gig_scan` (a queue spec in tasks.ts, the
 // manual "scan now" that also verifies its clock job) and `gig_sync` (clock-only, the
 // Personas run sync plus the outcome pollers). Both are registered in late-bound-boot.ts.
+// Since 2026-09-29 (gig-mastery) two more queue specs delegate here: `gig_research` (the
+// research pass a gig scan enqueues) and `gig_plans` (the three-seat plan runner).
 //
 // Contract: a spec in tasks.ts that delegates to `externalRunner(kind)` still declares
 // its own `tenancy` and still passes `ctx` (the pump test reads the spec text). A caller
