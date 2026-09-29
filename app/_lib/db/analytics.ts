@@ -343,9 +343,12 @@ export function pipelineAnalytics(
   // NEWEST FIRST + one row past the cap: the ordering makes the slice deterministic
   // and meaningful when the cap bites (the most recent `cap` of the cohort, not an
   // arbitrary page), and the extra row is how `truncated` is known without a second
-  // COUNT round-trip — the listJobsPage shape. SQLite sorts NULLs first, so DESC puts
-  // created_at-less rows LAST, which is also where an all-time view wants them: they
-  // carry no cohort date and are the first thing a bounded read should drop.
+  // COUNT round-trip — the listJobsPage shape. created_at-less rows go LAST, which is
+  // where an all-time view wants them: they carry no cohort date and are the first
+  // thing a bounded read should drop. That placement is STATED (NULLS LAST), not
+  // inherited: SQLite ranks NULL below every value, so DESC already put them last,
+  // but Postgres ranks it above ("NULLS FIRST is the default for DESC order"), and
+  // on the port the undated rows would have filled the cap before any dated one.
   const capped = <T>(list: T[]): { rows: T[]; truncated: boolean } =>
     list.length > rowCap ? { rows: list.slice(0, rowCap), truncated: true } : { rows: list, truncated: false };
   const read = capped(
@@ -362,7 +365,7 @@ export function pipelineAnalytics(
             )
             .all(cutoffIso, SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)
       : db
-          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`)
+          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC NULLS LAST LIMIT ?`)
           .all(SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)) as unknown[]
   );
   const truncated = read.truncated;
