@@ -559,10 +559,14 @@ export async function runAutomationTask(
     // screens them into Screened flagged for review — so the screening_review
     // always lands on a Screened entry and the Decisions→Interview path is reused
     // unchanged. From Screened: advance → Interview, hold → stays for review.
-    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(
-      entry.stage,
-      coerceScreenRoute(result.route)
-    );
+    // A TEMPLATE verdict never clears a candidate on its own. Which engine answered is
+    // decided by billing state (past the ai_candidates allowance the run is `--no-llm`),
+    // and the template's "advance" is a fixed 82 for any total >= 70 - above the bar,
+    // uncalibrated, and not the instrument the workspace chose. Letting it route
+    // "advance" made the workspace's invoice decide who moved on. It parks instead:
+    // same card, verdictSource "template" disclosed, a person decides.
+    const route = verdictSource === "llm" ? coerceScreenRoute(result.route) : "hold";
+    const { advance, holdForReview, applied: screenApplied } = screenStageOutcome(entry.stage, route);
     // CAS on the snapshot stage: `entry` was read before the seconds-long Python/LLM
     // hop, so a recruiter (Decisions) or a concurrent pass may have advanced/rejected
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
@@ -590,7 +594,9 @@ export async function runAutomationTask(
       // re-derived here from the entry, through the same live reader the auto-reject
       // backstop uses (unknown/unrouted fails closed): a shielded candidate is
       // advanced by a person, never by the plan gate.
+      // The gate trusts the MODEL's advance verdicts; a template's is never ratified.
       if (
+        verdictSource === "llm" &&
         getPlanGateForRole("screening", workspaceId) === "auto" &&
         coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance" &&
         !readLiveArchetypes().isFairnessProtected(entry.archetype)

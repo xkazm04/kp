@@ -203,6 +203,45 @@ for (const archetype of ["student", "career_switcher", null, "quantum_alchemist"
   });
 }
 
+// RED FIRST (before the change): a TEMPLATE verdict advanced a candidate unattended.
+// Past the ai_candidates allowance every screen runs `--no-llm`, whose builder answers
+// "advance" at a fixed 82 for any match total >= 70 with no missing must-have - above
+// the 80 bar, so the route came back "advance" and the entry moved with no person and
+// no engine-attributed event. The instrument that decided who advanced was chosen by
+// the workspace's billing state (see ai-registry recruiting/degrade-never-block-a-candidate,
+// an-outage-must-not-change-who-advances).
+test("a TEMPLATE advance verdict parks for a human instead of moving the candidate", async () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  seedVerdict(f, "screen", { route: "advance", recommendation: "advance", confidence: 82 }, "deterministic", "en");
+
+  const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+  assert.equal(out.applied, "held_for_review", "a template never decides who advances");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human decides");
+  assert.equal(parseApproval(f.entry.id, f.ws).verdictSource, "template", "the card discloses the engine");
+  const hold = listPipelineEventsForEntry(f.entry.id, 50, f.ws).find((e) => e.kind === "screening_hold");
+  assert.equal(hold?.actor, "auto:automation-template", "the parked verdict is attributable to its engine");
+});
+
+test("an LLM advance verdict still advances unattended (control)", async () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  seedVerdict(f, "screen", { route: "advance", recommendation: "advance", confidence: 82 }, "llm", "en");
+
+  const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+  assert.equal(out.applied, "advanced");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind ?? null, null, "nothing parked");
+});
+
+test("screening gate 'auto' never ratifies a TEMPLATE advance recommendation", async () => {
+  const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
+  setGate(f.ws, "screening", "auto");
+  seedVerdict(f, "screen", { route: "hold", recommendation: "advance" }, "deterministic", "en");
+
+  const out = await runAutomationTask(f.entry.id, "screen", "", undefined, "en");
+  assert.notEqual(out.applied, "auto_ratified", "the workspace trusted the MODEL's advance verdicts, not the template's");
+  assert.equal(getPipelineEntry(f.entry.id, f.ws)?.approvalKind, "screening_review", "a human still decides");
+  setGate(f.ws, "screening", "human");
+});
+
 test("the CAS primitive the screen path arms drops a decision computed against a moved row", () => {
   const f = fixture(DEFAULT_WORKSPACE_ID, null, screeningStage(DEFAULT_WORKSPACE_ID));
   const snapshot = f.entry.stage;
