@@ -24,9 +24,16 @@ from pipeline.jobfit.models import JobFitResult
 
 def _payload(*, missing: list[str], skills: list[str]) -> dict:
     """A complete, valid Gemini payload whose job_fit names ``missing`` as gaps and
-    whose profile carries ``skills`` (professional provenance via the CV fallback)."""
+    whose profile carries ``skills`` at an explicitly stated professional provenance.
+
+    The provenance used to come from the CV fallback, which minted "professional" for
+    any experienced candidate - the segmented default test_cv_path_default_provenance
+    retired. A merely listed sibling now reads "both" (adjacency AND provenance), so
+    the adjacency tests state the tier they need, as test_matched_provenance_honesty
+    does."""
     return {
         "profile": {
+            "skill_claims": [{"skill": s, "provenance": "professional"} for s in skills],
             "raw_text": ("Senior marketing specialist. " * 5) + " ".join(skills),
             "name": "Jane Doe",
             "years_experience": 8,

@@ -739,7 +739,7 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         SkillClaim,
         normalize_profile,
     )
-    from .taxonomy import PROVENANCE_WEIGHTS
+    from .taxonomy import DEFAULT_PROVENANCE, PROVENANCE_WEIGHTS
 
     years = profile.years_experience
     archetype, confidence, reasons = detect_archetype(
@@ -752,7 +752,11 @@ def _v2_profile_from_payload(payload: dict[str, Any], profile: CandidateProfile)
         has_substantial_experience=_as_bool(payload.get("has_substantial_experience")),
     )
     early = archetype in registry.early_career_archetypes()
-    default_prov = "self_declared" if early else "professional"
+    # One floor for every archetype. This used to be "professional" unless the CV
+    # read as early-career: the segmented discount the UAT 2026-07-20 fix removed
+    # from build_match_candidate survived here, baked into the stored v2 profile
+    # where that fix could not see it (test_cv_path_default_provenance).
+    default_prov = DEFAULT_PROVENANCE
     prov_ok = set(PROVENANCE_WEIGHTS)
 
     raw_claims = payload.get("skill_claims")
