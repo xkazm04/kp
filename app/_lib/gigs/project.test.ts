@@ -8,7 +8,7 @@ import path from "node:path";
 import { getGig, upsertGigFromRaw } from "../db/gigs.ts";
 import type { Gig } from "./types.ts";
 import type { EnsurePersonasProjectResult, EnsurePersonasWorkspaceResult } from "./personas-places.ts";
-import { GIG_ARENA_WORKSPACE_NAME, gigProjectName, prepareGigProject, type GigProjectDeps } from "./project.ts";
+import { GIG_ARENA_WORKSPACE_NAME, gigProjectName, gigTypeWorkspaceName, prepareGigProject, type GigProjectDeps } from "./project.ts";
 import { gigsRoot } from "./workdir.ts";
 
 after(() => cleanupUnitDb());
@@ -78,9 +78,9 @@ test("linked: folder scaffolded, arena workspace ensured, project rooted at the 
   const r = await prepareGigProject(WS, gig.id, p.deps);
   assert.ok(r.ok);
   if (!r.ok) return;
-  assert.ok(r.workdir.startsWith(path.join(gigsRoot(), "freelance") + path.sep), r.workdir);
+  assert.ok(r.workdir.startsWith(path.join(gigsRoot(), "other") + path.sep), r.workdir);
   assert.ok(existsSync(path.join(r.workdir, "GIG.md")) && existsSync(path.join(r.workdir, "NOTES.md")));
-  assert.deepEqual(r.personas, { linked: true, projectId: "proj-1", workspaceId: "pws-free", created: true });
+  assert.deepEqual(r.personas, { linked: true, projectId: "proj-1", workspaceId: "pws-free", created: true, placedBy: "arena" });
   assert.equal((p.calls.workspaces[0] as { name: string }).name, "Freelance");
   assert.deepEqual(p.calls.projects[0], {
     name: `Gig · ${gig.title}`,
@@ -150,4 +150,33 @@ test("a throwing injected Personas call is personas_unreachable; a folder failur
     ok: false,
     code: "GIG_NOT_FOUND",
   });
+});
+
+test("placeBy type: the gig type's workspace; a project already in the arena's workspace is left there", async () => {
+  const gig = newGig("security");
+  const p = personas(
+    { ok: true, id: "pws-type", name: "Gigs · Security", groupTeamId: null, created: true },
+    (input) => ({ ok: true, id: "proj-t", name: "n", rootPath: input.rootPath, workspaceId: input.workspaceId, created: true })
+  );
+  const r = await prepareGigProject(WS, gig.id, p.deps, { placeBy: "type" });
+  assert.ok(r.ok && r.personas.linked);
+  if (!r.ok || !r.personas.linked) return;
+  assert.equal(gigTypeWorkspaceName("security"), "Gigs · Security");
+  assert.equal((p.calls.workspaces[0] as { name: string }).name, "Gigs · Security");
+  assert.equal(r.personas.placedBy, "type");
+  assert.ok(r.workdir.startsWith(path.join(gigsRoot(), "security") + path.sep), "a security-arena gig with no brief is filed under security/");
+
+  // A gig whose project was registered in the arena's workspace: 409 by type, then the arena.
+  const older = newGig("freelance");
+  const seen: (string | null)[] = [];
+  const q = personas(WS_OK, (input) => {
+    seen.push(input.workspaceId);
+    return seen.length === 1
+      ? { ok: false, reason: "personas_project_conflict", status: 409 }
+      : { ok: true, id: "proj-arena", name: "n", rootPath: input.rootPath, workspaceId: input.workspaceId, created: false };
+  });
+  const moved = await prepareGigProject(WS, older.id, q.deps, { placeBy: "type" });
+  assert.ok(moved.ok && moved.personas.linked && moved.personas.placedBy === "arena" && moved.personas.projectId === "proj-arena");
+  assert.deepEqual((q.calls.workspaces as { name: string }[]).map((w) => w.name), ["Gigs · Other", "Freelance"]);
+  assert.equal(getGig(WS, older.id)!.personasProjectId, "proj-arena");
 });

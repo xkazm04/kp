@@ -423,6 +423,11 @@ the spec as sent, requirements included. A specialist's stored `spec.promptVersi
 
 ## Workspaces and projects
 
+Since one persona per gig (see **Pairing**), a paired gig's project
+and persona are filed in the gig TYPE's workspace (`Gigs · <type>`) and new folders sit under
+`<root>/<type>/`; the per-arena workspaces below hold the niche specialists and the projects of
+gigs prepared before pairing.
+
 Every gig attempt runs **in the gig's own folder**, so the agent's files, notes and
 deliverable land where the operator can open them, and each gig's work is isolated from
 every other gig's and from real repositories (Personas runs agents with permissions
@@ -578,69 +583,161 @@ At execute, Personas' 404 `project_not_found` and 403 `project_outside_persona_w
 become `personas_project_not_found` / `personas_project_outside_workspace`: the attempt
 fails and the gig returns to `qualified`, like every other dispatch failure.
 
-## Matchmaking and routing
+## Pairing
+ONE Personas persona per gig (gig-mastery S2, since 2026-09-29). It is created when the gig is
+paired and retired when the gig ends; what the work teaches persists in the registry (recipes and
+knowledge bundles), never in a long-lived persona. Before this, kp hired one "niche specialist"
+per arena + niche and reused it across up to 135 gigs; those specialists keep working the gigs
+they already started (see **Legacy niche specialists**) and are retired as that work closes.
 
-Which specialist a gig goes to. Until 2026-09-25 a gig went to the OLDEST specialist in its
-arena (`findGigSpecialistForArena`: an exact `gig.niche` match, else the first), and since
-nothing ever set `gig.niche`, every freelance gig went to whichever specialist was hired
-first. Now a matcher ranks them and the operator can override it.
+**Gig type** (`app/_lib/gigs/gig-type.ts`, pure). A closed vocabulary orthogonal to the arena:
+`security | web | ui | data-ml | architecture | content | other`. `gigTypeOf(gig)` reads the
+brief category's FIRST segment ("Web security" in "Web security · Stored XSS") against keyword
+rules - multi-word phrases first ("system design" is architecture, not ui), then single words in
+rule order (security, web, ui, data-ml, architecture, content: "Web security" is security, "Web
+design" is web) - and falls back to the arena (`security` -> security, `competition` -> data-ml,
+otherwise other). The type decides three things:
 
-**The matcher** (`app/_lib/gigs/match.ts`, pure, deterministic, keyless, client-safe).
-`rankSpecialistsForGig(gig, candidates)` answers
-`[{ specialistId, score 0..100, reasons: [{ code, evidence }], ready }]`, sorted:
+- the gig's **folder**: `<root>/<type>/<yyyy-mm-dd>-<slug>-<id6>/` (`workdir.ts`). A folder
+  already recorded in `gigs.workdir` is never moved, so gigs prepared before 2026-09-29 stay
+  under `<root>/<arena>/`;
+- the **Personas workspace** the persona and the gig's project are filed in: `Gigs · <label>`
+  ("Gigs · Security", "Gigs · Data & ML"; `project.ts` `gigTypeWorkspaceName`). A project
+  Personas already registered in the arena's workspace (a gig prepared before pairing) answers
+  409 `project_in_other_workspace` when placed by type; the pairing then files the persona
+  beside it in the arena's workspace (`placedBy: "arena"`), because Personas binds a run only to a
+  project in the persona's own workspace;
+- the **knowledge** the persona is hired with, `GIG_TYPE_KNOWLEDGE`:
 
-| Signal | Rule |
+| Type | Registry subjects |
 | --- | --- |
-| arena | must match, else the specialist is not a candidate at all |
-| routed | `gig.niche` equal (trimmed, case-insensitive) to the specialist's niche: 100, reason `routed` |
-| niche fit | the specialist's niche words found in the brief category (weight 1.0, reason `category_terms`), the listing's tags (0.85, `tag_terms`) or its title and brief title (0.7, `title_terms`); each word counted once, in its strongest field. Words are normalized (case, accents, `front-end` -> `frontend`), lightly stemmed (plural `s`, `-ies`, `-ing`), stopwords dropped, and folded through ONE synonym table, `GIG_NICHE_SYNONYMS` (web / website / frontend / html / css; data / excel / sheets / analysis; writing / content / copy; ai / llm / agents / automation). Generic words ("development", "design", "services") weigh 0.4. Up to 90 points: half for how much of the niche the gig covers, half for how strong the hits are (two full hits saturate) |
-| generalist | a niche with no words left ("general"): 15, reason `generalist`, below every real fit |
-| record | accepted / resolved sent work (`kpi.ts` `bySpecialist`), damped under 10 resolved: up to 10 points, reason `record` with `accepted/resolved`. Added only to a specialist that already fits, so it breaks ties and never matches alone |
-| ready | the hire is `active` (`GIG_RUNNABLE_HIRE_STATUSES`, which dispatch and routing read too). `onboarding` is not ready: Personas is still designing the persona from kp's requirements, and a run dispatched then executes a half-built persona. Not part of the score: a specialist waiting on Personas is ranked and shown (`hire_not_ready` / `no_hire`), never picked |
+| security | software-engineering / authorization, browser-credential-boundary, supply-chain |
+| web | software-engineering / error-handling, data-access, rate-limiting |
+| ui | software-engineering / accessibility, design-tokens, async-ui-states |
+| data-ml | software-engineering / eval-harness, measurement-honesty |
+| architecture | software-engineering / module-design, invariant-placement |
+| content | marketing / honest-proof-and-illustrative-data |
+| other | none |
 
-Order: score desc, ready first, the gig's current specialist (so an unchanged gig never
-flips on a tie), the oldest, then id. `pickGigMatch` takes the best READY candidate scoring
-above 0, else none. `suggestNicheForGig` names the niche to hire for: the brief category's
-head ("Web development · Typing test tool" -> "Web development"), else the first tag.
+Each subject's `path` is resolved through its bundle index (`<registry>/knowledge/<bundle>/index.json`
+-> `subjects[slug].file`, registry-relative), found with the same precedence recipes use
+(`AI_REGISTRY_DIR`, `.ai/manifest.yaml` `registry.local`, `../ai-registry`). A subject the index
+does not carry, a file that would escape the checkout, or no registry at all DROPS the subject:
+never a guessed path. At most 12.
 
-**Who calls it.** `qualify.ts` `rankGigSpecialists` feeds the ranker the workspace's
-specialists, each hire's status and the KPI record; `qualifyAndMatch` records
-`pickGigMatch`'s specialist, so a gig whose words name no specialist's niche is NOT matched
-(`arenaFit` false, it stays `new`) instead of falling to the oldest. The qualify arithmetic
-is unchanged. `dispatch.ts` uses the gig's recorded specialist, else the matcher's pick (or,
-so the refusal names the hire's state, the best-fitting specialist that is not ready).
-`findGigSpecialistForArena` (`db/gigs-specialists.ts`) keeps its old behaviour and no
-longer has a caller in the gig line.
+**The flow** (`app/_lib/gigs/pairing.ts` `pairGig(workspaceId, gigId)`), run by a dispatch:
 
-**Routing** (`app/_lib/gigs/routing.ts`, through `PATCH /api/gigs/[id]`):
+1. The gig needs an operator-ACCEPTED plan (`db/gigs-plans.ts` `getAcceptedGigPlan`), else
+   `GIG_PLAN_NOT_ACCEPTED`. A suspect gig or one off the line is refused as dispatch refuses it.
+2. The folder is prepared as always, and the gig's Personas project is ensured in its type's
+   workspace (`prepareGigProject(..., { placeBy: "type" })`). Pairing needs that project: an
+   unpaired install, an unreachable or older Personas refuses `GIG_WORKSPACE_FAILED` with the
+   reason (`personas_unpaired`, `personas_route_missing`, ...).
+3. The accepted plan becomes the project's **milestone** (`POST /api/dev/projects/{pid}/milestones`):
+   name = the gig's (brief) title, `goal` = the plan summary cut to Personas' 72-character short
+   title, `description` = the summary, and one **goal per step** - title `"<n>. <step title>"`
+   (unique within the gig's project, which is how Personas dedupes goals), description `"Done
+   when: <doneWhen>"`. Personas takes at most 8 goals per call, so a 9-step plan creates 8, adds
+   the ninth (`POST /api/dev/milestones/{id}/goals`) and reads every id back (`GET
+   /api/dev/milestones/{id}`). `{ milestoneId, goals: [{ stepIndex, goalId, status: "open",
+   progress: 0, note: null }] }` is recorded on the accepted plan (`progress_json`,
+   `setGigPlanProgress`). The milestone is created ONCE (Personas does not dedupe milestones).
+   A milestone Personas will not create DEGRADES: the goals are recorded with `goalId: null`
+   and tracked locally under `step-<n>`, the hire still goes out, and the next pairing tries the
+   milestone again (keeping any status already reported).
+4. The **gig persona**: the gig's own `gig_specialists` row (`gig_id` set) is reused unless its
+   hire failed, was rejected or was retired; otherwise it is hired through the one shared hire
+   tail (`specialist.ts` `hireGigPersona` -> `mintAndDispatch`).
+5. The gig's `specialist_id` is pointed at its persona (`setGigRoute`, a CAS on the status read).
 
-- `{ action: "route", specialistId }` sets `specialist_id` and copies the specialist's niche
-  onto `gig.niche`, which the matcher's `routed` signal then scores 100, so every later
-  ranking keeps the choice. The specialist must be in the same workspace (another
-  workspace's reads as absent: 409 `GIG_SPECIALIST_NOT_READY`, `detail: no_specialist`), the
-  same arena (409 `GIG_ROUTE_ARENA_MISMATCH`), with a runnable hire (409
-  `GIG_SPECIALIST_NOT_READY`, `detail: hire_<status>`). A routed `new` gig is re-qualified at
-  once, so it can become `qualified`.
-- `{ action: "unroute" }` clears `gig.niche` and puts the matcher's pick (or none) in
-  `specialist_id`; a `new` gig is re-qualified the same way.
-- Both are allowed while the gig is `new`, `qualified`, `drafted` or `in_review` and carries
-  no honeypot reasons (`canRouteGig`, `GIG_ROUTABLE_STATUSES`); never while `dispatched`
-  (a run holds the specialist), never a suspect gig, never off the line (409
-  `GIG_ACTION_NOT_ALLOWED` with `gigStatus`). The write (`db/gigs.ts` `setGigRoute`) is one
-  UPDATE whose WHERE re-asserts the status read, so a gig a dispatch claimed meanwhile is
-  left alone (409 `GIG_STATE_CHANGED`).
+It answers the current state: `ready` when the persona's hire is `active` with a persona id,
+`pending` while Personas has not approved it. Calling it again for a paired gig re-ensures the
+folder and project (both create-if-absent), skips the milestone and the hire, and answers the same
+state. No transaction spans any of it; every DB write is one statement after the call it records.
 
-**The routing tab** ("Routing & folder" on a gig's proof, `proof/panels/RoutingPanel.tsx`;
-derivation in `logic/routing.ts`): who the gig goes to now ("routed by you" or "auto-matched"), the fit score
-against the qualification bar, the source, the gig's folder and Personas project with
-**Prepare workspace**, the qualification factors, and (one fold further) every specialist in
-the arena ranked by the same `rankSpecialistsForGig` the server runs, each with its fit as a
-labelled bar AND "Fit N of 100" in words, its reasons as sentences and its readiness;
-**Route here** on each ready candidate that is not the current one; **Auto-match** (unroute)
-on a routed gig. When no candidate both scores above 0 and is ready, "No specialist fits"
-offers a hire for the suggested niche, editable inline (`POST /api/gigs/specialists`).
-While the gig is dispatched, suspect or off the line the buttons are gone and a sentence
-says why. Strings: `gigs.routing.*` and `gigs.workspace.*`, four catalogs.
+**The persona request** (`POST {bridge}/api/kp/persona-requests`, the Personas side is WP3):
+
+| Field | Value |
+| --- | --- |
+| `spec.name` | `<short title> · <id6>` (the brief's title, else the listing's, cut at a word to 48 characters) |
+| `spec.mission` | the accepted plan's summary |
+| `spec.modelProfile` | `{ model: "claude-opus-5-5", effort: "high" }` (`plan-seats.ts` `GIG_PERSONA_MODEL`) |
+| `spec.requirements` | `kp.agent-requirements.v1` as a niche specialist's (the arena's recipes, lessons, research, rules, outputs, tools), plus: `responsibilities` led by the plan's steps (`Plan step N: <title> (done when: ...)`), `knowledge` (the type's subjects, above), and `plan: { summary, steps, operatorNote, statusFile: "PLAN-STATUS.json", statusContract: "kp-plan-status.v1" }`. Still no `systemPromptDraft`, and still no listing text |
+| `fit` (top-level) | `{ kind: "kp.gig-persona.v1", gigId, gigType, arena, recipes, knowledge: [{ bundle, subject }] }` - Personas applies its operator's gig-persona approval policy to this kind (also stored on kp's `hired_agents.fit_json`) |
+| `placement` | `{ workspaceId, projectId }` - the type's (or arena's) workspace and the gig's own project |
+| `kp.jobId` | `gig-persona:<gigId>` (the stored `job_id` stays `""`, as for every gig hire) |
+
+`job_title` on kp's roster is `Gig persona - <name>`. With the Personas operator's gig-persona
+policy enabled the request is approved on arrival (`autoApproved: true`); otherwise it waits in
+Personas' approvals like any hire. kp handles both the same way: the hire is `pending_approval`
+until the push report or the sync's poll moves it.
+
+**Dispatch** (`POST /api/gigs/[id]/dispatch`, `dispatch.ts`):
+
+- an accepted plan -> pair, then:
+  - persona `active`: run as before, and the assignment (`kp.gig.v1`) now also carries
+    `plan: { summary, steps: [{ goalId, title, doneWhen }], note, statusFile, statusContract }`
+    (`plan-status.ts` `GigPairedAssignment`; `goalId` is the Personas goal id, else `step-<n>`);
+  - persona not approved yet: **202** `{ pairing: "pending", specialistId }`. Nothing is claimed
+    and no attempt is minted; the sync runs the gig once the hire is active (below);
+  - the persona's hire did not go out: 502 `GIG_SPECIALIST_NOT_READY` `{ detail: "hire_failed",
+    hireCode }` (429 `TOO_MANY_REQUESTS` when the hire tail's own limiter refused it);
+- no accepted plan and no earlier attempt: **409 `GIG_PLAN_NOT_ACCEPTED`**;
+- no accepted plan but the gig already has attempts: the **legacy** path, unchanged.
+
+A revision of a paired gig (`revise` on the review desk) goes to the same persona.
+
+**PLAN-STATUS** (`plan-status.ts`). The persona keeps `<workdir>/PLAN-STATUS.json` =
+`{ goals: [{ goalId, status: open | in-progress | blocked | done, progress: 0..100, note? }] }`;
+the rule is written into every folder's `DELIVERABLE-CONTRACT.md` ("Plan status
+(kp-plan-status.v1)", `contract.ts` `gigPlanStatusContractMarkdown`; it binds only a run whose
+assignment carries `plan`). Every sync reads it for each gig with an active gig persona, strictly:
+a missing, oversized (64 KB), non-regular or unparseable file is NO update; an entry whose goalId
+is not one of this plan's, or whose status is not one of the four words, is ignored; progress is
+clamped to 0..100 and rounded; a reported `open` never regresses a goal that already moved. Each
+changed goal is patched in Personas (`POST /api/dev/goals/{id}` `{ status, progress }` - kp's four
+statuses map 1:1 onto Personas' `open | in-progress | blocked | done`) and recorded on the
+accepted plan only once Personas accepted it, so an unreachable Personas is retried next pass
+instead of diverging. A `step-<n>` goal (no milestone) is recorded locally and never patched.
+
+**The sync** (`sync.ts` `syncGigPersonas`, after the attempts, on every `gig_sync` pass and
+`POST /api/gigs/sync`), four steps, each a no-op when there is nothing for it:
+
+1. a gig persona whose hire is `pending_approval | onboarding` is polled (`GET
+   /api/kp/persona-requests/{id}`) and moved through the one lifecycle map
+   (`agent-hire/lifecycle.ts`), exactly like the Agents tab's refresh;
+2. a paired gig (`qualified`, `specialist_id` naming its persona, an accepted plan) whose persona
+   is now `active` and that it has never run is dispatched - the 202 finishing. Once only: a
+   failed first run returns the gig to `qualified` WITH an attempt, and the retry is the operator's;
+3. PLAN-STATUS, above;
+4. **retire**: a gig persona whose gig ended (`accepted | rejected | declined | withdrawn |
+   expired`, or the gig is gone), and a NICHE specialist that no attempt in
+   `dispatched | running | drafted | approved` references any more, is retired: `POST
+   /api/kp/personas/{personaId}/retire`, then the hire moves to `retired` on its `hired_agents`
+   row (the row every hire status lives on; no new column). A hire with no persona yet is retired
+   in kp only. A persona Personas no longer knows (a 404 naming it) is retired in kp too; any
+   other refusal (403 not kp's, an older Personas without the route, unreachable) leaves it for a
+   later pass (`retireDeferred`).
+
+The pass reports `personas: { hiresPolled, activated, executed, executeFailed, planGoalsUpdated,
+retired, retireDeferred }` beside the attempt counts.
+
+**Qualification without niche specialists** (`qualify.ts`). The arithmetic is unchanged. A gig
+in an install PAIRED with Personas (`getBridgeConfig().paired`: a stored or env key) has
+`specialistAvailable` AND `arenaFit` true - its persona is hired for it, in its arena, at pairing
+- so it scores exactly what a gig with a matching niche specialist scored before. Unpaired, both
+are false unless the operator routed the gig to a ready niche specialist (the ceiling stays 40,
+below the bar). `qualifyAndMatch` NO LONGER auto-routes: `specialist_id` stays null until
+pairing (or keeps the niche specialist the operator routed it to).
+
+**Legacy niche specialists.** The matcher (`match.ts` `rankSpecialistsForGig`, pure, unchanged
+scoring) and the operator's route / unroute (`routing.ts`, `PATCH /api/gigs/[id]`) keep working,
+over NICHE specialists only: a gig persona (`gig_id` set) is never ranked, routed to, or reused as
+a niche specialist (`rankGigSpecialists`, `findGigSpecialistForArena` and `hireGigSpecialist`'s
+reuse all skip it). A gig that already has attempts and no accepted plan dispatches to its niche
+specialist exactly as before (its recorded specialist, else the matcher's pick). Accepting a plan
+for such a gig moves its next dispatch to a persona of its own. `POST /api/gigs/specialists`
+still hires a niche specialist; the sweep above retires it once it has no open work.
 
 ## The Gigs tab
 
@@ -875,8 +972,8 @@ seen. Info never gates.
 | GET | `/api/gigs` | operator | none | `GIG_INPUT_INVALID` |
 | POST | `/api/gigs` | `pipeline:write` | 30 `gigs-forward` | `GIG_INPUT_INVALID` |
 | GET | `/api/gigs/[id]` | operator | none | `GIG_NOT_FOUND` |
-| PATCH | `/api/gigs/[id]` | `pipeline:write` | 120 `gigs-write` | `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED`, `GIG_STATE_CHANGED`, `GIG_INPUT_INVALID` (`field: "challenge"` for a withdraw reason the brief does not hold, see **Withdraw reasons**); `route` / `unroute` (see **Matchmaking and routing**) add `GIG_SPECIALIST_NOT_READY` (409, `detail`) and `GIG_ROUTE_ARENA_MISMATCH` (409) |
-| POST | `/api/gigs/[id]/dispatch` | `pipeline:write` | 20 `gigs-dispatch` | `GIG_NOT_FOUND`, `GIG_SUSPECT`, `GIG_NOT_DISPATCHABLE`, `GIG_SPECIALIST_NOT_READY` (409), `GIG_DISPATCH_FAILED` (502), `GIG_WORKSPACE_FAILED` (502 Personas / 500 folder, `detail`) |
+| PATCH | `/api/gigs/[id]` | `pipeline:write` | 120 `gigs-write` | `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED`, `GIG_STATE_CHANGED`, `GIG_INPUT_INVALID` (`field: "challenge"` for a withdraw reason the brief does not hold, see **Withdraw reasons**); `route` / `unroute` (legacy niche routing, see **Pairing**) add `GIG_SPECIALIST_NOT_READY` (409, `detail`) and `GIG_ROUTE_ARENA_MISMATCH` (409) |
+| POST | `/api/gigs/[id]/dispatch` | `pipeline:write` | 20 `gigs-dispatch` (plus the hire tail's own when the gig persona is hired) | 200 `{ gig, attempt, executionId }`; 202 `{ pairing: "pending", specialistId }`; `GIG_NOT_FOUND`, `GIG_SUSPECT`, `GIG_NOT_DISPATCHABLE`, `GIG_PLAN_NOT_ACCEPTED` (409), `GIG_SPECIALIST_NOT_READY` (409 `detail`; 502 `detail: "hire_failed"` + `hireCode`), `GIG_DISPATCH_FAILED` (502), `GIG_WORKSPACE_FAILED` (502 Personas / 500 folder, `detail`), `TOO_MANY_REQUESTS` |
 | POST | `/api/gigs/[id]/workspace` | `pipeline:write` | 20 `gigs-workspace` | 200 `{ gig, personas }`; `GIG_NOT_FOUND`, `GIG_WORKSPACE_FAILED` (500, `detail` = `workdir_*`) |
 | POST | `/api/gigs/[id]/outcome` | `pipeline:write` | 60 `gigs-outcome` | `GIG_NOT_FOUND`, `GIG_ATTEMPT_NOT_FOUND`, `GIG_OUTCOME_NOT_SENT`, `GIG_INPUT_INVALID` |
 | GET | `/api/gigs/attempts/[id]` | operator | none | `GIG_ATTEMPT_NOT_FOUND` |
@@ -909,11 +1006,14 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's pinned web-researching model call, the Markdown and its sections; the `gig_research` pass |
 | `app/_lib/gigs/plans.ts`, `pipeline/jobfit/gig_plan_cli.py`, `plan-seats.ts`, `app/_lib/db/gigs-plans.ts` | the plan runner (three seats in parallel), the plan CLI, the seat lineup, the plan store and the one acceptance |
 | `app/_lib/gigs/expiry.ts` | the expiry sweep the scan runs first |
-| `app/_lib/gigs/qualify.ts` | deterministic qualification; `rankGigSpecialists` / `matchGigSpecialist` feed the matcher from the store |
-| `app/_lib/gigs/match.ts`, `routing.ts` | the pure, client-safe specialist ranker (`rankSpecialistsForGig`, `pickGigMatch`, `suggestNicheForGig`) and the operator's route / unroute |
-| `app/_lib/gigs/recipes.ts`, `specialist.ts`, `checklists.ts` | recipe resolution, specialist composition and hire, per-arena review checklists |
-| `app/_lib/gigs/dispatch.ts`, `personas-exec.ts`, `sync.ts`, `deliverable.ts` | Personas dispatch, run sync, deliverable parser |
-| `app/_lib/gigs/workdir.ts`, `project.ts`, `personas-places.ts` | the gig's folder, the Personas workspace per arena and project per gig, the two bridge calls |
+| `app/_lib/gigs/gig-type.ts` | the gig type vocabulary, `gigTypeOf`, and the type's registry knowledge (`GIG_TYPE_KNOWLEDGE`; client-safe) - the filesystem resolver `resolveGigTypeKnowledge` is `gig-type-knowledge.ts`, server only |
+| `app/_lib/gigs/pairing.ts` | one persona per gig: `pairGig` (project by type, the plan as a milestone, the persona hired or reused) |
+| `app/_lib/gigs/plan-status.ts` | PLAN-STATUS.json: the strict parse, the no-regress merge, one gig's mirror to the Personas milestone; the paired assignment's `plan` block |
+| `app/_lib/gigs/qualify.ts` | deterministic qualification (a paired install has every gig's persona available); `rankGigSpecialists` feeds the legacy matcher from the store |
+| `app/_lib/gigs/match.ts`, `routing.ts` | the pure, client-safe NICHE specialist ranker (gig personas skipped) and the operator's route / unroute, kept for legacy gigs |
+| `app/_lib/gigs/recipes.ts`, `specialist.ts`, `checklists.ts` | recipe resolution, niche specialist and gig persona composition and hire (`hireGigSpecialist`, `hireGigPersona`), per-arena review checklists |
+| `app/_lib/gigs/dispatch.ts`, `personas-exec.ts`, `sync.ts`, `deliverable.ts` | Personas dispatch (paired or legacy), the run sync plus the persona pass (hires, first runs, PLAN-STATUS, retirement), deliverable parser |
+| `app/_lib/gigs/workdir.ts`, `project.ts`, `personas-places.ts` | the gig's folder (by type), the Personas workspace per type (or arena) and project per gig, and the bridge calls: workspace, project, milestone, goals, goal patch, persona retire |
 | `app/_lib/gigs/review.ts` | the review desk's actions |
 | `app/_lib/gigs/outcome.ts` | the one verdict path (manual and pollers) |
 | `app/_lib/gigs/pollers.ts` | GitHub and Kaggle outcome pollers |
@@ -922,6 +1022,19 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
 | `app/features/gigs/logic/*.ts` | the tab's pure derivations, one module per concern, each with its `*.test.ts`: `line.ts` (which queue a gig sits in, `queueKindOf`; how far along the line it got, `reachedStep`), `rate.ts` (the rate as a fraction), `facts.ts` (deadlines, evidence states, the Approve and Mark sent gates), `keys.ts` (the keyboard guards), `front.ts` (front columns and the urgency order, walking a list), `file.ts` (the whole file's filter and sort), `niches.ts` / `lanes.ts` (niches and lanes), `reviewNote.ts` (the reviewer note read into parts), `galley.ts` (margin notes pinned to their paragraph), `summary.ts` (the summary set for reading), `routing.ts` (the routing tab) |
 | `app/_lib/gigs/sources-catalog.ts` | tiers, hosts, keys, terms summaries and hashes |
+
+The gig sync (`gig_sync`) the clock's summary (`gig_sync` task result) now carries
+`personas: { hiresPolled, activated, executed, executeFailed, planGoalsUpdated, retired,
+retireDeferred }`; the route's `{ synced, attempts }` answer is unchanged.
+
+`POST /api/gigs/attempts/[id]` `revise`: for a paired gig whose persona is not active the
+dispatch half answers 409 `GIG_SPECIALIST_NOT_READY` `detail: "pairing_pending"` with the
+revision recorded (`revisionRecorded: true`).
+
+Bridge client (`app/_lib/agent-hire/bridge-client.ts`), additive only: `DispatchSpec.modelProfile`,
+`DispatchPassthrough.placement.projectId` and `DispatchPassthrough.fit` are sent only when set
+(every other hire's wire is unchanged), and a `{ autoApproved: true }` answer is surfaced on the
+dispatch result.
 
 ## Lessons
 
@@ -1025,6 +1138,14 @@ at }` when the operator withdrew the gig for a brief challenge, NULL otherwise (
 row withdrawn before the column existed). `gig_attempts.fallback_reason` may be set at dispatch
 (`personas_route_missing`); the sync clears it when the draft lands.
 
+`gig_specialists.gig_id` (ALTER-added, 427cdc3d0) is written: the ONE gig a gig persona was hired
+for, NULL on the niche specialists. `db/gigs-specialists.ts` adds `getGigSpecialistForGig` (newest
+row per gig, so a replaced failed hire is superseded) and `listGigPersonaSpecialists`; both bind
+`workspace_id`. A persona's retirement is its `hired_agents.status = 'retired'` (no new column).
+`gig_plans.progress_json` on the accepted plan holds the milestone mirror `{ milestoneId, goals:
+[{ stepIndex, goalId, status, progress, note }], updatedAt }` (written by the pairing and the
+sync). The gig's type is DERIVED (`gigTypeOf`) each time, not stored.
+
 ## Keyless behaviour
 
 - `github_bounty` and `freelancer_api` run keyless. `hackerone` falls back to the public
@@ -1040,10 +1161,11 @@ row withdrawn before the column existed). `gig_attempts.fallback_reason` may be 
 - The GitHub poller runs keyless at GitHub's unauthenticated rate. The Kaggle poller does
   nothing without `KAGGLE_USERNAME` + `KAGGLE_KEY`: it makes no request and records no
   verdict.
-- With no Personas pairing, the gig's folder is still prepared, and dispatch is refused
-  before the claim with `GIG_WORKSPACE_FAILED` (`detail: personas_unpaired`): no attempt is
-  minted and the gig stays where it was. A hire needs Personas anyway; its workspace step
-  degrades to an unplaced hire.
+- With no Personas pairing, the gig's folder is still prepared; a paired-plan dispatch is refused
+  before any claim with `GIG_WORKSPACE_FAILED` (`detail: personas_unpaired`), and a legacy one the
+  same way as before. No gig qualifies on the "specialist available" factor unpaired (unless the
+  operator routed it to a ready niche specialist). Registry knowledge degrades to none when no
+  registry checkout is present; recipes degrade to the seed as before.
 - Under `KP_OFFLINE` every source and both pollers answer offline before any network
   access.
 
@@ -1108,6 +1230,11 @@ row withdrawn before the column existed). `gig_attempts.fallback_reason` may be 
 - The expiry sweep pages the store newest-touched first; two gigs sharing an `updated_at`
   exactly at a 200-row page boundary can be missed by one sweep and caught by the next.
 - The per-seat cost of the Fable and Opus-xhigh seats is unmeasured until the first run.
+- A persona retired while its Personas approval is still pending is retired in kp only; if the
+  operator approves it later in Personas, the persona exists there unused until retired by hand.
+- The Personas milestone is created once per accepted plan; if its creation succeeded in Personas
+  but the answer was lost, a later pairing creates a second milestone (the goals are deduped by
+  title, the milestone is not).
 
 ## Running it headless
 

@@ -7,8 +7,9 @@ import {
 } from "../agent-hire/bridge-client";
 import { markBridgeOk } from "../agent-hire/bridge-store";
 
-// Where a gig's work lives in Personas: one WORKSPACE per arena (the specialists are filed
-// into it) and one PROJECT per gig whose root is the gig's own folder on disk
+// Where a gig's work lives in Personas: one WORKSPACE per gig type (a gig persona and its
+// project, pairing.ts) or per arena (the older niche specialists, project.ts), one PROJECT
+// per gig whose root is the gig's own folder on disk
 // (gigs/workdir.ts), so a run bound to the project executes in that folder and nowhere else.
 //
 //   POST {bridge}/api/dev/workspaces {name, description?, color?}
@@ -39,6 +40,8 @@ export type PersonasPlaceFailureReason =
   | "personas_unreachable"
   | "personas_response_too_large"
   | "personas_bad_response"
+  | "personas_persona_missing"
+  | "personas_not_ours"
   | `personas_http_${number}`;
 
 export type PersonasPlaceFailure = { ok: false; reason: PersonasPlaceFailureReason; status?: number };
@@ -92,14 +95,18 @@ function str(v: unknown): string | null {
 type Posted = { ok: true; status: number; data: Record<string, unknown> | null } | { ok: false; status: number; text: string } | PersonasPlaceFailure;
 
 async function post(path: string, body: Record<string, unknown>, opts: PersonasPlaceOptions): Promise<Posted> {
+  return call("POST", path, body, opts);
+}
+
+async function call(method: "GET" | "POST", path: string, body: Record<string, unknown> | null, opts: PersonasPlaceOptions): Promise<Posted> {
   const b = bridgeOrReason();
   if (!b.ok) return b;
   const doFetch = opts.fetchImpl ?? fetch;
   try {
     const r = await doFetch(`${b.bridge.baseUrl}${path}`, {
-      method: "POST",
+      method,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${b.bridge.apiKey}` },
-      body: JSON.stringify(body),
+      ...(body !== null ? { body: JSON.stringify(body) } : {}),
       redirect: "manual",
       signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
     });
@@ -192,4 +199,146 @@ export async function ensurePersonasProject(
     workspaceId: str(res.data?.workspaceId) ?? input.workspaceId,
     created: res.data?.created === true,
   };
+}
+
+// ---------------------------------------------------------------------------
+// The gig's milestone (its accepted plan, one goal per step) and the persona's retirement
+// (gig-mastery S2: gigs/pairing.ts creates the milestone, gigs/plan-status.ts patches its
+// goals, gigs/sync.ts retires the persona):
+//
+//   POST {bridge}/api/dev/projects/{pid}/milestones {name, goal?, description?, goals:[{title, description?}]}
+//        -> {success, data: {project, milestone: {id, ..., items:[{itemKind, itemId, name}]}, goals}}
+//        goals are idempotent by title within the project; at most 8 per call
+//   POST {bridge}/api/dev/milestones/{mid}/goals {goals:[...]}   -> {milestoneId, created, bound}
+//   GET  {bridge}/api/dev/milestones/{mid}                      -> {project, milestone}
+//   POST {bridge}/api/dev/goals/{gid} {status?, progress?}      -> the goal
+//   POST {bridge}/api/kp/personas/{personaId}/retire            -> {retired: true[, already: true]}
+//        403 not kp's persona, 404 unknown persona
+// Source: personas src-tauri/src/engine/management_api/ship.rs (the dev routes) and the
+// gig-mastery WP3 contract (retire). Same transport and reason codes as above.
+// ---------------------------------------------------------------------------
+
+/** Personas' per-call goal cap (ship.rs validate_ship_goals, SHIP_MILESTONE_MAX_ROWS). */
+export const PERSONAS_MILESTONE_GOALS_PER_CALL = 8;
+/** Personas' bounds (approval_exec_ship.rs): a milestone name or goal title 300 characters,
+ *  the milestone's short goal title 72, a milestone or goal description 1200. */
+export const PERSONAS_NAME_MAX = 300;
+export const PERSONAS_MILESTONE_GOAL_MAX = 72;
+export const PERSONAS_DESCRIPTION_MAX = 1200;
+
+export type PersonasMilestoneGoal = { id: string; title: string };
+export type PersonasMilestone = { milestoneId: string; goals: PersonasMilestoneGoal[] };
+export type PersonasMilestoneResult = ({ ok: true } & PersonasMilestone) | PersonasPlaceFailure;
+export type PersonasOkResult = { ok: true } | PersonasPlaceFailure;
+
+/** The goal members of a milestone view (`milestone.items[]` whose itemKind is "goal"). */
+function milestoneFrom(data: Record<string, unknown> | null): PersonasMilestone | null {
+  const m = data?.milestone && typeof data.milestone === "object" ? (data.milestone as Record<string, unknown>) : null;
+  const milestoneId = str(m?.id);
+  if (!m || !milestoneId) return null;
+  const goals: PersonasMilestoneGoal[] = [];
+  for (const it of Array.isArray(m.items) ? m.items : []) {
+    const item = it && typeof it === "object" ? (it as Record<string, unknown>) : null;
+    const id = str(item?.itemId);
+    if (item?.itemKind === "goal" && id) goals.push({ id, title: str(item.name) ?? "" });
+  }
+  return { milestoneId, goals };
+}
+
+/** A 404 whose body names something (a JSON error) is the project or milestone; an empty
+ *  404 is a Personas build without the route. */
+function shipFailure(res: { status: number; text: string }): PersonasPlaceFailure {
+  if (res.status === 404 && res.text) return { ok: false, reason: "personas_workspace_not_found", status: 404 };
+  return { ok: false, reason: statusReason(res.status), status: res.status };
+}
+
+function goalRows(goals: readonly { title: string; description?: string }[]): Record<string, string>[] {
+  return goals.slice(0, PERSONAS_MILESTONE_GOALS_PER_CALL).map((g) => ({ title: g.title, ...(g.description ? { description: g.description } : {}) }));
+}
+
+/** Create a milestone in a project with its first goals (<= 8). NOT idempotent by milestone
+ *  on the Personas side: the caller creates it once and records the id it answers. */
+export async function createPersonasMilestone(
+  projectId: string,
+  input: { name: string; goal?: string; description?: string; goals: readonly { title: string; description?: string }[] },
+  opts: PersonasPlaceOptions = {}
+): Promise<PersonasMilestoneResult> {
+  const res = await post(
+    `/api/dev/projects/${encodeURIComponent(projectId)}/milestones`,
+    {
+      name: input.name,
+      ...(input.goal ? { goal: input.goal } : {}),
+      ...(input.description ? { description: input.description } : {}),
+      goals: goalRows(input.goals),
+    },
+    opts
+  );
+  if ("reason" in res) return res;
+  if (!res.ok) return shipFailure(res);
+  const m = milestoneFrom(res.data);
+  if (!m) return { ok: false, reason: "personas_bad_response" };
+  markBridgeOk();
+  return { ok: true, ...m };
+}
+
+/** Add goals to an existing milestone (<= 8 per call; idempotent by title). */
+export async function addPersonasMilestoneGoals(
+  milestoneId: string,
+  goals: readonly { title: string; description?: string }[],
+  opts: PersonasPlaceOptions = {}
+): Promise<PersonasOkResult> {
+  const res = await post(`/api/dev/milestones/${encodeURIComponent(milestoneId)}/goals`, { goals: goalRows(goals) }, opts);
+  if ("reason" in res) return res;
+  if (!res.ok) return shipFailure(res);
+  markBridgeOk();
+  return { ok: true };
+}
+
+/** Read a milestone's goal members back (their ids, by title). */
+export async function getPersonasMilestone(milestoneId: string, opts: PersonasPlaceOptions = {}): Promise<PersonasMilestoneResult> {
+  const res = await call("GET", `/api/dev/milestones/${encodeURIComponent(milestoneId)}`, null, opts);
+  if ("reason" in res) return res;
+  if (!res.ok) return shipFailure(res);
+  const m = milestoneFrom(res.data);
+  if (!m) return { ok: false, reason: "personas_bad_response" };
+  markBridgeOk();
+  return { ok: true, ...m };
+}
+
+/** Patch one goal's status and progress (progress clamped to 0..100). */
+export async function patchPersonasGoal(
+  goalId: string,
+  patch: { status?: string; progress?: number },
+  opts: PersonasPlaceOptions = {}
+): Promise<PersonasOkResult> {
+  const res = await post(
+    `/api/dev/goals/${encodeURIComponent(goalId)}`,
+    {
+      ...(patch.status ? { status: patch.status } : {}),
+      ...(typeof patch.progress === "number" && Number.isFinite(patch.progress) ? { progress: Math.max(0, Math.min(100, Math.round(patch.progress))) } : {}),
+    },
+    opts
+  );
+  if ("reason" in res) return res;
+  if (!res.ok) return shipFailure(res);
+  markBridgeOk();
+  return { ok: true };
+}
+
+export type RetirePersonaResult = { ok: true; already: boolean } | PersonasPlaceFailure;
+
+/** Retire a persona kp hired. 403 = not kp's (`personas_not_ours`); a 404 that names the
+ *  persona (a JSON error body) = `personas_persona_missing` (gone - nothing left to retire);
+ *  an empty 404 or a 405 = a Personas build without the route (`personas_route_missing`). */
+export async function retirePersonasPersona(personaId: string, opts: PersonasPlaceOptions = {}): Promise<RetirePersonaResult> {
+  const res = await post(`/api/kp/personas/${encodeURIComponent(personaId)}/retire`, {}, opts);
+  if ("reason" in res) return res;
+  if (!res.ok) {
+    if (res.status === 403) return { ok: false, reason: "personas_not_ours", status: 403 };
+    if (res.status === 404 && res.text) return { ok: false, reason: "personas_persona_missing", status: 404 };
+    return { ok: false, reason: statusReason(res.status), status: res.status };
+  }
+  if (res.data?.retired !== true) return { ok: false, reason: "personas_bad_response" };
+  markBridgeOk();
+  return { ok: true, already: res.data?.already === true };
 }

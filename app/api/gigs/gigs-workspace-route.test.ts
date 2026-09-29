@@ -51,7 +51,8 @@ test("unpaired: 200 with the folder made and recorded, and the link's reason", a
   assert.equal(res.status, 200);
   const body = (await res.json()) as { gig: { workdir: string; personasProjectId: string | null }; personas: { linked: boolean; reason?: string } };
   assert.deepEqual(body.personas, { linked: false, reason: "personas_unpaired" });
-  assert.ok(body.gig.workdir.startsWith(path.join(gigsRoot(), "freelance")));
+  // A freelance gig with no brief is filed under its type folder, `other/` (gigs/gig-type.ts).
+  assert.ok(body.gig.workdir.startsWith(path.join(gigsRoot(), "other")));
   assert.ok(existsSync(path.join(body.gig.workdir, "GIG.md")));
   assert.equal(body.gig.personasProjectId, null);
   assert.equal(getGig(WS, g.id)!.workdir, body.gig.workdir);

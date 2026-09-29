@@ -7,7 +7,10 @@ import { createGigSpecialist, listGigSpecialists } from "../db/gigs-specialists"
 import { publicBaseUrl } from "../public-base-url";
 import { ROLE_FAMILY_SLUGS } from "../role-families";
 import { GIG_DISCLOSURE_SENTENCE } from "./contract";
+import { GIG_TYPE_LABEL, gigTypeOf, type GigKnowledgeRef, type GigType } from "./gig-type";
+import { resolveGigTypeKnowledge } from "./gig-type-knowledge";
 import type { ensurePersonasWorkspace, PersonasPlaceFailureReason } from "./personas-places";
+import { GIG_PERSONA_MODEL } from "./plan-seats";
 import { ensureGigArenaWorkspace } from "./project";
 import { resolveGigRecipes, type ResolvedGigRecipes } from "./recipes";
 import { GIG_REQUIREMENTS_VERSION, composeGigRequirements, gatherGigResearch, type GigAgentRequirements } from "./requirements";
@@ -19,7 +22,7 @@ import {
   cleanNiche,
   gigSpecialistName,
 } from "./specialist-defaults";
-import type { GigArena, GigSpecialist, GigSpecialistSpec } from "./types";
+import type { Gig, GigArena, GigSpecialist, GigSpecialistSpec } from "./types";
 
 // Gig specialists: compose the spec (arena + niche + adopted recipes), derive the
 // REQUIREMENTS it is hired from (requirements.ts), project both onto the flat DispatchSpec
@@ -168,8 +171,9 @@ export async function hireGigSpecialist(
   deps: { ensureWorkspace?: typeof ensurePersonasWorkspace } = {}
 ): Promise<HireGigSpecialistResult> {
   const niche = cleanNiche(input.niche);
+  // A gig persona (gig_id set) serves its one gig and is never reused as a niche specialist.
   const existing = listGigSpecialists(workspaceId).find(
-    (s) => s.spec.arena === input.arena && cleanNiche(s.spec.niche).toLowerCase() === niche.toLowerCase()
+    (s) => s.gigId === null && s.spec.arena === input.arena && cleanNiche(s.spec.niche).toLowerCase() === niche.toLowerCase()
   );
   if (existing) {
     const agent = getHiredAgent(existing.hiredAgentId, workspaceId);
@@ -239,4 +243,124 @@ export async function hireGigSpecialist(
     placement,
     placementSkipped: arenaWs.ok ? null : arenaWs.reason,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Gig personas: ONE persona per gig, hired at pairing (pairing.ts) and retired when the gig
+// ends (sync.ts). Same hire tail and the same requirements object as a niche specialist,
+// plus what makes it the gig's own: the model it runs on (GIG_PERSONA_MODEL), the gig's
+// registry knowledge by type (gig-type.ts), the operator-accepted plan (its steps lead the
+// responsibilities), and a placement in the gig's own Personas project. The gig's listing
+// text still never enters the requirements - only the plan (written by kp's plan seats from
+// the research brief and accepted by the operator) and trusted parts do.
+// ---------------------------------------------------------------------------
+
+/** The hired_agents job_title prefix that marks a gig persona on the roster. */
+export const GIG_PERSONA_JOB_TITLE_PREFIX = "Gig persona";
+
+/** The `fit.kind` a gig persona's request carries (the Personas side routes on it). */
+export const GIG_PERSONA_FIT_KIND = "kp.gig-persona.v1" as const;
+
+const PERSONA_TITLE_MAX = 48;
+const PERSONA_MISSION_MAX = 600;
+
+/** `<short title> · <last 6 of the gig id>` - the brief's title (else the listing's), cut at
+ *  a word to 48 characters. Pure. */
+export function gigPersonaName(gig: Pick<Gig, "id" | "title" | "brief">): string {
+  const full = (gig.brief?.title || gig.title).replace(/\s+/g, " ").trim();
+  let short = full.slice(0, PERSONA_TITLE_MAX);
+  if (full.length > PERSONA_TITLE_MAX) short = short.replace(/\s+\S*$/, "") || short;
+  const id6 = gig.id.toLowerCase().replace(/[^a-z0-9]/g, "").slice(-6) || "000000";
+  return `${short.trim() || "Gig"} · ${id6}`;
+}
+
+/** The handle a gig persona's hire carries to Personas as `kp.jobId` (there is no job
+ *  posting): stable per gig, bounded to Personas' 128-character field. */
+export function gigPersonaLinkJobId(gigId: string): string {
+  return `gig-persona:${gigId}`.slice(0, 128);
+}
+
+/** The niche label a gig persona is filed under: the brief category's head, else its type. */
+export function gigPersonaNiche(gig: Pick<Gig, "arena" | "brief">, type: GigType = gigTypeOf(gig)): string {
+  const head = (gig.brief?.category ?? "").split("·")[0]?.replace(/\s+/g, " ").trim() ?? "";
+  return cleanNiche(head || GIG_TYPE_LABEL[type]);
+}
+
+export type HireGigPersonaInput = {
+  gig: Gig;
+  /** The accepted plan (db/gigs-plans.ts getAcceptedGigPlan) and the operator's note. */
+  plan: { summary: string; steps: readonly { title: string; doneWhen: string }[]; note: string | null };
+  /** The gig's Personas workspace and project; null hires without a placement. */
+  placement: { workspaceId: string; projectId: string } | null;
+};
+
+export type HireGigPersonaDeps = {
+  resolveRecipes?: (arena: GigArena) => ResolvedGigRecipes;
+  resolveKnowledge?: (type: GigType) => GigKnowledgeRef[];
+  req?: NextRequest;
+};
+
+export type HireGigPersonaResult =
+  | { ok: true; specialist: GigSpecialist; hiredAgentId: string; requestId: string | null; knowledge: GigKnowledgeRef[] }
+  | { ok: false; status: number; code: string; error: string; hiredAgentId: string | null };
+
+/** Hire the gig's own persona through the shared hire tail and record its gig_specialists
+ *  row (gig_id set). The caller (pairing.ts) decides whether a hire is needed at all. */
+export async function hireGigPersona(workspaceId: string, input: HireGigPersonaInput, deps: HireGigPersonaDeps = {}): Promise<HireGigPersonaResult> {
+  const { gig, plan } = input;
+  const type = gigTypeOf(gig);
+  const resolved = (deps.resolveRecipes ?? ((a: GigArena) => resolveGigRecipes(a)))(gig.arena);
+  const spec = composeGigSpecialistSpec({ arena: gig.arena, niche: gigPersonaNiche(gig, type) }, resolved);
+  const knowledge = (deps.resolveKnowledge ?? ((t: GigType) => resolveGigTypeKnowledge(t)))(type);
+  const name = gigPersonaName(gig);
+  const composed = composeGigRequirements(spec, resolved, gatherGigResearch(workspaceId, spec.arena, spec.niche), {
+    knowledge,
+    plan: { summary: plan.summary, steps: plan.steps, note: plan.note },
+  });
+  const requirements: GigAgentRequirements = { ...composed, role: name };
+  const base = specialistDispatchSpec(spec, requirements);
+  const mission = plan.summary.replace(/\s+/g, " ").trim().slice(0, PERSONA_MISSION_MAX);
+  const dispatchSpec: DispatchSpec = {
+    ...base,
+    name,
+    mission: mission || base.mission,
+    modelProfile: { model: GIG_PERSONA_MODEL.model, effort: GIG_PERSONA_MODEL.effort },
+  };
+  const fit = {
+    kind: GIG_PERSONA_FIT_KIND,
+    gigId: gig.id,
+    gigType: type,
+    arena: gig.arena,
+    recipes: spec.recipes,
+    knowledge: knowledge.map((k) => ({ bundle: k.bundle, subject: k.subject })),
+  };
+  const res = await mintAndDispatch(deps.req ?? syntheticRequest(), workspaceId, {
+    jobId: "",
+    linkJobId: gigPersonaLinkJobId(gig.id),
+    jobTitle: `${GIG_PERSONA_JOB_TITLE_PREFIX} - ${name}`,
+    intakeId: null,
+    spec: dispatchSpec,
+    // Stored on kp's row AND sent top-level: Personas applies its gig-persona approval
+    // policy to a request whose `fit.kind` is kp.gig-persona.v1.
+    fit,
+    metrics: [],
+    budgetUsd: dispatchSpec.maxBudgetUsd,
+    passthrough: {
+      fit,
+      ...(input.placement ? { placement: { workspaceId: input.placement.workspaceId, projectId: input.placement.projectId } } : {}),
+    },
+  });
+  const body = (await res.json().catch(() => null)) as { hiredAgentId?: unknown; requestId?: unknown; code?: unknown; error?: unknown } | null;
+  const hiredAgentId = typeof body?.hiredAgentId === "string" ? body.hiredAgentId : null;
+  if (res.status !== 200 || !hiredAgentId) {
+    return {
+      ok: false,
+      status: res.status === 200 ? 502 : res.status,
+      code: typeof body?.code === "string" ? body.code : "AGENT_DISPATCH_BRIDGE_FAILED",
+      error: typeof body?.error === "string" ? body.error : "The gig persona hire was not dispatched.",
+      hiredAgentId,
+    };
+  }
+  const specialist = createGigSpecialist(workspaceId, { hiredAgentId, name, spec, registry: resolved.registry, gigId: gig.id });
+  return { ok: true, specialist, hiredAgentId, requestId: typeof body?.requestId === "string" ? body.requestId : null, knowledge };
 }

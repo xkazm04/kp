@@ -17,6 +17,9 @@ import {
   gigSpecialistLinkJobId,
   narrowConnectors,
   specialistDispatchSpec,
+  gigPersonaLinkJobId,
+  gigPersonaName,
+  gigPersonaNiche,
 } from "./specialist.ts";
 import { getHiredAgent, getActiveHiredAgentForJob, listHiredAgents } from "../db/agents.ts";
 import { listGigSpecialists } from "../db/gigs-specialists.ts";
@@ -236,4 +239,14 @@ test("narrowConnectors: an override only narrows the arena's tools, never adds o
   assert.deepEqual(narrowConnectors("oss_bounty", ["research"]), ["research"]);
   const spec = composeGigSpecialistSpec({ arena: "freelance", niche: "data", connectors: [] }, seeded("freelance"));
   assert.deepEqual(spec.connectors, []);
+});
+
+test("gig persona naming: '<short title> · <id6>', a stable per-gig handle, the niche from the category head", () => {
+  assert.equal(gigPersonaName({ id: "gig-l9x2k1-A8F3QZ", title: "Listing", brief: null }), "Listing · a8f3qz");
+  assert.equal(gigPersonaName({ id: "gig-1", title: "Listing", brief: { title: "Web security · Stored XSS in profile bio" } as never }), "Web security · Stored XSS in profile bio · gig1");
+  const long = gigPersonaName({ id: "gig-abcdef", title: `${"word ".repeat(20)}end`, brief: null });
+  assert.ok(long.endsWith(" · abcdef") && long.length <= 48 + " · abcdef".length && !/\s·/.test(long.replace(" · abcdef", "").slice(-1)), long);
+  assert.equal(gigPersonaLinkJobId("gig-1"), "gig-persona:gig-1");
+  assert.equal(gigPersonaNiche({ arena: "security", brief: { category: "Web security · XSS" } as never }), "Web security");
+  assert.equal(gigPersonaNiche({ arena: "competition", brief: null }), "Data & ML", "no brief: the type's label");
 });

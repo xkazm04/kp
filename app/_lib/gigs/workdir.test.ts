@@ -62,12 +62,16 @@ test("slug: <date>-<ascii title slug <= 48>-<last 6 of the id>", () => {
   assert.equal(asciiSlug("../../etc/passwd"), "etc-passwd", "no separators or dots survive");
 });
 
-test("gigWorkdirFor: <root>/<arena>/<slug>, contained; the root itself or a sibling is not inside", () => {
+test("gigWorkdirFor: <root>/<type>/<slug>, contained; the root itself or a sibling is not inside", () => {
   const root = path.join(TMP, "root-a");
   const r = gigWorkdirFor(root, gig({ arena: "oss_bounty" }));
   assert.ok(r.ok);
   if (!r.ok) return;
-  assert.equal(r.workdir, path.join(root, "oss_bounty", "2026-09-24-cafe-resume-build-a-landing-page-a8f3qz"));
+  assert.equal(r.workdir, path.join(root, "other", "2026-09-24-cafe-resume-build-a-landing-page-a8f3qz"), "no brief: the arena's type (a bounty is 'other')");
+  const typed = gigWorkdirFor(root, gig({ brief: { category: "Web security · Stored XSS" } as Gig["brief"] }));
+  assert.ok(typed.ok && typed.workdir === path.join(root, "security", "2026-09-24-cafe-resume-build-a-landing-page-a8f3qz"), "the brief's category names the type folder");
+  const competition = gigWorkdirFor(root, gig({ arena: "competition" }));
+  assert.ok(competition.ok && competition.workdir.startsWith(path.join(root, "data-ml")), "a competition without a brief is data-ml");
   assert.equal(isInsideRoot(root, root), false);
   assert.equal(isInsideRoot(root, path.join(root, "..", "elsewhere")), false);
   assert.equal(isInsideRoot(root, path.join(`${root}-evil`, "x")), false, "a prefix-sharing sibling is not inside");
@@ -79,8 +83,10 @@ test("resolveGigWorkdir keeps a recorded folder under the root and ignores one o
   const kept = path.join(root, "freelance", "2026-01-01-old-name-a8f3qz");
   const r = resolveGigWorkdir(root, gig({ workdir: kept, title: "Renamed listing" }));
   assert.ok(r.ok && r.workdir === kept, "a retitled listing keeps its folder");
+  const typed = resolveGigWorkdir(root, gig({ workdir: kept, brief: { category: "UI design · Figma kit" } as Gig["brief"] }));
+  assert.ok(typed.ok && typed.workdir === kept, "an existing arena folder is never moved to its type folder");
   const outside = resolveGigWorkdir(root, gig({ workdir: path.join(TMP, "somewhere-else") }));
-  assert.ok(outside.ok && outside.workdir.startsWith(path.join(root, "freelance")), "an out-of-root record is recomputed");
+  assert.ok(outside.ok && outside.workdir.startsWith(path.join(root, "other")), "an out-of-root record is recomputed");
 });
 
 test("gigsRoot: KP_GIGS_ROOT wins, else the sibling ../gigs of the repo root", () => {

@@ -60,6 +60,17 @@ export const GIG_CONTRACT_FILE = "DELIVERABLE-CONTRACT.md";
 /** The kp-owned checker every gig folder carries (workdir.ts writes it, rewritten on prepare). */
 export const GIG_DELIVERABLE_CHECKER_FILE = "check-deliverable.mjs";
 
+/** The file at the gig folder ROOT a gig persona keeps its plan's goal statuses in
+ *  (plan-status.ts reads it on every sync and mirrors it to the Personas milestone). */
+export const GIG_PLAN_STATUS_FILE = "PLAN-STATUS.json";
+
+/** The version tag the assignment's `plan.statusContract` carries. */
+export const GIG_PLAN_STATUS_CONTRACT = "kp-plan-status.v1" as const;
+
+/** The goal statuses PLAN-STATUS.json may report - types.ts GIG_GOAL_STATUSES, restated so
+ *  this module stays dependency-light; plan-status.test.ts pins the two equal. */
+export const GIG_PLAN_STATUS_WORDS = ["open", "in-progress", "blocked", "done"] as const;
+
 /** Internal notes that leaked into client-facing text (the proposal and deliverable/) - the
  *  shapes the 2026-09-27 training cycle's reviewers found: an `OPERATOR:` / `[internal note]`
  *  label opening a line (after any markdown `*`, `_`, `-`, `>` or `#`), a comment or a bracket, "note to the operator", "reviewed by the operator", a `[Operator Name]` placeholder,
@@ -232,6 +243,28 @@ export function gigDeliverableContractMarkdown(): string {
   ].join("\n");
 }
 
+/** The plan-status section, Markdown. It binds only a run whose assignment carries `plan` (a
+ *  gig persona working an accepted plan); a run without one ignores it. Short and exact: the
+ *  sync parses the file strictly (plan-status.ts). */
+export function gigPlanStatusContractMarkdown(): string {
+  const example = {
+    goals: [
+      { goalId: "<plan.steps[0].goalId>", status: "done", progress: 100, note: "Reproduced on a clean checkout." },
+      { goalId: "<plan.steps[1].goalId>", status: "in-progress", progress: 40 },
+    ],
+  };
+  return [
+    `## Plan status (${GIG_PLAN_STATUS_CONTRACT})`,
+    `When the assignment carries \`plan\`, the operator accepted that plan and each step is a goal you are tracked on. Keep \`${GIG_PLAN_STATUS_FILE}\` in the gig folder ROOT current - write it when you start a step, finish one, or get blocked - as ONE JSON object of exactly this shape:`,
+    "```json",
+    JSON.stringify(example, null, 2),
+    "```",
+    `- \`goalId\` is copied from \`plan.steps[].goalId\`; any other id is ignored. \`status\` is one of: ${GIG_PLAN_STATUS_WORDS.join(", ")}. \`progress\` is a number from 0 to 100. \`note\` is optional: one sentence (why it is blocked, what finished it).`,
+    "- List every step, in order, and write the file with a JSON serializer. A file kp cannot parse is ignored, and the plan then shows no progress.",
+    "- Mark a step `done` only when its `doneWhen` holds. This file reports progress; the deliverable contract below is still how the run ends.",
+  ].join("\n");
+}
+
 /** The arena's review checklist as `key: meaning` lines - the bar the operator reviews
  *  against, in the words the specialist drafts to. */
 export function gigChecklistLines(arena: GigArena): string[] {
@@ -258,10 +291,13 @@ export function gigContractFileMarkdown(arena: GigArena): string {
     `- \`${GIG_CLIENT_FILES_DIR}/\`: every file meant for the client, and nothing else.`,
     `- \`${GIG_DELIVERABLE_FILE}\`: the deliverable object you write at the end, in the folder root (below).`,
     `- \`${GIG_DELIVERABLE_CHECKER_FILE}\`: kp's checker for that object - run it before you finish.`,
+    `- \`${GIG_PLAN_STATUS_FILE}\`: your plan's goal statuses, when the assignment carries a plan (below).`,
     "",
     "## Review checklist",
     "The operator ticks these before anything is sent. Draft so every one can be ticked:",
     ...gigChecklistLines(arena).map((l) => `- ${l}`),
+    "",
+    gigPlanStatusContractMarkdown(),
     "",
     gigDeliverableContractMarkdown(),
     "",

@@ -348,3 +348,39 @@ test("research over the store: this workspace's briefed, non-suspect gigs in the
   assert.deepEqual(r.commonAsks, ["Landing page"]);
   assert.equal(r.asOf, "2026-09-25");
 });
+
+test("a gig persona's requirements: the plan leads the responsibilities and rides as `plan`; knowledge rides as given", () => {
+  const resolved = { recipes: [] };
+  const spec = {
+    arena: "security" as const,
+    niche: "Web security",
+    taxonomyFamily: "software_engineering",
+    recipes: [],
+    exemplars: [],
+    connectors: ["research"],
+    budgetUsdPerAttempt: 5,
+    promptVersion: "gig-requirements.v1",
+  };
+  const research = { gigsResearched: 0, scope: "arena" as const, categories: [], commonAsks: [], commonChallenges: [], typicalEffortHours: null, asOf: "2026-09-29" };
+  const r = composeGigRequirements(spec, resolved, research, {
+    lessons: {},
+    knowledge: [{ bundle: "software-engineering", subject: "authorization", path: "knowledge/x/authorization.md" }],
+    plan: { summary: "Do it.", steps: [{ title: "Reproduce", doneWhen: "A PoC runs" }, { title: "Report", doneWhen: "" }], note: "  Be careful.  " },
+  });
+  assert.deepEqual(r.responsibilities.slice(0, 2), ["Plan step 1: Reproduce (done when: A PoC runs)", "Plan step 2: Report"]);
+  assert.deepEqual(r.knowledge, [{ bundle: "software-engineering", subject: "authorization", path: "knowledge/x/authorization.md" }]);
+  assert.deepEqual(r.plan, {
+    summary: "Do it.",
+    steps: [
+      { title: "Reproduce", doneWhen: "A PoC runs" },
+      { title: "Report", doneWhen: "" },
+    ],
+    operatorNote: "Be careful.",
+    statusFile: "PLAN-STATUS.json",
+    statusContract: "kp-plan-status.v1",
+  });
+  assert.ok(r.inputs.fields.some((f) => f.startsWith("plan (")));
+  const plain = composeGigRequirements(spec, resolved, research, { lessons: {} });
+  assert.equal("plan" in plain, false, "a niche specialist's requirements carry no plan key");
+  assert.equal("knowledge" in plain, false);
+});

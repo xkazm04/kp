@@ -245,6 +245,10 @@ export type DispatchSpec = {
    *  what the agent is for and must honour, from which Personas designs it. Carried as
    *  `spec.requirements`; absent on every other hire, so their wire is unchanged. */
   requirements?: unknown;
+  /** The model the persona runs on (a gig persona: gigs/plan-seats.ts GIG_PERSONA_MODEL).
+   *  `effort: null` = the runtime's default. Absent on every other hire, and then left off
+   *  the wire; a Personas build that predates it ignores the key. */
+  modelProfile?: { model: string; effort: string | null };
 };
 
 export type KpLink = {
@@ -259,7 +263,10 @@ export type KpLink = {
   intakeId?: string;
 };
 
-export type DispatchResult = { ok: true; requestId: string } | BridgeFailure;
+/** `autoApproved`: Personas approved the request on arrival (its operator's gig-persona
+ *  policy). Informational - the hire still reaches `active` through the push report or the
+ *  poll, exactly like a manually approved one. Absent when Personas did not say so. */
+export type DispatchResult = { ok: true; requestId: string; autoApproved?: boolean } | BridgeFailure;
 
 /** POST the persona request to Personas. `reportToken` is the capability the
  *  hired persona will report back with (the /api/agents/report/[token] route).
@@ -288,8 +295,15 @@ export type DispatchPassthrough = {
   /** File the hired persona into this Personas workspace (`POST /api/dev/workspaces`
    *  minted it). A gig specialist is placed in its arena's workspace
    *  (gigs/project.ts). Sent only when set; a Personas build that predates placement
-   *  ignores the key and files the persona where it always has. */
-  placement?: { workspaceId: string };
+   *  ignores the key and files the persona where it always has. `projectId` (a gig
+   *  persona: the gig's own project, gigs/pairing.ts) binds the persona to that project;
+   *  sent only when set. */
+  placement?: { workspaceId: string; projectId?: string };
+  /** The hire's fit record ON THE WIRE, top-level. Only a gig persona sends it
+   *  (`{kind: "kp.gig-persona.v1", gigId, ...}`, gigs/specialist.ts): Personas reads
+   *  `fit.kind` to apply its operator's gig-persona approval policy. Every other hire keeps
+   *  its fit on kp's own row only, and the key stays off its wire. */
+  fit?: { kind: string } & Record<string, unknown>;
 };
 
 export async function dispatchPersonaRequest(
@@ -323,7 +337,15 @@ export async function dispatchPersonaRequest(
         // absent one as false since it shipped.
         ...(passthrough?.simulation ? { simulation: true } : {}),
         ...(passthrough?.originPersonaId ? { originPersonaId: passthrough.originPersonaId } : {}),
-        ...(passthrough?.placement?.workspaceId ? { placement: { workspaceId: passthrough.placement.workspaceId } } : {}),
+        ...(passthrough?.placement?.workspaceId
+          ? {
+              placement: {
+                workspaceId: passthrough.placement.workspaceId,
+                ...(passthrough.placement.projectId ? { projectId: passthrough.placement.projectId } : {}),
+              },
+            }
+          : {}),
+        ...(passthrough?.fit?.kind ? { fit: passthrough.fit } : {}),
       }),
       redirect: "manual",
       signal: AbortSignal.timeout(BRIDGE_TIMEOUT_MS),
@@ -334,11 +356,11 @@ export async function dispatchPersonaRequest(
     if (!r.ok) return upstreamFailure(r.status);
     const read = await readBridgeJson<unknown>(r);
     if (!read.ok) return tooLargeFailure();
-    const body = unwrapEnvelope(read.value) as { requestId?: unknown } | null;
+    const body = unwrapEnvelope(read.value) as { requestId?: unknown; autoApproved?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
     if (!requestId) return { ok: false, error: "Personas accepted the request but returned no requestId." };
     markBridgeOk();
-    return { ok: true, requestId };
+    return { ok: true, requestId, ...(body?.autoApproved === true ? { autoApproved: true } : {}) };
   } catch (e) {
     return failure(e);
   }

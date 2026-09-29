@@ -13,8 +13,10 @@ import {
   qualifyAndMatch,
   qualifyGig,
   qualifyGigHook,
+  rankGigSpecialists,
 } from "./qualify.ts";
-import { createManualGig, getGig, upsertGigFromRaw } from "../db/gigs.ts";
+import { pickGigMatch } from "./match.ts";
+import { createManualGig, getGig, setGigRoute, upsertGigFromRaw } from "../db/gigs.ts";
 import { createGigSpecialist } from "../db/gigs-specialists.ts";
 import { createHiredAgent, updateHiredAgentStatus } from "../db/agents.ts";
 
@@ -103,6 +105,15 @@ test("no specialist caps the score below the bar; a specialist from another aren
   assert.equal(wrong.factors.specialistAvailable, true);
 });
 
+test("a paired install: every gig has its persona available and fits its arena - the score a matched niche specialist earned", () => {
+  const paired = qualifyGig(g(), { specialist: null, now: NOW, paired: true });
+  assert.deepEqual(paired.factors, { arenaFit: true, rewardKnown: true, deadlineHeadroomDays: 30, specialistAvailable: true, suspect: false });
+  assert.equal(paired.score, qualifyGig(g(), { specialist: fakeSpecialist("security"), now: NOW }).score, "identical to the matched case");
+  assert.ok(qualifies(paired));
+  assert.equal(qualifyGig(g({ suspectReasons: ["credential_request"] }), { specialist: null, now: NOW, paired: true }).score, 0, "suspect still scores 0");
+  assert.equal(qualifyGig(g(), { specialist: null, now: NOW, paired: false }).factors.specialistAvailable, false);
+});
+
 test("a reward without a parseable amount is not a known reward", () => {
   const q = qualifyGig(g({ reward: { amount: null, currency: null, text: "competitive" } }), { specialist: fakeSpecialist("security"), now: NOW });
   assert.equal(q.factors.rewardKnown, false);
@@ -163,18 +174,29 @@ test("qualifyAndMatch: no specialist -> verdict recorded, gig stays new", () => 
   assert.equal(stored.qualification?.factors.specialistAvailable, false);
 });
 
-test("qualifyAndMatch: a live specialist in the arena -> matched and moved new -> qualified", () => {
-  const specialist = hireSpecialist("security");
+test("qualifyAndMatch: no auto-routing - a live niche specialist in the arena is NOT matched; a paired install qualifies with specialist_id null", () => {
+  hireSpecialist("security");
   const gig = newGig("security");
-  const r = qualifyAndMatch(WS, gig.id, { now: NOW });
+  const unpaired = qualifyAndMatch(WS, gig.id, { now: NOW, paired: false });
+  assert.ok(unpaired.ok && !unpaired.moved && unpaired.specialistId === null, "a niche specialist is no longer auto-routed");
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW, paired: true });
   assert.ok(r.ok);
   if (!r.ok) return;
   assert.equal(r.moved, true);
-  assert.equal(r.specialistId, specialist.id);
+  assert.equal(r.specialistId, null);
   const stored = getGig(WS, gig.id)!;
   assert.equal(stored.status, "qualified");
-  assert.equal(stored.specialistId, specialist.id);
+  assert.equal(stored.specialistId, null, "specialist_id stays null until pairing");
   assert.equal(stored.qualification?.score, 100);
+});
+
+test("qualifyAndMatch: a gig the operator routed to a ready niche specialist keeps it and counts it", () => {
+  const specialist = hireSpecialist("oss_bounty", "active", "rust cli");
+  const gig = newGig("oss_bounty");
+  assert.ok(setGigRoute(WS, gig.id, { expectedStatus: "new", specialistId: specialist.id, niche: "rust cli" }).ok);
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW, paired: false });
+  assert.ok(r.ok && r.moved && r.specialistId === specialist.id);
+  assert.equal(getGig(WS, gig.id)!.specialistId, specialist.id, "the route survives the re-qualification");
 });
 
 test("qualifyAndMatch: a specialist whose hire failed is not a match", () => {
@@ -184,19 +206,19 @@ test("qualifyAndMatch: a specialist whose hire failed is not a match", () => {
   assert.ok(r.ok && !r.moved && r.specialistId === null);
 });
 
-test("qualifyAndMatch: the best-fitting READY specialist wins, not the oldest in the arena", () => {
+test("rankGigSpecialists (the legacy ranker routing still uses): the best-fitting READY niche specialist first; a gig persona is never ranked", () => {
   // Freelance is otherwise empty in this file. Hired oldest first.
   const web = hireSpecialist("freelance", "active", "web development");
   const pending = hireSpecialist("freelance", "pending_approval", "AI consulting and technical reports");
   const ai = hireSpecialist("freelance", "active", "AI consulting");
+  const agent = createHiredAgent({ jobTitle: "Gig persona - test", spec: {} }, WS);
+  updateHiredAgentStatus(agent.id, "active", { personaId: `p-${agent.id}` }, WS);
+  const persona = createGigSpecialist(WS, { hiredAgentId: agent.id, name: "Persona", spec: spec("freelance", "AI consulting"), registry: "unavailable", gigId: "gig-other" });
   const gig = newGig("freelance", { title: "Feasibility report for AI agents", tags: ["AI Consulting", "AI Agents"] });
-  const r = qualifyAndMatch(WS, gig.id, { now: NOW });
-  assert.ok(r.ok && r.moved);
-  if (!r.ok) return;
-  assert.equal(r.specialistId, ai.id, "the web one is older but does not fit; the pending one fits but is not ready");
-  assert.notEqual(r.specialistId, web.id);
-  assert.notEqual(r.specialistId, pending.id);
-  assert.equal(getGig(WS, gig.id)!.specialistId, ai.id);
+  const ranked = rankGigSpecialists(WS, gig);
+  assert.equal(pickGigMatch(ranked)?.specialistId, ai.id, "the web one is older but does not fit; the pending one fits but is not ready");
+  assert.ok(!ranked.some((m) => m.specialistId === persona.id), "another gig's persona is not a candidate");
+  assert.ok(ranked.some((m) => m.specialistId === web.id) && ranked.some((m) => m.specialistId === pending.id));
 });
 
 test("qualifyAndMatch: an arena specialist whose niche nothing in the gig names is not a match", () => {
@@ -226,7 +248,7 @@ test("qualifyAndMatch: a suspect gig gets a zero verdict and no move", () => {
 test("qualifyAndMatch: not_found across workspaces, not_qualifiable past new", () => {
   const gig = newGig("security");
   assert.deepEqual(qualifyAndMatch("ws-other", gig.id), { ok: false, reason: "not_found" });
-  assert.ok(qualifyAndMatch(WS, gig.id, { now: NOW }).ok);
+  assert.ok(qualifyAndMatch(WS, gig.id, { now: NOW, paired: true }).ok);
   assert.equal(getGig(WS, gig.id)!.status, "qualified");
   assert.deepEqual(qualifyAndMatch(WS, gig.id), { ok: false, reason: "not_qualifiable" });
 });

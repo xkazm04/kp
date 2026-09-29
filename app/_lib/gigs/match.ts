@@ -1,11 +1,16 @@
 import type { AgentStatus } from "../db/agents";
 import { GIG_KPI_SMALL_SAMPLE, type Gig, type GigBrief, type GigSpecialist } from "./types";
 
-// Gig matchmaking: which of the workspace's specialists a gig should go to, ranked, with
+// Gig matchmaking over the NICHE specialists: which of them a gig should go to, ranked, with
 // the reasons as codes a reader can check. PURE, deterministic and keyless - no db, no
 // clock, no model - and client-safe (type-only imports), so the gig page ranks with the
-// very function the qualifier uses (qualify.ts rankGigSpecialists is the store-backed
-// caller; docs/features/gigs/README.md "Matchmaking and routing").
+// very function the store-backed ranker uses (qualify.ts rankGigSpecialists).
+//
+// LEGACY since one persona per gig (gig-mastery S2, docs/features/gigs/README.md
+// "Pairing"): a new gig is no longer auto-routed - it gets its own persona at pairing - so
+// this ranking serves only the operator's route / unroute and the gigs a niche specialist
+// already worked. A gig persona (its `gigId` set) serves its one gig and is never a
+// candidate for another.
 //
 // The signals, stated once:
 //   arena          must match, else the specialist is not a candidate at all
@@ -151,7 +156,8 @@ export type GigMatchGig = Pick<Gig, "arena" | "title" | "tags" | "niche"> & {
 };
 
 export type GigMatchCandidate = {
-  specialist: Pick<GigSpecialist, "id" | "spec" | "createdAt">;
+  /** `gigId` set = a gig persona: skipped (it serves its own gig only). */
+  specialist: Pick<GigSpecialist, "id" | "spec" | "createdAt"> & { gigId?: string | null };
   /** The hired_agents status; null when the hire row is gone. */
   hireStatus: string | null;
   /** The specialist's resolved sent work (kpi.ts bySpecialist); null = none yet. */
@@ -230,8 +236,8 @@ function scoreCandidate(fields: Record<Field, Set<string>>, gig: GigMatchGig, c:
   return { specialistId: c.specialist.id, score: Math.max(0, Math.min(100, score)), reasons, ready };
 }
 
-/** Rank the specialists for a gig: same-arena only, sorted score desc, then ready first,
- *  then the oldest, then id. Pure. */
+/** Rank the niche specialists for a gig: same-arena only (gig personas skipped), sorted
+ *  score desc, then ready first, then the oldest, then id. Pure. */
 export function rankSpecialistsForGig(gig: GigMatchGig, candidates: readonly GigMatchCandidate[]): GigMatch[] {
   const fields: Record<Field, Set<string>> = {
     category: conceptSet(gig.brief?.category ?? ""),
@@ -242,7 +248,7 @@ export function rankSpecialistsForGig(gig: GigMatchGig, candidates: readonly Gig
   const created = new Map<string, string>();
   const ranked: GigMatch[] = [];
   for (const c of candidates) {
-    if (c.specialist.spec.arena !== gig.arena) continue;
+    if (c.specialist.spec.arena !== gig.arena || c.specialist.gigId) continue;
     created.set(c.specialist.id, c.specialist.createdAt);
     ranked.push(scoreCandidate(fields, gig, c));
   }

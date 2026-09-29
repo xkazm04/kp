@@ -4,7 +4,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import type { GigArena, GigSpecialistSpec } from "../gigs/types.ts";
-import { createGigSpecialist, findGigSpecialistForArena, getGigSpecialist, listGigSpecialists } from "./gigs-specialists.ts";
+import { createGigSpecialist, findGigSpecialistForArena, getGigSpecialist, getGigSpecialistForGig, listGigPersonaSpecialists, listGigSpecialists } from "./gigs-specialists.ts";
 
 after(() => cleanupUnitDb());
 
@@ -49,4 +49,19 @@ test("another workspace cannot read a specialist", () => {
   const s = createGigSpecialist(WS, { hiredAgentId: "ha-2", name: "X", spec: spec("freelance", "copy"), registry: "available" });
   assert.equal(getGigSpecialist(OTHER, s.id), null);
   assert.equal(listGigSpecialists(OTHER).length, 0);
+});
+
+test("a gig persona carries its gig id, is found per gig (newest first), and is never an arena candidate", () => {
+  const ws = "ws-gig-specialists-persona";
+  const niche = createGigSpecialist(ws, { hiredAgentId: "ha-n", name: "Niche", spec: spec("security", "web"), registry: "unavailable" });
+  const first = createGigSpecialist(ws, { hiredAgentId: "ha-p1", name: "Persona 1", spec: spec("security", "web"), registry: "unavailable", gigId: "gig-1" });
+  const second = createGigSpecialist(ws, { hiredAgentId: "ha-p2", name: "Persona 2", spec: spec("security", "web"), registry: "unavailable", gigId: "gig-1" });
+  assert.equal(niche.gigId, null);
+  assert.equal(first.gigId, "gig-1");
+  assert.equal(getGigSpecialistForGig(ws, "gig-1")?.id, second.id, "a replaced hire: the newest row wins");
+  assert.equal(getGigSpecialistForGig(ws, "gig-2"), null);
+  assert.equal(getGigSpecialistForGig(OTHER, "gig-1"), null, "another workspace cannot read it");
+  assert.deepEqual(listGigPersonaSpecialists(ws).map((s) => s.id), [first.id, second.id]);
+  assert.equal(listGigPersonaSpecialists(OTHER).length, 0);
+  assert.equal(findGigSpecialistForArena(ws, "security", "web")?.id, niche.id, "only the niche specialist is an arena candidate");
 });

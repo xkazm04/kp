@@ -3,7 +3,16 @@
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { ensurePersonasProject, ensurePersonasWorkspace } from "./personas-places.ts";
+import {
+  PERSONAS_MILESTONE_GOALS_PER_CALL,
+  addPersonasMilestoneGoals,
+  createPersonasMilestone,
+  ensurePersonasProject,
+  ensurePersonasWorkspace,
+  getPersonasMilestone,
+  patchPersonasGoal,
+  retirePersonasPersona,
+} from "./personas-places.ts";
 
 after(() => cleanupUnitDb());
 afterEach(() => {
@@ -116,4 +125,85 @@ test("project: optional fields are omitted when absent, never sent as null", asy
   const seen: Seen[] = [];
   await ensurePersonasProject({ name: "Gig · x", rootPath: "/gigs/x", workspaceId: null, techStack: null }, { fetchImpl: fake(200, { id: "p", created: false }, seen) });
   assert.deepEqual(JSON.parse(String(seen[0]!.init.body)), { name: "Gig · x", rootPath: "/gigs/x" });
+});
+
+// ---------------------------------------------------------------------------
+// The milestone, its goals, and the persona's retirement (gig-mastery S2)
+// ---------------------------------------------------------------------------
+
+test("milestone: POSTs name/goal/description/goals (<= 8) and reads the goal ids from milestone.items", async () => {
+  paired();
+  const seen: Seen[] = [];
+  const goals = Array.from({ length: 9 }, (_, i) => ({ title: `${i + 1}. Step`, description: "Done when: x" }));
+  const r = await createPersonasMilestone(
+    "proj-1",
+    { name: "Gig title", goal: "Short goal", description: "The summary.", goals },
+    {
+      fetchImpl: fake(
+        200,
+        {
+          success: true,
+          data: {
+            project: {},
+            milestone: { id: "ms-1", items: [{ itemKind: "goal", itemId: "g-1", name: "1. Step" }, { itemKind: "use_case", itemId: "uc-1", name: "UC" }] },
+            goals: { created: 1, bound: 0 },
+          },
+        },
+        seen
+      ),
+    }
+  );
+  assert.deepEqual(r, { ok: true, milestoneId: "ms-1", goals: [{ id: "g-1", title: "1. Step" }] });
+  assert.equal(seen[0]!.url, "http://127.0.0.1:9420/api/dev/projects/proj-1/milestones");
+  const body = JSON.parse(String(seen[0]!.init.body)) as { goals: unknown[]; name: string; goal: string };
+  assert.equal(body.goals.length, PERSONAS_MILESTONE_GOALS_PER_CALL, "Personas refuses more than eight goals per call");
+  assert.equal(body.name, "Gig title");
+  assert.equal(body.goal, "Short goal");
+});
+
+test("milestone: a JSON 404 names the project, an empty 404 is an older Personas, a 400 keeps its status", async () => {
+  paired();
+  assert.deepEqual(await createPersonasMilestone("p", { name: "n", goals: [] }, { fetchImpl: fake(404, { success: false, error: "project not found" }) }), {
+    ok: false,
+    reason: "personas_workspace_not_found",
+    status: 404,
+  });
+  assert.deepEqual(await createPersonasMilestone("p", { name: "n", goals: [] }, { fetchImpl: fake(404, "") }), { ok: false, reason: "personas_route_missing", status: 404 });
+  assert.deepEqual(await createPersonasMilestone("p", { name: "n", goals: [] }, { fetchImpl: fake(400, { success: false, error: "bad" }) }), { ok: false, reason: "personas_http_400", status: 400 });
+});
+
+test("goals: add posts to the milestone; get reads its goal members back", async () => {
+  paired();
+  const seen: Seen[] = [];
+  assert.deepEqual(await addPersonasMilestoneGoals("ms-1", [{ title: "9. Step" }], { fetchImpl: fake(200, { success: true, data: { milestoneId: "ms-1", created: 1, bound: 0 } }, seen) }), { ok: true });
+  assert.equal(seen[0]!.url, "http://127.0.0.1:9420/api/dev/milestones/ms-1/goals");
+  assert.deepEqual(JSON.parse(String(seen[0]!.init.body)), { goals: [{ title: "9. Step" }] });
+  const got = await getPersonasMilestone("ms-1", { fetchImpl: fake(200, { success: true, data: { project: {}, milestone: { id: "ms-1", items: [{ itemKind: "goal", itemId: "g-9", name: "9. Step" }] } } }, seen) });
+  assert.deepEqual(got, { ok: true, milestoneId: "ms-1", goals: [{ id: "g-9", title: "9. Step" }] });
+  assert.equal(seen[1]!.init.method, "GET");
+  assert.equal(seen[1]!.init.body, undefined, "a GET carries no body");
+});
+
+test("goal patch: status and a clamped progress, nothing else", async () => {
+  paired();
+  const seen: Seen[] = [];
+  assert.deepEqual(await patchPersonasGoal("g-1", { status: "in-progress", progress: 140.4 }, { fetchImpl: fake(200, { success: true, data: { id: "g-1" } }, seen) }), { ok: true });
+  assert.equal(seen[0]!.url, "http://127.0.0.1:9420/api/dev/goals/g-1");
+  assert.deepEqual(JSON.parse(String(seen[0]!.init.body)), { status: "in-progress", progress: 100 });
+});
+
+test("retire: 200 retired (and already), 403 not ours, a JSON 404 the persona is gone, an empty 404 an older Personas", async () => {
+  paired();
+  const seen: Seen[] = [];
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(200, { success: true, data: { retired: true } }, seen) }), { ok: true, already: false });
+  assert.equal(seen[0]!.url, "http://127.0.0.1:9420/api/kp/personas/per-1/retire");
+  assert.equal(seen[0]!.init.method, "POST");
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(200, { success: true, data: { retired: true, already: true } }) }), { ok: true, already: true });
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(403, { success: false, error: "not yours" }) }), { ok: false, reason: "personas_not_ours", status: 403 });
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(404, { success: false, error: "persona not found" }) }), { ok: false, reason: "personas_persona_missing", status: 404 });
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(404, "") }), { ok: false, reason: "personas_route_missing", status: 404 });
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(200, { success: true, data: {} }) }), { ok: false, reason: "personas_bad_response" });
+  delete process.env.PERSONAS_BRIDGE_URL;
+  delete process.env.PERSONAS_BRIDGE_KEY;
+  assert.deepEqual(await retirePersonasPersona("per-1", { fetchImpl: fake(200, {}) }), { ok: false, reason: "personas_unpaired" });
 });

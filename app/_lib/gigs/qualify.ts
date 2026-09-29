@@ -1,9 +1,10 @@
+import { getBridgeConfig } from "../agent-hire/bridge-store";
 import { getHiredAgent } from "../db/agents";
 import { getGig, setGigQualification, transitionGig } from "../db/gigs";
 import { readGigKpiInput } from "../db/gigs-outcomes";
 import { getGigSpecialist, listGigSpecialists } from "../db/gigs-specialists";
 import { foldGigKpi } from "./kpi";
-import { pickGigMatch, rankSpecialistsForGig, type GigMatch, type GigMatchGig } from "./match";
+import { GIG_RUNNABLE_HIRE_STATUSES, pickGigMatch, rankSpecialistsForGig, type GigMatch, type GigMatchGig } from "./match";
 import type { Gig, GigQualification, GigSpecialist } from "./types";
 
 // Gig qualification - "is this listing worth a specialist's attempt?" - as deterministic
@@ -22,8 +23,12 @@ import type { Gig, GigQualification, GigSpecialist } from "./types";
 //                                     -40 under 2 days, and the score is 0 once passed
 //   specialist available              +20
 //   suspect (honeypot scan flagged)   score 0, never qualifies
-// Without a live specialist in the arena the ceiling is 40 (reward + a comfortable
-// deadline), below the threshold: a gig nobody can work is not "qualified".
+// ONE PERSONA PER GIG (gig-mastery S2, pairing.ts): a gig's persona is hired for it at
+// pairing, in its own arena, so in an install PAIRED with Personas every gig has a
+// specialist available and fits its arena - both factors are true, and the score is exactly
+// what a gig with a matching niche specialist scored before. Without the pairing (and
+// without a routed niche specialist) the ceiling is 40 (reward + a comfortable deadline),
+// below the threshold: a gig nobody can work is not "qualified".
 
 export const QUALIFY_THRESHOLD = 50;
 
@@ -61,18 +66,22 @@ function deadlinePoints(headroom: number | null): number {
 }
 
 export type QualifyContext = {
-  /** The specialist the gig would go to; null when none is available. */
+  /** A niche specialist the operator routed the gig to (legacy); null when none. */
   specialist: GigSpecialist | null;
   now: Date;
+  /** The install is paired with Personas, so the gig's own persona can be hired at pairing.
+   *  Absent = false. */
+  paired?: boolean;
 };
 
 /** The deterministic verdict. Pure. */
 export function qualifyGig(gig: Pick<Gig, "arena" | "reward" | "deadlineAt" | "status" | "suspectReasons">, ctx: QualifyContext): GigQualification {
   const suspect = gig.status === "suspect" || gig.suspectReasons.length > 0;
-  const arenaFit = ctx.specialist !== null && ctx.specialist.spec.arena === gig.arena;
+  const paired = ctx.paired === true;
+  const arenaFit = paired || (ctx.specialist !== null && ctx.specialist.spec.arena === gig.arena);
   const rewardKnown = gig.reward !== null && typeof gig.reward.amount === "number" && Number.isFinite(gig.reward.amount) && gig.reward.amount > 0;
   const headroom = deadlineHeadroomDays(gig.deadlineAt, ctx.now);
-  const specialistAvailable = ctx.specialist !== null;
+  const specialistAvailable = paired || ctx.specialist !== null;
   const factors: GigQualification["factors"] = { arenaFit, rewardKnown, deadlineHeadroomDays: headroom, specialistAvailable, suspect };
 
   let score = 0;
@@ -108,10 +117,13 @@ export type QualifyAndMatchResult =
  *  gets its (zero) verdict recorded so the desk can show why it is held. */
 const QUALIFIABLE: readonly Gig["status"][] = ["new", "suspect"];
 
-/** The workspace's specialists ranked for `gig` (match.ts, the pure ranker), with each
- *  one's hire status and accepted-outcome record read from the store. Same-arena only. */
+/** The workspace's NICHE specialists ranked for `gig` (match.ts, the pure ranker), with each
+ *  one's hire status and accepted-outcome record read from the store. Same-arena only; a gig
+ *  persona (gig_id set) serves its one gig and is never ranked for another. Kept for the
+ *  legacy paths (routing, a gig a niche specialist already worked); new gigs are no longer
+ *  auto-routed (qualifyAndMatch). */
 export function rankGigSpecialists(workspaceId: string, gig: GigMatchGig): GigMatch[] {
-  const specialists = listGigSpecialists(workspaceId).filter((s) => s.spec.arena === gig.arena);
+  const specialists = listGigSpecialists(workspaceId).filter((s) => s.gigId === null && s.spec.arena === gig.arena);
   if (specialists.length === 0) return [];
   const bySpecialist = foldGigKpi(readGigKpiInput(workspaceId)).bySpecialist;
   return rankSpecialistsForGig(
@@ -134,23 +146,37 @@ export function matchGigSpecialist(workspaceId: string, gig: GigMatchGig): GigSp
   return best ? getGigSpecialist(workspaceId, best.specialistId) : null;
 }
 
-/** Rank the arena's specialists (match.ts), take the best READY one scoring above 0,
- *  record the verdict, and move `new -> qualified` when it clears QUALIFY_THRESHOLD
- *  (otherwise the gig stays `new` for the operator to decide or route). A specialist
- *  whose hire is not runnable (onboarding | active) is ranked but never the match, and
- *  one whose niche has nothing in common with the gig is not a match either - the
- *  operator routes such a gig by hand (PATCH /api/gigs/[id] `route`). A routed gig's
- *  niche equals its specialist's, which the ranker scores 100, so a re-qualification
- *  keeps the operator's choice. Synchronous: every step is a local store call, no await,
- *  no transaction spanning a slow call. The move is a CAS - a gig that moved meanwhile
- *  keeps its verdict and reports `moved: false`. */
-export function qualifyAndMatch(workspaceId: string, gigId: string, opts: { now?: Date } = {}): QualifyAndMatchResult {
+/** Whether this install is paired with Personas (a stored or env key), read without
+ *  decrypting the key. */
+export function gigBridgePaired(): boolean {
+  try {
+    return getBridgeConfig().paired;
+  } catch {
+    // An unreadable bridge row reads as unpaired: qualification degrades, never throws.
+    return false;
+  }
+}
+
+/** Record the verdict and move `new -> qualified` when it clears QUALIFY_THRESHOLD
+ *  (otherwise the gig stays `new` for the operator to decide). NO AUTO-ROUTING any more
+ *  (one persona per gig): the gig's `specialist_id` stays what it was - null until pairing,
+ *  or the niche specialist the operator routed it to (PATCH /api/gigs/[id] `route`), which
+ *  still counts when its hire is runnable. In a paired install every gig has its persona
+ *  available (qualifyGig). Synchronous: every step is a local store call, no await, no
+ *  transaction spanning a slow call. The move is a CAS - a gig that moved meanwhile keeps
+ *  its verdict and reports `moved: false`. */
+export function qualifyAndMatch(workspaceId: string, gigId: string, opts: { now?: Date; paired?: boolean } = {}): QualifyAndMatchResult {
   const gig = getGig(workspaceId, gigId);
   if (!gig) return { ok: false, reason: "not_found" };
   if (!QUALIFIABLE.includes(gig.status)) return { ok: false, reason: "not_qualifiable" };
-  const specialist = matchGigSpecialist(workspaceId, gig);
-  const qualification = qualifyGig(gig, { specialist, now: opts.now ?? new Date() });
-  const recorded = setGigQualification(workspaceId, gigId, qualification, specialist?.id ?? null) ?? gig;
+  const routed = gig.specialistId ? getGigSpecialist(workspaceId, gig.specialistId) : null;
+  const routedReady =
+    routed && routed.gigId === null && GIG_RUNNABLE_HIRE_STATUSES.includes(getHiredAgent(routed.hiredAgentId, workspaceId)?.status ?? "failed") ? routed : null;
+  const specialist = routedReady;
+  const paired = opts.paired ?? gigBridgePaired();
+  const qualification = qualifyGig(gig, { specialist, now: opts.now ?? new Date(), paired });
+  // The stored specialist_id is kept as it was (a route survives a re-qualification).
+  const recorded = setGigQualification(workspaceId, gigId, qualification, gig.specialistId) ?? gig;
   if (gig.status !== "new" || !qualifies(qualification)) {
     return { ok: true, gig: recorded, qualification, specialistId: specialist?.id ?? null, moved: false };
   }

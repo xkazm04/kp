@@ -9,8 +9,13 @@ import { mkdtempSync, writeFileSync, utimesSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { FetchExecutionResult, GigExecutionSnapshot } from "./personas-exec.ts";
-import { getGig, setGigWorkspace, transitionGig, upsertGigFromRaw } from "../db/gigs.ts";
+import { getGig, setGigRoute, setGigWorkspace, transitionGig, upsertGigFromRaw } from "../db/gigs.ts";
 import { createGigAttempt, getGigAttempt, setGigAttemptExecutionId, transitionGigAttempt } from "../db/gigs-attempts.ts";
+import { createHiredAgent, getHiredAgent, setHiredAgentRequest, updateHiredAgentStatus, type AgentStatus } from "../db/agents.ts";
+import { getAcceptedGigPlan, setGigPlanProgress } from "../db/gigs-plans.ts";
+import { createGigSpecialist } from "../db/gigs-specialists.ts";
+import type { GigSpecialist } from "./types.ts";
+import { fixtureAcceptedPlan } from "./__fixtures__/accepted-plan.ts";
 
 after(() => cleanupUnitDb());
 
@@ -339,4 +344,154 @@ test("completed with no block but a deliverable file in the gig folder: drafted 
   assert.equal(a.deliverable?.draftText, "Proposal text");
   assert.equal(a.costUsd, 0.6);
   assert.equal(getGig(ws, gig.id)!.status, "drafted");
+});
+
+// ---------------------------------------------------------------------------
+// The gig personas: hires polled, a paired gig run once its persona is active,
+// PLAN-STATUS mirrored, and retirement (sync.ts syncGigPersonas)
+// ---------------------------------------------------------------------------
+
+function persona(ws: string, gigId: string | null, status: AgentStatus, personaId: string | null, requestId: string | null = null): GigSpecialist {
+  const agent = createHiredAgent({ jobTitle: "Gig persona - test", spec: {} }, ws);
+  if (requestId) setHiredAgentRequest(agent.id, requestId, ws);
+  if (status !== "pending_approval" || !requestId) updateHiredAgentStatus(agent.id, status, { personaId }, ws);
+  return createGigSpecialist(ws, {
+    hiredAgentId: agent.id,
+    name: "P",
+    spec: { arena: "security", niche: "web", taxonomyFamily: "software_engineering", recipes: [], exemplars: [], connectors: [], budgetUsdPerAttempt: 5, promptVersion: "gig-requirements.v1" },
+    registry: "unavailable",
+    gigId,
+  });
+}
+
+function pairedQualifiedGig(ws: string): Gig {
+  seq += 1;
+  const { gig } = upsertGigFromRaw(ws, {
+    sourceId: "gsrc-s",
+    arena: "security",
+    raw: { externalKey: `sp-${seq}`, url: `https://example.test/sp/${seq}`, title: `Paired ${seq}`, org: null, reward: null, deadlineAt: null, postedAt: null, bodyText: "x", bodyHtml: null, tags: [] },
+    suspectReasons: [],
+  });
+  assert.ok(transitionGig(ws, gig.id, { from: "new", to: "qualified" }).ok);
+  fixtureAcceptedPlan(ws, gig.id);
+  return getGig(ws, gig.id)!;
+}
+
+function personaDeps(over: Partial<GigSyncDeps> = {}): GigSyncDeps & { dispatched: string[]; retired: string[] } {
+  const dispatched: string[] = [];
+  const retired: string[] = [];
+  return {
+    dispatched,
+    retired,
+    fetchExecution: async () => ({ ok: false, reason: "personas_unreachable", retryable: true }),
+    fetchHireStatus: async () => ({ ok: true, status: "active", personaId: "persona-live", personaName: "Live" }),
+    dispatchPaired: async (ws, gigId) => {
+      dispatched.push(gigId);
+      const gig = getGig(ws, gigId)!;
+      createGigAttempt(ws, { gigId, specialistId: gig.specialistId!, revisionNote: null });
+      return { ok: false, code: "GIG_DISPATCH_FAILED", reason: "test", attempt: null, gig };
+    },
+    retirePersona: async (personaId) => {
+      retired.push(personaId);
+      return { ok: true, already: false };
+    },
+    planStatus: { readFile: () => null },
+    ...over,
+  };
+}
+
+test("personas: a pending hire is polled to active, and its paired gig runs ONCE", async () => {
+  const ws = "ws-sync-pair-run";
+  const gig = pairedQualifiedGig(ws);
+  const p = persona(ws, gig.id, "pending_approval", null, "req-1");
+  assert.ok(setGigRoute(ws, gig.id, { expectedStatus: "qualified", specialistId: p.id, niche: null }).ok);
+  const d = personaDeps();
+  const s = await syncGigAttempts(ws, d);
+  assert.equal(s.personas.hiresPolled, 1);
+  assert.equal(s.personas.activated, 1);
+  const agent = getHiredAgent(p.hiredAgentId, ws)!;
+  assert.equal(agent.status, "active");
+  assert.equal(agent.personaId, "persona-live");
+  assert.deepEqual(d.dispatched, [gig.id], "the 202-pending dispatch finishes on the pass that sees the persona active");
+  assert.equal(s.personas.executeFailed, 1, "the fake answered a failure; the count says so");
+
+  const again = await syncGigAttempts(ws, d);
+  assert.equal(again.personas.hiresPolled, 0, "an active hire is not polled");
+  assert.deepEqual(d.dispatched, [gig.id], "a gig its persona already ran is not re-run by the sync");
+});
+
+test("personas: a gig whose specialist_id does not name the persona is not run", async () => {
+  const ws = "ws-sync-pair-skip";
+  const gig = pairedQualifiedGig(ws);
+  persona(ws, gig.id, "active", "persona-a");
+  const d = personaDeps();
+  await syncGigAttempts(ws, d);
+  assert.deepEqual(d.dispatched, [], "never paired through a dispatch: the operator never asked for a run");
+});
+
+test("personas: PLAN-STATUS is read for a gig with an active persona and the goals land", async () => {
+  const ws = "ws-sync-plan";
+  const gig = pairedQualifiedGig(ws);
+  const plan = getAcceptedGigPlan(ws, gig.id)!;
+  setGigPlanProgress(ws, plan.id, {
+    milestoneId: "ms-1",
+    goals: [0, 1, 2].map((i) => ({ stepIndex: i, goalId: `goal-${i + 1}`, status: "open" as const, progress: 0, note: null })),
+    updatedAt: "t",
+  });
+  setGigWorkspace(ws, gig.id, { workdir: "/gigs/security/plan" });
+  persona(ws, gig.id, "active", "persona-p");
+  const patched: string[] = [];
+  const s = await syncGigAttempts(
+    ws,
+    personaDeps({
+      planStatus: {
+        readFile: (dir) => (dir === "/gigs/security/plan" ? JSON.stringify({ goals: [{ goalId: "goal-2", status: "in-progress", progress: 40 }] }) : null),
+        patchGoal: async (id) => {
+          patched.push(id);
+          return { ok: true };
+        },
+      },
+    })
+  );
+  assert.equal(s.personas.planGoalsUpdated, 1);
+  assert.deepEqual(patched, ["goal-2"]);
+  assert.equal(getAcceptedGigPlan(ws, gig.id)!.progress!.goals[1]!.status, "in-progress");
+});
+
+test("personas: a gig that ended retires its persona; a live gig's persona stays", async () => {
+  const ws = "ws-sync-retire";
+  const ended = pairedQualifiedGig(ws);
+  assert.ok(transitionGig(ws, ended.id, { from: "qualified", to: "withdrawn" }).ok);
+  const live = pairedQualifiedGig(ws);
+  const gone = persona(ws, ended.id, "active", "persona-ended");
+  const stays = persona(ws, live.id, "active", "persona-live-gig");
+  const d = personaDeps();
+  const s = await syncGigAttempts(ws, d);
+  assert.deepEqual(d.retired, ["persona-ended"]);
+  assert.equal(s.personas.retired, 1);
+  assert.equal(getHiredAgent(gone.hiredAgentId, ws)!.status, "retired");
+  assert.equal(getHiredAgent(stays.hiredAgentId, ws)!.status, "active");
+  await syncGigAttempts(ws, d);
+  assert.deepEqual(d.retired, ["persona-ended"], "a retired persona is not retired twice");
+});
+
+test("personas: niche specialists retire once no open attempt references them; a refusal defers", async () => {
+  const ws = "ws-sync-niche";
+  const busy = persona(ws, null, "active", "persona-busy");
+  const idle = persona(ws, null, "active", "persona-idle");
+  const unhired = persona(ws, null, "pending_approval", null, "req-n");
+  const stubborn = persona(ws, null, "active", "persona-old-build");
+  const { gig } = inFlight(ws, null);
+  const a = createGigAttempt(ws, { gigId: gig.id, specialistId: busy.id, revisionNote: null })!;
+  assert.ok(transitionGigAttempt(ws, a.id, { from: "dispatched", to: "drafted" }).ok);
+  const d = personaDeps({
+    retirePersona: async (id) => (id === "persona-old-build" ? { ok: false, reason: "personas_route_missing", status: 404 } : { ok: true, already: false }),
+  });
+  const s = await syncGigAttempts(ws, d);
+  assert.equal(getHiredAgent(busy.hiredAgentId, ws)!.status, "active", "a drafted attempt still references it");
+  assert.equal(getHiredAgent(idle.hiredAgentId, ws)!.status, "retired");
+  assert.equal(getHiredAgent(unhired.hiredAgentId, ws)!.status, "retired", "no persona yet: retired in kp only");
+  assert.equal(getHiredAgent(stubborn.hiredAgentId, ws)!.status, "active", "an older Personas without the route: left for a later pass");
+  assert.equal(s.personas.retired, 2);
+  assert.equal(s.personas.retireDeferred, 1);
 });

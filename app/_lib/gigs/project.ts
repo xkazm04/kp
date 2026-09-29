@@ -6,15 +6,21 @@ import {
   type EnsurePersonasWorkspaceResult,
   type PersonasPlaceFailureReason,
 } from "./personas-places";
+import { GIG_TYPE_LABEL, gigTypeOf, type GigType } from "./gig-type";
 import type { Gig, GigArena } from "./types";
 import { scaffoldGigWorkdir, type ScaffoldGigWorkdirResult } from "./workdir";
 
-// A Personas workspace per arena, a Personas project per gig (docs/features/gigs/README.md
-// "Workspaces and projects"):
-//   - the arena's workspace holds the specialists hired for it (specialist.ts files each
-//     hire there through `placement`);
+// A Personas workspace per gig TYPE (or, for the older niche specialists, per arena), a
+// Personas project per gig (docs/features/gigs/README.md "Pairing"):
+//   - the type's workspace ("Gigs · Security", gig-type.ts) holds each gig persona and its
+//     gig's project (pairing.ts files the persona there through `placement`); the arena's
+//     workspace holds the niche specialists hired before one-persona-per-gig (specialist.ts)
+//     and the projects of the gigs they worked;
 //   - each gig's project is rooted at the gig's own folder (workdir.ts), so a run dispatched
 //     with `_projectId` executes IN that folder (dispatch.ts).
+// A project already registered in the arena's workspace (a gig prepared before pairing) is
+// never moved: placing it by type answers 409 project_in_other_workspace, and the pairing
+// then files the persona beside it in the arena's workspace (`placeBy: "type"` below).
 //
 // Degrade, stated once: the FOLDER never depends on Personas. prepareGigProject scaffolds and
 // records the workdir first; an unpaired, unreachable or older Personas leaves
@@ -34,6 +40,15 @@ export const GIG_ARENA_WORKSPACE_NAME: Readonly<Record<GigArena, string>> = {
 
 export function gigArenaWorkspaceDescription(arena: GigArena): string {
   return `${GIG_ARENA_WORKSPACE_NAME[arena]}: specialists and one project per gig, managed by kp's Gigs module. kp drafts; the operator reviews and sends.`;
+}
+
+/** The Personas workspace a gig persona and its gig's project are filed in. */
+export function gigTypeWorkspaceName(type: GigType): string {
+  return `Gigs · ${GIG_TYPE_LABEL[type]}`;
+}
+
+export function gigTypeWorkspaceDescription(type: GigType): string {
+  return `${GIG_TYPE_LABEL[type]} gigs: one persona and one project per gig, managed by kp's Gigs module. kp drafts; the operator reviews and sends.`;
 }
 
 const PROJECT_TITLE_MAX = 80;
@@ -70,7 +85,7 @@ export async function ensureGigArenaWorkspace(
 }
 
 export type GigPersonasLink =
-  | { linked: true; projectId: string; workspaceId: string; created: boolean }
+  | { linked: true; projectId: string; workspaceId: string; created: boolean; placedBy?: "type" | "arena" }
   | { linked: false; reason: PersonasPlaceFailureReason };
 
 export type PrepareGigProjectResult =
@@ -78,12 +93,60 @@ export type PrepareGigProjectResult =
   | { ok: false; code: "GIG_NOT_FOUND" }
   | { ok: false; code: "GIG_WORKSPACE_FAILED"; reason: "workdir_outside_root" | "workdir_io_error" };
 
-/** Scaffold the gig's folder -> ensure the arena workspace -> ensure the project rooted there
- *  -> record both. Idempotent: every step is create-if-absent on its own side. */
+/** Ensure the gig type's Personas workspace. Never throws. */
+export async function ensureGigTypeWorkspace(
+  type: GigType,
+  ensure: typeof ensurePersonasWorkspace = ensurePersonasWorkspace
+): Promise<EnsurePersonasWorkspaceResult> {
+  try {
+    return await ensure({ name: gigTypeWorkspaceName(type), description: gigTypeWorkspaceDescription(type) });
+  } catch {
+    // The default transport never throws; an injected one might. Same outcome either way.
+    return { ok: false, reason: "personas_unreachable" };
+  }
+}
+
+export type PrepareGigProjectOptions = {
+  /** Which workspace the project is filed in. `arena` (the default: the workspace door and
+   *  the legacy niche dispatch) or `type` (a gig persona's pairing), which falls back to the
+   *  arena's workspace when the project already lives there. */
+  placeBy?: "arena" | "type";
+};
+
+async function linkProject(
+  gig: Gig,
+  workdir: string,
+  d: GigProjectDeps,
+  placedBy: "type" | "arena"
+): Promise<GigPersonasLink> {
+  const ws = placedBy === "type" ? await ensureGigTypeWorkspace(gigTypeOf(gig), d.ensureWorkspace) : await ensureGigArenaWorkspace(gig.arena, d.ensureWorkspace);
+  if (!ws.ok) return { linked: false, reason: ws.reason };
+  let project: EnsurePersonasProjectResult;
+  try {
+    project = await d.ensureProject({
+      name: gigProjectName(gig),
+      rootPath: workdir,
+      workspaceId: ws.id,
+      description: gig.url || undefined,
+      techStack: gig.brief?.category || null,
+    });
+  } catch {
+    // As above: an injected transport that throws reads as an unreachable Personas.
+    project = { ok: false, reason: "personas_unreachable" };
+  }
+  return project.ok
+    ? { linked: true, projectId: project.id, workspaceId: ws.id, created: project.created, placedBy }
+    : { linked: false, reason: project.reason };
+}
+
+/** Scaffold the gig's folder -> ensure the workspace (the arena's, or the type's) -> ensure
+ *  the project rooted there -> record both. Idempotent: every step is create-if-absent on its
+ *  own side. */
 export async function prepareGigProject(
   workspaceId: string,
   gigId: string,
-  deps: Partial<GigProjectDeps> = {}
+  deps: Partial<GigProjectDeps> = {},
+  opts: PrepareGigProjectOptions = {}
 ): Promise<PrepareGigProjectResult> {
   const d: GigProjectDeps = { ...defaultDeps, ...deps };
   const gig = getGig(workspaceId, gigId);
@@ -92,26 +155,12 @@ export async function prepareGigProject(
   const folder = d.scaffold(gig);
   if (!folder.ok) return { ok: false, code: "GIG_WORKSPACE_FAILED", reason: folder.reason };
 
-  let personas: GigPersonasLink;
-  const ws = await ensureGigArenaWorkspace(gig.arena, d.ensureWorkspace);
-  if (!ws.ok) personas = { linked: false, reason: ws.reason };
-  else {
-    let project: EnsurePersonasProjectResult;
-    try {
-      project = await d.ensureProject({
-        name: gigProjectName(gig),
-        rootPath: folder.workdir,
-        workspaceId: ws.id,
-        description: gig.url || undefined,
-        techStack: gig.brief?.category || null,
-      });
-    } catch {
-      // As above: an injected transport that throws reads as an unreachable Personas.
-      project = { ok: false, reason: "personas_unreachable" };
-    }
-    personas = project.ok
-      ? { linked: true, projectId: project.id, workspaceId: ws.id, created: project.created }
-      : { linked: false, reason: project.reason };
+  let personas = await linkProject(gig, folder.workdir, d, opts.placeBy === "type" ? "type" : "arena");
+  // A project registered in the arena's workspace before pairing existed stays where it is;
+  // the persona is filed beside it instead (Personas binds a run only to a project in the
+  // persona's own workspace).
+  if (!personas.linked && personas.reason === "personas_project_conflict" && opts.placeBy === "type") {
+    personas = await linkProject(gig, folder.workdir, d, "arena");
   }
 
   const stored = setGigWorkspace(workspaceId, gigId, {

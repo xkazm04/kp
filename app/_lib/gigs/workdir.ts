@@ -10,6 +10,7 @@ import {
   gigContractFileMarkdown,
   gigDeliverableCheckerSource,
 } from "./contract";
+import { gigTypeOf } from "./gig-type";
 import type { Gig } from "./types";
 
 // The gig's own folder on disk: where the specialist's run executes (gigs/project.ts binds
@@ -18,7 +19,10 @@ import type { Gig } from "./types";
 // every real repository - Personas runs agents with permissions skipped, and the working
 // directory is the boundary the run is told to keep.
 //
-//   <root>/<arena>/<yyyy-mm-dd>-<title slug>-<last 6 of the gig id>/
+//   <root>/<type>/<yyyy-mm-dd>-<title slug>-<last 6 of the gig id>/
+//     (<type> is the KIND of work, gig-type.ts gigTypeOf: security, web, ui, data-ml,
+//     architecture, content, other. Folders made before 2026-09-29 sit under the arena
+//     instead; a recorded folder is never moved - resolveGigWorkdir keeps it.)
 //     GIG.md            front matter + the research brief + the listing, fenced as UNTRUSTED
 //     NOTES.md          the process log's headings
 //     DELIVERABLE-CONTRACT.md  the run's rules, this layout, the arena's review checklist and
@@ -83,17 +87,18 @@ export function isInsideRoot(root: string, target: string): boolean {
 
 export type GigWorkdirResult = { ok: true; workdir: string } | { ok: false; reason: "workdir_outside_root" };
 
-/** `<root>/<arena>/<slug>`. Pure. Refused when the result would leave `root` - every part is
- *  sanitized already, so a refusal means something upstream is wrong, and nothing is written. */
-export function gigWorkdirFor(root: string, gig: Pick<Gig, "id" | "arena" | "title" | "createdAt">): GigWorkdirResult {
-  const workdir = path.resolve(root, asciiSlug(gig.arena, 32).replace(/-/g, "_"), gigWorkdirSlug(gig));
+/** `<root>/<type>/<slug>`, the type from the brief (else the arena, gig-type.ts). Pure. Refused
+ *  when the result would leave `root` - every part is sanitized already, so a refusal means
+ *  something upstream is wrong, and nothing is written. */
+export function gigWorkdirFor(root: string, gig: Pick<Gig, "id" | "arena" | "title" | "createdAt" | "brief">): GigWorkdirResult {
+  const workdir = path.resolve(root, asciiSlug(gigTypeOf(gig), 32), gigWorkdirSlug(gig));
   return isInsideRoot(root, workdir) ? { ok: true, workdir } : { ok: false, reason: "workdir_outside_root" };
 }
 
 /** The folder a gig uses: the one already recorded when it is still under `root` (a folder
  *  is never renamed out from under the files in it when the listing is retitled), else the
  *  computed one. */
-export function resolveGigWorkdir(root: string, gig: Pick<Gig, "id" | "arena" | "title" | "createdAt" | "workdir">): GigWorkdirResult {
+export function resolveGigWorkdir(root: string, gig: Pick<Gig, "id" | "arena" | "title" | "createdAt" | "workdir" | "brief">): GigWorkdirResult {
   if (gig.workdir && isInsideRoot(root, gig.workdir)) return { ok: true, workdir: path.resolve(gig.workdir) };
   return gigWorkdirFor(root, gig);
 }

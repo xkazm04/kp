@@ -6,9 +6,12 @@ import {
   GIG_CLIENT_FILES_DIR,
   GIG_CONTRACT_FILE,
   GIG_DELIVERABLE_FILE,
+  GIG_PLAN_STATUS_CONTRACT,
+  GIG_PLAN_STATUS_FILE,
   GIG_PROCESS_LOG_FILE,
   GIG_RUN_CONSTRAINTS,
 } from "./contract";
+import { GIG_KNOWLEDGE_MAX, type GigKnowledgeRef } from "./gig-type";
 import type { ResolvedGigRecipe, ResolvedGigRecipes } from "./recipes";
 import { GIG_BRIEF_HEADINGS } from "./research";
 import { GIG_ARENA_TOOLS, gigSpecialistName } from "./specialist-defaults";
@@ -101,6 +104,19 @@ export type GigRequirementsResearch = {
   asOf: string;
 };
 
+/** The operator-accepted plan a GIG PERSONA is hired for (pairing.ts): its steps are the
+ *  persona's Personas milestone goals, and they lead its responsibilities. An extra key
+ *  Personas keeps verbatim; absent on a niche specialist's requirements. */
+export type GigRequirementsPlan = {
+  summary: string;
+  steps: { title: string; doneWhen: string }[];
+  /** The operator's note at acceptance; null when none was written. */
+  operatorNote: string | null;
+  /** Where the persona reports each goal's status (contract.ts). */
+  statusFile: typeof GIG_PLAN_STATUS_FILE;
+  statusContract: typeof GIG_PLAN_STATUS_CONTRACT;
+};
+
 export type GigAgentRequirements = {
   kind: typeof GIG_REQUIREMENTS_KIND;
   role: string;
@@ -124,6 +140,11 @@ export type GigAgentRequirements = {
   constraints: string[];
   tools: { connector: string; why: string }[];
   budgetUsdPerAttempt: number;
+  /** Registry knowledge subjects the agent works to (a gig persona: gig-type.ts, by the gig's
+   *  type), each with its golden path's registry-relative file. <= 12. Absent when none. */
+  knowledge?: GigKnowledgeRef[];
+  /** The accepted plan (a gig persona only). */
+  plan?: GigRequirementsPlan;
 };
 
 // ---------------------------------------------------------------------------
@@ -437,7 +458,18 @@ export function requirementsBytes(r: GigAgentRequirements): number {
 export type ComposeGigRequirementsOptions = {
   /** Lessons by slug; read from each registry recipe's LESSONS.md when omitted. */
   lessons?: Record<string, readonly string[]>;
+  /** A gig persona's knowledge subjects (gig-type.ts resolveGigTypeKnowledge). */
+  knowledge?: readonly GigKnowledgeRef[];
+  /** A gig persona's accepted plan and the operator's note. */
+  plan?: { summary: string; steps: readonly { title: string; doneWhen: string }[]; note: string | null };
 };
+
+/** "Plan step N: <title> (done when: <doneWhen>)" - how an accepted plan's steps lead a gig
+ *  persona's responsibilities. Pure. */
+export function planStepResponsibility(index: number, step: { title: string; doneWhen: string }): string {
+  const done = step.doneWhen.trim();
+  return `Plan step ${index + 1}: ${step.title.trim()}${done ? ` (done when: ${done})` : ""}`;
+}
 
 /** The `kp.agent-requirements.v1` object a gig specialist is hired from. Every string is
  *  trimmed and bounded, every list capped, and the whole stays under Personas' byte
@@ -451,6 +483,14 @@ export function composeGigRequirements(
   const recipes = resolved.recipes;
   const lessons = opts.lessons ?? readGigRecipeLessons(recipes);
   const arenaRecipe = recipes[0];
+  const plan = opts.plan ?? null;
+  const planSteps = plan ? plan.steps.slice(0, GIG_REQUIREMENTS_MAX_ITEMS) : [];
+  const knowledge = (opts.knowledge ?? []).slice(0, GIG_KNOWLEDGE_MAX).map((k) => ({
+    bundle: field(k.bundle),
+    subject: field(k.subject),
+    ...(k.title ? { title: field(k.title) } : {}),
+    ...(k.path ? { path: field(k.path) } : {}),
+  }));
   const whyByConnector = new Map(GIG_ARENA_TOOLS[spec.arena].map((t) => [t.connector, t.why]));
   const build = (caps: Caps): GigAgentRequirements => ({
     kind: GIG_REQUIREMENTS_KIND,
@@ -458,7 +498,12 @@ export function composeGigRequirements(
     arena: spec.arena,
     niche: field(spec.niche),
     purpose: field(arenaRecipe?.need) || field(`Draft ${spec.arena} work for the operator to review and send.`),
-    responsibilities: list(recipes.flatMap((r) => (r.activities.length > 0 ? r.activities : r.coreAction ? [r.coreAction] : []))),
+    // A gig persona's plan steps come first: they are the work it was hired for; the recipes'
+    // activities are how that kind of work is done.
+    responsibilities: list([
+      ...planSteps.map((st, i) => planStepResponsibility(i, st)),
+      ...recipes.flatMap((r) => (r.activities.length > 0 ? r.activities : r.coreAction ? [r.coreAction] : [])),
+    ]),
     craft: recipes.slice(0, GIG_REQUIREMENTS_MAX_ITEMS).map((r) => ({
       recipe: field(`${r.ref.slug}@${r.ref.version}`),
       title: field(r.title),
@@ -476,7 +521,10 @@ export function composeGigRequirements(
       typicalEffortHours: research.typicalEffortHours ? { ...research.typicalEffortHours } : null,
       asOf: field(research.asOf),
     },
-    inputs: { assignment: "kp.gig.v1", fields: list(gigAssignmentFieldList()) },
+    inputs: {
+      assignment: "kp.gig.v1",
+      fields: list([...gigAssignmentFieldList(), ...(plan ? ["plan (the accepted plan: steps with their goal ids, the operator's note, the status file)"] : [])]),
+    },
     outputs: {
       contract: GIG_DELIVERABLE_CONTRACT,
       handoffFile: GIG_DELIVERABLE_FILE,
@@ -491,6 +539,18 @@ export function composeGigRequirements(
       why: field(whyByConnector.get(c) ?? "requested for this specialist at hire time"),
     })),
     budgetUsdPerAttempt: spec.budgetUsdPerAttempt,
+    ...(knowledge.length > 0 ? { knowledge } : {}),
+    ...(plan
+      ? {
+          plan: {
+            summary: field(plan.summary),
+            steps: planSteps.map((st) => ({ title: field(st.title), doneWhen: field(st.doneWhen) })),
+            operatorNote: plan.note?.trim() ? field(plan.note) : null,
+            statusFile: GIG_PLAN_STATUS_FILE,
+            statusContract: GIG_PLAN_STATUS_CONTRACT,
+          },
+        }
+      : {}),
   });
   let out = build(CAP_STEPS[0]!);
   for (const caps of CAP_STEPS.slice(1)) {

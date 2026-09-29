@@ -88,6 +88,12 @@ test("arena must match: another arena's specialist is not a candidate at all", (
   assert.deepEqual(ranked.map((m) => m.specialistId), ["gspec-web"]);
 });
 
+test("a gig persona (gigId set) serves its own gig and is never a candidate for another", () => {
+  const persona: GigMatchCandidate = { ...cand("persona-1", "web development"), specialist: { ...cand("persona-1", "web development").specialist, gigId: "gig-other" } };
+  const ranked = rankSpecialistsForGig(gig({ tags: ["Web Development"] }), [persona, cand("niche-1", "web development")]);
+  assert.deepEqual(ranked.map((m) => m.specialistId), ["niche-1"]);
+});
+
 test("synonyms: frontend / website / sheets / copy / llm meet their area's other words", () => {
   const pairs: [string, GigMatchGig][] = [
     ["frontend", gig({ title: "Fix our website header" })],

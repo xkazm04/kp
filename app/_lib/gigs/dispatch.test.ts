@@ -10,8 +10,11 @@ import type { ExecutePersonaResult } from "./personas-exec.ts";
 import type { PrepareGigProjectResult } from "./project.ts";
 import { getGig, transitionGig, upsertGigFromRaw } from "../db/gigs.ts";
 import { createGigSpecialist } from "../db/gigs-specialists.ts";
-import { getGigAttempt, listGigAttemptsForGig, setGigAttemptExecutionId, transitionGigAttempt } from "../db/gigs-attempts.ts";
+import { createGigAttempt, getGigAttempt, listGigAttemptsForGig, setGigAttemptExecutionId, transitionGigAttempt } from "../db/gigs-attempts.ts";
 import { createHiredAgent, updateHiredAgentStatus, type AgentStatus } from "../db/agents.ts";
+import { getAcceptedGigPlan, setGigPlanProgress } from "../db/gigs-plans.ts";
+import type { GigPairedAssignment } from "./plan-status.ts";
+import { fixtureAcceptedPlan } from "./__fixtures__/accepted-plan.ts";
 
 after(() => cleanupUnitDb());
 
@@ -59,9 +62,17 @@ function specialist(arena: Gig["arena"], agentStatus: AgentStatus, personaId: st
   });
 }
 
+/** A LEGACY gig: one a niche specialist already worked (a prior, failed attempt) and that has
+ *  no accepted plan - the path every test above the "paired" section exercises. */
+function priorAttempt(gigId: string, specialistId: string): void {
+  const a = createGigAttempt(WS, { gigId, specialistId, revisionNote: null });
+  assert.ok(a && transitionGigAttempt(WS, a.id, { from: "dispatched", to: "failed", patch: { fallbackReason: "personas_failed" } }).ok);
+}
+
 function qualified(gig: Gig, spec: GigSpecialist): Gig {
   const r = transitionGig(WS, gig.id, { from: "new", to: "qualified", patch: { specialistId: spec.id } });
   assert.ok(r.ok);
+  priorAttempt(gig.id, spec.id);
   return r.ok ? r.gig : gig;
 }
 
@@ -179,7 +190,7 @@ test("any other workspace failure refuses GIG_WORKSPACE_FAILED before the claim:
     if (!r.ok && r.code === "GIG_WORKSPACE_FAILED") assert.equal(r.detail, detail, label);
     assert.equal(t.calls.length, 0, `${label}: Personas is not asked to run`);
     assert.equal(getGig(WS, gig.id)!.status, "qualified", `${label}: the gig is not claimed`);
-    assert.deepEqual(listGigAttemptsForGig(WS, gig.id), [], `${label}: no attempt is minted`);
+    assert.equal(listGigAttemptsForGig(WS, gig.id).length, 1, `${label}: no attempt is minted (only the prior one)`);
   }
 });
 
@@ -203,13 +214,15 @@ test("refuses a suspect gig with GIG_SUSPECT and writes nothing", async () => {
   assert.deepEqual(listGigAttemptsForGig(WS, gig.id), []);
 });
 
-test("refuses GIG_SPECIALIST_NOT_READY with no specialist, and while the hire has no persona id", async () => {
+test("a legacy gig whose niche specialist is gone asks for a plan; one whose hire has no persona id yet is NOT_READY", async () => {
   const t = transport({ ok: true, executionId: "never" });
   const lonely = newGig("competition");
-  // Force it qualified without a specialist (an operator override path).
+  // Force it qualified without a specialist (an operator override path); its earlier attempt
+  // went to a specialist that no longer exists.
   assert.ok(transitionGig(WS, lonely.id, { from: "new", to: "qualified" }).ok);
+  priorAttempt(lonely.id, "gspec-gone");
   const none = await dispatchGigAttempt(WS, lonely.id, {}, t.deps);
-  assert.ok(!none.ok && none.code === "GIG_SPECIALIST_NOT_READY");
+  assert.ok(!none.ok && none.code === "GIG_PLAN_NOT_ACCEPTED", "no niche specialist left: the gig's own persona, via a plan");
 
   const pending = specialist("freelance", "pending_approval", null);
   const gig = qualified(newGig("freelance"), pending);
@@ -217,14 +230,14 @@ test("refuses GIG_SPECIALIST_NOT_READY with no specialist, and while the hire ha
   assert.ok(!notYet.ok && notYet.code === "GIG_SPECIALIST_NOT_READY");
   assert.equal(t.calls.length, 0);
   assert.equal(getGig(WS, gig.id)!.status, "qualified", "a refusal does not move the gig");
-  assert.deepEqual(listGigAttemptsForGig(WS, gig.id), []);
+  assert.equal(listGigAttemptsForGig(WS, gig.id).length, 1, "only the prior attempt");
 });
 
-test("refuses a retired specialist even though it once had a persona id", async () => {
+test("a legacy gig whose niche specialist was retired asks for a plan instead of dead-ending", async () => {
   const retired = specialist("security", "retired", "persona-old");
   const gig = qualified(newGig("security"), retired);
   const r = await dispatchGigAttempt(WS, gig.id, {}, transport({ ok: true, executionId: "never" }).deps);
-  assert.ok(!r.ok && r.code === "GIG_SPECIALIST_NOT_READY");
+  assert.ok(!r.ok && r.code === "GIG_PLAN_NOT_ACCEPTED");
 });
 
 test("refuses a gig that is not dispatchable (new, dispatched) with GIG_NOT_DISPATCHABLE; unknown id is GIG_NOT_FOUND", async () => {
@@ -282,7 +295,7 @@ test("a revision from in_review carries the note and dispatches a NEW attempt", 
   assert.notEqual(second.attempt.id, first.attempt.id);
   assert.equal(second.attempt.revisionNote, "Add a regression test.");
   assert.equal(t.calls[0]!.assignment.revisionNote, "Add a regression test.");
-  assert.equal(listGigAttemptsForGig(WS, gig.id).length, 2);
+  assert.equal(listGigAttemptsForGig(WS, gig.id).length, 3, "the prior, the first and the revision");
   assert.equal(t.resets.length, 0, "a revision from in_review keeps its prior deliverable — the folder is not cleared");
 });
 
@@ -304,7 +317,7 @@ test("two concurrent dispatches of one gig: exactly one wins the claim", async (
   const loser = [a, b].find((r) => !r.ok)!;
   assert.ok(!loser.ok && loser.code === "GIG_NOT_DISPATCHABLE");
   assert.equal(t.calls.length, 1);
-  assert.equal(listGigAttemptsForGig(WS, gig.id).length, 1);
+  assert.equal(listGigAttemptsForGig(WS, gig.id).length, 2, "the prior attempt and the winner's");
 });
 
 test("setGigAttemptExecutionId is write-once and only on a dispatched attempt", async () => {
@@ -324,4 +337,108 @@ test("buildGigAssignment falls back to the arena default budget when the spec's 
   const gig = newGig("competition");
   const a = buildGigAssignment(gig, { id: "gatt-x", revisionNote: null } as never, bad);
   assert.equal(a.budgetUsd, 10);
+});
+
+// ---------------------------------------------------------------------------
+// Paired gigs: an accepted plan, the gig's own persona (pairing.ts is injected here; its
+// own wire is pinned in pairing.test.ts)
+// ---------------------------------------------------------------------------
+
+function fakePair(spec: GigSpecialist, state: "ready" | "pending", personaId: string | null): { pair: NonNullable<DispatchGigDeps["pair"]>; calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    pair: async (ws, gigId) => {
+      calls.push(gigId);
+      const gig = getGig(ws, gigId)!;
+      const plan = getAcceptedGigPlan(ws, gigId)!;
+      const withIds = setGigPlanProgress(ws, plan.id, {
+        milestoneId: "ms-1",
+        goals: plan.plan!.steps.map((_, i) => ({ stepIndex: i, goalId: `goal-${i + 1}`, status: "open" as const, progress: 0, note: null })),
+        updatedAt: new Date().toISOString(),
+      })!;
+      return {
+        ok: true,
+        state,
+        gig,
+        plan: withIds,
+        specialist: spec,
+        hireStatus: state === "ready" ? "active" : "pending_approval",
+        personaId,
+        hired: false,
+        workdir: `/gigs/security/${gigId}`,
+        projectId: `proj-${gigId}`,
+        personasWorkspaceId: "pws-type",
+        milestone: { ok: true, milestoneId: "ms-1", created: false },
+      };
+    },
+  };
+}
+
+function freshQualified(arena: Gig["arena"] = "security"): Gig {
+  const gig = newGig(arena);
+  const r = transitionGig(WS, gig.id, { from: "new", to: "qualified" });
+  assert.ok(r.ok);
+  return r.ok ? r.gig : gig;
+}
+
+test("no accepted plan and no earlier attempt: GIG_PLAN_NOT_ACCEPTED, nothing prepared, paired or sent", async () => {
+  const spec = specialist("security", "active", "persona-np");
+  const gig = freshQualified();
+  const t = transport({ ok: true, executionId: "never" });
+  const p = fakePair(spec, "ready", "persona-np");
+  const r = await dispatchGigAttempt(WS, gig.id, {}, { ...t.deps, pair: p.pair });
+  assert.deepEqual(r, { ok: false, code: "GIG_PLAN_NOT_ACCEPTED" });
+  assert.equal(p.calls.length, 0);
+  assert.equal(t.calls.length, 0);
+  assert.equal(getGig(WS, gig.id)!.status, "qualified");
+});
+
+test("an accepted plan whose persona is still pending: NOT_READY pairing_pending with the specialist, nothing claimed", async () => {
+  const spec = specialist("security", "pending_approval", null);
+  const gig = freshQualified();
+  fixtureAcceptedPlan(WS, gig.id);
+  const t = transport({ ok: true, executionId: "never" });
+  const r = await dispatchGigAttempt(WS, gig.id, {}, { ...t.deps, pair: fakePair(spec, "pending", null).pair });
+  assert.deepEqual(r, { ok: false, code: "GIG_SPECIALIST_NOT_READY", detail: "pairing_pending", specialistId: spec.id });
+  assert.equal(t.calls.length, 0);
+  assert.equal(getGig(WS, gig.id)!.status, "qualified");
+  assert.deepEqual(listGigAttemptsForGig(WS, gig.id), []);
+});
+
+test("an accepted plan with an active persona: runs it, and the assignment carries the plan with its goal ids", async () => {
+  const spec = specialist("security", "active", "persona-paired");
+  const gig = freshQualified();
+  fixtureAcceptedPlan(WS, gig.id, { note: "Keep the PoC harmless." });
+  const t = transport({ ok: true, executionId: "exec-paired" });
+  const r = await dispatchGigAttempt(WS, gig.id, {}, { ...t.deps, pair: fakePair(spec, "ready", "persona-paired").pair });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(getGig(WS, gig.id)!.specialistId, spec.id, "the claim records the gig's persona");
+  const { personaId, assignment } = t.calls[0]!;
+  assert.equal(personaId, "persona-paired");
+  assert.equal(assignment.workdir, `/gigs/security/${gig.id}`);
+  assert.equal(assignment._projectId, `proj-${gig.id}`);
+  const plan = (assignment as GigPairedAssignment).plan;
+  assert.equal(plan.note, "Keep the PoC harmless.");
+  assert.equal(plan.statusFile, "PLAN-STATUS.json");
+  assert.equal(plan.statusContract, "kp-plan-status.v1");
+  assert.deepEqual(plan.steps.map((s) => s.goalId), ["goal-1", "goal-2", "goal-3"]);
+  assert.equal(plan.steps[0]!.doneWhen, "Evidence 1 is in NOTES.md");
+  assert.deepEqual(t.resets, [`/gigs/security/${gig.id}`], "a first run starts from a clean folder");
+});
+
+test("a failed persona hire at pairing is NOT_READY hire_failed with the hire code; a pairing refusal passes through", async () => {
+  const gig = freshQualified();
+  fixtureAcceptedPlan(WS, gig.id);
+  const t = transport({ ok: true, executionId: "never" });
+  const failed = await dispatchGigAttempt(WS, gig.id, {}, {
+    ...t.deps,
+    pair: async () => ({ ok: false, code: "GIG_PAIRING_HIRE_FAILED", status: 502, hireCode: "AGENT_DISPATCH_BRIDGE_FAILED", hiredAgentId: "agent-x" }),
+  });
+  assert.deepEqual(failed, { ok: false, code: "GIG_SPECIALIST_NOT_READY", detail: "hire_failed", hireCode: "AGENT_DISPATCH_BRIDGE_FAILED", status: 502 });
+  const ws = await dispatchGigAttempt(WS, gig.id, {}, { ...t.deps, pair: async () => ({ ok: false, code: "GIG_WORKSPACE_FAILED", detail: "personas_unpaired" }) });
+  assert.deepEqual(ws, { ok: false, code: "GIG_WORKSPACE_FAILED", detail: "personas_unpaired" });
+  assert.equal(t.calls.length, 0);
+  assert.equal(getGig(WS, gig.id)!.status, "qualified");
 });
