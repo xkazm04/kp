@@ -290,17 +290,22 @@ export function salaryColor(t: number): string {
 
 export type MapMetric = "volume" | "salary";
 
-/** Normalise a region's chosen metric to [0,1] across all regions. */
-export function regionScale(regions: Region[], metric: MapMetric) {
+/** Normalise a region's chosen metric to [0,1] across all regions, or null when the
+ *  region has no figure. Null is the no-data answer: it used to be 0.5, which the
+ *  ramp paints as an ordinary mid-scale salary, so a region with nothing measured
+ *  read as a middling one (and with no values anywhere, every region did, beside a
+ *  legend that was correctly hidden). The map owns the neutral fill for null. */
+export function regionScale(regions: Region[], metric: MapMetric): (r: Region) => number | null {
   const vals = metricValues(regions, metric);
   // No values at all → `Math.min()` is Infinity and every ratio becomes NaN.
-  // Fall back to a flat mid-tone so the map still draws, uncoloured.
-  if (!vals.length) return () => 0.5;
+  if (!vals.length) return () => null;
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   return (r: Region) => {
     const v = metric === "volume" ? r.vacancies : r.medianSalary;
-    if (!isFigure(v) || max === min) return 0.5;
+    if (!isFigure(v)) return null;
+    // Every region measured at one value: a real, flat reading, so the mid-tone is honest.
+    if (max === min) return 0.5;
     return (v - min) / (max - min);
   };
 }

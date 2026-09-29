@@ -57,8 +57,10 @@ export default function CzMap({ regions, metric, activeCode, onActivate, classNa
     >
       {ENTRIES.map(([code, g], i) => {
         const region = byCode.get(code);
-        const norm = region ? scale(region) : 0;
-        const fill = !region ? "#e8e2d4" : metric === "volume" ? heatColor(norm) : salaryColor(norm);
+        // No region in the snapshot, or no figure for this metric: the same neutral
+        // fill, never a point on the ramp (the region's accessible name says which).
+        const norm = region ? scale(region) : null;
+        const fill = norm == null ? "#e8e2d4" : metric === "volume" ? heatColor(norm) : salaryColor(norm);
         // Fold the region's figures into its accessible name (falls back to the
         // bare geo name only for regions absent from the data snapshot).
         const label = region ? regionAriaLabel(region, labelText, locale) : g.name;
