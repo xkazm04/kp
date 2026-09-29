@@ -4,6 +4,7 @@
 // Runner: node:test with type stripping. `npm run test:unit app/features/shared/matchTypes.test.ts`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { PROVENANCE } from "../../_lib/taxonomy.generated.ts";
 import { formatBandCompact, provLabel } from "./matchTypes.ts";
 
 test("provLabel keeps observed on its own high-trust stamp", () => {
@@ -20,6 +21,16 @@ test("provLabel does not label an unknown slug as academic", () => {
   const pl = provLabel("nope");
   assert.notEqual(pl.key, "academic");
   assert.equal(pl.key, "unknown");
+});
+
+// The "nope" case above passed while every study and project rung the pipeline emits
+// (thesis, coursework, academic_project, personal_project, extracurricular) fell to the
+// unknown badge: a recorded basis displayed as "we don't know". Loop the real vocabulary.
+test("provLabel gives every rung the pipeline emits its own badge, never unknown", () => {
+  for (const p of [...PROVENANCE, "observed"]) {
+    assert.notEqual(provLabel(p).key, "unknown", `${p} rendered as unknown`);
+    assert.equal(provLabel(p).key, p, `${p} rendered as ${provLabel(p).key}`);
+  }
 });
 
 test("formatBandCompact localizes the compact unit when the caller passes one", () => {
