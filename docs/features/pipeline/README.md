@@ -451,6 +451,15 @@ strands nobody, and moving them would rewrite closed history.
    allowance-exhausted install rendered a deterministic template's verdict in
    exactly the grammar it renders the model's, under the same "AI review" tag.
 
+   **A template verdict never advances a candidate on its own.** The auto gate
+   ratifies only an *LLM* `advance`; a template's screening recommendation (a
+   fixed 82 for any total ≥ 70) always routes to `hold`
+   (`automation-run.ts`, `verdictSource === "llm" ? coerceScreenRoute(...) :
+   "hold"`), so a keyless or allowance-exhausted install parks every screening
+   advance for a person to decide, with `verdictSource: "template"` disclosed,
+   even when the screening gate is set to "auto". It no longer lets the
+   workspace's invoice decide who moves on.
+
    **The letter locale is resolved in the entry's own team.** `letterLang` is
    `resolveCommsLocale(entry.locale, entry.workspaceId)` — omitting the workspace
    read the DEFAULT team's `default_locale`, so a NULL-locale candidate filed into
