@@ -102,7 +102,8 @@ const PLACE_RE =
  *  recruiter reads the findings against their own text top-to-bottom), first
  *  occurrence per phrase (case-insensitively deduped so "Dynamic team" and
  *  "dynamic team" report once). */
-function collectPhrases(text: string, patterns: RegExp[]): string[] {
+function collectPhrases(raw: string, patterns: RegExp[]): string[] {
+  const text = raw.normalize("NFC");
   const hits: { index: number; phrase: string }[] = [];
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
@@ -142,8 +143,19 @@ export function locateLintPhrase(body: string, phrase: string): { start: number;
   const needle = phrase.trim();
   if (!needle) return null;
   const start = body.toLowerCase().indexOf(needle.toLowerCase());
-  if (start < 0) return null;
-  return { start, end: start + needle.length };
+  if (start >= 0) return { start, end: start + needle.length };
+  // The phrase came from the NFC form (lintJd normalizes); a decomposed body holds it
+  // at other offsets. Find it in the composed text, then map both ends back.
+  const composed = body.normalize("NFC").toLowerCase().indexOf(needle.normalize("NFC").toLowerCase());
+  if (composed < 0) return null;
+  const toRaw = (n: number) => {
+    let i = 0;
+    while (i < body.length && body.slice(0, i).normalize("NFC").length < n) i++;
+    // Absorb combining marks that compose into the character just reached.
+    while (i < body.length && /\p{M}/u.test(body[i]!)) i++;
+    return i;
+  };
+  return { start: toRaw(composed), end: toRaw(composed + needle.normalize("NFC").length) };
 }
 
 /**
@@ -169,7 +181,10 @@ export function lintJd(input: {
   salaryAvailable?: boolean;
   mustHaveCount?: number;
 }): JdLintFinding[] {
-  const body = input.body ?? "";
+  // NFC first: in decomposed text a combining mark ends every \p{L}* stem run and
+  // "Kč" is not "kč", so an unnormalized Czech posting lost its boilerplate findings
+  // and gained a false missing-salary. The lint reads what the writer sees.
+  const body = (input.body ?? "").normalize("NFC");
   const findings: JdLintFinding[] = findVaguePhrases(body).map((phrase) => ({ kind: "vague", phrase }));
   if (!input.salaryAvailable && !MONEY_RE.test(body)) findings.push({ kind: "missing", what: "salary" });
   if (!PLACE_RE.test(body)) findings.push({ kind: "missing", what: "place" });

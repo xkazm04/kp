@@ -254,3 +254,24 @@ test("jdLintMessage throws on an unknown kind instead of mislabeling it 'missing
   // (which would return lintMissingPlace, not throw).
   assert.throws(() => jdLintMessage({ kind: "tooShort" } as unknown as JdLintFinding));
 });
+
+// Decomposed (NFD) text: a letter plus a combining mark is \p{L} then \p{M}, so a stem's
+// \p{L}* run stops at the mark, and "Kč" as K + c + caron is not "kč". Text pasted from
+// some macOS sources or extracted from a PDF arrives that way. Unnormalized, the same
+// Czech posting lost two of its three boilerplate findings and gained a false
+// missing-salary; the lint must read what the writer sees, not the code points.
+const CS_POSTING =
+  "Nabízíme konkurenceschopný plat, rodinnou atmosféru a mladý kolektiv. Práce na pracovišti v Brně, 65 000 Kč měsíčně.";
+
+test("decomposed text lints the same as composed text", () => {
+  assert.deepEqual(lintJd({ body: CS_POSTING.normalize("NFD") }), lintJd({ body: CS_POSTING.normalize("NFC") }));
+  assert.equal(lintJd({ body: CS_POSTING.normalize("NFC") }).length, 3);
+});
+
+test("a finding from decomposed text still locates its span in the original body", () => {
+  const body = CS_POSTING.normalize("NFD");
+  const phrase = lintFindingPhrase(lintJd({ body })[0]!) ?? "";
+  const loc = locateLintPhrase(body, phrase);
+  assert.ok(loc, "expected the phrase to be located in the decomposed body");
+  assert.equal(body.slice(loc.start, loc.end).normalize("NFC"), "konkurenceschopný plat");
+});
