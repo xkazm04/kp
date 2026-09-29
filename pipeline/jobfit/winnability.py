@@ -29,7 +29,7 @@ from itertools import combinations
 
 from .jobs import Job
 from .market_config import ACTIVE_MARKET, MarketConfig
-from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, ko_filter, score_job
+from .matching import FIT_PROMISING_THRESHOLD, MatchCandidate, _norm_currency, ko_filter, score_job
 
 # Must-haves considered for the pair fallback: C(8, 2) = 28 extra passes at most.
 _PAIR_CANDIDATES = 8
@@ -175,7 +175,11 @@ def assess_winnability(
     # so we SILENCE it rather than emit a confident-but-wrong verdict — the exact
     # cross-currency trap the TS isSameCurrency guard was built to prevent.
     market_currency = ACTIVE_MARKET.currency
-    job_currency = market.currency
+    # The currency the POSTING stated when it stated one (the seeker-side _salary_flag
+    # reads it the same way); only an ad that named none is read in the units of the
+    # market it was authored for. Answering every ad in the market's currency compared
+    # a EUR-stated range with the CZK benchmark as if it were CZK.
+    job_currency = _norm_currency(job.salary_currency) if job.salary_currency else market.currency
     comparable = _same_currency(job_currency, market_currency)
     # Both sides of the comparison must be STATED by the ad. A salary_band stamped from
     # the market anchor IS the market band, so top-vs-floor against itself can never

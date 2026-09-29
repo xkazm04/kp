@@ -263,6 +263,17 @@ class WinnabilityTest(unittest.TestCase):
         self.assertEqual(salary["jobBand"], [40000, 50000])
         self.assertEqual(salary["assumedInputs"], ["seniority"])
 
+    def test_a_range_stated_in_another_currency_is_silenced_not_read_as_the_markets(self) -> None:
+        # The posting's own currency wins over the market it was authored for: a EUR
+        # range (written with the symbol here) is not comparable with the CZK benchmark,
+        # and used to be read as CZK and flagged 95% under it.
+        job = normalize_job({"title": "Backend engineer", "seniority": "senior", "salary_min": 3000, "salary_max": 4000, "salary_currency": "€", "requirements": [{"skill": "python", "kind": "must_have"}]})
+        salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
+        self.assertEqual(salary["jobCurrency"], "EUR")
+        self.assertFalse(salary["currencyComparable"])
+        self.assertIsNone(salary["belowMarket"])
+        self.assertNotIn("topVsMarketFloorPct", salary)
+
     def test_a_fully_stated_ad_still_gets_its_verdict(self) -> None:
         job = normalize_job({"title": "Backend engineer", "seniority": "senior", "salary_min": 20000, "salary_max": 30000, "requirements": [{"skill": "python", "kind": "must_have"}]})
         salary = assess_winnability([_cand("c", ["python"])], job)["salary"]
