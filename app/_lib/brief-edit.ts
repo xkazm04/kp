@@ -20,6 +20,10 @@ import type { RoleBrief } from "./rolespec";
 // (brief-edit.test.ts).
 
 const PROVENANCE = ["stated", "inferred", "default"] as const;
+// The facet cap the Python merge keeps (intake.py merge_brief). A save that cuts
+// lower drops the tail of a brief the dialog legitimately built, silently.
+export const MAX_BRIEF_FACETS = 32;
+
 const KINDS = ["must_have", "nice_to_have"] as const;
 const HARDNESS = ["prerequisite", "learnable"] as const;
 const IMPORTANCE = ["core", "valuable", "context"] as const;
@@ -214,7 +218,10 @@ export function sanitizeEditedBrief(value: unknown, original: RoleBrief | null):
       return {
         skill,
         kind: vocab(e.kind, KINDS, "must_have"),
-        hardness: vocab(e.hardness, HARDNESS, "prerequisite"),
+        // An ungraded acquirability falls to the NON-blocking side, as in the
+        // Python coerce: must_have x prerequisite is the rubric's blocking cell,
+        // and a fallback may not put a row there that nobody graded.
+        hardness: vocab(e.hardness, HARDNESS, "learnable"),
         weight: clamp01(e.weight, 0.5),
         rationale: text(e.rationale, 600),
         // A shape-level pass-through: the CLAIM survives sanitizing, and
@@ -244,7 +251,7 @@ export function sanitizeEditedBrief(value: unknown, original: RoleBrief | null):
       };
     })
     .filter((f): f is NonNullable<typeof f> => f !== null)
-    .slice(0, 20);
+    .slice(0, MAX_BRIEF_FACETS);
   const spineRaw = (raw.spineProvenance ?? {}) as Record<string, unknown>;
   const spineClaims: Record<string, string> = {};
   for (const key of SPINE_KEYS) {

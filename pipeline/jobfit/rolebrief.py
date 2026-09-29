@@ -74,6 +74,7 @@ SUGGESTED_FACET_KEYS = (
 
 _KINDS = ("must_have", "nice_to_have")
 _HARDNESS = ("prerequisite", "learnable")
+_SENIORITY = ("junior", "medior", "senior", "lead")
 
 
 class BriefRequirement(_Base):
@@ -209,7 +210,14 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
         return BriefRequirement(
             skill=skill,
             kind=_vocab(entry.get("kind"), _KINDS, "must_have"),
-            hardness=_vocab(entry.get("hardness"), _HARDNESS, "prerequisite"),
+            # An ungraded acquirability falls to the NON-blocking side. The rubric
+            # blocks on must_have x prerequisite and a blocking axis may end a
+            # candidacy on its own (rolerubric.py), so a fallback of "prerequisite"
+            # turned every row the model left ungraded into a hard gate nobody
+            # chose. `kind` keeps its must_have fallback: that is what the promote
+            # floor counts as a dealbreaker, and a must-learnable still ranks as a
+            # must without excluding anyone.
+            hardness=_vocab(entry.get("hardness"), _HARDNESS, "learnable"),
             weight=_clamp01(entry.get("weight"), 0.5),
             rationale=_text(entry.get("rationale")),
             provenance=_vocab(entry.get("provenance"), BRIEF_PROVENANCE, "inferred"),
@@ -248,16 +256,36 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
         for key, value in (spine_raw.items() if isinstance(spine_raw, dict) else [])
         if key in spine_keys
     }
+    coerced_facets = [f for f in (facet(e) for e in (facets if isinstance(facets, list) else [])) if f]
+    # No forced enum. A seniority outside the vocabulary ("Band 5", "AfC 6") still
+    # falls to the enum default, but the payload's basis for it may not follow: a
+    # `stated` chip on "medior" would record a level the requestor never said. The
+    # verbatim answer is kept as the grade_label facet the extraction contract asks
+    # for (the row is the model's, nothing is invented), and the enum reads default.
+    raw_seniority = _text(pick("seniority"))
+    if raw_seniority and not _vocab(raw_seniority, _SENIORITY, ""):
+        claimed = spine.pop("seniority", None)
+        if not any(f.key == "grade_label" for f in coerced_facets):
+            coerced_facets.append(
+                BriefFacet(
+                    key="grade_label",
+                    label="Grade / level (as stated)",
+                    value=raw_seniority,
+                    importance="core",
+                    provenance=claimed or "inferred",
+                    confidence=0.9 if claimed == "stated" else 0.5,
+                )
+            )
     return RoleBrief(
         title=_text(pick("title")),
-        seniority=_vocab(pick("seniority"), ("junior", "medior", "senior", "lead"), "medior"),
+        seniority=_vocab(pick("seniority"), _SENIORITY, "medior"),
         role_family=_text(pick("role_family", "roleFamily")) or "software_engineering",
         languages=_text_list(pick("languages")),
         summary=_text(pick("summary")),
         responsibilities=_prose_list(pick("responsibilities")),
         success_criteria=_prose_list(pick("success_criteria", "successCriteria")),
         requirements=[r for r in (req(e) for e in (requirements if isinstance(requirements, list) else [])) if r],
-        facets=[f for f in (facet(e) for e in (facets if isinstance(facets, list) else [])) if f],
+        facets=coerced_facets,
         spine_provenance=spine,
         prompt_version=_text(pick("prompt_version", "promptVersion")),
     )

@@ -240,3 +240,34 @@ test("a weight the human moved is a stated grade, not an inferred one", () => {
   const out = sanitizeEditedBrief(claimed, stored);
   assert.equal(out?.requirements?.find((r) => r.skill === "Kafka")?.provenance, "stated");
 });
+
+test("an ungraded acquirability never mints a blocking must_have x prerequisite", () => {
+  // The rubric blocks on must_have x prerequisite; a PATCH that omits hardness (or
+  // sends an off-vocabulary one) must not land in that cell by the fallback. An
+  // explicit prerequisite still stands (positive control).
+  const out = sanitizeEditedBrief({
+    requirements: [
+      { skill: "Python", kind: "must_have" },
+      { skill: "Kafka", kind: "must_have", hardness: "required" },
+      { skill: "RN licence", kind: "must_have", hardness: "prerequisite" },
+    ],
+  }, null);
+  assert.ok(out);
+  const graded = Object.fromEntries((out.requirements ?? []).map((r) => [r.skill, `${r.kind}/${r.hardness}`]));
+  assert.deepEqual(graded, {
+    Python: "must_have/learnable",
+    Kafka: "must_have/learnable",
+    "RN licence": "must_have/prerequisite",
+  });
+});
+
+test("a human save keeps as many facets as the merge does", () => {
+  // The Python merge keeps 32 facets (intake.py merge_brief); an App master brief
+  // reaches 22. A save that cut to 20 silently dropped the last slots - the
+  // mandate, budget and owner answers - with no count and no log.
+  const facets = Array.from({ length: 32 }, (_, i) => ({ key: `k${i}`, label: `K${i}`, value: `v${i}`, importance: "valuable" }));
+  const out = sanitizeEditedBrief({ facets: [...facets, { key: "k32", label: "K32", value: "v32" }] }, null);
+  assert.ok(out);
+  assert.equal(out.facets?.length, 32);
+  assert.equal(out.facets?.[31].key, "k31");
+});
