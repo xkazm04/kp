@@ -4279,6 +4279,8 @@
       "insufficientSample": "Unzureichende Stichprobe: Weniger als zwei Gruppen erreichen {min} Bewerbende, daher lässt sich kein Verhältnis vergleichen. Das ist kein Nachweis, dass keine Benachteiligung vorliegt.",
       "noAdverse": "Keine Gruppe liegt unter der 80-%-Vier-Fünftel-Schwelle.",
       "notAssessed": "{count, plural, one {# Gruppe hat} other {# Gruppen haben}} weniger als {min} Bewerbende und {count, plural, one {wurde} other {wurden}} nicht bewertet. Das Ergebnis oben gilt nicht für diese.",
+      "detectable": "Bei diesen Zahlen müsste eine Gruppe höchstens mit {pct} % der Referenzquote ausgewählt werden, damit diese Prüfung eine Lücke verlässlich zeigt. Ein nicht signifikantes Ergebnis belegt nicht, dass die Quoten gleich sind.",
+      "detectableBlind": "Bei diesen Zahlen könnte diese Prüfung selbst bei einer Gruppe, die nie ausgewählt wurde, keine Lücke verlässlich zeigen. Ein nicht signifikantes Ergebnis belegt nicht, dass die Quoten gleich sind.",
       "shortfallValue": "{people} ({share} % der Gruppe)",
       "parseIgnored": "{read} von {total} Zeilen gelesen. {ignored} ignoriert (Zeilen: {rows}). Jede Zeile benötigt: Gruppe, ausgewählt, gesamt. Das Ergebnis unten wird nur aus den erfolgreich gelesenen Zeilen berechnet.",
       "jurisdictionUnconfirmed": "Für diesen Workspace ist keine Rechtsordnung gespeichert. Unten gilt die Voreinstellung, bestätigt hat sie niemand.",

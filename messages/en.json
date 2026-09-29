@@ -4279,6 +4279,8 @@
       "insufficientSample": "Insufficient sample: fewer than two groups reach {min} applicants, so no ratio can be compared. This is not a finding of no adverse impact.",
       "noAdverse": "No group falls below the 80% four-fifths threshold.",
       "notAssessed": "{count, plural, one {# group has} other {# groups have}} fewer than {min} applicants and {count, plural, one {was} other {were}} not assessed. The result above does not cover {count, plural, one {it} other {them}}.",
+      "detectable": "With these counts, a group would have to be selected at {pct}% of the reference rate or less before this check would reliably show a gap. A result that is not significant does not show the rates are equal.",
+      "detectableBlind": "With these counts, this check could not reliably show a gap even for a group that was never selected. A result that is not significant does not show the rates are equal.",
       "shortfallValue": "{people} ({share}% of group)",
       "parseIgnored": "Read {read} of {total} rows. {ignored} ignored (rows: {rows}). Each row needs: group, selected, total. The result below is computed only on the rows that parsed.",
       "jurisdictionUnconfirmed": "No jurisdiction is saved for this workspace. The default below is in force, but nobody has confirmed it.",

@@ -4279,6 +4279,8 @@
       "insufficientSample": "Échantillon insuffisant : moins de deux groupes atteignent {min} candidats, aucun ratio ne peut donc être comparé. Cela ne signifie pas qu’aucun impact défavorable n’a été constaté.",
       "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80 %.",
       "notAssessed": "{count, plural, one {# groupe compte} other {# groupes comptent}} moins de {min} candidats et {count, plural, one {n’a pas été évalué} other {n’ont pas été évalués}}. Le résultat ci-dessus ne {count, plural, one {le} other {les}} couvre pas.",
+      "detectable": "Avec ces effectifs, un groupe devrait être sélectionné à {pct} % du taux de référence ou moins pour que ce contrôle montre un écart de façon fiable. Un résultat non significatif ne montre pas que les taux sont égaux.",
+      "detectableBlind": "Avec ces effectifs, ce contrôle ne pourrait pas montrer un écart de façon fiable, même pour un groupe qui n’aurait jamais été sélectionné. Un résultat non significatif ne montre pas que les taux sont égaux.",
       "shortfallValue": "{people} ({share} % du groupe)",
       "parseIgnored": "Lignes lues : {read} sur {total}. Ignorées : {ignored} (lignes : {rows}). Chaque ligne doit comporter : groupe, sélectionnés, total. Le résultat ci-dessous est calculé uniquement sur les lignes correctement lues.",
       "jurisdictionUnconfirmed": "Aucune juridiction n’est enregistrée pour cet espace de travail. La valeur affichée est celle par défaut, que personne n’a confirmée.",

@@ -74,6 +74,57 @@ export function midPExactTwoSided(aSelected: number, aTotal: number, bSelected: 
   return Math.min(1, less + equal / 2);
 }
 
+/** The power a comparison is read at: a group whose true rate sits at or below the
+ *  {@link detectableRatio} is shown as a significant gap at least this often. */
+export const DETECTABLE_POWER = 0.8;
+
+function normalCdf(z: number): number {
+  // Abramowitz & Stegun 7.1.26 (erf), accurate to ~1.5e-7 — far finer than a power
+  // statement needs, and dependency-free like the rest of this module.
+  const t = 1 / (1 + (0.3275911 * Math.abs(z)) / Math.SQRT2);
+  const y =
+    1 -
+    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) *
+      Math.exp((-z * z) / 2);
+  return z >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+}
+
+/** Power of the two-sided 5% two-proportion test to separate rates p0 and p1. */
+function comparisonPower(p0: number, n0: number, p1: number, n1: number): number {
+  const pooled = (n0 * p0 + n1 * p1) / (n0 + n1);
+  const seNull = Math.sqrt(pooled * (1 - pooled) * (1 / n0 + 1 / n1));
+  const seAlt = Math.sqrt((p0 * (1 - p0)) / n0 + (p1 * (1 - p1)) / n1);
+  if (seAlt === 0) return 1;
+  return normalCdf((p0 - p1 - 1.959964 * seNull) / seAlt);
+}
+
+/**
+ * What a comparison could have SEEN. The largest ratio (group rate ÷ reference rate) at
+ * which a group that truly selects at that ratio would still be shown as a significant
+ * gap {@link DETECTABLE_POWER} of the time, given the reference's rate and both group
+ * sizes. 0.33 reads: "this sample only reliably shows a group selected at a third of the
+ * reference rate or less". 0 means it could not reliably show even a group that was never
+ * selected at all. null when there is no reference rate to compare against.
+ *
+ * A non-significant result is silent about every gap smaller than this, so a "clean" or
+ * "not significant" line that omits it reads as parity when it is only blindness. The
+ * significant direction needs no such statement: the exact test holds its error rate at
+ * any size, which is why no floor is placed on selections (a numerator floor would
+ * suppress the zero-selected case, the most severe one).
+ */
+export function detectableRatio(referenceRate: number, referenceTotal: number, groupTotal: number): number | null {
+  if (!(referenceRate > 0) || referenceTotal <= 0 || groupTotal <= 0) return null;
+  if (comparisonPower(referenceRate, referenceTotal, 0, groupTotal) < DETECTABLE_POWER) return 0;
+  let lo = 0;
+  let hi = 1; // power falls as the ratio rises toward 1
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (comparisonPower(referenceRate, referenceTotal, referenceRate * mid, groupTotal) >= DETECTABLE_POWER) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
 /** Aggregate counts for one group the recruiter supplies. */
 export type GroupCount = { group: string; selected: number; total: number };
 
@@ -178,6 +229,9 @@ export type AdverseImpactResult = {
   /** Rows that could not be assessed (below the floor). A headline that says "no group
    *  falls below" must also say how many groups it never measured. */
   unassessedGroups: number;
+  /** {@link detectableRatio} of the LEAST sensitive comparison made — the gap below which
+   *  a non-significant verdict says nothing. null when no comparison was made. */
+  detectableRatio: number | null;
   /** True only when at least two groups meet {@link ADVERSE_IMPACT_MIN_COHORT} — the
    *  minimum to anchor a reference and measure one comparison against it. When false
    *  the sample is too small to assess and the UI MUST show "insufficient sample"
@@ -260,6 +314,15 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     };
   });
 
+  // The least sensitive comparison bounds what a non-significant verdict can claim.
+  const detectable = reference
+    ? groups
+        .filter((g) => g.pValue !== null)
+        .map((g) => detectableRatio(referenceRate, reference.total, g.total))
+        .filter((d): d is number => d !== null)
+    : [];
+  const weakestDetectable = detectable.length > 0 ? Math.min(...detectable) : null;
+
   return {
     groups,
     referenceGroup: reference?.group ?? null,
@@ -268,6 +331,7 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     anySignificantGapAboveThreshold:
       reliable && groups.some((g) => !g.adverseImpact && g.significant && (g.shortfall ?? 0) > 0),
     unassessedGroups: groups.filter((g) => !g.reliable).length,
+    detectableRatio: reliable ? weakestDetectable : null,
     reliable,
   };
 }

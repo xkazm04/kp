@@ -9,6 +9,8 @@ import {
   computeAdverseImpact,
   parseGroupCounts,
   midPExactTwoSided,
+  detectableRatio,
+  DETECTABLE_POWER,
   FOUR_FIFTHS,
   ADVERSE_IMPACT_MIN_COHORT,
   SIGNIFICANCE_ALPHA,
@@ -338,4 +340,68 @@ test("the reference row and sub-floor rows carry no p-value or shortfall", () =>
   assert.equal(r.groups[2].pValue, null);
   assert.equal(r.groups[3].shortfall, null);
   assert.equal(r.unassessedGroups, 2, "a clean headline must also say two groups were never measured");
+});
+
+test("detectableRatio: what a comparison could have seen, and nothing without a reference rate", () => {
+  assert.equal(detectableRatio(0, 50, 50), null, "no reference rate, nothing to compare against");
+  assert.equal(detectableRatio(0.3, 0, 50), null);
+  assert.equal(detectableRatio(0.3, 50, 0), null);
+  // Three selections in thirty: even a group never selected at all cannot be reliably shown.
+  assert.equal(detectableRatio(0.1, 30, 30), 0);
+  // Half selected, thirty each: only a third of the reference rate or less is reliably shown.
+  const half = detectableRatio(0.5, 30, 30)!;
+  assert.ok(Math.abs(half - 0.33) < 0.03, `expected ~0.33, got ${half}`);
+  // More people see milder gaps.
+  assert.ok(detectableRatio(0.5, 100, 100)! > half);
+  assert.ok(detectableRatio(0.5, 1000, 1000)! > detectableRatio(0.5, 100, 100)!);
+});
+
+test("the result carries the least sensitive comparison, and only when a verdict exists", () => {
+  const r = computeAdverseImpact([
+    { group: "R", selected: 150, total: 300 },
+    { group: "Big", selected: 140, total: 300 },
+    { group: "Small", selected: 14, total: 30 },
+  ]);
+  const big = detectableRatio(0.5, 300, 300)!;
+  const small = detectableRatio(0.5, 300, 30)!;
+  assert.ok(small < big);
+  assert.equal(r.detectableRatio, small, "the small arm bounds what a non-significant line may claim");
+  const unreliable = computeAdverseImpact([
+    { group: "R", selected: 3, total: 10 },
+    { group: "G", selected: 1, total: 12 },
+  ]);
+  assert.equal(unreliable.reliable, false);
+  assert.equal(unreliable.detectableRatio, null, "an insufficient-sample state states no sensitivity");
+});
+
+test("a stated detectable ratio is honest: a group at that true ratio is shown about 80% of the time", () => {
+  // Seeded xorshift, so the check is deterministic. Ground truth: the focal group's true
+  // rate is exactly detectableRatio x the reference rate. Real detections must land near
+  // DETECTABLE_POWER (the normal approximation may run a little conservative or generous).
+  let s = 246813579;
+  const rnd = () => {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5; s >>>= 0;
+    return s / 4294967296;
+  };
+  const binom = (n: number, p: number) => {
+    let k = 0;
+    for (let i = 0; i < n; i++) if (rnd() < p) k++;
+    return k;
+  };
+  for (const [rate, n] of [[0.3, 60], [0.5, 100], [0.3, 300]] as const) {
+    const ratio = detectableRatio(rate, n, n)!;
+    let hits = 0;
+    const trials = 600;
+    for (let i = 0; i < trials; i++) {
+      const r = computeAdverseImpact([
+        { group: "R", selected: binom(n, rate), total: n },
+        { group: "G", selected: binom(n, rate * ratio), total: n },
+      ]);
+      if (r.anySignificantAdverse || r.anySignificantGapAboveThreshold) hits++;
+    }
+    const seen = hits / trials;
+    assert.ok(seen > DETECTABLE_POWER - 0.1 && seen < DETECTABLE_POWER + 0.1, `rate ${rate} n ${n}: shown ${seen}, stated power ${DETECTABLE_POWER}`);
+  }
 });

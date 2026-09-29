@@ -147,6 +147,17 @@ export function DecisionsComplianceImpactCheck() {
               ? t("insufficientSample", { min: ADVERSE_IMPACT_MIN_COHORT })
               : t(VERDICT_KEY[verdict])}
           </p>
+          {/* A verdict that found nothing owes what it could have found: a non-significant
+              line is silent about every gap smaller than the detectable ratio, and at
+              these cohort sizes that is most of them. Only the not-significant verdicts
+              carry it; a significant gap needs no such statement. */}
+          {impact.detectableRatio !== null && (verdict === "clean" || verdict === "belowNotSignificant") ? (
+            <p className="mt-1 text-meta text-steel">
+              {Math.floor(impact.detectableRatio * 100) < 1
+                ? t("detectableBlind")
+                : t("detectable", { pct: Math.floor(impact.detectableRatio * 100) })}
+            </p>
+          ) : null}
           {impact.reliable && impact.unassessedGroups > 0 ? (
             <p className="mt-1 text-meta text-steel">
               {t("notAssessed", { count: impact.unassessedGroups, min: ADVERSE_IMPACT_MIN_COHORT })}
