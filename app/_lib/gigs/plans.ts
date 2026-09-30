@@ -1,7 +1,9 @@
 // The gig plan runner: for each gig of a request, in turn, one proposal ROUND - a row per
-// seat (plan-seats.ts: Fable 5, Opus 5.5 at xhigh, Sonnet 5.5 at high) - and the three seats
-// run IN PARALLEL through pipeline/jobfit/gig_plan_cli.py, so the operator can compare their
-// plans side by side on the gig's Plans tab and accept exactly one
+// seat of the lineup the gig's brief DIFFICULTY calls for (plan-seats.ts planSeatsFor: easy,
+// moderate and unrated one Sonnet 5.5 high seat; hard one Opus 5.5 high seat; very hard
+// three - Opus 5.5 xhigh, Fable 5, and GPT 6 Astra at max through the Codex CLI) - and a
+// round's seats run IN PARALLEL through pipeline/jobfit/gig_plan_cli.py, so the operator can
+// compare their plans side by side on the gig's Plans section and accept exactly one
 // (docs/features/gigs/README.md "Plans"). It is the `gig_plans` task's body
 // (late-bound-boot.ts); nothing on the task hub imports it.
 //
@@ -23,9 +25,10 @@
 //     (the first gig always starts). The gigs that did not fit come back as `deferred`, and
 //     the task continues them as a new `gig_plans` task.
 //
-// KEYLESS IS A DECISION, NOT A FAULT: with no usable Claude CLI every seat answers
-// `no_provider` (exit 0) and the rows are `failed` with that reason - there is no
-// deterministic plan, and the tab says so rather than showing a template as a design.
+// KEYLESS IS A DECISION, NOT A FAULT: with no usable CLI engine (the Claude CLI, or the
+// Codex CLI for the GPT seat) a seat answers `no_provider` (exit 0) and its row is `failed`
+// with that reason - there is no deterministic plan, and the report says so rather than
+// showing a template as a design.
 //
 // Everything with an effect is injected (GigPlanRunnerDeps) so plans.test.ts runs the
 // runner over a fake CLI with no Python, no model and no key.
@@ -33,8 +36,8 @@
 import { createGigPlanRound, getAcceptedGigPlan, listGigPlans, setGigPlanResult, setGigPlanRunning } from "../db/gigs-plans";
 import { getGig } from "../db/gigs";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
-import { GIG_PLAN_SEATS, type GigPlanSeat } from "./plan-seats";
-import type { Gig, GigBrief, GigPlan, GigPlanRow, GigStatus } from "./types";
+import { planSeatsFor, type GigPlanSeat } from "./plan-seats";
+import type { Gig, GigBrief, GigDifficulty, GigPlan, GigPlanRow, GigStatus } from "./types";
 
 /** Kept in lockstep with gig_plan_cli.py PROMPT_VERSION (plans.test.ts reads both). */
 export const GIG_PLAN_PROMPT_VERSION = "gig-plan-v1";
@@ -73,7 +76,10 @@ export type GigPlansSummary = {
 
 export type GigPlanRunnerDeps = {
   runCli: CliRunner;
-  seats: readonly GigPlanSeat[];
+  /** The lineup for a brief's difficulty (plan-seats.ts planSeatsFor). */
+  seatsFor: (difficulty: GigDifficulty | null | undefined) => readonly GigPlanSeat[];
+  /** A FIXED lineup for every gig, whatever its difficulty (tests); absent = seatsFor. */
+  seats?: readonly GigPlanSeat[];
   getGig: typeof getGig;
   listGigPlans: typeof listGigPlans;
   getAcceptedGigPlan: typeof getAcceptedGigPlan;
@@ -87,7 +93,7 @@ export type GigPlanRunnerDeps = {
 export function defaultGigPlanRunnerDeps(): GigPlanRunnerDeps {
   return {
     runCli: runPythonCli,
-    seats: GIG_PLAN_SEATS,
+    seatsFor: planSeatsFor,
     getGig,
     listGigPlans,
     getAcceptedGigPlan,
@@ -156,6 +162,7 @@ export function parseGigPlan(raw: unknown): GigPlan | null {
 export function gigPlanCliInput(seat: GigPlanSeat, gig: Gig, brief: GigBrief) {
   return {
     seat: seat.seat,
+    provider: seat.provider,
     model: seat.model,
     effort: seat.effort,
     gig: { title: gig.title, arena: gig.arena, url: gig.url, reward: gig.reward?.text ?? null, deadlineAt: gig.deadlineAt },
@@ -271,7 +278,8 @@ export async function runGigPlans(
       continue;
     }
     const brief = gig.brief;
-    const rows = deps.createGigPlanRound(workspaceId, gig.id, deps.seats.map((s) => ({ seat: s.seat, model: s.model, effort: s.effort })));
+    const lineup = deps.seats ?? deps.seatsFor(brief.difficulty);
+    const rows = deps.createGigPlanRound(workspaceId, gig.id, lineup.map((s) => ({ seat: s.seat, model: s.model, effort: s.effort })));
     if (!rows || rows.length === 0) {
       summary.skipped.push({ gigId, reason: "round_refused" });
       continue;
@@ -279,7 +287,11 @@ export async function runGigPlans(
     summary.gigs += 1;
     const outcomes = await Promise.all(
       rows.map((row) => {
-        const seat = deps.seats.find((s) => s.seat === row.seat) ?? { seat: row.seat, model: row.model, effort: row.effort, label: row.seat };
+        // The row's own seat in this round's lineup (the seat id AND the effort: Opus runs at
+        // high on a hard gig and at xhigh on a very hard one).
+        const seat =
+          lineup.find((s) => s.seat === row.seat && s.model === row.model && s.effort === row.effort) ??
+          lineup.find((s) => s.seat === row.seat) ?? { seat: row.seat, provider: "claude_cli" as const, model: row.model, effort: row.effort, label: row.seat };
         return runSeat(workspaceId, gig, brief, row, seat, deps, opts.signal);
       })
     );

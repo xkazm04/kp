@@ -1,7 +1,8 @@
 """CLI: one seat's plan for one gig - a high-level approach as checkable steps.
 
-The Node side (``app/_lib/gigs/plans.ts``) runs this once per SEAT (a Claude model at an
-effort, ``app/_lib/gigs/plan-seats.ts``), the seats of one gig in parallel, so the operator
+The Node side (``app/_lib/gigs/plans.ts``) runs this once per SEAT (an engine and a model at
+an effort, ``app/_lib/gigs/plan-seats.ts``; the lineup follows the brief's difficulty), the
+seats of one gig in parallel, so the operator
 can compare the plans side by side on the gig's Plans tab and accept exactly one
 (docs/features/gigs/README.md "Plans"). The accepted plan's steps become the goals of the
 gig's Personas milestone, which is why every step carries a ``doneWhen``: the agent
@@ -9,7 +10,8 @@ reports on each one, so each must be checkable.
 
 stdin or ``--input-json <path>``::
 
-    {"seat": str, "model": str, "effort": "low"|"medium"|"high"|"xhigh"|"max"|null,
+    {"seat": str, "provider": "claude_cli"|"codex_cli" (optional, default claude_cli),
+     "model": str, "effort": "low"|"medium"|"high"|"xhigh"|"max"|null,
      "gig": {"title": str, "arena": str, "url": str, "reward": str|null, "deadlineAt": str|null},
      "brief": {"category": str, "difficulty": str, "effort": {...}|null,
                "markdown": str, "challenges": [str]},
@@ -29,16 +31,19 @@ stdout (exit 0)::
      "promptVersion": "gig-plan-v1", "seat": str, "model": str, "effort": str | null,
      "costUsd": number | null}
 
-THE ENGINE IS THE SEAT. The call site pins ``ProviderPin("claude_cli", model, effort)``
-from the input - the seat list is kp's (plan-seats.ts), the one place the lineup changes
-- so the operator's routing row for ``gig_plan`` is not read; only policy outranks a pin
+THE ENGINE IS THE SEAT. The call site pins ``ProviderPin(provider, model, effort)`` from
+the input - the seat list is kp's (plan-seats.ts), the one place the lineup changes - so
+the operator's routing row for ``gig_plan`` is not read; only policy outranks a pin
 (KP_OFFLINE and the production consumer-terms refusal degrade the call to
-``no_provider``). No web access: the research brief already read the listing's
-references. The Claude CLI child runs in the neutral temp cwd the generate mode always
-uses (claude_cli.py ``_neutral_cwd``), never the repository: a CLI started in kp's
-checkout folds kp's own CLAUDE.md into the prompt and bills its cache creation to every
-plan. ``costUsd`` is what the CLI reported for the call (a JSON repair re-prompt
-included), null when it reported nothing - never 0 for unknown.
+``no_provider``). ``provider`` is one of ``PIN_PROVIDERS``: the Claude CLI (the default,
+``PIN_PROVIDER``) or the pin-only Codex CLI (``llm/adapters/codex_cli.py``, the GPT 6 Astra
+seat), which is also handed ``SCHEMA`` as its ``--output-schema``. No web access: the
+research brief already read the listing's references. Either child runs in a neutral
+empty temp cwd, never the repository: a CLI started in kp's checkout folds kp's own
+CLAUDE.md / AGENTS.md into the prompt and bills it to every plan. ``costUsd`` is what the
+CLI reported for the call (a JSON repair re-prompt included), null when it reported
+nothing - never 0 for unknown; the Codex CLI reports tokens only, so its seat is always
+null.
 
 KEYLESS IS A DECISION, NOT A FAULT. With no usable provider this exits 0 with ``result:
 null, source: "deterministic", fallbackReason: "no_provider"``; there is no deterministic
@@ -75,12 +80,15 @@ from .llm.registry import PIN_EFFORTS
 USE_CASE = "gig_plan"
 # Kept in lockstep with app/_lib/gigs/plans.ts GIG_PLAN_PROMPT_VERSION (plans.test.ts).
 PROMPT_VERSION = "gig-plan-v1"
-# Every seat runs on this engine (TS mirror: app/_lib/llm-pins.ts PINNED_USE_CASES.gig_plan,
-# held equal by llm-capabilities-lockstep.test.ts, which reads THIS line). The model and
-# the effort are the seat's (plan-seats.ts), so they arrive in the input.
+# The seats' default engine (TS mirror: app/_lib/llm-pins.ts PINNED_USE_CASES.gig_plan,
+# held equal by llm-capabilities-lockstep.test.ts, which reads THIS line and PIN_PROVIDERS).
+# The engine, the model and the effort are the seat's (plan-seats.ts), so they arrive in
+# the input; a request that names no provider is a Claude CLI seat.
 PIN_PROVIDER = "claude_cli"
-# The CLI's deadline (retries and the JSON repair included). Opus at xhigh is the slow
-# seat; plans.ts gives each seat spawn nine minutes and passes --timeout-s under it.
+PIN_PROVIDERS = ("claude_cli", "codex_cli")
+# The CLI's deadline (retries and the JSON repair included). Opus at xhigh and GPT 6 Astra
+# at max are the slow seats; plans.ts gives each seat spawn nine minutes and passes
+# --timeout-s under it.
 PROVIDER_TIMEOUT_S = 480
 MIN_TIMEOUT_S = 30
 
@@ -94,6 +102,43 @@ MAX_DONE_WHEN_CHARS = 300
 MAX_PAGES = 3
 MAX_PAGE_CHARS = 20_000
 MAX_MARKDOWN_CHARS = 20_000
+
+# The plan's shape for an engine that can constrain its answer (the Codex CLI's
+# --output-schema, which takes the strict dialect: every property listed in `required`,
+# `additionalProperties: false`, a nullable field as anyOf with null). coerce_plan still
+# decides what is usable - the schema cannot count steps or refuse an empty doneWhen.
+_STRINGS: dict[str, Any] = {"type": "array", "items": {"type": "string"}}
+SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "steps": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"title": {"type": "string"}, "doneWhen": {"type": "string"}},
+                "required": ["title", "doneWhen"],
+                "additionalProperties": False,
+            },
+        },
+        "decisions": _STRINGS,
+        "risks": _STRINGS,
+        "effortHours": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {"min": {"type": "number"}, "max": {"type": "number"}},
+                    "required": ["min", "max"],
+                    "additionalProperties": False,
+                },
+                {"type": "null"},
+            ]
+        },
+        "questions": _STRINGS,
+    },
+    "required": ["summary", "steps", "decisions", "risks", "effortHours", "questions"],
+    "additionalProperties": False,
+}
 
 # The seat label and the model id land in argv (the model) or in the envelope only (the
 # seat); on Windows the CLI is a .cmd shim that interprets its arguments, so both are
@@ -170,6 +215,8 @@ def validate_request(req: dict[str, Any]) -> str | None:
     seat, model, effort = req.get("seat"), req.get("model"), req.get("effort")
     if not isinstance(seat, str) or not _SEAT.match(seat):
         return "seat must be a short lower-case id"
+    if req.get("provider") is not None and req.get("provider") not in PIN_PROVIDERS:
+        return f"provider must be one of {', '.join(PIN_PROVIDERS)} or absent"
     if not isinstance(model, str) or not _MODEL.match(model):
         return "model must be a model id (lower-case letters, digits, '.', '_', '-')"
     if effort is not None and effort not in PIN_EFFORTS:
@@ -384,7 +431,7 @@ def plan(req: dict[str, Any], *, no_llm: bool = False, timeout_s: int | None = N
         return _deterministic(req, "no_provider", ledger="disabled")
     timeout = clamp_timeout(timeout_s)
     try:
-        pin = ProviderPin(PIN_PROVIDER, req["model"], req.get("effort"))
+        pin = ProviderPin(req.get("provider") or PIN_PROVIDER, req["model"], req.get("effort"))
         provider = resolve_provider("gig_plan", timeout=timeout, pin=pin)  # literal: the BYOM coverage scan reads call sites by text
     except Exception:  # noqa: BLE001 - a routing refusal degrades; it does not crash the runner
         return _deterministic(req, "no_provider")
@@ -393,6 +440,12 @@ def plan(req: dict[str, Any], *, no_llm: bool = False, timeout_s: int | None = N
     ok, descent = provider_availability(provider)
     if not ok:
         return _deterministic(req, "no_provider", ledger=descent)
+    door = getattr(provider, "with_output_schema", None)
+    if callable(door):
+        # The Codex CLI constrains its final message to the plan's shape (--output-schema);
+        # the Claude CLI has no such door on a plain generate call and is validated by
+        # complete_json + coerce_plan alone, as before.
+        provider = door(SCHEMA)
     spent = _metered(provider)
     try:
         payload = provider.complete_json(

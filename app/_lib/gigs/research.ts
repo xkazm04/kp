@@ -33,7 +33,13 @@
 //      writes the Markdown itself from that JSON with a fixed shape (assembleGigBriefMarkdown),
 //      inserting every model string as escaped plain text - the model never writes the
 //      structure. Headings become `sections` in the same function, ids from ONE assigner
-//      (registry: anchor-id-single-assigner, server-parsed-once-reused).
+//      (registry: anchor-id-single-assigner, server-parsed-once-reused). gig-brief-v4 adds
+//      fields stored beside the Markdown (never inside it): the listing's language and its
+//      English translation, the artifacts the client must still provide, a freelance
+//      outreach message, and the work kind.
+//   6. PHYSICAL WORK: a model brief whose work kind is `physical` declines a scanned gig
+//      still `new`/`qualified` (declineIfPhysical, `not_digital_work`); the pass counts it.
+//      The deterministic half of the rule runs earlier, at qualification (qualify.ts).
 //
 // WHERE IT RUNS. The scan no longer researches inline: it enqueues a `gig_research` task
 // with the gigs it CREATED (late-bound-boot.ts), and that task runs researchGigBatch - at
@@ -78,7 +84,10 @@ import {
   type GigBriefLink,
   type GigBriefSection,
   type GigDifficulty,
+  type GigQualification,
   type GigSuspectReason,
+  type GigWorkKind,
+  GIG_WORK_KINDS,
 } from "./types";
 
 /** Gigs one research pass briefs at most (the scan's `gig_research` task). NEW gigs only:
@@ -107,8 +116,15 @@ const LLM_SPAWN_TIMEOUT_MS = 255_000;
 /** What the CLI's deadline leaves the spawn: interpreter start-up and the ledger write. */
 const LLM_SPAWN_SLACK_MS = 15_000;
 /** Kept in lockstep with gig_brief_cli.py PROMPT_VERSION (research.test.ts reads both).
- *  v3: web research on the pinned engine. */
-export const GIG_BRIEF_PROMPT_VERSION = "gig-brief-v3";
+ *  v3: web research on the pinned engine. v4: the listing's language and English
+ *  translation, the missing artifacts, the outreach message, the work kind. */
+export const GIG_BRIEF_PROMPT_VERSION = "gig-brief-v4";
+/** gig-brief-v4 bounds (gig_brief_cli.py holds the same). */
+const LISTING_ENGLISH_CHARS = 6000;
+const MISSING_ARTIFACTS_MAX = 8;
+const ARTIFACT_CHARS = 200;
+const OUTREACH_CHARS = 1500;
+const WORK_KIND_REASON_CHARS = 300;
 
 /** What one research pass reports (researchGigBatch; the `gig_research` task's result). */
 export type GigResearchBatchSummary = {
@@ -128,6 +144,9 @@ export type GigResearchBatchSummary = {
   /** Gigs of the pass not started because the pass budget could not fit one more. They
    *  keep no brief; the on-demand door researches them. */
   deferred: number;
+  /** Gigs the brief found PHYSICAL work (`workKind: "physical"`) and research declined
+   *  (`not_digital_work`). */
+  declinedNotDigital: number;
 };
 /** The politeness key's seed: every research read shares one jitter lane. */
 const RESEARCH_FETCH_SOURCE = "gig-research";
@@ -381,6 +400,13 @@ export type GigBriefModelResult = {
   summary: string;
   /** Deliverables / acceptance, one per bullet. */
   asks: string[];
+  // gig-brief-v4, each optional (a v3 answer has none; types.ts GigBrief documents them).
+  language?: string | null;
+  listingEnglish?: string | null;
+  missingArtifacts?: string[];
+  outreachMessage?: string | null;
+  workKind?: GigWorkKind | null;
+  workKindReason?: string | null;
 };
 
 const DIFFICULTY_LABEL: Readonly<Record<GigDifficulty, string>> = {
@@ -528,9 +554,49 @@ function cleanChallenges(v: unknown): string[] {
   return out;
 }
 
+/** Plain text that keeps its paragraphs (gig_brief_cli.py _clean_paragraphs): line endings
+ *  normalised, runs of spaces collapsed, lines trimmed, at most one blank line in a row,
+ *  clamped with an ellipsis. Null when nothing is left. */
+function clampParagraphs(v: unknown, max: number): string | null {
+  if (typeof v !== "string") return null;
+  const s = v
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[^\S\n]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!s) return null;
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+/** The gig-brief-v4 fields, validated (gig_brief_cli.py coerce_v4). Each is optional: an
+ *  absent or malformed one is null / [] and never refuses the brief. The translation exists
+ *  only for a known non-English listing; the outreach message only for a freelance gig
+ *  (`arena` undefined = not known here, kept). */
+export function parseGigBriefV4(r: Record<string, unknown>, arena?: GigArena): Required<Pick<GigBriefModelResult, "language" | "listingEnglish" | "missingArtifacts" | "outreachMessage" | "workKind" | "workKindReason">> {
+  const rawLanguage = typeof r.language === "string" ? r.language.trim().toLowerCase() : "";
+  const language = /^[a-z]{2}$/.test(rawLanguage) ? rawLanguage : null;
+  const workKind = (GIG_WORK_KINDS as readonly unknown[]).includes(r.workKind) ? (r.workKind as GigWorkKind) : null;
+  const artifacts: string[] = [];
+  for (const item of clampList(r.missingArtifacts, MISSING_ARTIFACTS_MAX, ARTIFACT_CHARS)) {
+    const s = item.replace(/^(?:[-*•]\s+|\d+[.)]\s+)/, "").replace(/^#+/, "").trim();
+    if (s && !artifacts.some((o) => o.toLowerCase() === s.toLowerCase())) artifacts.push(s);
+  }
+  return {
+    language,
+    listingEnglish: language && language !== "en" ? clampParagraphs(r.listingEnglish, LISTING_ENGLISH_CHARS) : null,
+    missingArtifacts: artifacts,
+    outreachMessage: arena !== undefined && arena !== "freelance" ? null : clampParagraphs(r.outreachMessage, OUTREACH_CHARS),
+    workKind,
+    workKindReason: workKind ? clampText(r.workKindReason, WORK_KIND_REASON_CHARS) : null,
+  };
+}
+
 /** kp's gate on the CLI's `result` (the Python coercer is the first line; this is the
- *  one that decides what is stored). Null when a required field is missing. */
-export function parseGigBriefResult(raw: unknown): GigBriefModelResult | null {
+ *  one that decides what is stored). Null when a required field is missing. `arena` is the
+ *  gig's (the outreach message is freelance-only). */
+export function parseGigBriefResult(raw: unknown, opts: { arena?: GigArena } = {}): GigBriefModelResult | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
   const category = clampText(r.category, 80);
@@ -557,6 +623,7 @@ export function parseGigBriefResult(raw: unknown): GigBriefModelResult | null {
     challenges: cleanChallenges(r.challenges),
     summary,
     asks: clampList(r.asks, 8, 240),
+    ...parseGigBriefV4(r, opts.arena),
   };
 }
 
@@ -591,6 +658,13 @@ export function buildLlmGigBrief(
     fallbackReason: null,
     promptVersion: meta.promptVersion,
     createdAt: meta.createdAt,
+    // gig-brief-v4: stored only when the model answered them (a v3 result has none).
+    ...(result.language !== undefined ? { language: result.language } : {}),
+    ...(result.listingEnglish !== undefined ? { listingEnglish: result.listingEnglish } : {}),
+    ...(result.missingArtifacts !== undefined ? { missingArtifacts: result.missingArtifacts } : {}),
+    ...(result.outreachMessage !== undefined ? { outreachMessage: result.outreachMessage } : {}),
+    ...(result.workKind !== undefined ? { workKind: result.workKind } : {}),
+    ...(result.workKindReason !== undefined ? { workKindReason: result.workKindReason } : {}),
   };
 }
 
@@ -829,6 +903,8 @@ export type GigResearchOutcome = {
   providerMissing: boolean;
   /** Honeypot reasons the linked pages carried ([] = none). */
   flagged: GigSuspectReason[];
+  /** The brief found the work PHYSICAL and the gig was declined (`not_digital_work`). */
+  declined: boolean;
 };
 
 function joinedBudget(outer: AbortSignal | undefined, ms: number) {
@@ -960,7 +1036,7 @@ export async function researchGig(workspaceId: string, gig: Gig, opts: GigResear
           llm: true,
           timeoutMs: spawnTimeoutMs,
         });
-        const result = out.source === "llm" ? parseGigBriefResult(out.result) : null;
+        const result = out.source === "llm" ? parseGigBriefResult(out.result, { arena: current.arena }) : null;
         if (result) {
           const promptVersion = typeof out.promptVersion === "string" && out.promptVersion ? out.promptVersion : GIG_BRIEF_PROMPT_VERSION;
           brief = buildLlmGigBrief(result, links, { promptVersion, createdAt: deps.now() });
@@ -975,9 +1051,30 @@ export async function researchGig(workspaceId: string, gig: Gig, opts: GigResear
     }
     if (!brief) brief = deterministicGigBrief(current, links, fallbackReason, deps.now());
     const stored = deps.setGigBrief(workspaceId, gig.id, brief);
-    return { gig: stored, brief, providerMissing, flagged: [...flagged] };
+    const declinedGig = stored ? declineIfPhysical(workspaceId, stored, brief, deps) : null;
+    return { gig: declinedGig ?? stored, brief, providerMissing, flagged: [...flagged], declined: declinedGig !== null };
   } finally {
     budget.release();
+  }
+}
+
+/** The research layer of "physical work never reaches the desk" (qualify.ts carries the
+ *  deterministic one): a model brief that found the work `physical` declines a SCANNED gig
+ *  still `new` or `qualified`, through the ordinary transition (a CAS on the status it read),
+ *  with the reason on its verdict when it has one (`declinedBy: "model"`; without a verdict
+ *  types.ts gigPipelineDecline reads the brief's work kind). A `mixed` gig stays, and a
+ *  manual gig is the operator's own choice. The declined gig, or null when nothing moved. */
+function declineIfPhysical(workspaceId: string, gig: Gig, brief: GigBrief, deps: GigResearchDeps): Gig | null {
+  if (brief.source !== "llm" || brief.workKind !== "physical") return null;
+  if (gig.sourceId === null || (gig.status !== "new" && gig.status !== "qualified")) return null;
+  const q = gig.qualification;
+  const qualification: GigQualification | undefined = q ? { ...q, declineReason: "not_digital_work", declinedBy: "model" } : undefined;
+  try {
+    const moved = deps.transitionGig(workspaceId, gig.id, { from: gig.status, to: "declined", patch: qualification ? { qualification } : undefined });
+    return moved.ok ? moved.gig : null;
+  } catch (error) {
+    deps.log(`${gig.id}: declining a physical gig failed; it stays on the line`, error);
+    return null;
   }
 }
 
@@ -1066,7 +1163,7 @@ export async function researchGigBatch(
   depsOverride: Partial<GigResearchDeps> = {}
 ): Promise<GigResearchBatchSummary> {
   const deps: GigResearchDeps = { ...defaultGigResearchDeps(), ...depsOverride };
-  const summary: GigResearchBatchSummary = { attempted: 0, llm: 0, deterministic: 0, failed: 0, flagged: 0, providerMissing: false, deferred: 0 };
+  const summary: GigResearchBatchSummary = { attempted: 0, llm: 0, deterministic: 0, failed: 0, flagged: 0, providerMissing: false, deferred: 0, declinedNotDigital: 0 };
   const limit = Math.max(1, Math.min(GIG_RESEARCH_MAX_PER_SCAN, Math.trunc(info.limit) || 1));
   let gigs: Gig[];
   if (info.gigIds) {
@@ -1102,6 +1199,7 @@ export async function researchGigBatch(
       else if (out.brief.source === "llm") summary.llm += 1;
       else summary.deterministic += 1;
       if (out.flagged.length > 0) summary.flagged += 1;
+      if (out.declined) summary.declinedNotDigital += 1;
       if (out.providerMissing) summary.providerMissing = true;
     } catch (error) {
       summary.failed += 1;

@@ -12,7 +12,11 @@ Pins:
   than 4 or more than 9 steps (``llm_unusable``);
 - keyless is ``no_provider`` with exit 0; a mid-flight failure is ``llm_error:<...>``;
 - the envelope carries what the seat cost when the CLI reported it, null otherwise;
-- a malformed request (seat, model, effort, gig, brief, pages) is exit 2 ``invalid_input``.
+- a malformed request (seat, provider, model, effort, gig, brief, pages) is exit 2
+  ``invalid_input``;
+- the seat's ``provider`` picks the pinned engine: absent = the Claude CLI, ``codex_cli`` =
+  the pin-only Codex CLI (GPT 6 Astra), which alone is handed ``SCHEMA`` through its
+  ``with_output_schema`` door (test_llm_codex_cli_adapter.py drives that seat end to end).
 No network, no key: the provider is a fake or the spawn is stubbed.
 """
 
@@ -200,6 +204,36 @@ class CallTest(unittest.TestCase):
         self.assertEqual(seen["kwargs"], {"timeout": 480, "pin": ProviderPin("claude_cli", "claude-opus-5-5", "xhigh")})
         self.assertEqual(fake.timeouts, [480])
 
+    def test_the_seat_provider_picks_the_pinned_engine(self):
+        seen: list = []
+
+        def fake_resolve(use_case, **kwargs):
+            seen.append(kwargs["pin"])
+            return FakeProvider(answer=GOOD)
+
+        with mock.patch.object(gig_plan_cli, "resolve_provider", fake_resolve):
+            gig_plan_cli.plan({**REQUEST, "provider": "claude_cli"})
+            gig_plan_cli.plan({**REQUEST, "seat": "gpt", "provider": "codex_cli", "model": "gpt-6-astra", "effort": "max"})
+        self.assertEqual(seen, [ProviderPin("claude_cli", "claude-opus-5-5", "xhigh"), ProviderPin("codex_cli", "gpt-6-astra", "max")])
+        self.assertEqual(gig_plan_cli.PIN_PROVIDERS, ("claude_cli", "codex_cli"))
+
+    def test_only_an_engine_with_the_schema_door_is_handed_the_schema(self):
+        opened: list = []
+
+        class Schemed(FakeProvider):
+            def with_output_schema(self, schema):
+                opened.append(schema)
+                return self
+
+        with mock.patch.object(gig_plan_cli, "resolve_provider", return_value=Schemed(answer=GOOD)):
+            out = gig_plan_cli.plan({**REQUEST, "seat": "gpt", "provider": "codex_cli", "model": "gpt-6-astra", "effort": "max"})
+        self.assertEqual(out["source"], "llm")
+        self.assertEqual(opened, [gig_plan_cli.SCHEMA])
+        # the strict dialect --output-schema takes: every property required, nothing extra
+        self.assertEqual(sorted(gig_plan_cli.SCHEMA["required"]), sorted(gig_plan_cli.SCHEMA["properties"]))
+        self.assertFalse(gig_plan_cli.SCHEMA["additionalProperties"])
+        self.assertIsNotNone(gig_plan_cli.coerce_plan(GOOD))
+
     def test_the_call_site_is_a_literal_the_byom_scan_can_read(self):
         source = (REPO_ROOT / "pipeline" / "jobfit" / "gig_plan_cli.py").read_text(encoding="utf-8")
         self.assertIn('resolve_provider("gig_plan", timeout=timeout, pin=pin)', source)
@@ -380,6 +414,7 @@ class InputTest(unittest.TestCase):
             {**REQUEST, "model": "claude & calc"},
             {**REQUEST, "model": ""},
             {**REQUEST, "effort": "ultra"},
+            {**REQUEST, "provider": "openai"},
             {**REQUEST, "gig": {"title": " "}},
             {**REQUEST, "brief": "x"},
             {**REQUEST, "pages": "x"},

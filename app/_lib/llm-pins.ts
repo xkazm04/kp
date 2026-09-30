@@ -27,12 +27,14 @@ export const PINNED_USE_CASES: Readonly<Record<string, PinnedUseCase>> = {
     reason:
       "Product-owner requirement: a gig is researched once, on the web (the Claude CLI's WebSearch + WebFetch), by Claude Sonnet 5.5, following the references its listing names.",
   },
-  // gig_plan_cli.py pins `PIN_PROVIDER` with the SEAT's model and effort, so the model here
-  // names every seat - the list app/_lib/gigs/plan-seats.ts holds (the lockstep test reads it).
+  // gig_plan_cli.py pins the SEAT's engine, model and effort (`PIN_PROVIDER` is the default
+  // engine, `PIN_PROVIDERS` the two it accepts), so the model here names every seat's model -
+  // the list app/_lib/gigs/plan-seats.ts holds (the lockstep test reads it). The GPT seat runs
+  // on the pin-only Codex CLI, which no routing row can name, so `provider` stays the default.
   gig_plan: {
     provider: "claude_cli",
-    model: "claude-fable-5, claude-opus-5-5, claude-sonnet-5-5",
+    model: "claude-sonnet-5-5, claude-opus-5-5, claude-fable-5, gpt-6-astra",
     reason:
-      "Product-owner requirement: each gig plan is written by three Claude seats side by side (Fable 5, Opus 5.5 at xhigh effort, Sonnet 5.5 at high effort) so their plans can be compared; the seats are fixed by kp, not by routing.",
+      "Product-owner requirement: the plan seats follow the brief's difficulty (one Sonnet 5.5 high plan up to moderate, one Opus 5.5 high plan when hard, three side by side when very hard: Opus 5.5 xhigh, Fable 5 and GPT 6 Astra at max through the Codex CLI); the seats are fixed by kp, not by routing.",
   },
 };

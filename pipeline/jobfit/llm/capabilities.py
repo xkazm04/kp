@@ -57,6 +57,17 @@ PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     "gateway": frozenset({CAP_JSON}),
 }
 
+# Engines reachable ONLY through a call-site pin (registry.ProviderPin), never through a
+# routing row. Deliberately a separate map: PROVIDER_CAPABILITIES is mirrored exactly by the
+# TS catalogue (llm-config.ts LLM_PROVIDERS, llm-capabilities-lockstep.test.ts) and every
+# key there is an operator-routable provider with an ADAPTERS entry. The Codex CLI is the
+# operator's own ChatGPT login on the box - there is nothing to configure and no key kp
+# holds - so it is offered to no Models row; the gig plan seats pin it for GPT 6 Astra
+# (app/_lib/gigs/plan-seats.ts, adapters/codex_cli.py). Text/JSON only.
+PIN_ONLY_PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
+    "codex_cli": frozenset({CAP_JSON}),
+}
+
 # The use-case catalog (docs/architecture/llm-provider-layer.md). Unknown use cases default
 # to {json} so new text call sites work without touching this file; the rows
 # here exist to (a) gate multimodal/grounded cases and (b) document the set.
@@ -125,9 +136,10 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "gig_brief": frozenset({CAP_JSON, CAP_WEB_RESEARCH}),
     # Gigs (app/_lib/gigs/plans.ts -> gig_plan_cli.py): one gig and its research brief,
     # fenced as data, in; a structured plan (summary, 4-9 checkable steps, decisions,
-    # risks, an effort range, questions) out as JSON. Each seat pins its own Claude model
-    # and effort at the call site (app/_lib/gigs/plan-seats.ts); no web access - the
-    # brief already did the research.
+    # risks, an effort range, questions) out as JSON. Each seat pins its own engine, model
+    # and effort at the call site (app/_lib/gigs/plan-seats.ts: Claude CLI seats, and the
+    # pin-only codex_cli seat for GPT 6 Astra); no web access - the brief already did the
+    # research.
     "gig_plan": frozenset({CAP_JSON}),
 }
 
@@ -197,12 +209,16 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # A rule set is ~7 rules x locator + samples; the authoring prompt also asks for
     # the reasoning per rule, which is what the reviewer reads before saving.
     "extraction_rules": 4096,
-    # A gig brief is small by contract (a summary <=900 chars, <=7 challenges, <=8 asks,
-    # each <=240) - ~900 output tokens at the structural maximum - but the INPUT is up to
-    # three 20k-char pages, and a reasoning model that thinks over that much material runs
-    # past the base 2048 before it answers; a truncated object fails coerce_brief and the
-    # deterministic brief ships instead. Sized with fit_dialog/extraction_rules.
-    "gig_brief": 4096,
+    # A gig brief was small by contract (a summary <=900 chars, <=7 challenges, <=8 asks,
+    # each <=240) - ~900 output tokens - until gig-brief-v4 added an English translation of
+    # a non-English listing (<=6000 chars, ~1.7k tokens), an outreach message (<=1500 chars)
+    # and up to 8 missing artifacts: ~3k tokens at the structural maximum. The INPUT is up to
+    # three 20k-char pages, and a reasoning model that thinks over that much runs past a tight
+    # cap before it answers; a truncated object fails coerce_brief whole and the
+    # deterministic brief ships instead. Sized with jd_ingest (the same re-emit-the-posting
+    # shape). The pinned engine (claude_cli) passes no max-tokens flag, so today this binds
+    # nothing; it is the decision for a keyed engine.
+    "gig_brief": 6144,
     # A plan at its structural maximum: 9 steps x (title + doneWhen, ~60 tokens) + three
     # lists of up to 8 short sentences + a <=900-char summary is ~1.8k tokens, and the
     # seats think before answering (Opus at xhigh). Like role_research, the engine the
@@ -370,7 +386,15 @@ def default_model(use_case: str, provider: str) -> str | None:
     return USE_CASE_MODEL_OVERRIDES.get((use_case, provider)) or DEFAULT_MODELS.get(provider)
 
 
+def provider_capabilities(provider: str) -> frozenset[str] | None:
+    """What ``provider`` can serve - a routable provider's row or a pin-only engine's -
+    or None when it is neither."""
+    if provider in PROVIDER_CAPABILITIES:
+        return PROVIDER_CAPABILITIES[provider]
+    return PIN_ONLY_PROVIDER_CAPABILITIES.get(provider)
+
+
 def unsupported_caps(use_case: str, provider: str) -> frozenset[str]:
     """Capabilities ``use_case`` requires that ``provider`` lacks (empty = ok)."""
     required = USE_CASE_REQUIREMENTS.get(use_case, frozenset({CAP_JSON}))
-    return required - PROVIDER_CAPABILITIES.get(provider, frozenset())
+    return required - (provider_capabilities(provider) or frozenset())

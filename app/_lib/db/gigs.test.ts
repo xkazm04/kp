@@ -86,6 +86,19 @@ test("an identical re-scan writes nothing (updated_at is the desk's sort key)", 
   assert.equal(again.gig.updatedAt, first.gig.updatedAt);
 });
 
+test("a re-scan whose only change is the day's USD estimate refreshes it without floating the listing", async () => {
+  const inr = (usd: number, rate: number, rateAt: string) => ({ amount: 12500, currency: "INR", text: "₹12,500", usd: { amount: usd, rate, rateAt, source: "frankfurter.dev rates (base USD)" } });
+  const r = raw({ reward: inr(130.32, 95.92, "2026-09-30") });
+  const first = upsertGigFromRaw(WS, { sourceId: "gsrc-1", arena: "freelance", raw: r, suspectReasons: [] });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const next = upsertGigFromRaw(WS, { sourceId: "gsrc-1", arena: "freelance", raw: { ...r, reward: inr(131.58, 95.0, "2026-10-01") }, suspectReasons: [] });
+  assert.equal(next.gig.updatedAt, first.gig.updatedAt, "a new day's rate is not a changed listing");
+  assert.deepEqual(next.gig.reward?.usd, { amount: 131.58, rate: 95.0, rateAt: "2026-10-01", source: "frankfurter.dev rates (base USD)" });
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const changed = upsertGigFromRaw(WS, { sourceId: "gsrc-1", arena: "freelance", raw: { ...r, reward: { ...inr(150, 95.0, "2026-10-01"), amount: 14250 } }, suspectReasons: [] });
+  assert.notEqual(changed.gig.updatedAt, first.gig.updatedAt, "a changed amount is a changed listing");
+});
+
 test("a flagged listing is born suspect; a newly-flagged body moves new|qualified to suspect, other statuses only record", () => {
   const born = upsertGigFromRaw(WS, { sourceId: "gsrc-1", arena: "oss_bounty", raw: raw(), suspectReasons: ["agent_addressed"] });
   assert.equal(born.gig.status, "suspect");

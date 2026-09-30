@@ -32,6 +32,11 @@
 //     never a silent empty success; a provider that answered in an unknown shape is
 //     `collapsed`, never "0 found";
 //   - the summary carries CODES; a raw error goes to the server log only.
+//
+// REWARDS IN USD (gigs/fx.ts): a listing whose reward is in another currency is filed with a
+// USD estimate at the rate valid at this scan (`reward.usd`). The rate table is read at most
+// ONCE per scan, and only when a listing needs it (deps.fxRates, memoised below); offline or
+// unreadable = no estimate, never a guessed rate, never a failed scan.
 
 import { pauseGigSource, listGigSources, recordGigSourceRun } from "../db/gigs-sources";
 import { upsertGigFromRaw } from "../db/gigs";
@@ -47,6 +52,7 @@ import {
   type GigAdapterLogEvent,
 } from "./adapters/types";
 import { sweepExpiredGigs } from "./expiry";
+import { convertRewardToUsd, loadFxRates, rewardNeedsFx, type FxTable } from "./fx";
 import { scanGigForHoneypots } from "./suspect";
 import type { Gig, GigAdapterName, GigPauseReason, GigSource, GigSourceRunOutcome } from "./types";
 
@@ -149,6 +155,9 @@ export type GigScanDeps = {
   enqueueResearch?: GigResearchEnqueue;
   /** The expiry sweep (gigs/expiry.ts), run first; answers how many gigs it expired. */
   sweepExpired?: (workspaceId: string, now: string) => number;
+  /** The USD rate table (gigs/fx.ts loadFxRates); absent = rewards are filed unconverted
+   *  (a pegged stablecoin still is). Called at most once per scan. */
+  fxRates?: () => Promise<FxTable | null>;
   now: () => string;
   wallBudgetMs: number;
   log: (event: GigScanLogEvent, error?: unknown) => void;
@@ -166,6 +175,7 @@ export function defaultGigScanDeps(): GigScanDeps {
     pauseGigSource,
     scanHoneypots: scanGigForHoneypots,
     sweepExpired: (workspaceId, now) => sweepExpiredGigs(workspaceId, now),
+    fxRates: () => loadFxRates(),
     now: () => new Date().toISOString(),
     wallBudgetMs: GIG_SCAN_WALL_BUDGET_MS,
     log: (event, error) => {
@@ -265,6 +275,20 @@ export async function runGigScan(
   // research pass reads the HTML's hrefs. `created` = the gigs this scan inserted.
   const htmlByGigId = new Map<string, string | null>();
   const created = new Map<string, Gig>();
+  // The rate table, read once for the whole scan and only if a listing needs it.
+  let fx: Promise<FxTable | null> | null = null;
+  const rates = (): Promise<FxTable | null> => {
+    if (!fx) {
+      const load = deps.fxRates;
+      fx = load
+        ? load().catch((error: unknown) => {
+            deps.log({ level: "warn", code: "fx_failed" }, error);
+            return null;
+          })
+        : Promise.resolve(null);
+    }
+    return fx;
+  };
   try {
     for (const source of sources) {
       if (budget.signal.aborted) {
@@ -274,7 +298,7 @@ export async function runGigScan(
         summary.sources.push({ sourceId: source.id, adapter: source.adapter, outcome: "skipped", reason, paused: null, found: 0, created: 0, suspect: 0 });
         continue;
       }
-      const run = await runOneSource(workspaceId, source, deps, signal);
+      const run = await runOneSource(workspaceId, source, deps, signal, rates);
       summary.sources.push(run.summary);
       summary.found += run.summary.found;
       summary.created += run.summary.created;
@@ -324,7 +348,8 @@ async function runOneSource(
   workspaceId: string,
   source: GigSource,
   deps: GigScanDeps,
-  callerSignal: AbortSignal | undefined
+  callerSignal: AbortSignal | undefined,
+  rates: () => Promise<FxTable | null> = () => Promise.resolve(null)
 ): Promise<{ summary: GigSourceRunSummary; landed: { gig: Gig; created: boolean; bodyHtml: string | null }[] }> {
   const summary: GigSourceRunSummary = {
     sourceId: source.id,
@@ -353,7 +378,9 @@ async function runOneSource(
   try {
     const adapter = deps.adapterFor(source.adapter);
     const ctx = { source, fetch: deps.fetch, limits: deps.limits, env: deps.env, log };
-    for await (const raw of adapter.discover(ctx)) {
+    for await (const listed of adapter.discover(ctx)) {
+      // The reward's USD estimate at this scan's rate (a stablecoin needs no table).
+      const raw = listed.reward ? { ...listed, reward: convertRewardToUsd(listed.reward, rewardNeedsFx(listed.reward) ? await rates() : null, deps.now()) } : listed;
       const reasons = deps.scanHoneypots({ bodyText: raw.bodyText, bodyHtml: raw.bodyHtml, title: raw.title });
       let result: { gig: Gig; created: boolean };
       try {

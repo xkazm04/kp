@@ -1,6 +1,8 @@
 // The gig plan runner (gigs/plans.ts) on an isolated DB with a fake CLI - no Python, no
-// model, no key. Proves: the three seats of a gig run IN PARALLEL, each with its own model
-// and effort, and one seat's failure never touches the others (ready / failed / ready);
+// model, no key. Proves: the lineup follows the brief's difficulty (easy, moderate and
+// unrated one Sonnet seat, hard one Opus high seat, very hard three); the three seats of a
+// very hard gig run IN PARALLEL, each with its own engine, model and effort (the GPT seat on
+// the Codex CLI), and one seat's failure never touches the others (ready / failed / ready);
 // every row records its reason, its cost (null when not reported, never 0) and its time;
 // a gig with an accepted plan, no brief, a honeypot flag, a terminal status or a round in
 // flight is skipped with its reason; keyless, every seat is `failed: no_provider`; a gig
@@ -16,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { createManualGig, setGigBrief, transitionGig } from "../db/gigs.ts";
 import { acceptGigPlan, createGigPlanRound, listGigPlans, setGigPlanResult } from "../db/gigs-plans.ts";
 import type { CliCall } from "../jobseeker/python-cli.ts";
-import { GIG_PLAN_SEATS } from "./plan-seats.ts";
+import { GIG_PLAN_SEATS, planSeatsFor } from "./plan-seats.ts";
 import {
   GIG_PLAN_CLI_TIMEOUT_S,
   GIG_PLAN_PROMPT_VERSION,
@@ -27,7 +29,7 @@ import {
   runGigPlans,
 } from "./plans.ts";
 import { deterministicGigBrief } from "./research.ts";
-import type { GigPlan, GigStatus } from "./types.ts";
+import type { GigDifficulty, GigPlan, GigStatus } from "./types.ts";
 
 after(() => cleanupUnitDb());
 
@@ -48,7 +50,8 @@ const PLAN: GigPlan = {
 };
 
 let seq = 0;
-function gigWithBrief(ws: string, opts: { brief?: boolean; status?: GigStatus } = {}): string {
+/** A gig with a brief rated `difficulty` (default very_hard: the three-seat lineup). */
+function gigWithBrief(ws: string, opts: { brief?: boolean; status?: GigStatus; difficulty?: GigDifficulty } = {}): string {
   seq += 1;
   const suspect = opts.status === "suspect";
   const { gig } = createManualGig(ws, {
@@ -62,7 +65,10 @@ function gigWithBrief(ws: string, opts: { brief?: boolean; status?: GigStatus } 
     tags: [],
     suspectReasons: suspect ? ["agent_addressed"] : [],
   });
-  if (opts.brief !== false) setGigBrief(ws, gig.id, deterministicGigBrief(gig, [], "no_provider", "2026-09-29T00:00:00.000Z"));
+  if (opts.brief !== false) {
+    const brief = deterministicGigBrief(gig, [], "no_provider", "2026-09-29T00:00:00.000Z");
+    setGigBrief(ws, gig.id, { ...brief, difficulty: opts.difficulty ?? "very_hard" });
+  }
   if (opts.status === "declined") assert.ok(transitionGig(ws, gig.id, { from: "new", to: "declined" }).ok);
   return gig.id;
 }
@@ -78,7 +84,7 @@ function fakeCli(answer: (seat: string, call: CliCall) => Record<string, unknown
   return { calls, run };
 }
 
-test("the three seats run IN PARALLEL with their own engines; one seat's failure never touches the others", async () => {
+test("a very hard gig's three seats run IN PARALLEL with their own engines; one seat's failure never touches the others", async () => {
   const ws = "ws-plans-1";
   const gigId = gigWithBrief(ws);
   // A barrier: no seat answers until all three are in flight - a sequential runner deadlocks
@@ -101,10 +107,14 @@ test("the three seats run IN PARALLEL with their own engines; one seat's failure
   // Each seat's engine went in the input, and the CLI's deadline sits under the spawn's kill.
   assert.deepEqual(
     cli.calls.map((c) => {
-      const input = c.files["input.json"] as { seat: string; model: string; effort: string | null };
-      return [input.seat, input.model, input.effort];
+      const input = c.files["input.json"] as { seat: string; provider: string; model: string; effort: string | null };
+      return [input.seat, input.provider, input.model, input.effort];
     }).sort(),
-    GIG_PLAN_SEATS.map((s) => [s.seat, s.model, s.effort]).sort()
+    [
+      ["fable", "claude_cli", "claude-fable-5", null],
+      ["gpt", "codex_cli", "gpt-6-astra", "max"],
+      ["opus", "claude_cli", "claude-opus-5-5", "xhigh"],
+    ]
   );
   for (const c of cli.calls) {
     assert.equal(c.module, "gig_plan_cli");
@@ -115,27 +125,65 @@ test("the three seats run IN PARALLEL with their own engines; one seat's failure
   }
 
   const rows = Object.fromEntries(listGigPlans(ws, gigId).map((r) => [r.seat, r]));
-  assert.deepEqual([rows.fable.status, rows.opus.status, rows.sonnet.status], ["ready", "failed", "ready"]);
+  assert.deepEqual([rows.fable.status, rows.opus.status, rows.gpt.status], ["ready", "failed", "ready"]);
   assert.deepEqual(rows.fable.plan, PLAN);
   assert.equal(rows.fable.costUsd, 0.42);
-  assert.equal(rows.sonnet.costUsd, null, "a reported 0 is 'not reported', never a truthful zero");
+  assert.equal(rows.gpt.costUsd, null, "a reported 0 is 'not reported', never a truthful zero");
+  assert.equal(rows.opus.effort, "xhigh");
   assert.equal(rows.opus.plan, null);
   assert.equal(rows.opus.fallbackReason, "engine_error");
   for (const r of Object.values(rows)) assert.equal(typeof r.durationMs, "number");
+});
+
+test("the lineup follows the brief's difficulty: easy, moderate and unrated one Sonnet seat, hard one Opus high seat", async () => {
+  const ws = "ws-plans-7";
+  const cases: [GigDifficulty, string[]][] = [
+    ["easy", ["sonnet:claude_cli:claude-sonnet-5-5:high"]],
+    ["moderate", ["sonnet:claude_cli:claude-sonnet-5-5:high"]],
+    ["unrated", ["sonnet:claude_cli:claude-sonnet-5-5:high"]],
+    ["hard", ["opus:claude_cli:claude-opus-5-5:high"]],
+    ["very_hard", ["fable:claude_cli:claude-fable-5:null", "gpt:codex_cli:gpt-6-astra:max", "opus:claude_cli:claude-opus-5-5:xhigh"]],
+  ];
+  for (const [difficulty, expected] of cases) {
+    const gigId = gigWithBrief(ws, { difficulty });
+    const cli = fakeCli(() => ({ result: PLAN, source: "llm" }));
+    const summary = await runGigPlans(ws, [gigId], { deps: { runCli: cli.run } });
+    const seen = cli.calls
+      .map((c) => {
+        const input = c.files["input.json"] as { seat: string; provider: string; model: string; effort: string | null };
+        return `${input.seat}:${input.provider}:${input.model}:${input.effort}`;
+      })
+      .sort();
+    assert.deepEqual(seen, expected, difficulty);
+    assert.equal(summary.ready, expected.length, difficulty);
+    assert.deepEqual(
+      listGigPlans(ws, gigId).map((r) => `${r.seat}:${r.model}:${r.effort}`).sort(),
+      planSeatsFor(difficulty).map((s) => `${s.seat}:${s.model}:${s.effort}`).sort(),
+      `${difficulty}: the round's rows are the lineup`
+    );
+  }
+});
+
+test("an injected fixed lineup outranks the difficulty (tests, tools)", async () => {
+  const ws = "ws-plans-8";
+  const gigId = gigWithBrief(ws, { difficulty: "easy" });
+  const cli = fakeCli(() => ({ result: PLAN, source: "llm" }));
+  const summary = await runGigPlans(ws, [gigId], { deps: { runCli: cli.run, seats: planSeatsFor("very_hard") } });
+  assert.equal(summary.ready, 3);
 });
 
 test("keyless: every seat is failed with no_provider, and an unusable answer is llm_unusable", async () => {
   const ws = "ws-plans-2";
   const gigId = gigWithBrief(ws);
   const cli = fakeCli((seat) =>
-    seat === "sonnet"
+    seat === "gpt"
       ? { result: { summary: "too short", steps: PLAN.steps.slice(0, 2) }, source: "llm", fallbackReason: null }
       : { result: null, source: "deterministic", fallbackReason: "no_provider", costUsd: null }
   );
   const summary = await runGigPlans(ws, [gigId], { deps: { runCli: cli.run } });
   assert.deepEqual([summary.ready, summary.failed], [0, 3]);
   const reasons = Object.fromEntries(listGigPlans(ws, gigId).map((r) => [r.seat, r.fallbackReason]));
-  assert.deepEqual(reasons, { fable: "no_provider", opus: "no_provider", sonnet: "llm_unusable" });
+  assert.deepEqual(reasons, { fable: "no_provider", opus: "no_provider", gpt: "llm_unusable" });
 });
 
 test("a gig is skipped with its reason: not found, accepted, no brief, a honeypot, left the line, a round in flight", async () => {
@@ -244,14 +292,14 @@ test("parseGigPlan: kp's gate - 4..9 checkable steps, trimmed, list markers stri
   assert.equal(out.questions.length, 8);
 });
 
-test("gigPlanCliInput carries the seat's engine, the listing's facts, the brief and the listing text", () => {
+test("gigPlanCliInput carries the seat's engine (provider, model, effort), the listing's facts, the brief and the listing text", () => {
   const brief = deterministicGigBrief(
     { arena: "oss_bounty", title: "T", tags: [], bodyText: "Body" },
     [],
     "no_provider",
     "2026-09-29T00:00:00.000Z"
   );
-  const input = gigPlanCliInput(GIG_PLAN_SEATS[1], {
+  const gigRow = {
     id: "g",
     url: "https://example.test/g",
     title: "T",
@@ -259,8 +307,13 @@ test("gigPlanCliInput carries the seat's engine, the listing's facts, the brief 
     reward: { amount: 1, currency: "USD", text: "$1" },
     deadlineAt: null,
     bodyText: "x".repeat(30_000),
-  } as Parameters<typeof gigPlanCliInput>[1], brief);
-  assert.deepEqual([input.seat, input.model, input.effort], ["opus", "claude-opus-5-5", "xhigh"]);
+  } as Parameters<typeof gigPlanCliInput>[1];
+  const [opus, , gpt] = planSeatsFor("very_hard");
+  const input = gigPlanCliInput(opus, gigRow, brief);
+  assert.deepEqual([input.seat, input.provider, input.model, input.effort], ["opus", "claude_cli", "claude-opus-5-5", "xhigh"]);
+  const gptInput = gigPlanCliInput(gpt, gigRow, brief);
+  assert.deepEqual([gptInput.seat, gptInput.provider, gptInput.model, gptInput.effort], ["gpt", "codex_cli", "gpt-6-astra", "max"]);
+  assert.ok(GIG_PLAN_SEATS.every((s) => s.provider === "claude_cli" || s.provider === "codex_cli"));
   assert.deepEqual(input.gig, { title: "T", arena: "oss_bounty", url: "https://example.test/g", reward: "$1", deadlineAt: null });
   assert.equal(input.brief.markdown, brief.markdown);
   assert.equal(input.pages.length, 1);

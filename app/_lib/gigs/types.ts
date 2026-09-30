@@ -154,7 +154,16 @@ export type GigReward = {
   currency: string | null;
   /** The reward exactly as the listing stated it. */
   text: string;
+  /** The amount in US dollars at the rate valid when the scan filed it (every non-USD
+   *  currency, EUR included so the file can sort across currencies; the UI SHOWS it for
+   *  currencies other than USD and EUR). Absent = not converted (USD itself, no amount, an
+   *  unknown currency, or no rate at scan time). USD-pegged stablecoins (USDC, USDT) at 1. */
+  usd?: GigRewardUsd | null;
 };
+
+/** One conversion, kept with its provenance so the estimate is never mistaken for the
+ *  listing's own figure. */
+export type GigRewardUsd = { amount: number; rate: number; rateAt: string; source: string };
 
 /** What an adapter hands to the scan: the listing as the source published it. */
 export type RawGig = {
@@ -185,11 +194,43 @@ export type GigQualification = {
     deadlineHeadroomDays: number | null;
     specialistAvailable: boolean;
     suspect: boolean;
+    /** The listing's tags AND its text name physical work (qualify.ts nonDigitalWork). Absent
+     *  on a verdict written before the rule existed (2026-09-30). */
+    notDigitalWork?: boolean;
   };
   note: string | null;
   source: "deterministic" | "llm";
   fallbackReason: string | null;
+  /** Why the pipeline itself declined the gig; absent / null = it did not. `declinedBy`
+   *  says which layer: the qualification rule or the research brief's work kind. */
+  declineReason?: GigDeclineReason | null;
+  declinedBy?: "rule" | "model" | null;
+  /** What the rule matched (tags and phrases), for the operator to check it. */
+  declineEvidence?: string[];
 };
+
+/** The reasons the PIPELINE declines a gig on its own (the operator's own decline carries
+ *  none). `not_digital_work`: goods, sourcing or supplying physical items, on-site work,
+ *  shipping or hardware - nothing an AI agent at a computer can deliver. */
+export const GIG_DECLINE_REASONS = ["not_digital_work"] as const;
+export type GigDeclineReason = (typeof GIG_DECLINE_REASONS)[number];
+
+/** Why the pipeline declined this gig, and which layer did: the qualification rule
+ *  (qualification.declineReason) or the research brief (a `physical` work kind on a
+ *  declined gig). Null when the gig is not declined, or the operator declined it. Pure, and
+ *  import-free so a client surface can read it. */
+export function gigPipelineDecline(
+  gig: Pick<Gig, "status" | "qualification" | "brief">
+): { reason: GigDeclineReason; by: "rule" | "model"; evidence: string[]; detail: string | null } | null {
+  if (gig.status !== "declined") return null;
+  const q = gig.qualification;
+  if (q?.declineReason === "not_digital_work") {
+    const by = q.declinedBy === "model" ? "model" : "rule";
+    return { reason: "not_digital_work", by, evidence: q.declineEvidence ?? [], detail: by === "model" ? (gig.brief?.workKindReason ?? null) : null };
+  }
+  if (gig.brief?.workKind === "physical") return { reason: "not_digital_work", by: "model", evidence: [], detail: gig.brief.workKindReason ?? null };
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Research: the links a listing names, read once, and the readable brief
@@ -234,7 +275,26 @@ export type GigBrief = {
   fallbackReason: string | null;
   promptVersion: string;
   createdAt: string;
+  // Added by prompt gig-brief-v4 (gig-mastery adjustments 2026-09-30). All optional: a
+  // brief written before v4 has none of them, and each absent key reads as "not known".
+  /** The listing's language, ISO 639-1 ("en", "cs", "de"...). */
+  language?: string | null;
+  /** The listing translated to English when `language` is not "en"; null when it is English. */
+  listingEnglish?: string | null;
+  /** Work the operator must ask the client for before starting (credentials, files, specs,
+   *  sample data...) that the listing does not provide. */
+  missingArtifacts?: string[];
+  /** A ready-to-send first message to the client (freelance gigs): interest, one line on the
+   *  approach, and the missing artifacts asked for. Plain text, English. */
+  outreachMessage?: string | null;
+  /** Whether an AI agent working on a computer can deliver the work: `physical` (goods,
+   *  on-site work, shipping, sourcing physical items) is declined by the pipeline. */
+  workKind?: GigWorkKind | null;
+  workKindReason?: string | null;
 };
+
+export const GIG_WORK_KINDS = ["digital", "mixed", "physical"] as const;
+export type GigWorkKind = (typeof GIG_WORK_KINDS)[number];
 
 export type Gig = {
   id: string;
@@ -327,7 +387,7 @@ export type GigSpecialist = {
 // ---------------------------------------------------------------------------
 
 /** The seats that write plan proposals; the lineup itself is plan-seats.ts. */
-export const GIG_PLAN_SEAT_IDS = ["fable", "opus", "sonnet"] as const;
+export const GIG_PLAN_SEAT_IDS = ["fable", "opus", "sonnet", "gpt"] as const;
 export type GigPlanSeatId = (typeof GIG_PLAN_SEAT_IDS)[number];
 
 export function isGigPlanSeatId(v: unknown): v is GigPlanSeatId {

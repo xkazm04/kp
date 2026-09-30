@@ -3,12 +3,14 @@
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import type { Gig, GigSpecialist, GigSpecialistSpec } from "./types.ts";
+import { gigPipelineDecline, type Gig, type GigSpecialist, type GigSpecialistSpec } from "./types.ts";
 import {
   DEADLINE_COMFORT_DAYS,
   QUALIFY_THRESHOLD,
   QUALIFY_WEIGHTS,
   deadlineHeadroomDays,
+  NON_DIGITAL_TAGS,
+  nonDigitalWork,
   qualifies,
   qualifyAndMatch,
   qualifyGig,
@@ -135,7 +137,7 @@ let seq = 0;
 
 // Tagged "web" by default so the default specialist niche ("web") fits it: the matcher
 // (match.ts) no longer hands a gig to an arena specialist that nothing in it names.
-function newGig(arena: Gig["arena"] = "security", over: { deadlineAt?: string | null; suspect?: boolean; tags?: string[]; title?: string } = {}): Gig {
+function newGig(arena: Gig["arena"] = "security", over: { deadlineAt?: string | null; suspect?: boolean; tags?: string[]; title?: string; body?: string } = {}): Gig {
   seq += 1;
   return upsertGigFromRaw(WS, {
     sourceId: "gsrc-q",
@@ -148,7 +150,7 @@ function newGig(arena: Gig["arena"] = "security", over: { deadlineAt?: string | 
       reward: { amount: 300, currency: "USD", text: "$300" },
       deadlineAt: over.deadlineAt === undefined ? inDays(20) : over.deadlineAt,
       postedAt: null,
-      bodyText: "Find the bug.",
+      bodyText: over.body ?? "Find the bug.",
       bodyHtml: null,
       tags: over.tags ?? ["web"],
     },
@@ -272,4 +274,101 @@ test("the hook shape the scan calls works on a manual gig too", () => {
   const stale: Gig = { ...row, status: "qualified" };
   const viaRow = qualifyGigHook(WS, stale);
   assert.ok(viaRow.ok, "the status is re-read from the store, not taken from the row handed in");
+});
+
+// ---------------------------------------------------------------------------
+// Physical work never reaches the desk (the not-digital rule)
+// ---------------------------------------------------------------------------
+
+/** The listing the operator named (freelancer.com, 2026-09-30), tags as the adapter emitted them. */
+const GIFT_CARDS = {
+  title: "Bulk Retail Gift Cards",
+  tags: ["Data Entry", "Excel", "Sales", "Bulk Marketing", "Supplier Sourcing", "Logistics", "eBay", "Inventory Management"],
+  bodyText:
+    "I'm sourcing a dependable supplier who can deliver physical retail gift cards in mid-size batches. Specifically, I need between 50 and 100 cards each for Amazon, Walmart, and Target. I'll require tracking details once the shipment leaves your facility and a simple activation report confirming balances on arrival.",
+};
+
+test("nonDigitalWork: the gift-card sourcing listing is physical work, with its evidence", () => {
+  const v = nonDigitalWork(GIFT_CARDS);
+  assert.equal(v.hit, true);
+  assert.deepEqual(v.tags, ["Supplier Sourcing", "Logistics", "eBay", "Inventory Management"]);
+  assert.deepEqual(v.phrases, ["physical goods", "sourcing a supplier"]);
+});
+
+test("nonDigitalWork: digital work ABOUT logistics or inventory is never declined", () => {
+  const dashboard = nonDigitalWork({
+    title: "Logistics KPI dashboard",
+    tags: ["Logistics", "Data Entry", "Excel", "Shipping"],
+    bodyText: "Build a Power BI dashboard over our warehouse and shipment data. We ship products to 40 stores and need on-time rates per carrier.",
+  });
+  assert.equal(dashboard.hit, false, "one physical phrase beside a digital deliverable is a job about the goods");
+  assert.deepEqual(dashboard.phrases, ["shipping goods"]);
+  const spreadsheet = nonDigitalWork({
+    title: "Inventory spreadsheet cleanup",
+    tags: ["Inventory Management", "Excel", "Data Entry"],
+    bodyText: "Clean up our inventory spreadsheet: 2,000 rows of physical stock counts with duplicates and wrong SKUs. Deliver the cleaned file.",
+  });
+  assert.equal(spreadsheet.hit, false);
+  const shopify = nonDigitalWork({
+    title: "Automate Shopify Discounted Shipping",
+    tags: ["PHP", "Shopify", "API", "Shipping", "Automation"],
+    bodyText: "Eliminate the extra UPS charges when an item is shipped from our factory instead of our main warehouse; the discounted label must print automatically.",
+  });
+  assert.equal(shopify.hit, false);
+});
+
+test("nonDigitalWork: a tag alone, or the text alone, is never enough", () => {
+  assert.equal(nonDigitalWork({ title: "Order data entry", tags: ["Logistics", "Data Entry"], bodyText: "Type 300 order lines from PDFs into our sheet." }).hit, false, "a tag alone");
+  assert.equal(nonDigitalWork({ ...GIFT_CARDS, tags: ["Data Entry", "Excel"] }).hit, false, "the text alone");
+  assert.ok(NON_DIGITAL_TAGS.has("supplier sourcing") && !NON_DIGITAL_TAGS.has("data entry"), "the tag set is lower-cased and names no digital skill");
+});
+
+test("qualifyAndMatch: a scanned physical listing is declined with its reason and evidence; the verdict says so", () => {
+  const gig = newGig("freelance", { title: GIFT_CARDS.title, tags: GIFT_CARDS.tags, body: GIFT_CARDS.bodyText });
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW, paired: true });
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.declined, true);
+  assert.equal(r.moved, false);
+  const stored = getGig(WS, gig.id)!;
+  assert.equal(stored.status, "declined");
+  assert.equal(stored.qualification?.score, 0, "no number next to a decline");
+  assert.equal(stored.qualification?.factors.notDigitalWork, true);
+  assert.equal(stored.qualification?.declineReason, "not_digital_work");
+  assert.equal(stored.qualification?.declinedBy, "rule");
+  assert.deepEqual(stored.qualification?.declineEvidence, ["Supplier Sourcing", "Logistics", "eBay", "Inventory Management", "physical goods", "sourcing a supplier"]);
+  assert.deepEqual(gigPipelineDecline(stored), {
+    reason: "not_digital_work",
+    by: "rule",
+    evidence: ["Supplier Sourcing", "Logistics", "eBay", "Inventory Management", "physical goods", "sourcing a supplier"],
+    detail: null,
+  });
+});
+
+test("qualifyAndMatch: a digital listing records notDigitalWork false and qualifies as before", () => {
+  const gig = newGig("freelance", { title: "Logistics KPI dashboard", tags: ["Logistics", "Excel"], body: "Build a dashboard of the goods we ship to 40 stores." });
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW, paired: true });
+  assert.ok(r.ok && r.moved && !r.declined);
+  const stored = getGig(WS, gig.id)!;
+  assert.equal(stored.status, "qualified");
+  assert.equal(stored.qualification?.factors.notDigitalWork, false);
+  assert.equal(stored.qualification?.declineReason, undefined);
+  assert.equal(gigPipelineDecline(stored), null);
+});
+
+test("qualifyAndMatch: a manual gig the operator forwarded is never auto-declined as physical", () => {
+  const { gig } = createManualGig(WS, {
+    arena: "freelance",
+    url: "https://example.test/gift-cards",
+    title: GIFT_CARDS.title,
+    org: null,
+    reward: { amount: 300, currency: "USD", text: "$300" },
+    deadlineAt: inDays(20),
+    bodyText: GIFT_CARDS.bodyText,
+    tags: GIFT_CARDS.tags,
+    suspectReasons: [],
+  });
+  const r = qualifyAndMatch(WS, gig.id, { now: NOW, paired: true });
+  assert.ok(r.ok && !r.declined);
+  assert.notEqual(getGig(WS, gig.id)!.status, "declined");
 });

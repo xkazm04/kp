@@ -38,8 +38,16 @@ from typing import Any
 from ..claude_cli import is_production_deployment
 from .adapters import ADAPTERS
 from .adapters.claude_cli import ClaudeCliAdapter
+from .adapters.codex_cli import CodexCliAdapter
 from .base import DEFAULT_TIMEOUT_S, LLMError
-from .capabilities import PROVIDER_CAPABILITIES, default_max_tokens, default_model, unsupported_caps
+from .capabilities import (
+    PIN_ONLY_PROVIDER_CAPABILITIES,
+    PROVIDER_CAPABILITIES,
+    default_max_tokens,
+    default_model,
+    provider_capabilities,
+    unsupported_caps,
+)
 from .config import LLMConfig, load_config
 
 
@@ -229,15 +237,19 @@ class ProviderPin:
       against the PINNED provider, and a pin below them raises ``LLMError`` with
       the missing capability named instead of serving a broken answer.
 
-    Only ``claude_cli`` pins are implemented (a pin to another provider raises):
-    building a keyed adapter needs the key layering, and the first pin did not
-    need one. The model is recorded as the ledger's model label, so the usage
-    record names the pinned id rather than the CLI's configured default.
+    Only the two CLI engines can be pinned - ``claude_cli`` and the pin-only
+    ``codex_cli`` (``capabilities.PIN_ONLY_PROVIDER_CAPABILITIES``, the gig plan
+    seats' GPT 6 Astra) - and a pin to another provider raises: building a keyed
+    adapter needs the key layering, and no pin has needed one yet. The model is
+    recorded as the ledger's model label, so the usage record names the pinned id
+    rather than the CLI's configured default.
 
     ``effort`` (optional) is the CLI's reasoning-effort level for that one call,
     passed as ``--effort <level>`` (``claude --help``: low, medium, high, xhigh,
-    max; verified against CLI 2.1.284 on 2026-09-29). ``None`` sends no flag, so
-    the CLI runs at its own default. The gig plan seats (gig_plan_cli.py) are the
+    max; verified against CLI 2.1.284 on 2026-09-29) - or, on ``codex_cli``, as
+    ``-c model_reasoning_effort=<level>`` (a probe at ``max`` answered on
+    2026-09-30, codex-cli 0.157.1). ``None`` sends no flag, so the CLI runs at its
+    own default. The gig plan seats (gig_plan_cli.py) are the
     first pins that need it: the same model at two efforts is two different seats.
     It is a closed vocabulary rather than a free string because it lands in argv,
     and on Windows the CLI is a ``.cmd`` shim that interprets its arguments.
@@ -261,7 +273,7 @@ PIN_EFFORTS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
 
 
 # The providers a pin can be honored on today (see ProviderPin).
-_PINNABLE_PROVIDERS: tuple[str, ...] = ("claude_cli",)
+_PINNABLE_PROVIDERS: tuple[str, ...] = ("claude_cli", "codex_cli")
 
 
 def _pinned_provider(use_case: str, pin: ProviderPin, timeout: int | None) -> Any:
@@ -269,10 +281,10 @@ def _pinned_provider(use_case: str, pin: ProviderPin, timeout: int | None) -> An
 
     ``KP_LLM_CONFIG`` is not loaded at all: a pin is the call site's decision, so
     the operator's row can neither redirect it nor, when malformed, break it."""
-    if pin.provider not in PROVIDER_CAPABILITIES:
+    if provider_capabilities(pin.provider) is None:
         raise LLMError(
             f"unknown LLM provider {pin.provider!r} pinned for use case {use_case!r} "
-            f"(known: {sorted(PROVIDER_CAPABILITIES)})"
+            f"(known: {sorted([*PROVIDER_CAPABILITIES, *PIN_ONLY_PROVIDER_CAPABILITIES])})"
         )
     missing = unsupported_caps(use_case, pin.provider)
     if missing:
@@ -286,6 +298,15 @@ def _pinned_provider(use_case: str, pin: ProviderPin, timeout: int | None) -> An
             f"provider pins are implemented for {', '.join(_PINNABLE_PROVIDERS)} only; "
             f"{use_case!r} pins {pin.provider!r} — build that adapter's key layering "
             "into the pin path before pinning it"
+        )
+    if pin.provider == "codex_cli":
+        # The operator's own Codex login on the box: no key, no lane choice. Its policy
+        # (KP_OFFLINE, the production consumer-terms refusal) answers in availability().
+        return CodexCliAdapter(
+            model=pin.model,
+            effort=pin.effort,
+            timeout=timeout or DEFAULT_TIMEOUT_S,
+            use_case=use_case,
         )
     return ClaudeCliAdapter(
         model=pin.model,

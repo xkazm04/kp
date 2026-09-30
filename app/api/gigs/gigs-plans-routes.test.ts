@@ -17,7 +17,7 @@ import { getTask } from "../../_lib/db/tasks.ts";
 import { createManualGig, setGigBrief } from "../../_lib/db/gigs.ts";
 import { createGigPlanRound, getGigPlan, setGigPlanResult } from "../../_lib/db/gigs-plans.ts";
 import { deterministicGigBrief } from "../../_lib/gigs/research.ts";
-import { GIG_PLAN_SEATS } from "../../_lib/gigs/plan-seats.ts";
+import { planSeatsFor } from "../../_lib/gigs/plan-seats.ts";
 import type { GigPlan } from "../../_lib/gigs/types.ts";
 import { registerTaskRunner, type ExternalTaskCtx } from "../../_lib/task-external-runners.ts";
 import { GET as LIST_PLANS, POST as PROPOSE } from "./[id]/plans/route.ts";
@@ -94,7 +94,7 @@ const PLAN: GigPlan = {
 
 /** A round with the first seat `ready` (the rest still queued). */
 function round(gigId: string) {
-  const rows = createGigPlanRound(WS, gigId, GIG_PLAN_SEATS.map((s) => ({ seat: s.seat, model: s.model, effort: s.effort })));
+  const rows = createGigPlanRound(WS, gigId, planSeatsFor("very_hard").map((s) => ({ seat: s.seat, model: s.model, effort: s.effort })));
   assert.ok(rows && rows.length === 3);
   assert.ok(setGigPlanResult(WS, rows[0].id, { plan: PLAN, fallbackReason: null, costUsd: 0.1, durationMs: 5 }));
   return rows;

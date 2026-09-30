@@ -179,8 +179,15 @@ test("PINNED_USE_CASES mirrors the Python call-site pins exactly", () => {
   assert.ok(planUseCase && planProvider, "gig_plan_cli.py no longer declares USE_CASE / PIN_PROVIDER in the shape this test reads");
   const planMirror = PINNED_USE_CASES[planUseCase[1] as LlmUseCase];
   assert.ok(planMirror, `${planUseCase[1]} is pinned in Python but absent from PINNED_USE_CASES`);
-  assert.equal(planMirror.provider, planProvider[1], "the gig plan seats' provider drifted between Python and TS");
-  assert.equal(planMirror.model, GIG_PLAN_SEATS.map((s) => s.model).join(", "), "the gig plan row must name exactly the seats' models");
+  assert.equal(planMirror.provider, planProvider[1], "the gig plan seats' default provider drifted between Python and TS");
+  assert.equal(planMirror.model, [...new Set(GIG_PLAN_SEATS.map((s) => s.model))].join(", "), "the gig plan row must name exactly the seats' models");
+  // Every seat's engine is one gig_plan_cli.py accepts (PIN_PROVIDERS): a seat on an engine
+  // Python refuses is a round whose rows all fail `invalid_input`.
+  const planProviders = planCli.match(/^PIN_PROVIDERS = \(([^)]*)\)$/m);
+  assert.ok(planProviders, "gig_plan_cli.py no longer declares PIN_PROVIDERS in the shape this test reads");
+  const accepted = [...planProviders[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+  assert.ok(accepted.includes(planProvider[1]), "the default engine must be one PIN_PROVIDERS accepts");
+  for (const seat of GIG_PLAN_SEATS) assert.ok(accepted.includes(seat.provider), `${seat.label}: gig_plan_cli.py does not accept ${seat.provider}`);
   assert.ok(planMirror.reason.trim(), "a pin states why it overrides routing");
   pinned.push(planUseCase[1]);
   // The reverse: a TS pin with no Python pin behind it is a claim nothing enforces. A

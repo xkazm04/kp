@@ -447,7 +447,53 @@ test("the expiry sweep runs FIRST, at the scan's own clock, and its count rides 
   assert.equal((await runGigScan("ws-1", harness([], {}).deps)).expired, 0);
 });
 
+test("rewards in another currency are filed with a USD estimate; the rate table is read once, and only when needed", async () => {
+  const table = { rates: { INR: { rate: 95.92, date: "2026-09-30" }, EUR: { rate: 0.88, date: "2026-09-30" } }, fetchedAt: "2026-09-30T07:00:00.000Z", source: "frankfurter.dev rates (base USD)" };
+  let reads = 0;
+  const items = [
+    raw("fl-inr", { reward: { amount: 12500, currency: "INR", text: "₹12,500 INR" } }),
+    raw("fl-eur", { reward: { amount: 400, currency: "EUR", text: "€400 EUR" } }),
+    raw("fl-usd", { reward: { amount: 250, currency: "USD", text: "$250 USD" } }),
+    raw("fl-usdc", { reward: { amount: 90, currency: "USDC", text: "90 USDC" } }),
+    raw("fl-xyz", { reward: { amount: 5, currency: "XYZ", text: "5 XYZ" } }),
+  ];
+  const h = harness([source("s-fl", "freelancer_api")], { "s-fl": fixtureAdapter("freelancer_api", items) }, {
+    fxRates: async () => {
+      reads += 1;
+      return table;
+    },
+  });
+  const filed = new Map<string, unknown>();
+  const inner = h.deps.upsertGigFromRaw;
+  h.deps.upsertGigFromRaw = (ws, input) => {
+    filed.set(input.raw.externalKey, input.raw.reward);
+    return inner(ws, input);
+  };
+  await runGigScan("ws-1", h.deps);
+  assert.equal(reads, 1, "one read of the table for the whole scan");
+  assert.deepEqual(filed.get("fl-inr"), { amount: 12500, currency: "INR", text: "₹12,500 INR", usd: { amount: 130.32, rate: 95.92, rateAt: "2026-09-30", source: "frankfurter.dev rates (base USD)" } });
+  assert.equal((filed.get("fl-eur") as { usd: { amount: number } }).usd.amount, 454.55, "EUR is converted too (the file sorts on it)");
+  assert.deepEqual(filed.get("fl-usd"), { amount: 250, currency: "USD", text: "$250 USD" }, "USD needs no estimate");
+  assert.deepEqual((filed.get("fl-usdc") as { usd: unknown }).usd, { amount: 90, rate: 1, rateAt: "2026-09-24T12:00:00.000Z", source: "usd-pegged" });
+  assert.equal((filed.get("fl-xyz") as { usd?: unknown }).usd, undefined, "a currency the table does not know gets no estimate");
+
+  // No listing that needs the table: it is never read. A table that fails: no estimate, the scan goes on.
+  let untouched = 0;
+  const usdOnly = harness([source("s-fl", "freelancer_api")], { "s-fl": fixtureAdapter("freelancer_api", [items[2], items[3]]) }, { fxRates: async () => ((untouched += 1), table) });
+  await runGigScan("ws-1", usdOnly.deps);
+  assert.equal(untouched, 0);
+  const failing = harness([source("s-fl", "freelancer_api")], { "s-fl": fixtureAdapter("freelancer_api", [items[0]]) }, {
+    fxRates: async () => {
+      throw new Error("network down");
+    },
+  });
+  const summary = await runGigScan("ws-1", failing.deps);
+  assert.equal(summary.sources[0].outcome, "succeeded");
+  assert.ok(failing.logs.includes("-:fx_failed"));
+});
+
 test("the production scan deps plug the real expiry sweep", () => {
   assert.equal(typeof defaultGigScanDeps().sweepExpired, "function");
+  assert.equal(typeof defaultGigScanDeps().fxRates, "function", "and the USD rate table");
   assert.equal(defaultGigScanDeps().enqueueResearch, undefined, "the enqueuer is plugged by the task runner, not the scan's defaults");
 });

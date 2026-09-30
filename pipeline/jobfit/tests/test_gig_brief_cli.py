@@ -180,6 +180,75 @@ class CoerceTest(unittest.TestCase):
             self.assertIsNone(out["effort"], effort)
 
 
+V4 = {
+    "language": "CS",
+    "listingEnglish": "We need a landing page.\r\n\r\n\r\n  It must   load fast.  \nThat is all.",
+    "missingArtifacts": ["- Brand assets (logo, colours)", "brand assets (logo, colours)", "Hosting access", "", 7, "x" * 400],
+    "outreachMessage": "Hello,\n\nI read your brief and would build it as one static page.\n\nCould you send:\n- your logo\n- the copy",
+    "workKind": "digital",
+    "workKindReason": "  A web page is delivered as files.  ",
+}
+
+
+class BriefV4Test(unittest.TestCase):
+    """gig-brief-v4: language, English translation, missing artifacts, outreach, work kind."""
+
+    def test_the_v4_fields_are_validated_and_clamped(self):
+        out = gig_brief_cli.coerce_brief({**GOOD, **V4}, arena="freelance")
+        self.assertEqual(out["language"], "cs")
+        self.assertEqual(out["listingEnglish"], "We need a landing page.\n\nIt must load fast.\nThat is all.", "paragraphs kept, noise collapsed")
+        self.assertEqual(out["missingArtifacts"], ["Brand assets (logo, colours)", "Hosting access", "x" * (gig_brief_cli.MAX_ARTIFACT_CHARS - 1) + "…"])
+        self.assertTrue(out["outreachMessage"].startswith("Hello,\n\nI read your brief"))
+        self.assertIn("\n- your logo\n- the copy", out["outreachMessage"])
+        self.assertEqual((out["workKind"], out["workKindReason"]), ("digital", "A web page is delivered as files."))
+
+    def test_english_listing_has_no_translation_and_bad_language_is_null(self):
+        self.assertIsNone(gig_brief_cli.coerce_brief({**GOOD, **V4, "language": "en"})["listingEnglish"])
+        for bad in ("english", "c", "c1", 3, None):
+            out = gig_brief_cli.coerce_brief({**GOOD, **V4, "language": bad})
+            self.assertEqual((out["language"], out["listingEnglish"]), (None, None), bad)
+        long = gig_brief_cli.coerce_brief({**GOOD, **V4, "listingEnglish": "y" * 9000})["listingEnglish"]
+        self.assertEqual(len(long), gig_brief_cli.MAX_LISTING_ENGLISH_CHARS)
+
+    def test_the_outreach_message_is_freelance_only(self):
+        for arena in ("security", "competition", "oss_bounty"):
+            self.assertIsNone(gig_brief_cli.coerce_brief({**GOOD, **V4}, arena=arena)["outreachMessage"], arena)
+        self.assertIsNotNone(gig_brief_cli.coerce_brief({**GOOD, **V4}, arena="freelance")["outreachMessage"])
+        clamped = gig_brief_cli.coerce_brief({**GOOD, **V4, "outreachMessage": "w " * 2000}, arena="freelance")["outreachMessage"]
+        self.assertLessEqual(len(clamped), gig_brief_cli.MAX_OUTREACH_CHARS)
+
+    def test_the_work_kind_is_a_closed_vocabulary(self):
+        for kind in ("digital", "mixed", "physical"):
+            self.assertEqual(gig_brief_cli.coerce_brief({**GOOD, **V4, "workKind": kind})["workKind"], kind)
+        out = gig_brief_cli.coerce_brief({**GOOD, **V4, "workKind": "remote"})
+        self.assertEqual((out["workKind"], out["workKindReason"]), (None, None), "no kind, no reason")
+
+    def test_a_v3_shaped_answer_is_still_a_brief_with_the_v4_fields_unknown(self):
+        out = gig_brief_cli.coerce_brief(GOOD)
+        self.assertEqual(
+            {k: out[k] for k in ("language", "listingEnglish", "missingArtifacts", "outreachMessage", "workKind", "workKindReason")},
+            {"language": None, "listingEnglish": None, "missingArtifacts": [], "outreachMessage": None, "workKind": None, "workKindReason": None},
+        )
+
+    def test_the_call_passes_the_listing_arena_to_the_coercer(self):
+        fake = FakeProvider(answer={**GOOD, **V4})
+        with mock.patch.object(gig_brief_cli, "resolve_provider", return_value=fake):
+            oss = gig_brief_cli.brief(REQUEST)
+            freelance = gig_brief_cli.brief({**REQUEST, "listing": {**REQUEST["listing"], "arena": "freelance"}})
+        self.assertIsNone(oss["result"]["outreachMessage"])
+        self.assertIsNotNone(freelance["result"]["outreachMessage"])
+        self.assertEqual(freelance["result"]["workKind"], "digital")
+
+    def test_the_schema_requires_every_v4_field_and_the_prompt_names_them(self):
+        for key in ("language", "listingEnglish", "missingArtifacts", "outreachMessage", "workKind", "workKindReason"):
+            self.assertIn(key, gig_brief_cli.SCHEMA["required"])
+            self.assertIn(key, gig_brief_cli.SCHEMA["properties"])
+        self.assertEqual(gig_brief_cli.SCHEMA["properties"]["workKind"]["enum"], ["digital", "mixed", "physical"])
+        prompt = gig_brief_cli.build_prompt(REQUEST)
+        for needle in ("ISO 639-1", "60 to 140 words", "No promise of a timeline or a price", "ABOUT logistics, inventory or shipping is digital"):
+            self.assertIn(needle, prompt)
+
+
 class FenceTest(unittest.TestCase):
     def test_every_stranger_written_byte_is_inside_the_nonce_fence(self):
         prompt = gig_brief_cli.build_prompt(REQUEST, nonce="0123456789abcdef")
@@ -229,11 +298,11 @@ class FenceTest(unittest.TestCase):
 
 
 class EngineTest(unittest.TestCase):
-    """gig-brief-v3: the call site pins Sonnet 5.5 and opens the CLI's web door."""
+    """gig-brief-v3+: the call site pins Sonnet 5.5 and opens the CLI's web door."""
 
     def test_the_pin_is_sonnet_5_5_on_the_claude_cli(self):
         self.assertEqual(gig_brief_cli.PIN, ProviderPin("claude_cli", "claude-sonnet-5-5"))
-        self.assertEqual(gig_brief_cli.PROMPT_VERSION, "gig-brief-v3")
+        self.assertEqual(gig_brief_cli.PROMPT_VERSION, "gig-brief-v4")
 
     def test_the_call_resolves_the_pin_and_opens_the_web_door(self):
         seen: dict = {}

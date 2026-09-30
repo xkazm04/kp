@@ -274,6 +274,25 @@ type GigListingFields = {
   suspectReasons: readonly GigSuspectReason[];
 };
 
+/** Whether a stored reward is the listing's same reward, ignoring the USD estimate a scan
+ *  attaches (`usd`, gigs/fx.ts): a new day's rate is not a changed listing. */
+function sameListedReward(storedJson: string | null, next: GigReward | null): boolean {
+  const strip = (r: GigReward | null): string | null => {
+    if (!r) return null;
+    const listed: GigReward = { ...r };
+    delete listed.usd;
+    return JSON.stringify(listed);
+  };
+  let stored: GigReward | null = null;
+  try {
+    stored = storedJson ? (JSON.parse(storedJson) as GigReward) : null;
+  } catch {
+    // An unreadable stored reward is a changed one: the upsert rewrites it.
+    return false;
+  }
+  return strip(stored) === strip(next);
+}
+
 /** SELECT-then-write inside ONE IMMEDIATE transaction: the write lock is taken at BEGIN,
  *  so two scans of the same listing cannot both miss the row and both insert (the
  *  expression UNIQUE index would refuse the second anyway - this makes it a wait, not a
@@ -334,13 +353,20 @@ function upsertGigRow(workspaceId: string, f: GigListingFields): { gig: Gig; cre
       existing.url === f.url &&
       existing.title === title &&
       existing.org === org &&
-      existing.reward_json === rewardJson &&
+      sameListedReward(existing.reward_json, f.reward) &&
       existing.deadline_at === f.deadlineAt &&
       existing.posted_at === f.postedAt &&
       existing.body_text === f.bodyText &&
       existing.tags_json === tagsJson &&
       existing.suspect_reasons_json === mergedJson;
-    if (unchanged) return { id: existing.id, created: false };
+    if (unchanged) {
+      // The listing is the same; only the USD estimate a scan attaches (gigs/fx.ts, the rate
+      // of the day) may have moved. Refresh it WITHOUT touching updated_at.
+      if (existing.reward_json !== rewardJson) {
+        d.prepare(`UPDATE gigs SET reward_json = ? WHERE id = ? AND workspace_id = ?`).run(rewardJson, existing.id, workspaceId);
+      }
+      return { id: existing.id, created: false };
+    }
     d.prepare(
       `UPDATE gigs
        SET url = ?, title = ?, org = ?, reward_json = ?, deadline_at = ?, posted_at = ?, body_text = ?, tags_json = ?,

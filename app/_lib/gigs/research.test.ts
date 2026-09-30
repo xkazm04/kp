@@ -87,6 +87,8 @@ type Harness = {
   stored: GigBrief[];
   moves: { from: GigStatus | readonly GigStatus[]; to: GigStatus; reasons: readonly GigSuspectReason[] | undefined }[];
   merged: GigSuspectReason[][];
+  /** Verdicts a transition patched in (the research layer's physical decline). */
+  qualifications: unknown[];
 };
 
 function harness(opts: {
@@ -99,7 +101,7 @@ function harness(opts: {
   /** Past withdraw reasons the store answers (challenge text per withdrawn gig), or "throw". */
   withdrawn?: string[] | "throw";
 } = {}): Harness {
-  const h: Harness = { deps: {}, fetched: [], looked: [], github: [], cli: [], stored: [], moves: [], merged: [] };
+  const h: Harness = { deps: {}, fetched: [], looked: [], github: [], cli: [], stored: [], moves: [], merged: [], qualifications: [] };
   let current = opts.current ?? gig();
   h.deps = {
     fetch: async (url: string, o: PoliteFetchOptions) => {
@@ -133,7 +135,13 @@ function harness(opts: {
     },
     transitionGig: (_ws, _id, move) => {
       h.moves.push({ from: move.from, to: move.to, reasons: move.patch?.suspectReasons });
-      current = { ...current, status: move.to, suspectReasons: [...(move.patch?.suspectReasons ?? current.suspectReasons)] };
+      if (move.patch?.qualification !== undefined) h.qualifications.push(move.patch.qualification);
+      current = {
+        ...current,
+        status: move.to,
+        suspectReasons: [...(move.patch?.suspectReasons ?? current.suspectReasons)],
+        qualification: move.patch?.qualification !== undefined ? move.patch.qualification : current.qualification,
+      };
       return { ok: true, gig: current };
     },
     mergeGigSuspectReasons: (_ws, _id, reasons) => {
@@ -525,7 +533,7 @@ test("researchGigBatch: the first no_provider stops spawning - one cheap spawn k
   const summary = await researchGigBatch("ws-1", { signal: new AbortController().signal, limit: 8, sourceId: "s-1", htmlByGigId: new Map() }, h.deps);
   assert.deepEqual(listed, { limit: 8, sourceId: "s-1" });
   assert.equal(h.cli.length, 1, "only the first gig spawned");
-  assert.deepEqual(summary, { attempted: 3, llm: 0, deterministic: 3, failed: 0, flagged: 0, providerMissing: true, deferred: 0 });
+  assert.deepEqual(summary, { attempted: 3, llm: 0, deterministic: 3, failed: 0, flagged: 0, providerMissing: true, deferred: 0, declinedNotDigital: 0 });
   assert.deepEqual(h.stored.map((b) => b.fallbackReason), ["no_provider", "no_provider", "no_provider"]);
 });
 
@@ -645,4 +653,131 @@ test("briefChallenges reads back exactly the challenges the brief wrote, from th
 test("parseGigBriefResult keeps challenges as one-line bullets: list and heading markers the model added are dropped", () => {
   const out = parseGigBriefResult({ ...MODEL, challenges: ["- Dash first", "2. Numbered", "## Heading-ish", "- dash first", "Plain"] });
   assert.deepEqual(out?.challenges, ["Dash first", "Numbered", "Heading-ish", "Plain"]);
+});
+
+// ---------------------------------------------------------------------------
+// gig-brief-v4: language, English translation, missing artifacts, outreach, work kind
+// ---------------------------------------------------------------------------
+
+const V4 = {
+  language: "CS",
+  listingEnglish: "We need a landing page.\r\n\r\n\r\n  It must   load fast.  \nThat is all.",
+  missingArtifacts: ["- Brand assets (logo, colours)", "brand assets (logo, colours)", "Hosting access", "", 7, "x".repeat(400)],
+  outreachMessage: "Hello,\n\nI read your brief and would build it as one static page.\n\nCould you send:\n- your logo\n- the copy",
+  workKind: "digital",
+  workKindReason: "  A web page is delivered as files.  ",
+};
+
+test("parseGigBriefResult (v4): the new fields are validated and clamped like gig_brief_cli.py coerce_v4", () => {
+  const r = parseGigBriefResult({ ...MODEL, ...V4 }, { arena: "freelance" });
+  assert.ok(r);
+  assert.equal(r.language, "cs");
+  assert.equal(r.listingEnglish, "We need a landing page.\n\nIt must load fast.\nThat is all.", "paragraphs kept, noise collapsed");
+  assert.deepEqual(r.missingArtifacts, ["Brand assets (logo, colours)", "Hosting access", `${"x".repeat(199)}…`]);
+  assert.match(r.outreachMessage ?? "", /^Hello,\n\nI read your brief/);
+  assert.match(r.outreachMessage ?? "", /\n- your logo\n- the copy$/);
+  assert.deepEqual([r.workKind, r.workKindReason], ["digital", "A web page is delivered as files."]);
+});
+
+test("parseGigBriefResult (v4): English has no translation, a bad language is null, outreach is freelance-only, the work kind is closed", () => {
+  assert.equal(parseGigBriefResult({ ...MODEL, ...V4, language: "en" })?.listingEnglish, null);
+  for (const bad of ["english", "c", "c1", 3, null]) {
+    const r = parseGigBriefResult({ ...MODEL, ...V4, language: bad });
+    assert.deepEqual([r?.language, r?.listingEnglish], [null, null], String(bad));
+  }
+  assert.equal(parseGigBriefResult({ ...MODEL, ...V4, listingEnglish: "y".repeat(9000) })?.listingEnglish?.length, 6000);
+  for (const arena of ["security", "competition", "oss_bounty"] as const) assert.equal(parseGigBriefResult({ ...MODEL, ...V4 }, { arena })?.outreachMessage, null, arena);
+  assert.ok((parseGigBriefResult({ ...MODEL, ...V4, outreachMessage: "w ".repeat(2000) }, { arena: "freelance" })?.outreachMessage?.length ?? 0) <= 1500);
+  const odd = parseGigBriefResult({ ...MODEL, ...V4, workKind: "remote" });
+  assert.deepEqual([odd?.workKind, odd?.workKindReason], [null, null], "no kind, no reason");
+  const v3 = parseGigBriefResult(MODEL);
+  assert.deepEqual(
+    [v3?.language, v3?.listingEnglish, v3?.missingArtifacts, v3?.outreachMessage, v3?.workKind, v3?.workKindReason],
+    [null, null, [], null, null, null],
+    "a v3-shaped answer is still a brief, with the v4 fields unknown"
+  );
+});
+
+test("buildLlmGigBrief stores the v4 fields beside the Markdown, never inside it", () => {
+  const result = parseGigBriefResult({ ...MODEL, ...V4 }, { arena: "freelance" });
+  assert.ok(result);
+  const brief = buildLlmGigBrief(result, [], { promptVersion: GIG_BRIEF_PROMPT_VERSION, createdAt: "2026-09-30T00:00:00.000Z" });
+  assert.equal(brief.promptVersion, "gig-brief-v4");
+  assert.deepEqual(
+    [brief.language, brief.missingArtifacts, brief.workKind, brief.workKindReason],
+    ["cs", ["Brand assets (logo, colours)", "Hosting access", `${"x".repeat(199)}…`], "digital", "A web page is delivered as files."]
+  );
+  assert.ok(brief.listingEnglish && brief.outreachMessage);
+  assert.ok(!brief.markdown.includes("Hosting access") && !brief.markdown.includes("I read your brief"), "the Markdown keeps its five fixed sections");
+});
+
+test("researchGig: the gig's arena reaches the parser (a bounty keeps no outreach message)", async () => {
+  const listing = gig({ bodyText: "no links" });
+  const h = harness({ current: listing, cli: () => ({ result: { ...MODEL, ...V4 }, source: "llm", promptVersion: "gig-brief-v4" }) });
+  const out = await researchGig("ws-1", listing, { deps: h.deps });
+  assert.equal(out.brief.source, "llm");
+  assert.equal(out.brief.outreachMessage, null, "oss_bounty");
+  assert.equal(out.declined, false);
+});
+
+// ---------------------------------------------------------------------------
+// Physical work never reaches the desk: the research layer
+// ---------------------------------------------------------------------------
+
+const PHYSICAL = { ...MODEL, ...V4, language: "en", workKind: "physical", workKindReason: "The client needs printed gift cards sourced and shipped." };
+
+test("researchGig: a brief that finds the work PHYSICAL declines a scanned new/qualified gig, with the reason on its verdict", async () => {
+  const verdict = { score: 80, factors: { arenaFit: true, rewardKnown: true, deadlineHeadroomDays: null, specialistAvailable: true, suspect: false }, note: null, source: "deterministic" as const, fallbackReason: null };
+  for (const status of ["new", "qualified"] as const) {
+    const listing = gig({ arena: "freelance", bodyText: "no links", status, qualification: verdict });
+    const h = harness({ current: listing, cli: () => ({ result: PHYSICAL, source: "llm" }) });
+    const out = await researchGig("ws-1", listing, { deps: h.deps });
+    assert.equal(out.declined, true, status);
+    assert.equal(out.gig?.status, "declined");
+    assert.deepEqual(h.moves.map((m) => [m.from, m.to]), [[status, "declined"]], "a CAS on the status research read");
+    assert.deepEqual(h.qualifications, [{ ...verdict, declineReason: "not_digital_work", declinedBy: "model" }]);
+    assert.equal(out.brief.workKind, "physical", "the brief is stored all the same");
+  }
+});
+
+test("researchGig: without a verdict the decline still moves, and the brief's work kind carries the reason", async () => {
+  const listing = gig({ arena: "freelance", bodyText: "no links", qualification: null });
+  const h = harness({ current: listing, cli: () => ({ result: PHYSICAL, source: "llm" }) });
+  const out = await researchGig("ws-1", listing, { deps: h.deps });
+  assert.equal(out.declined, true);
+  assert.deepEqual(h.qualifications, []);
+});
+
+test("researchGig: mixed work stays, a manual gig is the operator's choice, and a gig past qualified is never touched", async () => {
+  const cases: [string, Gig, Record<string, unknown>][] = [
+    ["mixed", gig({ arena: "freelance", bodyText: "no links" }), { ...PHYSICAL, workKind: "mixed" }],
+    ["manual", gig({ arena: "freelance", bodyText: "no links", sourceId: null }), PHYSICAL],
+    ["dispatched", gig({ arena: "freelance", bodyText: "no links", status: "dispatched" }), PHYSICAL],
+  ];
+  for (const [label, listing, result] of cases) {
+    const h = harness({ current: listing, cli: () => ({ result, source: "llm" }) });
+    const out = await researchGig("ws-1", listing, { deps: h.deps });
+    assert.equal(out.declined, false, label);
+    assert.deepEqual(h.moves, [], label);
+  }
+});
+
+test("researchGigBatch: the pass counts the gigs it declined as physical", async () => {
+  const gigs = [gig({ id: "g1", arena: "freelance", bodyText: "a" }), gig({ id: "g2", arena: "freelance", bodyText: "b" })];
+  let n = 0;
+  const h = harness({ cli: () => ({ result: n++ === 0 ? PHYSICAL : { ...MODEL, ...V4, workKind: "digital" }, source: "llm" }) });
+  h.deps.listGigsNeedingBrief = () => gigs;
+  let current: Gig[] = [...gigs];
+  h.deps.getGig = (_ws, id) => current.find((g) => g.id === id) ?? null;
+  h.deps.setGigBrief = (_ws, id, brief) => {
+    current = current.map((g) => (g.id === id ? { ...g, brief } : g));
+    return current.find((g) => g.id === id) ?? null;
+  };
+  h.deps.transitionGig = (_ws, id, move) => {
+    current = current.map((g) => (g.id === id ? { ...g, status: move.to } : g));
+    return { ok: true, gig: current.find((g) => g.id === id)! };
+  };
+  const summary = await researchGigBatch("ws-1", { signal: new AbortController().signal, limit: 8, sourceId: null }, h.deps);
+  assert.deepEqual([summary.attempted, summary.llm, summary.declinedNotDigital], [2, 2, 1]);
+  assert.deepEqual(current.map((g) => g.status), ["declined", "new"]);
 });
