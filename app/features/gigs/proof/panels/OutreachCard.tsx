@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { MessageText } from "../../shared/MessageText";
 import { Button } from "@/app/_components/kit";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { useGigsFormat } from "../../data/useGigsFormat";
@@ -61,7 +62,7 @@ export function OutreachCard({ gig, onChanged }: { gig: Gig; onChanged: AfterWri
         <>
           <div className="msg-card">
             <p className="msg-to">{t("to", { client: gig.org ?? t("theClient") })}</p>
-            <p className="msg-body">{message}</p>
+            <MessageText text={message} className="msg-body" />
           </div>
           {copied === "failed" ? <p className="t-meta coral">{t("copyFailed")}</p> : null}
           {asks.from === "proposal" ? (

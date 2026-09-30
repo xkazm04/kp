@@ -15150,7 +15150,7 @@
       "copyFailed": "Die Zwischenablage ist hier nicht verfügbar. Markieren Sie den Text und kopieren Sie ihn.",
       "to": "An {client}",
       "theClient": "den Kunden",
-      "asksFor": "Sie erbittet",
+      "asksFor": "Zum Start nötig, nach dem Zuschlag",
       "nothingMissing": "Die Ausschreibung nennt alles, was die Arbeit braucht.",
       "foot": "kp sendet diese Nachricht nie. Sie senden sie von Ihrem eigenen Konto.",
       "none": "Eine Nachricht an den Kunden erscheint, sobald der Auftrag recherchiert ist. Erneut recherchieren schreibt sie.",
@@ -15215,7 +15215,7 @@
         "movedOn": "Das Angebot wurde nach diesem Entwurf neu geschrieben. Um die neue Nachricht zu prüfen, verwerfen Sie den Entwurf und bereiten Sie das Angebot erneut vor.",
         "newMessage": "Die neu geschriebene Nachricht",
         "questions": "Fragen an den Kunden",
-        "artifacts": "Was wir vom Kunden brauchen",
+        "artifacts": "Zum Start nötig, nach dem Zuschlag",
         "noQuestions": "Keine offenen Fragen an den Kunden.",
         "noArtifacts": "Die Ausschreibung nennt alles, was die Arbeit braucht.",
         "foot": "kp sendet sie nie. Sie fügen sie auf der Plattform ein, von Ihrem eigenen Konto."

@@ -88,7 +88,7 @@ class PinAndFenceTest(unittest.TestCase):
         with _env(), _ledger() as ledger, _stubbed_cli(spawn):
             out = gig_proposal_cli.propose(REQUEST)
             rows = _rows(ledger)
-        self.assertEqual((out["source"], out["costUsd"], out["promptVersion"]), ("llm", 0.12, "gig-proposal-v1"), out)
+        self.assertEqual((out["source"], out["costUsd"], out["promptVersion"]), ("llm", 0.12, "gig-proposal-v2"), out)
         args = spawn.calls[0]["args"]
         self.assertEqual(args[args.index("--model") + 1], "claude-sonnet-5-5")
         self.assertEqual(args[args.index("--effort") + 1], "high")

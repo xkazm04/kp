@@ -243,13 +243,21 @@ the Markdown (the brief's five fixed sections are unchanged):
   answer is not a two-letter code.
 - `listingEnglish`: a faithful English translation of a non-English listing, plain text with
   its paragraphs, at most 6000 characters; null for an English listing.
-- `missingArtifacts`: 0 to 8 short items the client must provide that the listing does not
-  (credentials or access, source files, brand assets, sample data, acceptance criteria, a
-  deadline confirmation), specific to the gig.
+- `missingArtifacts`: 0 to 8 short items the project needs from the client to START once the
+  work is won (credentials or access, source files, sample data, content, acceptance criteria),
+  specific to the gig. Never a budget, price, deadline or demo-date confirmation, never a
+  technology or hosting choice the freelancer can propose himself; nice-to-haves (logo, colours,
+  example sites) end with " (optional)".
 - `outreachMessage`: freelance gigs only (null for every other arena, enforced on both sides
-  with the gig's arena): a first message to the client in English, plain text, 60 to 140 words,
-  showing interest, one line on the approach, and the missing artifacts as a short list. No
-  timeline, price, past-work or AI-disclosure wording; the operator adds his own.
+  with the gig's arena): a first message to the client in English, plain text, 80 to 180 words,
+  in the bid's shape (operator's call, 2026-09-30): a greeting and one sentence of interest;
+  "How I would approach it:" with the plan as 3 to 5 "- " lines (where the listing names no
+  technology, the freelancer's proposed choice, stated as a choice); "To get started once we
+  agree, I would need:" with the missing artifacts as "- " lines; one closing sentence. It never
+  asks the client to send anything before the bid is won. No timeline, price, past-work or
+  AI-disclosure wording; the operator adds his own. (The wording changed without a prompt
+  version bump: the fields and their schema are unchanged, and a bump would mark every
+  gig-brief-v4 brief stale for the accept loop.)
 - `workKind` (`digital` | `mixed` | `physical`) and `workKindReason` (one sentence).
 
 A v3 answer still parses (the v4 fields read as unknown). The deterministic (keyless) brief
@@ -429,7 +437,13 @@ solution (operator decision, 2026-09-30).
    `gig_proposal_cli.py coerce_proposal` and again in `proposal/model.ts parseGigProposalBody`:
    any sentence naming a money figure that the listing's reward text does not state is dropped.
    The message is at most 1,500 characters (`GIG_PROPOSAL_MESSAGE_MAX`) and always ends with
-   `GIG_DISCLOSURE_SENTENCE` (contract.ts).
+   `GIG_DISCLOSURE_SENTENCE` (contract.ts). Since `gig-proposal-v2` (2026-09-30) it has the bid's
+   shape: interest; "How I would approach it:" and the plan as "- " lines, with the specialist's
+   proposed technology where the listing names none; "To get started once we agree, I would
+   need:" and only what the work cannot start without, nice-to-haves marked "(optional)"; a
+   closing line with at most one question; the disclosure. It never asks the client to send
+   anything before the bid is won, to confirm a budget, price, deadline or demo date, or to pick
+   a technology or hosting. kp's own composition (`deterministicProposal`) uses the same shape.
    **Keyless, failed or unusable calls, and suspect gigs**: kp composes the proposal itself with
    `deterministicProposal`, in English, from the brief's "what the gig is" paragraph, the
    accepted plan's steps, questions and decisions, the brief's missing artifacts, and its
@@ -1366,7 +1380,7 @@ proof lands where the operator left.
         steps' titles as a numbered list. Earlier rounds and the plans in full are in the file.
      4. **The bid** (`proof/report/BidBlock.tsx`), a **proposal**-track gig only, after the plan
         block: the operator's working surface - the message to paste on the platform with
-        **Copy message**, then "Questions for the client" and "What we need from the client" as
+        **Copy message**, then "Questions for the client" and "Needed to start, once won" as
         two numbered lists (`BidAsks.tsx`). When the latest attempt is the draft kp wrote itself
         (`specialistId === "kp:proposal"`) that draft IS the message, so it is proofed inside The
         bid (the proof slip over the galley, its lint notes pinned) and item 5 below
@@ -1395,7 +1409,9 @@ proof lands where the operator left.
      clipboard is not available), and a line saying which it shows and when ("Written with the
      client proposal on <date>" or "Written with the research brief"). Its asks
      (`clientAsksOf`) prefer the proposal's questions and artifacts over the brief's missing
-     artifacts, listed under it as "It asks for". A note says "kp never sends this. You send
+     artifacts, listed under it as "Needed to start, once won". The message is SET for reading
+     (`shared/MessageText.tsx`, `logic/messageBlocks.ts`): paragraphs, and each "- " run as a
+     bulleted list under its lead line; Copy copies the plain text. A note says "kp never sends this. You send
      it, from your own account." A freelance gig whose brief predates v4 and has no proposal
      says the message appears once the gig is researched, with **Research again**; another
      arena says the message is written for freelance gigs only.

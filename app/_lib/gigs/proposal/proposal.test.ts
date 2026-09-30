@@ -91,7 +91,12 @@ test("deterministic: brief + plan - the plan's steps are the milestones, its que
   assert.deepEqual(b.effort, { minHours: 2, maxHours: 5 }, "the plan's effort wins over the brief's");
   assert.equal(b.approach[0], plan.summary.split(/(?<=[.!?])\s+/).slice(0, 2).join(" "));
   const bare = deterministicProposal({ ...reportFixtureGig(), brief: { ...REPORT_FIXTURE_BRIEF, outreachMessage: null, missingArtifacts: ["The logo"] } }, null, D);
-  assert.match(bare.message, /^Hello,\n\nI read your listing for .+ Before starting I would need:\n- The logo\n\n/);
+  // The bid's shape: interest, what the work needs to START once agreed (nothing asked for now), a closing line.
+  assert.match(bare.message, /^Hello, I read your listing for .+\n\nTo get started once we agree, I would need:\n- The logo\n\n.+\n\n/);
+  assert.doesNotMatch(bare.message, /How I would approach it/, "no plan, no invented steps");
+  const planned = deterministicProposal({ ...reportFixtureGig(), brief: { ...REPORT_FIXTURE_BRIEF, outreachMessage: null, missingArtifacts: [] } }, plan, D);
+  assert.match(planned.message, /\n\nHow I would approach it:\n- .+\n/, "the plan's steps are the approach bullets");
+  assert.doesNotMatch(planned.message, /To get started/, "nothing needed, no start list");
 });
 
 test("template: every field is escaped, and NO internal figure, id, model or tool name reaches the page", () => {

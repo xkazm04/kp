@@ -24,7 +24,7 @@ stdout (exit 0)::
                 "effort": {"minHours": n, "maxHours": n} | null,
                 "questions": [str], "artifacts": [str], "message": str} | null,
      "source": "llm" | "deterministic", "fallbackReason": str | null,
-     "promptVersion": "gig-proposal-v1", "costUsd": number | null}
+     "promptVersion": "gig-proposal-v2", "costUsd": number | null}
 
 THE ENGINE IS PINNED (``PIN``: Claude Sonnet 5.5 at high effort through the Claude CLI);
 only policy outranks it (KP_OFFLINE, the production consumer-terms refusal). KEYLESS IS A
@@ -53,7 +53,7 @@ from .llm.degradation import PROVIDER_ERROR, UNUSABLE_OUTPUT, classify
 
 USE_CASE = "gig_proposal"
 # Kept in lockstep with app/_lib/gigs/proposal/run.ts GIG_PROPOSAL_PROMPT_VERSION (proposal.test.ts).
-PROMPT_VERSION = "gig-proposal-v1"
+PROMPT_VERSION = "gig-proposal-v2"
 # The product owner's pin (TS mirror: app/_lib/llm-pins.ts, held equal by
 # llm-capabilities-lockstep.test.ts, which reads THIS line).
 PIN = ProviderPin("claude_cli", "claude-sonnet-5-5", "high")
@@ -78,16 +78,36 @@ Return ONE JSON object and nothing else:
  "milestones": [{{"title": "<a milestone the client will see>", "delivers": "<what the client receives when it is done>"}}],
  "timeline": "<1-2 sentences on how the work is paced; no calendar dates the listing does not give>",
  "effort": {{"minHours": <number>, "maxHours": <number>}} or null,
- "questions": ["<a question FOR THE CLIENT, most important first>"],
- "artifacts": ["<something the client must provide before work starts>"],
+ "questions": ["<a question FOR THE CLIENT whose answer changes the plan, most important first>"],
+ "artifacts": ["<something the project needs from the client to START once the bid is won; nice-to-haves end with ' (optional)'>"],
  "message": "<the bid to paste into the platform, at most 1500 characters>"}}
 
 Rules:
 - The milestones follow the accepted plan when there is one (untrusted_plan); without one, give 2-4 high-level
   milestones and say in "timeline" that the detailed plan follows the client's answers.
-- "questions" and "artifacts" include the brief's missing artifacts first. At most 8 of each.
-- "message": greets the client, names the plan in two short lines, asks the top two or three questions, requests
-  the artifacts, and ENDS with this sentence exactly as given: "{disclosure}"
+- "artifacts" start from the brief's missing artifacts, filtered by the rules for the message's start list
+  below. At most 8. "questions" at most 8, each one whose answer would change the plan.
+- Nothing asks the client to confirm a budget, a price, a deadline or a demo date: that belongs to the talk after
+  the bid is won. Nothing asks the client to choose a technology, a stack, a platform or hosting the listing does
+  not name: as the specialist you propose the best fit in the approach and say the plan can adapt.
+  This includes hosting: never ask where or how the work will be hosted or deployed, which server, runtime or
+  language is available there, or for server details. Name the setup you propose instead (for example "a small
+  PHP endpoint that runs on standard shared hosting, or a serverless function if you prefer") and say it adapts
+  to their hosting once the work is agreed.
+- "message": plain text in exactly this shape, the parts separated by one blank line:
+  1. A greeting and ONE sentence of genuine interest in this specific work.
+  2. A line introducing the approach (in English "How I would approach it:"), then 3 to 5 lines, each starting
+     with "- ": the prepared plan as short concrete steps or choices in the order they happen, each under 110
+     characters. Where the listing names no technology, state the one you propose as a choice ("- A small PHP
+     endpoint handles the payment callback, so credentials never reach the browser").
+  3. A line introducing what is needed to start (in English "To get started once we agree, I would need:"), then
+     2 to 5 lines, each starting with "- ": only what the work cannot start without and only the client can give
+     (access or credentials, content, data, source files). Nice-to-haves such as a logo, colours or example
+     sites end with " (optional)", and the line says variants can be prototyped during the work. Never ask the
+     client to send anything now: the bid is not won yet.
+  4. One closing sentence inviting a reply. At most ONE question in the whole message, only if its answer
+     changes the plan.
+  5. This sentence exactly as given: "{disclosure}"
 - Honesty: never state a price, a rate, a discount or a budget figure (at most "within the posted budget"); never
   invent a portfolio item, a past client, a credential or years of experience; never promise a date the listing
   does not give. Plain text only: no Markdown, no HTML, no links, no emoji.

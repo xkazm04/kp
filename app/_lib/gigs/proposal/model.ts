@@ -152,7 +152,18 @@ export function deterministicProposal(gig: Pick<Gig, "title" | "brief" | "reward
     : ["I would start by confirming the requirements and the open questions below, then send a detailed plan with milestones."];
   const effort = plan?.effortHours ? { minHours: plan.effortHours.min, maxHours: plan.effortHours.max } : brief?.effort ? { minHours: brief.effort.minHours, maxHours: brief.effort.maxHours } : null;
   const artifacts = brief?.missingArtifacts ?? [];
-  const opening = brief?.outreachMessage?.trim() || [`Hello,`, ``, `I read your listing for ${gig.title} and would like to help.${artifacts.length ? " Before starting I would need:" : ""}`, ...artifacts.map((a) => `- ${a}`)].join("\n");
+  // The bid's shape (gig_proposal_cli.py "message"): interest, the plan as steps, what the work needs to START
+  // once agreed (nothing is asked for now), a closing line. The brief's own message follows the same rules.
+  const steps = (plan?.steps ?? []).slice(0, 5).map((s) => `- ${s.title}`);
+  const opening =
+    brief?.outreachMessage?.trim() ||
+    [
+      `Hello, I read your listing for ${gig.title} and would like to help.`,
+      ...(steps.length ? [``, `How I would approach it:`, ...steps] : []),
+      ...(artifacts.length ? [``, `To get started once we agree, I would need:`, ...artifacts.map((a) => `- ${a}`)] : []),
+      ``,
+      `I am happy to adapt the plan to how you work. Just reply here.`,
+    ].join("\n");
   const raw = {
     title: gig.title,
     understanding,

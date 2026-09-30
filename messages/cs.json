@@ -15150,7 +15150,7 @@
       "copyFailed": "Schránka tu není k dispozici. Označte text a zkopírujte ho.",
       "to": "Pro: {client}",
       "theClient": "klient",
-      "asksFor": "Žádá o",
+      "asksFor": "Potřebné ke startu, po získání zakázky",
       "nothingMissing": "Nabídka uvádí vše, co práce potřebuje.",
       "foot": "kp tuto zprávu nikdy neodešle. Odešlete ji vy ze svého účtu.",
       "none": "Zpráva klientovi se objeví po rešerši zakázky. Nová rešerše ji napíše.",
@@ -15215,7 +15215,7 @@
         "movedOn": "Návrh byl po tomto konceptu napsán znovu. Chcete-li zkontrolovat novou zprávu, koncept zahoďte a návrh připravte znovu.",
         "newMessage": "Nově napsaná zpráva",
         "questions": "Otázky pro klienta",
-        "artifacts": "Co od klienta potřebujeme",
+        "artifacts": "Potřebné ke startu, po získání zakázky",
         "noQuestions": "Pro klienta nejsou žádné otevřené otázky.",
         "noArtifacts": "Nabídka uvádí vše, co práce potřebuje.",
         "foot": "kp ji nikdy neodešle. Vložíte ji na platformu vy ze svého účtu."

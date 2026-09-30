@@ -23,7 +23,7 @@ import { renderGigProposalPage } from "./template";
 // keyless / failed / unusable answers are kp's own composition (`source: "deterministic"`).
 
 /** Kept in lockstep with gig_proposal_cli.py PROMPT_VERSION (proposal.test.ts reads both). */
-export const GIG_PROPOSAL_PROMPT_VERSION = "gig-proposal-v1";
+export const GIG_PROPOSAL_PROMPT_VERSION = "gig-proposal-v2";
 /** The pinned writer (gig_proposal_cli.py PIN; llm-pins.ts mirrors it). */
 export const GIG_PROPOSAL_MODEL = "claude-sonnet-5-5";
 /** One spawn's hang backstop, over the CLI's own deadline. */

@@ -39,7 +39,7 @@
 //     for the plan the CLIENT is shown, else "build").
 //   report (gig-report-v1, `Write the report for the gig ...`): one section per kind the
 //     instructions list, each with a <script> the report's sanitizer must strip.
-//   proposal (gig-proposal-v1, `Write the client proposal for the gig ...`): a client proposal
+//   proposal (gig-proposal-v2, `Write the client proposal for the gig ...`): a client proposal
 //     built from the fenced plan (its steps are the milestones) and the brief's missing
 //     artifacts; its understanding carries a <script> the page must render as TEXT, and its
 //     message ends with the disclosure sentence the instructions name.
@@ -110,7 +110,7 @@ function classifyPrompt(prompt) {
   return "unknown";
 }
 
-/** A client proposal (gig-proposal-v1) from the fenced plan and brief: the plan's steps are the
+/** A client proposal (gig-proposal-v2) from the fenced plan and brief: the plan's steps are the
  *  milestones, the brief's missing artifacts the asks, and the message ends with the disclosure
  *  sentence the instructions quote. The understanding carries a <script> the page must escape. */
 function proposalFor(prompt, payload) {

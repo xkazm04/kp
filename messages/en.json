@@ -15150,7 +15150,7 @@
       "copyFailed": "The clipboard is not available here. Select the text and copy it.",
       "to": "To {client}",
       "theClient": "the client",
-      "asksFor": "It asks for",
+      "asksFor": "Needed to start, once won",
       "nothingMissing": "The listing names everything the work needs.",
       "foot": "kp never sends this. You send it, from your own account.",
       "none": "A message to the client appears once the gig is researched. Research again writes it.",
@@ -15215,7 +15215,7 @@
         "movedOn": "The proposal was rewritten after this draft. To proof the new message, discard the draft and prepare the proposal again.",
         "newMessage": "The rewritten message",
         "questions": "Questions for the client",
-        "artifacts": "What we need from the client",
+        "artifacts": "Needed to start, once won",
         "noQuestions": "No open questions for the client.",
         "noArtifacts": "The listing names everything the work needs.",
         "foot": "kp never sends it. You paste it on the platform, from your own account."

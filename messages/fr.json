@@ -15150,7 +15150,7 @@
       "copyFailed": "Le presse-papiers n’est pas disponible ici. Sélectionnez le texte et copiez-le.",
       "to": "À {client}",
       "theClient": "le client",
-      "asksFor": "Il demande",
+      "asksFor": "Nécessaire pour démarrer, une fois la mission obtenue",
       "nothingMissing": "L’annonce cite tout ce dont le travail a besoin.",
       "foot": "kp n’envoie jamais ce message. Vous l’envoyez, depuis votre propre compte.",
       "none": "Un message au client apparaît une fois la mission recherchée. Relancer la recherche le rédige.",
@@ -15215,7 +15215,7 @@
         "movedOn": "La proposition a été réécrite après ce brouillon. Pour relire le nouveau message, écartez le brouillon et préparez la proposition à nouveau.",
         "newMessage": "Le message réécrit",
         "questions": "Questions au client",
-        "artifacts": "Ce dont nous avons besoin du client",
+        "artifacts": "Nécessaire pour démarrer, une fois la mission obtenue",
         "noQuestions": "Aucune question ouverte pour le client.",
         "noArtifacts": "L’annonce cite tout ce dont le travail a besoin.",
         "foot": "kp ne l’envoie jamais. Vous le collez sur la plateforme, depuis votre propre compte."

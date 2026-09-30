@@ -59,8 +59,8 @@ const MODEL = {
   artifacts: ["Vercel-Zugriff"],
   message: `Hallo, ich messe zuerst.\n\n${GIG_DISCLOSURE_SENTENCE}`,
 };
-const KEYLESS = () => ({ result: null, source: "deterministic", fallbackReason: "no_provider", promptVersion: "gig-proposal-v1", costUsd: null });
-const LLM = () => ({ result: MODEL, source: "llm", fallbackReason: null, promptVersion: "gig-proposal-v1", costUsd: 0.11 });
+const KEYLESS = () => ({ result: null, source: "deterministic", fallbackReason: "no_provider", promptVersion: "gig-proposal-v2", costUsd: null });
+const LLM = () => ({ result: MODEL, source: "llm", fallbackReason: null, promptVersion: "gig-proposal-v2", costUsd: 0.11 });
 
 function fake(answer: () => Record<string, unknown>, over: Partial<GigProposalRunDeps> = {}) {
   const calls: CliCall[] = [];

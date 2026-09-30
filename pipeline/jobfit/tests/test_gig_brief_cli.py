@@ -245,7 +245,7 @@ class BriefV4Test(unittest.TestCase):
             self.assertIn(key, gig_brief_cli.SCHEMA["properties"])
         self.assertEqual(gig_brief_cli.SCHEMA["properties"]["workKind"]["enum"], ["digital", "mixed", "physical"])
         prompt = gig_brief_cli.build_prompt(REQUEST)
-        for needle in ("ISO 639-1", "60 to 140 words", "No promise of a timeline or a price", "ABOUT logistics, inventory or shipping is digital"):
+        for needle in ("ISO 639-1", "80 to 180 words", "How I would approach it:", "To get started once we agree, I would need:", "never asks the client to send anything now", "No promise of a timeline or a price", "ABOUT logistics, inventory or shipping is digital"):
             self.assertIn(needle, prompt)
 
 
