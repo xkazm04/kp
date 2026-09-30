@@ -1,0 +1,52 @@
+/* ---- VARIANT A "DOSSIER" (proof/report/variants/SummaryDossier.tsx) ---------------------------
+   A document page. The hero is a set title block: a title of at most 2rem in the serif, ONE
+   lead sentence at 1.25rem, the rest at body size (1.0625rem/1.7) - the serif is for headings
+   and the one lead, never for a long paragraph. Sections read as numbered parts of one
+   document, a hairline over each, text held to 66ch. The draft is a letter on a sheet: an
+   address line, the body in the reading face, paragraph numbers in a narrow gutter, notes as
+   numbered footnote cards under their paragraph (in the margin only on a sheet wide enough
+   for a real one). The sidebar is a calm decision card. */
+
+.gd .sm--dossier .sm-read { gap: 2.25rem; }
+
+/* the decision card */
+.gd .sm--dossier .sm-side { background: var(--gd-card); border-radius: var(--gd-radius); box-shadow: var(--gd-shadow); }
+
+/* the hero */
+.gd .sm-hero { display: grid; gap: 0.5rem; justify-items: start; min-width: 0; }
+.gd .sm-title { max-width: 30ch; font: 600 2rem/1.15 var(--gd-serif); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.gd .sm-lead { margin-top: 0.75rem; max-width: 56ch; font: 500 1.25rem/1.45 var(--gd-serif); color: var(--gd-ink); overflow-wrap: anywhere; }
+.gd .sm-body { max-width: 66ch; font-size: 1.0625rem; line-height: 1.7; color: var(--gd-body-2); overflow-wrap: anywhere; }
+.gd .sm-hero .sm-body { margin-top: 0.25rem; }
+.gd .sm-points { max-width: 66ch; margin: 0.25rem 0 0; padding-left: 1.25rem; list-style: disc; display: grid; gap: 0.375rem; font-size: 1.0625rem; line-height: 1.6; color: var(--gd-body-2); overflow-wrap: anywhere; }
+.gd .sm-points li::marker { color: var(--gd-coral); }
+.gd .sm-opening { display: grid; gap: 0.5rem; justify-items: start; max-width: 66ch; margin-top: 0.5rem; padding: 1rem 1.25rem; border: 2px dashed var(--gd-rule-2); border-radius: 0.75rem; }
+.gd .sm-opening .sm-lead { margin-top: 0; }
+
+/* sections of one document */
+.gd .sm--dossier .rp-sec { padding-top: 1.5rem; border-top: 1px solid var(--gd-rule-2); }
+.gd .sm--dossier .rp-h { font: 600 1.375rem/1.25 var(--gd-serif); margin-bottom: 1rem; font-variant-numeric: lining-nums; }
+.gd .sm-doc { max-width: 66ch; min-width: 0; overflow-wrap: anywhere; }
+.gd .sm-doc .brief-title { font-size: 1.5rem; }
+.gd .sm--dossier .choose-empty, .gd .sm--dossier .accepted { max-width: 66ch; }
+
+/* the letter */
+.gd .sm-letter .sheet { padding: 1.75rem 1.5rem 1.75rem 0.75rem; }
+.gd .sm-letter-head { display: grid; gap: 0.25rem; padding: 0 0 1rem 2.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--gd-rule); }
+.gd .sm-letter-to { font: 600 1.0625rem/1.4 var(--gd-serif); color: var(--gd-ink); overflow-wrap: anywhere; }
+.gd .sm-letter .para { grid-template-columns: 2rem minmax(0, 1fr); column-gap: 0.75rem; padding-bottom: 1rem; }
+.gd .sm-letter .para .pn { padding-top: 0.25rem; font-variant-numeric: tabular-nums; }
+.gd .sm-letter .para .tx { max-width: 66ch; font: 400 1.0625rem/1.7 var(--gd-sans); color: var(--gd-ink); }
+.gd .sm-letter .mnote { background: var(--gd-sunken); }
+.gd .sm-letter-encl { display: grid; gap: 0.375rem; margin: 0.5rem 0 0 2.75rem; padding-top: 1rem; border-top: 1px dashed var(--gd-rule-2); }
+.gd .sm-letter-encl ul { margin: 0; padding-left: 1.125rem; display: grid; gap: 0.25rem; font-size: 0.9375rem; line-height: 1.5; }
+.gd .sm-letter-encl code { font: 0.875rem/1.4 var(--gd-mono); color: var(--gd-quiet); overflow-wrap: anywhere; }
+@container (min-width: 54rem) {
+  .gd .sm-letter .para { grid-template-columns: 2rem minmax(0, 1fr) 15rem; column-gap: 0; padding-bottom: 0; }
+  .gd .sm-letter .para .tx { padding: 0 1.5rem 1rem 0.75rem; }
+  .gd .sm-letter-head { padding-right: 15rem; }
+}
+
+/* Spark Dark: the card drawn, the opening dashed in the drawn weight */
+:root[data-theme="dark"] .gd .sm--dossier .sm-side { border: 2px solid var(--gd-ink); }
+:root[data-theme="dark"] .gd .sm-opening { border-radius: 1rem; }

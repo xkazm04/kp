@@ -15261,6 +15261,59 @@
         "stopped": "Arrêté après la recherche. Aucun plan en file",
         "failed": "Une étape a échoué. Ouvrez-la pour savoir pourquoi"
       }
+    },
+    "moves": {
+      "title": "Actions",
+      "label": "Actions pour cette mission",
+      "next": "Ensuite",
+      "nextOn": "Ensuite · {object}",
+      "none": "Rien n’attend ici : la prochaine action se trouve dans la validation.",
+      "group": {
+        "report": "Rapport",
+        "proposal": "Proposition au client",
+        "plans": "Plans",
+        "research": "Recherche",
+        "draft": "Le brouillon",
+        "bid": "L’offre"
+      },
+      "goPlans": "Aller aux plans",
+      "goDraft": "Aller au brouillon",
+      "goBid": "Aller à l’offre",
+      "plansNone": "Pas encore de plans.",
+      "plansWriting": "Les plans sont en cours de rédaction.",
+      "researchNone": "Pas encore étudiée.",
+      "draftLine": "Un brouillon attend votre relecture.",
+      "bidLine": "Le message d’offre de kp attend votre relecture."
+    },
+    "summaryProto": {
+      "label": "Mise en page de la synthèse (prototype)",
+      "name": {
+        "baseline": "Version actuelle",
+        "dossier": "Dossier",
+        "workbench": "Établi"
+      },
+      "sub": {
+        "baseline": "Telle que livrée : l’en-tête et ses boutons, la recherche avec son propre panneau, puis les blocs.",
+        "dossier": "Une page de document : un titre composé, des sections à largeur de lecture, une carte de décision sobre.",
+        "workbench": "Un panneau de commande : un en-tête compact, des panneaux repliables, chaque action dans une pile."
+      },
+      "sideCard": "La décision",
+      "sidePanel": "Panneau de commande",
+      "aboutGig": "La mission",
+      "aboutBrief": "La recherche",
+      "secBrief": "La recherche",
+      "plansHint": "Générez les plans depuis Actions, en haut du panneau latéral.",
+      "letterTo": "À {client} · via {platform}",
+      "via": "via {platform}",
+      "composeTo": "À",
+      "composeSubject": "Objet",
+      "composeRe": "Re : {title}",
+      "composeDraft": "Brouillon",
+      "findings": "Constats",
+      "findingsNone": "Aucun constat n’est épinglé dans ce brouillon.",
+      "moreSummary": "{count, plural, one {# ligne de plus} other {# lignes de plus}} de la synthèse",
+      "facts": "Données clés",
+      "bidOwn": "Message de kp à relire"
     }
   },
   "kit": {

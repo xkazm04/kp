@@ -24,19 +24,16 @@ import { ProofPanels } from "./ProofPanels";
 import { ProofTrail } from "./ProofTrail";
 import { revealSoon } from "./report/parts";
 import { useGigFile } from "./report/useGigFile";
+import { useSummaryVariant } from "./report/variants/SummarySwitch";
 import { GigsSignoff, type DeskStore } from "./signoff/GigsSignoff";
 import { DeclineConfirm, useProofDecline } from "./useProofDecline";
 
-// One gig as a full page (B/3 "The Proof"). It REPLACES the section it was opened from; the
-// trail on top (ProofTrail.tsx) carries the way back (the crumb, ×, Esc), the section tabs
-// (proofTabs.tsx), the list it came from, walked with ← / → (no wrap), and Decline (D,
-// confirmed by D again or Enter: useProofDecline.tsx).
-// Left: the sign-off (signoff/) - the state and only the moves it allows. Right: the chosen
-// tab's panel (ProofPanels.tsx) - the gig's report on Summary, which opens with its own
-// title, else the head and the panel. Read here and shared: the plans (usePlans.ts: the
-// report's plans section, the tab row's mark, the sign-off's gate) and a freelance bid's
-// client proposal (useGigFile: the Summary's row and the sign-off both write and watch it).
-// Every page swap lands at the top with focus on the way back.
+// One gig as a full page (B/3 "The Proof"), REPLACING the section it was opened from; the trail
+// (ProofTrail.tsx) carries the way back (crumb, ×, Esc), the tabs (proofTabs.tsx), the list
+// walked with ← / →, and Decline (D, then D or Enter: useProofDecline.tsx). Left: the sign-off
+// (signoff/). Right: the chosen tab's panel (ProofPanels.tsx; the Summary's WP13 prototype
+// variants, dev only, via useSummaryVariant). Read here and shared: the plans (usePlans.ts) and
+// a freelance bid's client proposal (useGigFile). A page swap lands at the top, focus on Back.
 
 export type ProofList = { ids: string[]; label: string };
 
@@ -110,6 +107,7 @@ export function GigsProof({
   const plansState = usePlans(gig?.id ?? null);
   const plans = useMemo(() => planView(plansState.plans), [plansState.plans]);
   const proposalFile = useGigFile(gig, "proposal", onChanged, t("proposal.hero.requestFailed"));
+  const proto = useSummaryVariant();
   const tabs = useProofTabs({ gig, attempt, persona: persona !== null, doubts, note, attempts: record ? record.attempts.length : null, recurring, plans: { ready: plans.ready, accepted: plans.accepted !== null } });
   const showReport = useCallback(() => setTab("summary"), []);
   const jump = useSlipJump(showReport);
@@ -181,7 +179,8 @@ export function GigsProof({
             <div className="proof-panel" key={tab}>
               <ProofPanels
                 {...{ tab, gig, attempt, source, summary, note, record, recordError, specialists, persona, kpi, plansState, proposalFile, onChanged, onFlash }}
-                draft={<DraftTab gig={gig} attempt={attempt} source={source} specialistName={specialist?.name ?? null} now={now} doubts={doubts} note={note} pinned={pinned} memory={memory} setMemory={setMemory} onJump={jump} />}
+                proto={{ ...proto, now, withdraw, attempts: record?.attempts ?? (attempt ? [attempt] : []) }}
+                draft={<DraftTab look={proto.variant} gig={gig} attempt={attempt} source={source} specialistName={specialist?.name ?? null} now={now} doubts={doubts} note={note} pinned={pinned} memory={memory} setMemory={setMemory} onJump={jump} />}
                 brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={withdraw} meta={<GigMeta gig={gig} now={now} plans={plansState.plans} attempts={record?.attempts ?? (attempt ? [attempt] : [])} onFlash={onFlash} />} />}
                 onOpenPlans={openPlans}
                 onOpenTab={setTab}

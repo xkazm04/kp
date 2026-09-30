@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useRef } from "react";
 import { useTranslations } from "next-intl";
 import type { Gig, GigAttempt } from "@/app/_lib/gigs/types";
 import { useGigsFormat } from "../data/useGigsFormat";
@@ -8,6 +8,8 @@ import { draftParagraphs, type MarginNote } from "../logic/galley";
 import type { SourceRow } from "../logic/wire";
 import { UntrustedText } from "../shared/UntrustedText";
 import type { useLintText } from "../shared/useLintText";
+import { useAlignNotes } from "./galleyAlign";
+import { NoteText, noteClass } from "./GalleyNote";
 import { MarkedText } from "./MarkedText";
 
 // The Draft tab's sheet: the draft set as it would be sent, paragraphs numbered, every phrase
@@ -39,27 +41,7 @@ export function Galley({
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const sheetRef = useRef<HTMLDivElement | null>(null);
-  // Where the margin is a real column (a wide sheet), pull each paragraph's notes down to
-  // the first phrase they mark, so the hairline meets its underline (B/3's alignNotes).
-  useLayoutEffect(() => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    const align = () => {
-      sheet.querySelectorAll<HTMLElement>(".para").forEach((p) => {
-        const notes = p.querySelector<HTMLElement>(".mnotes");
-        const mark = p.querySelector<HTMLElement>("mark.pm");
-        if (!notes || !mark || !notes.children.length) return;
-        notes.style.paddingTop = "";
-        if (getComputedStyle(notes).gridColumnStart !== "3") return;
-        const off = mark.getBoundingClientRect().top - p.getBoundingClientRect().top - 12;
-        notes.style.paddingTop = `${Math.max(0, Math.round(off))}px`;
-      });
-    };
-    align();
-    const ro = new ResizeObserver(align);
-    ro.observe(sheet);
-    return () => ro.disconnect();
-  }, [paras, pinned]);
+  useAlignNotes(sheetRef, paras, pinned);
   const stamp = (tone: "" | "calm" | "moss", s1: string, s2: string) => (
     <div className="galley">
       <div className="sheet">
@@ -145,14 +127,8 @@ export function Galley({
                 </div>
                 <div className="mnotes">
                   {mine.map((n) => (
-                    <div key={n.key} id={`gd-note-${n.key}`} tabIndex={-1} className={`mnote${n.source === "lint" ? " lint" : ""}${n.blocker ? " blocker" : ""}`}>
-                      <span className="k">{n.key}</span>
-                      <span>
-                        {n.source === "lint" && n.finding ? lintText(n.finding) : n.text}
-                        <span className="src">
-                          {n.source === "lint" ? t("proof.srcLint", { severity: t(`lint.severity.${n.finding?.severity ?? "info"}`) }) : `${reviewBy} · ${n.role === "defect" ? t("proof.roleDefect") : t("proof.roleMustDo", { n: Number((n.role ?? "").replace(/\D/g, "")) || 0 })}`}
-                        </span>
-                      </span>
+                    <div key={n.key} id={`gd-note-${n.key}`} tabIndex={-1} className={noteClass(n)}>
+                      <NoteText note={n} lintText={lintText} reviewBy={reviewBy} />
                     </div>
                   ))}
                 </div>

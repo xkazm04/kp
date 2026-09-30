@@ -15261,6 +15261,59 @@
         "stopped": "Nach der Recherche gestoppt. Keine Pläne eingereiht",
         "failed": "Ein Schritt ist fehlgeschlagen. Öffnen Sie sie für den Grund"
       }
+    },
+    "moves": {
+      "title": "Schritte",
+      "label": "Schritte für diesen Auftrag",
+      "next": "Als Nächstes",
+      "nextOn": "Als Nächstes · {object}",
+      "none": "Hier wartet nichts: Der nächste Schritt liegt in der Freigabe.",
+      "group": {
+        "report": "Bericht",
+        "proposal": "Angebot an den Kunden",
+        "plans": "Pläne",
+        "research": "Recherche",
+        "draft": "Der Entwurf",
+        "bid": "Das Gebot"
+      },
+      "goPlans": "Zu den Plänen",
+      "goDraft": "Zum Entwurf",
+      "goBid": "Zum Gebot",
+      "plansNone": "Noch keine Pläne.",
+      "plansWriting": "Die Pläne werden geschrieben.",
+      "researchNone": "Noch nicht recherchiert.",
+      "draftLine": "Ein Entwurf wartet auf Ihre Korrektur.",
+      "bidLine": "Die Gebotsnachricht von kp wartet auf Ihre Korrektur."
+    },
+    "summaryProto": {
+      "label": "Layout der Übersicht (Prototyp)",
+      "name": {
+        "baseline": "Ausgangsstand",
+        "dossier": "Dossier",
+        "workbench": "Werkbank"
+      },
+      "sub": {
+        "baseline": "Wie ausgeliefert: der Kopf mit seinen Schaltflächen, die Recherche mit eigener Leiste, dann die Blöcke.",
+        "dossier": "Eine Dokumentseite: gesetzter Titel, Abschnitte in Lesebreite, eine ruhige Entscheidungskarte.",
+        "workbench": "Ein Bedienfeld: kompakter Kopf, einklappbare Bereiche, jeder Schritt in einem Stapel."
+      },
+      "sideCard": "Die Entscheidung",
+      "sidePanel": "Bedienfeld",
+      "aboutGig": "Der Auftrag",
+      "aboutBrief": "Die Recherche",
+      "secBrief": "Die Recherche",
+      "plansHint": "Pläne erzeugen Sie unter Schritte, oben in der Seitenleiste.",
+      "letterTo": "An {client} · über {platform}",
+      "via": "über {platform}",
+      "composeTo": "An",
+      "composeSubject": "Betreff",
+      "composeRe": "Re: {title}",
+      "composeDraft": "Entwurf",
+      "findings": "Befunde",
+      "findingsNone": "In diesem Entwurf sind keine Befunde angeheftet.",
+      "moreSummary": "{count, plural, one {# weitere Zeile} other {# weitere Zeilen}} der Zusammenfassung",
+      "facts": "Eckdaten",
+      "bidOwn": "Nachricht von kp zur Korrektur"
     }
   },
   "kit": {

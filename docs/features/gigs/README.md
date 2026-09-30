@@ -1312,6 +1312,17 @@ proof lands where the operator left.
      tab but Summary opens with **the head** (the stage and the niche, then the title) and is a
      white panel composed from
      the kit inside a `.k-kit` root with its delegated tip (`KitArea`).
+   - **Summary prototypes (dev only, 2026-09-30, the /prototype method round 1)**: a switch above
+     the Summary picks the layout - **Baseline** (as shipped, the default), **Dossier** (a document
+     page: set title block, numbered sections at a reading measure, the draft as a letter) or
+     **Workbench** (a compact header with fact chips, folding panels, the draft as a compose view).
+     Both variants put the metadata in a sticky decision sidebar next to the hero (the Brief tab
+     shows the same sidebar) with every action in one Moves block and exactly one primary
+     (`logic/moves.ts nextMove`). Files: `proof/report/variants/**`, `styles/summary*.css`,
+     `logic/moves.ts`, `logic/briefBody.ts`, `proof/panels/BriefText.tsx` / `BriefAside.tsx`,
+     `proof/GalleyNote.tsx` / `galleyAlign.ts`. The choice is kept in localStorage
+     (`kp-gigs-summary`; `?summary=dossier|workbench|baseline`, `?summary=0` forgets); a
+     production build always renders the baseline until one direction is consolidated.
    - **Summary: the gig at a glance** (`proof/report/`, `styles/report.css` + `styles/plans.css`;
      pure derivations in `logic/report.ts`). The operator's call (2026-09-30): the long read is
      the gig's **HTML report file** (see "The gig's report file": written by a model, rewritten

@@ -78,7 +78,7 @@ export function ReportChoose({ gig, plansState, onFlash }: { gig: Gig; plansStat
 }
 
 /** The accepted plan in one line (the seat, the operator's note) over its steps' titles. */
-function AcceptedLine({ row }: { row: GigPlanRow }) {
+export function AcceptedLine({ row }: { row: GigPlanRow }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const steps = row.plan?.steps ?? [];

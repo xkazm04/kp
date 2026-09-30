@@ -15261,6 +15261,59 @@
         "stopped": "Stopped after research. No plans queued",
         "failed": "A step failed. Open it to see why"
       }
+    },
+    "moves": {
+      "title": "Moves",
+      "label": "Moves for this gig",
+      "next": "Next",
+      "nextOn": "Next · {object}",
+      "none": "No move waits here: the next one is in the sign-off.",
+      "group": {
+        "report": "Report",
+        "proposal": "Client proposal",
+        "plans": "Plans",
+        "research": "Research",
+        "draft": "The draft",
+        "bid": "The bid"
+      },
+      "goPlans": "Go to the plans",
+      "goDraft": "Go to the draft",
+      "goBid": "Go to the bid",
+      "plansNone": "No plans yet.",
+      "plansWriting": "Plans are being written.",
+      "researchNone": "Not researched yet.",
+      "draftLine": "A draft waits for your proof.",
+      "bidLine": "kp’s bid message waits for your proof."
+    },
+    "summaryProto": {
+      "label": "Summary layout (prototype)",
+      "name": {
+        "baseline": "Baseline",
+        "dossier": "Dossier",
+        "workbench": "Workbench"
+      },
+      "sub": {
+        "baseline": "As shipped: the hero with its buttons, the brief with its own aside, then the blocks.",
+        "dossier": "A document page: a set title, sections at a reading measure, a calm decision card.",
+        "workbench": "A control panel: a compact header, folding panels, every move in one stack."
+      },
+      "sideCard": "The decision",
+      "sidePanel": "Control panel",
+      "aboutGig": "The gig",
+      "aboutBrief": "The brief",
+      "secBrief": "The brief",
+      "plansHint": "Generate plans from Moves, at the top of the sidebar.",
+      "letterTo": "To {client} · via {platform}",
+      "via": "via {platform}",
+      "composeTo": "To",
+      "composeSubject": "Subject",
+      "composeRe": "Re: {title}",
+      "composeDraft": "Draft",
+      "findings": "Findings",
+      "findingsNone": "No findings are pinned in this draft.",
+      "moreSummary": "{count, plural, one {# more line} other {# more lines}} of the summary",
+      "facts": "Key facts",
+      "bidOwn": "kp’s message to proof"
     }
   },
   "kit": {

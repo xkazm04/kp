@@ -1,0 +1,64 @@
+/* ---- THE SUMMARY PROTOTYPES (WP13, proof/report/variants/): the shared frame ---------------
+   The prototype switch, the two-column Summary (the reading column and the decision sidebar),
+   the sidebar sticking right under the proof's trail (its top is the trail's measured height,
+   --sm-top, set by DecisionSidebar.tsx) and scrolling inside itself when taller than the
+   viewport, and the Moves block in both looks. Under 46rem of proof column the sidebar is a
+   plain band ABOVE the reading column, not sticky. Tokens only (base.css), nothing under 14px;
+   each variant's own type is in summary-dossier.css / summary-workbench.css. */
+
+.gd .sm-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 1.25rem; padding: 0.625rem 0.875rem; border: 1px dashed var(--gd-rule-2); border-radius: 0.5rem; }
+.gd .sm-switch .t-meta { flex: 1 1 16rem; }
+
+.gd .sm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; grid-template-areas: "read side"; column-gap: 2rem; align-items: start; }
+.gd .sm-read { grid-area: read; min-width: 0; }
+.gd .sm-side {
+  grid-area: side; position: sticky; top: var(--sm-top, 4.5rem); max-height: calc(100vh - var(--sm-top, 4.5rem) - 1rem);
+  overflow: auto; overscroll-behavior: contain; display: grid; align-content: start; min-width: 0;
+}
+.gd .sm-side > * { padding: 1rem 1.125rem; border-top: 1px solid var(--gd-rule); min-width: 0; }
+.gd .sm-side > :first-child { border-top: 0; }
+
+/* the sidebar's metadata (meta/GigMeta.tsx and the brief's provenance, BriefAside.tsx) */
+.gd .sm-side-meta { display: grid; gap: 1rem; align-content: start; }
+.gd .sm-side-k { font: 600 1.0625rem/1.3 var(--gd-serif); color: var(--gd-ink); }
+.gd .sm-side .k-kv { width: 100%; }
+.gd .sm-side .k-kv dd { display: grid; gap: 0.125rem; }
+.gd .sm-side .k-kv .is-coral { color: var(--gd-coral-ink); }
+.gd .sm-side .k-kv .is-moss { color: var(--gd-moss-ink); }
+
+/* Moves: the one action place */
+.gd .sm-moves { display: grid; gap: 0.75rem; }
+.gd .sm-group { display: grid; gap: 0.5rem; justify-items: start; min-width: 0; }
+.gd .sm-group + .sm-group { padding-top: 0.75rem; border-top: 1px solid var(--gd-rule); }
+.gd .sm-group-k { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; font-weight: 700; color: var(--gd-ink); }
+.gd .sm-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.gd .sm-state { display: flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; line-height: 1.45; color: var(--gd-quiet); overflow-wrap: anywhere; }
+.gd .sm-state.is-writing { font-weight: 700; color: var(--gd-steel); }
+.gd .sm-state.is-writing .k-mark { animation: gd-breathe 1.8s ease-in-out infinite; }
+.gd .sm-state.is-fail { display: block; padding: 0.375rem 0.625rem; border-radius: 0.375rem; background: var(--gd-coral-wash); color: var(--gd-coral-ink); }
+@media (prefers-reduced-motion: reduce) { .gd .sm-state.is-writing .k-mark { animation: none; } }
+.gd .sm-next-tag { padding: 0 0.5rem; border-radius: 999px; background: var(--gd-coral-wash); color: var(--gd-coral-ink); font-size: 0.875rem; font-weight: 700; }
+
+/* card look (Dossier): the group that holds the next move carries a coral rule */
+.gd .sm-moves--card .sm-group.is-next { padding-left: 0.75rem; box-shadow: inset 3px 0 0 var(--gd-coral); }
+.gd .sm-moves--card .sm-group.is-next + .sm-group { border-top: 0; }
+
+/* panel look (Workbench): a vertical stack of full-width buttons, the next move pinned on top */
+.gd .sm-moves--panel .sm-group { justify-items: stretch; gap: 0.375rem; }
+.gd .sm-moves--panel .sm-full { width: 100%; justify-content: flex-start; }
+.gd .sm-next { display: grid; gap: 0.5rem; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--gd-coral-wash) 55%, var(--gd-card)); }
+.gd .sm-next-k { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-coral-ink); }
+
+/* the Summary's readable measure: no running text wider than 66ch */
+.gd .sm-read :is(.rp-lede, .rp-callout, .lang) { max-width: 66ch; }
+
+@container proofcol (max-width: 46rem) {
+  .gd .sm-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "read"; row-gap: 1.75rem; }
+  .gd .sm-side { position: static; max-height: none; overflow: visible; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+  .gd .sm-side > * { border-top: 0; }
+  .gd .sm-side > * + * { border-left: 1px solid var(--gd-rule); }
+}
+
+/* Spark Dark: the drawn register */
+:root[data-theme="dark"] .gd .sm-switch { border-width: 2px; border-radius: 1rem; }
+:root[data-theme="dark"] .gd .sm-next { border: 2px solid var(--gd-ink); border-radius: 0.75rem; }

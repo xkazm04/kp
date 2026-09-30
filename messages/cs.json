@@ -15261,6 +15261,59 @@
         "stopped": "Zastaveno po průzkumu. Žádné plány ve frontě",
         "failed": "Jeden krok selhal. Otevřete ji a uvidíte proč"
       }
+    },
+    "moves": {
+      "title": "Kroky",
+      "label": "Kroky pro tuto zakázku",
+      "next": "Další",
+      "nextOn": "Další · {object}",
+      "none": "Tady nic nečeká: další krok je v podpisu.",
+      "group": {
+        "report": "Zpráva",
+        "proposal": "Nabídka pro klienta",
+        "plans": "Plány",
+        "research": "Průzkum",
+        "draft": "Koncept",
+        "bid": "Nabídka"
+      },
+      "goPlans": "Přejít na plány",
+      "goDraft": "Přejít na koncept",
+      "goBid": "Přejít na nabídku",
+      "plansNone": "Zatím žádné plány.",
+      "plansWriting": "Plány se píšou.",
+      "researchNone": "Zatím neprozkoumáno.",
+      "draftLine": "Koncept čeká na vaši korekturu.",
+      "bidLine": "Zpráva s nabídkou od kp čeká na vaši korekturu."
+    },
+    "summaryProto": {
+      "label": "Rozvržení souhrnu (prototyp)",
+      "name": {
+        "baseline": "Výchozí",
+        "dossier": "Dosiér",
+        "workbench": "Pracovní stůl"
+      },
+      "sub": {
+        "baseline": "Jak je nasazeno: úvod s tlačítky, průzkum s vlastním panelem, pak bloky.",
+        "dossier": "Stránka dokumentu: sazba titulku, oddíly v čitelné šířce, klidná karta rozhodnutí.",
+        "workbench": "Ovládací panel: kompaktní hlavička, sbalitelné panely, všechny kroky v jednom sloupci."
+      },
+      "sideCard": "Rozhodnutí",
+      "sidePanel": "Ovládací panel",
+      "aboutGig": "Zakázka",
+      "aboutBrief": "Průzkum",
+      "secBrief": "Průzkum",
+      "plansHint": "Plány vygenerujete v Krocích nahoře v postranním panelu.",
+      "letterTo": "Pro {client} · přes {platform}",
+      "via": "přes {platform}",
+      "composeTo": "Komu",
+      "composeSubject": "Předmět",
+      "composeRe": "Re: {title}",
+      "composeDraft": "Koncept",
+      "findings": "Nálezy",
+      "findingsNone": "V tomto konceptu nejsou připnuté žádné nálezy.",
+      "moreSummary": "{count, plural, one {Ještě # řádek} few {Ještě # řádky} other {Ještě # řádků}} souhrnu",
+      "facts": "Klíčové údaje",
+      "bidOwn": "Zpráva od kp ke korektuře"
     }
   },
   "kit": {

@@ -12,6 +12,9 @@ import { useLintText } from "../shared/useLintText";
 import { Galley } from "./Galley";
 import { ProofSlip, type SlipTarget } from "./ProofSlip";
 import { revealSoon } from "./report/parts";
+import { GalleyCompose } from "./report/variants/GalleyCompose";
+import { GalleyLetter } from "./report/variants/GalleyLetter";
+import type { SummaryVariant } from "./report/variants/SummarySwitch";
 import type { DeskMemory, DeskStore } from "./signoff/GigsSignoff";
 
 // The Summary's "Review the draft" block (report/GigReport.tsx): the proof slip (what to doubt, in words)
@@ -75,6 +78,7 @@ export function DraftTab({
   memory,
   setMemory,
   onJump,
+  look = "baseline",
 }: {
   gig: Gig;
   attempt: GigAttempt | null;
@@ -87,12 +91,15 @@ export function DraftTab({
   memory: DeskMemory | null;
   setMemory: (update: (m: DeskMemory) => DeskMemory) => void;
   onJump: (target: SlipTarget) => void;
+  /** The Summary prototype on screen (report/variants/): its galley sets the draft its own way. */
+  look?: SummaryVariant;
 }) {
   const t = useTranslations("gigs");
   const lintText = useLintText();
   const seen = useMemo(() => new Set(memory?.seen ?? []), [memory]);
   const pinnedKeyOf = (findingId: string) => pinned.find((n) => n.finding?.id === findingId)?.key ?? null;
   const carried = attempt?.revisionNote ?? null;
+  const Sheet = look === "dossier" ? GalleyLetter : look === "workbench" ? GalleyCompose : Galley;
   return (
     <>
       {memory ? (
@@ -109,7 +116,7 @@ export function DraftTab({
       ) : doubts.length ? (
         <ProofSlip doubts={doubts} pinnedKeyOf={() => null} pinnedCount={0} loose={[]} seen={new Set()} onSeen={() => {}} onJump={onJump} carriedNote={carried} />
       ) : null}
-      <Galley gig={gig} attempt={attempt} source={source} specialistName={specialistName} now={now} paras={paras} pinned={pinned} lintText={lintText} reviewBy={note?.byAgent ? t("proof.reviewerAgent") : t("proof.reviewer")} />
+      <Sheet gig={gig} attempt={attempt} source={source} specialistName={specialistName} now={now} paras={paras} pinned={pinned} lintText={lintText} reviewBy={note?.byAgent ? t("proof.reviewerAgent") : t("proof.reviewer")} />
     </>
   );
 }
