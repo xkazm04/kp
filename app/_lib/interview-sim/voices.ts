@@ -208,7 +208,7 @@ export function renderVoiceMarkdown(v: VoiceResult): string {
     lines.push("## Conversation criteria", "", "| # | Criterion | Result | Evidence |", "| --- | --- | --- | --- |");
     for (const c of v.criteria) {
       const result = c.note ? `n/a (evidence did not verify — ${c.note})` : c.result;
-      lines.push(`| ${c.id} | ${excerpt(c.text, 160).replace(/\|/g, "\\|")} | ${result} | ${c.evidence.map((e) => `\`${e}\``).join(", ") || "—"} |`);
+      lines.push(`| ${c.id} | ${excerpt(c.text, 160).replace(/\\/g, "\\\\").replace(/\|/g, "\\|")} | ${result} | ${c.evidence.map((e) => `\`${e}\``).join(", ") || "—"} |`);
     }
     lines.push("");
   }

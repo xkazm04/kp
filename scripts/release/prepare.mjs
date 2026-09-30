@@ -110,7 +110,7 @@ export function setChartAppVersion(text, version) {
 }
 
 export function changelogHasVersion(text, version) {
-  return new RegExp(`^##\\s*\\[${version.replace(/\./g, '\\.')}\\]`, 'm').test(text);
+  return new RegExp(`^##\\s*\\[${version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`, 'm').test(text);
 }
 
 /** Semver, with the optional pre-release and build-metadata parts named. */

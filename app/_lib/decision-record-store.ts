@@ -396,7 +396,7 @@ export function sealDecisionSafe(input: DecisionRecordInput, workspaceOverride?:
   try {
     return sealDecisionRecord(input, workspaceOverride);
   } catch (error) {
-    console.warn(`[decision-record] seal failed for kind="${input.kind}" ref="${input.candidateRef}":`, error);
+    console.warn('[decision-record] seal failed for kind="%s" ref="%s":', input.kind, input.candidateRef, error);
     return null;
   }
 }

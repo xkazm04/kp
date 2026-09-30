@@ -588,7 +588,7 @@ export async function verdictRuns(opts: VerdictRunOptions): Promise<VerdictRunRe
 // ---- rendering ---------------------------------------------------------------------------------
 
 const cell = (x: { fail: number; evaluable: number }) => (x.evaluable === 0 ? "–" : x.fail > 0 ? `**✗ ${x.fail}/${x.evaluable}**` : `✓ 0/${x.evaluable}`);
-const esc = (s: string) => s.replace(/\|/g, "\\|");
+const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 
 function marginTable(title: string, rows: readonly GroupRow[]): string[] {
   const lines = [`### ${title}`, "", "| Group | n | Reliability | Protocol | Policy | Not provoked | Not evaluable | Failing invariants |", "| --- | --- | --- | --- | --- | --- | --- | --- |"];

@@ -63,7 +63,7 @@ export function prepKitForEntry(entryId: string, workspaceId: string): PrepKitVi
       kit: stored.kit,
     };
   } catch (err) {
-    console.error(`[interview-prep] the interview kit for entry ${entryId} could not be read:`, err);
+    console.error("[interview-prep] the interview kit for entry %s could not be read:", entryId, err);
     return null;
   }
 }

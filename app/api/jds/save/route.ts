@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       // silent — the operator sees `jobIngested: false` and a retry affordance,
       // and whoever runs the server needs the cause, exactly like the sibling
       // re-ingest catch in PATCH /api/jds/[slug].
-      console.error(`[api:jds/save] JD ${slug} saved but job ingest failed`, ingestError);
+      console.error("[api:jds/save] JD %s saved but job ingest failed", slug, ingestError);
     }
 
     return NextResponse.json({ slug, jobId: jdJobId(slug), status: "draft", jobIngested });

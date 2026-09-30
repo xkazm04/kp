@@ -29,9 +29,12 @@ export function resolveMatchLimit(raw: unknown): number {
  *  string/array/NaN reaching JSON.stringify and then argv. */
 export function sanitizeMatchWeights(raw: unknown): Record<string, number> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const w: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) w[k] = v;
-  }
+  // fromEntries defines OWN properties, so a `__proto__` key cannot rewrite the prototype
+  // the way an indexed assignment onto a plain object would.
+  const w: Record<string, number> = Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).filter(
+      (entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]),
+    ),
+  );
   return Object.keys(w).length > 0 ? w : null;
 }
