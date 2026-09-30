@@ -491,7 +491,10 @@ and `llm_unusable` degrade the same way (their cost, when reported, is still rec
 asks the running kp (`KP_BASE_URL`, default `http://localhost:3000`) for the report of every
 researched gig in those statuses, one POST every 35 s (the door's budget), skipping gigs
 whose report is already ready unless `--all`. Each request is one model call (about $0.14-0.20
-on the fixture, 2026-09-30, n=2) unless the install is keyless.
+on the fixture, 2026-09-30, n=2) unless the install is keyless. `--min-days-left <n>` keeps only gigs
+whose deadline is more than n days away, so reports are written for gigs that can still be
+worked (a gig stating no deadline is kept; `--dated-only` drops it), and `--arena <a,b>` keeps
+only those arenas. The dry run prints each gig's days left.
 
 **Tests.** `app/_lib/gigs/report/report.test.ts` (sanitizer, template, facts and stages, the
 deterministic body per stage, the model validator and the section fill, file placement and
@@ -1108,32 +1111,38 @@ proof lands where the operator left.
      the gig's **HTML report file** (see "The gig's report file": written by a model, rewritten
      as the gig moves, opened in the browser), so the in-app Summary is a quick overview with
      the working controls under it, in this order:
-     1. **The hero** (`ReportHero.tsx`, `ReportStats.tsx`), unchanged: the eyebrow `arena · gig
-        type · stage`; the brief's title (else the listing's) with "Listed as ..." when they
-        differ; the lead - the deliverable's summary once a draft exists, else the brief's
-        "What the gig is" (`summaryTextOf`) - with its first clause highlighted (`firstClause`)
-        and its list lines as points (`leadOf`); a gig with no brief leads with the listing's
-        first paragraph and **Read the whole listing**; the language tag and **Read the English
-        translation** (`shared/ListingLanguage.tsx`); the `workKind` callout; five stat cards
-        (Reward with its dollar estimate, days left, Difficulty with effort, Fit against the bar,
-        **Spent so far** from `spendSoFar`, never $0).
-     2. **The full report** card (`ReportFile.tsx`, `useReportFile.ts`): **Open the full report**
-        (a new tab on `GET /api/gigs/[id]/report`, which serves the file sandboxed), the file's
-        local **path** (selectable, with **Copy path**), and what it covers: "Written at the
-        drafted stage · Sep 30, 2026, 2:20 PM · by a model · cost $0.12", or "by kp, no model:
-        no provider" for a deterministic report; the cost only when the call reported one. Its
-        state is a mark and a word: **Ready**; **Writing** (a quiet breathing mark and "This card
-        checks again every few seconds": while `gig.report.status` is `writing`, or right after
-        Regenerate, the card re-reads `GET /api/gigs/[id]` every 5 s and re-reads the list once
-        the rewrite lands); **Failed** with the reason in words (the brief's fallback vocabulary)
-        and Regenerate. **Regenerate** (`POST /api/gigs/[id]/report`, 202) is disabled while a
-        rewrite runs and until the gig has a brief. With no report yet the card says "The report
-        is written once the gig is researched."
-     3. **The research brief** - the Brief tab's own panel (`panels/BriefPanel.tsx`), so the gig's
-        metadata reads the same in both places, with its **Withdraw for this** rows. With no
-        brief it is the panel's empty state with **Research**, which is how a Summary reaches
-        research.
-     4. **Choose a plan** (`ReportChoose.tsx`, `SeatCard.tsx`, `usePlans.ts` `usePlanActions`),
+     1. **The hero** (`ReportHero.tsx`, `ReportActions.tsx`, `useReportFile.ts`): the eyebrow
+        `arena · gig type · stage`; the brief's title (else the listing's) with "Listed as ..."
+        when they differ; the lead - the deliverable's summary once a draft exists, else the
+        brief's "What the gig is" (`summaryTextOf`) - with its first clause highlighted
+        (`firstClause`) and its list lines as points (`leadOf`); a gig with no brief leads with
+        the listing's first paragraph and **Read the whole listing**. Under the lead, the report
+        row: **Open the full report** (a new tab on `GET /api/gigs/[id]/report`, which serves the
+        file sandboxed) and **Regenerate** (`POST /api/gigs/[id]/report`, 202; disabled while a
+        rewrite runs and until the gig has a brief), then the rewrite's state in words:
+        **Writing** with a quiet breathing mark (while `gig.report.status` is `writing`, or
+        right after Regenerate, the hero re-reads `GET /api/gigs/[id]` every 5 s and re-reads
+        the list once the rewrite lands), a failed rewrite's reason (the brief's fallback
+        vocabulary), or "The report is written once the gig is researched." Then the language
+        tag and **Read the English translation** (`shared/ListingLanguage.tsx`) and the
+        `workKind` callout. The hero carries no stat cards (removed 2026-09-30): the figures are
+        in the sidebar.
+     2. **The research brief with the gig's ONE metadata sidebar** - the Brief tab's own panel
+        (`panels/BriefPanel.tsx`), so the gig's metadata reads the same on both tabs, with its
+        **Withdraw for this** rows. The sidebar opens with `meta/GigMeta.tsx` (built once in
+        `GigsProof.tsx` and passed in as `meta`): **Open the listing on <host>** (always the
+        gig's source URL; a non-web address is shown as recorded, a missing one says so), the
+        **kp ID** with **Copy ID** (to reference the gig in internal notes), the figures as a
+        key-value grid - Reward with its dollar estimate at the scan day's rate, Deadline (days
+        left, coral when 3 or fewer, the closing date), Difficulty with its glyph, Effort, Fit
+        against the bar, **Spent so far** from `spendSoFar` (never $0) - each absent figure "—"
+        with its reason; and the **Report file**: what it covers ("Written at the drafted stage
+        · date · by a model · cost $0.12", or "by kp, no model"), its local path with **Copy
+        path**. Then the brief's own blocks: where it came from with **Research again**, the
+        contents list, **Sources read**. A gig with no brief keeps the sidebar (with
+        **Research**) and its reading column says the brief is not written yet. Below 56rem the
+        sidebar is a band above the text.
+     3. **Choose a plan** (`ReportChoose.tsx`, `SeatCard.tsx`, `usePlans.ts` `usePlanActions`),
         shown while plans wait for a pick, or when a brief has no plans yet
         (`summaryBlocks`). The lineup follows the brief's difficulty (`planSeatsFor`); each
         seat is a **compact card** - the seat (`planSeatLabel`), its state as a mark and a
@@ -1145,7 +1154,7 @@ proof lands where the operator left.
         this difficulty gets, and **Generate plans**. Once one is accepted the block is **The
         accepted plan**: one line, "Accepted: Opus 5.5 · xhigh, <your note>", its date, and the
         steps' titles as a numbered list. Earlier rounds and the plans in full are in the file.
-     5. **Review the draft**, only when the latest attempt carries a draft: the proof slip as a
+     4. **Review the draft**, only when the latest attempt carries a draft: the proof slip as a
         callout (amber; coral when a lint stop blocks Approve; moss when clean) above the galley
         with its margin notes. A slip link focuses its margin note (`DraftTab.tsx`
         `useSlipJump`); the evidence rows it used to jump to are in the file now.

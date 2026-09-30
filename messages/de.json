@@ -15063,11 +15063,8 @@
         "draft": "Den Entwurf prüfen"
       },
       "file": {
-        "title": "Der vollständige Bericht",
         "status": {
-          "writing": "Wird geschrieben",
-          "ready": "Fertig",
-          "failed": "Fehlgeschlagen"
+          "writing": "Wird geschrieben"
         },
         "stage": {
           "researched": "recherchiert",
@@ -15079,7 +15076,6 @@
         },
         "covers": "Geschrieben in der Phase „{stage}“ · {date}",
         "byModel": "von einem Modell",
-        "byKp": "von kp, ohne Modell: {reason}",
         "cost": "Kosten {usd}",
         "noReason": "ohne Angabe eines Grundes",
         "copy": "Pfad kopieren",
@@ -15087,7 +15083,6 @@
         "copyFailed": "Der Pfad konnte nicht kopiert werden. Markieren und kopieren Sie ihn von Hand.",
         "none": "Der Bericht wird geschrieben, sobald der Auftrag recherchiert ist.",
         "firstWriting": "Der erste Bericht wird geschrieben.",
-        "writingNote": "Der Bericht wird geschrieben. Diese Karte fragt alle paar Sekunden erneut nach.",
         "failed": "Die letzte Neufassung ist fehlgeschlagen: {reason}.",
         "open": "Vollständigen Bericht öffnen",
         "regenerate": "Neu schreiben",
@@ -15117,7 +15112,6 @@
         }
       },
       "stat": {
-        "rewardAsStated": "wie die Ausschreibung sie nennt",
         "rewardEstimate": "≈ {usd} zum Kurs vom {date}",
         "closed": "Geschlossen",
         "daysLeft": "{count, plural, one {Tag übrig} other {Tage übrig}}",
@@ -15152,6 +15146,17 @@
       "foot": "kp sendet diese Nachricht nie. Sie senden sie von Ihrem eigenen Konto.",
       "none": "Eine Nachricht an den Kunden erscheint, sobald der Auftrag recherchiert ist. Erneut recherchieren schreibt sie.",
       "notFreelance": "Eine Nachricht an den Kunden wird nur für Freelance-Aufträge geschrieben."
+    },
+    "meta": {
+      "openListing": "Ausschreibung auf {host} öffnen",
+      "urlAsRecorded": "Adresse der Ausschreibung wie erfasst: {url}",
+      "noUrl": "Für diesen Auftrag wurde keine Adresse der Ausschreibung erfasst.",
+      "id": "kp-ID",
+      "copyId": "ID kopieren",
+      "idCopied": "Auftrags-ID kopiert",
+      "copyFailed": "Die ID konnte nicht kopiert werden. Markieren Sie sie und kopieren Sie sie von Hand.",
+      "reportFile": "Berichtsdatei",
+      "byKp": "von kp, ohne Modell"
     }
   },
   "kit": {

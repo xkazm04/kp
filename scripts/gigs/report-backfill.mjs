@@ -38,12 +38,16 @@ Each request is one model call (about $0.20) unless the install is keyless.
   --pace-s <n>     seconds between requests (default 35; the door allows 20 per 10 min)
   --max <n>        at most this many gigs (default 50)
   --all            also rewrite reports that are already ready
+  --min-days-left <n>  only gigs whose deadline is more than n days away (a gig with no
+                   stated deadline is kept - nothing says it is closing; --dated-only drops it)
+  --dated-only     with --min-days-left, drop gigs that state no deadline
+  --arena <a,b>    only gigs in these arenas (freelance, oss_bounty, security, competition)
   --dry-run        list the gigs, request nothing
   --help, -h       this text`;
 
 /** Parse argv. Throws on an unknown flag or a bad value. */
 export function parseArgs(argv) {
-  const out = { statuses: [...DEFAULT_STATUSES], kp: null, paceS: 35, max: 50, all: false, dryRun: false, help: false };
+  const out = { statuses: [...DEFAULT_STATUSES], kp: null, paceS: 35, max: 50, all: false, dryRun: false, help: false, minDaysLeft: null, datedOnly: false, arenas: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = argv[i + 1];
@@ -54,13 +58,16 @@ export function parseArgs(argv) {
     };
     if (a === "--all") out.all = true;
     else if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--dated-only") out.datedOnly = true;
     else if (a === "--help" || a === "-h") out.help = true;
     else if (a === "--kp") out.kp = need();
+    else if (a === "--arena") out.arenas = need().split(",").map((s) => s.trim()).filter(Boolean);
     else if (a === "--status") out.statuses = need().split(",").map((s) => s.trim()).filter(Boolean);
-    else if (a === "--pace-s" || a === "--max") {
+    else if (a === "--pace-s" || a === "--max" || a === "--min-days-left") {
       const n = Number(need());
       if (!Number.isFinite(n) || n < 0) throw new Error(`${a} needs a non-negative number`);
       if (a === "--pace-s") out.paceS = n;
+      else if (a === "--min-days-left") out.minDaysLeft = n;
       else out.max = Math.trunc(n);
     } else throw new Error(`unknown flag ${a}`);
   }
@@ -68,13 +75,24 @@ export function parseArgs(argv) {
   return out;
 }
 
-/** The gigs to ask for: researched, not already reported unless `all`, at most `max`. Pure. */
-export function pickGigs(gigs, { all = false, max = 50 } = {}) {
+/** Days from `now` to a gig's deadline; null when it states none (or an unreadable one). */
+export function daysLeft(deadlineAt, now) {
+  const at = typeof deadlineAt === "string" ? Date.parse(deadlineAt) : NaN;
+  return Number.isFinite(at) ? (at - now.getTime()) / 86_400_000 : null;
+}
+
+/** The gigs to ask for: researched, not already reported unless `all`, with more than
+ *  `minDaysLeft` days to their deadline when that is set (a gig stating no deadline is kept
+ *  unless `datedOnly`), at most `max`. Pure. */
+export function pickGigs(gigs, { all = false, max = 50, minDaysLeft = null, datedOnly = false, arenas = null, now = new Date() } = {}) {
   const out = [];
   for (const g of Array.isArray(gigs) ? gigs : []) {
     if (!g || typeof g.id !== "string" || !g.brief) continue;
     if (!all && g.report && g.report.status === "ready") continue;
-    out.push({ id: g.id, title: typeof g.title === "string" ? g.title : g.id, status: g.status, stage: g.report?.stage ?? null });
+    if (arenas && !arenas.includes(g.arena)) continue;
+    const days = daysLeft(g.deadlineAt, now);
+    if (minDaysLeft !== null && (days === null ? datedOnly : days <= minDaysLeft)) continue;
+    out.push({ id: g.id, title: typeof g.title === "string" ? g.title : g.id, status: g.status, stage: g.report?.stage ?? null, daysLeft: days });
     if (out.length >= max) break;
   }
   return out;
@@ -111,7 +129,8 @@ async function main(argv) {
   console.log(`${gigs.length} gig(s) to report${args.dryRun ? " (dry run)" : ""}`);
   let failed = 0;
   for (const [i, g] of gigs.entries()) {
-    const line = `${String(i + 1).padStart(3)}  ${g.id}  ${g.status}  ${g.stage ?? "no report"}  ${g.title.slice(0, 60)}`;
+    const left = g.daysLeft === null ? "no deadline" : `${g.daysLeft.toFixed(1)}d left`;
+    const line = `${String(i + 1).padStart(3)}  ${g.id}  ${g.status}  ${left}  ${g.stage ?? "no report"}  ${g.title.slice(0, 60)}`;
     if (args.dryRun) {
       console.log(line);
       continue;

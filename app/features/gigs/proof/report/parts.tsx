@@ -4,9 +4,8 @@ import type { ReactNode } from "react";
 import { reportAnchor, type ReportSection as SectionId } from "../../logic/report";
 
 // The Summary's typographic parts (styles/report.css), set the way the contest's design
-// report sets them: a block heading in the serif, a callout with a coloured left rule, and a
-// stat card (big numeral, one-line label, a quiet caption). Structure, not Markdown: every
-// part is HTML with a class, painted by tokens in both themes.
+// report sets them: a block heading in the serif and a callout with a coloured left rule.
+// Structure, not Markdown: every part is HTML with a class, painted by tokens in both themes.
 
 export type Tone = "moss" | "coral" | "amber" | "steel";
 
@@ -30,19 +29,6 @@ export function Callout({ tone, label, children }: { tone: Tone; label: string; 
     <div className={`rp-callout is-${tone}`}>
       <b className="rp-callout-k">{label}</b>
       <div className="rp-callout-body">{children}</div>
-    </div>
-  );
-}
-
-/** A stat card: the figure, what it counts, and a quiet caption (the reason, when absent). */
-export function StatCard({ value, label, caption, tone, children }: { value: ReactNode | null; label: string; caption?: ReactNode; tone?: "coral" | "moss"; children?: ReactNode }) {
-  const long = typeof value === "string" && value.length > 11;
-  return (
-    <div className={`rp-stat${tone ? ` is-${tone}` : ""}`}>
-      <b className={`rp-stat-v${value === null ? " is-absent" : long ? " is-long" : ""}`}>{value ?? "—"}</b>
-      <span className="rp-stat-l">{label}</span>
-      {children}
-      {caption ? <em className="rp-stat-c">{caption}</em> : null}
     </div>
   );
 }

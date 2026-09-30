@@ -1,13 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Markdown } from "@/app/_components/Markdown";
-import { Button, KeyValueGrid, Tag } from "@/app/_components/kit";
+import { Button, Tag } from "@/app/_components/kit";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { briefChallenges, GIG_BRIEF_CHALLENGES_HEADING } from "@/app/_lib/gigs/withdraw-reasons";
 import { briefHeadingResolver } from "../../logic/brief";
 import type { AfterWrite } from "../../logic/wire";
-import { DifficultyGlyph } from "../../shared/GigsMarks";
 import { useGigsFormat } from "../../data/useGigsFormat";
 import { BriefChallenges, type ChallengeWithdraw } from "./BriefChallenges";
 import { jumpTo, LinkRow } from "./BriefLinks";
@@ -18,9 +18,11 @@ import { useResearch } from "./useResearch";
 //   - LEFT, the reading column on a white panel: the category, the categorized title as the
 //     heading, then the Markdown body (the safe renderer: React elements, safe hrefs, links
 //     in a new tab) at a reading measure and a reading size;
-//   - RIGHT, the aside: where the brief came from and Research again, difficulty and effort
-//     as figures (their reasons are in the body - nothing is said twice), the contents list
-//     when there are 3+ sections, and "Sources read" as rows whose status is a mark AND a word.
+//   - RIGHT, the aside - the gig's ONE metadata sidebar, the same on the Summary and Brief
+//     tabs: `meta` first (meta/GigMeta.tsx: the listing's URL, the gig's id, the figures, the
+//     report file), then where the brief came from and Research again, the contents list when
+//     there are 3+ sections, and "Sources read" as rows whose status is a mark AND a word.
+//     A gig nobody researched yet keeps the sidebar; its reading column says so.
 // Heading ids are the ones the SERVER minted with one assigner (`brief.sections`); nothing is
 // re-slugged here. A contents link scrolls its heading in and moves focus onto it. No reading
 // time is shown: it would be a claim about the reader the method cannot make.
@@ -28,7 +30,7 @@ import { useResearch } from "./useResearch";
 /** The fixed section kp's brief closes with; the structured list replaces its prose. */
 const SOURCES_SECTION_ID = "sources-read";
 
-export function GigBriefPanel({ gig, onChanged, withdraw }: { gig: Gig; onChanged: AfterWrite; withdraw: ChallengeWithdraw }) {
+export function GigBriefPanel({ gig, onChanged, withdraw, meta }: { gig: Gig; onChanged: AfterWrite; withdraw: ChallengeWithdraw; meta: ReactNode }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const { brief, busy, error, research } = useResearch(gig, onChanged);
@@ -44,17 +46,22 @@ export function GigBriefPanel({ gig, onChanged, withdraw }: { gig: Gig; onChange
 
   if (!brief) {
     return (
-      <section className="panel" aria-label={t("brief.title")}>
-        <header className="panel-head">
-          <div className="panel-title-wrap">
-            <h3 className="panel-title">{t("brief.title")}</h3>
-          </div>
-          <div className="panel-acts">{button}</div>
-        </header>
-        <p className="panel-empty">
-          <b>{t("brief.notYet")}.</b> {t("brief.notYetBody")}
-        </p>
-        {status}
+      <section className="panel brief-panel" aria-label={t("brief.title")}>
+        <div className="brief-layout">
+          <article className="brief-main">
+            <h3 className="brief-title">{t("brief.title")}</h3>
+            <p className="panel-empty">
+              <b>{t("brief.notYet")}.</b> {t("brief.notYetBody")}
+            </p>
+          </article>
+          <aside className="brief-aside" aria-label={t("tabs.briefAside")}>
+            {meta}
+            <div className="aside-block">
+              {button}
+              {status}
+            </div>
+          </aside>
+        </div>
       </section>
     );
   }
@@ -101,6 +108,7 @@ export function GigBriefPanel({ gig, onChanged, withdraw }: { gig: Gig; onChange
         </article>
 
         <aside className="brief-aside" aria-label={t("tabs.briefAside")}>
+          {meta}
           <div className="aside-block">
             <p className="t-meta">
               {brief.source === "llm" ? t("brief.byModel", { count: fetched }) : t("brief.byKp", { count: fetched, reason })}
@@ -110,22 +118,6 @@ export function GigBriefPanel({ gig, onChanged, withdraw }: { gig: Gig; onChange
             {button}
             {status}
           </div>
-          <KeyValueGrid
-            cols={2}
-            items={[
-              {
-                label: t("brief.difficulty"),
-                value:
-                  brief.difficulty === "unrated" ? null : (
-                    <span className="with-glyph">
-                      <DifficultyGlyph difficulty={brief.difficulty} /> {t(`brief.level.${brief.difficulty}`)}
-                    </span>
-                  ),
-                absent: t("brief.unratedWhy"),
-              },
-              { label: t("brief.effort"), value: brief.effort ? t("brief.effortRange", { min: brief.effort.minHours, max: brief.effort.maxHours }) : null, absent: t("brief.effortNone") },
-            ]}
-          />
           {contents.length >= 3 ? (
             <nav aria-label={t("brief.contents")} className="aside-block">
               <p className="caps dim">{t("brief.contentsTitle")}</p>

@@ -112,6 +112,18 @@
 .gd .brief-link a { color: var(--gd-coral-ink); font-weight: 600; overflow-wrap: anywhere; }
 .gd .brief-link code { font-family: var(--gd-mono); overflow-wrap: anywhere; }
 .gd .brief-aside .k-kv { width: 100%; }
+/* the sidebar's head (meta/GigMeta.tsx): the listing's URL, kp's id, the figures, the file */
+.gd .meta-where { display: grid; gap: 0.625rem; }
+.gd .meta-link { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--gd-ink); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.gd .meta-link:hover { color: var(--gd-steel); }
+.gd .meta-link svg { flex: none; width: 1.125rem; height: 1.125rem; }
+.gd .meta-id { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-width: 0; }
+.gd .meta-id code, .gd .meta-path { min-width: 0; padding: 0.125rem 0.5rem; border-radius: 0.375rem; background: var(--gd-sunken-2); font: 0.875rem/1.5 var(--gd-mono); color: var(--gd-ink); overflow-wrap: anywhere; user-select: all; }
+.gd .meta-report { display: grid; gap: 0.375rem; justify-items: start; }
+.gd .brief-aside .k-kv dd { display: grid; gap: 0.125rem; }
+.gd .meta-sub { display: block; font-size: 0.875rem; font-weight: 400; line-height: 1.4; color: var(--gd-quiet); }
+.gd .brief-aside .k-kv .is-coral { color: var(--gd-coral-ink); }
+.gd .brief-aside .k-kv .is-moss { color: var(--gd-moss-ink); }
 
 @container proofcol (max-width: 56rem) {
   .gd .brief-layout { grid-template-columns: minmax(0, 1fr); }

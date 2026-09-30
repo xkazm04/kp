@@ -15063,11 +15063,8 @@
         "draft": "Relire le brouillon"
       },
       "file": {
-        "title": "Le rapport complet",
         "status": {
-          "writing": "En rédaction",
-          "ready": "Prêt",
-          "failed": "Échec"
+          "writing": "En rédaction"
         },
         "stage": {
           "researched": "recherchée",
@@ -15079,7 +15076,6 @@
         },
         "covers": "Rédigé à l’étape « {stage} » · {date}",
         "byModel": "par un modèle",
-        "byKp": "par kp, sans modèle : {reason}",
         "cost": "coût {usd}",
         "noReason": "sans raison indiquée",
         "copy": "Copier le chemin",
@@ -15087,7 +15083,6 @@
         "copyFailed": "Le chemin n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
         "none": "Le rapport est rédigé une fois la mission recherchée.",
         "firstWriting": "Le premier rapport est en cours de rédaction.",
-        "writingNote": "Rédaction du rapport en cours. Cette carte vérifie de nouveau toutes les quelques secondes.",
         "failed": "La dernière réécriture a échoué : {reason}.",
         "open": "Ouvrir le rapport complet",
         "regenerate": "Régénérer",
@@ -15117,7 +15112,6 @@
         }
       },
       "stat": {
-        "rewardAsStated": "telle que l’annonce l’indique",
         "rewardEstimate": "≈ {usd} au taux du {date}",
         "closed": "Close",
         "daysLeft": "{count, plural, one {jour restant} other {jours restants}}",
@@ -15152,6 +15146,17 @@
       "foot": "kp n’envoie jamais ce message. Vous l’envoyez, depuis votre propre compte.",
       "none": "Un message au client apparaît une fois la mission recherchée. Relancer la recherche le rédige.",
       "notFreelance": "Un message au client n’est rédigé que pour les missions freelance."
+    },
+    "meta": {
+      "openListing": "Ouvrir l’annonce sur {host}",
+      "urlAsRecorded": "Adresse de l’annonce telle qu’enregistrée : {url}",
+      "noUrl": "Aucune adresse d’annonce n’a été enregistrée pour cette mission.",
+      "id": "ID kp",
+      "copyId": "Copier l’ID",
+      "idCopied": "ID de la mission copié",
+      "copyFailed": "L’ID n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
+      "reportFile": "Fichier du rapport",
+      "byKp": "par kp, sans modèle"
     }
   },
   "kit": {

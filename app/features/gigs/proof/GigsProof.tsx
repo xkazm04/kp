@@ -15,6 +15,7 @@ import { useDoubts } from "../shared/doubts";
 import { DraftTab, useDeskMemory, usePinned, useSlipJump } from "./DraftTab";
 import { useChallengeMemory } from "./panels/BriefChallenges";
 import { GigBriefPanel } from "./panels/BriefPanel";
+import { GigMeta } from "./meta/GigMeta";
 import { useGigRecord } from "./panels/useGigRecord";
 import { usePlans } from "./panels/usePlans";
 import { KitArea, ProofTabRow, useProofTabs, type ProofTab } from "./proofTabs";
@@ -100,7 +101,6 @@ export function GigsProof({
   const pinned = usePinned(onDesk ? (attempt?.deliverable?.draftText ?? "") : "", findings, note);
   const { challenges, counts: withdrawCounts, recurring } = useChallengeMemory(gigs, gig);
   const summary = gig ? summaryTextOf(onDesk ? attempt?.deliverable?.summary : null, gig.brief?.markdown, gig.bodyText) : null;
-
   // Arriving on a page: its top, focus on the way back.
   useLayoutEffect(() => {
     backRef.current?.focus({ preventScroll: true });
@@ -180,9 +180,9 @@ export function GigsProof({
           <KitArea>
             <div className="proof-panel" key={tab}>
               <ProofPanels
-                {...{ tab, gig, attempt, source, summary, now, note, record, recordError, specialists, persona, kpi, plansState, onChanged, onFlash }}
+                {...{ tab, gig, attempt, source, summary, note, record, recordError, specialists, persona, kpi, plansState, onChanged, onFlash }}
                 draft={<DraftTab gig={gig} attempt={attempt} source={source} specialistName={specialist?.name ?? null} now={now} doubts={doubts} note={note} pinned={pinned} memory={memory} setMemory={setMemory} onJump={jump} />}
-                brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={withdraw} />}
+                brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={withdraw} meta={<GigMeta gig={gig} now={now} plans={plansState.plans} attempts={record?.attempts ?? (attempt ? [attempt] : [])} onFlash={onFlash} />} />}
                 onOpenPlans={openPlans}
                 onOpenTab={setTab}
                 onOpenLane={() => onOpenLane(gigTypeOf(gig))}

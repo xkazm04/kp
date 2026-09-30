@@ -29,7 +29,6 @@ export function ProofPanels({
   attempt,
   source,
   summary,
-  now,
   note,
   record,
   recordError,
@@ -50,7 +49,6 @@ export function ProofPanels({
   attempt: GigAttempt | null;
   source: SourceRow | null;
   summary: SummaryText;
-  now: Date;
   note: ReviewNote | null;
   record: GigRecord | null;
   recordError: string | null;
@@ -68,7 +66,7 @@ export function ProofPanels({
 }) {
   const accepted = useMemo(() => acceptedPlanOf(plansState.plans), [plansState.plans]);
   if (tab === "summary") {
-    return <GigReport {...{ gig, attempt, summary, now, record, plansState, brief, draft, onChanged, onFlash, onOpenTab }} />;
+    return <GigReport {...{ gig, attempt, summary, plansState, brief, draft, onChanged, onFlash, onOpenTab }} />;
   }
   if (tab === "review") return <ReviewPanel gig={gig} note={note} onChanged={onChanged} />;
   if (tab === "history") return <HistoryPanel record={record} error={recordError} specialists={specialists} />;

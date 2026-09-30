@@ -15063,11 +15063,8 @@
         "draft": "Review the draft"
       },
       "file": {
-        "title": "The full report",
         "status": {
-          "writing": "Writing",
-          "ready": "Ready",
-          "failed": "Failed"
+          "writing": "Writing"
         },
         "stage": {
           "researched": "researched",
@@ -15079,7 +15076,6 @@
         },
         "covers": "Written at the {stage} stage · {date}",
         "byModel": "by a model",
-        "byKp": "by kp, no model: {reason}",
         "cost": "cost {usd}",
         "noReason": "no reason given",
         "copy": "Copy path",
@@ -15087,7 +15083,6 @@
         "copyFailed": "The path could not be copied. Select it and copy it by hand.",
         "none": "The report is written once the gig is researched.",
         "firstWriting": "The first report is being written.",
-        "writingNote": "Writing the report. This card checks again every few seconds.",
         "failed": "The last rewrite failed: {reason}.",
         "open": "Open the full report",
         "regenerate": "Regenerate",
@@ -15117,7 +15112,6 @@
         }
       },
       "stat": {
-        "rewardAsStated": "as the listing states it",
         "rewardEstimate": "≈ {usd} at the rate of {date}",
         "closed": "Closed",
         "daysLeft": "{count, plural, one {day left} other {days left}}",
@@ -15152,6 +15146,17 @@
       "foot": "kp never sends this. You send it, from your own account.",
       "none": "A message to the client appears once the gig is researched. Research again writes it.",
       "notFreelance": "A message to the client is written for freelance gigs only."
+    },
+    "meta": {
+      "openListing": "Open the listing on {host}",
+      "urlAsRecorded": "Listing address as recorded: {url}",
+      "noUrl": "No listing URL was recorded for this gig.",
+      "id": "kp ID",
+      "copyId": "Copy ID",
+      "idCopied": "Gig ID copied",
+      "copyFailed": "The ID could not be copied. Select it and copy it by hand.",
+      "reportFile": "Report file",
+      "byKp": "by kp, no model"
     }
   },
   "kit": {

@@ -15063,11 +15063,8 @@
         "draft": "Zkontrolujte koncept"
       },
       "file": {
-        "title": "Úplná zpráva",
         "status": {
-          "writing": "Píše se",
-          "ready": "Hotová",
-          "failed": "Selhala"
+          "writing": "Píše se"
         },
         "stage": {
           "researched": "rešerše",
@@ -15079,7 +15076,6 @@
         },
         "covers": "Napsáno ve fázi „{stage}“ · {date}",
         "byModel": "napsal model",
-        "byKp": "napsal kp bez modelu: {reason}",
         "cost": "stálo {usd}",
         "noReason": "bez uvedeného důvodu",
         "copy": "Kopírovat cestu",
@@ -15087,7 +15083,6 @@
         "copyFailed": "Cestu se nepodařilo zkopírovat. Označte ji a zkopírujte ručně.",
         "none": "Zpráva se napíše, jakmile zakázka projde rešerší.",
         "firstWriting": "Píše se první zpráva.",
-        "writingNote": "Zpráva se píše. Karta se každých pár sekund zeptá znovu.",
         "failed": "Poslední přepis selhal: {reason}.",
         "open": "Otevřít úplnou zprávu",
         "regenerate": "Napsat znovu",
@@ -15117,7 +15112,6 @@
         }
       },
       "stat": {
-        "rewardAsStated": "jak ji uvádí nabídka",
         "rewardEstimate": "≈ {usd} kurzem ze dne {date}",
         "closed": "Uzavřeno",
         "daysLeft": "{count, plural, one {den zbývá} few {dny zbývají} many {dne zbývá} other {dní zbývá}}",
@@ -15152,6 +15146,17 @@
       "foot": "kp tuto zprávu nikdy neodešle. Odešlete ji vy ze svého účtu.",
       "none": "Zpráva klientovi se objeví po rešerši zakázky. Nová rešerše ji napíše.",
       "notFreelance": "Zpráva klientovi se píše jen pro zakázky na volné noze."
+    },
+    "meta": {
+      "openListing": "Otevřít inzerát na {host}",
+      "urlAsRecorded": "Adresa inzerátu, jak byla zaznamenána: {url}",
+      "noUrl": "U této zakázky nebyla zaznamenána adresa inzerátu.",
+      "id": "ID v kp",
+      "copyId": "Kopírovat ID",
+      "idCopied": "ID zakázky zkopírováno",
+      "copyFailed": "ID se nepodařilo zkopírovat. Označte ho a zkopírujte ručně.",
+      "reportFile": "Soubor zprávy",
+      "byKp": "napsal kp, bez modelu"
     }
   },
   "kit": {
