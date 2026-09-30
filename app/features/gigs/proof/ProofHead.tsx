@@ -4,14 +4,22 @@ import { useTranslations } from "next-intl";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { useGigsFormat } from "../data/useGigsFormat";
 
-// The proof's head: the stage in the front page's words (coral when the next move is the
-// operator's) and the niche, then the title. And the stamp a proof shows when its gig is gone.
+// The proof's head on every tab but Summary (whose report opens with its own): the stage in
+// the front page's words (coral when the next move is the operator's) and the niche, then
+// the title. And the stamp a proof shows when its gig is gone.
 
-export function ProofHead({ gig, nicheLabel }: { gig: Gig; nicheLabel: string | null }) {
+/** The gig's stage in the front page's words, and whether the next move is the operator's
+ *  (the head's kicker and the report's eyebrow). */
+export function useStage(gig: Gig): { stage: string; waits: boolean } {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const waits = gig.status === "in_review" || gig.status === "drafted" || gig.status === "suspect" || gig.status === "sent";
   const stage = gig.status === "in_review" ? t("front.col.ready") : gig.status === "drafted" ? t("front.col.proof") : gig.status === "suspect" ? t("front.col.quar") : fmt.status(gig.status);
+  return { stage, waits };
+}
+
+export function ProofHead({ gig, nicheLabel }: { gig: Gig; nicheLabel: string | null }) {
+  const { stage, waits } = useStage(gig);
   return (
     <header className="proof-head">
       <div className="kicker">

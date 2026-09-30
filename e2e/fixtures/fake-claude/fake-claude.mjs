@@ -22,12 +22,18 @@
 //                                modelUsage}.
 //
 // Deterministic behaviour, driven only by the call's own input:
-//   brief (gig-brief-v3, `Describe the gig ...`): a fixed valid brief; its category follows
+//   brief (gig-brief-v4, `Describe the gig ...`): a fixed valid brief; its category follows
 //     the listing title ("Web development · ..."), three challenges, and every past withdraw
 //     reason the payload carries is repeated word for word as a challenge (the prompt's rule).
+//     Its DIFFICULTY picks the plan lineup (plan-seats.ts): `very_hard` for the bakery landing
+//     page and any title holding `[very-hard]` or `[fable-fails]` (three seats: Opus xhigh,
+//     Fable, GPT through the fake `codex` beside this file), `moderate` otherwise (one Sonnet
+//     seat). The v4 fields: language "en", two missing artifacts, an outreach message for a
+//     freelance listing, work kind "digital".
 //   plan (gig-plan-v1, `Plan the gig ...`): one plan per `--model`, different per seat so a
 //     reader can tell the columns apart (its summary names the seat); a gig whose title holds
-//     `[fable-fails]` makes the Fable seat exit 1 with no output (a failed seat).
+//     `[fable-fails]` makes the Fable seat exit 1 with no output (a failed seat). The GPT seat
+//     is answered by fake-codex.mjs, which logs to the same file.
 //   anything else: exit 1, logged, so an unexpected call is visible rather than answered.
 //
 // Every call is appended as one JSON line to $FAKE_CLAUDE_LOG (argv, the parsed flags, the
@@ -99,6 +105,11 @@ function categoryFor(title) {
   return "Software development · Small task";
 }
 
+/** The difficulty the fake brief rates a listing (the lineup the plans then field). */
+function difficultyFor(title) {
+  return /bakery|\[very-hard\]|\[fable-fails\]/i.test(title) ? "very_hard" : "moderate";
+}
+
 function briefFor(payload) {
   const listing = payload?.untrusted_listing ?? {};
   const title = typeof listing.title === "string" ? listing.title : "Untitled gig";
@@ -114,12 +125,29 @@ function briefFor(payload) {
   return {
     category,
     title: `${category.split(" · ")[0]} · ${title}`.slice(0, 90),
-    difficulty: "moderate",
+    difficulty: difficultyFor(title),
     difficultyReason: "A small, well-bounded build with one integration point.",
     effort: { minHours: 4, maxHours: 8, note: "Most of the time goes to checking the result against the brief." },
     challenges: challenges.slice(0, 7),
     summary: `The client wants ${title.toLowerCase()}. The work is small and self-contained. Done means the files are delivered and checked against the listing.`,
     asks: ["Deliver the finished files", "Explain how the result was checked"],
+    language: "en",
+    listingEnglish: null,
+    missingArtifacts: ["The brand assets (logo and colours)", "The acceptance criteria for the finished work"],
+    outreachMessage:
+      listing.arena === "freelance"
+        ? [
+            "Hello,",
+            "",
+            `Your listing for ${title.toLowerCase()} caught my attention: it is a small, well-bounded build and I would start by restating your requirements as a checklist. Before starting I would need:`,
+            "- the brand assets (logo and colours)",
+            "- the acceptance criteria for the finished work",
+            "",
+            "Best regards",
+          ].join("\n")
+        : null,
+    workKind: "digital",
+    workKindReason: "The deliverable is files an agent at a computer can build and check.",
   };
 }
 

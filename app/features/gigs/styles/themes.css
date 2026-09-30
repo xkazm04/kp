@@ -9,7 +9,7 @@
 
 /* ---- Spark Dark: the structural register (drawn outlines, 16px radius) ------------------- */
 :root[data-theme="dark"] .gd { --gd-radius: 1rem; }
-:root[data-theme="dark"] .gd :is(.sheet, .signoff, .galley-strip, .ledger, .mini, .pop-panel, [popover].pop, .summary-card, .panel) { border: 2px solid var(--gd-ink); }
+:root[data-theme="dark"] .gd :is(.sheet, .signoff, .galley-strip, .ledger, .mini, .pop-panel, [popover].pop, .panel, .msg-card) { border: 2px solid var(--gd-ink); }
 :root[data-theme="dark"] .gd .btn { border-radius: 0.5rem; }
 
 /* ---- widths: the tab sits in panels of every width, so the surface decides ---------------- */

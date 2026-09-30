@@ -2,7 +2,10 @@
 // process end to end", tier 1):
 //
 //   scan (the REAL freelancer_api adapter against a local fixture API) -> expiry + quarantine
-//   -> research (the pinned web-researching brief) -> plans (three seats) -> ACCEPT one in the
+//   + the not-digital decline (a physical listing never reaches research) -> research (the
+//   pinned web-researching brief, gig-brief-v4) -> plans (the lineup follows the brief's
+//   difficulty: three seats on a very hard gig, one of them GPT through the Codex CLI; one
+//   Sonnet seat on a moderate one) -> ACCEPT one in the
 //   UI -> dispatch = pairing (workspace by type, project at the gig's folder, the plan as a
 //   milestone, the gig persona hired and AUTO-APPROVED) -> the run -> sync (the draft lands,
 //   PLAN-STATUS mirrored to the milestone, shown on the Pairing tab) -> review (approve with
@@ -20,8 +23,9 @@
 // its own port, its own `.next-empty` dist dir), every route, the task runner, the Python
 // pipeline (gig_brief_cli.py / gig_plan_cli.py and the LLM registry), the freelancer adapter,
 // politeFetch, the honeypot scan, qualification, pairing, the sync. Fake, and each asserted on:
-//   - the Claude CLI: e2e/fixtures/fake-claude/ first on the SERVER's PATH, logging every call
-//     (argv + the untrusted payload it read) to a file this spec reads;
+//   - the Claude CLI and the Codex CLI: e2e/fixtures/fake-claude/ (fake-claude.mjs and
+//     fake-codex.mjs behind their shims) first on the SERVER's PATH, logging every call (argv +
+//     the untrusted payload it read) to one file this spec reads;
 //   - Personas: e2e/fixtures/mock-gig-bridge.ts (PERSONAS_BRIDGE_URL/KEY), logging every call;
 //     its `runAgent` hook is the agent: it writes the deliverable the contract asks for and
 //     PLAN-STATUS.json into the gig folder;
@@ -78,6 +82,7 @@ const RUN_COST_USD = 0.42;
 const MAIN_TITLE = "Build a landing page for a bakery";
 const HONEYPOT_TITLE = "Quick data entry job";
 const LATE_TITLE = "Fix a typo on a static site";
+const PHYSICAL_TITLE = "Bulk Retail Gift Cards";
 
 /** The Freelancer projects/active answer (the shape freelancer.ts reads), dated at request time. */
 function freelancerProjects(nowS: number) {
@@ -106,6 +111,21 @@ function freelancerProjects(nowS: number) {
       budget: { minimum: 30, maximum: 50 },
       currency: { code: "USD", sign: "$" },
       jobs: [{ name: "Data Entry" }],
+    },
+    {
+      // The listing the operator named when he asked for physical work to stay off the desk
+      // (2026-09-30): its tags AND its text name physical goods, so qualification declines it.
+      id: 900004,
+      title: PHYSICAL_TITLE,
+      seo_url: "supplier-sourcing/bulk-retail-gift-cards",
+      description:
+        "I'm sourcing a dependable supplier who can deliver physical retail gift cards in mid-size batches. I need between 50 and 100 cards each for three stores, brand-new and fully activated.",
+      type: "fixed",
+      bidperiod: 20,
+      time_submitted: nowS - 7_200,
+      budget: { minimum: 200, maximum: 500 },
+      currency: { code: "USD", sign: "$" },
+      jobs: [{ name: "Data Entry" }, { name: "Excel" }, { name: "Supplier Sourcing" }, { name: "Logistics" }, { name: "eBay" }],
     },
     {
       id: 900003,
@@ -192,6 +212,10 @@ function writeFixtureRegistry(dir: string): void {
 }
 
 type FakeCall = {
+  /** "codex" for the fake Codex CLI; absent for the fake Claude CLI. */
+  cli?: string;
+  sandbox?: string | null;
+  schemaRequired?: string[] | null;
   argv: string[];
   useCase: string;
   model: string | null;
@@ -442,7 +466,19 @@ type GigRow = {
   workdir: string | null;
   specialistId: string | null;
   withdrawReason: { challenge: string; index: number } | null;
-  brief: { source: string; promptVersion: string; fallbackReason: string | null; challenges: string[]; category: string; title: string } | null;
+  brief: {
+    source: string;
+    promptVersion: string;
+    fallbackReason: string | null;
+    challenges: string[];
+    category: string;
+    title: string;
+    difficulty?: string;
+    workKind?: string | null;
+    missingArtifacts?: string[];
+    outreachMessage?: string | null;
+  } | null;
+  qualification?: { score: number; declineReason?: string | null; declinedBy?: string | null; declineEvidence?: string[] } | null;
 };
 type Attempt = { id: string; status: string; costUsd: number | null; deliverable: { summary: string; draftText: string; disclosure: string } | null; fallbackReason: string | null };
 type PlanRow = {
@@ -548,12 +584,12 @@ test("1. scan: the real adapter against the fixture API files, quarantines and e
   const scan = await okJson<{ taskId: string }>(await request.post("/api/gigs/scan", { data: {} }), "POST /api/gigs/scan");
   const done = await waitTask(request, scan.taskId);
   const summary = done.result as { created: number; suspect: number; research: { taskId: string | null; gigs: number } | null };
-  expect(summary.created).toBe(3);
+  expect(summary.created).toBe(4);
   expect(summary.suspect).toBe(1);
   expect(fixture.hits, "the adapter read the fixture API, not freelancer.com").toContain("/api/projects/0.1/projects/active/");
   expect(summary.research?.taskId, "the scan hands the gigs it created to a research pass").toBeTruthy();
   const research = await waitTask(request, summary.research!.taskId!);
-  expect((research.result as { llm: number }).llm).toBe(2);
+  expect((research.result as { llm: number }).llm, "a declined physical listing never reaches research").toBe(2);
 
   const gigs = await listGigs(request);
   mainGig = gigs.find((g) => g.externalKey === "fl:900001")!;
@@ -563,6 +599,16 @@ test("1. scan: the real adapter against the fixture API files, quarantines and e
   expect(honeypot.status, "the Telegram + USDT line quarantines the listing").toBe("suspect");
   expect(honeypot.suspectReasons).toContain("off_platform_payment");
   expect(late.status, "a passed deadline scores 0: never qualified").toBe("new");
+  const physical = gigs.find((g) => g.externalKey === "fl:900004")!;
+  expect(physical.status, "physical work never reaches the desk").toBe("declined");
+  expect(physical.qualification?.declineReason).toBe("not_digital_work");
+  expect(physical.qualification?.declinedBy).toBe("rule");
+  expect(physical.qualification?.declineEvidence).toEqual(expect.arrayContaining(["Supplier Sourcing", "physical goods", "sourcing a supplier"]));
+  expect(physical.brief, "no brief: research never spent a call on it").toBeNull();
+  expect(
+    fakeCalls().some((c) => (c.payload?.untrusted_listing as { title?: string } | undefined)?.title === PHYSICAL_TITLE),
+    "a physical listing never reaches a model"
+  ).toBe(false);
 
   // The expiry sweep runs at the START of every scan, so the second scan expires what the
   // first one filed past its deadline.
@@ -576,7 +622,11 @@ test("1. scan: the real adapter against the fixture API files, quarantines and e
 test("2. research: the brief came from the pinned web-researching model call", async ({ request }) => {
   const { gig } = await getGig(request, mainGig.id);
   expect(gig.brief?.source).toBe("llm");
-  expect(gig.brief?.promptVersion).toBe("gig-brief-v3");
+  expect(gig.brief?.promptVersion).toBe("gig-brief-v4");
+  expect(gig.brief?.difficulty, "the fake rates the bakery build very hard: the three-seat lineup").toBe("very_hard");
+  expect(gig.brief?.workKind).toBe("digital");
+  expect(gig.brief?.missingArtifacts).toEqual(["The brand assets (logo and colours)", "The acceptance criteria for the finished work"]);
+  expect(gig.brief?.outreachMessage, "a freelance gig gets a first message to the client").toMatch(/^Hello,/);
   expect(gig.brief?.challenges.length).toBe(3);
   expect(gig.brief?.category).toBe("Web development · Landing page");
 
@@ -597,30 +647,41 @@ test("2. research: the brief came from the pinned web-researching model call", a
   expect(honeypot.brief?.fallbackReason).toBe("gig_suspect");
 });
 
-test("3. plans: three seats, each on its own model and effort, all ready", async ({ request }) => {
+test("3. plans: a very hard gig gets three seats, each on its own engine, model and effort, all ready", async ({ request }) => {
   const posted = await okJson<{ taskId: string }>(await request.post(`/api/gigs/${mainGig.id}/plans`, { data: {} }), "POST plans");
   const task = await waitTask(request, posted.taskId);
   expect((task.result as { ready: number }).ready).toBe(3);
   const rows = await getPlans(request, mainGig.id);
-  expect(rows.map((r) => `${r.seat}:${r.status}`).sort()).toEqual(["fable:ready", "opus:ready", "sonnet:ready"]);
+  expect(rows.map((r) => `${r.seat}:${r.status}`).sort()).toEqual(["fable:ready", "gpt:ready", "opus:ready"]);
   const bySeat = Object.fromEntries(rows.map((r) => [r.seat, r]));
   expect(bySeat.fable.plan?.summary).toMatch(/^Fable plan/);
   expect(bySeat.opus.plan?.summary).toMatch(/^Opus plan/);
-  expect(bySeat.sonnet.plan?.summary).toMatch(/^Sonnet plan/);
-  expect([bySeat.fable.costUsd, bySeat.opus.costUsd, bySeat.sonnet.costUsd]).toEqual([0.02, 0.05, 0.01]);
+  expect(bySeat.gpt.plan?.summary).toMatch(/^GPT plan/);
+  expect([bySeat.opus.model, bySeat.opus.effort, bySeat.gpt.model, bySeat.gpt.effort]).toEqual(["claude-opus-5-5", "xhigh", "gpt-6-astra", "max"]);
+  expect([bySeat.fable.costUsd, bySeat.opus.costUsd, bySeat.gpt.costUsd], "the Codex seat reports tokens, not dollars: null").toEqual([0.02, 0.05, null]);
 
   const plans = fakeCalls().filter((c) => c.useCase === "plan");
   const argvOf = (model: string) => plans.find((c) => c.model === model)!.argv;
   expect(argvOf("claude-opus-5-5")).toEqual(expect.arrayContaining(["--effort", "xhigh"]));
-  expect(argvOf("claude-sonnet-5-5")).toEqual(expect.arrayContaining(["--effort", "high"]));
   expect(argvOf("claude-fable-5"), "the Fable seat runs at the CLI's default effort: no flag").not.toContain("--effort");
   expect(argvOf("claude-opus-5-5"), "a plan seat has no web door").not.toContain("--allowedTools");
+  const gpt = plans.find((c) => c.cli === "codex")!;
+  expect(gpt, "the GPT seat ran through the Codex CLI").toBeTruthy();
+  expect([gpt.model, gpt.effort, gpt.sandbox]).toEqual(["gpt-6-astra", "max", "read-only"]);
+  expect(gpt.argv).toEqual(expect.arrayContaining(["exec", "--ephemeral", "--skip-git-repo-check", "--output-schema"]));
+  expect(gpt.schemaRequired, "the plan's shape travels as the output schema").toEqual(["summary", "steps", "decisions", "risks", "effortHours", "questions"]);
+  expect((gpt.payload?.untrusted_gig as { title?: string } | undefined)?.title).toBe(MAIN_TITLE);
 });
 
 test("4. UI: the Plans tab shows three columns, and one is ACCEPTED with a note (human gate 1)", async ({ page, request }) => {
   await openProof(page, MAIN_TITLE);
-  await openSection(page, /\bPlans\b/);
-  for (const label of ["Fable 5: Ready", "Opus 5.5 · xhigh: Ready", "Sonnet 5.5 · high: Ready"]) {
+  // The plans sit in the gig's report (the Summary section) or, in the older proof layout,
+  // behind their own section button: open that button only when it is the one that exists.
+  const plansSection = page.getByRole("group", { name: "Proof sections" }).getByRole("button", { name: /\bPlans\b/ });
+  const opusRegion = page.getByRole("region", { name: "Opus 5.5 · xhigh: Ready" });
+  await expect(opusRegion.or(plansSection).first()).toBeVisible({ timeout: 30_000 });
+  if (!(await opusRegion.isVisible())) await openSection(page, /\bPlans\b/);
+  for (const label of ["Fable 5: Ready", "Opus 5.5 · xhigh: Ready", "GPT 6 Astra · max: Ready"]) {
     await expect(page.getByRole("region", { name: label })).toBeVisible();
   }
   const opus = page.getByRole("region", { name: "Opus 5.5 · xhigh: Ready" });
@@ -809,7 +870,21 @@ test("side: one plan seat fails and the other two still land", async ({ request 
   expect(bySeat.fable.status).toBe("failed");
   expect(bySeat.fable.fallbackReason).toMatch(/^llm_error:/);
   expect(bySeat.opus.status).toBe("ready");
-  expect(bySeat.sonnet.status).toBe("ready");
+  expect(bySeat.gpt.status).toBe("ready");
+});
+
+test("side: a moderate gig gets ONE plan seat, Sonnet 5.5 at high effort", async ({ request }) => {
+  const gig = await forwardAndResearch(request, "Rename the CSV columns", "Rename three columns in one CSV file and send it back.");
+  expect(gig.brief?.difficulty).toBe("moderate");
+  const before = fakeCalls().filter((c) => c.useCase === "plan").length;
+  const posted = await okJson<{ taskId: string }>(await request.post(`/api/gigs/${gig.id}/plans`, { data: {} }), "POST plans");
+  const task = await waitTask(request, posted.taskId);
+  expect(task.result).toMatchObject({ ready: 1, failed: 0 });
+  const rows = await getPlans(request, gig.id);
+  expect(rows.map((r) => `${r.seat}:${r.model}:${r.effort}:${r.status}`)).toEqual(["sonnet:claude-sonnet-5-5:high:ready"]);
+  const calls = fakeCalls().filter((c) => c.useCase === "plan").slice(before);
+  expect(calls.map((c) => c.model)).toEqual(["claude-sonnet-5-5"]);
+  expect(calls[0].argv).toEqual(expect.arrayContaining(["--effort", "high"]));
 });
 
 test("side: withdraw for a brief challenge in one click, and the next brief is handed the reason", async ({ page, request }) => {

@@ -28,6 +28,7 @@ import "./styles/proof.css";
 import "./styles/panels.css";
 import "./styles/records.css";
 import "./styles/plans.css";
+import "./styles/report.css";
 import "./styles/lanes.css";
 import "./styles/reception.css";
 import "./styles/wires.css";
@@ -36,7 +37,6 @@ import "./styles/themes.css";
 // The Gigs tab: real paid work found in the world, drafted by specialist agents, judged
 // and SENT by the operator under their own account - kp never submits anywhere itself
 // (docs/features/gigs/README.md).
-//
 // Built from the owner's combined verdict on the gigs-calm contest (2026-09-28): B/3 "The
 // Proof" gives the front page (front/), the proof (proof/: a gig's full page), Reception
 // (reception/) and Wires (wires/); B/2 "The Line" gives Lanes (lanes/: gig types by stage)
@@ -176,6 +176,7 @@ export function GigsTab() {
           lastOpened={lastOpened}
           onOpen={openProof}
           onToWires={() => goSection("wires")}
+          onChanged={afterWrite}
         />
       ) : section === "lanes" ? (
         <GigsLanes gigs={gigs} attemptsByGig={attemptsByGig} specialists={specialists} tallies={tallies} focusLane={focusLane} onOpenCell={go.openCell} />

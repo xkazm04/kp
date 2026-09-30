@@ -2,13 +2,27 @@
 
 import { useTranslations } from "next-intl";
 import { Mark, Tag } from "@/app/_components/kit";
+import type { Gig } from "@/app/_lib/gigs/types";
 import type { ReviewNote } from "../../logic/reviewNote";
+import type { AfterWrite } from "../../logic/wire";
+import { OutreachCard } from "./OutreachCard";
 import { Panel } from "./Panel";
 
-// The reviewer's note set out: who wrote it and the verdict, the lead as a callout, the
-// must-dos beside the defects, and the checks it ran in a fold.
+// The Review tab in two halves (stacked when the proof column is narrow): LEFT the
+// reviewer's note set out - who wrote it and the verdict, the lead as a callout, the
+// must-dos above the defects, and the checks it ran in a fold; RIGHT the message to the
+// client, ready to copy (OutreachCard.tsx).
 
-export function ReviewPanel({ note }: { note: ReviewNote | null }) {
+export function ReviewPanel({ gig, note, onChanged }: { gig: Gig; note: ReviewNote | null; onChanged: AfterWrite }) {
+  return (
+    <div className="review-halves">
+      <PreSendReview note={note} />
+      <OutreachCard gig={gig} onChanged={onChanged} />
+    </div>
+  );
+}
+
+function PreSendReview({ note }: { note: ReviewNote | null }) {
   const t = useTranslations("gigs");
   if (!note) {
     return (

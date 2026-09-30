@@ -14090,6 +14090,14 @@
       "off_platform_payment": "Die Ausschreibung verlagert Zahlung oder Kontakt von der Plattform weg: Telegram, WhatsApp, Krypto, Geschenkkarten, eine Wallet-Adresse.",
       "agent_addressed": "Der Text spricht einen KI-Leser direkt an, wie es eine Falle für Agenten tut."
     },
+    "declineReason": {
+      "not_digital_work": "Keine digitale Arbeit"
+    },
+    "declinedBy": {
+      "rule": "Bei der Qualifizierung abgelehnt: Tags und Text der Ausschreibung beschreiben physische Arbeit (Waren, Beschaffung, Lieferung oder Anwesenheit vor Ort).",
+      "model": "Bei der Recherche abgelehnt: Das Briefing ergab Arbeit, die ein Agent am Computer nicht liefern kann.",
+      "evidence": "Treffer: {evidence}"
+    },
     "paused": {
       "blocked": "Pausiert: der Host hat den Zugriff verweigert",
       "collapsed": "Pausiert: die Quelle antwortet nicht mehr",
@@ -14643,12 +14651,24 @@
         "record": "hat der Prüfer geantwortet?"
       },
       "colEmpty": "Gerade nichts hier.",
+      "new": {
+        "title": "Neu",
+        "who": "Sie nehmen an oder lehnen ab",
+        "accept": "„{title}“ annehmen",
+        "reject": "„{title}“ ablehnen",
+        "acceptShort": "Annehmen",
+        "rejectShort": "Ablehnen",
+        "acceptedFlash": "„{title}“ angenommen.",
+        "rejectedFlash": "„{title}“ abgelehnt."
+      },
       "more": "{count, number} weitere ↓",
       "rewardNone": "keine Vergütung angegeben",
       "deadlineNone": "keine Frist",
       "closed": "geschlossen",
       "daysLeft": "{days, plural, =0 {endet heute} one {noch # Tag} other {noch # Tage}}",
-      "closesIn": "{days, plural, =0 {endet heute} one {endet in # Tag} other {endet in # Tagen}}"
+      "closesIn": "{days, plural, =0 {endet heute} one {endet in # Tag} other {endet in # Tagen}}",
+      "rewardUsd": "≈ {usd}",
+      "rewardRate": "zum Kurs vom {date}"
     },
     "file": {
       "title": "Das ganze Archiv",
@@ -14663,6 +14683,7 @@
       "lane": "Bahn: {lane}",
       "laneClear": "Bahn {lane}: alle Bahnen zeigen",
       "neverRun": "{arena}: die Quelle lief noch nie, das ist also keine Zahl von null Funden",
+      "showClosed": "Abgelaufene und geschlossene zeigen",
       "colStatus": "Status",
       "colListing": "Ausschreibung",
       "colArena": "Bereich",
@@ -14708,13 +14729,7 @@
       "stampNoDeliverable": "Kein Ergebnis",
       "stampEmpty": "Der Entwurfstext ist leer",
       "stampEmptyBody": "Das Ergebnis enthält keinen Text zum Senden.",
-      "summaryLabel": "Zusammenfassung",
-      "aboutLabel": "Worum es geht",
-      "listingLabel": "Die Ausschreibung, nicht vertrauenswürdiger Text",
-      "category": "Kategorie",
-      "listingRef": "Ausschreibung",
-      "tags": "Schlagwörter",
-      "moreTags": "+{count, number} weitere"
+      "summaryLabel": "Zusammenfassung"
     },
     "slip": {
       "label": "Prüfzettel",
@@ -14776,14 +14791,13 @@
       "running": "Bei {name} seit {when}. Der Entwurf landet hier."
     },
     "back": {
-      "evidence": "Nachweise",
       "failedN": "{count, number} gescheitert",
       "review": "Prüfung vor dem Senden",
       "byAgent": "Prüf-Agent",
       "byAgentCycle": "Prüf-Agent · Zyklus {cycle}",
       "byReviewer": "Prüfung",
       "yourNote": "Ihre Notiz",
-      "noReview": "Für diesen Entwurf wurde keine Prüfung erfasst.",
+      "noReview": "Noch keine Prüfung vor dem Senden.",
       "warningsYouDecide": "Warnungen: Sie entscheiden",
       "noteWord": "Notiz",
       "checks": "Was die Prüfung ausgeführt hat · {count, number}",
@@ -14940,9 +14954,6 @@
     },
     "tabs": {
       "label": "Bereiche des Entwurfs",
-      "draft": "Entwurf",
-      "noEvidenceYet": "Noch ist kein Entwurf zurückgekommen, also gibt es keine Nachweise.",
-      "evidenceSub": "{count, plural, one {# Sache, die der Agent laut eigener Angabe ausgeführt hat} other {# Dinge, die der Agent laut eigener Angabe ausgeführt hat}}",
       "passed": "Bestanden",
       "failed": "Gescheitert",
       "unverified": "Nicht verifiziert",
@@ -14970,21 +14981,15 @@
       }
     },
     "plans": {
-      "tab": "Pläne",
       "readyTip": "{count, plural, one {# Plan ist bereit zur Annahme} other {# Pläne sind bereit zur Annahme}}",
-      "title": "Pläne",
       "roundOf": "Vorgeschlagen am {date}",
       "loading": "Pläne werden gelesen…",
       "loadFailed": "Die Pläne konnten nicht gelesen werden.",
-      "noBrief": "Pläne entstehen aus dem Recherche-Briefing, und dieser Auftrag hat noch keins. Recherchieren Sie ihn zuerst im Tab Recherche.",
       "emptyTitle": "Noch keine Pläne",
-      "what": "Drei Modelle schreiben je einen Plan: Fable 5, Opus 5.5 mit sehr hohem Aufwand, Sonnet 5.5 mit hohem Aufwand. Sie nehmen einen an, und nur ein angenommener Plan kann übergeben werden.",
-      "cost": "Eine Runde sind drei Modellaufrufe. Jede Spalte zeigt, was ihr Aufruf gekostet hat.",
-      "propose": "Pläne vorschlagen lassen",
       "proposeAgain": "Erneut vorschlagen",
       "retry": "Erneut versuchen",
-      "retryTip": "Eine neue Runde: alle drei Modelle schreiben neu.",
-      "proposedFlash": "Drei Modelle schreiben Pläne. Die Spalten füllen sich, sobald jedes fertig ist.",
+      "retryTip": "Eine neue Runde: jeder Platz schreibt neu.",
+      "proposedFlash": "{count, plural, one {Der Plan wird geschrieben. Seine Spalte füllt sich, sobald er fertig ist.} other {# Modelle schreiben Pläne. Die Spalten füllen sich, sobald jedes fertig ist.}}",
       "proposeFailed": "Die Pläne konnten nicht angefordert werden.",
       "columnLabel": "{seat}: {status}",
       "status": {
@@ -15027,7 +15032,7 @@
       "gateReason": "Zuerst einen Plan annehmen",
       "gateBody": "Die Übergabe gibt den angenommenen Plan an den eigenen Agenten des Auftrags.",
       "gateChecking": "Die Pläne des Auftrags werden geprüft…",
-      "openPlans": "Pläne öffnen"
+      "openPlans": "Zu den Plänen"
     },
     "pairing": {
       "tab": "Zuordnung",
@@ -15063,6 +15068,134 @@
       "pendingFlash": "Zuordnung: Der eigene Agent des Auftrags wird erstellt. Er startet, sobald Personas ihn freigibt.",
       "itsOwnAgent": "seinen eigenen Agenten",
       "dispatchHint": "Die Übergabe erstellt den eigenen Agenten dieses Auftrags ({model}) und gibt ihm den angenommenen Plan."
+    },
+    "report": {
+      "label": "Der Bericht zum Auftrag",
+      "figure": "Abbildung {n, number}.",
+      "source": "Quelle: {source}.",
+      "sec": {
+        "gig": "Der Auftrag",
+        "asks": "Was er verlangt",
+        "plans": "Die Pläne",
+        "progress": "Fortschritt",
+        "draft": "Der Entwurf",
+        "evidence": "Nachweise",
+        "record": "Verlauf"
+      },
+      "pending": {
+        "asks": "erscheint, sobald der Auftrag recherchiert ist",
+        "progress": "erscheint, sobald der Auftrag gekoppelt ist",
+        "draft": "erscheint, sobald ein Agent ihn entwirft",
+        "evidence": "erscheint mit dem ersten Entwurf",
+        "record": "erscheint nach dem ersten Versuch"
+      },
+      "index": {
+        "label": "Inhalt des Berichts",
+        "railLabel": "Zu einem Abschnitt springen",
+        "title": "In diesem Bericht"
+      },
+      "note": {
+        "asks": "{asks, plural, =0 {keine Anforderungen genannt} one {# Anforderung} other {# Anforderungen}} · {challenges, plural, =0 {keine Hürden genannt} one {# Hürde} other {# Hürden}}",
+        "plans": "{count, plural, one {# Plan} other {# Pläne}} · {accepted, select, yes {einer angenommen} other {noch keiner angenommen}}",
+        "noPlans": "noch keine Pläne: hier erzeugen",
+        "researchFirst": "zuerst den Auftrag recherchieren",
+        "progress": "{pct, number} % erledigt · {done, number} von {total, number} Zielen",
+        "evidence": "{count, plural, one {# Prüfung} other {# Prüfungen}} · {failed, plural, =0 {keine fehlgeschlagen} other {# fehlgeschlagen}}",
+        "record": "{count, plural, one {# Versuch} other {# Versuche}}"
+      },
+      "hero": {
+        "listedAs": "Ausgeschrieben als „{title}“",
+        "opening": "Der Anfang der Ausschreibung, wie ein Fremder sie schrieb",
+        "wholeListing": "Die ganze Ausschreibung lesen",
+        "fromDraft": "Aus der Zusammenfassung des Agenten zu seinem Entwurf",
+        "fromBrief": "Aus der Recherche",
+        "work": {
+          "mixed": "Teilweise abseits des Computers",
+          "physical": "Braucht Hände in der echten Welt",
+          "noReason": "Die Recherche nennt keinen Grund."
+        }
+      },
+      "stat": {
+        "rewardAsStated": "wie die Ausschreibung sie nennt",
+        "rewardEstimate": "≈ {usd} zum Kurs vom {date}",
+        "closed": "Geschlossen",
+        "daysLeft": "{count, plural, one {Tag übrig} other {Tage übrig}}",
+        "closesOn": "endet am {date}",
+        "ratedAtResearch": "wird bei der Recherche bewertet",
+        "fit": "Passung, von 100",
+        "spend": "Bisher ausgegeben",
+        "plansPart": "Pläne {usd}",
+        "draftsPart": "Entwürfe {usd}",
+        "unreported": "{count, plural, one {# Aufruf ohne gemeldete Kosten} other {# Aufrufe ohne gemeldete Kosten}}",
+        "nothingRan": "bisher lief nichts"
+      },
+      "asks": {
+        "title": "Was er verlangt",
+        "challenges": "Erwartete Hürden",
+        "none": "Die Ausschreibung nennt keine Ergebnisse.",
+        "noChallenges": "Keine genannt.",
+        "caption": "Was die Ausschreibung verlangt, neben dem, was schiefgehen kann.",
+        "source": "die Recherche, {date}"
+      },
+      "plans": {
+        "researchFirst": "Zuerst den Auftrag recherchieren",
+        "researchBody": "Pläne entstehen aus der Recherche, und dieser Auftrag hat noch keine.",
+        "lineup": "Schwierigkeit: {difficulty}. {count, plural, one {Ein Plan wird geschrieben, von {models}.} other {# Modelle schreiben je einen Plan: {models}.}}",
+        "gate": "Sie nehmen einen Plan an, und nur ein angenommener Plan kann übergeben werden. Jeder Plan zeigt, was sein Modellaufruf gekostet hat.",
+        "generate": "Pläne erzeugen",
+        "caption": "{count, plural, one {Der Plan mit seinen Schritten, Entscheidungen und Risiken.} other {# Pläne nebeneinander, jeder mit seinen Schritten, Entscheidungen und Risiken.}}",
+        "source": "{models}; Kosten jeweils so, wie der Aufruf sie meldete"
+      },
+      "progress": {
+        "whole": "des Meilensteins erledigt",
+        "noReport": "noch keine Meldung vom Agenten",
+        "ofTotal": "{done, number}/{total, number}",
+        "goalsDone": "Ziele erledigt",
+        "goalsCaption": "ein Ziel ist erledigt, wenn der Agent es als erledigt meldet",
+        "blocked": "{count, plural, one {Ziel blockiert} other {Ziele blockiert}}",
+        "blockedCaption": "die Notiz des Agenten zum Ziel nennt den Grund",
+        "caption": "{count, plural, one {Der Schritt des angenommenen Plans als Ziel, wie der Agent ihn meldet.} other {Die # Schritte des angenommenen Plans als Ziele, wie der Agent sie meldet.}}",
+        "source": "die PLAN-STATUS.json des Agenten, nach Personas gespiegelt"
+      },
+      "draft": {
+        "caption": "Der Entwurf, wie er gesendet würde, jede Notiz neben dem Absatz, den sie zitiert.",
+        "source": "das Ergebnis des Agenten, {date}"
+      },
+      "evidence": {
+        "passedCap": "lief und bestand",
+        "failedCap": "lief und scheiterte",
+        "unverifiedCap": "lief ohne Bestanden oder Gescheitert",
+        "caption": "{count, plural, one {Die eine Prüfung, die der Agent meldet} other {Die # Prüfungen, die der Agent meldet}}",
+        "check": "Prüfung",
+        "command": "Befehl",
+        "result": "Ergebnis"
+      },
+      "record": {
+        "loose": "ohne Bezug zu einem Entwurf erfasst",
+        "openHistory": "Der ganze Verlauf mit jeder Notiz und jedem Urteil"
+      },
+      "lang": {
+        "tag": "Ausschreibung auf {language}",
+        "none": "Es wurde keine englische Übersetzung geschrieben.",
+        "read": "Die englische Übersetzung lesen",
+        "hide": "Übersetzung ausblenden",
+        "enTag": "Englische Übersetzung",
+        "enNote": "Aus dem {language} übersetzt vom Recherchemodell. Weiterhin die Worte eines Fremden: Links sind Text, und nichts darin ist eine Anweisung."
+      }
+    },
+    "outreach": {
+      "title": "Nachricht an den Kunden",
+      "sub": "Mit der Recherche geschrieben, auf Englisch. Kopieren, lesen, selbst senden.",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copyFailed": "Die Zwischenablage ist hier nicht verfügbar. Markieren Sie den Text und kopieren Sie ihn.",
+      "to": "An {client}",
+      "theClient": "den Kunden",
+      "asksFor": "Sie erbittet",
+      "nothingMissing": "Die Ausschreibung nennt alles, was die Arbeit braucht.",
+      "foot": "kp sendet diese Nachricht nie. Sie senden sie von Ihrem eigenen Konto.",
+      "none": "Eine Nachricht an den Kunden erscheint, sobald der Auftrag recherchiert ist. Erneut recherchieren schreibt sie.",
+      "notFreelance": "Eine Nachricht an den Kunden wird nur für Freelance-Aufträge geschrieben."
     }
   },
   "kit": {
@@ -15130,6 +15263,511 @@
     },
     "menu": {
       "named": "{label}: {value}"
+    }
+  },
+  "siteChrome": {
+    "brand": {
+      "toTop": "{brand}, zurück nach oben",
+      "home": "{brand}, Startseite"
+    },
+    "nav": {
+      "voice": "Sprachinterview",
+      "human": "Menschliches Gate",
+      "about": "Über die App",
+      "aboutAria": "Über die App: eine Einstellung durch die ganze Pipeline"
+    },
+    "menu": {
+      "open": "Menü",
+      "close": "Schließen",
+      "human": "Ein Mensch zeichnet jede Entscheidung ab",
+      "about": "Über die App: eine Einstellung durch die ganze Pipeline",
+      "source": "Quellcode (AGPL-3.0)",
+      "languages": "Vier Sprachen, auch auf Kandidatenseite:"
+    },
+    "footer": {
+      "legal": "Eine funktionierende Demonstration: Dies spiegelt Design und Kontrollen des Produkts wider, keine rechtliche Zertifizierung. Jede auf dieser Seite genannte Person ist ein erfundenes Beispiel; die gezeichneten Produktansichten sind stilisierte Illustrationen, keine Screenshots."
+    },
+    "skip": {
+      "land": "Zu den neun Funktionen springen",
+      "about": "Zur Linie springen"
+    },
+    "stepper": {
+      "previous": "Zurück",
+      "next": "Weiter",
+      "previousTo": "Zurück: {name}",
+      "nextTo": "Weiter: {name}"
+    }
+  },
+  "siteLand": {
+    "hero": {
+      "lede": "Jeder Lebenslauf wird gelesen und anhand der Position bewertet. Vielversprechende Kandidaten werden noch am selben Tag interviewt. Termine gebucht, Angebote entworfen, die Einstellung versiegelt, sobald der Kandidat zusagt. Sie prüfen die Entscheidungen, die zählen; die Fleißarbeit erreicht Ihren Schreibtisch gar nicht erst.",
+      "noteOff": "Legen Sie den Schalter um. Der Stapel sortiert sich selbst.",
+      "noteOn": "Sortiert. Eine Entscheidung wartet auf einen Menschen.",
+      "noteSample": "Beispielkandidaten · stilisiert",
+      "scoreLink": "Wie {name} auf {score} kam",
+      "pileLabel": "Drei Beispielkandidaten",
+      "signPass": "Absage unterschreiben",
+      "liveOn": "Autopilot an. Drei Beispiel-Lebensläufe bewertet. Eine Absage wartet auf eine menschliche Unterschrift.",
+      "liveOff": "Autopilot aus.",
+      "liveSigned": "Unterschrieben von {name} (Beispiel). Die Absage ist jetzt eine menschliche Entscheidung."
+    },
+    "marquee": {
+      "label": "Was das Studio kann"
+    },
+    "proof": {
+      "stageLabel": "Stilisierte Illustrationen der drei Nachweis-Säulen",
+      "stylised": "stilisiert",
+      "signedBy": "namentlich unterschrieben",
+      "pillars": {
+        "samples": {
+          "label": "die Arbeitsprobe",
+          "caption": "die Arbeitsprobe · eingebaute Fehler, Prompts protokolliert"
+        },
+        "defend": {
+          "label": "das Interview",
+          "caption": "das Interview · zwei echte Entscheidungen, verteidigt"
+        },
+        "sealed": {
+          "label": "das Siegel",
+          "caption": "das Siegel · ein Mensch mit Namen, eine manipulationssichere Kette"
+        }
+      }
+    },
+    "voice": {
+      "caption": "stilisierte Illustration · Beispieltranskript"
+    },
+    "human": {
+      "evidence": "Belege angehängt",
+      "signAs": "Als {name} unterschreiben",
+      "replay": "wiederholen",
+      "gate": {
+        "approaching": "{name} (Beispiel) ist auf dem Weg zum Gate.",
+        "arrives": "{name} (Beispiel) kommt an.",
+        "scored": "Die AI liest und bewertet ihren Lebenslauf: Eignung {fit}, Belege angehängt.",
+        "waiting": "Menschliches Gate. {name} (Beispiel) wartet auf Sie. Nur ein Mensch kann sie weiterleiten.",
+        "signed": "Unterschrieben · {signer} (Beispiel). Die Kandidatin kommt weiter, und die Entscheidung behält ihren Nachweis."
+      },
+      "legendLocked": "gesperrt, nie delegiert",
+      "legendDelegable": "ein Arbeitsbereich kann es delegieren",
+      "logNone": "Nichts läuft unbeaufsichtigt: Jede Phase wartet auf einen Menschen.",
+      "logOne": "Jetzt unbeaufsichtigt: {stage}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat.",
+      "logTwo": "Jetzt unbeaufsichtigt: {first} und {second}. Jeder solche Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
+    },
+    "pricing": {
+      "lead": "Das ganze Produkt ist Open Source. Die Pläne kaufen Ihnen fremde Server. Selbst hosten heißt das volle Produkt, keine Testversion. Die gehosteten Pläne bepreisen Ergebnisse: eine ausgeschriebene Stelle und eine eingestellte Person.",
+      "selfhostModels": "Ihre Modelle: lokal oder auf kompatiblen Servern, nach Ihrer Wahl",
+      "toEnterprise": "Für die ganze Organisation? Zu Enterprise"
+    },
+    "enterprise": {
+      "legendRepo": "heute im Repository",
+      "legendDelivered": "von uns geliefert",
+      "legendPlanned": "geplant, noch nicht gebaut",
+      "statsLabel": "Recruiting-Zeit laut Branchenstudien"
+    },
+    "spine": {
+      "label": "Wo Sie auf der Seite sind",
+      "sections": {
+        "top": "Anfang",
+        "enterprise": "Enterprise",
+        "start": "Loslegen"
+      },
+      "stages": {
+        "scored": "bewertet: {score}",
+        "routed": "eingeordnet",
+        "voice": "Sprach-Screening",
+        "gate": "am Gate",
+        "signed": "unterschrieben",
+        "sealed": "versiegelt",
+        "hired": "eingestellt"
+      }
+    }
+  },
+  "siteFeatures": {
+    "_note": "The landing's features band (a ring of nine medallions), the full-screen scene each one opens, and the stylised product panels inside the scenes. Feature names and bodies are reused from landing.features.*. Panels show invented sample people (Jana N., Petr K., Alex T., M. Horáková): keep the names as they are. {name} is always a person's name, {slot} a weekday plus a clock time, {n}/{total} are counts.",
+    "band": {
+      "hint": "Öffnen Sie ein Medaillon: alles heute verfügbar, ohne Sternchen",
+      "cta": "Treten Sie ein: Start im Posteingang",
+      "stage": "Phase {n} von {total}",
+      "open": "zum Eintreten klicken",
+      "medal": "{name}, {n} von {total}. Öffnet eine eigene Szene."
+    },
+    "items": {
+      "inbox": {
+        "line": "Fünf Türen, eine Startlinie.",
+        "pin1": "Bewerbungsportal, E-Mail, Jobbörsen",
+        "pin2": "Sourcing und manuelle Einträge",
+        "pin3": "Eine Pipeline, dieselbe Startlinie"
+      },
+      "score": {
+        "line": "Eignung von 0–100, mit Belegen.",
+        "pin1": "0–100 Eignungsscore pro Lebenslauf",
+        "pin2": "Mit nachvollziehbaren Belegen",
+        "pin3": "Lebenslauf-Versionen nebeneinander vergleichen"
+      },
+      "rediscover": {
+        "line": "Die Zweitplatzierte erscheint zuerst.",
+        "pin1": "Eine neue Stelle bewertet alle früheren Bewerbungen neu",
+        "pin2": "Die Zweitplatzierte erscheint zuerst",
+        "pin3": "Kein neues Sourcing-Budget"
+      },
+      "voice": {
+        "line": "Es fragt. Es hört zu. Es schreibt die Scorecard.",
+        "pin1": "Fragt nach der tatsächlichen Erfahrung",
+        "pin2": "Tschechisch oder Englisch",
+        "pin3": "Schreibt die Scorecard für Sie"
+      },
+      "cases": {
+        "line": "AI erlaubt. Delegation fällt auf.",
+        "pin1": "Eingebaute Fehler mit bekannter Lösung",
+        "pin2": "Die tatsächlich genutzten Prompts",
+        "pin3": "Ein Interview, in dem eigene Entscheidungen verteidigt werden"
+      },
+      "schedule": {
+        "line": "Kandidaten wählen den Termin selbst. Kein Kalender-Pingpong.",
+        "pin1": "Kandidaten wählen ihren Termin selbst über einen Link",
+        "pin2": "Kein Kalender-Pingpong per Antwort-an-alle",
+        "pin3": "Kein Zeitzonen-Chaos"
+      },
+      "salary": {
+        "line": "Marktbasiert, damit das Angebot gleich beim ersten Mal sitzt.",
+        "pin1": "Marktbasierte Gehaltsbänder für den tschechischen Markt",
+        "pin2": "Angepasst an den Unternehmenstyp",
+        "pin3": "Ihr Angebot sitzt gleich beim ersten Mal"
+      },
+      "offer": {
+        "line": "Ein Mensch unterschreibt. Die Zusage versiegelt die Einstellung.",
+        "pin1": "Deterministisch: Stellenband × Eignung, kein Modell in der Zahl",
+        "pin2": "Das Schreiben entsteht von selbst; ein Mensch unterschreibt es",
+        "pin3": "Die Zusage versiegelt die Einstellung und spiegelt sie in Ihr ATS"
+      },
+      "gates": {
+        "line": "Jede Entscheidung behält ihren Nachweis.",
+        "pin1": "Ein lückenloser Audit-Trail",
+        "pin2": "Ein Not-Aus",
+        "pin3": "AI empfiehlt, Menschen entscheiden, jede Entscheidung behält ihren Nachweis"
+      }
+    },
+    "scene": {
+      "back": "Zurück zum Funnel",
+      "backToScene": "Zurück zur Szene",
+      "backShort": "Zurück",
+      "crumbs": "Wo Sie sind",
+      "crumbLook": "Genauer hinsehen",
+      "count": "<b>{n}</b> von {total}",
+      "look": "Genauer hinsehen",
+      "lookBack": "Zurück zur Szene",
+      "pins": "Was es leistet",
+      "stepper": "Die neun Funktionen",
+      "dots": "Alle neun Funktionen",
+      "dot": "{name}, {n} von {total}",
+      "caption": "stilisierte Illustration · Beispieldaten"
+    },
+    "b1": {
+      "score": {
+        "say": "starke Eignung · Fragenset fürs Interview steht bereits"
+      },
+      "rediscover": {
+        "role": "Neue Stelle: React-Entwickler",
+        "rescoring": "alle früheren Bewerbungen werden neu bewertet…",
+        "medallist": "Zweitplatzierte",
+        "medallistMeta": "vor 8 Monaten beworben · hat Ihnen schon einmal zugesagt",
+        "first": "erscheint zuerst",
+        "earlier": "Frühere Bewerbung",
+        "earlierMeta": "anhand der neuen Stelle neu bewertet",
+        "noSpend": "kein neues Sourcing-Budget"
+      },
+      "schedule": {
+        "say": "per Link gewählt · {slot} · in der eigenen Zeitzone"
+      }
+    },
+    "kit": {
+      "replay": "wiederholen",
+      "pause": "pausieren",
+      "play": "abspielen",
+      "dots": "{n} von 5",
+      "sample": "Beispiel",
+      "candidateChip": "{name} · React-Entwickler",
+      "who": {
+        "machine": "Maschine",
+        "candidate": "Kandidat/in",
+        "person": "Mensch"
+      }
+    },
+    "voice": {
+      "live": "live · 4 Min. 12 Sek.",
+      "transcript": "Beispieltranskript",
+      "interviewer": "Interviewer",
+      "candidate": "Kandidat/in",
+      "q1": "Sie haben für ein Schulprojekt eine React-App live gebracht. Was ging als Erstes kaputt, als echte Nutzer draufkamen?",
+      "a1": "Ehrlich? Das State-Management. Ich habe es zweimal neu geschrieben, bevor ich verstand, warum…",
+      "q2": "Klasse. Erzählen Sie mir von der zweiten Überarbeitung.",
+      "a2": "Die erste Version hatte alles in einer großen Komponente. Ich habe die Daten von der Darstellung getrennt, seitdem macht eine Änderung nicht mehr drei andere kaputt.",
+      "q3": "Was würden Sie prüfen, bevor Sie das noch einmal live bringen?",
+      "a3": "Ich würde zuerst den Fall schreiben, der fehlschlägt, und ihn dann beheben. Und ich würde jemanden aus meinem Kurs bitten, es kaputtzukriegen.",
+      "q4": "Bei welchem Teil sind Sie sich heute am wenigsten sicher?",
+      "a4": "Serverseitiges Caching. Darüber habe ich bisher nur gelesen.",
+      "scorecard": "Scorecard · Beispiel",
+      "scorecardFull": "Strukturierte Scorecard · Beispiel",
+      "crit": {
+        "depth": "Erfahrungstiefe",
+        "depthNote": "Beruht auf echten, ausgelieferten Projekten.",
+        "solving": "Problemlösung",
+        "solvingNote": "Findet erst die Ursache, dann die Lösung.",
+        "communication": "Kommunikation",
+        "communicationNote": "Klare, direkte Antworten.",
+        "ownership": "Verantwortung",
+        "ownershipNote": "Steht zur Überarbeitung und zu ihrem Preis."
+      },
+      "chipLanguages": "Tschechisch und Englisch, freie Wahl",
+      "chipGrounded": "Fragen, die auf ihrer Erfahrung basieren",
+      "chipTranscript": "Live-Transkript, strukturierte Scorecard"
+    },
+    "work": {
+      "title": "Arbeitsprobe",
+      "sub": "geht von AI-Code aus",
+      "codeLabel": "Beispielcode mit einem eingebauten Fehler in Zeile 5",
+      "flag": "Fehler eingebaut · Lösung bekannt",
+      "promptsTitle": "Die tatsächlich genutzten Prompts",
+      "prompt1": "schreib eine Hilfsfunktion für die Paginierung",
+      "prompt2": "schreib Tests dafür",
+      "prompt3": "warum wiederholt Seite 3 eine Zeile?",
+      "prompt4": "mach es kürzer",
+      "distTitle": "Abstand zum blanken One-Shot",
+      "distFrom": "blanker One-Shot",
+      "distTo": "diese Abgabe",
+      "delegation": "Delegation fällt auf",
+      "detailTitle": "Der Arbeitsverlauf, protokolliert",
+      "timeline": "Prompt für Prompt",
+      "note1": "Ersten Entwurf übernommen.",
+      "note2": "Tests laufen durch; die leere Liste ist nicht abgedeckt.",
+      "note3": "Bis zum Ende des Slice zurückverfolgt.",
+      "note4": "Ergebnis vor dem Übernehmen nochmals gelesen.",
+      "flawsTitle": "Eingebaute Fehler · Beispiel",
+      "flaw1": "Off-by-one im Seiten-Slice",
+      "flaw2": "Leere Liste lässt die Funktion abstürzen",
+      "flaw3": "Seitengröße fest codiert",
+      "caught": "erkannt",
+      "missed": "übersehen",
+      "decisionsTitle": "Zwei Entscheidungen, laut verteidigt",
+      "decision1": "Die Funktion klein gehalten, statt eine Bibliothek einzubinden.",
+      "decision2": "Den fehlschlagenden Fall vor dem Fix geschrieben.",
+      "decisionsNote": "Das Sprachinterview startet direkt aus der Einreichung, auf Tschechisch oder Englisch."
+    },
+    "inbox": {
+      "detailTitle": "Fünf Wege hinein, eine Startlinie",
+      "doors": {
+        "apply": "Kandidaten bewerben sich auf Ihrer Seite; der Lebenslauf landet als Karte.",
+        "email": "Ein per E-Mail geschickter Lebenslauf wird in dieselbe Karte eingelesen.",
+        "boards": "Bewerbungen auf Ihre ausgeschriebenen Stellen kommen auf demselben Weg an.",
+        "sourcing": "Personen, die Sie selbst finden, landen direkt in der Pipeline.",
+        "manual": "Legen Sie jemanden selbst an, und die Person startet an derselben Linie."
+      },
+      "stage1": "Lebenslauf kommt an",
+      "stage2": "AI liest und bewertet",
+      "stage3": "Menschliches Gate",
+      "stage4": "Kommt weiter",
+      "sameLine": "dieselbe Startlinie"
+    },
+    "salary": {
+      "market": "Tschechischer Markt",
+      "marketBand": "Marktband",
+      "adjustedBand": "Angepasstes Band",
+      "min": "min",
+      "typical": "typisch",
+      "max": "max",
+      "shift": "angepasst an den Unternehmenstyp",
+      "foot": "damit Ihr Angebot gleich beim ersten Mal sitzt",
+      "detailTitle": "Minimum, typisch, Maximum",
+      "line1": "Ausgangspunkt ist das tschechische Marktband für die Stelle.",
+      "line2": "Passen Sie es an Ihren Unternehmenstyp an.",
+      "line3": "Bieten Sie innerhalb des Bands an, damit das Angebot gleich beim ersten Mal sitzt.",
+      "note": "Keine Zahlen in dieser Skizze: Die Markierungen zeigen die Form, kein Gehalt."
+    },
+    "offer": {
+      "title": "Angebotsschreiben",
+      "letterLabel": "Angebotsschreiben, Beispiel",
+      "draft": "Entwurf",
+      "signed": "abgezeichnet",
+      "formula": "Stellenband × Eignung · kein LLM in der Zahl",
+      "awaiting": "Unterschrift ausstehend",
+      "signedBy": "unterschrieben von {name} (Beispiel)",
+      "stamp": "MENSCHLICH FREIGEGEBEN",
+      "sign": "ABZEICHNEN",
+      "hintWaiting": "wartet auf Unterschrift",
+      "hintSigned": "unterschrieben · {name} (Beispiel)",
+      "ladderLabel": "Was auf die Unterschrift folgt",
+      "accepted": "angenommen",
+      "acceptedVia": "per sicherem Link",
+      "sealed": "versiegelt",
+      "mirrored": "in ein angebundenes ATS gespiegelt",
+      "waiting": "wartet",
+      "done": "erledigt",
+      "liveSigned": "Unterschrieben von {name} (Beispiel). Wartet auf den Kandidaten.",
+      "liveAccepted": "Der Kandidat hat über einen sicheren Link angenommen.",
+      "liveSealed": "Die Einstellung ist versiegelt und in ein angebundenes ATS gespiegelt.",
+      "detailTitle": "Vier Schritte, eine Unterschrift",
+      "pathLabel": "Was der Kandidat tut",
+      "accepts": "nimmt an",
+      "declines": "lehnt ab",
+      "flowLabel": "Vom Angebot zur versiegelten Einstellung, vier Schritte",
+      "flow1": "Das Schreiben entsteht von selbst",
+      "flow1Text": "Die Summe ist Stellenband × Eignung. In der Zahl steckt kein Modell.",
+      "flow2": "Ein Mensch unterschreibt es",
+      "flow2Text": "Ein Mensch liest den Entwurf und unterschreibt. Die Unterschrift nennt die Person beim Namen.",
+      "flow3": "Der Kandidat antwortet",
+      "flow3Text": "Zusage oder Ablehnung, über einen sicheren Link.",
+      "flow4": "Versiegelt und gespiegelt",
+      "flow4Text": "Die Zusage versiegelt die Einstellung und spiegelt sie in ein angebundenes ATS.",
+      "declined": "abgelehnt",
+      "notReached": "nicht erreicht",
+      "mini": "Unterschrieben · Beispiel",
+      "branchTitle": "Bei einer Ablehnung",
+      "branchText": "Abgelehnt heißt: Es wird keine Einstellung versiegelt.",
+      "liveAccept": "Der Kandidat nimmt an. Die Einstellung wird versiegelt und in ein angebundenes ATS gespiegelt.",
+      "liveDecline": "Der Kandidat lehnt ab. Es wird keine Einstellung versiegelt."
+    },
+    "gates": {
+      "title": "Audit-Trail",
+      "chain": "manipulationssichere Kette",
+      "advance": "Weiterleitung",
+      "kindPass": "freundliche Absage",
+      "offer": "Angebot",
+      "runs": "läuft unbeaufsichtigt · protokolliert samt Regel",
+      "held": "pausiert · nichts Neues läuft an",
+      "signed": "unterschrieben · {name} (Beispiel)",
+      "ledgerLabel": "Versiegelte Nachweise, Beispiel",
+      "kill": "Not-Aus",
+      "running": "läuft",
+      "paused": "pausiert",
+      "sayRunning": "Automatik läuft (Beispiel)",
+      "sayPaused": "Automatik pausiert (Beispiel)",
+      "flip": "Legen Sie ihn um: Die unbeaufsichtigten Zeilen pausieren.",
+      "detailTitle": "Von der Empfehlung zum Nachweis",
+      "flowLabel": "Wie ein Nachweis entsteht, in vier Schritten",
+      "flow1": "AI empfiehlt",
+      "flow1Text": "Die AI liest, bewertet und schlägt die Entscheidung vor.",
+      "flow2": "Ein Mensch entscheidet",
+      "flow2Text": "Eine Person unterschreibt: Weiterleitung, freundliche Absage oder Angebot.",
+      "flow3": "Ein Nachweis wird versiegelt",
+      "flow3Text": "Die Entscheidung und wer sie unterschrieben hat, landen in der manipulationssicheren Kette.",
+      "flow4": "Kandidaten können ihn einsehen",
+      "flow4Text": "Was über sie entschieden wurde und warum.",
+      "rejection": "Absage",
+      "neverUnlocks": "bleibt gesperrt",
+      "neverText": "Eine Absage kommt immer von einem Menschen. Die Maschine kann keine erteilen.",
+      "detailNote": "Ein Schalter pausiert jeden Schritt, der unbeaufsichtigt läuft."
+    }
+  },
+  "siteAbout": {
+    "sampleCaption": "stilisierte Illustration · Beispieldaten",
+    "hero": {
+      "title": "<line>Einmal quer</line> <line>durch die</line> <line><em>ganze Pipeline.</em></line>",
+      "cue": "Scrollen Sie, um die Linie zu zeichnen",
+      "mascotAlt": "Kandi, das KandiDate-Maskottchen aus Knete, mit Kopfhörern"
+    },
+    "noscript": "Die Linie wird von einem kleinen Skript gezeichnet. Aktivieren Sie JavaScript, um die acht Schritte von der leeren Stelle bis zur unterschriebenen Einstellung zu gehen, oder <link>kehren Sie zur Konsole zurück</link>.",
+    "scope": {
+      "assignment": "technische Stellen"
+    },
+    "notes": {
+      "design": "die Rubrik, an der alles Folgende gemessen wird",
+      "source": "deterministisch und nachvollziehbar, nie Keyword-Bingo",
+      "intake": "kein Kanal bekommt eine Abkürzung",
+      "screen": "alles andere wartet auf einen Menschen",
+      "assignment": "bewertet wird das Urteilsvermögen drumherum",
+      "interview": "eine Scorecard, die auf Ihre Entscheidung wartet",
+      "offer": "eine Person unterbreitet es",
+      "hired": "hier hört KandiDate auf"
+    },
+    "gate": {
+      "idle": "Menschliches Gate",
+      "wait": "Menschliches Gate · wartet auf Sie…",
+      "signed": "unterschrieben · {signer} (Beispiel)",
+      "sign": "Unterschreiben",
+      "ariaIdle": "Schritt {n}, {name}. Menschliches Gate. Zum Unterschreiben drücken, Beispiel.",
+      "ariaWait": "Schritt {n}, {name}. Menschliches Gate, wartet auf Sie. Zum Unterschreiben drücken, Beispiel.",
+      "ariaSigned": "Schritt {n}, {name}. Unterschrieben von {signer}, Beispiel."
+    },
+    "replay": {
+      "label": "Wiederholen",
+      "aria": "Szene {name} wiederholen",
+      "done": "Szene {name} wiederholt."
+    },
+    "announce": {
+      "signed": "Schritt {n}, {name}: unterschrieben von {signer}, Beispiel. Der Nachweis ist festgehalten.",
+      "already": "Schritt {n} ist bereits unterschrieben. Jede Entscheidung behält ihren Nachweis.",
+      "all": "Alle acht Gates unterschrieben. Das ist die ganze Linie, und jede Entscheidung behält ihren Nachweis."
+    },
+    "map": {
+      "live": "Die Linie",
+      "tag": "Beispielverlauf · stilisiert",
+      "go": "Zu Schritt {n}, {name}"
+    },
+    "tape": {
+      "title": "Nachweise",
+      "count": "{done} von {total} unterschrieben",
+      "waiting": "wartet auf Sie…"
+    },
+    "pawn": "{person} · {n} {name}",
+    "stepper": {
+      "label": "Die acht Schritte",
+      "dots": "Alle acht Schritte",
+      "dot": "Schritt {n}, {name}",
+      "overview": "Übersicht",
+      "finale": "Finale",
+      "count": "Schritt {n} von {total} · {name}",
+      "whole": "Die ganze Linie"
+    },
+    "closing": {
+      "title": "<line>Von der leeren Stelle</line> <line>zur <em>unterzeichneten Einstellung.</em></line>",
+      "samples": "Jede auf dieser Seite genannte Person ist ein erfundenes Beispiel; die gezeichneten Produktansichten sind stilisierte Illustrationen, keine Screenshots."
+    },
+    "art": {
+      "design": {
+        "brief": "Briefing",
+        "rubric": "Rubrik",
+        "jobDescription": "Stellenbeschreibung",
+        "niceToHaves": "Nice-to-haves"
+      },
+      "source": {
+        "talentPool": "Talentpool",
+        "knockoutGates": "Knock-out-Gates",
+        "ranked": "sortiert",
+        "archetypeAware": "archetypbasiert",
+        "candidateRow": "{name} · {role}",
+        "roles": {
+          "backend": "Backend",
+          "fullStack": "Full-Stack"
+        },
+        "deterministic": "deterministisch",
+        "explainable": "nachvollziehbar"
+      },
+      "intake": {
+        "sameStartingLine": "dieselbe Startlinie"
+      },
+      "screen": {
+        "fairnessGate": "Fairness-Prüfung",
+        "advances": "kommt weiter",
+        "heldForHuman": "bleibt beim Menschen"
+      },
+      "assignment": {
+        "aiAllowed": "AI erlaubt",
+        "logTitle": "versiegeltes Protokoll"
+      },
+      "interview": {
+        "interviewer": "Interviewer",
+        "candidate": "Kandidat/in",
+        "scoreOf": "{score} von {max}"
+      },
+      "offer": {
+        "draft": "Entwurf",
+        "secureLink": "sicherer Link",
+        "formula": "Stellenband × Eignung · <em>kein LLM in der Zahl</em>"
+      },
+      "hired": {
+        "ats": "ATS",
+        "hris": "HRIS"
+      }
     }
   }
 }

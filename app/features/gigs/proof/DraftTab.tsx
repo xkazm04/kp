@@ -11,10 +11,11 @@ import type { Doubt } from "../shared/doubts";
 import { useLintText } from "../shared/useLintText";
 import { Galley } from "./Galley";
 import { ProofSlip, type SlipTarget } from "./ProofSlip";
+import { revealSoon } from "./report/parts";
 import type { DeskMemory, DeskStore } from "./signoff/GigsSignoff";
 
-// The Draft tab: the proof slip (what to doubt, in words) above the galley (the draft as it
-// would be sent, every note pinned beside its paragraph). On the desk the slip carries the
+// The report's draft section (report/GigReport.tsx): the proof slip (what to doubt, in words)
+// above the galley (the draft as it would be sent, every note pinned beside its paragraph). On the desk the slip carries the
 // seen marks, kept in the desk memory with the checklist ticks and the note.
 
 /** The desk memory for an attempt on the desk: kept in the tab's store, so going back and
@@ -50,22 +51,17 @@ export function usePinned(draft: string, findings: readonly DraftLintFinding[], 
   return { paras, pinned, loose };
 }
 
-/** A slip link opens the tab it points at, then brings the target in: a margin note takes
- *  focus, an evidence item is marked. Two frames: the tab's panel mounts first. */
-export function useSlipJump(setTab: (tab: "draft" | "evidence") => void) {
+/** A slip link brings its target in: the draft and the evidence are sections of the same
+ *  report, so the Summary tab is shown (it usually is), then a margin note takes focus or an
+ *  evidence row is marked. */
+export function useSlipJump(showReport: () => void) {
   return useCallback(
     (target: SlipTarget) => {
-      setTab(target.kind === "evidence" ? "evidence" : "draft");
-      window.requestAnimationFrame(() =>
-        window.requestAnimationFrame(() => {
-          const el = document.getElementById(target.kind === "evidence" ? `gd-ev-${target.n}` : `gd-note-${target.key}`);
-          el?.scrollIntoView({ behavior: "smooth", block: "center" });
-          if (target.kind === "evidence") el?.classList.add("target");
-          else el?.focus({ preventScroll: true });
-        })
-      );
+      showReport();
+      if (target.kind === "evidence") revealSoon(`gd-ev-${target.n}`, "mark", "center");
+      else revealSoon(`gd-note-${target.key}`, "focus", "center");
     },
-    [setTab]
+    [showReport]
   );
 }
 

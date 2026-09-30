@@ -105,12 +105,13 @@
 .gd .brief-aside .k-kv { width: 100%; }
 
 @container proofcol (max-width: 48rem) {
-  .gd .summary-card,
   .gd .brief-layout { grid-template-columns: minmax(0, 1fr); }
-  .gd .sc-rail,
   .gd .brief-aside { border-left: 0; border-top: 1px solid var(--gd-rule); }
   .gd .review-grid,
   .gd .route-grid { grid-template-columns: minmax(0, 1fr); }
   .gd .cands li { grid-template-columns: 1.25rem minmax(0, 1fr) 7rem; }
   .gd .cand-act { grid-column: 2 / -1; text-align: left; }
+}
+@container proofcol (max-width: 44rem) {
+  .gd .review-halves { grid-template-columns: minmax(0, 1fr); }
 }

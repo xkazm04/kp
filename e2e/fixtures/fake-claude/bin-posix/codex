@@ -1,0 +1,3 @@
+#!/bin/sh
+# The fake Codex CLI (../fake-codex.mjs) for e2e/gig-lifecycle.spec.ts, put first on PATH.
+exec node "$(dirname "$0")/../fake-codex.mjs" "$@"

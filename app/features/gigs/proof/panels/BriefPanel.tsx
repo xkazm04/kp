@@ -1,19 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Markdown } from "@/app/_components/Markdown";
 import { Button, KeyValueGrid, Tag } from "@/app/_components/kit";
-import { useErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
-import type { Gig, GigBrief } from "@/app/_lib/gigs/types";
+import type { Gig } from "@/app/_lib/gigs/types";
 import { briefChallenges, GIG_BRIEF_CHALLENGES_HEADING } from "@/app/_lib/gigs/withdraw-reasons";
 import { briefHeadingResolver } from "../../logic/brief";
 import type { AfterWrite } from "../../logic/wire";
 import { DifficultyGlyph } from "../../shared/GigsMarks";
-import { sendJson } from "../../data/useGigsData";
 import { useGigsFormat } from "../../data/useGigsFormat";
 import { BriefChallenges, type ChallengeWithdraw } from "./BriefChallenges";
 import { jumpTo, LinkRow } from "./BriefLinks";
+import { useResearch } from "./useResearch";
 
 // A gig's research brief as the proof's "Research brief" tab (docs/features/gigs/README.md
 // "Research"), read the way the registry's long-form-reading-surface subject asks:
@@ -33,27 +31,7 @@ const SOURCES_SECTION_ID = "sources-read";
 export function GigBriefPanel({ gig, onChanged, withdraw }: { gig: Gig; onChanged: AfterWrite; withdraw: ChallengeWithdraw }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
-  const resolveError = useErrorMessage();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // The answer of "Research again", shown in place until the list re-read carries it.
-  const [fresh, setFresh] = useState<{ gigId: string; brief: GigBrief } | null>(null);
-  const brief = fresh && fresh.gigId === gig.id && (!gig.brief || gig.brief.createdAt < fresh.brief.createdAt) ? fresh.brief : gig.brief;
-
-  async function research() {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    const res = await sendJson(`/api/gigs/${encodeURIComponent(gig.id)}/research`, "POST", {});
-    setBusy(false);
-    if (!res.ok) {
-      setError(resolveError(res.body as ApiErrorPayload | null, t("brief.failed")));
-      return;
-    }
-    const next = (res.body?.gig as Gig | undefined)?.brief ?? null;
-    if (next) setFresh({ gigId: gig.id, brief: next });
-    await onChanged(null);
-  }
+  const { brief, busy, error, research } = useResearch(gig, onChanged);
 
   const button = (
     <Button label={brief ? t("brief.researchAgain") : t("brief.research")} loading={busy} loadingLabel={t("brief.researching")} size="sm" variant="secondary" onClick={() => void research()} />

@@ -6,13 +6,14 @@ import { Button, Mark, Tag } from "@/app/_components/kit";
 import type { GigPlanRow } from "@/app/_lib/gigs/types";
 import { useGigsFormat } from "../../data/useGigsFormat";
 import { planDuration } from "../../logic/plans";
-import { PlanBody, PlanFailure, seatLabel } from "./PlanBody";
+import { planSeatLabel } from "@/app/_lib/gigs/plan-seats";
+import { PlanBody, PlanFailure } from "./PlanBody";
 
-// One seat's column on the Plans tab (PlansPanel.tsx): the seat, its state, what it cost
+// One seat's figure panel in the report's plans section (report/ReportPlans.tsx): the seat, its state, what it cost
 // (null = "cost not reported", never $0) and how long it took; then the plan, a quiet line
 // while it is still being written, or the reason it failed. Under a ready plan, while
 // nothing is accepted: an optional note and Accept this plan. Once one is accepted it is
-// marked and the other two are quieted but kept readable, so the comparison stays.
+// marked and the others are quieted but kept readable, so the comparison stays.
 
 export type ColumnState = "open" | "accepted" | "quiet";
 
@@ -37,7 +38,7 @@ export function PlanColumn({
   const t = useTranslations("gigs.plans");
   const fmt = useGigsFormat();
   const [note, setNote] = useState("");
-  const label = seatLabel(row);
+  const label = planSeatLabel(row);
   const status = t(`status.${row.status}`);
   const d = planDuration(row.durationMs);
   const cost = row.costUsd === null ? t("costNotReported") : fmt.usd(row.costUsd);

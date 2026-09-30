@@ -5,11 +5,14 @@ import { Mark, Tag } from "@/app/_components/kit";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { useGigsFormat } from "../../data/useGigsFormat";
 import type { SourceRow } from "../../logic/wire";
+import { ListingLanguage } from "../../shared/ListingLanguage";
 import { UntrustedText } from "../../shared/UntrustedText";
 import { Panel } from "./Panel";
 
 // The listing: a stranger's text, framed as untrusted, its invisible characters shown, the
-// suspect reasons explained. A suspect listing's URL stays text.
+// suspect reasons explained. A listing not in English carries its language tag and, above
+// the original, the research model's English translation (framed the same way). A suspect
+// listing's URL stays text.
 
 export function ListingPanel({ gig, source }: { gig: Gig; source: SourceRow | null }) {
   const t = useTranslations("gigs");
@@ -39,6 +42,7 @@ export function ListingPanel({ gig, source }: { gig: Gig; source: SourceRow | nu
           ))}
         </ul>
       ) : null}
+      <ListingLanguage brief={gig.brief} open />
       <UntrustedText gig={gig} source={source} />
       <div className="listing-foot">
         {gig.tags.length ? (

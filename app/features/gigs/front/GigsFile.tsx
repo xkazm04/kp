@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, type RefObject } from "react";
+import { useMemo, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import type { Gig } from "@/app/_lib/gigs/types";
-import { type FileFilter, fileRows, type FileStatus } from "../logic/file";
+import { type FileFilter, fileRows, type FileStatus, isClosedOut } from "../logic/file";
 import { isGigType } from "@/app/_lib/gigs/gig-type";
 import type { SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
@@ -15,9 +15,10 @@ import type { DeadlineCell, RewardCell } from "./useGigCells";
 
 // The whole file (B/3): every gig the tab read, filtered by status and arena chips (each
 // with its count), a lane (gig type) opened from Lanes, and `/` search; sorted by recency, deadline,
-// the scan's fit score, or reward WITHIN one currency (never converted, never compared
-// across); fifty to a page. A row opens the gig's proof, and ← / → then walk this list in
-// this order, across its pages.
+// the scan's fit score, or reward by its US-dollar value across currencies (the scan day's
+// rate, logic/file.ts rewardUsd; a reward with no dollar value sorts last); fifty to a
+// page. A row opens the gig's proof, and ← / → then walk this list in this order, across
+// its pages.
 //
 // Parts: FileFilters.tsx (the chips), FileTable.tsx (the sortable table), FilePager.tsx.
 
@@ -54,7 +55,12 @@ export function GigsFile({
 }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
-  const rows = useMemo(() => fileRows(gigs, filter, now), [gigs, filter, now]);
+  const [showClosed, setShowClosed] = useState(false);
+  // Asking for Expired or Left the line by chip is asking to see them.
+  const closedAsked = showClosed || filter.status === "expired" || filter.status === "exit";
+  const closedCount = useMemo(() => gigs.filter((g) => isClosedOut(g, now)).length, [gigs, now]);
+  const visible = useMemo(() => (closedAsked ? gigs : gigs.filter((g) => !isClosedOut(g, now))), [gigs, now, closedAsked]);
+  const rows = useMemo(() => fileRows(visible, filter, now), [visible, filter, now]);
   const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
   const at = Math.min(page, pages - 1);
   const slice = rows.slice(at * PER_PAGE, at * PER_PAGE + PER_PAGE);
@@ -77,6 +83,11 @@ export function GigsFile({
           {t("file.count", { shown: rows.length, total: gigs.length })}
           {truncated ? ` · ${t("file.truncated")}` : null}
         </span>
+        {closedCount > 0 ? (
+          <button type="button" className="chip" aria-pressed={closedAsked} disabled={filter.status === "expired" || filter.status === "exit"} onClick={() => setShowClosed((v) => !v)}>
+            {t("file.showClosed")} <b>{closedCount}</b>
+          </button>
+        ) : null}
         <label className="search">
           <span className="sr-only">{t("file.search")}</span>
           <input
@@ -111,7 +122,7 @@ export function GigsFile({
         deadline={deadline}
       />
 
-      <FilePager at={at} pages={pages} shown={rows.length} total={gigs.length} onPage={onPage} />
+      <FilePager at={at} pages={pages} shown={rows.length} total={visible.length} onPage={onPage} />
     </section>
   );
 }

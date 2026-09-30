@@ -20,7 +20,7 @@ const R2 = "2026-09-29T10:00:00.000Z";
 test("planRounds: rows fold into rounds newest first, each in the lineup's seat order", () => {
   const rounds = planRounds([row("s2", "sonnet", "ready", R2), row("f2", "fable", "running", R2), row("o1", "opus", "failed", R1), row("o2", "opus", "queued", R2)]);
   assert.deepEqual(rounds.map((r) => r.createdAt), [R2, R1]);
-  assert.deepEqual(rounds[0].rows.map((r) => r.seat), ["fable", "opus", "sonnet"]);
+  assert.deepEqual(rounds[0].rows.map((r) => r.seat), ["opus", "fable", "sonnet"]);
 });
 
 test("planView: the newest round, or the accepted plan's; ready counts the shown round; busy while any seat writes", () => {

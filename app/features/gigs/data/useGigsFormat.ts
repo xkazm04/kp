@@ -39,6 +39,10 @@ export function useGigsFormat() {
 
     const usd = (amount: number): string => format.number(amount, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
+    /** A dollar ESTIMATE (a reward converted at the scan day's rate): whole dollars, since
+     *  cents would claim a precision the conversion does not have. */
+    const usdAbout = (amount: number): string => format.number(amount, { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
     const percent = (whole: number): string => format.number(whole / 100, { style: "percent", maximumFractionDigits: 0 });
 
     const relative = (iso: string | null, now: Date): string | null => {
@@ -60,6 +64,7 @@ export function useGigsFormat() {
       money,
       number,
       usd,
+      usdAbout,
       percent,
       relative,
       date: (iso: string | null) => dates.date(iso),

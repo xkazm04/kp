@@ -6,7 +6,7 @@ import type { Gig, GigAttempt } from "@/app/_lib/gigs/types";
 import type { FileFilter } from "../logic/file";
 import { firstClosing, type FrontColumn } from "../logic/front";
 import type { Niche } from "../logic/niches";
-import type { SourceRow } from "../logic/wire";
+import type { AfterWrite, SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { FrontIndex } from "./FrontIndex";
 import { FrontLead } from "./FrontLead";
@@ -41,6 +41,7 @@ export function GigsFront({
   lastOpened,
   onOpen,
   onToWires,
+  onChanged,
 }: {
   gigs: readonly Gig[];
   attemptsByGig: Readonly<Record<string, GigAttempt>>;
@@ -59,6 +60,7 @@ export function GigsFront({
   lastOpened: string | null;
   onOpen: (gigId: string, list: ProofList) => void;
   onToWires: () => void;
+  onChanged: AfterWrite;
 }) {
   const t = useTranslations("gigs");
   const { reward, deadline } = useGigCells(now);
@@ -70,6 +72,7 @@ export function GigsFront({
   const closing = firstClosing(queue, now);
   const out = gigs.filter((g) => g.status === "sent").length;
   const lead = queue[0] ?? null;
+  const fresh = useMemo(() => gigs.filter((g) => g.status === "new"), [gigs]);
 
   const nicheOf = (g: Gig) => {
     const id = attemptsByGig[g.id]?.specialistId ?? g.specialistId;
@@ -104,7 +107,7 @@ export function GigsFront({
 
       {lead ? <FrontLead gig={lead} attempt={attemptsByGig[lead.id] ?? null} source={lead.sourceId ? (sourceById.get(lead.sourceId) ?? null) : null} niche={nicheOf(lead)} now={now} reward={reward} deadline={deadline} onOpen={() => onOpen(lead.id, { ids: queue.map((g) => g.id), label: t("head.waitList") })} /> : null}
 
-      <FrontIndex columns={columns} attemptsByGig={attemptsByGig} sourceById={sourceById} now={now} lastOpened={lastOpened} nicheOf={nicheOf} reward={reward} deadline={deadline} onOpen={onOpen} />
+      <FrontIndex columns={columns} fresh={fresh} onChanged={onChanged} attemptsByGig={attemptsByGig} sourceById={sourceById} now={now} lastOpened={lastOpened} nicheOf={nicheOf} reward={reward} deadline={deadline} onOpen={onOpen} />
 
       <hr className="rule-double" />
       <GigsFile

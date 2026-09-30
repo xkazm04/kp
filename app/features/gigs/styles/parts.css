@@ -78,3 +78,8 @@
 .gd .pop .pi { display: grid; grid-template-columns: 2.125rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.625rem; border-radius: 0.375rem; }
 .gd .pop .pi + .pi { border-top: 1px solid var(--gd-rule); }
 .gd .pop .pi .d { display: block; font-size: 0.875rem; color: var(--gd-quiet); }
+/* a reward's dollar estimate beside the listing's own figure (front/useGigCells.tsx): quiet, an estimate */
+.gd .est { margin-left: 0.375rem; font-weight: 400; color: var(--gd-quiet); white-space: nowrap; }
+.gd .est-tip { vertical-align: baseline; }
+.gd table.file td .est-tip { display: flex; justify-content: flex-end; }
+.gd table.file td .est { margin-left: 0; }

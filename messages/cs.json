@@ -14090,6 +14090,14 @@
       "off_platform_payment": "Inzerát přesouvá platbu nebo kontakt mimo platformu: Telegram, WhatsApp, kryptoměny, dárkové karty, adresa peněženky.",
       "agent_addressed": "Text mluví přímo k AI čtenáři, jak to dělají pasti na agenty."
     },
+    "declineReason": {
+      "not_digital_work": "Nejde o digitální práci"
+    },
+    "declinedBy": {
+      "rule": "Odmítnuto při kvalifikaci: štítky i text inzerátu popisují fyzickou práci (zboží, sourcing, doručení nebo přítomnost na místě).",
+      "model": "Odmítnuto při průzkumu: brief zjistil práci, kterou agent u počítače nedodá.",
+      "evidence": "Shoda: {evidence}"
+    },
     "paused": {
       "blocked": "Pozastaveno: hostitel odepřel přístup",
       "collapsed": "Pozastaveno: zdroj přestal odpovídat",
@@ -14643,12 +14651,24 @@
         "record": "odpověděl posuzovatel?"
       },
       "colEmpty": "Teď tu nic není.",
+      "new": {
+        "title": "Nové",
+        "who": "přijmete, nebo odmítnete",
+        "accept": "Přijmout „{title}“",
+        "reject": "Odmítnout „{title}“",
+        "acceptShort": "Přijmout",
+        "rejectShort": "Odmítnout",
+        "acceptedFlash": "Přijato: „{title}“.",
+        "rejectedFlash": "Odmítnuto: „{title}“."
+      },
       "more": "dalších {count, number} ↓",
       "rewardNone": "odměna neuvedena",
       "deadlineNone": "bez termínu",
       "closed": "uzavřeno",
       "daysLeft": "{days, plural, =0 {končí dnes} one {zbývá # den} few {zbývají # dny} other {zbývá # dní}}",
-      "closesIn": "{days, plural, =0 {končí dnes} one {končí za # den} few {končí za # dny} other {končí za # dní}}"
+      "closesIn": "{days, plural, =0 {končí dnes} one {končí za # den} few {končí za # dny} other {končí za # dní}}",
+      "rewardUsd": "≈ {usd}",
+      "rewardRate": "kurzem ze dne {date}"
     },
     "file": {
       "title": "Celý archiv",
@@ -14663,6 +14683,7 @@
       "lane": "Dráha: {lane}",
       "laneClear": "Dráha {lane}: zobrazit všechny dráhy",
       "neverRun": "{arena}: zdroj ještě nikdy neběžel, takže to není nula nalezených",
+      "showClosed": "Zobrazit prošlé a uzavřené",
       "colStatus": "Stav",
       "colListing": "Nabídka",
       "colArena": "Oblast",
@@ -14708,13 +14729,7 @@
       "stampNoDeliverable": "Bez výstupu",
       "stampEmpty": "Text konceptu je prázdný",
       "stampEmptyBody": "Výstup neobsahuje žádný text k odeslání.",
-      "summaryLabel": "Shrnutí",
-      "aboutLabel": "O co v zakázce jde",
-      "listingLabel": "Nabídka, nedůvěryhodný text",
-      "category": "Kategorie",
-      "listingRef": "Nabídka",
-      "tags": "Štítky",
-      "moreTags": "+{count, number} další"
+      "summaryLabel": "Shrnutí"
     },
     "slip": {
       "label": "Kontrolní lístek",
@@ -14776,14 +14791,13 @@
       "running": "U specialisty {name} od {when}. Koncept přistane tady."
     },
     "back": {
-      "evidence": "Důkazy",
       "failedN": "{count, number} selhalo",
       "review": "Kontrola před odesláním",
       "byAgent": "Kontrolní agent",
       "byAgentCycle": "Kontrolní agent · cyklus {cycle}",
       "byReviewer": "Kontrola",
       "yourNote": "Vaše poznámka",
-      "noReview": "K tomuto konceptu nebyla zaznamenána žádná kontrola.",
+      "noReview": "Kontrola před odesláním zatím neproběhla.",
       "warningsYouDecide": "Varování: rozhodujete vy",
       "noteWord": "Poznámka",
       "checks": "Co kontrola spustila · {count, number}",
@@ -14940,9 +14954,6 @@
     },
     "tabs": {
       "label": "Části konceptu",
-      "draft": "Koncept",
-      "noEvidenceYet": "Zatím se nevrátil žádný koncept, takže nejsou žádné důkazy.",
-      "evidenceSub": "{count, plural, one {# věc, kterou agent podle svých slov spustil} few {# věci, které agent podle svých slov spustil} other {# věcí, které agent podle svých slov spustil}}",
       "passed": "Prošlo",
       "failed": "Selhalo",
       "unverified": "Neověřeno",
@@ -14970,21 +14981,15 @@
       }
     },
     "plans": {
-      "tab": "Plány",
       "readyTip": "{count, plural, one {# plán je připraven k přijetí} few {# plány jsou připraveny k přijetí} many {# plánu je připraveno k přijetí} other {# plánů je připraveno k přijetí}}",
-      "title": "Plány",
       "roundOf": "Navrženo {date}",
       "loading": "Načítám plány…",
       "loadFailed": "Plány se nepodařilo načíst.",
-      "noBrief": "Plány vycházejí z rešerše a tato zakázka ji zatím nemá. Nejprve proveďte rešerši na kartě Rešerše.",
       "emptyTitle": "Zatím žádné plány",
-      "what": "Tři modely napíšou každý svůj plán: Fable 5, Opus 5.5 s mimořádně vysokým úsilím a Sonnet 5.5 s vysokým úsilím. Vy jeden přijmete a předat lze jen přijatý plán.",
-      "cost": "Jedno kolo jsou tři volání modelu. Každý sloupec ukazuje, kolik jeho volání stálo.",
-      "propose": "Navrhnout plány",
       "proposeAgain": "Navrhnout znovu",
       "retry": "Zkusit znovu",
-      "retryTip": "Nové kolo: všechny tři modely píšou znovu.",
-      "proposedFlash": "Tři modely píšou plány. Sloupce se zaplní, jakmile každý z nich skončí.",
+      "retryTip": "Nové kolo: všechna místa píšou znovu.",
+      "proposedFlash": "{count, plural, one {Plán se píše. Jeho sloupec se zaplní, až bude hotový.} few {# modely píšou plány. Sloupce se zaplní, jakmile každý skončí.} many {# modelu píše plány. Sloupce se zaplní, jakmile každý skončí.} other {# modelů píše plány. Sloupce se zaplní, jakmile každý skončí.}}",
       "proposeFailed": "Plány se nepodařilo vyžádat.",
       "columnLabel": "{seat}: {status}",
       "status": {
@@ -15027,7 +15032,7 @@
       "gateReason": "Nejprve přijměte plán",
       "gateBody": "Předání svěří přijatý plán vlastnímu agentovi zakázky.",
       "gateChecking": "Kontroluji plány zakázky…",
-      "openPlans": "Otevřít Plány"
+      "openPlans": "Přejít na plány"
     },
     "pairing": {
       "tab": "Párování",
@@ -15063,6 +15068,134 @@
       "pendingFlash": "Párování: vzniká vlastní agent zakázky. Začne, až ho Personas schválí.",
       "itsOwnAgent": "vlastnímu agentovi",
       "dispatchHint": "Předání vytvoří vlastního agenta této zakázky ({model}) a svěří mu přijatý plán."
+    },
+    "report": {
+      "label": "Zpráva o zakázce",
+      "figure": "Obrázek {n, number}.",
+      "source": "Zdroj: {source}.",
+      "sec": {
+        "gig": "Zakázka",
+        "asks": "Co požaduje",
+        "plans": "Plány",
+        "progress": "Postup",
+        "draft": "Koncept",
+        "evidence": "Důkazy",
+        "record": "Záznam"
+      },
+      "pending": {
+        "asks": "objeví se po rešerši zakázky",
+        "progress": "objeví se po spárování zakázky",
+        "draft": "objeví se, až agent napíše koncept",
+        "evidence": "objeví se s prvním konceptem",
+        "record": "objeví se po prvním pokusu"
+      },
+      "index": {
+        "label": "Obsah zprávy",
+        "railLabel": "Přejít na oddíl",
+        "title": "V této zprávě"
+      },
+      "note": {
+        "asks": "{asks, plural, =0 {bez uvedených požadavků} one {# požadavek} few {# požadavky} many {# požadavku} other {# požadavků}} · {challenges, plural, =0 {bez uvedených úskalí} one {# úskalí} few {# úskalí} many {# úskalí} other {# úskalí}}",
+        "plans": "{count, plural, one {# plán} few {# plány} many {# plánu} other {# plánů}} · {accepted, select, yes {jeden přijatý} other {zatím žádný přijatý}}",
+        "noPlans": "zatím žádné plány: vygenerujte je zde",
+        "researchFirst": "nejprve proveďte rešerši zakázky",
+        "progress": "hotovo {pct, number} % · {done, number} z {total, number} cílů",
+        "evidence": "{count, plural, one {# kontrola} few {# kontroly} many {# kontroly} other {# kontrol}} · {failed, plural, =0 {žádná neselhala} one {# selhala} few {# selhaly} many {# selhalo} other {# selhalo}}",
+        "record": "{count, plural, one {# pokus} few {# pokusy} many {# pokusu} other {# pokusů}}"
+      },
+      "hero": {
+        "listedAs": "Inzerováno jako „{title}“",
+        "opening": "Začátek nabídky, jak ji napsal cizí člověk",
+        "wholeListing": "Přečíst celou nabídku",
+        "fromDraft": "Ze shrnutí konceptu od agenta",
+        "fromBrief": "Z rešerše",
+        "work": {
+          "mixed": "Zčásti mimo počítač",
+          "physical": "Vyžaduje práci v reálném světě",
+          "noReason": "Rešerše neuvádí proč."
+        }
+      },
+      "stat": {
+        "rewardAsStated": "jak ji uvádí nabídka",
+        "rewardEstimate": "≈ {usd} kurzem ze dne {date}",
+        "closed": "Uzavřeno",
+        "daysLeft": "{count, plural, one {den zbývá} few {dny zbývají} many {dne zbývá} other {dní zbývá}}",
+        "closesOn": "končí {date}",
+        "ratedAtResearch": "hodnotí se při rešerši",
+        "fit": "Shoda, ze 100",
+        "spend": "Dosud utraceno",
+        "plansPart": "plány {usd}",
+        "draftsPart": "koncepty {usd}",
+        "unreported": "{count, plural, one {# volání bez nahlášených nákladů} few {# volání bez nahlášených nákladů} many {# volání bez nahlášených nákladů} other {# volání bez nahlášených nákladů}}",
+        "nothingRan": "zatím nic neběželo"
+      },
+      "asks": {
+        "title": "Co požaduje",
+        "challenges": "Očekávaná úskalí",
+        "none": "Nabídka neuvádí žádné výstupy.",
+        "noChallenges": "Žádná neuvedena.",
+        "caption": "Co nabídka požaduje a vedle toho, co se může pokazit.",
+        "source": "rešerše, {date}"
+      },
+      "plans": {
+        "researchFirst": "Nejprve proveďte rešerši zakázky",
+        "researchBody": "Plány vycházejí z rešerše a tato zakázka ji zatím nemá.",
+        "lineup": "Obtížnost: {difficulty}. {count, plural, one {Píše se jeden plán, autor {models}.} few {# modely píšou každý svůj plán: {models}.} many {# modelu píše každý svůj plán: {models}.} other {# modelů píše každý svůj plán: {models}.}}",
+        "gate": "Přijmete jeden plán a předat lze jen přijatý plán. U každého plánu je vidět, kolik stálo jeho volání modelu.",
+        "generate": "Vygenerovat plány",
+        "caption": "{count, plural, one {Plán s kroky, rozhodnutími a riziky.} few {# plány vedle sebe, každý s kroky, rozhodnutími a riziky.} many {# plánu vedle sebe, každý s kroky, rozhodnutími a riziky.} other {# plánů vedle sebe, každý s kroky, rozhodnutími a riziky.}}",
+        "source": "{models}; náklady tak, jak je nahlásilo každé volání"
+      },
+      "progress": {
+        "whole": "milníku hotovo",
+        "noReport": "agent zatím nic nenahlásil",
+        "ofTotal": "{done, number}/{total, number}",
+        "goalsDone": "cílů hotovo",
+        "goalsCaption": "cíl je hotový, když ho agent nahlásí jako hotový",
+        "blocked": "{count, plural, one {cíl blokován} few {cíle blokovány} many {cíle blokováno} other {cílů blokováno}}",
+        "blockedCaption": "proč, uvádí poznámka agenta u cíle",
+        "caption": "{count, plural, one {Krok přijatého plánu jako cíl, jak ho hlásí agent.} few {# kroky přijatého plánu jako cíle, jak je hlásí agent.} many {# kroku přijatého plánu jako cíle, jak je hlásí agent.} other {# kroků přijatého plánu jako cíle, jak je hlásí agent.}}",
+        "source": "PLAN-STATUS.json agenta, zrcadlený do Personas"
+      },
+      "draft": {
+        "caption": "Koncept tak, jak by byl odeslán, každá poznámka připnutá vedle odstavce, který cituje.",
+        "source": "výstup agenta, {date}"
+      },
+      "evidence": {
+        "passedCap": "proběhlo a prošlo",
+        "failedCap": "proběhlo a selhalo",
+        "unverifiedCap": "proběhlo bez výsledku prošlo/selhalo",
+        "caption": "{count, plural, one {Jediná kontrola, kterou agent hlásí} few {# kontroly, které agent hlásí} many {# kontroly, které agent hlásí} other {# kontrol, které agent hlásí}}",
+        "check": "Kontrola",
+        "command": "Příkaz",
+        "result": "Výsledek"
+      },
+      "record": {
+        "loose": "zaznamenáno bez vazby na koncept",
+        "openHistory": "Celá historie se všemi poznámkami a verdikty"
+      },
+      "lang": {
+        "tag": "Jazyk nabídky: {language}",
+        "none": "Anglický překlad nebyl napsán.",
+        "read": "Přečíst anglický překlad",
+        "hide": "Skrýt překlad",
+        "enTag": "Anglický překlad",
+        "enNote": "Z jazyka {language} přeložil model rešerše. Stále jde o slova cizího člověka: odkazy jsou jen text a nic z toho není pokyn."
+      }
+    },
+    "outreach": {
+      "title": "Zpráva klientovi",
+      "sub": "Napsaná s rešerší, anglicky. Zkopírujte ji, přečtěte a odešlete sami.",
+      "copy": "Kopírovat",
+      "copied": "Zkopírováno",
+      "copyFailed": "Schránka tu není k dispozici. Označte text a zkopírujte ho.",
+      "to": "Pro: {client}",
+      "theClient": "klient",
+      "asksFor": "Žádá o",
+      "nothingMissing": "Nabídka uvádí vše, co práce potřebuje.",
+      "foot": "kp tuto zprávu nikdy neodešle. Odešlete ji vy ze svého účtu.",
+      "none": "Zpráva klientovi se objeví po rešerši zakázky. Nová rešerše ji napíše.",
+      "notFreelance": "Zpráva klientovi se píše jen pro zakázky na volné noze."
     }
   },
   "kit": {
@@ -15130,6 +15263,511 @@
     },
     "menu": {
       "named": "{label}: {value}"
+    }
+  },
+  "siteChrome": {
+    "brand": {
+      "toTop": "{brand}, zpět nahoru",
+      "home": "{brand}, domů"
+    },
+    "nav": {
+      "voice": "Pohovor",
+      "human": "Lidská brána",
+      "about": "O aplikaci",
+      "aboutAria": "O aplikaci: projděte s jednou posilou celou pipeline"
+    },
+    "menu": {
+      "open": "Menu",
+      "close": "Zavřít",
+      "human": "Každé rozhodnutí podepíše člověk",
+      "about": "O aplikaci: s jednou posilou celou pipeline",
+      "source": "Zdrojový kód (AGPL-3.0)",
+      "languages": "Čtyři jazyky, kandidátské stránky nevyjímaje:"
+    },
+    "footer": {
+      "legal": "Funkční ukázka: odráží návrh a kontrolní mechanismy produktu, ne právní certifikaci. Všechny osoby jmenované na této stránce jsou smyšlené; kreslené obrazovky produktu jsou stylizované ilustrace, ne snímky obrazovky."
+    },
+    "skip": {
+      "land": "Přeskočit na devět funkcí",
+      "about": "Přeskočit na linku"
+    },
+    "stepper": {
+      "previous": "Předchozí",
+      "next": "Další",
+      "previousTo": "Předchozí: {name}",
+      "nextTo": "Další: {name}"
+    }
+  },
+  "siteLand": {
+    "hero": {
+      "lede": "Každé CV přečtené a porovnané s pozicí. Slibní kandidáti na pohovoru ještě týž den. Termíny domluvené, nabídky připravené a nástup zapečetěný ve chvíli, kdy kandidát nabídku přijme. Vy posoudíte rozhodnutí, na kterých záleží; rutina se k vám vůbec nedostane.",
+      "noteOff": "Přepněte vypínač. Hromada se roztřídí sama.",
+      "noteOn": "Roztříděno. Jedno rozhodnutí čeká na člověka.",
+      "noteSample": "ukázkoví kandidáti · stylizováno",
+      "scoreLink": "Proč má {name} {score}",
+      "pileLabel": "Tři ukázkoví kandidáti",
+      "signPass": "Podepsat",
+      "liveOn": "Autopilot zapnutý. Tři ukázková CV jsou ohodnocená. Jedno zamítnutí čeká na lidský podpis.",
+      "liveOff": "Autopilot vypnutý.",
+      "liveSigned": "Podpis: {name} (ukázka). Zamítnutí je teď lidské rozhodnutí."
+    },
+    "marquee": {
+      "label": "Co studio umí"
+    },
+    "proof": {
+      "stageLabel": "Stylizované ilustrace tří pilířů důkazu",
+      "stylised": "stylizováno",
+      "signedBy": "podepsal konkrétní člověk",
+      "pillars": {
+        "samples": {
+          "label": "ukázka",
+          "caption": "ukázka · nastražené chyby, prompty v záznamu"
+        },
+        "defend": {
+          "label": "pohovor",
+          "caption": "pohovor · dvě skutečná rozhodnutí, obhájená"
+        },
+        "sealed": {
+          "label": "pečeť",
+          "caption": "pečeť · konkrétní člověk, řetězec odolný proti manipulaci"
+        }
+      }
+    },
+    "voice": {
+      "caption": "stylizovaná ilustrace · ukázkový přepis"
+    },
+    "human": {
+      "evidence": "důkazy přiloženy",
+      "signAs": "Podepsat jako {name}",
+      "replay": "přehrát znovu",
+      "gate": {
+        "approaching": "{name} (ukázka) míří k bráně.",
+        "arrives": "{name} (ukázka) dorazila.",
+        "scored": "AI přečte a ohodnotí její CV: shoda {fit}, důkazy přiloženy.",
+        "waiting": "Lidská brána. {name} (ukázka) čeká na vás. Dál ji může posunout jen člověk.",
+        "signed": "Podepsáno · {signer} (ukázka). Postupuje dál a u rozhodnutí zůstane doklad."
+      },
+      "legendLocked": "zamčeno, nikdy se nedeleguje",
+      "legendDelegable": "dá se delegovat",
+      "logNone": "Nic neběží bez dozoru: každá fáze čeká na člověka.",
+      "logOne": "Teď bez dozoru: {stage}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo.",
+      "logTwo": "Teď bez dozoru: {first} a {second}. Každý takový krok se zaznamená i s pravidlem, které ho povolilo."
+    },
+    "pricing": {
+      "lead": "Celý produkt má otevřený kód. Plány kupují cizí servery. Vlastní instalace je plnohodnotný produkt, ne zkušební verze; hostované plány účtují výsledky: pozici uvedenou na trh a přijatého člověka.",
+      "selfhostModels": "Vaše modely: lokální nebo kompatibilní servery, jak chcete",
+      "toEnterprise": "Nábor v celé firmě? Viz Enterprise"
+    },
+    "enterprise": {
+      "legendRepo": "v repozitáři už dnes",
+      "legendDelivered": "dodáme my",
+      "legendPlanned": "v plánu, zatím nehotové",
+      "statsLabel": "Čas náboru podle oborových studií"
+    },
+    "spine": {
+      "label": "Kde na stránce jste",
+      "sections": {
+        "top": "Úvod",
+        "enterprise": "Enterprise",
+        "start": "Začít"
+      },
+      "stages": {
+        "scored": "skóre {score}",
+        "routed": "nasměrována",
+        "voice": "hlasový screening",
+        "gate": "u brány",
+        "signed": "podepsáno",
+        "sealed": "zapečetěno",
+        "hired": "přijata"
+      }
+    }
+  },
+  "siteFeatures": {
+    "_note": "The landing's features band (a ring of nine medallions), the full-screen scene each one opens, and the stylised product panels inside the scenes. Feature names and bodies are reused from landing.features.*. Panels show invented sample people (Jana N., Petr K., Alex T., M. Horáková): keep the names as they are. {name} is always a person's name, {slot} a weekday plus a clock time, {n}/{total} are counts.",
+    "band": {
+      "hint": "otevřete kterýkoli medailon: všechno je hotové už dnes, bez hvězdiček",
+      "cta": "Vstupte dovnitř: začněte u schránky",
+      "stage": "Fáze {n} z {total}",
+      "open": "klikněte a vstupte",
+      "medal": "{name}, {n} z {total}. Otevře vlastní scénu."
+    },
+    "items": {
+      "inbox": {
+        "line": "Pět dveří, jedna startovní čára.",
+        "pin1": "Portál pro uchazeče, e-mail, job boardy",
+        "pin2": "Sourcing a ruční přidání",
+        "pin3": "Jedna pipeline, stejná startovní čára"
+      },
+      "score": {
+        "line": "Shoda 0–100, i s důkazy.",
+        "pin1": "Skóre shody 0–100 pro každé CV",
+        "pin2": "Důkazy, které ho podloží",
+        "pin3": "Porovnání verzí CV vedle sebe"
+      },
+      "rediscover": {
+        "line": "Kdo minule skončil těsně druhý, je teď první.",
+        "pin1": "Nová pozice přeskóruje všechny, kdo se kdy přihlásili",
+        "pin2": "Kdo minule skončil těsně druhý, se objeví první",
+        "pin3": "Žádné další výdaje za sourcing"
+      },
+      "voice": {
+        "line": "Ptá se. Poslouchá. Napíše scorecard.",
+        "pin1": "Ptá se na skutečné zkušenosti",
+        "pin2": "Česky nebo anglicky",
+        "pin3": "Scorecard vám napíše sám"
+      },
+      "cases": {
+        "line": "AI je povolená. Delegování je vidět.",
+        "pin1": "Nastražené chyby se známým řešením",
+        "pin2": "Prompty, které kandidát skutečně použil",
+        "pin3": "Pohovor, na kterém obhájí vlastní rozhodnutí"
+      },
+      "schedule": {
+        "line": "Termín si vyberou sami. Žádný kalendářový ping-pong.",
+        "pin1": "Kandidáti si vyberou vlastní termín z odkazu",
+        "pin2": "Žádný kalendářový ping-pong přes reply-all",
+        "pin3": "Žádná ztracená časová pásma"
+      },
+      "salary": {
+        "line": "Opřeno o trh, takže nabídka sedne napoprvé.",
+        "pin1": "Mzdová pásma opřená o český trh",
+        "pin2": "Upravená podle typu firmy",
+        "pin3": "Vaše nabídka sedne napoprvé"
+      },
+      "offer": {
+        "line": "Podepíše člověk. Přijetí to zapečetí.",
+        "pin1": "Deterministické: pásmo pozice × shoda, v čísle žádný model",
+        "pin2": "Dopis se napíše sám; podepíše ho člověk",
+        "pin3": "Přijetí zapečetí nástup a propíše ho do vašeho ATS"
+      },
+      "gates": {
+        "line": "U každého rozhodnutí zůstane doklad.",
+        "pin1": "Úplná auditní stopa",
+        "pin2": "Nouzová brzda",
+        "pin3": "AI doporučuje, lidé rozhodují a u každého rozhodnutí zůstane doklad"
+      }
+    },
+    "scene": {
+      "back": "Zpět na přehled funkcí",
+      "backToScene": "Zpět na scénu",
+      "backShort": "Zpět",
+      "crumbs": "Kde jste",
+      "crumbLook": "Zblízka",
+      "count": "<b>{n}</b> z {total}",
+      "look": "Podívat se zblízka",
+      "lookBack": "Zpět na scénu",
+      "pins": "Co umí",
+      "stepper": "Devět funkcí",
+      "dots": "Všech devět funkcí",
+      "dot": "{name}, {n} z {total}",
+      "caption": "stylizovaná ilustrace · ukázková data"
+    },
+    "b1": {
+      "score": {
+        "say": "silná shoda · sada otázek na pohovor už je připravená"
+      },
+      "rediscover": {
+        "role": "Nová pozice: React Developer",
+        "rescoring": "znovu se hodnotí všichni, kdo se kdy přihlásili…",
+        "medallist": "Těsně druhé místo",
+        "medallistMeta": "přihláška před 8 měsíci · už vám jednou řekl/a ano",
+        "first": "objeví se první",
+        "earlier": "Dřívější přihláška",
+        "earlierMeta": "znovu ohodnocená podle nové pozice",
+        "noSpend": "žádné další výdaje za sourcing"
+      },
+      "schedule": {
+        "say": "vybráno z odkazu · {slot} · v jejich časovém pásmu"
+      }
+    },
+    "kit": {
+      "replay": "přehrát znovu",
+      "pause": "pozastavit",
+      "play": "přehrát",
+      "dots": "{n} z 5",
+      "sample": "ukázka",
+      "candidateChip": "{name} · React Developer",
+      "who": {
+        "machine": "stroj",
+        "candidate": "kandidát",
+        "person": "člověk"
+      }
+    },
+    "voice": {
+      "live": "živě · 4 min 12 s",
+      "transcript": "ukázkový přepis",
+      "interviewer": "Tazatel",
+      "candidate": "Kandidát",
+      "q1": "Nasadili jste Reactovou aplikaci pro školní projekt. Co se rozbilo jako první, když přišli skuteční uživatelé?",
+      "a1": "Upřímně? Správa stavu. Přepsal jsem ji dvakrát, než jsem pochopil proč…",
+      "q2": "Paráda. Popište mi ten druhý přepis krok za krokem.",
+      "a2": "První verze měla všechno v jedné velké komponentě. Oddělil jsem data od zobrazení, takže jedna změna přestala rozbíjet tři další.",
+      "q3": "Co byste zkontrolovali, než to nasadíte znovu?",
+      "a3": "Nejdřív bych napsal test, který selže, a pak chybu opravil. A požádal bych spolužáka, ať se to pokusí rozbít.",
+      "q4": "V čem si jste dnes nejméně jistí?",
+      "a4": "Cachování na serveru. Zatím jsem o něm jen četl.",
+      "scorecard": "Scorecard · ukázka",
+      "scorecardFull": "Strukturovaný scorecard · ukázka",
+      "crit": {
+        "depth": "Hloubka praxe",
+        "depthNote": "Opírá se o skutečně odvedenou práci.",
+        "solving": "Řešení problémů",
+        "solvingNote": "Dobere se příčiny, pak navrhne opravu.",
+        "communication": "Komunikace",
+        "communicationNote": "Jasné, přímé odpovědi.",
+        "ownership": "Odpovědnost",
+        "ownershipNote": "Hlásí se k přepisu i k jeho ceně."
+      },
+      "chipLanguages": "Česky i anglicky, podle jejich volby",
+      "chipGrounded": "Otázky vycházející z jejich zkušeností",
+      "chipTranscript": "Živý přepis, strukturovaný scorecard"
+    },
+    "work": {
+      "title": "Pracovní ukázka",
+      "sub": "počítá s tím, že kód psala AI",
+      "codeLabel": "Ukázkový kód s jednou nastraženou chybou na řádku 5",
+      "flag": "nastražená chyba · známé řešení",
+      "promptsTitle": "Skutečně použité prompty",
+      "prompt1": "napiš pomocnou funkci na stránkování",
+      "prompt2": "přidej k ní testy",
+      "prompt3": "proč se na stránce 3 opakuje řádek?",
+      "prompt4": "zkrať to",
+      "distTitle": "Odstup od holého one-shotu",
+      "distFrom": "holý one-shot",
+      "distTo": "tento kandidát",
+      "delegation": "Delegování je vidět",
+      "detailTitle": "Průběh práce v záznamu",
+      "timeline": "Prompt po promptu",
+      "note1": "Bere první návrh.",
+      "note2": "Testy projdou; prázdný seznam pokrytý není.",
+      "note3": "Dohledá chybu až ke konci výřezu.",
+      "note4": "Než výsledek ponechá, znovu si ho přečte.",
+      "flawsTitle": "Nastražené chyby · ukázka",
+      "flaw1": "Chyba o jedničku ve výřezu stránky",
+      "flaw2": "Prázdný seznam funkci shodí",
+      "flaw3": "Velikost stránky natvrdo v kódu",
+      "caught": "odhaleno",
+      "missed": "přehlédnuto",
+      "decisionsTitle": "Dvě rozhodnutí k obhájení, nahlas",
+      "decision1": "Malá pomocná funkce místo další knihovny.",
+      "decision2": "Nejdřív test, který selže, pak oprava.",
+      "decisionsNote": "Hlasový pohovor vychází z odevzdané práce, česky nebo anglicky."
+    },
+    "inbox": {
+      "detailTitle": "Pět cest dovnitř, jedna startovní čára",
+      "doors": {
+        "apply": "Kandidáti se přihlásí na vaší stránce; CV dorazí jako karta.",
+        "email": "CV poslané e-mailem se načte do stejné karty.",
+        "boards": "Přihlášky na vaše inzerované pozice přicházejí stejnou cestou.",
+        "sourcing": "Lidé, které najdete, jdou rovnou do pipeline.",
+        "manual": "Když někoho přidáte ručně, startuje ze stejné čáry."
+      },
+      "stage1": "Přijde CV",
+      "stage2": "AI čte a hodnotí",
+      "stage3": "Lidská brána",
+      "stage4": "Postupuje dál",
+      "sameLine": "stejná startovní čára"
+    },
+    "salary": {
+      "market": "Český trh",
+      "marketBand": "Tržní pásmo",
+      "adjustedBand": "Upravené pásmo",
+      "min": "min",
+      "typical": "obvyklá",
+      "max": "max",
+      "shift": "upraveno podle typu firmy",
+      "foot": "aby vaše nabídka sedla napoprvé",
+      "detailTitle": "Minimum, obvyklá mzda, maximum",
+      "line1": "Začněte pásmem českého trhu pro danou pozici.",
+      "line2": "Posuňte ho podle typu vaší firmy.",
+      "line3": "Nabídněte částku uvnitř pásma, aby sedla napoprvé.",
+      "note": "Náčrt nemá žádná čísla: značky ukazují tvar, ne mzdu."
+    },
+    "offer": {
+      "title": "Nabídkový dopis",
+      "letterLabel": "Nabídkový dopis, ukázka",
+      "draft": "koncept",
+      "signed": "podepsáno",
+      "formula": "pásmo pozice × shoda · číslo bez LLM",
+      "awaiting": "čeká na podpis člověka",
+      "signedBy": "podpis: {name} (ukázka)",
+      "stamp": "SCHVÁLIL ČLOVĚK",
+      "sign": "PODEPSAT",
+      "hintWaiting": "čeká, až ho člověk podepíše",
+      "hintSigned": "podepsáno · {name} (ukázka)",
+      "ladderLabel": "Co následuje po podpisu",
+      "accepted": "přijato",
+      "acceptedVia": "přes zabezpečený odkaz",
+      "sealed": "zapečetěno",
+      "mirrored": "propsáno do napojeného ATS",
+      "waiting": "čeká",
+      "done": "hotovo",
+      "liveSigned": "Podpis: {name} (ukázka). Čeká se na kandidáta.",
+      "liveAccepted": "Nabídka přijata přes zabezpečený odkaz.",
+      "liveSealed": "Nástup je zapečetěný a propsaný do napojeného ATS.",
+      "detailTitle": "Čtyři kroky, jeden podpis",
+      "pathLabel": "Co udělá kandidát",
+      "accepts": "přijme",
+      "declines": "odmítne",
+      "flowLabel": "Od nabídky k zapečetěnému nástupu, čtyři kroky",
+      "flow1": "Dopis se napíše sám",
+      "flow1Text": "Částka je pásmo pozice × shoda. V čísle není žádný model.",
+      "flow2": "Podepíše ho člověk",
+      "flow2Text": "Člověk si koncept přečte a podepíše. Podpis nese jeho jméno.",
+      "flow3": "Kandidát odpoví",
+      "flow3Text": "Přes zabezpečený odkaz nabídku přijme, nebo odmítne.",
+      "flow4": "Zapečetěno a propsáno",
+      "flow4Text": "Přijetí zapečetí nástup a propíše ho do napojeného ATS.",
+      "declined": "odmítnuto",
+      "notReached": "nedosaženo",
+      "mini": "Podepsaný dopis · ukázka",
+      "branchTitle": "Když kandidát odmítne",
+      "branchText": "Po odmítnutí se žádný nástup nezapečetí.",
+      "liveAccept": "Nabídka přijata. Nástup je zapečetěný a propsaný do napojeného ATS.",
+      "liveDecline": "Nabídka odmítnuta. Žádný nástup se nezapečetí."
+    },
+    "gates": {
+      "title": "Auditní stopa",
+      "chain": "řetězec odolný proti manipulaci",
+      "advance": "postup",
+      "kindPass": "laskavé zamítnutí",
+      "offer": "nabídka",
+      "runs": "běží bez dozoru · zapsáno i s povolujícím pravidlem",
+      "held": "pozastaveno · nic nového se nespustí",
+      "signed": "podepsáno · {name} (ukázka)",
+      "ledgerLabel": "Zapečetěné doklady, ukázka",
+      "kill": "Nouzová brzda",
+      "running": "běží",
+      "paused": "pozastaveno",
+      "sayRunning": "Automatizace běží (ukázka)",
+      "sayPaused": "Automatizace pozastavena (ukázka)",
+      "flip": "Přepněte ji a kroky bez dozoru se zastaví.",
+      "detailTitle": "Od doporučení k dokladu",
+      "flowLabel": "Jak vzniká jeden doklad, čtyři kroky",
+      "flow1": "AI doporučí",
+      "flow1Text": "Přečte, ohodnotí a navrhne rozhodnutí.",
+      "flow2": "Člověk rozhodne",
+      "flow2Text": "Podepíše ho člověk: postup, laskavé zamítnutí, nebo nabídka.",
+      "flow3": "Doklad se zapečetí",
+      "flow3Text": "Rozhodnutí i jméno toho, kdo ho podepsal, jdou do řetězce odolného proti manipulaci.",
+      "flow4": "Kandidát ho vidí",
+      "flow4Text": "Co se o něm rozhodlo a proč.",
+      "rejection": "Zamítnutí",
+      "neverUnlocks": "nikdy se neodemkne",
+      "neverText": "Zamítnutí je vždy na člověku. Stroj ho sám provést nemůže.",
+      "detailNote": "Jeden přepínač pozastaví každý krok, který běží bez dozoru."
+    }
+  },
+  "siteAbout": {
+    "sampleCaption": "stylizovaná ilustrace · ukázková data",
+    "hero": {
+      "title": "<line>Provezte</line> <line>jednu posilu</line> <line><em>celou pipeline.</em></line>",
+      "cue": "Posouvejte a linka se nakreslí",
+      "mascotAlt": "Kandi, hliněný maskot KandiDate, se sluchátky na uších"
+    },
+    "noscript": "Linku kreslí malý skript. Zapněte JavaScript a projděte osm kroků od prázdné pozice k podepsanému nástupu, nebo se <link>vraťte na hlavní stránku</link>.",
+    "scope": {
+      "assignment": "technické pozice"
+    },
+    "notes": {
+      "design": "rubrika, vůči které se měří vše ostatní",
+      "source": "deterministické a vysvětlitelné, nikdy jen hledání klíčových slov",
+      "intake": "žádný kanál nemá zkratku",
+      "screen": "vše ostatní čeká na člověka",
+      "assignment": "hodnotí se úsudek kolem toho",
+      "interview": "scorecard čeká na vaše rozhodnutí",
+      "offer": "podává ji člověk",
+      "hired": "tady KandiDate končí"
+    },
+    "gate": {
+      "idle": "Lidská brána",
+      "wait": "Lidská brána · čeká na vás…",
+      "signed": "podepsáno · {signer} (ukázka)",
+      "sign": "Podepsat",
+      "ariaIdle": "Krok {n}, {name}. Lidská brána. Podepište stisknutím (ukázka).",
+      "ariaWait": "Krok {n}, {name}. Lidská brána, čeká na vás. Podepište stisknutím (ukázka).",
+      "ariaSigned": "Krok {n}, {name}. Podepsáno: {signer} (ukázka)."
+    },
+    "replay": {
+      "label": "Přehrát znovu",
+      "aria": "Přehrát znovu scénu {name}",
+      "done": "Scéna {name} přehrána znovu."
+    },
+    "announce": {
+      "signed": "Krok {n}, {name}: podepsáno ({signer}, ukázka). Doklad přibyl na pásku.",
+      "already": "Krok {n} už je podepsaný. U každého rozhodnutí zůstane doklad.",
+      "all": "Všech osm bran je podepsaných. To je celá linka a u každého rozhodnutí zůstane doklad."
+    },
+    "map": {
+      "live": "Linka",
+      "tag": "ukázková cesta · stylizováno",
+      "go": "Přejít na krok {n}, {name}"
+    },
+    "tape": {
+      "title": "Doklady",
+      "count": "podepsáno: {done} z {total}",
+      "waiting": "čeká na vás…"
+    },
+    "pawn": "{person} · {n} {name}",
+    "stepper": {
+      "label": "Osm kroků",
+      "dots": "Všech osm kroků",
+      "dot": "Krok {n}, {name}",
+      "overview": "Přehled",
+      "finale": "Finále",
+      "count": "Krok {n} z {total} · {name}",
+      "whole": "Celá linka"
+    },
+    "closing": {
+      "title": "<line>Od prázdné pozice</line> <line>k <em>podepsanému nástupu.</em></line>",
+      "samples": "Všechny osoby jmenované na této stránce jsou smyšlené; kreslené obrazovky produktu jsou stylizované ilustrace, ne snímky obrazovky."
+    },
+    "art": {
+      "design": {
+        "brief": "zadání",
+        "rubric": "rubrika",
+        "jobDescription": "popis pozice",
+        "niceToHaves": "výhodou"
+      },
+      "source": {
+        "talentPool": "talent pool",
+        "knockoutGates": "vyřazovací brány",
+        "ranked": "seřazeno",
+        "archetypeAware": "podle archetypu",
+        "candidateRow": "{name} · {role}",
+        "roles": {
+          "backend": "Backend",
+          "fullStack": "Full-stack"
+        },
+        "deterministic": "deterministické",
+        "explainable": "vysvětlitelné"
+      },
+      "intake": {
+        "sameStartingLine": "stejná startovní čára"
+      },
+      "screen": {
+        "fairnessGate": "kontrola férovosti",
+        "advances": "postupuje dál",
+        "heldForHuman": "čeká na člověka"
+      },
+      "assignment": {
+        "aiAllowed": "AI povolena",
+        "logTitle": "zapečetěný záznam"
+      },
+      "interview": {
+        "interviewer": "tazatel",
+        "candidate": "kandidát",
+        "scoreOf": "{score} z {max}"
+      },
+      "offer": {
+        "draft": "koncept",
+        "secureLink": "osobní odkaz",
+        "formula": "pásmo pozice × vhodnost · <em>číslo bez LLM</em>"
+      },
+      "hired": {
+        "ats": "ATS",
+        "hris": "HRIS"
+      }
     }
   }
 }

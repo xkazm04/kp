@@ -1,8 +1,8 @@
-import { GIG_PLAN_SEATS } from "@/app/_lib/gigs/plan-seats";
+import { GIG_PLAN_SEATS, planSeatsFor } from "@/app/_lib/gigs/plan-seats";
 import type { GigPlanRow } from "@/app/_lib/gigs/types";
 
 // ---------------------------------------------------------------------------
-// Plans: three seats propose, the operator accepts exactly one (the proof's Plans tab)
+// Plans: one to three seats propose, the operator accepts exactly one (the report's Plans)
 // ---------------------------------------------------------------------------
 //
 // GET /api/gigs/[id]/plans answers every seat's row of every round, newest round first;
@@ -14,7 +14,8 @@ import type { GigPlanRow } from "@/app/_lib/gigs/types";
 
 export type PlanRound = { createdAt: string; rows: GigPlanRow[] };
 
-const SEAT_ORDER: ReadonlyMap<string, number> = new Map(GIG_PLAN_SEATS.map((s, i) => [s.seat, i]));
+/** Columns read in the very-hard lineup's order (Opus, Fable, GPT), then any other seat. */
+const SEAT_ORDER: ReadonlyMap<string, number> = new Map([...new Set([...planSeatsFor("very_hard"), ...GIG_PLAN_SEATS].map((s) => s.seat))].map((seat, i) => [seat, i]));
 
 function bySeat(a: GigPlanRow, b: GigPlanRow): number {
   return (SEAT_ORDER.get(a.seat) ?? 99) - (SEAT_ORDER.get(b.seat) ?? 99);

@@ -14090,6 +14090,14 @@
       "off_platform_payment": "The listing moves payment or contact off the platform: Telegram, WhatsApp, crypto, gift cards, a wallet address.",
       "agent_addressed": "The text speaks to an AI reader directly, the way a trap for agents does."
     },
+    "declineReason": {
+      "not_digital_work": "Not digital work"
+    },
+    "declinedBy": {
+      "rule": "Declined at qualification: its tags and its text name physical work (goods, sourcing, delivery or presence on site).",
+      "model": "Declined at research: the brief found work an agent at a computer cannot deliver.",
+      "evidence": "Matched: {evidence}"
+    },
     "paused": {
       "blocked": "Paused: the host refused access",
       "collapsed": "Paused: the source stopped answering",
@@ -14643,12 +14651,24 @@
         "record": "the judge answered?"
       },
       "colEmpty": "Nothing here now.",
+      "new": {
+        "title": "New",
+        "who": "you accept or reject",
+        "accept": "Accept “{title}”",
+        "reject": "Reject “{title}”",
+        "acceptShort": "Accept",
+        "rejectShort": "Reject",
+        "acceptedFlash": "Accepted “{title}”.",
+        "rejectedFlash": "Rejected “{title}”."
+      },
       "more": "{count, number} more ↓",
       "rewardNone": "no reward stated",
       "deadlineNone": "no deadline",
       "closed": "closed",
       "daysLeft": "{days, plural, =0 {closes today} one {# day left} other {# days left}}",
-      "closesIn": "{days, plural, =0 {closes today} one {closes in # day} other {closes in # days}}"
+      "closesIn": "{days, plural, =0 {closes today} one {closes in # day} other {closes in # days}}",
+      "rewardUsd": "≈ {usd}",
+      "rewardRate": "at the rate of {date}"
     },
     "file": {
       "title": "The whole file",
@@ -14663,6 +14683,7 @@
       "lane": "Lane: {lane}",
       "laneClear": "Lane {lane}: show every lane",
       "neverRun": "{arena}: its wire has never run, so this is not a count of zero found",
+      "showClosed": "Show expired and closed",
       "colStatus": "Status",
       "colListing": "Listing",
       "colArena": "Arena",
@@ -14708,13 +14729,7 @@
       "stampNoDeliverable": "No deliverable",
       "stampEmpty": "Draft text is empty",
       "stampEmptyBody": "The deliverable carries no text to send.",
-      "summaryLabel": "Summary",
-      "aboutLabel": "What the gig is",
-      "listingLabel": "The listing, untrusted text",
-      "category": "Category",
-      "listingRef": "Listing",
-      "tags": "Tags",
-      "moreTags": "+{count, number} more"
+      "summaryLabel": "Summary"
     },
     "slip": {
       "label": "Proof slip",
@@ -14776,13 +14791,12 @@
       "running": "With {name} since {when}. Its draft lands here."
     },
     "back": {
-      "evidence": "Evidence",
       "failedN": "{count, number} failed",
       "review": "Pre-send review",
       "byAgent": "Reviewer agent",
       "byReviewer": "Reviewer",
       "yourNote": "Your note",
-      "noReview": "No review was recorded for this draft.",
+      "noReview": "No pre-send review yet.",
       "warningsYouDecide": "Warnings: you decide",
       "noteWord": "Note",
       "checks": "Checks the reviewer ran · {count, number}",
@@ -14940,9 +14954,6 @@
     },
     "tabs": {
       "label": "Proof sections",
-      "draft": "Draft",
-      "noEvidenceYet": "No draft came back yet, so there is no evidence to show.",
-      "evidenceSub": "{count, plural, one {# thing the agent reports running} other {# things the agent reports running}}",
       "passed": "Passed",
       "failed": "Failed",
       "unverified": "Not verified",
@@ -14970,21 +14981,15 @@
       }
     },
     "plans": {
-      "tab": "Plans",
       "readyTip": "{count, plural, one {# plan is ready to accept} other {# plans are ready to accept}}",
-      "title": "Plans",
       "roundOf": "Proposed {date}",
       "loading": "Reading the plans…",
       "loadFailed": "The plans could not be read.",
-      "noBrief": "Plans are written from the research brief, and this gig has none yet. Research it on the Brief tab first.",
       "emptyTitle": "No plans yet",
-      "what": "Three models each write a plan: Fable 5, Opus 5.5 at extra-high effort, Sonnet 5.5 at high effort. You accept one, and only an accepted plan can be dispatched.",
-      "cost": "One round is three model calls. Each column shows what its call cost.",
-      "propose": "Propose plans",
       "proposeAgain": "Propose again",
       "retry": "Retry",
-      "retryTip": "A new round: all three models write again.",
-      "proposedFlash": "Three models are writing plans. The columns fill as each one finishes.",
+      "retryTip": "A new round: every seat writes again.",
+      "proposedFlash": "{count, plural, one {The plan is being written. Its column fills when it finishes.} other {# models are writing plans. The columns fill as each one finishes.}}",
       "proposeFailed": "The plans could not be requested.",
       "columnLabel": "{seat}: {status}",
       "status": {
@@ -15027,7 +15032,7 @@
       "gateReason": "Accept a plan first",
       "gateBody": "Dispatch hands the accepted plan to the gig’s own agent.",
       "gateChecking": "Checking the gig’s plans…",
-      "openPlans": "Open Plans"
+      "openPlans": "Go to the plans"
     },
     "pairing": {
       "tab": "Pairing",
@@ -15063,6 +15068,134 @@
       "pendingFlash": "Pairing: the gig’s own agent is being created. It starts when Personas approves it.",
       "itsOwnAgent": "its own agent",
       "dispatchHint": "Dispatch creates this gig’s own agent ({model}) and hands it the accepted plan."
+    },
+    "report": {
+      "label": "The gig’s report",
+      "figure": "Figure {n, number}.",
+      "source": "Source: {source}.",
+      "sec": {
+        "gig": "The gig",
+        "asks": "What it asks",
+        "plans": "The plans",
+        "progress": "Progress",
+        "draft": "The draft",
+        "evidence": "Evidence",
+        "record": "Record"
+      },
+      "pending": {
+        "asks": "appears once the gig is researched",
+        "progress": "appears once the gig is paired",
+        "draft": "appears once an agent drafts it",
+        "evidence": "appears with the first draft",
+        "record": "appears after the first attempt"
+      },
+      "index": {
+        "label": "Report contents",
+        "railLabel": "Jump to a section",
+        "title": "In this report"
+      },
+      "note": {
+        "asks": "{asks, plural, =0 {no asks stated} one {# ask} other {# asks}} · {challenges, plural, =0 {no challenges named} one {# challenge} other {# challenges}}",
+        "plans": "{count, plural, one {# plan} other {# plans}} · {accepted, select, yes {one accepted} other {none accepted yet}}",
+        "noPlans": "no plans yet: generate them here",
+        "researchFirst": "research the gig first",
+        "progress": "{pct, number}% done · {done, number} of {total, number} goals",
+        "evidence": "{count, plural, one {# check} other {# checks}} · {failed, plural, =0 {none failed} other {# failed}}",
+        "record": "{count, plural, one {# attempt} other {# attempts}}"
+      },
+      "hero": {
+        "listedAs": "Listed as “{title}”",
+        "opening": "The listing’s opening, as the stranger wrote it",
+        "wholeListing": "Read the whole listing",
+        "fromDraft": "From the agent’s summary of its draft",
+        "fromBrief": "From the research brief",
+        "work": {
+          "mixed": "Partly off the computer",
+          "physical": "Needs hands in the world",
+          "noReason": "The research brief did not say why."
+        }
+      },
+      "stat": {
+        "rewardAsStated": "as the listing states it",
+        "rewardEstimate": "≈ {usd} at the rate of {date}",
+        "closed": "Closed",
+        "daysLeft": "{count, plural, one {day left} other {days left}}",
+        "closesOn": "closes {date}",
+        "ratedAtResearch": "rated when the gig is researched",
+        "fit": "Fit, of 100",
+        "spend": "Spent so far",
+        "plansPart": "plans {usd}",
+        "draftsPart": "drafts {usd}",
+        "unreported": "{count, plural, one {# call unreported} other {# calls unreported}}",
+        "nothingRan": "nothing has run yet"
+      },
+      "asks": {
+        "title": "What it asks for",
+        "challenges": "Expected challenges",
+        "none": "The listing states no deliverables.",
+        "noChallenges": "None named.",
+        "caption": "What the listing asks for, beside what could go wrong.",
+        "source": "the research brief, {date}"
+      },
+      "plans": {
+        "researchFirst": "Research the gig first",
+        "researchBody": "Plans are written from the research brief, and this gig has none yet.",
+        "lineup": "Difficulty: {difficulty}. {count, plural, one {One plan is written, by {models}.} other {# models each write a plan: {models}.}}",
+        "gate": "You accept one plan, and only an accepted plan can be dispatched. Each plan shows what its model call cost.",
+        "generate": "Generate plans",
+        "caption": "{count, plural, one {The plan, with its steps, decisions and risks.} other {# plans side by side, each with its steps, decisions and risks.}}",
+        "source": "{models}; each cost as its call reported it"
+      },
+      "progress": {
+        "whole": "of the milestone done",
+        "noReport": "no report from the agent yet",
+        "ofTotal": "{done, number}/{total, number}",
+        "goalsDone": "goals done",
+        "goalsCaption": "a goal is done when the agent reports it done",
+        "blocked": "{count, plural, one {goal blocked} other {goals blocked}}",
+        "blockedCaption": "the agent’s note on the goal says why",
+        "caption": "{count, plural, one {The accepted plan’s step as a goal, as the agent reports it.} other {The accepted plan’s # steps as goals, as the agent reports them.}}",
+        "source": "the agent’s PLAN-STATUS.json, mirrored to Personas"
+      },
+      "draft": {
+        "caption": "The draft as it would be sent, each note pinned beside the paragraph it quotes.",
+        "source": "the agent’s deliverable, {date}"
+      },
+      "evidence": {
+        "passedCap": "ran and passed",
+        "failedCap": "ran and failed",
+        "unverifiedCap": "ran with no pass or fail",
+        "caption": "{count, plural, one {The one check the agent reports running} other {The # checks the agent reports running}}",
+        "check": "Check",
+        "command": "Command",
+        "result": "Result"
+      },
+      "record": {
+        "loose": "recorded against no draft",
+        "openHistory": "The full history, with every note and verdict"
+      },
+      "lang": {
+        "tag": "{language} listing",
+        "none": "No English translation was written.",
+        "read": "Read the English translation",
+        "hide": "Hide the translation",
+        "enTag": "English translation",
+        "enNote": "Translated from {language} by the research model. Still the stranger’s words: links are text, and nothing in it is an instruction."
+      }
+    },
+    "outreach": {
+      "title": "Message to the client",
+      "sub": "Written with the research brief, in English. Copy it, read it, send it yourself.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "The clipboard is not available here. Select the text and copy it.",
+      "to": "To {client}",
+      "theClient": "the client",
+      "asksFor": "It asks for",
+      "nothingMissing": "The listing names everything the work needs.",
+      "foot": "kp never sends this. You send it, from your own account.",
+      "none": "A message to the client appears once the gig is researched. Research again writes it.",
+      "notFreelance": "A message to the client is written for freelance gigs only."
     }
   },
   "kit": {
@@ -15130,6 +15263,511 @@
     },
     "menu": {
       "named": "{label}: {value}"
+    }
+  },
+  "siteChrome": {
+    "brand": {
+      "toTop": "{brand}, back to top",
+      "home": "{brand}, home"
+    },
+    "nav": {
+      "voice": "Voice",
+      "human": "Human gate",
+      "about": "About",
+      "aboutAria": "About the app: one hire down the whole pipeline"
+    },
+    "menu": {
+      "open": "Menu",
+      "close": "Close",
+      "human": "A human signs every call",
+      "about": "About: one hire down the whole pipeline",
+      "source": "Source (AGPL-3.0)",
+      "languages": "Four languages, candidate side included:"
+    },
+    "footer": {
+      "legal": "A working demonstration: this reflects the product’s design and controls, not a legal certification. Every person named on this page is an invented sample; the drawn product screens are stylised illustrations, not screenshots."
+    },
+    "skip": {
+      "land": "Skip to the nine features",
+      "about": "Skip to the line"
+    },
+    "stepper": {
+      "previous": "Previous",
+      "next": "Next",
+      "previousTo": "Previous: {name}",
+      "nextTo": "Next: {name}"
+    }
+  },
+  "siteAbout": {
+    "sampleCaption": "stylised illustration · sample data",
+    "hero": {
+      "title": "<line>Walk one hire</line> <line>down the</line> <line><em>whole pipeline.</em></line>",
+      "cue": "Scroll to draw the line",
+      "mascotAlt": "Kandi, the KandiDate clay mascot, wearing headphones"
+    },
+    "noscript": "The line is drawn by a small script. Turn JavaScript on to walk the eight steps from a blank role to a signed hire, or <link>go back to the console</link>.",
+    "scope": {
+      "assignment": "technical roles"
+    },
+    "notes": {
+      "design": "the rubric everything downstream is measured against",
+      "source": "deterministic and explainable, never keyword bingo",
+      "intake": "no channel gets a shortcut",
+      "screen": "everything else is held for a human",
+      "assignment": "what is graded is the judgment around it",
+      "interview": "a scorecard waiting for your call",
+      "offer": "a person extends it",
+      "hired": "that is where KandiDate stops"
+    },
+    "gate": {
+      "idle": "Human gate",
+      "wait": "Human gate · waiting for you…",
+      "signed": "signed · {signer} (sample)",
+      "sign": "Sign",
+      "ariaIdle": "Step {n}, {name}. Human gate. Press to sign, sample.",
+      "ariaWait": "Step {n}, {name}. Human gate, waiting for you. Press to sign, sample.",
+      "ariaSigned": "Step {n}, {name}. Signed by {signer}, sample."
+    },
+    "replay": {
+      "label": "Replay",
+      "aria": "Replay the {name} scene",
+      "done": "{name} scene replayed."
+    },
+    "announce": {
+      "signed": "Step {n}, {name}: signed by {signer}, sample. Receipt added to the tape.",
+      "already": "Step {n} is already signed. Every decision keeps its receipt.",
+      "all": "All eight gates signed. That is the whole line, and every decision keeps its receipt."
+    },
+    "map": {
+      "live": "The line",
+      "tag": "sample thread · stylised",
+      "go": "Go to step {n}, {name}"
+    },
+    "tape": {
+      "title": "Receipts",
+      "count": "{done} of {total} signed",
+      "waiting": "waiting for you…"
+    },
+    "pawn": "{person} · {n} {name}",
+    "stepper": {
+      "label": "The eight steps",
+      "dots": "All eight steps",
+      "dot": "Step {n}, {name}",
+      "overview": "Overview",
+      "finale": "Finale",
+      "count": "Step {n} of {total} · {name}",
+      "whole": "The whole line"
+    },
+    "closing": {
+      "title": "<line>From a blank role</line> <line>to a <em>signed hire.</em></line>",
+      "samples": "Every person named on this page is an invented sample; the drawn product screens are stylised illustrations, not screenshots."
+    },
+    "art": {
+      "design": {
+        "brief": "brief",
+        "rubric": "rubric",
+        "jobDescription": "job description",
+        "niceToHaves": "nice-to-haves"
+      },
+      "source": {
+        "talentPool": "talent pool",
+        "knockoutGates": "knock-out gates",
+        "ranked": "ranked",
+        "archetypeAware": "archetype-aware",
+        "candidateRow": "{name} · {role}",
+        "roles": {
+          "backend": "Backend",
+          "fullStack": "Full-stack"
+        },
+        "deterministic": "deterministic",
+        "explainable": "explainable"
+      },
+      "intake": {
+        "sameStartingLine": "same starting line"
+      },
+      "screen": {
+        "fairnessGate": "fairness gate",
+        "advances": "advances",
+        "heldForHuman": "held for a human"
+      },
+      "assignment": {
+        "aiAllowed": "AI allowed",
+        "logTitle": "tamper-evident log"
+      },
+      "interview": {
+        "interviewer": "interviewer",
+        "candidate": "candidate",
+        "scoreOf": "{score} of {max}"
+      },
+      "offer": {
+        "draft": "draft",
+        "secureLink": "secure link",
+        "formula": "role band × fit · <em>no LLM in the number</em>"
+      },
+      "hired": {
+        "ats": "ATS",
+        "hris": "HRIS"
+      }
+    }
+  },
+  "siteLand": {
+    "hero": {
+      "lede": "Every CV read and scored against the role. Promising candidates interviewed the same day. Slots booked, offers drafted, the hire sealed the moment they accept. You review the calls that matter; the busywork never reaches your desk.",
+      "noteOff": "Flip the switch. The pile sorts itself.",
+      "noteOn": "Sorted. One call is waiting for a human.",
+      "noteSample": "sample candidates · stylised",
+      "scoreLink": "How {name} got {score}",
+      "pileLabel": "Three sample candidates",
+      "signPass": "Sign the pass",
+      "liveOn": "Autopilot on. Three sample CVs scored. One rejection waits for a human signature.",
+      "liveOff": "Autopilot off.",
+      "liveSigned": "Signed by {name} (sample). The pass is now a human decision."
+    },
+    "marquee": {
+      "label": "What the studio does"
+    },
+    "proof": {
+      "stageLabel": "Stylised illustrations of the three proof pillars",
+      "stylised": "stylised",
+      "signedBy": "signed by a named human",
+      "pillars": {
+        "samples": {
+          "label": "the sample",
+          "caption": "the sample · planted flaws, prompts on record"
+        },
+        "defend": {
+          "label": "the interview",
+          "caption": "the interview · two real decisions, defended"
+        },
+        "sealed": {
+          "label": "the seal",
+          "caption": "the seal · a named human, a tamper-evident chain"
+        }
+      }
+    },
+    "voice": {
+      "caption": "stylised illustration · sample transcript"
+    },
+    "human": {
+      "evidence": "evidence attached",
+      "signAs": "Sign as {name}",
+      "replay": "replay",
+      "gate": {
+        "approaching": "{name} (sample) is on her way to the gate.",
+        "arrives": "{name} (sample) arrives.",
+        "scored": "The AI reads and scores her CV: fit {fit}, evidence attached.",
+        "waiting": "Human gate. {name} (sample) waits for you. Only a person can move her on.",
+        "signed": "Signed · {signer} (sample). She advances, and the decision keeps its receipt."
+      },
+      "legendLocked": "locked, never delegated",
+      "legendDelegable": "a workspace may delegate it",
+      "logNone": "Nothing runs unattended: every stage waits for a person.",
+      "logOne": "Unattended now: {stage}. Each such step is logged with its plan.",
+      "logTwo": "Unattended now: {first} and {second}. Each such step is logged with its plan."
+    },
+    "pricing": {
+      "lead": "The whole product is open source. The plans buy you someone else’s servers. Self-hosting is the full product, not a trial edition; the hosted plans price outcomes: a role taken to market, and a person hired.",
+      "selfhostModels": "Your models: local or compatible servers, your choice",
+      "toEnterprise": "Hiring across the whole org? See Enterprise"
+    },
+    "enterprise": {
+      "legendRepo": "in the repository today",
+      "legendDelivered": "delivered by us",
+      "legendPlanned": "planned, not built yet",
+      "statsLabel": "Recruiting time, from industry studies"
+    },
+    "spine": {
+      "label": "Where you are on the page",
+      "sections": {
+        "top": "Top",
+        "enterprise": "Enterprise",
+        "start": "Start"
+      },
+      "stages": {
+        "scored": "scored {score}",
+        "routed": "routed",
+        "voice": "voice screen",
+        "gate": "at the gate",
+        "signed": "signed",
+        "sealed": "sealed",
+        "hired": "hired"
+      }
+    }
+  },
+  "siteFeatures": {
+    "_note": "The landing's features band (a ring of nine medallions), the full-screen scene each one opens, and the stylised product panels inside the scenes. Feature names and bodies are reused from landing.features.*. Panels show invented sample people (Jana N., Petr K., Alex T., M. Horáková): keep the names as they are. {name} is always a person's name, {slot} a weekday plus a clock time, {n}/{total} are counts.",
+    "band": {
+      "hint": "open any medallion: it all ships today, no asterisks",
+      "cta": "Step inside: start at the inbox",
+      "stage": "Stage {n} of {total}",
+      "open": "press to step inside",
+      "medal": "{name}, {n} of {total}. Opens its own scene."
+    },
+    "items": {
+      "inbox": {
+        "line": "Five doors, one starting line.",
+        "pin1": "Apply portal, email, job boards",
+        "pin2": "Sourcing and manual adds",
+        "pin3": "One pipeline, the same starting line"
+      },
+      "score": {
+        "line": "A 0–100 fit, with the evidence.",
+        "pin1": "0–100 fit score per CV",
+        "pin2": "The evidence to back it up",
+        "pin3": "Compare CV versions side by side"
+      },
+      "rediscover": {
+        "line": "The silver medallist surfaces first.",
+        "pin1": "A new role re-scores everyone who ever applied",
+        "pin2": "The silver medallist surfaces first",
+        "pin3": "No fresh sourcing spend"
+      },
+      "voice": {
+        "line": "It asks. It listens. It writes the scorecard.",
+        "pin1": "Asks about their actual experience",
+        "pin2": "Czech or English",
+        "pin3": "Writes the scorecard for you"
+      },
+      "cases": {
+        "line": "AI allowed. Delegation shows.",
+        "pin1": "Planted flaws with known answers",
+        "pin2": "The prompts they actually used",
+        "pin3": "An interview to defend their own decisions"
+      },
+      "schedule": {
+        "line": "They pick the slot. Nobody plays calendar tennis.",
+        "pin1": "Candidates pick their own slot from a link",
+        "pin2": "No reply-all calendar tennis",
+        "pin3": "No ghosted timezones"
+      },
+      "salary": {
+        "line": "Market-grounded, so the offer lands first time.",
+        "pin1": "Market-grounded bands for the Czech market",
+        "pin2": "Adjusted to company type",
+        "pin3": "Your offer lands the first time"
+      },
+      "offer": {
+        "line": "A person signs. Acceptance seals it.",
+        "pin1": "Deterministic: role band × fit, no model in the number",
+        "pin2": "The letter drafts itself; a person signs it",
+        "pin3": "Acceptance seals the hire and mirrors it into your ATS"
+      },
+      "gates": {
+        "line": "Every decision keeps its receipt.",
+        "pin1": "A full audit trail",
+        "pin2": "A kill switch",
+        "pin3": "AI recommends, humans decide, every decision keeps its receipt"
+      }
+    },
+    "scene": {
+      "back": "Back to the funnel",
+      "backToScene": "Back to the scene",
+      "backShort": "Back",
+      "crumbs": "Where you are",
+      "crumbLook": "Look closer",
+      "count": "<b>{n}</b> of {total}",
+      "look": "Look closer",
+      "lookBack": "Back to the scene",
+      "pins": "What it does",
+      "stepper": "The nine features",
+      "dots": "All nine features",
+      "dot": "{name}, {n} of {total}",
+      "caption": "stylised illustration · sample data"
+    },
+    "b1": {
+      "score": {
+        "say": "strong fit · interview question pack already drafted"
+      },
+      "rediscover": {
+        "role": "New role: React Developer",
+        "rescoring": "re-scoring everyone who ever applied…",
+        "medallist": "Silver medallist",
+        "medallistMeta": "applied 8 months ago · already said yes to you once",
+        "first": "surfaces first",
+        "earlier": "Earlier applicant",
+        "earlierMeta": "re-scored against the new role",
+        "noSpend": "no fresh sourcing spend"
+      },
+      "schedule": {
+        "say": "picked from a link · {slot} · in their own timezone"
+      }
+    },
+    "kit": {
+      "replay": "replay",
+      "pause": "pause",
+      "play": "play",
+      "dots": "{n} of 5",
+      "sample": "sample",
+      "candidateChip": "{name} · React Developer",
+      "who": {
+        "machine": "machine",
+        "candidate": "candidate",
+        "person": "person"
+      }
+    },
+    "voice": {
+      "live": "live · 4 min 12 s",
+      "transcript": "sample transcript",
+      "interviewer": "Interviewer",
+      "candidate": "Candidate",
+      "q1": "You shipped a React app for a school project. What broke first when real users hit it?",
+      "a1": "Honestly? The state management. I rewrote it twice before I understood why…",
+      "q2": "Love it. Walk me through the second rewrite.",
+      "a2": "The first version kept everything in one big component. I split the data from the display, so one change stopped breaking three others.",
+      "q3": "What would you check before shipping that again?",
+      "a3": "I would write the failing case first, then fix it. And I would ask a classmate to try to break it.",
+      "q4": "Which part are you least sure about today?",
+      "a4": "Caching on the server. I have only read about it.",
+      "scorecard": "Scorecard · sample",
+      "scorecardFull": "Structured scorecard · sample",
+      "crit": {
+        "depth": "Experience depth",
+        "depthNote": "Grounded in what they shipped.",
+        "solving": "Problem solving",
+        "solvingNote": "Reasons to a cause, then a fix.",
+        "communication": "Communication",
+        "communicationNote": "Plain, direct answers.",
+        "ownership": "Ownership",
+        "ownershipNote": "Owns the rewrite and its cost."
+      },
+      "chipLanguages": "Czech and English, their choice",
+      "chipGrounded": "Questions grounded in their experience",
+      "chipTranscript": "Live transcript, structured scorecard"
+    },
+    "work": {
+      "title": "Work sample",
+      "sub": "assumes the code is AI-written",
+      "codeLabel": "Sample code with one planted flaw on line 5",
+      "flag": "planted flaw · known answer",
+      "promptsTitle": "Prompts they actually used",
+      "prompt1": "write a pagination helper",
+      "prompt2": "add tests for it",
+      "prompt3": "why does page 3 repeat a row?",
+      "prompt4": "make it shorter",
+      "distTitle": "Distance from a bare one-shot",
+      "distFrom": "bare one-shot",
+      "distTo": "this candidate",
+      "delegation": "Delegation shows",
+      "detailTitle": "The process, on record",
+      "timeline": "Prompt by prompt",
+      "note1": "Took the first draft.",
+      "note2": "Tests pass; the empty list is not covered.",
+      "note3": "Traced it to the end of the slice.",
+      "note4": "Re-read the result before keeping it.",
+      "flawsTitle": "Planted flaws · sample",
+      "flaw1": "Off-by-one in the page slice",
+      "flaw2": "Empty list crashes the helper",
+      "flaw3": "Page size hard-coded",
+      "caught": "caught",
+      "missed": "missed",
+      "decisionsTitle": "Two decisions to defend, out loud",
+      "decision1": "Kept the helper small instead of adding a library.",
+      "decision2": "Wrote the failing case before fixing it.",
+      "decisionsNote": "The voice interview starts from the submission, in Czech or English."
+    },
+    "inbox": {
+      "detailTitle": "Five ways in, one starting line",
+      "doors": {
+        "apply": "Candidates apply on your page; the CV lands as a card.",
+        "email": "A CV sent by email is read into the same card.",
+        "boards": "Applications from your posted roles arrive the same way.",
+        "sourcing": "People you find are added straight to the pipeline.",
+        "manual": "Add someone yourself and they start on the same line."
+      },
+      "stage1": "CV arrives",
+      "stage2": "AI reads & scores",
+      "stage3": "Human gate",
+      "stage4": "Advances",
+      "sameLine": "same starting line"
+    },
+    "salary": {
+      "market": "Czech market",
+      "marketBand": "Market band",
+      "adjustedBand": "Adjusted band",
+      "min": "min",
+      "typical": "typical",
+      "max": "max",
+      "shift": "adjusted to company type",
+      "foot": "so your offer lands the first time",
+      "detailTitle": "Min, typical, max",
+      "line1": "Start from the Czech market band for the role.",
+      "line2": "Shift it to your company type.",
+      "line3": "Offer inside the band, so it lands the first time.",
+      "note": "No figures on this sketch: the marks show the shape, not a salary."
+    },
+    "offer": {
+      "title": "Offer letter",
+      "letterLabel": "Offer letter, sample",
+      "draft": "draft",
+      "signed": "signed",
+      "formula": "role band × fit · no LLM in the number",
+      "awaiting": "awaiting a person’s signature",
+      "signedBy": "signed by {name} (sample)",
+      "stamp": "HUMAN-APPROVED",
+      "sign": "SIGN",
+      "hintWaiting": "waiting for a person to sign",
+      "hintSigned": "signed · {name} (sample)",
+      "ladderLabel": "What follows the signature",
+      "accepted": "accepted",
+      "acceptedVia": "via a secure link",
+      "sealed": "sealed",
+      "mirrored": "mirrored into a connected ATS",
+      "waiting": "waiting",
+      "done": "done",
+      "liveSigned": "Signed by {name} (sample). Waiting for the candidate.",
+      "liveAccepted": "The candidate accepted through a secure link.",
+      "liveSealed": "The hire is sealed and mirrored into a connected ATS.",
+      "detailTitle": "Four steps, one signature",
+      "pathLabel": "What the candidate does",
+      "accepts": "accepts",
+      "declines": "declines",
+      "flowLabel": "Offer to sealed hire, four steps",
+      "flow1": "The letter drafts itself",
+      "flow1Text": "The figure is role band × fit. There is no model in the number.",
+      "flow2": "A person signs it",
+      "flow2Text": "A human reads the draft and signs. The signature names the person.",
+      "flow3": "The candidate answers",
+      "flow3Text": "They accept or decline through a secure link.",
+      "flow4": "Sealed and mirrored",
+      "flow4Text": "Their acceptance seals the hire and mirrors it into a connected ATS.",
+      "declined": "declined",
+      "notReached": "not reached",
+      "mini": "Signed letter · sample",
+      "branchTitle": "If they decline",
+      "branchText": "Declined means no hire is sealed.",
+      "liveAccept": "The candidate accepts. The hire is sealed and mirrored into a connected ATS.",
+      "liveDecline": "The candidate declines. No hire is sealed."
+    },
+    "gates": {
+      "title": "Audit trail",
+      "chain": "tamper-evident chain",
+      "advance": "advance",
+      "kindPass": "kind pass",
+      "offer": "offer",
+      "runs": "runs unattended · logged with the plan that allowed it",
+      "held": "paused · nothing new runs",
+      "signed": "signed · {name} (sample)",
+      "ledgerLabel": "Sealed receipts, sample",
+      "kill": "Kill switch",
+      "running": "running",
+      "paused": "paused",
+      "sayRunning": "Automation running (sample)",
+      "sayPaused": "Automation paused (sample)",
+      "flip": "Flip it: the unattended rows pause.",
+      "detailTitle": "From a recommendation to a receipt",
+      "flowLabel": "How one receipt is built, four steps",
+      "flow1": "AI recommends",
+      "flow1Text": "It reads, scores and proposes the call.",
+      "flow2": "A human decides",
+      "flow2Text": "A person signs it: advance, kind pass or offer.",
+      "flow3": "A receipt is sealed",
+      "flow3Text": "The call and the signer go into the tamper-evident chain.",
+      "flow4": "The candidate can see it",
+      "flow4Text": "What was decided about them, and why.",
+      "rejection": "Rejection",
+      "neverUnlocks": "never unlocks",
+      "neverText": "A rejection is always a person’s. The machine cannot commit one.",
+      "detailNote": "One switch pauses every step that runs unattended."
     }
   }
 }

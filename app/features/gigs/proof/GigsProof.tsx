@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { gigTypeOf } from "@/app/_lib/gigs/gig-type";
 import type { Gig, GigAttempt, GigKpi } from "@/app/_lib/gigs/types";
@@ -8,6 +8,7 @@ import { listNeighbours } from "../logic/front";
 import { nicheKeyOf, type Niche } from "../logic/niches";
 import { gigPersonaOf } from "../logic/pairing";
 import { planView } from "../logic/plans";
+import { reportAnchor } from "../logic/report";
 import { summaryTextOf } from "../logic/summary";
 import type { AfterWrite, SourceRow, SpecialistRow } from "../logic/wire";
 import { useDoubts } from "../shared/doubts";
@@ -16,10 +17,11 @@ import { useChallengeMemory } from "./panels/BriefChallenges";
 import { GigBriefPanel } from "./panels/BriefPanel";
 import { useGigRecord } from "./panels/useGigRecord";
 import { usePlans } from "./panels/usePlans";
-import { defaultProofTab, KitArea, ProofTabRow, useProofTabs, type ProofTab } from "./proofTabs";
+import { KitArea, ProofTabRow, useProofTabs, type ProofTab } from "./proofTabs";
 import { ProofHead, ProofNotFound } from "./ProofHead";
 import { ProofPanels } from "./ProofPanels";
 import { ProofTrail } from "./ProofTrail";
+import { revealSoon } from "./report/parts";
 import { GigsSignoff, type DeskStore } from "./signoff/GigsSignoff";
 import { DeclineConfirm, useProofDecline } from "./useProofDecline";
 
@@ -29,9 +31,10 @@ import { DeclineConfirm, useProofDecline } from "./useProofDecline";
 // (proofTabs.tsx), and the list it was opened from, walked with ← / → (the owner's keys; no
 // wrap) - and Decline (D), confirmed by D again or Enter (useProofDecline.tsx).
 //
-// Left: the sign-off (signoff/) - the state and only the moves it allows. Right: the head,
-// then the chosen tab's panel (ProofPanels.tsx). The plans are read here (usePlans.ts) and
-// shared: the Plans tab, the tab row's count, and the dispatch gate in the sign-off.
+// Left: the sign-off (signoff/) - the state and only the moves it allows. Right: the chosen
+// tab's panel (ProofPanels.tsx) - the gig's report on Summary, which opens with its own
+// title, else the head and the panel. The plans are read here (usePlans.ts) and shared: the
+// report's plans section, the tab row's mark, and the dispatch gate in the sign-off.
 //
 // Every page swap lands at the top with focus on the way back, so focus never sits on a
 // control that is gone.
@@ -104,12 +107,17 @@ export function GigsProof({
   }, [gigId]);
 
   const decline = useProofDecline({ gig, pos, onBack, onStep, onChanged, onLeft });
-  const [tab, setTab] = useState<ProofTab>(() => (gig ? defaultProofTab(gig, attempt, summary?.kind !== "listing") : "summary"));
+  const [tab, setTab] = useState<ProofTab>("summary");
   const { record, error: recordError } = useGigRecord(gig);
   const plansState = usePlans(gig?.id ?? null);
   const plans = useMemo(() => planView(plansState.plans), [plansState.plans]);
   const tabs = useProofTabs({ gig, attempt, doubts, note, attempts: record ? record.attempts.length : null, recurring, plans: { ready: plans.ready, accepted: plans.accepted !== null } });
-  const jump = useSlipJump(setTab);
+  const showReport = useCallback(() => setTab("summary"), []);
+  const jump = useSlipJump(showReport);
+  const openPlans = useCallback(() => {
+    setTab("summary");
+    revealSoon(reportAnchor("plans"));
+  }, []);
 
   const trail = (withTabs: boolean) => (
     <ProofTrail
@@ -135,6 +143,7 @@ export function GigsProof({
     );
   }
 
+  const withdraw = { onWithdraw: decline.canWithdraw ? (i: number) => void decline.withdrawFor(i, challenges[i] ?? "") : null, busy: decline.withdrawing, counts: withdrawCounts, reason: gig.withdrawReason };
   const reviewNoteText = note && note.header ? [note.lead, ...note.items.map((x, i) => `${i + 1}) ${x}`), ...note.defects.map((x) => x.text)].filter(Boolean).join("\n") : null;
 
   return (
@@ -163,18 +172,19 @@ export function GigsProof({
           onFlash={onFlash}
           onDecline={decline.askDecline}
           planGate={plansState.plans === null && !plansState.failure ? "loading" : plans.accepted || plansState.failure ? "ok" : "missing"}
-          onOpenPlans={() => setTab("plans")}
+          onOpenPlans={openPlans}
         />
         <div className="col">
-          <ProofHead gig={gig} nicheLabel={niche?.label ?? null} />
+          {tab === "summary" ? null : <ProofHead gig={gig} nicheLabel={niche?.label ?? null} />}
 
           <KitArea>
             <div className="proof-panel" key={tab}>
               <ProofPanels
-                {...{ tab, gig, attempt, source, summary, now, note, record, recordError, specialists, persona, kpi, plansState, onChanged, onFlash }}
+                {...{ tab, gig, attempt, source, summary, now, note, record, recordError, specialists, persona, kpi, plansState, withdraw, onChanged, onFlash }}
                 draft={<DraftTab gig={gig} attempt={attempt} source={source} specialistName={specialist?.name ?? null} now={now} doubts={doubts} note={note} pinned={pinned} memory={memory} setMemory={setMemory} onJump={jump} />}
-                brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={{ onWithdraw: decline.canWithdraw ? (i) => void decline.withdrawFor(i, challenges[i] ?? "") : null, busy: decline.withdrawing, counts: withdrawCounts, reason: gig.withdrawReason }} />}
-                onOpenPlans={() => setTab("plans")}
+                brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={withdraw} />}
+                onOpenPlans={openPlans}
+                onOpenTab={setTab}
                 onOpenLane={() => onOpenLane(gigTypeOf(gig))}
               />
             </div>

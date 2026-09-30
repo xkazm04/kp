@@ -33,15 +33,17 @@ export function useChallengeMemory(gigs: readonly Gig[], gig: Gig | null) {
   return { challenges, counts, recurring };
 }
 
-export function BriefChallenges({ id, heading, challenges, withdraw }: { id: string | undefined; heading: string; challenges: readonly string[]; withdraw: ChallengeWithdraw }) {
+/** `as`: the heading level where the list sits - an h2 in the brief's body, an h4 inside a
+ *  report figure (report/ReportAsks.tsx). */
+export function BriefChallenges({ id, heading, challenges, withdraw, as: H = "h2" }: { id: string | undefined; heading: string; challenges: readonly string[]; withdraw: ChallengeWithdraw; as?: "h2" | "h4" }) {
   const t = useTranslations("gigs");
   if (challenges.length === 0) return null;
   const chosen = withdraw.reason ? challengeKey(withdraw.reason.challenge) : null;
   return (
     <section className="brief-challenges" aria-label={heading}>
-      <h2 id={id} tabIndex={id ? -1 : undefined} className="bc-title scroll-mt-6">
+      <H id={id} tabIndex={id ? -1 : undefined} className="bc-title scroll-mt-6">
         {heading}
-      </h2>
+      </H>
       {withdraw.onWithdraw ? <p className="bc-hint">{t("brief.challengesHint")}</p> : null}
       <ol className="bc-list">
         {challenges.map((c, i) => {

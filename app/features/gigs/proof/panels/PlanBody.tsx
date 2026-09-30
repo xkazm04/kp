@@ -1,18 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { GIG_PLAN_SEATS } from "@/app/_lib/gigs/plan-seats";
-import type { GigPlan, GigPlanRow } from "@/app/_lib/gigs/types";
+import type { GigPlan } from "@/app/_lib/gigs/types";
 import { planFailure } from "../../logic/plans";
 
 // A plan as its seat wrote it, read-only (PlanColumn.tsx, and the earlier rounds' fold in
-// PlansPanel.tsx): the summary at a reading size, the numbered steps each with its "Done
+// report/ReportPlans.tsx): the summary at a reading size, the numbered steps each with its "Done
 // when", then what the plan decided without saying so, its risks, its effort and the
 // questions it has for the operator. An empty list is left out, never shown as "none".
-
-export function seatLabel(row: Pick<GigPlanRow, "seat" | "model">): string {
-  return GIG_PLAN_SEATS.find((s) => s.seat === row.seat)?.label ?? row.model;
-}
 
 function List({ title, items }: { title: string; items: readonly string[] }) {
   if (items.length === 0) return null;
