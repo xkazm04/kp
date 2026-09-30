@@ -37,6 +37,12 @@
 // USD estimate at the rate valid at this scan (`reward.usd`). The rate table is read at most
 // ONCE per scan, and only when a listing needs it (deps.fxRates, memoised below); offline or
 // unreadable = no estimate, never a guessed rate, never a failed scan.
+//
+// THE REWARD RULES (gigs/reward-floor.ts, operator 2026-09-30): after the reward is converted
+// and BEFORE the upsert, a listing with no stated reward (every arena) or a freelance listing
+// under the floors ($50 fixed ceiling, $10/hr top rate, in USD) is not filed. It is counted
+// (`excluded` per source and in total), never upserted - so a gig the purge removed is never
+// re-created by a later scan, and a listing already filed is not refreshed by one either.
 
 import { pauseGigSource, listGigSources, recordGigSourceRun } from "../db/gigs-sources";
 import { upsertGigFromRaw } from "../db/gigs";
@@ -54,6 +60,7 @@ import {
 import { sweepExpiredGigs } from "./expiry";
 import { defaultGigFreshnessDeps, refreshFreelancerGigStates, type GigFreshnessSummary } from "./freshness";
 import { convertRewardToUsd, loadFxRates, rewardNeedsFx, type FxTable } from "./fx";
+import { gigExclusion } from "./reward-floor";
 import { scanGigForHoneypots } from "./suspect";
 import type { Gig, GigAdapterName, GigPauseReason, GigSource, GigSourceRunOutcome } from "./types";
 
@@ -92,6 +99,16 @@ export type GigSourceRunSummary = {
   created: number;
   /** ...of which the honeypot scan flagged this run. */
   suspect: number;
+  /** Listings the reward rules kept out (never upserted; not counted in `found`). */
+  excluded: number;
+};
+
+/** What the reward rules (gigs/reward-floor.ts) kept out of this scan. */
+export type GigScanExcluded = {
+  /** No stated reward, any arena. */
+  noReward: number;
+  /** Freelance under the floor: a fixed ceiling under $50 or a top rate under $10/hr. */
+  belowFloor: number;
 };
 
 export type GigScanSummary = {
@@ -104,6 +121,8 @@ export type GigScanSummary = {
   found: number;
   created: number;
   suspect: number;
+  /** Listings the reward rules kept out, by rule (never filed). */
+  excluded: GigScanExcluded;
   /** Gigs handed to deps.qualify, and how many of those calls threw. */
   qualified: number;
   qualifyFailed: number;
@@ -264,6 +283,7 @@ export async function runGigScan(
     found: 0,
     created: 0,
     suspect: 0,
+    excluded: { noReward: 0, belowFloor: 0 },
     qualified: 0,
     qualifyFailed: 0,
     aborted: false,
@@ -306,7 +326,7 @@ export async function runGigScan(
         const reason: GigScanReason = budget.budgetFired() ? "wall_budget" : "aborted";
         summary.aborted = true;
         deps.recordGigSourceRun(workspaceId, source.id, "skipped");
-        summary.sources.push({ sourceId: source.id, adapter: source.adapter, outcome: "skipped", reason, paused: null, found: 0, created: 0, suspect: 0 });
+        summary.sources.push({ sourceId: source.id, adapter: source.adapter, outcome: "skipped", reason, paused: null, found: 0, created: 0, suspect: 0, excluded: 0 });
         continue;
       }
       const run = await runOneSource(workspaceId, source, deps, signal, rates);
@@ -314,6 +334,8 @@ export async function runGigScan(
       summary.found += run.summary.found;
       summary.created += run.summary.created;
       summary.suspect += run.summary.suspect;
+      summary.excluded.noReward += run.excluded.noReward;
+      summary.excluded.belowFloor += run.excluded.belowFloor;
       for (const { gig, bodyHtml, created: isNew } of run.landed) {
         htmlByGigId.set(gig.id, bodyHtml);
         if (isNew) created.set(gig.id, gig);
@@ -373,7 +395,7 @@ async function runOneSource(
   deps: GigScanDeps,
   callerSignal: AbortSignal | undefined,
   rates: () => Promise<FxTable | null> = () => Promise.resolve(null)
-): Promise<{ summary: GigSourceRunSummary; landed: { gig: Gig; created: boolean; bodyHtml: string | null }[] }> {
+): Promise<{ summary: GigSourceRunSummary; excluded: GigScanExcluded; landed: { gig: Gig; created: boolean; bodyHtml: string | null }[] }> {
   const summary: GigSourceRunSummary = {
     sourceId: source.id,
     adapter: source.adapter,
@@ -383,7 +405,9 @@ async function runOneSource(
     found: 0,
     created: 0,
     suspect: 0,
+    excluded: 0,
   };
+  const excluded: GigScanExcluded = { noReward: 0, belowFloor: 0 };
   const landed: { gig: Gig; created: boolean; bodyHtml: string | null }[] = [];
   const finish = (m: Mapped | null) => {
     if (m) {
@@ -395,7 +419,7 @@ async function runOneSource(
       }
     }
     deps.recordGigSourceRun(workspaceId, source.id, summary.outcome);
-    return { summary, landed };
+    return { summary, excluded, landed };
   };
   const log = (event: GigAdapterLogEvent) => deps.log({ ...event, sourceId: source.id });
   try {
@@ -404,6 +428,17 @@ async function runOneSource(
     for await (const listed of adapter.discover(ctx)) {
       // The reward's USD estimate at this scan's rate (a stablecoin needs no table).
       const raw = listed.reward ? { ...listed, reward: convertRewardToUsd(listed.reward, rewardNeedsFx(listed.reward) ? await rates() : null, deps.now()) } : listed;
+      // The reward rules, on the converted reward: an excluded listing is never filed. It
+      // still counts toward maxItems (the bound is on the work a source costs, not on rows).
+      const exclusion = gigExclusion({ arena: source.arena, reward: raw.reward });
+      if (exclusion) {
+        summary.excluded += 1;
+        if (exclusion === "no_reward") excluded.noReward += 1;
+        else excluded.belowFloor += 1;
+        if (summary.found + summary.excluded >= deps.limits.maxItems) break;
+        if (callerSignal?.aborted) break;
+        continue;
+      }
       const reasons = deps.scanHoneypots({ bodyText: raw.bodyText, bodyHtml: raw.bodyHtml, title: raw.title });
       let result: { gig: Gig; created: boolean };
       try {
@@ -415,7 +450,7 @@ async function runOneSource(
       if (result.created) summary.created += 1;
       if (reasons.length > 0) summary.suspect += 1;
       landed.push({ ...result, bodyHtml: raw.bodyHtml });
-      if (summary.found >= deps.limits.maxItems) break;
+      if (summary.found + summary.excluded >= deps.limits.maxItems) break;
       // Mid-source the budget is NOT enforced (never a half-run source), but a caller
       // cancellation is: an operator who pressed stop gets a stop.
       if (callerSignal?.aborted) break;

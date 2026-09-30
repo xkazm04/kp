@@ -5,7 +5,8 @@
 // records the unreached as `skipped: wall_budget`; the optional qualify hook sees only
 // gigs still `new`, and its throw is counted, never fatal; the expiry sweep runs first and
 // its count rides in the summary; research is ENQUEUED (never awaited) for the gigs the
-// scan created, and a cancelled scan enqueues nothing.
+// scan created, and a cancelled scan enqueues nothing; the reward rules keep a listing with
+// no reward or under the freelance floors out of the store, and count it.
 //
 // unit-db.ts first: the stores defaultGigScanDeps binds are imported for their types,
 // and their db-path must never resolve to a developer's kp.sqlite.
@@ -45,7 +46,8 @@ function raw(key: string, over: Partial<RawGig> = {}): RawGig {
     url: `https://example.test/${key}`,
     title: `Gig ${key}`,
     org: null,
-    reward: null,
+    // A stated reward over the floors: the reward rules (reward-floor.ts) file nothing without one.
+    reward: { amount: 200, currency: "USD", text: "$200 USD" },
     deadlineAt: null,
     postedAt: null,
     bodyText: "Fix the flaky retry loop and add a test.",
@@ -527,6 +529,49 @@ test("rewards in another currency are filed with a USD estimate; the rate table 
   const summary = await runGigScan("ws-1", failing.deps);
   assert.equal(summary.sources[0].outcome, "succeeded");
   assert.ok(failing.logs.includes("-:fx_failed"));
+});
+
+test("the reward rules: no reward (any arena) and a freelance listing under the floor are never filed, and are counted", async () => {
+  const table = { rates: { INR: { rate: 95.92, date: "2026-09-30" } }, fetchedAt: "2026-09-30T07:00:00.000Z", source: "frankfurter.dev rates (base USD)" };
+  const h = harness(
+    [source("s-gh", "github_bounty"), source("s-fl", "freelancer_api", { tier: "B" })],
+    {
+      "s-gh": fixtureAdapter("github_bounty", [raw("gh-none", { reward: null }), raw("gh-small", { reward: { amount: 5, currency: "USD", text: "$5" } })]),
+      "s-fl": fixtureAdapter("freelancer_api", [
+        raw("fl-keep", { reward: { amount: 30, currency: "USD", text: "$30-$250 USD" } }),
+        raw("fl-fixed", { reward: { amount: 10, currency: "USD", text: "$10-$30 USD" } }),
+        raw("fl-inr", { reward: { amount: 600, currency: "INR", text: "₹600-₹1,500 INR" } }),
+        raw("fl-hourly", { reward: { amount: 2, currency: "USD", text: "$2-$8/hr USD" } }),
+        raw("fl-none", { reward: null }),
+      ]),
+    },
+    { fxRates: async () => table }
+  );
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(h.upserts.map((u) => u.key), ["gh-small", "fl-keep"], "the floors bind freelance only; nothing excluded is upserted");
+  assert.deepEqual(summary.excluded, { noReward: 2, belowFloor: 3 }, "INR is judged after its conversion");
+  assert.deepEqual(summary.sources.map((s) => [s.sourceId, s.found, s.excluded]), [["s-gh", 1, 1], ["s-fl", 1, 4]]);
+  assert.equal(summary.found, 2);
+  assert.deepEqual(h.qualified, ["gh-small", "fl-keep"], "an excluded listing is never qualified");
+
+  // A second scan of the same listings files nothing new and re-creates nothing it excluded.
+  const again = await runGigScan("ws-1", h.deps);
+  assert.equal(again.created, 0);
+  assert.deepEqual(again.excluded, { noReward: 2, belowFloor: 3 });
+
+  // Offline (no rate table): the INR listing has no honest ceiling, so it is KEPT, never guessed.
+  const offline = harness([source("s-fl", "freelancer_api", { tier: "B" })], {
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-inr", { reward: { amount: 600, currency: "INR", text: "₹600-₹1,500 INR" } })]),
+  });
+  const s3 = await runGigScan("ws-1", offline.deps);
+  assert.deepEqual([s3.found, s3.excluded.belowFloor], [1, 0]);
+
+  // maxItems bounds the listings a source costs, excluded ones included.
+  const capped = harness([source("s-fl", "freelancer_api", { tier: "B" })], {
+    "s-fl": fixtureAdapter("freelancer_api", [raw("fl-a", { reward: null }), raw("fl-b", { reward: null }), raw("fl-c")]),
+  }, { limits: { ...DEFAULT_GIG_ADAPTER_LIMITS, maxItems: 2 } });
+  const s4 = await runGigScan("ws-1", capped.deps);
+  assert.deepEqual([s4.found, s4.excluded.noReward], [0, 2]);
 });
 
 test("the production scan deps plug the real expiry sweep", () => {

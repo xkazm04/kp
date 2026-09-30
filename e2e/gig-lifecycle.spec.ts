@@ -154,9 +154,37 @@ function freelancerProjects(nowS: number) {
       type: "fixed",
       bidperiod: 2,
       time_submitted: nowS - 10 * 86_400,
-      budget: { minimum: 10, maximum: 20 },
+      // $30-$60, not $10-$20: under the $50 fixed floor (gigs/reward-floor.ts) the scan would
+      // never file it, and this listing exists to prove the expiry sweep.
+      budget: { minimum: 30, maximum: 60 },
       currency: { code: "USD", sign: "$" },
       jobs: [{ name: "HTML" }],
+    },
+    {
+      // Below the floors, so never filed (operator, 2026-09-30): a fixed ceiling under $50...
+      id: 900005,
+      title: "Format my Excel sheet",
+      seo_url: "excel/format-my-excel-sheet",
+      description: "Format one Excel sheet: bold headers, fit the columns.",
+      type: "fixed",
+      bidperiod: 7,
+      time_submitted: nowS - 1_800,
+      budget: { minimum: 5, maximum: 10 },
+      currency: { code: "USD", sign: "$" },
+      jobs: [{ name: "Excel" }],
+    },
+    {
+      // ...and an hourly rate topping out under $10/hr.
+      id: 900006,
+      title: "Ongoing data tagging",
+      seo_url: "data-entry/ongoing-data-tagging",
+      description: "Tag product photos by category, a few hours a week.",
+      type: "hourly",
+      bidperiod: 7,
+      time_submitted: nowS - 1_800,
+      budget: { minimum: 2, maximum: 8 },
+      currency: { code: "USD", sign: "$" },
+      jobs: [{ name: "Data Entry" }],
     },
   ];
 }
@@ -615,9 +643,10 @@ test("1. scan: the real adapter against the fixture API files, quarantines and e
 
   const scan = await okJson<{ taskId: string }>(await request.post("/api/gigs/scan", { data: {} }), "POST /api/gigs/scan");
   const done = await waitTask(request, scan.taskId);
-  const summary = done.result as { created: number; suspect: number; research: { taskId: string | null; gigs: number } | null };
+  const summary = done.result as { created: number; suspect: number; excluded: { noReward: number; belowFloor: number }; research: { taskId: string | null; gigs: number } | null };
   expect(summary.created).toBe(4);
   expect(summary.suspect).toBe(1);
+  expect(summary.excluded, "the two listings under the freelance floors are never filed").toEqual({ noReward: 0, belowFloor: 2 });
   expect(fixture.hits, "the adapter read the fixture API, not freelancer.com").toContain("/api/projects/0.1/projects/active/");
   expect(summary.research?.taskId, "the scan hands the gigs it created to a research pass").toBeTruthy();
   const research = await waitTask(request, summary.research!.taskId!);
@@ -631,6 +660,7 @@ test("1. scan: the real adapter against the fixture API files, quarantines and e
   expect(honeypot.status, "the Telegram + USDT line quarantines the listing").toBe("suspect");
   expect(honeypot.suspectReasons).toContain("off_platform_payment");
   expect(late.status, "a passed deadline scores 0: never qualified").toBe("new");
+  expect(gigs.some((g) => g.externalKey === "fl:900005" || g.externalKey === "fl:900006"), "below the floors: not filed").toBe(false);
   const physical = gigs.find((g) => g.externalKey === "fl:900004")!;
   expect(physical.status, "physical work never reaches the desk").toBe("declined");
   expect(physical.qualification?.declineReason).toBe("not_digital_work");

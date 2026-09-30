@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, type RefObject } from "react";
+import { useMemo, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import type { Gig } from "@/app/_lib/gigs/types";
-import { type FileFilter, fileRows, type FileStatus, isClosedOut } from "../logic/file";
+import { EMPTY_FILE, type FileFilter, fileRows, type FileStatus } from "../logic/file";
+import { fileFacets, hiddenByStatus } from "../logic/fileFacets";
 import { isGigType } from "@/app/_lib/gigs/gig-type";
 import type { AfterWrite, SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
@@ -13,14 +14,16 @@ import { FilePager, PER_PAGE } from "./FilePager";
 import { FileTable } from "./FileTable";
 import type { DeadlineCell, RewardCell } from "./useGigCells";
 
-// The whole file (B/3): every gig the tab read, filtered by status and arena chips (each
-// with its count), a lane (gig type) opened from Lanes, and `/` search; sorted by recency, deadline,
-// the scan's fit score, or reward by its US-dollar value across currencies (the scan day's
-// rate, logic/file.ts rewardUsd; a reward with no dollar value sorts last); fifty to a
-// page. A row opens the gig's proof, and ← / → then walk this list in this order, across
-// its pages.
+// The whole file (B/3): every gig the tab read, filtered by three faceted dropdowns (status,
+// arena, type; each option counted over what the other filters let through, logic/fileFacets.ts)
+// and `/` search. The status defaults to "Active": the closed states (declined, withdrawn,
+// expired, rejected, and an unsent gig past its deadline) stay out until picked, and the count
+// line says how many that hides. Sorted by recency, deadline, the scan's fit score, or reward by
+// its US-dollar value across currencies (the scan day's rate, logic/file.ts rewardUsd; a reward
+// with no dollar value sorts last); fifty to a page. A row opens the gig's proof, and ← / → then
+// walk this list in this order, across its pages.
 //
-// Parts: FileFilters.tsx (the chips), FileTable.tsx (the sortable table), FilePager.tsx.
+// Parts: FileFilters.tsx (the dropdown row), FileTable.tsx (the sortable table), FilePager.tsx.
 
 export function GigsFile({
   gigs,
@@ -58,21 +61,28 @@ export function GigsFile({
 }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
-  const [showClosed, setShowClosed] = useState(false);
-  // Asking for Expired or Left the line by chip is asking to see them.
-  const closedAsked = showClosed || filter.status === "expired" || filter.status === "exit";
-  const closedCount = useMemo(() => gigs.filter((g) => isClosedOut(g, now)).length, [gigs, now]);
-  const visible = useMemo(() => (closedAsked ? gigs : gigs.filter((g) => !isClosedOut(g, now))), [gigs, now, closedAsked]);
-  const rows = useMemo(() => fileRows(visible, filter, now), [visible, filter, now]);
+  const rows = useMemo(() => fileRows(gigs, filter, now), [gigs, filter, now]);
+  const facets = useMemo(() => fileFacets(gigs, filter, now), [gigs, filter, now]);
+  // Only the default status hides anything; say how many, and offer them.
+  const hidden = filter.status === EMPTY_FILE.status ? hiddenByStatus(facets) : 0;
   const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
   const at = Math.min(page, pages - 1);
   const slice = rows.slice(at * PER_PAGE, at * PER_PAGE + PER_PAGE);
   const ids = rows.map((g) => g.id);
 
   const statusLabel = (s: FileStatus) =>
-    s === "in_review" ? t("front.col.ready") : s === "drafted" ? t("front.col.proof") : s === "suspect" ? t("front.col.quar") : s === "verdict" ? t("file.verdict") : s === "exit" ? t("file.exit") : s === "all" ? t("file.all") : fmt.status(s);
-  const laneLabel = filter.lane === null ? null : isGigType(filter.lane) ? t(`lanes.type.${filter.lane}`) : filter.lane;
-  const listLabel = [laneLabel, filter.status !== "all" ? statusLabel(filter.status) : null, filter.arena !== "all" ? fmt.arena(filter.arena) : null].filter(Boolean).join(" · ") || t("file.title");
+    s === "in_review" ? t("front.col.ready")
+    : s === "drafted" ? t("front.col.proof")
+    : s === "suspect" ? t("front.col.quar")
+    : s === "verdict" ? t("file.verdict")
+    : s === "exit" ? t("file.exit")
+    : s === "all" ? t("file.all")
+    : s === "active" ? t("file.active")
+    : s === "overdue" ? t("file.overdue")
+    : fmt.status(s);
+  const laneName = (lane: string) => (isGigType(lane) ? t(`lanes.type.${lane}`) : lane);
+  const laneLabel = filter.lane === null ? null : laneName(filter.lane);
+  const listLabel = [laneLabel, filter.status !== EMPTY_FILE.status ? statusLabel(filter.status) : null, filter.arena !== "all" ? fmt.arena(filter.arena) : null].filter(Boolean).join(" · ") || t("file.title");
 
   const set = (patch: Partial<FileFilter>) => onFilter({ ...filter, ...patch });
 
@@ -84,32 +94,17 @@ export function GigsFile({
         </h2>
         <span className="t-meta" role="status">
           {t("file.count", { shown: rows.length, total: gigs.length })}
+          {hidden > 0 ? ` · ${t("file.hidden", { count: hidden })}` : null}
           {truncated ? ` · ${t("file.truncated")}` : null}
         </span>
-        {closedCount > 0 ? (
-          <button type="button" className="chip" aria-pressed={closedAsked} disabled={filter.status === "expired" || filter.status === "exit"} onClick={() => setShowClosed((v) => !v)}>
-            {t("file.showClosed")} <b>{closedCount}</b>
+        {hidden > 0 ? (
+          <button type="button" className="linkbtn t-meta" onClick={() => set({ status: "all" })}>
+            {t("file.showHidden")}
           </button>
         ) : null}
-        <label className="search">
-          <span className="sr-only">{t("file.search")}</span>
-          <input
-            ref={searchRef}
-            type="search"
-            value={filter.search}
-            placeholder={t("file.search")}
-            autoComplete="off"
-            aria-keyshortcuts="/"
-            onChange={(e) => set({ search: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") e.currentTarget.blur();
-            }}
-          />
-          <kbd aria-hidden>/</kbd>
-        </label>
       </div>
 
-      <FileFilters gigs={gigs} sources={sources} filter={filter} set={set} laneLabel={laneLabel} statusLabel={statusLabel} onToWires={onToWires} />
+      <FileFilters gigs={gigs} sources={sources} facets={facets} filter={filter} set={set} statusLabel={statusLabel} laneName={laneName} searchRef={searchRef} onToWires={onToWires} />
 
       <FileTable
         slice={slice}
@@ -126,7 +121,7 @@ export function GigsFile({
         deadline={deadline}
       />
 
-      <FilePager at={at} pages={pages} shown={rows.length} total={visible.length} onPage={onPage} />
+      <FilePager at={at} pages={pages} shown={rows.length} total={gigs.length} onPage={onPage} />
     </section>
   );
 }

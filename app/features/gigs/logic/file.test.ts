@@ -35,7 +35,7 @@ test("fileRows by deadline: soonest open first, then the closed, then none; fit:
     gig("d9", "new", { deadlineAt: inDays(9) }),
     gig("d1", "new", { deadlineAt: inDays(1) }),
   ];
-  assert.deepEqual(fileRows(gigs, { ...EMPTY_FILE, sort: "deadline" }, NOW).map((g) => g.id), ["d1", "d9", "closed", "none"]);
+  assert.deepEqual(fileRows(gigs, { ...EMPTY_FILE, status: "all", sort: "deadline" }, NOW).map((g) => g.id), ["d1", "d9", "closed", "none"]);
   const fit = [gig("u", "new"), gig("lo", "new", { qualification: { score: 20 } as Gig["qualification"] }), gig("hi", "new", { qualification: { score: 80 } as Gig["qualification"] })];
   assert.deepEqual(fileRows(fit, { ...EMPTY_FILE, sort: "fit" }, NOW).map((g) => g.id), ["hi", "lo", "u"]);
 });

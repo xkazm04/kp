@@ -312,6 +312,104 @@ number, and "a current online rate" is exactly what a published rate table is. A
 changes only the day's estimate refreshes `reward.usd` without touching `updated_at` (the desk's
 sort key): `db/gigs.ts` compares the listing's reward without its `usd`.
 
+## Reward rules
+
+The operator's rule (2026-09-30): a gig has to state a reward, and a freelance job has to be
+worth taking. `app/_lib/gigs/reward-floor.ts` holds the rule. It is pure, so the scan and the
+purge read the same code.
+
+| Exclusion | Applies to | Fails when |
+| --- | --- | --- |
+| `no_reward` | every arena | the listing has no reward, or a reward with no amount and no text. A non-monetary reward the listing states ("Swag", "Knowledge") counts as a stated reward, so the gig stays. |
+| `below_floor_fixed` | freelance | the budget ceiling is under **$50** (`GIG_FIXED_FLOOR_USD`) |
+| `below_floor_hourly` | freelance, hourly | the top rate is under **$10/hr** (`GIG_HOURLY_FLOOR_USD`) |
+
+**The ceiling, not the amount.** `reward.amount` is the bottom of a range (`freelancer.ts`
+files "$30-$250" with amount 30), so the floor compares against the largest figure the reward
+states instead: every number in `text` (commas stripped, a `k` suffix read as thousands) and
+`amount`, converted to US dollars. The rate comes from the first of these that exists:
+
+1. the rate the scan stored on the reward (`reward.usd.rate`, units per one US dollar);
+2. 1, for USD and the pegged stablecoins (USDC, USDT);
+3. the Frankfurter rate table (`gigs/fx.ts`).
+
+A currency with none of these has no ceiling, and the gig is **kept**. The rule never
+guesses a rate. A reward is hourly when its text says `/hr`, `/hour`, `per hour` or `hourly`.
+Both `freelancer.ts` and `upwork.ts` write `/hr`.
+
+Examples: "$30-$250 USD" stays. "$10-$30 USD", "₹600-₹1,500 INR" (about $15.6) and
+"$2-$8/hr USD" go. The boundaries stay too: a $50 ceiling and a $10/hr top rate are both kept.
+
+### At scan time
+
+`gigs/scan.ts` applies the rule after the reward is converted and before the upsert. An
+excluded listing is never filed, qualified or researched. It still counts toward the
+source's `maxItems`, because that limit bounds how much work a source costs, not how many
+rows it files. The scan summary reports what was skipped:
+
+- `excluded: { noReward, belowFloor }` for the whole scan;
+- `excluded` on each source's row.
+
+A gig the purge removed is not filed again, because the next scan skips it under the same
+rule. There is one side effect. A gig that is already filed and whose listing drops below the
+floor stays as it is, because the scan no longer refreshes it. The purge removes it.
+
+Offline, or when the rate table cannot be read, a non-USD freelance listing has no ceiling.
+It is filed, the same as before this rule existed.
+
+### The purge door: `POST /api/gigs/purge`
+
+Request body: `{ rules: ("no_reward" | "below_floor")[], dryRun?: boolean }`. The door is
+operator-only, needs `pipeline:write`, and is limited to 5 calls per 10 minutes per IP
+(`gigs-purge`).
+
+**A request is a dry run unless it sends `dryRun: false`.** A dry run writes nothing. It
+answers with:
+
+- `count`, `byRule`, `byStatus`, `byArena`, and `sample` (the first 20 gigs as
+  `{id, title, status, reward}`);
+- `unconverted`: non-USD freelance gigs with no rate, which are kept;
+- `fx`: `not_needed`, `read` or `unavailable`;
+- `children`: plans, attempts, the attempts' metered `attemptCostUsd`, and personas;
+- `keptWithOutcome`;
+- `filesLeft: { workdirs, reports, proposals }`.
+
+A real run answers with the same fields plus `deleted`, `changed`, `personasRetired` and
+`personasFailed`. The door refuses bad input with 400 `GIG_INPUT_INVALID {field}`, and a
+second purge while one is running with 409 `GIG_ACTION_NOT_ALLOWED {reason: "purge_running"}`.
+
+A real run works in five steps (`gigs/purge.ts` over `db/gigs-purge.ts`):
+
+1. It judges every gig in the workspace, whatever its arena or status.
+2. It reads the gig personas before anything is deleted.
+3. It deletes 100 gigs per synchronous `.immediate()` transaction. For each gig it deletes
+   the plans, the attempts, the persona rows whose hire is no longer live, and the gig
+   itself. Inside the transaction it re-reads each row and checks the rule again. A gig
+   whose reward changed since step 1 is counted in `changed` and left alone.
+4. It never deletes a gig with a recorded outcome, because `gig_outcomes` is append-only and
+   a judged piece of work counts toward the KPIs. Such a gig is counted in `keptWithOutcome`.
+5. After the transactions, it retires each persona whose hire is still live, through the
+   sync's own retire path (`gigs/persona-retire.ts`). That path retires the persona in
+   Personas and then moves the hire to `retired`. Once the persona is retired, its row is
+   deleted. If the retire is refused, the row stays, and the sync's retire step retries it
+   as `gig_missing`.
+
+Files on disk are never touched: gig workdirs, HTML reports and client proposals. The report
+counts them in `filesLeft`.
+
+**Numbers on a copy of the live DB (2026-09-30, dry run).** One workspace:
+
+- `no_reward` matches 192 gigs:
+  - by arena: 95 oss_bounty and 97 security;
+  - by status: 86 new, 72 declined, 30 drafted, 2 suspect, 2 withdrawn;
+  - children: 69 attempts carrying $27.39 of metered spend, 32 workdirs with reports.
+- `below_floor` matches 170 gigs, all freelance:
+  - 117 fixed (40 USD, 65 INR, 5 EUR, 4 GBP, and the rest CAD, NZD and AUD) and 53 hourly;
+  - by status: 57 new, 51 qualified, 32 expired, 21 declined, 4 drafted, 4 in_review,
+    1 withdrawn;
+  - children: 24 attempts carrying $24.18 of spend, 6 workdirs, 6 reports and 6 proposals.
+- Both rules together match 362 gigs. None of them has an outcome or a gig persona.
+
 ## Plans
 
 Before a gig is dispatched, the seats its research brief's difficulty calls for each write
@@ -1226,18 +1324,30 @@ proof lands where the operator left.
    rows, the rest one fold away; a title opens its proof, ← / → walk the New list), each with
    **Accept** (`PATCH /api/gigs/[id]` `accept`: `new → qualified`, nothing dispatched) and
    **Reject** (`decline`, one click, no confirm). Hidden when nothing is `new`.
-   Below a double rule, **the whole file**: status chips (each with its count; the three that
-   wait on you marked), arena chips (an arena whose only source never ran is a dashed "—",
-   not a zero, and opens Wires), a lane chip when opened from Lanes, `/` search (title, org,
-   id, niche, tags), sort by recency, deadline, fit, or reward by its **US-dollar value
-   across currencies** (`logic/file.ts` `rewardUsd`: the amount itself for USD and the
-   pegged stablecoins USDC and USDT, else the scan's conversion `reward.usd`, at the rate of
-   the scan day; a reward with no amount or no rate sorts last in both directions), 50 rows a
-   page. **Expired** gigs and unsent ones whose
-   deadline has passed (`logic/file.ts` `isClosedOut`) are hidden until the "Show expired and
-   closed" chip (or the Expired / Left the line status chip) asks for them. `N` opens the next gig that waits in
-   the urgency order after the one last opened, wrapping. With no gigs at all the page says
-   why (no sources yet, or nothing found) and points to Wires.
+   Below a double rule, **the whole file**: one filter row (`front/FileFilters.tsx`) of three
+   kit `Menu` dropdowns, **Status**, **Arena** and **Type** (the gig type, `gig-type.ts`; a Lanes
+   cell opens the file with it set), then Clear (shown when anything differs from the default)
+   and the `/` search (title, org, id, niche, tags). The dropdowns are **faceted**
+   (`logic/fileFacets.ts` `fileFacets`): each option's count, carried in its accessible name
+   ("Qualified · 199"), is taken over the gigs that pass every OTHER filter and the search, so
+   picking an arena recounts Status and Type and the other way round. "All" leads (then "Active"
+   for Status), the rest follow by count, largest first; an option holding nothing under the
+   current combination is disabled and last, except the value picked, which is never dropped
+   or disabled. An arena whose only source never ran reads "Data competitions: never scanned,
+   open Wires" instead of a zero, and picking it opens Wires. Sort by recency, deadline, fit, or
+   reward by its **US-dollar value across currencies** (`logic/file.ts` `rewardUsd`: the amount
+   itself for USD and the pegged stablecoins USDC and USDT, else the scan's conversion
+   `reward.usd`, at the rate of the scan day; a reward with no amount or no rate sorts last in
+   both directions), 50 rows a page.
+   **The closed states are hidden by default.** Every gig has one file state
+   (`logic/file.ts` `fileStateOf`): its status, or `overdue` for a gig still unsent (new,
+   suspect, qualified, dispatched, drafted, in review) whose deadline has passed. Status
+   defaults to **Active**, every state except `NEGATIVE_STATES` = declined, withdrawn, expired,
+   rejected and overdue ("Deadline passed"); the count line says how many that hides
+   ("635 of 935 listings · 300 closed listings hidden") with **Show all** beside it (Status =
+   All). Picking a closed state in Status shows it. `suspect` (Quarantined) stays visible: a
+   quarantined gig waits for the operator's call, it is not an end state. The Lanes "Verdict"
+   and "Left the line" cells open Status as the group they count (raw status).
 
    Wherever a reward shows (the lead, the index rows, the file, the report's Reward card), a
    currency other than the dollar and the euro carries a quiet **≈ $150** beside the listing's
@@ -1488,7 +1598,7 @@ proof lands where the operator left.
    Verdict): a numeral with a bar of its share of the column; "·" for none here now; a dashed
    slot for a stage the type never reached; Sent at 0 is a measured zero; Verdict at 0 is an
    unmeasured stub; the three that wait on the operator are washed coral. A cell opens the
-   front page's whole file filtered to that type and stage (the file's lane chip names the
+   front page's whole file filtered to that type and stage (the file's Type dropdown names the
    type). Then the type's **agent runs** ("6 of 42 attempts failed", a failed-share bar, "23
    sent back for revision") and their reported cost, summed from the attempt tallies
    (`GET /api/gigs/specialists` `tallies`) of the gig personas whose gig is of that type. A
@@ -1584,6 +1694,7 @@ seen. Info never gates.
 | GET | `/api/gigs/kpi` | operator | none | none (the `GigKpi` also carries `moneyWon` per currency and `acceptedWithoutAmount`) |
 | GET | `/api/gigs/lessons` | operator or automation token | none | `GIG_INPUT_INVALID` |
 | POST | `/api/gigs/lessons` | `pipeline:write` or automation token | 60 `gigs-lessons-land` | `GIG_INPUT_INVALID` |
+| POST | `/api/gigs/purge` | `pipeline:write` | 5 `gigs-purge` | `GIG_INPUT_INVALID {field}`, `GIG_ACTION_NOT_ALLOWED {reason: "purge_running"}` (409); see **Reward rules** |
 
 Every handler answers store faults with `GIG_STORE_FAILED`. All codes are in
 `app/_lib/api-response.ts`, with four catalog entries each under `errors.*`. The
@@ -1594,6 +1705,8 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/types.ts` | the wire vocabulary |
 | `app/_lib/gigs/transitions.ts` | both state machines as data (`drafted`/`in_review` -> `qualified` added for `discard`) |
 | `app/_lib/gigs/adapters/**`, `scan.ts`, `suspect.ts` | official-API acquisition, the honeypot scan, the scan orchestrator (whole workspace or one source) |
+| `app/_lib/gigs/reward-floor.ts` | the pure reward rule (`no_reward`, `below_floor_fixed`, `below_floor_hourly`) the scan and the purge both read (see **Reward rules**) |
+| `app/_lib/gigs/purge.ts`, `app/_lib/db/gigs-purge.ts`, `persona-retire.ts` | the purge door's five-step run (judge, read personas, delete in batches of 100, skip gigs with an outcome, retire live personas) and its store layer |
 | `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's pinned web-researching model call, the Markdown and its sections; the `gig_research` pass |
 | `app/_lib/gigs/plans.ts`, `pipeline/jobfit/gig_plan_cli.py`, `plan-seats.ts`, `app/_lib/db/gigs-plans.ts` | the plan runner (the difficulty's seats in parallel), the plan CLI, the seat lineup, the plan store and the one acceptance |
 | `app/_lib/gigs/expiry.ts` | the expiry sweep the scan runs first |
@@ -1614,7 +1727,7 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/lessons.ts` | deterministic lesson bullets and the feedback scrubber |
 | `app/_lib/gigs/kpi.ts` | the pure KPI fold, including money won per currency (never totalled) from the counted verdicts |
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
-| `app/features/gigs/logic/*.ts` | the tab's pure derivations, one module per concern, each with its `*.test.ts`: `line.ts` (which queue a gig sits in, `queueKindOf`; how far along the line it got, `reachedStep`), `rate.ts` (the rate as a fraction), `facts.ts` (deadlines, evidence states, the Approve and Mark sent gates), `keys.ts` (the keyboard guards), `front.ts` (front columns and the urgency order, walking a list), `file.ts` (the whole file's filter and sort), `niches.ts` / `lanes.ts` (niches and lanes), `reviewNote.ts` (the reviewer note read into parts), `galley.ts` (margin notes pinned to their paragraph), `summary.ts` (the summary set for reading), `routing.ts` (the routing tab) |
+| `app/features/gigs/logic/*.ts` | the tab's pure derivations, one module per concern, each with its `*.test.ts`: `line.ts` (which queue a gig sits in, `queueKindOf`; how far along the line it got, `reachedStep`), `rate.ts` (the rate as a fraction), `facts.ts` (deadlines, evidence states, the Approve and Mark sent gates), `keys.ts` (the keyboard guards), `front.ts` (front columns and the urgency order, walking a list), `file.ts` (the whole file's file state, filter and sort), `fileFacets.ts` (the faceted dropdown counts), `niches.ts` / `lanes.ts` (niches and lanes), `reviewNote.ts` (the reviewer note read into parts), `galley.ts` (margin notes pinned to their paragraph), `summary.ts` (the summary set for reading), `routing.ts` (the routing tab) |
 | `app/_lib/gigs/sources-catalog.ts` | tiers, hosts, keys, terms summaries and hashes |
 
 The gig sync (`gig_sync`) the clock's summary (`gig_sync` task result) now carries
@@ -2002,6 +2115,11 @@ chain.
   caught only by the research layer.
 - `planSeatLabel` resolves a label by seat and effort; a future lineup reusing a seat id at a new
   effort needs its label added to `GIG_PLAN_SEATS`.
+- A gig that is already filed and whose listing later drops below the floor is not refreshed by
+  the scan; only the purge removes it (see **Reward rules**).
+- The front end does not yet show the scan's `excluded` counts (`noReward`, `belowFloor`).
+- HackerOne's public-dataset listings never carry a reward, so the security arena files nothing
+  under the `no_reward` rule.
 - A `writing` report record orphaned by a server restart mid-task stays `writing` until the
   next trigger or a regenerate (the task itself is marked interrupted). Expiry and the
   freshness sweep do not trigger a `closed` report; the next move or a regenerate does.

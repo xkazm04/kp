@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Gig, GigStatus } from "@/app/_lib/gigs/types";
-import type { FileFilter, FileSort, FileStatus } from "../logic/file";
+import { EMPTY_FILE, type FileFilter, type FileSort, type FileStatus } from "../logic/file";
 import type { AfterWrite } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { useGigsFormat } from "../data/useGigsFormat";
@@ -147,7 +147,7 @@ export function FileTable({
             <tr>
               <td colSpan={6} className="q-empty">
                 {t("file.none")}{" "}
-                <button type="button" className="linkbtn" onClick={() => onFilter({ ...filter, status: "all", arena: "all", lane: null, search: "" })}>
+                <button type="button" className="linkbtn" onClick={() => onFilter({ ...filter, status: EMPTY_FILE.status, arena: "all", lane: null, search: "" })}>
                   {t("file.clear")}
                 </button>
               </td>

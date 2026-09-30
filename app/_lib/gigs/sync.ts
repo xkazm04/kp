@@ -10,7 +10,8 @@ import { listGigPersonaSpecialists, listGigSpecialists } from "../db/gigs-specia
 import { GIG_DELIVERABLE_FILE } from "./contract";
 import { parseGigDeliverable, validateGigDeliverable, type ParseGigDeliverableResult } from "./deliverable";
 import { dispatchGigAttempt, type DispatchGigAttemptResult } from "./dispatch";
-import { retirePersonasPersona, type RetirePersonaResult } from "./personas-places";
+import type { RetirePersonaResult } from "./personas-places";
+import { retireGigPersonaHire } from "./persona-retire";
 import { fetchPersonaExecution, type FetchExecutionResult } from "./personas-exec";
 import { syncGigPlanStatus, type GigPlanStatusDeps } from "./plan-status";
 import { requestGigReport } from "./report/trigger";
@@ -346,21 +347,7 @@ async function retireOne(
   deps: GigSyncDeps,
   p: GigPersonaSyncSummary
 ): Promise<void> {
-  if (agent.personaId) {
-    let res: RetirePersonaResult;
-    try {
-      res = await (deps.retirePersona ?? ((id: string) => retirePersonasPersona(id)))(agent.personaId);
-    } catch {
-      // The default transport never throws; an injected one might - retried next pass.
-      res = { ok: false, reason: "personas_unreachable" };
-    }
-    if (!res.ok && res.reason !== "personas_persona_missing") {
-      p.retireDeferred += 1;
-      return;
-    }
-  }
-  const t = transitionHiredAgent(agent.id, { from: agent.status, to: "retired", event: "gig_retired", reason }, workspaceId);
-  if (t.applied) p.retired += 1;
+  if (await retireGigPersonaHire(workspaceId, agent, reason, deps.retirePersona)) p.retired += 1;
   else p.retireDeferred += 1;
 }
 

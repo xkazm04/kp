@@ -8,9 +8,17 @@ import { matchesSearch } from "./line";
 // The whole file: every gig, filtered and sorted
 // ---------------------------------------------------------------------------
 
-/** A status chip, or one of the two groups a lane cell opens: the judge's verdicts and
- *  the ways off the line. */
-export type FileStatus = GigStatus | "all" | "verdict" | "exit";
+/** Where a gig stands in the file: its status, or "overdue" for a gig still unsent whose
+ *  deadline has gone (it can no longer be sent, whatever its status says). Every gig has
+ *  exactly one, so the status dropdown's counts add up to "all". */
+export type FileState = GigStatus | "overdue";
+/** The states the file hides until asked (EMPTY_FILE's "active" leaves them out): the ways a
+ *  gig ends without a win. "suspect" is NOT one: a quarantined gig waits for the operator. */
+export const NEGATIVE_STATES = ["declined", "withdrawn", "expired", "rejected", "overdue"] as const satisfies readonly FileState[];
+/** The status dropdown's value: one state; "active" (every state but the negative ones, the
+ *  default); "all"; or one of the two groups a lane cell opens (the judge's verdicts, the
+ *  ways off the line). */
+export type FileStatus = FileState | "active" | "all" | "verdict" | "exit";
 export const FILE_SORTS = ["touched", "deadline", "fit", "reward"] as const;
 export type FileSort = (typeof FILE_SORTS)[number];
 
@@ -46,21 +54,40 @@ export function rewardEstimate(r: GigReward | null): GigRewardUsd | null {
   return r.usd;
 }
 
-export const EMPTY_FILE: FileFilter = { status: "all", arena: "all", lane: null, search: "", sort: "touched", dir: 1 };
+export const EMPTY_FILE: FileFilter = { status: "active", arena: "all", lane: null, search: "", sort: "touched", dir: 1 };
 
-/** Expired, or still unsent with its deadline already gone: the rows the file hides until
- *  asked. A sent or judged gig keeps its row whatever its deadline says. */
-export function isClosedOut(g: Gig, now: Date): boolean {
-  if (g.status === "expired") return true;
-  const unsent = g.status === "new" || g.status === "suspect" || g.status === "qualified" || g.status === "dispatched" || g.status === "drafted" || g.status === "in_review";
-  return unsent && deadlineView(g.deadlineAt, now).state === "passed";
+const UNSENT: ReadonlySet<GigStatus> = new Set(["new", "suspect", "qualified", "dispatched", "drafted", "in_review"]);
+
+/** A gig's one state (FileState). A sent or judged gig keeps its status whatever its
+ *  deadline says; an unsent one whose deadline passed is "overdue". */
+export function fileStateOf(g: Gig, now: Date): FileState {
+  return UNSENT.has(g.status) && deadlineView(g.deadlineAt, now).state === "passed" ? "overdue" : g.status;
 }
 
-export function statusMatches(filter: FileStatus, status: GigStatus): boolean {
+export function isNegative(state: FileState): boolean {
+  return (NEGATIVE_STATES as readonly string[]).includes(state);
+}
+
+/** "verdict" and "exit" read the raw status, as the Lanes cells that open them count it. */
+export function statusMatches(filter: FileStatus, g: Gig, now: Date): boolean {
   if (filter === "all") return true;
-  if (filter === "verdict") return status === "accepted" || status === "rejected";
-  if (filter === "exit") return (EXIT_STATUSES as readonly string[]).includes(status);
-  return filter === status;
+  if (filter === "verdict") return g.status === "accepted" || g.status === "rejected";
+  if (filter === "exit") return (EXIT_STATUSES as readonly string[]).includes(g.status);
+  const state = fileStateOf(g, now);
+  return filter === "active" ? !isNegative(state) : filter === state;
+}
+
+/** The filter's dimensions; a facet counts with its own dimension skipped. */
+export type FileDim = "status" | "arena" | "lane";
+
+/** Does the gig pass every filter (search included) except `skip`? */
+export function matchesFile(g: Gig, f: FileFilter, now: Date, skip: FileDim | null = null): boolean {
+  return (
+    (skip === "status" || statusMatches(f.status, g, now)) &&
+    (skip === "arena" || f.arena === "all" || g.arena === f.arena) &&
+    (skip === "lane" || f.lane === null || gigTypeOf(g) === f.lane) &&
+    matchesSearch(g, f.search)
+  );
 }
 
 /** The file's rows. `touched` keeps the list's own order (most recently touched first).
@@ -73,13 +100,7 @@ export function fileRows(
   filter: FileFilter,
   now: Date
 ): Gig[] {
-  const rows = gigs.filter(
-    (g) =>
-      statusMatches(filter.status, g.status) &&
-      (filter.arena === "all" || g.arena === filter.arena) &&
-      (filter.lane === null || gigTypeOf(g) === filter.lane) &&
-      matchesSearch(g, filter.search)
-  );
+  const rows = gigs.filter((g) => matchesFile(g, filter, now));
   const dir = filter.dir;
   if (filter.sort === "deadline") {
     const key = (g: Gig) => {

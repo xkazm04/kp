@@ -2423,6 +2423,15 @@ const ROUTES: RouteSpec[] = [
     expensive: "syncGigAttempts(ws",
   },
   {
+    // ADDED with the route (WP16, 2026-09-30): the reward-rules purge reads the USD rate
+    // table (one outbound request) and deletes in bulk. 5/10min per IP, ahead of the work.
+    rel: "./gigs/purge/route.ts",
+    key: "`gigs-purge:${clientIpFrom(request.headers)}`",
+    limit: 5,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "runGigPurge(ws",
+  },
+  {
     // The registry lander's stamp: one UPDATE batch per landing commit.
     rel: "./gigs/lessons/route.ts",
     key: "`gigs-lessons-land:${clientIpFrom(request.headers)}`",
