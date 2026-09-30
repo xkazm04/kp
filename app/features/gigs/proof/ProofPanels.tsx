@@ -7,7 +7,6 @@ import { isLegacyRouted } from "../logic/pairing";
 import { acceptedPlanOf } from "../logic/plans";
 import type { SummaryText } from "../logic/summary";
 import type { AfterWrite, SourceRow, SpecialistRow } from "../logic/wire";
-import type { ChallengeWithdraw } from "./panels/BriefChallenges";
 import { HistoryPanel } from "./panels/HistoryPanel";
 import { ListingPanel } from "./panels/ListingPanel";
 import { PairingPanel } from "./panels/PairingPanel";
@@ -19,8 +18,8 @@ import type { ProofTab } from "./proofTabs";
 import { GigReport } from "./report/GigReport";
 
 // The proof's chosen tab (GigsProof.tsx): one panel per tab id (proofTabs.tsx); Summary is
-// the gig's report (report/GigReport.tsx). The draft and the brief arrive built, since they
-// read the proof's own desk and decline state. The
+// the gig's overview (report/GigReport.tsx), which carries the brief panel too. The draft
+// and the brief arrive built, since they read the proof's own desk and decline state. The
 // `routing` tab is Pairing: the gig's own agent (PairingPanel), or the legacy routing view
 // for a gig a niche specialist already worked (RoutingPanel).
 
@@ -40,7 +39,6 @@ export function ProofPanels({
   plansState,
   draft,
   brief,
-  withdraw,
   onChanged,
   onFlash,
   onOpenPlans,
@@ -62,7 +60,6 @@ export function ProofPanels({
   plansState: PlansState;
   draft: ReactNode;
   brief: ReactNode;
-  withdraw: ChallengeWithdraw;
   onChanged: AfterWrite;
   onFlash: (message: string) => void;
   onOpenPlans: () => void;
@@ -71,7 +68,7 @@ export function ProofPanels({
 }) {
   const accepted = useMemo(() => acceptedPlanOf(plansState.plans), [plansState.plans]);
   if (tab === "summary") {
-    return <GigReport {...{ gig, attempt, summary, now, record, recordError, persona, plansState, draft, withdraw, onChanged, onFlash, onOpenTab }} />;
+    return <GigReport {...{ gig, attempt, summary, now, record, plansState, brief, draft, onChanged, onFlash, onOpenTab }} />;
   }
   if (tab === "review") return <ReviewPanel gig={gig} note={note} onChanged={onChanged} />;
   if (tab === "history") return <HistoryPanel record={record} error={recordError} specialists={specialists} />;

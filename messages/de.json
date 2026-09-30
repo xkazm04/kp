@@ -2029,6 +2029,7 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Lesen und bestätigen Sie die Bedingungen dieser Quelle, bevor Sie sie fortsetzen.",
     "GIG_WORKSPACE_FAILED": "Der Arbeitsordner des Auftrags oder sein Personas-Projekt konnte nicht vorbereitet werden, daher wurde nichts gesendet. Prüfen Sie die Verbindung zu Personas und versuchen Sie es erneut.",
     "GIG_ROUTE_ARENA_MISMATCH": "Dieser Spezialist arbeitet in einem anderen Bereich als dieser Auftrag, daher kann der Auftrag ihm nicht zugeordnet werden.",
+    "GIG_REPORT_NOT_FOUND": "Für diesen Auftrag gibt es noch keinen Bericht. Er entsteht, sobald der Auftrag recherchiert ist.",
     "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut.",
     "JOBSEEKER_CV_NOT_FOUND": "Dieser Lebenslauf gehört nicht zu Ihren.",
     "JOBSEEKER_REQUEST_INVALID": "Diese Änderung hatte nicht die erwartete Form, es wurde nichts gespeichert."
@@ -9737,6 +9738,7 @@
       "assistant": "Assistent",
       "gig_brief": "Auftragsrecherche",
       "gig_plan": "Auftragspläne",
+      "gig_report": "Auftragsbericht",
       "role_research": "Rollenrecherche"
     },
     "providers": {
@@ -9822,6 +9824,7 @@
       "posting_translate": "Übersetzt ein veröffentlichtes Stelleninserat in eine andere Sprache.",
       "gig_brief": "Liest eine Auftragsausschreibung und die darin verlinkten Seiten und schreibt die Recherche zum Auftrag: Kategorie, Schwierigkeit, Aufwand und zu erwartende Hürden.",
       "gig_plan": "Drei fest eingestellte Modelle schreiben je einen Plan für einen Auftrag aus seiner Recherche: Schritte mit Erledigt-Bedingung, getroffene Entscheidungen, Risiken, Aufwand und offene Fragen. Der Operator nimmt einen an.",
+      "gig_report": "Schreibt die Berichtsdatei jedes Auftrags aus den Fakten von kp, während der Auftrag fortschreitet: was er verlangt, die Risiken, Eignung und Geld, die Pläne nebeneinander, der Entwurf mit seinen Belegen, das Ergebnis. Steht kein Modell bereit, schreibt kp ihn selbst.",
       "role_research": "Was die Zieltitel einer suchenden Person heute verlangen, im Web recherchiert, mit Quellen."
     }
   },
@@ -11461,7 +11464,8 @@
       "jobseekerScan": "Stellenmarkt-Scan",
       "gigScan": "Auftrags-Scan",
       "gigResearch": "Auftragsrecherche",
-      "gigPlans": "Auftragspläne · {count, plural, one {# Auftrag} other {# Aufträge}}"
+      "gigPlans": "Auftragspläne · {count, plural, one {# Auftrag} other {# Aufträge}}",
+      "gigReport": "Auftragsbericht"
     },
     "filter": {
       "clear": "Zurücksetzen"
@@ -14172,11 +14176,6 @@
       "score": "Score",
       "source": "Quelle"
     },
-    "evidenceState": {
-      "passed": "bestanden",
-      "failed": "fehlgeschlagen",
-      "unverified": "nicht verifiziert"
-    },
     "rate": {
       "fraction": "{accepted} von {resolved}",
       "percentAtN": "{percent} bei n = {n}",
@@ -14239,9 +14238,7 @@
       "noDeliverable": "Dieser Versuch endete ohne Ergebnis. Es gibt nichts zu prüfen: fordern Sie eine Überarbeitung an oder verwerfen Sie ihn.",
       "evidenceTitle": "Nachweise, die der Agent ausgeführt hat",
       "evidenceAside": "{count, plural, one {# Eintrag} other {# Einträge}} · Zuversicht des Agenten {confidence} (seine eigene Schätzung)",
-      "noEvidence": "Der Agent hat einen Entwurf geliefert, ohne etwas auszuführen.",
       "evidenceHead": "Nachweis {n} · {kind}",
-      "noCommand": "Kein Befehl erfasst. Das ist die Darstellung des Agenten, kein Laufprotokoll.",
       "readLabel": "Was Sie lesen",
       "tabDraft": "Der Entwurf, den Sie senden würden",
       "tabListing": "Die Ausschreibung, auf die er antwortet",
@@ -14757,7 +14754,6 @@
       "reviewWarnings": "{count, plural, one {# Warnung aus der Prüfung vor dem Senden} other {# Warnungen aus der Prüfung vor dem Senden}}",
       "reviewersCall": "Sache der Prüfung",
       "goNote": "Rand {key}",
-      "goEvidence": "Nachweis {n}",
       "loose": "{count, plural, one {# Prüfvermerk ohne Stelle im Text} other {# Prüfvermerke ohne Stelle im Text}}",
       "blockerWord": "Blocker.",
       "carried": "Dieser Entwurf trägt Ihre frühere Notiz",
@@ -14960,11 +14956,6 @@
     },
     "tabs": {
       "label": "Bereiche des Entwurfs",
-      "passed": "Bestanden",
-      "failed": "Gescheitert",
-      "unverified": "Nicht verifiziert",
-      "confidence": "Zuversicht des Agenten",
-      "confidenceTip": "Seine eigene Schätzung, nie eine Bewertung",
       "mustDo": "Vor dem Senden",
       "defects": "Mängel",
       "defect": "Mangel",
@@ -14995,7 +14986,7 @@
       "proposeAgain": "Erneut vorschlagen",
       "retry": "Erneut versuchen",
       "retryTip": "Eine neue Runde: jeder Platz schreibt neu.",
-      "proposedFlash": "{count, plural, one {Der Plan wird geschrieben. Seine Spalte füllt sich, sobald er fertig ist.} other {# Modelle schreiben Pläne. Die Spalten füllen sich, sobald jedes fertig ist.}}",
+      "proposedFlash": "{count, plural, one {Der Plan wird geschrieben. Seine Karte füllt sich, sobald er fertig ist.} other {# Modelle schreiben Pläne. Die Karten füllen sich, sobald jedes fertig ist.}}",
       "proposeFailed": "Die Pläne konnten nicht angefordert werden.",
       "columnLabel": "{seat}: {status}",
       "status": {
@@ -15005,18 +14996,11 @@
         "failed": "Fehlgeschlagen"
       },
       "costNotReported": "Kosten nicht gemeldet",
-      "durationS": "{s, number} s",
-      "durationM": "{m, number} min {s, number} s",
-      "writing": "Schreibt seinen Plan. Die Spalte füllt sich, wenn er fertig ist.",
+      "writing": "Schreibt seinen Plan. Die Karte füllt sich, wenn er fertig ist.",
       "queuedLine": "Wartet auf den Start.",
-      "steps": "Schritte",
-      "doneWhen": "Erledigt, wenn",
-      "decisions": "Getroffene Entscheidungen",
-      "risks": "Risiken",
-      "effort": "Aufwand",
+      "stepCount": "{count, plural, one {# Schritt} other {# Schritte}}",
       "effortRange": "{min, number} bis {max, number} Stunden",
       "effortOne": "{n, plural, one {# Stunde} other {# Stunden}}",
-      "questions": "Fragen an Sie",
       "reason": {
         "no_provider": "Kein Modellanbieter ist eingerichtet, daher konnte dieser Platz keinen Plan schreiben.",
         "llm_unusable": "Das Modell hat geantwortet, aber nicht mit einem brauchbaren Plan.",
@@ -15028,13 +15012,9 @@
       "accept": "Diesen Plan annehmen",
       "noteLabel": "Notiz für den Agenten (optional)",
       "notePlaceholder": "Soll der Agent etwas wissen? z. B. Schritt 4 auslassen",
-      "acceptedTag": "Angenommen",
       "acceptedOn": "Angenommen am {date}",
-      "yourNote": "Ihre Notiz:",
       "acceptedFlash": "Plan angenommen. Beim Übergeben erhält der Auftrag jetzt seinen eigenen Agenten.",
       "acceptFailed": "Der Plan konnte nicht angenommen werden.",
-      "earlier": "Frühere Vorschläge ({count, number})",
-      "earlierRow": "{date} · {seat} · {status}",
       "gateReason": "Zuerst einen Plan annehmen",
       "gateBody": "Die Übergabe gibt den angenommenen Plan an den eigenen Agenten des Auftrags.",
       "gateChecking": "Die Pläne des Auftrags werden geprüft…",
@@ -15077,37 +15057,52 @@
     },
     "report": {
       "label": "Der Bericht zum Auftrag",
-      "figure": "Abbildung {n, number}.",
-      "source": "Quelle: {source}.",
       "sec": {
-        "gig": "Der Auftrag",
-        "asks": "Was er verlangt",
-        "plans": "Die Pläne",
-        "progress": "Fortschritt",
-        "draft": "Der Entwurf",
-        "evidence": "Nachweise",
-        "record": "Verlauf"
+        "plans": "Einen Plan wählen",
+        "accepted": "Der angenommene Plan",
+        "draft": "Den Entwurf prüfen"
       },
-      "pending": {
-        "asks": "erscheint, sobald der Auftrag recherchiert ist",
-        "progress": "erscheint, sobald der Auftrag gekoppelt ist",
-        "draft": "erscheint, sobald ein Agent ihn entwirft",
-        "evidence": "erscheint mit dem ersten Entwurf",
-        "record": "erscheint nach dem ersten Versuch"
+      "file": {
+        "title": "Der vollständige Bericht",
+        "status": {
+          "writing": "Wird geschrieben",
+          "ready": "Fertig",
+          "failed": "Fehlgeschlagen"
+        },
+        "stage": {
+          "researched": "recherchiert",
+          "planned": "geplant",
+          "accepted": "Plan angenommen",
+          "drafted": "Entwurf",
+          "sent": "gesendet",
+          "closed": "abgeschlossen"
+        },
+        "covers": "Geschrieben in der Phase „{stage}“ · {date}",
+        "byModel": "von einem Modell",
+        "byKp": "von kp, ohne Modell: {reason}",
+        "cost": "Kosten {usd}",
+        "noReason": "ohne Angabe eines Grundes",
+        "copy": "Pfad kopieren",
+        "copied": "Berichtspfad kopiert",
+        "copyFailed": "Der Pfad konnte nicht kopiert werden. Markieren und kopieren Sie ihn von Hand.",
+        "none": "Der Bericht wird geschrieben, sobald der Auftrag recherchiert ist.",
+        "firstWriting": "Der erste Bericht wird geschrieben.",
+        "writingNote": "Der Bericht wird geschrieben. Diese Karte fragt alle paar Sekunden erneut nach.",
+        "failed": "Die letzte Neufassung ist fehlgeschlagen: {reason}.",
+        "open": "Vollständigen Bericht öffnen",
+        "regenerate": "Neu schreiben",
+        "regenerating": "Wird angefragt…",
+        "regenerateTip": "Den Bericht aus dem aktuellen Stand des Auftrags neu schreiben.",
+        "regenerateNeedsBrief": "Recherchieren Sie den Auftrag zuerst: Der Bericht entsteht aus der Recherche.",
+        "regenerateFailed": "Der Bericht konnte nicht angefordert werden."
       },
-      "index": {
-        "label": "Inhalt des Berichts",
-        "railLabel": "Zu einem Abschnitt springen",
-        "title": "In diesem Bericht"
-      },
-      "note": {
-        "asks": "{asks, plural, =0 {keine Anforderungen genannt} one {# Anforderung} other {# Anforderungen}} · {challenges, plural, =0 {keine Hürden genannt} one {# Hürde} other {# Hürden}}",
-        "plans": "{count, plural, one {# Plan} other {# Pläne}} · {accepted, select, yes {einer angenommen} other {noch keiner angenommen}}",
-        "noPlans": "noch keine Pläne: hier erzeugen",
-        "researchFirst": "zuerst den Auftrag recherchieren",
-        "progress": "{pct, number} % erledigt · {done, number} von {total, number} Zielen",
-        "evidence": "{count, plural, one {# Prüfung} other {# Prüfungen}} · {failed, plural, =0 {keine fehlgeschlagen} other {# fehlgeschlagen}}",
-        "record": "{count, plural, one {# Versuch} other {# Versuche}}"
+      "choose": {
+        "lineup": "Schwierigkeit: {difficulty}. {count, plural, one {Ein Plan wird geschrieben, von {models}.} other {# Modelle schreiben je einen Plan: {models}.}}",
+        "gate": "Sie nehmen einen Plan an, und nur ein angenommener Plan kann übergeben werden. Jeder Plan zeigt, was sein Modellaufruf gekostet hat.",
+        "generate": "Pläne erzeugen",
+        "inFile": "jeder Plan steht vollständig im Bericht",
+        "acceptedLabel": "Angenommener Plan",
+        "acceptedLine": "Angenommen: {seat}"
       },
       "hero": {
         "listedAs": "Ausgeschrieben als „{title}“",
@@ -15134,51 +15129,6 @@
         "draftsPart": "Entwürfe {usd}",
         "unreported": "{count, plural, one {# Aufruf ohne gemeldete Kosten} other {# Aufrufe ohne gemeldete Kosten}}",
         "nothingRan": "bisher lief nichts"
-      },
-      "asks": {
-        "title": "Was er verlangt",
-        "challenges": "Erwartete Hürden",
-        "none": "Die Ausschreibung nennt keine Ergebnisse.",
-        "noChallenges": "Keine genannt.",
-        "caption": "Was die Ausschreibung verlangt, neben dem, was schiefgehen kann.",
-        "source": "die Recherche, {date}"
-      },
-      "plans": {
-        "researchFirst": "Zuerst den Auftrag recherchieren",
-        "researchBody": "Pläne entstehen aus der Recherche, und dieser Auftrag hat noch keine.",
-        "lineup": "Schwierigkeit: {difficulty}. {count, plural, one {Ein Plan wird geschrieben, von {models}.} other {# Modelle schreiben je einen Plan: {models}.}}",
-        "gate": "Sie nehmen einen Plan an, und nur ein angenommener Plan kann übergeben werden. Jeder Plan zeigt, was sein Modellaufruf gekostet hat.",
-        "generate": "Pläne erzeugen",
-        "caption": "{count, plural, one {Der Plan mit seinen Schritten, Entscheidungen und Risiken.} other {# Pläne nebeneinander, jeder mit seinen Schritten, Entscheidungen und Risiken.}}",
-        "source": "{models}; Kosten jeweils so, wie der Aufruf sie meldete"
-      },
-      "progress": {
-        "whole": "des Meilensteins erledigt",
-        "noReport": "noch keine Meldung vom Agenten",
-        "ofTotal": "{done, number}/{total, number}",
-        "goalsDone": "Ziele erledigt",
-        "goalsCaption": "ein Ziel ist erledigt, wenn der Agent es als erledigt meldet",
-        "blocked": "{count, plural, one {Ziel blockiert} other {Ziele blockiert}}",
-        "blockedCaption": "die Notiz des Agenten zum Ziel nennt den Grund",
-        "caption": "{count, plural, one {Der Schritt des angenommenen Plans als Ziel, wie der Agent ihn meldet.} other {Die # Schritte des angenommenen Plans als Ziele, wie der Agent sie meldet.}}",
-        "source": "die PLAN-STATUS.json des Agenten, nach Personas gespiegelt"
-      },
-      "draft": {
-        "caption": "Der Entwurf, wie er gesendet würde, jede Notiz neben dem Absatz, den sie zitiert.",
-        "source": "das Ergebnis des Agenten, {date}"
-      },
-      "evidence": {
-        "passedCap": "lief und bestand",
-        "failedCap": "lief und scheiterte",
-        "unverifiedCap": "lief ohne Bestanden oder Gescheitert",
-        "caption": "{count, plural, one {Die eine Prüfung, die der Agent meldet} other {Die # Prüfungen, die der Agent meldet}}",
-        "check": "Prüfung",
-        "command": "Befehl",
-        "result": "Ergebnis"
-      },
-      "record": {
-        "loose": "ohne Bezug zu einem Entwurf erfasst",
-        "openHistory": "Der ganze Verlauf mit jeder Notiz und jedem Urteil"
       },
       "lang": {
         "tag": "Ausschreibung auf {language}",

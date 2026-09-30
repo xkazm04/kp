@@ -5,7 +5,7 @@ import type { LooseNote } from "../logic/galley";
 import type { Doubt } from "../shared/doubts";
 
 /** A pinned margin note's place, for a jump from the slip. */
-export type SlipTarget = { kind: "note"; key: string } | { kind: "evidence"; n: number };
+export type SlipTarget = { kind: "note"; key: string };
 
 /** The proof slip: every doubt in words, above the galley. A gating warn carries its
  *  "seen" box; a lint blocker says it blocks Approve; the reviewer's rows say they are the
@@ -54,7 +54,6 @@ export function ProofSlip({
             const isSeen = ids.length > 0 && ids.every((id) => seen.has(id));
             const first = d.findings[0];
             const pinned = first ? pinnedKeyOf(first.id) : null;
-            const ev = first ? /^evidence:(\d+):/.exec(first.id) : null;
             return (
               <li key={d.key} className={`${d.sev}${d.sev === "doubt" && d.gates && isSeen ? " seen" : ""}`}>
                 <i className={`mk ${d.sev}`} aria-hidden />
@@ -75,10 +74,6 @@ export function ProofSlip({
                   {pinned ? (
                     <button type="button" className="linkbtn go" onClick={() => onJump({ kind: "note", key: pinned })}>
                       {t("slip.goNote", { key: pinned })}
-                    </button>
-                  ) : ev ? (
-                    <button type="button" className="linkbtn go" onClick={() => onJump({ kind: "evidence", n: Number(ev[1]) })}>
-                      {t("slip.goEvidence", { n: Number(ev[1]) + 1 })}
                     </button>
                   ) : null}
                 </span>

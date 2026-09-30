@@ -1,6 +1,7 @@
 import { getGig, transitionGig } from "../db/gigs";
 import { getGigAttempt, transitionGigAttempt } from "../db/gigs-attempts";
 import { dispatchGigAttempt, type DispatchGigAttemptResult, type DispatchGigDeps } from "./dispatch";
+import { requestGigReport } from "./report/trigger";
 import {
   GIG_DISCLOSURE_ITEM,
   type Gig,
@@ -140,7 +141,10 @@ export async function applyGigReview(
       patch: { review: effective, sentAt: now.toISOString() },
     });
     if (!res.ok) return { ok: false, code: res.reason === "not_found" ? "GIG_ATTEMPT_NOT_FOUND" : "GIG_STATE_CHANGED" };
-    return { ok: true, action, attempt: res.attempt, gig: moveGig(workspaceId, attempt.gigId, "in_review", "sent") };
+    const sentGig = moveGig(workspaceId, attempt.gigId, "in_review", "sent");
+    // The gig's report (gigs/report/trigger.ts): best-effort, never part of the send.
+    requestGigReport(workspaceId, attempt.gigId, "sent");
+    return { ok: true, action, attempt: res.attempt, gig: sentGig };
   }
 
   // revise

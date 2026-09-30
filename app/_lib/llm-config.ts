@@ -59,6 +59,7 @@ export const LLM_USE_CASES = [
   "role_research",
   "gig_brief",
   "gig_plan",
+  "gig_report",
 ] as const;
 export type LlmUseCase = (typeof LLM_USE_CASES)[number];
 

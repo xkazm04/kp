@@ -2066,6 +2066,9 @@ export const REFUSAL_ERRORS = {
   /** PATCH /api/gigs/[id] `route` (409): the specialist works a different arena than the
    *  gig's, so it cannot take it (gigs/routing.ts). */
   GIG_ROUTE_ARENA_MISMATCH: "That specialist works a different arena than this gig, so the gig cannot be routed to it.",
+  /** GET /api/gigs/[id]/report (404): no report file yet - one is written once the gig is
+   *  researched (gigs/report/run.ts) - or the recorded file is gone. */
+  GIG_REPORT_NOT_FOUND: "This gig has no report yet. It is written once the gig is researched.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

@@ -71,6 +71,7 @@ import {
 import { htmlTitle, htmlToText } from "../job-posting-fetch";
 import { politeFetch, type PoliteFetch } from "../jobseeker/fetch/politeFetch";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
+import { requestGigReport } from "./report/trigger";
 import { isOffline } from "../offline";
 import { githubRead, type GithubReadOutcome } from "../repo-snapshot";
 import { scanGigForHoneypots } from "./suspect";
@@ -1052,6 +1053,8 @@ export async function researchGig(workspaceId: string, gig: Gig, opts: GigResear
     if (!brief) brief = deterministicGigBrief(current, links, fallbackReason, deps.now());
     const stored = deps.setGigBrief(workspaceId, gig.id, brief);
     const declinedGig = stored ? declineIfPhysical(workspaceId, stored, brief, deps) : null;
+    // The gig's report (gigs/report/trigger.ts): best-effort, never part of the research.
+    if (stored) requestGigReport(workspaceId, gig.id, declinedGig ? "closed" : "researched");
     return { gig: declinedGig ?? stored, brief, providerMissing, flagged: [...flagged], declined: declinedGig !== null };
   } finally {
     budget.release();

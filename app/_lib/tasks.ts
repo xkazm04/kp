@@ -483,6 +483,16 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: (p) => encodeTaskLabel("gigPlans", { count: Array.isArray(p.gigIds) ? p.gigIds.length : 0 }),
   },
+  // The gig's HTML report (late-bound-boot.ts `gig_report`, the Gigs module's report runner):
+  // one pinned model call that writes the report FILE from kp's facts, or kp's own body
+  // keyless. Enqueued by the report's stage triggers and POST /api/gigs/[id]/report; the
+  // durable result is the file and the gig's report record.
+  gig_report: {
+    run: (ctx) =>
+      externalRunner("gig_report")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigReport"),
+  },
 };
 
 let booted = false;

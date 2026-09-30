@@ -141,6 +141,12 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # pin-only codex_cli seat for GPT 6 Astra); no web access - the brief already did the
     # research.
     "gig_plan": frozenset({CAP_JSON}),
+    # Gigs (app/_lib/gigs/report/run.ts -> gig_report_cli.py): kp's facts about one gig
+    # (the listing, the brief, the plans, the draft and its evidence, the outcomes and kp's
+    # own money arithmetic), fenced as data, in; the report's lead and designed sections
+    # (HTML in a small vocabulary kp re-sanitizes) out as JSON. Pinned at the call site to
+    # Claude Sonnet 5.5 at high effort; no web access - the facts are everything it may say.
+    "gig_report": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -225,6 +231,12 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # use case is pinned to (claude_cli) passes no max-tokens flag, so this row binds
     # nothing today; it is the decision for the day a keyed adapter can serve a seat.
     "gig_plan": 4096,
+    # A report at its structural maximum: up to 14 sections of designed HTML (tables, stat
+    # cards, callouts) - a closed gig's report is ~10 sections x ~800 tokens of markup and
+    # text, ~8k tokens, and a truncated object fails coerce_report whole (kp then writes the
+    # report itself). The pinned engine (claude_cli) passes no max-tokens flag, so this binds
+    # nothing today; it is the decision for a keyed engine.
+    "gig_report": 16384,
     # A role research answer at its structural maximum: 24 skills x ~75 tokens (name,
     # tier, share, a <=200-char why, source ids) + 16 sources x ~90 (url, title, read,
     # publisher) + a <=400-char summary is ~3.4k tokens, past the base 2048 — and a

@@ -2029,6 +2029,7 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Než tento zdroj znovu spustíte, přečtěte si jeho podmínky a potvrďte je.",
     "GIG_WORKSPACE_FAILED": "Pracovní složku zakázky nebo její projekt v Personas se nepodařilo připravit, a tak se nic neodeslalo. Zkontrolujte připojení k Personas a zkuste to znovu.",
     "GIG_ROUTE_ARENA_MISMATCH": "Tento specialista pracuje v jiné oblasti než zakázka, takže mu ji nelze přiřadit.",
+    "GIG_REPORT_NOT_FOUND": "Tato zakázka zatím nemá zprávu. Vznikne, jakmile bude hotová rešerše zakázky.",
     "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu.",
     "JOBSEEKER_CV_NOT_FOUND": "Toto CV mezi vašimi není.",
     "JOBSEEKER_REQUEST_INVALID": "Změna neměla očekávaný tvar, nic se neuložilo."
@@ -9737,6 +9738,7 @@
       "assistant": "Asistent",
       "gig_brief": "Rešerše zakázky",
       "gig_plan": "Plány zakázky",
+      "gig_report": "Zpráva o zakázce",
       "role_research": "Průzkum pozice"
     },
     "providers": {
@@ -9822,6 +9824,7 @@
       "posting_translate": "Překládá zveřejněný inzerát role do dalšího jazyka.",
       "gig_brief": "Přečte inzerát placené zakázky a stránky, na které odkazuje, a sepíše k ní rešerši: kategorii, náročnost, odhad práce a očekávané potíže.",
       "gig_plan": "Tři pevně nastavené modely napíšou každý plán zakázky podle její rešerše: kroky s podmínkou dokončení, rozhodnutí, která udělal, rizika, pracnost a otevřené otázky. Operátor jeden přijme.",
+      "gig_report": "Z faktů, které kp o zakázce má, píše soubor se zprávou a aktualizuje ho, jak zakázka postupuje: co zadání chce, rizika, vhodnost a peníze, plány vedle sebe, návrh a jeho důkazy, výsledek. Když žádný model není k dispozici, napíše ji kp sám.",
       "role_research": "Co dnes vyžadují cílové pozice uchazeče, zjištěno na webu i se zdroji."
     }
   },
@@ -11461,7 +11464,8 @@
       "jobseekerScan": "Sken pracovního trhu",
       "gigScan": "Sken nabídek zakázek",
       "gigResearch": "Rešerše zakázky",
-      "gigPlans": "Plány zakázek · {count, plural, one {# zakázka} few {# zakázky} many {# zakázky} other {# zakázek}}"
+      "gigPlans": "Plány zakázek · {count, plural, one {# zakázka} few {# zakázky} many {# zakázky} other {# zakázek}}",
+      "gigReport": "Zpráva o zakázce"
     },
     "filter": {
       "clear": "Zrušit filtry"
@@ -14172,11 +14176,6 @@
       "score": "Skóre",
       "source": "Zdroj"
     },
-    "evidenceState": {
-      "passed": "prošlo",
-      "failed": "selhalo",
-      "unverified": "neověřeno"
-    },
     "rate": {
       "fraction": "{accepted} z {resolved}",
       "percentAtN": "{percent} při n = {n}",
@@ -14239,9 +14238,7 @@
       "noDeliverable": "Tento pokus skončil bez výstupu. Není co kontrolovat: vyžádejte revizi, nebo ho zahoďte.",
       "evidenceTitle": "Důkazy, které agent spustil",
       "evidenceAside": "{count, plural, one {# položka} few {# položky} other {# položek}} · jistota agenta {confidence} (jeho vlastní odhad)",
-      "noEvidence": "Agent vrátil koncept, aniž by cokoli spustil.",
       "evidenceHead": "Důkaz {n} · {kind}",
-      "noCommand": "Žádný příkaz nezaznamenán. Je to popis agenta, ne záznam běhu.",
       "readLabel": "Co číst",
       "tabDraft": "Koncept, který byste odeslali",
       "tabListing": "Inzerát, na který odpovídá",
@@ -14757,7 +14754,6 @@
       "reviewWarnings": "{count, plural, one {# varování z kontroly před odesláním} few {# varování z kontroly před odesláním} other {# varování z kontroly před odesláním}}",
       "reviewersCall": "rozhoduje kontrola",
       "goNote": "okraj {key}",
-      "goEvidence": "důkaz {n}",
       "loose": "{count, plural, one {# poznámka kontroly bez místa v textu} few {# poznámky kontroly bez místa v textu} other {# poznámek kontroly bez místa v textu}}",
       "blockerWord": "Blokuje.",
       "carried": "Tento koncept nese vaši dřívější poznámku",
@@ -14960,11 +14956,6 @@
     },
     "tabs": {
       "label": "Části konceptu",
-      "passed": "Prošlo",
-      "failed": "Selhalo",
-      "unverified": "Neověřeno",
-      "confidence": "Jistota agenta",
-      "confidenceTip": "Jeho vlastní odhad, nikdy skóre",
       "mustDo": "Před odesláním",
       "defects": "Vady",
       "defect": "Vada",
@@ -14995,7 +14986,7 @@
       "proposeAgain": "Navrhnout znovu",
       "retry": "Zkusit znovu",
       "retryTip": "Nové kolo: všechna místa píšou znovu.",
-      "proposedFlash": "{count, plural, one {Plán se píše. Jeho sloupec se zaplní, až bude hotový.} few {# modely píšou plány. Sloupce se zaplní, jakmile každý skončí.} many {# modelu píše plány. Sloupce se zaplní, jakmile každý skončí.} other {# modelů píše plány. Sloupce se zaplní, jakmile každý skončí.}}",
+      "proposedFlash": "{count, plural, one {Plán se píše. Jeho karta se zaplní, až bude hotový.} few {# modely píšou plány. Karty se zaplní, jakmile každý skončí.} many {# modelu píše plány. Karty se zaplní, jakmile každý skončí.} other {# modelů píše plány. Karty se zaplní, jakmile každý skončí.}}",
       "proposeFailed": "Plány se nepodařilo vyžádat.",
       "columnLabel": "{seat}: {status}",
       "status": {
@@ -15005,18 +14996,11 @@
         "failed": "Selhal"
       },
       "costNotReported": "náklady nenahlášeny",
-      "durationS": "{s, number} s",
-      "durationM": "{m, number} min {s, number} s",
-      "writing": "Píše svůj plán. Sloupec se zaplní, až skončí.",
+      "writing": "Píše svůj plán. Karta se zaplní, až skončí.",
       "queuedLine": "Čeká na spuštění.",
-      "steps": "Kroky",
-      "doneWhen": "Hotovo, když",
-      "decisions": "Rozhodnutí, která udělal",
-      "risks": "Rizika",
-      "effort": "Pracnost",
+      "stepCount": "{count, plural, one {# krok} few {# kroky} many {# kroku} other {# kroků}}",
       "effortRange": "{min, number} až {max, number} hodin",
       "effortOne": "{n, plural, one {# hodina} few {# hodiny} many {# hodiny} other {# hodin}}",
-      "questions": "Otázky pro vás",
       "reason": {
         "no_provider": "Není nastaven žádný poskytovatel modelu, takže toto místo nemohlo plán napsat.",
         "llm_unusable": "Model odpověděl, ale ne použitelným plánem.",
@@ -15028,13 +15012,9 @@
       "accept": "Přijmout tento plán",
       "noteLabel": "Poznámka pro agenta (nepovinná)",
       "notePlaceholder": "Má agent něco vědět? Např. vynechat krok 4",
-      "acceptedTag": "Přijato",
       "acceptedOn": "Přijato {date}",
-      "yourNote": "Vaše poznámka:",
       "acceptedFlash": "Plán přijat. Předáním teď zakázku spárujete s jejím vlastním agentem.",
       "acceptFailed": "Plán se nepodařilo přijmout.",
-      "earlier": "Dřívější návrhy ({count, number})",
-      "earlierRow": "{date} · {seat} · {status}",
       "gateReason": "Nejprve přijměte plán",
       "gateBody": "Předání svěří přijatý plán vlastnímu agentovi zakázky.",
       "gateChecking": "Kontroluji plány zakázky…",
@@ -15077,37 +15057,52 @@
     },
     "report": {
       "label": "Zpráva o zakázce",
-      "figure": "Obrázek {n, number}.",
-      "source": "Zdroj: {source}.",
       "sec": {
-        "gig": "Zakázka",
-        "asks": "Co požaduje",
-        "plans": "Plány",
-        "progress": "Postup",
-        "draft": "Koncept",
-        "evidence": "Důkazy",
-        "record": "Záznam"
+        "plans": "Vyberte plán",
+        "accepted": "Přijatý plán",
+        "draft": "Zkontrolujte koncept"
       },
-      "pending": {
-        "asks": "objeví se po rešerši zakázky",
-        "progress": "objeví se po spárování zakázky",
-        "draft": "objeví se, až agent napíše koncept",
-        "evidence": "objeví se s prvním konceptem",
-        "record": "objeví se po prvním pokusu"
+      "file": {
+        "title": "Úplná zpráva",
+        "status": {
+          "writing": "Píše se",
+          "ready": "Hotová",
+          "failed": "Selhala"
+        },
+        "stage": {
+          "researched": "rešerše",
+          "planned": "plány",
+          "accepted": "přijatý plán",
+          "drafted": "koncept",
+          "sent": "odesláno",
+          "closed": "uzavřeno"
+        },
+        "covers": "Napsáno ve fázi „{stage}“ · {date}",
+        "byModel": "napsal model",
+        "byKp": "napsal kp bez modelu: {reason}",
+        "cost": "stálo {usd}",
+        "noReason": "bez uvedeného důvodu",
+        "copy": "Kopírovat cestu",
+        "copied": "Cesta ke zprávě zkopírována",
+        "copyFailed": "Cestu se nepodařilo zkopírovat. Označte ji a zkopírujte ručně.",
+        "none": "Zpráva se napíše, jakmile zakázka projde rešerší.",
+        "firstWriting": "Píše se první zpráva.",
+        "writingNote": "Zpráva se píše. Karta se každých pár sekund zeptá znovu.",
+        "failed": "Poslední přepis selhal: {reason}.",
+        "open": "Otevřít úplnou zprávu",
+        "regenerate": "Napsat znovu",
+        "regenerating": "Žádám…",
+        "regenerateTip": "Napsat zprávu znovu podle aktuálního stavu zakázky.",
+        "regenerateNeedsBrief": "Nejprve proveďte rešerši zakázky: zpráva z ní vychází.",
+        "regenerateFailed": "Zprávu se nepodařilo vyžádat."
       },
-      "index": {
-        "label": "Obsah zprávy",
-        "railLabel": "Přejít na oddíl",
-        "title": "V této zprávě"
-      },
-      "note": {
-        "asks": "{asks, plural, =0 {bez uvedených požadavků} one {# požadavek} few {# požadavky} many {# požadavku} other {# požadavků}} · {challenges, plural, =0 {bez uvedených úskalí} one {# úskalí} few {# úskalí} many {# úskalí} other {# úskalí}}",
-        "plans": "{count, plural, one {# plán} few {# plány} many {# plánu} other {# plánů}} · {accepted, select, yes {jeden přijatý} other {zatím žádný přijatý}}",
-        "noPlans": "zatím žádné plány: vygenerujte je zde",
-        "researchFirst": "nejprve proveďte rešerši zakázky",
-        "progress": "hotovo {pct, number} % · {done, number} z {total, number} cílů",
-        "evidence": "{count, plural, one {# kontrola} few {# kontroly} many {# kontroly} other {# kontrol}} · {failed, plural, =0 {žádná neselhala} one {# selhala} few {# selhaly} many {# selhalo} other {# selhalo}}",
-        "record": "{count, plural, one {# pokus} few {# pokusy} many {# pokusu} other {# pokusů}}"
+      "choose": {
+        "lineup": "Obtížnost: {difficulty}. {count, plural, one {Píše se jeden plán, autor {models}.} few {# modely píšou každý svůj plán: {models}.} many {# modelu píše každý svůj plán: {models}.} other {# modelů píše každý svůj plán: {models}.}}",
+        "gate": "Přijmete jeden plán a předat lze jen přijatý plán. U každého plánu je vidět, kolik stálo jeho volání modelu.",
+        "generate": "Vygenerovat plány",
+        "inFile": "každý plán celý najdete ve zprávě",
+        "acceptedLabel": "Přijatý plán",
+        "acceptedLine": "Přijato: {seat}"
       },
       "hero": {
         "listedAs": "Inzerováno jako „{title}“",
@@ -15134,51 +15129,6 @@
         "draftsPart": "koncepty {usd}",
         "unreported": "{count, plural, one {# volání bez nahlášených nákladů} few {# volání bez nahlášených nákladů} many {# volání bez nahlášených nákladů} other {# volání bez nahlášených nákladů}}",
         "nothingRan": "zatím nic neběželo"
-      },
-      "asks": {
-        "title": "Co požaduje",
-        "challenges": "Očekávaná úskalí",
-        "none": "Nabídka neuvádí žádné výstupy.",
-        "noChallenges": "Žádná neuvedena.",
-        "caption": "Co nabídka požaduje a vedle toho, co se může pokazit.",
-        "source": "rešerše, {date}"
-      },
-      "plans": {
-        "researchFirst": "Nejprve proveďte rešerši zakázky",
-        "researchBody": "Plány vycházejí z rešerše a tato zakázka ji zatím nemá.",
-        "lineup": "Obtížnost: {difficulty}. {count, plural, one {Píše se jeden plán, autor {models}.} few {# modely píšou každý svůj plán: {models}.} many {# modelu píše každý svůj plán: {models}.} other {# modelů píše každý svůj plán: {models}.}}",
-        "gate": "Přijmete jeden plán a předat lze jen přijatý plán. U každého plánu je vidět, kolik stálo jeho volání modelu.",
-        "generate": "Vygenerovat plány",
-        "caption": "{count, plural, one {Plán s kroky, rozhodnutími a riziky.} few {# plány vedle sebe, každý s kroky, rozhodnutími a riziky.} many {# plánu vedle sebe, každý s kroky, rozhodnutími a riziky.} other {# plánů vedle sebe, každý s kroky, rozhodnutími a riziky.}}",
-        "source": "{models}; náklady tak, jak je nahlásilo každé volání"
-      },
-      "progress": {
-        "whole": "milníku hotovo",
-        "noReport": "agent zatím nic nenahlásil",
-        "ofTotal": "{done, number}/{total, number}",
-        "goalsDone": "cílů hotovo",
-        "goalsCaption": "cíl je hotový, když ho agent nahlásí jako hotový",
-        "blocked": "{count, plural, one {cíl blokován} few {cíle blokovány} many {cíle blokováno} other {cílů blokováno}}",
-        "blockedCaption": "proč, uvádí poznámka agenta u cíle",
-        "caption": "{count, plural, one {Krok přijatého plánu jako cíl, jak ho hlásí agent.} few {# kroky přijatého plánu jako cíle, jak je hlásí agent.} many {# kroku přijatého plánu jako cíle, jak je hlásí agent.} other {# kroků přijatého plánu jako cíle, jak je hlásí agent.}}",
-        "source": "PLAN-STATUS.json agenta, zrcadlený do Personas"
-      },
-      "draft": {
-        "caption": "Koncept tak, jak by byl odeslán, každá poznámka připnutá vedle odstavce, který cituje.",
-        "source": "výstup agenta, {date}"
-      },
-      "evidence": {
-        "passedCap": "proběhlo a prošlo",
-        "failedCap": "proběhlo a selhalo",
-        "unverifiedCap": "proběhlo bez výsledku prošlo/selhalo",
-        "caption": "{count, plural, one {Jediná kontrola, kterou agent hlásí} few {# kontroly, které agent hlásí} many {# kontroly, které agent hlásí} other {# kontrol, které agent hlásí}}",
-        "check": "Kontrola",
-        "command": "Příkaz",
-        "result": "Výsledek"
-      },
-      "record": {
-        "loose": "zaznamenáno bez vazby na koncept",
-        "openHistory": "Celá historie se všemi poznámkami a verdikty"
       },
       "lang": {
         "tag": "Jazyk nabídky: {language}",

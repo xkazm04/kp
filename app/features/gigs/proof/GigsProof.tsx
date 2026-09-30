@@ -180,7 +180,7 @@ export function GigsProof({
           <KitArea>
             <div className="proof-panel" key={tab}>
               <ProofPanels
-                {...{ tab, gig, attempt, source, summary, now, note, record, recordError, specialists, persona, kpi, plansState, withdraw, onChanged, onFlash }}
+                {...{ tab, gig, attempt, source, summary, now, note, record, recordError, specialists, persona, kpi, plansState, onChanged, onFlash }}
                 draft={<DraftTab gig={gig} attempt={attempt} source={source} specialistName={specialist?.name ?? null} now={now} doubts={doubts} note={note} pinned={pinned} memory={memory} setMemory={setMemory} onJump={jump} />}
                 brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={withdraw} />}
                 onOpenPlans={openPlans}

@@ -37,4 +37,12 @@ export const PINNED_USE_CASES: Readonly<Record<string, PinnedUseCase>> = {
     reason:
       "Product-owner requirement: the plan seats follow the brief's difficulty (one Sonnet 5.5 high plan up to moderate, one Opus 5.5 high plan when hard, three side by side when very hard: Opus 5.5 xhigh, Fable 5 and GPT 6 Astra at max through the Codex CLI); the seats are fixed by kp, not by routing.",
   },
+  // gig_report_cli.py `PIN`: the gig's HTML report is written by Sonnet 5.5 at high effort
+  // from kp's facts (app/_lib/gigs/report/run.ts), whatever the routing table says.
+  gig_report: {
+    provider: "claude_cli",
+    model: "claude-sonnet-5-5",
+    reason:
+      "Product-owner requirement: each gig's report file is written by Claude Sonnet 5.5 at high effort, from kp's facts and to the report bar kp's contest reports set; kp sanitises and assembles it, and writes it itself when no model can.",
+  },
 };

@@ -10,8 +10,8 @@ import { _resetTaskRunnersForTests, externalRunner } from "../task-external-runn
 
 after(() => cleanupUnitDb());
 
-test("gig_scan, gig_sync, gig_research and gig_plans are registered at boot", () => {
-  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans"];
+test("gig_scan, gig_sync, gig_research, gig_plans and gig_report are registered at boot", () => {
+  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans", "gig_report"];
   _resetTaskRunnersForTests();
   for (const kind of kinds) assert.throws(() => externalRunner(kind), /not registered/, kind);
   registerLateBoundImplementations();
@@ -44,8 +44,12 @@ test("the heavy gig modules are reached only lazily - never statically from the 
   // WP4: the outcome pollers ride the same sync runner, after the Personas sync.
   assert.match(boot, /await import\("\.\/gigs\/pollers"\)/);
   assert.match(boot, /pollGigOutcomes\(ctx\.workspaceId\)/, "the pollers are scoped to the enqueuing workspace");
-  assert.doesNotMatch(boot, /^import .*gigs\//m);
-  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist|research|plans)/,`${hub} must not reach a gig runner`);
+  // The ONE static gigs import the boot list may carry: the report's trigger registry, a leaf
+  // with nothing but a type import (so it adds no module to any graph); its runner is lazy.
+  assert.match(boot, /await import\("\.\/gigs\/report\/run"\)/);
+  assert.doesNotMatch(read("./report/trigger.ts"), /^import (?!type )/m, "the trigger registry stays a leaf");
+  assert.doesNotMatch(boot.replace(/^import \{ registerGigReportEnqueuer \} from "\.\/gigs\/report\/trigger";$/m, ""), /^import .*gigs\//m);
+  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist|research|plans|report)/,`${hub} must not reach a gig runner`);
   const clock = readFileSync(fileURLToPath(new URL("../../../instrumentation-node.ts", import.meta.url)), "utf8");
   assert.match(clock, /gig_scan: async \(\) =>/);
   assert.match(clock, /gig_sync: async \(\) =>/);

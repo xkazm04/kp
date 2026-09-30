@@ -26,6 +26,13 @@
 
 import { registerTaskRunner } from "./task-external-runners";
 import { registerStageHookInvite } from "./stage-hooks-invite";
+import { registerGigReportEnqueuer } from "./gigs/report/trigger";
+
+/** True in a `node --test` process (the runner's child sets NODE_TEST_CONTEXT and carries
+ *  --test* in execArgv) - the same signal db-path.ts's test-isolation guard reads. */
+function inNodeTestRun(): boolean {
+  return Boolean(process.env.NODE_TEST_CONTEXT) || process.execArgv.some((a) => a === "--test" || a.startsWith("--test-"));
+}
 
 export function registerLateBoundImplementations(): void {
   // The seeker's manual scan: the whole acquisition graph (adapters, rules engine,
@@ -153,6 +160,27 @@ export function registerLateBoundImplementations(): void {
     }
     return { ...summary, continuedAs };
   });
+  // `gig_report` (tasks.ts spec): the gig's HTML report FILE (gigs/report/run.ts) - the
+  // facts, one pinned model call (gig_report_cli.py) or kp's own body keyless, the atomic
+  // write, the record. `force` is the operator's "regenerate now" (POST /api/gigs/[id]/report).
+  registerTaskRunner("gig_report", async (ctx) => {
+    const { parseGigReportTaskParams, runGigReport } = await import("./gigs/report/run");
+    const p = parseGigReportTaskParams(ctx.params);
+    if (!p) return { status: "skipped", reason: "no_gig" };
+    return runGigReport(ctx.workspaceId, p.gigId, { force: p.force, signal: ctx.signal });
+  });
+  // The report's stage triggers (gigs/report/trigger.ts): the moves that change what a
+  // report says ask for a `gig_report` task through this enqueuer. NOT in a node:test
+  // process - a unit test that moves a gig must never start a model call; a test that
+  // observes the triggers registers its own enqueuer.
+  registerGigReportEnqueuer(
+    inNodeTestRun()
+      ? null
+      : async (ws, gigId, stage) => {
+          const { startTask } = await import("./tasks");
+          return startTask("gig_report", { workspaceId: ws, gigId, stage }, ws).id;
+        }
+  );
   // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts),
   // then asks the outcome pollers (gigs/pollers.ts, WP4) about the workspace's SENT work:
   // a merged pull request or a scored Kaggle entry resolves without the operator typing

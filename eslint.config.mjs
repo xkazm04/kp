@@ -242,6 +242,10 @@ const COLOR_EXEMPT = [
   // skin that must not follow the app theme — it has to stay readable while you
   // are debugging the theme itself.
   "app/_dev-inspector/**",
+  // The gig report's own stylesheet: a standalone HTML file the operator opens from disk
+  // (and GET /api/gigs/[id]/report serves sandboxed). kp's tokens never reach it, so its
+  // light and prefers-color-scheme dark palettes are literal by design. One file, no UI.
+  "app/_lib/gigs/report/report-css.ts",
   // Test data: hexes here are inputs and expected values for the color
   // sanitizers and the glyph token snapper, not rendered color.
   "app/**/*.test.{ts,tsx}"

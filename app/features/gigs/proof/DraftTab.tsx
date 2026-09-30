@@ -14,7 +14,7 @@ import { ProofSlip, type SlipTarget } from "./ProofSlip";
 import { revealSoon } from "./report/parts";
 import type { DeskMemory, DeskStore } from "./signoff/GigsSignoff";
 
-// The report's draft section (report/GigReport.tsx): the proof slip (what to doubt, in words)
+// The Summary's "Review the draft" block (report/GigReport.tsx): the proof slip (what to doubt, in words)
 // above the galley (the draft as it would be sent, every note pinned beside its paragraph). On the desk the slip carries the
 // seen marks, kept in the desk memory with the checklist ticks and the note.
 
@@ -51,15 +51,13 @@ export function usePinned(draft: string, findings: readonly DraftLintFinding[], 
   return { paras, pinned, loose };
 }
 
-/** A slip link brings its target in: the draft and the evidence are sections of the same
- *  report, so the Summary tab is shown (it usually is), then a margin note takes focus or an
- *  evidence row is marked. */
+/** A slip link brings its margin note in: the draft is a block of the Summary, so the
+ *  Summary tab is shown (it usually is), then the note takes focus. */
 export function useSlipJump(showReport: () => void) {
   return useCallback(
     (target: SlipTarget) => {
       showReport();
-      if (target.kind === "evidence") revealSoon(`gd-ev-${target.n}`, "mark", "center");
-      else revealSoon(`gd-note-${target.key}`, "focus", "center");
+      revealSoon(`gd-note-${target.key}`, "center");
     },
     [showReport]
   );

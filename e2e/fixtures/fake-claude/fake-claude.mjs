@@ -34,6 +34,8 @@
 //     reader can tell the columns apart (its summary names the seat); a gig whose title holds
 //     `[fable-fails]` makes the Fable seat exit 1 with no output (a failed seat). The GPT seat
 //     is answered by fake-codex.mjs, which logs to the same file.
+//   report (gig-report-v1, `Write the report for the gig ...`): one section per kind the
+//     instructions list, each with a <script> the report's sanitizer must strip.
 //   anything else: exit 1, logged, so an unexpected call is visible rather than answered.
 //
 // Every call is appended as one JSON line to $FAKE_CLAUDE_LOG (argv, the parsed flags, the
@@ -41,7 +43,7 @@
 
 import { appendFileSync } from "node:fs";
 
-const COST = { brief: 0.01, fable: 0.02, opus: 0.05, sonnet: 0.01 };
+const COST = { brief: 0.01, fable: 0.02, opus: 0.05, sonnet: 0.01, report: 0.03 };
 const SEATS = { "claude-fable-5": "fable", "claude-opus-5-5": "opus", "claude-sonnet-5-5": "sonnet" };
 
 function flags(argv) {
@@ -96,7 +98,25 @@ function fencedPayload(prompt) {
 function classifyPrompt(prompt) {
   if (prompt.includes("Describe the gig in the fenced region below")) return "brief";
   if (prompt.includes("Plan the gig in the fenced region below")) return "plan";
+  if (prompt.includes("Write the report for the gig in the fenced region below")) return "report";
   return "unknown";
+}
+
+/** A report body (gig-report-v1) with one section per kind the instructions list, each carrying a
+ *  <script> kp's sanitizer must strip before the file is written (the spec asserts it). */
+function reportFor(prompt, payload) {
+  const title = String(payload?.untrusted_facts?.gig?.title ?? "the gig");
+  const kinds = [...prompt.matchAll(/kind "([a-z]+)", title "([^"]+)"/g)].map((m) => ({ kind: m[1], title: m[2] }));
+  return {
+    lead: `The fake report for ${title}: take it.`,
+    highlight: "take it",
+    sections: kinds.map(({ kind, title: t }) => ({
+      id: kind,
+      title: t,
+      kind,
+      html: `<p>The ${kind} point.</p><figure><table><thead><tr><th>Fact</th><th>Value</th></tr></thead><tbody><tr><td>Kind</td><td>${kind}</td></tr></tbody></table><figcaption><strong>Fake.</strong> Source: the fake CLI.</figcaption></figure><script>alert("${kind}")</script>`,
+    })),
+  };
 }
 
 function categoryFor(title) {
@@ -250,6 +270,13 @@ async function main() {
     const cost = COST[seat] ?? 0.01;
     log({ ...base, seat, answered: "ok", cost });
     process.stdout.write(`${asciiJson(envelope({ result, structured: false, model, cost }))}\n`);
+    return 0;
+  }
+
+  if (useCase === "report") {
+    const result = reportFor(prompt, payload);
+    log({ ...base, answered: "ok", cost: COST.report });
+    process.stdout.write(`${asciiJson(envelope({ result, structured: false, model, cost: COST.report }))}\n`);
     return 0;
   }
 

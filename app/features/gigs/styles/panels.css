@@ -40,7 +40,6 @@
 .gd .panel .k-section { margin-top: 1.75rem; }
 
 /* evidence: a step with no command to show (report/ReportEvidence.tsx) */
-.gd .ev-nocmd { font-size: 0.875rem; font-style: italic; color: color-mix(in srgb, var(--gd-amber) 45%, var(--gd-ink)); }
 
 /* Review: the pre-send review beside the message to the client (proof/panels/ReviewPanel.tsx) */
 .gd .review-halves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }

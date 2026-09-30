@@ -10,7 +10,8 @@
 //   LLM_PROVIDERS     <- PROVIDER_CAPABILITIES  (capabilities.py)
 //   LLM_USE_CASES     <- USE_CASE_REQUIREMENTS  (capabilities.py)
 //   BENCH_OPS         <- REGISTRY_USE_CASE      (bench/scenarios.py)
-//   PINNED_USE_CASES  <- PIN                    (role_research_cli.py, gig_brief_cli.py;
+//   PINNED_USE_CASES  <- PIN                    (role_research_cli.py, gig_brief_cli.py,
+//                        gig_report_cli.py;
 //                        PIN_PROVIDER + plan-seats.ts for gig_plan_cli.py's per-seat pin)
 //
 // Each rots quietly and in a direction the type system cannot see:
@@ -61,6 +62,7 @@ const QUALITY_TS = path.join(REPO_ROOT, "app", "_lib", "llm-quality.ts");
 const ROLE_RESEARCH_CLI = path.join(REPO_ROOT, "pipeline", "jobfit", "role_research_cli.py");
 const GIG_BRIEF_CLI = path.join(REPO_ROOT, "pipeline", "jobfit", "gig_brief_cli.py");
 const GIG_PLAN_CLI = path.join(REPO_ROOT, "pipeline", "jobfit", "gig_plan_cli.py");
+const GIG_REPORT_CLI = path.join(REPO_ROOT, "pipeline", "jobfit", "gig_report_cli.py");
 
 /** The `"key": "value"` pairs of an object/dict literal declared as `declaration`
  *  (same literal shape in TS and Python, so one reader serves both). */
@@ -159,10 +161,12 @@ test("PINNED_USE_CASES mirrors the Python call-site pins exactly", () => {
   // surface can say "pinned" instead of presenting a routing row as if it changed the
   // engine — drift here would have it name a model the product no longer runs.
   const pinned: string[] = [];
-  for (const file of [ROLE_RESEARCH_CLI, GIG_BRIEF_CLI]) {
+  // A pin may name an effort too (gig_report_cli.py: `ProviderPin(provider, model, "high")`);
+  // the TS row mirrors the engine and the model, which is what a surface says is pinned.
+  for (const file of [ROLE_RESEARCH_CLI, GIG_BRIEF_CLI, GIG_REPORT_CLI]) {
     const source = readFileSync(file, "utf-8");
     const useCase = source.match(/^USE_CASE = "([a-z_]+)"$/m);
-    const pin = source.match(/^PIN = ProviderPin\("([a-z_]+)", "([a-zA-Z0-9._-]+)"\)$/m);
+    const pin = source.match(/^PIN = ProviderPin\("([a-z_]+)", "([a-zA-Z0-9._-]+)"(?:, "[a-z]+")?\)$/m);
     assert.ok(useCase && pin, `${path.basename(file)} no longer declares USE_CASE / PIN in the shape this test reads`);
     const mirror = PINNED_USE_CASES[useCase[1] as LlmUseCase];
     assert.ok(mirror, `${useCase[1]} is pinned in Python but absent from PINNED_USE_CASES`);

@@ -7,6 +7,7 @@ import { clearGigSuspect, getGig, transitionGig } from "@/app/_lib/db/gigs";
 import { listGigAttemptsForGig, transitionGigAttempt } from "@/app/_lib/db/gigs-attempts";
 import { listOutcomesForGig } from "@/app/_lib/gigs/outcome";
 import { qualifyAndMatch } from "@/app/_lib/gigs/qualify";
+import { requestGigReport } from "@/app/_lib/gigs/report/trigger";
 import { routeGig, unrouteGig } from "@/app/_lib/gigs/routing";
 import { canTransitionGig } from "@/app/_lib/gigs/transitions";
 import type { GigStatus, GigWithdrawReason } from "@/app/_lib/gigs/types";
@@ -52,7 +53,7 @@ export async function GET(_request: Request, { params }: Params): Promise<NextRe
   }
 }
 
-const PATCH_ACTIONS = ["decline", "withdraw", "clear_suspect", "route", "unroute"] as const;
+const PATCH_ACTIONS = ["decline", "withdraw", "clear_suspect", "route", "unroute", "accept"] as const;
 type PatchAction = (typeof PATCH_ACTIONS)[number];
 
 export async function PATCH(request: Request, { params }: Params): Promise<NextResponse> {
@@ -97,6 +98,14 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
       return NextResponse.json({ gig: qualified.ok ? qualified.gig : cleared.gig });
     }
 
+    // The operator's yes on a listing the scan left `new` (below the qualify threshold).
+    if ((action as PatchAction) === "accept") {
+      if (gig.status !== "new") return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { gigStatus: gig.status });
+      const accepted = transitionGig(ws, id, { from: "new", to: "qualified" });
+      if (!accepted.ok) return jsonRefusal(accepted.reason === "not_found" ? "GIG_NOT_FOUND" : "GIG_STATE_CHANGED", accepted.reason === "not_found" ? 404 : 409);
+      return NextResponse.json({ gig: accepted.gig });
+    }
+
     const to: GigStatus = action === "decline" ? "declined" : "withdrawn";
     if (!canTransitionGig(gig.status, to)) return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { gigStatus: gig.status });
     let withdrawReason: GigWithdrawReason | undefined;
@@ -115,6 +124,9 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
         transitionGigAttempt(ws, attempt.id, { from: attempt.status, to: "discarded" });
       }
     }
+    // A gig that already has a report gets its closing one (gigs/report/trigger.ts); a
+    // listing declined before anyone read it gets none - there is nothing to close.
+    if (moved.gig.report) requestGigReport(ws, id, "closed");
     return NextResponse.json({ gig: moved.gig });
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]", "GIG_STORE_FAILED");

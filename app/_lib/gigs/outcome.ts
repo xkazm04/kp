@@ -5,6 +5,7 @@ import { recordGigSourceVerdict } from "../db/gigs-sources";
 import { getGigSpecialist } from "../db/gigs-specialists";
 import { gigChecklist } from "./checklists";
 import { deriveGigLessons } from "./lessons";
+import { requestGigReport } from "./report/trigger";
 import type {
   Gig,
   GigAttempt,
@@ -158,6 +159,8 @@ export function recordGigOutcome(workspaceId: string, input: RecordGigOutcomeInp
     }
   }
 
+  // The gig's report (gigs/report/trigger.ts): best-effort, never part of the verdict.
+  requestGigReport(workspaceId, gig.id, "closed");
   return { ok: true, outcome, gig: current, statusMoved, correction, sourcePaused, lessons };
 }
 

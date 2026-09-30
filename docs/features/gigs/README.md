@@ -396,6 +396,120 @@ is the measurement, and the tab shows it per seat.
 row is `failed` with that reason. There is no deterministic plan: a plan made without a
 model would be a template pretending to be a design.
 
+## The gig's report file
+
+Every researched gig has a **report**: one designed HTML page per gig, written to a file the
+operator opens in a browser, rewritten each time the gig reaches a new stage. The in-app
+Summary keeps a hero and links to it; the file carries the full reading (plans compared,
+evidence, review, outcome).
+
+**Where it lives.** `<KP_GIGS_ROOT or ../gigs>/_reports/<type>/<yyyy-mm-dd>-<title slug>-<last 6 of the id>.html`
+(`app/_lib/gigs/report/file.ts`; the root and slug are `workdir.ts`'s, the type
+`gig-type.ts`'s). Outside every gig's own folder, so the agent working a gig never sees the
+report about it. Each rewrite is atomic (temp file + rename) and keeps the version before it
+as `<name>.prev.html`. A path already recorded on the gig is kept while it stays under
+`_reports` (a retitled listing does not move its report).
+
+**The record.** `gigs.report_json` -> `Gig.report: GigReport | null` =
+`{ path, stage, status: "writing"|"ready"|"failed", source: "llm"|"deterministic", model, fallbackReason, costUsd, generatedAt }`
+(`db/gigs.ts setGigReport`, workspace-scoped, does not touch `updated_at`). `model` is the
+pinned writer's id when a model wrote the body, null when kp did; `costUsd` is what the
+Claude CLI reported (null = not reported, never 0). `status: "writing"` while a task runs
+(the previous file stays readable); `failed` with `fallbackReason: "write_failed"` when the
+file could not be written.
+
+**Stages and triggers.** `researched -> planned -> accepted -> drafted -> sent -> closed`
+(`GIG_REPORT_STAGES`). The runner reads the records and writes the stage they say
+(`report/facts.ts gigReportStageOf`); the moves that ask for a rewrite call
+`requestGigReport(ws, gigId, stage)` (`report/trigger.ts`, a leaf registry):
+
+| Stage | Trigger |
+| --- | --- |
+| researched | `gigs/research.ts`, after a brief is stored (a physical-work decline asks for `closed`) |
+| planned | `gigs/plans.ts`, after a gig's plan round finished |
+| accepted | `POST /api/gigs/[id]/plans/[planId]/accept` |
+| drafted | `gigs/sync.ts`, when a run's deliverable lands |
+| sent | `gigs/review.ts`, on `mark_sent` |
+| closed | `gigs/outcome.ts` (a verdict); `PATCH /api/gigs/[id]` decline/withdraw of a gig that already has a report |
+
+Each asks for a `gig_report` task (server-only door, budget class `agent`, deduped per
+workspace + gig so a burst of moves folds into one run). The enqueuer is registered at boot
+(`late-bound-boot.ts`) and NOT in a `node --test` process: a unit test that moves a gig never
+starts a model call. A report already `ready` at the stage the records say, generated after
+the newest record it reads, is `current` and is not rewritten; when the gig reached a later
+stage while the report was being written, the runner writes once more. A suspect gig never
+reaches the model (kp's body, `gig_suspect`); a gig with no brief has no report.
+
+**Who writes it.** `pipeline/jobfit/gig_report_cli.py` (use case `gig_report`, prompt
+`gig-report-v1`), pinned at the call site to **Claude Sonnet 5.5 at high effort**
+(`ProviderPin("claude_cli", "claude-sonnet-5-5", "high")`, mirrored in `llm-pins.ts`); no web
+access. It receives kp's FACTS (`report/facts.ts`: listing facts, the v4 brief, the current
+plan round, the accepted plan and its milestone progress, the latest attempt's summary /
+draft excerpt / evidence / review, kp's pre-send lint in English, the outcomes, and kp's own
+arithmetic - the USD estimate, the rate per hour, the spend so far and the count of
+unreported costs) as JSON inside the per-call nonce fence, and returns
+`{ lead, highlight, sections: [{ id, title, kind, html }] }`. The instructions carry the
+report bar (conclusion first, a figure per part instead of a paragraph, designed comparison
+tables and claims, captions ending in "Source: ...") and the section plan by stage (kinds
+`gig, asks, risks, fit, questions` -> `+ plans` -> `+ chosen` -> `+ draft, evidence, review`
+-> `+ outcome` -> `+ lessons`), plus the honesty rules: every figure from the facts, "not
+reported" / "not measured" instead of a guess, a converted amount labelled an estimate,
+never a sum across currencies.
+
+**Sanitise, then assemble** (`report/sanitize.ts`, `report/assemble.ts`). Each section's HTML
+is parsed (linkedom) and re-serialized through an allow-list: `p h3 ul ol li strong em code
+blockquote br mark table thead tbody tr th td figure figcaption`, `div` only as
+`.stat-cards/.stat/.callout(.warn|.ok)`, `span` only as `.n/.l/.c/.pill(.ok|.fail|.wait)`,
+`a` only with an https href; h1/h2/h4-6 fold to h3, `b/i` to `strong/em`; script, style,
+iframe, img, svg, forms and the like are dropped with their content; every attribute except
+`class` (filtered), `colspan/rowspan` and the https href is dropped; text is re-escaped.
+Unknown kinds become `other`; a section a stage requires and the model left out is written by
+kp and named in the footer. The page skeleton (`report/template.ts`, stylesheet
+`report/report-css.ts`) is fixed: a dark numbered section rail grouped by topic (The gig /
+The plan / The work / The result) with the stage strip, an eyebrow (arena · type · stage),
+the title, the lead with its highlighted phrase, kp's own stat cards (reward and its USD
+estimate, effort, rate per hour or evidence passed, spend so far or the verdict), numbered
+sections with auto-numbered figures, and a provenance footer. One self-contained document:
+no script, no external request, system fonts, light and `prefers-color-scheme: dark`, print
+styles, responsive to a phone. The stylesheet's literal colours are on the design law's
+exemption list (`eslint.config.mjs` COLOR_EXEMPT) - the file is not a kp surface.
+
+**Keyless.** No usable engine (keyless, `KP_OFFLINE`, the production consumer-terms refusal)
+-> the CLI answers `no_provider` (exit 0) and kp writes the whole report itself from the same
+facts (`report/deterministic.ts`): tables, stat cards, pills and callouts, no prose it cannot
+back; `source: "deterministic"`, the reason in the footer and the record. `llm_error:<...>`
+and `llm_unusable` degrade the same way (their cost, when reported, is still recorded).
+
+**API.**
+
+| Route | Does |
+| --- | --- |
+| `GET /api/gigs/[id]/report` | serves the file (200 `text/html`) under `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` - the body was written by a model from strangers' text, so it never runs in kp's origin. Open it in a new tab. 404 `GIG_NOT_FOUND` / `GIG_REPORT_NOT_FOUND` (none yet, the file is gone, or the recorded path is outside `_reports`). The read side is `report/serve.ts`, a leaf. |
+| `POST /api/gigs/[id]/report` | rewrite now: 202 `{ taskId }` (a `gig_report` task with `force`); 409 `GIG_ACTION_NOT_ALLOWED {reason:"no_brief"}`; limiter `gigs-report` 20/10 min per IP |
+
+**Backfill.** `node scripts/gigs/report-backfill.mjs [--status drafted,in_review] [--dry-run] [--all]`
+asks the running kp (`KP_BASE_URL`, default `http://localhost:3000`) for the report of every
+researched gig in those statuses, one POST every 35 s (the door's budget), skipping gigs
+whose report is already ready unless `--all`. Each request is one model call (about $0.14-0.20
+on the fixture, 2026-09-30, n=2) unless the install is keyless.
+
+**Tests.** `app/_lib/gigs/report/report.test.ts` (sanitizer, template, facts and stages, the
+deterministic body per stage, the model validator and the section fill, file placement and
+the atomic write, lockstep with the CLI), `report/run.test.ts` (the runner over a fake CLI:
+keyless, the model path, `current`/`force`, `writing`, a failed write, a suspect gig, the
+second pass, `setGigReport` tenancy), `report/report-trigger.test.ts` (the stage triggers),
+`app/api/gigs/gigs-report-route.test.ts` (headers, 404s, 202, the limiter),
+`pipeline/jobfit/tests/test_gig_report_cli.py` (pin + argv, fence, coercion, keyless and
+failures, invalid input), and `e2e/gig-lifecycle.spec.ts` step 2b (after research the report
+is written by the (fake) pinned model, its `<script>` is stripped, and the route serves it
+sandboxed).
+
+**Known gaps.** A `writing` record orphaned by a server restart mid-task stays `writing` until
+the next trigger or a regenerate (the task itself is marked interrupted). Expiry and the
+freshness sweep do not trigger a `closed` report; the next move or a regenerate does. Recipe
+lessons are not read into the report (the lessons ledger has no per-gig read); the Lessons
+section rests on the verdict, the evidence and the client's words.
+
 ## Expiry
 
 At the start of every gig scan (the manual door and the clock, which run the same
@@ -459,9 +573,11 @@ config reader's default cap of 10 had silently cut a 13-id source to 10. A cut p
 A gig is taken off the line for a reason, and most reasons are already written down: the
 brief's **Expected challenges**. On a gig's Research brief tab each challenge is a row with
 **Withdraw for this** (`proof/panels/BriefChallenges.tsx`): one click, no confirm (picking
-the reason is the confirmation), and the proof moves to the next gig of its list with
-"Withdrew "<title>": <reason>". The sign-off's plain **Withdraw** stays for a reason the
-brief did not name, and records none.
+the reason is the confirmation), styled as a quiet danger button - a thin red rule and red
+words, a faint red wash on hover, the kit's focus ring and greyed disabled state
+(`styles/records.css` over the kit's `k-btn--danger`) - and the proof moves to the next gig
+of its list with "Withdrew "<title>": <reason>". The sign-off's plain **Withdraw** stays for
+a reason the brief did not name, and records none.
 
 - **The write.** `PATCH /api/gigs/[id]` `{ action: "withdraw", challenge: <index> }`. The
   client sends the bullet's index, never text; the route reads the challenge from the
@@ -965,12 +1081,12 @@ proof lands where the operator left.
      then Dispatch or "below the bar", and Decline. **Dispatch needs an accepted plan**: for a gig
      nobody worked yet and with no accepted plan the button is disabled and the reason is written
      under it ("Accept a plan first. Dispatch hands the accepted plan to the gig's own agent.")
-     with **Go to the plans**, which shows the Summary tab and scrolls the report's plans
-     section in (focus on its heading); while the plans are still being read
+     with **Go to the plans**, which shows the Summary tab and scrolls its plan block in (focus on
+     its heading); while the plans are still being read
      it says so. A gig with an earlier attempt (worked before plans existed) is not gated, as the
      route does not gate it. The proof reads the plans itself (`proof/panels/usePlans.ts`,
-     `GET /api/gigs/[id]/plans`) rather than widening the list route, and shares that read with
-     the report's plans section and the tab row's mark. A dispatch answered `202 { pairing: "pending" }` flashes
+     `GET /api/gigs/[id]/plans`) rather than widening the list route, and shares
+     that read with the Summary's plan block and the tab row's mark. A dispatch answered `202 { pairing: "pending" }` flashes
      "Pairing: the gig's own agent is being created. It starts when Personas approves it."; a
      `409 GIG_PLAN_NOT_ACCEPTED` renders from its code. There is no hire button any more. Work with an agent: in flight, sent back not dispatched, or failed, with
      Dispatch again. Withdraw wherever `transitions.ts` allows. Confidence, this run's cost
@@ -987,84 +1103,55 @@ proof lands where the operator left.
      the id `routing`. A proof always opens on **Summary**. Each tab but Summary opens with
      **the head** (the stage and the niche, then the title) and is a white panel composed from
      the kit inside a `.k-kit` root with its delegated tip (`KitArea`).
-   - **Summary: the gig's report** (`proof/report/`, one file per section, `styles/report.css`;
-     pure derivations in `logic/report.ts`). It replaced the Summary, Plans, Draft and
-     Evidence tabs: one page that grows with the gig, set the way the contest's design reports
-     are set (a caps eyebrow over a large serif title, a lead at reading size with a
-     highlighter, stat cards, numbered headings with an accent numeral, figures on cards with
-     "Figure N." captions and their source, a table with a dark header, callouts with a
-     coloured left rule, status pills) in HTML and CSS, never rendered Markdown. It opens with
-     its own title, so the head is not shown above it. Sections, in order:
-     1. **The gig** (`ReportHero.tsx`, `ReportStats.tsx`): the eyebrow `arena · gig type ·
-        stage` (the stage coral when the next move is the operator's); the brief's title (else
-        the listing's), with "Listed as ..." when they differ; the lead - the deliverable's
-        summary once a draft exists, else the brief's "What the gig is" (`summaryTextOf`) - set
-        as a lead paragraph with its **first clause highlighted** (`firstClause`) and its list
-        lines as points (`leadOf`, inline marks dropped, nothing reworded), captioned with where
-        it came from. A gig with no brief leads with the listing's first paragraph, marked as
-        the stranger's words, and **Read the whole listing** (the Listing tab). A listing not in
-        English (`brief.language`, prompt gig-brief-v4) carries a **language tag** ("Czech
-        listing", the language named in the reader's locale) and **Read the English
-        translation**, which unfolds `brief.listingEnglish` framed like the listing itself
-        (`shared/ListingLanguage.tsx`: plain text, invisible characters shown); a brief with no
-        translation says so. `workKind` `mixed` (amber) or `physical` (coral) is a callout with
-        `workKindReason`. Five **stat cards**: Reward (the listing's text; the dollar estimate
-        and its rate date as the caption for another currency), Deadline (days left, coral when
-        three or fewer or passed), Difficulty (with the effort range; "—" and why when unrated or
-        not researched), Fit (the qualification score of 100 with a track and the bar at 50),
-        **Spent so far** (every finished plan seat and agent attempt, `spendSoFar`: "plans $x ·
-        drafts $y", finished calls with no cost counted apart as unreported, "cost not
-        reported" when none reported, "nothing has run yet" before anything ran - never $0).
-     2. **The index** (`ReportIndex.tsx`) under the hero: all seven sections numbered, in two
-        columns. An open section is a link that scrolls its heading in and moves focus onto it,
-        with a one-line note (8 asks · 6 challenges; 3 plans · one accepted; 53% done · 2 of 5
-        goals; 8 checks · none failed; 3 attempts); a section whose time has not come is a
-        greyed line saying when it appears ("Progress · appears once the gig is paired"),
-        never an empty box (`reportOpen`). When the proof column is 70rem or wider the same
-        index rides beside the report as a sticky compact rail.
-     3. **What it asks** (`ReportAsks.tsx`): one figure in two columns, the brief's asks
-        (`briefAsks`, the bullets under "What it asks for") beside the expected challenges
-        (`BriefChallenges`, each with its **Withdraw for this**; the Brief tab keeps its copy).
-     4. **The plans** (`ReportPlans.tsx`, reusing `PlanColumn.tsx` / `PlanBody.tsx`,
-        `usePlans.ts` `usePlanActions`, `logic/plans.ts`): the brief's difficulty decides the
-        lineup (`planSeatsFor`: one Sonnet 5.5 · high plan up to moderate and unrated, one
-        Opus 5.5 · high plan for hard, three competing plans for very hard - Opus 5.5 · xhigh,
-        Fable 5, GPT 6 Astra · max); a column is labelled by `planSeatLabel` (the seat at the
-        effort it actually ran). No brief: "Research the gig first" with **Research**. No
-        plans: which models this difficulty gets ("Difficulty: Very hard. 3 models each write
-        a plan: ...") and **Generate plans** (`POST /api/gigs/[id]/plans`). Plans: the round on
-        screen as one to three figure panels side by side (stacked under 48rem), in the
-        lineup's order (Opus, Fable, GPT, then Sonnet). Everything else is as before: a
-        column's head (the seat, its state as a mark and a word, cost - "cost not reported",
-        never $0 - and duration), the plan (summary, numbered steps with "Done when",
-        Decisions it made, Risks, Effort, Questions for you), the quiet line while a seat
-        writes (re-read every 4 s), a failed seat's reason in words with **Retry** (a new
-        round), the optional note and **Accept this plan**, the accepted one marked with its
-        date and note while the others are quieted but readable, **Propose again** while
-        nothing is accepted, and earlier rounds folded under the figure.
-     5. **Progress** (`ReportProgress.tsx`), once the gig is paired (an accepted plan with a
-        persona or a milestone): the milestone as three stat cards (the whole as a big
-        percentage with its bar and when the agent last reported, goals done as n/total,
-        goals blocked), then every step as a goal with its **status pill** and its bar
-        (`MilestoneList.tsx`, shared with the Pairing tab; a step nobody reported on is open
-        at 0).
-     6. **The draft**, once an attempt exists (or the listing is quarantined): the proof slip
-        set as a callout (amber; coral when a lint stop blocks Approve; moss when clean) above
-        the galley, captioned as the draft as it would be sent. The slip's links jump within
-        the report: a margin note takes focus, an evidence row is marked (`DraftTab.tsx`
-        `useSlipJump`, `report/parts.tsx` `revealSoon`).
-     7. **Evidence**, once the deliverable exists (`ReportEvidence.tsx`): four stat cards
-        (passed, failed, not verified, the agent's own confidence, "its own estimate, never a
-        score"), then a table with a dark header (Check · Command · Result): the item's number
-        and kind at the left with its **status pill** (passed ✓, failed ✕, not verified •:
-        three states, never two), the command as code ("no command" called out), the result.
-        Rows keep the `gd-ev-<n>` ids the slip links to.
-     8. **Record**, once the gig was attempted (`ReportRecord.tsx`): a compact timeline, newest
-        first - "Draft n", its status as a pill, when, what it cost ("cost not reported", never
-        $0), its verdicts - with a link to the History tab for the notes and the judge's words
-        (`logic/report.ts` `attemptTimeline`, which the History tab uses too).
-     (The index numbers these seven sections 1-7: the gig, what it asks, the plans, progress,
-     the draft, evidence, record.)
+   - **Summary: the gig at a glance** (`proof/report/`, `styles/report.css` + `styles/plans.css`;
+     pure derivations in `logic/report.ts`). The operator's call (2026-09-30): the long read is
+     the gig's **HTML report file** (see "The gig's report file": written by a model, rewritten
+     as the gig moves, opened in the browser), so the in-app Summary is a quick overview with
+     the working controls under it, in this order:
+     1. **The hero** (`ReportHero.tsx`, `ReportStats.tsx`), unchanged: the eyebrow `arena · gig
+        type · stage`; the brief's title (else the listing's) with "Listed as ..." when they
+        differ; the lead - the deliverable's summary once a draft exists, else the brief's
+        "What the gig is" (`summaryTextOf`) - with its first clause highlighted (`firstClause`)
+        and its list lines as points (`leadOf`); a gig with no brief leads with the listing's
+        first paragraph and **Read the whole listing**; the language tag and **Read the English
+        translation** (`shared/ListingLanguage.tsx`); the `workKind` callout; five stat cards
+        (Reward with its dollar estimate, days left, Difficulty with effort, Fit against the bar,
+        **Spent so far** from `spendSoFar`, never $0).
+     2. **The full report** card (`ReportFile.tsx`, `useReportFile.ts`): **Open the full report**
+        (a new tab on `GET /api/gigs/[id]/report`, which serves the file sandboxed), the file's
+        local **path** (selectable, with **Copy path**), and what it covers: "Written at the
+        drafted stage · Sep 30, 2026, 2:20 PM · by a model · cost $0.12", or "by kp, no model:
+        no provider" for a deterministic report; the cost only when the call reported one. Its
+        state is a mark and a word: **Ready**; **Writing** (a quiet breathing mark and "This card
+        checks again every few seconds": while `gig.report.status` is `writing`, or right after
+        Regenerate, the card re-reads `GET /api/gigs/[id]` every 5 s and re-reads the list once
+        the rewrite lands); **Failed** with the reason in words (the brief's fallback vocabulary)
+        and Regenerate. **Regenerate** (`POST /api/gigs/[id]/report`, 202) is disabled while a
+        rewrite runs and until the gig has a brief. With no report yet the card says "The report
+        is written once the gig is researched."
+     3. **The research brief** - the Brief tab's own panel (`panels/BriefPanel.tsx`), so the gig's
+        metadata reads the same in both places, with its **Withdraw for this** rows. With no
+        brief it is the panel's empty state with **Research**, which is how a Summary reaches
+        research.
+     4. **Choose a plan** (`ReportChoose.tsx`, `SeatCard.tsx`, `usePlans.ts` `usePlanActions`),
+        shown while plans wait for a pick, or when a brief has no plans yet
+        (`summaryBlocks`). The lineup follows the brief's difficulty (`planSeatsFor`); each
+        seat is a **compact card** - the seat (`planSeatLabel`), its state as a mark and a
+        word, its cost ("cost not reported", never $0), the plan summary's first sentence
+        (`firstSentence`), the step count and the effort range - with the optional note and
+        **Accept this plan**; a failed seat says why with **Retry**; a writing seat is a quiet
+        line (re-read every 4 s). Above the cards: when the round was proposed, "each plan in
+        full is in the report", and **Propose again**. No plans: "No plans yet", which models
+        this difficulty gets, and **Generate plans**. Once one is accepted the block is **The
+        accepted plan**: one line, "Accepted: Opus 5.5 · xhigh, <your note>", its date, and the
+        steps' titles as a numbered list. Earlier rounds and the plans in full are in the file.
+     5. **Review the draft**, only when the latest attempt carries a draft: the proof slip as a
+        callout (amber; coral when a lint stop blocks Approve; moss when clean) above the galley
+        with its margin notes. A slip link focuses its margin note (`DraftTab.tsx`
+        `useSlipJump`); the evidence rows it used to jump to are in the file now.
+     Not in the Summary any more (2026-09-30): the numbered index and its rail, "What it asks"
+     (the brief panel has it), Progress (the **Pairing** tab keeps the milestone), Evidence
+     (the file) and the Record (the **History** tab).
    - **Review** (`proof/panels/ReviewPanel.tsx`, `OutreachCard.tsx`): two halves, stacked when
      the proof column is under 44rem. Left, the **pre-send review**: the reviewer and cycle as
      a tag, the verdict as a pill, the lead as a callout, "Before sending" (numbered steps)
@@ -1108,7 +1195,9 @@ proof lands where the operator left.
 
    **The research brief** (`proof/panels/BriefPanel.tsx`, the Research brief tab) is a reading column and
    an aside. The column: the category as tags, the categorized title, then the Markdown body
-   through `app/_components/Markdown.tsx` at a ~68ch measure and a reading size (the body
+   through `app/_components/Markdown.tsx` at a reading size, across the
+   column's full width (the 68ch cap and the panel's clipping are gone: at 1440 they held the
+   text to 456px of an 808px panel, at 1920 a third of the column stood empty) (the body
    already carries the difficulty reason, so nothing is listed twice). Its "Expected
    challenges" section is set as rows, each with **Withdraw for this** (see **Withdraw
    reasons**).
@@ -1121,6 +1210,10 @@ proof lands where the operator left.
    beside the same button. Headings carry the ids
    the server minted with one assigner (`brief.sections`, via `briefHeadingResolver`, which
    refuses rather than guesses); nothing is re-slugged on the client.
+   The aside sits beside the column (16-22rem) when the proof column is 56rem or wider; below
+   that it becomes a band of facts ABOVE the text (provenance and Research again, difficulty and
+   effort, contents, sources read, in auto-fit columns) rather than a squeezed rail. The panel is
+   the same in the Brief tab and in the Summary.
 3. **Lanes (`lanes/GigsLanes.tsx`, `logic/lanes.ts`).** "1,000 gigs across 7 types." and a
    deck: gig agents at work, gigs paired with their own agent, and the niche specialists
    still finishing their open drafts. One row per **gig type**, always all seven in the
@@ -1217,6 +1310,8 @@ seen. Info never gates.
 | POST | `/api/gigs/[id]/plans` | `pipeline:write` | 20 `gigs-plans` (shared with the bulk door) | 202 `{ taskId }`; `GIG_NOT_FOUND` (404), `GIG_PLAN_ALREADY_ACCEPTED` (409), `GIG_ACTION_NOT_ALLOWED` (409, `reason: "no_brief"`) |
 | POST | `/api/gigs/plans` | `pipeline:write` | 20 `gigs-plans` (shared with the one-gig door) | 202 `{ taskId, queued }` for `{ gigIds }` (1-50 unique ids; the task reports each skip); `GIG_INPUT_INVALID` (400, `field: "gigIds"`) |
 | POST | `/api/gigs/[id]/plans/[planId]/accept` | `pipeline:write` | 60 `gigs-plan-accept` | 200 `{ plan }` for `{ note? }` (at most 2000 characters); `GIG_NOT_FOUND`, `GIG_PLAN_NOT_FOUND` (404, also a plan of another gig), `GIG_PLAN_ALREADY_ACCEPTED` (409), `GIG_ACTION_NOT_ALLOWED` (409, `reason: "not_ready"`), `GIG_INPUT_INVALID` (400, `field: "note"`) |
+| GET | `/api/gigs/[id]/report` | operator | none | serves the file (200 `text/html`, sandboxed); `GIG_NOT_FOUND`, `GIG_REPORT_NOT_FOUND` (404: none yet, the file is gone, or the recorded path is outside `_reports`); see **The gig's report file** |
+| POST | `/api/gigs/[id]/report` | `pipeline:write` | 20 `gigs-report` | rewrite now: 202 `{ taskId }` (a `gig_report` task with `force`); `GIG_ACTION_NOT_ALLOWED` (409, `reason: "no_brief"`) |
 | GET | `/api/gigs/specialists` | operator | none | none; answers `{ specialists, tallies }`, `tallies` = each specialist's whole attempt record `{ attempts, byStatus, costUsd, costUnreported }` (`db/gigs-attempts.ts` `gigAttemptTallies`) |
 | POST | `/api/gigs/specialists` | `pipeline:write` | 10 `gigs-specialist-hire` (plus the hire tail's own) | `GIG_INPUT_INVALID`, the hire tail's codes; a hire answers `placement` and `placementSkipped` |
 | POST | `/api/gigs/sync` | `pipeline:write` | 20 `gigs-sync` | 200 `{ synced, attempts }` (the attempts this pass moved); the on-demand analogue of the clock's `gig_sync` (see **Running it headless**) |
@@ -1248,6 +1343,7 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/review.ts` | the review desk's actions |
 | `app/_lib/gigs/outcome.ts` | the one verdict path (manual and pollers) |
 | `app/_lib/gigs/pollers.ts` | GitHub and Kaggle outcome pollers |
+| `app/_lib/gigs/report/**`, `pipeline/jobfit/gig_report_cli.py` | the gig's report engine: facts, the stage triggers, the pinned writer CLI, the sanitizer/assembler, the deterministic fallback, the file placement and the serving route (see **The gig's report file**) |
 | `app/_lib/gigs/lessons.ts` | deterministic lesson bullets and the feedback scrubber |
 | `app/_lib/gigs/kpi.ts` | the pure KPI fold, including money won per currency (never totalled) from the counted verdicts |
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
@@ -1371,6 +1467,10 @@ row withdrawn before the column existed). `gigs.source_state_json` (the `GigSour
 checked", never "open"), written by `setGigSourceState` without touching `updated_at`.
 `gig_attempts.fallback_reason` may be set at dispatch
 (`personas_route_missing`); the sync clears it when the draft lands.
+`gigs.report_json` (the `GigReport`) is ALTER-added too: `{ path, stage, status, source,
+model, fallbackReason, costUsd, generatedAt }`, NULL until the gig's first report is
+written, written by `setGigReport` without touching `updated_at` either (see **The gig's
+report file**).
 
 `gig_specialists.gig_id` (ALTER-added, 427cdc3d0) is written: the ONE gig a gig persona was hired
 for, NULL on the niche specialists. `db/gigs-specialists.ts` adds `getGigSpecialistForGig` (newest
@@ -1392,6 +1492,9 @@ sync). The gig's type is DERIVED (`gigTypeOf`) each time, not stored.
   pass, then none); see **Research**.
 - Plans need a model: keyless, every seat is `failed` with `no_provider` and there is no
   plan to accept (so no dispatch); see **Plans**.
+- The gig's report also degrades: keyless, under `KP_OFFLINE`, or on a production
+  consumer-terms refusal, the pinned writer answers `no_provider` and kp writes the whole
+  report body itself from the same facts; see **The gig's report file**.
 - The GitHub poller runs keyless at GitHub's unauthenticated rate. The Kaggle poller does
   nothing without `KAGGLE_USERNAME` + `KAGGLE_KEY`: it makes no request and records no
   verdict.
@@ -1445,14 +1548,18 @@ the fakes received):
    `--model claude-sonnet-5-5`, `--allowedTools WebSearch,WebFetch`, `--disallowedTools`,
    `--json-schema`, `--max-turns 16`. The quarantined listing never reached a model
    (deterministic brief, `gig_suspect`).
+2b. **Report.** After research the report is written by the (fake) pinned model
+    (`claude-sonnet-5-5`, high effort); a `<script>` the model's answer tried to smuggle in
+    is stripped by the sanitizer, and the route serves the written file sandboxed.
 3. **Plans.** The very-hard lineup's three seats `ready`, each on its own engine, model and
    effort: `--effort xhigh` for Opus, no `--effort` for Fable (its CLI default), and the GPT
    seat through the Codex CLI at `--effort max` (`cost_usd` null: Codex reports tokens, not
    dollars); no web door on a plan seat.
 4. **UI: accept.** The gig's proof (opened from the front page's file), the Summary tab's
-   plans section; the Opus plan is accepted with the note "Keep the PoC harmless" (human
-   gate 1). Column labels are `planSeatLabel`: "Opus 5.5 · xhigh" only when the row ran at
-   xhigh (a very-hard gig); a hard gig's row reads "Opus 5.5 · high".
+   "Choose a plan" block (a compact card per seat); the Opus plan is accepted with the note
+   "Keep the PoC harmless" (human gate 1). The block then reads "Accepted: Opus 5.5 · xhigh,
+   Keep the PoC harmless". Column labels are `planSeatLabel`: "Opus 5.5 · xhigh" only when the
+   row ran at xhigh (a very-hard gig); a hard gig's row reads "Opus 5.5 · high".
 5. **Dispatch = pairing.** 202 `pairing: "pending"`. The mock received: the `Gigs · Web`
    workspace; a project rooted at the gig's folder under `<KP_GIGS_ROOT>/web/` (scaffolded); the
    milestone with one goal per plan step (`"<n>. <title>"`, `Done when: ...`); the persona request
@@ -1607,6 +1714,11 @@ chain.
   caught only by the research layer.
 - `planSeatLabel` resolves a label by seat and effort; a future lineup reusing a seat id at a new
   effort needs its label added to `GIG_PLAN_SEATS`.
+- A `writing` report record orphaned by a server restart mid-task stays `writing` until the
+  next trigger or a regenerate (the task itself is marked interrupted). Expiry and the
+  freshness sweep do not trigger a `closed` report; the next move or a regenerate does.
+  Recipe lessons are not read into the report (the lessons ledger has no per-gig read); the
+  Lessons section rests on the verdict, the evidence and the client's words.
 
 ## Running it headless
 

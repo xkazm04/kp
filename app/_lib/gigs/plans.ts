@@ -37,6 +37,7 @@ import { createGigPlanRound, getAcceptedGigPlan, listGigPlans, setGigPlanResult,
 import { getGig } from "../db/gigs";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
 import { planSeatsFor, type GigPlanSeat } from "./plan-seats";
+import { requestGigReport } from "./report/trigger";
 import type { Gig, GigBrief, GigDifficulty, GigPlan, GigPlanRow, GigStatus } from "./types";
 
 /** Kept in lockstep with gig_plan_cli.py PROMPT_VERSION (plans.test.ts reads both). */
@@ -296,6 +297,8 @@ export async function runGigPlans(
       })
     );
     for (const o of outcomes) summary[o] += 1;
+    // The gig's report (gigs/report/trigger.ts): best-effort, never part of the round.
+    requestGigReport(workspaceId, gig.id, "planned");
   }
   return summary;
 }

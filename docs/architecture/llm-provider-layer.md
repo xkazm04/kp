@@ -30,17 +30,24 @@ Backend shipped and in production use:
   outreach/reject/prep/scorecard/rematch), `campaign_pack`, `jd_ingest`,
   `group_compare`, `weight_proposal`, `devcase/*`, `profile_draft`
   (config-gated — its unconfigured default stays the direct Gemini path),
-  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`, and `gig_brief`
+  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`, `gig_brief`
   (the gig research brief, `gig_brief_cli.py`: keyless answers `no_provider` as data
   and the caller writes its deterministic brief; its own **Gigs** section in the
-  Models routing table - docs/features/gigs/README.md "Research").
-- **Three use cases have their engine PINNED at the call site** (`role_research`,
-  `gig_brief`, `gig_plan`; the TS mirror is `PINNED_USE_CASES` in `app/_lib/llm-pins.ts`).
+  Models routing table - docs/features/gigs/README.md "Research"), and `gig_report`
+  (the gig's HTML report, `gig_report_cli.py`: keyless or a failure and kp writes the
+  report body itself; docs/features/gigs/README.md "The gig's report file").
+- **Four use cases have their engine PINNED at the call site** (`role_research`,
+  `gig_brief`, `gig_plan`, `gig_report`; the TS mirror is `PINNED_USE_CASES` in
+  `app/_lib/llm-pins.ts`).
   `gig_brief` runs on Claude Sonnet 5.5 with the CLI's web tools (docs/features/gigs
   "Research"); `gig_plan`'s seats now follow the research brief's difficulty: Sonnet 5.5
   at `high` alone (easy, moderate, unrated), Opus 5.5 at `high` alone (hard), or Opus 5.5
   at `xhigh` plus Fable 5 plus GPT 6 Astra at `max` via the Codex CLI (very hard)
-  (`app/_lib/gigs/plan-seats.ts`; docs/features/gigs "Plans"). The first of them:
+  (`app/_lib/gigs/plan-seats.ts`; docs/features/gigs "Plans"); `gig_report`
+  (`pipeline/jobfit/gig_report_cli.py`, the gig's HTML report) is pinned
+  `ProviderPin("claude_cli", "claude-sonnet-5-5", "high")` - keyless or a failure, and kp
+  writes the report body itself (docs/features/gigs "The gig's report file"). The first of
+  them:
 - **`role_research` is PINNED at the call site**
   (`role_research_cli.py`, the job seeker's "what does this title ask for today",
   researched on the public web with sources): `resolve_provider(..., pin=PIN)` runs it

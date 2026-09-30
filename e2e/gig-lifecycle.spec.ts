@@ -647,6 +647,29 @@ test("2. research: the brief came from the pinned web-researching model call", a
   expect(honeypot.brief?.fallbackReason).toBe("gig_suspect");
 });
 
+test("2b. report: the gig's report file is written by the pinned model, sanitized, and served sandboxed", async ({ request }) => {
+  // The research moved the gig, and the report's stage trigger enqueued a gig_report task.
+  let res = await request.get(`/api/gigs/${mainGig.id}/report`);
+  for (let i = 0; i < 60 && res.status() === 404; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    res = await request.get(`/api/gigs/${mainGig.id}/report`);
+  }
+  expect(res.status(), "the report file exists after research").toBe(200);
+  expect(res.headers()["content-security-policy"]).toMatch(/^sandbox; default-src 'none'/);
+  expect(res.headers()["x-content-type-options"]).toBe("nosniff");
+  const html = await res.text();
+  expect(html).toContain("<mark>take it</mark>");
+  expect(html, "the model's <script> never reaches the file").not.toContain("<script");
+  const { gig } = await getGig(request, mainGig.id);
+  const report = (gig as { report?: { source: string; model: string | null; path: string } | null }).report;
+  expect(report?.source).toBe("llm");
+  expect(report?.model).toBe("claude-sonnet-5-5");
+  expect(path.relative(path.join(gigsRoot, "_reports"), report!.path).startsWith(".."), "the file is under <KP_GIGS_ROOT>/_reports").toBe(false);
+  const call = fakeCalls().find((c) => c.useCase === "report");
+  expect(call?.model).toBe("claude-sonnet-5-5");
+  expect(call?.effort).toBe("high");
+});
+
 test("3. plans: a very hard gig gets three seats, each on its own engine, model and effort, all ready", async ({ request }) => {
   const posted = await okJson<{ taskId: string }>(await request.post(`/api/gigs/${mainGig.id}/plans`, { data: {} }), "POST plans");
   const task = await waitTask(request, posted.taskId);
@@ -690,7 +713,10 @@ test("4. UI: the Plans tab shows three columns, and one is ACCEPTED with a note 
   const accepted = page.waitForResponse((r) => /\/api\/gigs\/[^/]+\/plans\/[^/]+\/accept$/.test(new URL(r.url()).pathname) && r.request().method() === "POST");
   await opus.getByRole("button", { name: "Accept this plan" }).click();
   expect((await accepted).status()).toBe(200);
-  await expect(opus.getByText("Accepted", { exact: true })).toBeVisible();
+  // Once accepted, the Summary's plan block is one line (the seat, the note) over its steps.
+  const acceptedPlanLine = page.getByRole("group", { name: "Accepted plan" });
+  await expect(acceptedPlanLine.getByText("Accepted: Opus 5.5 · xhigh")).toBeVisible();
+  await expect(acceptedPlanLine).toContainText(ACCEPT_NOTE);
   await expect(page.getByRole("button", { name: "Accept this plan" }), "one plan per gig: no accept is left").toHaveCount(0);
 
   acceptedPlan = (await getPlans(request, mainGig.id)).find((r) => r.acceptedAt)!;

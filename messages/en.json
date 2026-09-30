@@ -2029,6 +2029,7 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Read and acknowledge this source’s terms before resuming it.",
     "GIG_WORKSPACE_FAILED": "The gig’s working folder or its Personas project could not be prepared, so nothing was sent. Check the Personas connection and try again.",
     "GIG_ROUTE_ARENA_MISMATCH": "That specialist works a different arena than this gig, so the gig cannot be routed to it.",
+    "GIG_REPORT_NOT_FOUND": "This gig has no report yet. It is written once the gig is researched.",
     "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again.",
     "JOBSEEKER_CV_NOT_FOUND": "That CV is not among yours.",
     "JOBSEEKER_REQUEST_INVALID": "That change was not in the expected shape, so nothing was saved."
@@ -9737,6 +9738,7 @@
       "assistant": "Assistant",
       "gig_brief": "Gig research brief",
       "gig_plan": "Gig plans",
+      "gig_report": "Gig report",
       "role_research": "Role research"
     },
     "providers": {
@@ -9822,6 +9824,7 @@
       "posting_translate": "Translates a published role posting into another language.",
       "gig_brief": "Reads a paid-work listing and the pages it links to, and writes the gig's research brief: category, difficulty, effort and expected challenges.",
       "gig_plan": "Three pinned models each write a plan for a gig from its research brief: steps with a done-when, the decisions it made, risks, effort and open questions. The operator accepts one.",
+      "gig_report": "Writes each gig's report file from kp's facts as the gig moves: what it asks, the risks, fit and money, the plans side by side, the draft and its evidence, the outcome. kp writes it itself when no model can.",
       "role_research": "What a job seeker's target titles ask for now, researched on the web with its sources."
     }
   },
@@ -11461,7 +11464,8 @@
       "jobseekerScan": "Job-market scan",
       "gigScan": "Gig listing scan",
       "gigResearch": "Gig research",
-      "gigPlans": "Gig plans · {count, plural, one {# gig} other {# gigs}}"
+      "gigPlans": "Gig plans · {count, plural, one {# gig} other {# gigs}}",
+      "gigReport": "Gig report"
     },
     "filter": {
       "clear": "Clear"
@@ -14172,11 +14176,6 @@
       "score": "Score",
       "source": "Source"
     },
-    "evidenceState": {
-      "passed": "passed",
-      "failed": "failed",
-      "unverified": "not verified"
-    },
     "rate": {
       "fraction": "{accepted} of {resolved}",
       "percentAtN": "{percent} at n = {n}",
@@ -14239,9 +14238,7 @@
       "noDeliverable": "This attempt ended without a deliverable. There is nothing to review: request a revision or discard it.",
       "evidenceTitle": "Evidence the agent ran",
       "evidenceAside": "{count, plural, one {# item} other {# items}} · agent confidence {confidence} (its own estimate)",
-      "noEvidence": "The agent returned a draft without anything it ran.",
       "evidenceHead": "Evidence {n} · {kind}",
-      "noCommand": "No command recorded. This is the agent's account, not a run log.",
       "readLabel": "What to read",
       "tabDraft": "The draft you would send",
       "tabListing": "The listing it answers",
@@ -14757,7 +14754,6 @@
       "reviewWarnings": "{count, plural, one {# warning from the pre-send review} other {# warnings from the pre-send review}}",
       "reviewersCall": "the reviewer's call",
       "goNote": "margin {key}",
-      "goEvidence": "evidence {n}",
       "loose": "{count, plural, one {# reviewer mark with no line to pin} other {# reviewer marks with no line to pin}}",
       "blockerWord": "Blocker.",
       "carried": "This proof carries your earlier note",
@@ -14960,11 +14956,6 @@
     },
     "tabs": {
       "label": "Proof sections",
-      "passed": "Passed",
-      "failed": "Failed",
-      "unverified": "Not verified",
-      "confidence": "Agent confidence",
-      "confidenceTip": "Its own estimate, never a score",
       "mustDo": "Before sending",
       "defects": "Defects",
       "defect": "Defect",
@@ -14995,7 +14986,7 @@
       "proposeAgain": "Propose again",
       "retry": "Retry",
       "retryTip": "A new round: every seat writes again.",
-      "proposedFlash": "{count, plural, one {The plan is being written. Its column fills when it finishes.} other {# models are writing plans. The columns fill as each one finishes.}}",
+      "proposedFlash": "{count, plural, one {The plan is being written. Its card fills when it finishes.} other {# models are writing plans. The cards fill as each one finishes.}}",
       "proposeFailed": "The plans could not be requested.",
       "columnLabel": "{seat}: {status}",
       "status": {
@@ -15005,18 +14996,11 @@
         "failed": "Failed"
       },
       "costNotReported": "cost not reported",
-      "durationS": "{s, number} s",
-      "durationM": "{m, number} min {s, number} s",
-      "writing": "Writing its plan. This column fills when it finishes.",
+      "writing": "Writing its plan. This card fills when it finishes.",
       "queuedLine": "Waiting to start.",
-      "steps": "Steps",
-      "doneWhen": "Done when",
-      "decisions": "Decisions it made",
-      "risks": "Risks",
-      "effort": "Effort",
+      "stepCount": "{count, plural, one {# step} other {# steps}}",
       "effortRange": "{min, number} to {max, number} hours",
       "effortOne": "{n, plural, one {# hour} other {# hours}}",
-      "questions": "Questions for you",
       "reason": {
         "no_provider": "No model provider is set up, so this seat could not write a plan.",
         "llm_unusable": "The model answered, but not with a usable plan.",
@@ -15028,13 +15012,9 @@
       "accept": "Accept this plan",
       "noteLabel": "Note for the agent (optional)",
       "notePlaceholder": "Anything the agent should know? e.g. skip step 4",
-      "acceptedTag": "Accepted",
       "acceptedOn": "Accepted {date}",
-      "yourNote": "Your note:",
       "acceptedFlash": "Plan accepted. Dispatching the gig now pairs it with its own agent.",
       "acceptFailed": "The plan could not be accepted.",
-      "earlier": "Earlier proposals ({count, number})",
-      "earlierRow": "{date} · {seat} · {status}",
       "gateReason": "Accept a plan first",
       "gateBody": "Dispatch hands the accepted plan to the gig’s own agent.",
       "gateChecking": "Checking the gig’s plans…",
@@ -15077,37 +15057,52 @@
     },
     "report": {
       "label": "The gig’s report",
-      "figure": "Figure {n, number}.",
-      "source": "Source: {source}.",
       "sec": {
-        "gig": "The gig",
-        "asks": "What it asks",
-        "plans": "The plans",
-        "progress": "Progress",
-        "draft": "The draft",
-        "evidence": "Evidence",
-        "record": "Record"
+        "plans": "Choose a plan",
+        "accepted": "The accepted plan",
+        "draft": "Review the draft"
       },
-      "pending": {
-        "asks": "appears once the gig is researched",
-        "progress": "appears once the gig is paired",
-        "draft": "appears once an agent drafts it",
-        "evidence": "appears with the first draft",
-        "record": "appears after the first attempt"
+      "file": {
+        "title": "The full report",
+        "status": {
+          "writing": "Writing",
+          "ready": "Ready",
+          "failed": "Failed"
+        },
+        "stage": {
+          "researched": "researched",
+          "planned": "planned",
+          "accepted": "accepted",
+          "drafted": "drafted",
+          "sent": "sent",
+          "closed": "closed"
+        },
+        "covers": "Written at the {stage} stage · {date}",
+        "byModel": "by a model",
+        "byKp": "by kp, no model: {reason}",
+        "cost": "cost {usd}",
+        "noReason": "no reason given",
+        "copy": "Copy path",
+        "copied": "Report path copied",
+        "copyFailed": "The path could not be copied. Select it and copy it by hand.",
+        "none": "The report is written once the gig is researched.",
+        "firstWriting": "The first report is being written.",
+        "writingNote": "Writing the report. This card checks again every few seconds.",
+        "failed": "The last rewrite failed: {reason}.",
+        "open": "Open the full report",
+        "regenerate": "Regenerate",
+        "regenerating": "Asking…",
+        "regenerateTip": "Write the report again from the gig as it is now.",
+        "regenerateNeedsBrief": "Research the gig first: the report is written from its brief.",
+        "regenerateFailed": "The report could not be requested."
       },
-      "index": {
-        "label": "Report contents",
-        "railLabel": "Jump to a section",
-        "title": "In this report"
-      },
-      "note": {
-        "asks": "{asks, plural, =0 {no asks stated} one {# ask} other {# asks}} · {challenges, plural, =0 {no challenges named} one {# challenge} other {# challenges}}",
-        "plans": "{count, plural, one {# plan} other {# plans}} · {accepted, select, yes {one accepted} other {none accepted yet}}",
-        "noPlans": "no plans yet: generate them here",
-        "researchFirst": "research the gig first",
-        "progress": "{pct, number}% done · {done, number} of {total, number} goals",
-        "evidence": "{count, plural, one {# check} other {# checks}} · {failed, plural, =0 {none failed} other {# failed}}",
-        "record": "{count, plural, one {# attempt} other {# attempts}}"
+      "choose": {
+        "lineup": "Difficulty: {difficulty}. {count, plural, one {One plan is written, by {models}.} other {# models each write a plan: {models}.}}",
+        "gate": "You accept one plan, and only an accepted plan can be dispatched. Each plan shows what its model call cost.",
+        "generate": "Generate plans",
+        "inFile": "each plan in full is in the report",
+        "acceptedLabel": "Accepted plan",
+        "acceptedLine": "Accepted: {seat}"
       },
       "hero": {
         "listedAs": "Listed as “{title}”",
@@ -15134,51 +15129,6 @@
         "draftsPart": "drafts {usd}",
         "unreported": "{count, plural, one {# call unreported} other {# calls unreported}}",
         "nothingRan": "nothing has run yet"
-      },
-      "asks": {
-        "title": "What it asks for",
-        "challenges": "Expected challenges",
-        "none": "The listing states no deliverables.",
-        "noChallenges": "None named.",
-        "caption": "What the listing asks for, beside what could go wrong.",
-        "source": "the research brief, {date}"
-      },
-      "plans": {
-        "researchFirst": "Research the gig first",
-        "researchBody": "Plans are written from the research brief, and this gig has none yet.",
-        "lineup": "Difficulty: {difficulty}. {count, plural, one {One plan is written, by {models}.} other {# models each write a plan: {models}.}}",
-        "gate": "You accept one plan, and only an accepted plan can be dispatched. Each plan shows what its model call cost.",
-        "generate": "Generate plans",
-        "caption": "{count, plural, one {The plan, with its steps, decisions and risks.} other {# plans side by side, each with its steps, decisions and risks.}}",
-        "source": "{models}; each cost as its call reported it"
-      },
-      "progress": {
-        "whole": "of the milestone done",
-        "noReport": "no report from the agent yet",
-        "ofTotal": "{done, number}/{total, number}",
-        "goalsDone": "goals done",
-        "goalsCaption": "a goal is done when the agent reports it done",
-        "blocked": "{count, plural, one {goal blocked} other {goals blocked}}",
-        "blockedCaption": "the agent’s note on the goal says why",
-        "caption": "{count, plural, one {The accepted plan’s step as a goal, as the agent reports it.} other {The accepted plan’s # steps as goals, as the agent reports them.}}",
-        "source": "the agent’s PLAN-STATUS.json, mirrored to Personas"
-      },
-      "draft": {
-        "caption": "The draft as it would be sent, each note pinned beside the paragraph it quotes.",
-        "source": "the agent’s deliverable, {date}"
-      },
-      "evidence": {
-        "passedCap": "ran and passed",
-        "failedCap": "ran and failed",
-        "unverifiedCap": "ran with no pass or fail",
-        "caption": "{count, plural, one {The one check the agent reports running} other {The # checks the agent reports running}}",
-        "check": "Check",
-        "command": "Command",
-        "result": "Result"
-      },
-      "record": {
-        "loose": "recorded against no draft",
-        "openHistory": "The full history, with every note and verdict"
       },
       "lang": {
         "tag": "{language} listing",

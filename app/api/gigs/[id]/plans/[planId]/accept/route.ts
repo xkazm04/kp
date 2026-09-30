@@ -5,6 +5,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGig } from "@/app/_lib/db/gigs";
 import { acceptGigPlan, getGigPlan } from "@/app/_lib/db/gigs-plans";
+import { requestGigReport } from "@/app/_lib/gigs/report/trigger";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // POST /api/gigs/[id]/plans/[planId]/accept [{ note?: string }] - the operator accepts ONE
@@ -54,7 +55,11 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
     const plan = getGigPlan(ws, planId);
     if (!plan || plan.gigId !== id) return jsonRefusal("GIG_PLAN_NOT_FOUND", 404);
     const out = acceptGigPlan(ws, planId, note);
-    if (out.ok) return NextResponse.json({ plan: out.plan });
+    if (out.ok) {
+      // The gig's report (gigs/report/trigger.ts): best-effort, never part of the accept.
+      requestGigReport(ws, id, "accepted");
+      return NextResponse.json({ plan: out.plan });
+    }
     if (out.reason === "already_accepted") return jsonRefusal("GIG_PLAN_ALREADY_ACCEPTED", 409);
     if (out.reason === "not_ready") return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { reason: "not_ready" });
     return jsonRefusal("GIG_PLAN_NOT_FOUND", 404);

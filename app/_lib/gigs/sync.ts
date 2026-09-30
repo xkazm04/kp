@@ -13,6 +13,7 @@ import { dispatchGigAttempt, type DispatchGigAttemptResult } from "./dispatch";
 import { retirePersonasPersona, type RetirePersonaResult } from "./personas-places";
 import { fetchPersonaExecution, type FetchExecutionResult } from "./personas-exec";
 import { syncGigPlanStatus, type GigPlanStatusDeps } from "./plan-status";
+import { requestGigReport } from "./report/trigger";
 import type { GigAttempt, GigAttemptStatus, GigStatus } from "./types";
 
 // Pull the state of every in-flight attempt from Personas and land what finished - then
@@ -236,6 +237,8 @@ async function syncOne(workspaceId: string, attempt: GigAttempt, deps: GigSyncDe
   }
   s.drafted += 1;
   transitionGig(workspaceId, attempt.gigId, { from: "dispatched", to: "drafted" });
+  // The gig's report (gigs/report/trigger.ts): best-effort, never part of the landing.
+  requestGigReport(workspaceId, attempt.gigId, "drafted");
 }
 
 /** One sync pass over the workspace's in-flight attempts, oldest first, sequential (a

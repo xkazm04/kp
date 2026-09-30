@@ -1,33 +1,30 @@
-// Pure logic for the gig's report (report.ts): which sections are open, the brief's asks,
-// the lead set as a lead and points, the highlighter's clause, spend so far (never $0 for
+// Pure logic for the gig's Summary (report.ts): which working blocks show, a plan's first
+// sentence, the lead set as a lead and points, the highlighter's clause, spend so far (never $0 for
 // "not reported"), the attempt timeline and the listing's language.
 // Runner: node --test (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { GigOutcome, GigPlanRow } from "@/app/_lib/gigs/types.ts";
 import { att } from "./fixtures.ts";
-import { attemptTimeline, briefAsks, firstClause, foreignLanguage, leadOf, listingOpening, plainInline, reportOpen, spendSoFar, BRIEF_ASKS_HEADING } from "./report.ts";
+import { attemptTimeline, firstClause, firstSentence, foreignLanguage, leadOf, listingOpening, plainInline, spendSoFar, summaryBlocks } from "./report.ts";
 
-const FACTS = { brief: false, asks: 0, paired: false, attempt: false, suspect: false, deliverable: false, attempts: 0 };
+const FACTS = { brief: false, plans: null, accepted: false, draft: false };
 
-test("reportOpen: a fresh gig opens only the gig and the plans; each later section waits for its moment", () => {
-  assert.deepEqual(reportOpen(FACTS), { gig: true, asks: false, plans: true, progress: false, draft: false, evidence: false, record: false });
-  const drafted = reportOpen({ brief: true, asks: 3, paired: true, attempt: true, suspect: false, deliverable: true, attempts: 2 });
-  assert.ok(Object.values(drafted).every(Boolean));
-  assert.equal(reportOpen({ ...FACTS, brief: true, asks: 0 }).asks, false, "a brief with no asks and no challenges has nothing to show");
-  assert.equal(reportOpen({ ...FACTS, suspect: true }).draft, true, "a quarantined listing shows its stamp");
-  assert.equal(reportOpen({ ...FACTS, attempt: true, attempts: null }).record, true, "the latest attempt counts while the record loads");
+test("summaryBlocks: nothing to work on before research; choose a plan, then one line once accepted", () => {
+  assert.deepEqual(summaryBlocks(FACTS), { plans: null, draft: false });
+  assert.equal(summaryBlocks({ ...FACTS, brief: true }).plans, "choose", "a brief with no plans offers Generate plans");
+  assert.equal(summaryBlocks({ ...FACTS, brief: true, plans: 3 }).plans, "choose");
+  assert.equal(summaryBlocks({ ...FACTS, plans: 1 }).plans, "choose", "plans outlive a missing brief");
+  assert.equal(summaryBlocks({ ...FACTS, brief: true, plans: 3, accepted: true }).plans, "accepted");
+  assert.equal(summaryBlocks({ ...FACTS, draft: true }).draft, true);
 });
 
-test("briefAsks reads the asks section's bullets, and the heading restates research.ts", async () => {
-  const md = "## What the gig is\nA page.\n\n## What it asks for\n- A **landing** page\n- [Copy](https://x.test) in `en`\n\n## Difficulty and effort\n- not an ask";
-  assert.deepEqual(briefAsks(md), ["A landing page", "Copy in en"]);
-  assert.deepEqual(briefAsks("## What it asks for\nThe listing states no deliverables."), []);
-  assert.deepEqual(briefAsks(null), []);
-  const { readFileSync } = await import("node:fs");
-  const { fileURLToPath } = await import("node:url");
-  const src = readFileSync(fileURLToPath(new URL("../../../_lib/gigs/research.ts", import.meta.url)), "utf8");
-  assert.ok(src.includes(`asks: "${BRIEF_ASKS_HEADING}"`), "research.ts still writes the asks under this heading");
+test("firstSentence keeps the first sentence, or cuts a long one on a word", () => {
+  assert.equal(firstSentence("Extract with OCR, then reconcile.  Build the workbook."), "Extract with OCR, then reconcile.");
+  assert.equal(firstSentence("No full stop at all"), "No full stop at all");
+  assert.equal(firstSentence("Uses v1.2 of the API. Then more."), "Uses v1.2 of the API.");
+  const cut = firstSentence(`${"word ".repeat(80)}end.`, 60);
+  assert.ok(cut.endsWith("…") && cut.length <= 61 && !cut.includes("wor…"), cut);
 });
 
 test("leadOf sets prose as the lead and list lines as points, dropping inline marks", () => {

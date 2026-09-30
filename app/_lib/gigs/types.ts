@@ -327,6 +327,9 @@ export type Gig = {
   /** The brief challenge the operator withdrew this gig for (withdraw-reasons.ts); null
    *  when it is not withdrawn, or was withdrawn without naming one. */
   withdrawReason: GigWithdrawReason | null;
+  /** The gig's HTML report (gig-report.ts): where the file is and how current it is; null
+   *  until the first one is written. */
+  report: GigReport | null;
   /** The listing's state as its source last reported it (gigs/freshness.ts); null until a
    *  freshness check read it - "not checked", never "open". */
   sourceState: GigSourceState | null;
@@ -350,6 +353,26 @@ export type GigSourceState = {
   /** Proposals already on the listing, when the source reports it. */
   bidCount: number | null;
   checkedAt: string;
+};
+
+/** The stage a report was written at: it is rewritten when the gig reaches a later one. */
+export const GIG_REPORT_STAGES = ["researched", "planned", "accepted", "drafted", "sent", "closed"] as const;
+export type GigReportStage = (typeof GIG_REPORT_STAGES)[number];
+
+/** A gig's HTML report, written as a file (the operator opens it in a browser) and served
+ *  sandboxed by GET /api/gigs/[id]/report. `status` covers the background rewrite:
+ *  `writing` while a gig_report task runs. `costUsd` null = not reported, never 0. */
+export type GigReport = {
+  path: string;
+  stage: GigReportStage;
+  status: "writing" | "ready" | "failed";
+  source: "llm" | "deterministic";
+  /** The model id that wrote the body (the pinned writer, e.g. "claude-sonnet-5-5"); null
+   *  when kp wrote it (the deterministic body). */
+  model: string | null;
+  fallbackReason: string | null;
+  costUsd: number | null;
+  generatedAt: string;
 };
 
 /** One of the gig's brief challenges, copied from the brief when the operator withdrew the

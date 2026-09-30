@@ -75,7 +75,7 @@ export function usePlans(gigId: string | null): PlansState {
 
 /** Propose (a new round: one to three seats by the brief's difficulty) and accept one plan
  *  with the operator's note. Answers whether the accept landed; the plans are re-read either
- *  way. The report's plans section (report/ReportPlans.tsx) holds the buttons. */
+ *  way. The Summary's plan block (report/ReportChoose.tsx) holds the buttons. */
 export function usePlanActions(gigId: string, plansState: PlansState, onFlash: (message: string) => void, seats: number) {
   const t = useTranslations("gigs.plans");
   const resolveError = useErrorMessage();

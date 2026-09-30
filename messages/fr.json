@@ -2029,6 +2029,7 @@
     "GIG_SOURCE_TERMS_REQUIRED": "Lisez et acceptez les conditions de cette source avant de la reprendre.",
     "GIG_WORKSPACE_FAILED": "Le dossier de travail de la mission ou son projet Personas n’a pas pu être préparé, donc rien n’a été envoyé. Vérifiez la connexion à Personas et réessayez.",
     "GIG_ROUTE_ARENA_MISMATCH": "Ce spécialiste travaille dans un autre domaine que cette mission, elle ne peut donc pas lui être attribuée.",
+    "GIG_REPORT_NOT_FOUND": "Cette mission n’a pas encore de rapport. Il est rédigé une fois la mission étudiée.",
     "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer.",
     "JOBSEEKER_CV_NOT_FOUND": "Ce CV ne fait pas partie des vôtres.",
     "JOBSEEKER_REQUEST_INVALID": "Cette modification n’avait pas la forme attendue, rien n’a été enregistré."
@@ -9737,6 +9738,7 @@
       "assistant": "Assistant",
       "gig_brief": "Fiche de recherche de mission",
       "gig_plan": "Plans de mission",
+      "gig_report": "Rapport de mission",
       "role_research": "Recherche de poste"
     },
     "providers": {
@@ -9822,6 +9824,7 @@
       "posting_translate": "Traduit une annonce de poste publiée dans une autre langue.",
       "gig_brief": "Lit une annonce de mission rémunérée et les pages qu'elle cite, puis rédige la fiche de recherche : catégorie, difficulté, effort estimé et difficultés attendues.",
       "gig_plan": "Trois modèles fixés rédigent chacun un plan pour une mission à partir de sa fiche de recherche : étapes avec condition de fin, décisions prises, risques, effort et questions ouvertes. L’opérateur en accepte un.",
+      "gig_report": "Rédige le fichier de rapport de chaque mission à partir des faits de kp, au fil de son avancement : ce qu’elle demande, les risques, l’adéquation et l’argent, les plans côte à côte, le brouillon et ses preuves, le résultat. Sans modèle disponible, kp le rédige lui-même.",
       "role_research": "Ce que les intitulés visés par une personne en recherche demandent aujourd’hui, recherché sur le web avec ses sources."
     }
   },
@@ -11461,7 +11464,8 @@
       "jobseekerScan": "Analyse du marché de l’emploi",
       "gigScan": "Analyse des missions",
       "gigResearch": "Recherche de mission",
-      "gigPlans": "Plans de mission · {count, plural, one {# mission} other {# missions}}"
+      "gigPlans": "Plans de mission · {count, plural, one {# mission} other {# missions}}",
+      "gigReport": "Rapport de mission"
     },
     "filter": {
       "clear": "Effacer"
@@ -14172,11 +14176,6 @@
       "score": "Score",
       "source": "Source"
     },
-    "evidenceState": {
-      "passed": "réussi",
-      "failed": "échoué",
-      "unverified": "non vérifié"
-    },
     "rate": {
       "fraction": "{accepted} sur {resolved}",
       "percentAtN": "{percent} pour n = {n}",
@@ -14239,9 +14238,7 @@
       "noDeliverable": "Cette tentative s’est terminée sans livrable. Il n’y a rien à relire : demandez une révision ou écartez-la.",
       "evidenceTitle": "Preuves exécutées par l’agent",
       "evidenceAside": "{count, plural, one {# élément} other {# éléments}} · confiance de l’agent {confidence} (sa propre estimation)",
-      "noEvidence": "L’agent a rendu un brouillon sans rien exécuter.",
       "evidenceHead": "Preuve {n} · {kind}",
-      "noCommand": "Aucune commande enregistrée. C’est le récit de l’agent, pas un journal d’exécution.",
       "readLabel": "Que lire",
       "tabDraft": "Le brouillon que vous enverriez",
       "tabListing": "L’annonce à laquelle il répond",
@@ -14757,7 +14754,6 @@
       "reviewWarnings": "{count, plural, one {# avertissement de la relecture avant envoi} other {# avertissements de la relecture avant envoi}}",
       "reviewersCall": "à l’appréciation de la relecture",
       "goNote": "marge {key}",
-      "goEvidence": "preuve {n}",
       "loose": "{count, plural, one {# remarque de relecture sans passage à épingler} other {# remarques de relecture sans passage à épingler}}",
       "blockerWord": "Bloquant.",
       "carried": "Ce brouillon porte votre note précédente",
@@ -14960,11 +14956,6 @@
     },
     "tabs": {
       "label": "Sections du brouillon",
-      "passed": "Réussi",
-      "failed": "Échoué",
-      "unverified": "Non vérifié",
-      "confidence": "Confiance de l’agent",
-      "confidenceTip": "Sa propre estimation, jamais un score",
       "mustDo": "Avant l’envoi",
       "defects": "Défauts",
       "defect": "Défaut",
@@ -14995,7 +14986,7 @@
       "proposeAgain": "Proposer à nouveau",
       "retry": "Réessayer",
       "retryTip": "Un nouveau tour : chaque siège réécrit.",
-      "proposedFlash": "{count, plural, one {Le plan est en cours de rédaction. Sa colonne se remplit dès qu’il est terminé.} other {# modèles rédigent des plans. Les colonnes se remplissent à mesure que chacun termine.}}",
+      "proposedFlash": "{count, plural, one {Le plan est en cours de rédaction. Sa carte se remplit dès qu’il est terminé.} other {# modèles rédigent des plans. Les cartes se remplissent à mesure que chacun termine.}}",
       "proposeFailed": "Les plans n’ont pas pu être demandés.",
       "columnLabel": "{seat} : {status}",
       "status": {
@@ -15005,18 +14996,11 @@
         "failed": "Échec"
       },
       "costNotReported": "coût non déclaré",
-      "durationS": "{s, number} s",
-      "durationM": "{m, number} min {s, number} s",
-      "writing": "Rédige son plan. La colonne se remplit quand il a terminé.",
+      "writing": "Rédige son plan. La carte se remplit quand il a terminé.",
       "queuedLine": "En attente de démarrage.",
-      "steps": "Étapes",
-      "doneWhen": "Terminé quand",
-      "decisions": "Décisions prises",
-      "risks": "Risques",
-      "effort": "Effort",
+      "stepCount": "{count, plural, one {# étape} other {# étapes}}",
       "effortRange": "{min, number} à {max, number} heures",
       "effortOne": "{n, plural, one {# heure} other {# heures}}",
-      "questions": "Questions pour vous",
       "reason": {
         "no_provider": "Aucun fournisseur de modèle n’est configuré, ce siège n’a donc pas pu rédiger de plan.",
         "llm_unusable": "Le modèle a répondu, mais pas avec un plan utilisable.",
@@ -15028,13 +15012,9 @@
       "accept": "Accepter ce plan",
       "noteLabel": "Note pour l’agent (facultative)",
       "notePlaceholder": "L’agent doit-il savoir quelque chose ? p. ex. sauter l’étape 4",
-      "acceptedTag": "Accepté",
       "acceptedOn": "Accepté le {date}",
-      "yourNote": "Votre note :",
       "acceptedFlash": "Plan accepté. Confier la mission l’associe désormais à son propre agent.",
       "acceptFailed": "Le plan n’a pas pu être accepté.",
-      "earlier": "Propositions précédentes ({count, number})",
-      "earlierRow": "{date} · {seat} · {status}",
       "gateReason": "Acceptez d’abord un plan",
       "gateBody": "Confier la mission remet le plan accepté à son propre agent.",
       "gateChecking": "Vérification des plans de la mission…",
@@ -15077,37 +15057,52 @@
     },
     "report": {
       "label": "Le rapport de la mission",
-      "figure": "Figure {n, number}.",
-      "source": "Source : {source}.",
       "sec": {
-        "gig": "La mission",
-        "asks": "Ce qu’elle demande",
-        "plans": "Les plans",
-        "progress": "Avancement",
-        "draft": "Le brouillon",
-        "evidence": "Preuves",
-        "record": "Historique"
+        "plans": "Choisir un plan",
+        "accepted": "Le plan accepté",
+        "draft": "Relire le brouillon"
       },
-      "pending": {
-        "asks": "apparaît une fois la mission recherchée",
-        "progress": "apparaît une fois la mission appairée",
-        "draft": "apparaît quand un agent la rédige",
-        "evidence": "apparaît avec le premier brouillon",
-        "record": "apparaît après la première tentative"
+      "file": {
+        "title": "Le rapport complet",
+        "status": {
+          "writing": "En rédaction",
+          "ready": "Prêt",
+          "failed": "Échec"
+        },
+        "stage": {
+          "researched": "recherchée",
+          "planned": "planifiée",
+          "accepted": "plan accepté",
+          "drafted": "brouillon",
+          "sent": "envoyée",
+          "closed": "clôturée"
+        },
+        "covers": "Rédigé à l’étape « {stage} » · {date}",
+        "byModel": "par un modèle",
+        "byKp": "par kp, sans modèle : {reason}",
+        "cost": "coût {usd}",
+        "noReason": "sans raison indiquée",
+        "copy": "Copier le chemin",
+        "copied": "Chemin du rapport copié",
+        "copyFailed": "Le chemin n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
+        "none": "Le rapport est rédigé une fois la mission recherchée.",
+        "firstWriting": "Le premier rapport est en cours de rédaction.",
+        "writingNote": "Rédaction du rapport en cours. Cette carte vérifie de nouveau toutes les quelques secondes.",
+        "failed": "La dernière réécriture a échoué : {reason}.",
+        "open": "Ouvrir le rapport complet",
+        "regenerate": "Régénérer",
+        "regenerating": "Demande…",
+        "regenerateTip": "Réécrire le rapport à partir de l’état actuel de la mission.",
+        "regenerateNeedsBrief": "Recherchez d’abord la mission : le rapport part de la recherche.",
+        "regenerateFailed": "Le rapport n’a pas pu être demandé."
       },
-      "index": {
-        "label": "Sommaire du rapport",
-        "railLabel": "Aller à une section",
-        "title": "Dans ce rapport"
-      },
-      "note": {
-        "asks": "{asks, plural, =0 {aucune demande indiquée} one {# demande} other {# demandes}} · {challenges, plural, =0 {aucune difficulté citée} one {# difficulté} other {# difficultés}}",
-        "plans": "{count, plural, one {# plan} other {# plans}} · {accepted, select, yes {un accepté} other {aucun accepté pour l’instant}}",
-        "noPlans": "pas encore de plans : générez-les ici",
-        "researchFirst": "recherchez d’abord la mission",
-        "progress": "{pct, number} % fait · {done, number} objectifs sur {total, number}",
-        "evidence": "{count, plural, one {# vérification} other {# vérifications}} · {failed, plural, =0 {aucune en échec} one {# en échec} other {# en échec}}",
-        "record": "{count, plural, one {# tentative} other {# tentatives}}"
+      "choose": {
+        "lineup": "Difficulté : {difficulty}. {count, plural, one {Un plan est rédigé, par {models}.} other {# modèles rédigent chacun un plan : {models}.}}",
+        "gate": "Vous acceptez un plan, et seul un plan accepté peut être confié. Chaque plan indique ce qu’a coûté son appel au modèle.",
+        "generate": "Générer les plans",
+        "inFile": "chaque plan complet figure dans le rapport",
+        "acceptedLabel": "Plan accepté",
+        "acceptedLine": "Accepté : {seat}"
       },
       "hero": {
         "listedAs": "Publiée sous le titre « {title} »",
@@ -15134,51 +15129,6 @@
         "draftsPart": "brouillons {usd}",
         "unreported": "{count, plural, one {# appel sans coût déclaré} other {# appels sans coût déclaré}}",
         "nothingRan": "rien n’a encore tourné"
-      },
-      "asks": {
-        "title": "Ce qu’elle demande",
-        "challenges": "Difficultés attendues",
-        "none": "L’annonce n’indique aucun livrable.",
-        "noChallenges": "Aucune citée.",
-        "caption": "Ce que l’annonce demande, à côté de ce qui peut mal tourner.",
-        "source": "la recherche, {date}"
-      },
-      "plans": {
-        "researchFirst": "Recherchez d’abord la mission",
-        "researchBody": "Les plans partent de la recherche, et cette mission n’en a pas encore.",
-        "lineup": "Difficulté : {difficulty}. {count, plural, one {Un plan est rédigé, par {models}.} other {# modèles rédigent chacun un plan : {models}.}}",
-        "gate": "Vous acceptez un plan, et seul un plan accepté peut être confié. Chaque plan indique ce qu’a coûté son appel au modèle.",
-        "generate": "Générer les plans",
-        "caption": "{count, plural, one {Le plan, avec ses étapes, ses décisions et ses risques.} other {# plans côte à côte, chacun avec ses étapes, ses décisions et ses risques.}}",
-        "source": "{models} ; coût tel que chaque appel l’a déclaré"
-      },
-      "progress": {
-        "whole": "du jalon fait",
-        "noReport": "aucun rapport de l’agent pour l’instant",
-        "ofTotal": "{done, number}/{total, number}",
-        "goalsDone": "objectifs faits",
-        "goalsCaption": "un objectif est fait quand l’agent le déclare fait",
-        "blocked": "{count, plural, one {objectif bloqué} other {objectifs bloqués}}",
-        "blockedCaption": "la note de l’agent sur l’objectif dit pourquoi",
-        "caption": "{count, plural, one {L’étape du plan accepté comme objectif, telle que l’agent la déclare.} other {Les # étapes du plan accepté comme objectifs, telles que l’agent les déclare.}}",
-        "source": "le PLAN-STATUS.json de l’agent, reflété dans Personas"
-      },
-      "draft": {
-        "caption": "Le brouillon tel qu’il serait envoyé, chaque note épinglée à côté du paragraphe qu’elle cite.",
-        "source": "le livrable de l’agent, {date}"
-      },
-      "evidence": {
-        "passedCap": "lancée et réussie",
-        "failedCap": "lancée et en échec",
-        "unverifiedCap": "lancée sans réussite ni échec",
-        "caption": "{count, plural, one {La seule vérification que l’agent déclare avoir lancée} other {Les # vérifications que l’agent déclare avoir lancées}}",
-        "check": "Vérification",
-        "command": "Commande",
-        "result": "Résultat"
-      },
-      "record": {
-        "loose": "enregistré sans lien avec un brouillon",
-        "openHistory": "L’historique complet, avec chaque note et chaque verdict"
       },
       "lang": {
         "tag": "Annonce en {language}",
