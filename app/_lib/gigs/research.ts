@@ -71,6 +71,7 @@ import {
 import { htmlTitle, htmlToText } from "../job-posting-fetch";
 import { politeFetch, type PoliteFetch } from "../jobseeker/fetch/politeFetch";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
+import { gigNeedsResearch } from "./loop";
 import { requestGigReport } from "./report/trigger";
 import { isOffline } from "../offline";
 import { githubRead, type GithubReadOutcome } from "../repo-snapshot";
@@ -1162,6 +1163,9 @@ export async function researchGigBatch(
     linksByGigId?: Readonly<Record<string, readonly string[]>>;
     htmlByGigId?: ReadonlyMap<string, string | null>;
     passBudgetMs?: number;
+    /** The accept loop (gigs/loop.ts): a handed gig whose brief is stale (not the model's,
+     *  or an older prompt) is researched again, not passed over. Only with `gigIds`. */
+    refresh?: boolean;
   },
   depsOverride: Partial<GigResearchDeps> = {}
 ): Promise<GigResearchBatchSummary> {
@@ -1173,7 +1177,8 @@ export async function researchGigBatch(
     gigs = [];
     for (const id of info.gigIds) {
       const g = deps.getGig(workspaceId, id);
-      if (g && g.brief === null && GIG_RESEARCHABLE_STATUSES.includes(g.status)) gigs.push(g);
+      const due = g !== null && (g.brief === null || (info.refresh === true && gigNeedsResearch(g)));
+      if (g && due && GIG_RESEARCHABLE_STATUSES.includes(g.status)) gigs.push(g);
       if (gigs.length >= limit) break;
     }
   } else {

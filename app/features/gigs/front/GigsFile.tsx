@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { Gig } from "@/app/_lib/gigs/types";
 import { type FileFilter, fileRows, type FileStatus, isClosedOut } from "../logic/file";
 import { isGigType } from "@/app/_lib/gigs/gig-type";
-import type { SourceRow } from "../logic/wire";
+import type { AfterWrite, SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { useGigsFormat } from "../data/useGigsFormat";
 import { FileFilters } from "./FileFilters";
@@ -35,6 +35,7 @@ export function GigsFile({
   lastOpened,
   onOpen,
   onToWires,
+  onChanged,
   reward,
   deadline,
 }: {
@@ -50,6 +51,8 @@ export function GigsFile({
   lastOpened: string | null;
   onOpen: (gigId: string, list: ProofList) => void;
   onToWires: () => void;
+  /** After a row's Accept (the accept loop): re-read and say what was queued. */
+  onChanged: AfterWrite;
   reward: RewardCell;
   deadline: DeadlineCell;
 }) {
@@ -118,6 +121,7 @@ export function GigsFile({
         statusLabel={statusLabel}
         lastOpened={lastOpened}
         onOpen={onOpen}
+        onChanged={onChanged}
         reward={reward}
         deadline={deadline}
       />

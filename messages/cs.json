@@ -14660,7 +14660,6 @@
       "new": {
         "title": "Nové",
         "who": "přijmete, nebo odmítnete",
-        "accept": "Přijmout „{title}“",
         "reject": "Odmítnout „{title}“",
         "acceptShort": "Přijmout",
         "rejectShort": "Odmítnout",
@@ -14773,7 +14772,7 @@
       "label": "Schválení",
       "title": "Schválení",
       "next": {
-        "new": "Sken ji jako další kvalifikuje",
+        "new": "Přijměte ji k průzkumu a plánům, nebo ji odmítněte",
         "suspect": "Uvolněte ji, nebo odmítněte",
         "qualified": "Předejte ji, až budete chtít",
         "dispatched": "Specialista píše koncept",
@@ -15235,6 +15234,32 @@
       "pairingOff": "Freelance nabídka dostává návrh, ne agenta: není co párovat.",
       "review": {
         "fromProposal": "Napsáno s návrhem pro klienta {date}. Zkopírujte ji, přečtěte a odešlete sami."
+      }
+    },
+    "loop": {
+      "accept": "Přijmout a prozkoumat",
+      "acceptAria": "Přijmout „{title}“ a prozkoumat ji",
+      "acceptHint": "kp inzerát prozkoumá a potom napíše jeho plány. Před předáním si jeden plán vyberete.",
+      "process": "Prozkoumat a naplánovat",
+      "processHint": "Průzkum chybí nebo je zastaralý. kp ji prozkoumá a potom napíše její plány.",
+      "processedFlash": "„{title}“ se zpracovává.",
+      "queued": {
+        "both": "Průzkum je ve frontě a plány následují po něm.",
+        "plans": "Průzkum je aktuální, takže jsou ve frontě plány.",
+        "research": "Průzkum je ve frontě. Plány už má.",
+        "none": "Průzkum i plány už existují, do fronty nic nepřibylo."
+      },
+      "title": "Zpracovává se",
+      "who": "průzkum, potom plány. Nic se nepředává",
+      "state": {
+        "research_queued": "Průzkum ve frontě",
+        "research_running": "Průzkum se píše",
+        "plans_queued": "Plány ve frontě",
+        "plans_running": "Plány se píší",
+        "ready": "Plány jsou napsané. Vyberte jeden",
+        "researched": "Průzkum je napsaný",
+        "stopped": "Zastaveno po průzkumu. Žádné plány ve frontě",
+        "failed": "Jeden krok selhal. Otevřete ji a uvidíte proč"
       }
     }
   },

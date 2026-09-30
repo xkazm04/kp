@@ -134,17 +134,32 @@ export function registerLateBoundImplementations(): void {
   // `gig_research` (tasks.ts spec): the research pass the scan enqueues - at most eight of
   // the gigs it was handed, each read and briefed by the web-researching engine
   // (gigs/research.ts researchGigBatch), inside a pass budget under the task wall clock.
-  // Params are re-validated here (a retry replays them from the row).
+  // Params are re-validated here (a retry replays them from the row). The accept loop's pass
+  // (gigs/loop.ts: `refresh`, `thenPlans`) re-researches a stale brief and then continues as a
+  // `gig_plans` task for the gigs research left `qualified` with no round; `plansTask` names it.
   registerTaskRunner("gig_research", async (ctx) => {
     const { GIG_RESEARCH_MAX_PER_SCAN, parseGigResearchTaskParams, researchGigBatch } = await import("./gigs/research");
+    const { parseGigLoopTaskParams } = await import("./gigs/loop");
     const p = parseGigResearchTaskParams(ctx.params);
-    return researchGigBatch(ctx.workspaceId, {
+    const loop = parseGigLoopTaskParams(ctx.params);
+    const summary = await researchGigBatch(ctx.workspaceId, {
       signal: ctx.signal,
       limit: GIG_RESEARCH_MAX_PER_SCAN,
       sourceId: p.sourceId,
       gigIds: p.gigIds,
       linksByGigId: p.linksByGigId,
+      refresh: loop.refresh,
     });
+    if (!loop.thenPlans || !p.gigIds || ctx.signal.aborted) return summary;
+    const { continueGigLoopAfterResearch } = await import("./gigs/loop-run");
+    return { ...summary, plansTask: continueGigLoopAfterResearch(ctx.workspaceId, p.gigIds) };
+  });
+  // `gig_loop` (NO spec in tasks.ts, the `intake_round` shape): the accept loop's enqueue,
+  // called by PATCH /api/gigs/[id] (accept / process) through this leaf registry so the route
+  // gains neither the task hub nor the stores it binds. Answers what it queued (loop.ts).
+  registerTaskRunner("gig_loop", async (ctx) => {
+    const { runGigLoop } = await import("./gigs/loop-run");
+    return runGigLoop(ctx.workspaceId, String(ctx.params.gigId));
   });
   // `gig_plans` (tasks.ts spec): the plan runner (gigs/plans.ts) - for each gig in turn,
   // the three seats (plan-seats.ts) in parallel through gig_plan_cli.py. A selection that

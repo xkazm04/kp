@@ -195,10 +195,13 @@ export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
       : stableKey("gig_scan", p.workspaceId),
   // One research pass per tenant + SET of gigs: a retry of the same pass coalesces, while
   // the next scan's new gigs start their own. No gigIds (a backlog pass) keys by tenant
-  // (+ source), like the scan.
+  // (+ source), like the scan. The accept loop's pass (gigs/loop.ts, `thenPlans`) keys apart
+  // from a scan's pass over the same gig: folding onto the scan's would drop its plans step.
   gig_research: (p) =>
     Array.isArray(p.gigIds)
-      ? stableKey("gig_research", p.workspaceId, gigIdsIdentity(p.gigIds))
+      ? p.thenPlans === true
+        ? stableKey("gig_research", p.workspaceId, "loop", gigIdsIdentity(p.gigIds))
+        : stableKey("gig_research", p.workspaceId, gigIdsIdentity(p.gigIds))
       : typeof p.sourceId === "string" && p.sourceId.trim() !== ""
         ? stableKey("gig_research", p.workspaceId, "source", p.sourceId)
         : stableKey("gig_research", p.workspaceId),

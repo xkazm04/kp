@@ -259,6 +259,8 @@ test("gig_plans and gig_research key by tenant + the SET of gigs; order does not
   assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", gigIds: ["b", "a"] }), "gig_research:ws-1:a,b");
   assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", sourceId: "s1" }), "gig_research:ws-1:source:s1");
   assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1" }), "gig_research:ws-1");
+  // The accept loop's pass never folds onto a scan's pass over the same gig (it would lose its plans step).
+  assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", gigIds: ["a"], thenPlans: true }), "gig_research:ws-1:loop:a");
 });
 
 test("gig_report keys by tenant + gig: a burst of stage moves folds onto the run in flight", () => {

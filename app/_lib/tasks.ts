@@ -619,7 +619,10 @@ export function startTask(
   // per-tenant reads (the reservation gate that counts in-flight runs, the /api/tasks
   // poll) scope to the right team instead of lumping every tenant under the default.
   // Defaults to the single workspace, so the single-tenant path is byte-identical.
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // `priority`: the run goes ahead of this tenant's ordinary queued work (task-pump.ts).
+  // In-memory only: a run re-queued after a restart is ordinary again.
+  opts: { priority?: boolean } = {}
 ): TaskRecord {
   ensureRecovered();
   runMaintenance(); // throttled reap + retention prune, piggy-backed on submissions
@@ -636,12 +639,17 @@ export function startTask(
   const stableKey = buildDedupeKey(kind, params);
   if (stableKey) {
     const existing = getActiveTaskByDedupe(stableKey, workspaceId);
-    if (existing) return existing;
+    if (existing) {
+      // A priority ask for a run already queued promotes it rather than being lost.
+      const waiting = opts.priority ? queue.find((q) => q.id === existing.id) : undefined;
+      if (waiting) waiting.priority = true;
+      return existing;
+    }
   }
   const id = randomId("t");
   const dedupeKey = stableKey ?? `${kind}:nodedupe:${id}`; // guaranteed-unique; never merges
   const rec = createTask(id, kind, dedupeKey, spec.label(params), params, workspaceId);
-  queue.push({ id, workspaceId });
+  queue.push(opts.priority ? { id, workspaceId, priority: true } : { id, workspaceId });
   pump();
   return rec;
 }

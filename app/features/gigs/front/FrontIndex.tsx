@@ -10,6 +10,7 @@ import type { AfterWrite, SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { DoubtMarks, useDoubts } from "../shared/doubts";
 import { useGigsFormat } from "../data/useGigsFormat";
+import { useLoopAction } from "./loopWatch";
 import type { DeadlineCell, RewardCell } from "./useGigCells";
 
 // The front page's index columns by next move (GigsFront.tsx): Ready to send, To proof,
@@ -86,17 +87,27 @@ export function FrontIndex({
 
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const loopAction = useLoopAction();
+  // Accept is the accept loop (research, then plans, queued ahead of the scan's work); its
+  // flash says what was queued. Reject is a plain decline.
   async function decide(g: Gig, action: "accept" | "decline") {
     if (busy) return;
     setBusy(g.id);
     setFailure(null);
+    if (action === "accept") {
+      const out = await loopAction(g, "accept");
+      setBusy(null);
+      if ("error" in out) setFailure(out.error);
+      else await onChanged(out.flash);
+      return;
+    }
     const res = await sendJson(`/api/gigs/${encodeURIComponent(g.id)}`, "PATCH", { action });
     setBusy(null);
     if (!res.ok) {
       setFailure(resolveError(res.body as ApiErrorPayload | null, t("work.actionFailed")));
       return;
     }
-    await onChanged(t(action === "accept" ? "front.new.acceptedFlash" : "front.new.rejectedFlash", { title: g.title }));
+    await onChanged(t("front.new.rejectedFlash", { title: g.title }));
   }
 
   const newRow = (g: Gig) => {
@@ -116,7 +127,7 @@ export function FrontIndex({
           </span>
         </button>
         <span className="nact">
-          <button type="button" className="btn quiet" disabled={busy !== null} aria-label={t("front.new.accept", { title: g.title })} onClick={() => void decide(g, "accept")}>
+          <button type="button" className="btn quiet" disabled={busy !== null} aria-label={t("loop.acceptAria", { title: g.title })} onClick={() => void decide(g, "accept")}>
             {t("front.new.acceptShort")}
           </button>
           <button type="button" className="btn quiet danger" disabled={busy !== null} aria-label={t("front.new.reject", { title: g.title })} onClick={() => void decide(g, "decline")}>

@@ -597,6 +597,91 @@ freshness sweep do not trigger a `closed` report; the next move or a regenerate 
 lessons are not read into the report (the lessons ledger has no per-gig read); the Lessons
 section rests on the verdict, the evidence and the client's words.
 
+## Accepting a New gig: the accept loop
+
+The operator (2026-09-30): "Allow to accept manually gigs in state New, which would indicate user
+preference to process in LLM loops before scoping all the New ones." Accepting a `new` listing is
+therefore two things at once: the status move `new -> qualified`, and a request that kp work the gig
+through its model steps now, ahead of the rest of the backlog.
+
+**What accept queues** (`app/_lib/gigs/loop.ts`, pure; bound in `loop-run.ts`):
+
+1. **Research**, a `gig_research` task for this one gig, when it has no brief or a stale one
+   (`gigNeedsResearch`: a deterministic brief, or a prompt older than `gig-brief-v4`). The task
+   carries `refresh: true` (re-research a stale brief rather than pass over it,
+   `researchGigBatch({ refresh })`) and `thenPlans: true`.
+2. **Plans**, a `gig_plans` task for the gig (seats by the brief's difficulty, `plan-seats.ts`),
+   when it has no plan round yet. With a current brief they are queued at once; otherwise the
+   research task continues to them when it ends (`continueGigLoopAfterResearch`, called by the
+   `gig_research` runner in `late-bound-boot.ts`; its result names the task as `plansTask`).
+
+The loop stops at the plan choice: accepting a plan stays the operator's gate, and nothing is
+dispatched. It also stops when research moved the gig off `qualified` (a physical-work brief
+declines it, a honeypot page quarantines it) or when a round already exists.
+
+**Doors.** `PATCH /api/gigs/[id]`:
+
+| action | from | does | answers |
+| --- | --- | --- | --- |
+| `accept` | `new` only | moves to `qualified`, then queues the loop | `{ gig, queued: { research: taskId \| null, plans: "after_research" \| taskId \| null } }` |
+| `process` | `qualified` only | queues the loop alone (a gig accepted before the loop, or never researched) | the same; `{ research: null, plans: null }` when nothing is missing |
+
+The other status answers `409 GIG_ACTION_NOT_ALLOWED { gigStatus }`. The route reaches the enqueue
+through the leaf registry (`externalRunner("gig_loop")`, registered in `late-bound-boot.ts`), so it
+gains neither the task hub nor the stores. **Cost guard**: each step spends its own door's bucket
+before the gig moves, `gigs-research:<ip>` and `gigs-plans:<ip>` (20 per 10 minutes each, shared with
+`POST /api/gigs/[id]/research` and the plans doors); a refused accept moves nothing (429
+`TOO_MANY_REQUESTS`). There is no bulk accept: the whole file has no row selection.
+
+**Priority, and what the task hub guarantees.** Both of the loop's tasks are started with
+`startTask(kind, params, ws, { priority: true })`. The hub (`app/_lib/tasks.ts`) runs at most
+`MAX_CONCURRENT = 2` tasks per module copy, and its pump (`task-pump.ts nextTaskToRun`) now ranks a
+queued task by (its workspace's running load, priority before ordinary, queue order). So:
+
+- a loop task **starts before every ordinary task of the same workspace that is still queued**,
+  including a scan's research batch or a bulk plans run queued earlier;
+- it **never preempts a running task** and never exceeds the slot ceiling: with both slots busy
+  (for example a scan's 8-gig research pass, up to 14 minutes, and a plans round), it waits for the
+  first slot to free. With one slot busy it runs at once, concurrently with the scan's pass;
+- cross-tenant fairness stays the first key: a less-loaded workspace's ordinary task still wins;
+- a priority ask for a task already queued (the dedupe folded it) promotes that task;
+- priority is **in memory**: a task re-queued after a restart is ordinary again;
+- `next` evaluates `tasks.ts` once per bundle (the instrumentation bundle and the route bundle each
+  hold a queue). The loop's tasks and a scan's research pass are both enqueued from late-bound
+  runners, so they share the instrumentation copy's queue, which is where the ordering applies;
+  a plans run started from `POST /api/gigs/[id]/plans` sits in the route copy's queue.
+
+A loop research task has its own dedupe key (`gig_research:<ws>:loop:<ids>`), so it never folds
+onto a scan's pass over the same gig, which would lose its plans step.
+
+**UI.** Accept is offered everywhere a New gig is decided, and each flash says what was queued
+("Research is queued, and plans follow it." / "Its research is current, so plans are queued." ...):
+
+- the proof's sign-off for a `new` gig (`proof/signoff/AcceptLoop.tsx AcceptNew`): **Accept and
+  research** (primary) with one line on what happens, and **Decline this listing**. For a
+  `qualified` gig the sign-off shows where its loop stands while the tab watches it, or offers
+  **Research and plan it** (`process`) when its research is missing or out of date;
+- the front page's New strip (`front/FrontIndex.tsx`): its Accept is the same loop;
+- the whole file (`front/FileTable.tsx`): a `new` row carries **Accept** beside its status.
+
+The front page's **Being processed** strip (`front/FrontLoops.tsx`) lists the gigs accepted in this
+session with their state: Research queued, Research being written, Plans being written, Plans
+written (choose one), Stopped after research, or A step failed. It reads the task rows the accept
+answered with (`GET /api/tasks/[id]` every 4 s until each loop settles, `front/loopWatch.ts`;
+states in `logic/loop.ts`). It is session-only: a reload forgets it, because the gig row does not
+carry its tasks. "Plans written" needs at least one ready seat; a round where every seat failed
+(keyless: `no_provider`) reads as a failed step.
+
+**Keyless.** The loop still runs: research answers `no_provider` and stores the deterministic brief,
+then the plans round's seats fail with `no_provider` and their rows say so. A deterministic brief is
+re-researched by the next accept or `process`.
+
+Tests: `app/_lib/gigs/loop.test.ts`, `app/api/gigs/gigs-accept-route.test.ts`,
+`app/features/gigs/logic/loop.test.ts`, the `refresh` case in `research.test.ts`, the priority lane in
+`app/_lib/tasks-pump.test.ts`, the loop key in `task-dedupe.test.ts`, two rows in
+`app/api/rate-limit-contract.test.ts`, and the hermetic step "accept a New gig -> research, then
+plans" in `e2e/gig-lifecycle.spec.ts`.
+
 ## Expiry
 
 At the start of every gig scan (the manual door and the clock, which run the same

@@ -14660,7 +14660,6 @@
       "new": {
         "title": "Neu",
         "who": "Sie nehmen an oder lehnen ab",
-        "accept": "„{title}“ annehmen",
         "reject": "„{title}“ ablehnen",
         "acceptShort": "Annehmen",
         "rejectShort": "Ablehnen",
@@ -14773,7 +14772,7 @@
       "label": "Freigabe",
       "title": "Freigabe",
       "next": {
-        "new": "Der Scan qualifiziert sie als Nächstes",
+        "new": "Nehmen Sie sie für Recherche und Pläne an oder lehnen Sie sie ab",
         "suspect": "Freigeben oder ablehnen",
         "qualified": "Übergeben, wann Sie möchten",
         "dispatched": "Der Spezialist schreibt",
@@ -15235,6 +15234,32 @@
       "pairingOff": "Eine Freelance-Bewerbung bekommt ein Angebot, keinen Agenten: Es gibt nichts zuzuordnen.",
       "review": {
         "fromProposal": "Mit dem Angebot für den Kunden geschrieben am {date}. Kopieren, lesen, selbst senden."
+      }
+    },
+    "loop": {
+      "accept": "Annehmen und recherchieren",
+      "acceptAria": "„{title}“ annehmen und recherchieren",
+      "acceptHint": "kp recherchiert die Ausschreibung und schreibt dann ihre Pläne. Vor jeder Übergabe wählen Sie einen Plan.",
+      "process": "Recherchieren und planen",
+      "processHint": "Ihre Recherche fehlt oder ist veraltet. kp recherchiert sie und schreibt dann ihre Pläne.",
+      "processedFlash": "„{title}“ wird bearbeitet.",
+      "queued": {
+        "both": "Die Recherche ist eingereiht, die Pläne folgen danach.",
+        "plans": "Die Recherche ist aktuell, daher sind die Pläne eingereiht.",
+        "research": "Die Recherche ist eingereiht. Pläne hat sie schon.",
+        "none": "Recherche und Pläne gibt es schon, nichts wurde eingereiht."
+      },
+      "title": "In Bearbeitung",
+      "who": "Recherche, dann Pläne. Nichts wird übergeben",
+      "state": {
+        "research_queued": "Recherche eingereiht",
+        "research_running": "Recherche wird geschrieben",
+        "plans_queued": "Pläne eingereiht",
+        "plans_running": "Pläne werden geschrieben",
+        "ready": "Pläne geschrieben. Wählen Sie einen",
+        "researched": "Recherche geschrieben",
+        "stopped": "Nach der Recherche gestoppt. Keine Pläne eingereiht",
+        "failed": "Ein Schritt ist fehlgeschlagen. Öffnen Sie sie für den Grund"
       }
     }
   },

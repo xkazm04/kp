@@ -63,6 +63,18 @@ test("FIFO survives inside a workspace when that workspace is the fair pick", ()
   assert.equal(nextTaskToRun(queue, ["A"], 2), 0, "B's OLDEST queued task, not just any B task");
 });
 
+test("a priority run goes ahead of its own tenant's ordinary queue, never ahead of fairness", () => {
+  // The Gigs accept loop (gigs/loop.ts): the operator's pick does not wait behind a scan's batch.
+  const queue: PumpEntry[] = [{ id: "scan", workspaceId: "A" }, { id: "plans", workspaceId: "A" }, { id: "mine", workspaceId: "A", priority: true }];
+  assert.equal(nextTaskToRun(queue, [], 2), 2, "the priority run starts first");
+  assert.equal(nextTaskToRun(queue, ["A", "A"], 2), null, "…but never past the slot ceiling");
+  const two: PumpEntry[] = [{ id: "p1", workspaceId: "A", priority: true }, { id: "p2", workspaceId: "A", priority: true }];
+  assert.equal(nextTaskToRun(two, [], 2), 0, "FIFO inside the priority lane");
+  // B is idle, A already runs one: B's ordinary task beats A's priority one.
+  const fair: PumpEntry[] = [{ id: "a", workspaceId: "A", priority: true }, { id: "b", workspaceId: "B" }];
+  assert.equal(nextTaskToRun(fair, ["A"], 2), 1, "a less-loaded tenant still wins");
+});
+
 // ---- 2. every handler declares what it does with the tenant ----------------
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

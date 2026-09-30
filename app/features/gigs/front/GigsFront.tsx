@@ -10,6 +10,7 @@ import type { AfterWrite, SourceRow } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { FrontIndex } from "./FrontIndex";
 import { FrontLead } from "./FrontLead";
+import { FrontLoops } from "./FrontLoops";
 import { GigsFile } from "./GigsFile";
 import { useGigCells } from "./useGigCells";
 
@@ -108,6 +109,7 @@ export function GigsFront({
       {lead ? <FrontLead gig={lead} attempt={attemptsByGig[lead.id] ?? null} source={lead.sourceId ? (sourceById.get(lead.sourceId) ?? null) : null} niche={nicheOf(lead)} now={now} reward={reward} deadline={deadline} onOpen={() => onOpen(lead.id, { ids: queue.map((g) => g.id), label: t("head.waitList") })} /> : null}
 
       <FrontIndex columns={columns} fresh={fresh} onChanged={onChanged} attemptsByGig={attemptsByGig} sourceById={sourceById} now={now} lastOpened={lastOpened} nicheOf={nicheOf} reward={reward} deadline={deadline} onOpen={onOpen} />
+      <FrontLoops lastOpened={lastOpened} onOpen={onOpen} />
 
       <hr className="rule-double" />
       <GigsFile
@@ -123,6 +125,7 @@ export function GigsFront({
         lastOpened={lastOpened}
         onOpen={onOpen}
         onToWires={onToWires}
+        onChanged={onChanged}
         reward={reward}
         deadline={deadline}
       />

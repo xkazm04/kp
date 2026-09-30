@@ -2311,6 +2311,23 @@ const ROUTES: RouteSpec[] = [
     expensive: "clearGigSuspect(ws",
   },
   {
+    // WP14 accept / process: the accept loop queues research (a web-researched model call),
+    // so it spends the research door's bucket before anything moves. ADDED deliberately.
+    rel: "./gigs/[id]/route.ts",
+    key: "`gigs-research:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'externalRunner("gig_loop")(',
+  },
+  {
+    // …and queues plans (one to three seats), so it spends the plans doors' bucket too.
+    rel: "./gigs/[id]/route.ts",
+    key: "`gigs-plans:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'externalRunner("gig_loop")(',
+  },
+  {
     // One append-only verdict plus its lessons and the source's streak.
     rel: "./gigs/[id]/outcome/route.ts",
     key: "`gigs-outcome:${clientIpFrom(request.headers)}`",

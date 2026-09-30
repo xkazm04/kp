@@ -575,6 +575,25 @@ test("researchGigBatch with gigIds (the scan's pass): exactly those gigs still u
   assert.equal(summary.llm, 8);
 });
 
+test("researchGigBatch refresh (the accept loop): a handed gig with a stale brief is researched again, a current one is not", async () => {
+  const stale = deterministicGigBrief(gig(), [], "no_provider", "2026-09-24T00:00:00.000Z");
+  const current = { ...stale, source: "llm" as const, promptVersion: GIG_BRIEF_PROMPT_VERSION };
+  const byId: Record<string, Gig> = {
+    s: gig({ id: "s", bodyText: "no links", status: "qualified", brief: stale }),
+    c: gig({ id: "c", bodyText: "no links", status: "qualified", brief: current }),
+  };
+  const run = async (refresh: boolean) => {
+    const h = harness({ cli: () => ({ result: MODEL, source: "llm" }) });
+    const researched: string[] = [];
+    h.deps.getGig = (_ws, id) => byId[id] ?? null;
+    h.deps.setGigBrief = (_ws, id, brief) => (researched.push(id), { ...byId[id], brief });
+    await researchGigBatch("ws-1", { signal: new AbortController().signal, limit: 8, sourceId: null, gigIds: ["s", "c"], refresh }, h.deps);
+    return researched;
+  };
+  assert.deepEqual(await run(true), ["s"]);
+  assert.deepEqual(await run(false), [], "a scan's pass never re-researches a briefed gig");
+});
+
 test("researchGigBatch: links handed over by the scan replace the extraction (the task cannot see the listing HTML)", async () => {
   const listing = gig({ bodyText: "Read https://docs.acme.dev/from-text" });
   const h = harness({ current: listing, pages: { "https://docs.acme.dev/from-html": html("<p>spec</p>", "Spec") }, cli: () => ({ result: MODEL, source: "llm" }) });

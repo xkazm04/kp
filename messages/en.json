@@ -14660,7 +14660,6 @@
       "new": {
         "title": "New",
         "who": "you accept or reject",
-        "accept": "Accept “{title}”",
         "reject": "Reject “{title}”",
         "acceptShort": "Accept",
         "rejectShort": "Reject",
@@ -14773,7 +14772,7 @@
       "label": "Sign-off",
       "title": "Sign-off",
       "next": {
-        "new": "The scan qualifies it next",
+        "new": "Accept it for research and plans, or decline it",
         "suspect": "Clear it or decline it",
         "qualified": "Dispatch it when you choose",
         "dispatched": "The specialist is drafting",
@@ -15235,6 +15234,32 @@
       "pairingOff": "A freelance bid gets a proposal, not an agent: there is nothing to pair.",
       "review": {
         "fromProposal": "Written with the client proposal on {date}. Copy it, read it, send it yourself."
+      }
+    },
+    "loop": {
+      "accept": "Accept and research",
+      "acceptAria": "Accept “{title}” and research it",
+      "acceptHint": "kp researches the listing, then writes its plans. You choose one plan before anything is dispatched.",
+      "process": "Research and plan it",
+      "processHint": "Its research is missing or out of date. kp researches it, then writes its plans.",
+      "processedFlash": "“{title}” is being processed.",
+      "queued": {
+        "both": "Research is queued, and plans follow it.",
+        "plans": "Its research is current, so plans are queued.",
+        "research": "Research is queued. It already has plans.",
+        "none": "Its research and plans already exist, so nothing was queued."
+      },
+      "title": "Being processed",
+      "who": "research, then plans. Nothing is dispatched",
+      "state": {
+        "research_queued": "Research queued",
+        "research_running": "Research being written",
+        "plans_queued": "Plans queued",
+        "plans_running": "Plans being written",
+        "ready": "Plans written. Choose one",
+        "researched": "Research written",
+        "stopped": "Stopped after research. No plans queued",
+        "failed": "A step failed. Open it to see why"
       }
     }
   },

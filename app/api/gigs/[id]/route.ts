@@ -5,6 +5,8 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clearGigSuspect, getGig, transitionGig } from "@/app/_lib/db/gigs";
 import { listGigAttemptsForGig, transitionGigAttempt } from "@/app/_lib/db/gigs-attempts";
+import { listGigPlans } from "@/app/_lib/db/gigs-plans";
+import { gigLoopSteps, type GigLoopQueued } from "@/app/_lib/gigs/loop";
 import { listOutcomesForGig } from "@/app/_lib/gigs/outcome";
 import { qualifyAndMatch } from "@/app/_lib/gigs/qualify";
 import { requestGigReport } from "@/app/_lib/gigs/report/trigger";
@@ -13,10 +15,11 @@ import { canTransitionGig } from "@/app/_lib/gigs/transitions";
 import type { GigStatus, GigWithdrawReason } from "@/app/_lib/gigs/types";
 import { briefChallenges } from "@/app/_lib/gigs/withdraw-reasons";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { externalRunner } from "@/app/_lib/task-external-runners";
 
 // /api/gigs/[id]
 // GET   -> { gig, attempts (oldest first), outcomes (oldest first) }
-// PATCH { action: "decline" | "withdraw" | "clear_suspect" | "route" | "unroute" }
+// PATCH { action: "decline" | "withdraw" | "clear_suspect" | "route" | "unroute" | "accept" | "process" }
 //   decline / withdraw  the gig moves to declined / withdrawn from any status whose
 //                       edge the state machine holds (gigs/transitions.ts); a draft
 //                       still waiting on review (drafted | approved) is discarded with
@@ -34,6 +37,17 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //                       new | qualified | drafted | in_review and not suspect, never while
 //                       dispatched. A routed `new` gig is re-qualified.
 //   unroute             the routing is cleared and the matcher's pick replaces it.
+//   accept              new -> qualified, the operator's yes on a listing the scan left
+//                       `new`, AND the accept loop (gigs/loop.ts): research (when the gig has
+//                       no brief or a stale one) then plans (when it has no plan round), as
+//                       background tasks ahead of the workspace's ordinary queue. Stops at
+//                       the plan choice. -> { gig, queued: { research: taskId | null,
+//                       plans: "after_research" | taskId | null } }
+//   process             the loop alone, for a gig already `qualified` (accepted before the
+//                       loop existed, or never researched). Same answer; nothing queued when
+//                       nothing is missing.
+//                       Both spend the research and plans doors' buckets (20/10min per IP
+//                       each) for the steps they queue, before the gig moves.
 // An action the gig's status does not allow is 409 GIG_ACTION_NOT_ALLOWED; a move lost
 // to a concurrent one is 409 GIG_STATE_CHANGED.
 
@@ -53,7 +67,7 @@ export async function GET(_request: Request, { params }: Params): Promise<NextRe
   }
 }
 
-const PATCH_ACTIONS = ["decline", "withdraw", "clear_suspect", "route", "unroute", "accept"] as const;
+const PATCH_ACTIONS = ["decline", "withdraw", "clear_suspect", "route", "unroute", "accept", "process"] as const;
 type PatchAction = (typeof PATCH_ACTIONS)[number];
 
 export async function PATCH(request: Request, { params }: Params): Promise<NextResponse> {
@@ -98,12 +112,27 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
       return NextResponse.json({ gig: qualified.ok ? qualified.gig : cleared.gig });
     }
 
-    // The operator's yes on a listing the scan left `new` (below the qualify threshold).
-    if ((action as PatchAction) === "accept") {
-      if (gig.status !== "new") return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { gigStatus: gig.status });
-      const accepted = transitionGig(ws, id, { from: "new", to: "qualified" });
-      if (!accepted.ok) return jsonRefusal(accepted.reason === "not_found" ? "GIG_NOT_FOUND" : "GIG_STATE_CHANGED", accepted.reason === "not_found" ? 404 : 409);
-      return NextResponse.json({ gig: accepted.gig });
+    // The operator's yes on a listing the scan left `new` (below the qualify threshold), and
+    // the loop that works it through research and plans (`process` = the loop alone).
+    if ((action as PatchAction) === "accept" || (action as PatchAction) === "process") {
+      if (gig.status !== (action === "accept" ? "new" : "qualified")) return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { gigStatus: gig.status });
+      // COST GUARD: each step spends model calls, so each spends its own door's bucket.
+      const steps = gigLoopSteps(gig, listGigPlans(ws, id).length > 0);
+      if (steps.research && !rateLimit(`gigs-research:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+        return jsonRefusal("TOO_MANY_REQUESTS", 429);
+      }
+      if (steps.plans !== "none" && !rateLimit(`gigs-plans:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+        return jsonRefusal("TOO_MANY_REQUESTS", 429);
+      }
+      let current = gig;
+      if (action === "accept") {
+        const accepted = transitionGig(ws, id, { from: "new", to: "qualified" });
+        if (!accepted.ok) return jsonRefusal(accepted.reason === "not_found" ? "GIG_NOT_FOUND" : "GIG_STATE_CHANGED", accepted.reason === "not_found" ? 404 : 409);
+        current = accepted.gig;
+      }
+      // Through the leaf registry (late-bound-boot.ts `gig_loop`): the task hub stays off this graph.
+      const ran = (await externalRunner("gig_loop")({ workspaceId: ws, signal: request.signal, progress: () => {}, params: { gigId: id } })) as GigLoopQueued | null;
+      return NextResponse.json({ gig: current, queued: ran ?? { research: null, plans: null } });
     }
 
     const to: GigStatus = action === "decline" ? "declined" : "withdrawn";

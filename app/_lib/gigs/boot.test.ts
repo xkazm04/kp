@@ -10,8 +10,8 @@ import { _resetTaskRunnersForTests, externalRunner } from "../task-external-runn
 
 after(() => cleanupUnitDb());
 
-test("gig_scan, gig_sync, gig_research, gig_plans, gig_report and gig_proposal are registered at boot", () => {
-  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans", "gig_report", "gig_proposal"];
+test("gig_scan, gig_sync, gig_research, gig_plans, gig_report, gig_proposal and gig_loop are registered at boot", () => {
+  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans", "gig_report", "gig_proposal", "gig_loop"];
   _resetTaskRunnersForTests();
   for (const kind of kinds) assert.throws(() => externalRunner(kind), /not registered/, kind);
   registerLateBoundImplementations();
@@ -40,6 +40,12 @@ test("the heavy gig modules are reached only lazily - never statically from the 
   assert.match(boot, /startTask\("gig_research", gigResearchTaskParams\(ws, req\), ws\)/, "the scan ENQUEUES its research");
   assert.match(boot, /await import\("\.\/gigs\/research"\)/);
   assert.match(boot, /await import\("\.\/gigs\/plans"\)/);
+  // WP14: the accept loop's enqueue (the PATCH door reaches it through the leaf registry) and
+  // the research pass's continuation to plans bind the stores and the hub lazily, in loop-run.
+  assert.match(boot, /registerTaskRunner\("gig_loop"/);
+  assert.match(boot, /await import\("\.\/gigs\/loop-run"\)/);
+  assert.match(boot, /continueGigLoopAfterResearch\(ctx\.workspaceId, p\.gigIds\)/);
+  assert.doesNotMatch(read("../../api/gigs/[id]/route.ts"), /_lib\/tasks"|gigs\/loop-run/, "the PATCH door gains neither the hub nor loop-run");
   assert.match(boot, /await import\("\.\/gigs\/sync"\)/);
   // WP4: the outcome pollers ride the same sync runner, after the Personas sync.
   assert.match(boot, /await import\("\.\/gigs\/pollers"\)/);

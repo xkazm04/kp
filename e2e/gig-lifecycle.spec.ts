@@ -1048,6 +1048,41 @@ test("side: a moderate gig gets ONE plan seat, Sonnet 5.5 at high effort", async
   expect(calls[0].argv).toEqual(expect.arrayContaining(["--effort", "high"]));
 });
 
+test("side: accept a New gig -> research, then plans, queued by the accept loop; it stops at the plan choice", async ({ request }) => {
+  // No reward and a deadline under two days keep a forwarded gig under the bar: it stays `new`.
+  const created = await okJson<{ gig: GigRow }>(
+    await request.post("/api/gigs", {
+      data: { arena: "freelance", url: "https://example.org/gigs/tidy-readme", title: "Tidy the README of a small tool", bodyText: "Tidy the README of our small CLI tool: fix the headings and add one usage example.", deadlineAt: new Date(Date.now() + 36 * 3_600_000).toISOString() },
+    }),
+    "POST /api/gigs"
+  );
+  expect(created.gig.status).toBe("new");
+  const briefsBefore = fakeCalls().filter((c) => c.useCase === "brief").length;
+  const accepted = await okJson<{ gig: GigRow; queued: { research: string | null; plans: string | null } }>(
+    await request.patch(`/api/gigs/${created.gig.id}`, { data: { action: "accept" } }),
+    "PATCH accept"
+  );
+  expect(accepted.gig.status).toBe("qualified");
+  expect(accepted.queued.research, "no brief yet: research is queued").toBeTruthy();
+  expect(accepted.queued.plans, "plans follow the research").toBe("after_research");
+  const research = await waitTask(request, accepted.queued.research!);
+  const plansTask = (research.result as { plansTask?: string | null }).plansTask;
+  expect(plansTask, "the research task continued as the plans task").toBeTruthy();
+  await waitTask(request, plansTask!);
+  expect(fakeCalls().filter((c) => c.useCase === "brief").length, "one pinned brief call").toBe(briefsBefore + 1);
+  const { gig } = await getGig(request, created.gig.id);
+  expect(gig.brief?.source).toBe("llm");
+  const rows = await getPlans(request, created.gig.id);
+  expect(rows.map((r) => `${r.seat}:${r.status}`)).toEqual(["sonnet:ready"]);
+  expect(rows.some((r) => r.acceptedAt), "the operator's plan choice is a human gate: nothing accepted").toBe(false);
+  expect(gig.status, "nothing dispatched").toBe("qualified");
+  const again = await okJson<{ queued: { research: string | null; plans: string | null } }>(
+    await request.patch(`/api/gigs/${created.gig.id}`, { data: { action: "process" } }),
+    "PATCH process"
+  );
+  expect(again.queued, "research current and a round exists: nothing more to queue").toEqual({ research: null, plans: null });
+});
+
 test("side: withdraw for a brief challenge in one click, and the next brief is handed the reason", async ({ page, request }) => {
   const title = "Set up a contact form on a small site";
   const gig = await forwardAndResearch(request, title, "Add a working contact form to our five-page site and send us the changed files.");

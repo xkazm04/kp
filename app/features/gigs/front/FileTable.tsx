@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Gig, GigStatus } from "@/app/_lib/gigs/types";
 import type { FileFilter, FileSort, FileStatus } from "../logic/file";
+import type { AfterWrite } from "../logic/wire";
 import type { ProofList } from "../proof/GigsProof";
 import { useGigsFormat } from "../data/useGigsFormat";
+import { useLoopAction } from "./loopWatch";
 import type { DeadlineCell, RewardCell } from "./useGigCells";
 
 // The whole file's table (GigsFile.tsx): one page of rows, the sortable heads saying their
-// direction in `aria-sort`, and an empty page that offers to clear the filters.
+// direction in `aria-sort`, and an empty page that offers to clear the filters. A `new` row
+// carries Accept (the accept loop: research, then plans); the table has no row selection, so
+// there is no bulk accept.
 
 const MARK: Partial<Record<GigStatus, string>> = {
   drafted: "you",
@@ -35,6 +40,7 @@ export function FileTable({
   statusLabel,
   lastOpened,
   onOpen,
+  onChanged,
   reward,
   deadline,
 }: {
@@ -47,11 +53,24 @@ export function FileTable({
   statusLabel: (s: FileStatus) => string;
   lastOpened: string | null;
   onOpen: (gigId: string, list: ProofList) => void;
+  onChanged: AfterWrite;
   reward: RewardCell;
   deadline: DeadlineCell;
 }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
+  const loopAction = useLoopAction();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  async function accept(g: Gig) {
+    if (busy) return;
+    setBusy(g.id);
+    setFailure(null);
+    const out = await loopAction(g, "accept");
+    setBusy(null);
+    if ("error" in out) setFailure(out.error);
+    else await onChanged(out.flash);
+  }
   const sortBy = (s: FileSort) => set(filter.sort === s && s !== "touched" ? { dir: filter.dir === 1 ? -1 : 1 } : { sort: s, dir: 1 });
 
   const sortHead = (s: FileSort, label: string, right = false) => {
@@ -70,6 +89,11 @@ export function FileTable({
 
   return (
     <div className="file-wrap">
+      {failure ? (
+        <p className="q-empty" role="alert">
+          {failure}
+        </p>
+      ) : null}
       <table className="file">
         <colgroup>
           <col className="c-status" />
@@ -98,6 +122,14 @@ export function FileTable({
                     <i aria-hidden />
                     {statusLabel(g.status)}
                   </span>
+                  {g.status === "new" ? (
+                    <>
+                      {" "}
+                      <button type="button" className="linkbtn" disabled={busy !== null} aria-label={t("loop.acceptAria", { title: g.title })} onClick={() => void accept(g)}>
+                        {t("front.new.acceptShort")}
+                      </button>
+                    </>
+                  ) : null}
                 </td>
                 <td className="title">
                   <button type="button" onClick={() => onOpen(g.id, { ids, label: listLabel })}>

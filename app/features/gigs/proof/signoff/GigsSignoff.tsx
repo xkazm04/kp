@@ -8,6 +8,7 @@ import { trackOf } from "../../logic/proposal";
 import type { AfterWrite, SourceRow, SpecialistRow } from "../../logic/wire";
 import { useStage } from "../ProofHead";
 import type { GigFileState } from "../report/useGigFile";
+import { AcceptNew, LoopOffer } from "./AcceptLoop";
 import { Suspect, Triage, type PlanGate } from "./BeforeDispatch";
 import { Desk } from "./Desk";
 import { PrepareProposal } from "./PrepareProposal";
@@ -29,6 +30,8 @@ import { Agent, OffLine } from "./WithAgent";
 // The parts, one per state:
 //   Desk.tsx            a drafted or approved draft (its initials, send-back fold and run
 //                       facts in DeskParts.tsx)
+//   AcceptLoop.tsx      a New listing: Accept and research (the accept loop) or Decline;
+//                       for a qualified one, where its loop stands, or the loop alone
 //   BeforeDispatch.tsx  a quarantined listing (Suspect) and one nobody worked yet (Triage)
 //   PrepareProposal.tsx a freelance bid with no draft on the desk
 //   RecordVerdict.tsx   a sent one: record the outside verdict
@@ -102,6 +105,8 @@ export function GigsSignoff({
         <Suspect gig={gig} onChanged={onChanged} onDecline={onDecline} />
       ) : kind === "record" ? (
         <RecordVerdict gig={gig} attempt={attempt} source={source} specialist={specialist} kpi={kpi} now={now} onChanged={onChanged} onFlash={onFlash} />
+      ) : kind === "triage" && gig.status === "new" ? (
+        <AcceptNew gig={gig} onChanged={onChanged} onDecline={onDecline} />
       ) : kind === "triage" && bid ? (
         prepare(false)
       ) : (kind === "revision" || kind === "failed") && bid ? (
@@ -115,6 +120,7 @@ export function GigsSignoff({
           <p className="t-meta">{t("detail.needsNobody")}</p>
         </div>
       )}
+      {kind === "triage" && gig.status === "qualified" ? <LoopOffer gig={gig} onChanged={onChanged} /> : null}
       <OffLine gig={gig} declineOffered={kind === "suspect" || kind === "triage"} onChanged={onChanged} onDecline={onDecline} />
     </aside>
   );

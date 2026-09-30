@@ -14660,7 +14660,6 @@
       "new": {
         "title": "Nouveau",
         "who": "vous acceptez ou refusez",
-        "accept": "Accepter « {title} »",
         "reject": "Refuser « {title} »",
         "acceptShort": "Accepter",
         "rejectShort": "Refuser",
@@ -14773,7 +14772,7 @@
       "label": "Validation",
       "title": "Validation",
       "next": {
-        "new": "Le scan la qualifie ensuite",
+        "new": "Acceptez-la pour la recherche et les plans, ou refusez-la",
         "suspect": "Levez-la ou refusez-la",
         "qualified": "Confiez-la quand vous voulez",
         "dispatched": "Le spécialiste rédige",
@@ -15235,6 +15234,32 @@
       "pairingOff": "Une candidature freelance reçoit une proposition, pas un agent : il n’y a rien à associer.",
       "review": {
         "fromProposal": "Rédigé avec la proposition client le {date}. Copiez-le, relisez-le, envoyez-le vous-même."
+      }
+    },
+    "loop": {
+      "accept": "Accepter et rechercher",
+      "acceptAria": "Accepter « {title} » et la rechercher",
+      "acceptHint": "kp étudie l’annonce, puis rédige ses plans. Vous choisissez un plan avant toute mission confiée.",
+      "process": "Rechercher et planifier",
+      "processHint": "Sa recherche manque ou n’est plus à jour. kp l’étudie, puis rédige ses plans.",
+      "processedFlash": "« {title} » est en cours de traitement.",
+      "queued": {
+        "both": "La recherche est en file, les plans suivront.",
+        "plans": "Sa recherche est à jour, les plans sont donc en file.",
+        "research": "La recherche est en file. Elle a déjà des plans.",
+        "none": "Sa recherche et ses plans existent déjà, rien n’a été mis en file."
+      },
+      "title": "En cours de traitement",
+      "who": "recherche, puis plans. Rien n’est confié",
+      "state": {
+        "research_queued": "Recherche en file",
+        "research_running": "Recherche en cours de rédaction",
+        "plans_queued": "Plans en file",
+        "plans_running": "Plans en cours de rédaction",
+        "ready": "Plans rédigés. Choisissez-en un",
+        "researched": "Recherche rédigée",
+        "stopped": "Arrêté après la recherche. Aucun plan en file",
+        "failed": "Une étape a échoué. Ouvrez-la pour savoir pourquoi"
       }
     }
   },
