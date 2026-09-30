@@ -64,17 +64,24 @@ def ts_pipeline_stages() -> list[str]:
     return _TS_STRING.findall(match.group(1))
 
 
-def automation_advance_targets() -> set[str]:
-    """Every literal stage `automation.py` can advance INTO, harvested from the AST.
+def automation_advance_targets() -> tuple[set[str], int]:
+    """Every stage `automation.py` can advance INTO, harvested from the AST.
 
     The decision helper is `out(action, to_stage, reason)`; an advance is the only
     action that names a destination, so the set is the second argument of every
     `out("advance", ...)` call. Read from the syntax tree rather than by regex so a
     reformatting (or a reason string that happens to contain the word) cannot
     change the answer.
+
+    Returns ``(literals, board_derived)``. The board is composed per workspace, so
+    the destination is the entry's own next column (``advance_to``, read from
+    ``advanceTo`` that TypeScript supplies from the columns it renders) and not a
+    stage-name literal. Those calls are counted, not resolved: the destination is
+    the board's by construction. Any OTHER expression fails the harvest loudly.
     """
     tree = ast.parse(AUTOMATION_PY.read_text(encoding="utf-8").replace("\r\n", "\n"))
     targets: set[str] = set()
+    board_derived = 0
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or getattr(node.func, "id", None) != "out":
             continue
@@ -84,7 +91,16 @@ def automation_advance_targets() -> set[str]:
         if isinstance(action, ast.Constant) and action.value == "advance":
             if isinstance(destination, ast.Constant) and isinstance(destination.value, str):
                 targets.add(destination.value)
-    return targets
+            elif isinstance(destination, ast.Name) and destination.id == "advance_to":
+                board_derived += 1
+            else:
+                raise AssertionError(
+                    f"automation.py line {node.lineno}: out('advance', ...) names its destination "
+                    "with an expression this walk cannot classify. A stage literal is checked "
+                    "against the TS axis and `advance_to` is the board's own next column; "
+                    "anything else is a destination nobody checks."
+                )
+    return targets, board_derived
 
 
 class PipelineStageVocabularyTest(unittest.TestCase):
@@ -100,8 +116,11 @@ class PipelineStageVocabularyTest(unittest.TestCase):
 
     def test_automation_advances_only_into_stages_the_board_renders(self) -> None:
         stages = set(ts_pipeline_stages())
-        targets = automation_advance_targets()
-        self.assertTrue(targets, "harvested no advance targets — the AST walk is broken, not the code")
+        targets, board_derived = automation_advance_targets()
+        self.assertTrue(
+            targets or board_derived,
+            "harvested no advance targets — the AST walk is broken, not the code",
+        )
         unknown = sorted(targets - stages)
         self.assertEqual(
             unknown,

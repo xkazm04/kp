@@ -224,7 +224,12 @@ class RepoAccessTest(unittest.TestCase):
             self.assertEqual(bound.cli.mode, "repo_scan")
             self.assertEqual(bound.cli.cwd, root)
             self.assertIn("--settings", bound.extra_args)
-            self.assertIn("--settings", bound.cli.cli_args())
+            # `cli_args()` resolves the binary through `shutil.which`; the bind is what
+            # this test pins, not whether the box has `claude` installed (runners do not).
+            with mock.patch(
+                "pipeline.jobfit.claude_cli.shutil.which", return_value="claude"
+            ):
+                self.assertIn("--settings", bound.cli.cli_args())
             # the registry's instance keeps no repo binding it never asked for
             self.assertEqual(adapter.cli.mode, "generate")
             self.assertNotIn("--settings", adapter.extra_args)
