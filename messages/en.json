@@ -2030,6 +2030,8 @@
     "GIG_WORKSPACE_FAILED": "The gig’s working folder or its Personas project could not be prepared, so nothing was sent. Check the Personas connection and try again.",
     "GIG_ROUTE_ARENA_MISMATCH": "That specialist works a different arena than this gig, so the gig cannot be routed to it.",
     "GIG_REPORT_NOT_FOUND": "This gig has no report yet. It is written once the gig is researched.",
+    "GIG_PROPOSAL_TRACK": "This is a freelance bid: kp prepares a proposal, not the work.",
+    "GIG_PROPOSAL_NOT_FOUND": "This gig has no client proposal yet. It is written when a plan is accepted, or on request.",
     "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again.",
     "JOBSEEKER_CV_NOT_FOUND": "That CV is not among yours.",
     "JOBSEEKER_REQUEST_INVALID": "That change was not in the expected shape, so nothing was saved."
@@ -9739,6 +9741,7 @@
       "gig_brief": "Gig research brief",
       "gig_plan": "Gig plans",
       "gig_report": "Gig report",
+      "gig_proposal": "Client proposal",
       "role_research": "Role research"
     },
     "providers": {
@@ -9825,6 +9828,7 @@
       "gig_brief": "Reads a paid-work listing and the pages it links to, and writes the gig's research brief: category, difficulty, effort and expected challenges.",
       "gig_plan": "Three pinned models each write a plan for a gig from its research brief: steps with a done-when, the decisions it made, risks, effort and open questions. The operator accepts one.",
       "gig_report": "Writes each gig's report file from kp's facts as the gig moves: what it asks, the risks, fit and money, the plans side by side, the draft and its evidence, the outcome. kp writes it itself when no model can.",
+      "gig_proposal": "Writes a freelance bid's client proposal and the message to send, in the listing's language, from the brief and the accepted plan. The page carries no internal figures; kp composes it itself when no model can.",
       "role_research": "What a job seeker's target titles ask for now, researched on the web with its sources."
     }
   },
@@ -11465,7 +11469,8 @@
       "gigScan": "Gig listing scan",
       "gigResearch": "Gig research",
       "gigPlans": "Gig plans · {count, plural, one {# gig} other {# gigs}}",
-      "gigReport": "Gig report"
+      "gigReport": "Gig report",
+      "gigProposal": "Client proposal"
     },
     "filter": {
       "clear": "Clear"
@@ -11556,7 +11561,8 @@
         "already_rematched": "Already re-matched",
         "no_alternative": "No alternative role found",
         "skipped_hired": "Skipped: already hired",
-        "skipped_stage_changed": "Skipped: the candidate moved stage"
+        "skipped_stage_changed": "Skipped: the candidate moved stage",
+        "deferred": "Scored: applying is left to the caller"
       },
       "fanout": {
         "failedBy": "Failed:",
@@ -14166,6 +14172,8 @@
       "scope_honest": "Scope, timeline and price stated honestly",
       "no_overclaim": "No experience or capability claimed that isn't held",
       "deliverable_verified": "The deliverable was checked against the brief",
+      "asks_included": "The questions and artifacts we need are in the message",
+      "proposal_attached": "The client proposal is attached or linked in the bid",
       "no_off_platform": "No off-platform payment or contact proposed",
       "disclosure": "The AI-use disclosure goes out with the work"
     },
@@ -15089,7 +15097,9 @@
         "regenerating": "Asking…",
         "regenerateTip": "Write the report again from the gig as it is now.",
         "regenerateNeedsBrief": "Research the gig first: the report is written from its brief.",
-        "regenerateFailed": "The report could not be requested."
+        "regenerateFailed": "The report could not be requested.",
+        "write": "Write the report",
+        "noneYet": "No report yet."
       },
       "choose": {
         "lineup": "Difficulty: {difficulty}. {count, plural, one {One plan is written, by {models}.} other {# models each write a plan: {models}.}}",
@@ -15157,6 +15167,75 @@
       "copyFailed": "The ID could not be copied. Select it and copy it by hand.",
       "reportFile": "Report file",
       "byKp": "by kp, no model"
+    },
+    "proposal": {
+      "stage": {
+        "proof": "Proposal to proof",
+        "ready": "Bid ready to send"
+      },
+      "hero": {
+        "open": "Open the client proposal",
+        "download": "Download",
+        "prepare": "Prepare the proposal",
+        "rewrite": "Rewrite the proposal",
+        "asking": "Asking…",
+        "tip": "Write the client proposal, the bid message and the questions for the client from the gig as it is now.",
+        "needsBrief": "Research the gig first: the proposal is written from its brief.",
+        "writing": "Writing",
+        "firstWriting": "The proposal is being written.",
+        "none": "No client proposal yet.",
+        "fromProposal": "From the client proposal kp wrote",
+        "failed": "The last proposal failed: {reason}.",
+        "requestFailed": "The proposal could not be requested.",
+        "basis": {
+          "will": "It is written from the brief alone: accept a plan for a sharper one.",
+          "was": "Written from the brief alone: accept a plan for a sharper one.",
+          "stale": "Written from the brief alone, before a plan was accepted: rewrite it for a sharper one."
+        }
+      },
+      "meta": {
+        "track": "Track",
+        "proposal": "Freelance bid: a proposal, no build",
+        "proposalSub": "A bid is rarely won, so kp prepares a plan, the questions and a page for the client. Nothing is built before the client says yes.",
+        "build": "Bounty: the work is the entry",
+        "buildSub": "The gig’s own agent builds it, and what it builds is what gets judged.",
+        "file": "Client proposal",
+        "fromPlan": "Written from the accepted plan · {date}",
+        "fromBrief": "Written from the brief alone · {date}",
+        "writing": "Being written now",
+        "failed": "The last write failed: {reason}",
+        "copied": "Proposal path copied"
+      },
+      "bid": {
+        "title": "The bid",
+        "ledeOwn": "kp wrote this message from the client proposal. Proof it here, approve it in the sign-off, then paste it on the platform yourself.",
+        "lede": "The message to paste on the platform, and what to ask the client before any work starts.",
+        "copy": "Copy message",
+        "copied": "Message copied",
+        "copyFailed": "The clipboard is not available here. Select the text and copy it.",
+        "movedOn": "The proposal was rewritten after this draft. To proof the new message, discard the draft and prepare the proposal again.",
+        "newMessage": "The rewritten message",
+        "questions": "Questions for the client",
+        "artifacts": "What we need from the client",
+        "noQuestions": "No open questions for the client.",
+        "noArtifacts": "The listing names everything the work needs.",
+        "foot": "kp never sends it. You paste it on the platform, from your own account."
+      },
+      "signoff": {
+        "next": "Prepare the proposal when you choose",
+        "why": "A freelance bid is rarely won, so kp prepares a proposal instead of the work: a plan, the questions to ask and a page for the client.",
+        "noPlan": "No plan is accepted yet",
+        "noPlanBody": "The proposal is then written from the brief alone. Accept a plan for a sharper one.",
+        "writing": "Writing the proposal. Its bid lands here as a draft to proof.",
+        "flash": "The proposal is being written. Its bid lands under “To proof”.",
+        "belowBarHow": "Its bid becomes a draft to proof once a scan qualifies it. You can prepare the proposal from the Summary now.",
+        "ownDraft": "kp wrote this draft from the proposal. To change it, discard it and prepare the proposal again.",
+        "again": "The last draft did not go through. Prepare the proposal again: kp writes a fresh bid from it."
+      },
+      "pairingOff": "A freelance bid gets a proposal, not an agent: there is nothing to pair.",
+      "review": {
+        "fromProposal": "Written with the client proposal on {date}. Copy it, read it, send it yourself."
+      }
     }
   },
   "kit": {

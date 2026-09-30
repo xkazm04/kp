@@ -27,6 +27,7 @@
 import { registerTaskRunner } from "./task-external-runners";
 import { registerStageHookInvite } from "./stage-hooks-invite";
 import { registerGigReportEnqueuer } from "./gigs/report/trigger";
+import { registerGigProposalEnqueuer } from "./gigs/proposal/trigger";
 
 /** True in a `node --test` process (the runner's child sets NODE_TEST_CONTEXT and carries
  *  --test* in execArgv) - the same signal db-path.ts's test-isolation guard reads. */
@@ -179,6 +180,25 @@ export function registerLateBoundImplementations(): void {
       : async (ws, gigId, stage) => {
           const { startTask } = await import("./tasks");
           return startTask("gig_report", { workspaceId: ws, gigId, stage }, ws).id;
+        }
+  );
+  // `gig_proposal` (tasks.ts spec): a freelance gig's client proposal (gigs/proposal/run.ts) -
+  // one pinned model call (gig_proposal_cli.py) or kp's own composition keyless, the file,
+  // the record, and for a qualified gig the draft attempt kp writes itself.
+  registerTaskRunner("gig_proposal", async (ctx) => {
+    const { parseGigProposalTaskParams, runGigProposal } = await import("./gigs/proposal/run");
+    const p = parseGigProposalTaskParams(ctx.params);
+    if (!p) return { status: "skipped", reason: "no_gig" };
+    return runGigProposal(ctx.workspaceId, p.gigId, { signal: ctx.signal });
+  });
+  // The plan-accept trigger (gigs/proposal/trigger.ts), the same shape as the report's: NOT
+  // in a node:test process, so a unit test that accepts a plan never starts a model call.
+  registerGigProposalEnqueuer(
+    inNodeTestRun()
+      ? null
+      : async (ws, gigId) => {
+          const { startTask } = await import("./tasks");
+          return startTask("gig_proposal", { workspaceId: ws, gigId }, ws).id;
         }
   );
   // `gig_sync` pulls the workspace's in-flight attempts from Personas (gigs/sync.ts),

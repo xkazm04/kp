@@ -8,11 +8,11 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { reportFixtureInput } from "../__fixtures__/report-facts.ts";
+import { reportFixtureInput, reportFixtureProposalInput } from "../__fixtures__/report-facts.ts";
 import { GIG_REPORT_STAGES, type GigReportStage } from "../types.ts";
 import { assembleGigReport, fillRequiredSections, parseGigReportBody } from "./assemble.ts";
 import { deterministicReportBody, briefMarkdownHtml } from "./deterministic.ts";
-import { buildGigReportFacts, gigReportStageOf } from "./facts.ts";
+import { buildGigReportFacts, gigReportStageOf, reportTrackOf } from "./facts.ts";
 import { gigReportPathFor, gigReportsRoot, previousReportPath, writeGigReportFile } from "./file.ts";
 import { GIG_REPORT_CSP, readGigReportFile, servedReportsRoot } from "./serve.ts";
 import { GIG_REPORT_SECTION_KINDS, sectionPlanFor } from "./model.ts";
@@ -280,4 +280,50 @@ test("lockstep: the prompt version, the section kinds and the stage plan match g
     const prev = GIG_REPORT_STAGES.indexOf(stage) === 0 ? [] : sectionPlanFor(GIG_REPORT_STAGES[GIG_REPORT_STAGES.indexOf(stage) - 1]);
     assert.deepEqual([...adds[1].matchAll(/"([a-z]+)"/g)].map((m) => m[1]), sectionPlanFor(stage).slice(prev.length), stage);
   }
+});
+
+// ---------------------------------------------------------------------------
+// The two tracks: a freelance bid reports its client proposal, not a draft
+// ---------------------------------------------------------------------------
+
+test("track: the proposal track swaps the drafted stage's sections; every other stage reads the same", () => {
+  assert.deepEqual(sectionPlanFor("drafted", "proposal").slice(-2), ["proposal", "requests"]);
+  assert.deepEqual(sectionPlanFor("closed", "proposal"), [...sectionPlanFor("accepted"), "proposal", "requests", "outcome", "lessons"]);
+  for (const stage of ["researched", "planned", "accepted"] as const) assert.deepEqual(sectionPlanFor(stage, "proposal"), sectionPlanFor(stage));
+  assert.deepEqual(sectionPlanFor("drafted"), sectionPlanFor("drafted", "build"), "build is the default");
+});
+
+test("track: a freelance gig reports as a proposal unless a persona drafted it before the tracks split", () => {
+  const proposal = reportFixtureProposalInput();
+  assert.equal(reportTrackOf(proposal.gig, proposal.attempts), "proposal");
+  const legacy = reportFixtureInput("drafted");
+  assert.equal(reportTrackOf(legacy.gig, legacy.attempts), "build", "an old persona draft with no proposal keeps its draft sections");
+  assert.equal(reportTrackOf({ ...legacy.gig, arena: "security" }, []), "build");
+  assert.equal(reportTrackOf({ ...legacy.gig, proposal: null }, []), "proposal");
+});
+
+test("track: the facts carry the proposal record (never its HTML) and the deterministic body renders it", () => {
+  const f = buildGigReportFacts(reportFixtureProposalInput())!;
+  assert.equal(f.stage, "drafted");
+  assert.equal(f.track, "proposal");
+  assert.equal(f.proposal?.fromAcceptedPlan, true);
+  assert.deepEqual(f.proposal?.artifacts.length, 2);
+  const body = deterministicReportBody(f);
+  assert.deepEqual(body.sections.map((s) => s.kind), sectionPlanFor("drafted", "proposal"));
+  assert.match(body.lead, /client proposal is ready, asking 3 things/);
+  const proposal = body.sections.find((s) => s.kind === "proposal")!.html;
+  assert.match(proposal, /2026-09-28-checkout-page-too-slow-nextjs-a1b2c3\.html/);
+  assert.match(proposal, /The client receives/);
+  const requests = body.sections.find((s) => s.kind === "requests")!.html;
+  assert.match(requests, /Welches Lighthouse-Profil/);
+  assert.match(requests, /Read-only access to Vercel analytics/);
+  const html = assembleGigReport({ facts: f, modelResult: null, model: null, fallbackReason: "no_provider", costUsd: null, generatedAt: "2026-09-30T09:00:00.000Z" }).html;
+  assert.doesNotMatch(html, /The evidence/, "no evidence section on the proposal track");
+});
+
+test("lockstep: the proposal track's stage adds match gig_report_cli.py _PROPOSAL_STAGE_ADDS", () => {
+  const block = CLI.slice(CLI.indexOf("_PROPOSAL_STAGE_ADDS"), CLI.indexOf("}", CLI.indexOf("_PROPOSAL_STAGE_ADDS")));
+  const adds = /"drafted": \(([^)]*)\)/.exec(block);
+  assert.ok(adds);
+  assert.deepEqual([...adds[1].matchAll(/"([a-z]+)"/g)].map((m) => m[1]), sectionPlanFor("drafted", "proposal").slice(sectionPlanFor("accepted").length));
 });

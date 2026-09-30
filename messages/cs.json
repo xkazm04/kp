@@ -2030,6 +2030,8 @@
     "GIG_WORKSPACE_FAILED": "Pracovní složku zakázky nebo její projekt v Personas se nepodařilo připravit, a tak se nic neodeslalo. Zkontrolujte připojení k Personas a zkuste to znovu.",
     "GIG_ROUTE_ARENA_MISMATCH": "Tento specialista pracuje v jiné oblasti než zakázka, takže mu ji nelze přiřadit.",
     "GIG_REPORT_NOT_FOUND": "Tato zakázka zatím nemá zprávu. Vznikne, jakmile bude hotová rešerše zakázky.",
+    "GIG_PROPOSAL_TRACK": "Tohle je nabídka na freelance zakázku: kp připraví návrh pro klienta, ne samotnou práci.",
+    "GIG_PROPOSAL_NOT_FOUND": "Tato zakázka zatím nemá návrh pro klienta. Vznikne po přijetí plánu nebo na vyžádání.",
     "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu.",
     "JOBSEEKER_CV_NOT_FOUND": "Toto CV mezi vašimi není.",
     "JOBSEEKER_REQUEST_INVALID": "Změna neměla očekávaný tvar, nic se neuložilo."
@@ -9739,6 +9741,7 @@
       "gig_brief": "Rešerše zakázky",
       "gig_plan": "Plány zakázky",
       "gig_report": "Zpráva o zakázce",
+      "gig_proposal": "Návrh pro klienta",
       "role_research": "Průzkum pozice"
     },
     "providers": {
@@ -9825,6 +9828,7 @@
       "gig_brief": "Přečte inzerát placené zakázky a stránky, na které odkazuje, a sepíše k ní rešerši: kategorii, náročnost, odhad práce a očekávané potíže.",
       "gig_plan": "Tři pevně nastavené modely napíšou každý plán zakázky podle její rešerše: kroky s podmínkou dokončení, rozhodnutí, která udělal, rizika, pracnost a otevřené otázky. Operátor jeden přijme.",
       "gig_report": "Z faktů, které kp o zakázce má, píše soubor se zprávou a aktualizuje ho, jak zakázka postupuje: co zadání chce, rizika, vhodnost a peníze, plány vedle sebe, návrh a jeho důkazy, výsledek. Když žádný model není k dispozici, napíše ji kp sám.",
+      "gig_proposal": "Píše návrh pro klienta u freelance zakázky a zprávu k odeslání, v jazyce inzerátu, z rešerše a přijatého plánu. Stránka neobsahuje žádná interní čísla; když žádný model není k dispozici, sestaví ho kp sám.",
       "role_research": "Co dnes vyžadují cílové pozice uchazeče, zjištěno na webu i se zdroji."
     }
   },
@@ -11465,7 +11469,8 @@
       "gigScan": "Sken nabídek zakázek",
       "gigResearch": "Rešerše zakázky",
       "gigPlans": "Plány zakázek · {count, plural, one {# zakázka} few {# zakázky} many {# zakázky} other {# zakázek}}",
-      "gigReport": "Zpráva o zakázce"
+      "gigReport": "Zpráva o zakázce",
+      "gigProposal": "Návrh pro klienta"
     },
     "filter": {
       "clear": "Zrušit filtry"
@@ -11556,7 +11561,8 @@
         "already_rematched": "Již přiřazen jinam",
         "no_alternative": "Žádná jiná role se nenašla",
         "skipped_hired": "Přeskočeno: již přijat",
-        "skipped_stage_changed": "Přeskočeno: kandidát změnil fázi"
+        "skipped_stage_changed": "Přeskočeno: kandidát změnil fázi",
+        "deferred": "Ohodnoceno: zapsání provede volající krok"
       },
       "fanout": {
         "failedBy": "Selhalo:",
@@ -14166,6 +14172,8 @@
       "scope_honest": "Rozsah, termín a cena jsou uvedeny poctivě",
       "no_overclaim": "Žádné tvrzení o zkušenosti nebo schopnosti, která chybí",
       "deliverable_verified": "Výstup byl zkontrolován proti zadání",
+      "asks_included": "Otázky a podklady, které potřebujeme, jsou ve zprávě",
+      "proposal_attached": "Návrh pro klienta je k nabídce přiložen nebo je v ní odkaz",
       "no_off_platform": "Nenavrhuje se platba ani kontakt mimo platformu",
       "disclosure": "Prohlášení o použití AI odchází spolu s prací"
     },
@@ -15089,7 +15097,9 @@
         "regenerating": "Žádám…",
         "regenerateTip": "Napsat zprávu znovu podle aktuálního stavu zakázky.",
         "regenerateNeedsBrief": "Nejprve proveďte rešerši zakázky: zpráva z ní vychází.",
-        "regenerateFailed": "Zprávu se nepodařilo vyžádat."
+        "regenerateFailed": "Zprávu se nepodařilo vyžádat.",
+        "write": "Napsat zprávu",
+        "noneYet": "Zpráva zatím není napsaná."
       },
       "choose": {
         "lineup": "Obtížnost: {difficulty}. {count, plural, one {Píše se jeden plán, autor {models}.} few {# modely píšou každý svůj plán: {models}.} many {# modelu píše každý svůj plán: {models}.} other {# modelů píše každý svůj plán: {models}.}}",
@@ -15157,6 +15167,75 @@
       "copyFailed": "ID se nepodařilo zkopírovat. Označte ho a zkopírujte ručně.",
       "reportFile": "Soubor zprávy",
       "byKp": "napsal kp, bez modelu"
+    },
+    "proposal": {
+      "stage": {
+        "proof": "Návrh ke kontrole",
+        "ready": "Nabídka k odeslání"
+      },
+      "hero": {
+        "open": "Otevřít návrh pro klienta",
+        "download": "Stáhnout",
+        "prepare": "Připravit návrh",
+        "rewrite": "Napsat návrh znovu",
+        "asking": "Žádám…",
+        "tip": "Napsat návrh pro klienta, zprávu s nabídkou a otázky pro klienta podle aktuálního stavu zakázky.",
+        "needsBrief": "Nejprve proveďte rešerši zakázky: návrh z ní vychází.",
+        "writing": "Píše se",
+        "firstWriting": "Návrh se píše.",
+        "none": "Návrh pro klienta zatím není.",
+        "fromProposal": "Z návrhu pro klienta, který napsal kp",
+        "failed": "Poslední návrh selhal: {reason}.",
+        "requestFailed": "Návrh se nepodařilo vyžádat.",
+        "basis": {
+          "will": "Napíše se jen z rešerše: pro přesnější návrh přijměte plán.",
+          "was": "Napsáno jen z rešerše: pro přesnější návrh přijměte plán.",
+          "stale": "Napsáno jen z rešerše, ještě před přijetím plánu: napište ho znovu, bude přesnější."
+        }
+      },
+      "meta": {
+        "track": "Postup",
+        "proposal": "Freelance nabídka: návrh, žádná realizace",
+        "proposalSub": "Nabídka vyhrává jen zřídka, proto kp připraví plán, otázky a stránku pro klienta. Nic se nestaví, dokud klient neřekne ano.",
+        "build": "Odměna: přihláškou je sama práce",
+        "buildSub": "Postaví ji vlastní agent zakázky a hodnotí se to, co postaví.",
+        "file": "Návrh pro klienta",
+        "fromPlan": "Napsáno z přijatého plánu · {date}",
+        "fromBrief": "Napsáno jen z rešerše · {date}",
+        "writing": "Právě se píše",
+        "failed": "Poslední zápis selhal: {reason}",
+        "copied": "Cesta k návrhu zkopírována"
+      },
+      "bid": {
+        "title": "Nabídka",
+        "ledeOwn": "Tuto zprávu napsal kp z návrhu pro klienta. Zkontrolujte ji zde, schvalte ji ve Schválení a pak ji sami vložte na platformu.",
+        "lede": "Zpráva k vložení na platformu a na co se klienta zeptat, než začne jakákoli práce.",
+        "copy": "Kopírovat zprávu",
+        "copied": "Zpráva zkopírována",
+        "copyFailed": "Schránka tu není k dispozici. Označte text a zkopírujte ho.",
+        "movedOn": "Návrh byl po tomto konceptu napsán znovu. Chcete-li zkontrolovat novou zprávu, koncept zahoďte a návrh připravte znovu.",
+        "newMessage": "Nově napsaná zpráva",
+        "questions": "Otázky pro klienta",
+        "artifacts": "Co od klienta potřebujeme",
+        "noQuestions": "Pro klienta nejsou žádné otevřené otázky.",
+        "noArtifacts": "Nabídka uvádí vše, co práce potřebuje.",
+        "foot": "kp ji nikdy neodešle. Vložíte ji na platformu vy ze svého účtu."
+      },
+      "signoff": {
+        "next": "Připravte návrh, až budete chtít",
+        "why": "Freelance nabídka vyhrává jen zřídka, proto kp místo práce připraví návrh: plán, otázky pro klienta a stránku pro něj.",
+        "noPlan": "Zatím není přijatý žádný plán",
+        "noPlanBody": "Návrh se pak napíše jen z rešerše. Pro přesnější návrh přijměte plán.",
+        "writing": "Návrh se píše. Jeho nabídka se tu objeví jako koncept ke kontrole.",
+        "flash": "Návrh se píše. Jeho nabídka se objeví v „Ke kontrole“.",
+        "belowBarHow": "Nabídka se stane konceptem ke kontrole, až zakázku kvalifikuje sken. Návrh můžete připravit už teď ve Shrnutí.",
+        "ownDraft": "Tento koncept napsal kp z návrhu. Chcete-li ho změnit, zahoďte ho a připravte návrh znovu.",
+        "again": "Poslední koncept neprošel. Připravte návrh znovu: kp z něj napíše novou nabídku."
+      },
+      "pairingOff": "Freelance nabídka dostává návrh, ne agenta: není co párovat.",
+      "review": {
+        "fromProposal": "Napsáno s návrhem pro klienta {date}. Zkopírujte ji, přečtěte a odešlete sami."
+      }
     }
   },
   "kit": {

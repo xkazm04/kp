@@ -11,7 +11,7 @@ import type { GigAttempt, GigOutcome, GigPlanRow } from "@/app/_lib/gigs/types";
 // points (HTML, not rendered Markdown), and add up what the gig has cost so far. Pure:
 // pinned by report.test.ts.
 
-export const REPORT_SECTIONS = ["gig", "file", "brief", "plans", "draft"] as const;
+export const REPORT_SECTIONS = ["gig", "file", "brief", "plans", "bid", "draft"] as const;
 export type ReportSection = (typeof REPORT_SECTIONS)[number];
 
 /** The DOM id of a block's heading (a jump from the sign-off focuses it). */
@@ -24,13 +24,24 @@ export type SummaryFacts = {
   accepted: boolean;
   /** The latest attempt carries a draft to read. */
   draft: boolean;
+  /** The proposal track (a freelance bid, logic/proposal.ts); absent = the build track. */
+  proposalTrack?: boolean;
+  /** The gig's proposal carries a bid message. */
+  proposal?: boolean;
+  /** The latest attempt is the draft kp wrote itself from the proposal. */
+  kpDraft?: boolean;
 };
 
 /** Which working blocks the Summary shows under the hero, the report card and the brief.
  *  Plans: "accepted" once one is (a line and its steps), "choose" while plans wait for a
- *  pick or a brief waits for its first plans, nothing before the gig is researched. */
-export function summaryBlocks(f: SummaryFacts): { plans: "choose" | "accepted" | null; draft: boolean } {
-  return { plans: f.accepted ? "accepted" : f.plans || f.brief ? "choose" : null, draft: f.draft };
+ *  pick or a brief waits for its first plans, nothing before the gig is researched. The bid
+ *  (proposal track only): once a proposal or kp's own draft exists. kp's own draft IS the
+ *  bid message, so it is proofed inside the bid block (`draftInBid`) instead of a second
+ *  "Review the draft" block that would show the same words again. */
+export function summaryBlocks(f: SummaryFacts): { plans: "choose" | "accepted" | null; bid: boolean; draft: boolean; draftInBid: boolean } {
+  const bid = !!f.proposalTrack && (!!f.proposal || (f.draft && !!f.kpDraft));
+  const draftInBid = bid && f.draft && !!f.kpDraft;
+  return { plans: f.accepted ? "accepted" : f.plans || f.brief ? "choose" : null, bid, draft: f.draft && !draftInBid, draftInBid };
 }
 
 /** A plan's summary as its first sentence, cut on a word near `max` characters (the seat

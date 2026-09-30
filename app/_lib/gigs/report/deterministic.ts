@@ -169,6 +169,8 @@ const TITLES: Readonly<Record<GigReportSectionKind, string>> = {
   review: "Doubts and the review",
   outcome: "Outcome and money",
   lessons: "Lessons",
+  proposal: "The client proposal",
+  requests: "What we ask the client",
   other: "Notes",
 };
 
@@ -334,6 +336,31 @@ function lessonsSection(f: GigReportFacts): string {
   return `${list(facts)}${feedback.length ? `<h3>In the client's words</h3>${feedback.map((t) => `<blockquote><p>${e(t)}</p></blockquote>`).join("")}` : ""}<p>kp files the recipe lessons an outcome teaches in its lessons ledger; this report does not repeat them.</p>`;
 }
 
+function proposalSection(f: GigReportFacts): string {
+  const p = f.proposal;
+  if (!p) return "<p>No client proposal is written yet.</p>";
+  const steps = f.accepted?.steps ?? [];
+  const milestones = steps.length
+    ? figure(table(["#", "Milestone", "The client receives"], steps.map((s, i) => [String(i + 1), e(s.title), e(s.doneWhen)])), `<strong>The milestones the proposal offers.</strong> Source: the accepted plan the proposal was written from.`)
+    : "<p>No plan is accepted: the proposal says the detailed plan follows the client's answers.</p>";
+  const approach = f.accepted?.summary ? `<p>${e(f.accepted.summary)}</p>` : "";
+  const who = p.source === "llm" ? "written by the pinned model" : "composed by kp from the brief and the plan";
+  const opening = p.messageExcerpt.split(/\n\s*\n/).slice(0, 2).join("\n\n").slice(0, 600);
+  return `<p>The proposal file is <code>${e(p.path)}</code>, ${e(who)} on ${e(day(p.generatedAt))}.</p>${approach}${milestones}${opening ? `<blockquote><p>${e(opening)}</p></blockquote>` : ""}`;
+}
+
+function requestsSection(f: GigReportFacts): string {
+  const p = f.proposal;
+  if (!p) return "<p>No client proposal is written yet, so nothing is asked.</p>";
+  const rows = [...p.questions.map((q) => ["question", q]), ...p.artifacts.map((a) => ["artifact", a])];
+  if (rows.length === 0) return "<p>The proposal asks the client nothing.</p>";
+  const first = p.artifacts[0] ?? p.questions[0];
+  return (
+    figure(table(["#", "Ask", "Kind"], rows.map(([kind, text], i) => [String(i + 1), e(text), e(kind)])), `<strong>What the proposal asks the client.</strong> Source: the proposal record.`) +
+    callout("warn", "What blocks the work", `<p>${e(first)}</p>`)
+  );
+}
+
 const BUILD: Readonly<Record<GigReportSectionKind, (f: GigReportFacts) => string>> = {
   gig: gigSection,
   asks: asksSection,
@@ -347,6 +374,8 @@ const BUILD: Readonly<Record<GigReportSectionKind, (f: GigReportFacts) => string
   review: reviewSection,
   outcome: outcomeSection,
   lessons: lessonsSection,
+  proposal: proposalSection,
+  requests: requestsSection,
   other: () => "",
 };
 
@@ -366,7 +395,10 @@ function deterministicLead(f: GigReportFacts): string {
     researched: () => `${cap((f.brief?.difficulty ?? "unrated").replace(/_/g, " "))} work, ${rate} by kp's estimate.`,
     planned: () => `${f.plans.filter((p) => p.status === "ready").length} of ${plural(f.plans.length, "plan is", "plans are")} ready to compare; none is accepted yet.`,
     accepted: () => `The ${f.accepted?.label ?? "chosen"} plan is accepted: ${plural(f.accepted?.steps.length ?? 0, "step", "steps")}, ${rate}.`,
-    drafted: () => `A draft is in, with ${plural(blockers, "blocking finding", "blocking findings")} before it can be sent.`,
+    drafted: () =>
+      f.track === "proposal"
+        ? `A client proposal is ready, asking ${plural((f.proposal?.questions.length ?? 0) + (f.proposal?.artifacts.length ?? 0), "thing", "things")} of the client before work starts.`
+        : `A draft is in, with ${plural(blockers, "blocking finding", "blocking findings")} before it can be sent.`,
     sent: () => `The work was sent on ${day(f.attempt?.sentAt ?? null)}; the verdict is pending.`,
     closed: () => `${GIG_REPORT_STAGE_LABEL.closed}: ${f.outcomes.at(-1)?.verdict.replace(/_/g, " ") ?? f.gig.status}.`,
   };
@@ -378,5 +410,5 @@ function deterministicLead(f: GigReportFacts): string {
 export function deterministicReportBody(f: GigReportFacts): GigReportBody {
   const lead = deterministicLead(f);
   const rate = f.money.ratePerHourUsd ? `about $${f.money.ratePerHourUsd.min}-${f.money.ratePerHourUsd.max} an hour` : null;
-  return { lead, highlight: rate && lead.includes(rate) ? rate : null, sections: sectionPlanFor(f.stage).map((k) => deterministicSection(f, k)) };
+  return { lead, highlight: rate && lead.includes(rate) ? rate : null, sections: sectionPlanFor(f.stage, f.track).map((k) => deterministicSection(f, k)) };
 }

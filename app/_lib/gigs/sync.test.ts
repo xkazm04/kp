@@ -364,11 +364,11 @@ function persona(ws: string, gigId: string | null, status: AgentStatus, personaI
   });
 }
 
-function pairedQualifiedGig(ws: string): Gig {
+function pairedQualifiedGig(ws: string, arena: Gig["arena"] = "security"): Gig {
   seq += 1;
   const { gig } = upsertGigFromRaw(ws, {
     sourceId: "gsrc-s",
-    arena: "security",
+    arena,
     raw: { externalKey: `sp-${seq}`, url: `https://example.test/sp/${seq}`, title: `Paired ${seq}`, org: null, reward: null, deadlineAt: null, postedAt: null, bodyText: "x", bodyHtml: null, tags: [] },
     suspectReasons: [],
   });
@@ -418,6 +418,24 @@ test("personas: a pending hire is polled to active, and its paired gig runs ONCE
   const again = await syncGigAttempts(ws, d);
   assert.equal(again.personas.hiresPolled, 0, "an active hire is not polled");
   assert.deepEqual(d.dispatched, [gig.id], "a gig its persona already ran is not re-run by the sync");
+});
+
+test("personas: a freelance gig is the proposal track - its active persona is never run by the sync", async () => {
+  const ws = "ws-sync-pair-freelance";
+  const gig = pairedQualifiedGig(ws, "freelance");
+  const p = persona(ws, gig.id, "active", "persona-f");
+  assert.ok(setGigRoute(ws, gig.id, { expectedStatus: "qualified", specialistId: p.id, niche: null }).ok);
+  const d = personaDeps();
+  const s = await syncGigAttempts(ws, d);
+  assert.deepEqual(d.dispatched, [], "kp writes a freelance gig a proposal; no persona builds it");
+  assert.equal(s.personas.executed + s.personas.executeFailed, 0);
+  // The build track is unaffected: the same shape on a security gig runs once.
+  const build = pairedQualifiedGig("ws-sync-pair-build");
+  const q = persona("ws-sync-pair-build", build.id, "active", "persona-b");
+  assert.ok(setGigRoute("ws-sync-pair-build", build.id, { expectedStatus: "qualified", specialistId: q.id, niche: null }).ok);
+  const d2 = personaDeps();
+  await syncGigAttempts("ws-sync-pair-build", d2);
+  assert.deepEqual(d2.dispatched, [build.id]);
 });
 
 test("personas: a gig whose specialist_id does not name the persona is not run", async () => {

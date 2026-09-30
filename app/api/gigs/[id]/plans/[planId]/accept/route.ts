@@ -5,7 +5,9 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGig } from "@/app/_lib/db/gigs";
 import { acceptGigPlan, getGigPlan } from "@/app/_lib/db/gigs-plans";
+import { requestGigProposal } from "@/app/_lib/gigs/proposal/trigger";
 import { requestGigReport } from "@/app/_lib/gigs/report/trigger";
+import { gigTrackOf } from "@/app/_lib/gigs/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 // POST /api/gigs/[id]/plans/[planId]/accept [{ note?: string }] - the operator accepts ONE
@@ -27,6 +29,9 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //
 // Throttled per IP before the body is read, like every /api/gigs write (open mode makes the
 // operator gate a no-op). One row write per click, so the budget is the review desk's.
+//
+// A FREELANCE gig (the proposal track, types.ts gigTrackOf) also asks for its client proposal
+// on accept (a `gig_proposal` task, gigs/proposal/run.ts): kp prepares the bid, never the work.
 
 type Params = { params: Promise<{ id: string; planId: string }> };
 
@@ -51,13 +56,17 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
     const note = typeof rawNote === "string" && rawNote.trim() ? rawNote : null;
     const { id, planId } = await params;
     const ws = await currentWorkspace();
-    if (!getGig(ws, id)) return jsonRefusal("GIG_NOT_FOUND", 404);
+    const gig = getGig(ws, id);
+    if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     const plan = getGigPlan(ws, planId);
     if (!plan || plan.gigId !== id) return jsonRefusal("GIG_PLAN_NOT_FOUND", 404);
     const out = acceptGigPlan(ws, planId, note);
     if (out.ok) {
       // The gig's report (gigs/report/trigger.ts): best-effort, never part of the accept.
       requestGigReport(ws, id, "accepted");
+      // A freelance gig is the proposal track: the accepted plan becomes the client proposal
+      // (gigs/proposal/trigger.ts), which then becomes the gig's draft. Best-effort too.
+      if (gigTrackOf(gig.arena) === "proposal") requestGigProposal(ws, id);
       return NextResponse.json({ plan: out.plan });
     }
     if (out.reason === "already_accepted") return jsonRefusal("GIG_PLAN_ALREADY_ACCEPTED", 409);

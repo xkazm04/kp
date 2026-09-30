@@ -119,6 +119,12 @@ export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // effort, across up to fifty gigs. Its door (/api/gigs/[id]/plans, /api/gigs/plans)
   // carries its own 20/10min limiter; this is the class a budgeted door would spend.
   gig_plans: "agent",
+  // The gig's HTML report (gigs/report/run.ts): one pinned model call per stage a gig
+  // reaches, plus the operator's "regenerate now" behind its own 20/10min limiter.
+  gig_report: "agent",
+  // A freelance gig's client proposal (gigs/proposal/run.ts): one pinned model call per
+  // accepted plan or operator request, behind its door's own 20/10min limiter.
+  gig_proposal: "agent",
 };
 
 /** The class a kind is budgeted under. A string outside the vocabulary (a row an

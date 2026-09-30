@@ -25,3 +25,10 @@ test("gigChecklist hands out a fresh copy", () => {
   a.push("mutated");
   assert.ok(!gigChecklist("security").includes("mutated"));
 });
+
+test("the freelance checklist is the PROPOSAL track's: the asks and the proposal file, disclosure last", () => {
+  assert.deepEqual(GIG_CHECKLISTS.freelance, ["brief_answered", "scope_honest", "no_overclaim", "asks_included", "proposal_attached", "no_off_platform", GIG_DISCLOSURE_ITEM]);
+  assert.ok(!GIG_CHECKLISTS.freelance.includes("deliverable_verified"), "a proposal is not a verified deliverable");
+  // A review stored before the tracks split still reads: the retired key keeps its meaning.
+  assert.ok((GIG_CHECKLIST_MEANING.deliverable_verified ?? "").length > 10);
+});

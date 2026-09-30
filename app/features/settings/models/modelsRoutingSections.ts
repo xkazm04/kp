@@ -47,10 +47,10 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   { key: "jobseeker", useCases: ["cv_polish", "fit_dialog", "extraction_rules", "role_research"] },
   // Gigs (docs/features/gigs/README.md): the research brief written from a paid-work
   // listing and the pages it links to, the plans the seats propose for it, and the gig's
-  // HTML report. All three are pinned at their call sites (llm-pins.ts). They serve the
-  // operator taking on outside work, so they are none of the hiring clusters above and not
-  // the job-seeker's dialogs.
-  { key: "gigs", useCases: ["gig_brief", "gig_plan", "gig_report"] },
+  // HTML report, and a freelance bid's client proposal (the proposal track). All four are
+  // pinned at their call sites (llm-pins.ts). They serve the operator taking on outside
+  // work, so they are none of the hiring clusters above and not the job-seeker's dialogs.
+  { key: "gigs", useCases: ["gig_brief", "gig_plan", "gig_report", "gig_proposal"] },
   // The work-sample (dev-case) assignment lifecycle, design → evaluation.
   {
     key: "assignments",

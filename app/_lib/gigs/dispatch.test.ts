@@ -254,8 +254,8 @@ test("a legacy gig whose niche specialist is gone asks for a plan; one whose hir
   const none = await dispatchGigAttempt(WS, lonely.id, {}, t.deps);
   assert.ok(!none.ok && none.code === "GIG_PLAN_NOT_ACCEPTED", "no niche specialist left: the gig's own persona, via a plan");
 
-  const pending = specialist("freelance", "pending_approval", null);
-  const gig = qualified(newGig("freelance"), pending);
+  const pending = specialist("oss_bounty", "pending_approval", null);
+  const gig = qualified(newGig("oss_bounty"), pending);
   const notYet = await dispatchGigAttempt(WS, gig.id, {}, t.deps);
   assert.ok(!notYet.ok && notYet.code === "GIG_SPECIALIST_NOT_READY");
   assert.equal(t.calls.length, 0);
@@ -268,6 +268,20 @@ test("a legacy gig whose niche specialist was retired asks for a plan instead of
   const gig = qualified(newGig("security"), retired);
   const r = await dispatchGigAttempt(WS, gig.id, {}, transport({ ok: true, executionId: "never" }).deps);
   assert.ok(!r.ok && r.code === "GIG_PLAN_NOT_ACCEPTED");
+});
+
+test("a freelance gig is the proposal track: GIG_PROPOSAL_TRACK before anything runs, with or without a plan", async () => {
+  const t = transport({ ok: true, executionId: "never" });
+  const bid = newGig("freelance");
+  assert.ok(transitionGig(WS, bid.id, { from: "new", to: "qualified" }).ok);
+  const bare = await dispatchGigAttempt(WS, bid.id, {}, t.deps);
+  assert.deepEqual(bare, { ok: false, code: "GIG_PROPOSAL_TRACK" });
+  fixtureAcceptedPlan(WS, bid.id);
+  const planned = await dispatchGigAttempt(WS, bid.id, {}, t.deps);
+  assert.deepEqual(planned, { ok: false, code: "GIG_PROPOSAL_TRACK" });
+  assert.equal(t.calls.length, 0, "nothing reached Personas");
+  assert.equal(getGig(WS, bid.id)!.status, "qualified", "nothing was claimed");
+  assert.equal(listGigAttemptsForGig(WS, bid.id).length, 0, "no attempt was minted");
 });
 
 test("refuses a gig that is not dispatchable (new, dispatched) with GIG_NOT_DISPATCHABLE; unknown id is GIG_NOT_FOUND", async () => {

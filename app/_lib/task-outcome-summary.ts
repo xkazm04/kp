@@ -120,6 +120,8 @@ export const APPLIED_VALUES = [
   "no_alternative",
   "skipped_hired",
   "skipped_stage_changed",
+  // A `deferApply` run: scored, nothing written; the caller applies it.
+  "deferred",
 ] as const;
 function isApplied(v: string): v is (typeof APPLIED_VALUES)[number] {
   return (APPLIED_VALUES as readonly string[]).includes(v);
@@ -248,6 +250,12 @@ const TABLE: Record<MappedKind, Mapper> = {
     const failed = num(r.failed);
     return [...(ready != null && failed != null ? fact("drafted", `${ready} / ${ready + failed}`) : []), ...(failed ? fact("failures", failed) : [])];
   },
+  // The report itself is a file (the gig's Summary links it); the run's facts are the stage
+  // it was written at and who wrote the body.
+  gig_report: (r) => [...fact("stage", str(r.stage)), ...sourceLine(r.source)],
+  // The proposal is a file (the gig's Summary links it) and, for a qualified gig, its draft;
+  // the run's fact is who wrote it.
+  gig_proposal: (r) => sourceLine(r.source),
 };
 
 /** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed

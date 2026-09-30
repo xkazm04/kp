@@ -65,7 +65,7 @@ export function parseGigReportBody(raw: unknown): GigReportBody | null {
 /** The model's body with every section the stage requires and the model left out written
  *  by kp, placed after the last section of an earlier kind in the stage plan. Pure. */
 export function fillRequiredSections(facts: GigReportFacts, body: GigReportBody): { body: GigReportBody; filled: string[] } {
-  const plan = sectionPlanFor(facts.stage);
+  const plan = sectionPlanFor(facts.stage, facts.track);
   const sections = [...body.sections];
   const filled: string[] = [];
   for (const [i, kind] of plan.entries()) {

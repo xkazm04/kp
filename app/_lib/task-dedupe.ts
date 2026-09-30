@@ -206,6 +206,13 @@ export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
   // the run in flight; a different selection runs on its own (the runner skips a gig whose
   // round is already in flight, so an overlap never doubles a gig's seats).
   gig_plans: (p) => (Array.isArray(p.gigIds) ? stableKey("gig_plans", p.workspaceId, gigIdsIdentity(p.gigIds)) : null),
+  // ONE report run per tenant + gig: a burst of moves (a plan accepted while the planned
+  // report is still writing) folds onto the run in flight, which re-reads the records and
+  // writes once more when the gig reached a later stage meanwhile (gigs/report/run.ts).
+  gig_report: (p) => stableKey("gig_report", p.workspaceId, p.gigId),
+  // ONE proposal run per tenant + gig: an accept and an operator's "write the proposal" in
+  // the same moment fold onto the run in flight (gigs/proposal/run.ts).
+  gig_proposal: (p) => stableKey("gig_proposal", p.workspaceId, p.gigId),
 };
 
 /** A set of gig ids as one identity part: the string ids, de-duplicated and sorted, so the

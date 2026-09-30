@@ -10,8 +10,8 @@ import { _resetTaskRunnersForTests, externalRunner } from "../task-external-runn
 
 after(() => cleanupUnitDb());
 
-test("gig_scan, gig_sync, gig_research, gig_plans and gig_report are registered at boot", () => {
-  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans", "gig_report"];
+test("gig_scan, gig_sync, gig_research, gig_plans, gig_report and gig_proposal are registered at boot", () => {
+  const kinds = ["gig_scan", "gig_sync", "gig_research", "gig_plans", "gig_report", "gig_proposal"];
   _resetTaskRunnersForTests();
   for (const kind of kinds) assert.throws(() => externalRunner(kind), /not registered/, kind);
   registerLateBoundImplementations();
@@ -44,12 +44,18 @@ test("the heavy gig modules are reached only lazily - never statically from the 
   // WP4: the outcome pollers ride the same sync runner, after the Personas sync.
   assert.match(boot, /await import\("\.\/gigs\/pollers"\)/);
   assert.match(boot, /pollGigOutcomes\(ctx\.workspaceId\)/, "the pollers are scoped to the enqueuing workspace");
-  // The ONE static gigs import the boot list may carry: the report's trigger registry, a leaf
-  // with nothing but a type import (so it adds no module to any graph); its runner is lazy.
+  // The TWO static gigs imports the boot list may carry: the report's and the proposal's
+  // trigger registries, leaves with nothing but type imports (so they add no module to any
+  // graph); their runners are lazy.
   assert.match(boot, /await import\("\.\/gigs\/report\/run"\)/);
+  assert.match(boot, /await import\("\.\/gigs\/proposal\/run"\)/);
   assert.doesNotMatch(read("./report/trigger.ts"), /^import (?!type )/m, "the trigger registry stays a leaf");
-  assert.doesNotMatch(boot.replace(/^import \{ registerGigReportEnqueuer \} from "\.\/gigs\/report\/trigger";$/m, ""), /^import .*gigs\//m);
-  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist|research|plans|report)/,`${hub} must not reach a gig runner`);
+  assert.doesNotMatch(read("./proposal/trigger.ts"), /^import (?!type )/m, "the proposal trigger registry stays a leaf");
+  const rest = boot
+    .replace(/^import \{ registerGigReportEnqueuer \} from "\.\/gigs\/report\/trigger";$/m, "")
+    .replace(/^import \{ registerGigProposalEnqueuer \} from "\.\/gigs\/proposal\/trigger";$/m, "");
+  assert.doesNotMatch(rest, /^import .*gigs\//m);
+  for (const hub of ["../tasks.ts", "../db/pipeline.ts"]) assert.doesNotMatch(read(hub), /gigs\/(scan|sync|dispatch|specialist|research|plans|report|proposal)/,`${hub} must not reach a gig runner`);
   const clock = readFileSync(fileURLToPath(new URL("../../../instrumentation-node.ts", import.meta.url)), "utf8");
   assert.match(clock, /gig_scan: async \(\) =>/);
   assert.match(clock, /gig_sync: async \(\) =>/);

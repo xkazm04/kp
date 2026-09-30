@@ -22,6 +22,7 @@ import { GIG_PLAN_SEATS, planSeatsFor } from "./plan-seats.ts";
 import {
   GIG_PLAN_CLI_TIMEOUT_S,
   GIG_PLAN_PROMPT_VERSION,
+  GIG_PLAN_PROPOSAL_PROMPT_VERSION,
   GIG_PLAN_SEAT_TIMEOUT_MS,
   gigPlanCliInput,
   parseGigPlan,
@@ -318,6 +319,22 @@ test("gigPlanCliInput carries the seat's engine (provider, model, effort), the l
   assert.equal(input.brief.markdown, brief.markdown);
   assert.equal(input.pages.length, 1);
   assert.equal(input.pages[0].text.length, 20_000);
+  assert.deepEqual([input.track, input.arena], ["build", "oss_bounty"], "a bounty is the build track: gig-plan-v1");
+});
+
+test("gigPlanCliInput: a freelance gig is the PROPOSAL track, and the brief's asks, first message and language ride along", () => {
+  const brief = {
+    ...deterministicGigBrief({ arena: "freelance", title: "T", tags: [], bodyText: "Body" }, [], "no_provider", "2026-09-29T00:00:00.000Z"),
+    missingArtifacts: ["The logo"],
+    outreachMessage: "Hello, I can help.",
+    language: "cs",
+  };
+  const gigRow = { id: "g", url: "https://example.test/g", title: "T", arena: "freelance", reward: null, deadlineAt: null, bodyText: "x" } as Parameters<typeof gigPlanCliInput>[1];
+  const input = gigPlanCliInput(planSeatsFor("moderate")[0], gigRow, brief);
+  assert.deepEqual([input.track, input.arena], ["proposal", "freelance"]);
+  assert.deepEqual([input.brief.missingArtifacts, input.brief.outreachMessage, input.brief.language], [["The logo"], "Hello, I can help.", "cs"]);
+  const bare = gigPlanCliInput(planSeatsFor("moderate")[0], gigRow, { ...brief, missingArtifacts: undefined, outreachMessage: undefined, language: undefined });
+  assert.deepEqual([bare.brief.missingArtifacts, bare.brief.outreachMessage, bare.brief.language], [[], null, null], "a pre-v4 brief reads as not known");
 });
 
 test("parseGigPlansTaskParams: unique non-empty string ids, at most fifty", () => {
@@ -331,6 +348,8 @@ test("GIG_PLAN_PROMPT_VERSION is in lockstep with gig_plan_cli.py PROMPT_VERSION
   const m = /^PROMPT_VERSION = "([^"]+)"/m.exec(py);
   assert.ok(m, "PROMPT_VERSION not found in gig_plan_cli.py");
   assert.equal(m[1], GIG_PLAN_PROMPT_VERSION);
+  const variant = /^PROMPT_VERSION_PROPOSAL = "([^"]+)"/m.exec(py);
+  assert.equal(variant?.[1], GIG_PLAN_PROPOSAL_PROMPT_VERSION, "the proposal track's prompt variant");
   const timeout = /^PROVIDER_TIMEOUT_S = (\d+)$/m.exec(py);
   assert.ok(timeout);
   assert.equal(Number(timeout[1]), GIG_PLAN_CLI_TIMEOUT_S, "the CLI's default deadline is the one the runner hands over");

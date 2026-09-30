@@ -330,6 +330,9 @@ export type Gig = {
   /** The gig's HTML report (gig-report.ts): where the file is and how current it is; null
    *  until the first one is written. */
   report: GigReport | null;
+  /** The client proposal (proposal track only, `gigTrackOf`): the client-facing plan file,
+   *  the bid message and what to ask the client; null until the first one is written. */
+  proposal: GigProposal | null;
   /** The listing's state as its source last reported it (gigs/freshness.ts); null until a
    *  freshness check read it - "not checked", never "open". */
   sourceState: GigSourceState | null;
@@ -353,6 +356,43 @@ export type GigSourceState = {
   /** Proposals already on the listing, when the source reports it. */
   bidCount: number | null;
   checkedAt: string;
+};
+
+/** Two workflows, decided by the arena (operator's call, 2026-09-30). A FREELANCE gig is a
+ *  bid with a low chance of winning: kp prepares a plan, the questions and artifacts to ask
+ *  the client, and a client-presentable proposal - it never builds the solution (no persona,
+ *  no dispatch). Every other arena (bounties, security, competitions) is open-ended: the
+ *  work IS the entry, so the gig's own agent builds it. */
+export const GIG_TRACKS = ["proposal", "build"] as const;
+export type GigTrack = (typeof GIG_TRACKS)[number];
+
+export function gigTrackOf(arena: GigArena): GigTrack {
+  return arena === "freelance" ? "proposal" : "build";
+}
+
+/** The specialist id on the attempt kp writes itself for a proposal-track gig (no persona):
+ *  its deliverable's draftText is the bid message, its artifact the proposal file. */
+export const GIG_PROPOSAL_SPECIALIST_ID = "kp:proposal";
+
+/** A proposal-track gig's client proposal: a client-facing HTML file (no internal figures -
+ *  no fit, cost, model or id) plus the bid message and the asks, kept on the record so the
+ *  app can show and copy them. `planId` is the accepted plan it was written from, null when
+ *  it was written from the brief alone. `costUsd` null = not reported, never 0. */
+export type GigProposal = {
+  path: string;
+  status: "writing" | "ready" | "failed";
+  source: "llm" | "deterministic";
+  model: string | null;
+  fallbackReason: string | null;
+  costUsd: number | null;
+  generatedAt: string;
+  planId: string | null;
+  /** The bid message to paste into the platform (ends with the AI-use disclosure). */
+  message: string;
+  /** Questions for the client, in the order they should be asked. */
+  questions: string[];
+  /** Artifacts to request from the client before work can start. */
+  artifacts: string[];
 };
 
 /** The stage a report was written at: it is rewritten when the gig reaches a later one. */

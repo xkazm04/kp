@@ -17,6 +17,7 @@ import { GIG_DEFAULT_BUDGET_USD } from "./specialist-defaults";
 import { clearGigDeliverableOutputs } from "./workdir";
 import {
   GIG_DELIVERABLE_CONTRACT,
+  gigTrackOf,
   type Gig,
   type GigAssignment,
   type GigAttempt,
@@ -67,7 +68,10 @@ export type DispatchGigRefusalCode =
   | "GIG_PLAN_NOT_ACCEPTED"
   /** The source says the listing no longer takes proposals (`detail` = awarded / frozen /
    *  closed / gone). A waiting gig was expired on the same answer; nothing was dispatched. */
-  | "GIG_SOURCE_CLOSED";
+  | "GIG_SOURCE_CLOSED"
+  /** A freelance bid (gigTrackOf = "proposal"): kp prepares a client proposal, never the
+   *  work, so no persona is paired or run. Nothing was written. */
+  | "GIG_PROPOSAL_TRACK";
 
 /** `GIG_SPECIALIST_NOT_READY` details the pairing adds (the route turns the first into a 202). */
 export const GIG_PAIRING_PENDING_DETAIL = "pairing_pending";
@@ -261,6 +265,9 @@ export async function dispatchGigAttempt(
 ): Promise<DispatchGigAttemptResult> {
   const gig = getGig(workspaceId, gigId);
   if (!gig) return { ok: false, code: "GIG_NOT_FOUND" };
+  // The proposal track (a freelance bid) is never built by a persona - before any other
+  // check, so the answer names the reason and nothing (not even the freshness read) runs.
+  if (gigTrackOf(gig.arena) === "proposal") return { ok: false, code: "GIG_PROPOSAL_TRACK" };
   if (isSuspect(gig)) return { ok: false, code: "GIG_SUSPECT", detail: gig.suspectReasons.join(",") || undefined };
   if (!DISPATCHABLE_GIG_STATUSES.includes(gig.status)) return { ok: false, code: "GIG_NOT_DISPATCHABLE", detail: gig.status };
 

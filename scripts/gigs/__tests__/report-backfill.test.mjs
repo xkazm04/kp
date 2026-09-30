@@ -2,10 +2,10 @@
 // node --test scripts/gigs/__tests__/report-backfill.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { daysLeft, DEFAULT_STATUSES, parseArgs, pickGigs, retryAfterS } from "../report-backfill.mjs";
+import { daysLeft, DEFAULT_PROPOSAL_STATUSES, DEFAULT_STATUSES, parseArgs, pickGigs, requestPath, retryAfterS } from "../report-backfill.mjs";
 
 test("parseArgs: defaults, flags and refusals", () => {
-  assert.deepEqual(parseArgs([]), { statuses: DEFAULT_STATUSES, kp: null, paceS: 35, max: 50, all: false, dryRun: false, help: false, minDaysLeft: null, datedOnly: false, arenas: null });
+  assert.deepEqual(parseArgs([]), { statuses: DEFAULT_STATUSES, kp: null, paceS: 35, max: 50, all: false, dryRun: false, help: false, minDaysLeft: null, datedOnly: false, arenas: null, proposal: false });
   const d = parseArgs(["--min-days-left", "2", "--dated-only"]);
   assert.deepEqual([d.minDaysLeft, d.datedOnly], [2, true]);
   const a = parseArgs(["--status", "drafted, sent", "--pace-s", "0", "--max", "3", "--all", "--dry-run", "--kp", "http://x:1"]);
@@ -48,4 +48,22 @@ test("pickGigs: --min-days-left keeps gigs with more than n days left, and undat
   assert.deepEqual(pickGigs([{ ...gigs[1], arena: "freelance" }, { ...gigs[3], id: "b", arena: "oss_bounty" }], { now, arenas: ["oss_bounty"] }).map((g) => g.id), ["b"]);
   assert.equal(daysLeft(null, now), null);
   assert.equal(daysLeft("2026-10-01T12:00:00Z", now), 1);
+});
+
+test("--proposal: its own default statuses (unless --status names some), freelance gigs only, a READY PROPOSAL skipped unless --all, the proposal door", () => {
+  const p = parseArgs(["--proposal", "--min-days-left", "3"]);
+  assert.deepEqual([p.proposal, p.statuses, p.minDaysLeft], [true, DEFAULT_PROPOSAL_STATUSES, 3]);
+  assert.deepEqual(parseArgs(["--status", "drafted", "--proposal"]).statuses, ["drafted"]);
+  const gigs = [
+    { id: "f1", arena: "freelance", status: "qualified", brief: {}, report: { status: "ready" }, proposal: null },
+    { id: "f2", arena: "freelance", status: "drafted", brief: {}, report: null, proposal: { status: "ready" } },
+    { id: "f3", arena: "freelance", status: "drafted", brief: {}, report: null, proposal: { status: "failed" } },
+    { id: "b1", arena: "oss_bounty", status: "qualified", brief: {}, report: null, proposal: null },
+    { id: "f4", arena: "freelance", status: "qualified", brief: null, report: null, proposal: null },
+  ];
+  assert.deepEqual(pickGigs(gigs, { proposal: true }).map((g) => g.id), ["f1", "f3"], "a ready report does not skip a proposal; a bounty is never asked");
+  assert.deepEqual(pickGigs(gigs, { proposal: true, all: true }).map((g) => g.id), ["f1", "f2", "f3"]);
+  assert.deepEqual(pickGigs(gigs, { proposal: true }).map((g) => g.stage), [null, "failed"]);
+  assert.equal(requestPath("g 1", true), "/api/gigs/g%201/proposal");
+  assert.equal(requestPath("g1"), "/api/gigs/g1/report");
 });

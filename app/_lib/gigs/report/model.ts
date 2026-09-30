@@ -1,4 +1,4 @@
-import type { GigReportStage } from "../types";
+import type { GigReportStage, GigTrack } from "../types";
 
 // The report's vocabulary, shared by the template, the deterministic body, the model's
 // validator and the runner - import-free apart from one type, so every layer (and the tests)
@@ -20,6 +20,8 @@ export const GIG_REPORT_SECTION_KINDS = [
   "review",
   "outcome",
   "lessons",
+  "proposal",
+  "requests",
   "other",
 ] as const;
 export type GigReportSectionKind = (typeof GIG_REPORT_SECTION_KINDS)[number];
@@ -32,7 +34,7 @@ export function isGigReportSectionKind(v: unknown): v is GigReportSectionKind {
 export const GIG_REPORT_GROUPS = [
   { id: "gig", label: "The gig", kinds: ["gig", "asks", "risks", "fit", "questions"] },
   { id: "plan", label: "The plan", kinds: ["plans", "chosen"] },
-  { id: "work", label: "The work", kinds: ["draft", "evidence", "review"] },
+  { id: "work", label: "The work", kinds: ["draft", "evidence", "review", "proposal", "requests"] },
   { id: "result", label: "The result", kinds: ["outcome", "lessons"] },
   { id: "notes", label: "Notes", kinds: ["other"] },
 ] as const satisfies readonly { id: string; label: string; kinds: readonly GigReportSectionKind[] }[];
@@ -52,17 +54,25 @@ const ADDS: Readonly<Record<GigReportStage, readonly GigReportSectionKind[]>> = 
   closed: ["lessons"],
 };
 
+/** The PROPOSAL track (a freelance bid, types.ts gigTrackOf) replaces what a stage adds: kp
+ *  prepares a client proposal instead of building the work, so the drafted stage adds the
+ *  proposal and what it asks the client INSTEAD of the draft, its evidence and the review.
+ *  Kept in lockstep with gig_report_cli.py _PROPOSAL_STAGE_ADDS (report.test.ts). */
+const PROPOSAL_ADDS: Readonly<Partial<Record<GigReportStage, readonly GigReportSectionKind[]>>> = {
+  drafted: ["proposal", "requests"],
+};
+
 export const GIG_REPORT_STAGE_ORDER: readonly GigReportStage[] = ["researched", "planned", "accepted", "drafted", "sent", "closed"];
 
 export function stageRank(stage: GigReportStage): number {
   return GIG_REPORT_STAGE_ORDER.indexOf(stage);
 }
 
-/** The section kinds a report at `stage` must carry, in reading order. Pure. */
-export function sectionPlanFor(stage: GigReportStage): GigReportSectionKind[] {
+/** The section kinds a report at `stage` on `track` must carry, in reading order. Pure. */
+export function sectionPlanFor(stage: GigReportStage, track: GigTrack = "build"): GigReportSectionKind[] {
   const out: GigReportSectionKind[] = [];
   for (const s of GIG_REPORT_STAGE_ORDER) {
-    out.push(...ADDS[s]);
+    out.push(...((track === "proposal" ? PROPOSAL_ADDS[s] : undefined) ?? ADDS[s]));
     if (s === stage) break;
   }
   return out;

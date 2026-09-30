@@ -15,6 +15,7 @@ import {
   type GigSuspectReason,
   type GigWithdrawReason,
   type GigReport,
+  type GigProposal,
   GIG_REPORT_STAGES,
   type RawGig,
 } from "../gigs/types";
@@ -63,6 +64,8 @@ type GigRow = {
   withdraw_reason_json?: string | null;
   /** Added by ALTER (core.ts): the gig's HTML report record, or NULL. */
   report_json?: string | null;
+  /** Added by ALTER (core.ts): the client proposal record, or NULL. */
+  proposal_json?: string | null;
   /** Added by ALTER (core.ts): NULL until a freshness check read the listing's source state. */
   source_state_json?: string | null;
   freshness_checked_at?: string | null;
@@ -103,6 +106,7 @@ function gigFromRow(row: GigRow): Gig {
     personasProjectId: row.personas_project_id ?? null,
     withdrawReason: withdrawReasonFromJson(row.withdraw_reason_json ?? null, row.id),
     report: reportFromJson(row.report_json ?? null, row.id),
+    proposal: proposalFromJson(row.proposal_json ?? null, row.id),
     sourceState: sourceStateFromJson(row.source_state_json ?? null, row.id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -153,6 +157,27 @@ function reportFromJson(json: string | null, id: string): GigReport | null {
     fallbackReason: typeof p.fallbackReason === "string" ? p.fallbackReason : null,
     costUsd: typeof p.costUsd === "number" ? p.costUsd : null,
     generatedAt: p.generatedAt,
+  };
+}
+
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : []);
+
+/** A stored proposal record in the shape this build writes, else null (none yet). */
+function proposalFromJson(json: string | null, id: string): GigProposal | null {
+  const p = safeRowParse<Partial<GigProposal>>(json, "gig.proposal", id);
+  if (!p || typeof p !== "object" || typeof p.path !== "string" || typeof p.generatedAt !== "string") return null;
+  return {
+    path: p.path,
+    status: p.status === "writing" || p.status === "failed" ? p.status : "ready",
+    source: p.source === "llm" ? "llm" : "deterministic",
+    model: typeof p.model === "string" && p.model ? p.model : null,
+    fallbackReason: typeof p.fallbackReason === "string" ? p.fallbackReason : null,
+    costUsd: typeof p.costUsd === "number" ? p.costUsd : null,
+    generatedAt: p.generatedAt,
+    planId: typeof p.planId === "string" ? p.planId : null,
+    message: typeof p.message === "string" ? p.message : "",
+    questions: strings(p.questions),
+    artifacts: strings(p.artifacts),
   };
 }
 
@@ -739,6 +764,17 @@ export function setGigReport(workspaceId: string, id: string, report: GigReport)
   const res = ensureDb()
     .prepare(`UPDATE gigs SET report_json = ? WHERE id = ? AND workspace_id = ?`)
     .run(JSON.stringify(report), id, workspaceId);
+  return res.changes > 0 ? getGig(workspaceId, id) : null;
+}
+
+/** Record a proposal-track gig's client proposal (gigs/proposal/run.ts): the file's path,
+ *  its status (`writing` while a gig_proposal task runs), provenance, the bid message and the
+ *  asks. An annotation like the report: `updated_at` is NOT touched. Null when the gig is not
+ *  in this workspace. */
+export function setGigProposal(workspaceId: string, id: string, proposal: GigProposal): Gig | null {
+  const res = ensureDb()
+    .prepare(`UPDATE gigs SET proposal_json = ? WHERE id = ? AND workspace_id = ?`)
+    .run(JSON.stringify(proposal), id, workspaceId);
   return res.changes > 0 ? getGig(workspaceId, id) : null;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import type { Gig, GigAttempt, GigKpi } from "@/app/_lib/gigs/types";
+import type { Gig, GigAttempt, GigKpi, GigProposal } from "@/app/_lib/gigs/types";
 import type { ReviewNote } from "../logic/reviewNote";
 import { isLegacyRouted } from "../logic/pairing";
 import { acceptedPlanOf } from "../logic/plans";
@@ -16,6 +16,7 @@ import type { GigRecord } from "./panels/useGigRecord";
 import type { PlansState } from "./panels/usePlans";
 import type { ProofTab } from "./proofTabs";
 import { GigReport } from "./report/GigReport";
+import type { GigFileState } from "./report/useGigFile";
 
 // The proof's chosen tab (GigsProof.tsx): one panel per tab id (proofTabs.tsx); Summary is
 // the gig's overview (report/GigReport.tsx), which carries the brief panel too. The draft
@@ -36,6 +37,7 @@ export function ProofPanels({
   persona,
   kpi,
   plansState,
+  proposalFile,
   draft,
   brief,
   onChanged,
@@ -56,6 +58,7 @@ export function ProofPanels({
   persona: SpecialistRow | null;
   kpi: GigKpi | null;
   plansState: PlansState;
+  proposalFile: GigFileState<GigProposal>;
   draft: ReactNode;
   brief: ReactNode;
   onChanged: AfterWrite;
@@ -66,7 +69,7 @@ export function ProofPanels({
 }) {
   const accepted = useMemo(() => acceptedPlanOf(plansState.plans), [plansState.plans]);
   if (tab === "summary") {
-    return <GigReport {...{ gig, attempt, summary, plansState, brief, draft, onChanged, onFlash, onOpenTab }} />;
+    return <GigReport {...{ gig, attempt, summary, plansState, proposalFile, brief, draft, onChanged, onFlash, onOpenTab }} />;
   }
   if (tab === "review") return <ReviewPanel gig={gig} note={note} onChanged={onChanged} />;
   if (tab === "history") return <HistoryPanel record={record} error={recordError} specialists={specialists} />;

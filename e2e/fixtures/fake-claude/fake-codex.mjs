@@ -126,7 +126,7 @@ async function main() {
   }
   const answer = JSON.stringify(planFor(payload));
   writeFileSync(out, answer, "utf8");
-  log({ ...base, useCase: "plan", seat: "gpt", answered: "ok", payload, schemaRequired });
+  log({ ...base, useCase: "plan", seat: "gpt", planVariant: prompt.includes("the plan you would show the CLIENT") ? "proposal" : "build", answered: "ok", payload, schemaRequired });
   emit({ type: "thread.started", thread_id: `fake-${process.pid}` });
   emit({ type: "turn.started" });
   emit({ type: "item.completed", item: { id: "item_0", type: "agent_message", text: answer } });

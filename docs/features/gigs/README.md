@@ -396,6 +396,75 @@ is the measurement, and the tab shows it per seat.
 row is `failed` with that reason. There is no deterministic plan: a plan made without a
 model would be a template pretending to be a design.
 
+## Two tracks: proposal and build
+
+A gig's workflow follows its arena (`gigTrackOf`, `app/_lib/gigs/types.ts`):
+
+| Arena | Track | What kp produces |
+| --- | --- | --- |
+| `freelance` | **proposal** | A client-facing plan, the questions and artifacts to ask for, a client proposal file and the bid message. Never the work. |
+| `oss_bounty`, `security`, `competition` | **build** | Unchanged: plans, accept, pairing, the gig persona builds the entry. |
+
+A freelance bid has a low chance of winning, so kp prepares the bid instead of the
+solution (operator decision, 2026-09-30).
+
+**The proposal track, step by step.**
+
+1. **Plans** use the prompt variant `gig-plan-v2-proposal` (`pipeline/jobfit/gig_plan_cli.py`,
+   `track: "proposal"` in the CLI input from `plans.ts gigPlanCliInput`). The `GigPlan` schema
+   and the seats per difficulty (see **Plans**) stay the same. Steps are milestones the client
+   sees (`doneWhen` = what the client receives). `questions` are questions for the client, with
+   the brief's missing artifacts first. `decisions` are approach choices; `risks` are the
+   assumptions the bid depends on. The CLI envelope records `promptVersion` and `track`
+   (`plans.ts GIG_PLAN_PROPOSAL_PROMPT_VERSION`); the plan row has no prompt-version column, so
+   the version appears only in the envelope.
+2. **Accept** (`POST /api/gigs/[id]/plans/[planId]/accept`) also asks for a `gig_proposal` task
+   through `gigs/proposal/trigger.ts`, a leaf registered at boot.
+3. **The proposal** (`gigs/proposal/run.ts`) comes from one call to the pinned model,
+   `gig_proposal_cli.py` (use case `gig_proposal`, Claude Sonnet 5.5 at high effort). Its input
+   is the listing, the brief and the accepted plan (null means a brief-only proposal whose
+   detailed plan follows the client's answers), all fenced as untrusted data. The model returns
+   plain text fields only. The listing's language decides the message and file language, and the
+   page labels exist in en, cs, de and fr, falling back to English. Honesty is enforced in
+   `gig_proposal_cli.py coerce_proposal` and again in `proposal/model.ts parseGigProposalBody`:
+   any sentence naming a money figure that the listing's reward text does not state is dropped.
+   The message is at most 1,500 characters (`GIG_PROPOSAL_MESSAGE_MAX`) and always ends with
+   `GIG_DISCLOSURE_SENTENCE` (contract.ts).
+   **Keyless, failed or unusable calls, and suspect gigs**: kp composes the proposal itself with
+   `deterministicProposal`, in English, from the brief's "what the gig is" paragraph, the
+   accepted plan's steps, questions and decisions, the brief's missing artifacts, and its
+   outreach message plus the disclosure (`source: "deterministic"`, `fallbackReason`).
+4. **The file** is `<gigs root>/_proposals/<type>/<yyyy-mm-dd>-<slug>-<id6>.html`, written
+   atomically with the previous version kept as `.prev.html` (`proposal/file.ts`). The page is
+   one client-facing HTML page: light theme, print-ready A4 (`@page`, no page break inside a
+   milestone or an ask), system fonts, every field escaped. It holds a header (title,
+   "Proposal", date), what you need, the approach, milestones as a numbered table, timeline and
+   effort, what I need from you, questions before I start, and a footer with the disclosure. It
+   holds **no internal data**: no fit, cost, model, kp id or seat. The template takes none of
+   them as input. The record is `gigs.proposal_json` (`Gig.proposal`, `db/gigs.ts
+   setGigProposal`, tenant-bound, does not touch `updated_at`; see **Data model**). It reads
+   `writing` while the task runs.
+5. **The draft.** On a `qualified` gig, kp writes the attempt itself: specialist `kp:proposal`
+   (`GIG_PROPOSAL_SPECIALIST_ID`), no execution id, the deliverable's `draftText` is the message,
+   its artifact is the file, `confidence` is the constant `GIG_PROPOSAL_CONFIDENCE = 0.5`
+   (displayed, never scored), and `costUsd` is the proposal's cost. The gig moves `qualified ->
+   dispatched -> drafted` through CAS moves with compensation, so no half-move survives
+   (`proposal/draft.ts`). Then `requestGigReport(ws, id, "drafted")`.
+   A **rewrite** on a `drafted` gig whose latest attempt is kp's own and still `drafted` or
+   `revision_requested` drafts a fresh kp attempt and discards the old one. The gig stays
+   `drafted`. A persona's draft or an approved gig (`in_review`) keeps its attempt; only the file
+   and the record change.
+   Review is unchanged: the freelance checklist (below) applies, approve moves the gig to
+   `in_review` ("Ready to send"), then mark sent.
+6. **Never built.** `dispatchGigAttempt` and `pairGig` refuse a freelance gig with
+   `GIG_PROPOSAL_TRACK` (409). The `syncGigPersonas` auto-dispatch skips freelance gigs
+   (`sync.ts`). Existing persona attempts are not migrated.
+
+**Checklist (freelance).** `GIG_CHECKLISTS.freelance` (`checklists.ts`) is `brief_answered,
+scope_honest, no_overclaim, asks_included, proposal_attached, no_off_platform, disclosure`. The
+retired `deliverable_verified` keeps its meaning line in `GIG_CHECKLIST_MEANING`, so a review
+stored before the tracks split still reads.
+
 ## The gig's report file
 
 Every researched gig has a **report**: one designed HTML page per gig, written to a file the
@@ -439,6 +508,14 @@ starts a model call. A report already `ready` at the stage the records say, gene
 the newest record it reads, is `current` and is not rewritten; when the gig reached a later
 stage while the report was being written, the runner writes once more. A suspect gig never
 reaches the model (kp's body, `gig_suspect`); a gig with no brief has no report.
+
+**The report on the proposal track** (see **Two tracks: proposal and build**). `report/model.ts
+sectionPlanFor(stage, track)` and `gig_report_cli.py section_plan(stage, track)` differ at
+`drafted`: the proposal track adds `proposal` and `requests` in place of `draft`, `evidence`
+and `review` (`PROPOSAL_ADDS`, two new section kinds; `asks` already names the researched-stage
+section). The facts carry `track` (`reportTrackOf`: a freelance gig that a persona drafted
+before the split and has no proposal keeps the build sections) and `proposal` (the record,
+never its HTML). The report is internal and may show costs; the proposal file may not.
 
 **Who writes it.** `pipeline/jobfit/gig_report_cli.py` (use case `gig_report`, prompt
 `gig-report-v1`), pinned at the call site to **Claude Sonnet 5.5 at high effort**
@@ -495,6 +572,13 @@ on the fixture, 2026-09-30, n=2) unless the install is keyless. `--min-days-left
 whose deadline is more than n days away, so reports are written for gigs that can still be
 worked (a gig stating no deadline is kept; `--dated-only` drops it), and `--arena <a,b>` keeps
 only those arenas. The dry run prints each gig's days left.
+
+`--proposal` runs the same pass for the **client proposal** of freelance gigs instead (the
+proposal track, see **Two tracks: proposal and build**): `POST /api/gigs/<id>/proposal`
+instead of `/report`, freelance gigs only, and a gig whose proposal is already `ready` is
+skipped unless `--all`. Its default statuses are `qualified,drafted,in_review` (a qualified
+gig's proposal becomes its draft; a drafted one is a rewrite). Pacing, `--min-days-left`,
+`--dated-only` and the 429 handling are shared with the report pass.
 
 **Tests.** `app/_lib/gigs/report/report.test.ts` (sanitizer, template, facts and stages, the
 deterministic body per stage, the model validator and the section fill, file placement and
@@ -1079,39 +1163,63 @@ proof lands where the operator left.
      A quarantined listing has **no dispatch control at all**: Decline, or tick "I read the
      listing" and Clear the flag. A sent gig records the verdict (five verdicts with their
      marks, an amount in its own currency, the judge's words; the flash says how the rate
-     moved, re-read from `/api/gigs/kpi`, and names a source the verdict paused). A new or qualified listing: who it goes to (its own agent once paired, with its record), or
-     "Dispatch creates this gig's own agent (Opus 5.5 · high) and hands it the accepted plan";
-     then Dispatch or "below the bar", and Decline. **Dispatch needs an accepted plan**: for a gig
-     nobody worked yet and with no accepted plan the button is disabled and the reason is written
-     under it ("Accept a plan first. Dispatch hands the accepted plan to the gig's own agent.")
-     with **Go to the plans**, which shows the Summary tab and scrolls its plan block in (focus on
-     its heading); while the plans are still being read
-     it says so. A gig with an earlier attempt (worked before plans existed) is not gated, as the
-     route does not gate it. The proof reads the plans itself (`proof/panels/usePlans.ts`,
-     `GET /api/gigs/[id]/plans`) rather than widening the list route, and shares
-     that read with the Summary's plan block and the tab row's mark. A dispatch answered `202 { pairing: "pending" }` flashes
-     "Pairing: the gig's own agent is being created. It starts when Personas approves it."; a
-     `409 GIG_PLAN_NOT_ACCEPTED` renders from its code. There is no hire button any more. Work with an agent: in flight, sent back not dispatched, or failed, with
-     Dispatch again. Withdraw wherever `transitions.ts` allows. Confidence, this run's cost
+     moved, re-read from `/api/gigs/kpi`, and names a source the verdict paused).
+
+     **A new or qualified gig forks on its track** (`gigTrackOf`, see **Two tracks: proposal
+     and build**). A **build**-track gig: who it goes to (its own agent once paired, with its
+     record), or "Dispatch creates this gig's own agent (Opus 5.5 · high) and hands it the
+     accepted plan"; then Dispatch or "below the bar", and Decline. **Dispatch needs an
+     accepted plan**: for a gig nobody worked yet and with no accepted plan the button is
+     disabled and the reason is written under it ("Accept a plan first. Dispatch hands the
+     accepted plan to the gig's own agent.") with **Go to the plans**, which shows the Summary
+     tab and scrolls its plan block in (focus on its heading); while the plans are still being
+     read it says so. A gig with an earlier attempt (worked before plans existed) is not gated,
+     as the route does not gate it. The proof reads the plans itself
+     (`proof/panels/usePlans.ts`, `GET /api/gigs/[id]/plans`) rather than widening the list
+     route, and shares that read with the Summary's plan block and the tab row's mark. A
+     dispatch answered `202 { pairing: "pending" }` flashes "Pairing: the gig's own agent is
+     being created. It starts when Personas approves it."; a `409 GIG_PLAN_NOT_ACCEPTED`
+     renders from its code. There is no hire button any more. Work with an agent: in flight,
+     sent back not dispatched, or failed, with Dispatch again. Confidence, this run's cost
      ("cost not reported", never $0) and the budget close it.
+
+     A **proposal**-track gig (a freelance bid) has **no dispatch at all**
+     (`proof/signoff/PrepareProposal.tsx`): the primary move is **Prepare the proposal** (the
+     same `POST /api/gigs/[id]/proposal` the Summary row uses, through the proof's shared file
+     state), with one line on why a bid gets a proposal and not a build. An accepted plan is
+     the better input; without one the move still works and says the proposal is then written
+     from the brief alone (with **Open the plans**); while the plans load it waits. When kp's
+     own draft (`specialistId === "kp:proposal"`) is on the desk the stage reads **Proposal to
+     proof** and, once approved, **Bid ready to send**; the checklist, Approve and Mark sent
+     work as for any draft, but there is no agent to send a revision back to, so the desk
+     replaces Send back with "discard it and prepare the proposal again", and it does not show
+     the draft's fixed confidence. A kp draft that was sent back or failed offers Prepare the
+     proposal again instead of a re-dispatch.
+
+     Withdraw wherever `transitions.ts` allows, on either track.
    - **The section tabs** (`proof/proofTabs.tsx`, the kit's `Segmented`, in the trail):
      **Summary · Review · History · Brief · Listing · Pairing**, a hairline between segments.
      Every tab is always shown; one the gig's state leaves empty is **disabled and greyed**
      (faint text, a not-allowed cursor, no hover change, its mark desaturated:
      `styles/report.css`), never hidden: Review with neither a review note nor a message to the
-     client, History with no attempt, Listing with no listing text. Summary, Brief and Pairing
-     stay open (each holds its action). Summary carries one mark: a lint stop first, then a
-     failed evidence item, then plans ready and none accepted; Review a reviewer blocker or
-     warnings; Brief a challenge withdrawn for before; Listing its flags. The Pairing tab keeps
-     the id `routing`. A proof always opens on **Summary**. Each tab but Summary opens with
-     **the head** (the stage and the niche, then the title) and is a white panel composed from
+     client, History with no attempt, Listing with no listing text, and now **Pairing**, greyed
+     with its reason as the tab's tip (`t("proposal.pairingOff")`), for a proposal-track gig no
+     persona worked - a bid gets a proposal, not an agent (`logic/proposal.ts pairingOpen`). A
+     legacy freelance gig with its own persona, or a niche specialist's attempt, keeps the tab
+     open. Summary and Brief always stay open (each holds its action). Summary carries one
+     mark: a lint stop first, then a failed evidence item, then plans ready and none accepted;
+     Review a reviewer blocker or warnings; Brief a challenge withdrawn for before; Listing its
+     flags. The Pairing tab keeps the id `routing`. A proof always opens on **Summary**. Each
+     tab but Summary opens with **the head** (the stage and the niche, then the title) and is a
+     white panel composed from
      the kit inside a `.k-kit` root with its delegated tip (`KitArea`).
    - **Summary: the gig at a glance** (`proof/report/`, `styles/report.css` + `styles/plans.css`;
      pure derivations in `logic/report.ts`). The operator's call (2026-09-30): the long read is
      the gig's **HTML report file** (see "The gig's report file": written by a model, rewritten
      as the gig moves, opened in the browser), so the in-app Summary is a quick overview with
      the working controls under it, in this order:
-     1. **The hero** (`ReportHero.tsx`, `ReportActions.tsx`, `useReportFile.ts`): the eyebrow
+     1. **The hero** (`ReportHero.tsx`, `ReportActions.tsx`, `useGigFile.ts` - which replaced
+        `useReportFile.ts`, and now also drives the proposal row below): the eyebrow
         `arena · gig type · stage`; the brief's title (else the listing's) with "Listed as ..."
         when they differ; the lead - the deliverable's summary once a draft exists, else the
         brief's "What the gig is" (`summaryTextOf`) - with its first clause highlighted
@@ -1126,7 +1234,19 @@ proof lands where the operator left.
         vocabulary), or "The report is written once the gig is researched." Then the language
         tag and **Read the English translation** (`shared/ListingLanguage.tsx`) and the
         `workKind` callout. The hero carries no stat cards (removed 2026-09-30): the figures are
-        in the sidebar.
+        in the sidebar. On a **proposal**-track gig (a freelance bid, see **Two tracks:
+        proposal and build**) the hero grows a second row under the report row for the
+        **client proposal** (`proof/report/ProposalActions.tsx`): **Open the client
+        proposal** (a new tab on `GET /api/gigs/[id]/proposal`, sandboxed), **Download**
+        (`?download=1`), and **Prepare the proposal** / **Rewrite the proposal** (`POST`,
+        202; disabled without a brief) - Writing with the breathing mark while it runs, and a
+        failed write's reason. A note says when the proposal is (or was) written from the
+        brief alone ("accept a plan for a sharper one"), or that it should be rewritten once a
+        plan was accepted after it. One file hook (`proof/report/useGigFile.ts`, which
+        replaced `useReportFile.ts`) serves both rows: it re-reads `GET /api/gigs/[id]` every
+        5 s while `gig.<report|proposal>` is writing and re-reads the list when the write
+        lands. The proof owns the proposal's instance, so the sign-off and the Summary share
+        its state.
      2. **The research brief with the gig's ONE metadata sidebar** - the Brief tab's own panel
         (`panels/BriefPanel.tsx`), so the gig's metadata reads the same on both tabs, with its
         **Withdraw for this** rows. The sidebar opens with `meta/GigMeta.tsx` (built once in
@@ -1141,7 +1261,12 @@ proof lands where the operator left.
         path**. Then the brief's own blocks: where it came from with **Research again**, the
         contents list, **Sources read**. A gig with no brief keeps the sidebar (with
         **Research**) and its reading column says the brief is not written yet. Below 56rem the
-        sidebar is a band above the text.
+        sidebar is a band above the text. Every gig also shows its **Track**
+        (`meta/MetaBlocks.tsx TrackBlock`): "Freelance bid: a proposal, no build" or "Bounty:
+        the work is the entry", one line on what that means. A proposal-track gig adds a
+        **Client proposal** block shaped like the Report file's: written from the accepted
+        plan or from the brief alone, when, by a model or by kp, its cost when reported (never
+        $0), its state while writing or after a failure, the path and Copy path.
      3. **Choose a plan** (`ReportChoose.tsx`, `SeatCard.tsx`, `usePlans.ts` `usePlanActions`),
         shown while plans wait for a pick, or when a brief has no plans yet
         (`summaryBlocks`). The lineup follows the brief's difficulty (`planSeatsFor`); each
@@ -1154,7 +1279,19 @@ proof lands where the operator left.
         this difficulty gets, and **Generate plans**. Once one is accepted the block is **The
         accepted plan**: one line, "Accepted: Opus 5.5 · xhigh, <your note>", its date, and the
         steps' titles as a numbered list. Earlier rounds and the plans in full are in the file.
-     4. **Review the draft**, only when the latest attempt carries a draft: the proof slip as a
+     4. **The bid** (`proof/report/BidBlock.tsx`), a **proposal**-track gig only, after the plan
+        block: the operator's working surface - the message to paste on the platform with
+        **Copy message**, then "Questions for the client" and "What we need from the client" as
+        two numbered lists (`BidAsks.tsx`). When the latest attempt is the draft kp wrote itself
+        (`specialistId === "kp:proposal"`) that draft IS the message, so it is proofed inside The
+        bid (the proof slip over the galley, its lint notes pinned) and item 5 below
+        ("Review the draft") does not repeat it (`summaryBlocks` returns `draftInBid`). A
+        proposal rewritten after that draft is shown under it as "The rewritten message", with
+        how to proof it (discard, prepare again). A persona's legacy draft on a freelance gig
+        (worked before the tracks split) keeps its own "Review the draft" block, item 5, as
+        before.
+     5. **Review the draft**, only when the latest attempt carries a draft (build track, or a
+        proposal-track gig's legacy persona draft, see item 4): the proof slip as a
         callout (amber; coral when a lint stop blocks Approve; moss when clean) above the galley
         with its margin notes. A slip link focuses its margin note (`DraftTab.tsx`
         `useSlipJump`); the evidence rows it used to jump to are in the file now.
@@ -1165,14 +1302,18 @@ proof lands where the operator left.
      the proof column is under 44rem. Left, the **pre-send review**: the reviewer and cycle as
      a tag, the verdict as a pill, the lead as a callout, "Before sending" (numbered steps)
      above "Defects" (blockers washed coral), the checks it ran in a fold; "No pre-send review
-     yet." when there is none. Right, the **message to the client**: the brief's
-     `outreachMessage` (prompt gig-brief-v4, freelance gigs: interest in the project, the
-     approach in a line, the artifacts it needs) set as a message card with **Copy** (the
-     clipboard; "Copied", or a line saying to select the text when the clipboard is not
-     available), the `missingArtifacts` listed under it as "It asks for", and "kp never sends
-     this. You send it, from your own account." A freelance gig whose brief predates v4 says
-     the message appears once the gig is researched, with **Research again**; another arena
-     says the message is written for freelance gigs only.
+     yet." when there is none. Right, the **message to the client**
+     (`logic/proposal.ts clientMessageOf`): the client proposal's bid message when one was
+     written, else the brief's `outreachMessage` (prompt gig-brief-v4, freelance gigs: interest
+     in the project, the approach in a line, the artifacts it needs) - set as a message card
+     with **Copy** (the clipboard; "Copied", or a line saying to select the text when the
+     clipboard is not available), and a line saying which it shows and when ("Written with the
+     client proposal on <date>" or "Written with the research brief"). Its asks
+     (`clientAsksOf`) prefer the proposal's questions and artifacts over the brief's missing
+     artifacts, listed under it as "It asks for". A note says "kp never sends this. You send
+     it, from your own account." A freelance gig whose brief predates v4 and has no proposal
+     says the message appears once the gig is researched, with **Research again**; another
+     arena says the message is written for freelance gigs only.
    - **Earlier drafts**: a timeline, newest first, every attempt read fresh from
      `GET /api/gigs/[id]`: its status pill, cost, date and specialist, the note it answers
      (clamped with "Show all"), the fallback reason, verdicts with the judge's words and
@@ -1321,6 +1462,8 @@ seen. Info never gates.
 | POST | `/api/gigs/[id]/plans/[planId]/accept` | `pipeline:write` | 60 `gigs-plan-accept` | 200 `{ plan }` for `{ note? }` (at most 2000 characters); `GIG_NOT_FOUND`, `GIG_PLAN_NOT_FOUND` (404, also a plan of another gig), `GIG_PLAN_ALREADY_ACCEPTED` (409), `GIG_ACTION_NOT_ALLOWED` (409, `reason: "not_ready"`), `GIG_INPUT_INVALID` (400, `field: "note"`) |
 | GET | `/api/gigs/[id]/report` | operator | none | serves the file (200 `text/html`, sandboxed); `GIG_NOT_FOUND`, `GIG_REPORT_NOT_FOUND` (404: none yet, the file is gone, or the recorded path is outside `_reports`); see **The gig's report file** |
 | POST | `/api/gigs/[id]/report` | `pipeline:write` | 20 `gigs-report` | rewrite now: 202 `{ taskId }` (a `gig_report` task with `force`); `GIG_ACTION_NOT_ALLOWED` (409, `reason: "no_brief"`) |
+| GET | `/api/gigs/[id]/proposal` | operator | none | 200 serves the file (sandboxed, same CSP as the report) under `?download=1` adds `Content-Disposition: attachment; filename="<slug>-proposal.html"`; `GIG_NOT_FOUND`, `GIG_PROPOSAL_NOT_FOUND` (404: none yet or the file is gone); see **Two tracks: proposal and build** |
+| POST | `/api/gigs/[id]/proposal` | `pipeline:write` | 20 `gigs-proposal` | 202 `{ taskId }` (a `gig_proposal` task); a plan is NOT required; `GIG_NOT_FOUND`, `GIG_ACTION_NOT_ALLOWED` (409, `reason: "build_track"` - not a freelance gig, or `reason: "no_brief"`) |
 | GET | `/api/gigs/specialists` | operator | none | none; answers `{ specialists, tallies }`, `tallies` = each specialist's whole attempt record `{ attempts, byStatus, costUsd, costUnreported }` (`db/gigs-attempts.ts` `gigAttemptTallies`) |
 | POST | `/api/gigs/specialists` | `pipeline:write` | 10 `gigs-specialist-hire` (plus the hire tail's own) | `GIG_INPUT_INVALID`, the hire tail's codes; a hire answers `placement` and `placementSkipped` |
 | POST | `/api/gigs/sync` | `pipeline:write` | 20 `gigs-sync` | 200 `{ synced, attempts }` (the attempts this pass moved); the on-demand analogue of the clock's `gig_sync` (see **Running it headless**) |
@@ -1353,6 +1496,7 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/outcome.ts` | the one verdict path (manual and pollers) |
 | `app/_lib/gigs/pollers.ts` | GitHub and Kaggle outcome pollers |
 | `app/_lib/gigs/report/**`, `pipeline/jobfit/gig_report_cli.py` | the gig's report engine: facts, the stage triggers, the pinned writer CLI, the sanitizer/assembler, the deterministic fallback, the file placement and the serving route (see **The gig's report file**) |
+| `app/_lib/gigs/proposal/**`, `pipeline/jobfit/gig_proposal_cli.py` | the proposal engine (proposal track only): the pinned writer CLI, the plain-text body validator, the honesty gate, the client-facing HTML template, the deterministic fallback, the file placement, the serving route and the draft it writes as the gig's attempt (see **Two tracks: proposal and build**) |
 | `app/_lib/gigs/lessons.ts` | deterministic lesson bullets and the feedback scrubber |
 | `app/_lib/gigs/kpi.ts` | the pure KPI fold, including money won per currency (never totalled) from the counted verdicts |
 | `app/_lib/gigs/draft-lint.ts` | the pure, client-safe pre-send lint the desk runs |
@@ -1480,6 +1624,11 @@ checked", never "open"), written by `setGigSourceState` without touching `update
 model, fallbackReason, costUsd, generatedAt }`, NULL until the gig's first report is
 written, written by `setGigReport` without touching `updated_at` either (see **The gig's
 report file**).
+`gigs.proposal_json` (the `GigProposal`, proposal track only) is ALTER-added the same way:
+`{ path, status, source, model, fallbackReason, costUsd, generatedAt, planId, message,
+questions, artifacts }`, NULL until the gig's first proposal is written, written by
+`setGigProposal` without touching `updated_at` (see **Two tracks: proposal and build**).
+`planId` is the accepted plan it was written from, null when written from the brief alone.
 
 `gig_specialists.gig_id` (ALTER-added, 427cdc3d0) is written: the ONE gig a gig persona was hired
 for, NULL on the niche specialists. `db/gigs-specialists.ts` adds `getGigSpecialistForGig` (newest
@@ -1504,6 +1653,10 @@ sync). The gig's type is DERIVED (`gigTypeOf`) each time, not stored.
 - The gig's report also degrades: keyless, under `KP_OFFLINE`, or on a production
   consumer-terms refusal, the pinned writer answers `no_provider` and kp writes the whole
   report body itself from the same facts; see **The gig's report file**.
+- A freelance gig's client proposal degrades the same way: keyless, `KP_OFFLINE`, a
+  production consumer-terms refusal, a failed or unusable call, or a suspect gig - kp
+  composes the proposal itself (`deterministicProposal`, always in English) from the brief
+  and the accepted plan; see **Two tracks: proposal and build**.
 - The GitHub poller runs keyless at GitHub's unauthenticated rate. The Kaggle poller does
   nothing without `KAGGLE_USERNAME` + `KAGGLE_KEY`: it makes no request and records no
   verdict.
@@ -1589,6 +1742,18 @@ the fakes received):
 11. **Cleanup.** The next sync retires the gig persona (`POST /api/kp/personas/{id}/retire`) and
     its hire reads `retired`; a niche specialist with no open work is retired by the same sweep
     (in kp only: its hire never got a persona).
+
+**The proposal track (P1-P3, same file).** A second, scanned freelance gig runs the other
+track (see **Two tracks: proposal and build**): P1 asserts its plans ran the client-facing
+prompt variant (`planVariant === "proposal"`, `gig-plan-v2-proposal`); P2 accepts a plan and
+asserts the pinned model wrote the client proposal and the gig moved straight to `drafted`
+with no pairing and no dispatch (`attempt.specialistId === "kp:proposal"`, the disclosure
+sentence ending the message, the file under `<KP_GIGS_ROOT>/_proposals/`) - and that a
+dispatch attempt on this gig is refused `GIG_PROPOSAL_TRACK`; P2b asserts the proposal file
+is served sandboxed, downloads as an attachment, and that the drafted-stage report now
+carries "The client proposal" instead of a draft section; P3 approves with the freelance
+checklist and marks it sent (the simulated send). A side case asserts a dispatch on a
+freelance gig with no accepted plan is 409 `GIG_PROPOSAL_TRACK`, not `GIG_PLAN_NOT_ACCEPTED`.
 
 Side paths, in the same file: withdraw for a brief challenge in one click on the Brief tab
 (`withdrawReason` stored; the next brief call is handed it in `untrusted_past_withdraw_reasons`
@@ -1728,6 +1893,16 @@ chain.
   freshness sweep do not trigger a `closed` report; the next move or a regenerate does.
   Recipe lessons are not read into the report (the lessons ledger has no per-gig read); the
   Lessons section rests on the verdict, the evidence and the client's words.
+- Revising a proposal-track draft (`revise` on the review desk) records the revision note on
+  the attempt and then answers 409 `GIG_PROPOSAL_TRACK` when it tries to re-dispatch
+  (`revisionRecorded: true`): there is no persona to send the revision to. The operator uses
+  **Rewrite the proposal** instead, and the revision note is not carried into the rewrite.
+- The disclosure sentence (`GIG_DISCLOSURE_SENTENCE`) stays English even when the rest of a
+  proposal is written in the listing's own language.
+- A `writing` proposal record orphaned by a server restart mid-task is never cleared, the
+  same gap as the report's (above): it stays `writing` until the next trigger or a rewrite.
+- A won freelance gig (outcome `accepted`) has no build path yet: the proposal track ends at
+  the bid, and any work that follows happens outside kp.
 
 ## Running it headless
 

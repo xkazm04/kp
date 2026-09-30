@@ -129,7 +129,7 @@ async function writePass(workspaceId: string, gig: Gig, facts: GigReportFacts, p
     try {
       const out = await deps.runCli({
         module: "gig_report_cli",
-        files: { "input.json": { stage: facts.stage, facts } },
+        files: { "input.json": { stage: facts.stage, track: facts.track, facts } },
         args: (f) => ["--input-json", f["input.json"], "--timeout-s", String(GIG_REPORT_CLI_TIMEOUT_S)],
         signal,
         llm: true,

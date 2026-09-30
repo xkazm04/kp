@@ -2030,6 +2030,8 @@
     "GIG_WORKSPACE_FAILED": "Der Arbeitsordner des Auftrags oder sein Personas-Projekt konnte nicht vorbereitet werden, daher wurde nichts gesendet. Prüfen Sie die Verbindung zu Personas und versuchen Sie es erneut.",
     "GIG_ROUTE_ARENA_MISMATCH": "Dieser Spezialist arbeitet in einem anderen Bereich als dieser Auftrag, daher kann der Auftrag ihm nicht zugeordnet werden.",
     "GIG_REPORT_NOT_FOUND": "Für diesen Auftrag gibt es noch keinen Bericht. Er entsteht, sobald der Auftrag recherchiert ist.",
+    "GIG_PROPOSAL_TRACK": "Das ist ein Freelance-Gebot: kp bereitet ein Angebot vor, nicht die Arbeit selbst.",
+    "GIG_PROPOSAL_NOT_FOUND": "Für diesen Auftrag gibt es noch kein Kundenangebot. Es entsteht, sobald ein Plan angenommen wird, oder auf Anfrage.",
     "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut.",
     "JOBSEEKER_CV_NOT_FOUND": "Dieser Lebenslauf gehört nicht zu Ihren.",
     "JOBSEEKER_REQUEST_INVALID": "Diese Änderung hatte nicht die erwartete Form, es wurde nichts gespeichert."
@@ -9739,6 +9741,7 @@
       "gig_brief": "Auftragsrecherche",
       "gig_plan": "Auftragspläne",
       "gig_report": "Auftragsbericht",
+      "gig_proposal": "Kundenangebot",
       "role_research": "Rollenrecherche"
     },
     "providers": {
@@ -9825,6 +9828,7 @@
       "gig_brief": "Liest eine Auftragsausschreibung und die darin verlinkten Seiten und schreibt die Recherche zum Auftrag: Kategorie, Schwierigkeit, Aufwand und zu erwartende Hürden.",
       "gig_plan": "Drei fest eingestellte Modelle schreiben je einen Plan für einen Auftrag aus seiner Recherche: Schritte mit Erledigt-Bedingung, getroffene Entscheidungen, Risiken, Aufwand und offene Fragen. Der Operator nimmt einen an.",
       "gig_report": "Schreibt die Berichtsdatei jedes Auftrags aus den Fakten von kp, während der Auftrag fortschreitet: was er verlangt, die Risiken, Eignung und Geld, die Pläne nebeneinander, der Entwurf mit seinen Belegen, das Ergebnis. Steht kein Modell bereit, schreibt kp ihn selbst.",
+      "gig_proposal": "Schreibt das Kundenangebot eines Freelance-Auftrags und die Nachricht zum Absenden, in der Sprache des Inserats, aus dem Recherchebericht und dem angenommenen Plan. Die Seite enthält keine internen Zahlen; steht kein Modell bereit, stellt kp es selbst zusammen.",
       "role_research": "Was die Zieltitel einer suchenden Person heute verlangen, im Web recherchiert, mit Quellen."
     }
   },
@@ -11465,7 +11469,8 @@
       "gigScan": "Auftrags-Scan",
       "gigResearch": "Auftragsrecherche",
       "gigPlans": "Auftragspläne · {count, plural, one {# Auftrag} other {# Aufträge}}",
-      "gigReport": "Auftragsbericht"
+      "gigReport": "Auftragsbericht",
+      "gigProposal": "Kundenangebot"
     },
     "filter": {
       "clear": "Zurücksetzen"
@@ -11556,7 +11561,8 @@
         "already_rematched": "Bereits neu zugeordnet",
         "no_alternative": "Keine passende andere Rolle gefunden",
         "skipped_hired": "Übersprungen: bereits eingestellt",
-        "skipped_stage_changed": "Übersprungen: Phase hat sich geändert"
+        "skipped_stage_changed": "Übersprungen: Phase hat sich geändert",
+        "deferred": "Bewertet: das Anwenden übernimmt der Aufrufer"
       },
       "fanout": {
         "failedBy": "Fehlgeschlagen:",
@@ -14166,6 +14172,8 @@
       "scope_honest": "Umfang, Zeitplan und Preis ehrlich angegeben",
       "no_overclaim": "Keine Erfahrung oder Fähigkeit behauptet, die fehlt",
       "deliverable_verified": "Das Ergebnis wurde gegen den Auftrag geprüft",
+      "asks_included": "Die Fragen und Unterlagen, die wir brauchen, stehen in der Nachricht",
+      "proposal_attached": "Das Kundenangebot ist dem Gebot beigefügt oder verlinkt",
       "no_off_platform": "Keine Zahlung oder Kontakt außerhalb der Plattform vorgeschlagen",
       "disclosure": "Der Hinweis auf KI-Nutzung geht mit der Arbeit hinaus"
     },
@@ -15089,7 +15097,9 @@
         "regenerating": "Wird angefragt…",
         "regenerateTip": "Den Bericht aus dem aktuellen Stand des Auftrags neu schreiben.",
         "regenerateNeedsBrief": "Recherchieren Sie den Auftrag zuerst: Der Bericht entsteht aus der Recherche.",
-        "regenerateFailed": "Der Bericht konnte nicht angefordert werden."
+        "regenerateFailed": "Der Bericht konnte nicht angefordert werden.",
+        "write": "Bericht schreiben",
+        "noneYet": "Noch kein Bericht."
       },
       "choose": {
         "lineup": "Schwierigkeit: {difficulty}. {count, plural, one {Ein Plan wird geschrieben, von {models}.} other {# Modelle schreiben je einen Plan: {models}.}}",
@@ -15157,6 +15167,75 @@
       "copyFailed": "Die ID konnte nicht kopiert werden. Markieren Sie sie und kopieren Sie sie von Hand.",
       "reportFile": "Berichtsdatei",
       "byKp": "von kp, ohne Modell"
+    },
+    "proposal": {
+      "stage": {
+        "proof": "Angebot zu prüfen",
+        "ready": "Angebot bereit zum Senden"
+      },
+      "hero": {
+        "open": "Angebot für den Kunden öffnen",
+        "download": "Herunterladen",
+        "prepare": "Angebot vorbereiten",
+        "rewrite": "Angebot neu schreiben",
+        "asking": "Wird angefragt…",
+        "tip": "Das Angebot für den Kunden, die Bewerbungsnachricht und die Fragen an den Kunden aus dem aktuellen Stand des Auftrags schreiben.",
+        "needsBrief": "Recherchieren Sie den Auftrag zuerst: Das Angebot entsteht aus der Recherche.",
+        "writing": "Wird geschrieben",
+        "firstWriting": "Das Angebot wird geschrieben.",
+        "none": "Noch kein Angebot für den Kunden.",
+        "fromProposal": "Aus dem Angebot für den Kunden, das kp geschrieben hat",
+        "failed": "Das letzte Angebot ist fehlgeschlagen: {reason}.",
+        "requestFailed": "Das Angebot konnte nicht angefordert werden.",
+        "basis": {
+          "will": "Es entsteht nur aus der Recherche: Nehmen Sie einen Plan an, dann wird es genauer.",
+          "was": "Nur aus der Recherche geschrieben: Nehmen Sie einen Plan an, dann wird es genauer.",
+          "stale": "Nur aus der Recherche geschrieben, bevor ein Plan angenommen wurde: Schreiben Sie es neu, dann wird es genauer."
+        }
+      },
+      "meta": {
+        "track": "Ablauf",
+        "proposal": "Freelance-Bewerbung: ein Angebot, keine Umsetzung",
+        "proposalSub": "Eine Bewerbung gewinnt selten, darum bereitet kp einen Plan, die Fragen und eine Seite für den Kunden vor. Gebaut wird erst, wenn der Kunde zusagt.",
+        "build": "Prämie: Die Arbeit ist der Beitrag",
+        "buildSub": "Der eigene Agent des Auftrags baut sie, und bewertet wird, was er baut.",
+        "file": "Angebot für den Kunden",
+        "fromPlan": "Aus dem angenommenen Plan geschrieben · {date}",
+        "fromBrief": "Nur aus der Recherche geschrieben · {date}",
+        "writing": "Wird gerade geschrieben",
+        "failed": "Das letzte Schreiben ist fehlgeschlagen: {reason}",
+        "copied": "Pfad zum Angebot kopiert"
+      },
+      "bid": {
+        "title": "Die Bewerbung",
+        "ledeOwn": "kp hat diese Nachricht aus dem Angebot für den Kunden geschrieben. Prüfen Sie sie hier, geben Sie sie in der Freigabe frei und fügen Sie sie dann selbst auf der Plattform ein.",
+        "lede": "Die Nachricht zum Einfügen auf der Plattform und was Sie den Kunden fragen, bevor die Arbeit beginnt.",
+        "copy": "Nachricht kopieren",
+        "copied": "Nachricht kopiert",
+        "copyFailed": "Die Zwischenablage ist hier nicht verfügbar. Markieren Sie den Text und kopieren Sie ihn.",
+        "movedOn": "Das Angebot wurde nach diesem Entwurf neu geschrieben. Um die neue Nachricht zu prüfen, verwerfen Sie den Entwurf und bereiten Sie das Angebot erneut vor.",
+        "newMessage": "Die neu geschriebene Nachricht",
+        "questions": "Fragen an den Kunden",
+        "artifacts": "Was wir vom Kunden brauchen",
+        "noQuestions": "Keine offenen Fragen an den Kunden.",
+        "noArtifacts": "Die Ausschreibung nennt alles, was die Arbeit braucht.",
+        "foot": "kp sendet sie nie. Sie fügen sie auf der Plattform ein, von Ihrem eigenen Konto."
+      },
+      "signoff": {
+        "next": "Bereiten Sie das Angebot vor, wann Sie möchten",
+        "why": "Eine Freelance-Bewerbung gewinnt selten, darum bereitet kp statt der Arbeit ein Angebot vor: einen Plan, die Fragen an den Kunden und eine Seite für ihn.",
+        "noPlan": "Noch kein Plan angenommen",
+        "noPlanBody": "Das Angebot entsteht dann nur aus der Recherche. Nehmen Sie einen Plan an, dann wird es genauer.",
+        "writing": "Das Angebot wird geschrieben. Die Bewerbung landet hier als Entwurf zum Prüfen.",
+        "flash": "Das Angebot wird geschrieben. Die Bewerbung landet unter „Zu prüfen“.",
+        "belowBarHow": "Die Bewerbung wird zum Entwurf zum Prüfen, sobald ein Scan den Auftrag qualifiziert. Das Angebot können Sie schon jetzt in der Zusammenfassung vorbereiten.",
+        "ownDraft": "kp hat diesen Entwurf aus dem Angebot geschrieben. Um ihn zu ändern, verwerfen Sie ihn und bereiten Sie das Angebot erneut vor.",
+        "again": "Der letzte Entwurf ist nicht durchgegangen. Bereiten Sie das Angebot erneut vor: kp schreibt daraus eine neue Bewerbung."
+      },
+      "pairingOff": "Eine Freelance-Bewerbung bekommt ein Angebot, keinen Agenten: Es gibt nichts zuzuordnen.",
+      "review": {
+        "fromProposal": "Mit dem Angebot für den Kunden geschrieben am {date}. Kopieren, lesen, selbst senden."
+      }
     }
   },
   "kit": {

@@ -122,6 +122,7 @@ function harness(sources: GigSource[], adapters: Partial<Record<string, GigAdapt
         personasProjectId: null,
         withdrawReason: null,
         report: null,
+        proposal: null,
         sourceState: null,
         createdAt: "2026-09-24T00:00:00.000Z",
         updatedAt: "2026-09-24T00:00:00.000Z",

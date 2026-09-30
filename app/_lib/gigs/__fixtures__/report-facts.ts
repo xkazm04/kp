@@ -65,6 +65,7 @@ export function reportFixtureGig(over: Partial<Gig> = {}): Gig {
     personasProjectId: null,
     withdrawReason: null,
     report: null,
+    proposal: null,
     sourceState: { state: "open", detail: null, bidCount: 14, checkedAt: "2026-09-29T07:00:00.000Z" },
     createdAt: T0,
     updatedAt: "2026-09-28T09:05:00.000Z",
@@ -194,4 +195,41 @@ export function reportFixtureInput(stage: GigReportStage): GigReportFactsInput {
     source: { pausedReason: null, invalidStreak: 0, host: "www.freelancer.com" },
     now: new Date("2026-09-30T09:00:00.000Z"),
   };
+}
+
+/** The client proposal the proposal track records for the fixture gig (gigs/proposal/run.ts). */
+export const REPORT_FIXTURE_PROPOSAL: NonNullable<Gig["proposal"]> = {
+  path: "/gigs/_proposals/web/2026-09-28-checkout-page-too-slow-nextjs-a1b2c3.html",
+  status: "ready",
+  source: "llm",
+  model: "claude-sonnet-5-5",
+  fallbackReason: null,
+  costUsd: 0.11,
+  generatedAt: "2026-09-29T13:30:00.000Z",
+  planId: "plan-opus",
+  message: "Hallo,\n\nich würde zuerst den Checkout in Produktion messen und dann das Zahlungs-Widget nach dem ersten Rendern laden.\n\nThis work was prepared with the assistance of an AI agent and reviewed by me before sending.",
+  questions: ["Welches Lighthouse-Profil nutzen Sie?"],
+  artifacts: ["Read-only access to Vercel analytics", "The Lighthouse profile the client measures with"],
+};
+
+/** The fixture gig on the PROPOSAL track at `drafted`: its proposal recorded and the draft
+ *  attempt kp wrote itself (no persona). */
+export function reportFixtureProposalInput(): GigReportFactsInput {
+  const base = reportFixtureInput("accepted");
+  const attempt = reportFixtureAttempt({
+    specialistId: "kp:proposal",
+    executionId: null,
+    costUsd: 0.11,
+    deliverable: {
+      version: 1,
+      summary: "Der Checkout soll auf dem Handy unter 2 Sekunden laden.",
+      draftText: REPORT_FIXTURE_PROPOSAL.message,
+      artifacts: [{ kind: "file", ref: REPORT_FIXTURE_PROPOSAL.path, title: "Client proposal" }],
+      evidence: [],
+      disclosure: "This work was prepared with the assistance of an AI agent and reviewed by me before sending.",
+      confidence: 0.5,
+      questions: [],
+    },
+  });
+  return { ...base, gig: { ...base.gig, status: "drafted", proposal: REPORT_FIXTURE_PROPOSAL, updatedAt: attempt.updatedAt }, attempts: [attempt] };
 }

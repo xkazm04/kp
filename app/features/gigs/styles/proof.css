@@ -139,3 +139,6 @@
 .gd .stamp .s2 { font: 400 1.125rem/1.5 var(--gd-serif); color: var(--gd-ink); }
 .gd .stamp.calm { border-color: var(--gd-steel); color: var(--gd-steel); }
 .gd .stamp.moss { border-color: var(--gd-moss); color: var(--gd-moss-ink); }
+.gd .acts .so-writing { display: flex; align-items: center; gap: 0.375rem; font-weight: 700; color: var(--gd-steel); }
+.gd .acts .so-writing .k-mark { animation: gd-breathe 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .gd .acts .so-writing .k-mark { animation: none; } }

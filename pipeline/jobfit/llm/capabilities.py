@@ -147,6 +147,11 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # (HTML in a small vocabulary kp re-sanitizes) out as JSON. Pinned at the call site to
     # Claude Sonnet 5.5 at high effort; no web access - the facts are everything it may say.
     "gig_report": frozenset({CAP_JSON}),
+    # Gigs, the proposal track (app/_lib/gigs/proposal/run.ts -> gig_proposal_cli.py): one
+    # freelance listing, its research brief and the accepted plan (if any), fenced as data,
+    # in; the client proposal's plain-text fields and the bid message out as JSON. Pinned at
+    # the call site to Claude Sonnet 5.5 at high effort; no web access.
+    "gig_proposal": frozenset({CAP_JSON}),
 }
 
 # Provider defaults when a config row names a provider but no model. Azure has
@@ -237,6 +242,11 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # report itself). The pinned engine (claude_cli) passes no max-tokens flag, so this binds
     # nothing today; it is the decision for a keyed engine.
     "gig_report": 16384,
+    # A proposal at its structural maximum: ~1.5k characters of message, a 900-character
+    # understanding, 6 approach lines, 9 milestones and 8 + 8 asks of <= 300 characters is
+    # ~2.5k tokens; the pinned engine (claude_cli) passes no max-tokens flag, so this binds
+    # nothing today - it is the decision for a keyed engine.
+    "gig_proposal": 4096,
     # A role research answer at its structural maximum: 24 skills x ~75 tokens (name,
     # tier, share, a <=200-char why, source ids) + 16 sources x ~90 (url, title, read,
     # publisher) + a <=400-char summary is ~3.4k tokens, past the base 2048 — and a

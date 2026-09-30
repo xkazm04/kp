@@ -2458,6 +2458,10 @@ export function ensureDb(): Database.Database {
     // The gig's HTML report (gigs/gig-report.ts): JSON GigReport {path, stage, status, source,
     // fallbackReason, costUsd, generatedAt}. NULL until the first report is written.
     "ALTER TABLE gigs ADD COLUMN report_json TEXT",
+    // A proposal-track gig's client proposal (gigs/proposal/**): JSON GigProposal {path,
+    // status, source, model, fallbackReason, costUsd, generatedAt, planId, message,
+    // questions, artifacts}. NULL until the first proposal is written.
+    "ALTER TABLE gigs ADD COLUMN proposal_json TEXT",
     // The listing's state as its source last reported it (gigs/freshness.ts): JSON
     // GigSourceState {state, detail, bidCount, checkedAt}; freshness_checked_at is the same
     // checkedAt as a plain column, so the checker reads oldest-first on an index-free sort.

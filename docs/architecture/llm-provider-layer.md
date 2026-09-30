@@ -33,20 +33,32 @@ Backend shipped and in production use:
   `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`, `gig_brief`
   (the gig research brief, `gig_brief_cli.py`: keyless answers `no_provider` as data
   and the caller writes its deterministic brief; its own **Gigs** section in the
-  Models routing table - docs/features/gigs/README.md "Research"), and `gig_report`
+  Models routing table - docs/features/gigs/README.md "Research"), `gig_report`
   (the gig's HTML report, `gig_report_cli.py`: keyless or a failure and kp writes the
-  report body itself; docs/features/gigs/README.md "The gig's report file").
-- **Four use cases have their engine PINNED at the call site** (`role_research`,
-  `gig_brief`, `gig_plan`, `gig_report`; the TS mirror is `PINNED_USE_CASES` in
-  `app/_lib/llm-pins.ts`).
+  report body itself; docs/features/gigs/README.md "The gig's report file"), and
+  `gig_proposal` (a freelance gig's client proposal, `gig_proposal_cli.py`: keyless,
+  a failure or an unusable answer and kp composes the proposal itself;
+  docs/features/gigs/README.md "Two tracks: proposal and build").
+- **Five use cases have their engine PINNED at the call site** (`role_research`,
+  `gig_brief`, `gig_plan`, `gig_report`, `gig_proposal`; the TS mirror is
+  `PINNED_USE_CASES` in `app/_lib/llm-pins.ts`).
   `gig_brief` runs on Claude Sonnet 5.5 with the CLI's web tools (docs/features/gigs
   "Research"); `gig_plan`'s seats now follow the research brief's difficulty: Sonnet 5.5
   at `high` alone (easy, moderate, unrated), Opus 5.5 at `high` alone (hard), or Opus 5.5
   at `xhigh` plus Fable 5 plus GPT 6 Astra at `max` via the Codex CLI (very hard)
-  (`app/_lib/gigs/plan-seats.ts`; docs/features/gigs "Plans"); `gig_report`
-  (`pipeline/jobfit/gig_report_cli.py`, the gig's HTML report) is pinned
+  (`app/_lib/gigs/plan-seats.ts`; docs/features/gigs "Plans") - a freelance gig's plans
+  run the same seats against the same `GigPlan` schema, but the client-facing prompt
+  variant `gig-plan-v2-proposal` (`plans.ts GIG_PLAN_PROPOSAL_PROMPT_VERSION`, in
+  lockstep with `gig_plan_cli.py PROMPT_VERSION_PROPOSAL`) instead of the build track's
+  `gig-plan-v1`, written for the client - milestones they receive, questions for them,
+  the assumptions the bid rests on; `gig_report` (`pipeline/jobfit/gig_report_cli.py`,
+  the gig's HTML report) is pinned
   `ProviderPin("claude_cli", "claude-sonnet-5-5", "high")` - keyless or a failure, and kp
-  writes the report body itself (docs/features/gigs "The gig's report file"). The first of
+  writes the report body itself (docs/features/gigs "The gig's report file"); `gig_proposal`
+  (`pipeline/jobfit/gig_proposal_cli.py`, a freelance gig's client proposal) is pinned the
+  same `ProviderPin("claude_cli", "claude-sonnet-5-5", "high")` - keyless, a failure or an
+  unusable answer, and kp composes the proposal itself from the brief and the accepted plan
+  (docs/features/gigs "Two tracks: proposal and build"). The first of
   them:
 - **`role_research` is PINNED at the call site**
   (`role_research_cli.py`, the job seeker's "what does this title ask for today",

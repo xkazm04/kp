@@ -138,6 +138,27 @@ class FenceTest(unittest.TestCase):
         self.assertEqual(len(gig_report_cli.section_plan("closed")), 12)
 
 
+class TrackTest(unittest.TestCase):
+    def test_the_proposal_track_swaps_the_drafted_sections(self):
+        self.assertEqual(gig_report_cli.section_plan("drafted", "proposal")[-2:], ["proposal", "requests"])
+        self.assertNotIn("draft", gig_report_cli.section_plan("closed", "proposal"))
+        self.assertEqual(gig_report_cli.section_plan("closed", "proposal")[-2:], ["outcome", "lessons"])
+        self.assertEqual(gig_report_cli.section_plan("accepted", "proposal"), gig_report_cli.section_plan("accepted"))
+
+    def test_the_track_reaches_the_instructions_and_the_envelope(self):
+        req = {**REQUEST, "stage": "drafted", "track": "proposal"}
+        head = gig_report_cli.build_prompt(req)
+        head = head[: head.rindex("<<<UNTRUSTED_")]
+        self.assertIn('kind "proposal", title "The client proposal"', head)
+        self.assertIn('kind "requests", title "What we ask the client"', head)
+        self.assertNotIn('kind "evidence"', head)
+        code, out, _ = run_cli(["--no-llm"], req)
+        self.assertEqual((code, json.loads(out)["track"]), (0, "proposal"))
+        code, _, err = run_cli(["--no-llm"], {**REQUEST, "track": "bid"})
+        self.assertEqual(code, 2)
+        self.assertIn("invalid_input", err)
+
+
 class CoerceTest(unittest.TestCase):
     def test_good_answer(self):
         out = gig_report_cli.coerce_report(GOOD)

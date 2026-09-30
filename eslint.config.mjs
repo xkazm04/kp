@@ -246,6 +246,9 @@ const COLOR_EXEMPT = [
   // (and GET /api/gigs/[id]/report serves sandboxed). kp's tokens never reach it, so its
   // light and prefers-color-scheme dark palettes are literal by design. One file, no UI.
   "app/_lib/gigs/report/report-css.ts",
+  // The client proposal's stylesheet, for the same reason: a standalone, client-facing HTML
+  // file (attached to a bid or printed), light only, that kp's tokens never reach.
+  "app/_lib/gigs/proposal/proposal-css.ts",
   // Test data: hexes here are inputs and expected values for the color
   // sanitizers and the glyph token snapper, not rendered color.
   "app/**/*.test.{ts,tsx}"

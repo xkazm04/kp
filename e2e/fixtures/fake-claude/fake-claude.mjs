@@ -34,8 +34,15 @@
 //     reader can tell the columns apart (its summary names the seat); a gig whose title holds
 //     `[fable-fails]` makes the Fable seat exit 1 with no output (a failed seat). The GPT seat
 //     is answered by fake-codex.mjs, which logs to the same file.
+//     The PROPOSAL track's variant (gig-plan-v2-proposal, a freelance gig) opens with the same
+//     words; the log's `planVariant` says which one ran ("proposal" when the instructions ask
+//     for the plan the CLIENT is shown, else "build").
 //   report (gig-report-v1, `Write the report for the gig ...`): one section per kind the
 //     instructions list, each with a <script> the report's sanitizer must strip.
+//   proposal (gig-proposal-v1, `Write the client proposal for the gig ...`): a client proposal
+//     built from the fenced plan (its steps are the milestones) and the brief's missing
+//     artifacts; its understanding carries a <script> the page must render as TEXT, and its
+//     message ends with the disclosure sentence the instructions name.
 //   anything else: exit 1, logged, so an unexpected call is visible rather than answered.
 //
 // Every call is appended as one JSON line to $FAKE_CLAUDE_LOG (argv, the parsed flags, the
@@ -43,7 +50,7 @@
 
 import { appendFileSync } from "node:fs";
 
-const COST = { brief: 0.01, fable: 0.02, opus: 0.05, sonnet: 0.01, report: 0.03 };
+const COST = { brief: 0.01, fable: 0.02, opus: 0.05, sonnet: 0.01, report: 0.03, proposal: 0.04 };
 const SEATS = { "claude-fable-5": "fable", "claude-opus-5-5": "opus", "claude-sonnet-5-5": "sonnet" };
 
 function flags(argv) {
@@ -99,7 +106,31 @@ function classifyPrompt(prompt) {
   if (prompt.includes("Describe the gig in the fenced region below")) return "brief";
   if (prompt.includes("Plan the gig in the fenced region below")) return "plan";
   if (prompt.includes("Write the report for the gig in the fenced region below")) return "report";
+  if (prompt.includes("Write the client proposal for the gig in the fenced region below")) return "proposal";
   return "unknown";
+}
+
+/** A client proposal (gig-proposal-v1) from the fenced plan and brief: the plan's steps are the
+ *  milestones, the brief's missing artifacts the asks, and the message ends with the disclosure
+ *  sentence the instructions quote. The understanding carries a <script> the page must escape. */
+function proposalFor(prompt, payload) {
+  const listing = payload?.untrusted_listing ?? {};
+  const brief = payload?.untrusted_brief ?? {};
+  const plan = payload?.untrusted_plan ?? null;
+  const disclosure = /ENDS with this sentence exactly as given: "([^"]+)"/.exec(prompt)?.[1] ?? "";
+  const artifacts = Array.isArray(brief.missingArtifacts) ? brief.missingArtifacts : [];
+  const questions = Array.isArray(plan?.questions) ? plan.questions : [];
+  return {
+    title: String(listing.title ?? "The work"),
+    understanding: `You need ${String(listing.title ?? "the work").toLowerCase()}. <script>alert("proposal")</script> Done means the files are delivered and checked.`,
+    approach: ["Keep the scope to the listing's own words.", "Check every requirement before delivery."],
+    milestones: (Array.isArray(plan?.steps) ? plan.steps : []).map((s) => ({ title: s.title, delivers: s.doneWhen })),
+    timeline: "The milestones run in order once your questions are answered.",
+    effort: plan?.effortHours ? { minHours: plan.effortHours.min, maxHours: plan.effortHours.max } : null,
+    questions,
+    artifacts,
+    message: ["Hello,", "", "I would build this as one light page and check it against your brief.", ...artifacts.map((a) => `- ${a}`), "", disclosure].join("\n"),
+  };
 }
 
 /** A report body (gig-report-v1) with one section per kind the instructions list, each carrying a
@@ -268,7 +299,7 @@ async function main() {
     }
     const result = planFor(seat, payload);
     const cost = COST[seat] ?? 0.01;
-    log({ ...base, seat, answered: "ok", cost });
+    log({ ...base, seat, planVariant: prompt.includes("the plan you would show the CLIENT") ? "proposal" : "build", answered: "ok", cost });
     process.stdout.write(`${asciiJson(envelope({ result, structured: false, model, cost }))}\n`);
     return 0;
   }
@@ -277,6 +308,13 @@ async function main() {
     const result = reportFor(prompt, payload);
     log({ ...base, answered: "ok", cost: COST.report });
     process.stdout.write(`${asciiJson(envelope({ result, structured: false, model, cost: COST.report }))}\n`);
+    return 0;
+  }
+
+  if (useCase === "proposal") {
+    const result = proposalFor(prompt, payload);
+    log({ ...base, answered: "ok", cost: COST.proposal });
+    process.stdout.write(`${asciiJson(envelope({ result, structured: false, model, cost: COST.proposal }))}\n`);
     return 0;
   }
 

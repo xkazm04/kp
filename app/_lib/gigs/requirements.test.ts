@@ -111,7 +111,7 @@ test("shape: the kp.agent-requirements.v1 object the wire contract names, every 
   assert.equal(r.outputs.handoffFile, "kp-deliverable.json");
   assert.equal(r.outputs.clientFilesDir, "deliverable/");
   assert.equal(r.outputs.processLog, "NOTES.md");
-  assert.deepEqual(r.outputs.reviewChecklist, ["brief_answered", "scope_honest", "no_overclaim", "deliverable_verified", "no_off_platform", "disclosure"]);
+  assert.deepEqual(r.outputs.reviewChecklist, ["brief_answered", "scope_honest", "no_overclaim", "asks_included", "proposal_attached", "no_off_platform", "disclosure"]);
   assert.deepEqual(r.constraints, [...GIG_RUN_CONSTRAINTS]);
   assert.deepEqual(r.tools, [{ connector: "research", why: "check vendor facts and public docs the brief depends on" }]);
   assert.equal(r.budgetUsdPerAttempt, GIG_DEFAULT_BUDGET_USD.freelance);
@@ -161,7 +161,7 @@ test("bounds: strings <= 1000 chars, arrays <= 30 items, the whole under Persona
   // The long lists shrink; the rules, outputs and tools never do.
   assert.deepEqual(r.constraints, [...GIG_RUN_CONSTRAINTS]);
   assert.equal(r.tools.length, 1);
-  assert.equal(r.outputs.reviewChecklist.length, 6);
+  assert.equal(r.outputs.reviewChecklist.length, 7);
 });
 
 test("lessons: read from a registry checkout's LESSONS.md - newest block first, template and preamble skipped; seed recipes carry none", () => {

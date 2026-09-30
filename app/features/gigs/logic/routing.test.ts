@@ -44,6 +44,7 @@ function gig(over: Partial<Gig> = {}): Gig {
     personasProjectId: null,
     withdrawReason: null,
     report: null,
+    proposal: null,
     sourceState: null,
     createdAt: "",
     updatedAt: "",

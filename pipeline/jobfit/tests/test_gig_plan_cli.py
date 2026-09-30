@@ -195,7 +195,7 @@ class CallTest(unittest.TestCase):
 
         with mock.patch.object(gig_plan_cli, "resolve_provider", fake_resolve):
             out = gig_plan_cli.plan(REQUEST)
-        self.assertEqual(set(out), {"result", "source", "fallbackReason", "promptVersion", "seat", "model", "effort", "costUsd"})
+        self.assertEqual(set(out), {"result", "source", "fallbackReason", "promptVersion", "track", "seat", "model", "effort", "costUsd"})
         self.assertEqual((out["source"], out["fallbackReason"], out["promptVersion"]), ("llm", None, "gig-plan-v1"))
         self.assertEqual((out["seat"], out["model"], out["effort"]), ("opus", "claude-opus-5-5", "xhigh"))
         self.assertAlmostEqual(out["costUsd"], 0.31)
@@ -430,6 +430,49 @@ class InputTest(unittest.TestCase):
         code, out, _ = run_cli(["--no-llm"], {**REQUEST, "seat": "fable", "model": "claude-fable-5", "effort": None})
         self.assertEqual(code, 0)
         self.assertIsNone(json.loads(out)["effort"])
+
+
+class ProposalTrackTest(unittest.TestCase):
+    """The proposal track (a freelance bid): the same schema, a client-facing prompt variant."""
+
+    PROPOSAL = {
+        **REQUEST,
+        "track": "proposal",
+        "arena": "freelance",
+        "brief": {**REQUEST["brief"], "missingArtifacts": ["The brand assets"], "outreachMessage": "Hello, I can help.", "language": "de"},
+    }
+
+    def test_the_track_picks_the_prompt_and_the_version(self):
+        build, proposal = gig_plan_cli.build_prompt(REQUEST, nonce="a" * 16), gig_plan_cli.build_prompt(self.PROPOSAL, nonce="a" * 16)
+        self.assertIn("question you would ask the freelancer", build)
+        self.assertNotIn("show the CLIENT", build)
+        self.assertIn("show the CLIENT", proposal)
+        self.assertIn("questions FOR THE CLIENT", proposal)
+        self.assertTrue(proposal.startswith("Plan the gig in the fenced region below"), "the fake CLI (e2e) classifies by this opening")
+        self.assertEqual(gig_plan_cli.prompt_version(REQUEST), "gig-plan-v1")
+        self.assertEqual(gig_plan_cli.prompt_version(self.PROPOSAL), "gig-plan-v2-proposal")
+
+    def test_the_new_brief_fields_ride_inside_the_fence(self):
+        brief = gig_plan_cli.untrusted_payload(self.PROPOSAL)["untrusted_brief"]
+        self.assertEqual((brief["missingArtifacts"], brief["outreachMessage"], brief["language"]), (["The brand assets"], "Hello, I can help.", "de"))
+        head = gig_plan_cli.build_prompt(self.PROPOSAL)
+        head = head[: head.rindex("<<<UNTRUSTED_")]
+        self.assertNotIn("brand assets", head)
+
+    def test_the_envelope_names_the_track_and_the_system_prompt_follows_it(self):
+        provider = FakeProvider(answer=GOOD)
+        with mock.patch.object(gig_plan_cli, "resolve_provider", return_value=provider) as resolved, mock.patch.object(provider, "complete_json", wraps=provider.complete_json) as call:
+            out = gig_plan_cli.plan(self.PROPOSAL)
+        self.assertEqual((out["source"], out["promptVersion"], out["track"]), ("llm", "gig-plan-v2-proposal", "proposal"))
+        self.assertIn("senior freelancer preparing a bid", call.call_args.kwargs["system"])
+        self.assertEqual(resolved.call_args.args[0], "gig_plan")
+        code, stdout, _ = run_cli(["--no-llm"], REQUEST)
+        self.assertEqual((code, json.loads(stdout)["promptVersion"], json.loads(stdout)["track"]), (0, "gig-plan-v1", "build"))
+
+    def test_an_unknown_track_is_invalid_input(self):
+        code, _, err = run_cli(["--no-llm"], {**REQUEST, "track": "bounty"})
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(err.strip().splitlines()[-1])["code"], "invalid_input")
 
 
 if __name__ == "__main__":

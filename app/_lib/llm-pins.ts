@@ -45,4 +45,12 @@ export const PINNED_USE_CASES: Readonly<Record<string, PinnedUseCase>> = {
     reason:
       "Product-owner requirement: each gig's report file is written by Claude Sonnet 5.5 at high effort, from kp's facts and to the report bar kp's contest reports set; kp sanitises and assembles it, and writes it itself when no model can.",
   },
+  // gig_proposal_cli.py `PIN`: a freelance gig's client proposal (the proposal track) is
+  // written by Sonnet 5.5 at high effort (app/_lib/gigs/proposal/run.ts).
+  gig_proposal: {
+    provider: "claude_cli",
+    model: "claude-sonnet-5-5",
+    reason:
+      "Product-owner requirement: a freelance bid's client proposal and its message are written by Claude Sonnet 5.5 at high effort, in the listing's language; kp renders them into a fixed page with no internal figures, and composes them itself from the brief and the accepted plan when no model can.",
+  },
 };

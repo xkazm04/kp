@@ -66,8 +66,11 @@ export const SESSION_COOKIE_ENV = "KP_SESSION_COOKIE";
 export const EXIT = { OK: 0, FAIL: 1, USAGE: 2, PREFLIGHT: 3 };
 export const ACCEPT_NOTE = "e2e live run: keep it small and self-contained.";
 export const OUTCOME_NOTE = "e2e live run";
-/** The freelance arena's review checklist (app/_lib/gigs/checklists.ts GIG_CHECKLISTS.freelance). */
-export const FREELANCE_CHECKLIST = ["brief_answered", "scope_honest", "no_overclaim", "deliverable_verified", "no_off_platform", "disclosure"];
+/** The oss_bounty arena's review checklist (app/_lib/gigs/checklists.ts GIG_CHECKLISTS.oss_bounty).
+ *  This run drives the BUILD track (a persona builds the work): since 2026-09-30 a freelance
+ *  gig is the PROPOSAL track and is never dispatched (GIG_PROPOSAL_TRACK), so the fixture is
+ *  an open-source bounty. */
+export const BUILD_CHECKLIST = ["claim_rules_followed", "tests_pass", "scoped_change", "contributing_followed", "pr_description", "disclosure"];
 /** Hire states the sync polls; terminal failures of a hire. */
 const PENDING_HIRE = ["dispatched", "pending_approval", "onboarding"];
 const DEAD_HIRE = ["failed", "rejected", "retired"];
@@ -130,10 +133,11 @@ export function resolveBaseUrl(flag, env = process.env) {
   return String(flag || env.KP_BASE_URL || DEFAULT_KP).replace(/\/+$/, "");
 }
 
-/** The fixture gig: small, safe, freelance, no external repository. Unique per run. */
+/** The fixture gig: small, safe, BUILD track (an open-source bounty - a freelance gig is the
+ *  proposal track and is never built), no external repository. Unique per run. */
 export function fixtureGig(runId, now = new Date()) {
   return {
-    arena: "freelance",
+    arena: "oss_bounty",
     url: `https://example.org/kp-e2e-live/${runId}`,
     title: `Write a Python function that validates ISO-8601 dates, with pytest tests (kp e2e ${runId})`,
     bodyText: [
@@ -505,7 +509,7 @@ export async function main(argv, { env = process.env, log = console.log, err = c
 
     // 10. approve ----------------------------------------------------------------------------
     await step("approve (checklist)", async (row) => {
-      const checklist = Object.fromEntries(FREELANCE_CHECKLIST.map((k) => [k, true]));
+      const checklist = Object.fromEntries(BUILD_CHECKLIST.map((k) => [k, true]));
       const body = need(await kp(deps, "POST", `/api/gigs/attempts/${attemptId}`, { action: "approve", review: { checklist, note: OUTCOME_NOTE, reviewMs: 0 } }), "approve");
       row.detail = `gig ${body.gig?.status}`;
     });

@@ -2069,6 +2069,13 @@ export const REFUSAL_ERRORS = {
   /** GET /api/gigs/[id]/report (404): no report file yet - one is written once the gig is
    *  researched (gigs/report/run.ts) - or the recorded file is gone. */
   GIG_REPORT_NOT_FOUND: "This gig has no report yet. It is written once the gig is researched.",
+  /** POST /api/gigs/[id]/dispatch (409), and the pairing: a freelance gig is the PROPOSAL
+   *  track (types.ts gigTrackOf) - kp prepares a client proposal, never the work, so no
+   *  persona is paired or run. Nothing was written. */
+  GIG_PROPOSAL_TRACK: "This is a freelance bid: kp prepares a proposal, not the work.",
+  /** GET /api/gigs/[id]/proposal (404): no client proposal yet - one is written when a plan
+   *  is accepted, or on request (gigs/proposal/run.ts) - or the recorded file is gone. */
+  GIG_PROPOSAL_NOT_FOUND: "This gig has no client proposal yet. It is written when a plan is accepted, or on request.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

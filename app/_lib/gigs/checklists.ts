@@ -17,7 +17,11 @@ export const GIG_CHECKLISTS: Readonly<Record<GigArena, readonly string[]>> = {
   security: ["in_scope", "repro_steps", "impact_stated", "no_harmful_testing", "not_duplicate", GIG_DISCLOSURE_ITEM],
   oss_bounty: ["claim_rules_followed", "tests_pass", "scoped_change", "contributing_followed", "pr_description", GIG_DISCLOSURE_ITEM],
   competition: ["rules_read", "no_leakage", "reproducible", "validation_reported", "win_obligations", GIG_DISCLOSURE_ITEM],
-  freelance: ["brief_answered", "scope_honest", "no_overclaim", "deliverable_verified", "no_off_platform", GIG_DISCLOSURE_ITEM],
+  // The PROPOSAL track (types.ts gigTrackOf): a freelance bid sends a proposal, not the work,
+  // so the operator confirms the asks and the proposal file instead of a verified deliverable.
+  // `deliverable_verified` is retired from the list but keeps its meaning line below, so a
+  // review stored before the tracks split still reads.
+  freelance: ["brief_answered", "scope_honest", "no_overclaim", "asks_included", "proposal_attached", "no_off_platform", GIG_DISCLOSURE_ITEM],
 };
 
 /** What each key asks, in one English line - written into the gig folder's rules file
@@ -42,6 +46,8 @@ export const GIG_CHECKLIST_MEANING: Readonly<Record<string, string>> = {
   scope_honest: "Scope, timeline and price are stated honestly.",
   no_overclaim: "No experience or capability is claimed that is not held.",
   deliverable_verified: "The deliverable was checked against the brief before it goes out.",
+  asks_included: "The questions and the artifacts we need from the client are in the message.",
+  proposal_attached: "The client proposal is attached or linked in the bid.",
   no_off_platform: "No off-platform payment or contact is proposed.",
   [GIG_DISCLOSURE_ITEM]: "The AI-use disclosure sentence goes out with the work.",
 };

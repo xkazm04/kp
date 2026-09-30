@@ -23,22 +23,20 @@ import { ProofHead, ProofNotFound } from "./ProofHead";
 import { ProofPanels } from "./ProofPanels";
 import { ProofTrail } from "./ProofTrail";
 import { revealSoon } from "./report/parts";
+import { useGigFile } from "./report/useGigFile";
 import { GigsSignoff, type DeskStore } from "./signoff/GigsSignoff";
 import { DeclineConfirm, useProofDecline } from "./useProofDecline";
 
-// One gig as a full page (B/3 "The Proof", the owner's pick "for well formatted content and
-// designed sections"). It REPLACES the section it was opened from; the trail on top
-// (ProofTrail.tsx) carries the way back (the crumb, ×, Esc), the section tabs
-// (proofTabs.tsx), and the list it was opened from, walked with ← / → (the owner's keys; no
-// wrap) - and Decline (D), confirmed by D again or Enter (useProofDecline.tsx).
-//
+// One gig as a full page (B/3 "The Proof"). It REPLACES the section it was opened from; the
+// trail on top (ProofTrail.tsx) carries the way back (the crumb, ×, Esc), the section tabs
+// (proofTabs.tsx), the list it came from, walked with ← / → (no wrap), and Decline (D,
+// confirmed by D again or Enter: useProofDecline.tsx).
 // Left: the sign-off (signoff/) - the state and only the moves it allows. Right: the chosen
 // tab's panel (ProofPanels.tsx) - the gig's report on Summary, which opens with its own
-// title, else the head and the panel. The plans are read here (usePlans.ts) and shared: the
-// report's plans section, the tab row's mark, and the dispatch gate in the sign-off.
-//
-// Every page swap lands at the top with focus on the way back, so focus never sits on a
-// control that is gone.
+// title, else the head and the panel. Read here and shared: the plans (usePlans.ts: the
+// report's plans section, the tab row's mark, the sign-off's gate) and a freelance bid's
+// client proposal (useGigFile: the Summary's row and the sign-off both write and watch it).
+// Every page swap lands at the top with focus on the way back.
 
 export type ProofList = { ids: string[]; label: string };
 
@@ -111,7 +109,8 @@ export function GigsProof({
   const { record, error: recordError } = useGigRecord(gig);
   const plansState = usePlans(gig?.id ?? null);
   const plans = useMemo(() => planView(plansState.plans), [plansState.plans]);
-  const tabs = useProofTabs({ gig, attempt, doubts, note, attempts: record ? record.attempts.length : null, recurring, plans: { ready: plans.ready, accepted: plans.accepted !== null } });
+  const proposalFile = useGigFile(gig, "proposal", onChanged, t("proposal.hero.requestFailed"));
+  const tabs = useProofTabs({ gig, attempt, persona: persona !== null, doubts, note, attempts: record ? record.attempts.length : null, recurring, plans: { ready: plans.ready, accepted: plans.accepted !== null } });
   const showReport = useCallback(() => setTab("summary"), []);
   const jump = useSlipJump(showReport);
   const openPlans = useCallback(() => {
@@ -173,6 +172,7 @@ export function GigsProof({
           onDecline={decline.askDecline}
           planGate={plansState.plans === null && !plansState.failure ? "loading" : plans.accepted || plansState.failure ? "ok" : "missing"}
           onOpenPlans={openPlans}
+          proposalFile={proposalFile}
         />
         <div className="col">
           {tab === "summary" ? null : <ProofHead gig={gig} nicheLabel={niche?.label ?? null} />}
@@ -180,7 +180,7 @@ export function GigsProof({
           <KitArea>
             <div className="proof-panel" key={tab}>
               <ProofPanels
-                {...{ tab, gig, attempt, source, summary, note, record, recordError, specialists, persona, kpi, plansState, onChanged, onFlash }}
+                {...{ tab, gig, attempt, source, summary, note, record, recordError, specialists, persona, kpi, plansState, proposalFile, onChanged, onFlash }}
                 draft={<DraftTab gig={gig} attempt={attempt} source={source} specialistName={specialist?.name ?? null} now={now} doubts={doubts} note={note} pinned={pinned} memory={memory} setMemory={setMemory} onJump={jump} />}
                 brief={<GigBriefPanel gig={gig} onChanged={onChanged} withdraw={withdraw} meta={<GigMeta gig={gig} now={now} plans={plansState.plans} attempts={record?.attempts ?? (attempt ? [attempt] : [])} onFlash={onFlash} />} />}
                 onOpenPlans={openPlans}

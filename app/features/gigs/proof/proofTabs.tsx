@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Mark, Segmented, type Segment } from "@/app/_components/kit";
 import { KitTipLayer } from "@/app/_components/kit/KitTipLayer";
 import type { Gig, GigAttempt } from "@/app/_lib/gigs/types";
+import { clientMessageOf, pairingOpen } from "../logic/proposal";
 import type { ReviewNote } from "../logic/reviewNote";
 import type { Doubt } from "../shared/doubts";
 
@@ -23,7 +24,8 @@ import type { Doubt } from "../shared/doubts";
 //                     the English translation above it when the listing is not in English
 //   Pairing           the gig's own agent, its knowledge, the folder, the milestone
 //                     (panels/PairingPanel.tsx; the legacy routing view for a gig a niche
-//                     specialist already worked). The id stays `routing`.
+//                     specialist already worked). The id stays `routing`. Disabled for a
+//                     freelance bid no persona worked: it gets a proposal, not an agent.
 
 export const PROOF_TABS = ["summary", "review", "history", "brief", "listing", "routing"] as const;
 export type ProofTab = (typeof PROOF_TABS)[number];
@@ -53,6 +55,7 @@ export function ProofTabRow({ tabs, value, onChange }: { tabs: Segment[]; value:
 export function useProofTabs({
   gig,
   attempt,
+  persona,
   doubts,
   note,
   attempts,
@@ -61,6 +64,8 @@ export function useProofTabs({
 }: {
   gig: Gig | null;
   attempt: GigAttempt | null;
+  /** The gig has its own persona (the Pairing tab stays open for it on either track). */
+  persona: boolean;
   doubts: readonly Doubt[];
   note: ReviewNote | null;
   /** How many attempts the fresh record holds; null while it loads. */
@@ -75,7 +80,8 @@ export function useProofTabs({
   const dl = attempt?.deliverable ?? null;
   const failedEvidence = dl ? dl.evidence.filter((e) => e.passed === false).length : 0;
   const stops = doubts.filter((x) => x.sev === "stop").length;
-  const outreach = !!gig.brief?.outreachMessage?.trim();
+  const outreach = clientMessageOf(gig) !== null;
+  const pairs = pairingOpen(gig, persona, attempt);
   // The report's one mark: what stops Approve first, then a failed check, then a plan to accept.
   const summaryMark = stops ? (
     <Mark kind="fail" tip={t("slip.stops", { count: stops })} />
@@ -105,6 +111,6 @@ export function useProofTabs({
       disabled: !gig.bodyText.trim(),
       mark: gig.suspectReasons.length ? <Mark kind="caution" tip={t("back.flags", { count: gig.suspectReasons.length })} /> : undefined,
     },
-    { value: "routing", label: t("pairing.tab") },
+    { value: "routing", label: t("pairing.tab"), disabled: !pairs, tip: pairs ? undefined : t("proposal.pairingOff") },
   ];
 }

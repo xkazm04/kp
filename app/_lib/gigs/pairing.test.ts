@@ -133,6 +133,15 @@ test("no accepted plan: GIG_PLAN_NOT_ACCEPTED and Personas is never dialled", as
   assert.deepEqual(await pairGig("ws-someone-else", gig.id), { ok: false, code: "GIG_NOT_FOUND" });
 });
 
+test("a freelance gig is the proposal track: GIG_PROPOSAL_TRACK even with an accepted plan, and Personas is never dialled", async () => {
+  const gig = qualifiedGig("freelance");
+  fixtureAcceptedPlan(WS, gig.id);
+  const before = calls.length;
+  assert.deepEqual(await pairGig(WS, gig.id), { ok: false, code: "GIG_PROPOSAL_TRACK" });
+  assert.equal(calls.length, before);
+  assert.equal(getGig(WS, gig.id)!.specialistId, null, "nothing was routed");
+});
+
 test("pairs: type workspace, project at the type folder, the plan as a milestone, the persona hired with the exact payload", async () => {
   const gig = qualifiedGig();
   fixtureAcceptedPlan(WS, gig.id, { note: "Keep the PoC harmless." });

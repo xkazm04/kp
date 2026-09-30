@@ -493,6 +493,17 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: () => encodeTaskLabel("gigReport"),
   },
+  // A freelance gig's client proposal (late-bound-boot.ts `gig_proposal`, the Gigs module's
+  // proposal runner): one pinned model call that writes the proposal
+  // FILE and the bid message, or kp's own composition keyless; a qualified gig then carries
+  // it as its draft. Enqueued on plan accept for a proposal-track gig and by
+  // POST /api/gigs/[id]/proposal; the durable result is the file and the gig's proposal record.
+  gig_proposal: {
+    run: (ctx) =>
+      externalRunner("gig_proposal")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: () => encodeTaskLabel("gigProposal"),
+  },
 };
 
 let booted = false;

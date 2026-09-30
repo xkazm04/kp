@@ -13,6 +13,7 @@ operator opens in a browser (docs/features/gigs/README.md "The report").
 stdin or ``--input-json <path>``::
 
     {"stage": "researched"|"planned"|"accepted"|"drafted"|"sent"|"closed",
+     "track": "build"|"proposal" (optional, default build: a freelance gig is a proposal),
      "facts": {"gig": {"title": str, ...}, "brief": {...}|null, "plans": [...],
                "accepted": {...}|null, "attempt": {...}|null, "lint": [...],
                "outcomes": [...], "money": {...}, ...}}
@@ -89,6 +90,8 @@ SECTION_KINDS = (
     "review",
     "outcome",
     "lessons",
+    "proposal",
+    "requests",
     "other",
 )
 # The sections each stage ADDS to the ones before it (model.ts sectionPlanFor).
@@ -100,6 +103,11 @@ _STAGE_ADDS: dict[str, tuple[str, ...]] = {
     "sent": ("outcome",),
     "closed": ("lessons",),
 }
+# The PROPOSAL track (a freelance bid, types.ts gigTrackOf): kp prepares a client proposal
+# instead of building the work, so the drafted stage adds the proposal and what it asks the
+# client INSTEAD of the draft, its evidence and the review (model.ts PROPOSAL_ADDS).
+TRACKS = ("build", "proposal")
+_PROPOSAL_STAGE_ADDS: dict[str, tuple[str, ...]] = {"drafted": ("proposal", "requests")}
 
 MIN_SECTIONS = 3
 MAX_SECTIONS = 14
@@ -176,6 +184,19 @@ _SECTION_GUIDE: dict[str, tuple[str, str]] = {
         "Outcome and money",
         "The verdict with a pill, the amount awarded as recorded, and a spend table (plans, agent runs, the count "
         "of unreported costs). Never add amounts in different currencies.",
+    ),
+    "proposal": (
+        "The client proposal",
+        "What kp will send the client: the proposal's approach and its milestones as a table (milestone | what the "
+        "client receives), then one line naming the proposal file (facts.proposal.path, in <code>) and whether it was "
+        "written by a model or by kp. The bid message's opening in a blockquote. Internal figures are fine here; the "
+        "proposal file itself carries none.",
+    ),
+    "requests": (
+        "What we ask the client",
+        "ONE table: # | ask | kind (question or artifact), the questions and the artifacts the proposal asks for "
+        "(facts.proposal.questions, facts.proposal.artifacts), in the order they are asked. Close with a div.callout "
+        "on which ask blocks the work if it goes unanswered.",
     ),
     "lessons": (
         "Lessons",
@@ -266,6 +287,8 @@ def validate_request(req: dict[str, Any]) -> str | None:
     """The first thing wrong with a request, or None. Pure."""
     if req.get("stage") not in STAGES:
         return f"stage must be one of {', '.join(STAGES)}"
+    if req.get("track") is not None and req.get("track") not in TRACKS:
+        return f"track must be one of {', '.join(TRACKS)} or absent"
     facts = req.get("facts")
     if not isinstance(facts, dict):
         return "facts must be an object"
@@ -275,11 +298,11 @@ def validate_request(req: dict[str, Any]) -> str | None:
     return None
 
 
-def section_plan(stage: str) -> list[str]:
+def section_plan(stage: str, track: str = "build") -> list[str]:
     """The section kinds a report at ``stage`` carries, in order (model.ts sectionPlanFor). Pure."""
     out: list[str] = []
     for s in STAGES:
-        out.extend(_STAGE_ADDS[s])
+        out.extend(_PROPOSAL_STAGE_ADDS.get(s, _STAGE_ADDS[s]) if track == "proposal" else _STAGE_ADDS[s])
         if s == stage:
             break
     return out
@@ -311,8 +334,9 @@ def build_prompt(req: dict[str, Any], nonce: str | None = None) -> str:
     Only the stage and the section plan (closed vocabularies, validated) enter the
     instructions; json.dumps keeps every newline of the data inside a string."""
     stage = req["stage"] if req.get("stage") in STAGES else "researched"
+    track = req["track"] if req.get("track") in TRACKS else "build"
     plan = "\n".join(
-        f'{i + 1}. kind "{kind}", title "{_SECTION_GUIDE[kind][0]}": {_SECTION_GUIDE[kind][1]}' for i, kind in enumerate(section_plan(stage))
+        f'{i + 1}. kind "{kind}", title "{_SECTION_GUIDE[kind][0]}": {_SECTION_GUIDE[kind][1]}' for i, kind in enumerate(section_plan(stage, track))
     )
     payload = json.dumps(untrusted_payload(req), ensure_ascii=False, indent=1)
     token = nonce or secrets.token_hex(8)
@@ -386,6 +410,7 @@ def _envelope(req: dict[str, Any], result: dict[str, Any] | None, *, reason: str
         "fallbackReason": reason,
         "promptVersion": PROMPT_VERSION,
         "stage": req.get("stage"),
+        "track": req.get("track") if req.get("track") in TRACKS else "build",
         "costUsd": cost,
     }
 

@@ -2360,6 +2360,25 @@ const ROUTES: RouteSpec[] = [
     expensive: "startTask(",
   },
   {
+    // Rewriting a gig's report now: one pinned model call (Sonnet 5.5 at high effort) per
+    // accepted POST. 20/10min per IP, the plans door's budget; GET (the file) is not limited.
+    rel: "./gigs/[id]/report/route.ts",
+    key: "`gigs-report:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
+    // Writing a freelance gig's client proposal now: one pinned model call (Sonnet 5.5 at
+    // high effort) per accepted POST. 20/10min per IP, the report door's budget; GET (the
+    // file) is not limited.
+    rel: "./gigs/[id]/proposal/route.ts",
+    key: "`gigs-proposal:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "startTask(",
+  },
+  {
     // Accepting a plan: one CAS write per click, the review desk's pace.
     rel: "./gigs/[id]/plans/[planId]/accept/route.ts",
     key: "`gigs-plan-accept:${clientIpFrom(request.headers)}`",

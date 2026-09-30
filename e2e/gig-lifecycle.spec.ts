@@ -3,14 +3,24 @@
 //
 //   scan (the REAL freelancer_api adapter against a local fixture API) -> expiry + quarantine
 //   + the not-digital decline (a physical listing never reaches research) -> research (the
-//   pinned web-researching brief, gig-brief-v4) -> plans (the lineup follows the brief's
-//   difficulty: three seats on a very hard gig, one of them GPT through the Codex CLI; one
-//   Sonnet seat on a moderate one) -> ACCEPT one in the
-//   UI -> dispatch = pairing (workspace by type, project at the gig's folder, the plan as a
-//   milestone, the gig persona hired and AUTO-APPROVED) -> the run -> sync (the draft lands,
-//   PLAN-STATUS mirrored to the milestone, shown on the Pairing tab) -> review (approve with
-//   the whole checklist) -> SUBMISSION, SIMULATED ("Mark sent": kp never submits anything) ->
-//   outcome (accepted, a lesson queued) -> cleanup (the persona retired; the niche sweep).
+//   pinned web-researching brief, gig-brief-v4) -> the report. Then the TWO TRACKS
+//   (docs/features/gigs/README.md "Two tracks"):
+//
+//   BUILD (an open-source bounty, forwarded by hand - test 2c): plans (the lineup follows the
+//   brief's difficulty: three seats on a very hard gig, one of them GPT through the Codex CLI;
+//   one Sonnet seat on a moderate one) -> ACCEPT one in the UI -> dispatch = pairing
+//   (workspace by type, project at the gig's folder, the plan as a milestone, the gig persona
+//   hired and AUTO-APPROVED) -> the run -> sync (the draft lands, PLAN-STATUS mirrored to the
+//   milestone, shown on the Pairing tab) -> review (approve with the whole checklist) ->
+//   SUBMISSION, SIMULATED ("Mark sent": kp never submits anything) -> outcome (accepted, a
+//   lesson queued) -> cleanup (the persona retired; the niche sweep).
+//
+//   PROPOSAL (the scanned FREELANCE listing - tests P1-P3): plans with the client-facing prompt
+//   variant -> accept -> the pinned model writes the CLIENT PROPOSAL (a file with no internal
+//   figures, served sandboxed) and the gig reaches `drafted` with kp's own attempt - WITHOUT
+//   pairing, a persona or a dispatch (a dispatch is refused GIG_PROPOSAL_TRACK) -> review with
+//   the proposal checklist -> "Mark sent".
+//
 //   Side paths: withdraw for a brief challenge (and the next brief call is handed it), a
 //   dispatch with no accepted plan (409), a plan seat that fails while the other two land.
 //
@@ -75,11 +85,20 @@ test.skip(!OWN_SERVER_OK, "Run through `npm run test:e2e:gigs`: this spec boots 
 
 // ─── The fixture world ──────────────────────────────────────────────────────────────────
 
-const FREELANCE_CHECKLIST = ["brief_answered", "scope_honest", "no_overclaim", "deliverable_verified", "no_off_platform", "disclosure"];
+/** The proposal track's checklist (app/_lib/gigs/checklists.ts GIG_CHECKLISTS.freelance). */
+const FREELANCE_CHECKLIST = ["brief_answered", "scope_honest", "no_overclaim", "asks_included", "proposal_attached", "no_off_platform", "disclosure"];
+/** The build track's checklist for the bounty fixture (GIG_CHECKLISTS.oss_bounty). */
+const BUILD_CHECKLIST = ["claim_rules_followed", "tests_pass", "scoped_change", "contributing_followed", "pr_description", "disclosure"];
+/** The AI-use disclosure kp's own proposal message ends with (contract.ts GIG_DISCLOSURE_SENTENCE). */
+const KP_DISCLOSURE = "This work was prepared with the assistance of an AI agent and reviewed by me before sending.";
 const DISCLOSURE = "I used AI tools to draft this work and I reviewed every part of it myself before sending.";
 const ACCEPT_NOTE = "Keep the PoC harmless";
 const RUN_COST_USD = 0.42;
 const MAIN_TITLE = "Build a landing page for a bakery";
+/** The BUILD-track fixture: an open-source bounty forwarded by hand (a freelance gig is never
+ *  built). "bakery" makes the fake brief rate it very hard (three plan seats), "landing" files
+ *  it as web development (the `web` gig type, the "Gigs · Web" Personas workspace). */
+const BUILD_TITLE = "Build a landing page for a bakery chain";
 const HONEYPOT_TITLE = "Quick data entry job";
 const LATE_TITLE = "Fix a typo on a static site";
 const PHYSICAL_TITLE = "Bulk Retail Gift Cards";
@@ -224,6 +243,8 @@ type FakeCall = {
   maxTurns: number | null;
   jsonSchema: boolean;
   seat?: string;
+  /** Which plan prompt ran: "proposal" (gig-plan-v2-proposal) or "build" (gig-plan-v1). */
+  planVariant?: string;
   answered: string;
   payload: Record<string, unknown> | null;
 };
@@ -479,8 +500,18 @@ type GigRow = {
     outreachMessage?: string | null;
   } | null;
   qualification?: { score: number; declineReason?: string | null; declinedBy?: string | null; declineEvidence?: string[] } | null;
+  proposal?: ProposalRecord | null;
 };
-type Attempt = { id: string; status: string; costUsd: number | null; deliverable: { summary: string; draftText: string; disclosure: string } | null; fallbackReason: string | null };
+type Attempt = {
+  id: string;
+  status: string;
+  specialistId?: string;
+  executionId?: string | null;
+  costUsd: number | null;
+  deliverable: { summary: string; draftText: string; disclosure: string; artifacts?: { kind: string; ref: string; title: string }[] } | null;
+  fallbackReason: string | null;
+};
+type ProposalRecord = { path: string; status: string; source: string; model: string | null; costUsd: number | null; planId: string | null; message: string; questions: string[]; artifacts: string[] };
 type PlanRow = {
   id: string;
   seat: string;
@@ -512,11 +543,11 @@ async function sync(request: APIRequestContext): Promise<void> {
 }
 
 /** Forward a brief by hand (the operator's door), research it now, and answer the gig. */
-async function forwardAndResearch(request: APIRequestContext, title: string, bodyText: string): Promise<GigRow> {
+async function forwardAndResearch(request: APIRequestContext, title: string, bodyText: string, arena = "freelance"): Promise<GigRow> {
   const created = await okJson<{ gig: GigRow }>(
     await request.post("/api/gigs", {
       data: {
-        arena: "freelance",
+        arena,
         url: `https://example.org/gigs/${encodeURIComponent(title.toLowerCase().replace(/\W+/g, "-"))}`,
         title,
         bodyText,
@@ -551,6 +582,7 @@ async function openSection(page: Page, name: RegExp): Promise<void> {
 // ─── The lifecycle ──────────────────────────────────────────────────────────────────────
 
 let mainGig: GigRow;
+let buildGig: GigRow;
 let acceptedPlan: PlanRow;
 let attemptId = "";
 let personaId = "";
@@ -670,11 +702,23 @@ test("2b. report: the gig's report file is written by the pinned model, sanitize
   expect(call?.effort).toBe("high");
 });
 
+test("2c. build track: an open-source bounty is forwarded and researched (the gig the build path below works)", async ({ request }) => {
+  buildGig = await forwardAndResearch(
+    request,
+    BUILD_TITLE,
+    "Add a one-page landing page for our bakery chain to the repository: a hero, opening hours and a contact section. Plain HTML and CSS.",
+    "oss_bounty"
+  );
+  expect(buildGig.status).toBe("qualified");
+  expect(buildGig.brief?.difficulty, "the three-seat lineup").toBe("very_hard");
+  expect(buildGig.brief?.outreachMessage ?? null, "a bounty gets no client message").toBeNull();
+});
+
 test("3. plans: a very hard gig gets three seats, each on its own engine, model and effort, all ready", async ({ request }) => {
-  const posted = await okJson<{ taskId: string }>(await request.post(`/api/gigs/${mainGig.id}/plans`, { data: {} }), "POST plans");
+  const posted = await okJson<{ taskId: string }>(await request.post(`/api/gigs/${buildGig.id}/plans`, { data: {} }), "POST plans");
   const task = await waitTask(request, posted.taskId);
   expect((task.result as { ready: number }).ready).toBe(3);
-  const rows = await getPlans(request, mainGig.id);
+  const rows = await getPlans(request, buildGig.id);
   expect(rows.map((r) => `${r.seat}:${r.status}`).sort()).toEqual(["fable:ready", "gpt:ready", "opus:ready"]);
   const bySeat = Object.fromEntries(rows.map((r) => [r.seat, r]));
   expect(bySeat.fable.plan?.summary).toMatch(/^Fable plan/);
@@ -684,6 +728,7 @@ test("3. plans: a very hard gig gets three seats, each on its own engine, model 
   expect([bySeat.fable.costUsd, bySeat.opus.costUsd, bySeat.gpt.costUsd], "the Codex seat reports tokens, not dollars: null").toEqual([0.02, 0.05, null]);
 
   const plans = fakeCalls().filter((c) => c.useCase === "plan");
+  expect(plans.every((c) => c.planVariant === "build"), "a bounty is planned with the build prompt (gig-plan-v1)").toBe(true);
   const argvOf = (model: string) => plans.find((c) => c.model === model)!.argv;
   expect(argvOf("claude-opus-5-5")).toEqual(expect.arrayContaining(["--effort", "xhigh"]));
   expect(argvOf("claude-fable-5"), "the Fable seat runs at the CLI's default effort: no flag").not.toContain("--effort");
@@ -693,11 +738,11 @@ test("3. plans: a very hard gig gets three seats, each on its own engine, model 
   expect([gpt.model, gpt.effort, gpt.sandbox]).toEqual(["gpt-6-astra", "max", "read-only"]);
   expect(gpt.argv).toEqual(expect.arrayContaining(["exec", "--ephemeral", "--skip-git-repo-check", "--output-schema"]));
   expect(gpt.schemaRequired, "the plan's shape travels as the output schema").toEqual(["summary", "steps", "decisions", "risks", "effortHours", "questions"]);
-  expect((gpt.payload?.untrusted_gig as { title?: string } | undefined)?.title).toBe(MAIN_TITLE);
+  expect((gpt.payload?.untrusted_gig as { title?: string } | undefined)?.title).toBe(BUILD_TITLE);
 });
 
 test("4. UI: the Plans tab shows three columns, and one is ACCEPTED with a note (human gate 1)", async ({ page, request }) => {
-  await openProof(page, MAIN_TITLE);
+  await openProof(page, BUILD_TITLE);
   // The plans sit in the gig's report (the Summary section) or, in the older proof layout,
   // behind their own section button: open that button only when it is the one that exists.
   const plansSection = page.getByRole("group", { name: "Proof sections" }).getByRole("button", { name: /\bPlans\b/ });
@@ -719,13 +764,13 @@ test("4. UI: the Plans tab shows three columns, and one is ACCEPTED with a note 
   await expect(acceptedPlanLine).toContainText(ACCEPT_NOTE);
   await expect(page.getByRole("button", { name: "Accept this plan" }), "one plan per gig: no accept is left").toHaveCount(0);
 
-  acceptedPlan = (await getPlans(request, mainGig.id)).find((r) => r.acceptedAt)!;
+  acceptedPlan = (await getPlans(request, buildGig.id)).find((r) => r.acceptedAt)!;
   expect(acceptedPlan.seat).toBe("opus");
   expect(acceptedPlan.note).toBe(ACCEPT_NOTE);
 });
 
 test("5. dispatch = pairing: workspace by type, project at the gig folder, the plan as a milestone, the persona auto-approved (human gate 2)", async ({ request }) => {
-  const res = await request.post(`/api/gigs/${mainGig.id}/dispatch`, { data: {} });
+  const res = await request.post(`/api/gigs/${buildGig.id}/dispatch`, { data: {} });
   expect(res.status(), await res.text()).toBe(202);
   const body = (await res.json()) as { pairing: string; specialistId: string };
   expect(body.pairing).toBe("pending");
@@ -753,13 +798,13 @@ test("5. dispatch = pairing: workspace by type, project at the gig folder, the p
   expect(requirements.knowledge?.map((k) => k.subject)).toEqual(["error-handling", "data-access", "rate-limiting"]);
   expect(requirements.plan?.summary).toBe(acceptedPlan.plan!.summary);
   const fit = hire.body.fit as { kind: string; gigId: string; gigType: string };
-  expect(fit).toMatchObject({ kind: "kp.gig-persona.v1", gigId: mainGig.id, gigType: "web" });
+  expect(fit).toMatchObject({ kind: "kp.gig-persona.v1", gigId: buildGig.id, gigType: "web" });
   expect(hire.body.placement).toEqual({ workspaceId: ws!.id, projectId: project.id });
-  expect((hire.body.kp as { jobId: string }).jobId).toBe(`gig-persona:${mainGig.id}`);
+  expect((hire.body.kp as { jobId: string }).jobId).toBe(`gig-persona:${buildGig.id}`);
   expect(hire.autoApproved, "the mock's gig persona policy approved it on arrival").toBe(true);
   personaId = hire.personaId!;
 
-  const plan = (await getPlans(request, mainGig.id)).find((r) => r.acceptedAt)!;
+  const plan = (await getPlans(request, buildGig.id)).find((r) => r.acceptedAt)!;
   expect(plan.progress?.milestoneId).toBe(milestone.id);
   expect(plan.progress?.goals.map((g) => g.goalId)).toEqual(milestone.goalIds);
   expect(plan.progress?.goals.every((g) => g.status === "open" && g.progress === 0)).toBe(true);
@@ -771,7 +816,7 @@ test("6. run + sync: the persona runs in the gig folder, the draft lands, PLAN-S
   let gig: GigRow | null = null;
   for (let pass = 0; pass < 8; pass++) {
     await sync(request);
-    gig = (await getGig(request, mainGig.id)).gig;
+    gig = (await getGig(request, buildGig.id)).gig;
     if (gig.status === "drafted") break;
   }
   expect(gig?.status).toBe("drafted");
@@ -789,7 +834,7 @@ test("6. run + sync: the persona runs in the gig folder, the draft lands, PLAN-S
   const milestone = mock.milestones.find((m) => m.projectId === project.id)!;
   expect(input.plan.steps.map((s) => s.goalId), "each plan step carries its Personas goal id").toEqual(milestone.goalIds);
 
-  const { attempts } = await getGig(request, mainGig.id);
+  const { attempts } = await getGig(request, buildGig.id);
   const attempt = attempts[attempts.length - 1];
   attemptId = attempt.id;
   expect(attempt.status).toBe("drafted");
@@ -801,7 +846,7 @@ test("6. run + sync: the persona runs in the gig folder, the draft lands, PLAN-S
   expect(mock.goalPatches.map((x) => x.goalId).sort()).toEqual([g1, g2].sort());
   expect(mock.goalPatches.find((x) => x.goalId === g1)?.body).toEqual({ status: "done", progress: 100 });
   expect(mock.goalPatches.find((x) => x.goalId === g2)?.body).toEqual({ status: "in-progress", progress: 50 });
-  const progress = (await getPlans(request, mainGig.id)).find((r) => r.acceptedAt)!.progress!;
+  const progress = (await getPlans(request, buildGig.id)).find((r) => r.acceptedAt)!.progress!;
   expect(progress.goals.slice(0, 3).map((g) => [g.status, g.progress])).toEqual([
     ["done", 100],
     ["in-progress", 50],
@@ -810,7 +855,7 @@ test("6. run + sync: the persona runs in the gig folder, the draft lands, PLAN-S
 });
 
 test("7. UI: the Pairing tab shows the milestone progress", async ({ page }) => {
-  await openProof(page, MAIN_TITLE);
+  await openProof(page, BUILD_TITLE);
   await openSection(page, /\bPairing\b/);
   await expect(page.getByRole("img", { name: "Milestone 30% done" })).toBeVisible();
   const steps = acceptedPlan.plan!.steps;
@@ -819,7 +864,7 @@ test("7. UI: the Pairing tab shows the milestone progress", async ({ page }) => 
 });
 
 test("8-9. review: approve with the whole checklist (human gate 3), then the SIMULATED submission", async ({ request }) => {
-  const all = Object.fromEntries(FREELANCE_CHECKLIST.map((k) => [k, true]));
+  const all = Object.fromEntries(BUILD_CHECKLIST.map((k) => [k, true]));
   const approved = await okJson<{ gig: GigRow }>(
     await request.post(`/api/gigs/attempts/${attemptId}`, { data: { action: "approve", review: { checklist: all, note: "Checked against the brief.", reviewMs: 90_000 } } }),
     "approve"
@@ -840,7 +885,7 @@ test("8-9. review: approve with the whole checklist (human gate 3), then the SIM
 });
 
 test("10. outcome: accepted with an amount, a lesson queued", async ({ request }) => {
-  const res = await request.post(`/api/gigs/${mainGig.id}/outcome`, { data: { verdict: "accepted", amount: 250, currency: "USD", feedbackText: "Clean work." } });
+  const res = await request.post(`/api/gigs/${buildGig.id}/outcome`, { data: { verdict: "accepted", amount: 250, currency: "USD", feedbackText: "Clean work." } });
   expect(res.status(), await res.text()).toBe(201);
   const body = (await res.json()) as { gig: GigRow; outcome: { id: string }; lessons: unknown[] };
   expect(body.gig.status).toBe("accepted");
@@ -858,7 +903,7 @@ test("11. cleanup: the next sync retires the gig persona in Personas and in kp",
     await request.get("/api/gigs/specialists"),
     "GET specialists"
   );
-  const persona = specialists.find((s) => s.gigId === mainGig.id);
+  const persona = specialists.find((s) => s.gigId === buildGig.id);
   expect(persona?.hire?.status).toBe("retired");
   expect(persona?.hire?.personaId).toBe(personaId);
 });
@@ -874,10 +919,100 @@ test("11b. cleanup: a niche specialist with no open work is retired by the sweep
   expect(nicheRow?.hire?.status, "no persona yet: retired in kp only").toBe("retired");
 });
 
+// ─── The proposal track (the scanned freelance listing) ────────────────────────────────
+
+let proposalAttemptId = "";
+
+test("P1. proposal track: the freelance gig's plans use the CLIENT-facing prompt variant", async ({ request }) => {
+  const posted = await okJson<{ taskId: string }>(await request.post(`/api/gigs/${mainGig.id}/plans`, { data: {} }), "POST plans (freelance)");
+  expect((await waitTask(request, posted.taskId)).result).toMatchObject({ ready: 3, failed: 0 });
+  const mine = fakeCalls().filter((c) => c.useCase === "plan" && (c.payload?.untrusted_gig as { title?: string } | undefined)?.title === MAIN_TITLE);
+  expect(mine.length).toBe(3);
+  expect(mine.every((c) => c.planVariant === "proposal"), "gig-plan-v2-proposal").toBe(true);
+  const claudeSeat = mine.find((c) => c.cli !== "codex")!;
+  const brief = claudeSeat.payload?.untrusted_brief as { missingArtifacts?: string[]; outreachMessage?: string | null; language?: string | null };
+  expect(brief.missingArtifacts).toEqual(["The brand assets (logo and colours)", "The acceptance criteria for the finished work"]);
+  expect(brief.outreachMessage).toMatch(/^Hello,/);
+  expect(brief.language).toBe("en");
+});
+
+test("P2. proposal track: accept -> the pinned model writes the client proposal and the gig is DRAFTED without pairing or a dispatch", async ({ request }) => {
+  const plans = await getPlans(request, mainGig.id);
+  const opusPlan = plans.find((r) => r.seat === "opus")!;
+  const hiresBefore = mock.requests.length;
+  const runsBefore = mock.executions.length;
+  await okJson(await request.post(`/api/gigs/${mainGig.id}/plans/${opusPlan.id}/accept`, { data: { note: "Keep it small" } }), "accept (freelance)");
+  let gig: GigRow | null = null;
+  let attempts: Attempt[] = [];
+  for (let i = 0; i < 120; i++) {
+    ({ gig, attempts } = await getGig(request, mainGig.id));
+    if (gig.status === "drafted" && gig.proposal?.status === "ready") break;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  expect(gig?.status, "qualified -> dispatched -> drafted by kp itself").toBe("drafted");
+  const proposal = gig!.proposal!;
+  expect([proposal.status, proposal.source, proposal.model, proposal.costUsd, proposal.planId]).toEqual(["ready", "llm", "claude-sonnet-5-5", 0.04, opusPlan.id]);
+  expect(proposal.message.endsWith(KP_DISCLOSURE), "the bid message ends with the AI-use disclosure").toBe(true);
+  expect(proposal.artifacts).toEqual(["The brand assets (logo and colours)", "The acceptance criteria for the finished work"]);
+  expect(path.relative(path.join(gigsRoot, "_proposals"), proposal.path).startsWith(".."), "the file is under <KP_GIGS_ROOT>/_proposals").toBe(false);
+
+  const attempt = attempts[attempts.length - 1];
+  proposalAttemptId = attempt.id;
+  expect([attempt.specialistId, attempt.status, attempt.executionId ?? null, attempt.costUsd]).toEqual(["kp:proposal", "drafted", null, 0.04]);
+  expect(attempt.deliverable?.draftText).toBe(proposal.message);
+  expect(attempt.deliverable?.artifacts).toEqual([{ kind: "file", ref: proposal.path, title: "Client proposal" }]);
+  expect(mock.requests.length, "no persona was hired").toBe(hiresBefore);
+  expect(mock.executions.length, "nothing ran in Personas").toBe(runsBefore);
+
+  const call = fakeCalls().find((c) => c.useCase === "proposal");
+  expect([call?.model, call?.effort]).toEqual(["claude-sonnet-5-5", "high"]);
+  expect((call?.payload?.untrusted_plan as { steps?: unknown[] } | null)?.steps?.length, "the accepted plan rides the fence").toBeGreaterThan(0);
+
+  const refused = await request.post(`/api/gigs/${mainGig.id}/dispatch`, { data: {} });
+  expect(refused.status()).toBe(409);
+  expect(((await refused.json()) as { code: string }).code).toBe("GIG_PROPOSAL_TRACK");
+});
+
+test("P2b. the proposal file is served sandboxed, carries no internal figures, and downloads as an attachment", async ({ request }) => {
+  const res = await request.get(`/api/gigs/${mainGig.id}/proposal`);
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-security-policy"]).toMatch(/^sandbox; default-src 'none'/);
+  const html = await res.text();
+  expect(html, "the model's <script> is text, never markup").not.toContain("<script");
+  expect(html).toContain("&lt;script&gt;");
+  expect(html).toContain("What you receive");
+  for (const internal of [/\bkp\b/i, /claude/i, /\$0\.04/, new RegExp(mainGig.id)]) expect(html).not.toMatch(internal);
+  const dl = await request.get(`/api/gigs/${mainGig.id}/proposal?download=1`);
+  expect(dl.headers()["content-disposition"]).toMatch(/^attachment; filename="build-a-landing-page-for-a-bakery-proposal\.html"$/);
+  // The report now reports the proposal, not a draft.
+  let report = "";
+  for (let i = 0; i < 60 && !report.includes("The client proposal"); i++) {
+    report = await (await request.get(`/api/gigs/${mainGig.id}/report`)).text();
+    if (!report.includes("The client proposal")) await new Promise((r) => setTimeout(r, 1000));
+  }
+  expect(report, "the drafted report on the proposal track").toContain("The client proposal");
+  expect(report).not.toContain("The evidence");
+});
+
+test("P3. proposal track: approve with the proposal checklist, then the SIMULATED send", async ({ request }) => {
+  const all = Object.fromEntries(FREELANCE_CHECKLIST.map((k) => [k, true]));
+  const approved = await okJson<{ gig: GigRow }>(
+    await request.post(`/api/gigs/attempts/${proposalAttemptId}`, { data: { action: "approve", review: { checklist: all, note: "Asks and file checked.", reviewMs: 60_000 } } }),
+    "approve (proposal)"
+  );
+  expect(approved.gig.status).toBe("in_review");
+  const sent = await okJson<{ gig: GigRow; attempt: Attempt }>(await request.post(`/api/gigs/attempts/${proposalAttemptId}`, { data: { action: "mark_sent" } }), "mark_sent (proposal)");
+  expect([sent.gig.status, sent.attempt.status]).toEqual(["sent", "sent"]);
+});
+
 // ─── Side paths ─────────────────────────────────────────────────────────────────────────
 
-test("side: a dispatch with no accepted plan is refused 409 GIG_PLAN_NOT_ACCEPTED", async ({ request }) => {
-  const gig = await forwardAndResearch(request, "Validate ISO-8601 dates in Python", "Write a Python function that validates ISO-8601 dates, with pytest tests.");
+test("side: a dispatch with no accepted plan is refused 409 GIG_PLAN_NOT_ACCEPTED (a freelance gig: GIG_PROPOSAL_TRACK)", async ({ request }) => {
+  const bid = await forwardAndResearch(request, "Validate ISO-8601 dates in Python for a client", "Write a Python function that validates ISO-8601 dates, with pytest tests.");
+  const proposalOnly = await request.post(`/api/gigs/${bid.id}/dispatch`, { data: {} });
+  expect(proposalOnly.status()).toBe(409);
+  expect(((await proposalOnly.json()) as { code: string }).code).toBe("GIG_PROPOSAL_TRACK");
+  const gig = await forwardAndResearch(request, "Validate ISO-8601 dates in Python", "Write a Python function that validates ISO-8601 dates, with pytest tests.", "oss_bounty");
   expect(gig.status).toBe("qualified");
   const requestsBefore = mock.requests.length;
   const res = await request.post(`/api/gigs/${gig.id}/dispatch`, { data: {} });

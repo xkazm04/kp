@@ -2030,6 +2030,8 @@
     "GIG_WORKSPACE_FAILED": "Le dossier de travail de la mission ou son projet Personas n’a pas pu être préparé, donc rien n’a été envoyé. Vérifiez la connexion à Personas et réessayez.",
     "GIG_ROUTE_ARENA_MISMATCH": "Ce spécialiste travaille dans un autre domaine que cette mission, elle ne peut donc pas lui être attribuée.",
     "GIG_REPORT_NOT_FOUND": "Cette mission n’a pas encore de rapport. Il est rédigé une fois la mission étudiée.",
+    "GIG_PROPOSAL_TRACK": "Il s’agit d’une candidature freelance : kp prépare une proposition, pas le travail.",
+    "GIG_PROPOSAL_NOT_FOUND": "Cette mission n’a pas encore de proposition client. Elle est rédigée quand un plan est accepté, ou sur demande.",
     "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer.",
     "JOBSEEKER_CV_NOT_FOUND": "Ce CV ne fait pas partie des vôtres.",
     "JOBSEEKER_REQUEST_INVALID": "Cette modification n’avait pas la forme attendue, rien n’a été enregistré."
@@ -9739,6 +9741,7 @@
       "gig_brief": "Fiche de recherche de mission",
       "gig_plan": "Plans de mission",
       "gig_report": "Rapport de mission",
+      "gig_proposal": "Proposition client",
       "role_research": "Recherche de poste"
     },
     "providers": {
@@ -9825,6 +9828,7 @@
       "gig_brief": "Lit une annonce de mission rémunérée et les pages qu'elle cite, puis rédige la fiche de recherche : catégorie, difficulté, effort estimé et difficultés attendues.",
       "gig_plan": "Trois modèles fixés rédigent chacun un plan pour une mission à partir de sa fiche de recherche : étapes avec condition de fin, décisions prises, risques, effort et questions ouvertes. L’opérateur en accepte un.",
       "gig_report": "Rédige le fichier de rapport de chaque mission à partir des faits de kp, au fil de son avancement : ce qu’elle demande, les risques, l’adéquation et l’argent, les plans côte à côte, le brouillon et ses preuves, le résultat. Sans modèle disponible, kp le rédige lui-même.",
+      "gig_proposal": "Rédige la proposition client d’une mission freelance et le message à envoyer, dans la langue de l’annonce, à partir de l’étude et du plan accepté. La page ne contient aucun chiffre interne ; sans modèle disponible, kp la compose lui-même.",
       "role_research": "Ce que les intitulés visés par une personne en recherche demandent aujourd’hui, recherché sur le web avec ses sources."
     }
   },
@@ -11465,7 +11469,8 @@
       "gigScan": "Analyse des missions",
       "gigResearch": "Recherche de mission",
       "gigPlans": "Plans de mission · {count, plural, one {# mission} other {# missions}}",
-      "gigReport": "Rapport de mission"
+      "gigReport": "Rapport de mission",
+      "gigProposal": "Proposition client"
     },
     "filter": {
       "clear": "Effacer"
@@ -11556,7 +11561,8 @@
         "already_rematched": "Déjà réorienté",
         "no_alternative": "Aucun autre poste trouvé",
         "skipped_hired": "Ignoré : déjà recruté",
-        "skipped_stage_changed": "Ignoré : le candidat a changé d'étape"
+        "skipped_stage_changed": "Ignoré : le candidat a changé d'étape",
+        "deferred": "Évalué : l'application revient à l'appelant"
       },
       "fanout": {
         "failedBy": "Échecs :",
@@ -14166,6 +14172,8 @@
       "scope_honest": "Périmètre, délai et prix indiqués honnêtement",
       "no_overclaim": "Aucune expérience ni capacité revendiquée sans l’avoir",
       "deliverable_verified": "Le livrable a été vérifié par rapport au brief",
+      "asks_included": "Les questions et les éléments dont nous avons besoin figurent dans le message",
+      "proposal_attached": "La proposition client est jointe ou liée dans la candidature",
       "no_off_platform": "Aucun paiement ni contact hors plateforme proposé",
       "disclosure": "La mention d’usage de l’IA part avec le travail"
     },
@@ -15089,7 +15097,9 @@
         "regenerating": "Demande…",
         "regenerateTip": "Réécrire le rapport à partir de l’état actuel de la mission.",
         "regenerateNeedsBrief": "Recherchez d’abord la mission : le rapport part de la recherche.",
-        "regenerateFailed": "Le rapport n’a pas pu être demandé."
+        "regenerateFailed": "Le rapport n’a pas pu être demandé.",
+        "write": "Rédiger le rapport",
+        "noneYet": "Pas encore de rapport."
       },
       "choose": {
         "lineup": "Difficulté : {difficulty}. {count, plural, one {Un plan est rédigé, par {models}.} other {# modèles rédigent chacun un plan : {models}.}}",
@@ -15157,6 +15167,75 @@
       "copyFailed": "L’ID n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
       "reportFile": "Fichier du rapport",
       "byKp": "par kp, sans modèle"
+    },
+    "proposal": {
+      "stage": {
+        "proof": "Proposition à relire",
+        "ready": "Candidature prête à envoyer"
+      },
+      "hero": {
+        "open": "Ouvrir la proposition client",
+        "download": "Télécharger",
+        "prepare": "Préparer la proposition",
+        "rewrite": "Réécrire la proposition",
+        "asking": "Demande…",
+        "tip": "Rédiger la proposition client, le message de candidature et les questions au client à partir de l’état actuel de la mission.",
+        "needsBrief": "Recherchez d’abord la mission : la proposition part de la recherche.",
+        "writing": "En rédaction",
+        "firstWriting": "La proposition est en cours de rédaction.",
+        "none": "Pas encore de proposition client.",
+        "fromProposal": "D’après la proposition client rédigée par kp",
+        "failed": "La dernière proposition a échoué : {reason}.",
+        "requestFailed": "La proposition n’a pas pu être demandée.",
+        "basis": {
+          "will": "Elle est rédigée à partir de la recherche seule : acceptez un plan pour une proposition plus précise.",
+          "was": "Rédigée à partir de la recherche seule : acceptez un plan pour une proposition plus précise.",
+          "stale": "Rédigée à partir de la recherche seule, avant qu’un plan soit accepté : réécrivez-la pour une proposition plus précise."
+        }
+      },
+      "meta": {
+        "track": "Parcours",
+        "proposal": "Candidature freelance : une proposition, aucune réalisation",
+        "proposalSub": "Une candidature est rarement retenue, alors kp prépare un plan, les questions et une page pour le client. Rien n’est construit avant que le client dise oui.",
+        "build": "Prime : le travail est la participation",
+        "buildSub": "L’agent propre à la mission le construit, et c’est ce qu’il construit qui est jugé.",
+        "file": "Proposition client",
+        "fromPlan": "Rédigée à partir du plan accepté · {date}",
+        "fromBrief": "Rédigée à partir de la recherche seule · {date}",
+        "writing": "En cours de rédaction",
+        "failed": "La dernière rédaction a échoué : {reason}",
+        "copied": "Chemin de la proposition copié"
+      },
+      "bid": {
+        "title": "La candidature",
+        "ledeOwn": "kp a rédigé ce message à partir de la proposition client. Relisez-le ici, approuvez-le dans la validation, puis collez-le vous-même sur la plateforme.",
+        "lede": "Le message à coller sur la plateforme, et ce qu’il faut demander au client avant tout travail.",
+        "copy": "Copier le message",
+        "copied": "Message copié",
+        "copyFailed": "Le presse-papiers n’est pas disponible ici. Sélectionnez le texte et copiez-le.",
+        "movedOn": "La proposition a été réécrite après ce brouillon. Pour relire le nouveau message, écartez le brouillon et préparez la proposition à nouveau.",
+        "newMessage": "Le message réécrit",
+        "questions": "Questions au client",
+        "artifacts": "Ce dont nous avons besoin du client",
+        "noQuestions": "Aucune question ouverte pour le client.",
+        "noArtifacts": "L’annonce cite tout ce dont le travail a besoin.",
+        "foot": "kp ne l’envoie jamais. Vous le collez sur la plateforme, depuis votre propre compte."
+      },
+      "signoff": {
+        "next": "Préparez la proposition quand vous voulez",
+        "why": "Une candidature freelance est rarement retenue, alors kp prépare une proposition plutôt que le travail : un plan, les questions à poser et une page pour le client.",
+        "noPlan": "Aucun plan accepté pour l’instant",
+        "noPlanBody": "La proposition est alors rédigée à partir de la recherche seule. Acceptez un plan pour une proposition plus précise.",
+        "writing": "La proposition est en cours de rédaction. Sa candidature arrivera ici comme brouillon à relire.",
+        "flash": "La proposition est en cours de rédaction. Sa candidature arrivera dans « À relire ».",
+        "belowBarHow": "Sa candidature devient un brouillon à relire une fois la mission qualifiée par une analyse. Vous pouvez déjà préparer la proposition depuis le Résumé.",
+        "ownDraft": "kp a rédigé ce brouillon à partir de la proposition. Pour le modifier, écartez-le et préparez la proposition à nouveau.",
+        "again": "Le dernier brouillon n’a pas abouti. Préparez la proposition à nouveau : kp en tire une nouvelle candidature."
+      },
+      "pairingOff": "Une candidature freelance reçoit une proposition, pas un agent : il n’y a rien à associer.",
+      "review": {
+        "fromProposal": "Rédigé avec la proposition client le {date}. Copiez-le, relisez-le, envoyez-le vous-même."
+      }
     }
   },
   "kit": {

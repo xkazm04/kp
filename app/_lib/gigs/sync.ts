@@ -14,7 +14,7 @@ import { retirePersonasPersona, type RetirePersonaResult } from "./personas-plac
 import { fetchPersonaExecution, type FetchExecutionResult } from "./personas-exec";
 import { syncGigPlanStatus, type GigPlanStatusDeps } from "./plan-status";
 import { requestGigReport } from "./report/trigger";
-import type { GigAttempt, GigAttemptStatus, GigStatus } from "./types";
+import { gigTrackOf, type GigAttempt, type GigAttemptStatus, type GigStatus } from "./types";
 
 // Pull the state of every in-flight attempt from Personas and land what finished - then
 // walk the gig personas (hires, first runs, PLAN-STATUS, retirement; syncGigPersonas at the
@@ -381,6 +381,9 @@ export async function syncGigPersonas(workspaceId: string, deps: GigSyncDeps = d
     if (!agent || agent.status !== "active" || !agent.personaId || !s.gigId) continue;
     const gig = getGig(workspaceId, s.gigId);
     if (!gig || gig.status !== "qualified" || gig.specialistId !== s.id) continue;
+    // A freelance bid is the proposal track: its persona (paired before the tracks split) is
+    // never run - kp writes the gig a client proposal instead (gigs/proposal/run.ts).
+    if (gigTrackOf(gig.arena) === "proposal") continue;
     if (!getAcceptedGigPlan(workspaceId, gig.id)) continue;
     if (listGigAttemptsForGig(workspaceId, gig.id).some((a) => a.specialistId === s.id)) continue;
     let res: DispatchGigAttemptResult;

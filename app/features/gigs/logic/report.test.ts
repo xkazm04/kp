@@ -11,12 +11,22 @@ import { attemptTimeline, firstClause, firstSentence, foreignLanguage, leadOf, l
 const FACTS = { brief: false, plans: null, accepted: false, draft: false };
 
 test("summaryBlocks: nothing to work on before research; choose a plan, then one line once accepted", () => {
-  assert.deepEqual(summaryBlocks(FACTS), { plans: null, draft: false });
+  assert.deepEqual(summaryBlocks(FACTS), { plans: null, bid: false, draft: false, draftInBid: false });
   assert.equal(summaryBlocks({ ...FACTS, brief: true }).plans, "choose", "a brief with no plans offers Generate plans");
   assert.equal(summaryBlocks({ ...FACTS, brief: true, plans: 3 }).plans, "choose");
   assert.equal(summaryBlocks({ ...FACTS, plans: 1 }).plans, "choose", "plans outlive a missing brief");
   assert.equal(summaryBlocks({ ...FACTS, brief: true, plans: 3, accepted: true }).plans, "accepted");
   assert.equal(summaryBlocks({ ...FACTS, draft: true }).draft, true);
+});
+
+test("summaryBlocks: the bid shows on the proposal track only, and kp's own draft is proofed inside it", () => {
+  assert.equal(summaryBlocks({ ...FACTS, proposal: true }).bid, false, "the build track never shows a bid");
+  assert.equal(summaryBlocks({ ...FACTS, proposalTrack: true }).bid, false, "no proposal, no draft: nothing to show yet");
+  assert.deepEqual(summaryBlocks({ ...FACTS, proposalTrack: true, proposal: true }), { plans: null, bid: true, draft: false, draftInBid: false });
+  const own = summaryBlocks({ ...FACTS, proposalTrack: true, proposal: true, draft: true, kpDraft: true });
+  assert.deepEqual([own.bid, own.draft, own.draftInBid], [true, false, true], "one message, one place");
+  const legacy = summaryBlocks({ ...FACTS, proposalTrack: true, proposal: true, draft: true, kpDraft: false });
+  assert.deepEqual([legacy.bid, legacy.draft, legacy.draftInBid], [true, true, false], "a persona's legacy draft keeps its own block");
 });
 
 test("firstSentence keeps the first sentence, or cuts a long one on a word", () => {

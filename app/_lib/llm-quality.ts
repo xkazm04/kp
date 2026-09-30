@@ -148,6 +148,8 @@ export const UNMEASURED_USE_CASES: readonly UnmeasuredUseCase[] = [
   { id: "role_research", reason: "No bench scenario; live web research has no fixed input to judge, and the use case is pinned to one model." },
   { id: "gig_brief", reason: "No bench scenario; gig research briefs are not in the matrix." },
   { id: "gig_plan", reason: "No bench scenario; each gig plan seat pins its own model, and the side-by-side tab is the comparison." },
+  { id: "gig_report", reason: "No bench scenario; the gig report is pinned to one model and judged by its reader, and kp writes it itself when no model can." },
+  { id: "gig_proposal", reason: "No bench scenario; the client proposal is pinned to one model and judged by the client, and kp composes it itself when no model can." },
 ];
 
 /** Bench ops that feed one routing use case (the "*" catch-all maps to nothing). */

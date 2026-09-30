@@ -260,3 +260,22 @@ test("gig_plans and gig_research key by tenant + the SET of gigs; order does not
   assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1", sourceId: "s1" }), "gig_research:ws-1:source:s1");
   assert.equal(buildDedupeKey("gig_research", { workspaceId: "ws-1" }), "gig_research:ws-1");
 });
+
+test("gig_report keys by tenant + gig: a burst of stage moves folds onto the run in flight", () => {
+  assert.equal(buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1", stage: "planned" }), "gig_report:ws-1:g1");
+  assert.equal(
+    buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1", stage: "planned" }),
+    buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1", force: true }),
+    "the stage and force do not split one gig's run"
+  );
+  assert.notEqual(buildDedupeKey("gig_report", { workspaceId: "ws-1", gigId: "g1" }), buildDedupeKey("gig_report", { workspaceId: "ws-2", gigId: "g1" }));
+  assert.equal(buildDedupeKey("gig_report", { workspaceId: "ws-1" }), null, "no gig, no key");
+  assert.equal(buildDedupeKey("gig_report", { gigId: "g1" }), null, "no tenant, no key");
+});
+
+test("gig_proposal keys by tenant + gig: an accept and an operator's request fold onto one run", () => {
+  assert.equal(buildDedupeKey("gig_proposal", { workspaceId: "ws-1", gigId: "g1" }), "gig_proposal:ws-1:g1");
+  assert.notEqual(buildDedupeKey("gig_proposal", { workspaceId: "ws-1", gigId: "g1" }), buildDedupeKey("gig_proposal", { workspaceId: "ws-2", gigId: "g1" }));
+  assert.equal(buildDedupeKey("gig_proposal", { workspaceId: "ws-1" }), null, "no gig, no key");
+  assert.equal(buildDedupeKey("gig_proposal", { gigId: "g1" }), null, "no tenant, no key");
+});

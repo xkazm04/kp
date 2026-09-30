@@ -9,11 +9,13 @@ import { rewardEstimate } from "../../logic/file";
 import { QUALIFY_BAR } from "../../logic/rate";
 import { spendSoFar } from "../../logic/report";
 import { DifficultyGlyph } from "../../shared/GigsMarks";
+import { ProposalFileBlock, ReportFileBlock, TrackBlock } from "./MetaBlocks";
 
 // The head of the gig's ONE metadata sidebar (the brief panel's aside, on the Summary tab and
 // on the Brief tab alike): where the gig lives (the listing's URL, always, and kp's own id to
-// copy into an internal note), its figures (reward with a dollar estimate, deadline, difficulty,
-// effort, fit, spend), and the report file on disk. An absent figure is "—" with its reason,
+// copy into an internal note), its track (a freelance bid or the work as the entry), its
+// figures (reward with a dollar estimate, deadline, difficulty, effort, fit, spend), and the
+// files kp wrote on disk - the client proposal and the report (MetaBlocks.tsx). An absent figure is "—" with its reason,
 // never 0: a reward the listing did not state is not a reward of zero.
 
 const isWebUrl = (u: string) => /^https?:\/\//i.test(u);
@@ -45,7 +47,6 @@ export function GigMeta({
   const d = deadlineView(gig.deadlineAt, now);
   const est = rewardEstimate(gig.reward);
   const spend = spendSoFar(plans, attempts);
-  const report = gig.report;
   const copy = (text: string, done: string, failed: string) => {
     if (navigator.clipboard) void navigator.clipboard.writeText(text).then(() => onFlash(done), () => onFlash(failed));
     else onFlash(failed);
@@ -74,6 +75,7 @@ export function GigMeta({
           <Button label={t("meta.copyId")} icon="copy" size="sm" variant="ghost" onClick={() => copy(gig.id, t("meta.idCopied"), t("meta.copyFailed"))} />
         </div>
       </div>
+      <TrackBlock gig={gig} />
 
       <KeyValueGrid
         cols={2}
@@ -133,22 +135,8 @@ export function GigMeta({
         ]}
       />
 
-      {report ? (
-        <div className="aside-block meta-report">
-          <p className="caps dim">{t("meta.reportFile")}</p>
-          <p className="t-meta">
-            {[
-              t("report.file.covers", { stage: t(`report.file.stage.${report.stage}`), date: fmt.dateTime(report.generatedAt) }),
-              report.source === "llm" ? t("report.file.byModel") : t("meta.byKp"),
-              report.costUsd !== null ? t("report.file.cost", { usd: fmt.usd(report.costUsd) }) : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-          <code className="meta-path">{report.path}</code>
-          <Button label={t("report.file.copy")} icon="copy" size="sm" variant="ghost" onClick={() => copy(report.path, t("report.file.copied"), t("report.file.copyFailed"))} />
-        </div>
-      ) : null}
+      <ProposalFileBlock gig={gig} copy={copy} />
+      <ReportFileBlock gig={gig} copy={copy} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import type { DraftLintFinding } from "@/app/_lib/gigs/draft-lint";
 import type { Gig, GigAttempt } from "@/app/_lib/gigs/types";
 import { checklistFor, deskGate, markSentGate } from "../../logic/facts";
 import { checklistKeyFor } from "../../logic/keys";
+import { isKpDraft } from "../../logic/proposal";
 import type { AfterWrite, SourceRow, SpecialistRow } from "../../logic/wire";
 import { useBareKeys } from "../../data/useBareKeys";
 import { DeskFacts, DeskInitials, SendBack } from "./DeskParts";
@@ -93,7 +94,11 @@ export function Desk({
     return t("desk.approveUnseen", { count: r.count });
   })();
 
-  const sendBack = (
+  // kp's own bid (the proposal track) has no agent to send it back to: the way to change it
+  // is to discard it and prepare the proposal again, and the desk says so instead.
+  const sendBack = isKpDraft(attempt) ? (
+    <p className="hint">{t("proposal.signoff.ownDraft")}</p>
+  ) : (
     <SendBack
       uid={uid}
       open={sendBackOpen}

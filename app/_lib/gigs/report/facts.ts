@@ -2,6 +2,11 @@ import { lintDraft, type DraftLintFinding } from "../draft-lint";
 import { GIG_TYPE_LABEL, gigTypeOf } from "../gig-type";
 import { planSeatLabel } from "../plan-seats";
 import { GIG_ARENA_LABEL } from "../specialist-defaults";
+import {
+  GIG_PROPOSAL_SPECIALIST_ID,
+  gigTrackOf,
+  type GigTrack,
+} from "../types";
 import type {
   Gig,
   GigAttempt,
@@ -49,6 +54,21 @@ export type GigReportPlanFact = {
 
 export type GigReportFacts = {
   stage: GigReportStage;
+  /** The report's track (reportTrackOf): a freelance bid reports its client proposal where
+   *  a build reports its draft, evidence and review. */
+  track: GigTrack;
+  /** The client proposal's record (proposal track), never its HTML: where the file is, who
+   *  wrote it, the bid message's opening and the asks. Null when none was written. */
+  proposal: {
+    path: string;
+    status: string;
+    source: "llm" | "deterministic";
+    generatedAt: string;
+    fromAcceptedPlan: boolean;
+    messageExcerpt: string;
+    questions: string[];
+    artifacts: string[];
+  } | null;
   /** The newest timestamp among the records the report reads: a report generated after it
    *  is current. */
   factsAt: string;
@@ -137,6 +157,15 @@ export type GigReportFactsInput = {
 };
 
 const CLOSED_STATUSES: readonly Gig["status"][] = ["accepted", "rejected", "expired", "withdrawn", "declined"];
+
+/** The track the REPORT follows: a freelance gig is a proposal (gigTrackOf) - unless it was
+ *  already drafted by a persona before the tracks split and has no proposal, in which case
+ *  its report keeps describing that draft. Pure. */
+export function reportTrackOf(gig: Pick<Gig, "arena" | "proposal">, attempts: readonly Pick<GigAttempt, "specialistId" | "deliverable">[]): GigTrack {
+  if (gigTrackOf(gig.arena) !== "proposal") return "build";
+  const personaDraft = attempts.some((a) => a.deliverable !== null && a.specialistId !== GIG_PROPOSAL_SPECIALIST_ID);
+  return gig.proposal === null && personaDraft ? "build" : "proposal";
+}
 
 /** The stage the records say the gig is at, or null when there is nothing to report yet
  *  (no research brief). Pure. */
@@ -265,9 +294,24 @@ export function buildGigReportFacts(input: GigReportFactsInput): GigReportFacts 
       }
     : null;
 
+  const p = gig.proposal;
   return {
     stage,
-    factsAt: latest(gig.updatedAt, brief?.createdAt, ...input.plans.map((p) => p.updatedAt), ...attempts.map((a) => a.updatedAt), ...outcomes.map((o) => o.recordedAt)),
+    track: reportTrackOf(gig, attempts),
+    proposal:
+      p && p.status !== "writing"
+        ? {
+            path: p.path,
+            status: p.status,
+            source: p.source,
+            generatedAt: p.generatedAt,
+            fromAcceptedPlan: p.planId !== null,
+            messageExcerpt: p.message.slice(0, 800),
+            questions: p.questions.slice(0, 8),
+            artifacts: p.artifacts.slice(0, 8),
+          }
+        : null,
+    factsAt: latest(gig.updatedAt, p?.generatedAt, brief?.createdAt, ...input.plans.map((p) => p.updatedAt), ...attempts.map((a) => a.updatedAt), ...outcomes.map((o) => o.recordedAt)),
     gig: {
       id: gig.id,
       title: brief?.title?.trim() || gig.title,

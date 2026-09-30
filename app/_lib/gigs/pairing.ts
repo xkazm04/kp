@@ -15,7 +15,7 @@ import {
 import { initialPlanProgress } from "./plan-status";
 import { prepareGigProject, type PrepareGigProjectResult } from "./project";
 import { hireGigPersona, type HireGigPersonaInput, type HireGigPersonaResult } from "./specialist";
-import type { Gig, GigPlanRow, GigSpecialist, GigStatus } from "./types";
+import { gigTrackOf, type Gig, type GigPlanRow, type GigSpecialist, type GigStatus } from "./types";
 
 // PAIRING (gig-mastery S2, docs/features/gigs/README.md "Pairing"): ONE Personas persona per
 // gig, created when the gig is paired and retired when it ends (sync.ts). Knowledge persists
@@ -91,7 +91,8 @@ export type PairGigResult =
       personasWorkspaceId: string;
       milestone: GigMilestoneOutcome;
     }
-  | { ok: false; code: "GIG_NOT_FOUND" | "GIG_PLAN_NOT_ACCEPTED" }
+  /** `GIG_PROPOSAL_TRACK`: a freelance bid is never paired (kp writes a proposal, not the work). */
+  | { ok: false; code: "GIG_NOT_FOUND" | "GIG_PLAN_NOT_ACCEPTED" | "GIG_PROPOSAL_TRACK" }
   | { ok: false; code: "GIG_SUSPECT" | "GIG_NOT_DISPATCHABLE"; detail?: string }
   | { ok: false; code: "GIG_WORKSPACE_FAILED"; detail: string }
   /** The persona hire did not go out: `hireCode` is the hire tail's code (e.g.
@@ -168,6 +169,7 @@ export async function pairGig(workspaceId: string, gigId: string, deps: Partial<
   const d: PairGigDeps = { ...defaultPairGigDeps, ...deps };
   const gig = getGig(workspaceId, gigId);
   if (!gig) return { ok: false, code: "GIG_NOT_FOUND" };
+  if (gigTrackOf(gig.arena) === "proposal") return { ok: false, code: "GIG_PROPOSAL_TRACK" };
   if (gig.status === "suspect" || gig.suspectReasons.length > 0) return { ok: false, code: "GIG_SUSPECT", detail: gig.suspectReasons.join(",") || undefined };
   if (!GIG_PAIRABLE_STATUSES.includes(gig.status)) return { ok: false, code: "GIG_NOT_DISPATCHABLE", detail: gig.status };
   const accepted = getAcceptedGigPlan(workspaceId, gigId);

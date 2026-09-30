@@ -30,6 +30,7 @@ export function gig(id: string, status: GigStatus, p: Partial<Gig> = {}): Gig {
     personasProjectId: null,
     withdrawReason: null,
     report: null,
+    proposal: null,
     sourceState: null,
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",

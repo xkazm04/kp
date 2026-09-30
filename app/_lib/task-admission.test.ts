@@ -34,6 +34,8 @@ const SERVER_KINDS = [
   "analyze",
   "companion_digest",
   "gig_plans",
+  "gig_proposal",
+  "gig_report",
   "gig_research",
   "gig_scan",
   "interview_kit",

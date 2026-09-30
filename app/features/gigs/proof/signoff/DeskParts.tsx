@@ -3,6 +3,7 @@
 import { useEffect, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { GIG_DISCLOSURE_ITEM, type Gig, type GigAttempt } from "@/app/_lib/gigs/types";
+import { isKpDraft } from "../../logic/proposal";
 import type { SpecialistRow } from "../../logic/wire";
 import { useGigsFormat } from "../../data/useGigsFormat";
 import type { DeskMemory } from "./GigsSignoff";
@@ -133,14 +134,15 @@ export function SendBack({
   );
 }
 
-/** The run's facts: the agent's own confidence, this run's cost, the budget per attempt. */
+/** The run's facts: the agent's own confidence, this run's cost, the budget per attempt. kp's
+ *  own bid carries a fixed confidence (no agent judged it), so none is shown for it. */
 export function DeskFacts({ attempt, specialist }: { attempt: GigAttempt; specialist: SpecialistRow | null }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const dl = attempt.deliverable;
   return (
     <dl className="kv">
-      {dl ? (
+      {dl && !isKpDraft(attempt) ? (
         <>
           <dt>{t("signoff.confidence")}</dt>
           <dd>{t("signoff.confidenceValue", { percent: fmt.percent(Math.round(dl.confidence * 100)) })}</dd>

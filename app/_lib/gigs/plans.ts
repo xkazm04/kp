@@ -38,10 +38,15 @@ import { getGig } from "../db/gigs";
 import { runPythonCli, type CliRunner } from "../jobseeker/python-cli";
 import { planSeatsFor, type GigPlanSeat } from "./plan-seats";
 import { requestGigReport } from "./report/trigger";
-import type { Gig, GigBrief, GigDifficulty, GigPlan, GigPlanRow, GigStatus } from "./types";
+import { gigTrackOf, type Gig, type GigBrief, type GigDifficulty, type GigPlan, type GigPlanRow, type GigStatus } from "./types";
 
 /** Kept in lockstep with gig_plan_cli.py PROMPT_VERSION (plans.test.ts reads both). */
 export const GIG_PLAN_PROMPT_VERSION = "gig-plan-v1";
+/** The PROPOSAL track's variant (a freelance bid, types.ts gigTrackOf): the same plan schema,
+ *  written for the CLIENT - milestones they receive, questions for them, the assumptions the
+ *  bid rests on. Lockstep with gig_plan_cli.py PROMPT_VERSION_PROPOSAL (plans.test.ts); the CLI
+ *  envelope names the version that ran. */
+export const GIG_PLAN_PROPOSAL_PROMPT_VERSION = "gig-plan-v2-proposal";
 /** One seat's spawn: the hang backstop over the CLI's own deadline. */
 export const GIG_PLAN_SEAT_TIMEOUT_MS = 9 * 60_000;
 /** The CLI's deadline, handed over as --timeout-s: a minute under the spawn's kill, so a
@@ -157,17 +162,30 @@ export function parseGigPlan(raw: unknown): GigPlan | null {
   return { summary, steps, decisions: clampList(r.decisions), risks: clampList(r.risks), effortHours, questions: clampList(r.questions) };
 }
 
-/** The CLI's input for one seat: the seat's engine, the listing's facts, the brief, and the
- *  listing's own text as the first page (the brief already followed its links). The CLI
- *  fences everything but the engine as untrusted data. Pure. */
+/** The CLI's input for one seat: the seat's engine, the gig's TRACK (a freelance bid gets the
+ *  client-facing prompt variant, gig-plan-v2-proposal), the listing's facts, the brief (with
+ *  its missing artifacts, first message and language), and the listing's own text as the
+ *  first page (the brief already followed its links). The CLI fences everything but the
+ *  engine and the track as untrusted data. Pure. */
 export function gigPlanCliInput(seat: GigPlanSeat, gig: Gig, brief: GigBrief) {
   return {
     seat: seat.seat,
     provider: seat.provider,
     model: seat.model,
     effort: seat.effort,
+    track: gigTrackOf(gig.arena),
+    arena: gig.arena,
     gig: { title: gig.title, arena: gig.arena, url: gig.url, reward: gig.reward?.text ?? null, deadlineAt: gig.deadlineAt },
-    brief: { category: brief.category, difficulty: brief.difficulty, effort: brief.effort, markdown: brief.markdown, challenges: brief.challenges },
+    brief: {
+      category: brief.category,
+      difficulty: brief.difficulty,
+      effort: brief.effort,
+      markdown: brief.markdown,
+      challenges: brief.challenges,
+      missingArtifacts: brief.missingArtifacts ?? [],
+      outreachMessage: brief.outreachMessage ?? null,
+      language: brief.language ?? null,
+    },
     pages: [{ url: gig.url, title: gig.title, text: gig.bodyText.slice(0, LISTING_CHARS) }],
   };
 }
