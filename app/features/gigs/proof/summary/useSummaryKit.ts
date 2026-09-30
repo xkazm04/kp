@@ -4,25 +4,25 @@ import { useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { planSeatsFor } from "@/app/_lib/gigs/plan-seats";
 import type { Gig, GigAttempt, GigProposal } from "@/app/_lib/gigs/types";
-import { planView } from "../../../logic/plans";
-import { nextMove, type MoveFacts } from "../../../logic/moves";
-import { isKpDraft, proposalHasFile, trackOf } from "../../../logic/proposal";
-import { summaryBlocks, type ReportSection } from "../../../logic/report";
-import type { SummaryText } from "../../../logic/summary";
-import type { AfterWrite } from "../../../logic/wire";
-import type { ChallengeWithdraw } from "../../panels/BriefChallenges";
-import { usePlanActions, type PlansState } from "../../panels/usePlans";
-import { useResearch } from "../../panels/useResearch";
-import { useGigFile, type GigFileState } from "../useGigFile";
+import { planView } from "../../logic/plans";
+import { nextMove, type MoveFacts } from "../../logic/moves";
+import { isKpDraft, proposalHasFile, trackOf } from "../../logic/proposal";
+import { summaryBlocks, type ReportSection } from "../../logic/report";
+import type { SummaryText } from "../../logic/summary";
+import type { AfterWrite } from "../../logic/wire";
+import type { ChallengeWithdraw } from "../panels/BriefChallenges";
+import { usePlanActions, type PlansState } from "../panels/usePlans";
+import { useResearch } from "../panels/useResearch";
+import { useGigFile, type GigFileState } from "../report/useGigFile";
 
-// What both Summary prototypes read and act with, built ONCE per render and handed to the
-// reading column and the decision sidebar alike: the research (its fresh brief shown in place),
-// the report file, the plan actions (Generate / Propose again in Moves, Accept on each seat
-// card: one busy flag and one error for both), which working blocks apply (logic/report.ts),
-// and the gig's next move (logic/moves.ts) - the one primary button.
+// What the Summary reads and acts with, built ONCE per render and handed to the reading column
+// and the decision sidebar alike: the research (its fresh brief shown in place), the report
+// file, the plan actions (Generate / Propose again in Moves, Accept and Retry on each seat card:
+// one busy flag and one error for both), which panels apply (logic/report.ts), and the gig's
+// next move (logic/moves.ts) - the one primary button.
 
-/** The props every Summary variant takes (ProofPanels.tsx): the baseline's, plus what the
- *  sidebar and the challenge rows need, and `view` - the Summary tab or the Brief tab. */
+/** The props of the Summary (ProofPanels.tsx): what the reading column, the sidebar and the
+ *  challenge rows need, and `view` - the Summary tab or the Brief tab. */
 export type SummaryProps = {
   view: "summary" | "brief";
   gig: Gig;
@@ -75,6 +75,7 @@ export function useSummaryKit({ gig, attempt, plansState, proposalFile, onChange
     report: report.file !== null,
     reportWriting: report.writing,
     closed: CLOSED.has(gig.status),
+    untriaged: gig.status === "new",
   };
   return { research, report, view, lineup, planAct, blocks, facts, next: nextMove(facts), bidTrack, kpDraft, plansState };
 }

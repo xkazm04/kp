@@ -3,8 +3,8 @@
 import { useLayoutEffect, type RefObject } from "react";
 
 /** Where the margin is a real column (a wide sheet), pull each paragraph's notes down to the
- *  first phrase they mark, so the hairline meets its underline (B/3's alignNotes). Shared by
- *  the galley (Galley.tsx) and the Summary prototypes' letter (report/variants/). */
+ *  first phrase they mark, so the hairline meets its underline (B/3's alignNotes). Used by
+ *  the full galley (Galley.tsx). */
 export function useAlignNotes(sheetRef: RefObject<HTMLElement | null>, paras: unknown, pinned: unknown) {
   useLayoutEffect(() => {
     const sheet = sheetRef.current;

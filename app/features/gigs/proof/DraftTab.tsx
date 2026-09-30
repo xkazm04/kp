@@ -9,17 +9,15 @@ import type { ReviewNote } from "../logic/reviewNote";
 import type { SourceRow } from "../logic/wire";
 import type { Doubt } from "../shared/doubts";
 import { useLintText } from "../shared/useLintText";
-import { Galley } from "./Galley";
 import { ProofSlip, type SlipTarget } from "./ProofSlip";
 import { revealSoon } from "./report/parts";
-import { GalleyCompose } from "./report/variants/GalleyCompose";
-import { GalleyLetter } from "./report/variants/GalleyLetter";
-import type { SummaryVariant } from "./report/variants/SummarySwitch";
+import { GalleyCompose } from "./summary/GalleyCompose";
 import type { DeskMemory, DeskStore } from "./signoff/GigsSignoff";
 
-// The Summary's "Review the draft" block (report/GigReport.tsx): the proof slip (what to doubt, in words)
-// above the galley (the draft as it would be sent, every note pinned beside its paragraph). On the desk the slip carries the
-// seen marks, kept in the desk memory with the checklist ticks and the note.
+// The Summary's draft (summary/GigSummary.tsx: the Draft panel, or inside The bid for kp's own
+// bid): the proof slip (what to doubt, in words) above the draft as a compose view with every
+// finding pinned (summary/GalleyCompose.tsx). On the desk the slip carries the seen marks, kept
+// in the desk memory with the checklist ticks and the note.
 
 /** The desk memory for an attempt on the desk: kept in the tab's store, so going back and
  *  returning finds the ticks, the seen marks and the note where they were left. A different
@@ -78,7 +76,6 @@ export function DraftTab({
   memory,
   setMemory,
   onJump,
-  look = "baseline",
 }: {
   gig: Gig;
   attempt: GigAttempt | null;
@@ -91,15 +88,12 @@ export function DraftTab({
   memory: DeskMemory | null;
   setMemory: (update: (m: DeskMemory) => DeskMemory) => void;
   onJump: (target: SlipTarget) => void;
-  /** The Summary prototype on screen (report/variants/): its galley sets the draft its own way. */
-  look?: SummaryVariant;
 }) {
   const t = useTranslations("gigs");
   const lintText = useLintText();
   const seen = useMemo(() => new Set(memory?.seen ?? []), [memory]);
   const pinnedKeyOf = (findingId: string) => pinned.find((n) => n.finding?.id === findingId)?.key ?? null;
   const carried = attempt?.revisionNote ?? null;
-  const Sheet = look === "dossier" ? GalleyLetter : look === "workbench" ? GalleyCompose : Galley;
   return (
     <>
       {memory ? (
@@ -116,7 +110,7 @@ export function DraftTab({
       ) : doubts.length ? (
         <ProofSlip doubts={doubts} pinnedKeyOf={() => null} pinnedCount={0} loose={[]} seen={new Set()} onSeen={() => {}} onJump={onJump} carriedNote={carried} />
       ) : null}
-      <Sheet gig={gig} attempt={attempt} source={source} specialistName={specialistName} now={now} paras={paras} pinned={pinned} lintText={lintText} reviewBy={note?.byAgent ? t("proof.reviewerAgent") : t("proof.reviewer")} />
+      <GalleyCompose gig={gig} attempt={attempt} source={source} specialistName={specialistName} now={now} paras={paras} pinned={pinned} lintText={lintText} reviewBy={note?.byAgent ? t("proof.reviewerAgent") : t("proof.reviewer")} />
     </>
   );
 }

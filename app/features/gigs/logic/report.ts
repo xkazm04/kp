@@ -1,15 +1,14 @@
 import type { GigAttempt, GigOutcome, GigPlanRow } from "@/app/_lib/gigs/types";
 
 // ---------------------------------------------------------------------------
-// The gig's Summary (the proof's Summary tab, proof/report/)
+// The gig's Summary (the proof's Summary tab, proof/summary/)
 // ---------------------------------------------------------------------------
 //
-// The in-app Summary is a quick overview: the gig as a hero, a card for the full HTML report
-// (a file the model writes and rewrites as the gig moves; the long read lives there), the
-// research brief, then compact working blocks only while they apply - choose a plan, review
-// the draft. These derivations decide which blocks show, set the brief's prose as a lead and
-// points (HTML, not rendered Markdown), and add up what the gig has cost so far. Pure:
-// pinned by report.test.ts.
+// The in-app Summary is a quick overview beside the decision sidebar: a compact header, then
+// folding panels only while they apply - the bid, the draft, the plans, the brief (the long
+// read is the full HTML report, a file the model writes and rewrites as the gig moves). These
+// derivations decide which panels show, set the brief's prose as a lead and points (HTML, not
+// rendered Markdown), and add up what the gig has cost so far. Pure: pinned by report.test.ts.
 
 export const REPORT_SECTIONS = ["gig", "file", "brief", "plans", "bid", "draft"] as const;
 export type ReportSection = (typeof REPORT_SECTIONS)[number];
@@ -81,18 +80,6 @@ export function leadOf(text: string): { lead: string; points: string[] } {
     else points.push(plainInline(l));
   }
   return { lead: lead.join(" "), points };
-}
-
-/** The lead split where the highlighter stops: its first clause (up to the first comma,
- *  semicolon, colon or dash inside the first sentence), else the first sentence. A clause
- *  shorter than 12 characters is too short to carry the point, so the sentence is used. */
-export function firstClause(lead: string): [string, string] {
-  const s = lead.trim();
-  const end = /[.!?](?=\s)/.exec(s);
-  const sentence = end ? s.slice(0, end.index + 1) : s;
-  const cut = /[,;:](?=\s)|\s[-–—]\s/.exec(sentence);
-  const at = cut && cut.index >= 12 ? cut.index : sentence.length;
-  return [s.slice(0, at), s.slice(at)];
 }
 
 export type Spend = {

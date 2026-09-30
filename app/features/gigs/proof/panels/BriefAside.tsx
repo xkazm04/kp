@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import type { GigBrief } from "@/app/_lib/gigs/types";
 import { useGigsFormat } from "../../data/useGigsFormat";
@@ -8,12 +7,12 @@ import { SOURCES_SECTION_ID } from "../../logic/briefBody";
 import { jumpTo, LinkRow } from "./BriefLinks";
 
 // The brief's provenance as sidebar blocks: where it came from (a model or kp, how many linked
-// pages) and when, an optional action under it (the Brief tab's Research again; the Summary
-// prototypes keep Research in their Moves block), the contents list at 3+ sections, and
-// "Sources read" as rows whose status is a mark AND a word. The heading of "Sources read"
-// carries the section's id when the brief's own Markdown had one, so a contents link lands.
+// pages) and when (Research again is in the Summary's Moves block), the contents list at 3+
+// sections, and "Sources read" as rows whose status is a mark AND a word. The heading of
+// "Sources read" carries the section's id when the brief's own Markdown had one, so a contents
+// link lands.
 
-export function BriefProvenance({ brief, action }: { brief: GigBrief; action?: ReactNode }) {
+export function BriefProvenance({ brief }: { brief: GigBrief }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const fetched = brief.links.filter((l) => l.status === "fetched").length;
@@ -31,7 +30,6 @@ export function BriefProvenance({ brief, action }: { brief: GigBrief; action?: R
           <br />
           {t("brief.researchedAt", { date: fmt.dateTime(brief.createdAt) })}
         </p>
-        {action}
       </div>
       {contents.length >= 3 ? (
         <nav aria-label={t("brief.contents")} className="aside-block">

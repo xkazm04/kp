@@ -1,5 +1,5 @@
 // Pure logic for the brief's Markdown cuts (briefBody.ts): "Sources read" and "Expected
-// challenges" are taken out by the server's sections, and the first section on request.
+// challenges" are taken out by the server's sections.
 // Runner: node --test (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -28,10 +28,4 @@ test("briefBody: no challenge rows leaves the section in the prose", () => {
   assert.equal(b.challenges, null);
   assert.ok(b.body.includes("## Expected challenges"));
   assert.equal(b.after, "");
-});
-
-test("briefBody: dropFirst takes out the section the hero already set", () => {
-  const b = briefBody(MD, SECTIONS, "Expected challenges", true, true);
-  assert.ok(b.body.startsWith("## What it asks for"), b.body);
-  assert.ok(!b.body.includes("A client needs a workbook."));
 });

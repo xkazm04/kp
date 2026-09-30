@@ -11,11 +11,12 @@ import type { PlanGate } from "./BeforeDispatch";
 // A freelance bid nobody drafted yet: prepare the proposal (never dispatch)
 // ---------------------------------------------------------------------------
 //
-// The proposal track (logic/proposal.ts) has no agent to dispatch: the primary move is
-// Prepare the proposal (POST /api/gigs/[id]/proposal, the same door as the Summary's row,
-// through the proof's shared file state). An accepted plan is the better input, so the gate
-// reads the plans like dispatch did - but a missing plan only adds the brief-alone note, it
-// never blocks. Once the proposal lands kp writes the bid as the gig's draft, and the desk
+// The proposal track (logic/proposal.ts) has no agent to dispatch: its move is Prepare the
+// proposal (POST /api/gigs/[id]/proposal, the same door as the Summary's Moves block, through
+// the proof's shared file state). It is a SECONDARY button here: the page has one primary, and
+// the Moves block (summary/MovesBlock.tsx) carries it - Prepare itself once a plan is accepted,
+// before that the plans. An accepted plan is the better input, so the gate reads the plans
+// like dispatch did - but a missing plan only adds the brief-alone note, it never blocks. Once the proposal lands kp writes the bid as the gig's draft, and the desk
 // takes over. Also shown when kp's last draft was sent back or failed: preparing again is the
 // way forward (there is no agent to re-dispatch).
 
@@ -61,7 +62,7 @@ export function PrepareProposal({
       ) : qualified || again ? (
         <button
           type="button"
-          className="btn affirm block wrap"
+          className="btn block wrap"
           disabled={busy || !gig.brief || planGate === "loading"}
           aria-describedby={planGate === "missing" ? `gate-${gig.id}` : undefined}
           onClick={() => void prepare()}

@@ -11,11 +11,12 @@ import { spendSoFar } from "../../logic/report";
 import { DifficultyGlyph } from "../../shared/GigsMarks";
 import { ProposalFileBlock, ReportFileBlock, TrackBlock } from "./MetaBlocks";
 
-// The head of the gig's ONE metadata sidebar (the brief panel's aside, on the Summary tab and
-// on the Brief tab alike): where the gig lives (the listing's URL, always, and kp's own id to
-// copy into an internal note), its track (a freelance bid or the work as the entry), its
-// figures (reward with a dollar estimate, deadline, difficulty, effort, fit, spend), and the
-// files kp wrote on disk - the client proposal and the report (MetaBlocks.tsx). An absent figure is "—" with its reason,
+// The gig's metadata in the Summary's decision sidebar (summary/DecisionSidebar.tsx, on the
+// Summary tab and the Brief tab alike), in first-screen order: where the gig lives (the
+// listing's URL, always, and kp's own id to copy into an internal note), its figures (reward
+// with a dollar estimate, deadline, difficulty, effort, fit, spend), then its track (a freelance
+// bid or the work as the entry) and the files kp wrote on disk - the client proposal and the
+// report (MetaBlocks.tsx). An absent figure is "—" with its reason,
 // never 0: a reward the listing did not state is not a reward of zero.
 
 const isWebUrl = (u: string) => /^https?:\/\//i.test(u);
@@ -75,8 +76,6 @@ export function GigMeta({
           <Button label={t("meta.copyId")} icon="copy" size="sm" variant="ghost" onClick={() => copy(gig.id, t("meta.idCopied"), t("meta.copyFailed"))} />
         </div>
       </div>
-      <TrackBlock gig={gig} />
-
       <KeyValueGrid
         cols={2}
         items={[
@@ -135,6 +134,7 @@ export function GigMeta({
         ]}
       />
 
+      <TrackBlock gig={gig} />
       <ProposalFileBlock gig={gig} copy={copy} />
       <ReportFileBlock gig={gig} copy={copy} />
     </>

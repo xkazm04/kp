@@ -75,7 +75,8 @@ export function usePlans(gigId: string | null): PlansState {
 
 /** Propose (a new round: one to three seats by the brief's difficulty) and accept one plan
  *  with the operator's note. Answers whether the accept landed; the plans are re-read either
- *  way. The Summary's plan block (report/ReportChoose.tsx) holds the buttons. */
+ *  way. The Summary holds the buttons: Accept and Retry on each seat card (summary/PlanSeats.tsx),
+ *  Generate plans and Propose again in its Moves block (summary/moveGroups.ts). */
 export function usePlanActions(gigId: string, plansState: PlansState, onFlash: (message: string) => void, seats: number) {
   const t = useTranslations("gigs.plans");
   const resolveError = useErrorMessage();

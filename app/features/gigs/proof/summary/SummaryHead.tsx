@@ -3,24 +3,23 @@
 import { useTranslations } from "next-intl";
 import { gigTypeOf } from "@/app/_lib/gigs/gig-type";
 import type { Gig, GigBrief } from "@/app/_lib/gigs/types";
-import { useGigsFormat } from "../../../data/useGigsFormat";
-import { deadlineView } from "../../../logic/facts";
-import { leadSentence } from "../../../logic/moves";
-import { QUALIFY_BAR } from "../../../logic/rate";
-import { leadOf, listingOpening, reportAnchor } from "../../../logic/report";
-import type { SummaryText } from "../../../logic/summary";
-import { ListingLanguage } from "../../../shared/ListingLanguage";
-import { useStage } from "../../ProofHead";
-import { Callout } from "../parts";
+import { useGigsFormat } from "../../data/useGigsFormat";
+import { deadlineView } from "../../logic/facts";
+import { leadSentence } from "../../logic/moves";
+import { QUALIFY_BAR } from "../../logic/rate";
+import { leadOf, listingOpening, reportAnchor } from "../../logic/report";
+import type { SummaryText } from "../../logic/summary";
+import { ListingLanguage } from "../../shared/ListingLanguage";
+import { useStage } from "../ProofHead";
+import { Callout } from "../report/parts";
 
-// The two prototypes' heroes. Neither carries a button (every action is in the sidebar's
-// Moves block). A long agent summary is never set as the lead: its FIRST SENTENCE is the one
-// line in the display-ish size, the rest reads as body (logic/moves.ts leadSentence).
-//   DossierHero   - a set title block: eyebrow, title (at most 2rem), the lead sentence, then
-//                   the rest of the lead and its points at body size, the source in a line;
-//   WorkbenchHead - a compact header: title, one line of what it is, the rest folded, and the
-//                   key facts it has as pairs in a row (an absent one is left to the sidebar,
-//                   which says why it is absent).
+// The Summary's compact header. It carries no button (every action is in the sidebar's Moves
+// block): an eyebrow (arena · gig type · stage), the title, ONE line of what the gig is - the
+// first sentence of the lead (logic/moves.ts leadSentence), never a wall of display type -
+// with the rest of the lead and its points folded under it, where the lead came from, then
+// the key facts it has as pairs in a row (an absent one is left to the sidebar, which says
+// why it is absent), the listing's language (and its translation), and a callout when the
+// work is not wholly digital. A gig nobody researched yet leads with the listing's opening.
 
 export const hostOf = (u: string) => {
   try {
@@ -30,7 +29,7 @@ export const hostOf = (u: string) => {
   }
 };
 
-export function useHeroText(summary: SummaryText) {
+function useHeroText(summary: SummaryText) {
   const { lead, points } = summary.kind === "listing" ? { lead: listingOpening(summary.text), points: [] } : leadOf(summary.text);
   return { ...leadSentence(lead), points };
 }
@@ -70,39 +69,7 @@ function Source({ summary, kpDraft }: { summary: SummaryText; kpDraft: boolean }
   return <p className="rp-lead-src">{summary.kind === "listing" ? t("report.hero.opening") : summary.kind !== "summary" ? t("report.hero.fromBrief") : kpDraft ? t("proposal.hero.fromProposal") : t("report.hero.fromDraft")}</p>;
 }
 
-export function DossierHero({ gig, brief, summary, kpDraft, onOpenListing }: { gig: Gig; brief: GigBrief | null; summary: SummaryText; kpDraft: boolean; onOpenListing: () => void }) {
-  const t = useTranslations("gigs");
-  const { lead, rest, points } = useHeroText(summary);
-  return (
-    <header className="sm-hero">
-      <Eyebrow gig={gig} />
-      <h2 id={reportAnchor("gig")} tabIndex={-1} className="sm-title">
-        {brief?.title ?? gig.title}
-      </h2>
-      {brief?.title && brief.title !== gig.title ? <p className="rp-was">{t("report.hero.listedAs", { title: gig.title })}</p> : null}
-      <div className={summary.kind === "listing" ? "sm-opening" : undefined}>
-        {lead ? <p className="sm-lead">{lead}</p> : null}
-        {rest ? <p className="sm-body">{rest}</p> : null}
-        {points.length ? (
-          <ul className="sm-points">
-            {points.map((p, i) => (
-              <li key={i}>{p}</li>
-            ))}
-          </ul>
-        ) : null}
-        <Source summary={summary} kpDraft={kpDraft} />
-        {summary.kind === "listing" ? (
-          <button type="button" className="linkbtn" onClick={onOpenListing}>
-            {t("report.hero.wholeListing")}
-          </button>
-        ) : null}
-      </div>
-      <Aside brief={brief} />
-    </header>
-  );
-}
-
-export function WorkbenchHead({ gig, brief, summary, kpDraft, now, onOpenListing }: { gig: Gig; brief: GigBrief | null; summary: SummaryText; kpDraft: boolean; now: Date; onOpenListing: () => void }) {
+export function SummaryHead({ gig, brief, summary, kpDraft, now, onOpenListing }: { gig: Gig; brief: GigBrief | null; summary: SummaryText; kpDraft: boolean; now: Date; onOpenListing: () => void }) {
   const t = useTranslations("gigs");
   const fmt = useGigsFormat();
   const { lead, rest, points } = useHeroText(summary);
@@ -117,15 +84,16 @@ export function WorkbenchHead({ gig, brief, summary, kpDraft, now, onOpenListing
   ];
   const more = (rest ? 1 : 0) + points.length;
   return (
-    <header className="sm-wb-head">
+    <header className="sm-head">
       <Eyebrow gig={gig} />
-      <h2 id={reportAnchor("gig")} tabIndex={-1} className="sm-wb-title">
+      <h2 id={reportAnchor("gig")} tabIndex={-1} className="sm-title">
         {brief?.title ?? gig.title}
       </h2>
-      <p className="sm-wb-what">{lead || rest}</p>
+      {brief?.title && brief.title !== gig.title ? <p className="rp-was">{t("report.hero.listedAs", { title: gig.title })}</p> : null}
+      <p className="sm-what">{lead || rest}</p>
       {more && lead ? (
-        <details className="sm-wb-more">
-          <summary>{t("summaryProto.moreSummary", { count: more })}</summary>
+        <details className="sm-more">
+          <summary>{t("summary.moreSummary", { count: more })}</summary>
           {rest ? <p className="sm-body">{rest}</p> : null}
           {points.length ? (
             <ul className="sm-points">
@@ -142,7 +110,7 @@ export function WorkbenchHead({ gig, brief, summary, kpDraft, now, onOpenListing
           {t("report.hero.wholeListing")}
         </button>
       ) : null}
-      <dl className="sm-facts" aria-label={t("summaryProto.facts")}>
+      <dl className="sm-facts" aria-label={t("summary.facts")}>
         {facts
           .filter((f) => f.v !== null)
           .map((f) => (

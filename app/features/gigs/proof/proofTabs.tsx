@@ -14,12 +14,12 @@ import type { Doubt } from "../shared/doubts";
 // state is disabled AND greyed (styles/report.css), never hidden, so the row keeps its shape
 // from gig to gig. Each section is a panel composed from the kit, inside one `.k-kit` root so
 // the kit's tokens and its delegated tip apply.
-//   Summary           the gig's report (report/GigReport.tsx): the gig, what it asks, the
-//                     plans, progress, the draft, the evidence and the record, growing with
-//                     the gig (it replaced the Summary, Plans, Draft and Evidence tabs)
+//   Summary           the gig at a glance (summary/GigSummary.tsx): a compact header, the
+//                     bid, the draft, the plans and the brief as folding panels, beside the
+//                     decision sidebar (every move, the metadata)
 //   Review            the pre-send review beside the message to the client (freelance)
 //   History           every attempt, newest first: status, cost, the note that sent it back, verdicts
-//   Brief             panels/BriefPanel.tsx (always open: it holds Research again)
+//   Brief             the brief on a sheet, beside the same decision sidebar (always open)
 //   Listing           a stranger's text, framed as untrusted, invisible characters shown;
 //                     the English translation above it when the listing is not in English
 //   Pairing           the gig's own agent, its knowledge, the folder, the milestone

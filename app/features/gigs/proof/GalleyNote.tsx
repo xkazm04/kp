@@ -6,7 +6,7 @@ import type { useLintText } from "../shared/useLintText";
 
 // One pinned note's words: its letter, what it says (a lint finding in the reader's language,
 // a reviewer's note verbatim), and where it came from. The galley's margin (Galley.tsx) and the
-// Summary prototypes' letter and compose views (report/variants/) all set a note with it.
+// Summary's compose view (summary/GalleyCompose.tsx) both set a note with it.
 
 export function NoteText({ note: n, lintText, reviewBy }: { note: MarginNote; lintText: ReturnType<typeof useLintText>; reviewBy: string }) {
   const t = useTranslations("gigs");

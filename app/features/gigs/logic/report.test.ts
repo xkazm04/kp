@@ -1,12 +1,12 @@
 // Pure logic for the gig's Summary (report.ts): which working blocks show, a plan's first
-// sentence, the lead set as a lead and points, the highlighter's clause, spend so far (never $0 for
-// "not reported"), the attempt timeline and the listing's language.
+// sentence, the lead set as a lead and points, spend so far (never $0 for "not reported"), the
+// attempt timeline and the listing's language.
 // Runner: node --test (npm run test:unit).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { GigOutcome, GigPlanRow } from "@/app/_lib/gigs/types.ts";
 import { att } from "./fixtures.ts";
-import { attemptTimeline, firstClause, firstSentence, foreignLanguage, leadOf, listingOpening, plainInline, spendSoFar, summaryBlocks } from "./report.ts";
+import { attemptTimeline, firstSentence, foreignLanguage, leadOf, listingOpening, plainInline, spendSoFar, summaryBlocks } from "./report.ts";
 
 const FACTS = { brief: false, plans: null, accepted: false, draft: false };
 
@@ -41,13 +41,6 @@ test("leadOf sets prose as the lead and list lines as points, dropping inline ma
   assert.deepEqual(leadOf("Fixes the **XSS**.\n\n- Adds a test\n- Updates docs"), { lead: "Fixes the XSS.", points: ["Adds a test", "Updates docs"] });
   assert.deepEqual(leadOf("## Heading\nOne. Two."), { lead: "One. Two.", points: [] });
   assert.equal(plainInline("see [the docs](https://x.test) and `npm test`"), "see the docs and npm test");
-});
-
-test("firstClause stops at the first clause of the first sentence, never a sliver", () => {
-  assert.deepEqual(firstClause("A landing page for a bakery, with an order form. Then more."), ["A landing page for a bakery", ", with an order form. Then more."]);
-  assert.deepEqual(firstClause("Short, then a long tail. Next."), ["Short, then a long tail.", " Next."]);
-  assert.deepEqual(firstClause("No punctuation at all"), ["No punctuation at all", ""]);
-  assert.deepEqual(firstClause("Rebuild the site demo.html now"), ["Rebuild the site demo.html now", ""]);
 });
 
 function seat(status: GigPlanRow["status"], costUsd: number | null): GigPlanRow {

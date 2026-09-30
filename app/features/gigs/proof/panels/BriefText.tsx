@@ -11,15 +11,13 @@ import { BriefChallenges, type ChallengeWithdraw } from "./BriefChallenges";
 // The brief's reading column: the categories, the categorized title as the heading, then the
 // Markdown body (the safe renderer) with "Expected challenges" set as rows with Withdraw for
 // this (BriefChallenges.tsx) and "Sources read" left to the sidebar's list (BriefAside.tsx).
-// The Brief tab's panel and the Summary prototypes (report/variants/) both set it; the
-// Summary may drop the title and the first section when its hero already carries them.
+// The Summary sets it twice (summary/GigSummary.tsx): on the Brief tab with its title, and in
+// the Summary's Brief panel without it (the panel's heading and the header carry it).
 
-export function BriefText({ brief, withdraw, title = true, dropFirst = false }: { brief: GigBrief; withdraw: ChallengeWithdraw; title?: boolean; dropFirst?: boolean }) {
+export function BriefText({ brief, withdraw, title = true }: { brief: GigBrief; withdraw: ChallengeWithdraw; title?: boolean }) {
   const challenges = briefChallenges(brief);
-  const cut = briefBody(brief.markdown, brief.sections, GIG_BRIEF_CHALLENGES_HEADING, challenges.length > 0, dropFirst);
+  const cut = briefBody(brief.markdown, brief.sections, GIG_BRIEF_CHALLENGES_HEADING, challenges.length > 0);
   const resolve = briefHeadingResolver(brief.sections);
-  // Heading ids are positional: a dropped first section shifts every heading by one.
-  const headingId = dropFirst ? (h: Parameters<typeof resolve>[0]) => resolve({ ...h, index: h.index + 1 }) : resolve;
   return (
     <>
       {title ? (
@@ -35,7 +33,7 @@ export function BriefText({ brief, withdraw, title = true, dropFirst = false }: 
           <h3 className="brief-title">{brief.title}</h3>
         </>
       ) : null}
-      {cut.body.trim() ? <Markdown content={cut.body} headingId={headingId} className="md-body brief-body" /> : null}
+      {cut.body.trim() ? <Markdown content={cut.body} headingId={resolve} className="md-body brief-body" /> : null}
       {cut.challenges ? <BriefChallenges id={cut.challenges.id} heading={cut.challenges.text} challenges={challenges} withdraw={withdraw} /> : null}
       {cut.after.trim() ? <Markdown content={cut.after} headingId={resolve} className="md-body brief-body" /> : null}
     </>

@@ -17,20 +17,15 @@ import type { GigRecord } from "./panels/useGigRecord";
 import type { PlansState } from "./panels/usePlans";
 import type { ProofTab } from "./proofTabs";
 import type { ChallengeWithdraw } from "./panels/BriefChallenges";
-import { GigReport } from "./report/GigReport";
 import { revealSoon } from "./report/parts";
-import { SummaryDossier } from "./report/variants/SummaryDossier";
-import { SummarySwitch, type SummaryVariant } from "./report/variants/SummarySwitch";
-import { SummaryWorkbench } from "./report/variants/SummaryWorkbench";
 import type { GigFileState } from "./report/useGigFile";
+import { GigSummary } from "./summary/GigSummary";
 
-// The proof's chosen tab (GigsProof.tsx): one panel per tab id (proofTabs.tsx); Summary is
-// the gig's overview (report/GigReport.tsx), which carries the brief panel too. The draft
-// and the brief arrive built, since they read the proof's own desk and decline state. The
-// `routing` tab is Pairing: the gig's own agent (PairingPanel), or the legacy routing view
-// for a gig a niche specialist already worked (RoutingPanel). While the WP13 prototype runs
-// (dev only, report/variants/SummarySwitch.tsx) the Summary AND Brief tabs render the chosen
-// variant, which carries the one decision sidebar on both.
+// The proof's chosen tab (GigsProof.tsx): one panel per tab id (proofTabs.tsx). The Summary and
+// the Brief tabs are ONE component (summary/GigSummary.tsx) that carries the decision sidebar on
+// both; the draft arrives built, since it reads the proof's own desk. The `routing` tab is
+// Pairing: the gig's own agent (PairingPanel), or the legacy routing view for a gig a niche
+// specialist already worked (RoutingPanel).
 
 export function ProofPanels({
   tab,
@@ -47,13 +42,14 @@ export function ProofPanels({
   plansState,
   proposalFile,
   draft,
-  brief,
   onChanged,
   onFlash,
   onOpenPlans,
   onOpenLane,
   onOpenTab,
-  proto,
+  now,
+  attempts,
+  withdraw,
 }: {
   tab: ProofTab;
   gig: Gig;
@@ -69,42 +65,25 @@ export function ProofPanels({
   plansState: PlansState;
   proposalFile: GigFileState<GigProposal>;
   draft: ReactNode;
-  brief: ReactNode;
   onChanged: AfterWrite;
   onFlash: (message: string) => void;
   onOpenPlans: () => void;
   onOpenLane: () => void;
   onOpenTab: (tab: ProofTab) => void;
-  /** The WP13 prototype: which Summary variant renders, the switch, and what they add. */
-  proto: { variant: SummaryVariant; show: boolean; now: Date; attempts: readonly GigAttempt[]; withdraw: ChallengeWithdraw };
+  now: Date;
+  attempts: readonly GigAttempt[];
+  withdraw: ChallengeWithdraw;
 }) {
   const accepted = useMemo(() => acceptedPlanOf(plansState.plans), [plansState.plans]);
-  const { variant, show, now, attempts, withdraw } = proto;
-  if ((tab === "summary" || tab === "brief") && variant !== "baseline") {
+  if (tab === "summary" || tab === "brief") {
     const onGo = (s: ReportSection) => {
       onOpenTab("summary");
       revealSoon(reportAnchor(s));
     };
-    const Variant = variant === "dossier" ? SummaryDossier : SummaryWorkbench;
-    const props = { view: tab, gig, attempt, summary, plansState, proposalFile, draft, now, attempts, withdraw, onChanged, onFlash, onGo, onOpenListing: () => onOpenTab("listing") } as const;
-    return (
-      <>
-        {show ? <SummarySwitch value={variant} /> : null}
-        <Variant {...props} />
-      </>
-    );
-  }
-  if (tab === "summary") {
-    return (
-      <>
-        {show ? <SummarySwitch value={variant} /> : null}
-        <GigReport {...{ gig, attempt, summary, plansState, proposalFile, brief, draft, onChanged, onFlash, onOpenTab }} />
-      </>
-    );
+    return <GigSummary {...{ view: tab, gig, attempt, summary, plansState, proposalFile, draft, now, attempts, withdraw, onChanged, onFlash, onGo }} onOpenListing={() => onOpenTab("listing")} />;
   }
   if (tab === "review") return <ReviewPanel gig={gig} note={note} onChanged={onChanged} />;
   if (tab === "history") return <HistoryPanel record={record} error={recordError} specialists={specialists} />;
-  if (tab === "brief") return brief;
   if (tab === "listing") return <ListingPanel gig={gig} source={source} />;
   return isLegacyRouted(persona, attempt) ? (
     <RoutingPanel gig={gig} source={source} specialists={specialists} kpi={kpi} onChanged={onChanged} onOpenLane={onOpenLane} />

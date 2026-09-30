@@ -1289,9 +1289,11 @@ proof lands where the operator left.
      ("cost not reported", never $0) and the budget close it.
 
      A **proposal**-track gig (a freelance bid) has **no dispatch at all**
-     (`proof/signoff/PrepareProposal.tsx`): the primary move is **Prepare the proposal** (the
-     same `POST /api/gigs/[id]/proposal` the Summary row uses, through the proof's shared file
-     state), with one line on why a bid gets a proposal and not a build. An accepted plan is
+     (`proof/signoff/PrepareProposal.tsx`): its move is **Prepare the proposal** (the same
+     `POST /api/gigs/[id]/proposal` the Summary's Moves block uses, through the proof's shared
+     file state), with one line on why a bid gets a proposal and not a build. It is a
+     secondary button here: the page has one primary, and the Summary's Moves block carries it
+     (Prepare itself once a plan is accepted, the plans before that). An accepted plan is
      the better input; without one the move still works and says the proposal is then written
      from the brief alone (with **Open the plans**); while the plans load it waits. When kp's
      own draft (`specialistId === "kp:proposal"`) is on the desk the stage reads **Proposal to
@@ -1318,102 +1320,101 @@ proof lands where the operator left.
      tab but Summary opens with **the head** (the stage and the niche, then the title) and is a
      white panel composed from
      the kit inside a `.k-kit` root with its delegated tip (`KitArea`).
-   - **Summary prototypes (dev only, 2026-09-30, the /prototype method round 1)**: a switch above
-     the Summary picks the layout - **Baseline** (as shipped, the default), **Dossier** (a document
-     page: set title block, numbered sections at a reading measure, the draft as a letter) or
-     **Workbench** (a compact header with fact chips, folding panels, the draft as a compose view).
-     Both variants put the metadata in a sticky decision sidebar next to the hero (the Brief tab
-     shows the same sidebar) with every action in one Moves block and exactly one primary
-     (`logic/moves.ts nextMove`). Files: `proof/report/variants/**`, `styles/summary*.css`,
-     `logic/moves.ts`, `logic/briefBody.ts`, `proof/panels/BriefText.tsx` / `BriefAside.tsx`,
-     `proof/GalleyNote.tsx` / `galleyAlign.ts`. The choice is kept in localStorage
-     (`kp-gigs-summary`; `?summary=dossier|workbench|baseline`, `?summary=0` forgets); a
-     production build always renders the baseline until one direction is consolidated.
-   - **Summary: the gig at a glance** (`proof/report/`, `styles/report.css` + `styles/plans.css`;
-     pure derivations in `logic/report.ts`). The operator's call (2026-09-30): the long read is
-     the gig's **HTML report file** (see "The gig's report file": written by a model, rewritten
-     as the gig moves, opened in the browser), so the in-app Summary is a quick overview with
-     the working controls under it, in this order:
-     1. **The hero** (`ReportHero.tsx`, `ReportActions.tsx`, `useGigFile.ts` - which replaced
-        `useReportFile.ts`, and now also drives the proposal row below): the eyebrow
-        `arena · gig type · stage`; the brief's title (else the listing's) with "Listed as ..."
-        when they differ; the lead - the deliverable's summary once a draft exists, else the
-        brief's "What the gig is" (`summaryTextOf`) - with its first clause highlighted
-        (`firstClause`) and its list lines as points (`leadOf`); a gig with no brief leads with
-        the listing's first paragraph and **Read the whole listing**. Under the lead, the report
-        row: **Open the full report** (a new tab on `GET /api/gigs/[id]/report`, which serves the
-        file sandboxed) and **Regenerate** (`POST /api/gigs/[id]/report`, 202; disabled while a
-        rewrite runs and until the gig has a brief), then the rewrite's state in words:
-        **Writing** with a quiet breathing mark (while `gig.report.status` is `writing`, or
-        right after Regenerate, the hero re-reads `GET /api/gigs/[id]` every 5 s and re-reads
-        the list once the rewrite lands), a failed rewrite's reason (the brief's fallback
-        vocabulary), or "The report is written once the gig is researched." Then the language
-        tag and **Read the English translation** (`shared/ListingLanguage.tsx`) and the
-        `workKind` callout. The hero carries no stat cards (removed 2026-09-30): the figures are
-        in the sidebar. On a **proposal**-track gig (a freelance bid, see **Two tracks:
-        proposal and build**) the hero grows a second row under the report row for the
-        **client proposal** (`proof/report/ProposalActions.tsx`): **Open the client
-        proposal** (a new tab on `GET /api/gigs/[id]/proposal`, sandboxed), **Download**
-        (`?download=1`), and **Prepare the proposal** / **Rewrite the proposal** (`POST`,
-        202; disabled without a brief) - Writing with the breathing mark while it runs, and a
-        failed write's reason. A note says when the proposal is (or was) written from the
-        brief alone ("accept a plan for a sharper one"), or that it should be rewritten once a
-        plan was accepted after it. One file hook (`proof/report/useGigFile.ts`, which
-        replaced `useReportFile.ts`) serves both rows: it re-reads `GET /api/gigs/[id]` every
-        5 s while `gig.<report|proposal>` is writing and re-reads the list when the write
-        lands. The proof owns the proposal's instance, so the sign-off and the Summary share
-        its state.
-     2. **The research brief with the gig's ONE metadata sidebar** - the Brief tab's own panel
-        (`panels/BriefPanel.tsx`), so the gig's metadata reads the same on both tabs, with its
-        **Withdraw for this** rows. The sidebar opens with `meta/GigMeta.tsx` (built once in
-        `GigsProof.tsx` and passed in as `meta`): **Open the listing on <host>** (always the
-        gig's source URL; a non-web address is shown as recorded, a missing one says so), the
-        **kp ID** with **Copy ID** (to reference the gig in internal notes), the figures as a
-        key-value grid - Reward with its dollar estimate at the scan day's rate, Deadline (days
-        left, coral when 3 or fewer, the closing date), Difficulty with its glyph, Effort, Fit
-        against the bar, **Spent so far** from `spendSoFar` (never $0) - each absent figure "—"
-        with its reason; and the **Report file**: what it covers ("Written at the drafted stage
-        · date · by a model · cost $0.12", or "by kp, no model"), its local path with **Copy
-        path**. Then the brief's own blocks: where it came from with **Research again**, the
-        contents list, **Sources read**. A gig with no brief keeps the sidebar (with
-        **Research**) and its reading column says the brief is not written yet. Below 56rem the
-        sidebar is a band above the text. Every gig also shows its **Track**
-        (`meta/MetaBlocks.tsx TrackBlock`): "Freelance bid: a proposal, no build" or "Bounty:
-        the work is the entry", one line on what that means. A proposal-track gig adds a
-        **Client proposal** block shaped like the Report file's: written from the accepted
-        plan or from the brief alone, when, by a model or by kp, its cost when reported (never
-        $0), its state while writing or after a failure, the path and Copy path.
-     3. **Choose a plan** (`ReportChoose.tsx`, `SeatCard.tsx`, `usePlans.ts` `usePlanActions`),
-        shown while plans wait for a pick, or when a brief has no plans yet
-        (`summaryBlocks`). The lineup follows the brief's difficulty (`planSeatsFor`); each
-        seat is a **compact card** - the seat (`planSeatLabel`), its state as a mark and a
-        word, its cost ("cost not reported", never $0), the plan summary's first sentence
-        (`firstSentence`), the step count and the effort range - with the optional note and
-        **Accept this plan**; a failed seat says why with **Retry**; a writing seat is a quiet
-        line (re-read every 4 s). Above the cards: when the round was proposed, "each plan in
-        full is in the report", and **Propose again**. No plans: "No plans yet", which models
-        this difficulty gets, and **Generate plans**. Once one is accepted the block is **The
-        accepted plan**: one line, "Accepted: Opus 5.5 · xhigh, <your note>", its date, and the
-        steps' titles as a numbered list. Earlier rounds and the plans in full are in the file.
-     4. **The bid** (`proof/report/BidBlock.tsx`), a **proposal**-track gig only, after the plan
-        block: the operator's working surface - the message to paste on the platform with
-        **Copy message**, then "Questions for the client" and "Needed to start, once won" as
-        two numbered lists (`BidAsks.tsx`). When the latest attempt is the draft kp wrote itself
-        (`specialistId === "kp:proposal"`) that draft IS the message, so it is proofed inside The
-        bid (the proof slip over the galley, its lint notes pinned) and item 5 below
-        ("Review the draft") does not repeat it (`summaryBlocks` returns `draftInBid`). A
-        proposal rewritten after that draft is shown under it as "The rewritten message", with
-        how to proof it (discard, prepare again). A persona's legacy draft on a freelance gig
-        (worked before the tracks split) keeps its own "Review the draft" block, item 5, as
-        before.
-     5. **Review the draft**, only when the latest attempt carries a draft (build track, or a
-        proposal-track gig's legacy persona draft, see item 4): the proof slip as a
-        callout (amber; coral when a lint stop blocks Approve; moss when clean) above the galley
-        with its margin notes. A slip link focuses its margin note (`DraftTab.tsx`
-        `useSlipJump`); the evidence rows it used to jump to are in the file now.
-     Not in the Summary any more (2026-09-30): the numbered index and its rail, "What it asks"
-     (the brief panel has it), Progress (the **Pairing** tab keeps the milestone), Evidence
-     (the file) and the Record (the **History** tab).
+   - **Summary: the gig at a glance** (`proof/summary/`, `styles/summary.css` +
+     `styles/report.css` + `styles/plans.css`; pure derivations in `logic/report.ts` and
+     `logic/moves.ts`). The operator's call (2026-09-30): the long read is the gig's **HTML
+     report file** (see "The gig's report file": written by a model, rewritten as the gig
+     moves, opened in the browser), so the in-app Summary is a quick overview beside the
+     decision. It was chosen with the /prototype method (2026-09-30: of a baseline and two
+     variants the operator picked the one with folding panels and a control-panel sidebar) and
+     is the only layout, in dev and production. The Summary and the **Brief** tab are ONE
+     component (`summary/GigSummary.tsx`): a two-column grid in the proof column, the reading
+     column beside the **decision sidebar** (17rem, `summary/DecisionSidebar.tsx`). The sidebar
+     sticks right under the proof's trail while the reading column scrolls (its top is the
+     trail's measured height) and scrolls inside itself when taller than the viewport; below
+     46rem of proof column it is a plain band above the reading column. In it, top to bottom:
+     1. **Moves**, the Summary's ONE action place (`summary/MovesBlock.tsx`,
+        `summary/moveGroups.ts`), kept short so the metadata under it is on the first screen
+        (at 1440x900 and 1920x1080 the listing link, the kp ID, the reward and the deadline
+        show without scrolling). The gig's **next move** (`logic/moves.ts nextMove`, tested:
+        no brief -> Research; a brief and no plans -> Generate plans; plans waiting -> Go to
+        the plans; a freelance bid with a plan accepted -> Prepare the proposal, then Open the
+        client proposal; a draft on the desk -> Go to the draft, or for kp's own bid Open the
+        client proposal / Go to the bid; after the pick on the build track the report) is the
+        page's ONE primary button, full width, with its reason in one line under it. A **New**
+        listing has no primary here: its next move is the sign-off's Accept (which researches
+        it and writes its plans) or Decline, and a line says so; so does a write in flight.
+        Each state that is present is one quiet line naming its object: Writing (a breathing
+        mark), a failed write and why (the brief's fallback vocabulary), the client proposal's
+        basis note ("written from the brief alone: accept a plan for a sharper one"). Every
+        other move is in a disclosure, **N more moves**, grouped by object with a small label:
+        the report (Open the full report, Regenerate or Write the report), the client proposal
+        on a freelance bid (Open, Download, Prepare or Rewrite), the plans (Go to the plans,
+        Propose again or Generate plans), the research (Research now or Research again), the
+        draft or the bid (Go to ...). It opens on a click, never on hover; it starts open when
+        it holds two moves or fewer and keeps the operator's last choice while the tab lives.
+        A move that needs the brief is left out while there is none, and one line says
+        everything starts from the research. The report and the proposal share one file hook
+        (`proof/report/useGigFile.ts`): `POST /api/gigs/[id]/report|proposal` (202), then it
+        re-reads `GET /api/gigs/[id]` every 5 s while the file is writing and re-reads the
+        list when it lands. The proof owns the proposal's instance, so the sign-off and the
+        Summary share its state. **Open** is a new tab on `GET /api/gigs/[id]/report` or
+        `/proposal` (served sandboxed), **Download** adds `?download=1`.
+     2. **The gig** (`meta/GigMeta.tsx`, `meta/MetaBlocks.tsx`): **Open the listing on <host>**
+        (always the gig's source URL; a non-web address is shown as recorded, a missing one
+        says so), the **kp ID** with **Copy ID**, then the figures as a key-value grid - Reward
+        with its dollar estimate at the scan day's rate, Deadline (days left, coral when 3 or
+        fewer, the closing date), Difficulty with its glyph, Effort, Fit against the bar,
+        **Spent so far** from `spendSoFar` (never $0) - each absent figure "—" with its
+        reason; then the **Track** ("Freelance bid: a proposal, no build" or "Bounty: the work
+        is the entry"), the **Client proposal** file on a proposal-track gig (written from the
+        accepted plan or the brief alone, when, by a model or by kp, its cost when reported,
+        its state, the path with **Copy path**) and the **Report file** (what it covers, by
+        whom, its cost, the path with **Copy path**).
+     3. **The brief** (`proof/panels/BriefAside.tsx BriefProvenance`), once there is one: who
+        wrote it ("Written by a model from the listing and 2 linked pages" or "Assembled
+        without a model") and when, the contents list at 3+ sections, and **Sources read**
+        with each link's status as a mark and a word.
+
+     The Summary's reading column: a compact **header** (`summary/SummaryHead.tsx`, no
+     buttons) - the eyebrow `arena · gig type · stage`, the brief's title (else the listing's)
+     with "Listed as ..." when they differ, ONE line of what the gig is (the first sentence of
+     the deliverable's summary once a draft exists, else of the brief's "What the gig is",
+     `summaryTextOf` + `leadSentence`; the rest of it and its list lines folded under
+     "N more lines of the summary"), where that line came from, the key facts it has as chips
+     (reward, deadline, difficulty, effort, fit), the language tag with **Read the English
+     translation** (`shared/ListingLanguage.tsx`) and the `workKind` callout. A gig with no
+     brief leads with the listing's first paragraph and **Read the whole listing**. Then
+     **folding panels**, the one the next move points at open (a jump from Moves, the
+     sign-off's "go to the plans" or a slip link opens its panel first), each only while it
+     applies (`summaryBlocks`):
+     - **The bid** (`proof/report/BidBlock.tsx`), a proposal-track gig only: the message to
+       paste on the platform with **Copy message**, then "Questions for the client" and
+       "Needed to start, once won" (`BidAsks.tsx`, stacked when the reading column is under
+       34rem). When the latest attempt is kp's own draft (`specialistId === "kp:proposal"`)
+       that draft IS the message and is proofed inside The bid (`draftInBid`); a proposal
+       rewritten after it shows as "The rewritten message", with how to proof it.
+     - **The draft**, when the latest attempt carries one (build track, or a freelance gig's
+       legacy persona draft): the proof slip as a callout (amber; coral when a lint stop
+       blocks Approve; moss when clean) above the draft as a **compose view**
+       (`summary/GalleyCompose.tsx`): To / Subject / Draft lines, the body in the sans at
+       reading size and measure, every finding washed inline with its letter, the numbered
+       findings beside the text on a wide column and under it on a narrow one, enclosures as
+       chips. A slip link focuses its finding (`DraftTab.tsx useSlipJump`). A draft that is
+       not on the desk (sent, stamped) keeps the full galley (`proof/Galley.tsx`).
+     - **Plans** (`summary/PlanSeats.tsx`, `proof/report/SeatCard.tsx`, `usePlans.ts
+       usePlanActions`), while plans wait for a pick or a brief has none: the lineup follows
+       the brief's difficulty (`planSeatsFor`); each seat a compact card - the seat, its state
+       as a mark and a word, its cost ("cost not reported", never $0), the plan's first
+       sentence, the step count and the effort range - with the optional note and **Accept
+       this plan**; a failed seat says why with **Retry**; a writing seat is a quiet line
+       (re-read every 4 s). No plans: which models this difficulty gets (Generate plans is in
+       Moves). Once one is accepted the panel is **The accepted plan**: "Accepted: Opus 5.5 ·
+       xhigh, <your note>", its date and the steps' titles.
+     - **The brief**: the brief's reading column (below), with its **Withdraw for this** rows.
+     Not in the Summary any more (2026-09-30): the numbered index, Progress (the **Pairing**
+     tab keeps the milestone), Evidence (the file) and the Record (the **History** tab); the
+     prototype switch and its other two layouts are gone.
    - **Review** (`proof/panels/ReviewPanel.tsx`, `OutreachCard.tsx`): two halves, stacked when
      the proof column is under 44rem. Left, the **pre-send review**: the reviewer and cycle as
      a tag, the verdict as a pill, the lead as a callout, "Before sending" (numbered steps)
@@ -1461,27 +1462,22 @@ proof lands where the operator left.
      against the bar as two cards, the workspace, and the specialists by fit with **Route
      here**. Niche specialists are no longer hired from anywhere in the tab.
 
-   **The research brief** (`proof/panels/BriefPanel.tsx`, the Research brief tab) is a reading column and
-   an aside. The column: the category as tags, the categorized title, then the Markdown body
-   through `app/_components/Markdown.tsx` at a reading size, across the
-   column's full width (the 68ch cap and the panel's clipping are gone: at 1440 they held the
-   text to 456px of an 808px panel, at 1920 a third of the column stood empty) (the body
-   already carries the difficulty reason, so nothing is listed twice). Its "Expected
-   challenges" section is set as rows, each with **Withdraw for this** (see **Withdraw
-   reasons**).
-   The aside: the provenance ("Written by a model from the listing and 2 linked pages" or
-   "Assembled without a model", and when) with **Research again**
-   (`POST /api/gigs/[id]/research`), difficulty and effort as a key-value grid ("Not rated"
-   and "not estimated" are absences, never "easy" or 0), a contents list when there are 3+
-   sections, and **Sources read** with each link's status as a mark and a word (a link kp
-   did not open is text, never a link). With no brief the panel says "Not researched yet"
-   beside the same button. Headings carry the ids
+   **The research brief** (the Brief tab: `summary/GigSummary.tsx` with `view="brief"`) is the
+   brief on a white sheet beside the same **decision sidebar** as the Summary (Moves with
+   **Research** / **Research again** (`POST /api/gigs/[id]/research`), the gig's metadata, the
+   brief's provenance, contents and **Sources read**; see the Summary above). The sheet
+   (`proof/panels/BriefText.tsx`): the category as tags, the categorized title, then the
+   Markdown body through `app/_components/Markdown.tsx` at a reading size held to 66ch (the
+   body already carries the difficulty reason, so nothing is listed twice; a wide table or
+   code block scrolls inside the column instead of clipping). Its "Expected challenges"
+   section is set as rows, each with **Withdraw for this** (see **Withdraw reasons**); its
+   "Sources read" section is left to the sidebar's list (`logic/briefBody.ts`). Difficulty
+   and effort are in the sidebar's figures ("Not rated" and "not estimated" are absences,
+   never "easy" or 0); a link kp did not open is text, never a link. With no brief the sheet
+   says "Not researched yet" and Research is the page's primary move. Headings carry the ids
    the server minted with one assigner (`brief.sections`, via `briefHeadingResolver`, which
-   refuses rather than guesses); nothing is re-slugged on the client.
-   The aside sits beside the column (16-22rem) when the proof column is 56rem or wider; below
-   that it becomes a band of facts ABOVE the text (provenance and Research again, difficulty and
-   effort, contents, sources read, in auto-fit columns) rather than a squeezed rail. The panel is
-   the same in the Brief tab and in the Summary.
+   refuses rather than guesses); nothing is re-slugged on the client. The Summary's Brief
+   panel sets the same column without its title.
 3. **Lanes (`lanes/GigsLanes.tsx`, `logic/lanes.ts`).** "1,000 gigs across 7 types." and a
    deck: gig agents at work, gigs paired with their own agent, and the niche specialists
    still finishing their open drafts. One row per **gig type**, always all seven in the

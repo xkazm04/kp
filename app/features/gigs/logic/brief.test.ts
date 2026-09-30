@@ -90,5 +90,5 @@ test("briefHeadingResolver over a real assembled brief addresses all five fixed 
   );
   const ids = rendererHeadings(brief.markdown).map(briefHeadingResolver(brief.sections));
   assert.deepEqual(ids, ["what-the-gig-is", "what-it-asks-for", "difficulty-and-effort", "expected-challenges", "sources-read"]);
-  assert.ok(brief.markdown.includes("\n## Sources read\n"), "the page splits the body at this exact line (proof/panels/BriefPanel.tsx)");
+  assert.ok(brief.markdown.includes("\n## Sources read\n"), "the page splits the body at this exact line (logic/briefBody.ts)");
 });

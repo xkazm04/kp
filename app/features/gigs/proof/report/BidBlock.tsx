@@ -7,8 +7,8 @@ import type { Gig, GigAttempt } from "@/app/_lib/gigs/types";
 import { clientAsksOf, isKpDraft, proposalMovedOn } from "../../logic/proposal";
 import { BidAsks } from "./BidAsks";
 
-// The body of the Summary's "The bid" block on a proposal-track gig (a freelance bid; its
-// heading and lede are GigReport's): the operator's working surface for the bid. The
+// The body of the Summary's "The bid" panel on a proposal-track gig (a freelance bid; its
+// heading and lede are summary/GigSummary.tsx's): the operator's working surface for the bid. The
 // message to paste on the platform, Copy message, then what to ask the client
 // (BidAsks.tsx). When the latest attempt is the draft kp wrote itself from
 // the proposal, that draft IS the message: it is proofed here, as the proof slip over the

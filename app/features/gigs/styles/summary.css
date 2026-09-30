@@ -1,56 +1,112 @@
-/* ---- THE SUMMARY PROTOTYPES (WP13, proof/report/variants/): the shared frame ---------------
-   The prototype switch, the two-column Summary (the reading column and the decision sidebar),
-   the sidebar sticking right under the proof's trail (its top is the trail's measured height,
-   --sm-top, set by DecisionSidebar.tsx) and scrolling inside itself when taller than the
-   viewport, and the Moves block in both looks. Under 46rem of proof column the sidebar is a
-   plain band ABOVE the reading column, not sticky. Tokens only (base.css), nothing under 14px;
-   each variant's own type is in summary-dossier.css / summary-workbench.css. */
+/* ---- THE SUMMARY (proof/summary/): the Summary and Brief tabs --------------------------------
+   Two columns in the proof column: the reading column and the decision sidebar (17rem), which
+   sticks right under the proof's trail (its top is the trail's measured height, --sm-top, set
+   by DecisionSidebar.tsx) and scrolls inside itself when taller than the viewport. Under 46rem
+   of proof column the sidebar is a plain band ABOVE the reading column, not sticky. The Moves
+   block is kept short (one primary, its reason, the states, the rest in a disclosure) so the
+   gig's metadata is on the first screen too. The reading column: a compact header, folding
+   panels, the draft as a compose view. Tokens only (base.css), nothing under 14px. */
 
-.gd .sm-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 1.25rem; padding: 0.625rem 0.875rem; border: 1px dashed var(--gd-rule-2); border-radius: 0.5rem; }
-.gd .sm-switch .t-meta { flex: 1 1 16rem; }
+.gd .sm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; grid-template-areas: "read side"; column-gap: 1.5rem; align-items: start; }
+.gd .sm-read { grid-area: read; min-width: 0; gap: 1.25rem; container: smread / inline-size; }
+.gd .sm-read :is(.rp-lede, .rp-callout, .lang) { max-width: 66ch; }
+.gd .sm-read pre { max-width: 100%; overflow-x: auto; }
+.gd .sm-read .md-body table { display: block; max-width: 100%; overflow-x: auto; }
 
-.gd .sm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; grid-template-areas: "read side"; column-gap: 2rem; align-items: start; }
-.gd .sm-read { grid-area: read; min-width: 0; }
+/* the decision sidebar: a sunken, ruled control panel */
 .gd .sm-side {
   grid-area: side; position: sticky; top: var(--sm-top, 4.5rem); max-height: calc(100vh - var(--sm-top, 4.5rem) - 1rem);
   overflow: auto; overscroll-behavior: contain; display: grid; align-content: start; min-width: 0;
+  background: var(--gd-sunken); border: 1px solid var(--gd-rule-2); border-radius: var(--gd-radius);
 }
-.gd .sm-side > * { padding: 1rem 1.125rem; border-top: 1px solid var(--gd-rule); min-width: 0; }
+.gd .sm-side > * { padding: 0.875rem 1rem; border-top: 1px solid var(--gd-rule); min-width: 0; }
 .gd .sm-side > :first-child { border-top: 0; }
-
-/* the sidebar's metadata (meta/GigMeta.tsx and the brief's provenance, BriefAside.tsx) */
-.gd .sm-side-meta { display: grid; gap: 1rem; align-content: start; }
-.gd .sm-side-k { font: 600 1.0625rem/1.3 var(--gd-serif); color: var(--gd-ink); }
+.gd .sm-side-meta { display: grid; gap: 0.875rem; align-content: start; }
+.gd .sm-side-k { font: 700 0.875rem/1.4 var(--gd-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gd-quiet); }
 .gd .sm-side .k-kv { width: 100%; }
 .gd .sm-side .k-kv dd { display: grid; gap: 0.125rem; }
 .gd .sm-side .k-kv .is-coral { color: var(--gd-coral-ink); }
 .gd .sm-side .k-kv .is-moss { color: var(--gd-moss-ink); }
 
-/* Moves: the one action place */
-.gd .sm-moves { display: grid; gap: 0.75rem; }
-.gd .sm-group { display: grid; gap: 0.5rem; justify-items: start; min-width: 0; }
-.gd .sm-group + .sm-group { padding-top: 0.75rem; border-top: 1px solid var(--gd-rule); }
-.gd .sm-group-k { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; font-weight: 700; color: var(--gd-ink); }
-.gd .sm-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.gd .sm-state { display: flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; line-height: 1.45; color: var(--gd-quiet); overflow-wrap: anywhere; }
-.gd .sm-state.is-writing { font-weight: 700; color: var(--gd-steel); }
-.gd .sm-state.is-writing .k-mark { animation: gd-breathe 1.8s ease-in-out infinite; }
+/* Moves: the one primary and its reason, the states present, the rest behind a click */
+.gd .sm-moves { display: grid; gap: 0.625rem; }
+.gd .sm-next { display: grid; gap: 0.375rem; }
+.gd .sm-full { width: 100%; }
+.gd .sm-why { font-size: 0.875rem; line-height: 1.45; color: var(--gd-body-2); overflow-wrap: anywhere; }
+.gd .sm-state { display: flex; align-items: baseline; gap: 0.375rem; font-size: 0.875rem; line-height: 1.45; color: var(--gd-quiet); overflow-wrap: anywhere; }
+.gd .sm-state b { font-weight: 700; color: var(--gd-ink); }
+.gd .sm-state.is-writing { color: var(--gd-steel); }
+.gd .sm-state.is-writing .k-mark { align-self: center; animation: gd-breathe 1.8s ease-in-out infinite; }
 .gd .sm-state.is-fail { display: block; padding: 0.375rem 0.625rem; border-radius: 0.375rem; background: var(--gd-coral-wash); color: var(--gd-coral-ink); }
+.gd .sm-state.is-fail b { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .gd .sm-state.is-writing .k-mark { animation: none; } }
-.gd .sm-next-tag { padding: 0 0.5rem; border-radius: 999px; background: var(--gd-coral-wash); color: var(--gd-coral-ink); font-size: 0.875rem; font-weight: 700; }
+.gd .sm-others > summary { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; cursor: pointer; list-style: none; font-size: 0.875rem; font-weight: 700; color: var(--gd-steel); }
+.gd .sm-others > summary::-webkit-details-marker { display: none; }
+.gd .sm-others > summary::before { content: ""; flex: none; width: 0.4375rem; height: 0.4375rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s var(--gd-ease); }
+.gd .sm-others[open] > summary::before { transform: rotate(45deg); }
+.gd .sm-others > summary:focus-visible { outline: 2px solid var(--gd-coral); outline-offset: 2px; border-radius: 0.25rem; }
+.gd .sm-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin-top: 0.5rem; min-width: 0; }
+.gd .sm-group-k { flex-basis: 100%; font-size: 0.875rem; font-weight: 700; color: var(--gd-quiet); }
+@media (prefers-reduced-motion: reduce) { .gd .sm-others > summary::before { transition: none; } }
 
-/* card look (Dossier): the group that holds the next move carries a coral rule */
-.gd .sm-moves--card .sm-group.is-next { padding-left: 0.75rem; box-shadow: inset 3px 0 0 var(--gd-coral); }
-.gd .sm-moves--card .sm-group.is-next + .sm-group { border-top: 0; }
+/* the header */
+.gd .sm-head { display: grid; gap: 0.5rem; justify-items: start; padding-bottom: 1.25rem; border-bottom: 1px solid var(--gd-rule-2); min-width: 0; }
+.gd .sm-title { max-width: 40ch; font: 600 1.5rem/1.25 var(--gd-serif); overflow-wrap: anywhere; }
+.gd .sm-what { max-width: 66ch; font-size: 1.0625rem; line-height: 1.6; color: var(--gd-ink); overflow-wrap: anywhere; }
+.gd .sm-more { max-width: 66ch; }
+.gd .sm-more > summary { cursor: pointer; font-size: 0.875rem; font-weight: 600; color: var(--gd-steel); }
+.gd .sm-more[open] > summary { margin-bottom: 0.5rem; }
+.gd .sm-more .sm-body { font-size: 1rem; line-height: 1.65; color: var(--gd-body-2); overflow-wrap: anywhere; }
+.gd .sm-more .sm-points { margin: 0.5rem 0 0; padding-left: 1.25rem; list-style: disc; display: grid; gap: 0.25rem; font-size: 1rem; line-height: 1.55; color: var(--gd-body-2); overflow-wrap: anywhere; }
+.gd .sm-more .sm-points li::marker { color: var(--gd-coral); }
+.gd .sm-facts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+.gd .sm-facts > div { display: inline-flex; align-items: baseline; gap: 0.375rem; padding: 0.25rem 0.75rem; border: 1px solid var(--gd-rule-2); border-radius: 999px; background: var(--gd-card); font-size: 0.875rem; }
+.gd .sm-facts dt { color: var(--gd-quiet); }
+.gd .sm-facts dd { font-weight: 700; font-variant-numeric: tabular-nums; }
+.gd .sm-facts .is-hot dd { color: var(--gd-coral-ink); }
+.gd .sm-facts .is-ok dd { color: var(--gd-moss-ink); }
 
-/* panel look (Workbench): a vertical stack of full-width buttons, the next move pinned on top */
-.gd .sm-moves--panel .sm-group { justify-items: stretch; gap: 0.375rem; }
-.gd .sm-moves--panel .sm-full { width: 100%; justify-content: flex-start; }
-.gd .sm-next { display: grid; gap: 0.5rem; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--gd-coral-wash) 55%, var(--gd-card)); }
-.gd .sm-next-k { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gd-coral-ink); }
+/* folding panels, and the Brief tab's sheet */
+.gd .sm-folds { display: grid; gap: 0.75rem; }
+.gd .sm-fold { background: var(--gd-card); border-radius: var(--gd-radius); box-shadow: var(--gd-shadow); min-width: 0; }
+.gd .sm-fold > summary { display: flex; align-items: center; gap: 0.75rem; min-height: 3rem; padding: 0.75rem 1.25rem; cursor: pointer; list-style: none; scroll-margin-top: 5rem; }
+.gd .sm-fold > summary::-webkit-details-marker { display: none; }
+.gd .sm-fold > summary::before { content: ""; flex: none; width: 0.5rem; height: 0.5rem; border-right: 2px solid var(--gd-steel); border-bottom: 2px solid var(--gd-steel); transform: rotate(-45deg); transition: transform 0.15s var(--gd-ease); }
+.gd .sm-fold[open] > summary::before { transform: rotate(45deg); }
+.gd .sm-fold > summary:focus-visible { outline: 2px solid var(--gd-coral); outline-offset: -2px; }
+.gd .sm-fold-t { font: 600 1.125rem/1.3 var(--gd-serif); }
+.gd .sm-fold-s { margin-left: auto; font-size: 0.875rem; color: var(--gd-quiet); text-align: right; overflow-wrap: anywhere; }
+.gd .sm-fold-body { padding: 1rem 1.25rem 1.25rem; border-top: 1px solid var(--gd-rule); min-width: 0; overflow-wrap: anywhere; }
+.gd .sm-fold-body .rp-lede { margin: 0 0 1rem; }
+.gd .sm-sheet { padding: 1.5rem 1.75rem; background: var(--gd-card); border-radius: var(--gd-radius); box-shadow: var(--gd-shadow); overflow-wrap: anywhere; }
+.gd :is(.sm-fold-body, .sm-sheet) .md-body { max-width: 66ch; }
+@media (prefers-reduced-motion: reduce) { .gd .sm-fold > summary::before { transition: none; } }
 
-/* the Summary's readable measure: no running text wider than 66ch */
-.gd .sm-read :is(.rp-lede, .rp-callout, .lang) { max-width: 66ch; }
+/* the compose view */
+.gd .sm-compose-head { display: grid; margin: 0; border: 1px solid var(--gd-rule-2); border-radius: 0.5rem 0.5rem 0 0; background: var(--gd-sunken); }
+.gd .sm-compose-head > div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 0.75rem; padding: 0.5rem 1rem; font-size: 0.9375rem; }
+.gd .sm-compose-head > div + div { border-top: 1px solid var(--gd-rule); }
+.gd .sm-compose-head dt { font-weight: 600; color: var(--gd-quiet); }
+.gd .sm-compose-head dd { overflow-wrap: anywhere; }
+.gd .sm-compose-split { display: grid; gap: 1.25rem; padding: 1.25rem; border: 1px solid var(--gd-rule-2); border-top: 0; border-radius: 0 0 0.5rem 0.5rem; background: var(--gd-card); }
+.gd .sm-compose-p { max-width: 68ch; margin-bottom: 0.875rem; font: 400 1rem/1.65 var(--gd-sans); white-space: pre-wrap; overflow-wrap: anywhere; }
+.gd .sm-compose mark.pm { padding: 0 0.125rem; border-radius: 0.1875rem; background: var(--gd-coral-wash); text-decoration: none; }
+.gd .sm-compose mark.pm.lint { background: color-mix(in srgb, var(--gd-amber) 30%, transparent); }
+.gd .sm-encl { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; padding-top: 0.875rem; border-top: 1px dashed var(--gd-rule-2); }
+.gd .sm-encl-chip { display: inline-grid; gap: 0.125rem; padding: 0.375rem 0.75rem; border: 1px solid var(--gd-rule-2); border-radius: 0.75rem; background: var(--gd-sunken); font-size: 0.875rem; max-width: 100%; }
+.gd .sm-encl-chip code { font: 0.875rem/1.4 var(--gd-mono); color: var(--gd-quiet); overflow-wrap: anywhere; }
+.gd .sm-findings { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+.gd .sm-findings ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.gd .sm-finding-at { grid-column: 2; font-size: 0.875rem; color: var(--gd-quiet); }
+@container (min-width: 44rem) {
+  .gd .sm-compose-split { grid-template-columns: minmax(0, 1fr) 15rem; }
+  .gd .sm-findings { padding-left: 1rem; border-left: 1px solid var(--gd-rule); }
+}
+
+/* the bid's two ask lists stack when the READING column is narrow, not only the proof column */
+@container smread (max-width: 34rem) {
+  .gd .sm-read .bid-asks { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+}
 
 @container proofcol (max-width: 46rem) {
   .gd .sm-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "read"; row-gap: 1.75rem; }
@@ -59,6 +115,7 @@
   .gd .sm-side > * + * { border-left: 1px solid var(--gd-rule); }
 }
 
-/* Spark Dark: the drawn register */
-:root[data-theme="dark"] .gd .sm-switch { border-width: 2px; border-radius: 1rem; }
-:root[data-theme="dark"] .gd .sm-next { border: 2px solid var(--gd-ink); border-radius: 0.75rem; }
+/* Spark Dark: drawn outlines on the Summary's surfaces */
+:root[data-theme="dark"] .gd :is(.sm-fold, .sm-sheet, .sm-side) { border: 2px solid var(--gd-ink); }
+:root[data-theme="dark"] .gd .sm-compose-head { border: 2px solid var(--gd-ink); border-radius: 1rem 1rem 0 0; }
+:root[data-theme="dark"] .gd .sm-compose-split { border: 2px solid var(--gd-ink); border-top: 0; border-radius: 0 0 1rem 1rem; }

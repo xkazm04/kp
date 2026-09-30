@@ -1,18 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useGigsFormat } from "../../../data/useGigsFormat";
-import { Galley } from "../../Galley";
-import { draftOnDesk, NoteText, noteClass } from "../../GalleyNote";
-import { MarkedText } from "../../MarkedText";
-import { hostOf } from "./SummaryHero";
+import { useGigsFormat } from "../../data/useGigsFormat";
+import { Galley } from "../Galley";
+import { draftOnDesk, NoteText, noteClass } from "../GalleyNote";
+import { MarkedText } from "../MarkedText";
+import { hostOf } from "./SummaryHead";
 
-// Workbench's galley: the draft as a COMPOSE view, the way a mail client shows a message about
+// The Summary's galley: the draft as a COMPOSE view, the way a mail client shows a message about
 // to go. A To / Subject header, the body in the sans at reading size, enclosures as chips, and
 // every finding highlighted INLINE (a wash on the phrase, its letter after it) with the
 // numbered list of findings beside the text on a wide column and under it on a narrow one
-// (styles/summary-workbench.css). The list items keep the margin notes' ids, so the proof
-// slip's "go to note" lands on them. States other than a draft on the desk are the baseline's.
+// (styles/summary.css). The list items keep the margin notes' ids, so the proof slip's "go to
+// note" lands on them. Every state that is not a draft on the desk (a stamp, a sent draft) is
+// the full galley's (Galley.tsx).
 
 const baseName = (ref: string) => ref.split(/[\\/]/).filter(Boolean).pop() ?? ref;
 
@@ -28,17 +29,17 @@ export function GalleyCompose(props: Parameters<typeof Galley>[0]) {
     <div className="galley sm-compose">
       <dl className="sm-compose-head">
         <div>
-          <dt>{t("summaryProto.composeTo")}</dt>
+          <dt>{t("summary.composeTo")}</dt>
           <dd>
-            {gig.org ?? t("outreach.theClient")} <span className="t-meta">{t("summaryProto.via", { platform: hostOf(gig.url) })}</span>
+            {gig.org ?? t("outreach.theClient")} <span className="t-meta">{t("summary.via", { platform: hostOf(gig.url) })}</span>
           </dd>
         </div>
         <div>
-          <dt>{t("summaryProto.composeSubject")}</dt>
-          <dd>{t("summaryProto.composeRe", { title: gig.brief?.title ?? gig.title })}</dd>
+          <dt>{t("summary.composeSubject")}</dt>
+          <dd>{t("summary.composeRe", { title: gig.brief?.title ?? gig.title })}</dd>
         </div>
         <div>
-          <dt>{t("summaryProto.composeDraft")}</dt>
+          <dt>{t("summary.composeDraft")}</dt>
           <dd className="t-meta">
             {fmt.dateTime(attempt.createdAt)} · {t("proof.size", { paragraphs: paras.length, words })}
           </dd>
@@ -62,9 +63,9 @@ export function GalleyCompose(props: Parameters<typeof Galley>[0]) {
             </div>
           ) : null}
         </div>
-        <section className="sm-findings" aria-label={t("summaryProto.findings")}>
+        <section className="sm-findings" aria-label={t("summary.findings")}>
           <p className="caps dim">
-            {t("summaryProto.findings")} <span className="sub-n">{pinned.length}</span>
+            {t("summary.findings")} <span className="sub-n">{pinned.length}</span>
           </p>
           {pinned.length ? (
             <ol>
@@ -76,7 +77,7 @@ export function GalleyCompose(props: Parameters<typeof Galley>[0]) {
               ))}
             </ol>
           ) : (
-            <p className="t-meta">{t("summaryProto.findingsNone")}</p>
+            <p className="t-meta">{t("summary.findingsNone")}</p>
           )}
         </section>
       </div>

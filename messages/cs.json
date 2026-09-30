@@ -14975,7 +14975,6 @@
       "showLess": "Zobrazit méně",
       "fitAria": "Shoda {score} ze 100; laťka je {bar}",
       "candidates": "Specialisté podle shody",
-      "briefAside": "O této rešerši",
       "outOf100": "ze 100",
       "short": {
         "review": "Kontrola",
@@ -15088,17 +15087,14 @@
         "copy": "Kopírovat cestu",
         "copied": "Cesta ke zprávě zkopírována",
         "copyFailed": "Cestu se nepodařilo zkopírovat. Označte ji a zkopírujte ručně.",
-        "none": "Zpráva se napíše, jakmile zakázka projde rešerší.",
         "firstWriting": "Píše se první zpráva.",
         "failed": "Poslední přepis selhal: {reason}.",
         "open": "Otevřít úplnou zprávu",
         "regenerate": "Napsat znovu",
         "regenerating": "Žádám…",
         "regenerateTip": "Napsat zprávu znovu podle aktuálního stavu zakázky.",
-        "regenerateNeedsBrief": "Nejprve proveďte rešerši zakázky: zpráva z ní vychází.",
         "regenerateFailed": "Zprávu se nepodařilo vyžádat.",
-        "write": "Napsat zprávu",
-        "noneYet": "Zpráva zatím není napsaná."
+        "write": "Napsat zprávu"
       },
       "choose": {
         "lineup": "Obtížnost: {difficulty}. {count, plural, one {Píše se jeden plán, autor {models}.} few {# modely píšou každý svůj plán: {models}.} many {# modelu píše každý svůj plán: {models}.} other {# modelů píše každý svůj plán: {models}.}}",
@@ -15182,7 +15178,6 @@
         "needsBrief": "Nejprve proveďte rešerši zakázky: návrh z ní vychází.",
         "writing": "Píše se",
         "firstWriting": "Návrh se píše.",
-        "none": "Návrh pro klienta zatím není.",
         "fromProposal": "Z návrhu pro klienta, který napsal kp",
         "failed": "Poslední návrh selhal: {reason}.",
         "requestFailed": "Návrh se nepodařilo vyžádat.",
@@ -15263,11 +15258,8 @@
       }
     },
     "moves": {
-      "title": "Kroky",
       "label": "Kroky pro tuto zakázku",
-      "next": "Další",
-      "nextOn": "Další · {object}",
-      "none": "Tady nic nečeká: další krok je v podpisu.",
+      "none": "Tady nic nečeká: něco se právě píše, nebo je další krok ve schválení.",
       "group": {
         "report": "Zpráva",
         "proposal": "Nabídka pro klienta",
@@ -15279,31 +15271,28 @@
       "goPlans": "Přejít na plány",
       "goDraft": "Přejít na koncept",
       "goBid": "Přejít na nabídku",
-      "plansNone": "Zatím žádné plány.",
       "plansWriting": "Plány se píšou.",
-      "researchNone": "Zatím neprozkoumáno.",
-      "draftLine": "Koncept čeká na vaši korekturu.",
-      "bidLine": "Zpráva s nabídkou od kp čeká na vaši korekturu."
+      "signoffFirst": "Nejdřív inzerát ve schválení přijměte, nebo odmítněte: po přijetí ho kp prozkoumá a napíše jeho plány.",
+      "afterResearch": "Všechno ostatní tady vychází z průzkumu.",
+      "more": "{count, plural, one {Ještě # krok} few {Ještě # kroky} many {Ještě # kroku} other {Ještě # kroků}}",
+      "why": {
+        "research": "Zatím nic není prozkoumáno: průzkum je na řadě první.",
+        "generatePlans": "Průzkum je hotový a žádný plán zatím není napsaný.",
+        "goPlans": "Než začne jakákoli práce, vyberte plán.",
+        "prepareProposal": "Plán je přijatý: na řadě je návrh pro klienta.",
+        "openProposal": "Než nabídka odejde, přečtěte si návrh pro klienta.",
+        "goBid": "Zpráva s nabídkou od kp čeká na vaši korekturu.",
+        "goDraft": "Koncept čeká na vaši korekturu, potom na schválení.",
+        "openReport": "Úplná zpráva obsahuje vše, co kp o této zakázce ví.",
+        "writeReport": "Úplná zpráva zatím není: shrne průzkum a plány do jednoho souboru."
+      }
     },
-    "summaryProto": {
-      "label": "Rozvržení souhrnu (prototyp)",
-      "name": {
-        "baseline": "Výchozí",
-        "dossier": "Dosiér",
-        "workbench": "Pracovní stůl"
-      },
-      "sub": {
-        "baseline": "Jak je nasazeno: úvod s tlačítky, průzkum s vlastním panelem, pak bloky.",
-        "dossier": "Stránka dokumentu: sazba titulku, oddíly v čitelné šířce, klidná karta rozhodnutí.",
-        "workbench": "Ovládací panel: kompaktní hlavička, sbalitelné panely, všechny kroky v jednom sloupci."
-      },
-      "sideCard": "Rozhodnutí",
-      "sidePanel": "Ovládací panel",
+    "summary": {
+      "side": "Kroky a údaje",
       "aboutGig": "Zakázka",
       "aboutBrief": "Průzkum",
       "secBrief": "Průzkum",
       "plansHint": "Plány vygenerujete v Krocích nahoře v postranním panelu.",
-      "letterTo": "Pro {client} · přes {platform}",
       "via": "přes {platform}",
       "composeTo": "Komu",
       "composeSubject": "Předmět",

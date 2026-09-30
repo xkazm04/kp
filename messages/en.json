@@ -14975,7 +14975,6 @@
       "showLess": "Show less",
       "fitAria": "Fit {score} of 100; the bar is {bar}",
       "candidates": "Specialists by fit",
-      "briefAside": "About this brief",
       "outOf100": "of 100",
       "short": {
         "review": "Review",
@@ -15088,17 +15087,14 @@
         "copy": "Copy path",
         "copied": "Report path copied",
         "copyFailed": "The path could not be copied. Select it and copy it by hand.",
-        "none": "The report is written once the gig is researched.",
         "firstWriting": "The first report is being written.",
         "failed": "The last rewrite failed: {reason}.",
         "open": "Open the full report",
         "regenerate": "Regenerate",
         "regenerating": "Asking…",
         "regenerateTip": "Write the report again from the gig as it is now.",
-        "regenerateNeedsBrief": "Research the gig first: the report is written from its brief.",
         "regenerateFailed": "The report could not be requested.",
-        "write": "Write the report",
-        "noneYet": "No report yet."
+        "write": "Write the report"
       },
       "choose": {
         "lineup": "Difficulty: {difficulty}. {count, plural, one {One plan is written, by {models}.} other {# models each write a plan: {models}.}}",
@@ -15182,7 +15178,6 @@
         "needsBrief": "Research the gig first: the proposal is written from its brief.",
         "writing": "Writing",
         "firstWriting": "The proposal is being written.",
-        "none": "No client proposal yet.",
         "fromProposal": "From the client proposal kp wrote",
         "failed": "The last proposal failed: {reason}.",
         "requestFailed": "The proposal could not be requested.",
@@ -15263,11 +15258,8 @@
       }
     },
     "moves": {
-      "title": "Moves",
       "label": "Moves for this gig",
-      "next": "Next",
-      "nextOn": "Next · {object}",
-      "none": "No move waits here: the next one is in the sign-off.",
+      "none": "No move waits here: a write is running, or the next step is the sign-off’s.",
       "group": {
         "report": "Report",
         "proposal": "Client proposal",
@@ -15279,31 +15271,28 @@
       "goPlans": "Go to the plans",
       "goDraft": "Go to the draft",
       "goBid": "Go to the bid",
-      "plansNone": "No plans yet.",
       "plansWriting": "Plans are being written.",
-      "researchNone": "Not researched yet.",
-      "draftLine": "A draft waits for your proof.",
-      "bidLine": "kp’s bid message waits for your proof."
+      "signoffFirst": "Accept or decline this listing in the sign-off first: accepting it researches it and writes its plans.",
+      "afterResearch": "Everything else here starts from the research.",
+      "more": "{count, plural, one {# more move} other {# more moves}}",
+      "why": {
+        "research": "Nothing is researched yet: the brief comes first.",
+        "generatePlans": "The brief is ready and no plan is written yet.",
+        "goPlans": "Pick a plan before any work starts.",
+        "prepareProposal": "A plan is accepted: the client proposal is next.",
+        "openProposal": "Read the client proposal before the bid goes out.",
+        "goBid": "kp’s bid message waits for your proof.",
+        "goDraft": "The draft waits for your proof, then the sign-off.",
+        "openReport": "The full report holds everything kp knows about this gig.",
+        "writeReport": "No full report yet: it gathers the brief and the plans in one file."
+      }
     },
-    "summaryProto": {
-      "label": "Summary layout (prototype)",
-      "name": {
-        "baseline": "Baseline",
-        "dossier": "Dossier",
-        "workbench": "Workbench"
-      },
-      "sub": {
-        "baseline": "As shipped: the hero with its buttons, the brief with its own aside, then the blocks.",
-        "dossier": "A document page: a set title, sections at a reading measure, a calm decision card.",
-        "workbench": "A control panel: a compact header, folding panels, every move in one stack."
-      },
-      "sideCard": "The decision",
-      "sidePanel": "Control panel",
+    "summary": {
+      "side": "Moves and facts",
       "aboutGig": "The gig",
       "aboutBrief": "The brief",
       "secBrief": "The brief",
       "plansHint": "Generate plans from Moves, at the top of the sidebar.",
-      "letterTo": "To {client} · via {platform}",
       "via": "via {platform}",
       "composeTo": "To",
       "composeSubject": "Subject",

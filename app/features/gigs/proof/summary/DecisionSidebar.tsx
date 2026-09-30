@@ -3,23 +3,20 @@
 import { useLayoutEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import type { Gig, GigAttempt, GigProposal } from "@/app/_lib/gigs/types";
-import type { ReportSection } from "../../../logic/report";
-import { GigMeta } from "../../meta/GigMeta";
-import { BriefProvenance } from "../../panels/BriefAside";
-import type { GigFileState } from "../useGigFile";
+import type { ReportSection } from "../../logic/report";
+import { GigMeta } from "../meta/GigMeta";
+import { BriefProvenance } from "../panels/BriefAside";
+import type { GigFileState } from "../report/useGigFile";
 import { MovesBlock } from "./MovesBlock";
 import type { SummaryKit } from "./useSummaryKit";
-import "../../../styles/summary.css";
 
-// The decision sidebar of the Summary prototypes, ONE component on the Summary and Brief tabs:
-// the Moves block first (every action, one primary), then the gig's metadata (meta/GigMeta.tsx:
-// the listing, kp's id, the track, the figures, the files kp wrote), then where the brief came
+// The Summary's decision sidebar, ONE component on the Summary and Brief tabs: the Moves block
+// first (every action, one primary; MovesBlock.tsx), then the gig's metadata (meta/GigMeta.tsx:
+// the listing, kp's id, the figures, the track, the files kp wrote), then where the brief came
 // from (BriefAside.tsx: researched by and when, its contents, the sources read). It sticks
 // right under the proof's trail while the reading column scrolls - its top is the trail's
 // measured height - and scrolls inside itself when taller than the viewport. Under 46rem of
 // proof column it is a plain band above the reading column (styles/summary.css).
-//   look "card"  - Dossier's calm decision card;
-//   look "panel" - Workbench's control panel.
 
 export function DecisionSidebar({
   gig,
@@ -29,7 +26,6 @@ export function DecisionSidebar({
   attempts,
   onFlash,
   onGo,
-  look,
 }: {
   gig: Gig;
   kit: SummaryKit;
@@ -38,9 +34,8 @@ export function DecisionSidebar({
   attempts: readonly GigAttempt[];
   onFlash: (message: string) => void;
   onGo: (s: ReportSection) => void;
-  look: "card" | "panel";
 }) {
-  const t = useTranslations("gigs.summaryProto");
+  const t = useTranslations("gigs.summary");
   const ref = useRef<HTMLElement | null>(null);
   // Stick right under the trail: its height changes when its tabs wrap to a second row.
   useLayoutEffect(() => {
@@ -56,8 +51,8 @@ export function DecisionSidebar({
   const brief = kit.research.brief;
 
   return (
-    <aside ref={ref} className={`sm-side sm-side--${look}`} aria-label={t(look === "card" ? "sideCard" : "sidePanel")}>
-      <MovesBlock gig={gig} kit={kit} proposalFile={proposalFile} onGo={onGo} look={look} />
+    <aside ref={ref} className="sm-side" aria-label={t("side")}>
+      <MovesBlock gig={gig} kit={kit} proposalFile={proposalFile} onGo={onGo} />
       <div className="sm-side-meta">
         <p className="sm-side-k">{t("aboutGig")}</p>
         <GigMeta gig={gig} now={now} plans={kit.plansState.plans} attempts={attempts} onFlash={onFlash} />

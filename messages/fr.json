@@ -14975,7 +14975,6 @@
       "showLess": "Afficher moins",
       "fitAria": "Adéquation {score} sur 100 ; le seuil est {bar}",
       "candidates": "Spécialistes par adéquation",
-      "briefAside": "À propos de ce dossier",
       "outOf100": "sur 100",
       "short": {
         "review": "Relecture",
@@ -15088,17 +15087,14 @@
         "copy": "Copier le chemin",
         "copied": "Chemin du rapport copié",
         "copyFailed": "Le chemin n’a pas pu être copié. Sélectionnez-le et copiez-le à la main.",
-        "none": "Le rapport est rédigé une fois la mission recherchée.",
         "firstWriting": "Le premier rapport est en cours de rédaction.",
         "failed": "La dernière réécriture a échoué : {reason}.",
         "open": "Ouvrir le rapport complet",
         "regenerate": "Régénérer",
         "regenerating": "Demande…",
         "regenerateTip": "Réécrire le rapport à partir de l’état actuel de la mission.",
-        "regenerateNeedsBrief": "Recherchez d’abord la mission : le rapport part de la recherche.",
         "regenerateFailed": "Le rapport n’a pas pu être demandé.",
-        "write": "Rédiger le rapport",
-        "noneYet": "Pas encore de rapport."
+        "write": "Rédiger le rapport"
       },
       "choose": {
         "lineup": "Difficulté : {difficulty}. {count, plural, one {Un plan est rédigé, par {models}.} other {# modèles rédigent chacun un plan : {models}.}}",
@@ -15182,7 +15178,6 @@
         "needsBrief": "Recherchez d’abord la mission : la proposition part de la recherche.",
         "writing": "En rédaction",
         "firstWriting": "La proposition est en cours de rédaction.",
-        "none": "Pas encore de proposition client.",
         "fromProposal": "D’après la proposition client rédigée par kp",
         "failed": "La dernière proposition a échoué : {reason}.",
         "requestFailed": "La proposition n’a pas pu être demandée.",
@@ -15263,11 +15258,8 @@
       }
     },
     "moves": {
-      "title": "Actions",
       "label": "Actions pour cette mission",
-      "next": "Ensuite",
-      "nextOn": "Ensuite · {object}",
-      "none": "Rien n’attend ici : la prochaine action se trouve dans la validation.",
+      "none": "Rien n’attend ici : une rédaction est en cours, ou la prochaine étape relève de la validation.",
       "group": {
         "report": "Rapport",
         "proposal": "Proposition au client",
@@ -15279,31 +15271,28 @@
       "goPlans": "Aller aux plans",
       "goDraft": "Aller au brouillon",
       "goBid": "Aller à l’offre",
-      "plansNone": "Pas encore de plans.",
       "plansWriting": "Les plans sont en cours de rédaction.",
-      "researchNone": "Pas encore étudiée.",
-      "draftLine": "Un brouillon attend votre relecture.",
-      "bidLine": "Le message d’offre de kp attend votre relecture."
+      "signoffFirst": "Acceptez ou refusez d’abord cette annonce dans la validation : une fois acceptée, kp l’étudie et rédige ses plans.",
+      "afterResearch": "Tout le reste ici part de la recherche.",
+      "more": "{count, plural, one {# autre action} other {# autres actions}}",
+      "why": {
+        "research": "Rien n’est encore étudié : la recherche vient d’abord.",
+        "generatePlans": "La recherche est prête et aucun plan n’est encore rédigé.",
+        "goPlans": "Choisissez un plan avant que le travail commence.",
+        "prepareProposal": "Un plan est accepté : la proposition au client est la suite.",
+        "openProposal": "Lisez la proposition au client avant d’envoyer la candidature.",
+        "goBid": "Le message d’offre de kp attend votre relecture.",
+        "goDraft": "Le brouillon attend votre relecture, puis la validation.",
+        "openReport": "Le rapport complet contient tout ce que kp sait de cette mission.",
+        "writeReport": "Pas encore de rapport complet : il réunit la recherche et les plans dans un seul fichier."
+      }
     },
-    "summaryProto": {
-      "label": "Mise en page de la synthèse (prototype)",
-      "name": {
-        "baseline": "Version actuelle",
-        "dossier": "Dossier",
-        "workbench": "Établi"
-      },
-      "sub": {
-        "baseline": "Telle que livrée : l’en-tête et ses boutons, la recherche avec son propre panneau, puis les blocs.",
-        "dossier": "Une page de document : un titre composé, des sections à largeur de lecture, une carte de décision sobre.",
-        "workbench": "Un panneau de commande : un en-tête compact, des panneaux repliables, chaque action dans une pile."
-      },
-      "sideCard": "La décision",
-      "sidePanel": "Panneau de commande",
+    "summary": {
+      "side": "Actions et faits",
       "aboutGig": "La mission",
       "aboutBrief": "La recherche",
       "secBrief": "La recherche",
       "plansHint": "Générez les plans depuis Actions, en haut du panneau latéral.",
-      "letterTo": "À {client} · via {platform}",
       "via": "via {platform}",
       "composeTo": "À",
       "composeSubject": "Objet",

@@ -67,16 +67,8 @@
 .gd .hire-inline label > span { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 600; }
 .gd .hire-inline .k-btn { justify-self: start; }
 
-/* Research brief: the reading column and its aside (the Brief tab, and the Summary under
-   the report card). The operator's review (2026-09-30): the reading column was held to 68ch
-   inside a clipped panel beside a fixed 18rem aside - at 1440 the text got 456px of an 808px
-   panel, at 1920 a third of the column stood empty. Now the column takes the panel's width
-   (no measure caps, no clipping: the aside rounds its own corners), and below 56rem of proof
-   column the aside becomes a band of facts ABOVE the text instead of a squeezed side rail. */
-.gd .brief-panel { padding: 0; }
-.gd .brief-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); }
-.gd .brief-main { padding: 1.75rem 2rem 2rem; min-width: 0; overflow-wrap: anywhere; }
-.gd .brief-main pre { max-width: 100%; }
+/* Research brief: its reading column (proof/panels/BriefText.tsx) and the provenance blocks of
+   the Summary's decision sidebar (BriefAside.tsx); the frame is styles/summary.css. */
 .gd .brief-cats { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-bottom: 0.75rem; }
 .gd .brief-title { margin-bottom: 1.25rem; font: 600 1.5rem/1.25 var(--gd-serif); }
 /* the brief's expected challenges: each a reason the operator can withdraw for in one click */
@@ -100,7 +92,6 @@
 .gd .bc-row .k-btn--danger:not(:disabled) { border-color: color-mix(in srgb, var(--color-red-600) 35%, var(--gd-rule)); background: transparent; }
 .gd .bc-row .k-btn--danger:not(:disabled):hover { border-color: var(--color-red-600); background: color-mix(in srgb, var(--color-red-50) 70%, transparent); }
 
-.gd .brief-aside { display: grid; gap: 1.25rem; align-content: start; padding: 1.5rem; border-left: 1px solid var(--gd-rule); border-radius: 0 var(--gd-radius) var(--gd-radius) 0; background: var(--gd-sunken); min-width: 0; }
 .gd .aside-block { display: grid; gap: 0.5rem; justify-items: start; align-content: start; }
 .gd .brief-toc { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; font-size: 0.875rem; }
 .gd .brief-toc a { color: var(--gd-steel); font-weight: 600; text-decoration: none; }
@@ -111,7 +102,6 @@
 .gd .brief-link { display: grid; gap: 0.125rem; min-width: 0; }
 .gd .brief-link a { color: var(--gd-coral-ink); font-weight: 600; overflow-wrap: anywhere; }
 .gd .brief-link code { font-family: var(--gd-mono); overflow-wrap: anywhere; }
-.gd .brief-aside .k-kv { width: 100%; }
 /* the sidebar's head (meta/GigMeta.tsx): the listing's URL, kp's id, the figures, the file */
 .gd .meta-where { display: grid; gap: 0.625rem; align-content: start; }
 .gd .meta-link { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--gd-ink); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
@@ -120,16 +110,8 @@
 .gd .meta-id { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-width: 0; }
 .gd .meta-id code, .gd .meta-path { min-width: 0; padding: 0.125rem 0.5rem; border-radius: 0.375rem; background: var(--gd-sunken-2); font: 0.875rem/1.5 var(--gd-mono); color: var(--gd-ink); overflow-wrap: anywhere; user-select: all; }
 .gd .meta-report { display: grid; gap: 0.375rem; justify-items: start; }
-.gd .brief-aside .k-kv dd { display: grid; gap: 0.125rem; }
 .gd .meta-sub { display: block; font-size: 0.875rem; font-weight: 400; line-height: 1.4; color: var(--gd-quiet); }
-.gd .brief-aside .k-kv .is-coral { color: var(--gd-coral-ink); }
-.gd .brief-aside .k-kv .is-moss { color: var(--gd-moss-ink); }
 
-@container proofcol (max-width: 56rem) {
-  .gd .brief-layout { grid-template-columns: minmax(0, 1fr); }
-  .gd .brief-aside { order: -1; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem 1.5rem; padding: 1.125rem 1.5rem; border-left: 0; border-bottom: 1px solid var(--gd-rule); border-radius: var(--gd-radius) var(--gd-radius) 0 0; }
-  .gd .brief-main { padding: 1.5rem 1.5rem 1.75rem; }
-}
 @container proofcol (max-width: 48rem) {
   .gd .review-grid,
   .gd .route-grid { grid-template-columns: minmax(0, 1fr); }

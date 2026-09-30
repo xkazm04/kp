@@ -18,6 +18,7 @@ const F: MoveFacts = {
   report: false,
   reportWriting: false,
   closed: false,
+  untriaged: false,
 };
 
 test("nextMove: research first, then plans, then the pick", () => {
@@ -58,6 +59,12 @@ test("nextMove: a draft on the desk goes to the draft; kp's own bid opens the pr
 test("nextMove: a gig off the line only opens its report", () => {
   assert.equal(nextMove({ ...F, closed: true }), null);
   assert.equal(nextMove({ ...F, closed: true, draftOnDesk: true, report: true }), "openReport");
+});
+
+test("nextMove: a New listing's next move is the sign-off's Accept, so Moves has no primary", () => {
+  assert.equal(nextMove({ ...F, untriaged: true, brief: false, plans: null }), null, "Accept researches it: Research is not a second primary");
+  assert.equal(nextMove({ ...F, untriaged: true, report: true }), null);
+  assert.equal(nextMove({ ...F, untriaged: true, closed: true, report: true }), "openReport", "closed outranks untriaged");
 });
 
 test("leadSentence: one sentence as the lead, the rest as body, never a cut", () => {

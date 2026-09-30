@@ -14975,7 +14975,6 @@
       "showLess": "Weniger zeigen",
       "fitAria": "Passung {score} von 100; die Schwelle ist {bar}",
       "candidates": "Spezialisten nach Passung",
-      "briefAside": "Über diese Recherche",
       "outOf100": "von 100",
       "short": {
         "review": "Prüfung",
@@ -15088,17 +15087,14 @@
         "copy": "Pfad kopieren",
         "copied": "Berichtspfad kopiert",
         "copyFailed": "Der Pfad konnte nicht kopiert werden. Markieren und kopieren Sie ihn von Hand.",
-        "none": "Der Bericht wird geschrieben, sobald der Auftrag recherchiert ist.",
         "firstWriting": "Der erste Bericht wird geschrieben.",
         "failed": "Die letzte Neufassung ist fehlgeschlagen: {reason}.",
         "open": "Vollständigen Bericht öffnen",
         "regenerate": "Neu schreiben",
         "regenerating": "Wird angefragt…",
         "regenerateTip": "Den Bericht aus dem aktuellen Stand des Auftrags neu schreiben.",
-        "regenerateNeedsBrief": "Recherchieren Sie den Auftrag zuerst: Der Bericht entsteht aus der Recherche.",
         "regenerateFailed": "Der Bericht konnte nicht angefordert werden.",
-        "write": "Bericht schreiben",
-        "noneYet": "Noch kein Bericht."
+        "write": "Bericht schreiben"
       },
       "choose": {
         "lineup": "Schwierigkeit: {difficulty}. {count, plural, one {Ein Plan wird geschrieben, von {models}.} other {# Modelle schreiben je einen Plan: {models}.}}",
@@ -15182,7 +15178,6 @@
         "needsBrief": "Recherchieren Sie den Auftrag zuerst: Das Angebot entsteht aus der Recherche.",
         "writing": "Wird geschrieben",
         "firstWriting": "Das Angebot wird geschrieben.",
-        "none": "Noch kein Angebot für den Kunden.",
         "fromProposal": "Aus dem Angebot für den Kunden, das kp geschrieben hat",
         "failed": "Das letzte Angebot ist fehlgeschlagen: {reason}.",
         "requestFailed": "Das Angebot konnte nicht angefordert werden.",
@@ -15263,11 +15258,8 @@
       }
     },
     "moves": {
-      "title": "Schritte",
       "label": "Schritte für diesen Auftrag",
-      "next": "Als Nächstes",
-      "nextOn": "Als Nächstes · {object}",
-      "none": "Hier wartet nichts: Der nächste Schritt liegt in der Freigabe.",
+      "none": "Hier wartet nichts: Gerade wird geschrieben, oder der nächste Schritt liegt in der Freigabe.",
       "group": {
         "report": "Bericht",
         "proposal": "Angebot an den Kunden",
@@ -15279,31 +15271,28 @@
       "goPlans": "Zu den Plänen",
       "goDraft": "Zum Entwurf",
       "goBid": "Zum Gebot",
-      "plansNone": "Noch keine Pläne.",
       "plansWriting": "Die Pläne werden geschrieben.",
-      "researchNone": "Noch nicht recherchiert.",
-      "draftLine": "Ein Entwurf wartet auf Ihre Korrektur.",
-      "bidLine": "Die Gebotsnachricht von kp wartet auf Ihre Korrektur."
+      "signoffFirst": "Nehmen Sie die Ausschreibung zuerst in der Freigabe an oder lehnen Sie sie ab: Nach der Annahme recherchiert kp sie und schreibt ihre Pläne.",
+      "afterResearch": "Alles andere hier baut auf der Recherche auf.",
+      "more": "{count, plural, one {# weiterer Schritt} other {# weitere Schritte}}",
+      "why": {
+        "research": "Noch ist nichts recherchiert: Die Recherche kommt zuerst.",
+        "generatePlans": "Die Recherche steht, und noch ist kein Plan geschrieben.",
+        "goPlans": "Wählen Sie einen Plan, bevor die Arbeit beginnt.",
+        "prepareProposal": "Ein Plan ist angenommen: Als Nächstes kommt das Angebot an den Kunden.",
+        "openProposal": "Lesen Sie das Angebot an den Kunden, bevor die Bewerbung rausgeht.",
+        "goBid": "Die Gebotsnachricht von kp wartet auf Ihre Korrektur.",
+        "goDraft": "Der Entwurf wartet auf Ihre Korrektur, danach auf die Freigabe.",
+        "openReport": "Der vollständige Bericht enthält alles, was kp über diesen Auftrag weiß.",
+        "writeReport": "Noch kein vollständiger Bericht: Er fasst Recherche und Pläne in einer Datei zusammen."
+      }
     },
-    "summaryProto": {
-      "label": "Layout der Übersicht (Prototyp)",
-      "name": {
-        "baseline": "Ausgangsstand",
-        "dossier": "Dossier",
-        "workbench": "Werkbank"
-      },
-      "sub": {
-        "baseline": "Wie ausgeliefert: der Kopf mit seinen Schaltflächen, die Recherche mit eigener Leiste, dann die Blöcke.",
-        "dossier": "Eine Dokumentseite: gesetzter Titel, Abschnitte in Lesebreite, eine ruhige Entscheidungskarte.",
-        "workbench": "Ein Bedienfeld: kompakter Kopf, einklappbare Bereiche, jeder Schritt in einem Stapel."
-      },
-      "sideCard": "Die Entscheidung",
-      "sidePanel": "Bedienfeld",
+    "summary": {
+      "side": "Schritte und Fakten",
       "aboutGig": "Der Auftrag",
       "aboutBrief": "Die Recherche",
       "secBrief": "Die Recherche",
       "plansHint": "Pläne erzeugen Sie unter Schritte, oben in der Seitenleiste.",
-      "letterTo": "An {client} · über {platform}",
       "via": "über {platform}",
       "composeTo": "An",
       "composeSubject": "Betreff",

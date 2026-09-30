@@ -9,7 +9,7 @@ import { useGigsFormat } from "../../data/useGigsFormat";
 import { planFailure } from "../../logic/plans";
 import { firstSentence } from "../../logic/report";
 
-// One seat's plan as a compact card in the Summary's "Choose a plan" (ReportChoose.tsx): the
+// One seat's plan as a compact card in the Summary's Plans panel (summary/PlanSeats.tsx): the
 // seat, its state as a mark AND a word, what it cost (null = "cost not reported", never $0),
 // the summary's first sentence, how many steps and how many hours. The whole plan - steps,
 // decisions, risks, questions - is in the report file; the card is for picking. A ready
