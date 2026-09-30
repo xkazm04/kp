@@ -16,6 +16,7 @@ import { gigProposalPathFor, gigProposalsRoot, writeGigProposalFile } from "./fi
 import { GIG_PROPOSAL_MESSAGE_MAX, allowedMoneyFigures, deterministicProposal, honestText, parseGigProposalBody } from "./model.ts";
 import { GIG_PROPOSAL_CSS } from "./proposal-css.ts";
 import { GIG_PROPOSAL_PROMPT_VERSION, gigProposalCliInput } from "./run.ts";
+import { GIG_FREELANCER_INTRO_DEFAULT, gigFreelancerIntro } from "../freelancer-profile.ts";
 import { proposalDownloadName, servedProposalsRoot } from "./serve.ts";
 import { renderGigProposalPage } from "./template.ts";
 
@@ -92,7 +93,9 @@ test("deterministic: brief + plan - the plan's steps are the milestones, its que
   assert.equal(b.approach[0], plan.summary.split(/(?<=[.!?])\s+/).slice(0, 2).join(" "));
   const bare = deterministicProposal({ ...reportFixtureGig(), brief: { ...REPORT_FIXTURE_BRIEF, outreachMessage: null, missingArtifacts: ["The logo"] } }, null, D);
   // The bid's shape: interest, what the work needs to START once agreed (nothing asked for now), a closing line.
-  assert.match(bare.message, /^Hello, I read your listing for .+\n\nTo get started once we agree, I would need:\n- The logo\n\n.+\n\n/);
+  // The greeting is the freelancer's own intro (freelancer-profile.ts), never a restatement of the listing.
+  assert.match(bare.message, /^Hello, I am a web developer with more than 10 years of experience, and the scope below is feasible and quick to deliver\.\n\nTo get started once we agree, I would need:\n- The logo\n\n.+\n\n/);
+  assert.doesNotMatch(bare.message, /your listing/);
   assert.doesNotMatch(bare.message, /How I would approach it/, "no plan, no invented steps");
   const planned = deterministicProposal({ ...reportFixtureGig(), brief: { ...REPORT_FIXTURE_BRIEF, outreachMessage: null, missingArtifacts: [] } }, plan, D);
   assert.match(planned.message, /\n\nHow I would approach it:\n- .+\n/, "the plan's steps are the approach bullets");
@@ -148,6 +151,13 @@ test("file: <root>/<type>/<slug>.html inside the root, the recorded path kept, t
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("freelancer intro: the operator's own words, overridable, never an over-long or empty phrase", () => {
+  assert.equal(gigFreelancerIntro({}), GIG_FREELANCER_INTRO_DEFAULT);
+  assert.equal(gigFreelancerIntro({ KP_GIG_FREELANCER_INTRO: "  a data engineer   with 8 years  " }), "a data engineer with 8 years");
+  assert.equal(gigFreelancerIntro({ KP_GIG_FREELANCER_INTRO: "x".repeat(201) }), GIG_FREELANCER_INTRO_DEFAULT);
+  assert.equal(gigProposalCliInput(reportFixtureGig(), null).freelancer, gigFreelancerIntro());
 });
 
 test("cli input: the listing, the brief (with its asks) and the plan; the language is the brief's", () => {

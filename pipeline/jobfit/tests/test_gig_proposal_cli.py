@@ -88,7 +88,7 @@ class PinAndFenceTest(unittest.TestCase):
         with _env(), _ledger() as ledger, _stubbed_cli(spawn):
             out = gig_proposal_cli.propose(REQUEST)
             rows = _rows(ledger)
-        self.assertEqual((out["source"], out["costUsd"], out["promptVersion"]), ("llm", 0.12, "gig-proposal-v2"), out)
+        self.assertEqual((out["source"], out["costUsd"], out["promptVersion"]), ("llm", 0.12, "gig-proposal-v3"), out)
         args = spawn.calls[0]["args"]
         self.assertEqual(args[args.index("--model") + 1], "claude-sonnet-5-5")
         self.assertEqual(args[args.index("--effort") + 1], "high")
@@ -197,3 +197,14 @@ class InvalidInputTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FreelancerIntroTest(unittest.TestCase):
+    def test_the_intro_is_trusted_input_outside_the_fence_and_defaults(self):
+        req = {"language": "en", "disclosure": "D.", "freelancer": "a data engineer with 8 years", "listing": {"title": "t"}, "brief": {}}
+        prompt = gig_proposal_cli.build_prompt(req, nonce="abc")
+        self.assertIn('describes himself as: "a data engineer with 8 years"', prompt)
+        self.assertLess(prompt.index("a data engineer"), prompt.index("<<<UNTRUSTED_abc>>>"))
+        self.assertIn("Never restate, summarise or praise the listing", prompt)
+        self.assertEqual(gig_proposal_cli.freelancer_of({}), gig_proposal_cli.FREELANCER_DEFAULT)
+        self.assertEqual(gig_proposal_cli.freelancer_of({"freelancer": "x" * 201}), gig_proposal_cli.FREELANCER_DEFAULT)

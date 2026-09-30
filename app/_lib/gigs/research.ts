@@ -77,6 +77,7 @@ import { isOffline } from "../offline";
 import { githubRead, type GithubReadOutcome } from "../repo-snapshot";
 import { scanGigForHoneypots } from "./suspect";
 import { GIG_BRIEF_CHALLENGES_HEADING, GIG_WITHDRAW_REASONS_TO_MODEL, tallyWithdrawReasons } from "./withdraw-reasons";
+import { gigFreelancerIntro } from "./freelancer-profile";
 import {
   isGigDifficulty,
   isGigSuspectReason,
@@ -957,6 +958,7 @@ function pastWithdrawReasons(workspaceId: string, deps: GigResearchDeps): string
 function cliInput(gig: Gig, pages: readonly ResearchPage[], withdrawReasons: readonly string[]) {
   return {
     withdrawReasons,
+    freelancer: gigFreelancerIntro(),
     listing: {
       title: gig.title,
       org: gig.org,

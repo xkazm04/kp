@@ -1,4 +1,5 @@
 import type { Gig, GigPlan } from "../types";
+import { gigFreelancerIntro } from "../freelancer-profile";
 
 // The client proposal's BODY (the proposal track, docs/features/gigs/README.md "Two tracks"):
 // plain-text fields the page template escapes and lays out. Two writers fill it - the pinned
@@ -158,7 +159,7 @@ export function deterministicProposal(gig: Pick<Gig, "title" | "brief" | "reward
   const opening =
     brief?.outreachMessage?.trim() ||
     [
-      `Hello, I read your listing for ${gig.title} and would like to help.`,
+      `Hello, I am ${gigFreelancerIntro()}, and the scope below is feasible and quick to deliver.`,
       ...(steps.length ? [``, `How I would approach it:`, ...steps] : []),
       ...(artifacts.length ? [``, `To get started once we agree, I would need:`, ...artifacts.map((a) => `- ${a}`)] : []),
       ``,

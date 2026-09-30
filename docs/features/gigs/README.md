@@ -438,7 +438,13 @@ solution (operator decision, 2026-09-30).
    any sentence naming a money figure that the listing's reward text does not state is dropped.
    The message is at most 1,500 characters (`GIG_PROPOSAL_MESSAGE_MAX`) and always ends with
    `GIG_DISCLOSURE_SENTENCE` (contract.ts). Since `gig-proposal-v2` (2026-09-30) it has the bid's
-   shape: interest; "How I would approach it:" and the plan as "- " lines, with the specialist's
+   shape (`gig-proposal-v3` reworded the greeting the same day): "Hello," and ONE sentence in
+   which the freelancer introduces himself with his own description and says the scope is feasible
+   and quick to deliver - never a restatement of the listing. The description is the operator's
+   (`app/_lib/gigs/freelancer-profile.ts`: default "a web developer with more than 10 years of
+   experience", override with `KP_GIG_FREELANCER_INTRO`, at most 200 characters), passed to both
+   `gig_proposal_cli.py` and `gig_brief_cli.py` as TRUSTED input outside the fence, and it is the
+   only experience a message may claim. Then: "How I would approach it:" and the plan as "- " lines, with the specialist's
    proposed technology where the listing names none; "To get started once we agree, I would
    need:" and only what the work cannot start without, nice-to-haves marked "(optional)"; a
    closing line with at most one question; the disclosure. It never asks the client to send

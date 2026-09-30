@@ -8,6 +8,7 @@ import { proposalDeliverable, writeProposalDraft, type ProposalDraftResult } fro
 import { gigProposalPathFor, gigProposalsRoot, writeGigProposalFile } from "./file";
 import { deterministicProposal, parseGigProposalBody, type GigProposalBody } from "./model";
 import { renderGigProposalPage } from "./template";
+import { gigFreelancerIntro } from "../freelancer-profile";
 
 // The `gig_proposal` task's body (late-bound-boot.ts registers it; nothing on the task hub
 // imports it): a PROPOSAL-TRACK gig (a freelance bid, types.ts gigTrackOf) gets a client
@@ -23,7 +24,7 @@ import { renderGigProposalPage } from "./template";
 // keyless / failed / unusable answers are kp's own composition (`source: "deterministic"`).
 
 /** Kept in lockstep with gig_proposal_cli.py PROMPT_VERSION (proposal.test.ts reads both). */
-export const GIG_PROPOSAL_PROMPT_VERSION = "gig-proposal-v2";
+export const GIG_PROPOSAL_PROMPT_VERSION = "gig-proposal-v3";
 /** The pinned writer (gig_proposal_cli.py PIN; llm-pins.ts mirrors it). */
 export const GIG_PROPOSAL_MODEL = "claude-sonnet-5-5";
 /** One spawn's hang backstop, over the CLI's own deadline. */
@@ -77,6 +78,7 @@ export function gigProposalCliInput(gig: Gig, plan: GigPlan | null) {
   return {
     language,
     disclosure: GIG_DISCLOSURE_SENTENCE,
+    freelancer: gigFreelancerIntro(),
     listing: {
       title: gig.title,
       org: gig.org,

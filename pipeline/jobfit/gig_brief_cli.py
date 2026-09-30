@@ -181,7 +181,8 @@ SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-_INSTRUCTIONS = """Describe the gig in the fenced region below. Return ONE JSON object and nothing else:
+_INSTRUCTIONS = """Describe the gig in the fenced region below. The freelancer describes himself as: "{freelancer}"
+(the operator's own, trusted description; used only by "outreachMessage"). Return ONE JSON object and nothing else:
 
 {{"category": "<field · specific kind of work, 2-6 words, e.g. 'Web security · Stored XSS' or 'ML · Tabular forecasting'>",
  "title": "<the listing retitled with the category's field first, e.g. 'Web security · Stored XSS in profile bio', max 90 characters>",
@@ -226,15 +227,18 @@ Rules:
   Nice-to-haves such as a logo, colours or example sites end
   with " (optional)". An empty list when the listing already provides everything.
 - "outreachMessage" (arena "freelance" only; null otherwise): a first message to the client, in English, plain
-  text, 80 to 180 words, in exactly this shape, the parts separated by one blank line: (1) a greeting and ONE
-  sentence of genuine interest in this specific work; (2) "How I would approach it:" then 3 to 5 lines, each
+  text, 80 to 180 words, in exactly this shape, the parts separated by one blank line: (1) "Hello," then ONE
+  sentence in which the freelancer introduces himself with his own description (given above the fence; keep its
+  facts) and says the scope below is feasible and can be delivered quickly - never restating, summarising or
+  praising the listing; (2) "How I would approach it:" then 3 to 5 lines, each
   starting with "- ", the plan as short concrete steps or choices in order - where the listing names no
   technology, state the one you propose as a choice; (3) "To get started once we agree, I would need:" then the
   missing artifacts, one per line starting with "- ", optional ones marked " (optional)"; (4) one closing
   sentence inviting a reply. It never asks the client to send anything now (the bid is not won yet), never asks
   to confirm a budget, price, deadline or demo date, and never asks the client to choose a technology or for
   hosting or server details (it names the proposed setup instead).
-  No promise of a timeline or a price, no claim about past work or experience, and no wording about AI or how
+  No promise of a timeline or a price, no claim about past work or experience beyond the freelancer's own
+  description, and no wording about AI or how
   the work is produced (the freelancer adds his own). Honest: nothing the listing does not support.
 - "workKind": "digital" when an AI agent working at a computer can deliver the whole work; "mixed" when the
   work is mostly digital but needs a physical step the client would do (printing, installing, filming on site);
@@ -316,6 +320,19 @@ def withdraw_reasons(req: dict[str, Any]) -> list[str]:
     return _clean_list(raw, MAX_WITHDRAW_REASONS, MAX_CHALLENGE_CHARS)
 
 
+# The freelancer's own description (app/_lib/gigs/freelancer-profile.ts, the operator's words):
+# TRUSTED input, set outside the fence, and the only experience a message may claim.
+FREELANCER_DEFAULT = "a web developer with more than 10 years of experience"
+FREELANCER_MAX = 200
+
+
+def freelancer_of(req: dict[str, Any]) -> str:
+    """The freelancer's self-description from the request, else the default. Pure."""
+    v = req.get("freelancer")
+    v = " ".join(v.split()) if isinstance(v, str) else ""
+    return v if v and len(v) <= FREELANCER_MAX else FREELANCER_DEFAULT
+
+
 def build_prompt(req: dict[str, Any], nonce: str | None = None) -> str:
     """The instructions with the data fenced by a per-call nonce the payload cannot hold.
 
@@ -326,7 +343,8 @@ def build_prompt(req: dict[str, Any], nonce: str | None = None) -> str:
     token = nonce or secrets.token_hex(8)
     while token in payload:
         token = secrets.token_hex(8)
-    return _INSTRUCTIONS.format(nonce=token, payload=payload)
+    freelancer = freelancer_of(req).replace("{", "(").replace("}", ")")
+    return _INSTRUCTIONS.format(freelancer=freelancer, nonce=token, payload=payload)
 
 
 _WS = re.compile(r"\s+")
