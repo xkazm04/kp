@@ -25,6 +25,8 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 //   409 GIG_PLAN_NOT_ACCEPTED - no accepted plan (and no niche specialist worked it before)
 //   502 GIG_SPECIALIST_NOT_READY { detail: "hire_failed", hireCode } - the gig persona's hire
 //       did not go out (429 TOO_MANY_REQUESTS when the hire tail's own limiter refused it)
+//   409 GIG_SOURCE_CLOSED (`detail` = awarded / frozen / closed / gone) - the source says the
+//       listing no longer takes proposals (gigs/freshness.ts); nothing was claimed
 //   404 GIG_NOT_FOUND · 409 GIG_SUSPECT · 409 GIG_NOT_DISPATCHABLE (`detail` = status or
 //   the lost CAS) · 409 GIG_SPECIALIST_NOT_READY (`detail`) · 502 GIG_DISPATCH_FAILED
 //   ({ reason, attempt, gig } - the reason is the transport's code, never an error text)

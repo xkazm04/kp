@@ -43,6 +43,7 @@ function gig(over: Partial<Gig> = {}): Gig {
     workdir: null,
     personasProjectId: null,
     withdrawReason: null,
+    sourceState: null,
     createdAt: "",
     updatedAt: "",
     ...over,

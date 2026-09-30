@@ -52,6 +52,7 @@ import {
   type GigAdapterLogEvent,
 } from "./adapters/types";
 import { sweepExpiredGigs } from "./expiry";
+import { defaultGigFreshnessDeps, refreshFreelancerGigStates, type GigFreshnessSummary } from "./freshness";
 import { convertRewardToUsd, loadFxRates, rewardNeedsFx, type FxTable } from "./fx";
 import { scanGigForHoneypots } from "./suspect";
 import type { Gig, GigAdapterName, GigPauseReason, GigSource, GigSourceRunOutcome } from "./types";
@@ -116,6 +117,11 @@ export type GigScanSummary = {
    *  many gigs it was given. Null when no enqueuer is plugged in, the scan created no gig,
    *  the caller cancelled, or the enqueue failed (logged). */
   research: { taskId: string | null; gigs: number } | null;
+  /** The freshness pass over Freelancer gigs still on the line (gigs/freshness.ts): what
+   *  the source answered and how many waiting gigs expired. Null when it did not run - no
+   *  Freelancer source ran cleanly this scan, the scan was stopped, or no refresher is
+   *  plugged in. */
+  freshness: GigFreshnessSummary | null;
 };
 
 /** The research hook: hand the gigs this scan created to a background research pass and
@@ -158,6 +164,9 @@ export type GigScanDeps = {
   /** The USD rate table (gigs/fx.ts loadFxRates); absent = rewards are filed unconverted
    *  (a pegged stablecoin still is). Called at most once per scan. */
   fxRates?: () => Promise<FxTable | null>;
+  /** The freshness pass (gigs/freshness.ts refreshFreelancerGigStates), run after the
+   *  sources when a Freelancer source ran cleanly. Absent = not run. */
+  refreshFreshness?: (workspaceId: string, signal: AbortSignal) => Promise<GigFreshnessSummary>;
   now: () => string;
   wallBudgetMs: number;
   log: (event: GigScanLogEvent, error?: unknown) => void;
@@ -176,6 +185,7 @@ export function defaultGigScanDeps(): GigScanDeps {
     scanHoneypots: scanGigForHoneypots,
     sweepExpired: (workspaceId, now) => sweepExpiredGigs(workspaceId, now),
     fxRates: () => loadFxRates(),
+    refreshFreshness: (workspaceId, signal) => refreshFreelancerGigStates(workspaceId, defaultGigFreshnessDeps(), { signal }),
     now: () => new Date().toISOString(),
     wallBudgetMs: GIG_SCAN_WALL_BUDGET_MS,
     log: (event, error) => {
@@ -260,6 +270,7 @@ export async function runGigScan(
     sourceId: only,
     expired: 0,
     research: null,
+    freshness: null,
   };
   // Expiry FIRST, so a listing whose deadline passed is not qualified or researched again.
   // A sweep that fails costs this run its expiries, never the scan.
@@ -322,6 +333,18 @@ export async function runGigScan(
             deps.log({ level: "warn", code: "qualify_failed", detail: gig.id, sourceId: source.id }, error);
           }
         }
+      }
+    }
+    // Freshness AFTER the sources: re-ask Freelancer whether the gigs still on the line are
+    // still open, so an awarded or deleted project stops being offered. Only when a Freelancer
+    // source ran cleanly this scan (a blocked or offline host is not asked again), and not
+    // once the budget or the caller stopped the scan. A failure costs this pass, never the scan.
+    const freelancerRan = summary.sources.some((s) => s.adapter === "freelancer_api" && s.outcome === "succeeded");
+    if (deps.refreshFreshness && freelancerRan && !budget.signal.aborted) {
+      try {
+        summary.freshness = await deps.refreshFreshness(workspaceId, budget.signal);
+      } catch (error) {
+        deps.log({ level: "warn", code: "freshness_failed" }, error);
       }
     }
     // Research LAST and in the BACKGROUND: acquisition and qualification truth never wait

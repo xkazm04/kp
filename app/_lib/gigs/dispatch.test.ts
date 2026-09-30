@@ -109,6 +109,36 @@ function transport(
   };
 }
 
+test("a listing its source says is closed is refused GIG_SOURCE_CLOSED before anything is claimed or sent", async () => {
+  const spec = specialist("oss_bounty", "active", "persona-closed");
+  const gig = qualified(newGig(), spec);
+  const priorAttempts = listGigAttemptsForGig(WS, gig.id).length;
+  const t = transport({ ok: true, executionId: "never" });
+  const checked: string[] = [];
+  const r = await dispatchGigAttempt(WS, gig.id, {}, {
+    ...t.deps,
+    checkSource: async (_ws, g) => {
+      checked.push(g.id);
+      return { checked: true, state: { state: "awarded", detail: "closed_awarded", bidCount: 7, checkedAt: "2026-09-30T10:00:00.000Z" }, expired: false };
+    },
+  });
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.code, "GIG_SOURCE_CLOSED");
+    if ("detail" in r) assert.equal(r.detail, "awarded");
+  }
+  assert.deepEqual(checked, [gig.id]);
+  assert.equal(t.calls.length, 0, "nothing sent to Personas");
+  assert.equal(listGigAttemptsForGig(WS, gig.id).length, priorAttempts, "no new attempt");
+  assert.equal(getGig(WS, gig.id)?.status, "qualified", "nothing claimed");
+
+  // An open answer, or one the source could not give, dispatches as before.
+  const again = qualified(newGig(), spec);
+  const t2 = transport({ ok: true, executionId: "exec-open" });
+  const r2 = await dispatchGigAttempt(WS, again.id, {}, { ...t2.deps, checkSource: async () => ({ checked: false, state: null, failed: "offline" }) });
+  assert.ok(r2.ok, "an unanswered check never blocks the dispatch");
+});
+
 test("success: claims the gig, creates the attempt, POSTs the assignment and stamps the execution id", async () => {
   const spec = specialist("oss_bounty", "active", "persona-ok");
   const gig = qualified(newGig(), spec);

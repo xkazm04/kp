@@ -5,6 +5,7 @@ import { createGigAttempt, listGigAttemptsForGig, setGigAttemptExecutionId, tran
 import { getAcceptedGigPlan } from "../db/gigs-plans";
 import { getGigSpecialist } from "../db/gigs-specialists";
 import { gigChecklist } from "./checklists";
+import { checkGigStillOpen, type GigStillOpenResult } from "./freshness";
 import { GIG_RUNNABLE_HIRE_STATUSES, pickGigMatch } from "./match";
 import { GIG_PAIRABLE_STATUSES, pairGig, type PairGigResult } from "./pairing";
 import { executePersonaForGig, type ExecutePersonaResult } from "./personas-exec";
@@ -63,7 +64,10 @@ export type DispatchGigRefusalCode =
   | "GIG_SUSPECT"
   | "GIG_NOT_DISPATCHABLE"
   | "GIG_SPECIALIST_NOT_READY"
-  | "GIG_PLAN_NOT_ACCEPTED";
+  | "GIG_PLAN_NOT_ACCEPTED"
+  /** The source says the listing no longer takes proposals (`detail` = awarded / frozen /
+   *  closed / gone). A waiting gig was expired on the same answer; nothing was dispatched. */
+  | "GIG_SOURCE_CLOSED";
 
 /** `GIG_SPECIALIST_NOT_READY` details the pairing adds (the route turns the first into a 202). */
 export const GIG_PAIRING_PENDING_DETAIL = "pairing_pending";
@@ -94,6 +98,10 @@ export type DispatchGigDeps = {
   resetDeliverable?: (workdir: string) => void;
   /** Pair a gig that has an accepted plan (default pairing.ts pairGig). */
   pair?: (workspaceId: string, gigId: string) => Promise<PairGigResult>;
+  /** Ask the source whether the listing still takes proposals (gigs/freshness.ts). Only the
+   *  default deps carry it: injected deps without it skip the check, so no test reaches the
+   *  network. A source that cannot answer never blocks the dispatch. */
+  checkSource?: (workspaceId: string, gig: Gig) => Promise<GigStillOpenResult>;
 };
 
 const defaultDeps: DispatchGigDeps = {
@@ -101,6 +109,7 @@ const defaultDeps: DispatchGigDeps = {
   prepareProject: (workspaceId, gigId) => prepareGigProject(workspaceId, gigId),
   resetDeliverable: clearGigDeliverableOutputs,
   pair: (workspaceId, gigId) => pairGig(workspaceId, gigId),
+  checkSource: (workspaceId, gig) => checkGigStillOpen(workspaceId, gig),
 };
 
 /** Where the run executes: the folder always when prepared, the project only when linked. */
@@ -254,6 +263,15 @@ export async function dispatchGigAttempt(
   if (!gig) return { ok: false, code: "GIG_NOT_FOUND" };
   if (isSuspect(gig)) return { ok: false, code: "GIG_SUSPECT", detail: gig.suspectReasons.join(",") || undefined };
   if (!DISPATCHABLE_GIG_STATUSES.includes(gig.status)) return { ok: false, code: "GIG_NOT_DISPATCHABLE", detail: gig.status };
+
+  // Is the listing still open? A run on an awarded, frozen or deleted project is a wasted run
+  // (the training cycle drafted several). One read, skipped while the last answer is fresh; a
+  // source that cannot answer does not block the dispatch. A waiting gig is expired on a
+  // closed answer (freshness.ts); a drafted or in-review one keeps its status for the operator.
+  if (deps.checkSource) {
+    const fresh = await deps.checkSource(workspaceId, gig);
+    if (fresh.state && fresh.state.state !== "open") return { ok: false, code: "GIG_SOURCE_CLOSED", detail: fresh.state.state };
+  }
 
   // Which persona: the gig's own when a plan is accepted, the niche specialist for a gig one
   // already worked, else nothing until the operator accepts a plan.

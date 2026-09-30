@@ -408,6 +408,52 @@ does not parse never does; `suspect` waits on the operator; work in flight (`dis
 `drafted`, `in_review`) is left to the send-time lint. A sweep that fails is logged
 (`expiry_failed`) and costs that scan its expiries, never the scan.
 
+## Freshness (Freelancer)
+
+A deadline says when bidding SHOULD close; the source says whether it DID. Of the gigs the
+2026-09 training cycle worked, several were awarded, frozen or deleted on Freelancer before
+their stated deadline. `app/_lib/gigs/freshness.ts` asks again, through Freelancer's keyless
+"projects by id" read (`GET /api/projects/0.1/projects/?projects[]=<id>...&compact=true`,
+`readFreelancerProjectStates` in `adapters/freelancer.ts`, one request per 50 ids, through
+`politeFetch`):
+
+- `open` = `active` + frontend `open`; `awarded` = `closed_awarded` (or frontend
+  `work_in_progress`/`complete`); `frozen` = `frozen` (e.g. `frozen_timeout`, the bid period
+  ran out); `closed` = any other closed state; `gone` = a successful answer that leaves the id
+  out (deleted, hidden or made private). The live `bid_stats.bid_count` is kept too.
+- **After each scan** in which a Freelancer source ran cleanly, `refreshFreelancerGigStates`
+  re-checks the workspace's Freelancer gigs still on the line (`new`, `suspect`, `qualified`,
+  `dispatched`, `drafted`, `in_review`), least recently checked first, 200 at most (4 requests).
+  The scan summary carries `freshness: { checked, open, closed, gone, expired, failed }`.
+- **Before a dispatch** (`dispatchGigAttempt`), `checkGigStillOpen` reads the one gig unless its
+  last answer is younger than 6 hours. A listing that is not open refuses the dispatch with
+  `GIG_SOURCE_CLOSED` (409, `detail` = the state) before anything is claimed or sent.
+- Every answer is recorded on the gig (`setGigSourceState`; `updated_at` untouched). A `new` or
+  `qualified` gig whose listing is not open moves to `expired` (the ordinary CAS). A gig further
+  along keeps its status: the desk shows the source state in place of the countdown
+  ("awarded", "bids closed", "removed from source"), and the operator decides.
+- A read that produced no answer (blocked, offline, outage, a changed shape) records nothing and
+  expires nothing; the pass stops and says why (`failed`). An unanswered pre-dispatch check never
+  blocks the dispatch.
+
+Other adapters are not re-checked yet (the GitHub/Algora mechanisms are designed in
+`docs/concepts/gig-sourcing-freshness.md`).
+
+## One row per listing
+
+A scanned listing is one row per workspace whichever source found it: every adapter namespaces
+its key (`fl:`, `gh:`, `h1:`, `kaggle:`, `upwork:`), so `upsertGigRow` matches a source's listing
+against ANY source's row with that key (the row keeps the source that filed it first). Two
+Freelancer sources with overlapping filters used to file the same project twice (78 projects).
+`mergeDuplicateSourceGigs` (`db/gigs.ts`) folds rows filed before this: in each group it keeps the
+copy that went furthest (work hanging off a copy outranks any status), hands a deleted copy's
+brief to the kept one, deletes only copies with no attempt, outcome, plan, gig persona or folder,
+and reports any other copy in `kept` for the operator. A forwarded brief keeps its own key space.
+
+Freelancer's `jobs` config (skill ids) takes up to 50 ids (`FREELANCER_MAX_JOBS`); the shared
+config reader's default cap of 10 had silently cut a 13-id source to 10. A cut past 50 is logged
+`config_truncated`, a non-numeric id `config_invalid`.
+
 ## Withdraw reasons
 
 A gig is taken off the line for a reason, and most reasons are already written down: the
@@ -1190,6 +1236,7 @@ limiters are pinned in `app/api/rate-limit-contract.test.ts`.
 | `app/_lib/gigs/research.ts`, `pipeline/jobfit/gig_brief_cli.py` | research: link extraction, the egress guard, page reads, the brief's pinned web-researching model call, the Markdown and its sections; the `gig_research` pass |
 | `app/_lib/gigs/plans.ts`, `pipeline/jobfit/gig_plan_cli.py`, `plan-seats.ts`, `app/_lib/db/gigs-plans.ts` | the plan runner (the difficulty's seats in parallel), the plan CLI, the seat lineup, the plan store and the one acceptance |
 | `app/_lib/gigs/expiry.ts` | the expiry sweep the scan runs first |
+| `app/_lib/gigs/freshness.ts` | the Freelancer freshness pass after a scan and the one-gig check before a dispatch |
 | `app/_lib/gigs/gig-type.ts` | the gig type vocabulary, `gigTypeOf`, and the type's registry knowledge (`GIG_TYPE_KNOWLEDGE`; client-safe) - the filesystem resolver `resolveGigTypeKnowledge` is `gig-type-knowledge.ts`, server only |
 | `app/_lib/gigs/pairing.ts` | one persona per gig: `pairGig` (project by type, the plan as a milestone, the persona hired or reused) |
 | `app/_lib/gigs/plan-status.ts` | PLAN-STATUS.json: the strict parse, the no-regress merge, one gig's mirror to the Personas milestone; the paired assignment's `plan` block |
@@ -1319,7 +1366,10 @@ ALTER-added the same way (NULL until the workspace is first prepared; the projec
 NULL until Personas registers it) and written by `setGigWorkspace`, which does not touch
 `updated_at` either. `gigs.withdraw_reason_json` is ALTER-added too: `{ challenge, index,
 at }` when the operator withdrew the gig for a brief challenge, NULL otherwise (and on every
-row withdrawn before the column existed). `gig_attempts.fallback_reason` may be set at dispatch
+row withdrawn before the column existed). `gigs.source_state_json` (the `GigSourceState`) and
+`gigs.freshness_checked_at` are ALTER-added: NULL until a freshness check reads the listing ("not
+checked", never "open"), written by `setGigSourceState` without touching `updated_at`.
+`gig_attempts.fallback_reason` may be set at dispatch
 (`personas_route_missing`); the sync clears it when the draft lands.
 
 `gig_specialists.gig_id` (ALTER-added, 427cdc3d0) is written: the ONE gig a gig persona was hired

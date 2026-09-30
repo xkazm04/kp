@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { canTransitionGig } from "../gigs/transitions";
 import {
   isGigArena,
+  isGigSourceStateName,
   isGigStatus,
   isGigSuspectReason,
   type Gig,
@@ -9,6 +10,7 @@ import {
   type GigBrief,
   type GigQualification,
   type GigReward,
+  type GigSourceState,
   type GigStatus,
   type GigSuspectReason,
   type GigWithdrawReason,
@@ -57,6 +59,9 @@ type GigRow = {
   personas_project_id?: string | null;
   /** Added by ALTER (core.ts): the brief challenge the gig was withdrawn for, or NULL. */
   withdraw_reason_json?: string | null;
+  /** Added by ALTER (core.ts): NULL until a freshness check read the listing's source state. */
+  source_state_json?: string | null;
+  freshness_checked_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -93,6 +98,7 @@ function gigFromRow(row: GigRow): Gig {
     workdir: row.workdir ?? null,
     personasProjectId: row.personas_project_id ?? null,
     withdrawReason: withdrawReasonFromJson(row.withdraw_reason_json ?? null, row.id),
+    sourceState: sourceStateFromJson(row.source_state_json ?? null, row.id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -115,6 +121,18 @@ function withdrawReasonFromJson(json: string | null, id: string): GigWithdrawRea
   if (!parsed || typeof parsed !== "object") return null;
   if (typeof parsed.challenge !== "string" || !parsed.challenge.trim() || typeof parsed.index !== "number" || typeof parsed.at !== "string") return null;
   return { challenge: parsed.challenge, index: parsed.index, at: parsed.at };
+}
+
+/** A stored source state in the shape this build writes, else null (not checked). */
+function sourceStateFromJson(json: string | null, id: string): GigSourceState | null {
+  const parsed = safeRowParse<Partial<GigSourceState>>(json, "gig.sourceState", id);
+  if (!parsed || typeof parsed !== "object" || !isGigSourceStateName(parsed.state) || typeof parsed.checkedAt !== "string") return null;
+  return {
+    state: parsed.state,
+    detail: typeof parsed.detail === "string" ? parsed.detail : null,
+    bidCount: typeof parsed.bidCount === "number" && Number.isFinite(parsed.bidCount) ? parsed.bidCount : null,
+    checkedAt: parsed.checkedAt,
+  };
 }
 
 function cleanTitle(title: string): string {
@@ -306,12 +324,27 @@ function upsertGigRow(workspaceId: string, f: GigListingFields): { gig: Gig; cre
   const org = f.org?.trim() ? f.org.trim().slice(0, 200) : null;
   const run = d.transaction((): { id: string; created: boolean } => {
     const now = new Date().toISOString();
-    const existing = d
-      .prepare(
-        `SELECT * FROM gigs
-         WHERE workspace_id = ? AND COALESCE(source_id, 'manual') = COALESCE(?, 'manual') AND external_key = ?`
-      )
-      .get(workspaceId, f.sourceId, f.externalKey) as GigRow | undefined;
+    // A scanned listing is ONE row per workspace whichever source found it: every adapter
+    // namespaces its key (fl:, gh:, h1:, kaggle:, upwork:), so two sources whose filters
+    // overlap - a query source and a skills source both returning Freelancer project 123 -
+    // refresh the same row instead of filing it twice (78 projects were, before this). The row
+    // keeps the source that first filed it. A forwarded brief keeps its own key space.
+    const existing = (
+      f.sourceId !== null
+        ? d
+            .prepare(
+              `SELECT * FROM gigs
+               WHERE workspace_id = ? AND source_id IS NOT NULL AND external_key = ?
+               ORDER BY created_at ASC, rowid ASC LIMIT 1`
+            )
+            .get(workspaceId, f.externalKey)
+        : d
+            .prepare(
+              `SELECT * FROM gigs
+               WHERE workspace_id = ? AND source_id IS NULL AND external_key = ?`
+            )
+            .get(workspaceId, f.externalKey)
+    ) as GigRow | undefined;
     if (!existing) {
       const id = randomId("gig");
       d.prepare(
@@ -658,4 +691,130 @@ export function mergeGigSuspectReasons(workspaceId: string, id: string, reasons:
     return true;
   });
   return run.immediate() ? getGig(workspaceId, id) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Freshness (gigs/freshness.ts): is the listing still takeable on its source?
+// ---------------------------------------------------------------------------
+
+/** Record what the source answered. Like the brief, this annotates the listing: `updated_at`
+ *  (the desk's sort key) is NOT touched. Null when the gig is not in this workspace. */
+export function setGigSourceState(workspaceId: string, id: string, state: GigSourceState): Gig | null {
+  const res = ensureDb()
+    .prepare(`UPDATE gigs SET source_state_json = ?, freshness_checked_at = ? WHERE id = ? AND workspace_id = ?`)
+    .run(JSON.stringify(state), state.checkedAt, id, workspaceId);
+  return res.changes > 0 ? getGig(workspaceId, id) : null;
+}
+
+/** Gigs of one key space (`keyPrefix`, e.g. "fl:") in the given statuses, least recently
+ *  checked first (never-checked before any checked one), at most `limit` (1..500). Scanned
+ *  rows only: a forwarded brief has no source to ask. */
+export function listGigsForFreshness(
+  workspaceId: string,
+  opts: { keyPrefix: string; statuses: readonly GigStatus[]; limit: number }
+): Gig[] {
+  const statuses = opts.statuses.filter(isGigStatus);
+  if (statuses.length === 0 || !/^[a-z0-9]{1,16}:$/.test(opts.keyPrefix)) return [];
+  const n = Math.max(1, Math.min(500, Math.trunc(opts.limit) || 1));
+  const statusPh = statuses.map(() => "?").join(", ");
+  const rows = ensureDb()
+    .prepare(
+      `SELECT * FROM gigs
+       WHERE workspace_id = ? AND source_id IS NOT NULL AND substr(external_key, 1, ?) = ? AND status IN (${statusPh})
+       ORDER BY COALESCE(freshness_checked_at, '') ASC, created_at ASC, rowid ASC
+       LIMIT ?`
+    )
+    .all(workspaceId, opts.keyPrefix.length, opts.keyPrefix, ...statuses, n) as GigRow[];
+  return rows.map(gigFromRow);
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate rows (one listing filed by two sources before the upsert matched across them)
+// ---------------------------------------------------------------------------
+
+/** How far a gig has moved along the line: the copy that went furthest is the one kept. */
+const GIG_PROGRESS_RANK: Readonly<Record<GigStatus, number>> = {
+  accepted: 9,
+  rejected: 9,
+  sent: 8,
+  in_review: 7,
+  drafted: 6,
+  dispatched: 5,
+  qualified: 4,
+  new: 3,
+  suspect: 2,
+  declined: 1,
+  withdrawn: 1,
+  expired: 0,
+};
+
+export type MergeDuplicateGigsResult = {
+  /** Listing keys that had more than one scanned row. */
+  groups: number;
+  /** Redundant rows deleted (no attempt, outcome, plan, specialist or folder hung off them). */
+  deleted: number;
+  /** Redundant rows KEPT because work hangs off them - the operator's to resolve. */
+  kept: { key: string; gigIds: string[] }[];
+};
+
+/** One scanned row per listing key: in every group of rows sharing a key, keep the copy that
+ *  went furthest (then the one filed first) and delete each OTHER copy that nothing hangs off -
+ *  no attempt, outcome, plan, gig persona or folder. A redundant copy with a brief the kept
+ *  one lacks hands its brief over first. A copy with work is never deleted: it is reported
+ *  in `kept`. One IMMEDIATE transaction per group. */
+export function mergeDuplicateSourceGigs(workspaceId: string): MergeDuplicateGigsResult {
+  const d = ensureDb();
+  const keys = d
+    .prepare(
+      `SELECT external_key FROM gigs
+       WHERE workspace_id = ? AND source_id IS NOT NULL
+       GROUP BY external_key HAVING COUNT(*) > 1`
+    )
+    .all(workspaceId) as { external_key: string }[];
+  const result: MergeDuplicateGigsResult = { groups: keys.length, deleted: 0, kept: [] };
+  const hasWork = (id: string): boolean => {
+    const one = (sql: string) => d.prepare(sql).get(workspaceId, id) !== undefined;
+    return (
+      one(`SELECT 1 FROM gig_attempts WHERE workspace_id = ? AND gig_id = ? LIMIT 1`) ||
+      one(`SELECT 1 FROM gig_outcomes WHERE workspace_id = ? AND gig_id = ? LIMIT 1`) ||
+      one(`SELECT 1 FROM gig_plans WHERE workspace_id = ? AND gig_id = ? LIMIT 1`) ||
+      one(`SELECT 1 FROM gig_specialists WHERE workspace_id = ? AND gig_id = ? LIMIT 1`)
+    );
+  };
+  for (const { external_key: key } of keys) {
+    const run = d.transaction((): string[] => {
+      const rows = d
+        .prepare(
+          `SELECT * FROM gigs WHERE workspace_id = ? AND source_id IS NOT NULL AND external_key = ?
+           ORDER BY created_at ASC, rowid ASC`
+        )
+        .all(workspaceId, key) as GigRow[];
+      if (rows.length < 2) return [];
+      const rank = (r: GigRow) => (isGigStatus(r.status) ? GIG_PROGRESS_RANK[r.status] : 0) + (r.workdir || hasWork(r.id) ? 100 : 0);
+      const keep = rows.reduce((best, r) => (rank(r) > rank(best) ? r : best), rows[0]);
+      const stuck: string[] = [];
+      for (const r of rows) {
+        if (r.id === keep.id) continue;
+        if (r.workdir || hasWork(r.id)) {
+          stuck.push(r.id);
+          continue;
+        }
+        if (!keep.brief_json && r.brief_json) {
+          d.prepare(`UPDATE gigs SET brief_json = ?, brief_at = ? WHERE id = ? AND workspace_id = ? AND brief_json IS NULL`).run(
+            r.brief_json,
+            r.brief_at ?? null,
+            keep.id,
+            workspaceId
+          );
+          keep.brief_json = r.brief_json;
+        }
+        d.prepare(`DELETE FROM gigs WHERE id = ? AND workspace_id = ?`).run(r.id, workspaceId);
+        result.deleted += 1;
+      }
+      return stuck;
+    });
+    const stuck = run.immediate();
+    if (stuck.length > 0) result.kept.push({ key, gigIds: stuck });
+  }
+  return result;
 }

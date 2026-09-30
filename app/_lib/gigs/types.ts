@@ -327,8 +327,29 @@ export type Gig = {
   /** The brief challenge the operator withdrew this gig for (withdraw-reasons.ts); null
    *  when it is not withdrawn, or was withdrawn without naming one. */
   withdrawReason: GigWithdrawReason | null;
+  /** The listing's state as its source last reported it (gigs/freshness.ts); null until a
+   *  freshness check read it - "not checked", never "open". */
+  sourceState: GigSourceState | null;
   createdAt: string;
   updatedAt: string;
+};
+
+/** What a source answered when asked whether a listing is still takeable. `open` = still
+ *  taking proposals; `awarded` = the client picked someone; `frozen` = the source stopped
+ *  bids (e.g. Freelancer's frozen_timeout); `closed` = any other closed state; `gone` = the
+ *  source no longer returns the listing (deleted, hidden, or made private). */
+export const GIG_SOURCE_STATES = ["open", "awarded", "frozen", "closed", "gone"] as const;
+export type GigSourceStateName = (typeof GIG_SOURCE_STATES)[number];
+export function isGigSourceStateName(v: unknown): v is GigSourceStateName {
+  return typeof v === "string" && (GIG_SOURCE_STATES as readonly string[]).includes(v);
+}
+export type GigSourceState = {
+  state: GigSourceStateName;
+  /** The source's own sub-status code when it gave one (e.g. `closed_awarded`), else null. */
+  detail: string | null;
+  /** Proposals already on the listing, when the source reports it. */
+  bidCount: number | null;
+  checkedAt: string;
 };
 
 /** One of the gig's brief challenges, copied from the brief when the operator withdrew the

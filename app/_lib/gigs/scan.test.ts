@@ -121,6 +121,7 @@ function harness(sources: GigSource[], adapters: Partial<Record<string, GigAdapt
         workdir: null,
         personasProjectId: null,
         withdrawReason: null,
+        sourceState: null,
         createdAt: "2026-09-24T00:00:00.000Z",
         updatedAt: "2026-09-24T00:00:00.000Z",
       };
@@ -447,6 +448,40 @@ test("the expiry sweep runs FIRST, at the scan's own clock, and its count rides 
   assert.equal((await runGigScan("ws-1", harness([], {}).deps)).expired, 0);
 });
 
+test("freshness runs after the sources only when a Freelancer source ran cleanly; its counts ride in the summary", async () => {
+  const FRESH = { checked: 4, open: 2, closed: 1, gone: 1, expired: 2, failed: null };
+  const calls: string[] = [];
+  const refreshFreshness = async (ws: string) => {
+    calls.push(ws);
+    return FRESH;
+  };
+  const h = harness([source("s-fl", "freelancer_api", { tier: "B" })], { "s-fl": fixtureAdapter("freelancer_api", [raw("fl-1")]) }, { refreshFreshness });
+  const summary = await runGigScan("ws-1", h.deps);
+  assert.deepEqual(calls, ["ws-1"]);
+  assert.deepEqual(summary.freshness, FRESH);
+
+  // No Freelancer source in the run: not asked.
+  const gh = harness([source("s-gh", "github_bounty")], { "s-gh": fixtureAdapter("github_bounty", [raw("gh-1")]) }, { refreshFreshness });
+  assert.equal((await runGigScan("ws-1", gh.deps)).freshness, null);
+  assert.equal(calls.length, 1);
+
+  // The Freelancer source failed this run: the host is not asked again.
+  const broken = harness([source("s-fl", "freelancer_api", { tier: "B" })], { "s-fl": fixtureAdapter("freelancer_api", [], () => new Error("boom")) }, { refreshFreshness });
+  assert.equal((await runGigScan("ws-1", broken.deps)).freshness, null);
+  assert.equal(calls.length, 1);
+
+  // A throwing refresher costs the pass, never the scan.
+  const boom = harness([source("s-fl", "freelancer_api", { tier: "B" })], { "s-fl": fixtureAdapter("freelancer_api", [raw("fl-2")]) }, {
+    refreshFreshness: async () => {
+      throw new Error("store down");
+    },
+  });
+  const s = await runGigScan("ws-1", boom.deps);
+  assert.equal(s.freshness, null);
+  assert.equal(s.sources[0].outcome, "succeeded");
+  assert.ok(boom.logs.includes("-:freshness_failed"));
+});
+
 test("rewards in another currency are filed with a USD estimate; the rate table is read once, and only when needed", async () => {
   const table = { rates: { INR: { rate: 95.92, date: "2026-09-30" }, EUR: { rate: 0.88, date: "2026-09-30" } }, fetchedAt: "2026-09-30T07:00:00.000Z", source: "frankfurter.dev rates (base USD)" };
   let reads = 0;
@@ -495,5 +530,6 @@ test("rewards in another currency are filed with a USD estimate; the rate table 
 test("the production scan deps plug the real expiry sweep", () => {
   assert.equal(typeof defaultGigScanDeps().sweepExpired, "function");
   assert.equal(typeof defaultGigScanDeps().fxRates, "function", "and the USD rate table");
+  assert.equal(typeof defaultGigScanDeps().refreshFreshness, "function", "and the freshness pass");
   assert.equal(defaultGigScanDeps().enqueueResearch, undefined, "the enqueuer is plugged by the task runner, not the scan's defaults");
 });

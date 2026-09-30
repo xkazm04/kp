@@ -18,7 +18,7 @@ import {
   type PoliteFetch,
   type PoliteFetchOptions,
 } from "../../jobseeker/fetch/politeFetch.ts";
-import { FREELANCER_API_BASE_ENV, freelancerActiveUrl } from "./freelancer.ts";
+import { FREELANCER_API_BASE_ENV, FREELANCER_MAX_JOBS, freelancerActiveUrl } from "./freelancer.ts";
 import { gigAdapterFor, gigHostForAdapter } from "./registry.ts";
 import {
   AdapterCollapsed,
@@ -340,6 +340,21 @@ test("freelancer_api: budget -> reward (minimum, stated range kept), hourly mark
   assert.deepEqual(q.getAll("jobs[]"), ["13"], "a non-numeric job id is not sent");
   assert.equal(calls[0].opts.authorization, undefined, "keyless public API");
   assert.equal(calls.length, 1, "3 < page size, so no second page");
+
+  // More skill ids than the shared default of 10 are all sent; a cut past the adapter's own cap
+  // and an unreadable id are logged, never silent.
+  const thirteen = Array.from({ length: 13 }, (_, i) => String(100 + i));
+  const wide = scripted({ "*": ok(fx("freelancer-projects-active.json")) });
+  const wideLogs: string[] = [];
+  await collect(gigAdapterFor("freelancer_api").discover(ctxFor(source("freelancer_api", { config: { jobs: thirteen } }), wide.fetch, { logs: wideLogs })));
+  assert.deepEqual(new URL(wide.calls[0].url).searchParams.getAll("jobs[]"), thirteen, "all 13 skill ids searched");
+  assert.deepEqual(wideLogs, [], "nothing dropped, nothing logged");
+  const tooMany = Array.from({ length: FREELANCER_MAX_JOBS + 2 }, (_, i) => String(1000 + i));
+  const capped = scripted({ "*": ok(fx("freelancer-projects-active.json")) });
+  const cappedLogs: string[] = [];
+  await collect(gigAdapterFor("freelancer_api").discover(ctxFor(source("freelancer_api", { config: { jobs: [...tooMany.slice(0, 3), "x", ...tooMany.slice(3)] } }), capped.fetch, { logs: cappedLogs })));
+  assert.equal(new URL(capped.calls[0].url).searchParams.getAll("jobs[]").length, FREELANCER_MAX_JOBS - 1, "capped, minus the unreadable one");
+  assert.deepEqual(cappedLogs, ["warn:config_truncated", "warn:config_invalid"]);
 
   const broken = scripted({ "*": ok(JSON.stringify({ status: "error", message: "moved" })) });
   await assert.rejects(collect(gigAdapterFor("freelancer_api").discover(ctxFor(source("freelancer_api"), broken.fetch))), AdapterCollapsed);

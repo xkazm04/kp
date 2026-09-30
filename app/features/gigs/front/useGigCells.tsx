@@ -44,11 +44,31 @@ export function useGigCells(now: Date): { reward: RewardCell; deadline: Deadline
       <span className="absent">{t("front.rewardNone")}</span>
     );
   const deadline: DeadlineCell = (g, words = false) => {
+    // What the source last said outranks the stated deadline: an awarded or removed listing is
+    // closed whatever its bid window reads (gigs/freshness.ts). Not checked = the deadline alone.
+    const src = g.sourceState;
+    if (src && src.state !== "open") {
+      const label =
+        src.state === "awarded"
+          ? t("front.sourceAwarded")
+          : src.state === "frozen"
+            ? t("front.sourceFrozen")
+            : src.state === "gone"
+              ? t("front.sourceGone")
+              : t("front.sourceClosed");
+      return <span className="dim">{label}</span>;
+    }
     const d = deadlineView(g.deadlineAt, now);
     if (d.state === "none") return <span className="absent">{t("front.deadlineNone")}</span>;
     if (d.state === "passed") return <span className="dim">{t("front.closed")}</span>;
     const text = words ? t("front.closesIn", { days: Math.max(0, d.days) }) : t("front.daysLeft", { days: Math.max(0, d.days) });
-    return <span className={d.state === "soon" ? "coral" : undefined}>{text}</span>;
+    const bids = src?.bidCount != null ? <span className="dim"> · {t("front.sourceBids", { count: src.bidCount })}</span> : null;
+    return (
+      <span>
+        <span className={d.state === "soon" ? "coral" : undefined}>{text}</span>
+        {bids}
+      </span>
+    );
   };
   return { reward, deadline };
 }

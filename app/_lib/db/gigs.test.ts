@@ -12,6 +12,7 @@ import {
   gigManualExternalKey,
   listGigs,
   listGigsNeedingBrief,
+  mergeDuplicateSourceGigs,
   mergeGigSuspectReasons,
   setGigBrief,
   setGigQualification,
@@ -279,4 +280,65 @@ test("mergeGigSuspectReasons records reasons without a status move, and is works
   assert.deepEqual(again?.suspectReasons, ["agent_addressed", "off_platform_payment"]);
   assert.equal(mergeGigSuspectReasons(OTHER, g.id, ["credential_request"]), null);
   assert.deepEqual(getGig(ws, g.id)?.suspectReasons, ["agent_addressed", "off_platform_payment"]);
+});
+
+test("a listing two sources return is ONE row: the second source refreshes the first source's row", () => {
+  const ws = "ws-gigs-xsource";
+  const r = raw({ externalKey: "fl:900001" });
+  const a = upsertGigFromRaw(ws, { sourceId: "gsrc-query", arena: "freelance", raw: r, suspectReasons: [] });
+  const b = upsertGigFromRaw(ws, { sourceId: "gsrc-skills", arena: "freelance", raw: { ...r, title: "Retitled" }, suspectReasons: [] });
+  assert.equal(a.created, true);
+  assert.equal(b.created, false, "matched across sources");
+  assert.equal(b.gig.id, a.gig.id);
+  assert.equal(b.gig.sourceId, "gsrc-query", "the row keeps the source that filed it first");
+  assert.equal(b.gig.title, "Retitled");
+  assert.equal(listGigs(ws).length, 1);
+  // A forwarded brief keeps its own key space; another workspace is another row.
+  assert.equal(upsertGigFromRaw(OTHER, { sourceId: "gsrc-skills", arena: "freelance", raw: r, suspectReasons: [] }).created, true);
+});
+
+test("mergeDuplicateSourceGigs: keeps the copy that went furthest, deletes pristine copies, never one with work", () => {
+  const ws = "ws-gigs-merge";
+  const d = ensureDb();
+  const dup = (id: string, sourceId: string, status: string) =>
+    d
+      .prepare(
+        `INSERT INTO gigs (id, workspace_id, source_id, arena, external_key, url, title, org, reward_json, deadline_at, posted_at,
+           body_text, tags_json, niche, status, suspect_reasons_json, specialist_id, qualification_json, created_at, updated_at)
+         SELECT ?, workspace_id, ?, arena, external_key, url, title, org, reward_json, deadline_at, posted_at,
+           body_text, tags_json, niche, ?, suspect_reasons_json, specialist_id, qualification_json, created_at, updated_at
+         FROM gigs WHERE workspace_id = ? AND external_key = ? LIMIT 1`
+      )
+      .run(id, sourceId, status, ws, "fl:910001");
+  const first = upsertGigFromRaw(ws, { sourceId: "gsrc-a", arena: "freelance", raw: raw({ externalKey: "fl:910001" }), suspectReasons: [] }).gig;
+  dup("gig-dup-qualified", "gsrc-b", "qualified");
+  dup("gig-dup-new", "gsrc-c", "new");
+  // A brief on a copy that is deleted is handed to the kept one.
+  d.prepare(`UPDATE gigs SET brief_json = '{"x":1}', brief_at = '2026-09-28T00:00:00.000Z' WHERE id = ?`).run("gig-dup-new");
+  // A second key whose extra copy has an attempt hanging off it: reported, never deleted.
+  const second = upsertGigFromRaw(ws, { sourceId: "gsrc-a", arena: "freelance", raw: raw({ externalKey: "fl:910002" }), suspectReasons: [] }).gig;
+  d.prepare(
+    `INSERT INTO gigs (id, workspace_id, source_id, arena, external_key, url, title, org, reward_json, deadline_at, posted_at,
+       body_text, tags_json, niche, status, suspect_reasons_json, specialist_id, qualification_json, created_at, updated_at)
+     SELECT 'gig-dup-worked', workspace_id, 'gsrc-b', arena, external_key, url, title, org, reward_json, deadline_at, posted_at,
+       body_text, tags_json, niche, 'new', suspect_reasons_json, specialist_id, qualification_json, created_at, updated_at
+     FROM gigs WHERE id = ?`
+  ).run(second.id);
+  d.prepare(
+    `INSERT INTO gig_attempts (id, workspace_id, gig_id, specialist_id, status, created_at, updated_at)
+     VALUES ('gatt-dup', ?, 'gig-dup-worked', 'gspec-x', 'failed', '2026-09-28T00:00:00.000Z', '2026-09-28T00:00:00.000Z')`
+  ).run(ws);
+
+  const res = mergeDuplicateSourceGigs(ws);
+  assert.equal(res.groups, 2);
+  assert.equal(res.deleted, 3, "the first copy and the new copy of fl:910001, the plain copy of fl:910002");
+  assert.deepEqual(res.kept, [], "the copy with an attempt is the one KEPT for fl:910002, so nothing is stranded");
+  assert.equal(getGig(ws, "gig-dup-qualified")?.status, "qualified", "the furthest copy is kept");
+  assert.equal(getGig(ws, first.id), null);
+  assert.equal(getGig(ws, "gig-dup-new"), null);
+  assert.equal(getGig(ws, "gig-dup-worked")?.id, "gig-dup-worked", "a copy with work outranks one without");
+  assert.equal(getGig(ws, second.id), null);
+  const kept = d.prepare(`SELECT brief_json FROM gigs WHERE id = ?`).get("gig-dup-qualified") as { brief_json: string | null };
+  assert.equal(kept.brief_json, '{"x":1}', "the deleted copy's brief moved to the kept one");
+  assert.deepEqual(mergeDuplicateSourceGigs(ws), { groups: 0, deleted: 0, kept: [] }, "idempotent");
 });

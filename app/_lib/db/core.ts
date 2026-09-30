@@ -2455,6 +2455,12 @@ export function ensureDb(): Database.Database {
     // {challenge, index, at}. NULL on every other gig, on a withdraw that named no
     // challenge, and on every row withdrawn before the column existed (unknown).
     "ALTER TABLE gigs ADD COLUMN withdraw_reason_json TEXT",
+    // The listing's state as its source last reported it (gigs/freshness.ts): JSON
+    // GigSourceState {state, detail, bidCount, checkedAt}; freshness_checked_at is the same
+    // checkedAt as a plain column, so the checker reads oldest-first on an index-free sort.
+    // NULL on every row until a freshness check reads it - "not checked", never "open".
+    "ALTER TABLE gigs ADD COLUMN source_state_json TEXT",
+    "ALTER TABLE gigs ADD COLUMN freshness_checked_at TEXT",
     // One persona per gig (gig-mastery S2): the gig a specialist was hired FOR. NULL on the
     // niche specialists hired before, which serve many gigs until they are retired.
     "ALTER TABLE gig_specialists ADD COLUMN gig_id TEXT",

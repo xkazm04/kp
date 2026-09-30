@@ -2037,6 +2037,9 @@ export const REFUSAL_ERRORS = {
   /** Dispatch of a gig with no accepted plan (409): the operator accepts one of the
    *  models' plans first (gig-mastery S1). */
   GIG_PLAN_NOT_ACCEPTED: "Accept one of the plans for this gig before sending it to an agent.",
+  /** Dispatch refused because the source says the listing no longer takes proposals -
+   *  awarded, frozen, closed or removed (409, `detail` = the state; gigs/freshness.ts). */
+  GIG_SOURCE_CLOSED: "This listing no longer takes proposals on its source, so it was not sent to an agent.",
   /** The plan in the URL is not this gig's, or not in this workspace (404). */
   GIG_PLAN_NOT_FOUND: "That plan does not exist.",
   /** A second plan accepted for a gig that already has one (409). */

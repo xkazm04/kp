@@ -1,6 +1,10 @@
 # Gig sourcing freshness — retiring stale gigs and rescanning valid sources
 
-> **Status: proposal (docs/concepts).** Not built. It extends the Gigs module
+> **Status: partly built (2026-09-30).** Mechanisms B and C are built for **Freelancer only**
+> (`app/_lib/gigs/freshness.ts`, documented in `docs/features/gigs/README.md` "Freshness"): a
+> post-scan re-check and a pre-dispatch gate, recording the state in `source_state_json` /
+> `freshness_checked_at` rather than the `last_seen_at` pair below. The GitHub/Algora claim
+> detection, the disappearance sweep (A) and re-surfacing remain a proposal. It extends the Gigs module
 > (`app/_lib/gigs/**`, `docs/features/gigs/README.md`). Grounded in the
 > 2026-09-27 oss_bounty training cycle, where **all 31** low-setup OphirPay
 > issues were already claimed by competing PRs and nothing detected it before a

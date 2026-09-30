@@ -38,15 +38,25 @@ export function basicAuth(user: string, secret: string): string {
   return `Basic ${Buffer.from(`${user}:${secret}`, "utf8").toString("base64")}`;
 }
 
-/** Config string list: an array of non-empty strings, or a single comma-separated string. */
-export function cfgList(config: Record<string, unknown>, key: string): string[] {
+/** How many entries a config list keeps unless the adapter names its own cap. */
+export const CFG_LIST_MAX = 10;
+
+/** Every entry of a config string list: an array of non-empty strings, or a single
+ *  comma-separated string. Uncapped - see cfgList for the capped read. */
+export function cfgListAll(config: Record<string, unknown>, key: string): string[] {
   const v = config[key];
   const raw = Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : [];
   return raw
     .filter((x): x is string => typeof x === "string")
     .map((x) => x.trim())
-    .filter(Boolean)
-    .slice(0, 10);
+    .filter(Boolean);
+}
+
+/** Config string list, capped at `max` entries. An adapter whose list can legitimately be
+ *  longer passes its own cap and compares against cfgListAll so a cut is logged, never
+ *  silent (a skills source listed 13 ids and quietly searched with 10). */
+export function cfgList(config: Record<string, unknown>, key: string, max: number = CFG_LIST_MAX): string[] {
+  return cfgListAll(config, key).slice(0, Math.max(0, Math.trunc(max)));
 }
 
 // ---------------------------------------------------------------------------
