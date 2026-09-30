@@ -37,9 +37,10 @@ Backend shipped and in production use:
 - **Three use cases have their engine PINNED at the call site** (`role_research`,
   `gig_brief`, `gig_plan`; the TS mirror is `PINNED_USE_CASES` in `app/_lib/llm-pins.ts`).
   `gig_brief` runs on Claude Sonnet 5.5 with the CLI's web tools (docs/features/gigs
-  "Research"); `gig_plan` runs one pinned model and effort per plan seat (Fable 5, Opus 5.5
-  at `xhigh`, Sonnet 5.5 at `high`, `app/_lib/gigs/plan-seats.ts`; docs/features/gigs
-  "Plans"). The first of them:
+  "Research"); `gig_plan`'s seats now follow the research brief's difficulty: Sonnet 5.5
+  at `high` alone (easy, moderate, unrated), Opus 5.5 at `high` alone (hard), or Opus 5.5
+  at `xhigh` plus Fable 5 plus GPT 6 Astra at `max` via the Codex CLI (very hard)
+  (`app/_lib/gigs/plan-seats.ts`; docs/features/gigs "Plans"). The first of them:
 - **`role_research` is PINNED at the call site**
   (`role_research_cli.py`, the job seeker's "what does this title ask for today",
   researched on the public web with sources): `resolve_provider(..., pin=PIN)` runs it
@@ -507,8 +508,9 @@ compare models at a stated effort; the usage ledger names the pinned model. Prec
 | The operator's `KP_LLM_CONFIG` row (specific or `*`) — provider, model AND params | **Outranked.** Not read at all under a pin, so a malformed config cannot break a pinned call either |
 | Routing defaults (production Gemini preference, `USE_CASE_MODEL_OVERRIDES`) | **Outranked** |
 
-Only `claude_cli` pins are implemented; a pin naming any other provider raises
-`LLMError` (a keyed adapter needs the key layering, and the first pin did not). The pinned
+Only `claude_cli` and `codex_cli` pins are implemented (`registry.PIN_PROVIDERS`); a pin
+naming any other provider raises `LLMError` (a keyed adapter needs the key layering, and the
+first pin did not). The pinned
 id is the adapter's `model`, so the usage ledger's model label is `claude-sonnet-5-5`,
 not `claude-cli-default` (model-identity). Without a pin, resolution is byte-for-byte
 what it was. The TS mirror is `PINNED_USE_CASES` in `app/_lib/llm-config.ts`, held equal
@@ -574,6 +576,32 @@ only as a stated fraction in 0..1 (never clamped into one). Keyless is data, exi
 `no_provider` (no, unavailable or refused provider — the ledger line names the
 descent), `llm_error:<subtype or Type>`, `llm_unusable`. Malformed input is exit 2
 `invalid_input`. Fixtures: `pipeline/jobfit/tests/test_role_research.py`.
+
+### The Codex CLI engine (pin-only)
+
+`pipeline/jobfit/llm/adapters/codex_cli.py` is a `TextProvider` over one `codex exec` spawn
+per attempt, modelled on the Claude CLI adapter (retries, the total deadline and the JSON
+repair come from `base.py`). It is **pin-only**: it has no `PROVIDER_CAPABILITIES` row and no
+`ADAPTERS` entry, so no Models routing row can name it; `capabilities.PIN_ONLY_PROVIDER_CAPABILITIES`
+declares it (`{json}`) and `registry._pinned_provider` builds it for a
+`ProviderPin("codex_cli", model, effort)`. The TS catalogue (`LLM_PROVIDERS`) is unchanged.
+
+The spawn (flags verified against `codex exec --help`, codex-cli 0.157.1, 2026-09-30):
+`codex exec --skip-git-repo-check --ephemeral --sandbox read-only --disable shell_tool
+--disable unified_exec --color never --json -C <empty temp dir> -m <model>
+[-c model_reasoning_effort=<effort>] [--output-schema <schema.json>] -o <last-message> -`.
+The prompt travels on stdin (never argv: on Windows `codex` is a `.cmd` shim); the model
+writes nothing and runs no command (read-only sandbox, shell tools disabled); it runs in an
+empty temp directory, never the repository, so no AGENTS.md is folded in. `gig_plan_cli.py`
+opens the adapter's `with_output_schema` door with the plan's strict JSON Schema. The answer
+is the last-message file (the `--json` event stream's last message as a fallback); the
+stream's `turn.completed.usage` token counts reach the usage ledger; `cost_usd` is null.
+Policy, in `availability()` order: `KP_OFFLINE` → `offline_policy`; a production deployment
+without `KP_ALLOW_CLI_ENGINE` → `consumer_terms_policy` (a ChatGPT-account seat is consumer
+terms, the same switch the Claude CLI honours); no binary → `not_installed`. Each degrades the
+seat to `no_provider`. Failures: timeout `deadline_exceeded` (one spawn), a usage limit
+`usage_limit` (not retried), overloaded/5xx retried inside the deadline, anything else
+`cli_error`, no answer `empty_output`.
 
 ## Prompt artifacts are PII, and their retention is explicit
 
