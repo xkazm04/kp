@@ -11069,20 +11069,11 @@
     "emptyNoneTitle": "Noch keine Agenten eingestellt",
     "emptyNoneBody": "Öffnen Sie eine Position, rufen Sie den Tab „Agenten-Eignung“ auf und entsenden Sie die Spezifikation. Die Einstellung erscheint hier mit Live-Zählern.",
     "emptyNoneLink": "Stellen durchsuchen",
-    "col": {
-      "agent": "Agent",
-      "role": "Position",
-      "spend": "Monatsausgaben",
-      "runs": "Läufe",
-      "connectors": "Konnektoren",
-      "expectations": "Erwartungen"
-    },
     "spendNote": "Ausgaben meldet das Anbieter-CLI selbst. Bei Abo-Authentifizierung kann hier {zero} stehen.",
     "spendOfBudget": "{spent} von {budget}",
     "runsCount": "{count, plural, one {# Lauf} other {# Läufe}}",
     "successRate": "{rate} % Erfolg",
     "noRuns": "Noch keine Läufe",
-    "heardFrom": "Zuletzt gemeldet {when}",
     "neverHeardFrom": "Noch nie gemeldet",
     "moreConnectors": "+{count} weitere",
     "expectationsMet": "{met}/{total} erfüllt",
@@ -11147,7 +11138,6 @@
     "nextAction": {
       "stripLabel": "Wartet auf Sie",
       "showAll": "Alle anzeigen",
-      "filtered": "{shown} von {total} Agenten angezeigt",
       "soonest": "nächste läuft in {hours, plural, one {# Stunde} other {# Stunden}} ab",
       "chip": {
         "repair_bridge": "{count, plural, one {# Agent wartet} other {# Agenten warten}} auf die Personas-Verbindung",
@@ -11175,6 +11165,368 @@
       "redispatchDone": "Erneut gesendet. Die neue Einstellung steht im Überblick.",
       "redispatchExisting": "Für diese Rolle läuft bereits eine Einstellung, es wurde nichts Neues gesendet.",
       "redispatchFailed": "Die Einstellung konnte nicht erneut gesendet werden. Bitte versuchen Sie es erneut."
+    },
+    "wk": {
+      "crumbRoot": "Agenten",
+      "crumbEvidence": "Belege",
+      "crumbsLabel": "Wo Sie sind",
+      "floorLabel": "Die Belegschaft",
+      "queuesLabel": "Was Sie braucht, nach Art und Priorität",
+      "calmBody": "Kein Agent wartet auf einen Schritt von Ihnen. Das Zifferblatt zeigt, wer arbeitet, was jeder ausgibt und wer in der Probezeit ist.",
+      "firstUp": "Als Nächstes",
+      "more": "+{count} weitere",
+      "checkedInPersonas": "wird in der Personas-App geprüft",
+      "showInRack": "{count, plural, one {Im Regal zeigen} =2 {Beide im Regal zeigen} other {Alle {count} im Regal zeigen}}",
+      "waitsOnBridge": "wartet auf die Brücke",
+      "noControl": "Für diesen Schritt gibt es keine Schaltfläche: Der Berichtsweg wird in der Personas-App geprüft.",
+      "cardNo": "Nr. {no}",
+      "runs": "Läufe",
+      "expectations": "Erwartungen",
+      "backbone": "Leistungsgerüst",
+      "gates": "Tore",
+      "probation": "Probezeit",
+      "probationHint": "ein Kästchen pro Tag, gelocht, sobald er vergeht",
+      "noProbation": "Kein Probezeitfenster erfasst.",
+      "autopilotMemory": "Autopilot und Gedächtnis",
+      "autopilotUnreported": "Autopilot nicht gemeldet",
+      "whatIsThis": "was ist das?",
+      "noMemory": "Kein Persona-Gedächtnis gemeldet.",
+      "liveOf": "{live} von {total} aktiv",
+      "hero": {
+        "need": "{count, plural, one {Agent braucht Sie} other {Agenten brauchen Sie}}",
+        "of": "von {total}",
+        "nothing": "Im Moment braucht Sie niemand",
+        "allWhere": "Jeder Agent ist dort, wo er sein soll.",
+        "eachDiamond": "Jeder ist eine korallenrote Raute auf dem Zifferblatt.",
+        "bridgeDown": "Die Personas-Brücke ist ausgefallen: {waiting} von {total} {waiting, plural, one {Agent wartet} other {Agenten warten}} darauf.",
+        "reconnects": "Jede von der Uhr getrennte Karte verbindet sich wieder, sobald die Brücke gekoppelt ist."
+      },
+      "hand": {
+        "start": "braucht Sie, hier anfangen",
+        "bridgeFirst": "zuerst die Brücke, dann der Rest",
+        "calm": "niemand braucht Sie, fangen Sie irgendwo an"
+      },
+      "steps": {
+        "handPaired": "die Uhr antwortet; niemand ist eingestellt",
+        "handUnpaired": "noch kann Sie nichts brauchen",
+        "pairTitle": "Personas-Brücke koppeln",
+        "pairBody": "Einstellungen → Integrationen. Bis dahin lässt sich nichts entsenden, abfragen oder freigeben.",
+        "pairDone": "Gekoppelt: zuletzt geantwortet {when}.",
+        "dispatchTitle": "Einen Agenten aus einer Position entsenden",
+        "dispatchBody": "Öffnen Sie eine Position und starten Sie den Tab „Agenten-Eignung“. Die Spezifikation geht zur Freigabe an Personas.",
+        "cardTitle": "Seine Karte steht auf dem Zifferblatt",
+        "cardBody": "In der Schublade seiner Position, mit Status, Ausgaben im Verhältnis zum Budget und nächstem Schritt."
+      },
+      "bridge": {
+        "title": "Personas-Brücke",
+        "paired": "Gekoppelt",
+        "pairedAgo": "Personas-Brücke gekoppelt · zuletzt geantwortet {when}",
+        "down": "Personas-Brücke ausgefallen",
+        "downClock": "Ausgefallen: die Uhr steht",
+        "notPaired": "Nicht gekoppelt",
+        "unknown": "Noch nicht gelesen",
+        "mount": "Noch keine Uhr: Die Halterung markiert, wo sie hängen wird.",
+        "handsPaired": "Zeiger: ihre letzte Antwort, {when} UTC ({ago})",
+        "handsDown": "Zeiger bei der letzten Antwort eingefroren, {when} UTC",
+        "downDetail": "Früher gekoppelt, schweigt seit {when} UTC ({ago}). Bis zur erneuten Kopplung lässt sich nichts entsenden, abfragen oder freigeben."
+      },
+      "wheel": {
+        "title": "Das Zifferblatt: {hires, plural, one {# Agent} other {# Agenten}} in {drawers, plural, one {# Schublade} other {# Schubladen}} um die Personas-Brücke",
+        "titleEmpty": "Das Zifferblatt ist leer: Noch kein Agent hat eine Karte",
+        "descNever": "Keine Uhr: Die Personas-Brücke wurde nie gekoppelt.",
+        "descIdle": "Die Uhr antwortet; auf dem Rand stehen noch keine Karten.",
+        "descDrawer": "{name}: {count}, {need} brauchen Sie",
+        "emptyPaired": "Noch keine Karten auf dem Rand. Die Karte eines Agenten steht hier, in der Schublade seiner Position, sobald er entsendet wird.",
+        "emptyUnpaired": "Der Rand bleibt leer, bis die Brücke gekoppelt ist und eine Position einen Agenten entsendet."
+      },
+      "ring": {
+        "needs": "braucht Sie",
+        "budget": "100 % Budget",
+        "budgetLine": "Budgetgrenze",
+        "spend": "Ausgaben",
+        "state": "Status"
+      },
+      "plates": {
+        "head": "Schubladen",
+        "providerReported": "Ausgaben meldet der Anbieter",
+        "hires": "{count, plural, one {Agent} other {Agenten}}",
+        "appMasters": "{count, plural, one {App-Master} other {App-Master}}",
+        "needs": "{count, plural, one {# braucht Sie} other {# brauchen Sie}}",
+        "noneNeed": "niemand braucht Sie",
+        "shown": "{count} angezeigt",
+        "noLiveBudget": "kein aktives Budget",
+        "noLiveBudgetSpent": "{spent}, kein aktives Budget",
+        "opens": "Öffnet die Schublade."
+      },
+      "drawer": {
+        "all": "Alle Agenten",
+        "other": "Weitere Positionen",
+        "gigs": "Auftrags-Agenten",
+        "appmaster": "App-Master",
+        "aria": "Schublade: {name}",
+        "wholeRack": "Das ganze Regal",
+        "position": "Schublade {index} von {of}",
+        "prev": "‹ Vorherige Schublade",
+        "next": "Nächste Schublade ›",
+        "itsWedge": "ihr Ausschnitt des Zifferblatts",
+        "kicker": "Schublade {n} · das Stempelkartenregal",
+        "kickerAll": "Das Stempelkartenregal · alle Schubladen",
+        "lead": "{count, plural, one {# Karte} other {# Karten}} in dieser Schublade. {spent} von {budget} diesen Monat, vom Anbieter gemeldet.",
+        "leadAll": "Das ganze Regal: {count, plural, one {# Karte} other {# Karten}} in allen Schubladen. {spent} von {budget} diesen Monat, vom Anbieter gemeldet.",
+        "appMasterNote": "App-Master besitzen eine ganze Anwendung: Jede Karte trägt ihre Mandatsstufe, den Autopilot-Modus, das Gedächtnis und die Probezeit.",
+        "bayLabel": "Wer Sie in dieser Schublade braucht, und ihre Ausgaben",
+        "whereAll": "im Regal",
+        "whereDrawer": "in dieser Schublade",
+        "cards": "{count, plural, one {# Karte} other {# Karten}} {where}.",
+        "needYou": "{count, plural, one {# braucht Sie} other {# brauchen Sie}}",
+        "nothingNeeds": "Hier braucht Sie im Moment niemand.",
+        "nothingNeedsDrawer": "In dieser Schublade braucht Sie im Moment niemand.",
+        "needsFilter": "Was Sie braucht: nach Art filtern",
+        "showing": "{shown} von {total} Karten angezeigt",
+        "bridgeDown": "Die Personas-Brücke ist ausgefallen: {count, plural, one {# Karte wartet} other {# Karten warten}} {where} darauf.",
+        "stampClears": "Jede Karte mit dem Stempel „wartet auf die Brücke“ löst sich, sobald die Brücke gekoppelt ist."
+      },
+      "back": {
+        "toWheel": "Zurück zum Zifferblatt",
+        "to": "Zurück zu {place}",
+        "generic": "Zurück",
+        "aria": "Belege: {name}",
+        "title": "{name}: Belege"
+      },
+      "spend": {
+        "heading": "Ausgaben diesen Monat · vom Anbieter gemeldet",
+        "monthly": "Monatliche Ausgaben · vom Anbieter gemeldet",
+        "ofBudgets": "von {budget} Monatsbudgets bei {count, plural, one {# aktivem Agenten} other {# aktiven Agenten}}",
+        "barLabel": "Ausgaben diesen Monat, ein Abschnitt pro Agent, gegen die summierten Budgets",
+        "segLabel": "{name}: {spent} diesen Monat, vom Anbieter gemeldet",
+        "hint": "Tippen oder per Tab zu einem Abschnitt, um zu lesen, wem er gehört.",
+        "dense": "{count} Agenten haben diesen Monat Ausgaben gemeldet: Jede Karte trägt ihre eigene Zahl.",
+        "thisMonth": "{spent} diesen Monat",
+        "openCard": "Karte öffnen",
+        "nothingCosted": "Noch nichts abgerechnet (nicht 0 $):",
+        "hiresCount": "{count} Agenten",
+        "neverInvoice": "Nie eine Rechnung.",
+        "unmeasuredLabel": "Ausgaben: noch nichts gemeldet",
+        "nothingReported": "noch nichts gemeldet",
+        "noBudget": "kein Budget zum Vergleichen",
+        "nothingThisMonth": "diesen Monat nichts ausgegeben",
+        "ofBudget": "{pct} % des Monatsbudgets",
+        "providerReported": "vom Anbieter gemeldet",
+        "lifetime": "Gesamt: {value}."
+      },
+      "punch": {
+        "never": "Nie gestempelt: noch nie gemeldet",
+        "last": "Zuletzt gestempelt {when}",
+        "noneAccepted": "noch kein Bericht angenommen",
+        "lastAccepted": "zuletzt angenommen {when}"
+      },
+      "status": {
+        "heading": "Status",
+        "heard": "Zuletzt gemeldet {ago} ({at} UTC)"
+      },
+      "connectors": {
+        "label": "Konnektoren nach Aufrufen",
+        "byCalls": "Konnektoren nach Aufrufen",
+        "none": "Keine Konnektoren in der Spezifikation",
+        "noneInSpec": "Keine Konnektoren in der Spezifikation.",
+        "noCalls": "keine Aufrufe",
+        "notInSpec": "nicht in der Spezifikation",
+        "noneRecorded": "keine Aufrufe erfasst"
+      },
+      "prob": {
+        "punched": "{done} von {total} Tagen gelocht"
+      },
+      "rack": {
+        "step": "Schritt {n} von 4",
+        "exit": "Abgang",
+        "probation": "Probezeit",
+        "emptyPocket": "Leeres Fach",
+        "exitsLabel": "Abgänge",
+        "exitsSub": "{count, plural, one {# Karte hat} other {# Karten haben}} den Lebenszyklus verlassen: fehlgeschlagen, abgelehnt oder außer Dienst. Als Nachweis am Rand aufbewahrt.",
+        "empty": {
+          "dispatched": "gerade niemand entsendet",
+          "pending_approval": "niemand wartet auf Freigabe",
+          "onboarding": "gerade niemand im Onboarding",
+          "active": "gerade niemand aktiv",
+          "failed": "niemand fehlgeschlagen",
+          "rejected": "niemand abgelehnt",
+          "retired": "niemand außer Dienst"
+        }
+      },
+      "tools": {
+        "label": "Sortierung und Statusfilter",
+        "statusFilter": "Statusfilter: die Schritte des Lebenszyklus",
+        "all": "Alle",
+        "exits": "Abgänge",
+        "sort": "Sortieren",
+        "sortLabel": "In jedem Regal sortieren"
+      },
+      "sort": {
+        "needs": "Wer Sie braucht zuerst",
+        "spend": "Ausgaben, höchste zuerst",
+        "name": "Name",
+        "newest": "Neueste zuerst"
+      },
+      "wall": {
+        "heading": "Die Regale: jede Karte dieser Schublade in ihrem Lebenszyklus-Schritt"
+      },
+      "card": {
+        "position": "Karte {index} von {of}",
+        "prev": "‹ Vorherige Karte",
+        "next": "Nächste Karte ›",
+        "kickerFront": "Stempelkarte Nr. {no} · Vorderseite",
+        "kickerBack": "Stempelkarte Nr. {no} · Rückseite",
+        "openRole": "Position öffnen",
+        "flip": "Karte umdrehen: Belege →",
+        "flipHint": "Metrik für Metrik, Konnektoren nach Aufrufen und das Lebenszyklus-Protokoll",
+        "flipHintAm": "Regeln des Leistungsgerüsts, Tore, Mandatsstufe und Probezeit-Countdown",
+        "gone": "Dieser Agent steht nicht mehr auf der Liste."
+      },
+      "ach": {
+        "heading": "Zu erreichen vs. erreicht",
+        "headingAm": "Zu erreichen vs. erreicht · {title}",
+        "vs": "Zu erreichen {target} · erreicht {actual}",
+        "noData": "Keine Daten: {why}"
+      },
+      "metricState": {
+        "met": "erfüllt",
+        "missed": "verfehlt",
+        "nodata": "keine Daten"
+      },
+      "noData": {
+        "never_heard": "noch nie gemeldet",
+        "none_accepted": "noch kein Bericht angenommen",
+        "uncosted": "noch nichts abgerechnet: Der Anbieter meldet bei Abo-Authentifizierung 0 $, das ist keine gemessene Null",
+        "no_runs": "noch keine Läufe",
+        "no_reading": "kein Messwert für diese Metrik"
+      },
+      "move": {
+        "heading": "Der nächste Schritt",
+        "headingNeeds": "Der nächste Schritt · braucht Sie",
+        "nothing": "Bei diesem Agenten braucht Sie nichts."
+      },
+      "table": {
+        "metric": "Metrik",
+        "target": "Ziel",
+        "actual": "Ist",
+        "state": "Status"
+      },
+      "rule": {
+        "weight": "Gewicht {weight}"
+      },
+      "ledger": {
+        "heading": "Lebenszyklus-Protokoll",
+        "hint": "neueste zuerst, Zeiten in UTC",
+        "noPunch": "kein Stempel",
+        "mint": "Entsendet: Der Agent wurde angelegt",
+        "pending": "In Personas in die ausstehende Freigabe eingetreten",
+        "decision": "Entscheidung angewendet",
+        "report": "Letzter von Personas empfangener Bericht (angenommen oder nicht)",
+        "activity": "Letzte angenommene Aktivität",
+        "absent": {
+          "never_heard": "Es ging nie ein Bericht ein: noch nie gemeldet, das heißt nicht untätig.",
+          "none_accepted": "Berichte kamen an, aber keiner wurde angenommen, daher ist keine Aktivität erfasst."
+        }
+      },
+      "event": {
+        "approved": "In Personas freigegeben",
+        "onboarding": "In das Onboarding verschoben",
+        "activated": "Nach der Probezeit aktiviert",
+        "rejected": "In Personas abgelehnt",
+        "retired": "Außer Dienst gestellt",
+        "probation_review": "Probezeit-Prüfung in Personas entschieden",
+        "other": "Entscheidung angewendet: {event}",
+        "poll": "Personas-Abfrage: jetzt {status}"
+      },
+      "ladder": {
+        "heading": "Mandatsstufe",
+        "hint": "0–4; 3 und 4 sind nie vergebbar",
+        "label": "Mandatsleiter",
+        "held": "vergeben",
+        "below": "unter der vergebenen Stufe",
+        "notGranted": "nicht vergeben",
+        "neverGrantable": "nie vergebbar",
+        "rung3": "Mandatsstufe 3: nie vergebbar",
+        "rung4": "Mandatsstufe 4: nie vergebbar"
+      },
+      "legend": {
+        "label": "Einen Status auf dem Zifferblatt zeigen",
+        "show": "Zeigen",
+        "all": "Alle",
+        "keyLabel": "So lesen Sie eine Karte auf dem Zifferblatt",
+        "block": "Block: ihr Status · Balken: Ausgaben diesen Monat gegen das eigene Budget, vom Anbieter gemeldet; der gestrichelte Ring ist 100 %",
+        "stub": "gestrichelter Stummel: noch nichts abgerechnet, das ist nicht 0 $",
+        "needs": "braucht Sie",
+        "appMaster": "App-Master (eckige Kappe)"
+      },
+      "phase": {
+        "cutoff": "Wartet auf die Brücke",
+        "stuck": "Hängt fest",
+        "waiting": "Wartet auf den Start",
+        "probation": "In der Probezeit",
+        "working": "Arbeitet",
+        "out": "Außer Dienst oder abgelehnt"
+      },
+      "phasePlural": {
+        "cutoff": "warten auf die Brücke",
+        "stuck": "hängen fest",
+        "waiting": "warten auf den Start",
+        "probation": "in der Probezeit",
+        "working": "arbeiten",
+        "out": "außer Dienst oder abgelehnt"
+      },
+      "kindShort": {
+        "repair_bridge": "Brücke",
+        "approval_lapsed": "Freigabe verfallen",
+        "approve_in_personas": "Freigabe ausstehend",
+        "review_probation": "Probezeit-Prüfung",
+        "check_reporter": "Berichtsweg prüfen",
+        "redispatch": "Erneut entsenden"
+      },
+      "reading": {
+        "empty": "Hier erscheinen Karten, sobald Agenten entsendet werden.",
+        "defaultWide": "Zeigen Sie auf eine Karte, um sie zu lesen, oder öffnen Sie eine Schublade: die Schilder um das Zifferblatt. Jede Karte liegt auch in ihrer Schublade.",
+        "defaultNarrow": "Zeigen Sie auf eine Karte, um sie zu lesen, oder öffnen Sie eine Schublade: die nummerierte Liste unten. Jede Karte liegt auch in ihrer Schublade.",
+        "uncosted": "Budget {budget}, noch nichts abgerechnet",
+        "spend": "{spend} diesen Monat",
+        "clickCard": "Klicken, um die Karte zu öffnen",
+        "tooClose": "{count} Karten stehen zu eng, um eine anzuzielen: Klicken Sie, um die Schublade zu öffnen und alle zu lesen.",
+        "someUncosted": "{count} noch nicht abgerechnet",
+        "allCosted": "jede Karte abgerechnet",
+        "enterOpens": "Enter öffnet die Schublade"
+      },
+      "keys": {
+        "wheelLabel": "Tasten auf dem Zifferblatt",
+        "drawerLabel": "Tasten in der Schublade",
+        "cardLabel": "Tasten auf der Karte",
+        "backLabel": "Tasten bei den Belegen",
+        "needsFilters": "Bedarfsfilter",
+        "betweenDrawers": "zwischen Schubladen",
+        "open": "öffnen",
+        "clearFilters": "Filter löschen",
+        "backToWheel": "zurück zum Zifferblatt",
+        "betweenCards": "zwischen Karten",
+        "openCard": "eine Karte öffnen",
+        "drawers": "vorherige / nächste Schublade",
+        "backTo": "zurück zu {place}",
+        "prevNextCard": "vorherige / nächste Karte",
+        "backToFront": "zurück zur Vorderseite der Karte",
+        "throughEvidence": "durch die Belege",
+        "tab": "zwischen Bedienelementen wechseln",
+        "press": "auslösen"
+      },
+      "stats": {
+        "hires": "Agenten auf dem Zifferblatt · {live} aktiv, {gone} außer Dienst oder abgelehnt",
+        "needYou": "{count, plural, one {braucht Sie} other {brauchen Sie}}",
+        "of": "von {budget}",
+        "spent": "diesen Monat ausgegeben, vom Anbieter gemeldet, nie eine Rechnung",
+        "uncosted": "noch nicht abgerechnet: nichts gemeldet, nicht 0 $",
+        "appMasters": "{count, plural, one {App-Master} other {App-Master}}",
+        "onProbation": "{count} in der Probezeit",
+        "noHires": "Agenten: noch keiner entsendet",
+        "noSpend": "Ausgaben: keine Agenten, also weder Ausgaben noch Budget erfasst",
+        "noAppMasters": "App-Master: keiner eingestellt"
+      }
     }
   },
   "simulation": {

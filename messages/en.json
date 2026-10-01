@@ -11069,20 +11069,11 @@
     "emptyNoneTitle": "No agents hired yet",
     "emptyNoneBody": "Open a role, run its Agent fit tab, and dispatch the spec. The hire shows up here with live counters.",
     "emptyNoneLink": "Browse roles",
-    "col": {
-      "agent": "Agent",
-      "role": "Role",
-      "spend": "Monthly spend",
-      "runs": "Runs",
-      "connectors": "Connectors",
-      "expectations": "Expectations"
-    },
     "spendNote": "Spend is self-reported by the provider CLI. It can read {zero} on subscription auth.",
     "spendOfBudget": "{spent} of {budget}",
     "runsCount": "{count, plural, one {# run} other {# runs}}",
     "successRate": "{rate}% success",
     "noRuns": "No runs yet",
-    "heardFrom": "Last heard from {when}",
     "neverHeardFrom": "Never heard from",
     "moreConnectors": "+{count} more",
     "expectationsMet": "{met}/{total} met",
@@ -11147,7 +11138,6 @@
     "nextAction": {
       "stripLabel": "Needs you",
       "showAll": "Show all",
-      "filtered": "Showing {shown} of {total} agents",
       "soonest": "next lapses in {hours, plural, one {# hour} other {# hours}}",
       "chip": {
         "repair_bridge": "{count, plural, one {# agent waits} other {# agents wait}} on the Personas bridge",
@@ -11175,6 +11165,368 @@
       "redispatchDone": "Dispatched again. The new hire is on the roster.",
       "redispatchExisting": "A live hire already covers this role, so nothing new was dispatched.",
       "redispatchFailed": "Couldn't re-dispatch this hire. Try again."
+    },
+    "wk": {
+      "crumbRoot": "Agents",
+      "crumbEvidence": "Evidence",
+      "crumbsLabel": "Where you are",
+      "floorLabel": "The workforce",
+      "queuesLabel": "Needs you, by kind, in priority order",
+      "calmBody": "No hire is waiting on a move from you. The wheel shows who is working, what each spends, and who is on probation.",
+      "firstUp": "First up",
+      "more": "+{count} more",
+      "checkedInPersonas": "checked in the Personas app",
+      "showInRack": "{count, plural, one {Show it in the rack} =2 {Show both in the rack} other {Show all {count} in the rack}}",
+      "waitsOnBridge": "waits on the bridge",
+      "noControl": "No control for this move: the reporter is checked in the Personas app.",
+      "cardNo": "No. {no}",
+      "runs": "Runs",
+      "expectations": "Expectations",
+      "backbone": "Backbone",
+      "gates": "Gates",
+      "probation": "Probation",
+      "probationHint": "one box per day, punched as it passes",
+      "noProbation": "No probation window recorded.",
+      "autopilotMemory": "Autopilot and memory",
+      "autopilotUnreported": "Autopilot not reported",
+      "whatIsThis": "what is this?",
+      "noMemory": "No persona memory reported.",
+      "liveOf": "{live} of {total} live",
+      "hero": {
+        "need": "{count, plural, one {hire needs you} other {hires need you}}",
+        "of": "of {total}",
+        "nothing": "Nothing needs you right now",
+        "allWhere": "Every hire is where it should be.",
+        "eachDiamond": "Each is a coral diamond on the wheel.",
+        "bridgeDown": "The Personas bridge is down: {waiting} of {total} {waiting, plural, one {hire waits} other {hires wait}} on it.",
+        "reconnects": "Every card cut from the clock reconnects once it is paired."
+      },
+      "hand": {
+        "start": "needs you, start here",
+        "bridgeFirst": "the bridge first, then the rest",
+        "calm": "nothing needs you, start anywhere"
+      },
+      "steps": {
+        "handPaired": "the clock answers; nothing is hired",
+        "handUnpaired": "nothing can need you yet",
+        "pairTitle": "Pair the Personas bridge",
+        "pairBody": "Settings → Integrations. Until then nothing can be dispatched, polled or approved.",
+        "pairDone": "Paired: it last answered {when}.",
+        "dispatchTitle": "Dispatch a hire from a role",
+        "dispatchBody": "Open a role and run its Agent fit tab. The spec goes to Personas for approval.",
+        "cardTitle": "Its card stands on the wheel",
+        "cardBody": "In its role's drawer, with its state, its spend against budget and its next move."
+      },
+      "bridge": {
+        "title": "Personas bridge",
+        "paired": "Paired",
+        "pairedAgo": "Personas bridge paired · last answered {when}",
+        "down": "Personas bridge down",
+        "downClock": "Down: the clock stopped",
+        "notPaired": "Not paired",
+        "unknown": "Not read yet",
+        "mount": "No clock yet: the mount marks where it will hang.",
+        "handsPaired": "Hands: its last answer, {when} UTC ({ago})",
+        "handsDown": "Hands frozen at its last answer, {when} UTC",
+        "downDetail": "Paired before, silent since {when} UTC ({ago}). Nothing can be dispatched, polled or approved until it is paired again."
+      },
+      "wheel": {
+        "title": "The clock wheel: {hires, plural, one {# hire} other {# hires}} in {drawers, plural, one {# drawer} other {# drawers}} around the Personas bridge",
+        "titleEmpty": "The clock wheel, empty: no hire has a card yet",
+        "descNever": "No clock: the Personas bridge has never been paired.",
+        "descIdle": "The clock is answering; no cards stand on the rim yet.",
+        "descDrawer": "{name}: {count}, {need} need you",
+        "emptyPaired": "No cards on the rim yet. A hire's card stands here, in its role's drawer, the moment it is dispatched.",
+        "emptyUnpaired": "The rim stays empty until the bridge is paired and a role dispatches a hire."
+      },
+      "ring": {
+        "needs": "needs you",
+        "budget": "100% budget",
+        "budgetLine": "budget line",
+        "spend": "spend",
+        "state": "state"
+      },
+      "plates": {
+        "head": "Drawers",
+        "providerReported": "spend is provider-reported",
+        "hires": "{count, plural, one {hire} other {hires}}",
+        "appMasters": "{count, plural, one {App master} other {App masters}}",
+        "needs": "{count, plural, one {# needs you} other {# need you}}",
+        "noneNeed": "none need you",
+        "shown": "{count} shown",
+        "noLiveBudget": "no live budget",
+        "noLiveBudgetSpent": "{spent}, no live budget",
+        "opens": "Opens the drawer."
+      },
+      "drawer": {
+        "all": "Every hire",
+        "other": "More roles",
+        "gigs": "Gig hires",
+        "appmaster": "App masters",
+        "aria": "Drawer: {name}",
+        "wholeRack": "The whole rack",
+        "position": "Drawer {index} of {of}",
+        "prev": "‹ Previous drawer",
+        "next": "Next drawer ›",
+        "itsWedge": "its wedge of the wheel",
+        "kicker": "Drawer {n} · the time-card rack",
+        "kickerAll": "The time-card rack · all drawers",
+        "lead": "{count, plural, one {# card} other {# cards}} in this drawer. {spent} of {budget} this month, provider-reported.",
+        "leadAll": "The whole rack: {count, plural, one {# card} other {# cards}} in every drawer. {spent} of {budget} this month, provider-reported.",
+        "appMasterNote": "App masters own a whole application: each card carries its mandate rung, autopilot mode, memory and probation.",
+        "bayLabel": "Who needs you in this drawer, and its spend",
+        "whereAll": "on the rack",
+        "whereDrawer": "in this drawer",
+        "cards": "{count, plural, one {# card} other {# cards}} {where}.",
+        "needYou": "{count, plural, one {# needs you} other {# need you}}",
+        "nothingNeeds": "Nothing here needs you right now.",
+        "nothingNeedsDrawer": "Nothing in this drawer needs you right now.",
+        "needsFilter": "Needs you: filter by kind",
+        "showing": "Showing {shown} of {total} cards",
+        "bridgeDown": "The Personas bridge is down: {count, plural, one {# card} other {# cards}} {where} {count, plural, one {waits} other {wait}} on it.",
+        "stampClears": "Every card stamped “waits on the bridge” clears once it is paired."
+      },
+      "back": {
+        "toWheel": "Back to the wheel",
+        "to": "Back to {place}",
+        "generic": "Back",
+        "aria": "Evidence: {name}",
+        "title": "{name}: evidence"
+      },
+      "spend": {
+        "heading": "This month's spend · provider-reported",
+        "monthly": "Monthly spend · provider-reported",
+        "ofBudgets": "of {budget} in monthly budgets across {count, plural, one {# live hire} other {# live hires}}",
+        "barLabel": "This month's spend, one segment per hire, against the summed budgets",
+        "segLabel": "{name}: {spent} this month, provider-reported",
+        "hint": "Tap or tab to a segment to read whose it is.",
+        "dense": "{count} hires reported spend this month: each card carries its own figure.",
+        "thisMonth": "{spent} this month",
+        "openCard": "Open the card",
+        "nothingCosted": "Nothing costed yet (not $0):",
+        "hiresCount": "{count} hires",
+        "neverInvoice": "Never an invoice.",
+        "unmeasuredLabel": "Spend: nothing reported yet",
+        "nothingReported": "nothing reported yet",
+        "noBudget": "no budget to compare against",
+        "nothingThisMonth": "nothing spent this month",
+        "ofBudget": "{pct}% of the month's budget",
+        "providerReported": "provider-reported",
+        "lifetime": "Lifetime: {value}."
+      },
+      "punch": {
+        "never": "Never punched: never heard from",
+        "last": "Last punched {when}",
+        "noneAccepted": "no report accepted yet",
+        "lastAccepted": "last accepted {when}"
+      },
+      "status": {
+        "heading": "Status",
+        "heard": "Last heard from {ago} ({at} UTC)"
+      },
+      "connectors": {
+        "label": "Connectors by calls",
+        "byCalls": "Connectors by calls",
+        "none": "No connectors in the spec",
+        "noneInSpec": "No connectors in the spec.",
+        "noCalls": "no calls",
+        "notInSpec": "not in spec",
+        "noneRecorded": "no calls recorded"
+      },
+      "prob": {
+        "punched": "{done} of {total} days punched"
+      },
+      "rack": {
+        "step": "Step {n} of 4",
+        "exit": "Exit",
+        "probation": "probation",
+        "emptyPocket": "Empty pocket",
+        "exitsLabel": "Exits",
+        "exitsSub": "{count, plural, one {# card} other {# cards}} left the lifecycle: failed, rejected or retired. Kept on the rim as the record.",
+        "empty": {
+          "dispatched": "none dispatched right now",
+          "pending_approval": "none waiting for approval",
+          "onboarding": "none onboarding right now",
+          "active": "none active right now",
+          "failed": "none failed",
+          "rejected": "none rejected",
+          "retired": "none retired"
+        }
+      },
+      "tools": {
+        "label": "Sort and status filter",
+        "statusFilter": "Status filter: the lifecycle steps",
+        "all": "All",
+        "exits": "exits",
+        "sort": "Sort",
+        "sortLabel": "Sort within each rack"
+      },
+      "sort": {
+        "needs": "Needs you first",
+        "spend": "Spend, highest first",
+        "name": "Name",
+        "newest": "Newest first"
+      },
+      "wall": {
+        "heading": "The racks: every card in this drawer in its lifecycle step"
+      },
+      "card": {
+        "position": "Card {index} of {of}",
+        "prev": "‹ Previous card",
+        "next": "Next card ›",
+        "kickerFront": "Time card No. {no} · front",
+        "kickerBack": "Time card No. {no} · back",
+        "openRole": "Open the role",
+        "flip": "Turn the card over: evidence →",
+        "flipHint": "Metric by metric, connectors by calls, and the lifecycle ledger",
+        "flipHintAm": "Backbone rules, gates, the mandate rung and the probation countdown",
+        "gone": "This hire is no longer on the roster."
+      },
+      "ach": {
+        "heading": "Hired to achieve vs achieved",
+        "headingAm": "Hired to achieve vs achieved · {title}",
+        "vs": "Hired to achieve {target} · achieved {actual}",
+        "noData": "No data: {why}"
+      },
+      "metricState": {
+        "met": "met",
+        "missed": "missed",
+        "nodata": "no data"
+      },
+      "noData": {
+        "never_heard": "never heard from",
+        "none_accepted": "no report accepted yet",
+        "uncosted": "nothing costed yet: the provider reports $0 on subscription auth, which is not a measured zero",
+        "no_runs": "no runs yet",
+        "no_reading": "no reading for this metric"
+      },
+      "move": {
+        "heading": "The next move",
+        "headingNeeds": "The next move · needs you",
+        "nothing": "Nothing needs you on this hire."
+      },
+      "table": {
+        "metric": "Metric",
+        "target": "Target",
+        "actual": "Actual",
+        "state": "State"
+      },
+      "rule": {
+        "weight": "weight {weight}"
+      },
+      "ledger": {
+        "heading": "Lifecycle ledger",
+        "hint": "newest first, times in UTC",
+        "noPunch": "no punch",
+        "mint": "Dispatched: the hire was minted",
+        "pending": "Entered pending approval in Personas",
+        "decision": "Decision applied",
+        "report": "Last report received from Personas (accepted or not)",
+        "activity": "Last accepted activity",
+        "absent": {
+          "never_heard": "No report has ever been received: never heard from, which is not idle.",
+          "none_accepted": "Reports arrived, but none was accepted, so no activity is on record."
+        }
+      },
+      "event": {
+        "approved": "Approved in Personas",
+        "onboarding": "Moved to onboarding",
+        "activated": "Activated after probation",
+        "rejected": "Rejected in Personas",
+        "retired": "Retired",
+        "probation_review": "Probation review decided in Personas",
+        "other": "Decision applied: {event}",
+        "poll": "Personas poll: now {status}"
+      },
+      "ladder": {
+        "heading": "Mandate rung",
+        "hint": "0–4; 3 and 4 are never grantable",
+        "label": "Mandate ladder",
+        "held": "held",
+        "below": "below the held rung",
+        "notGranted": "not granted",
+        "neverGrantable": "never grantable",
+        "rung3": "Mandate rung 3: never grantable",
+        "rung4": "Mandate rung 4: never grantable"
+      },
+      "legend": {
+        "label": "Show one state on the wheel",
+        "show": "Show",
+        "all": "All",
+        "keyLabel": "How to read a card on the wheel",
+        "block": "block: its state · bar: spend this month against its own budget, provider-reported; the dashed ring is 100%",
+        "stub": "dashed stub: nothing costed yet, which is not $0",
+        "needs": "needs you",
+        "appMaster": "App master (square cap)"
+      },
+      "phase": {
+        "cutoff": "Waiting on the bridge",
+        "stuck": "Stuck",
+        "waiting": "Waiting to start",
+        "probation": "On probation",
+        "working": "Working",
+        "out": "Retired or turned down"
+      },
+      "phasePlural": {
+        "cutoff": "waiting on the bridge",
+        "stuck": "stuck",
+        "waiting": "waiting to start",
+        "probation": "on probation",
+        "working": "working",
+        "out": "retired or turned down"
+      },
+      "kindShort": {
+        "repair_bridge": "Bridge",
+        "approval_lapsed": "Lapsed approval",
+        "approve_in_personas": "Approval waiting",
+        "review_probation": "Probation review",
+        "check_reporter": "Reporter to check",
+        "redispatch": "Re-dispatch"
+      },
+      "reading": {
+        "empty": "Cards appear here as hires are dispatched.",
+        "defaultWide": "Point at a card to read it, or open a drawer: the plates around the wheel. Every card is also in its drawer.",
+        "defaultNarrow": "Point at a card to read it, or open a drawer: the numbered list below. Every card is also in its drawer.",
+        "uncosted": "{budget} budget, nothing costed yet",
+        "spend": "{spend} this month",
+        "clickCard": "click to open the card",
+        "tooClose": "{count} cards stand too close to aim at one: click to open the drawer and read them all.",
+        "someUncosted": "{count} not costed yet",
+        "allCosted": "every card costed",
+        "enterOpens": "Enter opens the drawer"
+      },
+      "keys": {
+        "wheelLabel": "Keys on the wheel",
+        "drawerLabel": "Keys in the drawer",
+        "cardLabel": "Keys on the card",
+        "backLabel": "Keys on the evidence",
+        "needsFilters": "needs filters",
+        "betweenDrawers": "between drawers",
+        "open": "open",
+        "clearFilters": "clear filters",
+        "backToWheel": "back to the wheel",
+        "betweenCards": "between cards",
+        "openCard": "open a card",
+        "drawers": "previous / next drawer",
+        "backTo": "back to {place}",
+        "prevNextCard": "previous / next card",
+        "backToFront": "back to the front of the card",
+        "throughEvidence": "through the evidence",
+        "tab": "move between controls",
+        "press": "press"
+      },
+      "stats": {
+        "hires": "hires on the wheel · {live} live, {gone} retired or turned down",
+        "needYou": "{count, plural, one {needs you} other {need you}}",
+        "of": "of {budget}",
+        "spent": "spent this month, provider-reported, never an invoice",
+        "uncosted": "not costed yet: nothing reported, not $0",
+        "appMasters": "{count, plural, one {App master} other {App masters}}",
+        "onProbation": "{count} on probation",
+        "noHires": "hires: none dispatched yet",
+        "noSpend": "spend: no hires, so no spend and no budget on record",
+        "noAppMasters": "App masters: none hired"
+      }
     }
   },
   "simulation": {

@@ -11,7 +11,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | Surface | Where | What it does |
 | --- | --- | --- |
 | **Agent fit** tab | Job detail modal (`app/features/library/jobs/JobsAgentFitTab.tsx`, 7th tab of `JobsPostingModal.tsx`) | Assess the role, edit the spec, dispatch, track the hire's status. Also points at the **App master** intake: owning a whole application is a different question from automating this job's tasks, and it needs an input this tab does not have (the codebase) — see [docs/features/app-master/README.md](../app-master/README.md) |
-| **Agents** nav module | Sidebar, hiring group (`app/features/agents-workforce/AgentsWorkforceTab.tsx`) | Roster of hired agents: status, spend vs budget, runs, connectors, expectations verdict |
+| **Agents** nav module | Sidebar, hiring group (`app/features/agents-workforce/AgentsWorkforceTab.tsx`) | The workforce as **"The Time-Card Rack"**: a Clock Wheel of hired agents (status, spend vs budget) you walk into, drawer by drawer, to a hire's card and its evidence; see [The workforce surface](#the-workforce-surface) |
 | **Personas bridge** card | Settings → Integrations (`app/features/settings/integrations/IntegrationsPersonasPanel.tsx`) | Two-phase human-approved pairing, base-URL override, disconnect |
 
 ## User flow
@@ -207,7 +207,8 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 5. **Counters flow back**: the hired persona reports executions/rollups/lifecycle events
    through `POST /api/agents/report/[token]`; the Agents module shows aggregates (runs,
    success rate, month spend vs budget, connector use) and a client-computed
-   "n/m expectations met" verdict (`agentsWorkforceLogic.expectationsVerdict`).
+   "n/m expectations met" verdict (`agentsWorkforceLogic.expectationsVerdict`), on a hire's
+   time card and its evidence level.
    `metricActual` maps a metric key onto that ledger, and a **cost** key is read as a
    rate or a total depending on its name: `cost_per_task` — the ceiling agentfit ships
    (`suggestedMonthlyUsd / 20`) — is spend ÷ runs, not the month's bill, because
@@ -473,13 +474,57 @@ happened, and it never moves for an unknown or retired token, so a hire whose to
 rotated stays at "never heard from" exactly like one that was never contacted. The roster
 renders it on the no-runs row (`agentsWorkforce.heardFrom` / `.neverHeardFrom`).
 
+### The workforce surface
+
+Hiring > Agents is **"The Time-Card Rack"**, the `agents-workforce-r2` contest winner (C/3,
+2026-10-01), ported onto the live roster. It replaced the six-column table and its row
+expansion: every behaviour they had lives on a level now. Behind `NEXT_PUBLIC_KP_AGENT_HIRING`,
+with the **In development** tag on the surface. The generic parts are the kit's scene layer
+(`app/_components/kit/scene`: `LevelTransition`, `ConditionMark`, `NamePlate`, `KeyHints`,
+`levelReduce`); the surface's own parts and the pure model live in
+`app/features/agents-workforce/`.
+
+| Level | What | Files |
+| --- | --- | --- |
+| **L0** the Clock Wheel | The Personas bridge is the time clock at the centre; every hire is a time card standing on its drawer's sector of the rim (a block = its state, a bar = this month's spend against **its own** budget, the dashed ring = 100 %, a coral diamond = needs you). Left: the one numeral and sentence ("N hires need you of M", or the empty state, or the bridge alarm), the **first-up** hire with its ONE control, and a queue per needs kind in the product's priority order. Under it: the bridge plate, the reading line, the state legend (a filter), the totals | `WorkforceWheel.tsx`, `WorkforceNeeds.tsx`, `WorkforceStats.tsx`, `wheelGeometry.ts` |
+| **L1** one drawer (or every hire) | The drawer's label and its wedge of the wheel, the bay (who needs you here, this month's spend as one segment per hire), the lifecycle step rail as the status filter, a sort, and one pocket per lifecycle step with the exits kept on the rim | `WorkforceDrawer.tsx`, `rackPack.ts` |
+| **L2** a time card's front | Mission, what it was hired to achieve vs achieved (met / missed / no data, with the reason), the next move with its ONE control, status and last punch, monthly spend, runs, connectors by calls; an App master adds its mandate, autopilot, memory chip and probation strip | `WorkforceHire.tsx` (`WorkforceFront`), `WorkforceCard.tsx` |
+| **L3** the back (evidence) | A task agent's metric table, or an App master's backbone (every rule's contribution, every gate), the probation countdown, the mandate ladder (rungs 3 and 4 never grantable), autopilot and memory; connectors; the **lifecycle ledger** | `WorkforceHire.tsx` (`WorkforceBack`) |
+
+- **Drawers are what the row really carries.** The roster row has no "role family", so a drawer is the role a hire was
+  dispatched for (`jobId` + `jobTitle`), plus two fixed ones: **gig hires** (no job, not an App master) and **App
+  masters**. The wheel's size must not depend on the roster, so at most 6 role drawers stand on it and the rest fold
+  into one "More roles" drawer (`groupDrawers`, `MAX_ROLE_DRAWERS`): at most 9 drawers at any roster size.
+- **The level machine** is the kit's (`workforceNav.ts` over `levelStack.ts`): a push opens a level as a circle growing
+  from what was touched, a pop closes onto it, the breadcrumb jumps, `[` `]` and the arrows step sideways (the next
+  drawer, the next card of the walk it was opened from). Covered levels stay mounted. No URL inbox: the tab has no
+  deep link into a level.
+- **Keys** (stated on screen at each level; no bare letters, the workspace owns `g`): `1`-`6` the needs filters, `↑` `↓`
+  between plates and cards, `Enter` opens, `Esc` goes up a level (at the wheel it clears the filters), `[` `]` and `←` `→`
+  sideways. Every hover reveal is also on focus and in the line under the wheel; every card is also in its drawer.
+- **The honest-absence rules** are the product's, kept at every level: no runs yet is not 0 % success; never heard from is
+  not idle; a metric with no data is neither met nor missed (and says why: never heard, none accepted, nothing costed,
+  no runs); an incomplete backbone verdict is a dash, never a soft pass; an uncosted hire is a dashed empty bar, not a
+  zero-length one; spend is the provider's own report and says so wherever it appears.
+- **Empty states are chain-aware and distinct**: bridge never paired (a stopped mount where the clock will hang, points at
+  Settings > Integrations), paired with nothing hired (a live clock over an empty rim, points at Browse roles), the bridge
+  dead with hires (the alarm is the loudest fact, every card cut from the clock, no first-up: the bridge outranks every move).
+- **Controls and answers** (`useHireControl.ts`) are exactly the roster's: Refresh answers updated / unchanged / cannot
+  poll / a coded refusal in the reader's language; Re-dispatch mints a NEW hire through `POST /api/agents/dispatch` and says
+  when a live hire already exists. One instance per surface, so a note written on a card is still there when the reader walks
+  back.
+- **Tests**: `workforceModel.test.ts` (drawers capped, phases, spend honesty, wheel angles, urgency, ledger, verdict, no-data
+  reasons), `workforceNav.test.ts`, `wheelGeometry.test.ts` (stage layout, hit test, rack packing), `workforceCopy.test.ts` (every
+  closed vocabulary has words in all four catalogs, no orphan keys); `agentsWorkforceLogic.test.ts` still owns the moves.
+
 ### The roster's next move
 
 Every roster row answers "what does this hire need from me" with ONE derived move, and
-puts that move's one control on the summary row (no expanding). `nextAction(agent,
+puts that move's one control on the hire's card (no opening it first). `nextAction(agent,
 bridge, now)` in `app/features/agents-workforce/agentsWorkforceLogic.ts` computes it
 client-side from the row; `needsYou(agents, bridge, now)` counts the moves per kind for
-the **"Needs you"** strip above the table, whose chips filter the table to one kind.
+the **"Needs you"** queues beside the wheel, whose top press filters the wheel (and `1`-`6`) to one kind and whose
+door opens the rack on that kind.
 The vocabulary is closed (`NEXT_ACTION_KINDS`), tried in declared priority:
 
 | Move | When | Control on the row |
@@ -575,7 +620,18 @@ re-dispatch implies none, because a dead hire has no exits. Pinned by
   (`app/_lib/app-master/backbone.test.ts`), but a change still has to be made twice.
 - **Roster lifecycle history**: `GET /api/agents` serves aggregates plus the newest
   lifecycle decision and the approval entry stamp, not the per-agent `agent_activity`
-  rows. The row detail shows metrics vs actuals, not the event log.
+  rows. The evidence level's ledger therefore lists what the row carries (the mint, the
+  approval stamp, the last applied decision, the last report heard and the last accepted
+  activity), not the full event log.
+- **The wheel at 100+ agents is not solved.** The owner reviewed the contest winner (2026-10-01) and found its level 0 still
+  does not keep full clarity once a workforce is that large: the wheel keeps its size (drawers never grow past 9, so 14,
+  120 and 400 hires all draw and stay interactive, measured in the port), but the "More roles" drawer folds most of a
+  large roster into one wedge, and its cards stand too close to read one by one. The round that was meant to build a more
+  abstract, size-independent level 0 did not (the seats mostly redrew their existing one), so this stays open: a parent
+  layer that aggregates by something the row carries (state x role, spend as terrain) with the drawers as its level 1.
+- **No role family on the row.** The prototype grouped hires by a hand-made family; the product groups by role (and gig /
+  App master), so there are as many drawers as there are roles (capped at 6 + More roles), named by the job title.
+- **The prototype's sample-size switch and synthetic hires are not shipped** (they were prototype chrome).
 - **An extended probation has no second clock**: once a `probation_review:extended` lands
   after the due day, the row stops asking for a review; the extension's length is not
   reported, so no next due date is shown.

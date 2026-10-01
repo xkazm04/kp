@@ -11069,20 +11069,11 @@
     "emptyNoneTitle": "Aucun agent recruté pour l’instant",
     "emptyNoneBody": "Ouvrez un poste, lancez son onglet « Adéquation agent » et envoyez la spécification. Le recrutement apparaîtra ici avec des compteurs en direct.",
     "emptyNoneLink": "Parcourir les postes",
-    "col": {
-      "agent": "Agent",
-      "role": "Poste",
-      "spend": "Dépense mensuelle",
-      "runs": "Exécutions",
-      "connectors": "Connecteurs",
-      "expectations": "Attentes"
-    },
     "spendNote": "La dépense est auto-déclarée par le CLI du fournisseur. Elle peut afficher {zero} avec une authentification par abonnement.",
     "spendOfBudget": "{spent} sur {budget}",
     "runsCount": "{count, plural, one {# exécution} other {# exécutions}}",
     "successRate": "{rate} % de réussite",
     "noRuns": "Pas encore d’exécutions",
-    "heardFrom": "Dernier signal {when}",
     "neverHeardFrom": "Aucun signal reçu",
     "moreConnectors": "+{count} de plus",
     "expectationsMet": "{met}/{total} atteintes",
@@ -11147,7 +11138,6 @@
     "nextAction": {
       "stripLabel": "À traiter",
       "showAll": "Tout afficher",
-      "filtered": "{shown} agents affichés sur {total}",
       "soonest": "la prochaine expire dans {hours, plural, one {# heure} other {# heures}}",
       "chip": {
         "repair_bridge": "{count, plural, one {# agent attend} other {# agents attendent}} la connexion Personas",
@@ -11175,6 +11165,368 @@
       "redispatchDone": "Renvoyé. Le nouveau recrutement figure dans l’effectif.",
       "redispatchExisting": "Un recrutement actif couvre déjà ce poste, rien de nouveau n’a été envoyé.",
       "redispatchFailed": "Impossible de renvoyer ce recrutement. Veuillez réessayer."
+    },
+    "wk": {
+      "crumbRoot": "Agents",
+      "crumbEvidence": "Preuves",
+      "crumbsLabel": "Où vous êtes",
+      "floorLabel": "L’effectif",
+      "queuesLabel": "Ce qui a besoin de vous, par type, par ordre de priorité",
+      "calmBody": "Aucun agent n’attend un geste de votre part. Le cadran montre qui travaille, ce que chacun dépense et qui est en période d’essai.",
+      "firstUp": "En premier",
+      "more": "+{count} de plus",
+      "checkedInPersonas": "vérifié dans l’application Personas",
+      "showInRack": "{count, plural, one {Le voir dans le casier} =2 {Voir les deux dans le casier} other {Voir les {count} dans le casier}}",
+      "waitsOnBridge": "attend le pont",
+      "noControl": "Pas de commande pour cette étape : la remontée se vérifie dans l’application Personas.",
+      "cardNo": "N° {no}",
+      "runs": "Exécutions",
+      "expectations": "Attentes",
+      "backbone": "Socle de performance",
+      "gates": "Portes",
+      "probation": "Période d’essai",
+      "probationHint": "une case par jour, poinçonnée à mesure qu’il passe",
+      "noProbation": "Aucune fenêtre d’essai enregistrée.",
+      "autopilotMemory": "Pilote automatique et mémoire",
+      "autopilotUnreported": "Pilote automatique non rapporté",
+      "whatIsThis": "qu’est-ce que c’est ?",
+      "noMemory": "Aucune mémoire de persona rapportée.",
+      "liveOf": "{live} sur {total} en service",
+      "hero": {
+        "need": "{count, plural, one {agent a besoin de vous} other {agents ont besoin de vous}}",
+        "of": "sur {total}",
+        "nothing": "Rien n’a besoin de vous pour l’instant",
+        "allWhere": "Chaque agent est là où il doit être.",
+        "eachDiamond": "Chacun est un losange corail sur le cadran.",
+        "bridgeDown": "Le pont Personas est hors service : {waiting} sur {total} {waiting, plural, one {agent attend} other {agents attendent}} après lui.",
+        "reconnects": "Chaque carte détachée de l’horloge se reconnecte dès que le pont est appairé."
+      },
+      "hand": {
+        "start": "a besoin de vous, commencez ici",
+        "bridgeFirst": "le pont d’abord, le reste ensuite",
+        "calm": "rien n’a besoin de vous, commencez où vous voulez"
+      },
+      "steps": {
+        "handPaired": "l’horloge répond ; personne n’est recruté",
+        "handUnpaired": "rien ne peut encore avoir besoin de vous",
+        "pairTitle": "Appairer le pont Personas",
+        "pairBody": "Paramètres → Intégrations. D’ici là, rien ne peut être envoyé, interrogé ni approuvé.",
+        "pairDone": "Appairé : il a répondu pour la dernière fois {when}.",
+        "dispatchTitle": "Envoyer un agent depuis un poste",
+        "dispatchBody": "Ouvrez un poste et lancez son onglet « Adéquation agent ». La spécification part chez Personas pour approbation.",
+        "cardTitle": "Sa carte se place sur le cadran",
+        "cardBody": "Dans le tiroir de son poste, avec son statut, ses dépenses par rapport au budget et sa prochaine étape."
+      },
+      "bridge": {
+        "title": "Pont Personas",
+        "paired": "Appairé",
+        "pairedAgo": "Pont Personas appairé · dernière réponse {when}",
+        "down": "Pont Personas hors service",
+        "downClock": "Hors service : l’horloge est arrêtée",
+        "notPaired": "Non appairé",
+        "unknown": "Pas encore lu",
+        "mount": "Pas encore d’horloge : la fixation marque où elle sera accrochée.",
+        "handsPaired": "Aiguilles : sa dernière réponse, {when} UTC ({ago})",
+        "handsDown": "Aiguilles figées sur sa dernière réponse, {when} UTC",
+        "downDetail": "Appairé auparavant, silencieux depuis {when} UTC ({ago}). Rien ne peut être envoyé, interrogé ni approuvé tant qu’il n’est pas de nouveau appairé."
+      },
+      "wheel": {
+        "title": "Le cadran : {hires, plural, one {# agent} other {# agents}} dans {drawers, plural, one {# tiroir} other {# tiroirs}} autour du pont Personas",
+        "titleEmpty": "Le cadran est vide : aucun agent n’a encore de carte",
+        "descNever": "Pas d’horloge : le pont Personas n’a jamais été appairé.",
+        "descIdle": "L’horloge répond ; aucune carte ne se tient encore sur le bord.",
+        "descDrawer": "{name} : {count}, {need} ont besoin de vous",
+        "emptyPaired": "Pas encore de cartes sur le bord. La carte d’un agent se place ici, dans le tiroir de son poste, dès qu’il est envoyé.",
+        "emptyUnpaired": "Le bord reste vide tant que le pont n’est pas appairé et qu’un poste n’a pas envoyé d’agent."
+      },
+      "ring": {
+        "needs": "a besoin de vous",
+        "budget": "100 % du budget",
+        "budgetLine": "ligne de budget",
+        "spend": "dépenses",
+        "state": "statut"
+      },
+      "plates": {
+        "head": "Tiroirs",
+        "providerReported": "les dépenses sont déclarées par le fournisseur",
+        "hires": "{count, plural, one {agent} other {agents}}",
+        "appMasters": "{count, plural, one {App master} other {App masters}}",
+        "needs": "{count, plural, one {# a besoin de vous} other {# ont besoin de vous}}",
+        "noneNeed": "personne n’a besoin de vous",
+        "shown": "{count} affichés",
+        "noLiveBudget": "aucun budget actif",
+        "noLiveBudgetSpent": "{spent}, aucun budget actif",
+        "opens": "Ouvre le tiroir."
+      },
+      "drawer": {
+        "all": "Tous les agents",
+        "other": "Autres postes",
+        "gigs": "Agents en mission",
+        "appmaster": "App masters",
+        "aria": "Tiroir : {name}",
+        "wholeRack": "Tout le casier",
+        "position": "Tiroir {index} sur {of}",
+        "prev": "‹ Tiroir précédent",
+        "next": "Tiroir suivant ›",
+        "itsWedge": "sa part du cadran",
+        "kicker": "Tiroir {n} · le casier de cartes de pointage",
+        "kickerAll": "Le casier de cartes de pointage · tous les tiroirs",
+        "lead": "{count, plural, one {# carte} other {# cartes}} dans ce tiroir. {spent} sur {budget} ce mois-ci, déclarés par le fournisseur.",
+        "leadAll": "Tout le casier : {count, plural, one {# carte} other {# cartes}} dans tous les tiroirs. {spent} sur {budget} ce mois-ci, déclarés par le fournisseur.",
+        "appMasterNote": "Les App masters possèdent toute une application : chaque carte porte son échelon de mandat, son mode de pilote automatique, sa mémoire et sa période d’essai.",
+        "bayLabel": "Qui a besoin de vous dans ce tiroir, et ses dépenses",
+        "whereAll": "dans le casier",
+        "whereDrawer": "dans ce tiroir",
+        "cards": "{count, plural, one {# carte} other {# cartes}} {where}.",
+        "needYou": "{count, plural, one {# a besoin de vous} other {# ont besoin de vous}}",
+        "nothingNeeds": "Rien ici n’a besoin de vous pour l’instant.",
+        "nothingNeedsDrawer": "Rien dans ce tiroir n’a besoin de vous pour l’instant.",
+        "needsFilter": "Ce qui a besoin de vous : filtrer par type",
+        "showing": "{shown} cartes affichées sur {total}",
+        "bridgeDown": "Le pont Personas est hors service : {count, plural, one {# carte attend} other {# cartes attendent}} après lui {where}.",
+        "stampClears": "Chaque carte tamponnée « attend le pont » se libère dès que le pont est appairé."
+      },
+      "back": {
+        "toWheel": "Retour au cadran",
+        "to": "Retour à {place}",
+        "generic": "Retour",
+        "aria": "Preuves : {name}",
+        "title": "{name} : preuves"
+      },
+      "spend": {
+        "heading": "Dépenses du mois · déclarées par le fournisseur",
+        "monthly": "Dépenses mensuelles · déclarées par le fournisseur",
+        "ofBudgets": "sur {budget} de budgets mensuels pour {count, plural, one {# agent actif} other {# agents actifs}}",
+        "barLabel": "Dépenses du mois, un segment par agent, face à la somme des budgets",
+        "segLabel": "{name} : {spent} ce mois-ci, déclarés par le fournisseur",
+        "hint": "Touchez un segment ou allez-y avec Tab pour lire à qui il appartient.",
+        "dense": "{count} agents ont déclaré des dépenses ce mois-ci : chaque carte porte son propre chiffre.",
+        "thisMonth": "{spent} ce mois-ci",
+        "openCard": "Ouvrir la carte",
+        "nothingCosted": "Rien de facturé pour l’instant (pas 0 $) :",
+        "hiresCount": "{count} agents",
+        "neverInvoice": "Jamais une facture.",
+        "unmeasuredLabel": "Dépenses : rien de déclaré pour l’instant",
+        "nothingReported": "rien de déclaré pour l’instant",
+        "noBudget": "pas de budget de comparaison",
+        "nothingThisMonth": "rien dépensé ce mois-ci",
+        "ofBudget": "{pct} % du budget du mois",
+        "providerReported": "déclaré par le fournisseur",
+        "lifetime": "Depuis le début : {value}."
+      },
+      "punch": {
+        "never": "Jamais pointé : aucun signal reçu",
+        "last": "Dernier pointage {when}",
+        "noneAccepted": "aucune remontée acceptée pour l’instant",
+        "lastAccepted": "dernière acceptée {when}"
+      },
+      "status": {
+        "heading": "Statut",
+        "heard": "Dernier signal {ago} ({at} UTC)"
+      },
+      "connectors": {
+        "label": "Connecteurs par nombre d’appels",
+        "byCalls": "Connecteurs par nombre d’appels",
+        "none": "Aucun connecteur dans la spécification",
+        "noneInSpec": "Aucun connecteur dans la spécification.",
+        "noCalls": "aucun appel",
+        "notInSpec": "hors spécification",
+        "noneRecorded": "aucun appel enregistré"
+      },
+      "prob": {
+        "punched": "{done} jours sur {total} poinçonnés"
+      },
+      "rack": {
+        "step": "Étape {n} sur 4",
+        "exit": "Sortie",
+        "probation": "essai",
+        "emptyPocket": "Case vide",
+        "exitsLabel": "Sorties",
+        "exitsSub": "{count, plural, one {# carte a quitté} other {# cartes ont quitté}} le cycle de vie : échec, rejet ou retrait. Gardées sur le bord comme archive.",
+        "empty": {
+          "dispatched": "personne d’envoyé en ce moment",
+          "pending_approval": "personne n’attend d’approbation",
+          "onboarding": "personne en onboarding en ce moment",
+          "active": "personne d’actif en ce moment",
+          "failed": "aucun échec",
+          "rejected": "aucun rejet",
+          "retired": "aucun retrait"
+        }
+      },
+      "tools": {
+        "label": "Tri et filtre de statut",
+        "statusFilter": "Filtre de statut : les étapes du cycle de vie",
+        "all": "Tous",
+        "exits": "sorties",
+        "sort": "Trier",
+        "sortLabel": "Trier dans chaque casier"
+      },
+      "sort": {
+        "needs": "Ceux qui ont besoin de vous d’abord",
+        "spend": "Dépenses, les plus élevées d’abord",
+        "name": "Nom",
+        "newest": "Les plus récents d’abord"
+      },
+      "wall": {
+        "heading": "Les casiers : chaque carte de ce tiroir à son étape du cycle de vie"
+      },
+      "card": {
+        "position": "Carte {index} sur {of}",
+        "prev": "‹ Carte précédente",
+        "next": "Carte suivante ›",
+        "kickerFront": "Carte de pointage n° {no} · recto",
+        "kickerBack": "Carte de pointage n° {no} · verso",
+        "openRole": "Ouvrir le poste",
+        "flip": "Retourner la carte : preuves →",
+        "flipHint": "Métrique par métrique, connecteurs par appels et journal du cycle de vie",
+        "flipHintAm": "Règles du socle, portes, échelon de mandat et décompte de la période d’essai",
+        "gone": "Cet agent n’est plus dans la liste."
+      },
+      "ach": {
+        "heading": "À atteindre vs atteint",
+        "headingAm": "À atteindre vs atteint · {title}",
+        "vs": "À atteindre {target} · atteint {actual}",
+        "noData": "Pas de données : {why}"
+      },
+      "metricState": {
+        "met": "atteint",
+        "missed": "manqué",
+        "nodata": "pas de données"
+      },
+      "noData": {
+        "never_heard": "aucun signal reçu",
+        "none_accepted": "aucune remontée acceptée pour l’instant",
+        "uncosted": "rien de facturé pour l’instant : le fournisseur déclare 0 $ avec une authentification par abonnement, ce qui n’est pas un zéro mesuré",
+        "no_runs": "pas encore d’exécutions",
+        "no_reading": "aucune mesure pour cette métrique"
+      },
+      "move": {
+        "heading": "La prochaine étape",
+        "headingNeeds": "La prochaine étape · a besoin de vous",
+        "nothing": "Rien n’a besoin de vous pour cet agent."
+      },
+      "table": {
+        "metric": "Métrique",
+        "target": "Cible",
+        "actual": "Réel",
+        "state": "Statut"
+      },
+      "rule": {
+        "weight": "poids {weight}"
+      },
+      "ledger": {
+        "heading": "Journal du cycle de vie",
+        "hint": "le plus récent d’abord, heures en UTC",
+        "noPunch": "aucun pointage",
+        "mint": "Envoyé : l’agent a été créé",
+        "pending": "Entré en attente d’approbation dans Personas",
+        "decision": "Décision appliquée",
+        "report": "Dernière remontée reçue de Personas (acceptée ou non)",
+        "activity": "Dernière activité acceptée",
+        "absent": {
+          "never_heard": "Aucune remontée n’a jamais été reçue : aucun signal, ce qui ne veut pas dire inactif.",
+          "none_accepted": "Des remontées sont arrivées, mais aucune n’a été acceptée, donc aucune activité n’est enregistrée."
+        }
+      },
+      "event": {
+        "approved": "Approuvé dans Personas",
+        "onboarding": "Passé en onboarding",
+        "activated": "Activé après la période d’essai",
+        "rejected": "Rejeté dans Personas",
+        "retired": "Retiré",
+        "probation_review": "Bilan de la période d’essai décidé dans Personas",
+        "other": "Décision appliquée : {event}",
+        "poll": "Interrogation de Personas : maintenant {status}"
+      },
+      "ladder": {
+        "heading": "Échelon de mandat",
+        "hint": "0–4 ; 3 et 4 ne sont jamais accordables",
+        "label": "Échelle de mandat",
+        "held": "accordé",
+        "below": "sous l’échelon accordé",
+        "notGranted": "non accordé",
+        "neverGrantable": "jamais accordable",
+        "rung3": "Échelon de mandat 3 : jamais accordable",
+        "rung4": "Échelon de mandat 4 : jamais accordable"
+      },
+      "legend": {
+        "label": "Montrer un seul statut sur le cadran",
+        "show": "Montrer",
+        "all": "Tous",
+        "keyLabel": "Comment lire une carte sur le cadran",
+        "block": "bloc : son statut · barre : dépenses du mois face à son propre budget, déclarées par le fournisseur ; l’anneau en pointillés vaut 100 %",
+        "stub": "tronçon en pointillés : rien de facturé pour l’instant, ce qui n’est pas 0 $",
+        "needs": "a besoin de vous",
+        "appMaster": "App master (embout carré)"
+      },
+      "phase": {
+        "cutoff": "Attend le pont",
+        "stuck": "Bloqué",
+        "waiting": "Attend de démarrer",
+        "probation": "En période d’essai",
+        "working": "Au travail",
+        "out": "Retiré ou refusé"
+      },
+      "phasePlural": {
+        "cutoff": "attendent le pont",
+        "stuck": "bloqués",
+        "waiting": "attendent de démarrer",
+        "probation": "en période d’essai",
+        "working": "au travail",
+        "out": "retirés ou refusés"
+      },
+      "kindShort": {
+        "repair_bridge": "Pont",
+        "approval_lapsed": "Approbation caduque",
+        "approve_in_personas": "Approbation en attente",
+        "review_probation": "Bilan d’essai",
+        "check_reporter": "Remontée à vérifier",
+        "redispatch": "Renvoyer"
+      },
+      "reading": {
+        "empty": "Les cartes apparaissent ici à mesure que les agents sont envoyés.",
+        "defaultWide": "Pointez une carte pour la lire, ou ouvrez un tiroir : les plaques autour du cadran. Chaque carte est aussi dans son tiroir.",
+        "defaultNarrow": "Pointez une carte pour la lire, ou ouvrez un tiroir : la liste numérotée ci-dessous. Chaque carte est aussi dans son tiroir.",
+        "uncosted": "budget {budget}, rien de facturé pour l’instant",
+        "spend": "{spend} ce mois-ci",
+        "clickCard": "cliquez pour ouvrir la carte",
+        "tooClose": "{count} cartes sont trop rapprochées pour en viser une : cliquez pour ouvrir le tiroir et les lire toutes.",
+        "someUncosted": "{count} pas encore facturés",
+        "allCosted": "chaque carte est facturée",
+        "enterOpens": "Entrée ouvre le tiroir"
+      },
+      "keys": {
+        "wheelLabel": "Touches sur le cadran",
+        "drawerLabel": "Touches dans le tiroir",
+        "cardLabel": "Touches sur la carte",
+        "backLabel": "Touches sur les preuves",
+        "needsFilters": "filtres de besoins",
+        "betweenDrawers": "entre les tiroirs",
+        "open": "ouvrir",
+        "clearFilters": "effacer les filtres",
+        "backToWheel": "retour au cadran",
+        "betweenCards": "entre les cartes",
+        "openCard": "ouvrir une carte",
+        "drawers": "tiroir précédent / suivant",
+        "backTo": "retour à {place}",
+        "prevNextCard": "carte précédente / suivante",
+        "backToFront": "retour au recto de la carte",
+        "throughEvidence": "parcourir les preuves",
+        "tab": "passer d’une commande à l’autre",
+        "press": "activer"
+      },
+      "stats": {
+        "hires": "agents sur le cadran · {live} en service, {gone} retirés ou refusés",
+        "needYou": "{count, plural, one {a besoin de vous} other {ont besoin de vous}}",
+        "of": "sur {budget}",
+        "spent": "dépensé ce mois-ci, déclaré par le fournisseur, jamais une facture",
+        "uncosted": "pas encore facturés : rien de déclaré, pas 0 $",
+        "appMasters": "{count, plural, one {App master} other {App masters}}",
+        "onProbation": "{count} en période d’essai",
+        "noHires": "agents : aucun envoyé pour l’instant",
+        "noSpend": "dépenses : aucun agent, donc ni dépenses ni budget enregistrés",
+        "noAppMasters": "App masters : aucun recruté"
+      }
     }
   },
   "simulation": {

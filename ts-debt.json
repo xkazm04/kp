@@ -39,7 +39,7 @@
       "why": "Operator-supplied brand and customer logo URLs, which are arbitrary external hosts rather than bundled assets, so next/image would need every one of them in remotePatterns. Retired by routing tenant logos through a first-party image proxy."
     },
     "eslint:i18next/no-literal-string": {
-      "max": 2,
+      "max": 1,
       "why": "One deliberately English-only surface (app/trust) and one fold glyph that is punctuation rather than copy. Both carry their reason at the site. Retired when /trust is localized; the glyph one by making the character a named constant, which is structurally invisible to the rule."
     },
     "eslint:react-hooks/refs": {

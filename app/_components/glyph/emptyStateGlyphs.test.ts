@@ -2,10 +2,10 @@
 // traced glyph, not a lucide icon.
 //
 // glyphsHaveConsumers prevents orphan art; this prevents a live empty state
-// from ignoring art that exists. Agents' empty ChainEmptyState still uses
-// lucide Bot because there is no agents glyph — it is not a registry tab, so
-// it is out of scope. Pipeline is the exemplar board (surface doctrine) and
-// settings tabs have no art; both are allowlisted.
+// from ignoring art that exists. Agents' empty states are drawn by the Clock
+// Wheel itself (no ChainEmptyState since the Time-Card Rack port, 2026-10-01);
+// it is not a registry tab either way. Pipeline is the exemplar board (surface
+// doctrine) and settings tabs have no art; both are allowlisted.
 //
 //   npm run test:unit
 import { test } from "node:test";
@@ -85,7 +85,8 @@ const files = sourceFiles(APP_DIR).map((path) => ({ path, text: readFileSync(pat
 test("self-check: the scan sees ChainEmptyState and MotionizedGlyph call sites and the registry", () => {
   const sites = files.flatMap((f) => chainEmptyElements(f.text));
   const glyphs = files.reduce((n, f) => n + (f.text.split("<MotionizedGlyph").length - 1), 0);
-  assert.ok(sites.length >= 4, `expected ChainEmptyState call sites, found ${sites.length}`);
+  // 3 since the Agents empty state became the Clock Wheel's own (the Time-Card Rack port, 2026-10-01).
+  assert.ok(sites.length >= 3, `expected ChainEmptyState call sites, found ${sites.length}`);
   // 11 since the Channels "Intake Studio" empty state left with its view (kit promotion, 2026-09-25).
   assert.ok(glyphs >= 11, `expected MotionizedGlyph render sites, found ${glyphs}`);
   assert.ok(Object.keys(GLYPH_BY_TAB).length >= 8, "registry is empty — the gate would pass vacuously");
@@ -110,11 +111,10 @@ test("unallowlisted ChainEmptyState on a registry tab must pass glyph or tab, no
   );
 });
 
-test("Agents empty is out of scope (no agents glyph) and pipeline is allowlisted", () => {
+test("Agents empty is out of scope (the wheel draws its own) and pipeline is allowlisted", () => {
   const agents = files.find((f) => f.path.includes(`${sep}agents-workforce${sep}AgentsWorkforceTab.tsx`));
   assert.ok(agents, "AgentsWorkforceTab.tsx not found");
-  const agentEls = chainEmptyElements(agents.text);
-  assert.ok(agentEls.some(hasLucideIcon), "Agents empty still uses lucide Bot — that is allowed until it has art");
+  assert.deepEqual(chainEmptyElements(agents.text), [], "Agents empty states are the Clock Wheel's own, not a ChainEmptyState");
   assert.equal(tabForFile(agents.path), undefined);
 
   const pipelineHit = files.some((f) => isAllowlisted(f.path) && /features[/\\]hiring[/\\]pipeline[/\\]/.test(f.path));

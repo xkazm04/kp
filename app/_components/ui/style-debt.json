@@ -344,19 +344,6 @@
       "bare-rounded": 5,
       "literal-page-header": 1
     },
-    "features/agents-workforce/AgentsWorkforceRoster.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 1,
-      "raw-table": 1
-    },
-    "features/agents-workforce/AgentsWorkforceRow.tsx": {
-      "raw-text-size": 25,
-      "raw-stone-text": 3,
-      "raw-button": 2
-    },
-    "features/agents-workforce/AgentsWorkforceTab.tsx": {
-      "raw-text-size": 2
-    },
     "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
       "raw-text-size": 5,
       "raw-button": 2

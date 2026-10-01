@@ -67,9 +67,6 @@
       "panel": 2,
       "rawDate": 1
     },
-    "features/agents-workforce/AgentsWorkforceRoster.tsx": {
-      "metaLabel": 1
-    },
     "features/hiring/channels/ChannelsEdgeCard.tsx": {
       "panel": 1
     },

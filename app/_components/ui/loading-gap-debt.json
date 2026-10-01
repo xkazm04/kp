@@ -15,9 +15,6 @@
     "then undeclared, and the next silent box to arrive there is a red build."
   ],
   "ceilings": {
-    "features/agents-workforce/AgentsWorkforceTab.tsx": {
-      "blockGap": 1
-    },
     "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
       "blockGap": 1
     },

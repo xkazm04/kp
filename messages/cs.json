@@ -11069,20 +11069,11 @@
     "emptyNoneTitle": "Zatím žádní najatí agenti",
     "emptyNoneBody": "Otevřete pozici, spusťte kartu Vhodnost agenta a vyšlete specifikaci. Najatý agent se objeví tady s živými počitadly.",
     "emptyNoneLink": "Procházet pozice",
-    "col": {
-      "agent": "Agent",
-      "role": "Pozice",
-      "spend": "Měsíční útrata",
-      "runs": "Běhy",
-      "connectors": "Konektory",
-      "expectations": "Očekávání"
-    },
     "spendNote": "Útratu hlásí sám poskytovatel (CLI). Při předplatném může ukazovat {zero}.",
     "spendOfBudget": "{spent} z {budget}",
     "runsCount": "{count, plural, one {# běh} few {# běhy} other {# běhů}}",
     "successRate": "úspěšnost {rate} %",
     "noRuns": "Zatím žádné běhy",
-    "heardFrom": "Naposledy se ozval {when}",
     "neverHeardFrom": "Nikdy se neozval",
     "moreConnectors": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
     "expectationsMet": "{met}/{total} splněno",
@@ -11147,7 +11138,6 @@
     "nextAction": {
       "stripLabel": "Vyžaduje vaši pozornost",
       "showAll": "Zobrazit vše",
-      "filtered": "Zobrazeno {shown} z {total} agentů",
       "soonest": "nejbližší vyprší za {hours, plural, one {# hodinu} few {# hodiny} other {# hodin}}",
       "chip": {
         "repair_bridge": "{count, plural, one {# agent čeká} few {# agenti čekají} other {# agentů čeká}} na propojení s Personas",
@@ -11175,6 +11165,368 @@
       "redispatchDone": "Odesláno znovu. Nový nábor je v přehledu.",
       "redispatchExisting": "Tuto roli již pokrývá aktivní nábor, nic nového se neodeslalo.",
       "redispatchFailed": "Nábor se nepodařilo znovu odeslat. Zkuste to prosím znovu."
+    },
+    "wk": {
+      "crumbRoot": "Agenti",
+      "crumbEvidence": "Podklady",
+      "crumbsLabel": "Kde se nacházíte",
+      "floorLabel": "Pracovní síla",
+      "queuesLabel": "Co vás potřebuje, podle druhu a priority",
+      "calmBody": "Žádný agent od vás nečeká krok. Ciferník ukazuje, kdo pracuje, kolik kdo utrácí a kdo je ve zkušební době.",
+      "firstUp": "Na řadě",
+      "more": "+{count} dalších",
+      "checkedInPersonas": "kontroluje se v aplikaci Personas",
+      "showInRack": "{count, plural, one {Zobrazit ho v regálu} =2 {Zobrazit oba v regálu} few {Zobrazit všechny {count} v regálu} other {Zobrazit všech {count} v regálu}}",
+      "waitsOnBridge": "čeká na most",
+      "noControl": "K tomuto kroku není ovládací prvek: hlášení se kontroluje v aplikaci Personas.",
+      "cardNo": "Č. {no}",
+      "runs": "Běhy",
+      "expectations": "Očekávání",
+      "backbone": "Páteř výkonu",
+      "gates": "Brány",
+      "probation": "Zkušební doba",
+      "probationHint": "jedno políčko na den, proražené, jakmile den uplyne",
+      "noProbation": "Zkušební doba není zaznamenána.",
+      "autopilotMemory": "Autopilot a paměť",
+      "autopilotUnreported": "Autopilot nehlášen",
+      "whatIsThis": "co to je?",
+      "noMemory": "Žádná paměť persony nebyla nahlášena.",
+      "liveOf": "{live} z {total} aktivních",
+      "hero": {
+        "need": "{count, plural, one {agent vás potřebuje} few {agenti vás potřebují} other {agentů vás potřebuje}}",
+        "of": "z {total}",
+        "nothing": "Právě vás nic nepotřebuje",
+        "allWhere": "Každý agent je tam, kde má být.",
+        "eachDiamond": "Každý je na ciferníku korálový kosočtverec.",
+        "bridgeDown": "Most k Personas je mimo provoz: na něj čeká {waiting} z {total} {waiting, plural, one {agenta} few {agentů} other {agentů}}.",
+        "reconnects": "Každá karta odpojená od hodin se znovu připojí, jakmile bude most spárován."
+      },
+      "hand": {
+        "start": "potřebují vás, začněte tady",
+        "bridgeFirst": "nejdřív most, pak ostatní",
+        "calm": "nic vás nepotřebuje, začněte kdekoli"
+      },
+      "steps": {
+        "handPaired": "hodiny odpovídají; nikdo není najat",
+        "handUnpaired": "zatím vás nic nemůže potřebovat",
+        "pairTitle": "Spárujte most k Personas",
+        "pairBody": "Nastavení → Integrace. Do té doby nelze nic vysílat, zjišťovat ani schvalovat.",
+        "pairDone": "Spárováno: naposledy odpověděl {when}.",
+        "dispatchTitle": "Vyšlete agenta z pozice",
+        "dispatchBody": "Otevřete pozici a spusťte kartu Vhodnost agenta. Zadání jde ke schválení do Personas.",
+        "cardTitle": "Jeho karta se objeví na ciferníku",
+        "cardBody": "V zásuvce jeho pozice, se stavem, útratou vůči rozpočtu a dalším krokem."
+      },
+      "bridge": {
+        "title": "Most k Personas",
+        "paired": "Spárováno",
+        "pairedAgo": "Most k Personas spárován · naposledy odpověděl {when}",
+        "down": "Most k Personas je mimo provoz",
+        "downClock": "Mimo provoz: hodiny stojí",
+        "notPaired": "Nespárováno",
+        "unknown": "Zatím nenačteno",
+        "mount": "Zatím žádné hodiny: úchyt značí místo, kde budou viset.",
+        "handsPaired": "Ručičky: jeho poslední odpověď, {when} UTC ({ago})",
+        "handsDown": "Ručičky zamrzly na jeho poslední odpovědi, {when} UTC",
+        "downDetail": "Dříve spárováno, mlčí od {when} UTC ({ago}). Dokud se znovu nespáruje, nelze nic vysílat, zjišťovat ani schvalovat."
+      },
+      "wheel": {
+        "title": "Ciferník: {hires, plural, one {# agent} few {# agenti} other {# agentů}} v {drawers, plural, one {# zásuvce} few {# zásuvkách} other {# zásuvkách}} kolem mostu k Personas",
+        "titleEmpty": "Ciferník je prázdný: žádný agent zatím nemá kartu",
+        "descNever": "Žádné hodiny: most k Personas nebyl nikdy spárován.",
+        "descIdle": "Hodiny odpovídají; na okraji zatím nestojí žádné karty.",
+        "descDrawer": "{name}: {count}, {need} vás potřebuje",
+        "emptyPaired": "Na okraji zatím nejsou žádné karty. Karta agenta tu bude stát v zásuvce jeho pozice, jakmile bude vyslán.",
+        "emptyUnpaired": "Okraj zůstane prázdný, dokud se nespáruje most a pozice nevyšle agenta."
+      },
+      "ring": {
+        "needs": "potřebuje vás",
+        "budget": "100 % rozpočtu",
+        "budgetLine": "hranice rozpočtu",
+        "spend": "útrata",
+        "state": "stav"
+      },
+      "plates": {
+        "head": "Zásuvky",
+        "providerReported": "útratu hlásí poskytovatel",
+        "hires": "{count, plural, one {agent} few {agenti} other {agentů}}",
+        "appMasters": "{count, plural, one {App master} few {App masteři} other {App masterů}}",
+        "needs": "{count, plural, one {# vás potřebuje} few {# vás potřebují} other {# vás potřebuje}}",
+        "noneNeed": "nikdo vás nepotřebuje",
+        "shown": "{count} zobrazeno",
+        "noLiveBudget": "žádný aktivní rozpočet",
+        "noLiveBudgetSpent": "{spent}, žádný aktivní rozpočet",
+        "opens": "Otevře zásuvku."
+      },
+      "drawer": {
+        "all": "Všichni agenti",
+        "other": "Další pozice",
+        "gigs": "Agenti na zakázky",
+        "appmaster": "App masteři",
+        "aria": "Zásuvka: {name}",
+        "wholeRack": "Celý regál",
+        "position": "Zásuvka {index} z {of}",
+        "prev": "‹ Předchozí zásuvka",
+        "next": "Další zásuvka ›",
+        "itsWedge": "její výseč ciferníku",
+        "kicker": "Zásuvka {n} · regál docházkových karet",
+        "kickerAll": "Regál docházkových karet · všechny zásuvky",
+        "lead": "{count, plural, one {# karta} few {# karty} other {# karet}} v této zásuvce. {spent} z {budget} tento měsíc, podle hlášení poskytovatele.",
+        "leadAll": "Celý regál: {count, plural, one {# karta} few {# karty} other {# karet}} ve všech zásuvkách. {spent} z {budget} tento měsíc, podle hlášení poskytovatele.",
+        "appMasterNote": "App masteři vlastní celou aplikaci: každá karta nese stupeň mandátu, režim autopilota, paměť a zkušební dobu.",
+        "bayLabel": "Kdo vás v této zásuvce potřebuje a kolik utrácí",
+        "whereAll": "v regálu",
+        "whereDrawer": "v této zásuvce",
+        "cards": "{count, plural, one {# karta} few {# karty} other {# karet}} {where}.",
+        "needYou": "{count, plural, one {# vás potřebuje} few {# vás potřebují} other {# vás potřebuje}}",
+        "nothingNeeds": "Nic tady vás právě nepotřebuje.",
+        "nothingNeedsDrawer": "Nic v této zásuvce vás právě nepotřebuje.",
+        "needsFilter": "Co vás potřebuje: filtr podle druhu",
+        "showing": "Zobrazeno {shown} z {total} karet",
+        "bridgeDown": "Most k Personas je mimo provoz: {count, plural, one {# karta} few {# karty} other {# karet}} {where} na něj čeká.",
+        "stampClears": "Každá karta s razítkem „čeká na most“ se uvolní, jakmile bude most spárován."
+      },
+      "back": {
+        "toWheel": "Zpět na ciferník",
+        "to": "Zpět na {place}",
+        "generic": "Zpět",
+        "aria": "Podklady: {name}",
+        "title": "{name}: podklady"
+      },
+      "spend": {
+        "heading": "Útrata tento měsíc · hlásí poskytovatel",
+        "monthly": "Měsíční útrata · hlásí poskytovatel",
+        "ofBudgets": "z {budget} měsíčních rozpočtů u {count, plural, one {# aktivního agenta} few {# aktivních agentů} other {# aktivních agentů}}",
+        "barLabel": "Útrata tento měsíc, jeden úsek na agenta, vůči součtu rozpočtů",
+        "segLabel": "{name}: {spent} tento měsíc, podle hlášení poskytovatele",
+        "hint": "Klepněte na úsek nebo na něj přejděte tabulátorem a přečtěte, čí je.",
+        "dense": "Útratu tento měsíc nahlásilo {count} agentů: každá karta nese vlastní číslo.",
+        "thisMonth": "{spent} tento měsíc",
+        "openCard": "Otevřít kartu",
+        "nothingCosted": "Zatím nic nenaúčtováno (není to 0 $):",
+        "hiresCount": "{count} agentů",
+        "neverInvoice": "Nikdy to není faktura.",
+        "unmeasuredLabel": "Útrata: zatím nic nenahlášeno",
+        "nothingReported": "zatím nic nenahlášeno",
+        "noBudget": "není s čím porovnat",
+        "nothingThisMonth": "tento měsíc nic neutraceno",
+        "ofBudget": "{pct} % měsíčního rozpočtu",
+        "providerReported": "hlásí poskytovatel",
+        "lifetime": "Za celou dobu: {value}."
+      },
+      "punch": {
+        "never": "Nikdy neprorazil: nikdy se neozval",
+        "last": "Naposledy prorazil {when}",
+        "noneAccepted": "zatím nebylo přijato žádné hlášení",
+        "lastAccepted": "naposledy přijato {when}"
+      },
+      "status": {
+        "heading": "Stav",
+        "heard": "Naposledy se ozval {ago} ({at} UTC)"
+      },
+      "connectors": {
+        "label": "Konektory podle počtu volání",
+        "byCalls": "Konektory podle počtu volání",
+        "none": "Zadání neuvádí žádné konektory",
+        "noneInSpec": "Zadání neuvádí žádné konektory.",
+        "noCalls": "bez volání",
+        "notInSpec": "není v zadání",
+        "noneRecorded": "žádná volání nezaznamenána"
+      },
+      "prob": {
+        "punched": "proraženo {done} z {total} dnů"
+      },
+      "rack": {
+        "step": "Krok {n} ze 4",
+        "exit": "Odchod",
+        "probation": "zkušební doba",
+        "emptyPocket": "Prázdná přihrádka",
+        "exitsLabel": "Odchody",
+        "exitsSub": "{count, plural, one {# karta opustila} few {# karty opustily} other {# karet opustilo}} životní cyklus: selhání, zamítnutí nebo vyřazení. Zůstávají na okraji jako záznam.",
+        "empty": {
+          "dispatched": "právě nikdo nevyslán",
+          "pending_approval": "nikdo nečeká na schválení",
+          "onboarding": "právě nikdo v onboardingu",
+          "active": "právě nikdo aktivní",
+          "failed": "nikdo neselhal",
+          "rejected": "nikdo zamítnut",
+          "retired": "nikdo vyřazen"
+        }
+      },
+      "tools": {
+        "label": "Řazení a filtr stavu",
+        "statusFilter": "Filtr stavu: kroky životního cyklu",
+        "all": "Vše",
+        "exits": "odchody",
+        "sort": "Řadit",
+        "sortLabel": "Řadit v každém regálu"
+      },
+      "sort": {
+        "needs": "Nejdřív ti, kdo vás potřebují",
+        "spend": "Útrata, nejvyšší první",
+        "name": "Jméno",
+        "newest": "Nejnovější první"
+      },
+      "wall": {
+        "heading": "Regály: každá karta v této zásuvce v kroku svého životního cyklu"
+      },
+      "card": {
+        "position": "Karta {index} z {of}",
+        "prev": "‹ Předchozí karta",
+        "next": "Další karta ›",
+        "kickerFront": "Docházková karta č. {no} · líc",
+        "kickerBack": "Docházková karta č. {no} · rub",
+        "openRole": "Otevřít pozici",
+        "flip": "Otočit kartu: podklady →",
+        "flipHint": "Metrika po metrice, konektory podle volání a záznam životního cyklu",
+        "flipHintAm": "Pravidla páteře, brány, stupeň mandátu a odpočet zkušební doby",
+        "gone": "Tento agent už na přehledu není."
+      },
+      "ach": {
+        "heading": "Co měl splnit a co splnil",
+        "headingAm": "Co měl splnit a co splnil · {title}",
+        "vs": "Měl splnit {target} · splnil {actual}",
+        "noData": "Bez dat: {why}"
+      },
+      "metricState": {
+        "met": "splněno",
+        "missed": "nesplněno",
+        "nodata": "bez dat"
+      },
+      "noData": {
+        "never_heard": "nikdy se neozval",
+        "none_accepted": "zatím nebylo přijato žádné hlášení",
+        "uncosted": "zatím nic nenaúčtováno: poskytovatel při předplatném hlásí 0 $, což není změřená nula",
+        "no_runs": "zatím žádné běhy",
+        "no_reading": "pro tuto metriku není odečet"
+      },
+      "move": {
+        "heading": "Další krok",
+        "headingNeeds": "Další krok · potřebuje vás",
+        "nothing": "U tohoto agenta vás nic nepotřebuje."
+      },
+      "table": {
+        "metric": "Metrika",
+        "target": "Cíl",
+        "actual": "Skutečnost",
+        "state": "Stav"
+      },
+      "rule": {
+        "weight": "váha {weight}"
+      },
+      "ledger": {
+        "heading": "Záznam životního cyklu",
+        "hint": "nejnovější první, časy v UTC",
+        "noPunch": "bez průrazu",
+        "mint": "Vysláno: agent byl vytvořen",
+        "pending": "Vstoupil do čekání na schválení v Personas",
+        "decision": "Použito rozhodnutí",
+        "report": "Poslední hlášení přijaté z Personas (přijaté či nikoli)",
+        "activity": "Poslední přijatá aktivita",
+        "absent": {
+          "never_heard": "Nikdy nepřišlo žádné hlášení: nikdy se neozval, což neznamená nečinnost.",
+          "none_accepted": "Hlášení přišla, ale žádné nebylo přijato, takže není zaznamenána žádná aktivita."
+        }
+      },
+      "event": {
+        "approved": "Schváleno v Personas",
+        "onboarding": "Přesunuto do onboardingu",
+        "activated": "Aktivováno po zkušební době",
+        "rejected": "Zamítnuto v Personas",
+        "retired": "Vyřazeno",
+        "probation_review": "Hodnocení zkušební doby rozhodnuto v Personas",
+        "other": "Použito rozhodnutí: {event}",
+        "poll": "Dotaz na Personas: nyní {status}"
+      },
+      "ladder": {
+        "heading": "Stupeň mandátu",
+        "hint": "0–4; 3 a 4 nelze nikdy udělit",
+        "label": "Žebříček mandátu",
+        "held": "udělen",
+        "below": "pod uděleným stupněm",
+        "notGranted": "neudělen",
+        "neverGrantable": "nelze nikdy udělit",
+        "rung3": "Mandát, stupeň 3: nelze nikdy udělit",
+        "rung4": "Mandát, stupeň 4: nelze nikdy udělit"
+      },
+      "legend": {
+        "label": "Zobrazit na ciferníku jeden stav",
+        "show": "Zobrazit",
+        "all": "Vše",
+        "keyLabel": "Jak číst kartu na ciferníku",
+        "block": "blok: jeho stav · pruh: útrata tento měsíc vůči jeho vlastnímu rozpočtu podle poskytovatele; čárkovaný kruh je 100 %",
+        "stub": "čárkovaný pahýl: zatím nic nenaúčtováno, což není 0 $",
+        "needs": "potřebuje vás",
+        "appMaster": "App master (hranatá hlavička)"
+      },
+      "phase": {
+        "cutoff": "Čeká na most",
+        "stuck": "Zasekl se",
+        "waiting": "Čeká na start",
+        "probation": "Ve zkušební době",
+        "working": "Pracuje",
+        "out": "Vyřazen nebo odmítnut"
+      },
+      "phasePlural": {
+        "cutoff": "čeká na most",
+        "stuck": "se zaseklo",
+        "waiting": "čeká na start",
+        "probation": "je ve zkušební době",
+        "working": "pracuje",
+        "out": "vyřazeno nebo odmítnuto"
+      },
+      "kindShort": {
+        "repair_bridge": "Most",
+        "approval_lapsed": "Propadlé schválení",
+        "approve_in_personas": "Čeká schválení",
+        "review_probation": "Hodnocení zkušební doby",
+        "check_reporter": "Zkontrolovat hlášení",
+        "redispatch": "Vyslat znovu"
+      },
+      "reading": {
+        "empty": "Karty se tu objeví, jakmile budou agenti vysláni.",
+        "defaultWide": "Najeďte na kartu a přečtěte ji, nebo otevřete zásuvku: štítky kolem ciferníku. Každá karta je také ve své zásuvce.",
+        "defaultNarrow": "Najeďte na kartu a přečtěte ji, nebo otevřete zásuvku: číslovaný seznam níže. Každá karta je také ve své zásuvce.",
+        "uncosted": "rozpočet {budget}, zatím nic nenaúčtováno",
+        "spend": "{spend} tento měsíc",
+        "clickCard": "kliknutím otevřete kartu",
+        "tooClose": "{count} karet stojí příliš blízko, než aby šla zacílit jedna: kliknutím otevřete zásuvku a přečtěte je všechny.",
+        "someUncosted": "{count} zatím nenaúčtováno",
+        "allCosted": "každá karta naúčtována",
+        "enterOpens": "Enter otevře zásuvku"
+      },
+      "keys": {
+        "wheelLabel": "Klávesy na ciferníku",
+        "drawerLabel": "Klávesy v zásuvce",
+        "cardLabel": "Klávesy na kartě",
+        "backLabel": "Klávesy v podkladech",
+        "needsFilters": "filtry potřeb",
+        "betweenDrawers": "mezi zásuvkami",
+        "open": "otevřít",
+        "clearFilters": "zrušit filtry",
+        "backToWheel": "zpět na ciferník",
+        "betweenCards": "mezi kartami",
+        "openCard": "otevřít kartu",
+        "drawers": "předchozí / další zásuvka",
+        "backTo": "zpět na {place}",
+        "prevNextCard": "předchozí / další karta",
+        "backToFront": "zpět na líc karty",
+        "throughEvidence": "podklady procházet",
+        "tab": "přecházet mezi ovládacími prvky",
+        "press": "stisknout"
+      },
+      "stats": {
+        "hires": "agentů na ciferníku · {live} aktivních, {gone} vyřazených nebo odmítnutých",
+        "needYou": "{count, plural, one {vás potřebuje} few {vás potřebují} other {vás potřebuje}}",
+        "of": "z {budget}",
+        "spent": "utraceno tento měsíc podle poskytovatele, nikdy to není faktura",
+        "uncosted": "zatím nenaúčtováno: nic nenahlášeno, není to 0 $",
+        "appMasters": "{count, plural, one {App master} few {App masteři} other {App masterů}}",
+        "onProbation": "{count} ve zkušební době",
+        "noHires": "agenti: zatím nikdo nevyslán",
+        "noSpend": "útrata: žádní agenti, tedy žádná útrata ani rozpočet",
+        "noAppMasters": "App masteři: žádný nenajat"
+      }
     }
   },
   "simulation": {
