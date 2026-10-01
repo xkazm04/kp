@@ -77,22 +77,23 @@ test("SIM_MOVES declares publish -> publish-confirm and decide -> dialog accept,
   }
   for (const f of [
     "app/features/library/jobs/JobsPublishDialog.tsx",
-    "app/features/hiring/decisions/ledger/LedgerCells.tsx",
+    "app/features/hiring/decisions/docket/DocketBoard.tsx",
     "app/features/hiring/pipeline/candidate/decision/CandidateDecisionBar.tsx",
   ]) {
     assert.ok(files.has(f), `a move names ${f}`);
   }
 });
 
-test("the ledger's offer row renders the decide door: the anchor sits after the offer guard closes", () => {
-  const src = read("app/features/hiring/decisions/ledger/LedgerCells.tsx");
+test("the Docket's offer row renders the decide door: the anchor sits after the offer guard closes", () => {
+  const src = read("app/features/hiring/decisions/docket/DocketBoard.tsx");
   const guard = src.indexOf('row.kind === "offer" ? null');
   assert.ok(guard > 0, "the offer guard is still there (offers keep the deadline lever)");
   const guardEnd = src.indexOf(")}", guard);
   const decide = src.indexOf('data-sim-click="decide"');
   assert.ok(decide > guardEnd, "decide is outside the offer guard, so an offer row renders it");
-  const hiddenGuard = src.indexOf("{hidden ? null : (");
-  const hiddenEnd = src.indexOf("\n      )}", hiddenGuard);
+  const hiddenGuard = src.indexOf("{h.selectMode ? null : (");
+  assert.ok(hiddenGuard > 0, "the select-mode guard is still there");
+  const hiddenEnd = src.indexOf("\n        )}", hiddenGuard);
   assert.ok(decide > hiddenEnd, "decide is outside the select-mode guard too, like the door it names");
 });
 

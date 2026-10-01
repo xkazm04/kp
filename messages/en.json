@@ -4063,14 +4063,12 @@
   "decisions": {
     "eyebrow": "Decisions",
     "title": "Your decision queue",
-    "intro": "The human-in-the-loop step, grouped by role.",
     "filterTitle": "Filter decisions to one opened JD",
     "govModeTitle": "Group-evaluation governance: how the AI comparison is used",
     "govRecommendation": "AI recommendation",
     "govCommittee": "Committee (advisory)",
     "govEligibility": "Eligibility list",
     "allRoles": "All roles ({count})",
-    "pending": "{count} pending",
     "rulesButton": "Rules",
     "rulesTitle": "Configure decision rules",
     "loading": "Loading…",
@@ -4096,7 +4094,6 @@
       "cta": "Open the Decision Log",
       "more": "+{count} more"
     },
-    "aiRecommendations": "AI recommendations",
     "batch": {
       "select": "Select",
       "exit": "Done",
@@ -4662,21 +4659,14 @@
       }
     },
     "ledger": {
-      "colName": "Candidate",
-      "colRole": "Role",
-      "colScore": "Score",
-      "colRecommended": "AI recommends",
-      "colDecide": "Decision",
       "decide": "Decide",
       "decideAria": "Decide on {name}",
       "groupCount": "{count, plural, one {# waiting} other {# waiting}}",
       "groupBest": "best",
       "ladderTitle": "Ladder",
       "decisionTitle": "Your decision",
-      "colPipeline": "Pipeline",
       "quickAccept": "Accept the AI's proposal for {name}",
-      "quickReject": "Reject {name}",
-      "proposalOffer": "Offer"
+      "quickReject": "Reject {name}"
     },
     "decideFailed": "The decision for {name} didn't go through. Try again.",
     "undo": {
@@ -4686,6 +4676,39 @@
       "undoLabel": "Undo the rejection of {name}",
       "failed": "The rejection of {name} did not go through.",
       "dismiss": "Dismiss"
+    },
+    "docket": {
+      "headline": "{waiting, plural, one {# person waits} other {# people wait}} across {roles, plural, one {# role} other {# roles}}.",
+      "biggest": "{role} holds the most ({count}).",
+      "rejectsLead": "{count, plural, one {The AI proposes # reject,} other {The AI proposes # rejects,}}",
+      "irreversible": "the one decision that cannot be undone: each is yours to make.",
+      "noRejects": "The AI proposes no rejects. A reject is always your decision.",
+      "heroLabel": "waiting on you",
+      "heroSplit": "{proposed} with an AI proposal, {unproposed} with none recorded",
+      "spineLabel": "Waiting decisions by role",
+      "spineGroup": "{role}: {count} waiting",
+      "legendNone": "none: no proposal recorded",
+      "legendStale": "score predates a JD edit",
+      "legendNever": "never scored, not zero",
+      "keysLabel": "Keys",
+      "keyMove": "move",
+      "keyOpen": "open",
+      "keyBack": "back one level",
+      "keyBackToQueue": "back to the queue",
+      "noProposal": "none recorded",
+      "neverScored": "Never scored",
+      "rejectsProposed": "{count, plural, one {# reject proposed} other {# rejects proposed}}",
+      "openRole": "Open {role}: compare and decide",
+      "compare": "Compare",
+      "roleKicker": "Role",
+      "roleLead": "{count, plural, one {# waiting} other {# waiting}} · best fit {best}",
+      "roleLeadUnscored": "{count, plural, one {# waiting} other {# waiting}} · nobody scored yet",
+      "roleNone": "No recommendation is waiting for this role.",
+      "backTo": "Back to {place}",
+      "trailLabel": "Where you are",
+      "ladderTitle": "Score ladder",
+      "ladderNote": "Scored people by fit, highest first. People never scored are listed below without a bar.",
+      "decideTitle": "Decide"
     }
   },
   "scheduleTab": {

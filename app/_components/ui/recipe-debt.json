@@ -88,9 +88,6 @@
     "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
       "panel": 1
     },
-    "features/hiring/decisions/DecisionsHeader.tsx": {
-      "noticeAmber": 1
-    },
     "features/hiring/decisions/DecisionsRoleRow.tsx": {
       "panel": 1
     },

@@ -394,10 +394,6 @@
       "raw-text-size": 5,
       "bare-rounded": 2
     },
-    "features/hiring/decisions/DecisionsAiReviewsSection.tsx": {
-      "raw-text-size": 1,
-      "raw-button": 1
-    },
     "features/hiring/decisions/DecisionsAnalysisModalBench.tsx": {
       "raw-text-size": 7
     },
@@ -444,11 +440,6 @@
     "features/hiring/decisions/DecisionsGroupEvalRejectModal.tsx": {
       "raw-text-size": 4
     },
-    "features/hiring/decisions/DecisionsHeader.tsx": {
-      "raw-text-size": 3,
-      "raw-status-hue": 4,
-      "raw-button": 2
-    },
     "features/hiring/decisions/DecisionsOfferLetterPreview.tsx": {
       "raw-text-size": 8,
       "raw-button": 1
@@ -481,10 +472,6 @@
     },
     "features/hiring/decisions/DecisionsShared.tsx": {
       "raw-text-size": 5
-    },
-    "features/hiring/decisions/DecisionsTab.tsx": {
-      "raw-text-size": 2,
-      "raw-status-hue": 2
     },
     "features/hiring/decisions/DecisionsUndoStrip.tsx": {
       "raw-text-size": 4,
@@ -533,16 +520,6 @@
     },
     "features/hiring/decisions/groupEval/GroupEvalSalaryCell.tsx": {
       "raw-text-size": 1
-    },
-    "features/hiring/decisions/ledger/DecisionsLedger.tsx": {
-      "raw-text-size": 4,
-      "raw-table": 1
-    },
-    "features/hiring/decisions/ledger/LedgerCells.tsx": {
-      "raw-text-size": 3,
-      "raw-status-hue": 1,
-      "raw-button": 1,
-      "bare-rounded": 1
     },
     "features/hiring/pipeline/CommandBar.tsx": {
       "raw-text-size": 7,

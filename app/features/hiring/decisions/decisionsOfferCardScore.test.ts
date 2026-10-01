@@ -32,18 +32,19 @@ const read = (p: string) => readFileSync(p, "utf8");
 
 // 2026-09: the card grid became the decisions LEDGER (ledger/) and the card's header
 // + actions moved into the candidate modal's decision bar (candidate/decision/).
-// The ONE fit number is now the ledger row's score cell — resolved by the row model
-// through the canonical read path — and the decision bar renders NO fit number at
-// all: the modal's Overview beside it is the canonical read.
+// The ONE fit number is now the Docket board row's score (docket/DocketBoard.tsx), the
+// value the ledger row model resolved through the canonical read path, and the decision
+// bar renders NO fit number at all: the modal's Overview beside it is the canonical read.
 const model = read(path.join(DIR, "ledger", "decisionsLedgerModel.ts"));
-const cells = read(path.join(DIR, "ledger", "LedgerCells.tsx"));
+const board = read(path.join(DIR, "docket", "DocketBoard.tsx"));
 const bar = read(path.join(REPO_ROOT, "app", "features", "hiring", "pipeline", "candidate", "decision", "CandidateDecisionBar.tsx"));
 const head = read(path.join(DIR, "DecisionsShared.tsx"));
 const cardBody = read(path.join(DIR, "DecisionsAiReviewCardBody.tsx"));
 const cardLogic = read(path.join(DIR, "decisionsAiReviewCardLogic.ts"));
 
 test("the ledger renders exactly ONE fit number per row, and the decision bar renders none", () => {
-  assert.equal((cells.match(/<ScoreBadge/g) ?? []).length, 1, "exactly one ScoreBadge in the shared cells");
+  assert.equal((board.match(/\{row\.score\}/g) ?? []).length, 1, "exactly one score numeral per board row");
+  assert.ok(!/entry\.matchScore/.test(board), "the board must not read entry.matchScore directly");
   assert.ok(!/ScoreBadge/.test(bar), "the decision bar must not render a second one");
   assert.ok(!/ScoreBadge/.test(head), "CandidateHead must not render one either");
   assert.ok(

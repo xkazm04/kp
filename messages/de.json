@@ -4063,14 +4063,12 @@
   "decisions": {
     "eyebrow": "Entscheidungen",
     "title": "Ihre Entscheidungswarteschlange",
-    "intro": "Der Schritt mit menschlicher Kontrolle, nach Stelle gruppiert.",
     "filterTitle": "Entscheidungen auf eine geöffnete Stellenbeschreibung filtern",
     "govModeTitle": "Governance der Gruppenbewertung: wie der AI-Vergleich verwendet wird",
     "govRecommendation": "AI-Empfehlung",
     "govCommittee": "Gremium (beratend)",
     "govEligibility": "Eignungsliste",
     "allRoles": "Alle Stellen ({count})",
-    "pending": "{count} ausstehend",
     "rulesButton": "Regeln",
     "rulesTitle": "Entscheidungsregeln konfigurieren",
     "loading": "Wird geladen…",
@@ -4096,7 +4094,6 @@
       "cta": "Entscheidungsprotokoll öffnen",
       "more": "+{count} weitere"
     },
-    "aiRecommendations": "AI-Empfehlungen",
     "batch": {
       "select": "Auswählen",
       "exit": "Fertig",
@@ -4662,21 +4659,14 @@
       }
     },
     "ledger": {
-      "colName": "Bewerbung",
-      "colRole": "Stelle",
-      "colScore": "Score",
-      "colRecommended": "KI empfiehlt",
-      "colDecide": "Entscheidung",
       "decide": "Entscheiden",
       "decideAria": "Über {name} entscheiden",
       "groupCount": "{count, plural, one {# wartet} other {# warten}}",
       "groupBest": "beste",
       "ladderTitle": "Rangliste",
       "decisionTitle": "Ihre Entscheidung",
-      "colPipeline": "Pipeline",
       "quickAccept": "KI-Vorschlag für {name} annehmen",
-      "quickReject": "{name} ablehnen",
-      "proposalOffer": "Angebot"
+      "quickReject": "{name} ablehnen"
     },
     "decideFailed": "Die Entscheidung zu {name} wurde nicht übernommen. Bitte versuchen Sie es erneut.",
     "undo": {
@@ -4686,6 +4676,39 @@
       "undoLabel": "Ablehnung von {name} rückgängig machen",
       "failed": "Die Ablehnung von {name} wurde nicht ausgeführt.",
       "dismiss": "Schließen"
+    },
+    "docket": {
+      "headline": "{waiting, plural, one {# Person wartet} other {# Personen warten}} in {roles, plural, one {# Rolle} other {# Rollen}}.",
+      "biggest": "Die meisten hat {role} ({count}).",
+      "rejectsLead": "{count, plural, one {Die KI schlägt # Absage vor,} other {Die KI schlägt # Absagen vor,}}",
+      "irreversible": "die eine Entscheidung, die sich nicht rückgängig machen lässt: Jede liegt bei Ihnen.",
+      "noRejects": "Die KI schlägt keine Absagen vor. Eine Absage ist immer Ihre Entscheidung.",
+      "heroLabel": "warten auf Sie",
+      "heroSplit": "{proposed} mit KI-Vorschlag, {unproposed} ohne erfassten Vorschlag",
+      "spineLabel": "Wartende Entscheidungen nach Rolle",
+      "spineGroup": "{role}: {count} wartend",
+      "legendNone": "keiner: kein Vorschlag erfasst",
+      "legendStale": "Score ist älter als eine Anzeigenänderung",
+      "legendNever": "nie bewertet, nicht null",
+      "keysLabel": "Tasten",
+      "keyMove": "bewegen",
+      "keyOpen": "öffnen",
+      "keyBack": "eine Ebene zurück",
+      "keyBackToQueue": "zurück zur Warteschlange",
+      "noProposal": "kein Vorschlag",
+      "neverScored": "Nie bewertet",
+      "rejectsProposed": "{count, plural, one {# Absage vorgeschlagen} other {# Absagen vorgeschlagen}}",
+      "openRole": "{role} öffnen: vergleichen und entscheiden",
+      "compare": "Vergleichen",
+      "roleKicker": "Rolle",
+      "roleLead": "{count, plural, one {# wartet} other {# warten}} · beste Passung {best}",
+      "roleLeadUnscored": "{count, plural, one {# wartet} other {# warten}} · noch niemand bewertet",
+      "roleNone": "Für diese Rolle wartet keine Empfehlung.",
+      "backTo": "Zurück zu {place}",
+      "trailLabel": "Wo Sie sind",
+      "ladderTitle": "Score-Leiter",
+      "ladderNote": "Bewertete Personen nach Passung, beste zuerst. Nie bewertete stehen darunter ohne Balken.",
+      "decideTitle": "Entscheiden"
     }
   },
   "scheduleTab": {

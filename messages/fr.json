@@ -4063,14 +4063,12 @@
   "decisions": {
     "eyebrow": "Décisions",
     "title": "Votre file de décisions",
-    "intro": "L’étape avec intervention humaine, regroupée par poste.",
     "filterTitle": "Filtrer les décisions sur une fiche de poste ouverte",
     "govModeTitle": "Gouvernance de l’évaluation de groupe : comment la comparaison AI est utilisée",
     "govRecommendation": "Recommandation AI",
     "govCommittee": "Comité (consultatif)",
     "govEligibility": "Liste d’éligibilité",
     "allRoles": "Tous les postes ({count})",
-    "pending": "{count} en attente",
     "rulesButton": "Règles",
     "rulesTitle": "Configurer les règles de décision",
     "loading": "Chargement…",
@@ -4096,7 +4094,6 @@
       "cta": "Ouvrir le journal des décisions",
       "more": "+{count} de plus"
     },
-    "aiRecommendations": "Recommandations AI",
     "batch": {
       "select": "Sélectionner",
       "exit": "Terminé",
@@ -4662,21 +4659,14 @@
       }
     },
     "ledger": {
-      "colName": "Candidature",
-      "colRole": "Poste",
-      "colScore": "Score",
-      "colRecommended": "L’IA recommande",
-      "colDecide": "Décision",
       "decide": "Décider",
       "decideAria": "Décider pour {name}",
       "groupCount": "{count, plural, one {# en attente} other {# en attente}}",
       "groupBest": "meilleur",
       "ladderTitle": "Classement",
       "decisionTitle": "Votre décision",
-      "colPipeline": "Pipeline",
       "quickAccept": "Accepter la proposition de l’IA pour {name}",
-      "quickReject": "Refuser {name}",
-      "proposalOffer": "Offre"
+      "quickReject": "Refuser {name}"
     },
     "decideFailed": "La décision concernant {name} n'a pas été enregistrée. Veuillez réessayer.",
     "undo": {
@@ -4686,6 +4676,39 @@
       "undoLabel": "Annuler le refus de {name}",
       "failed": "Le refus de {name} n’a pas abouti.",
       "dismiss": "Fermer"
+    },
+    "docket": {
+      "headline": "{waiting, plural, one {# personne attend} other {# personnes attendent}} sur {roles, plural, one {# poste} other {# postes}}.",
+      "biggest": "{role} en compte le plus ({count}).",
+      "rejectsLead": "{count, plural, one {L'IA propose # refus,} other {L'IA propose # refus,}}",
+      "irreversible": "la seule décision qui ne peut pas être annulée : chacune est la vôtre.",
+      "noRejects": "L'IA ne propose aucun refus. Un refus est toujours votre décision.",
+      "heroLabel": "vous attendent",
+      "heroSplit": "{proposed} avec une proposition de l'IA, {unproposed} sans proposition enregistrée",
+      "spineLabel": "Décisions en attente par poste",
+      "spineGroup": "{role} : {count} en attente",
+      "legendNone": "aucune : pas de proposition enregistrée",
+      "legendStale": "score antérieur à une modification de l'annonce",
+      "legendNever": "jamais évalué, ce n'est pas zéro",
+      "keysLabel": "Touches",
+      "keyMove": "se déplacer",
+      "keyOpen": "ouvrir",
+      "keyBack": "remonter d'un niveau",
+      "keyBackToQueue": "retour à la file",
+      "noProposal": "sans proposition",
+      "neverScored": "Jamais évalué",
+      "rejectsProposed": "{count, plural, one {# refus proposé} other {# refus proposés}}",
+      "openRole": "Ouvrir {role} : comparer et décider",
+      "compare": "Comparer",
+      "roleKicker": "Poste",
+      "roleLead": "{count, plural, one {# en attente} other {# en attente}} · meilleur score {best}",
+      "roleLeadUnscored": "{count, plural, one {# en attente} other {# en attente}} · personne n'est encore évalué",
+      "roleNone": "Aucune recommandation n'attend pour ce poste.",
+      "backTo": "Retour à {place}",
+      "trailLabel": "Où vous êtes",
+      "ladderTitle": "Échelle des scores",
+      "ladderNote": "Les personnes évaluées par adéquation, la meilleure en premier. Celles jamais évaluées sont listées dessous sans barre.",
+      "decideTitle": "Décider"
     }
   },
   "scheduleTab": {

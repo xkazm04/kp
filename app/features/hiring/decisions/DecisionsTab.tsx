@@ -7,12 +7,8 @@
 // split-out components — kept that way so this shell stays under the
 // 200-line cap (docs/architecture/app-structure.md).
 import { useState } from "react";
-import { DecisionsEmptyHandoff } from "./DecisionsEmptyHandoff";
-import { Empty } from "./DecisionsShared";
-import { RoleDecisionRow } from "./DecisionsRoleRow";
-import { DecisionsHeader } from "./DecisionsHeader";
+import { DocketSurface } from "./docket/DocketSurface";
 import { DecisionsBanners } from "./DecisionsBanners";
-import { DecisionsAiReviewsSection } from "./DecisionsAiReviewsSection";
 import { DecisionsReconsiderQueue } from "./DecisionsReconsiderQueue";
 import { DecisionsFeedbackLetters } from "./DecisionsFeedbackLetters";
 import { DecisionsModals } from "./DecisionsModals";
@@ -24,7 +20,7 @@ import { AnimatePresence } from "framer-motion";
 export function DecisionsTab() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const {
-    t, setJobFilter, armIds, armJobId, entries, error, axis,
+    setJobFilter, armIds, armJobId, entries, error, axis,
     leavingWrapClass, queuedLabels, setQueuedLabels,
     sentOffers, setSentOffers, copiedOfferId, setCopiedOfferId, relayConfigured,
     waveCommsFailed, setWaveCommsFailed,
@@ -57,19 +53,6 @@ export function DecisionsTab() {
     // resolved. aria-busy covers the FIRST load only — useLiveRefresh re-fetches
     // never blank the queue already on screen, so entries != null keeps it false.
     <div data-sim="decisions" className="stagger-children space-y-6" aria-busy={entries == null && !error}>
-      <DecisionsHeader
-        jobOptions={jobOptions}
-        activeFilter={activeFilter}
-        pending={pending}
-        setJobFilter={setJobFilter}
-        evalMode={evalMode}
-        setEvalMode={setEvalMode}
-        reconsiderCount={reconsider.length}
-        onRevealReconsider={revealReconsider}
-        onOpenRules={() => setRulesOpen(true)}
-        pendingHeaderCount={pendingHeaderCount}
-      />
-
       <DecisionsBanners
         queuedLabels={queuedLabels}
         onDismissQueued={() => setQueuedLabels([])}
@@ -87,97 +70,69 @@ export function DecisionsTab() {
         onDismissWaveSeal={() => setWaveSealFailed(0)}
       />
 
-      {error ? (
-        <p role="alert" aria-live="assertive" className="rounded-md bg-red-50 p-3 text-base text-red-700">
-          {error}
-        </p>
-      ) : entries == null ? (
-        // Tier 2: the pipeline fetch is in flight and there's nothing to show
-        // yet. Hold the queue's rough height and stay invisible for 150ms so a
-        // warm response never flashes a placeholder.
-        <div className="reveal-quiet min-h-[24rem]" aria-hidden />
-      ) : pending.length === 0 ? (
-        <DecisionsEmptyHandoff
-          title={t("caughtUpTitle")}
-          body={t("caughtUpBody")}
-          links={[
-            { tab: "schedule", label: t("caughtUpCtaSchedule") },
-            { tab: "pipeline", label: t("caughtUpCtaPipeline") },
-          ]}
-          recordCount={entries.length}
-          reconsiderCount={reconsider.length}
-          onRevealReconsider={revealReconsider}
-          onArrivalLanded={load}
-        />
-      ) : (
-        <div className="space-y-6">
-          <DecisionsAiReviewsSection
-            visibleAiReviews={visibleAiReviews}
-            selectMode={selectMode}
-            setSelectMode={setSelectMode}
-            selectableReviews={selectableReviews}
-            selectedReviewIds={selectedReviewIds}
-            selectedReviews={selectedReviews}
-            toggleReviewSelect={toggleReviewSelect}
-            exitSelectMode={exitSelectMode}
-            selectAllReviews={selectAllReviews}
-            clearSelectedReviews={clearSelectedReviews}
-            selectionDrift={selectionDrift}
-            hasOfferReviews={hasOfferReviews}
-            bulkResult={bulkResult}
-            confirmingBulkReject={confirmingBulkReject}
-            setConfirmingBulkReject={setConfirmingBulkReject}
-            bulkBusy={bulkBusy}
-            bulkDecideReviews={bulkDecideReviews}
-            leavingWrapClass={leavingWrapClass}
-            act={act}
-            onDecide={candidate.open}
-            staleSinceOf={staleSinceOf}
-          />
-
-          <section>
-            <h3 className="text-meta uppercase tracking-wide text-steel">
-              {t("keyDecisions")} <span className="text-coral">· {visibleGroups.length}</span>
-            </h3>
-            <p className="mt-1 text-sm text-steel">{t("keyDecisionsHelp")}</p>
-            <div className="mt-3 space-y-3">
-              {visibleGroups.map((g) => (
-                <RoleDecisionRow
-                  key={g.roleKey}
-                  roleTitle={g.roleTitle}
-                  entries={g.entries}
-                  evaluated={Boolean(evaluated[g.roleKey])}
-                  busy={groupEval.isBusy(g.roleKey)}
-                  onCandidate={setSummaryEntry}
-                  onGroupEval={(selection) => groupEval.open(g, false, selection)}
-                  onScreenWave={g.jobId ? () => setWaveRole({ jobId: g.jobId as string, title: g.roleTitle }) : undefined}
-                  // The pre-armed selection lands only on the deep-linked role's row;
-                  // the row consumes it once at mount (a later remount re-seeds from
-                  // the same session-captured intent, never from the stripped URL).
-                  initialSelection={armIds && armJobId && g.jobId === armJobId ? armIds : undefined}
-                />
-              ))}
-              {visibleGroups.length === 0 ? <Empty>{t("noKeyDecisions")}</Empty> : null}
-            </div>
-          </section>
-        </div>
-      )}
-
-      <DecisionsReconsiderQueue
-        reconsider={reconsider}
-        reconsiderRef={reconsiderRef}
-        reconsiderOpen={reconsiderOpen}
-        setReconsiderOpen={setReconsiderOpen}
-        reinstating={reinstating}
-        reinstate={reinstate}
-        reinstateErrors={reinstateErrors}
-        fmtDate={fmtDate}
-        reconsiderReasonText={reconsiderReasonText}
+      <DocketSurface
+        entries={entries}
+        error={error}
+        pending={pending}
+        pendingHeaderCount={pendingHeaderCount}
+        visibleAiReviews={visibleAiReviews}
+        visibleGroups={visibleGroups}
+        jobOptions={jobOptions}
+        activeFilter={activeFilter}
+        setJobFilter={setJobFilter}
+        evalMode={evalMode}
+        setEvalMode={setEvalMode}
+        reconsiderCount={reconsider.length}
+        onRevealReconsider={revealReconsider}
+        onOpenRules={() => setRulesOpen(true)}
+        selectMode={selectMode}
+        setSelectMode={setSelectMode}
+        exitSelectMode={exitSelectMode}
+        selectableReviews={selectableReviews}
+        selectedReviews={selectedReviews}
+        selectedReviewIds={selectedReviewIds}
+        toggleReviewSelect={toggleReviewSelect}
+        selectAllReviews={selectAllReviews}
+        clearSelectedReviews={clearSelectedReviews}
+        selectionDrift={selectionDrift}
+        hasOfferReviews={hasOfferReviews}
+        bulkResult={bulkResult}
+        confirmingBulkReject={confirmingBulkReject}
+        setConfirmingBulkReject={setConfirmingBulkReject}
+        bulkBusy={bulkBusy}
+        bulkDecideReviews={bulkDecideReviews}
+        leavingWrapClass={leavingWrapClass}
+        act={act}
+        staleSinceOf={staleSinceOf}
+        onDecide={candidate.open}
+        evaluated={evaluated}
+        isBusy={groupEval.isBusy}
+        onCandidate={setSummaryEntry}
+        onGroupEval={(g, selection) => groupEval.open(g, false, selection)}
+        onScreenWave={(jobId, title) => setWaveRole({ jobId, title })}
+        armIds={armIds}
+        armJobId={armJobId}
+        recordCount={entries?.length ?? 0}
+        onArrivalLanded={load}
+        extras={
+          <>
+            <DecisionsReconsiderQueue
+              reconsider={reconsider}
+              reconsiderRef={reconsiderRef}
+              reconsiderOpen={reconsiderOpen}
+              setReconsiderOpen={setReconsiderOpen}
+              reinstating={reinstating}
+              reinstate={reinstate}
+              reinstateErrors={reinstateErrors}
+              fmtDate={fmtDate}
+              reconsiderReasonText={reconsiderReasonText}
+            />
+            {/* Spark interview-feedback-letter: decided candidates who asked for a letter about their
+                AI interview. Self-contained (its own read and editor). */}
+            <DecisionsFeedbackLetters />
+          </>
+        }
       />
-
-      {/* Spark interview-feedback-letter — decided candidates who asked for a letter about
-          their AI interview. Self-contained (its own read and editor). */}
-      <DecisionsFeedbackLetters />
 
       <AnimatePresence>
         {candidate.view ? (

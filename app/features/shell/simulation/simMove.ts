@@ -56,7 +56,7 @@ export const SIM_MOVES: Readonly<Record<SimMoveId, SimMove>> = {
   offerSend: {
     id: "offerSend",
     clicks: [
-      { anchor: "decide", scope: "entry", file: "app/features/hiring/decisions/ledger/LedgerCells.tsx" },
+      { anchor: "decide", scope: "entry", file: "app/features/hiring/decisions/docket/DocketBoard.tsx" },
       { anchor: "accept", scope: "dialog", file: "app/features/hiring/pipeline/candidate/decision/CandidateDecisionBar.tsx" },
     ],
   },

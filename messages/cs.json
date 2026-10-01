@@ -4063,14 +4063,12 @@
   "decisions": {
     "eyebrow": "Rozhodnutí",
     "title": "Vaše fronta rozhodnutí",
-    "intro": "Krok s člověkem ve smyčce, seskupený podle pozice.",
     "filterTitle": "Filtrovat rozhodnutí na jednu otevřenou pozici",
     "govModeTitle": "Řízení skupinového hodnocení: jak se použije porovnání od AI",
     "govRecommendation": "Doporučení AI",
     "govCommittee": "Komise (poradní)",
     "govEligibility": "Pořadník",
     "allRoles": "Všechny pozice ({count})",
-    "pending": "{count, plural, one {# čeká} few {# čekají} other {# čeká}}",
     "rulesButton": "Pravidla",
     "rulesTitle": "Nastavit pravidla rozhodování",
     "loading": "Načítání…",
@@ -4096,7 +4094,6 @@
       "cta": "Otevřít protokol rozhodnutí",
       "more": "+{count, plural, one {# další} few {# další} other {# dalších}}"
     },
-    "aiRecommendations": "Doporučení AI",
     "batch": {
       "select": "Vybrat",
       "exit": "Hotovo",
@@ -4662,21 +4659,14 @@
       }
     },
     "ledger": {
-      "colName": "Kandidát",
-      "colRole": "Pozice",
-      "colScore": "Skóre",
-      "colRecommended": "Doporučení AI",
-      "colDecide": "Rozhodnutí",
       "decide": "Rozhodnout",
       "decideAria": "Rozhodnout o kandidátovi {name}",
       "groupCount": "{count, plural, one {# čeká} few {# čekají} other {# čeká}}",
       "groupBest": "nejlepší",
       "ladderTitle": "Žebříček",
       "decisionTitle": "Vaše rozhodnutí",
-      "colPipeline": "Pipeline",
       "quickAccept": "Přijmout návrh AI pro kandidáta {name}",
-      "quickReject": "Zamítnout kandidáta {name}",
-      "proposalOffer": "Nabídka"
+      "quickReject": "Zamítnout kandidáta {name}"
     },
     "decideFailed": "Rozhodnutí o kandidátovi {name} se nepodařilo uložit. Zkuste to prosím znovu.",
     "undo": {
@@ -4686,6 +4676,39 @@
       "undoLabel": "Vrátit zpět zamítnutí kandidáta {name}",
       "failed": "Zamítnutí kandidáta {name} se neprovedlo.",
       "dismiss": "Zavřít"
+    },
+    "docket": {
+      "headline": "{waiting, plural, one {Čeká # člověk} few {Čekají # lidé} many {Čeká # lidí} other {Čeká # lidí}} v {roles, plural, one {# roli} few {# rolích} many {# rolích} other {# rolích}}.",
+      "biggest": "Nejvíce jich má {role} ({count}).",
+      "rejectsLead": "{count, plural, one {AI navrhuje # zamítnutí,} few {AI navrhuje # zamítnutí,} many {AI navrhuje # zamítnutí,} other {AI navrhuje # zamítnutí,}}",
+      "irreversible": "jediné rozhodnutí, které nejde vzít zpět: každé je na vás.",
+      "noRejects": "AI nenavrhuje žádné zamítnutí. Zamítnutí je vždy vaše rozhodnutí.",
+      "heroLabel": "čeká na vás",
+      "heroSplit": "{proposed} s návrhem AI, {unproposed} bez zaznamenaného návrhu",
+      "spineLabel": "Čekající rozhodnutí podle rolí",
+      "spineGroup": "{role}: čeká {count}",
+      "legendNone": "žádný: návrh nebyl zaznamenán",
+      "legendStale": "skóre je starší než úprava inzerátu",
+      "legendNever": "nikdy neskórováno, není to nula",
+      "keysLabel": "Klávesy",
+      "keyMove": "přesun",
+      "keyOpen": "otevřít",
+      "keyBack": "o úroveň zpět",
+      "keyBackToQueue": "zpět do fronty",
+      "noProposal": "bez návrhu",
+      "neverScored": "Nikdy neskórováno",
+      "rejectsProposed": "{count, plural, one {# navržené zamítnutí} few {# navržená zamítnutí} many {# navrženého zamítnutí} other {# navržených zamítnutí}}",
+      "openRole": "Otevřít roli {role}: porovnat a rozhodnout",
+      "compare": "Porovnat",
+      "roleKicker": "Role",
+      "roleLead": "{count, plural, one {čeká #} few {čekají #} many {čeká #} other {čeká #}} · nejlepší shoda {best}",
+      "roleLeadUnscored": "{count, plural, one {čeká #} few {čekají #} many {čeká #} other {čeká #}} · zatím nikdo neskórován",
+      "roleNone": "Na tuto roli nečeká žádné doporučení.",
+      "backTo": "Zpět na {place}",
+      "trailLabel": "Kde jste",
+      "ladderTitle": "Žebříček skóre",
+      "ladderNote": "Skórovaní lidé podle shody, nejlepší první. Nikdy neskórovaní jsou uvedeni níže bez sloupce.",
+      "decideTitle": "Rozhodnout"
     }
   },
   "scheduleTab": {

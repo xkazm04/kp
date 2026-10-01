@@ -21,6 +21,8 @@ test("the empty-state reconsider line calls revealReconsider on click", () => {
 
 test("DecisionsTab wires onRevealReconsider to revealReconsider", () => {
   const tab = source("./DecisionsTab.tsx");
-  assert.match(tab, /<DecisionsEmptyHandoff/, "the caught-up branch still renders the empty handoff");
+  const surface = source("./docket/DocketSurface.tsx");
+  assert.match(surface, /<DecisionsEmptyHandoff/, "the caught-up branch still renders the empty handoff");
+  assert.match(surface, /onRevealReconsider=\{p\.onRevealReconsider\}/, "the surface hands the reveal hop to the empty handoff");
   assert.match(tab, /onRevealReconsider=\{revealReconsider\}/, "the tab must pass the existing revealReconsider hop");
 });
