@@ -135,6 +135,15 @@ career-switcher) that other features key off. Downstream ranking is
   prunes rows the active decision filter no longer matches (`pruneToFilter`), as a
   refetch would. Opening a row also repaints it with the disposition the server
   holds now. Pure half: `historyTriage.ts`, pinned by `historyTriage.test.ts`.
+- **Prior-runs footprint pre-spend** (challenge-r10 analyze-workspace/B) — when CVs
+  are attached in Analyze, `AnalyzePriorRunsStrip` computes `cvVariantHash` (the same
+  SHA-256 digest persisted on analysis records) and queries `GET /api/analyze/prior`.
+  If the CV has been scored or decided before in the workspace, the strip surfaces that
+  footprint before the recruiter spends another run: naming recorded dispositions
+  ('pass', 'advance', 'hold') with a link to the decided report, warning that a re-run
+  appears in History as undecided, or listing other roles the candidate was analyzed
+  for. In blind screening mode, the query and strip are completely disabled to avoid
+  candidate re-identification.
 - **Report deep links** — the tabbed report (`app/_components/results/ResultPanel.tsx`)
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so

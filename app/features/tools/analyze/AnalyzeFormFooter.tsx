@@ -13,6 +13,7 @@ import type { AnalyzeFormState } from "./useAnalyzeForm";
 import { preflightVerdict } from "./analyzeCvReadability";
 import { AnalyzeReadabilityStrip, PREFLIGHT_BLOCK_ID } from "./AnalyzeReadabilityStrip";
 import { useAnalyzeReadability } from "./useAnalyzeReadability";
+import { AnalyzePriorRunsStrip } from "./AnalyzePriorRunsStrip";
 
 const REPORT_LANGS = LOCALES;
 
@@ -91,6 +92,12 @@ export function AnalyzeFormFooter({
         jdTextTyped={jdTextTyped}
         onDisableBlind={() => setBlind(false)}
         onRemoveCv={handlers.removeCvFile}
+      />
+
+      <AnalyzePriorRunsStrip
+        cvFiles={inputs.cvFiles}
+        jdSlug={state.library.selectedJdSlug}
+        blind={blind}
       />
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

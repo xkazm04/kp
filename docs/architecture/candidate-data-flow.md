@@ -24,7 +24,10 @@ indexed by *the candidate's data*, and the two answer different questions.
 
 A recruiter drops a CV on the Analyze surface (or a candidate uploads one at
 `/apply/[id]`). This is the flagship path and the most sensitive one in the
-product.
+product. Before a run is submitted from the Analyze workspace, `GET /api/analyze/prior`
+(challenge-r10 analyze-workspace/B) checks for prior runs and recorded decisions:
+only the client-computed SHA-256 digest (`cvVariantHash`) is transmitted pre-spend,
+no CV bytes cross the wire, and blind screening suppresses the query entirely.
 
 | # | Hop | What it holds | Can it leave the machine? |
 | --- | --- | --- | --- |
