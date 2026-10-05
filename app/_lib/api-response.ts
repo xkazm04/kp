@@ -139,6 +139,7 @@ export const STORE_ERRORS = {
   INTERVIEW_COMPLETE_FAILED: "Could not save the interview. Please try again.",
   INTERVIEW_LOOKUP_FAILED: "Could not load interview data. Please try again.",
   INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
+  INTERVIEW_RESCORE_FAILED: "Could not re-score the interview. Please try again.",
   /** The four verbs of /api/jobs/[id]/interview-kit. All sit on better-sqlite3 (a
    *  JSON.parse of the stored kit included) and the generate door additionally spawns the
    *  Python engine, so a thrown message here carries SQLITE_* text, the absolute db path,
@@ -743,6 +744,7 @@ export const REFUSAL_ERRORS = {
   /** The screen is finished (409). `completed` is single-use, enforced by the
    *  status CAS in markInterviewStarted, so a retake mints no credentials. */
   INTERVIEW_ALREADY_COMPLETED: "This interview has already been completed.",
+  INTERVIEW_NOT_RESCORABLE: "This interview is not eligible for re-scoring.",
   /** A second /connect on a link whose call is already LIVE (409). The token IS
    *  the session, so two tabs (or a forwarded link) both minted provider
    *  credentials and both ran a real conversation — and the loser's transcript was

@@ -591,9 +591,9 @@ export function revokeOpenInterviewSessions(entryId: string, workspaceId: string
 export function interviewStatusByEntries(
   entryIds: string[],
   workspaceId: string = DEFAULT_WORKSPACE_ID
-): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> {
+): Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null; hasScorecard: boolean; mode: string }> {
   if (entryIds.length === 0) return {};
-  const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null }> = {};
+  const out: Record<string, { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null; hasScorecard: boolean; mode: string }> = {};
   // Chunk the IN query under the SQLite variable limit so a wide board never trips
   // SQLITE_MAX_VARIABLE_NUMBER (idea-191ccc0c). Chunks partition the ids, so the
   // "first row per entry = best (transcript first, then latest)" dedup below
@@ -602,16 +602,24 @@ export function interviewStatusByEntries(
     const placeholders = ids.map(() => "?").join(",");
     const rows = ensureDb()
       .prepare(
-        `SELECT s.id, s.entry_id, s.status, s.ended_at,
-                (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr
+        `SELECT s.id, s.entry_id, s.status, s.ended_at, s.mode,
+                (s.transcript_json IS NOT NULL AND s.transcript_json != '[]') AS has_tr,
+                (s.scorecard_json IS NOT NULL) AS has_sc
          FROM interview_sessions s
          WHERE s.entry_id IN (${placeholders}) AND s.workspace_id = ?
          ORDER BY has_tr DESC, s.created_at DESC`
       )
-      .all(...ids, workspaceId) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number }[];
+      .all(...ids, workspaceId) as { id: string; entry_id: string; status: string; ended_at: string | null; has_tr: number; has_sc: number; mode: string }[];
     for (const r of rows) {
       if (out[r.entry_id]) continue; // first = transcript-bearing if any, else latest
-      out[r.entry_id] = { sessionId: r.id, status: r.status, hasTranscript: !!r.has_tr, endedAt: r.ended_at };
+      out[r.entry_id] = {
+        sessionId: r.id,
+        status: r.status,
+        hasTranscript: !!r.has_tr,
+        endedAt: r.ended_at,
+        hasScorecard: !!r.has_sc,
+        mode: r.mode ?? "candidate",
+      };
     }
   }
   return out;
@@ -1141,14 +1149,16 @@ export function listInterviewRecordingsForEntry(entryId: string, workspaceId: st
  *  decision seal as well. It used to be an unguarded write by id. */
 export function attachInterviewScorecard(
   id: string,
-  scorecard: unknown
+  scorecard: unknown,
+  options?: { requireUnscored?: boolean }
 ): { session: InterviewSession | null; applied: boolean } {
   const db = ensureDb();
   const now = new Date().toISOString();
+  const unscoredClause = options?.requireUnscored ? " AND scorecard_json IS NULL" : "";
   const res = db
     .prepare(
       `UPDATE interview_sessions SET scorecard_json=?, updated_at=?
-        WHERE id=? AND status='completed' AND transcript_json IS NOT NULL AND transcript_json != '[]'`
+        WHERE id=? AND status='completed' AND transcript_json IS NOT NULL AND transcript_json != '[]'${unscoredClause}`
     )
     .run(JSON.stringify(scorecard), now, id);
   return { session: getInterviewSessionById(id), applied: res.changes > 0 };

@@ -5,12 +5,17 @@
 // Pure and data-only, so they are unit-pinnable: no React, no store import (the
 // ScheduleInvite type is type-only, so better-sqlite3 stays out of the client bundle).
 
+import { interviewScoringState, type InterviewScoringRow, type InterviewScoringState } from "@/app/_lib/interview-scoring-state";
 import { isoToDateSlot } from "@/app/_lib/schedule-slots";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import type { SchedEntry } from "./ScheduleTypes";
 
 /** A read-only occupied cell on the week grid. */
 export type BookedMarker = { id: string; dateSlot: string; candidateLabel: string };
+
+export type SchedInterviewedEntry = SchedEntry & {
+  scoringState?: InterviewScoringState;
+};
 
 /** Confirmed invites drawn as READ-ONLY occupied cells.
  *
@@ -41,20 +46,30 @@ export function bookedMarkersFrom(
 
 /** Candidates who have HAD their interview and are waiting on a verdict.
  *
- *  Two ways to have been interviewed, and the second is the one that keeps being
- *  forgotten: a saved voice transcript, OR a recruiter-filled human scorecard. A
- *  human-led round produces no transcript at all, so a transcript-only test made every
- *  human-led candidate vanish from the tab the moment their verdict gated the entry to
- *  `scorecard_review` — taking the prep modal, the only place their scorecard lives,
- *  with them (interview-prep-rubric #2). */
+ *  Voice interviews with saved transcripts (scored, actively scoring, or unscored and
+ *  waiting on re-score) PLUS recruiter-filled human scorecards. A human-led round
+ *  produces no transcript at all, so a transcript-only test made every human-led candidate
+ *  vanish from the tab the moment their verdict gated the entry to `scorecard_review`.
+ *  An unscored voice interview is admitted so recruiters can trigger Re-score. */
 export function interviewedEntriesFrom(
   entries: readonly SchedEntry[],
-  interviews: Record<string, { hasTranscript: boolean } | undefined>,
-  prepared: Record<string, { hasHumanScorecard: boolean } | undefined>
-): SchedEntry[] {
-  return entries.filter(
-    (e) =>
+  interviews: Record<string, InterviewScoringRow | { hasTranscript: boolean } | undefined>,
+  prepared: Record<string, { hasHumanScorecard: boolean } | undefined>,
+  nowMs?: number
+): SchedInterviewedEntry[] {
+  const out: SchedInterviewedEntry[] = [];
+  for (const e of entries) {
+    const row = interviews[e.id];
+    const rowState = row ? interviewScoringState(row as InterviewScoringRow, nowMs) : "not_scorable";
+
+    if (rowState === "unscored" || rowState === "scoring") {
+      out.push({ ...e, scoringState: rowState });
+    } else if (
       e.approvalKind === "scorecard_review" &&
-      (interviews[e.id]?.hasTranscript === true || prepared[e.id]?.hasHumanScorecard === true)
-  );
+      (rowState === "scored" || row?.hasTranscript === true || prepared[e.id]?.hasHumanScorecard === true)
+    ) {
+      out.push({ ...e, scoringState: "scored" });
+    }
+  }
+  return out;
 }

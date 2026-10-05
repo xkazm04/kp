@@ -3183,6 +3183,17 @@ The AI interview verdict is committed atomically (`app/_lib/interview-scorecard-
 3. **Decisions seal post-transaction**: `sealDecisionSafe` seals the `ai_scorecard` on the decision record store's connection immediately after the core transaction returns, avoiding SQLite write lock contention.
 4. **Observed skills minting**: `mintObservedFromCaseInterview` runs only after an applied attach, re-attaching `observedSkills` under CAS.
 
+## Recovering unscored interviews: explicit scoring state and re-score door
+
+When the AI scoring of a completed candidate voice interview fails (unreachable model, transient failure, mid-hop restart), the candidate previously vanished between Schedule and Decisions because only `scorecard_review` entries were loaded and listed.
+
+1. **Explicit scoring state**: `app/_lib/interview-scoring-state.ts` provides `interviewScoringState(row, nowMs)` returning `"scored" | "scoring" | "unscored" | "not_scorable"`. A 5-minute grace period (`SCORING_GRACE_MS`) separates an in-flight scoring attempt from a dropped one.
+2. **Database and Schedule discovery**: `interviewStatusByEntries` returns `hasScorecard` and `mode`. `useScheduleTab` loads active interview-stage candidates even with `approvalKind: null`. `scheduleTabDerived.ts` admits entries with scoring state `"unscored"` or `"scoring"`, tagging `scoringState` onto each entry.
+3. **UI indicators and actions**:
+   - `ScheduleTabInterviewedList` displays an amber "Not scored yet" / "Scoring..." status chip. For unscored entries, "Review scorecard in Decisions" is replaced with a "Re-score" action button.
+   - `ScheduleInterviewTranscriptModal` shows an amber banner notice with a "Re-score" button when a transcript exists without a scorecard.
+4. **Re-score API**: `POST /api/interview/sessions/[id]/rescore` provides an operator-gated, session-throttled endpoint (`10/10min`). It checks that the session is in current workspace and has state `"unscored"`, refusing with `INTERVIEW_NOT_RESCORABLE` (409) if already scored, in grace window, or mode is test. It executes `finalizeCandidateInterviewScoring` with `requireUnscored: true` on the attach CAS, preventing duplicate seals or gates if a race occurs.
+
 ## What a call cost reaches the recruiter
 
 `/api/interview/complete` has written every completed call's cost to the usage

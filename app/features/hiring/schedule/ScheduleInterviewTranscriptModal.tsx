@@ -65,6 +65,21 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
     setHighlightIdx(idx);
     document.getElementById(`iv-turn-${idx}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+  const [rescoring, setRescoring] = useState(false);
+  const handleRescore = async () => {
+    if (!session?.id) return;
+    setRescoring(true);
+    try {
+      const res = await fetch(`/api/interview/sessions/${encodeURIComponent(session.id)}/rescore`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        reload();
+      }
+    } finally {
+      setRescoring(false);
+    }
+  };
 
   return (
     <Modal title={t("title", { name: entry.candidateLabel })} subtitle={entry.jobTitle ?? undefined} onClose={onClose} size="3xl">
@@ -110,6 +125,24 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               jumpToTurn={jumpToTurn}
               t={t}
             />
+          ) : transcript.length > 0 ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>{t("unscoredNotice")}</span>
+              </div>
+              {session.id ? (
+                <button
+                  type="button"
+                  disabled={rescoring}
+                  onClick={handleRescore}
+                  className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-amber-500/50 bg-paper px-3 py-1.5 text-xs font-semibold text-ink shadow-sm hover:border-amber-600/60"
+                >
+                  <RefreshCw size={13} className={rescoring ? "animate-spin" : ""} />
+                  {rescoring ? t("rescoring") : t("rescoreButton")}
+                </button>
+              ) : null}
+            </div>
           ) : null}
 
           {humanList}

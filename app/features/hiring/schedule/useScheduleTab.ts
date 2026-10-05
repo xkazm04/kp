@@ -35,8 +35,16 @@ import { publicBaseUrl } from "@/app/_lib/public-base-url";
 // The two derived lists + the poll cadence, extracted and unit-pinned (schedule-ui-2).
 import { bookedMarkersFrom, interviewedEntriesFrom } from "./scheduleTabDerived";
 import { pollDelayMs, pollIsStale } from "./schedulePollBackoff";
+import { DEFAULT_STAGE_AXIS, stageHasRole } from "@/app/_lib/pipeline-stages";
 
-export type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
+export type IvStatus = {
+  sessionId: string;
+  status: string;
+  hasTranscript: boolean;
+  endedAt: string | null;
+  hasScorecard?: boolean;
+  mode?: string;
+};
 
 export function useScheduleTab() {
   const t = useTranslations("scheduleTab");
@@ -161,9 +169,13 @@ export function useScheduleTab() {
         if (p.error) throw new Error(p.error);
         const all = (p.entries as SchedEntry[]) ?? [];
         // Awaiting-slot candidates (the calendar) PLUS those already voice-interviewed
-        // (now at scorecard_review) so a finished interview stays visible with its transcript.
+        // (now at scorecard_review or unscored / scoring) so a finished interview stays visible.
         const sched = all.filter(
-          (e) => (e.approvalKind === "calendar" || e.approvalKind === "scorecard_review") && e.status === "active"
+          (e) =>
+            (e.approvalKind === "calendar" ||
+              e.approvalKind === "scorecard_review" ||
+              stageHasRole(e.stage, "interview", DEFAULT_STAGE_AXIS)) &&
+            e.status === "active"
         );
         // A failed agenda read keeps the last good list rather than blank the grid's
         // booked markers (an hour that IS taken would be drawn free).
