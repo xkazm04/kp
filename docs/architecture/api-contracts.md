@@ -339,6 +339,19 @@ proxy.ts fails open on the revocation question when its dynamic import does
 fail-closed `catch` are unchanged. Cases:
 `app/_lib/auth/require-operator.test.ts`.
 
+**And a revoked session cannot re-mint itself** (2026-10-06). The other half of that
+scan was a *renewal* door — `POST /api/auth/switch-workspace`, which hands back a
+fresh 7-day token on a new `iat` while a revocation names `(principal, iat)`. The
+check lives in `app/_lib/auth/session-issuer.ts`, the one place a session can be
+born, rather than in the route: a renewal passes the verified prior session as
+`issueSession(res, principal, { renewing })`, and the issuer refuses a revoked one
+with `{ ok: false, reason: "revoked" }` **before signing**, so no cookie is set. A
+door that omits `renewing` is asserting it mints from a fresh credential — a
+password or an invite token — which is what login, register and invite accept do. A
+source ratchet in `app/_lib/auth/session-issuer.test.ts` fails the build if a file
+under `app/` both verifies a session and issues one without naming its prior
+session, so the next renewal door cannot repeat the omission.
+
 **Single-org installs are unchanged.** `org` is minted only at login, invite
 accept, switch-workspace and register, and register is the only door that creates a
 non-home org, behind `KP_SIGNUP_ENABLED` (default off). With signup off every
