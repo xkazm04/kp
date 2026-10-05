@@ -3,6 +3,7 @@ import { DEFAULT_WORKSPACE, ENTERED_COOKIE, SESSION_COOKIE, SESSION_TTL_MS, sign
 import { getUserById } from "@/app/_lib/db/users";
 import { getMembership, listMembershipsForUser } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceOrgId, listWorkspacesByOrg } from "@/app/_lib/db/workspaces";
+import { isSessionRevoked, type RevocableSession } from "./session-revocation";
 
 // THE session issuer. Every door that hands a browser a session — login (user,
 // operator, open), register, invite accept, the switch-workspace renewal — mints
@@ -23,16 +24,30 @@ import { DEFAULT_WORKSPACE_ID, getWorkspaceOrgId, listWorkspacesByOrg } from "@/
 //     users row (it must exist and not be disabled), the workspace's org (it must be
 //     the user's own) and the membership (for the role). org and role on the token
 //     are therefore always what the database says at mint time.
-//   • A renewal is a mint. switch-workspace goes through the same checks as login,
-//     so offboarding a user stops their session at the next renewal at the latest.
+//   • A renewal is a mint, and it NAMES the prior session it renews (`renewing`).
+//     switch-workspace goes through the same checks as login, so offboarding a user
+//     stops their session at the next renewal at the latest — and the issuer refuses
+//     a renewal whose prior session has been REVOKED.
 //   • One cookie attribute set. The values below are byte-identical to what each
 //     door set by hand before this module existed (pinned by the tests).
 //   • Signing can still throw when KP_SECRET is unset (open dev). The issuer signs
 //     BEFORE it writes any cookie, so a throw leaves the response untouched and each
 //     door keeps its own best-effort posture around it.
 //
-// Revocation (the unmerged per-principal list) plugs in here too: its logout calls
-// clearSession(res) after writing the revocation row.
+// WHY REVOCATION IS CHECKED HERE AND NOT IN THE RENEWAL ROUTE. A revocation names
+// (principal, iat), and a renewal hands back a fresh token on a NEW iat: an exact row
+// names the old one, and a "sign out all devices" cutoff matches `iat < cutoff` while
+// the re-mint's iat is now. So a renewal launders the control unless something asks
+// about the session it came FROM — and the account re-read above cannot stand in for
+// it, because "sign out all devices" leaves the account deliberately active. The 2026-
+// 10-05 scan (S-02) closed that on /api/auth/switch-workspace, the only such door today.
+// It is here instead because the next one would have to remember to copy it, and the
+// issuer is already the only place a session can be born. A caller that supplies no
+// `renewing` is asserting it mints from a FRESH credential (a password, an invite
+// token), which is true of every other door; `session-issuer.test.ts` holds the ratchet
+// that a file doing both a verify and a mint says so.
+//
+// Logout is the other half: it calls clearSession(res) after writing the revocation row.
 
 /** Who the session is for. There is deliberately no field for org, role, op or sub:
  *  those are derived, never supplied, and no member can be both operator and user. */
@@ -50,7 +65,9 @@ export type IssueRefusal =
   /** The user id names no account (deleted since the cookie was minted). */
   | "unknown_user"
   /** The workspace is not in the user's own org (or does not exist). */
-  | "foreign_workspace";
+  | "foreign_workspace"
+  /** `renewing` names a session that has been revoked — it may not re-mint itself. */
+  | "revoked";
 
 export type IssueResult = { ok: true; token: string } | { ok: false; reason: IssueRefusal };
 
@@ -59,6 +76,11 @@ export type IssueOptions = {
   /** Also set the readable kp_entered marker. True for every sign-in door; false for
    *  the switch-workspace renewal, which never set it. */
   entered?: boolean;
+  /** The VERIFIED prior session this mint renews, when it is a cookie-to-cookie
+   *  renewal rather than a sign-in from a fresh credential. Its presence is what lets
+   *  the issuer answer the revocation question (see the header): omit it and you are
+   *  asserting there is no prior session to ask about. */
+  renewing?: RevocableSession;
 };
 
 const MAX_AGE = Math.floor(SESSION_TTL_MS / 1000);
@@ -85,6 +107,8 @@ function resolve(principal: SessionPrincipal): Resolved {
 export function issueSession(res: NextResponse, principal: SessionPrincipal, opts: IssueOptions = {}): IssueResult {
   const resolved = resolve(principal);
   if (!resolved.ok) return resolved;
+  // Before signing: a revoked session may not renew itself into an unrevoked one.
+  if (opts.renewing && isSessionRevoked(opts.renewing)) return { ok: false, reason: "revoked" };
   const token = signSession(resolved.workspace, opts.now ?? Date.now(), resolved.claims);
   res.cookies.set(SESSION_COOKIE, token, { ...SESSION_ATTRS, maxAge: MAX_AGE });
   if (opts.entered !== false) markEntered(res);
