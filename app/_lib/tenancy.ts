@@ -49,6 +49,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // job_ingests dedup PK is (content_hash, workspace_id) — dedup never crosses teams.
   "jobs",
   "job_ingests",
+  // Durable go-live receipts per (job, workspace) (golive-receipt-store.ts).
+  // Tracks candidate sourcing and rediscovery alert raising across go-live attempts.
+  // Pinned by golive-receipt-tenancy.test.ts.
+  "job_golive_receipts",
   // D5 — the dev-studio outcome/calibration corpus (dev-outcomes.ts). Reclassified from
   // EXEMPT: it holds per-team hiring ground truth (who a team hired/rejected and how they
   // performed), and the promote-floor recommendation a recruiter acts on is computed from
@@ -513,6 +517,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "edge_config",
   "group_evals",
   "interview_preps",
+  "job_golive_receipts",
   "jd_templates",
   "login_attempts",
   "offers",

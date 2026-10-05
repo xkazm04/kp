@@ -1867,6 +1867,12 @@ role was opened with — a 3-hire req does not silently reset to 1.
 An empty body still works: that is what the one-click go-live posts, and it means
 "do not change the terms".
 
+### Durable go-live receipts and interrupted sourcing resume
+
+Publishing a role executes the state transition, billing gate, and receipt initialization (`openReceipt` in `job_golive_receipts`) within one atomic transaction on the core database handle. The subsequent matching candidate sourcing into the pipeline and rediscovery alert raising are best-effort operations managed by `runGoLive`.
+
+If candidate sourcing is aborted (e.g. client disconnect or navigation) or encounters an error, the receipt is finished in an incomplete state (`abandoned`, `sourcing_failed`, or `raise_failed`). The role remains live, but a durable team-scoped receipt persists the interruption. When reopening the role's modal, `GET /api/jobs/[id]/publish` reads the receipt, and `JobsPostingModalFooter` presents **Finish sourcing**. Clicking this issues a `POST /api/jobs/[id]/publish` with an empty body: the route detects `already`, atomically claims the resume attempt (`claimResume` CAS with a 10-minute in-flight grace window), and re-executes `runGoLive(mode: 'resume')` without re-billing or re-flipping the status. Only newly filed pipeline entries (`createPipelineEntry().created`) count toward `sourced`, ensuring honest reporting on both first go-live and resume.
+
 ### Auto-close, and why two simultaneous hires cannot double-close it
 
 `app/_lib/stage-hooks-role-fill.ts` is a post-commit arrival hook, scheduled from

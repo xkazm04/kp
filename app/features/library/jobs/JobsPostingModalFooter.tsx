@@ -38,6 +38,7 @@ export function JobsPostingModalFooter({
     isDraft,
     isClosed,
     setConfirmingPublish,
+    publishRole,
     copyApplyLink,
     copyQuickApplyLink,
     copy,
@@ -97,6 +98,16 @@ export function JobsPostingModalFooter({
       {publishing ? <PublishFlightNote onStop={cancelPublish} /> : null}
       {!publishing && publishOutcome ? (
         <PublishSentences note={publishOutcome.note} stale={publishOutcome.stale} />
+      ) : null}
+      {!publishing && !isDraft && !isClosed && publishOutcome?.note.resumable ? (
+        <button
+          type="button"
+          onClick={() => publishRole()}
+          disabled={publishing}
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+        >
+          <Users size={14} /> {td("finishSourcing")}
+        </button>
       ) : null}
       {publishNote ? (
         publishNote.tone === "quota" ? (

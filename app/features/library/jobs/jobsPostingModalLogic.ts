@@ -18,9 +18,11 @@ import { derivePostingLifecycle } from "./jobsPostingLifecycle";
 import {
   lastPublishResult,
   publishNoteSentences,
+  receiptNote,
   rememberPublishResult,
   type PublishNote,
   type PublishResponse,
+  type ReceiptLike,
 } from "./jobsPublishResult";
 import type { PostingTabId } from "./jobsPostingModalTabs";
 import type { PublishTerms } from "./JobsPublishDialog";
@@ -112,6 +114,21 @@ export function useJobPostingModalLogic(
     const last = lastPublishResult(job.id);
     return last ? { note: publishNoteSentences(last), stale: true } : null;
   });
+
+  useEffect(() => {
+    let alive = true;
+    void fetch(`/api/jobs/${encodeURIComponent(job.id)}/publish`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { ok?: boolean; receipt?: ReceiptLike | null } | null) => {
+        if (!alive || !data?.receipt) return;
+        const note = receiptNote(data.receipt);
+        setPublishOutcome({ note, stale: true });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [job.id]);
   // Abandoning the wait. The route threads the request's AbortSignal into the
   // sourcing child, so aborting genuinely stops the sweep rather than orphaning
   // it — but the go-live transaction commits BEFORE sourcing starts, so the role

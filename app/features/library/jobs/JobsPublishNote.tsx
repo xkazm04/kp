@@ -23,6 +23,10 @@ export function usePublishSentenceText(): (s: PublishSentence) => string {
     switch (s.key) {
       case "wentLive":
         return t("publishWentLive");
+      case "resumed":
+        return t("publishResumed");
+      case "sourcingIncomplete":
+        return t("publishSourcingIncomplete");
       case "alreadyLive":
         return t("publishAlreadyLive");
       case "sourcingFailed":

@@ -27,35 +27,94 @@ export type PublishResponse = {
   silverMedalistsFailed?: boolean;
   alreadyPublished?: boolean;
   reopened?: number;
+  resumed?: boolean;
+  sourcingAbandoned?: boolean;
 };
 
 export const PUBLISH_SENTENCE_KEYS = [
   "wentLive",
   "reopened",
   "alreadyLive",
+  "resumed",
   "sourced",
   "skipped",
   "silverMedalists",
   "silverMedalistsFailed",
   "sourcingFailed",
+  "sourcingIncomplete",
 ] as const;
 export type PublishSentenceKey = (typeof PUBLISH_SENTENCE_KEYS)[number];
 
 /** One localized line. `count` is the ICU plural argument where the key takes one. */
 export type PublishSentence = { key: PublishSentenceKey; count?: number };
-export type PublishNote = { tone: "ok" | "warn"; sentences: PublishSentence[] };
+export type PublishNote = {
+  tone: "ok" | "warn";
+  sentences: PublishSentence[];
+  resumable?: boolean;
+};
+
+export type ReceiptLike = {
+  state: string;
+  sourced?: number;
+  skipped?: number;
+  silverMedalists?: number;
+  startedAt?: string;
+};
+
+export type ReceiptNote = {
+  tone: "ok" | "warn";
+  sentences: PublishSentence[];
+  resumable: boolean;
+};
+
+export function receiptNote(receipt: ReceiptLike): ReceiptNote {
+  switch (receipt.state) {
+    case "abandoned":
+    case "sourcing_failed":
+    case "raise_failed":
+      return {
+        tone: "warn",
+        sentences: [{ key: "sourcingIncomplete" }],
+        resumable: true,
+      };
+    case "done":
+      return {
+        tone: "ok",
+        sentences: [{ key: "sourced", count: receipt.sourced ?? 0 }],
+        resumable: false,
+      };
+    case "sourcing":
+    default:
+      return {
+        tone: "ok",
+        sentences: [{ key: "wentLive" }],
+        resumable: false,
+      };
+  }
+}
 
 export function publishNoteSentences(p: PublishResponse): PublishNote {
   const sentences: PublishSentence[] = [];
   const reopened = p.reopened ?? 0;
-  // The lead states which transition this was. `alreadyPublished` is the
-  // idempotent case: the role was already live and NOTHING was re-sourced, so it
-  // must not be followed by a sourcing claim of any kind.
-  if (reopened > 0) sentences.push({ key: "reopened", count: reopened });
-  else if (p.alreadyPublished) sentences.push({ key: "alreadyLive" });
-  else sentences.push({ key: "wentLive" });
 
-  if (p.alreadyPublished && !p.sourcingWarning) return { tone: "ok", sentences };
+  if (p.resumed) {
+    sentences.push({ key: "resumed" });
+  } else if (reopened > 0) {
+    sentences.push({ key: "reopened", count: reopened });
+  } else if (p.alreadyPublished) {
+    sentences.push({ key: "alreadyLive" });
+  } else {
+    sentences.push({ key: "wentLive" });
+  }
+
+  if (p.alreadyPublished && !p.resumed && !p.sourcingWarning) {
+    return { tone: "ok", sentences };
+  }
+
+  if (p.sourcingAbandoned) {
+    sentences.push({ key: "sourcingIncomplete" });
+    return { tone: "warn", sentences };
+  }
 
   if (p.sourcingWarning) {
     // Amber, and it REPLACES the sourced count: "sourced 0 because sourcing broke"
@@ -67,12 +126,6 @@ export function publishNoteSentences(p: PublishResponse): PublishNote {
 
   sentences.push({ key: "sourced", count: p.sourced ?? 0 });
   if ((p.skipped ?? 0) > 0) sentences.push({ key: "skipped", count: p.skipped });
-  // The rediscovery raise, told honestly. A broken raise used to arrive as
-  // `silverMedalists: 0` and simply printed nothing — identical to a clean run that
-  // flagged nobody — so a recruiter whose ranker was down read a quiet, complete
-  // success. The failure REPLACES the count line (the count is meaningless when the
-  // step never ran) and, like sourcingFailed, tips the whole note amber: the role IS
-  // live, but one thing it promised did not happen.
   if (p.silverMedalistsFailed) {
     sentences.push({ key: "silverMedalistsFailed" });
     return { tone: "warn", sentences };
