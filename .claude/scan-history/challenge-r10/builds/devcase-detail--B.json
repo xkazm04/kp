@@ -1,0 +1,25 @@
+{
+  "card": "devcase-detail/B",
+  "title": "Source DB previews who it files: pick from the ranked matches, counts that are true",
+  "status": "landed",
+  "base": "ce89502e4b2c50a52aa806f1c39c9153e2707cc2",
+  "shas": ["8c80e389", "47da85b9"],
+  "tests_added": [
+    "app/_lib/devcase-source-pick.test.ts",
+    "app/api/devcase/source/route.test.ts"
+  ],
+  "cases_red_before": 7,
+  "cases_green_after": 7,
+  "cases_total": 10,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "api": 0,
+    "docs": 0
+  },
+  "files_changed": 11,
+  "deviations_from_card": "messages/*.json were updated in the working tree for all 4 locales (en, cs, de, fr) under devcase.studio.sourcePreview with 16 keys each for i18n parity check to pass (0 errors), but left uncommitted to avoid committing foreign working tree edits from the 2026-09-30 Orbit session.",
+  "notes": "'Source DB' opens DevSourcePreview instead of immediately seeding matches into the pipeline. Matches display scores, matched skills and existing onBoard status with candidates already on board un-selected by default. Fresh re-ranking upon filing drops candidates no longer matching. seedPipelineFromMatches accurately counts created entries vs already-on-board candidates. All 7 acceptance criteria verified and passing."
+}
