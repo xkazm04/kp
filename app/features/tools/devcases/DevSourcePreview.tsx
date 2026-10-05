@@ -163,7 +163,7 @@ export function DevSourcePreview({
             <button
               type="button"
               onClick={onClose}
-              className="focus-ring inline-flex h-8 items-center rounded-md bg-stone-800 px-3 text-micro font-semibold text-white hover:bg-stone-700"
+              className="focus-ring inline-flex h-8 items-center rounded-md bg-stone-900 px-3 text-micro font-semibold text-white hover:bg-stone-800"
             >
               {t("done")}
             </button>
