@@ -2649,6 +2649,7 @@ two signed-in interviewers, a foreign team and open mode).
 | `app/api/voice/readiness/route.ts` | `GET` the readiness report (never mints); `POST` the bounded probe (home-org + `pipeline:write`, 6 per 10 min per IP, refused under `KP_OFFLINE`) |
 | `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
 | `app/_lib/interview-run.ts` | `buildGroundedInterview` (interviewer brief + the stored candidate agenda, composed clean via `candidateRunOfShow`), `buildCandidateSafeBrief`, `runInterviewScorecard` |
+| `app/_lib/interview-scorecard-commit.ts` | Voice scorecard atomic commit: attach CAS, gate check (`scorecardGateOpen`), approval and event in one `.immediate()` tx; seal and observed-skills minting post-commit |
 | `app/_lib/interview-scorecard.ts`, `interview-telemetry.ts`, `interview-transcript.ts` | Post-call scoring + telemetry |
 | `app/_lib/interview-rubric.ts` | The scorecard rubric resolved from `pipeline/jobfit/interview-rubrics.json` (base axes by scoring model + industry axes by role family), its version hash, and `rubricCoverage` (below) |
 | `app/_lib/interview-prep-run.ts` | Builds the prep pack (run-of-show + checklist) and stamps its provenance |
@@ -3170,6 +3171,17 @@ any more, and the choice was a **log, not a status column**:
   the transcript with no verdict and the Interview→Offer gate stays unapproved — so
   the missing half was the *reason*, which only a log can carry. No
   `scorecardStatus` column was added: it would state a fact the row already states.
+
+## Voice scorecard commits once: attach, gate, seal in one locked unit
+
+The AI interview verdict is committed atomically (`app/_lib/interview-scorecard-commit.ts`):
+1. **Scoring happens outside the transaction**: `finalizeCandidateInterviewScoring` invokes the LLM synthesis without holding database locks.
+2. **Synchronous locked commit**: `commitCandidateScorecard` executes inside a single `db.transaction(...).immediate()`:
+   - Evaluates the `attachInterviewScorecard` CAS on the session. If refused (session revoked or erased during scoring), it exits immediately without modifying pipeline entries or events.
+   - Re-reads the live pipeline entry inside the transaction.
+   - Evaluates `scorecardGateOpen` (active entry, interview role stage, approval null or calendar). If open, sets `scorecard_review` approval with fully enriched telemetry/rubric coverage and records the `interview_scorecard` event. If a human scorecard was saved during the await, reports `gate: "held"` and leaves the human verdict intact.
+3. **Decisions seal post-transaction**: `sealDecisionSafe` seals the `ai_scorecard` on the decision record store's connection immediately after the core transaction returns, avoiding SQLite write lock contention.
+4. **Observed skills minting**: `mintObservedFromCaseInterview` runs only after an applied attach, re-attaching `observedSkills` under CAS.
 
 ## What a call cost reaches the recruiter
 

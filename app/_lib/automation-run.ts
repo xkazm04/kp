@@ -22,6 +22,7 @@ import { getPlanGateForRole } from "./interview-plan";
 import { readLiveArchetypes } from "./archetype-live";
 import { extendDraftedOffer } from "./pipeline-entry-action";
 import { sealDecisionSafe } from "./decision-record-store";
+import { scorecardGateOpen } from "./interview-scorecard-commit";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { isLocale, type Locale } from "@/i18n/locales";
@@ -678,12 +679,10 @@ export async function runAutomationTask(
     }
     if (applied !== "auto_ratified") applied = screenApplied;
   } else if (task === "scorecard") {
-    // RESTORED to the pre-5ef013f51 branch: the gated version (gateScorecardReview in
-    // interview-scorecard-commit.ts) was committed half-built in that shared-checkout
-    // baseline - the module is still a throwing stub and the missing export stopped
-    // every route from compiling. The gate (do not overwrite an offer_review or a
-    // human scorecard_review already waiting on a person) is still owed; its tests are
-    // in interview-scorecard-commit.test.ts.
+    const fresh = getPipelineEntry(entry.id, workspaceId);
+    if (!fresh || !scorecardGateOpen(fresh, getPipelineAxis(workspaceId).stages)) {
+      return { result, source: payload.source, applied: "skipped_gate_closed" };
+    }
     setApproval(entry.id, "scorecard_review", approvalDetail(), workspaceId);
     recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId, engineActor);
     applied = "scorecard_ready";

@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import { attachInterviewScorecard, completeInterviewSession, getInterviewSessionByToken, type InterviewSession, type VoiceTurn } from "@/app/_lib/db/interviews";
+import { completeInterviewSession, getInterviewSessionByToken, type InterviewSession, type VoiceTurn } from "@/app/_lib/db/interviews";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
-import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
 import { resumedCallElapsedMs } from "@/app/_lib/voice/resume";
 import { isSelfHostedProvider } from "@/app/_lib/voice";
-import { runInterviewScorecard } from "@/app/_lib/interview-run";
-import { sealableRubricDimensions } from "@/app/_lib/interview-scorecard";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
+import { finalizeCandidateInterviewScoring } from "@/app/_lib/interview-scorecard-commit";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { discardedTurnCount } from "@/app/_lib/voice/discarded-turns";
 import { listInterviewEvents } from "@/app/_lib/db/interview-events";
@@ -424,68 +420,19 @@ export async function POST(request: NextRequest) {
     // A test session keeps its transcript (persisted above) and is billed like any call
     // (the debit above is mode-blind on purpose — see the billing block); it gets none
     // of what follows.
-    let scorecard: Record<string, unknown> | null = null;
     let updated = persisted;
     if (isCandidateInterview(session) && finalStatus === "completed" && transcript.length > 0) {
-      // Token-driven flow (no session workspace): derive the entry's team so the scorecard
-      // + its Interview→Offer approval scope to the right tenant.
-      const ws = getEntryWorkspace(session.entryId);
       try {
-        // Candidate-only (the guard above): the scorecard_review APPROVAL on the entry is
-        // set inside this run (runAutomationTask), so it is reachable from nowhere else.
-        scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
+        const finalized = await finalizeCandidateInterviewScoring(session, transcript);
+        if (finalized.attached && finalized.session) {
+          updated = finalized.session;
+        }
       } catch (scoringErr) {
-        // Best-effort by design: the transcript is already persisted, and a failed
-        // synthesis must never lose it. The ABSENCE of a scorecard is already the
-        // durable state a reader sees (the drawer offers the transcript with no
-        // verdict, and the Interview->Offer gate stays unapproved), so no status
-        // column is added here - what was missing is the REASON, which only this log
-        // can carry. An operator sees a scored-nothing interview and needs to know
-        // whether the model was unreachable or the entry no longer resolves.
         console.error(
           `[interview:complete] scorecard synthesis failed for session ${sessionId} ` +
             `(entry ${session.entryId}); the transcript is saved, the verdict is not.`,
           scoringErr
         );
-      }
-      // The attach lands AFTER the scoring await, so it is conditional: a GDPR erasure
-      // during scoring (the scrub blanks the transcript and the scorecard) or a revoke
-      // leaves the row refusing, and a refused attach seals no decision either — the
-      // verdict would quote a candidate who is no longer on record.
-      const attached = scorecard ? attachInterviewScorecard(sessionId, scorecard) : null;
-      if (attached && !attached.applied) {
-        console.warn(
-          `[interview:complete] scorecard for session ${sessionId} not attached: the row left 'completed' ` +
-            `or its transcript was erased during scoring; no decision is sealed.`
-        );
-      }
-      if (scorecard && attached?.applied) {
-        // Candidate-only (the guard above): a test session's row never carries a scorecard.
-        updated = attached.session ?? updated;
-        // Decision SoR (moonshot D backfill): seal the AI scorecard verdict with
-        // its model/prompt version as the actor. Best-effort — never blocks complete.
-        // Candidate-only (the guard above): no decision is ever sealed from a test session.
-        const rec = typeof scorecard.recommendation === "string" ? scorecard.recommendation : "(none)";
-        // …and seal WHAT THE VERDICT WAS MADE OF, not only its conclusion. Art. 86
-        // owes the candidate the "main elements of the decision", and an
-        // `ai_scorecard` whose whole sealed input is `recommendation: "hold"` has
-        // none to give: `aiScorecardFacts` has nothing to read, so the decision
-        // crossed onto the candidate's own status page as a bare label. The rubric
-        // axes and their ratings ARE those elements, and they are also what the
-        // chain needs to be re-checkable at all — a sealed conclusion with no
-        // sealed inputs cannot be audited against the transcript it came from.
-        // Nothing else from the scorecard is sealed here: the evidence quotes and
-        // the summary stay on the interview row (see aiScorecardFacts for why they
-        // are the wrong thing to put on a public wire).
-        sealDecisionSafe({
-          kind: "ai_scorecard",
-          actor: `auto:${AUTOMATION_VERSION.scorecard}`,
-          policyVersion: AUTOMATION_VERSION.scorecard,
-          candidateRef: session.entryId,
-          rationale: `AI interview scorecard — recommendation: ${rec}.`,
-          reasonCode: "scorecard",
-          inputs: { recommendation: rec, dimensions: sealableRubricDimensions(scorecard.ratings) },
-        });
       }
     }
 

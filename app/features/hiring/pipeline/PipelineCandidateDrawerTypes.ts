@@ -58,6 +58,7 @@ export const APPLIED_LABEL: Record<string, string> = {
   rematched: "Alternative role added to the pipeline.",
   no_alternative: "No alternative role above the match floor.",
   advisory: "Advisory only — candidate is past the screening gate.",
+  skipped_gate_closed: "Gate closed. Review already waiting on a decision.",
   drafted: "Draft ready to copy.",
 };
 
