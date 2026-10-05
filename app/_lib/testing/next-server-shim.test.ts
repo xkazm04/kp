@@ -249,3 +249,91 @@ test("the shim's nextUrl and cookies behave the way handlers and proxy.ts use th
     assert.ok(name in req, `NextRequest lost the plain-Request member ${name}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// CONSTRUCTION. Export names and instance members are not the whole contract either:
+// `NextResponse` was `export const NextResponse = { json, redirect, next }` — a plain
+// object — while 14 route handlers call `new NextResponse(body, init)`. The name was
+// exported (the first scan passes), the statics worked (the second test passes), and
+// `new` threw "NextResponse is not a constructor", which each handler's own catch
+// answered as a 500: four interview-recording tests read as product failures in every
+// linked checkout. This scan finds every `new NextResponse(` / `new NextRequest(` in
+// non-test app code and asserts the shim can actually construct what the app constructs.
+
+/** Every `new NextResponse(` / `new NextRequest(` in non-test source, by constructor. */
+function constructedExports(): Map<string, string[]> {
+  const byName = new Map<string, string[]>();
+  const construct = /\bnew\s+(NextResponse|NextRequest)\s*\(/g;
+  for (const file of SCAN_DIRS.flatMap((dir) => [...sourceFiles(dir)])) {
+    if (/\.test\.tsx?$/.test(file)) continue;
+    for (const match of code(readFileSync(file, "utf8")).matchAll(construct)) {
+      const seen = byName.get(match[1]) ?? [];
+      seen.push(path.relative(REPO_ROOT, file));
+      byName.set(match[1], seen);
+    }
+  }
+  return byName;
+}
+
+test("the shim can construct every next/server export app code constructs", async () => {
+  const shim = await loadShim();
+  const constructed = constructedExports();
+
+  // A scan that found nothing would pass vacuously. The recording route constructs a
+  // NextResponse, so if this fails the pattern went stale, not the tree.
+  const sites = [...constructed.values()].reduce((n, files) => n + files.length, 0);
+  assert.ok(sites >= 1, "scan found no `new NextResponse(` / `new NextRequest(` site — pattern is stale");
+  assert.ok(constructed.has("NextResponse"), "scan found no `new NextResponse(` site — pattern is stale");
+
+  const unconstructable: string[] = [];
+  for (const [name, files] of constructed) {
+    const ctor = shim[name];
+    let ok = false;
+    try {
+      // `Reflect.construct` on a non-constructor throws the same TypeError `new` does.
+      const args = name === "NextRequest" ? ["http://localhost/probe"] : ["probe", { status: 200 }];
+      const base = name === "NextRequest" ? Request : Response;
+      ok = Reflect.construct(ctor as new (...a: unknown[]) => object, args) instanceof base;
+    } catch {
+      ok = false;
+    }
+    if (!ok) unconstructable.push(`${name} (constructed in ${files[0]})`);
+  }
+  assert.deepEqual(
+    unconstructable,
+    [],
+    "app code constructs next/server exports next-server-shim.mjs cannot construct. In a linked " +
+      "checkout the shim IS next/server for the whole unit suite, so `new X(...)` on a plain " +
+      "object throws inside the handler's own catch and answers 500."
+  );
+});
+
+test("a constructed shim NextResponse carries body, status, headers and the cookies writer, and the statics survive", async () => {
+  type Res = Response & {
+    cookies: { set: (n: string, v: string, o?: Record<string, unknown>) => unknown; get: (n: string) => { value: string } | undefined };
+  };
+  const NextResponse = (await loadShim()).NextResponse as {
+    new (body?: BodyInit | null, init?: ResponseInit): Res;
+    json: (body: unknown, init?: { status?: number }) => Res;
+    redirect: (url: string, status?: number) => Res;
+    next: () => Res;
+  };
+
+  // The shapes the handlers use: a ranged audio reply and a bodiless 499 / 416.
+  const ranged = new NextResponse("abc", { status: 206, headers: { "content-range": "bytes 0-2/3" } });
+  assert.ok(ranged instanceof Response);
+  assert.equal(ranged.status, 206);
+  assert.equal(ranged.headers.get("content-range"), "bytes 0-2/3");
+  assert.equal(await ranged.text(), "abc");
+  assert.equal(new NextResponse(null, { status: 499 }).status, 499);
+
+  // A constructed response is cookie-capable too, like the real one.
+  ranged.cookies.set("kp_session", "abc", { path: "/" });
+  assert.equal(ranged.cookies.get("kp_session")?.value, "abc");
+
+  // The statics answer as they did when NextResponse was an object literal.
+  assert.equal(NextResponse.redirect("http://localhost/x").headers.get("location"), "http://localhost/x");
+  assert.equal(NextResponse.redirect("http://localhost/x", 302).status, 302);
+  assert.equal(NextResponse.next().status, 200);
+  assert.deepEqual(await NextResponse.json({ a: 1 }, { status: 201 }).json(), { a: 1 });
+});

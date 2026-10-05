@@ -144,22 +144,35 @@ function withCookies(response) {
   return response;
 }
 
-export const NextResponse = {
-  json(body, init = {}) {
+// A CLASS, not a plain object: 14 route handlers answer a non-JSON body with
+// `new NextResponse(body, init)` (the recording range reply, the CV pdf/md, tts, the
+// 499 client-abort replies, …), and `new` on the former object literal threw
+// "NextResponse is not a constructor" — which each handler's own catch turned into a
+// 500, so those routes were untestable in a linked checkout. The statics below behave
+// exactly as the object-literal members did.
+export class NextResponse extends Response {
+  constructor(body, init) {
+    super(body, init);
+    withCookies(this);
+  }
+
+  static json(body, init = {}) {
     return withCookies(
       new Response(JSON.stringify(body), {
         status: init.status ?? 200,
         headers: { "content-type": "application/json", ...(init.headers ?? {}) },
       })
     );
-  },
-  redirect(url, status = 307) {
+  }
+
+  static redirect(url, status = 307) {
     return withCookies(new Response(null, { status, headers: { location: String(url) } }));
-  },
-  next() {
+  }
+
+  static next() {
     return withCookies(new Response(null, { status: 200 }));
-  },
-};
+  }
+}
 
 export const after = (fn) => {
   if (typeof fn === "function") fn();
