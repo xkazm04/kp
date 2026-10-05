@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   publishNoteSentences,
+  receiptNote,
   rememberPublishResult,
   lastPublishResult,
   forgetPublishResults,
@@ -101,3 +102,20 @@ test("sourcing failure still wins the note — it precedes the raise entirely", 
   assert.deepEqual(keys(input), ["wentLive", "sourcingFailed"]);
   assert.equal(publishNoteSentences(input).tone, "warn");
 });
+
+test("Acceptance 8: publishNoteSentences in resume mode leads with resumed and sourced(N) with tone ok", () => {
+  const note = publishNoteSentences({ alreadyPublished: true, resumed: true, sourced: 2 });
+  assert.equal(note.tone, "ok");
+  assert.deepEqual(note.sentences, [
+    { key: "resumed" },
+    { key: "sourced", count: 2 },
+  ]);
+});
+
+test("Acceptance 8: receiptNote on abandoned returns warn, sourcingIncomplete, and resumable: true", () => {
+  const note = receiptNote({ state: "abandoned" });
+  assert.equal(note.tone, "warn");
+  assert.deepEqual(note.sentences, [{ key: "sourcingIncomplete" }]);
+  assert.equal(note.resumable, true);
+});
+
