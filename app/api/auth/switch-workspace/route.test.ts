@@ -132,6 +132,44 @@ test("a user disabled AFTER sign-in cannot renew through the switch: 401 and the
   cookieValue = null;
 });
 
+// ---- the renewal may not LAUNDER a revoked cookie (security scan b7518762) ----------
+//
+// This route is public (under the /api/auth/ prefix), so proxy.ts — the one place a
+// revocation was consulted for an already-minted cookie — never runs on it. And a
+// revocation names (principal, `iat`): an exact row names the OLD `iat`, and a
+// "sign out all devices" cutoff matches `iat < cutoff`. A re-mint produces a NEW
+// `iat` of now, so it escaped both shapes. One POST therefore turned a stolen,
+// revoked cookie back into a live 7-day session — the laptop-theft case the
+// revocation store exists for. The disabled-account test above does not cover it:
+// "sign out all devices" deliberately leaves the account active.
+
+test("a REVOKED cookie cannot re-mint itself through the switch: 401, cleared, and no new token", async () => {
+  const { revokeAllSessions } = await import("../../../_lib/auth/session-revocation.ts");
+  const u = createUser({ orgId: ORG, email: "switch.revoked@csas.cz", name: "Switch Revoked", status: "active", password: "member-pw-12" });
+  upsertMembership(u.id, DEFAULT_WORKSPACE, "recruiter");
+  const iat = Date.now();
+  cookieValue = signSession(DEFAULT_WORKSPACE, iat, { sub: u.id, org: ORG, role: "recruiter" });
+
+  // Non-vacuity: the very same cookie renews fine before the revocation, so the
+  // refusal below cannot be a signature, expiry, membership or status failure.
+  const ok = await switchRoute(req({ workspaceId: DEFAULT_WORKSPACE }));
+  assert.equal(ok.status, 200, "precondition: this cookie renews while it is live");
+
+  revokeAllSessions({ workspace: DEFAULT_WORKSPACE, sub: u.id }, "test:stolen-laptop", iat + 1);
+
+  const r = await switchRoute(req({ workspaceId: DEFAULT_WORKSPACE }));
+  assert.equal(r.status, 401, "a revoked session may not renew itself");
+  const lines = r.headers.getSetCookie();
+  const session = lines.find((c) => c.startsWith(`${SESSION_COOKIE}=`));
+  assert.ok(session, "the refusal answers a Set-Cookie for the session");
+  assert.match(session, /^__Host-kp_session=;/, "…with an empty value, so the laundering attempt costs the cookie");
+  assert.match(session, /Max-Age=0/, "…that expires it now");
+  // The property that actually matters: no fresh, UNREVOKED token came back.
+  const { verifySession: verify } = await import("../../../_lib/auth/session.ts");
+  assert.equal(verify(session!.split(";")[0].slice(SESSION_COOKIE.length + 1)), null, "nothing signable was issued");
+  cookieValue = null;
+});
+
 test("a successful switch sets the session with the one attribute set and no entered marker", async () => {
   const u = createUser({ orgId: ORG, email: "switch.attrs@csas.cz", name: "Switch Attrs", status: "active", password: "member-pw-12" });
   upsertMembership(u.id, DEFAULT_WORKSPACE, "viewer");

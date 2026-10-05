@@ -10,6 +10,7 @@ import {
   isOperatorSession,
 } from "@/app/_lib/auth/session";
 import { clearSession, issueSession, type SessionPrincipal } from "@/app/_lib/auth/session-issuer";
+import { isSessionRevoked } from "@/app/_lib/auth/session-revocation";
 import { getWorkspace, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
@@ -31,6 +32,19 @@ export async function POST(request: Request) {
     const session = verifySession(jar.get(SESSION_COOKIE)?.value);
     if (!session) {
       return NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 });
+    }
+    // A REVOKED cookie may not renew itself. This route is under /api/auth/ — public,
+    // so the proxy gate (the one place revocation was consulted for an already-minted
+    // cookie) never runs on it — and it hands back a FRESH 7-day token on a new `iat`.
+    // That laundered the control it exists to enforce: a revocation names (principal,
+    // iat), so neither shape caught the new token — an exact row names the OLD `iat`,
+    // and a "sign out all devices" cutoff matches `iat < cutoff` while the re-mint's
+    // `iat` is now. One POST turned a stolen-and-revoked cookie back into a live
+    // session, i.e. exactly the laptop-theft case session-revocation.ts was written
+    // for. issueSession's own re-read does not cover it: "sign out all devices"
+    // leaves the account active on purpose.
+    if (isSessionRevoked(session)) {
+      return clearSession(NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 }));
     }
     // A DEMO session never leaves the demo workspace. `/api/demo` is a PUBLIC route
     // that hands any anonymous visitor a validly-signed cookie carrying NO `sub` and
