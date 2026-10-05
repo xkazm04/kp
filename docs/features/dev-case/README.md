@@ -1584,6 +1584,14 @@ from `route-capability-coverage.test.ts`'s allowlist. **Open mode is unchanged**
 
 **And the last two unthrottled studio doors are throttled.** `/source` SPAWNS the Python matcher over the whole candidate pool and writes pipeline entries — the most expensive door in the studio — and carried no limiter at all; `POST /api/devcase` writes a `dev_cases` row plus an immutable audit row per call. Both gates above are a documented no-op in open mode, so the limiter is the real bound: `devcase-source` 30/10min per IP, `devcase-approve` 60/10min, both keyed on the caller IP, both answering `jsonRefusal("TOO_MANY_REQUESTS", 429)` after every cheap refusal (the 404 for a case that is not this team's, the probe-strength 422) so a request that was never going to spend anything costs no budget. Pinned in `app/api/rate-limit-contract.test.ts`.
 
+**Source DB previews who it files: candidate matches, onBoard status and truthful counts** (challenge-r10 devcase-detail/B).
+"Source DB" stops being a blind write:
+- **Preview mode (`POST /api/devcase/source` `{ caseId, preview: true }`)**: Ranks matches deterministically (no LLM) against the assignment's role, inspects existing pipeline entries on the assignment's opening (`caseJobIdentity`), and annotates candidates with `onBoard: { status, stage }` (or `null`). It writes nothing to the database and preserves the lifecycle outcome.
+- **Explicit selection**: Candidates already on the board are unticked by default (`defaultPicks`). The recruiter can review candidate names, archetypes, scores, matched skills and board status, toggle selections, and click "File N into Accepted".
+- **Fresh re-ranking on commit (`POST /api/devcase/source` `{ caseId, candidateIds }`)**: The route re-ranks fresh and files the intersection under `Accepted` with `sourceChannel: 'devcase'`. Any profile removed or fallen below the score floor since preview is reported in `dropped: [...]`. Malformed selections answer 400 `DEVCASE_SOURCE_SELECTION_INVALID`.
+- **Truthful counts**: `seedPipelineFromMatches` uses `createPipelineEntry`'s `created: boolean` to distinguish newly added entries from those already present (`{ added, alreadyOnBoard }`), preventing duplicate counts from inflating the studio button or orchestrator outcome.
+- **Source guards**: Neither `DevCaseDetailHeader.tsx` nor `DevLifecycleRow.tsx` initiates blind writes; both open `DevSourcePreview`. Pinned in `app/api/devcase/source/route.test.ts` and `app/_lib/devcase-source-pick.test.ts`.
+
 **The refusals are coded and the approval is attributed.** `devcase/route.ts` was the
 last dev-case file on `error-response-contract.test.ts`'s leak ceiling: both catches
 shaped `error.message` into the body (SQLITE_* detail, the absolute db path) and its

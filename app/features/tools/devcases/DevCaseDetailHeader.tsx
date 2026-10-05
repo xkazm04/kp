@@ -3,12 +3,14 @@
 // The case-detail header: back button, provenance badges, the intake action
 // (Publish / Stop intake / Reopen intake) and Source DB, and the confirm dialog for
 // each intake change — split out of DevCaseDetail.tsx.
+import { useState } from "react";
 import { ArrowLeft, CircleStop, FileWarning, MicVocal, RotateCcw, Send, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { DevCaseJobLink } from "./DevCaseJobLink";
 import { DevPublishConfirm } from "./DevPublishConfirm";
+import { DevSourcePreview } from "./DevSourcePreview";
 import type { DegradedReason, IntakeAction, IntakeState } from "./DevCaseDetail.publish";
 import type { DevCaseDetail } from "./DevTypes";
 
@@ -18,7 +20,6 @@ export function DevCaseDetailHeader({
   intake,
   action,
   publishing,
-  source,
   sourcing,
   sourcedCounts,
   hasScenario,
@@ -48,7 +49,7 @@ export function DevCaseDetailHeader({
    *  intake, whose own Close ends it. */
   action: IntakeAction | null;
   publishing?: boolean;
-  source: (caseId: string) => void;
+  source: (caseId: string, candidateIds?: readonly string[]) => void;
   sourcing: string | null;
   sourcedCounts: Record<string, number>;
   hasScenario: boolean;
@@ -70,6 +71,9 @@ export function DevCaseDetailHeader({
   confirmStop: () => void;
   cancelStop: () => void;
 }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [localSourcedCount, setLocalSourcedCount] = useState<number | null>(null);
+  const effectiveSourced = localSourcedCount ?? sourcedCounts[kase.id];
   const rel = useRelativeTime();
   const t = useTranslations("devcase.studio.detail");
   // LIVE intake: at least one open posting. The publish/reopen confirm below is offered
@@ -164,16 +168,17 @@ export function DevCaseDetailHeader({
           </button>
           <button
             type="button"
-            onClick={() => source(kase.id)}
+            onClick={() => setPreviewOpen((v) => !v)}
             disabled={sourcing === kase.id}
             title={t("sourceHint")}
+            aria-expanded={previewOpen}
             className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 text-micro font-semibold text-coral hover:border-coral/40 disabled:opacity-50"
           >
             <Users size={12} />{" "}
             {sourcing === kase.id
               ? t("sourcing")
-              : sourcedCounts[kase.id] != null
-                ? t("sourced", { count: sourcedCounts[kase.id] })
+              : effectiveSourced != null
+                ? t("sourced", { count: effectiveSourced })
                 : t("sourceDb")}
           </button>
         </div>
@@ -185,6 +190,17 @@ export function DevCaseDetailHeader({
         <p id="devcase-intake-owner" className="text-micro text-steel">
           {t("lifecycleOwnsIntake")}
         </p>
+      ) : null}
+
+      {/* Source candidate matches preview panel */}
+      {previewOpen ? (
+        <DevSourcePreview
+          caseId={kase.id}
+          onClose={() => setPreviewOpen(false)}
+          onFiled={(count) => {
+            setLocalSourcedCount(count);
+          }}
+        />
       ) : null}
 
       {/* #3 — confirm-before-publish. Publishing mints a live link and sources real

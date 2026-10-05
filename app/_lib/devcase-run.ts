@@ -816,6 +816,8 @@ export async function runSourceForRole(
   // so the signature stays compatible with the store default everywhere else.
   { topN = 8, floor = 45, signal, workspaceId }: { topN?: number; floor?: number; signal?: AbortSignal; workspaceId?: string } = {},
 ): Promise<SourceOutcome> {
+  const stub = (globalThis as { __kpStubSourceForRole?: typeof runSourceForRole }).__kpStubSourceForRole;
+  if (stub) return stub(role, { topN, floor, signal, workspaceId });
   const profiles = listMatrixProfiles(undefined, workspaceId);
   if (profiles.length === 0) return { candidates: [], skipped: 0, skippedReasons: [] };
   const payload = await runDevcaseCli<{ result: SourceOutcome }>(
@@ -855,8 +857,13 @@ export function seedPipelineFromMatches(
   // `workspaceId` must be the SAME team runSourceForRole ranked. Passing one here
   // while omitting it there is the dangerous half-fix: the entries land correctly
   // but the people in them belong to another tenant.
-  opts: { caseId: string | null; roleTitle: string; workspaceId?: string },
-): { added: number } {
+  opts: {
+    caseId: string | null;
+    roleTitle: string;
+    workspaceId?: string;
+    candidateIds?: readonly string[];
+  },
+): { added: number; alreadyOnBoard: number } {
   // ONE THREAD: file these candidates under the assignment's REAL opening when it has
   // one, so a person sourced for the work sample and a person who applied to the JD
   // are the same row on the same job — not two rows on two job ids that no query
@@ -876,9 +883,12 @@ export function seedPipelineFromMatches(
     caseNeedRoleFamily(kase)
   );
   let added = 0;
+  let alreadyOnBoard = 0;
+  const allowed = opts.candidateIds ? new Set(opts.candidateIds) : null;
   for (const m of matches) {
     if (!m.candidateId) continue;
-    createPipelineEntry({
+    if (allowed && !allowed.has(m.candidateId)) continue;
+    const entry = createPipelineEntry({
       candidateId: m.candidateId,
       candidateLabel: m.label,
       // Already the sourced PROFILE's own archetype (runSourceForRole ranks real
@@ -899,9 +909,13 @@ export function seedPipelineFromMatches(
       locale: inferProfileLocale(m.candidateId, opts.workspaceId),
       workspaceId: opts.workspaceId,
     });
-    added += 1;
+    if (entry.created) {
+      added += 1;
+    } else {
+      alreadyOnBoard += 1;
+    }
   }
-  return { added };
+  return { added, alreadyOnBoard };
 }
 
 /** The role family the NEED states, when it states one. `dev_cases.need_json` is the

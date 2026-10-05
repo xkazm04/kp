@@ -17,6 +17,7 @@ import { LIFECYCLE_STEPS, LIVE_STAGES } from "./DevTypes";
 import type { Lifecycle, PostingInFlight } from "./DevTypes";
 import { closeWarning } from "./devcaseInFlight";
 import { BTN_AFFIRM, NOTICE } from "@/app/_components/ui/recipes";
+import { DevSourcePreview } from "./DevSourcePreview";
 
 // How each run-outcome warning reads. Exhaustive over the vocabulary, so a warning the
 // runner learns cannot render without a decided tone: `caution` asks for a person
@@ -67,7 +68,6 @@ export function LifecycleRow({
   const mapped = lc.stage === "awaiting_approval" ? "designed" : lc.stage === "published" ? "collecting" : lc.stage;
   const idx = LIFECYCLE_STEPS.indexOf(mapped);
   const awaiting = lc.stage === "awaiting_approval";
-  const done = lc.stage === "promoted";
   // W5-3 — human-gated close-out. Offered once the case is live (collecting or
   // beyond): wraps up non-promoted submitters with a courteous comm, closes the
   // postings (apply page + webhook answer honestly) and flips the lifecycle to
@@ -108,26 +108,10 @@ export function LifecycleRow({
     { stage: lc.stage, updatedAt: lc.updatedAt, createdAt: lc.createdAt, submissionCount },
     nowMs
   );
-  const [sourcing, setSourcing] = useState(false);
-  const [sourceError, setSourceError] = useState<string | null>(null);
-  const reSource = async () => {
-    if (sourcing || !lc.caseId) return;
-    setSourcing(true);
-    setSourceError(null);
-    try {
-      const r = await fetch("/api/devcase/source", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId: lc.caseId }),
-      });
-      const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-      if (!r.ok) throw new Error(errMsg(payload, t("lifecycle.reSourceFailed")));
-      onChanged?.();
-    } catch (caught) {
-      setSourceError(caught instanceof Error ? caught.message : t("lifecycle.reSourceFailed"));
-    } finally {
-      setSourcing(false);
-    }
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const reSource = () => {
+    if (!lc.caseId) return;
+    setPreviewOpen((o) => !o);
   };
   // The coded run outcome (challenge-r07 devcase-orchestration/B): the runner's last step
   // in the reader's language, each warning with the door that fixes it. A row with no
@@ -217,11 +201,11 @@ export function LifecycleRow({
           <button
             type="button"
             onClick={reSource}
-            disabled={sourcing}
+            aria-expanded={previewOpen}
             title={t("lifecycle.reSourceTitle")}
             className="focus-ring inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-coral/40 bg-white px-2.5 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
           >
-            <RefreshCw size={12} /> {sourcing ? t("lifecycle.reSourcing") : t("lifecycle.reSource")}
+            <RefreshCw size={12} /> {t("lifecycle.reSource")}
           </button>
         ) : null}
         {awaiting ? (
@@ -252,9 +236,9 @@ export function LifecycleRow({
           </button>
         ) : null}
       </div>
-      {closeError || sourceError || resumeError ? (
+      {closeError || resumeError ? (
         <p role="alert" className="mt-1 text-micro text-red-700">
-          {closeError ?? sourceError ?? resumeError}
+          {closeError ?? resumeError}
         </p>
       ) : null}
       {awaiting && reviewOpen ? (
@@ -294,8 +278,8 @@ export function LifecycleRow({
                   </Link>
                 ) : act?.action === "re_source" ? (
                   // Live the moment sourcing crashed, not after the 7-day stall rule.
-                  <button type="button" onClick={reSource} disabled={sourcing} className={ACTION_BTN}>
-                    <RefreshCw size={11} aria-hidden /> {sourcing ? t("lifecycle.reSourcing") : t("lifecycle.outcomeAction.re_source")}
+                  <button type="button" onClick={reSource} aria-expanded={previewOpen} className={ACTION_BTN}>
+                    <RefreshCw size={11} aria-hidden /> {t("lifecycle.outcomeAction.re_source")}
                   </button>
                 ) : null}
               </span>
@@ -309,6 +293,17 @@ export function LifecycleRow({
         </div>
       ) : detailView.kind === "prose" ? (
         <p className="mt-1.5 text-micro text-steel">{detailView.text}</p>
+      ) : null}
+      {previewOpen && lc.caseId ? (
+        <div className="mt-3">
+          <DevSourcePreview
+            caseId={lc.caseId}
+            onClose={() => setPreviewOpen(false)}
+            onFiled={() => {
+              onChanged?.();
+            }}
+          />
+        </div>
       ) : null}
       {confirmingClose ? (
         <Modal

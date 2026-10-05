@@ -10,6 +10,10 @@ import { runSourceForRole, seedPipelineFromMatches } from "@/app/_lib/devcase-ru
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
+import { caseJobIdentity } from "@/app/_lib/devcase-identity";
+import { listEntriesForJob } from "@/app/_lib/db/pipeline";
+import { validateCandidateIds } from "@/app/_lib/devcase-source-pick";
+
 // Phase C — proactive sourcing for an approved case: rank the candidate DB against the
 // role and seed the pipeline at the Accepted stage. Deterministic (matching, no LLM).
 //
@@ -36,13 +40,27 @@ export async function POST(request: NextRequest) {
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (forbidden) return forbidden;
   try {
-    const body = (await request.json().catch(() => ({}))) as { caseId?: string };
+    const body = (await request.json().catch(() => ({}))) as {
+      caseId?: string;
+      preview?: boolean;
+      candidateIds?: unknown;
+    };
     if (!body.caseId) return NextResponse.json({ error: "caseId is required." }, { status: 400 });
     const ws = await currentWorkspace();
     const devCase = getDevCase(body.caseId);
     // getDevCase is a by-id point read (globally-unique id), so ownership is
     // checked here: a known case id from another team must not be sourceable.
     if (!devCase || devCase.workspaceId !== ws) return NextResponse.json({ error: "case not found" }, { status: 404 });
+
+    let candidateIds: string[] | undefined;
+    if ("candidateIds" in body) {
+      const valid = validateCandidateIds(body.candidateIds);
+      if (!valid) {
+        return jsonRefusal("DEVCASE_SOURCE_SELECTION_INVALID", 400);
+      }
+      candidateIds = valid;
+    }
+
     // Last of the cheap refusals: a missing caseId and a case that isn't this team's
     // are both answered before the throttle, so a click that was never going to spawn
     // anything costs no budget.
@@ -53,9 +71,52 @@ export async function POST(request: NextRequest) {
     const role = (devCase.role as { title?: string } & Record<string, unknown>) ?? {};
     const { candidates: matches, skipped, skippedReasons } = await runSourceForRole(role, { workspaceId: ws });
     const roleTitle = role.title ?? devCase.roleTitle ?? "Dev case";
+
+    if (body.preview) {
+      const identity = caseJobIdentity({
+        caseId: devCase.id,
+        jobId: devCase.jobId ?? null,
+        jobTitle: devCase.jobTitle ?? null,
+        roleTitle,
+      });
+      const existingEntries = listEntriesForJob(identity.jobId, ws);
+      const entryByCandidateId = new Map<string, { status: string; stage?: string }>();
+      for (const e of existingEntries) {
+        if (e.candidateId) {
+          entryByCandidateId.set(e.candidateId, { status: e.status, stage: e.stage });
+        }
+      }
+      const candidates = matches.map((m) => {
+        const onBoard = m.candidateId ? (entryByCandidateId.get(m.candidateId) ?? null) : null;
+        return {
+          candidateId: m.candidateId,
+          label: m.label,
+          archetype: m.archetype,
+          score: m.score,
+          matchedSkills: m.matchedSkills ?? [],
+          onBoard,
+        };
+      });
+      return NextResponse.json({
+        ok: true,
+        preview: true,
+        candidates,
+        skipped,
+        skippedReasons,
+      });
+    }
+
+    const matchIds = new Set(matches.map((m) => m.candidateId).filter((id): id is string => Boolean(id)));
+    const dropped = candidateIds ? candidateIds.filter((id) => !matchIds.has(id)) : [];
+
     // Shared write contract (incl. the `sourceChannel: "devcase"` origin marker)
     // with the lifecycle orchestrator — previously this route omitted the marker.
-    const { added } = seedPipelineFromMatches(matches, { caseId: devCase.id, roleTitle, workspaceId: ws });
+    const { added, alreadyOnBoard } = seedPipelineFromMatches(matches, {
+      caseId: devCase.id,
+      roleTitle,
+      workspaceId: ws,
+      candidateIds,
+    });
     // This door is the fix the lifecycle row offers for a `sourcing_failed` warning, so a
     // sourcing that just SUCCEEDED clears it (other warnings stay). Only here, after the
     // seed: a throw above skips this and the warning keeps standing, because it is still
@@ -68,7 +129,15 @@ export async function POST(request: NextRequest) {
     }
     // `skipped` > 0 with an empty `candidates` means the pool failed to parse, not that
     // nobody matched — surfaced so the UI can be honest about an empty shortlist.
-    return NextResponse.json({ ok: true, added, skipped, skippedReasons, candidates: matches });
+    return NextResponse.json({
+      ok: true,
+      added,
+      alreadyOnBoard,
+      dropped,
+      skipped,
+      skippedReasons,
+      candidates: matches,
+    });
   } catch (error) {
     // The matching spawn's stderr and the store's SQLITE_* detail stay in the server
     // log; the caller gets the code.

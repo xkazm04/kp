@@ -575,6 +575,8 @@ export const REFUSAL_ERRORS = {
    *  reviewed advance/reject rows within the pass's entry cap (400). The preview modal
    *  only ever sends a well-formed one, so reaching this means a hand-rolled call. */
   AUTOMATION_SELECTION_INVALID: "That selection of changes could not be read. Preview the pass again and re-apply.",
+  /** POST /api/devcase/source carried a candidate selection that is not a non-empty list of candidate ids (400). */
+  DEVCASE_SOURCE_SELECTION_INVALID: "That candidate selection could not be read. Preview the matches again and re-apply.",
   /** A non-numeric automation interval (400). The dock's own field clamps to
    *  [1, 1440], so reaching this means a hand-rolled call or a broken client —
    *  and the operator still deserves the reason in their own language. */
