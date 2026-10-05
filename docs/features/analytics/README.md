@@ -834,7 +834,20 @@ disagreed by the offset on an audit artifact.
 
 **Every export names its own scope.** The log CSV opens with a provenance block
 (`Export · Generated · Time zone · Language · Scope · Filters`), a blank separator row, then
-header and body. The records JSON carries a machine-named `provenance` object (`artifact, scope,
+header and body. That file is built by `decisionCsvRows()` in `decisionLogCsv.ts` — **pure**
+(labels and per-cell renderings arrive resolved, the `analyticsFunnelCsv.ts` idiom) and pinned by
+`decisionLogCsv.test.ts`, which asserts the block, the blank separator, the two time columns, the
+empty cell for an absent join, and that an unmapped kind is attributed UNKNOWN. `decisionLogUrl()`
+and `collectDecisionTrail()` live beside it: the query the table pages and the query the export
+pages are one function, and the trail loop follows the route's own `nextOffset` and reports
+whether it finished. `useDecisionLogExport.ts` is the wiring half (next-intl, the comms capability
+bit, fetch, download) — a hook rather than a component because the **Decisions tab** offers the
+same file from its own header (`hiring/decisions/DecisionsExportLog.tsx`, see
+[pipeline](../pipeline/README.md), "The decision trail leaves this tab as a file") with different
+chrome, and one regulated record may not grow two exports that disagree about columns, clock or
+scope. A run that stops at `TRAIL_MAX_PAGES` writes `scopeTrailCapped`, not `scopeTrail`: the
+rows are true, but the file may not call itself the whole trail. The records JSON carries a
+machine-named `provenance` object (`artifact, scope,
 generatedAt, timeZone, locale, recordCount, chainScope, chainVerified, chainKeyed,
 chainKeylessCount`). `chainScope` is `workspace` even inside a one-subject dossier, deliberately
 — the verdict always covers the whole chain, so a reader cannot report "chain verified" as a

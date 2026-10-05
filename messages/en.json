@@ -3901,6 +3901,8 @@
     "allRoles": "All roles ({count})",
     "rulesButton": "Rules",
     "rulesTitle": "Configure decision rules",
+    "exportLog": "Export decision log",
+    "exportLogTitle": "Download the whole AI-assisted decision trail as a CSV audit file",
     "loading": "Loading…",
     "caughtUpTitle": "You're all caught up.",
     "caughtUpBody": "No decisions are waiting on you right now.",
@@ -8439,7 +8441,8 @@
       "provScope": "Scope",
       "provFilters": "Filters",
       "scopePage": "Page {page} of {pages} · {rows} of {total} rows",
-      "scopeTrail": "Whole trail · {rows} of {total} rows"
+      "scopeTrail": "Whole trail · {rows} of {total} rows",
+      "scopeTrailCapped": "Whole trail, capped · {rows} of {total} rows (the export stopped at its page ceiling)"
     },
     "automation": {
       "title": "Automation impact",

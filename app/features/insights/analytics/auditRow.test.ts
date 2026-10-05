@@ -52,6 +52,12 @@ const LOG_TABLE = "./sections/DecisionLogTable.tsx";
 const RECORD_DETAIL = "./sections/DecisionRecordDetail.tsx";
 const RECORDS_PANEL = "./AnalyticsDecisionRecordsPanel.tsx";
 const LOG_ROUTE = "../../../api/analytics/decisions/route.ts";
+/** The pure CSV builder + trail pager, shared by BOTH surfaces that export the log. */
+const LOG_CSV = "./decisionLogCsv.ts";
+/** Its wiring half: labels, the fetch loop, the download. */
+const LOG_EXPORT = "./useDecisionLogExport.ts";
+/** The Decisions tab's own export affordance — the second surface. */
+const DECISIONS_EXPORT = "../../hiring/decisions/DecisionsExportLog.tsx";
 const RECORDS_ROUTE = "../../../api/decisions/records/route.ts";
 
 // ---- 1. Czech collation on the name sort (LUC-ANA-5) ------------------------
@@ -307,13 +313,31 @@ test("the rationale is expandable and the expansion reaches the ?candidate= doss
 });
 
 test("every export names its own scope and carries provenance", () => {
-  const log = source(LOG_TABLE);
-  assert.equal(log.includes("withExportProvenance("), true);
-  assert.equal(log.includes('t("scopePage"') && log.includes('t("scopeTrail"'), true, "an export that cannot name its scope");
+  assert.equal(source(LOG_CSV).includes("withExportProvenance("), true);
+  // The page export names its page; the trail export names the trail — and says so
+  // DIFFERENTLY when it stopped at the page ceiling instead of at the end of the trail.
+  assert.equal(source(LOG_TABLE).includes('t("scopePage"'), true, "an export that cannot name its scope");
+  const exporter = source(LOG_EXPORT);
+  assert.equal(
+    exporter.includes('t("scopeTrail"') && exporter.includes('t("scopeTrailCapped"'),
+    true,
+    "a truncated trail must not call itself whole"
+  );
   // Both time columns: the rendered one matches the screen, the ISO one is the
   // unambiguous machine value. Dropping either is what made the two disagree.
-  assert.equal(log.includes('t("csvTimeLocal"') && log.includes('t("csvTimeIso"'), true);
+  assert.equal(exporter.includes('t("csvTimeLocal"') && exporter.includes('t("csvTimeIso"'), true);
   assert.equal(source(RECORDS_PANEL).includes("provenance:"), true, "the JSON dossier carries no provenance block");
+});
+
+test("the Decisions tab exports the SAME file, from the same builder", () => {
+  const header = source("../../hiring/decisions/docket/DocketHead.tsx");
+  assert.equal(header.includes("<DecisionsExportLog />"), true, "the decision queue offers no way off the screen");
+  const surface = source(DECISIONS_EXPORT);
+  assert.equal(surface.includes("useDecisionLogExport()"), true, "a second serializer for one regulated record");
+  assert.equal(surface.includes("decisionLogUrl("), true, "a hand-rolled query cannot stay the route's query");
+  // One trail, one artifact: nothing here may build a file of its own.
+  assert.equal(surface.includes("toCsv("), false, "the Decisions surface must not serialize its own CSV");
+  assert.equal(surface.includes("withExportProvenance("), false, "the Decisions surface must not write its own provenance block");
 });
 
 test("a log row with actor human:Petra Nováková prints that name", () => {
@@ -331,23 +355,28 @@ test("a legacy null actor is not identified, never guessed", () => {
   assert.equal(actorDisplayName("", "Not identified"), "Not identified");
 });
 
-test("the log's By column and both CSV exporters name the person, not only the class", () => {
+test("the log's By column and every CSV export names the person, not only the class", () => {
   const types = source("./analyticsDecisionLogTypes.ts");
   assert.match(types, /actor\?:\s*string\s*\|\s*null/, "Decision must carry the actor the route already returns");
   const log = source(LOG_TABLE);
   assert.equal(log.includes("actorDisplayName("), true, "the By column must parse the actor, not print the class alone");
-  assert.equal(log.includes('t("csvActor"'), true, "both exporters share csvFor — the Actor column must be in that header");
-  assert.equal(log.includes("actorDisplayName(d.actor"), true, "the CSV cell must be the parsed name");
+  // Every export shares ONE builder, so the Actor column is asserted once — there.
+  assert.equal(source(LOG_EXPORT).includes('t("csvActor"'), true, "the Actor column must be in the shared header");
+  assert.equal(source(LOG_EXPORT).includes("actorDisplayName(actor"), true, "the CSV cell must be the parsed name");
+  assert.equal(source(LOG_CSV).includes("render.actor(d.actor)"), true, "the builder must write the parsed name, not the raw token");
   // The auto/human filter stays the class from DECISION_META, not parseEventActor.
   assert.equal(log.includes("onFilterAttribution"), true);
 });
 
 test("G5 — the CSV still goes through the central neutralizer, never a hand-rolled join", () => {
-  const log = source(LOG_TABLE);
-  assert.equal(log.includes("toCsv("), true);
+  // ONE call site for the whole studio's decision log, in the shared hook.
+  assert.equal(source(LOG_EXPORT).includes("toCsv("), true);
   // A hand-built row string would bypass the leading =/+/-/@ neutralization that
-  // export-utils applies once for every export in the studio.
-  assert.equal(/\.join\(",",?\)/.test(log), false, "a hand-rolled CSV join bypasses the central neutralizer");
+  // export-utils applies once for every export in the studio — on any of the four
+  // modules that now touch this file.
+  for (const rel of [LOG_EXPORT, LOG_CSV, LOG_TABLE, DECISIONS_EXPORT]) {
+    assert.equal(/\.join\(",",?\)/.test(source(rel)), false, `${rel}: a hand-rolled CSV join bypasses the central neutralizer`);
+  }
 });
 
 // ---- 8. The route guardrails (G4, G5) ---------------------------------------

@@ -22,13 +22,13 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { apiErrorPayload, LocalizedFailure, localizedFailureMessage } from "../analyticsFetchError";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { downloadFile, toCsv } from "@/app/_lib/export-utils";
+import { downloadFile } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel, waveReasonText, type CohortProvenance } from "@/app/_lib/decision-attribution";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { AnalyticsExportButton } from "../AnalyticsExportButton";
+import { decisionLogUrl } from "../decisionLogCsv";
+import { useDecisionLogExport } from "../useDecisionLogExport";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
@@ -42,21 +42,13 @@ import {
   compareNames,
   decisionMeta,
   formatAuditTime,
-  resolveAuditTimeZone,
   toggleExpandedId,
-  withExportProvenance,
   type Decision,
   type DecisionPage,
 } from "../analyticsDecisionLogTypes";
 
 /** Every data column plus the spanning detail row. */
 const COLUMN_COUNT = 6;
-
-/** Page size for the whole-trail export's chained reads. The route caps `limit`
- *  at 50, so this is the largest page it will honour: 174 rows = 4 requests. */
-const TRAIL_FETCH_LIMIT = 50;
-/** Hard stop on the export loop, so a paging bug can never spin forever. */
-const TRAIL_MAX_PAGES = 400;
 
 /** Mirrors the store's allowlist (db/pipeline.ts EVENT_SORT_COLUMNS). */
 type Col = "createdAt" | "candidateLabel" | "jobTitle" | "kind";
@@ -75,12 +67,14 @@ export function DecisionLogTable({
   boardHref: (q: string) => string;
 }) {
   const t = useTranslations("analytics.log");
-  // §1.1 — a failure is shown from its machine code, in the reader's language.
-  const errMsg = useErrorMessage();
   const tWave = useTranslations("decisions.wave");
   const locale = useLocale();
   const enumLabel = useEnumLabel();
   const relayConfigured = useDeliveryCapability();
+  // Both files this table offers come out of the shared builder, so the page
+  // export, the whole-trail export and the Decisions tab's export can never carry
+  // different columns or a different clock — only a different declared scope.
+  const { zone, csvFor, exportTrail, trailBusy, trailError } = useDecisionLogExport();
 
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<SortState<Col>>({ col: "createdAt", dir: "desc" });
@@ -89,8 +83,6 @@ export function DecisionLogTable({
   // server read of the whole trail's refinement path, not a client filter.
   const [subject, setSubject] = useState("");
   const [query, setQuery] = useState("");
-  const [trailBusy, setTrailBusy] = useState(false);
-  const [trailError, setTrailError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -101,27 +93,15 @@ export function DecisionLogTable({
     return () => clearTimeout(id);
   }, [subject]);
 
-  // UAT LUC-ANA-7 — ONE clock for this surface. The rows used to print
-  // `createdAt.slice(0,16)`, a UTC instant with no marker that a Prague reader
-  // read as local, while the CSV wrote the true ISO: screen and export disagreed
-  // by two hours on an audit artifact. Both now render through formatAuditTime in
-  // this zone, the export carries the ISO instant BESIDE the rendered one, and the
-  // zone is named in both places.
-  const zone = useMemo(() => resolveAuditTimeZone(), []);
-
+  // UAT LUC-ANA-7 — ONE clock for this surface, owned by the export hook. The rows
+  // used to print `createdAt.slice(0,16)`, a UTC instant with no marker that a
+  // Prague reader read as local, while the CSV wrote the true ISO: screen and
+  // export disagreed by two hours on an audit artifact. Both now render through
+  // formatAuditTime in this zone, the export carries the ISO instant BESIDE the
+  // rendered one, and the zone is named in both places.
   const queryUrl = useCallback(
-    (offset: number, limit: number) => {
-      const params = new URLSearchParams({ offset: String(offset), limit: String(limit), sort: sort.col, dir: sort.dir, locale });
-      // UAT LUC-ANA-12 — send BOTH. This was `if (kind) … else if (attribution)`, so
-      // picking a decision kind quietly stopped sending the Kdo filter while its column
-      // kept the active dot lit: the table said it had narrowed on two axes and had
-      // narrowed on one. The route now intersects them (and answers an empty page for a
-      // contradictory pair) rather than choosing a winner.
-      if (kind) params.set("kind", kind);
-      if (attribution) params.set("attribution", attribution);
-      if (query) params.set("q", query);
-      return `/api/analytics/decisions?${params.toString()}`;
-    },
+    (offset: number, limit: number) =>
+      decisionLogUrl({ offset, limit, sort: sort.col, dir: sort.dir, locale, kind, attribution, q: query }),
     [sort.col, sort.dir, kind, attribution, query, locale]
   );
 
@@ -192,82 +172,20 @@ export function DecisionLogTable({
   ].filter((p): p is string => p !== null);
   const filtersText = filterPieces.length > 0 ? filterPieces.join(" · ") : t("filtersNone");
 
-  // Both exports go through ONE builder, so the page export and the whole-trail
-  // export can never carry different columns or a different clock — only a
-  // different declared scope.
-  const csvFor = (list: Decision[], scope: string): string =>
-    toCsv(
-      withExportProvenance(
-        [
-          [t("provExport"), t("title")],
-          [t("provGenerated"), formatAuditTime(new Date().toISOString(), locale, zone)],
-          [t("provZone"), zone],
-          [t("provLocale"), locale],
-          [t("provScope"), scope],
-          [t("provFilters"), filtersText],
-        ],
-        // The rendered time AND the ISO instant, in that order: the first matches
-        // the screen, the second is the unambiguous machine value. Dropping either
-        // is what made the two disagree.
-        [t("csvTimeLocal", { zone }), t("csvTimeIso"), t("csvAttribution"), t("csvActor"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
-        list.map((d) => [
-          formatAuditTime(d.createdAt, locale, zone),
-          d.createdAt,
-          t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
-          actorDisplayName(d.actor, t("actorNotIdentified")),
-          kindLabel(t, d.kind, { relayConfigured }),
-          d.candidateLabel,
-          d.jobTitle,
-          d.cohort ? cohortText(d.cohort) : null,
-          detailText(d),
-        ])
-      )
-    );
-
   // Exports the CURRENT page, and the header says so — the previous version
   // exported "the loaded set", a number that depended on how far the reader had
   // happened to scroll and was therefore impossible to describe in the file.
   const exportCsv = () => {
     const shownPage = Math.min(page, Math.max(0, pageCount(total) - 1)) + 1;
     const scope = t("scopePage", { page: shownPage, pages: Math.max(1, pageCount(total)), rows: rows.length, total });
-    downloadFile(`kp-decision-log-page-${shownPage}.csv`, csvFor(rows, scope), "text/csv");
+    downloadFile(`kp-decision-log-page-${shownPage}.csv`, csvFor(rows, { scope, filters: filtersText }), "text/csv");
   };
 
   // UAT LUC-ANA-11 — the whole trail in one file. 174 rows at 20 per click was
   // nine downloads, so "export the audit trail" was in practice not offered. The
-  // loop pages the SAME endpoint with the SAME filters (G4: server-paged, never
+  // hook pages the SAME endpoint with the SAME filters (G4: server-paged, never
   // windowed) and the file names the scope it actually reached.
-  const exportTrail = async () => {
-    setTrailBusy(true);
-    setTrailError(null);
-    try {
-      const all: Decision[] = [];
-      let offset = 0;
-      let reported = 0;
-      for (let i = 0; i < TRAIL_MAX_PAGES; i++) {
-        const res = await fetch(queryUrl(offset, TRAIL_FETCH_LIMIT));
-        // The route answers TOO_MANY_REQUESTS (429, wait and retry) and
-        // DECISION_LOG_LOAD_FAILED (500, the read fell over) with codes; the raw
-        // status this used to throw collapsed both into one red line, and the number
-        // itself never reached a reader.
-        if (!res.ok) throw new LocalizedFailure(errMsg(await apiErrorPayload(res), t("exportTrailFailed")));
-        const body = (await res.json()) as DecisionPage & { code?: string };
-        if (body.error) throw new LocalizedFailure(errMsg(body, t("exportTrailFailed")));
-        all.push(...body.decisions);
-        reported = body.total;
-        if (!body.hasMore || body.decisions.length === 0) break;
-        offset = body.nextOffset;
-      }
-      downloadFile("kp-decision-log-trail.csv", csvFor(all, t("scopeTrail", { rows: all.length, total: reported })), "text/csv");
-    } catch (err) {
-      // Truthful failure: a partial file silently named "whole trail" is exactly
-      // the artifact an auditor must never be handed. WHY it failed now survives the
-      // catch — resolved from the code above, generic for anything unlocalized.
-      setTrailError(localizedFailureMessage(err, t("exportTrailFailed")));
-    } finally {
-      setTrailBusy(false);
-    }
-  };
+  const onExportTrail = () => void exportTrail({ url: queryUrl, filters: filtersText });
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -283,7 +201,7 @@ export function DecisionLogTable({
           <AnalyticsExportButton label={t("exportPage")} onClick={exportCsv} disabled={rows.length === 0} />
           <AnalyticsExportButton
             label={trailBusy ? t("exportTrailBusy") : t("exportTrail")}
-            onClick={exportTrail}
+            onClick={onExportTrail}
             disabled={total === 0 || trailBusy}
           />
         </div>

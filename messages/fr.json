@@ -3901,6 +3901,8 @@
     "allRoles": "Tous les postes ({count})",
     "rulesButton": "Règles",
     "rulesTitle": "Configurer les règles de décision",
+    "exportLog": "Exporter le journal des décisions",
+    "exportLogTitle": "Téléchargez l’intégralité du journal des décisions assistées par IA sous forme de fichier d’audit CSV",
     "loading": "Chargement…",
     "caughtUpTitle": "Vous êtes à jour.",
     "caughtUpBody": "Aucune décision ne vous attend pour le moment.",
@@ -8439,7 +8441,8 @@
       "provScope": "Portée",
       "provFilters": "Filtres",
       "scopePage": "Page {page} sur {pages} · {rows} lignes sur {total}",
-      "scopeTrail": "Journal complet · {rows} lignes sur {total}"
+      "scopeTrail": "Journal complet · {rows} lignes sur {total}",
+      "scopeTrailCapped": "Journal complet, tronqué · {rows} lignes sur {total} (l’export s’est arrêté à son plafond de pages)"
     },
     "automation": {
       "title": "Impact de l’automatisation",

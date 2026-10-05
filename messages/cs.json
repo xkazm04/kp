@@ -3901,6 +3901,8 @@
     "allRoles": "Všechny pozice ({count})",
     "rulesButton": "Pravidla",
     "rulesTitle": "Nastavit pravidla rozhodování",
+    "exportLog": "Exportovat protokol rozhodnutí",
+    "exportLogTitle": "Stáhnout celou stopu rozhodnutí s podporou AI jako auditní soubor CSV",
     "loading": "Načítání…",
     "caughtUpTitle": "Máte vše vyřízené.",
     "caughtUpBody": "Právě teď na vás nečekají žádná rozhodnutí.",
@@ -8439,7 +8441,8 @@
       "provScope": "Rozsah",
       "provFilters": "Filtry",
       "scopePage": "Stránka {page} z {pages} · {rows} z {total} řádků",
-      "scopeTrail": "Celá stopa · {rows} z {total} řádků"
+      "scopeTrail": "Celá stopa · {rows} z {total} řádků",
+      "scopeTrailCapped": "Celá stopa, omezeno · {rows} z {total} řádků (export se zastavil na stropu počtu stránek)"
     },
     "automation": {
       "title": "Dopad automatizace",

@@ -3901,6 +3901,8 @@
     "allRoles": "Alle Stellen ({count})",
     "rulesButton": "Regeln",
     "rulesTitle": "Entscheidungsregeln konfigurieren",
+    "exportLog": "Entscheidungsprotokoll exportieren",
+    "exportLogTitle": "Die gesamte KI-gestützte Entscheidungsspur als CSV-Auditdatei herunterladen",
     "loading": "Wird geladen…",
     "caughtUpTitle": "Alles erledigt.",
     "caughtUpBody": "Momentan warten keine Entscheidungen auf Sie.",
@@ -8439,7 +8441,8 @@
       "provScope": "Umfang",
       "provFilters": "Filter",
       "scopePage": "Seite {page} von {pages} · {rows} von {total} Zeilen",
-      "scopeTrail": "Gesamtes Protokoll · {rows} von {total} Zeilen"
+      "scopeTrail": "Gesamtes Protokoll · {rows} von {total} Zeilen",
+      "scopeTrailCapped": "Gesamtes Protokoll, begrenzt · {rows} von {total} Zeilen (der Export endete an seiner Seitenobergrenze)"
     },
     "automation": {
       "title": "Wirkung der Automatisierung",

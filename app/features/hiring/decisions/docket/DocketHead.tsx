@@ -14,6 +14,7 @@ import { PageHead } from "@/app/_components/kit/PageHead";
 import { KeyHints } from "@/app/_components/kit/scene";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
+import { DecisionsExportLog } from "../DecisionsExportLog";
 import { roleKeyOf } from "../decisionsQueueTypes";
 import { proposalOf, type DocketGroup, type DocketHeadline } from "./docketModel";
 import "./docket.css";
@@ -125,6 +126,9 @@ export function DocketHead({
         {reconsiderCount > 0 ? (
           <Button size="sm" variant="secondary" icon="resend" label={t("reconsiderChip", { count: reconsiderCount })} onClick={onRevealReconsider} />
         ) : null}
+        {/* The decision trail as a file, from the same builder the Analytics log exports —
+            an audit artifact belongs beside the queue that produces it, not only two tabs away. */}
+        <DecisionsExportLog />
         <Button size="sm" variant="secondary" label={t("rulesButton")} tip={t("rulesTitle")} onClick={onOpenRules} />
       </div>
 

@@ -1878,6 +1878,35 @@ itself rather than calling `scrollIntoView`, which walks every scrollable ancest
 and would drag the whole queue under the reader on mount. `+N more in this
 pipeline` now names the UNSCORED remainder, which is the only overflow left.
 
+### The decision trail leaves this tab as a file
+
+The Docket head's tools row (`decisions/docket/DocketHead.tsx`) carries an
+**Export decision log** button (`DecisionsExportLog.tsx`, the kit `Button`), which downloads the whole AI-assisted decision trail as
+`kp-decision-log-trail.csv`.
+
+The file itself is not new — it has existed since UAT LUC-ANA-11 on Insights →
+Analytics (see [analytics](../analytics/README.md), "Every export names its own
+scope"). What was new is **where** it is offered: "send me the trail of every
+AI-assisted decision" is a request that reaches the recruiter working this queue,
+and until now the answer was to copy a paginated table by hand or to already know
+about a button two tabs away. An export nobody can find is, for a procurement
+checklist, an export that does not exist.
+
+It is deliberately the **same bytes from the same builder**, not a second
+serializer in this directory: `decisionCsvRows()`
+(`insights/analytics/decisionLogCsv.ts`, pure and unit-pinned) and the
+`useDecisionLogExport()` hook beside it own the provenance block, the column
+order and the clock, so one regulated record cannot grow two exports that
+disagree about what "everything" means. Two honesty properties come with it:
+
+- **No role scoping.** This header filters the *queue* by role; the trail has no
+  role axis on the wire (`/api/analytics/decisions` filters by kind, attribution
+  and subject, never by job), so the export covers everything and its `Scope` line
+  says so rather than quietly shipping a narrower file.
+- **A read that fails downloads nothing**, and a paging run that stops at its
+  ceiling (`TRAIL_MAX_PAGES`) writes `scopeTrailCapped` instead of claiming the
+  whole trail.
+
 ### What the card header carries (and what it stopped carrying)
 
 The card was over-full, and three of its facts were chrome:
