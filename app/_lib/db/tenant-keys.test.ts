@@ -145,11 +145,15 @@ export const IDENTITY_KEYS: ReadonlyMap<string, string> = new Map([
   ["gig_attempts(id)", MINTED],
   ["gig_outcomes(id)", MINTED],
   ["gig_lessons(id)", MINTED],
+  ["gig_plans(id)", MINTED],
   ["offers(id)", MINTED],
   ["offers(token)", TOKEN],
   ["rediscovery_alerts(id)", MINTED],
   ["repo_scans(id)", MINTED],
   ["role_intakes(id)", MINTED],
+  ["role_rubrics(id)", MINTED],
+  ["role_run_stages(id)", MINTED],
+  ["role_runs(id)", MINTED],
   ["schedule_invites(id)", MINTED],
   ["schedule_invites(token)", TOKEN],
   ["tasks(id)", MINTED],
@@ -208,7 +212,13 @@ const SOURCES = walk(libDir).map((f) => ({ file: f, src: stripComments(readFileS
  *  skipped (none of the key-bearing DDL is interpolated). */
 function lazyStoreDdl(table: string): { file: string; statements: string[] } {
   const createRe = new RegExp(`CREATE TABLE IF NOT EXISTS\\s+${table}\\s*\\(`, "i");
-  const owner = SOURCES.find((s) => createRe.test(s.src) && /\bopenStore\b/.test(s.src));
+  // A store on its OWN connection (openStore) is the registered case. The other is a
+  // module that creates its table on the SHARED ensureDb() connection behind a per-instance
+  // marker (db/role-rubrics.ts, db/role-runs.ts): ensureDb() alone never runs it, so its DDL
+  // is replayed from source the same way.
+  const owner =
+    SOURCES.find((s) => createRe.test(s.src) && /\bopenStore\b/.test(s.src)) ??
+    SOURCES.find((s) => createRe.test(s.src) && !/[\\/]core\.ts$/.test(s.file));
   assert.ok(owner, `no lazy store source CREATEs ${table} — TENANCY_LAZY_TABLES and the source disagree`);
   const literals = [...owner.src.matchAll(/`([^`]*)`|"((?:[^"\\\n]|\\.)*)"/g)].map((m) => m[1] ?? m[2] ?? "");
   const onTable = new RegExp(`^(CREATE TABLE IF NOT EXISTS\\s+${table}\\s*\\(|ALTER TABLE\\s+${table}\\s+ADD COLUMN|CREATE (UNIQUE )?INDEX\\b[\\s\\S]*\\bON\\s+${table}\\s*\\(|DROP INDEX\\b)`, "i");
@@ -256,8 +266,18 @@ function allScopedKeys(): TableKey[] {
       keys.push(...lazyTableKeys(table));
     } else {
       const exists = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table);
-      assert.ok(exists, `scoped table ${table} is neither created by ensureDb nor listed as lazy`);
-      keys.push(...readTableKeys(db, table));
+      if (exists) {
+        keys.push(...readTableKeys(db, table));
+      } else {
+        // Not made by ensureDb: it must be a module that creates it on first use (see
+        // lazyStoreDdl), else the scoped list names a table no source creates.
+        const createRe = new RegExp(`CREATE TABLE IF NOT EXISTS\\s+${table}\\s*\\(`, "i");
+        assert.ok(
+          SOURCES.some((s) => createRe.test(s.src)),
+          `scoped table ${table} is neither created by ensureDb nor listed as lazy`
+        );
+        keys.push(...lazyTableKeys(table));
+      }
     }
   }
   return keys;

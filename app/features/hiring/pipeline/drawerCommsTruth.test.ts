@@ -21,9 +21,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "../../../..");
 const readFileSync = (rel: string, enc: "utf8") => read(resolve(ROOT, rel), enc);
 
-// The Comms Center's ledger rows and its message document are the Channels kit view's (Gate K2).
-const CHANNELS_LEDGER = "app/features/hiring/channels/kit/ChannelsKitComms.tsx";
-const CHANNELS_MESSAGE = "app/features/hiring/channels/kit/ChannelsKitMessagePane.tsx";
+// The Comms Center's ledger rows and its message document are the Night Post's post book (level 2)
+// and its letter (level 3): app/features/hiring/channels/night/README.md.
+const CHANNELS_LEDGER = "app/features/hiring/channels/night/ledger/ChannelsNightLedgerTable.tsx";
+const CHANNELS_MESSAGE = "app/features/hiring/channels/night/message/ChannelsNightLetter.tsx";
 const DRAWER_LIST = "app/features/hiring/pipeline/PipelineCommsList.tsx";
 const TOKEN_LINK = "app/features/hiring/pipeline/PipelineTokenLink.tsx";
 
@@ -240,8 +241,10 @@ test("the two non-chip verdict surfaces share ONE class table", () => {
 // with their OWN predicate (raw `bounced`/`status === "failed" && !recovered` in one,
 // `verdict` in the other). resendDoorOf (comms-resend-outcome.ts) is now the one rule.
 
-// The Comms Center's message document is the kit reading pane since the kit promotion (Gate K2).
-const CHANNELS_MODAL = "app/features/hiring/channels/kit/ChannelsKitMessagePane.tsx";
+// The Comms Center's message document is the Night Post's letter (level 3). Its doors are RetryDoor
+// and CorrectAddressDoor (night/message/ChannelsNightResendDoor.tsx), over the same resend
+// (useCommsResend) BouncedResend renders, so they count as door controls below.
+const CHANNELS_MODAL = CHANNELS_MESSAGE;
 const OUTBOX_ROWS = "app/features/tools/devcases/OutboxRows.tsx";
 
 test("every surface that offers a resend asks resendDoorOf, and none re-derives the door", () => {
@@ -252,12 +255,12 @@ test("every surface that offers a resend asks resendDoorOf, and none re-derives 
     // a local verdict test in the outbox. (A failure-REASON line may still read the
     // verdict — it is the door that must not.)
     assert.doesNotMatch(src, /status === "failed" && !/, `${file} re-derives the retry door from raw status bits`);
-    assert.doesNotMatch(src, /verdict === "failed" \? <ResendButton/, `${file} re-derives the retry door from the verdict`);
-    assert.doesNotMatch(src, /(\.bounced|verdict === "bounced") \?\s*\(?\s*(<div[^>]*>\s*)?<BouncedResend/, `${file} re-derives the bounced door`);
+    assert.doesNotMatch(src, /verdict === "failed" \? <(ResendButton|RetryDoor)/, `${file} re-derives the retry door from the verdict`);
+    assert.doesNotMatch(src, /(\.bounced|verdict === "bounced") \?\s*\(?\s*(<div[^>]*>\s*)?<(BouncedResend|CorrectAddressDoor)/, `${file} re-derives the bounced door`);
     // Every door control is rendered under the shared door, and only there.
-    const controls = (src.match(/<(ResendButton|BouncedResend)\b/g) ?? []).length;
+    const controls = (src.match(/<(ResendButton|BouncedResend|RetryDoor|CorrectAddressDoor)\b/g) ?? []).length;
     const gated = (
-      src.match(/(door|resendDoorOf\([^)]*\)) === "(retry|correctAddress)" \?\s*\(?\s*(<div[^>]*>\s*)?<(ResendButton|BouncedResend)\b/g) ?? []
+      src.match(/(door|resendDoorOf\([^)]*\)) === "(retry|correctAddress)" \?\s*\(?\s*(<div[^>]*>\s*)?<(ResendButton|BouncedResend|RetryDoor|CorrectAddressDoor)\b/g) ?? []
     ).length;
     assert.ok(controls > 0, `${file} must offer a door`);
     assert.equal(gated, controls, `${file}: every resend control must sit under resendDoorOf's answer`);

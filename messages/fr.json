@@ -773,31 +773,21 @@
       "proof": "Preuves",
       "features": "Fonctionnalités",
       "voice": "Entretien vocal",
-      "trust": "AI responsable",
       "pricing": "Tarifs",
       "sections": "Sections de la page",
       "top": "Haut de page",
       "about": "À propos de l’app",
-      "market": "Pouls du marché",
-      "source": "Code source",
-      "signIn": "Se connecter",
-      "menuOpen": "Ouvrir le menu",
-      "menuClose": "Fermer le menu"
+      "signIn": "Se connecter"
     },
     "hero": {
       "badge": "Recrutement automatisé, validé par un humain",
       "title": "Votre recrutement,<br></br>en <emph>pilote automatique</emph>",
-      "subtitle": "KandiDate prend en charge tout l’entonnoir : chaque CV lu et noté face au poste, les candidats prometteurs reçus en entretien le jour même, les créneaux réservés, l’offre rédigée, et le recrutement scellé dès que le candidat accepte. Vous ne tranchez que là où ça compte. La paperasse n’arrive jamais jusqu’à vous.",
       "proof": "Open source, AGPL-3.0. Tourne sur votre machine, avec vos modèles : tout le produit, gratuit et sans aucune limite. Les offres payantes achètent les serveurs de quelqu'un d'autre.",
       "proofCta": "Hébergez-le vous-même",
       "ctaPrimary": "Recruter gratuitement",
       "ctaPending": "Ouverture de votre espace de travail…",
       "ctaDemo": "Voir la démo en direct",
-      "pileHint": "essayez : survolez la pile ↓",
-      "pileHintTouch": "essayez : touchez un CV ↓",
-      "scoreCardAria": "Noter le CV de {name}",
-      "mascotAlt": "Kandi, la mascotte de KandiDate, qui exulte sous un CV validé",
-      "mascotNote": "voici Kandi, votre nouveau coéquipier"
+      "mascotAlt": "Kandi, la mascotte de KandiDate, qui exulte sous un CV validé"
     },
     "pile": {
       "jana": {
@@ -844,7 +834,6 @@
     },
     "features": {
       "heading": "Tout l’entonnoir,<br></br>enfin au même endroit",
-      "hint": "survolez une carte pour un aperçu en direct : tout est disponible aujourd’hui, sans astérisque",
       "score": {
         "title": "Score de correspondance",
         "body": "Un score de correspondance de 0 à 100 par CV, preuves à l’appui. Plusieurs versions d’un CV ? Comparez-les côte à côte."
@@ -902,22 +891,18 @@
     "trust": {
       "heading": "Une AI puissante.<br></br><emph>Un humain signe chaque décision.</emph>",
       "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l’AI (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
-      "tablist": "Démonstrations d’AI responsable",
       "human": {
         "title": "L’humain dans la boucle",
         "body": "Un rejet revient toujours à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
       },
       "oversight": {
-        "title": "AI Act, article par article",
-        "body": "La présélection et le classement sont traités comme une AI à haut risque : supervision humaine effective, un raisonnement lisible, et une trace de chaque étape automatisée. Pour chaque article, nous publions où nous en sommes, lacunes comprises."
+        "title": "AI Act, article par article"
       },
       "gdpr": {
-        "title": "RGPD et article 22",
-        "body": "Les candidats donnent leur consentement avant que la moindre AI ne lise leurs données, peuvent demander une révision humaine, et peuvent consulter ou effacer leurs données à tout moment. Aucune décision significative entièrement automatisée."
+        "title": "RGPD et article 22"
       },
       "audit": {
-        "title": "Prouvé, pas promis",
-        "body": "Chaque décision de l’AI est scellée dans une piste d’audit exportable et inviolable. Les scores sont ensuite confrontés à ce qui s’est réellement passé, et la mesure dit elle-même à voix haute quand les preuves derrière elle sont encore trop minces, ou trop circulaires, pour être crues."
+        "title": "Prouvé, pas promis"
       },
       "footnote": "Une démonstration fonctionnelle : ceci reflète la conception et les contrôles du produit, pas une certification juridique.",
       "art": {
@@ -939,62 +924,12 @@
           },
           "auto": "auto",
           "you": "vous",
-          "lockedNote": "les refus restent toujours à vous : celui-là ne se déverrouille pas",
-          "toggleAria": "{step} : actuellement {mode}"
-        },
-        "oversight": {
-          "tiers": {
-            "unacceptable": "Inacceptable : interdit",
-            "high": "Risque élevé : obligations strictes",
-            "limited": "Risque limité : information obligatoire",
-            "minimal": "Risque minimal : aucune obligation"
-          },
-          "marker": "Présélection et classement des CV",
-          "ladderNote": "l’échelle de risque de l’AI Act européen : le recrutement est au deuxième barreau",
-          "controls": {
-            "oversight": "Supervision humaine",
-            "reasoning": "Raisonnement lisible",
-            "record": "Chaque étape journalisée"
-          }
-        },
-        "gdpr": {
-          "cardTitle": "Dossier candidat",
-          "cardMeta": "données personnelles · UE",
-          "consent": "consentement donné",
-          "fields": {
-            "name": "Nom",
-            "email": "E-mail",
-            "cv": "CV"
-          },
-          "consentNote": "avant le tampon, l’AI ne lit rien du tout",
-          "rights": {
-            "see": "Tout consulter",
-            "review": "Demander un humain",
-            "erase": "Me supprimer"
-          },
-          "restore": "Rétablir la démo",
-          "erased": "supprimé"
-        },
-        "audit": {
-          "blocks": {
-            "advance": "Retenu · {name}",
-            "pass": "Refusé · {name}",
-            "offer": "Offre · {name}"
-          },
-          "verified": "Chaîne vérifiée",
-          "tampered": "Altération détectée : la chaîne a cassé",
-          "calibration": {
-            "title": "Le score face au réel",
-            "predicted": "prédit",
-            "actual": "constaté",
-            "note": "voilà à quoi ressemble un score calibré ; si les données sont trop minces ou trop circulaires, le panneau le dit"
-          }
+          "lockedNote": "les refus restent toujours à vous : celui-là ne se déverrouille pas"
         }
       }
     },
     "pricing": {
       "heading": "Gratuit à héberger.<br></br><emph>Payant pour ne plus y penser.</emph>",
-      "headingNote": "tout le produit est open source. les offres achètent les serveurs de quelqu'un d'autre",
       "tiers": {
         "selfhost": {
           "name": "Auto-hébergé",
@@ -1054,7 +989,6 @@
           ]
         }
       },
-      "footnote1": "L'auto-hébergement, c'est le produit complet, pas une version d'essai. Les offres hébergées facturent des résultats : un poste publié et une personne recrutée.",
       "footnote2": "à court de minutes ? packs de 100 minutes d'entretien · 790 CZK (toute offre hébergée)",
       "enterprise": {
         "eyebrow": "À l’échelle de l’organisation",
@@ -1094,136 +1028,38 @@
       "license": "AGPL-3.0 · code source"
     },
     "previews": {
-      "close": "Fermer l’aperçu",
       "score": {
         "note": "des preuves jointes, toujours",
         "factors": {
           "skills": "Correspondance des compétences",
           "seniority": "Signal de séniorité",
           "domain": "Recouvrement métier"
-        },
-        "verdict": "forte adéquation, la série de questions d’entretien est déjà prête"
+        }
       },
       "voice": {
-        "note": "oui, il parle aussi tchèque",
-        "screenTitle": "Présélection du premier tour",
-        "meta": "tchèque · en direct · 4 min 12 s",
-        "demoAi": "Vaše poslední aplikace běžela na Reactu. Co se rozbilo jako první, když přišli skuteční uživatelé?",
-        "demoThem": "Upřímně? Správa stavu. Přepsal jsem ji dvakrát, než jsem pochopil proč…",
-        "scorecard": "Scorecard rédigée dès la fin de l’appel : réceptivité au feedback, profondeur, communication"
+        "screenTitle": "Présélection du premier tour"
       },
       "cases": {
-        "note": "l’AI oui, la délégation non",
-        "title": "Exercice à domicile · contrôles de paternité",
-        "aiAllowed": "AI autorisée",
-        "checks": {
-          "flaw1": {
-            "label": "Défaut implanté dans l’énoncé",
-            "verdict": "repéré et corrigé"
-          },
-          "flaw2": {
-            "label": "Second défaut implanté",
-            "verdict": "livré tel quel"
-          },
-          "distance": {
-            "label": "Écart avec un one-shot brut",
-            "verdict": "0,38 : travail personnel visible"
-          }
-        },
-        "defend": "L’entretien leur demande ensuite de défendre les deux décisions qu’ils ont réellement prises."
+        "aiAllowed": "AI autorisée"
       },
       "schedule": {
-        "note": "fini le ping-pong d’agendas",
-        "title": "Choisissez un créneau qui vous convient",
-        "meta": "Entretien technique · 45 min · avec Marta",
         "days": [
           "Lun",
           "Mar",
           "Mer",
           "Jeu",
           "Ven"
-        ],
-        "confirmed": "Confirmé pour mercredi 14:00. Invitations envoyées des deux côtés."
+        ]
       },
       "inbox": {
-        "note": "cinq portes, une ligne de départ",
         "channels": {
           "apply": "Portail de candidature",
           "email": "E-mail",
           "boards": "Sites d’emploi",
           "sourcing": "Sourcing",
           "manual": "Ajout manuel"
-        },
-        "onePipeline": "Un seul pipeline",
-        "sameStartingLine": "Toutes les portes mènent à la même ligne de départ. Aucune source n’a de raccourci."
-      },
-      "salary": {
-        "note": "des offres qui font mouche du premier coup",
-        "role": "Développeur React · confirmé · Prague",
-        "unit": "CZK / mois",
-        "chips": {
-          "band": "fourchette 85–105k",
-          "median": "médiane du marché 95k",
-          "modifier": "modificateur scale-up ×1,1"
-        },
-        "grounded": "Les fourchettes sont fondées sur les données actuelles du marché tchèque, pour que l’offre tombe juste du premier coup."
-      },
-      "rediscover": {
-        "note": "le vivier déjà payé",
-        "title": "Nouveau poste ouvert · {n} personnes que vous connaissez déjà",
-        "hits": {
-          "marek": "Candidat il y a 8 mois · correspond maintenant à {score}",
-          "lucie": "Deuxième de peu, Backend II · correspond à {score}"
-        },
-        "noSpend": "Aucune nouvelle dépense de sourcing, et ils vous ont déjà dit oui une fois."
-      },
-      "offer": {
-        "note": "aucun modèle dans le chiffre",
-        "title": "{name} · offre → recruté",
-        "steps": {
-          "figure": {
-            "label": "Montant de l’offre",
-            "detail": "fourchette × adéquation · aucun modèle dans le chiffre"
-          },
-          "letter": {
-            "label": "Lettre rédigée, signature humaine",
-            "detail": "envoyée par lien sécurisé"
-          },
-          "accepted": {
-            "label": "Acceptée",
-            "detail": "le candidat bascule sur Recruté"
-          },
-          "handoff": {
-            "label": "Transmis",
-            "detail": "recrutement répercuté dans votre ATS"
-          }
         }
-      },
-      "gates": {
-        "note": "chaque décision reçoit une signature humaine",
-        "waiting": "En attente de vous · {n}",
-        "humanGate": "validation humaine",
-        "queue": {
-          "advance": {
-            "title": "Faire avancer {name} vers l’entretien",
-            "sub": "Adéquation 87 · solide sur React, lacune en tests"
-          },
-          "pass": {
-            "title": "Envoyer un refus bienveillant à {name}",
-            "sub": "Adéquation 31 · profil orienté vente, réorientation suggérée"
-          },
-          "offer": {
-            "title": "Valider le projet d’offre pour {name}",
-            "sub": "Fourchette 85–105k · se situe à la médiane du marché"
-          }
-        },
-        "approve": "Valider",
-        "override": "Passer outre",
-        "signed": "présélection validée à {time}, signé {name} ✓"
-      },
-      "prev": "Fonctionnalité précédente",
-      "next": "Fonctionnalité suivante",
-      "position": "{n} sur {total}"
+      }
     },
     "demoNotice": {
       "title": "La démo en direct n’est pas disponible pour le moment.",
@@ -1232,14 +1068,8 @@
     }
   },
   "aboutPage": {
-    "copyStepLink": "Copier le lien vers {step}",
-    "stepLinkCopied": "Lien de l’étape copié",
-    "stepLinkCopyFailed": "Impossible de copier le lien. Utilisez la barre d’adresse de votre navigateur.",
     "nav": {
-      "home": "Accueil",
-      "signIn": "Se connecter",
-      "market": "Pouls du marché",
-      "source": "Code source"
+      "home": "Accueil"
     },
     "hero": {
       "badge": "le pipeline de recrutement, de bout en bout",
@@ -1290,13 +1120,8 @@
     },
     "closing": {
       "tag": "voilà toute la ligne",
-      "title": "D’un poste vierge<br></br>à un <emph>recrutement signé</emph>.",
       "body": "L’AI lit à chaque étape. Un humain signe chaque décision.",
       "button": "Commencer gratuitement"
-    },
-    "footer": {
-      "tagline": "L’AI pour recruter, l’humain pour décider",
-      "home": "Retour à l’accueil"
     },
     "art": {
       "design": {
@@ -1439,6 +1264,7 @@
     "INTERVIEW_COMPLETE_FAILED": "Impossible d’enregistrer l’entretien. Veuillez réessayer.",
     "INTERVIEW_LOOKUP_FAILED": "Impossible de charger les données de l’entretien. Veuillez réessayer.",
     "INTERVIEW_PREP_FAILED": "Impossible de charger la préparation à l’entretien. Veuillez réessayer.",
+    "INTERVIEW_RESCORE_FAILED": "Impossible de réévaluer l'entretien. Veuillez réessayer.",
     "INTERVIEW_KIT_FAILED": "Impossible de charger ou d’enregistrer le guide d’entretien de ce poste. Veuillez réessayer.",
     "INTERVIEW_DIRECTOR_FAILED": "Impossible d’enregistrer la progression de l’entretien. L’appel continue.",
     "INTERVIEW_RECORDING_FAILED": "Impossible d’enregistrer l’audio de l’entretien. L’entretien lui-même n’est pas affecté.",
@@ -1619,6 +1445,7 @@
     "INTERVIEW_LINK_INACTIVE": "Ce lien d'entretien n'est plus actif.",
     "INTERVIEW_LINK_EXPIRED": "Ce lien d'entretien a expiré. Demandez-en un nouveau au recrutement.",
     "INTERVIEW_ALREADY_COMPLETED": "Cet entretien est déjà terminé.",
+    "INTERVIEW_NOT_RESCORABLE": "Cet entretien ne peut pas être réévalué.",
     "INTERVIEW_CONSENT_REQUIRED": "Le consentement à l'enregistrement est requis avant de démarrer l'entretien.",
     "INTERVIEW_PROVIDER_INVALID": "Ce fournisseur vocal n'est pas connu de ce serveur.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Le fournisseur vocal n'est pas configuré sur ce serveur, l'appel ne peut donc pas démarrer.",
@@ -2034,7 +1861,8 @@
     "GIG_PROPOSAL_NOT_FOUND": "Cette mission n’a pas encore de proposition client. Elle est rédigée quand un plan est accepté, ou sur demande.",
     "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer.",
     "JOBSEEKER_CV_NOT_FOUND": "Ce CV ne fait pas partie des vôtres.",
-    "JOBSEEKER_REQUEST_INVALID": "Cette modification n’avait pas la forme attendue, rien n’a été enregistré."
+    "JOBSEEKER_REQUEST_INVALID": "Cette modification n’avait pas la forme attendue, rien n’a été enregistré.",
+    "DEVCASE_SOURCE_SELECTION_INVALID": "Cette sélection de candidats n’a pas pu être lue. Affichez à nouveau l’aperçu et réessayez."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2573,7 +2401,9 @@
         "fellBack": "(repli depuis {provider})",
         "providerGroup": "Fournisseur",
         "chunks": "{spoken} sur {total} segments",
-        "truncated": "arrêté après {spoken} segments sur {total}. Le reste est dans le texte."
+        "truncated": "arrêté après {spoken} segments sur {total}. Le reste est dans le texte.",
+        "continue": "Continuer",
+        "noVoiceFor": "{provider} n'a aucune voix installée pour {language}. Un autre fournisseur ou accent sera utilisé en secours."
       },
       "availabilityUnknown": "Nous n’avons pas pu vérifier si le service d’entretien est joignable.",
       "availabilityRetry": "Réessayer",
@@ -3248,7 +3078,6 @@
       "ovOpen": "Ouvrir l’orbite",
       "ovCoreAria": "L’orbite repliée : {people, plural, one {# personne} other {# personnes}} sur {stages, number} étapes. Ouvrir.",
       "ovRingsLegend": "Anneaux, de l’extérieur vers l’intérieur : {stages}",
-      "ovActive": "Actifs",
       "ovNothingToday": "Rien n’est en file pour aujourd’hui."
     },
     "board": {
@@ -3958,7 +3787,8 @@
       "rematched": "Poste alternatif ajouté au pipeline.",
       "no_alternative": "Aucun poste alternatif au-dessus du seuil de correspondance.",
       "advisory": "À titre indicatif uniquement. Le candidat a dépassé le point de présélection.",
-      "drafted": "Brouillon prêt à copier."
+      "drafted": "Brouillon prêt à copier.",
+      "skipped_gate_closed": "Étape fermée. Une évaluation attend déjà une décision."
     },
     "controlCenter": {
       "open": "Ouvrir le centre de contrôle",
@@ -4806,6 +4636,9 @@
     "declineAria": "Rejeter {name}",
     "viewTranscriptScorecard": "Voir la transcription et la scorecard",
     "reviewScorecard": "Examiner la scorecard dans Décisions",
+    "unscoredChip": "Pas encore évalué",
+    "scoringChip": "Évaluation en cours...",
+    "rescoreButton": "Réévaluer",
     "loadFailed": "Échec du chargement.",
     "startFailed": "Impossible de démarrer l’entretien.",
     "slotSuggested": "proposé",
@@ -5040,6 +4873,9 @@
       "cited": "· cité",
       "loadFailed": "Impossible de charger l’entretien.",
       "scorecardLoadFailed": "Impossible de charger la scorecard.",
+      "unscoredNotice": "Cet entretien est terminé mais n'a pas encore été évalué.",
+      "rescoreButton": "Réévaluer",
+      "rescoring": "Évaluation en cours...",
       "telemetryHeading": "Signaux de conversation",
       "telemetryNote": "Signaux descriptifs de l’entretien, pas des notes.",
       "telemetryTalkShare": "Part de parole du candidat",
@@ -5994,7 +5830,10 @@
       "publishSourcingFailed": "La recherche a échoué, personne n’a donc été ajouté. Cela ne veut pas dire qu’aucun profil ne correspond.",
       "publishInFlight": "Mise en ligne et recherche de profils. Cela peut prendre quelques minutes.",
       "publishStopWaiting": "Arrêter d’attendre",
-      "publishAbandoned": "Attente interrompue. Le poste est probablement déjà en ligne, mais la recherche de profils a été annulée. Rouvrez le poste pour vérifier.",
+      "publishAbandoned": "Attente interrompue. Le poste est en ligne, mais la recherche de candidats a été interrompue. Utilisez 'Terminer le sourcing' pour reprendre.",
+      "publishResumed": "Recherche de candidats reprise.",
+      "publishSourcingIncomplete": "Le poste est en ligne, mais la recherche de profils a été interrompue.",
+      "finishSourcing": "Terminer le sourcing",
       "publishLastResult": "Dernière mise en ligne",
       "retry": "Réessayer",
       "publishSilverFailed": "La redécouverte n’a pas pu s’exécuter pour ce poste, aucun ancien profil n’a donc été signalé. Cela ne veut pas dire qu’aucun ne convient.",
@@ -7010,16 +6849,12 @@
   },
   "channels": {
     "comms": {
-      "count": "{count, plural, one {# message} other {# messages}}",
-      "deadLetters": "{count, plural, one {# message non distribué à traiter} other {# messages non distribués à traiter}}",
       "noAddressHint": "Ce candidat n’a pas d’e-mail valide, un relais réel ne peut donc pas le joindre. Renseignez une adresse avant de compter sur cet envoi.",
       "empty": "Aucun message envoyé pour l’instant. Ils apparaîtront ici à mesure que les candidats avancent dans le pipeline.",
       "loadFailed": "Impossible de charger les communications.",
       "relayNotConfigured": "Aucun relais de distribution configuré. Ces messages ne sont PAS envoyés aux candidats. Définissez COMMS_WEBHOOK_URL pour activer la distribution.",
       "loading": "Chargement des communications",
       "bouncedAt": "Le relais a signalé un rebond {time} : {detail}",
-      "showing": "Affichage de {shown} sur {total}",
-      "showMore": "Afficher plus",
       "resend": "Renvoyer",
       "resending": "Renvoi…",
       "resent": "Renvoyé",
@@ -7038,10 +6873,8 @@
       "colRole": "Poste",
       "colChannel": "Canal",
       "colType": "Type",
-      "colStatus": "Statut",
       "colRecorded": "Enregistré",
       "recordedHint": "Quand Kandi a enregistré le message. Un renvoi constitue sa propre ligne : l’original et le renvoi restent distincts.",
-      "via": "via {channel}",
       "statusSent": "Envoyé",
       "statusQueued": "En file d’attente",
       "statusFailed": "Échec",
@@ -7055,9 +6888,6 @@
       "loadingOlder": "Chargement des plus anciens…",
       "beyondWindow": "Des messages plus anciens existent, mais ils sont hors de portée de cette vue."
     },
-    "eyebrow": "Entrant",
-    "title": "Par où les candidats arrivent",
-    "statusListening": "À l’écoute",
     "webhooks": {},
     "items": {
       "apply": {},
@@ -7069,9 +6899,7 @@
     "relay": {
       "title": "Relais de distribution",
       "intro": "La destination réelle des messages sortants aux candidats. Branchez un relais mail, Zapier ou l’endpoint de votre ATS. Sans relais, les messages restent dans la boîte d’envoi locale et rien n’atteint les candidats.",
-      "statusOn": "Distribution active",
       "statusOff": "Non configuré",
-      "secretSet": "Secret de signature défini",
       "envNote": "Configuré par la variable d’environnement COMMS_WEBHOOK_URL. Retirez-la pour gérer le relais ici.",
       "urlLabel": "Endpoint du relais (https)",
       "secretLabel": "Secret de signature",
@@ -7092,7 +6920,6 @@
       "statusPaired": "Associé",
       "statusOff": "Non associé",
       "statusOffline": "Mode hors ligne",
-      "secretSet": "Clé de signature définie",
       "sealedBadge": "Scellé",
       "envNote": "Configuré par la variable d'environnement KP_EDGE_URL. Supprimez-la pour gérer l'association ici.",
       "offlineNote": "KP_OFFLINE=1 : cette installation n'émet aucun appel sortant, le relais n'est donc pas utilisé. Les événements entrants ne lui parviennent que lorsque le espace de travail tourne.",
@@ -7106,14 +6933,9 @@
       "saveFailed": "Impossible d'enregistrer le relais",
       "drainNow": "Récupérer maintenant",
       "drained": "Récupéré : {applied} enregistré(s), {skipped} ignoré(s)",
-      "drainFailed": "Échec de la récupération : {reason}",
       "enableSealing": "Activer le scellement",
       "sealedNow": "Scellement activé. Le relais ne peut plus lire ce qu'il conserve.",
       "sealFailed": "Impossible de publier la clé de scellement",
-      "cursor": "Récupéré jusqu'à l'événement {cursor}",
-      "lastError": "dernière erreur : {reason}",
-      "lastDrain": "Dernière collecte {time}",
-      "lastHeartbeat": "dernier signe de vie {time}",
       "neverDrained": "Jamais collecté",
       "pendingWaiting": "{pending} en attente sur l'edge",
       "pendingClear": "rien en attente",
@@ -7126,22 +6948,14 @@
       "drainFailedUnknown": "Collecte échouée. La raison est dans le journal serveur de cette installation.",
       "drainFailedSecretUnreadable": "Collecte arrêtée : cette installation ne peut pas lire le secret edge enregistré. Rien n'est perdu. Saisissez-le à nouveau ou restaurez la clé de chiffrement."
     },
-    "tablist": "Intégration",
     "waiting": "{count} en attente dans le pipeline",
     "ledger": "Registre",
-    "statusLive": "Actif",
-    "statusConfigured": "Configuré",
-    "statusOff": "Inactif",
     "statusNothingPublished": "Rien de publié",
     "statusWaiting": "En attente",
     "copyLink": "Copier le lien",
     "copy": "Copier",
     "copied": "Copié",
     "sections": {
-      "comms": {
-        "label": "Communications",
-        "blurb": "Chaque message adressé aux candidats, dans un registre auditable."
-      },
       "careers": {
         "label": "Page carrières",
         "blurb": "Votre page de candidature publique : un lien, intégrable partout."
@@ -7157,8 +6971,6 @@
     },
     "stats": {
       "publishedRoles": "Postes publiés",
-      "waiting": "En attente",
-      "receivers": "Récepteurs",
       "received": "Reçus",
       "leads": "Leads enregistrés"
     },
@@ -7172,16 +6984,11 @@
     },
     "careers": {
       "empty": "Aucun poste publié pour l’instant. Publiez un poste et son lien de candidature apparaîtra ici.",
-      "applyLink": "lien de candidature",
       "publishRole": "Publier un poste",
       "viewAllRoles": "Tous les postes"
     },
     "receivers": {
-      "role": "Poste",
-      "lang": "Langue",
-      "acceptedHint": "Candidats réellement déposés par ce récepteur. Reçus mesure la connectivité, sondes et payloads rejetés compris.",
       "firstLead": "Premier lead",
-      "copyEndpoint": "Copier l’adresse",
       "removeAria": "Supprimer le récepteur du poste {role}",
       "confirmTitle": "Supprimer ce récepteur ?",
       "confirmBody": "Cela supprime le point d’entrée du poste <b>{role}</b>. <b>{endpoint}</b> cesse immédiatement d’accepter les candidatures et ne peut pas être restauré. Vous devriez ajouter un nouveau récepteur et réorienter la source vers sa nouvelle adresse.",
@@ -7198,14 +7005,12 @@
       "langLabel": "Langue du candidat",
       "noJobs": "Publiez d’abord un poste. Chaque récepteur est lié à un seul poste.",
       "noJobsCta": "Aller à la bibliothèque de fiches de poste",
-      "cancel": "Annuler",
       "create": "Créer",
       "creating": "Création…",
       "createFailed": "Impossible de le créer. Réessayez.",
       "removeFailed": "Impossible de le supprimer. Réessayez."
     },
     "email": {
-      "title": "Ajouter une boîte de poste",
       "add": "Ajouter une boîte",
       "emptyWired": "Aucune boîte de poste pour l’instant. Ajoutez-en une pour obtenir une adresse de transfert.",
       "emptyUnwired": "Aucune boîte de poste pour l’instant. Ajoutez-en une pour obtenir son URL de récepteur.",
@@ -7229,7 +7034,6 @@
       "notWiredHowToSetup": "Pour activer un vrai transfert, dirigez un fournisseur d’e-mails entrants (Postmark, SendGrid ou Mailgun inbound) vers ce point d’accès et définissez <code>EMAIL_INBOUND_DOMAIN</code> sur le domaine où il accepte le courrier. L’adresse de transfert et les étapes Gmail/Outlook apparaîtront alors ici."
     },
     "ads": {
-      "title": "Ajouter un récepteur de formulaire publicitaire",
       "add": "Ajouter un récepteur",
       "empty": "Aucun récepteur de formulaire publicitaire pour l’instant. Ajoutez-en un pour obtenir une URL de webhook.",
       "endpoint": "URL du récepteur",
@@ -7252,17 +7056,14 @@
     },
     "copyFailed": "Échec de la copie. Sélectionnez le texte.",
     "receiversTruncated": "Seuls les récepteurs les plus récents sont affichés. Certains ne figurent pas dans la liste : un canal ci-dessous peut donc sembler plus vide qu'il ne l'est.",
-    "statusNeedsAttention": "À vérifier",
     "pull": {
       "title": "Source de récupération",
       "intro": "Facultatif. Indiquez une URL qui liste les nouvelles candidatures ; le studio l’interroge à chaque cycle pour récupérer ce qui est arrivé pendant que cette machine était éteinte. Laissez vide pour rester en réception push uniquement.",
       "statusOn": "Récupération active",
       "statusOff": "Push uniquement",
       "statusFailing": "Dernière récupération en échec",
-      "secretSet": "Jeton défini",
       "failingTitle": "La source n’a pas répondu à la dernière récupération. Les candidatures qu’elle détient n’arrivent pas dans ce studio.",
       "failingHint": "Vérifiez l’URL et le jeton, puis enregistrez. L’enregistrement efface cette erreur ; la prochaine récupération montrera si la correction fonctionne.",
-      "reachedNoLeadsHint": "Ce récepteur a été joint mais n’a encore enregistré aucun candidat. Un ping de test compte aussi. Si de vraies candidatures auraient dû arriver, vérifiez le mappage des champs de la source, ou simulez un CV ci-dessus pour voir une vraie candidature aboutir.",
       "urlLabel": "URL de récupération (https)",
       "secretLabel": "Jeton Bearer",
       "secretPlaceholder": "Facultatif, envoyé en Authorization : Bearer",
@@ -7271,41 +7072,27 @@
       "save": "Enregistrer la source",
       "saved": "Source enregistrée",
       "saveFailed": "Impossible d’enregistrer la source",
-      "lastPull": "Dernière récupération {time}",
       "neverPulled": "Pas encore récupérée. L’horloge la prendra au prochain cycle.",
       "pushOnly": "Push uniquement : les candidatures n’arrivent que lorsque la source peut joindre cette machine.",
       "disableWarning": "Enregistrer avec une URL vide désactive la récupération et oublie la position dans la source."
     },
     "kit": {
-      "messages": "Messages",
-      "deadLetters": "Non distribués",
-      "delivery": "Distribution",
       "search": "Nom, poste ou objet",
       "colSubject": "Objet",
       "queuedTip": "Rien ne quitte cette machine : aucun relais de distribution n’est configuré.",
       "openMessage": "Ouvrir le message",
-      "record": "Fiche",
       "body": "Contenu",
-      "to": "À {recipient}",
       "noBody": "Ce message n’a pas de contenu.",
       "noEntry": "Aucune entrée dans le pipeline",
       "noMatch": "Aucun message ne correspond à ces filtres.",
       "lastReceived": "Dernière réception",
-      "acceptedOfReceived": "Acceptés sur reçus",
-      "firstLeadAgo": "Premier candidat {time}",
       "neverReached": "Jamais atteint",
-      "health": "État",
-      "setup": "Configuration",
-      "firstReceived": "Première réception",
       "lastPull": "Dernière collecte",
       "noLeadYet": "Aucun candidat enregistré pour l’instant",
-      "configure": "Configurer",
       "lastDrain": "Dernière récupération",
       "lastHeartbeat": "Dernier signal",
       "edgePending": "En attente sur l’edge",
       "edgeCursor": "Récupéré jusqu’à l’événement",
-      "signingSecret": "Secret de signature",
-      "neverPaired": "Jamais appairé",
       "notSet": "Non défini",
       "notRead": "Pas encore lu"
     },
@@ -8976,6 +8763,10 @@
     "detach": "Détacher",
     "pickJd": "Choisir une fiche de poste enregistrée…",
     "jdOption": "{title} ({slug})",
+    "jdLinkedTo": "{title}",
+    "jdEditedFrom": "{title} (modifié)",
+    "jdEdited": "Modifié",
+    "revert": "Rétablir",
     "analyzing": "Analyse en cours…",
     "analyzeProfile": "Analyser le profil",
     "noInputs": "Aucun document joint",
@@ -9092,7 +8883,18 @@
     "preflightRunWithoutBlind": "Lancer sans présélection à l’aveugle",
     "preflightRemove": "Retirer {name}",
     "dropRefused": "{name} n’a pas été ajouté. {reason}",
-    "dropSingleSlot": "Cette zone n’accepte qu’un seul fichier, seul le premier a été conservé."
+    "dropSingleSlot": "Cette zone n’accepte qu’un seul fichier, seul le premier a été conservé.",
+    "priorDecidedTitle": "Déjà évalué pour ce poste",
+    "priorDecidedBody": "Le candidat a été marqué comme {disposition} le {date}.",
+    "priorOpenDecidedReport": "Ouvrir le rapport de décision",
+    "priorDecidedWarning": "Une nouvelle analyse apparaîtra dans l'historique comme indécise, tandis que la décision reste enregistrée sur le rapport précédent.",
+    "priorSeenTitle": "Déjà analysé pour ce poste",
+    "priorSeenBody": "Analysé le {date} avec une note de {score}.",
+    "priorOpenLatestReport": "Ouvrir le rapport existant",
+    "priorSeenElsewhereTitle": "Déjà analysé pour d'autres postes",
+    "priorOtherRolesLabel": "Également analysé pour :",
+    "priorMoreCount": "+{count} de plus",
+    "priorUnlinkedRole": "poste non lié"
   },
   "integrations": {
     "configLoadFailed": "Impossible de charger les paramètres de webhook enregistrés. Les valeurs affichées peuvent différer de celles stockées.",
@@ -10174,6 +9976,27 @@
       "jds": {
         "failed": "Les fiches de poste enregistrées n’ont pas pu être chargées.",
         "retry": "Réessayer"
+      },
+      "sourcePreview": {
+        "title": "Correspondances de candidats",
+        "subtitle": "Prévisualisez les correspondances avant de les intégrer dans le pipeline.",
+        "loading": "Recherche et classement des correspondances de candidats…",
+        "emptyPool": "Aucun profil de candidat ne correspond à ce rôle.",
+        "emptySkipped": "{count, plural, one {# profil a été ignoré lors de la correspondance} other {# profils ont été ignorés lors de la correspondance}}.",
+        "matchesCount": "{total, plural, one {# correspondance de candidat} other {# correspondances de candidats}}",
+        "onBoardBadge": "Dans le pipeline ({status})",
+        "score": "Score : {score}",
+        "selectAll": "Tout sélectionner",
+        "deselectAll": "Tout désélectionner",
+        "fileCta": "Ajouter {count, plural, one {# candidat} other {# candidats}} dans Accepté",
+        "filing": "Ajout des candidats…",
+        "previewFailed": "Impossible de charger la prévisualisation des candidats.",
+        "filingFailed": "Impossible d’intégrer les candidats dans le pipeline.",
+        "cancel": "Annuler",
+        "done": "Terminé",
+        "summaryFiled": "{added, plural, one {# candidat ajouté dans Accepté} other {# candidats ajoutés dans Accepté}}{alreadyOnBoard, plural, =0 {} other {, # déjà dans le pipeline}}.",
+        "summaryNothingNew": "Aucun nouveau candidat ajouté ; {alreadyOnBoard, plural, one {# était} other {# étaient}} déjà dans le pipeline.",
+        "summaryDropped": "{dropped, plural, one {# candidat n'est} other {# candidats ne sont}} plus disponible(s) dans la base de données."
       },
       "dismiss": "Fermer",
       "loadLabel": "les exercices",
@@ -14068,6 +13891,258 @@
       "working": "Suppression…",
       "cancel": "Garder mes données",
       "failed": "Vos données n’ont pas pu être supprimées pour le moment. Veuillez réessayer."
+    },
+    "views": {
+      "label": "Vue",
+      "sieve": "Tamis",
+      "atlas": "Atlas"
+    },
+    "atlas": {
+      "frame": {
+        "skip": "Aller au carrefour",
+        "brandLabel": "Recherche d’emploi, Atlas du ciel",
+        "sub": "Atlas du ciel",
+        "hubLabel": "Carrefour de la recherche d’emploi",
+        "hubHeading": "Votre recherche d’emploi : le ciel des offres",
+        "skyLabel": "Le ciel des offres",
+        "sideLabel": "Mise en place et les quatre lentilles"
+      },
+      "crumb": {
+        "sky": "Le ciel",
+        "back": "Retour à : {place}",
+        "label": "Où vous êtes"
+      },
+      "legend": {
+        "label": "Légende",
+        "unread": "Pierre : pas encore lue",
+        "rim": "Anneau : jamais notée"
+      },
+      "note": {
+        "shut": "Fermé \u0001 le dôme s’ouvre dès que votre CV est déposé et que les cinq choix sont faits.",
+        "half": "À demi ouvert \u0001 les étoiles restent éteintes et le bord vide tant que les cinq choix ne sont pas faits.",
+        "ready": "Le rayon vaut 100 moins la note. Chaque secteur est une source. Le bord garde ce qui n’a jamais reçu de note."
+      },
+      "plate": {
+        "eyebrow": "Planche I",
+        "title": "Le ciel du marché",
+        "stylised": "Carte et instruments stylisés",
+        "rank": "Rang {n}",
+        "band": "fourchette {low}–{high}",
+        "noBand": "sans fourchette",
+        "openStar": "Ouvrir cette offre",
+        "openSieve": "Ouvrir le tamis",
+        "rimEyebrow": "Sur le bord · jamais notées",
+        "heldName": "Retenues à la porte",
+        "waitName": "En attente d’une note",
+        "gateWhy": "Arrêtées par un filtre strict \u0001 elles gardent une note hypothétique, jamais un zéro.",
+        "heldWhy": "Leur source est désactivée.",
+        "waitWhy": "Pas encore notées \u0001 ce n’est pas une note basse.",
+        "rimCount": "Offres \u0001 {n}.",
+        "sectorEyebrow": "Source",
+        "sectorCount": "Offres \u0001 {n} · notées \u0001 {scored}",
+        "bestHere": "meilleure ici"
+      },
+      "aria": {
+        "star": "Rang {rank} \u0001 {who}. Note {score}, {tier}.",
+        "held": "{who}. Retenue à la porte \u0001 sa source est désactivée.",
+        "wait": "{who}. En attente d’une note.",
+        "gated": "{who}. Arrêtée par {gates} \u0001 non notée.",
+        "sector": "{name} \u0001 offres {n}, notées {scored}",
+        "rimGate": "{name} \u0001 arrêtées {n}. Ouvrir le tamis.",
+        "rimHeld": "Retenues à la porte \u0001 {n}. Ouvrir le tamis.",
+        "rimWait": "En attente d’une note \u0001 {n}. Ouvrir le tamis.",
+        "plateLocked": "Le dôme est {state} \u0001 {text}. Appuyez pour voir ce qui l’ouvre.",
+        "shut": "fermé",
+        "halfOpen": "à demi ouvert"
+      },
+      "rim": {
+        "held": "Retenues à la porte {n}",
+        "heldNone": "Retenues \u0001 aucune",
+        "wait": "En attente \u0001 {n}",
+        "waitNone": "En attente \u0001 aucune",
+        "chipsLabel": "Le bord : ce qui n’a jamais reçu de note",
+        "chipsIntro": "Bord, jamais notées :",
+        "heldShort": "Retenues à la porte",
+        "waitShort": "En attente",
+        "none": "aucune"
+      },
+      "ceremony": {
+        "skip": "Passer l’ouverture"
+      },
+      "keys": {
+        "label": "Touches",
+        "arrows": "Flèches",
+        "arrowsAct": "entre les étoiles",
+        "enter": "Entrée",
+        "enterAct": "ouvrir",
+        "esc": "Échap",
+        "back": "retour",
+        "decide": "décider",
+        "walk": "parcourir la liste"
+      },
+      "headline": {
+        "closed": "Fermé",
+        "noCvText": "Déposez votre CV. Le dôme s’ouvre dès que les {total} choix sont faits.",
+        "noCvSub": "Offres en attente \u0001 {n}. Aucune n’est encore lue pour vous.",
+        "toGo": "Encore {n}",
+        "toGoText": "Le dôme s’ouvre dès que les {total} sont faits.",
+        "missing": "Manque \u0001 {list}",
+        "reading": "Lecture…",
+        "loadFailed": "Les offres n’ont pas pu être chargées.",
+        "nothing": "Rien",
+        "nothingText": "dans le ciel \u0001 chaque source est retenue à la porte.",
+        "emptyText": "dans le ciel pour l’instant : lancez l’analyse de vos sources pour le remplir.",
+        "worthText": "sur {total} notées valent votre soirée.",
+        "worthSub": "{strong} fortes, {promising} prometteuses",
+        "none": "Aucune",
+        "noneText": "n’est devenue prometteuse. Votre meilleure a {best}.",
+        "noneSub": "Le champ noté ({n}) n’est qu’en partie compatible."
+      },
+      "unlock": {
+        "eyebrow": "Ce qui ouvre le dôme",
+        "noCvTitle": "Déposez votre CV",
+        "title": "{n} choix sur {total} faits",
+        "noCvText": "Les choix partent de votre CV. Ensuite, chacun fait tourner l’iris d’un cran.",
+        "missing": "Reste à faire \u0001 {list}.",
+        "set": "fait",
+        "notSetNoCv": "pas fait \u0001 déposez d’abord votre CV",
+        "optional": "facultatif",
+        "missingOne": "manque",
+        "ctaNoCv": "Déposer mon CV",
+        "ctaOpen": "Ouvrir le marché"
+      },
+      "wants": {
+        "cta": {
+          "places": "Choisir les lieux",
+          "pay": "Fixer le salaire minimum",
+          "titles": "Choisir les intitulés",
+          "modes": "Choisir le mode de travail",
+          "level": "Choisir le niveau",
+          "languages": "Confirmer les langues"
+        },
+        "name": {
+          "places": "Lieux",
+          "pay": "Salaire minimum",
+          "titles": "Intitulés",
+          "modes": "Mode de travail",
+          "level": "Niveau",
+          "languages": "Langues"
+        }
+      },
+      "deck": {
+        "label": "Le tableau d’instruments",
+        "cvIn": "CV déposé",
+        "cvDrop": "Déposez votre CV",
+        "needsCv": "A besoin de votre CV",
+        "skills": "{n, plural, one {# compétence} other {# compétences}} · déclarées seulement \u0001 {stated}",
+        "wantsSet": "{n} sur {total} faits",
+        "startHere": "commencez ici",
+        "cv": {
+          "name": "Loupe",
+          "long": "Votre CV"
+        },
+        "read": {
+          "name": "Spectre",
+          "long": "Ce que votre CV laisse lire"
+        },
+        "want": {
+          "name": "Cap",
+          "long": "Ce que vous voulez"
+        }
+      },
+      "lenses": {
+        "label": "Les quatre lentilles",
+        "lockedLabel": "Les quatre lentilles, verrouillées",
+        "notSwitchedOn": "Le marché \u0001 pas encore allumé",
+        "locked": "Verrouillé",
+        "lockedAria": "{name} \u0001 verrouillé. Appuyez pour voir ce qui le débloque.",
+        "lockedExplain": "{name} est verrouillé. {text}",
+        "lockedMissing": "Reste à faire \u0001 {list} ({n} sur {total} faits).",
+        "weighEmpty": "Rien n’est encore noté, il n’y a donc rien à peser.",
+        "sieve": {
+          "name": "Tamis",
+          "long": "Le tamis"
+        },
+        "evening": {
+          "name": "Soirée",
+          "long": "Dignes de votre soirée"
+        },
+        "weigh": {
+          "name": "Peser",
+          "long": "Peser une offre"
+        },
+        "sources": {
+          "name": "Sources",
+          "long": "Sources"
+        },
+        "sieveFact": "{n} arrêtées",
+        "eveningFact": "{n} valent le coup",
+        "eveningNone": "aucune pour l’instant",
+        "weighFact": "{n} décidées",
+        "weighNone": "aucune décidée",
+        "sourcesHeld": "{on} actives · {held} retenues",
+        "sourcesFact": "{on} actives"
+      },
+      "top5": {
+        "headFull": "Les cinq de ce soir",
+        "headSome": "Les cinq · {n} valent le coup",
+        "headNone": "Les cinq meilleures · aucune prometteuse",
+        "headEmpty": "Pas encore d’offres",
+        "empty": "Rien n’a encore été analysé.",
+        "meta": "{scored} notées sur {found} trouvées · note et fourchette \u0001 le degré de certitude",
+        "loading": "Lecture des offres…",
+        "none": "Rien n’est encore noté \u0001 chaque source est retenue à la porte.",
+        "decideSources": "Décider des sources",
+        "all": "Les {n} notées \u0001 ouvrir le catalogue"
+      },
+      "card": {
+        "aria": "Numéro {rank} \u0001 {title}, {company}. Note {score}, {tier}. {pay}.",
+        "payUnstated": "Salaire non indiqué",
+        "pay": "Salaire {range} {cur}/{period}",
+        "perMonth": "mois",
+        "perYear": "an"
+      },
+      "strip": {
+        "label": "Mise en place, repliée",
+        "setup": "Mise en place {n} sur {total}",
+        "edit": "Modifier la mise en place"
+      },
+      "levels": {
+        "cv": {
+          "name": "Votre CV",
+          "kicker": "Mise en place · loupe",
+          "lead": "Déposez un CV pour commencer, ou remplacez celui que vous avez."
+        },
+        "read": {
+          "name": "Ce qu’il laisse lire",
+          "kicker": "Mise en place · spectre",
+          "lead": "La personne lue dans votre CV \u0001 la forme de chaque compétence dit d’où vient l’affirmation."
+        },
+        "want": {
+          "name": "Ce que vous voulez",
+          "kicker": "Mise en place · cap",
+          "lead": "Cinq choix pilotent la recherche. Chacun que vous faites fait tourner l’iris du dôme d’un cran."
+        },
+        "sieve": {
+          "name": "Le tamis",
+          "kicker": "Le marché · tamis",
+          "lead": "Chaque offre, versée à travers des filtres nommés."
+        },
+        "evening": {
+          "name": "Dignes de votre soirée",
+          "kicker": "Le marché · soirée",
+          "lead": "Le classement \u0001 les cinq premières, la ligne d’horizon et toute la liste."
+        },
+        "sources": {
+          "name": "Sources",
+          "kicker": "Le marché · sources",
+          "lead": "D’où viennent les offres, et ce que chaque source a mis dans le ciel."
+        },
+        "weigh": {
+          "name": "Peser une offre",
+          "kicker": "Le marché · peser"
+        }
+      }
     }
   },
   "journey": {
@@ -16252,6 +16327,455 @@
       "hired": {
         "ats": "ATS",
         "hris": "HRIS"
+      }
+    }
+  },
+  "overviewLit": {
+    "headAria": "{count, plural, =0 {Personne n’attend de décision humaine.} one {# personne attend une décision humaine.} other {# personnes attendent une décision humaine.}} Mettez-les en évidence sur l’orbite, puis ouvrez-la.",
+    "why": "{list}. Chacun est un point auréolé sur l’orbite.",
+    "whyNone": "Personne n’attend de décision humaine pour le moment.",
+    "kind": {
+      "decision": "{count, plural, one {# décision clé} other {# décisions clés}}",
+      "screening_review": "{count, plural, one {# présélection à examiner} other {# présélections à examiner}}",
+      "scorecard_review": "{count, plural, one {# scorecard} other {# scorecards}}",
+      "rejection_review": "{count, plural, one {# rejet à confirmer} other {# rejets à confirmer}}",
+      "offer_review": "{count, plural, one {# offre rédigée} other {# offres rédigées}}",
+      "calendar": "{count, plural, one {# créneau d’entretien} other {# créneaux d’entretien}}"
+    },
+    "needsHand": "vous attend, commencez ici",
+    "motionHand": "en cours aujourd’hui",
+    "needsAria": "À traiter",
+    "motionAria": "En cours aujourd’hui",
+    "haloNote": "auréolé = vous attend",
+    "firstUp": {
+      "eyebrow": "En premier",
+      "waitingOn": "{kind} · {stage}",
+      "overLine": "Délai de {sla, plural, one {# jour} other {# jours}} : {over, plural, =0 {atteint} one {dépassé de # jour} other {dépassé de # jours}}",
+      "insideLine": "Jour {days, number} d’un délai de {sla, plural, one {# jour} other {# jours}}",
+      "none": "Personne n’attend de décision humaine pour le moment.",
+      "noClock": "{count, plural, one {# personne attend, et son temps dans l’étape n’est pas mesuré : elle y a été placée et n’a jamais bougé, ou son étape n’a pas de délai, comme la dernière.} other {# personnes attendent, et le temps passé dans l’étape n’est mesuré pour aucune : chacune y a été placée et n’a jamais bougé, ou se trouve dans une étape sans délai, comme la dernière.}}"
+    },
+    "queue": {
+      "decisions": "{count, plural, one {# personne attend une décision ou un examen} other {# personnes attendent une décision ou un examen}}",
+      "openAria": "{label}. Mettez-les en évidence sur l’orbite, puis ouvrez-la.",
+      "more": "{count, plural, one {+# autre} other {+# autres}}",
+      "on": "en {stages}",
+      "label": {
+        "decisions": "{count, plural, one {personne attend une décision ou un examen} other {personnes attendent une décision ou un examen}}",
+        "inbound": "{count, plural, one {nouvelle candidature} other {nouvelles candidatures}}",
+        "scorecards": "{count, plural, one {scorecard à examiner} other {scorecards à examiner}}",
+        "offerReviews": "{count, plural, one {offre rédigée en attente de votre approbation} other {offres rédigées en attente de votre approbation}}",
+        "awaitingSlot": "{count, plural, one {entretien en attente de créneau} other {entretiens en attente de créneau}}",
+        "offersOut": "{count, plural, one {candidat à l’étape Offre} other {candidats à l’étape Offre}}",
+        "hired": "{count, plural, one {candidat recruté cette semaine} other {candidats recrutés cette semaine}}"
+      }
+    },
+    "slotNote": "L’emplacement à 12 h donne l’effectif de chaque anneau.",
+    "totals": {
+      "aria": "Totaux",
+      "active": "personnes actives",
+      "inside": "dans le délai de leur étape · {over, number} hors délai",
+      "insideOf": "{measured, plural, one {sur # mesurée} other {sur # mesurées}}",
+      "hired": "recrutés",
+      "hiredOf": "sur {target, number}",
+      "open": "postes ouverts, sans personne pour l’instant",
+      "drafts": "+ {count, plural, one {# brouillon} other {# brouillons}}"
+    },
+    "lit": {
+      "aria": "Mis en évidence sur l’orbite",
+      "clear": "Afficher tout le monde"
+    },
+    "ringKey": {
+      "lead": "Anneaux, de l’extérieur vers l’intérieur",
+      "item": "{stage} · {count, number}"
+    }
+  },
+  "channelsNight": {
+    "shell": {
+      "root": "Canaux",
+      "crumbsLabel": "Où vous êtes",
+      "back": "Retour à {place}",
+      "keysLabel": "Clavier",
+      "keyNames": {
+        "tab": "Tab",
+        "arrows": "Flèches",
+        "enter": "Entrée",
+        "esc": "Échap",
+        "leftRight": "← →"
+      },
+      "keyActs": {
+        "move": "se déplacer",
+        "open": "ouvrir",
+        "back": "retour",
+        "channel": "canal"
+      },
+      "kicker": {
+        "setup": "Configuration",
+        "ledger": "Registre",
+        "message": "Un message"
+      },
+      "feedsName": "Flux de récupération",
+      "blurb": {
+        "feeds": "Les sources que le studio interroge à chaque cycle sur ce qui est arrivé pendant que cette machine était éteinte.",
+        "relay": "La destination réelle des messages sortants aux candidats.",
+        "edge": "Qui répond pour cet espace de travail quand il est éteint."
+      },
+      "openLedger": "Ouvrir le registre",
+      "prevChannel": "Précédent : {channel}",
+      "nextChannel": "Suivant : {channel}",
+      "channelPosition": "{index} sur {total}",
+      "prevMessage": "Message précédent",
+      "nextMessage": "Message suivant",
+      "messagePosition": "Message {index} sur {total}",
+      "message": "Message",
+      "messageMissing": "Ce message ne figure pas dans le registre chargé.",
+      "messageMissingBody": "Il est peut-être antérieur à la période chargée, ou il n’existe plus.",
+      "feedsEmpty": "Aucun récepteur pour l’instant. Une source de récupération appartient à un récepteur : ajoutez-en un sous Réception par e-mail ou Formulaires publicitaires, puis indiquez ici son URL de récupération."
+    },
+    "plumbing": {
+      "eyebrow": "Canaux · toute la tuyauterie",
+      "sceneLabel": "La tuyauterie vue comme un quartier. Chaque bâtiment est un bouton.",
+      "comingIn": "Ce qui arrive",
+      "goingOut": "Ce qui part",
+      "studio": "Le studio",
+      "houses": "Candidats",
+      "ledgerName": "Registre",
+      "startHere": "d’abord ici",
+      "startHereLabel": "Commencez ici : {title}",
+      "queuedNotSent": "en file, PAS envoyé",
+      "queued": "en file d’attente",
+      "headline": {
+        "reading": "Lecture de la tuyauterie…",
+        "ok": "Tout est branché et tout circule.",
+        "okSub": "Les portes sont ouvertes, le relais distribue et rien ne vous attend.",
+        "okPartial": "Rien de ce qui a pu être lu ne vous attend.",
+        "okPartialSub": "Une partie de la tuyauterie n’a pas pu être lue. Ceci n’est donc pas un feu vert.",
+        "quiet": "Rien ne vous attend pour l’instant.",
+        "quietSub": "{relay, select, proven {Le relais a déjà distribué du courrier.} other {Le relais est configuré mais n’a encore rien envoyé. La distribution n’est donc pas prouvée.}} {off, plural, =0 {Tous les canaux sont configurés.} one {Un canal est désactivé ou non configuré.} other {# canaux sont désactivés ou non configurés.}}"
+      },
+      "figures": {
+        "waiting": "En attente",
+        "waitingNote": "dans le pipeline",
+        "messages": "Messages",
+        "sent": "{count, plural, one {# envoyé} other {# envoyés}}",
+        "noneSent": "aucun envoyé",
+        "newestPage": "page la plus récente",
+        "dead": "À traiter",
+        "deadNote": "en échec, non distribués ou non rattachés",
+        "notRead": "pas encore lu",
+        "notMeasured": "non mesuré : rien n’est envoyé"
+      },
+      "needsTitle": "À traiter, le plus urgent d’abord",
+      "need": {
+        "relayOffQueued": {
+          "title": "{count, plural, one {<em># message</em> n’est PAS envoyé} other {<em># messages</em> ne sont PAS envoyés}} aux candidats",
+          "detail": "Aucun relais de distribution n’est configuré : chaque message est enregistré et aucun ne quitte cette machine.",
+          "cta": "Configurer le relais"
+        },
+        "relayOff": {
+          "title": "Aucun relais de distribution",
+          "detail": "Rien ne peut être distribué tant qu’aucun relais n’est configuré.",
+          "cta": "Configurer le relais"
+        },
+        "relayUnreadable": {
+          "title": "Le secret de signature du relais est illisible",
+          "detail": "Un relais est enregistré, mais ce déploiement ne peut pas déchiffrer son secret : chaque message reste dans la boîte d’envoi locale.",
+          "cta": "Réparer le relais"
+        },
+        "dead": {
+          "title": "{count, plural, one {<em># message</em> requiert} other {<em># messages</em> requièrent}} votre attention",
+          "detail": "{failed} en échec et {bounced, plural, one {# non distribué} other {# non distribués}}. Une personne décide de leur sort.",
+          "detailFailed": "{failed, plural, one {# en échec. Une personne décide de son sort.} other {# en échec. Une personne décide de leur sort.}}",
+          "detailBounced": "{bounced, plural, one {# non distribué. Une personne décide de son sort.} other {# non distribués. Une personne décide de leur sort.}}",
+          "cta": "Ouvrir les messages à traiter"
+        },
+        "pullFailing": {
+          "title": "Récupération en échec pour {role}",
+          "detail": "La source n’a pas répondu à la dernière récupération. Les candidatures qu’elle détient n’arrivent pas dans ce studio.",
+          "cta": "Réparer la source"
+        },
+        "edgeFailing": {
+          "title": "La collecte de l’edge échoue",
+          "detail": "La dernière collecte s’est arrêtée. Rien n’est perdu, elle sera retentée au prochain cycle.",
+          "cta": "Ouvrir l’edge"
+        },
+        "edgeSecretMissing": {
+          "title": "L’edge n’a pas de secret partagé",
+          "detail": "Une adresse est configurée, mais aucun secret : rien n’est collecté.",
+          "cta": "Ajouter le secret"
+        },
+        "orphaned": {
+          "title": "{count, plural, one {<em># accusé de livraison</em> ne correspond} other {<em># accusés de livraison</em> ne correspondent}} à aucun message",
+          "detail": "Le relais a signalé un échec pour des messages que Kandi n’a jamais envoyés. Vérifiez la correspondance ref/kind dans l’intégration du relais.",
+          "cta": "Ouvrir les accusés"
+        },
+        "reachedNoLeads": {
+          "title": "{role} : joint, aucun candidat enregistré",
+          "detail": "{count, plural, one {# requête reçue} other {# requêtes reçues}}, aucune enregistrée. Vérifiez le mappage des champs de la source.",
+          "cta": "Ouvrir le récepteur"
+        },
+        "queuedWithRelay": {
+          "title": "{count, plural, one {<em># message</em> est en file d’attente, pas envoyé} other {<em># messages</em> sont en file d’attente, pas envoyés}}",
+          "detail": "En file d’attente signifie enregistré. Le message n’est envoyé que lorsqu’un relais le prend en charge.",
+          "cta": "Ouvrir la file d’attente"
+        },
+        "edgeOff": {
+          "title": "L’edge n’est pas associé",
+          "detail": "Tant que ce studio est éteint, rien ne répond pour lui.",
+          "cta": "Associer l’edge"
+        },
+        "edgePending": {
+          "title": "{count, plural, one {<em># événement</em> attend} other {<em># événements</em> attendent}} sur l’edge",
+          "detail": "La prochaine collecte s’en chargera.",
+          "cta": "Ouvrir l’edge"
+        },
+        "nothingPublished": {
+          "title": "Rien n’est publié",
+          "detail": "Publiez un poste et son lien de candidature apparaîtra sur la page carrières.",
+          "cta": "Ouvrir la page carrières"
+        },
+        "receiverWaiting": {
+          "title": "{role} : en attente de la première candidature",
+          "detail": "Configuré, rien de reçu pour l’instant.",
+          "cta": "Ouvrir le récepteur"
+        }
+      },
+      "chip": {
+        "published": "Publié",
+        "notSetUp": "Non configuré",
+        "notPulled": "Pas encore de récupération",
+        "notSending": "PAS d’envoi",
+        "nothingSent": "Rien d’envoyé pour l’instant",
+        "neverDrained": "Associé, jamais collecté",
+        "drainFailing": "Collecte en échec",
+        "needsYou": "{count} à traiter",
+        "noneSent": "Aucun envoyé",
+        "clear": "Rien à traiter",
+        "empty": "Aucun message pour l’instant"
+      },
+      "fact": {
+        "careersRoles": "{count, plural, one {# poste ouvert} other {# postes ouverts}}, un lien chacun",
+        "careersNone": "Publiez un poste pour obtenir son lien",
+        "emailNone": "Aucune boîte de poste pour l’instant",
+        "adsNone": "Aucun récepteur de formulaire pour l’instant",
+        "receiversNothing": "{count, plural, one {# récepteur} other {# récepteurs}}, rien de reçu pour l’instant",
+        "receiversTraffic": "{count, plural, one {# récepteur} other {# récepteurs}} · {received, plural, one {# reçu} other {# reçus}} · {filed, plural, one {# enregistré} other {# enregistrés}}",
+        "feedsNone": "Aucune source de récupération définie",
+        "feedsFailing": "{failing} sur {count} en échec",
+        "feedsNotPulled": "L’horloge la prendra au prochain cycle",
+        "feedsPulling": "{count, plural, one {# flux} other {# flux}} · dernière récupération {time}",
+        "relayQueuedNotSent": "{queued, plural, one {# message PAS envoyé} other {# messages PAS envoyés}}",
+        "relayNothingDeliverable": "Rien ne peut être distribué",
+        "relayTraffic": "{sent, plural, one {# envoyé} other {# envoyés}}{needs, plural, =0 {} other { · # à traiter}}{queued, plural, =0 {} other { · # en file d’attente}}",
+        "relayNoSendYet": "Aucun message n’a encore transité par lui",
+        "relayOutboxOnly": "Chaque message reste dans la boîte d’envoi locale",
+        "edgeNobody": "Personne ne répond quand le studio est éteint",
+        "edgeOfflineFact": "Cette installation n’émet aucun appel sortant",
+        "edgeSecretFact": "Une adresse est définie, sans secret : rien n’est collecté",
+        "edgeNeverDrainedFact": "Collectez une fois pour vérifier qu’il répond",
+        "edgeBeat": "Dernier signal {time} · {backlog}",
+        "edgeNoBeat": "Aucun signal pour l’instant · {backlog}",
+        "bookNoneSentFact": "{total, plural, one {# message} other {# messages}} · aucun envoyé",
+        "bookTraffic": "{total, plural, one {# message} other {# messages}} · {sent, plural, one {# envoyé} other {# envoyés}}{orphaned, plural, =0 {} one { · # non rattaché} other { · # non rattachés}}",
+        "bookEmptyFact": "Ils apparaissent à mesure que les candidats avancent dans le pipeline",
+        "olderExist": "il en existe de plus anciens"
+      }
+    },
+    "ledger": {
+      "title": "Le registre du courrier",
+      "lead": "Chaque message adressé aux candidats, dans un registre auditable. En file d’attente signifie enregistré, pas envoyé.",
+      "chipsLabel": "Filtrer par verdict",
+      "needsYou": "À traiter",
+      "notMeasuredTip": "Non mesuré : sans relais, rien n’est envoyé, donc un zéro ici ne serait pas une bonne nouvelle.",
+      "notMeasuredNote": "Un tiret n’est pas un zéro : sans relais, rien n’est envoyé, donc rien n’a pu échouer, rebondir ni revenir.",
+      "relayOffStays": "Un relais configuré envoie les messages qui suivent. Ceux qui sont enregistrés ici le restent.",
+      "queuedStays": "Ils ont été enregistrés alors qu’aucun relais n’était configuré. Un message en file d’attente reste dans la boîte d’envoi locale. Rien ne l’enverra plus tard.",
+      "scope": "Messages pour {count, plural, one {# poste alimenté} other {# postes alimentés}} par {channel}.",
+      "scopeNone": "{channel} n’alimente encore aucun poste : aucun message ne lui est donc rattaché.",
+      "showAll": "Afficher tous les messages",
+      "colVerdict": "Verdict",
+      "staleRead": "Impossible d’actualiser les communications. Voici les lignes de la dernière lecture.",
+      "keys": {
+        "rows": "↑ ↓",
+        "step": "j k",
+        "slash": "/",
+        "digits": "1–7",
+        "row": "ligne",
+        "search": "rechercher",
+        "verdict": "verdict"
+      }
+    },
+    "message": {
+      "hint": {
+        "queued": "Enregistré, pas envoyé",
+        "sent": "Le relais l’a accepté",
+        "recovered": "Échec d’abord, puis un renvoi est parti",
+        "failed": "Message en échec : à traiter",
+        "bounced": "L’adresse a été rejetée : à traiter",
+        "orphaned": "Un accusé qui ne correspond à aucun message"
+      },
+      "to": "À",
+      "reference": "Référence",
+      "note": {
+        "queuedNoRelay": "<b>Rien n’a quitté cette machine : aucun relais n’est configuré.</b> Ce message est enregistré. Il n’est PAS envoyé à {name}.",
+        "queuedLater": "Il a été enregistré alors qu’aucun relais n’était configuré. Un message en file d’attente reste dans la boîte d’envoi locale. Rien ne l’enverra plus tard."
+      },
+      "act": {
+        "title": "Ce que vous pouvez faire",
+        "configureHelp": "Un relais envoie les messages qui suivent. Celui-ci reste enregistré.",
+        "retryHelp": "Un renvoi constitue sa propre ligne : l’original et le renvoi restent distincts. Il n’affiche « Renvoyé » que si le relais l’accepte.",
+        "correctSubmit": "Renvoyer à l’adresse corrigée"
+      },
+      "timeline": {
+        "title": "Chronologie de distribution",
+        "lead": "Uniquement ce que contient l’enregistrement. Une étape sans heure dit pourquoi.",
+        "notYet": "pas encore",
+        "cannot": "ne peut pas se produire",
+        "noTime": "aucune heure enregistrée",
+        "bounceDetail": "Le relais a signalé : {detail}",
+        "step": {
+          "recorded": {
+            "title": "Enregistré",
+            "detail": "Écrit dans la boîte d’envoi locale."
+          },
+          "relayed": {
+            "title": "Accepté par le relais",
+            "detail": "Le relais a répondu par un succès. La ligne du registre a été écrite ensuite."
+          },
+          "neverHanded": {
+            "title": "Jamais transmis à un relais",
+            "relayOff": "Aucun relais de distribution n’est configuré : le message n’a donc pas quitté cette machine.",
+            "relayOn": "Il a été enregistré alors qu’aucun relais n’était configuré. Rien n’envoie plus tard un message en file d’attente."
+          },
+          "deadLettered": {
+            "title": "Échec de distribution",
+            "detail": "Le relais l’a refusé. Aucune raison n’a été enregistrée."
+          },
+          "needsYou": {
+            "title": "En attente d’une personne",
+            "detail": "Renvoyez-le, ou laissez-le tel quel. Rien ne le relance automatiquement."
+          },
+          "resent": {
+            "title": "Renvoyé",
+            "detail": "Un renvoi est parti et le relais l’a accepté."
+          },
+          "bounced": {
+            "title": "Non distribué",
+            "detail": "Le relais a signalé un rebond sans détail."
+          },
+          "needsAddress": {
+            "title": "Adresse corrigée requise",
+            "detail": "Renvoyer à la même adresse échouera de nouveau."
+          },
+          "receiptArrived": {
+            "title": "Accusé reçu",
+            "detail": "Le relais a transmis un retour concernant un message."
+          },
+          "unmatched": {
+            "title": "Resté non rattaché",
+            "detail": "Aucun message ici ne porte sa référence ni son type. Vérifiez la correspondance ref/kind dans l’intégration du relais."
+          }
+        }
+      },
+      "keys": {
+        "brackets": "[ ]",
+        "step": "précédent / suivant"
+      }
+    },
+    "setup": {
+      "stepper": {
+        "label": "Les six canaux",
+        "dot": "{channel} : {state}"
+      },
+      "careers": {
+        "help": "Seuls les postes ouverts donnent un lien : un poste fermé ne laisse donc jamais de lien mort. Les candidatures passées par cette page arrivent dans le pipeline. Cette page ne les compte pas à part.",
+        "testHint": "Dépose un candidat fictif via la page de candidature de {role}, sur une copie du poste marquée (SIM).",
+        "copyAria": "Copier le lien de candidature de {role}"
+      },
+      "receivers": {
+        "count": "{count, plural, one {# récepteur} other {# récepteurs}} · chacun lié à un poste",
+        "listEmail": "Boîtes de poste",
+        "listAds": "Récepteurs de formulaires publicitaires",
+        "addClose": "Fermer"
+      },
+      "receiver": {
+        "waitingNote": "Configuré, rien de reçu pour l’instant. Cela diffère d’une panne : l’adresse est active et en attente.",
+        "newNote": "Nouveau. L’adresse fait office de clé d’accès : quiconque la détient peut déposer des candidatures. Copiez-la maintenant. Elle sera de nouveau masquée quand vous la cacherez ou reviendrez.",
+        "steps": "Étapes de configuration",
+        "stepsHide": "Masquer les étapes de configuration",
+        "cvHide": "Masquer le test de CV",
+        "pullHide": "Masquer la source de récupération",
+        "messages": "Messages de ce poste",
+        "remove": "Supprimer",
+        "reachNote": "Ce récepteur a été joint mais n’a encore enregistré aucun candidat. Un ping de test compte aussi. Si de vraies candidatures étaient attendues, vérifiez le mappage des champs de la source, ou testez-le ci-dessous avec un vrai CV pour en voir une passer.",
+        "firstReceived": "Première réception",
+        "acceptedHint": "Candidats réellement déposés par ce récepteur. Reçus mesure la connectivité, sondes et payloads rejetés compris."
+      },
+      "endpoint": {
+        "reveal": "Afficher",
+        "hide": "Masquer",
+        "revealAria": "Afficher l’adresse du poste {role}",
+        "hideAria": "Masquer l’adresse du poste {role}",
+        "copyAria": "Copier l’adresse du poste {role}",
+        "masked": "Masquée. Affichez-la pour la lire, ou copiez-la."
+      },
+      "secret": {
+        "set": "Défini",
+        "setHidden": "Défini, masqué",
+        "storedAria": "{label} est défini et masqué",
+        "storedHelp": "Enregistré et masqué. Il ne sera plus jamais affiché. Remplacez-le pour le modifier.",
+        "replace": "Remplacer",
+        "keep": "Conserver la valeur enregistrée",
+        "show": "Afficher",
+        "showAria": "Afficher la saisie",
+        "hideAria": "Masquer la saisie",
+        "generate": "Générer",
+        "generatedOnce": "Affiché une seule fois, maintenant. Copiez-le dans votre relais avant d’enregistrer : une fois enregistré, il reste masqué définitivement.",
+        "copyGenerated": "Copier le secret généré"
+      },
+      "feeds": {
+        "edit": "Modifier la source",
+        "add": "Ajouter une source de récupération",
+        "close": "Fermer",
+        "lastError": "Dernière erreur",
+        "noError": "Aucune erreur lors de la dernière récupération",
+        "goTo": "Ouvrir {channel}",
+        "listLabel": "Sources de récupération, une par récepteur"
+      },
+      "relay": {
+        "notSending": "Aucun relais de distribution n’est configuré. {count, plural, one {# message n’est PAS envoyé} other {# messages ne sont PAS envoyés}} aux candidats.",
+        "version": "v{version}",
+        "gate": {
+          "ok": "Envoie un ping de test, pas un message à un candidat.",
+          "noRelay": "Enregistrez un endpoint pour le tester.",
+          "unsaved": "Modifications non enregistrées : enregistrez avant de tester.",
+          "unreadable": "Saisissez à nouveau le secret de signature et enregistrez avant de tester.",
+          "busy": "En cours…"
+        },
+        "outcome": {
+          "sent": "Envoyé.",
+          "failed": "Échec.",
+          "refused": "Non envoyé."
+        },
+        "answered": "A répondu à un test à l’instant",
+        "carried": "Ce que le relais a acheminé",
+        "delivered": "Distribués",
+        "deliveredSub": "{sent, plural, one {# envoyé} other {# envoyés}}, {recovered, plural, one {# rattrapé} other {# rattrapés}}",
+        "queued": "En file d’attente",
+        "queuedSub": "enregistrés, non distribués",
+        "queuedNotSent": "PAS envoyés",
+        "needs": "À traiter",
+        "needsSub": "{failed} en échec, {bounced, plural, one {# non distribué} other {# non distribués}}",
+        "needsAbsent": "Rien n’est envoyé, donc rien ne peut échouer",
+        "unmatched": "Accusés non rattachés",
+        "unmatchedAbsent": "Seul un relais peut les signaler",
+        "reviewQueue": "Vérifiez d’abord la file d’attente"
+      },
+      "edge": {
+        "pair": "Associer l’edge",
+        "nudge": "Cible de notification",
+        "ledger": "Le registre de collecte",
+        "noBeat": "Aucun signal pour l’instant"
       }
     }
   }

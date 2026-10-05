@@ -24,6 +24,7 @@ neither run nor listed.
 | --- | --- | --- |
 | Gate + error boundary (no chrome of its own) | `app/me/layout.tsx` | `isOperator()` else 404; not in `PUBLIC_PAGES`, so the fail-closed proxy walls it when a password is set |
 | **The flow — "The Sieve"** (arrive → CV → you → what you want → the sieve → worth your evening → weigh → sources) | `app/me/page.tsx` → `app/features/jobseeker/sieve/SieveFlow.tsx` | server-first; `?open=<postingId>` lands on the Weigh step |
+| **The Sky Atlas** — the same search as a hub with levels, beside the Sieve (2026-09-30, for comparison) | `app/me/atlas/page.tsx` → `app/features/jobseeker/atlas/AtlasFlow.tsx` | same gate as `/me` (layout); `?open=<postingId>` lands on that posting once the market is open |
 | Old addresses | `app/me/jobs/page.tsx` → `/me#s-evening`, `app/me/jobs/[id]/page.tsx` → `/me?open=<id>#s-weigh` | redirects |
 | Custom boards, ATS by slug, extraction rules | `app/me/sources/**` (inside `SieveSideFrame`) | the flow's Sources step links here |
 | Scan history + the clock | `app/me/scans/**` (inside `SieveSideFrame`) | |
@@ -116,6 +117,53 @@ tokens, the 14px floor, text-driven widths).
 **Keyless**: the flow never needs a model. The import degrades to the fixed parser and
 says so; the deep read answers with the fixed template and says so; the fit conversation
 and the CV studio run their deterministic twins.
+
+## The Sky Atlas — `/me/atlas` (a second view of the same search)
+
+> Status 2026-09-30: **parallel view, for comparison.** Promoted from the design contest `me-hub`
+> (winner A/3 "The Sky Atlas"; arena and the winner's source under `.contest/arena/me-hub/`, git-ignored).
+> The owner's brief: the Sieve is one long page of eight chapters, so a returning seeker scrolls past
+> setup every time; make it a hub with layers where **setup (CV, what it reads as, what you want) is the
+> precondition** and the market (sieve, best postings, weigh, sources) is visibly switched off until it is met.
+
+**Two views, one search.** A view switch ("View: Sieve | Atlas", `ViewSwitch.tsx`) sits in the header of both
+(`SieveFrame.tsx` and the Atlas's own bar). They are plain links between `/me` and `/me/atlas`: both read the
+same rows and profile and write through the same `/api/jobseeker/**` routes, so a CV dropped, a want saved or a
+posting decided in one is what the other shows. No route and no table was added.
+
+**Nothing is re-implemented.** Every level mounts the Sieve's own step inside a `.sv.at-embed` wrapper
+(`sieve.css` is loaded; `atlas.css` only drops the chapter chrome), so the behaviour is the real one:
+
+| Prototype element (A/3) | Real behaviour it is wired to |
+| --- | --- |
+| The sky: every posting a mark, radius = 100 − score, rim for what never scored | `deriveSieve` (`sieveModel.ts`) over `useSieveData` rows; placement is `atlasModel.ts` (`skyLayout`, `rimLayout`), pinned by `atlasModel.test.ts`. Twin copies of one job (`twinKey`) are one star |
+| Sectors | **the source**, not the role family: summary rows carry no role family (the structured job has one, but 242 of 247 postings on the operator's DB had none) while every row names its source |
+| The dome / iris, the lock | `lockOf(hasCv, wantsSet(prefs))`: no CV → CV in → ready. Required = the **five** wants that steer the search (places, pay floor with its currency, titles, work modes, level); **languages are the sixth card, shown and editable but never required** (they do not change the ranking, step 4). A floor without a currency is not set. A locked market shows "not reached", never a count of 0 |
+| Prototype gate switch and seeker switch | dropped: the real gate comes from the real profile |
+| Instrument deck: Lens / Spectrum / Bearing | `StepArrive` (import, replace) / `StepYou` (the CV read, polish through `CvStudio`) / `StepWant` (the six cards, `useWantSave`) |
+| Four lenses: Sieve / Evening / Weigh / Sources | `StepSieve` / `StepEvening` / `StepWeigh` (one posting, level 2: decide bar, A/S/D, J/K) / `StepSources`. Weigh opens the best open posting (or the one pointed at) |
+| Top five cards | `facts.top5`, each pointing its star at the centre on hover / focus |
+| The ceremony (iris opens, marks fly to their score) | plays when a saved want or an import opens the dome **in this session** (`adoptProfile`); the level closes onto the sky; any key skips; reduced motion shows the final frame |
+| Levels, Esc, the way back | kit `LevelTransition` / `LevelFrame` / `LevelTrail` with `levelReduce` (`atlasNav.ts`, `useAtlasNav.ts`, `useAtlasKeys.ts`); Esc goes one level up and yields to a modal or a focused field; the heading of the opened level takes focus |
+| Anchors between steps (`#s-evening`, `/me#s-want`) | intercepted in `AtlasFlow` and mapped to lenses; a market lens refuses politely while locked |
+| Scan now, the erasure door, new-since-last-visit | the flow's one `useScanTask` / `ScanDoor` (offered where the sky is empty and inside the sieve lens); `EraseMeDoor` in the page foot; the seen-anchor advances only once the Evening lens was opened |
+
+**Deliberately not ported:** the prototype's own level scenes (its CV drop, preference cards, sieve drum, catalogue,
+sources observatory: each level shows the real step instead), the wires drawn from the top-five cards to their stars
+(a card points its star by hover and focus instead), the prototype controls, and the prototype's persona data.
+Known limits: the steps keep their "Step N" eyebrows inside a level; after `EraseMeDoor` the page reloads onto `/me`;
+a posting's pay on a card is the ad's stated pay only; the wants in the unlock list open the whole Bearing level rather
+than focusing one card.
+
+**Style.** `atlas/atlas.css`, scoped under `.at` with the winner's own class names, ported from the winner's stylesheet
+(a mechanical scope-and-scale pass, then hand edits) and resolved entirely through the app's tokens: Studio Light is the
+printed atlas, Spark Dark the night sky. The prototype scaled its root font with the viewport, so the scale lives in one
+variable, `--u` (16–30px), and nothing renders below 14px. Held to the winner with the contest style contract
+(23 roles at 1280x800, light): **0 style deviations**; the four differences it lists are data (the hero's text width, the
+legend's text width, and the top-ranked card's tier colour).
+
+**Keyless:** unchanged. The import degrades to the fixed parser, the deep read and the fit conversation to their
+deterministic twins, exactly as in the Sieve.
 
 ## Wire vocabulary
 

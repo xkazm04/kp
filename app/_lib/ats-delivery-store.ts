@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path.ts";
 import { isAtsEvent, type AtsEventType } from "./ats-webhook.ts";
+import { addColumns } from "./db/add-columns";
 
 // P1-5 (reliability) — the durable delivery LEDGER for the outbound ATS webhook.
 // Previously a lifecycle dispatch was best-effort fire-and-forget: a receiver 4xx/5xx
@@ -93,13 +94,7 @@ function db(): Database.Database {
   `);
   // The claim lease. Additive, NULL by default; a lease-less pending row (pre-upgrade)
   // counts as expired once older than one lease, so already-stranded rows heal too.
-  for (const col of ["lease_token TEXT", "lease_until TEXT"]) {
-    try {
-      d.exec(`ALTER TABLE ats_delivery ADD COLUMN ${col}`);
-    } catch {
-      // Already present (an earlier boot added it): the no-op we want.
-    }
-  }
+  addColumns(d, "ats_delivery", ["lease_token TEXT", "lease_until TEXT"]);
   _db = d;
   return d;
 }

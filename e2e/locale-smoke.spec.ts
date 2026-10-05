@@ -75,6 +75,25 @@ test.describe("Locale smoke — the shell renders the reader's language", () => 
     });
   });
 
+  test("an anonymous visitor with a cs cookie gets the landing in Czech, new copy included", async ({ page }) => {
+    // The public landing (app/landing/site/, 2026-09-30) reuses the translated
+    // landing.* keys and adds four namespaces of its own (siteChrome, siteLand,
+    // siteFeatures, siteAbout). i18n:check proves cs HAS those keys; this proves
+    // the anonymous '/' actually resolves and paints them. No seedDevAuth: '/'
+    // without the entry cookie is the landing, not the workspace.
+    await page.context().addCookies([{ name: LOCALE_COOKIE, value: "cs", url: E2E_BASE_URL }]);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("lang", "cs");
+    // siteChrome: the skip link, the first stop on the page.
+    await expect(page.getByRole("link", { name: message("cs", "siteChrome.skip.land"), exact: true })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: message("en", "siteChrome.skip.land"), exact: true })).toHaveCount(0);
+    // siteLand: a band's lead, rendered as body copy.
+    const lead = page.getByText(message("cs", "siteLand.pricing.lead"), { exact: true });
+    await lead.scrollIntoViewIfNeeded();
+    await expect(lead).toBeVisible();
+    await expect(page.getByText(message("en", "siteLand.pricing.lead"), { exact: true })).toHaveCount(0);
+  });
+
   test("no cookie still resolves English — the control", async ({ page }) => {
     // The other half of the proof. If the app were somehow serving Czech to
     // everyone, the first test would pass and nothing would be wrong with it.

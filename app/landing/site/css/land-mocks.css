@@ -1,0 +1,732 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-land; keyframes prefixed "mkl-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* The console - feature mocks (L1) and details (L2).
+   Everything is scoped under .mock. Sizes are calc(var(--u) * N) with the type floors from tokens.css.
+   Animation: transform/opacity only, always inside prefers-reduced-motion: no-preference. */
+
+/* ---------- root, surfaces, tokens ---------- */
+.mk.mk-land .mock {
+  --mk-a: var(--fc, var(--coral));
+  --mk-on: var(--fink, var(--cream));
+  --mk-bg: var(--lcd-bg);
+  --mk-bg2: var(--lcd-bg-2);
+  --mk-fg: var(--lcd-fg);
+  --mk-dim: var(--lcd-dim);
+  --mk-line: var(--lcd-line);
+  --mk-at: var(--coral-hi);
+  --mk-soft: color-mix(in srgb, var(--mk-fg) 8%, transparent);
+  --g1: calc(var(--u) * .4);
+  --g2: calc(var(--u) * .8);
+  --g3: calc(var(--u) * 1.2);
+  --g4: calc(var(--u) * 1.8);
+  --mk-r: calc(var(--u) * .7);
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--g2);
+  padding: var(--g3);
+  overflow: hidden;
+  background: var(--mk-bg);
+  color: var(--mk-fg);
+  font-family: var(--f-body);
+  font-size: var(--fs-body);
+  line-height: 1.3;
+  text-align: left;
+  border-radius: calc(var(--u) * .9);
+  box-shadow: inset 0 calc(var(--u) * .15) calc(var(--u) * .9) rgba(0, 0, 0, .35), inset 0 0 0 1px var(--mk-line);
+}
+.mk.mk-land .mock *,
+.mk.mk-land .mock *::before,
+.mk.mk-land .mock *::after { box-sizing: border-box; }
+.mk.mk-land .mock p,
+.mk.mk-land .mock ul,
+.mk.mk-land .mock ol,
+.mk.mk-land .mock li,
+.mk.mk-land .mock h3,
+.mk.mk-land .mock h4,
+.mk.mk-land .mock figure { margin: 0; padding: 0; list-style: none; }
+.mk.mk-land .mock button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
+.mk.mk-land .mock button:disabled { cursor: default; }
+.mk.mk-land .mock :focus-visible { outline: 3px solid var(--coral-hi); outline-offset: 2px; }
+.mk.mk-land .mock .sil { color: var(--mk-dim); }
+.mk.mk-land .mock svg { display: block; }
+.mk.mk-land .mk-vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* per-feature accent fallbacks (the scene normally sets --fc / --fink) */
+.mk.mk-land .mk-fit,
+.mk.mk-land .mk-fit-d { --mk-a: var(--fc, var(--coral)); --mk-at: var(--coral-hi); }
+.mk.mk-land .mk-voice,
+.mk.mk-land .mk-voice-d { --mk-a: var(--fc, var(--steel)); --mk-at: var(--steel-hi); }
+.mk.mk-land .mk-work,
+.mk.mk-land .mk-work-d { --mk-a: var(--fc, var(--amber)); --mk-on: var(--fink, var(--ink)); --mk-at: var(--ink); }
+.mk.mk-land .mk-book,
+.mk.mk-land .mk-book-d { --mk-a: var(--fc, var(--moss)); --mk-at: var(--moss); }
+.mk.mk-land .mk-inbox,
+.mk.mk-land .mk-inbox-d { --mk-a: var(--fc, var(--lime)); --mk-on: var(--fink, var(--ink)); --mk-at: var(--lime); }
+.mk.mk-land .mk-salary,
+.mk.mk-land .mk-salary-d { --mk-a: var(--fc, var(--verd)); --mk-on: var(--fink, var(--ink)); --mk-at: var(--verd); }
+.mk.mk-land .mk-recall,
+.mk.mk-land .mk-recall-d { --mk-a: var(--fc, var(--silver)); --mk-on: var(--fink, var(--ink)); --mk-at: var(--silver); }
+.mk.mk-land .mk-offer,
+.mk.mk-land .mk-offer-d { --mk-a: var(--fc, var(--oxblood)); --mk-at: var(--oxblood); }
+.mk.mk-land .mk-gates,
+.mk.mk-land .mk-gates-d { --mk-a: var(--fc, var(--ink-2)); --mk-at: var(--lcd-fg); }
+
+/* paper surfaces (cream): work, book, offer */
+.mk.mk-land .mk-work,
+.mk.mk-land .mk-book,
+.mk.mk-land .mk-offer,
+.mk.mk-land .mk-work-d,
+.mk.mk-land .mk-book-d,
+.mk.mk-land .mk-offer-d {
+  --mk-bg: var(--cream);
+  --mk-bg2: var(--putty);
+  --mk-fg: var(--ink);
+  --mk-dim: color-mix(in srgb, var(--ink) 68%, var(--cream));
+  --mk-line: color-mix(in srgb, var(--ink) 18%, transparent);
+  --mk-soft: color-mix(in srgb, var(--ink) 6%, transparent);
+  box-shadow: inset 0 calc(var(--u) * .15) calc(var(--u) * .9) rgba(23, 32, 42, .14), inset 0 0 0 1px var(--mk-line);
+}
+
+/* replay: restart every animation inside the root at once */
+.mk.mk-land .mock.mk-off *,
+.mk.mk-land .mock.mk-off *::before,
+.mk.mk-land .mock.mk-off *::after { animation: none !important; }
+
+/* ---------- shared pieces ---------- */
+.mk.mk-land .mk-hd { display: flex; align-items: center; flex-wrap: wrap; gap: var(--g2); min-height: calc(var(--u) * 2); }
+.mk.mk-land .mk-hd > .mk-end { margin-left: auto; }
+.mk.mk-land .mk-ttl { font-family: var(--f-display); font-weight: 800; letter-spacing: -.01em; font-size: var(--fs-lead); line-height: 1.1; }
+.mk.mk-land .mk-chip {
+  display: inline-flex; align-items: center; gap: var(--g1); max-width: 100%;
+  padding: calc(var(--u) * .2) calc(var(--u) * .7);
+  border-radius: 999px; border: 1px solid var(--mk-line); background: var(--mk-soft);
+  font-family: var(--f-mono); font-size: var(--fs-small); line-height: 1.2; color: var(--mk-fg);
+}
+.mk.mk-land .mk-chip.is-a { background: var(--mk-a); color: var(--mk-on); border-color: transparent; font-weight: 700; }
+.mk.mk-land .mk-chip.is-ok { border-color: var(--led-ok); }
+.mk.mk-land .mk-ico { width: 1.15em; height: 1.15em; flex: none; }
+.mk.mk-land .mk-re {
+  display: inline-flex; align-items: center; gap: var(--g1); min-height: 32px;
+  padding: calc(var(--u) * .2) calc(var(--u) * .7); border-radius: 999px; border: 1px solid var(--mk-line);
+  color: var(--mk-dim); font-family: var(--f-mono); font-size: var(--fs-label); font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.mk.mk-land .mk-re:hover { color: var(--mk-fg); border-color: var(--mk-dim); }
+.mk.mk-land .mk-note { font-size: var(--fs-body); color: var(--mk-fg); }
+.mk.mk-land .mk-dim { color: var(--mk-dim); }
+.mk.mk-land .mk-panel {
+  background: var(--mk-bg2); border-radius: var(--mk-r); padding: var(--g2) var(--g3); min-width: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), inset 0 calc(var(--u) * .2) calc(var(--u) * .6) rgba(0, 0, 0, .22);
+}
+.mk.mk-land .mk-paper {
+  background: var(--cream); color: var(--ink); border-radius: calc(var(--u) * .5); min-width: 0;
+  box-shadow: 0 calc(var(--u) * .15) calc(var(--u) * .5) rgba(0, 0, 0, .35), inset 0 0 0 1px rgba(23, 32, 42, .08);
+}
+.mk.mk-land .mk-paper .sil { color: var(--ink); }
+.mk.mk-land .mk-bar { position: relative; height: max(10px, calc(var(--u) * .75)); border-radius: 999px; background: color-mix(in srgb, var(--mk-fg) 14%, transparent); overflow: hidden; }
+.mk.mk-land .mk-bar > i { position: absolute; inset: 0; width: var(--w, 50%); border-radius: inherit; background: var(--mk-a); transform-origin: left center; }
+.mk.mk-land .mk-dots { display: inline-flex; gap: calc(var(--u) * .35); }
+.mk.mk-land .mk-dots i { width: max(14px, calc(var(--u) * 1)); height: max(14px, calc(var(--u) * 1)); border-radius: 50%; border: 2px solid var(--mk-dim); }
+.mk.mk-land .mk-dots i.on { background: var(--mk-at); border-color: var(--mk-at); }
+.mk.mk-land .mk-cols { display: grid; grid-template-columns: minmax(0, var(--c1, 1fr)) minmax(0, var(--c2, 1fr)); gap: var(--g2); min-height: 0; flex: 1 1 auto; }
+
+@keyframes mkl-mk-grow { from { transform: scaleX(0); } }
+@keyframes mkl-mk-rise { from { opacity: 0; transform: translateY(calc(var(--u) * .8)); } }
+@keyframes mkl-mk-pop { from { opacity: 0; transform: scale(.7); } }
+@keyframes mkl-mk-fade { from { opacity: 0; } }
+@keyframes mkl-mk-sweep { from { transform: rotate(-234.9deg); } }
+@keyframes mkl-mk-blip { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: .45; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-land .mock .mk-bar > i { animation: mkl-mk-grow .9s var(--ease) both; animation-delay: var(--d, .25s); }
+  .mk.mk-land .mock .mk-rise { animation: mkl-mk-rise .6s var(--ease) both; animation-delay: var(--d, 0s); }
+}
+
+/* ---------- 1. FIT ---------- */
+.mk.mk-land .mk-fit-main { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.5fr); gap: var(--g3); align-items: center; }
+.mk.mk-land .mk-fit-dial { position: relative; width: min(100%, calc(var(--u) * 14.5)); aspect-ratio: 1; margin-inline: auto; }
+.mk.mk-land .mk-fit-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mk.mk-land .mk-fit-dial .trk { fill: none; stroke: color-mix(in srgb, var(--mk-fg) 14%, transparent); stroke-width: 14; stroke-linecap: round; }
+.mk.mk-land .mk-fit-dial .val { fill: none; stroke: var(--mk-a); stroke-width: 14; stroke-linecap: round; }
+.mk.mk-land .mk-fit-dial .tick { stroke: var(--mk-dim); stroke-width: 2; stroke-linecap: round; opacity: .7; }
+.mk.mk-land .mk-fit-dial .knob { fill: var(--mk-fg); stroke: var(--mk-a); stroke-width: 4; }
+.mk.mk-land .mk-needle { transform-origin: 100px 100px; }
+.mk.mk-land .mk-fit-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: calc(var(--u) * .1); padding-top: 4%; }
+.mk.mk-land .mk-fit-num b { font-family: var(--f-display); font-weight: 800; letter-spacing: -.03em; font-size: max(40px, calc(var(--u) * 4.4)); line-height: 1; color: var(--mk-fg); }
+.mk.mk-land .mk-fit-num .sil { color: var(--mk-at); }
+.mk.mk-land .mk-fit-subs { display: grid; gap: calc(var(--u) * .7); }
+.mk.mk-land .mk-sub { display: grid; gap: calc(var(--u) * .3); justify-items: start; }
+.mk.mk-land .mk-sub-hd { display: flex; align-items: baseline; justify-content: space-between; width: 100%; gap: var(--g2); }
+.mk.mk-land .mk-sub-hd b { font-family: var(--f-mono); font-size: var(--fs-lead); line-height: 1; color: var(--mk-at); }
+.mk.mk-land .mk-sub .mk-bar { width: 100%; }
+.mk.mk-land .mk-sub.is-amber .mk-bar > i { background: var(--amber-hi); }
+.mk.mk-land .mk-sub.is-amber .mk-sub-hd b { color: var(--amber-hi); }
+.mk.mk-land .mk-ev { color: var(--mk-dim); }
+.mk.mk-land .mk-fit-cmp { display: grid; gap: var(--g1); }
+.mk.mk-land .mk-fit-cvs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--g2); align-items: center; }
+.mk.mk-land .mk-cv { display: grid; gap: calc(var(--u) * .35); padding: calc(var(--u) * .6) calc(var(--u) * .8); }
+.mk.mk-land .mk-cv i { display: block; height: max(8px, calc(var(--u) * .55)); border-radius: 99px; width: var(--w, 100%); background: color-mix(in srgb, var(--ink) 16%, transparent); }
+.mk.mk-land .mk-cv i.hl { background: var(--coral); }
+.mk.mk-land .mk-cv:first-child { transform: rotate(-1deg); }
+.mk.mk-land .mk-cv:last-child { transform: rotate(1deg); }
+.mk.mk-land .mk-vs { width: calc(var(--u) * 2.4); height: calc(var(--u) * 2.4); color: var(--mk-at); }
+@container (max-width: 540px) {
+  .mk.mk-land .mk-fit-main { grid-template-columns: minmax(0, 1fr); }
+  .mk.mk-land .mk-fit-dial { width: min(70%, calc(var(--u) * 14)); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-land .mk-fit .mk-needle { animation: mkl-mk-sweep 1.4s var(--spring) both; }
+  .mk.mk-land .mk-fit-num b { animation: mkl-mk-pop .6s var(--spring) .55s both; }
+  .mk.mk-land .mk-fit .mk-sub:nth-child(2) .mk-bar > i { --d: .45s; }
+  .mk.mk-land .mk-fit .mk-sub:nth-child(3) .mk-bar > i { --d: .65s; }
+}
+
+/* =====================================================================
+   2-5. VOICE, WORK, BOOK, INBOX  (each: the L1 mock and the L2 detail)
+   Scoped under .mk-voice/.mk-work/.mk-book/.mk-inbox (+ the -d detail roots). Sizes are calc(var(--u) * N)
+   with the tokens.css type floors; colours come from tokens / --mk-* only; animation is transform/opacity
+   inside prefers-reduced-motion: no-preference, and outside it every mock is its calm, complete end state.
+   ===================================================================== */
+
+/* ---------- roots ----------
+   style.css also owns a bare `.mock` (the funnel's candidate token) and loads after this file, so the mock
+   root restates its base one type selector higher. L2 roots grow with their content (the .detail-body
+   scrolls) instead of being clipped at the visible height. */
+.mk.mk-land .mock.mk-voice,
+.mk.mk-land .mock.mk-voice-d,
+.mk.mk-land .mock.mk-work,
+.mk.mk-land .mock.mk-work-d,
+.mk.mk-land .mock.mk-book,
+.mk.mk-land .mock.mk-book-d,
+.mk.mk-land .mock.mk-inbox,
+.mk.mk-land .mock.mk-inbox-d {
+  position: relative; left: auto; top: auto; z-index: auto;
+  width: 100%; min-height: 0;
+  display: flex; flex-direction: column; align-items: stretch; justify-items: normal;
+  gap: var(--g2); padding: var(--g3);
+  border-radius: calc(var(--u) * .9);
+  color: var(--mk-fg);
+  transform: none; translate: none; rotate: none; opacity: 1; transition: none;
+}
+.mk.mk-land .mock.mk-voice,
+.mk.mk-land .mock.mk-work,
+.mk.mk-land .mock.mk-book,
+.mk.mk-land .mock.mk-inbox {
+  overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--mk-dim) transparent;
+}
+.mk.mk-land .detail-body > .mock.mk-voice-d,
+.mk.mk-land .detail-body > .mock.mk-work-d,
+.mk.mk-land .detail-body > .mock.mk-book-d,
+.mk.mk-land .detail-body > .mock.mk-inbox-d {
+  height: auto; min-height: 100%; overflow: visible;
+}
+
+/* shared header / chips */
+.mk.mk-land :is(.mk-voice, .mk-voice-d, .mk-work, .mk-work-d, .mk-book, .mk-book-d, .mk-inbox, .mk-inbox-d) .mk-hd { flex: none; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d, .mk-work, .mk-work-d) .mk-chips { flex: none; display: flex; flex-wrap: wrap; gap: calc(var(--u) * .5); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d, .mk-work, .mk-work-d) .mk-chips .mk-chip { padding: calc(var(--u) * .3) calc(var(--u) * .85); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d, .mk-work, .mk-work-d, .mk-book, .mk-book-d, .mk-inbox, .mk-inbox-d) .mk-re[aria-pressed="true"] { color: var(--mk-fg); border-color: var(--mk-dim); background: var(--mk-soft); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d, .mk-work, .mk-work-d, .mk-book, .mk-book-d) .mk-cols { flex: 1 0 auto; min-height: 0; }
+.mk.mk-land :is(.mk-work, .mk-work-d, .mk-book, .mk-book-d) :focus-visible { outline-color: var(--coral); }
+.mk.mk-land :is(.mk-work, .mk-work-d, .mk-book, .mk-book-d) .mk-hd .sil { color: var(--mk-dim); }
+
+/* =====================================================================
+   2. VOICE - dark glass
+   ===================================================================== */
+.mk.mk-land .mock.mk-voice,
+.mk.mk-land .mock.mk-voice-d {
+  background:
+    linear-gradient(118deg, color-mix(in srgb, var(--cream) 7%, transparent) 0%, transparent 30%),
+    radial-gradient(85% 60% at 8% -10%, color-mix(in srgb, var(--steel) 46%, transparent), transparent 64%),
+    radial-gradient(60% 50% at 104% 108%, color-mix(in srgb, var(--steel-hi) 16%, transparent), transparent 62%),
+    var(--mk-bg);
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-rec {
+  position: relative; flex: none;
+  width: max(12px, calc(var(--u) * .85)); height: max(12px, calc(var(--u) * .85)); margin-inline: calc(var(--u) * .3);
+  border-radius: 50%; background: var(--coral-hi);
+  box-shadow: 0 0 calc(var(--u) * .9) color-mix(in srgb, var(--coral-hi) 75%, transparent), inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 45%, transparent);
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-rec::after { content: ""; position: absolute; inset: calc(var(--u) * -.4); border-radius: 50%; border: 2px solid var(--coral-hi); opacity: .45; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d).is-paused .mk-rec { background: var(--mk-dim); box-shadow: none; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d).is-paused .mk-rec::after { border-color: var(--mk-dim); }
+
+/* the waveform: 30 pill bars in a glass channel */
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-wave {
+  position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u) * .3);
+  height: calc(var(--u) * 4.4); padding: calc(var(--u) * .5) calc(var(--u) * 1);
+  border-radius: var(--mk-r);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--teal-0) 40%, transparent), color-mix(in srgb, var(--teal-0) 8%, transparent)), color-mix(in srgb, var(--steel) 14%, var(--mk-bg));
+  box-shadow: inset 0 0 0 1px var(--mk-line), inset 0 calc(var(--u) * .2) calc(var(--u) * .6) color-mix(in srgb, var(--teal-0) 50%, transparent);
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-wave::before { content: ""; position: absolute; left: calc(var(--u) * .6); right: calc(var(--u) * .6); top: 50%; height: 1px; background: color-mix(in srgb, var(--mk-fg) 14%, transparent); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-wave i {
+  position: relative; display: block; flex: 0 0 .8cqw; min-width: 3px; height: calc(var(--h) * 100%);
+  border-radius: 99px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--steel-hi), var(--mk-fg) 45%), var(--steel-hi));
+  opacity: calc(.4 + var(--i) * .02);
+}
+
+/* turns: bubbles that alternate sides */
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turns { display: flex; flex-direction: column; gap: var(--g3); min-width: 0; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn { position: relative; display: grid; gap: calc(var(--u) * .15); min-width: 0; max-width: 94%; padding: calc(var(--u) * .6) calc(var(--u) * .95) calc(var(--u) * .7); border-radius: calc(var(--u) * 1); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn p { font-size: var(--fs-body); line-height: 1.32; text-wrap: pretty; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn .sil { line-height: 1.1; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn.is-q {
+  align-self: flex-start; border-bottom-left-radius: calc(var(--u) * .25);
+  background: color-mix(in srgb, var(--mk-fg) 8%, var(--mk-bg2)); box-shadow: inset 0 0 0 1px var(--mk-line);
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn.is-a {
+  align-self: flex-end; border-bottom-right-radius: calc(var(--u) * .25);
+  background: var(--mk-a); color: var(--mk-on);
+  box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 22%, transparent), 0 calc(var(--u) * .2) calc(var(--u) * .6) color-mix(in srgb, var(--teal-0) 55%, transparent);
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn.is-a .sil { color: var(--mk-on); opacity: .85; }
+
+/* the scorecard: a printed ticket on the glass */
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-score {
+  --mk-fg: var(--ink); --mk-dim: color-mix(in srgb, var(--ink) 66%, var(--cream)); --mk-line: color-mix(in srgb, var(--ink) 26%, transparent); --mk-at: var(--steel);
+  position: relative; align-self: stretch; display: flex; flex-direction: column; gap: calc(var(--u) * .8);
+  color: var(--ink); background: var(--cream);
+  padding: calc(var(--u) * .95) calc(var(--u) * 1) calc(var(--u) * 1.3);
+  border-radius: calc(var(--u) * .5) calc(var(--u) * .5) 0 0;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  filter: drop-shadow(0 calc(var(--u) * .25) calc(var(--u) * .55) color-mix(in srgb, var(--teal-0) 60%, transparent));
+  rotate: .5deg;
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-score::after { /* torn, zig-zag lower edge */
+  content: ""; position: absolute; left: 0; right: 0; top: 100%; height: calc(var(--u) * .55);
+  background: conic-gradient(from -45deg at 50% 100%, var(--cream) 90deg, transparent 0) 0 0 / calc(var(--u) * 1.1) 100% repeat-x;
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-score > .sil { display: block; padding-bottom: calc(var(--u) * .7); border-bottom: 2px dashed var(--mk-line); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-score ul { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: calc(var(--u) * .7); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-score ul::after { /* barcode strip */
+  content: ""; flex: none; height: calc(var(--u) * 1.5); margin-top: calc(var(--u) * .3); opacity: .8;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 8px, var(--ink) 8px 11px, transparent 11px 13px);
+}
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit { display: flex; align-items: center; column-gap: calc(var(--u) * .5); row-gap: calc(var(--u) * .15); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit > span:first-child { order: 0; font-size: var(--fs-body); font-weight: 600; line-height: 1.2; min-width: 0; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit::after { content: ""; order: 1; flex: 1 1 calc(var(--u) * .6); min-width: calc(var(--u) * .4); align-self: flex-end; margin-bottom: .34em; border-bottom: 2px dotted var(--mk-line); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit .mk-dots { order: 2; flex: none; }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit em { order: 3; flex: 0 0 100%; font-style: normal; font-size: var(--fs-body); line-height: 1.25; color: var(--mk-dim); }
+.mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit:has(em) { flex-wrap: wrap; }
+
+/* L1: three turns beside the ticket, and the candidate about to answer */
+.mk.mk-land .mk-voice .mk-cols { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--g3); }
+.mk.mk-land .mk-voice .mk-turns { justify-content: space-between; }
+.mk.mk-land .mk-voice .mk-turns::after {
+  content: ""; align-self: flex-end; flex: none; width: calc(var(--u) * 4.6); height: calc(var(--u) * 2.5);
+  border-radius: calc(var(--u) * 1) calc(var(--u) * 1) calc(var(--u) * .25) calc(var(--u) * 1); opacity: .9;
+  background:
+    linear-gradient(var(--mk-on), var(--mk-on)) 30% 50% / calc(var(--u) * .3) calc(var(--u) * .8) no-repeat,
+    linear-gradient(var(--mk-on), var(--mk-on)) 42% 50% / calc(var(--u) * .3) calc(var(--u) * 1.3) no-repeat,
+    linear-gradient(var(--mk-on), var(--mk-on)) 54% 50% / calc(var(--u) * .3) calc(var(--u) * .6) no-repeat,
+    linear-gradient(var(--mk-on), var(--mk-on)) 66% 50% / calc(var(--u) * .3) calc(var(--u) * 1) no-repeat,
+    var(--mk-a);
+}
+@media (max-height: 820px) and (min-width: 900px) { .mk.mk-land .mk-voice .mk-turns::after { display: none; } }
+
+/* L2: the whole conversation as question / answer pairs; the ticket stays in view while it scrolls */
+.mk.mk-land .mk-voice-d .mk-cols { gap: var(--g3); align-items: start; }
+.mk.mk-land .mk-voice-d .mk-tx { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; column-gap: var(--g2); row-gap: var(--g2); }
+.mk.mk-land .mk-voice-d .mk-tx .mk-turn { max-width: 100%; }
+.mk.mk-land .mk-voice-d .mk-tx .is-q { grid-column: 1; }
+.mk.mk-land .mk-voice-d .mk-tx .is-a { grid-column: 2; margin-top: calc(var(--u) * 1.1); }
+.mk.mk-land .mk-voice-d .mk-score { position: sticky; top: 0; align-self: start; }
+
+@container (max-width: 540px) {
+  .mk.mk-land .mk-voice .mk-cols,
+.mk.mk-land .mk-voice-d .mk-cols { grid-template-columns: minmax(0, 1fr); }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn { max-width: 100%; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn.is-q { margin-right: calc(var(--u) * 2); }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn.is-a { margin-left: calc(var(--u) * 2); }
+  .mk.mk-land .mk-voice-d .mk-tx { display: flex; flex-direction: column; }
+  .mk.mk-land .mk-voice-d .mk-tx .is-a { margin-top: 0; }
+  .mk.mk-land .mk-voice-d .mk-score { position: relative; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-wave { padding-inline: calc(var(--u) * .7); }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-wave i { flex-basis: 1.5cqw; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mkl-mk-wv { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.42); } }
+  @keyframes mkl-mk-rec { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+  @keyframes mkl-mk-halo { from { opacity: .6; transform: scale(.7); } to { opacity: 0; transform: scale(1.7); } }
+  @keyframes mkl-mk-print { from { opacity: 0; transform: translateY(calc(var(--u) * -2.4)); } }
+  @keyframes mkl-mk-listen { 0%, 100% { opacity: .9; transform: scale(1); } 50% { opacity: .5; transform: scale(.94); } }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-wave i { animation: mkl-mk-wv calc(1.5s + var(--i) * .02s) ease-in-out infinite; animation-delay: calc(var(--i) * -.17s); }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-rec { animation: mkl-mk-rec 2.2s ease-in-out infinite; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-rec::after { animation: mkl-mk-halo 2.2s ease-out infinite; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn { animation: mkl-mk-rise .6s var(--ease) both; animation-delay: calc(.1s + var(--t, 0) * .2s); }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(2) { --t: 1; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(3) { --t: 2; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(4) { --t: 3; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(5) { --t: 4; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(6) { --t: 5; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(7) { --t: 6; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-turn:nth-child(8) { --t: 7; }
+  .mk.mk-land .mk-voice .mk-turns::after { animation: mkl-mk-listen 1.8s ease-in-out .9s infinite both; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-score { animation: mkl-mk-print .8s var(--ease) .5s both; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-dots i.on { animation: mkl-mk-pop .4s var(--spring) both; animation-delay: calc(.9s + var(--r, 0) * .16s + var(--k, 0) * .07s); }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit:nth-child(2) { --r: 1; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit:nth-child(3) { --r: 2; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-crit:nth-child(4) { --r: 3; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-dots i:nth-child(2) { --k: 1; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-dots i:nth-child(3) { --k: 2; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-dots i:nth-child(4) { --k: 3; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d) .mk-dots i:nth-child(5) { --k: 4; }
+  .mk.mk-land :is(.mk-voice, .mk-voice-d).is-paused .mk-rec,
+.mk.mk-land :is(.mk-voice, .mk-voice-d).is-paused .mk-rec::after { animation: none; }
+}
+
+/* =====================================================================
+   3. WORK - cream paper
+   ===================================================================== */
+.mk.mk-land .mock.mk-work,
+.mk.mk-land .mock.mk-work-d {
+  background:
+    radial-gradient(80% 50% at 4% -14%, color-mix(in srgb, var(--amber-hi) 34%, transparent), transparent 64%),
+    var(--mk-bg);
+}
+.mk.mk-land .mk-work .mk-cols { gap: var(--g3); align-items: stretch; }
+.mk.mk-land .mk-work .mk-wk-l,
+.mk.mk-land .mk-work .mk-wk-r { display: flex; flex-direction: column; gap: var(--g3); min-width: 0; }
+.mk.mk-land .mk-work .mk-wk-l { justify-content: flex-start; }
+.mk.mk-land .mk-work .mk-ln { align-items: center; }
+.mk.mk-land .mk-work .mk-dist { flex: none; padding: calc(var(--u) * 1) calc(var(--u) * 1.2) calc(var(--u) * .8); border-radius: var(--mk-r); background: var(--mk-bg2); box-shadow: inset 0 0 0 1px var(--mk-line), 0 calc(var(--u) * .2) calc(var(--u) * .5) color-mix(in srgb, var(--ink) 10%, transparent); }
+
+/* the listing: printer paper with a tractor-feed strip; one line is the planted flaw */
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-code {
+  position: relative; display: block; overflow: hidden; padding: calc(var(--u) * .5) 0 calc(var(--u) * .6);
+  font-family: var(--f-mono); font-size: max(14px, calc(var(--u) * .95)); line-height: 1.4; color: var(--ink);
+  background: var(--cream); border-radius: calc(var(--u) * .5);
+  box-shadow: 0 calc(var(--u) * .22) calc(var(--u) * .6) color-mix(in srgb, var(--ink) 20%, transparent), inset 0 0 0 1px var(--mk-line);
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-code::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--u) * 1.5); border-right: 2px dashed var(--mk-line);
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ink) 38%, transparent) 0 calc(var(--u) * .27), transparent calc(var(--u) * .3)) 0 0 / 100% calc(var(--u) * 1.7) repeat-y;
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln { position: relative; display: flex; align-items: baseline; gap: calc(var(--u) * .8); padding: calc(var(--u) * .3) calc(var(--u) * 1) calc(var(--u) * .3) calc(var(--u) * 2.3); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln:nth-child(even) { background: color-mix(in srgb, var(--lime) 60%, transparent); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln > b { flex: none; width: 1.3em; text-align: right; font-weight: 500; color: var(--mk-dim); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln > span { min-width: 0; white-space: pre; }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln.is-flaw {
+  flex-wrap: wrap; row-gap: calc(var(--u) * .5); padding-bottom: calc(var(--u) * .55); font-weight: 700;
+  background: color-mix(in srgb, var(--coral-hi) 28%, var(--cream)); box-shadow: inset calc(var(--u) * .35) 0 0 var(--coral);
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-flag {
+  position: relative; flex: 0 0 auto; margin-left: calc(1.3em + var(--u) * .8);
+  padding: calc(var(--u) * .22) calc(var(--u) * .75); border-radius: calc(var(--u) * .4);
+  font-family: var(--f-body); font-style: normal; font-size: var(--fs-small); font-weight: 700; line-height: 1.2; white-space: normal;
+  background: var(--coral-hi); color: var(--ink); box-shadow: 0 calc(var(--u) * .15) 0 var(--coral);
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-flag::before { content: ""; position: absolute; left: calc(var(--u) * 1); top: calc(var(--u) * -.32); width: calc(var(--u) * .7); height: calc(var(--u) * .7); background: var(--coral-hi); rotate: 45deg; border-radius: 2px; }
+
+/* distance from a bare one-shot: a ruled track, a hatched fill, two points */
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist { display: grid; gap: calc(var(--u) * .5); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist > .sil { color: var(--mk-dim); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-track {
+  position: relative; height: calc(var(--u) * 1.1); margin: calc(var(--u) * .7) calc(var(--u) * 1) calc(var(--u) * 1.1);
+  border-radius: 99px; background: color-mix(in srgb, var(--ink) 12%, transparent);
+  box-shadow: inset 0 calc(var(--u) * .12) calc(var(--u) * .2) color-mix(in srgb, var(--ink) 20%, transparent);
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-track::after { content: ""; position: absolute; left: 0; right: 0; top: calc(100% + var(--u) * .35); height: calc(var(--u) * .5); background: repeating-linear-gradient(90deg, var(--mk-line) 0 2px, transparent 2px 10%); opacity: .8; }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-track > i {
+  position: absolute; top: 0; bottom: 0; left: var(--from, 8%); width: calc(var(--to, 74%) - var(--from, 8%)); border-radius: 99px; transform-origin: left center;
+  background: repeating-linear-gradient(-45deg, var(--amber) 0 calc(var(--u) * .5), var(--amber-hi) calc(var(--u) * .5) calc(var(--u) * 1));
+  box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 55%, transparent);
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-pt { position: absolute; top: 50%; width: calc(var(--u) * 1.9); height: calc(var(--u) * 1.9); margin: calc(var(--u) * -.95) 0 0 calc(var(--u) * -.95); border-radius: 50%; border: calc(var(--u) * .25) solid var(--ink); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-pt.a { left: var(--from, 8%); background: var(--cream); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-pt.b { left: var(--to, 74%); background: var(--amber-hi); box-shadow: 0 0 0 calc(var(--u) * .3) color-mix(in srgb, var(--amber) 40%, transparent), 0 calc(var(--u) * .2) calc(var(--u) * .5) color-mix(in srgb, var(--ink) 30%, transparent); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l { position: relative; min-height: calc(var(--fs-small) * 1.5); font-family: var(--f-mono); font-size: var(--fs-small); font-weight: 700; color: var(--mk-fg); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l span { position: absolute; top: 0; display: inline-flex; align-items: center; gap: calc(var(--u) * .4); white-space: nowrap; }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l span:first-child { left: calc(8% - var(--u) * .2); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l span:last-child { left: 74%; transform: translateX(-50%); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l span::before { content: ""; flex: none; width: calc(var(--u) * .9); height: calc(var(--u) * .9); border-radius: 50%; border: calc(var(--u) * .18) solid var(--ink); background: var(--cream); }
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l span:last-child::before { background: var(--amber-hi); }
+
+.mk.mk-land .mk-work .mk-code { flex: 1 1 auto; display: grid; grid-template-rows: 1fr 1fr 1fr 1fr auto 1fr; }
+
+/* prompts: numbered pills on a chain */
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-pr {
+  display: flex; align-items: center; gap: calc(var(--u) * .7); min-width: 0; min-height: max(36px, calc(var(--u) * 3.1));
+  padding: calc(var(--u) * .3) calc(var(--u) * 1.1) calc(var(--u) * .3) calc(var(--u) * .4);
+  border-radius: 999px; background: var(--cream); box-shadow: inset 0 0 0 2px var(--mk-line), 0 calc(var(--u) * .18) 0 var(--mk-line);
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-pr > b {
+  flex: none; display: grid; place-items: center; width: max(28px, calc(var(--u) * 2.3)); height: max(28px, calc(var(--u) * 2.3)); border-radius: 50%;
+  background: var(--mk-a); color: var(--mk-on); font-family: var(--f-mono); font-size: var(--fs-label); font-weight: 700; line-height: 1;
+  box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 55%, transparent), 0 calc(var(--u) * .15) 0 color-mix(in srgb, var(--amber) 55%, var(--ink));
+}
+.mk.mk-land :is(.mk-work, .mk-work-d) .mk-pr > span { min-width: 0; font-size: var(--fs-body); font-weight: 600; line-height: 1.2; }
+.mk.mk-land .mk-work .mk-pr:nth-child(3) > b,
+.mk.mk-land .mk-work-d .mk-tl > li:nth-child(3) .mk-pr > b { background: var(--coral-hi); box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 45%, transparent), 0 calc(var(--u) * .15) 0 var(--coral); }
+.mk.mk-land .mk-work .mk-prompts {
+  flex: 1 0 auto; display: flex; flex-direction: column; gap: calc(var(--u) * .9); padding: calc(var(--u) * 1) calc(var(--u) * 1.2);
+  border-radius: var(--mk-r); background: var(--mk-bg2); box-shadow: inset 0 0 0 1px var(--mk-line), 0 calc(var(--u) * .2) calc(var(--u) * .5) color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.mk.mk-land .mk-work .mk-prompts > .sil { color: var(--mk-dim); }
+.mk.mk-land .mk-work .mk-prompts ol { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: calc(var(--u) * .8); }
+.mk.mk-land .mk-work .mk-prompts ol::before,
+.mk.mk-land .mk-work-d .mk-tl::before { content: ""; position: absolute; left: calc(var(--u) * .4 + max(14px, var(--u) * 1.15) - 1px); top: calc(var(--u) * 1.4); bottom: calc(var(--u) * 1.4); width: 0; border-left: 2px dashed color-mix(in srgb, var(--ink) 34%, transparent); }
+
+/* L2: the process, on record */
+.mk.mk-land .mk-work-d .mk-work-d-grid { flex: 1 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--g3); align-items: stretch; }
+.mk.mk-land .mk-work-d .mk-panel { display: flex; flex-direction: column; gap: var(--g3); padding: calc(var(--u) * 1.1) calc(var(--u) * 1.3); background: var(--mk-bg2); box-shadow: inset 0 0 0 1px var(--mk-line), 0 calc(var(--u) * .2) calc(var(--u) * .5) color-mix(in srgb, var(--ink) 10%, transparent); }
+.mk.mk-land .mk-work-d .mk-panel > .sil { color: var(--mk-dim); }
+.mk.mk-land .mk-work-d .mk-tl { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: var(--g3); }
+.mk.mk-land .mk-work-d .mk-tl::before { bottom: calc(var(--u) * 3); }
+.mk.mk-land .mk-work-d .mk-tl > li { position: relative; display: grid; gap: calc(var(--u) * .45); }
+.mk.mk-land .mk-work-d .mk-tl > li > em { margin-left: calc(var(--u) * .4 + max(14px, var(--u) * 1.15) + var(--u) * .9); font-style: normal; font-size: var(--fs-body); line-height: 1.3; color: var(--mk-dim); }
+.mk.mk-land .mk-work-d .mk-fl { flex: 1; display: grid; grid-auto-rows: 1fr; gap: calc(var(--u) * .7); }
+.mk.mk-land .mk-work-d .mk-fl > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(var(--u) * .8); padding: calc(var(--u) * .6) calc(var(--u) * .8); border-radius: calc(var(--u) * .7); background: var(--cream); box-shadow: inset 0 0 0 1px var(--mk-line); }
+.mk.mk-land .mk-work-d .mk-fl > li > span:nth-child(2) { font-size: var(--fs-body); font-weight: 600; line-height: 1.22; }
+.mk.mk-land .mk-work-d .mk-fi { display: grid; place-items: center; flex: none; width: max(28px, calc(var(--u) * 2.3)); height: max(28px, calc(var(--u) * 2.3)); border-radius: calc(var(--u) * .6); }
+.mk.mk-land .mk-work-d .mk-fi .mk-ico { width: 62%; height: 62%; stroke-width: 3; }
+.mk.mk-land .mk-work-d .is-caught .mk-fi { background: var(--moss); color: var(--cream); }
+.mk.mk-land .mk-work-d .is-missed .mk-fi { background: repeating-linear-gradient(-45deg, var(--coral-hi) 0 4px, var(--coral) 4px 8px); color: var(--ink); box-shadow: inset 0 0 0 2px var(--coral); }
+.mk.mk-land .mk-work-d .is-caught .mk-chip { border-color: var(--moss); background: color-mix(in srgb, var(--moss) 14%, transparent); font-weight: 700; }
+.mk.mk-land .mk-work-d .is-missed .mk-chip { border: 2px dashed var(--coral); background: color-mix(in srgb, var(--coral-hi) 24%, transparent); font-weight: 700; }
+.mk.mk-land .mk-work-d .mk-fl + .mk-dist { flex: none; }
+.mk.mk-land .mk-work-d .mk-dec { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: var(--g3); }
+.mk.mk-land .mk-work-d .mk-dec > li { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: calc(var(--u) * 1); padding: calc(var(--u) * .9) calc(var(--u) * 1); border-radius: calc(var(--u) * .8); background: var(--cream); box-shadow: inset 0 0 0 1px var(--mk-line); }
+.mk.mk-land .mk-work-d .mk-dec > li > b {
+  display: grid; place-items: center; width: calc(var(--u) * 3.2); height: calc(var(--u) * 3.2); border-radius: 50%;
+  background: var(--mk-a); color: var(--mk-on); font-family: var(--f-display); font-size: var(--fs-h3); font-weight: 800; line-height: 1;
+  box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 55%, transparent), 0 calc(var(--u) * .2) 0 color-mix(in srgb, var(--amber) 55%, var(--ink));
+}
+.mk.mk-land .mk-work-d .mk-dec > li > span { font-size: var(--fs-body); font-weight: 600; line-height: 1.3; }
+.mk.mk-land .mk-work-d .mk-dec + .mk-note { margin-top: auto; padding-top: calc(var(--u) * .8); border-top: 2px dashed var(--mk-line); }
+
+@container (max-width: 860px) {
+  .mk.mk-land .mk-work-d .mk-work-d-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mk.mk-land .mk-work-d .mk-work-d-grid > .mk-panel:last-child { grid-column: 1 / -1; }
+}
+@container (max-width: 540px) {
+  .mk.mk-land .mk-work .mk-cols { grid-template-columns: minmax(0, 1fr); }
+  .mk.mk-land .mk-work .mk-wk-l { justify-content: flex-start; }
+  .mk.mk-land .mk-work-d .mk-work-d-grid { grid-template-columns: minmax(0, 1fr); }
+  .mk.mk-land .mk-work .mk-flag { margin-left: calc(var(--u) * 1); }
+  .mk.mk-land .mk-work .mk-ln { gap: calc(var(--u) * .4); padding-left: calc(var(--u) * 1.7); padding-right: calc(var(--u) * .4); }
+  .mk.mk-land .mk-work .mk-ln > b { width: 1.1em; }
+  .mk.mk-land .mk-work .mk-code { grid-template-rows: none; grid-auto-rows: auto; }
+}
+@container (max-width: 720px) {
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l { min-height: calc(var(--fs-small) * 3.4); }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-dist-l span:last-child { top: calc(var(--fs-small) * 1.8); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mkl-mk-stamp { from { opacity: 0; transform: scale(1.5) rotate(-5deg); } }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln { animation: mkl-mk-fade .5s var(--ease) both; animation-delay: calc(.05s + var(--l, 0) * .07s); }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln:nth-child(2) { --l: 1; } .mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln:nth-child(3) { --l: 2; }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln:nth-child(4) { --l: 3; } .mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln:nth-child(5) { --l: 4; } .mk.mk-land :is(.mk-work, .mk-work-d) .mk-ln:nth-child(6) { --l: 5; }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-flag { animation: mkl-mk-stamp .5s var(--spring) .75s both; }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-track > i { animation: mkl-mk-grow 1s var(--ease) .5s both; }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-pt { animation: mkl-mk-pop .5s var(--spring) both; }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-pt.a { animation-delay: .45s; }
+  .mk.mk-land :is(.mk-work, .mk-work-d) .mk-pt.b { animation-delay: 1.3s; }
+  .mk.mk-land .mk-work-d .mk-fl > li,
+.mk.mk-land .mk-work-d .mk-dec > li { animation: mkl-mk-rise .6s var(--ease) both; animation-delay: calc(.2s + var(--f, 0) * .15s); }
+  .mk.mk-land .mk-work-d .mk-fl > li:nth-child(2),
+.mk.mk-land .mk-work-d .mk-dec > li:nth-child(2) { --f: 1; } .mk.mk-land .mk-work-d .mk-fl > li:nth-child(3) { --f: 2; }
+}
+
+/* =====================================================================
+   4. BOOK - cream paper
+   ===================================================================== */
+.mk.mk-land .mock.mk-book,
+.mk.mk-land .mock.mk-book-d {
+  background:
+    radial-gradient(70% 50% at 100% -12%, color-mix(in srgb, var(--moss-hi) 32%, transparent), transparent 64%),
+    var(--mk-bg);
+}
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-tz { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--u) * .5) calc(var(--u) * .6); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-tz > .sil { margin-right: calc(var(--u) * .3); color: var(--mk-dim); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-tz .mk-chip { padding: calc(var(--u) * .3) calc(var(--u) * .8); background: var(--cream); }
+/* tiny clock faces, two hands each */
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-clk { position: relative; flex: none; display: block; width: 1.45em; height: 1.45em; border-radius: 50%; border: 2px solid currentColor; }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-clk::before,
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-clk::after { content: ""; position: absolute; left: 50%; bottom: 50%; width: 2px; margin-left: -1px; border-radius: 2px; background: currentColor; transform-origin: 50% 100%; }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-clk::before { height: 26%; transform: rotate(305deg); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-clk::after { height: 36%; transform: rotate(60deg); }
+
+/* the week: day headers, then 4 rows of 5 slots */
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-week {
+  flex: 1 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: auto repeat(4, minmax(max(44px, calc(var(--u) * 3.4)), 1fr)); gap: calc(var(--u) * .6) calc(var(--u) * .55);
+}
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-dh { text-align: center; color: var(--mk-dim); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-slot {
+  position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0;
+  border-radius: calc(var(--u) * .7); font-family: var(--f-mono); font-size: var(--fs-small); font-weight: 700; line-height: 1; color: var(--mk-fg);
+}
+/* open: an outlined, tappable cell */
+.mk.mk-land :is(.mk-book, .mk-book-d) button.mk-slot { background: var(--cream); box-shadow: inset 0 0 0 2px var(--mk-a); cursor: pointer; transition: transform .14s var(--ease), background-color .14s; }
+.mk.mk-land :is(.mk-book, .mk-book-d) button.mk-slot:hover { background: color-mix(in srgb, var(--moss) 14%, var(--cream)); transform: translateY(calc(var(--u) * -.1)); }
+.mk.mk-land :is(.mk-book, .mk-book-d) button.mk-slot:active { transform: translateY(calc(var(--u) * .1)); }
+/* busy: hatched, struck through, no outline, not tappable */
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-slot.is-busy {
+  color: var(--mk-dim); cursor: not-allowed;
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ink) 20%, transparent) 0 2px, transparent 2px calc(var(--u) * .62)), color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: inset 0 0 0 1px var(--mk-line);
+}
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-slot.is-busy > span { text-decoration: line-through; text-decoration-thickness: 2px; }
+/* picked (the glowing one): solid, with a check badge on the corner */
+.mk.mk-land :is(.mk-book, .mk-book-d) button.mk-slot[aria-pressed="true"] {
+  background: var(--mk-a); color: var(--mk-on);
+  box-shadow: inset 0 calc(var(--u) * .12) 0 color-mix(in srgb, var(--cream) 30%, transparent), 0 calc(var(--u) * .24) 0 color-mix(in srgb, var(--moss) 58%, var(--ink)), 0 0 calc(var(--u) * 1.6) color-mix(in srgb, var(--moss-hi) 80%, transparent);
+  transform: translateY(calc(var(--u) * -.12));
+}
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-slot .mk-ico { display: none; position: absolute; top: calc(var(--u) * -.6); right: calc(var(--u) * -.5); box-sizing: content-box; width: calc(var(--u) * 1.1); height: calc(var(--u) * 1.1); padding: calc(var(--u) * .28); border-radius: 50%; background: var(--ink); color: var(--cream); stroke-width: 3.6; }
+.mk.mk-land :is(.mk-book, .mk-book-d) button.mk-slot[aria-pressed="true"] .mk-ico { display: block; }
+
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-foot { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--g2) var(--g3); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-foot > div:not(.mk-legend) { display: grid; gap: calc(var(--u) * .4); min-width: 0; }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-picked { display: flex; align-items: center; gap: calc(var(--u) * .55); font-family: var(--f-display); font-size: var(--fs-lead); font-weight: 800; line-height: 1.1; }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-picked > .mk-ico { flex: none; box-sizing: content-box; width: 1em; height: 1em; padding: .22em; border-radius: 50%; background: var(--mk-a); color: var(--mk-on); stroke-width: 3.4; }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-picked b { font-family: var(--f-mono); font-size: .86em; padding: .05em .4em; border-radius: calc(var(--u) * .4); background: color-mix(in srgb, var(--moss) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--moss) 45%, transparent); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-legend { display: flex; flex-wrap: wrap; align-items: center; gap: calc(var(--u) * .5) calc(var(--u) * 1.2); font-family: var(--f-mono); font-size: var(--fs-small); font-weight: 700; }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-legend > span { display: inline-flex; align-items: center; gap: calc(var(--u) * .5); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-legend .k { display: block; flex: none; width: calc(var(--u) * 1.9); height: calc(var(--u) * 1.3); border-radius: calc(var(--u) * .35); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-legend .k.busy { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ink) 30%, transparent) 0 2px, transparent 2px calc(var(--u) * .5)); box-shadow: inset 0 0 0 1px var(--mk-dim); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-legend .k.open { background: var(--cream); box-shadow: inset 0 0 0 2px var(--mk-a); }
+.mk.mk-land :is(.mk-book, .mk-book-d) .mk-legend .k.pick { background: var(--mk-a); box-shadow: 0 calc(var(--u) * .14) 0 color-mix(in srgb, var(--moss) 58%, var(--ink)); }
+
+/* L2: the same week in a panel, the link -> pick -> invite timeline beside it */
+.mk.mk-land .mk-book-d .mk-cols { gap: var(--g3); align-items: stretch; }
+.mk.mk-land .mk-book-d .mk-bk-w { display: flex; flex-direction: column; gap: var(--g3); padding: calc(var(--u) * 1.2) calc(var(--u) * 1.3); background: var(--mk-bg2); box-shadow: inset 0 0 0 1px var(--mk-line), 0 calc(var(--u) * .2) calc(var(--u) * .5) color-mix(in srgb, var(--ink) 10%, transparent); }
+.mk.mk-land .mk-book-d .mk-steps { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: var(--g3); padding: calc(var(--u) * .3) 0; }
+.mk.mk-land .mk-book-d .mk-step { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: calc(var(--u) * 1.1); align-items: start; }
+.mk.mk-land .mk-book-d .mk-step:not(:last-child)::before { content: ""; position: absolute; left: calc(var(--u) * 1.4 - 1px); top: calc(var(--u) * 3.1); bottom: calc(var(--u) * -1.2); width: 0; border-left: 2px dashed var(--mk-a); }
+.mk.mk-land .mk-book-d .mk-n {
+  position: relative; display: grid; place-items: center; flex: none; width: calc(var(--u) * 2.8); height: calc(var(--u) * 2.8); border-radius: 50%;
+  background: var(--mk-a); color: var(--mk-on); font-family: var(--f-display); font-size: var(--fs-h3); font-weight: 800; line-height: 1;
+  box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 35%, transparent), 0 calc(var(--u) * .2) 0 color-mix(in srgb, var(--moss) 58%, var(--ink));
+}
+.mk.mk-land .mk-book-d .mk-step-b { display: grid; gap: calc(var(--u) * .35); justify-items: start; min-width: 0; padding: calc(var(--u) * .9) calc(var(--u) * 1.1); border-radius: calc(var(--u) * .8); background: var(--mk-bg2); box-shadow: inset 0 0 0 1px var(--mk-line); }
+.mk.mk-land .mk-book-d .mk-step-b p { font-size: var(--fs-body); line-height: 1.32; }
+.mk.mk-land .mk-book-d .mk-step-b p b { font-family: var(--f-mono); font-size: .9em; padding: .05em .35em; border-radius: calc(var(--u) * .35); background: color-mix(in srgb, var(--moss) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--moss) 45%, transparent); }
+.mk.mk-land .mk-book-d .mk-who { display: inline-flex; align-items: center; gap: calc(var(--u) * .4); padding: calc(var(--u) * .18) calc(var(--u) * .65); font-family: var(--f-mono); font-size: var(--fs-label); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; line-height: 1.15; }
+.mk.mk-land .mk-book-d .mk-who::before { content: ""; flex: none; width: calc(var(--u) * .7); height: calc(var(--u) * .7); background: currentColor; }
+.mk.mk-land .mk-book-d .mk-who.is-machine { border-radius: calc(var(--u) * .3); border: 2px solid var(--ink); color: var(--ink); }
+.mk.mk-land .mk-book-d .mk-who.is-machine::before { border-radius: 2px; }
+.mk.mk-land .mk-book-d .mk-who.is-candidate { border-radius: 999px; background: var(--mk-a); color: var(--mk-on); border: 2px solid var(--mk-a); }
+.mk.mk-land .mk-book-d .mk-who.is-candidate::before { border-radius: 50%; }
+
+@container (max-width: 540px) {
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week { gap: calc(var(--u) * .5) calc(var(--u) * .4); grid-template-rows: auto repeat(4, minmax(48px, 1fr)); }
+  .mk.mk-land .mk-book-d .mk-cols { grid-template-columns: minmax(0, 1fr); }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-foot { align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mkl-mk-tick { to { transform: rotate(420deg); } }
+  @keyframes mkl-mk-glow { 0%, 100% { opacity: .9; transform: scale(1); } 50% { opacity: 0; transform: scale(1.14); } }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-slot { animation: mkl-mk-pop .45s var(--spring) both; animation-delay: calc(.1s + var(--sr, 0) * .06s + var(--sc, 0) * .05s); }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(5n + 2) { --sc: 1; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(5n + 3) { --sc: 2; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(5n + 4) { --sc: 3; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(5n + 5) { --sc: 4; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(n + 11) { --sr: 1; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(n + 16) { --sr: 2; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-week > :nth-child(n + 21) { --sr: 3; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) button.mk-slot[aria-pressed="true"]::after { content: ""; position: absolute; inset: calc(var(--u) * -.35); border-radius: calc(var(--u) * 1.05); border: 2px solid var(--moss-hi); animation: mkl-mk-glow 2.2s ease-in-out 1.2s infinite; pointer-events: none; }
+  .mk.mk-land :is(.mk-book, .mk-book-d) .mk-clk::after { animation: mkl-mk-tick 24s linear infinite; }
+}
+
+/* =====================================================================
+   5. INBOX - dark
+   ===================================================================== */
+.mk.mk-land .mock.mk-inbox,
+.mk.mk-land .mock.mk-inbox-d {
+  background:
+    linear-gradient(118deg, color-mix(in srgb, var(--cream) 6%, transparent) 0%, transparent 28%),
+    radial-gradient(70% 55% at 100% 0%, color-mix(in srgb, var(--lime) 15%, transparent), transparent 66%),
+    radial-gradient(60% 50% at 0% 110%, color-mix(in srgb, var(--steel) 24%, transparent), transparent 62%),
+    var(--mk-bg);
+}
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-in { position: relative; flex: 1 0 auto; min-height: calc(var(--u) * 18); display: grid; grid-template-columns: minmax(0, 1.12fr) calc(var(--u) * 5.2) minmax(0, 1fr); align-items: stretch; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-doors { grid-column: 1; grid-row: 1; display: grid; grid-template-rows: repeat(5, minmax(0, 1fr)); min-width: 0; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door {
+  align-self: stretch; margin-block: calc(var(--u) * .28); min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: calc(var(--u) * .85);
+  padding: calc(var(--u) * .45) calc(var(--u) * .9) calc(var(--u) * .45) calc(var(--u) * .5); border-radius: calc(var(--u) * .95);
+  background: color-mix(in srgb, var(--mk-fg) 7%, var(--mk-bg2)); box-shadow: inset 0 0 0 1px var(--mk-line);
+}
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-i {
+  display: grid; place-items: center; flex: none; width: max(34px, calc(var(--u) * 2.9)); height: max(34px, calc(var(--u) * 2.9)); border-radius: calc(var(--u) * .75);
+  background: var(--mk-a); color: var(--mk-on);
+  box-shadow: inset 0 calc(var(--u) * .12) 0 color-mix(in srgb, var(--cream) 60%, transparent), 0 calc(var(--u) * .22) 0 color-mix(in srgb, var(--mk-a) 45%, var(--ink));
+}
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-i .mk-ico { width: 58%; height: 58%; stroke-width: 2.2; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-t { display: grid; gap: calc(var(--u) * .1); min-width: 0; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-t b { font-size: var(--fs-body); font-weight: 700; line-height: 1.15; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-t em { font-style: normal; font-size: var(--fs-body); line-height: 1.28; color: var(--mk-dim); text-wrap: pretty; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-a { flex: none; width: max(18px, calc(var(--u) * 1.4)); height: max(18px, calc(var(--u) * 1.4)); color: var(--mk-a); }
+
+/* converging lines: one dashed line per door, all ending on the first stage */
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv { grid-column: 2; grid-row: 1; width: 100%; height: 100%; overflow: visible; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv path { fill: none; stroke: var(--mk-a); stroke-width: 2.5px; stroke-linecap: round; stroke-dasharray: 5 7; stroke-dashoffset: calc(var(--i) * 3px); vector-effect: non-scaling-stroke; opacity: .9; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv-v { display: none; }
+
+/* the pipeline: four stages, the first is where every door lands */
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-pipe { grid-column: 3; grid-row: 1; position: relative; display: flex; flex-direction: column; gap: var(--g2); min-width: 0; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage {
+  position: relative; flex: 1 1 0; min-height: calc(var(--u) * 3.6); min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * .6);
+  padding: calc(var(--u) * .6) calc(var(--u) * 1) calc(var(--u) * .6) calc(var(--u) * .8); border-radius: calc(var(--u) * .95);
+  background: color-mix(in srgb, var(--mk-fg) 6%, var(--mk-bg2)); box-shadow: inset 0 0 0 1px var(--mk-line);
+}
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage.is-first {
+  flex: 0 0 auto; min-height: 44%; flex-direction: row; flex-wrap: wrap; align-items: center; align-content: flex-start; justify-content: space-between; gap: calc(var(--u) * .5) calc(var(--u) * .8);
+  box-shadow: inset 0 0 0 2px var(--mk-a), 0 0 calc(var(--u) * 1.6) color-mix(in srgb, var(--mk-a) 24%, transparent); background: color-mix(in srgb, var(--mk-a) 9%, var(--mk-bg2));
+}
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage-h { display: flex; align-items: center; gap: calc(var(--u) * .7); font-size: var(--fs-body); font-weight: 700; line-height: 1.15; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage-h b { display: grid; place-items: center; flex: none; width: max(26px, calc(var(--u) * 2.1)); height: max(26px, calc(var(--u) * 2.1)); border-radius: 50%; border: 2px solid var(--mk-a); color: var(--mk-a); font-family: var(--f-mono); font-size: var(--fs-label); font-weight: 700; line-height: 1; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage.is-first .mk-stage-h b { background: var(--mk-a); color: var(--mk-on); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:not(.is-first)::before { content: ""; position: absolute; left: calc(var(--u) * .8 + max(13px, var(--u) * 1.05) - 1px); bottom: 100%; height: var(--g2); width: 0; border-left: 2px dashed color-mix(in srgb, var(--mk-a) 70%, transparent); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage.is-first::before { content: ""; position: absolute; left: calc(var(--u) * -.5); top: 50%; width: calc(var(--u) * 1); height: calc(var(--u) * 1); margin-top: calc(var(--u) * -.5); border-radius: 50%; background: var(--mk-a); box-shadow: 0 0 calc(var(--u) * 1) var(--mk-a); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(3)::after,
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(4)::after { content: ""; position: absolute; right: calc(var(--u) * 1); top: 50%; width: calc(var(--u) * .9); height: calc(var(--u) * .9); margin-top: calc(var(--u) * -.45); border-radius: 50%; }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(3)::after { background: var(--led-wait); box-shadow: 0 0 calc(var(--u) * .9) var(--led-wait); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(4)::after { background: var(--led-ok); box-shadow: 0 0 calc(var(--u) * .9) var(--led-ok); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage.is-first > .mk-chip { flex: none; padding: calc(var(--u) * .25) calc(var(--u) * .75); }
+
+/* three tokens on one starting line */
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-toks { position: relative; flex: 1 0 100%; display: grid; gap: calc(var(--u) * .5); padding-left: calc(var(--u) * .9); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-toks::before { content: ""; position: absolute; left: 0; top: calc(var(--u) * -.3); bottom: calc(var(--u) * -.3); width: 0; border-left: 3px solid var(--mk-a); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-tok { position: relative; display: flex; align-items: center; gap: calc(var(--u) * .6); min-width: 0; padding: calc(var(--u) * .2) calc(var(--u) * .5) calc(var(--u) * .2) calc(var(--u) * .2); border-radius: 999px; font-size: var(--fs-body); font-weight: 600; line-height: 1.1; white-space: nowrap; background: linear-gradient(90deg, color-mix(in srgb, var(--mk-a) 22%, transparent), transparent 80%); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-tok > i { display: grid; place-items: center; flex: none; width: max(26px, calc(var(--u) * 2.2)); height: max(26px, calc(var(--u) * 2.2)); border-radius: 50%; background: var(--mk-a); color: var(--mk-on); font-style: normal; font-family: var(--f-mono); font-size: var(--fs-label); font-weight: 700; line-height: 1; box-shadow: inset 0 calc(var(--u) * .1) 0 color-mix(in srgb, var(--cream) 55%, transparent), 0 calc(var(--u) * .16) 0 color-mix(in srgb, var(--mk-a) 45%, var(--ink)); }
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-tok::after { content: ""; flex: 1 1 calc(var(--u) * .6); min-width: calc(var(--u) * .5); height: 0; border-top: 2px dashed color-mix(in srgb, var(--mk-fg) 30%, transparent); }
+
+/* narrow: doors stack above the pipeline with a down arrow between */
+@container (max-width: 540px) {
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-in { display: flex; flex-direction: column; gap: var(--g2); min-height: 0; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-doors { display: flex; flex-direction: column; gap: calc(var(--u) * .6); }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door { margin-block: 0; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-a,
+.mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv { display: none; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv-v { display: grid; place-items: center; height: calc(var(--u) * 2.4); color: var(--mk-a); }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv-v > svg { width: calc(var(--u) * 2.2); height: calc(var(--u) * 2.2); rotate: 90deg; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage { flex: none; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage.is-first { min-height: 0; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage.is-first::before { left: calc(var(--u) * 1.2); top: calc(var(--u) * -.5); margin: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mkl-mk-flow { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes mkl-mk-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(calc(var(--u) * .4)); } }
+  @keyframes mkl-mk-lamp { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.82); } }
+  @keyframes mkl-mk-slide { from { opacity: 0; transform: translateX(calc(var(--u) * -3)); } }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-conv path { animation: mkl-mk-flow 1.8s ease-in-out infinite; animation-delay: calc(var(--i) * .22s); }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-door-a { animation: mkl-mk-nudge 1.6s ease-in-out infinite; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-tok { animation: mkl-mk-slide .7s var(--ease) both; animation-delay: calc(.5s + var(--i) * .16s); }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(3)::after { animation: mkl-mk-lamp 1.6s ease-in-out infinite; }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage { animation: mkl-mk-rise .6s var(--ease) both; animation-delay: calc(.2s + var(--sg, 0) * .12s); }
+  .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(2) { --sg: 1; } .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(3) { --sg: 2; } .mk.mk-land :is(.mk-inbox, .mk-inbox-d) .mk-stage:nth-child(4) { --sg: 3; }
+}
+
+/*@@2@@*/

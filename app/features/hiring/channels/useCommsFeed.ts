@@ -12,9 +12,9 @@ const COMMS_PAGE_SIZE = 200;
 
 /**
  * The communications ledger's feed: GET /api/comms, one cursor page at a time, folded by
- * the pure reducer in channelsCommsPaging.ts. Lifted out of CommsTable unchanged so the
- * composition-kit view (behind the dev-only Gate K2 switch) reads the SAME feed instead
- * of a copy of it.
+ * the pure reducer in channelsCommsPaging.ts. Lifted out of CommsTable unchanged; the Night
+ * Post's shell reads it ONCE and hands it to every level (the plumbing's counts, the ledger,
+ * one message) instead of a copy per level.
  *
  * `feed.messages` is null until the first read settles. `error` is a failed read, never
  * an empty ledger. `relayConfigured` seeds true, so a fetch in flight never accuses a

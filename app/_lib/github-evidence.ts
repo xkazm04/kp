@@ -72,3 +72,14 @@ export function describeEvidenceBasis(): GithubFinding[] {
     { kind: "basis.notRead" },
   ];
 }
+
+// The basis above states each cap; this says, for THIS run, where a cap bit. A README
+// cut at README_TRUNCATE used to read exactly like one that fit, so a review of the
+// first few thousand characters priced as a review of the whole. Appended only when a
+// cap bit, with the count of repos it bit on, from the same constants.
+export function describeCapsHit(cut: { readmes: number; fileLists: number }): GithubFinding[] {
+  const out: GithubFinding[] = [];
+  if (cut.readmes > 0) out.push({ kind: "basis.readmeCut", params: { count: cut.readmes, chars: README_TRUNCATE } });
+  if (cut.fileLists > 0) out.push({ kind: "basis.filesCut", params: { count: cut.fileLists, files: FILES_PER_REPO } });
+  return out;
+}

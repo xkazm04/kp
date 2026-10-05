@@ -1,0 +1,75 @@
+/* The Night Post's post book (level 2), inside the kit's LevelFrame and a KitSurface. Colour ONLY
+   through app/globals.css tokens and the kit's --k-* variables; type ONLY through the type tokens
+   (nothing below 14px). Studio Light is calm (hairlines, a coral rule, no tilt); Spark Dark is the
+   playful register (2px drawn outlines, sticker shadows, a degree of tilt on the one loud thing). */
+
+.cn-ledger { display: grid; gap: 12px; min-width: 0; }
+
+/* the book in the level's head: small, decorative; its state comes from data-cond */
+.cn-ledger__book { width: 132px; }
+.k-lvl__art--head:has(.cn-ledger__book) { width: auto; }
+
+/* the relay's truth: with no relay, the loudest thing on the level */
+.cn-ledger__alarm {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start;
+  padding: 14px 16px; border: var(--k-line) solid var(--k-rule-strong); border-radius: var(--k-radius-lg);
+  background: var(--k-raised);
+}
+.cn-ledger__alarm[data-tone="bad"] {
+  border-color: var(--color-coral); box-shadow: inset 4px 0 0 var(--color-coral);
+  background: color-mix(in srgb, var(--color-coralwash) 38%, var(--color-white));
+}
+.cn-ledger__alarm-mark { padding-top: 5px; display: inline-flex; }
+.cn-ledger__alarm-body { display: grid; gap: 4px; min-width: 0; }
+.cn-ledger__alarm-body p { margin: 0; font-size: var(--text-body); color: var(--k-quiet); max-width: 72ch; }
+.cn-ledger__alarm-body .cn-ledger__alarm-title {
+  font-family: var(--font-serif); font-size: var(--text-h2); line-height: var(--text-h2--line-height); font-weight: 600; color: var(--k-ink);
+  text-wrap: balance;
+}
+.cn-ledger__alarm[data-tone="bad"] .cn-ledger__alarm-title strong { color: var(--k-needs-ink); }
+.cn-ledger__alarm[data-tone="warn"] .cn-ledger__alarm-title { font-size: var(--text-h3); }
+.cn-ledger__alarm > .k-btn { align-self: center; }
+[data-theme="dark"] .cn-ledger__alarm { border-color: var(--color-ink); box-shadow: var(--sticker-sm-shadow); }
+[data-theme="dark"] .cn-ledger__alarm[data-tone="bad"] {
+  border-color: var(--color-coral); background: color-mix(in srgb, var(--color-coralwash) 70%, var(--color-paper));
+  box-shadow: 4px 4px 0 var(--color-coral); rotate: -.4deg;
+}
+[data-theme="dark"] .cn-ledger__alarm-body .cn-ledger__alarm-title { font-weight: 800; letter-spacing: -.02em; }
+[data-theme="dark"] .cn-ledger__alarm[data-tone="bad"] .cn-ledger__alarm-title strong {
+  display: inline-block; padding: 0 .28em .04em; border: 2px solid var(--color-ink); border-radius: 999px;
+  background: var(--color-coral); color: var(--color-paper); box-shadow: var(--sticker-xs-shadow);
+}
+@container (max-width: 640px) {
+  .cn-ledger__alarm { grid-template-columns: 20px minmax(0, 1fr); }
+  .cn-ledger__alarm > .k-btn { grid-column: 2; justify-self: start; }
+}
+
+/* the chips and what their numbers are over */
+.cn-ledger__chips { display: grid; gap: 6px; min-width: 0; }
+.cn-ledger__aside { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); max-width: 72ch; }
+
+/* the scope a channel's "Open the ledger" carried */
+.cn-ledger__scope { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--text-meta); color: var(--k-quiet); }
+
+/* the rows: the verdict in words sits on the fig track, wide enough for "Unmatched receipt" */
+.cn-ledger .k-table { --m-fig: 150px; }
+.cn-ledger__v { font-weight: 600; color: var(--k-quiet); }
+.cn-ledger__v[data-v="sent"], .cn-ledger__v[data-v="recovered"] { color: var(--color-moss); }
+.cn-ledger__v[data-v="failed"], .cn-ledger__v[data-v="bounced"] { color: var(--color-red-700); }
+.cn-ledger__v[data-v="queued"] { color: var(--color-amber-800); }
+
+/* the Role / Type / Channel facets and the search, on one line while there is room */
+.cn-ledger__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.cn-ledger__filters > select { flex: 0 1 11rem; width: auto; min-width: 8rem; }
+.cn-ledger__search { flex: 1 1 12rem; min-width: 10rem; }
+
+/* the subject rides the role line only while its own column is folded (the kit's measure) */
+.cn-ledger__folded { display: none; }
+@container sheet (max-width: 860px) { .cn-ledger__folded { display: inline; } }
+/* the narrowest sheet: the verdict's column folds (the mark keeps its shape) and its word moves to
+   the start of the role line, so the name keeps its room */
+.cn-ledger__narrow { display: none; }
+@container sheet (max-width: 640px) {
+  .cn-ledger .k-table { --m-fig: 0px; }
+  .cn-ledger__narrow { display: inline; font-weight: 600; }
+}

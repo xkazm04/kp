@@ -1,0 +1,155 @@
+/* The Night Post's district (level 0) and its drawings (night/art/*), scoped to .cn-night.
+   Every colour is a token: the drawings paint through the --cn-* roles below, which resolve to
+   theme tokens, so ONE geometry renders in both registers. Studio Light draws calm (2px ink lines,
+   no drop shadow); Spark Dark draws playful (cream 2.5px lines on dark fills, hard sticker drop
+   shadows, a tilt on hover). State lives on the nearest [data-cond] ancestor (live | wait | reach |
+   fail | off | unknown); `.cn-on-<state>` parts show only in that state. Motion happens only when
+   a state changes (the barrier lifts, the shutter rolls, a letter arrives), once, and never under
+   reduced motion. Conventions: night/README.md "Art". */
+
+.cn-night {
+  --cn-ink-line: var(--color-ink);
+  --cn-fill-paper: var(--color-white);
+  --cn-fill-cream: var(--color-stone-50);
+  --cn-fill-sky: color-mix(in srgb, var(--color-steel) 32%, var(--color-white));
+  --cn-fill-shadow: color-mix(in srgb, var(--color-ink) 14%, transparent);
+  --cn-art-line: 2px;
+  --cn-art-drop: none;
+  --cn-sky-top: color-mix(in srgb, var(--color-limewash) 45%, var(--color-paper));
+  --cn-sky-bottom: var(--color-paper);
+  --cn-hill-far: color-mix(in srgb, var(--color-limewash) 80%, var(--color-paper));
+  --cn-hill-near: color-mix(in srgb, var(--color-moss) 22%, var(--color-limewash));
+  --cn-road-bed: var(--color-white);
+}
+[data-theme="dark"] .cn-night {
+  --cn-art-line: 2.5px;
+  --cn-art-drop: drop-shadow(3px 4px 0 color-mix(in srgb, var(--color-paper) 85%, transparent));
+  --cn-sky-top: var(--color-stone-50);
+  --cn-sky-bottom: color-mix(in srgb, var(--color-limewash) 40%, var(--color-paper));
+  --cn-hill-far: var(--color-limewash);
+  --cn-hill-near: color-mix(in srgb, var(--color-moss) 30%, var(--color-limewash));
+  --cn-road-bed: var(--color-stone-100);
+}
+
+/* ---------- the drawings ---------- */
+.cn-art { display: block; width: 100%; height: auto; overflow: visible; filter: var(--cn-art-drop); }
+.cn-art * { vector-effect: non-scaling-stroke; }
+.cn-a-f { stroke: var(--cn-ink-line); stroke-width: var(--cn-art-line); stroke-linejoin: round; }
+.cn-a-st { stroke: var(--cn-ink-line); stroke-width: 1.5px; }
+.cn-a-line { fill: none; stroke: var(--cn-ink-line); stroke-width: var(--cn-art-line); stroke-linecap: round; stroke-linejoin: round; }
+.cn-a-line--rule { stroke-width: 1.5px; opacity: .45; }
+.cn-a-line--onfill { stroke: var(--cn-fill-paper); }
+.cn-a-line--alarm { stroke: var(--color-coral); stroke-width: 3.5px; }
+.cn-a-gnd { fill: var(--cn-fill-shadow); stroke: none; }
+.cn-fc-paper { fill: var(--cn-fill-paper); }
+.cn-fc-cream { fill: var(--cn-fill-cream); }
+.cn-fc-coral { fill: var(--color-coral); }
+.cn-fc-moss { fill: var(--color-moss); }
+.cn-fc-amber { fill: var(--color-dial-amber); }
+.cn-fc-steel { fill: var(--color-steel); }
+.cn-fc-lime { fill: var(--color-limewash); }
+.cn-fc-ink { fill: var(--color-ink); }
+.cn-fc-sky { fill: var(--cn-fill-sky); }
+
+/* state-dependent parts */
+.cn-art .cn-on-live, .cn-art .cn-on-off, .cn-art .cn-on-fail, .cn-art .cn-on-sealed { display: none; }
+[data-cond="live"] .cn-art .cn-on-live, [data-cond="off"] .cn-art .cn-on-off,
+[data-cond="unknown"] .cn-art .cn-on-off, [data-cond="fail"] .cn-art .cn-on-fail, [data-sealed] .cn-art .cn-on-sealed { display: inline; }
+[data-cond="live"] .cn-art .cn-on-notlive { display: none; }
+/* not wired: dashed and faded, never solid */
+[data-cond="off"] .cn-art, [data-cond="unknown"] .cn-art { filter: none; opacity: .62; }
+[data-cond="off"] .cn-art :is(.cn-a-f, .cn-a-st, .cn-a-line), [data-cond="unknown"] .cn-art :is(.cn-a-f, .cn-a-st, .cn-a-line) { stroke-dasharray: 8 6; fill-opacity: .4; }
+/* failing: a coral halo, in both registers */
+[data-cond="fail"] .cn-art { filter: var(--cn-art-drop) drop-shadow(0 0 7px color-mix(in srgb, var(--color-coral) 55%, transparent)); }
+.cn-art .cn-shutter { transform-box: fill-box; transform-origin: 50% 0; transition: transform .7s var(--cn-ease); }
+[data-cond="live"] .cn-art .cn-shutter { transform: scaleY(.12); }
+.cn-art--relay .cn-win { fill: var(--cn-fill-sky); transition: fill .5s; }
+[data-cond="live"] .cn-art--relay .cn-win { fill: var(--color-dial-amber); }
+.cn-art--edge .cn-lantern { fill: var(--color-dial-stone); transition: fill .5s; }
+[data-cond="live"] .cn-art--edge .cn-lantern { fill: var(--color-dial-amber); }
+.cn-art--edge .cn-beam { fill: color-mix(in srgb, var(--color-dial-amber) 30%, transparent); stroke: none; }
+.cn-art--studio .cn-smoke { opacity: .8; }
+.cn-art--houses .cn-flag { transform-box: fill-box; transform-origin: 0 100%; transition: transform .6s var(--cn-ease); }
+[data-cond="off"] .cn-art--houses .cn-flag { transform: rotate(78deg); }
+
+/* ---------- the stage ---------- */
+.cn-stage {
+  position: relative; width: 100%; aspect-ratio: 1000 / 540; overflow: hidden; container: stage / inline-size;
+  border: var(--cn-line) solid var(--cn-rule); border-radius: 20px; background: linear-gradient(var(--cn-sky-top), var(--cn-sky-bottom));
+}
+[data-theme="dark"] .cn-stage { border-color: var(--color-ink); border-radius: 24px; box-shadow: var(--panel-shadow); }
+.cn-world { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cn-hill--far { fill: var(--cn-hill-far); }
+.cn-hill--near { fill: var(--cn-hill-near); }
+.cn-cloud { fill: var(--color-white); opacity: .8; }
+[data-theme="dark"] .cn-cloud { fill: var(--color-stone-100); opacity: .7; }
+.cn-road__edge { fill: none; stroke: var(--cn-ink-line); stroke-width: 22; stroke-linecap: round; }
+.cn-road__bed { fill: none; stroke: var(--cn-road-bed); stroke-width: 17; stroke-linecap: round; }
+.cn-road__line { fill: none; stroke: var(--cn-ink-line); stroke-width: 2; stroke-dasharray: 8 10; opacity: .35; }
+.cn-road:is([data-cond="off"], [data-cond="unknown"]) .cn-road__edge { stroke-dasharray: 16 11; opacity: .3; }
+.cn-road:is([data-cond="off"], [data-cond="unknown"]) :is(.cn-road__bed, .cn-road__line) { opacity: .3; }
+.cn-road[data-cond="wait"] :is(.cn-road__edge, .cn-road__bed) { opacity: .7; }
+.cn-road[data-cond="fail"] .cn-road__bed { stroke: color-mix(in srgb, var(--color-coral) 35%, var(--cn-road-bed)); }
+.cn-road[data-cond="reach"] .cn-road__bed { stroke: color-mix(in srgb, var(--color-dial-amber) 35%, var(--cn-road-bed)); }
+.cn-barrier__arm { transform-origin: -38px 0; transition: transform .8s var(--cn-ease); }
+.cn-barrier[data-up] .cn-barrier__arm { transform: rotate(-80deg); }
+.cn-barrier .cn-fc-coral { stroke: none; }
+.cn-letter { animation: cn-letter-in .6s var(--cn-ease) both; }
+@keyframes cn-letter-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- the buildings ---------- */
+.cn-node {
+  position: absolute; display: flex; align-items: center; gap: 2%; padding: 0; margin: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; border-radius: 16px; cursor: pointer;
+}
+.cn-node--static { cursor: default; }
+/* the four doors share one column: a plate a translation makes two lines taller pushes its neighbours
+   apart (the rows are as tall as their plates, spread over the column, never closer than the gap) */
+.cn-doors { position: absolute; display: grid; grid-template-rows: repeat(4, auto); align-content: space-between; row-gap: 12px; }
+.cn-doors > .cn-node { position: relative; }
+.cn-node__art { flex: none; width: 31%; transition: translate .3s var(--cn-ease), rotate .3s var(--cn-ease); }
+.cn-node .k-plate { flex: 1; }
+.cn-node[data-night-node="relay"], .cn-node[data-night-node="studio"] { flex-direction: column; align-items: stretch; gap: 4px; }
+.cn-node[data-night-node="relay"] .cn-node__art, .cn-node[data-night-node="studio"] .cn-node__art { width: 82%; align-self: center; }
+.cn-node[data-night-node="edge"] .cn-node__art { width: 22%; }
+.cn-node[data-night-node="book"] .cn-node__art { width: 30%; }
+.cn-node--houses { flex-direction: column; align-items: stretch; gap: 0; }
+.cn-node--houses .cn-node__art { width: 100%; }
+.cn-caption { text-align: center; font-size: var(--text-micro); font-weight: 600; color: var(--cn-quiet); }
+.cn-node:not(.cn-node--static):hover .cn-node__art, .cn-node:focus-visible .cn-node__art { translate: 0 -3px; }
+.cn-node:not(.cn-node--static):hover .k-plate { border-color: var(--color-ink); }
+/* the ring goes on the plate (the part that reads as the building's face), not on the empty box */
+.cn-node:focus-visible { outline: none; box-shadow: none; }
+.cn-node:focus-visible .k-plate { outline: 2px solid var(--color-coral); outline-offset: 3px; }
+[data-theme="dark"] .cn-node:not(.cn-node--static):hover .cn-node__art, [data-theme="dark"] .cn-node:focus-visible .cn-node__art { rotate: -1.6deg; }
+[data-theme="dark"] .cn-node:not(.cn-node--static):hover .k-plate { translate: -2px -2px; box-shadow: var(--sticker-sm-shadow); }
+.cn-node__art[data-bump] { animation: cn-bump .8s var(--cn-ease); }
+@keyframes cn-bump { 30% { scale: 1.06; } 100% { scale: 1; } }
+@container stage (min-width: 1100px) {
+  .cn-node .k-plate__title { font-size: var(--text-h2); }
+  .cn-node .k-plate__fact, .cn-node .k-cond { font-size: var(--text-body); }
+}
+
+/* the loudest fact on the relay road, and the note pinned beside the worst building */
+.cn-count {
+  position: absolute; z-index: 3; translate: -100% -50%; max-width: 20%; margin: 0; display: grid; justify-items: center; padding: 4px 12px 5px; pointer-events: none; text-align: center;
+  border: var(--cn-line) solid var(--cn-rule-strong); border-radius: var(--cn-radius-lg); background: var(--color-white); color: var(--color-ink);
+}
+.cn-count b { font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.1; font-weight: 700; }
+.cn-count span { font-size: var(--text-micro); font-weight: 600; text-wrap: balance; }
+.cn-count[data-stuck] { border-color: var(--color-coral); background: var(--color-coral); color: var(--color-white); }
+[data-theme="dark"] .cn-count { border: 2px solid var(--color-ink); box-shadow: var(--sticker-sm-shadow); }
+[data-theme="dark"] .cn-count[data-stuck] { color: var(--color-paper); }
+@container stage (min-width: 1100px) { .cn-count b { font-size: var(--text-display); } }
+.cn-start {
+  position: absolute; z-index: 4; display: flex; align-items: flex-start; gap: 2px; padding: 0; border: 0; background: none; cursor: pointer;
+  color: var(--color-coral); font-family: var(--font-serif); font-style: italic; font-size: var(--text-h2); font-weight: 600; white-space: nowrap;
+}
+[data-theme="dark"] .cn-start { font-style: normal; font-weight: 800; rotate: -4deg; }
+.cn-start svg { width: 30px; height: 30px; margin-top: 6px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.cn-start:hover span, .cn-start:focus-visible span { text-decoration: underline; text-decoration-thickness: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-letter, .cn-node__art[data-bump] { animation: none; }
+  .cn-barrier__arm, .cn-art .cn-shutter, .cn-art--relay .cn-win, .cn-art--edge .cn-lantern, .cn-art--houses .cn-flag, .cn-node__art { transition: none; }
+}

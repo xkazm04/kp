@@ -16,6 +16,18 @@ SSO sold as shipped with no SSO code, an authorship detector the product
 deliberately does not have, calibration reported as settled when the instrument's
 own verdict is `circular`). None of them was a bug. All of them shipped green.
 
+> **Paths, 2026-09-30.** The landing and `/about` were replaced by a port of an
+> approved prototype (`app/landing/site/`, see `docs/features/marketing/README.md`).
+> The patterns below still hold and their tests still run, but several cited
+> files were retired with the old pages (`spark/sections/Hero.tsx`,
+> `spark/PricingSection.tsx`, `spark/AboutCurve.test.ts`, `spark/useStillMotion.ts`).
+> Where they live now: the copy-as-data constants in `site/land/art/samples.ts`
+> and `site/chrome/glyphs.ts`; the price table in `site/land/Pricing.tsx` (still
+> pinned by `spark/PricingSection.test.ts`); the reduced-motion guard in
+> `spark/landing-motion.test.ts`; the live media-query hook as `useMedia` in
+> `site/land/features/panels/kit.tsx`. The `file:line` references below are to
+> the tree as it was when this was written.
+
 ---
 
 ## 1. Copy is data, and the lint says so

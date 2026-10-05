@@ -344,35 +344,10 @@
       "bare-rounded": 5,
       "literal-page-header": 1
     },
-    "features/hiring/channels/ChannelsAddReceiverModal.tsx": {
-      "raw-text-size": 5,
-      "raw-button": 2
-    },
     "features/hiring/channels/ChannelsCommsBouncedResend.tsx": {
       "below-floor-text": 2,
       "raw-text-size": 2,
       "raw-status-hue": 4
-    },
-    "features/hiring/channels/ChannelsEdgeCard.tsx": {
-      "below-floor-text": 2,
-      "raw-text-size": 8,
-      "raw-status-hue": 1
-    },
-    "features/hiring/channels/ChannelsReceiverPullCard.tsx": {
-      "below-floor-text": 2,
-      "raw-text-size": 6,
-      "raw-status-hue": 4,
-      "bare-rounded": 2
-    },
-    "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
-      "raw-text-size": 6
-    },
-    "features/hiring/channels/ChannelsSetupGuide.tsx": {
-      "below-floor-text": 3,
-      "raw-text-size": 6,
-      "raw-status-hue": 2,
-      "raw-button": 1,
-      "bare-rounded": 2
     },
     "features/hiring/decisions/DecisionsAiReviewCardBody.tsx": {
       "raw-text-size": 5

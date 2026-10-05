@@ -78,6 +78,12 @@
 .ob-co .ob-co__e { white-space: normal; }
 [data-theme="dark"] .ob-co:hover, [data-theme="dark"] .ob-co.is-hot { box-shadow: var(--sticker-sm-shadow); transform: rotate(-.6deg); }
 .ob-colist { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 12px; margin-top: 8px; }
+/* the ring key under the orbit: each stage and its count, pressed while its ring is focused */
+.ob-ringkey { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; padding-top: 10px; font-size: var(--text-micro); color: var(--k-quiet); }
+/* the queue the Overview opened the orbit with, still lit */
+.ob-lit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 4px 0 8px; padding: 6px 12px; border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius); background: var(--k-plane); font-size: var(--text-micro); color: var(--k-ink); }
+.ob-lit.is-needs { box-shadow: inset 3px 0 0 var(--color-coral); }
+.ob-lit > b { font-weight: 600; }
 .ob-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; font-size: var(--text-micro); color: var(--k-quiet); padding: 8px 0 0; }
 .ob-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .ob-legend__warn { color: var(--ob-late-ink); }
@@ -89,6 +95,8 @@
 
 .ob-lanes { min-width: 0; container: oblanes / inline-size; }
 .ob-lanes.is-flying .ob-beads { visibility: hidden; }
+/* the bench's rows wait for their beads to land (useLadderFlight) */
+.ob-bench.is-flying .ob-rungs .ob-bd { visibility: hidden; }
 .ob-ghead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 4px 0 14px; }
 .ob-ghead__t { min-width: 0; }
 .ob-ghead h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.2; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -226,3 +234,8 @@
 /* the quiet note after a stage name in the Matches table: never below the 14px floor */
 .ob-cellnote { font-size: var(--text-micro); color: var(--k-quiet); }
 .ob-cellnote.ob-w { color: var(--ob-needs-ink); }
+
+/* what the Overview folded away comes back after the orbit has grown out of the core */
+.ob-reveal { animation: .45s ease-out .55s both ob-reveal; }
+@keyframes ob-reveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ob-reveal { animation: none; } }

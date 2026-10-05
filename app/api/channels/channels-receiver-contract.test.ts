@@ -28,7 +28,8 @@ const read = (...p: string[]) => readFileSync(path.join(dir, ...p), "utf8");
 
 const receiverSrc = read("inbound", "[token]", "route.ts");
 const webhooksSrc = read("webhooks", "route.ts");
-const modalSrc = read("..", "..", "features", "hiring", "channels", "ChannelsAddReceiverModal.tsx");
+// The Add form is the Night Post's level 1 (night/setup/SetupAddReceiver.tsx), the retired modal's job.
+const modalSrc = read("..", "..", "features", "hiring", "channels", "night", "setup", "SetupAddReceiver.tsx");
 const channelsDbSrc = read("..", "..", "_lib", "db", "channels.ts");
 // L0 (docs/concepts/local-first-edge.md) moved the JSON-lead half of the receiver
 // into a shared core, so the clock's pull + drain doors reach the SAME contract

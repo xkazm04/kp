@@ -6,6 +6,7 @@ import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATT
 import { isEntryReminderEligible } from "./pipeline-status";
 import { BOOKING_COLLISION_REACH_MS, bookingCollides, isScheduleInviteExpired, type BookedInterval } from "./schedule-slots";
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
+import { addColumns } from "./db/add-columns";
 
 // Self-scheduling: a candidate picks an interview slot from proposed times
 // (replacing the hardcoded "Tue 14:00"). Isolated-connection store (same
@@ -105,7 +106,7 @@ function db(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_sched_entry ON schedule_invites (entry_id);
   `);
   // Migrations for stores created before the reminder columns existed.
-  for (const col of [
+  addColumns(d, "schedule_invites", [
     "slot_at TEXT",
     "reminder_sent_at TEXT",
     "reminder_attempts INTEGER NOT NULL DEFAULT 0",
@@ -128,13 +129,7 @@ function db(): Database.Database {
     "calendar_event_link TEXT",
     "calendar_event_state TEXT",
     "calendar_event_at TEXT",
-  ]) {
-    try {
-      d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
-    } catch {
-      /* column already exists */
-    }
-  }
+  ]);
   // Tenant backfill (P1): existing invites → the default workspace. A subquery join to
   // pipeline_entries would be more "correct" in spirit, but this store owns its OWN
   // connection (the pipeline_entries table may not exist on it — e.g. an isolated test

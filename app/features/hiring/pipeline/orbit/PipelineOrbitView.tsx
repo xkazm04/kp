@@ -23,6 +23,7 @@ import { PipelineKitSla } from "../kit/PipelineKitSla";
 import { buildOrbit, byUrgency, groupsFor, isLens, ladderOf, lensKey, LENSES, type LensId, type OrbitPerson, type SearchHit } from "./orbitModel";
 import { readPalette, runFlight, type Part } from "./orbitPaint";
 import { OrbitStage, type Arrival, type OrbitStageHandle } from "./OrbitStage";
+import type { ExpandTo, LitSet, OverviewSnap } from "./overview/overviewParts";
 import { OrbitLanes } from "./OrbitLanes";
 import { OrbitSearch } from "./OrbitSearch";
 import { OrbitPortal } from "./OrbitPortal";
@@ -31,6 +32,10 @@ import { usePersistedChoice } from "./usePersistedChoice";
 import { useOrbitWords } from "./orbitWords";
 import type { LadderProps } from "./ladder/ladderParts";
 import { OrbitMatches } from "./OrbitMatches";
+import { OrbitOverview } from "./overview/OrbitOverview";
+import { useOverviewToday } from "./overview/overviewParts";
+import { OrbitLitStrip } from "./OrbitLitStrip";
+import { useLadderFlight } from "./useLadderFlight";
 import { OrbitLadderCompare } from "./ladder/OrbitLadderCompare";
 import "./pipelineOrbit.css";
 
@@ -73,6 +78,10 @@ export function PipelineOrbitView() {
   const [roleKey, setRoleKey] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [ring, setRing] = useState<number | null>(null);
+  // The people an Overview queue pointed at, still lit in the opened orbit until "Show everyone" or Esc.
+  const [lit, setLit] = useState<LitSet | null>(null);
+  // The Overview (the level above the orbit) is where the page opens; a click on its core expands it.
+  const [expanded, setExpanded] = useState(false);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [slaOpen, setSlaOpen] = useState(false);
@@ -109,11 +118,16 @@ export function PipelineOrbitView() {
     return m;
   }, [s.events]);
 
+  // Opening a role's bench from its lane flies its beads down onto the ladder's rows.
+  const armLadder = useLadderFlight(model, roleKey, { lanes: lanesRef, fly: flyRef, anchor: sheetRef }, reduced);
+
   /* ---------------------------------------------------------------- level moves */
 
   const openGroup = (key: string, then?: { role?: string; stage?: string | null; highlight?: string | null }) => {
     if (flying) return;
     const into = () => {
+      setExpanded(true);
+      setLit(null);
       setGroupKey(key);
       setRoleKey(then?.role ?? null);
       setStage(then?.stage ?? null);
@@ -210,10 +224,11 @@ export function PipelineOrbitView() {
 
   const openLadder = (key: string, st: string | null, person: string | null = null) => {
     if (key === roleKey && st === stage && !person) return closeLadder();
+    const flies = armLadder(key);
     setRoleKey(key);
     setStage(st);
     setHighlight(person);
-    sheetRef.current?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+    sheetRef.current?.scrollIntoView({ block: "start", behavior: reduced || flies ? "auto" : "smooth" });
   };
   const closeLadder = () => {
     const key = roleKey;
@@ -243,22 +258,43 @@ export function PipelineOrbitView() {
     requestAnimationFrame(() => document.getElementById("ob-ladder-title")?.focus({ preventScroll: true }));
   };
 
+  // Open the orbit out of the Overview's own: its dots fly from where they stand to their full-size places.
+  const expand = (snap: OverviewSnap | null, to: ExpandTo = {}) => {
+    if (snap && !reduced) setArrival({ nonce: ++nonce.current, mode: "grow", from: snap.from, key: null, origin: snap.origin });
+    const i = to.stage ? s.axis.findIndex((x) => x.id === to.stage) : -1;
+    setRing(i >= 0 ? i : null);
+    setLit(to.lit ?? null);
+    setExpanded(true);
+  };
+  const collapse = () => {
+    setExpanded(false);
+    setRing(null);
+    setLit(null);
+    setGroupKey(null);
+    setRoleKey(null);
+    setStage(null);
+  };
+
   const focusRing = (stageId: string) => {
     const i = s.axis.findIndex((x) => x.id === stageId);
     setRing((cur) => (cur === i ? null : i >= 0 ? i : null));
     sheetRef.current?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
   };
 
-  // Esc climbs one level (ladder -> lanes -> orbit -> clear the ring); j / k step roles while a ladder is open.
+  // Esc climbs one level (bench -> lanes -> orbit -> clear the lit queue, then the ring -> the Overview); j / k step roles on the bench, groups on the lanes.
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.defaultPrevented || s.candidate || slaOpen || isAnyModalOpen()) return;
     if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable]")) return;
     if (e.key === "Escape") {
       if (roleKey) { e.preventDefault(); closeLadder(); }
       else if (groupKey != null) { e.preventDefault(); goUp(); }
+      else if (lit) { e.preventDefault(); setLit(null); }
       else if (ring != null) { e.preventDefault(); setRing(null); }
-    } else if (roleKey && (e.key === "j" || e.key === "k") && !e.altKey && !e.ctrlKey && !e.metaKey) {
-      stepRole(e.key === "j" ? 1 : -1);
+      else if (expanded) { e.preventDefault(); collapse(); }
+    } else if ((e.key === "j" || e.key === "k") && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      if (roleKey) stepRole(e.key === "j" ? 1 : -1);
+      // On the lanes, j / k step to the next / previous group, as the sibling buttons do.
+      else if (group && gi >= 0) { const sib = ranked[gi + (e.key === "j" ? 1 : -1)]; if (sib) openGroup(sib.key); }
     }
   });
   useEffect(() => {
@@ -269,6 +305,7 @@ export function PipelineOrbitView() {
 
   /* ---------------------------------------------------------------- render */
 
+  const today = useOverviewToday(s, s.axis, model, words);
   const openPerson = (p: OrbitPerson, cohort: readonly OrbitPerson[]) => s.openCandidate(p.entry, cohort.map((x) => x.entry), "overview");
   const ladder: LadderProps | null =
     role && group
@@ -287,10 +324,19 @@ export function PipelineOrbitView() {
   const emptyRoles = T ? T.abs.vacant + T.abs.draft : 0;
   const inFlight = T ? T.act - T.hired : 0;
 
+  const overviewDoor = (
+    <>
+      <button type="button" className={TRAIL_BTN} onClick={collapse}>{t("ovTrail")}</button>
+      <span aria-hidden>›</span>
+    </>
+  );
   const trail = (
     <nav className="ob-trail" aria-label={t("trailAria")}>
-      {group ? (
+      {!expanded ? (
+        <span className="ob-trail__here">{t("ovTrail")}</span>
+      ) : group ? (
         <>
+          {overviewDoor}
           <button type="button" className={TRAIL_BTN} onClick={goUp}>{t("orbitName")}</button>
           <span aria-hidden>›</span>
           {role ? (
@@ -304,7 +350,10 @@ export function PipelineOrbitView() {
           )}
         </>
       ) : (
-        <span className="ob-trail__here">{t("trailTop", { lens: t(`lens.${lens}`) })}</span>
+        <>
+          {overviewDoor}
+          <span className="ob-trail__here">{t("trailTop", { lens: t(`lens.${lens}`) })}</span>
+        </>
       )}
     </nav>
   );
@@ -317,7 +366,7 @@ export function PipelineOrbitView() {
             eyebrow={tt("eyebrow")}
             title={tt("title")}
             figures={
-              T
+              T && expanded
                 ? [
                     { label: t("figWaitingHuman"), value: T.wait, tone: T.wait > 0 ? "needs" : "default" },
                     { label: t("figOverSla"), value: T.aging, of: inFlight },
@@ -334,20 +383,23 @@ export function PipelineOrbitView() {
             <PipelineEmptyState axis={s.axis} setupUnfinished={setupUnfinished} onResumeSetup={requestOnboardingReopen} onStartTour={s.sim.running ? undefined : s.sim.start} />
           ) : (
             <>
-              <PipelineKitToday s={s} onShowStage={focusRing} />
+              {expanded ? (
+                // Mounted with the expansion, so it fades in after the orbit has grown rather than under it.
+                <div className="ob-reveal"><PipelineKitToday s={s} onShowStage={focusRing} /></div>
+              ) : null}
               <PipelineKitOffBoard s={s} />
               {s.filtering ? <OrbitMatches s={s} words={words} now={now} /> : null}
               {jobs.failed ? <Note tone="caution">{t("jobsFailed")}</Note> : null}
               {jobs.truncated ? <Note tone="caution">{t("jobsTruncated")}</Note> : null}
               <div ref={sheetRef} className="ob-toolbar">
                 {trail}
-                <Segmented
+                {expanded ? <Segmented
                   lead={t("lensLead")}
                   label={t("lensLabel")}
                   value={lens}
                   onChange={changeLens}
                   items={LENSES.map((l) => ({ value: l, label: t(`lens.${l}`), disabled: l !== "family" && !jobs.jobs, tip: l !== "family" && !jobs.jobs ? t("jobsFailed") : undefined }))}
-                />
+                /> : null}
                 <OrbitSearch model={model} words={words} onPick={onSearch} />
               </div>
               {ring != null ? (
@@ -356,8 +408,23 @@ export function PipelineOrbitView() {
                   <button type="button" className={TRAIL_BTN} onClick={() => setRing(null)}>{t("ringClear")}</button>
                 </div>
               ) : null}
+              {expanded && group == null && lit ? <OrbitLitStrip key={lit.key} lit={lit} words={words} onPerson={(e) => s.openCandidate(e, lit.entries, "overview")} onClear={() => setLit(null)} /> : null}
               {status === "loading" || !model ? (
                 <LoadingGap label={t("placing")} className="ob-gap" />
+              ) : !expanded ? (
+                <OrbitOverview
+                  model={model}
+                  groups={groups}
+                  lens={lens}
+                  axis={s.axis}
+                  words={words}
+                  sla={sla}
+                  queues={today.queues}
+                  onExpand={expand}
+                  onOpenTab={today.openTab}
+                  onPerson={(e, cohort) => s.openCandidate(e, cohort, "overview")}
+                  jobsOk={jobs.jobs != null}
+                />
               ) : group == null ? (
                 <OrbitStage
                   ref={stageRef}
@@ -366,8 +433,11 @@ export function PipelineOrbitView() {
                   axis={s.axis}
                   words={words}
                   ring={ring}
+                  onRing={setRing}
+                  focus={lit?.ids ?? null}
                   onOpen={(k) => openGroup(k)}
                   arrival={arrival}
+                  beforeGrow={() => sheetRef.current?.scrollIntoView({ block: "start" })}
                   fly={flyRef}
                   reduced={reduced}
                   closedEmpty={model.closedEmpty}

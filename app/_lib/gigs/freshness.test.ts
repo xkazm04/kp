@@ -45,13 +45,13 @@ function gig(ws: string, status: GigStatus = "new", key?: string) {
     tags: [],
   };
   const g = upsertGigFromRaw(ws, { sourceId: "gsrc-fl", arena: "freelance", raw, suspectReasons: [] }).gig;
-  const path: Record<GigStatus, GigStatus[]> = {
+  const path: Partial<Record<GigStatus, GigStatus[]>> = {
     new: [],
     qualified: ["qualified"],
     dispatched: ["qualified", "dispatched"],
     drafted: ["qualified", "dispatched", "drafted"],
     in_review: ["qualified", "dispatched", "drafted", "in_review"],
-  } as Record<GigStatus, GigStatus[]>;
+  };
   let from: GigStatus = "new";
   for (const to of path[status] ?? []) {
     assert.ok(transitionGig(ws, g.id, { from, to }).ok, `${from} -> ${to}`);

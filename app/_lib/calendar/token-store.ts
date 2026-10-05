@@ -3,6 +3,7 @@ import { openStore } from "../db-path";
 import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "../ats-secret";
 import { DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import type { GoogleTokens } from "./google-oauth";
+import { addColumns } from "../db/add-columns";
 
 // W1.4 — the connected Google calendar per workspace.
 //
@@ -80,13 +81,7 @@ function db(): Database.Database {
   // Grant health (see CALENDAR_GRANT_HEALTH), added to a table that predates it. Isolated
   // store, so no core.ts migrator: add each column here, tolerating "duplicate column" on
   // every boot after the first. NULL health on a legacy row reads as 'ok' — today's meaning.
-  for (const col of ["health TEXT", "health_at TEXT"]) {
-    try {
-      d.exec(`ALTER TABLE calendar_connections ADD COLUMN ${col}`);
-    } catch {
-      /* column already exists — idempotent */
-    }
-  }
+  addColumns(d, "calendar_connections", ["health TEXT", "health_at TEXT"]);
   _db = d;
   return d;
 }

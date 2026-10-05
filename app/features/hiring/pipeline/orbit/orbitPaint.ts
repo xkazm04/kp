@@ -7,7 +7,7 @@ import { anchorOf, DEG, TAU, type CalloutPlace, type Dot, type DotKind, type Orb
 
 type RGB = [number, number, number];
 export type Palette = {
-  paper: RGB; ink: RGB; coral: RGB; amber: RGB; moss: RGB; calm: RGB; rule: RGB; rule2: RGB; quiet: RGB; dark: boolean; font: string;
+  paper: RGB; ink: RGB; coral: RGB; amber: RGB; moss: RGB; calm: RGB; rule: RGB; rule2: RGB; quiet: RGB; lime: RGB; dark: boolean; font: string;
 };
 
 function parse(v: string): RGB {
@@ -31,9 +31,28 @@ export function readPalette(): Palette {
   return {
     paper, ink, coral: g("--color-coral"), amber: g("--color-dial-amber"), moss: g("--color-moss"),
     calm: mix(g("--color-steel"), paper, 0.58), rule: g("--color-stone-200"), rule2: g("--color-stone-300"),
-    quiet: mix(ink, paper, 0.62), dark: root.getAttribute("data-theme") === "dark",
+    quiet: mix(ink, paper, 0.62), lime: g("--color-limewash"), dark: root.getAttribute("data-theme") === "dark",
     font: getComputedStyle(document.body).fontFamily,
   };
+}
+
+/** The lit dial's band tones (the winner's alternating green): limewash and a paler limewash, the hub a touch of moss. */
+function ringFill(c: Palette, i: number, n: number): string {
+  if (i === n - 1) return rgba(mix(c.moss, c.lime, c.dark ? 0.3 : 0.22));
+  return rgba(i % 2 ? c.lime : mix(c.lime, c.paper, c.dark ? 0.5 : 0.45));
+}
+
+/** Every band of the dial, filled in its tone with a hairline rim. */
+function paintRings(x: CanvasRenderingContext2D, c: Palette, rings: readonly [number, number][], cx: number, cy: number, R: number) {
+  rings.forEach((rg, i) => {
+    x.beginPath();
+    x.arc(cx, cy, rg[1] * R + 1, 0, TAU);
+    x.arc(cx, cy, Math.max(0, rg[0] * R - 1), 0, TAU, true);
+    x.fillStyle = ringFill(c, i, rings.length);
+    x.fill("evenodd");
+    x.strokeStyle = rgba(c.paper); x.lineWidth = 1.5;
+    x.beginPath(); x.arc(cx, cy, rg[1] * R + 1, 0, TAU); x.stroke();
+  });
 }
 
 const dotColor = (c: Palette, k: DotKind) => (k === "w" ? c.coral : k === "a" ? c.amber : k === "h" ? c.moss : c.calm);
@@ -55,6 +74,8 @@ export function drawDot(x: CanvasRenderingContext2D, c: Palette, d: Pick<Dot, "k
   if (d.p.walked) {
     x.fillStyle = rgba(col, alpha);
     x.beginPath(); x.arc(px, py, rad, 0, TAU); x.fill();
+    // Spark Dark draws its marks: a cut-out outline in the canvas colour, so a cluster reads as stickers.
+    if (c.dark && rad >= 2.4) { x.strokeStyle = rgba(c.paper, alpha); x.lineWidth = 1.2; x.stroke(); }
   } else {
     x.strokeStyle = rgba(col, alpha);
     x.lineWidth = Math.max(1, rad * 0.55);
@@ -75,22 +96,16 @@ export type DrawOptions = {
   places: readonly CalloutPlace[];
   height: number;
   ringLabels: readonly string[];
+  /** People to bring forward (a queue the Overview is pointing at): everyone else dims. */
+  focus?: ReadonlySet<string> | null;
 };
 
-export function drawOrbit(cv: HTMLCanvasElement, geo: OrbitGeo, c: Palette, { hot, ring, places, height, ringLabels }: DrawOptions) {
+export function drawOrbit(cv: HTMLCanvasElement, geo: OrbitGeo, c: Palette, { hot, ring, places, height, ringLabels, focus = null }: DrawOptions) {
   const x = sizeCanvas(cv, geo.W, height);
   if (!x) return;
   const { R, cx, cy, rings } = geo;
   x.clearRect(0, 0, geo.W, height);
-  rings.forEach((rg, i) => {
-    x.beginPath();
-    x.arc(cx, cy, rg[1] * R + 2, 0, TAU);
-    x.arc(cx, cy, Math.max(0, rg[0] * R - 2), 0, TAU, true);
-    x.fillStyle = rgba(i % 2 ? c.paper : mix(c.ink, c.paper, c.dark ? 0.05 : 0.035));
-    x.fill("evenodd");
-    x.strokeStyle = rgba(c.rule); x.lineWidth = 1;
-    x.beginPath(); x.arc(cx, cy, rg[1] * R + 2, 0, TAU); x.stroke();
-  });
+  paintRings(x, c, rings, cx, cy, R);
   const inner = rings[rings.length - 1][0];
   for (const s of geo.sectors) {
     if (hot != null && s.g.key === hot) {
@@ -109,6 +124,12 @@ export function drawOrbit(cv: HTMLCanvasElement, geo: OrbitGeo, c: Palette, { ho
   }
   const dim = hot != null;
   for (const d of geo.dots) {
+    if (focus) {
+      // A focused queue: its people drawn a size up, everyone else a whisper.
+      const on = focus.has(d.p.id);
+      drawDot(x, c, d, d.x, d.y, on ? d.r * 1.5 + 0.6 : d.r, on ? 1 : 0.14);
+      continue;
+    }
     const off = (dim && d.g !== hot) || (ring != null && d.p.si !== ring);
     drawDot(x, c, d, d.x, d.y, d.r, off ? (ring != null && d.p.si !== ring ? 0.16 : 0.28) : 1);
   }
@@ -120,7 +141,9 @@ export function drawOrbit(cv: HTMLCanvasElement, geo: OrbitGeo, c: Palette, { ho
         x.strokeRect(m.x - 2.6, m.y - 2.6, 5.2, 5.2); x.setLineDash([]);
         x.beginPath(); x.moveTo(m.x - 2.6, m.y + 2.6); x.lineTo(m.x + 2.6, m.y - 2.6); x.stroke();
       } else {
-        x.strokeStyle = rgba(c.ink, al); x.lineWidth = 1.6;
+        // An open role nobody is on yet: a solid square, drawn a shade under the ink so a long rim reads as texture.
+        x.fillStyle = rgba(c.paper, al); x.fillRect(m.x - 2.8, m.y - 2.8, 5.6, 5.6);
+        x.strokeStyle = rgba(mix(c.ink, c.paper, 0.6), al); x.lineWidth = 1.4;
         x.strokeRect(m.x - 2.8, m.y - 2.8, 5.6, 5.6);
       }
     }
@@ -162,7 +185,10 @@ export type Part = {
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 /** Run a flight on the fixed overlay canvas. Returns a cancel that ends it at once (and still calls done). */
-export function runFlight(cv: HTMLCanvasElement, c: Palette, parts: readonly Part[], dur: number, done: () => void): () => void {
+/** Extra drawing under the dots on every frame of a flight, given the eased overall progress 0..1. */
+export type FlightPaint = (x: CanvasRenderingContext2D, e: number) => void;
+
+export function runFlight(cv: HTMLCanvasElement, c: Palette, parts: readonly Part[], dur: number, done: () => void, paint?: FlightPaint): () => void {
   const W = window.innerWidth;
   const H = window.innerHeight;
   const x = sizeCanvas(cv, W, H);
@@ -183,6 +209,7 @@ export function runFlight(cv: HTMLCanvasElement, c: Palette, parts: readonly Par
   const frame = (now: number) => {
     const T = (now - t0) / dur;
     x.clearRect(0, 0, W, H);
+    if (paint) paint(x, ease(Math.max(0, Math.min(1, T))));
     for (const p of parts) {
       const k = Math.max(0, Math.min(1, (T - p.delay) / (1 - p.delay)));
       const e = ease(k);
@@ -201,4 +228,14 @@ export function runFlight(cv: HTMLCanvasElement, c: Palette, parts: readonly Par
   // A hidden tab never runs rAF: the settle timer lands the flight anyway (contest improvement log, 2026-09-25).
   const settle = setTimeout(finish, dur + 400);
   return finish;
+}
+
+/** The ring outlines of an orbit growing from one centre and radius to another: a grow flight's frame. */
+export function ringGrowth(c: Palette, rings: readonly [number, number][], from: { cx: number; cy: number; R: number }, to: { cx: number; cy: number; R: number }): FlightPaint {
+  return (x, e) => {
+    const cx = from.cx + (to.cx - from.cx) * e;
+    const cy = from.cy + (to.cy - from.cy) * e;
+    const R = from.R + (to.R - from.R) * e;
+    paintRings(x, c, rings, cx, cy, R);
+  };
 }

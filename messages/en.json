@@ -773,31 +773,21 @@
       "proof": "Proof",
       "features": "Features",
       "voice": "Voice interview",
-      "trust": "Responsible AI",
       "pricing": "Pricing",
       "sections": "Page sections",
       "top": "Back to top",
       "about": "About the app",
-      "market": "Market Pulse",
-      "source": "Source",
-      "signIn": "Sign in",
-      "menuOpen": "Open menu",
-      "menuClose": "Close menu"
+      "signIn": "Sign in"
     },
     "hero": {
       "badge": "Automated hiring, human-approved",
       "title": "Your hiring,<br></br>on <emph>autopilot</emph>",
-      "subtitle": "KandiDate runs the whole funnel: every CV read and scored against the role, promising candidates interviewed the same day, slots booked, offers drafted, and the hire sealed the moment the candidate accepts. You review the calls that matter. The busywork never reaches your desk.",
       "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
       "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
       "ctaPending": "Opening your workspace…",
       "ctaDemo": "Watch the live demo",
-      "pileHint": "try it: hover the pile ↓",
-      "pileHintTouch": "try it: tap a CV ↓",
-      "scoreCardAria": "Score the CV of {name}",
-      "mascotAlt": "Kandi, the KandiDate mascot, cheering under an approved CV",
-      "mascotNote": "meet Kandi, your new teammate"
+      "mascotAlt": "Kandi, the KandiDate mascot, cheering under an approved CV"
     },
     "pile": {
       "jana": {
@@ -844,7 +834,6 @@
     },
     "features": {
       "heading": "The whole funnel,<br></br>one happy place",
-      "hint": "hover any card for a live peek: it all ships today, no asterisks",
       "score": {
         "title": "Job-fit scoring",
         "body": "0–100 fit score per CV with the evidence to back it up. Multiple CV versions? Compare them side by side."
@@ -902,22 +891,18 @@
     "trust": {
       "heading": "Powerful AI.<br></br><emph>A human signs every call.</emph>",
       "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
-      "tablist": "Responsible-AI demonstrations",
       "human": {
         "title": "Human in the loop",
         "body": "A rejection is always a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. Advancing and extending an offer are human-approved by default too. A workspace can delegate either one, stage by stage, and every step that then runs unattended is logged with the plan that allowed it."
       },
       "oversight": {
-        "title": "AI Act, article by article",
-        "body": "Screening and ranking are treated as high-risk AI: meaningful human oversight, reasoning you can read, and a record of every automated step. We publish where we stand on each article, including the gaps."
+        "title": "AI Act, article by article"
       },
       "gdpr": {
-        "title": "GDPR & Article 22",
-        "body": "Candidates consent before any AI reads their data, can ask for human review, and can see or erase their data anytime. No solely-automated significant decisions."
+        "title": "GDPR & Article 22"
       },
       "audit": {
-        "title": "Provable, not promised",
-        "body": "Every AI decision is sealed into a tamper-evident, exportable audit trail. Scores are then checked against what actually happened, and the check says out loud when the evidence behind it is still too thin, or too circular, to be trusted."
+        "title": "Provable, not promised"
       },
       "footnote": "A working demonstration: this reflects the product's design and controls, not a legal certification.",
       "art": {
@@ -939,62 +924,12 @@
           },
           "auto": "auto",
           "you": "you",
-          "lockedNote": "rejections are always yours: that one doesn’t unlock",
-          "toggleAria": "{step}: currently {mode}"
-        },
-        "oversight": {
-          "tiers": {
-            "unacceptable": "Unacceptable: banned",
-            "high": "High risk: strict duties",
-            "limited": "Limited risk: disclose it",
-            "minimal": "Minimal risk: no duties"
-          },
-          "marker": "CV screening & ranking",
-          "ladderNote": "the EU AI Act’s own risk ladder: hiring sits on the second rung",
-          "controls": {
-            "oversight": "Human oversight",
-            "reasoning": "Readable reasoning",
-            "record": "Every step logged"
-          }
-        },
-        "gdpr": {
-          "cardTitle": "Candidate record",
-          "cardMeta": "personal data · EU",
-          "consent": "consent given",
-          "fields": {
-            "name": "Name",
-            "email": "Email",
-            "cv": "CV"
-          },
-          "consentNote": "before the stamp lands, the AI reads nothing at all",
-          "rights": {
-            "see": "See everything",
-            "review": "Ask for a human",
-            "erase": "Erase me"
-          },
-          "restore": "Bring the demo back",
-          "erased": "erased"
-        },
-        "audit": {
-          "blocks": {
-            "advance": "Advance · {name}",
-            "pass": "Pass · {name}",
-            "offer": "Offer · {name}"
-          },
-          "verified": "Chain verified",
-          "tampered": "Tamper detected: the chain broke",
-          "calibration": {
-            "title": "Score vs. what happened",
-            "predicted": "we predicted",
-            "actual": "actually happened",
-            "note": "this is what a calibrated score looks like; when the evidence is too thin or too circular, the panel says that instead"
-          }
+          "lockedNote": "rejections are always yours: that one doesn’t unlock"
         }
       }
     },
     "pricing": {
       "heading": "Free to run.<br></br><emph>Paid to not think about it.</emph>",
-      "headingNote": "the whole product is open source. the plans buy you someone else's servers",
       "tiers": {
         "selfhost": {
           "name": "Self-hosted",
@@ -1054,7 +989,6 @@
           ]
         }
       },
-      "footnote1": "Self-hosting is the full product, not a trial edition. The hosted plans price outcomes: a role taken to market, and a person hired.",
       "footnote2": "out of minutes? 100-minute interview packs · CZK 790 (any hosted tier)",
       "enterprise": {
         "eyebrow": "At org scale",
@@ -1094,136 +1028,38 @@
       "license": "AGPL-3.0 · source"
     },
     "previews": {
-      "close": "Close preview",
       "score": {
         "note": "evidence attached, always",
         "factors": {
           "skills": "Skills match",
           "seniority": "Seniority signal",
           "domain": "Domain overlap"
-        },
-        "verdict": "strong fit, interview question pack already drafted"
+        }
       },
       "voice": {
-        "note": "yes, it speaks Czech too",
-        "screenTitle": "First-round screen",
-        "meta": "Czech · live · 4 min 12 s",
-        "demoAi": "Vaše poslední aplikace běžela na Reactu. Co se rozbilo jako první, když přišli skuteční uživatelé?",
-        "demoThem": "Upřímně? Správa stavu. Přepsal jsem ji dvakrát, než jsem pochopil proč…",
-        "scorecard": "Scorecard drafted on hang-up: coachability, depth, communication"
+        "screenTitle": "First-round screen"
       },
       "cases": {
-        "note": "AI allowed, delegation isn’t",
-        "title": "Take-home · authorship checks",
-        "aiAllowed": "AI allowed",
-        "checks": {
-          "flaw1": {
-            "label": "Planted flaw in the seed",
-            "verdict": "caught & fixed"
-          },
-          "flaw2": {
-            "label": "Second planted flaw",
-            "verdict": "shipped untouched"
-          },
-          "distance": {
-            "label": "Distance from a bare one-shot",
-            "verdict": "0.38: own work visible"
-          }
-        },
-        "defend": "Then the interview asks them to defend the two decisions they actually made."
+        "aiAllowed": "AI allowed"
       },
       "schedule": {
-        "note": "no calendar tennis",
-        "title": "Pick a time that suits you",
-        "meta": "Technical interview · 45 min · with Marta",
         "days": [
           "Mon",
           "Tue",
           "Wed",
           "Thu",
           "Fri"
-        ],
-        "confirmed": "Confirmed for Wednesday 14:00. Invites sent both ways."
+        ]
       },
       "inbox": {
-        "note": "five doors, one starting line",
         "channels": {
           "apply": "Apply portal",
           "email": "Email",
           "boards": "Job boards",
           "sourcing": "Sourcing",
           "manual": "Manual add"
-        },
-        "onePipeline": "One pipeline",
-        "sameStartingLine": "Every door lands at the same starting line. No source gets a shortcut."
-      },
-      "salary": {
-        "note": "offers that land first time",
-        "role": "React Developer · mid · Prague",
-        "unit": "CZK / month",
-        "chips": {
-          "band": "band 85–105k",
-          "median": "market median 95k",
-          "modifier": "scale-up modifier ×1.1"
-        },
-        "grounded": "Grounded in live Czech market data, so the offer lands the first time."
-      },
-      "rediscover": {
-        "note": "the pool you already paid for",
-        "title": "New role opened · {n} people you already know",
-        "hits": {
-          "marek": "Applied 8 months ago · now matches {score}",
-          "lucie": "Silver medallist, Backend II · matches {score}"
-        },
-        "noSpend": "No new sourcing spend, and they already said yes to you once."
-      },
-      "offer": {
-        "note": "no model in the number",
-        "title": "{name} · offer → hired",
-        "steps": {
-          "figure": {
-            "label": "Offer figure",
-            "detail": "band × fit · no model in the number"
-          },
-          "letter": {
-            "label": "Letter drafted, human signs",
-            "detail": "sent as a secure link"
-          },
-          "accepted": {
-            "label": "Accepted",
-            "detail": "candidate flips to Hired"
-          },
-          "handoff": {
-            "label": "Handed off",
-            "detail": "hire mirrored to your ATS"
-          }
         }
-      },
-      "gates": {
-        "note": "every call gets a human signature",
-        "waiting": "Waiting on you · {n}",
-        "humanGate": "human gate",
-        "queue": {
-          "advance": {
-            "title": "Advance {name} to interview",
-            "sub": "Fit 87 · strong React depth, gap in testing"
-          },
-          "pass": {
-            "title": "Send kind pass to {name}",
-            "sub": "Fit 31 · sales-leaning profile, redirect suggested"
-          },
-          "offer": {
-            "title": "Approve offer draft for {name}",
-            "sub": "Band 85–105k · sits at market median"
-          }
-        },
-        "approve": "Approve",
-        "override": "Override",
-        "signed": "shortlist approved at {time}, signed {name} ✓"
-      },
-      "prev": "Previous feature",
-      "next": "Next feature",
-      "position": "{n} of {total}"
+      }
     },
     "demoNotice": {
       "title": "The live demo is unavailable right now.",
@@ -1232,14 +1068,8 @@
     }
   },
   "aboutPage": {
-    "copyStepLink": "Copy link to {step}",
-    "stepLinkCopied": "Step link copied",
-    "stepLinkCopyFailed": "Couldn't copy the link. Use your browser's address bar instead.",
     "nav": {
-      "home": "Home",
-      "signIn": "Sign in",
-      "market": "Market Pulse",
-      "source": "Source"
+      "home": "Home"
     },
     "hero": {
       "badge": "the hiring pipeline, end to end",
@@ -1290,13 +1120,8 @@
     },
     "closing": {
       "tag": "that’s the whole line",
-      "title": "From a blank role<br></br>to a <emph>signed hire</emph>.",
       "body": "AI does the reading at every step. A human signs every decision.",
       "button": "Start free"
-    },
-    "footer": {
-      "tagline": "AI for hiring, humans for decisions",
-      "home": "Back to home"
     },
     "art": {
       "design": {
@@ -1439,6 +1264,7 @@
     "INTERVIEW_COMPLETE_FAILED": "Could not save the interview. Please try again.",
     "INTERVIEW_LOOKUP_FAILED": "Could not load interview data. Please try again.",
     "INTERVIEW_PREP_FAILED": "Could not load interview prep. Please try again.",
+    "INTERVIEW_RESCORE_FAILED": "Could not re-score the interview. Please try again.",
     "INTERVIEW_KIT_FAILED": "Could not load or save this role's interview kit. Please try again.",
     "INTERVIEW_DIRECTOR_FAILED": "Could not update the interview's progress. The call continues.",
     "INTERVIEW_RECORDING_FAILED": "Could not save the interview audio. The interview itself is unaffected.",
@@ -1619,6 +1445,7 @@
     "INTERVIEW_LINK_INACTIVE": "This interview link is no longer active.",
     "INTERVIEW_LINK_EXPIRED": "This interview link has expired. Ask the recruiter for a fresh one.",
     "INTERVIEW_ALREADY_COMPLETED": "This interview has already been completed.",
+    "INTERVIEW_NOT_RESCORABLE": "This interview is not eligible for re-scoring.",
     "INTERVIEW_CONSENT_REQUIRED": "Recording consent is required before the interview can start.",
     "INTERVIEW_PROVIDER_INVALID": "That voice provider isn't one this server knows.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "The voice provider isn't configured on this server, so the call can't start.",
@@ -2034,7 +1861,8 @@
     "GIG_PROPOSAL_NOT_FOUND": "This gig has no client proposal yet. It is written when a plan is accepted, or on request.",
     "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again.",
     "JOBSEEKER_CV_NOT_FOUND": "That CV is not among yours.",
-    "JOBSEEKER_REQUEST_INVALID": "That change was not in the expected shape, so nothing was saved."
+    "JOBSEEKER_REQUEST_INVALID": "That change was not in the expected shape, so nothing was saved.",
+    "DEVCASE_SOURCE_SELECTION_INVALID": "That candidate selection could not be read. Preview the matches again and re-apply."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -2573,7 +2401,9 @@
         "fellBack": "(fell back from {provider})",
         "providerGroup": "Provider",
         "chunks": "{spoken} of {total} chunks",
-        "truncated": "stopped after {spoken} of {total} chunks. The rest is in the text."
+        "truncated": "stopped after {spoken} of {total} chunks. The rest is in the text.",
+        "continue": "Continue",
+        "noVoiceFor": "{provider} has no installed voice for {language}. It will fall back to another provider or accent."
       },
       "availabilityUnknown": "We could not check whether the interview service is reachable.",
       "availabilityRetry": "Check again",
@@ -3248,7 +3078,6 @@
       "ovOpen": "Open the orbit",
       "ovCoreAria": "The orbit, folded: {people, plural, one {# person} other {# people}} on {stages, number} stages. Open it.",
       "ovRingsLegend": "Rings, outside in: {stages}",
-      "ovActive": "Active",
       "ovNothingToday": "Nothing is queued for today."
     },
     "board": {
@@ -3958,7 +3787,8 @@
       "rematched": "Alternative role added to the pipeline.",
       "no_alternative": "No alternative role above the match floor.",
       "advisory": "Advisory only. The candidate is past the screening gate.",
-      "drafted": "Draft ready to copy."
+      "drafted": "Draft ready to copy.",
+      "skipped_gate_closed": "Gate closed. Review already waiting on a decision."
     },
     "controlCenter": {
       "open": "Open the control center",
@@ -4806,6 +4636,9 @@
     "declineAria": "Decline {name}",
     "viewTranscriptScorecard": "View transcript & scorecard",
     "reviewScorecard": "Review scorecard in Decisions",
+    "unscoredChip": "Not scored yet",
+    "scoringChip": "Scoring...",
+    "rescoreButton": "Re-score",
     "loadFailed": "Failed to load.",
     "startFailed": "Couldn't start the interview.",
     "slotSuggested": "suggested",
@@ -5040,6 +4873,9 @@
       "cited": "· cited",
       "loadFailed": "Couldn't load the interview.",
       "scorecardLoadFailed": "Couldn't load the scorecard.",
+      "unscoredNotice": "This interview has been completed but has not been scored yet.",
+      "rescoreButton": "Re-score",
+      "rescoring": "Scoring...",
       "telemetryHeading": "Conversation signals",
       "telemetryNote": "Descriptive signals from the call, not scores.",
       "telemetryTalkShare": "Candidate talk share",
@@ -5994,7 +5830,10 @@
       "publishSourcingFailed": "Sourcing broke, so nobody was pulled in. That is not the same as nobody matching.",
       "publishInFlight": "Going live and sourcing candidates. This can take a few minutes.",
       "publishStopWaiting": "Stop waiting",
-      "publishAbandoned": "Stopped waiting. The role may already be live, but the candidate sweep was cancelled. Reopen this role to check.",
+      "publishAbandoned": "Stopped waiting. The role is live, but candidate sourcing was interrupted. Use Finish sourcing to resume.",
+      "publishResumed": "Sourcing resumed.",
+      "publishSourcingIncomplete": "The role is live, but candidate sourcing was interrupted.",
+      "finishSourcing": "Finish sourcing",
       "publishLastResult": "Last publish",
       "retry": "Retry",
       "publishSilverFailed": "Rediscovery couldn't run for this role, so no past candidates were flagged. That is not the same as none qualifying.",
@@ -7010,16 +6849,12 @@
   },
   "channels": {
     "comms": {
-      "count": "{count, plural, one {# message} other {# messages}}",
-      "deadLetters": "{count, plural, one {# dead-letter needs attention} other {# dead-letters need attention}}",
       "noAddressHint": "This candidate has no deliverable email, so a real relay can’t reach them. Capture an address before relying on this send.",
       "empty": "No messages sent yet. They’ll appear here as candidates move through the funnel.",
       "loadFailed": "Couldn't load communications.",
       "relayNotConfigured": "No delivery relay configured. These messages are NOT being sent to candidates. Set COMMS_WEBHOOK_URL to enable delivery.",
       "loading": "Loading communications",
       "bouncedAt": "Relay reported a bounce {time}: {detail}",
-      "showing": "Showing {shown} of {total}",
-      "showMore": "Show more",
       "resend": "Resend",
       "resending": "Resending…",
       "resent": "Resent",
@@ -7038,10 +6873,8 @@
       "colRole": "Role",
       "colChannel": "Channel",
       "colType": "Type",
-      "colStatus": "Status",
       "colRecorded": "Recorded",
       "recordedHint": "When Kandi recorded the message. A resend is its own row, so original and resend are distinguishable.",
-      "via": "via {channel}",
       "statusSent": "Sent",
       "statusQueued": "Queued",
       "statusFailed": "Failed",
@@ -7055,9 +6888,6 @@
       "loadingOlder": "Loading older…",
       "beyondWindow": "Older messages exist, but they're beyond this view's reach."
     },
-    "eyebrow": "Inbound",
-    "title": "Where candidates come in",
-    "statusListening": "Listening",
     "webhooks": {},
     "items": {
       "apply": {},
@@ -7069,9 +6899,7 @@
     "relay": {
       "title": "Delivery relay",
       "intro": "Where outbound candidate messages actually go. Wire a mail relay, Zapier, or your ATS endpoint. Without one, messages stay in the local outbox and nothing reaches a candidate.",
-      "statusOn": "Delivering",
       "statusOff": "Not configured",
-      "secretSet": "Signing secret set",
       "envNote": "Configured by the COMMS_WEBHOOK_URL environment variable. Remove it to manage the relay here.",
       "urlLabel": "Relay endpoint (https)",
       "secretLabel": "Signing secret",
@@ -7092,7 +6920,6 @@
       "statusPaired": "Paired",
       "statusOff": "Not paired",
       "statusOffline": "Offline mode",
-      "secretSet": "Signing secret set",
       "sealedBadge": "Sealed",
       "envNote": "Configured by the KP_EDGE_URL environment variable. Remove it to manage the pairing here.",
       "offlineNote": "KP_OFFLINE=1: this install makes no outbound calls, so the edge is not used. Inbound events reach it only while the workspace is running.",
@@ -7106,14 +6933,9 @@
       "saveFailed": "Couldn't save the edge",
       "drainNow": "Drain now",
       "drained": "Drained: {applied} filed, {skipped} skipped",
-      "drainFailed": "Drain failed: {reason}",
       "enableSealing": "Enable sealing",
       "sealedNow": "Sealing enabled. The edge can no longer read what it holds.",
       "sealFailed": "Couldn't publish the sealing key",
-      "cursor": "Drained up to event {cursor}",
-      "lastError": "last error: {reason}",
-      "lastDrain": "Last drain {time}",
-      "lastHeartbeat": "last beat {time}",
       "neverDrained": "Never drained",
       "pendingWaiting": "{pending} still waiting at the edge",
       "pendingClear": "nothing waiting",
@@ -7126,22 +6948,14 @@
       "drainFailedUnknown": "Drain failed. The reason is in this install's server log.",
       "drainFailedSecretUnreadable": "Drain stopped: this install cannot read the stored edge secret. Nothing was lost. Re-enter the secret, or restore the key it was encrypted with."
     },
-    "tablist": "Integration",
     "waiting": "{count} waiting in the pipeline",
     "ledger": "Ledger",
-    "statusLive": "Live",
-    "statusConfigured": "Configured",
-    "statusOff": "Off",
     "statusNothingPublished": "Nothing published",
     "statusWaiting": "Waiting",
     "copyLink": "Copy link",
     "copy": "Copy",
     "copied": "Copied",
     "sections": {
-      "comms": {
-        "label": "Communications",
-        "blurb": "Every candidate-facing message, in one auditable ledger."
-      },
       "careers": {
         "label": "Careers page",
         "blurb": "Your public apply page: one link, embeddable anywhere."
@@ -7157,8 +6971,6 @@
     },
     "stats": {
       "publishedRoles": "Published roles",
-      "waiting": "Waiting",
-      "receivers": "Receivers",
       "received": "Received",
       "leads": "Leads filed"
     },
@@ -7172,16 +6984,11 @@
     },
     "careers": {
       "empty": "No published roles yet. Publish a job and its apply link appears here.",
-      "applyLink": "apply link",
       "publishRole": "Publish a role",
       "viewAllRoles": "All roles"
     },
     "receivers": {
-      "role": "Role",
-      "lang": "Lang",
-      "acceptedHint": "Candidates this receiver actually filed. Received is connectivity, including probes and rejected payloads.",
       "firstLead": "First lead",
-      "copyEndpoint": "Copy endpoint",
       "removeAria": "Remove receiver for {role}",
       "confirmTitle": "Remove this receiver?",
       "confirmBody": "This deletes the intake endpoint for <b>{role}</b>. The <b>{endpoint}</b> stops accepting applications immediately and can’t be restored. You’d have to add a new receiver and re-point the source at its new address.",
@@ -7198,14 +7005,12 @@
       "langLabel": "Candidate language",
       "noJobs": "Publish a role first. Each receiver binds to one job.",
       "noJobsCta": "Go to the JD library",
-      "cancel": "Cancel",
       "create": "Create",
       "creating": "Creating…",
       "createFailed": "Couldn’t create it. Try again.",
       "removeFailed": "Couldn’t remove it. Try again."
     },
     "email": {
-      "title": "Add role inbox",
       "add": "Add inbox",
       "emptyWired": "No role inboxes yet. Add one to get a forwarding address.",
       "emptyUnwired": "No role inboxes yet. Add one to get its receiver URL.",
@@ -7229,7 +7034,6 @@
       "notWiredHowToSetup": "To turn on real forwarding, route an inbound-email provider (Postmark, SendGrid or Mailgun inbound) at this endpoint and set <code>EMAIL_INBOUND_DOMAIN</code> to the domain it accepts mail on. The forwarding address and the Gmail/Outlook steps appear here once it is set."
     },
     "ads": {
-      "title": "Add ad-form receiver",
       "add": "Add receiver",
       "empty": "No ad-form receivers yet. Add one to get a webhook URL.",
       "endpoint": "Receiver URL",
@@ -7252,17 +7056,14 @@
     },
     "copyFailed": "Copy failed. Select the text.",
     "receiversTruncated": "Showing the most recent receivers. Some are not listed, so a channel below may look emptier than it is.",
-    "statusNeedsAttention": "Needs attention",
     "pull": {
       "title": "Pull source",
       "intro": "Optional. Give a URL that lists new applications and the studio asks it on every tick what arrived while this machine was off. Leave it empty to stay push-only.",
       "statusOn": "Pulling",
       "statusOff": "Push only",
       "statusFailing": "Last pull failed",
-      "secretSet": "Bearer token set",
       "failingTitle": "The source did not answer the last pull. Applications it holds are not reaching this studio.",
       "failingHint": "Check the URL and the bearer token, then save. Saving clears this error; the next pull shows whether the fix worked.",
-      "reachedNoLeadsHint": "This receiver has been reached but has not filed a candidate yet. A test ping counts as reached. If real applications should have arrived, check the source’s field mapping, or simulate a CV above to watch a real application go through.",
       "urlLabel": "Pull URL (https)",
       "secretLabel": "Bearer token",
       "secretPlaceholder": "Optional, sent as Authorization: Bearer",
@@ -7271,41 +7072,27 @@
       "save": "Save pull source",
       "saved": "Pull source saved",
       "saveFailed": "Couldn’t save the pull source",
-      "lastPull": "Last pull {time}",
       "neverPulled": "Not pulled yet. The clock picks it up on its next tick.",
       "pushOnly": "Push only: applications arrive only while the source can reach this machine.",
       "disableWarning": "Saving with an empty URL turns pulling off and forgets the source’s position."
     },
     "kit": {
-      "messages": "Messages",
-      "deadLetters": "Dead-letters",
-      "delivery": "Delivery",
       "search": "Name, role or subject",
       "colSubject": "Subject",
       "queuedTip": "Nothing leaves this machine: no relay is configured.",
       "openMessage": "Open message",
-      "record": "Record",
       "body": "Body",
-      "to": "To {recipient}",
       "noBody": "This message has no body.",
       "noEntry": "No pipeline entry on record",
       "noMatch": "No message matches these filters.",
       "lastReceived": "Last received",
-      "acceptedOfReceived": "Accepted of received",
-      "firstLeadAgo": "First lead {time}",
       "neverReached": "Never reached",
-      "health": "Health",
-      "setup": "Setup",
-      "firstReceived": "First received",
       "lastPull": "Last pull",
       "noLeadYet": "No candidate filed yet",
-      "configure": "Configure",
       "lastDrain": "Last drain",
       "lastHeartbeat": "Last heartbeat",
       "edgePending": "Waiting at the edge",
       "edgeCursor": "Drained up to event",
-      "signingSecret": "Signing secret",
-      "neverPaired": "Never paired",
       "notSet": "Not set",
       "notRead": "Not read yet"
     },
@@ -8976,6 +8763,10 @@
     "detach": "Detach",
     "pickJd": "Pick a saved JD…",
     "jdOption": "{title} ({slug})",
+    "jdLinkedTo": "{title}",
+    "jdEditedFrom": "{title} (edited)",
+    "jdEdited": "Edited",
+    "revert": "Revert",
     "analyzing": "Analyzing…",
     "analyzeProfile": "Analyze profile",
     "noInputs": "No inputs attached",
@@ -9092,7 +8883,18 @@
     "preflightRunWithoutBlind": "Run without blind screening",
     "preflightRemove": "Remove {name}",
     "dropRefused": "{name} was not added. {reason}",
-    "dropSingleSlot": "This zone holds one file, so only the first one was kept."
+    "dropSingleSlot": "This zone holds one file, so only the first one was kept.",
+    "priorDecidedTitle": "Seen before: already decided for this role",
+    "priorDecidedBody": "Candidate was marked as {disposition} on {date}.",
+    "priorOpenDecidedReport": "Open decided report",
+    "priorDecidedWarning": "A new run will appear in History as undecided, while the decision remains recorded on the earlier report.",
+    "priorSeenTitle": "Seen before: already analyzed for this role",
+    "priorSeenBody": "Analyzed on {date} with score {score}.",
+    "priorOpenLatestReport": "Open existing report",
+    "priorSeenElsewhereTitle": "Seen before: analyzed for other roles",
+    "priorOtherRolesLabel": "Also analyzed for:",
+    "priorMoreCount": "+{count} more",
+    "priorUnlinkedRole": "unlinked role"
   },
   "integrations": {
     "configLoadFailed": "Couldn't load the saved webhook settings. The values shown may not match what's stored.",
@@ -10174,6 +9976,27 @@
       "jds": {
         "failed": "The saved job descriptions could not be loaded.",
         "retry": "Try again"
+      },
+      "sourcePreview": {
+        "title": "Source candidate matches",
+        "subtitle": "Preview matches from your candidate database before filing into the pipeline.",
+        "loading": "Finding and ranking candidate matches…",
+        "emptyPool": "No candidate profiles matched this role.",
+        "emptySkipped": "{count, plural, one {# profile was skipped during matching} other {# profiles were skipped during matching}}.",
+        "matchesCount": "{total, plural, one {# candidate match} other {# candidate matches}}",
+        "onBoardBadge": "On board ({status})",
+        "score": "Score: {score}",
+        "selectAll": "Select all",
+        "deselectAll": "Deselect all",
+        "fileCta": "File {count, plural, one {# candidate} other {# candidates}} into Accepted",
+        "filing": "Filing candidates…",
+        "previewFailed": "Failed to load candidate preview.",
+        "filingFailed": "Failed to file candidates into the pipeline.",
+        "cancel": "Cancel",
+        "done": "Done",
+        "summaryFiled": "{added, plural, one {# candidate filed into Accepted} other {# candidates filed into Accepted}}{alreadyOnBoard, plural, =0 {} other {, # already on board}}.",
+        "summaryNothingNew": "No new candidates filed; {alreadyOnBoard, plural, one {# was} other {# were}} already on the board.",
+        "summaryDropped": "{dropped, plural, one {# candidate is} other {# candidates are}} no longer available in the database."
       },
       "dismiss": "Dismiss",
       "loadLabel": "assignments",
@@ -14068,6 +13891,258 @@
       "working": "Deleting…",
       "cancel": "Keep my data",
       "failed": "Your data could not be deleted right now. Please try again."
+    },
+    "views": {
+      "label": "View",
+      "sieve": "Sieve",
+      "atlas": "Atlas"
+    },
+    "atlas": {
+      "frame": {
+        "skip": "Skip to the hub",
+        "brandLabel": "Job search, Sky Atlas",
+        "sub": "Sky Atlas",
+        "hubLabel": "Job search hub",
+        "hubHeading": "Your job search: the sky of postings",
+        "skyLabel": "The sky of postings",
+        "sideLabel": "Setup and the four lenses"
+      },
+      "crumb": {
+        "sky": "The sky",
+        "back": "Back to {place}",
+        "label": "Where you are"
+      },
+      "legend": {
+        "label": "Legend",
+        "unread": "Stone: not read yet",
+        "rim": "Ring: never scored"
+      },
+      "note": {
+        "shut": "Shut: the dome opens once your CV is in and the five wants are set.",
+        "half": "Half open: the stars stay unlit and the rim stays empty until the five wants are set.",
+        "ready": "Radius is 100 minus the score. Each sector is a source. The rim holds what never reached a score."
+      },
+      "plate": {
+        "eyebrow": "Plate I",
+        "title": "The market sky",
+        "stylised": "Stylised chart and instruments",
+        "rank": "Rank {n}",
+        "band": "band {low}–{high}",
+        "noBand": "no band",
+        "openStar": "Open this posting",
+        "openSieve": "Open the sieve",
+        "rimEyebrow": "On the rim · never scored",
+        "heldName": "Held at the door",
+        "waitName": "Waiting for a score",
+        "gateWhy": "Caught by a hard gate: it keeps an as-if score, never a zero.",
+        "heldWhy": "Their source is switched off.",
+        "waitWhy": "Not scored yet: that is not a low score.",
+        "rimCount": "Postings: {n}.",
+        "sectorEyebrow": "Source",
+        "sectorCount": "Postings: {n} · scored: {scored}",
+        "bestHere": "best here"
+      },
+      "aria": {
+        "star": "Rank {rank}: {who}. Score {score}, {tier}.",
+        "held": "{who}. Held at the door: its source is off.",
+        "wait": "{who}. Waiting for a score.",
+        "gated": "{who}. Caught by {gates}; not scored.",
+        "sector": "{name}: postings {n}, scored {scored}",
+        "rimGate": "{name}: caught {n}. Open the sieve.",
+        "rimHeld": "Held at the door: {n}. Open the sieve.",
+        "rimWait": "Waiting for a score: {n}. Open the sieve.",
+        "plateLocked": "The dome is {state}: {text}. Press to see what opens it.",
+        "shut": "shut",
+        "halfOpen": "half open"
+      },
+      "rim": {
+        "held": "Held at the door {n}",
+        "heldNone": "Held: none",
+        "wait": "Waiting: {n}",
+        "waitNone": "Waiting: none",
+        "chipsLabel": "The rim: what never reached a score",
+        "chipsIntro": "Rim, never scored:",
+        "heldShort": "Held at the door",
+        "waitShort": "Waiting",
+        "none": "none"
+      },
+      "ceremony": {
+        "skip": "Skip the opening"
+      },
+      "keys": {
+        "label": "Keys",
+        "arrows": "Arrow keys",
+        "arrowsAct": "between stars",
+        "enter": "Enter",
+        "enterAct": "open",
+        "esc": "Esc",
+        "back": "back",
+        "decide": "decide",
+        "walk": "walk the list"
+      },
+      "headline": {
+        "closed": "Closed",
+        "noCvText": "Drop your CV. The dome opens once all {total} wants are set.",
+        "noCvSub": "Postings waiting: {n}. None is read for you yet.",
+        "toGo": "{n} to go",
+        "toGoText": "The dome opens when all {total} are set.",
+        "missing": "Missing: {list}",
+        "reading": "Reading…",
+        "loadFailed": "The postings could not be loaded.",
+        "nothing": "Nothing",
+        "nothingText": "is in the sky: every source is held at the door.",
+        "emptyText": "is in the sky yet: scan your sources to fill it.",
+        "worthText": "of {total} scored are worth your evening.",
+        "worthSub": "{strong} strong, {promising} promising",
+        "none": "None",
+        "noneText": "reached promising. Your best is {best}.",
+        "noneSub": "The scored field ({n}) is partial."
+      },
+      "unlock": {
+        "eyebrow": "What opens the dome",
+        "noCvTitle": "Drop your CV",
+        "title": "{n} of {total} wants set",
+        "noCvText": "The wants start from your CV. Then each want turns the iris a notch.",
+        "missing": "Still to set: {list}.",
+        "set": "set",
+        "notSetNoCv": "not set: drop your CV first",
+        "optional": "optional",
+        "missingOne": "missing",
+        "ctaNoCv": "Drop your CV",
+        "ctaOpen": "Open the market"
+      },
+      "wants": {
+        "cta": {
+          "places": "Set your places",
+          "pay": "Set your pay floor",
+          "titles": "Set your titles",
+          "modes": "Set your work mode",
+          "level": "Set your level",
+          "languages": "Confirm your languages"
+        },
+        "name": {
+          "places": "Places",
+          "pay": "Pay floor",
+          "titles": "Titles",
+          "modes": "Work mode",
+          "level": "Level",
+          "languages": "Languages"
+        }
+      },
+      "deck": {
+        "label": "The instrument deck",
+        "cvIn": "CV in",
+        "cvDrop": "Drop your CV",
+        "needsCv": "Needs your CV",
+        "skills": "{n, plural, one {# skill} other {# skills}} · {stated} stated only",
+        "wantsSet": "{n} of {total} set",
+        "startHere": "start here",
+        "cv": {
+          "name": "Lens",
+          "long": "Your CV"
+        },
+        "read": {
+          "name": "Spectrum",
+          "long": "What your CV reads as"
+        },
+        "want": {
+          "name": "Bearing",
+          "long": "What you want"
+        }
+      },
+      "lenses": {
+        "label": "The four lenses",
+        "lockedLabel": "The four lenses, locked",
+        "notSwitchedOn": "The market: not switched on",
+        "locked": "Locked",
+        "lockedAria": "{name}: locked. Press to see what opens it.",
+        "lockedExplain": "{name} is locked. {text}",
+        "lockedMissing": "Still to set: {list} ({n} of {total} set).",
+        "weighEmpty": "Nothing is scored yet, so there is nothing to weigh.",
+        "sieve": {
+          "name": "Sieve",
+          "long": "The sieve"
+        },
+        "evening": {
+          "name": "Evening",
+          "long": "Worth your evening"
+        },
+        "weigh": {
+          "name": "Weigh",
+          "long": "Weigh one posting"
+        },
+        "sources": {
+          "name": "Sources",
+          "long": "Sources"
+        },
+        "sieveFact": "{n} caught",
+        "eveningFact": "{n} worth it",
+        "eveningNone": "none yet",
+        "weighFact": "{n} decided",
+        "weighNone": "none decided",
+        "sourcesHeld": "{on} on · {held} held",
+        "sourcesFact": "{on} on"
+      },
+      "top5": {
+        "headFull": "Top five this evening",
+        "headSome": "Top five · {n} worth it",
+        "headNone": "Best five · none promising",
+        "headEmpty": "No postings yet",
+        "empty": "Nothing has been scanned yet.",
+        "meta": "{scored} scored of {found} found · score and band: how sure",
+        "loading": "Reading the postings…",
+        "none": "Nothing is scored yet: every source is held at the door.",
+        "decideSources": "Decide sources",
+        "all": "All {n} scored: open the catalog"
+      },
+      "card": {
+        "aria": "Number {rank}: {title}, {company}. Score {score}, {tier}. {pay}.",
+        "payUnstated": "Pay not stated",
+        "pay": "Pay {range} {cur}/{period}",
+        "perMonth": "mo",
+        "perYear": "yr"
+      },
+      "strip": {
+        "label": "Setup, folded away",
+        "setup": "Setup {n} of {total}",
+        "edit": "Edit setup"
+      },
+      "levels": {
+        "cv": {
+          "name": "Your CV",
+          "kicker": "Setup · lens",
+          "lead": "Drop a CV to start, or replace the one you have."
+        },
+        "read": {
+          "name": "What it reads as",
+          "kicker": "Setup · spectrum",
+          "lead": "The person read out of your CV: the shape of each skill says where the claim comes from."
+        },
+        "want": {
+          "name": "What you want",
+          "kicker": "Setup · bearing",
+          "lead": "Five wants steer the search. Each one you set turns the dome’s iris a notch."
+        },
+        "sieve": {
+          "name": "The sieve",
+          "kicker": "The market · sieve",
+          "lead": "Every posting, poured through named gates."
+        },
+        "evening": {
+          "name": "Worth your evening",
+          "kicker": "The market · evening",
+          "lead": "The ranking: the top five, the skyline and the whole list."
+        },
+        "sources": {
+          "name": "Sources",
+          "kicker": "The market · sources",
+          "lead": "Where the postings come from, and what each source has put in the sky."
+        },
+        "weigh": {
+          "name": "Weigh one posting",
+          "kicker": "The market · weigh"
+        }
+      }
     }
   },
   "journey": {
@@ -16253,6 +16328,455 @@
       "neverUnlocks": "never unlocks",
       "neverText": "A rejection is always a person’s. The machine cannot commit one.",
       "detailNote": "One switch pauses every step that runs unattended."
+    }
+  },
+  "overviewLit": {
+    "headAria": "{count, plural, =0 {Nobody is waiting on a human.} one {# person waiting on a human.} other {# people waiting on a human.}} Light them on the orbit and open it.",
+    "why": "{list}. Each of them is a haloed dot on the orbit.",
+    "whyNone": "Nobody is waiting on a human right now.",
+    "kind": {
+      "decision": "{count, plural, one {# key decision} other {# key decisions}}",
+      "screening_review": "{count, plural, one {# screening review} other {# screening reviews}}",
+      "scorecard_review": "{count, plural, one {# scorecard} other {# scorecards}}",
+      "rejection_review": "{count, plural, one {# rejection to confirm} other {# rejections to confirm}}",
+      "offer_review": "{count, plural, one {# drafted offer} other {# drafted offers}}",
+      "calendar": "{count, plural, one {# interview slot} other {# interview slots}}"
+    },
+    "needsHand": "needs you, start here",
+    "motionHand": "in motion today",
+    "needsAria": "Needs you",
+    "motionAria": "In motion today",
+    "haloNote": "haloed = waiting on you",
+    "firstUp": {
+      "eyebrow": "First up",
+      "waitingOn": "{kind} · {stage}",
+      "overLine": "{over, plural, =0 {At} one {# day over} other {# days over}} the {sla, number}-day SLA",
+      "insideLine": "Day {days, number} of a {sla, number}-day SLA",
+      "none": "Nobody is waiting on a human right now.",
+      "noClock": "{count, plural, one {# person is} other {# people are}} waiting, and none has a running stage clock: each was placed on their stage and never moved, or stands on a stage with no SLA, such as the last one."
+    },
+    "queue": {
+      "decisions": "{count, plural, one {# person waiting on a decision or review} other {# people waiting on a decision or review}}",
+      "openAria": "{label}. Light them on the orbit and open it.",
+      "more": "+{count, number} more",
+      "on": "on {stages}",
+      "label": {
+        "decisions": "{count, plural, one {person waiting on a decision or review} other {people waiting on a decision or review}}",
+        "inbound": "{count, plural, one {new application} other {new applications}}",
+        "scorecards": "{count, plural, one {scorecard ready to review} other {scorecards ready to review}}",
+        "offerReviews": "{count, plural, one {drafted offer awaiting your approval} other {drafted offers awaiting your approval}}",
+        "awaitingSlot": "{count, plural, one {interview waiting on a slot} other {interviews waiting on a slot}}",
+        "offersOut": "{count, plural, one {candidate in the Offer stage} other {candidates in the Offer stage}}",
+        "hired": "{count, plural, one {candidate hired this week} other {candidates hired this week}}"
+      }
+    },
+    "slotNote": "The slot at 12 holds each ring’s count.",
+    "totals": {
+      "aria": "Totals",
+      "active": "active people",
+      "inside": "inside their stage’s SLA · {over, number} over",
+      "insideOf": "of {measured, number} measured",
+      "hired": "hired",
+      "hiredOf": "of {target, number}",
+      "open": "roles open, nobody on them yet",
+      "drafts": "+ {count, plural, one {# draft} other {# drafts}}"
+    },
+    "lit": {
+      "aria": "Lit on the orbit",
+      "clear": "Show everyone"
+    },
+    "ringKey": {
+      "lead": "Rings, outside in",
+      "item": "{stage} · {count, number}"
+    }
+  },
+  "channelsNight": {
+    "shell": {
+      "root": "Channels",
+      "crumbsLabel": "Where you are",
+      "back": "Back to {place}",
+      "keysLabel": "Keyboard",
+      "keyNames": {
+        "tab": "Tab",
+        "arrows": "Arrows",
+        "enter": "Enter",
+        "esc": "Esc",
+        "leftRight": "← →"
+      },
+      "keyActs": {
+        "move": "move",
+        "open": "open",
+        "back": "back",
+        "channel": "channel"
+      },
+      "kicker": {
+        "setup": "Setup",
+        "ledger": "Ledger",
+        "message": "One message"
+      },
+      "feedsName": "Pull feeds",
+      "blurb": {
+        "feeds": "Sources the studio asks on every tick what arrived while this machine was off.",
+        "relay": "Where outbound candidate messages actually go.",
+        "edge": "Who answers for this workspace while it is switched off."
+      },
+      "openLedger": "Open the ledger",
+      "prevChannel": "Previous: {channel}",
+      "nextChannel": "Next: {channel}",
+      "channelPosition": "{index} of {total}",
+      "prevMessage": "Previous message",
+      "nextMessage": "Next message",
+      "messagePosition": "Message {index} of {total}",
+      "message": "Message",
+      "messageMissing": "This message is not in the loaded ledger.",
+      "messageMissingBody": "It may be older than the loaded window, or it no longer exists.",
+      "feedsEmpty": "No receiver yet. A pull source belongs to a receiver: add one under Email intake or Ad forms, then give it a pull URL here."
+    },
+    "plumbing": {
+      "eyebrow": "Channels · the whole plumbing",
+      "sceneLabel": "The plumbing as a district. Every building is a button.",
+      "comingIn": "Coming in",
+      "goingOut": "Going out",
+      "studio": "The studio",
+      "houses": "Candidates",
+      "ledgerName": "Ledger",
+      "startHere": "start here",
+      "startHereLabel": "Start here: {title}",
+      "queuedNotSent": "queued, NOT sent",
+      "queued": "queued",
+      "headline": {
+        "reading": "Reading the plumbing…",
+        "ok": "Everything is wired and flowing.",
+        "okSub": "Doors are open, the relay delivers, and nothing is waiting on you.",
+        "okPartial": "Nothing that could be read needs you.",
+        "okPartialSub": "Part of the plumbing could not be read, so this is not an all-clear.",
+        "quiet": "Nothing needs you right now.",
+        "quietSub": "{relay, select, proven {The relay has delivered mail.} other {The relay is set up but has not sent anything yet, so delivery is not proven.}} {off, plural, =0 {Every channel is set up.} one {One channel is off or not set up.} other {# channels are off or not set up.}}"
+      },
+      "figures": {
+        "waiting": "Waiting",
+        "waitingNote": "in the pipeline",
+        "messages": "Messages",
+        "sent": "{count} sent",
+        "noneSent": "none sent",
+        "newestPage": "newest page",
+        "dead": "Dead letters",
+        "deadNote": "failed, bounced or unmatched",
+        "notRead": "not read yet",
+        "notMeasured": "not measured: nothing is sent"
+      },
+      "needsTitle": "Needs you, worst first",
+      "need": {
+        "relayOffQueued": {
+          "title": "{count, plural, one {<em># message</em> is} other {<em># messages</em> are}} NOT being sent to candidates",
+          "detail": "No delivery relay is configured, so every message is recorded and none leaves this machine.",
+          "cta": "Configure the relay"
+        },
+        "relayOff": {
+          "title": "No delivery relay",
+          "detail": "Nothing can be delivered until a relay is configured.",
+          "cta": "Configure the relay"
+        },
+        "relayUnreadable": {
+          "title": "The relay's signing secret can't be read",
+          "detail": "A relay is saved, but this deployment can't decrypt its secret, so every message stays in the local outbox.",
+          "cta": "Fix the relay"
+        },
+        "dead": {
+          "title": "{count, plural, one {<em># message</em> needs} other {<em># messages</em> need}} you",
+          "detail": "{failed} failed and {bounced} bounced. A person decides what happens to them.",
+          "detailFailed": "{failed, plural, one {# failed} other {# failed}}. A person decides what happens to them.",
+          "detailBounced": "{bounced, plural, one {# bounced} other {# bounced}}. A person decides what happens to them.",
+          "cta": "Open the dead letters"
+        },
+        "pullFailing": {
+          "title": "Pull failing for {role}",
+          "detail": "The source did not answer the last pull. Applications it holds are not reaching this studio.",
+          "cta": "Fix the feed"
+        },
+        "edgeFailing": {
+          "title": "The edge drain is failing",
+          "detail": "The last drain stopped. Nothing was lost; it is retried on the next tick.",
+          "cta": "Open the edge"
+        },
+        "edgeSecretMissing": {
+          "title": "The edge has no shared secret",
+          "detail": "An endpoint is set but no secret is, so nothing is drained.",
+          "cta": "Add the secret"
+        },
+        "orphaned": {
+          "title": "{count, plural, one {<em># delivery receipt</em> matches} other {<em># delivery receipts</em> match}} no message",
+          "detail": "The relay reported a failure for messages Kandi never sent. Check the ref/kind mapping in the relay integration.",
+          "cta": "Open the receipts"
+        },
+        "reachedNoLeads": {
+          "title": "{role}: reached, no candidate filed",
+          "detail": "{count, plural, one {# request} other {# requests}} received, none filed. Check the source's field mapping.",
+          "cta": "Open the receiver"
+        },
+        "queuedWithRelay": {
+          "title": "{count, plural, one {<em># message</em> is} other {<em># messages</em> are}} queued, not sent",
+          "detail": "Queued means recorded. It is not sent until a relay takes it.",
+          "cta": "Open the queue"
+        },
+        "edgeOff": {
+          "title": "The edge is not paired",
+          "detail": "While this studio is switched off, nothing answers for it.",
+          "cta": "Pair the edge"
+        },
+        "edgePending": {
+          "title": "{count, plural, one {<em># event</em> is} other {<em># events</em> are}} waiting at the edge",
+          "detail": "The next drain files them.",
+          "cta": "Open the edge"
+        },
+        "nothingPublished": {
+          "title": "Nothing is published",
+          "detail": "Publish a role and its apply link appears on the careers page.",
+          "cta": "Open the careers page"
+        },
+        "receiverWaiting": {
+          "title": "{role}: waiting for the first application",
+          "detail": "Configured, nothing received yet.",
+          "cta": "Open the receiver"
+        }
+      },
+      "chip": {
+        "published": "Published",
+        "notSetUp": "Not set up",
+        "notPulled": "Not pulled yet",
+        "notSending": "NOT sending",
+        "nothingSent": "Nothing sent yet",
+        "neverDrained": "Paired, never drained",
+        "drainFailing": "Drain failing",
+        "needsYou": "{count, plural, one {# needs you} other {# need you}}",
+        "noneSent": "None sent",
+        "clear": "Nothing needs you",
+        "empty": "No messages yet"
+      },
+      "fact": {
+        "careersRoles": "{count, plural, one {# open role} other {# open roles}}, a link each",
+        "careersNone": "Publish a role for its link",
+        "emailNone": "No role inbox yet",
+        "adsNone": "No ad-form receiver yet",
+        "receiversNothing": "{count, plural, one {# receiver} other {# receivers}}, nothing received yet",
+        "receiversTraffic": "{count, plural, one {# receiver} other {# receivers}} · {received} in · {filed} filed",
+        "feedsNone": "No pull source set",
+        "feedsFailing": "{failing} of {count} failing",
+        "feedsNotPulled": "The clock picks it up on its next tick",
+        "feedsPulling": "{count, plural, one {# feed} other {# feeds}} · last pull {time}",
+        "relayQueuedNotSent": "{queued, plural, one {# message} other {# messages}} NOT sent",
+        "relayNothingDeliverable": "Nothing can be delivered",
+        "relayTraffic": "{sent} sent{needs, plural, =0 {} other { · # need you}}{queued, plural, =0 {} other { · # queued}}",
+        "relayNoSendYet": "No message has gone out through it yet",
+        "relayOutboxOnly": "Every message stays in the local outbox",
+        "edgeNobody": "No one answers while the studio is off",
+        "edgeOfflineFact": "This install makes no outbound calls",
+        "edgeSecretFact": "An endpoint is set, no secret: nothing drains",
+        "edgeNeverDrainedFact": "Drain once to confirm it answers",
+        "edgeBeat": "Last beat {time} · {backlog}",
+        "edgeNoBeat": "No heartbeat yet · {backlog}",
+        "bookNoneSentFact": "{total, plural, one {# message} other {# messages}} · none sent",
+        "bookTraffic": "{total, plural, one {# message} other {# messages}} · {sent} sent{orphaned, plural, =0 {} other { · # unmatched}}",
+        "bookEmptyFact": "They appear as candidates move through the funnel",
+        "olderExist": "older ones exist"
+      }
+    },
+    "ledger": {
+      "title": "The post book",
+      "lead": "Every candidate-facing message, in one auditable ledger. Queued is recorded, not sent.",
+      "chipsLabel": "Filter by verdict",
+      "needsYou": "Needs you",
+      "notMeasuredTip": "Not measured: with no relay nothing is sent, so a zero here would not be good news.",
+      "notMeasuredNote": "A dash is not a zero: with no relay nothing is sent, so nothing could fail, bounce or come back.",
+      "relayOffStays": "Configuring a relay sends the messages that come after it. The ones recorded here stay recorded.",
+      "queuedStays": "They were recorded while no relay was configured. A queued message stays in the local outbox; nothing sends it later.",
+      "scope": "Messages for the {count, plural, one {# role} other {# roles}} fed by {channel}.",
+      "scopeNone": "{channel} feeds no role yet, so no message is scoped to it.",
+      "showAll": "Show every message",
+      "colVerdict": "Verdict",
+      "staleRead": "Couldn't refresh communications. These are the rows from the last read.",
+      "keys": {
+        "rows": "↑ ↓",
+        "step": "j k",
+        "slash": "/",
+        "digits": "1–7",
+        "row": "row",
+        "search": "search",
+        "verdict": "verdict"
+      }
+    },
+    "message": {
+      "hint": {
+        "queued": "Recorded, not sent",
+        "sent": "The relay accepted it",
+        "recovered": "Failed first, then a resend went out",
+        "failed": "Dead letter: needs you",
+        "bounced": "The address was rejected: needs you",
+        "orphaned": "A receipt that matches no message"
+      },
+      "to": "To",
+      "reference": "Reference",
+      "note": {
+        "queuedNoRelay": "<b>Nothing left this machine: no relay is configured.</b> This message is recorded. It is NOT sent to {name}.",
+        "queuedLater": "It was recorded while no relay was configured. A queued message stays in the local outbox; nothing sends it later."
+      },
+      "act": {
+        "title": "What you can do",
+        "configureHelp": "A relay sends the messages that come after it. This one stays recorded.",
+        "retryHelp": "A resend is its own row, so the original and the resend stay distinguishable. It says Resent only if the relay takes it.",
+        "correctSubmit": "Resend to the corrected address"
+      },
+      "timeline": {
+        "title": "Delivery timeline",
+        "lead": "Only what the record holds. A step without a time says why.",
+        "notYet": "not yet",
+        "cannot": "cannot happen",
+        "noTime": "no time on record",
+        "bounceDetail": "The relay reported: {detail}",
+        "step": {
+          "recorded": {
+            "title": "Recorded",
+            "detail": "Written to the local outbox."
+          },
+          "relayed": {
+            "title": "Accepted by the relay",
+            "detail": "The relay answered with success; the ledger row was written after it."
+          },
+          "neverHanded": {
+            "title": "Never handed to a relay",
+            "relayOff": "No delivery relay is configured, so it has not left this machine.",
+            "relayOn": "It was recorded while no relay was configured. Nothing sends a queued message later."
+          },
+          "deadLettered": {
+            "title": "Dead-lettered",
+            "detail": "The relay refused it. No reason was recorded."
+          },
+          "needsYou": {
+            "title": "Waiting on a person",
+            "detail": "Resend it, or leave it as it is. Nothing retries it on its own."
+          },
+          "resent": {
+            "title": "Resent",
+            "detail": "A resend went out and the relay accepted it."
+          },
+          "bounced": {
+            "title": "Bounced",
+            "detail": "The relay reported a bounce without a detail."
+          },
+          "needsAddress": {
+            "title": "Needs a corrected address",
+            "detail": "Resending to the same address bounces again."
+          },
+          "receiptArrived": {
+            "title": "Receipt arrived",
+            "detail": "The relay called back about a message."
+          },
+          "unmatched": {
+            "title": "Left unmatched",
+            "detail": "No message here carries its reference or type. Check the ref/kind mapping in the relay integration."
+          }
+        }
+      },
+      "keys": {
+        "brackets": "[ ]",
+        "step": "previous / next"
+      }
+    },
+    "setup": {
+      "stepper": {
+        "label": "All six channels",
+        "dot": "{channel}: {state}"
+      },
+      "careers": {
+        "help": "Only open roles hand out a link, so a closed role never leaves a dead one behind. Applications through this page land in the pipeline; this page does not count them separately.",
+        "testHint": "Files one sample candidate through the apply page of {role}, on a copy of the role marked (SIM).",
+        "copyAria": "Copy the apply link for {role}"
+      },
+      "receivers": {
+        "count": "{count, plural, one {# receiver} other {# receivers}} · each binds to one role",
+        "listEmail": "Role inboxes",
+        "listAds": "Ad-form receivers",
+        "addClose": "Close"
+      },
+      "receiver": {
+        "waitingNote": "Configured, nothing received yet. That is different from broken: the endpoint is live and waiting.",
+        "newNote": "New. The endpoint is a credential: anyone who has it can file applications. Copy it now; it is masked again when you hide it or come back.",
+        "steps": "Setup steps",
+        "stepsHide": "Hide setup steps",
+        "cvHide": "Hide the CV test",
+        "pullHide": "Hide the pull source",
+        "messages": "Messages for this role",
+        "remove": "Remove",
+        "reachNote": "This receiver has been reached but has not filed a candidate yet. A test ping counts as reached. If real applications should have arrived, check the source’s field mapping, or test it with a real CV below to watch one go through.",
+        "firstReceived": "First received",
+        "acceptedHint": "Candidates this receiver actually filed. Received is connectivity, including probes and rejected payloads."
+      },
+      "endpoint": {
+        "reveal": "Reveal",
+        "hide": "Hide",
+        "revealAria": "Reveal the endpoint for {role}",
+        "hideAria": "Hide the endpoint for {role}",
+        "copyAria": "Copy the endpoint for {role}",
+        "masked": "Masked. Reveal it to read it, or copy it."
+      },
+      "secret": {
+        "set": "Set",
+        "setHidden": "Set, hidden",
+        "storedAria": "{label} is set and hidden",
+        "storedHelp": "Stored and hidden. It is never shown again; replace it to change it.",
+        "replace": "Replace",
+        "keep": "Keep the stored one",
+        "show": "Show",
+        "showAria": "Show what you typed",
+        "hideAria": "Hide what you typed",
+        "generate": "Generate",
+        "generatedOnce": "Shown once, right now. Copy it into your relay before you save: after saving it is masked for good.",
+        "copyGenerated": "Copy the generated secret"
+      },
+      "feeds": {
+        "edit": "Edit pull source",
+        "add": "Add a pull source",
+        "close": "Close",
+        "lastError": "Last error",
+        "noError": "No error on the last pull",
+        "goTo": "Open {channel}",
+        "listLabel": "Pull sources, one per receiver"
+      },
+      "relay": {
+        "notSending": "No delivery relay is configured. {count, plural, one {# message is} other {# messages are}} NOT being sent to candidates.",
+        "version": "v{version}",
+        "gate": {
+          "ok": "Sends a test ping, not a candidate message.",
+          "noRelay": "Save an endpoint to test it.",
+          "unsaved": "Unsaved changes: save before testing.",
+          "unreadable": "Re-enter the signing secret and save before testing.",
+          "busy": "Working…"
+        },
+        "outcome": {
+          "sent": "Sent.",
+          "failed": "Failed.",
+          "refused": "Not sent."
+        },
+        "answered": "Answered a test just now",
+        "carried": "What the relay has carried",
+        "delivered": "Delivered",
+        "deliveredSub": "{sent} sent, {recovered} recovered",
+        "queued": "Queued",
+        "queuedSub": "recorded, not delivered",
+        "queuedNotSent": "NOT being sent",
+        "needs": "Needs you",
+        "needsSub": "{failed} failed, {bounced} bounced",
+        "needsAbsent": "Nothing is sent, so nothing can fail",
+        "unmatched": "Unmatched receipts",
+        "unmatchedAbsent": "Needs a relay to report",
+        "reviewQueue": "Review the queue first"
+      },
+      "edge": {
+        "pair": "Pair the edge",
+        "nudge": "Nudge target",
+        "ledger": "The drain ledger",
+        "noBeat": "No heartbeat yet"
+      }
     }
   }
 }

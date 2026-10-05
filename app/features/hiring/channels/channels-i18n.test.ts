@@ -34,22 +34,17 @@ function translator(locale: Locale): { plain: Rich; rich: Rich } {
 const chunks = (c: unknown) => String(c ?? "");
 const TAGS = { b: chunks, i: chunks, code: chunks, endpoint: () => "hook_x@inbound.example.cz" };
 
-// (key, values) exactly as the components call them — kept in lockstep with the kit
-// surface (kit/ChannelsKit*.tsx) and the parts it still mounts (AddReceiverModal,
-// SetupGuide, ReceiverPullCard, receiverHealth.ts). Keys only the retired "Intake
-// Studio" view called left the catalog with it (kit-unification, Gate K2). The column-filter and pager copy moved OUT of this
+// (key, values) exactly as the components call them. The kit view that first called
+// these (kit/ChannelsKit*.tsx, AddReceiverModal, SetupGuide, ReceiverPullCard) is
+// retired; its words live on in the Night Post's levels (night/setup/*: the add form,
+// the setup steps, the CV test, the pull editor; night/ledger, night/message) and in
+// receiverHealth.ts. Keys only the retired "Intake Studio" view called left the
+// catalog with it (kit-unification, Gate K2). The column-filter and pager copy moved OUT of this
 // namespace with the primitives themselves (app/_components/table/*) and is pinned
 // the same way in app/_components/table/table-i18n.test.ts.
 const PLAIN: [string, Record<string, unknown>][] = [
-  ["eyebrow", {}],
-  ["title", {}],
-  ["tablist", {}],
   ["waiting", { count: 4 }],
   ["ledger", {}],
-  ["statusLive", {}],
-  ["statusListening", {}],
-  ["statusConfigured", {}],
-  ["statusOff", {}],
   ["statusNothingPublished", {}],
   ["statusWaiting", {}],
   ["email.notWiredHowTo", {}],
@@ -58,8 +53,6 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["copyFailed", {}],
   ["copyLink", {}],
   ["stats.publishedRoles", {}],
-  ["stats.waiting", {}],
-  ["stats.receivers", {}],
   ["stats.received", {}],
   ["stats.leads", {}],
   ["sim.run", {}],
@@ -68,13 +61,8 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["sim.filed", { label: "Jana Nová", score: 71, role: "Backend Engineer (SIM)" }],
   ["sim.failed", {}],
   ["careers.empty", {}],
-  ["careers.applyLink", {}],
   ["careers.publishRole", {}],
-  ["receivers.role", {}],
-  ["receivers.lang", {}],
-  ["receivers.acceptedHint", {}],
   ["receivers.firstLead", {}],
-  ["receivers.copyEndpoint", {}],
   ["receivers.removeAria", { role: "Backend Engineer" }],
   ["receivers.confirmTitle", {}],
   ["receivers.cancel", {}],
@@ -84,12 +72,10 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["add.langLabel", {}],
   ["add.noJobs", {}],
   ["add.noJobsCta", {}],
-  ["add.cancel", {}],
   ["add.create", {}],
   ["add.creating", {}],
   ["add.createFailed", {}],
   ["add.removeFailed", {}],
-  ["email.title", {}],
   ["email.add", {}],
   ["email.emptyWired", {}],
   ["email.emptyUnwired", {}],
@@ -97,14 +83,13 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["email.endpointUnwired", {}],
   ["email.waiting", {}],
   ["email.notWiredTitle", {}],
-  ["ads.title", {}],
   ["ads.add", {}],
   ["ads.empty", {}],
   ["ads.endpoint", {}],
   ["ads.waiting", {}],
   ["guide.setupFor", {}],
   ["guide.live", {}],
-  // The CV simulator (kit/ChannelsKitCvSim.tsx), restored with the kit parity port.
+  // The CV simulator (night/setup/SetupCvSim.tsx).
   ...(["open", "choose", "namePlaceholder", "emailPlaceholder", "run", "running", "hint", "stub", "requestFailed", "openInPipeline"] as const).map(
     (k): [string, Record<string, unknown>] => [`cvSim.${k}`, {}],
   ),
@@ -115,10 +100,8 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["comms.colRole", {}],
   ["comms.colChannel", {}],
   ["comms.colType", {}],
-  ["comms.colStatus", {}],
   ["comms.colRecorded", {}],
   ["comms.recordedHint", {}],
-  ["comms.via", { channel: "Webhook" }],
   ["comms.statusSent", {}],
   ["comms.statusQueued", {}],
   ["comms.statusFailed", {}],
@@ -131,19 +114,17 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["comms.resendRejected", { reason: "No deliverable address." }],
   ["comms.resendDeadLettered", {}],
   // Receiver health verdict + the pull-source editor (receiverHealth.ts,
-  // ChannelsReceiverPullCard.tsx).
-  ["statusNeedsAttention", {}],
+  // night/setup/SetupPullForm.tsx).
   ["receivers.healthDelivering", {}],
   ["receivers.healthReachedNoLeads", {}],
   ["receivers.healthPullFailing", {}],
   ...(
     [
-      "title", "intro", "statusOn", "statusOff", "statusFailing", "secretSet", "failingTitle", "failingHint",
-      "reachedNoLeadsHint", "urlLabel", "secretLabel", "secretPlaceholder", "secretKeepPlaceholder",
+      "title", "intro", "statusOn", "statusOff", "statusFailing", "failingTitle", "failingHint",
+      "urlLabel", "secretLabel", "secretPlaceholder", "secretKeepPlaceholder",
       "clearSecret", "save", "saved", "saveFailed", "neverPulled", "pushOnly", "disableWarning",
     ] as const
   ).map((k): [string, Record<string, unknown>] => [`pull.${k}`, {}]),
-  ["pull.lastPull", { time: "3 days ago" }],
 ];
 
 const RICH: [string, Record<string, unknown>][] = [
@@ -178,7 +159,7 @@ const RICH: [string, Record<string, unknown>][] = [
   ["cvSim.landed", { name: "Jana Nová", role: "Backend Engineer", suffix: " · Builder", ...TAGS }],
 ];
 
-const SECTION_IDS = ["comms", "careers", "email", "ads"] as const;
+const SECTION_IDS = ["careers", "email", "ads"] as const;
 
 for (const locale of LOCALES) {
   test(`channels catalog (${locale}): every plain message renders with the values the UI passes`, () => {
@@ -214,16 +195,12 @@ for (const locale of LOCALES) {
 
 test("no prototype-stage literal-string disable survives on the Channels surface", () => {
   // The guarantee is per SURFACE, so every file that owns a piece of its markup is held
-  // to it: the tab entry, the kit surface (kit-unification, Gate K2) and the parts it mounts.
+  // to it: the tab entry, the resend fold other surfaces mount, and every Night Post level.
   const files = [
     "ChannelsTab.tsx",
-    "ChannelsAddReceiverModal.tsx",
     "ChannelsCommsBouncedResend.tsx",
-    "ChannelsSetupGuide.tsx",
-    "ChannelsReceiverPullCard.tsx",
-    "ChannelsEdgeCard.tsx",
-    "ChannelsRelayConfigCard.tsx",
-    ...readdirSync(path.join(dir, "kit")).filter((f) => f.endsWith(".tsx")).map((f) => `kit/${f}`),
+    // The Night Post (night/README.md), its levels and its drawings.
+    ...["night", "night/art", "night/setup", "night/ledger", "night/message"].flatMap((d) => readdirSync(path.join(dir, d)).filter((f) => f.endsWith(".tsx")).map((f) => `${d}/${f}`)),
   ];
   for (const f of files) {
     const src = readFileSync(path.join(dir, f), "utf8");

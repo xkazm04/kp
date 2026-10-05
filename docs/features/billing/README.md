@@ -90,7 +90,7 @@ outcomes instead.
 - **Settings → Billing** (`app/features/settings/billing/BillingTab.tsx`) — plan
   card, usage meters, upgrade/checkout, portal link. On an unmetered install the
   same tab is a different page — see the table above.
-- Landing pricing band (`app/landing/spark/...`) links into checkout.
+- Landing pricing band (`app/landing/site/land/Pricing.tsx`) links into checkout: each hosted tier's CTA carries its plan (`/signup?plan=…`, or `/login?plan=…` on a deploy with sign-up closed).
 
 ## Pricing model
 

@@ -497,7 +497,7 @@ strands nobody, and moving them would rewrite closed history.
 | Module / route | Purpose |
 |---|---|
 | `pipeline/jobfit/automation.py` | Task functions: `screen_candidate`, `draft_outreach`, `draft_rejection`, `interview_prep`, `interview_scorecard`, `rematch_candidate`, `evaluate_entry` (Task 7, deterministic). `draft_rejection` / `draft_offer` additionally take the entry’s stored scorecard and ground themselves in it through `interview_evidence` (candidate-safe projection) + `_match_competency` (the checked `decisiveCompetency`). `POLICY` dict holds the hard-coded defaults. Every task renders its fact base through `context_block`, which puts the candidate-authored half behind an untrusted fence and leaves the job/match half plain (see [Every automation prompt fences the candidate's own words](#every-automation-prompt-fences-the-candidates-own-words)); `screen_candidate` additionally shows the scorer's `unproven_facts`, and `rematch_candidate` takes `lang` + stamps `narrativeLang`. `interview_scorecard` additionally fences its transcript and the candidate's name, pins its parse on `ratings`, drops evidence quotes that do not occur in the sampled transcript (`ground_scorecard_evidence`) and stamps `narrativeLang` — scorecard-v7, written up in [docs/features/interviews/README.md](../interviews/README.md#the-scorecard-fences-the-transcript-and-cites-only-what-was-said-scorecard-v7). |
-| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). `--lang` reaches every narrative sub-command, `rematch` included since 2026-09-05. `--pipeline-size N` (the `screen` sub-command only) is the role's active-candidate count and sets the screening strictness tier; omitted = unknown, which resolves to the most lenient tier. |
+| `pipeline/jobfit/automation_cli.py` | Sub-command CLI entry point (`screen`, `outreach`, `rejection`, `prep`, `scorecard`, `rematch`, `policy-pass`); UTF-8 stdio, JSON out, `{error,status,code}` on stderr. `--job-json <path>` passes the live job record from SQLite for single-job tasks (drafting from the entry's actual role and custom JD edits), falling back to the static seed file via `resolve_job_arg` when invoked directly. `--scorecard-file` feeds the stored interview scorecard to `rejection` / `offer` (a malformed file is an honest 400, like `--github-evidence`). `--lang` reaches every narrative sub-command, `rematch` included since 2026-09-05. `--pipeline-size N` (the `screen` sub-command only) is the role's active-candidate count and sets the screening strictness tier; omitted = unknown, which resolves to the most lenient tier. |
 | `app/api/automation/[task]/route.ts` | **Consolidated** per-entry task route (`POST {entryId, notes?}`) — replaced the one-route-per-task layout the original spec proposed. Operator-only (`requireOperator`). |
 | `app/api/automation/run/route.ts` | Task 7 policy pass over active entries. The preview modal surfaces `summary.scoringDeferred` as a warning about job groups left for the next pass when the scoring spawn budget is reached. A commit may carry `approved` (the preview's ticked rows); it is validated by `parseApprovedSelection` (`400 AUTOMATION_SELECTION_INVALID`), scoped to the caller's workspace, and answered with `drifted` / `declined` / `selectionHonored` from `commitReport` (see the policy-pass step above). |
 | `app/_lib/scheduler-jobs.ts` | **The scheduler job registry** (WP4a) — the one list of named clock jobs the clock loop, the schedule route and the control panel iterate: `policy_pass` (15 min, off), `reminders` (1 min, on) and `jobseeker_scan` (720 min, off, `requiresVerifiedRun`). Each entry carries its defaults, its fan-out and whether it must be verified by one manual `ok` run before its clock may be armed. Store-free (the browser imports it for labels); `scheduler-store.ts` reads it through `ensureRegisteredSchedule(def)`. `policy_pass` is the one job still named literally — `tickScheduler` owns its run path and the payload keeps its legacy fields. Pinned by `scheduler-jobs.test.ts` (unique names, a label in all four catalogs, `jobseeker_scan` disabled by default). |
@@ -546,13 +546,73 @@ carry: location, seniority, status, target hires, and the roles nobody is on yet
 `orbit/orbitModel.ts` (pure, `orbitModel.test.ts`) builds the roles, groups and ladders;
 `orbitLayout.ts` the geometry; `orbitPaint.ts` the canvas and the flight; styles are
 `orbit/pipelineOrbit.css`. The region carries `data-sim="pipeline-board"`, the guided walk's
-"hired" chapter target. Top to bottom:
+"hired" chapter target.
+
+**The Overview ("The Orbit, Lit", 2026-09-30).** The page opens one level ABOVE the orbit, on the
+owner's pick of the `/contest orbit-overview` (B/1; it replaced the 2026-09-29 /prototype "Core").
+`orbit/overview/OrbitOverview.tsx` is one screen around the orbit drawn small: the waiting-on-a-human
+count as the hero with what it is made of by approval kind (`OverviewHead`); "needs you, start here"
+on the left (**First up**, `OverviewFirstUp`: of the waiting people who have a stage clock, the one
+furthest over their stage's SLA, else the one nearest it, and an honest line when nobody waits or
+nobody waiting has a clock; then the queues waiting on you) and "in motion today" on the right; the
+totals under it (active, inside the SLA of those the clock measures, hired, open roles + drafts,
+`OverviewTotals`). The queues are `deriveRailRows`' rows plus a **decisions** queue, "N people
+waiting on a decision or review" (entries on a stage of the axis with `decision` / `screening_review`
+/ `rejection_review`: the Decisions tab's kinds, `DECISIONS_QUEUE_KINDS`, minus the two that have a
+card of their own), built by the pure `overview/overviewModel.ts` (`overviewModel.test.ts`). The
+three "waiting" numbers are three populations, and `overviewModel.ts` states each: the hero counts
+every drawn person with any approval kind and breaks it down BY KIND ("17 screening reviews, 6
+interview slots, 5 key decisions and 1 scorecard"); the decisions card counts a subset of the same
+people; the Decisions nav badge keeps its own server rule (`attentionCounts`: every active entry with
+an approval kind, simulated and off-axis rows included). Each card names its most urgent people (a
+name opens the record) and its door ("Show on the board" focuses its ring; "Open Decisions" / "Open
+Schedule" switch tabs). A wire runs from each card to the ring most of its people stand on
+(`OverviewWires`); pointing at or focusing a card (or the hero number, or First up) lights exactly its
+people: they are drawn forward, their halos breathe (still under reduced motion) and threads run from
+the wire's end to each. The pointer and keyboard focus are two slots (`litStep` / `litNow`): the
+pointer wins while it points, and leaving a card falls back to the one that holds focus, never to
+nobody. The small orbit IS the orbit (`OverviewDial`: the same
+`layoutOrbit` over the same groups and lens), so a click opens it as a flight: every dot flies from
+its place in the Overview to its full-size place while the rings widen (`OrbitStage`'s `"grow"`
+arrival, `ringGrowth` in `orbitPaint.ts`), the page first scrolled so the orbit opens in place. A
+card's press opens the orbit with its people still lit (`OrbitLitStrip` names the first eight as
+links to their records and "Show all N" lists the rest, so every lit person is one press away by
+keyboard too; "Show everyone" or Esc clears), a stage queue with its ring focused too. Esc at the orbit (nothing open, nothing lit,
+no ring) returns to the Overview; the trail reads "Overview › The orbit". Ring bands at both levels
+get AREA in proportion to their people (`orbitRings.ts`, equal density, a floor keeps a thin stage
+readable) in alternating limewash tones; the 12 o'clock slot holds each ring's count on the Overview
+and its name in the orbit, and the ring key under the orbit (`OrbitLegend`, kit `ChipButton`s)
+focuses a ring. A narrow sheet stacks the Overview (dial first, no wires).
+
+**Parity with the Overview it replaced** (the 2026-09-29 /prototype "Core": `OverviewCore.tsx`,
+`OverviewOrbit.tsx`, `overviewParts.ts`, `overviewShared.tsx`; checked by an independent review
+on 2026-09-30):
+
+| Before | Now |
+|---|---|
+| "N waiting on a human" over the orbit; pointing or focusing lights every waiting person; a click opens the orbit | `OverviewHead`: the same, plus the breakdown by approval kind; 0 reads as a count with its sentence |
+| Today's queues from `deriveRailRows` (2 names + "+N") | the same rows as `QueueCard`s in two columns, plus the decisions queue; names are buttons to the record |
+| hovering / focusing a queue lights its people on the small orbit | the same, plus halos and threads; pointer and focus are two slots (above) |
+| a wire from each queue to its ring | `OverviewWires` over the kit's `wireFor`, to the ring most of its people stand on |
+| a stage queue opens the orbit with that ring focused; a tab queue switches tabs | the card's press opens the orbit with its people lit (and the ring, for a stage queue); its door does the old jump |
+| the small orbit IS the orbit; the "grow" flight on open; ring counts at 12 o'clock | unchanged (`OverviewDial`, `OrbitStage`), rings now cut by equal density (`orbitRings.ts`) |
+| totals: active, over SLA, hired of target, empty roles, "—" with its reason | `OverviewTotals`: inside the SLA of those the clock measures, with "N over" |
+| trail, Esc ladder, lens (`kp-orbit-lens`), `/` search, loading / error / empty states, the Matches table, `data-sim` / `data-role` hooks | unchanged in `PipelineOrbitView` (Esc gains one rung: the lit set clears before the ring) |
+| new | First up (`firstUp`); the lit strip in the opened orbit; the ring key |
+
+Dropped on purpose: the prototype's own chrome (key-hint footer, theme toggle, "sample data" chips),
+its single-letter keys, dot tooltips and clicks on the canvas (the dots are not controls: the lit
+strip is the way to a person), and the flight into the candidate record. Still open, unchanged from
+the old Overview: focus drops to the page when a queue opens the orbit and on Esc back.
+
+Once expanded, top to bottom:
 
 1. **Head** (kit `PageHead`): four figures — waiting on a human, over the stage's SLA (of those
    in flight), hired (of target), empty roles.
-2. **Today** (`kit/PipelineKitToday.tsx`): the day's queues. Its stage rows focus that ring on
-   the orbit (every other ring dims, the callouts count that stage, the lanes mark that column);
-   the others open Decisions or Schedule.
+2. **Today** (`kit/PipelineKitToday.tsx`): the day's queues, the SAME ones the Overview draws
+   (`overviewQueues`: the decisions queue first, then `deriveRailRows`' rows). Its stage rows focus
+   that ring on the orbit (every other ring dims, the callouts count that stage, the lanes mark
+   that column); the others open Decisions or Schedule.
 3. **Off the board** (`kit/PipelineKitOffBoard.tsx`): people on a column the workspace removed,
    with "Move all to…".
 4. **Matches** (`orbit/OrbitMatches.tsx`), only while a URL filter is set. Every surface that
@@ -577,7 +637,9 @@ carry: location, seniority, status, target hires, and the roles nobody is on yet
 7. **Activity** (`kit/PipelineKitActivity.tsx`): the last seven days of events.
 
 Keyboard: every group, role, cell and person is a button; Esc climbs one level (bench, lanes,
-orbit, the ring focus); j / k step the group's live roles on the bench. Motion is skipped under
+orbit, the lit queue, the ring focus, the Overview); j / k step the group's live roles on the bench
+and the groups on the lanes. Opening a bench from a lane flies that role's beads onto the ladder's
+rows (`useLadderFlight.ts`). Motion is skipped under
 `prefers-reduced-motion` (a short fade instead of the flight); the flight canvas is portalled to
 `document.body` (`orbit/OrbitPortal.tsx`), because a `position: fixed` layer inside the tab
 panel is contained by its entrance transform.

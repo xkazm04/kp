@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { schedulerJob, type SchedulerJobDef } from "./scheduler-jobs";
+import { addColumns } from "./db/add-columns";
 
 // Direction #5 — durable scheduler state for the automation clock. Isolated
 // connection (job-ingest.ts / offers-store.ts pattern) so we don't touch the
@@ -68,11 +69,7 @@ function db(): Database.Database {
   `);
   // AUTO2 — per-run decision log (the per-entry action+reason rows the pass
   // used to compute and discard). Additive migration for pre-existing DBs.
-  try {
-    d.exec(`ALTER TABLE scheduler_runs ADD COLUMN decisions_json TEXT`);
-  } catch {
-    /* column already exists */
-  }
+  addColumns(d, "scheduler_runs", ["decisions_json TEXT"]);
   // AUTO1 retired (UAT M6 / GDPR Art. 22): unattended auto-reject was removed —
   // clock-computed rejections are always queued for a human on the Decisions gate.
   // The reject_mode column is DEAD: never written, never read, no TS field maps to
@@ -81,11 +78,7 @@ function db(): Database.Database {
   // automation-pass.ts (see the "AUTO1 RETIRED" note above the apply loop); there is
   // no "auto" mode to restore, so do not resurrect this column, drop it if/when a
   // destructive migration is otherwise warranted.
-  try {
-    d.exec(`ALTER TABLE scheduler ADD COLUMN reject_mode TEXT`);
-  } catch {
-    /* column already exists */
-  }
+  addColumns(d, "scheduler", ["reject_mode TEXT"]);
   _db = d;
   return d;
 }

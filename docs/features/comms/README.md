@@ -1,8 +1,15 @@
 # Outbound Candidate Comms
 
-The Channels tab accepts `?tab=channels&sec=comms|careers|email|ads` as an
-incoming section link. An unknown section opens Communications; changing the
-selected section afterward is local app state.
+The Channels tab is "The Night Post" (the plumbing as a district you walk into,
+level by level; architecture and contract in
+`app/features/hiring/channels/night/README.md`, summary in
+[Channels tab: the Night Post](#channels-tab-the-night-post)). It accepts `?sec=` as a
+one-shot incoming link, now as a small grammar: `comms` / `ledger` open the
+ledger, `dead` or a verdict (`queued`, `bounced`, …) open it filtered,
+`careers|email|ads|feeds|relay|edge[:<receiver token>]` open that channel's
+setup, `msg:<id>` opens one message over the ledger, and an absent or unknown
+value opens the plumbing (level 0). Moving between levels afterward is local
+app state; the param is emptied on arrival.
 Its waiting-arrivals count reads the small workspace-scoped `/api/attention`
 payload, using the `channels` count; Channels no longer downloads the entire
 pipeline list just to compute that number.
@@ -31,7 +38,7 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 |---|---|---|---|
 | — | Neither env nor stored config set | `OutboxChannel` (local) | Records the message in `dev_outbox` as `queued`. Nothing is delivered — the outbox **is** the destination. |
 | `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). |
-| `config` | A relay URL is saved via the UI (`RelayConfigCard` on the Channels tab) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. |
+| `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. |
 
 Env keeps precedence so an existing `COMMS_WEBHOOK_URL` deployment behaves
 exactly as before. `isRelayConfigured()` is the one capability bit every
@@ -51,9 +58,11 @@ secret does not decrypt under the current `KP_ATS_SECRET_KEY` / `KP_SECRET`
   `KP_SECRET_PREVIOUS` and run `npm run secrets:rotate` (which covers
   `comms_relay_config.relay_secret`), or re-enter the secret on the Channels tab;
 - rides on `GET /api/comms/relay` as `relay: "unreadable"`;
-- paints the Channels card with its own critical badge and an explanation, and
-  disables the Test ping — instead of the "Not configured" pill an install with
-  no relay at all shows.
+- paints the relay failing on the Channels tab (its plate in the district and on
+  the relay's level wears its own `statusUnreadable` chip, the level explains what
+  to do, `unreadableNote`) and gates the Test ping (`relayTestGate` answers
+  `unreadable`) — instead of the "Not configured" state an install with no relay
+  at all shows.
 
 `getRelaySecret()` raises `CommsRelaySecretError` (deliberately not a
 `CommsRelayError`, so the config route never answers it as a validation 400).
@@ -787,8 +796,9 @@ usual omit-keeps / `""`-clears / string-replaces, encrypted at rest). `GET` proj
 the recruiter-safe pull half onto every receiver (`pullUrl` / `hasPullSecret` /
 `lastPullAt` / `lastPullError`), and the Channels tab binds it:
 
-- **The pull editor** (`ChannelsReceiverPullCard.tsx`) renders under the selected
-  receiver in both the Email intake and Ad forms panes, modelled on the Edge card:
+- **The pull editor** (`night/setup/SetupPullForm.tsx`) opens on a receiver's card
+  at Channels → Email intake / Ad forms, and every receiver's is listed (failing
+  first) at Channels → Pull feeds; modelled on the edge editor:
   URL, a write-only bearer (placeholder says "keep" when one is stored, plus an
   explicit "remove the stored token" toggle), last pull time, Save. The body and the
   guards are pure in `receiverPullForm.ts`: `pullPatchBody` (keep / clear / replace),
@@ -796,16 +806,16 @@ the recruiter-safe pull half onto every receiver (`pullUrl` / `hasPullSecret` /
   disables pulling AND clears the cursor; an unchanged form is not saveable) and
   `interpretPullResponse` (a refusal keeps only its `code`, resolved by
   `useErrorMessage`; a 200 without `{ pull }` is not a save). A save reloads the tab
-  lists. A failing pull is headlined as a localized sentence with the raw
+  lists (`receiverPullForm.test.ts` also pins that the editor acts on them). A failing pull is headlined as a localized sentence with the raw
   `last_pull_error` (`HTTP 502`, pull-pass machine text) shown as code-styled data.
 - **The health verdict** (`receiverHealth.ts`) replaces the row's binary
   Listening/Waiting: `waiting` (neutral) · `reachedNoLeads` (caution: reached, no
   candidate filed) · `delivering` (positive: at least one filed) · `pullFailing`
   (critical: a pull URL is set and its last pull failed; wins over delivering). The
-  row dot stays `isReceiverLive` (receipts). `sectionReceiverStatus` rolls a
-  section up for the tab switcher: Off / Configured / Listening as before, plus a
-  caution **Needs attention** whenever any receiver is reached-but-empty or failing
-  its pull, so a channel whose pull stopped a week ago no longer reads green.
+  row dot stays `isReceiverLive` (receipts). A channel's door in the district rolls
+  its receivers up the same way (`doorPlate` in `night/channelsNightPlumbing.ts`):
+  a pull that stopped a week ago reads failing, never green, and ranks among the
+  "needs you" items (`rankNeeds`).
 
 **IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
 which is a dependency decision, not a code decision — and the edge's Email Routing
@@ -822,7 +832,7 @@ next tick. `app/_lib/edge-drain.ts` is the local half.
 What the edge is **not**: it holds no candidate database (the log is DELETED as it
 drains), no provider keys, no session secrets — one shared HMAC secret whose whole
 power is "may talk to this queue". Once the install publishes a sealing key
-(Channels → Edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
+(Channels → Always-on edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
 stores either: bodies are AES-256-GCM sealed under a key wrapped to the install's
 public RSA key (`app/_lib/edge-crypto.ts`), and the private half never leaves the
 machine. The keypair is minted **once**: two "Enable sealing" clicks publish one
@@ -843,13 +853,14 @@ The loop, and why the order is load-bearing:
 A deterministic refusal (unknown token, closed role, no mappable email, a kind
 this version does not understand) is **handled** and advances the cursor — a retry
 would only reproduce it. Anything 5xx-class **holds**: the page stops at the last
-good sequence and the operator gets a reason on the Channels card.
+good sequence and the operator gets a reason on the Channels tab (the night box's
+plate and the edge's level).
 
 The drain **catches up across pages**: while the edge reports events still waiting it
 fetches the next page, up to `MAX_PAGES_PER_DRAIN = 5` (250 events) per tick. Bounded
 rather than unbounded because each applied event is a real intake write, and an edge
 whose `pending` never falls would otherwise spin the loop; what is left over is not
-lost — `pending` is persisted and the Channels card shows it. A hold or a failed ack
+lost — `pending` is persisted and the Channels tab shows it (the night box's backlog). A hold or a failed ack
 stops the run rather than asking for another page, because events are ordered.
 
 **The Worker's inbound door is bounded like its install twin.** `POST /in/<token>`
@@ -882,7 +893,8 @@ nudge per quiet period, counts and never names in the payload, `nudged_at` stamp
 **only** on a 2xx (a stamped failure would suppress the very retry the nudge exists to
 make), and a heartbeat clearing it so the next quiet period may nudge again.
 
-The **Edge card** (`ChannelsEdgeCard.tsx`) shows the whole ledger: last drain, cursor,
+The **edge's level** (Channels → Always-on edge, `night/setup/SetupEdge.tsx` over
+`useEdgeSetup.ts`) shows the whole ledger: last drain, cursor,
 backlog still at the edge, last heartbeat — each with a relative time in the reader's
 locale. "Paired" is green only when a URL **and** a secret are set; a URL alone is a
 distinct "Secret missing" state, because `resolveEdge()` returns null without a secret
@@ -899,9 +911,10 @@ produces, so the one state an operator must see was indistinguishable from "noth
 do". It now branches on the response status first: a non-ok answer that carries an edge
 failure kind is shown as that CLASS (this is how the `409 EDGE_SECRET_UNREADABLE` below
 keeps its specific sentence), and anything else is resolved from its `code` through
-`useErrorMessage()`, falling back to the localized `drainFailedUnknown`. Pinned by
-`channelsEdgeDrainRefusal.test.ts`, which also asserts the kind→sentence map is total
-over `EDGE_ERROR_KINDS`.
+`useErrorMessage()`, falling back to the localized `drainFailedUnknown`. The decision is
+pure (`drainOutcome` in `night/setup/setupDelivery.ts`, pinned by `setupDelivery.test.ts`,
+which also asserts the kind→sentence map `DRAIN_FAIL_KEY` is total over
+`EDGE_ERROR_KINDS`); `night/setup/setupGuards.test.ts` pins that the hook acts on it.
 
 **A credential nobody can open is a ledger error, not a 500.** Decrypt used to run
 OUTSIDE `resolveEdge`'s try, so a rotated `KP_SECRET` (or a retired key dropped before
@@ -975,11 +988,11 @@ air-gapped.
 | Variable | Direction | Unset (honest default) | Set |
 |---|---|---|---|
 | `COMMS_WEBHOOK_URL` | outbound | local outbox only; every surface says messages aren't being sent | messages POST to the relay as `kp.comm.v1` (no HMAC) |
-| *(Channels tab → Relay config)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
+| *(Channels tab → Delivery relay)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
 | `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
 | `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake receivers show the HTTP receiver URL, and the receiver pane says forwarding isn't wired (the role, the copyable URL, how to wire it) | the receivers and the setup guide hand out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |
-| `KP_EDGE_URL` + `KP_EDGE_SECRET` | inbound (all kinds) | **inbound events reach this install only while it is running** — the honest local-first default; the Channels → Edge card says "Not paired" | the clock drains the edge every tick: webhooks, mail and bounce receipts that arrived while the studio was closed are filed on wake (§11) |
-| *(Channels tab → Edge card)* | inbound | same as above until a URL is saved | stored URL + secret (encrypted at rest), env wins when both are set |
+| `KP_EDGE_URL` + `KP_EDGE_SECRET` | inbound (all kinds) | **inbound events reach this install only while it is running** — the honest local-first default; the Channels tab's night box says "Not paired" | the clock drains the edge every tick: webhooks, mail and bounce receipts that arrived while the studio was closed are filed on wake (§11) |
+| *(Channels tab → Always-on edge)* | inbound | same as above until a URL is saved | stored URL + secret (encrypted at rest), env wins when both are set |
 | `KP_NUDGE_TARGET` | inbound | the edge still holds and counts; it just never tells you | the edge POSTs "N events waiting" to this endpoint after a quiet period — counts, never names |
 
 ## Surface
@@ -998,13 +1011,13 @@ air-gapped.
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
-| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and the kit receivers section (`kit/ChannelsKitReceivers.tsx`) says it once (`channels.receiversTruncated`) rather than leaving each section to guess. |
+| `app/api/channels/webhooks` | Receiver administration: list / mint / revoke inbound receivers, and configure the pull half. **`org:manage` + a per-IP limiter on every write** — see "Who may administer a receiver" below. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. **`GET` is BOUNDED** (`CHANNEL_WEBHOOK_LIST_DEFAULT_LIMIT` = 200, clamped at `CHANNEL_WEBHOOK_LIST_MAX_LIMIT` = 500) and answers `{ webhooks, truncated }`. Each listed `ChannelWebhookRecord` carries the recruiter-safe pull half (`pullUrl`, `hasPullSecret`, `lastPullAt`, `lastPullError`) so a failing source is visible on the same list as Listening, without a per-row extra GET; the bearer is never on this list (column presence, same doctrine as relay/edge). `PATCH` still answers `{ pull }` as the detailed read (cursor included). The `truncated` flag is not cosmetic here: the panes filter one list BY CHANNEL, so a silent cut would empty a pane and read as "nothing is wired". `useChannelData` carries `webhooksTruncated` and the Channels tab says it once (`channels.receiversTruncated`: under the district, and on the receivers' level) rather than leaving each channel to guess. |
 | `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
-| `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. The client read is a **live fact, not a boot cache**: `app/features/shell/deliveryCapabilityCache.ts` holds it (one read per page while nothing changes; in-flight dedupe; UNKNOWN is never cached, so it retries; a generation guard so a read that started before an invalidation never lands as final), and `invalidateCommsCapability()` (exported by `useDeliveryCapability.ts`) re-reads it for every mounted consumer. `ChannelsRelayConfigCard.tsx` calls it plus `notifyDataChanged()` after a successful save and after a 409 adopt, so the "sent"/"queued" vocabulary follows a relay save or clear without a reload and the Comms ledger's "relay not configured" alert re-reads. Other windows hear it on a dedicated `kp:comms-capability` BroadcastChannel (`capability-changed`), not the general live-refresh bus, so a pipeline mutation never refetches the capability. |
+| `app/api/comms/capability` | The two capability bits the client surfaces read (`relayConfigured`, `emailInboundDomain`). **Session-gated** (`requireOperator`): it names the deployment's inbound mail domain, so it is not an anonymous read. A refused read reaches `useCommsCapability` as the UNKNOWN record, which every consumer already handles. The client read is a **live fact, not a boot cache**: `app/features/shell/deliveryCapabilityCache.ts` holds it (one read per page while nothing changes; in-flight dedupe; UNKNOWN is never cached, so it retries; a generation guard so a read that started before an invalidation never lands as final), and `invalidateCommsCapability()` (exported by `useDeliveryCapability.ts`) re-reads it for every mounted consumer. The relay's setup level (`night/setup/useRelaySetup.ts`) calls it plus `notifyDataChanged()` after a successful save and after a 409 adopt (pinned by `night/setup/setupGuards.test.ts`), so the "sent"/"queued" vocabulary follows a relay save or clear without a reload and the Comms ledger's "relay not configured" alert re-reads. Other windows hear it on a dedicated `kp:comms-capability` BroadcastChannel (`capability-changed`), not the general live-refresh bus, so a pipeline mutation never refetches the capability. |
 | `app/api/comms/relay/test` | The relay probe. `org:manage`, per-IP limited (20/10 min) and bounded by an 8s `AbortSignal.timeout` — one accepted call spends an outbound request at an operator-set URL and hands back the outcome. |
 | `app/api/comms/relay` | Operator-only read/write of the stored relay config. The POST is a full replace, so it is per-IP rate-limited (30/10 min), carries an optimistic-concurrency `version`, and answers `409 COMMS_RELAY_STALE` / `400 COMMS_RELAY_INVALID` / `500 COMMS_RELAY_SAVE_FAILED` by code (`relay-version.test.ts`). |
-| `app/features/hiring/channels/**` (`ChannelsTab.tsx` → `kit/ChannelsKitView.tsx`; the parts it mounts: `ChannelsRelayConfigCard.tsx`, `ChannelsEdgeCard.tsx`, `ChannelsCommsBouncedResend.tsx`, `ChannelsAddReceiverModal.tsx`, `ChannelsSetupGuide.tsx`, `ChannelsReceiverPullCard.tsx`, `useCopyState.ts`) | Channels tab UI, composed from the composition kit since 2026-09-25 (see [Channels tab: the kit surface](#channels-tab-the-kit-surface)): the Communications ledger and its message pane with the resend door, the receiver sections (row health from `receiverHealth.ts`, the pull editor `ChannelsReceiverPullCard.tsx` + `receiverPullForm.ts` — §11), the careers links, relay and edge configuration. Each receiver row shows accepted of received, so a live-but-zero-leads mapping is visible on the row that owns the setup guide; Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The ledger search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
-| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Comms Center's message pane (`kit/ChannelsKitMessagePane.tsx`), the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
+| `app/features/hiring/channels/**` (`ChannelsTab.tsx` → `night/ChannelsNightShell.tsx`; the levels in `night/`, `night/setup/`, `night/ledger/`, `night/message/`; shared: `useChannelsData.ts`, `useCommsFeed.ts`, `useCommsResend.ts`, `ChannelsCommsBouncedResend.tsx`, `receiverHealth.ts`, `receiverPullForm.ts`, `useCopyState.ts`) | Channels tab UI, "The Night Post" since 2026-09-30 (see [Channels tab: the Night Post](#channels-tab-the-night-post)): the plumbing (level 0), one channel's setup (level 1: careers links, receivers with the setup steps, the CV test and the pull editor — §11, pull feeds, the relay, the edge), the ledger (level 2) and one message with its resend doors (level 3). Each receiver card shows accepted of received, so a live-but-zero-leads mapping is visible on the row that owns the setup guide; Listening stays `isReceiverLive` (receipts), never `acceptedCount`. The ledger search folds diacritics (`foldCommsQuery` in `channelsCommsHelpers.ts`, NFD + strip combining marks) so `kralova` finds `Králová`. |
+| `app/_lib/comms-resend-outcome.ts` | `resendOutcome` — the five outcomes of a resend, read by both resend buttons; `resendDoorOf` / `lettersNeedingYou` — which door a letter offers and how many need the recruiter, read by the Channels tab's letter (`night/message/ChannelsNightLetter.tsx`), the dev-case outbox and the candidate modal; `SIM_COMMS_CHANNEL` / `REFUSED_COMMS_CHANNEL` (re-exported by `comms-dispatch.ts`). |
 
 ## Who may administer a receiver
 
@@ -1027,8 +1040,8 @@ and viewers do not hold it) behind `requireOperator`, and share **one** per-IP b
 Refusals are codes, not prose: `FORBIDDEN_CAPABILITY`, `TOO_MANY_REQUESTS`,
 `CHANNEL_UNKNOWN`, `CHANNEL_JOB_NOT_FOUND`, `CHANNEL_TOKEN_REQUIRED`,
 `CHANNEL_WEBHOOK_NOT_FOUND`, `CHANNEL_PULL_URL_INVALID`, and the two store 500s
-`CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED`. The Add-receiver modal and the receiver panes
-resolve them in the reader's language (`useErrorMessage`); the revoke fold carries the
+`CHANNEL_WEBHOOK_{CREATE,UPDATE}_FAILED`. The add form and the receiver cards (Channels →
+Email intake / Ad forms) resolve them in the reader's language (`useErrorMessage`); the revoke fold carries the
 message rather than a single "Couldn't remove it", because a recruiter seat and a burst
 are two different, actionable outcomes.
 
@@ -1036,67 +1049,115 @@ Behaviour is driven against the real handlers in
 `app/api/channels/channels-doors-gate.test.ts`; the limiter call sites are pinned by
 `app/api/rate-limit-contract.test.ts`.
 
-## Channels tab: the kit surface
+## Channels tab: the Night Post
 
-Since 2026-09-25 the tab is the composition-kit surface (kit-unification spark, Gate K2;
-the kit's rules are `docs/design/README.md` "Composition kit"). `ChannelsTab.tsx`
-renders `kit/ChannelsKitView.tsx` with a static import (the tab module is already the
-lazy chunk). The data comes through the same hooks as before: `useChannelData`
-(receivers, open roles, the attention count), `useCommsFeed` (the ledger, one cursor
-page at a time through `channelsCommsPaging.ts`) and the URL-synced `sec` param. The
-pure view model is `kit/channelsKitModel.ts` (pinned by `kit/channelsKitModel.test.ts`),
-which re-uses the tab's own decisions (`commsVerdict`, `receiverHealth`,
-`sectionReceiverStatus`) rather than restating them. Inside one `KitSurface` (compact):
+Since 2026-09-30 `ChannelsTab.tsx` renders `night/ChannelsNightShell.tsx` ("The Night Post",
+the channels-setup contest winner) with a static import (the tab module is already the lazy
+chunk). The full architecture, the level machine and the owners' contract are in
+`app/features/hiring/channels/night/README.md`; the parity with the kit view it replaced is
+[below](#parity-with-the-retired-kit-view). In short:
 
-- **Head and toolbar** (`ChannelsKitHead`): the page head with the section's blurb as
-  its context line, the section's figures (waiting in the pipeline, and per section the
-  messages and dead letters, the published roles, or received and leads), and "Receive a
-  test application" as the one action (`data-sim-click="simulate-inbound"`; the block
-  carries `data-sim="channel-inbound"`, the guided walk's "match" chapter target), with
-  "N waiting in the pipeline" beside it as a link to the Pipeline tab; a filed test
-  application is also announced through a status line. The toolbar holds the section
-  switch with a status mark per section (arrow keys / Home / End move through it, the
-  `useTablist` movement rule), and on Communications the verdict chips, the Role /
-  Channel / Type facets (`kit/ChannelsKitLedgerFacets.tsx`: compact selects over the
-  values the loaded ledger holds, `ledgerFacetOptions` in the reader's collation) and the
-  ledger search. The surface is `aria-busy` only until every source settled once, and a
-  failed load releases it.
-- **Communications** (`ChannelsKitComms`): the Delivery block (relay and edge), then the
-  ledger as one windowed `DataTable`, dead letters first, then newest first; "Load
-  older" appears only while a cursor reaches more rows, and `beyondWindow` is the whole
-  affordance once the derivation window is exhausted (§7). On a known-false relay the
-  ledger opens with `relayNotConfigured` in full as a critical note (`role=alert`). A row
-  whose recipient no real relay can address wears a caution mark beside the name (tip:
-  `channels.comms.noAddressHint`), from the shared `isUnaddressable` predicate and the
-  `useDeliveryCapability` bit, exactly as the candidate modal's messages do (§8;
-  `drawerCommsTruth.test.ts` pins both surfaces).
-- **Email intake / Ad forms** (`ChannelsKitReceivers`): the receivers of that channel,
-  add and remove, the "not wired" note when no inbound mail domain is configured. The
-  section's intro (`email.introWired` / `introUnwired`, `ads.intro`) is its one-line
-  state. Each row names its health in words under the role (`receiverHealth`'s label,
-  plus the first lead's age once there is one), shows the default locale when the
-  receiver has no language, and its endpoint copy answers Copied / Copy failed
-  (`useCopyState`, announced through a status line).
-- **Careers page** (`ChannelsKitCareers`): every open role's apply link in one windowed
-  table (its pager counts them, so nothing is cut at eight); the copy answers Copied /
-  Copy failed on the row that asked.
-- **The reading pane**, only while a row is selected (on Email intake / Ad forms the first
-  receiver opens by itself while nothing is selected; a pane closed by hand stays closed
-  until the section changes): a message (verdict, the
-  unaddressable caution note from the same predicate, record, body, the resend door from
-  `resendDoorOf`), a receiver (health, the setup guide per client, the ads direct-POST
-  footnote, the full "forwarding not wired" note with the copyable HTTP receiver, the CV
-  simulator `kit/ChannelsKitCvSim.tsx`, the pull editor), or the relay / edge
-  configuration. The CV simulator posts a PDF / DOCX / TXT / MD to `/api/sim/apply-cv`
-  for the receiver's role, reports landed (or landed as a stub) with "Open in pipeline",
-  and fires `notifyDataChanged` so every live view re-reads.
+- **One read of each source.** The shell reads `useChannelData` (receivers, open roles, the
+  attention count, `loadFailed`) and `useCommsFeed` (the ledger, one cursor page at a time
+  through `channelsCommsPaging.ts`) ONCE and hands both to every level;
+  `useChannelsNightDelivery` reads the relay's health word (`GET /api/comms/relay`, falling
+  back to the capability bit) and the edge (`GET /api/edge`) through
+  `night/channelsNightReads.ts`, the one parse the relay and edge editors share, again on
+  live refresh and on every return to level 0. The surface is `aria-busy` only until every
+  source settled once, and a failed load releases it (head error line + retry).
+- **Level 0, the plumbing** (`ChannelsNightPlumbingView`): the doors (careers, email intake,
+  ad forms, pull feeds), the studio, the relay depot, the night box (edge), the post book and
+  the candidates' houses, each a button with its condition in words and shape. The pure model
+  (`night/channelsNightPlumbing.ts`, tested) keeps the vocabulary honest: `unknown` is "not
+  read", never a guess; the relay is `live` only with a sent row as evidence; only the
+  building of the top-ranked need may wear the alarm (unconfigured with queued mail alarms the
+  relay, never the ledger beside it as well); "Dead letters" is "—, not measured: nothing is
+  sent" while no relay could have failed one. The headline is the worst need
+  (`rankNeeds`, severity ≥ 30, e.g. "58 messages are NOT being sent to candidates"). With
+  nothing that ranks, "Everything is wired and flowing." needs proof: every source read, the
+  relay `live` (a sent row) and no channel off; otherwise the headline is the calm "Nothing
+  needs you right now." with what is not proven (a relay that has sent nothing yet, the number
+  of channels off or not set up), and a source that could not be read says it is no all-clear. The
+  head keeps "Receive a test application" (`data-sim-click="simulate-inbound"`; the block
+  is `data-sim="channel-inbound"`, the guided walk's "match" target) and the "N waiting in
+  the pipeline" link. Below 760px of sheet the district reads as a street of cards.
+- **Level 1, one channel** (`night/setup/`): careers (every open role's apply link, copy per
+  row, a test application), email intake and ad forms (receiver cards worst health first: received,
+  leads filed of received with the received-vs-filed tip, first received, first lead, last
+  received, the pull source or "Push only" and its last pull; the endpoint masked until revealed,
+  add in place, remove behind a confirm, the setup steps
+  per client, a real-CV test through `/api/sim/apply-cv`, the pull editor — §11), pull feeds,
+  the relay (URL, write-only secret, Save with the 409 adopt, the real test ping) and the
+  edge (Save / Pair, Drain now, Enable sealing, the drain ledger, whose "Never drained" is read
+  from the last drain, never from a cursor of 0). The decisions are pure in
+  `setupModel.ts` and `setupDelivery.ts`; `setupGuards.test.ts` pins that the hooks act on
+  them.
+- **Level 2, the ledger** (`night/ledger/`): the relay's truth first (no relay: "N messages
+  are NOT being sent to candidates", and that configuring one does not send what is already
+  recorded), seven verdict chips (needs you first, keys 1-7; a zero only a relay could fill
+  reads "—, not measured" while it is off), the Role / Type / Channel facets and the
+  diacritic-folding search, the role scope a channel's "Open the ledger" carries, the
+  windowed kit `DataTable` with dead letters first then newest, and cursor paging ("Load
+  older" only while a cursor reaches more; `beyondWindow` once truncated, §7). An
+  unaddressable recipient wears the caution mark (`isUnaddressable` +
+  `useDeliveryCapability`, §8).
+- **Level 3, one message** (`night/message/`): the verdict, the record, one honest note, the
+  product's resend doors only (`resendDoorOf`: a dead letter re-dispatched, a bounce to a
+  corrected address, both over `useCommsResend.ts`, the ONE resend fold
+  `ChannelsCommsBouncedResend.tsx` and the dev-case `ResendButton` render too), a delivery
+  timeline built only from the row's own fields, the stored body, prev / next through the
+  list it was opened from. A message outside the loaded window says so.
+- **Navigation.** A level opens as a circle growing from what was touched and closes back
+  onto it (reduced motion: a cross-fade); Esc goes one level up everywhere (it yields to an
+  open modal, a focused field and an open reading pane); a pop returns focus to the opener.
+  `?sec=` stays the tab's one-shot inbox: `comms` / `ledger` open the ledger, `dead` or a
+  verdict open it filtered (Settings → Billing → spend's dead-letters alarm links
+  `?sec=dead`), `careers|email|ads|feeds|relay|edge[:<receiver token>]` open that channel,
+  `msg:<id>` one message over the ledger; the arrival builds the whole stack so Esc walks
+  back through it, and the param is emptied at once.
 
-**Retired with the "Intake Studio" view (2026-09-25):** the icon-pill switcher and its
-accents, the hero stage, the guided email-intake wizard and ad-forms pane (their steps
-live on in the receiver pane's setup guide; the CV simulator and the not-wired detail were
-rebuilt on kit parts in the parity port), the per-section empty-state briefs, and the 20-row `TablePager` paging of the old ledger and receiver
-tables. The paging, careers-preview and chrome-cascade notes below describe
-the retired tables and stay as their record.
+**Retired (2026-09-30):** the composition-kit view (`kit/ChannelsKitView.tsx` and its
+parts: head, comms, delivery block, facets, message and receiver panes, careers, CV
+simulator, `kit/channelsKitModel.ts`), the section vocabulary `channelsSections.ts`, and the
+cards it mounted (`ChannelsRelayConfigCard`, `ChannelsEdgeCard`, `ChannelsReceiverPullCard`,
+`ChannelsAddReceiverModal`, `ChannelsSetupGuide`). Every behaviour moved to a level (the
+table below); their source guards were re-pointed at the levels (`relay-health.test.ts`,
+`channels-receiver-contract.test.ts`, `receiverPullForm.test.ts`) or folded into
+`setupGuards.test.ts`. Earlier, with the "Intake Studio" view (2026-09-25): the icon-pill
+switcher, the hero stage, the guided email-intake wizard and ad-forms pane, the per-section
+empty-state briefs, and the 20-row `TablePager` paging. The paging, careers-preview and
+chrome-cascade notes below describe those retired tables and stay as their record; the RULES
+they state (the cursor contract, a failed load is not an empty channel, the blank-save
+guards, a denied clipboard says so, "Waiting" by the entry ROLE) hold on the levels.
+
+### Parity with the retired kit view
+
+What the kit view did (checked against its source at the last commit before the port by an
+independent review, 2026-09-30) and where it lives now:
+
+| The kit view | The Night Post |
+|---|---|
+| `?sec=comms\|careers\|email\|ads`, a one-shot inbox | `parseNightArrival` (every old link still lands); an absent or unknown value now opens level 0, not Communications |
+| the section switcher with a status mark per section, arrow keys | level 0: a building per channel with its condition in shape and words (arrow keys walk them); level 1: the stepper (← →, a dot per channel) |
+| the reading pane (Esc closes it, j / k step rows) | the level stack: Esc one level up everywhere (it yields to a modal, a field, an open pane), focus back on the opener; `[` `]` at level 3 |
+| head: figures, "N waiting in the pipeline", "Receive a test application", error + retry | level 0 head, same calls and copy; the title is the worst need |
+| careers: every open role's apply link, copy per row | level 1 careers (`SetupCareers`) |
+| receivers table (health, endpoint, language, accepted of received, last received, copy, remove behind a confirm, add) | level 1 email / ads cards (`SetupReceivers`, `SetupReceiverCard`, `SetupAddReceiver`); the endpoint is now masked until revealed |
+| the receiver document: received, leads of received (with the received-vs-filed tip), first received, first lead, pull URL, last pull or push only, the pull-failing note with its raw error, the setup guide per client, the not-wired note | the receiver card's grid and notes, `SetupGuideSteps`; first received, the pull source, the last pull and the tip were missing from the card at the port and restored after the review |
+| CV simulator per receiver | `SetupCvSim` in the card |
+| the pull editor (URL, write-only bearer keep / replace / clear, disable warning, blank-save guard) | `SetupPullForm`, on each receiver card and on level 1 feeds (every receiver, failing first, with the pull intro) |
+| the relay editor (versioned save, 409 adopt, capability invalidation, env and unreadable notes, test ping) | level 1 relay (`SetupRelay`, `useRelaySetup`); an unknown refusal code reads "HTTP <status>" as the old card did |
+| the edge editor and its drain ledger | level 1 edge (`SetupEdge`, `useEdgeSetup`) |
+| the Delivery block above the ledger | the relay and edge buildings at level 0 and their levels (the ledger no longer carries setup) |
+| the ledger: verdict chips, the needs-you chip, facets, diacritic-folding search, the windowed table, paging, the relay-not-configured alert, loading / error / empty / no-match | level 2 (`night/ledger/`); the table shows 9 rows where it showed 11 |
+| the message pane: verdict, record, body, resend doors (failures and refusals announced as alerts), j / k | level 3 (`night/message/`), prev / next through the list it was opened from ("M" is that list as opened) |
+
+Changed on purpose: a door is `live` when any of its receivers delivers, even while a sibling was
+reached but filed nothing (the old roll-up withheld "Listening"); that receiver is still listed as a
+need. Not ported: the contest prototype's sample-state switch, its simulated relay / feed / edge
+outcomes, "hand the queue to the relay" and "recover" an unmatched receipt (no API behind either),
+composed message bodies, the hand-lettered font and its bare-letter shortcuts. Still open, as
+before the port: a pull's raw `lastPullError` is shown as code (server prose, not a coded refusal).
 
 ## Channels tab: paging and the render cascade
 

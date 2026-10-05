@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
-import { buildTabSwitchUrl, navLabel, type WorkspaceTabId } from "@/app/features/shell/tabs";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams, navLabel, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { BTN_GHOST, NOTICE, type NoticeTone } from "@/app/_components/ui/recipes";
 import type { ReadinessCode } from "@/app/_lib/readiness";
 import type { SpendOps } from "./useSpendData";
@@ -38,7 +38,8 @@ const ENGINE_CLAUDE_CLI = "Claude CLI";
 type AlarmKey = "deadLetters" | "reconcileFailures" | "bookedStalls";
 
 // Where each counter's failures are listed one by one. Dead letters are per-message
-// rows in the Channels ledger (ChannelsCommsTable); BOTH schedule counters set a flag
+// rows in the Channels ledger, which `?sec=dead` opens already filtered to them (the
+// Night Post's "needs you" chip, night/channelsNightNav.ts); BOTH schedule counters set a flag
 // on the invite that the Schedule tab's attention section renders — `needs_reconcile`
 // for a confirmed booking whose pipeline advance threw, `needs_more_slots` for a
 // candidate who hit a fully-booked horizon (ScheduleInviteAttentionSection.tsx). So
@@ -48,6 +49,8 @@ const ALARM_TAB: Record<AlarmKey, WorkspaceTabId> = {
   reconcileFailures: "schedule",
   bookedStalls: "schedule",
 };
+// The one-shot `?sec=` inbox of the destination, where it can land on the failures themselves.
+const ALARM_SEC: Partial<Record<AlarmKey, string>> = { deadLetters: "dead" };
 // English source labels for the destination, used only as the has()-fallback the
 // whole app applies to nav labels (tabs.ts navLabel).
 const ALARM_TAB_LABEL: Record<AlarmKey, string> = {
@@ -207,7 +210,10 @@ export function SpendEngineFacts({ ops }: { ops: SpendOps }) {
                 // In-shell, not a document load: patching `?tab=` onto the history
                 // stack costs none of the RSC round-trip a same-route query change
                 // never needed (shell/nav/shallow-nav.ts).
-                onClick={() => nav.push(buildTabSwitchUrl(tab, query))}
+                onClick={() => {
+                  const sec = ALARM_SEC[alarm.key];
+                  nav.push(sec ? buildUrl({ tab, ...clearedTabScopedParams(), sec }, query) : buildTabSwitchUrl(tab, query));
+                }}
                 title={open}
                 className={`focus-ring inline-flex items-center gap-1 rounded-sm font-semibold hover:underline ${alarm.tone}`}
               >

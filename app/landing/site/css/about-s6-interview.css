@@ -1,0 +1,211 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* /about step 06 - Interview. Everything scoped under .dio-interview; sizes in u; text floors from tokens.css.
+   All motion sits inside prefers-reduced-motion: no-preference and starts from .dio.is-in;
+   the reduced-motion drawing is the calm, complete end state (both turns written, the scorecard printed). */
+
+/* ---------- drawing palette ---------- */
+.mk.mk-about .dio-interview .f-ink { fill: var(--ink); }
+.mk.mk-about .dio-interview .f-cream { fill: var(--cream); }
+.mk.mk-about .dio-interview .f-coral { fill: var(--coral-hi); }
+.mk.mk-about .dio-interview .f-steel { fill: var(--steel-hi); }
+.mk.mk-about .dio-interview .f-sil { fill: var(--silver); }
+.mk.mk-about .dio-interview .f-shade { fill: rgba(72, 12, 6, .26); }
+.mk.mk-about .dio-interview .f-spark { fill: var(--amber-hi); }
+.mk.mk-about .dio-interview .f-spark2 { fill: var(--cream); }
+.mk.mk-about .dio-interview .s-ink { stroke: var(--ink); }
+.mk.mk-about .dio-interview .s-white,
+.mk.mk-about .dio-interview .s-hi { stroke: #fffdf7; }
+.mk.mk-about .dio-interview .s-pad { stroke: var(--cream); }
+.mk.mk-about .dio-interview .s-wave { stroke: var(--coral-hi); }
+
+.mk.mk-about .dio-interview .k-steel-0 { stop-color: #b7cfdb; }
+.mk.mk-about .dio-interview .k-steel-1 { stop-color: var(--steel-hi); }
+.mk.mk-about .dio-interview .k-steel-2 { stop-color: var(--steel); }
+.mk.mk-about .dio-interview .k-steel-3 { stop-color: #29404d; }
+.mk.mk-about .dio-interview .k-coral-0 { stop-color: #f9b3a4; }
+.mk.mk-about .dio-interview .k-coral-1 { stop-color: var(--coral-hi); }
+.mk.mk-about .dio-interview .k-coral-2 { stop-color: var(--coral); }
+.mk.mk-about .dio-interview .k-coral-3 { stop-color: var(--oxblood); }
+.mk.mk-about .dio-interview .k-cream-0 { stop-color: #fffdf7; }
+.mk.mk-about .dio-interview .k-cream-1 { stop-color: var(--cream); }
+.mk.mk-about .dio-interview .k-cream-2 { stop-color: var(--putty-3); }
+.mk.mk-about .dio-interview .k-brass-0 { stop-color: #fff2c4; }
+.mk.mk-about .dio-interview .k-brass-1 { stop-color: var(--amber-hi); }
+.mk.mk-about .dio-interview .k-brass-2 { stop-color: var(--amber); }
+.mk.mk-about .dio-interview .k-brass-3 { stop-color: #8a6f26; }
+.mk.mk-about .dio-interview .k-sil-0 { stop-color: #f6f8fa; }
+.mk.mk-about .dio-interview .k-sil-1 { stop-color: var(--silver); }
+.mk.mk-about .dio-interview .k-sil-2 { stop-color: #7c8792; }
+
+/* ---------- the window ---------- */
+.mk.mk-about .dio-interview .iv-win { position: absolute; inset: 0; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr auto; gap: calc(var(--u) * .5); padding: calc(var(--u) * .95) calc(var(--u) * 1.15) calc(var(--u) * 1); }
+
+.mk.mk-about .dio-interview .iv-bar { display: flex; align-items: center; gap: calc(var(--u) * .75); min-height: calc(var(--u) * 2.1); }
+.mk.mk-about .dio-interview .iv-rec { flex: none; width: calc(var(--u) * .95); height: calc(var(--u) * .95); border-radius: 50%; background: radial-gradient(circle at 34% 30%, #ffc2b6, var(--coral-hi) 40%, var(--coral) 74%, var(--oxblood)); box-shadow: 0 0 calc(var(--u) * 1) rgba(238, 122, 102, .85), inset 0 0 0 calc(var(--u) * .08) rgba(23, 32, 42, .35); }
+.mk.mk-about .dio-interview .iv-title { margin: 0; font-family: var(--f-display); font-weight: 800; font-size: var(--fs-lead); line-height: 1.1; letter-spacing: -.01em; color: var(--lcd-fg); white-space: nowrap; }
+/* a longer title (Présélection du premier tour) wraps rather than pushing the live pill out of the screen */
+.mk.mk-about .dio-interview .iv-title { min-width: 0; white-space: normal; text-wrap: balance; }
+.mk.mk-about .dio-interview .iv-live { margin: 0 0 0 auto; flex: none; display: inline-flex; align-items: center; gap: calc(var(--u) * .6); padding: calc(var(--u) * .28) calc(var(--u) * .9) calc(var(--u) * .28) calc(var(--u) * .7); border-radius: 999px; font-family: var(--f-mono); font-size: var(--fs-small); font-weight: 700; line-height: 1.15; color: var(--lcd-fg); white-space: nowrap;
+  background: rgba(243, 236, 217, .09); box-shadow: inset 0 0 0 1px rgba(243, 236, 217, .22), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .08); }
+.mk.mk-about .dio-interview .iv-bars { display: inline-flex; align-items: flex-end; gap: calc(var(--u) * .16); height: calc(var(--u) * 1); }
+.mk.mk-about .dio-interview .iv-bars i { display: block; width: calc(var(--u) * .2); height: 100%; border-radius: 99px; background: var(--coral-hi); transform-origin: bottom; }
+.mk.mk-about .dio-interview .iv-bars i:nth-child(1) { transform: scaleY(.55); } .mk.mk-about .dio-interview .iv-bars i:nth-child(2) { transform: scaleY(1); } .mk.mk-about .dio-interview .iv-bars i:nth-child(3) { transform: scaleY(.75); }
+
+/* waveform: about thirty bars */
+.mk.mk-about .dio-interview .iv-wave { display: flex; align-items: center; justify-content: space-between; height: calc(var(--u) * 2.7); padding: 0 calc(var(--u) * .3); border-radius: calc(var(--u) * .8); background: linear-gradient(180deg, rgba(243, 236, 217, .07), rgba(243, 236, 217, .03)); box-shadow: inset 0 0 0 1px rgba(243, 236, 217, .08); }
+.mk.mk-about .dio-interview .iv-wave i { display: block; flex: 0 0 calc(var(--u) * .56); height: calc(var(--u) * 2.2); border-radius: 99px; background: linear-gradient(180deg, #c5dbe6, var(--steel-hi)); box-shadow: inset 0 calc(var(--u) * .08) 0 rgba(255, 255, 255, .5); transform: scaleY(var(--h)); }
+.mk.mk-about .dio-interview .iv-wave i:nth-child(n+16) { background: linear-gradient(180deg, #ffc8bb, var(--coral-hi)); }
+
+/* the conversation */
+.mk.mk-about .dio-interview .iv-chat { display: flex; flex-direction: column; justify-content: space-evenly; gap: calc(var(--u) * .6); }
+.mk.mk-about .dio-interview .iv-h.sil { display: flex; align-items: center; gap: calc(var(--u) * .7); margin: calc(var(--u) * .1) 0 0; color: var(--lcd-dim); }
+.mk.mk-about .dio-interview .iv-h.sil::after { content: ""; flex: 1; height: 1px; background: var(--lcd-line); }
+.mk.mk-about .dio-interview .iv-turn { display: flex; align-items: flex-end; gap: calc(var(--u) * .75); min-width: 0; }
+.mk.mk-about .dio-interview .iv-turn.is-a { justify-content: flex-end; }
+.mk.mk-about .dio-interview .iv-col { min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * .2); max-width: calc(var(--u) * 30.5); }
+.mk.mk-about .dio-interview .iv-turn.is-a .iv-col { align-items: flex-end; max-width: calc(var(--u) * 27); }
+.mk.mk-about .dio-interview .iv-col > .sil { color: var(--lcd-dim); padding: 0 calc(var(--u) * .5); }
+.mk.mk-about .dio-interview .iv-av { flex: none; display: block; width: calc(var(--u) * 3); height: calc(var(--u) * 3); padding: calc(var(--u) * .3); border-radius: 50%; margin-bottom: calc(var(--u) * .1);
+  background: linear-gradient(160deg, var(--steel-hi), var(--steel)); box-shadow: 0 0 0 calc(var(--u) * .14) var(--ink), inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .5), 0 calc(var(--u) * .3) calc(var(--u) * .5) rgba(0, 0, 0, .45); }
+.mk.mk-about .dio-interview .is-a .iv-av { background: linear-gradient(160deg, #fffdf7, var(--putty-2)); }
+.mk.mk-about .dio-interview .iv-av svg { width: 100%; height: 100%; overflow: visible; }
+.mk.mk-about .dio-interview .iv-bub { position: relative; margin: 0; padding: calc(var(--u) * .65) calc(var(--u) * 1.05); border-radius: calc(var(--u) * 1.1); font-size: var(--fs-body); line-height: 1.32; font-weight: 500; }
+.mk.mk-about .dio-interview .is-q .iv-bub { color: var(--lcd-fg); border-bottom-left-radius: calc(var(--u) * .3);
+  background: linear-gradient(165deg, #55788a, var(--steel) 70%); box-shadow: inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .34), inset 0 0 0 1px rgba(255, 255, 255, .12), 0 calc(var(--u) * .26) 0 rgba(0, 0, 0, .38), 0 calc(var(--u) * .7) calc(var(--u) * 1) rgba(0, 0, 0, .32); }
+.mk.mk-about .dio-interview .is-a .iv-bub { color: var(--ink); border-bottom-right-radius: calc(var(--u) * .3); font-weight: 600;
+  background: linear-gradient(165deg, #fffdf7, var(--cream) 55%, var(--putty-2)); box-shadow: inset 0 calc(var(--u) * .1) 0 #fff, 0 calc(var(--u) * .26) 0 #a89a76, 0 calc(var(--u) * .7) calc(var(--u) * 1) rgba(0, 0, 0, .32); }
+.mk.mk-about .dio-interview .iv-dots { display: none; }
+
+/* side r: the whole conversation mirrors, so the hero's side never holds an avatar or a bubble */
+.mk.mk-about .dio-interview[data-side="r"] .iv-turn { flex-direction: row-reverse; }
+.mk.mk-about .dio-interview[data-side="r"] .iv-turn.is-q .iv-col { align-items: flex-end; }
+.mk.mk-about .dio-interview[data-side="r"] .iv-turn.is-a .iv-col { align-items: flex-start; }
+.mk.mk-about .dio-interview[data-side="r"] .is-q .iv-bub { border-bottom-left-radius: calc(var(--u) * 1.1); border-bottom-right-radius: calc(var(--u) * .3); }
+.mk.mk-about .dio-interview[data-side="r"] .is-a .iv-bub { border-bottom-right-radius: calc(var(--u) * 1.1); border-bottom-left-radius: calc(var(--u) * .3); }
+.mk.mk-about .dio-interview[data-side="r"] .iv-wave i { background: linear-gradient(180deg, #ffc8bb, var(--coral-hi)); }
+.mk.mk-about .dio-interview[data-side="r"] .iv-wave i:nth-child(n+16) { background: linear-gradient(180deg, #c5dbe6, var(--steel-hi)); }
+.mk.mk-about .dio-interview[data-side="r"] .iv-dots { left: auto; right: calc(var(--u) * 1.2); }
+
+/* the printer mouth + the scorecard ticket */
+.mk.mk-about .dio-interview .iv-print { position: relative; width: calc(var(--u) * 27.4); margin-left: auto; }
+.mk.mk-about .dio-interview[data-side="r"] .iv-print { margin-left: 0; margin-right: auto; }
+.mk.mk-about .dio-interview .iv-mouth { position: relative; z-index: 2; height: calc(var(--u) * 1); border-radius: 999px; background: linear-gradient(180deg, #0a0f12, #1d272d); box-shadow: inset 0 calc(var(--u) * .16) calc(var(--u) * .3) #000, 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .2), 0 calc(var(--u) * .3) 0 #0b1013; }
+.mk.mk-about .dio-interview .iv-slot { position: absolute; left: calc(var(--u) * 1.2); right: calc(var(--u) * 3); top: 50%; height: calc(var(--u) * .24); margin-top: calc(var(--u) * -.12); border-radius: 99px; background: #000; box-shadow: 0 calc(var(--u) * .08) 0 rgba(255, 255, 255, .16); }
+.mk.mk-about .dio-interview .iv-pled { position: absolute; right: calc(var(--u) * 1.1); top: 50%; width: calc(var(--u) * .5); height: calc(var(--u) * .5); margin-top: calc(var(--u) * -.25); border-radius: 50%; background: var(--led-ok); box-shadow: 0 0 calc(var(--u) * .8) var(--led-ok); }
+.mk.mk-about .dio-interview .iv-clip { position: relative; z-index: 1; width: calc(var(--u) * 25.6); margin: calc(var(--u) * -.3) auto 0; overflow: hidden; filter: drop-shadow(0 calc(var(--u) * .3) calc(var(--u) * .4) rgba(0, 0, 0, .4)); }
+.mk.mk-about .dio-interview .iv-ticket { --tooth: calc(var(--u) * .55); position: relative; display: flex; align-items: center; gap: calc(var(--u) * 1.1); padding: calc(var(--u) * .9) calc(var(--u) * 1.1) calc(var(--u) * 1.15); color: var(--ink);
+  background: linear-gradient(180deg, #f3ecd8, #fffdf7 26%, var(--cream)); }
+.mk.mk-about .dio-interview .iv-ticket::before { content: ""; position: absolute; left: calc(var(--u) * .5); right: calc(var(--u) * .5); top: calc(var(--u) * .5); border-top: calc(var(--u) * .14) dashed rgba(23, 32, 42, .22); }
+.mk.mk-about .dio-interview .iv-tt { margin: 0; flex: 0 0 calc(var(--u) * 10.6); font-size: var(--fs-small); font-weight: 800; line-height: 1.2; letter-spacing: .005em; }
+.mk.mk-about .dio-interview .iv-scs { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--u) * .5) calc(var(--u) * .9); }
+.mk.mk-about .dio-interview .iv-sc { display: flex; flex-direction: column; gap: calc(var(--u) * .25); min-width: 0; }
+.mk.mk-about .dio-interview .iv-sc b { display: block; width: var(--w); height: calc(var(--u) * .34); border-radius: 99px; background: rgba(23, 32, 42, .3); }
+.mk.mk-about .dio-interview .iv-ds { display: flex; gap: calc(var(--u) * .3); }
+.mk.mk-about .dio-interview .iv-ds i { display: block; flex: none; width: calc(var(--u) * .78); height: calc(var(--u) * .78); border-radius: 50%; border: calc(var(--u) * .13) solid var(--ink); background: transparent; }
+.mk.mk-about .dio-interview .iv-ds i.on { background: var(--steel); box-shadow: inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .45); }
+
+/* ---------- the hero: clay headphones on the bezel's bottom outer corner ---------- */
+.mk.mk-about .dio-interview .dio-hero--a { left: calc(var(--u) * -3); bottom: calc(var(--u) * -2.5); width: calc(var(--u) * 14.5); height: calc(var(--u) * 14.5); }
+.mk.mk-about .dio-interview[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -3); }
+.mk.mk-about .dio-interview[data-side="r"] .dio-hero--a svg { transform: scaleX(-1); }
+.mk.mk-about .dio-interview .iv-hero-svg * { transform-box: view-box; }
+
+/* ---------- motion ---------- */
+@keyframes mka-iv-rise { from { opacity: 0; transform: translateY(calc(var(--u) * .9)); } }
+@keyframes mka-iv-pop { from { opacity: 0; transform: translateY(calc(var(--u) * 1)) scale(.94); } 65% { transform: translateY(calc(var(--u) * -.1)) scale(1.012); } }
+@keyframes mka-iv-word { from { opacity: 0; transform: translateY(.32em); } }
+@keyframes mka-iv-bar-in { from { transform: scaleY(0); } }
+@keyframes mka-iv-breathe { from { transform: scaleY(var(--h)); } to { transform: scaleY(var(--h2)); } }
+@keyframes mka-iv-rec { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+@keyframes mka-iv-eq { 0%, 100% { transform: scaleY(.45); } 50% { transform: scaleY(1); } }
+@keyframes mka-iv-dots-show { 0%, 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes mka-iv-bounce { 0%, 100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(calc(var(--u) * -.35)); opacity: 1; } }
+@keyframes mka-iv-feed { from { transform: translateY(-101%); } }
+@keyframes mka-iv-led { from { background: var(--led-none); box-shadow: none; } 30% { background: var(--led-wait); box-shadow: 0 0 calc(var(--u) * .8) var(--led-wait); } }
+@keyframes mka-iv-fade { from { opacity: 0; } }
+
+@keyframes mka-iv-k-drop { from { opacity: 0; transform: translate(-22px, -46px) rotate(-14deg) scale(.92); } 55% { opacity: 1; transform: translate(2px, 3px) rotate(1.8deg) scale(1.01); } 78% { transform: translate(-.6px, -1px) rotate(-.4deg); } }
+@keyframes mka-iv-k-wave { from { opacity: 0; transform: scale(.7); } 55% { opacity: 1; } }
+@keyframes mka-iv-k-cable { from { opacity: 0; transform: translateY(-10px) scaleY(.6); } 60% { opacity: 1; transform: translateY(1.5px) scaleY(1.04); } }
+@keyframes mka-iv-k-float { from { transform: translateY(0); } to { transform: translateY(-3.5px); } }
+@keyframes mka-iv-k-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+@keyframes mka-iv-k-sway { from { transform: rotate(-1.4deg); } to { transform: rotate(1.4deg); } }
+@keyframes mka-iv-k-twinkle { 0%, 100% { opacity: 1; transform: scale(1) rotate(0); } 50% { opacity: .35; transform: scale(.6) rotate(20deg); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* waiting for the page to add .is-in: the frame shows, the contents are held back */
+  .mk.mk-about .dio-interview:not(.is-in) :is(.iv-rec, .iv-title, .iv-live, .iv-wave, .iv-turn, .iv-mouth, .k-card, .k-sp) { opacity: 0; }
+  .mk.mk-about .dio-interview:not(.is-in) .iv-wave i { transform: scaleY(0); }
+  .mk.mk-about .dio-interview:not(.is-in) .w { opacity: 0; }
+  .mk.mk-about .dio-interview:not(.is-in) .iv-ticket { transform: translateY(-101%); }
+  .mk.mk-about .dio-interview .iv-dots { display: flex; position: absolute; left: calc(var(--u) * 1.2); top: calc(var(--u) * .9); gap: calc(var(--u) * .4); opacity: 0; pointer-events: none; }
+  .mk.mk-about .dio-interview .iv-dots i { display: block; width: calc(var(--u) * .7); height: calc(var(--u) * .7); border-radius: 50%; background: var(--steel); }
+
+  /* 0.0s  the window arrives; the interviewer speaks */
+  .mk.mk-about .dio-interview.is-in .iv-rec { animation: mka-iv-fade .3s ease .05s both, mka-iv-rec 1.6s ease-in-out 1s infinite; }
+  .mk.mk-about .dio-interview.is-in .iv-title { animation: mka-iv-rise .6s var(--ease) .1s both; }
+  .mk.mk-about .dio-interview.is-in .iv-live { animation: mka-iv-rise .6s var(--ease) .2s both; }
+  .mk.mk-about .dio-interview.is-in .iv-bars i { animation: mka-iv-eq 1s ease-in-out infinite; }
+  .mk.mk-about .dio-interview.is-in .iv-bars i:nth-child(2) { animation-delay: -.3s; } .mk.mk-about .dio-interview.is-in .iv-bars i:nth-child(3) { animation-delay: -.6s; }
+  .mk.mk-about .dio-interview.is-in .iv-wave { animation: mka-iv-fade .4s ease .25s both; }
+  .mk.mk-about .dio-interview.is-in .iv-wave i { animation: mka-iv-bar-in .55s var(--ease) both, mka-iv-breathe calc(1.5s + var(--i) * .03s) ease-in-out infinite alternate; animation-delay: calc(.3s + var(--i) * .018s), calc(1.1s + var(--i) * -.09s); }
+  .mk.mk-about .dio-interview.is-in .iv-mouth { animation: mka-iv-rise .6s var(--ease) .55s both; }
+  .mk.mk-about .dio-interview.is-in .is-q { animation: mka-iv-pop .55s var(--spring) .55s both; }
+  .mk.mk-about .dio-interview.is-in .is-q .w { --t0: .8s; --dt: .05s; animation: mka-iv-word .32s ease both; animation-delay: calc(var(--t0) + var(--k) * var(--dt)); }
+
+  /* 1.4s  the candidate answers: three dots, then the words type in */
+  .mk.mk-about .dio-interview.is-in .is-a { animation: mka-iv-pop .55s var(--spring) 1.4s both; }
+  .mk.mk-about .dio-interview.is-in .iv-dots { animation: mka-iv-dots-show .6s linear 1.5s both; }
+  .mk.mk-about .dio-interview.is-in .iv-dots i { animation: mka-iv-bounce .5s ease-in-out infinite; }
+  .mk.mk-about .dio-interview.is-in .iv-dots i:nth-child(2) { animation-delay: .12s; } .mk.mk-about .dio-interview.is-in .iv-dots i:nth-child(3) { animation-delay: .24s; }
+  .mk.mk-about .dio-interview.is-in .is-a .w { --t0: 2s; --dt: .09s; animation: mka-iv-word .32s ease both; animation-delay: calc(var(--t0) + var(--k) * var(--dt)); }
+
+  /* 3.1s  hang-up: the scorecard prints, one thermal step at a time */
+  .mk.mk-about .dio-interview.is-in .iv-ticket { animation: mka-iv-feed .85s steps(9, end) 3.1s both; }
+  .mk.mk-about .dio-interview.is-in .iv-pled { animation: mka-iv-led .9s ease 3s both; }
+
+  /* the hero: headphones drop in, the soundwaves ring out, the cable settles */
+  .mk.mk-about .dio-interview.is-in .k-card { animation: mka-iv-k-drop .85s var(--ease) .3s both; transform-origin: 125px 125px; }
+  .mk.mk-about .dio-interview.is-in .k-w { animation: mka-iv-k-wave .6s var(--ease) both; transform-origin: 232px 172px; }
+  .mk.mk-about .dio-interview.is-in .k-w1 { animation-delay: .95s; } .mk.mk-about .dio-interview.is-in .k-w2 { animation-delay: 1.08s; } .mk.mk-about .dio-interview.is-in .k-w3 { animation-delay: 1.21s; }
+  .mk.mk-about .dio-interview.is-in .k-cable { animation: mka-iv-k-cable .7s var(--ease) .85s both; transform-origin: 41px 218px; }
+  .mk.mk-about .dio-interview.is-in .k-sp { animation: mka-iv-fade .5s ease 1.6s both; }
+
+  /* then a very gentle idle, on the hero only */
+  .mk.mk-about .dio-interview.is-in .k-float { animation: mka-iv-k-float 5.5s ease-in-out 3.4s infinite alternate; }
+  .mk.mk-about .dio-interview.is-in .k-w { animation: mka-iv-k-wave .6s var(--ease) both, mka-iv-k-pulse 2.6s ease-in-out infinite; }
+  .mk.mk-about .dio-interview.is-in .k-w1 { animation-delay: .95s, 2.2s; } .mk.mk-about .dio-interview.is-in .k-w2 { animation-delay: 1.08s, 2.5s; } .mk.mk-about .dio-interview.is-in .k-w3 { animation-delay: 1.21s, 2.8s; }
+  .mk.mk-about .dio-interview.is-in .k-cable { animation: mka-iv-k-cable .7s var(--ease) .85s both, mka-iv-k-sway 3.6s ease-in-out 1.6s infinite alternate; }
+  .mk.mk-about .dio-interview.is-in .k-sp1 { animation: mka-iv-k-twinkle 3.6s ease-in-out 2s infinite; transform-origin: 14px 54px; }
+  .mk.mk-about .dio-interview.is-in .k-sp2 { animation: mka-iv-k-twinkle 4.4s ease-in-out 2.6s infinite; transform-origin: 240px 108px; }
+  .mk.mk-about .dio-interview.is-in .k-sp3 { animation: mka-iv-k-twinkle 5.2s ease-in-out 3.1s infinite; transform-origin: 150px 14px; }
+}
+
+/* ---------- phones and portrait windows: normal flow, one column, px text (tokens.css pins --u to 16px here) ---------- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-interview .iv-win { position: relative; inset: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 70px; }
+  .mk.mk-about .dio-interview .iv-bar { flex-wrap: wrap; gap: 8px 10px; min-height: 0; }
+  .mk.mk-about .dio-interview .iv-rec { width: 14px; height: 14px; }
+  .mk.mk-about .dio-interview .iv-title { font-size: 20px; }
+  .mk.mk-about .dio-interview .iv-live { padding: 4px 12px 4px 10px; gap: 8px; }
+  .mk.mk-about .dio-interview .iv-bars { height: 14px; gap: 3px; } .mk.mk-about .dio-interview .iv-bars i { width: 3px; }
+  .mk.mk-about .dio-interview .iv-wave { height: 46px; padding: 0 8px; border-radius: 12px; }
+  .mk.mk-about .dio-interview .iv-wave i { flex: 0 0 5px; height: 38px; }
+  .mk.mk-about .dio-interview .iv-chat { gap: 10px; }
+  .mk.mk-about .dio-interview .iv-turn { gap: 10px; }
+  .mk.mk-about .dio-interview .iv-av { width: 38px; height: 38px; padding: 5px; }
+  .mk.mk-about .dio-interview .iv-col,
+.mk.mk-about .dio-interview .iv-turn.is-a .iv-col { max-width: calc(100% - 48px); gap: 3px; }
+  .mk.mk-about .dio-interview .iv-bub { padding: 10px 14px; border-radius: 16px; }
+  .mk.mk-about .dio-interview .iv-dots { left: 16px; top: 13px; }
+  .mk.mk-about .dio-interview[data-side="r"] .iv-dots { left: auto; right: 16px; }
+  .mk.mk-about .dio-interview .iv-print { width: 100%; margin: 0; }
+  .mk.mk-about .dio-interview[data-side="r"] .iv-print { margin: 0; }
+  .mk.mk-about .dio-interview .iv-clip { width: 94%; margin: -4px auto 0; padding-bottom: 10px; }
+  .mk.mk-about .dio-interview .iv-ticket { --tooth: 9px; flex-direction: column; align-items: stretch; gap: 12px; padding: 18px 16px 20px; }
+  .mk.mk-about .dio-interview .iv-tt { flex: none; }
+  .mk.mk-about .dio-interview .iv-scs { gap: 12px 16px; }
+  .mk.mk-about .dio-interview .dio-hero--a,
+.mk.mk-about .dio-interview[data-side="r"] .dio-hero--a { left: -8px; right: auto; bottom: -30px; width: clamp(96px, 28vw, 120px); height: auto; aspect-ratio: 1; }
+  .mk.mk-about .dio-interview[data-side="r"] .dio-hero--a { left: auto; right: -8px; }
+}

@@ -210,7 +210,9 @@ export type RepoBundle = {
   files: string[];
 };
 
-export async function fetchRepoBundle(repo: GithubRepo): Promise<{ bundle: RepoBundle; incomplete: boolean }> {
+export async function fetchRepoBundle(
+  repo: GithubRepo
+): Promise<{ bundle: RepoBundle; incomplete: boolean; cut: { readme: boolean; files: boolean } }> {
   // FINDING #2: each sub-fetch swallows its failure to a benign default, so a
   // throttled bundle is indistinguishable from a genuinely empty one. Record a
   // coverage loss (throttle / 5xx / network — NOT a genuine 404 like "no README")
@@ -248,6 +250,8 @@ export async function fetchRepoBundle(repo: GithubRepo): Promise<{ bundle: RepoB
         .slice(0, FILES_PER_REPO),
     },
     incomplete,
+    // Which caps bit, so the review can say so instead of pricing a cut read as whole.
+    cut: { readme: readmeText.length > README_TRUNCATE, files: contents.length > FILES_PER_REPO },
   };
 }
 

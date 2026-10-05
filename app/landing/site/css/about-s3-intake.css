@@ -1,0 +1,300 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* /about step 03 - INTAKE (five doors, one pipeline). Scoped under .dio-intake; keyframes are prefixed dio-intake-.
+   Sized in u on desktop; the phone block at the end reflows the scene into normal flow (px, nothing scaled).
+   Motion lives only inside prefers-reduced-motion: no-preference; the base drawing is the calm, complete end state. */
+
+.mk.mk-about .dio-intake {
+  --tc1: var(--coral-hi); --tc2: var(--steel-hi); --tc3: var(--amber-hi); --tc4: color-mix(in srgb, var(--moss-hi) 80%, var(--verd)); --tc5: color-mix(in srgb, var(--sc-hi) 70%, #fff);
+}
+.mk.mk-about .dio-intake .in-door1,
+.mk.mk-about .dio-intake .in-tb1,
+.mk.mk-about .dio-intake .hh-tb1,
+.mk.mk-about .dio-intake .in-tok1 { --tc: var(--tc1); }
+.mk.mk-about .dio-intake .in-door2,
+.mk.mk-about .dio-intake .in-tb2,
+.mk.mk-about .dio-intake .hh-tb2,
+.mk.mk-about .dio-intake .in-tok2 { --tc: var(--tc2); }
+.mk.mk-about .dio-intake .in-door3,
+.mk.mk-about .dio-intake .in-tb3,
+.mk.mk-about .dio-intake .hh-tb3,
+.mk.mk-about .dio-intake .in-tok3 { --tc: var(--tc3); }
+.mk.mk-about .dio-intake .in-door4,
+.mk.mk-about .dio-intake .in-tb4,
+.mk.mk-about .dio-intake .hh-tb4,
+.mk.mk-about .dio-intake .in-tok4 { --tc: var(--tc4); }
+.mk.mk-about .dio-intake .in-door5,
+.mk.mk-about .dio-intake .in-tb5,
+.mk.mk-about .dio-intake .hh-tb5,
+.mk.mk-about .dio-intake .in-tok5 { --tc: var(--tc5); }
+
+/* ---------- shading ramps (derived from the tokens) ---------- */
+.mk.mk-about .dio-intake .br0 { stop-color: color-mix(in srgb, var(--amber-hi) 52%, #fffaf0); }
+.mk.mk-about .dio-intake .br1 { stop-color: var(--amber-hi); }
+.mk.mk-about .dio-intake .br2 { stop-color: var(--amber); }
+.mk.mk-about .dio-intake .br3 { stop-color: color-mix(in srgb, var(--amber) 60%, var(--ink)); }
+.mk.mk-about .dio-intake .br4 { stop-color: color-mix(in srgb, var(--amber) 84%, #fffaf0); }
+.mk.mk-about .dio-intake .by0 { stop-color: #04090b; stop-opacity: .55; }
+.mk.mk-about .dio-intake .by1 { stop-color: #04090b; stop-opacity: .16; }
+.mk.mk-about .dio-intake .ln0 { stop-color: var(--sc-hi); stop-opacity: .17; }
+.mk.mk-about .dio-intake .ln1 { stop-color: var(--sc); stop-opacity: .03; }
+.mk.mk-about .dio-intake .dh0 { stop-color: var(--sc-hi); stop-opacity: .5; }
+.mk.mk-about .dio-intake .dh1 { stop-color: var(--sc-hi); stop-opacity: 0; }
+.mk.mk-about .dio-intake .gw0 { stop-color: var(--sc); stop-opacity: .55; }
+.mk.mk-about .dio-intake .gw1 { stop-color: var(--sc); stop-opacity: 0; }
+.mk.mk-about .dio-intake .gp0 { stop-color: color-mix(in srgb, var(--sc) 34%, #0c1a1f); }
+.mk.mk-about .dio-intake .gp1 { stop-color: color-mix(in srgb, var(--sc) 12%, #091317); }
+.mk.mk-about .dio-intake .gp2 { stop-color: color-mix(in srgb, var(--sc) 30%, #0c1a1f); }
+.mk.mk-about .dio-intake .cp0 { stop-color: #fffdf6; }
+.mk.mk-about .dio-intake .cp1 { stop-color: var(--sc-hi); }
+.mk.mk-about .dio-intake .cp2 { stop-color: color-mix(in srgb, var(--sc) 72%, var(--ink)); }
+.mk.mk-about .dio-intake .sh0 { stop-color: #03090c; stop-opacity: .5; }
+.mk.mk-about .dio-intake .sh1 { stop-color: #03090c; stop-opacity: .2; }
+.mk.mk-about .dio-intake .sh2 { stop-color: #03090c; stop-opacity: 0; }
+.mk.mk-about .dio-intake .ck0 { fill: var(--cream); }
+.mk.mk-about .dio-intake .ck1 { fill: var(--ink); }
+
+/* ---------- the screen graphics (desktop) ---------- */
+.mk.mk-about .dio-intake .in-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; overflow: hidden; }
+.mk.mk-about .dio-intake .in-bay { stroke: color-mix(in srgb, var(--sc) 50%, transparent); stroke-width: .1; }
+.mk.mk-about .dio-intake .in-slot { fill: rgba(255, 255, 255, .04); stroke: color-mix(in srgb, var(--sc-hi) 55%, transparent); stroke-width: .1; stroke-dasharray: .3 .28; }
+.mk.mk-about .dio-intake .in-edges { fill: none; stroke-width: .1; }
+.mk.mk-about .dio-intake .in-ties { fill: none; stroke-width: .08; }
+.mk.mk-about .dio-intake .in-track { stroke: none; }
+
+.mk.mk-about .dio-intake .in-tb path { fill: none; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .tb-ink { stroke: var(--ink); stroke-width: 4.05; }
+.mk.mk-about .dio-intake .tb-rim { stroke: color-mix(in srgb, var(--tc) 62%, var(--ink)); stroke-width: 3.55; }
+.mk.mk-about .dio-intake .tb-body { stroke: var(--tc); stroke-width: 3.1; }
+.mk.mk-about .dio-intake .tb-lum { stroke: color-mix(in srgb, var(--tc) 40%, #0d181c); stroke-width: 1.9; }
+.mk.mk-about .dio-intake .tb-light { stroke: color-mix(in srgb, var(--tc) 45%, #fffaf0); stroke-width: .62; stroke-linecap: round; opacity: .55; }
+.mk.mk-about .dio-intake .tb-shade { stroke: color-mix(in srgb, var(--tc) 42%, var(--ink)); stroke-width: .5; stroke-linecap: round; opacity: .5; }
+.mk.mk-about .dio-intake .tb-sheen { stroke: #fffaf0; stroke-width: .26; stroke-linecap: round; opacity: .8; }
+.mk.mk-about .dio-intake .tb-sheen2 { stroke: #fffaf0; stroke-width: .12; stroke-linecap: round; opacity: .3; }
+
+.mk.mk-about .dio-intake .in-bandglow { opacity: .5; }
+.mk.mk-about .dio-intake .band-edge { fill: none; stroke: var(--ink); stroke-width: .2; }
+.mk.mk-about .dio-intake .band-curb { fill: rgba(0, 0, 0, .5); }
+.mk.mk-about .dio-intake .band-hi { fill: none; stroke: var(--sc-hi); stroke-width: .12; opacity: .8; stroke-linecap: round; }
+.mk.mk-about .dio-intake .hk { fill: color-mix(in srgb, var(--amber) 70%, var(--ink)); stroke: var(--ink); stroke-width: .12; }
+
+.mk.mk-about .dio-intake .n-ink { stroke: var(--ink); stroke-width: .24; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .n-hi { fill: none; stroke: #fffaf0; stroke-width: .14; stroke-linecap: round; opacity: .65; }
+.mk.mk-about .dio-intake .n-riv { fill: color-mix(in srgb, var(--amber) 50%, var(--ink)); }
+
+.mk.mk-about .dio-intake .in-tok { offset-rotate: 0deg; offset-distance: 100%; }
+.mk.mk-about .dio-intake .t-card { fill: var(--cream); }
+.mk.mk-about .dio-intake .t-edge { fill: none; stroke: var(--ink); stroke-width: .26; }
+.mk.mk-about .dio-intake .t-tab { fill: var(--tc); }
+.mk.mk-about .dio-intake .t-hi { fill: none; stroke: #fffaf0; stroke-width: .16; stroke-linecap: round; opacity: .55; }
+.mk.mk-about .dio-intake .t-av { fill: var(--tc); stroke: var(--ink); stroke-width: .12; }
+.mk.mk-about .dio-intake .t-ln { fill: none; stroke: rgba(23, 32, 42, .5); stroke-width: .22; stroke-linecap: round; }
+.mk.mk-about .dio-intake .in-tok-in { transform-box: fill-box; transform-origin: 50% 100%; }
+
+.mk.mk-about .dio-intake .in-lands { opacity: 1; }
+.mk.mk-about .dio-intake .in-land { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; }
+.mk.mk-about .dio-intake .in-sp { fill: #fffaf0; }
+.mk.mk-about .dio-intake .in-sp2 { fill: var(--sc-hi); }
+.mk.mk-about .dio-intake .in-dc { fill: #fffaf0; opacity: .85; }
+.mk.mk-about .dio-intake .in-dc2 { fill: var(--sc-hi); opacity: .7; }
+
+/* ---------- doors: label chip + brass badge (desktop: absolutely placed at each tube mouth) ---------- */
+.mk.mk-about .dio-intake .in-doors { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 0; list-style: none; }
+.mk.mk-about .dio-intake .in-door { position: absolute; top: 0; height: 100%; width: calc(var(--u) * 7.4); left: calc(var(--u) * (var(--mx) - 3.7)); }
+.mk.mk-about .dio-intake .in-door1 { --mx: 4.9; } .mk.mk-about .dio-intake .in-door2 { --mx: 12.7; } .mk.mk-about .dio-intake .in-door3 { --mx: 20.3; } .mk.mk-about .dio-intake .in-door4 { --mx: 27.9; } .mk.mk-about .dio-intake .in-door5 { --mx: 35.7; }
+.mk.mk-about .dio-intake .in-lab {
+  position: absolute; top: calc(var(--u) * .8); left: 0; right: 0; margin-inline: auto; width: max-content; max-width: 100%;
+  padding: calc(var(--u) * .2) calc(var(--u) * .74); border-radius: 999px; white-space: nowrap;
+  font-weight: 800; font-size: var(--fs-small); line-height: 1.2; letter-spacing: .01em; color: var(--cream);
+  background: color-mix(in srgb, var(--tc) 24%, rgba(8, 16, 20, .9));
+  /* a name longer than its tube (Sites d'emploi) takes two centred lines instead of being cut; English fits one */
+  white-space: normal; text-align: center; text-wrap: balance;
+  box-shadow: inset 0 0 0 max(1.5px, calc(var(--u) * .1)) color-mix(in srgb, var(--tc) 85%, transparent), 0 calc(var(--u) * .22) 0 rgba(0, 0, 0, .32);
+}
+.mk.mk-about .dio-intake .in-badge { position: absolute; left: 50%; top: calc(var(--u) * 2.75); width: calc(var(--u) * 3.9); height: calc(var(--u) * 3.9); margin-left: calc(var(--u) * -1.95); overflow: visible; filter: drop-shadow(0 calc(var(--u) * .2) calc(var(--u) * .25) rgba(0, 0, 0, .45)); }
+.mk.mk-about .dio-intake .b-ring { fill: var(--amber-hi); stroke: var(--ink); stroke-width: .24; }
+.mk.mk-about .dio-intake .b-hi { fill: none; stroke: #fffaf0; stroke-width: .2; stroke-linecap: round; opacity: .9; }
+.mk.mk-about .dio-intake .b-lo { fill: none; stroke: color-mix(in srgb, var(--amber) 55%, var(--ink)); stroke-width: .24; stroke-linecap: round; opacity: .75; }
+.mk.mk-about .dio-intake .b-face { fill: var(--cream); stroke: var(--ink); stroke-width: .12; stroke-opacity: .65; }
+.mk.mk-about .dio-intake .b-in { fill: none; stroke: rgba(23, 32, 42, .14); stroke-width: .24; }
+.mk.mk-about .dio-intake .gf { fill: #fff; stroke: var(--ink); stroke-width: .16; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .gs { fill: none; stroke: var(--ink); stroke-width: .16; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .gs.gh { stroke-width: .36; }
+.mk.mk-about .dio-intake .gs.ga2 { stroke: var(--tc); stroke-width: .18; }
+.mk.mk-about .dio-intake .gs.g-dim { opacity: .55; }
+.mk.mk-about .dio-intake .ga { fill: var(--tc); stroke: var(--ink); stroke-width: .1; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .gk { stroke-width: .12; }
+.mk.mk-about .dio-intake .gp { fill: var(--tc); stroke-width: .1; }
+.mk.mk-about .dio-intake .in-pt { display: none; }
+
+/* ---------- the plate that names the line, and the counter ---------- */
+.mk.mk-about .dio-intake .in-plate {
+  position: absolute; z-index: 2; left: calc(var(--u) * 21.2); top: calc(var(--u) * 20.9); translate: -50% 0; width: max-content;
+  padding: calc(var(--u) * .45) calc(var(--u) * 1) calc(var(--u) * .5); text-align: center;
+  border-radius: calc(var(--u) * .7); box-shadow: 0 calc(var(--u) * .3) 0 rgba(0, 0, 0, .35), inset 0 calc(var(--u) * .12) 0 #fff, inset 0 0 0 max(1.5px, calc(var(--u) * .12)) rgba(23, 32, 42, .85);
+}
+.mk.mk-about .dio-intake[data-side="r"] .in-plate { left: calc(var(--u) * 19.4); }
+.mk.mk-about .dio-intake .in-plate-t { display: block; font-family: var(--f-display); font-weight: 800; font-size: var(--fs-lead); line-height: 1.12; letter-spacing: -.01em; color: var(--ink); }
+.mk.mk-about .dio-intake .in-plate-s { display: block; margin-top: calc(var(--u) * .12); letter-spacing: .03em; white-space: nowrap; }
+
+.mk.mk-about .dio-intake .in-odo { position: absolute; z-index: 2; right: calc(var(--u) * 3.1); top: calc(var(--u) * 21.6); display: grid; justify-items: center; gap: calc(var(--u) * .55); }
+.mk.mk-about .dio-intake[data-side="r"] .in-odo { right: auto; left: calc(var(--u) * 3.1); }
+.mk.mk-about .dio-intake .in-odo-c {
+  display: flex; gap: .1em; padding: .1em; font-size: max(30px, calc(var(--u) * 3.3)); border-radius: .3em; line-height: 1;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--amber-hi) 55%, #fffaf0), var(--amber) 55%, color-mix(in srgb, var(--amber) 60%, var(--ink)));
+  box-shadow: 0 0 0 max(2px, calc(var(--u) * .16)) var(--ink), 0 calc(var(--u) * .4) calc(var(--u) * .5) rgba(0, 0, 0, .45), inset 0 .04em 0 rgba(255, 255, 255, .7);
+}
+.mk.mk-about .dio-intake .in-odo-c b {
+  display: grid; place-items: center; width: .82em; height: 1.22em; border-radius: .2em; font-family: var(--f-display); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0;
+  color: var(--sc-hi); background: linear-gradient(180deg, #05090b 0%, #131d22 48%, #0b1215 52%, #172227 100%);
+  box-shadow: inset 0 0 .3em rgba(0, 0, 0, .9); text-shadow: 0 0 .32em color-mix(in srgb, var(--sc) 80%, transparent);
+}
+.mk.mk-about .dio-intake .in-odo-c b.is-dim { color: color-mix(in srgb, var(--sc-hi) 32%, transparent); text-shadow: none; }
+.mk.mk-about .dio-intake .in-dots { display: flex; gap: calc(var(--u) * .5); }
+.mk.mk-about .dio-intake .in-dots i { width: calc(var(--u) * .62); height: calc(var(--u) * .62); border-radius: 50%; box-shadow: 0 0 0 max(1px, calc(var(--u) * .08)) var(--ink); }
+.mk.mk-about .dio-intake .in-dots i:nth-child(1) { background: var(--tc1); } .mk.mk-about .dio-intake .in-dots i:nth-child(2) { background: var(--tc2); }
+.mk.mk-about .dio-intake .in-dots i:nth-child(3) { background: var(--tc3); } .mk.mk-about .dio-intake .in-dots i:nth-child(4) { background: var(--tc4); }
+.mk.mk-about .dio-intake .in-dots i:nth-child(5) { background: var(--tc5); }
+
+/* ---------- hero: the brass manifold, on the bezel's bottom outer corner ---------- */
+.mk.mk-about .dio-intake .dio-hero--a { bottom: calc(var(--u) * -2.5); left: calc(var(--u) * -2.9); width: calc(var(--u) * 16.6); height: calc(var(--u) * 14.5); }
+.mk.mk-about .dio-intake[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -2.9); }
+.mk.mk-about .dio-intake .hh-tb path { fill: none; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .hb-ink { stroke: var(--ink); stroke-width: 34; }
+.mk.mk-about .dio-intake .hb-rim { stroke: color-mix(in srgb, var(--tc) 62%, var(--ink)); stroke-width: 29; }
+.mk.mk-about .dio-intake .hb-body { stroke: var(--tc); stroke-width: 25; }
+.mk.mk-about .dio-intake .hb-lum { stroke: color-mix(in srgb, var(--tc) 40%, #0d181c); stroke-width: 15; }
+.mk.mk-about .dio-intake .hb-light { stroke: color-mix(in srgb, var(--tc) 45%, #fffaf0); stroke-width: 6.4; stroke-linecap: round; opacity: .55; }
+.mk.mk-about .dio-intake .hb-shade { stroke: color-mix(in srgb, var(--tc) 42%, var(--ink)); stroke-width: 5; stroke-linecap: round; opacity: .5; }
+.mk.mk-about .dio-intake .hb-sheen { stroke: #fffaf0; stroke-width: 2.6; stroke-linecap: round; opacity: .8; }
+.mk.mk-about .dio-intake .hb-sheen2 { stroke: #fffaf0; stroke-width: 1.3; stroke-linecap: round; opacity: .3; }
+.mk.mk-about .dio-intake .hb-glint { stroke: #fff; stroke-width: 4; stroke-linecap: round; opacity: 0; stroke-dasharray: .09 1.2; stroke-dashoffset: 0; }
+.mk.mk-about .dio-intake .hm-lip { fill: color-mix(in srgb, var(--amber-hi) 78%, #fffaf0); stroke: var(--ink); stroke-width: 4.4; }
+.mk.mk-about .dio-intake .hm-hole { fill: var(--ink); }
+.mk.mk-about .dio-intake .hm-glow { fill: var(--tc); opacity: .6; }
+.mk.mk-about .dio-intake .hm-hi { fill: none; stroke: #fffaf0; stroke-width: 2.6; stroke-linecap: round; opacity: .9; }
+.mk.mk-about .dio-intake .hb-ink2 { stroke: var(--ink); stroke-width: 4.8; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .hb-fhi { fill: none; stroke: #fffaf0; stroke-width: 2.6; stroke-linecap: round; opacity: .55; }
+.mk.mk-about .dio-intake .hb-riv { fill: var(--amber-hi); stroke: var(--ink); stroke-width: 2; }
+.mk.mk-about .dio-intake .hb-rivhi { fill: #fffaf0; opacity: .9; }
+.mk.mk-about .dio-intake .hb-brk { fill: color-mix(in srgb, var(--amber) 60%, var(--ink)); stroke: var(--ink); stroke-width: 4.8; stroke-linejoin: round; }
+.mk.mk-about .dio-intake .hb-facet { fill: none; stroke: color-mix(in srgb, var(--amber) 52%, var(--ink)); stroke-width: 2.6; stroke-linecap: round; opacity: .65; }
+.mk.mk-about .dio-intake .hb-glare { fill: #fffaf0; opacity: .5; }
+.mk.mk-about .dio-intake .hb-bounce { fill: #fffaf0; opacity: .22; }
+.mk.mk-about .dio-intake .hb-chev { fill: none; stroke: color-mix(in srgb, var(--amber) 55%, var(--ink)); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.mk.mk-about .dio-intake .hb-pipehi { fill: none; stroke: #fffaf0; stroke-width: 3.4; stroke-linecap: round; opacity: .42; }
+.mk.mk-about .dio-intake .cp-ink { stroke: var(--ink); stroke-width: 3.8; }
+.mk.mk-about .dio-intake .cp-band { fill: var(--sc); opacity: .92; }
+.mk.mk-about .dio-intake .cp-ln { fill: none; stroke: var(--ink); stroke-width: 1.7; opacity: .55; stroke-linecap: round; }
+.mk.mk-about .dio-intake .cp-edge { fill: none; stroke: var(--ink); stroke-width: 3.8; }
+.mk.mk-about .dio-intake .cp-hi { fill: none; stroke: #fffaf0; stroke-width: 3.2; stroke-linecap: round; opacity: .9; }
+.mk.mk-about .dio-intake .hh-sp { fill: #fffaf0; transform-box: fill-box; transform-origin: center; }
+.mk.mk-about .dio-intake .hh-sp2 { fill: var(--sc-hi); }
+.mk.mk-about .dio-intake .hh-sp3 { fill: var(--amber-hi); }
+
+/* ---------- motion: entrance from .is-in, then a gentle idle on the hero only ---------- */
+@keyframes mka-dio-intake-rise { from { opacity: 0; transform: translateY(calc(var(--u) * .7)); } }
+@keyframes mka-dio-intake-pop { from { opacity: 0; transform: scale(.55); } }
+@keyframes mka-dio-intake-draw { from { stroke-dashoffset: 1.02; } }
+@keyframes mka-dio-intake-fade { from { opacity: 0; } }
+@keyframes mka-dio-intake-drop { 0% { offset-distance: 0%; opacity: 0; } 9% { opacity: 1; } 100% { offset-distance: 100%; opacity: 1; } }
+@keyframes mka-dio-intake-land { 0% { transform: scale(1, 1); } 30% { transform: scale(1.14, .82); } 66% { transform: scale(.96, 1.06); } 100% { transform: scale(1, 1); } }
+@keyframes mka-dio-intake-spark { 0% { opacity: 0; transform: scale(.3); } 35% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.25) translateY(-.5px); } }
+@keyframes mka-dio-intake-flash { 0%, 100% { opacity: .5; } 30% { opacity: 1; } }
+@keyframes mka-dio-intake-lamp { from { opacity: .18; transform: scale(.7); } }
+@keyframes mka-dio-intake-plate { from { opacity: 0; transform: translateY(calc(var(--u) * .8)) scale(.94); } }
+@keyframes mka-dio-intake-hero { from { opacity: 0; transform: translateY(calc(var(--u) * 1.6)) rotate(-2.5deg) scale(.96); } }
+@keyframes mka-dio-intake-glide {
+  0%, 30% { transform: translateX(0); animation-timing-function: cubic-bezier(.6, 0, .9, .4); }
+  50% { transform: translateX(64px); }
+  50.01% { transform: translateX(-64px); animation-timing-function: cubic-bezier(.1, .6, .3, 1); }
+  76%, 100% { transform: translateX(0); }
+}
+@keyframes mka-dio-intake-twinkle { 0%, 100% { opacity: .55; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.18); } }
+@keyframes mka-dio-intake-glint { 0% { stroke-dashoffset: 1.2; opacity: 0; } 8% { opacity: .9; } 30% { stroke-dashoffset: -.1; opacity: 0; } 100% { stroke-dashoffset: -.1; opacity: 0; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about .dio-intake .in-tb path { stroke-dasharray: 1.02 1.02; }
+  /* waiting to enter: an empty stage (the line is not laid, no tokens, no counter answer) */
+  .mk.mk-about .dio-intake:not(.is-in) .in-lab,
+.mk.mk-about .dio-intake:not(.is-in) .in-badge,
+.mk.mk-about .dio-intake:not(.is-in) .in-plate,
+.mk.mk-about .dio-intake:not(.is-in) .in-odo,
+.mk.mk-about .dio-intake:not(.is-in) .in-tok,
+.mk.mk-about .dio-intake:not(.is-in) .in-nozs,
+.mk.mk-about .dio-intake:not(.is-in) .in-band,
+.mk.mk-about .dio-intake:not(.is-in) .in-pylons,
+.mk.mk-about .dio-intake:not(.is-in) .in-hooks,
+.mk.mk-about .dio-intake:not(.is-in) .dio-hero { opacity: 0; }
+  .mk.mk-about .dio-intake:not(.is-in) .in-tb path { stroke-dashoffset: 1.02; }
+  .mk.mk-about .dio-intake:not(.is-in) .in-dots i { opacity: .18; }
+
+  .mk.mk-about .dio-intake.is-in .in-lab { animation: mka-dio-intake-rise .55s var(--ease) both; animation-delay: calc(.05s + var(--i) * .07s); }
+  .mk.mk-about .dio-intake.is-in .in-badge { animation: mka-dio-intake-pop .6s var(--spring) both; animation-delay: calc(.12s + var(--i) * .07s); }
+  .mk.mk-about .dio-intake.is-in .in-band,
+.mk.mk-about .dio-intake.is-in .in-pylons,
+.mk.mk-about .dio-intake.is-in .in-hooks { animation: mka-dio-intake-fade .5s ease both .3s; }
+  .mk.mk-about .dio-intake.is-in .in-plate { animation: mka-dio-intake-plate .6s var(--spring) both .55s; }
+  .mk.mk-about .dio-intake.is-in .in-odo { animation: mka-dio-intake-fade .5s ease both .7s; }
+  .mk.mk-about .dio-intake.is-in .in-tb path { animation: mka-dio-intake-draw .9s var(--ease) both; animation-delay: calc(.4s + var(--i) * .07s); }
+  .mk.mk-about .dio-intake.is-in .in-nozs { animation: mka-dio-intake-fade .3s ease both 1.15s; }
+  .mk.mk-about .dio-intake.is-in .in-tok { animation: mka-dio-intake-drop 1s cubic-bezier(.55, .05, .3, 1) both 1.5s; }
+  .mk.mk-about .dio-intake.is-in .in-tok-in { animation: mka-dio-intake-land .55s var(--ease) both 2.45s; }
+  .mk.mk-about .dio-intake.is-in .in-bandglow { animation: mka-dio-intake-flash .9s ease-out both 2.45s; }
+  .mk.mk-about .dio-intake.is-in .in-land { animation: mka-dio-intake-spark .85s var(--ease) both 2.45s; }
+  .mk.mk-about .dio-intake.is-in .in-dots i { animation: mka-dio-intake-lamp .4s var(--spring) both 2.5s; }
+
+  .mk.mk-about .dio-intake.is-in .dio-hero--a { animation: mka-dio-intake-hero .9s var(--spring) both .1s; }
+  .mk.mk-about .dio-intake.is-in .hh-cap { animation: mka-dio-intake-glide 7.5s ease-in-out infinite 2.6s; }
+  .mk.mk-about .dio-intake.is-in .hh-sp1 { animation: mka-dio-intake-twinkle 3.4s ease-in-out infinite 1s; }
+  .mk.mk-about .dio-intake.is-in .hh-sp2 { animation: mka-dio-intake-twinkle 4.1s ease-in-out infinite 1.6s; }
+  .mk.mk-about .dio-intake.is-in .hh-sp3 { animation: mka-dio-intake-twinkle 3.7s ease-in-out infinite .4s; }
+  .mk.mk-about .dio-intake.is-in .hb-glint { animation: mka-dio-intake-glint 7.5s linear infinite; animation-delay: calc(2.9s + var(--gi) * .28s); }
+}
+
+/* ---------- phones and portrait windows: normal flow, single column, px sizes (nothing is scaled) ---------- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-intake .gl { display: flex; flex-direction: column; gap: 12px; padding: 16px 14px 92px; }
+  .mk.mk-about .dio-intake .in-svg { display: none; }
+  .mk.mk-about .dio-intake .in-doors { position: relative; inset: auto; display: grid; gap: 8px; margin-right: 38px; }
+  .mk.mk-about .dio-intake .in-door { position: relative; left: auto; top: auto; width: auto; height: 54px; }
+  .mk.mk-about .dio-intake .in-lab { position: absolute; top: 0; left: 52px; right: auto; margin: 0; width: max-content; padding: 2px 11px; font-size: var(--fs-small); }
+  .mk.mk-about .dio-intake .in-badge { left: 0; top: 5px; width: 44px; height: 44px; margin: 0; }
+  .mk.mk-about .dio-intake .in-door::before {
+    content: ""; position: absolute; left: 22px; right: 0; top: 27px; height: 24px; border-radius: 12px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 55%, #fffaf0) 0, var(--tc) 30%, color-mix(in srgb, var(--tc) 66%, var(--ink)) 100%);
+    box-shadow: 0 0 0 3px var(--ink), 0 4px 0 3px rgba(0, 0, 0, .3);
+  }
+  .mk.mk-about .dio-intake .in-door::after { content: ""; position: absolute; left: 36px; right: 14px; top: 31px; height: 3px; border-radius: 2px; background: rgba(255, 250, 240, .7); }
+  .mk.mk-about .dio-intake .in-pt {
+    display: block; position: absolute; left: calc(100% - 30px); top: 12px; width: 30px; height: 42px; z-index: 2; border-radius: 6px; background: var(--cream);
+    box-shadow: 0 0 0 2.5px var(--ink), 0 3px 0 2.5px rgba(0, 0, 0, .3); overflow: hidden;
+  }
+  .mk.mk-about .dio-intake .in-pt::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 12px; background: var(--tc); }
+  .mk.mk-about .dio-intake .in-pt::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 8px; height: 8px; border-radius: 3px; background: linear-gradient(rgba(23, 32, 42, .5), rgba(23, 32, 42, .5)) 0 0 / 100% 3px no-repeat, linear-gradient(rgba(23, 32, 42, .5), rgba(23, 32, 42, .5)) 0 5px / 60% 3px no-repeat; }
+  .mk.mk-about .dio-intake .in-ptk { position: absolute; left: 6px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--tc); box-shadow: 0 0 0 2px var(--ink); }
+  .mk.mk-about .dio-intake .in-doors::after {
+    content: ""; position: absolute; top: -6px; bottom: -6px; right: -16px; width: 14px; border-radius: 4px; border: 2.5px solid var(--ink);
+    background: conic-gradient(var(--cream) 25%, var(--ink) 0 50%, var(--cream) 0 75%, var(--ink) 0) 0 0 / 14px 14px;
+  }
+  .mk.mk-about .dio-intake .in-doors::before { content: ""; position: absolute; top: -6px; bottom: -6px; right: -34px; width: 16px; background: linear-gradient(90deg, color-mix(in srgb, var(--sc) 40%, transparent), transparent); border-radius: 0 6px 6px 0; }
+  .mk.mk-about .dio-intake .in-plate,
+.mk.mk-about .dio-intake[data-side="r"] .in-plate { position: relative; left: auto; top: auto; translate: none; margin: 6px auto 0; max-width: 100%; padding: 6px 14px 7px; border-radius: 12px; }
+  .mk.mk-about .dio-intake .in-plate-t { font-size: var(--fs-lead); }
+  .mk.mk-about .dio-intake .in-plate-s { margin-top: 2px; font-size: var(--fs-label); }
+  .mk.mk-about .dio-intake .in-odo { right: 14px; top: auto; bottom: 16px; gap: 8px; }
+  .mk.mk-about .dio-intake[data-side="r"] .in-odo { right: auto; left: 14px; }
+  .mk.mk-about .dio-intake .in-odo-c { font-size: 34px; }
+  .mk.mk-about .dio-intake .in-dots { gap: 8px; } .mk.mk-about .dio-intake .in-dots i { width: 10px; height: 10px; }
+  .mk.mk-about .dio-intake .dio-hero--a { width: 116px; height: 101px; left: -6px; bottom: -20px; }
+  .mk.mk-about .dio-intake[data-side="r"] .dio-hero--a { left: auto; right: -6px; }
+}
+@media (max-width: 899px) and (prefers-reduced-motion: no-preference), (max-aspect-ratio: 5/4) and (prefers-reduced-motion: no-preference) {
+  @keyframes mka-dio-intake-tube { from { transform: scaleX(0); } }
+  @keyframes mka-dio-intake-run { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 100% { left: calc(100% - 30px); opacity: 1; } }
+  .mk.mk-about .dio-intake:not(.is-in) .in-door::before,
+.mk.mk-about .dio-intake:not(.is-in) .in-door::after { opacity: 0; }
+  .mk.mk-about .dio-intake:not(.is-in) .in-pt { opacity: 0; left: 0; }
+  .mk.mk-about .dio-intake.is-in .in-door::before { transform-origin: left center; animation: mka-dio-intake-tube .8s var(--ease) both; animation-delay: calc(.35s + var(--i) * .07s); }
+  .mk.mk-about .dio-intake.is-in .in-door::after { animation: mka-dio-intake-fade .4s ease both; animation-delay: calc(.9s + var(--i) * .07s); }
+  .mk.mk-about .dio-intake.is-in .in-pt { animation: mka-dio-intake-run 1s cubic-bezier(.55, .05, .3, 1) both 1.5s; }
+}

@@ -7,6 +7,7 @@ import { stageWithRole } from "./pipeline-stages";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs, resolveOfferTtlDays } from "./offer-policy";
 import { recordAutomationEvent } from "./db/pipeline";
+import { addColumns } from "./db/add-columns";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -47,25 +48,13 @@ function db(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_offers_entry ON offers (entry_id);
   `);
   // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
-  try {
-    d.exec(`ALTER TABLE offers ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "offers", ["workspace_id TEXT NOT NULL DEFAULT 'workspace'"]);
   // Migration for stores created before the expiry column existed.
-  try {
-    d.exec(`ALTER TABLE offers ADD COLUMN expires_at TEXT`);
-  } catch {
-    /* column already exists */
-  }
+  addColumns(d, "offers", ["expires_at TEXT"]);
   // Migration for the T-48h reminder dedup column (idea-29361408 follow-up): the
   // timestamp a single pre-deadline reminder was sent, NULL until then. The
   // reminder sweep CAS-claims on `reminded_at IS NULL` so it sends at most once.
-  try {
-    d.exec(`ALTER TABLE offers ADD COLUMN reminded_at TEXT`);
-  } catch {
-    /* column already exists */
-  }
+  addColumns(d, "offers", ["reminded_at TEXT"]);
   // The whole-day deadline window actually APPLIED to this offer (the recruiter's
   // ttlDays lever, already validated through offer-policy.resolveOfferTtlDays).
   // Persisted because expires_at alone cannot answer "did the recruiter change the
@@ -73,11 +62,7 @@ function db(): Database.Database {
   // stored span stops equalling the chosen TTL. NULL on legacy rows minted before
   // this column → read back as the deployment default, which is what they were
   // minted with.
-  try {
-    d.exec(`ALTER TABLE offers ADD COLUMN ttl_days INTEGER`);
-  } catch {
-    /* column already exists */
-  }
+  addColumns(d, "offers", ["ttl_days INTEGER"]);
   // At most ONE open offer per entry, enforced by the database itself
   // (idea-00987b3c): the route's read-then-create dedupe is a TOCTOU two
   // near-simultaneous approvals both pass. Partial unique index = the backstop

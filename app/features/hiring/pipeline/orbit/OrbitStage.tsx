@@ -1,20 +1,29 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { labelWidths } from "@/app/_components/kit/scene";
 import { useTheme } from "@/app/_components/ui/useTheme";
 import type { StageDef } from "@/app/features/shared/pipelineTypes";
 import { type LensId, type OrbitGroup } from "./orbitModel";
 import { anchorOf, CALLOUT_W, layoutOrbit, placeCallouts, sectorAt, type Dot, type OrbitGeo } from "./orbitLayout";
-import { drawOrbit, readPalette, runFlight, type Part } from "./orbitPaint";
-import { LegendBead, OrbitMark, Sep } from "./OrbitMarks";
+import { drawOrbit, readPalette, ringGrowth, runFlight, type Part } from "./orbitPaint";
+import { OrbitMark, Sep } from "./OrbitMarks";
+import { OrbitLegend } from "./OrbitLegend";
 import { cx } from "./orbitCx";
 import type { OrbitWords } from "./orbitWords";
 
 /** A dot where it sits on screen right now (viewport px). */
 export type ScreenDot = { d: Dot; x: number; y: number; r: number };
 export type Snapshot = { dots: ScreenDot[]; center: { x: number; y: number } };
-/** Where the people are coming FROM when the orbit (re)appears: the lanes' beads, or the previous lens. */
-export type Arrival = { nonce: number; mode: "up" | "resector"; from: ReadonlyMap<string, { x: number; y: number; r: number }>; key: string | null };
+/** Where the people are coming FROM when the orbit (re)appears: the lanes' beads, the previous lens, or
+ *  the Overview's own orbit ("grow": the same dots, smaller; `origin` is that orbit's centre and radius). */
+export type Arrival = {
+  nonce: number;
+  mode: "up" | "resector" | "grow";
+  from: ReadonlyMap<string, { x: number; y: number; r: number }>;
+  key: string | null;
+  origin?: { cx: number; cy: number; R: number } | null;
+};
 export type OrbitStageHandle = { snapshot: () => Snapshot | null };
 
 type Props = {
@@ -22,10 +31,16 @@ type Props = {
   lens: LensId;
   axis: readonly StageDef[];
   words: OrbitWords;
-  /** A stage the page is focused on (Today), as an axis index. */
+  /** A stage the page is focused on (Today, the ring key), as an axis index. */
   ring: number | null;
+  /** Focus a ring from the ring key under the orbit (null = every stage). */
+  onRing: (i: number | null) => void;
+  /** People an Overview queue lit: drawn forward, everyone else dimmed. */
+  focus: ReadonlySet<string> | null;
   onOpen: (key: string) => void;
   arrival: Arrival | null;
+  /** Called before a grow arrival measures, so the page can bring the orbit into view first. */
+  beforeGrow?: () => void;
   fly: RefObject<HTMLCanvasElement | null>;
   reduced: boolean;
   closedEmpty: number;
@@ -43,10 +58,10 @@ const EASE = "cubic-bezier(.2,.8,.2,1)";
  * callout out from its sector's edge; coming back up from a group flies the beads home.
  */
 export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStage(
-  { groups, lens, axis, words, ring, onOpen, arrival, fly, reduced, closedEmpty, jobsMissing },
+  { groups, lens, axis, words, ring, onRing, focus, onOpen, arrival, beforeGrow, fly, reduced, closedEmpty, jobsMissing },
   ref
 ) {
-  const { t, n } = words;
+  const { t } = words;
   const wrap = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
   const coRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -70,8 +85,13 @@ export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStag
     return () => { live = false; };
   }, []);
 
-  const geo: OrbitGeo | null = useMemo(() => (width > 0 ? layoutOrbit(groups, axis.length, width) : null), [groups, axis.length, width]);
   const ringLabels = useMemo(() => axis.map((s) => words.stage(s.id)), [axis, words]);
+  // Each stage's people, across every group: the rings are cut so each band's area follows them.
+  const counts = useMemo(() => axis.map((_, i) => groups.reduce((sum, g) => sum + (g.st[i]?.n ?? 0), 0)), [axis, groups]);
+  const geo: OrbitGeo | null = useMemo(
+    () => (width > 0 ? layoutOrbit(groups, axis.length, width, 900, { counts, labels: labelWidths(ringLabels) }) : null),
+    [groups, axis.length, width, counts, ringLabels]
+  );
 
   // Measure every callout's height once it is in the DOM, so the columns stack without overlap.
   useLayoutEffect(() => {
@@ -90,8 +110,8 @@ export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStag
 
   useEffect(() => {
     if (!geo || !cv.current) return;
-    drawOrbit(cv.current, geo, readPalette(), { hot, ring, places, height, ringLabels });
-  }, [geo, places, height, hot, ring, ringLabels, theme, fontsTick]);
+    drawOrbit(cv.current, geo, readPalette(), { hot, ring, places, height, ringLabels, focus });
+  }, [geo, places, height, hot, ring, ringLabels, focus, theme, fontsTick]);
 
   useImperativeHandle(ref, () => ({
     snapshot: () => {
@@ -128,6 +148,7 @@ export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStag
     const canvas = cv.current;
     const overlay = fly.current;
     if (!overlay) return;
+    if (arrival.mode === "grow") beforeGrow?.();
     const r = canvas.getBoundingClientRect();
     const center = { x: r.left + geo.cx, y: r.top + geo.cy };
     const parts: Part[] = geo.dots.map((d) => {
@@ -142,9 +163,14 @@ export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStag
       return { d, fx: mine ? tx : tx + (ox / len) * 260, fy: mine ? ty + 40 : ty + (oy / len) * 260, tx, ty, fr: d.r, tr: d.r, fa: 0, ta: 1, delay: mine ? 0.2 : 0.1 };
     });
     canvas.style.visibility = "hidden";
-    const stop = runFlight(overlay, readPalette(), parts, arrival.mode === "up" ? 1050 : 950, () => { canvas.style.visibility = ""; });
+    const pal = readPalette();
+    // Growing out of the Overview: the rings widen from its centre and radius to ours while the dots fly.
+    const o = arrival.mode === "grow" ? arrival.origin : null;
+    const paint = o ? ringGrowth(pal, geo.rings, o, { cx: center.x, cy: center.y, R: geo.R }) : undefined;
+    const dur = arrival.mode === "grow" ? 1150 : arrival.mode === "up" ? 1050 : 950;
+    const stop = runFlight(overlay, pal, parts, dur, () => { canvas.style.visibility = ""; }, paint);
     return () => { if (landed.current !== arrival.nonce) stop(); };
-  }, [arrival, ready, geo, places, reduced, fly]);
+  }, [arrival, ready, geo, places, reduced, fly, beforeGrow]);
 
   const pointer = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!geo) return null;
@@ -221,18 +247,7 @@ export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStag
           : null}
       </div>
       {geo && !geo.side ? <div className="ob-colist">{groups.map((g) => callout(g, undefined, "list"))}</div> : null}
-      <div className="ob-legend">
-        <span><LegendBead kind="w" />{t("legendWaiting")}</span>
-        <span><LegendBead kind="a" />{t("legendLate")}</span>
-        <span><LegendBead kind="q" />{t("legendOnTime")}</span>
-        <span><LegendBead kind="h" />{t("legendHired")}</span>
-        <span><LegendBead kind="q" placed />{t("legendPlaced")}</span>
-        <span><OrbitMark kind="vacant" /><OrbitMark kind="draft" />{t("legendRim")}</span>
-        <span>{t("legendWidth")}</span>
-        {closedEmpty ? <span>{t("legendClosed", { count: closedEmpty })}</span> : null}
-        {jobsMissing ? <span className="ob-legend__warn">{t("legendNoJobs")}</span> : null}
-        <span className="ob-legend__n">{t("legendTotal", { people: n(groups.reduce((s, g) => s + g.act, 0)) })}</span>
-      </div>
+      <OrbitLegend axis={axis} words={words} ring={ring} onRing={onRing} counts={counts} ringLabels={ringLabels} people={groups.reduce((sum, g) => sum + g.act, 0)} closedEmpty={closedEmpty} jobsMissing={jobsMissing} />
     </section>
   );
 });

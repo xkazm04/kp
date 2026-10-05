@@ -1,9 +1,12 @@
 # Marketing surfaces — `/`, `/about`, `/market`
 
-The three public, signed-out pages. They share one art direction (Spark: ink
-outlines, hard offset shadows, tilt, Bricolage display face) and one set of
-chrome conventions, but each answers a different question: *what is this*, *how
-does it work*, *what does the market look like*.
+The three public, signed-out pages. `/` and `/about` are one site since
+2026-09-30: a port of the owner-approved fused prototype
+(`.contest/fusion/v1/`, "Spark": cream grounds, ink outlines, hard offset
+shadows, Bricolage display face, Caveat notes) into `app/landing/site/`, sharing
+one header, phone menu, footer and CTA dock. `/market` keeps the earlier Spark
+chrome (`app/landing/spark/`). Each page answers a different question: *what is
+this*, *how does it work*, *what does the market look like*.
 
 These pages are the documented exception to the token rule in
 [`docs/design/README.md`](../../design/README.md) — everything under
@@ -12,295 +15,272 @@ the app may.
 
 The patterns these pages are built on, written for someone porting them into a
 different repository, are in [`docs/marketing/the-bar.md`](../../marketing/the-bar.md).
+The site's own conventions (CSS scoping, cascade order, fonts, root state, the
+chrome API, adding a band) are in
+[`app/landing/site/README.md`](../../../app/landing/site/README.md); read it
+before changing anything under `app/landing/site/`.
 
 ## Entry points
 
 | Route | Renders | Purpose |
 | --- | --- | --- |
-| `/` | `app/page.tsx` → `HomeGate` → `app/landing/spark/SparkHome.tsx` → `SparkLanding.tsx` | The landing. Signed-out only; signed-in visitors get the workspace. |
-| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the pipeline phases (`about-art/shared.ts` `ABOUT_STEP_KEYS`). The route shell emits `AboutPage` + `SoftwareApplication` JSON-LD (`app/about/about-jsonld.ts`) so crawlers get a typed product page, not only Open Graph title/description, plus a `HowTo` of those eight phases (order-locked to `ABOUT_STEP_KEYS`, step URLs are `#step-0N`) and a two-item `BreadcrumbList` (Home → About the app). `ABOUT_PAGE_MODIFIED` (ISO date, bump with `ABOUT_STEP_KEYS` / `aboutPage.steps`) is `openGraph.modifiedTime` and JSON-LD `dateModified`. |
+| `/` | `app/page.tsx` → `HomeGate` → `app/landing/spark/SparkHome.tsx` (route shell) → `app/landing/site/land/LandingPage.tsx` | The landing. Signed-out only; signed-in visitors get the workspace. |
+| `/about` | `app/about/page.tsx` → `app/landing/spark/AboutHome.tsx` (route shell) → `app/landing/site/about/AboutPage.tsx` | **About the app**, not about us — "the line": one sample hire walked down the eight pipeline phases (`ABOUT_STEP_KEYS` in `app/landing/spark/about-art/shared.ts`). The route shell emits `AboutPage` + `SoftwareApplication` JSON-LD (`app/about/about-jsonld.ts`) so crawlers get a typed product page, not only Open Graph title/description, plus a `HowTo` of those eight phases (order-locked to `ABOUT_STEP_KEYS`, step URLs are `#step-0N`) and a two-item `BreadcrumbList` (Home → About the app). `ABOUT_PAGE_MODIFIED` (ISO date, bump with `ABOUT_STEP_KEYS` / `aboutPage.steps`) is `openGraph.modifiedTime` and JSON-LD `dateModified`. |
 | `/market` | `app/market/page.tsx` → `MarketPulse.tsx` → `market/MarketPulseApp.tsx` → `MarketPulseAtlas.tsx` | "Market Pulse" — the Czech job market from open data. |
 | `/landing`, `/landing/spark` | redirect stubs | Legacy bookmarks → `/`. |
-
-### Module layout
-
-`SparkLanding.tsx` is the landing's **composition and nothing else**: it renders
-the bands in order and owns the single piece of state two of them share (which
-feature spotlight is open, because the modal renders at the page root while the
-cards that drive it sit inside `FeatureGrid`).
-
-| Directory | Holds |
-| --- | --- |
-| `spark/sections/` | One module per band: `Topbar`, `Hero`, `Marquee`, `Proof`, `FeatureGrid`, `VoiceTeaser`, `TrustPillars`, `Cta`, `Footer` |
-| `spark/sections/FeatureCardArt.tsx` | The nine feature cards' watermarks — one traced from each preview |
-| `spark/trust-art/` | The four Responsible-AI demonstrations the `#trust` band switches between, plus `shared.tsx` (the fixed stage and the `cycle()` loop helper) and `index.ts` (the key→accent+body registry) |
-| `spark/useStillMotion.ts` | `prefers-reduced-motion` as an external store — the SSR-safe replacement for framer's hook |
-| `spark/motion-presets.ts` | The one Spark motion vocabulary: `reveal(trigger, reduce, final, transition, initial)` (`"inView"` for the `/about` arts, `"mount"` for the previews), `pop`/`stamp`/`entrance`, and `ENTER`/`DRAW`. Plain `.ts`, so `motion-presets.test.ts` tests the reduced-motion gate directly |
-| `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the recurring card/chip/bar shapes; it re-exports `pop`/`stamp`/`entrance` from `motion-presets.ts`), `order.ts` (`PREVIEW_KEYS`, the grid order the `PreviewKey` union is derived from, plus the spotlight walk and its `#spotlight-<key>` address; pure, pinned by `order.test.ts`) and `index.ts` (the key→icon+body registry) |
-| `spark/about-art/` | One illustration per `/about` pipeline phase (each reveal spreads `reveal("inView", …)`; colours are `tokens.ts` constants), plus `shared.ts` — which owns `ABOUT_STEP_KEYS`, the phase list `AboutCurve` derives its rows AND its spine from, and re-exports `ENTER`/`DRAW` |
-| `spark/Wordmark.tsx` | The brand lockup, used by all three pages |
-| `spark/FeatureSpotlight.tsx` | The modal chrome that frames a preview; when pinned, also its prev/next walk and `{n} of {total}` line |
-
-This replaced three files of 615, 640 and 416 lines. The split was not
-cosmetic: it is what made the i18n migration tractable, because each preview's
-copy could move into `landing.previews.<key>.*` next to the component that
-renders it. Nothing in the tree now exceeds ~150 lines except
-`market/parts.tsx` (361), which is the next candidate.
 
 All three are `instant = false` (Blocked under Cache Components): they render
 under the per-request locale layout, so they cannot be statically prerendered.
 All three are listed in `app/_lib/auth/public-routes.ts` and `app/sitemap.ts`.
 
+### Module layout
+
+The two route shells stay in `app/landing/spark/` (the routes import them); each
+imports its page's ordered stylesheet list FIRST (`site/land/styles.ts`,
+`site/about/styles.ts`) and renders `MkRoot` > skip link, `Header`, the page,
+`Footer`, `CtaDock`. On `/` the `DemoUnavailableNotice` sits outside the root,
+because it is drawn with the app's Tailwind utilities, which the site root resets.
+
+| Path | Holds |
+| --- | --- |
+| `site/chrome/` | Shared by both pages: `MkRoot` (the site root: scope classes, font variables, root state), `Header` + `HeaderShell` (bar, section nav, phone menu), `Footer`, `CtaDock` (the phone/portrait dock), `Ctas.tsx` (`StartCta`, `DemoCta`, `SignIn`: every CTA on both pages), `LangChips` (the real EN/CS/DE/FR switch), `Stepper` (About's page stepper and the scene's), `fonts.ts` / `fontMono.ts`, `glyphs.ts` (`BRAND`, `GLYPH`), `legal.ts`, `rootState.ts` |
+| `site/css/` | The prototype's stylesheets, scoped under `.mk.mk` (chrome), `.mk.mk-land` (landing) and `.mk.mk-about` (About), plus `base.css` (user-agent defaults restored inside the root) and `chrome-app.css`. Hand-maintained; order is load-bearing |
+| `site/land/` | One server component per band (below), `LandingMotion` (spine, scroll-spy, reveals), `HeroClient`, `ProofStack`, `VoicePlayer`, `HumanGate`, and `art/` |
+| `site/land/features/` | The features band: `FeatureRing` (the ring of nine and the scene state), `Scene` (the full-screen scene), `featureData.ts`, `panels/` (one stylised product panel per feature, each with a "Look closer" detailed view) |
+| `site/about/` | `AboutPage` (server-rendered chapters), `AboutLine` (the client island: ribbon, gates, stepper, choreography), `steps.ts` (per-step paint and sample data), `art/` (one drawing per phase) |
+| `spark/previews/order.ts` | `PREVIEW_KEYS` (the nine features in funnel order, the `PreviewKey` union) and the `#spotlight-<key>` address grammar and walk; pure, pinned by `order.test.ts`, read by the ring |
+| `spark/about-art/shared.ts` | `ABOUT_STEP_KEYS`, `aboutStepId`, `aboutStepRailLabel`: the phase list the About page, the JSON-LD and the claims test all read |
+| `spark/Wordmark.tsx`, `tokens.ts`, `LandingLangSwitch.tsx`, `sections/LegalRow.tsx`, `market/` | `/market`'s chrome, and `LegalRow` for `/privacy`, `/terms`, `/trust` |
+
+The old Spark landing and About (`SparkLanding`, `sections/*` except `LegalRow`,
+`previews/*` except `order.ts`, `FeatureSpotlight`, `PricingSection`,
+`SectionRail`, `AboutCurve`, `about-art/*Art.tsx`, `trust-art/*`,
+`useStillMotion`) were retired with the port; git history has them.
+
 ### What the landing's bands argue, in order
 
-`Topbar · Hero · Marquee · Proof · FeatureGrid · VoiceTeaser · TrustPillars ·
-PricingSection · Cta · Footer`.
+`Hero · Marquee · Proof · Features · Voice · Human · Pricing · Enterprise ·
+Start`, inside `<main id="main">`, with the shared header above and footer
+below. Every band keeps a section id that the header nav, the phone menu, the
+spine and the footer point at: `#top`, `#proof`, `#features`, `#voice`,
+`#human`, `#pricing`, `#enterprise`, `#start` (the marquee has none: nothing
+links to it). The skip link jumps to `#features`.
 
-**No two coloured bands repeat, and no two neighbours match.** Cream hero →
-coral marquee → steel proof → limewash features → cream voice → **moss trust**
-→ amber pricing → cream CTA/footer. Cream is the page ground, so the bands that
-declare no background of their own (voice, CTA, footer) sit on it; every band
-that *does* paint one uses a different brand hue. `#trust` was cream, directly
-below the cream voice teaser, which meant the section boundary did not read as a
-boundary at all. Moss and ink were the two unused hues; ink is unusable as a
-ground here, because the whole Spark idiom is ink outlines and `6px 6px 0 ink`
-shadows, and both vanish against it. Adding a band means picking the remaining
-hue, not reusing one.
+- **Hero (`#top`) sells automation, not detection.** `landing.hero.title` is the
+  headline; its emphasis becomes the prototype's "autopilot" switch, which runs
+  a pile of three sample CVs through scoring and stops at a human gate. Two CTAs
+  (`StartCta`, `DemoCta`), a "Run it yourself" link to the self-hosted card, and
+  "How Jana got 87", which opens the score scene (`#spotlight-score`).
+- **Marquee:** today's eight claims (`landing.marquee`), CSS-scrolled, read once
+  by a screen reader, stopped under reduced motion.
+- **Proof (`#proof`):** the work-sample argument (`landing.proof.*`): three
+  pillars scrolling past a sticky stack of three stylised plates.
+- **Features (`#features`): the ring of nine.** Nine medallions on one ring in
+  funnel order (`PREVIEW_KEYS`: inbox, score, rediscover, voice, cases,
+  schedule, salary, offer, gates). Each is a button named
+  "*Feature*, *n* of 9. Opens its own scene." Hover or focus names it in the
+  ring's centre; a click opens its **scene** (below). The heading and all nine
+  names are in the server HTML.
+- **Voice (`#voice`):** "It talks to people", with a call card whose sample
+  transcript (`landing.voice.transcript`) replays bubble by bubble on demand, all
+  at once under reduced motion.
+- **Human (`#human`): the human gate, demonstrated.** Replaces the old
+  four-tab `#trust` band. A gate rail on which a sample candidate is scored and
+  then waits for a person to sign, and "what may run unattended" switches that
+  obey the real rule: screening and offer may be delegated, a rejection never
+  (`landing.trust.human.body` carries the "by default" qualifier the claims test
+  requires). Then the four compliance pillars as chips and the legal line.
+- **Pricing (`#pricing`): the price list, re-skinned.** See below.
+- **Enterprise (`#enterprise`):** the org-scale capabilities from
+  `landing.pricing.enterprise.capabilities`, each marked as in the repository,
+  delivered by us, or planned (a trailing "(planned)" in any locale becomes the
+  dashed planned tag), the three sourced recruiting-time figures, and "Talk to
+  sales" as today's mailto (`salesContactHref`).
+- **Start (`#start`):** the closing CTA pair (`landing.cta.*`).
 
-- **The hero sells automation, not detection.** `landing.hero.*` leads on the
-  pipeline running itself — ad to offer, with the operator reviewing only the
-  calls that matter. It used to open on *"Did the candidate write it, or the
-  model?"*, which is a real differentiator but a second-order one: it needs a
-  paragraph of setup before it lands, so the page opened on a worry instead of
-  on the value. That story keeps its home in the `#proof` band directly below,
-  where it has room to argue. Two CTAs — start, and watch the demo; the third
-  ("hear it interview") was an in-page jump to `#voice` competing with the two
-  that actually start something, and the scroll rail already navigates the page.
-- **There is no "how it works" band.** Three generic steps between `#proof` and
-  `#features` re-told the funnel that `/about` tells properly, as a scroll-drawn
-  eight-phase timeline. The landing no longer carries the short, worse version;
-  `landing.steps.*` and `landing.nav.how` are retired from all four catalogs.
-- **A feature card is title + body over its own watermark.** Each of the nine
-  cards renders `sections/FeatureCardArt.tsx` — line art traced from the mockup
-  that card opens (`score` is ScorePreview's dial, `schedule` its slot grid with
-  the picked cell filled, `inbox` five doors funnelling into one tray), plus a
-  corner wash in that card's accent. The leading icon tile and the trailing
-  "peek inside" line both went: the icon reappears in the spotlight header the
-  card opens, and `features.hint` above the grid already says every card peeks —
-  so both spent card space repeating something a scroll away, while making all
-  nine cards look alike. The art is `aria-hidden`, inert, and sits at ~12%
-  opacity so it reads as watermark, never as content; `fill="#fff"` on a white
-  card is invisible by design, knocking holes in the line art the way a
-  sticker's paper does so overlapping shapes stay legible.
+Page-level motion lives in `LandingMotion`: the **spine** (a fixed rail on wide
+desktops with one stop per band and the sample candidate's card travelling down
+it), the header nav's scroll-spy (`.is-cur`), and the reveals (`.rv` → `.rv.in`,
+a translate, never an opacity).
 
-### The Responsible-AI band demonstrates, it does not assert
+### The scene: one feature, full screen, and an address
 
-`#trust` was four static cards in a row — icon, heading, paragraph. Four
-paragraphs of compliance prose side by side is the least-read furniture on any
-B2B page, and none of it was evidence: "human in the loop" as a sentence is
-exactly as believable as a competitor's identical sentence. It is now **one
-frame with four tabs below it**, each opening a demonstration of the claim it
-names (`spark/trust-art/`):
+A medallion opens a full-screen **scene** in the feature's own colours
+(`site/land/features/Scene.tsx`): its medallion art, name, one-line pitch, body
+(`landing.features.<key>.body`), the stylised product panel, and three pins.
+"Look closer" swaps in the panel's detailed view (one level deeper).
 
-| Tab | What it shows |
-| --- | --- |
-| `human` | `HumanLoopArt` — a candidate token rides the rail through intake and scoring on its own, then **stops** at a gate whose barrier is down, and moves only after a stamp lands with a person's name on it. Three toggles below answer the buyer's real follow-up — *which* steps may run unattended. Two flip; `reject` is locked, because "by design, not by a setting" has to survive contact with the setting. |
-| `oversight` | `OversightArt` — the EU AI Act's own four-rung risk ladder, with a marker dropping onto the rung hiring occupies, then the three duties that rung obliges. |
-| `gdpr` | `GdprArt` — the record stays redacted until the consent stamp lands. `erase` is a **live button**: it shreds the record on screen and offers a restore. `see` and `review` are chips, not controls — a button that pretended to file a human-review request would be the one dishonest pixel on the page. |
-| `audit` | `AuditArt` — three sealed decisions linked by their hashes; something edits the middle one, its hash changes, and the link after it snaps. Only the *edited* block's hash crossfades: the others did not change, and what fails downstream is the link, not their digest. Below it, the calibration chart. |
+- **A modal dialog** named by the feature title (`role="dialog"`,
+  `aria-modal`). It opens with a circle wipe from its opener, focus moves to the
+  title, the page behind goes inert and stops scrolling, Tab cycles inside (plus
+  the phone CTA dock), Escape goes one level up (Look closer → scene → closed),
+  and closing returns focus to the medallion. It is portalled into the site root,
+  never inside a revealed band (a transformed ancestor would contain it).
+- **A walk.** The scene's stepper (the chrome `Stepper`, `variant="scene"`) has
+  nine dots and two arrow buttons named for their neighbours ("Previous:
+  Verified work samples"); ArrowLeft / ArrowRight step too, wrapping. The count
+  reads "05 of 09".
+- **An address.** An open scene is `/#spotlight-<key>` for the nine
+  `PREVIEW_KEYS`. Arriving at or navigating to that hash opens it; stepping
+  `replaceState`s the hash (a scrubber, not nine Back steps); closing puts back
+  whatever hash was there before (`hashAfterClose`), never a dead
+  `#spotlight-*`. Path and query are untouched, so `/`'s canonical URL and
+  hreflang alternates are too. Any in-page link to `#spotlight-<key>` opens a
+  scene with no code of its own (the hero's "How Jana got 87"). The grammar and
+  walk are `spark/previews/order.ts`, pinned by `order.test.ts`; the browser half
+  by `e2e/landing.spec.ts`.
 
-Conventions worth keeping:
+### Pricing: today's price list in the prototype's band
 
-- **One fixed stage height per breakpoint** (`ArtStage`), because the tabs sit
-  *below* the frame — a panel that resized would move the control the reader is
-  about to click. Sized to the tallest story in the longest locale; the stage
-  uses `grid-cols-[minmax(0,1fr)]` so the track can shrink below its content's
-  min-content width instead of shouldering the frame open on a phone.
-- **Every story is one `duration` with `times` as fractions of it** (`cycle()`
-  in `trust-art/shared.tsx`). No timeline object: elements mount together and
-  stay in lockstep, which is what keeps the stamp landing on the same beat as
-  the barrier lift.
-- **The tab strip is the WAI-ARIA tabs pattern** — `role="tablist"` with a
-  roving tabindex, arrows/Home/End moving selection and focus together. The
-  active pill slides via a shared `layoutId`.
-- **recharts is lazy** (`trust-art/CalibrationChart.tsx` behind `next/dynamic`,
-  the same lazy-boundary split `app/_components/FactorChart.tsx` uses). It is
-  the one genuinely quantitative claim on the marketing page, and it must not
-  cost every visitor who never opens the tab a chart library. Its `YAxis` is
-  pinned to `[0, 100]`: both series are percentages, and recharts would
-  otherwise fit the domain to the data and exaggerate the very gaps the panel
-  exists to show are small.
-- **Reduced motion goes through `useStillMotion`, never framer's hook.** See
-  the module comment: framer's answer is wrong during SSR, so branching markup
-  or initial styles on it fails hydration and re-renders the whole page on the
-  client — for the visitors who asked for less work. The hero's confetti did
-  exactly that. Framer's hook also reads the query exactly once into `useState`
-  and never re-reads it, so a component on it ignores the preference being
-  turned on mid-session.
-  `spark/AboutCurve.test.ts` now enforces both halves over the whole
-  `app/landing/` tree: no file may import framer's `useReducedMotion`, and any
-  file containing a `repeat: Infinity` loop must gate it. Four pre-existing
-  holdouts are listed in that test's `KNOWN_FRAMER_HOOK_HOLDOUTS` — see
-  Known gaps.
-  **An entrance is not exempt because it ends.** The loop check was the whole
-  gate for months, so the nine feature previews slammed a `scale: 2.2` stamp
-  onto the page and rotated cards in from ±10° for a reader who had asked for
-  less. Every module under `spark/previews/` now threads the flag through
-  `pop(delay, reduce)` / `stamp(delay, reduce)` / `entrance(reduce, …)` from
-  `spark/motion-presets.ts`, which swaps the TRANSITION for `{ duration: 0 }` —
-  never the `initial` prop and never the markup, so a still reader lands on the
-  end state with no hydration hazard. A third `AboutCurve.test.ts` check pins
-  it, with an (empty) `KNOWN_UNGATED_ENTRANCES` holdout list.
-  The Hired illustration also lets a visitor replay its seal. Its stamp,
-  confetti, and handoff rows use `useStillMotion`: a reduced-motion visitor sees
-  their final state immediately, and the replay button gives a text confirmation.
-  All eight `about-art/` illustrations now drive their in-view targets to the
-  final state with zero-duration transitions when reduced motion is requested,
-  including a mid-session preference change. They do it through one builder,
-  `reveal("inView", reduceMotion, final, transition, initial)` in
-  `spark/motion-presets.ts`, which returns `whileInView` + an `animate` of the
-  SAME end state for a still reader + the gated transition, and never branches
-  `initial`. `motion-presets.test.ts` tests that behaviour; `AboutCurve.test.ts`
-  only checks that no art goes around it (no raw `whileInView=`, no hand-written
-  `{ duration: 0 }`, no re-typed `tokens.ts` hex). The earlier guard compared
-  adjacent source lines, so a reflowed prop failed it while a differently-shaped
-  element slipped past. The rendered reveal on `/about` is not pinned by a
-  browser test yet (see Known gaps).
+`site/land/Pricing.tsx` draws the prototype's pricing band (the dark
+self-hosted "door" beside three paper plans, drawn emblems, the "open source"
+ribbon, the packs line, the jump to `#enterprise`) over **today's price list**:
+every name, price, cadence, USD line, bullet and button label is
+`landing.pricing.tiers.*`, and the tier table `TIER_STYLES` has the same shape
+as the retired `PricingSection`'s (self-hosting first, `external` = leaves for
+the repository). `PricingSection.test.ts` reads it out of this file's source and
+pins it to `app/_lib/billing/plans.ts` (see
+[The claims are pinned](#the-claims-are-pinned-not-proofread)).
+
+- The self-hosted card's CTA is a link to the repository (`sourceRepoHref()`);
+  the hosted tiers' are `StartCta` with the plan, which carries it into the href
+  (`/signup?plan=…` or `/login?plan=…`), into the credential-less workspace entry
+  and into the `landing_cta_click` analytics payload (`{ placement: "pricing",
+  plan }`).
+- One deliberate difference from the catalog: the self-hosted card's models
+  bullet is the prototype's vendor-free wording
+  (`siteLand.pricing.selfhostModels`). The self-hosted tier is not metered, and
+  the test pins that no other bullet is replaced.
+- The enterprise block that used to sit under the price grid is now its own
+  `#enterprise` band.
 
 ## Navigation conventions
 
-The three pages share one rule set, so a visitor learns the chrome once.
+Both pages share one header, menu, footer and dock (`site/chrome/`), so a
+visitor learns the chrome once. `/market` keeps its own.
 
-- **The topbar carries destinations and a compact language switch** — `/about`, `/market`, Sign in.
-  In-page section anchors do not belong there: on the landing they competed with
-  the links that actually leave the page.
-- **In-page sections live in the scroll rail.** `app/landing/spark/SectionRail.tsx`
-  is a right-hand rail that stays hidden until you scroll past the hero
-  (`REVEAL_AT`), then tracks the section under the viewport's middle band via an
-  `IntersectionObserver`. Sections: `#proof`, `#features`, `#voice`, `#trust`,
-  `#pricing`, plus a back-to-top control. Shown from `lg` up.
-  Each About step also has a copy-link control that shares its numbered anchor in
-  the reader's language.
-  - **Every label is legible at rest** — inactive entries at 55% opacity, the
-    active one at full. The rail used to collapse to bare dots with only the
-    active label pinned, which made it a scroll-position *readout* rather than a
-    nav: you cannot pick a destination you cannot read. Opacity alone carries
-    the state, so nothing reflows as you scroll.
-  - **It is positioned against the content column, not the viewport edge:**
-    `left: min(calc(50% + 36rem + 0.5rem), calc(100% - 9.25rem))`. Open labels
-    make the rail ~8.9rem wide, and the bands are `max-w-6xl` (72rem) — so a
-    plain `right-5` laid it over the third feature card on a 1440px laptop. The
-    first term parks it just past the content's right edge; the `min()` clamps
-    it back onto the viewport below ~1480px, where no gutter exists and an
-    overlay is the only option.
-  - **Clicks glide, they do not cut.** `scrollToSection` calls
-    `scrollIntoView({ behavior: "smooth" })` (`"auto"` under `prefers-reduced-motion`)
-    and updates the hash with `replaceState`, not `pushState` — the rail is a
-    scrubber, not a trail of destinations, so it must not bury the referring
-    page under five back-presses. The `href="#id"` stays as the no-JS fallback.
-- **The Voice Teaser opens its spotlight.** Its button pins the same voice
-  preview opened by the feature card.
-- **A pinned spotlight is a walk and an address.** Prev/next buttons (after the
-  body, so close stays the first focus target) and ArrowLeft/ArrowRight step
-  through all nine previews in `PREVIEW_KEYS` order, wrapping, with a polite
-  `{n} of {total}` line (`landing.previews.prev|next|position`). Arrows act only
-  while pinned, never with a modifier (Alt+Left is Back) or in a text field.
-  The pinned preview lives in the URL as `/#spotlight-<key>`: `SparkLanding`
-  pins from the hash on load and on `hashchange`, every pin or step goes through
-  `pinOpen`, which `replaceState`s the hash (a scrubber, not history), and close
-  puts back the hash that was there before (`hashAfterClose`), never a dead
-  `#spotlight-*`. Path and query are kept verbatim, so `/`'s canonical URL and
-  hreflang alternates are untouched. The address is deliberately NOT the cards'
-  internal `feature-<key>-title` ids; an unknown or prototype key opens nothing.
-  Hover peeks are never addressed. Focus: stepping swaps content inside the
-  mounted dialog, so Escape still returns focus to the card that opened it (a
-  hash-opened dialog has no card to return to).
-- **Phone navigation is one disclosure, with per-page destinations.**
-  `spark/sections/MobileNav.tsx` takes a `destinations` prop (`NavDestination`:
-  a `#band` of this page, or another page). The landing passes its five bands
-  plus `/about`, `/market` and the source; `/about`, which has no bands, passes
-  `/`, `/market` and the source. Below `sm` both pages had NO navigation at all
-  before it — the topbar is `hidden sm:flex` and the rail is `lg:block`.
-  Keyboard behaviour is the shared `useDialogA11y` in its non-modal mode.
-- **The language switcher is footer-only.** `LandingLangSwitch` appears once per
-  page, in the footer. It used to sit in the `/market` topbar as well; one place
-  to change language beats two.
-- **Every public footer carries the legal row** — `/privacy`, `/terms`, `/trust`
-  (`landing.footer.{privacy,terms,trust}`), rendered from the shared
-  `spark/sections/LegalRow.tsx` rather than inlined per page. `/market` mounts it
-  beside its language switcher for the same reason `/about` does: a visitor who
-  arrives from a search result must reach the policies without going home first. It used to live
-  inside `Footer.tsx`, which made it the LANDING's row: `/about` is in the
-  sitemap and shipped without it. A product that captures candidate
+- **The header** (`<header id="bar">`) carries the brand (to `#top` on `/`, home
+  from `/about`), the section nav (`landing.nav.sections` "Page sections": Proof,
+  Features, Voice, Human gate, Pricing, About), the language chips, Sign in, and
+  the two CTAs. It turns solid with a blur once the page has scrolled 40px, and
+  is always solid on `/about`.
+- **Phone navigation is one disclosure.** Below the header's breakpoint the
+  "Menu" button (renamed "Close" while open, `aria-expanded` in step) opens a
+  full-screen panel: the same destinations (on `/about` they link back into the
+  landing's bands, `/#pricing`, and About is marked `aria-current="page"`), the
+  source link, Sign in, and the language line with the chips. Focus moves into
+  the panel, Escape closes it and returns focus to the button, and any link in it
+  closes it (the shared `useDialogA11y`, non-modal). The panel is a sibling of
+  the header, never inside it: the header's backdrop-filter would contain it.
+- **The phone / portrait dock** (`CtaDock`) pins the two CTAs to the bottom edge
+  below 1100px wide, or on any window no wider than 5:4 (`max-aspect-ratio: 5/4`).
+- **About's stepper** (`Stepper`, `variant="page"`) is fixed at the bottom of
+  `/about`: one dot per phase plus arrows named for the neighbouring phase; a
+  signed gate marks its dot.
+- **Language:** the EN/CS/DE/FR chips are the real locale switch (they write
+  `NEXT_LOCALE` through the same server action as `LandingLangSwitch`, then
+  refresh), in the header, the phone menu and the footer; every instance reads
+  the active locale from the server, so they agree.
+- **Every public footer carries the legal row** — `/privacy`, `/terms`,
+  `/trust`. On `/` and `/about` it is the site footer's "Legal" nav
+  (`site/chrome/legal.ts`); `/market`, `/privacy`, `/terms` and `/trust` render
+  the shared `spark/sections/LegalRow.tsx`. A product that captures candidate
   PII exposes its policies from its front door; `/trust` is the evidence page
-  behind the hero's verified-hiring claims (public since 2026-08-05, was
-  noindexed). All three are in `app/sitemap.ts` and the public-routes
-  allow-list.
+  behind the landing's verified-hiring claims.
 - **`/about` is labelled "About the app"** (`landing.nav.about`,
   `jobMarket.nav.about`) — `O aplikaci` · `Über die App` · `À propos de l'app`.
   The page describes the product's workflow, so it must not read as an
-  about-us/company page. The Czech string was previously "O nás".
+  about-us/company page.
+- **Cross-page links are plain `<a>`**, never `next/link`: each page loads its
+  own stylesheet list, and a full navigation keeps one page's CSS off the other.
+
+### `/about`: the line
+
+`site/about/AboutPage.tsx` renders the hero (the route as one LCD, `#top`), the
+eight step chapters (`#step-01`…`#step-08` via `aboutStepId`, inside `#line`,
+the skip-link target), and the finale (`#end`: the seal, the receipts tape, two
+CTAs), all server-rendered. `AboutLine` (client) adds the ribbon drawn as far as
+the reader has scrolled with the sample candidate's pawn at its tip, the human
+gates (signing one lights its node, feeds the tape, marks the stepper dot), the
+scroll-spy that sets the page colour, Replay, and a skippable intro. Under
+reduced motion it is the calm version: the whole line drawn, every gate waiting.
+Copy is today's `aboutPage.steps.*` (eyebrow, title, body) plus the prototype's
+notes, gates and labels in `siteAbout.*`. The earlier per-step copy-link control
+was not part of the prototype and did not survive the port.
+
+### Reduced motion
+
+- The site animates in CSS and gates it with `@media (prefers-reduced-motion)`
+  in its scoped sheets; client islands read the query through `matchMedia`
+  (`useMedia` in `site/land/features/panels/kit.tsx`, the matchMedia checks in
+  `HeroClient`, `VoicePlayer`, `LandingMotion`, `AboutLine`). Reduced motion: the
+  hero starts fully scored with no intro, reveals are in place, the marquee
+  stops, the scene opens without its wipe, About draws the whole line.
+- **Never framer's `useReducedMotion`.** It answers `null` during SSR and reads
+  the query once into `useState`, so markup branched on it fails hydration and
+  ignores a mid-session change. `app/landing/spark/landing-motion.test.ts` walks
+  the whole `app/landing/` tree: no file may use framer's hook (two `/market`
+  holdouts, see Known gaps) and any `repeat: Infinity` framer loop must be gated.
 
 ## Localization
 
 Every visible string on all three pages resolves through i18n — the `landing`,
-`aboutPage` and `jobMarket` namespaces in `messages/{en,cs,de,fr}.json` —
+`aboutPage` and `jobMarket` namespaces, plus the port's four (`siteChrome`,
+`siteLand`, `siteFeatures`, `siteAbout`) in `messages/{en,cs,de,fr}.json` —
 **including the page titles and descriptions**, which `/about` and `/market`
-build in `generateMetadata` via `getTranslations` (the pattern
-`app/jds/[slug]/page.tsx` established). Those were the last hardcoded English on
-these pages, and they are the copy a search result and a shared link show.
+build in `generateMetadata` via `getTranslations`. The port reuses the existing,
+already-translated keys wherever the copy is verbatim today's (`landing.*`,
+`aboutPage.*`, `pricing`), so the claims tests keep reading the same keys; only
+copy the prototype introduced (labels, notes, stepper text, captions) is new.
 
 A page's `openGraph` / `twitter` **replace** the root layout's (Next merges
 metadata shallowly), so `/about` extends the parent's resolved objects —
 `generateMetadata(_props, parent)` spreads `(await parent).openGraph` and
-`.twitter` under its own title and description. Without that a shared `/about`
-link lost og:type, og:site_name, og:locale and the image, and its Twitter card
-kept the site title. `e2e/public-pages.spec.ts` pins the tags against `/`.
-`/market`, `/privacy`, `/terms` and `/trust` still return a bare `openGraph` and
-have the same gap.
+`.twitter` under its own title and description. `e2e/public-pages.spec.ts` pins
+the tags against `/`. `/market`, `/privacy`, `/terms` and `/trust` still return a
+bare `openGraph` and have the same gap.
 
-`/about` also returns `keywords` from `aboutPage.meta.keywords` (the pipeline
-walk: hiring pipeline, job description, CV screening, work sample, voice
-interview, offer, human in the loop) so the explainer does not inherit the
-root layout's landing bag (anti-AI-cheating, Czech market). `about-jsonld.test.ts`
-pins the assignment.
+`/about` also returns `keywords` from `aboutPage.meta.keywords` so the explainer
+does not inherit the root layout's landing bag. `about-jsonld.test.ts` pins the
+assignment.
 
 Three things deliberately do **not** go through the catalog, and each is held as
 a named constant rather than JSX text so the lint can tell them apart from copy:
 
-- the **brand wordmark** — `spark/Wordmark.tsx` owns the one spelling of
-  "KandiDate"; a brand name must never reach a message catalog;
-- **illustrative figures** in the product mockups (`AXIS` in `SalaryPreview`,
-  `FIGURE` in `about-art/OfferArt`) and the fictional candidate names, which
-  ride into sentences as `{name}` placeholders;
-- **technology names** (Java, Spring, SQL, REST) — a Czech reader looks for
-  "Java", not a translation.
-
-One case runs the other way: the voice **spotlight**'s two transcript lines stay
-Czech in every locale, because they are the evidence for the note above them
-("yes, it speaks Czech too"). The voice **teaser** on the page body follows the
-reader's language, because it shows *an* interview, not specifically a Czech
-one. Both are commented at the source and in the message keys.
+- the **brand** — `BRAND` in `site/chrome/glyphs.ts` (and `spark/Wordmark.tsx`
+  on `/market`) owns the one spelling of "KandiDate"; a brand name must never
+  reach a message catalog;
+- **sample data** — the invented candidates and signer (Jana N., Petr K.,
+  Alex T., M. Horáková: `site/land/art/samples.ts`,
+  `site/land/features/sample.ts`, `site/about/steps.ts` `SAMPLE`), which ride
+  into sentences as `{name}` placeholders, and the illustrative figures;
+- the arrow and play **glyphs** (`GLYPH`, always `aria-hidden`), and
+  **technology names** — a Czech reader looks for "Java", not a translation.
 
 ### Enforcement
 
 - `npm run i18n:check` — key parity across all four locales, ICU validity, and
   a grep for hardcoded `aria-label` / `title` / `placeholder` / `alt` in these
-  three directories. That grep exists because the eslint rule below reads
-  **text nodes only** and structurally cannot see an attribute — an untranslated
-  `aria-label` is invisible in review but is the only thing a screen-reader user
-  hears. The directories are at zero, so they are sealed.
-- `app/landing/spark/PricingSection.test.ts` (the price list) and
-  `app/landing/spark/MarketingClaims.test.ts` (the prose claims) — see
+  directories. That grep exists because the eslint rule below reads **text
+  nodes only** and structurally cannot see an attribute. `app/landing` is
+  sealed.
+- `app/landing/spark/PricingSection.test.ts` (the price list, read out of
+  `site/land/Pricing.tsx`) and `app/landing/spark/MarketingClaims.test.ts` (the
+  prose claims) — see
   [The claims are pinned, not proofread](#the-claims-are-pinned-not-proofread).
   Both read the shipped catalogs and the shipped enforcing module, so there is
   nothing to keep in sync.
 - `i18next/no-literal-string` runs at **error** for `app/landing/**`,
-  `app/about/**` and `app/market/**`. Until this pass the rule was switched
-  **off** for `app/landing/**` — a carve-out from when that directory held
-  throwaway rebrand prototypes. The prototype was promoted to the real public
-  face and the carve-out was never revisited, so it was silently ignoring 50
-  hardcoded strings on the app's most-visited pages.
+  `app/about/**` and `app/market/**`.
+
+### Keyless behaviour
+
+Nothing on `/` or `/about` calls a model or reads the database: every
+demonstration (the hero's scoring, the human gate, the voice transcript, the
+scene panels, About's gates) is local, scripted sample data, labelled as such on
+the page ("sample", "stylised illustration"). "Watch the live demo" is a
+navigation to `/api/demo`, which either mints the open-deploy demo or returns to
+`/?demo=unavailable&code=…`, which `DemoUnavailableNotice` explains.
 
 ## Market Pulse data model
 
@@ -509,18 +489,19 @@ and `momentum` is `0` across the board until consecutive snapshots differ —
 
 Everything on these pages is a promise a prospect can hold the product to, and
 it is published in four languages on a page nobody re-reads. `PricingSection.test.ts`
-has always pinned the price list to `billing/plans.ts`. **`MarketingClaims.test.ts`
-now does the same for the prose claims** — each test pins the ONE structural fact
-its claim rests on, so it fails when the code moves rather than when the wording
-is edited:
+pins the price list to `billing/plans.ts` (it reads the tier table out of
+`site/land/Pricing.tsx`, and pins that the band replaces no bullet but the
+self-hosted models line). **`MarketingClaims.test.ts` does the same for the
+prose claims** — each test pins the ONE structural fact its claim rests on, so it
+fails when the code moves rather than when the wording is edited:
 
 | Claim | Pinned to |
 | --- | --- |
 | the human gate is the DEFAULT, and delegable | `INTERVIEW_PLAN_DEFAULT` is human on every step and round; `automation-run.ts` still has its two `getPlanGateForRole(…) === "auto"` branches and no rejection branch |
-| no page promises onboarding | `TENANCY_RETIRED_TABLES` still lists the onboarding tables; the ban then sweeps the whole `landing` + `aboutPage` namespaces, per locale |
-| the language claim | `LOCALES.length` — the numeral, read the way the pricing test reads a price |
+| no page promises onboarding | `TENANCY_RETIRED_TABLES` still lists the onboarding tables; the ban then sweeps the whole `landing` + `aboutPage` namespaces and the port's `siteChrome`, `siteLand`, `siteFeatures`, `siteAbout`, per locale |
+| the language claim | `LOCALES.length` — the marquee's numeral, read the way the pricing test reads a price, and the phone menu's "Four languages" line (`siteChrome.menu.languages`), read through a per-locale number-word table |
 | SSO is not sold as shipped | no SAML/OIDC implementation in `_lib/auth/*`; the capability must carry a "(planned)" marker in every locale and the blurb must not name it |
-| `/about` walks every phase | `aboutPage.steps` key order equals `ABOUT_STEP_KEYS`, each eyebrow states its own 1-based position, and the hero states the phase count. The same list is the HowTo JSON-LD on the route shell (`HowTo.step.length === ABOUT_STEP_KEYS.length`, names from the catalog titles). `ABOUT_PAGE_MODIFIED` on the route shell is the last-reviewed stamp for that list. |
+| `/about` walks every phase | `aboutPage.steps` key order equals `ABOUT_STEP_KEYS`, each eyebrow states its own 1-based position and carries the "·" the short step names are cut from, and the hero states the phase count. `site/about/steps.ts` re-exports the list as `STEP_KEYS` and `AboutPage` renders off it. The same list is the HowTo JSON-LD on the route shell (`HowTo.step.length === ABOUT_STEP_KEYS.length`, names from the catalog titles). `ABOUT_PAGE_MODIFIED` on the route shell is the last-reviewed stamp for that list. |
 
 Two of those need a per-locale table in the test (the "by default" qualifier and
 the "(planned)" marker), because **a claim whose honesty lives in a qualifier is
@@ -528,21 +509,38 @@ false the moment a translation drops it**, and key-parity cannot see that. The
 tables' key sets are asserted equal to `LOCALES`, so adding a locale fails the
 test rather than silently exempting it.
 
-**End to end**, two keyless specs in the CI subset cover these pages:
-`e2e/landing.spec.ts` audits `/` band by band (axe, the spotlight's focus
-contract, the `/#spotlight-<key>` address and arrow-key walk, the phone menu), and `e2e/public-pages.spec.ts` covers the OTHER
-indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and
-`/market` against a per-page, per-rule `A11Y_HOLDOUTS` map, plus `/about`'s
-legal row and phone disclosure. Each holdout is asserted to STILL fail, so a
-fixed one turns the suite red until its entry is deleted. `/market` no longer has
-an entry: its nineteen serious findings were the eleven gold (`#caa54c`, 2.33:1)
-occupation rank ticks, now deepened to `#7a5f14`, and eight org-type labels drawn
-in the encoding colour (coral 3.87:1, amber 2.33:1) — the colour said nothing the
-words did not, so it moved to a swatch beside a readable label. Both were LOCAL
-choices. What remains on `/about`, `/trust`, `/privacy` and `/terms` is the
-palette itself — one node per legal page, and on all three it is the same
-element, the coral `EYEBROW` at 3.65:1 on cream — which is an owner decision. Both are named
-one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
+**End to end**, keyless specs in the CI subset cover these pages.
+`e2e/landing.spec.ts` covers `/`: the landing-not-workspace gate, the skip link,
+axe on the whole page and band by band, axe on each of the nine scenes, the
+medallions' names, a scene's focus contract (focus in, Tab kept inside, Escape
+back to the medallion), the `/#spotlight-<key>` address and its walk, the phone
+menu, and the demo CTA's refusal. `e2e/public-pages.spec.ts` covers the OTHER
+indexed surfaces — axe on `/about`, `/trust`, `/privacy`, `/terms` and `/market`
+against a per-page, per-rule `A11Y_HOLDOUTS` map, plus `/about`'s legal row,
+phone disclosure, share tags and JSON-LD. `e2e/locale-smoke.spec.ts` checks that
+a `cs` cookie paints the anonymous landing in Czech, the port's new namespaces
+included. Both axe gates audit under reduced motion once every finite animation
+has ended, and record contrast debt **node by node**: each recorded node is
+asserted to STILL fail, so a fixed one turns the suite red until its entry is
+deleted.
+
+What they record today (measured 2026-09-30, 1280x800 and 390x844):
+
+- `/`: one node, the hero's "worth a call" verdict (`.c-petr > .verdict`, gold
+  `#a8842b` on `#fffdf7`, 3.44:1).
+- the scenes: four of nine (inbox 3.98:1, rediscover 3.15:1, voice 3.22:1,
+  salary 2.71:1) paint their crumbs, count and one-line pitch in the feature's
+  soft tint on its own ground; rediscover's dimmed "earlier applicant" rows and
+  the voice and salary panel captions (and salary's body copy) as well.
+- `/about`: none. Its old entry (36 white step badges on the old art colours)
+  went with the old page.
+- `/trust`, `/privacy`, `/terms`: the coral `EYEBROW` at 3.65:1 on cream, one
+  node each. `/market`: none.
+
+Every `/` and scene finding is byte-identical in the approved prototype: they are
+art-direction values the port reproduced on purpose, so deepening them is an
+owner decision, like the coral eyebrow. The specs are named one by one in
+`.github/workflows/ci.yml`; adding a spec there is the decision.
 
 ## Known gaps
 
@@ -554,30 +552,18 @@ one by one in `.github/workflows/ci.yml`; adding a spec there is the decision.
   (`offer_auto_extended`, `automation-run.ts`). `/trust` is owned by its own
   goal and its posture rows were deliberately left untouched here; the same
   correction is owed there, and `MarketingClaims.test.ts` does not reach it.
-- **`HumanLoopArt`'s "What may run unattended" panel lists screening /
-  scheduling / rejection.** The real per-stage gates are screening and offer;
-  rejection is the one that cannot be delegated, and it is the one the panel
-  draws as a locked toggle. The demonstration is now arguing a slightly
-  different shape from the paragraph beneath it. Art change, not copy.
-- **`landing.trust.art.audit.calibration.note`** ("the bars line up, so the
-  number means what it says") is the same settled-calibration assertion that
-  `trust.audit.body` was softened off. It is demonstration copy inside a
-  stylised chart rather than a claim in a paragraph, so it was left; if the
-  panel is next revised, soften it to match the body.
+- **Contrast below AA on the hero's middle verdict and in four of the nine
+  scenes** (listed above), kept because the prototype draws them that way.
+- **Catalog keys the retired components read are still in all four catalogs**
+  (`landing.previews.*` except what the scene panels reuse, `landing.trust.*` of
+  the retired tabs, `aboutPage.nav.*`, `aboutPage.footer.*`, …). They were left
+  while the port's translations were in flight; retire them in one pass, in all
+  four locales, once nothing is writing to the catalogs.
 - Two landing components still read reduced motion through framer's hook
   against the rule above: `spark/market/parts.tsx` and `spark/market/CzMap.tsx`.
   `parts.tsx` branches only `layoutId` inside a client-only subtree; `CzMap` branches
   `initial={reduce ? false : { opacity: 0 }}` on a server-rendered node, which is
   the inline-style hydration mismatch the rule exists to prevent.
-- **The `/about` reveals are pinned by unit tests, not by a browser.**
-  `motion-presets.test.ts` tests the props `reveal()` builds, and `AboutCurve.test.ts`
-  checks that every art spreads them. Nothing yet loads `/about` under
-  `reducedMotion: "reduce"` and asserts each step art paints its end state (full
-  opacity, no transform) with no in-view scroll. That check belongs beside the
-  a11y-per-band cases in `e2e/landing.spec.ts`. `IntakeArt`'s stem and "47" badge
-  also still hand-roll what `previews/shared.tsx`'s `Stem`/`stamp` draw (delay
-  0.6 vs 0.75), so the About and spotlight versions of that scene keep separate
-  timings.
 - `data/market_pulse.json` region vacancy counts sum to ~35 200 against a
   national total of ~38 600: postings with no `kraj` are unattributed. The hero
   states the true national figure; the map cannot be reconciled to it.

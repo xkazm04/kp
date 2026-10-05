@@ -520,8 +520,14 @@ input.k-input:focus-visible, select.k-input:focus-visible { outline: none; borde
   .k-kit { --m-name: 28%; --m-time: 104px; --m-act: 88px; }
   .k-head__figs { gap: 16px; }
 }
+/* Reduced motion squashes motion; it never STARTS any. A non-zero transition-duration on every element
+   (the initial transition-property is `all`) would animate properties nothing asked to animate, and a
+   synchronous measure right after a change then reads the old value: the DataTable's spacer height
+   after a filter, so the window showed "Rows 1–2 of 11". A 0s duration with no delay does not start a
+   transition at all (the combined duration is 0), so the new value is there on the same frame.
+   Animations only run where a rule names one, so .01ms still lands them on their last keyframe. */
 @media (prefers-reduced-motion: reduce) {
-  .k-kit *, .k-kit *::before, .k-kit *::after, .k-tip { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  .k-kit *, .k-kit *::before, .k-kit *::after, .k-tip { animation-duration: .01ms !important; transition-duration: 0s !important; transition-delay: 0s !important; }
 }
 
 /* ---------- round 2: small pieces the graphic surfaces share ---------- */

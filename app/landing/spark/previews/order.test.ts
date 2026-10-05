@@ -17,42 +17,55 @@ import {
 /*
  * The spotlight walk and its address, pinned as pure logic.
  *
- * The component half (SparkLanding reads/writes the hash, FeatureSpotlight
- * renders prev/next) cannot be imported here - the runner has no JSX
+ * The component half (app/landing/site/land/features/FeatureRing.tsx reads and
+ * writes the hash, its scene renders the stepper) cannot be imported here - the runner has no JSX
  * transform - so its browser journey is owed to e2e/landing.spec.ts
  * ("a spotlight is addressable and walkable"). Everything that decides WHICH
  * preview, WHICH hash and WHICH url lives in ./order.ts and is pinned below.
  */
 
-const HERE = join(process.cwd(), "app", "landing", "spark");
 const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-test("PREVIEW_KEYS is the grid order, and the grid and the registry derive from it", () => {
+test("PREVIEW_KEYS is the funnel order, and the features ring and the registry derive from it", () => {
   assert.deepEqual(
     [...PREVIEW_KEYS],
-    ["score", "voice", "cases", "schedule", "inbox", "salary", "rediscover", "offer", "gates"]
+    ["inbox", "score", "rediscover", "voice", "cases", "schedule", "salary", "offer", "gates"]
   );
-  const grid = stripComments(readFileSync(join(HERE, "sections", "FeatureGrid.tsx"), "utf8"));
-  assert.match(grid, /PREVIEW_KEYS\.map\(/, "FeatureGrid builds its cards from PREVIEW_KEYS");
-  assert.doesNotMatch(grid, /preview:\s*"(score|voice|cases|schedule|inbox|salary|rediscover|offer|gates)"/, "FeatureGrid re-lists no preview key");
-  const registry = stripComments(readFileSync(join(HERE, "previews", "index.ts"), "utf8"));
-  assert.doesNotMatch(registry, /type PreviewKey\s*=\s*\|/, "previews/index.ts no longer hand-types the union");
+  // The landing's features band (app/landing/site/land/features): the ring, the
+  // scene's stepper and its dots all map over FEATURES, which is PREVIEW_KEYS.
+  const SITE = join(process.cwd(), "app", "landing", "site", "land", "features");
+  const data = stripComments(readFileSync(join(SITE, "featureData.ts"), "utf8"));
+  assert.match(data, /FEATURES[^=]*=\s*PREVIEW_KEYS\.map\(/, "featureData.ts builds FEATURES from PREVIEW_KEYS");
+  assert.doesNotMatch(data, /key:\s*"(score|voice|cases|schedule|inbox|salary|rediscover|offer|gates)"/, "featureData.ts re-lists no key");
+  const ring = stripComments(readFileSync(join(SITE, "FeatureRing.tsx"), "utf8"));
+  assert.match(ring, /FEATURES\.map\(/, "the ring draws its medallions from FEATURES");
+  // The per-key registries (the old previews/index.ts, retired 2026-09-30, is now
+  // featureData's palette and art.tsx's drawings) are keyed by the DERIVED union,
+  // never a re-typed one: a tenth key then fails tsc until every registry has it.
+  assert.match(data, /export type FeatureKey = PreviewKey;/, "FeatureKey is the PreviewKey union, not a copy");
+  assert.match(data, /PALETTE: Record<FeatureKey,/, "every feature has a palette, by the union");
+  const art = stripComments(readFileSync(join(SITE, "art.tsx"), "utf8"));
+  assert.match(art, /ART: Record<FeatureKey,/, "every feature has its medallion art, by the union");
+  for (const src of [data, art, ring]) {
+    assert.doesNotMatch(src, /type \w+\s*=\s*\|?\s*"(inbox|score)"\s*\|/, "no hand-typed copy of the key union");
+  }
 });
 
 test("stepPreview walks the nine previews and wraps at both ends", () => {
-  assert.equal(stepPreview("gates", 1), "score");
-  assert.equal(stepPreview("score", -1), "gates");
+  assert.equal(stepPreview("gates", 1), "inbox");
+  assert.equal(stepPreview("inbox", -1), "gates");
   assert.equal(stepPreview("voice", 1), "cases");
+  assert.equal(stepPreview("cases", 1), "schedule");
   // A full lap in either direction returns home.
   let k: (typeof PREVIEW_KEYS)[number] = "offer";
   for (let i = 0; i < PREVIEW_KEYS.length; i += 1) k = stepPreview(k, -1);
   assert.equal(k, "offer");
 });
 
-test("previewPosition is 1-based over the grid", () => {
-  assert.deepEqual(previewPosition("cases"), { n: 3, total: 9 });
+test("previewPosition is 1-based over the funnel", () => {
+  assert.deepEqual(previewPosition("cases"), { n: 5, total: 9 });
   assert.deepEqual(previewPosition("gates"), { n: 9, total: 9 });
-  assert.deepEqual(previewPosition("score"), { n: 1, total: 9 });
+  assert.deepEqual(previewPosition("inbox"), { n: 1, total: 9 });
 });
 
 test("the spotlight address is #spotlight-<key>, and only a real key parses", () => {
@@ -108,14 +121,24 @@ test("arrowStep: Left/Right step, never with a modifier (Alt+Left is Back) or in
   assert.equal(arrowStep({ key: "ArrowRight", ...plain }, null), 1);
 });
 
-test("the nav copy exists in all four catalogs", () => {
+test("the walk's copy exists in all four catalogs and carries its arguments", () => {
+  // What the scene's walk actually renders (since 2026-09-30; the old spotlight's
+  // landing.previews.prev|next|position are no longer read): the arrow buttons'
+  // names (siteChrome.stepper.previousTo|nextTo, "Previous: {name}"), the count
+  // line (siteFeatures.scene.count, "<b>{n}</b> of {total}") and each dot's name
+  // (siteFeatures.scene.dot). An argument lost in one translation renders the raw
+  // placeholder, or throws, in that language only.
   for (const locale of ["en", "cs", "de", "fr"]) {
     const m = JSON.parse(readFileSync(join(process.cwd(), "messages", `${locale}.json`), "utf8"));
-    const p = m.landing.previews;
-    for (const key of ["prev", "next", "position"]) {
-      assert.equal(typeof p[key], "string", `${locale} landing.previews.${key}`);
+    const walk: [string, string | undefined, string[]][] = [
+      ["siteChrome.stepper.previousTo", m.siteChrome?.stepper?.previousTo, ["{name}"]],
+      ["siteChrome.stepper.nextTo", m.siteChrome?.stepper?.nextTo, ["{name}"]],
+      ["siteFeatures.scene.count", m.siteFeatures?.scene?.count, ["{n}", "{total}", "<b>", "</b>"]],
+      ["siteFeatures.scene.dot", m.siteFeatures?.scene?.dot, ["{name}", "{n}", "{total}"]]
+    ];
+    for (const [key, value, args] of walk) {
+      assert.equal(typeof value, "string", `${locale} ${key}`);
+      for (const arg of args) assert.ok(value!.includes(arg), `${locale} ${key} carries ${arg}`);
     }
-    assert.match(p.position, /\{n\}/, `${locale} position carries {n}`);
-    assert.match(p.position, /\{total\}/, `${locale} position carries {total}`);
   }
 });

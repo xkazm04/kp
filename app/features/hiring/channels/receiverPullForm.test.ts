@@ -52,8 +52,8 @@ test("refusals come back as a CODE, never the body's English prose; 200 {pull} i
   assert.deepEqual(interpretPullResponse(200, { pull }), { ok: true, pull });
   assert.deepEqual(interpretPullResponse(200, {}), { ok: false, code: null }, "a 200 without the envelope is not a save");
 
-  // The card resolves that code through useErrorMessage and never renders `.error`.
-  const card = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "ChannelsReceiverPullCard.tsx"), "utf8");
+  // The pull editor (the Night Post's level 1) resolves that code through useErrorMessage and never renders `.error`.
+  const card = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "night", "setup", "SetupPullForm.tsx"), "utf8");
   assert.match(card, /useErrorMessage\(\)/);
   assert.match(card, /interpretPullResponse\(/);
   assert.match(card, /errMsg\(outcome,/, "the refusal is localized from its code");

@@ -1,0 +1,67 @@
+/* The Night Post's letter (level 3), inside the kit's LevelFrame and a calm KitSurface. Colour ONLY
+   through app/globals.css tokens and the kit's --k-* variables; type ONLY through the type tokens
+   (nothing below 14px). Studio Light is calm (hairlines, a thin timeline rule, no tilt); Spark Dark
+   is the playful register (2px drawn outlines, dashed rules, sticker shadows on the stamps). */
+
+.cn-msg { display: grid; gap: 16px; min-width: 0; container: letter / inline-size; }
+
+/* the drawing beside the sheet */
+.cn-msg-art { max-width: 260px; }
+
+/* the verdict, in shape and words */
+.cn-msg__verdict { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: var(--text-body); color: var(--k-quiet); }
+.cn-msg__verdict b {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 12px; border: 1px solid var(--k-rule-strong); border-radius: 999px;
+  font-weight: 600; color: var(--k-ink); background: var(--k-plane);
+}
+.cn-msg__verdict[data-v="sent"] b, .cn-msg__verdict[data-v="recovered"] b { color: var(--color-moss); border-color: currentColor; }
+.cn-msg__verdict[data-v="failed"] b, .cn-msg__verdict[data-v="bounced"] b { color: var(--color-red-700); border-color: currentColor; }
+.cn-msg__verdict[data-v="queued"] b { color: var(--color-amber-800); border-color: currentColor; }
+[data-theme="dark"] .cn-msg__verdict b { border-width: 2px; box-shadow: var(--sticker-xs-shadow); rotate: -1deg; }
+
+.cn-msg__who { display: block; font-size: var(--text-micro); color: var(--k-quiet); font-weight: 400; }
+
+/* what a person can do | the timeline; stacked when the letter is narrow */
+.cn-msg__grid { display: grid; gap: 20px 28px; align-items: start; }
+.cn-msg__grid[data-acts] { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+@container letter (max-width: 640px) { .cn-msg__grid[data-acts] { grid-template-columns: minmax(0, 1fr); } }
+.cn-msg__part { display: grid; gap: 8px; min-width: 0; align-content: start; }
+.cn-msg__h { margin: 0; font-family: var(--font-serif); font-size: var(--text-h3); line-height: 1.3; font-weight: 600; }
+[data-theme="dark"] .cn-msg__h { font-weight: 800; }
+.cn-msg__sub { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.cn-msg__acts { padding: 14px 16px; border: var(--k-line) solid var(--k-rule-strong); border-radius: var(--k-radius-lg); background: var(--k-raised); }
+[data-theme="dark"] .cn-msg__acts { border-color: var(--color-ink); box-shadow: var(--sticker-sm-shadow); }
+/* the stored text as a letter reads: the body face, its own line breaks */
+.cn-msg__body { max-width: 72ch; overflow-wrap: anywhere; font-family: var(--font-sans); }
+
+/* a door: the product's resend, or the way to the relay */
+.cn-door { display: grid; gap: 8px; min-width: 0; }
+.cn-door__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cn-door__help { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); max-width: 60ch; }
+.cn-door__field { display: grid; gap: 4px; font-size: var(--text-micro); font-weight: 600; color: var(--k-ink); }
+.cn-door__said { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.cn-door__said:empty { display: none; }
+.cn-door__said[data-adverse] { color: var(--color-red-700); }
+
+/* the timeline: a stamp per step on one rule; a step waiting on a person is coral, one that cannot
+   happen is dashed */
+.cn-tl { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
+.cn-tl__step { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding-bottom: 14px; }
+.cn-tl__step:not(:last-child)::before {
+  content: ""; position: absolute; left: 13px; top: 26px; bottom: 0; border-left: 1px solid var(--k-rule-strong);
+}
+[data-theme="dark"] .cn-tl__step:not(:last-child)::before { border-left: 2px dashed var(--k-rule-strong); }
+.cn-tl__stamp {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px;
+  border: 1px solid var(--k-rule-strong); background: var(--k-raised);
+}
+[data-theme="dark"] .cn-tl__stamp { border: 2px solid var(--color-ink); box-shadow: var(--sticker-xs-shadow); }
+.cn-tl__step[data-state="pending"] .cn-tl__stamp { border-color: var(--color-coral); }
+.cn-tl__step[data-state="blocked"] .cn-tl__stamp { border-style: dashed; }
+.cn-tl__body { display: grid; gap: 2px; min-width: 0; padding-top: 3px; }
+.cn-tl__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.cn-tl__head strong { font-size: var(--text-body); font-weight: 600; }
+.cn-tl__head time, .cn-tl__when { font-size: var(--text-micro); color: var(--k-quiet); font-variant-numeric: tabular-nums; }
+.cn-tl__step[data-state="blocked"] .cn-tl__when { color: var(--color-red-700); font-weight: 600; }
+.cn-tl__step[data-state="pending"] .cn-tl__when { color: var(--k-needs-ink); font-weight: 600; }
+.cn-tl__body p { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); overflow-wrap: anywhere; }

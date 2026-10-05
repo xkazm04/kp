@@ -67,15 +67,6 @@
       "panel": 2,
       "rawDate": 1
     },
-    "features/hiring/channels/ChannelsEdgeCard.tsx": {
-      "panel": 1
-    },
-    "features/hiring/channels/ChannelsRelayConfigCard.tsx": {
-      "panel": 1
-    },
-    "features/hiring/channels/ChannelsSetupGuide.tsx": {
-      "panel": 1
-    },
     "features/hiring/decisions/DecisionsAiReviewCardLadder.tsx": {
       "metaLabel": 1
     },

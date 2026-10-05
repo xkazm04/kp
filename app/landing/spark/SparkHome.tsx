@@ -1,53 +1,46 @@
+import "../site/land/styles";
 import { Suspense } from "react";
-import { Bricolage_Grotesque, Gabarito, Shantell_Sans } from "next/font/google";
+import { getTranslations } from "next-intl/server";
 import { DemoUnavailableNotice } from "./DemoUnavailableNotice";
-import SparkLanding from "./SparkLanding";
-import { TYPE_SCALE } from "./tokens";
+import MkRoot from "../site/chrome/MkRoot";
+import Header from "../site/chrome/Header";
+import Footer from "../site/chrome/Footer";
+import CtaDock from "../site/chrome/CtaDock";
+import LandingPage from "../site/land/LandingPage";
 
 /*
- * Spark landing + its scoped type system. The fonts load here (not in the route
- * page) so the same wrapper can be reused both at /landing/spark and as the
- * signed-out homepage slot ('/', server-gated in app/page.tsx). The font
- * variables are scoped to this subtree so the workspace fonts stay untouched:
- * Bricolage for display punch, Gabarito for friendly body text, Shantell for
- * the hand-drawn margin notes. TYPE_SCALE rides along on the same wrapper —
- * the marketing pages also run their own, larger size scale.
+ * The signed-out homepage ('/', server-gated in app/page.tsx): the fused
+ * prototype's landing (app/landing/site/, see its README). The route shell only:
+ * the site root with its fonts, the shared header / footer / phone dock, and the
+ * landing's bands. `../site/land/styles` is imported first on purpose: it is the
+ * landing's whole stylesheet list, in cascade order.
+ *
+ * `signupOpen` is resolved SERVER-SIDE by the caller (app/page.tsx) from
+ * `workspace-lock.signupEnabled` and threaded to every "Start hiring free"
+ * (chrome/Ctas StartCta), which needs it to pick /signup over /login on a gated
+ * deploy. A single serializable boolean: the env never crosses to the client.
  */
-const display = Bricolage_Grotesque({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-spark-display",
-  display: "swap"
-});
-
-const body = Gabarito({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-spark-body",
-  display: "swap"
-});
-
-const hand = Shantell_Sans({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-spark-hand",
-  weight: ["400", "500"],
-  display: "swap"
-});
-
-/** `signupOpen` is resolved SERVER-SIDE by the caller (app/page.tsx) from
- *  `workspace-lock.signupEnabled` and threaded straight through to the hero,
- *  whose primary CTA needs it to pick /signup over /login on a gated deploy.
- *  A single serializable boolean, so this wrapper stays a server component and
- *  the env never crosses to the client. */
-export default function SparkHome({ signupOpen = false }: { signupOpen?: boolean }) {
+export default async function SparkHome({ signupOpen = false }: { signupOpen?: boolean }) {
+  const t = await getTranslations("siteChrome");
   return (
-    <div className={`${TYPE_SCALE} ${display.variable} ${body.variable} ${hand.variable}`}>
+    <>
+      <MkRoot mode="land">
+        <a className="skip" href="#features">
+          {t("skip.land")}
+        </a>
+        <Header page="land" signupOpen={signupOpen} />
+        <LandingPage signupOpen={signupOpen} />
+        <Footer page="land" />
+        <CtaDock signupOpen={signupOpen} placement="dock" />
+      </MkRoot>
       {/* Demo-CTA honesty: /api/demo lands here with ?demo=unavailable when a
-          gated deploy refuses the public demo — say so instead of a silent
-          reload. Suspense: useSearchParams in a client child of this
-          server-rendered page. */}
+          gated deploy refuses the public demo; say so instead of a silent
+          reload. Outside the site root on purpose: it is drawn with the app's
+          Tailwind utilities, which the root's user-agent reset would undo.
+          Suspense: useSearchParams in a client child of this server-rendered page. */}
       <Suspense fallback={null}>
         <DemoUnavailableNotice signupOpen={signupOpen} />
       </Suspense>
-      <SparkLanding signupOpen={signupOpen} />
-    </div>
+    </>
   );
 }

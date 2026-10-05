@@ -1,0 +1,203 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* /about step 07 - OFFER. Paper-and-stamp scene. Scoped under .dio-offer; the frame (.dio/.bz/.gl) is not restyled.
+   Base rules below draw the calm, COMPLETE end state (that is the reduced-motion rendering). Every animation lives in the
+   prefers-reduced-motion: no-preference block at the end and starts from .dio.is-in.  Sizes: calc(var(--u) * N) on desktop,
+   px/rem in the phone block. */
+
+.mk.mk-about .dio-offer {
+  --of-ink: color-mix(in srgb, var(--sc) 82%, #4a120a);
+  --of-rot: -.5deg;     /* the letter's own resting tilt */
+  --of-srot: -7deg;     /* the impression's tilt */
+  --tilt: -9deg;        /* hero stamp tilt about its die's outer corner */
+  --ox: 37px;
+}
+.mk.mk-about .dio-offer[data-side="r"] { --of-rot: .5deg; --of-srot: 6deg; --tilt: 9deg; --ox: 87px; }
+
+/* ---- the SVG filter host + silkscreen strip ---- */
+.mk.mk-about .dio-offer .of-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+.mk.mk-about .dio-offer .of-top { position: absolute; z-index: 4; left: calc(var(--u) * 1.8); right: calc(var(--u) * 1.8); top: calc(var(--u) * 1.15); height: calc(var(--u) * 2.5); display: flex; align-items: center; gap: calc(var(--u) * .9); }
+.mk.mk-about .dio-offer .of-tag { display: inline-flex; align-items: center; gap: calc(var(--u) * .5); white-space: nowrap; color: var(--lcd-dim); }
+.mk.mk-about .dio-offer .of-tag .sil,
+.mk.mk-about .dio-offer .of-tag.sil { color: var(--lcd-dim); }
+.mk.mk-about .dio-offer .of-gl { width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); flex: none; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-offer .of-led { display: inline-block; width: calc(var(--u) * .72); height: calc(var(--u) * .72); flex: none; border-radius: 50%; background: var(--led-ok); box-shadow: 0 0 calc(var(--u) * .9) var(--led-ok), inset 0 1px 1px rgba(255, 255, 255, .5); }
+.mk.mk-about .dio-offer .of-cable { position: relative; flex: 1 1 auto; height: calc(var(--u) * .34); min-width: 0; border-radius: 99px;
+  background: repeating-linear-gradient(90deg, rgba(243, 236, 217, .34) 0 calc(var(--u) * .55), rgba(243, 236, 217, 0) calc(var(--u) * .55) calc(var(--u) * .95)); }
+.mk.mk-about .dio-offer .of-comet { position: absolute; top: 50%; left: calc(100% - var(--u) * .9); width: calc(var(--u) * .9); height: calc(var(--u) * .9); margin-top: calc(var(--u) * -.45); border-radius: 50%;
+  background: var(--sc-hi); box-shadow: 0 0 calc(var(--u) * 1.1) var(--sc-hi), 0 0 0 calc(var(--u) * .14) rgba(23, 32, 42, .8); }
+
+/* ---- the letter ---- */
+.mk.mk-about .dio-offer .of-sheet2 { position: absolute; z-index: 1; left: calc(var(--u) * 4.6); right: calc(var(--u) * 1.5); top: calc(var(--u) * 5.4); bottom: calc(var(--u) * 1); border-radius: calc(var(--u) * .6);
+  background: repeating-linear-gradient(180deg, rgba(23, 32, 42, 0) 0 calc(var(--u) * 1.5), rgba(23, 32, 42, .09) calc(var(--u) * 1.5) calc(var(--u) * 1.62)), #e6dcc2;
+  box-shadow: 0 calc(var(--u) * .3) 0 #b9ab86, 0 calc(var(--u) * .8) calc(var(--u) * 1.2) rgba(0, 0, 0, .4); transform: rotate(1.7deg); }
+.mk.mk-about .dio-offer[data-side="r"] .of-sheet2 { left: calc(var(--u) * 1.5); right: calc(var(--u) * 4.6); transform: rotate(-1.7deg); }
+.mk.mk-about .dio-offer .of-paper { position: absolute; z-index: 2; left: calc(var(--u) * 3.4); right: calc(var(--u) * 3.4); top: calc(var(--u) * 4.5); bottom: calc(var(--u) * 1.7);
+  display: flex; flex-direction: column; padding: calc(var(--u) * 1.3) calc(var(--u) * 2) calc(var(--u) * 1.2); border-radius: calc(var(--u) * .6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, .75) 0%, rgba(255, 255, 255, 0) 34%), linear-gradient(180deg, #fffdf6 0%, var(--cream) 45%, #f5ecd8 100%);
+  box-shadow: 0 calc(var(--u) * .34) 0 var(--putty-3), 0 calc(var(--u) * .9) calc(var(--u) * 1.5) rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1), inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .9);
+  transform: rotate(var(--of-rot)); }
+
+.mk.mk-about .dio-offer .of-head { display: flex; align-items: center; gap: calc(var(--u) * .9); flex: none; padding-bottom: calc(var(--u) * .85); border-bottom: calc(var(--u) * .16) dashed rgba(23, 32, 42, .24); }
+.mk.mk-about .dio-offer .of-doc { width: calc(var(--u) * 2); height: calc(var(--u) * 2.4); flex: none; overflow: visible; }
+.mk.mk-about .dio-offer .of-docbody { fill: var(--putty-2); stroke: var(--ink); stroke-width: 1.9; stroke-linejoin: round; }
+.mk.mk-about .dio-offer .of-docfold { fill: var(--putty-3); stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.mk.mk-about .dio-offer .of-docln { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; opacity: .5; }
+.mk.mk-about .dio-offer .of-title { font-family: var(--f-display); font-weight: 800; letter-spacing: -.01em; font-size: var(--fs-lead); line-height: 1.1; color: var(--ink); }
+.mk.mk-about .dio-offer .of-acc { margin-left: auto; display: inline-flex; align-items: center; gap: calc(var(--u) * .4); padding: calc(var(--u) * .28) calc(var(--u) * .95) calc(var(--u) * .28) calc(var(--u) * .7);
+  border-radius: 999px; border: calc(var(--u) * .18) solid var(--ink); background: linear-gradient(var(--moss-hi), var(--moss) 60%); color: var(--cream);
+  font-weight: 800; font-size: var(--fs-body); line-height: 1.15; box-shadow: 0 calc(var(--u) * .26) 0 var(--ink), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .35); }
+.mk.mk-about .dio-offer .of-ck { width: calc(var(--u) * 1.15); height: calc(var(--u) * 1.15); min-width: 16px; min-height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.mk.mk-about .dio-offer .of-figure { position: relative; flex: none; display: flex; align-items: baseline; justify-content: center; gap: calc(var(--u) * .8); margin-top: calc(var(--u) * 1.15); }
+.mk.mk-about .dio-offer .of-num { font-family: var(--f-display); font-weight: 800; letter-spacing: -.04em; font-size: max(60px, calc(var(--u) * 6.6)); line-height: 1; color: var(--ink); }
+.mk.mk-about .dio-offer .of-cur { font-family: var(--f-mono); font-weight: 700; letter-spacing: .04em; font-size: max(22px, calc(var(--u) * 2)); line-height: 1; color: var(--sc); }
+.mk.mk-about .dio-offer .of-squig { position: absolute; left: 50%; bottom: calc(var(--u) * -.85); width: calc(var(--u) * 15); height: calc(var(--u) * .9); margin-left: calc(var(--u) * -7.5); overflow: visible; }
+.mk.mk-about .dio-offer .of-squig path { fill: none; stroke: var(--sc); stroke-width: 3px; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .9; }
+.mk.mk-about .dio-offer .of-formula { flex: none; margin-top: calc(var(--u) * 1.5); text-align: center; font-size: var(--fs-body); font-weight: 700; line-height: 1.3; color: color-mix(in srgb, var(--ink) 84%, var(--cream)); }
+.mk.mk-about .dio-offer .of-formula em { font-style: normal; font-weight: 800; color: var(--of-ink); padding: 0 .22em; border-radius: .2em; background: linear-gradient(transparent 58%, color-mix(in srgb, var(--sc) 22%, transparent) 58%); }
+
+.mk.mk-about .dio-offer .of-lines { display: grid; gap: calc(var(--u) * .72); margin: calc(var(--u) * 1.55) 0 0 calc(var(--u) * 4.4); flex: none; }
+.mk.mk-about .dio-offer[data-side="r"] .of-lines { margin: calc(var(--u) * 1.55) calc(var(--u) * 4.4) 0 0; }
+.mk.mk-about .dio-offer .of-lines i { display: block; height: calc(var(--u) * .4); border-radius: 99px; background: color-mix(in srgb, var(--ink) 20%, transparent); transform-origin: left center; }
+.mk.mk-about .dio-offer .of-lines i:nth-child(1) { width: 96%; }
+.mk.mk-about .dio-offer .of-lines i:nth-child(2) { width: 84%; }
+.mk.mk-about .dio-offer .of-lines i:nth-child(3) { width: 91%; }
+.mk.mk-about .dio-offer .of-lines i:nth-child(4) { width: 46%; }
+
+/* ---- the human stamp: an inked rubber impression, multiplied into the paper ---- */
+.mk.mk-about .dio-offer .of-stamp { position: absolute; z-index: 3; right: calc(var(--u) * 1.7); bottom: calc(var(--u) * 1.2); transform: rotate(var(--of-srot)); transform-origin: 50% 55%; mix-blend-mode: multiply; }
+.mk.mk-about .dio-offer[data-side="r"] .of-stamp { right: auto; left: calc(var(--u) * 1.7); }
+.mk.mk-about .dio-offer .of-stamp::after { content: ""; position: absolute; inset: calc(var(--u) * -1.3) calc(var(--u) * -1.9); z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sc) 30%, transparent), transparent 74%); opacity: .2; }
+.mk.mk-about .dio-offer .of-stamp-in { position: relative; display: block; padding: calc(var(--u) * .6) calc(var(--u) * 1.35); border: calc(var(--u) * .3) solid var(--of-ink); border-radius: calc(var(--u) * .75);
+  color: var(--of-ink); font-family: var(--f-display); font-weight: 800; font-size: max(22px, calc(var(--u) * 2.05)); letter-spacing: .07em; line-height: 1.1; white-space: nowrap; text-align: center;
+  filter: url(#dio-offer-ink); }
+/* a longer approval than HUMAN-APPROVED (MENSCHLICH FREIGEGEBEN) wraps onto two balanced lines inside the paper
+   instead of running off it (and, on a phone, off the screen) */
+.mk.mk-about .dio-offer .of-stamp-in { max-width: calc(var(--u) * 26); white-space: normal; text-wrap: balance; }
+.mk.mk-about .dio-offer .of-stamp-in::before { content: ""; position: absolute; inset: calc(var(--u) * .2); border: calc(var(--u) * .1) solid var(--of-ink); border-radius: calc(var(--u) * .48); opacity: .8; pointer-events: none; }
+
+/* ---- hero: wooden rubber stamp over an oxblood ink pad, on the bezel's bottom outer corner ---- */
+.mk.mk-about .dio-offer .dio-hero--a { width: calc(var(--u) * 13); height: calc(var(--u) * 17.6); left: calc(var(--u) * -3); bottom: calc(var(--u) * -3.2); }
+.mk.mk-about .dio-offer[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -3); }
+.mk.mk-about .dio-offer .of-tool { transform-origin: var(--ox) 147px; transform: rotate(var(--tilt)); }
+.mk.mk-about .dio-offer .of-s-wood-hi { stop-color: #e2ab70; } .mk.mk-about .dio-offer .of-s-wood { stop-color: #b9763f; } .mk.mk-about .dio-offer .of-s-wood-lo { stop-color: #7c4a26; }
+.mk.mk-about .dio-offer .of-s-brass-hi { stop-color: #f3dc8f; } .mk.mk-about .dio-offer .of-s-brass { stop-color: #caa54c; } .mk.mk-about .dio-offer .of-s-brass-lo { stop-color: #a58439; } .mk.mk-about .dio-offer .of-s-brass-dk { stop-color: #7c6229; }
+.mk.mk-about .dio-offer .of-s-rub-hi { stop-color: #4c5762; } .mk.mk-about .dio-offer .of-s-rub { stop-color: #262e37; }
+.mk.mk-about .dio-offer .of-s-red-hi { stop-color: #e0765f; } .mk.mk-about .dio-offer .of-s-red { stop-color: #b8452f; } .mk.mk-about .dio-offer .of-s-red-lo { stop-color: #7a2319; }
+.mk.mk-about .dio-offer .of-s-case-hi { stop-color: #6d93a5; } .mk.mk-about .dio-offer .of-s-case { stop-color: #42606f; } .mk.mk-about .dio-offer .of-s-case-lo { stop-color: #27404d; }
+.mk.mk-about .dio-offer .of-s-sh0 { stop-color: #03090c; stop-opacity: .5; } .mk.mk-about .dio-offer .of-s-sh1 { stop-color: #03090c; stop-opacity: .2; } .mk.mk-about .dio-offer .of-s-sh2 { stop-color: #03090c; stop-opacity: 0; }
+.mk.mk-about .dio-offer .of-ol { stroke: var(--ink); stroke-width: 3.4; stroke-linejoin: round; stroke-linecap: round; }
+.mk.mk-about .dio-offer .of-line { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-offer .of-hl { fill: none; stroke: #fffaf0; stroke-linecap: round; opacity: .72; }
+.mk.mk-about .dio-offer .of-hlsteel { fill: none; stroke: #9db1b9; stroke-linecap: round; opacity: .6; }
+.mk.mk-about .dio-offer .of-hlf { fill: #fffaf0; opacity: .8; }
+.mk.mk-about .dio-offer .of-grain { fill: none; stroke: #5e3517; stroke-width: 1.7; stroke-linecap: round; opacity: .32; }
+.mk.mk-about .dio-offer .of-inkkiss { fill: none; stroke: #b8452f; stroke-linecap: round; }
+.mk.mk-about .dio-offer .of-shadowfill { fill: #200a06; }
+.mk.mk-about .dio-offer .of-spf-a { fill: #e6c46a; } .mk.mk-about .dio-offer .of-spf-b { fill: #fdf8ee; }
+
+/* ================= phones and portrait windows: normal flow, single column, px sizes ================= */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-offer .gl { display: flex; flex-direction: column; gap: 14px; padding: 14px 14px 24px; }
+  .mk.mk-about .dio-offer .of-top { position: relative; inset: auto; height: auto; min-height: 28px; gap: 10px; flex-wrap: wrap; row-gap: 6px; }
+  .mk.mk-about .dio-offer .of-tag { gap: 6px; }
+  .mk.mk-about .dio-offer .of-gl { width: 16px; height: 16px; }
+  .mk.mk-about .dio-offer .of-led { width: 10px; height: 10px; }
+  .mk.mk-about .dio-offer .of-cable { height: 4px; }
+  .mk.mk-about .dio-offer .of-comet { width: 12px; height: 12px; margin-top: -6px; left: calc(100% - 12px); }
+  .mk.mk-about .dio-offer .of-sheet2 { display: none; }
+  .mk.mk-about .dio-offer .of-paper { position: relative; inset: auto; padding: 16px 16px 16px; border-radius: 8px; transform: none; box-shadow: 0 5px 0 var(--putty-3), 0 12px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1); }
+  .mk.mk-about .dio-offer .of-head { gap: 10px; padding-bottom: 12px; border-bottom-width: 2px; flex-wrap: wrap; }
+  .mk.mk-about .dio-offer .of-doc { width: 22px; height: 26px; }
+  .mk.mk-about .dio-offer .of-acc { gap: 6px; padding: 4px 12px 4px 9px; border-width: 2px; box-shadow: 0 3px 0 var(--ink), inset 0 1px 0 rgba(255, 255, 255, .35); }
+  .mk.mk-about .dio-offer .of-ck { width: 16px; height: 16px; }
+  .mk.mk-about .dio-offer .of-figure { margin-top: 14px; gap: 10px; }
+  .mk.mk-about .dio-offer .of-num { font-size: 68px; }
+  .mk.mk-about .dio-offer .of-cur { font-size: 22px; }
+  .mk.mk-about .dio-offer .of-squig { width: 170px; height: 10px; margin-left: -85px; bottom: -11px; }
+  .mk.mk-about .dio-offer .of-formula { margin-top: 20px; }
+  .mk.mk-about .dio-offer .of-lines,
+.mk.mk-about .dio-offer[data-side="r"] .of-lines { gap: 9px; margin: 18px 0 0 92px; }
+  .mk.mk-about .dio-offer .of-lines i { height: 6px; }
+  .mk.mk-about .dio-offer .of-stamp,
+.mk.mk-about .dio-offer[data-side="r"] .of-stamp { position: relative; inset: auto; align-self: flex-end; margin: -2px 2px 0 0; width: max-content; }
+  .mk.mk-about .dio-offer .of-stamp::after { inset: -14px -20px; }
+  .mk.mk-about .dio-offer .of-stamp-in { padding: 6px 14px; border-width: 3px; border-radius: 9px; font-size: 20px; max-width: 250px; }
+  .mk.mk-about .dio-offer .of-stamp-in::before { inset: 2px; border-width: 1px; border-radius: 5px; }
+  .mk.mk-about .dio-offer .dio-hero--a,
+.mk.mk-about .dio-offer[data-side="r"] .dio-hero--a { left: -6px; right: auto; bottom: -18px; width: 98px; height: 132px; }
+}
+
+/* ================= motion: only when the visitor has not asked for less ================= */
+@media (prefers-reduced-motion: no-preference) {
+  /* before the scene arrives: the composed frame waits, nothing is left half-drawn */
+  .mk.mk-about .dio-offer:not(.is-in) :is(.of-top, .of-sheet2, .of-paper, .of-head > *, .of-num, .of-cur, .of-squig, .of-formula, .of-lines i, .of-stamp, .of-comet, .of-dot, .of-spk, .dio-hero--a) { opacity: 0; }
+  .mk.mk-about .dio-offer:not(.is-in) .of-tool { transform: translateY(-19px) rotate(calc(var(--tilt) * 1.7)); }
+
+  .mk.mk-about .dio-offer.is-in .of-top { animation: mka-of-fade .6s ease both; }
+  .mk.mk-about .dio-offer.is-in .of-sheet2 { animation: mka-of-sheet-in .8s var(--ease) .08s both; }
+  .mk.mk-about .dio-offer.is-in .of-paper { animation: mka-of-paper-in .75s var(--ease) 0s both, mka-of-thump .55s ease 2.42s; }
+  .mk.mk-about .dio-offer.is-in .of-doc,
+.mk.mk-about .dio-offer.is-in .of-title { animation: mka-of-rise .55s var(--ease) .45s both; }
+  .mk.mk-about .dio-offer.is-in .of-title { animation-delay: .55s; }
+  .mk.mk-about .dio-offer.is-in .of-acc { animation: mka-of-chip .6s var(--spring) 3.3s both; }
+  .mk.mk-about .dio-offer.is-in .of-num { animation: mka-of-rise .8s var(--ease) .7s both; }
+  .mk.mk-about .dio-offer.is-in .of-cur { animation: mka-of-rise .8s var(--ease) .85s both; }
+  .mk.mk-about .dio-offer.is-in .of-squig { animation: mka-of-wipe .7s var(--ease) 1.25s both; }
+  .mk.mk-about .dio-offer.is-in .of-formula { animation: mka-of-rise .6s var(--ease) 1.1s both; }
+  .mk.mk-about .dio-offer.is-in .of-lines i { animation: mka-of-write .6s var(--ease) both; }
+  .mk.mk-about .dio-offer.is-in .of-lines i:nth-child(1) { animation-delay: 1.4s; }
+  .mk.mk-about .dio-offer.is-in .of-lines i:nth-child(2) { animation-delay: 1.65s; }
+  .mk.mk-about .dio-offer.is-in .of-lines i:nth-child(3) { animation-delay: 1.9s; }
+  .mk.mk-about .dio-offer.is-in .of-lines i:nth-child(4) { animation-delay: 2.15s; }
+
+  .mk.mk-about .dio-offer.is-in .of-tag-a .of-led { animation: mka-of-led-a 2.6s linear both; }
+  .mk.mk-about .dio-offer.is-in .of-tag-b .of-led { animation: mka-of-led-b 3.4s linear both; }
+  .mk.mk-about .dio-offer.is-in .of-comet { animation: mka-of-comet 1s ease-in-out 2.95s both; }
+
+  /* the impression waits invisible in its settled place (of-hold), then slams; no backwards fill, so the oversized start pose never exists while waiting */
+  .mk.mk-about .dio-offer.is-in .of-stamp { animation: mka-of-hold 2.05s linear, mka-of-slam .78s cubic-bezier(.22, .9, .28, 1) 2.05s forwards; }
+  .mk.mk-about .dio-offer.is-in .of-stamp::after { animation: mka-of-halo 1.3s ease-out 2.05s both; }
+
+  .mk.mk-about .dio-offer.is-in .dio-hero--a { animation: mka-of-hero-in .8s var(--spring) .45s both; }
+  .mk.mk-about .dio-offer.is-in .of-tool { animation: mka-of-press .85s var(--ease) 1.95s both; }
+  .mk.mk-about .dio-offer.is-in .dio-hero--a svg { animation: mka-of-idle 5.2s ease-in-out 4.2s infinite alternate; }
+  .mk.mk-about .dio-offer.is-in .of-dot { transform-box: fill-box; transform-origin: center; animation: mka-of-dot .55s var(--spring) both; }
+  .mk.mk-about .dio-offer.is-in .of-dot1 { animation-delay: 2.38s; } .mk.mk-about .dio-offer.is-in .of-dot2 { animation-delay: 2.44s; } .mk.mk-about .dio-offer.is-in .of-dot3 { animation-delay: 2.5s; } .mk.mk-about .dio-offer.is-in .of-dot4 { animation-delay: 2.42s; }
+  .mk.mk-about .dio-offer.is-in .of-dot5 { animation-delay: 2.52s; } .mk.mk-about .dio-offer.is-in .of-dot6 { animation-delay: 2.48s; } .mk.mk-about .dio-offer.is-in .of-dot7 { animation-delay: 2.56s; } .mk.mk-about .dio-offer.is-in .of-dot8 { animation-delay: 2.6s; }
+  .mk.mk-about .dio-offer.is-in .of-spk { transform-box: fill-box; transform-origin: center; animation: mka-of-spark-in .6s var(--spring) both, mka-of-twinkle 3.6s ease-in-out infinite; }
+  .mk.mk-about .dio-offer.is-in .of-spk1 { animation-delay: 2.6s, 4.2s; } .mk.mk-about .dio-offer.is-in .of-spk2 { animation-delay: 2.75s, 5s; } .mk.mk-about .dio-offer.is-in .of-spk3 { animation-delay: 2.9s, 4.6s; }
+
+  @keyframes mka-of-fade { from { opacity: 0; } }
+  @keyframes mka-of-rise { from { opacity: 0; transform: translateY(calc(var(--u) * .9)); } }
+  @keyframes mka-of-paper-in { from { opacity: 0; transform: translateY(calc(var(--u) * 2.4)) rotate(calc(var(--of-rot) - 2.2deg)) scale(.985); } }
+  @keyframes mka-of-sheet-in { from { opacity: 0; transform: translateY(calc(var(--u) * 1.6)) rotate(-1deg); } }
+  @keyframes mka-of-thump { 0%, 100% { transform: translateY(0) rotate(var(--of-rot)); } 28% { transform: translateY(calc(var(--u) * .3)) rotate(var(--of-rot)); } 62% { transform: translateY(calc(var(--u) * -.08)) rotate(var(--of-rot)); } }
+  @keyframes mka-of-write { from { transform: scaleX(0); } }
+  @keyframes mka-of-wipe { from { opacity: 1; clip-path: inset(-30% 100% -30% 0); } to { opacity: 1; clip-path: inset(-30% -2% -30% 0); } }
+  @keyframes mka-of-chip { 0% { opacity: 0; transform: scale(.4) translateY(calc(var(--u) * .8)); } 62% { opacity: 1; transform: scale(1.12) translateY(0); } 100% { opacity: 1; transform: scale(1); } }
+  @keyframes mka-of-led-a { 0%, 82% { background: var(--led-wait); box-shadow: 0 0 calc(var(--u) * .9) var(--led-wait); opacity: 1; } 8%, 24%, 40%, 56%, 72% { opacity: .45; } 16%, 32%, 48%, 64% { opacity: 1; } 90%, 100% { background: var(--led-ok); box-shadow: 0 0 calc(var(--u) * .9) var(--led-ok); opacity: 1; } }
+  @keyframes mka-of-led-b { 0%, 88% { background: var(--led-none); box-shadow: none; } 100% { background: var(--led-ok); box-shadow: 0 0 calc(var(--u) * .9) var(--led-ok); } }
+  @keyframes mka-of-comet { 0% { left: 0; opacity: 0; } 14% { opacity: 1; } 100% { left: calc(100% - var(--u) * .9); opacity: 1; } }
+  @keyframes mka-of-hold { from, to { opacity: 0; } }
+  @keyframes mka-of-slam {
+    0% { opacity: 0; transform: translateY(calc(var(--u) * -2.6)) rotate(calc(var(--of-srot) - 5deg)) scale(1.45); }
+    16% { opacity: 1; }
+    58% { opacity: 1; transform: translateY(0) rotate(var(--of-srot)) scale(.9); }
+    76% { transform: translateY(0) rotate(var(--of-srot)) scale(1.045); }
+    100% { opacity: 1; transform: translateY(0) rotate(var(--of-srot)) scale(1); }
+  }
+  @keyframes mka-of-halo { 0% { opacity: 0; transform: scale(.7); } 48% { opacity: .9; transform: scale(.98); } 100% { opacity: .2; transform: scale(1.12); } }
+  @keyframes mka-of-hero-in { from { opacity: 0; transform: translateY(calc(var(--u) * 2.6)) rotate(-5deg); } }
+  @keyframes mka-of-press {
+    0% { transform: translateY(-19px) rotate(calc(var(--tilt) * 1.7)); }
+    56% { transform: translateY(2.4px) rotate(calc(var(--tilt) * .82)); }
+    76% { transform: translateY(-1.2px) rotate(calc(var(--tilt) * 1.06)); }
+    100% { transform: translateY(0) rotate(var(--tilt)); }
+  }
+  @keyframes mka-of-idle { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(calc(var(--u) * -.24)) rotate(.9deg); } }
+  @keyframes mka-of-dot { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.35); } 100% { opacity: 1; transform: scale(1); } }
+  @keyframes mka-of-spark-in { from { opacity: 0; transform: scale(0) rotate(-40deg); } }
+  @keyframes mka-of-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.78) rotate(12deg); } }
+}

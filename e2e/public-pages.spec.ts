@@ -5,8 +5,9 @@
 // covers the candidate `[token]` doors. Between them sat five indexed pages
 // with no e2e coverage at all: /about, /trust, /privacy, /terms and /market.
 // /about in particular is a front door — the sitemap lists it, the landing's
-// phone menu links to it — yet it shipped without the legal row every other
-// front door carries and without any phone navigation.
+// phone menu links to it — yet it once shipped without the legal row every other
+// front door carries and without any phone navigation. Since 2026-09-30 it shares
+// the landing's header, menu and footer (app/landing/site/chrome/).
 //
 // Fully deterministic and keyless: none of these five renders model output.
 // /market reads the committed Czech market atlas, the rest are static copy.
@@ -30,7 +31,6 @@ const PAGES = ["/about", "/trust", "/privacy", "/terms", "/market"] as const;
 // (the lot that first wrote this file had audited a DIFFERENT app on :3000 and believed
 // the list empty; the re-measure that replaced it named /market's nodes wrongly, which
 // is why each entry below now says which ELEMENT fails and at what ratio):
-//   /about   36 about-art step badges (.w-10.h-10.rounded-xl) - white on the art colours
 //   /trust, /privacy, /terms  ONE node each, and it is the same element on all three:
 //            the EYEBROW recipe (`text-meta uppercase text-coral`), coral #d65a4a at
 //            14px on the cream paper, 3.65:1 against a 4.5:1 bar. Axe selects it as
@@ -46,10 +46,14 @@ const PAGES = ["/about", "/trust", "/privacy", "/terms", "/market"] as const;
 // ticks deepened, and the org colour moved off the text onto a swatch beside it. The page
 // now reports zero serious violations.
 //
+// /about had one too (36 white step badges on the old about-art colours) and no longer
+// does: the page was replaced on 2026-09-30 by the port of the approved prototype
+// (app/landing/site/about/), and that page measured zero serious violations at 1280x800
+// and 390x844, with and without reduced motion. Its entry was deleted, not moved.
+//
 // The list must only ever SHRINK; each entry is asserted to STILL fail below, so fixing
 // one turns this suite red until the entry is deleted.
 const A11Y_HOLDOUTS: Record<string, string[]> = {
-  "/about": ["color-contrast"],
   "/trust": ["color-contrast"],
   "/privacy": ["color-contrast"],
   "/terms": ["color-contrast"]
@@ -81,17 +85,27 @@ test("/about carries the shared legal row every public front door owes", async (
 test("/about has phone navigation, keyboard-dismissible like the landing's", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/about");
-  const toggle = page.getByRole("button", { name: "Open menu" });
+  // The bar's brand mark is the way home from /about (on '/' it scrolls to #top).
+  await expect(page.locator("#bar").getByRole("link", { name: "KandiDate, home" })).toHaveAttribute("href", "/");
+  // The same header and menu as the landing's (app/landing/site/chrome/): a
+  // "Menu" / "Close" disclosure whose panel links back into the landing's bands.
+  const toggle = page.locator("#bar").getByRole("button", { name: /^(Menu|Close)$/ });
+  await expect(toggle).toHaveAccessibleName("Menu");
   await expect(toggle).toBeVisible();
+  const menu = page.locator(`[id="${await toggle.getAttribute("aria-controls")}"]`);
 
   await toggle.click();
-  const home = page.getByRole("link", { name: "Home" }).first();
-  await expect(home).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(menu.getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/#pricing");
+  // The page you are on is marked, not re-offered as a destination.
+  await expect(menu.getByRole("link", { name: /^About/ })).toHaveAttribute("aria-current", "page");
 
   // Escape closes the disclosure and hands focus back to the toggle — the same
   // useDialogA11y contract e2e/landing.spec.ts pins for the landing menu.
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
+  await expect(menu).toHaveCount(0);
+  await expect(toggle).toHaveAccessibleName("Menu");
+  await expect(toggle).toBeFocused();
 });
 
 // A shared /about link unfurls from these tags. Next merges metadata SHALLOWLY, so a
@@ -175,9 +189,10 @@ test("/about JSON-LD advertises a two-item Home to About breadcrumb", async ({ p
 for (const path of PAGES) {
   test(`${path} passes axe beyond its recorded holdouts`, async ({ page }) => {
     await page.goto(path);
-    // Bands animate in on scroll (framer whileInView), so walk the page to the
-    // bottom first — an un-entered band is still at opacity 0 and axe would
-    // audit a page the visitor never sees.
+    // Bands animate in on scroll (framer whileInView on /trust and /market, the
+    // scroll-driven line on /about), so walk the page to the bottom first — an
+    // un-entered band is still at opacity 0 and axe would audit a page the
+    // visitor never sees.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.evaluate(() => window.scrollTo(0, 0));
     const found = await seriousViolations(page);

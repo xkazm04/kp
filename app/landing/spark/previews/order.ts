@@ -1,12 +1,16 @@
 /*
- * The spotlight vocabulary as data: the nine preview keys in grid order, the
+ * The spotlight vocabulary as data: the nine preview keys in funnel order, the
  * walk between them, and the URL address a pinned spotlight lives at.
  *
  * Pure `.ts` (no JSX, no React) so node:test can pin it - see order.test.ts.
  * The literal-array + derived-union idiom the repo uses for every closed
  * vocabulary (`about-art/shared.ts` ABOUT_STEP_KEYS, `i18n/locales.ts`): the
- * order HERE is the order the grid renders (FeatureGrid maps over it) and the
- * order prev/next and ArrowLeft/ArrowRight walk in the pinned dialog.
+ * order HERE is the order the landing's features ring draws its nine medallions
+ * (app/landing/site/land/features/featureData.ts maps over it) and the order the
+ * scene's stepper and ArrowLeft/ArrowRight walk. It is the funnel's own order,
+ * a CV's way through the product: one inbox, then scoring, rediscovery, the
+ * voice screen, the work sample, scheduling, the salary band, the offer, and the
+ * gates every decision passes.
  *
  * THE ADDRESS IS NOT AN ELEMENT ID. A pinned spotlight is `/#spotlight-<key>`,
  * deliberately a different namespace from the cards' internal
@@ -18,13 +22,13 @@
  */
 
 export const PREVIEW_KEYS = [
+  "inbox",
   "score",
+  "rediscover",
   "voice",
   "cases",
   "schedule",
-  "inbox",
   "salary",
-  "rediscover",
   "offer",
   "gates"
 ] as const;
@@ -37,14 +41,14 @@ export function isPreviewKey(value: string): value is PreviewKey {
   return (PREVIEW_KEYS as readonly string[]).includes(value);
 }
 
-/** The neighbour in grid order; the walk wraps at both ends. */
+/** The neighbour in funnel order; the walk wraps at both ends. */
 export function stepPreview(key: PreviewKey, dir: 1 | -1): PreviewKey {
   const n = PREVIEW_KEYS.length;
   const i = PREVIEW_KEYS.indexOf(key);
   return PREVIEW_KEYS[(((i + dir) % n) + n) % n];
 }
 
-/** 1-based position for the "3 of 9" line. */
+/** 1-based position for the "05 of 09" line. */
 export function previewPosition(key: PreviewKey): { n: number; total: number } {
   return { n: PREVIEW_KEYS.indexOf(key) + 1, total: PREVIEW_KEYS.length };
 }

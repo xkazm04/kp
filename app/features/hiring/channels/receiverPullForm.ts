@@ -1,4 +1,4 @@
-// PULL-SOURCE FORM — the pure half of ChannelsReceiverPullCard.
+// PULL-SOURCE FORM — the pure half of the pull-source editor (night/setup/SetupPullForm.tsx).
 //
 // PATCH /api/channels/webhooks is the pull write (org:manage + per-IP limiter). Its
 // secret field follows the repo's stored-credential contract (db/channels.ts
@@ -8,7 +8,7 @@
 //   • any other string   → replace it (encrypted at rest)
 // A null/blank pullUrl DISABLES pulling and clears the source cursor, so a blank save
 // is only legitimate once the stored record is KNOWN — the same
-// blankSaveOnUnknownConfig guard ChannelsEdgeCard and ChannelsRelayConfigCard carry.
+// blankSaveOnUnknownConfig guard the relay and edge editors carry (night/setup/setupDelivery.ts).
 
 export type PullRecord = { pullUrl: string | null; hasPullSecret: boolean };
 export type PullFields = { url: string; secret: string; clearSecret: boolean };

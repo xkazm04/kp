@@ -4,6 +4,7 @@ import { safeRowParse } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { decisionContentHash, decisionContentMac } from "./decision-hash";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
+import { addColumns } from "./db/add-columns";
 
 // Decision System of Record (moonshot D) — a tamper-evident hash chain of
 // consequential hiring decisions, stored in SQLite (a hash chain, NOT a
@@ -256,19 +257,11 @@ function db(): Database.Database {
   // Existing rows backfill to the default workspace, so their (globally-built) chain
   // becomes that workspace's chain and still verifies. An index on the per-tenant chain
   // head read (workspace_id, seq) keeps the seal's head lookup fast.
-  try {
-    d.exec(`ALTER TABLE decision_records ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "decision_records", ["workspace_id TEXT NOT NULL DEFAULT 'workspace'"]);
   // Chain keying (finding SD-1): key_id records which HMAC key sealed each row. Existing
   // rows backfill to '' (legacy keyless) via the DEFAULT, so the pre-key chain verifies
   // unchanged; new rows seal under the active key. Idempotent, same pattern as above.
-  try {
-    d.exec(`ALTER TABLE decision_records ADD COLUMN key_id TEXT NOT NULL DEFAULT ''`);
-  } catch {
-    /* column already exists — idempotent */
-  }
+  addColumns(d, "decision_records", ["key_id TEXT NOT NULL DEFAULT ''"]);
   d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_seq ON decision_records(workspace_id, seq)`);
   // Clean-arm read (heldOutEntryIds) filters by (kind, workspace_id).
   d.exec(`CREATE INDEX IF NOT EXISTS idx_decision_records_ws_kind ON decision_records(workspace_id, kind)`);

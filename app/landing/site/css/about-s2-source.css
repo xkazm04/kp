@@ -1,0 +1,143 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* STEP 02 - SOURCE: talent pool -> funnel -> knock-out gates -> ranked list; brass-and-silver sieve at the corner.
+   Desktop layout is absolute, in u. The phone block at the end reflows into one column (px, nothing scaled).
+   Animation lives only inside prefers-reduced-motion: no-preference and starts from .dio.is-in. */
+
+.mk.mk-about .dio-source { --sr-amber: #e6c46a; --sr-dir: 1; }
+.mk.mk-about .dio-source[data-side="r"] { --sr-dir: -1; }
+
+.mk.mk-about .dio-source .sr-hd { display: contents; }
+.mk.mk-about .dio-source .sr-grid { position: absolute; inset: 0; z-index: 0; background-image: radial-gradient(circle, rgba(243, 236, 217, .11) 1px, transparent 1.5px); background-size: calc(var(--u) * 1.7) calc(var(--u) * 1.7); background-position: calc(var(--u) * .4) calc(var(--u) * .4); }
+.mk.mk-about .dio-source .sr-glow { position: absolute; inset: 0; z-index: 0; background: radial-gradient(40% 50% at 68% 46%, color-mix(in srgb, var(--sc) 20%, transparent), transparent 72%); }
+.mk.mk-about .dio-source .sr-l { position: absolute; z-index: 2; white-space: nowrap; top: calc(var(--u) * 2); }
+.mk.mk-about .dio-source .sr-l-pool { left: calc(var(--u) * 1.3); }
+.mk.mk-about .dio-source .sr-l-gate { left: calc(var(--u) * 10.4); }
+.mk.mk-about .dio-source .sr-l-rank { left: calc(var(--u) * 23); }
+.mk.mk-about .dio-source .sr-l-arch { right: calc(var(--u) * 1.3); }
+
+/* funnel + comb */
+.mk.mk-about .dio-source .sr-fun { position: absolute; z-index: 2; left: calc(var(--u) * 1); top: calc(var(--u) * 3.4); width: calc(var(--u) * 14.6); height: calc(var(--u) * 15); }
+.mk.mk-about .dio-source .sr-fun svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 calc(var(--u) * .2) calc(var(--u) * .3) rgba(0, 0, 0, .35)); }
+.mk.mk-about .dio-source .sr-c,
+.mk.mk-about .dio-source .sr-comb,
+.mk.mk-about .dio-source .sr-sp,
+.mk.mk-about .dio-source .sr-hc,
+.mk.mk-about .dio-source .sr-rib,
+.mk.mk-about .dio-source .sr-handle { transform-box: fill-box; transform-origin: center; }
+.mk.mk-about .dio-source .sr-spf { fill: #fff6d6; } .mk.mk-about .dio-source .sr-spf2 { fill: var(--sc-hi); }
+.mk.mk-about .dio-source .sr-flies { position: absolute; z-index: 4; left: calc(var(--u) * 12); top: calc(var(--u) * 6); width: 0; height: 0; }
+.mk.mk-about .dio-source .sr-fly { position: absolute; width: calc(var(--u) * 2.2); height: calc(var(--u) * 2.7); opacity: 0; filter: drop-shadow(0 calc(var(--u) * .2) calc(var(--u) * .3) rgba(0, 0, 0, .4)); }
+.mk.mk-about .dio-source .sr-fly1 { left: calc(var(--u) * .2); top: calc(var(--u) * .9); }
+.mk.mk-about .dio-source .sr-fly2 { left: calc(var(--u) * .2); top: calc(var(--u) * 3.1); }
+.mk.mk-about .dio-source .sr-fly3 { left: calc(var(--u) * .2); top: calc(var(--u) * 5.3); }
+
+/* ranked list */
+.mk.mk-about .dio-source .sr-list { position: absolute; z-index: 3; left: calc(var(--u) * 16.6); top: calc(var(--u) * 4.2); width: calc(var(--u) * 23.3); display: grid; gap: calc(var(--u) * .8); }
+.mk.mk-about .dio-source .sr-row { display: flex; align-items: center; gap: calc(var(--u) * .9); padding: calc(var(--u) * .75) calc(var(--u) * 1) calc(var(--u) * .75) calc(var(--u) * .8); border-radius: calc(var(--u) * .9); color: var(--ink);
+  border: max(2px, calc(var(--u) * .14)) solid var(--ink); background: linear-gradient(170deg, #fffdf6, var(--cream) 50%, #f1e8d3);
+  box-shadow: calc(var(--u) * .26) calc(var(--u) * .34) 0 rgba(3, 9, 12, .55), 0 calc(var(--u) * .9) calc(var(--u) * 1.6) rgba(0, 0, 0, .3), inset 0 calc(var(--u) * .12) 0 #fff; }
+.mk.mk-about .dio-source .sr-rk { flex: none; display: grid; place-items: center; width: max(38px, calc(var(--u) * 3.4)); height: max(38px, calc(var(--u) * 3.4)); border-radius: 50%; font-family: var(--f-display); font-weight: 800; font-size: var(--fs-lead); line-height: 1; color: var(--ink);
+  background: radial-gradient(circle at 34% 28%, #ffffff, #cfd6dc 56%, #8a95a0); border: max(2px, calc(var(--u) * .16)) solid var(--ink); box-shadow: inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .8), 0 calc(var(--u) * .2) 0 var(--ink); }
+.mk.mk-about .dio-source .sr-row:first-child .sr-rk { background: radial-gradient(circle at 34% 28%, #fff4c4, #e6c46a 58%, #a9822f); }
+.mk.mk-about .dio-source .sr-mid { flex: 1 1 auto; min-width: 0; display: grid; gap: calc(var(--u) * .45); }
+.mk.mk-about .dio-source .sr-nm { font-weight: 800; font-size: var(--fs-body); line-height: 1.15; white-space: nowrap; letter-spacing: -.005em; }
+.mk.mk-about .dio-source .sr-bar { position: relative; display: flex; align-items: center; min-width: 0; height: calc(var(--u) * 1.5); padding-right: max(30px, calc(var(--u) * 3)); }
+.mk.mk-about .dio-source .sr-trk { position: absolute; left: 0; right: max(30px, calc(var(--u) * 3)); top: 50%; height: calc(var(--u) * .78); margin-top: calc(var(--u) * -.39); border-radius: 99px; background: rgba(23, 32, 42, .14); box-shadow: inset 0 calc(var(--u) * .1) calc(var(--u) * .14) rgba(23, 32, 42, .28); }
+.mk.mk-about .dio-source .sr-fill { position: absolute; left: 0; top: 50%; width: calc((100% - max(30px, calc(var(--u) * 3))) * var(--w-n, .8)); height: calc(var(--u) * .78); margin-top: calc(var(--u) * -.39); border-radius: 99px; transform-origin: left center;
+  background: linear-gradient(var(--sr-amber), #caa54c 60%, #a9822f); border: max(2px, calc(var(--u) * .1)) solid var(--ink); }
+.mk.mk-about .dio-source .sr-row:nth-child(1) .sr-fill { --w-n: .88; } .mk.mk-about .dio-source .sr-row:nth-child(2) .sr-fill { --w-n: .74; } .mk.mk-about .dio-source .sr-row:nth-child(3) .sr-fill { --w-n: .61; }
+.mk.mk-about .dio-source .sr-sc { position: absolute; right: 0; top: 50%; translate: 0 -50%; font-family: var(--f-mono); font-weight: 700; font-size: var(--fs-lead); line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+
+.mk.mk-about .dio-source .sr-pills { position: absolute; z-index: 3; left: calc(var(--u) * 16.6); top: calc(var(--u) * 24.6); display: flex; flex-wrap: wrap; gap: calc(var(--u) * .7); }
+.mk.mk-about .dio-source .sr-pills li { padding: calc(var(--u) * .3) calc(var(--u) * .9); border-radius: 999px; color: var(--lcd-fg); background: rgba(219, 225, 230, .12); box-shadow: inset 0 0 0 max(1.5px, calc(var(--u) * .1)) rgba(219, 225, 230, .5); }
+
+/* hero: the sieve on the bottom outer corner (overflow <= 3u), mirrored by side */
+.mk.mk-about .dio-source .dio-hero--a { left: calc(var(--u) * -3); bottom: calc(var(--u) * -2.6); width: calc(var(--u) * 16.2); height: calc(var(--u) * 16.2); }
+.mk.mk-about .dio-source[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -3); }
+
+/* motion */
+@keyframes mka-sr-fade { from { opacity: 0; } }
+@keyframes mka-sr-pop { from { opacity: 0; transform: scale(.5); } }
+@keyframes mka-sr-wipe { from { transform: scaleX(0); } }
+@keyframes mka-sr-drop { from { opacity: 0; transform: translate(calc(var(--u) * -2.4 * var(--sr-dir)), calc(var(--u) * -1.8)) rotate(-10deg); } }
+@keyframes mka-sr-thunk { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(calc(var(--u) * -.22)); } 55% { transform: translateX(calc(var(--u) * .16)); } }
+@keyframes mka-sr-row-in { from { opacity: 0; transform: translateX(calc(var(--u) * -3 * var(--sr-dir))); } }
+@keyframes mka-sr-fly1 { 0% { opacity: 0; transform: translate(0, 0); } 12% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--u) * 4.6 * var(--sr-dir)), calc(var(--u) * -.6)); } }
+@keyframes mka-sr-fly2 { 0% { opacity: 0; transform: translate(0, 0); } 12% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--u) * 4.6 * var(--sr-dir)), calc(var(--u) * 2.6)); } }
+@keyframes mka-sr-fly3 { 0% { opacity: 0; transform: translate(0, 0); } 12% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--u) * 4.6 * var(--sr-dir)), calc(var(--u) * 6.4)); } }
+@keyframes mka-sr-sieve { from { opacity: 0; transform: translateY(calc(var(--u) * 2.4)) scale(.94); } }
+@keyframes mka-sr-rise { from { transform: translateY(calc(var(--u) * 5)); } }
+@keyframes mka-sr-rock { 0%, 100% { transform: rotate(-.8deg); } 50% { transform: rotate(.8deg); } }
+@keyframes mka-sr-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(var(--u) * -.22)); } }
+@keyframes mka-sr-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.7); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about .dio-source:not(.is-in) :is(.sr-grid, .sr-glow, .sr-l, .sr-fun, .sr-row, .sr-pills, .dio-hero) { opacity: 0; }
+  .mk.mk-about .dio-source.is-in .sr-grid,
+.mk.mk-about .dio-source.is-in .sr-glow { animation: mka-sr-fade .8s ease .05s both; }
+  .mk.mk-about .dio-source.is-in .sr-l { animation: mka-sr-fade .5s ease .2s both; }
+  .mk.mk-about .dio-source.is-in .sr-l-gate { animation-delay: .9s; } .mk.mk-about .dio-source.is-in .sr-l-rank,
+.mk.mk-about .dio-source.is-in .sr-l-arch { animation-delay: 1.9s; }
+  .mk.mk-about .dio-source.is-in .sr-fun { animation: mka-sr-fade .6s ease .1s both; }
+  .mk.mk-about .dio-source.is-in .sr-ok { animation: mka-sr-drop .7s var(--ease) both; animation-delay: calc(.25s + var(--i) * .1s); }
+  .mk.mk-about .dio-source.is-in .sr-ko { animation: mka-sr-drop .7s var(--ease) both; animation-delay: calc(.25s + var(--i) * .1s); }
+  .mk.mk-about .dio-source.is-in .sr-ko-mark { animation: mka-sr-fade .45s ease 1.45s both; }
+  .mk.mk-about .dio-source.is-in .sr-comb { animation: mka-sr-thunk .5s ease-in-out 1.4s both; }
+  .mk.mk-about .dio-source.is-in .sr-fly1 { animation: mka-sr-fly1 .9s var(--ease) 1.75s both; }
+  .mk.mk-about .dio-source.is-in .sr-fly2 { animation: mka-sr-fly2 .9s var(--ease) 1.9s both; }
+  .mk.mk-about .dio-source.is-in .sr-fly3 { animation: mka-sr-fly3 .9s var(--ease) 2.05s both; }
+  .mk.mk-about .dio-source.is-in .sr-row { animation: mka-sr-row-in .6s var(--ease) both; animation-delay: calc(2.2s + var(--i) * .22s); }
+  .mk.mk-about .dio-source.is-in .sr-fill { animation: mka-sr-wipe .9s var(--ease) both; animation-delay: calc(2.5s + var(--i) * .22s); }
+  .mk.mk-about .dio-source.is-in .sr-pills { animation: mka-sr-fade .6s ease 3.2s both; }
+  .mk.mk-about .dio-source.is-in .dio-hero--a { animation: mka-sr-sieve .7s var(--ease) .25s both; }
+  .mk.mk-about .dio-source.is-in .sr-hc { animation: mka-sr-rise .8s var(--ease) both; }
+  .mk.mk-about .dio-source.is-in .sr-hc3 { animation-delay: 1.6s; } .mk.mk-about .dio-source.is-in .sr-hc2 { animation-delay: 1.85s; } .mk.mk-about .dio-source.is-in .sr-hc1 { animation-delay: 2.1s; }
+  .mk.mk-about .dio-source.is-in .sr-rib { animation: mka-sr-pop .45s var(--spring) both; }
+  .mk.mk-about .dio-source.is-in .sr-rib3 { animation-delay: 2.5s; } .mk.mk-about .dio-source.is-in .sr-rib2 { animation-delay: 2.75s; } .mk.mk-about .dio-source.is-in .sr-rib1 { animation-delay: 3s; }
+  /* idle: the sieve rocks almost imperceptibly, the cards bob, the sparkles twinkle */
+  .mk.mk-about .dio-source.is-in .dio-hero--a svg { animation: mka-sr-rock 7s ease-in-out 3.8s infinite; transform-origin: 60% 92%; }
+  .mk.mk-about .dio-source.is-in .sr-hc:not(.sr-hc-x) { animation-name: mka-sr-rise, mka-sr-bob; animation-duration: .8s, 5s; animation-timing-function: var(--ease), ease-in-out; animation-iteration-count: 1, infinite; animation-fill-mode: both, none; }
+  .mk.mk-about .dio-source.is-in .sr-hc1 { animation-delay: 2.1s, 3.6s; } .mk.mk-about .dio-source.is-in .sr-hc2 { animation-delay: 1.85s, 4.1s; } .mk.mk-about .dio-source.is-in .sr-hc3 { animation-delay: 1.6s, 4.6s; }
+  .mk.mk-about .dio-source.is-in .sr-sp { animation: mka-sr-twinkle 3.4s ease-in-out 3.6s infinite; }
+  .mk.mk-about .dio-source.is-in .sr-sp2 { animation-delay: 4.3s; } .mk.mk-about .dio-source.is-in .sr-sp3 { animation-delay: 5s; }
+}
+
+
+/* side r: the whole composition mirrors so the sieve (bottom outer corner, right) never lands on the list */
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-source[data-side="r"] .sr-l-pool { left: auto; right: calc(var(--u) * 1.3); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-l-gate { left: auto; right: calc(var(--u) * 10.4); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-l-rank { left: calc(var(--u) * 1.5); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-l-arch { right: auto; left: calc(var(--u) * 6.8); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-fun { left: auto; right: calc(var(--u) * 1); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-fun svg { transform: scaleX(-1); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-flies { left: auto; right: calc(var(--u) * 12); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-list { left: calc(var(--u) * .7); }
+  .mk.mk-about .dio-source[data-side="r"] .sr-pills { left: calc(var(--u) * .7); }
+}
+
+/* ---------- phones and portrait windows: one column in normal flow, sized in px ---------- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-source .gl { display: flex; flex-direction: column; gap: 8px; padding: 16px 14px 84px; min-height: 0; }
+  .mk.mk-about .dio-source .sr-hd { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; }
+  .mk.mk-about .dio-source .sr-hd { order: 1; }
+  .mk.mk-about .dio-source .sr-fun { order: 2; }
+  .mk.mk-about .dio-source .sr-hd2 { order: 3; margin-top: 12px; }
+  .mk.mk-about .dio-source .sr-list { order: 4; }
+  .mk.mk-about .dio-source .sr-pills { order: 5; }
+  .mk.mk-about .dio-source .sr-l { position: relative; top: auto; left: auto; right: auto; }
+  .mk.mk-about .dio-source .sr-fun { position: relative; left: auto; top: auto; width: 100%; max-width: 252px; height: auto; aspect-ratio: 146 / 150; margin: 0 auto; }
+  .mk.mk-about .dio-source .sr-flies { display: none; }
+  .mk.mk-about .dio-source .sr-list { position: relative; left: auto; top: auto; width: 100%; gap: 10px; margin-top: 2px; }
+  .mk.mk-about .dio-source .sr-row { gap: 10px; padding: 9px 12px 9px 10px; border-width: 2px; border-radius: 12px; box-shadow: 2px 3px 0 rgba(3, 9, 12, .55), 0 8px 14px rgba(0, 0, 0, .3), inset 0 1px 0 #fff; }
+  .mk.mk-about .dio-source .sr-rk { width: 42px; height: 42px; font-size: 18px; }
+  .mk.mk-about .dio-source .sr-nm { font-size: 16px; white-space: normal; }
+  .mk.mk-about .dio-source .sr-bar { height: 22px; padding-right: 34px; }
+  .mk.mk-about .dio-source .sr-trk { right: 34px; height: 10px; margin-top: -5px; }
+  .mk.mk-about .dio-source .sr-fill { height: 10px; margin-top: -5px; width: calc((100% - 34px) * var(--w-n, .8)); }
+  .mk.mk-about .dio-source .sr-sc { font-size: 18px; }
+  .mk.mk-about .dio-source .sr-pills { position: relative; left: auto; top: auto; margin: 4px 0 0 74px; gap: 8px; }
+  .mk.mk-about .dio-source .sr-pills li { padding: 4px 11px; }
+  .mk.mk-about .dio-source .dio-hero--a { width: 128px; height: 128px; left: -10px; right: auto; bottom: -22px; }
+  .mk.mk-about .dio-source[data-side="r"] .dio-hero--a { left: auto; right: -10px; }
+}

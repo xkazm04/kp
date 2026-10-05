@@ -84,7 +84,8 @@ export function buildAboutJsonLd(input: AboutJsonLdInput): {
         inLanguage: input.inLanguage,
         sameAs: input.sameAs,
         publisher: { "@type": "Organization", name: PRODUCT_NAME, url: home },
-        // Hosted free tier is still on PricingSection (`id: "free"`). Do not
+        // Hosted free tier is still on the pricing band (app/landing/site/land/
+        // Pricing.tsx, `id: "free"`; about-jsonld.test.ts pins it). Do not
         // invent aggregateRating / review.
         offers: { "@type": "Offer", price: "0", priceCurrency: "CZK" },
       },

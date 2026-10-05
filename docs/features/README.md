@@ -32,7 +32,7 @@ in [../product/](../product/); superseded material lives in [../_archive/](../_a
 | Integrations (calendar, inbound ATS) | [integrations/README.md](integrations/README.md) | `app/_lib/calendar/**`, `app/_lib/ats/connections-store.ts`, `app/api/calendar`, `app/api/ats/connections`, `app/features/settings/integrations` |
 | Billing | [billing/README.md](billing/README.md) | `app/_lib/billing/**`, `app/api/billing`, `app/features/settings/billing`, `scripts/polar-setup.mjs` |
 | About (in-app explainer deck) | [about/README.md](about/README.md) | `app/features/insights/about/**` |
-| Public marketing pages (`/`, `/about`, `/market`) | [marketing/README.md](marketing/README.md) | `app/landing/spark/**`, `app/about`, `app/market`, `scripts/build-market-pulse.mjs`, `scripts/lib/market-earnings.mjs`, `data/market_pulse.json` |
+| Public marketing pages (`/`, `/about`, `/market`) | [marketing/README.md](marketing/README.md) | `app/landing/site/**`, `app/landing/spark/**`, `app/about`, `app/market`, `scripts/build-market-pulse.mjs`, `scripts/lib/market-earnings.mjs`, `data/market_pulse.json` |
 
 Cross-cutting contracts (LLM provider layer, persistence backend, self-hosting, app
 structure) are in [../architecture/](../architecture/). The design system is in

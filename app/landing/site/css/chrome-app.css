@@ -1,0 +1,21 @@
+/* Foundation, hand-written: what the app's chrome has that the prototype's did not. The prototype's language chips
+   were decoration (<b>/<i>); here they are the real locale switch (<button aria-pressed>). The prototype had no
+   sign-in; the app keeps today's. Same weight as chrome.css (.mk.mk) and imported right after it. */
+
+/* language chips as buttons: same look as the prototype's <b> (current) and <i> (other) */
+.mk.mk .langs button { font: 800 max(14px, calc(var(--p) * 14)) var(--f-body); font-style: normal; padding: 4px 8px; border-radius: 8px; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); line-height: 1.1; min-height: 28px; cursor: pointer; }
+.mk.mk .langs button[aria-pressed='true'] { background: var(--ink); color: var(--cream); cursor: default; }
+.mk.mk .langs button:disabled { opacity: .6; cursor: progress; }
+.mk.mk .langs button:not([aria-pressed='true']):hover { background: var(--lime); }
+.mk.mk .foot .langs button { color: var(--ink); }
+.mk.mk .foot .langs button[aria-pressed='true'] { background: var(--amber); }
+.mk.mk .menu-langs .langs { display: inline-flex; vertical-align: middle; margin-left: 6px; }
+
+/* sign in: a header link in the nav's own type, and a row of the phone menu */
+.mk.mk .bar-sign { font: 700 max(15px, calc(var(--p) * 16)) var(--f-body); color: inherit; background: none; border: 0; padding: 8px 2px; cursor: pointer; position: relative; white-space: nowrap; }
+.mk.mk .bar-sign::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px; background: var(--amber); transform: scaleX(0); transform-origin: left; transition: transform .25s var(--kd-ease); }
+.mk.mk .bar-sign:hover::after { transform: scaleX(1); }
+.mk.mk .menu nav .menu-sign { display: block; width: 100%; text-align: left; font: 800 28px/1.2 var(--f-disp); color: inherit; background: none; border: 0; border-bottom: 2px dashed rgba(23, 32, 42, .25); padding: 14px 0; cursor: pointer; }
+
+/* the footer's legal links keep their own landmark without leaving the footer row's flex line */
+.mk.mk .foot-row .foot-legal { display: contents; }

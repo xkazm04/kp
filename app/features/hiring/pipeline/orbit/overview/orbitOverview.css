@@ -1,0 +1,89 @@
+/* The Overview above the orbit ("The Orbit, Lit", the /contest orbit-overview winner B/1, 2026-09-30).
+   Tokens only (brand tokens, the kit's --k-* and the orbit's --ob-* variables, color-mix of them), so
+   Studio Light and Spark Dark both repaint it. Light keeps the calm register (hairlines, italic serif
+   hand notes, soft lift); dark turns the Spark one up (drawn outlines, sticker shadows, tilted notes).
+   Type via the text-* tokens, 14px floor; the one hero numeral is twice the display step.
+   The queue cards, hand notes, halos, wires and the lit ground are the kit's scene layer
+   (app/_components/kit/scene/scene.css); this sheet lays the Overview out around them. */
+
+.ov { margin-top: 8px; container: ov / inline-size; }
+.ov-center { text-align: center; }
+
+/* ---------------------------------------------------------------- the head: the one number first */
+.ov-head { display: flex; align-items: flex-end; justify-content: center; gap: 18px; padding: 4px 0; }
+.ov-num {
+  padding: 0 6px; border: 0; border-radius: var(--k-radius); background: none; cursor: pointer;
+  font-family: var(--font-serif); font-size: calc(var(--text-display) * 2); line-height: .92; font-weight: 600;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--k-ink);
+}
+.ov-num.is-needs { color: var(--color-coral); }
+[data-theme="dark"] .ov-num { font-weight: 800; text-shadow: var(--sticker-sm-shadow); }
+.ov-say { max-width: 54ch; padding-bottom: 6px; }
+.ov-say h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.15; font-weight: 600; }
+[data-theme="dark"] .ov-say h2 { font-weight: 800; }
+.ov-say p { margin: 4px 0 0; font-size: var(--text-body); color: var(--k-quiet); }
+
+/* ---------------------------------------------------------------- the scene: two columns around the dial */
+.ov-scene {
+  position: relative; display: grid; align-items: center; gap: 0 20px; margin-top: 10px;
+  grid-template-columns: minmax(210px, 250px) minmax(0, 1fr) minmax(210px, 250px);
+}
+@container ov (min-width: 1280px) { .ov-scene { grid-template-columns: minmax(260px, 330px) minmax(0, 1fr) minmax(260px, 330px); gap: 0 28px; } }
+@container ov (max-width: 1279px) { .ov .k-queue__on { display: none; } }
+.ov-col { position: relative; z-index: 3; display: flex; flex-direction: column; gap: 12px; padding: 8px 0; }
+.ov-list { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+
+/* the dial, on the kit's lit ground (LitGround) */
+.ov-mid { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.ov-dial { position: relative; z-index: 1; display: block; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.ov-dial canvas { display: block; filter: drop-shadow(0 14px 18px color-mix(in srgb, var(--color-moss) 20%, transparent)); }
+[data-theme="dark"] .ov-dial canvas { filter: drop-shadow(0 0 22px color-mix(in srgb, var(--color-dial-amber) 12%, transparent)); }
+.ov-legend { max-width: 56ch; margin: 0; font-size: var(--text-micro); color: var(--k-quiet); text-align: center; }
+.ov-legend > span { display: block; text-wrap: balance; }
+
+/* ---------------------------------------------------------------- First up */
+.ov-first {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 10px 16px;
+  border: var(--k-line) solid var(--k-rule-strong); border-radius: var(--k-radius-lg);
+  background: color-mix(in srgb, var(--color-coralwash) 40%, var(--k-raised)); box-shadow: inset 4px 0 0 var(--color-coral);
+}
+.ov-first.is-quiet { background: var(--k-plane); box-shadow: none; }
+[data-theme="dark"] .ov-first { border-color: var(--k-ink); box-shadow: inset 6px 0 0 var(--color-coral), var(--sticker-sm-shadow); transform: rotate(-.6deg); }
+[data-theme="dark"] .ov-first.is-quiet { box-shadow: var(--sticker-sm-shadow); }
+.ov-first__eyebrow { display: flex; align-items: center; gap: 4px; margin: 0; font-size: var(--text-micro); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ob-needs-ink); }
+.ov-first.is-quiet .ov-first__eyebrow { color: var(--k-quiet); }
+.ov-first__name {
+  padding: 0; border: 0; background: none; cursor: pointer; text-align: left; color: var(--k-ink);
+  font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.2; font-weight: 600;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color .15s;
+}
+.ov-first__name:hover, .ov-first__name:focus-visible { text-decoration-color: currentColor; }
+[data-theme="dark"] .ov-first__name { font-weight: 800; }
+.ov-first__line { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); text-wrap: balance; }
+.ov-first__line b { font-weight: 600; color: var(--k-ink); }
+.ov-first__line b.ob-a { color: var(--ob-late-ink); }
+
+/* ---------------------------------------------------------------- the totals */
+.ov-totals {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 44px;
+  margin: 14px 0 0; padding: 12px 0 0; border-top: var(--k-line) solid var(--k-rule);
+}
+[data-theme="dark"] .ov-totals { border-top-style: dashed; }
+.ov-totals > div { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.ov-totals dt { order: 2; font-size: var(--text-micro); color: var(--k-quiet); }
+.ov-totals dd { order: 1; margin: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ov-totals dd small { font-family: var(--font-sans); font-size: var(--text-micro); font-weight: 600; color: var(--k-quiet); }
+.ov-totals .ov-totals__why { order: 3; max-width: 36ch; font-family: var(--font-sans); font-size: var(--text-micro); font-weight: 400; color: var(--ob-late-ink); }
+[data-theme="dark"] .ov-totals dd { font-weight: 800; }
+
+/* a narrow sheet stacks: the dial first, then the two columns; no room for wires or the note */
+@container ov (max-width: 860px) {
+  .ov-scene { grid-template-columns: minmax(0, 1fr); }
+  .ov-mid { order: -1; }
+  .ov-wires, .ov-note { display: none; }
+  .ov-head { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ov-first__name { transition: none; }
+}

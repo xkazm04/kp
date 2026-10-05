@@ -41,6 +41,13 @@ type Catalog = {
     trust: { human: { body: string }; audit: { body: string } };
     pricing: { enterprise: { blurb: string; capabilities: string[] } };
   };
+  /* The prototype port (app/landing/site/, 2026-09-30) reuses the landing.* and
+   * aboutPage.* keys above verbatim and adds its new copy under these four. They
+   * are public marketing prose too, so the prose-wide bans below read them. */
+  siteChrome?: { menu?: { languages?: string } } & Record<string, unknown>;
+  siteLand?: Record<string, unknown>;
+  siteFeatures?: Record<string, unknown>;
+  siteAbout?: Record<string, unknown>;
   aboutPage: {
     hero: { title: string; subtitle: string };
     steps: Record<string, { eyebrow: string; title: string; body: string }>;
@@ -175,8 +182,9 @@ test("no marketing copy promises the onboarding module that was retired", () => 
 
   for (const locale of LOCALES) {
     const c = CATALOGS[locale];
-    // The whole public marketing surface, not just the two keys that were caught.
-    const prose = JSON.stringify([c.landing, c.aboutPage]);
+    // The whole public marketing surface, not just the two keys that were caught:
+    // the reused namespaces AND the four the prototype port added.
+    const prose = JSON.stringify([c.landing, c.aboutPage, c.siteChrome, c.siteLand, c.siteFeatures, c.siteAbout]);
     const hits = prose.split(/(?<=[.!?"])\s+/).filter((s) => ONBOARDING[locale].test(s));
     assert.deepEqual(
       hits,
@@ -197,6 +205,26 @@ test("the marquee's language claim states the number of locales that ship", () =
       1,
       `${locale}'s marquee must carry exactly one language claim stating ${LOCALES.length}; it carries ${claims.length}`
     );
+  }
+});
+
+test("the phone menu's language line states the number of locales that ship, in words", () => {
+  // siteChrome.menu.languages ("Four languages, candidate side included:") heads the
+  // EN/CS/DE/FR chips in the site's phone menu (app/landing/site/chrome/Header.tsx).
+  // It spells the count, so numbersIn() cannot read it; a declared word per locale
+  // does, and a fifth locale fails here until the copy is updated with it.
+  const WORD_FOR_COUNT: Record<string, Record<number, RegExp>> = {
+    en: { 4: /\bfour\b/i },
+    cs: { 4: /čty[řr]/i },
+    de: { 4: /\bvier\b/i },
+    fr: { 4: /\bquatre\b/i },
+  };
+  for (const locale of LOCALES) {
+    const line = CATALOGS[locale].siteChrome?.menu?.languages;
+    assert.ok(line, `${locale} has no siteChrome.menu.languages (the phone menu's language line)`);
+    const word = WORD_FOR_COUNT[locale]?.[LOCALES.length];
+    assert.ok(word, `no word for ${LOCALES.length} in ${locale}: the menu's language line needs updating`);
+    assert.match(line, word, `${locale}'s menu language line does not say ${LOCALES.length}: "${line}"`);
   }
 });
 
@@ -241,7 +269,7 @@ test("every /about phase carries copy and art keys in all four catalogs", () => 
     assert.deepEqual(
       Object.keys(steps),
       [...ABOUT_STEP_KEYS],
-      `${locale}'s aboutPage.steps must name every phase AboutCurve draws, in the order it draws them`
+      `${locale}'s aboutPage.steps must name every phase the /about line draws, in the order it draws them`
     );
     for (const key of ABOUT_STEP_KEYS) {
       for (const field of ["eyebrow", "title", "body"] as const) {
@@ -276,16 +304,18 @@ test("each /about step's eyebrow states its own position on the curve", () => {
 });
 
 test("every /about phase yields a numbered rail label in every locale", () => {
-  /* The section rail and the phone menu label each destination "01 Design" —
-   * DERIVED from the step's own eyebrow rather than from eight more catalog
-   * keys, so the nav and the heading it jumps to cannot disagree. That makes
-   * the eyebrow's SHAPE load-bearing: drop the "·" in one locale and the rail
-   * silently falls back to the full "Krok 03 · Příjem" in a column sized for
-   * two words. The ids are checked here too — they are what a `#step-07` deep
-   * link and the scroll-spy both address. */
-  // The rail reserves 12.5rem; see SectionRail's `widthRem`, which also sets the
-  // dock pill's width AND (through gutterMinRem) the width at which /about swaps
-  // the dock for the rail — so a label that outgrows this outgrows all three.
+  /* Every short step name on /about is DERIVED from the step's own eyebrow
+   * ("Step 03 · Intake" -> "Intake") rather than from eight more catalog keys, so
+   * a nav label and the heading it jumps to cannot disagree: today the stepper's
+   * neighbour names beside its arrows ("← Design", "Intake →") and its dots
+   * (app/landing/site/about/steps.ts `stepName`, the same derivation as
+   * aboutStepRailLabel). That makes the eyebrow's SHAPE load-bearing: drop the
+   * "·" in one locale and the name silently falls back to the full
+   * "Krok 03 · Příjem". The ids are checked here too — they are what a
+   * `#step-07` deep link, the JSON-LD HowTo and the stepper all address. */
+  // The 22-character budget was set by the retired section rail (12.5rem). It is
+  // kept as the length budget for the same short name on the stepper's arrow
+  // buttons, which sit side by side on one row.
   const MAX_LABEL_CHARS = 22;
   for (const locale of LOCALES) {
     const { steps } = CATALOGS[locale].aboutPage;
@@ -305,7 +335,7 @@ test("every /about phase yields a numbered rail label in every locale", () => {
       );
       assert.ok(
         label.length <= MAX_LABEL_CHARS,
-        `${locale}'s rail label for ${key} ("${label}") is ${label.length} chars — widen SectionRail's \`widthRem\` on /about or shorten the eyebrow`
+        `${locale}'s short step name for ${key} ("${label}") is ${label.length} chars — shorten the eyebrow's phase name`
       );
     });
   }
@@ -348,12 +378,18 @@ test("the assignment phase the landing leads with is on the /about curve", () =>
     i > ABOUT_STEP_KEYS.indexOf("screen") && i < ABOUT_STEP_KEYS.indexOf("interview"),
     "the case goes out at screening and the interview is grounded in the submission: assignment sits between them"
   );
-  // The curve derives its spine from the same list, so a phase can never be drawn
-  // without a node to sit on.
+  // The line derives its steps from the same list, so a phase can never be drawn
+  // without a station to sit on. site/about/steps.ts re-exports the list as
+  // STEP_KEYS, and AboutPage/AboutLine walk that.
   assert.match(
-    source("app", "landing", "spark", "AboutCurve.tsx"),
-    /ABOUT_STEP_KEYS/,
-    "AboutCurve must derive its rows and its spine from the phase list, not from a parallel literal"
+    source("app", "landing", "site", "about", "steps.ts"),
+    /export const STEP_KEYS = ABOUT_STEP_KEYS;/,
+    "the /about line must derive its steps from ABOUT_STEP_KEYS, not from a parallel literal"
+  );
+  assert.match(
+    source("app", "landing", "site", "about", "AboutPage.tsx"),
+    /\bSTEP_KEYS\b/,
+    "AboutPage must render its steps off STEP_KEYS (the phase list)"
   );
 });
 

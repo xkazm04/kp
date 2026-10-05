@@ -1,0 +1,205 @@
+/* The composition kit's SCENE layer: parts lifted from two contest winners when a practical surface
+   was redesigned in the marketing site's layered, drawn, animated manner (2026-09-30):
+   "The Night Post" (Hiring > Channels: levels you walk into) and "The Orbit, Lit" (the Hiring
+   Overview: queues wired to a figure). Lifted as they were written, onto the kit's own variables;
+   each part is used by one of the two today, none by both.
+
+   Rules, as everywhere in the kit: colour only through app/globals.css tokens and the kit's --k-*
+   variables (kit.css; every scene part renders inside a `.k-kit` root, KitSurface or a surface root
+   that carries the class), type only through the text-* tokens (nothing below 14px), the dark
+   register under [data-theme="dark"]: Studio Light calm (hairlines, 8 / 12px radii, no tilt), Spark
+   Dark playful (2px drawn outlines, 12 / 16px radii, sticker shadows, tilt, the springier ease).
+   Motion only on a state change; reduced motion drops it (the block at the end). */
+
+.k-kit {
+  /* "waiting on a person" as INK (a numeral, a note), a step darker than the coral fill in light */
+  --k-needs-ink: color-mix(in srgb, var(--color-coral) 78%, var(--color-ink));
+}
+[data-theme="dark"] .k-kit { --k-needs-ink: var(--color-coral); }
+
+/* ============================================================ PRESS: drawn furniture you press */
+
+/* Zero specificity (:where), so the caller's own class always wins over the reset and the ring. */
+:where(.k-press) { appearance: none; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
+:where(.k-press):focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+
+/* ============================================================ LEVELS: the stack, the frame, the trail */
+
+/* layers: only the top is in flow; an opening / closing one lies over the level under it. Each layer
+   is its own stacking context, so a covered level's raised parts never paint over the one above. */
+.k-layer { position: relative; isolation: isolate; }
+.k-layer[data-mode="entering"], .k-layer[data-mode="leaving"] { position: absolute; inset: 0 0 auto 0; min-height: 100%; z-index: 2; }
+.k-layer[data-mode="leaving"] { pointer-events: none; }
+/* a level's heading takes focus as a landmark when the level opens: it is not a control, so no ring */
+.k-kit [data-level-heading]:focus, .k-kit [data-level-heading]:focus-visible { outline: none; box-shadow: none; }
+
+/* the frame of a level below the root; its plane is tinted with one token (data-tone) */
+.k-lvl {
+  --k-lvl-g: var(--color-steel);
+  display: grid; gap: 16px; min-height: calc(100dvh - 12rem); padding: 16px 20px 14px;
+  border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius-lg);
+  background: color-mix(in srgb, var(--k-lvl-g) 8%, var(--color-paper));
+  grid-template-rows: auto 1fr auto;
+}
+[data-theme="dark"] .k-lvl { border-color: var(--color-ink); background: color-mix(in srgb, var(--k-lvl-g) 24%, var(--color-paper)); box-shadow: var(--panel-shadow); }
+.k-lvl[data-tone="moss"] { --k-lvl-g: var(--color-moss); }
+.k-lvl[data-tone="coral"] { --k-lvl-g: var(--color-coral); }
+.k-lvl[data-tone="amber"] { --k-lvl-g: var(--color-dial-amber); }
+.k-lvl[data-tone="stone"] { --k-lvl-g: var(--color-dial-stone); }
+.k-lvl__bar { min-width: 0; }
+.k-lvl__body { display: grid; gap: 20px 28px; align-items: start; min-width: 0; }
+.k-lvl__body[data-art] { grid-template-columns: minmax(180px, .38fr) minmax(0, 1.62fr); }
+/* unnamed on purpose: the surface root's size container (the level stack's host) decides the fold */
+@container (max-width: 900px) { .k-lvl__body[data-art] { grid-template-columns: minmax(0, 1fr); } }
+.k-lvl__art { display: grid; justify-items: center; align-content: start; padding-top: 12px; }
+.k-lvl__art--head { padding: 0; width: 200px; }
+.k-lvl__sheet {
+  min-width: 0; padding: 18px 22px 20px; border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius-lg); background: var(--color-white);
+  box-shadow: var(--shadow-panel);
+}
+[data-theme="dark"] .k-lvl__sheet { border-color: var(--color-ink); }
+/* a kit surface on the sheet keeps its own look; it only must not overflow the column */
+.k-lvl__sheet > .k-kit { min-width: 0; }
+.k-lvl__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--k-rule); }
+[data-theme="dark"] .k-lvl__head { border-bottom: 2px dashed var(--k-rule); }
+.k-lvl__titles { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.k-lvl__kicker { margin: 0; font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); font-weight: 600; text-transform: uppercase; color: var(--k-quiet); }
+.k-lvl__title { margin: 0; font-family: var(--font-serif); font-size: var(--text-display); line-height: var(--text-display--line-height); font-weight: 600; letter-spacing: -.015em; overflow-wrap: anywhere; }
+[data-theme="dark"] .k-lvl__title { font-weight: 800; letter-spacing: -.03em; }
+.k-lvl__lead { margin: 0; font-size: var(--text-body); color: var(--k-quiet); max-width: 64ch; }
+.k-lvl__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 20px; }
+
+/* the trail: a back button that names its target, then the breadcrumb */
+.k-trail { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.k-crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--text-meta); }
+.k-crumbs li { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.k-crumbs li + li::before { content: "›"; color: var(--k-quiet); }
+.k-crumbs [aria-current="page"] { font-weight: 600; max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the keys a level answers to */
+.k-keys { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-keys li { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ============================================================ MARKS: condition, plate, needs */
+
+/* a condition: its shape and its words */
+.k-cond { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); line-height: 1.3; font-weight: 600; color: var(--k-quiet); }
+.k-cond__mark { display: inline-flex; }
+.k-cond[data-cond="live"] { color: var(--color-moss); }
+.k-cond[data-cond="reach"] { color: var(--color-amber-800); }
+.k-cond[data-cond="fail"] { color: var(--color-red-700); }
+.k-cond[data-loud] { padding: 1px 10px 1px 6px; border-radius: 999px; background: var(--color-coral); color: var(--color-white); }
+.k-cond[data-loud] .k-mark { color: var(--color-white); }
+[data-theme="dark"] .k-cond[data-loud] { border: 2px solid var(--color-ink); color: var(--color-paper); box-shadow: var(--sticker-xs-shadow); }
+[data-theme="dark"] .k-cond[data-loud] .k-mark { color: var(--color-paper); }
+
+/* a plate: a thing's name, its condition, one fact; the border repeats the condition */
+.k-plate {
+  display: grid; gap: 2px; justify-items: start; min-width: 0; padding: 7px 12px 8px; text-align: left;
+  border: var(--k-line) solid var(--k-rule-strong); border-radius: var(--k-radius-lg); background: var(--color-white); color: var(--color-ink);
+  transition: border-color .2s, box-shadow .2s, translate .2s var(--k-ease);
+}
+[data-theme="dark"] .k-plate { border-color: var(--color-ink); box-shadow: var(--sticker-xs-shadow); }
+.k-plate--centre { justify-items: center; text-align: center; }
+.k-plate__title { font-family: var(--font-serif); font-size: var(--text-h3); line-height: 1.2; font-weight: 600; }
+[data-theme="dark"] .k-plate__title { font-weight: 800; }
+.k-plate__fact { font-size: var(--text-micro); line-height: 1.3; color: var(--k-quiet); }
+.k-plate[data-cond="off"], .k-plate[data-cond="unknown"] { border-style: dashed; background: color-mix(in srgb, var(--color-white) 70%, transparent); }
+.k-plate[data-cond="fail"] { border-color: var(--color-coral); }
+.k-plate[data-alert] { border-color: var(--color-coral); border-width: 2px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-coral) 18%, transparent); }
+.k-plate[data-alert] .k-plate__fact { color: var(--color-red-700); font-weight: 600; }
+[data-theme="dark"] .k-plate[data-cond="fail"], [data-theme="dark"] .k-plate[data-alert] { border-color: var(--color-coral); box-shadow: 3px 3px 0 var(--color-coral); }
+
+/* needs you, worst first: a titled list of one-button rows */
+.k-needlist { min-width: 0; }
+.k-needlist__title { margin: 0 0 6px; padding-bottom: 8px; border-bottom: var(--k-line) solid var(--color-ink); font-family: var(--font-serif); font-size: var(--text-h3); font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+[data-theme="dark"] .k-needlist__title { border-bottom-color: var(--k-rule-strong); font-weight: 800; }
+.k-needlist__count { font-family: var(--font-sans); font-size: var(--text-micro); font-weight: 400; color: var(--k-quiet); font-variant-numeric: tabular-nums; }
+.k-needlist ol { list-style: none; margin: 0; padding: 0; }
+.k-needlist li + li { border-top: 1px solid var(--k-rule); }
+[data-theme="dark"] .k-needlist li + li { border-top: 2px dashed var(--k-rule); }
+.k-need {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 2px 10px; width: 100%; padding: 10px 8px 10px 10px; text-align: left;
+  background: transparent; border: 0; border-radius: var(--k-radius); color: var(--color-ink); cursor: pointer; font: inherit;
+}
+.k-need:hover { background: color-mix(in srgb, var(--color-stone-100) 75%, var(--color-paper)); }
+.k-need[data-tone="bad"] { box-shadow: inset 3px 0 0 var(--color-coral); }
+.k-need__mark { padding-top: 3px; }
+.k-need__body { display: grid; gap: 2px; min-width: 0; }
+.k-need__title { font-size: var(--text-body); font-weight: 600; line-height: 1.35; }
+.k-need__title strong { color: var(--color-coral); }
+.k-need__detail { font-size: var(--text-micro); color: var(--k-quiet); }
+.k-need__cta { grid-column: 2; font-size: var(--text-micro); font-weight: 600; color: var(--color-coral); }
+.k-need:hover .k-need__cta { text-decoration: underline; }
+
+/* ============================================================ WIRES: a figure, its cards, the hand */
+
+/* the lit ground under a figure: a soft radial glow of the amber dial token; its children rise above it */
+.k-lit { position: relative; }
+.k-lit::before {
+  content: ""; position: absolute; z-index: 0; inset: -8% -14%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--color-dial-amber) 18%, transparent), transparent 74%);
+}
+[data-theme="dark"] .k-lit::before { background: radial-gradient(closest-side, color-mix(in srgb, var(--color-dial-amber) 9%, transparent), transparent 74%); }
+.k-lit > * { position: relative; z-index: 1; }
+
+/* a hand note: the register's display face as a margin note; `--pointer` is the one an arrow leaves */
+.k-hand { margin: 0 2px -4px; font-family: var(--font-serif); font-style: italic; font-size: var(--text-body); color: var(--k-quiet); }
+.k-hand--pointer { width: fit-content; margin: 2px 0 0 4px; color: var(--k-needs-ink); }
+[data-theme="dark"] .k-hand { font-style: normal; font-weight: 700; color: var(--color-dial-amber); transform: rotate(-2deg); transform-origin: left center; }
+[data-theme="dark"] .k-hand--pointer { color: var(--k-needs-ink); transform: rotate(-3deg); }
+
+/* the lit items breathe while they are pointed at (a state, not ambient); reduced motion holds them still */
+.k-halos { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.k-halos circle {
+  fill: none; stroke: var(--color-coral); stroke-width: 2; opacity: .7;
+  transform-box: fill-box; transform-origin: center; animation: k-breathe 2.6s ease-in-out infinite;
+}
+.k-halos.is-calm circle { stroke: var(--k-ink); }
+@keyframes k-breathe { 0%, 100% { transform: scale(.78); opacity: .25; } 50% { transform: scale(1.3); opacity: .85; } }
+
+/* wires, threads and the note's arrow, on one SVG over the scene */
+.k-wires { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.k-wire path { fill: none; stroke: var(--k-rule-strong); stroke-width: 1.6; stroke-dasharray: 3 5; transition: stroke .2s, stroke-width .2s; }
+.k-wire circle { fill: var(--k-raised); stroke: var(--k-rule-strong); stroke-width: 1.6; transition: fill .2s, stroke .2s; }
+.k-wire.is-on path { stroke: var(--color-coral); stroke-width: 2.2; stroke-dasharray: none; }
+.k-wire.is-on circle { fill: var(--color-coral); stroke: var(--color-coral); }
+.k-wire.is-calm.is-on path { stroke: var(--k-ink); }
+.k-wire.is-calm.is-on circle { fill: var(--k-ink); stroke: var(--k-ink); }
+.k-threads path { fill: none; stroke: var(--color-coral); stroke-width: 1; opacity: .5; }
+.k-threads.is-calm path { stroke: var(--k-ink); opacity: .3; }
+.k-note-arrow path { fill: none; stroke: var(--k-needs-ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+[data-theme="dark"] .k-wire path { stroke-width: 2; }
+
+/* a queue card: count + noun (one press), names, where they stand, the door */
+.k-queue {
+  position: relative; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;
+  border: var(--k-line) solid var(--k-rule-strong); border-radius: var(--k-radius-lg); background: var(--k-raised);
+  transition: border-color .15s, box-shadow .15s;
+}
+.k-queue.is-needs { padding-left: 16px; box-shadow: inset 4px 0 0 var(--color-coral); }
+.k-queue:hover, .k-queue:focus-within, .k-queue.is-hot { border-color: var(--k-ink); box-shadow: var(--shadow-panel); }
+.k-queue.is-needs:hover, .k-queue.is-needs:focus-within, .k-queue.is-needs.is-hot { box-shadow: inset 4px 0 0 var(--color-coral), var(--shadow-panel); }
+[data-theme="dark"] .k-queue { border-color: var(--k-ink); box-shadow: var(--sticker-sm-shadow); }
+[data-theme="dark"] .k-queue.is-needs { box-shadow: inset 6px 0 0 var(--color-coral), var(--sticker-sm-shadow); }
+[data-theme="dark"] .k-queue:hover, [data-theme="dark"] .k-queue:focus-within, [data-theme="dark"] .k-queue.is-hot { box-shadow: var(--shadow-pop); }
+[data-theme="dark"] .k-queue.is-needs:hover, [data-theme="dark"] .k-queue.is-needs:focus-within, [data-theme="dark"] .k-queue.is-needs.is-hot { box-shadow: inset 6px 0 0 var(--color-coral), var(--shadow-pop); }
+.k-queue__top { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: var(--k-ink); text-align: left; }
+.k-queue__n { min-width: 1.2em; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+.k-queue.is-needs .k-queue__n { color: var(--k-needs-ink); }
+[data-theme="dark"] .k-queue__n { font-weight: 800; }
+.k-queue__l { font-size: var(--text-body); line-height: 1.3; font-weight: 600; }
+.k-queue__names { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.k-queue__name {
+  padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: var(--k-ink); text-align: left;
+  text-decoration: underline; text-decoration-color: var(--k-rule-strong); text-underline-offset: 3px;
+}
+.k-queue__name:hover, .k-queue__name:focus-visible { color: var(--k-needs-ink); text-decoration-color: currentColor; }
+.k-queue__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+.k-queue__on { font-size: var(--text-micro); color: var(--k-quiet); }
+.k-queue__foot .k-btn { margin-left: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .k-halos circle { animation: none; opacity: .7; }
+  .k-wire path, .k-wire circle, .k-queue, .k-plate, .k-need { transition: none; }
+}

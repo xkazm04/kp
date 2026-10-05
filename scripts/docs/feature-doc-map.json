@@ -426,7 +426,14 @@
         "app/_components/ui/useTablist.ts",
         "app/_components/ui/useDateFormat.ts",
         "app/_components/ui/useTheme.ts",
-        "app/_lib/theme.ts"
+        "app/_lib/theme.ts",
+        "app/_components/kit/scene/**"
+      ]
+    },
+    {
+      "doc": "docs/design/app-contest-kit.md",
+      "sourceGlobs": [
+        "scripts/contest/**"
       ]
     },
     {
@@ -571,6 +578,7 @@
       "doc": "docs/features/jobseeker/README.md",
       "sourceGlobs": [
         "app/me/**",
+        "app/features/jobseeker/**",
         "app/api/jobseeker/**",
         "app/_lib/jobseeker/**",
         "app/_lib/db/jobseeker-profiles.ts",

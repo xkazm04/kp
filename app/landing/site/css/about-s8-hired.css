@@ -1,0 +1,265 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* /about step 08 - HIRED. Scoped under .dio-hired; the frame (.dio/.bz/.gl) is not restyled.
+   Base rules draw the calm, COMPLETE end state (that is the reduced-motion rendering): stamp landed, all three rows ticked,
+   the card sitting in the ATS box. Every animation lives in the prefers-reduced-motion: no-preference block at the end and
+   starts from .dio.is-in. Sizes: calc(var(--u) * N) on desktop, px in the phone block. */
+
+.mk.mk-about .dio-hired {
+  --hd-ink: color-mix(in srgb, var(--sc) 68%, #0f2418);
+  --hd-rot: -1deg;
+  /* the hand-off flight of the little card, relative to its resting place in the box (overridden on phones) */
+  --hd-x0: calc(var(--u) * -11.6); --hd-y0: calc(var(--u) * -5);
+  --hd-xm: calc(var(--u) * -5.8); --hd-ym: calc(var(--u) * -7);
+  /* how far the impact ring grows and the spatter flies (kept inside the glass on phones) */
+  --hd-rs: 1.32; --hd-bd: calc(var(--u) * 9); --hd-hs: 1.12;
+}
+
+.mk.mk-about .dio-hired .hd-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+/* ---- the candidate card + the giant stamp ---- */
+.mk.mk-about .dio-hired .hd-card { position: absolute; z-index: 3; left: calc(var(--u) * 2); top: calc(var(--u) * 1.8); width: calc(var(--u) * 19.6); height: calc(var(--u) * 12.4);
+  padding: calc(var(--u) * 1.3) calc(var(--u) * 1.5); border-radius: calc(var(--u) * .7); transform: rotate(var(--hd-rot));
+  background: linear-gradient(135deg, rgba(255, 255, 255, .75) 0%, rgba(255, 255, 255, 0) 34%), linear-gradient(180deg, #fffdf6 0%, var(--cream) 45%, #f5ecd8 100%);
+  box-shadow: 0 calc(var(--u) * .34) 0 var(--putty-3), 0 calc(var(--u) * .9) calc(var(--u) * 1.5) rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1), inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .9); }
+.mk.mk-about .dio-hired .hd-who { display: flex; align-items: center; gap: calc(var(--u) * 1.2); }
+.mk.mk-about .dio-hired .hd-tile { width: calc(var(--u) * 4.8); height: calc(var(--u) * 4.8); flex: none; overflow: visible; }
+.mk.mk-about .dio-hired .hd-bars { flex: 1 1 auto; display: grid; gap: calc(var(--u) * .7); min-width: 0; }
+.mk.mk-about .dio-hired .hd-bars i,
+.mk.mk-about .dio-hired .hd-chips i,
+.mk.mk-about .dio-hired .hd-lines i { display: block; border-radius: 99px; transform-origin: left center; }
+.mk.mk-about .dio-hired .hd-bars i:nth-child(1) { width: 66%; height: calc(var(--u) * .85); background: color-mix(in srgb, var(--ink) 26%, transparent); }
+.mk.mk-about .dio-hired .hd-bars i:nth-child(2) { width: 42%; height: calc(var(--u) * .62); background: color-mix(in srgb, var(--ink) 14%, transparent); }
+.mk.mk-about .dio-hired .hd-pip { flex: none; width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); border-radius: 50%; background: var(--sc); border: calc(var(--u) * .16) solid var(--ink); box-shadow: 0 0 0 calc(var(--u) * .22) color-mix(in srgb, var(--sc-hi) 38%, transparent); }
+.mk.mk-about .dio-hired .hd-rule { margin-top: calc(var(--u) * 1.15); border-top: calc(var(--u) * .16) dashed rgba(23, 32, 42, .24); }
+.mk.mk-about .dio-hired .hd-chips { display: flex; gap: calc(var(--u) * .65); margin-top: calc(var(--u) * 1.05); }
+.mk.mk-about .dio-hired .hd-chips i { height: calc(var(--u) * 1.5); border: calc(var(--u) * .14) solid rgba(23, 32, 42, .26); background: rgba(23, 32, 42, .05); }
+.mk.mk-about .dio-hired .hd-chips i:nth-child(1) { width: calc(var(--u) * 4.4); } .mk.mk-about .dio-hired .hd-chips i:nth-child(2) { width: calc(var(--u) * 5.8); } .mk.mk-about .dio-hired .hd-chips i:nth-child(3) { width: calc(var(--u) * 3.6); }
+.mk.mk-about .dio-hired .hd-lines { display: grid; gap: calc(var(--u) * .65); margin-top: calc(var(--u) * 1.1); }
+.mk.mk-about .dio-hired .hd-lines i { height: calc(var(--u) * .42); background: color-mix(in srgb, var(--ink) 18%, transparent); }
+.mk.mk-about .dio-hired .hd-lines i:nth-child(1) { width: 92%; } .mk.mk-about .dio-hired .hd-lines i:nth-child(2) { width: 58%; }
+
+.mk.mk-about .dio-hired .hd-stamp { position: absolute; z-index: 3; right: calc(var(--u) * -1.4); bottom: calc(var(--u) * -.3); transform: rotate(-9deg); transform-origin: 50% 55%; mix-blend-mode: multiply; }
+.mk.mk-about .dio-hired .hd-stamp::after { content: ""; position: absolute; inset: calc(var(--u) * -1.4) calc(var(--u) * -2); z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sc) 30%, transparent), transparent 74%); opacity: .22; }
+.mk.mk-about .dio-hired .hd-stamp-in { position: relative; display: block; width: calc(var(--u) * 19.4); padding: calc(var(--u) * .45) 0 calc(var(--u) * .3); border: calc(var(--u) * .55) solid var(--hd-ink); border-radius: calc(var(--u) * 1.2);
+  color: var(--hd-ink); font-family: var(--f-display); font-weight: 800; font-size: max(48px, calc(var(--u) * 5.3)); letter-spacing: .07em; text-indent: .07em; line-height: 1.1; text-align: center; white-space: nowrap;
+  filter: url(#dio-hired-ink); }
+/* a longer word than HIRED (--seal-em, from the word: HiredArt.tsx) is set smaller so it stays inside the block */
+.mk.mk-about .dio-hired .hd-stamp-in { font-size: min(max(48px, calc(var(--u) * 5.3)), calc(var(--u) * 18 / var(--seal-em, .01))); }
+.mk.mk-about .dio-hired .hd-stamp-in::before { content: ""; position: absolute; inset: calc(var(--u) * .24); border: calc(var(--u) * .13) solid var(--hd-ink); border-radius: calc(var(--u) * .7); opacity: .8; pointer-events: none; }
+
+/* the ring of ink + spatter that leave the stamp on impact (transient: invisible in the end state) */
+.mk.mk-about .dio-hired .hd-ring { position: absolute; z-index: 2; right: calc(var(--u) * -4.2); bottom: calc(var(--u) * -2.9); width: calc(var(--u) * 25); height: calc(var(--u) * 12.6); border-radius: 50%;
+  border: calc(var(--u) * .34) solid var(--sc-hi); box-shadow: 0 0 calc(var(--u) * 1.4) color-mix(in srgb, var(--sc-hi) 60%, transparent); opacity: 0; pointer-events: none; }
+.mk.mk-about .dio-hired .hd-burst { position: absolute; z-index: 4; right: calc(var(--u) * 8.3); bottom: calc(var(--u) * 3.4); width: 0; height: 0; pointer-events: none; }
+.mk.mk-about .dio-hired .hd-burst i { position: absolute; left: calc(var(--u) * -.5); top: calc(var(--u) * -.5); width: calc(var(--u) * 1); height: calc(var(--u) * 1); border-radius: 50%; background: var(--sc); border: calc(var(--u) * .14) solid var(--ink); opacity: 0; transform: rotate(var(--a)) translateX(calc(var(--u) * 9)); }
+.mk.mk-about .dio-hired .hd-burst i:nth-child(odd) { width: calc(var(--u) * .74); height: calc(var(--u) * .74); left: calc(var(--u) * -.37); top: calc(var(--u) * -.37); background: var(--sc-hi); }
+
+/* ---- the hand-off: an arrow, and an ATS box that takes the card ---- */
+.mk.mk-about .dio-hired .hd-hand { position: absolute; z-index: 2; left: calc(var(--u) * 22.6); right: calc(var(--u) * 1.8); top: calc(var(--u) * 1.4); height: calc(var(--u) * 13.4); }
+.mk.mk-about .dio-hired .hd-arrow { position: absolute; left: calc(var(--u) * .5); top: calc(var(--u) * 3.1); width: calc(var(--u) * 4.7); height: calc(var(--u) * 2.24); overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-arrow-o { stroke: var(--ink); stroke-width: 12; }
+.mk.mk-about .dio-hired .hd-arrow-b { stroke: var(--sc-hi); stroke-width: 6.6; }
+.mk.mk-about .dio-hired .hd-ats { position: absolute; right: 0; bottom: 0; width: calc(var(--u) * 10.8); height: calc(var(--u) * 9.6); }
+.mk.mk-about .dio-hired .hd-ats-back { position: absolute; left: 0; right: 0; top: 0; height: calc(var(--u) * 5); border-radius: calc(var(--u) * 1) calc(var(--u) * 1) 0 0; border: calc(var(--u) * .3) solid var(--ink);
+  background: linear-gradient(#0a1114, #182830); box-shadow: inset 0 calc(var(--u) * .5) calc(var(--u) * .8) rgba(0, 0, 0, .8), 0 0 0 calc(var(--u) * .14) color-mix(in srgb, var(--steel-hi) 46%, transparent); }
+.mk.mk-about .dio-hired .hd-mini { position: absolute; z-index: 1; left: calc(var(--u) * 2.8); top: calc(var(--u) * .5); width: calc(var(--u) * 5.2); height: calc(var(--u) * 3.6); padding: calc(var(--u) * .55) calc(var(--u) * .6); border-radius: calc(var(--u) * .5);
+  border: calc(var(--u) * .2) solid var(--ink); background: linear-gradient(#fffdf6, var(--cream)); box-shadow: 0 calc(var(--u) * .16) 0 var(--putty-3); transform: rotate(-3deg); }
+.mk.mk-about .dio-hired .hd-mini-tile { position: absolute; left: calc(var(--u) * .55); top: calc(var(--u) * .55); width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); border-radius: calc(var(--u) * .34); background: var(--steel); border: calc(var(--u) * .12) solid var(--ink); }
+.mk.mk-about .dio-hired .hd-mini-bar { position: absolute; left: calc(var(--u) * 2.2); top: calc(var(--u) * .7); width: calc(var(--u) * 2.4); height: calc(var(--u) * .36); border-radius: 99px; background: rgba(23, 32, 42, .3); }
+.mk.mk-about .dio-hired .hd-mini-bar2 { top: calc(var(--u) * 1.35); width: calc(var(--u) * 1.6); background: rgba(23, 32, 42, .16); }
+.mk.mk-about .dio-hired .hd-mini::after { content: ""; position: absolute; right: calc(var(--u) * -.5); top: calc(var(--u) * -.5); width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); border-radius: 50%; background: var(--sc); border: calc(var(--u) * .16) solid var(--ink); }
+.mk.mk-about .dio-hired .hd-ats-front { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: calc(var(--u) * 6.6); border-radius: calc(var(--u) * .5) calc(var(--u) * .5) calc(var(--u) * 1) calc(var(--u) * 1); border: calc(var(--u) * .3) solid var(--ink);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: calc(var(--u) * .75);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 30%), linear-gradient(90deg, var(--steel-hi), var(--steel) 42%, #2b4451);
+  box-shadow: inset 0 calc(var(--u) * .14) 0 rgba(255, 255, 255, .5), 0 calc(var(--u) * .5) calc(var(--u) * .8) rgba(0, 0, 0, .5); transform-origin: 50% 100%; }
+.mk.mk-about .dio-hired.dio .hd-plate.sil { padding: calc(var(--u) * .28) calc(var(--u) * 1.1) calc(var(--u) * .22); border-radius: calc(var(--u) * .5); border: calc(var(--u) * .18) solid var(--ink); background: linear-gradient(#fffdf6, var(--putty));
+  color: var(--ink); font-size: max(16px, calc(var(--u) * 1.25)); letter-spacing: .2em; text-indent: .2em; box-shadow: 0 calc(var(--u) * .16) 0 rgba(0, 0, 0, .35); }
+.mk.mk-about .dio-hired.dio .hd-hris.sil { position: absolute; z-index: 3; left: 50%; bottom: calc(var(--u) * .7); transform: translateX(-50%); padding: calc(var(--u) * .12) calc(var(--u) * .8); border-radius: 99px;
+  border: calc(var(--u) * .14) solid rgba(253, 248, 238, .62); background: rgba(10, 17, 20, .35); color: var(--cream); letter-spacing: .16em; text-indent: .16em; }
+
+/* ---- the close-out checklist ---- */
+.mk.mk-about .dio-hired .hd-panel { position: absolute; z-index: 2; left: calc(var(--u) * 15.6); right: calc(var(--u) * 2); top: calc(var(--u) * 16.3); bottom: calc(var(--u) * 1.3); padding: calc(var(--u) * 1) calc(var(--u) * 1.7) calc(var(--u) * .5);
+  border-radius: calc(var(--u) * .7); display: flex; flex-direction: column; justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .7) 0%, rgba(255, 255, 255, 0) 32%), linear-gradient(180deg, #fffdf6 0%, var(--cream) 50%, #f5ecd8 100%);
+  box-shadow: 0 calc(var(--u) * .3) 0 var(--putty-3), 0 calc(var(--u) * .8) calc(var(--u) * 1.3) rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1), inset 0 calc(var(--u) * .12) 0 rgba(255, 255, 255, .9); }
+.mk.mk-about .dio-hired .hd-cap { font-family: var(--f-mono); font-size: var(--fs-small); font-weight: 700; letter-spacing: .02em; line-height: 1.2; color: color-mix(in srgb, var(--moss) 88%, var(--ink)); padding-bottom: calc(var(--u) * .5); }
+.mk.mk-about .dio-hired .hd-list { display: grid; }
+.mk.mk-about .dio-hired .hd-row { display: flex; align-items: center; gap: calc(var(--u) * 1); min-height: calc(var(--u) * 2.75); font-size: var(--fs-body); font-weight: 700; line-height: 1.2; color: var(--ink); border-top: calc(var(--u) * .12) dashed rgba(23, 32, 42, .16); }
+.mk.mk-about .dio-hired .hd-tick { flex: none; display: grid; place-items: center; width: calc(var(--u) * 2.05); height: calc(var(--u) * 2.05); border-radius: 50%; background: var(--sc); border: calc(var(--u) * .18) solid var(--ink); box-shadow: 0 calc(var(--u) * .16) 0 var(--ink); }
+.mk.mk-about .dio-hired .hd-ck { width: 62%; height: 62%; fill: none; stroke: var(--cream); stroke-width: 3.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- hero: moss wax seal with ribbon tails + check-star, and a key ring handed to a small box ---- */
+.mk.mk-about .dio-hired .dio-hero--a { width: calc(var(--u) * 17.6); height: calc(var(--u) * 16.7); left: calc(var(--u) * -3.2); bottom: calc(var(--u) * -3.2); }
+.mk.mk-about .dio-hired[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -3.2); }
+.mk.mk-about .dio-hired[data-side="r"] .hd-panel { left: calc(var(--u) * 2); right: calc(var(--u) * 15.6); }
+.mk.mk-about .dio-hired .hd-s-wax-hi { stop-color: #8db487; } .mk.mk-about .dio-hired .hd-s-wax { stop-color: #526b4f; } .mk.mk-about .dio-hired .hd-s-wax-lo { stop-color: #2c4129; }
+.mk.mk-about .dio-hired .hd-s-rib-hi { stop-color: #f2d67f; } .mk.mk-about .dio-hired .hd-s-rib { stop-color: #caa54c; } .mk.mk-about .dio-hired .hd-s-rib-lo { stop-color: #98782f; }
+.mk.mk-about .dio-hired .hd-s-box-hi { stop-color: #6d93a5; } .mk.mk-about .dio-hired .hd-s-box { stop-color: #42606f; } .mk.mk-about .dio-hired .hd-s-box-lo { stop-color: #27404d; } .mk.mk-about .dio-hired .hd-s-box-top-hi { stop-color: #a6c4d1; }
+.mk.mk-about .dio-hired .hd-s-br-hi { stop-color: #f5df93; } .mk.mk-about .dio-hired .hd-s-br { stop-color: #d0aa4d; } .mk.mk-about .dio-hired .hd-s-br-lo { stop-color: #9d7f36; }
+.mk.mk-about .dio-hired .hd-s-cream { stop-color: #fdf8ee; } .mk.mk-about .dio-hired .hd-s-putty { stop-color: #e4d9bf; }
+.mk.mk-about .dio-hired .hd-s-tile-hi { stop-color: #6d93a5; } .mk.mk-about .dio-hired .hd-s-tile { stop-color: #42606f; }
+.mk.mk-about .dio-hired .hd-s-sh0 { stop-color: #03090c; stop-opacity: .5; } .mk.mk-about .dio-hired .hd-s-sh1 { stop-color: #03090c; stop-opacity: .2; } .mk.mk-about .dio-hired .hd-s-sh2 { stop-color: #03090c; stop-opacity: 0; }
+.mk.mk-about .dio-hired .hd-ol { stroke: var(--ink); stroke-width: 3.4; stroke-linejoin: round; stroke-linecap: round; }
+.mk.mk-about .dio-hired .hd-line { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-hl { fill: none; stroke: #fffaf0; stroke-linecap: round; opacity: .7; }
+.mk.mk-about .dio-hired .hd-hlf { fill: #fffaf0; }
+.mk.mk-about .dio-hired .hd-slot { fill: #17202a; }
+.mk.mk-about .dio-hired .hd-brass { fill: #d0aa4d; }
+.mk.mk-about .dio-hired .hd-mono { fill: none; stroke: #fdf8ee; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-ring-o { fill: none; stroke: var(--ink); stroke-width: 9.6; }
+.mk.mk-about .dio-hired .hd-ring-b { fill: none; stroke: #dcb457; stroke-width: 5; }
+.mk.mk-about .dio-hired .hd-emb-hi { fill: none; stroke: rgba(255, 255, 255, .34); }
+.mk.mk-about .dio-hired .hd-emb-lo { fill: none; stroke: #223420; opacity: .6; }
+.mk.mk-about .dio-hired .hd-star { fill: #9cc096; stroke: #2c4129; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-check-o { fill: none; stroke: var(--ink); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-check { fill: none; stroke: #fdf8ee; stroke-width: 6.2; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-trail { fill: none; stroke: #e6c46a; stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: .1 8.4; opacity: .95; }
+.mk.mk-about .dio-hired .hd-trail-head { fill: none; stroke: #e6c46a; stroke-width: 3.8; stroke-linecap: round; stroke-linejoin: round; }
+.mk.mk-about .dio-hired .hd-spf-a { fill: #e6c46a; } .mk.mk-about .dio-hired .hd-spf-b { fill: #fdf8ee; }
+.mk.mk-about .dio-hired .hd-seal,
+.mk.mk-about .dio-hired .hd-spk { transform-box: fill-box; transform-origin: center; }
+.mk.mk-about .dio-hired .hd-seal-wrap,
+.mk.mk-about .dio-hired .hd-key { transform-box: view-box; }
+.mk.mk-about .dio-hired .hd-seal-wrap { transform-origin: 64px 66px; }
+.mk.mk-about .dio-hired .hd-key { transform-origin: 150px 74px; }
+
+/* ================= phones and portrait windows: normal flow, single column, px sizes ================= */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-hired { --hd-x0: -104px; --hd-y0: -48px; --hd-xm: -52px; --hd-ym: -64px; --hd-rs: 1; --hd-bd: 84px; --hd-hs: 1; }
+  .mk.mk-about .dio-hired .gl { display: flex; flex-direction: column; gap: 16px; padding: 18px 14px 24px; }
+  .mk.mk-about .dio-hired .hd-card,
+.mk.mk-about .dio-hired .hd-hand,
+.mk.mk-about .dio-hired .hd-panel,
+.mk.mk-about .dio-hired[data-side="r"] .hd-panel { position: relative; inset: auto; width: auto; height: auto; }
+  .mk.mk-about .dio-hired .hd-card { order: 1; padding: 14px 16px 16px; border-radius: 10px; min-height: 178px; box-shadow: 0 5px 0 var(--putty-3), 0 12px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1); }
+  .mk.mk-about .dio-hired .hd-tile { width: 48px; height: 48px; }
+  .mk.mk-about .dio-hired .hd-who { gap: 12px; }
+  .mk.mk-about .dio-hired .hd-bars { gap: 8px; }
+  .mk.mk-about .dio-hired .hd-bars i:nth-child(1) { height: 10px; } .mk.mk-about .dio-hired .hd-bars i:nth-child(2) { height: 8px; }
+  .mk.mk-about .dio-hired .hd-pip { width: 16px; height: 16px; border-width: 2px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc-hi) 38%, transparent); }
+  .mk.mk-about .dio-hired .hd-rule { margin-top: 12px; border-top-width: 2px; }
+  .mk.mk-about .dio-hired .hd-chips { gap: 8px; margin-top: 12px; }
+  .mk.mk-about .dio-hired .hd-chips i { height: 18px; border-width: 2px; }
+  .mk.mk-about .dio-hired .hd-chips i:nth-child(1) { width: 48px; } .mk.mk-about .dio-hired .hd-chips i:nth-child(2) { width: 62px; } .mk.mk-about .dio-hired .hd-chips i:nth-child(3) { width: 40px; }
+  .mk.mk-about .dio-hired .hd-lines { gap: 8px; margin-top: 12px; }
+  .mk.mk-about .dio-hired .hd-lines i { height: 6px; }
+  .mk.mk-about .dio-hired .hd-stamp { right: -6px; bottom: 12px; }
+  .mk.mk-about .dio-hired .hd-stamp::after { inset: -14px 0; }
+  .mk.mk-about .dio-hired .hd-stamp-in { width: 214px; padding: 6px 0 4px; border-width: 5px; border-radius: 13px; font-size: min(46px, calc(198px / var(--seal-em, .01))); }
+  .mk.mk-about .dio-hired .hd-stamp-in::before { inset: 3px; border-width: 2px; border-radius: 8px; }
+  .mk.mk-about .dio-hired .hd-ring { right: -8px; bottom: -14px; width: 250px; height: 116px; border-width: 4px; box-shadow: 0 0 12px color-mix(in srgb, var(--sc-hi) 60%, transparent); }
+  .mk.mk-about .dio-hired .hd-burst { right: 100px; bottom: 50px; }
+  .mk.mk-about .dio-hired .hd-burst i { left: -6px; top: -6px; width: 12px; height: 12px; border-width: 2px; transform: rotate(var(--a)) translateX(var(--hd-bd)); }
+  .mk.mk-about .dio-hired .hd-burst i:nth-child(odd) { left: -4.5px; top: -4.5px; width: 9px; height: 9px; }
+
+  .mk.mk-about .dio-hired .hd-panel,
+.mk.mk-about .dio-hired[data-side="r"] .hd-panel { order: 2; padding: 12px 16px 6px; border-radius: 10px; justify-content: flex-start; box-shadow: 0 5px 0 var(--putty-3), 0 12px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(23, 32, 42, .1); }
+  .mk.mk-about .dio-hired .hd-cap { padding-bottom: 6px; }
+  .mk.mk-about .dio-hired .hd-row { gap: 12px; min-height: 46px; border-top-width: 2px; }
+  .mk.mk-about .dio-hired .hd-tick { width: 26px; height: 26px; border-width: 2px; box-shadow: 0 2px 0 var(--ink); }
+
+  .mk.mk-about .dio-hired .hd-hand { order: 3; height: 112px; margin-left: 112px; }
+  .mk.mk-about .dio-hired .hd-arrow { left: auto; right: 138px; top: 6px; width: 58px; height: 28px; }
+  .mk.mk-about .dio-hired .hd-ats { width: 128px; height: 104px; }
+  .mk.mk-about .dio-hired .hd-ats-back { height: 56px; border-width: 3px; border-radius: 12px 12px 0 0; }
+  .mk.mk-about .dio-hired .hd-mini { left: 32px; top: 8px; width: 62px; height: 42px; padding: 6px 7px; border-radius: 6px; border-width: 2px; }
+  .mk.mk-about .dio-hired .hd-mini-tile { left: 7px; top: 7px; width: 15px; height: 15px; border-radius: 4px; border-width: 1.5px; }
+  .mk.mk-about .dio-hired .hd-mini-bar { left: 27px; top: 9px; width: 28px; height: 4px; }
+  .mk.mk-about .dio-hired .hd-mini-bar2 { top: 17px; width: 19px; }
+  .mk.mk-about .dio-hired .hd-mini::after { right: -6px; top: -6px; width: 15px; height: 15px; border-width: 2px; }
+  .mk.mk-about .dio-hired .hd-ats-front { height: 72px; border-width: 3px; border-radius: 6px 6px 12px 12px; padding-top: 8px; }
+  .mk.mk-about .dio-hired.dio .hd-plate.sil { padding: 3px 12px 2px; border-width: 2px; border-radius: 6px; font-size: 16px; }
+  .mk.mk-about .dio-hired.dio .hd-hris.sil { bottom: 8px; padding: 1px 10px; border-width: 1.5px; }
+
+  .mk.mk-about .dio-hired .dio-hero--a,
+.mk.mk-about .dio-hired[data-side="r"] .dio-hero--a { left: -4px; right: auto; bottom: -16px; width: 118px; height: 112px; }
+}
+
+/* ================= motion: only when the visitor has not asked for less ================= */
+@media (prefers-reduced-motion: no-preference) {
+  /* before the scene arrives: the frame waits, nothing is left half-drawn */
+  .mk.mk-about .dio-hired:not(.is-in) :is(.hd-card, .hd-hand, .hd-panel, .hd-bars i, .hd-chips i, .hd-lines i, .hd-stamp, .hd-mini, .hd-arrow, .dio-hero--a, .hd-spk) { opacity: 0; }
+  .mk.mk-about .dio-hired:not(.is-in) .hd-tick { background: transparent; box-shadow: none; border-color: rgba(23, 32, 42, .38); }
+  .mk.mk-about .dio-hired:not(.is-in) .hd-ck { opacity: 0; }
+  .mk.mk-about .dio-hired:not(.is-in) .hd-row-t { opacity: .5; }
+  .mk.mk-about .dio-hired:not(.is-in) .hd-mini { transform: translate(var(--hd-x0), var(--hd-y0)) rotate(-3deg); }
+
+  .mk.mk-about .dio-hired.is-in .hd-card { animation: mka-hd-card-in .8s var(--ease) 0s both, mka-hd-thump .6s ease 1.5s; }
+  .mk.mk-about .dio-hired.is-in .hd-hand { animation: mka-hd-rise .7s var(--ease) .25s both; }
+  .mk.mk-about .dio-hired.is-in .hd-panel { animation: mka-hd-rise .7s var(--ease) .45s both; }
+  .mk.mk-about .dio-hired.is-in .hd-bars i,
+.mk.mk-about .dio-hired.is-in .hd-chips i,
+.mk.mk-about .dio-hired.is-in .hd-lines i { animation: mka-hd-write .55s var(--ease) both; }
+  .mk.mk-about .dio-hired.is-in .hd-bars i:nth-child(1) { animation-delay: .6s; } .mk.mk-about .dio-hired.is-in .hd-bars i:nth-child(2) { animation-delay: .72s; }
+  .mk.mk-about .dio-hired.is-in .hd-chips i:nth-child(1) { animation-delay: .8s; } .mk.mk-about .dio-hired.is-in .hd-chips i:nth-child(2) { animation-delay: .88s; } .mk.mk-about .dio-hired.is-in .hd-chips i:nth-child(3) { animation-delay: .96s; }
+  .mk.mk-about .dio-hired.is-in .hd-lines i:nth-child(1) { animation-delay: .9s; } .mk.mk-about .dio-hired.is-in .hd-lines i:nth-child(2) { animation-delay: 1.02s; }
+  .mk.mk-about .dio-hired.is-in .hd-pip { animation: mka-hd-pip .5s ease 1.5s both; }
+
+  /* the stamp waits invisible in its settled place (hd-hold), then slams; no backwards fill, so the oversized start pose never exists while waiting */
+  .mk.mk-about .dio-hired.is-in .hd-stamp { animation: mka-hd-hold 1s linear, mka-hd-slam .9s cubic-bezier(.22, .9, .28, 1) 1s forwards; }
+  .mk.mk-about .dio-hired.is-in .hd-stamp::after { animation: mka-hd-halo 1.4s ease-out 1s both; }
+  .mk.mk-about .dio-hired.is-in .hd-ring { animation: mka-hd-ringpop 1.05s cubic-bezier(.2, .7, .3, 1) 1.5s both; }
+  .mk.mk-about .dio-hired.is-in .hd-burst i { animation: mka-hd-dot .95s cubic-bezier(.15, .8, .3, 1) 1.5s both; }
+  .mk.mk-about .dio-hired.is-in .hd-burst i:nth-child(2n) { animation-delay: 1.55s; } .mk.mk-about .dio-hired.is-in .hd-burst i:nth-child(3n) { animation-delay: 1.6s; }
+
+  .mk.mk-about .dio-hired.is-in .hd-row1 { --t: 1.85s; } .mk.mk-about .dio-hired.is-in .hd-row2 { --t: 2.2s; } .mk.mk-about .dio-hired.is-in .hd-row3 { --t: 2.55s; }
+  .mk.mk-about .dio-hired.is-in .hd-tick { animation: mka-hd-tick .45s var(--spring) var(--t) both; }
+  .mk.mk-about .dio-hired.is-in .hd-ck { animation: mka-hd-ck .55s var(--spring) var(--t) both; }
+  .mk.mk-about .dio-hired.is-in .hd-row-t { animation: mka-hd-rowt .45s ease var(--t) both; }
+
+  .mk.mk-about .dio-hired.is-in .hd-arrow { animation: mka-hd-fade .2s ease 2.8s both; }
+  .mk.mk-about .dio-hired.is-in .hd-arrow-o,
+.mk.mk-about .dio-hired.is-in .hd-arrow-b { stroke-dasharray: 100; animation: mka-hd-draw .5s var(--ease) 2.8s both; }
+  .mk.mk-about .dio-hired.is-in .hd-arrow-oh,
+.mk.mk-about .dio-hired.is-in .hd-arrow-bh { stroke-dasharray: 100; animation: mka-hd-draw .25s ease-out 3.15s both; }
+  .mk.mk-about .dio-hired.is-in .hd-mini { animation: mka-hd-carry .95s cubic-bezier(.45, .05, .3, 1) 2.95s both; }
+  .mk.mk-about .dio-hired.is-in .hd-ats-front { animation: mka-hd-gulp .5s ease 3.78s; }
+
+  .mk.mk-about .dio-hired.is-in .dio-hero--a { animation: mka-hd-hero-in .9s var(--spring) .4s both; }
+  .mk.mk-about .dio-hired.is-in .hd-seal { animation: mka-hd-seal-pulse .85s var(--ease) 1.5s both; }
+  .mk.mk-about .dio-hired.is-in .hd-seal-wrap { animation: mka-hd-seal-idle 5.6s ease-in-out 4.3s infinite alternate; }
+  .mk.mk-about .dio-hired.is-in .hd-key-in { animation: mka-hd-key-drop .8s var(--spring) 2.2s both; }
+  .mk.mk-about .dio-hired.is-in .hd-key { animation: mka-hd-swing 4.4s ease-in-out 4.2s infinite alternate; }
+  .mk.mk-about .dio-hired.is-in .hd-trail { animation: mka-hd-march 1.5s linear 2.3s infinite; }
+  .mk.mk-about .dio-hired.is-in .hd-spk { animation: mka-hd-spark-in .6s var(--spring) both, mka-hd-twinkle 3.6s ease-in-out infinite; }
+  .mk.mk-about .dio-hired.is-in .hd-spk1 { animation-delay: 1.6s, 4.2s; } .mk.mk-about .dio-hired.is-in .hd-spk2 { animation-delay: 1.75s, 5s; } .mk.mk-about .dio-hired.is-in .hd-spk3 { animation-delay: 1.9s, 4.6s; }
+
+  @keyframes mka-hd-fade { from { opacity: 0; } }
+  @keyframes mka-hd-rise { from { opacity: 0; transform: translateY(calc(var(--u) * 1.6)); } }
+  @keyframes mka-hd-card-in { from { opacity: 0; transform: translateY(calc(var(--u) * 2.4)) rotate(calc(var(--hd-rot) - 2deg)) scale(.985); } }
+  @keyframes mka-hd-thump { 0%, 100% { transform: translateY(0) rotate(var(--hd-rot)); } 26% { transform: translateY(calc(var(--u) * .4)) rotate(var(--hd-rot)); } 60% { transform: translateY(calc(var(--u) * -.1)) rotate(var(--hd-rot)); } }
+  @keyframes mka-hd-write { from { transform: scaleX(0); } }
+  @keyframes mka-hd-pip { from { background: var(--steel-hi); box-shadow: 0 0 0 0 transparent; } }
+  @keyframes mka-hd-hold { from, to { opacity: 0; } }
+  @keyframes mka-hd-slam {
+    0% { opacity: 0; transform: translateY(calc(var(--u) * -3)) rotate(-15deg) scale(1.75); }
+    14% { opacity: 1; }
+    58% { opacity: 1; transform: translateY(0) rotate(-9deg) scale(.88); }
+    76% { transform: translateY(0) rotate(-9deg) scale(1.06); }
+    100% { opacity: 1; transform: translateY(0) rotate(-9deg) scale(1); }
+  }
+  @keyframes mka-hd-halo { 0% { opacity: 0; transform: scale(.7); } 50% { opacity: .95; transform: scale(1); } 100% { opacity: .22; transform: scale(var(--hd-hs)); } }
+  @keyframes mka-hd-ringpop { 0% { opacity: 0; transform: scale(.5); } 6% { opacity: .95; } 100% { opacity: 0; transform: scale(var(--hd-rs)); } }
+  @keyframes mka-hd-dot { 0% { opacity: 0; transform: rotate(var(--a)) translateX(0) scale(.4); } 8% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--hd-bd)) scale(1); } }
+  @keyframes mka-hd-tick { from { background: transparent; box-shadow: none; border-color: rgba(23, 32, 42, .38); } }
+  @keyframes mka-hd-ck { 0% { opacity: 0; transform: scale(.2); } 60% { opacity: 1; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
+  @keyframes mka-hd-rowt { from { opacity: .5; } }
+  @keyframes mka-hd-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+  @keyframes mka-hd-carry {
+    0% { opacity: 0; transform: translate(var(--hd-x0), var(--hd-y0)) rotate(-3deg) scale(.9); }
+    12% { opacity: 1; }
+    36% { transform: translate(var(--hd-xm), var(--hd-ym)) rotate(-8deg) scale(1); }
+    64% { transform: translate(0, var(--hd-y0)) rotate(-2deg); }
+    100% { opacity: 1; transform: translate(0, 0) rotate(-3deg); }
+  }
+  @keyframes mka-hd-gulp { 0%, 100% { transform: scale(1, 1); } 35% { transform: scale(1.03, .95); } 70% { transform: scale(.99, 1.02); } }
+  @keyframes mka-hd-hero-in { from { opacity: 0; transform: translateY(calc(var(--u) * -2.4)) scale(.86); } }
+  @keyframes mka-hd-seal-pulse { 0%, 100% { transform: scale(1); } 24% { transform: scale(.92); } 58% { transform: scale(1.07); } }
+  @keyframes mka-hd-seal-idle { from { transform: rotate(-1.3deg); } to { transform: rotate(1.3deg); } }
+  @keyframes mka-hd-key-drop { from { opacity: 0; transform: translateY(-22px); } 60% { opacity: 1; } }
+  @keyframes mka-hd-swing { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
+  @keyframes mka-hd-march { to { stroke-dashoffset: -8.5; } }
+  @keyframes mka-hd-spark-in { from { opacity: 0; transform: scale(0) rotate(-40deg); } }
+  @keyframes mka-hd-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.78) rotate(12deg); } }
+}

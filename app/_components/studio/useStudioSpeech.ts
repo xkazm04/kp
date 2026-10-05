@@ -48,6 +48,8 @@ export type StudioSpeech = {
   speaking: boolean;
   /** The browser refused un-gestured audio; the control becomes a resume. */
   blocked: boolean;
+  /** Audio was blocked or truncated and can continue on gesture. */
+  resumable: boolean;
   /** Sticky: nothing on this install can speak. */
   unavailable: boolean;
   /** The route's machine code for the last failure, for `useErrorMessage`. */

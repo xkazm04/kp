@@ -1,0 +1,139 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk; keyframes prefixed "mk-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* KandiDate shared chrome: tokens, buttons, app header, mobile menu, app footer, CTA dock, bottom stepper.
+   Used unchanged by index.html and about.html. Nothing here touches html/body or page sections. */
+.mk.mk {
+  --ink: #17202a; --cream: #fdf8ee; --paper: #fffdf7; --coral: #d65a4a; --coral-d: #bf4536; --amber: #caa54c; --moss: #526b4f; --lime: #dce7d0; --steel: #42606f;
+  --p: calc(min(1vw, 1.7778vh) / 16);
+  --f-disp: var(--font-mk-disp, 'Bricolage Grotesque'), 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  --f-body: var(--font-mk-body, 'Figtree'), 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --f-hand: var(--font-mk-hand, 'Caveat'), 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive;
+  --ol: max(2px, calc(var(--p) * 3));
+  --sh-h: calc(var(--p) * 4) calc(var(--p) * 5) 0 var(--ink);
+  --sh-s: 0 calc(var(--p) * 22) calc(var(--p) * 30) calc(var(--p) * -16) rgba(23, 32, 42, .42);
+  --t-body: max(16px, calc(var(--p) * 18));
+  --t-lede: max(17px, calc(var(--p) * 19));
+  --t-sm: max(14px, calc(var(--p) * 15));
+  --h1: max(64px, calc(var(--p) * 100));
+  --h2: max(40px, calc(var(--p) * 68));
+  --hdr: max(64px, calc(var(--p) * 74));
+  --kd-ease: cubic-bezier(.6, 0, .2, 1);
+  --kd-spring: cubic-bezier(.3, 1.5, .5, 1);
+}
+/* ---------- buttons ---------- */
+.mk.mk .btn { display: inline-flex; align-items: center; justify-content: center; gap: .6em; min-height: 44px; padding: calc(var(--p) * 12) calc(var(--p) * 22); font: 800 max(16px, calc(var(--p) * 18))/1.1 var(--f-body); color: var(--ink); background: var(--paper); border: var(--ol) solid var(--ink); border-radius: calc(var(--p) * 14); box-shadow: var(--sh-h); text-decoration: none; cursor: pointer; transition: transform .16s var(--kd-spring), box-shadow .16s; white-space: nowrap; }
+.mk.mk .btn:hover { transform: translate(calc(var(--p) * 2), calc(var(--p) * 3)); box-shadow: calc(var(--p) * 2) calc(var(--p) * 2) 0 var(--ink); }
+/* the press-in on hover moves the button out from under a pointer resting on its edge; a few px of invisible hit area keep it from flickering */
+.mk.mk .btn { position: relative; }
+.mk.mk .btn::after { content: ''; position: absolute; inset: -6px; }
+.mk.mk .btn:active { transform: translate(calc(var(--p) * 4), calc(var(--p) * 5)); box-shadow: 0 0 0 var(--ink); }
+.mk.mk .btn.primary { background: var(--coral-d); color: var(--cream); }
+.mk.mk .btn-lg { padding: calc(var(--p) * 15) calc(var(--p) * 28); font-size: max(17px, calc(var(--p) * 20)); border-radius: calc(var(--p) * 17); }
+.mk.mk .btn-sm { padding: calc(var(--p) * 8) calc(var(--p) * 16); font-size: max(15px, calc(var(--p) * 16)); box-shadow: calc(var(--p) * 3) calc(var(--p) * 3) 0 var(--ink); border-radius: calc(var(--p) * 12); }
+.mk.mk .btn .ply { font-size: max(14px, .8em); }
+.mk.mk .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: var(--sh-h); transform: none; }
+.mk.mk .lnk { background: none; border: 0; padding: 6px 2px; font: 700 max(15px, calc(var(--p) * 16)) var(--f-body); text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 3px; text-underline-offset: 4px; cursor: pointer; color: inherit; }
+
+/* ---------- header ---------- */
+/* .is-stuck: -webkit- BEFORE the standard property. In the prototype's order (standard first) Next's
+   lightningcss folds the pair into the -webkit- declaration alone, which Chromium does not parse, and
+   the blur computed `none`. */
+.mk.mk .bar { color: var(--ink); position: fixed; z-index: 70; left: 0; right: 0; top: 0; height: var(--hdr); display: flex; align-items: center; gap: calc(var(--p) * 24); padding: 0 calc(var(--p) * 40); transition: background .3s, box-shadow .3s; }
+.mk.mk .bar.is-stuck { background: rgba(253, 248, 238, .93); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 calc(var(--p) * 8) calc(var(--p) * 26) calc(var(--p) * -14) rgba(23, 32, 42, .5); }
+.mk.mk .brand { display: inline-flex; align-items: center; gap: calc(var(--p) * 11); text-decoration: none; }
+.mk.mk .logo { display: grid; place-items: center; width: max(38px, calc(var(--p) * 42)); height: max(38px, calc(var(--p) * 42)); background: var(--coral-d); color: var(--cream); border-radius: calc(var(--p) * 11); font: 800 max(22px, calc(var(--p) * 25))/1 var(--f-disp); box-shadow: 0 calc(var(--p) * 3) 0 var(--ink); }
+.mk.mk .word { font: 800 max(21px, calc(var(--p) * 24))/1 var(--f-disp); letter-spacing: -.02em; }
+.mk.mk .word b { color: var(--coral-d); font-weight: 800; }
+.mk.mk .nav { display: flex; gap: calc(var(--p) * 20); margin-left: auto; }
+.mk.mk .nav a { font: 700 max(15px, calc(var(--p) * 16)) var(--f-body); text-decoration: none; padding: 8px 2px; position: relative; white-space: nowrap; }
+.mk.mk .nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px; background: var(--amber); transform: scaleX(0); transform-origin: left; transition: transform .25s var(--kd-ease); }
+.mk.mk .nav a:hover::after,
+.mk.mk .nav a.is-cur::after { transform: scaleX(1); }
+.mk.mk .nav a.to-page { color: var(--coral-d); }
+.mk.mk .bar-right { display: flex; align-items: center; gap: calc(var(--p) * 14); }
+.mk.mk .langs { display: inline-flex; gap: 4px; }
+.mk.mk .langs b,
+.mk.mk .langs i { font: 800 max(14px, calc(var(--p) * 14)) var(--f-body); font-style: normal; padding: 4px 8px; border-radius: 8px; border: 2px solid var(--ink); background: var(--paper); line-height: 1.1; }
+.mk.mk .langs b { background: var(--ink); color: var(--cream); }
+.mk.mk .menu-btn { display: none; }
+.mk.mk .menu { position: fixed; inset: 0; z-index: 65; background: var(--cream); padding: 96px 28px 120px; overflow: auto; }
+.mk.mk .menu[hidden] { display: none; }
+.mk.mk .menu nav { display: grid; gap: 4px; }
+.mk.mk .menu nav a { font: 800 28px/1.2 var(--f-disp); text-decoration: none; padding: 14px 0; border-bottom: 2px dashed rgba(23, 32, 42, .25); }
+.mk.mk .menu-langs { margin-top: 24px; font-weight: 600; }
+@media (max-width: 1499px) { .mk.mk .bar .langs { display: none; } }
+@media (max-width: 1219px) {
+  .mk.mk .nav { display: none; }
+  .mk.mk .bar-right { margin-left: auto; }
+  .mk.mk .menu-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 18px; font: 800 16px var(--f-body); background: var(--paper); border: 3px solid var(--ink); border-radius: 999px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; }
+}
+/* The same two steps, taken earlier where the nav is longer (measured at a 4:3 window, the widest --p for a given
+   width, so every taller-than-16:9 window has at least this much room). French: the nav fits from 1300, the chips
+   beside it from 1720. German: the nav from 1340; with the chips the bar overflows even at 1920, so they stay in the
+   footer (and the phone menu) below 2240. Czech and English fit at the prototype's 1220 / 1500. */
+@media (max-width: 1719px) { .mk.mk:lang(fr) .bar .langs { display: none; } }
+@media (max-width: 2239px) { .mk.mk:lang(de) .bar .langs { display: none; } }
+@media (max-width: 1299px) {
+  .mk.mk:lang(fr) .nav { display: none; }
+  .mk.mk:lang(fr) .bar-right { margin-left: auto; }
+  .mk.mk:lang(fr) .menu-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 18px; font: 800 16px var(--f-body); background: var(--paper); border: 3px solid var(--ink); border-radius: 999px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; }
+}
+@media (max-width: 1339px) {
+  .mk.mk:lang(de) .nav { display: none; }
+  .mk.mk:lang(de) .bar-right { margin-left: auto; }
+  .mk.mk:lang(de) .menu-btn { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 18px; font: 800 16px var(--f-body); background: var(--paper); border: 3px solid var(--ink); border-radius: 999px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; }
+}
+
+/* ---------- footer ---------- */
+.mk.mk .foot { background: var(--ink); color: var(--cream); padding: calc(var(--p) * 34) 0 calc(var(--p) * 28); }
+.mk.mk .foot .brand { color: var(--cream); }
+.mk.mk .foot .word b { color: #f08b7c; }
+.mk.mk .foot-top { display: flex; align-items: center; gap: calc(var(--p) * 26); flex-wrap: wrap; }
+.mk.mk .foot-top p { font: 600 max(16px, calc(var(--p) * 17)) var(--f-body); color: var(--lime); }
+.mk.mk .totop { margin-left: auto; font: 800 max(15px, calc(var(--p) * 16)) var(--f-body); text-decoration: none; padding: 8px 14px; border: 3px solid var(--cream); border-radius: 12px; }
+.mk.mk .foot-row { display: flex; flex-wrap: wrap; gap: 8px calc(var(--p) * 26); align-items: center; margin-top: calc(var(--p) * 20); font: 600 max(15px, calc(var(--p) * 16)) var(--f-body); }
+.mk.mk .foot-row a { text-underline-offset: 4px; }
+.mk.mk .foot .langs b,
+.mk.mk .foot .langs i { color: var(--ink); }
+.mk.mk .foot .langs b { background: var(--amber); }
+.mk.mk .foot .legal { margin-top: calc(var(--p) * 16); color: #b7c6b0; max-width: calc(var(--p) * 1000); font: 600 max(14px, calc(var(--p) * 14))/1.55 var(--f-body); font-style: italic; }
+
+.mk.mk .dock { display: none; }
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) {
+  .mk.mk { --p: calc(100vw / 800); --hdr: 64px; }
+  .mk.mk { padding-bottom: 84px; }
+  .mk.mk .dock { position: fixed; z-index: 130; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: rgba(253, 248, 238, .96); border-top: 3px solid var(--ink); backdrop-filter: blur(8px); }
+  .mk.mk .dock .btn { width: 100%; padding: 12px 8px; box-shadow: 3px 4px 0 var(--ink); font-size: 16px; white-space: normal; text-align: center; line-height: 1.15; }
+  .mk.mk .bar { padding: 0 16px; }
+  .mk.mk .bar.is-stuck { background: rgba(253, 248, 238, .96); }
+  .mk.mk .nav,
+.mk.mk .bar-right { display: none; }
+  .mk.mk .menu-btn { display: inline-flex; margin-left: auto; align-items: center; min-height: 44px; padding: 8px 18px; font: 800 16px var(--f-body); background: var(--paper); border: 3px solid var(--ink); border-radius: 999px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; }
+  .mk.mk .word { font-size: 22px; } .mk.mk .logo { width: 38px; height: 38px; font-size: 22px; }
+  .mk.mk .foot { padding: 40px 0 40px; }
+  .mk.mk .totop { margin-left: 0; }
+}
+
+/* ---------- bottom stepper: the landing's scene footer (previous / dots / next), used by the scene and by About ---------- */
+.mk.mk .stepper { position: fixed; z-index: 60; left: 0; right: 0; bottom: 0; height: max(72px, calc(var(--p) * 80)); display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 calc(var(--p) * 40); background: linear-gradient(0deg, rgba(0, 0, 0, .3), transparent); color: var(--cream); }
+.mk.mk .stepper .btn { background: var(--paper); color: var(--ink); }
+.mk.mk .stepper .btn:hover { transform: translateY(2px); }
+.mk.mk .stepper .btn[disabled] { opacity: .45; cursor: default; }
+.mk.mk .sc-dots { display: flex; gap: 6px; align-items: center; }
+.mk.mk .sd { position: relative; width: 34px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
+.mk.mk .sd::before { content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; transform: translate(-50%, -50%); border-radius: 50%; border: 3px solid var(--cream); background: transparent; transition: transform .25s var(--kd-spring), background .25s; }
+.mk.mk .sd:hover::before { transform: translate(-50%, -50%) scale(1.3); }
+.mk.mk .sd[aria-current='true']::before { background: var(--cream); transform: translate(-50%, -50%) scale(1.35); }
+.mk.mk .sd.is-signed::before { border-color: var(--amber); }
+.mk.mk .sd.is-signed[aria-current='true']::before { background: var(--amber); }
+.mk.mk .stepper-count { display: none; font: 800 16px var(--f-body); color: var(--cream); }
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) {
+  .mk.mk .stepper { bottom: 84px; height: 64px; padding: 0 14px; }
+  .mk.mk .stepper .sc-dots { display: none; }
+  .mk.mk .stepper-count { display: block; }
+  .mk.mk .stepper .btn { min-width: 64px; }
+  .mk.mk .stepper .st-lbl { display: none; }
+}
+
+/* the content width the footer sits in (same value the landing's sections use) */
+.mk.mk .wrap { position: relative; width: min(calc(var(--p) * 1240), calc(100% - 48px)); margin: 0 auto; }
+@media (max-width: 1099px), (max-aspect-ratio: 5/4) { .mk.mk .wrap { width: auto; margin: 0 20px; } }

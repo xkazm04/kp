@@ -160,7 +160,7 @@ edge/
 | `app/api/channels/inbound/[token]` | the public receiver *is* the app route | the route stays (direct mode); a new `app/_lib/edge-drain.ts` client consumes the same payloads from the edge log |
 | `instrumentation.ts` + `scheduler.ts` | heartbeat → automation pass | heartbeat → `drainEdge()` → heartbeat POST → automation pass |
 | `app/_lib/auth/public-routes.ts` | allow-list of open routes | `/api/edge/*` is **not** public — the drain is outbound from local; nothing new opens on the local host |
-| `.env.example` | — | `KP_EDGE_URL`, `KP_EDGE_TENANT`, `KP_EDGE_SECRET` (or stored, encrypted under `KP_SECRET`, editable on the Channels tab next to `ChannelsRelayConfigCard`), `KP_NUDGE_TARGET` |
+| `.env.example` | — | `KP_EDGE_URL`, `KP_EDGE_TENANT`, `KP_EDGE_SECRET` (or stored, encrypted under `KP_SECRET`, editable on the Channels tab beside the relay: Channels → Always-on edge), `KP_NUDGE_TARGET` |
 | Channels tab | relay card, receivers list | an **Edge card**: connected / last drain / unread at edge / nudge target; receivers show both the direct URL and the edge URL |
 | `docs/features/comms/README.md` status table | `queued`/`sent`/`failed` | + `held-at-edge`, `deferred-to-local`, with the same "is this terminal?" column |
 

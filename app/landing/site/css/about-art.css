@@ -1,0 +1,209 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* The console's illustrative art: colour roles, shading ramps, motion. Pairs with art.js.
+   Roles per drawing: --ic-a primary body, --ic-b soft/secondary, --ic-c the ONE accent, --ic-d ink line.
+   Nothing here styles bare tags or :root. Motion lives only inside .ic-live and only under
+   prefers-reduced-motion: no-preference; the reduced-motion drawing is the calm, complete end state. */
+
+.mk.mk-about :where(.ic, .art-chain, .art-padlock, .art-kmark, .art-seal, .art-medal) { display: block; }
+
+.mk.mk-about .ic,
+.mk.mk-about .art-chain,
+.mk.mk-about .art-seal,
+.mk.mk-about .art-medal {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- colour roles ---------- */
+.mk.mk-about .ic { --ic-a: #fdf8ee; --ic-b: #e4d9bf; --ic-c: #e6c46a; --ic-d: #17202a; --ic-shadow: .3; }
+.mk.mk-about .ic[data-ctx="hero"] { --ic-shadow: .5; }
+
+/* pad: drawn on the feature-coloured keycap (cream + ink + one accent) */
+.mk.mk-about .ic[data-ic="fit"][data-ctx="pad"]    { --ic-a: #fdf8ee; --ic-b: #f6d6cb; --ic-c: #f2c95f; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="voice"][data-ctx="pad"]  { --ic-a: #fdf8ee; --ic-b: #cbdde5; --ic-c: #f2c95f; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="work"][data-ctx="pad"]   { --ic-a: #fdf8ee; --ic-b: #f3e4b4; --ic-c: #d65a4a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="book"][data-ctx="pad"]   { --ic-a: #fdf8ee; --ic-b: #d5e1cd; --ic-c: #f2c95f; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="inbox"][data-ctx="pad"]  { --ic-a: #fdf8ee; --ic-b: #b7c9a6; --ic-c: #d65a4a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="salary"][data-ctx="pad"] { --ic-a: #fdf8ee; --ic-b: #d3ebe4; --ic-c: #d65a4a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="recall"][data-ctx="pad"] { --ic-a: #fdf8ee; --ic-b: #e6ebef; --ic-c: #d65a4a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="offer"][data-ctx="pad"]  { --ic-a: #fdf8ee; --ic-b: #e6d9bd; --ic-c: #7a2319; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="gates"][data-ctx="pad"]  { --ic-a: #fdf8ee; --ic-b: #64778d; --ic-c: #ee6a55; --ic-d: #0f1820; }
+
+/* hero: on the dark teal backdrop, in the feature's own colour */
+.mk.mk-about .ic[data-ic="fit"][data-ctx="hero"]    { --ic-a: #d65a4a; --ic-b: #fdf8ee; --ic-c: #e6c46a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="voice"][data-ctx="hero"]  { --ic-a: #6d93a5; --ic-b: #fdf8ee; --ic-c: #ee7a66; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="work"][data-ctx="hero"]   { --ic-a: #d9b458; --ic-b: #fdf8ee; --ic-c: #ee7a66; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="book"][data-ctx="hero"]   { --ic-a: #7d9a78; --ic-b: #fdf8ee; --ic-c: #e6c46a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="inbox"][data-ctx="hero"]  { --ic-a: #dce7d0; --ic-b: #8fa683; --ic-c: #ee7a66; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="salary"][data-ctx="hero"] { --ic-a: #7fb3a8; --ic-b: #fdf8ee; --ic-c: #e6c46a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="recall"][data-ctx="hero"] { --ic-a: #cfd6dc; --ic-b: #fdf8ee; --ic-c: #ee7a66; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="offer"][data-ctx="hero"]  { --ic-a: #fdf8ee; --ic-b: #e6d9bd; --ic-c: #b8452f; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="gates"][data-ctx="hero"]  { --ic-a: #fdf8ee; --ic-b: #4d6379; --ic-c: #ee6a55; --ic-d: #17202a; }
+
+/* proof pillars (hero only) */
+.mk.mk-about .ic[data-ic="assume"] { --ic-a: #d9b458; --ic-b: #fdf8ee; --ic-c: #ee7a66; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="defend"] { --ic-a: #6d93a5; --ic-b: #fdf8ee; --ic-c: #e6c46a; --ic-d: #17202a; }
+.mk.mk-about .ic[data-ic="sealed"] { --ic-a: #b8452f; --ic-b: #fdf8ee; --ic-c: #e6c46a; --ic-d: #17202a; }
+
+/* standalone pieces (no keycap around them): their own roles, so the same ramps and fills work */
+.mk.mk-about .art-chain   { --ic-a: #e6c46a; --ic-b: #fdf8ee; --ic-c: #ee7a66; --ic-d: #17202a; --ic-shadow: .3; }
+.mk.mk-about .art-padlock { --ic-a: #fdf8ee; --ic-b: #b3c1cb; --ic-c: #ee6a55; --ic-d: #17202a; --ic-shadow: .3; }
+.mk.mk-about .art-seal    { --ic-a: #fdf8ee; --ic-b: #e6d9bd; --ic-c: #b8452f; --ic-d: #17202a; --ic-shadow: .3; }
+.mk.mk-about .art-medal   { --ic-a: #cfd6dc; --ic-b: #fdf8ee; --ic-c: #ee7a66; --ic-d: #17202a; --ic-shadow: .3; }
+.mk.mk-about svg.art-hatch { display: block; background: none; }
+
+/* extra scene detail: hero only, absent from the keycap drawing */
+.mk.mk-about .ic[data-ctx="pad"] .ic-extra { display: none; }
+
+/* ---------- fills, strokes, shading ramps ---------- */
+.mk.mk-about .ic-fa { fill: var(--ic-a); }
+.mk.mk-about .ic-fb { fill: var(--ic-b); }
+.mk.mk-about .ic-fc { fill: var(--ic-c); }
+.mk.mk-about .ic-fd { fill: var(--ic-d); }
+.mk.mk-about .ic-fw { fill: #fdf8ee; }
+.mk.mk-about .ic-sa { stroke: var(--ic-a); }
+.mk.mk-about .ic-sb { stroke: var(--ic-b); }
+.mk.mk-about .ic-sc { stroke: var(--ic-c); }
+.mk.mk-about .ic-sd { stroke: var(--ic-d); }
+.mk.mk-about .ic-sw { stroke: #fdf8ee; }
+.mk.mk-about .ic-nf { fill: none; }
+
+.mk.mk-about .ic-ga-hi { stop-color: var(--ic-a); stop-color: color-mix(in srgb, var(--ic-a) 62%, #fffaf0); }
+.mk.mk-about .ic-ga    { stop-color: var(--ic-a); }
+.mk.mk-about .ic-ga-lo { stop-color: var(--ic-a); stop-color: color-mix(in srgb, var(--ic-a) 72%, var(--ic-d)); }
+.mk.mk-about .ic-gb-hi { stop-color: var(--ic-b); stop-color: color-mix(in srgb, var(--ic-b) 62%, #fffaf0); }
+.mk.mk-about .ic-gb    { stop-color: var(--ic-b); }
+.mk.mk-about .ic-gb-lo { stop-color: var(--ic-b); stop-color: color-mix(in srgb, var(--ic-b) 74%, var(--ic-d)); }
+.mk.mk-about .ic-gc-hi { stop-color: var(--ic-c); stop-color: color-mix(in srgb, var(--ic-c) 66%, #fffaf0); }
+.mk.mk-about .ic-gc    { stop-color: var(--ic-c); }
+.mk.mk-about .ic-gc-lo { stop-color: var(--ic-c); stop-color: color-mix(in srgb, var(--ic-c) 76%, var(--ic-d)); }
+.mk.mk-about .ic-gd-hi { stop-color: var(--ic-d); stop-color: color-mix(in srgb, var(--ic-d) 80%, #7fa0aa); }
+.mk.mk-about .ic-gd    { stop-color: var(--ic-d); }
+
+/* brass: the one metal in the set (the SIGN key's colour), shared by every drawing that has a stamp,
+   a lock or a hinge in it. It is a material, not a role, so it does not change per keycap. */
+.mk.mk-about .ic,
+.mk.mk-about .art-padlock,
+.mk.mk-about .art-seal,
+.mk.mk-about .art-medal,
+.mk.mk-about .art-chain { --ic-k: #d9ae4d; }
+.mk.mk-about .ic-fk { fill: var(--ic-k); }
+.mk.mk-about .ic-sk { stroke: var(--ic-k); }
+.mk.mk-about .ic-gk-hi { stop-color: var(--ic-k); stop-color: color-mix(in srgb, var(--ic-k) 52%, #fff6d6); }
+.mk.mk-about .ic-gk    { stop-color: var(--ic-k); }
+.mk.mk-about .ic-gk-lo { stop-color: var(--ic-k); stop-color: color-mix(in srgb, var(--ic-k) 66%, #5e3f0c); }
+
+.mk.mk-about .ic-sh0 { stop-color: #03090c; stop-opacity: var(--ic-shadow, .3); }
+.mk.mk-about .ic-sh1 { stop-color: #03090c; stop-opacity: calc(var(--ic-shadow, .3) * .42); }
+.mk.mk-about .ic-sh2 { stop-color: #03090c; stop-opacity: 0; }
+
+/* ---------- honest absence: 'never unlocks' surfaces ---------- */
+.mk.mk-about .art-hatch {
+  background-image: repeating-linear-gradient(135deg, rgba(23, 32, 42, .25) 0 2px, transparent 2px 9px);
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 25%, transparent) 0 2px, transparent 2px 9px);
+}
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* Every loop starts and ends in the drawing's static pose (0% = 100% = the poster), so hovering
+     never pops and reduced motion (no rules at all) shows exactly the resting drawing. Delays are
+     positive, so a staggered part simply rests until its turn. */
+
+  /* FIT: the needle sweeps back and lands on 87 again with a small overshoot; the value arc dims while it is away */
+  @keyframes mka-icm-needle { 0%, 24% { transform: rotate(0); } 46% { transform: rotate(-104deg); } 74% { transform: rotate(7deg); } 85% { transform: rotate(-2.4deg); } 93%, 100% { transform: rotate(0); } }
+  @keyframes mka-icm-varc { 0%, 24% { opacity: 1; } 46% { opacity: .42; } 76%, 100% { opacity: 1; } }
+  .mk.mk-about .ic-live .ic-needle { transform-box: view-box; transform-origin: 50px 52px; animation: mka-icm-needle 5.4s cubic-bezier(.45, .05, .3, 1) infinite; }
+  .mk.mk-about .ic-live .ic-varc { animation: mka-icm-varc 5.4s ease-in-out infinite; }
+
+  /* VOICE: three wave pairs breathe outward in turn */
+  @keyframes mka-icm-wave { 0%, 100% { transform: scale(1); opacity: 1; } 38% { transform: scale(.93); opacity: .35; } 70% { transform: scale(1.06); opacity: 1; } }
+  .mk.mk-about .ic-live .ic-w1,
+.mk.mk-about .ic-live .ic-w2,
+.mk.mk-about .ic-live .ic-w3 { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-wave 2.6s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-w2 { animation-delay: .2s; }
+  .mk.mk-about .ic-live .ic-w3 { animation-delay: .4s; }
+
+  /* WORK (and the assume pillar): bubbles rise and re-form; the bug wobbles in place */
+  @keyframes mka-icm-bub { 0%, 100% { transform: none; opacity: .5; } 50% { transform: translateY(-15px); opacity: 0; } 51% { transform: translateY(5px); opacity: 0; } }
+  @keyframes mka-icm-bug { 0%, 100% { transform: none; } 30% { transform: translate(2px, -1px) rotate(6deg); } 66% { transform: translate(-2px, 0) rotate(-5deg); } }
+  .mk.mk-about .ic-live .ic-bub1,
+.mk.mk-about .ic-live .ic-bub2,
+.mk.mk-about .ic-live .ic-bub3 { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-bub 3.6s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-bub2 { animation-delay: .9s; }
+  .mk.mk-about .ic-live .ic-bub3 { animation-delay: 1.7s; }
+  .mk.mk-about .ic-live .ic-bug { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-bug 3.4s ease-in-out infinite; }
+
+  /* BOOK: the cursor wanders off, comes back, clicks; the picked day pops as it lands */
+  @keyframes mka-icm-cursor { 0%, 16% { transform: none; } 38%, 62% { transform: translate(15px, 11px); } 82% { transform: none; } 88% { transform: translate(0, 1.6px) scale(.93); } 94%, 100% { transform: none; } }
+  @keyframes mka-icm-pick { 0%, 84% { transform: none; } 91% { transform: scale(1.16); } 100% { transform: none; } }
+  .mk.mk-about .ic-live .ic-cursor { transform-box: fill-box; transform-origin: 0 0; animation: mka-icm-cursor 5s cubic-bezier(.45, .05, .3, 1) infinite; }
+  .mk.mk-about .ic-live .ic-pick { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-pick 5s ease-in-out infinite; }
+
+  /* INBOX: five streams pulse downward into the one tray, staggered */
+  @keyframes mka-icm-flow { 0%, 100% { transform: none; opacity: 1; } 45% { transform: translateY(5px); opacity: .35; } }
+  .mk.mk-about .ic-live .ic-fl { transform-box: fill-box; animation: mka-icm-flow 2.6s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-fl2 { animation-delay: .26s; }
+  .mk.mk-about .ic-live .ic-fl3 { animation-delay: .52s; }
+  .mk.mk-about .ic-live .ic-fl4 { animation-delay: .78s; }
+  .mk.mk-about .ic-live .ic-fl5 { animation-delay: 1.04s; }
+
+  /* SALARY: the sweep turns a full circle (it ends where it began); the ring pings around the blip */
+  @keyframes mka-icm-sweep { to { transform: rotate(360deg); } }
+  @keyframes mka-icm-ring { 0%, 100% { transform: scale(1); opacity: .75; } 58% { transform: scale(1.75); opacity: 0; } 59% { transform: scale(1); opacity: 0; } }
+  @keyframes mka-icm-blip { 0%, 100% { transform: none; } 50% { transform: scale(1.18); } }
+  .mk.mk-about .ic-live .ic-sweep { transform-box: view-box; transform-origin: 50px 50px; animation: mka-icm-sweep 6s linear infinite; }
+  .mk.mk-about .ic-live .ic-ring { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-ring 3s ease-out infinite; }
+  .mk.mk-about .ic-live .ic-blip { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-blip 3s ease-in-out infinite; }
+
+  /* RECALL (and the standalone medal): the medal hangs from its ribbon and sways; the rays behind it breathe */
+  @keyframes mka-icm-medal { 0%, 100% { transform: none; } 50% { transform: translateY(-3px) rotate(2.4deg); } }
+  @keyframes mka-icm-mlines { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  .mk.mk-about .ic-live .ic-medal { transform-box: view-box; transform-origin: 50px 6px; animation: mka-icm-medal 4.4s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-mlines { animation: mka-icm-mlines 3.2s ease-in-out infinite; }
+
+  /* OFFER (and the seal, standalone or sealed pillar): the brass stamp comes down, the wax squashes and answers with a ring, the stamp lifts away */
+  @keyframes mka-icm-stamp { 0%, 46% { transform: none; } 57%, 65% { transform: translateY(9px); } 82%, 100% { transform: none; } }
+  @keyframes mka-icm-seal { 0%, 54% { transform: scale(1); } 58% { transform: scale(.93); } 68% { transform: scale(1.04); } 80%, 100% { transform: scale(1); } }
+  @keyframes mka-icm-rip { 0%, 55% { transform: scale(.9); opacity: 0; } 58% { transform: scale(.95); opacity: .7; } 80%, 100% { transform: scale(1.55); opacity: 0; } }
+  @keyframes mka-icm-sheet { 0%, 54% { transform: none; } 58% { transform: translateY(1.6px); } 70%, 100% { transform: none; } }
+  .mk.mk-about .ic-live .ic-stamp { animation: mka-icm-stamp 5s cubic-bezier(.5, 0, .25, 1) infinite; }
+  .mk.mk-about .ic-live .ic-seal { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-seal 5s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-rip { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-rip 5s ease-out infinite; }
+  .mk.mk-about .ic-live .ic-sheet { animation: mka-icm-sheet 5s ease-in-out infinite; }
+
+  /* GATES: the arm comes down and goes back up, the receipt feeds out again, the lamp breathes, the kill-switch guard flips */
+  @keyframes mka-icm-arm { 0%, 28% { transform: rotate(0); } 48%, 68% { transform: rotate(19deg); } 90%, 100% { transform: rotate(0); } }
+  @keyframes mka-icm-rcpt { 0%, 30% { transform: none; } 42% { transform: translateX(-7px); } 62%, 100% { transform: none; } }
+  @keyframes mka-icm-halo { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+  @keyframes mka-icm-guard { 0%, 60% { transform: none; } 68%, 78% { transform: scaleY(.28); } 86%, 100% { transform: none; } }
+  .mk.mk-about .ic-live .ic-arm { transform-box: view-box; transform-origin: 38px 55px; animation: mka-icm-arm 5.6s cubic-bezier(.45, .05, .3, 1) infinite; }
+  .mk.mk-about .ic-live .ic-rcpt { animation: mka-icm-rcpt 5.6s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-halo,
+.mk.mk-about .ic-live .ic-rays { animation: mka-icm-halo 2.8s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-guard { transform-box: fill-box; transform-origin: 50% 0; animation: mka-icm-guard 5.6s ease-in-out infinite; }
+
+  /* PILLARS */
+  /* assume: the model's spark twinkles, the planted flag flutters, the bug (shared) wobbles */
+  @keyframes mka-icm-twinkle { 0%, 100% { transform: none; } 50% { transform: scale(1.14) rotate(14deg); } }
+  @keyframes mka-icm-flutter { 0%, 100% { transform: none; } 50% { transform: skewY(-5deg) scaleX(.94); } }
+  .mk.mk-about .ic-live .ic-spark { transform-box: fill-box; transform-origin: 50% 50%; animation: mka-icm-twinkle 3.4s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-pen { transform-box: fill-box; transform-origin: 0 50%; animation: mka-icm-flutter 2.8s ease-in-out infinite; }
+  /* defend: the two decisions are voiced in turn, the microphone answers */
+  @keyframes mka-icm-say { 0%, 32%, 100% { transform: none; } 12% { transform: translateY(-2.4px) scale(1.03); } }
+  @keyframes mka-icm-mic { 0%, 100% { transform: none; } 50% { transform: scale(1.06); } }
+  .mk.mk-about .ic-live .ic-bubA,
+.mk.mk-about .ic-live .ic-bubB { transform-box: fill-box; transform-origin: 50% 100%; animation: mka-icm-say 4.8s ease-in-out infinite; }
+  .mk.mk-about .ic-live .ic-bubB { animation-delay: 2.4s; }
+  .mk.mk-about .ic-live .ic-mic { transform-box: fill-box; transform-origin: 50% 100%; animation: mka-icm-mic 2.4s ease-in-out infinite; }
+  /* sealed: the links tighten and ease, the seal/ripple ride the shared stamp-less pulse above */
+  @keyframes mka-icm-tighten { 0%, 100% { transform: none; } 50% { transform: translateX(calc((var(--i) - 1.5) * -2.4px)); } }
+  .mk.mk-about .ic-live .ic-chainrow .md-link { animation: mka-icm-tighten 4.8s ease-in-out infinite; }
+
+  /* CHAIN: PROOF shuts it. Open = links spread on their rail (modes.css also scales the frame); `.is-shut` on the frame slides them together */
+  .mk.mk-about .ic-live .art-chain .md-link { transition: transform .55s var(--spring); }
+  .mk.mk-about .ic-live[data-shut]:not(.is-shut) .art-chain .md-link { transform: translateX(calc((var(--i) - var(--c, 1.5)) * 16px)); }
+
+  /* PADLOCK (standalone): the shackle lifts and clacks home */
+  @keyframes mka-icm-shackle { 0%, 60%, 100% { transform: none; } 32% { transform: translateY(-4px); } 66% { transform: translateY(1.6px); } }
+  .mk.mk-about .ic-live .ic-shackle { animation: mka-icm-shackle 4.6s ease-in-out infinite; }
+}

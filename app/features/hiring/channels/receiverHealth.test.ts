@@ -5,7 +5,7 @@
 // of rejected payloads green, and ignored the pull half (lastPullError) entirely.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { receiverHealth, sectionReceiverStatus, type ReceiverHealthInput } from "./receiverHealth";
+import { receiverHealth, type ReceiverHealthInput } from "./receiverHealth";
 
 const row = (over: Partial<ReceiverHealthInput>): ReceiverHealthInput => ({
   receivedCount: 0,
@@ -51,19 +51,4 @@ test("a failing pull overrides delivering; the raw error is DATA, never the head
   // A stale error on a receiver whose pull was since disabled is not a failing pull
   // (setChannelPull nulls it on write, but the verdict must not depend on that).
   assert.equal(receiverHealth(row({ acceptedCount: 3, receivedCount: 3, pullUrl: null, lastPullError: "HTTP 502" })).verdict, "delivering");
-});
-
-test("section roll-up extends the statusFor vocabulary rather than replacing it", () => {
-  const delivering = row({ receivedCount: 7, acceptedCount: 3 });
-  const failing = row({ receivedCount: 7, acceptedCount: 3, pullUrl: "https://ats.example.com/feed", lastPullError: "HTTP 502" });
-  const waiting = row({});
-  assert.deepEqual(sectionReceiverStatus([delivering, failing]), { tone: "caution", key: "statusNeedsAttention" });
-  assert.deepEqual(sectionReceiverStatus([delivering, waiting]), { tone: "positive", key: "statusListening" });
-  assert.deepEqual(sectionReceiverStatus([]), { tone: "neutral", key: "statusOff" });
-  assert.deepEqual(sectionReceiverStatus([waiting]), { tone: "info", key: "statusConfigured" });
-  assert.deepEqual(
-    sectionReceiverStatus([delivering, row({ receivedCount: 4, acceptedCount: 0 })]),
-    { tone: "caution", key: "statusNeedsAttention" },
-    "a reached-but-empty receiver needs attention too"
-  );
 });

@@ -1,11 +1,13 @@
 /*
  * The orbit's geometry, pure (ported from the winner's layoutOrbit / placeCell / fitAxis / callouts).
- * Rings are stages (entry outside, terminal at the centre), sectors are groups. A sector's angle grows
+ * Rings are stages (entry outside, terminal at the centre); given a RingSpec each band's area follows its
+ * people (orbitRings.ts, equal density) and the 12 o'clock wedge fits its measured labels. Sectors are groups. A sector's angle grows
  * with people^0.7 plus a floor, so a 984-person family and a 15-person one both read; the most waiting
  * group sits nearest 12 o'clock, alternating right and left so the two callout columns balance. Inside a
  * cell (sector x ring) the people who need a human sit on the outer edge, then the overdue.
  */
 import { attentionRank, byUrgency, type Absence, type OrbitGroup, type OrbitPerson } from "./orbitModel.ts";
+import { ringBands } from "./orbitRings.ts";
 
 export const TAU = Math.PI * 2;
 export const DEG = Math.PI / 180;
@@ -48,18 +50,31 @@ function wedgeFor(R: number): number {
   return Math.min(46 * DEG, Math.max(24 * DEG, need + 4 * DEG));
 }
 
+/** The wedge for measured labels (px wide, one per ring, outside in) at their bands' middles: each fits with room. */
+export function wedgeForLabels(R: number, rings: Rings, labels: readonly number[]): number {
+  let need = 0;
+  rings.forEach(([r0, r1], i) => {
+    if (i === rings.length - 1) return; // the hub's label sits in the hole, not in the wedge
+    need = Math.max(need, ((labels[i] ?? 0) + 10) / (((r0 + r1) / 2) * R));
+  });
+  return Math.min(46 * DEG, Math.max(12 * DEG, need + 3 * DEG));
+}
+
 export function sideFor(W: number): number {
   return W >= 1100 ? 290 : W >= 900 ? 250 : 0;
 }
 
-export function layoutOrbit(groups: readonly OrbitGroup[], axisLength: number, W: number, maxH = 900): OrbitGeo {
+/** How the rings are cut: by the people on each stage (equal density), with the measured width of each ring's label. */
+export type RingSpec = { counts: readonly number[]; labels: readonly number[] };
+
+export function layoutOrbit(groups: readonly OrbitGroup[], axisLength: number, W: number, maxH = 900, spec: RingSpec | null = null): OrbitGeo {
   const side = sideFor(W);
   const R = Math.max(150, Math.min((maxH - 76) / 2, (W - 2 * side - 110) / 2));
   const cx = W / 2;
   const cy = R + 34;
   const H = 2 * R + 76;
-  const rings = ringsFor(axisLength, R);
-  const wedge = wedgeFor(R);
+  const rings = spec && spec.counts.length === axisLength ? ringBands(spec.counts, R) : ringsFor(axisLength, R);
+  const wedge = spec ? wedgeForLabels(R, rings, spec.labels) : wedgeFor(R);
 
   const ranked = [...groups].sort(byUrgency);
   const right: OrbitGroup[] = [];

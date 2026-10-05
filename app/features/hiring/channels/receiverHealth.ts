@@ -1,7 +1,7 @@
 import type { BadgeTone } from "@/app/_components/Badge";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 
-// RECEIVER HEALTH — one verdict per receiver, and one roll-up per Channels section.
+// RECEIVER HEALTH — one verdict per receiver.
 //
 // A receiver used to be binary: Waiting, or Listening once any authenticated POST had
 // arrived (isReceiverLive). That is CONNECTIVITY, not delivery: a Zapier test ping
@@ -65,21 +65,4 @@ export function receiverHealth(h: ReceiverHealthInput): ReceiverHealth {
         ? "reachedNoLeads"
         : "waiting";
   return { verdict, tone: VERDICT_TONE[verdict], key: RECEIVER_VERDICT_KEY[verdict], live, detail: pullError };
-}
-
-/** The section badge's vocabulary: the ChannelsTab statusFor states, extended by one
- *  caution state. Listening still means "a receiver was reached"; it is now withheld
- *  when any receiver in the section is reached-but-empty or failing its pull. */
-export type SectionReceiverStatus = {
-  tone: BadgeTone;
-  key: "statusOff" | "statusConfigured" | "statusListening" | "statusNeedsAttention";
-};
-
-export function sectionReceiverStatus(hooks: readonly ReceiverHealthInput[]): SectionReceiverStatus {
-  if (hooks.length === 0) return { tone: "neutral", key: "statusOff" };
-  const verdicts = hooks.map(receiverHealth);
-  if (verdicts.some((v) => v.verdict === "pullFailing" || v.verdict === "reachedNoLeads")) {
-    return { tone: "caution", key: "statusNeedsAttention" };
-  }
-  return verdicts.some((v) => v.live) ? { tone: "positive", key: "statusListening" } : { tone: "info", key: "statusConfigured" };
 }

@@ -1,0 +1,71 @@
+/*
+ * The /me view switch (ViewSwitch.tsx): a two-way segmented control in the header of both views.
+ * It lives outside `.sv` and `.at` (it is rendered inside either), so it carries its own
+ * `me-vsw` prefix and paints only through the app's tokens, both registers.
+ */
+.me-vsw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.me-vsw-k {
+  font-size: 14px;
+  color: var(--k-quiet, var(--color-steel));
+}
+.me-vsw-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  border: 1px solid var(--color-stone-200);
+  background: var(--color-stone-50);
+}
+.me-vsw .me-vsw-item {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--k-quiet, var(--color-steel));
+  text-decoration: none;
+}
+.me-vsw .me-vsw-item:hover {
+  color: var(--color-ink);
+}
+.me-vsw .me-vsw-item[aria-current="page"] {
+  background: var(--color-white);
+  color: var(--color-ink);
+  font-weight: 700;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 22%, transparent);
+}
+[data-theme="dark"] .me-vsw-seg {
+  border: 2px solid var(--color-ink);
+  border-radius: 14px;
+  background: var(--color-paper);
+}
+[data-theme="dark"] .me-vsw .me-vsw-item {
+  border-radius: 10px;
+}
+[data-theme="dark"] .me-vsw .me-vsw-item[aria-current="page"] {
+  background: var(--color-dial-amber);
+  color: var(--color-paper);
+  box-shadow: none;
+}
+@media (max-width: 640px) {
+  .me-vsw-k {
+    display: none;
+  }
+}
+/* In the Sieve's top bar the tally already pushes right; below 860px the tally is gone and the
+   switch takes the right edge; the brand's rail-wide min-width gives way so the bar fits a phone. */
+@media (max-width: 860px) {
+  .sv .topbar .me-vsw {
+    margin-left: auto;
+  }
+  .sv .topbar .brand {
+    min-width: 0;
+  }
+}

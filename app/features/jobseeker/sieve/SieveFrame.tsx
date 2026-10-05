@@ -4,6 +4,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject }
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { RailPreferences } from "@/app/features/shell/nav/NavRailPreferences";
+import { ViewSwitch } from "../ViewSwitch";
 import { SieveMark } from "./marks";
 import { cx, SV_ROOT } from "./sieveRecipes";
 import "./sieve.css";
@@ -105,6 +106,8 @@ export function SieveFrame({
         <span className="top-tally" aria-live="polite">
           {tally}
         </span>
+        {/* The same job search in its other view (the Sky Atlas, /me/atlas). */}
+        <ViewSwitch current="sieve" />
       </header>
 
       <nav className="rail" aria-label={t("railLabel")} ref={railRef} style={{ "--sv-progress": progress } as CSSProperties}>

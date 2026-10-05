@@ -4,6 +4,11 @@
 > [`surface-doctrine.md`](./surface-doctrine.md) says how a surface is composed —
 > the seven rules a September 2026 redesign of the job-intake studio was decided
 > by, written to transfer. Read both before building a surface.
+>
+> **Running a design contest on an app surface?** [`app-contest-kit.md`](./app-contest-kit.md)
+> says what a seat takes from the app (fonts, type steps, token roles, the two registers, the
+> recipes and kit parts, the level pattern, the honesty and motion rules) and what stays free
+> (metaphor, illustration, composition, the motion's story). The Overview is its worked example.
 
 This document extracts the design philosophy that emerged on `/landing` (the
 "Spark" direction) and turns it into an explicit, dual-theme design system for
@@ -48,7 +53,8 @@ choice stored, the same subscription follows live OS color-scheme changes;
 choosing a theme stops that automatic switch.
 
 **`/landing` is exempt — and enforced.** The Spark landing page is a fixed art
-direction with literal hexes on purpose (`app/landing/spark/tokens.ts`) — it
+direction with literal hexes on purpose (since 2026-09-30 the scoped stylesheets
+of `app/landing/site/css/`; `/market` still draws from `app/landing/spark/tokens.ts`) — it
 must look identical for every visitor and never re-skins with the workspace
 theme. It is the *source* of the dark theme's vocabulary, not a consumer of
 it. Enforcement: the THEME_INIT bootstrap in `app/layout.tsx` never sets
@@ -583,7 +589,8 @@ as the report's Archetype banner. It uses the shared `shadow-pop` token, so its
 depth follows both themes.
 
 `ICON_TILE` is the small bordered glyph tile at the head of a settings card
-(the channels receiver, relay and edge cards). It is tokens only, so both themes
+(today the locked-tab panel; the Channels receiver, relay and edge cards that also wore
+it retired with the Night Post, 2026-09-30). It is tokens only, so both themes
 remap it; compose it rather than re-typing the class string, which the recipe
 literal ratchet reads as a hand-typed panel.
 
@@ -593,7 +600,7 @@ literal ratchet reads as a hand-typed panel.
 above are how one element is **painted**. It is the One Measure entry that won the
 style-kit contest of the kit-unification spark (2026-09), ported into kp from measured
 computed styles. Hiring > Pipeline and Hiring > Channels render from it (promoted at
-Gate K2, 2026-09-25), and so do the two candidate token doors, `/offer` and `/skill`
+Gate K2, 2026-09-25; both were redrawn on its scene layer on 2026-09-30, below), and so do the two candidate token doors, `/offer` and `/skill`
 (Gate 2, the same day). A new or revitalized tool surface composes from these parts
 before it reaches for a recipe. Out of scope, like every rule in this file: the
 marketing pages (`app/landing/**`, `/about`, `/market`).
@@ -607,6 +614,9 @@ marketing pages (`app/landing/**`, `/about`, `/market`).
   has a shape worth seeing: a funnel (Sieve), a distribution (Skyline), a journey
   (StageRail, Lane). They sit on the same tracks and share the same tokens, states and
   motion rule. A surface whose data has no such shape does not get one for decoration.
+- **The scene parts** (`@/app/_components/kit/scene`), for a surface drawn and layered in the
+  landing's manner: levels you walk into, marks with words, a figure with its cards wired to it
+  (below, "Scenes: levels, wires, marks").
 
 ### The parts
 
@@ -683,7 +693,12 @@ never changes, and nothing goes below the 14px floor to fit.
 - **Motion plays once per `replayKey`.** A graphic part animates the first time it
   draws for a key (the pour, the bars, the counters), never loops, and stays within
   about 600-900 ms; an equal key means no motion, so a re-render or a brush never
-  replays it. Under reduced motion every part renders its final frame at once.
+  replays it. Under reduced motion every part renders its final frame at once. The
+  kit's own squash (`kit.css`) sets every transition inside a kit surface to `0s`, not
+  to a token duration: the initial `transition-property` is `all`, so a non-zero value
+  started a transition on EVERY element, and a synchronous measure then read the old
+  value (the `DataTable` window showed "Rows 1–2 of 11" after a filter). Pinned by
+  `app/_components/kit/reducedMotion.test.ts`; a surface needs no local override.
 - **The reading pane exists only while something is selected.** It takes its own
   column (`--m-detail`, 448-560px); the sheet narrows and folds, and nothing is
   overlaid. With no selection there is no pane and no empty column waiting for one.
@@ -697,6 +712,57 @@ The kit reads the register's tokens and never forks its markup by theme.
 12 / 16px radii, sticker shadows on the stat strip and the selected row, an amber
 sticker for the pressed segment, a coral pressed chip, and a springier ease. Coral
 means "needs you" in both and is never a stage tone.
+
+### Scenes: levels, wires, marks
+
+A third layer, `@/app/_components/kit/scene` (2026-09-30), holds parts lifted from two contest
+winners when a practical surface was redesigned in the landing's drawn, layered manner: the Night
+Post (Hiring > Channels) and the Orbit, Lit (the Hiring Overview). They are generic, but each is
+proven by ONE or TWO surfaces today: the Night Post uses `levelReduce` / `layerModeAt`,
+`LevelTransition`, `LevelFrame`, `LevelTrail`, `KeyHints`, `ConditionMark`, `NamePlate` and
+`NeedsList`; the Overview uses `QueueCard`, `Wires`, `Halos`, `HandNote`, `LitGround` and
+`labelWidths`; `ScenePress` is the one both press their drawings with. The Agents workforce
+(the Time-Card Rack, 2026-10-01) is the second surface on the level machine (`levelReduce`,
+`LevelTransition`, `KeyHints`, `ConditionMark`, `NamePlate`; its trail and card levels are its own
+markup in the same `k-lvl` / `k-trail` classes, `agents-workforce/WorkforceTrail.tsx`). It sits on the same tokens and
+`--k-*` variables as the other two layers and renders inside a `.k-kit` root. Every part is
+copy-free (the caller passes its words, formatted), carries a `@catalog` line, and loads its own
+`scene/scene.css`. When a contest on an app surface is run, these are what a seat imitates rather
+than reinvents ([`app-contest-kit.md`](./app-contest-kit.md)).
+
+| Part | Purpose | Key props |
+|---|---|---|
+| `levelReduce` / `layerModeAt` (levelStack.ts) | a stack of levels you walk into: push (a place already on the stack is returned to), pop, popTo (a breadcrumb), replaceTop (a sideways step), reset; and how each layer is on screen (flow, under, entering, leaving, swapping, hidden) | `stack`, `action`, `{ root, same }` / `depth`, `top`, `transition` |
+| `LevelTransition` | one layer and its wipe: a circle from the touched element (open 760 ms, close 560 ms), a 140 ms fade for a sideways step, a cross-fade under reduced motion; covered layers stay mounted; DOM contract `.k-layer[data-depth][data-mode]` | `mode`, `opener`, `onSettled`, `depth` |
+| `LevelFrame` | a level below the root: trail, kicker, heading (`data-level-heading`, focused on open), one lead line, at most one action, art beside or in the head, the sheet, a foot; tinted by one token | `tone`, `kicker`, `title`, `lead`, `actions`, `art`, `artPlace`, `trail`, `foot`, `keys` |
+| `LevelTrail` | a back button naming its target (`data-level-key="back"`) and the breadcrumb | `crumbs`, `onBack`, `backLabel`, `label` |
+| `KeyHints` | the keys a level answers to, in the KBD recipe; never bare letters | `hints` (`id`, `keys`, `act`), `label` |
+| `ConditionMark` | a condition in shape and words: live, wait, reach, fail, off, unknown (not read, never a guess); `loud` is the one to read first | `condition`, `label`, `loud` |
+| `NamePlate` | a thing's name, its condition, one fact; the border repeats the condition | `title`, `condition`, `chip`, `fact`, `alert`, `align` |
+| `ScenePress` | drawn furniture you press (a building, the folded figure, a step dot, a pinned note, a name set as a title): a real button with a zero-specificity reset and the kit's focus ring; the drawing and its paint (a class on the caller's token-only sheet) are the caller's. A labelled action is a `Button`, a toggle a `ChipButton` | button attributes, `className` |
+| `NeedsList` / `NeedsItem` | "needs you, worst first": one button per thing, its severity (`bad`, `warn`, `info`) as a shape | `title`, `count` / `tone`, `title`, `detail`, `cta` |
+| `QueueCard` | a queue: count + noun (one press), the most urgent names, where they stand, the door; pointing or focusing lights its items (`onHot(on, via)`: `via` is `pointer` or `focus`, so the caller can keep one slot for each) | `count`, `noun`, `openLabel`, `onOpen`, `names`, `more`, `on`, `door`, `needs`, `hot`, `onHot` |
+| `Wires` (+ `wireFor`, `nearest`) | cards wired to the ring their items stand on, threads to each lit item, a hand note's arrow; the caller measures, the part draws | `wires`, `hot`, `threads`, `arrow` |
+| `Halos` | breathing halos over what is pointed at (a state, never ambient; still under reduced motion) | `points`, `width`, `height`, `calm` |
+| `HandNote` | a margin note in the register's display face (italic serif / bold tilted); `pointer` is where an arrow leaves; hidden from assistive tech | `pointer`, `noteRef` |
+| `LitGround` | a soft amber glow under the one figure to look at (a plane, not a panel) | `className`, `ref` |
+| `labelWidths` | the drawn width of labels at the scene's label type, for a canvas that must leave room for its words | `labels` |
+
+The pure halves are pinned under `node:test`: `levelStack.test.ts`, `wipe.test.ts`,
+`wireGeometry.test.ts`, `conditions.test.ts`.
+
+### Example: the Overview
+
+Hiring > Overview is the reference for a surface that takes the kit's vocabulary and is still
+unlike anything else in the app. It composes kit `Button`s for every link and door, sets counts as
+the kit's serif figures, keeps the `--k-*` radii and lines of both registers, prints "—" with the
+reason where the job list failed, and builds the rest from the scene layer: `QueueCard`s in two
+columns ("needs you, start here", "in motion today") under `HandNote`s, the orbit folded small on
+a `LitGround`, `Wires` from each card to its ring, `Halos` on the people a card points at. What it
+invented stays in the feature: the orbit, its geometry, the flight of the same dots into the opened
+orbit, and the one hero numeral (twice the display step). Files:
+`app/features/hiring/pipeline/orbit/overview/` (`OrbitOverview.tsx` composes it;
+`OverviewQueue.tsx`, `OverviewWires.tsx` and `OverviewDial.tsx` are its bindings of the scene parts).
 
 ### How a module is revitalized
 
@@ -758,8 +824,11 @@ The rules the owner has taught, which every step answers to:
   font size is overridden; the stock `--text-*--line-height` values are unitless
   ratios, so leading follows. `text-2xl` and up are deliberately untouched — the
   display headings were never the problem. Applied at the page root by
-  `SparkHome`, `AboutHome` and `MarketPulse` via `TYPE_SCALE`
-  (`app/landing/spark/tokens.ts`). The workspace is unaffected.
+  `MarketPulse` via `TYPE_SCALE` (`app/landing/spark/tokens.ts`). `/` and
+  `/about` no longer use it: since 2026-09-30 they are the prototype port in
+  `app/landing/site/`, whose scoped stylesheets carry the prototype's own type
+  sizes (nothing rendered below 14px) and do not use Tailwind utilities at all.
+  The workspace is unaffected.
 - **The illustrated cards go one notch further.** `.spark-type-art`
   (`ART_TYPE_SCALE`) nests inside the page scale and adds another +2px: xs 16,
   sm 18, base 20, lg 22, xl 24 — and unlike the page scale it *does* move
@@ -769,9 +838,9 @@ The rules the owner has taught, which every step answers to:
   (the /market demand grid does exactly that). Rationale: the /about step art
   and the /market data cards are miniatures of product UI, built at product
   sizes, and once the page scale moved they read a full step smaller than the
-  prose beside them. Opt in per card container: `StepRow`'s art column in
-  `AboutCurve`, every block in `market/parts.tsx` plus the three inline card
-  groups in `MarketPulseAtlas`.
+  prose beside them. Opt in per card container: every block in
+  `market/parts.tsx` plus the three inline card groups in `MarketPulseAtlas`
+  (the /about step art that also used it was retired with the old page).
 - Motion vocabulary: `animate-fade-in`, `animate-tab-in`, `stagger-children`,
   `animate-slide-in`, `animate-drawer-in`, `animate-arrive-in`, `reveal-quiet`
   — all reduced-motion aware. See `docs/design/loading-choreography.md` for
@@ -1083,8 +1152,10 @@ consumer. `glyphEntrancePolicy.test.ts` pins both.
 
 ## Public landing (status: BUILT, NOT LAUNCHED)
 
-The marketing landing (`app/landing/spark/SparkHome` — hero, pricing tiers, trust
-story, voice teaser, the `/api/demo` CTA, en/cs i18n) **is served publicly at `/`**.
+The marketing landing (route shell `app/landing/spark/SparkHome.tsx` rendering the
+prototype port in `app/landing/site/` — hero, proof, the ring of nine features and
+their scenes, voice, the human gate, pricing, enterprise, the `/api/demo` CTA, four
+locales; see `docs/features/marketing/README.md`) **is served publicly at `/`**.
 The gate is server-side: `hasEnteredWorkspace()`
 (`app/_lib/auth/home-gate-server.ts`) decides per request whether `/` renders the
 landing or the dashboard — the real signed session in password mode, the readable
@@ -1092,14 +1163,12 @@ entry marker in open mode. Anonymous visitors get the landing server-rendered, s
 is crawlable (`app/robots.ts`, `app/sitemap.ts`) with no landing↔dashboard flash.
 `/landing` is a redirect stub to `/` for stale bookmarks.
 
-The marketing bands (`/`, `/about`, `/market`) are `max-w-7xl` (80rem), not the
-`max-w-6xl` the workspace uses — the larger `.spark-type` scale needs the extra
-measure. /about's timeline runs the full `max-w-7xl` too, and its step art caps at
-`max-w-lg` (was `max-w-md`) so the card-scale type has room; /market's two narrow
-editorial sections went `max-w-4xl` → `max-w-5xl`. One
-consequence to know about: `SectionRail` parks in the gutter at
-`50% + 40rem + 0.5rem` and falls back to a viewport-edge overlay when the gutter
-can't hold it, which now happens below ~1592px viewport instead of ~1464px.
+The `/market` bands are `max-w-7xl` (80rem), not the `max-w-6xl` the workspace
+uses — the larger `.spark-type` scale needs the extra measure; its two narrow
+editorial sections went `max-w-4xl` → `max-w-5xl`. `/` and `/about` set their own
+measure in their scoped stylesheets (`app/landing/site/css/`), as the approved
+prototype does; the old section rail that parked in the gutter was retired with the
+old pages on 2026-09-30.
 
 > Corrected 2026-07-30. This section previously said the landing was dev-only,
 > gated by a client `HomeGate` at `app/_lib/auth/devAuth.ts` with
@@ -1115,7 +1184,7 @@ This is deliberate, not a bug: the landing is **not launch-ready** —
 - there is no first-party social proof.
 
 **To launch:** gate `/` on the real auth cookie (`isOperator`) instead of the
-dev-only localStorage flag so signed-out prod visitors get `SparkLanding` and
+dev-only localStorage flag so signed-out prod visitors get the landing and
 signed-in operators get the dashboard — AND first close the CTA / SEO / social-proof
 items above (see the 2026-06-25 ambiguity+business scan,
 a 2026-06-25 landing/marketing ambiguity scan, since untracked).

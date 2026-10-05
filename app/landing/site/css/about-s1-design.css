@@ -1,0 +1,185 @@
+/* Scoped port of a prototype stylesheet: every selector lives under .mk.mk-about; keyframes prefixed "mka-". Hand-maintainable from here; the prototype is not the source of truth any more. */
+/* STEP 01 - DESIGN: brief -> slotted press -> three cables -> JD card, rubric sheet behind it, clay pencil at the corner.
+   Desktop layout is absolute, in u. The phone block at the end reflows the scene into one column (px/rem, no scaling).
+   Animation lives only inside prefers-reduced-motion: no-preference and starts from .dio.is-in. */
+
+.mk.mk-about .dio-design { --dd-dir: 1; --dd-steel: #42606f; }
+.mk.mk-about .dio-design[data-side="r"] { --dd-dir: -1; }
+
+/* ---------- glass decoration + labels ---------- */
+.mk.mk-about .dio-design .dd-grid { position: absolute; inset: 0; z-index: 0; background-image: radial-gradient(circle, rgba(243, 236, 217, .11) 1px, transparent 1.5px); background-size: calc(var(--u) * 1.7) calc(var(--u) * 1.7); background-position: calc(var(--u) * .4) calc(var(--u) * .4); }
+.mk.mk-about .dio-design .dd-glow { position: absolute; inset: 0; z-index: 0; background: radial-gradient(46% 52% at 50% 50%, color-mix(in srgb, var(--sc) 24%, transparent), transparent 72%); }
+.mk.mk-about .dio-design .dd-l { position: absolute; z-index: 2; white-space: nowrap; }
+.mk.mk-about .dio-design .dd-l-brief { left: calc(var(--u) * 1.3); top: calc(var(--u) * 2.1); }
+.mk.mk-about .dio-design .dd-l-jd { left: calc(var(--u) * 11.4); top: calc(var(--u) * 2.1); }
+
+/* ---------- the press: brief scrap, three cables, slotted plate (one shared 10.4u x 9.8u frame) ---------- */
+.mk.mk-about .dio-design .dd-press { position: absolute; z-index: 3; left: calc(var(--u) * 1); top: calc(var(--u) * 4.6); width: calc(var(--u) * 10.4); height: calc(var(--u) * 9.8); }
+.mk.mk-about .dio-design .dd-lay { position: absolute; inset: 0; }
+.mk.mk-about .dio-design .dd-lay svg { width: 100%; height: 100%; overflow: visible; }
+.mk.mk-about .dio-design .dd-scrap { z-index: 1; } .mk.mk-about .dio-design .dd-cables { z-index: 2; } .mk.mk-about .dio-design .dd-plate { z-index: 3; }
+.mk.mk-about .dio-design .dd-plate svg { filter: drop-shadow(0 calc(var(--u) * .28) calc(var(--u) * .36) rgba(0, 0, 0, .45)); }
+.mk.mk-about .dio-design .dd-scrap svg { filter: drop-shadow(0 calc(var(--u) * .18) calc(var(--u) * .26) rgba(0, 0, 0, .35)); }
+.mk.mk-about .dio-design .dd-cables svg { filter: drop-shadow(0 calc(var(--u) * .16) calc(var(--u) * .2) rgba(0, 0, 0, .4)); }
+.mk.mk-about .dio-design .dd-cw,
+.mk.mk-about .dio-design .dd-cwo { stroke-dasharray: 100; stroke-dashoffset: 0; }
+.mk.mk-about .dio-design .dd-sp { transform-box: fill-box; transform-origin: center; }
+.mk.mk-about .dio-design .dd-spf { fill: #fff6d6; } .mk.mk-about .dio-design .dd-spf2 { fill: var(--sc-hi); }
+
+/* ---------- the JD paper card ---------- */
+.mk.mk-about .dio-design .dd-jd { position: absolute; z-index: 5; left: calc(var(--u) * 11.3); top: calc(var(--u) * 4.1); width: calc(var(--u) * 21.8);
+  border-radius: calc(var(--u) * .9); border: max(2px, calc(var(--u) * .15)) solid var(--ink); overflow: hidden; color: var(--ink);
+  background: linear-gradient(170deg, #fffdf6 0%, var(--cream) 45%, #f3ead6 100%);
+  box-shadow: calc(var(--u) * .3) calc(var(--u) * .38) 0 rgba(3, 9, 12, .55), 0 calc(var(--u) * 1.1) calc(var(--u) * 2.2) rgba(0, 0, 0, .35), inset 0 calc(var(--u) * .12) 0 #fff; }
+.mk.mk-about .dio-design .dd-band { height: calc(var(--u) * .9); background: linear-gradient(90deg, var(--sc) 0%, var(--sc-hi) 60%, var(--sc) 100%); border-bottom: max(2px, calc(var(--u) * .12)) solid var(--ink); position: relative; transform-origin: left center; }
+.mk.mk-about .dio-design .dd-band::after { content: ""; position: absolute; left: calc(var(--u) * 1.2); top: 22%; width: calc(var(--u) * 6); height: 26%; border-radius: 99px; background: rgba(255, 255, 255, .6); }
+.mk.mk-about .dio-design .dd-in { display: grid; gap: calc(var(--u) * .8); padding: calc(var(--u) * 1) calc(var(--u) * 1.2) calc(var(--u) * 1.15); }
+.mk.mk-about .dio-design .dd-head { display: flex; align-items: center; gap: calc(var(--u) * .8); min-width: 0; }
+.mk.mk-about .dio-design .dd-tile { flex: none; display: grid; place-items: center; width: max(38px, calc(var(--u) * 3.2)); height: max(38px, calc(var(--u) * 3.2)); border-radius: calc(var(--u) * .8);
+  font-family: var(--f-display); font-weight: 800; font-size: var(--fs-body); letter-spacing: -.01em; color: var(--ink);
+  background: linear-gradient(155deg, var(--sc-hi), var(--sc) 55%, #5f9a8e); border: max(2px, calc(var(--u) * .14)) solid var(--ink);
+  box-shadow: inset 0 calc(var(--u) * .13) 0 rgba(255, 255, 255, .65), 0 calc(var(--u) * .2) 0 var(--ink); }
+.mk.mk-about .dio-design .dd-tt { min-width: 0; display: grid; gap: calc(var(--u) * .1); }
+.mk.mk-about .dio-design .dd-title { font-family: var(--f-display); font-weight: 800; letter-spacing: -.02em; font-size: max(16px, calc(var(--u) * 1.25)); line-height: 1.12; white-space: nowrap; }
+.mk.mk-about .dio-design .dd-co { font-size: var(--fs-small); font-weight: 600; color: var(--dd-steel); line-height: 1.2; white-space: nowrap; }
+.mk.mk-about .dio-design .dd-sec { display: grid; gap: calc(var(--u) * .45); padding-top: calc(var(--u) * .75); border-top: max(1px, calc(var(--u) * .09)) dashed rgba(23, 32, 42, .26); }
+.mk.mk-about .dio-design .dd-chips { display: flex; flex-wrap: wrap; gap: calc(var(--u) * .5); }
+.mk.mk-about .dio-design .dd-chips li { padding: calc(var(--u) * .12) calc(var(--u) * .6); border-radius: 999px; border: max(2px, calc(var(--u) * .13)) solid var(--ink); color: var(--ink);
+  background: color-mix(in srgb, var(--c, var(--sc)) 40%, #fffaf0); font-weight: 800; font-size: var(--fs-small); line-height: 1.25;
+  box-shadow: calc(var(--u) * .1) calc(var(--u) * .16) 0 var(--ink), inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .6); }
+.mk.mk-about .dio-design .dd-ghost li { height: calc(var(--u) * 1.6); width: calc(var(--u) * var(--w, 3)); padding: 0; background: transparent; border: max(2px, calc(var(--u) * .11)) dashed rgba(23, 32, 42, .4); box-shadow: none; }
+.mk.mk-about .dio-design .dd-sal-row { display: flex; align-items: center; gap: calc(var(--u) * .9); min-width: 0; }
+.mk.mk-about .dio-design .dd-num { flex: none; font-family: var(--f-mono); font-weight: 700; font-size: var(--fs-body); letter-spacing: -.03em; line-height: 1.1; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* the band slider: min/max end caps, a filled band, a typical-value marker */
+.mk.mk-about .dio-design .dd-range { position: relative; flex: 1 1 auto; min-width: 0; height: calc(var(--u) * 2.2); }
+.mk.mk-about .dio-design .dd-range i { position: absolute; display: block; }
+.mk.mk-about .dio-design .dd-trk { left: 0; right: 0; top: calc(var(--u) * .78); height: calc(var(--u) * .62); border-radius: 99px; background: rgba(23, 32, 42, .13); box-shadow: inset 0 calc(var(--u) * .1) calc(var(--u) * .14) rgba(23, 32, 42, .3); }
+.mk.mk-about .dio-design .dd-bf { left: 14%; width: 62%; top: calc(var(--u) * .62); height: calc(var(--u) * .94); border-radius: 99px; background: linear-gradient(var(--sc-hi), var(--sc) 55%, #5f9a8e); border: max(2px, calc(var(--u) * .12)) solid var(--ink); box-shadow: inset 0 calc(var(--u) * .1) 0 rgba(255, 255, 255, .55); transform-origin: left center; }
+.mk.mk-about .dio-design .dd-cap { top: calc(var(--u) * .15); width: max(3px, calc(var(--u) * .3)); height: calc(var(--u) * 1.9); border-radius: 99px; background: var(--ink); margin-left: calc(var(--u) * -.15); }
+.mk.mk-about .dio-design .dd-cap1 { left: 14%; } .mk.mk-about .dio-design .dd-cap2 { left: 76%; }
+.mk.mk-about .dio-design .dd-mk { left: 45%; top: calc(var(--u) * .32); width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); margin-left: calc(var(--u) * -.75); border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #fff4c4, var(--amber) 58%, #8a6a26); border: max(2px, calc(var(--u) * .14)) solid var(--ink); box-shadow: 0 calc(var(--u) * .16) 0 rgba(23, 32, 42, .5); }
+
+/* ---------- the rubric sheet: peeks out from behind the JD card, one bar per must-have ---------- */
+.mk.mk-about .dio-design .dd-rub { position: absolute; z-index: 4; left: calc(var(--u) * 30.6); top: calc(var(--u) * 2.3); width: calc(var(--u) * 9.2); height: calc(var(--u) * 17.6); rotate: 2.6deg;
+  border-radius: calc(var(--u) * .8); border: max(2px, calc(var(--u) * .15)) solid var(--ink); color: var(--ink);
+  background: linear-gradient(170deg, #f7efdc, var(--putty-2)); box-shadow: calc(var(--u) * .28) calc(var(--u) * .34) 0 rgba(3, 9, 12, .5), 0 calc(var(--u) * .9) calc(var(--u) * 1.8) rgba(0, 0, 0, .3); }
+.mk.mk-about .dio-design .dd-rub .dd-l-rub { position: absolute; right: calc(var(--u) * .8); top: calc(var(--u) * .8); color: var(--ink); white-space: nowrap; }
+.mk.mk-about .dio-design .dd-rub ul { position: absolute; left: calc(var(--u) * 3.3); right: calc(var(--u) * .9); top: calc(var(--u) * 4.4); display: grid; gap: calc(var(--u) * 1.9); }
+.mk.mk-about .dio-design .dd-rub li { position: relative; height: calc(var(--u) * 1.7); }
+.mk.mk-about .dio-design .dd-rub li i { position: absolute; left: 0; right: 0; top: calc(var(--u) * .5); height: calc(var(--u) * .68); border-radius: 99px; background: rgba(23, 32, 42, .14); box-shadow: inset 0 calc(var(--u) * .08) calc(var(--u) * .12) rgba(23, 32, 42, .25); }
+.mk.mk-about .dio-design .dd-rub li b { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w, 60%); border-radius: 99px; background: linear-gradient(color-mix(in srgb, var(--c) 60%, #fff), var(--c)); border: max(2px, calc(var(--u) * .1)) solid var(--ink); transform-origin: left center; }
+.mk.mk-about .dio-design .dd-rub li b::after { content: ""; position: absolute; right: calc(var(--u) * -.55); top: 50%; width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); margin-top: calc(var(--u) * -.75); border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #fff, var(--c) 62%); border: max(2px, calc(var(--u) * .13)) solid var(--ink); }
+
+/* ---------- heroes: pencil across the bottom outer corner, brass rule under the bezel (<= 2.55u below it) ---------- */
+.mk.mk-about .dio-design .dio-hero--a { left: calc(var(--u) * -3); bottom: calc(var(--u) * -2.6); width: calc(var(--u) * 16); height: calc(var(--u) * 23); }
+.mk.mk-about .dio-design .dio-hero--b { z-index: 2; left: calc(var(--u) * -2.6); bottom: calc(var(--u) * -2.55); width: calc(var(--u) * 24); height: calc(var(--u) * 4); }
+.mk.mk-about .dio-design[data-side="r"] .dio-hero--a { left: auto; right: calc(var(--u) * -3); }
+.mk.mk-about .dio-design[data-side="r"] .dio-hero--b { left: auto; right: calc(var(--u) * -2.6); }
+
+/* ---------- motion: everything starts from .is-in; before it the scene waits dark ---------- */
+@keyframes mka-dd-fade { from { opacity: 0; } }
+@keyframes mka-dd-rise { from { opacity: 0; transform: translateY(calc(var(--u) * .7)); } }
+@keyframes mka-dd-pop { from { opacity: 0; transform: scale(.55); } }
+@keyframes mka-dd-wipe { from { transform: scaleX(0); } }
+@keyframes mka-dd-draw { from { stroke-dashoffset: 100; } }
+@keyframes mka-dd-scrap-in { from { opacity: 0; transform: translateX(calc(var(--u) * -2.6)) rotate(-7deg); } }
+@keyframes mka-dd-plate-in { from { opacity: 0; transform: translateY(calc(var(--u) * 1.4)); } }
+@keyframes mka-dd-press { 0%, 100% { scale: 1 1; } 45% { scale: .9 1.03; } }
+@keyframes mka-dd-card-in { from { opacity: 0; transform: translateY(calc(var(--u) * 1.4)) scale(.96); } }
+@keyframes mka-dd-rub-in { from { opacity: 0; translate: calc(var(--u) * -3) 0; rotate: -3deg; } }
+@keyframes mka-dd-pen { 0% { opacity: 0; translate: calc(var(--u) * 3.4 * var(--dd-dir)) calc(var(--u) * 1.2); animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+  15% { opacity: 1; translate: calc(var(--u) * 3.4 * var(--dd-dir)) 0; animation-timing-function: linear; }
+  70% { opacity: 1; translate: calc(var(--u) * 3.4 * var(--dd-dir)) 0; animation-timing-function: cubic-bezier(.45, 0, .3, 1); }
+  100% { opacity: 1; translate: 0 0; } }
+@keyframes mka-dd-line { 0%, 70% { stroke-dashoffset: 100; animation-timing-function: cubic-bezier(.45, 0, .3, 1); } 100% { stroke-dashoffset: 0; } }
+@keyframes mka-dd-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(calc(var(--u) * -.22)) rotate(-.7deg); } }
+@keyframes mka-dd-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.7); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mk.mk-about .dio-design:not(.is-in) :is(.dd-grid, .dd-glow, .dd-l, .dd-press, .dd-jd, .dd-rub, .dio-hero) { opacity: 0; }
+  .mk.mk-about .dio-design.is-in .dd-grid,
+.mk.mk-about .dio-design.is-in .dd-glow { animation: mka-dd-fade .8s ease .05s both; }
+  .mk.mk-about .dio-design.is-in .dd-l-brief { animation: mka-dd-fade .5s ease .15s both; }
+  .mk.mk-about .dio-design.is-in .dd-l-jd { animation: mka-dd-fade .5s ease 1.05s both; }
+  .mk.mk-about .dio-design.is-in .dd-scrap { animation: mka-dd-scrap-in .7s var(--ease) .12s both; }
+  .mk.mk-about .dio-design.is-in .dd-plate { animation: mka-dd-plate-in .55s var(--ease) .3s both; }
+  .mk.mk-about .dio-design.is-in .dd-plate svg { animation: mka-dd-press .42s ease-in-out .95s both; transform-origin: 60% 50%; }
+  .mk.mk-about .dio-design.is-in .dd-scrap svg { animation: mka-dd-press .42s ease-in-out .95s both; transform-origin: 30% 50%; }
+  .mk.mk-about .dio-design.is-in .dd-cw,
+.mk.mk-about .dio-design.is-in .dd-cwo { animation: mka-dd-draw .6s var(--ease) both; }
+  .mk.mk-about .dio-design.is-in .dd-cab1 :is(.dd-cw, .dd-cwo) { animation-delay: 1.15s; }
+  .mk.mk-about .dio-design.is-in .dd-cab2 :is(.dd-cw, .dd-cwo) { animation-delay: 1.27s; }
+  .mk.mk-about .dio-design.is-in .dd-cab3 :is(.dd-cw, .dd-cwo) { animation-delay: 1.39s; }
+  .mk.mk-about .dio-design.is-in .dd-plug { transform-box: fill-box; transform-origin: center; animation: mka-dd-pop .35s var(--spring) both; }
+  .mk.mk-about .dio-design.is-in .dd-cab1 .dd-plug { animation-delay: 1.7s; } .mk.mk-about .dio-design.is-in .dd-cab2 .dd-plug { animation-delay: 1.82s; } .mk.mk-about .dio-design.is-in .dd-cab3 .dd-plug { animation-delay: 1.94s; }
+  .mk.mk-about .dio-design.is-in .dd-jd { animation: mka-dd-card-in .6s var(--ease) 1.05s both; }
+  .mk.mk-about .dio-design.is-in .dd-band { animation: mka-dd-wipe .55s var(--ease) 1.25s both; }
+  .mk.mk-about .dio-design.is-in .dd-tile { animation: mka-dd-pop .45s var(--spring) 1.4s both; }
+  .mk.mk-about .dio-design.is-in .dd-title { animation: mka-dd-rise .5s var(--ease) 1.55s both; }
+  .mk.mk-about .dio-design.is-in .dd-co { animation: mka-dd-rise .5s var(--ease) 1.67s both; }
+  .mk.mk-about .dio-design.is-in .dd-must > .sil { animation: mka-dd-fade .4s ease 1.8s both; }
+  .mk.mk-about .dio-design.is-in .dd-chips:not(.dd-ghost) li { animation: mka-dd-pop .42s var(--spring) both; animation-delay: calc(1.9s + var(--i) * .15s); }
+  .mk.mk-about .dio-design.is-in .dd-nice > * { animation: mka-dd-fade .5s ease 2.05s both; }
+  .mk.mk-about .dio-design.is-in .dd-sal > .sil { animation: mka-dd-fade .4s ease 2.4s both; }
+  .mk.mk-about .dio-design.is-in .dd-num { animation: mka-dd-fade .4s ease 2.45s both; }
+  .mk.mk-about .dio-design.is-in .dd-trk { animation: mka-dd-fade .4s ease 2.4s both; }
+  .mk.mk-about .dio-design.is-in .dd-bf { animation: mka-dd-wipe .8s var(--ease) 2.5s both; }
+  .mk.mk-about .dio-design.is-in .dd-cap { animation: mka-dd-pop .35s var(--spring) both; } .mk.mk-about .dio-design.is-in .dd-cap1 { animation-delay: 2.45s; } .mk.mk-about .dio-design.is-in .dd-cap2 { animation-delay: 3.2s; }
+  .mk.mk-about .dio-design.is-in .dd-mk { animation: mka-dd-pop .45s var(--spring) 3.1s both; }
+  .mk.mk-about .dio-design.is-in .dd-rub { animation: mka-dd-rub-in .7s var(--ease) 2.6s both; }
+  .mk.mk-about .dio-design.is-in .dd-rub li b { animation: mka-dd-wipe .55s var(--ease) both; animation-delay: calc(3.1s + var(--i) * .13s); }
+  .mk.mk-about .dio-design.is-in .dd-rub li b::after { animation: mka-dd-fade .3s ease both; animation-delay: calc(3.5s + var(--i) * .13s); }
+  .mk.mk-about .dio-design.is-in .dio-hero--a { animation: mka-dd-pen 3.5s both; }
+  .mk.mk-about .dio-design.is-in .dio-hero--b { animation: mka-dd-fade .6s ease .1s both; }
+  .mk.mk-about .dio-design.is-in .dd-line,
+.mk.mk-about .dio-design.is-in .dd-line-glow { animation: mka-dd-line 3.5s both; }
+  /* idle: a very gentle float on the pencil, a slow twinkle on the sparkles */
+  .mk.mk-about .dio-design.is-in .dio-hero--a svg { animation: mka-dd-float 6.5s ease-in-out 3.8s infinite; transform-origin: 70% 90%; }
+  .mk.mk-about .dio-design.is-in .dd-sp { animation: mka-dd-twinkle 3.4s ease-in-out 3.6s infinite; }
+  .mk.mk-about .dio-design.is-in .dd-sp2 { animation-delay: 4.3s; } .mk.mk-about .dio-design.is-in .dd-sp3 { animation-delay: 5s; } .mk.mk-about .dio-design.is-in .dd-sp4 { animation-delay: 4.7s; }
+}
+
+/* ---------- phones and portrait windows: one column in normal flow, sized in px, nothing scaled ---------- */
+@media (max-width: 899px), (max-aspect-ratio: 5/4) {
+  .mk.mk-about .dio-design .gl { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 16px 14px 22px; min-height: 0; }
+  .mk.mk-about .dio-design .dd-l,
+.mk.mk-about .dio-design .dd-press,
+.mk.mk-about .dio-design .dd-jd,
+.mk.mk-about .dio-design .dd-rub { position: relative; left: auto; top: auto; right: auto; }
+  .mk.mk-about .dio-design .dd-press { width: 143px; height: 135px; margin-top: 4px; }
+  .mk.mk-about .dio-design .dd-l-jd { margin-top: 10px; }
+  .mk.mk-about .dio-design .dd-jd { width: 100%; border-width: 2px; border-radius: 12px; z-index: 5; }
+  .mk.mk-about .dio-design .dd-band { height: 10px; }
+  .mk.mk-about .dio-design .dd-in { gap: 10px; padding: 12px 14px 14px; }
+  .mk.mk-about .dio-design .dd-tile { width: 44px; height: 44px; border-radius: 11px; }
+  .mk.mk-about .dio-design .dd-head { gap: 10px; }
+  .mk.mk-about .dio-design .dd-title { font-size: 20px; white-space: normal; }
+  .mk.mk-about .dio-design .dd-co { font-size: 15px; white-space: normal; }
+  .mk.mk-about .dio-design .dd-sec { gap: 7px; padding-top: 9px; }
+  .mk.mk-about .dio-design .dd-chips { gap: 7px; }
+  .mk.mk-about .dio-design .dd-chips li { padding: 2px 11px; font-size: 16px; box-shadow: 1.5px 2px 0 var(--ink), inset 0 1px 0 rgba(255, 255, 255, .6); }
+  .mk.mk-about .dio-design .dd-ghost li { height: 26px; width: calc(13px * var(--w, 3)); padding: 0; }
+  .mk.mk-about .dio-design .dd-sal-row { gap: 12px; }
+  .mk.mk-about .dio-design .dd-num { font-size: 17px; }
+  .mk.mk-about .dio-design .dd-range { height: 30px; }
+  .mk.mk-about .dio-design .dd-trk { top: 11px; height: 9px; } .mk.mk-about .dio-design .dd-bf { top: 9px; height: 13px; }
+  .mk.mk-about .dio-design .dd-cap { top: 2px; height: 26px; width: 4px; margin-left: -2px; }
+  .mk.mk-about .dio-design .dd-mk { top: 5px; width: 20px; height: 20px; margin-left: -10px; }
+  .mk.mk-about .dio-design .dd-rub { order: 9; z-index: 4; width: 80%; height: auto; margin: -12px 0 0 auto; padding: 30px 14px 14px; rotate: 1.4deg; border-radius: 12px; }
+  .mk.mk-about .dio-design .dd-rub .dd-l-rub { right: 14px; top: 10px; }
+  .mk.mk-about .dio-design .dd-rub ul { position: static; gap: 12px; }
+  .mk.mk-about .dio-design .dd-rub li { height: 22px; }
+  .mk.mk-about .dio-design .dd-rub li i { top: 6px; height: 10px; }
+  .mk.mk-about .dio-design .dd-rub li b::after { width: 22px; height: 22px; margin-top: -11px; right: -8px; }
+  .mk.mk-about .dio-design .dio-hero--a { width: 116px; height: 167px; left: auto; right: -8px; top: -22px; bottom: auto; scale: -1 1; }
+  .mk.mk-about .dio-design[data-side="r"] .dio-hero--a { right: -6px; left: auto; }
+  .mk.mk-about .dio-design .dio-hero--b { display: none; }
+  .mk.mk-about .dio-design .dio-hero--a svg { filter: drop-shadow(0 6px 7px rgba(0, 0, 0, .42)); }
+  .mk.mk-about .dio-design .dd-line,
+.mk.mk-about .dio-design .dd-line-glow { display: none; }
+}
+@media (max-width: 899px) and (prefers-reduced-motion: no-preference), (max-aspect-ratio: 5/4) and (prefers-reduced-motion: no-preference) {
+  .mk.mk-about .dio-design.is-in .dio-hero--a { animation: mka-dd-fade .6s ease .2s both; translate: 0 0; }
+}
