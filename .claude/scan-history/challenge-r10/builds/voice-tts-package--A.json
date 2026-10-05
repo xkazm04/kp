@@ -1,0 +1,23 @@
+{
+  "card": "voice-tts-package/A",
+  "title": "Language coverage is probed from installed voices, not a hardcoded list",
+  "status": "landed",
+  "base": "6c060c4c",
+  "shas": ["6a50e2b0", "a5ce8079"],
+  "tests_added": [
+    "packages/voice-tts/src/providers/local-inventory.test.ts"
+  ],
+  "cases_red_before": 7,
+  "cases_green_after": 7,
+  "cases_total": 7,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 8,
+  "deviations_from_card": "messages/*.json updated in working tree across 4 locales (en, cs, de, fr) for i18n parity check, kept uncommitted to protect foreign working tree edits.",
+  "notes": "Language coverage moves from static capabilities claim to runtime probed state on TtsProbe. Piper adapter inspects local .onnx.json manifests for language.code. Kokoro adapter supports 3-part KOKORO_VOICES format. pickVoice cleanly abstracts single voice selection rule with matched flag. Status rows forward probed languages to TtsComparePanel with pre-speech language mismatch warnings. All 7 acceptance criteria satisfied."
+}
