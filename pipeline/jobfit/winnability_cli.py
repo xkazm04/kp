@@ -27,7 +27,7 @@ import json
 import sys
 from pathlib import Path
 
-from ._cli import CliError, configure_stdio, emit_error, invalid_input, not_found
+from ._cli import CliError, configure_stdio, emit_error, invalid_input, not_found, resolve_job_arg
 from .jobs import Job
 from .matching import MatchCandidate, load_corpus
 from .profile import CandidateProfileV2
@@ -52,16 +52,7 @@ def main(argv: list[str] | None = None) -> int:
             args.input_json.read_text(encoding="utf-8") if args.input_json else (sys.stdin.read() or "{}")
         )
         job_id = raw.get("jobId")
-        if args.job_json:
-            job = Job.model_validate(json.loads(args.job_json.read_text(encoding="utf-8")))
-        else:
-            jobs = load_corpus(args.jobs)
-            job = next((j for j in jobs if j.id == job_id), None)
-        if job is None:
-            # 404/not_found, NOT the anonymous 500 this used to raise: the recruiter
-            # named a job the corpus no longer carries, and "pick another job" is a
-            # remedy they can act on. An engine fault is not.
-            raise not_found(f"job not found: {job_id}")
+        job = resolve_job_arg(job_id, args.job_json, jobs_path=args.jobs)
 
         candidates: list[MatchCandidate] = []
         skipped: list[dict[str, str]] = []

@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 
 from . import automation
-from ._cli import ERR_ENGINE, ERR_INVALID_INPUT, ERR_NOT_FOUND
+from ._cli import ERR_ENGINE, ERR_INVALID_INPUT, ERR_NOT_FOUND, NotFoundError, resolve_job_arg
 from .llm import emit_deterministic, provider_availability, resolve_provider
 from .matching import MatchCandidate, load_corpus, score_job
 
@@ -72,13 +72,6 @@ def _use_case_for(command: str) -> str:
 # resolve. Imported, not copied (tests/test_cli_error_envelope.py pins that).
 
 
-class NotFoundError(Exception):
-    """A referenced resource (job, entry) does not exist — maps to HTTP 404.
-
-    Deliberately NOT a ValueError subclass so it is caught before the 400 branch,
-    which folds in pydantic ValidationError and json.JSONDecodeError."""
-
-
 def _load_candidate(args) -> MatchCandidate:
     if args.profile_json:
         from .profile import CandidateProfileV2
@@ -88,15 +81,6 @@ def _load_candidate(args) -> MatchCandidate:
     if args.candidate_json:
         return MatchCandidate.model_validate(json.loads(args.candidate_json.read_text(encoding="utf-8")))
     raise ValueError("provide --candidate-json or --profile-json")
-
-
-def _find_job(jobs, job_id):
-    # A present-but-unknown job id is a 404 (the resource is missing), distinct
-    # from a missing --job-id argument, which the caller guards as a 400.
-    job = next((j for j in jobs if j.id == job_id), None)
-    if job is None:
-        raise NotFoundError(f"job not found: {job_id}")
-    return job
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -195,15 +179,7 @@ def main(argv: list[str] | None = None) -> int:
 
             if not args.job_json:
                 raise ValueError("interview-kit requires --job-json")
-            raw = json.loads(args.job_json.read_text(encoding="utf-8"))
-            if not isinstance(raw, dict):
-                raise ValueError("--job-json must hold one job object")
-            # Blank-filled rather than normalize_job()'d, exactly as agentfit_cli reasons:
-            # normalizing would stamp DEFAULT_POLICY phantoms onto the record, and the kit
-            # FAQ is built only from what the posting actually STATED.
-            raw.setdefault("company", "")
-            raw.setdefault("location", "")
-            job = Job.model_validate(raw)
+            job = resolve_job_arg(None, args.job_json)
             # A malformed brief raises json.JSONDecodeError (a ValueError) → the honest
             # 400 below, the same contract --github-evidence and --scorecard-file carry.
             kit_brief = json.loads(args.brief_json.read_text(encoding="utf-8")) if args.brief_json else None
@@ -274,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.job_id:
             # Missing argument (400), not a missing job (404) — keep the two honest.
             raise ValueError(f"{args.command} requires --job-id")
-        job = _find_job(jobs, args.job_id)
+        job = resolve_job_arg(args.job_id, args.job_json, jobs=jobs)
         m = score_job(candidate, job)
 
         if args.command == "screen":

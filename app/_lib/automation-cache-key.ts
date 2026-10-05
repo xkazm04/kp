@@ -132,6 +132,10 @@ export type AutomationKeyInput = {
    *  verdict is gated by. Keyed as the BUCKET (see screenVolumeTier above). Absent
    *  for every other task and for legacy callers, which key as the lenient tier. */
   pipelineSize?: number | null;
+  /** Serialized JSON of the entry's live job record. Folded into the key for single-job
+   *  tasks so JD edits re-draft instead of serving stale 168h-cached drafts. Ignored
+   *  for rematch (its corpusFingerprint already covers the corpus). */
+  jobJson?: string;
 };
 
 // Stable fingerprint of the live job corpus for the rematch cache key: the SORTED
@@ -164,6 +168,7 @@ export function computeAutomationCacheKey(input: AutomationKeyInput): string {
       input.candidateId,
       profileHash,
       input.jobId ?? "",
+      input.task !== "rematch" && input.jobJson ? shortHash(input.jobJson) : "",
       input.task === "rejection" ? input.stage : "",
       input.task === "scorecard" ? shortHash(input.notes) : "",
       input.task === "rematch" ? input.corpusFingerprint ?? "" : "",

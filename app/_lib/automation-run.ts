@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { lookupPromptCache, storePromptCache } from "./db/analyses";
-import { listCorpusJobs } from "./db/jobs";
+import { getJob, listCorpusJobs } from "./db/jobs";
 import { actOnPipelineEntry, countActiveEntriesForJob, createPipelineEntry, getPipelineEntry, hasEvent, recordAutomationEvent, rematchSourceEntry, setApproval } from "./db/pipeline";
 import { getProfileRecord } from "./db/profiles";
 import { latestInterviewByEntry } from "./db/interviews";
@@ -289,6 +289,56 @@ function readRecommendation(result: Record<string, unknown>, task: string): stri
   return coerceInterviewRecommendation(raw);
 }
 
+export interface BuildAutomationArgvOptions {
+  task: string;
+  profilePath: string;
+  degraded?: boolean;
+  jobId?: string | null;
+  jobJsonPath?: string | null;
+  jobsPath?: string | null;
+  pipelineSize?: number | null;
+  stage?: string | null;
+  scorecardPath?: string | null;
+  notesPath?: string | null;
+  lang?: string | null;
+  githubEvidencePath?: string | null;
+}
+
+export function buildAutomationArgv(options: BuildAutomationArgvOptions): string[] {
+  const args = ["-m", "pipeline.jobfit.automation_cli", options.task, "--profile-json", options.profilePath];
+  if (options.degraded) args.push("--no-llm");
+  if (options.task === "rematch") {
+    args.push("--current-job-id", options.jobId ?? "");
+    if (options.jobsPath) {
+      args.push("--jobs", options.jobsPath);
+    }
+  } else {
+    args.push("--job-id", options.jobId ?? "");
+    if (options.jobJsonPath) {
+      args.push("--job-json", options.jobJsonPath);
+    }
+  }
+  if (options.pipelineSize !== null && options.pipelineSize !== undefined) {
+    args.push("--pipeline-size", String(options.pipelineSize));
+  }
+  if (options.task === "rejection" && options.stage) {
+    args.push("--stage", options.stage);
+  }
+  if (options.scorecardPath) {
+    args.push("--scorecard-file", options.scorecardPath);
+  }
+  if (options.task === "scorecard" && options.notesPath) {
+    args.push("--notes-file", options.notesPath);
+  }
+  if (options.lang) {
+    args.push("--lang", options.lang);
+  }
+  if (options.githubEvidencePath) {
+    args.push("--github-evidence", options.githubEvidencePath);
+  }
+  return args;
+}
+
 export async function runAutomationTask(
   entryId: string,
   task: string,
@@ -429,12 +479,15 @@ export async function runAutomationTask(
   // One COUNT, scoped to the entry's own tenant like every other read here.
   const pipelineSize =
     task === "screen" && entry.jobId ? countActiveEntriesForJob(entry.jobId, workspaceId) : null;
+  const jobRecord = task !== "rematch" && entry.jobId ? getJob(entry.jobId, workspaceId) : null;
+  const jobJson = jobRecord ? JSON.stringify(jobRecord) : null;
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
     candidateId: entry.candidateId,
     profileJson,
     jobId: entry.jobId ?? null,
+    jobJson: task === "rematch" ? undefined : (jobJson ?? undefined),
     stage: entry.stage,
     notes,
     // The interview evidence is a key axis of its own (mirrors the GH7 one): a
@@ -463,54 +516,50 @@ export async function runAutomationTask(
       const profilePath = path.join(workdir, "profile.json");
       await writeFile(profilePath, profileJson, "utf-8");
 
-      const args = ["-m", "pipeline.jobfit.automation_cli", task, "--profile-json", profilePath];
-      // Billing degrade: past the AI-candidates allowance, automation drafting
-      // runs the deterministic templates (--no-llm) instead of blocking the
-      // pipeline. Part of the analyze-debited candidate bundle — no extra debit.
-      // `degraded` is the SAME boolean folded into the cache key above.
-      if (degraded) args.push("--no-llm");
+      let jobJsonPath: string | null = null;
+      if (task !== "rematch" && jobJson) {
+        jobJsonPath = path.join(workdir, "job.json");
+        await writeFile(jobJsonPath, jobJson, "utf-8");
+      }
+
+      let jobsPath: string | null = null;
       if (task === "rematch") {
-        args.push("--current-job-id", entry.jobId ?? "");
-        // Score the SAME live corpus we fingerprinted into the cache key (not Python's
-        // static seed file) so the recommendation reflects current openings and the
-        // HIT/MISS boundary stays honest. corpusJobs is non-null on the rematch path.
-        const jobsPath = path.join(workdir, "jobs.json");
+        jobsPath = path.join(workdir, "jobs.json");
         await writeFile(jobsPath, JSON.stringify(corpusJobs ?? []), "utf-8");
-        args.push("--jobs", jobsPath);
-      } else args.push("--job-id", entry.jobId ?? "");
-      // The SAME count folded (bucketed) into the cache key above — screen only.
-      if (pipelineSize !== null) args.push("--pipeline-size", String(pipelineSize));
-      if (task === "rejection") args.push("--stage", entry.stage);
-      // The interview the letter follows from (rejection/offer). Written like
-      // profile.json/github.json — the SAME bytes folded into the cache key above,
-      // so a scorecard synthesized after a first draft invalidates the cached,
-      // ungrounded letter instead of serving it for the rest of the TTL.
+      }
+
+      let scorecardPath: string | null = null;
       if (scorecardJson) {
-        const scorecardPath = path.join(workdir, "scorecard.json");
+        scorecardPath = path.join(workdir, "scorecard.json");
         await writeFile(scorecardPath, scorecardJson, "utf-8");
-        args.push("--scorecard-file", scorecardPath);
       }
+
+      let notesPath: string | null = null;
       if (task === "scorecard") {
-        const notesPath = path.join(workdir, "notes.txt");
+        notesPath = path.join(workdir, "notes.txt");
         await writeFile(notesPath, notes, "utf-8");
-        args.push("--notes-file", notesPath);
       }
-      // PREP2 — the recruiter-narrative tasks (prep/screen/scorecard) render in the
-      // resolved uiLang (the org's app language); the LETTER tasks
-      // (outreach/rejection/offer) render in the CANDIDATE'S resolved comms locale,
-      // so the Python-drafted letter and the TS-rendered chrome around it are one
-      // language authority. The two sets are disjoint — at most one --lang is pushed.
-      if (uiLang) args.push("--lang", uiLang);
-      if (letterLang) args.push("--lang", letterLang);
-      // GH7 — hand the persisted GitHub evidence to the screen/prep/scorecard
-      // prompts (mirrors the --notes-file pattern). Python renders it as a
-      // compact "Public repo evidence" block; null (bare entry or a task that
-      // never reads it) keeps the prompt byte-identical to pre-GH7.
+
+      let githubEvidencePath: string | null = null;
       if (githubEvidenceJson) {
-        const githubPath = path.join(workdir, "github.json");
-        await writeFile(githubPath, githubEvidenceJson, "utf-8");
-        args.push("--github-evidence", githubPath);
+        githubEvidencePath = path.join(workdir, "github.json");
+        await writeFile(githubEvidencePath, githubEvidenceJson, "utf-8");
       }
+
+      const args = buildAutomationArgv({
+        task,
+        profilePath,
+        degraded,
+        jobId: entry.jobId ?? null,
+        jobJsonPath,
+        jobsPath,
+        pipelineSize,
+        stage: entry.stage,
+        scorecardPath,
+        notesPath,
+        lang: uiLang ?? letterLang,
+        githubEvidencePath,
+      });
 
       const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
       const { stdout, stderr, exitCode } = await result;

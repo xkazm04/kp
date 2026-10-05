@@ -140,14 +140,69 @@ class CliError(Exception):
         self.status = status if status is not None else _STATUS_FOR_CODE[code]
 
 
-def not_found(message: str) -> CliError:
+class NotFoundError(CliError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code=ERR_NOT_FOUND)
+
+
+class InvalidInputError(CliError, ValueError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message, code=ERR_INVALID_INPUT)
+
+
+def not_found(message: str) -> NotFoundError:
     """404 — the named job/candidate/record is not in the resolved corpus."""
-    return CliError(message, code=ERR_NOT_FOUND)
+    return NotFoundError(message)
 
 
-def invalid_input(message: str) -> CliError:
+def invalid_input(message: str) -> InvalidInputError:
     """400 — the caller's JSON/argument is malformed or fails validation."""
-    return CliError(message, code=ERR_INVALID_INPUT)
+    return InvalidInputError(message)
+
+
+def resolve_job_arg(
+    job_id: str | None,
+    job_json: Path | None,
+    jobs: list[Any] | None = None,
+    jobs_path: Path | None = None,
+) -> Any:
+    """Resolve a single Job: prefer --job-json when provided (validating id matches
+    job_id if job_id is provided, and validating Job schema), else search jobs (or
+    load_corpus(jobs_path)). Raises InvalidInputError on malformed/mismatched --job-json,
+    NotFoundError when not found."""
+    from .jobs import Job
+
+    if job_json is not None:
+        try:
+            raw = json.loads(job_json.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise invalid_input(f"malformed --job-json: {exc}") from exc
+        if not isinstance(raw, dict):
+            raise invalid_input("--job-json must hold one job object")
+        rec_id = raw.get("id")
+        if job_id is not None and rec_id != job_id:
+            raise invalid_input(
+                f"--job-json record id ({rec_id!r}) does not match --job-id ({job_id!r})"
+            )
+        raw.setdefault("company", "")
+        raw.setdefault("location", "")
+        try:
+            return Job.model_validate(raw)
+        except Exception as exc:
+            raise invalid_input(f"--job-json failed Job validation: {exc}") from exc
+
+    if job_id is None:
+        raise invalid_input("missing job id")
+
+    if jobs is None:
+        from .matching import load_corpus
+
+        jobs = load_corpus(jobs_path)
+
+    job = next((j for j in jobs if j.id == job_id), None)
+    if job is None:
+        raise not_found(f"job not found: {job_id}")
+    return job
 
 
 def _classify(exc: Exception) -> tuple[str, int]:
