@@ -16,7 +16,7 @@ open-gap register — this file is the "what exists and where" index.
 | Application status + decision explanation + NPS | `app/status/[token]/StatusClient.tsx` | Candidate (public, token-gated) |
 | Sealed decision dossier (full) | `app/api/decisions/records/route.ts` | Operator only |
 | Candidate AI disclosure (regime + retention window) | `app/_components/AiDisclosure.tsx`, values from `app/_lib/compliance-disclosure.ts` | Candidate (rendered on 7 public surfaces, per-tenant props) |
-| Compliance summary JSON | `app/api/compliance/route.ts` | **Operator only — gated, caller-scoped** (not on the public allow-list) |
+| Compliance summary JSON | `app/api/compliance/route.ts` | **Signed-in session only — gated, caller-scoped** (not on the public allow-list) |
 | Adverse-impact worksheet | `Decisions → Compliance` tab (`app/_lib/adverse-impact.ts`) | Operator, browser-only |
 
 **`/trust` is PUBLIC and INDEXED**, flipped on 2026-08-05 and reversing the
