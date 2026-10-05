@@ -281,7 +281,7 @@ const config = [
     // copies from isolated agent runs. Without this, `eslint .` traverses those
     // stale checkouts and reports their (pre-existing, unrelated) violations as
     // if they were this tree's. eslint has no business in .claude.
-    ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**", "kpi-sim/**"]
+    ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**", "kpi-sim/**", ".contest/**"]
   },
   {
     // ---------------------------------------------------------------------
