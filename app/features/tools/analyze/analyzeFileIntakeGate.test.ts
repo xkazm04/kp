@@ -76,11 +76,13 @@ test("every Analyze File entry point plans through the router, never through a p
   assert.match(zone, /planSingleSlot\(/, "a standalone zone (the /me import) still plans its own single slot");
 });
 
-test("replacing the JD by any path detaches the saved-JD slug", () => {
+test("the router's JD commit and the picker both go through the jd-source door", () => {
   const intake = code("./useAnalyzeFileAccept.ts");
   const jdCommit = intake.slice(intake.indexOf("plan.jd"), intake.indexOf("plan.company"));
   assert.match(jdCommit, /setJobDescriptionFile\(/);
-  assert.match(jdCommit, /setSelectedJdSlug\(null\)/, "the router's JD commit keeps the picker's slug rule");
+  assert.doesNotMatch(jdCommit, /setSelectedJdSlug/, "the router relies on the jd-source door to clear the slug");
+  const optionalCols = code("./AnalyzeFormOptionalColumns.tsx");
+  assert.doesNotMatch(optionalCols, /setSelectedJdSlug/, "optional columns go through the jd-source door without direct setSelectedJdSlug");
 });
 
 test("upload-constraints exports the paired client + server gates, no divergent duplicate", () => {
