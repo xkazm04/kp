@@ -67,11 +67,12 @@ were resolved by hand:
 | `npm run test:unit -- "app/api/**/*.test.ts" "app/_lib/auth/**/*.test.ts"` | 2087 pass, 4 fail (see below) |
 | `git grep -n "cookies.set(SESSION_COOKIE" -- app` | only `app/_lib/auth/session-issuer.ts` (2 sites) plus tests |
 
-**Failures present on main without this change (verified by detaching to `HEAD~1`, same 3 failures).**
-- `app/api/interview/recording/recording-door.test.ts` fails 2 tests.
-- `app/api/interview/complete/complete-candidate-guard.test.ts` fails 1 test.
-- These are 3 test cases in 2 files; the 4th "fail" is the same recording-door file counted twice in the combined run.
-- The error is `TypeError: NextResponse is not a constructor` in the recording route, which is unrelated to auth.
+**Failures present on main without this change.** The same 4 tests fail on `39a709baa` when the same
+combined command is run there (2072 tests, 4 fail):
+- `app/api/interview/complete/complete-candidate-guard.test.ts` has 1 failing test, the CONTROL case.
+- `app/api/interview/recording/recording-door.test.ts` has 3 failing tests: playback, retention gate and recruiter deletion.
+- The recording door fails with `TypeError: NextResponse is not a constructor`, which is unrelated to auth.
+- Run alone, the recording-door file fails 2 of those 3; the deletion case only fails in the combined run.
 
 **Also red on main: `npm run test:docs`.** `check-doc-sync.test.mjs` asserts
 `missing doc: docs/design/app-contest-kit.md`. That doc is referenced by the feature-doc map but is
