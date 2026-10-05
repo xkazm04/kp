@@ -95,9 +95,7 @@ and its listening half by the STT one, once a streaming local engine is worth it
 - **Server**: above the engine cap, `speak()` segments and joins WAV clips itself, so a
   whole-clip caller still gets one clip. Measured: a 450-char Czech paragraph on Piper = 10 s
   synthesis for 58 s of audio — the number that makes pipelining mandatory.
-- **Browser**: `useTts` normalizes + segments client-side, fetches chunk N+1 while N plays
-  (lookahead 2), reports `served.firstAudioMs` and `progress {spoken,total}`; a mid-utterance
-  failure is shown as a truncation ("stopped after 2 of 5, the rest is in the text").
+- **Browser**: `useTts` delegates to a pure resumable driver (`react/utterance.ts`), normalizes + segments client-side, fetches chunk N+1 while N plays (lookahead 2), reports `served.firstAudioMs` and `progress {spoken,total}`. A blocked autoplay surfaces as `blocked`, and calling `resume()` from a user gesture continues playback through all remaining chunks to `idle`. A mid-utterance engine failure surfaces as `error` with `resumable: boolean`; retrying via `resume()` refetches only the failed chunk, reuses prefetched chunks, and plays through to completion. Non-retryable codes (`TTS_UNAVAILABLE`, `TTS_VOICE_INVALID`, `TTS_TEXT_TOO_LONG`) set `resumable: false`. All created object URLs are released on completion, stop, or supersede.
 - **A throttled chunk is held, not dropped (2026-09-05).** `fetchChunk` threw on any non-2xx,
   so a 429 on chunk 3 of 6 truncated the utterance mid-sentence and the immediate manual retry
   the operator made hit the same closed window. It now retries a 429 **at the wait the host

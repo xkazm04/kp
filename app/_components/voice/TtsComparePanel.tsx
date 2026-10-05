@@ -160,7 +160,21 @@ export function TtsComparePanel() {
             {tts.served.fallbackFrom ? <span className="text-coral"> {t("fellBack", { provider: tts.served.fallbackFrom })}</span> : null}
           </>
         ) : null}
-        {tts.error && tts.progress && tts.progress.spoken > 0 ? <span> · {t("truncated", { spoken: tts.progress.spoken, total: tts.progress.total })}</span> : null}
+        {tts.error && tts.progress && tts.progress.spoken > 0 ? (
+          <span>
+            {" · "}
+            {t("truncated", { spoken: tts.progress.spoken, total: tts.progress.total })}
+            {tts.resumable ? (
+              <button
+                type="button"
+                onClick={() => void tts.resume()}
+                className="ml-2 font-medium underline hover:text-ink"
+              >
+                {t("continue")}
+              </button>
+            ) : null}
+          </span>
+        ) : null}
       </p>
     </section>
   );

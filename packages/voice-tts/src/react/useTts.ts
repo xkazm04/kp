@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TtsProviderId, TtsStatus } from "../types.ts";
 import { speechReady } from "../text/normalize.ts";
 import { segmentSpeech } from "../text/segment.ts";
+import { createUtterance, type Utterance, type UtteranceOutcome } from "./utterance.ts";
 
 /** `waiting` is a THROTTLE, not a failure: the host (or the engine behind it)
  *  asked us to hold for a stated number of seconds, and the utterance is still
@@ -198,6 +199,8 @@ export type UseTts = {
    *  fault, or a host that answers no code. A localizing surface resolves THIS
    *  and keeps `error` for its log. */
   errorCode: string | null;
+  /** Whether the current utterance can be continued via resume() (after autoplay block or retryable failure). */
+  resumable: boolean;
   speak: (args: SpeakArgs) => Promise<void>;
   /** Resume a playback the browser blocked (must be called from a user gesture). */
   resume: () => Promise<void>;
@@ -221,29 +224,22 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
   const [progress, setProgress] = useState<UseTts["progress"]>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [resumable, setResumable] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlsRef = useRef<string[]>([]);
-  const abortRef = useRef<AbortController | null>(null);
-  const generation = useRef(0);
+  const utteranceRef = useRef<Utterance | null>(null);
 
-  const release = useCallback(() => {
+  const stop = useCallback(() => {
+    utteranceRef.current?.stop();
+    utteranceRef.current = null;
     const a = audioRef.current;
     if (a) {
       a.pause();
       a.src = "";
       audioRef.current = null;
     }
-    for (const u of urlsRef.current) URL.revokeObjectURL(u);
-    urlsRef.current = [];
-  }, []);
-
-  const stop = useCallback(() => {
-    generation.current += 1;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    release();
     setPlayback("idle");
-  }, [release]);
+    setResumable(false);
+  }, []);
 
   useEffect(() => stop, [stop]);
 
@@ -306,7 +302,6 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      urlsRef.current.push(url);
       return {
         url,
         provider: (res.headers.get("x-tts-provider") || "unknown") as TtsProviderId,
@@ -320,16 +315,25 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
   );
 
   /** Play one clip to completion; resolves "done" | "blocked" (element kept for resume). */
-  const playUrl = useCallback(
-    (url: string, gen: number): Promise<"done" | "blocked"> =>
+  const playClip = useCallback(
+    (chunk: Chunk): Promise<"done" | "blocked"> =>
       new Promise((resolve, reject) => {
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => resolve("done");
+        let audio = audioRef.current;
+        if (!audio || audio.src !== chunk.url) {
+          audio = new Audio(chunk.url);
+          audioRef.current = audio;
+        }
+        audio.onended = () => {
+          if (audioRef.current === audio) {
+            audio.src = "";
+            audioRef.current = null;
+          }
+          resolve("done");
+        };
         audio.onerror = () => reject(new Error("playback failed"));
         audio.play().then(
           () => {
-            if (gen === generation.current) setPlayback("playing");
+            setPlayback("playing");
           },
           () => resolve("blocked"),
         );
@@ -337,35 +341,55 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
     [],
   );
 
+  const handleOutcome = useCallback((outcome: UtteranceOutcome) => {
+    switch (outcome.state) {
+      case "blocked":
+        setPlayback("blocked");
+        setResumable(true);
+        break;
+      case "done":
+        setPlayback("idle");
+        setResumable(false);
+        break;
+      case "failed":
+        setError(outcome.error.message);
+        setErrorCode(outcome.code);
+        setPlayback("error");
+        setResumable(outcome.resumable);
+        break;
+      case "interrupted":
+        break;
+    }
+  }, []);
+
   const speak = useCallback(
     async (args: SpeakArgs) => {
       stop();
-      const gen = generation.current;
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
       setError(null);
       setErrorCode(null);
       setServed(null);
+      setResumable(false);
       const text = args.format === "chat" ? speechReady(args.text) : args.text;
       const chunks = args.segment === false ? [text] : segmentSpeech(text, { maxChars: maxChunkChars });
       if (!chunks.length) return;
       setProgress({ spoken: 0, total: chunks.length });
       setPlayback("synthesizing");
       const started = performance.now();
-      const pending: Promise<Chunk>[] = [];
-      const ensure = (i: number) => {
-        while (pending.length < chunks.length && pending.length <= i + lookahead) {
-          const k = pending.length;
-          pending.push(fetchChunk(chunks[k], args, ctrl.signal));
-          pending[k].catch(() => {});
-        }
-      };
-      try {
-        for (let i = 0; i < chunks.length; i++) {
-          ensure(i);
-          const chunk = await pending[i];
-          if (gen !== generation.current) return;
-          if (i === 0) {
+
+      const utterance = createUtterance<Chunk>({
+        chunks,
+        lookahead,
+        fetchChunk: (chunkText, _idx, signal) => fetchChunk(chunkText, args, signal),
+        play: playClip,
+        revoke: (url) => {
+          try {
+            URL.revokeObjectURL(url);
+          } catch {
+            /* ignore in non-browser/test environments */
+          }
+        },
+        onChunkStart: (idx, chunk) => {
+          if (idx === 0) {
             setServed({
               provider: chunk.provider,
               fallbackFrom: chunk.fallbackFrom,
@@ -375,40 +399,32 @@ export function useTts({ endpoint, fetcher, maxChunkChars = 280, lookahead = 2 }
               unsupportedLanguage: chunk.unsupportedLanguage,
             });
           }
-          const result = await playUrl(chunk.url, gen);
-          if (gen !== generation.current) return;
-          if (result === "blocked") {
-            setPlayback("blocked");
-            return;
-          }
-          setProgress({ spoken: i + 1, total: chunks.length });
-          if (audioRef.current) {
-            audioRef.current.src = "";
-            audioRef.current = null;
-          }
-        }
-        release();
-        setPlayback("idle");
-      } catch (e) {
-        if (gen !== generation.current || (e as Error).name === "AbortError") return;
-        setError((e as Error).message);
-        setErrorCode(e instanceof TtsRequestError ? e.code : null);
-        setPlayback("error");
+        },
+        onChunkSpoken: (idx) => {
+          setProgress({ spoken: idx + 1, total: chunks.length });
+        },
+      });
+
+      utteranceRef.current = utterance;
+      const outcome = await utterance.run();
+      if (utteranceRef.current === utterance) {
+        handleOutcome(outcome);
       }
     },
-    [fetchChunk, lookahead, maxChunkChars, playUrl, release, stop],
+    [fetchChunk, handleOutcome, lookahead, maxChunkChars, playClip, stop],
   );
 
   const resume = useCallback(async () => {
-    const a = audioRef.current;
-    if (!a) return;
-    try {
-      await a.play();
-      setPlayback("playing");
-    } catch {
-      setPlayback("blocked");
+    const utt = utteranceRef.current;
+    if (!utt || !utt.resumable) return;
+    if (playback === "error") {
+      setPlayback("synthesizing");
     }
-  }, []);
+    const outcome = await utt.resume();
+    if (utteranceRef.current === utt) {
+      handleOutcome(outcome);
+    }
+  }, [handleOutcome, playback]);
 
-  return { providers, refreshProviders, playback, served, progress, error, errorCode, speak, resume, stop };
+  return { providers, refreshProviders, playback, served, progress, error, errorCode, resumable, speak, resume, stop };
 }

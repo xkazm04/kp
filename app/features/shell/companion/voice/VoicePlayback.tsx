@@ -51,7 +51,8 @@ type PlaybackState = {
 export function pressVoicePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): boolean {
   if (!entry || voiceTextForTurn(entry).length === 0) return false;
   const active = speech.speakingId === entry.id;
-  if (active && speech.playback === "blocked") speech.resume();
+  const resumable = active && (speech.playback === "blocked" || (speech.playback === "error" && speech.resumable));
+  if (resumable) speech.resume();
   else if (active && speech.playback !== "error") speech.stop();
   else speech.speak(entry);
   return true;
@@ -65,6 +66,7 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
   const active = Boolean(entry && speech.speakingId === entry.id);
   const blocked = active && speech.playback === "blocked";
   const failed = active && speech.playback === "error";
+  const resumable = blocked || (failed && speech.resumable);
   // The engine (or our own throttle) asked for a pause. Saying so is the whole
   // point: the utterance used to truncate here, and a control that goes quiet
   // for two seconds with no word is indistinguishable from one that broke.
@@ -82,7 +84,7 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
     failed,
     note: waiting ? t("voice.waiting") : wrongLanguage ? t("voice.wrongLanguage") : null,
     reason: failed ? resolveError({ code: speech.errorCode }, t("voice.failed")) : null,
-    label: blocked ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
+    label: resumable ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
     press: () => { pressVoicePlayback(entry, speech); },
   };
 }

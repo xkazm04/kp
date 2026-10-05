@@ -139,6 +139,7 @@ export function useStudioSpeech({
     playback,
     speaking: playback === "synthesizing" || playback === "waiting" || playback === "playing",
     blocked: playback === "blocked",
+    resumable: tts.resumable,
     unavailable: latched,
     errorCode,
     speak,

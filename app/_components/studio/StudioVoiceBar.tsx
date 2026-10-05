@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { AudioLines, Mic, MicOff, Play, Square, Volume2, VolumeX } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { IconAction } from "@/app/_components/IconAction";
 import { micLevelPercent } from "@/app/_components/voice/useMicTest";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -69,6 +70,7 @@ export function StudioVoiceBar({
   sessionKey = null,
 }: StudioVoiceBarProps) {
   const t = useStudioTranslations(ns);
+  const tCompanion = useTranslations("companion");
   const resolveError = useErrorMessage();
   const slot = useStudioComposerSlot();
 
@@ -134,17 +136,22 @@ export function StudioVoiceBar({
       ) : (
         <>
           {readable ? (
-            <IconAction
-              icon={speech.blocked ? Play : speech.speaking ? Square : Volume2}
-              label={speech.speaking ? t("voiceIo.speaking") : t("glyph.speak")}
-              toggle
-              on={speech.speaking}
-              onClick={() => {
-                if (speech.blocked) speech.resume();
-                else if (speech.speaking) speech.stop();
-                else speech.speak(readable);
-              }}
-            />
+            (() => {
+              const resumable = speech.blocked || (speech.playback === "error" && speech.resumable);
+              return (
+                <IconAction
+                  icon={resumable ? Play : speech.speaking ? Square : Volume2}
+                  label={speech.speaking ? t("voiceIo.speaking") : resumable ? tCompanion("voice.resume") : t("glyph.speak")}
+                  toggle
+                  on={speech.speaking}
+                  onClick={() => {
+                    if (resumable) speech.resume();
+                    else if (speech.speaking) speech.stop();
+                    else speech.speak(readable);
+                  }}
+                />
+              );
+            })()
           ) : null}
           {/* The standing opt-in, offered even with nothing to read yet: it is a
               preference about the NEXT answer, not about this one. */}
