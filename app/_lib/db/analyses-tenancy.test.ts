@@ -19,10 +19,12 @@ import path from "node:path";
 // SELECT-list `workspace_id` is what a leak actually looks like. INSERT is the one
 // exception — there the column list IS the stamp, and the value rides in the VALUES
 // tuple. Same shape as profiles-tenancy.test.ts, which already made this correction.
-const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "analyses.ts"), "utf8");
-
-// Each backtick-delimited block is a prepared-statement SQL string.
-const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const files = ["analyses.ts", "analyses-prior.ts"];
+const sqlBlocks = files.flatMap((file) => {
+  const content = readFileSync(path.join(dir, file), "utf8");
+  return [...content.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
+});
 
 /** A bound tenant predicate: `WHERE workspace_id = ?` / `AND a.workspace_id = ?`. */
 const BOUND_SCOPE = /\bworkspace_id\s*=\s*\?/i;
