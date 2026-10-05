@@ -223,17 +223,32 @@ let _warnedLookupFailed = false;
  * The degraded state is therefore never silent (one warning per process) and never
  * total: `verifySession`'s own checks and the global `KP_SESSION_EPOCH` kill-switch are
  * unaffected, which is exactly the fallback an operator reaches for when the store that
- * would have held the targeted revocation is the thing that is broken. */
+ * would have held the targeted revocation is the thing that is broken.
+ *
+ * `nowMs` filters EXPIRED rows, the same `expires_at_ms > now` predicate `listRevocations`
+ * applies — it used to be accepted and ignored (the 2026-10-06 static sweep's finding 7,
+ * a lint warning). Honouring it is not a weakening, for two reasons:
+ *
+ *  • it cannot drop a row while a session it would match is still live. An exact row
+ *    expires at `iat + SESSION_TTL_MS`, which IS the named cookie's own `exp`; a cutoff
+ *    row expires at `cutoff_ms + SESSION_TTL_MS`, and every session it matches has
+ *    `iat < cutoff_ms`, so its `exp` is strictly earlier. Past either point
+ *    `verifySession` already rejects the cookie on expiry alone.
+ *  • `sweepExpired` already DELETES rows on exactly this predicate, so the answer
+ *    changed at that boundary regardless — just non-deterministically, depending on when
+ *    the lazy sweep last ran. The filter makes it deterministic and makes this read agree
+ *    with `listRevocations`, which is what an operator's "active revocations" view shows. */
 export function isSessionRevoked(session: RevocableSession, nowMs: number = Date.now()): boolean {
   try {
     const row = db()
       .prepare(
         `SELECT 1 AS hit FROM session_revocations
           WHERE principal = @principal
+            AND expires_at_ms > @nowMs
             AND (session_iat = @iat OR (session_iat = @all AND @iat < cutoff_ms))
           LIMIT 1`,
       )
-      .get({ principal: principalFor(session), iat: sessionIat(session), all: ALL_SESSIONS }) as
+      .get({ principal: principalFor(session), iat: sessionIat(session), all: ALL_SESSIONS, nowMs }) as
       | { hit: number }
       | undefined;
     return row !== undefined;

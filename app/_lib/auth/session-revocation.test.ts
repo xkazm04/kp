@@ -171,6 +171,38 @@ test("a row is pruned only once it can no longer match a live session", () => {
   assert.equal(listRevocations(principal, iat + SESSION_TTL_MS + 1).length, 0);
 });
 
+test("the read honours a row's expiry even while the row is still in the table", () => {
+  // `isSessionRevoked` used to accept `nowMs` and ignore it (the 2026-10-06 static sweep's
+  // finding 7), so its answer flipped whenever the LAZY write-side sweep happened to have
+  // collected the row — the same question, two answers, decided by SWEEP_EVERY_MS. It now
+  // applies the `expires_at_ms > now` filter `listRevocations` always has.
+  //
+  // This cannot free a live session: the row expires exactly when the cookie it names
+  // does, so past that point `verifySession` rejects it on expiry alone.
+  const sub = "usr-read-expiry";
+  const iat = T0 + 1_000;
+  revokeSession(userSession(sub, iat), "test:read-expiry", iat);
+
+  const expiresAt = iat + SESSION_TTL_MS;
+  assert.equal(isSessionRevoked(userSession(sub, iat), expiresAt - 1), true, "in force up to the last ms");
+  assert.equal(isSessionRevoked(userSession(sub, iat), expiresAt), false, "and not past it");
+
+  // Non-vacuity: the row is STILL THERE — nothing swept it, so the `false` above is the
+  // read's own filter and not a deletion.
+  const other = new Database(UNIT_DB_PATH, { readonly: true });
+  try {
+    const still = other
+      .prepare(`SELECT expires_at_ms FROM session_revocations WHERE principal = ? AND session_iat = ?`)
+      .get(`user:${sub}`, iat) as { expires_at_ms: number } | undefined;
+    assert.equal(still?.expires_at_ms, expiresAt, "the row is unswept, and expires with the cookie it names");
+  } finally {
+    other.close();
+  }
+  // …and `listRevocations` agrees with the read at the same instants.
+  assert.equal(listRevocations(`user:${sub}`, expiresAt - 1).length, 1);
+  assert.equal(listRevocations(`user:${sub}`, expiresAt).length, 0);
+});
+
 // ---- durability: why this is SQLite and not a Map ---------------------------
 
 test("a revocation is visible to ANOTHER connection — a per-worker list would leave the cookie alive", () => {

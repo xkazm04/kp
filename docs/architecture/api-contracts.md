@@ -352,6 +352,23 @@ source ratchet in `app/_lib/auth/session-issuer.test.ts` fails the build if a fi
 under `app/` both verifies a session and issues one without naming its prior
 session, so the next renewal door cannot repeat the omission.
 
+**…and it learns nothing on the way out** (2026-10-06, scan `f727beae`). The issuer
+check above is the right chokepoint for *minting*, but it is the **last** thing
+`POST /api/auth/switch-workspace` reaches, and the route is under the `/api/auth/`
+public prefix (`app/_lib/auth/public-routes.ts`), so `proxy.ts` never asks the
+revocation question for it either. Every decision on the way to the issuer therefore
+answered a revoked cookie first: `413` for an oversized body, the lock's `403`, `404`
+for a workspace that does not exist, `404` for one owned by another org, `403` for
+one the holder has no seat in. That is an enumeration oracle for the tenant map,
+handed to exactly the stolen cookie the revocation store exists to kill, and it
+breaks the one-refusal-shape doctrine `proxy.ts` states — a missing, forged, expired
+or revoked session is refused *identically*. The route now asks
+`isSessionRevoked(session)` immediately after `verifySession`, before the demo check
+and before the body is read, and answers the absent-cookie `401` body with the
+session cookie cleared. The issuer's `renewing` check stays as defence in depth.
+Cases, one per refusal the oracle used to leak:
+`app/api/auth/switch-workspace/route.test.ts`.
+
 **Single-org installs are unchanged.** `org` is minted only at login, invite
 accept, switch-workspace and register, and register is the only door that creates a
 non-home org, behind `KP_SIGNUP_ENABLED` (default off). With signup off every

@@ -10,6 +10,7 @@ import {
   isOperatorSession,
 } from "@/app/_lib/auth/session";
 import { clearSession, issueSession, type SessionPrincipal } from "@/app/_lib/auth/session-issuer";
+import { isSessionRevoked } from "@/app/_lib/auth/session-revocation";
 import { getWorkspace, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
@@ -31,6 +32,20 @@ export async function POST(request: Request) {
     const session = verifySession(jar.get(SESSION_COOKIE)?.value);
     if (!session) {
       return NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 });
+    }
+    // A REVOKED cookie gets the refusal an ABSENT one gets, and learns nothing on the way.
+    //
+    // proxy.ts (its "one refusal shape" note) states the doctrine: a missing, forged,
+    // expired or revoked session is refused identically, so a dead cookie is never an
+    // oracle. This route is under the /api/auth/ public prefix (auth/public-routes.ts),
+    // so the proxy never asks the revocation question here — and asking it only inside
+    // issueSession, at the very end, meant every decision on the way there answered
+    // first: the 413 body cap, the lock's 403, 404 for an unknown workspace, 404 for a
+    // foreign org's, 403 for one the holder has no seat in. A stolen-and-revoked cookie
+    // could read the tenant map on its way out (security scan f727beae). The issuer's
+    // own `renewing` check stays, as defence in depth for any other renewal door.
+    if (isSessionRevoked(session)) {
+      return clearSession(NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 }));
     }
     // A DEMO session never leaves the demo workspace. `/api/demo` is a PUBLIC route
     // that hands any anonymous visitor a validly-signed cookie carrying NO `sub` and
