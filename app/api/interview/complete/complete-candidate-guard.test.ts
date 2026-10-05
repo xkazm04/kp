@@ -76,6 +76,11 @@ function scoreableEntry() {
     jobId: `job-guard-${seq}`,
     jobTitle: "QA Engineer",
     workspaceId: WS,
+    // At the INTERVIEW stage, where a candidate interview actually happens. An entry with
+    // no stage lands on "Screened", and the scorecard approval is gated on an
+    // interview-role stage (scorecardGateOpen, a474100ec) — so the control was scoring
+    // an entry the gate rightly refused, and the approval it asserts never opened.
+    stage: "Interview",
   });
   const key = computeAutomationCacheKey({
     version: AUTOMATION_VERSION.scorecard,
