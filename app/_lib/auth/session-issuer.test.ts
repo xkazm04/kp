@@ -245,3 +245,137 @@ test("the ratchet itself sees a hand mint (shape fixture)", () => {
   assert.ok(/cookies\s*\.\s*set\s*\(\s*SESSION_COOKIE\b/.test(stripComments(sample)));
   assert.ok(!/\bsignSession\s*\(/.test(stripComments(`// signSession(workspaceId) used to drop the claims`)));
 });
+
+// ---- 8. A RENEWAL names its prior session, and a revoked one is refused -------------
+//
+// S-02 of the 2026-10-05 auth scan: /api/auth/switch-workspace is public (the /api/auth/
+// prefix), so proxy.ts — the one place revocation was consulted for an already-minted
+// cookie — never runs on it, and the route hands back a fresh 7-day token on a NEW `iat`.
+// A revocation names (principal, iat): an exact row names the OLD iat, and a "sign out
+// all devices" cutoff matches `iat < cutoff` while the re-mint's iat is now. So neither
+// shape caught the new token and one POST turned a revoked cookie back into a live
+// session. The issuer's own account re-read cannot cover it — "sign out all devices"
+// leaves the account deliberately ACTIVE.
+//
+// The scan fixed it with an inline check in the route. These cases move the check to the
+// issuer, because the route was only the first renewal door: a second one could leave the
+// check out and nothing would notice. The issuer already is the single mint; a renewal
+// now NAMES its prior session, and the issuer refuses a revoked one before it signs.
+
+const { revokeSession, revokeAllSessions } = await import("./session-revocation.ts");
+type RevocableSession = import("./session-revocation.ts").RevocableSession;
+
+/** A member of the home org with a membership on the default workspace, plus the
+ *  verified prior session a renewal of theirs would carry. */
+function renewable(tag: string, iat: number): { userId: string; prior: RevocableSession } {
+  const u = createUser({ orgId: HOME_ORG, email: email(tag), status: "active", password: "issuer-pw-123" });
+  upsertMembership(u.id, DEFAULT_WORKSPACE_ID, "recruiter");
+  return { userId: u.id, prior: { workspace: DEFAULT_WORKSPACE_ID, iat, sub: u.id } };
+}
+
+test("issueSession refuses a renewal of a REVOKED prior session (exact-iat row) and sets no cookie", () => {
+  const iat = Date.now();
+  const { userId, prior } = renewable("revoked-exact", iat);
+  const principal: SessionPrincipal = { kind: "user", userId, workspaceId: DEFAULT_WORKSPACE_ID };
+
+  // Non-vacuity: the identical renewal succeeds while the prior session is live, so the
+  // refusal below cannot be a status, membership or workspace failure wearing a new name.
+  const live = NextResponse.json({ ok: true });
+  assert.equal(issueSession(live, principal, { entered: false, renewing: prior }).ok, true, "precondition: a live prior session renews");
+
+  assert.equal(revokeSession(prior, "test:stolen-laptop"), true);
+  const res = NextResponse.json({ ok: true });
+  assert.deepEqual(issueSession(res, principal, { entered: false, renewing: prior }), { ok: false, reason: "revoked" });
+  assert.equal(setCookie(res, SESSION_COOKIE), undefined, "a revoked renewal gets no fresh token");
+  assert.equal(setCookie(res, ENTERED_COOKIE), undefined, "…and no marker claiming one");
+});
+
+test("issueSession refuses a renewal caught by a 'sign out all devices' CUTOFF row", () => {
+  const iat = Date.now();
+  const { userId, prior } = renewable("revoked-cutoff", iat);
+  const principal: SessionPrincipal = { kind: "user", userId, workspaceId: DEFAULT_WORKSPACE_ID };
+
+  const live = NextResponse.json({ ok: true });
+  assert.equal(issueSession(live, principal, { entered: false, renewing: prior }).ok, true, "precondition: a live prior session renews");
+
+  // The cutoff is exclusive, so it must sit strictly above this session's iat to catch it.
+  revokeAllSessions(prior, "test:sign-out-all", iat + 1);
+  const res = NextResponse.json({ ok: true });
+  assert.deepEqual(issueSession(res, principal, { entered: false, renewing: prior }), { ok: false, reason: "revoked" });
+  assert.equal(setCookie(res, SESSION_COOKIE), undefined);
+  // The account itself is untouched by "sign out all devices" — which is exactly why the
+  // issuer's existing re-read could never have caught this.
+  const fresh = NextResponse.json({ ok: true });
+  assert.equal(issueSession(fresh, principal, { entered: false }).ok, true, "a sign-in with a fresh credential still mints");
+});
+
+test("a LIVE prior session still renews, and a revocation of one device leaves the sibling minting", () => {
+  const iat = Date.now();
+  const { userId, prior } = renewable("revoked-sibling", iat);
+  const sibling: RevocableSession = { ...prior, iat: iat + 5_000 };
+  const principal: SessionPrincipal = { kind: "user", userId, workspaceId: DEFAULT_WORKSPACE_ID };
+
+  const first = NextResponse.json({ ok: true });
+  assert.equal(issueSession(first, principal, { entered: false, renewing: prior }).ok, true);
+  assert.ok(setCookie(first, SESSION_COOKIE), "a live renewal sets the session cookie as it always did");
+
+  assert.equal(revokeSession(prior, "test:one-device"), true);
+  const revoked = NextResponse.json({ ok: true });
+  assert.equal(issueSession(revoked, principal, { entered: false, renewing: prior }).ok, false);
+
+  const other = NextResponse.json({ ok: true });
+  const r = issueSession(other, principal, { entered: false, renewing: sibling });
+  assert.equal(r.ok, true, "revoking one device does not sign the other one out");
+  assert.ok(verifySession(cookieValue(other, SESSION_COOKIE)), "…and its fresh token verifies");
+});
+
+// ---- 9. Source ratchet: a renewal door names its prior session ----------------------
+//
+// The reason the check lives in the issuer at all is that a FUTURE cookie-to-cookie
+// renewal door could leave it out and no test would notice. This is that test: a file
+// that both verifies a session and mints one is renewing, and it must say so.
+
+/** The argument text of every `issueSession(...)` call in `code`, by paren balance —
+ *  a regex cannot see where a call with a nested object literal ends. */
+function issueSessionCalls(code: string): string[] {
+  const out: string[] = [];
+  const needle = /\bissueSession\s*\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = needle.exec(code))) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    for (; i < code.length && depth > 0; i++) {
+      if (code[i] === "(") depth++;
+      else if (code[i] === ")") depth--;
+    }
+    out.push(code.slice(m.index + m[0].length, i - 1));
+  }
+  return out;
+}
+
+test("every app/ file that both verifies and issues a session passes renewing: to the issuer", () => {
+  const renewalDoors: string[] = [];
+  const offenders: string[] = [];
+  for (const file of sourceFiles(path.join(ROOT, "app"))) {
+    const rel = path.relative(ROOT, file);
+    if (rel === ISSUER) continue;
+    const code = stripComments(readFileSync(file, "utf8"));
+    if (!/\bverifySession\s*\(/.test(code) || !/\bissueSession\s*\(/.test(code)) continue;
+    renewalDoors.push(rel);
+    if (!issueSessionCalls(code).every((args) => /\brenewing\s*:/.test(args))) offenders.push(rel);
+  }
+  // Fail if it matches nothing: a ratchet that checks zero files passes forever.
+  assert.ok(
+    renewalDoors.includes(path.join("app", "api", "auth", "switch-workspace", "route.ts")),
+    `the known renewal door must be in the set — found: ${renewalDoors.join(", ") || "(none)"}`,
+  );
+  assert.deepEqual(offenders, [], "a renewal door minted without naming its prior session — pass renewing: so the issuer can refuse a revoked one");
+});
+
+test("the renewal ratchet reads a call's arguments by paren balance (shape fixture)", () => {
+  assert.deepEqual(issueSessionCalls(`issueSession(res, p, { entered: false, renewing: s })`), [`res, p, { entered: false, renewing: s }`]);
+  assert.deepEqual(issueSessionCalls(`issueSession(res, { kind: "user", userId: f(x) }, { entered: false })`), [
+    `res, { kind: "user", userId: f(x) }, { entered: false }`,
+  ]);
+  assert.ok(!issueSessionCalls(`issueSession(res, p, { entered: false })`).every((a) => /\brenewing\s*:/.test(a)));
+});
